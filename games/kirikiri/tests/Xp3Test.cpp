@@ -1481,6 +1481,44 @@ int main() {
       }
     }
 
+    // Controller objects may expose a bound method to an ordinary Layer,
+    // even when the Controller itself does not derive from Layer.
+    write(tempDir / "startup.tjs",
+          "class MenuController {\n"
+          "  function MenuController(layer) { this.layer = layer; }\n"
+          "  function start() {\n"
+          "    this.layer.visible = false;\n"
+          "    Scripts.execStorage(\"scenario/first.ks\");\n"
+          "  }\n"
+          "}\n"
+          "var win = new Window();\n"
+          "var button = new Layer(win);\n"
+          "button.setPos(10, 20); button.setSize(100, 70);\n"
+          "button.loadImages(\"image/tlg5.tlg\");\n"
+          "var controller = new MenuController(button);\n"
+          "button.onClick = controller.start;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      provider.mountXp3("data.xp3");
+      auto run = Kotonoha::Providers::runTjsStartupSubset(provider);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          !Kotonoha::Providers::dispatchTjsUiClick(run, 30.0f, 40.0f) ||
+          run.kagEntry != "scenario/first.ks" || !run.error.empty()) {
+        std::printf("FAIL: TJS2 separate controller bound to Layer onClick\n");
+        ++failures;
+      } else {
+        const auto after = std::find_if(
+            run.layers.begin(), run.layers.end(),
+            [](const Kotonoha::Providers::TjsUiLayer &layer) {
+              return layer.storage == "image/tlg5.tlg";
+            });
+        if (after == run.layers.end() || after->visible) {
+          std::printf("FAIL: bound TJS2 controller lost its Layer receiver\n");
+          ++failures;
+        }
+      }
+    }
+
     write(tempDir / "startup.tjs",
           "class TitleButton extends Layer {\n"
           "  function TitleButton(owner) {\n"
