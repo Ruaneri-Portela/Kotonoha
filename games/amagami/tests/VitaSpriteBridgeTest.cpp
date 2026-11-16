@@ -51,8 +51,8 @@ int main() {
     bridge.setTextureSizeResolver([&](uint32_t id, uint32_t variant)
         -> std::optional<std::pair<uint32_t, uint32_t>> {
       ++resolutions;
-      if (id == 8 && variant == 2) return {{64, 32}};
-      if (id == 9 && variant == 0) return {{128, 48}};
+      if (id == 8 && variant == 2) return std::make_pair(uint32_t(64), uint32_t(32));
+      if (id == 9 && variant == 0) return std::make_pair(uint32_t(128), uint32_t(48));
       return std::nullopt;
     });
     Vm vm;
@@ -141,6 +141,19 @@ int main() {
           second.object->fields[0].number == 0, "Destroy clears Sprite UID");
     run(vm, original, "destroy");
     check(bridge.sprites().empty(), "No stale objects after destruction");
+
+    run(vm, original, "spawn",
+        {VmValue::num(8), VmValue::num(2), VmValue::num(0)});
+    Amagami::Script k2x;
+    k2x.name = "K2X_Script";
+    Amagami::Method reset;
+    reset.name = "resetPrim";
+    reset.code = {0x34, 0, 2};
+    k2x.methods.push_back(reset);
+    vm.add(k2x);
+    run(vm, vm.instance("K2X_Script"), "resetPrim");
+    check(bridge.sprites().empty(),
+          "K2X_Script.resetPrim clears Vita scene objects");
     std::cout << "Vita Sprite SCF bridge tests passed\n";
     return 0;
   } catch (const std::exception &e) {
