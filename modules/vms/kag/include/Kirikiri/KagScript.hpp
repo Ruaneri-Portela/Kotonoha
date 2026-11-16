@@ -1,5 +1,6 @@
 #pragma once
 #include <Kotonoha/core/Vm.hpp>
+#include <cstdint>
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/script/VNScript.hpp>
@@ -99,6 +100,9 @@ public:
       std::vector<std::size_t> returnStack;
       bool finished = false;
       std::map<std::string, std::string> variables;
+      // Active matched-branch flags and their depth when [call] was issued.
+      std::vector<std::uint8_t> ifBranches;
+      std::vector<std::size_t> callIfDepth;
     };
     State saveState() const;
     void restoreState(const State &state);
@@ -125,6 +129,8 @@ public:
     std::map<std::string, std::string> vars_;
     // In-script KAG calls return to the instruction immediately after [call].
     std::vector<std::size_t> returnStack_;
+    std::vector<std::uint8_t> ifBranches_;
+    std::vector<std::size_t> callIfDepth_;
 
     bool executeTagBlocking(const Tag &tag); // returns true if tag blocks
     bool condition(const Tag &tag) const;
