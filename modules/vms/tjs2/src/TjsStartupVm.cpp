@@ -78,7 +78,8 @@ struct Value {
 // Window or parent Layer, and is projected onto the Kotonoha render viewport.
 // This is not a replacement for KiriKiri's platform Window/Layer classes.
 struct Object {
-  enum class Kind { Dictionary, Window, Layer } kind = Kind::Dictionary;
+  enum class Kind { Dictionary, Window, Layer, ScriptClass } kind = Kind::Dictionary;
+  std::string className;
   std::unordered_map<std::string, Value> members;
   std::weak_ptr<Object> parent;
   std::size_t layerId = 0;
@@ -257,6 +258,17 @@ struct FunctionReturn {
   Value value;
 };
 
+struct SourceClass {
+  std::string name;
+  std::string base;
+  std::unordered_map<std::string, SourceFunction> methods;
+};
+
+struct BoundMethod {
+  ObjectPtr receiver;
+  SourceFunction function;
+};
+
 class Parser;
 class Interpreter {
 public:
@@ -266,15 +278,32 @@ public:
   TjsStartupResult result;
   std::unordered_map<std::string, Value> variables;
   std::unordered_map<std::string, SourceFunction> functions;
+  std::unordered_map<std::string, SourceClass> classes;
+  std::unordered_map<std::string, BoundMethod> boundMethods;
+  std::vector<ObjectPtr> instances;
   std::vector<std::unordered_map<std::string, Value>> frames;
   std::vector<std::string> active;
   std::vector<ObjectPtr> windows, layers;
   std::size_t nextLayerId = 1;
   std::size_t nextAnonymousFunction = 1;
+  std::size_t nextBoundMethod = 1;
   std::size_t remaining;
   std::size_t functionDepth = 0;
 
   Value construct(const std::string &type, const std::vector<Value> &args);
+  Value invokeSource(const SourceFunction &function,
+                     const std::vector<Value> &args,
+                     const ObjectPtr &receiver = {});
+  bool hasCallable(const std::string &name) const {
+    return functions.count(name) != 0 || boundMethods.count(name) != 0;
+  }
+  std::size_t callableArity(const std::string &name) const {
+    if (const auto it = functions.find(name); it != functions.end())
+      return it->second.parameters.size();
+    if (const auto it = boundMethods.find(name); it != boundMethods.end())
+      return it->second.function.parameters.size();
+    throw std::runtime_error("TJS2 subset: callback not found: " + name);
+  }
   void snapshotLayers();
 
   Value get(const std::string &name) const {
@@ -617,6 +646,68 @@ class Parser {
       }
       return;
     }
+    if (match("class")) {
+      SourceClass definition;
+      definition.name = identifier();
+      if (match("extends"))
+        definition.base = identifier();
+      expect("{");
+      while (!match("}")) {
+        if (look().kind == Token::End)
+          throw std::runtime_error("TJS2 subset: unterminated class declaration");
+        // This bounded subset deliberately rejects script class properties,
+        // native dispatch/override syntax and dynamic member declarations.
+        expect("function");
+        const auto methodName = identifier();
+        expect("(");
+        std::vector<std::string> parameters;
+        if (!match(")")) {
+          do {
+            if (parameters.size() >= 16)
+              throw std::runtime_error("TJS2 subset: too many method parameters");
+            const auto name = identifier();
+            if (std::find(parameters.begin(), parameters.end(), name) !=
+                parameters.end())
+              throw std::runtime_error("TJS2 subset: duplicate method parameter");
+            parameters.push_back(name);
+          } while (match(","));
+          expect(")");
+        }
+        if (look().text != "{")
+          throw std::runtime_error("TJS2 subset: class method body expected");
+        const auto start = look().offset;
+        std::size_t braces = 0;
+        do {
+          if (look().kind == Token::End)
+            throw std::runtime_error("TJS2 subset: unterminated class method");
+          if (look().text == "{") ++braces;
+          else if (look().text == "}") --braces;
+          ++pc;
+        } while (braces);
+        if (active) {
+          if (definition.methods.size() >= 64)
+            throw std::runtime_error("TJS2 subset: class method limit exceeded");
+          const auto finish = tokens[pc - 1].offset + 1;
+          if (!definition.methods
+                   .emplace(methodName,
+                            SourceFunction{methodName, sourceName,
+                                           sourceCode.substr(start, finish-start),
+                                           std::move(parameters)})
+                   .second)
+            throw std::runtime_error("TJS2 subset: duplicate class method");
+        }
+        (void)match(";");
+      }
+      (void)match(";");
+      if (active) {
+        if (machine.classes.size() >= 128)
+          throw std::runtime_error("TJS2 subset: class count limit exceeded");
+        const auto className = definition.name;
+        if (!machine.classes.emplace(className, std::move(definition)).second)
+          throw std::runtime_error("TJS2 subset: duplicate class name");
+      }
+      return;
+    }
     if (match("function")) {
       const auto functionName = identifier();
       expect("(");
@@ -825,6 +916,38 @@ public:
   }
 };
 
+Value Interpreter::invokeSource(const SourceFunction &function,
+                                const std::vector<Value> &args,
+                                const ObjectPtr &receiver) {
+  if (args.size() != function.parameters.size())
+    throw std::runtime_error("TJS2 subset: argument count mismatch: " +
+                             function.name);
+  if (functionDepth >= 16)
+    throw std::runtime_error("TJS2 subset: function recursion limit exceeded");
+  std::unordered_map<std::string, Value> frame;
+  for (std::size_t index = 0; index < args.size(); ++index)
+    frame.emplace(function.parameters[index], args[index]);
+  if (receiver)
+    frame["this"] = Value(receiver);
+  frames.push_back(std::move(frame));
+  ++functionDepth;
+  try {
+    Parser parser(*this, function.source, function.body);
+    parser.run();
+  } catch (const FunctionReturn &returned) {
+    --functionDepth;
+    frames.pop_back();
+    return returned.value;
+  } catch (...) {
+    --functionDepth;
+    frames.pop_back();
+    throw;
+  }
+  --functionDepth;
+  frames.pop_back();
+  return {};
+}
+
 Value Interpreter::construct(const std::string &type,
                              const std::vector<Value> &args) {
   const auto integer = [](int value) { return Value(double(value)); };
@@ -846,6 +969,47 @@ Value Interpreter::construct(const std::string &type,
     layers.push_back(layer);
     return layer;
   };
+  if (auto registered = classes.find(type); registered != classes.end()) {
+    // Only small source classes and their virtual Window/Layer/Dictionary
+    // ancestors are supported; arbitrary native class inheritance is not.
+    const SourceClass definition = registered->second;
+    if (instances.size() >= 256)
+      throw std::runtime_error("TJS2 subset: class instance limit exceeded");
+    ObjectPtr instance;
+    if (definition.base.empty()) {
+      instance = std::make_shared<Object>();
+      instance->kind = Object::Kind::ScriptClass;
+    } else if (definition.base == "Window" ||
+               definition.base == "Dictionary") {
+      const auto base = construct(definition.base, {});
+      instance = std::get<ObjectPtr>(base.data);
+    } else if (definition.base == "Layer") {
+      const auto base = construct("Layer", args);
+      instance = std::get<ObjectPtr>(base.data);
+    } else {
+      throw std::runtime_error(
+          "TJS2 subset: unsupported source class base: " + definition.base);
+    }
+    instance->className = type;
+    instances.push_back(instance);
+    if (boundMethods.size() + definition.methods.size() > 2048)
+      throw std::runtime_error("TJS2 subset: bound method limit exceeded");
+    for (const auto &method : definition.methods) {
+      const auto alias = "__tjs_bound_" + std::to_string(nextBoundMethod++);
+      boundMethods.emplace(alias, BoundMethod{instance, method.second});
+      instance->members[method.first] = Value(alias);
+    }
+    auto ctor = definition.methods.find(type);
+    if (ctor == definition.methods.end())
+      ctor = definition.methods.find("constructor");
+    if (ctor != definition.methods.end()) {
+      (void)invokeSource(ctor->second, args, instance);
+    } else if (!args.empty() && definition.base != "Layer") {
+      throw std::runtime_error(
+          "TJS2 subset: constructor arguments without declared constructor");
+    }
+    return Value(instance);
+  }
   if (type == "Dictionary") {
     if (!args.empty())
       throw std::runtime_error("TJS2 UI: Dictionary takes no arguments");
@@ -935,7 +1099,7 @@ void Interpreter::snapshotLayers() {
       frame.onClick = member(layer, "onMouseDown").string();
     const auto callback = [&](const char *property) {
       const auto value = member(layer, property).string();
-      if (!value.empty() && (value.size() > 128 || !functions.count(value)))
+      if (!value.empty() && (value.size() > 128 || !hasCallable(value)))
         throw std::runtime_error(
             std::string(
                 "TJS2 UI: event must name a declared script function: ") +
@@ -943,7 +1107,7 @@ void Interpreter::snapshotLayers() {
       return value;
     };
     if (!frame.onClick.empty() &&
-        (frame.onClick.size() > 128 || !functions.count(frame.onClick)))
+        (frame.onClick.size() > 128 || !hasCallable(frame.onClick)))
       throw std::runtime_error(
           "TJS2 UI: onClick must name a declared script function");
     frame.onMouseEnter = callback("onMouseEnter");
@@ -977,34 +1141,34 @@ Value Interpreter::call(const std::string &name,
   if (!activeFlag)
     return {};
 
+  if (auto it = boundMethods.find(name); it != boundMethods.end()) {
+    const BoundMethod bound = it->second;
+    return invokeSource(bound.function, params, bound.receiver);
+  }
   if (auto it = functions.find(name); it != functions.end()) {
-    // Copy the descriptor: nested declarations can rehash the function table.
     const SourceFunction function = it->second;
-    if (params.size() != function.parameters.size())
-      throw std::runtime_error("TJS2 subset: argument count mismatch: " + name);
-    if (functionDepth >= 16)
-      throw std::runtime_error(
-          "TJS2 subset: function recursion limit exceeded");
-    std::unordered_map<std::string, Value> frame;
-    for (std::size_t index = 0; index < params.size(); ++index)
-      frame.emplace(function.parameters[index], params[index]);
-    frames.push_back(std::move(frame));
-    ++functionDepth;
+    return invokeSource(function, params, {});
+  }
+  // Dotted method calls are resolved through the object member table, so
+  // aliases like this.start() and controller.start() retain their receiver.
+  if (name.find('.') != std::string::npos) {
+    Value candidate;
+    bool resolved = false;
     try {
-      Parser parser(*this, function.source, function.body);
-      parser.run();
-    } catch (const FunctionReturn &returned) {
-      --functionDepth;
-      frames.pop_back();
-      return returned.value;
-    } catch (...) {
-      --functionDepth;
-      frames.pop_back();
-      throw;
+      candidate = get(name);
+      resolved = true;
+    } catch (const std::runtime_error &) {
+      // A native Layer method has no script member. Only lookup is
+      // recoverable; method body errors must propagate to the title UI.
     }
-    --functionDepth;
-    frames.pop_back();
-    return {};
+    if (resolved) {
+      if (const auto id = std::get_if<std::string>(&candidate.data)) {
+        if (auto bound = boundMethods.find(*id); bound != boundMethods.end()) {
+          const BoundMethod method = bound->second;
+          return invokeSource(method.function, params, method.receiver);
+        }
+      }
+    }
   }
 
   // A small safe subset of Layer/Window methods. All methods mutate only
@@ -1016,7 +1180,9 @@ Value Interpreter::call(const std::string &name,
         method == "setSize" || method == "show" || method == "hide") {
       const auto receiver = get(name.substr(0, dot));
       const auto ptr = std::get_if<ObjectPtr>(&receiver.data);
-      if (!ptr || !*ptr || (*ptr)->kind == Object::Kind::Dictionary)
+      if (!ptr || !*ptr ||
+          ((*ptr)->kind != Object::Kind::Window &&
+           (*ptr)->kind != Object::Kind::Layer))
         throw std::runtime_error(
             "TJS2 UI: method receiver is not a Layer/Window");
       auto &obj = *ptr;
@@ -1155,11 +1321,8 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
     auto &vm = session->vm;
     vm.result.kagEntry.clear();
     try {
-      const auto found = vm.functions.find(layer.onClick);
-      if (found == vm.functions.end())
-        throw std::runtime_error("TJS2 UI: missing event handler");
       std::vector<Value> arguments;
-      const auto arity = found->second.parameters.size();
+      const auto arity = vm.callableArity(layer.onClick);
       if (arity > 4)
         throw std::runtime_error("TJS2 UI: unsupported pointer event arity");
       if (arity >= 1)
@@ -1220,10 +1383,7 @@ bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
     const auto invoke = [&](const std::string &name) {
       if (name.empty())
         return;
-      const auto found = vm.functions.find(name);
-      if (found == vm.functions.end())
-        throw std::runtime_error("TJS2 UI: hover handler not found");
-      const auto arity = found->second.parameters.size();
+      const auto arity = vm.callableArity(name);
       if (arity > 4)
         throw std::runtime_error("TJS2 UI: excessive hover parameters");
       std::vector<Value> args;

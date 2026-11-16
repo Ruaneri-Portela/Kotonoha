@@ -29,8 +29,9 @@ struct TjsUiLayer {
 
 struct TjsStartupResult {
   // True when every visited TJS2 statement was handled by the subset VM.
-  // Only Dictionary values and named script functions are supported.
-  // Native UI, user classes, plugins and bytecode are NOT handled.
+  // Supports bounded script functions/classes plus virtual Window/Layer
+  // and Dictionary objects. Complete native class semantics, plugins and
+  // TJS2 bytecode are NOT handled.
   bool subsetCompleted = false;
   bool requiresNativeRuntime = false;
   std::size_t statements = 0;

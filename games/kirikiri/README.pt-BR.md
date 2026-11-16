@@ -16,7 +16,7 @@ Porte C++17 de KiriKiri para o Kotonoha: montagem XP3, interpretador KAG experim
 
 **O menu provisório não é o menu original de NEKOPARA.** O fluxo original de KiriKiri inicia pelo `startup.tjs` e depende do interpretador TJS2, plugins e interface específica do título. O porte ainda não executa TJS2 genérico nem toda a semântica de arquivos PSB/SCN compilados. **O método bruto 3 do TLG6 é experimental e só é aceito com tamanho exato. Gamma (método 1), LZSS modificado (método 2) e filtros específicos XP3 seguem pendentes.** O próprio decodificador KiriKiri Z original rejeita métodos TLG6 não-Golomb. Saves, efeitos, traduções e áudio ainda não possuem paridade com o jogo original.
 
-Classes definidas pelo jogo, comportamento nativo completo de Window/Layer, plugins e bytecode TJS2 compilado **não foram implementados**; a VM parcial interrompe o script quando encontra sintaxe não suportada. Essas melhorias não foram validadas em uma instalação comercial de NEKOPARA. Montar o XP3 ou mostrar o menu provisório não comprova jogabilidade completa. Os testes do repositório usam dados sintéticos.
+Classes TJS2 complexas, comportamento nativo completo de Window/Layer, plugins e bytecode TJS2 compilado **não foram implementados**; a VM parcial interrompe o script quando encontra sintaxe não suportada. Essas melhorias não foram validadas em uma instalação comercial de NEKOPARA. Montar o XP3 ou mostrar o menu provisório não comprova jogabilidade completa. Os testes do repositório usam dados sintéticos.
 
 ## Compilação e testes
 
@@ -38,7 +38,7 @@ laços `for` limitados e objetos compartilhados `new Dictionary()` com leitura/e
 propriedades aninhadas. Isso permite calcular configurações e o roteiro
 KAG inicial antes de apresentar o menu provisório do Kotonoha.
 
-**Ainda não é TJS2 completo:** funções anônimas simples para eventos e objetos Window/Layer virtuais são aceitos, mas closures léxicas, classes definidas pelo jogo, janelas nativas completas, o menu original do KiriKiri e bytecode continuam pendentes. Construtores nativos desconhecidos
+**Ainda não é TJS2 completo:** há suporte inicial a classes declaradas no script, funções anônimas simples para eventos e objetos Window/Layer virtuais. Permanecem pendentes closures léxicas, herança arbitrária entre classes, propriedades avançadas, interfaces nativas completas, menu original do KiriKiri e execução de bytecode. Construtores nativos desconhecidos
 geram um erro explícito, sem simular um menu original. Os testes dessa etapa
 são sintéticos; os recursos não foram validados com assets comerciais.
 
@@ -74,3 +74,23 @@ button.onClick = startGame;
 **Limitações:** viewport compatível de 1280×720, sem janelas do SO nem DLLs.
 Closures completas, eventos de teclado e movimento contínuo do mouse, timers, animações, classes nativas reais e bytecode TJS2 seguem pendentes. Caso as imagens ou callbacks do menu TJS2 falhem, o menu de compatibilidade é restaurado. Isto **não comprova o
 menu original de NEKOPARA**; os testes usam arquivos sintéticos.
+
+## Classes e métodos TJS2 (subconjunto)
+
+O interpretador agora aceita `class Nome { function Nome(...) {...} function metodo(...) {...} }` e `class Nome extends Layer`, `Window` ou `Dictionary`, com instâncias, `this`, métodos associados ao objeto, `return` e construtores. Métodos de classes derivados de `Layer` podem ser usados diretamente como handlers de clique, preservando a identidade de cada instância.
+
+```tjs
+class TitleButton extends Layer {
+  function TitleButton(owner) {
+    this.setPos(100, 80);
+    this.setSize(320, 100);
+    this.loadImages("image/title.tlg");
+    this.onClick = this.start;
+  }
+  function start() { Scripts.execStorage("scenario/start.ks"); }
+}
+var window = new Window();
+var button = new TitleButton(window);
+```
+
+**Limites explícitos:** até 128 classes, 64 métodos por classe, 256 instâncias, 2048 métodos associados e profundidade de chamadas limitada. Herança de classes de usuário, `super`, closures, eventos nativos completos e bytecode ainda não são interpretados. Esses testes são sintéticos; não representam validação de uma instalação comercial.

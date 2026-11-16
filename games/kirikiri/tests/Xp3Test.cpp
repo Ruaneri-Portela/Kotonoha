@@ -1130,7 +1130,7 @@ int main() {
       }
     }
     // Script-level Dictionary objects are not native Window/Layer classes.
-    write(tempDir / "startup.tjs", "var native = new Window();\n");
+    write(tempDir / "startup.tjs", "var native = new UnsupportedNative();\n");
     {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
@@ -1222,12 +1222,12 @@ int main() {
         ++failures;
       }
     }
-    write(tempDir / "startup.tjs", "class GameWindow { }");
+    write(tempDir / "startup.tjs", "class GameWindow { property title; }");
     {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
       if (run.subsetCompleted || run.error.empty()) {
-        std::printf("FAIL: unsupported TJS2 class accepted silently\n");
+        std::printf("FAIL: unsupported TJS2 class property accepted silently\n");
         ++failures;
       }
     }
@@ -1446,6 +1446,180 @@ int main() {
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input, 10000);
       if (run.subsetCompleted || run.error.empty()) {
         std::printf("FAIL: TJS2 repeated Layer allocation was unbounded\n");
+        ++failures;
+      }
+    }
+    std::filesystem::remove(tempDir / "startup.tjs");
+  }
+
+  // TJS2 script-defined classes retain per-instance fields and can expose
+  // named methods as the script-built menu's click handlers. These fixtures
+  // contain no original or commercial game assets.
+  {
+    const auto write = [](const std::filesystem::path &path,
+                          const std::string &source) {
+      std::ofstream file(path, std::ios::binary);
+      file << source;
+    };
+    write(tempDir / "startup.tjs",
+          "class SourceConfig {\n"
+          "  function SourceConfig(prefix) { this.prefix = prefix; }\n"
+          "  function target(name) { return this.prefix + name; }\n"
+          "}\n"
+          "var config = new SourceConfig(\"scenario/\");\n"
+          "Scripts.execStorage(config.target(\"first.ks\"));\n"
+          "System.title = \"Class bootstrap\";\n");
+    {
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      provider.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(provider);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.kagEntry != "scenario/first.ks" ||
+          run.title != "Class bootstrap") {
+        std::printf("FAIL: TJS2 class constructor, this and method call\n");
+        ++failures;
+      }
+    }
+
+    // Controller objects may expose a bound method to an ordinary Layer,
+    // even when the Controller itself does not derive from Layer.
+    write(tempDir / "startup.tjs",
+          "class MenuController {\n"
+          "  function MenuController(layer) { this.layer = layer; }\n"
+          "  function start() {\n"
+          "    this.layer.visible = false;\n"
+          "    Scripts.execStorage(\"scenario/first.ks\");\n"
+          "  }\n"
+          "}\n"
+          "var win = new Window();\n"
+          "var button = new Layer(win);\n"
+          "button.setPos(10, 20); button.setSize(100, 70);\n"
+          "button.loadImages(\"image/tlg5.tlg\");\n"
+          "var controller = new MenuController(button);\n"
+          "button.onClick = controller.start;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      provider.mountXp3("data.xp3");
+      auto run = Kotonoha::Providers::runTjsStartupSubset(provider);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          !Kotonoha::Providers::dispatchTjsUiClick(run, 30.0f, 40.0f) ||
+          run.kagEntry != "scenario/first.ks" || !run.error.empty()) {
+        std::printf("FAIL: TJS2 separate controller bound to Layer onClick\n");
+        ++failures;
+      } else {
+        const auto after = std::find_if(
+            run.layers.begin(), run.layers.end(),
+            [](const Kotonoha::Providers::TjsUiLayer &layer) {
+              return layer.storage == "image/tlg5.tlg";
+            });
+        if (after == run.layers.end() || after->visible) {
+          std::printf("FAIL: bound TJS2 controller lost its Layer receiver\n");
+          ++failures;
+        }
+      }
+    }
+
+    write(tempDir / "startup.tjs",
+          "class TitleButton extends Layer {\n"
+          "  function TitleButton(owner) {\n"
+          "    this.setPos(20, 30); this.setSize(70, 40);\n"
+          "    this.loadImages(\"image/tlg5.tlg\");\n"
+          "    this.onClick = this.activate;\n"
+          "  }\n"
+          "  function activate() {\n"
+          "    this.visible = false;\n"
+          "    Scripts.execStorage(\"scenario/first.ks\");\n"
+          "  }\n"
+          "}\n"
+          "var window = new Window();\n"
+          "var button = new TitleButton(window);\n");
+    {
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      provider.mountXp3("data.xp3");
+      auto run = Kotonoha::Providers::runTjsStartupSubset(provider);
+      const auto before = std::find_if(
+          run.layers.begin(), run.layers.end(),
+          [](const Kotonoha::Providers::TjsUiLayer &layer) {
+            return layer.storage == "image/tlg5.tlg";
+          });
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.layers.size() != 2 || before == run.layers.end() ||
+          before->left != 20 || before->top != 30 ||
+          before->width != 70 || before->height != 40 ||
+          before->onClick.empty() ||
+          !Kotonoha::Providers::dispatchTjsUiClick(run, 30.0f, 40.0f) ||
+          run.kagEntry != "scenario/first.ks" || !run.error.empty()) {
+        std::printf("FAIL: TJS2 subclass of Layer and bound onClick\n");
+        ++failures;
+      } else {
+        const auto after = std::find_if(
+            run.layers.begin(), run.layers.end(),
+            [](const Kotonoha::Providers::TjsUiLayer &layer) {
+              return layer.storage == "image/tlg5.tlg";
+            });
+        if (after == run.layers.end() || after->visible ||
+            Kotonoha::Providers::dispatchTjsUiClick(run, 30.0f, 40.0f)) {
+          std::printf("FAIL: TJS2 bound method retained Layer visibility\n");
+          ++failures;
+        }
+      }
+    }
+
+    write(tempDir / "startup.tjs",
+          "if (false) { class Hidden { function Hidden() {} } }\n"
+          "var bad = new Hidden();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(provider);
+      if (run.subsetCompleted || run.error.empty()) {
+        std::printf("FAIL: inactive TJS2 class became executable\n");
+        ++failures;
+      }
+    }
+
+    write(tempDir / "startup.tjs",
+          "class Unavailable extends MissingNative { }\n"
+          "var bad = new Unavailable();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(provider);
+      if (run.subsetCompleted ||
+          run.error.find("unsupported source class base") ==
+              std::string::npos) {
+        std::printf("FAIL: unsupported TJS2 class parent accepted\n");
+        ++failures;
+      }
+    }
+
+    write(tempDir / "startup.tjs",
+          "class Broken {\n"
+          "  function explode() { return 8 / 0; }\n"
+          "}\n"
+          "var instance = new Broken();\n"
+          "instance.explode();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(provider);
+      if (run.subsetCompleted ||
+          run.error.find("division by zero") == std::string::npos) {
+        std::printf("FAIL: TJS2 class method errors were swallowed\n");
+        ++failures;
+      }
+    }
+
+    write(tempDir / "startup.tjs",
+          "class Recursive {\n"
+          "  function next() { return this.next(); }\n"
+          "}\n"
+          "var instance = new Recursive();\n"
+          "instance.next();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      const auto run =
+          Kotonoha::Providers::runTjsStartupSubset(provider, 10000);
+      if (run.subsetCompleted ||
+          run.error.find("recursion limit") == std::string::npos) {
+        std::printf("FAIL: TJS2 class method recursion not bounded\n");
         ++failures;
       }
     }
