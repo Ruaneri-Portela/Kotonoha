@@ -84,6 +84,15 @@ int main(int argc, char **argv) {
           return std::make_pair(uint32_t(surface->w),
                                 uint32_t(surface->h));
         });
+    bridge.setNamedPictureSizeResolver(
+        [graphics](const std::string &name)
+            -> std::optional<std::pair<uint32_t, uint32_t>> {
+          if (!graphics->contains(name)) return std::nullopt;
+          auto surface = graphics->loadSurface(name);
+          if (!surface) return std::nullopt;
+          return std::make_pair(uint32_t(surface->w),
+                                uint32_t(surface->h));
+        });
     vm.scopedPrimitive = [&bridge](const std::string &owner,
                                    const std::string &method, bool classMethod,
                                    const Amagami::VmValue &self, unsigned code,
