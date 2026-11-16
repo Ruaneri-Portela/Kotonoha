@@ -4,7 +4,7 @@
 
 Port nativo do DVD com progressão PRO1, decodificação de animações, áudio e saves.
 
-**Estado:** Opcodes da interface do computador, transições e finais completos ainda precisam de validação.
+**Estado:** Texto posicionado, relógio e histórico do chat do computador já têm estado e renderização, além de testes sintéticos. A fidelidade visual das cores e posições, os comandos de e-mail/ícones, as transições e os finais completos ainda precisam de validação.
 
 ## Compilação
 

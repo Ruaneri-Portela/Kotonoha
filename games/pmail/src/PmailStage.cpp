@@ -1,5 +1,7 @@
 #include "PmailStage.hpp"
 #include <Pmail/Port.hpp>
+#include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/UI.hpp>
 #include <algorithm>
 #include <iostream>
 #include <set>
@@ -7,6 +9,23 @@
 #include <utility>
 
 namespace Kotonoha::PmailPort {
+namespace {
+// The original 16-color text palette is not yet recovered. These values
+// preserve readable contrast over the computer backgrounds until native
+// palette entries can be verified.
+SDL_Color computerColor(int index) {
+  switch (index) {
+  case 1:
+    return {45, 45, 48, 255};
+  case 8:
+    return {34, 73, 143, 255};
+  case 10:
+    return {24, 38, 66, 255};
+  default:
+    return {35, 43, 59, 255};
+  }
+}
+} // namespace
 
 PmailStage::PmailStage(Kotonoha::Engine &engine, PmailGame &game,
                        Kotonoha::Providers::SnowAssets &assets)
@@ -59,6 +78,7 @@ void PmailStage::render(Kotonoha::RendererRef renderer, float scale) {
   // 2. Draw Sprites
   renderSprites(renderer);
   renderAnimations(renderer);
+  renderComputerUi(renderer);
   if (!SDL_SetRenderTarget(&renderer, previousTarget))
     throw std::runtime_error(SDL_GetError());
   const SDL_FRect stage{0, 0, 800, 600};
@@ -179,6 +199,38 @@ void PmailStage::renderLips(Kotonoha::RendererRef renderer,
                                     std::to_string(region.first + i));
     renderAnimationFrame(renderer, name, uint32_t(region.first + size_t(frame)),
                          x, y, tint);
+  }
+}
+
+void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
+  // All positions are in native 800x600 scene units. The original game draws
+  // chat text into its back buffer immediately; this renderer retains the
+  // equivalent VM history and composites it over the background each frame.
+  auto &ui = engine.GetVNUI();
+  for (const auto &slot : game_.computerText()) {
+    if (slot.width <= 0 || slot.height <= 0 || slot.text.empty())
+      continue;
+    ui.textSized(renderer, slot.text, float(slot.x), float(slot.y),
+                 float(std::min(slot.width, 800)),
+                 float(std::clamp(slot.size, 8, 48)),
+                 computerColor(slot.color));
+  }
+  const auto clock = game_.computerClock();
+  if (!clock.empty())
+    ui.textSized(renderer, clock, 604, 32, 175, 18, computerColor(1));
+
+  // The native chat pane's exact line offsets, font palette and wrapping
+  // are under investigation; keep the window usable without claiming parity.
+  const auto history = game_.chatHistory();
+  float y = 174;
+  for (const auto &line : history) {
+    if (y >= 570)
+      break;
+    const SDL_Color color = line.mode == 2 ? computerColor(8)
+                                          : computerColor(1);
+    const float consumed = ui.textSized(renderer, line.text, 85, y, 624,
+                                        17, color);
+    y += std::clamp(consumed, 22.0f, 54.0f);
   }
 }
 
