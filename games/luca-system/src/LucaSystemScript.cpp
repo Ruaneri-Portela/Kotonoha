@@ -4,6 +4,7 @@
 #include <Kotonoha/localization/Encoding.hpp>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <locale>
 #include <stdexcept>
