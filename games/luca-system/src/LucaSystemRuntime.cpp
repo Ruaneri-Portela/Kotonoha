@@ -841,25 +841,29 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                       &screen);
   }
   const auto blend = impl.sceneLayers.blend(SDL_GetTicks());
+  const auto &visible = impl.sceneLayers.visible();
+  const auto &outgoing = impl.sceneLayers.outgoing();
+  const auto firstNew = impl.sceneLayers.incomingStart();
   if (blend.wipeLeftToRight) {
-    // Preserve the old composition while a horizontal reveal sweeps across
-    // the canvas. Native AIR masks/directions still require investigation.
-    for (const auto &place : impl.sceneLayers.outgoing())
+    for (const auto &place : outgoing)
       impl.renderObject(renderer, place.id, place.x, place.y);
     const float revealRight = 1280.0f * blend.incoming;
-    const auto &visible = impl.sceneLayers.visible();
-    // Newly staged objects are appended after the outgoing composition.
-    // Re-rendering its old objects would double-blend transparent pixels.
-    for (std::size_t i = impl.sceneLayers.outgoing().size(); i < visible.size();
-         ++i) {
+    for (std::size_t i = firstNew; i < visible.size(); ++i) {
       const auto &place = visible[i];
-      impl.renderObject(renderer, place.id, place.x, place.y, 1.0f,
-                        revealRight);
+      impl.renderObject(renderer, place.id, place.x, place.y,
+                        1.0f, revealRight);
+    }
+  } else if (blend.incoming < 1.0f && !outgoing.empty()) {
+    // Old images also remain inside visible. Drawing them twice causes
+    // partially transparent objects to become too opaque during DRAW.
+    for (const auto &place : outgoing)
+      impl.renderObject(renderer, place.id, place.x, place.y);
+    for (std::size_t i = firstNew; i < visible.size(); ++i) {
+      const auto &place = visible[i];
+      impl.renderObject(renderer, place.id, place.x, place.y, blend.incoming);
     }
   } else {
-    for (const auto &place : impl.sceneLayers.outgoing())
-      impl.renderObject(renderer, place.id, place.x, place.y, blend.outgoing);
-    for (const auto &place : impl.sceneLayers.visible())
+    for (const auto &place : visible)
       impl.renderObject(renderer, place.id, place.x, place.y, blend.incoming);
   }
   if (blend.blackout > 0.0f) {

@@ -110,6 +110,77 @@ int main() {
     rejected([&] { (void)badTarget.run(1); });
     check(badTarget.next() == next && !badTarget.finished(),
           "failed branch does not advance the VM program counter");
+    // Subroutine calls preserve the next invocation, even across chapters.
+    std::vector<std::string> calls;
+    N2System::ScriptExecutor subroutines(
+        "chapter main {\n"
+        "  Call(\"worker\");\n"
+        "  Show(\"returned\");\n"
+        "  End();\n"
+        "}\n"
+        "chapter worker {\n"
+        "  Show(\"worker\");\n"
+        "  CallLocal(\"inner\");\n"
+        "  Return();\n"
+        "  inner:\n"
+        "  Show(\"inner\");\n"
+        "  Return();\n"
+        "}\n",
+        "main",
+        [&](const N2System::Invocation &inv,
+            const std::vector<std::string> &args) -> N2System::VmAction {
+          if (inv.function == "Call")
+            return {N2System::VmActionKind::CallChapter, args.at(0)};
+          if (inv.function == "CallLocal")
+            return {N2System::VmActionKind::CallLabel, args.at(0)};
+          if (inv.function == "Return")
+            return {N2System::VmActionKind::Return, {}};
+          if (inv.function == "End")
+            return {N2System::VmActionKind::Finish, {}};
+          calls.push_back(args.at(0));
+          return {};
+        });
+    check(subroutines.run(2) == 2 && subroutines.callDepth() == 1 &&
+              calls == std::vector<std::string>{"worker"},
+          "chapter call saves exact return frame");
+    check(subroutines.run(16) == 6 && subroutines.finished() &&
+              subroutines.callDepth() == 0 &&
+              calls == std::vector<std::string>({"worker", "inner", "returned"}),
+          "nested label call and returns restore instructions in order");
+
+    N2System::ScriptExecutor missingCall(
+        "chapter main { Call(\"missing\"); }", "main",
+        [](const N2System::Invocation &,
+           const std::vector<std::string> &) -> N2System::VmAction {
+          return {N2System::VmActionKind::CallChapter, "missing"};
+        });
+    const auto *beforeMissing = missingCall.next();
+    rejected([&] { missingCall.run(1); });
+    check(missingCall.next() == beforeMissing && missingCall.callDepth() == 0,
+          "invalid call leaves both PC and stack intact");
+
+    N2System::ScriptExecutor strayReturn(
+        "chapter main { Return(); }", "main",
+        [](const N2System::Invocation &,
+           const std::vector<std::string> &) -> N2System::VmAction {
+          return {N2System::VmActionKind::Return, {}};
+        });
+    rejected([&] { strayReturn.run(1); });
+    check(strayReturn.callDepth() == 0 && strayReturn.next(),
+          "return without call cannot consume an instruction");
+
+    N2System::ScriptExecutor recursion(
+        "chapter main {\nloop:\nCall(\"loop\");\n}", "main",
+        [](const N2System::Invocation &,
+           const std::vector<std::string> &) -> N2System::VmAction {
+          return {N2System::VmActionKind::CallLabel, "loop"};
+        });
+    check(recursion.run(1024) == 1024 && recursion.callDepth() == 1024,
+          "bounded recursive calls may yield to a subsequent frame");
+    rejected([&] { recursion.run(1); });
+    check(recursion.callDepth() == 1024 && !recursion.finished(),
+          "recursion guard rejects extra call before mutating stack");
+
     std::cout << "N2System constrained execution tests passed\n";
   } catch (const std::exception &e) {
     std::cerr << "N2System execution test: " << e.what() << '\n';

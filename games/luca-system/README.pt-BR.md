@@ -101,3 +101,16 @@ wipe; somente imagens recém-adicionadas são reveladas. O teste
 
 Isso ainda **não é uma transição AIR 1:1**: direções e máscaras específicas,
 operação de objetos e temporizações originais exigem validação com o jogo.
+
+## Composição incremental sem desenho duplicado
+
+Durante `DRAW` ou `WIPE`, os objetos anteriores formam a camada de
+saída e apenas os objetos recém-publicados são renderizados na camada de
+entrada, com opacidade ou recorte variável. Isso impede que imagens
+transparentes antigas sejam desenhadas duas vezes e fiquem artificialmente
+escuras/opacas durante a transição. Ao término, a composição inteira é
+desenhada uma única vez. O teste `LucaSystem.SceneLayers` verifica a
+fronteira entre objetos antigos e novos.
+
+Ainda não há garantia de correspondência exata às máscaras, camadas,
+ordens e curvas do AIR original.

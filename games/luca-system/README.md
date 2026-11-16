@@ -95,3 +95,14 @@ composition is kept while newly staged objects are revealed; the
 
 This is **not** the exact original AIR transition mask or semantics; per-title
 wipe directions, timing and object composition still need verification.
+
+## Incremental composition without duplicate drawing
+
+While `DRAW` or `WIPE` is running, the outgoing composition retains
+existing objects while incoming drawing processes only newly committed
+images. Previously visible translucent sprites are no longer drawn twice.
+Once the transition completes, the visible composition is rendered once.
+`LucaSystem.SceneLayers` checks the outgoing/incoming boundary.
+
+Original AIR transition masks, object ordering and timing still require
+retail-data validation.

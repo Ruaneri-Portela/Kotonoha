@@ -22,8 +22,9 @@ int main() {
           "instant DRAW commits pending visual objects");
     scene.stage({2, 100, 200});
     scene.commit(1000, 200);
-    check(scene.outgoing().size() == 1 && scene.visible().size() == 2,
-          "timed DRAW remembers the previous scene");
+    check(scene.outgoing().size() == 1 && scene.visible().size() == 2 &&
+              scene.incomingStart() == 1,
+          "timed DRAW remembers old objects and separates incoming layer");
     auto atStart = scene.blend(1000);
     auto halfway = scene.blend(1100);
     auto done = scene.blend(1500);
@@ -45,6 +46,9 @@ int main() {
     const auto wipeStart = scene.blend(1500);
     const auto wipeHalf = scene.blend(1600);
     const auto wipeEnd = scene.blend(1700);
+    check(scene.outgoing().size() == 2 && scene.visible().size() == 3 &&
+              scene.incomingStart() == 2,
+          "WIPE reuses only newly staged objects, not the outgoing scene");
     check(wipeStart.wipeLeftToRight && wipeHalf.wipeLeftToRight &&
               wipeEnd.wipeLeftToRight && close(wipeStart.incoming, 0) &&
               close(wipeHalf.incoming, 0.5f) && close(wipeEnd.incoming, 1),
@@ -62,6 +66,7 @@ int main() {
     scene.stage({3, 9, 9});
     scene.reset({{77, -15, 33}});
     check(scene.visible().size() == 1 && scene.visible()[0].id == 77 &&
+              scene.incomingStart() == 0 &&
               scene.outgoing().empty() && scene.pending().empty() &&
               close(scene.blend(1900).incoming, 1) &&
               close(scene.blend(1900).blackout, 0),

@@ -267,6 +267,13 @@ std::size_t ScriptCursor::remaining() const {
   return current_->invocations.size() - next_;
 }
 
+bool ScriptCursor::seekPosition(std::size_t position) {
+  if (position > current_->invocations.size())
+    return false;
+  next_ = position;
+  return true;
+}
+
 std::string_view ScriptCursor::chapterName() const { return current_->name; }
 
 } // namespace N2System
