@@ -90,8 +90,8 @@ int main() {
     call(bridge, "FontChar", font, 9,
          {n(.2), n(.2), n(0), n(15), n(15), n(0), n(0)});
     bridge.tick(1);
-    expect(equal(bridge.sprites().at(fontId).zoom[0], 1.0),
-           "FontChar scale vibration crosses zero at half its phase");
+    expect(equal(bridge.sprites().at(fontId).zoom[0], 1.2),
+           "FontChar zoom vibration multiplies the base scale");
 
     auto background = VmValue::ref(std::make_shared<Amagami::VmObject>());
     bridge.setNamedPictureSizeResolver(
@@ -109,8 +109,8 @@ int main() {
     call(bridge, "BG_Picture", background, 13,
          {n(.5), n(.5), n(0), n(15), n(15), n(0), n(0)});
     bridge.tick(1);
-    expect(equal(bridge.sprites().at(bgId).zoom[0], 1),
-           "BG_Picture scale wave transitions correctly through zero");
+    expect(equal(bridge.sprites().at(bgId).zoom[0], 1.5),
+           "BG_Picture zoom vibration multiplies the base scale");
 
     // Invalid argument count/negative duration must fail WITHOUT changing
     // either amplitude or frequency of the live object's channel.
