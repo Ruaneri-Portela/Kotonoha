@@ -107,6 +107,13 @@ UtfTable parse_utf(const std::string& raw) {
     uint32_t rows_offset = be32(table, 0), strings_offset = be32(table, 4), data_offset = be32(table, 8);
     uint16_t num_columns = be16(table, 16), row_length = be16(table, 18);
     uint32_t num_rows = be32(table, 20);
+    // A malformed @UTF header must not allocate unbounded rows or point
+    // into unrelated sections of the packet.
+    if (num_columns > 1024 || num_rows > 1000000 ||
+        rows_offset > strings_offset || strings_offset > data_offset ||
+        data_offset > table.size() ||
+        uint64_t(num_rows) * row_length > strings_offset - rows_offset)
+        throw std::runtime_error("cpk: invalid UTF table dimensions");
 
     size_t pos = 24;
     std::vector<Column> columns;
@@ -158,6 +165,19 @@ std::string get_str(const std::unordered_map<std::string, UtfValue>& row, const 
 
 // A length-prefixed @UTF packet: 4-byte magic (ignored), 4 bytes padding, u64 LE size, then the
 // masked table (tools/cpk.py's read_packet).
+uint64_t stream_size(std::ifstream& f) {
+    f.clear();
+    f.seekg(0, std::ios::end);
+    const auto n = f.tellg();
+    if (n < 0)
+        throw std::runtime_error("cpk: unable to determine file size");
+    return uint64_t(n);
+}
+void check_entry(uint64_t offset, uint64_t length, uint64_t file_size) {
+    if (offset > file_size || length > file_size - offset ||
+        length > 512ull * 1024 * 1024)
+        throw std::runtime_error("cpk: entry outside archive payload");
+}
 UtfTable read_packet(std::ifstream& f, uint64_t offset) {
     if (offset > uint64_t(std::numeric_limits<std::streamoff>::max()))
         throw std::runtime_error("cpk: invalid packet offset");
@@ -185,15 +205,18 @@ CpkIndex cpk_read_index(const std::string& path) {
     std::ifstream f(path, std::ios::binary);
     if (!f) throw std::runtime_error("cannot open " + path);
     char magic[4];
-    f.read(magic, 4);
-    if (std::memcmp(magic, "CPK ", 4) != 0) throw std::runtime_error(path + ": not a CPK archive");
+    if (!f.read(magic, 4) || std::memcmp(magic, "CPK ", 4) != 0)
+        throw std::runtime_error(path + ": not a CPK archive");
+    const uint64_t file_size = stream_size(f);
 
     UtfTable header_table = read_packet(f, 0);
     const auto& header = header_table.rows.at(0);
     int64_t toc_offset = get_int(header, "TocOffset", -1);
     if (toc_offset < 0) throw std::runtime_error(path + ": no TocOffset (ITOC-mode CPK, not supported here)");
     int64_t content_offset = get_int(header, "ContentOffset", toc_offset);
-    int64_t base_offset = std::min(toc_offset, content_offset);
+    if (content_offset < 0)
+        throw std::runtime_error("cpk: invalid content offset");
+    const uint64_t base_offset = uint64_t(std::min(toc_offset, content_offset));
 
     UtfTable toc = read_packet(f, uint64_t(toc_offset));
     CpkIndex index;
@@ -201,12 +224,21 @@ CpkIndex cpk_read_index(const std::string& path) {
         std::string dir = get_str(row, "DirName");
         std::string name = get_str(row, "FileName");
         std::string key = dir.empty() ? name : dir + "/" + name;
+        const auto relative = get_int(row, "FileOffset", -1);
+        const auto length = get_int(row, "FileSize", -1);
+        const auto extract = get_int(row, "ExtractSize", -1);
+        if (name.empty() || relative < 0 || length < 0 ||
+            uint64_t(relative) > file_size ||
+            base_offset > file_size - uint64_t(relative))
+            throw std::runtime_error("cpk: invalid TOC resource");
         CpkEntry e;
-        e.offset = uint64_t(base_offset + get_int(row, "FileOffset"));
-        e.size = uint64_t(get_int(row, "FileSize"));
-        int64_t extract = get_int(row, "ExtractSize", -1);
+        e.offset = base_offset + uint64_t(relative);
+        e.size = uint64_t(length);
         e.extract_size = extract >= 0 ? uint64_t(extract) : e.size;
-        index[key] = e;
+        check_entry(e.offset, e.size, file_size);
+        if (e.extract_size > 512ull * 1024 * 1024 ||
+            !index.emplace(key, e).second)
+            throw std::runtime_error("cpk: invalid or duplicate resource " + key);
     }
     return index;
 }
@@ -219,23 +251,37 @@ std::vector<CpkEntry> cpk_read_entries(const std::string& path, uint64_t start) 
     std::ifstream f(path, std::ios::binary);
     if (!f) throw std::runtime_error("cannot open " + path);
     char magic[4];
+    const uint64_t file_size = stream_size(f);
+    if (start > file_size || file_size - start < 4 ||
+        start > uint64_t(std::numeric_limits<std::streamoff>::max()))
+        throw std::runtime_error("cpk: invalid nested archive offset");
     f.seekg(std::streamoff(start));
-    f.read(magic, 4);
-    if (std::memcmp(magic, "CPK ", 4) != 0) throw std::runtime_error(path + ": not a CPK archive");
+    if (!f.read(magic, 4) || std::memcmp(magic, "CPK ", 4) != 0)
+        throw std::runtime_error(path + ": not a CPK archive");
     UtfTable header_table = read_packet(f, start);
     const auto& header = header_table.rows.at(0);
     std::vector<CpkEntry> out;
     int64_t toc_offset = get_int(header, "TocOffset", -1);
     if (toc_offset >= 0) {  // named entries, in the table's order
         int64_t content_offset = get_int(header, "ContentOffset", toc_offset);
-        int64_t base_offset = std::min(toc_offset, content_offset);
+        if (content_offset < 0 || uint64_t(toc_offset) > file_size - start)
+            throw std::runtime_error("cpk: invalid TOC offsets");
+        const uint64_t base_offset = uint64_t(std::min(toc_offset, content_offset));
         UtfTable toc = read_packet(f, start + uint64_t(toc_offset));
         for (const auto& row : toc.rows) {
+            const auto relative = get_int(row, "FileOffset", -1);
+            const auto length = get_int(row, "FileSize", -1);
+            const auto extract = get_int(row, "ExtractSize", -1);
+            if (relative < 0 || length < 0 || base_offset > file_size - start ||
+                uint64_t(relative) > file_size - start - base_offset)
+                throw std::runtime_error("cpk: invalid TOC member");
             CpkEntry e;
-            e.offset = start + uint64_t(base_offset + get_int(row, "FileOffset"));
-            e.size = uint64_t(get_int(row, "FileSize"));
-            int64_t extract = get_int(row, "ExtractSize", -1);
+            e.offset = start + base_offset + uint64_t(relative);
+            e.size = uint64_t(length);
             e.extract_size = extract >= 0 ? uint64_t(extract) : e.size;
+            check_entry(e.offset, e.size, file_size);
+            if (e.extract_size > 512ull * 1024 * 1024)
+                throw std::runtime_error("cpk: expanded TOC member exceeds limit");
             out.push_back(e);
         }
         return out;
@@ -244,6 +290,8 @@ std::vector<CpkEntry> cpk_read_entries(const std::string& path, uint64_t start) 
     // stored back to back from ContentOffset, each padded up to Align (tools/cpk.py, read_itoc_entries).
     int64_t itoc_offset = get_int(header, "ItocOffset", -1);
     if (itoc_offset < 0) throw std::runtime_error(path + ": neither TocOffset nor ItocOffset");
+    if (uint64_t(itoc_offset) > file_size - start)
+        throw std::runtime_error("cpk: invalid ITOC offset");
     UtfTable itoc = read_packet(f, start + uint64_t(itoc_offset));
     std::map<int64_t, std::pair<int64_t, int64_t>> by_id;  // id -> size, extract size
     for (const char* column : {"DataL", "DataH"}) {
@@ -253,19 +301,34 @@ std::vector<CpkEntry> cpk_read_entries(const std::string& path, uint64_t start) 
         for (const auto& row : rows.rows) {
             int64_t size = get_int(row, "FileSize");
             int64_t extract = get_int(row, "ExtractSize", -1);
-            by_id[get_int(row, "ID")] = {size, extract >= 0 ? extract : size};
+            const auto id = get_int(row, "ID", -1);
+            if (id < 0 || size < 0 ||
+                !by_id.emplace(id, std::make_pair(size, extract >= 0 ? extract : size)).second)
+                throw std::runtime_error("cpk: invalid ITOC member ID/size");
         }
     }
     int64_t align = get_int(header, "Align", 2048);
-    if (align <= 0) align = 2048;
-    uint64_t offset = start + uint64_t(get_int(header, "ContentOffset"));
+    if (align <= 0 || align > 65536)
+        throw std::runtime_error("cpk: invalid ITOC alignment");
+    const auto content_offset = get_int(header, "ContentOffset", -1);
+    if (content_offset < 0 || uint64_t(content_offset) > file_size - start)
+        throw std::runtime_error("cpk: invalid ITOC content offset");
+    uint64_t offset = start + uint64_t(content_offset);
     for (const auto& [id, sizes] : by_id) {
         CpkEntry e;
         e.offset = offset;
         e.size = uint64_t(sizes.first);
         e.extract_size = uint64_t(sizes.second);
+        check_entry(e.offset, e.size, file_size);
+        if (e.extract_size > 512ull * 1024 * 1024)
+            throw std::runtime_error("cpk: expanded ITOC member exceeds limit");
         out.push_back(e);
-        offset += (e.size + uint64_t(align) - 1) / uint64_t(align) * uint64_t(align);
+        const uint64_t aligned =
+            (e.size + uint64_t(align) - 1) / uint64_t(align) * uint64_t(align);
+        if (aligned > file_size - offset)
+            offset = file_size; // Last entry need not retain alignment padding.
+        else
+            offset += aligned;
     }
     return out;
 }
@@ -357,7 +420,10 @@ bool cpk_read(const std::string& cpk_path, const CpkIndex& index, const std::str
         if (!f->read(raw.data(), std::streamsize(raw.size())))
             throw std::runtime_error("cpk: truncated file entry");
     }
-    out = raw.size() >= 8 && std::memcmp(raw.data(), "CRILAYLA", 8) == 0 ? cpk_decompress_crilayla(raw) : raw;
+    out = raw.size() >= 8 && std::memcmp(raw.data(), "CRILAYLA", 8) == 0
+              ? cpk_decompress_crilayla(raw) : raw;
+    if (it->second.extract_size && out.size() != it->second.extract_size)
+        throw std::runtime_error("cpk: decompressed member size mismatch");
     return true;
 }
 
