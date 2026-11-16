@@ -8,6 +8,8 @@ add_library(kotonoha_provider_xp3 STATIC
     src/Xp3Archive.cpp
     src/KirikiriAssets.cpp
     src/TlgImage.cpp
+    src/Tlg6Image.cpp
+    src/TjsBootstrap.cpp
 )
 add_library(Kotonoha::Modules::Providers::XP3 ALIAS kotonoha_provider_xp3)
 add_library(Kotonoha::ProviderXP3 ALIAS kotonoha_provider_xp3)
