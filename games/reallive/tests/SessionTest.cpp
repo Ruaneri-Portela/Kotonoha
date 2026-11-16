@@ -27,7 +27,9 @@ int main(int argc, char **argv) {
   session.resume();
   auto n = session.run(20000);
   assert(n > 0 && external > 0);
+  assert(!session.lastUnhandled().has_value());
   session.jump(9032);
+  assert(!session.lastUnhandled().has_value());
   assert(session.scenario() == 9032 && !session.blocked());
   session.run(20000);
   session.seek(9032, 0);

@@ -34,6 +34,7 @@ void Session::seek(int n, std::size_t index) {
   scene_ = n;
   pc_ = index;
   blocked_ = finished_ = false;
+  lastUnhandled_.reset();
 }
 void Session::jump(int n, int entry) {
   auto &s = archive_.Scenario(n);
@@ -50,6 +51,9 @@ bool Session::step() {
   }
   const int scene = scene_;
   const auto index = pc_;
+  // This diagnostic describes the command at the currently blocked PC.
+  // Once a retry begins, a successful interpreter step clears it.
+  lastUnhandled_.reset();
   try {
     s[pc_]->RunOnMachine(machine_);
   } catch (const std::exception &e) {
@@ -934,6 +938,7 @@ void Session::restore(const std::string &data) {
   babelGlosses_.swap(glosses);
   glossStart_ = glossStart;
   glossRectangles_.swap(rectangles);
+  lastUnhandled_.reset(); // diagnostics are per-execution, not persisted
 }
 void Session::execute(const CommandElement &c) {
   if (flow(c) || strings(c) || memory(c) || babel(c))
