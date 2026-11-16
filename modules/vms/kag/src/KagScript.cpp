@@ -265,7 +265,7 @@ bool KagScript::Runner::jumpToLabel(const std::string &label) {
 void KagScript::Runner::run() {
   SDL_Log("KagScript: run() start pc_=%zu size=%zu blocked=%d", pc_,
           script_.tags.size(), blocked_ ? 1 : 0);
-  while (pc_ < script_.tags.size() && !blocked_) {
+  while (pc_ < script_.tags.size() && !blocked_ && !finished_) {
     SDL_Log("KagScript: run() executing tag pc_=%zu name='%s'", pc_,
             script_.tags[pc_].name.c_str());
     bool blocks = executeTag(script_.tags[pc_]);
