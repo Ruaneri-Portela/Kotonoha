@@ -57,6 +57,14 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
   exercises panel/name/icon round-tripping, OSBOOT animation continuation,
   legacy V4 upgrade and atomic rejection of invalid saves. This test is
   registered but still needs execution in a native build.
+- VM external scene transfers now clear the halted state. Returning from a
+  child object resumes the caller rather than skipping subsequent scripts;
+  new script objects are registered before execution. A synthetic parent/
+  child script pair tests continuation both directly and across save/load,
+  reaching the original SYS 213 title entry in the fixture.
+- Mouth sprite selection now bounds the audio's 0..2 pattern against the
+  decoded region frame count and rejects invalid regions before rendering.
+  Diagnostic dialogue text no longer floods stdout on each script event.
 - `Pmail.TransitionTrace` checks bounded transition evidence output.
   The real-only `Pmail.RouteAudit` can emit a TSV timeline of graphical
   SYS calls, assets, script/PC and sampled animation frames for comparison

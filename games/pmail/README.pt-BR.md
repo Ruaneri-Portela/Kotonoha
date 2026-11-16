@@ -36,6 +36,13 @@ do renderizador SDL (Linear é a alternativa compatível).
 A animação antes da imagem Overflow ainda exige comparação com o DVD original
 e seus assets: o conteúdo e os tempos exatos não estão comprovados.
 
+**Correção na progressão:** quando um script secundário termina, a VM
+retoma o script anterior, em vez de permanecer marcada como encerrada.
+O teste sintético `Pmail.ComputerSave` cobre esse retorno, o `SYS 213`
+do título e um save/load durante a execução do script secundário.
+Os quadros da animação de boca agora respeitam os limites do recurso.
+A jogabilidade completa ainda depende de validação com os dados do DVD.
+
 **Acesso rápido:** F5 salva em `pmail-quick.vn` dentro do diretório de saves
 do jogo e F9 carrega esse estado. Os slots normais continuam disponíveis.
 Essas teclas são conveniências do Kotonoha, não atalhos confirmados do original.

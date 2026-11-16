@@ -196,14 +196,19 @@ void PmailStage::renderLips(Kotonoha::RendererRef renderer,
   const auto &animation = assets_.AnimationOf(name);
   const int frame = game_.voiceMouthFrame ? game_.voiceMouthFrame() : 0;
   for (const auto &region : animation.regions) {
-    if (region.actor != uint32_t(game_.voiceActor()))
+    if (region.actor != uint32_t(game_.voiceActor()) || !region.count ||
+        region.first >= animation.frames.size() ||
+        region.count > animation.frames.size() - region.first)
       continue;
-    // Retain all mouth variants while this character is speaking.
+    // The audio pattern has three phases but native artwork may expose only
+    // one or two variants for this actor. Wrap safely within each region.
     for (size_t i = 0; i < region.count; ++i)
       usedAnimationTextures_.insert("graphic/" + name + ".anim#" +
                                     std::to_string(region.first + i));
-    renderAnimationFrame(renderer, name, uint32_t(region.first + size_t(frame)),
-                         x, y, tint);
+    renderAnimationFrame(
+        renderer, name,
+        uint32_t(MouthRegionFrame(region.first, region.count, frame)),
+        x, y, tint);
   }
 }
 

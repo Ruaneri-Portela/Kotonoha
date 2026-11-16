@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace Kotonoha::PmailPort {
@@ -33,6 +34,15 @@ struct AnimationState {
   uint32_t frame = 0, count = 0, elapsedMs = 0;
   bool playing = false;
 };
+
+// Some DVD mouth regions have fewer frames than the audio pattern (0..2).
+// Prevent out-of-range ANIM access without changing the decoded frame order.
+inline size_t MouthRegionFrame(size_t first, size_t count, int voiceFrame) {
+  if (!count)
+    return first;
+  const size_t offset = voiceFrame < 0 ? 0 : size_t(voiceFrame) % count;
+  return first + offset;
+}
 
 // pmail.exe 0x41f58c..0x41f5c6. Silence closes the mouth without advancing
 // the pattern. The two 16-entry patterns live at 0x44e9d4 and 0x44e9e4.

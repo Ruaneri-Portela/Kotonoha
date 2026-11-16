@@ -632,7 +632,6 @@ void PmailGame::flushLines() {
       utf = ::Kotonoha::ShiftJisToUtf8(s);
     } catch (...) {
     }
-    std::cout << "[PmailPort] TEXT: " << utf << std::endl;
     messageQueue_.push_back(expandPlayerNames(utf));
   }
   lines.clear();
@@ -842,8 +841,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
           utf = ::Kotonoha::ShiftJisToUtf8(text);
         } catch (...) {
         }
-        std::cout << "[PmailPort] TEXT: " << utf << std::endl;
-        messageQueue_.push_back(expandPlayerNames(utf));
+            messageQueue_.push_back(expandPlayerNames(utf));
         if (message_.empty())
           showNext();
       }
