@@ -250,9 +250,25 @@ if (APPLE)
     )
     list(APPEND KOTONOHA_ENGINE_SOURCES ${KOTONOHA_ENGINE_SOURCES_OBJC})
 endif ()
+# Do not compile backend modules that are disabled for this build.
+# Upscaler.cpp provides a small SDL-only compatibility facade when OFF.
+if(DEFINED KOTONOHA_ENABLE_MCP AND NOT KOTONOHA_ENABLE_MCP)
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/mcp/")
+endif()
+if(DEFINED KOTONOHA_ENABLE_UPSCALER AND NOT KOTONOHA_ENABLE_UPSCALER)
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/media/upscaling/(MPVCompatibleUpscaler|MetalFXUpscaler)\\.(cpp|mm)$")
+endif()
 
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
 add_library(Kotonoha::Engine ALIAS KotonohaEngine)
+if(DEFINED KOTONOHA_ENABLE_UPSCALER)
+    target_compile_definitions(KotonohaEngine PUBLIC
+        KOTONOHA_ENABLE_UPSCALER=$<BOOL:${KOTONOHA_ENABLE_UPSCALER}>)
+endif()
+if(DEFINED KOTONOHA_ENABLE_MCP)
+    target_compile_definitions(KotonohaEngine PUBLIC
+        KOTONOHA_ENABLE_MCP=$<BOOL:${KOTONOHA_ENABLE_MCP}>)
+endif()
 if(EMSCRIPTEN)
     target_compile_definitions(KotonohaEngine PUBLIC
         KOTONOHA_WASM_FETCH_CACHE_MIB=${KOTONOHA_WASM_FETCH_CACHE_MIB})
@@ -323,7 +339,7 @@ else ()
 endif ()
 
 # Configuracoes especificas do Metal (Apple)
-if (APPLE)
+if (APPLE AND (NOT DEFINED KOTONOHA_ENABLE_UPSCALER OR KOTONOHA_ENABLE_UPSCALER))
     set_source_files_properties(src/media/upscaling/MetalFXUpscaler.mm
             PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
     find_library(METALFX_FRAMEWORK MetalFX)
