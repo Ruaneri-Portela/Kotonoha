@@ -9,7 +9,7 @@ that every script command, route, transition or ending works.
 
 | Port | Existing evidence and limits | Improvement in this change |
 | --- | --- | --- |
-| Example | Shared engine, scene and UI demonstration; no commercial data | Included in universal CLI/metadata contract checks and native help smoke tests |
+| Example | Shared engine, scene and UI demonstration; no commercial data | Aligned the demo runtime/package ID with its bundle, retaining legacy documents through a guarded migration; included in CLI smoke tests |
 | Amagami | Original prologue and initial event map; calendar, later routes and endings unverified | Included in the same native startup and asset-slug validation |
 | Zero no Tsukaima | Nocturne playable; Concerto and Symphony have distinct coverage gaps | Included in native startup and metadata validation; multi-disc parity still needs disc fixtures |
 | Snow Radish Vacation!! | ADV3 presentation playable; original effects and timing remain incomplete | Included in native startup and metadata validation |
@@ -55,7 +55,7 @@ supported platforms. Assets must be legally supplied locally, not committed.
   to original behavior.
 - A launcher accepting an ISO only confirms expected filenames and file
   types; it does not decode or execute the original title.
-- LucaSystem's legacy document directory is moved to the canonical bundle ID
+- LucaSystem's and the reference demo's legacy document directories are moved to the canonical bundle ID
   only if it exists, is not a symlink and the destination does not already
   exist. A failed move is logged; newer data is never overwritten.
 - Full platform builds (macOS, iOS, Android, Linux, Windows, WebAssembly) and
