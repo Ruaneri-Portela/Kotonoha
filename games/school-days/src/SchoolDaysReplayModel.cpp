@@ -46,6 +46,21 @@ const char *SchoolDaysReplayModel::HSceneUnlockKey(int index) {
   return kHSceneUnlockKeys[index];
 }
 
+bool SchoolDaysReplayModel::AnyHSceneUnlocked(const KtrfStateStore &state,
+                                              bool *unlocked,
+                                              Kotonoha_KtrfError *error) {
+  if (!unlocked)
+    return false;
+  *unlocked = false;
+  for (const char *key : kHSceneUnlockKeys) {
+    int64_t value = 0;
+    if (!state.ReadGlobalInt(key, &value, error))
+      return false;
+    *unlocked |= value != 0;
+  }
+  return true;
+}
+
 const char *SchoolDaysReplayModel::SceneCheckAvailabilityKey(int sceneCheckKey,
                                                              int choice) {
   static constexpr const char *kSelector0[] = {

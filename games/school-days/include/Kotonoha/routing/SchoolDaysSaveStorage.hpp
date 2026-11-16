@@ -15,6 +15,19 @@ namespace Kotonoha {
 // can commit in-memory metadata between them, matching EXE 0x0042AEA0.
 class SchoolDaysSaveStorage {
 public:
+  // Synthetic fault injection is per instance and disabled by default.
+  enum class GlobalFlagWriteFault {
+    None,
+    Write,
+    Flush,
+    Publish,
+    SimulatedInterruption
+  };
+
+  void SetGlobalFlagWriteFaultForTesting(GlobalFlagWriteFault fault) {
+    globalFlagWriteFaultForTesting_ = fault;
+  }
+
   bool Initialize(const std::filesystem::path &executableDirectory,
                   const SchoolDaysSaveProfile &profile,
                   std::string *error = nullptr);
@@ -48,10 +61,15 @@ private:
   static bool WriteFileTruncate(const std::filesystem::path &path,
                                 const std::vector<uint8_t> &bytes,
                                 std::string *error);
+  bool WriteGlobalFlagAtomic(const std::filesystem::path &path,
+                             const std::vector<uint8_t> &bytes,
+                             std::string *error) const;
 
   std::filesystem::path baseDirectory_;
   SchoolDaysSaveProfile profile_;
   bool initialized_ = false;
+  GlobalFlagWriteFault globalFlagWriteFaultForTesting_ =
+      GlobalFlagWriteFault::None;
 };
 
 } // namespace Kotonoha
