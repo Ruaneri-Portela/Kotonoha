@@ -217,6 +217,24 @@ KagScript::Script KagScript::parse(const std::string &text,
 KagScript::Runner::Runner(Script script, const Callbacks &cb)
     : script_(std::move(script)), cb_(cb) {}
 
+KagScript::Runner::State KagScript::Runner::saveState() const {
+  return {pc_, returnStack_, finished_};
+}
+
+void KagScript::Runner::restoreState(const State &state) {
+  if (state.position > script_.tags.size())
+    throw std::out_of_range("KAG save position exceeds scenario length");
+  for (const auto frame : state.returnStack)
+    if (frame == 0 || frame > script_.tags.size())
+      throw std::out_of_range("KAG save return address exceeds scenario length");
+  // Validate every frame before modifying the currently running VM.
+  pc_ = state.position;
+  returnStack_ = state.returnStack;
+  finished_ = state.finished || pc_ == script_.tags.size();
+  blocked_ = false;
+  pendingResume_ = nullptr;
+}
+
 void KagScript::Runner::restorePosition(std::size_t position) {
   if (position > script_.tags.size())
     throw std::out_of_range("KAG save position exceeds scenario length");
