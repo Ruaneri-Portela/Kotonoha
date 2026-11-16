@@ -464,6 +464,66 @@ int main() {
     }
   }
 
+  // Only the first matching elsif branch may run. A false if must resume at
+  // the candidate tag so the candidate's own expression gets evaluated.
+  {
+    auto script = Kirikiri::KagScript::parse(
+        "[set name=flag value=2]"
+        "[if exp=\"flag == 1\"][cm text=\"wrong-if\"]"
+        "[elsif exp=\"flag == 0\"][cm text=\"wrong-first-elsif\"]"
+        "[elsif exp=\"flag == 2\"][cm text=\"matched\"]"
+        "[else][cm text=\"wrong-else\"][endif]"
+        "[cm text=\"after\"][end]", "elsif.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string value) {
+      shown.push_back(std::move(value));
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    if (shown != std::vector<std::string>{"matched"} ||
+        runner.saveState().ifBranches != std::vector<std::uint8_t>{1}) {
+      std::printf("FAIL: KAG elsif selection\n");
+      ++failures;
+    }
+    const auto state = runner.saveState();
+    Kirikiri::KagScript::Runner reloaded(script, cb);
+    reloaded.restoreState(state);
+    reloaded.run();
+    if (shown != std::vector<std::string>({"matched", "after"}) ||
+        !reloaded.saveState().ifBranches.empty()) {
+      std::printf("FAIL: KAG save within conditional did not skip else\n");
+      ++failures;
+    }
+  }
+  {
+    // An unconditional self-jump yields to the host at the instruction
+    // budget instead of blocking the window or growing the call stack.
+    auto script = Kirikiri::KagScript::parse(
+        "*loop\n[jump target=*loop]", "budget.ks");
+    Kirikiri::KagScript::Callbacks cb;
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    if (runner.isBlocked() || runner.isFinished())
+      std::printf("FAIL: KAG infinite loop budget\n"), ++failures;
+  }
+  {
+    auto script = Kirikiri::KagScript::parse(
+        "[if exp=false][cm text=\"wrong\"][endif][end]", "invalid-state.ks");
+    Kirikiri::KagScript::Callbacks cb;
+    Kirikiri::KagScript::Runner runner(script, cb);
+    auto invalid = runner.saveState();
+    invalid.ifBranches.push_back(2);
+    bool rejected = false;
+    try {
+      runner.restoreState(invalid);
+    } catch (const std::out_of_range &) {
+      rejected = true;
+    }
+    if (!rejected || !runner.saveState().ifBranches.empty())
+      std::printf("FAIL: KAG invalid conditional state accepted\n"), ++failures;
+  }
+
   std::filesystem::remove_all(tempDir);
 
   if (failures == 0) {

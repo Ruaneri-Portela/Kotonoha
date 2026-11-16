@@ -219,7 +219,7 @@ KagScript::Runner::Runner(Script script, Callbacks cb)
     : script_(std::move(script)), cb_(std::move(cb)) {}
 
 KagScript::Runner::State KagScript::Runner::saveState() const {
-  return {pc_, returnStack_, finished_, vars_};
+  return {pc_, returnStack_, finished_, vars_, ifBranches_, callIfDepth_};
 }
 
 void KagScript::Runner::restoreState(const State &state) {
@@ -228,10 +228,21 @@ void KagScript::Runner::restoreState(const State &state) {
   for (const auto frame : state.returnStack)
     if (frame == 0 || frame > script_.tags.size())
       throw std::out_of_range("KAG save return address exceeds scenario length");
-  // Validate every frame before modifying the currently running VM.
+  if (state.ifBranches.size() > script_.tags.size() ||
+      state.callIfDepth.size() != state.returnStack.size())
+    throw std::out_of_range("KAG save conditional stack is inconsistent");
+  for (auto branch : state.ifBranches)
+    if (branch > 1)
+      throw std::out_of_range("KAG invalid branch state");
+  for (const auto depth : state.callIfDepth)
+    if (depth > state.ifBranches.size())
+      throw std::out_of_range("KAG save call branch depth is invalid");
+  // Every check above is complete before the VM state is changed.
   pc_ = state.position;
   returnStack_ = state.returnStack;
   vars_ = state.variables;
+  ifBranches_ = state.ifBranches;
+  callIfDepth_ = state.callIfDepth;
   finished_ = state.finished || pc_ == script_.tags.size();
   blocked_ = false;
   pendingResume_ = nullptr;
@@ -246,6 +257,8 @@ void KagScript::Runner::restorePosition(std::size_t position) {
   pendingResume_ = nullptr;
   // A plain PC restore cannot recover an active KAG subroutine stack.
   returnStack_.clear();
+  ifBranches_.clear();
+  callIfDepth_.clear();
 }
 
 bool KagScript::Runner::jumpToLabel(const std::string &label) {
@@ -267,7 +280,9 @@ bool KagScript::Runner::jumpToLabel(const std::string &label) {
 void KagScript::Runner::run() {
   SDL_Log("KagScript: run() start pc_=%zu size=%zu blocked=%d", pc_,
           script_.tags.size(), blocked_ ? 1 : 0);
-  while (pc_ < script_.tags.size() && !blocked_ && !finished_) {
+  // Yield back to the host if a script loops without waiting for input.
+  std::size_t budget = 8192;
+  while (pc_ < script_.tags.size() && !blocked_ && !finished_ && budget-- > 0) {
     SDL_Log("KagScript: run() executing tag pc_=%zu name='%s'", pc_,
             script_.tags[pc_].name.c_str());
     bool blocks = executeTag(script_.tags[pc_]);
@@ -303,48 +318,64 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
       SDL_Log("KagScript: Text tag '%s'", text.c_str());
       cb_.showText(std::string(), text);
     }
-    return true; // text blocks until player advances
+    return !text.empty() && static_cast<bool>(cb_.showText);
+    // Whitespace-only indentation is not a dialogue action.
   }
 
   const std::string &name = tag.name;
 
-  // Basic KAG branching. Skipping searches only at the current if depth,
-  // so nested conditions cannot accidentally select their parent's else.
-  auto nextBranch = [&](bool alternatives) {
-    int nested = 0;
+  // KAG's if/elsif/else/endif select one branch per nesting level.
+  // Rather than reevaluating an earlier branch, retain a matched flag for
+  // each open [if]. This is also persisted in version-4 save states.
+  auto nextBranch = [&](bool includeAlternatives) {
+    unsigned nested = 0;
     for (std::size_t i = pc_ + 1; i < script_.tags.size(); ++i) {
       const auto &candidate = script_.tags[i];
       if (candidate.type != TagType::Command)
         continue;
       if (candidate.name == "if") {
         ++nested;
-        continue;
-      }
-      if (candidate.name == "endif") {
+      } else if (candidate.name == "endif") {
         if (nested == 0)
           return i;
         --nested;
-        continue;
-      }
-      if (nested == 0 && alternatives) {
-        if (candidate.name == "else" ||
-            (candidate.name == "elsif" && condition(candidate)))
-          return i;
+      } else if (nested == 0 && includeAlternatives &&
+                 (candidate.name == "elsif" || candidate.name == "else")) {
+        return i;
       }
     }
     throw std::runtime_error("KAG: unterminated [if] block");
   };
   if (name == "if") {
-    if (!condition(tag))
-      pc_ = nextBranch(true); // run() advances to the selected branch body
+    if (ifBranches_.size() >= 1024)
+      throw std::runtime_error("KAG: conditional nesting limit exceeded");
+    const bool matched = condition(tag);
+    ifBranches_.push_back(matched ? 1u : 0u);
+    if (!matched)
+      pc_ = nextBranch(true) - 1; // execute candidate on next loop
     return false;
   }
   if (name == "elsif" || name == "else") {
-    pc_ = nextBranch(false); // earlier branch already matched
+    if (ifBranches_.empty())
+      throw std::runtime_error("KAG: orphan else/elsif");
+    if (ifBranches_.back() != 0) {
+      pc_ = nextBranch(false); // matched earlier; skip the rest and endif
+      ifBranches_.pop_back();
+    } else if (name == "else") {
+      ifBranches_.back() = 1;
+    } else if (condition(tag)) {
+      ifBranches_.back() = 1;
+    } else {
+      pc_ = nextBranch(true) - 1;
+    }
     return false;
   }
-  if (name == "endif")
+  if (name == "endif") {
+    if (ifBranches_.empty())
+      throw std::runtime_error("KAG: orphan endif");
+    ifBranches_.pop_back();
     return false;
+  }
 
   // Built-in navigation
   if (name == "jump" || name == "j") {
@@ -354,6 +385,7 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     if (!label.empty() && target.empty()) {
       if (!jumpToLabel(label))
         throw std::runtime_error("KAG: missing label " + label);
+      ifBranches_.clear(); // leaving conditional control flow
     } else if (cb_.jump && !target.empty()) {
       cb_.jump(label.empty() ? target : target + "#" + label);
     }
@@ -367,9 +399,13 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
       // The run loop advances the PC after executing this tag, so store the
       // next instruction and jump to the label (which is a no-op tag).
       const auto resumeAt = pc_ + 1;
-      if (jumpToLabel(label))
+      if (returnStack_.size() >= 1024)
+        throw std::runtime_error("KAG: call stack limit exceeded");
+      const auto ifDepth = ifBranches_.size();
+      if (jumpToLabel(label)) {
         returnStack_.push_back(resumeAt);
-      else
+        callIfDepth_.push_back(ifDepth);
+      } else
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "Kirikiri: unknown local call target '%s'",
                     label.c_str());
@@ -383,7 +419,12 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     if (!returnStack_.empty()) {
       // run() unconditionally increments pc_ after executeTag().
       const auto resumeAt = returnStack_.back();
+      const auto depth = callIfDepth_.back();
+      if (ifBranches_.size() < depth)
+        throw std::runtime_error("KAG: subroutine ended caller conditional");
       returnStack_.pop_back();
+      callIfDepth_.pop_back();
+      ifBranches_.resize(depth);
       pc_ = resumeAt - 1;
       return false;
     }

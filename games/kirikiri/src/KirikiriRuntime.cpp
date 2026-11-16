@@ -253,16 +253,20 @@ void KirikiriRuntime::saveGame(const std::string &path) {
   auto &impl = *impl_;
   const auto state = impl.runner ? impl.runner->saveState()
                                  : KagScript::Runner::State{};
-  // V3 stores local KAG calls and variables. V1/V2 remain readable.
+  // V4 additionally stores active KAG conditional state. V1-V3 remain readable.
   std::ostringstream data;
-  data << "KIRIKIRI_SAVE_3\n" << std::quoted(impl.currentScenario) << '\n';
+  data << "KIRIKIRI_SAVE_4\n" << std::quoted(impl.currentScenario) << '\n';
   data << state.position << ' ' << (state.finished ? 1 : 0) << ' '
        << state.returnStack.size() << '\n';
-  for (auto frame : state.returnStack) data << frame << '\n';
+  for (std::size_t i = 0; i < state.returnStack.size(); ++i)
+    data << state.returnStack[i] << ' ' << state.callIfDepth.at(i) << '\n';
   data << state.variables.size() << '\n';
   for (const auto &variable : state.variables)
     data << std::quoted(variable.first) << ' '
          << std::quoted(variable.second) << '\n';
+  data << state.ifBranches.size() << '\n';
+  for (auto branch : state.ifBranches)
+    data << unsigned(branch) << '\n';
   Kotonoha::GetVNManagerRuntime(*impl.engine).save(path, data.str());
 }
 
@@ -273,7 +277,8 @@ void KirikiriRuntime::loadGame(const std::string &path) {
   KagScript::Runner::State state;
   bool fullState = false;
   std::getline(data, header);
-  if (header == "KIRIKIRI_SAVE_3") {
+  if (header == "KIRIKIRI_SAVE_4" || header == "KIRIKIRI_SAVE_3") {
+    const bool v4 = header == "KIRIKIRI_SAVE_4";
     fullState = true;
     unsigned finished = 0;
     std::size_t frames = 0, variables = 0;
@@ -283,8 +288,11 @@ void KirikiriRuntime::loadGame(const std::string &path) {
     state.finished = finished != 0;
     for (std::size_t i = 0; i < frames; ++i) {
       std::size_t pc = 0;
-      if (!(data >> pc)) throw std::runtime_error("Truncated KAG stack");
+      std::size_t depth = 0;
+      if (!(data >> pc) || (v4 && !(data >> depth)))
+        throw std::runtime_error("Truncated KAG call frame");
       state.returnStack.push_back(pc);
+      state.callIfDepth.push_back(depth);
     }
     if (!(data >> variables) || variables > 65536)
       throw std::runtime_error("Invalid KAG save variable count");
@@ -293,6 +301,17 @@ void KirikiriRuntime::loadGame(const std::string &path) {
       if (!(data >> std::quoted(key) >> std::quoted(value)) ||
           !state.variables.emplace(key, value).second)
         throw std::runtime_error("Malformed KAG save variables");
+    }
+    if (v4) {
+      std::size_t active = 0;
+      if (!(data >> active) || active > 1024)
+        throw std::runtime_error("Invalid KAG conditional stack depth");
+      for (std::size_t i = 0; i < active; ++i) {
+        unsigned matched = 0;
+        if (!(data >> matched) || matched > 1)
+          throw std::runtime_error("Invalid KAG conditional save state");
+        state.ifBranches.push_back(static_cast<std::uint8_t>(matched));
+      }
     }
   } else if (header == "KIRIKIRI_SAVE_2") {
     std::getline(data, scenario);
