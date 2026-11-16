@@ -65,6 +65,8 @@ incompatíveis quando o identificador do pacote não está vazio. Falha
 reproduzida no `upstream/dev` puro `fdd0b041`, sem mudar
 `StoragePaths.cpp` nem enfraquecer o teste local com namespace.
 
+| Cores das legendas | **cores de legenda sem verificação visual**; `styles.ass` contém cores de design e correção da Setsuna, com testes sintéticos apenas | Correspondência de estilos testada em modo headless; aparência real não avaliada |
+
 Este registro é conservador: build Release e CTest sintético aprovados não
 certificam o comportamento do jogo comercial, saves reais nem plataformas
 não testadas. Preservar `PORT_STATUS.md` e notas históricas. Nenhum GPK,
