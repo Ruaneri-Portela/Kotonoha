@@ -238,13 +238,17 @@ KirikiriAssets::findXp3Entry(const std::string &id, bool *collision) const {
        ++archive) {
     const Xp3Entry *candidate = nullptr;
     bool ambiguous = false;
-    for (const auto &entry : archive->second) {
+    // A later index chunk may replace an entry earlier in the same archive.
+    // Look backwards so chain updates take precedence just like patch XP3s.
+    for (auto item = archive->second.rbegin();
+         item != archive->second.rend(); ++item) {
+      const auto &entry = *item;
       if (resolveId(entry.name) == normalized)
         return &entry;
       if (foldedArchivePath(entry.name) == folded) {
-        if (candidate)
+        if (candidate && resolveId(candidate->name) != resolveId(entry.name))
           ambiguous = true;
-        else
+        else if (!candidate)
           candidate = &entry;
       }
     }
@@ -596,6 +600,11 @@ bool KirikiriAssets::readXp3(const std::string &id) {
     }
 
     if (!continued) {
+      std::size_t segmentCount = 0;
+      for (const auto &entry : entries)
+        segmentCount += entry.segments.size();
+      SDL_Log("KiriKiri: indexed %s: %zu assets, %zu segments, %zu index blocks",
+              id.c_str(), entries.size(), segmentCount, visited.size());
       archives.emplace_back(std::filesystem::path(id).filename().string(),
                             std::move(entries));
       return true;
