@@ -40,6 +40,20 @@ set_target_properties(Amagami PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(Amagami
     BUNDLE_ID me.hirameki.kotonoha.amagami GAME amagami)
 
+# Read-only Vita class loader and VM diagnostics use the existing SCF VM.
+# Keep them separate from the PS2 runtime; no Vita gameplay is claimed.
+if(NOT ANDROID AND NOT EMSCRIPTEN)
+    add_library(AmagamiVitaData STATIC
+        src/VitaScripts.cpp
+        src/VitaVmBridge.cpp
+    )
+    target_include_directories(AmagamiVitaData PUBLIC include)
+    target_link_libraries(AmagamiVitaData PUBLIC
+        AmagamiFormats Kotonoha::ProviderAmagami Kotonoha::Vmamagami)
+    target_compile_features(AmagamiVitaData PUBLIC cxx_std_17)
+    set_target_properties(AmagamiVitaData PROPERTIES CXX_EXTENSIONS OFF)
+endif()
+
 if(KOTONOHA_BUILD_HOST_TOOLS)
     add_executable(AmagamiInspect tools/Inspect.cpp)
     find_package(PkgConfig REQUIRED)
@@ -50,6 +64,12 @@ if(KOTONOHA_BUILD_HOST_TOOLS)
     add_executable(AmagamiVitaInspect tools/InspectVita.cpp)
     target_link_libraries(AmagamiVitaInspect PRIVATE AmagamiFormats Kotonoha::ProviderAmagami)
     target_compile_features(AmagamiVitaInspect PRIVATE cxx_std_17)
+
+    if(TARGET AmagamiVitaData)
+        add_executable(AmagamiVitaProbe tools/VitaProbe.cpp)
+        target_link_libraries(AmagamiVitaProbe PRIVATE AmagamiVitaData)
+        target_compile_features(AmagamiVitaProbe PRIVATE cxx_std_17)
+    endif()
 endif()
 
 if(BUILD_TESTING)
