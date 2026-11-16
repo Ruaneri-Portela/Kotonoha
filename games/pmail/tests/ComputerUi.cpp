@@ -98,10 +98,46 @@ int main() {
     check(!game.hasComputerOverlay(),
           "Clearing the scene retained computer overlays");
 
+    // The original SYS 50 stores 25 icon-slot positions.
+    call(50, {integer(24), integer(335), integer(188)});
+    call(50, {integer(25), integer(10), integer(20)}); // ignored: > 24
+    const auto icons = game.computerIcons();
+    check(icons[24].active && icons[24].x == 335 &&
+              icons[24].y == 188 && !icons[23].active,
+          "SYS 50 did not preserve original icon-slot bounds");
+
+    // The two text families use independent native renderers in the EXE.
+    call(176, {integer(1), string(5)});
+    call(178, {integer(2), string(3)});
+    call(192, {integer(3), string(5)});
+    call(194, {integer(4), string(4)});
+    check(game.chatPanel().entries.size() == 2 &&
+              game.chatPanel().entries.front().text == "Alice meets Bob",
+          "SYS 176/178 chat-family stream is missing");
+    check(game.mailPanel().entries.size() == 2 &&
+              game.mailPanel().entries.front().text == "Alice meets Bob",
+          "SYS 192/194 mail-family stream is missing");
+    call(179, {integer(1), integer(2), integer(3), integer(4),
+               integer(5), integer(6), integer(7)});
+    call(195, {integer(13)});
+    check(game.chatPanel().params[6] == 7 &&
+              game.mailPanel().selection == 13,
+          "SYS 179/195 did not retain original native numeric parameters");
     const auto saved = game.serialize();
-    check(saved.find("PMAIL-GAME-4") != std::string::npos &&
+    check(saved.find("PMAIL-GAME-5") != std::string::npos &&
               saved.find("Alice") != std::string::npos,
-          "Name customization not included in game save state");
+          "V5 save did not include panel state and player customization");
+    call(177, {});
+    check(!game.chatPanel().active && game.chatPanel().entries.empty() &&
+              game.mailPanel().entries.size() == 2,
+          "SYS 177 reset unexpectedly affected the mail-family panel");
+    call(193, {});
+    check(!game.mailPanel().active && game.mailPanel().entries.empty(),
+          "SYS 193 did not reset the mail-family state");
+    call(48, {string(6)});
+    check(!game.computerIcons()[24].active &&
+              !game.hasComputerOverlay(),
+          "Scene changes retained native computer icon/panel state");
     std::vector<std::string> messages;
     game.trace = [&](const std::string &message) {
       messages.push_back(message);
@@ -119,15 +155,14 @@ int main() {
     // treated as confirmed engine behavior.
     call(96, {});  // handled by the audio callback, not an unknown native
     call(112, {}); // background music is also owned by PmailAudio
-    call(192, {});
-    call(192, {});
-    call(195, {});
+    call(250, {}); // explicitly unknown opcode for coverage diagnostics
+    call(250, {});
     const auto unknown = game.unhandledNativeIds();
-    check(unknown == std::vector<int>({192, 195}),
+    check(unknown == std::vector<int>({250}),
           "Unhandled command coverage does not track unique IDs");
     int count = 0;
     for (const auto &message : messages)
-      if (message.find("Unhandled PMAIL SYS 192") != std::string::npos)
+      if (message.find("Unhandled PMAIL SYS 250") != std::string::npos)
         ++count;
     check(count == 1, "Unknown native syscall warnings were duplicated");
 
