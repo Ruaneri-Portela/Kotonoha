@@ -1,3 +1,4 @@
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
@@ -54,18 +55,11 @@ bool validate(const std::string &path, std::string &info) {
     // same view, including ISO images and case-insensitive archive filenames,
     // instead of accepting any well-formed but unrelated ISO.
     auto source = Kotonoha::Filesystem::Filesystem::mount(path);
-    const std::string prefix =
-        !source->exists("SCRIPT.PAK") && source->exists("files/SCRIPT.PAK")
-            ? "files/"
-            : "";
-    for (const char *name : {"PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK"}) {
-      const std::string id = prefix + name;
-      if (!source->exists(id) ||
-          source->stat(id).type !=
-              Kotonoha::Filesystem::FileType::Regular) {
-        info = "LucaSystem requires PARAM.PAK, SCRIPT.PAK and SYSSE.PAK";
-        return false;
-      }
+    if (!Kotonoha::Filesystem::findRequiredFilesPrefix(
+            *source, {"PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK"},
+            {"", "files/"})) {
+      info = "LucaSystem requires PARAM.PAK, SCRIPT.PAK and SYSSE.PAK";
+      return false;
     }
     info = "LucaSystem archives present in virtual game source";
     return true;
