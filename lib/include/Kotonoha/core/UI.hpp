@@ -35,6 +35,7 @@ public:
   void setTranslation(Translation *value) { translation = value; }
   void setPixelDensity(float value);
   float pixelDensity() const { return density; }
+  std::size_t cachedTextCount() const { return cache.size(); }
   std::uint64_t instanceId() const { return instanceId_; }
   const char *fontFamily() const { return TTF_GetFontFamilyName(font.get()); }
   float rasterFontSize() const { return TTF_GetFontSize(font.get()); }
