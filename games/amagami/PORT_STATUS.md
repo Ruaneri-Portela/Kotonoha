@@ -439,9 +439,18 @@ for `bg/`, `epi/` and `body/` (`*.gxt`, BGRA palettes), plus
 dimensions and expands indexed colours to standard RGBA8 without applying the
 PS2 TIM2 colour-swizzle or alpha conventions. `VitaGraphicsAssets` mounts
 `graph/GRAPH.CPK` through the normal Kotonoha `AssetProvider` interface,
-including the existing texture/upscaling pipeline. Font atlases (4-bit),
-`system/sysgraph.tm2` (packed UI textures), Vita-specific rendering scale,
-controller input, audio and native primitives remain unimplemented for Vita.
+including the existing texture/upscaling pipeline. The Vita font atlas
+decoder now extracts 36x42 Shift-JIS glyphs from the 4bpp, 1024-pixel-wide
+`font/AMV_font18_21[im].tm2` archives, with four RGBA palettes. The
+`UiAtlas` decoder resolves Vita UI texture IDs and variants through the
+unwrapped ELF's texture tables and reads indexed RGBA pictures from the packed
+`system/sysgraph.tm2` container, honoring per-entry row pitch. A
+`VitaGraphicsAssets` instance can expose `fontGlyph` and `uiSurface`
+as SDL surfaces to renderer consumers. It requires a caller-provided **plain
+32-bit Vita ELF** for UI; neither game executable extraction nor decryption is
+included. Rendering scale, game VM integration, controller input, audio and
+Vita-specific native primitives remain incomplete. This is not a playable Vita
+runtime.
 
 CPK parsing now rejects out-of-range entries, duplicate TOC names and malformed
 UTF row counts, and checks decoded member sizes. The optional inspector flag
@@ -451,9 +460,9 @@ Vita copy; the existing `--verify` independently checks SCF scripts.
 A read-only Vita inspector is available on desktop builds:
 
 ```sh
-cmake --build build --target AmagamiVitaInspect AmagamiVitaCpkTest AmagamiVitaGraphicsTest
-build/games/amagami/AmagamiVitaInspect /path/to/decrypted/PCSG00291 --verify --verify-graphics
-ctest --test-dir build -R 'Amagami.(VitaCpk|VitaGraphics)' --output-on-failure
+cmake --build build --target AmagamiVitaInspect AmagamiVitaCpkTest AmagamiVitaGraphicsTest AmagamiVitaSystemGraphicsTest
+build/games/amagami/AmagamiVitaInspect /path/to/decrypted/PCSG00291 --verify --verify-graphics --verify-fonts --verify-ui /path/to/unwrapped/eboot.elf
+ctest --test-dir build -R 'Amagami.(VitaCpk|VitaGraphics|VitaSystemGraphics)' --output-on-failure
 ```
 
 It checks the system image and CPK scenario scripts using the existing
