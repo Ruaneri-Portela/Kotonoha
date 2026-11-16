@@ -112,23 +112,35 @@ std::optional<std::vector<std::uint8_t>> VoiceIndex::read(int id) const {
   if (it == files_.end())
     return std::nullopt;
   const auto &entry = it->second;
+  const auto payload = [&](std::uint64_t total) -> std::optional<std::uint64_t> {
+    if (entry.offset > total)
+      return std::nullopt;
+    const auto size = entry.size ? entry.size : total - entry.offset;
+    if (size > total - entry.offset)
+      return std::nullopt;
+    return size;
+  };
   if (!entry.local.empty()) {
     Kotonoha::Filesystem::InputFile input(entry.local, std::ios::binary);
     if (!input.seekg(std::streamoff(entry.offset)))
       return std::nullopt;
-    const auto size =
-        entry.size ? entry.size : std::filesystem::file_size(entry.local);
-    std::vector<std::uint8_t> bytes(size);
+    const auto size = payload(std::filesystem::file_size(entry.local));
+    if (!size)
+      return std::nullopt;
+    std::vector<std::uint8_t> bytes(*size);
     if (!input.read(reinterpret_cast<char *>(bytes.data()),
                     std::streamsize(bytes.size())))
       return std::nullopt;
     return bytes;
   }
+  if (entry.asset.empty())
+    return std::nullopt;
   auto bytes = reader_(entry.asset);
-  if (entry.offset > bytes.size() || entry.size > bytes.size() - entry.offset)
+  const auto size = payload(bytes.size());
+  if (!size)
     return std::nullopt;
   return std::vector<std::uint8_t>(bytes.begin() + entry.offset,
-                                   bytes.begin() + entry.offset + entry.size);
+                                   bytes.begin() + entry.offset + *size);
 }
 std::optional<std::filesystem::path> VoiceIndex::find(int id) const {
   auto it = files_.find(id);
