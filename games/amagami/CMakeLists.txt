@@ -47,6 +47,7 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
         src/VitaScripts.cpp
         src/VitaVmBridge.cpp
         src/VitaSpriteRenderer.cpp
+        src/VitaInput.cpp
     )
     target_include_directories(AmagamiVitaData PUBLIC include)
     target_link_libraries(AmagamiVitaData PUBLIC
@@ -70,6 +71,9 @@ if(KOTONOHA_BUILD_HOST_TOOLS)
         add_executable(AmagamiVitaProbe tools/VitaProbe.cpp)
         target_link_libraries(AmagamiVitaProbe PRIVATE AmagamiVitaData)
         target_compile_features(AmagamiVitaProbe PRIVATE cxx_std_17)
+        add_executable(AmagamiVitaLive tools/VitaLive.cpp)
+        target_link_libraries(AmagamiVitaLive PRIVATE AmagamiVitaData)
+        target_compile_features(AmagamiVitaLive PRIVATE cxx_std_17)
     endif()
 endif()
 
