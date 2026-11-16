@@ -1,5 +1,8 @@
 #include <Amagami/VitaScripts.hpp>
 #include <Amagami/VitaVmBridge.hpp>
+#include <algorithm>
+#include <cstdint>
+#include <utility>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
