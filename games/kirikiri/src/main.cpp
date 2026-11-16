@@ -53,7 +53,7 @@ struct App {
 bool validate(const std::string &path, std::string &info) {
   try {
     auto fs = Kotonoha::Filesystem::Filesystem::mount(path);
-    bool scenario = false, xp3 = false;
+    bool scenario = false, xp3 = false, tjsBootstrap = false;
     for (const auto &entry : fs->list("")) {
       if (entry.type != Kotonoha::Filesystem::FileType::Regular)
         continue;
@@ -62,9 +62,15 @@ bool validate(const std::string &path, std::string &info) {
                      [](unsigned char ch) { return std::tolower(ch); });
       scenario = scenario || extension == ".ks";
       xp3 = xp3 || extension == ".xp3";
+      auto name = std::filesystem::path(entry.path).filename().string();
+      std::transform(name.begin(), name.end(), name.begin(),
+                     [](unsigned char ch) {
+                       return static_cast<char>(std::tolower(ch));
+                     });
+      tjsBootstrap = tjsBootstrap || name == "startup.tjs";
     }
-    if (!scenario && !xp3) {
-      info = "No Kirikiri scenario (.ks) or XP3 archive found";
+    if (!scenario && !xp3 && !tjsBootstrap) {
+      info = "No Kirikiri scenario (.ks), startup.tjs or XP3 archive found";
       return false;
     }
     info = "Virtual Kirikiri source validated";
