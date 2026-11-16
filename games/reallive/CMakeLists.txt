@@ -61,6 +61,16 @@ kotonoha_configure_app(RealLive
     BUNDLE_ID me.hirameki.kotonoha.reallive GAME reallive)
 
 if(BUILD_TESTING)
+    # Synthetic gamepad/touch regressions require no game archive.
+    add_executable(RealLiveInputTests tests/InputTest.cpp)
+    target_include_directories(RealLiveInputTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../lib/include")
+    target_compile_features(RealLiveInputTests PRIVATE cxx_std_17)
+    target_link_libraries(RealLiveInputTests PRIVATE SDL3::SDL3)
+    add_test(NAME RealLive.Input COMMAND RealLiveInputTests)
+    set_tests_properties(RealLive.Input PROPERTIES LABELS synthetic)
+
     # Regression: RealLive's little-endian reads must work with both plain
     # char modes, independent of the legacy -funsigned-char build setting.
     foreach(char_mode IN ITEMS signed unsigned)

@@ -1,5 +1,6 @@
 #include "RealLiveRuntime.hpp"
 #include "RealLiveMouseCursor.hpp"
+#include "RealLiveInput.hpp"
 #include "RealLiveSelection.hpp"
 #include "RealLiveTransition.hpp"
 #include "TitleInput.hpp"
@@ -409,8 +410,8 @@ struct RealLiveRuntime::Impl {
   std::map<int, EditField> editFields;
   int focusedEdit = -1;
   bool autoMode = false, skipMode = false, skipHeld = false;
-  ControllerTriggerSkip triggerSkip;
-  Uint64 autoDeadline = 0, skipDeadline = 0;
+  RealLiveInput input;
+  Uint64 autoDeadline = 0;
   bool ctrlSkipEnabled = true, currentRead = false;
   std::pair<int, std::size_t> currentPage;
   std::set<std::pair<int, std::size_t>> readPages;
@@ -1849,6 +1850,7 @@ struct RealLiveRuntime::Impl {
       vm.jump(titleScenario);
       selectMouseCursor(assets->settings().integer("MOUSE_CURSOR", -1));
       autoMode = skipMode = skipHeld = false;
+      input.resetSkip();
       autoDeadline = 0;
       textbox->controls.reset();
       textbox->concealed = false;
@@ -2009,14 +2011,6 @@ struct RealLiveRuntime::Impl {
       return true;
     }
 
-    if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
-        e.type == SDL_EVENT_GAMEPAD_REMOVED)
-      skipHeld = false;
-    if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) &&
-        (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL)) {
-      skipHeld = e.type == SDL_EVENT_KEY_DOWN;
-      return true;
-    }
     if (pause && textbox->isVisible()) {
       if (textbox->concealed) {
         const bool touchRelease =
@@ -4054,17 +4048,32 @@ void RealLiveRuntime::loadGame(const std::string &path) {
 bool RealLiveRuntime::onEvent(EventRef e) {
   if (!impl)
     return Runtime::onEvent(e);
-  // Modal scenes translate controller input in their own context. Pre-mapping
-  // would turn South into held skip while the pause/save menus are open and
-  // would hide the history state from the backlog. Holding South while a modal
-  // opens must also stop skipping in the background.
+
+  // Engine sends raw fingers before synthetic SDL_TOUCH_MOUSEID pointer
+  // events. Ignore mouse releases from drags, multi-touch and cancellations.
+  if (!impl->input.acceptTouch(e)) {
+    impl->titleInput.reset();
+    impl->button1 = impl->button2 = 0;
+    return true;
+  }
+
+  // Menu/save/backlog own input, and must never inherit a held skip key.
   for (auto *scene : GetActiveScenes())
     if (scene && scene->capturesInput()) {
+      impl->input.resetSkip();
       impl->skipHeld = false;
       return Runtime::onEvent(e);
     }
-  const bool dialogue =
-      impl->textbox && impl->textbox->isVisible() && !impl->textbox->concealed;
+
+  const bool dialogue = impl->pause && impl->textbox &&
+                        impl->textbox->isVisible() &&
+                        !impl->textbox->concealed &&
+                        !impl->choice->isActive();
+  if (impl->input.processSkip(e, dialogue)) {
+    impl->skipHeld = impl->input.skipHeld();
+    return true;
+  }
+  impl->skipHeld = impl->input.skipHeld();
   return Runtime::onEvent(Kotonoha::MapControllerEvent(e, dialogue));
 }
 int RealLiveRuntime::translationRoute() const { return impl->vm.scenario(); }
