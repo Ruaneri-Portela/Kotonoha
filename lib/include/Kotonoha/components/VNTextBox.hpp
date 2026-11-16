@@ -7,6 +7,7 @@
 #include <Kotonoha/core/Scene.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
