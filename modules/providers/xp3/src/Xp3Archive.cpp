@@ -11,6 +11,8 @@
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <memory>
+#include <set>
+#include <limits>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -432,216 +434,222 @@ std::string KirikiriAssets::startupScenario() const {
 }
 
 bool KirikiriAssets::readXp3(const std::string &id) {
-  // Read just enough to validate magic and find the table offset.
-  std::unique_ptr<Kotonoha::Filesystem::FileHandle> f;
-  try {
-    f = source_->open(id);
-  } catch (const std::exception &) {
+  auto f = source_->open(id);
+  if (!f || f->size() < 19)
     return false;
-  }
-  auto closer = [&]() { f.reset(); };
+  const auto fileSize = static_cast<std::uint64_t>(f->size());
+  constexpr std::uint64_t kMaxIndexBytes = 64ull * 1024 * 1024;
+  constexpr std::size_t kMaxIndexParts = 64;
+
+  const auto readAt = [&](std::uint64_t pos, void *out,
+                          std::size_t size) {
+    if (pos > fileSize || size > fileSize - pos ||
+        pos > static_cast<std::uint64_t>(
+                  std::numeric_limits<std::int64_t>::max()) ||
+        f->seek(static_cast<std::int64_t>(pos),
+                Kotonoha::Filesystem::SeekOrigin::Begin) < 0 ||
+        (size && f->read(out, size) !=
+                     static_cast<std::int64_t>(size)))
+      throw std::runtime_error("XP3 truncated or invalid storage range: " + id);
+  };
+  const auto read64At = [&](std::uint64_t pos) {
+    std::uint8_t encoded[8];
+    readAt(pos, encoded, sizeof(encoded));
+    return readU64LE(encoded);
+  };
 
   std::uint8_t magic[11];
-  if (f->read(magic, 11) != 11 ||
-      std::memcmp(magic, kXp3Magic, 11) != 0) {
-    closer();
+  readAt(0, magic, sizeof(magic));
+  if (std::memcmp(magic, kXp3Magic, sizeof(magic)) != 0)
     return false;
-  }
 
-  std::uint64_t infoOffset = 0;
-  if (f->read(&infoOffset, 8) != 8) {
-    closer();
-    return false;
-  }
-
-  std::uint32_t version = 0;
-  if (f->read(&version, 4) != 4) {
-    closer();
-    return false;
-  }
-
-  std::uint64_t tableOffset = 0;
-  if (version == 1) {
-    // Skip table_size(8) + flags(1), read table_offset(8).
-    if (f->seek(9, Kotonoha::Filesystem::SeekOrigin::Current) < 0) {
-      closer();
-      return false;
-    }
-    if (f->read(&tableOffset, 8) != 8) {
-      closer();
-      return false;
-    }
-  } else {
-    tableOffset = infoOffset;
-  }
-
-  // Follow info_offset chain: KirikiriZ marks with 0x80 sentinel.
-  std::size_t metaPos = static_cast<std::size_t>(tableOffset);
-  std::uint8_t first = 0;
-  if (f->seek(static_cast<long>(metaPos), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
-    closer();
-    return false;
-  }
-  if (f->read(&first, 1) != 1) {
-    closer();
-    return false;
-  }
-  if (first == 0x80) {
-    // Skip 8 bytes, read true info offset.
-    if (f->seek(8, Kotonoha::Filesystem::SeekOrigin::Current) < 0) {
-      closer();
-      return false;
-    }
-    std::uint64_t trueOffset = 0;
-    if (f->read(&trueOffset, 8) != 8) {
-      closer();
-      return false;
-    }
-    metaPos = static_cast<std::size_t>(trueOffset);
-  }
-
-  // File table metadata: compressed flag (1), compressed_size (8),
-  // original_size (8).
-  std::uint8_t compressedFlag = 0;
-  if (f->seek(static_cast<long>(metaPos), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
-    closer();
-    return false;
-  }
-  if (f->read(&compressedFlag, 1) != 1) {
-    closer();
-    return false;
-  }
-  bool compressed = compressedFlag != 0;
-  std::uint64_t compSize = 0, origSize = 0;
-  if (f->read(&compSize, 8) != 8 ||
-      f->read(&origSize, 8) != 8) {
-    closer();
-    return false;
-  }
-  std::size_t tableDataStart = static_cast<std::size_t>(metaPos) + 17;
-
-  std::vector<std::uint8_t> tableData;
-  if (compressed) {
-    std::vector<std::uint8_t> compressedData(compSize);
-    if (f->seek(static_cast<long>(tableDataStart), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
-      closer();
-      return false;
-    }
-    if (f->read(compressedData.data(), compSize) != compSize) {
-      closer();
-      return false;
-    }
-    tableData = zlibInflate(compressedData.data(), compSize, origSize);
-  } else {
-    tableData.resize(origSize);
-    if (f->seek(static_cast<long>(tableDataStart), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
-      closer();
-      return false;
-    }
-    if (f->read(tableData.data(), origSize) != origSize) {
-      closer();
-      return false;
-    }
-  }
-  closer();
-
-  // Parse the file table: sequence of chunks (4-byte tag + 8-byte length).
+  // Standard XP3 files start with one 64-bit absolute index offset. The
+  // historical Kotonoha test archive has an additional v2 header, but its
+  // first index offset is still correct; do not assume a version field.
+  std::uint64_t indexOffset = read64At(11);
+  std::set<std::uint64_t> visited;
   std::vector<Xp3Entry> entries;
-  std::size_t tp = 0;
-  while (tp + 12 <= tableData.size()) {
-    std::uint32_t tag = readU32LE(tableData.data() + tp);
-    tp += 4;
-    std::uint64_t chunkSize = readU64LE(tableData.data() + tp);
-    tp += 8;
-    if (tp + chunkSize > tableData.size())
-      break;
-    const std::uint8_t *chunk = tableData.data() + tp;
-    tp += static_cast<std::size_t>(chunkSize);
+  for (std::size_t part = 0; part < kMaxIndexParts; ++part) {
+    if (indexOffset >= fileSize || !visited.insert(indexOffset).second)
+      throw std::runtime_error("XP3 invalid or cyclic index chain: " + id);
+    std::uint8_t flags = 0;
+    readAt(indexOffset, &flags, 1);
+    if (flags & ~std::uint8_t(0x81))
+      throw std::runtime_error("XP3 unsupported index flags: " + id);
+    const bool compressed = (flags & 1) != 0;
+    const bool continued = (flags & 0x80) != 0;
+    const auto storedSize = read64At(indexOffset + 1);
+    std::uint64_t originalSize = storedSize;
+    std::uint64_t payloadOffset = indexOffset + 9;
+    if (compressed) {
+      originalSize = read64At(indexOffset + 9);
+      payloadOffset += 8;
+    } else if (indexOffset <= fileSize - 17 &&
+               storedSize <= kMaxIndexBytes) {
+      // Old synthetic XP3 v2 fixtures included both size fields for raw
+      // indices. Accept this variant only when its extra eight bytes precede
+      // a valid-looking File chunk; canonical raw indices use just one.
+      std::uint8_t first[4] = {};
+      std::uint8_t legacy[4] = {};
+      if (payloadOffset <= fileSize - sizeof(first))
+        readAt(payloadOffset, first, sizeof(first));
+      if (indexOffset + 17 <= fileSize - sizeof(legacy))
+        readAt(indexOffset + 17, legacy, sizeof(legacy));
+      if (std::memcmp(first, "File", 4) != 0 &&
+          std::memcmp(legacy, "File", 4) == 0 &&
+          read64At(indexOffset + 9) == storedSize)
+        payloadOffset += 8;
+    }
+    if (storedSize > kMaxIndexBytes || originalSize > kMaxIndexBytes ||
+        payloadOffset > fileSize || storedSize > fileSize - payloadOffset)
+      throw std::runtime_error("XP3 index exceeds size limit: " + id);
+    std::vector<std::uint8_t> encoded(static_cast<std::size_t>(storedSize));
+    readAt(payloadOffset, encoded.data(), encoded.size());
+    std::vector<std::uint8_t> tableData =
+        compressed ? zlibInflate(encoded.data(), encoded.size(),
+                                 static_cast<std::size_t>(originalSize))
+                   : std::move(encoded);
 
-    if (tag == 0x656C6946) { // "File"
-      // Parse sub-chunks inside the File entry.
-      std::size_t sp = 0;
+    // Each index contains one or more nested File(info, segm, adlr) chunks.
+    // The segm section holds N records of 28 bytes each, not one record.
+    std::size_t tp = 0;
+    while (tp < tableData.size()) {
+      if (tableData.size() - tp < 12)
+        throw std::runtime_error("XP3 truncated File chunk: " + id);
+      const auto tag = readU32LE(tableData.data() + tp);
+      const auto chunkSize = readU64LE(tableData.data() + tp + 4);
+      tp += 12;
+      if (chunkSize > tableData.size() - tp)
+        throw std::runtime_error("XP3 File chunk exceeds index: " + id);
+      const auto *chunk = tableData.data() + tp;
+      tp += static_cast<std::size_t>(chunkSize);
+      if (tag != 0x656c6946u) // "File"
+        continue;
       Xp3Entry entry;
       entry.archiveId = id;
-      bool hasInfo = false, hasSegm = false;
-      std::uint64_t segOffset = 0, segCompSize = 0, segOrigSize = 0;
-      bool segCompressed = false;
-      while (sp + 12 <= chunkSize) {
-        std::uint32_t subTag = readU32LE(chunk + sp);
-        sp += 4;
-        std::uint64_t subSize = readU64LE(chunk + sp);
-        sp += 8;
-        if (sp + subSize > chunkSize)
-          break;
-        const std::uint8_t *sub = chunk + sp;
+      std::size_t sp = 0;
+      bool hasInfo = false, hasSegments = false, protectedEntry = false;
+      std::uint64_t storedTotal = 0, originalTotal = 0;
+      while (sp < chunkSize) {
+        if (chunkSize - sp < 12)
+          throw std::runtime_error("XP3 truncated sub-chunk: " + id);
+        const auto subTag = readU32LE(chunk + sp);
+        const auto subSize = readU64LE(chunk + sp + 4);
+        sp += 12;
+        if (subSize > chunkSize - sp)
+          throw std::runtime_error("XP3 sub-chunk exceeds File: " + id);
+        const auto *sub = chunk + sp;
         sp += static_cast<std::size_t>(subSize);
-
-        if (subTag == 0x6F666E69) { // "info" (little-endian: 69 6E 66 6F)
-          if (subSize >= 22) {
-            std::uint32_t flags = readU32LE(sub);
-            std::uint64_t orig = readU64LE(sub + 4);
-            std::uint64_t arch = readU64LE(sub + 12);
-            std::uint16_t nameLen = readU16LE(sub + 20);
-            entry.originalSize = orig;
-            entry.compressedSize = arch;
-            entry.compressed = (flags & 0x80000000u) != 0;
-            if (subSize >= 22 + nameLen * 2) {
-              std::size_t u16pos = 22;
-              entry.name = readUtf16Le(sub, u16pos, nameLen);
-            }
-            hasInfo = true;
+        if (subTag == 0x6f666e69u) { // "info"
+          if (subSize < 22)
+            throw std::runtime_error("XP3 truncated info: " + id);
+          const auto flags = readU32LE(sub);
+          entry.originalSize = readU64LE(sub + 4);
+          const auto declaredStored = readU64LE(sub + 12);
+          const auto nameUnits = readU16LE(sub + 20);
+          if (static_cast<std::uint64_t>(nameUnits) * 2 > subSize - 22)
+            throw std::runtime_error("XP3 truncated Unicode name: " + id);
+          std::size_t namePos = 22;
+          entry.name = readUtf16Le(sub, namePos, nameUnits);
+          hasInfo = true;
+          protectedEntry = (flags & 0x80000000u) != 0;
+          // This value is validated after all segments have been read.
+          storedTotal = declaredStored;
+        } else if (subTag == 0x6d676573u) { // "segm"
+          if (subSize == 0 || subSize % 28 != 0)
+            throw std::runtime_error("XP3 invalid segment array: " + id);
+          for (std::size_t pos = 0; pos < subSize; pos += 28) {
+            Xp3Segment segment;
+            const auto method = readU32LE(sub + pos) & 7u;
+            if (method > 1)
+              throw std::runtime_error("XP3 unknown segment method: " + id);
+            segment.compressed = method == 1;
+            segment.offset = readU64LE(sub + pos + 4);
+            segment.originalSize = readU64LE(sub + pos + 12);
+            segment.storedSize = readU64LE(sub + pos + 20);
+            if (segment.offset > fileSize ||
+                segment.storedSize > fileSize - segment.offset ||
+                segment.originalSize >
+                    std::numeric_limits<std::uint64_t>::max() - originalTotal ||
+                segment.storedSize >
+                    std::numeric_limits<std::uint64_t>::max() - storedTotal ||
+                (!segment.compressed &&
+                 segment.originalSize != segment.storedSize))
+              throw std::runtime_error("XP3 invalid segment range: " + id);
+            originalTotal += segment.originalSize;
+            storedTotal += segment.storedSize;
+            entry.segments.push_back(segment);
           }
-        } else if (subTag == 0x6D676573) { // "segm"
-          if (subSize >= 28) {
-            segCompressed = (readU32LE(sub) & 7u) != 0;
-            segOffset = readU64LE(sub + 4);
-            segOrigSize = readU64LE(sub + 12);
-            segCompSize = readU64LE(sub + 20);
-            hasSegm = true;
-          }
-        } else if (subTag == 0x726C6461) { // "adlr"
-          // adlr key is used to match File entries; we rely on info name.
+          hasSegments = true;
         }
       }
-      if (hasInfo && hasSegm) {
-        entry.offset = segOffset;
-        entry.compressedSize = segCompSize;
-        entry.originalSize = segOrigSize;
-        entry.compressed = segCompressed;
-        if (!entry.name.empty())
-          entries.push_back(entry);
+      if (hasInfo && hasSegments && !entry.name.empty()) {
+        if (originalTotal != entry.originalSize)
+          throw std::runtime_error("XP3 mismatched decompressed file size: " + id);
+        if (protectedEntry) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: XP3 protected asset needs game filter: %s",
+                      entry.name.c_str());
+          continue;
+        }
+        entries.push_back(std::move(entry));
       }
     }
-  }
 
-  archives.emplace_back(std::filesystem::path(id).filename().string(),
-                        std::move(entries));
-  return true;
+    if (!continued) {
+      archives.emplace_back(std::filesystem::path(id).filename().string(),
+                            std::move(entries));
+      return true;
+    }
+    const auto nextPointer = payloadOffset + storedSize;
+    if (nextPointer > fileSize || fileSize - nextPointer < 8)
+      throw std::runtime_error("XP3 truncated index continuation: " + id);
+    indexOffset = read64At(nextPointer);
+  }
+  throw std::runtime_error("XP3 index chain limit exceeded: " + id);
 }
 
 std::vector<std::uint8_t>
 KirikiriAssets::extractXp3Entry(const Xp3Entry &entry) const {
+  // A storage can be split into interleaved raw/zlib segments. Decode each
+  // segment on demand, in declared order, and concatenate its exact bytes.
+  constexpr std::uint64_t kMaxDecodedFile = 512ull * 1024 * 1024;
+  if (entry.originalSize > kMaxDecodedFile)
+    throw std::runtime_error("XP3 asset too large for in-memory read: " +
+                             entry.name);
   auto f = source_->open(entry.archiveId);
-  auto closer = [&]() { f.reset(); };
-
-  if (f->seek(static_cast<long>(entry.offset), Kotonoha::Filesystem::SeekOrigin::Begin) < 0) {
-    closer();
-    throw std::runtime_error("Cannot seek in XP3 archive: " +
-                             entry.archiveId);
+  if (!f || f->size() < 0)
+    throw std::runtime_error("Cannot open XP3 source: " + entry.archiveId);
+  const auto fileSize = static_cast<std::uint64_t>(f->size());
+  std::vector<std::uint8_t> result;
+  result.reserve(static_cast<std::size_t>(entry.originalSize));
+  for (const auto &segment : entry.segments) {
+    if (segment.offset > fileSize ||
+        segment.storedSize > fileSize - segment.offset ||
+        segment.storedSize > kMaxDecodedFile ||
+        segment.originalSize > kMaxDecodedFile)
+      throw std::runtime_error("XP3 segment out of bounds: " + entry.name);
+    if (f->seek(static_cast<std::int64_t>(segment.offset),
+                Kotonoha::Filesystem::SeekOrigin::Begin) < 0)
+      throw std::runtime_error("Cannot seek XP3 segment: " + entry.name);
+    std::vector<std::uint8_t> packed(static_cast<std::size_t>(segment.storedSize));
+    if (!packed.empty() &&
+        f->read(packed.data(), packed.size()) !=
+            static_cast<std::int64_t>(packed.size()))
+      throw std::runtime_error("Cannot read XP3 segment: " + entry.name);
+    auto decoded = segment.compressed
+        ? zlibInflate(packed.data(), packed.size(),
+                      static_cast<std::size_t>(segment.originalSize))
+        : std::move(packed);
+    if (decoded.size() != segment.originalSize ||
+        decoded.size() > entry.originalSize - result.size())
+      throw std::runtime_error("XP3 invalid decoded segment size: " +
+                               entry.name);
+    result.insert(result.end(), decoded.begin(), decoded.end());
   }
-
-  std::vector<std::uint8_t> raw(entry.compressedSize);
-  if (f->read(raw.data(), entry.compressedSize) !=
-      entry.compressedSize) {
-    closer();
-    throw std::runtime_error("Cannot read entry data: " + entry.name);
-  }
-  closer();
-
-  // Decompress XP3 segment if needed.
-  if (entry.compressed)
-    return zlibInflate(raw.data(), raw.size(), entry.originalSize);
-  return raw;
+  if (result.size() != entry.originalSize)
+    throw std::runtime_error("XP3 incomplete segmented asset: " + entry.name);
+  return result;
 }
 
 } // namespace Kotonoha::Providers
