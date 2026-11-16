@@ -2,6 +2,7 @@
 // Does not decrypt or package retail assets.
 #include <Amagami/Formats.hpp>
 #include <Amagami/VitaCpk.hpp>
+#include <Amagami/VitaGraphics.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -31,12 +32,23 @@ bool hasSuffix(const std::string &name, const std::string &extension) {
 } // namespace
 
 int main(int argc, char **argv) {
-  if (argc < 2 || argc > 3 ||
-      (argc == 3 && std::string(argv[2]) != "--verify")) {
-    std::cerr << "Usage: AmagamiVitaInspect DECRYPTED_GAME_DIRECTORY [--verify]\n"
-                 "This inspects a decrypted PCSG00291 copy; it cannot decrypt "
-                 "or run the Vita game.\n";
+  if (argc < 2 || argc > 4) {
+    std::cerr << "Usage: AmagamiVitaInspect DECRYPTED_GAME_DIRECTORY "
+                 "[--verify] [--verify-graphics]\n"
+                 "Read-only inspection of a decrypted PCSG00291 copy.\n";
     return 2;
+  }
+  bool verify = false, verifyGraphics = false;
+  for (int i = 2; i < argc; ++i) {
+    const std::string flag(argv[i]);
+    if (flag == "--verify")
+      verify = true;
+    else if (flag == "--verify-graphics")
+      verifyGraphics = true;
+    else {
+      std::cerr << "Unsupported argument: " << flag << '\n';
+      return 2;
+    }
   }
   try {
     const std::filesystem::path root(argv[1]);
@@ -45,7 +57,6 @@ int main(int argc, char **argv) {
     const std::string cpk = (root / "SCENARIO.CPK").string();
     const auto index = Amagami::Vita::cpk_read_index(cpk);
     size_t scripts = 0, systemClasses = 0;
-    const bool verify = argc == 3;
     if (verify)
       for (const auto &klass : system) {
         const auto parsed = Amagami::ParseScf(klass.bytes);
@@ -75,6 +86,28 @@ int main(int argc, char **argv) {
     if (verify)
       std::cout << "Successfully parsed " << systemClasses
                 << " system classes and " << scripts << " scenario scripts\n";
+    if (verifyGraphics) {
+      const std::string graphicsPath =
+          (root / "graph" / "GRAPH.CPK").string();
+      const auto graphics = Amagami::Vita::cpk_read_index(graphicsPath);
+      size_t decoded = 0;
+      for (const auto &item : graphics) {
+        if (!Amagami::Vita::pictureLayout(item.first))
+          continue; // Font and packed system pictures need other decoders.
+        std::string encoded;
+        if (!Amagami::Vita::cpk_read(graphicsPath, graphics,
+                                     item.first, encoded))
+          throw std::runtime_error("Missing Vita graphic " + item.first);
+        const auto picture = Amagami::Vita::decodeVitaPicture(
+            item.first, encoded);
+        if (picture.rgba.empty())
+          throw std::runtime_error("Empty Vita graphic " + item.first);
+        ++decoded;
+      }
+      if (!decoded)
+        throw std::runtime_error("No recognised Vita graphics in GRAPH.CPK");
+      std::cout << "Vita palette graphics decoded: " << decoded << '\n';
+    }
     std::cout << "Inspection only: Vita game execution is not implemented.\n";
     return 0;
   } catch (const std::exception &error) {
