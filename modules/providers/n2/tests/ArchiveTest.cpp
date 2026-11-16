@@ -89,6 +89,16 @@ int main() {
           "AFS second filename alias missing");
   require(archive.names().size() == 4, "AFS original and alias names not listed");
   rejects([&] { archive.addAfsNames("1\n../escape,0\n"); });
+  rejects([&] { archive.addAfsNames("1\nscenes/../escape,0\n"); });
+  rejects([&] { archive.addAfsNames("1\nscenes/./escape,0\n"); });
+  rejects([&] { archive.addAfsNames("1\nscenes//escape,0\n"); });
+  rejects([&] { archive.addAfsNames("1\nscenes\\\\escape,0\n"); });
+  rejects([&] { archive.addAfsNames("1\nC:/escape,0\n"); });
+  rejects([&] { archive.addAfsNames(std::string("1\nvoice/") +
+                                    std::string(1, '\0') + "track,0\n"); });
+  require(!archive.contains("scenes/../escape") &&
+          !archive.contains("scenes//escape"),
+          "unsafe AFS alias must never enter the archive index");
   rejects([&] { archive.addAfsNames("1\nscenes/first.ks,1\n"); });
   rejects([&] { archive.addAfsNames("1\ninvalid,999999\n"); });
   require(!archive.contains("invalid"), "bad AFS INI partially mutated names");
@@ -102,6 +112,9 @@ int main() {
   set32(badAfs,4,0xffffffff);
   rejects([&]{N2System::Archive invalid(badAfs);});
 
+  // The same path validation also applies to names decoded from NPA data,
+  // not just external AFS filename tables. The name offset begins at byte
+  // 45, with the per-byte NPA encoding intact.
   const auto n=npa();
   N2System::Archive packed(n);
   require(packed.format()==N2System::ArchiveFormat::NPA);
@@ -123,5 +136,20 @@ int main() {
   badNpa=n;
   badNpa.pop_back();
   rejects([&]{N2System::Archive invalid(badNpa);});
+  for (const std::string bad : {"DIR/../FILE.TXT", "DIR/./FILE.TXT",
+                                "DIR//FILE.TXT", "C:/FILE.TXT"}) {
+    auto broken = npa();
+    // Keep the NPA record length constant; malformed name contents are
+    // decoded with the same per-byte key as ordinary filenames.
+    const std::size_t nameLength = broken[41];
+    const std::string candidate = bad.size() <= nameLength
+        ? bad + std::string(nameLength - bad.size(), 'x')
+        : bad.substr(0, nameLength);
+    for (std::size_t j = 0; j < nameLength; ++j)
+      broken[45 + j] = static_cast<std::uint8_t>(
+          static_cast<std::uint8_t>(candidate[j]) -
+          crypt(static_cast<std::uint32_t>(j), 0, 7, 13));
+    rejects([&] { N2System::Archive invalid(broken); });
+  }
   std::cout<<"N2System AFS/NPA archive tests passed\n";
 }

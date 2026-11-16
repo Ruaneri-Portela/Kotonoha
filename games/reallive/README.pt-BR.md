@@ -45,3 +45,15 @@ a pilha de retorno. Uma tentativa de entrar em um cenário inexistente não deve
 deixar um retorno fantasma; um retorno inválido não deve consumir o quadro
 salvo antes da validação. O teste de sessão mantém suas asserções ativas
 também em builds `Release`, mas depende de dados RealLive originais.
+
+## `case` e `switch` em RealLive
+
+O opcode de seleção procura uma condição explícita correspondente antes de
+usar `()` como caso padrão, mesmo quando esse caso aparece primeiro no
+bytecode. Adicionado o teste sintético `RealLive.CaseSelection`, que roda
+sem o arquivo `Seen.txt`:
+
+```sh
+cmake --build build --target RealLiveCaseSelectionTests
+ctest --test-dir build -R RealLive.CaseSelection --output-on-failure
+```

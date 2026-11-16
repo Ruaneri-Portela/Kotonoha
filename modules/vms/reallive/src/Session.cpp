@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include "RealLive/Session.hpp"
+#include "RealLive/CaseSelection.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -153,22 +154,23 @@ bool Session::flow(const CommandElement &c) {
     return true;
   }
   if (op == 4 || op == 9) {
-    int v = value(0);
-    for (std::size_t i = 0; i < c.GetCaseCount(); ++i) {
-      auto raw = c.GetCase(static_cast<int>(i));
-      if (raw == "()") {
-        target(c, static_cast<int>(i), op == 9);
-        return true;
-      }
-      if (raw.size() < 2)
-        throw std::runtime_error("REALLIVE malformed case");
-      const char *p = raw.c_str() + 1;
-      if (libreallive::GetExpression(p).GetIntegerValue(machine_) == v) {
-        target(c, static_cast<int>(i), op == 9);
-        return true;
-      }
-    }
-    throw std::runtime_error("REALLIVE case has no match");
+    const int v = value(0);
+    // Bytecode may place a default () before a later matching expression.
+    // Do not branch to default until all explicit cases have been examined.
+    const auto selected = selectCase(
+        c.GetCaseCount(), [&](std::size_t i) -> std::optional<bool> {
+          const auto raw = c.GetCase(static_cast<int>(i));
+          if (raw == "()")
+            return std::nullopt;
+          if (raw.size() < 2)
+            throw std::runtime_error("REALLIVE malformed case");
+          const char *p = raw.c_str() + 1;
+          return libreallive::GetExpression(p).GetIntegerValue(machine_) == v;
+        });
+    if (!selected)
+      throw std::runtime_error("REALLIVE case has no match");
+    target(c, static_cast<int>(*selected), op == 9);
+    return true;
   }
   if (op == 10 || op == 13 || op == 17 || op == 19) {
     if ((op == 17 || op == 19) && c.GetParamCount())

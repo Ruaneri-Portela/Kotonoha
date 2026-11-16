@@ -44,3 +44,15 @@ cmake -S . -B build -DBUILD_TESTING=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON
 cmake --build build --target LucaSystemSaveCodecTests
 ctest --test-dir build -R LucaSystem.SaveCodec --output-on-failure
 ```
+
+## Script-ordered dialogue
+
+Keyboard, mouse and shared advance actions now agree: the first input
+reveals unfinished text and the next resumes bytecode execution. The
+runtime no longer displays extracted script strings out of order, bypassing
+interleaved image, audio, wait or branch instructions.
+
+F5/F6 are handled before generic dialogue confirmation, so saving/loading
+works while a textbox is visible. A synthetic test checks the
+`Reveal`/`ResumeScript` decision; original AIR data is still needed for
+integration verification.

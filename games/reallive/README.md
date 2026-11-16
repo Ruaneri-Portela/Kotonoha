@@ -45,3 +45,14 @@ Missing target scenarios do not leave phantom return frames; invalid
 returns keep the pending frame until validation succeeds. The session test
 keeps its assertions enabled in `Release`, but requires original RealLive
 game data.
+
+## RealLive case/switch dispatch
+
+The VM checks explicit matching cases before taking the `()` default,
+even when the default precedes other cases in compiled bytecode. The
+synthetic `RealLive.CaseSelection` regression test needs no `Seen.txt`:
+
+```sh
+cmake --build build --target RealLiveCaseSelectionTests
+ctest --test-dir build -R RealLive.CaseSelection --output-on-failure
+```
