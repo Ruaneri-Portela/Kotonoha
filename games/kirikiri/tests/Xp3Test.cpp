@@ -1395,6 +1395,38 @@ int main() {
         ++failures;
       }
     }
+    // Hover state is retained across frames and only changes on
+    // enter/leave; callbacks update script-owned Layer properties.
+    write(tempDir / "startup.tjs",
+          "var win = new Window();\n"
+          "var button = new Layer(win);\n"
+          "button.setPos(8, 10); button.setSize(80, 50);\n"
+          "button.loadImages(\"image/tlg5.tlg\");\n"
+          "button.onMouseEnter = function(x, y) {\n"
+          "  if (x >= 8 && y >= 10) button.opacity = 140;\n"
+          "};\n"
+          "button.onMouseLeave = function(x, y) {\n"
+          "  button.opacity = 255;\n"
+          "};\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      const auto getOpacity = [&] {
+        for (const auto &layer : run.layers)
+          if (layer.storage == "image/tlg5.tlg")
+            return layer.opacity;
+        return -1;
+      };
+      if (!run.subsetCompleted || !run.error.empty() ||
+          !Kotonoha::Providers::dispatchTjsUiHover(run, 20.0f, 30.0f) ||
+          getOpacity() != 140 ||
+          Kotonoha::Providers::dispatchTjsUiHover(run, 22.0f, 32.0f) ||
+          !Kotonoha::Providers::dispatchTjsUiHover(run, -2.0f, -2.0f) ||
+          getOpacity() != 255 || !run.error.empty()) {
+        std::printf("FAIL: TJS2 onMouseEnter/onMouseLeave hover state\n");
+        ++failures;
+      }
+    }
     // Layer constructor ownership may not cross Window boundaries.
     write(tempDir / "startup.tjs",
           "var a = new Window(); var b = new Window();\n"
