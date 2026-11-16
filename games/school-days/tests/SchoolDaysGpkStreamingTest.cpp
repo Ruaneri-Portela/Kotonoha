@@ -52,7 +52,10 @@ std::vector<uint8_t> Deflate(const std::vector<uint8_t> &input) {
 
 std::vector<uint8_t> BuildPack(const std::u16string &name,
                                const std::vector<uint8_t> &logical,
-                               bool compressed, size_t prefixLength) {
+                               bool compressed, size_t prefixLength,
+                               size_t bodyPadding = 0u,
+                               size_t indexPadding = 0u,
+                               uint8_t indexPaddingValue = 0u) {
   constexpr uint32_t firstOffset = 5120u;
   std::vector<uint8_t> pack(firstOffset, 0u);
   std::vector<uint8_t> stored = compressed ? Deflate(logical) : logical;
@@ -75,8 +78,10 @@ std::vector<uint8_t> BuildPack(const std::u16string &name,
   index.insert(index.end(), stored.begin(), stored.begin() + prefixLength);
   U16(&index, 0u);
   U16(&index, 0u);
+  index.insert(index.end(), indexPadding, indexPaddingValue);
 
   pack.insert(pack.end(), stored.begin() + prefixLength, stored.end());
+  pack.insert(pack.end(), bodyPadding, 0u);
   auto compressedIndex = Deflate(index);
   std::vector<uint8_t> encoded;
   U32(&encoded, static_cast<uint32_t>(index.size()));
@@ -90,6 +95,30 @@ std::vector<uint8_t> BuildPack(const std::u16string &name,
   pack.insert(pack.end(), {'S', 'T', 'K', 'F', 'i', 'l', 'e', '0', 'P', 'A',
                            'C', 'K', 'F', 'I', 'L', 'E'});
   return pack;
+}
+
+// Two consecutive PIDX entries with a configurable physical gap/overlap.
+std::vector<uint8_t> TwoEntryIndex(uint32_t secondOffset) {
+  std::vector<uint8_t> index;
+  const auto add = [&index](const std::u16string &name, uint32_t offset) {
+    U16(&index, static_cast<uint16_t>(name.size()));
+    for (char16_t c : name)
+      U16(&index, static_cast<uint16_t>(c));
+    U16(&index, 0u); // subVersion
+    U16(&index, 0u); // version
+    U16(&index, 0u); // reserved
+    U32(&index, offset);
+    U32(&index, 5u); // one inline byte + four physical bytes
+    index.insert(index.end(), {' ', ' ', ' ', ' '});
+    U32(&index, 0u);
+    index.push_back(1u);
+    index.push_back('P');
+  };
+  add(u"FIRST.BIN", 5120u);
+  add(u"SECOND.BIN", secondOffset);
+  U16(&index, 0u);
+  U16(&index, 0u);
+  return index;
 }
 
 void Write(const fs::path &path, const std::vector<uint8_t> &bytes) {
@@ -113,6 +142,9 @@ void BuildRetailSet(const fs::path &packs) {
     else if (prefix == "Movie00")
       Write(packs / spec.filename,
             BuildPack(u"COMPRESSED.BIN", deflated, true, 5u));
+    else if (prefix == "Event00")
+      Write(packs / spec.filename,
+            BuildPack(u"PADDED.BIN", raw, false, 3u, 9u, 6u));
     else
       Write(packs / spec.filename, BuildPack(u"DUMMY.BIN", {'x'}, false, 0u));
   }
@@ -127,7 +159,24 @@ int main() {
   std::error_code ec;
   fs::remove_all(root, ec);
   try {
+    // DaysEngine documents padding after the PIDX terminator. Exact HQ
+    // indexes remain supported; nonzero trailing garbage must still fail.
+    Kotonoha::SchoolDaysGpkIndex index;
+    std::string indexError;
+    auto gapped = TwoEntryIndex(5128u); // first physical body ends at 5124
+    Require(index.ParseDecoded(gapped.data(), gapped.size(), &indexError),
+            "A nonoverlapping PIDX offset gap was rejected: " + indexError);
+    auto overlapping = TwoEntryIndex(5123u);
+    Require(!index.ParseDecoded(overlapping.data(), overlapping.size(),
+                                &indexError),
+            "Overlapping PIDX entry ranges were accepted");
+
     BuildRetailSet(root);
+    Write(root / "malformed-index.GPK",
+          BuildPack(u"INVALID.BIN", {'x'}, false, 0u, 0u, 3u, 0x7fu));
+    Kotonoha::SchoolDaysGpkArchive malformedArchive;
+    Require(!malformedArchive.Open(root / "malformed-index.GPK"),
+            "Nonzero PIDX terminator padding was accepted");
     Kotonoha::Providers::SchoolDaysAssets assets(root);
 
     const std::string rawId = assets.resolve("BGM/RAW.BIN");
@@ -161,6 +210,13 @@ int main() {
             "Raw stream seek/read did not address GPK body range");
     Require(!stream->seek(stream->size() + 1u),
             "Raw stream accepted out-of-range seek");
+
+    // Both the physical gap before the PIDX and the zero-padded index
+    // must be accepted, without incorporating padding into asset contents.
+    const auto padded =
+        assets.read("Event00/PADDED.BIN", Kotonoha::AssetSource::Original);
+    Require(std::string(padded.begin(), padded.end()) == "PREFIX-RAW-BODY",
+            "GPK entry padding leaked into asset bytes or blocked loading");
 
     const std::string compressedId = assets.resolve("Movie00/COMPRESSED.BIN");
     Require(!assets.openStream(compressedId),
