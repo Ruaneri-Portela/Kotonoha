@@ -968,6 +968,45 @@ Value Interpreter::construct(const std::string &type,
     layers.push_back(layer);
     return layer;
   };
+  if (auto registered = classes.find(type); registered != classes.end()) {
+    // Only small source classes and their virtual Window/Layer/Dictionary
+    // ancestors are supported; arbitrary native class inheritance is not.
+    const SourceClass definition = registered->second;
+    if (instances.size() >= 256)
+      throw std::runtime_error("TJS2 subset: class instance limit exceeded");
+    ObjectPtr instance;
+    if (definition.base.empty()) {
+      instance = std::make_shared<Object>();
+      instance->kind = Object::Kind::ScriptClass;
+    } else if (definition.base == "Window" ||
+               definition.base == "Dictionary") {
+      const auto base = construct(definition.base, {});
+      instance = std::get<ObjectPtr>(base.data);
+    } else if (definition.base == "Layer") {
+      const auto base = construct("Layer", args);
+      instance = std::get<ObjectPtr>(base.data);
+    } else {
+      throw std::runtime_error(
+          "TJS2 subset: unsupported source class base: " + definition.base);
+    }
+    instance->className = type;
+    instances.push_back(instance);
+    if (boundMethods.size() + definition.methods.size() > 2048)
+      throw std::runtime_error("TJS2 subset: bound method limit exceeded");
+    for (const auto &method : definition.methods) {
+      const auto alias = "__tjs_bound_" + std::to_string(nextBoundMethod++);
+      boundMethods.emplace(alias, BoundMethod{instance, method.second});
+      instance->members[method.first] = Value(alias);
+    }
+    if (const auto ctor = definition.methods.find(type);
+        ctor != definition.methods.end()) {
+      (void)invokeSource(ctor->second, args, instance);
+    } else if (!args.empty() && definition.base != "Layer") {
+      throw std::runtime_error(
+          "TJS2 subset: constructor arguments without declared constructor");
+    }
+    return Value(instance);
+  }
   if (type == "Dictionary") {
     if (!args.empty())
       throw std::runtime_error("TJS2 UI: Dictionary takes no arguments");
@@ -1057,7 +1096,7 @@ void Interpreter::snapshotLayers() {
       frame.onClick = member(layer, "onMouseDown").string();
     const auto callback = [&](const char *property) {
       const auto value = member(layer, property).string();
-      if (!value.empty() && (value.size() > 128 || !functions.count(value)))
+      if (!value.empty() && (value.size() > 128 || !hasCallable(value)))
         throw std::runtime_error(
             std::string(
                 "TJS2 UI: event must name a declared script function: ") +
@@ -1065,7 +1104,7 @@ void Interpreter::snapshotLayers() {
       return value;
     };
     if (!frame.onClick.empty() &&
-        (frame.onClick.size() > 128 || !functions.count(frame.onClick)))
+        (frame.onClick.size() > 128 || !hasCallable(frame.onClick)))
       throw std::runtime_error(
           "TJS2 UI: onClick must name a declared script function");
     frame.onMouseEnter = callback("onMouseEnter");
@@ -1272,11 +1311,8 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
     auto &vm = session->vm;
     vm.result.kagEntry.clear();
     try {
-      const auto found = vm.functions.find(layer.onClick);
-      if (found == vm.functions.end())
-        throw std::runtime_error("TJS2 UI: missing event handler");
       std::vector<Value> arguments;
-      const auto arity = found->second.parameters.size();
+      const auto arity = vm.callableArity(layer.onClick);
       if (arity > 4)
         throw std::runtime_error("TJS2 UI: unsupported pointer event arity");
       if (arity >= 1)
@@ -1337,10 +1373,7 @@ bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
     const auto invoke = [&](const std::string &name) {
       if (name.empty())
         return;
-      const auto found = vm.functions.find(name);
-      if (found == vm.functions.end())
-        throw std::runtime_error("TJS2 UI: hover handler not found");
-      const auto arity = found->second.parameters.size();
+      const auto arity = vm.callableArity(name);
       if (arity > 4)
         throw std::runtime_error("TJS2 UI: excessive hover parameters");
       std::vector<Value> args;
