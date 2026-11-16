@@ -129,8 +129,11 @@ int main() {
       bridge.primitive("Sprite", "setRect", false, original, 5,
                        {VmValue::num(1)});
     });
-    check(!bridge.primitive("Sprite", "animate", false, original, 8, {}),
-          "Unsupported animation remains an explicit VM error");
+    rejects([&] {
+      bridge.primitive("Sprite", "animate", false, original, 8, {});
+    }); // Now implemented with strict native arity.
+    check(!bridge.primitive("Sprite", "spin", false, original, 12, {}),
+          "Unsupported spin remains an explicit VM error");
     check(!bridge.primitive("BG_Picture", "spawn", false, original, 1, {}),
           "Sprite bridge never replaces other graphics classes");
     check(bridge.sprites().size() == 2,
