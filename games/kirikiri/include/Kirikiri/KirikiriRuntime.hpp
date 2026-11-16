@@ -49,6 +49,7 @@ public:
   std::vector<std::string> originalActiveKeys_;
   std::vector<std::string> scenarioTexts_;
 
+  std::string diagnostic() const override;
   std::string debugNode() const override;
   void debugRestartScene() override;
   std::string dialogueText() const override { return dialogueText_; }
