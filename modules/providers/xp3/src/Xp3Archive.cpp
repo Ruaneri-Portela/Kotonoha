@@ -1,5 +1,6 @@
 // Reusable XP3 provider; independent of the KAG runtime.
 #include <Kirikiri/KirikiriAssets.hpp>
+#include <Kirikiri/TlgImage.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <zlib.h>
@@ -331,8 +332,19 @@ std::string KirikiriAssets::localPathAsset(const std::string &id) const {
 
 Kotonoha::SurfacePtr
 KirikiriAssets::loadSurfaceAsset(const std::string &id) const {
-  // AssetProvider's default implementation decodes from readAsset(), which is
-  // required for pictures living in XP3 archives.
+  // SDL/FFmpeg do not understand KiriKiri TLG5. Decode directly from the XP3
+  // provider, including images whose extension is changed by a patch.
+  // For ordinary PNG/JPEG/WebP/BMP, keep the shared decoder pipeline.
+  const auto dot = id.find_last_of('.');
+  if (dot != std::string::npos) {
+    std::string extension = id.substr(dot);
+    std::transform(extension.begin(), extension.end(), extension.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (extension == ".tlg" || extension == ".tlg5" || extension == ".tlg6") {
+      const auto bytes = read(id);
+      return decodeTlgImage(bytes);
+    }
+  }
   return AssetProvider::loadSurfaceAsset(id);
 }
 
