@@ -5,6 +5,7 @@
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
+#include <LucaSystem/SaveState.hpp>
 
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
@@ -512,12 +513,12 @@ struct LucaSystemRuntime::Impl {
         jumpFrom(ins);
         break;
       case OP_CALL: {
+        // Reject overdeep calls before modifying the instruction pointer.
+        if (callStack.size() >= 1024)
+          throw std::runtime_error("LucaSystem: call stack limit exceeded");
         const auto next = instructionIndex;
-        if (jumpFrom(ins)) {
-          if (callStack.size() >= 1024)
-            throw std::runtime_error("LucaSystem: call stack limit exceeded");
+        if (jumpFrom(ins))
           callStack.push_back(next);
-        }
         break;
       }
       case OP_RETURN:
@@ -905,77 +906,92 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
 }
 
 void LucaSystemRuntime::saveGame(const std::string &path) {
-  auto &impl = *impl_;
-  std::ostringstream data;
-  data << "LUCA_SYSTEM_SAVE_2\n"
-       << impl.currentScenario << '\n'
-       << impl.instructionIndex << '\n'
-       << impl.dialogueIndex << '\n'
-       << impl.dialogueVisible << '\n';
-  // Persist numeric variables.
-  data << impl.numericVars.size() << '\n';
-  for (auto &[k, v] : impl.numericVars)
-    data << k << ' ' << v << '\n';
-  // Persist string variables.
-  data << impl.stringVars.size() << '\n';
-  for (auto &[k, v] : impl.stringVars)
-    data << k << ' ' << v << '\n';
-  // Persist flags.
-  data << impl.flags.size() << '\n';
-  for (auto &[k, v] : impl.flags)
-    data << k << ' ' << (v ? 1 : 0) << '\n';
-  Kotonoha::GetVNManagerRuntime(*impl.engine).save(path, data.str());
+  const auto &impl = *impl_;
+  SaveState state;
+  state.scenario = impl.currentScenario;
+  state.instructionIndex = impl.instructionIndex;
+  state.dialogueIndex = impl.dialogueIndex;
+  state.dialogueVisible = impl.dialogueVisible;
+  state.dialogueText = dialogueText_;
+  state.waiting = impl.waiting;
+  if (impl.waiting) {
+    const auto now = SDL_GetTicks();
+    const auto remaining = impl.waitDeadline > now
+        ? impl.waitDeadline - now : 0;
+    state.waitRemainingMs = static_cast<std::uint32_t>(
+        std::min<std::uint64_t>(remaining, SaveCodec::MaxWaitMs));
+  }
+  state.numbers.insert(impl.numericVars.begin(), impl.numericVars.end());
+  state.strings.insert(impl.stringVars.begin(), impl.stringVars.end());
+  state.flags.insert(impl.flags.begin(), impl.flags.end());
+  state.callStack = impl.callStack;
+  Kotonoha::GetVNManagerRuntime(*impl.engine).save(
+      path, encodeSaveState(state));
 }
 
 void LucaSystemRuntime::loadGame(const std::string &path) {
   auto &impl = *impl_;
   auto saved = Kotonoha::VNSave::read(path);
-  std::istringstream data(saved.gameData);
-  std::string header, scenario;
-  size_t index = 0, dIndex = 0;
-  bool dVisible = false;
-  std::getline(data, header);
-  if (header == "LUCA_SYSTEM_SAVE_2") {
-    std::getline(data, scenario);
-    data >> index >> dIndex >> dVisible;
-    size_t nv;
-    data >> nv;
-    impl.numericVars.clear();
-    for (size_t i = 0; i < nv; ++i) {
-      uint32_t k;
-      int32_t v;
-      data >> k >> v;
-      impl.numericVars[k] = v;
+  const SaveState state = decodeSaveState(saved.gameData);
+
+  // Parse and validate before touching the live interpreter.
+  auto *pak = impl.assets->scriptPak();
+  if (!pak || !pak->findByName(state.scenario))
+    throw std::runtime_error("LucaSystem save scenario is unavailable");
+  auto bytes = impl.assets->read(state.scenario);
+  Script candidate(state.scenario,
+                   std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
+  if (!candidate.valid() ||
+      state.instructionIndex > candidate.instructionCount() ||
+      state.dialogueIndex > candidate.strings().size() ||
+      state.callStack.size() > 1024)
+    throw std::runtime_error("Invalid LucaSystem save script position");
+  for (const auto returnTo : state.callStack)
+    if (returnTo > candidate.instructionCount())
+      throw std::runtime_error("Invalid LucaSystem save return frame");
+
+  // Resume without evaluating any instruction: normal scenario startup
+  // advances the PC and would overwrite the saved dialogue.
+  if (!startScenario(state.scenario, state.instructionIndex, true))
+    throw std::runtime_error("Cannot resume LucaSystem scenario");
+  impl.numericVars.clear();
+  impl.numericVars.insert(state.numbers.begin(), state.numbers.end());
+  impl.stringVars.clear();
+  impl.stringVars.insert(state.strings.begin(), state.strings.end());
+  impl.flags.clear();
+  impl.flags.insert(state.flags.begin(), state.flags.end());
+  impl.callStack = state.callStack;
+  impl.dialogueIndex = state.dialogueIndex;
+  impl.waiting = state.waiting;
+  impl.waitDeadline = SDL_GetTicks() + state.waitRemainingMs;
+
+  // Version 2 did not persist the message itself; recover the most recent
+  // consumed MESSAGE instruction when resuming a legacy save.
+  std::string text = state.dialogueText;
+  if (state.dialogueVisible && text.empty()) {
+    for (std::size_t i = state.instructionIndex; i > 0; --i) {
+      const auto &ins = impl.instructions[i - 1];
+      if (ins.opcode == OP_MESSAGE && !ins.text.empty()) {
+        text = ins.text;
+        break;
+      }
     }
-    size_t ns;
-    data >> ns;
-    impl.stringVars.clear();
-    for (size_t i = 0; i < ns; ++i) {
-      uint32_t k;
-      std::string v;
-      data >> k >> v;
-      impl.stringVars[k] = v;
-    }
-    size_t nf;
-    data >> nf;
-    impl.flags.clear();
-    for (size_t i = 0; i < nf; ++i) {
-      uint32_t k;
-      int v;
-      data >> k >> v;
-      impl.flags[k] = v != 0;
-    }
-  } else {
-    scenario = std::move(header);
   }
-  impl.dialogueIndex = dIndex;
-  impl.dialogueVisible = dVisible;
-  if (!scenario.empty())
-    startScenario(scenario, index);
+  impl.dialogueVisible = state.dialogueVisible && !text.empty();
+  dialogueText_ = impl.dialogueVisible ? text : std::string{};
+  dialogueSpeaker_.clear();
+  if (impl.textbox) {
+    if (impl.dialogueVisible) {
+      impl.textbox->setDialogue("", dialogueText_);
+      impl.textbox->show();
+    } else {
+      impl.textbox->hide();
+    }
+  }
 }
 
 bool LucaSystemRuntime::startScenario(const std::string &name,
-                                      size_t position) {
+                                      size_t position, bool resume) {
   auto &impl = *impl_;
   auto *pak = impl.assets->scriptPak();
   if (!pak)
@@ -992,6 +1008,8 @@ bool LucaSystemRuntime::startScenario(const std::string &name,
                 script.error().c_str());
     return false;
   }
+  if (position > script.instructionCount())
+    return false;
 
   impl.currentScenario = name;
   impl.instructions = script.instructions();
@@ -999,9 +1017,14 @@ bool LucaSystemRuntime::startScenario(const std::string &name,
   impl.dialogueLines = script.strings();
   impl.dialogueIndex = 0;
   impl.dialogueVisible = false;
+  impl.callStack.clear();
   impl.objectPlacements_.clear();
   impl.waiting = false;
-  impl.running = true;
+  impl.running = position < impl.instructions.size();
+  dialogueText_.clear();
+  dialogueSpeaker_.clear();
+  if (impl.textbox)
+    impl.textbox->hide();
 
   SDL_Log("LucaSystem: scenario '%s' parsed: %zu instructions, %zu dialogue "
           "lines",
@@ -1013,7 +1036,8 @@ bool LucaSystemRuntime::startScenario(const std::string &name,
         scenarioTexts_.end())
       scenarioTexts_.push_back(line);
 
-  impl.runUntilPause();
+  if (!resume)
+    impl.runUntilPause();
   return true;
 }
 

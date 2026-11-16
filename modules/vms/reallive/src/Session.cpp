@@ -85,8 +85,13 @@ void Session::target(const CommandElement &c, int which, bool call) {
   auto it = std::find(s.begin(), s.end(), ptr);
   if (it == s.end())
     throw std::runtime_error("REALLIVE jump target outside scenario");
-  if (call)
+  if (call) {
+    // Match snapshot's maximum validated return-stack depth. Untrusted
+    // recursive jumps must not allocate until the browser runs out of memory.
+    if (stack_.size() >= 65536)
+      throw std::runtime_error("REALLIVE call stack limit exceeded");
     stack_.push_back({scene_, pc_ + 1});
+  }
   pc_ = static_cast<std::size_t>(it - s.begin());
 }
 bool Session::flow(const CommandElement &c) {
@@ -172,9 +177,11 @@ bool Session::flow(const CommandElement &c) {
       finished_ = true;
       return true;
     }
-    auto f = stack_.back();
-    stack_.pop_back();
+    const auto f = stack_.back();
+    // Validate the destination before consuming the pending return frame.
+    // An unavailable scenario must leave the VM's stack intact.
     seek(f.scene, f.pc);
+    stack_.pop_back();
     return true;
   }
   if (op == 16) {
@@ -188,9 +195,15 @@ bool Session::flow(const CommandElement &c) {
     std::optional<std::pair<std::vector<int>, std::vector<std::string>>> data;
     if (op == 18)
       data = withData(2);
-    if (op == 12 || op == 18)
-      stack_.push_back({scene_, pc_ + 1});
+    const bool call = op == 12 || op == 18;
+    if (call && stack_.size() >= 65536)
+      throw std::runtime_error("REALLIVE call stack limit exceeded");
+    const Frame returnTo{scene_, pc_ + 1};
+    // Resolve cross-scenario targets before recording a return frame.
+    // Failure to find a scenario/entrypoint may throw from jump().
     jump(n, entry);
+    if (call)
+      stack_.push_back(returnTo);
     if (data)
       writeWithData(*data);
     return true;

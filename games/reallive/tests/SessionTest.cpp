@@ -100,6 +100,13 @@ int main(int argc, char **argv) {
   assert(call({0, 12, out, xmod}) == 2 && m.GetStringValue(18, 4) == "i");
   // Invalid snapshots must leave every serialized field unchanged.
   const auto before = session.snapshot();
+  bool missingScenarioRejected = false;
+  try {
+    session.jump(-1);
+  } catch (const std::exception &) {
+    missingScenarioRejected = true;
+  }
+  assert(missingScenarioRejected && session.snapshot() == before);
   for (auto invalid :
        {std::string(), before.substr(0, before.size() - 1), before + "junk"}) {
     bool threw = false;

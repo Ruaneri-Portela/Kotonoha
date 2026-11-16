@@ -43,7 +43,9 @@ public:
   void loadGame(const std::string &path) override;
 
   // Start / resume a scenario script by SCRIPT.PAK entry name.
-  bool startScenario(const std::string &name, size_t position = 0);
+  // resume=true restores a saved PC without executing script instructions.
+  bool startScenario(const std::string &name, size_t position = 0,
+                     bool resume = false);
   bool debugJumpToLabel(const std::string &label);
 
   void advanceDialogue();

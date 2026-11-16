@@ -35,6 +35,12 @@ if(BUILD_TESTING)
   add_executable(LucaSystemFormatTests tests/LucaSystemTest.cpp)
   target_link_libraries(LucaSystemFormatTests PRIVATE luca_system_formats)
   add_test(NAME LucaSystemFormatTests COMMAND LucaSystemFormatTests)
+
+  # Dependency-free C++17 test: no SDL, vcpkg, or retail AIR data required.
+  add_executable(LucaSystemSaveCodecTests tests/SaveStateTest.cpp)
+  target_include_directories(LucaSystemSaveCodecTests PRIVATE include)
+  target_compile_features(LucaSystemSaveCodecTests PRIVATE cxx_std_17)
+  add_test(NAME LucaSystem.SaveCodec COMMAND LucaSystemSaveCodecTests)
 endif()
 
 if(BUILD_TESTING)
