@@ -84,6 +84,14 @@ if(BUILD_TESTING)
     endforeach()
 
     # Data-independent verification of switch/case selection semantics.
+    # Pure C++17 tests for Str.digits / Str.digit opcode parameters.
+    add_executable(RealLiveDecimalDigitsTests tests/DecimalDigitsTest.cpp)
+    target_include_directories(RealLiveDecimalDigitsTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")
+    target_compile_features(RealLiveDecimalDigitsTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.DecimalDigits COMMAND RealLiveDecimalDigitsTests)
+    set_tests_properties(RealLive.DecimalDigits PROPERTIES LABELS synthetic)
+
     add_executable(RealLiveStringOpsTests tests/StringOpsTest.cpp)
     target_include_directories(RealLiveStringOpsTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")

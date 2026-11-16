@@ -68,3 +68,15 @@ no `Seen.txt`.
 cmake --build build --target RealLiveStringOpsTests
 ctest --test-dir build -R RealLive.StringOps --output-on-failure
 ```
+
+## Decimal string VM opcodes
+
+Added `Str.digits` (opcode 19) and `Str.digit` (opcode 20), with
+one-based-from-the-right digit positions, safe handling of `INT_MIN`,
+and explicit rejection of invalid positions before modifying the target
+variable. These are additional value operations, not new UI rendering.
+
+```sh
+cmake --build build --target RealLiveDecimalDigitsTests
+ctest --test-dir build -R RealLive.DecimalDigits --output-on-failure
+```

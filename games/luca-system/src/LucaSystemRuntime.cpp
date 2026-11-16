@@ -7,6 +7,7 @@
 #include <LucaSystem/LucaSystemScript.hpp>
 #include <LucaSystem/DialogueFlow.hpp>
 #include <LucaSystem/SaveState.hpp>
+#include <LucaSystem/SceneLayers.hpp>
 
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
@@ -350,7 +351,10 @@ struct LucaSystemRuntime::Impl {
     }
   }
 
-  void renderObject(Kotonoha::RendererRef renderer, uint32_t id, int x, int y) {
+  void renderObject(Kotonoha::RendererRef renderer, uint32_t id, int x,
+                    int y, float opacity = 1.0f) {
+    if (opacity <= 0.0f)
+      return;
     auto it = objectImages.find(id);
     if (it == objectImages.end())
       return;
@@ -365,6 +369,8 @@ struct LucaSystemRuntime::Impl {
         throw std::runtime_error(SDL_GetError());
       SDL_SetTextureBlendMode(tex.get(), SDL_BLENDMODE_BLEND);
     }
+    SDL_SetTextureAlphaMod(tex.get(), static_cast<Uint8>(
+        std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f)));
     SDL_FRect dst{float(x), float(y), float(it->second.width),
                   float(it->second.height)};
     SDL_RenderTexture(&renderer, tex.get(), nullptr, &dst);
@@ -381,6 +387,8 @@ struct LucaSystemRuntime::Impl {
 
       switch (ins.opcode) {
       case OP_MESSAGE: {
+        // In scripts that omit DRAW, publish staged images before text.
+        sceneLayers.commit(SDL_GetTicks(), 0);
         if (!ins.text.empty()) {
           dialogueVisible = true;
           runtime.dialogueText_ = ins.text;
@@ -413,16 +421,10 @@ struct LucaSystemRuntime::Impl {
           int x = int(paramU16(ins, 2));
           int y = int(paramU16(ins, 4));
           loadObjectImage(id);
-          // Store placement; rendered in renderGameplay.
-          // For simplicity we draw immediately at (x,y) on a base canvas.
-          // The original engine composites objects onto the background.
-          // Bound retained sprites until the original object manager's
-          // replacement/clear semantics are fully implemented.
-          if (objectPlacements_.size() < SaveCodec::MaxImages)
-            objectPlacements_.push_back({id, x, y});
-          else
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                        "LucaSystem: image placement cap reached");
+          // Defer composition until DRAW, allowing timed presentation and
+          // preserving outgoing layers for a cross-fade. A MESSAGE or END
+          // flushes pending objects if this title omits DRAW.
+          sceneLayers.stage({id, x, y});
         }
         break;
       }
@@ -430,10 +432,15 @@ struct LucaSystemRuntime::Impl {
         int frames = 0;
         if (ins.paramBytes.size() >= 2)
           frames = int(paramU16(ins, 0));
-        waiting = true;
-        waitDeadline = SDL_GetTicks() +
-                       static_cast<std::uint64_t>(frames) * 17u;
-        return;
+        const auto duration = static_cast<std::uint64_t>(
+            std::clamp(frames, 0, 3600)) * 17u;
+        sceneLayers.commit(SDL_GetTicks(), duration);
+        if (duration) {
+          waiting = true;
+          waitDeadline = SDL_GetTicks() + duration;
+          return;
+        }
+        break;
       }
       case OP_FADE: {
         int fadeType = 0;
@@ -442,10 +449,18 @@ struct LucaSystemRuntime::Impl {
         int ms = 500;
         if (ins.paramBytes.size() >= 2)
           ms = int(paramU16(ins, 0));
-        // Simple fade: just wait, the visual fade is handled by the engine.
-        waiting = true;
-        waitDeadline = SDL_GetTicks() + static_cast<std::uint64_t>(ms);
-        return;
+        // Approximate the screen fade with a real alpha overlay. The
+        // proprietary per-title fade curves/types are not yet reproduced.
+        ms = std::clamp(ms, 0, 60000);
+        sceneLayers.beginBlackout(SDL_GetTicks(),
+                                  static_cast<std::uint64_t>(ms),
+                                  (fadeType & 1) != 0);
+        if (ms) {
+          waiting = true;
+          waitDeadline = SDL_GetTicks() + static_cast<std::uint64_t>(ms);
+          return;
+        }
+        break;
       }
       case OP_INIT: {
         int mode = 0;
@@ -559,7 +574,16 @@ struct LucaSystemRuntime::Impl {
         break;
       }
       case OP_WIPE: {
-        // Screen wipe transition.
+        // Transitional approximation while decoding AIR-specific wipe
+        // directions: commit staged images with a bounded cross-fade.
+        const auto ms = ins.paramBytes.size() >= 2
+            ? static_cast<std::uint64_t>(paramU16(ins, 0)) : 300u;
+        sceneLayers.commit(SDL_GetTicks(), ms);
+        if (ms) {
+          waiting = true;
+          waitDeadline = SDL_GetTicks() + ms;
+          return;
+        }
         break;
       }
       case OP_MOVE:
@@ -583,6 +607,7 @@ struct LucaSystemRuntime::Impl {
         // Startup block markers — no-op.
         break;
       case OP_END:
+        sceneLayers.commit(SDL_GetTicks(), 0);
         running = false;
         return;
       default:
@@ -590,7 +615,12 @@ struct LucaSystemRuntime::Impl {
         break;
       }
     }
-    running = false;
+    // Budget exhaustion must yield to the next frame, not silently stop
+    // a valid scenario with more than 8192 consecutive nonblocking opcodes.
+    if (instructionIndex >= instructions.size()) {
+      sceneLayers.commit(SDL_GetTicks(), 0);
+      running = false;
+    }
   }
 
   bool jumpFrom(const ScriptInstruction &ins) {
@@ -641,12 +671,7 @@ struct LucaSystemRuntime::Impl {
     }
   }
 
-  // Object placements from IMAGELOAD.
-  struct ObjectPlacement {
-    uint32_t id;
-    int x, y;
-  };
-  std::vector<ObjectPlacement> objectPlacements_;
+  SceneLayers sceneLayers;
 };
 
 LucaSystemRuntime::LucaSystemRuntime(
@@ -798,8 +823,17 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     SDL_RenderTexture(&renderer, impl.backgroundTexture.get(), nullptr,
                       &screen);
   }
-  for (const auto &place : impl.objectPlacements_) {
-    impl.renderObject(renderer, place.id, place.x, place.y);
+  const auto blend = impl.sceneLayers.blend(SDL_GetTicks());
+  for (const auto &place : impl.sceneLayers.outgoing())
+    impl.renderObject(renderer, place.id, place.x, place.y, blend.outgoing);
+  for (const auto &place : impl.sceneLayers.visible())
+    impl.renderObject(renderer, place.id, place.x, place.y, blend.incoming);
+  if (blend.blackout > 0.0f) {
+    SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, static_cast<Uint8>(
+        std::lround(std::clamp(blend.blackout, 0.0f, 1.0f) * 255.0f)));
+    SDL_FRect screen{0, 0, 1280, 720};
+    SDL_RenderFillRect(&renderer, &screen);
   }
   Runtime::renderGameplay(renderer, scale);
 }
@@ -931,8 +965,8 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
   state.strings.insert(impl.stringVars.begin(), impl.stringVars.end());
   state.flags.insert(impl.flags.begin(), impl.flags.end());
   state.callStack = impl.callStack;
-  state.images.reserve(impl.objectPlacements_.size());
-  for (const auto &place : impl.objectPlacements_)
+  state.images.reserve(impl.sceneLayers.visible().size());
+  for (const auto &place : impl.sceneLayers.visible())
     state.images.push_back({place.id, place.x, place.y});
   Kotonoha::GetVNManagerRuntime(*impl.engine).save(
       path, encodeSaveState(state));
@@ -970,12 +1004,13 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
   impl.flags.clear();
   impl.flags.insert(state.flags.begin(), state.flags.end());
   impl.callStack = state.callStack;
-  impl.objectPlacements_.clear();
-  impl.objectPlacements_.reserve(state.images.size());
+  std::vector<SceneObject> restoredImages;
+  restoredImages.reserve(state.images.size());
   for (const auto &place : state.images) {
     impl.loadObjectImage(place.assetId);
-    impl.objectPlacements_.push_back({place.assetId, place.x, place.y});
+    restoredImages.push_back({place.assetId, place.x, place.y});
   }
+  impl.sceneLayers.reset(restoredImages);
   impl.dialogueIndex = state.dialogueIndex;
   impl.waiting = state.waiting;
   impl.waitDeadline = SDL_GetTicks() + state.waitRemainingMs;
@@ -1033,7 +1068,7 @@ bool LucaSystemRuntime::startScenario(const std::string &name,
   impl.dialogueIndex = 0;
   impl.dialogueVisible = false;
   impl.callStack.clear();
-  impl.objectPlacements_.clear();
+  impl.sceneLayers.reset();
   impl.waiting = false;
   impl.running = position < impl.instructions.size();
   dialogueText_.clear();

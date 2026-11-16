@@ -1,0 +1,80 @@
+// Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
+#pragma once
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+#include <vector>
+
+namespace LucaSystem {
+// Lightweight scene state: original image asset IDs plus screen positions.
+// Rendering belongs to SDL; this stage/commit/transition clock is testable
+// without an engine, GPU or original AIR assets.
+struct SceneObject {
+  std::uint32_t id = 0;
+  int x = 0, y = 0;
+};
+struct SceneBlend {
+  float outgoing = 0, incoming = 1, blackout = 0;
+};
+class SceneLayers {
+public:
+  static constexpr std::size_t MaxObjects = 4096;
+  const std::vector<SceneObject> &visible() const { return visible_; }
+  const std::vector<SceneObject> &outgoing() const { return outgoing_; }
+  const std::vector<SceneObject> &pending() const { return pending_; }
+  void stage(SceneObject object) {
+    if (visible_.size() + pending_.size() >= MaxObjects)
+      throw std::runtime_error("LucaSystem object layer limit exceeded");
+    pending_.push_back(object);
+  }
+  void commit(std::uint64_t now, std::uint64_t durationMs) {
+    if (pending_.empty()) return;
+    const auto duration = std::min<std::uint64_t>(durationMs, 60000);
+    if (duration)
+      outgoing_ = visible_;
+    else
+      outgoing_.clear();
+    visible_.insert(visible_.end(), pending_.begin(), pending_.end());
+    pending_.clear();
+    began_ = now;
+    duration_ = duration;
+  }
+  void beginBlackout(std::uint64_t now, std::uint64_t durationMs,
+                     bool toBlack) {
+    blackoutStart_ = now;
+    blackoutDuration_ = std::min<std::uint64_t>(durationMs, 60000);
+    blackoutToBlack_ = toBlack;
+  }
+  SceneBlend blend(std::uint64_t now) const {
+    SceneBlend result;
+    if (duration_) {
+      const auto elapsed = now > began_
+          ? std::min(now - began_, duration_) : std::uint64_t(0);
+      result.incoming = float(elapsed) / float(duration_);
+      result.outgoing = 1.0f - result.incoming;
+    }
+    if (blackoutDuration_) {
+      const auto elapsed = now > blackoutStart_
+          ? std::min(now - blackoutStart_, blackoutDuration_)
+          : std::uint64_t(0);
+      const float t = float(elapsed) / float(blackoutDuration_);
+      result.blackout = blackoutToBlack_ ? t : 1.0f - t;
+    }
+    return result;
+  }
+  void reset(const std::vector<SceneObject> &objects = {}) {
+    if (objects.size() > MaxObjects)
+      throw std::runtime_error("LucaSystem restored object limit exceeded");
+    visible_ = objects;
+    pending_.clear();
+    outgoing_.clear();
+    duration_ = blackoutDuration_ = 0;
+  }
+private:
+  std::vector<SceneObject> visible_, outgoing_, pending_;
+  std::uint64_t began_ = 0, duration_ = 0;
+  std::uint64_t blackoutStart_ = 0, blackoutDuration_ = 0;
+  bool blackoutToBlack_ = false;
+};
+} // namespace LucaSystem

@@ -69,3 +69,16 @@ linear e evitam overflow em somas de offsets de substring. O teste sintético
 cmake --build build --target RealLiveStringOpsTests
 ctest --test-dir build -R RealLive.StringOps --output-on-failure
 ```
+
+## Novos opcodes de strings numéricas
+
+Foram implementados os opcodes `Str.digits` (19) e `Str.digit` (20),
+respeitando o índice decimal a partir da direita (base 1). A conversão usa
+um inteiro de 64 bits intermediário para tratar `INT_MIN` sem overflow;
+índices inválidos são rejeitados antes de modificar o destino. Esses são
+comandos de manipulação de valores, não novas instruções de interface.
+
+```sh
+cmake --build build --target RealLiveDecimalDigitsTests
+ctest --test-dir build -R RealLive.DecimalDigits --output-on-failure
+```
