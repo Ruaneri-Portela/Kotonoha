@@ -1066,6 +1066,144 @@ int main() {
       ++failures;
     }
 
+    // User functions preserve parameter/local scopes, short-circuit returns
+    // and drive the KAG startup path without a hardcoded alphabetical entry.
+    write(tempDir / "startup.tjs",
+          "var title = \"Global\";\n"
+          "function choose(base, leaf) {\n"
+          "  var title = \"Local\";\n"
+          "  if (leaf == \"first\") return base + leaf + \".ks\";\n"
+          "  return \"missing.ks\";\n"
+          "}\n"
+          "function doubled(n) { return n + n; }\n"
+          "var route = choose(\"scenario/\", \"first\");\n"
+          "if (doubled(2) == 4) Scripts.execStorage(route);\n"
+          "System.title = title;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.kagEntry != "scenario/first.ks" ||
+          run.title != "Global" || !run.requiresNativeRuntime) {
+        std::printf("FAIL: TJS2 function return/local scope/KAG entry\n");
+        ++failures;
+      }
+    }
+    // A TJS Dictionary has shared identity and nested properties; function
+    // arguments may modify configuration used by the title/KAG launcher.
+    write(tempDir / "startup.tjs",
+          "var config = new Dictionary();\n"
+          "config.menu = new Dictionary;\n"
+          "config.menu.caption = \"Initial\";\n"
+          "function prepare(menu) { menu.caption = \"Configured\"; "
+          "return menu.caption; }\n"
+          "var caption = prepare(config.menu);\n"
+          "if (caption == \"Configured\" && config.menu.caption == caption) "
+          "  Scripts.execStorage(\"scenario/first.ks\");\n"
+          "System.title = config.menu.caption;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.kagEntry != "scenario/first.ks" ||
+          run.title != "Configured") {
+        std::printf("FAIL: TJS2 Dictionary objects/member updates\n");
+        ++failures;
+      }
+    }
+    // Disabled native branches must not attempt class construction.
+    write(tempDir / "startup.tjs",
+          "if (false) { var unused = new Window(this); }\n"
+          "var options = new Dictionary();\n"
+          "options.caption = \"Safe\";\n"
+          "System.title = options.caption;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || run.title != "Safe") {
+        std::printf("FAIL: inactive native constructor was executed\n");
+        ++failures;
+      }
+    }
+    // Script-level Dictionary objects are not native Window/Layer classes.
+    write(tempDir / "startup.tjs", "var native = new Window();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (run.subsetCompleted ||
+          run.error.find("native class not implemented") ==
+              std::string::npos) {
+        std::printf("FAIL: unsupported native TJS2 object was accepted\n");
+        ++failures;
+      }
+    }
+
+    // Common TJS2 bootstrap for-loops run with bounded post-increment and
+    // scoped variables; a disabled for-loop has no observable side effects.
+    write(tempDir / "startup.tjs",
+          "var sum = 0;\n"
+          "for (var i = 0; i < 3; i++) { sum += 1; }\n"
+          "if (false) for (var j = 0; j < 2; j++) { sum += 99; }\n"
+          "if (sum == 3) Scripts.execStorage(\"scenario/first.ks\");\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.kagEntry != "scenario/first.ks") {
+        std::printf("FAIL: TJS2 bounded for loop/inactive branch\n");
+        ++failures;
+      }
+    }
+    write(tempDir / "startup.tjs", "for (;;) { var tick = 1; }");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input, 10000);
+      if (run.subsetCompleted || run.error.empty()) {
+        std::printf("FAIL: unbounded TJS2 for-loop not stopped\n");
+        ++failures;
+      }
+    }
+
+    // Mutual/nested recursion must terminate even with a high instruction
+    // budget, independent of the script-call depth limiter.
+    write(tempDir / "startup.tjs",
+          "function again() { return again(); }\n"
+          "again();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run =
+          Kotonoha::Providers::runTjsStartupSubset(input, 10000);
+      if (run.subsetCompleted ||
+          run.error.find("recursion limit") == std::string::npos) {
+        std::printf("FAIL: TJS2 function recursion cap\n");
+        ++failures;
+      }
+    }
+    write(tempDir / "startup.tjs",
+          "if (false) { function hidden() { return 1; } }\n"
+          "hidden();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (run.subsetCompleted || run.error.empty()) {
+        std::printf("FAIL: inactive TJS2 function was invoked\n");
+        ++failures;
+      }
+    }
+    write(tempDir / "startup.tjs", "return 4;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (run.subsetCompleted ||
+          run.error.find("return outside function") == std::string::npos) {
+        std::printf("FAIL: top-level TJS2 return silently accepted\n");
+        ++failures;
+      }
+    }
+
     write(tempDir / "startup.tjs", "Scripts.execStorage(\"startup.tjs\");");
     {
       Kotonoha::Providers::KirikiriAssets input(tempDir);

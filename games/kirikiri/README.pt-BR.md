@@ -30,6 +30,20 @@ Use uma pasta legítima de jogo com scripts KAG ou pacotes XP3. Execute o launch
 
 [Guias de compilação](../../docs/BUILD_GUIDES.pt-BR.md) · [Índice de ports](../README.pt-BR.md)
 
+## Funções e objetos Dictionary no subconjunto TJS2
+
+A VM experimental em `modules/vms/tjs2` agora aceita funções nomeadas
+com parâmetros e `return`, variáveis locais por chamada, recursão limitada,
+laços `for` limitados e objetos compartilhados `new Dictionary()` com leitura/escrita de
+propriedades aninhadas. Isso permite calcular configurações e o roteiro
+KAG inicial antes de apresentar o menu provisório do Kotonoha.
+
+**Ainda não é TJS2 completo:** expressões de função, classes definidas
+pelo jogo, objetos nativos `Window`/`Layer`, o menu original do
+KiriKiri e bytecode continuam pendentes. Construtores nativos desconhecidos
+geram um erro explícito, sem simular um menu original. Os testes dessa etapa
+são sintéticos; os recursos não foram validados com assets comerciais.
+
 ## Ordem das escolhas KAG
 
 Tags de escolha do subconjunto KAG implementado pelo Kotonoha (`[select]` e `[choices]`) agora apresentam `option1`, `option2`, `option10` na ordem numérica e não tratam atributos não numéricos como `optionColor` como opções. O teste sintético também verifica que a callback da escolha retoma o script. Isso não substitui o interpretador TJS2 nem comprova a interface original de NEKOPARA.

@@ -298,7 +298,8 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
       const auto savePath =
           Kotonoha::preferredDocumentsDirectory("kirikiri") / "quicksave.kns";
       std::vector<Kotonoha::ChoiceOption> options;
-      if (!scenarios.empty())
+      if (!scenarios.empty() ||
+          !impl.startupExecution.kagEntry.empty())
         options.push_back({
             impl.startupExecution.kagEntry.empty()
                 ? "Iniciar (KAG experimental)"
