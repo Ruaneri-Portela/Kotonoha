@@ -271,6 +271,56 @@ int main() {
     }
   }
 
+  // In-script [call target=*label] and [return] must preserve continuation
+  // after a blocked text command. A saved PC cannot inherit stale frames.
+  {
+    auto script = Kirikiri::KagScript::parse(
+        "[jump target=*start]\n"
+        "[cm text=\"skipped\"]\n"
+        "*sub\n"
+        "[cm text=\"inside\"]\n"
+        "[return]\n"
+        "*start\n"
+        "[call target=*sub]\n"
+        "[cm text=\"after\"]\n"
+        "[end]\n", "calls.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string value) {
+      shown.push_back(std::move(value));
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    if (shown != std::vector<std::string>{"inside"} ||
+        runner.callDepth() != 1 || !runner.isBlocked()) {
+      std::printf("FAIL: KAG local subroutine did not enter correctly\n");
+      ++failures;
+    }
+    runner.resumeWait(); // advance from the blocking dialogue
+    if (shown != std::vector<std::string>({"inside", "after"}) ||
+        runner.callDepth() != 0 || !runner.isBlocked()) {
+      std::printf("FAIL: KAG return did not resume after call\n");
+      ++failures;
+    }
+    runner.resumeWait();
+    if (!runner.isFinished()) {
+      std::printf("FAIL: KAG end after returned call\n");
+      ++failures;
+    }
+    Kirikiri::KagScript::Runner restored(script, cb);
+    restored.jumpToLabel("*start");
+    restored.run();
+    if (restored.callDepth() != 1) {
+      std::printf("FAIL: KAG starred jump target\n");
+      ++failures;
+    }
+    restored.restorePosition(0);
+    if (restored.callDepth() != 0) {
+      std::printf("FAIL: KAG restored position retains stale call stack\n");
+      ++failures;
+    }
+  }
+
   std::filesystem::remove_all(tempDir);
 
   if (failures == 0) {
