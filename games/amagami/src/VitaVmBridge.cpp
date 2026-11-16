@@ -119,6 +119,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       expectCount(args, 0);
       if (fields[0].kind == VmValue::Number &&
           std::isfinite(fields[0].number) && fields[0].number > 0 &&
+          std::trunc(fields[0].number) == fields[0].number &&
           fields[0].number < 1000000)
         sprites_.erase(uint64_t(fields[0].number));
       fields[0] = VmValue::num(0);
@@ -127,6 +128,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     uint64_t id = 0;
     if (fields[0].kind == VmValue::Number &&
         std::isfinite(fields[0].number) && fields[0].number > 0 &&
+        std::trunc(fields[0].number) == fields[0].number &&
         fields[0].number < 1000000)
       id = uint64_t(fields[0].number);
     auto it = sprites_.find(id);
@@ -177,7 +179,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     if (number == 18) { // pause(on)
       expectCount(args, 1);
       if (it != sprites_.end())
-        it->second.paused = args[0].truth();
+        it->second.paused = args[0].truth() &&
+            !(args[0].kind == VmValue::Number && args[0].number == 0);
       return receiver;
     }
     return std::nullopt; // Animation/input primitives not implemented.
