@@ -57,7 +57,8 @@ ctest --test-dir build -R 'Pmail.RouteAudit' --output-on-failure
 # /path/to/PMAILDVD 0,1,2 300
 ```
 
-The CI only runs synthetic tests, including `Pmail.Expression32`. The
+The CI only runs synthetic tests, including `Pmail.Expression32`,
+`Pmail.ComputerSave` and `Pmail.TransitionTrace`. The
 retail-only route auditor reports missing objects and unimplemented native
 commands as failures; this does not imply any ending is already verified.
 
@@ -66,7 +67,7 @@ commands as failures; this does not imply any ending is already verified.
 
 [Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
 
-[Startup research](docs/STARTUP.md), [animations](docs/ANIMATIONS.md), [audio parity](docs/AUDIO_PARITY.md), [textbox](docs/TEXTBOX.md).
+[Startup research](docs/STARTUP.md), [transition evidence](docs/TRANSITIONS.md), [animations](docs/ANIMATIONS.md), [audio parity](docs/AUDIO_PARITY.md), [textbox](docs/TEXTBOX.md).
 
 [Build guides](../../docs/BUILD_GUIDES.md) · [Port index](../README.md)
 

@@ -1,6 +1,7 @@
 // Retail-only route smoke audit. The original game's data is supplied by the
 // tester; no commercial assets are compiled into Kotonoha or the CI.
 #include <Pmail/Port.hpp>
+#include <Pmail/TransitionTrace.hpp>
 #include <SDL3/SDL.h>
 #include <SnowRadish/SnowAssets.hpp>
 #include <algorithm>
@@ -10,6 +11,7 @@
 #include <iostream>
 #include <map>
 #include <set>
+#include <utility>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -63,8 +65,50 @@ int main(int argc, char **argv) {
     std::map<int, size_t> nativeCounts;
     std::set<std::string> scripts;
     size_t missingScripts = 0, unknownBytecode = 0;
-    game.onNative = [&](int id, const std::vector<Pmail::Arg> &) {
+    const uint64_t traceStart = SDL_GetTicks();
+    Kotonoha::PmailPort::TransitionTrace evidence(200);
+    const auto trace = [&](std::string kind, std::string resource = {},
+                           int frame = -1, int x = 0, int y = 0) {
+      Kotonoha::PmailPort::TransitionEvidence e;
+      e.elapsedMs = SDL_GetTicks() - traceStart;
+      e.script = game.currentScript();
+      e.pc = game.vm().pc();
+      e.kind = std::move(kind);
+      e.resource = std::move(resource);
+      e.frame = frame;
+      e.x = x;
+      e.y = y;
+      evidence.record(std::move(e));
+    };
+    game.onNative = [&](int id, const std::vector<Pmail::Arg> &args) {
       ++nativeCounts[id];
+      if (id != 48 && id != 49 && id != 50 && id != 51 &&
+          id != 64 && id != 69)
+        return;
+      std::string resource;
+      int x = 0, y = 0, frame = -1;
+      if (id == 51 && !args.empty()) {
+        const int preset = game.vm().value(args[0]);
+        if (preset >= 0 &&
+            size_t(preset) < Kotonoha::PmailPort::AnimationPresets.size()) {
+          resource = std::string(
+              Kotonoha::PmailPort::AnimationPresets[size_t(preset)].name) +
+              ".anim";
+          frame = 0;
+        }
+        if (args.size() > 1) x = game.vm().value(args[1]);
+        if (args.size() > 2) y = game.vm().value(args[2]);
+      } else if (id == 48 || id == 49) {
+        // Only capture named graphic assets. Other syscalls can contain
+        // private story/dialogue strings, which are not trace evidence.
+        for (const auto &arg : args) {
+          if (arg.tag() == 2) {
+            resource = game.vm().text(arg);
+            break;
+          }
+        }
+      }
+      trace("SYS" + std::to_string(id), resource, frame, x, y);
     };
     game.trace = [&](const std::string &message) {
       // Normal dialogue and native commands can produce millions of lines.
@@ -82,6 +126,9 @@ int main(int argc, char **argv) {
 
     bool started = false, returnedToTitle = false, timedOut = false;
     size_t messages = 0, choicePoints = 0, animations = 0;
+    uint32_t previousScene = game.sceneVersion();
+    std::string previousScript;
+    int previousFrame = -1, previousPreset = -1;
     const uint64_t start = SDL_GetTicks();
     const uint64_t deadline = start + seconds * 1000u;
     while (true) {
@@ -91,7 +138,38 @@ int main(int argc, char **argv) {
       }
       game.advanceAnimation(16);
       game.pump(10000);
-      scripts.insert(game.currentScript());
+      const auto script = game.currentScript();
+      scripts.insert(script);
+      if (script != previousScript) {
+        trace("script", script);
+        previousScript = script;
+      }
+      if (game.sceneVersion() != previousScene) {
+        previousScene = game.sceneVersion();
+        trace("background", game.background());
+        for (const auto &sprite : game.sprites())
+          trace("sprite", sprite.name, -1, sprite.x, sprite.y);
+      }
+      const auto active = game.animations();
+      if (!active.empty()) {
+        const auto &animation = active.back();
+        const int preset = int(animation.preset);
+        const int frame = int(animation.frame);
+        if ((frame != previousFrame || preset != previousPreset) &&
+            (frame == 0 || frame % 10 == 0 || frame + 1 == int(animation.count) ||
+             !animation.playing)) {
+          trace(animation.playing ? "animation-frame" : "animation-end",
+                std::string(
+                    Kotonoha::PmailPort::AnimationPresets[animation.preset].name)
+                    + ".anim",
+                frame, animation.x, animation.y);
+        }
+        previousPreset = preset;
+        previousFrame = frame;
+      } else {
+        previousFrame = -1;
+        previousPreset = -1;
+      }
       if (game.atTitle()) {
         if (started) {
           returnedToTitle = true;
@@ -136,6 +214,10 @@ int main(int argc, char **argv) {
     const auto unsupported = game.unhandledNativeIds();
     for (const int id : unsupported)
       std::cerr << "Unimplemented native SYS " << id << "\n";
+    // A bounded, machine-readable timeline of scene/asset/animation events.
+    // Captures the first events, last events and (when named) the history
+    // preceding an Overflow resource, without emitting retail story text.
+    evidence.write(std::cout);
     if (!started || timedOut || missingScripts || unknownBytecode ||
         !unsupported.empty())
       return 1;
