@@ -324,7 +324,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       case 4: return primitive("BG_Picture", method, false, receiver, 9, args);
       case 5: return primitive("BG_Picture", method, false, receiver, 10, args);
       case 10: return primitive("BG_Picture", method, false, receiver, 7, args);
-      default: break; // Vibration requires further fidelity work.
+      default: break; // Remaining font primitives are not implemented.
       }
     }
     return std::nullopt;
@@ -415,7 +415,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     case 6: shared = 6; break; // setLayer
     case 15: shared = 17; break; // finish tweens
     case 16: shared = 18; break; // pause
-    default: return std::nullopt; // spin/vibration not implemented
+    default: return std::nullopt; // Spin and other natives pending.
     }
     return primitive("Sprite", method, false, receiver, shared, args);
   }
@@ -598,7 +598,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
             !(args[0].kind == VmValue::Number && args[0].number == 0);
       return receiver;
     }
-    return std::nullopt; // Spin and vibration primitives not yet implemented.
+    return std::nullopt; // Spin remains unimplemented.
   }
   if (owner != "K2X_Script")
     return std::nullopt; // Do not hide unrelated PS2/Vita primitives.
