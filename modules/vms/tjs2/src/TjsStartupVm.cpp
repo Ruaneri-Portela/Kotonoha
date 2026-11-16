@@ -197,6 +197,18 @@ bool endsWith(const std::string &text, std::string suffix) {
                     });
 }
 
+// Functions are represented by bounded source slices; the parser reuses its
+// ordinary expression evaluator on calls, but cannot execute native TJS objects.
+struct SourceFunction {
+  std::string name;
+  std::string source;
+  std::string body;
+  std::vector<std::string> parameters;
+};
+struct FunctionReturn {
+  Value value;
+};
+
 class Parser;
 class Interpreter {
 public:
@@ -205,8 +217,37 @@ public:
   const KirikiriAssets &assets;
   TjsStartupResult result;
   std::unordered_map<std::string, Value> variables;
+  std::unordered_map<std::string, SourceFunction> functions;
+  std::vector<std::unordered_map<std::string, Value>> frames;
   std::vector<std::string> active;
   std::size_t remaining;
+  std::size_t functionDepth = 0;
+
+  Value get(const std::string &name) const {
+    for (auto frame = frames.rbegin(); frame != frames.rend(); ++frame) {
+      if (auto it = frame->find(name); it != frame->end())
+        return it->second;
+    }
+    if (auto it = variables.find(name); it != variables.end())
+      return it->second;
+    throw std::runtime_error("TJS2 subset: unresolved variable: " + name);
+  }
+  void set(const std::string &name, Value value, bool declaration) {
+    if (declaration) {
+      if (!frames.empty())
+        frames.back()[name] = std::move(value);
+      else
+        variables[name] = std::move(value);
+      return;
+    }
+    for (auto frame = frames.rbegin(); frame != frames.rend(); ++frame) {
+      if (auto it = frame->find(name); it != frame->end()) {
+        it->second = std::move(value);
+        return;
+      }
+    }
+    variables[name] = std::move(value);
+  }
 
   void tick() {
     if (!remaining--)
@@ -226,32 +267,7 @@ public:
   }
   void runFile(std::string id, std::size_t depth);
   Value call(const std::string &name, const std::vector<Value> &params,
-             const std::string &current, bool activeFlag) {
-    if (!activeFlag) return {};
-    if (params.size() != 1)
-      throw std::runtime_error("TJS2 subset: exactly one argument required for " +
-                               name);
-    const auto requested = params.front().string();
-    if (name == "Storages.isExistentStorage") {
-      const auto id = resolve(requested, current);
-      return Value(assets.contains(id));
-    }
-    if (name == "Scripts.execStorage" || name == "Scripts.evalStorage") {
-      const auto id = resolve(requested, current);
-      runFile(id, active.size() + 1);
-      return {};
-    }
-    if (name == "Plugins.link") {
-      const auto id = safeName(requested);
-      if (std::find(result.requestedPlugins.begin(),
-                    result.requestedPlugins.end(), id) ==
-          result.requestedPlugins.end())
-        result.requestedPlugins.push_back(id);
-      result.requiresNativeRuntime = true;
-      return Value(false); // No native plugin was loaded.
-    }
-    throw std::runtime_error("TJS2 subset: native call not implemented: " + name);
-  }
+             const std::string &current, bool activeFlag);
 };
 
 class Parser {
