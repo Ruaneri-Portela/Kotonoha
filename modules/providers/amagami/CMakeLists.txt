@@ -2,7 +2,12 @@ if(TARGET Kotonoha::Modules::Providers::Amagami)
     return()
 endif()
 
-add_library(kotonoha_provider_amagami STATIC src/Assets.cpp src/VitaCpk.cpp)
+add_library(kotonoha_provider_amagami STATIC
+    src/Assets.cpp
+    src/VitaCpk.cpp
+    src/VitaGraphics.cpp
+    src/VitaGraphicsAssets.cpp
+)
 add_library(Kotonoha::Modules::Providers::Amagami ALIAS kotonoha_provider_amagami)
 add_library(Kotonoha::ProviderAmagami ALIAS kotonoha_provider_amagami)
 
