@@ -73,7 +73,9 @@ const char *requiredRenderer(UpscaleBackend backend,
 Launcher::Launcher(std::string name, std::string path, EngineSettings values)
     : title(std::move(name)), settingsPath(std::move(path)), draft(values),
       defaults(std::move(values)) {
+#if KOTONOHA_ENABLE_UPSCALER
   shaderPicker = std::make_unique<ImGuiTheme::ShaderFilePicker>();
+#endif
   if (settingsPath.empty() || !std::filesystem::exists(settingsPath))
     return;
   try {
@@ -622,6 +624,7 @@ void Launcher::drawVideo() {
 }
 
 void Launcher::drawUpscaling() {
+#if KOTONOHA_ENABLE_UPSCALER
   auto &upscaling = draft.upscaling;
   ImGuiTheme::sectionHeader("Scale");
   // Same rule as Kotonoha: 1.0 is off, anything above turns it on.
@@ -684,6 +687,10 @@ void Launcher::drawUpscaling() {
                        backendLabel(upscaling.backend), required);
   ImGui::TextWrapped("Automatic uses MetalFX on the metal renderer, Anime4K/"
                      "ArtCNN on OpenGL and Linear elsewhere.");
+#else
+  // Keep the configuration page useful without linking optional shader tools.
+  ImGui::TextDisabled("Upscaling is not available in this build.");
+#endif
 }
 
 void Launcher::drawAdvanced() {

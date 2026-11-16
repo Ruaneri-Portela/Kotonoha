@@ -1,6 +1,7 @@
 #pragma once
 #include <Kotonoha/events/InputActions.hpp>
 
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Settings.hpp>
 
@@ -85,7 +86,10 @@ private:
   float contentScale = 0;
   std::shared_ptr<Dialog> dialog;
   std::function<void(const std::string &)> dialogDone;
+#if KOTONOHA_ENABLE_UPSCALER
+  // The picker is defined only with the upscaling backend enabled.
   std::unique_ptr<ImGuiTheme::ShaderFilePicker> shaderPicker;
+#endif
 
   void draw();
   void drawVideo();
