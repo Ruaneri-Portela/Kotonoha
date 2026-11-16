@@ -501,7 +501,7 @@ void PmailGame::deserialize(const std::string &data) {
   std::string savedNO = playerNameNO_, savedHO = playerNameHO_;
   bool overlayVisible = !computerText.empty() || !chatHistory.empty() ||
                         !computerClock.empty();
-  if version == "PMAIL-GAME-4" || version == "PMAIL-GAME-5" {
+  if (version == "PMAIL-GAME-4" || version == "PMAIL-GAME-5") {
     savedNO = in.string(64);
     savedHO = in.string(64);
     overlayVisible = in.boolean();
