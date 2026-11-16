@@ -45,6 +45,11 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(AMAGAMI_JSON REQUIRED IMPORTED_TARGET json-c>=0.15)
     target_link_libraries(AmagamiInspect PRIVATE AmagamiFormats amagami_port Kotonoha::Vmamagami PkgConfig::AMAGAMI_JSON)
+
+    # The Vita data inspector is independent from the PS2 game runtime.
+    add_executable(AmagamiVitaInspect tools/InspectVita.cpp)
+    target_link_libraries(AmagamiVitaInspect PRIVATE AmagamiFormats Kotonoha::ProviderAmagami)
+    target_compile_features(AmagamiVitaInspect PRIVATE cxx_std_17)
 endif()
 
 if(BUILD_TESTING)
