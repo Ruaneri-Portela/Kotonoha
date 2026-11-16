@@ -1,4 +1,5 @@
 #include "PmailRuntime.hpp"
+#include "PmailMovieSelection.hpp"
 #include "Pmail/Port.hpp"
 #include "PmailSession.hpp"
 #include <Kotonoha/components/VNSave.hpp>
@@ -144,25 +145,18 @@ void PmailRuntime::startMovie() {
     movieFinished_ = true;
     return;
   }
-  // Root and data/movie are common distributions. The browser cannot
-  // enumerate an HTTP folder; test the explicitly documented retail names.
-  // Prefer an optional browser-playable sidecar before the original AVI, but
-  // retain the AVI/FFmpeg decoder fallback for unconverted retail files.
-  std::string moviePath;
-  for (const char *prefix : {"data/movie/", "movie/"}) {
-    for (const char *name : {"PM01L_I5", "PM01S_I5", "PM01S_I3"}) {
-      for (const char *extension :
-           {".avi.webm", ".webm", ".mp4", ".avi"}) {
-        const std::string candidate = std::string(prefix) + name + extension;
-        if (vfs->exists(candidate)) {
-          moviePath = candidate;
-          break;
-        }
-      }
-      if (!moviePath.empty()) break;
-    }
-    if (!moviePath.empty()) break;
-  }
+  // The original binary enumerates four AVI variants. Preserve original AVI
+  // quality on native hosts, but prefer playable WebM/MP4 sidecars on browsers.
+#if defined(__EMSCRIPTEN__)
+  constexpr bool browser = true;
+#else
+  constexpr bool browser = false;
+#endif
+  // Port-only debugging aid to compare a particular original video.
+  const char *preferred = SDL_getenv("PMAIL_MOVIE_VARIANT");
+  const std::string moviePath = selectOpeningMovie(
+      [&](const std::string &path) { return vfs->exists(path); },
+      browser, preferred ? preferred : "");
   if (moviePath.empty()) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "[PmailPort] Opening movie not found in VFS "

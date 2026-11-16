@@ -6,6 +6,9 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
 ## Implemented and tested
 
 - Separate Session and component lifecycles; 800×600 scene composition.
+- Startup now requires the original pmail.obj/start.obj pair, initializes
+  the VM PRNG with the retail seed 1 and recognizes all four original movie
+  variants, including PM01L_I3. Pmail.Startup checks these without game assets.
 - Original CHAR sprites, BGR IMG white key/orientation and waku placement.
 - All DVD ANIM assets decode. SYS 51 plays all 19 presets with original native
   timing, suspends the VM, retains the final image and preserves playback in saves.
@@ -27,7 +30,8 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
 - Computer UI fidelity: original font palette, text layout/wrapping, mail and
   icon commands (SYS 50, 176–179, 192–195), plus remaining scene-specific
   presentation details.
-- Original transition timing/composition and exact startup/logo/movie sequence.
+- Original CPU/configuration-dependent AVI selection, timing/composition,
+  logo presentation and full movie/title sequence.
 - Exact textbox typography and complete original menu/backlog visual behavior.
 - CURSOR02 automatic advance mode and full translation-export workflow.
 - Sample-exact fade/lip scheduling and synchronized audio/visual comparison
