@@ -17,12 +17,14 @@ target_compile_features(kirikiri_formats PUBLIC cxx_std_17)
 set_target_properties(kirikiri_formats PROPERTIES CXX_EXTENSIONS OFF)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/kag/CMakeLists.txt")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/tjs2/CMakeLists.txt")
 find_package(ZLIB REQUIRED)
 target_link_libraries(kirikiri_formats PUBLIC
     Kotonoha::Engine
     Kotonoha::ProviderXP3
     ZLIB::ZLIB
     Kotonoha::Vmkag
+    Kotonoha::Vmtjs2
 )
 
 kotonoha_add_app(Kirikiri src/main.cpp)
