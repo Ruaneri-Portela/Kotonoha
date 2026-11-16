@@ -46,6 +46,10 @@ void saveSnapshot(const std::string &path,
           return graphics ? graphics->uiSurface(id, variant)
                           : Kotonoha::SurfacePtr{};
         });
+    presenter.setNamedSource([graphics](const std::string &name) {
+      return graphics && graphics->contains(name)
+                 ? graphics->loadSurface(name) : Kotonoha::SurfacePtr{};
+    });
     presenter.draw(bridge);
     if (!SDL_RenderPresent(software.get()))
       throw std::runtime_error(SDL_GetError());
@@ -110,6 +114,16 @@ int main(int argc, char **argv) {
                                   uint32_t(surface->h));
           });
     }
+    if (graphics)
+      bridge.setNamedPictureSizeResolver(
+          [graphics](const std::string &name)
+              -> std::optional<std::pair<uint32_t, uint32_t>> {
+            if (!graphics->contains(name)) return std::nullopt;
+            auto surface = graphics->loadSurface(name);
+            if (!surface) return std::nullopt;
+            return std::make_pair(uint32_t(surface->w),
+                                  uint32_t(surface->h));
+          });
     std::cout << "Vita SCF VM loaded " << source.systemCount()
               << " system classes and " << source.scenarioCount()
               << " scenario classes\n";

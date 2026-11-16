@@ -40,6 +40,10 @@ struct SpriteTween {
 struct SpriteState {
   uint64_t uid = 0;
   uint32_t texture = 0, variant = 0;
+  // Empty for a Sprite atlas texture. BG_Picture uses the original GRAPH.CPK
+  // filename (e.g. bg/122_10.gxt) and the world camera transform.
+  std::string assetName;
+  bool worldView = false;
   int64_t layer = 0;
   uint64_t order = 0;
   std::array<double, 4> rect{{0, 0, 0, 0}};
@@ -70,6 +74,12 @@ public:
   void setTextureSizeResolver(TextureSize resolver) {
     textureSize_ = std::move(resolver);
   }
+  using NamedPictureSize =
+      std::function<std::optional<std::pair<uint32_t, uint32_t>>(
+          const std::string &)>;
+  void setNamedPictureSizeResolver(NamedPictureSize resolver) {
+    namedPictureSize_ = std::move(resolver);
+  }
   const ViewState &view() const { return view_; }
   const std::map<uint64_t, SpriteState> &sprites() const { return sprites_; }
   // Ingest one hardware/input frame. Buttons use the PS2-style physical
@@ -96,6 +106,7 @@ private:
   std::map<uint64_t, SpriteState> sprites_;
   uint64_t nextUid_ = 1, nextOrder_ = 0;
   TextureSize textureSize_;
+  NamedPictureSize namedPictureSize_;
   uint32_t padHeld_ = 0, padPressed_ = 0, padRapid_ = 0;
   unsigned rapidCount_ = 0;
   std::array<int, 4> padAnalog_{{0, 0, 0, 0}};

@@ -134,8 +134,11 @@ int main() {
     }); // Now implemented with strict native arity.
     check(!bridge.primitive("Sprite", "spin", false, original, 12, {}),
           "Unsupported spin remains an explicit VM error");
-    check(!bridge.primitive("BG_Picture", "spawn", false, original, 1, {}),
-          "Sprite bridge never replaces other graphics classes");
+    rejects([&] {
+      bridge.primitive("BG_Picture", "spawn", false, original, 1, {});
+    }); // BG_Picture now exists, with strict native argument count.
+    check(!bridge.primitive("ActorPicture", "spawn", false, original, 1, {}),
+          "Unimplemented actor remains an explicit native error");
     check(bridge.sprites().size() == 2,
           "Rejected operations do not insert phantom scene objects");
 
