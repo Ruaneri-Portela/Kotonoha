@@ -96,7 +96,7 @@ void AmagamiTextBox::renderDialogue(Kotonoha::RendererRef r) {
     layoutKey_ = key;
     for (layoutFont_ = 24; layoutFont_ >= 14; layoutFont_ -= 2) {
       auto width = [&](const std::string &text) {
-        return engine.GetVNUI().measureSized(text, 2000, layoutFont_).x;
+        return engine.GetVNUI().textWidth(text, layoutFont_);
       };
       const auto count = Kotonoha::VNTextBoxUtility::RevealLines(
                              fullDialogue, fullDialogue.size(), width, 596 - x)
@@ -107,7 +107,7 @@ void AmagamiTextBox::renderDialogue(Kotonoha::RendererRef r) {
     }
   }
   auto measure = [&](const std::string &text) {
-    return engine.GetVNUI().measureSized(text, 2000, layoutFont_).x;
+    return engine.GetVNUI().textWidth(text, layoutFont_);
   };
   const auto lines = Kotonoha::VNTextBoxUtility::RevealLines(
       fullDialogue, visibleDialogue.size(), measure, 596 - x);
@@ -204,7 +204,7 @@ void AmagamiBacklog::ensureLayout() {
     Row row;
     row.text = speaker.empty() ? text : speaker + "　" + text;
     auto measure = [&](const std::string &value) {
-      return engine.GetVNUI().measureSized(value, 2000, 24).x;
+      return engine.GetVNUI().textWidth(value, 24);
     };
     row.lines = Kotonoha::VNTextBoxUtility::RevealLines(
         row.text, row.text.size(), measure, 552);

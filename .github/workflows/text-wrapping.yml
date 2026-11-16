@@ -1,0 +1,35 @@
+name: Standalone C++17 text-wrapping regressions
+
+on:
+  pull_request:
+    paths:
+      - "lib/include/Kotonoha/utils/TextWrapping.hpp"
+      - "lib/tests/TextWrappingStandalone.cpp"
+      - "lib/tests/ComponentHooksTests.cpp"
+      - "lib/include/Kotonoha/components/VNTextBox.hpp"
+      - ".github/workflows/text-wrapping.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "lib/include/Kotonoha/utils/TextWrapping.hpp"
+      - "lib/tests/TextWrappingStandalone.cpp"
+      - "lib/tests/ComponentHooksTests.cpp"
+      - "lib/include/Kotonoha/components/VNTextBox.hpp"
+      - ".github/workflows/text-wrapping.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  text-wrapping:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run C++17 wrapping tests
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Ilib/include lib/tests/TextWrappingStandalone.cpp \
+            -o /tmp/kotonoha-text-wrapping
+          /tmp/kotonoha-text-wrapping
