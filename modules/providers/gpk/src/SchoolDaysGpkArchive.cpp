@@ -326,9 +326,11 @@ bool SchoolDaysGpkArchive::Open(const std::filesystem::path &path,
       foldedCollisions.insert(std::move(folded));
     canonicalEntries.push_back(std::move(canonical));
   }
-  if (lastPhysicalEnd != pidxOffset)
+  // Index data may be aligned after the final entry. All entry ranges
+  // have already been checked against pidxOffset above; a gap is harmless.
+  if (lastPhysicalEnd > pidxOffset)
     return Fail(error,
-                "School Days GPK final body does not meet the PIDX boundary");
+                "School Days GPK final body exceeds the PIDX boundary");
 
   path_ = path;
   pidxOffset_ = pidxOffset;
