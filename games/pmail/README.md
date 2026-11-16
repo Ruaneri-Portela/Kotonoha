@@ -4,7 +4,7 @@
 
 Native DVD engine port with PRO1 story progression, original animation decoding, audio, and saves.
 
-**Status:** Computer UI opcodes, transition fidelity, and complete endings still need verification.
+**Status:** Positioned computer text, clock and chat-history opcodes are now modeled and rendered, with synthetic tests. Original color/layout parity, mail/icon opcodes, transition fidelity and complete endings still need verification.
 
 ## Build
 

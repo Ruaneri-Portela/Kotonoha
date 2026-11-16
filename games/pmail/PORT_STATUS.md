@@ -16,10 +16,17 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
 - VM/host save/load with validation, backlog persistence, engine save slots and
   return to title. Translation lookup and current audio/assets are connected to
   the engine tools. Debug node display includes active animation/frame.
+- Computer display groundwork: SYS 52 positioned text, SYS 80 clock, and
+  SYS 160/162 chat accumulation (15-entry limit), SYS 161 reset and SYS 163
+  redraw. UI is composited in the native 800×600 scene. Computer UI state
+  persists in version 3 game saves; version 1/2 saves remain readable.
+  Synthetic opcode tests do not require commercial game data.
 
 ## Remaining parity work
 
-- Computer text/icon/chat commands (including SYS 50, 52, 80 and 160-series).
+- Computer UI fidelity: original font palette, text layout/wrapping, mail and
+  icon commands (SYS 50, 176–179, 192–195), plus remaining scene-specific
+  presentation details.
 - Original transition timing/composition and exact startup/logo/movie sequence.
 - Exact textbox typography and complete original menu/backlog visual behavior.
 - CURSOR02 automatic advance mode and full translation-export workflow.

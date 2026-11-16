@@ -53,6 +53,7 @@ private:
 
   void updateBackground(Kotonoha::RendererRef renderer);
   void renderSprites(Kotonoha::RendererRef renderer);
+  void renderComputerUi(Kotonoha::RendererRef renderer);
 };
 
 } // namespace Kotonoha::PmailPort

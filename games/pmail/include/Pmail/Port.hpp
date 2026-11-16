@@ -25,6 +25,32 @@ public:
     int tint[3] = {0x100, 0x100, 0x100};
   };
 
+  // Computer-screen text and chat history exposed by the native PMAIL
+  // commands. Coordinates are in the original 800x600 framebuffer.
+  struct ComputerText {
+    std::string text;
+    int x = 0, y = 0, width = 0, height = 0, size = 0, color = 0;
+  };
+  struct ChatLine {
+    int mode = 0;
+    std::string text;
+  };
+  static constexpr size_t ComputerTextLimit = 10;
+  static constexpr size_t ChatHistoryLimit = 15;
+
+  std::vector<ComputerText> computerText() const {
+    std::lock_guard lock(mutex_);
+    return computerText_;
+  }
+  std::vector<ChatLine> chatHistory() const {
+    std::lock_guard lock(mutex_);
+    return chatHistory_;
+  }
+  std::string computerClock() const {
+    std::lock_guard lock(mutex_);
+    return computerClock_;
+  }
+
   explicit PmailGame(std::vector<uint8_t> scriptPack,
                      std::string packPath = {});
   ~PmailGame() override;
@@ -174,6 +200,9 @@ private:
   std::deque<std::string> messageQueue_;
   std::string background_;
   std::vector<Sprite> sprites_;
+  std::vector<ComputerText> computerText_;
+  std::vector<ChatLine> chatHistory_;
+  std::string computerClock_;
   std::vector<AnimationState> animations_;
   int voiceActor_ = -1;
   uint32_t sceneVersion_ = 0;

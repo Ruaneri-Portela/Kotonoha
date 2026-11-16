@@ -214,6 +214,9 @@ bool PmailGame::init() {
   title_ = false;
   message_.clear();
   messageQueue_.clear();
+  computerText_.clear();
+  computerClock_.clear();
+  chatHistory_.clear();
   return true;
 }
 
@@ -222,7 +225,7 @@ std::string PmailGame::serialize() const {
   if (returningToTitle_)
     throw std::runtime_error("Cannot save while returning to title");
   ::Pmail::StateIO::Writer out;
-  out.string("PMAIL-GAME-2");
+  out.string("PMAIL-GAME-3");
   out.u64(::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()));
   out.string(vm_.serialize());
   auto object = [&](const ::Pmail::ObjectPtr &obj) {
@@ -290,6 +293,22 @@ std::string PmailGame::serialize() const {
     out.boolean(animation.playing);
   }
   out.u32(uint32_t(voiceActor_));
+  out.u32(uint32_t(computerText_.size()));
+  for (const auto &slot : computerText_) {
+    out.string(slot.text);
+    out.u32(uint32_t(slot.x));
+    out.u32(uint32_t(slot.y));
+    out.u32(uint32_t(slot.width));
+    out.u32(uint32_t(slot.height));
+    out.u32(uint32_t(slot.size));
+    out.u32(uint32_t(slot.color));
+  }
+  out.string(computerClock_);
+  out.u32(uint32_t(chatHistory_.size()));
+  for (const auto &line : chatHistory_) {
+    out.u32(uint32_t(line.mode));
+    out.string(line.text);
+  }
   return out.finish();
 }
 
@@ -297,7 +316,8 @@ void PmailGame::deserialize(const std::string &data) {
   std::lock_guard lock(mutex_);
   ::Pmail::StateIO::Reader in(data);
   const auto version = in.string(32);
-  if (version != "PMAIL-GAME-1" && version != "PMAIL-GAME-2")
+  if (version != "PMAIL-GAME-1" && version != "PMAIL-GAME-2" &&
+      version != "PMAIL-GAME-3")
     throw std::runtime_error("Unsupported PMAIL save version");
   if (in.u64() != ::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()))
     throw std::runtime_error("PMAIL save belongs to a different script pack");
@@ -369,7 +389,7 @@ void PmailGame::deserialize(const std::string &data) {
   }
   int voiceActor = -1;
   std::vector<AnimationState> animations;
-  if (version == "PMAIL-GAME-2") {
+  if (version == "PMAIL-GAME-2" || version == "PMAIL-GAME-3") {
     const auto count = in.count(4096);
     for (uint32_t i = 0; i < count; ++i) {
       AnimationState animation;
@@ -392,6 +412,33 @@ void PmailGame::deserialize(const std::string &data) {
       animations.push_back(animation);
     }
     voiceActor = int32_t(in.u32());
+  }
+  std::vector<ComputerText> computerText;
+  std::vector<ChatLine> chatHistory;
+  std::string computerClock;
+  if (version == "PMAIL-GAME-3") {
+    for (auto n = in.count(ComputerTextLimit); n; --n) {
+      ComputerText slot;
+      slot.text = in.string(4096);
+      slot.x = int32_t(in.u32());
+      slot.y = int32_t(in.u32());
+      slot.width = int32_t(in.u32());
+      slot.height = int32_t(in.u32());
+      slot.size = int32_t(in.u32());
+      slot.color = int32_t(in.u32());
+      if (slot.x < -2048 || slot.x > 2048 || slot.y < -2048 ||
+          slot.y > 2048 || slot.width < 0 || slot.width > 4096 ||
+          slot.height < 0 || slot.height > 4096 ||
+          slot.size < 1 || slot.size > 256 ||
+          slot.color < 0 || slot.color > 255)
+        throw std::runtime_error("Invalid PMAIL computer text slot");
+      computerText.push_back(std::move(slot));
+    }
+    computerClock = in.string(32);
+    for (auto n = in.count(ChatHistoryLimit); n; --n) {
+      ChatLine line{int32_t(in.u32()), in.string(4096)};
+      chatHistory.push_back(std::move(line));
+    }
   }
   in.end();
   ::Pmail::Vm staged(*this);
@@ -427,6 +474,9 @@ void PmailGame::deserialize(const std::string &data) {
   choiceText_ = std::move(choices);
   choiceValue_ = std::move(values);
   spriteSlots_ = std::move(slots);
+  computerText_ = std::move(computerText);
+  computerClock_ = std::move(computerClock);
+  chatHistory_ = std::move(chatHistory);
   returningToTitle_ = false;
   ++sceneVersion_;
 }
@@ -837,6 +887,76 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     vm.block();
     break;
   }
+  case 52: {
+    // Original pmail.exe keeps 10 positioned text slots (9 x 32-bit words
+    // each). Text IDs resolve through the VM and are rendered by the stage.
+    if (computerText_.size() >= ComputerTextLimit)
+      break;
+    const auto raw = firstString();
+    if (raw.empty())
+      break;
+    std::vector<int> values;
+    for (const auto &arg : args)
+      if (arg.tag() == 0)
+        values.push_back(int(int16_t(arg.value())));
+    if (values.size() < 6)
+      break;
+    std::string text = raw;
+    try {
+      text = ::Kotonoha::ShiftJisToUtf8(raw);
+    } catch (...) {
+    }
+    ComputerText slot;
+    slot.text = std::move(text);
+    slot.x = std::clamp(values[0], -2048, 2048);
+    slot.y = std::clamp(values[1], -2048, 2048);
+    slot.width = std::clamp(values[2], 0, 4096);
+    slot.height = std::clamp(values[3], 0, 4096);
+    slot.size = std::clamp(values[4], 1, 256);
+    slot.color = std::clamp(values[5], 0, 255);
+    computerText_.push_back(std::move(slot));
+    ++sceneVersion_;
+    break;
+  }
+  case 80: {
+    // The native engine stores a short clock label for the computer screen.
+    const auto raw = firstString();
+    try {
+      computerClock_ = ::Kotonoha::ShiftJisToUtf8(raw);
+    } catch (...) {
+      computerClock_ = raw;
+    }
+    if (computerClock_.size() > 32)
+      computerClock_.resize(32);
+    ++sceneVersion_;
+    break;
+  }
+  case 160:
+  case 162: {
+    // Both opcodes append to the same 15-entry chat log. SYS 160 triggers
+    // immediate redraw in the original; the SDL scene redraws each frame.
+    const auto raw = firstString();
+    if (raw.empty())
+      break;
+    std::string text = raw;
+    try {
+      text = ::Kotonoha::ShiftJisToUtf8(raw);
+    } catch (...) {
+    }
+    if (chatHistory_.size() == ChatHistoryLimit)
+      chatHistory_.erase(chatHistory_.begin());
+    chatHistory_.push_back({argInt(0), std::move(text)});
+    ++sceneVersion_;
+    break;
+  }
+  case 161:
+    chatHistory_.clear();
+    ++sceneVersion_;
+    break;
+  case 163:
+    // Original redraw/commit operation; the renderer is already retained.
+    ++sceneVersion_;
+    break;
   case 64:
   case 69:
     if (id == 69) {
