@@ -217,6 +217,126 @@ int main() {
     std::printf("PASS: scenarioFiles found scenario/first.ks\n");
   }
 
+  // Title artwork must decode from an ordinary mounted file as a real SDL
+  // surface; the renderer uses this same virtual provider for layered images.
+  {
+    const auto titlePath = tempDir / "image" / "title.bmp";
+    std::filesystem::create_directories(titlePath.parent_path());
+    Kotonoha::SurfacePtr pixels(
+        SDL_CreateSurface(2, 2, SDL_PIXELFORMAT_RGBA32));
+    bool wrote = bool(pixels);
+    if (pixels) {
+      wrote = SDL_FillSurfaceRect(
+                  pixels.get(), nullptr,
+                  SDL_MapSurfaceRGB(pixels.get(), 120, 90, 40)) &&
+              SDL_SaveBMP(pixels.get(), titlePath.string().c_str());
+    }
+    if (!wrote) {
+      std::printf("FAIL: cannot create synthetic title artwork\n");
+      ++failures;
+    } else {
+      try {
+        Kotonoha::Providers::KirikiriAssets loose(tempDir);
+        const auto surface = loose.loadSurface("image/title.bmp");
+        if (!surface || surface->w != 2 || surface->h != 2) {
+          std::printf("FAIL: title picture was not decoded\n");
+          ++failures;
+        }
+      } catch (const std::exception &error) {
+        std::printf("FAIL: title picture decode threw: %s\n", error.what());
+        ++failures;
+      }
+    }
+  }
+
+  // XP3 filenames are UTF-16LE, not Latin-1. Kanji and other codepoints
+  // above U+07FF must survive lookup so graphical assets can be found.
+  {
+    const std::u16string japaneseName = u"scenario/猫猫猫猫猫.ks";
+    if (japaneseName.size() != fileName.size()) {
+      std::printf("FAIL: invalid Unicode XP3 fixture size\n");
+      ++failures;
+    } else {
+      auto unicodeArchive = data;
+      const std::size_t namePos =
+          static_cast<std::size_t>(tableMetaOffset) + 17u +
+          infoSizePos + 12u + 22u;
+      for (std::size_t i = 0; i < japaneseName.size(); ++i) {
+        const std::uint16_t unit = japaneseName[i];
+        unicodeArchive.at(namePos + i * 2u) = std::uint8_t(unit & 0xff);
+        unicodeArchive.at(namePos + i * 2u + 1u) =
+            std::uint8_t(unit >> 8);
+      }
+      const auto path = tempDir / "unicode.xp3";
+      std::ofstream out(path, std::ios::binary);
+      out.write(reinterpret_cast<const char *>(unicodeArchive.data()),
+                std::streamsize(unicodeArchive.size()));
+      out.close();
+      assets.mountXp3("unicode.xp3");
+      const std::string requested = u8"SCENARIO/猫猫猫猫猫.KS";
+      if (!assets.containsAsset(requested) ||
+          assets.loadTextUtf8(requested) != fileContent) {
+        std::printf("FAIL: Unicode XP3 filename not loadable\n");
+        ++failures;
+      }
+
+      // A dangling UTF-16 high surrogate in the XP3 metadata is invalid.
+      auto corruptArchive = unicodeArchive;
+      corruptArchive.at(namePos + 0u) = 0x00;
+      corruptArchive.at(namePos + 1u) = 0xd8;
+      const auto invalidPath = tempDir / "invalid-unicode.xp3";
+      std::ofstream invalidOut(invalidPath, std::ios::binary);
+      invalidOut.write(reinterpret_cast<const char *>(corruptArchive.data()),
+                       std::streamsize(corruptArchive.size()));
+      invalidOut.close();
+      bool rejected = false;
+      try {
+        assets.mountXp3("invalid-unicode.xp3");
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: malformed UTF-16 XP3 path was accepted\n");
+        ++failures;
+      }
+    }
+  }
+
+  // The standard KAG3 [bg storage] / [image storage] commands must invoke
+  // the same callbacks as Kotonoha's earlier bgshow/chara_show aliases.
+  {
+    auto script = Kirikiri::KagScript::parse(
+        "@bg storage=room time=120\n"
+        "[image layer=base storage=title.png]\n"
+        "[image layer=0 storage=cat.png left=10 top=20]\n"
+        "[layopt layer=0 visible=false]\n"
+        "[image layer=2 storage=hero.png left=30 top=40]\n"
+        "[freeimage layer=2]\n"
+        "[end]\n", "visual-tags.ks");
+    std::vector<std::string> calls;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showBg = [&](std::string file, int time) {
+      calls.push_back("bg:" + file + ":" + std::to_string(time));
+    };
+    cb.showChar = [&](std::string layer, std::string file,
+                      int x, int y, int) {
+      calls.push_back("fg:" + layer + ":" + file + ":" +
+                      std::to_string(x) + ":" + std::to_string(y));
+    };
+    cb.hideChar = [&](std::string layer, int) {
+      calls.push_back("hide:" + layer);
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    const std::vector<std::string> expected = {
+        "bg:room:120", "bg:title.png:0", "fg:0:cat.png:10:20",
+        "hide:0", "fg:2:hero.png:30:40", "hide:2"};
+    if (calls != expected || !runner.isFinished()) {
+      std::printf("FAIL: KAG graphical tag callbacks did not run\n");
+      ++failures;
+    }
+  }
+
   // Loose KAG patches commonly use a UTF-16 BOM (the NEKOPARA VNX+
   // sysmenu.ks is one real-world example). They must reach the parser as
   // UTF-8 instead of producing one NUL byte between every character.
