@@ -394,8 +394,17 @@ void KirikiriAssets::mountAllXp3() {
     const auto bn = std::filesystem::path(b).filename().string();
     return std::pair(rank(an), an) < std::pair(rank(bn), bn);
   });
-  for (const auto &id : names)
-    mountXp3(std::filesystem::path(id));
+  for (const auto &id : names) {
+    try {
+      mountXp3(std::filesystem::path(id));
+    } catch (const std::exception &error) {
+      // One unsupported/corrupt patch must not prevent other XP3 archives
+      // from reaching the launcher and its diagnostic title screen.
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "KiriKiri: cannot mount XP3 %s: %s",
+                  id.c_str(), error.what());
+    }
+  }
 }
 
 std::vector<std::string> KirikiriAssets::scenarioFiles() const {
@@ -518,8 +527,13 @@ bool KirikiriAssets::readXp3(const std::string &id) {
     // The segm section holds N records of 28 bytes each, not one record.
     std::size_t tp = 0;
     while (tp < tableData.size()) {
-      if (tableData.size() - tp < 12)
+      if (tableData.size() - tp < 12) {
+        // Some packers align a decoded index with a few zero bytes.
+        if (std::all_of(tableData.begin() + tp, tableData.end(),
+                        [](std::uint8_t value) { return value == 0; }))
+          break;
         throw std::runtime_error("XP3 truncated File chunk: " + id);
+      }
       const auto tag = readU32LE(tableData.data() + tp);
       const auto chunkSize = readU64LE(tableData.data() + tp + 4);
       tp += 12;
