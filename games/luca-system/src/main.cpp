@@ -35,7 +35,7 @@ struct App {
     Kotonoha::Engine engine;
     Game(std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> a,
          Kotonoha::EngineOptions o)
-        : runtime(std::move(a)), engine(runtime, std::move(o)) {}
+        : runtime(a), engine(runtime, withAssets(std::move(o), std::move(a))) {}
   };
   std::unique_ptr<Game> game;
 
@@ -43,7 +43,7 @@ struct App {
     auto assets = std::shared_ptr<Kotonoha::Providers::LucaSystemAssets>(
         new Kotonoha::Providers::LucaSystemAssets(
             directory, options.assetOverlayDirectory()));
-    game = std::make_unique<Game>(std::move(assets), std::move(options));
+    game = std::make_unique<Game>(std::move(assets), options);
   }
 };
 
@@ -115,10 +115,10 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     const auto env = SDL_getenv("LUCA_SYSTEM_DIR");
     const auto downloads = SDL_GetUserFolder(SDL_FOLDER_DOWNLOADS);
     directory = Kotonoha::GameLauncher::findGamePath(
-        "luca_system",
+        "luca-system",
         {directory, env ? env : "",
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
-         Kotonoha::gameAssetDirectory("luca_system").string(),
+         Kotonoha::gameAssetDirectory("luca-system").string(),
          downloads ? (std::filesystem::path(downloads) / "LucaSystem").string()
                    : ""},
         validate, {""}, true);
