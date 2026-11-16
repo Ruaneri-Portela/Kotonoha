@@ -63,10 +63,14 @@ struct Value {
   }
 };
 
-// Minimal heap-backed TJS Dictionary value. Copies share member state, but
-// native KiriKiri Window/Layer objects and prototype dispatch are excluded.
+// Small retained object graph. A Layer is always attached to an existing
+// Window or parent Layer, and is projected onto the Kotonoha render viewport.
+// This is not a replacement for KiriKiri's platform Window/Layer classes.
 struct Object {
+  enum class Kind { Dictionary, Window, Layer } kind = Kind::Dictionary;
   std::unordered_map<std::string, Value> members;
+  std::weak_ptr<Object> parent;
+  std::size_t layerId = 0;
 };
 
 struct Token {
@@ -232,8 +236,14 @@ public:
   std::unordered_map<std::string, SourceFunction> functions;
   std::vector<std::unordered_map<std::string, Value>> frames;
   std::vector<std::string> active;
+  std::vector<ObjectPtr> windows, layers;
+  std::size_t nextLayerId = 1;
+  std::size_t nextAnonymousFunction = 1;
   std::size_t remaining;
   std::size_t functionDepth = 0;
+
+  Value construct(const std::string &type, const std::vector<Value> &args);
+  void snapshotLayers();
 
   Value get(const std::string &name) const {
     // Exact qualified built-ins like System.title remain supported.
@@ -353,28 +363,63 @@ class Parser {
     return tokens[pc++].text;
   }
   Value primary(bool active) {
-    if (match("new")) {
-      const auto type = identifier();
-      std::size_t argumentCount = 0;
-      if (match("(") && !match(")")) {
+    if (match("function")) {
+      // Function expressions are useful for Layer.onClick/onMouseDown.
+      // These functions share global VM state; lexical closure capture is
+      // explicitly not implemented by the source subset.
+      std::string functionName;
+      if (look().kind == Token::Identifier && look(1).text == "(")
+        functionName = identifier();
+      expect("(");
+      std::vector<std::string> parameters;
+      if (!match(")")) {
         do {
-          if (++argumentCount > 8)
-            throw std::runtime_error(
-                "TJS2 subset: too many native constructor arguments");
-          // A disabled TJS branch can contain native constructors. Parse
-          // the arguments but do not resolve symbols or run side effects.
-          (void)expression(false);
+          if (parameters.size() >= 8)
+            throw std::runtime_error("TJS2 UI: too many handler parameters");
+          const auto parameter = identifier();
+          if (std::find(parameters.begin(), parameters.end(), parameter) !=
+              parameters.end())
+            throw std::runtime_error("TJS2 UI: repeated handler parameter");
+          parameters.push_back(parameter);
         } while (match(","));
         expect(")");
       }
+      if (look().text != "{")
+        throw std::runtime_error("TJS2 UI: function expression body expected");
+      const auto start = look().offset;
+      std::size_t braces = 0;
+      do {
+        if (look().kind == Token::End)
+          throw std::runtime_error("TJS2 UI: unterminated event handler");
+        if (look().text == "{") ++braces;
+        else if (look().text == "}") --braces;
+        ++pc;
+      } while (braces);
       if (!active) return {};
-      if (type == "Dictionary" && argumentCount == 0)
-        return Value(std::make_shared<Object>());
-      if (type == "Dictionary")
-        throw std::runtime_error(
-            "TJS2 subset: Dictionary constructor takes no arguments");
-      throw std::runtime_error(
-          "TJS2 subset: native class not implemented: " + type);
+      if (machine.functions.size() >= 256)
+        throw std::runtime_error("TJS2 UI: handler count limit exceeded");
+      if (functionName.empty())
+        functionName = "__tjs_handler_" +
+                       std::to_string(machine.nextAnonymousFunction++);
+      const auto finish = tokens[pc - 1].offset + 1;
+      machine.functions[functionName] = SourceFunction{
+          functionName, sourceName, sourceCode.substr(start, finish - start),
+          std::move(parameters)};
+      return Value(functionName);
+    }
+    if (match("new")) {
+      const auto type = identifier();
+      std::vector<Value> args;
+      if (match("(") && !match(")")) {
+        do {
+          if (args.size() >= 8)
+            throw std::runtime_error(
+                "TJS2 subset: too many constructor arguments");
+          args.push_back(expression(active));
+        } while (match(","));
+        expect(")");
+      }
+      return active ? machine.construct(type, args) : Value();
     }
     if (match("(")) {
       auto v = expression(active);
@@ -415,6 +460,9 @@ class Parser {
       }
       return machine.call(name, args, sourceName, active);
     }
+    // Named source functions may be assigned as Layer.onClick handlers.
+    if (active && machine.functions.count(name))
+      return Value(name);
     return active ? machine.get(name) : Value();
   }
   Value unary(bool active) {
@@ -707,6 +755,146 @@ public:
   }
 };
 
+Value Interpreter::construct(const std::string &type,
+                             const std::vector<Value> &args) {
+  const auto integer = [](int value) { return Value(double(value)); };
+  const auto createLayer = [&](const ObjectPtr &parent, bool primary) {
+    if (layers.size() >= 256)
+      throw std::runtime_error("TJS2 UI: Layer count limit exceeded");
+    auto layer = std::make_shared<Object>();
+    layer->kind = Object::Kind::Layer;
+    layer->parent = parent;
+    layer->layerId = nextLayerId++;
+    layer->members["left"] = integer(0);
+    layer->members["top"] = integer(0);
+    layer->members["width"] = integer(primary ? 1280 : 0);
+    layer->members["height"] = integer(primary ? 720 : 0);
+    layer->members["opacity"] = integer(255);
+    layer->members["order"] = integer(int(layer->layerId));
+    layer->members["visible"] = Value(true);
+    layer->members["enabled"] = Value(true);
+    layers.push_back(layer);
+    return layer;
+  };
+  if (type == "Dictionary") {
+    if (!args.empty())
+      throw std::runtime_error("TJS2 UI: Dictionary takes no arguments");
+    return Value(std::make_shared<Object>());
+  }
+  if (type == "Window") {
+    // Virtual presentation exists, but native OS Window APIs are not
+    // implemented and real KiriKiri scripts may still require them.
+    result.requiresNativeRuntime = true;
+    if (!args.empty())
+      throw std::runtime_error("TJS2 UI: Window constructor arguments unsupported");
+    if (windows.size() >= 4)
+      throw std::runtime_error("TJS2 UI: Window count limit exceeded");
+    auto window = std::make_shared<Object>();
+    window->kind = Object::Kind::Window;
+    window->members["left"] = integer(0);
+    window->members["top"] = integer(0);
+    window->members["width"] = integer(1280);
+    window->members["height"] = integer(720);
+    window->members["visible"] = Value(true);
+    windows.push_back(window);
+    window->members["primaryLayer"] = Value(createLayer(window, true));
+    return Value(window);
+  }
+  if (type == "Layer") {
+    if (args.empty() || args.size() > 2)
+      throw std::runtime_error("TJS2 UI: Layer requires Window/parent Layer");
+    const auto *root = std::get_if<ObjectPtr>(&args.front().data);
+    if (!root || !*root)
+      throw std::runtime_error("TJS2 UI: Layer owner is not an object");
+    ObjectPtr parent = *root;
+    if (args.size() == 2) {
+      const auto *second = std::get_if<ObjectPtr>(&args[1].data);
+      if (!second || !*second || (*second)->kind != Object::Kind::Layer)
+        throw std::runtime_error("TJS2 UI: invalid parent Layer");
+      parent = *second;
+    } else if (parent->kind == Object::Kind::Window) {
+      parent = std::get<ObjectPtr>(parent->members.at("primaryLayer").data);
+    }
+    if (parent->kind != Object::Kind::Layer)
+      throw std::runtime_error("TJS2 UI: Layer parent is not a Layer");
+    if (args.size() == 2) {
+      ObjectPtr ancestor = parent;
+      while (ancestor && ancestor->kind == Object::Kind::Layer)
+        ancestor = ancestor->parent.lock();
+      if (!ancestor || ancestor != *root)
+        throw std::runtime_error("TJS2 UI: Layer parent belongs to another Window");
+    }
+    return Value(createLayer(parent, false));
+  }
+  throw std::runtime_error("TJS2 subset: native class not implemented: " + type);
+}
+
+void Interpreter::snapshotLayers() {
+  result.layers.clear();
+  const auto member = [](const ObjectPtr &object, const char *name) -> Value {
+    const auto found = object->members.find(name);
+    return found == object->members.end() ? Value() : found->second;
+  };
+  const auto bounded = [&](const ObjectPtr &object, const char *name,
+                           int fallback, int low, int high) -> int {
+    const auto value = member(object, name);
+    if (std::holds_alternative<std::monostate>(value.data)) return fallback;
+    const auto number = value.number();
+    if (!std::isfinite(number) || number < low || number > high)
+      throw std::runtime_error(std::string("TJS2 UI: invalid ") + name);
+    return static_cast<int>(number);
+  };
+  for (const auto &layer : layers) {
+    TjsUiLayer frame;
+    frame.id = layer->layerId;
+    frame.width = bounded(layer, "width", 0, 0, 16384);
+    frame.height = bounded(layer, "height", 0, 0, 16384);
+    frame.order = bounded(layer, "order", int(frame.id), -10000, 10000);
+    frame.opacity = bounded(layer, "opacity", 255, 0, 255);
+    frame.visible = member(layer, "visible").truthy();
+    frame.enabled = member(layer, "enabled").truthy();
+    frame.storage = member(layer, "storage").string();
+    if (!frame.storage.empty())
+      frame.storage = safeName(frame.storage);
+    frame.onClick = member(layer, "onClick").string();
+    if (frame.onClick.empty())
+      frame.onClick = member(layer, "onMouseDown").string();
+    const auto callback = [&](const char *property) {
+      const auto value = member(layer, property).string();
+      if (!value.empty() &&
+          (value.size() > 128 || !functions.count(value)))
+        throw std::runtime_error(std::string(
+            "TJS2 UI: event must name a declared script function: ") + property);
+      return value;
+    };
+    if (!frame.onClick.empty() &&
+        (frame.onClick.size() > 128 || !functions.count(frame.onClick)))
+      throw std::runtime_error(
+          "TJS2 UI: onClick must name a declared script function");
+    frame.onMouseEnter = callback("onMouseEnter");
+    frame.onMouseLeave = callback("onMouseLeave");
+    int x = 0, y = 0;
+    int alpha = frame.opacity;
+    auto owner = layer;
+    for (std::size_t depth = 0; owner && depth < 16;
+         ++depth, owner = owner->parent.lock()) {
+      x += bounded(owner, "left", 0, -8192, 8192);
+      y += bounded(owner, "top", 0, -8192, 8192);
+      if (!member(owner, "visible").truthy()) frame.visible = false;
+      if (owner != layer)
+        alpha = alpha * bounded(owner, "opacity", 255, 0, 255) / 255;
+    }
+    frame.left = x;
+    frame.top = y;
+    frame.opacity = alpha;
+    result.layers.push_back(std::move(frame));
+  }
+  std::stable_sort(result.layers.begin(), result.layers.end(),
+                   [](const TjsUiLayer &a, const TjsUiLayer &b) {
+                     return a.order < b.order;
+                   });
+}
+
 Value Interpreter::call(const std::string &name,
                         const std::vector<Value> &params,
                         const std::string &current, bool activeFlag) {
@@ -741,6 +929,46 @@ Value Interpreter::call(const std::string &name,
     return {};
   }
 
+  // A small safe subset of Layer/Window methods. All methods mutate only
+  // the retained scene graph; no OS windows, plugins or native code run.
+  const auto dot = name.rfind('.');
+  if (dot != std::string::npos) {
+    const auto method = name.substr(dot + 1);
+    if (method == "loadImages" || method == "setImage" ||
+        method == "setPos" || method == "setSize" ||
+        method == "show" || method == "hide") {
+      const auto receiver = get(name.substr(0, dot));
+      const auto ptr = std::get_if<ObjectPtr>(&receiver.data);
+      if (!ptr || !*ptr || (*ptr)->kind == Object::Kind::Dictionary)
+        throw std::runtime_error("TJS2 UI: method receiver is not a Layer/Window");
+      auto &obj = *ptr;
+      const auto integer = [&](std::size_t index) {
+        const auto n = params.at(index).number();
+        if (!std::isfinite(n) || n < -8192 || n > 16384)
+          throw std::runtime_error("TJS2 UI: invalid coordinate/dimension");
+        return Value(static_cast<double>(static_cast<int>(n)));
+      };
+      if (method == "show" || method == "hide") {
+        if (!params.empty())
+          throw std::runtime_error("TJS2 UI: show/hide take no arguments");
+        obj->members["visible"] = Value(method == "show");
+        return {};
+      }
+      if (obj->kind != Object::Kind::Layer)
+        throw std::runtime_error("TJS2 UI: image/position method requires Layer");
+      if (method == "loadImages" || method == "setImage") {
+        if (params.size() != 1)
+          throw std::runtime_error("TJS2 UI: loadImages needs one storage ID");
+        obj->members["storage"] = Value(safeName(params.front().string()));
+        return {};
+      }
+      if (params.size() != 2)
+        throw std::runtime_error("TJS2 UI: setPos/setSize require two values");
+      obj->members[method == "setPos" ? "left" : "width"] = integer(0);
+      obj->members[method == "setPos" ? "top" : "height"] = integer(1);
+      return {};
+    }
+  }
   if (params.size() != 1)
     throw std::runtime_error("TJS2 subset: exactly one argument required for " +
                              name);
@@ -798,21 +1026,140 @@ void Interpreter::runFile(std::string id, std::size_t depth) {
 }
 } // namespace
 
+// Retains the script variables, objects and named function bodies between
+// input events. No interpreted code runs from SDL event callbacks except a
+// bounded, explicitly registered onClick function on the runtime thread.
+class TjsUiSession {
+public:
+  explicit TjsUiSession(const KirikiriAssets &assets, std::size_t budget)
+      : vm(assets, budget) {}
+  Interpreter vm;
+  std::size_t hoveredLayer = 0;
+};
+
 TjsStartupResult runTjsStartupSubset(const KirikiriAssets &assets,
                                     std::size_t instructionBudget) {
-  Interpreter vm(assets, instructionBudget);
+  auto session = std::make_shared<TjsUiSession>(assets, instructionBudget);
+  auto &vm = session->vm;
   const auto inspected = inspectTjsBootstrap(assets);
   if (inspected.entry.empty()) {
     vm.result.error = "TJS2 subset: startup.tjs not found";
-    return vm.result;
+  } else {
+    try {
+      vm.runFile(inspected.entry, 0);
+      vm.snapshotLayers();
+      vm.result.subsetCompleted = true;
+    } catch (const std::exception &error) {
+      vm.result.error = error.what();
+    }
   }
+  TjsStartupResult output = vm.result;
+  output.uiSession = std::move(session);
+  return output;
+}
+
+bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
+  auto session = result.uiSession;
+  if (!session || !result.subsetCompleted ||
+      !std::isfinite(x) || !std::isfinite(y))
+    return false;
+  for (auto it = result.layers.rbegin(); it != result.layers.rend(); ++it) {
+    const auto &layer = *it;
+    if (!layer.visible || !layer.enabled || layer.opacity == 0 ||
+        layer.width <= 0 || layer.height <= 0 || layer.onClick.empty())
+      continue;
+    if (x < layer.left || y < layer.top ||
+        x >= double(layer.left) + layer.width ||
+        y >= double(layer.top) + layer.height)
+      continue;
+    auto &vm = session->vm;
+    vm.result.kagEntry.clear();
+    try {
+      const auto found = vm.functions.find(layer.onClick);
+      if (found == vm.functions.end())
+        throw std::runtime_error("TJS2 UI: missing event handler");
+      std::vector<Value> arguments;
+      const auto arity = found->second.parameters.size();
+      if (arity > 4)
+        throw std::runtime_error("TJS2 UI: unsupported pointer event arity");
+      if (arity >= 1) arguments.emplace_back(double(x));
+      if (arity >= 2) arguments.emplace_back(double(y));
+      if (arity >= 3) arguments.emplace_back(1.0); // left mouse button
+      if (arity >= 4) arguments.emplace_back(0.0); // no keyboard modifiers
+      vm.call(layer.onClick, arguments, {}, true);
+      vm.snapshotLayers();
+    } catch (const std::exception &error) {
+      vm.result.error = std::string("TJS2 UI event: ") + error.what();
+    }
+    result = vm.result;
+    result.uiSession = std::move(session);
+    return true;
+  }
+  return false;
+}
+
+bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
+  auto session = result.uiSession;
+  if (!session || !result.subsetCompleted ||
+      !std::isfinite(x) || !std::isfinite(y))
+    return false;
+
+  std::size_t next = 0;
+  std::string nextHandler, previousHandler;
+  for (auto it = result.layers.rbegin(); it != result.layers.rend(); ++it) {
+    const auto &layer = *it;
+    if (!layer.visible || !layer.enabled || layer.opacity == 0 ||
+        layer.width <= 0 || layer.height <= 0 ||
+        (layer.onClick.empty() && layer.onMouseEnter.empty() &&
+         layer.onMouseLeave.empty()))
+      continue;
+    if (x < layer.left || y < layer.top ||
+        x >= double(layer.left) + layer.width ||
+        y >= double(layer.top) + layer.height)
+      continue;
+    next = layer.id;
+    nextHandler = layer.onMouseEnter;
+    break;
+  }
+  if (session->hoveredLayer == next) return false;
+  for (const auto &layer : result.layers) {
+    if (layer.id == session->hoveredLayer) {
+      previousHandler = layer.onMouseLeave;
+      break;
+    }
+  }
+  session->hoveredLayer = next;
+  auto &vm = session->vm;
+  bool called = false;
   try {
-    vm.runFile(inspected.entry, 0);
-    vm.result.subsetCompleted = true;
+    const auto invoke = [&](const std::string &name) {
+      if (name.empty()) return;
+      const auto found = vm.functions.find(name);
+      if (found == vm.functions.end())
+        throw std::runtime_error("TJS2 UI: hover handler not found");
+      const auto arity = found->second.parameters.size();
+      if (arity > 4)
+        throw std::runtime_error("TJS2 UI: excessive hover parameters");
+      std::vector<Value> args;
+      if (arity >= 1) args.emplace_back(double(x));
+      if (arity >= 2) args.emplace_back(double(y));
+      if (arity >= 3) args.emplace_back(0.0);
+      if (arity >= 4) args.emplace_back(0.0);
+      vm.call(name, args, {}, true);
+      called = true;
+    };
+    invoke(previousHandler);
+    invoke(nextHandler);
+    if (called) vm.snapshotLayers();
   } catch (const std::exception &error) {
-    vm.result.error = error.what();
+    vm.result.error = std::string("TJS2 UI hover: ") + error.what();
+    called = true;
   }
-  return vm.result;
+  if (called) {
+    result = vm.result;
+    result.uiSession = std::move(session);
+  }
+  return called;
 }
 
 } // namespace Kotonoha::Providers
