@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 
 namespace Amagami {
 class Source {
@@ -14,6 +15,9 @@ public:
   struct Archive {
     Kotonoha::DiscImage::Entry file;
     std::vector<ArchiveEntry> entries;
+    // The ARC directory is grouped by hash bucket, not sorted by hash.
+    // Keep the first occurrence of a hash, matching the original linear lookup.
+    std::unordered_map<uint32_t, size_t> byHash;
   };
   const Archive &archive(const std::string &name) const;
   Bytes read(const std::string &archive, size_t index) const;

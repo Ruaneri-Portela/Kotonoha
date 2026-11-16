@@ -63,7 +63,12 @@ looked up through the engine translation dictionary before display.
   clamped completion and remaining time, not the game's clock or textures.
 - Engine `DiscImage` ISO9660 reader and disc asset provider, following the ZNT
   integration. Read-only ARC/AFS ranges are checked against the disc file size.
-- ARC bucket tables and records; original case-sensitive filename hash
+- ARC bucket tables and records, with full count/first-index/hash-bucket
+  consistency checks based on the format research in
+  [open-amagami](https://github.com/hokagocafe/open-amagami/blob/main/docs/technical/arc-format.md).
+  Archive name resolution uses a prebuilt hash index instead of rescanning
+  every entry for each sprite/background lookup.
+- Original case-sensitive filename hash
   `h = h * 0x3fad + signed_char`. Every scenario filename resolves to its actual
   archive entry; backgrounds and character atlases are resolved by filename.
 - 2 KiB LZ ring, initial write index `0x7de`, 11-bit match offset and 5-bit
@@ -410,3 +415,32 @@ an encounter system):
 - `n0dea_ev02A.scriptMain:1043` waits on instance field 4, a flag set by the
   campaign/encounter system, which is absent in standalone scenario entry.
 - Missing event picture asset `epi/e3_12c0.tm2` (1 scenario).
+
+## Related PS Vita research
+
+The MIT-licensed [open-amagami](https://github.com/hokagocafe/open-amagami)
+reverse-engineers the Vita release (`PCSG00291`). It confirms that Vita
+still uses SCF version 4 scripts and the same LZSS system-image format, but
+replaces PS2 ARC/AFS asset containers with CRI CPK and changes the graphics
+and audio codecs. The present Kotonoha game entry point still requires the
+PS2 ISO; this change improves the shared PS2 ARC handling, **not** Vita
+playability. A Vita backend should be a separate source/provider using the
+existing SCF parser, with CPK TOC/ITOC, CRILAYLA, Vita graphics/audio
+and Vita-specific native primitives tested before enabling it.
+
+The standalone Vita CPK reader, adapted from open-amagami, is included
+under its original MIT licence, preserved at
+`modules/providers/amagami/third_party/open-amagami-LICENSE.txt`.
+No proprietary game files, decryption tools or encryption keys are included.
+
+A read-only Vita inspector is available on desktop builds:
+
+```sh
+cmake --build build --target AmagamiVitaInspect AmagamiVitaCpkTest
+build/games/amagami/AmagamiVitaInspect /path/to/decrypted/PCSG00291 --verify
+ctest --test-dir build -R 'Amagami.VitaCpk' --output-on-failure
+```
+
+It checks the system image and CPK scenario scripts using the existing
+Kotonoha SCF reader. It is not a Vita game launcher, and does not replace
+the PS2-only `Amagami` target.
