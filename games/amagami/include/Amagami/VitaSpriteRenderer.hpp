@@ -18,17 +18,28 @@ class VitaSpriteRenderer {
 public:
   using SurfaceFactory = std::function<
       Kotonoha::SurfacePtr(uint32_t textureId, uint32_t variant)>;
+  using NamedSurfaceFactory = std::function<
+      Kotonoha::SurfacePtr(const std::string &name)>;
 
   explicit VitaSpriteRenderer(SDL_Renderer *renderer, SurfaceFactory source);
   void draw(const VitaVmBridge &bridge, bool clear = true);
-  void clearCache() { cache_.clear(); }
-  std::size_t cachedTextures() const { return cache_.size(); }
+  void setNamedSource(NamedSurfaceFactory source) {
+    namedSource_ = std::move(source);
+    namedCache_.clear();
+  }
+  void clearCache() { cache_.clear(); namedCache_.clear(); }
+  std::size_t cachedTextures() const {
+    return cache_.size() + namedCache_.size();
+  }
 
 private:
   SDL_Texture *textureFor(uint32_t id, uint32_t variant);
+  SDL_Texture *namedTextureFor(const std::string &name);
   SDL_Renderer *renderer_;
   SurfaceFactory source_;
+  NamedSurfaceFactory namedSource_;
   std::map<std::pair<uint32_t, uint32_t>, Kotonoha::TexturePtr> cache_;
+  std::map<std::string, Kotonoha::TexturePtr> namedCache_;
 };
 
 } // namespace Amagami::Vita
