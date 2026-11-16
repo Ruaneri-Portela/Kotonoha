@@ -22,6 +22,13 @@ target_link_libraries(KotonohaDirectoryTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.Directories COMMAND KotonohaDirectoryTests)
 
 # General filesystem access: cross-platform layout, providers, overlays, saves.
+# Synthetic game-source layout checks: case-insensitive VFS lookups and
+# matching archive groups without requiring commercial game data.
+add_executable(KotonohaGameSourceProbeTests GameSourceProbeTests.cpp)
+target_link_libraries(KotonohaGameSourceProbeTests PRIVATE Kotonoha::Engine)
+target_compile_features(KotonohaGameSourceProbeTests PRIVATE cxx_std_17)
+add_test(NAME Kotonoha.GameSourceProbe COMMAND KotonohaGameSourceProbeTests)
+
 add_executable(KotonohaFilesystemV2Tests FilesystemV2Tests.cpp)
 target_link_libraries(KotonohaFilesystemV2Tests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.FilesystemV2 COMMAND KotonohaFilesystemV2Tests)
