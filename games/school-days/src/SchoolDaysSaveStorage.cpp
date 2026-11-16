@@ -7,6 +7,7 @@
 #include <climits>
 #include <cerrno>
 #include <exception>
+#include <fstream>
 #include <limits>
 
 #ifdef _WIN32
@@ -174,6 +175,10 @@ bool SchoolDaysSaveStorage::ReadFile(const std::filesystem::path &path,
   if (bytes == nullptr)
     return Fail(error, "School Days read output is null");
   bytes->clear();
+  // Save profiles are physical OS files, never virtual assets. Opening the
+  // filesystem::path directly preserves its wide Unicode spelling on Windows;
+  // the current SDLFileSource path adapter uses path.string() (ANSI), which
+  // fails on non-ASCII folders even after a successful atomic publication.
   std::ifstream file(path, std::ios::binary | std::ios::ate);
   if (!file)
     return Fail(error, "School Days save file could not be opened for read");

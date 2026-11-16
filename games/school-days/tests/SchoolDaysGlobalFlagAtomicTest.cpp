@@ -118,7 +118,7 @@ void CheckStorage(const fs::path &root) {
   Kotonoha::SchoolDaysSaveProfile profile;
   profile.saveFolder = "Save";
   profile.flagFileName = "Save/GlobalFlag.DAT";
-  profile.saveFileName = "Save/SaveFile%02d.DAT";
+  profile.saveFileName = "Save/SaveFile%d.DAT";
   std::string error;
   Require(storage.Initialize(root, profile, &error),
           "Cannot initialize synthetic save storage: " + error);
@@ -143,8 +143,25 @@ void CheckStorage(const fs::path &root) {
   Require(storage.LoadGlobalFlag(&loaded, &present, &error) && present &&
               loaded == second,
           "GlobalFlag load differs after atomic publish");
-  Require(!fs::exists(root / "Save" / "SaveFile00.DAT"),
+  Require(!fs::exists(root / "Save" / "SaveFile0.DAT"),
           "GlobalFlag write unexpectedly created a slot save");
+  // The same physical-path handling must also preserve UTF-8 user folders
+  // when probing/reading real slot filenames (without needing retail data).
+  const auto slot = root / "Save" / "SaveFile0.DAT";
+  const std::string slotText = "synthetic-slot";
+  {
+    std::ofstream output(slot, std::ios::binary);
+    output << slotText;
+    Require(bool(output), "Cannot create synthetic slot");
+  }
+  bool openable = false;
+  Require(storage.ProbeSaveFile(0, &openable, &error) && openable,
+          "Unicode slot folder was not probed correctly");
+  std::vector<uint8_t> slotBytes;
+  Require(storage.ReadSaveFile(0, &slotBytes, &error) &&
+              slotBytes == std::vector<uint8_t>(slotText.begin(), slotText.end()),
+          "Unicode slot folder was not read correctly");
+  Require(fs::remove(slot), "Cannot remove synthetic slot fixture");
 
   const auto faultWrite = Storage::GlobalFlagWriteFault::Write;
   const auto faultFlush = Storage::GlobalFlagWriteFault::Flush;
