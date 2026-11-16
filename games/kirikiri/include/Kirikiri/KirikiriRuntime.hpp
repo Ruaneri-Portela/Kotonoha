@@ -33,7 +33,8 @@ public:
   void loadGame(const std::string &path) override;
 
   // Starts a scenario script by file name (e.g. "first.ks").
-  bool startScenario(const std::string &name, std::size_t position = 0);
+  bool startScenario(const std::string &name, std::size_t position = 0,
+                     const KagScript::Runner::State *savedState = nullptr);
   // Debug jump to a labeled position inside the current scenario.
   bool debugJumpToLabel(const std::string &label);
 

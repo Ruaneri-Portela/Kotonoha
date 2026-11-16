@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <stdexcept>
 
 namespace Kirikiri {
@@ -214,11 +215,11 @@ KagScript::Script KagScript::parse(const std::string &text,
   return script;
 }
 
-KagScript::Runner::Runner(Script script, const Callbacks &cb)
-    : script_(std::move(script)), cb_(cb) {}
+KagScript::Runner::Runner(Script script, Callbacks cb)
+    : script_(std::move(script)), cb_(std::move(cb)) {}
 
 KagScript::Runner::State KagScript::Runner::saveState() const {
-  return {pc_, returnStack_, finished_};
+  return {pc_, returnStack_, finished_, vars_};
 }
 
 void KagScript::Runner::restoreState(const State &state) {
@@ -230,6 +231,7 @@ void KagScript::Runner::restoreState(const State &state) {
   // Validate every frame before modifying the currently running VM.
   pc_ = state.position;
   returnStack_ = state.returnStack;
+  vars_ = state.variables;
   finished_ = state.finished || pc_ == script_.tags.size();
   blocked_ = false;
   pendingResume_ = nullptr;
@@ -306,18 +308,54 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
 
   const std::string &name = tag.name;
 
+  // Basic KAG branching. Skipping searches only at the current if depth,
+  // so nested conditions cannot accidentally select their parent's else.
+  auto nextBranch = [&](bool alternatives) {
+    int nested = 0;
+    for (std::size_t i = pc_ + 1; i < script_.tags.size(); ++i) {
+      const auto &candidate = script_.tags[i];
+      if (candidate.type != TagType::Command)
+        continue;
+      if (candidate.name == "if") {
+        ++nested;
+        continue;
+      }
+      if (candidate.name == "endif") {
+        if (nested == 0)
+          return i;
+        --nested;
+        continue;
+      }
+      if (nested == 0 && alternatives) {
+        if (candidate.name == "else" ||
+            (candidate.name == "elsif" && condition(candidate)))
+          return i;
+      }
+    }
+    throw std::runtime_error("KAG: unterminated [if] block");
+  };
+  if (name == "if") {
+    if (!condition(tag))
+      pc_ = nextBranch(true); // run() advances to the selected branch body
+    return false;
+  }
+  if (name == "elsif" || name == "else") {
+    pc_ = nextBranch(false); // earlier branch already matched
+    return false;
+  }
+  if (name == "endif")
+    return false;
+
   // Built-in navigation
   if (name == "jump" || name == "j") {
     SDL_Log("KagScript: tag jump");
-    if (cb_.jump) {
-      auto target = getAttr(tag, "storage", std::string());
-      auto label = getAttr(tag, "target", std::string());
-      if (!label.empty() && target.empty())
-        jumpToLabel(label);
-      else if (!label.empty())
-        cb_.jump(target + "#" + label);
-      else if (!target.empty())
-        cb_.jump(target);
+    const auto target = getAttr(tag, "storage", std::string());
+    const auto label = getAttr(tag, "target", std::string());
+    if (!label.empty() && target.empty()) {
+      if (!jumpToLabel(label))
+        throw std::runtime_error("KAG: missing label " + label);
+    } else if (cb_.jump && !target.empty()) {
+      cb_.jump(label.empty() ? target : target + "#" + label);
     }
     return false;
   }
@@ -387,8 +425,9 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
       blocked_ = true;
       cb_.showChoice(getAttr(tag, "question", std::string()), options,
                      [this](int index) { resumeChoice(index); });
+      return true;
     }
-    return true; // choice blocks until player chooses
+    return false; // no choice callback; do not deadlock the VM
   }
 
   // Wait
@@ -397,8 +436,9 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     if (ms > 0 && cb_.wait) {
       blocked_ = true;
       cb_.wait(ms, [this] { resumeWait(); });
+      return true;
     }
-    return true; // wait blocks until timer expires
+    return false; // a missing timer callback must not suspend forever
   }
 
   // Background
@@ -442,13 +482,14 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     return false;
   }
 
-  // Variables
+  // A small KAG variable subset, separate from the full TJS2 evaluator.
   if (name == "set" || name == "eval") {
-    if (cb_.setVar) {
-      auto name_ = getAttr(tag, "name", std::string());
-      auto value = getAttr(tag, "value", std::string());
-      if (!name_.empty())
-        cb_.setVar(name_, value);
+    const auto key = getAttr(tag, "name", std::string());
+    const auto value = getAttr(tag, "value", std::string());
+    if (!key.empty()) {
+      vars_[key] = value;
+      if (cb_.setVar)
+        cb_.setVar(key, value);
     }
     return false;
   }
@@ -458,6 +499,58 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
               "Kirikiri: unknown tag '%s' at %d:%d", name.c_str(), tag.line,
               tag.column);
   return false;
+}
+
+bool KagScript::Runner::condition(const Tag &tag) const {
+  const auto expr = trim(getAttr(tag, "exp", getAttr(tag, "cond", "")));
+  if (expr.empty()) return false;
+  const auto operand = [this](std::string token) -> std::string {
+    token = trim(token);
+    if (token.size() > 1 &&
+        ((token.front() == '"' && token.back() == '"') ||
+         (token.front() == '\'' && token.back() == '\'')))
+      return token.substr(1, token.size() - 2);
+    if (token == "true" || token == "false" || token == "null" ||
+        token == "nil" || token.empty())
+      return token;
+    char *end = nullptr;
+    (void)std::strtod(token.c_str(), &end);
+    if (end != token.c_str() && *end == 0)
+      return token;
+    if (!token.empty() && token.front() == '&')
+      token.erase(0, 1);
+    const auto found = vars_.find(token);
+    if (found != vars_.end()) return found->second;
+    return cb_.getVar ? cb_.getVar(token) : std::string();
+  };
+  const auto truthy = [](const std::string& value) {
+    if (value.empty() || value == "false" || value == "nil" ||
+        value == "null") return false;
+    char* end = nullptr;
+    const auto number = std::strtod(value.c_str(), &end);
+    if (end != value.c_str() && *end == 0)
+      return number != 0.0;
+    return true;
+  };
+  for (const char* op : {"==", "!=", ">=", "<=", ">", "<"}) {
+    const auto pos = expr.find(op);
+    if (pos == std::string::npos) continue;
+    const auto left = operand(expr.substr(0, pos));
+    const auto right = operand(expr.substr(pos + std::char_traits<char>::length(op)));
+    if (std::string(op) == "==") return left == right;
+    if (std::string(op) == "!=") return left != right;
+    char *endL = nullptr, *endR = nullptr;
+    const auto lv = std::strtod(left.c_str(), &endL);
+    const auto rv = std::strtod(right.c_str(), &endR);
+    if (endL == left.c_str() || *endL || endR == right.c_str() || *endR)
+      return false;
+    if (std::string(op) == ">=") return lv >= rv;
+    if (std::string(op) == "<=") return lv <= rv;
+    if (std::string(op) == ">") return lv > rv;
+    return lv < rv;
+  }
+  if (expr.front() == '!') return !truthy(operand(expr.substr(1)));
+  return truthy(operand(expr));
 }
 
 std::size_t KagScript::Runner::findLabel(const std::string &name) {

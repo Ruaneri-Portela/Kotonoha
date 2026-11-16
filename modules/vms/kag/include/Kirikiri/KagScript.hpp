@@ -84,7 +84,7 @@ public:
   // script yields control to the host.
   class Runner : public Kotonoha::Vm {
   public:
-    Runner(Script script, const Callbacks &cb);
+    Runner(Script script, Callbacks cb);
     // Returns true while the runner is blocked waiting for the host
     // (choice/wait) and false when it has finished or reached the end.
     bool isBlocked() const { return blocked_; }
@@ -98,6 +98,7 @@ public:
       std::size_t position = 0;
       std::vector<std::size_t> returnStack;
       bool finished = false;
+      std::map<std::string, std::string> variables;
     };
     State saveState() const;
     void restoreState(const State &state);
@@ -116,7 +117,7 @@ public:
 
   private:
     Script script_; // owned copy; the source Script may go out of scope
-    const Callbacks &cb_;
+    Callbacks cb_;
     std::size_t pc_ = 0;
     bool blocked_ = false;
     bool finished_ = false;
@@ -126,6 +127,7 @@ public:
     std::vector<std::size_t> returnStack_;
 
     bool executeTagBlocking(const Tag &tag); // returns true if tag blocks
+    bool condition(const Tag &tag) const;
     std::size_t findLabel(const std::string &name);
     bool getAttrBool(const Tag &tag, const std::string &key, bool def) const;
     int getAttrInt(const Tag &tag, const std::string &key, int def) const;

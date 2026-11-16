@@ -351,6 +351,80 @@ int main() {
     }
   }
 
+  // KAG flags/branches and nested conditionals must follow the selected
+  // control path, and local variables survive a save within that path.
+  {
+    auto script = Kirikiri::KagScript::parse(
+        "[set name=flag value=1]\n"
+        "[if exp=\"flag == 1\"]\n"
+        "  [if exp=\"flag == 0\"]\n"
+        "    [cm text=\"wrong-inner\"]\n"
+        "  [else]\n"
+        "    [cm text=\"inner\"]\n"
+        "  [endif]\n"
+        "[else]\n"
+        "  [cm text=\"wrong-outer\"]\n"
+        "[endif]\n"
+        "[if exp=\"flag != 1\"]\n"
+        "  [cm text=\"wrong-elsif\"]\n"
+        "[elsif exp=\"flag >= 1\"]\n"
+        "  [cm text=\"elseif\"]\n"
+        "[else]\n"
+        "  [cm text=\"wrong-else\"]\n"
+        "[endif]\n"
+        "[end]\n", "conditionals.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string value) {
+      shown.push_back(std::move(value));
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    if (shown != std::vector<std::string>{"inner"} ||
+        runner.saveState().variables.at("flag") != "1") {
+      std::printf("FAIL: nested KAG if/else or variables\n");
+      ++failures;
+    }
+    const auto saved = runner.saveState();
+    runner.resumeWait();
+    if (shown != std::vector<std::string>({"inner", "elseif"})) {
+      std::printf("FAIL: KAG elsif branch or outer else skipping\n");
+      ++failures;
+    }
+    runner.resumeWait();
+    if (!runner.isFinished()) {
+      std::printf("FAIL: KAG conditions did not finish\n");
+      ++failures;
+    }
+    std::vector<std::string> replay;
+    Kirikiri::KagScript::Callbacks resumeCallbacks;
+    resumeCallbacks.showText = [&](std::string, std::string value) {
+      replay.push_back(std::move(value));
+    };
+    Kirikiri::KagScript::Runner restored(script, std::move(resumeCallbacks));
+    restored.restoreState(saved);
+    restored.run();
+    if (replay != std::vector<std::string>{"elseif"})
+      std::printf("FAIL: KAG flags not restored with save\n"), ++failures;
+  }
+  {
+    // No timer callback must not leave a headless engine permanently blocked.
+    auto script = Kirikiri::KagScript::parse(
+        "[wait time=10][set name=ready value=1][if exp=\"ready\"]"
+        "[cm text=\"ready\"][endif][end]", "no-timer.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string value) {
+      shown.push_back(std::move(value));
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    if (shown != std::vector<std::string>{"ready"}) {
+      std::printf("FAIL: KAG no-timer fallback or variable truthiness\n");
+      ++failures;
+    }
+  }
+
   std::filesystem::remove_all(tempDir);
 
   if (failures == 0) {
