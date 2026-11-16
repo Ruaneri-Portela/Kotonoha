@@ -293,7 +293,12 @@ Kotonoha::SurfacePtr decodeTlg6Image(const std::uint8_t *data,
           const std::size_t x = startX + localX;
           const auto sourceX = reverse ? tileWidth - 1 - localX : localX;
           const auto &raw = pixels.at(storageBase + sourceX);
-          const auto rgb = unfilter(filter, raw);
+          // One-component TLG6 stores a gray residual rather than three
+          // independent color planes.
+          const int gray = static_cast<std::int8_t>(raw[0]);
+          const auto rgb = colors == 1
+              ? std::array<int, 3>{gray, gray, gray}
+              : unfilter(filter, raw);
           for (unsigned channel = 0; channel < 4; ++channel) {
             const int residual = channel == 0 ? rgb[2]
                 : channel == 1 ? rgb[1]
