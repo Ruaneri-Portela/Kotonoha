@@ -4,11 +4,14 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/routing/SchoolDaysGpkLanguageProfile.hpp>
+#include <Kotonoha/routing/SchoolDaysPersistenceCodec.hpp>
 
+#include <algorithm>
 #include <array>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -102,7 +105,7 @@ void WriteSystemUiAssets(const fs::path &root) {
 }
 
 struct TemporaryDirectory {
-  fs::path path = fs::temp_directory_path() /
+  fs::path path = fs::current_path() /
                   ("school-days-handoff-" +
                    std::to_string(SDL_GetPerformanceCounter()));
   TemporaryDirectory() {
@@ -821,6 +824,25 @@ void TestTerminalRelease(const char *route, const fs::path &root) {
               SchoolDays::RuntimeHandoffTestAccess::Idle(app.runtime) &&
               app.runtime.GetState() == Kotonoha::GameState::Menu,
           "terminal acknowledgement did not release Gameplay before Title");
+  const auto saveDirectory = documents / "Save";
+  const auto globalPath = saveDirectory / "GlobalFlag.DAT";
+  Require(fs::is_regular_file(globalPath),
+          "Skip at terminal did not flush GlobalFlag");
+  std::ifstream in(globalPath, std::ios::binary);
+  const std::vector<uint8_t> bytes{std::istreambuf_iterator<char>(in),
+                                   std::istreambuf_iterator<char>()};
+  Kotonoha::SchoolDaysFlgH parsed;
+  std::string parseError;
+  Require(Kotonoha::SchoolDaysPersistenceCodec::ParseFlgH(
+              bytes, &parsed, &parseError), parseError);
+  Require(std::any_of(parsed.entries.begin(), parsed.entries.end(),
+                      [](const auto &entry) {
+                        return entry.key == u"EndClear" && entry.integer != 0;
+                      }),
+          "Skip at terminal lost EndClear from GlobalFlag");
+  for (const auto &file : fs::directory_iterator(saveDirectory))
+    Require(file.path().filename().string().rfind("SaveFile", 0) != 0,
+            "Skip at terminal unexpectedly created a SaveFile slot");
 }
 
 } // namespace
