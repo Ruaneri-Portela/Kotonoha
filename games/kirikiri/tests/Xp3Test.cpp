@@ -311,6 +311,7 @@ int main() {
       std::printf("FAIL: KAG saved subroutine does not return correctly\n");
       ++failures;
     }
+    const auto stateBeforeInvalidRestore = reloaded.saveState();
     auto invalid = savedInsideCall;
     invalid.returnStack.push_back(script.tags.size() + 1);
     bool rejectedInvalidState = false;
@@ -319,9 +320,9 @@ int main() {
     } catch (const std::out_of_range &) {
       rejectedInvalidState = true;
     }
-    if (!rejectedInvalidState || reloaded.saveState().position !=
-                                     savedInsideCall.returnStack.back() ||
-        reloaded.callDepth() != 0) {
+    if (!rejectedInvalidState ||
+        reloaded.saveState().position != stateBeforeInvalidRestore.position ||
+        reloaded.callDepth() != stateBeforeInvalidRestore.returnStack.size()) {
       std::printf("FAIL: KAG invalid restore changed VM state\n");
       ++failures;
     }
