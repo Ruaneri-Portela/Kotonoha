@@ -52,17 +52,42 @@ std::uint64_t readU64LE(const std::uint8_t *p) {
 std::string readUtf16Le(const std::uint8_t *buf, std::size_t &pos,
                         std::size_t wcharCount) {
   std::string out;
-  out.reserve(wcharCount);
+  out.reserve(wcharCount * 2);
+  bool terminated = false;
   for (std::size_t i = 0; i < wcharCount; ++i) {
-    std::uint16_t wc = readU16LE(buf + pos);
+    std::uint32_t ch = readU16LE(buf + pos);
     pos += 2;
-    if (wc == 0)
-      break;
-    if (wc < 0x80) {
-      out.push_back(static_cast<char>(wc));
+    if (ch == 0) {
+      terminated = true;
+      continue;
+    }
+    if (terminated)
+      continue;
+    if (ch >= 0xd800 && ch <= 0xdbff) {
+      if (++i >= wcharCount)
+        throw std::runtime_error("XP3 truncated UTF-16 surrogate pair");
+      const auto trail = readU16LE(buf + pos);
+      pos += 2;
+      if (trail < 0xdc00 || trail > 0xdfff)
+        throw std::runtime_error("XP3 invalid UTF-16 surrogate pair");
+      ch = 0x10000u + ((ch - 0xd800u) << 10) + trail - 0xdc00u;
+    } else if (ch >= 0xdc00 && ch <= 0xdfff) {
+      throw std::runtime_error("XP3 unexpected UTF-16 low surrogate");
+    }
+    if (ch <= 0x7f) {
+      out.push_back(static_cast<char>(ch));
+    } else if (ch <= 0x7ff) {
+      out.push_back(static_cast<char>(0xc0 | (ch >> 6)));
+      out.push_back(static_cast<char>(0x80 | (ch & 0x3f)));
+    } else if (ch <= 0xffff) {
+      out.push_back(static_cast<char>(0xe0 | (ch >> 12)));
+      out.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3f)));
+      out.push_back(static_cast<char>(0x80 | (ch & 0x3f)));
     } else {
-      out.push_back(static_cast<char>(0xC0 | (wc >> 6)));
-      out.push_back(static_cast<char>(0x80 | (wc & 0x3F)));
+      out.push_back(static_cast<char>(0xf0 | (ch >> 18)));
+      out.push_back(static_cast<char>(0x80 | ((ch >> 12) & 0x3f)));
+      out.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3f)));
+      out.push_back(static_cast<char>(0x80 | (ch & 0x3f)));
     }
   }
   return out;
