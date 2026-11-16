@@ -3,6 +3,7 @@
 
 #include "PmailRuntime.hpp"
 
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
@@ -53,17 +54,11 @@ std::string DefaultDirectory() {
 bool validate(const std::string &path, std::string &info) {
   try {
     auto source = Kotonoha::Filesystem::Filesystem::mount(path);
-    for (const char *base : {"", "pack/", "data/pack/"}) {
-      const std::string script = std::string(base) + "SCRIPT.DAT";
-      const std::string graphics = std::string(base) + "GRAPHIC.DAT";
-      if (source->exists(script) && source->exists(graphics) &&
-          source->stat(script).type ==
-              Kotonoha::Filesystem::FileType::Regular &&
-          source->stat(graphics).type ==
-              Kotonoha::Filesystem::FileType::Regular) {
-        info = "Pure Mail script and graphics archives found";
-        return true;
-      }
+    if (Kotonoha::Filesystem::findRequiredFilesPrefix(
+            *source, {"SCRIPT.DAT", "GRAPHIC.DAT"},
+            {"", "pack/", "data/pack/"})) {
+      info = "Pure Mail script and graphics archives found";
+      return true;
     }
     info = "Select a Pure Mail source with SCRIPT.DAT and GRAPHIC.DAT";
     return false;
