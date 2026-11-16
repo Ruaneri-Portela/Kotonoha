@@ -966,21 +966,64 @@ void Interpreter::runFile(std::string id, std::size_t depth) {
 }
 } // namespace
 
+// Retains the script variables, objects and named function bodies between
+// input events. No interpreted code runs from SDL event callbacks except a
+// bounded, explicitly registered onClick function on the runtime thread.
+class TjsUiSession {
+public:
+  explicit TjsUiSession(const KirikiriAssets &assets, std::size_t budget)
+      : vm(assets, budget) {}
+  Interpreter vm;
+};
+
 TjsStartupResult runTjsStartupSubset(const KirikiriAssets &assets,
                                     std::size_t instructionBudget) {
-  Interpreter vm(assets, instructionBudget);
+  auto session = std::make_shared<TjsUiSession>(assets, instructionBudget);
+  auto &vm = session->vm;
   const auto inspected = inspectTjsBootstrap(assets);
   if (inspected.entry.empty()) {
     vm.result.error = "TJS2 subset: startup.tjs not found";
-    return vm.result;
+  } else {
+    try {
+      vm.runFile(inspected.entry, 0);
+      vm.snapshotLayers();
+      vm.result.subsetCompleted = true;
+    } catch (const std::exception &error) {
+      vm.result.error = error.what();
+    }
   }
-  try {
-    vm.runFile(inspected.entry, 0);
-    vm.result.subsetCompleted = true;
-  } catch (const std::exception &error) {
-    vm.result.error = error.what();
+  TjsStartupResult output = vm.result;
+  output.uiSession = std::move(session);
+  return output;
+}
+
+bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
+  auto session = result.uiSession;
+  if (!session || !result.subsetCompleted ||
+      !std::isfinite(x) || !std::isfinite(y))
+    return false;
+  for (auto it = result.layers.rbegin(); it != result.layers.rend(); ++it) {
+    const auto &layer = *it;
+    if (!layer.visible || !layer.enabled || layer.opacity == 0 ||
+        layer.width <= 0 || layer.height <= 0 || layer.onClick.empty())
+      continue;
+    if (x < layer.left || y < layer.top ||
+        x >= double(layer.left) + layer.width ||
+        y >= double(layer.top) + layer.height)
+      continue;
+    auto &vm = session->vm;
+    vm.result.kagEntry.clear();
+    try {
+      vm.call(layer.onClick, {}, {}, true);
+      vm.snapshotLayers();
+    } catch (const std::exception &error) {
+      vm.result.error = std::string("TJS2 UI event: ") + error.what();
+    }
+    result = vm.result;
+    result.uiSession = std::move(session);
+    return true;
   }
-  return vm.result;
+  return false;
 }
 
 } // namespace Kotonoha::Providers
