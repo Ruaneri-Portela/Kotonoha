@@ -1,5 +1,6 @@
 #include <Kirikiri/KagScript.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
+#include <Kirikiri/TlgImage.hpp>
 
 #include <cstdio>
 #include <array>
@@ -835,6 +836,104 @@ int main() {
     }
     if (!rejectedSize) {
       std::printf("FAIL: oversized XP3 index was accepted\n");
+      ++failures;
+    }
+  }
+
+  // Decode canonical TLG5 images without relying on FFmpeg or proprietary
+  // assets. A single pixel exercises blue/green residuals and RGB ordering.
+  {
+    std::vector<std::uint8_t> tlg5{
+        'T', 'L', 'G', '5', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+    tlg5.push_back(3);
+    putLE(tlg5, std::uint32_t(1)); // width
+    putLE(tlg5, std::uint32_t(1)); // height
+    putLE(tlg5, std::uint32_t(1)); // block height
+    putLE(tlg5, std::uint32_t(0)); // one ignored block-size hint
+    const auto rawPlane = [&](std::vector<std::uint8_t> &image,
+                              std::uint8_t value) {
+      image.push_back(1); // raw plane
+      putLE(image, std::uint32_t(1));
+      image.push_back(value);
+    };
+    rawPlane(tlg5, 5);  // blue difference
+    rawPlane(tlg5, 10); // green difference
+    rawPlane(tlg5, 20); // red difference
+    const auto checkColor = [&](const std::vector<std::uint8_t> &image,
+                                std::uint8_t alpha) {
+      const auto surface = Kotonoha::Providers::decodeTlgImage(image);
+      if (!surface || surface->w != 1 || surface->h != 1)
+        return false;
+      const auto *pixel =
+          static_cast<const std::uint8_t *>(surface->pixels);
+      return pixel[0] == 30 && pixel[1] == 10 &&
+             pixel[2] == 15 && pixel[3] == alpha;
+    };
+    try {
+      if (!checkColor(tlg5, 255)) {
+        std::printf("FAIL: TLG5 raw RGB pixel decoding\n");
+        ++failures;
+      }
+      std::vector<std::uint8_t> compressed = tlg5;
+      // Replace the first raw plane (1 + size4 + data1) with a literal-only
+      // slide/LZSS stream, then retain the green/red raw planes.
+      const std::size_t planeOffset = 11 + 1 + 4 * 4;
+      compressed.erase(compressed.begin() + planeOffset,
+                       compressed.begin() + planeOffset + 6);
+      const std::vector<std::uint8_t> encodedBlue{
+          0, 2, 0, 0, 0, 0, 5}; // flag 0, stored size 2, literal flag+5
+      compressed.insert(compressed.begin() + planeOffset,
+                        encodedBlue.begin(), encodedBlue.end());
+      if (!checkColor(compressed, 255)) {
+        std::printf("FAIL: TLG5 slide-compressed RGB pixel decoding\n");
+        ++failures;
+      }
+      auto alphaImage = tlg5;
+      alphaImage[11] = 4; // RGBA
+      rawPlane(alphaImage, 64);
+      if (!checkColor(alphaImage, 64)) {
+        std::printf("FAIL: TLG5 raw alpha channel decoding\n");
+        ++failures;
+      }
+      std::vector<std::uint8_t> wrapped{
+          'T', 'L', 'G', '0', '.', '0', 0, 's', 'd', 's', 0x1a};
+      putLE(wrapped, std::uint32_t(tlg5.size()));
+      wrapped.insert(wrapped.end(), tlg5.begin(), tlg5.end());
+      if (!checkColor(wrapped, 255)) {
+        std::printf("FAIL: TLG0 structured wrapper\n");
+        ++failures;
+      }
+      auto truncated = tlg5;
+      truncated.pop_back();
+      bool rejected = false;
+      try {
+        (void)Kotonoha::Providers::decodeTlgImage(truncated);
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: truncated TLG5 image was accepted\n");
+        ++failures;
+      }
+
+      const auto imageFolder = tempDir / "image";
+      std::filesystem::create_directories(imageFolder);
+      const auto filePath = imageFolder / "tlg5.tlg";
+      std::ofstream file(filePath, std::ios::binary);
+      file.write(reinterpret_cast<const char *>(tlg5.data()),
+                 std::streamsize(tlg5.size()));
+      file.close();
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      const auto surface = provider.loadSurface("image/tlg5.tlg");
+      const auto *pixel =
+          surface ? static_cast<const std::uint8_t *>(surface->pixels) : nullptr;
+      if (!pixel || pixel[0] != 30 || pixel[1] != 10 ||
+          pixel[2] != 15 || pixel[3] != 255) {
+        std::printf("FAIL: Kirikiri provider did not route TLG5 decoding\n");
+        ++failures;
+      }
+    } catch (const std::exception &error) {
+      std::printf("FAIL: TLG5 image compatibility: %s\n", error.what());
       ++failures;
     }
   }
