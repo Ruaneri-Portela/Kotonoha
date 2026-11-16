@@ -8,6 +8,8 @@
 #include <Kotonoha/core/UI.hpp>
 #include <Pmail/Port.hpp>
 #include <SDL3/SDL.h>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 
 namespace Kotonoha::PmailPort {
@@ -18,9 +20,13 @@ PmailSession::PmailSession(
     : game_(std::move(game)), engine_(engine), assets_(std::move(assets)) {
   components_ = std::make_unique<PmailComponents>(*game_, engine_, *assets_);
   titleMenu_ = std::make_unique<PmailTitleMenu>(engine_, *game_, *assets_);
+  loadNameProfile();
 }
 
-PmailSession::~PmailSession() = default;
+PmailSession::~PmailSession() {
+  if (nameEntryOpen_)
+    SDL_StopTextInput(&engine_.GetWindow());
+}
 
 void PmailSession::init() {
   if (initialized_)
@@ -62,6 +68,8 @@ bool PmailSession::paused() const {
 }
 
 void PmailSession::closeMenus(bool clearBacklog) {
+  if (nameEntryOpen_)
+    endNameEntry(false);
   lastUpdateMs_ = SDL_GetTicks();
   components_->pauseMenu()->close();
   components_->backlog()->close();
@@ -99,6 +107,10 @@ void PmailSession::render(Kotonoha::RendererRef renderer) {
 void PmailSession::onEvent(Kotonoha::EventRef event) {
   if (!initialized_ || !game_)
     return;
+  if (nameEntryOpen_) {
+    handleNameEntry(event);
+    return;
+  }
 
   if (game_->atTitle()) {
     SDL_FPoint stagePoint{0, 0};
@@ -206,6 +218,8 @@ void PmailSession::renderTitle(Kotonoha::RendererRef renderer) {
   titleMenu_->renderTitle(renderer);
   for (int i = 0; i < game_->titleCount(); ++i)
     titleMenu_->renderItem(renderer, i, i == game_->titleSelection());
+  if (nameEntryOpen_)
+    drawNameEntry(renderer);
 }
 
 void PmailSession::renderGameplay(Kotonoha::RendererRef renderer) {
@@ -224,10 +238,137 @@ void PmailSession::renderGameplay(Kotonoha::RendererRef renderer) {
 }
 
 void PmailSession::chooseTitle(int index) {
-  if (index == 1 && loadAction_)
+  if (index == 0) {
+    beginNameEntry();
+  } else if (index == 1 && loadAction_) {
     loadAction_();
-  else
+  } else {
     game_->titleChoose(index);
+  }
+}
+
+namespace {
+std::filesystem::path nameProfilePath() {
+  return Kotonoha::saveDirectory() / "pmail-names.txt";
+}
+} // namespace
+
+void PmailSession::loadNameProfile() {
+  try {
+    std::ifstream file(nameProfilePath(), std::ios::binary);
+    std::string no, ho;
+    if (std::getline(file, no) && std::getline(file, ho))
+      game_->setPlayerNames(no, ho);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[PmailPort] Player name profile ignored: %s", error.what());
+  }
+}
+
+void PmailSession::saveNameProfile() const {
+  try {
+    const auto path = nameProfilePath();
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out || !(out << game_->playerNameNO() << '\n'
+                      << game_->playerNameHO() << '\n'))
+      throw std::runtime_error("Cannot persist Pure Mail names");
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[PmailPort] Cannot save player name profile: %s",
+                error.what());
+  }
+}
+
+void PmailSession::beginNameEntry() {
+  editableNameNO_ = game_->playerNameNO();
+  editableNameHO_ = game_->playerNameHO();
+  nameField_ = 0;
+  nameEntryError_.clear();
+  nameEntryOpen_ = true;
+  if (!SDL_StartTextInput(&engine_.GetWindow()))
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[PmailPort] Text input unavailable: %s", SDL_GetError());
+}
+
+void PmailSession::endNameEntry(bool accept) {
+  if (!nameEntryOpen_)
+    return;
+  if (accept) {
+    try {
+      game_->setPlayerNames(editableNameNO_, editableNameHO_);
+    } catch (const std::exception &error) {
+      nameEntryError_ = error.what();
+      return;
+    }
+  }
+  nameEntryOpen_ = false;
+  SDL_StopTextInput(&engine_.GetWindow());
+  if (accept) {
+    saveNameProfile();
+    game_->titleChoose(0);
+  }
+}
+
+bool PmailSession::handleNameEntry(Kotonoha::EventRef event) {
+  if (event.type == SDL_EVENT_TEXT_INPUT) {
+    auto &field = nameField_ == 0 ? editableNameNO_ : editableNameHO_;
+    const std::string entered = event.text.text;
+    if (entered.find_first_of("\r\n\t") == std::string::npos &&
+        field.size() + entered.size() <= 64)
+      field += entered;
+    return true;
+  }
+  if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      event.button.button == SDL_BUTTON_LEFT) {
+    if (Kotonoha::UI::clicked(event, {170, 254, 465, 46}))
+      nameField_ = 0;
+    else if (Kotonoha::UI::clicked(event, {170, 333, 465, 46}))
+      nameField_ = 1;
+    else if (Kotonoha::UI::clicked(event, {360, 420, 235, 50}))
+      endNameEntry(true);
+    return true;
+  }
+  if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat)
+    return true;
+  if (event.key.key == SDLK_ESCAPE) {
+    endNameEntry(false);
+  } else if (event.key.key == SDLK_TAB) {
+    nameField_ = 1 - nameField_;
+  } else if (event.key.key == SDLK_BACKSPACE) {
+    auto &field = nameField_ == 0 ? editableNameNO_ : editableNameHO_;
+    if (!field.empty())
+      Kotonoha::eraseLastCharacter(field);
+  } else if (event.key.key == SDLK_RETURN ||
+             event.key.key == SDLK_KP_ENTER) {
+    if (nameField_ == 0)
+      nameField_ = 1;
+    else
+      endNameEntry(true);
+  }
+  return true;
+}
+
+void PmailSession::drawNameEntry(Kotonoha::RendererRef renderer) {
+  auto &ui = engine_.GetUI();
+  ui.backdrop(renderer, {0, 0, 0, 210});
+  ui.panel(renderer, {100, 143, 600, 365});
+  ui.text(renderer, "Pure Mail - name customization", 150, 174, 540,
+          {255, 215, 110, 255});
+  ui.text(renderer, "First name ($NO)", 170, 225, 450);
+  ui.button(renderer, {170, 254, 465, 46},
+            editableNameNO_ + (nameField_ == 0 ? " |" : ""),
+            nameField_ == 0);
+  ui.text(renderer, "Second name ($HO)", 170, 305, 450);
+  ui.button(renderer, {170, 333, 465, 46},
+            editableNameHO_ + (nameField_ == 1 ? " |" : ""),
+            nameField_ == 1);
+  ui.button(renderer, {360, 420, 235, 50}, "Start game");
+  ui.text(renderer, "Tab: next field | Enter: confirm | Esc: cancel",
+          145, 480, 520);
+  if (!nameEntryError_.empty())
+    ui.text(renderer, nameEntryError_, 165, 390, 460,
+            {250, 120, 120, 255});
 }
 
 bool PmailSession::HandleTitleEvent(Kotonoha::EventRef event,

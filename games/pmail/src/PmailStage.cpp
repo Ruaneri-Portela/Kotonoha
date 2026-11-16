@@ -2,6 +2,7 @@
 #include <Pmail/Port.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <algorithm>
 #include <iostream>
 #include <set>
@@ -82,7 +83,13 @@ void PmailStage::render(Kotonoha::RendererRef renderer, float scale) {
   if (!SDL_SetRenderTarget(&renderer, previousTarget))
     throw std::runtime_error(SDL_GetError());
   const SDL_FRect stage{0, 0, 800, 600};
-  SDL_RenderTexture(&renderer, sceneTexture_.get(), nullptr, &stage);
+  // Apply the engine-selected upscaler to the 800x600 original game raster.
+  // VN text and pause/save controls are rendered separately at full output
+  // resolution; the original artwork is the part that benefits from scaling.
+  if (!Kotonoha::RenderUpscaledTexture(
+          &renderer, sceneTexture_.get(), nullptr, &stage,
+          SDL_GetTicksNS()))
+    throw std::runtime_error(SDL_GetError());
 }
 
 void PmailStage::updateBackground(Kotonoha::RendererRef renderer) {
@@ -203,6 +210,11 @@ void PmailStage::renderLips(Kotonoha::RendererRef renderer,
 }
 
 void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
+  // The previous implementation painted desktop/chat records onto unrelated
+  // VN dialogue scenes. Native scene-change syscalls clear their lifetime,
+  // and waiting story dialogue must never be covered by computer overlays.
+  if (!game_.hasComputerOverlay() || game_.waitingForClick())
+    return;
   // All positions are in native 800x600 scene units. The original game draws
   // chat text into its back buffer immediately; this renderer retains the
   // equivalent VM history and composites it over the background each frame.

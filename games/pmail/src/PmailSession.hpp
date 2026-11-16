@@ -59,6 +59,12 @@ private:
   void updateGameplay();
   void renderTitle(Kotonoha::RendererRef renderer);
   void renderGameplay(Kotonoha::RendererRef renderer);
+  void beginNameEntry();
+  void endNameEntry(bool accept);
+  void drawNameEntry(Kotonoha::RendererRef renderer);
+  bool handleNameEntry(Kotonoha::EventRef event);
+  void loadNameProfile();
+  void saveNameProfile() const;
 
   bool HandleTitleEvent(Kotonoha::EventRef event, SDL_FPoint stagePoint,
                         bool haveStagePoint);
@@ -75,6 +81,10 @@ private:
   std::size_t choiceSelection_ = 0; // Keyboard/gamepad choice focus.
   bool initialized_ = false;
   std::function<void()> loadAction_;
+  bool nameEntryOpen_ = false;
+  int nameField_ = 0;
+  std::string editableNameNO_, editableNameHO_;
+  std::string nameEntryError_;
   void chooseTitle(int index);
 };
 

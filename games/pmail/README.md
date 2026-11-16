@@ -18,6 +18,24 @@ cmake --build build --target Pmail
 Use the original PMAILDVD directory, with data/pack/*.dat and data/movie.
 Use the launcher or pass `--pmail /path/to/game-data` to the executable. Never commit commercial game files.
 
+## Customization, saves and upscaling
+
+Choose **New Game** to edit the two names substituted for `$NO` and `$HO`.
+Names are stored in a per-user `pmail-names.txt` profile and in game saves.
+The save-name dialog now accepts keyboard input and displays above the save
+list. Existing `PMAIL-GAME-1/2/3` data remains readable by the port.
+
+The original `OF_ADV2.INI` keys `MesWin_R`, `MesWin_G`, `MesWin_B`
+control the tinted window background. Optional
+`PMAIL_MESWIN_R/G/B` environment overrides support color comparison.
+
+Artworks and the native title go through the standard Kotonoha upscaler.
+Enable a factor above 1.0 in graphics settings; the active backend depends
+on the SDL renderer (Linear is the compatible fallback).
+
+The pre-Overflow animation still requires comparison against the running DVD
+with its original assets; its exact content and timing are not yet verified.
+
 ## Detailed research
 
 [Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.

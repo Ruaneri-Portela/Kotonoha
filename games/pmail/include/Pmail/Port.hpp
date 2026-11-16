@@ -51,6 +51,26 @@ public:
     return computerClock_;
   }
 
+  // The original name-entry dialog uses tokens $NO and $HO in its scripts.
+  // Names are chosen before New Game and are included in port save states.
+  void setPlayerNames(std::string no, std::string ho);
+  std::string playerNameNO() const {
+    std::lock_guard lock(mutex_);
+    return playerNameNO_;
+  }
+  std::string playerNameHO() const {
+    std::lock_guard lock(mutex_);
+    return playerNameHO_;
+  }
+  std::string expandPlayerNames(const std::string &text) const;
+
+  bool hasComputerOverlay() const {
+    std::lock_guard lock(mutex_);
+    return computerOverlayVisible_ &&
+           (!computerText_.empty() || !chatHistory_.empty() ||
+            !computerClock_.empty());
+  }
+
   explicit PmailGame(std::vector<uint8_t> scriptPack,
                      std::string packPath = {});
   ~PmailGame() override;
@@ -203,6 +223,9 @@ private:
   std::vector<ComputerText> computerText_;
   std::vector<ChatLine> chatHistory_;
   std::string computerClock_;
+  bool computerOverlayVisible_ = false;
+  std::string playerNameNO_ = "NO", playerNameHO_ = "HO";
+  void clearComputerOverlay();
   std::vector<AnimationState> animations_;
   int voiceActor_ = -1;
   uint32_t sceneVersion_ = 0;
