@@ -970,6 +970,11 @@ int main() {
       const auto tlg6Black = makeTlg6(1, 1, 2, 2);
       const auto tlg6Blue = makeTlg6(1, 1, 11, 4);
       const auto tlg6Grid = makeTlg6(2, 2, 8, 6);
+      auto tlg6Average = tlg6Black;
+      tlg6Average.at(32) = 1; // average predictor, filter 0
+      auto tlg6Gray = tlg6Blue;
+      tlg6Gray.at(11) = 1;  // one-component grayscale
+      tlg6Gray.resize(tlg6Gray.size() - 10); // discard G/R bitplanes
       const auto testPixel = [&](const std::vector<std::uint8_t> &data,
                                  std::uint32_t width,
                                  std::uint32_t height, std::uint8_t blue) {
@@ -991,8 +996,18 @@ int main() {
       try {
         if (!testPixel(tlg6Black, 1, 1, 0) ||
             !testPixel(tlg6Blue, 1, 1, 1) ||
-            !testPixel(tlg6Grid, 2, 2, 0)) {
+            !testPixel(tlg6Grid, 2, 2, 0) ||
+            !testPixel(tlg6Average, 1, 1, 0)) {
           std::printf("FAIL: TLG6 Golomb/MED basic image pixels\n");
+          ++failures;
+        }
+        const auto grayImage =
+            Kotonoha::Providers::decodeTlgImage(tlg6Gray);
+        const auto *gray = static_cast<const std::uint8_t *>(
+            grayImage->pixels);
+        if (gray[0] != 1 || gray[1] != 1 ||
+            gray[2] != 1 || gray[3] != 255) {
+          std::printf("FAIL: TLG6 grayscale RGB expansion\n");
           ++failures;
         }
         std::vector<std::uint8_t> wrappedTlg6{
@@ -1022,6 +1037,18 @@ int main() {
             providerImage->pixels);
         if (p[0] != 0 || p[1] != 0 || p[2] != 1 || p[3] != 255) {
           std::printf("FAIL: XP3 provider TLG6 routing\n");
+          ++failures;
+        }
+        auto invalidMethod = tlg6Black;
+        invalidMethod.at(36) = 0xc0; // TLG6 non-Golomb entropy method
+        bool rejectedMethod = false;
+        try {
+          (void)Kotonoha::Providers::decodeTlgImage(invalidMethod);
+        } catch (const std::runtime_error &) {
+          rejectedMethod = true;
+        }
+        if (!rejectedMethod) {
+          std::printf("FAIL: unsupported TLG6 entropy was accepted\n");
           ++failures;
         }
         auto invalidGolomb = tlg6Black;
