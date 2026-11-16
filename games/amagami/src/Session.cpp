@@ -1723,37 +1723,42 @@ void Session::load(const std::string &path) {
         throw std::runtime_error("Oversized Amagami campaign replay action");
     }
 
-    // Every current-scenario input must have exactly one matching action.
-    // Earlier scenarios have their own actions; each "event" resets the
-    // input cursor because Session::start() resets inputs_. This catches
-    // malformed journals *before* replaying their original SCF commands.
-    size_t inputCursor = 0;
-    for (const auto &action : actions) {
+    // All historic events are validated for shape. Only the *last*
+    // scenario's actions are compared with inputs_: Session::start() resets
+    // inputs_ whenever a new event starts, while campaignActions_ remains a
+    // journal of the entire campaign. Comparing earlier event actions to the
+    // current event's inputs would reject legitimate mid-campaign saves.
+    size_t currentScenarioStart = 0;
+    for (size_t i = 0; i < actions.size(); ++i) {
+      const auto &action = actions[i];
       if (action.kind == "event") {
         if (action.value.empty())
           throw std::runtime_error("Empty campaign event action");
-        inputCursor = 0;
-      } else if (action.kind == "period") {
+        currentScenarioStart = i + 1;
+      } else if (action.kind == "period" || action.kind == "advance") {
         if (!action.value.empty())
-          throw std::runtime_error("Invalid campaign period action");
-      } else if (action.kind == "advance") {
-        if (!action.value.empty() || inputCursor >= inputs.size() ||
-            inputs[inputCursor++] != -1)
-          throw std::runtime_error("Campaign advance/input journal mismatch");
+          throw std::runtime_error("Invalid campaign period/advance action");
       } else if (action.kind == "choose") {
         if (action.value.empty() || action.value.size() > 2 ||
             !std::all_of(action.value.begin(), action.value.end(),
                          [](unsigned char c) {
                            return c >= '0' && c <= '9';
-                         }))
+                         }) ||
+            action.value[0] == '0' && action.value.size() > 1)
           throw std::runtime_error("Invalid campaign choice selector");
-        const int chosen = std::stoi(action.value);
-        if (action.value != std::to_string(chosen) ||
-            inputCursor >= inputs.size() ||
-            inputs[inputCursor++] != chosen)
-          throw std::runtime_error("Campaign choice/input journal mismatch");
       } else {
         throw std::runtime_error("Unknown Amagami campaign save action");
+      }
+    }
+    size_t inputCursor = 0;
+    for (size_t i = currentScenarioStart; i < actions.size(); ++i) {
+      const auto &action = actions[i];
+      if (action.kind == "advance" || action.kind == "choose") {
+        const int expected = action.kind == "advance" ? -1 :
+                             std::stoi(action.value);
+        if (inputCursor >= inputs.size() ||
+            inputs[inputCursor++] != expected)
+          throw std::runtime_error("Campaign action/input journal mismatch");
       }
     }
     if (inputCursor != inputs.size())
