@@ -1095,6 +1095,21 @@ int main() {
         ++failures;
       }
     }
+    // Unicode identifiers from a BOM-marked UTF-8 TJS2 source are handled
+    // without case-folding or corrupting the multibyte storage names.
+    write(tempDir / "startup.tjs",
+          std::string("\xef\xbb\xbf") +
+          u8"var 猫 = 2; if (猫 == 2) "
+          u8"{ Scripts.execStorage(\"scenario/first.ks\"); }");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || run.kagEntry != "scenario/first.ks") {
+        std::printf("FAIL: UTF-8 TJS2 identifiers not evaluated\n");
+        ++failures;
+      }
+    }
     std::filesystem::remove(tempDir / "startup.tjs");
   }
 
