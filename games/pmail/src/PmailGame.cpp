@@ -580,6 +580,7 @@ void PmailGame::deserialize(const std::string &data) {
   returningToTitle_ = false;
   // Runtime diagnostics belong to the live path, never to another save slot.
   unhandledNativeIds_.clear();
+  unhandledNativeSites_.clear();
   ++sceneVersion_;
 }
 
@@ -589,6 +590,7 @@ void PmailGame::returnToTitle() {
   vm_.reset(false);
   callStack_.clear();
   unhandledNativeIds_.clear();
+  unhandledNativeSites_.clear();
   sprites_.clear();
   spriteSlots_.clear();
   animations_.clear();
@@ -777,6 +779,44 @@ bool PmailGame::titleChoose(int index) {
   waiting_ = false;
   vm_.unblock();
   return true;
+}
+
+// A diagnostic signature must not dump copyrighted dialogue strings, player
+// names or other private text from native arguments. Keep only references and
+// numeric values that help identify the original function's calling convention.
+std::string NativeSignature(const ::Pmail::Vm &vm,
+                            const std::vector<::Pmail::Arg> &args) {
+  std::string out = " argc=" + std::to_string(args.size()) + " [";
+  const auto shown = std::min(args.size(), std::size_t{24});
+  for (std::size_t i = 0; i < shown; ++i) {
+    if (i)
+      out += ", ";
+    const auto &arg = args[i];
+    switch (arg.tag()) {
+    case 0:
+      out += "int:" + std::to_string(int16_t(arg.value()));
+      break;
+    case 1:
+      out += "var:" + std::to_string(arg.value()) + "=" +
+             std::to_string(vm.var(arg.value()));
+      break;
+    case 2:
+      out += "strref:" + std::to_string(arg.object()) + ":" +
+             std::to_string(arg.value());
+      break;
+    case 4:
+      out += "frame:" + std::to_string(arg.value());
+      break;
+    default:
+      out += "tag:" + std::to_string(arg.tag()) + ":" +
+             std::to_string(arg.value());
+      break;
+    }
+  }
+  if (args.size() > shown)
+    out += ", ...";
+  out += "]";
+  return out;
 }
 
 void PmailGame::native(::Pmail::Vm &vm, int id,
@@ -1233,14 +1273,31 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
       spriteSlots_[slot] = name;
     break;
   }
-  default:
-    // The original executable registers more native commands than this port
-    // has confirmed. Keep a bounded, distinct diagnostic per unknown ID so
-    // retail route tests show what blocked fidelity without flooding frames.
-    if (unhandledNativeIds_.insert(id).second)
+  default: {
+    // Unknown calls must remain visible rather than masquerading as working
+    // no-ops. Capture the argument contract at each script+PC with a bounded
+    // cache; repeated frames cannot flood the diagnostic log.
+    const uint32_t pc = vm.returnPc();
+    const auto key = std::make_tuple(id, scriptName_, pc);
+    const auto found = unhandledNativeSites_.find(key);
+    const bool distinct = found == unhandledNativeSites_.end();
+    std::string signature;
+    if (distinct && unhandledNativeSites_.size() < NativeGapLimit) {
+      signature = NativeSignature(vm, args);
+      unhandledNativeSites_.emplace(
+          key, NativeGap{id, scriptName_, pc, signature, 1});
+    } else if (!distinct) {
+      ++found->second.hits;
+    }
+    const bool firstId = unhandledNativeIds_.insert(id).second;
+    if (firstId || (distinct && SDL_getenv("PMAIL_NATIVE_VERBOSE"))) {
+      if (signature.empty() && !distinct)
+        signature = found->second.signature;
       log("Unhandled PMAIL SYS " + std::to_string(id) + " at " + scriptName_ +
-          ":" + std::to_string(vm.returnPc()));
+          ":" + std::to_string(pc) + signature);
+    }
     break;
+  }
   }
 }
 
