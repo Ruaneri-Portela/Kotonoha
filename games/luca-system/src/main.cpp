@@ -49,33 +49,6 @@ struct App {
   }
 };
 
-// Legacy builds used a different SDL metadata ID than the CMake/Xcode bundle.
-// Preserve existing settings and saves when migrating to the canonical ID.
-// Never overwrite a newer directory or follow a legacy symlink.
-void migrateLegacyDocuments() {
-  auto current = Kotonoha::applicationStorageLocations();
-  if (current.packageIdentifier != "me.hirameki.kotonoha.lucasystem")
-    return;
-  auto legacy = current;
-  legacy.packageIdentifier = "me.hirameki.kotonoha.luca_system";
-  const auto oldPath = Kotonoha::directoryLayout(legacy).documents;
-  const auto newPath = Kotonoha::directoryLayout(current).documents;
-  if (oldPath.empty() || newPath.empty() || oldPath == newPath)
-    return;
-  std::error_code error;
-  if (!std::filesystem::is_directory(oldPath, error) || error ||
-      std::filesystem::is_symlink(oldPath, error) || error ||
-      std::filesystem::exists(newPath, error) || error)
-    return;
-  std::filesystem::create_directories(newPath.parent_path(), error);
-  if (!error)
-    std::filesystem::rename(oldPath, newPath, error);
-  if (error)
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "LucaSystem legacy save migration skipped: %s",
-                error.message().c_str());
-}
-
 bool validate(const std::string &path, std::string &info) {
   try {
     // The runtime reads PAKs through the virtual filesystem. Validate the
@@ -111,7 +84,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
   KOTONOHA_SET_APP_METADATA("LucaSystem", "me.hirameki.kotonoha.lucasystem");
   try {
-    migrateLegacyDocuments();
+    Kotonoha::migrateLegacyDocuments(
+        "me.hirameki.kotonoha.luca_system");
     auto app = std::make_unique<App>();
     auto &options = app->options;
     options.persistSettings = true;
