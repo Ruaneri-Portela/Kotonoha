@@ -47,3 +47,20 @@ ctest --test-dir build --output-on-failure -R 'N2System|LucaSystem|KirikiriXp3|R
 RealLive's deeper Session test requires legally obtained SEEN.TXT data and may skip in the public CI. Runtime parity is not asserted unless tests are repeated against original assets and binaries.
 
 The build must not include third-party proprietary game assets in releases. Distributing MIT source does not override the upstream GPL conditions on unrelated rlvm files or third-party copyright in commercial games.
+
+## Latest dev improvements (conditional flow, archive aliases and jumps)
+
+- **KAG branching:** Correctly select the first true `elsif` branch, including nested conditionals, rather than skipping its body. Blank indentation no longer blocks dialogue; jump-only loops yield after a finite instruction budget. Active branch states and their depths during subroutine calls are preserved in **KIRIKIRI_SAVE_4**, with V1/V2/V3 still readable. These features cover only a subset of TJS2/KAG conditions.
+- **N2System archives:** AFS/NPA archive entries now support seekable streaming with no extra complete asset copy. AFS name-index files can be mounted as aliases through `N2ArchiveAssets::addAfsNames`, using a transactional parser that rejects traversal paths, duplicate conflicts and invalid indexes. The standalone C++17 AFS/NPA tests no longer rely on `assert`, so Release builds exercise checks.
+- **LucaSystem:** Jump targets can resolve verified byte offsets as described by LuckSystem's jump parameters. A symbolic lookup checks actual `JUMPPOINT` instructions instead of arbitrary opcode data. Subroutine return frames are only pushed after successful target resolution.
+- **RealLive:** Clear pending unsupported-opcode diagnostics after a successful retry, a seek or restoration, so old reports do not masquerade as new failures.
+
+### Test N2 archive formats without the complete game engine
+
+```sh
+cmake -S modules/providers/n2/tests -B build/n2-archives -DCMAKE_BUILD_TYPE=Release
+cmake --build build/n2-archives
+ctest --test-dir build/n2-archives --output-on-failure
+```
+
+Compilation and CTest results were **not available in this session**; tests are committed and require execution on a host with CMake and a C++17 compiler. The six GitHub Actions workflows remain **manual**.

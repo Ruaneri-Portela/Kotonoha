@@ -47,3 +47,20 @@ ctest --test-dir build --output-on-failure -R 'N2System|LucaSystem|KirikiriXp3|R
 Os testes de integração de jogos originais necessitam de arquivos adquiridos legalmente. **A compilação completa e os testes CTest ainda não foram executados nesta sessão.** As GitHub Actions do projeto continuam apenas com acionamento manual.
 
 O código-fonte MIT do Kotonoha não altera as licenças de projetos upstream nem autoriza redistribuir recursos comerciais dos jogos.
+
+## Avanços recentes na `dev`: condicionais, arquivos e saltos
+
+- **KAG:** corrigida a escolha do primeiro `elsif` verdadeiro, inclusive em condicionais aninhados. Indentação vazia não bloqueia mais diálogos e loops com saltos cedem execução após um orçamento finito. O save **KIRIKIRI_SAVE_4** registra o estado dos condicionais e a profundidade de cada chamada, mantendo leitura V1/V2/V3. Não equivale ao TJS2 completo.
+- **N2System:** leitura por streaming com seek dos assets AFS/NPA, evitando copiar o asset inteiro uma segunda vez. Arquivos INI de nomes AFS são aceitos por `N2ArchiveAssets::addAfsNames`, com validação de caminhos, índices e conflitos antes de atualizar a montagem. Os testes não dependem mais de `assert`, portanto funcionam em builds Release.
+- **LucaSystem:** saltos por offset binário verificam limites reais de instruções; busca por nome restringe-se a `JUMPPOINT`. Chamadas só alteram a pilha quando o destino foi encontrado.
+- **RealLive:** diagnósticos de comandos não implementados são limpos ao tentar novamente, mudar de cenário ou restaurar o estado.
+
+### Testar AFS/NPA sem compilar todo o motor
+
+```sh
+cmake -S modules/providers/n2/tests -B build/n2-archives -DCMAKE_BUILD_TYPE=Release
+cmake --build build/n2-archives
+ctest --test-dir build/n2-archives --output-on-failure
+```
+
+**Ainda não executei a compilação nem os testes CTest nesta sessão.** Os seis workflows GitHub Actions permanecem exclusivamente manuais.
