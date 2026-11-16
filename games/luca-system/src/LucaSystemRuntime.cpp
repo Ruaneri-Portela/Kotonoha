@@ -693,7 +693,7 @@ struct LucaSystemRuntime::Impl {
 
 LucaSystemRuntime::LucaSystemRuntime(
     std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets)
-    : Runtime("LucaSystem", "0.1.0", "me.hirameki.kotonoha.luca_system"),
+    : Runtime("LucaSystem", "0.1.0", "me.hirameki.kotonoha.lucasystem"),
       impl_(std::make_unique<Impl>(*this, std::move(assets))),
       assets_(impl_->assets) {}
 

@@ -39,6 +39,12 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
 // Does not create directories.
 StorageLocations applicationStorageLocations();
 DirectoryLayout applicationDirectories(const std::string &game = {});
+// One-time, non-overwriting migration when a port corrects its app identifier.
+// Returns true only when an existing legacy Documents directory is moved.
+// Desktop data is per package; Android/iOS share an OS-managed app directory.
+bool migrateLegacyDocuments(const StorageLocations &current,
+                            const std::string &legacyIdentifier);
+bool migrateLegacyDocuments(const std::string &legacyIdentifier);
 std::vector<std::filesystem::path>
 referenceCandidates(const DirectoryLayout &layout,
                     const std::filesystem::path &reference);
