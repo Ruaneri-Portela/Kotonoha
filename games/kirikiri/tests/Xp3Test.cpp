@@ -903,6 +903,59 @@ int main() {
         std::printf("FAIL: TLG0 structured wrapper\n");
         ++failures;
       }
+      // Two scanlines in separate blocks exercise vertical prediction,
+      // while two pixels per row exercise horizontal delta composition.
+      std::vector<std::uint8_t> tiled{
+          'T', 'L', 'G', '5', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+      tiled.push_back(3);
+      putLE(tiled, std::uint32_t(2)); // width
+      putLE(tiled, std::uint32_t(2)); // height
+      putLE(tiled, std::uint32_t(1)); // separate scanline blocks
+      putLE(tiled, std::uint32_t(0));
+      putLE(tiled, std::uint32_t(0));
+      const auto rawRow = [&](std::uint8_t first, std::uint8_t second) {
+        tiled.push_back(1);
+        putLE(tiled, std::uint32_t(2));
+        tiled.push_back(first);
+        tiled.push_back(second);
+      };
+      rawRow(5, 0);  // first row blue
+      rawRow(10, 0); // green
+      rawRow(20, 0); // red
+      rawRow(0, 0);  // second row reuses previous row
+      rawRow(0, 0);
+      rawRow(0, 0);
+      auto tiledSurface = Kotonoha::Providers::decodeTlgImage(tiled);
+      bool tiledOK = tiledSurface && tiledSurface->w == 2 &&
+                     tiledSurface->h == 2;
+      if (tiledOK) {
+        const auto *pixel = static_cast<const std::uint8_t *>(
+            tiledSurface->pixels);
+        for (unsigned y = 0; y < 2; ++y)
+          for (unsigned x = 0; x < 2; ++x) {
+            const auto *p = pixel + y * tiledSurface->pitch + x * 4;
+            if (p[0] != 30 || p[1] != 10 ||
+                p[2] != 15 || p[3] != 255)
+              tiledOK = false;
+          }
+      }
+      if (!tiledOK) {
+        std::printf("FAIL: TLG5 horizontal/vertical predictor\n");
+        ++failures;
+      }
+      std::vector<std::uint8_t> unsupported{
+          'T', 'L', 'G', '6', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+      bool rejectedTlg6 = false;
+      try {
+        (void)Kotonoha::Providers::decodeTlgImage(unsupported);
+      } catch (const std::runtime_error &) {
+        rejectedTlg6 = true;
+      }
+      if (!rejectedTlg6) {
+        std::printf("FAIL: unsupported TLG6 was accepted as a TLG5 image\n");
+        ++failures;
+      }
+
       auto truncated = tlg5;
       truncated.pop_back();
       bool rejected = false;
