@@ -9,23 +9,31 @@
 
 namespace {
 void check(bool ok, const char *why) {
-  if (!ok) throw std::runtime_error(why);
+  if (!ok)
+    throw std::runtime_error(why);
 }
-template<class F> void rejects(F fn) {
+template <class F> void rejects(F fn) {
   bool caught = false;
-  try { fn(); } catch (const std::exception &) { caught = true; }
+  try {
+    fn();
+  } catch (const std::exception &) {
+    caught = true;
+  }
   check(caught, "Expected unsupported or invalid Vita primitive to fail");
 }
 Amagami::Script scriptedSprite() {
   Amagami::Script s;
   s.name = "Sprite";
-  struct NativeSpec { const char *method; uint8_t number, arguments; };
-  for (const auto spec : {
-         NativeSpec{"spawn", 1, 3}, NativeSpec{"clone", 2, 1},
-         NativeSpec{"destroy", 3, 0}, NativeSpec{"setTexture", 4, 2},
-         NativeSpec{"setRect", 5, 4}, NativeSpec{"setLayer", 6, 1},
-         NativeSpec{"update", 7, 0}, NativeSpec{"animate", 8, 6},
-         NativeSpec{"pause", 18, 1}}) {
+  struct NativeSpec {
+    const char *method;
+    uint8_t number, arguments;
+  };
+  for (const auto spec :
+       {NativeSpec{"spawn", 1, 3}, NativeSpec{"clone", 2, 1},
+        NativeSpec{"destroy", 3, 0}, NativeSpec{"setTexture", 4, 2},
+        NativeSpec{"setRect", 5, 4}, NativeSpec{"setLayer", 6, 1},
+        NativeSpec{"update", 7, 0}, NativeSpec{"animate", 8, 6},
+        NativeSpec{"pause", 18, 1}}) {
     Amagami::Method m;
     m.name = spec.method;
     m.arguments = spec.arguments;
@@ -35,8 +43,7 @@ Amagami::Script scriptedSprite() {
   return s;
 }
 void run(Amagami::Vm &vm, const Amagami::VmValue &object,
-         const std::string &method,
-         std::vector<Amagami::VmValue> args = {}) {
+         const std::string &method, std::vector<Amagami::VmValue> args = {}) {
   vm.call(object, method, std::move(args));
   vm.run(1000);
   check(vm.finished(), "Synthetic sprite primitive terminated");
@@ -48,18 +55,22 @@ int main() {
     using namespace Amagami;
     Vita::VitaVmBridge bridge;
     size_t resolutions = 0;
-    bridge.setTextureSizeResolver([&](uint32_t id, uint32_t variant)
-        -> std::optional<std::pair<uint32_t, uint32_t>> {
-      ++resolutions;
-      if (id == 8 && variant == 2) return std::make_pair(uint32_t(64), uint32_t(32));
-      if (id == 9 && variant == 0) return std::make_pair(uint32_t(128), uint32_t(48));
-      return std::nullopt;
-    });
+    bridge.setTextureSizeResolver(
+        [&](uint32_t id,
+            uint32_t variant) -> std::optional<std::pair<uint32_t, uint32_t>> {
+          ++resolutions;
+          if (id == 8 && variant == 2)
+            return std::make_pair(uint32_t(64), uint32_t(32));
+          if (id == 9 && variant == 0)
+            return std::make_pair(uint32_t(128), uint32_t(48));
+          return std::nullopt;
+        });
     Vm vm;
     vm.add(scriptedSprite());
     vm.scopedPrimitive = [&bridge](const std::string &owner,
-         const std::string &method, bool cls, const VmValue &receiver,
-         unsigned code, const std::vector<VmValue> &args) {
+                                   const std::string &method, bool cls,
+                                   const VmValue &receiver, unsigned code,
+                                   const std::vector<VmValue> &args) {
       return bridge.primitive(owner, method, cls, receiver, code, args);
     };
     auto original = vm.instance("Sprite");
@@ -69,21 +80,19 @@ int main() {
           "Sprite creation goes through the Vita graphics resolver");
     const auto id = uint64_t(original.object->fields[0].number);
     const auto &sprite = bridge.sprites().at(id);
-    check(sprite.texture == 8 && sprite.variant == 2 &&
-          sprite.layer == 11 && sprite.rect[2] == 64 &&
-          sprite.rect[3] == 32 && sprite.hasImage,
+    check(sprite.texture == 8 && sprite.variant == 2 && sprite.layer == 11 &&
+              sprite.rect[2] == 64 && sprite.rect[3] == 32 && sprite.hasImage,
           "Sprite keeps texture ID, variant, layer and decoded size");
 
     run(vm, original, "setRect",
-        {VmValue::num(1), VmValue::num(2), VmValue::num(20),
-         VmValue::num(12)});
+        {VmValue::num(1), VmValue::num(2), VmValue::num(20), VmValue::num(12)});
     check(bridge.sprites().at(id).rect ==
-          (std::array<double, 4>{{2, 4, 40, 24}}),
+              (std::array<double, 4>{{2, 4, 40, 24}}),
           "Vita image source crop is two texels per script unit");
     const auto oldOrder = bridge.sprites().at(id).order;
     run(vm, original, "setLayer", {VmValue::num(30)});
     check(bridge.sprites().at(id).layer == 30 &&
-          bridge.sprites().at(id).order > oldOrder,
+              bridge.sprites().at(id).order > oldOrder,
           "Layer updates preserve order for later draw sorting");
     run(vm, original, "pause", {VmValue::num(1)});
     check(bridge.sprites().at(id).paused, "Sprite pause flag");
@@ -94,27 +103,26 @@ int main() {
     run(vm, second, "clone", {VmValue::num(id)});
     const auto cloneId = uint64_t(second.object->fields[0].number);
     check(cloneId != id && bridge.sprites().size() == 2 &&
-          bridge.sprites().at(cloneId).rect == bridge.sprites().at(id).rect,
+              bridge.sprites().at(cloneId).rect == bridge.sprites().at(id).rect,
           "Clone has a new UID with the source picture and crop");
     run(vm, second, "setTexture", {VmValue::num(9), VmValue::num(0)});
     check(bridge.sprites().at(cloneId).texture == 9 &&
-          bridge.sprites().at(cloneId).rect[2] == 128 &&
-          bridge.sprites().at(id).texture == 8,
+              bridge.sprites().at(cloneId).rect[2] == 128 &&
+              bridge.sprites().at(id).texture == 8,
           "setTex replaces only the selected sprite");
 
     run(vm, original, "setTexture", {VmValue::num(0), VmValue::num(0)});
     check(!bridge.sprites().at(id).hasImage &&
-          bridge.sprites().at(id).rect[2] == 480 &&
-          bridge.sprites().at(id).rect[3] == 272,
+              bridge.sprites().at(id).rect[2] == 480 &&
+              bridge.sprites().at(id).rect[3] == 272,
           "Texture zero is a whole-screen plain rectangle");
     run(vm, original, "setRect",
-        {VmValue::num(1), VmValue::num(2), VmValue::num(20),
-         VmValue::num(12)});
+        {VmValue::num(1), VmValue::num(2), VmValue::num(20), VmValue::num(12)});
     check(bridge.sprites().at(id).rect[2] == 20,
           "Plain rectangle source coordinates are not doubled");
     run(vm, original, "update");
     check(original.object->fields[1].number == 0 &&
-          original.object->fields[4].number == 0,
+              original.object->fields[4].number == 0,
           "Non-animated sprite update reports zero remaining time");
 
     rejects([&] {
@@ -143,8 +151,8 @@ int main() {
           "Rejected operations do not insert phantom scene objects");
 
     run(vm, second, "destroy");
-    check(bridge.sprites().size() == 1 &&
-          second.object->fields[0].number == 0, "Destroy clears Sprite UID");
+    check(bridge.sprites().size() == 1 && second.object->fields[0].number == 0,
+          "Destroy clears Sprite UID");
     run(vm, original, "destroy");
     check(bridge.sprites().empty(), "No stale objects after destruction");
 

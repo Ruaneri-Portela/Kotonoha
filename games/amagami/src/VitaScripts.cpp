@@ -70,8 +70,9 @@ Script VitaScripts::scenario(const std::string &name) const {
   const Bytes bytes(content.begin(), content.end());
   auto script = ParseScf(bytes);
   if (script.name != name)
-    throw std::runtime_error("Amagami Vita: SCF name does not match CPK path: " +
-                             name + " versus " + script.name);
+    throw std::runtime_error(
+        "Amagami Vita: SCF name does not match CPK path: " + name + " versus " +
+        script.name);
   return script;
 }
 

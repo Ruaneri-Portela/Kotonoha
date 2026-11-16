@@ -41,10 +41,8 @@ Picture decodeIndexed8(std::string_view data, PictureLayout layout) {
   for (unsigned i = 0; i < 256; ++i) {
     const auto pos = i * 4;
     palette[i] = {
-        uint8_t(data[pos + (layout.bgra ? 2 : 0)]),
-        uint8_t(data[pos + 1]),
-        uint8_t(data[pos + (layout.bgra ? 0 : 2)]),
-        uint8_t(data[pos + 3])};
+        uint8_t(data[pos + (layout.bgra ? 2 : 0)]), uint8_t(data[pos + 1]),
+        uint8_t(data[pos + (layout.bgra ? 0 : 2)]), uint8_t(data[pos + 3])};
   }
   for (size_t i = 0; i < count; ++i) {
     const auto &pixel = palette[uint8_t(data[1024 + i])];
@@ -58,8 +56,8 @@ Picture decodeVitaPicture(const std::string &resourceName,
                           std::string_view data) {
   const auto layout = pictureLayout(resourceName);
   if (!layout)
-    throw std::runtime_error(
-        "Amagami Vita: unsupported palette resource: " + resourceName);
+    throw std::runtime_error("Amagami Vita: unsupported palette resource: " +
+                             resourceName);
   return decodeIndexed8(data, *layout);
 }
 } // namespace Amagami::Vita

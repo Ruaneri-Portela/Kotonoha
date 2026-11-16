@@ -1,6 +1,7 @@
 #include <Kirikiri/KirikiriRuntime.hpp>
 #include <Kirikiri/TjsBootstrap.hpp>
 #include <Kirikiri/TjsStartupVm.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
@@ -8,7 +9,6 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <SDL3/SDL.h>
@@ -46,8 +46,8 @@ std::string resolveVisual(const Kotonoha::Providers::KirikiriAssets &assets,
   // reinterpret Japanese storage names on Windows.
   for (std::size_t start = 0; start < storage.size();) {
     const auto end = storage.find('/', start);
-    if (storage.substr(start, end == std::string::npos
-                                ? std::string::npos : end - start) == "..")
+    if (storage.substr(start, end == std::string::npos ? std::string::npos
+                                                       : end - start) == "..")
       return {};
     if (end == std::string::npos)
       break;
@@ -55,11 +55,12 @@ std::string resolveVisual(const Kotonoha::Providers::KirikiriAssets &assets,
   }
   const auto slash = storage.find_last_of('/');
   const auto dot = storage.find_last_of('.');
-  const bool hasExtension = dot != std::string::npos &&
-      (slash == std::string::npos || dot > slash);
+  const bool hasExtension =
+      dot != std::string::npos && (slash == std::string::npos || dot > slash);
   const std::vector<std::string> folders =
-      foreground ? std::vector<std::string>{"", "fgimage/", "image/"}
-                 : std::vector<std::string>{"", "bgimage/", "image/", "system/"};
+      foreground
+          ? std::vector<std::string>{"", "fgimage/", "image/"}
+          : std::vector<std::string>{"", "bgimage/", "image/", "system/"};
   for (const auto &folder : folders) {
     const auto base = folder + storage;
     for (const char *extension :
@@ -76,7 +77,8 @@ std::string resolveVisual(const Kotonoha::Providers::KirikiriAssets &assets,
 
 // This is only an optional illustration behind the fallback KAG menu.
 // It does not pretend to execute startup.tjs or reproduce a title's TJS UI.
-std::string findTitlePicture(const Kotonoha::Providers::KirikiriAssets &assets) {
+std::string
+findTitlePicture(const Kotonoha::Providers::KirikiriAssets &assets) {
   const auto all = assets.list();
   std::map<std::string, std::string> images;
   for (const auto &id : all) {
@@ -88,10 +90,10 @@ std::string findTitlePicture(const Kotonoha::Providers::KirikiriAssets &assets) 
     });
     images.emplace(std::move(key), id);
   }
-  for (const char *base : {"image/title", "image/title_bg", "image/titlebase",
-                           "system/title", "system/title_bg", "bgimage/title",
-                           "title/titlebase", "title/title", "title",
-                           "menu/title", "image/menu"}) {
+  for (const char *base :
+       {"image/title", "image/title_bg", "image/titlebase", "system/title",
+        "system/title_bg", "bgimage/title", "title/titlebase", "title/title",
+        "title", "menu/title", "image/menu"}) {
     for (const char *ext : {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tlg"}) {
       if (auto it = images.find(std::string(base) + ext); it != images.end())
         return it->second;
@@ -169,7 +171,8 @@ void KirikiriRuntime::initGlobal(Kotonoha::Engine &engine) {
   impl.choiceScene = &Kotonoha::GetChoiceQuestionRuntime(engine);
   impl.backlog = &Kotonoha::GetVNBacklogRuntime(engine);
   impl.menu = &Kotonoha::GetInGameMenuRuntime(engine);
-  impl.saveMenu = nullptr; // KAG quicksaves use VNManager; no extra scene owned here.
+  impl.saveMenu =
+      nullptr; // KAG quicksaves use VNManager; no extra scene owned here.
 
   auto &menu = *impl.menu;
   menu.SetOnReturnToMenu([this] {
@@ -196,15 +199,13 @@ std::string KirikiriRuntime::diagnostic() const {
   if (report.entry.empty())
     return "KiriKiri: startup.tjs não detectado; suporte KAG experimental";
   std::ostringstream message;
-  message << "KiriKiri: " << report.entry
-          << " (TJS2 não executado), "
+  message << "KiriKiri: " << report.entry << " (TJS2 não executado), "
           << report.staticallyReferenced.size() << " dependências estáticas, "
-          << report.missing.size() << " ausentes, "
-          << report.dynamicCalls << " referências dinâmicas";
+          << report.missing.size() << " ausentes, " << report.dynamicCalls
+          << " referências dinâmicas";
   if (!report.missing.empty()) {
     message << "; primeiras ausentes: ";
-    for (std::size_t i = 0;
-         i < report.missing.size() && i < 3; ++i) {
+    for (std::size_t i = 0; i < report.missing.size() && i < 3; ++i) {
       if (i)
         message << ", ";
       message << report.missing[i];
@@ -286,9 +287,8 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
         const auto &run = impl.startupExecution;
         SDL_Log("KiriKiri: TJS2 subset visited %zu scripts, %zu statements, "
                 "KAG entry='%s', completed=%d, native UI needed=%d",
-                run.visitedScripts.size(), run.statements,
-                run.kagEntry.c_str(), run.subsetCompleted ? 1 : 0,
-                run.requiresNativeRuntime ? 1 : 0);
+                run.visitedScripts.size(), run.statements, run.kagEntry.c_str(),
+                run.subsetCompleted ? 1 : 0, run.requiresNativeRuntime ? 1 : 0);
         if (!run.error.empty())
           SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                       "KiriKiri: TJS2 subset stopped: %s", run.error.c_str());
@@ -296,8 +296,7 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
                 "%zu missing and %zu dynamic calls",
                 impl.bootstrap.entry.c_str(),
                 impl.bootstrap.staticallyReferenced.size(),
-                impl.bootstrap.missing.size(),
-                impl.bootstrap.dynamicCalls);
+                impl.bootstrap.missing.size(), impl.bootstrap.dynamicCalls);
         for (const auto &id : impl.bootstrap.missing)
           SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                       "KiriKiri: startup TJS dependency unavailable: %s",
@@ -311,12 +310,12 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
       // interactive layers and the bounded source VM completed its entry.
       // Otherwise retain the accessible Kotonoha fallback menu.
       const auto &ui = impl.startupExecution;
-      const bool imagePresent =
-          std::any_of(ui.layers.begin(), ui.layers.end(),
-                      [&](const Kotonoha::Providers::TjsUiLayer &layer) {
-                        return layer.visible && !layer.storage.empty() &&
-                            !resolveVisual(*impl.assets, layer.storage, true).empty();
-                      });
+      const bool imagePresent = std::any_of(
+          ui.layers.begin(), ui.layers.end(),
+          [&](const Kotonoha::Providers::TjsUiLayer &layer) {
+            return layer.visible && !layer.storage.empty() &&
+                   !resolveVisual(*impl.assets, layer.storage, true).empty();
+          });
       const bool hasClickTarget =
           std::any_of(ui.layers.begin(), ui.layers.end(),
                       [](const Kotonoha::Providers::TjsUiLayer &layer) {
@@ -325,9 +324,8 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
                                ((layer.width > 0 && layer.height > 0) ||
                                 !layer.storage.empty());
                       });
-      impl.nativeTitleUi = !impl.nativeTitleDisabled &&
-                           ui.subsetCompleted && ui.error.empty() &&
-                           imagePresent && hasClickTarget;
+      impl.nativeTitleUi = !impl.nativeTitleDisabled && ui.subsetCompleted &&
+                           ui.error.empty() && imagePresent && hasClickTarget;
       SDL_Log("KiriKiri: TJS2 title projection: %zu layers, interactive=%d",
               ui.layers.size(), impl.nativeTitleUi ? 1 : 0);
       impl.titlePicture = {findTitlePicture(*impl.assets), 0, 0, false};
@@ -338,26 +336,24 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
       const auto savePath =
           Kotonoha::preferredDocumentsDirectory("kirikiri") / "quicksave.kns";
       std::vector<Kotonoha::ChoiceOption> options;
-      if (!scenarios.empty() ||
-          !impl.startupExecution.kagEntry.empty())
-        options.push_back({
-            impl.startupExecution.kagEntry.empty()
-                ? "Iniciar (KAG experimental)"
-                : "Iniciar (KAG indicado pelo TJS2)", 0});
+      if (!scenarios.empty() || !impl.startupExecution.kagEntry.empty())
+        options.push_back({impl.startupExecution.kagEntry.empty()
+                               ? "Iniciar (KAG experimental)"
+                               : "Iniciar (KAG indicado pelo TJS2)",
+                           0});
       if (std::filesystem::exists(savePath))
         options.push_back({"Continuar", 1});
       options.push_back({"Configurações", 2});
       const std::string title =
           !impl.startupExecution.title.empty()
               ? impl.startupExecution.title + " (menu de compatibilidade)"
-              : scenarios.empty()
-                  ? (impl.bootstrap.entry.empty()
-                         ? "KiriKiri: scripts KAG não encontrados"
-                         : "KiriKiri: startup.tjs identificado; UI TJS2 pendente")
-                  : "KiriKiri: menu de compatibilidade";
+          : scenarios.empty()
+              ? (impl.bootstrap.entry.empty()
+                     ? "KiriKiri: scripts KAG não encontrados"
+                     : "KiriKiri: startup.tjs identificado; UI TJS2 pendente")
+              : "KiriKiri: menu de compatibilidade";
       impl.choiceScene->setQuestion(
-          title, options,
-          [this, savePath](int option, const std::string &) {
+          title, options, [this, savePath](int option, const std::string &) {
             auto &state = *impl_;
             if (option == 2) {
               state.engine->openSettings();
@@ -369,8 +365,8 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
               return;
             }
             const auto startup = !state.startupExecution.kagEntry.empty()
-                ? state.startupExecution.kagEntry
-                : state.assets->startupScenario();
+                                     ? state.startupExecution.kagEntry
+                                     : state.assets->startupScenario();
             if (startup.empty() || !startScenario(startup)) {
               SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                           "KiriKiri: no supported KAG startup script");
@@ -408,8 +404,7 @@ void KirikiriRuntime::update() {
   // An otherwise compatible script title can still contain an unsupported
   // image. If every visible picture failed to decode, bring back the
   // Kotonoha menu instead of leaving an invisible, unclickable title.
-  if (impl.nativeTitleUi && impl.engine &&
-      impl.currentScenario.empty() &&
+  if (impl.nativeTitleUi && impl.engine && impl.currentScenario.empty() &&
       !impl.failedNativePictures.empty()) {
     std::size_t pictures = 0, failed = 0;
     for (const auto &layer : impl.startupExecution.layers) {
@@ -436,7 +431,8 @@ void KirikiriRuntime::update() {
     impl.waitingWait = false;
     auto done = std::move(impl.finishWait);
     impl.finishWait = {};
-    if (done) done();
+    if (done)
+      done();
   }
   if (impl.engine && impl.running && !impl.runner->isBlocked() &&
       !impl.runner->isFinished() && !impl.engine->isStoryPaused()) {
@@ -465,8 +461,8 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       // frame or hide the functional fallback title and other images.
       visual.decodeFailed = true;
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "KiriKiri: cannot display image %s: %s",
-                  visual.id.c_str(), error.what());
+                  "KiriKiri: cannot display image %s: %s", visual.id.c_str(),
+                  error.what());
     }
   };
   if (impl.currentScenario.empty()) {
@@ -485,14 +481,16 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           auto &texture = impl.assets->texture(renderer, id);
           // KiriKiri loadImages uses intrinsic dimensions unless the script
           // explicitly specifies a destination size.
-          if (layer.width <= 0) layer.width = texture.w;
-          if (layer.height <= 0) layer.height = texture.h;
+          if (layer.width <= 0)
+            layer.width = texture.w;
+          if (layer.height <= 0)
+            layer.height = texture.h;
           const SDL_FRect destination{float(layer.left), float(layer.top),
                                       float(layer.width), float(layer.height)};
           Uint8 previousAlpha = 255;
           if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
-              !SDL_SetTextureAlphaMod(
-                  &texture, static_cast<Uint8>(layer.opacity)))
+              !SDL_SetTextureAlphaMod(&texture,
+                                      static_cast<Uint8>(layer.opacity)))
             throw std::runtime_error(SDL_GetError());
           const bool success =
               SDL_RenderTexture(&renderer, &texture, nullptr, &destination);
@@ -606,8 +604,8 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
   if (impl.dialogueVisible && !impl.waitingChoice &&
       !impl.choiceScene->isActive() &&
       (mapped.type == SDL_EVENT_KEY_DOWN ||
-                               mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-                               mapped.type == SDL_EVENT_FINGER_DOWN)) {
+       mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+       mapped.type == SDL_EVENT_FINGER_DOWN)) {
     if (mapped.type != SDL_EVENT_KEY_DOWN || !mapped.key.repeat) {
       advanceDialogue();
       return true;
@@ -632,8 +630,8 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
 
 void KirikiriRuntime::saveGame(const std::string &path) {
   auto &impl = *impl_;
-  const auto state = impl.runner ? impl.runner->saveState()
-                                 : KagScript::Runner::State{};
+  const auto state =
+      impl.runner ? impl.runner->saveState() : KagScript::Runner::State{};
   // V4 additionally stores active KAG conditional state. V1-V3 remain readable.
   std::ostringstream data;
   data << "KIRIKIRI_SAVE_4\n" << std::quoted(impl.currentScenario) << '\n';
@@ -643,8 +641,8 @@ void KirikiriRuntime::saveGame(const std::string &path) {
     data << state.returnStack[i] << ' ' << state.callIfDepth.at(i) << '\n';
   data << state.variables.size() << '\n';
   for (const auto &variable : state.variables)
-    data << std::quoted(variable.first) << ' '
-         << std::quoted(variable.second) << '\n';
+    data << std::quoted(variable.first) << ' ' << std::quoted(variable.second)
+         << '\n';
   data << state.ifBranches.size() << '\n';
   for (auto branch : state.ifBranches)
     data << unsigned(branch) << '\n';
@@ -663,8 +661,9 @@ void KirikiriRuntime::loadGame(const std::string &path) {
     fullState = true;
     unsigned finished = 0;
     std::size_t frames = 0, variables = 0;
-    if (!(data >> std::quoted(scenario) >> state.position >> finished >> frames)
-        || finished > 1 || frames > 65536)
+    if (!(data >> std::quoted(scenario) >> state.position >> finished >>
+          frames) ||
+        finished > 1 || frames > 65536)
       throw std::runtime_error("Invalid Kirikiri v3 save header");
     state.finished = finished != 0;
     for (std::size_t i = 0; i < frames; ++i) {
@@ -844,9 +843,10 @@ bool KirikiriRuntime::startScenario(
     }
     state.background = {id, 0, 0, false};
     if (transitionMs > 0)
-      SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
-                   "KiriKiri: background transition %dms is currently immediate",
-                   transitionMs);
+      SDL_LogDebug(
+          SDL_LOG_CATEGORY_APPLICATION,
+          "KiriKiri: background transition %dms is currently immediate",
+          transitionMs);
   };
 
   callbacks.showChar = [this](std::string layer, std::string file, int x, int y,
@@ -860,9 +860,10 @@ bool KirikiriRuntime::startScenario(
     }
     state.characters[layer] = {id, x, y, false};
     if (transitionMs > 0)
-      SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
-                   "KiriKiri: foreground transition %dms is currently immediate",
-                   transitionMs);
+      SDL_LogDebug(
+          SDL_LOG_CATEGORY_APPLICATION,
+          "KiriKiri: foreground transition %dms is currently immediate",
+          transitionMs);
   };
 
   callbacks.hideChar = [this](std::string layer, int) {

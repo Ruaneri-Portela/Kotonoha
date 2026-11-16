@@ -2,8 +2,8 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <iterator>
 #include <iostream>
+#include <iterator>
 #include <set>
 #include <stdexcept>
 
@@ -33,10 +33,12 @@ int main(int argc, char **argv) {
     session.startCampaign();
     // Save a partially played prologue; the journal must restore the
     // original SCF instruction position, not start the scenario again.
-    const auto savePath = std::filesystem::temp_directory_path() /
+    const auto savePath =
+        std::filesystem::temp_directory_path() /
         ("kotonoha-amagami-campaign-" +
-         std::to_string(std::chrono::steady_clock::now()
-                            .time_since_epoch().count()) + ".txt");
+         std::to_string(
+             std::chrono::steady_clock::now().time_since_epoch().count()) +
+         ".txt");
     struct RemoveSave {
       std::filesystem::path path;
       ~RemoveSave() {
@@ -140,7 +142,8 @@ int main(int argc, char **argv) {
                    session.campaignPeriod() > beforePeriod),
               "Original PS2 campaign map advances its calendar period");
       require(session.campaignDate() >= 1 && session.campaignDate() <= 42 &&
-                  session.campaignPeriod() >= 0 && session.campaignPeriod() < 14,
+                  session.campaignPeriod() >= 0 &&
+                  session.campaignPeriod() < 14,
               "Campaign map dates remain inside the original six-week span");
     }
     session.save(savePath.string());
@@ -170,7 +173,7 @@ int main(int argc, char **argv) {
         (std::istreambuf_iterator<char>(originalSave)),
         std::istreambuf_iterator<char>());
     const auto rejectsCorruption = [&](const std::string &oldAction,
-                                      const std::string &replacementAction) {
+                                       const std::string &replacementAction) {
       std::string damaged = originalBytes;
       const auto at = damaged.find(oldAction);
       require(at != std::string::npos, "Expected replay action exists");
@@ -187,7 +190,9 @@ int main(int argc, char **argv) {
       bool rejected = false;
       try {
         calendarResume.load(corruptedPath.string());
-      } catch (const std::exception &) { rejected = true; }
+      } catch (const std::exception &) {
+        rejected = true;
+      }
       require(rejected, "Reject structurally invalid PS2 campaign replay");
       require(calendarResume.campaignDate() == oldDate &&
                   calendarResume.campaignPeriod() == oldPeriod &&

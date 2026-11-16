@@ -1,30 +1,29 @@
 #include <SnowRadish/SnowAssets.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/Path.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
-#include <Kotonoha/Filesystem/Path.hpp>
-#include <utility>
 #include <stdexcept>
+#include <utility>
 
 namespace Kotonoha::Providers {
 using namespace SnowRadish;
 namespace {
 
-std::vector<uint8_t> ReadFile(
-    const Kotonoha::Filesystem::Filesystem &source,
-    const std::filesystem::path &path) {
-  return Kotonoha::Filesystem::readAll(
-      *source.open(path.generic_string()));
+std::vector<uint8_t> ReadFile(const Kotonoha::Filesystem::Filesystem &source,
+                              const std::filesystem::path &path) {
+  return Kotonoha::Filesystem::readAll(*source.open(path.generic_string()));
 }
 
-std::filesystem::path FindPackDirectory(
-    const Kotonoha::Filesystem::Filesystem &source) {
+std::filesystem::path
+FindPackDirectory(const Kotonoha::Filesystem::Filesystem &source) {
   for (const char *candidate : {"", "pack", "data/pack"}) {
     const auto prefix = std::string(candidate);
     const auto name = prefix.empty() ? "SCRIPT.DAT" : prefix + "/SCRIPT.DAT";
-    const auto graphic = prefix.empty() ? "GRAPHIC.DAT" : prefix + "/GRAPHIC.DAT";
+    const auto graphic =
+        prefix.empty() ? "GRAPHIC.DAT" : prefix + "/GRAPHIC.DAT";
     if (source.exists(name) && source.exists(graphic) &&
         source.stat(name).type == Kotonoha::Filesystem::FileType::Regular &&
         source.stat(graphic).type == Kotonoha::Filesystem::FileType::Regular)
@@ -124,19 +123,18 @@ std::string SnowAssets::Lower(std::string s) {
 }
 
 SnowAssets::SnowAssets(std::filesystem::path directory)
-    : SnowAssets(Kotonoha::Filesystem::Filesystem::mount(
-          directory.string())) {
+    : SnowAssets(Kotonoha::Filesystem::Filesystem::mount(directory.string())) {
   directory_ = std::move(directory);
 }
 
-SnowAssets::SnowAssets(
-    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source)
+SnowAssets::SnowAssets(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source)
     : source_(std::move(source)) {
   if (!source_)
     throw std::invalid_argument("SnowAssets requires a virtual source");
   const auto packDirectory = FindPackDirectory(*source_);
   const auto base = packDirectory.empty()
-      ? std::string{} : packDirectory.generic_string() + "/";
+                        ? std::string{}
+                        : packDirectory.generic_string() + "/";
   const auto choose = [&](const char *name) -> std::filesystem::path {
     const auto path = base + name;
     if (source_->exists(path) &&

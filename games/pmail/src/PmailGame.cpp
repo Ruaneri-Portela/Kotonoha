@@ -31,8 +31,9 @@ PmailGame::PmailGame(std::vector<uint8_t> scriptPack, std::string packPath)
   if (!packPath_.empty()) {
     packReader_ = std::make_unique<PmailPack>();
     if (!packReader_->openBytes(pack_, packPath_)) {
-      std::cerr << "[PmailPort] PmailPack index unavailable, falling back to scan: "
-                << packPath_ << std::endl;
+      std::cerr
+          << "[PmailPort] PmailPack index unavailable, falling back to scan: "
+          << packPath_ << std::endl;
       packReader_.reset();
     }
   }
@@ -48,7 +49,8 @@ void PmailGame::setPlayerNames(std::string no, std::string ho) {
            s.find_first_of("\r\n\t") == std::string::npos;
   };
   if (!valid(no) || !valid(ho))
-    throw std::invalid_argument("Pure Mail names must be 1-64 bytes without controls");
+    throw std::invalid_argument(
+        "Pure Mail names must be 1-64 bytes without controls");
   playerNameNO_ = std::move(no);
   playerNameHO_ = std::move(ho);
 }
@@ -484,10 +486,9 @@ void PmailGame::deserialize(const std::string &data) {
       slot.height = int32_t(in.u32());
       slot.size = int32_t(in.u32());
       slot.color = int32_t(in.u32());
-      if (slot.x < -2048 || slot.x > 2048 || slot.y < -2048 ||
-          slot.y > 2048 || slot.width < 0 || slot.width > 4096 ||
-          slot.height < 0 || slot.height > 4096 ||
-          slot.size < 1 || slot.size > 256 ||
+      if (slot.x < -2048 || slot.x > 2048 || slot.y < -2048 || slot.y > 2048 ||
+          slot.width < 0 || slot.width > 4096 || slot.height < 0 ||
+          slot.height > 4096 || slot.size < 1 || slot.size > 256 ||
           slot.color < 0 || slot.color > 255)
         throw std::runtime_error("Invalid PMAIL computer text slot");
       computerText.push_back(std::move(slot));
@@ -499,8 +500,8 @@ void PmailGame::deserialize(const std::string &data) {
     }
   }
   std::string savedNO = playerNameNO_, savedHO = playerNameHO_;
-  bool overlayVisible = !computerText.empty() || !chatHistory.empty() ||
-                        !computerClock.empty();
+  bool overlayVisible =
+      !computerText.empty() || !chatHistory.empty() || !computerClock.empty();
   if (version == "PMAIL-GAME-4" || version == "PMAIL-GAME-5") {
     savedNO = in.string(64);
     savedHO = in.string(64);
@@ -529,8 +530,7 @@ void PmailGame::deserialize(const std::string &data) {
       icon.active = in.boolean();
       icon.x = int32_t(in.u32());
       icon.y = int32_t(in.u32());
-      if (icon.x < -2048 || icon.x > 2048 ||
-          icon.y < -2048 || icon.y > 2048)
+      if (icon.x < -2048 || icon.x > 2048 || icon.y < -2048 || icon.y > 2048)
         throw std::runtime_error("Invalid PMAIL computer icon coordinate");
     }
   }
@@ -863,7 +863,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
   case 5:
     for (const auto &a : args)
       if (a.tag() == 2)
-        speakerName_ = expandPlayerNames(::Kotonoha::ShiftJisToUtf8(vm.text(a)));
+        speakerName_ =
+            expandPlayerNames(::Kotonoha::ShiftJisToUtf8(vm.text(a)));
     break;
   case 9: {
     // Choice: args include option strings and a target var ref.
@@ -872,7 +873,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     choiceVar_ = 0;
     for (const auto &a : args) {
       if (a.tag() == 2)
-        choiceText_.push_back(expandPlayerNames(::Kotonoha::ShiftJisToUtf8(vm.text(a))));
+        choiceText_.push_back(
+            expandPlayerNames(::Kotonoha::ShiftJisToUtf8(vm.text(a))));
       else if (a.tag() == 1)
         choiceVar_ = a.value();
       else if (a.tag() == 0)
@@ -1014,8 +1016,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     // sprite-pointer table at 0xf88b2a still requires identification.
     const int slot = argInt(0);
     if (slot >= 0 && slot < int(ComputerIconLimit)) {
-      computerIcons_[size_t(slot)] =
-          {true, int32_t(int16_t(argInt(1))), int32_t(int16_t(argInt(2)))};
+      computerIcons_[size_t(slot)] = {true, int32_t(int16_t(argInt(1))),
+                                      int32_t(int16_t(argInt(2)))};
       computerOverlayVisible_ = true;
       ++sceneVersion_;
     }
@@ -1238,8 +1240,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     // has confirmed. Keep a bounded, distinct diagnostic per unknown ID so
     // retail route tests show what blocked fidelity without flooding frames.
     if (unhandledNativeIds_.insert(id).second)
-      log("Unhandled PMAIL SYS " + std::to_string(id) +
-          " at " + scriptName_ + ":" + std::to_string(vm.returnPc()));
+      log("Unhandled PMAIL SYS " + std::to_string(id) + " at " + scriptName_ +
+          ":" + std::to_string(vm.returnPc()));
     break;
   }
 }

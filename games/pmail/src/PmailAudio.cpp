@@ -1,5 +1,5 @@
-#include <Kotonoha/core/SDL.hpp>
 #include "PmailAudio.hpp"
+#include <Kotonoha/core/SDL.hpp>
 #include <Pmail/Animation.hpp>
 #include <algorithm>
 #include <cmath>

@@ -5,7 +5,8 @@
 
 namespace {
 void expect(bool ok, const char *why) {
-  if (!ok) throw std::runtime_error(why);
+  if (!ok)
+    throw std::runtime_error(why);
 }
 SDL_Event key(SDL_EventType type, SDL_Keycode code) {
   SDL_Event e{};
@@ -44,8 +45,8 @@ int main() {
     bridge.inputFrame(input.buttons(), input.analog());
     expect(bridge.vitaButtonsPressed() == 0, "Holding key not a new trigger");
 
-    input.handle(button(SDL_EVENT_GAMEPAD_BUTTON_DOWN, 77,
-                        SDL_GAMEPAD_BUTTON_EAST));
+    input.handle(
+        button(SDL_EVENT_GAMEPAD_BUTTON_DOWN, 77, SDL_GAMEPAD_BUTTON_EAST));
     expect(input.buttons() == (32u | 4096u),
            "Keyboard and gamepad sources share confirm without duplication");
     input.handle(key(SDL_EVENT_KEY_UP, SDLK_Z));
@@ -53,11 +54,10 @@ int main() {
            "Gamepad continues holding confirm after keyboard keyup");
     input.handle(button(SDL_EVENT_GAMEPAD_BUTTON_DOWN, 77,
                         SDL_GAMEPAD_BUTTON_DPAD_LEFT));
-    expect((input.buttons() & 32768u) != 0,
-           "Vita gamepad dpad-left mapping");
+    expect((input.buttons() & 32768u) != 0, "Vita gamepad dpad-left mapping");
     // Ignore extra gamepads while the primary device is active.
-    input.handle(button(SDL_EVENT_GAMEPAD_BUTTON_DOWN, 101,
-                        SDL_GAMEPAD_BUTTON_NORTH));
+    input.handle(
+        button(SDL_EVENT_GAMEPAD_BUTTON_DOWN, 101, SDL_GAMEPAD_BUTTON_NORTH));
     expect((input.buttons() & 16u) == 0,
            "Secondary gamepad does not alter the primary mapping");
     input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTX, 16384));
@@ -74,8 +74,7 @@ int main() {
     SDL_Event focus{};
     focus.type = SDL_EVENT_WINDOW_FOCUS_LOST;
     input.handle(focus);
-    expect((input.buttons() & 2048u) == 0 &&
-           (input.buttons() & 4096u) == 0,
+    expect((input.buttons() & 2048u) == 0 && (input.buttons() & 4096u) == 0,
            "Window focus loss releases keyboard input only");
     SDL_Event removed{};
     removed.type = SDL_EVENT_GAMEPAD_REMOVED;
@@ -83,8 +82,8 @@ int main() {
     input.handle(removed);
     expect(input.buttons() == 0 && input.analog()[0] == 0,
            "Disconnect clears gamepad buttons and axes");
-    input.handle(button(SDL_EVENT_GAMEPAD_BUTTON_DOWN, 101,
-                        SDL_GAMEPAD_BUTTON_NORTH));
+    input.handle(
+        button(SDL_EVENT_GAMEPAD_BUTTON_DOWN, 101, SDL_GAMEPAD_BUTTON_NORTH));
     expect(input.buttons() == 16u,
            "A new primary gamepad works after disconnection");
     std::cout << "Vita SDL3 event/input adapter tests passed\n";

@@ -1,3 +1,4 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
@@ -6,7 +7,6 @@
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/events/BackAction.hpp>

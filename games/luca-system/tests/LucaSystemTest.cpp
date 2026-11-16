@@ -205,7 +205,8 @@ int main() {
         replacement[2] = 'H'; // keep length, fixed field and other bytes
       auto patchedData = script.replaceRaw(0, replacement);
       LucaSystem::Script patched("patched.scr", patchedData);
-      check(patched.valid() && patched.instructions()[0].rawBytes == replacement,
+      check(patched.valid() &&
+                patched.instructions()[0].rawBytes == replacement,
             "same-size instruction rewrite preserves opcode structure");
       check(script.serialize() == originalScriptData,
             "script patch does not mutate original bytes");
@@ -226,8 +227,7 @@ int main() {
 
   // ---- Odd-length CodeLine payloads and malformed stream handling ----
   {
-    LucaSystem::Script odd("odd.scr",
-                            {0x05, 0x00, 0x01, 0x00, 0x7f, 0x00});
+    LucaSystem::Script odd("odd.scr", {0x05, 0x00, 0x01, 0x00, 0x7f, 0x00});
     check(odd.valid() && odd.instructionCount() == 1,
           "odd-length CodeLine with alignment parses");
     if (odd.valid())
@@ -240,14 +240,11 @@ int main() {
                 entry.align == std::vector<std::uint8_t>{0x00},
             "odd-length CodeLine retains final payload byte");
     }
-    LucaSystem::Script noPad("missing-pad.scr",
-                              {0x05, 0x00, 0x01, 0x00, 0x7f});
+    LucaSystem::Script noPad("missing-pad.scr", {0x05, 0x00, 0x01, 0x00, 0x7f});
     check(!noPad.valid(), "missing odd alignment is rejected");
-    LucaSystem::Script tail("tail.scr",
-                            {0x04, 0x00, 0x01, 0x00, 0xff});
+    LucaSystem::Script tail("tail.scr", {0x04, 0x00, 0x01, 0x00, 0xff});
     check(!tail.valid(), "truncated trailing instruction is rejected");
-    LucaSystem::Script fixed("fixed.scr",
-                             {0x04, 0x00, 0x01, 0x02});
+    LucaSystem::Script fixed("fixed.scr", {0x04, 0x00, 0x01, 0x02});
     check(!fixed.valid(), "truncated fixed parameters are rejected");
     bool rejectedMalformedSerialization = false;
     try {
@@ -263,8 +260,8 @@ int main() {
   {
     // fixed uint16; Japanese UTF-16 length=0; English encoded length=-2;
     // UTF-8 'OK' + NUL, followed by optional Chinese field.
-    const std::vector<std::uint8_t> payload = {
-        0, 0, 0, 0, 0xfe, 0xff, 'O', 'K', 0};
+    const std::vector<std::uint8_t> payload = {0,    0,   0,   0, 0xfe,
+                                               0xff, 'O', 'K', 0};
     std::vector<std::uint8_t> bytes = {0x0d, 0x00, 36, 0};
     bytes.insert(bytes.end(), payload.begin(), payload.end());
     bytes.push_back(0); // alignment: length 13 is odd

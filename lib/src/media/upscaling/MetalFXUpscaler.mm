@@ -2,7 +2,8 @@
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 
-#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) && KOTONOHA_ENABLE_UPSCALER
+#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) &&                     \
+    KOTONOHA_ENABLE_UPSCALER
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -532,9 +533,11 @@ void KotonohaMetalFXClearScalerCache(void) {
 } // namespace
 } // namespace Kotonoha
 
-#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) && KOTONOHA_ENABLE_UPSCALER
+#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) &&
+       // KOTONOHA_ENABLE_UPSCALER
 
-#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) && KOTONOHA_ENABLE_UPSCALER
+#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) &&                     \
+    KOTONOHA_ENABLE_UPSCALER
 namespace Kotonoha {
 
 MetalFXUpscaler::MetalFXUpscaler(RendererRef renderer) : Upscaler(renderer) {
@@ -569,4 +572,5 @@ bool MetalFXUpscaler::renderInto(TextureRef input, TextureRef output) {
 void MetalFXUpscaler::clearBackendCache() { KotonohaMetalFXClearScalerCache(); }
 
 } // namespace Kotonoha
-#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) && KOTONOHA_ENABLE_UPSCALER
+#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) &&
+       // KOTONOHA_ENABLE_UPSCALER

@@ -17,14 +17,11 @@ public:
       const unsigned char c = static_cast<unsigned char>(source_[pos_]);
       if (std::isspace(c)) {
         ++pos_;
-      } else if (c == '/' && pos_ + 1 < end_ &&
-                 source_[pos_ + 1] == '/') {
+      } else if (c == '/' && pos_ + 1 < end_ && source_[pos_ + 1] == '/') {
         pos_ += 2;
-        while (pos_ < end_ && source_[pos_] != '\r' &&
-               source_[pos_] != '\n')
+        while (pos_ < end_ && source_[pos_] != '\r' && source_[pos_] != '\n')
           ++pos_;
-      } else if (c == '/' && pos_ + 1 < end_ &&
-                 source_[pos_ + 1] == '*') {
+      } else if (c == '/' && pos_ + 1 < end_ && source_[pos_ + 1] == '*') {
         pos_ += 2;
         while (pos_ + 1 < end_ &&
                !(source_[pos_] == '*' && source_[pos_ + 1] == '/'))
@@ -47,21 +44,25 @@ public:
   }
   void expect(char ch) {
     if (!take(ch))
-      throw std::runtime_error("NsScript: unsupported expression or missing delimiter");
+      throw std::runtime_error(
+          "NsScript: unsupported expression or missing delimiter");
   }
   std::vector<std::string> arguments() {
     std::vector<std::string> result;
     expect('(');
-    if (take(')')) return result;
+    if (take(')'))
+      return result;
     while (true) {
       if (result.size() >= 64)
         throw std::runtime_error("NsScript: too many literal arguments");
       result.push_back(literal());
-      if (take(')')) break;
+      if (take(')'))
+        break;
       expect(',');
     }
     return result;
   }
+
 private:
   std::string literal() {
     trivia();
@@ -74,18 +75,33 @@ private:
       bool closed = false;
       while (pos_ < end_) {
         const char ch = source_[pos_++];
-        if (ch == quote) { closed = true; break; }
+        if (ch == quote) {
+          closed = true;
+          break;
+        }
         if (ch == '\\') {
           if (pos_ == end_)
             throw std::runtime_error("NsScript: incomplete escape");
           const char escaped = source_[pos_++];
           switch (escaped) {
-          case 'n': value += '\n'; break;
-          case 'r': value += '\r'; break;
-          case 't': value += '\t'; break;
-          case '\\': value += '\\'; break;
-          case '"': value += '"'; break;
-          case '\'': value += '\''; break;
+          case 'n':
+            value += '\n';
+            break;
+          case 'r':
+            value += '\r';
+            break;
+          case 't':
+            value += '\t';
+            break;
+          case '\\':
+            value += '\\';
+            break;
+          case '"':
+            value += '"';
+            break;
+          case '\'':
+            value += '\'';
+            break;
           default:
             throw std::runtime_error("NsScript: unsupported escape");
           }
@@ -100,7 +116,10 @@ private:
     } else {
       // Only decimal numeric literals are accepted; arbitrary identifiers
       // and expression operands must never execute as literal callbacks.
-      if (quote == '-') { value += '-'; ++pos_; }
+      if (quote == '-') {
+        value += '-';
+        ++pos_;
+      }
       std::size_t digits = 0;
       while (pos_ < end_ && source_[pos_] >= '0' && source_[pos_] <= '9') {
         if (++digits > 19)
@@ -134,7 +153,8 @@ void ScriptExecutor::validate() {
     while (true) {
       reader.trivia();
       const std::size_t offset = reader.position();
-      if (offset == chapter.end) break;
+      if (offset == chapter.end)
+        break;
       if (label < chapter.labels.size() &&
           chapter.labels[label].offset == offset) {
         const auto &name = chapter.labels[label++].name;
@@ -157,19 +177,20 @@ void ScriptExecutor::validate() {
           "NsScript: unsupported statement/control flow in chapter " +
           chapter.name + " at byte " + std::to_string(offset));
     }
-    if (call != chapter.invocations.size() ||
-        label != chapter.labels.size())
+    if (call != chapter.invocations.size() || label != chapter.labels.size())
       throw std::runtime_error("NsScript: non-standalone invocation/label");
   }
 }
 
 bool ScriptExecutor::jumpToLabel(std::string_view label) {
-  if (!cursor_.jumpToLabel(label)) return false;
+  if (!cursor_.jumpToLabel(label))
+    return false;
   finished_ = paused_ = false;
   return true;
 }
 bool ScriptExecutor::enterChapter(std::string_view chapter) {
-  if (!cursor_.enterChapter(chapter)) return false;
+  if (!cursor_.enterChapter(chapter))
+    return false;
   finished_ = paused_ = false;
   return true;
 }
@@ -177,7 +198,10 @@ std::size_t ScriptExecutor::run(std::size_t budget) {
   std::size_t executed = 0;
   while (!paused_ && !finished_ && executed < budget) {
     const auto *inv = cursor_.peek();
-    if (!inv) { finished_ = true; break; }
+    if (!inv) {
+      finished_ = true;
+      break;
+    }
     const auto it = arguments_.find(inv->offset);
     if (it == arguments_.end())
       throw std::runtime_error("NsScript: compiled invocation missing");
@@ -197,7 +221,8 @@ std::size_t ScriptExecutor::run(std::size_t budget) {
       break;
     case VmActionKind::JumpLabel:
       if (!cursor_.jumpToLabel(action.target))
-        throw std::runtime_error("NsScript: missing jump label " + action.target);
+        throw std::runtime_error("NsScript: missing jump label " +
+                                 action.target);
       break;
     case VmActionKind::EnterChapter:
       if (!cursor_.enterChapter(action.target))

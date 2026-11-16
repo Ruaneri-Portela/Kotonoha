@@ -1,6 +1,6 @@
 #include "PmailTitleMenu.hpp"
-#include <Pmail/Port.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <Pmail/Port.hpp>
 #include <algorithm>
 #include <iostream>
 

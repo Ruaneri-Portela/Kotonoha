@@ -15,8 +15,8 @@
 
 namespace Kotonoha::Providers {
 namespace {
-constexpr std::uint8_t kMagic[11] = {
-    'T', 'L', 'G', '6', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+constexpr std::uint8_t kMagic[11] = {'T', 'L', 'G', '6', '.', '0',
+                                     0,   'r', 'a', 'w', 0x1a};
 constexpr int kWidthBlock = 8, kHeightBlock = 8;
 constexpr std::size_t kMaxPixels = 32u * 1024u * 1024u;
 
@@ -47,8 +47,7 @@ struct Bits {
   unsigned bit() {
     if (bitPosition >= bitLength)
       throw std::runtime_error("KiriKiri: truncated TLG6 Golomb bitstream");
-    const auto value =
-        (data[bitPosition / 8] >> (bitPosition % 8)) & 1u;
+    const auto value = (data[bitPosition / 8] >> (bitPosition % 8)) & 1u;
     ++bitPosition;
     return value;
   }
@@ -80,11 +79,10 @@ struct Bits {
 // Index [remaining nonzero values in adaptation period][running magnitude].
 // The compressed thresholds originate from the TLG6 file-format algorithm.
 unsigned golombK(unsigned remaining, unsigned magnitude) {
-  static constexpr int counts[4][9] = {
-      {3, 7, 15, 27, 63, 108, 223, 448, 130},
-      {3, 5, 13, 24, 51, 95, 192, 384, 257},
-      {2, 5, 12, 21, 39, 86, 155, 320, 384},
-      {2, 3, 9, 18, 33, 61, 129, 258, 511}};
+  static constexpr int counts[4][9] = {{3, 7, 15, 27, 63, 108, 223, 448, 130},
+                                       {3, 5, 13, 24, 51, 95, 192, 384, 257},
+                                       {2, 5, 12, 21, 39, 86, 155, 320, 384},
+                                       {2, 3, 9, 18, 33, 61, 129, 258, 511}};
   const auto row = std::min(remaining, 3u);
   int accumulated = 0;
   for (unsigned k = 0; k < 9; ++k) {
@@ -130,15 +128,17 @@ void decodeGolomb(const std::uint8_t *bytes, std::size_t bitLength,
 
 // TLG6's filter type metadata uses the same 4096-byte slide compression as
 // TLG5, but its initial dictionary contains 32 x 16 pairs of repeated bytes.
-std::vector<std::uint8_t>
-decodeFilterTypes(const std::uint8_t *data, std::size_t length,
-                  std::size_t expected) {
+std::vector<std::uint8_t> decodeFilterTypes(const std::uint8_t *data,
+                                            std::size_t length,
+                                            std::size_t expected) {
   std::array<std::uint8_t, 4096> dict{};
   std::size_t index = 0;
   for (unsigned i = 0; i < 32; ++i)
     for (unsigned j = 0; j < 16; ++j) {
-      for (unsigned k = 0; k < 4; ++k) dict[index++] = i;
-      for (unsigned k = 0; k < 4; ++k) dict[index++] = j;
+      for (unsigned k = 0; k < 4; ++k)
+        dict[index++] = i;
+      for (unsigned k = 0; k < 4; ++k)
+        dict[index++] = j;
     }
   std::vector<std::uint8_t> output;
   output.reserve(expected);
@@ -168,7 +168,8 @@ decodeFilterTypes(const std::uint8_t *data, std::size_t length,
         count += data[pos++];
       }
       if (count > expected - output.size())
-        throw std::runtime_error("KiriKiri: TLG6 filter reference overruns data");
+        throw std::runtime_error(
+            "KiriKiri: TLG6 filter reference overruns data");
       while (count--) {
         const auto value = dict[copy];
         copy = (copy + 1) & 4095u;
@@ -196,23 +197,40 @@ std::array<int, 3> unfilter(std::uint8_t filter,
   const int g = static_cast<std::int8_t>(residual[1]);
   const int r = static_cast<std::int8_t>(residual[2]);
   switch (filter >> 1) {
-  case 0: return {b, g, r};
-  case 1: return {b + g, g, r + g};
-  case 2: return {b, g + b, r + b + g};
-  case 3: return {b + r + g, g + r, r};
-  case 4: return {b + r, g + b + r, r + b + r + g};
-  case 5: return {b + r, g + b + r, r};
-  case 6: return {b + g, g, r};
-  case 7: return {b, g + b, r};
-  case 8: return {b, g, r + g};
-  case 9: return {b + g + r + b, g + r + b, r + b};
-  case 10: return {b + r, g + r, r};
-  case 11: return {b, g + b, r + b};
-  case 12: return {b, g + r + b, r + b};
-  case 13: return {b + g, g + r + b + g, r + b + g};
-  case 14: return {b + g + r, g + r, r + b + g + r};
-  case 15: return {b, g + 2 * b, r + 2 * b};
-  default: throw std::runtime_error("KiriKiri: unknown TLG6 color filter");
+  case 0:
+    return {b, g, r};
+  case 1:
+    return {b + g, g, r + g};
+  case 2:
+    return {b, g + b, r + b + g};
+  case 3:
+    return {b + r + g, g + r, r};
+  case 4:
+    return {b + r, g + b + r, r + b + r + g};
+  case 5:
+    return {b + r, g + b + r, r};
+  case 6:
+    return {b + g, g, r};
+  case 7:
+    return {b, g + b, r};
+  case 8:
+    return {b, g, r + g};
+  case 9:
+    return {b + g + r + b, g + r + b, r + b};
+  case 10:
+    return {b + r, g + r, r};
+  case 11:
+    return {b, g + b, r + b};
+  case 12:
+    return {b, g + r + b, r + b};
+  case 13:
+    return {b + g, g + r + b + g, r + b + g};
+  case 14:
+    return {b + g + r, g + r, r + b + g + r};
+  case 15:
+    return {b, g + 2 * b, r + 2 * b};
+  default:
+    throw std::runtime_error("KiriKiri: unknown TLG6 color filter");
   }
 }
 
@@ -237,8 +255,8 @@ Kotonoha::SurfacePtr decodeTlg6Image(const std::uint8_t *data,
   Cursor reader{data, size, 11};
   const auto *flags = reader.take(4);
   const unsigned colors = flags[0];
-  if ((colors != 1 && colors != 3 && colors != 4) ||
-      flags[1] || flags[2] || flags[3])
+  if ((colors != 1 && colors != 3 && colors != 4) || flags[1] || flags[2] ||
+      flags[3])
     throw std::runtime_error("KiriKiri: unsupported TLG6 color settings");
   const auto width = reader.u32();
   const auto height = reader.u32();
@@ -250,12 +268,12 @@ Kotonoha::SurfacePtr decodeTlg6Image(const std::uint8_t *data,
   const std::size_t blocksY = (height + 7u) / 8u;
   const auto filterLength = reader.u32();
   const auto *filterData = reader.take(filterLength);
-  const auto filters = decodeFilterTypes(
-      filterData, filterLength, blocksX * blocksY);
+  const auto filters =
+      decodeFilterTypes(filterData, filterLength, blocksX * blocksY);
 
-  Kotonoha::SurfacePtr surface(SDL_CreateSurface(
-      static_cast<int>(width), static_cast<int>(height),
-      SDL_PIXELFORMAT_RGBA32));
+  Kotonoha::SurfacePtr surface(SDL_CreateSurface(static_cast<int>(width),
+                                                 static_cast<int>(height),
+                                                 SDL_PIXELFORMAT_RGBA32));
   if (!surface)
     throw std::runtime_error(std::string("KiriKiri: cannot allocate TLG6: ") +
                              SDL_GetError());
@@ -285,12 +303,12 @@ Kotonoha::SurfacePtr decodeTlg6Image(const std::uint8_t *data,
     }
     for (std::size_t localY = 0; localY < rows; ++localY) {
       const std::size_t y = baseY + localY;
-      auto *line = static_cast<std::uint8_t *>(surface->pixels) +
-                   y * surface->pitch;
+      auto *line =
+          static_cast<std::uint8_t *>(surface->pixels) + y * surface->pitch;
       const auto *upper = y ? line - surface->pitch : nullptr;
       for (std::size_t tile = 0; tile < blocksX; ++tile) {
-        const auto tileWidth = std::min<std::size_t>(
-            kWidthBlock, width - tile * kWidthBlock);
+        const auto tileWidth =
+            std::min<std::size_t>(kWidthBlock, width - tile * kWidthBlock);
         const auto filter = filters[(baseY / kHeightBlock) * blocksX + tile];
         const auto sourceY = (tile & 1) ? rows - 1 - localY : localY;
         const auto begin = tile * rows * kWidthBlock;
@@ -304,25 +322,27 @@ Kotonoha::SurfacePtr decodeTlg6Image(const std::uint8_t *data,
           // One-component TLG6 stores a gray residual rather than three
           // independent color planes.
           const int gray = static_cast<std::int8_t>(raw[0]);
-          const auto rgb = colors == 1
-              ? std::array<int, 3>{gray, gray, gray}
-              : unfilter(filter, raw);
+          const auto rgb = colors == 1 ? std::array<int, 3>{gray, gray, gray}
+                                       : unfilter(filter, raw);
           for (unsigned channel = 0; channel < 4; ++channel) {
-            const int residual = channel == 0 ? rgb[2]
-                : channel == 1 ? rgb[1]
-                : channel == 2 ? rgb[0]
-                : colors == 4 ? static_cast<std::int8_t>(raw[3]) : 0;
+            const int residual = channel == 0   ? rgb[2]
+                                 : channel == 1 ? rgb[1]
+                                 : channel == 2 ? rgb[0]
+                                 : colors == 4
+                                     ? static_cast<std::int8_t>(raw[3])
+                                     : 0;
             if (channel == 3 && colors != 4) {
               line[x * 4 + channel] = 255;
               continue;
             }
             const unsigned left = x ? line[(x - 1) * 4 + channel]
                                     : (channel == 3 && colors == 3 ? 255u : 0u);
-            const unsigned above = upper ? upper[x * 4 + channel]
-                                         : (channel == 3 && colors == 3 ? 255u : 0u);
-            const unsigned upperLeft = x && upper
-                ? upper[(x - 1) * 4 + channel]
-                : (channel == 3 && colors == 3 ? 255u : 0u);
+            const unsigned above =
+                upper ? upper[x * 4 + channel]
+                      : (channel == 3 && colors == 3 ? 255u : 0u);
+            const unsigned upperLeft =
+                x && upper ? upper[(x - 1) * 4 + channel]
+                           : (channel == 3 && colors == 3 ? 255u : 0u);
             line[x * 4 + channel] = static_cast<std::uint8_t>(
                 predict(left, above, upperLeft, (filter & 1) != 0) + residual);
           }

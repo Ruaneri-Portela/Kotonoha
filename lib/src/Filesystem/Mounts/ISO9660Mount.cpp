@@ -43,13 +43,12 @@ public:
   }
 
   std::int64_t seek(std::int64_t offset, SeekOrigin origin) override {
-    const auto base = origin == SeekOrigin::Begin
-                          ? std::uint64_t{0}
-                          : origin == SeekOrigin::Current ? cursor_ : entry_.size;
+    const auto base = origin == SeekOrigin::Begin     ? std::uint64_t{0}
+                      : origin == SeekOrigin::Current ? cursor_
+                                                      : entry_.size;
     std::uint64_t next;
     if (offset < 0) {
-      const auto magnitude =
-          static_cast<std::uint64_t>(-(offset + 1)) + 1;
+      const auto magnitude = static_cast<std::uint64_t>(-(offset + 1)) + 1;
       if (magnitude > base)
         return -1;
       next = base - magnitude;
@@ -102,10 +101,11 @@ ISO9660Mount::ISO9660Mount(const std::filesystem::path &image) {
     if (entry.size > static_cast<std::uint64_t>(INT64_MAX))
       throw FilesystemError(ErrorCode::CorruptImage,
                             "ISO file too large: " + name);
-    if (!nodes_.emplace(
-             lookupKey(name),
-             FileInfo{name, FileType::Regular,
-                      static_cast<std::int64_t>(entry.size)}).second)
+    if (!nodes_
+             .emplace(lookupKey(name),
+                      FileInfo{name, FileType::Regular,
+                               static_cast<std::int64_t>(entry.size)})
+             .second)
       throw FilesystemError(ErrorCode::CorruptImage,
                             "Duplicate ISO file: " + name);
   }
@@ -131,8 +131,7 @@ std::vector<FileInfo> ISO9660Mount::list(std::string_view directory) const {
     throw FilesystemError(ErrorCode::NotDirectory, "Not an ISO directory");
   std::vector<FileInfo> entries;
   for (const auto &[key, entry] : nodes_)
-    if (!key.empty() && key != root &&
-        parentName(key) == root)
+    if (!key.empty() && key != root && parentName(key) == root)
       entries.push_back(entry);
   return entries;
 }

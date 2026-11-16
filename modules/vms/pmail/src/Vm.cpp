@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <cstdint>
 #include <climits>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
@@ -68,8 +68,8 @@ int32_t shiftRightArithmetic(int32_t a, uint32_t count) {
   const auto bits = uint32_t(a);
   if (!count)
     return a;
-  const uint32_t shifted = (bits >> count) |
-      ((bits & 0x80000000u) ? ~(UINT32_MAX >> count) : 0u);
+  const uint32_t shifted =
+      (bits >> count) | ((bits & 0x80000000u) ? ~(UINT32_MAX >> count) : 0u);
   return signedWord(shifted);
 }
 } // namespace
@@ -695,8 +695,8 @@ bool Vm::step() {
       unknownOpcodeLogged_[op] = true;
       std::ostringstream warning;
       warning << "Unsupported PMAIL bytecode 0x" << std::hex << unsigned(op)
-              << " in " << (cur_ ? cur_->name : "<null>") << ":0x"
-              << (pc_ - 1) << " (mode 0x" << unsigned(mode) << ")";
+              << " in " << (cur_ ? cur_->name : "<null>") << ":0x" << (pc_ - 1)
+              << " (mode 0x" << unsigned(mode) << ")";
       host_.log(warning.str());
     }
     break;

@@ -1,6 +1,6 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <SDL3/SDL.h>
 

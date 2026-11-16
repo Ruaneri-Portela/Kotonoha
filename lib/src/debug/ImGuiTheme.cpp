@@ -1,8 +1,8 @@
 ﻿#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 
-#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/Config.hpp>
 
 #include <algorithm>
 #include <filesystem>
@@ -238,11 +238,10 @@ void badge(const char *label, ImVec4 color) {
   ImGui::Dummy({text.x + 2 * pad.x, text.y + 2 * pad.y});
   auto *draw = ImGui::GetWindowDrawList();
   draw->AddRectFilled(pos,
-                      {pos.x + text.x + 2 * pad.x,
-                       pos.y + text.y + 2 * pad.y},
+                      {pos.x + text.x + 2 * pad.x, pos.y + text.y + 2 * pad.y},
                       ImGui::GetColorU32(color), 6.0f * scale);
-  draw->AddText({pos.x + pad.x, pos.y + pad.y},
-                IM_COL32(255, 255, 255, 255), value);
+  draw->AddText({pos.x + pad.x, pos.y + pad.y}, IM_COL32(255, 255, 255, 255),
+                value);
 }
 
 void valueRow(const char *label, const char *value, ImVec4 valueColor) {

@@ -15,9 +15,7 @@ void check(bool ok, const char *message) {
 Pmail::Arg integer(int value) {
   return {static_cast<uint32_t>(uint16_t(value))};
 }
-Pmail::Arg string(unsigned index) {
-  return {(3u << 20) | (2u << 16) | index};
-}
+Pmail::Arg string(unsigned index) { return {(3u << 20) | (2u << 16) | index}; }
 } // namespace
 
 int main() {
@@ -26,15 +24,15 @@ int main() {
     auto object = std::make_shared<Pmail::ScriptObject>();
     object->id = 3;
     object->name = "synthetic-computer.obj";
-    object->strings = {"mail", "hello", "12:30", "one", "two",
-                       "$NO meets $HO", "ROOM"};
+    object->strings = {"mail", "hello",         "12:30", "one",
+                       "two",  "$NO meets $HO", "ROOM"};
     game.vm().registerObject(object);
     const auto call = [&](int id, std::vector<Pmail::Arg> args) {
       game.native(game.vm(), id, args);
     };
 
-    call(52, {string(0), integer(251), integer(160), integer(200),
-              integer(100), integer(24), integer(10)});
+    call(52, {string(0), integer(251), integer(160), integer(200), integer(100),
+              integer(24), integer(10)});
     auto labels = game.computerText();
     check(labels.size() == 1 && labels[0].text == "mail" &&
               labels[0].x == 251 && labels[0].y == 160 &&
@@ -75,8 +73,8 @@ int main() {
     // Earlier in the test all ten native text slots were filled. A script
     // scene change releases them before the next positioned text is shown.
     call(48, {string(6)});
-    call(52, {string(5), integer(1), integer(2), integer(50),
-              integer(30), integer(16), integer(8)});
+    call(52, {string(5), integer(1), integer(2), integer(50), integer(30),
+              integer(16), integer(8)});
     check(!game.computerText().empty() &&
               game.computerText().back().text == "Alice meets Bob",
           "SYS 52 did not resolve the player's chosen name");
@@ -84,8 +82,8 @@ int main() {
     check(game.waitingForClick() && game.message() == "Alice meets Bob",
           "Dialogue did not expand customized $NO / $HO");
     call(160, {integer(1), string(5)});
-    check(game.hasComputerOverlay() && game.chatHistory().back().text ==
-              "Alice meets Bob",
+    check(game.hasComputerOverlay() &&
+              game.chatHistory().back().text == "Alice meets Bob",
           "Chat customization did not expand player names");
     call(48, {string(6)});
     check(!game.hasComputerOverlay() && game.computerText().empty() &&
@@ -102,8 +100,8 @@ int main() {
     call(50, {integer(24), integer(335), integer(188)});
     call(50, {integer(25), integer(10), integer(20)}); // ignored: > 24
     const auto icons = game.computerIcons();
-    check(icons[24].active && icons[24].x == 335 &&
-              icons[24].y == 188 && !icons[23].active,
+    check(icons[24].active && icons[24].x == 335 && icons[24].y == 188 &&
+              !icons[23].active,
           "SYS 50 did not preserve original icon-slot bounds");
 
     // The two text families use independent native renderers in the EXE.
@@ -117,11 +115,10 @@ int main() {
     check(game.mailPanel().entries.size() == 2 &&
               game.mailPanel().entries.front().text == "Alice meets Bob",
           "SYS 192/194 mail-family stream is missing");
-    call(179, {integer(1), integer(2), integer(3), integer(4),
-               integer(5), integer(6), integer(7)});
+    call(179, {integer(1), integer(2), integer(3), integer(4), integer(5),
+               integer(6), integer(7)});
     call(195, {integer(13)});
-    check(game.chatPanel().params[6] == 7 &&
-              game.mailPanel().selection == 13,
+    check(game.chatPanel().params[6] == 7 && game.mailPanel().selection == 13,
           "SYS 179/195 did not retain original native numeric parameters");
     const auto saved = game.serialize();
     check(saved.find("PMAIL-GAME-5") != std::string::npos &&
@@ -135,8 +132,7 @@ int main() {
     check(!game.mailPanel().active && game.mailPanel().entries.empty(),
           "SYS 193 did not reset the mail-family state");
     call(48, {string(6)});
-    check(!game.computerIcons()[24].active &&
-              !game.hasComputerOverlay(),
+    check(!game.computerIcons()[24].active && !game.hasComputerOverlay(),
           "Scene changes retained native computer icon/panel state");
     std::vector<std::string> messages;
     game.trace = [&](const std::string &message) {

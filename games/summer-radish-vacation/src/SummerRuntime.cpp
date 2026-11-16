@@ -1,6 +1,7 @@
-#include <Kotonoha/core/SDL.hpp>
 #include "SummerRuntime.hpp"
 #include "SummerBacklog.hpp"
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/ImageButtonBar.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
@@ -10,7 +11,7 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
@@ -25,7 +26,6 @@
 #include <algorithm>
 #include <charconv>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -594,7 +594,8 @@ struct SummerRuntime::Impl {
     return Kotonoha::saveDirectory();
   }
   void loadSystem() {
-    Kotonoha::Filesystem::InputFile input(saveDirectory() / "system.dat", std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(saveDirectory() / "system.dat",
+                                          std::ios::binary);
     if (!input)
       return;
     std::string version;
@@ -613,8 +614,8 @@ struct SummerRuntime::Impl {
         variables[key] = value;
       } else {
         int64_t number = 0;
-        const auto result = std::from_chars(value.data(),
-                                            value.data() + value.size(), number);
+        const auto result =
+            std::from_chars(value.data(), value.data() + value.size(), number);
         if (result.ec != std::errc{} ||
             result.ptr != value.data() + value.size()) {
           SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -651,7 +652,8 @@ struct SummerRuntime::Impl {
     if (previous == data.str())
       return;
     const auto temporary = path.string() + ".tmp";
-    Kotonoha::Filesystem::OutputFile output(temporary, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile output(temporary,
+                                            std::ios::binary | std::ios::trunc);
     output << data.str();
     output.close();
     if (!output)
@@ -1243,8 +1245,8 @@ struct SummerRuntime::Impl {
       return;
     }
     if (name == "PLAYMOVIE") {
-      movie->open(assets->movieHandle(string(arg(0))),
-                       string(arg(0)), false, "BGM");
+      movie->open(assets->movieHandle(string(arg(0))), string(arg(0)), false,
+                  "BGM");
       text->hide();
       vm.waiting = true;
       pending = "MOVIE";

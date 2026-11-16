@@ -1,7 +1,7 @@
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/core/Resource.hpp>
 #include <Kotonoha/parsers/Ors.h>
 #include <exception>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iterator>
 #include <memory>
 #include <new>

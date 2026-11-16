@@ -1,7 +1,7 @@
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <RealLive/Voice.hpp>
 #include <algorithm>
 #include <cctype>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <regex>
 #include <sstream>
@@ -112,7 +112,8 @@ std::optional<std::vector<std::uint8_t>> VoiceIndex::read(int id) const {
   if (it == files_.end())
     return std::nullopt;
   const auto &entry = it->second;
-  const auto payload = [&](std::uint64_t total) -> std::optional<std::uint64_t> {
+  const auto payload =
+      [&](std::uint64_t total) -> std::optional<std::uint64_t> {
     if (entry.offset > total)
       return std::nullopt;
     const auto size = entry.size ? entry.size : total - entry.offset;

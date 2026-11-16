@@ -9,10 +9,11 @@
 
 namespace {
 void check(bool pass, const char *reason) {
-  if (!pass) throw std::runtime_error(reason);
+  if (!pass)
+    throw std::runtime_error(reason);
 }
-void add(Amagami::Script &s, const std::string &name,
-         uint8_t opcode, uint16_t argCount) {
+void add(Amagami::Script &s, const std::string &name, uint8_t opcode,
+         uint16_t argCount) {
   Amagami::Method method;
   method.name = name;
   method.arguments = argCount;
@@ -45,8 +46,9 @@ int main() {
     add(pad, "rumble", 6, 2);
     vm.add(pad);
     vm.scopedPrimitive = [&bridge](const std::string &owner,
-         const std::string &method, bool cls, const VmValue &receiver,
-         unsigned code, const std::vector<VmValue> &args) {
+                                   const std::string &method, bool cls,
+                                   const VmValue &receiver, unsigned code,
+                                   const std::vector<VmValue> &args) {
       return bridge.primitive(owner, method, cls, receiver, code, args);
     };
     const auto self = vm.instance("ControlPad");
@@ -62,15 +64,15 @@ int main() {
     check(run(vm, self, "pressure").number == 0,
           "Analog button pressure native returns zero");
     check(run(vm, self, "analog", {VmValue::num(0)}).number == 30 &&
-          run(vm, self, "analog", {VmValue::num(2)}).number == -12,
+              run(vm, self, "analog", {VmValue::num(2)}).number == -12,
           "Per-axis signed analog read");
     check(run(vm, self, "analog", {VmValue::num(4)}).number == 50 &&
-          run(vm, self, "analog", {VmValue::num(9)}).number == 0,
+              run(vm, self, "analog", {VmValue::num(9)}).number == 0,
           "Left stick magnitude and unsupported axis");
 
     bridge.inputFrame(buttons);
     check(run(vm, self, "trig").number == 0 &&
-          run(vm, self, "rapid").number == 0,
+              run(vm, self, "rapid").number == 0,
           "Holding a button is not a new trigger");
     for (int i = 0; i < 19; ++i)
       bridge.inputFrame(buttons);
@@ -80,15 +82,15 @@ int main() {
     check(run(vm, self, "rapid").number == 0,
           "Auto-repeat is not active on every frame");
     run(vm, self, "resetRapid");
-    check(run(vm, self, "rapid").number == 0,
-          "resetRapid clears repeat phase");
-    check(run(vm, self, "rumble", {VmValue::num(255),
-                                  VmValue::num(1)}).object == self.object,
-          "Rumble primitive gracefully returns receiver without haptics");
+    check(run(vm, self, "rapid").number == 0, "resetRapid clears repeat phase");
+    check(
+        run(vm, self, "rumble", {VmValue::num(255), VmValue::num(1)}).object ==
+            self.object,
+        "Rumble primitive gracefully returns receiver without haptics");
 
     bridge.inputFrame(0);
     check(run(vm, self, "held").number == 0 &&
-          run(vm, self, "trig").number == 0,
+              run(vm, self, "trig").number == 0,
           "Release all buttons");
     bridge.inputFrame(32);
     check(run(vm, self, "trig").number == 0x2000,

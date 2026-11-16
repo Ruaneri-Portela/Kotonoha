@@ -1,11 +1,11 @@
-#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include "RealLiveRuntime.hpp"
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <RealLive/RealLiveAssets.hpp>
 #include <SDL3/SDL.h>
 #include <cstdio>

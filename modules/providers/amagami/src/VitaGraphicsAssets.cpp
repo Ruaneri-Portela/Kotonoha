@@ -1,5 +1,5 @@
-#include <Amagami/VitaGraphicsAssets.hpp>
 #include <Amagami/VitaGraphics.hpp>
+#include <Amagami/VitaGraphicsAssets.hpp>
 #include <algorithm>
 #include <fstream>
 #include <stdexcept>
@@ -35,8 +35,7 @@ std::string readElf(const std::string &path) {
     throw std::runtime_error("Amagami Vita: invalid ELF file length");
   std::string bytes(size_t(length), '\0');
   file.seekg(0);
-  if (!bytes.empty() &&
-      !file.read(bytes.data(), std::streamsize(bytes.size())))
+  if (!bytes.empty() && !file.read(bytes.data(), std::streamsize(bytes.size())))
     throw std::runtime_error("Amagami Vita: truncated ELF");
   return bytes;
 }
@@ -48,16 +47,16 @@ VitaGraphicsAssets::VitaGraphicsAssets(std::string graphCpkPath,
       index_(Amagami::Vita::cpk_read_index(cpkPath_)) {
   if (!ebootElfPath.empty()) {
     std::string sysgraph;
-    if (!Amagami::Vita::cpk_read(cpkPath_, index_,
-                                 "system/sysgraph.tm2", sysgraph))
+    if (!Amagami::Vita::cpk_read(cpkPath_, index_, "system/sysgraph.tm2",
+                                 sysgraph))
       throw std::runtime_error("Amagami Vita: sysgraph missing from CPK");
-    ui_ = std::make_unique<Amagami::Vita::UiAtlas>(
-        readElf(ebootElfPath), std::move(sysgraph));
+    ui_ = std::make_unique<Amagami::Vita::UiAtlas>(readElf(ebootElfPath),
+                                                   std::move(sysgraph));
   }
 }
 
-Kotonoha::SurfacePtr
-VitaGraphicsAssets::uiSurface(uint32_t textureId, uint32_t variant) const {
+Kotonoha::SurfacePtr VitaGraphicsAssets::uiSurface(uint32_t textureId,
+                                                   uint32_t variant) const {
   if (!ui_)
     throw std::runtime_error(
         "Amagami Vita: a plain eboot ELF is needed for UI textures");
@@ -65,13 +64,12 @@ VitaGraphicsAssets::uiSurface(uint32_t textureId, uint32_t variant) const {
   return picture ? fromRgba(*picture) : Kotonoha::SurfacePtr{};
 }
 
-Kotonoha::SurfacePtr
-VitaGraphicsAssets::fontGlyph(unsigned font, uint16_t shiftJis,
-                              unsigned palette) const {
+Kotonoha::SurfacePtr VitaGraphicsAssets::fontGlyph(unsigned font,
+                                                   uint16_t shiftJis,
+                                                   unsigned palette) const {
   if (font > 1)
     throw std::out_of_range("Amagami Vita: font selector out of range");
-  const char *names[] = {"font/AMV_font18_21.tm2",
-                         "font/AMV_font18_21im.tm2"};
+  const char *names[] = {"font/AMV_font18_21.tm2", "font/AMV_font18_21im.tm2"};
   std::lock_guard<std::mutex> guard(fontMutex_);
   std::string &bytes = fontData_[font];
   if (bytes.empty() &&
@@ -84,8 +82,7 @@ bool VitaGraphicsAssets::containsAsset(const std::string &id) const {
   return index_.find(id) != index_.end();
 }
 
-std::vector<Uint8>
-VitaGraphicsAssets::readAsset(const std::string &id) const {
+std::vector<Uint8> VitaGraphicsAssets::readAsset(const std::string &id) const {
   std::string raw;
   if (!Amagami::Vita::cpk_read(cpkPath_, index_, id, raw))
     throw std::out_of_range("Amagami Vita graphic not found: " + id);

@@ -1,14 +1,14 @@
 #include "PmailSession.hpp"
-#include <algorithm>
 #include "PmailComponents.hpp"
 #include "PmailTextBox.hpp"
 #include "PmailTitleMenu.hpp"
-#include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Pmail/Port.hpp>
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <sstream>
@@ -150,16 +150,15 @@ void PmailSession::onEvent(Kotonoha::EventRef event) {
             return;
           }
           if (event.key.key == SDLK_UP || event.key.key == SDLK_LEFT) {
-            choiceSelection_ = (choiceSelection_ + choices.size() - 1) %
-                               choices.size();
+            choiceSelection_ =
+                (choiceSelection_ + choices.size() - 1) % choices.size();
             return;
           }
           if (event.key.key == SDLK_DOWN || event.key.key == SDLK_RIGHT) {
             choiceSelection_ = (choiceSelection_ + 1) % choices.size();
             return;
           }
-          if (event.key.key == SDLK_RETURN ||
-              event.key.key == SDLK_SPACE) {
+          if (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE) {
             const auto index = choiceSelection_;
             choiceSelection_ = 0;
             game_->choose(index);
@@ -169,14 +168,13 @@ void PmailSession::onEvent(Kotonoha::EventRef event) {
         if (event.type == SDL_EVENT_MOUSE_MOTION ||
             (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
              event.button.button == SDL_BUTTON_LEFT)) {
-          const float x = event.type == SDL_EVENT_MOUSE_MOTION
-                              ? event.motion.x : event.button.x;
-          const float y = event.type == SDL_EVENT_MOUSE_MOTION
-                              ? event.motion.y : event.button.y;
+          const float x = event.type == SDL_EVENT_MOUSE_MOTION ? event.motion.x
+                                                               : event.button.x;
+          const float y = event.type == SDL_EVENT_MOUSE_MOTION ? event.motion.y
+                                                               : event.button.y;
           for (std::size_t i = 0; i < choices.size(); ++i) {
             const float top = 170.0f + static_cast<float>(i) * 52.0f;
-            if (x >= 100.0f && x < 700.0f &&
-                y >= top && y < top + 44.0f) {
+            if (x >= 100.0f && x < 700.0f && y >= top && y < top + 44.0f) {
               choiceSelection_ = i;
               if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
                 choiceSelection_ = 0;
@@ -231,9 +229,9 @@ void PmailSession::renderGameplay(Kotonoha::RendererRef renderer) {
     const auto choices = game_->choices();
     for (size_t i = 0; i < choices.size(); ++i) {
       const SDL_FRect area{100.0f, 170.0f + float(i) * 52.0f, 600.0f, 44.0f};
-      engine_.GetUI().button(renderer, area, choices[i],
-                             i == std::min(choiceSelection_,
-                                           choices.size() - 1));
+      engine_.GetUI().button(
+          renderer, area, choices[i],
+          i == std::min(choiceSelection_, choices.size() - 1));
     }
   }
 }
@@ -274,9 +272,9 @@ void PmailSession::saveNameProfile() const {
   try {
     const auto path = nameProfilePath();
     std::filesystem::create_directories(path.parent_path());
-    Kotonoha::writeTextFileAtomically(
-        path.string(),
-        game_->playerNameNO() + "\n" + game_->playerNameHO() + "\n");
+    Kotonoha::writeTextFileAtomically(path.string(),
+                                      game_->playerNameNO() + "\n" +
+                                          game_->playerNameHO() + "\n");
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "[PmailPort] Cannot save player name profile: %s",
@@ -343,8 +341,7 @@ bool PmailSession::handleNameEntry(Kotonoha::EventRef event) {
     auto &field = nameField_ == 0 ? editableNameNO_ : editableNameHO_;
     if (!field.empty())
       Kotonoha::eraseLastCharacter(field);
-  } else if (event.key.key == SDLK_RETURN ||
-             event.key.key == SDLK_KP_ENTER) {
+  } else if (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER) {
     if (nameField_ == 0)
       nameField_ = 1;
     else
@@ -361,18 +358,15 @@ void PmailSession::drawNameEntry(Kotonoha::RendererRef renderer) {
           {255, 215, 110, 255});
   ui.text(renderer, "First name ($NO)", 170, 225, 450);
   ui.button(renderer, {170, 254, 465, 46},
-            editableNameNO_ + (nameField_ == 0 ? " |" : ""),
-            nameField_ == 0);
+            editableNameNO_ + (nameField_ == 0 ? " |" : ""), nameField_ == 0);
   ui.text(renderer, "Second name ($HO)", 170, 305, 450);
   ui.button(renderer, {170, 333, 465, 46},
-            editableNameHO_ + (nameField_ == 1 ? " |" : ""),
-            nameField_ == 1);
+            editableNameHO_ + (nameField_ == 1 ? " |" : ""), nameField_ == 1);
   ui.button(renderer, {360, 420, 235, 50}, "Start game");
-  ui.text(renderer, "Tab: next field | Enter: confirm | Esc: cancel",
-          145, 480, 520);
+  ui.text(renderer, "Tab: next field | Enter: confirm | Esc: cancel", 145, 480,
+          520);
   if (!nameEntryError_.empty())
-    ui.text(renderer, nameEntryError_, 165, 390, 460,
-            {250, 120, 120, 255});
+    ui.text(renderer, nameEntryError_, 165, 390, 460, {250, 120, 120, 255});
 }
 
 bool PmailSession::HandleTitleEvent(Kotonoha::EventRef event,

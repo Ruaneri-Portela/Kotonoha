@@ -106,14 +106,14 @@ void Script::parse() {
     // LuckSystem CodeLine: Len INCLUDES the entire payload, and Align
     // follows the instruction only when Len is odd. Do not discard the
     // final payload byte on odd-length instructions.
-    ins.rawBytes.assign(data_.begin() + pos + 4,
-                        data_.begin() + pos + ins.len);
+    ins.rawBytes.assign(data_.begin() + pos + 4, data_.begin() + pos + ins.len);
     ins.align.assign(data_.begin() + pos + ins.len,
                      data_.begin() + pos + padded);
 
     // Fixed parameters (little-endian uint16 values), per fixedFlag.
-    const size_t fixedSize = ins.fixedFlag >= 2 ? 4u :
-                             ins.fixedFlag == 1 ? 2u : 0u;
+    const size_t fixedSize = ins.fixedFlag >= 2   ? 4u
+                             : ins.fixedFlag == 1 ? 2u
+                                                  : 0u;
     if (ins.rawBytes.size() < fixedSize) {
       error_ = "script instruction at offset " + std::to_string(pos) +
                " has truncated fixed parameters";
@@ -189,8 +189,9 @@ std::vector<std::uint8_t> Script::serialize() const {
   return output;
 }
 
-std::vector<std::uint8_t> Script::replaceRaw(
-    std::size_t instructionIndex, const std::vector<std::uint8_t> &bytes) const {
+std::vector<std::uint8_t>
+Script::replaceRaw(std::size_t instructionIndex,
+                   const std::vector<std::uint8_t> &bytes) const {
   if (instructionIndex >= instructions_.size())
     throw std::out_of_range("LucaSystem instruction index");
   const auto &ins = instructions_[instructionIndex];
@@ -203,31 +204,36 @@ std::vector<std::uint8_t> Script::replaceRaw(
   return result;
 }
 
-std::optional<std::size_t> FindInstructionAtOffset(
-    const std::vector<ScriptInstruction>& instructions,
-    std::uint64_t offset) {
-  const auto it = std::lower_bound(
-      instructions.begin(), instructions.end(), offset,
-      [](const ScriptInstruction &ins, std::uint64_t target) {
-        return ins.pos < target;
-      });
+std::optional<std::size_t>
+FindInstructionAtOffset(const std::vector<ScriptInstruction> &instructions,
+                        std::uint64_t offset) {
+  const auto it =
+      std::lower_bound(instructions.begin(), instructions.end(), offset,
+                       [](const ScriptInstruction &ins, std::uint64_t target) {
+                         return ins.pos < target;
+                       });
   if (it == instructions.end() || it->pos != offset)
     return std::nullopt;
   return static_cast<std::size_t>(it - instructions.begin());
 }
 
-std::optional<std::size_t> FindJumpPoint(
-    const std::vector<ScriptInstruction>& instructions, std::string_view name) {
-  if (name.empty()) return std::nullopt;
+std::optional<std::size_t>
+FindJumpPoint(const std::vector<ScriptInstruction> &instructions,
+              std::string_view name) {
+  if (name.empty())
+    return std::nullopt;
   for (std::size_t i = 0; i < instructions.size(); ++i) {
-    const auto& ins = instructions[i];
-    if (ins.opcode != 38) continue; // AIR JUMPPOINT
-    if (ins.text == name) return i + 1;
+    const auto &ins = instructions[i];
+    if (ins.opcode != 38)
+      continue; // AIR JUMPPOINT
+    if (ins.text == name)
+      return i + 1;
     const auto end = std::find(ins.paramBytes.begin(), ins.paramBytes.end(), 0);
     const std::string_view param(
-        reinterpret_cast<const char*>(ins.paramBytes.data()),
+        reinterpret_cast<const char *>(ins.paramBytes.data()),
         static_cast<std::size_t>(end - ins.paramBytes.begin()));
-    if (param == name) return i + 1;
+    if (param == name)
+      return i + 1;
   }
   return std::nullopt;
 }

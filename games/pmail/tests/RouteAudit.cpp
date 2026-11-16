@@ -11,9 +11,9 @@
 #include <iostream>
 #include <map>
 #include <set>
-#include <utility>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -24,18 +24,19 @@ std::vector<size_t> parseChoices(const std::string &text) {
   size_t cursor = 0;
   while (cursor < text.size()) {
     const size_t end = text.find(',', cursor);
-    const auto token = text.substr(cursor, end == std::string::npos
-                                              ? std::string::npos
-                                              : end - cursor);
-    if (token.empty() || token.find_first_not_of("0123456789") !=
-                             std::string::npos || token.size() > 5)
-      throw std::runtime_error("Choices must be comma-separated zero-based indices");
+    const auto token = text.substr(
+        cursor, end == std::string::npos ? std::string::npos : end - cursor);
+    if (token.empty() ||
+        token.find_first_not_of("0123456789") != std::string::npos ||
+        token.size() > 5)
+      throw std::runtime_error(
+          "Choices must be comma-separated zero-based indices");
     choices.push_back(size_t(std::stoul(token)));
     cursor = end == std::string::npos ? text.size() : end + 1;
   }
   return choices;
 }
-}
+} // namespace
 
 int main(int argc, char **argv) {
   if (argc < 2 || argc > 4) {
@@ -44,8 +45,8 @@ int main(int argc, char **argv) {
     return 2;
   }
   try {
-    const auto choices = argc >= 3 ? parseChoices(argv[2])
-                                    : std::vector<size_t>{};
+    const auto choices =
+        argc >= 3 ? parseChoices(argv[2]) : std::vector<size_t>{};
     const auto seconds = argc >= 4 ? std::stoul(argv[3]) : 90ul;
     if (seconds < 1 || seconds > 1800)
       throw std::runtime_error("Maximum time must be 1..1800 seconds");
@@ -82,8 +83,7 @@ int main(int argc, char **argv) {
     };
     game.onNative = [&](int id, const std::vector<Pmail::Arg> &args) {
       ++nativeCounts[id];
-      if (id != 48 && id != 49 && id != 50 && id != 51 &&
-          id != 64 && id != 69)
+      if (id != 48 && id != 49 && id != 50 && id != 51 && id != 64 && id != 69)
         return;
       std::string resource;
       int x = 0, y = 0, frame = -1;
@@ -91,13 +91,16 @@ int main(int argc, char **argv) {
         const int preset = game.vm().value(args[0]);
         if (preset >= 0 &&
             size_t(preset) < Kotonoha::PmailPort::AnimationPresets.size()) {
-          resource = std::string(
-              Kotonoha::PmailPort::AnimationPresets[size_t(preset)].name) +
+          resource =
+              std::string(
+                  Kotonoha::PmailPort::AnimationPresets[size_t(preset)].name) +
               ".anim";
           frame = 0;
         }
-        if (args.size() > 1) x = game.vm().value(args[1]);
-        if (args.size() > 2) y = game.vm().value(args[2]);
+        if (args.size() > 1)
+          x = game.vm().value(args[1]);
+        if (args.size() > 2)
+          y = game.vm().value(args[2]);
       } else if (id == 48 || id == 49) {
         // Only capture named graphic assets. Other syscalls can contain
         // private story/dialogue strings, which are not trace evidence.
@@ -156,12 +159,13 @@ int main(int argc, char **argv) {
         const int preset = int(animation.preset);
         const int frame = int(animation.frame);
         if ((frame != previousFrame || preset != previousPreset) &&
-            (frame == 0 || frame % 10 == 0 || frame + 1 == int(animation.count) ||
-             !animation.playing)) {
+            (frame == 0 || frame % 10 == 0 ||
+             frame + 1 == int(animation.count) || !animation.playing)) {
           trace(animation.playing ? "animation-frame" : "animation-end",
                 std::string(
-                    Kotonoha::PmailPort::AnimationPresets[animation.preset].name)
-                    + ".anim",
+                    Kotonoha::PmailPort::AnimationPresets[animation.preset]
+                        .name) +
+                    ".anim",
                 frame, animation.x, animation.y);
         }
         previousPreset = preset;
@@ -182,11 +186,12 @@ int main(int argc, char **argv) {
         ++animations;
       } else if (game.choosing()) {
         const auto current = game.choices();
-        const auto requested = choicePoints < choices.size()
-                                 ? choices[choicePoints] : size_t(0);
+        const auto requested =
+            choicePoints < choices.size() ? choices[choicePoints] : size_t(0);
         if (requested >= current.size())
-          throw std::runtime_error("Requested choice index is out of range at " +
-                                   game.currentScript());
+          throw std::runtime_error(
+              "Requested choice index is out of range at " +
+              game.currentScript());
         if (!game.choose(requested))
           throw std::runtime_error("Choice was not committed");
         ++choicePoints;
@@ -200,9 +205,11 @@ int main(int argc, char **argv) {
         SDL_Delay(1);
       }
     }
-    std::cout << "PMAIL route audit: " << (returnedToTitle ? "title returned"
-                            : timedOut ? "time budget exceeded"
-                            : game.ended() ? "script ended" : "stopped")
+    std::cout << "PMAIL route audit: "
+              << (returnedToTitle ? "title returned"
+                  : timedOut      ? "time budget exceeded"
+                  : game.ended()  ? "script ended"
+                                  : "stopped")
               << ", dialogues=" << messages << ", choices=" << choicePoints
               << ", animation ticks=" << animations << "\n";
     std::cout << "Scripts visited (" << scripts.size() << "):\n";

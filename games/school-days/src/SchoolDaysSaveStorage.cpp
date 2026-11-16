@@ -95,7 +95,8 @@ bool SchoolDaysSaveStorage::WriteFileTruncate(const std::filesystem::path &path,
                                               std::string *error) {
   if (bytes.empty())
     return Fail(error, "School Days save write payload is empty");
-  Kotonoha::Filesystem::OutputFile file(path, std::ios::binary | std::ios::trunc);
+  Kotonoha::Filesystem::OutputFile file(path,
+                                        std::ios::binary | std::ios::trunc);
   if (!file)
     return Fail(error, "School Days save file could not be opened for write");
   file.write(reinterpret_cast<const char *>(bytes.data()),

@@ -15,8 +15,7 @@ int main() {
       "MesWin_R=-2\nMesWin_G=300\nMesWin_B=unsupported\n", defaults);
   if (invalid.red != 0 || invalid.green != 0 || invalid.blue != 150)
     throw std::runtime_error("Invalid tint was not ignored");
-  if (PmailAddRgbChr(0, 150) != 149 ||
-      PmailAddRgbChr(255, 150) != 255 ||
+  if (PmailAddRgbChr(0, 150) != 149 || PmailAddRgbChr(255, 150) != 255 ||
       PmailAddRgbChr(10, 0) != 10)
     throw std::runtime_error("locpu.dll AddRgbChr math mismatch");
   std::cout << "PMAIL original MesWin defaults and INI color parsing passed\n";

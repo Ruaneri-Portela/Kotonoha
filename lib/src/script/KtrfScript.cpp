@@ -4,9 +4,9 @@
 
 #include <json-c/json.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cmath>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <map>
 #include <memory>

@@ -1,9 +1,9 @@
-#include <Kotonoha/core/SDL.hpp>
 #include "RealLiveRuntime.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
 #include "RealLiveTransition.hpp"
 #include "TitleInput.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/ImageButtonBar.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
@@ -12,7 +12,7 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/TransformTween.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
@@ -533,8 +533,8 @@ struct RealLiveRuntime::Impl {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                   "RealLive unhandled command scene=%d pc=%zu type=%d "
                   "module=%d opcode=%d overload=%d",
-                  c.scenario, c.instruction, c.moduleType,
-                  c.module, c.opcode, c.overload);
+                  c.scenario, c.instruction, c.moduleType, c.module, c.opcode,
+                  c.overload);
     };
     vm.text = [this](std::string t) {
       dialogue += decodeText(t, archive.Scenario(vm.scenario()).encoding());
@@ -1906,12 +1906,12 @@ struct RealLiveRuntime::Impl {
     return std::any_of(syscomEntries.begin(), syscomEntries.end(),
                        [](Uint8 state) { return state != 0; });
   }
-  // Other loops in the title scenario poll intA and must stay pointer-only; the title
-  // menu is the poll that writes the button register intF[1003].
-  // The title script enumerates its native clickable regions through 1:84
-  // before every menu poll. Record those object ids and derive keyboard /
-  // gamepad targets from their live positions, so each RealLive release keeps
-  // its own layout instead of sharing AIR's hardcoded coordinates.
+  // Other loops in the title scenario poll intA and must stay pointer-only; the
+  // title menu is the poll that writes the button register intF[1003]. The
+  // title script enumerates its native clickable regions through 1:84 before
+  // every menu poll. Record those object ids and derive keyboard / gamepad
+  // targets from their live positions, so each RealLive release keeps its own
+  // layout instead of sharing AIR's hardcoded coordinates.
   void installTitleTargets() {
     std::vector<TitleInput::Target> targets;
     for (int id : titleHitObjects) {
@@ -2907,7 +2907,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && m == 84) {
     auto &o = fg[value(c, 0)];
     if (op == 1000) {
-      if (vm.scenario() == titleScenario && runtime.GetState() == GameState::Menu) {
+      if (vm.scenario() == titleScenario &&
+          runtime.GetState() == GameState::Menu) {
         const int id = value(c, 0);
         if (std::find(titleHitObjects.begin(), titleHitObjects.end(), id) ==
             titleHitObjects.end())
@@ -2954,7 +2955,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 2 && m == 84) {
     auto &o = fg[value(c, 0)];
     if (op == 1000) {
-      if (vm.scenario() == titleScenario && runtime.GetState() == GameState::Menu) {
+      if (vm.scenario() == titleScenario &&
+          runtime.GetState() == GameState::Menu) {
         const int id = value(c, 0);
         if (std::find(titleHitObjects.begin(), titleHitObjects.end(), id) ==
             titleHitObjects.end())
@@ -3035,7 +3037,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       (op == 0 || op == 3 || op == 4 || op == 20 || op == 22))
     return true;
   if (type == 1 && m == 31 && op == 0) {
-    if (vm.scenario() == titleScenario && runtime.GetState() == GameState::Menu) {
+    if (vm.scenario() == titleScenario &&
+        runtime.GetState() == GameState::Menu) {
       installTitleTargets();
       titleReady = true;
     }

@@ -636,12 +636,13 @@ void player() {
           "Corrupt video stops without aborting the game");
   AudioClip decodedAudio;
   require(!MediaDecoder::tryDecodeAudio(assets.files["corrupt.mkv"],
-                                         decodedAudio) &&
+                                        decodedAudio) &&
               decodedAudio.data.empty(),
           "Corrupt audio decode reports failure instead of throwing");
-  require(MediaDecoder::tryDecodeAudio(assets.files["track.wav"], decodedAudio) &&
-              !decodedAudio.data.empty(),
-          "Valid audio decode still works after an invalid input");
+  require(
+      MediaDecoder::tryDecodeAudio(assets.files["track.wav"], decodedAudio) &&
+          !decodedAudio.data.empty(),
+      "Valid audio decode still works after an invalid input");
   require(!MediaPlayer::prepareInput(assets, "corrupt.mkv", false),
           "Corrupt video background preparation reports a recoverable failure");
   media.adoptPreparedInput(nullptr, "movie");

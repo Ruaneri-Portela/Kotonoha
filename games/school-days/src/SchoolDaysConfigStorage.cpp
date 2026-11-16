@@ -2,11 +2,11 @@
 
 #include <zlib.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <cerrno>
 #include <charconv>
 #include <cmath>
 #include <cstdio>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <unordered_map>
 
@@ -435,7 +435,8 @@ bool SchoolDaysConfigStorage::Flush(std::string *error) {
   if (!SerializeLogical(&logical, error) ||
       !EncodeDocument(logical, &encoded, error))
     return false;
-  Kotonoha::Filesystem::OutputFile file(path_, std::ios::binary | std::ios::trunc);
+  Kotonoha::Filesystem::OutputFile file(path_,
+                                        std::ios::binary | std::ios::trunc);
   if (!file)
     return Fail(error, "Config.DAT could not be opened for write");
   file.write(reinterpret_cast<const char *>(encoded.data()),

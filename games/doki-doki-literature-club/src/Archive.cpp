@@ -2,13 +2,13 @@
 
 #include <zlib.h>
 
-#include <algorithm>
-#include <cctype>
-#include <cstring>
-#include <filesystem>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#include <algorithm>
+#include <cctype>
 #include <climits>
+#include <cstring>
+#include <filesystem>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -431,8 +431,8 @@ bool Archive::open(File candidate) {
     return false;
   std::size_t done = 0;
   while (done < packed.size()) {
-    const auto got = candidate->read(packed.data() + done,
-                                     packed.size() - done);
+    const auto got =
+        candidate->read(packed.data() + done, packed.size() - done);
     if (got <= 0)
       return false;
     done += static_cast<std::size_t>(got);
@@ -550,8 +550,7 @@ bool Assets::open(const std::string &gameDir) {
   }
   return !archives_.empty() || !loose_.empty();
 }
-bool Assets::open(
-    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source) {
+bool Assets::open(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source) {
   if (!source)
     return false;
   mounted_ = std::move(source);
@@ -566,8 +565,8 @@ bool Assets::open(
 
   // A retail DDLC tree is commonly rooted at game/, but some clients pass
   // that folder as the root. Index relative IDs the same way in both cases.
-  const std::string prefix = mounted_->exists("game/scripts.rpa")
-                                 ? "game/" : "";
+  const std::string prefix =
+      mounted_->exists("game/scripts.rpa") ? "game/" : "";
   std::vector<std::string> packages;
   std::vector<std::string> folders{prefix.empty() ? "" : "game"};
   while (!folders.empty()) {
@@ -586,8 +585,8 @@ bool Assets::open(
         continue;
       if (!virtualLoose_.emplace(id, entry.path).second)
         return false;
-      const auto suffix = lower(
-          std::filesystem::path(relative).extension().string());
+      const auto suffix =
+          lower(std::filesystem::path(relative).extension().string());
       if (relative.find('/') == std::string::npos &&
           (suffix == ".rpa" || suffix == ".rpx"))
         packages.push_back(entry.path);
@@ -643,8 +642,7 @@ std::vector<uint8_t> Assets::read(const std::string &name) const {
       return a->read(name);
   if (auto file = loose_.find(lower(name)); file != loose_.end())
     return readLoose(file->second);
-  if (auto file = virtualLoose_.find(lower(name));
-      file != virtualLoose_.end())
+  if (auto file = virtualLoose_.find(lower(name)); file != virtualLoose_.end())
     return Kotonoha::Filesystem::readAll(*mounted_->open(file->second));
   for (const auto &a : archives_)
     if (a->has(name))

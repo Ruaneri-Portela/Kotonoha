@@ -18,14 +18,11 @@ struct Token {
 bool wordStart(unsigned char c) {
   return std::isalpha(c) != 0 || c == '_' || c >= 0x80;
 }
-bool wordNext(unsigned char c) {
-  return wordStart(c) || std::isdigit(c) != 0;
-}
+bool wordNext(unsigned char c) { return wordStart(c) || std::isdigit(c) != 0; }
 class Scanner {
 public:
   explicit Scanner(std::string_view source) : source_(source) {
-    if (source_.size() >= 3 &&
-        static_cast<unsigned char>(source_[0]) == 0xef &&
+    if (source_.size() >= 3 && static_cast<unsigned char>(source_[0]) == 0xef &&
         static_cast<unsigned char>(source_[1]) == 0xbb &&
         static_cast<unsigned char>(source_[2]) == 0xbf)
       pos_ = 3;
@@ -42,8 +39,10 @@ public:
     const auto c = static_cast<unsigned char>(source_[pos_]);
     if (wordStart(c)) {
       t.kind = Kind::Identifier;
-      do { ++pos_; } while (pos_ < source_.size() &&
-                 wordNext(static_cast<unsigned char>(source_[pos_])));
+      do {
+        ++pos_;
+      } while (pos_ < source_.size() &&
+               wordNext(static_cast<unsigned char>(source_[pos_])));
     } else if (c == '"' || c == '\'') {
       t.kind = Kind::String;
       const char quote = source_[pos_++];
@@ -54,9 +53,11 @@ public:
           if (source_[pos_] == '\r') {
             ++line_;
             ++pos_;
-            if (pos_ < source_.size() && source_[pos_] == '\n') ++pos_;
+            if (pos_ < source_.size() && source_[pos_] == '\n')
+              ++pos_;
           } else {
-            if (source_[pos_] == '\n') ++line_;
+            if (source_[pos_] == '\n')
+              ++line_;
             ++pos_;
           }
         } else if (value == quote) {
@@ -64,7 +65,8 @@ public:
           break;
         } else if (value == '\r') {
           ++line_;
-          if (pos_ < source_.size() && source_[pos_] == '\n') ++pos_;
+          if (pos_ < source_.size() && source_[pos_] == '\n')
+            ++pos_;
         } else if (value == '\n') {
           ++line_;
         }
@@ -81,6 +83,7 @@ public:
     t.text = std::string(source_.substr(t.offset, t.end - t.offset));
     return t;
   }
+
 private:
   void trivia() {
     while (pos_ < source_.size()) {
@@ -89,16 +92,19 @@ private:
         if (c == '\r') {
           ++line_;
           ++pos_;
-          if (pos_ < source_.size() && source_[pos_] == '\n') ++pos_;
+          if (pos_ < source_.size() && source_[pos_] == '\n')
+            ++pos_;
         } else {
-          if (c == '\n') ++line_;
+          if (c == '\n')
+            ++line_;
           ++pos_;
         }
       } else if (c == '/' && pos_ + 1 < source_.size() &&
                  source_[pos_ + 1] == '/') {
         pos_ += 2;
         while (pos_ < source_.size() && source_[pos_] != '\n' &&
-               source_[pos_] != '\r') ++pos_;
+               source_[pos_] != '\r')
+          ++pos_;
       } else if (c == '/' && pos_ + 1 < source_.size() &&
                  source_[pos_ + 1] == '*') {
         const unsigned startLine = line_;
@@ -106,8 +112,8 @@ private:
         bool closed = false;
         while (pos_ + 1 < source_.size()) {
           if (source_[pos_] == '\n' ||
-              (source_[pos_] == '\r' &&
-               source_[pos_ + 1] != '\n')) ++line_;
+              (source_[pos_] == '\r' && source_[pos_ + 1] != '\n'))
+            ++line_;
           if (source_[pos_] == '*' && source_[pos_ + 1] == '/') {
             pos_ += 2;
             closed = true;
@@ -129,7 +135,7 @@ private:
 };
 bool startsLine(std::string_view source, std::size_t offset) {
   const auto newline = offset == 0 ? std::string_view::npos
-      : source.find_last_of("\r\n", offset - 1);
+                                   : source.find_last_of("\r\n", offset - 1);
   const auto first = newline == std::string_view::npos ? 0 : newline + 1;
   for (std::size_t i = first; i < offset; ++i)
     if (source[i] != ' ' && source[i] != '\t' && source[i] != '\r')
@@ -140,12 +146,14 @@ bool startsLine(std::string_view source, std::size_t offset) {
 
 const Label *Chapter::findLabel(std::string_view name) const {
   for (const auto &label : labels)
-    if (label.name == name) return &label;
+    if (label.name == name)
+      return &label;
   return nullptr;
 }
 const Chapter *ScriptIndex::findChapter(std::string_view name) const {
   for (const auto &chapter : chapters_)
-    if (chapter.name == name) return &chapter;
+    if (chapter.name == name)
+      return &chapter;
   return nullptr;
 }
 ScriptIndex ScriptIndex::Parse(std::string_view source) {
@@ -156,9 +164,11 @@ ScriptIndex ScriptIndex::Parse(std::string_view source) {
   Token previous;
   while (true) {
     const Token t = scanner.next();
-    if (t.kind == Kind::End) break;
+    if (t.kind == Kind::End)
+      break;
     if (!active) {
-      if (t.kind != Kind::Identifier || t.text != "chapter") continue;
+      if (t.kind != Kind::Identifier || t.text != "chapter")
+        continue;
       const Token name = scanner.next();
       if (name.kind != Kind::Identifier)
         throw std::runtime_error("N2System: expected chapter name at line " +
@@ -196,8 +206,7 @@ ScriptIndex ScriptIndex::Parse(std::string_view source) {
         active = false;
       }
     } else if (depth == 1 && t.text == ":" &&
-               previous.kind == Kind::Identifier &&
-               previous.line == t.line &&
+               previous.kind == Kind::Identifier && previous.line == t.line &&
                startsLine(source, previous.offset)) {
       auto &chapter = result.chapters_.back();
       if (chapter.findLabel(previous.text))
@@ -233,17 +242,18 @@ bool ScriptCursor::jumpToLabel(std::string_view name) {
   // Labels are source offsets, while invocation metadata is also ordered
   // by source offset. Never execute the next call while seeking.
   const auto &calls = current_->invocations;
-  next_ = static_cast<std::size_t>(std::lower_bound(
-      calls.begin(), calls.end(), label->offset,
-      [](const Invocation &call, std::size_t offset) {
-        return call.offset < offset;
-      }) - calls.begin());
+  next_ = static_cast<std::size_t>(
+      std::lower_bound(calls.begin(), calls.end(), label->offset,
+                       [](const Invocation &call, std::size_t offset) {
+                         return call.offset < offset;
+                       }) -
+      calls.begin());
   return true;
 }
 
 const Invocation *ScriptCursor::peek() const {
-  return next_ < current_->invocations.size()
-      ? &current_->invocations[next_] : nullptr;
+  return next_ < current_->invocations.size() ? &current_->invocations[next_]
+                                              : nullptr;
 }
 
 const Invocation *ScriptCursor::advance() {
@@ -257,8 +267,6 @@ std::size_t ScriptCursor::remaining() const {
   return current_->invocations.size() - next_;
 }
 
-std::string_view ScriptCursor::chapterName() const {
-  return current_->name;
-}
+std::string_view ScriptCursor::chapterName() const { return current_->name; }
 
 } // namespace N2System

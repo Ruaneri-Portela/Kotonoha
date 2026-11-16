@@ -5,9 +5,9 @@
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iterator>
 #include <stdexcept>
 

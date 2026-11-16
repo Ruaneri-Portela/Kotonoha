@@ -1,58 +1,71 @@
 #include <Amagami/VitaScripts.hpp>
 #include <Amagami/VitaVmBridge.hpp>
 #include <algorithm>
-#include <cstdint>
-#include <utility>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
 using Bytes = std::string;
 void check(bool pass, const char *message) {
-  if (!pass) throw std::runtime_error(message);
+  if (!pass)
+    throw std::runtime_error(message);
 }
-template<class Fn> void rejects(Fn fn) {
+template <class Fn> void rejects(Fn fn) {
   bool failed = false;
-  try { fn(); } catch (const std::exception &) { failed = true; }
+  try {
+    fn();
+  } catch (const std::exception &) {
+    failed = true;
+  }
   check(failed, "Expected invalid input to be rejected");
 }
 void le16(Bytes &out, uint16_t n) {
-  out += char(n); out += char(n >> 8);
+  out += char(n);
+  out += char(n >> 8);
 }
 void le32(Bytes &out, uint32_t n) {
-  le16(out, uint16_t(n)); le16(out, uint16_t(n >> 16));
+  le16(out, uint16_t(n));
+  le16(out, uint16_t(n >> 16));
 }
 void be16(Bytes &out, uint16_t n) {
-  out += char(n >> 8); out += char(n);
+  out += char(n >> 8);
+  out += char(n);
 }
 void be32(Bytes &out, uint32_t n) {
-  be16(out, uint16_t(n >> 16)); be16(out, uint16_t(n));
+  be16(out, uint16_t(n >> 16));
+  be16(out, uint16_t(n));
 }
 void be64(Bytes &out, uint64_t n) {
-  be32(out, uint32_t(n >> 32)); be32(out, uint32_t(n));
+  be32(out, uint32_t(n >> 32));
+  be32(out, uint32_t(n));
 }
 void le64(Bytes &out, uint64_t n) {
-  le32(out, uint32_t(n)); le32(out, uint32_t(n >> 32));
+  le32(out, uint32_t(n));
+  le32(out, uint32_t(n >> 32));
 }
 Bytes scf(const std::string &name, bool run) {
   Bytes out("SCF\x1a", 4);
   out += char(0); // flags
   out += char(4); // SCF v4
-  le16(out, uint16_t(name.size())); out += name;
-  le16(out, 0); // no parent
-  le16(out, 0); // instance fields
-  le16(out, 0); // class fields
+  le16(out, uint16_t(name.size()));
+  out += name;
+  le16(out, 0);           // no parent
+  le16(out, 0);           // instance fields
+  le16(out, 0);           // class fields
   le16(out, run ? 1 : 0); // instance method count
   if (run) {
-    le16(out, 3); out += "run";
-    le16(out, 0); // arguments
-    le16(out, 4); // bytecode length
+    le16(out, 3);
+    out += "run";
+    le16(out, 0);                        // arguments
+    le16(out, 4);                        // bytecode length
     out += Bytes("\x24\x07\x03\x02", 4); // push 7, return
   }
   le16(out, 0); // class methods
@@ -64,8 +77,8 @@ Bytes systemImage() {
   Bytes raw;
   const uint32_t classOffset = 16 + 7; // fixed header + "System\0"
   le32(raw, classOffset + uint32_t(system.size()));
-  le32(raw, 1); // one class
-  le32(raw, 16); // name pointer
+  le32(raw, 1);           // one class
+  le32(raw, 16);          // name pointer
   le32(raw, classOffset); // SCF pointer
   raw += Bytes("System\0", 7);
   raw += system;
@@ -89,21 +102,40 @@ Bytes utf(Bytes table) {
 }
 Bytes headerUtf() {
   Bytes t;
-  be32(t, 50); be32(t, 50); be32(t, 74); be32(t, 0);
-  be16(t, 2); be16(t, 0); be32(t, 1);
-  t += char(0x36); be32(t, 0); be64(t, 128);
-  t += char(0x36); be32(t, 10); be64(t, 256);
+  be32(t, 50);
+  be32(t, 50);
+  be32(t, 74);
+  be32(t, 0);
+  be16(t, 2);
+  be16(t, 0);
+  be32(t, 1);
+  t += char(0x36);
+  be32(t, 0);
+  be64(t, 128);
+  t += char(0x36);
+  be32(t, 10);
+  be64(t, 256);
   t += Bytes("TocOffset\0ContentOffset\0", 24);
   return utf(t);
 }
 Bytes tocUtf(uint32_t scriptSize) {
   Bytes t;
-  be32(t, 39); be32(t, 55); be32(t, 93); be32(t, 0);
-  be16(t, 3); be16(t, 16); be32(t, 1);
-  t += char(0x5a); be32(t, 0); // FileName
-  t += char(0x56); be32(t, 9); // FileOffset
-  t += char(0x54); be32(t, 20); // FileSize
-  be32(t, 29); be64(t, 128); be32(t, scriptSize);
+  be32(t, 39);
+  be32(t, 55);
+  be32(t, 93);
+  be32(t, 0);
+  be16(t, 3);
+  be16(t, 16);
+  be32(t, 1);
+  t += char(0x5a);
+  be32(t, 0); // FileName
+  t += char(0x56);
+  be32(t, 9); // FileOffset
+  t += char(0x54);
+  be32(t, 20); // FileSize
+  be32(t, 29);
+  be64(t, 128);
+  be32(t, scriptSize);
   t += Bytes("FileName\0FileOffset\0FileSize\0Test.scf\0", 38);
   return utf(t);
 }
@@ -125,24 +157,29 @@ Bytes scenarioCpk() {
 }
 void write(const std::filesystem::path &path, const Bytes &contents) {
   std::ofstream out(path, std::ios::binary);
-  if (!out) throw std::runtime_error("Failed writing test input");
+  if (!out)
+    throw std::runtime_error("Failed writing test input");
   out.write(contents.data(), std::streamsize(contents.size()));
-  if (!out) throw std::runtime_error("Incomplete test write");
+  if (!out)
+    throw std::runtime_error("Incomplete test write");
 }
 void testBridge() {
   using namespace Amagami;
   Vita::VitaVmBridge host;
   Vm vm;
   vm.scopedPrimitive = [&host](const std::string &owner,
-      const std::string &method, bool cls, const VmValue &self,
-      unsigned opcode, const std::vector<VmValue> &args) {
+                               const std::string &method, bool cls,
+                               const VmValue &self, unsigned opcode,
+                               const std::vector<VmValue> &args) {
     return host.primitive(owner, method, cls, self, opcode, args);
   };
   Script k2x;
   k2x.name = "K2X_Script";
-  for (const auto &spec : std::vector<std::pair<std::string, unsigned>>{
-           {"getClock", 5}, {"setScrScl", 6},
-           {"setScrOrgY", 7}, {"unlockTrophy", 8}}) {
+  for (const auto &spec :
+       std::vector<std::pair<std::string, unsigned>>{{"getClock", 5},
+                                                     {"setScrScl", 6},
+                                                     {"setScrOrgY", 7},
+                                                     {"unlockTrophy", 8}}) {
     Method method;
     method.name = spec.first;
     method.classMethod = true;
@@ -163,18 +200,17 @@ void testBridge() {
   vm.run();
   const auto now = vm.result();
   check(now.kind == VmValue::Array && now.object &&
-        now.object->fields.size() == 4 &&
-        now.object->fields[0].number >= 1 &&
-        now.object->fields[0].number <= 12 &&
-        now.object->fields[1].number >= 1 &&
-        now.object->fields[1].number <= 31,
+            now.object->fields.size() == 4 &&
+            now.object->fields[0].number >= 1 &&
+            now.object->fields[0].number <= 12 &&
+            now.object->fields[1].number >= 1 &&
+            now.object->fields[1].number <= 31,
         "Vita getClock month/day/hour/minute array");
   vm.call(cls, "unlockTrophy", {VmValue::num(123)});
   vm.run();
   check(vm.finished(), "Trophy native returns without a platform service");
   rejects([&] {
-    host.primitive("K2X_Script", "setScrScl", true, cls, 6,
-                   {VmValue::num(-1)});
+    host.primitive("K2X_Script", "setScrScl", true, cls, 6, {VmValue::num(-1)});
   });
   rejects([&] {
     host.primitive("K2X_Script", "setScrOrgY", true, cls, 7,
@@ -183,29 +219,33 @@ void testBridge() {
   check(!host.primitive("OtherClass", "setScrScl", true, cls, 6,
                         {VmValue::num(0.5)}),
         "Native implementation does not swallow unrelated classes");
-  check(!host.primitive("K2X_Script", "other", true, cls, 6,
-                        {VmValue::num(0.5)}),
-        "Native implementation does not swallow unknown method");
+  check(
+      !host.primitive("K2X_Script", "other", true, cls, 6, {VmValue::num(0.5)}),
+      "Native implementation does not swallow unknown method");
 }
 } // namespace
 
 int main() {
   try {
     testBridge();
-    const auto path = std::filesystem::temp_directory_path() /
+    const auto path =
+        std::filesystem::temp_directory_path() /
         ("kotonoha-vita-scripts-" +
-         std::to_string(std::chrono::steady_clock::now()
-                            .time_since_epoch().count()));
+         std::to_string(
+             std::chrono::steady_clock::now().time_since_epoch().count()));
     std::filesystem::create_directories(path);
     struct Cleanup {
       std::filesystem::path path;
-      ~Cleanup() { std::error_code ec; std::filesystem::remove_all(path, ec); }
+      ~Cleanup() {
+        std::error_code ec;
+        std::filesystem::remove_all(path, ec);
+      }
     } cleanup{path};
     write(path / "AMAGAMI.IMG", packLz(systemImage()));
     write(path / "SCENARIO.CPK", scenarioCpk());
     Amagami::Vita::VitaScripts source(path);
     check(source.systemCount() == 1 && source.scenarioCount() == 1 &&
-          source.hasScenario("Test") && !source.hasScenario("Unknown"),
+              source.hasScenario("Test") && !source.hasScenario("Unknown"),
           "Vita class and SCF scenario inventory");
     check(source.scenario("Test").name == "Test", "Vita CPK SCF parse");
     rejects([&] { source.scenario("Unknown"); });

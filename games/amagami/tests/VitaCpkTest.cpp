@@ -47,13 +47,13 @@ Bytes utf(Bytes table) {
 }
 Bytes simpleUtf() {
   Bytes table;
-  be32(table, 29); // rows offset: 24-byte header + 5-byte schema
-  be32(table, 33); // strings offset: one four-byte row
-  be32(table, 40); // data offset
-  be32(table, 0);  // table name offset
-  be16(table, 1);  // one named column
-  be16(table, 4);  // four bytes per row
-  be32(table, 1);  // one row
+  be32(table, 29);     // rows offset: 24-byte header + 5-byte schema
+  be32(table, 33);     // strings offset: one four-byte row
+  be32(table, 40);     // data offset
+  be32(table, 0);      // table name offset
+  be16(table, 1);      // one named column
+  be16(table, 4);      // four bytes per row
+  be32(table, 1);      // one row
   table += char(0x54); // named + per-row + unsigned 32-bit integer
   be32(table, 0);
   be32(table, 42);
@@ -124,8 +124,10 @@ int main() {
           "Reading a masked UTF row");
     rejects([] { cpk_parse_utf(""); });
     auto malformed = simpleUtf();
-    malformed[8] = 0; malformed[9] = 0;
-    malformed[10] = 0; malformed[11] = 28; // wrong schema boundary
+    malformed[8] = 0;
+    malformed[9] = 0;
+    malformed[10] = 0;
+    malformed[11] = 28; // wrong schema boundary
     rejects([&] { cpk_parse_utf(malformed); });
     auto badRow = simpleUtf();
     badRow[8 + 19] = 8; // advertised row length differs from actual columns
@@ -142,11 +144,12 @@ int main() {
     truncated.resize(16, '\0');
     rejects([&] { cpk_decompress_crilayla(truncated); });
 
-    auto filePath = std::filesystem::temp_directory_path() /
-                    ("kotonoha-vita-cpk-" +
-                     std::to_string(std::chrono::steady_clock::now()
-                                        .time_since_epoch().count()) +
-                     ".cpk");
+    auto filePath =
+        std::filesystem::temp_directory_path() /
+        ("kotonoha-vita-cpk-" +
+         std::to_string(
+             std::chrono::steady_clock::now().time_since_epoch().count()) +
+         ".cpk");
     const auto header = packet("CPK ", headerUtf());
     const auto toc = packet("TOC ", tocUtf());
     check(header.size() <= 128 && toc.size() <= 128,
@@ -174,7 +177,8 @@ int main() {
           "Missing CPK member should not throw");
     auto wrongExpanded = index;
     wrongExpanded.at("test.scf").extract_size = 5;
-    rejects([&] { cpk_read(filePath.string(), wrongExpanded, "test.scf", raw); });
+    rejects(
+        [&] { cpk_read(filePath.string(), wrongExpanded, "test.scf", raw); });
     {
       auto truncated = filePath;
       truncated += ".truncated";

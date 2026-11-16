@@ -18,12 +18,12 @@ Kotonoha::SurfacePtr decodeTlg6Image(const std::uint8_t *data,
                                      std::size_t size);
 namespace {
 
-constexpr std::array<std::uint8_t, 11> kTlg0{
-    'T', 'L', 'G', '0', '.', '0', 0, 's', 'd', 's', 0x1a};
-constexpr std::array<std::uint8_t, 11> kTlg5{
-    'T', 'L', 'G', '5', '.', '0', 0, 'r', 'a', 'w', 0x1a};
-constexpr std::array<std::uint8_t, 11> kTlg6{
-    'T', 'L', 'G', '6', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+constexpr std::array<std::uint8_t, 11> kTlg0{'T', 'L', 'G', '0', '.', '0',
+                                             0,   's', 'd', 's', 0x1a};
+constexpr std::array<std::uint8_t, 11> kTlg5{'T', 'L', 'G', '5', '.', '0',
+                                             0,   'r', 'a', 'w', 0x1a};
+constexpr std::array<std::uint8_t, 11> kTlg6{'T', 'L', 'G', '6', '.', '0',
+                                             0,   'r', 'a', 'w', 0x1a};
 
 bool signature(const std::uint8_t *bytes, std::size_t size,
                const std::array<std::uint8_t, 11> &magic) {
@@ -46,11 +46,10 @@ struct Reader {
   }
   std::uint32_t u32() {
     need(4);
-    const std::uint32_t value =
-        std::uint32_t(data[cursor]) |
-        (std::uint32_t(data[cursor + 1]) << 8) |
-        (std::uint32_t(data[cursor + 2]) << 16) |
-        (std::uint32_t(data[cursor + 3]) << 24);
+    const std::uint32_t value = std::uint32_t(data[cursor]) |
+                                (std::uint32_t(data[cursor + 1]) << 8) |
+                                (std::uint32_t(data[cursor + 2]) << 16) |
+                                (std::uint32_t(data[cursor + 3]) << 24);
     cursor += 4;
     return value;
   }
@@ -64,9 +63,10 @@ struct Reader {
 
 // TLG5's per-channel sliding dictionary persists across blocks and color
 // components. A copy may refer to dictionary bytes just written by itself.
-std::vector<std::uint8_t> decodeSlide(
-    const std::uint8_t *src, std::size_t size, std::size_t expected,
-    std::array<std::uint8_t, 4096> &dictionary, std::size_t &dictionaryPos) {
+std::vector<std::uint8_t>
+decodeSlide(const std::uint8_t *src, std::size_t size, std::size_t expected,
+            std::array<std::uint8_t, 4096> &dictionary,
+            std::size_t &dictionaryPos) {
   std::vector<std::uint8_t> output;
   output.reserve(expected);
   std::size_t pos = 0;
@@ -118,7 +118,8 @@ std::vector<std::uint8_t> decodeSlide(
 
 Kotonoha::SurfacePtr decodeTlg5(const std::uint8_t *data, std::size_t size) {
   if (!signature(data, size, kTlg5))
-    throw std::runtime_error("KiriKiri: only TLG5 image decoding is implemented");
+    throw std::runtime_error(
+        "KiriKiri: only TLG5 image decoding is implemented");
   Reader reader{data, size, 11};
   const auto colors = reader.byte();
   const auto width = reader.u32();
@@ -132,9 +133,9 @@ Kotonoha::SurfacePtr decodeTlg5(const std::uint8_t *data, std::size_t size) {
 
   const auto blocks = (std::uint64_t(height) + blockHeight - 1) / blockHeight;
   reader.take(static_cast<std::size_t>(blocks * 4)); // block size hints
-  Kotonoha::SurfacePtr surface(
-      SDL_CreateSurface(static_cast<int>(width), static_cast<int>(height),
-                        SDL_PIXELFORMAT_RGBA32));
+  Kotonoha::SurfacePtr surface(SDL_CreateSurface(static_cast<int>(width),
+                                                 static_cast<int>(height),
+                                                 SDL_PIXELFORMAT_RGBA32));
   if (!surface)
     throw std::runtime_error(std::string("KiriKiri: cannot allocate TLG5: ") +
                              SDL_GetError());
@@ -150,8 +151,8 @@ Kotonoha::SurfacePtr decodeTlg5(const std::uint8_t *data, std::size_t size) {
       const auto storedSize = reader.u32();
       const auto *packed = reader.take(storedSize);
       if (method == 0) {
-        planes[c] = decodeSlide(packed, storedSize, planeSize,
-                                dictionary, dictionaryPos);
+        planes[c] = decodeSlide(packed, storedSize, planeSize, dictionary,
+                                dictionaryPos);
       } else if (method != 0 && storedSize == planeSize) {
         planes[c].assign(packed, packed + storedSize);
       } else {
@@ -162,9 +163,7 @@ Kotonoha::SurfacePtr decodeTlg5(const std::uint8_t *data, std::size_t size) {
       const auto y = baseY + localY;
       auto *line = static_cast<std::uint8_t *>(surface->pixels) +
                    std::size_t(y) * surface->pitch;
-      const auto *previous = y
-          ? line - surface->pitch
-          : nullptr;
+      const auto *previous = y ? line - surface->pitch : nullptr;
       std::array<std::uint8_t, 4> horizontal{};
       for (std::uint32_t x = 0; x < width; ++x) {
         const auto offset = static_cast<std::size_t>(localY) * width + x;
@@ -175,17 +174,18 @@ Kotonoha::SurfacePtr decodeTlg5(const std::uint8_t *data, std::size_t size) {
         horizontal[1] = static_cast<std::uint8_t>(horizontal[1] + g);
         horizontal[2] = static_cast<std::uint8_t>(horizontal[2] + b);
         if (colors == 4)
-          horizontal[3] = static_cast<std::uint8_t>(
-              horizontal[3] + planes[3][offset]);
+          horizontal[3] =
+              static_cast<std::uint8_t>(horizontal[3] + planes[3][offset]);
         for (unsigned channel = 0; channel < 3; ++channel) {
           const auto above = previous ? previous[x * 4 + channel] : 0u;
-          line[x * 4 + channel] = static_cast<std::uint8_t>(
-              horizontal[channel] + above);
+          line[x * 4 + channel] =
+              static_cast<std::uint8_t>(horizontal[channel] + above);
         }
-        line[x * 4 + 3] = colors == 4
-            ? static_cast<std::uint8_t>(
-                  horizontal[3] + (previous ? previous[x * 4 + 3] : 0u))
-            : 255;
+        line[x * 4 + 3] =
+            colors == 4
+                ? static_cast<std::uint8_t>(
+                      horizontal[3] + (previous ? previous[x * 4 + 3] : 0u))
+                : 255;
       }
     }
     baseY += rows;
@@ -201,8 +201,7 @@ bool isTlgImage(const std::vector<std::uint8_t> &bytes) {
          signature(bytes.data(), bytes.size(), kTlg6);
 }
 
-Kotonoha::SurfacePtr decodeTlgImage(
-    const std::vector<std::uint8_t> &bytes) {
+Kotonoha::SurfacePtr decodeTlgImage(const std::vector<std::uint8_t> &bytes) {
   const auto *data = bytes.data();
   auto size = bytes.size();
   if (signature(data, size, kTlg0)) {

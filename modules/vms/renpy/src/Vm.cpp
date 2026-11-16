@@ -7,10 +7,10 @@
 #include <SDL3/SDL_thread.h>
 #include <SDL3/SDL_timer.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <sstream>
 
 namespace Ddlc {
@@ -446,7 +446,8 @@ void Vm::setVirtualFile(const std::string &name, const Value &value) {
     if (error)
       throw PyError("IOError: cannot create " + path.parent_path().string() +
                     ": " + error.message());
-    Kotonoha::Filesystem::OutputFile out(path, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile out(path,
+                                         std::ios::binary | std::ios::trunc);
     const std::string data = value.text();
     if (!out || !out.write(data.data(), std::streamsize(data.size())))
       throw PyError("IOError: cannot write " + path.string());

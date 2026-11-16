@@ -1,7 +1,7 @@
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/parsers/AssStyle.hpp>
 #include <algorithm>
 #include <ass/ass.h>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <memory>
 #include <sstream>
 #include <stdexcept>

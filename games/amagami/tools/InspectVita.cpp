@@ -19,9 +19,8 @@ Amagami::Bytes readFile(const std::filesystem::path &path) {
     throw std::runtime_error("Invalid system image size");
   Amagami::Bytes data(size_t(size), 0);
   file.seekg(0);
-  if (!data.empty() &&
-      !file.read(reinterpret_cast<char *>(data.data()),
-                 std::streamsize(data.size())))
+  if (!data.empty() && !file.read(reinterpret_cast<char *>(data.data()),
+                                  std::streamsize(data.size())))
     throw std::runtime_error("Truncated " + path.string());
   return data;
 }
@@ -68,8 +67,7 @@ int main(int argc, char **argv) {
       for (const auto &klass : system) {
         const auto parsed = Amagami::ParseScf(klass.bytes);
         if (parsed.name != klass.name)
-          throw std::runtime_error("System class name mismatch: " +
-                                   klass.name);
+          throw std::runtime_error("System class name mismatch: " + klass.name);
         ++systemClasses;
       }
     for (const auto &[name, entry] : index) {
@@ -94,19 +92,18 @@ int main(int argc, char **argv) {
       std::cout << "Successfully parsed " << systemClasses
                 << " system classes and " << scripts << " scenario scripts\n";
     if (verifyGraphics) {
-      const std::string graphicsPath =
-          (root / "graph" / "GRAPH.CPK").string();
+      const std::string graphicsPath = (root / "graph" / "GRAPH.CPK").string();
       const auto graphics = Amagami::Vita::cpk_read_index(graphicsPath);
       size_t decoded = 0;
       for (const auto &item : graphics) {
         if (!Amagami::Vita::pictureLayout(item.first))
           continue; // Font and packed system pictures need other decoders.
         std::string encoded;
-        if (!Amagami::Vita::cpk_read(graphicsPath, graphics,
-                                     item.first, encoded))
+        if (!Amagami::Vita::cpk_read(graphicsPath, graphics, item.first,
+                                     encoded))
           throw std::runtime_error("Missing Vita graphic " + item.first);
-        const auto picture = Amagami::Vita::decodeVitaPicture(
-            item.first, encoded);
+        const auto picture =
+            Amagami::Vita::decodeVitaPicture(item.first, encoded);
         if (picture.rgba.empty())
           throw std::runtime_error("Empty Vita graphic " + item.first);
         ++decoded;
@@ -119,8 +116,8 @@ int main(int argc, char **argv) {
       const auto graphicsPath = (root / "graph" / "GRAPH.CPK").string();
       const auto graphics = Amagami::Vita::cpk_read_index(graphicsPath);
       if (verifyFonts) {
-        for (const char *name : {"font/AMV_font18_21.tm2",
-                                 "font/AMV_font18_21im.tm2"}) {
+        for (const char *name :
+             {"font/AMV_font18_21.tm2", "font/AMV_font18_21im.tm2"}) {
           std::string bytes;
           if (!Amagami::Vita::cpk_read(graphicsPath, graphics, name, bytes))
             throw std::runtime_error(std::string("Vita font missing: ") + name);

@@ -1,9 +1,9 @@
-#include <Kotonoha/core/AssetProvider.hpp>
-#include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
@@ -454,9 +454,9 @@ public:
   }
   bool seek(std::uint64_t position) override {
     return position <= static_cast<std::uint64_t>(INT64_MAX) &&
-        file_->seek(static_cast<std::int64_t>(position),
-                    Filesystem::SeekOrigin::Begin) ==
-            static_cast<std::int64_t>(position);
+           file_->seek(static_cast<std::int64_t>(position),
+                       Filesystem::SeekOrigin::Begin) ==
+               static_cast<std::int64_t>(position);
   }
 };
 } // namespace
@@ -494,7 +494,8 @@ const std::filesystem::path &FileSystemAssetProvider::getRoot() const {
 }
 
 std::string FileSystemAssetProvider::name() const {
-  if (mounted_) return "Mounted files (virtual)";
+  if (mounted_)
+    return "Mounted files (virtual)";
   return root.empty() ? "Files" : "Files (" + root.string() + ")";
 }
 
@@ -530,8 +531,8 @@ bool FileSystemAssetProvider::containsAsset(const std::string &id) const {
     }
   }
   if (fallback_) {
-    const auto name = id.compare(0, 12, "game-assets/") == 0
-                          ? id.substr(12) : id;
+    const auto name =
+        id.compare(0, 12, "game-assets/") == 0 ? id.substr(12) : id;
     try {
       if (fallback_->exists(name) &&
           fallback_->stat(name).type == Filesystem::FileType::Regular)
@@ -627,7 +628,8 @@ FileSystemAssetProvider::listAsset(const std::string &prefix) const {
 std::string
 FileSystemAssetProvider::localPathAsset(const std::string &id) const {
   // Virtual sources (TAR/ISO/HTTP) never require a physical path.
-  if (mounted_) return {};
+  if (mounted_)
+    return {};
   const auto path = resolve(id);
   if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
       fallback_->exists(id.substr(12))) {
@@ -647,8 +649,7 @@ FileSystemAssetProvider::openStream(const std::string &id) const {
     return std::make_unique<MountedAssetStream>(mounted_->open(id));
   if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
       fallback_->exists(id.substr(12)))
-    return std::make_unique<MountedAssetStream>(
-        fallback_->open(id.substr(12)));
+    return std::make_unique<MountedAssetStream>(fallback_->open(id.substr(12)));
   const auto local = resolve(id);
   if (std::filesystem::is_regular_file(local))
     return std::make_unique<MountedAssetStream>(
@@ -667,12 +668,14 @@ IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
 
 bool IndexedFileSystemAssetProvider::containsAsset(
     const std::string &id) const {
-  if (mounted()) return FileSystemAssetProvider::containsAsset(id);
+  if (mounted())
+    return FileSystemAssetProvider::containsAsset(id);
   return !index.resolve(id).empty();
 }
 std::string
 IndexedFileSystemAssetProvider::localPathAsset(const std::string &id) const {
-  if (mounted()) return {};
+  if (mounted())
+    return {};
   const auto path = index.resolve(id);
   if (path.empty())
     throw std::runtime_error("Asset not found in " + getRoot().string() + ": " +
@@ -681,14 +684,16 @@ IndexedFileSystemAssetProvider::localPathAsset(const std::string &id) const {
 }
 std::vector<Uint8>
 IndexedFileSystemAssetProvider::readAsset(const std::string &id) const {
-  if (mounted()) return FileSystemAssetProvider::readAsset(id);
+  if (mounted())
+    return FileSystemAssetProvider::readAsset(id);
   const auto relative =
       std::filesystem::path(localPathAsset(id)).lexically_relative(getRoot());
   return FileSystemAssetProvider::readAsset(relative.generic_string());
 }
 std::vector<std::string>
 IndexedFileSystemAssetProvider::listAsset(const std::string &prefix) const {
-  if (mounted()) return FileSystemAssetProvider::listAsset(prefix);
+  if (mounted())
+    return FileSystemAssetProvider::listAsset(prefix);
   return index.list(prefix);
 }
 

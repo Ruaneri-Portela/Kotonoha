@@ -2,9 +2,9 @@
 #include "RealLive/Script.hpp"
 #include <cassert>
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include <vector>
-#include <iostream>
 int main(int argc, char **argv) {
   RLMachine machine;
   machine.SetIntValue(libreallive::IntMemRef(0, 0), 0x12345678);
@@ -41,10 +41,10 @@ int main(int argc, char **argv) {
     for (std::size_t i = 0; i != 4; ++i)
       fullVoice.at(offset + i) = static_cast<std::uint8_t>(value >> (i * 8));
   };
-  set32(0, 80000u);             // first scenario's archive offset
-  set32(4, 0x1d0u + 9u);       // first scenario's length
-  set32(80000u, 0x1d0u);      // RealLive header signature
-  set32(80004u, 110002u);    // compiler with per-game second XOR
+  set32(0, 80000u);              // first scenario's archive offset
+  set32(4, 0x1d0u + 9u);         // first scenario's length
+  set32(80000u, 0x1d0u);         // RealLive header signature
+  set32(80004u, 110002u);        // compiler with per-game second XOR
   set32(80000u + 0x20u, 0x1d0u); // compressed data offset
   set32(80000u + 0x24u, 0);      // empty synthetic bytecode
   set32(80000u + 0x28u, 9);      // minimal compressed header

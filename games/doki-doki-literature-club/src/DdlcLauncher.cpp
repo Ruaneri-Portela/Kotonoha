@@ -32,8 +32,9 @@ bool GameLauncher::validatePath(const std::string &path, std::string &info) {
   if (std::filesystem::is_regular_file(path, error)) {
     try {
       const auto mounted = Kotonoha::Filesystem::Filesystem::mount(path);
-      const auto prefix = mounted->exists("game/scripts.rpa") ?
-                          std::string("game/") : std::string();
+      const auto prefix = mounted->exists("game/scripts.rpa")
+                              ? std::string("game/")
+                              : std::string();
       if (!mounted->exists(prefix + "scripts.rpa") ||
           !mounted->exists(prefix + "images.rpa")) {
         info = "Archive missing DDLC scripts.rpa or images.rpa";

@@ -9,24 +9,22 @@
 
 namespace {
 void check(bool condition, const char *message) {
-  if (!condition) throw std::runtime_error(message);
+  if (!condition)
+    throw std::runtime_error(message);
 }
-Amagami::VmValue n(double x) {
-  return Amagami::VmValue::num(x);
-}
-void call(Amagami::Vita::VitaVmBridge &bridge,
-          const Amagami::VmValue &obj, unsigned primitive,
-          std::vector<Amagami::VmValue> args) {
-  check(bool(bridge.primitive("Sprite", "", false, obj,
-                              primitive, args)), "Primitive failed");
+Amagami::VmValue n(double x) { return Amagami::VmValue::num(x); }
+void call(Amagami::Vita::VitaVmBridge &bridge, const Amagami::VmValue &obj,
+          unsigned primitive, std::vector<Amagami::VmValue> args) {
+  check(bool(bridge.primitive("Sprite", "", false, obj, primitive, args)),
+        "Primitive failed");
 }
 Kotonoha::SurfacePtr coloured(uint32_t id) {
   Kotonoha::SurfacePtr s(SDL_CreateSurface(40, 40, SDL_PIXELFORMAT_RGBA32));
-  if (!s) throw std::runtime_error(SDL_GetError());
+  if (!s)
+    throw std::runtime_error(SDL_GetError());
   const auto rgb = id == 1 ? SDL_MapSurfaceRGBA(s.get(), 255, 0, 0, 255)
                            : SDL_MapSurfaceRGBA(s.get(), 0, 255, 0, 255);
-  check(SDL_FillSurfaceRect(s.get(), nullptr, rgb),
-        "Fill test texture");
+  check(SDL_FillSurfaceRect(s.get(), nullptr, rgb), "Fill test texture");
   return s;
 }
 void draw(Amagami::Vita::VitaSpriteRenderer &presenter,
@@ -36,8 +34,8 @@ void draw(Amagami::Vita::VitaSpriteRenderer &presenter,
 }
 std::array<Uint8, 4> pixel(SDL_Surface *canvas, int x, int y) {
   std::array<Uint8, 4> rgb{{0, 0, 0, 0}};
-  check(SDL_ReadSurfacePixel(canvas, x, y, &rgb[0], &rgb[1],
-                            &rgb[2], &rgb[3]), "Read source pixel");
+  check(SDL_ReadSurfacePixel(canvas, x, y, &rgb[0], &rgb[1], &rgb[2], &rgb[3]),
+        "Read source pixel");
   return rgb;
 }
 } // namespace
@@ -46,8 +44,8 @@ int main() {
   try {
     Amagami::Vita::VitaVmBridge bridge;
     bridge.setTextureSizeResolver(
-        [](uint32_t id, uint32_t)
-            -> std::optional<std::pair<uint32_t,uint32_t>> {
+        [](uint32_t id,
+           uint32_t) -> std::optional<std::pair<uint32_t, uint32_t>> {
           if (id == 1 || id == 2)
             return std::make_pair(uint32_t(40), uint32_t(40));
           return std::nullopt;
@@ -64,8 +62,7 @@ int main() {
     check(bool(software), "Create SDL3 software renderer");
     int created = 0;
     Amagami::Vita::VitaSpriteRenderer presenter(
-        software.get(), [&](uint32_t id, uint32_t)
-            -> Kotonoha::SurfacePtr {
+        software.get(), [&](uint32_t id, uint32_t) -> Kotonoha::SurfacePtr {
           ++created;
           return coloured(id);
         });
@@ -115,10 +112,14 @@ int main() {
           "Vita zoom interpolates");
     call(bridge, red, 17, {});
     check(bridge.sprites().at(redId).alpha == 0 &&
-          bridge.sprites().at(redId).zoom[0] == 1.5,
+              bridge.sprites().at(redId).zoom[0] == 1.5,
           "Skip animation snaps all active tweens");
     bool rejected = false;
-    try { bridge.tick(-1); } catch (const std::exception &) { rejected = true; }
+    try {
+      bridge.tick(-1);
+    } catch (const std::exception &) {
+      rejected = true;
+    }
     check(rejected, "Negative animation delta rejected");
     std::cout << "Vita SDL3 scene renderer and tween synthetic tests passed\n";
     return 0;

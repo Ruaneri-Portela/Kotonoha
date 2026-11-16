@@ -4,8 +4,8 @@
 
 #include <SDL3/SDL.h>
 
-#include <algorithm>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <algorithm>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -112,9 +112,8 @@ DdlcAssets::DdlcAssets(const std::filesystem::path &directory,
   configureOverlaysAndScripts(overlayDirectory, true);
 }
 
-DdlcAssets::DdlcAssets(
-    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
-    const std::filesystem::path &overlayDirectory) {
+DdlcAssets::DdlcAssets(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+                       const std::filesystem::path &overlayDirectory) {
   if (!assets_.open(std::move(source)))
     throw std::runtime_error("Cannot open virtual Ren'Py archives");
   configureOverlaysAndScripts(overlayDirectory, false);

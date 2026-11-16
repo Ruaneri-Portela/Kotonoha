@@ -1,6 +1,6 @@
-#include <Kotonoha/core/Config.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/Config.hpp>
 #ifdef __EMSCRIPTEN__
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #endif
@@ -661,7 +661,8 @@ FileResolver::getFontMap() {
             std::string filename = entry.path().filename().string();
             if (cache.find(filename) == cache.end()) {
               try {
-                auto bytes = Filesystem::readLocalFile(entry.path(), 256u << 20);
+                auto bytes =
+                    Filesystem::readLocalFile(entry.path(), 256u << 20);
                 if (!bytes.empty())
                   cache[filename] = std::move(bytes);
               } catch (const std::exception &) {
@@ -677,8 +678,7 @@ FileResolver::getFontMap() {
       auto defPath = font(defaultFontName());
       if (!isFontFile(defPath))
         throw std::runtime_error("Invalid default font: " + defPath.string());
-      cache[defaultFontName()] =
-          Filesystem::readLocalFile(defPath, 256u << 20);
+      cache[defaultFontName()] = Filesystem::readLocalFile(defPath, 256u << 20);
     }
   });
   return cache;

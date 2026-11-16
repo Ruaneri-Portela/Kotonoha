@@ -1,9 +1,9 @@
-#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/events/BackAction.hpp>
@@ -463,7 +463,9 @@ void SettingsMenu::render(RendererRef renderer) {
       std::string("Shader: ") + UpscalePresetName(draft.upscaling.preset),
       "Factor: " + std::to_string(draft.upscaling.factor).substr(0, 3) + "x",
 #else
-      "", "", "",
+      "",
+      "",
+      "",
 #endif
       "Apply and save",
       "Cancel",
