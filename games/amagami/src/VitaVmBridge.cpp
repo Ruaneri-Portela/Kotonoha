@@ -220,6 +220,44 @@ std::optional<VmValue>
 VitaVmBridge::primitive(const std::string &owner, const std::string &method,
                         bool classMethod, const VmValue &receiver,
                         unsigned number, const std::vector<VmValue> &args) {
+  // The original native vibrate() sets two Tween components (amplitude and
+  // frequency) of an existing visual channel. RGB light uses one shared
+  // frequency; the other channels have one frequency per amplitude.
+  auto vibrate = [&](std::size_t group, std::size_t count,
+                     std::size_t frequencyCount)
+      -> std::optional<VmValue> {
+    expectCount(args, count + frequencyCount + 3);
+    std::array<double, 3> amplitude{{0, 0, 0}};
+    std::array<double, 3> frequency{{0, 0, 0}};
+    for (std::size_t i = 0; i < count; ++i)
+      amplitude[i] = valueNumber(args[i]);
+    const int64_t amplitudeMode = argument(args, count);
+    for (std::size_t i = 0; i < count; ++i)
+      frequency[i] = valueNumber(args[count + 1 +
+                                   (frequencyCount == 1 ? 0 : i)]);
+    const int64_t frequencyMode = argument(args, count + 1 + frequencyCount);
+    const double duration = valueNumber(args[count + 2 + frequencyCount]);
+
+    // Perform both validations on temporaries before mutating a live sprite.
+    // Invalid values must not leave a half-updated animation in the scene.
+    SpriteTween ampCheck, frequencyCheck;
+    ampCheck.start(amplitude, count, int(amplitudeMode), duration);
+    frequencyCheck.start(frequency, count, int(frequencyMode), duration);
+    auto &fields = spriteFields(receiver);
+    if (fields.empty() || fields[0].kind != VmValue::Number ||
+        !std::isfinite(fields[0].number) || fields[0].number <= 0 ||
+        fields[0].number >= 1000000 ||
+        std::trunc(fields[0].number) != fields[0].number)
+      return receiver;
+    const auto it = sprites_.find(uint64_t(fields[0].number));
+    if (it == sprites_.end()) return receiver;
+    auto &channels = it->second.tweens[group];
+    channels[1].start(amplitude, count, int(amplitudeMode), duration);
+    channels[2].start(frequency, count, int(frequencyMode), duration);
+    it->second.refresh();
+    return receiver;
+  };
+
   // Vita FontChar native wrappers. FontCharEx inherits the standard font;
   // FontChar2 uses the alternate "im" atlas. Each object is a real scene
   // graphic with inherited alpha/position/zoom channels and layer ordering.
@@ -270,6 +308,11 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
           it->second.characterCode = uint16_t(code);
       }
       return receiver;
+    }
+    if (owner == "FontChar" && number >= 7 && number <= 9) {
+      if (number == 7) return vibrate(0, 1, 1); // alpha
+      if (number == 8) return vibrate(2, 2, 2); // position
+      return vibrate(3, 2, 2); // zoom
     }
     if (owner == "FontChar") {
       // The original FontChar animation primitives change only base
@@ -358,6 +401,11 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
         found->second.refresh();
       }
       return receiver;
+    }
+    if (number >= 11 && number <= 13) {
+      if (number == 11) return vibrate(0, 1, 1);
+      if (number == 12) return vibrate(2, 2, 2);
+      return vibrate(3, 2, 2);
     }
     unsigned shared = 0;
     switch (number) {
@@ -526,6 +574,12 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
         it->second.refresh();
       }
       return receiver;
+    }
+    if (number >= 13 && number <= 16) {
+      if (number == 13) return vibrate(0, 1, 1); // alpha
+      if (number == 14) return vibrate(1, 3, 1); // RGB light
+      if (number == 15) return vibrate(2, 2, 2); // position
+      return vibrate(3, 2, 2); // zoom
     }
     if (number == 17) { // skip: snap all in-progress channels to target
       expectCount(args, 0);
