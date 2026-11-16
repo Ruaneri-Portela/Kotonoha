@@ -1,6 +1,7 @@
 #include <Kirikiri/KagScript.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
 #include <Kirikiri/TlgImage.hpp>
+#include <Kirikiri/TjsStartupVm.hpp>
 
 #include <cstdio>
 #include <array>
@@ -1018,6 +1019,150 @@ int main() {
     } catch (const std::exception &error) {
       std::printf("FAIL: TLG5 image compatibility: %s\n", error.what());
       ++failures;
+    }
+  }
+
+  // A small, real TJS2 source subset now executes variable expressions,
+  // conditional branches and script calls. It must not claim native UI or
+  // load plugins while inspecting third-party game data.
+  {
+    const auto bootDir = tempDir / "boot";
+    std::filesystem::create_directories(bootDir);
+    const auto write = [](const std::filesystem::path &path,
+                          const std::string &text) {
+      std::ofstream out(path, std::ios::binary);
+      out << text;
+    };
+    write(bootDir / "next.tjs",
+          "var scenario = \"scenario/\" + \"first.ks\";\n"
+          "Scripts.execStorage(scenario);\n");
+    write(tempDir / "startup.tjs",
+          "// Scripts.execStorage(\"comment-not-real.tjs\");\n"
+          "var fake = 'Plugins.link(\"string-not-real.dll\")';\n"
+          "var count = 0;\n"
+          "var target = 0x2;\n"
+          "while (count < target) { count++; }\n"
+          "if (count == target && Storages.isExistentStorage(\"boot/next.tjs\")) {\n"
+          "  Scripts.execStorage(\"boot/next.tjs\");\n"
+          "} else { Scripts.execStorage(\"never.tjs\"); }\n"
+          "System.title = \"TJS2\" + \" demo\";\n"
+          "Plugins.link(\"plugins/unused.dll\");\n");
+    try {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.kagEntry != "scenario/first.ks" ||
+          run.title != "TJS2 demo" || !run.requiresNativeRuntime ||
+          run.visitedScripts != std::vector<std::string>{
+              "startup.tjs", "boot/next.tjs"} ||
+          run.requestedPlugins != std::vector<std::string>{
+              "plugins/unused.dll"} || !run.missing.empty()) {
+        std::printf("FAIL: TJS2 source subset bootstrap flow\n");
+        ++failures;
+      }
+    } catch (const std::exception &error) {
+      std::printf("FAIL: TJS2 source subset threw: %s\n", error.what());
+      ++failures;
+    }
+
+    write(tempDir / "startup.tjs", "Scripts.execStorage(\"startup.tjs\");");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (run.subsetCompleted ||
+          run.error.find("cyclic") == std::string::npos) {
+        std::printf("FAIL: cyclic TJS2 storage execution not rejected\n");
+        ++failures;
+      }
+    }
+    write(tempDir / "startup.tjs", "while (true) { var x = 1; }");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run =
+          Kotonoha::Providers::runTjsStartupSubset(input, 40);
+      if (run.subsetCompleted || run.error.empty()) {
+        std::printf("FAIL: unbounded TJS2 loop was not stopped\n");
+        ++failures;
+      }
+    }
+    write(tempDir / "startup.tjs", "class GameWindow { }");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (run.subsetCompleted || run.error.empty()) {
+        std::printf("FAIL: unsupported TJS2 class accepted silently\n");
+        ++failures;
+      }
+    }
+    // Unicode identifiers from a BOM-marked UTF-8 TJS2 source are handled
+    // without case-folding or corrupting the multibyte storage names.
+    write(tempDir / "startup.tjs",
+          std::string("\xef\xbb\xbf") +
+          u8"var 猫 = 2; if (猫 == 2) "
+          u8"{ Scripts.execStorage(\"scenario/first.ks\"); }");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || run.kagEntry != "scenario/first.ks") {
+        std::printf("FAIL: UTF-8 TJS2 identifiers not evaluated\n");
+        ++failures;
+      }
+    }
+    std::filesystem::remove(tempDir / "startup.tjs");
+  }
+
+  // The upstream KiriKiri decoder reserves entropy ID 3 for uncompressed
+  // samples but does not implement it. Accept only exactly 8 bits per pixel;
+  // Gamma (ID 1) and experimental LZSS (ID 2) remain rejected.
+  {
+    std::vector<std::uint8_t> tlg{
+        'T', 'L', 'G', '6', '.', '0', 0, 'r', 'a', 'w', 0x1a,
+        3, 0, 0, 0};
+    putLE(tlg, std::uint32_t(1)); // width
+    putLE(tlg, std::uint32_t(1)); // height
+    putLE(tlg, std::uint32_t(8)); // max bits
+    putLE(tlg, std::uint32_t(2)); // LZSS filter bytes
+    tlg.push_back(0); tlg.push_back(0); // literal filter 0 = MED
+    const auto infoAt = tlg.size();
+    putLE(tlg, std::uint32_t(0xc0000008)); // raw 8 bits / pixel
+    tlg.push_back(5);                      // blue residual
+    for (int i = 0; i < 2; ++i) {
+      putLE(tlg, std::uint32_t(2)); // Golomb, zero run of 1
+      tlg.push_back(2);
+    }
+    try {
+      auto image = Kotonoha::Providers::decodeTlgImage(tlg);
+      const auto *p = static_cast<const std::uint8_t *>(image->pixels);
+      if (image->w != 1 || image->h != 1 || p[0] != 0 ||
+          p[1] != 0 || p[2] != 5 || p[3] != 255) {
+        std::printf("FAIL: TLG6 raw residual decode\n");
+        ++failures;
+      }
+    } catch (const std::exception &error) {
+      std::printf("FAIL: TLG6 raw residual decode: %s\n", error.what());
+      ++failures;
+    }
+    const auto patchInfo = [](std::vector<std::uint8_t> &image,
+                              std::size_t index, std::uint32_t value) {
+      for (unsigned i = 0; i < 4; ++i)
+        image[index + i] = static_cast<std::uint8_t>(value >> (i * 8));
+    };
+    for (const auto method : {1u, 2u, 3u}) {
+      auto invalid = tlg;
+      const auto bits = method == 3 ? 7u : 8u;
+      patchInfo(invalid, infoAt, (method << 30) | bits);
+      bool rejected = false;
+      try {
+        (void)Kotonoha::Providers::decodeTlgImage(invalid);
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: TLG6 rejected entropy/invalid size accepted\n");
+        ++failures;
+      }
     }
   }
 
