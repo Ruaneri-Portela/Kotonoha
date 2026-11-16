@@ -220,6 +220,73 @@ std::optional<VmValue>
 VitaVmBridge::primitive(const std::string &owner, const std::string &method,
                         bool classMethod, const VmValue &receiver,
                         unsigned number, const std::vector<VmValue> &args) {
+  // Vita FontChar native wrappers. FontCharEx inherits the standard font;
+  // FontChar2 uses the alternate "im" atlas. Each object is a real scene
+  // graphic with inherited alpha/position/zoom channels and layer ordering.
+  if (owner == "FontChar" || owner == "FontCharEx" ||
+      owner == "FontChar2") {
+    if (classMethod) return std::nullopt;
+    if (number == 0) { // new(code, palette, layer, x, y, sx, sy)
+      expectCount(args, 7);
+      const int64_t code = argument(args, 0);
+      const int64_t palette = argument(args, 1);
+      const int64_t layer = argument(args, 2);
+      if (code < 0 || code > 0xffff || palette < -128 || palette > 128)
+        throw std::runtime_error("Amagami Vita: invalid FontChar glyph");
+      const double x = valueNumber(args[3]), y = valueNumber(args[4]);
+      const double sx = valueNumber(args[5]), sy = valueNumber(args[6]);
+      if (sx < 0 || sy < 0 || sx > 64 || sy > 64)
+        throw std::runtime_error("Amagami Vita: invalid FontChar zoom");
+      auto &fields = spriteFields(receiver);
+      const uint64_t uid = newSprite(0, 0, layer);
+      auto &picture = sprites_.at(uid);
+      picture.fontGlyph = true;
+      picture.fontAtlas = owner == "FontChar2" ? 1u : 0u;
+      picture.characterCode = uint16_t(code);
+      picture.fontPalette = int(palette);
+      picture.hasImage = true;
+      picture.rect = {{0, 0, 36, 42}};
+      picture.tweens[2][0].start({{x, y, 0}}, 2, 0, 0);
+      picture.tweens[3][0].start({{sx, sy, 0}}, 2, 0, 0);
+      picture.refresh();
+      if (fields.empty()) fields.resize(1);
+      fields[0] = VmValue::num(uid);
+      return receiver;
+    }
+    if (owner == "FontChar2" && number == 1)
+      return primitive("Sprite", method, false, receiver, 6, args);
+    if (owner == "FontChar" && number == 6) { // setChar(code)
+      expectCount(args, 1);
+      const int64_t code = argument(args, 0);
+      if (code < 0 || code > 0xffff)
+        throw std::runtime_error("Amagami Vita: invalid FontChar code");
+      auto &fields = spriteFields(receiver);
+      if (!fields.empty() && fields[0].kind == VmValue::Number &&
+          std::isfinite(fields[0].number) && fields[0].number > 0 &&
+          fields[0].number < 1000000 &&
+          std::trunc(fields[0].number) == fields[0].number) {
+        auto it = sprites_.find(uint64_t(fields[0].number));
+        if (it != sprites_.end() && it->second.fontGlyph)
+          it->second.characterCode = uint16_t(code);
+      }
+      return receiver;
+    }
+    if (owner == "FontChar") {
+      // The original FontChar animation primitives change only base
+      // channels; BG_Picture has the exact same base-tween signatures.
+      switch (number) {
+      case 1: return primitive("Sprite", method, false, receiver, 3, args);
+      case 2: return primitive("Sprite", method, false, receiver, 7, args);
+      case 3: return primitive("BG_Picture", method, false, receiver, 8, args);
+      case 4: return primitive("BG_Picture", method, false, receiver, 9, args);
+      case 5: return primitive("BG_Picture", method, false, receiver, 10, args);
+      case 10: return primitive("BG_Picture", method, false, receiver, 7, args);
+      default: break; // Vibration requires further fidelity work.
+      }
+    }
+    return std::nullopt;
+  }
+
   // BG_Picture uses the same visual channels as Sprite but references a
   // GRAPH.CPK picture and follows the world view. Primitive numbering comes
   // from the original Vita system classes, not the PS2 graphics methods.

@@ -60,6 +60,27 @@ SDL_Texture *VitaSpriteRenderer::namedTextureFor(const std::string &name) {
   return handle;
 }
 
+SDL_Texture *VitaSpriteRenderer::fontTextureFor(unsigned font,
+                                                 uint16_t code,
+                                                 unsigned palette) {
+  const auto key = std::make_tuple(font, code, palette);
+  auto it = fontCache_.find(key);
+  if (it != fontCache_.end()) return it->second.get();
+  if (!fontSource_) return nullptr;
+  Kotonoha::SurfacePtr surface = fontSource_(font, code, palette);
+  if (!surface) return nullptr;
+  Kotonoha::TexturePtr texture(
+      SDL_CreateTextureFromSurface(renderer_, surface.get()));
+  if (!texture)
+    throw std::runtime_error(std::string("Amagami Vita font texture: ") +
+                             SDL_GetError());
+  require(SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND));
+  require(SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_LINEAR));
+  auto *handle = texture.get();
+  fontCache_.emplace(key, std::move(texture));
+  return handle;
+}
+
 void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
   if (clear) {
     require(SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255));
@@ -96,6 +117,40 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
               (sprite->worldView ? bridge.view().originY * 2.0 : 0.0) -
               height / 2.0),
         float(width), float(height)};
+    if (sprite->fontGlyph) {
+      // Vita font atlas cells are 36x42 texels. FontChar coordinates are in
+      // the fixed UI view (not the background's world camera). Palette
+      // selectors 3/7/11 use the white palette tinted to 20% brightness.
+      const int normalized = ((sprite->fontPalette % 4) + 4) % 4;
+      SDL_Texture *text = fontTextureFor(sprite->fontAtlas,
+                                         sprite->characterCode,
+                                         unsigned(normalized == 3 ? 0 :
+                                                  normalized));
+      if (!text) continue;
+      // The original FontChar emits a shadow first, shifted one script unit
+      // right and down; it is black for palette 0..2, white for palette 3.
+      if (sprite->fontPalette >= 0 && sprite->fontPalette < 4) {
+        SDL_Texture *shadow = fontTextureFor(sprite->fontAtlas,
+                                            sprite->characterCode, 0);
+        if (shadow) {
+          const Uint8 shade = sprite->fontPalette == 3 ? 255 : 0;
+          require(SDL_SetTextureAlphaMod(shadow, modulate(sprite->alpha)));
+          require(SDL_SetTextureColorMod(shadow, shade, shade, shade));
+          SDL_FRect shadowRect = dst;
+          shadowRect.x += 2.0f;
+          shadowRect.y += 2.0f;
+          require(SDL_RenderTexture(renderer_, shadow, nullptr, &shadowRect));
+        }
+      }
+      const double tint = normalized == 3 ? 0.2 : 1.0;
+      require(SDL_SetTextureAlphaMod(text, modulate(sprite->alpha)));
+      require(SDL_SetTextureColorMod(
+          text, modulate(sprite->light[0] * tint),
+          modulate(sprite->light[1] * tint),
+          modulate(sprite->light[2] * tint)));
+      require(SDL_RenderTexture(renderer_, text, nullptr, &dst));
+      continue;
+    }
     if (!sprite->hasImage) {
       if (sprite->texture != 0 || !sprite->assetName.empty())
         continue; // Unresolved resources are not black bars.

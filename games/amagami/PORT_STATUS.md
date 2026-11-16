@@ -620,31 +620,110 @@ ctest --test-dir build -R 'Amagami.Vita(Input|ControlPad|SpriteRender)' --output
 **Not a playable Vita game yet.** The VM pauses its execution budget every
 frame to keep the SDL event loop responsive. Unknown native methods are logged
 with SCF location and leave the last scene on screen for inspection; the
-process returns status 3 after an unimplemented native is encountered. Native
-\`FontChar\`, \`BG_Picture\`, other visual classes, sound and many script
-primitives are not yet implemented. No gameplay/audio fidelity is asserted.
+process returns status 3 after an unimplemented native is encountered. Other
+visual classes, sound and many script primitives are still unsupported;
+\`FontChar\` and \`BG_Picture\` only have initial native subsets. No gameplay/audio fidelity is asserted.
 The tool is compiled for desktop host builds only, does not change the PS2
 port and requires a separate, already-decrypted Vita copy and plain ELF.
+
+### Vita FontChar text objects — initial bridge
+
+The Vita SCF bridge now creates actual `FontChar`, `FontCharEx` and
+`FontChar2` display objects from their original Shift-JIS code, font
+palette, layer, position and scale. `FontChar2` selects the `im` font
+atlas. `FontChar` supports destroy (1), tween-remaining update (2),
+alpha/position/zoom animations (3–5), change character (6), and light
+animation (10). The alternate-font class' set-layer primitive (1) uses
+the same scene layer ordering as Sprite. Unsupported vibration methods
+still report an unhandled native rather than being simulated incorrectly.
+
+The SDL3 scene renderer asks `VitaGraphicsAssets::fontGlyph` to decode
+the Vita 36×42 glyph cell and caches the texture by (font, SJIS, palette).
+The original shadow is rendered one script unit down-right: black for
+palettes 0–2 and white for palette 3, with palette 3's main glyph
+tinted to 20% brightness. Original script positions are in the fixed
+480×272 UI coordinate system mapped to 960×544 output; background camera
+scaling is not applied to text. Both `AmagamiVitaLive` and the probe's
+`--snapshot` use the same provider-backed glyph surface factory.
+
+```sh
+cmake --build build --target AmagamiVitaFontCharTest AmagamiVitaLive AmagamiVitaProbe
+ctest --test-dir build -R 'Amagami.Vita(FontChar|Background|SpriteRender)' --output-on-failure
+```
+
+The synthetic glyph test exercises native constructors, two font atlases,
+dark/bright shadows, pixel colour, frame-based position interpolation,
+layer changes, character replacement, and object disposal, without shipping
+retail font files. More Vita GUI primitives, animations, input scheduling
+and audio are still missing; this is not yet a playable Vita port.
+
+### PS2 six-week calendar validation (disc-required)
+
+`Amagami.Campaign` now reads and checks all 588 entries in the original
+42-day × 14-period NodeTable schedule and exercises 24 native
+`GameParam.nextTime` / `nextDay` transitions across a day boundary.
+`Amagami.CampaignSession` plays the prologue and a subsequent real map
+event, advances the map calendar, saves and reloads midway, and compares
+the actual available event names and later time progression against a
+continuous session. This validates the integration path beyond the prologue,
+not every ending, side event or minigame.
+
+```sh
+cmake -S . -B build -DKOTONOHA_BUILD_AMAGAMI=ON -DAMAGAMI_DISC_IMAGE='/path/to/Amagami (Japan).iso'
+cmake --build build --target AmagamiCampaignTest AmagamiCampaignSessionTest
+ctest --test-dir build -R 'Amagami.(Campaign|CampaignSession)
 
 
 ### Vita BG_Picture in scene renderer (development)
 
-The \`BG_Picture\` native bridge now understands the original Vita system
+The `BG_Picture` native bridge now understands the original Vita system
 class primitives 0 (preload by filename), 1 (create from place/scene/mob),
 2 (clone), 3 (destroy), 4 (update), 6 (layer), 7–10
 (light/alpha/position/zoom), 15 (finish tweens) and 16 (pause).
-The constructor builds \`bg/%03d_%d%d.gxt\` names from original SCF parameters
-and asks \`VitaGraphicsAssets\` to resolve them through \`graph/GRAPH.CPK\`.
+The constructor builds `bg/%03d_%d%d.gxt` names from original SCF parameters
+and asks `VitaGraphicsAssets` to resolve them through `graph/GRAPH.CPK`.
 Named backgrounds share the existing SDL3 layer renderer and texture cache;
-the world view applies \`K2X_Script.setScrScl\` and \`setScrOrgY\`.
-UI \`Sprite\` keeps its separate, fixed screen-space view.
+the world view applies `K2X_Script.setScrScl` and `setScrOrgY`.
+UI `Sprite` keeps its separate, fixed screen-space view.
 
-\`\`\`sh
+```sh
 cmake --build build --target AmagamiVitaBackgroundTest AmagamiVitaLive
 ctest --test-dir build -R 'Amagami.Vita(Background|SpriteRender|Input)' --output-on-failure
-\`\`\`
+```
 
-The synthetic \`Amagami.VitaBackground\` test checks the named-resource
+The synthetic `Amagami.VitaBackground` test checks the named-resource
+decoder hook, source dimensions, layered SDL pixels, camera scaling,
+tween update, cloning and destruction without retail assets. Missing
+resources do not render as black bars. Rotation, nontrivial waveform
+vibration, background interface-view flags from the ELF and other classes
+remain unsupported and must be verified against real Vita screenshots.
+This does **not** make the Vita version completely playable.
+ --output-on-failure
+```
+
+These PS2 tests need the user's original Japan ISO. Neither new Vita nor
+PS2 test results have been confirmed in this environment.
+
+
+
+### Vita BG_Picture in scene renderer (development)
+
+The `BG_Picture` native bridge now understands the original Vita system
+class primitives 0 (preload by filename), 1 (create from place/scene/mob),
+2 (clone), 3 (destroy), 4 (update), 6 (layer), 7–10
+(light/alpha/position/zoom), 15 (finish tweens) and 16 (pause).
+The constructor builds `bg/%03d_%d%d.gxt` names from original SCF parameters
+and asks `VitaGraphicsAssets` to resolve them through `graph/GRAPH.CPK`.
+Named backgrounds share the existing SDL3 layer renderer and texture cache;
+the world view applies `K2X_Script.setScrScl` and `setScrOrgY`.
+UI `Sprite` keeps its separate, fixed screen-space view.
+
+```sh
+cmake --build build --target AmagamiVitaBackgroundTest AmagamiVitaLive
+ctest --test-dir build -R 'Amagami.Vita(Background|SpriteRender|Input)' --output-on-failure
+```
+
+The synthetic `Amagami.VitaBackground` test checks the named-resource
 decoder hook, source dimensions, layered SDL pixels, camera scaling,
 tween update, cloning and destruction without retail assets. Missing
 resources do not render as black bars. Rotation, nontrivial waveform
