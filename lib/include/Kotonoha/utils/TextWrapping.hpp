@@ -30,18 +30,33 @@ using Layout = std::vector<Line>;
 
 inline bool continuation(unsigned char ch) { return (ch & 0xc0u) == 0x80u; }
 
+// Advance over one well-formed UTF-8 scalar value. Invalid, truncated,
+// overlong and surrogate sequences advance by a single byte; callers can
+// preserve the original data without combining malformed bytes into a glyph.
 inline std::size_t nextUtf8(const std::string &source, std::size_t start) {
+  if (start >= source.size())
+    return source.size();
   const unsigned char lead = static_cast<unsigned char>(source[start]);
   const std::size_t length = lead < 0x80u                       ? 1
                              : lead >= 0xc2u && lead <= 0xdfu ? 2
                              : lead >= 0xe0u && lead <= 0xefu ? 3
                              : lead >= 0xf0u && lead <= 0xf4u ? 4
                                                                : 1;
-  if (start + length > source.size())
+  if (length == 1 || length > source.size() - start)
     return start + 1;
-  for (std::size_t i = start + 1; i < start + length; ++i)
-    if (!continuation(static_cast<unsigned char>(source[i])))
+  for (std::size_t i = 1; i < length; ++i)
+    if (!continuation(static_cast<unsigned char>(source[start + i])))
       return start + 1;
+
+  // Continuation bits alone are insufficient: reject overlong encodings,
+  // UTF-16 surrogate code points, and values beyond U+10FFFF.
+  const unsigned char second =
+      static_cast<unsigned char>(source[start + 1]);
+  if ((lead == 0xe0u && second < 0xa0u) ||
+      (lead == 0xedu && second >= 0xa0u) ||
+      (lead == 0xf0u && second < 0x90u) ||
+      (lead == 0xf4u && second > 0x8fu))
+    return start + 1;
   return start + length;
 }
 
