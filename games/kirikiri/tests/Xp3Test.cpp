@@ -250,6 +250,27 @@ int main() {
     }
   }
 
+  // KAG syntax used by Kirikiri2/Z: @commands, column-one comments
+  // and escaped brackets must survive parsing without becoming dialogue.
+  {
+    const auto parsed = Kirikiri::KagScript::parse(
+        "; comment ignored\n"
+        "@wait time=12\n"
+        "*next|Caption\n"
+        "hello [[world\n"
+        "[cm text=\"ready\"]", "kag-compat.ks");
+    if (parsed.tags.size() != 4 ||
+        parsed.tags[0].name != "wait" ||
+        parsed.tags[0].attrs.at("time") != "12" ||
+        parsed.tags[0].line != 2 ||
+        parsed.labels.count("next") != 1 ||
+        parsed.tags[2].type != Kirikiri::KagScript::TagType::Text ||
+        parsed.tags[2].text != "hello [world") {
+      std::printf("FAIL: KAG @commands/comments/escaped brackets\n");
+      ++failures;
+    }
+  }
+
   std::filesystem::remove_all(tempDir);
 
   if (failures == 0) {
