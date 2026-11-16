@@ -29,3 +29,7 @@ ctest --test-dir build -R '^KirikiriXp3$' --output-on-failure
 Use a lawful game folder with KAG scripts or XP3 packages. Start the launcher or pass `--kirikiri /path/to/game-data`. Do not commit commercial assets.
 
 [Build guides](../../docs/BUILD_GUIDES.md) · [Port index](../README.md)
+
+## KAG choice order
+
+The supported KAG subset's `[select]`/`[choices]` tags now sort numbered `option1`, `option2`, `option10` attributes numerically rather than lexicographically, and exclude unrelated fields such as `optionColor`. A synthetic regression test checks choice order and VM resume. This does not provide a TJS2 interpreter or prove NEKOPARA's original menu works.

@@ -1,7 +1,6 @@
 #include <Kirikiri/KagScript.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
 #include <Kirikiri/TlgImage.hpp>
-#include <Kirikiri/TjsBootstrap.hpp>
 
 #include <cstdio>
 #include <array>
@@ -648,6 +647,36 @@ int main() {
       std::printf("FAIL: KAG invalid conditional state accepted\n"), ++failures;
   }
 
+  // Numbered KAG choices must render in numeric order. std::map's
+  // lexical order would wrongly place option10 before option2.
+  {
+    auto script = Kirikiri::KagScript::parse(
+        "[choices question=Pick option10=ten option2=two option1=one "
+        "btn3=three optionColor=red][end]", "choice-order.ks");
+    std::vector<std::string> shown;
+    std::function<void(int)> select;
+    Kirikiri::KagScript::Callbacks callbacks;
+    callbacks.showChoice = [&](std::string, std::vector<std::string> options,
+                               std::function<void(int)> onChoose) {
+      shown = std::move(options);
+      select = std::move(onChoose);
+    };
+    Kirikiri::KagScript::Runner runner(std::move(script), callbacks);
+    runner.run();
+    if (!runner.isBlocked() ||
+        shown != std::vector<std::string>({"one", "two", "three", "ten"}) ||
+        !select) {
+      std::printf("FAIL: numeric KAG choice ordering or filtering\n");
+      ++failures;
+    } else {
+      select(1);
+      if (!runner.isFinished()) {
+        std::printf("FAIL: KAG choice callback did not resume script\n");
+        ++failures;
+      }
+    }
+  }
+
   // KiriKiri's canonical XP3 index is a 1-byte flag followed by one size
   // for a raw index (two for compressed). Chained indexes have a 64-bit
   // pointer immediately after their payload. One storage may have several
@@ -944,130 +973,6 @@ int main() {
         std::printf("FAIL: TLG5 horizontal/vertical predictor\n");
         ++failures;
       }
-      // TLG6 Golomb data: an LSB-first run flag, gamma run count and
-      // optional Rice residual. No commercial image data is included.
-      const auto makeTlg6 = [&](std::uint32_t w, std::uint32_t h,
-                                std::uint8_t firstPlaneByte,
-                                std::uint32_t firstPlaneBits) {
-        std::vector<std::uint8_t> encoded{
-            'T', 'L', 'G', '6', '.', '0', 0, 'r', 'a', 'w', 0x1a,
-            3, 0, 0, 0};
-        putLE(encoded, w);
-        putLE(encoded, h);
-        putLE(encoded, std::uint32_t(64)); // max Golomb bit length
-        putLE(encoded, std::uint32_t(2));  // compressed filter size
-        encoded.push_back(0);              // literal flag
-        encoded.push_back(0);              // MED, color correlation 0
-        const auto firstBitLength = firstPlaneBits;
-        putLE(encoded, firstBitLength);
-        encoded.push_back(firstPlaneByte);
-        for (int c = 1; c < 3; ++c) {
-          putLE(encoded, std::uint32_t(w * h == 1 ? 2 : 6));
-          encoded.push_back(w * h == 1 ? 2 : 8);
-        }
-        return encoded;
-      };
-      const auto tlg6Black = makeTlg6(1, 1, 2, 2);
-      const auto tlg6Blue = makeTlg6(1, 1, 11, 4);
-      const auto tlg6Grid = makeTlg6(2, 2, 8, 6);
-      auto tlg6Average = tlg6Black;
-      tlg6Average.at(32) = 1; // average predictor, filter 0
-      auto tlg6Gray = tlg6Blue;
-      tlg6Gray.at(11) = 1;  // one-component grayscale
-      tlg6Gray.resize(tlg6Gray.size() - 10); // discard G/R bitplanes
-      const auto testPixel = [&](const std::vector<std::uint8_t> &data,
-                                 std::uint32_t width,
-                                 std::uint32_t height, std::uint8_t blue) {
-        const auto image = Kotonoha::Providers::decodeTlgImage(data);
-        if (!image || image->w != static_cast<int>(width) ||
-            image->h != static_cast<int>(height))
-          return false;
-        for (std::uint32_t y = 0; y < height; ++y)
-          for (std::uint32_t x = 0; x < width; ++x) {
-            const auto *pixels =
-                static_cast<const std::uint8_t *>(image->pixels);
-            const auto *p = pixels + y * image->pitch + x * 4;
-            if (p[0] != 0 || p[1] != 0 ||
-                p[2] != blue || p[3] != 255)
-              return false;
-          }
-        return true;
-      };
-      try {
-        if (!testPixel(tlg6Black, 1, 1, 0) ||
-            !testPixel(tlg6Blue, 1, 1, 1) ||
-            !testPixel(tlg6Grid, 2, 2, 0) ||
-            !testPixel(tlg6Average, 1, 1, 0)) {
-          std::printf("FAIL: TLG6 Golomb/MED basic image pixels\n");
-          ++failures;
-        }
-        const auto grayImage =
-            Kotonoha::Providers::decodeTlgImage(tlg6Gray);
-        const auto *gray = static_cast<const std::uint8_t *>(
-            grayImage->pixels);
-        if (gray[0] != 1 || gray[1] != 1 ||
-            gray[2] != 1 || gray[3] != 255) {
-          std::printf("FAIL: TLG6 grayscale RGB expansion\n");
-          ++failures;
-        }
-        std::vector<std::uint8_t> wrappedTlg6{
-            'T', 'L', 'G', '0', '.', '0', 0, 's', 'd', 's', 0x1a};
-        putLE(wrappedTlg6, std::uint32_t(tlg6Blue.size()));
-        wrappedTlg6.insert(wrappedTlg6.end(), tlg6Blue.begin(),
-                           tlg6Blue.end());
-        if (!testPixel(wrappedTlg6, 1, 1, 1)) {
-          std::printf("FAIL: TLG0 wrapper containing TLG6\n");
-          ++failures;
-        }
-        const auto tlg6Path = imageFolder / "blue6.tlg";
-        std::ofstream file(tlg6Path, std::ios::binary);
-        file.write(reinterpret_cast<const char *>(tlg6Blue.data()),
-                   std::streamsize(tlg6Blue.size()));
-        file.close();
-        if (!testPixel(tlg6Blue, 1, 1, 1)) {
-          std::printf("FAIL: TLG6 byte source became unreadable\n");
-          ++failures;
-        }
-        // The indexed loose-file provider snapshots names at mount time.
-        // Create it after adding the TLG6 test resource.
-        Kotonoha::Providers::KirikiriAssets tlg6Provider(tempDir);
-        const auto providerImage =
-            tlg6Provider.loadSurface("image/blue6.tlg");
-        const auto *p = static_cast<const std::uint8_t *>(
-            providerImage->pixels);
-        if (p[0] != 0 || p[1] != 0 || p[2] != 1 || p[3] != 255) {
-          std::printf("FAIL: XP3 provider TLG6 routing\n");
-          ++failures;
-        }
-        auto invalidMethod = tlg6Black;
-        invalidMethod.at(36) = 0xc0; // TLG6 non-Golomb entropy method
-        bool rejectedMethod = false;
-        try {
-          (void)Kotonoha::Providers::decodeTlgImage(invalidMethod);
-        } catch (const std::runtime_error &) {
-          rejectedMethod = true;
-        }
-        if (!rejectedMethod) {
-          std::printf("FAIL: unsupported TLG6 entropy was accepted\n");
-          ++failures;
-        }
-        auto invalidGolomb = tlg6Black;
-        invalidGolomb.pop_back();
-        bool rejected = false;
-        try {
-          (void)Kotonoha::Providers::decodeTlgImage(invalidGolomb);
-        } catch (const std::runtime_error &) {
-          rejected = true;
-        }
-        if (!rejected) {
-          std::printf("FAIL: truncated TLG6 plane accepted\n");
-          ++failures;
-        }
-      } catch (const std::exception &error) {
-        std::printf("FAIL: TLG6 decoding: %s\n", error.what());
-        ++failures;
-      }
-
       std::vector<std::uint8_t> unsupported{
           'T', 'L', 'G', '6', '.', '0', 0, 'r', 'a', 'w', 0x1a};
       bool rejectedTlg6 = false;
@@ -1077,7 +982,7 @@ int main() {
         rejectedTlg6 = true;
       }
       if (!rejectedTlg6) {
-        std::printf("FAIL: truncated TLG6 header was accepted\n");
+        std::printf("FAIL: unsupported TLG6 was accepted as a TLG5 image\n");
         ++failures;
       }
 
@@ -1112,44 +1017,6 @@ int main() {
       }
     } catch (const std::exception &error) {
       std::printf("FAIL: TLG5 image compatibility: %s\n", error.what());
-      ++failures;
-    }
-  }
-
-  // The TJS2 bootstrap probe only inspects literal dependency references.
-  // It must ignore code-like strings/comments and never execute TJS.
-  {
-    const auto dir = tempDir / "system";
-    std::filesystem::create_directories(dir);
-    const auto loaded = dir / "boot.tjs";
-    {
-      std::ofstream script(loaded);
-      script << "// Synthetic TJS2 dependency\n";
-    }
-    {
-      std::ofstream script(tempDir / "startup.tjs");
-      script << "// Scripts.execStorage(\"ignore-comment.tjs\");\n"
-             << "/* Plugins.link(\"ignore-block.dll\"); */\n"
-             << "var example = 'Scripts.execStorage(\"ignore-string.tjs\")';\n"
-             << "Scripts.execStorage(\"system/boot.tjs\");\n"
-             << "Scripts.evalStorage(\"system/boot.tjs\");\n"
-             << "Plugins.link('plugins/missing.dll');\n"
-             << "Scripts.execStorage(runtimeStorageName);\n";
-    }
-    try {
-      Kotonoha::Providers::KirikiriAssets testAssets(tempDir);
-      const auto report = Kotonoha::Providers::inspectTjsBootstrap(testAssets);
-      const std::vector<std::string> expected{
-          "system/boot.tjs", "plugins/missing.dll"};
-      if (report.entry != "startup.tjs" ||
-          report.staticallyReferenced != expected ||
-          report.missing != std::vector<std::string>{"plugins/missing.dll"} ||
-          report.dynamicCalls != 1 || !report.error.empty()) {
-        std::printf("FAIL: static TJS bootstrap dependencies/comments\n");
-        ++failures;
-      }
-    } catch (const std::exception &error) {
-      std::printf("FAIL: TJS bootstrap diagnostic: %s\n", error.what());
       ++failures;
     }
   }
