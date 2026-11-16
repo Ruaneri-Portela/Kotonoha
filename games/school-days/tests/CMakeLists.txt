@@ -82,8 +82,8 @@ target_link_libraries(SchoolDaysDisplayNarrativeMarkupTest PRIVATE school_days)
 add_test(NAME SchoolDays.DisplayNarrativeMarkup
     COMMAND SchoolDaysDisplayNarrativeMarkupTest)
 
-# Real School Days subtitle code with a generated styles.ass (Makoto, Setsuna,
-# Default), using only a software renderer and synthetic cue text.
+# Real School Days subtitle code with generated styles.ass and multilingual
+# speaker identifiers, using only a software renderer and synthetic cue text.
 add_executable(SchoolDaysSubtitleSpeakerStyleTest
     SchoolDaysSubtitleSpeakerStyleTest.cpp)
 target_link_libraries(SchoolDaysSubtitleSpeakerStyleTest PRIVATE school_days)
@@ -92,6 +92,12 @@ add_test(NAME SchoolDays.SubtitleSpeakerStyle
     "${CMAKE_CURRENT_BINARY_DIR}/ass-speaker-synthetic")
 set_tests_properties(SchoolDays.SubtitleSpeakerStyle PROPERTIES
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
+
+# Validate the actual packaged palette; no GPK, font download or GUI required.
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(NAME SchoolDays.SubtitleStylesAss
+    COMMAND "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test_styles_ass.py")
 
 # Optional private-content QA. It consumes user-provided GPKs and JSON at
 # explicit CLI paths and is never automatically executed by CTest.
