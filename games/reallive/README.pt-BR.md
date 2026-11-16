@@ -101,3 +101,33 @@ O overload de `Str.strcpy` com contagem limita o número de **caracteres**
 Shift-JIS completos, não o número de bytes. Assim não corta um caractere
 multibyte e não produz uma sequência inválida em diálogos ou variáveis. A
 regressão foi adicionada ao `RealLiveStringOpsTests`, sem dados comerciais.
+
+## Controles de entrada (macOS, iOS e gamepads SDL3)
+
+- **Teclado:** Enter/Espaço avança; segure Ctrl esquerdo/direito para
+  skip contínuo (quando permitido pelo script); S alterna o skip de textos já
+  lidos; A alterna o modo automático; Page Up abre o histórico; Esc abre o menu.
+- **Gamepad:** Leste confirma/avança, Sul segura o skip durante diálogos,
+  ambos os gatilhos também seguram skip, Oeste alterna o skip de mensagens
+  lidas, ombro direito alterna automático, Back/ombro esquerdo abre o histórico
+  e Start abre o menu de pausa. Direcional e analógico esquerdo navegam pelo
+  título original e pelas escolhas. A preferência global de troca A/B é respeitada.
+- **Toque:** o toque é ativado na soltura; o diálogo e a barra de controles
+  original respeitam essa sequência. Arrastar, cancelar um contato ou usar
+  múltiplos dedos não deve avançar o diálogo nem disparar botões. Gestos de
+  menu/histórico continuam sob responsabilidade da engine compartilhada.
+
+O skip de textos já lidos continua entre páginas **lidas** e interrompe ao
+encontrar uma inédita. Segurar Ctrl ou o botão/gatilho do gamepad funciona
+independentemente e pode pular texto inédito, desde que o script RealLive não
+tenha desabilitado o skip por Ctrl.
+
+Teste sintético sem arquivos comerciais:
+
+```sh
+cmake --build build --target RealLiveInputTests
+ctest --test-dir build -R '^RealLive.Input$' --output-on-failure
+```
+
+Ainda é necessário validar os layouts e áreas de toque nos dispositivos
+macOS/iOS com cada edição original de RealLive.

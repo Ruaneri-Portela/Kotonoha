@@ -2025,16 +2025,18 @@ struct RealLiveRuntime::Impl {
         }
       } else if (textbox->handleEvent(e))
         return true;
-      if (!engine->isStoryPaused() && e.type == SDL_EVENT_KEY_DOWN &&
-          !e.key.repeat && e.key.key == SDLK_A) {
+      if (focusedEdit < 0 && !engine->isStoryPaused() &&
+          e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+          e.key.key == SDLK_A) {
         autoMode = !autoMode;
         if (autoMode)
           skipMode = false;
         autoDeadline = 0;
         return true;
       }
-      if (!engine->isStoryPaused() && e.type == SDL_EVENT_KEY_DOWN &&
-          !e.key.repeat && e.key.key == SDLK_S) {
+      if (focusedEdit < 0 && !engine->isStoryPaused() &&
+          e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+          e.key.key == SDLK_S) {
         skipMode = !skipMode;
         if (skipMode)
           autoMode = false;
@@ -4048,6 +4050,8 @@ bool RealLiveRuntime::onEvent(EventRef e) {
   // events. Ignore mouse releases from drags, multi-touch and cancellations.
   if (!impl->input.acceptTouch(e)) {
     impl->titleInput.reset();
+    if (impl->textbox)
+      impl->textbox->controls.reset();
     impl->button1 = impl->button2 = 0;
     return true;
   }
@@ -4063,7 +4067,8 @@ bool RealLiveRuntime::onEvent(EventRef e) {
   const bool dialogue = impl->pause && impl->textbox &&
                         impl->textbox->isVisible() &&
                         !impl->textbox->concealed &&
-                        !impl->choice->isActive();
+                        !impl->choice->isActive() &&
+                        impl->focusedEdit < 0;
   if (impl->input.processSkip(e, dialogue)) {
     impl->skipHeld = impl->input.skipHeld();
     return true;

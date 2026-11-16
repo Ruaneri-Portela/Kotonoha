@@ -76,6 +76,9 @@ int main() {
   i.acceptTouch(finger(SDL_EVENT_FINGER_UP,12,.4f,.4f));
   i.acceptTouch(finger(SDL_EVENT_FINGER_UP,13,.6f,.4f));
   require(!i.acceptTouch(synthetic), "Multi-touch rejected");
+  i.acceptTouch(finger(SDL_EVENT_FINGER_DOWN,14,.4f,.4f));
+  i.acceptTouch(finger(SDL_EVENT_FINGER_CANCELED,14,.4f,.4f));
+  require(!i.acceptTouch(synthetic), "Canceled finger rejected");
 
   RealLive::TitleInput title;
   title.pointer(true,320,296);
