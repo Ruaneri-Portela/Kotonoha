@@ -73,7 +73,7 @@ finais já estejam reproduzidos.
 
 [Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.
 
-[Inicialização](docs/STARTUP.pt-BR.md), [rastreamento de transições](docs/TRANSITIONS.pt-BR.md), [pesquisa de animações](docs/ANIMATIONS.pt-BR.md), [áudio](docs/AUDIO_PARITY.pt-BR.md) e [caixa de diálogo](docs/TEXTBOX.pt-BR.md).
+[Inicialização](docs/STARTUP.pt-BR.md), [cobertura dos SYS nativos](docs/NATIVE_COVERAGE.pt-BR.md), [rastreamento de transições](docs/TRANSITIONS.pt-BR.md), [pesquisa de animações](docs/ANIMATIONS.pt-BR.md), [áudio](docs/AUDIO_PARITY.pt-BR.md) e [caixa de diálogo](docs/TEXTBOX.pt-BR.md).
 
 [Guias de compilação](../../docs/BUILD_GUIDES.pt-BR.md) · [Índice de ports](../README.pt-BR.md)
 

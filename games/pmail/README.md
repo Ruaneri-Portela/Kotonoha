@@ -74,7 +74,7 @@ commands as failures; this does not imply any ending is already verified.
 
 [Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
 
-[Startup research](docs/STARTUP.md), [transition evidence](docs/TRANSITIONS.md), [animations](docs/ANIMATIONS.md), [audio parity](docs/AUDIO_PARITY.md), [textbox](docs/TEXTBOX.md).
+[Startup research](docs/STARTUP.md), [native SYS coverage](docs/NATIVE_COVERAGE.md), [transition evidence](docs/TRANSITIONS.md), [animations](docs/ANIMATIONS.md), [audio parity](docs/AUDIO_PARITY.md), [textbox](docs/TEXTBOX.md).
 
 [Build guides](../../docs/BUILD_GUIDES.md) · [Port index](../README.md)
 
