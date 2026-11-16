@@ -296,6 +296,35 @@ int main() {
       std::printf("FAIL: KAG local subroutine did not enter correctly\n");
       ++failures;
     }
+    // A save taken inside the subroutine must resume the pending return.
+    const auto savedInsideCall = runner.saveState();
+    std::vector<std::string> resumed;
+    Kirikiri::KagScript::Callbacks restoredCallbacks;
+    restoredCallbacks.showText = [&](std::string, std::string value) {
+      resumed.push_back(std::move(value));
+    };
+    Kirikiri::KagScript::Runner reloaded(script, restoredCallbacks);
+    reloaded.restoreState(savedInsideCall);
+    reloaded.run();
+    if (resumed != std::vector<std::string>{"after"} ||
+        reloaded.callDepth() != 0 || !reloaded.isBlocked()) {
+      std::printf("FAIL: KAG saved subroutine does not return correctly\n");
+      ++failures;
+    }
+    auto invalid = savedInsideCall;
+    invalid.returnStack.push_back(script.tags.size() + 1);
+    bool rejectedInvalidState = false;
+    try {
+      reloaded.restoreState(invalid);
+    } catch (const std::out_of_range &) {
+      rejectedInvalidState = true;
+    }
+    if (!rejectedInvalidState || reloaded.saveState().position !=
+                                     savedInsideCall.returnStack.back() ||
+        reloaded.callDepth() != 0) {
+      std::printf("FAIL: KAG invalid restore changed VM state\n");
+      ++failures;
+    }
     runner.resumeWait(); // advance from the blocking dialogue
     if (shown != std::vector<std::string>({"inside", "after"}) ||
         runner.callDepth() != 0 || !runner.isBlocked()) {
