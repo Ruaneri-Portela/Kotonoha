@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -18,21 +19,26 @@
 
 namespace Kotonoha::Providers {
 namespace {
-using Data = std::variant<std::monostate, bool, double, std::string>;
+struct Object;
+using ObjectPtr = std::shared_ptr<Object>;
+using Data = std::variant<std::monostate, bool, double, std::string, ObjectPtr>;
 struct Value {
   Data data;
   Value() = default;
   explicit Value(bool x) : data(x) {}
   explicit Value(double x) : data(x) {}
   explicit Value(std::string x) : data(std::move(x)) {}
+  explicit Value(ObjectPtr x) : data(std::move(x)) {}
   bool truthy() const {
     if (auto b = std::get_if<bool>(&data)) return *b;
     if (auto n = std::get_if<double>(&data)) return *n != 0.0;
     if (auto s = std::get_if<std::string>(&data)) return !s->empty();
+    if (auto object = std::get_if<ObjectPtr>(&data)) return bool(*object);
     return false;
   }
   std::string string() const {
     if (auto s = std::get_if<std::string>(&data)) return *s;
+    if (std::holds_alternative<ObjectPtr>(data)) return "[Dictionary]";
     if (auto b = std::get_if<bool>(&data)) return *b ? "true" : "false";
     if (auto n = std::get_if<double>(&data)) {
       auto s = std::to_string(*n);
@@ -55,6 +61,12 @@ struct Value {
     }
     throw std::runtime_error("TJS2 subset: numeric operand expected");
   }
+};
+
+// Minimal heap-backed TJS Dictionary value. Copies share member state, but
+// native KiriKiri Window/Layer objects and prototype dispatch are excluded.
+struct Object {
+  std::unordered_map<std::string, Value> members;
 };
 
 struct Token {
