@@ -1,7 +1,10 @@
 #include <Kirikiri/KagScript.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
+#include <Kirikiri/TlgImage.hpp>
 
 #include <cstdio>
+#include <array>
+#include <zlib.h>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -642,6 +645,350 @@ int main() {
     }
     if (!rejected || !runner.saveState().ifBranches.empty())
       std::printf("FAIL: KAG invalid conditional state accepted\n"), ++failures;
+  }
+
+  // KiriKiri's canonical XP3 index is a 1-byte flag followed by one size
+  // for a raw index (two for compressed). Chained indexes have a 64-bit
+  // pointer immediately after their payload. One storage may have several
+  // physical, independently compressed segments.
+  {
+    using Segment = std::array<std::uint64_t, 4>; // method, offset, orig, stored
+    const auto patch64 = [](std::vector<std::uint8_t> &bytes,
+                            std::size_t offset, std::uint64_t value) {
+      for (std::size_t i = 0; i < 8; ++i)
+        bytes.at(offset + i) = static_cast<std::uint8_t>(value >> (8 * i));
+    };
+    const auto makeRecord = [&](const std::string &name,
+                                std::uint64_t fileSize,
+                                const std::vector<Segment> &segments) {
+      std::vector<std::uint8_t> record;
+      const auto tag = [&](const char *value) {
+        record.insert(record.end(), value, value + 4);
+      };
+      tag("File");
+      putLE(record, std::uint64_t(0));
+      tag("info");
+      putLE(record, std::uint64_t(22 + name.size() * 2));
+      putLE(record, std::uint32_t(0));
+      putLE(record, fileSize);
+      std::uint64_t stored = 0;
+      for (const auto &segment : segments)
+        stored += segment[3];
+      putLE(record, stored);
+      putLE(record, std::uint16_t(name.size()));
+      for (unsigned char ch : name)
+        putLE(record, std::uint16_t(ch));
+      tag("segm");
+      putLE(record, std::uint64_t(28 * segments.size()));
+      for (const auto &segment : segments) {
+        putLE(record, std::uint32_t(segment[0]));
+        putLE(record, segment[1]);
+        putLE(record, segment[2]);
+        putLE(record, segment[3]);
+      }
+      tag("adlr");
+      putLE(record, std::uint64_t(4));
+      putLE(record, std::uint32_t(0));
+      patch64(record, 4, record.size() - 12);
+      return record;
+    };
+    const auto compress = [](const std::vector<std::uint8_t> &input) {
+      uLongf size = compressBound(static_cast<uLong>(input.size()));
+      std::vector<std::uint8_t> packed(size);
+      if (compress2(packed.data(), &size, input.data(),
+                    static_cast<uLong>(input.size()), Z_BEST_SPEED) != Z_OK)
+        throw std::runtime_error("Cannot compress XP3 test fixture");
+      packed.resize(size);
+      return packed;
+    };
+    const std::string secondName = "scenario/second.ks";
+    const std::string secondText =
+        "[bg storage=room]\n[image layer=0 storage=cat.png]\n[end]\n";
+    const auto cut = secondText.size() / 2;
+    const std::vector<std::uint8_t> remaining(
+        secondText.begin() + cut, secondText.end());
+    const auto packedRemaining = compress(remaining);
+    std::vector<std::uint8_t> standard(magic, magic + 11);
+    putLE(standard, std::uint64_t(0)); // patched canonical index pointer
+    const auto firstOffset = static_cast<std::uint64_t>(standard.size());
+    standard.insert(standard.end(), fileContent.begin(), fileContent.end());
+    const auto rawSecondOffset = static_cast<std::uint64_t>(standard.size());
+    standard.insert(standard.end(), secondText.begin(),
+                    secondText.begin() + cut);
+    const auto compressedSecondOffset =
+        static_cast<std::uint64_t>(standard.size());
+    standard.insert(standard.end(), packedRemaining.begin(),
+                    packedRemaining.end());
+
+    const auto firstIndex = makeRecord(
+        fileName, fileContent.size(),
+        {{0, firstOffset, fileContent.size(), fileContent.size()}});
+    const auto secondIndex = makeRecord(
+        secondName, secondText.size(),
+        {{0, rawSecondOffset, cut, cut},
+         {1, compressedSecondOffset, remaining.size(), packedRemaining.size()}});
+    const auto compressedIndex = compress(secondIndex);
+    const auto indexOffset = static_cast<std::uint64_t>(standard.size());
+    const auto nextIndex = indexOffset + 9 + firstIndex.size() + 8;
+    patch64(standard, 11, indexOffset);
+    standard.push_back(0x80); // canonical raw index with continuation
+    putLE(standard, std::uint64_t(firstIndex.size()));
+    standard.insert(standard.end(), firstIndex.begin(), firstIndex.end());
+    const auto continuationPointer = standard.size();
+    putLE(standard, nextIndex);
+    standard.push_back(1); // canonical compressed index
+    putLE(standard, std::uint64_t(compressedIndex.size()));
+    putLE(standard, std::uint64_t(secondIndex.size()));
+    standard.insert(standard.end(), compressedIndex.begin(),
+                    compressedIndex.end());
+
+    const auto writeArchive = [&](const char *name,
+                                  const std::vector<std::uint8_t> &bytes) {
+      const auto path = tempDir / name;
+      std::ofstream out(path, std::ios::binary);
+      out.write(reinterpret_cast<const char *>(bytes.data()),
+                std::streamsize(bytes.size()));
+    };
+    writeArchive("standard-chained.xp3", standard);
+    try {
+      assets.mountXp3("standard-chained.xp3");
+      auto first = assets.readAsset(fileName);
+      auto second = assets.readAsset(secondName);
+      if (std::string(first.begin(), first.end()) != fileContent ||
+          std::string(second.begin(), second.end()) != secondText ||
+          !assets.containsAsset(secondName)) {
+        std::printf("FAIL: canonical XP3 index chain/segments returned bad data\n");
+        ++failures;
+      }
+    } catch (const std::exception &error) {
+      std::printf("FAIL: canonical XP3 index chain/segments: %s\n", error.what());
+      ++failures;
+    }
+    // Updates to a path in the second index take precedence over the
+    // first index (without replacing unrelated storages).
+    auto replacedIndex = secondIndex;
+    auto laterRecord = makeRecord(
+        fileName, secondText.size(),
+        {{0, rawSecondOffset, cut, cut},
+         {1, compressedSecondOffset, remaining.size(), packedRemaining.size()}});
+    replacedIndex.insert(replacedIndex.end(),
+                         laterRecord.begin(), laterRecord.end());
+    const auto compressedReplacement = compress(replacedIndex);
+    auto replacementArchive = standard;
+    replacementArchive.resize(static_cast<std::size_t>(nextIndex));
+    replacementArchive.push_back(1);
+    putLE(replacementArchive, std::uint64_t(compressedReplacement.size()));
+    putLE(replacementArchive, std::uint64_t(replacedIndex.size()));
+    replacementArchive.insert(replacementArchive.end(),
+                              compressedReplacement.begin(),
+                              compressedReplacement.end());
+    writeArchive("index-update.xp3", replacementArchive);
+    try {
+      assets.mountXp3("index-update.xp3");
+      const auto changed = assets.readAsset(fileName);
+      if (std::string(changed.begin(), changed.end()) != secondText) {
+        std::printf("FAIL: later XP3 index entry did not override earlier path\n");
+        ++failures;
+      }
+    } catch (const std::exception &error) {
+      std::printf("FAIL: later XP3 index entry: %s\n", error.what());
+      ++failures;
+    }
+    // Segment offsets must point inside the physical archive.
+    auto invalidSegment = standard;
+    const auto firstSegOffset =
+        static_cast<std::size_t>(indexOffset) + 9u +
+        12u + 12u + 22u + fileName.size() * 2u + 12u + 4u;
+    patch64(invalidSegment, firstSegOffset, standard.size() + 1024);
+    writeArchive("bad-segment.xp3", invalidSegment);
+    bool rejectedSegment = false;
+    try {
+      assets.mountXp3("bad-segment.xp3");
+    } catch (const std::runtime_error &) {
+      rejectedSegment = true;
+    }
+    if (!rejectedSegment) {
+      std::printf("FAIL: out-of-bounds XP3 segment was accepted\n");
+      ++failures;
+    }
+
+    auto cycle = standard;
+    patch64(cycle, continuationPointer, indexOffset);
+    writeArchive("cyclic.xp3", cycle);
+    bool rejectedCycle = false;
+    try {
+      assets.mountXp3("cyclic.xp3");
+    } catch (const std::runtime_error &) {
+      rejectedCycle = true;
+    }
+    if (!rejectedCycle) {
+      std::printf("FAIL: cyclic XP3 index chain was accepted\n");
+      ++failures;
+    }
+    auto oversized = standard;
+    patch64(oversized, indexOffset + 1, 64ull * 1024 * 1024 + 1);
+    writeArchive("huge-index.xp3", oversized);
+    bool rejectedSize = false;
+    try {
+      assets.mountXp3("huge-index.xp3");
+    } catch (const std::runtime_error &) {
+      rejectedSize = true;
+    }
+    if (!rejectedSize) {
+      std::printf("FAIL: oversized XP3 index was accepted\n");
+      ++failures;
+    }
+  }
+
+  // Decode canonical TLG5 images without relying on FFmpeg or proprietary
+  // assets. A single pixel exercises blue/green residuals and RGB ordering.
+  {
+    std::vector<std::uint8_t> tlg5{
+        'T', 'L', 'G', '5', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+    tlg5.push_back(3);
+    putLE(tlg5, std::uint32_t(1)); // width
+    putLE(tlg5, std::uint32_t(1)); // height
+    putLE(tlg5, std::uint32_t(1)); // block height
+    putLE(tlg5, std::uint32_t(0)); // one ignored block-size hint
+    const auto rawPlane = [&](std::vector<std::uint8_t> &image,
+                              std::uint8_t value) {
+      image.push_back(1); // raw plane
+      putLE(image, std::uint32_t(1));
+      image.push_back(value);
+    };
+    rawPlane(tlg5, 5);  // blue difference
+    rawPlane(tlg5, 10); // green difference
+    rawPlane(tlg5, 20); // red difference
+    const auto checkColor = [&](const std::vector<std::uint8_t> &image,
+                                std::uint8_t alpha) {
+      const auto surface = Kotonoha::Providers::decodeTlgImage(image);
+      if (!surface || surface->w != 1 || surface->h != 1)
+        return false;
+      const auto *pixel =
+          static_cast<const std::uint8_t *>(surface->pixels);
+      return pixel[0] == 30 && pixel[1] == 10 &&
+             pixel[2] == 15 && pixel[3] == alpha;
+    };
+    try {
+      if (!checkColor(tlg5, 255)) {
+        std::printf("FAIL: TLG5 raw RGB pixel decoding\n");
+        ++failures;
+      }
+      std::vector<std::uint8_t> compressed = tlg5;
+      // Replace the first raw plane (1 + size4 + data1) with a literal-only
+      // slide/LZSS stream, then retain the green/red raw planes.
+      const std::size_t planeOffset = 11 + 1 + 4 * 4;
+      compressed.erase(compressed.begin() + planeOffset,
+                       compressed.begin() + planeOffset + 6);
+      const std::vector<std::uint8_t> encodedBlue{
+          0, 2, 0, 0, 0, 0, 5}; // flag 0, stored size 2, literal flag+5
+      compressed.insert(compressed.begin() + planeOffset,
+                        encodedBlue.begin(), encodedBlue.end());
+      if (!checkColor(compressed, 255)) {
+        std::printf("FAIL: TLG5 slide-compressed RGB pixel decoding\n");
+        ++failures;
+      }
+      auto alphaImage = tlg5;
+      alphaImage[11] = 4; // RGBA
+      rawPlane(alphaImage, 64);
+      if (!checkColor(alphaImage, 64)) {
+        std::printf("FAIL: TLG5 raw alpha channel decoding\n");
+        ++failures;
+      }
+      std::vector<std::uint8_t> wrapped{
+          'T', 'L', 'G', '0', '.', '0', 0, 's', 'd', 's', 0x1a};
+      putLE(wrapped, std::uint32_t(tlg5.size()));
+      wrapped.insert(wrapped.end(), tlg5.begin(), tlg5.end());
+      if (!checkColor(wrapped, 255)) {
+        std::printf("FAIL: TLG0 structured wrapper\n");
+        ++failures;
+      }
+      // Two scanlines in separate blocks exercise vertical prediction,
+      // while two pixels per row exercise horizontal delta composition.
+      std::vector<std::uint8_t> tiled{
+          'T', 'L', 'G', '5', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+      tiled.push_back(3);
+      putLE(tiled, std::uint32_t(2)); // width
+      putLE(tiled, std::uint32_t(2)); // height
+      putLE(tiled, std::uint32_t(1)); // separate scanline blocks
+      putLE(tiled, std::uint32_t(0));
+      putLE(tiled, std::uint32_t(0));
+      const auto rawRow = [&](std::uint8_t first, std::uint8_t second) {
+        tiled.push_back(1);
+        putLE(tiled, std::uint32_t(2));
+        tiled.push_back(first);
+        tiled.push_back(second);
+      };
+      rawRow(5, 0);  // first row blue
+      rawRow(10, 0); // green
+      rawRow(20, 0); // red
+      rawRow(0, 0);  // second row reuses previous row
+      rawRow(0, 0);
+      rawRow(0, 0);
+      auto tiledSurface = Kotonoha::Providers::decodeTlgImage(tiled);
+      bool tiledOK = tiledSurface && tiledSurface->w == 2 &&
+                     tiledSurface->h == 2;
+      if (tiledOK) {
+        const auto *pixel = static_cast<const std::uint8_t *>(
+            tiledSurface->pixels);
+        for (unsigned y = 0; y < 2; ++y)
+          for (unsigned x = 0; x < 2; ++x) {
+            const auto *p = pixel + y * tiledSurface->pitch + x * 4;
+            if (p[0] != 30 || p[1] != 10 ||
+                p[2] != 15 || p[3] != 255)
+              tiledOK = false;
+          }
+      }
+      if (!tiledOK) {
+        std::printf("FAIL: TLG5 horizontal/vertical predictor\n");
+        ++failures;
+      }
+      std::vector<std::uint8_t> unsupported{
+          'T', 'L', 'G', '6', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+      bool rejectedTlg6 = false;
+      try {
+        (void)Kotonoha::Providers::decodeTlgImage(unsupported);
+      } catch (const std::runtime_error &) {
+        rejectedTlg6 = true;
+      }
+      if (!rejectedTlg6) {
+        std::printf("FAIL: unsupported TLG6 was accepted as a TLG5 image\n");
+        ++failures;
+      }
+
+      auto truncated = tlg5;
+      truncated.pop_back();
+      bool rejected = false;
+      try {
+        (void)Kotonoha::Providers::decodeTlgImage(truncated);
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: truncated TLG5 image was accepted\n");
+        ++failures;
+      }
+
+      const auto imageFolder = tempDir / "image";
+      std::filesystem::create_directories(imageFolder);
+      const auto filePath = imageFolder / "tlg5.tlg";
+      std::ofstream file(filePath, std::ios::binary);
+      file.write(reinterpret_cast<const char *>(tlg5.data()),
+                 std::streamsize(tlg5.size()));
+      file.close();
+      Kotonoha::Providers::KirikiriAssets provider(tempDir);
+      const auto surface = provider.loadSurface("image/tlg5.tlg");
+      const auto *pixel =
+          surface ? static_cast<const std::uint8_t *>(surface->pixels) : nullptr;
+      if (!pixel || pixel[0] != 30 || pixel[1] != 10 ||
+          pixel[2] != 15 || pixel[3] != 255) {
+        std::printf("FAIL: Kirikiri provider did not route TLG5 decoding\n");
+        ++failures;
+      }
+    } catch (const std::exception &error) {
+      std::printf("FAIL: TLG5 image compatibility: %s\n", error.what());
+      ++failures;
+    }
   }
 
   std::filesystem::remove_all(tempDir);

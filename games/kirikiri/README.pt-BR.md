@@ -2,81 +2,30 @@
 
 [English (US)](README.md) | **Português (Brasil)**
 
-Leitura de XP3 e tags KAG básicas para diálogos, personagens, escolhas e áudio.
+Porte C++17 de KiriKiri para o Kotonoha: montagem XP3, interpretador KAG experimental e apresentação básica de imagens, diálogos, menus, escolhas e áudio.
 
-**Estado:** Bytecode TJS2 genérico, plugins externos e alguns formatos gráficos ainda não são suportados.
+## Compatibilidade implementada
 
-## Compatibilidade visual e título (KAG parcial)
+- O provedor XP3 aceita índices canônicos sem compressão ou com zlib, índices encadeados, vários segmentos por arquivo (inclusive mistos), nomes Unicode, busca ASCII sem diferenciar maiúsculas/minúsculas e prioridade de patches. A leitura dos recursos acontece sob demanda.
+- Além dos formatos de imagem comuns via SDL/FFmpeg, é possível decodificar **TLG5 RGB/RGBA**, inclusive dentro de TLG0. Há testes sintéticos para pixels, LZSS e arquivos truncados.
+- Os comandos KAG `[bg storage=...]`, `[image layer=... storage=...]`, `[freeimage]` e `[layopt visible=false]` alteram as camadas realmente desenhadas. Algumas transições ainda ocorrem imediatamente.
+- Um **menu provisório do Kotonoha**, com imagem compatível opcional, aparece mesmo quando não há roteiro `.ks` executável, exibindo a limitação em vez da tela vazia.
+- Índices malformados, segmentos fora dos limites e encadeamentos cíclicos são rejeitados. Um XP3 inválido não bloqueia a montagem automática dos outros.
 
-O menu provisório do Kotonoha agora aparece mesmo sem roteiros `.ks`
-executáveis, evitando a tela vazia quando só existem arquivos TJS2.
-Se houver uma imagem de título reconhecível em formato comum, ela
-aparece atrás do menu. Os comandos KAG `[bg storage=...]`,
-`[image layer=... storage=...]`, `[freeimage]` e `[layopt]` de ocultação
-agora alteram fundos e camadas realmente desenhados. Os nomes UTF-16
-dos XP3, incluindo caracteres japoneses, também são decodificados.
+## Limitações conhecidas
 
-**Limitações:** não é o menu original do jogo em TJS2. KiriKiri normalmente
-inicia por `startup.tjs`; o porte ainda não executa TJS2 completo, nem
-SCN/PSB complexo, transições fiéis, TLG5/TLG6 ou filtros específicos.
-PNG/JPEG/BMP/WebP usam o decoder que o Kotonoha já possui.
-Ver o menu provisório não comprova a jogabilidade de NEKOPARA.
+**O menu provisório não é o menu original de NEKOPARA.** O fluxo original de KiriKiri inicia pelo `startup.tjs` e depende do interpretador TJS2, plugins e interface específica do título. O porte ainda não executa TJS2 genérico nem toda a semântica de arquivos PSB/SCN compilados. **TLG6 e filtros/criptografia XP3 específicos de jogos permanecem sem suporte.** Saves, efeitos, traduções e áudio ainda não possuem paridade com o jogo original.
 
-Teste com dados sintéticos:
+Essas melhorias não foram validadas em uma instalação comercial de NEKOPARA. Montar o XP3 ou mostrar o menu provisório não comprova jogabilidade completa. Os testes do repositório usam dados sintéticos.
+
+## Compilação e testes
 
 ```sh
 cmake -S . -B build -DKOTONOHA_BUILD_KIRIKIRI=ON -DBUILD_TESTING=ON
 cmake --build build --target KirikiriXp3Tests Kirikiri
-ctest --test-dir build -R '^KirikiriXp3
-
-```sh
-cmake -S . -B build -DKOTONOHA_BUILD_KIRIKIRI=ON
-cmake --build build --target Kirikiri
+ctest --test-dir build -R '^KirikiriXp3$' --output-on-failure
 ```
 
-## Compatibilidade de pacotes
-
-O provedor XP3 agora reconhece barras do Windows/Unix e correspondência
-única sem diferenciar maiúsculas/minúsculas ASCII, rejeitando nomes ambíguos.
-Fluxos MDF/zlib malformados geram erro em vez de repetir a descompressão
-indefinidamente. Testes sintéticos cobrem esses casos.
-
-Isso melhora a camada de assets reutilizável de Kirikiri2/Z. Não implementa
-o runtime TJS2 completo nem todas as estruturas PSB/SCN compiladas. Portanto,
-montar um arquivo ou extrair texto não garante que um jogo comercial complexo
-seja executável.
-
-## Dados do jogo
-
-Use pasta de jogo legítima com scripts .ks ou arquivo .xp3.
-Use o launcher ou passe `--kirikiri /caminho/para/dados` ao executável. Nunca versione dados comerciais.
-
-[Guias de compilação](../../docs/BUILD_GUIDES.pt-BR.md) · [Índice de ports](../README.pt-BR.md)
- --output-on-failure
-```
-
-## Compilação
-
-```sh
-cmake -S . -B build -DKOTONOHA_BUILD_KIRIKIRI=ON
-cmake --build build --target Kirikiri
-```
-
-## Compatibilidade de pacotes
-
-O provedor XP3 agora reconhece barras do Windows/Unix e correspondência
-única sem diferenciar maiúsculas/minúsculas ASCII, rejeitando nomes ambíguos.
-Fluxos MDF/zlib malformados geram erro em vez de repetir a descompressão
-indefinidamente. Testes sintéticos cobrem esses casos.
-
-Isso melhora a camada de assets reutilizável de Kirikiri2/Z. Não implementa
-o runtime TJS2 completo nem todas as estruturas PSB/SCN compiladas. Portanto,
-montar um arquivo ou extrair texto não garante que um jogo comercial complexo
-seja executável.
-
-## Dados do jogo
-
-Use pasta de jogo legítima com scripts .ks ou arquivo .xp3.
-Use o launcher ou passe `--kirikiri /caminho/para/dados` ao executável. Nunca versione dados comerciais.
+Use uma pasta legítima de jogo com scripts KAG ou pacotes XP3. Execute o launcher ou passe `--kirikiri /caminho/para/dados`. Não versione assets comerciais.
 
 [Guias de compilação](../../docs/BUILD_GUIDES.pt-BR.md) · [Índice de ports](../README.pt-BR.md)
