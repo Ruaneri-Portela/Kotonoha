@@ -75,6 +75,7 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
         float(272.0 + sprite->position[1] * 2.0 - height / 2.0),
         float(width), float(height)};
     if (!sprite->hasImage) {
+      if (sprite->texture != 0) continue; // Unresolved resources are not bars.
       // Texture zero is the opaque black screen/side-bar rectangle. It must
       // occlude lower layers; it is not a missing white placeholder.
       require(SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND));
