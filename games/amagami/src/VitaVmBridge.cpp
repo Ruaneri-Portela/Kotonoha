@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <cstdio>
 #include <limits>
 #include <stdexcept>
 
@@ -219,6 +220,91 @@ std::optional<VmValue>
 VitaVmBridge::primitive(const std::string &owner, const std::string &method,
                         bool classMethod, const VmValue &receiver,
                         unsigned number, const std::vector<VmValue> &args) {
+  // BG_Picture uses the same visual channels as Sprite but references a
+  // GRAPH.CPK picture and follows the world view. Primitive numbering comes
+  // from the original Vita system classes, not the PS2 graphics methods.
+  if (owner == "BG_Picture") {
+    if (number == 0 || number == 1) {
+      expectCount(args, number == 0 ? 3 : 4);
+      const int64_t place = argument(args, 0);
+      const int64_t scene = argument(args, 1);
+      const int64_t mobility = argument(args, 2);
+      if (place < 0 || place > 999 || scene < 0 || scene > 99 ||
+          mobility < 0 || mobility > 99)
+        throw std::runtime_error("Amagami Vita: invalid background ID");
+      char filename[64]{};
+      std::snprintf(filename, sizeof filename,
+                    "bg/%03lld_%lld%lld.gxt", (long long)place,
+                    (long long)scene, (long long)mobility);
+      const auto dimensions = namedPictureSize_ ?
+          namedPictureSize_(filename) : std::nullopt;
+      if (number == 0) {
+        if (!classMethod) return std::nullopt;
+        auto exists = VmValue::num(dimensions ? 1 : 0);
+        exists.kind = VmValue::Boolean;
+        return exists;
+      }
+      if (classMethod) return std::nullopt;
+      const int64_t layer = argument(args, 3);
+      if (dimensions && (!dimensions->first || !dimensions->second ||
+                         dimensions->first > 4096 || dimensions->second > 4096))
+        throw std::runtime_error("Amagami Vita: invalid background dimensions");
+      // Create transactionally: an unavailable member is represented but never
+      // painted as texture-zero black bars.
+      const auto uid = newSprite(0, 0, layer);
+      auto &picture = sprites_.at(uid);
+      picture.assetName = filename;
+      picture.worldView = true;
+      picture.hasImage = bool(dimensions);
+      picture.rect = {{0, 0, dimensions ? double(dimensions->first) : 960,
+                            dimensions ? double(dimensions->second) : 544}};
+      auto &fields = spriteFields(receiver);
+      if (fields.empty()) fields.resize(1);
+      fields[0] = VmValue::num(uid);
+      return receiver;
+    }
+    if (classMethod) return std::nullopt;
+    // Shared lifecycle operations and base-channel tweens.
+    if (number >= 7 && number <= 10) {
+      const std::size_t group = number == 7 ? 1 : number == 8 ? 0 :
+                                number == 9 ? 2 : 3;
+      const std::size_t n = group == 1 ? 3 : group == 0 ? 1 : 2;
+      expectCount(args, n + 2); // values, mode, duration; always component 0
+      std::array<double, 3> target{{0, 0, 0}};
+      for (std::size_t i = 0; i < n; ++i)
+        target[i] = valueNumber(args[i]);
+      const auto mode = argument(args, n);
+      const double time = valueNumber(args[n + 1]);
+      // Validate even when the visual object was already destroyed.
+      SpriteTween verified;
+      verified.start(target, n, int(mode), time);
+      auto &fields = spriteFields(receiver);
+      if (fields.empty() || fields[0].kind != VmValue::Number)
+        return receiver;
+      const double rawUid = fields[0].number;
+      if (rawUid <= 0 || rawUid >= 1000000 ||
+          std::trunc(rawUid) != rawUid)
+        return receiver;
+      const auto found = sprites_.find(uint64_t(rawUid));
+      if (found != sprites_.end()) {
+        found->second.tweens[group][0].start(target, n, int(mode), time);
+        found->second.refresh();
+      }
+      return receiver;
+    }
+    unsigned shared = 0;
+    switch (number) {
+    case 2: shared = 2; break; // clone
+    case 3: shared = 3; break; // destroy
+    case 4: shared = 7; break; // update remaining channel frames
+    case 6: shared = 6; break; // setLayer
+    case 15: shared = 17; break; // finish tweens
+    case 16: shared = 18; break; // pause
+    default: return std::nullopt; // spin/vibration not implemented
+    }
+    return primitive("Sprite", method, false, receiver, shared, args);
+  }
+
   // ControlPad primitives (Vita system image). The caller supplies one input
   // frame through inputFrame(); these getters must not poll or mutate SDL.
   // Scenario-only PS2-layout remapping depends on the invoking SCF class and
