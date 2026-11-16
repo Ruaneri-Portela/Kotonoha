@@ -428,4 +428,19 @@ playability. A Vita backend should be a separate source/provider using the
 existing SCF parser, with CPK TOC/ITOC, CRILAYLA, Vita graphics/audio
 and Vita-specific native primitives tested before enabling it.
 
-No retail game assets or third-party source files are copied into Kotonoha.
+The standalone Vita CPK reader, adapted from open-amagami, is included
+under its original MIT licence, preserved at
+`modules/providers/amagami/third_party/open-amagami-LICENSE.txt`.
+No proprietary game files, decryption tools or encryption keys are included.
+
+A read-only Vita inspector is available on desktop builds:
+
+```sh
+cmake --build build --target AmagamiVitaInspect AmagamiVitaCpkTest
+build/games/amagami/AmagamiVitaInspect /path/to/decrypted/PCSG00291 --verify
+ctest --test-dir build -R 'Amagami.VitaCpk' --output-on-failure
+```
+
+It checks the system image and CPK scenario scripts using the existing
+Kotonoha SCF reader. It is not a Vita game launcher, and does not replace
+the PS2-only `Amagami` target.
