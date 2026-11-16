@@ -81,6 +81,17 @@ int main() {
   require(archive.readAt(*first, 3, chunk, sizeof(chunk)) == 0);
   require(archive.readAt(*first, 999, chunk, sizeof(chunk)) == 0);
   rejects([&]{ (void)archive.readAt(*first, 0, nullptr, 1); });
+  archive.addAfsNames("2\nscenes/first.ks,0\r\nvoice/track.ogg,1\n");
+  require(archive.contains("SCENES/FIRST.KS"), "AFS alias lookup failed");
+  require(archive.read("scenes/first.ks") == Bytes({'o','n','e'}),
+          "AFS alias pointed to incorrect entry");
+  require(archive.contains("VOICE/track.ogg"),
+          "AFS second filename alias missing");
+  require(archive.names().size() == 4, "AFS original and alias names not listed");
+  rejects([&] { archive.addAfsNames("1\n../escape,0\n"); });
+  rejects([&] { archive.addAfsNames("1\nscenes/first.ks,1\n"); });
+  rejects([&] { archive.addAfsNames("1\ninvalid,999999\n"); });
+  require(!archive.contains("invalid"), "bad AFS INI partially mutated names");
   auto badAfs=a;
   set32(badAfs,8,99999);
   rejects([&]{N2System::Archive invalid(badAfs);});

@@ -32,8 +32,13 @@ private:
 };
 }
 void N2ArchiveAssets::mount(std::vector<std::uint8_t> data) {
-  auto archive = std::make_shared<const Archive>(std::move(data));
+  auto archive = std::make_shared<Archive>(std::move(data));
   archives_.push_back(std::move(archive));
+}
+void N2ArchiveAssets::addAfsNames(std::string_view ini) {
+  if (archives_.empty())
+    throw std::runtime_error("N2System: mount an AFS archive first");
+  archives_.back()->addAfsNames(ini);
 }
 bool N2ArchiveAssets::containsAsset(const std::string& path) const {
   for (auto it=archives_.rbegin();it!=archives_.rend();++it)
@@ -50,9 +55,9 @@ std::vector<std::string> N2ArchiveAssets::listAsset(
   std::set<std::string> names;
   const auto lookup=Archive::normalize(prefix);
   for (const auto& archive:archives_)
-    for (const auto& entry:archive->entries())
-      if (entry.name.compare(0,lookup.size(),lookup)==0)
-        names.insert(entry.name);
+    for (const auto& name:archive->names())
+      if (name.compare(0,lookup.size(),lookup)==0)
+        names.insert(name);
   return {names.begin(),names.end()};
 }
 std::unique_ptr<Kotonoha::AssetStream>
