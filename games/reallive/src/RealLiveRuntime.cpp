@@ -1899,12 +1899,7 @@ struct RealLiveRuntime::Impl {
       readPages.insert(currentPage);
       pause = false;
       autoDeadline = 0;
-      if (manual) {
-        autoMode = false;
-        skipMode = false;
-      } else if (!preserveReadSkip) {
-        skipMode = false;
-      }
+      updateAdvanceModes(manual, preserveReadSkip, autoMode, skipMode);
       if (pauseKind != 205) {
         dialogue.clear();
         speakerName.clear();

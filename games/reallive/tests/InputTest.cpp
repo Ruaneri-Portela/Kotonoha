@@ -23,6 +23,14 @@ SDL_Event finger(Uint32 type, SDL_FingerID id, float x, float y) {
   e.tfinger.x=x; e.tfinger.y=y; return e;
 }
 int main() {
+  bool readSkip = true, autoMode = false;
+  RealLive::updateAdvanceModes(false, true, autoMode, readSkip);
+  require(readSkip, "Read skip must persist after a read page");
+  RealLive::updateAdvanceModes(false, false, autoMode, readSkip);
+  require(!readSkip, "Automatic advance may clear read skip");
+  readSkip = autoMode = true;
+  RealLive::updateAdvanceModes(true, false, autoMode, readSkip);
+  require(!readSkip && !autoMode, "Manual advance disables both modes");
   RealLive::RealLiveInput i;
   i.processSkip(key(SDL_EVENT_KEY_DOWN, SDLK_LCTRL),true);
   i.processSkip(key(SDL_EVENT_KEY_DOWN, SDLK_RCTRL),true);

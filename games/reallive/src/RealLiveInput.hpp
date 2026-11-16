@@ -6,6 +6,18 @@
 #include <utility>
 
 namespace RealLive {
+// Advances initiated by read-skip must not disable the read-skip toggle.
+// Auto advance preserves auto mode; manual input cancels both modes.
+inline void updateAdvanceModes(bool manual, bool preserveReadSkip,
+                               bool &autoMode, bool &skipMode) {
+  if (manual) {
+    autoMode = false;
+    skipMode = false;
+  } else if (!preserveReadSkip) {
+    skipMode = false;
+  }
+}
+
 // Track Ctrl, gamepad South and each physical trigger independently.
 class RealLiveInput {
   Kotonoha::TouchActivation touches_;

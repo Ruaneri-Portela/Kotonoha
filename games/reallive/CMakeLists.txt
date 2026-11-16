@@ -67,7 +67,8 @@ if(BUILD_TESTING)
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../lib/include")
     target_compile_features(RealLiveInputTests PRIVATE cxx_std_17)
-    target_link_libraries(RealLiveInputTests PRIVATE SDL3::SDL3)
+    target_link_libraries(RealLiveInputTests PRIVATE
+        SDL3::SDL3 SDL3_ttf::SDL3_ttf)
     add_test(NAME RealLive.Input COMMAND RealLiveInputTests)
     set_tests_properties(RealLive.Input PROPERTIES LABELS synthetic)
 
