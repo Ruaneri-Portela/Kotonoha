@@ -620,9 +620,9 @@ ctest --test-dir build -R 'Amagami.Vita(Input|ControlPad|SpriteRender)' --output
 **Not a playable Vita game yet.** The VM pauses its execution budget every
 frame to keep the SDL event loop responsive. Unknown native methods are logged
 with SCF location and leave the last scene on screen for inspection; the
-process returns status 3 after an unimplemented native is encountered. Native
-\`FontChar\`, \`BG_Picture\`, other visual classes, sound and many script
-primitives are not yet implemented. No gameplay/audio fidelity is asserted.
+process returns status 3 after an unimplemented native is encountered. Other
+visual classes, sound and many script primitives are still unsupported;
+\`FontChar\` and \`BG_Picture\` only have initial native subsets. No gameplay/audio fidelity is asserted.
 The tool is compiled for desktop host builds only, does not change the PS2
 port and requires a separate, already-decrypted Vita copy and plain ELF.
 
