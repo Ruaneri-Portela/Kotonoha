@@ -1,4 +1,4 @@
-if(NOT ANDROID AND NOT EMSCRIPTEN)
+if(KOTONOHA_BUILD_HOST_TOOLS)
     add_executable(AmagamiVitaCpkTest VitaCpkTest.cpp)
     target_link_libraries(AmagamiVitaCpkTest PRIVATE Kotonoha::ProviderAmagami)
     add_test(NAME Amagami.VitaCpk COMMAND AmagamiVitaCpkTest)
