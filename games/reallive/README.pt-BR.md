@@ -37,3 +37,11 @@ com as edições originais, escolhas, imagens, áudio, saves e transições.
 [Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.
 
 [Guias de compilação](../../docs/BUILD_GUIDES.pt-BR.md) · [Índice de ports](../README.pt-BR.md)
+
+## Segurança do fluxo de execução
+
+Chamadas locais e entre cenários agora impõem um limite de profundidade para
+a pilha de retorno. Uma tentativa de entrar em um cenário inexistente não deve
+deixar um retorno fantasma; um retorno inválido não deve consumir o quadro
+salvo antes da validação. O teste de sessão mantém suas asserções ativas
+também em builds `Release`, mas depende de dados RealLive originais.

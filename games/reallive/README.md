@@ -37,3 +37,11 @@ graphics, audio, saves and route transitions.
 [Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.
 
 [Build guides](../../docs/BUILD_GUIDES.md) · [Port index](../README.md)
+
+## VM call/return safeguards
+
+Local and cross-scenario calls now enforce a return-stack depth limit.
+Missing target scenarios do not leave phantom return frames; invalid
+returns keep the pending frame until validation succeeds. The session test
+keeps its assertions enabled in `Release`, but requires original RealLive
+game data.
