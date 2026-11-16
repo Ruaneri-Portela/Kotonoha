@@ -65,6 +65,8 @@ incompatible for a nonempty package identifier. Reproduced on pure
 `upstream/dev` `fdd0b041`, without changing `StoragePaths.cpp` or weakening
 the local namespaced test.
 
+| Subtitle styles / colors | **Not visually verified**; `styles.ass` now contains design-only speaker colors and a Setsuna correction, with synthetic tests only | Color selection is tested headlessly, not validated against real rendered scenes |
+
 This ledger is intentionally conservative: a passing Release compilation and
 synthetic CTest suite do not certify commercial-game behavior, real saves, or
 untested platforms. Preserve historical `PORT_STATUS.md` and investigation
