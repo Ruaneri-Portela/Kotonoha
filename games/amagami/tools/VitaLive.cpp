@@ -125,6 +125,11 @@ int main(int argc, char **argv) {
       return graphics->contains(name) ? graphics->loadSurface(name)
                                       : Kotonoha::SurfacePtr{};
     });
+    presenter.setFontSource([graphics](unsigned font, uint16_t code,
+                                      unsigned palette) {
+      return graphics ? graphics->fontGlyph(font, code, palette)
+                      : Kotonoha::SurfacePtr{};
+    });
     Amagami::Vita::VitaInput input;
     Kotonoha::GamepadPtr gamepad;
     int count = 0;
