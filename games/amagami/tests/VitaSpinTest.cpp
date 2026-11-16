@@ -172,6 +172,31 @@ int main() {
     try { invoke(bridge, "Sprite", sprite, 12, {n(1), n(0), n(10), n(2)}); }
     catch (const std::exception &) { rejected = true; }
     require(rejected, "Unknown spin component rejected");
+    // Also verify SCF native bytecode dispatch (opcode 0x34, native #12)
+    // actually reaches the new Spin implementation through its class owner.
+    Amagami::Script scripted;
+    scripted.name = "Sprite";
+    Amagami::Method spinMethod;
+    spinMethod.name = "spin";
+    spinMethod.arguments = 4;
+    spinMethod.code = {0x34, 12, 2}; // native, return
+    scripted.methods.push_back(spinMethod);
+    Amagami::Vm vm;
+    vm.add(scripted);
+    vm.scopedPrimitive = [&bridge](const std::string &owner,
+         const std::string &selector, bool isClass, const VmValue &self,
+         unsigned primitive, const std::vector<VmValue> &args) {
+      return bridge.primitive(owner, selector, isClass, self, primitive, args);
+    };
+    auto dispatched = vm.instance("Sprite");
+    invoke(bridge, "Sprite", dispatched, 1, {n(1), n(0), n(9)});
+    vm.call(dispatched, "spin", {n(0.5), n(0), n(0), n(0)});
+    vm.run(1000);
+    require(vm.finished(), "Original SCF spin method returns normally");
+    close(bridge.sprites().at(
+              uint64_t(dispatched.object->fields[0].number)).angle,
+          0.5, "SCF bytecode dispatch changes rotation of the scene object");
+
     std::cout << "Vita Sprite/BG_Picture spin and SDL rotation passed\n";
     return 0;
   } catch (const std::exception &e) {
