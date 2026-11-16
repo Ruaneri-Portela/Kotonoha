@@ -10,7 +10,8 @@ class KirikiriAssets;
 
 struct TjsStartupResult {
   // True when every visited TJS2 statement was handled by the subset VM.
-  // Native UI, plugins, object/class definitions and bytecode are NOT handled.
+  // Only Dictionary values and named script functions are supported.
+  // Native UI, user classes, plugins and bytecode are NOT handled.
   bool subsetCompleted = false;
   bool requiresNativeRuntime = false;
   std::size_t statements = 0;

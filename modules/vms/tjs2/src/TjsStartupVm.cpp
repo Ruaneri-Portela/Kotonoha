@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -18,21 +19,26 @@
 
 namespace Kotonoha::Providers {
 namespace {
-using Data = std::variant<std::monostate, bool, double, std::string>;
+struct Object;
+using ObjectPtr = std::shared_ptr<Object>;
+using Data = std::variant<std::monostate, bool, double, std::string, ObjectPtr>;
 struct Value {
   Data data;
   Value() = default;
   explicit Value(bool x) : data(x) {}
   explicit Value(double x) : data(x) {}
   explicit Value(std::string x) : data(std::move(x)) {}
+  explicit Value(ObjectPtr x) : data(std::move(x)) {}
   bool truthy() const {
     if (auto b = std::get_if<bool>(&data)) return *b;
     if (auto n = std::get_if<double>(&data)) return *n != 0.0;
     if (auto s = std::get_if<std::string>(&data)) return !s->empty();
+    if (auto object = std::get_if<ObjectPtr>(&data)) return bool(*object);
     return false;
   }
   std::string string() const {
     if (auto s = std::get_if<std::string>(&data)) return *s;
+    if (std::holds_alternative<ObjectPtr>(data)) return "[Dictionary]";
     if (auto b = std::get_if<bool>(&data)) return *b ? "true" : "false";
     if (auto n = std::get_if<double>(&data)) {
       auto s = std::to_string(*n);
@@ -55,6 +61,12 @@ struct Value {
     }
     throw std::runtime_error("TJS2 subset: numeric operand expected");
   }
+};
+
+// Minimal heap-backed TJS Dictionary value. Copies share member state, but
+// native KiriKiri Window/Layer objects and prototype dispatch are excluded.
+struct Object {
+  std::unordered_map<std::string, Value> members;
 };
 
 struct Token {
@@ -197,6 +209,18 @@ bool endsWith(const std::string &text, std::string suffix) {
                     });
 }
 
+// Functions are represented by bounded source slices; the parser reuses its
+// ordinary expression evaluator on calls, but cannot execute native TJS objects.
+struct SourceFunction {
+  std::string name;
+  std::string source;
+  std::string body;
+  std::vector<std::string> parameters;
+};
+struct FunctionReturn {
+  Value value;
+};
+
 class Parser;
 class Interpreter {
 public:
@@ -205,9 +229,82 @@ public:
   const KirikiriAssets &assets;
   TjsStartupResult result;
   std::unordered_map<std::string, Value> variables;
+  std::unordered_map<std::string, SourceFunction> functions;
+  std::vector<std::unordered_map<std::string, Value>> frames;
   std::vector<std::string> active;
   std::size_t remaining;
+  std::size_t functionDepth = 0;
 
+  Value get(const std::string &name) const {
+    // Exact qualified built-ins like System.title remain supported.
+    for (auto frame = frames.rbegin(); frame != frames.rend(); ++frame) {
+      if (auto it = frame->find(name); it != frame->end())
+        return it->second;
+    }
+    if (auto it = variables.find(name); it != variables.end())
+      return it->second;
+    const auto dot = name.find('.');
+    if (dot == std::string::npos)
+      throw std::runtime_error("TJS2 subset: unresolved variable: " + name);
+    Value current = get(name.substr(0, dot));
+    for (auto first = dot + 1; first < name.size();) {
+      const auto next = name.find('.', first);
+      const auto key = name.substr(first, next == std::string::npos
+                                              ? next : next - first);
+      const auto ptr = std::get_if<ObjectPtr>(&current.data);
+      if (!ptr || !*ptr)
+        throw std::runtime_error("TJS2 subset: property read on non-Dictionary");
+      const auto found = (*ptr)->members.find(key);
+      if (found == (*ptr)->members.end())
+        throw std::runtime_error("TJS2 subset: missing Dictionary property: " +
+                                 key);
+      current = found->second;
+      if (next == std::string::npos) break;
+      first = next + 1;
+    }
+    return current;
+  }
+  void set(const std::string &name, Value value, bool declaration) {
+    if (declaration) {
+      if (!frames.empty())
+        frames.back()[name] = std::move(value);
+      else
+        variables[name] = std::move(value);
+      return;
+    }
+    const auto dot = name.rfind('.');
+    if (dot != std::string::npos && name != "System.title") {
+      const auto rootName = name.substr(0, dot);
+      // If this refers to an existing Dictionary, update that shared object;
+      // otherwise preserve legacy special-qualified bootstrap assignments.
+      try {
+        const auto owner = get(rootName);
+        if (const auto obj = std::get_if<ObjectPtr>(&owner.data);
+            obj && *obj) {
+          const auto member = name.substr(dot + 1);
+          if ((*obj)->members.count(member) == 0 &&
+              (*obj)->members.size() >= 1024)
+            throw std::runtime_error(
+                "TJS2 subset: Dictionary member limit exceeded");
+          (*obj)->members[member] = std::move(value);
+          return;
+        }
+        throw std::runtime_error(
+            "TJS2 subset: property assignment on non-Dictionary");
+      } catch (const std::runtime_error &error) {
+        const auto message = std::string(error.what());
+        if (message.find("unresolved variable") == std::string::npos)
+          throw;
+      }
+    }
+    for (auto frame = frames.rbegin(); frame != frames.rend(); ++frame) {
+      if (auto it = frame->find(name); it != frame->end()) {
+        it->second = std::move(value);
+        return;
+      }
+    }
+    variables[name] = std::move(value);
+  }
   void tick() {
     if (!remaining--)
       throw std::runtime_error("TJS2 subset: instruction budget exhausted");
@@ -226,37 +323,13 @@ public:
   }
   void runFile(std::string id, std::size_t depth);
   Value call(const std::string &name, const std::vector<Value> &params,
-             const std::string &current, bool activeFlag) {
-    if (!activeFlag) return {};
-    if (params.size() != 1)
-      throw std::runtime_error("TJS2 subset: exactly one argument required for " +
-                               name);
-    const auto requested = params.front().string();
-    if (name == "Storages.isExistentStorage") {
-      const auto id = resolve(requested, current);
-      return Value(assets.contains(id));
-    }
-    if (name == "Scripts.execStorage" || name == "Scripts.evalStorage") {
-      const auto id = resolve(requested, current);
-      runFile(id, active.size() + 1);
-      return {};
-    }
-    if (name == "Plugins.link") {
-      const auto id = safeName(requested);
-      if (std::find(result.requestedPlugins.begin(),
-                    result.requestedPlugins.end(), id) ==
-          result.requestedPlugins.end())
-        result.requestedPlugins.push_back(id);
-      result.requiresNativeRuntime = true;
-      return Value(false); // No native plugin was loaded.
-    }
-    throw std::runtime_error("TJS2 subset: native call not implemented: " + name);
-  }
+             const std::string &current, bool activeFlag);
 };
 
 class Parser {
   Interpreter &machine;
   std::string sourceName;
+  std::string sourceCode;
   std::vector<Token> tokens;
   std::size_t pc = 0;
 
@@ -280,6 +353,29 @@ class Parser {
     return tokens[pc++].text;
   }
   Value primary(bool active) {
+    if (match("new")) {
+      const auto type = identifier();
+      std::size_t argumentCount = 0;
+      if (match("(") && !match(")")) {
+        do {
+          if (++argumentCount > 8)
+            throw std::runtime_error(
+                "TJS2 subset: too many native constructor arguments");
+          // A disabled TJS branch can contain native constructors. Parse
+          // the arguments but do not resolve symbols or run side effects.
+          (void)expression(false);
+        } while (match(","));
+        expect(")");
+      }
+      if (!active) return {};
+      if (type == "Dictionary" && argumentCount == 0)
+        return Value(std::make_shared<Object>());
+      if (type == "Dictionary")
+        throw std::runtime_error(
+            "TJS2 subset: Dictionary constructor takes no arguments");
+      throw std::runtime_error(
+          "TJS2 subset: native class not implemented: " + type);
+    }
     if (match("(")) {
       auto v = expression(active);
       expect(")");
@@ -319,11 +415,7 @@ class Parser {
       }
       return machine.call(name, args, sourceName, active);
     }
-    if (!active) return {};
-    const auto it = machine.variables.find(name);
-    if (it == machine.variables.end())
-      throw std::runtime_error("TJS2 subset: unresolved variable: " + name);
-    return it->second;
+    return active ? machine.get(name) : Value();
   }
   Value unary(bool active) {
     if (match("!")) {
@@ -415,6 +507,53 @@ class Parser {
   void statement(bool active) {
     machine.tick();
     if (match(";")) return;
+    if (match("return")) {
+      const auto value = look().text == ";" ? Value() : expression(active);
+      expect(";");
+      if (active) {
+        if (machine.functionDepth == 0)
+          throw std::runtime_error("TJS2 subset: return outside function");
+        throw FunctionReturn{value};
+      }
+      return;
+    }
+    if (match("function")) {
+      const auto functionName = identifier();
+      expect("(");
+      std::vector<std::string> parameters;
+      if (!match(")")) {
+        do {
+          if (parameters.size() >= 16)
+            throw std::runtime_error("TJS2 subset: too many parameters");
+          const auto name = identifier();
+          if (std::find(parameters.begin(), parameters.end(), name) !=
+              parameters.end())
+            throw std::runtime_error("TJS2 subset: duplicate parameter name");
+          parameters.push_back(name);
+        } while (match(","));
+        expect(")");
+      }
+      if (look().text != "{")
+        throw std::runtime_error("TJS2 subset: function body expected");
+      const auto start = look().offset;
+      std::size_t braces = 0;
+      do {
+        if (look().kind == Token::End)
+          throw std::runtime_error("TJS2 subset: unterminated function body");
+        if (look().text == "{") ++braces;
+        else if (look().text == "}") --braces;
+        ++pc;
+      } while (braces);
+      if (active) {
+        if (machine.functions.size() >= 256)
+          throw std::runtime_error("TJS2 subset: function count limit exceeded");
+        const auto finish = tokens[pc - 1].offset + 1;
+        machine.functions[functionName] = SourceFunction{
+            functionName, sourceName, sourceCode.substr(start, finish - start),
+            std::move(parameters)};
+      }
+      return;
+    }
     if (match("{")) {
       while (!match("}")) {
         if (look().kind == Token::End)
@@ -429,6 +568,58 @@ class Parser {
       expect(")");
       statement(active && test.truthy());
       if (match("else")) statement(active && !test.truthy());
+      return;
+    }
+    if (match("for")) {
+      expect("(");
+      // The initializer uses the same bounded statement subset as ordinary
+      // declarations/assignments, including its terminating semicolon.
+      if (!match(";")) statement(active);
+      const auto checkAt = pc;
+      const bool hasCondition = look().text != ";";
+      auto checked = hasCondition ? expression(active) : Value(true);
+      expect(";");
+
+      // Preserve the update expression text, then execute it as a statement
+      // only after an active iteration. This avoids running disabled branches.
+      const auto updateStart = look().offset;
+      std::size_t nested = 0;
+      while (look().kind != Token::End) {
+        if (look().text == ")" && nested == 0) break;
+        if (look().text == "(") ++nested;
+        if (look().text == ")") --nested;
+        ++pc;
+      }
+      if (look().kind == Token::End)
+        throw std::runtime_error("TJS2 subset: unterminated for header");
+      const auto updateEnd = look().offset;
+      const auto updateText =
+          sourceCode.substr(updateStart, updateEnd - updateStart);
+      expect(")");
+
+      const auto bodyAt = pc;
+      statement(active && checked.truthy());
+      const auto afterBody = pc;
+      if (!active) return;
+
+      unsigned iterations = checked.truthy() ? 1 : 0;
+      while (checked.truthy()) {
+        if (iterations++ >= 256)
+          throw std::runtime_error("TJS2 subset: for iteration cap exceeded");
+        if (!updateText.empty()) {
+          Parser update(machine, sourceName, updateText + ";");
+          update.run();
+        }
+        pc = checkAt;
+        checked = hasCondition ? expression(true) : Value(true);
+        expect(";");
+        if (!checked.truthy()) break;
+        pc = bodyAt;
+        statement(true);
+        if (pc != afterBody)
+          throw std::runtime_error("TJS2 subset: unstable for body");
+      }
+      pc = afterBody;
       return;
     }
     if (match("while")) {
@@ -462,7 +653,7 @@ class Parser {
       do {
         const auto name = identifier();
         const auto value = match("=") ? expression(active) : Value();
-        if (active) machine.variables[name] = value;
+        if (active) machine.set(name, value, true);
       } while (match(","));
       expect(";");
       return;
@@ -478,11 +669,8 @@ class Parser {
         const auto op = tokens[pc-1].text;
         expect(";");
         if (active) {
-          auto found = machine.variables.find(name);
-          if (found == machine.variables.end())
-            throw std::runtime_error("TJS2 subset: unknown increment target");
-          found->second = Value(found->second.number() +
-                                (op == "++" ? 1.0 : -1.0));
+          machine.set(name, Value(machine.get(name).number() +
+                                  (op == "++" ? 1.0 : -1.0)), false);
         }
         return;
       }
@@ -492,12 +680,14 @@ class Parser {
         expect(";");
         if (active) {
           if (op == "+=") {
-            const auto it = machine.variables.find(name);
-            if (it == machine.variables.end())
-              throw std::runtime_error("TJS2 subset: unknown compound target");
-            value = Value(it->second.string() + value.string());
+            const auto before = machine.get(name);
+            if (std::holds_alternative<std::string>(before.data) ||
+                std::holds_alternative<std::string>(value.data))
+              value = Value(before.string() + value.string());
+            else
+              value = Value(before.number() + value.number());
           }
-          machine.variables[name] = value;
+          machine.set(name, value, false);
           if (name == "System.title") machine.result.title = value.string();
         }
         return;
@@ -510,11 +700,71 @@ class Parser {
 
 public:
   Parser(Interpreter &vm, std::string file, std::string text)
-      : machine(vm), sourceName(std::move(file)), tokens(lex(text)) {}
+      : machine(vm), sourceName(std::move(file)),
+        sourceCode(std::move(text)), tokens(lex(sourceCode)) {}
   void run() {
     while (look().kind != Token::End) statement(true);
   }
 };
+
+Value Interpreter::call(const std::string &name,
+                        const std::vector<Value> &params,
+                        const std::string &current, bool activeFlag) {
+  if (!activeFlag) return {};
+
+  if (auto it = functions.find(name); it != functions.end()) {
+    // Copy the descriptor: nested declarations can rehash the function table.
+    const SourceFunction function = it->second;
+    if (params.size() != function.parameters.size())
+      throw std::runtime_error("TJS2 subset: argument count mismatch: " + name);
+    if (functionDepth >= 16)
+      throw std::runtime_error("TJS2 subset: function recursion limit exceeded");
+    std::unordered_map<std::string, Value> frame;
+    for (std::size_t index = 0; index < params.size(); ++index)
+      frame.emplace(function.parameters[index], params[index]);
+    frames.push_back(std::move(frame));
+    ++functionDepth;
+    try {
+      Parser parser(*this, function.source, function.body);
+      parser.run();
+    } catch (const FunctionReturn &returned) {
+      --functionDepth;
+      frames.pop_back();
+      return returned.value;
+    } catch (...) {
+      --functionDepth;
+      frames.pop_back();
+      throw;
+    }
+    --functionDepth;
+    frames.pop_back();
+    return {};
+  }
+
+  if (params.size() != 1)
+    throw std::runtime_error("TJS2 subset: exactly one argument required for " +
+                             name);
+  const auto requested = params.front().string();
+  if (name == "Storages.isExistentStorage") {
+    const auto id = resolve(requested, current);
+    return Value(assets.contains(id));
+  }
+  if (name == "Scripts.execStorage" || name == "Scripts.evalStorage") {
+    const auto id = resolve(requested, current);
+    runFile(id, active.size() + 1);
+    return {};
+  }
+  if (name == "Plugins.link") {
+    const auto id = safeName(requested);
+    if (std::find(result.requestedPlugins.begin(),
+                  result.requestedPlugins.end(), id) ==
+        result.requestedPlugins.end())
+      result.requestedPlugins.push_back(id);
+    result.requiresNativeRuntime = true;
+    return Value(false); // No native plugin was loaded.
+  }
+  throw std::runtime_error("TJS2 subset: native call not implemented: " + name);
+}
 
 void Interpreter::runFile(std::string id, std::size_t depth) {
   id = safeName(std::move(id));

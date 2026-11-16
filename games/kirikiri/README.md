@@ -30,6 +30,21 @@ Use a lawful game folder with KAG scripts or XP3 packages. Start the launcher or
 
 [Build guides](../../docs/BUILD_GUIDES.md) · [Port index](../README.md)
 
+## TJS2 source function and Dictionary subset
+
+The experimental `modules/vms/tjs2` VM now accepts named source functions
+with parameters and `return`, per-call local variables, bounded recursion,
+bounded `for` loops and shared `new Dictionary()` values with dotted
+member reads and writes.
+These capabilities allow simple bootstrap configuration functions to compute
+a KAG entry or title caption before the Kotonoha fallback menu is shown.
+
+**Not full TJS2:** Function expressions, user-defined classes, native
+`Window`/`Layer` objects, the genuine KiriKiri title scene and bytecode
+execution are still missing. Unsupported native constructors cause explicit
+errors instead of showing a fake original menu. Only synthetic cases are
+covered by these regressions; execution with retail assets is unverified.
+
 ## KAG choice order
 
 The supported KAG subset's `[select]`/`[choices]` tags now sort numbered `option1`, `option2`, `option10` attributes numerically rather than lexicographically, and exclude unrelated fields such as `optionColor`. A synthetic regression test checks choice order and VM resume. This does not provide a TJS2 interpreter or prove NEKOPARA's original menu works.
