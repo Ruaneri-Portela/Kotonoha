@@ -274,6 +274,35 @@ int main() {
           "AIR MESSAGE uses English even when Japanese is empty");
   }
 
+  // ---- Offset jumps must target actual instruction starts, never bytes
+  // inside a payload. Symbolic labels are restricted to JUMPPOINT markers.
+  {
+    std::vector<LucaSystem::ScriptInstruction> instructions(3);
+    instructions[0].pos = 0;
+    instructions[0].opcode = 12; // an ordinary opcode with matching string
+    instructions[0].paramBytes = {'m', 'a', 'i', 'n', 0};
+    instructions[1].pos = 8;
+    instructions[1].opcode = 38; // JUMPPOINT
+    instructions[1].paramBytes = {'m', 'a', 'i', 'n', 0};
+    instructions[2].pos = 16;
+    instructions[2].opcode = 36;
+    check(LucaSystem::FindInstructionAtOffset(instructions, 8) ==
+              std::optional<std::size_t>{1},
+          "byte offset resolves instruction boundary");
+    check(!LucaSystem::FindInstructionAtOffset(instructions, 9),
+          "middle of instruction is not a jump target");
+    check(!LucaSystem::FindInstructionAtOffset(instructions, 999),
+          "out-of-range offsets are rejected");
+    check(LucaSystem::FindJumpPoint(instructions, "main") ==
+              std::optional<std::size_t>{2},
+          "JUMPPOINT resolves after marker");
+    check(!LucaSystem::FindJumpPoint(instructions, "missing"),
+          "missing label is rejected");
+    instructions[1].opcode = 12;
+    check(!LucaSystem::FindJumpPoint(instructions, "main"),
+          "ordinary opcode payload is not a JUMPPOINT");
+  }
+
   // ---- Real data (AIR) when available ----
   std::string air;
   if (const char *env = std::getenv("LUCA_SYSTEM_TEST_DATA"))
