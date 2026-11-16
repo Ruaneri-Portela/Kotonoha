@@ -457,11 +457,42 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
 
   // Choices
   if (name == "select" || name == "choices") {
-    std::vector<std::string> options;
-    for (auto &[k, v] : tag.attrs) {
-      if (k.rfind("option", 0) == 0 || k.rfind("btn", 0) == 0)
-        options.push_back(v);
+    // Attributes are held in a std::map; lexicographic iteration presents
+    // option10 before option2. Sort numbered buttons numerically, and never
+    // treat unrelated attributes such as optionColor as dialogue choices.
+    struct Choice {
+      unsigned index;
+      std::string key, caption;
+    };
+    std::vector<Choice> numbered;
+    for (const auto &[key, caption] : tag.attrs) {
+      const std::size_t prefix =
+          key.rfind("option", 0) == 0 ? 6u :
+          key.rfind("btn", 0) == 0 ? 3u : 0u;
+      if (!prefix || key.size() <= prefix)
+        continue;
+      unsigned index = 0;
+      bool valid = true;
+      for (std::size_t i = prefix; i < key.size(); ++i) {
+        const unsigned char ch = static_cast<unsigned char>(key[i]);
+        if (ch < '0' || ch > '9' || index > 9999u) {
+          valid = false;
+          break;
+        }
+        index = index * 10u + (ch - '0');
+      }
+      if (valid && index <= 9999u)
+        numbered.push_back({index, key, caption});
     }
+    std::sort(numbered.begin(), numbered.end(),
+              [](const Choice &a, const Choice &b) {
+                return a.index == b.index ? a.key < b.key
+                                          : a.index < b.index;
+              });
+    std::vector<std::string> options;
+    options.reserve(numbered.size());
+    for (const auto &choice : numbered)
+      options.push_back(choice.caption);
     if (cb_.showChoice && !options.empty()) {
       blocked_ = true;
       cb_.showChoice(getAttr(tag, "question", std::string()), options,
