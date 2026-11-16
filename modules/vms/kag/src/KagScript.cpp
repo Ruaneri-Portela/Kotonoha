@@ -482,25 +482,64 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     return false; // a missing timer callback must not suspend forever
   }
 
-  // Background
+  // KAG3's regular [bg] command uses storage= rather than the custom
+  // bgshow file= alias. Both are supported for older Kotonoha scripts.
   if (name == "bgshow" || name == "bg" || name == "back") {
     if (cb_.showBg)
-      cb_.showBg(getAttr(tag, "file", std::string()),
-                 getAttrInt(tag, "transition", 0));
+      cb_.showBg(getAttr(tag, "storage", getAttr(tag, "file", "")),
+                 getAttrInt(tag, "time",
+                            getAttrInt(tag, "transition", 0)));
     return false;
   }
 
-  // Character
+  // Native KAG [image layer=base storage=...] and foreground layers.
+  // This initial renderer presents the front page directly; synchronized
+  // back/fore page swaps and KAG transitions require a separate VM feature.
+  if (name == "image") {
+    const auto file = getAttr(tag, "storage", getAttr(tag, "file", ""));
+    const auto layer = getAttr(tag, "layer", "base");
+    if (layer == "base") {
+      if (cb_.showBg)
+        cb_.showBg(file, 0);
+    } else if (cb_.showChar) {
+      cb_.showChar(layer, file,
+                   getAttrInt(tag, "left", getAttrInt(tag, "x", 0)),
+                   getAttrInt(tag, "top", getAttrInt(tag, "y", 0)), 0);
+    }
+    return false;
+  }
+  if (name == "freeimage" || name == "chara_hide" ||
+      name == "chide" || name == "hide") {
+    const auto layer = getAttr(tag, "layer", "0");
+    if (layer == "base") {
+      if (cb_.showBg)
+        cb_.showBg("", 0);
+    } else if (cb_.hideChar) {
+      cb_.hideChar(layer, getAttrInt(tag, "transition", 0));
+    }
+    return false;
+  }
+  if (name == "layopt" && !getAttrBool(tag, "visible", true)) {
+    const auto layer = getAttr(tag, "layer", "0");
+    if (layer == "base") {
+      if (cb_.showBg)
+        cb_.showBg("", 0);
+    } else if (cb_.hideChar) {
+      cb_.hideChar(layer, 0);
+    }
+    return false;
+  }
+  if (name == "trans" || name == "wt" || name == "backlay" ||
+      name == "forelay")
+    return false; // Immediate presentation, no authentic timing yet.
+
+  // Kotonoha's explicit character commands.
   if (name == "chara_show" || name == "cshow" || name == "show") {
     if (cb_.showChar)
       cb_.showChar(getAttr(tag, "layer", "0"),
-                   getAttr(tag, "file", std::string()), getAttrInt(tag, "x", 0),
-                   getAttrInt(tag, "y", 0), getAttrInt(tag, "transition", 0));
-    return false;
-  }
-  if (name == "chara_hide" || name == "chide" || name == "hide") {
-    if (cb_.hideChar)
-      cb_.hideChar(getAttr(tag, "layer", "0"),
+                   getAttr(tag, "storage", getAttr(tag, "file", "")),
+                   getAttrInt(tag, "left", getAttrInt(tag, "x", 0)),
+                   getAttrInt(tag, "top", getAttrInt(tag, "y", 0)),
                    getAttrInt(tag, "transition", 0));
     return false;
   }
