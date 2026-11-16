@@ -1066,6 +1066,67 @@ int main() {
       ++failures;
     }
 
+    // User functions preserve parameter/local scopes, short-circuit returns
+    // and drive the KAG startup path without a hardcoded alphabetical entry.
+    write(tempDir / "startup.tjs",
+          "var title = \"Global\";\n"
+          "function choose(base, leaf) {\n"
+          "  var title = \"Local\";\n"
+          "  if (leaf == \"first\") return base + leaf + \".ks\";\n"
+          "  return \"missing.ks\";\n"
+          "}\n"
+          "function doubled(n) { return n + n; }\n"
+          "var route = choose(\"scenario/\", \"first\");\n"
+          "if (doubled(2) == 4) Scripts.execStorage(route);\n"
+          "System.title = title;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.kagEntry != "scenario/first.ks" ||
+          run.title != "Global" || !run.requiresNativeRuntime) {
+        std::printf("FAIL: TJS2 function return/local scope/KAG entry\n");
+        ++failures;
+      }
+    }
+    // Mutual/nested recursion must terminate even with a high instruction
+    // budget, independent of the script-call depth limiter.
+    write(tempDir / "startup.tjs",
+          "function again() { return again(); }\n"
+          "again();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run =
+          Kotonoha::Providers::runTjsStartupSubset(input, 10000);
+      if (run.subsetCompleted ||
+          run.error.find("recursion limit") == std::string::npos) {
+        std::printf("FAIL: TJS2 function recursion cap\n");
+        ++failures;
+      }
+    }
+    write(tempDir / "startup.tjs",
+          "if (false) { function hidden() { return 1; } }\n"
+          "hidden();\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (run.subsetCompleted || run.error.empty()) {
+        std::printf("FAIL: inactive TJS2 function was invoked\n");
+        ++failures;
+      }
+    }
+    write(tempDir / "startup.tjs", "return 4;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (run.subsetCompleted ||
+          run.error.find("return outside function") == std::string::npos) {
+        std::printf("FAIL: top-level TJS2 return silently accepted\n");
+        ++failures;
+      }
+    }
+
     write(tempDir / "startup.tjs", "Scripts.execStorage(\"startup.tjs\");");
     {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
