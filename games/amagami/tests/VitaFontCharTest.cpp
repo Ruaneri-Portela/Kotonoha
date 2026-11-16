@@ -140,8 +140,13 @@ int main() {
              {n(0x10000), n(0), n(1), n(0), n(0), n(1), n(1)});
     } catch (const std::exception &) { invalid = true; }
     require(invalid, "Reject invalid Shift-JIS code before creating object");
-    require(!bridge.primitive("FontChar", "", false, dim, 7, {}),
-            "Unimplemented font vibration must not be silently ignored");
+    bool arityRejected = false;
+    try { bridge.primitive("FontChar", "", false, dim, 7, {}); }
+    catch (const std::exception &) { arityRejected = true; }
+    require(arityRejected,
+            "Implemented FontChar vibration enforces original arity");
+    require(!bridge.primitive("FontChar", "", false, dim, 11, {}),
+            "Unknown font primitives are not silently accepted");
 
     // Verify the real SCF bytecode dispatcher reaches FontChar rather than
     // exercising only direct calls to the bridge.

@@ -1719,7 +1719,50 @@ void Session::load(const std::string &path) {
     for (auto &action : actions) {
       if (!(in >> std::quoted(action.kind) >> std::quoted(action.value)))
         throw std::runtime_error("Invalid Amagami campaign save action entry");
+      if (action.kind.size() > 16 || action.value.size() > 256)
+        throw std::runtime_error("Oversized Amagami campaign replay action");
     }
+
+    // All historic events are validated for shape. Only the *last*
+    // scenario's actions are compared with inputs_: Session::start() resets
+    // inputs_ whenever a new event starts, while campaignActions_ remains a
+    // journal of the entire campaign. Comparing earlier event actions to the
+    // current event's inputs would reject legitimate mid-campaign saves.
+    size_t currentScenarioStart = 0;
+    for (size_t i = 0; i < actions.size(); ++i) {
+      const auto &action = actions[i];
+      if (action.kind == "event") {
+        if (action.value.empty())
+          throw std::runtime_error("Empty campaign event action");
+        currentScenarioStart = i + 1;
+      } else if (action.kind == "period" || action.kind == "advance") {
+        if (!action.value.empty())
+          throw std::runtime_error("Invalid campaign period/advance action");
+      } else if (action.kind == "choose") {
+        if (action.value.empty() || action.value.size() > 2 ||
+            !std::all_of(action.value.begin(), action.value.end(),
+                         [](unsigned char c) {
+                           return c >= '0' && c <= '9';
+                         }) ||
+            action.value[0] == '0' && action.value.size() > 1)
+          throw std::runtime_error("Invalid campaign choice selector");
+      } else {
+        throw std::runtime_error("Unknown Amagami campaign save action");
+      }
+    }
+    size_t inputCursor = 0;
+    for (size_t i = currentScenarioStart; i < actions.size(); ++i) {
+      const auto &action = actions[i];
+      if (action.kind == "advance" || action.kind == "choose") {
+        const int expected = action.kind == "advance" ? -1 :
+                             std::stoi(action.value);
+        if (inputCursor >= inputs.size() ||
+            inputs[inputCursor++] != expected)
+          throw std::runtime_error("Campaign action/input journal mismatch");
+      }
+    }
+    if (inputCursor != inputs.size())
+      throw std::runtime_error("Incomplete campaign input journal");
   }
 
   int speed = 0, automatic = 0, skip = 0;
