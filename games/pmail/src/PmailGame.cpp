@@ -1290,7 +1290,9 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
       ++found->second.hits;
     }
     const bool firstId = unhandledNativeIds_.insert(id).second;
-    if (firstId || (distinct && SDL_getenv("PMAIL_NATIVE_VERBOSE"))) {
+    const char *verbose = SDL_getenv("PMAIL_NATIVE_VERBOSE");
+    if (firstId ||
+        (distinct && verbose && *verbose && std::strcmp(verbose, "0") != 0)) {
       if (signature.empty() && !distinct)
         signature = found->second.signature;
       log("Unhandled PMAIL SYS " + std::to_string(id) + " at " + scriptName_ +
