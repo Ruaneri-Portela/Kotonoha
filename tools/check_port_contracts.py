@@ -55,6 +55,29 @@ def errors():
                 f"CMake bundle identifier {bundle.group(1) if bundle else '<none>'}"
             )
 
+        # SDLSession sets SDL metadata from Runtime::identify when Engine
+        # initializes. Matching only the main.cpp metadata is insufficient.
+        runtime_files = list((root / "src").glob("*Runtime.cpp"))
+        if slug == "example":
+            runtime_files.append(root / "src/DemoGame.cpp")
+        runtime_ids = []
+        for runtime in runtime_files:
+            source_text = runtime.read_text(encoding="utf-8")
+            runtime_ids.extend(
+                re.findall(
+                    r'\bRuntime\s*\(\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*"([^"]+)"',
+                    source_text, re.S
+                )
+            )
+        if not runtime_ids:
+            issues.append(f"{slug}: runtime bundle identity was not found")
+        for runtime_id in runtime_ids:
+            if not bundle or runtime_id != bundle.group(1):
+                issues.append(
+                    f"{slug}: runtime identifier {runtime_id} differs from "
+                    f"CMake bundle identifier {bundle.group(1) if bundle else '<none>'}"
+                )
+
         # All path lookups must use the same slug as CMake/Xcode packaging.
         for call, name in re.findall(
             r'\b(gameAssetDirectory|findGameAsset|findGamePath)\s*\(\s*"([^"]+)"',
