@@ -143,8 +143,10 @@ void PmailGame::indexPack() {
     if (!bytes.empty()) {
       auto obj = std::make_shared<::Pmail::ScriptObject>();
       const size_t decodedSize = bytes.size();
-      if (!obj->parse(rawName, std::move(bytes)))
+      if (!obj->parse(rawName, std::move(bytes))) {
+        log("Invalid PMAIL script object: " + rawName);
         return nullptr;
+      }
       byName_[name] = obj;
       if (obj->id)
         byId_.emplace(obj->id & 0xfff, obj);
@@ -169,7 +171,10 @@ void PmailGame::indexPack() {
     auto obj = std::make_shared<::Pmail::ScriptObject>();
     std::vector<uint8_t> bytes(pack_.begin() + e.offset,
                                pack_.begin() + e.offset + e.size);
-    obj->parse(e.name, std::move(bytes));
+    // Never enter malformed bytecode found by the raw signature fallback.
+    // A bad object must not replace a valid route or be cached by name.
+    if (!obj->parse(e.name, std::move(bytes)))
+      continue;
     byName_[name] = obj;
     if (obj->id)
       byId_.emplace(obj->id & 0xfff, obj);
@@ -529,6 +534,7 @@ void PmailGame::returnToTitle() {
   // Preserve persistent game flags, but discard suspended story call frames.
   vm_.reset(false);
   callStack_.clear();
+  unhandledNativeIds_.clear();
   sprites_.clear();
   spriteSlots_.clear();
   animations_.clear();
@@ -841,18 +847,32 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
           break;
       }
     if (!name.empty()) {
-      clearComputerOverlay();
-      callStack_.push_back({scriptName_, vm.returnPc()});
-      loadScript(name, true);
+      // Resolve the destination *before* modifying the caller stack.
+      // Missing optional/retail scripts must be observable, not create a
+      // dangling return frame that corrupts later route transitions.
+      const CallFrame caller{scriptName_, vm.returnPc()};
+      if (loadScript(name, true)) {
+        callStack_.push_back(caller);
+        clearComputerOverlay();
+      } else {
+        log("Missing PMAIL script: " + name);
+      }
     }
     break;
   }
   case 28: {
     std::string name = firstString();
     if (!name.empty()) {
-      clearComputerOverlay();
-      callStack_.push_back({scriptName_, vm.returnPc()});
-      loadScript(name, true);
+      // Resolve the destination *before* modifying the caller stack.
+      // Missing optional/retail scripts must be observable, not create a
+      // dangling return frame that corrupts later route transitions.
+      const CallFrame caller{scriptName_, vm.returnPc()};
+      if (loadScript(name, true)) {
+        callStack_.push_back(caller);
+        clearComputerOverlay();
+      } else {
+        log("Missing PMAIL script: " + name);
+      }
     }
     break;
   }
@@ -954,7 +974,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     } catch (...) {
     }
     ComputerText slot;
-    slot.text = std::move(text);
+    slot.text = expandPlayerNames(text);
     slot.x = std::clamp(values[0], -2048, 2048);
     slot.y = std::clamp(values[1], -2048, 2048);
     slot.width = std::clamp(values[2], 0, 4096);
@@ -1040,11 +1060,18 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
       vm.block();
     }
     break;
+  case 96:
+  case 97:
+  case 98:
+  case 112:
   case 132:
   case 99:
   case 100:
   case 115:
   case 116:
+    // These are implemented by the PmailAudio runtime callback, which runs
+    // before the VM's presentation-specific switch. Do not report them as
+    // missing just because their audio effect lives in another component.
     break;
   case 213: {
     // Title menu: SYS 213(mode, &var). mode 0 shows and blocks, mode 1 hides.
@@ -1081,6 +1108,12 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     break;
   }
   default:
+    // The original executable registers more native commands than this port
+    // has confirmed. Keep a bounded, distinct diagnostic per unknown ID so
+    // retail route tests show what blocked fidelity without flooding frames.
+    if (unhandledNativeIds_.insert(id).second)
+      log("Unhandled PMAIL SYS " + std::to_string(id) +
+          " at " + scriptName_ + ":" + std::to_string(vm.returnPc()));
     break;
   }
 }
@@ -1088,6 +1121,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
 void PmailGame::log(const std::string &s) {
   if (trace)
     trace("! " + s);
+  else
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[PmailPort] %s", s.c_str());
 }
 
 } // namespace Kotonoha::PmailPort

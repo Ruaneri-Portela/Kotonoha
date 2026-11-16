@@ -290,6 +290,35 @@ bool PmailRuntime::onEvent(Kotonoha::EventRef rawEvent) {
       stopMovie();
     return true;
   }
+  // Portable accessibility shortcut for saving during long routes.
+  // F5/F9 are Kotonoha convenience controls, not asserted to be the
+  // original game's hotkeys. Preserve the regular menu-based save slots.
+  if (game_ && !game_->atTitle() &&
+      event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+      (event.key.key == SDLK_F5 || event.key.key == SDLK_F9)) {
+    try {
+      const auto quickPath = Kotonoha::saveDirectory() / "pmail-quick.vn";
+      if (event.key.key == SDLK_F5) {
+        std::filesystem::create_directories(quickPath.parent_path());
+        saveGame(quickPath.string());
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "[PmailPort] Quicksave written: %s",
+                    quickPath.string().c_str());
+      } else if (std::filesystem::is_regular_file(quickPath)) {
+        loadGame(quickPath.string());
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "[PmailPort] Quicksave restored: %s",
+                    quickPath.string().c_str());
+      } else {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "[PmailPort] No quicksave found");
+      }
+    } catch (const std::exception &error) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "[PmailPort] Quick save/load failed: %s", error.what());
+    }
+    return true;
+  }
   if (session_) {
     session_->onEvent(event);
     return true;

@@ -34,6 +34,17 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
   user text-color overrides are respected.
 - Game art and title textures now use the engine's configurable upscaling
   pipeline (factor > 1; Linear, MetalFX or MPV/OpenGL where available).
+- VM expression math now uses defined 32-bit wraparound, masked shifts and
+  checked division instead of C++ signed-overflow undefined behavior.
+  `Pmail.Expression32` covers those conditions without original assets.
+- Malformed script objects can no longer enter the raw pack fallback cache;
+  missing scene destinations do not leave orphaned return frames. Unhandled
+  native IDs and bytecodes are logged once, and the retail-only
+  `Pmail.RouteAudit` enumerates visited scripts, selections and unsupported
+  commands to expose remaining progression gaps.
+- F5 quicksave / F9 quickload provide an additional portable recovery path
+  alongside the original port's save-slot UI. These are port convenience
+  shortcuts, not claimed to be original-game bindings.
 
 ## Remaining parity work
 
@@ -49,7 +60,8 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
 - CURSOR02 automatic advance mode and full translation-export workflow.
 - Sample-exact fade/lip scheduling and synchronized audio/visual comparison
   against a running original executable.
-- Traversal and verification of every route and ending.
+- Traversal and verification of every route and ending. The retail-only
+  route audit detects gaps; no complete route has been certified 1:1.
 
 ## Evidence and reproduction
 

@@ -36,6 +36,31 @@ do renderizador SDL (Linear é a alternativa compatível).
 A animação antes da imagem Overflow ainda exige comparação com o DVD original
 e seus assets: o conteúdo e os tempos exatos não estão comprovados.
 
+**Acesso rápido:** F5 salva em `pmail-quick.vn` dentro do diretório de saves
+do jogo e F9 carrega esse estado. Os slots normais continuam disponíveis.
+Essas teclas são conveniências do Kotonoha, não atalhos confirmados do original.
+
+## Auditoria de rotas e jogabilidade
+
+Com os dados originais do seu jogo, compile o auditor de rotas. Ele avança
+diálogos e escolhas, registra os scripts percorridos e identifica comandos
+nativos ou instruções ainda sem suporte. Você pode passar uma sequência de
+índices de escolha, por exemplo `0,1,2`, e um limite de tempo em segundos:
+
+```sh
+cmake -S . -B build -DBUILD_TESTING=ON -DKOTONOHA_BUILD_PMAIL=ON \
+  -DPMAIL_TEST_ASSET_DIR=/caminho/PMAILDVD
+cmake --build build --target PmailRouteAuditCheck
+ctest --test-dir build -R 'Pmail.RouteAudit' --output-on-failure
+# Ou chame PmailRouteAuditCheck com: /caminho/PMAILDVD 0,1,2 300
+```
+
+A CI só executa testes sintéticos, incluindo `Pmail.Expression32`. A
+auditoria real reprova quando encontra scripts ausentes, bytecodes
+desconhecidos ou SYS ainda não implementados. Não significa que todos os
+finais já estejam reproduzidos.
+
+
 ## Investigação detalhada
 
 [Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.
