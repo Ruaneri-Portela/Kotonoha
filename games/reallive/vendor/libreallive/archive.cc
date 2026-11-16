@@ -63,30 +63,36 @@ Archive::Archive(const std::string& filename, const std::string& regname)
   ReadTOC();
   ReadOverrides();
 
-  if (regname == "KEY\\CLANNAD_FV") {
+  SelectSecondLevelXorKey();
+}
+
+void Archive::SelectSecondLevelXorKey() {
+  // The archive may be mapped from a file or owned memory (including a VFS
+  // mount or ISO). Both paths must use the same Gameexe.ini #REGNAME key.
+  if (regname_ == "KEY\\CLANNAD_FV") {
     second_level_xor_key_ =
         libreallive::compression::clannad_full_voice_xor_mask;
-  } else if (regname ==
+  } else if (regname_ ==
              "\x4b\x45\x59\x5c\x83\x8a\x83\x67\x83\x8b\x83"
              "\x6f\x83\x58\x83\x5e\x81\x5b\x83\x59\x81\x49") {
     second_level_xor_key_ = libreallive::compression::little_busters_xor_mask;
-  } else if (regname ==
+  } else if (regname_ ==
              "\x4b\x45\x59\x5c\x83\x8a\x83\x67\x83\x8b\x83\x6f\x83\x58\x83\x5e"
              "\x81\x5b\x83\x59\x81\x49\x82\x64\x82\x77") {
     // "KEY\<little busters in katakana>!EX", with all fullwidth latin
     // characters.
     second_level_xor_key_ =
         libreallive::compression::little_busters_ex_xor_mask;
-  } else if (regname == "StudioMebius\\SNOWSE") {
+  } else if (regname_ == "StudioMebius\\SNOWSE") {
     second_level_xor_key_ =
         libreallive::compression::snow_standard_edition_xor_mask;
-  } else if (regname ==
+  } else if (regname_ ==
              "\x4b\x45\x59\x5c\x83\x4e\x83\x68\x82\xed\x82\xd3\x82"
              "\xbd\x81\x5b") {
     // "KEY\<Kud Wafter in hiragana>"
     second_level_xor_key_ =
         libreallive::compression::kud_wafter_xor_mask;
-  } else if (regname ==
+  } else if (regname_ ==
              "\x4b\x45\x59\x5c\x83\x4e\x83\x68\x82\xed\x82\xd3\x82"
              "\xbd\x81\x5b\x81\x79\x91\x53\x94\x4e\x97\xee\x91\xce"
              "\x8f\xdb\x94\xc5\x81\x7a") {
@@ -98,9 +104,10 @@ Archive::Archive(const std::string& filename, const std::string& regname)
 Archive::~Archive() {}
 
 Archive::Archive(std::vector<char> bytes,
-                 std::map<int, std::vector<char>> overrides)
+                 std::map<int, std::vector<char>> overrides,
+                 const std::string& regname)
     : bytes_(std::move(bytes)), overrides_(std::move(overrides)),
-      second_level_xor_key_(NULL) {
+      second_level_xor_key_(NULL), regname_(regname) {
   ReadTOC();
   for (const auto& entry : overrides_) {
     if (entry.first < 0 || entry.first >= 10000 ||
@@ -108,6 +115,7 @@ Archive::Archive(std::vector<char> bytes,
       throw Error("Invalid SEEN archive override");
     scenarios_[entry.first] = FilePos(entry.second.data(), entry.second.size());
   }
+  SelectSecondLevelXorKey();
 }
 
 Scenario* Archive::GetScenario(int index) {

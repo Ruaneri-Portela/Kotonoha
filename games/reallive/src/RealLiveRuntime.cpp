@@ -457,6 +457,7 @@ struct RealLiveRuntime::Impl {
   // AIR title, so input readiness follows the refresh instead of a hardcoded
   // instruction offset.
   bool titleReady = false;
+  int titleScenario = 9032;
   std::vector<int> titleHitObjects;
   std::map<std::pair<int, int>, int> settings;
   std::map<int, Uint64> timers;
@@ -497,6 +498,8 @@ struct RealLiveRuntime::Impl {
             [this](const std::string &id) { return assets->localPath(id); }),
         audio(parseAudioConfig(assets->settingsSource())) {
     syscomEntries.fill(1);
+    // Each RealLive release declares its own front-end in Gameexe.ini.
+    titleScenario = assets->settings().integer("SEEN_MENU", 9032);
     vm.speaker = [this](std::string t) {
       speakerName = decodeText(t, archive.Scenario(vm.scenario()).encoding());
     };
@@ -1826,7 +1829,7 @@ struct RealLiveRuntime::Impl {
     m.SetOnLoad([this] { openSaves(true); });
     m.SetOnReturnToMenu([this] {
       GetInGameMenuRuntime(*engine).close();
-      vm.jump(9032);
+      vm.jump(titleScenario);
       autoMode = skipMode = skipHeld = false;
       autoDeadline = 0;
       textbox->controls.reset();
@@ -1895,7 +1898,7 @@ struct RealLiveRuntime::Impl {
   // stop at different instruction indices (AIR at 860, planetarian at 587),
   // therefore readiness is tracked from the refresh command itself.
   bool titleMenu() const {
-    return titleReady && vm.scenario() == 9032 &&
+    return titleReady && vm.scenario() == titleScenario &&
            runtime.GetState() == GameState::Menu && !pause &&
            !choice->isActive() && error.empty();
   }
@@ -1903,7 +1906,7 @@ struct RealLiveRuntime::Impl {
     return std::any_of(syscomEntries.begin(), syscomEntries.end(),
                        [](Uint8 state) { return state != 0; });
   }
-  // Other loops in SEEN 9032 poll intA and must stay pointer-only; the title
+  // Other loops in the title scenario poll intA and must stay pointer-only; the title
   // menu is the poll that writes the button register intF[1003].
   // The title script enumerates its native clickable regions through 1:84
   // before every menu poll. Record those object ids and derive keyboard /
@@ -1937,7 +1940,7 @@ struct RealLiveRuntime::Impl {
     titleInput.setTargets(std::move(targets));
   }
   bool titlePoll(const libreallive::CommandElement &c) {
-    if (vm.scenario() != 9032 || c.GetParamCount() < 3)
+    if (vm.scenario() != titleScenario || c.GetParamCount() < 3)
       return false;
     // The menu poll stores the button state in an intF register. AIR uses
     // intF[1003], CLANNAD uses intF[1202] and planetarian intF[1003]; the
@@ -2316,7 +2319,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       pause = true;
       return true;
     case 1203:
-      vm.jump(9032);
+      vm.jump(titleScenario);
       return true;
     case 1211:
     case 1212:
@@ -2904,7 +2907,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && m == 84) {
     auto &o = fg[value(c, 0)];
     if (op == 1000) {
-      if (vm.scenario() == 9032 && runtime.GetState() == GameState::Menu) {
+      if (vm.scenario() == titleScenario && runtime.GetState() == GameState::Menu) {
         const int id = value(c, 0);
         if (std::find(titleHitObjects.begin(), titleHitObjects.end(), id) ==
             titleHitObjects.end())
@@ -2951,7 +2954,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 2 && m == 84) {
     auto &o = fg[value(c, 0)];
     if (op == 1000) {
-      if (vm.scenario() == 9032 && runtime.GetState() == GameState::Menu) {
+      if (vm.scenario() == titleScenario && runtime.GetState() == GameState::Menu) {
         const int id = value(c, 0);
         if (std::find(titleHitObjects.begin(), titleHitObjects.end(), id) ==
             titleHitObjects.end())
@@ -3032,7 +3035,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       (op == 0 || op == 3 || op == 4 || op == 20 || op == 22))
     return true;
   if (type == 1 && m == 31 && op == 0) {
-    if (vm.scenario() == 9032 && runtime.GetState() == GameState::Menu) {
+    if (vm.scenario() == titleScenario && runtime.GetState() == GameState::Menu) {
       installTitleTargets();
       titleReady = true;
     }

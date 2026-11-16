@@ -120,6 +120,8 @@ void Decompress(const char* src,
                 char* dst,
                 size_t dst_len,
                 const XorKey* per_game_xor_key) {
+  if (src_len < 9)
+    throw Error("Truncated RealLive compressed script header");
   int bit = 1;
   const char* srcend = src + src_len;
   char* dststart = dst;
@@ -150,6 +152,11 @@ void Decompress(const char* src,
 
   if (per_game_xor_key) {
     for (; per_game_xor_key->xor_offset != -1; per_game_xor_key++) {
+      // Small or empty synthetic scripts may have no bytes at this key's
+      // offset; never form a pointer outside the decoded allocation.
+      if (per_game_xor_key->xor_offset < 0 ||
+          static_cast<size_t>(per_game_xor_key->xor_offset) >= dst_len)
+        continue;
       dst = dststart + per_game_xor_key->xor_offset;
       for (int i = 0; i < per_game_xor_key->xor_length && dst < dstend; ++i) {
         *dst++ ^= per_game_xor_key->xor_key[i % 16];

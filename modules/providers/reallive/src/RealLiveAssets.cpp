@@ -61,7 +61,10 @@ ScriptArchive RealLiveAssets::scripts() const {
       continue;
     overrides.emplace(std::stoi(name.substr(4, 4)), read(id));
   }
-  return ScriptArchive(read("Seen.txt"), overrides);
+  // VFS/ISO archives must preserve #REGNAME: newer RealLive games use a
+  // per-title second-level format key, including CLANNAD Full Voice.
+  return ScriptArchive(read("Seen.txt"), overrides,
+                       config.text("REGNAME"));
 }
 std::string RealLiveAssets::graphic(const std::string &name, bool warn) const {
   std::string file = name;
