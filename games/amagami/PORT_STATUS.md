@@ -523,3 +523,37 @@ ctest --test-dir build -R 'Amagami.Vita(SpriteBridge|Bootstrap)' --output-on-fai
 This is **scene-state preparation for the Vita renderer**, not a playable
 title/menu. Animations, compositing, font object primitives, controls and
 audio are still needed. The existing PS2 port is unchanged.
+
+
+### Vita SDL3 Sprite preview and original animation channels
+
+The Vita Sprite scene can now be drawn to an SDL3 renderer using
+\`VitaSpriteRenderer\`. It targets the Vita's 960×544 frame, sorts by
+layer/order, resolves each UI atlas texture through the existing Vita provider,
+clips out-of-range texture coordinates, composites alpha and colour modulation,
+and caches decoded SDL textures. Texture ID zero renders an opaque black
+rectangle (for bars/transition masks); unresolved nonzero IDs are skipped, not
+silently rendered black. This is still the **Sprite** subset, not all of
+Amagami's GUI objects.
+
+\`VitaVmBridge::tick(frames)\` advances the original Vita alpha/light/position/
+zoom channels with three components (base, amplitude, frequency), using the
+Vita's linear/quadratic-in/quadratic-out interpolation modes.
+Sprite primitives 8–11 now animate these channels, 17 snaps their active
+tweens to their targets, 7 reports remaining times and 18 pauses an object.
+The bridge does not invent implementations for unported spin/vibration.
+
+The diagnostic can save a **real rendered 960×544 BMP snapshot**, including a
+partial scene when a later unhandled native stops execution. Use a decrypted
+copy and an already-unwrapped 32-bit Vita ELF:
+
+\`\`\`sh
+cmake --build build --target AmagamiVitaProbe AmagamiVitaSpriteRenderTest
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291 --boot --ui-elf /path/to/unwrapped/eboot.elf --snapshot /tmp/amagami-vita-preview.bmp
+ctest --test-dir build -R 'Amagami.Vita(SpriteBridge|SpriteRender|Bootstrap)' --output-on-failure
+\`\`\`
+
+This renderer and diagnostic do not yet run an interactive Vita window.
+ControlPad, font objects, additional visual classes, full menu transitions and
+audio still require integration. No game assets or protected executable are
+shipped, and the original PS2 runtime remains separate.
