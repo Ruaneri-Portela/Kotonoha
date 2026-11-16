@@ -42,6 +42,24 @@ SDL_Texture *VitaSpriteRenderer::textureFor(uint32_t id, uint32_t variant) {
   return handle;
 }
 
+SDL_Texture *VitaSpriteRenderer::namedTextureFor(const std::string &name) {
+  const auto it = namedCache_.find(name);
+  if (it != namedCache_.end()) return it->second.get();
+  if (!namedSource_) return nullptr;
+  Kotonoha::SurfacePtr surface = namedSource_(name);
+  if (!surface) return nullptr;
+  Kotonoha::TexturePtr texture(
+      SDL_CreateTextureFromSurface(renderer_, surface.get()));
+  if (!texture)
+    throw std::runtime_error(std::string("Amagami Vita named texture: ") +
+                             SDL_GetError());
+  require(SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND));
+  require(SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_LINEAR));
+  auto *handle = texture.get();
+  namedCache_.emplace(name, std::move(texture));
+  return handle;
+}
+
 void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
   if (clear) {
     require(SDL_SetRenderDrawColor(renderer_, 0, 0, 0, 255));
@@ -63,19 +81,24 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
       continue;
     // The original Vita UI view has 2 screen pixels per SCF coordinate.
     // Raster pictures already contain those full-resolution source texels.
+    const double cameraScale = sprite->worldView ? bridge.view().scale : 1.0;
     const double width = sprite->rect[2] * sprite->zoom[0] *
-                         (sprite->hasImage ? 1.0 : 2.0);
+                         (sprite->hasImage ? 1.0 : 2.0) * cameraScale;
     const double height = sprite->rect[3] * sprite->zoom[1] *
-                          (sprite->hasImage ? 1.0 : 2.0);
+                          (sprite->hasImage ? 1.0 : 2.0) * cameraScale;
     if (width <= 0 || height <= 0 ||
         width > 100000 || height > 100000)
       continue;
     const SDL_FRect dst{
-        float(480.0 + sprite->position[0] * 2.0 - width / 2.0),
-        float(272.0 + sprite->position[1] * 2.0 - height / 2.0),
+        float(480.0 + sprite->position[0] * 2.0 * cameraScale -
+              width / 2.0),
+        float(272.0 + sprite->position[1] * 2.0 * cameraScale +
+              (sprite->worldView ? bridge.view().originY * 2.0 : 0.0) -
+              height / 2.0),
         float(width), float(height)};
     if (!sprite->hasImage) {
-      if (sprite->texture != 0) continue; // Unresolved resources are not bars.
+      if (sprite->texture != 0 || !sprite->assetName.empty())
+        continue; // Unresolved resources are not black bars.
       // Texture zero is the opaque black screen/side-bar rectangle. It must
       // occlude lower layers; it is not a missing white placeholder.
       require(SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND));
@@ -84,7 +107,9 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
       require(SDL_RenderFillRect(renderer_, &dst));
       continue;
     }
-    SDL_Texture *texture = textureFor(sprite->texture, sprite->variant);
+    SDL_Texture *texture = sprite->assetName.empty()
+        ? textureFor(sprite->texture, sprite->variant)
+        : namedTextureFor(sprite->assetName);
     if (!texture) continue; // A missing texture can be diagnosed separately.
     float textureW = 0, textureH = 0;
     require(SDL_GetTextureSize(texture, &textureW, &textureH));
