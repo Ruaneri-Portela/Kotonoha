@@ -114,6 +114,16 @@ int main(int argc, char **argv) {
                                   uint32_t(surface->h));
           });
     }
+    if (graphics)
+      bridge.setNamedPictureSizeResolver(
+          [graphics](const std::string &name)
+              -> std::optional<std::pair<uint32_t, uint32_t>> {
+            if (!graphics->contains(name)) return std::nullopt;
+            auto surface = graphics->loadSurface(name);
+            if (!surface) return std::nullopt;
+            return std::make_pair(uint32_t(surface->w),
+                                  uint32_t(surface->h));
+          });
     std::cout << "Vita SCF VM loaded " << source.systemCount()
               << " system classes and " << source.scenarioCount()
               << " scenario classes\n";
