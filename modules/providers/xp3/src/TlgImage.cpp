@@ -13,6 +13,9 @@
 #include <vector>
 
 namespace Kotonoha::Providers {
+// Implemented in Tlg6Image.cpp; this facade handles TLG0 and all signatures.
+Kotonoha::SurfacePtr decodeTlg6Image(const std::uint8_t *data,
+                                     std::size_t size);
 namespace {
 
 constexpr std::array<std::uint8_t, 11> kTlg0{
@@ -208,6 +211,8 @@ Kotonoha::SurfacePtr decodeTlgImage(
     data = wrapper.take(length);
     size = length;
   }
+  if (signature(data, size, kTlg6))
+    return decodeTlg6Image(data, size);
   return decodeTlg5(data, size);
 }
 
