@@ -45,12 +45,19 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
 - F5 quicksave / F9 quickload provide an additional portable recovery path
   alongside the original port's save-slot UI. These are port convenience
   shortcuts, not claimed to be original-game bindings.
+- Native computer panel state is now split into chat (SYS 176-179)
+  and mail (SYS 192-195) families, with SYS 50's 25 bounded icon
+  slots and independent resets. Version 5 saves retain these states;
+  previous PMAIL-GAME save versions remain readable. Synthetic tests
+  cover panel separation, icon bounds and scene cleanup.
+  This is functional groundwork; exact original font/layout and icon
+  sprite mapping are not yet claimed 1:1.
 
 ## Remaining parity work
 
-- Computer UI fidelity: original font palette, text layout/wrapping, mail and
-  icon commands (SYS 50, 176–179, 192–195), plus remaining scene-specific
-  presentation details.
+- Computer UI fidelity: original font palette, text layout/wrapping,
+  exact chat/mail renderer geometry (SYS 176–179, 192–195), icon bitmap
+  mapping for SYS 50, plus remaining scene-specific presentation details.
 - Original CPU/configuration-dependent AVI selection, timing/composition,
   pre-Overflow animation, logo presentation and full movie/title sequence.
   A matching original-game animation trace and legal assets are needed to

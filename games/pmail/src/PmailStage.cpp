@@ -244,6 +244,38 @@ void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
                                         17, color);
     y += std::clamp(consumed, 22.0f, 54.0f);
   }
+  // The executable has separate chat and mail renderers (0x417d80 and
+  // 0x411320). Keep their text streams distinct even when a scene contains
+  // both. The final native coordinates/font sizes are still under study;
+  // these are bounded fallback placements on the existing DVD backdrop.
+  const auto chat = game_.chatPanel();
+  const auto mail = game_.mailPanel();
+  const bool split = chat.active && mail.active;
+  auto drawPanel = [&](const PmailGame::ComputerPanel &panel, float x,
+                       float top, float width) {
+    if (!panel.active || panel.entries.empty())
+      return;
+    float lineY = top;
+    // Keep only text that fits in the authored 800x600 frame.
+    for (const auto &line : panel.entries) {
+      if (lineY >= 565.0f)
+        break;
+      const auto color = line.mode == 2 ? computerColor(8)
+                                        : computerColor(1);
+      const auto height = ui.textSized(renderer, line.text, x, lineY, width,
+                                       17.0f, color);
+      lineY += std::clamp(height, 22.0f, 50.0f);
+    }
+  };
+  // On original layouts the background provides the panel artwork; do not
+  // invent a new mail/chat window frame or substitute unrelated sprites.
+  if (split) {
+    drawPanel(chat, 85.0f, 202.0f, 288.0f);
+    drawPanel(mail, 422.0f, 202.0f, 292.0f);
+  } else {
+    drawPanel(chat, 85.0f, 202.0f, 620.0f);
+    drawPanel(mail, 85.0f, 202.0f, 620.0f);
+  }
 }
 
 void PmailStage::renderAnimations(Kotonoha::RendererRef renderer) {

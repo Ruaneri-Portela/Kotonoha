@@ -75,6 +75,9 @@ void PmailGame::clearComputerOverlay() {
   computerText_.clear();
   chatHistory_.clear();
   computerClock_.clear();
+  chatPanel_ = {};
+  mailPanel_ = {};
+  computerIcons_ = {};
   computerOverlayVisible_ = false;
 }
 
@@ -254,7 +257,7 @@ std::string PmailGame::serialize() const {
   if (returningToTitle_)
     throw std::runtime_error("Cannot save while returning to title");
   ::Pmail::StateIO::Writer out;
-  out.string("PMAIL-GAME-4");
+  out.string("PMAIL-GAME-5");
   out.u64(::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()));
   out.string(vm_.serialize());
   auto object = [&](const ::Pmail::ObjectPtr &obj) {
@@ -341,6 +344,26 @@ std::string PmailGame::serialize() const {
   out.string(playerNameNO_);
   out.string(playerNameHO_);
   out.boolean(computerOverlayVisible_);
+  // Version 5 adds the original two distinct computer UI families. Save
+  // bounded structured state, not pre-rendered pixels, so assets can reload.
+  const auto writePanel = [&](const ComputerPanel &panel) {
+    out.boolean(panel.active);
+    out.u32(uint32_t(panel.entries.size()));
+    for (const auto &line : panel.entries) {
+      out.u32(uint32_t(line.mode));
+      out.string(line.text);
+    }
+    for (const int32_t value : panel.params)
+      out.u32(uint32_t(value));
+    out.u32(uint32_t(panel.selection));
+  };
+  writePanel(chatPanel_);
+  writePanel(mailPanel_);
+  for (const auto &icon : computerIcons_) {
+    out.boolean(icon.active);
+    out.u32(uint32_t(icon.x));
+    out.u32(uint32_t(icon.y));
+  }
   return out.finish();
 }
 
@@ -349,7 +372,8 @@ void PmailGame::deserialize(const std::string &data) {
   ::Pmail::StateIO::Reader in(data);
   const auto version = in.string(32);
   if (version != "PMAIL-GAME-1" && version != "PMAIL-GAME-2" &&
-      version != "PMAIL-GAME-3" && version != "PMAIL-GAME-4")
+      version != "PMAIL-GAME-3" && version != "PMAIL-GAME-4" &&
+      version != "PMAIL-GAME-5")
     throw std::runtime_error("Unsupported PMAIL save version");
   if (in.u64() != ::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()))
     throw std::runtime_error("PMAIL save belongs to a different script pack");
@@ -422,7 +446,7 @@ void PmailGame::deserialize(const std::string &data) {
   int voiceActor = -1;
   std::vector<AnimationState> animations;
   if (version == "PMAIL-GAME-2" || version == "PMAIL-GAME-3" ||
-      version == "PMAIL-GAME-4") {
+      version == "PMAIL-GAME-4" || version == "PMAIL-GAME-5") {
     const auto count = in.count(4096);
     for (uint32_t i = 0; i < count; ++i) {
       AnimationState animation;
@@ -449,7 +473,8 @@ void PmailGame::deserialize(const std::string &data) {
   std::vector<ComputerText> computerText;
   std::vector<ChatLine> chatHistory;
   std::string computerClock;
-  if (version == "PMAIL-GAME-3" || version == "PMAIL-GAME-4") {
+  if (version == "PMAIL-GAME-3" || version == "PMAIL-GAME-4" ||
+      version == "PMAIL-GAME-5") {
     for (auto n = in.count(ComputerTextLimit); n; --n) {
       ComputerText slot;
       slot.text = in.string(4096);
@@ -476,7 +501,7 @@ void PmailGame::deserialize(const std::string &data) {
   std::string savedNO = playerNameNO_, savedHO = playerNameHO_;
   bool overlayVisible = !computerText.empty() || !chatHistory.empty() ||
                         !computerClock.empty();
-  if (version == "PMAIL-GAME-4") {
+  if version == "PMAIL-GAME-4" || version == "PMAIL-GAME-5" {
     savedNO = in.string(64);
     savedHO = in.string(64);
     overlayVisible = in.boolean();
@@ -484,6 +509,30 @@ void PmailGame::deserialize(const std::string &data) {
         savedNO.find_first_of("\r\n\t") != std::string::npos ||
         savedHO.find_first_of("\r\n\t") != std::string::npos)
       throw std::runtime_error("Invalid PMAIL player customization");
+  }
+  ComputerPanel chatPanel, mailPanel;
+  std::array<ComputerIcon, ComputerIconLimit> computerIcons{};
+  if (version == "PMAIL-GAME-5") {
+    const auto readPanel = [&]() -> ComputerPanel {
+      ComputerPanel panel;
+      panel.active = in.boolean();
+      for (auto n = in.count(uint32_t(ComputerPanelLimit)); n; --n)
+        panel.entries.push_back({int32_t(in.u32()), in.string(4096)});
+      for (auto &value : panel.params)
+        value = int32_t(in.u32());
+      panel.selection = int32_t(in.u32());
+      return panel;
+    };
+    chatPanel = readPanel();
+    mailPanel = readPanel();
+    for (auto &icon : computerIcons) {
+      icon.active = in.boolean();
+      icon.x = int32_t(in.u32());
+      icon.y = int32_t(in.u32());
+      if (icon.x < -2048 || icon.x > 2048 ||
+          icon.y < -2048 || icon.y > 2048)
+        throw std::runtime_error("Invalid PMAIL computer icon coordinate");
+    }
   }
   in.end();
   ::Pmail::Vm staged(*this);
@@ -522,10 +571,15 @@ void PmailGame::deserialize(const std::string &data) {
   computerText_ = std::move(computerText);
   computerClock_ = std::move(computerClock);
   chatHistory_ = std::move(chatHistory);
+  chatPanel_ = std::move(chatPanel);
+  mailPanel_ = std::move(mailPanel);
+  computerIcons_ = std::move(computerIcons);
   playerNameNO_ = std::move(savedNO);
   playerNameHO_ = std::move(savedHO);
   computerOverlayVisible_ = overlayVisible;
   returningToTitle_ = false;
+  // Runtime diagnostics belong to the live path, never to another save slot.
+  unhandledNativeIds_.clear();
   ++sceneVersion_;
 }
 
@@ -954,6 +1008,19 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     vm.block();
     break;
   }
+  case 50: {
+    // Handler 0x424060 stores a record in a 25-slot icon table
+    // (valid indices 0..24), preserving two coordinates. The original
+    // sprite-pointer table at 0xf88b2a still requires identification.
+    const int slot = argInt(0);
+    if (slot >= 0 && slot < int(ComputerIconLimit)) {
+      computerIcons_[size_t(slot)] =
+          {true, int32_t(int16_t(argInt(1))), int32_t(int16_t(argInt(2)))};
+      computerOverlayVisible_ = true;
+      ++sceneVersion_;
+    }
+    break;
+  }
   case 52: {
     // Original pmail.exe keeps 10 positioned text slots (9 x 32-bit words
     // each). Text IDs resolve through the VM and are rendered by the stage.
@@ -1001,7 +1068,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     break;
   }
   case 160:
-  case 162: {
+  case 162:
+  case 164: {
     // Both opcodes append to the same 15-entry chat log. SYS 160 triggers
     // immediate redraw in the original; the SDL scene redraws each frame.
     const auto raw = firstString();
@@ -1019,6 +1087,64 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     ++sceneVersion_;
     break;
   }
+  case 176:
+  case 178:
+  case 192:
+  case 194: {
+    // Paired native families, recovered from the retail dispatch table:
+    // 176/178 -> 0x417d80 (chat panel), 192/194 -> 0x411320
+    // (mail panel). Both consume a string reference and an integer.
+    // 176/192 additionally call 0x4036e0 and trigger a redraw.
+    auto &panel = id < 192 ? chatPanel_ : mailPanel_;
+    const auto raw = firstString();
+    if (!raw.empty()) {
+      std::string utf = raw;
+      try {
+        utf = ::Kotonoha::ShiftJisToUtf8(raw);
+      } catch (...) {
+      }
+      if (panel.entries.size() >= ComputerPanelLimit)
+        panel.entries.erase(panel.entries.begin());
+      auto line = expandPlayerNames(utf);
+      if (line.size() > 4096)
+        line.resize(4096); // matches the bounded save reader
+      panel.entries.push_back({argInt(0), std::move(line)});
+      panel.active = true;
+      computerOverlayVisible_ = true;
+      ++sceneVersion_;
+    }
+    break;
+  }
+  case 177:
+    // Native 0x423700 resets the chat-family control at 0xf8a776.
+    chatPanel_ = {};
+    ++sceneVersion_;
+    break;
+  case 193:
+    // Native 0x423890 resets the mail-family control at 0xf8a796.
+    mailPanel_ = {};
+    ++sceneVersion_;
+    break;
+  case 179: {
+    // Original copies up to seven signed numeric parameters into
+    // 0xf8a77a..0xf8a792, which configure the chat panel.
+    chatPanel_.params = {};
+    size_t index = 0;
+    for (const auto &a : args)
+      if (a.tag() == 0 && index < chatPanel_.params.size())
+        chatPanel_.params[index++] = int16_t(a.value());
+    chatPanel_.active = true;
+    computerOverlayVisible_ = true;
+    ++sceneVersion_;
+    break;
+  }
+  case 195:
+    // Original 0x4238a0 configures the mail-family selection at 0xf8a79a.
+    mailPanel_.selection = int16_t(argInt(0));
+    mailPanel_.active = true;
+    computerOverlayVisible_ = true;
+    ++sceneVersion_;
+    break;
   case 161:
     chatHistory_.clear();
     ++sceneVersion_;

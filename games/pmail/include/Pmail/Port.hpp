@@ -3,6 +3,7 @@
 #include <Pmail/Animation.hpp>
 #include <Pmail/Vm.hpp>
 
+#include <array>
 #include <cstdint>
 #include <deque>
 #include <functional>
@@ -36,6 +37,21 @@ public:
     int mode = 0;
     std::string text;
   };
+  // Two native computer screen families: SYS 176..179 calls 0x417d80,
+  // while SYS 192..195 uses 0x411320. Their final layout is under study.
+  struct ComputerPanel {
+    bool active = false;
+    std::vector<ChatLine> entries;
+    std::array<int32_t, 7> params{};
+    int32_t selection = 0;
+  };
+  struct ComputerIcon {
+    bool active = false;
+    int32_t x = 0;
+    int32_t y = 0;
+  };
+  static constexpr size_t ComputerPanelLimit = 64;
+  static constexpr size_t ComputerIconLimit = 25;
   static constexpr size_t ComputerTextLimit = 10;
   static constexpr size_t ChatHistoryLimit = 15;
 
@@ -50,6 +66,18 @@ public:
   std::string computerClock() const {
     std::lock_guard lock(mutex_);
     return computerClock_;
+  }
+  ComputerPanel chatPanel() const {
+    std::lock_guard lock(mutex_);
+    return chatPanel_;
+  }
+  ComputerPanel mailPanel() const {
+    std::lock_guard lock(mutex_);
+    return mailPanel_;
+  }
+  std::array<ComputerIcon, ComputerIconLimit> computerIcons() const {
+    std::lock_guard lock(mutex_);
+    return computerIcons_;
   }
 
   // The original name-entry dialog uses tokens $NO and $HO in its scripts.
@@ -69,7 +97,8 @@ public:
     std::lock_guard lock(mutex_);
     return computerOverlayVisible_ &&
            (!computerText_.empty() || !chatHistory_.empty() ||
-            !computerClock_.empty());
+            !computerClock_.empty() || chatPanel_.active ||
+            mailPanel_.active);
   }
 
   explicit PmailGame(std::vector<uint8_t> scriptPack,
@@ -229,6 +258,8 @@ private:
   std::vector<ComputerText> computerText_;
   std::vector<ChatLine> chatHistory_;
   std::string computerClock_;
+  ComputerPanel chatPanel_, mailPanel_;
+  std::array<ComputerIcon, ComputerIconLimit> computerIcons_{};
   bool computerOverlayVisible_ = false;
   std::string playerNameNO_ = "NO", playerNameHO_ = "HO";
   void clearComputerOverlay();
