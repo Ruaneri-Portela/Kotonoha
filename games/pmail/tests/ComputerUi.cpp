@@ -161,6 +161,40 @@ int main() {
       if (message.find("Unhandled PMAIL SYS 250") != std::string::npos)
         ++count;
     check(count == 1, "Unknown native syscall warnings were duplicated");
+    // Regression cases reported by the native retail startup and extra.OBJ
+    // trace. Until the original dispatch semantics are identified these calls
+    // must be diagnosed, not silently declared implemented or discarded.
+    for (const int id : {17, 18, 20, 24, 212, 216}) {
+      call(id, {integer(id), string(5)});
+      call(id, {integer(id), string(5)});
+    }
+    const auto sites = game.unhandledNativeSites();
+    const auto expected = std::vector<int>({17, 18, 20, 24, 212, 216, 250});
+    check(game.unhandledNativeIds() == expected,
+          "Missing native commands were accidentally marked as supported");
+    check(sites.size() == expected.size(),
+          "Unsupported call-site ledger failed to index all native IDs");
+    for (const auto &site : sites) {
+      check(site.hits == 2 && site.pc == 0,
+            "Call-site counter did not coalesce repeat invocations");
+      if (site.id == 250)
+        check(site.signature.find("argc=0") != std::string::npos,
+              "Zero-argument native signature changed");
+      else
+        check(site.signature.find("argc=2") != std::string::npos &&
+                  site.signature.find("strref:3:5") != std::string::npos,
+              "Unsupported calls must retain their arguments by type/reference");
+      check(site.signature.find("$NO") == std::string::npos &&
+                site.signature.find("$HO") == std::string::npos,
+            "Native evidence must never copy story or player-name strings");
+    }
+    int warnings = 0;
+    for (const auto &line : messages)
+      if (line.find("Unhandled PMAIL SYS ") != std::string::npos)
+        ++warnings;
+    check(warnings == int(expected.size()),
+          "Duplicate unknown-native warnings were not suppressed");
+
 
     std::cout << "Pure Mail computer UI, player names, scene transitions"
                  " and save format passed\n";
