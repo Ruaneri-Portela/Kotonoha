@@ -241,6 +241,27 @@ int main() {
     }
   }
 
+  // A malformed MDF/PSB payload must report a decode failure, not stall
+  // indefinitely in zlib. No proprietary game files are used.
+  {
+    const auto path = tempDir / "corrupt.ks.scn";
+    const std::uint8_t truncatedMdf[] = {'m', 'd', 'f', 0, 0, 0, 0, 0};
+    std::ofstream out(path, std::ios::binary);
+    out.write(reinterpret_cast<const char *>(truncatedMdf),
+              sizeof(truncatedMdf));
+    out.close();
+    bool rejected = false;
+    try {
+      (void)assets.loadTextUtf8("corrupt.ks.scn");
+    } catch (const std::exception &) {
+      rejected = true;
+    }
+    if (!rejected) {
+      std::printf("FAIL: truncated MDF stream was accepted\n");
+      ++failures;
+    }
+  }
+
   // Save restoration resumes after the already-presented dialogue, and label
   // jumps alter the actual runner rather than being a logging-only stub.
   {
