@@ -16,6 +16,16 @@ inline bool isMobilePlatform() {
 #endif
 }
 
+// Web builds use browser media APIs and may prefer WebM/MP4 sidecars over
+// retail AVI. Keep toolchain detection inside the engine, not game sources.
+inline bool isBrowserPlatform() {
+#if defined(__EMSCRIPTEN__)
+  return true;
+#else
+  return false;
+#endif
+}
+
 // Default window mode: Fullscreen (Borderless) on mobile, Windowed on desktop
 inline WindowMode defaultWindowMode() {
   return isMobilePlatform() ? WindowMode::Borderless : WindowMode::Windowed;
