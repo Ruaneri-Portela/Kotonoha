@@ -415,6 +415,9 @@ class Parser {
       }
       return machine.call(name, args, sourceName, active);
     }
+    // Named source functions may be assigned as Layer.onClick handlers.
+    if (active && machine.functions.count(name))
+      return Value(name);
     return active ? machine.get(name) : Value();
   }
   Value unary(bool active) {
@@ -803,7 +806,13 @@ void Interpreter::snapshotLayers() {
     frame.visible = member(layer, "visible").truthy();
     frame.enabled = member(layer, "enabled").truthy();
     frame.storage = member(layer, "storage").string();
+    if (!frame.storage.empty())
+      frame.storage = safeName(frame.storage);
     frame.onClick = member(layer, "onClick").string();
+    if (!frame.onClick.empty() &&
+        (frame.onClick.size() > 128 || !functions.count(frame.onClick)))
+      throw std::runtime_error(
+          "TJS2 UI: onClick must name a declared script function");
     int x = 0, y = 0;
     int alpha = frame.opacity;
     auto owner = layer;
@@ -860,6 +869,46 @@ Value Interpreter::call(const std::string &name,
     return {};
   }
 
+  // A small safe subset of Layer/Window methods. All methods mutate only
+  // the retained scene graph; no OS windows, plugins or native code run.
+  const auto dot = name.rfind('.');
+  if (dot != std::string::npos) {
+    const auto method = name.substr(dot + 1);
+    if (method == "loadImages" || method == "setImage" ||
+        method == "setPos" || method == "setSize" ||
+        method == "show" || method == "hide") {
+      const auto receiver = get(name.substr(0, dot));
+      const auto ptr = std::get_if<ObjectPtr>(&receiver.data);
+      if (!ptr || !*ptr || (*ptr)->kind == Object::Kind::Dictionary)
+        throw std::runtime_error("TJS2 UI: method receiver is not a Layer/Window");
+      auto &obj = *ptr;
+      const auto integer = [&](std::size_t index) {
+        const auto n = params.at(index).number();
+        if (!std::isfinite(n) || n < -8192 || n > 16384)
+          throw std::runtime_error("TJS2 UI: invalid coordinate/dimension");
+        return Value(static_cast<double>(static_cast<int>(n)));
+      };
+      if (method == "show" || method == "hide") {
+        if (!params.empty())
+          throw std::runtime_error("TJS2 UI: show/hide take no arguments");
+        obj->members["visible"] = Value(method == "show");
+        return {};
+      }
+      if (obj->kind != Object::Kind::Layer)
+        throw std::runtime_error("TJS2 UI: image/position method requires Layer");
+      if (method == "loadImages" || method == "setImage") {
+        if (params.size() != 1)
+          throw std::runtime_error("TJS2 UI: loadImages needs one storage ID");
+        obj->members["storage"] = Value(safeName(params.front().string()));
+        return {};
+      }
+      if (params.size() != 2)
+        throw std::runtime_error("TJS2 UI: setPos/setSize require two values");
+      obj->members[method == "setPos" ? "left" : "width"] = integer(0);
+      obj->members[method == "setPos" ? "top" : "height"] = integer(1);
+      return {};
+    }
+  }
   if (params.size() != 1)
     throw std::runtime_error("TJS2 subset: exactly one argument required for " +
                              name);
