@@ -737,6 +737,9 @@ Value Interpreter::construct(const std::string &type,
     return Value(std::make_shared<Object>());
   }
   if (type == "Window") {
+    // Virtual presentation exists, but native OS Window APIs are not
+    // implemented and real KiriKiri scripts may still require them.
+    result.requiresNativeRuntime = true;
     if (!args.empty())
       throw std::runtime_error("TJS2 UI: Window constructor arguments unsupported");
     if (windows.size() >= 4)
