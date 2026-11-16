@@ -90,6 +90,7 @@ public:
     bool isBlocked() const { return blocked_; }
     bool isFinished() const { return finished_; }
     std::size_t position() const { return pc_; }
+    std::size_t callDepth() const { return returnStack_.size(); }
     void setBlocked(bool value) { blocked_ = value; }
     void restorePosition(std::size_t position);
     bool jumpToLabel(const std::string &label);
@@ -112,6 +113,8 @@ public:
     bool finished_ = false;
     std::function<void()> pendingResume_;
     std::map<std::string, std::string> vars_;
+    // In-script KAG calls return to the instruction immediately after [call].
+    std::vector<std::size_t> returnStack_;
 
     bool executeTagBlocking(const Tag &tag); // returns true if tag blocks
     std::size_t findLabel(const std::string &name);
