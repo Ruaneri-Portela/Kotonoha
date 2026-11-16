@@ -1113,6 +1113,20 @@ int main() {
         ++failures;
       }
     }
+    // Disabled native branches must not attempt class construction.
+    write(tempDir / "startup.tjs",
+          "if (false) { var unused = new Window(this); }\n"
+          "var options = new Dictionary();\n"
+          "options.caption = \"Safe\";\n"
+          "System.title = options.caption;\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || run.title != "Safe") {
+        std::printf("FAIL: inactive native constructor was executed\n");
+        ++failures;
+      }
+    }
     // Script-level Dictionary objects are not native Window/Layer classes.
     write(tempDir / "startup.tjs", "var native = new Window();\n");
     {
