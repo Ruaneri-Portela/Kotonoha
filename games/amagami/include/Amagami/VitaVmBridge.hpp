@@ -2,6 +2,7 @@
 
 #include <Amagami/Vm.hpp>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -19,6 +20,20 @@ struct ViewState {
   double originY = 0.0;
 };
 
+// Original Vita Tween has three waveform components per channel: base,
+// amplitude, frequency. These are stepped in script frames (usually 60 fps).
+struct SpriteTween {
+  std::array<double, 3> current{{0, 0, 0}};
+  std::array<double, 3> target{{0, 0, 0}};
+  std::array<double, 3> a{{0, 0, 0}}, b{{0, 0, 0}};
+  std::size_t length = 0;
+  double remaining = 0;
+  void start(const std::array<double, 3> &value, std::size_t n,
+             int mode, double frames);
+  void step(double frames);
+  void finish();
+};
+
 // Records screen objects created by the original Vita Sprite SCF primitives.
 // The renderer can resolve a sprite via VitaGraphicsAssets::uiSurface using
 // texture/variant and apply rect/layer without reinterpreting the VM bytecode.
@@ -30,6 +45,16 @@ struct SpriteState {
   std::array<double, 4> rect{{0, 0, 0, 0}};
   bool hasImage = false;
   bool paused = false;
+  // Current visual values, updated by VitaVmBridge::tick().
+  double alpha = 1.0;
+  std::array<double, 3> light{{1, 1, 1}};
+  std::array<double, 2> position{{0, 0}}, zoom{{1, 1}};
+  // channel order: alpha, light, position, zoom; component 0 base,
+  // 1 amplitude, 2 frequency
+  std::array<std::array<SpriteTween, 3>, 4> tweens{};
+  std::array<double, 3> posPhase{{0, 0, 0}};
+  std::array<std::array<double, 3>, 4> wavePhase{};
+  void refresh();
 };
 
 // Handles Vita K2X_Script screen primitives and the first Sprite primitives.
@@ -47,6 +72,9 @@ public:
   }
   const ViewState &view() const { return view_; }
   const std::map<uint64_t, SpriteState> &sprites() const { return sprites_; }
+  // Advance at the same frame cadence as SCF animation commands.
+  // Scene snapshots stay valid between ticks; pause freezes individual sprites.
+  void tick(double frames);
   std::optional<VmValue> primitive(const std::string &owner,
                                    const std::string &method,
                                    bool classMethod, const VmValue &receiver,

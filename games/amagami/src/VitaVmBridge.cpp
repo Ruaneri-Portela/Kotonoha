@@ -1,4 +1,5 @@
 #include <Amagami/VitaVmBridge.hpp>
+#include <algorithm>
 #include <cmath>
 #include <ctime>
 #include <limits>
@@ -41,6 +42,96 @@ std::vector<VmValue> &spriteFields(const VmValue &self) {
 }
 } // namespace
 
+
+void SpriteTween::start(const std::array<double, 3> &values, std::size_t n,
+                        int mode, double frames) {
+  if (n == 0 || n > 3 || !std::isfinite(frames) || frames < 0 ||
+      frames > 360000)
+    throw std::runtime_error("Amagami Vita: invalid animation duration");
+  for (std::size_t i = 0; i < n; ++i)
+    if (!std::isfinite(values[i]) || std::abs(values[i]) > 1000000)
+      throw std::runtime_error("Amagami Vita: invalid tween target");
+  length = n;
+  target = values;
+  remaining = frames;
+  if (frames == 0) {
+    current = target;
+    return;
+  }
+  for (std::size_t i = 0; i < n; ++i) {
+    const double d = target[i] - current[i];
+    if (mode == 1) { // Ease-in, original Vita quadratic.
+      a[i] = d / (frames * frames);
+      b[i] = 0;
+    } else if (mode == 2) { // Ease-out.
+      a[i] = -d / (frames * frames);
+      b[i] = 2 * d / frames;
+    } else { // Linear, including native unrecognized modes.
+      a[i] = 0;
+      b[i] = d / frames;
+    }
+  }
+}
+void SpriteTween::step(double frames) {
+  if (remaining <= 0) return;
+  remaining = std::max(0.0, remaining - frames);
+  const double r = remaining;
+  for (std::size_t i = 0; i < length; ++i)
+    current[i] = target[i] - (a[i] * r * r + b[i] * r);
+}
+void SpriteTween::finish() {
+  remaining = 0;
+  current = target;
+}
+
+void SpriteState::refresh() {
+  const auto value = [this](std::size_t group, std::size_t i) -> double {
+    const auto &base = tweens[group][0].current;
+    const auto &amp = tweens[group][1].current;
+    const auto &freq = tweens[group][2].current;
+    const double wave = std::sin(wavePhase[group][i] * freq[i] *
+                                  3.14159265358979323846 / 30.0) * amp[i];
+    if (group == 3)  // Zoom's fractional waves have multiplicative scaling.
+      return wave >= 0 ? base[i] * (1.0 + wave)
+                       : base[i] / (1.0 - wave);
+    return base[i] + wave;
+  };
+  alpha = value(0, 0);
+  for (std::size_t i = 0; i < 3; ++i)
+    light[i] = value(1, i);
+  // Vita character/sprite position waves affect Y, both oscillators.
+  position[0] = tweens[2][0].current[0];
+  position[1] = tweens[2][0].current[1];
+  for (std::size_t i = 0; i < 2; ++i) {
+    const auto &amp = tweens[2][1].current;
+    const auto &freq = tweens[2][2].current;
+    position[1] += std::sin(wavePhase[2][i] * freq[i] *
+                             3.14159265358979323846 / 30.0) * amp[i];
+    zoom[i] = value(3, i);
+  }
+}
+void VitaVmBridge::tick(double frames) {
+  if (!std::isfinite(frames) || frames < 0 || frames > 360000)
+    throw std::runtime_error("Amagami Vita: invalid scene time delta");
+  for (auto &[uid, sprite] : sprites_) {
+    if (sprite.paused) continue;
+    for (std::size_t group = 0; group < 4; ++group) {
+      for (auto &component : sprite.tweens[group])
+        component.step(frames);
+      const auto &freq = sprite.tweens[group][2].current;
+      for (std::size_t i = 0; i < sprite.tweens[group][0].length; ++i) {
+        if (freq[i] <= 0) {
+          sprite.wavePhase[group][i] = 0;
+        } else {
+          sprite.wavePhase[group][i] = std::fmod(
+              sprite.wavePhase[group][i] + frames, 60.0 / freq[i]);
+        }
+      }
+    }
+    sprite.refresh();
+  }
+}
+
 void VitaVmBridge::setTexture(SpriteState &sprite, uint32_t tex,
                               uint32_t variant) {
   sprite.texture = tex;
@@ -69,6 +160,17 @@ uint64_t VitaVmBridge::newSprite(uint32_t tex, uint32_t variant,
     throw std::runtime_error("Amagami Vita: sprite scene object limit");
   SpriteState sprite;
   sprite.uid = nextUid_;
+  // Native base channels start at alpha=1, white light, centre 0, zoom 1.
+  sprite.tweens[0][0].start({{1, 0, 0}}, 1, 0, 0);
+  sprite.tweens[1][0].start({{1, 1, 1}}, 3, 0, 0);
+  sprite.tweens[2][0].start({{0, 0, 0}}, 2, 0, 0);
+  sprite.tweens[3][0].start({{1, 1, 0}}, 2, 0, 0);
+  for (std::size_t group = 0; group < 4; ++group) {
+    const std::size_t n = sprite.tweens[group][0].length;
+    sprite.tweens[group][1].start({{0, 0, 0}}, n, 0, 0);
+    sprite.tweens[group][2].start({{0, 0, 0}}, n, 0, 0);
+  }
+  sprite.refresh();
   sprite.layer = layer;
   sprite.order = nextOrder_ + 1;
   setTexture(sprite, tex, variant); // Throws before any scene changes.
@@ -166,13 +268,46 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       }
       return receiver;
     }
-    if (number == 7) { // update: no active tweens yet
+    if (number == 7) { // update: report remaining frames per channel.
       expectCount(args, 0);
-      if (it != sprites_.end() && fields.size() < 5)
+      if (fields.size() < 5)
         fields.resize(5);
+      for (std::size_t group = 0; group < 4; ++group) {
+        double remaining = 0;
+        if (it != sprites_.end())
+          for (const auto &component : it->second.tweens[group])
+            remaining = std::max(remaining, component.remaining);
+        fields[group + 1] = VmValue::num(std::ceil(remaining));
+      }
+      return receiver;
+    }
+    if (number >= 8 && number <= 11) { // light, alpha, position, zoom
+      const std::size_t group = number == 8 ? 1 : number == 9 ? 0 :
+                                number == 10 ? 2 : 3;
+      const std::size_t n = group == 1 ? 3 : group == 0 ? 1 : 2;
+      expectCount(args, n + 3); // values, interpolation mode, time, component
+      std::array<double, 3> target{{0, 0, 0}};
+      for (std::size_t i = 0; i < n; ++i)
+        target[i] = valueNumber(args[i]);
+      const int64_t mode = argument(args, n);
+      const double time = valueNumber(args[n + 1]);
+      const int64_t component = argument(args, n + 2);
+      if (component < 0 || component > 2)
+        throw std::runtime_error("Amagami Vita: invalid tween component");
       if (it != sprites_.end()) {
-        for (size_t i = 1; i <= 4; ++i)
-          fields[i] = VmValue::num(0);
+        it->second.tweens[group][size_t(component)].start(target, n,
+                                                            int(mode), time);
+        it->second.refresh();
+      }
+      return receiver;
+    }
+    if (number == 17) { // skip: snap all in-progress channels to target
+      expectCount(args, 0);
+      if (it != sprites_.end()) {
+        for (auto &channels : it->second.tweens)
+          for (auto &component : channels)
+            component.finish();
+        it->second.refresh();
       }
       return receiver;
     }
@@ -183,7 +318,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
             !(args[0].kind == VmValue::Number && args[0].number == 0);
       return receiver;
     }
-    return std::nullopt; // Animation/input primitives not implemented.
+    return std::nullopt; // Spin and vibration primitives not yet implemented.
   }
   if (owner != "K2X_Script")
     return std::nullopt; // Do not hide unrelated PS2/Vita primitives.
