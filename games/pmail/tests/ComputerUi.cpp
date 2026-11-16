@@ -1,3 +1,4 @@
+#include "PmailAudio.hpp"
 #include <Pmail/Port.hpp>
 #include <Pmail/Vm.hpp>
 #include <cstdint>
@@ -161,6 +162,14 @@ int main() {
       if (message.find("Unhandled PMAIL SYS 250") != std::string::npos)
         ++count;
     check(count == 1, "Unknown native syscall warnings were duplicated");
+    for (const int id : {96, 97, 98, 99, 100, 112, 115, 116, 128,
+                         132})
+      check(Kotonoha::PmailPort::PmailAudio::HandlesSyscall(id),
+            "Audio subsystem must handle the documented audio native IDs");
+    for (const int id : {17, 18, 20, 24, 212, 216, 250})
+      check(!Kotonoha::PmailPort::PmailAudio::HandlesSyscall(id),
+            "Non-audio calls must never be sent to the audio decoder");
+
     // Regression cases reported by the native retail startup and extra.OBJ
     // trace. Until the original dispatch semantics are identified these calls
     // must be diagnosed, not silently declared implemented or discarded.
