@@ -141,6 +141,13 @@ remain incomplete. The pause/backlog screens remain simplified.
 
 Replay saves restore dialogue/decision/costume state and restart music; they do
 not preserve presentation-thread phase or the exact in-flight transition.
+Campaign saves now replay the exact ordered `advance`, `choose`, `event`
+and `period` journal rather than choosing the first answer for every old
+event. This restores mid-event campaign saves and retains the journal when
+saving again after load; old/corrupt input sequences are rejected before
+replacing the running Session. `Amagami.CampaignSession` exercises real-disc
+mid-prologue and selected-map-event save/load, and is opt-in with
+`-DAMAGAMI_DISC_IMAGE=...`.
 Gallery `setAlbum` has no gallery implementation. The classical MIDI soundtrack
 mode and controller rumble remain unimplemented. **Campaign-wide replay action journaling (`AMAGAMI_CAMPAIGN_REPLAY`) is fully implemented**, allowing campaign states and event sequences to be saved and replayed.
 Coverage of the prologue does not establish coverage of calendar/later routes.
