@@ -1,4 +1,5 @@
 #include <Kirikiri/KirikiriRuntime.hpp>
+#include <Kirikiri/TjsBootstrap.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
@@ -129,6 +130,7 @@ struct KirikiriRuntime::Impl {
 
   bool running = false;
   bool titleShown = false;
+  Kotonoha::Providers::TjsBootstrapReport bootstrap;
   bool waitingChoice = false;
   bool waitingWait = false;
   std::uint64_t waitingDeadline = 0;
@@ -182,6 +184,22 @@ void KirikiriRuntime::initGlobal(Kotonoha::Engine &engine) {
   });
 }
 
+std::string KirikiriRuntime::diagnostic() const {
+  const auto &state = *impl_;
+  const auto &report = state.bootstrap;
+  if (report.entry.empty())
+    return "KiriKiri: startup.tjs não detectado; suporte KAG experimental";
+  std::ostringstream message;
+  message << "KiriKiri: " << report.entry
+          << " (TJS2 não executado), "
+          << report.staticallyReferenced.size() << " dependências estáticas, "
+          << report.missing.size() << " ausentes, "
+          << report.dynamicCalls << " referências dinâmicas";
+  if (!report.error.empty())
+    message << "; erro de análise: " << report.error;
+  return message.str();
+}
+
 void KirikiriRuntime::initSplash(Kotonoha::Engine &engine) {
   // Kirikiri games go directly to gameplay; no engine splash screen.
   SetState(Kotonoha::GameState::Gameplay);
@@ -226,6 +244,23 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
       // startup.tjs/compiled scripts. Previously an empty .ks list made the
       // game a blank screen with no explanation or accessible menu.
       impl.titleShown = true;
+      impl.bootstrap = Kotonoha::Providers::inspectTjsBootstrap(*impl.assets);
+      if (!impl.bootstrap.entry.empty()) {
+        SDL_Log("KiriKiri: found TJS2 entry %s; %zu static dependencies, "
+                "%zu missing and %zu dynamic calls",
+                impl.bootstrap.entry.c_str(),
+                impl.bootstrap.staticallyReferenced.size(),
+                impl.bootstrap.missing.size(),
+                impl.bootstrap.dynamicCalls);
+        for (const auto &id : impl.bootstrap.missing)
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: startup TJS dependency unavailable: %s",
+                      id.c_str());
+      }
+      if (!impl.bootstrap.error.empty())
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "KiriKiri: cannot inspect startup.tjs: %s",
+                    impl.bootstrap.error.c_str());
       impl.titlePicture = {findTitlePicture(*impl.assets), 0, 0, false};
       const auto savePath =
           Kotonoha::preferredDocumentsDirectory("kirikiri") / "quicksave.kns";
@@ -236,7 +271,9 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
         options.push_back({"Continuar", 1});
       options.push_back({"Configurações", 2});
       const std::string title = scenarios.empty()
-          ? "KiriKiri: scripts KAG não encontrados (TJS2 ainda não executável)"
+          ? (impl.bootstrap.entry.empty()
+                 ? "KiriKiri: scripts KAG não encontrados"
+                 : "KiriKiri: startup.tjs identificado; VM TJS2 pendente")
           : "KiriKiri: menu de compatibilidade";
       impl.choiceScene->setQuestion(
           title, options,
