@@ -1064,7 +1064,18 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
     auto &vm = session->vm;
     vm.result.kagEntry.clear();
     try {
-      vm.call(layer.onClick, {}, {}, true);
+      const auto found = vm.functions.find(layer.onClick);
+      if (found == vm.functions.end())
+        throw std::runtime_error("TJS2 UI: missing event handler");
+      std::vector<Value> arguments;
+      const auto arity = found->second.parameters.size();
+      if (arity > 4)
+        throw std::runtime_error("TJS2 UI: unsupported pointer event arity");
+      if (arity >= 1) arguments.emplace_back(double(x));
+      if (arity >= 2) arguments.emplace_back(double(y));
+      if (arity >= 3) arguments.emplace_back(1.0); // left mouse button
+      if (arity >= 4) arguments.emplace_back(0.0); // no keyboard modifiers
+      vm.call(layer.onClick, arguments, {}, true);
       vm.snapshotLayers();
     } catch (const std::exception &error) {
       vm.result.error = std::string("TJS2 UI event: ") + error.what();
