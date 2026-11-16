@@ -530,6 +530,7 @@ bool KirikiriAssets::readXp3(const std::string &id) {
       std::size_t sp = 0;
       bool hasInfo = false, hasSegments = false, protectedEntry = false;
       std::uint64_t storedTotal = 0, originalTotal = 0;
+      std::uint64_t declaredStored = 0;
       while (sp < chunkSize) {
         if (chunkSize - sp < 12)
           throw std::runtime_error("XP3 truncated sub-chunk: " + id);
@@ -545,7 +546,7 @@ bool KirikiriAssets::readXp3(const std::string &id) {
             throw std::runtime_error("XP3 truncated info: " + id);
           const auto flags = readU32LE(sub);
           entry.originalSize = readU64LE(sub + 4);
-          const auto declaredStored = readU64LE(sub + 12);
+          declaredStored = readU64LE(sub + 12);
           const auto nameUnits = readU16LE(sub + 20);
           if (static_cast<std::uint64_t>(nameUnits) * 2 > subSize - 22)
             throw std::runtime_error("XP3 truncated Unicode name: " + id);
@@ -553,8 +554,7 @@ bool KirikiriAssets::readXp3(const std::string &id) {
           entry.name = readUtf16Le(sub, namePos, nameUnits);
           hasInfo = true;
           protectedEntry = (flags & 0x80000000u) != 0;
-          // This value is validated after all segments have been read.
-          storedTotal = declaredStored;
+          // Compare this declared size with the sum of all stored spans.
         } else if (subTag == 0x6d676573u) { // "segm"
           if (subSize == 0 || subSize % 28 != 0)
             throw std::runtime_error("XP3 invalid segment array: " + id);
@@ -584,7 +584,8 @@ bool KirikiriAssets::readXp3(const std::string &id) {
         }
       }
       if (hasInfo && hasSegments && !entry.name.empty()) {
-        if (originalTotal != entry.originalSize)
+        if (originalTotal != entry.originalSize ||
+            storedTotal != declaredStored)
           throw std::runtime_error("XP3 mismatched decompressed file size: " + id);
         if (protectedEntry) {
           SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
