@@ -5,16 +5,23 @@
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 #include <Kotonoha/routing/SchoolDaysPersistenceCodec.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayModel.hpp>
+#include <Kotonoha/routing/SchoolDaysSaveStorage.hpp>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 namespace fs = std::filesystem;
 namespace {
@@ -97,7 +104,7 @@ struct CmapFixture {
 };
 
 struct TemporaryDirectory {
-  fs::path path = fs::temp_directory_path() /
+  fs::path path = fs::current_path() /
                   ("school-days-replay-ui-" +
                    std::to_string(SDL_GetPerformanceCounter()));
   TemporaryDirectory() {
@@ -124,6 +131,31 @@ Kotonoha::SchoolDaysFlgHEntry StringEntry(const char16_t *key,
   entry.type = 8;
   entry.stringValue = value;
   return entry;
+}
+
+void WriteGlobalFixture(const fs::path &documents, int32_t endClear,
+                        const std::vector<int> &unlocked,
+                        bool choiceOnly = false) {
+  Kotonoha::SchoolDaysFlgH global;
+  global.entries.push_back(IntegerEntry("EndClear", endClear));
+  for (int i = 0; i < Kotonoha::SchoolDaysReplayModel::HSceneUnlockCount(); ++i) {
+    const bool available = std::find(unlocked.begin(), unlocked.end(), i) !=
+                           unlocked.end();
+    global.entries.push_back(IntegerEntry(
+        Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(i),
+        available ? -1 : 0));
+  }
+  if (choiceOnly)
+    global.entries.push_back(IntegerEntry("REP03_KB_N00A", -1));
+  global.entries.push_back(StringEntry(u"FILMEngine/SaveFile10",
+                                       u"2026/11/01 07:2205"));
+  global.entries.push_back(StringEntry(u"FILMEngine/SaveFile10_Sub",
+                                       u"Replay slot ten"));
+  std::vector<uint8_t> globalBytes;
+  std::string error;
+  Check(Kotonoha::SchoolDaysPersistenceCodec::SerializeFlgH(
+            global, &globalBytes, &error), error);
+  Put(documents / "Save/GlobalFlag.DAT", globalBytes);
 }
 
 void WriteFixtures(const fs::path &root, const fs::path &documents) {
@@ -187,21 +219,7 @@ void WriteFixtures(const fs::path &root, const fs::path &documents) {
   Put(root / "System/FONTDATA_eng.DAT",
       std::vector<uint8_t>(Kotonoha::SchoolDaysFontData::kTableBytes, 0u));
 
-  Kotonoha::SchoolDaysFlgH global;
-  global.entries.push_back(IntegerEntry("EndClear", -1));
-  for (int i = 0; i < Kotonoha::SchoolDaysReplayModel::HSceneUnlockCount(); ++i)
-    global.entries.push_back(IntegerEntry(
-        Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(i), -1));
-  global.entries.push_back(StringEntry(u"FILMEngine/SaveFile10",
-                                       u"2026/11/01 07:2205"));
-  global.entries.push_back(StringEntry(u"FILMEngine/SaveFile10_Sub",
-                                       u"Replay slot ten"));
-  std::vector<uint8_t> globalBytes;
-  std::string error;
-  Check(Kotonoha::SchoolDaysPersistenceCodec::SerializeFlgH(
-            global, &globalBytes, &error),
-        error);
-  Put(documents / "Save/GlobalFlag.DAT", globalBytes);
+  WriteGlobalFixture(documents, 0, {});
 }
 
 std::vector<uint8_t> BuildPlayDataSave(const char *route, const fs::path &root) {
@@ -277,6 +295,17 @@ void RenderMenu(Application &app, const std::string &stage) {
         "Replay presenter closed while rendering " + stage);
 }
 
+void CheckGalleryAvailability(const SchoolDays::Runtime &runtime,
+                              const std::vector<int> &expected) {
+  Check(runtime.panels().IsReplayOpen(), "Replay gallery did not open");
+  for (int i = 0; i < Kotonoha::SchoolDaysReplayModel::HSceneUnlockCount(); ++i) {
+    const bool available = std::find(expected.begin(), expected.end(), i) !=
+                           expected.end();
+    Check(runtime.panels().Replay().IsHSceneAvailable(i) == available,
+          "HScene gallery availability mismatch at index " + std::to_string(i));
+  }
+}
+
 } // namespace
 
 namespace SchoolDays {
@@ -309,6 +338,11 @@ public:
 
   static void ReturnToTitle(Runtime &runtime) {
     runtime.openTitle();
+  }
+
+  static const Kotonoha::SchoolDaysTitleModel::HostState &TitleHost(
+      const Runtime &runtime) {
+    return runtime.title.CurrentHostState();
   }
 
   static bool PlayDataOpen(const Runtime &runtime) {
@@ -411,6 +445,137 @@ int main(int argc, char **argv) {
   Put(documents / "Save/SaveFile10.DAT", BuildPlayDataSave(argv[1], root));
 
   auto assets = std::make_shared<SchoolDays::Assets>(root);
+  {
+    Application fresh(assets, argv[1], documents);
+    const auto &host = SchoolDays::RuntimeReplayUiTestAccess::TitleHost(
+        fresh.runtime);
+    Check(!host.endClearReplay && !host.endClearVisual &&
+              !Kotonoha::SchoolDaysTitleModel::ItemAvailable(2, host),
+          "fresh GlobalFlag exposed Replay before any HScene unlock");
+    SchoolDays::RuntimeReplayUiTestAccess::FinishInitialTitleFade(
+        fresh.runtime);
+    TitleClick(fresh.runtime, 600.0f, 590.0f);
+    Check(!fresh.runtime.panels().IsReplayOpen(),
+          "locked Replay title item accepted activation");
+  }
+#ifdef _WIN32
+  // A sharing lock reproduces a readable path whose contents cannot be opened.
+  // Startup must fail closed; otherwise a later orderly shutdown overwrites it
+  // with the empty first-run profile.
+  WriteGlobalFixture(documents, -1, {0});
+  const auto flagPath = documents / "Save/GlobalFlag.DAT";
+  auto readFlag = [&]() {
+    std::ifstream in(flagPath, std::ios::binary);
+    Check(bool(in), "cannot read synthetic GlobalFlag");
+    return std::vector<uint8_t>(std::istreambuf_iterator<char>(in),
+                                std::istreambuf_iterator<char>());
+  };
+  const auto originalFlag = readFlag();
+  HANDLE lockedFlag = CreateFileW(flagPath.c_str(), GENERIC_READ, 0, nullptr,
+                                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  Check(lockedFlag != INVALID_HANDLE_VALUE,
+        "cannot lock synthetic GlobalFlag for read/write failure tests");
+  Kotonoha::SchoolDaysSaveProfile profile;
+  profile.saveFolder = "Save";
+  profile.flagFileName = "Save/GlobalFlag.DAT";
+  Kotonoha::SchoolDaysSaveStorage storage;
+  std::string storageError;
+  Check(storage.Initialize(documents, profile, &storageError), storageError);
+  std::vector<uint8_t> loaded;
+  bool present = true;
+  Check(!storage.LoadGlobalFlag(&loaded, &present, &storageError) && !present,
+        "sharing lock did not reproduce GlobalFlag read failure");
+  Check(!storage.WriteGlobalFlagBytes(std::vector<uint8_t>{1, 2, 3},
+                                      &storageError),
+        "sharing lock did not reproduce GlobalFlag write failure");
+  std::unique_ptr<Application> blocked;
+  bool rejected = false;
+  try {
+    blocked = std::make_unique<Application>(assets, argv[1], documents);
+  } catch (const std::exception &exception) {
+    const std::string message = exception.what();
+    rejected = message.find(documents.string()) != std::string::npos &&
+               message.find("GlobalFlag.DAT") != std::string::npos &&
+               message.find("was not modified") != std::string::npos;
+  }
+  CloseHandle(lockedFlag);
+  blocked.reset();
+  Check(rejected, "GlobalFlag read failure initialized an empty profile");
+  Check(readFlag() == originalFlag,
+        "GlobalFlag read/write failure changed existing valid bytes");
+  Put(flagPath, std::vector<uint8_t>{1, 2, 3});
+  bool invalidRejected = false;
+  try {
+    Application invalid(assets, argv[1], documents);
+  } catch (const std::exception &exception) {
+    const std::string message = exception.what();
+    invalidRejected =
+        message.find(documents.string()) != std::string::npos &&
+        message.find("GlobalFlag.DAT") != std::string::npos &&
+        message.find("was not modified") != std::string::npos;
+  }
+  Check(invalidRejected && readFlag() == std::vector<uint8_t>({1, 2, 3}),
+        "invalid GlobalFlag was accepted or overwritten");
+#endif
+  WriteGlobalFixture(documents, 0, {}, true);
+  {
+    Application unresolvedChoice(assets, argv[1], documents);
+    const auto &host = SchoolDays::RuntimeReplayUiTestAccess::TitleHost(
+        unresolvedChoice.runtime);
+    Check(!host.endClearReplay &&
+              !Kotonoha::SchoolDaysTitleModel::ItemAvailable(2, host),
+          "SceneCheck choice flag alone exposed Replay");
+  }
+  WriteGlobalFixture(documents, 0, {0});
+  {
+    Application first(assets, argv[1], documents);
+    const auto &host = SchoolDays::RuntimeReplayUiTestAccess::TitleHost(
+        first.runtime);
+    Check(host.endClearReplay && !host.endClearVisual &&
+              Kotonoha::SchoolDaysTitleModel::ItemAvailable(2, host),
+          "first HScene unlock did not enable Replay before EndClear");
+    auto alternate = host;
+    alternate.alternate = true;
+    auto ac = host;
+    ac.ac = true;
+    Check(!Kotonoha::SchoolDaysTitleModel::ItemAvailable(2, alternate) &&
+              Kotonoha::SchoolDaysTitleModel::SelectFamily(host) ==
+                  Kotonoha::SchoolDaysTitleModel::Family::Title &&
+              Kotonoha::SchoolDaysTitleModel::SelectFamily(ac) ==
+                  Kotonoha::SchoolDaysTitleModel::Family::TitleAc,
+          "early Replay unlock changed alternate/AC gate or title artwork");
+    SchoolDays::RuntimeReplayUiTestAccess::FinishInitialTitleFade(first.runtime);
+    TitleClick(first.runtime, 600.0f, 590.0f);
+    SchoolDays::RuntimeReplayUiTestAccess::FinishTitleChildFade(first.runtime);
+    CheckGalleryAvailability(first.runtime, {0});
+  }
+  WriteGlobalFixture(documents, 0, {0, 40});
+  {
+    Application restarted(assets, argv[1], documents);
+    const auto &host = SchoolDays::RuntimeReplayUiTestAccess::TitleHost(
+        restarted.runtime);
+    Check(host.endClearReplay && !host.endClearVisual,
+          "two persisted HScene unlocks did not survive a new session");
+    SchoolDays::RuntimeReplayUiTestAccess::FinishInitialTitleFade(
+        restarted.runtime);
+    TitleClick(restarted.runtime, 600.0f, 590.0f);
+    SchoolDays::RuntimeReplayUiTestAccess::FinishTitleChildFade(
+        restarted.runtime);
+    CheckGalleryAvailability(restarted.runtime, {0, 40});
+  }
+  WriteGlobalFixture(documents, -1, {});
+  {
+    Application completedEnd(assets, argv[1], documents);
+    const auto &host = SchoolDays::RuntimeReplayUiTestAccess::TitleHost(
+        completedEnd.runtime);
+    Check(host.endClearReplay &&
+              Kotonoha::SchoolDaysTitleModel::ItemAvailable(2, host),
+          "completed-end Replay eligibility regressed");
+  }
+  std::vector<int> allUnlocks;
+  for (int i = 0; i < Kotonoha::SchoolDaysReplayModel::HSceneUnlockCount(); ++i)
+    allUnlocks.push_back(i);
+  WriteGlobalFixture(documents, -1, allUnlocks);
   Application app(assets, argv[1], documents);
   Check(app.runtime.GetState() == Kotonoha::GameState::Menu,
         "runtime did not initialize at title");
