@@ -3,6 +3,7 @@
 #include <Amagami/Formats.hpp>
 #include <Amagami/VitaCpk.hpp>
 #include <Amagami/VitaGraphics.hpp>
+#include <Amagami/VitaSystemGraphics.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -32,19 +33,25 @@ bool hasSuffix(const std::string &name, const std::string &extension) {
 } // namespace
 
 int main(int argc, char **argv) {
-  if (argc < 2 || argc > 4) {
+  if (argc < 2 || argc > 7) {
     std::cerr << "Usage: AmagamiVitaInspect DECRYPTED_GAME_DIRECTORY "
-                 "[--verify] [--verify-graphics]\n"
+                 "[--verify] [--verify-graphics] [--verify-fonts] "
+                 "[--verify-ui PLAIN_EBOOT_ELF]\n"
                  "Read-only inspection of a decrypted PCSG00291 copy.\n";
     return 2;
   }
-  bool verify = false, verifyGraphics = false;
+  bool verify = false, verifyGraphics = false, verifyFonts = false;
+  std::string uiElf;
   for (int i = 2; i < argc; ++i) {
     const std::string flag(argv[i]);
     if (flag == "--verify")
       verify = true;
     else if (flag == "--verify-graphics")
       verifyGraphics = true;
+    else if (flag == "--verify-fonts")
+      verifyFonts = true;
+    else if (flag == "--verify-ui" && i + 1 < argc)
+      uiElf = argv[++i];
     else {
       std::cerr << "Unsupported argument: " << flag << '\n';
       return 2;
@@ -107,6 +114,40 @@ int main(int argc, char **argv) {
       if (!decoded)
         throw std::runtime_error("No recognised Vita graphics in GRAPH.CPK");
       std::cout << "Vita palette graphics decoded: " << decoded << '\n';
+    }
+    if (verifyFonts || !uiElf.empty()) {
+      const auto graphicsPath = (root / "graph" / "GRAPH.CPK").string();
+      const auto graphics = Amagami::Vita::cpk_read_index(graphicsPath);
+      if (verifyFonts) {
+        for (const char *name : {"font/AMV_font18_21.tm2",
+                                 "font/AMV_font18_21im.tm2"}) {
+          std::string bytes;
+          if (!Amagami::Vita::cpk_read(graphicsPath, graphics, name, bytes))
+            throw std::runtime_error(std::string("Vita font missing: ") + name);
+          // Verify all four palettes with one widely present Shift-JIS glyph.
+          for (unsigned palette = 0; palette < 4; ++palette) {
+            const auto glyph =
+                Amagami::Vita::decodeFontGlyph(bytes, 0x8140, palette);
+            if (glyph.width != 36 || glyph.height != 42)
+              throw std::runtime_error("Invalid Vita font glyph dimensions");
+          }
+        }
+        std::cout << "Vita font atlases decoded: 2 (4 palettes each)\n";
+      }
+      if (!uiElf.empty()) {
+        std::string packed;
+        if (!Amagami::Vita::cpk_read(graphicsPath, graphics,
+                                     "system/sysgraph.tm2", packed))
+          throw std::runtime_error("Vita sysgraph not found");
+        const auto elfData = readFile(uiElf);
+        Amagami::Vita::UiAtlas atlas(
+            std::string(elfData.begin(), elfData.end()), std::move(packed));
+        size_t count = 0;
+        for (uint32_t entry = 1; entry < 762; ++entry)
+          if (atlas.decodeEntry(entry))
+            ++count;
+        std::cout << "Vita sysgraph UI textures decoded: " << count << '\n';
+      }
     }
     std::cout << "Inspection only: Vita game execution is not implemented.\n";
     return 0;
