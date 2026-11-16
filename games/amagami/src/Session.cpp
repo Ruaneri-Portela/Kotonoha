@@ -1817,6 +1817,15 @@ void Session::load(const std::string &path) {
                                const auto &r, unsigned n, const auto &a) {
     return primitive(owner, method, classMethod, r, n, a);
   };
+  // Vm::shouldYield closes over Session (and calls tick()). Rebind after
+  // moving candidate.vm_: the copied lambda otherwise retains &candidate,
+  // a destroyed stack object once load() returns. Do not copy callbacks
+  // carrying the temporary Session's lifetime into the restored VM.
+  vm_.shouldYield = [this]() {
+    if (!realtime_)
+      tick(1.0 / 60.0);
+    return false;
+  };
   placeholderTags_ = std::move(candidate.placeholderTags_);
   self_ = std::move(candidate.self_);
   campaignActive_ = candidate.campaignActive_;

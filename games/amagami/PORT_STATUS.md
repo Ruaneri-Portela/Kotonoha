@@ -143,7 +143,10 @@ Replay saves restore dialogue/decision/costume state and restart music; they do
 not preserve presentation-thread phase or the exact in-flight transition.
 Campaign saves now replay the exact ordered `advance`, `choose`, `event`
 and `period` journal rather than choosing the first answer for every old
-event. This restores mid-event campaign saves and retains the journal when
+event. After the reconstructed VM is moved into the active Session,
+`shouldYield` is rebound to that active object; previously it retained
+a pointer to the destroyed temporary Session, risking a use-after-free
+when later SCF loops reached the 1,000-instruction yield checkpoint. This restores mid-event campaign saves and retains the journal when
 saving again after load; old/corrupt input sequences are rejected before
 replacing the running Session. `Amagami.CampaignSession` exercises real-disc
 mid-prologue and selected-map-event save/load, and is opt-in with

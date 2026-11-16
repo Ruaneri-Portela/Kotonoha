@@ -68,6 +68,14 @@ int main(int argc, char **argv) {
                 again.name() == resumed.name(),
             "Loaded campaign preserves its journal for repeated saves");
     playEvent(session);
+    // Force thousands of SCF instructions *after* the temporary candidate
+    // from load() has died. This exercises the rebound shouldYield callback
+    // and verifies that a twice-restored save can continue playing.
+    playEvent(again);
+    require(again.history().size() == session.history().size() &&
+                again.campaignDate() == session.campaignDate() &&
+                again.campaignPeriod() == session.campaignPeriod(),
+            "Post-load VM runs original prologue with live Session callbacks");
     require(session.history().size() > 400,
             "Campaign plays the complete original prologue");
     require(session.campaignDate() == 1 && session.campaignPeriod() == 5,
@@ -101,6 +109,11 @@ int main(int argc, char **argv) {
                 mapReload.campaignPeriod() == session.campaignPeriod(),
             "Reloaded map event retains all previous original campaign flags");
     playEvent(session);
+    playEvent(mapReload);
+    require(mapReload.history().size() == session.history().size() &&
+                mapReload.campaignDate() == session.campaignDate() &&
+                mapReload.campaignPeriod() == session.campaignPeriod(),
+            "Loaded map event runs to the same ending as uninterrupted PS2");
     require(session.history().size() > before,
             "First selected campaign event adds original dialogue");
     const auto unlocked = session.availableEvents();
