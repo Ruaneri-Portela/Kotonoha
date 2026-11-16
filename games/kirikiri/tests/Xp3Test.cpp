@@ -763,6 +763,54 @@ int main() {
       std::printf("FAIL: canonical XP3 index chain/segments: %s\n", error.what());
       ++failures;
     }
+    // Updates to a path in the second index take precedence over the
+    // first index (without replacing unrelated storages).
+    auto replacedIndex = secondIndex;
+    auto laterRecord = makeRecord(
+        fileName, secondText.size(),
+        {{0, rawSecondOffset, cut, cut},
+         {1, compressedSecondOffset, remaining.size(), packedRemaining.size()}});
+    replacedIndex.insert(replacedIndex.end(),
+                         laterRecord.begin(), laterRecord.end());
+    const auto compressedReplacement = compress(replacedIndex);
+    auto replacementArchive = standard;
+    replacementArchive.resize(static_cast<std::size_t>(nextIndex));
+    replacementArchive.push_back(1);
+    putLE(replacementArchive, std::uint64_t(compressedReplacement.size()));
+    putLE(replacementArchive, std::uint64_t(replacedIndex.size()));
+    replacementArchive.insert(replacementArchive.end(),
+                              compressedReplacement.begin(),
+                              compressedReplacement.end());
+    writeArchive("index-update.xp3", replacementArchive);
+    try {
+      assets.mountXp3("index-update.xp3");
+      const auto changed = assets.readAsset(fileName);
+      if (std::string(changed.begin(), changed.end()) != secondText) {
+        std::printf("FAIL: later XP3 index entry did not override earlier path\n");
+        ++failures;
+      }
+    } catch (const std::exception &error) {
+      std::printf("FAIL: later XP3 index entry: %s\n", error.what());
+      ++failures;
+    }
+    // Segment offsets must point inside the physical archive.
+    auto invalidSegment = standard;
+    const auto firstSegOffset =
+        static_cast<std::size_t>(indexOffset) + 9u +
+        12u + 12u + 22u + fileName.size() * 2u + 12u + 4u;
+    patch64(invalidSegment, firstSegOffset, standard.size() + 1024);
+    writeArchive("bad-segment.xp3", invalidSegment);
+    bool rejectedSegment = false;
+    try {
+      assets.mountXp3("bad-segment.xp3");
+    } catch (const std::runtime_error &) {
+      rejectedSegment = true;
+    }
+    if (!rejectedSegment) {
+      std::printf("FAIL: out-of-bounds XP3 segment was accepted\n");
+      ++failures;
+    }
+
     auto cycle = standard;
     patch64(cycle, continuationPointer, indexOffset);
     writeArchive("cyclic.xp3", cycle);
