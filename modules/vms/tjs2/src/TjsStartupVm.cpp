@@ -78,7 +78,8 @@ struct Value {
 // Window or parent Layer, and is projected onto the Kotonoha render viewport.
 // This is not a replacement for KiriKiri's platform Window/Layer classes.
 struct Object {
-  enum class Kind { Dictionary, Window, Layer } kind = Kind::Dictionary;
+  enum class Kind { Dictionary, Window, Layer, ScriptClass } kind = Kind::Dictionary;
+  std::string className;
   std::unordered_map<std::string, Value> members;
   std::weak_ptr<Object> parent;
   std::size_t layerId = 0;
@@ -257,6 +258,17 @@ struct FunctionReturn {
   Value value;
 };
 
+struct SourceClass {
+  std::string name;
+  std::string base;
+  std::unordered_map<std::string, SourceFunction> methods;
+};
+
+struct BoundMethod {
+  ObjectPtr receiver;
+  SourceFunction function;
+};
+
 class Parser;
 class Interpreter {
 public:
@@ -266,15 +278,32 @@ public:
   TjsStartupResult result;
   std::unordered_map<std::string, Value> variables;
   std::unordered_map<std::string, SourceFunction> functions;
+  std::unordered_map<std::string, SourceClass> classes;
+  std::unordered_map<std::string, BoundMethod> boundMethods;
+  std::vector<ObjectPtr> instances;
   std::vector<std::unordered_map<std::string, Value>> frames;
   std::vector<std::string> active;
   std::vector<ObjectPtr> windows, layers;
   std::size_t nextLayerId = 1;
   std::size_t nextAnonymousFunction = 1;
+  std::size_t nextBoundMethod = 1;
   std::size_t remaining;
   std::size_t functionDepth = 0;
 
   Value construct(const std::string &type, const std::vector<Value> &args);
+  Value invokeSource(const SourceFunction &function,
+                     const std::vector<Value> &args,
+                     const ObjectPtr &receiver = {});
+  bool hasCallable(const std::string &name) const {
+    return functions.count(name) != 0 || boundMethods.count(name) != 0;
+  }
+  std::size_t callableArity(const std::string &name) const {
+    if (const auto it = functions.find(name); it != functions.end())
+      return it->second.parameters.size();
+    if (const auto it = boundMethods.find(name); it != boundMethods.end())
+      return it->second.function.parameters.size();
+    throw std::runtime_error("TJS2 subset: callback not found: " + name);
+  }
   void snapshotLayers();
 
   Value get(const std::string &name) const {
