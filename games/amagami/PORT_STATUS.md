@@ -730,3 +730,35 @@ resources do not render as black bars. Rotation, nontrivial waveform
 vibration, background interface-view flags from the ELF and other classes
 remain unsupported and must be verified against real Vita screenshots.
 This does **not** make the Vita version completely playable.
+
+
+### Vita native waveform animation and PS2 save replay integrity
+
+The Vita VM now implements the original `vibrate` native signatures for
+`Sprite` (13–16), `FontChar` (7–9) and `BG_Picture` (11–13).
+Each call writes independent amplitude and frequency Tween components,
+with interpolation modes and duration, feeding the existing frame-based sine
+animation. The RGB light channel uses one shared frequency for three colour
+components; the positional waveform adds both oscillators to Y, as in the
+Vita reference implementation. Invalid arity, numeric ranges and durations
+are rejected before mutating active animation channels. The existing
+`pause` and `skip` mechanisms operate on these new components.
+Rotation/spin and several other native graphics classes remain pending.
+
+```sh
+cmake --build build --target AmagamiVitaVibrationTest AmagamiVitaFontCharTest
+ctest --test-dir build -R 'Amagami.Vita(Vibration|FontChar|Background)' --output-on-failure
+```
+
+On the PS2 side, campaign save replay now validates the entire action
+journal's types and argument shapes and compares only the **last scenario's**
+`advance` and `choose` entries against the saved input history. The input
+history resets at each event; earlier events therefore must **not** be
+compared against the last event's inputs. Corrupted journals are rejected
+before replay and before replacing the active Session. The real-disc
+`Amagami.CampaignSession` regression now also modifies the saved action
+stream intentionally to check rejection and preservation of the active
+calendar/map state.
+
+Neither test suite has been executed against the user's remote assets here:
+the proposed external host could not be resolved from this environment.
