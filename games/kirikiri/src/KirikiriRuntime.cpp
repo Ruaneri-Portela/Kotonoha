@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
+#include <functional>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -54,6 +56,8 @@ struct KirikiriRuntime::Impl {
   bool titleShown = false;
   bool waitingChoice = false;
   bool waitingWait = false;
+  std::uint64_t waitingDeadline = 0;
+  std::function<void()> finishWait;
   Kotonoha::PcmPlayer bgm;
   Kotonoha::PcmPlayer sound;
 
@@ -166,6 +170,13 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
 void KirikiriRuntime::update() {
   Runtime::update();
   auto &impl = *impl_;
+  // Resume pending waits on the runtime thread, never an SDL timer worker.
+  if (impl.waitingWait && SDL_GetTicks() >= impl.waitingDeadline) {
+    impl.waitingWait = false;
+    auto done = std::move(impl.finishWait);
+    impl.finishWait = {};
+    if (done) done();
+  }
   if (impl.engine && impl.running && !impl.runner->isBlocked() &&
       !impl.runner->isFinished() && !impl.engine->isStoryPaused()) {
     impl.runner->run();
@@ -240,32 +251,64 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
 
 void KirikiriRuntime::saveGame(const std::string &path) {
   auto &impl = *impl_;
+  const auto state = impl.runner ? impl.runner->saveState()
+                                 : KagScript::Runner::State{};
+  // V3 stores local KAG calls and variables. V1/V2 remain readable.
   std::ostringstream data;
-  data << "KIRIKIRI_SAVE_2\n" << impl.currentScenario << '\n';
-  data << (impl.runner ? impl.runner->position() : 0) << '\n';
+  data << "KIRIKIRI_SAVE_3\n" << std::quoted(impl.currentScenario) << '\n';
+  data << state.position << ' ' << (state.finished ? 1 : 0) << ' '
+       << state.returnStack.size() << '\n';
+  for (auto frame : state.returnStack) data << frame << '\n';
+  data << state.variables.size() << '\n';
+  for (const auto &variable : state.variables)
+    data << std::quoted(variable.first) << ' '
+         << std::quoted(variable.second) << '\n';
   Kotonoha::GetVNManagerRuntime(*impl.engine).save(path, data.str());
 }
 
 void KirikiriRuntime::loadGame(const std::string &path) {
-  auto &impl = *impl_;
-  auto saved = Kotonoha::VNSave::read(path);
+  const auto saved = Kotonoha::VNSave::read(path);
   std::istringstream data(saved.gameData);
   std::string header, scenario;
-  std::size_t position = 0;
+  KagScript::Runner::State state;
+  bool fullState = false;
   std::getline(data, header);
-  if (header == "KIRIKIRI_SAVE_2") {
+  if (header == "KIRIKIRI_SAVE_3") {
+    fullState = true;
+    unsigned finished = 0;
+    std::size_t frames = 0, variables = 0;
+    if (!(data >> std::quoted(scenario) >> state.position >> finished >> frames)
+        || finished > 1 || frames > 65536)
+      throw std::runtime_error("Invalid Kirikiri v3 save header");
+    state.finished = finished != 0;
+    for (std::size_t i = 0; i < frames; ++i) {
+      std::size_t pc = 0;
+      if (!(data >> pc)) throw std::runtime_error("Truncated KAG stack");
+      state.returnStack.push_back(pc);
+    }
+    if (!(data >> variables) || variables > 65536)
+      throw std::runtime_error("Invalid KAG save variable count");
+    for (std::size_t i = 0; i < variables; ++i) {
+      std::string key, value;
+      if (!(data >> std::quoted(key) >> std::quoted(value)) ||
+          !state.variables.emplace(key, value).second)
+        throw std::runtime_error("Malformed KAG save variables");
+    }
+  } else if (header == "KIRIKIRI_SAVE_2") {
     std::getline(data, scenario);
-    data >> position;
+    if (!(data >> state.position))
+      throw std::runtime_error("Invalid Kirikiri v2 save");
   } else {
-    // Version 1 only stored the scenario name and always resumed at its start.
     scenario = std::move(header);
   }
-  if (!scenario.empty())
-    startScenario(scenario, position);
+  if (!scenario.empty() &&
+      !startScenario(scenario, state.position, fullState ? &state : nullptr))
+    throw std::runtime_error("Kirikiri save references missing scenario");
 }
 
-bool KirikiriRuntime::startScenario(const std::string &name,
-                                    std::size_t position) {
+bool KirikiriRuntime::startScenario(
+    const std::string &name, std::size_t position,
+    const KagScript::Runner::State *savedState) {
   SDL_Log("Kirikiri: startScenario ENTRY name='%s'", name.c_str());
   auto &impl = *impl_;
   auto files = impl.assets->scenarioFiles();
@@ -289,6 +332,9 @@ bool KirikiriRuntime::startScenario(const std::string &name,
   SDL_Log("Kirikiri: parsed %zu tags", script.tags.size());
 
   impl.currentScenario = target;
+  impl.waitingWait = false;
+  impl.finishWait = {};
+  impl.waitingChoice = false;
   scenarioTexts_.clear();
   for (const auto &tag : script.tags)
     if (tag.type == KagScript::TagType::Text && !tag.text.empty() &&
@@ -380,16 +426,8 @@ bool KirikiriRuntime::startScenario(const std::string &name,
   callbacks.wait = [this](int ms, std::function<void()> onDone) {
     auto &impl = *impl_;
     impl.waitingWait = true;
-    SDL_AddTimer(
-        static_cast<Uint32>(ms),
-        [](void *userdata, Uint32, Uint32) -> Uint32 {
-          auto self = static_cast<KirikiriRuntime *>(userdata);
-          self->impl_->waitingWait = false;
-          self->impl_->runner->setBlocked(false);
-          self->impl_->runner->resumeWait();
-          return 0;
-        },
-        this);
+    impl.waitingDeadline = SDL_GetTicks() + static_cast<std::uint64_t>(ms);
+    impl.finishWait = std::move(onDone);
   };
 
   callbacks.showBg = [this](std::string file, int transitionMs) {
@@ -425,7 +463,10 @@ bool KirikiriRuntime::startScenario(const std::string &name,
 
   impl.runner =
       std::make_unique<KagScript::Runner>(script, std::move(callbacks));
-  impl.runner->restorePosition(position);
+  if (savedState)
+    impl.runner->restoreState(*savedState);
+  else
+    impl.runner->restorePosition(position);
   impl.running = true;
   impl.runner->run();
   return true;
