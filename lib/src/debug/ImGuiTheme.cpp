@@ -1,4 +1,5 @@
-﻿#include <Kotonoha/debug/ImGuiTheme.hpp>
+﻿#include <Kotonoha/core/Config.hpp>
+#include <Kotonoha/debug/ImGuiTheme.hpp>
 
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
@@ -320,6 +321,7 @@ void kotonohaHeader(const char *title, const char *subtitle, float scale) {
            10.f * scale});
 }
 
+#if KOTONOHA_ENABLE_UPSCALER
 struct ShaderFilePicker::State {
   std::mutex mutex;
   bool done = false;
@@ -399,5 +401,7 @@ bool ShaderFilePicker::draw(SDL_Window *window, UpscaleSettings &settings) {
     ImGui::TextColored(Error, "%s", error.c_str());
   return settings.shaderFiles != before;
 }
+
+#endif // KOTONOHA_ENABLE_UPSCALER
 
 } // namespace Kotonoha::ImGuiTheme
