@@ -51,6 +51,35 @@ int main() {
     check(ending && !ending->findLabel("finish"),
           "inline label should not be a line label");
     check(!parsed.findChapter("missing"), "missing chapter");
+    N2System::ScriptCursor cursor(parsed, "main");
+    check(cursor.chapterName() == "main" && cursor.remaining() == 3 &&
+              cursor.peek() && cursor.peek()->function == "WaitKey",
+          "cursor starts at chapter first function without executing it");
+    check(cursor.advance() && cursor.remaining() == 2 &&
+              cursor.peek() && cursor.peek()->function == "Show",
+          "cursor advances to next indexed call");
+    check(!cursor.jumpToLabel("missing") && cursor.remaining() == 2,
+          "missing NsScript label leaves cursor unchanged");
+    check(cursor.jumpToLabel("done") && !cursor.peek() &&
+              cursor.remaining() == 0 && !cursor.advance(),
+          "cursor jumps to terminal label without running prior calls");
+    check(cursor.jumpToLabel("begin") && cursor.remaining() == 3,
+          "cursor can seek backwards by line-leading label");
+    check(!cursor.enterChapter("missing") &&
+              cursor.chapterName() == "main" && cursor.remaining() == 3,
+          "missing chapter leaves cursor unchanged");
+    check(cursor.enterChapter("ending") &&
+              cursor.chapterName() == "ending" && cursor.remaining() == 1 &&
+              cursor.advance()->function == "WaitKey" &&
+              cursor.remaining() == 0,
+          "cursor changes chapters without executing call sites");
+    bool rejectedCursor = false;
+    try {
+      N2System::ScriptCursor invalid(parsed, "missing");
+    } catch (const std::out_of_range &) {
+      rejectedCursor = true;
+    }
+    check(rejectedCursor, "cursor rejects unknown startup chapter");
     const std::string oldMac =
         "chapter legacy {\r"
         "  label_one:\r"

@@ -57,3 +57,15 @@ F5/F6 têm prioridade sobre a confirmação da caixa de diálogo, permitindo
 salvar/carregar enquanto uma fala está visível. Um teste sintético verifica
 a decisão `Reveal` versus `ResumeScript`. Ainda é necessária a validação
 com o AIR original.
+
+## Saves visuais V4
+
+O formato `LUCA_SYSTEM_SAVE_4` agora registra também os IDs das imagens
+carregadas com `IMAGELOAD` e suas posições, restaurando a camada visual
+já implementada a partir dos PAK originais. Os saves `V3` e `V2` seguem
+legíveis (sem imagens preservadas, pois não possuíam esse campo). Os limites
+e o formato são testados sem dados comerciais.
+
+**Limites:** o efeito visual original, as camadas de fundo, transições e
+animações ainda exigem reconstrução. O save não inclui pixels nem arquivos
+de mídia; o jogo original precisa estar acessível no carregamento.

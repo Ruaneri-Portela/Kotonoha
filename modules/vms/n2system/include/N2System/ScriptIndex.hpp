@@ -38,4 +38,23 @@ public:
 private:
   std::vector<Chapter> chapters_;
 };
+
+// Read-only traversal of NsScript call sites for debugging and future VM
+// callbacks. This does NOT evaluate expressions, branches, waits or functions.
+// The referenced ScriptIndex must outlive the cursor.
+class ScriptCursor {
+public:
+  ScriptCursor(const ScriptIndex &index, std::string_view chapter);
+  // Failed navigation does not change the current chapter or position.
+  bool enterChapter(std::string_view chapter);
+  bool jumpToLabel(std::string_view label);
+  const Invocation *peek() const;
+  const Invocation *advance();
+  std::size_t remaining() const;
+  std::string_view chapterName() const;
+private:
+  const ScriptIndex &index_;
+  const Chapter *current_ = nullptr;
+  std::size_t next_ = 0;
+};
 } // namespace N2System

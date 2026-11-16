@@ -56,3 +56,14 @@ F5/F6 are handled before generic dialogue confirmation, so saving/loading
 works while a textbox is visible. A synthetic test checks the
 `Reveal`/`ResumeScript` decision; original AIR data is still needed for
 integration verification.
+
+## Visual save state V4
+
+`LUCA_SYSTEM_SAVE_4` records the asset IDs and positions of rendered
+`IMAGELOAD` objects. Loading reopens images from the existing PAKs and
+restores the supported visual layer. Existing V3 and V2 save payloads remain
+readable but have no recorded placements.
+
+Original scene compositing, background layers, transitions, animations
+and full game compatibility remain outside this change. Saves do not
+embed retail image data.

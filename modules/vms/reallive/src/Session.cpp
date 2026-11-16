@@ -1,10 +1,12 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include "RealLive/Session.hpp"
+#include "RealLive/StringOps.hpp"
 #include "RealLive/CaseSelection.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <iomanip>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -212,17 +214,6 @@ bool Session::flow(const CommandElement &c) {
   }
   return false;
 }
-namespace {
-std::size_t CharOffset(const std::string &s, int n) {
-  std::size_t p = 0;
-  for (int i = 0; i < n && p < s.size(); ++i) {
-    unsigned char c = s[p++];
-    if (((c >= 0x81 && c <= 0x9f) || (c >= 0xe0 && c <= 0xfc)) && p < s.size())
-      ++p;
-  }
-  return p;
-}
-} // namespace
 bool Session::strings(const CommandElement &c) {
   if (c.modtype() != 1 || c.module() != 10)
     return false;
@@ -261,40 +252,41 @@ bool Session::strings(const CommandElement &c) {
     machine_.set_store_register(static_cast<int>(str(0).size()));
     break;
   case 4:
-    machine_.set_store_register(std::strcmp(str(0).c_str(), str(1).c_str()));
+    machine_.set_store_register(scriptStringCompare(str(0), str(1)));
     break;
   case 15:
     write(c.overload() ? 1 : 0, str(0));
     break;
   case 5:
   case 6: {
-    auto s = str(1);
+    const auto s = str(1);
     int off = num(2);
     if (off < 0)
       throw std::out_of_range("REALLIVE negative substring offset");
     if (op == 6) {
-      int length = 0;
-      for (std::size_t k = 0; k < s.size(); k = CharOffset(s, ++length)) {
-      }
-      off = std::max(0, length - off);
+      const auto length = scriptCharCount(s);
+      const auto reverse = static_cast<std::size_t>(off);
+      off = static_cast<int>(length > reverse
+          ? std::min<std::size_t>(length - reverse,
+                                  std::numeric_limits<int>::max())
+          : 0);
     }
-    auto begin = CharOffset(s, off);
-    auto end =
-        c.overload() ? CharOffset(s, off + std::max(0, num(3))) : s.size();
-    write(0, s.substr(begin, end - begin));
+    write(0, scriptSubstring(s, off,
+         c.overload() ? std::optional<int>(num(3)) : std::nullopt));
     break;
   }
   case 7: {
-    auto s = str(0);
-    int len = 0;
-    for (std::size_t k = 0; k < s.size(); k = CharOffset(s, ++len)) {
-    }
-    machine_.set_store_register(len);
+    const auto s = str(0);
+    const auto length = scriptCharCount(s);
+    if (length > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+      throw std::out_of_range("REALLIVE string length exceeds VM integer");
+    machine_.set_store_register(static_cast<int>(length));
     break;
   }
   case 8: {
     auto s = str(0);
-    s.resize(CharOffset(s, std::max(0, num(1))));
+    s.resize(scriptCharOffset(s, static_cast<std::size_t>(
+        std::max(0, num(1)))));
     write(0, s);
     break;
   }
@@ -513,7 +505,8 @@ int Session::babelAppend(int address) {
           static_cast<unsigned char>(source[i + 1]) <= 0x58) {
         int offset = static_cast<unsigned char>(source[i + 1]) - 0x4f;
         i += 2;
-        auto pos = CharOffset(name, offset), end = CharOffset(name, offset + 1);
+        auto pos = scriptCharOffset(name, static_cast<std::size_t>(offset));
+        auto end = scriptCharOffset(name, static_cast<std::size_t>(offset + 1));
         name = name.substr(pos, end - pos);
       }
       babelBuffer_ += name;
