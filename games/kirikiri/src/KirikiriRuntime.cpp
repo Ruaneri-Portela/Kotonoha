@@ -506,6 +506,32 @@ bool KirikiriRuntime::handleAdvanceAction() {
 bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
   auto mapped = Kotonoha::MapControllerEvent(event);
   auto &impl = *impl_;
+  // Engine::Event already converts pointer coordinates into the novel
+  // viewport. Dispatch topmost script-authored click regions first.
+  if (impl.currentScenario.empty() && impl.nativeTitleUi &&
+      mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      mapped.button.button == SDL_BUTTON_LEFT) {
+    if (Kotonoha::Providers::dispatchTjsUiClick(
+            impl.startupExecution, mapped.button.x, mapped.button.y)) {
+      impl.failedNativePictures.clear(); // a callback may change an image
+      const auto &run = impl.startupExecution;
+      if (!run.error.empty())
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "KiriKiri: TJS2 click handler failed: %s",
+                    run.error.c_str());
+      if (run.error.empty() && !run.kagEntry.empty()) {
+        if (startScenario(run.kagEntry)) {
+          impl.nativeTitleUi = false;
+          impl.choiceScene->hide();
+        } else {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: click requested unsupported scenario %s",
+                      run.kagEntry.c_str());
+        }
+      }
+      return true;
+    }
+  }
   if (impl.dialogueVisible && !impl.waitingChoice &&
       !impl.choiceScene->isActive() &&
       (mapped.type == SDL_EVENT_KEY_DOWN ||
