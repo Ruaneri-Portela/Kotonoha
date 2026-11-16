@@ -5,6 +5,7 @@
 #include <zlib.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstring>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
@@ -25,6 +26,17 @@ const std::uint8_t kMdfMagic[4] = {0x6D, 0x64, 0x66, 0x00};
 
 // PSB magic: "PSB\x00"
 const std::uint8_t kPsbMagic[4] = {0x50, 0x53, 0x42, 0x00};
+
+std::string foldedArchivePath(std::string value) {
+  for (char &ch : value) {
+    if (ch == '\\') {
+      ch = '/';
+    } else if (ch >= 'A' && ch <= 'Z') {
+      ch = static_cast<char>(ch - 'A' + 'a');
+    }
+  }
+  return value;
+}
 
 std::uint16_t readU16LE(const std::uint8_t *p) {
   return std::uint16_t(p[0]) | (std::uint16_t(p[1]) << 8);
@@ -175,52 +187,65 @@ std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
 
 } // namespace
 
+const KirikiriAssets::Xp3Entry *
+KirikiriAssets::findXp3Entry(const std::string &id, bool *collision) const {
+  if (collision)
+    *collision = false;
+  const std::string normalized = resolveId(id);
+  const std::string folded = foldedArchivePath(normalized);
+
+  // Later patch archives take precedence over earlier data archives. Within
+  // each layer prefer the exact spelling, then a unique folded match.
+  for (auto archive = archives.rbegin(); archive != archives.rend();
+       ++archive) {
+    const Xp3Entry *candidate = nullptr;
+    bool ambiguous = false;
+    for (const auto &entry : archive->second) {
+      if (resolveId(entry.name) == normalized)
+        return &entry;
+      if (foldedArchivePath(entry.name) == folded) {
+        if (candidate)
+          ambiguous = true;
+        else
+          candidate = &entry;
+      }
+    }
+    if (ambiguous) {
+      if (collision)
+        *collision = true;
+      return nullptr;
+    }
+    if (candidate)
+      return candidate;
+  }
+  return nullptr;
+}
+
 bool KirikiriAssets::containsAsset(const std::string &id) const {
   if (base->contains(id))
     return true;
-  auto resolved = resolveId(id);
-  if (resolved != id && base->contains(resolved))
+  const std::string normalized = resolveId(id);
+  if (normalized != id && base->contains(normalized))
     return true;
-  // Check XP3 archives.
-  for (auto archive = archives.rbegin(); archive != archives.rend();
-       ++archive) {
-    const auto &entries = archive->second;
-    for (const auto &e : entries)
-      if (e.name == id || e.name == resolved)
-        return true;
-  }
-  return false;
+  return findXp3Entry(normalized) != nullptr;
 }
 
 std::vector<std::uint8_t>
 KirikiriAssets::readAsset(const std::string &id) const {
-  std::vector<std::uint8_t> data;
-  if (base->contains(id)) {
-    data = base->read(id);
-  } else {
-    auto resolved = resolveId(id);
-    if (resolved != id && base->contains(resolved))
-      data = base->read(resolved);
-    else {
-      // Search XP3 archives.
-      for (auto archive = archives.rbegin(); archive != archives.rend();
-           ++archive) {
-        const auto &entries = archive->second;
-        for (const auto &e : entries) {
-          if (e.name == id || e.name == resolved) {
-            data = extractXp3Entry(e);
-            break;
-          }
-        }
-        if (!data.empty())
-          break;
-      }
-    }
-  }
-  if (data.empty())
-    throw std::runtime_error("Asset not found: " + id);
+  if (base->contains(id))
+    return base->read(id);
+  const std::string normalized = resolveId(id);
+  if (normalized != id && base->contains(normalized))
+    return base->read(normalized);
 
-  return data;
+  bool collision = false;
+  const Xp3Entry *entry = findXp3Entry(normalized, &collision);
+  if (collision)
+    throw std::runtime_error("Ambiguous XP3 asset path (case collision): " +
+                             id);
+  if (!entry)
+    throw std::runtime_error("Asset not found: " + id);
+  return extractXp3Entry(*entry);
 }
 
 std::string KirikiriAssets::decodeTextAsset(const std::string &id,
@@ -244,10 +269,11 @@ std::string KirikiriAssets::decodeTextAsset(const std::string &id,
 std::vector<std::string>
 KirikiriAssets::listAsset(const std::string &prefix) const {
   std::vector<std::string> result = base->list(prefix);
+  const std::string foldedPrefix = foldedArchivePath(prefix);
   for (const auto &[name, entries] : archives) {
     for (const auto &e : entries) {
-      if (e.name.rfind(prefix, 0) == 0)
-        result.push_back(e.name);
+      if (foldedArchivePath(e.name).rfind(foldedPrefix, 0) == 0)
+        result.push_back(resolveId(e.name));
     }
   }
   std::sort(result.begin(), result.end());
