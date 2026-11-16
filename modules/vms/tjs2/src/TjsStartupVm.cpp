@@ -859,10 +859,20 @@ void Interpreter::snapshotLayers() {
     frame.onClick = member(layer, "onClick").string();
     if (frame.onClick.empty())
       frame.onClick = member(layer, "onMouseDown").string();
+    const auto callback = [&](const char *property) {
+      const auto value = member(layer, property).string();
+      if (!value.empty() &&
+          (value.size() > 128 || !functions.count(value)))
+        throw std::runtime_error(std::string(
+            "TJS2 UI: event must name a declared script function: ") + property);
+      return value;
+    };
     if (!frame.onClick.empty() &&
         (frame.onClick.size() > 128 || !functions.count(frame.onClick)))
       throw std::runtime_error(
           "TJS2 UI: onClick must name a declared script function");
+    frame.onMouseEnter = callback("onMouseEnter");
+    frame.onMouseLeave = callback("onMouseLeave");
     int x = 0, y = 0;
     int alpha = frame.opacity;
     auto owner = layer;
@@ -1024,6 +1034,7 @@ public:
   explicit TjsUiSession(const KirikiriAssets &assets, std::size_t budget)
       : vm(assets, budget) {}
   Interpreter vm;
+  std::size_t hoveredLayer = 0;
 };
 
 TjsStartupResult runTjsStartupSubset(const KirikiriAssets &assets,
