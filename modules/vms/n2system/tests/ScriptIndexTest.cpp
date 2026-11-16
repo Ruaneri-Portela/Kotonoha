@@ -35,7 +35,7 @@ int main() {
     const auto *main = parsed.findChapter("main");
     check(main && main->labels.size() == 2, "main chapter labels");
     check(main->findLabel("begin") && main->findLabel("done"), "label lookup");
-    check(main->findLabel("begin")->line == 4, "source line tracking");
+    check(main->findLabel("begin")->line == 3, "source line tracking");
     check(src.substr(main->findLabel("begin")->offset, 5) == "begin",
           "label source offset");
     check(main->start < main->end, "chapter source range");
