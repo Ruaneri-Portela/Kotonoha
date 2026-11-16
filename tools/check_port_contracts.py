@@ -30,8 +30,11 @@ def errors():
         source = main.read_text(encoding="utf-8")
         config = cmake.read_text(encoding="utf-8")
 
+        # The Xcode scheme is KotonohaExample, while its CMake executable
+        # intentionally keeps the historical target name Kotonoha.
+        cmake_target = "Kotonoha" if slug == "example" else target
         configured = re.search(
-            r"\bkotonoha_configure_app\s*\(\s*" + re.escape(target) +
+            r"\\bkotonoha_configure_app\\s*\\(\\s*" + re.escape(cmake_target) +
             r"\b[^)]*\bGAME\s+" + re.escape(slug) + r"\b", config, re.S
         )
         if not configured:
