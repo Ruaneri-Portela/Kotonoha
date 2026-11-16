@@ -71,6 +71,9 @@ if(AMAGAMI_DISC_IMAGE AND EXISTS "${AMAGAMI_DISC_IMAGE}")
     add_executable(AmagamiCampaignTest CampaignTest.cpp)
     target_link_libraries(AmagamiCampaignTest PRIVATE AmagamiFormats Kotonoha::Vmamagami)
     add_test(NAME Amagami.Campaign COMMAND AmagamiCampaignTest "${AMAGAMI_DISC_IMAGE}")
+    add_executable(AmagamiCampaignSessionTest CampaignSessionTest.cpp)
+    target_link_libraries(AmagamiCampaignSessionTest PRIVATE AmagamiFormats Kotonoha::Vmamagami)
+    add_test(NAME Amagami.CampaignSession COMMAND AmagamiCampaignSessionTest "${AMAGAMI_DISC_IMAGE}")
 endif()
 
 kotonoha_label_directory_tests(REAL
@@ -80,4 +83,5 @@ kotonoha_label_directory_tests(REAL
     Amagami.Boot
     Amagami.Translation
     Amagami.Campaign
+    Amagami.CampaignSession
 )
