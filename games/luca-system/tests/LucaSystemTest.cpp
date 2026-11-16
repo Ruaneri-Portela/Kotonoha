@@ -190,8 +190,12 @@ int main() {
     scriptData.push_back(1); // fixedFlag
     scriptData.insert(scriptData.end(), raw.begin(), raw.end());
 
+    const auto originalScriptData = scriptData;
     LucaSystem::Script script("test.scr", std::move(scriptData));
     check(script.valid(), "script valid");
+    if (script.valid())
+      check(script.serialize() == originalScriptData,
+            "script CodeLine roundtrip preserves original bytes");
     check(script.instructionCount() == 1, "script one instruction");
     const auto &ins = script.instructions()[0];
     check(ins.opcode == 1, "instruction opcode == 1");
@@ -206,6 +210,10 @@ int main() {
                             {0x05, 0x00, 0x01, 0x00, 0x7f, 0x00});
     check(odd.valid() && odd.instructionCount() == 1,
           "odd-length CodeLine with alignment parses");
+    if (odd.valid())
+      check(odd.serialize() ==
+                std::vector<std::uint8_t>({0x05, 0x00, 0x01, 0x00, 0x7f, 0x00}),
+            "odd-length CodeLine roundtrip keeps alignment byte");
     if (odd.valid() && !odd.instructions().empty()) {
       const auto &entry = odd.instructions().front();
       check(entry.rawBytes == std::vector<std::uint8_t>{0x7f} &&
@@ -221,6 +229,14 @@ int main() {
     LucaSystem::Script fixed("fixed.scr",
                              {0x04, 0x00, 0x01, 0x02});
     check(!fixed.valid(), "truncated fixed parameters are rejected");
+    bool rejectedMalformedSerialization = false;
+    try {
+      (void)fixed.serialize();
+    } catch (const std::runtime_error &) {
+      rejectedMalformedSerialization = true;
+    }
+    check(rejectedMalformedSerialization,
+          "malformed script cannot be serialized");
   }
 
   // An empty Japanese AIR MESSAGE must not suppress the English field.
@@ -261,6 +277,9 @@ int main() {
       check(bytes.size() > 100, "AIR seen163 has substantial bytecode");
       LucaSystem::Script parsed("seen163", std::move(bytes));
       check(parsed.valid(), "AIR seen163 parses");
+      if (parsed.valid())
+        check(parsed.serialize() == script.read(*seen),
+              "AIR seen163 roundtrip preserves retail bytecode");
       check(parsed.instructionCount() > 10,
             "AIR seen163 has many instructions");
       check(!parsed.strings().empty(), "AIR seen163 extracts dialogue strings");
