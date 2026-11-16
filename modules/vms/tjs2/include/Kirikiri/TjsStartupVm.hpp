@@ -17,6 +17,8 @@ struct TjsUiLayer {
   std::size_t id = 0;
   std::string storage;
   std::string onClick;
+  std::string onMouseEnter;
+  std::string onMouseLeave;
   int left = 0, top = 0;
   int width = 0, height = 0;
   int opacity = 255;
@@ -49,6 +51,10 @@ struct TjsStartupResult {
 // Returns false for a miss or when a native/KAG scene is already active.
 // The result is refreshed after callbacks, including any error diagnostics.
 bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y);
+
+// Dispatch pointer enter/leave changes to retained script event handlers.
+// Returns true only if a source handler was invoked.
+bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y);
 
 // Evaluate only supported TJS2 bootstrap expressions, variables, control
 // flow and safe native storage calls. No arbitrary system/plugin execution.
