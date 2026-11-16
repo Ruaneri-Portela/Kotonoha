@@ -464,8 +464,8 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
       file->failed = true;
       file->failure =
           status == 404 ? ErrorCode::NotFound : ErrorCode::NetworkError;
-      file->message = "Remote asset discovery failed, HTTP " +
-                      std::to_string(status);
+      file->message =
+          "Remote asset discovery failed, HTTP " + std::to_string(status);
       return;
     }
 
@@ -477,15 +477,13 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
       const auto colon = line.find(':');
       if (colon != std::string::npos) {
         auto name = line.substr(0, colon);
-        std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c) {
-                         return static_cast<char>(std::tolower(c));
-                       });
+        std::transform(
+            name.begin(), name.end(), name.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         auto value = line.substr(colon + 1);
         value.erase(0, value.find_first_not_of(" \t"));
-        while (!value.empty() &&
-               (value.back() == '\r' || value.back() == ' ' ||
-                value.back() == '\t'))
+        while (!value.empty() && (value.back() == '\r' || value.back() == ' ' ||
+                                  value.back() == '\t'))
           value.pop_back();
         if (name == "content-length")
           lengthValue = std::move(value);
@@ -505,9 +503,8 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
 
     const auto parseSize = [](const std::string &value) -> std::uint64_t {
       if (value.empty() ||
-          !std::all_of(value.begin(), value.end(), [](unsigned char c) {
-            return c >= '0' && c <= '9';
-          }))
+          !std::all_of(value.begin(), value.end(),
+                       [](unsigned char c) { return c >= '0' && c <= '9'; }))
         throw std::invalid_argument("Invalid HTTP object size");
       const auto size = std::stoull(value);
       if (size > static_cast<std::uint64_t>(INT64_MAX))
@@ -542,8 +539,7 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
       } else {
         // A server may ignore Range; permit a complete response for small
         // assets such as Seen.txt, but not large disc images or archives.
-        if (count > kSmallWholeObject || count > budget_ ||
-            (count && !body)) {
+        if (count > kSmallWholeObject || count > budget_ || (count && !body)) {
           file->failed = true;
           file->failure = ErrorCode::RangeUnsupported;
           file->message = "HTTP Range probe returned an oversized 200 "
@@ -577,8 +573,8 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
       nodes_.emplace(lookupKey(p), FileInfo{p, FileType::Directory, 0});
     if (!job.full) {
       // Reuse the probe bytes, avoiding a second request for the same data.
-      complete(Job{job.key, 0, status == 206 ? 1u : size, status == 200,
-                   false, job.lowercaseAttempt},
+      complete(Job{job.key, 0, status == 206 ? 1u : size, status == 200, false,
+                   job.lowercaseAttempt},
                status, body, count, headers);
     }
     return;
@@ -730,8 +726,7 @@ void FetchAssetProvider::pump() {
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
     const bool head = job.discovery && job.full;
-    std::memcpy(attr.requestMethod, head ? "HEAD" : "GET",
-                head ? 5 : 4);
+    std::memcpy(attr.requestMethod, head ? "HEAD" : "GET", head ? 5 : 4);
     attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
     attr.timeoutMSecs = 30000;
     if (!job.full) {

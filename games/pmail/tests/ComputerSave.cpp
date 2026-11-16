@@ -28,9 +28,9 @@ void append32(std::vector<uint8_t> &d, uint32_t v) {
   for (int i = 0; i < 4; ++i)
     d.push_back(uint8_t(v >> (i * 8)));
 }
-std::vector<uint8_t> object(
-    uint16_t id, const std::vector<std::string> &strings,
-    const std::vector<uint32_t> &instructions = {}) {
+std::vector<uint8_t> object(uint16_t id,
+                            const std::vector<std::string> &strings,
+                            const std::vector<uint32_t> &instructions = {}) {
   std::vector<uint8_t> d(4 + strings.size() * 4, 0);
   for (size_t i = 0; i < strings.size(); ++i) {
     const auto offset = d.size();
@@ -65,11 +65,10 @@ std::vector<uint8_t> pack() {
     // ends immediately, exercising the host's return-frame restoration.
     const std::vector<uint32_t> instructions =
         items[i].first == "start.obj"
-            ? std::vector<uint32_t>{0x1103002au, 0x10204000u,
-                                    0x050300d5u} // SYS 213 original title
+            ? std::vector<uint32_t>{0x1103002au, 0x10204000u, 0x050300d5u}
+            // SYS 213 original title
             : std::vector<uint32_t>{};
-    const auto data =
-        object(uint16_t(i + 1), items[i].second, instructions);
+    const auto data = object(uint16_t(i + 1), items[i].second, instructions);
     require(items[i].first.size() < 0x40, "Synthetic object name too long");
     u16(index, pos, uint16_t(i + 1));
     for (size_t n = 0; n < items[i].first.size(); ++n)
@@ -114,8 +113,7 @@ void testChildScriptReturn() {
   using Kotonoha::PmailPort::MouthRegionFrame;
   require(MouthRegionFrame(20, 3, 2) == 22 &&
               MouthRegionFrame(20, 2, 2) == 20 &&
-              MouthRegionFrame(7, 1, 2) == 7 &&
-              MouthRegionFrame(7, 2, -1) == 7,
+              MouthRegionFrame(7, 1, 2) == 7 && MouthRegionFrame(7, 2, -1) == 7,
           "Audio mouth phases must stay inside each decoded frame region");
   const auto archive = pack();
   const std::string logicalPath = "data/pack/script.dat";
@@ -124,8 +122,8 @@ void testChildScriptReturn() {
   // The library contains one string: the name of the child scene.
   constexpr uint32_t roomName = (1u << 20) | (2u << 16);
   game.native(game.vm(), 16, {{roomName}});
-  require(game.currentScript() == "room.obj" &&
-              !game.vm().ended() && game.vm().current(),
+  require(game.currentScript() == "room.obj" && !game.vm().ended() &&
+              game.vm().current(),
           "SYS 16 did not transfer to the child scene");
 
   // Real saves taken while the child script is active must carry the
@@ -138,9 +136,8 @@ void testChildScriptReturn() {
 
   for (auto *current : {&game, &restored}) {
     current->pump(20);
-    require(current->currentScript() == "start.obj" &&
-                current->atTitle() && !current->vm().ended() &&
-                current->vm().var(0x4000) == 42u,
+    require(current->currentScript() == "start.obj" && current->atTitle() &&
+                !current->vm().ended() && current->vm().var(0x4000) == 42u,
             "Child HALT did not resume the parent and reach the title menu");
   }
 }

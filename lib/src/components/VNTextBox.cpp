@@ -194,7 +194,8 @@ void VNTextBox::renderDialogue(RendererRef renderer) {
     const auto measureText = [&ui](const std::string &str) -> float {
       return ui.textWidth(str);
     };
-    dialogueLayout_ = TextWrapping::layout(fullDialogue, measureText, textWidth);
+    dialogueLayout_ =
+        TextWrapping::layout(fullDialogue, measureText, textWidth);
     layoutSource_ = fullDialogue;
     layoutDensity_ = ui.pixelDensity();
     layoutUiId_ = ui.instanceId();

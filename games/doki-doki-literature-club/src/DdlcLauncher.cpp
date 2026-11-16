@@ -1,7 +1,7 @@
 #include "DdlcLauncher.hpp"
 #include <Ddlc/DdlcAssets.hpp>
-#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -34,8 +34,7 @@ bool GameLauncher::validatePath(const std::string &path, std::string &info) {
     try {
       const auto mounted = Kotonoha::Filesystem::Filesystem::mount(path);
       if (!Kotonoha::Filesystem::findRequiredFilesPrefix(
-              *mounted, {"scripts.rpa", "images.rpa"},
-              {"game/", ""})) {
+              *mounted, {"scripts.rpa", "images.rpa"}, {"game/", ""})) {
         info = "Archive missing DDLC scripts.rpa or images.rpa";
         return false;
       }

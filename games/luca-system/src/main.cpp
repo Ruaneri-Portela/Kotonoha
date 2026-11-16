@@ -1,5 +1,5 @@
-#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -84,8 +84,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
   KOTONOHA_SET_APP_METADATA("LucaSystem", "me.hirameki.kotonoha.lucasystem");
   try {
-    Kotonoha::migrateLegacyDocuments(
-        "me.hirameki.kotonoha.luca_system");
+    Kotonoha::migrateLegacyDocuments("me.hirameki.kotonoha.luca_system");
     auto app = std::make_unique<App>();
     auto &options = app->options;
     options.persistSettings = true;

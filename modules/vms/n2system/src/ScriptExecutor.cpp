@@ -239,16 +239,15 @@ std::size_t ScriptExecutor::run(std::size_t budget) {
         throw std::runtime_error("NsScript: subroutine depth limit exceeded");
       const bool local = action.kind == VmActionKind::CallLabel;
       const auto *chapter = index_.findChapter(cursor_.chapterName());
-      const bool found = local
-          ? (chapter && chapter->findLabel(action.target))
-          : (index_.findChapter(action.target) != nullptr);
+      const bool found = local ? (chapter && chapter->findLabel(action.target))
+                               : (index_.findChapter(action.target) != nullptr);
       if (!found)
         throw std::runtime_error("NsScript: missing subroutine " +
                                  action.target);
       // Validate the target before modifying any VM state. Allocate the
       // return frame first so an allocation failure preserves the cursor.
-      callStack_.push_back({std::string(cursor_.chapterName()),
-                            cursor_.position() + 1});
+      callStack_.push_back(
+          {std::string(cursor_.chapterName()), cursor_.position() + 1});
       if (local)
         cursor_.jumpToLabel(action.target);
       else

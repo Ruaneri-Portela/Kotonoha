@@ -802,8 +802,9 @@ void TestTerminalRelease(const char *route, const fs::path &root) {
                                    std::istreambuf_iterator<char>()};
   Kotonoha::SchoolDaysFlgH parsed;
   std::string parseError;
-  Require(Kotonoha::SchoolDaysPersistenceCodec::ParseFlgH(
-              bytes, &parsed, &parseError), parseError);
+  Require(Kotonoha::SchoolDaysPersistenceCodec::ParseFlgH(bytes, &parsed,
+                                                          &parseError),
+          parseError);
   Require(std::any_of(parsed.entries.begin(), parsed.entries.end(),
                       [](const auto &entry) {
                         return entry.key == u"EndClear" && entry.integer != 0;

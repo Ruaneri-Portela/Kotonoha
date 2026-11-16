@@ -1,6 +1,6 @@
 #include "RealLiveRuntime.hpp"
-#include "RealLiveMouseCursor.hpp"
 #include "RealLiveInput.hpp"
+#include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
 #include "RealLiveTransition.hpp"
 #include "TitleInput.hpp"
@@ -2008,15 +2008,13 @@ struct RealLiveRuntime::Impl {
 
     if (pause && textbox->isVisible()) {
       if (textbox->concealed) {
-        const bool touchRelease =
-            e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
-            e.button.which == SDL_TOUCH_MOUSEID;
-        const bool mousePress =
-            e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-            e.button.which != SDL_TOUCH_MOUSEID;
+        const bool touchRelease = e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+                                  e.button.which == SDL_TOUCH_MOUSEID;
+        const bool mousePress = e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                                e.button.which != SDL_TOUCH_MOUSEID;
         if (((touchRelease || mousePress) &&
-             e.button.button == SDL_BUTTON_LEFT &&
-             e.button.x >= 0 && e.button.y >= 0) ||
+             e.button.button == SDL_BUTTON_LEFT && e.button.x >= 0 &&
+             e.button.y >= 0) ||
             (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
              (e.key.key == SDLK_SPACE || e.key.key == SDLK_RETURN ||
               e.key.key == SDLK_KP_ENTER))) {
@@ -2096,9 +2094,9 @@ struct RealLiveRuntime::Impl {
                            e.button.x >= 0 && e.button.y >= 0;
     const bool touch = leftClick && e.button.which == SDL_TOUCH_MOUSEID;
     const bool advance =
-        (leftClick &&
-         e.type == ((pauseKind == 205 || touch) ? SDL_EVENT_MOUSE_BUTTON_UP
-                                             : SDL_EVENT_MOUSE_BUTTON_DOWN)) ||
+        (leftClick && e.type == ((pauseKind == 205 || touch)
+                                     ? SDL_EVENT_MOUSE_BUTTON_UP
+                                     : SDL_EVENT_MOUSE_BUTTON_DOWN)) ||
         (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
          (e.key.key == SDLK_RETURN || e.key.key == SDLK_KP_ENTER ||
           e.key.key == SDLK_SPACE));
@@ -3519,7 +3517,9 @@ RealLiveRuntime::RealLiveRuntime(
       impl(std::make_unique<Impl>(*this, std::move(a), scene)) {}
 RealLiveRuntime::~RealLiveRuntime() = default;
 std::string RealLiveRuntime::diagnostic() const { return impl->error; }
-int RealLiveRuntime::debugMouseCursor() const { return impl->mouseCursorNumber; }
+int RealLiveRuntime::debugMouseCursor() const {
+  return impl->mouseCursorNumber;
+}
 RealLiveRuntime::RenderStats RealLiveRuntime::renderStats() const {
   return impl->renderStats;
 }
@@ -3890,7 +3890,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   std::map<int, std::shared_ptr<DCImage>> dcImages;
   in >> std::ws;
   if ((version == "REALLIVE-PRESENTATION-5" ||
-       version == "REALLIVE-PRESENTATION-6") && in.eof())
+       version == "REALLIVE-PRESENTATION-6") &&
+      in.eof())
     invalid();
   if (!in.eof()) {
     if (!(in >> std::quoted(saveName)))
@@ -3958,8 +3959,7 @@ void RealLiveRuntime::loadGame(const std::string &path) {
           invalid();
       }
     }
-    if (version == "REALLIVE-PRESENTATION-6" &&
-        !(in >> restoredMouseCursor))
+    if (version == "REALLIVE-PRESENTATION-6" && !(in >> restoredMouseCursor))
       invalid();
     in >> std::ws;
     if (!in.eof())
@@ -4067,8 +4067,7 @@ bool RealLiveRuntime::onEvent(EventRef e) {
   const bool dialogue = impl->pause && impl->textbox &&
                         impl->textbox->isVisible() &&
                         !impl->textbox->concealed &&
-                        !impl->choice->isActive() &&
-                        impl->focusedEdit < 0;
+                        !impl->choice->isActive() && impl->focusedEdit < 0;
   if (impl->input.processSkip(e, dialogue)) {
     impl->skipHeld = impl->input.skipHeld();
     return true;

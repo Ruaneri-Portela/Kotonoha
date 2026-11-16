@@ -28,8 +28,7 @@ int main() {
                   std::vector<std::string>{R"(a\nb)"} &&
               wrap(R"(a\qb)", measure, 100) ==
                   std::vector<std::string>{R"(a\qb)"} &&
-              wrap(R"(a\)", measure, 100) ==
-                  std::vector<std::string>{R"(a\)"},
+              wrap(R"(a\)", measure, 100) == std::vector<std::string>{R"(a\)"},
           "Literal backslash, unknown escape and trailing slash survive");
     check(wrap(R"(a\n\nb)", measure, 100) ==
               std::vector<std::string>({"a", "", "b"}),
@@ -41,8 +40,8 @@ int main() {
                   std::vector<std::string>{u8"à"},
           "Incomplete UTF-8 is never rendered");
     const std::string invalid("\xc3x", 2);
-    check(nextUtf8(invalid, 0) == 1 && wrap(invalid, measure, 100) ==
-                                            std::vector<std::string>{invalid},
+    check(nextUtf8(invalid, 0) == 1 &&
+              wrap(invalid, measure, 100) == std::vector<std::string>{invalid},
           "Malformed UTF-8 remains bounded and is not discarded");
 
     // Every UTF-8 boundary must be safe, including the end of an empty
@@ -61,19 +60,18 @@ int main() {
     check(nextUtf8(valid3, 0) == 3 && nextUtf8(valid4, 0) == 4,
           "Legal UTF-8 boundary scalars must stay intact");
     for (const auto &bad : {
-             sequence({0xe0, 0x80, 0x80}), // overlong 3-byte
-             sequence({0xed, 0xa0, 0x80}), // UTF-16 high surrogate
-             sequence({0xed, 0xbf, 0xbf}), // UTF-16 low surrogate
+             sequence({0xe0, 0x80, 0x80}),       // overlong 3-byte
+             sequence({0xed, 0xa0, 0x80}),       // UTF-16 high surrogate
+             sequence({0xed, 0xbf, 0xbf}),       // UTF-16 low surrogate
              sequence({0xf0, 0x80, 0x80, 0x80}), // overlong 4-byte
              sequence({0xf4, 0x90, 0x80, 0x80}), // above U+10FFFF
              sequence({0xf5, 0x80, 0x80, 0x80}), // invalid lead
-             sequence({0xc0, 0xaf}), // overlong 2-byte
-             sequence({0xe2, 0x82}), // truncated sequence
-             sequence({0x80}), // standalone continuation
+             sequence({0xc0, 0xaf}),             // overlong 2-byte
+             sequence({0xe2, 0x82}),             // truncated sequence
+             sequence({0x80}),                   // standalone continuation
          }) {
       check(nextUtf8(bad, 0) == 1 &&
-                wrap(bad, measure, 100) ==
-                    std::vector<std::string>{bad},
+                wrap(bad, measure, 100) == std::vector<std::string>{bad},
             "Invalid UTF-8 must not be grouped or silently discarded");
       const auto state = layout(bad, measure, 100);
       for (std::size_t i = 0; i <= bad.size(); ++i) {
@@ -83,8 +81,6 @@ int main() {
               "Malformed UTF-8 must reveal one source byte at a time");
       }
     }
-
-
 
     // Exhaustively verify monotonic reveal and final layout equivalence for
     // short source strings containing escapes, CR, LF and spaces.

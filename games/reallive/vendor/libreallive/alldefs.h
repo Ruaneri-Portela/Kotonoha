@@ -86,10 +86,8 @@ inline int read_i16(const string &src, const int spos) {
 inline long read_i32(const char *src) {
   const auto *bytes = reinterpret_cast<const unsigned char *>(src);
   const std::uint32_t value =
-      std::uint32_t(bytes[0]) |
-      (std::uint32_t(bytes[1]) << 8) |
-      (std::uint32_t(bytes[2]) << 16) |
-      (std::uint32_t(bytes[3]) << 24);
+      std::uint32_t(bytes[0]) | (std::uint32_t(bytes[1]) << 8) |
+      (std::uint32_t(bytes[2]) << 16) | (std::uint32_t(bytes[3]) << 24);
 
   // Decode the signed 32-bit value without relying on signed char or
   // implementation-defined unsigned-to-signed narrowing conversions.

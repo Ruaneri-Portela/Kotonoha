@@ -86,11 +86,10 @@ bool HandleNavigation(Engine &engine, EventRef event) {
   // The controller Start button is the platform-independent pause/menu
   // shortcut. Process it here, alongside Escape, before a game-specific
   // runtime handles the raw gamepad event.
-  const bool menuKey =
-      (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
-       event.key.key == SDLK_ESCAPE) ||
-      (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
-       event.gbutton.button == SDL_GAMEPAD_BUTTON_START);
+  const bool menuKey = (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+                        event.key.key == SDLK_ESCAPE) ||
+                       (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+                        event.gbutton.button == SDL_GAMEPAD_BUTTON_START);
   if (menuKey) {
     if (runtime.handleBackAction())
       return true;

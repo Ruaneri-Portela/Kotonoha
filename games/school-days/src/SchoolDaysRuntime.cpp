@@ -1200,8 +1200,7 @@ void Runtime::init(Kotonoha::Engine &owner) {
     if (storage.IsInitialized() &&
         !storage.LoadGlobalFlag(&bytes, &present, &failure)) {
       throw std::runtime_error(
-          "School Days cannot read GlobalFlag.DAT at " +
-          globalPath.u8string() +
+          "School Days cannot read GlobalFlag.DAT at " + globalPath.u8string() +
           "; the existing file was not modified. Reason: " + failure);
     }
     const auto legacy = documents / "GlobalFlag";
@@ -1223,8 +1222,7 @@ void Runtime::init(Kotonoha::Engine &owner) {
         throw std::runtime_error(
             "School Days cannot load GlobalFlag.DAT at " +
             globalPath.u8string() +
-            "; the existing file was not modified. Reason: " +
-            error.message);
+            "; the existing file was not modified. Reason: " + error.message);
       }
     }
     loadConfig();
@@ -1815,7 +1813,8 @@ void Runtime::openTitle(bool startBgm) {
         error);
   bool hSceneUnlocked = false;
   Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
-            bridge.Session().State(), &hSceneUnlocked, &error), error);
+            bridge.Session().State(), &hSceneUnlocked, &error),
+        error);
   host.endClearReplay = endClear != 0 || hSceneUnlocked;
   std::string ignored;
   if (Kotonoha::SchoolDaysTitleProfile::Load(assets->root().string(),

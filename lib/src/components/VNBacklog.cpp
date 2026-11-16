@@ -108,8 +108,8 @@ void VNBacklog::renderEntries(RendererRef renderer) {
       speakerHeights_[i] =
           ui.textHeight(renderer, entries[i].speaker, textWidth);
       textHeights_[i] = ui.textHeight(renderer, entries[i].text, textWidth);
-      entryOffsets_[i + 1] = entryOffsets_[i] + speakerHeights_[i] +
-                             textHeights_[i] + spacing;
+      entryOffsets_[i + 1] =
+          entryOffsets_[i] + speakerHeights_[i] + textHeights_[i] + spacing;
     }
     layoutUiId_ = ui.instanceId();
     layoutRaster_ = raster;
@@ -130,10 +130,10 @@ void VNBacklog::renderEntries(RendererRef renderer) {
     ui.text(renderer, "No dialogue yet.", 145, viewTop, textWidth);
 
   // Binary search directly to the first potentially visible entry.
-  const auto first = std::upper_bound(entryOffsets_.begin() + 1,
-                                      entryOffsets_.end(), scroll);
-  const auto begin = static_cast<std::size_t>(
-      first - entryOffsets_.begin() - 1);
+  const auto first =
+      std::upper_bound(entryOffsets_.begin() + 1, entryOffsets_.end(), scroll);
+  const auto begin =
+      static_cast<std::size_t>(first - entryOffsets_.begin() - 1);
   for (std::size_t i = begin; i < entries.size(); ++i) {
     const auto &entry = entries[i];
     const float y = viewTop + entryOffsets_[i] - scroll;
@@ -144,8 +144,7 @@ void VNBacklog::renderEntries(RendererRef renderer) {
     if (y + speakerHeight + textHeight + spacing <= viewTop)
       continue;
     if (y + speakerHeight > viewTop && y < viewBottom)
-      ui.text(renderer, entry.speaker, 145, y, textWidth,
-              {255, 215, 100, 255});
+      ui.text(renderer, entry.speaker, 145, y, textWidth, {255, 215, 100, 255});
     const float textY = y + speakerHeight;
     if (textY + textHeight > viewTop && textY < viewBottom)
       ui.text(renderer, entry.text, 145, textY, textWidth);

@@ -31,8 +31,8 @@ void Require(bool condition, const std::string &what) {
 struct Scratch {
   fs::path root;
   Scratch() {
-    const auto tick = std::chrono::steady_clock::now()
-                          .time_since_epoch().count();
+    const auto tick =
+        std::chrono::steady_clock::now().time_since_epoch().count();
     root = fs::temp_directory_path() /
            ("school-days-globalflag-atomic-" + std::to_string(tick));
     fs::create_directories(root);
@@ -71,8 +71,8 @@ std::vector<uint8_t> SyntheticFlag(int ending, bool replay) {
   }
   std::vector<uint8_t> result;
   std::string error;
-  Require(Kotonoha::SchoolDaysPersistenceCodec::SerializeFlgH(
-              flag, &result, &error),
+  Require(Kotonoha::SchoolDaysPersistenceCodec::SerializeFlgH(flag, &result,
+                                                              &error),
           "Cannot serialize synthetic FlgH: " + error);
   return result;
 }
@@ -82,16 +82,16 @@ void CheckFlag(const fs::path &path, const std::vector<uint8_t> &expected) {
           "GlobalFlag bytes differ from original FlgH serializer output");
   Kotonoha::SchoolDaysFlgH parsed;
   std::string error;
-  Require(Kotonoha::SchoolDaysPersistenceCodec::ParseFlgH(
-              Read(path), &parsed, &error),
+  Require(Kotonoha::SchoolDaysPersistenceCodec::ParseFlgH(Read(path), &parsed,
+                                                          &error),
           "Atomic GlobalFlag is not parseable: " + error);
 }
 
 size_t PendingCount(const fs::path &target) {
   size_t count = 0;
   for (const auto &file : fs::directory_iterator(target.parent_path())) {
-    if (file.path().filename().wstring().find(
-            target.filename().wstring() + L".pending.") == 0)
+    if (file.path().filename().wstring().find(target.filename().wstring() +
+                                              L".pending.") == 0)
       ++count;
   }
   return count;
@@ -159,7 +159,8 @@ void CheckStorage(const fs::path &root) {
           "Unicode slot folder was not probed correctly");
   std::vector<uint8_t> slotBytes;
   Require(storage.ReadSaveFile(0, &slotBytes, &error) &&
-              slotBytes == std::vector<uint8_t>(slotText.begin(), slotText.end()),
+              slotBytes ==
+                  std::vector<uint8_t>(slotText.begin(), slotText.end()),
           "Unicode slot folder was not read correctly");
   Require(fs::remove(slot), "Cannot remove synthetic slot fixture");
 
@@ -174,13 +175,13 @@ void CheckStorage(const fs::path &root) {
 
   // A simulated crash leaves a valid but unreferenced temp. A subsequent
   // writer must ignore it as a profile, and remove it only when safely old.
-  Require(storage.LoadGlobalFlag(&loaded, &present, &error) &&
-              present && loaded == second,
+  Require(storage.LoadGlobalFlag(&loaded, &present, &error) && present &&
+              loaded == second,
           "Interrupted writer exposed orphan temp as GlobalFlag");
   fs::path orphan;
   for (const auto &file : fs::directory_iterator(target.parent_path())) {
-    if (file.path().filename().wstring().find(
-            target.filename().wstring() + L".pending.") == 0) {
+    if (file.path().filename().wstring().find(target.filename().wstring() +
+                                              L".pending.") == 0) {
       orphan = file.path();
       break;
     }
@@ -195,9 +196,8 @@ void CheckStorage(const fs::path &root) {
     std::ofstream out(orphan, std::ios::binary);
     out << "unpublished";
   }
-  fs::last_write_time(orphan,
-                      fs::file_time_type::clock::now() -
-                          std::chrono::hours(48));
+  fs::last_write_time(orphan, fs::file_time_type::clock::now() -
+                                  std::chrono::hours(48));
   Require(storage.WriteGlobalFlagBytes(first, &error),
           "Cannot recover after orphan: " + error);
   CheckFlag(target, first);
@@ -227,9 +227,9 @@ void CheckStorage(const fs::path &root) {
   Require(PendingCount(target) == 0, "Size rejection left pending files");
 
 #ifdef _WIN32
-  HANDLE locked = CreateFileW(target.c_str(), GENERIC_READ, FILE_SHARE_READ,
-                              nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
-                              nullptr);
+  HANDLE locked =
+      CreateFileW(target.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
   Require(locked != INVALID_HANDLE_VALUE,
           "Could not lock synthetic GlobalFlag for sharing test");
   Require(!storage.WriteGlobalFlagBytes(first, &error) && !error.empty(),
@@ -258,8 +258,7 @@ int main() {
     std::cout << "SchoolDaysGlobalFlagAtomicTest: PASS (synthetic only)\n";
     return 0;
   } catch (const std::exception &exception) {
-    std::cerr << "SchoolDaysGlobalFlagAtomicTest: " << exception.what()
-              << '\n';
+    std::cerr << "SchoolDaysGlobalFlagAtomicTest: " << exception.what() << '\n';
     return 2;
   }
 }

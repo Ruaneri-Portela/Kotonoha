@@ -653,7 +653,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       const double duration = valueNumber(args[2]);
       const int component = int(argument(args, 3));
       SpinState next;
-      if (it != sprites_.end()) next = it->second.spin;
+      if (it != sprites_.end())
+        next = it->second.spin;
       next.set(value, mode, duration, component);
       if (it != sprites_.end()) {
         it->second.spin = next;
