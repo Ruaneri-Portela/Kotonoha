@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -257,6 +258,14 @@ if __name__ == "__main__":
     with tempfile.TemporaryDirectory(prefix="kotonoha-mcp-") as directory:
         root = Path(directory) / "root"
         root.mkdir()
+        # The production font is intentionally not checked into the repo.
+        # Supply the test font as a fixture under the standard engine asset
+        # search root; otherwise MCP exits before serving any requests.
+        fixture_font = Path(sys.argv[2]).resolve()
+        assert fixture_font.is_file(), f"Missing test font: {fixture_font}"
+        font_root = root / "assets" / "fonts"
+        font_root.mkdir(parents=True)
+        shutil.copyfile(fixture_font, font_root / "NotoSansJP-Regular.ttf")
         exercise(executable, root)
         translation_and_eof(executable, root)
         environment = os.environ.copy()

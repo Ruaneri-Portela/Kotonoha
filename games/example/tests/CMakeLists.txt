@@ -9,6 +9,19 @@ target_link_libraries(KotonohaDemoTests PRIVATE kotonoha_demo)
 add_test(NAME Kotonoha.Demo COMMAND KotonohaDemoTests)
 set_tests_properties(Kotonoha.Demo PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+# The demo test runs from its own executable directory, not the Kotonoha
+# game's packaged asset directory. Stage the tracked splash and a test-only
+# font so the splash/gameplay assertions exercise the real runtime.
+add_custom_command(TARGET KotonohaDemoTests POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E make_directory
+        "$<TARGET_FILE_DIR:KotonohaDemoTests>/assets/fonts"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        "${KOTONOHA_PROJECT_ROOT}/assets/SPLASH.PNG"
+        "$<TARGET_FILE_DIR:KotonohaDemoTests>/assets/SPLASH.PNG"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+        "${KOTONOHA_PROJECT_ROOT}/lib/tests/fixtures/SvgTestFont.ttf"
+        "$<TARGET_FILE_DIR:KotonohaDemoTests>/assets/fonts/NotoSansJP-Regular.ttf"
+    VERBATIM)
 
 add_executable(KotonohaImGuiTests ImGuiTests.cpp)
 target_link_libraries(KotonohaImGuiTests PRIVATE Kotonoha::Engine imgui)
@@ -46,7 +59,8 @@ endif()
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_test(NAME Kotonoha.MCP COMMAND "${Python3_EXECUTABLE}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/MCPTests.py" "$<TARGET_FILE:Kotonoha>")
+    "${CMAKE_CURRENT_SOURCE_DIR}/MCPTests.py" "$<TARGET_FILE:Kotonoha>"
+    "${KOTONOHA_PROJECT_ROOT}/lib/tests/fixtures/SvgTestFont.ttf")
 set_tests_properties(Kotonoha.MCP PROPERTIES TIMEOUT 30)
 
 kotonoha_label_directory_tests()
