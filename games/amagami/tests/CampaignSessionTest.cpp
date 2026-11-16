@@ -1,4 +1,6 @@
 #include <Amagami/Session.hpp>
+#include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 
@@ -26,6 +28,45 @@ int main(int argc, char **argv) {
     auto source = std::make_shared<Amagami::Source>(argv[1]);
     Amagami::Session session(source);
     session.startCampaign();
+    // Save a partially played prologue; the journal must restore the
+    // original SCF instruction position, not start the scenario again.
+    const auto savePath = std::filesystem::temp_directory_path() /
+        ("kotonoha-amagami-campaign-" +
+         std::to_string(std::chrono::steady_clock::now()
+                            .time_since_epoch().count()) + ".txt");
+    struct RemoveSave {
+      std::filesystem::path path;
+      ~RemoveSave() {
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+      }
+    } removeSave{savePath};
+    for (unsigned n = 0; n < 12 && !session.ended(); ++n) {
+      if (!session.choices().empty())
+        session.choose(0);
+      else if (session.waiting())
+        session.tick(1);
+      else
+        session.advance();
+    }
+    require(!session.history().empty(),
+            "Mid-prologue campaign save has actual dialogue");
+    session.save(savePath.string());
+    Amagami::Session resumed(source);
+    resumed.load(savePath.string());
+    require(resumed.campaignActive() && resumed.name() == session.name() &&
+                resumed.history().size() == session.history().size() &&
+                resumed.dialogue().original == session.dialogue().original &&
+                resumed.campaignDate() == session.campaignDate() &&
+                resumed.campaignPeriod() == session.campaignPeriod(),
+            "Campaign save reloads exactly to the last prologue page");
+    // A second save after loading must retain the full action journal.
+    resumed.save(savePath.string());
+    Amagami::Session again(source);
+    again.load(savePath.string());
+    require(again.history().size() == resumed.history().size() &&
+                again.name() == resumed.name(),
+            "Loaded campaign preserves its journal for repeated saves");
     playEvent(session);
     require(session.history().size() > 400,
             "Campaign plays the complete original prologue");
@@ -41,6 +82,24 @@ int main(int argc, char **argv) {
             "Campaign map exposes original node positions and icon codes");
     const auto before = session.history().size();
     session.selectCampaignEvent("n1dea_ev01A");
+    // Save while the first map event is running, then restore to the
+    // original story position without blindly selecting choice zero.
+    for (unsigned n = 0; n < 5 && !session.ended(); ++n) {
+      if (!session.choices().empty())
+        session.choose(0);
+      else if (session.waiting())
+        session.tick(1);
+      else
+        session.advance();
+    }
+    session.save(savePath.string());
+    Amagami::Session mapReload(source);
+    mapReload.load(savePath.string());
+    require(mapReload.campaignActive() && mapReload.name() == session.name() &&
+                mapReload.history().size() == session.history().size() &&
+                mapReload.campaignDate() == session.campaignDate() &&
+                mapReload.campaignPeriod() == session.campaignPeriod(),
+            "Reloaded map event retains all previous original campaign flags");
     playEvent(session);
     require(session.history().size() > before,
             "First selected campaign event adds original dialogue");
