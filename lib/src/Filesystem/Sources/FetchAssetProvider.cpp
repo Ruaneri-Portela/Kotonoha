@@ -448,26 +448,28 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
                                   const std::string &headers) {
   const auto file = files_.at(job.key);
   if (job.discovery) {
-    if (status == 404 && !job.lowercaseAttempt &&
+    if (job.full && status == 404 && !job.lowercaseAttempt &&
         file->remotePath != lookupKey(file->remotePath)) {
-      // The VFS compares filenames case-insensitively, but a browser HTTP
-      // server does not. For known archive paths (e.g. SCRIPT.DAT versus
-      // data/pack/script.dat) retry once using the normalized spelling.
-      // Do not report NotFound while the retry is queued.
+      // Retry a case-insensitive filename using the exact lowercase spelling
+      // only after the original spelling was genuinely missing.
       enqueue({job.key, 0, 0, true, true, true});
       return;
     }
-    if (status != 200) {
+    if (job.full && (status == 405 || status == 501)) {
+      // Some static hosts do not implement HEAD. Probe one ranged byte.
+      enqueue({job.key, 0, 1, false, true, job.lowercaseAttempt});
+      return;
+    }
+    if (status != 200 && (job.full || status != 206)) {
       file->failed = true;
       file->failure =
           status == 404 ? ErrorCode::NotFound : ErrorCode::NetworkError;
-      file->message = "Remote HEAD failed, HTTP " + std::to_string(status);
+      file->message = "Remote asset discovery failed, HTTP " +
+                      std::to_string(status);
       return;
     }
-    // A HEAD response exposes the length without downloading large disc
-    // images. Cross-origin servers must expose Content-Length via CORS.
-    std::string lengthValue;
-    std::string rangesValue;
+
+    std::string lengthValue, rangesValue, contentRangeValue;
     for (std::size_t offset = 0; offset < headers.size();) {
       const auto end = headers.find('\n', offset);
       auto line = headers.substr(
@@ -475,66 +477,110 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
       const auto colon = line.find(':');
       if (colon != std::string::npos) {
         auto name = line.substr(0, colon);
-        std::transform(
-            name.begin(), name.end(), name.begin(),
-            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        if (name == "content-length") {
-          lengthValue = line.substr(colon + 1);
-          lengthValue.erase(0, lengthValue.find_first_not_of(" \t"));
-          while (!lengthValue.empty() &&
-                 (lengthValue.back() == '\r' || lengthValue.back() == ' '))
-            lengthValue.pop_back();
-        }
-        if (name == "accept-ranges") {
-          rangesValue = line.substr(colon + 1);
-          rangesValue.erase(0, rangesValue.find_first_not_of(" \t"));
-          while (!rangesValue.empty() &&
-                 (rangesValue.back() == '\r' || rangesValue.back() == ' '))
-            rangesValue.pop_back();
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char c) {
+                         return static_cast<char>(std::tolower(c));
+                       });
+        auto value = line.substr(colon + 1);
+        value.erase(0, value.find_first_not_of(" \t"));
+        while (!value.empty() &&
+               (value.back() == '\r' || value.back() == ' ' ||
+                value.back() == '\t'))
+          value.pop_back();
+        if (name == "content-length")
+          lengthValue = std::move(value);
+        else if (name == "accept-ranges") {
+          rangesValue = std::move(value);
           std::transform(rangesValue.begin(), rangesValue.end(),
                          rangesValue.begin(), [](unsigned char c) {
                            return static_cast<char>(std::tolower(c));
                          });
-        }
+        } else if (name == "content-range")
+          contentRangeValue = std::move(value);
       }
       if (end == std::string::npos)
         break;
       offset = end + 1;
     }
-    std::uint64_t size = 0;
-    try {
-      if (lengthValue.empty() ||
-          !std::all_of(lengthValue.begin(), lengthValue.end(),
-                       [](unsigned char c) { return c >= '0' && c <= '9'; }))
-        throw std::invalid_argument("No usable Content-Length");
-      size = std::stoull(lengthValue);
+
+    const auto parseSize = [](const std::string &value) -> std::uint64_t {
+      if (value.empty() ||
+          !std::all_of(value.begin(), value.end(), [](unsigned char c) {
+            return c >= '0' && c <= '9';
+          }))
+        throw std::invalid_argument("Invalid HTTP object size");
+      const auto size = std::stoull(value);
       if (size > static_cast<std::uint64_t>(INT64_MAX))
-        throw std::out_of_range("HTTP asset too large");
-    } catch (const std::exception &) {
-      file->failed = true;
-      file->failure = ErrorCode::NetworkError;
-      file->message = "HEAD requires accessible Content-Length";
-      return;
-    }
-    // If the host does not advertise byte ranges, do not risk materializing
-    // a huge GPK as an ignored HTTP 200 response in the browser's heap.
-    // Small files can still fall back to a complete response.
+        throw std::out_of_range("HTTP object too large");
+      return size;
+    };
     constexpr std::uint64_t kSmallWholeObject = 8u << 20;
-    if (size > kSmallWholeObject && rangesValue != "bytes") {
-      file->failed = true;
-      file->failure = ErrorCode::RangeUnsupported;
-      file->message = "Large HTTP archive requires Accept-Ranges: bytes "
-                      "and 206 Partial Content. The server has not "
-                      "advertised Range support; use tools/serve_web.py "
-                      "or configure your existing static file host.";
-      return;
+    std::uint64_t size = 0;
+    if (!job.full) {
+      // Discovery probe: GET Range: bytes=0-0.
+      if (status == 206) {
+        // A valid partial response announces the total length. Cross-origin
+        // hosts must expose Content-Range to JavaScript through CORS.
+        constexpr auto prefix = "bytes 0-0/";
+        if (count != 1 || !body || contentRangeValue.rfind(prefix, 0) != 0) {
+          file->failed = true;
+          file->failure = ErrorCode::RangeUnsupported;
+          file->message = "HTTP Range probe requires an accessible "
+                          "Content-Range: bytes 0-0/size header";
+          return;
+        }
+        try {
+          size = parseSize(contentRangeValue.substr(sizeof("bytes 0-0/") - 1));
+          if (!size)
+            throw std::invalid_argument("Empty partial object");
+        } catch (const std::exception &) {
+          file->failed = true;
+          file->failure = ErrorCode::RangeUnsupported;
+          file->message = "Invalid Content-Range on HTTP discovery probe";
+          return;
+        }
+      } else {
+        // A server may ignore Range; permit a complete response for small
+        // assets such as Seen.txt, but not large disc images or archives.
+        if (count > kSmallWholeObject || count > budget_ ||
+            (count && !body)) {
+          file->failed = true;
+          file->failure = ErrorCode::RangeUnsupported;
+          file->message = "HTTP Range probe returned an oversized 200 "
+                          "response; large assets require HTTP 206";
+          return;
+        }
+        size = count;
+      }
+    } else {
+      try {
+        size = parseSize(lengthValue);
+      } catch (const std::exception &) {
+        // HTTP 200 on HEAD proves existence even without Content-Length.
+        // Do not mistake missing metadata for a missing asset.
+        enqueue({job.key, 0, 1, false, true, job.lowercaseAttempt});
+        return;
+      }
+      // A valid 206 probe is more reliable than Accept-Ranges, which may
+      // be absent or hidden by cross-origin response-header restrictions.
+      if (size > kSmallWholeObject && rangesValue != "bytes") {
+        enqueue({job.key, 0, 1, false, true, job.lowercaseAttempt});
+        return;
+      }
     }
+
     if (job.lowercaseAttempt)
       file->remotePath = lookupKey(file->remotePath);
     file->info.size = static_cast<std::int64_t>(size);
     nodes_.emplace(job.key, file->info);
     for (auto p = parent(file->info.path); !p.empty(); p = parent(p))
       nodes_.emplace(lookupKey(p), FileInfo{p, FileType::Directory, 0});
+    if (!job.full) {
+      // Reuse the probe bytes, avoiding a second request for the same data.
+      complete(Job{job.key, 0, status == 206 ? 1u : size, status == 200,
+                   false, job.lowercaseAttempt},
+               status, body, count, headers);
+    }
     return;
   }
   // Simple HTTP servers may ignore Range. Accept their full 200 response
@@ -683,8 +729,9 @@ void FetchAssetProvider::pump() {
     const auto &file = files_.at(job.key);
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
-    std::memcpy(attr.requestMethod, job.discovery ? "HEAD" : "GET",
-                job.discovery ? 5 : 4);
+    const bool head = job.discovery && job.full;
+    std::memcpy(attr.requestMethod, head ? "HEAD" : "GET",
+                head ? 5 : 4);
     attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
     attr.timeoutMSecs = 30000;
     if (!job.full) {
