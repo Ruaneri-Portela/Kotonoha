@@ -123,6 +123,22 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
               (sprite->worldView ? bridge.view().originY * 2.0 : 0.0) -
               height / 2.0),
         float(width), float(height)};
+    // SDL reports clockwise-positive degrees, while the Vita SCF angle is
+    // counterclockwise-positive in multiples of pi. Preserve the original
+    // sprite centre as the rotation pivot even for atlas-clipped rectangles.
+    const auto renderImage = [&](SDL_Texture *tex, const SDL_FRect *source,
+                                 const SDL_FRect &destination) {
+      if (std::abs(sprite->angle) < 1e-10) {
+        require(SDL_RenderTexture(renderer_, tex, source, &destination));
+      } else {
+        const SDL_FPoint pivot{
+            dst.x + dst.w / 2 - destination.x,
+            dst.y + dst.h / 2 - destination.y};
+        require(SDL_RenderTextureRotated(renderer_, tex, source, &destination,
+                                         -sprite->angle * 180.0, &pivot,
+                                         SDL_FLIP_NONE));
+      }
+    };
     if (sprite->fontGlyph) {
       // Vita font atlas cells are 36x42 texels. FontChar coordinates are in
       // the fixed UI view (not the background's world camera). Palette
@@ -145,7 +161,7 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
           SDL_FRect shadowRect = dst;
           shadowRect.x += 2.0f;
           shadowRect.y += 2.0f;
-          require(SDL_RenderTexture(renderer_, shadow, nullptr, &shadowRect));
+          renderImage(shadow, nullptr, shadowRect);
         }
       }
       const double tint = normalized == 3 ? 0.2 : 1.0;
@@ -153,7 +169,7 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
       require(SDL_SetTextureColorMod(text, modulate(sprite->light[0] * tint),
                                      modulate(sprite->light[1] * tint),
                                      modulate(sprite->light[2] * tint)));
-      require(SDL_RenderTexture(renderer_, text, nullptr, &dst));
+      renderImage(text, nullptr, dst);
       continue;
     }
     if (!sprite->hasImage) {
@@ -164,7 +180,27 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
       require(SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND));
       require(
           SDL_SetRenderDrawColor(renderer_, 0, 0, 0, modulate(sprite->alpha)));
-      require(SDL_RenderFillRect(renderer_, &dst));
+      if (std::abs(sprite->angle) < 1e-10) {
+        require(SDL_RenderFillRect(renderer_, &dst));
+      } else {
+        if (!solidBlack_) {
+          Kotonoha::SurfacePtr black(
+              SDL_CreateSurface(1, 1, SDL_PIXELFORMAT_RGBA32));
+          if (!black)
+            throw std::runtime_error(SDL_GetError());
+          const Uint32 pixel = SDL_MapSurfaceRGBA(black.get(), 0, 0, 0, 255);
+          require(SDL_FillSurfaceRect(black.get(), nullptr, pixel));
+          solidBlack_.reset(
+              SDL_CreateTextureFromSurface(renderer_, black.get()));
+          if (!solidBlack_)
+            throw std::runtime_error(SDL_GetError());
+          require(SDL_SetTextureBlendMode(solidBlack_.get(),
+                                          SDL_BLENDMODE_BLEND));
+        }
+        require(SDL_SetTextureAlphaMod(solidBlack_.get(),
+                                        modulate(sprite->alpha)));
+        renderImage(solidBlack_.get(), nullptr, dst);
+      }
       continue;
     }
     SDL_Texture *texture = sprite->assetName.empty()
@@ -198,7 +234,7 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
     require(SDL_SetTextureColorMod(texture, modulate(sprite->light[0]),
                                    modulate(sprite->light[1]),
                                    modulate(sprite->light[2])));
-    require(SDL_RenderTexture(renderer_, texture, &src, &clipped));
+    renderImage(texture, &src, clipped);
   }
 }
 } // namespace Amagami::Vita

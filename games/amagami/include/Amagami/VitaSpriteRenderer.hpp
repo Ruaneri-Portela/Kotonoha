@@ -48,6 +48,8 @@ private:
   SurfaceFactory source_;
   NamedSurfaceFactory namedSource_;
   FontSurfaceFactory fontSource_;
+  // Lazily allocated 1x1 black texture for rotated texture-zero rectangles.
+  Kotonoha::TexturePtr solidBlack_;
   std::map<std::pair<uint32_t, uint32_t>, Kotonoha::TexturePtr> cache_;
   std::map<std::string, Kotonoha::TexturePtr> namedCache_;
   std::map<std::tuple<unsigned, uint16_t, unsigned>, Kotonoha::TexturePtr>
