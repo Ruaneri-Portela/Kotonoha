@@ -48,3 +48,31 @@ covered by these regressions; execution with retail assets is unverified.
 ## KAG choice order
 
 The supported KAG subset's `[select]`/`[choices]` tags now sort numbered `option1`, `option2`, `option10` attributes numerically rather than lexicographically, and exclude unrelated fields such as `optionColor`. A synthetic regression test checks choice order and VM resume. This does not provide a TJS2 interpreter or prove NEKOPARA's original menu works.
+
+## Experimental TJS2 → Kotonoha graphics bridge
+
+The bounded TJS2 VM now supports virtual `new Window()`,
+`window.primaryLayer` and `new Layer(window[, parentLayer])` objects.
+Layer properties include position, size, visibility, enabled state, opacity,
+order, `loadImages`, `setPos`, `setSize`, `show` and `hide`. XP3-backed
+textures are rendered using parent-relative coordinates.
+
+A **named** TJS2 function can be assigned to `layer.onClick`. Mouse-down
+events are hit-tested front-to-back and invoke the retained bounded VM.
+A callback may choose a `.ks` entry using `Scripts.execStorage` and start
+the KAG interpreter. A completely parsed interactive title may replace
+the generic fallback; unsupported bootstrap scripts still use the fallback.
+
+```tjs
+var window = new Window();
+var button = new Layer(window, window.primaryLayer);
+button.setPos(100, 80);
+button.setSize(320, 100);
+button.loadImages("image/title.tlg");
+function startGame() { Scripts.execStorage("scenario/start.ks"); }
+button.onClick = startGame;
+```
+
+This is **not** complete KiriKiri native windowing or the original NEKOPARA
+menu. Anonymous closures, keyboard/hover events, timers, native plugins
+and compiled TJS2 bytecode remain unsupported. Tests are synthetic.
