@@ -236,13 +236,33 @@ public:
   std::size_t functionDepth = 0;
 
   Value get(const std::string &name) const {
+    // Exact qualified built-ins like System.title remain supported.
     for (auto frame = frames.rbegin(); frame != frames.rend(); ++frame) {
       if (auto it = frame->find(name); it != frame->end())
         return it->second;
     }
     if (auto it = variables.find(name); it != variables.end())
       return it->second;
-    throw std::runtime_error("TJS2 subset: unresolved variable: " + name);
+    const auto dot = name.find('.');
+    if (dot == std::string::npos)
+      throw std::runtime_error("TJS2 subset: unresolved variable: " + name);
+    Value current = get(name.substr(0, dot));
+    for (auto first = dot + 1; first < name.size();) {
+      const auto next = name.find('.', first);
+      const auto key = name.substr(first, next == std::string::npos
+                                              ? next : next - first);
+      const auto ptr = std::get_if<ObjectPtr>(&current.data);
+      if (!ptr || !*ptr)
+        throw std::runtime_error("TJS2 subset: property read on non-Dictionary");
+      const auto found = (*ptr)->members.find(key);
+      if (found == (*ptr)->members.end())
+        throw std::runtime_error("TJS2 subset: missing Dictionary property: " +
+                                 key);
+      current = found->second;
+      if (next == std::string::npos) break;
+      first = next + 1;
+    }
+    return current;
   }
   void set(const std::string &name, Value value, bool declaration) {
     if (declaration) {
@@ -252,6 +272,31 @@ public:
         variables[name] = std::move(value);
       return;
     }
+    const auto dot = name.rfind('.');
+    if (dot != std::string::npos && name != "System.title") {
+      const auto rootName = name.substr(0, dot);
+      // If this refers to an existing Dictionary, update that shared object;
+      // otherwise preserve legacy special-qualified bootstrap assignments.
+      try {
+        const auto owner = get(rootName);
+        if (const auto obj = std::get_if<ObjectPtr>(&owner.data);
+            obj && *obj) {
+          const auto member = name.substr(dot + 1);
+          if ((*obj)->members.count(member) == 0 &&
+              (*obj)->members.size() >= 1024)
+            throw std::runtime_error(
+                "TJS2 subset: Dictionary member limit exceeded");
+          (*obj)->members[member] = std::move(value);
+          return;
+        }
+        throw std::runtime_error(
+            "TJS2 subset: property assignment on non-Dictionary");
+      } catch (const std::runtime_error &error) {
+        const auto message = std::string(error.what());
+        if (message.find("unresolved variable") == std::string::npos)
+          throw;
+      }
+    }
     for (auto frame = frames.rbegin(); frame != frames.rend(); ++frame) {
       if (auto it = frame->find(name); it != frame->end()) {
         it->second = std::move(value);
@@ -260,7 +305,6 @@ public:
     }
     variables[name] = std::move(value);
   }
-
   void tick() {
     if (!remaining--)
       throw std::runtime_error("TJS2 subset: instruction budget exhausted");
