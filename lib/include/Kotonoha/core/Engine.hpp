@@ -84,7 +84,11 @@ private:
   std::string activeClockNode();
   void synchronizeNodeClock(double delta);
   std::unique_ptr<DebugOverlay> debug;
+#if KOTONOHA_ENABLE_MCP
+  // Feature-OFF builds do not compile MCPServer.cpp. Exclude its unique_ptr
+  // as well, or Engine's destructor still references an absent destructor.
   std::unique_ptr<MCPServer> mcp;
+#endif
   bool agentPaused = false;
   bool translationDumpComplete = false;
   InputActions inputActions;
