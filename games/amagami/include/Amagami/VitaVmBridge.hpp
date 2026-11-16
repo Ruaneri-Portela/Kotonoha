@@ -44,6 +44,12 @@ struct SpriteState {
   // filename (e.g. bg/122_10.gxt) and the world camera transform.
   std::string assetName;
   bool worldView = false;
+  // FontChar/FontCharEx (standard atlas) and FontChar2 (alternate atlas).
+  // The SCF keeps a Shift-JIS code and a raw palette selector, not UTF-8.
+  bool fontGlyph = false;
+  unsigned fontAtlas = 0;
+  uint16_t characterCode = 0;
+  int fontPalette = 0;
   int64_t layer = 0;
   uint64_t order = 0;
   std::array<double, 4> rect{{0, 0, 0, 0}};
