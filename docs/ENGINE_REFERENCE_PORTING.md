@@ -14,16 +14,16 @@ This document tracks **incremental** work based on four independent interpreters
 ## Changes in this iteration
 
 - **RealLive:** Validate jump destinations before pushing a return frame. Malformed jump targets can no longer corrupt the VM call stack.
-- **LucaSystem:** Keep all payload bytes in odd-length instructions, parse the alignment byte *after* the unpadded instruction, reject truncated instructions and fixed parameters, and decode AIR English dialogue when the Japanese field is empty.
-- **Kirikiri:** Parse `@command arg=value` lines using the normal tag grammar; ignore leading-semicolon comment lines; decode `[[` as a literal opening bracket in text.
-- **N2System:** Add a standalone C++17 NsScript chapter/label source index with UTF-8 BOM handling, comments, nested blocks, quoted literals, malformed-input errors and automated tests. **This is not yet an executable N2System VM**, NPA archive reader or Nitroplus game port.
+- **LucaSystem:** Keep all payload bytes in odd-length instructions, parse the alignment byte *after* the unpadded instruction, reject truncated instructions and fixed parameters, and decode AIR English dialogue when the Japanese field is empty. Add lossless instruction serialization, preserving unknown opcodes and verifying synthetic/retail byte-for-byte round trips.
+- **Kirikiri:** Parse `@command arg=value` lines using the normal tag grammar; ignore leading-semicolon comment lines; decode `[[` as a literal opening bracket in text. Implement local `[call target=*label]` / `[return]` with a return stack, starred label targets, and host-owned save/restore of nested call state.
+- **N2System:** Add a standalone C++17 NsScript chapter/label/function-call source index with UTF-8 BOM handling, comments, nested blocks, quoted literals, source locations, malformed-input errors and automated tests. **This is not yet an executable N2System VM**, NPA archive reader or Nitroplus game port.
 
 ## Next compatibility milestones
 
 1. **RealLive:** Test conditional branches, local/global memory, save compatibility, KOE/OVK/NWK audio and rlBabel against legally obtained original games.
 2. **N2System:** Add NPA/AFS asset providers, typed NsScript lexer/AST and expressions, opcode execution, transitions, save states and media callbacks. Keep it C++17 and independent of the .NET runtime.
-3. **LucaSystem:** Introduce per-title opcode metadata, branch relocation and script import/export round trips; extend CZ decoder and voice archives using documented samples.
-4. **Kirikiri:** Add TJS2 expression/runtime support, KAG `call`/`return` stack and conditionals, additional XP3 variants and filter/plugin APIs.
+3. **LucaSystem:** Introduce per-title opcode metadata, branch relocation and editable script import/export (the current serializer is lossless but does not rewrite operands or offsets); extend CZ decoder and voice archives using documented samples.
+4. **Kirikiri:** Add cross-script KAG call stacks, conditional execution, TJS2 expression/runtime support, additional XP3 variants and filter/plugin APIs.
 
 ## Validation
 
