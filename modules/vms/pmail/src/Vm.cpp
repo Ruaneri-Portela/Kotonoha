@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #ifdef PMAIL_VM_TRACE
@@ -349,8 +350,16 @@ void Vm::start(const ObjectPtr &obj, uint32_t pc) {
 }
 
 void Vm::jumpTo(const ObjectPtr &obj, uint32_t pc) {
+  // An external script transition must revive the interpreter after the
+  // previous object executed HALT. Without this, PmailGame::popCall()
+  // switches back to its caller but run() immediately stops again, so
+  // subsequent scene choices and story branches never execute.
+  if (obj && pc > obj->codeWords)
+    throw std::out_of_range("PMAIL jump exceeds script code size");
   cur_ = obj;
   pc_ = pc;
+  ended_ = !obj;
+  blocked_ = false;
 }
 
 void Vm::setVar(uint32_t id, uint32_t v) {

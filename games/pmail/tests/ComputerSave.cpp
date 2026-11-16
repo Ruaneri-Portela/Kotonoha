@@ -28,8 +28,9 @@ void append32(std::vector<uint8_t> &d, uint32_t v) {
   for (int i = 0; i < 4; ++i)
     d.push_back(uint8_t(v >> (i * 8)));
 }
-std::vector<uint8_t> object(uint16_t id,
-                            const std::vector<std::string> &strings) {
+std::vector<uint8_t> object(
+    uint16_t id, const std::vector<std::string> &strings,
+    const std::vector<uint32_t> &instructions = {}) {
   std::vector<uint8_t> d(4 + strings.size() * 4, 0);
   for (size_t i = 0; i < strings.size(); ++i) {
     const auto offset = d.size();
@@ -45,21 +46,30 @@ std::vector<uint8_t> object(uint16_t id,
   u16(d, 0, uint16_t(d.size())); // user table offset
   u16(d, 2, uint16_t(strings.size()));
   append32(d, 4); // user table length
-  append32(d, 0);
-  append32(d, 0);
+  for (const auto instruction : instructions)
+    append32(d, instruction);
   append32(d, id); // parser reads the object ID from final 4 bytes
   return d;
 }
 std::vector<uint8_t> pack() {
   std::vector<uint8_t> archive;
-  std::vector<uint8_t> index(3 * 0x50, 0);
-  const std::array<std::pair<std::string, std::vector<std::string>>, 3> items{
-      {{"pmail.obj", {}},
+  std::vector<uint8_t> index(4 * 0x50, 0);
+  const std::array<std::pair<std::string, std::vector<std::string>>, 4> items{
+      {{"pmail.obj", {"room.obj"}},
        {"start.obj", {}},
-       {"text.obj", {"$NO at $HO", "12:30", "hello"}}}};
+       {"text.obj", {"$NO at $HO", "12:30", "hello"}},
+       {"room.obj", {}}}};
   for (size_t i = 0; i < items.size(); ++i) {
     const auto pos = i * 0x50;
-    const auto data = object(uint16_t(i + 1), items[i].second);
+    // The caller script writes a variable and ends. A child room.obj
+    // ends immediately, exercising the host's return-frame restoration.
+    const std::vector<uint32_t> instructions =
+        items[i].first == "start.obj"
+            ? std::vector<uint32_t>{0x1103002au, 0x10204000u,
+                                    0x050300d5u} // SYS 213 original title
+            : std::vector<uint32_t>{};
+    const auto data =
+        object(uint16_t(i + 1), items[i].second, instructions);
     require(items[i].first.size() < 0x40, "Synthetic object name too long");
     u16(index, pos, uint16_t(i + 1));
     for (size_t n = 0; n < items[i].first.size(); ++n)
@@ -100,6 +110,41 @@ void checksum(std::string &blob) {
   for (unsigned i = 0; i < 8; ++i)
     blob[len + i] = char(hash >> (8u * i));
 }
+void testChildScriptReturn() {
+  using Kotonoha::PmailPort::MouthRegionFrame;
+  require(MouthRegionFrame(20, 3, 2) == 22 &&
+              MouthRegionFrame(20, 2, 2) == 20 &&
+              MouthRegionFrame(7, 1, 2) == 7 &&
+              MouthRegionFrame(7, 2, -1) == 7,
+          "Audio mouth phases must stay inside each decoded frame region");
+  const auto archive = pack();
+  const std::string logicalPath = "data/pack/script.dat";
+  Kotonoha::PmailPort::PmailGame game(archive, logicalPath);
+  require(game.init(), "Synthetic script chain did not initialize");
+  // The library contains one string: the name of the child scene.
+  constexpr uint32_t roomName = (1u << 20) | (2u << 16);
+  game.native(game.vm(), 16, {{roomName}});
+  require(game.currentScript() == "room.obj" &&
+              !game.vm().ended() && game.vm().current(),
+          "SYS 16 did not transfer to the child scene");
+
+  // Real saves taken while the child script is active must carry the
+  // caller frame and resume the original script after the child HALT.
+  const auto checkpoint = game.serialize();
+  Kotonoha::PmailPort::PmailGame restored(archive, logicalPath);
+  restored.deserialize(checkpoint);
+  require(restored.currentScript() == "room.obj",
+          "Save/load lost the pending child script");
+
+  for (auto *current : {&game, &restored}) {
+    current->pump(20);
+    require(current->currentScript() == "start.obj" &&
+                current->atTitle() && !current->vm().ended() &&
+                current->vm().var(0x4000) == 42u,
+            "Child HALT did not resume the parent and reach the title menu");
+  }
+}
+
 void testSaveAndCorruption() {
   const auto archive = pack();
   const std::string logicalPath = "data/pack/script.dat";
@@ -203,7 +248,9 @@ void testSaveAndCorruption() {
 int main() {
   try {
     testSaveAndCorruption();
-    std::cout << "PMAIL V5 computer save/load, animation resume, corruption "
+    testChildScriptReturn();
+    std::cout << "PMAIL V5 computer save/load, child-script continuation, "
+                 "animation resume, corruption "
                  "rejection, V4 upgrade and scene cleanup passed\n";
     return 0;
   } catch (const std::exception &e) {

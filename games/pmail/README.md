@@ -36,6 +36,13 @@ on the SDL renderer (Linear is the compatible fallback).
 The pre-Overflow animation still requires comparison against the running DVD
 with its original assets; its exact content and timing are not yet verified.
 
+**Script progression fix:** child scripts that terminate now return to a
+live parent interpreter rather than leaving the VM marked as finished.
+The synthetic `Pmail.ComputerSave` fixture covers return-to-title through
+`SYS 213` and save/load while a child script is active. Lip-animation
+frames are constrained to each decoded character region. The complete DVD
+story still needs real-asset validation.
+
 **Quick access:** F5 writes `pmail-quick.vn` to the game's save directory,
 and F9 loads it. The regular save-slot UI remains available. The keyboard
 shortcuts are a cross-platform Kotonoha addition, not verified original keys.
