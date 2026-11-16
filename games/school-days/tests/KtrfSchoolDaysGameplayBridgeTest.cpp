@@ -1,10 +1,17 @@
 #include <Kotonoha/parsers/KtrfTyped.h>
 #include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
+#include <Kotonoha/routing/SchoolDaysSaveStorage.hpp>
 
+#include <chrono>
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 struct Kotonoha_Game {};
 
@@ -130,6 +137,33 @@ CurrentScriptSnapshotName(const Kotonoha::SchoolDaysPersistence &persistence) {
 } // namespace
 
 int main(int argc, char **argv) {
+  if (argc == 5 && std::string(argv[1]) == "--audit-reload") {
+    Kotonoha::SchoolDaysSaveProfile profile;
+    profile.saveFolder = "Save";
+    profile.saveFileName = "Save/SaveFile%d.DAT";
+    profile.flagFileName = "Save/GlobalFlag.DAT";
+    Kotonoha::SchoolDaysSaveStorage storage;
+    std::string storageError;
+    Check(storage.Initialize(argv[4], profile, &storageError), storageError);
+    std::vector<uint8_t> bytes;
+    bool present = false, slotPresent = true;
+    Check(storage.LoadGlobalFlag(&bytes, &present, &storageError) && present &&
+              storage.ProbeSaveFile(0, &slotPresent, &storageError) &&
+              !slotPresent, "child could not reload slotless GlobalFlag");
+    Kotonoha_KtrfError childError{};
+    Kotonoha::SchoolDaysKtrfSession session;
+    Check(session.Open(argv[2], argv[3], &childError) &&
+              session.LoadGlobalFlag(bytes, &childError), childError.message);
+    int64_t endFlag = 0, endClear = 0, endNo = -1;
+    Check(session.State().ReadGlobalInt("[End00]=\"", &endFlag,
+                                             &childError) && endFlag != 0 &&
+              session.State().ReadGlobalInt("EndClear", &endClear,
+                                            &childError) && endClear != 0 &&
+              session.State().ReadGlobalInt("EndNo", &endNo, &childError) &&
+              endNo == 0,
+          "child process did not retain ending globals");
+    return 0;
+  }
   if (argc != 3) {
     std::cerr << "usage: KtrfSchoolDaysGameplayBridgeTest <route.ktnroute> "
                  "<assets-root>\n";
@@ -814,6 +848,10 @@ int main(int argc, char **argv) {
   // 05/05-5H-E00 (ROUTE=32, SCENE=14); its sole transition registers ending
   // 0, invokes callback_38, and terminates.
   if (terminals == 0u) {
+    int64_t freshEnd = 1;
+    Check(bridge.Session().State().ReadGlobalInt("EndClear", &freshEnd,
+                                                  &error) && freshEnd == 0,
+          "terminal witness already had a completed ending");
     if (!bridge.Session().State().WriteCoordinate(32, 14, &error))
       Fail(std::string("terminal witness coordinate setup failed: ") +
            error.message);
@@ -864,6 +902,14 @@ int main(int argc, char **argv) {
     Check(CurrentScriptSnapshotName(bridge.Session().Persistence()) ==
               terminalScene,
           "terminal witness overwrote ending tag1 during RouteProc reset");
+    int64_t endFlag = 0, endClear = 0, endNo = -1;
+    Check(bridge.Session().State().ReadGlobalInt("[End00]=\"", &endFlag,
+                                                 &error) && endFlag != 0 &&
+              bridge.Session().State().ReadGlobalInt("EndClear", &endClear,
+                                                     &error) && endClear != 0 &&
+              bridge.Session().State().ReadGlobalInt("EndNo", &endNo,
+                                                     &error) && endNo == 0,
+          "OnEnding did not register all three global ending fields");
 
     Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult terminalAck;
     if (!bridge.ContinueHandoff(&terminalAck, &error))
@@ -873,6 +919,64 @@ int main(int argc, char **argv) {
                   Kotonoha::SchoolDaysKtrfGameplayBridge::StepKind::Terminal &&
               !bridge.HasPendingHandoff(),
           "terminal witness acknowledgement did not close pending outer flow");
+    namespace fs = std::filesystem;
+    const auto root = fs::current_path() /
+        ("school-days-ending-audit-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+    Check(fs::create_directory(root), "ending audit directory creation failed");
+    Kotonoha::SchoolDaysSaveProfile profile;
+    profile.saveFolder = "Save";
+    profile.saveFileName = "Save/SaveFile%d.DAT";
+    profile.flagFileName = "Save/GlobalFlag.DAT";
+    Kotonoha::SchoolDaysSaveStorage storage;
+    std::string storageError;
+    Check(storage.Initialize(root, profile, &storageError), storageError);
+    std::vector<uint8_t> globalBytes;
+    Check(bridge.Session().SerializeGlobalFlag(&globalBytes, &error),
+          error.message);
+    Check(storage.WriteGlobalFlagBytes(globalBytes, &storageError),
+          storageError);
+#ifdef _WIN32
+    const auto executable = fs::absolute(argv[0]).wstring();
+    std::wstring command = L"\"" + executable + L"\" --audit-reload \"" +
+        fs::path(argv[1]).wstring() + L"\" \"" +
+        fs::path(argv[2]).wstring() + L"\" \"" + root.wstring() + L"\"";
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
+    PROCESS_INFORMATION child{};
+    Check(CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr,
+                         FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &startup,
+                         &child) != 0,
+          "could not start independent ending reload process");
+    const DWORD wait = WaitForSingleObject(child.hProcess, 30000);
+    DWORD childExit = 1;
+    Check(wait == WAIT_OBJECT_0 &&
+              GetExitCodeProcess(child.hProcess, &childExit) != 0,
+          "ending reload process did not finish");
+    CloseHandle(child.hThread);
+    CloseHandle(child.hProcess);
+    Check(childExit == 0,
+          "separate process did not retain slotless ending progress");
+#endif
+    bool slotPresent = true, flagPresent = false;
+    Check(storage.ProbeSaveFile(0, &slotPresent, &storageError) &&
+              !slotPresent &&
+              storage.LoadGlobalFlag(&globalBytes, &flagPresent,
+                                     &storageError) && flagPresent,
+          "ending flush created a slot or failed to reload GlobalFlag");
+    Kotonoha::SchoolDaysKtrfSession reopened;
+    Check(reopened.Open(argv[1], argv[2], &error) &&
+              reopened.LoadGlobalFlag(globalBytes, &error), error.message);
+    Check(reopened.State().ReadGlobalInt("[End00]=\"", &endFlag, &error) &&
+              endFlag != 0 &&
+              reopened.State().ReadGlobalInt("EndClear", &endClear, &error) &&
+              endClear != 0 &&
+              reopened.State().ReadGlobalInt("EndNo", &endNo, &error) &&
+              endNo == 0,
+          "ending did not survive independent session reload without SAVE");
+    reopened.Close();
+    Check(fs::remove_all(root) > 0,
+          "ending audit directory cleanup failed");
     ++terminals;
   }
 
