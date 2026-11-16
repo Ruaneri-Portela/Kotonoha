@@ -34,7 +34,7 @@ def errors():
         # intentionally keeps the historical target name Kotonoha.
         cmake_target = "Kotonoha" if slug == "example" else target
         configured = re.search(
-            r"\\bkotonoha_configure_app\\s*\\(\\s*" + re.escape(cmake_target) +
+            r"\bkotonoha_configure_app\s*\(\s*" + re.escape(cmake_target) +
             r"\b[^)]*\bGAME\s+" + re.escape(slug) + r"\b", config, re.S
         )
         if not configured:
