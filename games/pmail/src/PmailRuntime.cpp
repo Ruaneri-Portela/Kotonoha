@@ -191,7 +191,7 @@ void PmailRuntime::stopMovie() {
 }
 
 void PmailRuntime::handleNative(int id, const std::vector<::Pmail::Arg> &args) {
-  if (!audio_ || !game_)
+  if (!audio_ || !game_ || !PmailAudio::HandlesSyscall(id))
     return;
   std::vector<int> numbers;
   std::vector<std::string> strings;
