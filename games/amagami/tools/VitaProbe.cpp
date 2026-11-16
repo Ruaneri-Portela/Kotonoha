@@ -1,6 +1,7 @@
 // Vita SCF diagnostics: explicitly not a playable Vita game.
 #include <Amagami/VitaGraphicsAssets.hpp>
 #include <Amagami/VitaScripts.hpp>
+#include <Amagami/VitaSpriteRenderer.hpp>
 #include <Amagami/VitaVmBridge.hpp>
 #include <filesystem>
 #include <iostream>
@@ -28,22 +29,54 @@ void reportScene(const Amagami::Vita::VitaVmBridge &bridge) {
               << ")\n";
   }
 }
+void saveSnapshot(const std::string &path,
+                  const Amagami::Vita::VitaVmBridge &bridge,
+                  const std::shared_ptr<Kotonoha::Providers::VitaGraphicsAssets>
+                      &graphics) {
+  Kotonoha::SurfacePtr canvas(
+      SDL_CreateSurface(960, 544, SDL_PIXELFORMAT_RGBA32));
+  if (!canvas)
+    throw std::runtime_error(SDL_GetError());
+  {
+    Kotonoha::RendererPtr software(SDL_CreateSoftwareRenderer(canvas.get()));
+    if (!software)
+      throw std::runtime_error(SDL_GetError());
+    Amagami::Vita::VitaSpriteRenderer presenter(
+        software.get(), [graphics](uint32_t id, uint32_t variant) {
+          return graphics ? graphics->uiSurface(id, variant)
+                          : Kotonoha::SurfacePtr{};
+        });
+    presenter.draw(bridge);
+    if (!SDL_RenderPresent(software.get()))
+      throw std::runtime_error(SDL_GetError());
+  }
+  if (!SDL_SaveBMP(canvas.get(), path.c_str()))
+    throw std::runtime_error(SDL_GetError());
+  std::cout << "Vita Sprite preview saved: " << path
+            << " (960x544 BMP, snapshot only)\n";
+}
 } // namespace
 
 int main(int argc, char **argv) {
-  if (argc < 2 || argc > 8) {
+  if (argc < 2 || argc > 10) {
     std::cerr << "Usage: AmagamiVitaProbe DECRYPTED_GAME_DIR "
                  "[--boot | --probe CLASS METHOD [--instance]] "
-                 "[--ui-elf PLAIN_EBOOT_ELF]\n"
-                 "Diagnostic only: no playable Vita presentation or audio.\n";
+                 "[--ui-elf PLAIN_EBOOT_ELF] [--snapshot PREVIEW.bmp]\n"
+                 "Diagnostic only: no playable Vita input or audio.\n";
     return 2;
   }
   try {
-    const bool haveElf = argc >= 4 &&
-                         std::string(argv[argc - 2]) == "--ui-elf";
-    const int positional = argc - (haveElf ? 2 : 0);
-    const std::string elf = haveElf ? std::string(argv[argc - 1])
+    int positional = argc;
+    const bool haveSnapshot = positional >= 4 &&
+                      std::string(argv[positional - 2]) == "--snapshot";
+    const std::string snapshot = haveSnapshot ?
+        std::string(argv[positional - 1]) : std::string{};
+    if (haveSnapshot) positional -= 2;
+    const bool haveElf = positional >= 4 &&
+                         std::string(argv[positional - 2]) == "--ui-elf";
+    const std::string elf = haveElf ? std::string(argv[positional - 1])
                                     : std::string{};
+    if (haveElf) positional -= 2;
     if (positional != 2 && positional != 3 &&
         positional != 5 && positional != 6)
       throw std::invalid_argument("Invalid Vita probe argument count");
@@ -59,8 +92,9 @@ int main(int argc, char **argv) {
                                    const std::vector<Amagami::VmValue> &args) {
       return bridge.primitive(owner, method, classMethod, self, number, args);
     };
+    std::shared_ptr<Kotonoha::Providers::VitaGraphicsAssets> graphics;
     if (haveElf) {
-      auto graphics =
+      graphics =
           std::make_shared<Kotonoha::Providers::VitaGraphicsAssets>(
               (std::filesystem::path(argv[1]) / "graph" / "GRAPH.CPK").string(),
               elf);
@@ -79,8 +113,10 @@ int main(int argc, char **argv) {
     std::cout << "Vita SCF VM loaded " << source.systemCount()
               << " system classes and " << source.scenarioCount()
               << " scenario classes\n";
-    if (positional == 2)
+    if (positional == 2) {
+      if (!snapshot.empty()) saveSnapshot(snapshot, bridge, graphics);
       return 0;
+    }
 
     std::string klass = "Application", method = "run";
     bool instance = false;
@@ -110,9 +146,11 @@ int main(int argc, char **argv) {
       vm.run(250000); // bounded diagnostic, never an unattended game loop
     } catch (...) {
       reportScene(bridge); // Inspect objects reached before an unknown native.
+      if (!snapshot.empty()) saveSnapshot(snapshot, bridge, graphics);
       throw;
     }
     reportScene(bridge);
+    if (!snapshot.empty()) saveSnapshot(snapshot, bridge, graphics);
     if (!vm.finished()) {
       std::cout << "Vita VM budget exhausted at " << vm.location() << '\n';
       return 3;
