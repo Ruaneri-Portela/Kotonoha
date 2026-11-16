@@ -46,6 +46,10 @@ void saveSnapshot(const std::string &path,
           return graphics ? graphics->uiSurface(id, variant)
                           : Kotonoha::SurfacePtr{};
         });
+    presenter.setNamedSource([graphics](const std::string &name) {
+      return graphics && graphics->contains(name)
+                 ? graphics->loadSurface(name) : Kotonoha::SurfacePtr{};
+    });
     presenter.draw(bridge);
     if (!SDL_RenderPresent(software.get()))
       throw std::runtime_error(SDL_GetError());
