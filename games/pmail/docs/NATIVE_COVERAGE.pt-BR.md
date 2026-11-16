@@ -6,15 +6,18 @@
 
 | SYS | Local informado | Estado |
 | --- | --- | --- |
-| 18 | `start.obj:5` | Sem implementação; semântica nativa desconhecida |
+| 18 | `start.obj:5`, `PRO1.OBJ:3` | Sem implementação; semântica nativa desconhecida |
 | 24 | `start.obj:7` | Sem implementação; semântica nativa desconhecida |
 | 20 | `start.obj:11` | Sem implementação; semântica nativa desconhecida |
 | 216 | `start.obj:14` | Sem implementação; semântica nativa desconhecida |
 | 17 | `start.obj:899` | Sem implementação; semântica nativa desconhecida |
+| 19 | `PRO1.OBJ:5` | Sem implementação; semântica nativa desconhecida |
+| 65 | `PRO1.OBJ:809` | Sem implementação; semântica nativa desconhecida |
+| 137 | `PRO1.OBJ:2413` | Sem implementação; semântica nativa desconhecida |
 | 212 | `extra.OBJ:83` | Sem implementação; semântica nativa desconhecida |
 
 Esses avisos vêm do fallback de `PmailGame::native`, não do áudio.
-Nenhum dos seis IDs tem implementação nos handlers atualmente
+Nenhum dos nove IDs tem implementação nos handlers atualmente
 documentados. **Não mascarar os avisos nem inventar um no-op**: chamadas
 nativas podem alterar flags, cenas, entrada, apresentação ou a execução.
 
@@ -42,4 +45,18 @@ isso não é uma alegação de compatibilidade integral.
 - Antes de implementar cada SYS, identificar o contrato dos parâmetros,
   escrita de variáveis, comportamento de espera e efeitos observáveis sobre
   cena/áudio/estado, comparando com o executável de referência.
-- Nenhuma semântica nativa foi inventada para os seis comandos desconhecidos.
+- Nenhuma semântica nativa foi inventada para os nove comandos desconhecidos.
+
+## Outros avisos registrados no macOS
+
+- `com.apple.linkd.autoShortcut` / AppIntents / código 4097:
+  falha de comunicação com serviço do sistema. Não é um SYS da VM.
+- `[aqsrv] AudioQueueInternalStop_Sync -66671` e
+  `AudioObjectGetPropertyData: no object with given ID 0`:
+  avisos do CoreAudio. Se houver cortes no som, testar o dispositivo de
+  saída padrão, mudanças de dispositivo e a inicialização/desligamento
+  do áudio separadamente. O log isolado não comprova um bug da VM.
+- `AddInstanceForFactory ... F8BB1C28-...`: mensagem de um plugin do
+  CoreAudio observada em diferentes aplicativos. Também não é um SYS.
+- `Upscaler backend=2` e `Anime4K ... initialized`: mensagens
+  informativas de inicialização da renderização.
