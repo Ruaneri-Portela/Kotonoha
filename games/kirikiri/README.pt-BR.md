@@ -16,7 +16,7 @@ Porte C++17 de KiriKiri para o Kotonoha: montagem XP3, interpretador KAG experim
 
 **O menu provisório não é o menu original de NEKOPARA.** O fluxo original de KiriKiri inicia pelo `startup.tjs` e depende do interpretador TJS2, plugins e interface específica do título. O porte ainda não executa TJS2 genérico nem toda a semântica de arquivos PSB/SCN compilados. **O método bruto 3 do TLG6 é experimental e só é aceito com tamanho exato. Gamma (método 1), LZSS modificado (método 2) e filtros específicos XP3 seguem pendentes.** O próprio decodificador KiriKiri Z original rejeita métodos TLG6 não-Golomb. Saves, efeitos, traduções e áudio ainda não possuem paridade com o jogo original.
 
-Classes, métodos, objetos/janelas nativos, plugins e bytecode TJS2 compilado **não foram implementados**; a VM parcial interrompe o script quando encontra sintaxe não suportada. Essas melhorias não foram validadas em uma instalação comercial de NEKOPARA. Montar o XP3 ou mostrar o menu provisório não comprova jogabilidade completa. Os testes do repositório usam dados sintéticos.
+Classes definidas pelo jogo, comportamento nativo completo de Window/Layer, plugins e bytecode TJS2 compilado **não foram implementados**; a VM parcial interrompe o script quando encontra sintaxe não suportada. Essas melhorias não foram validadas em uma instalação comercial de NEKOPARA. Montar o XP3 ou mostrar o menu provisório não comprova jogabilidade completa. Os testes do repositório usam dados sintéticos.
 
 ## Compilação e testes
 
@@ -38,12 +38,39 @@ laços `for` limitados e objetos compartilhados `new Dictionary()` com leitura/e
 propriedades aninhadas. Isso permite calcular configurações e o roteiro
 KAG inicial antes de apresentar o menu provisório do Kotonoha.
 
-**Ainda não é TJS2 completo:** expressões de função, classes definidas
-pelo jogo, objetos nativos `Window`/`Layer`, o menu original do
-KiriKiri e bytecode continuam pendentes. Construtores nativos desconhecidos
+**Ainda não é TJS2 completo:** funções anônimas simples para eventos e objetos Window/Layer virtuais são aceitos, mas closures léxicas, classes definidas pelo jogo, janelas nativas completas, o menu original do KiriKiri e bytecode continuam pendentes. Construtores nativos desconhecidos
 geram um erro explícito, sem simular um menu original. Os testes dessa etapa
 são sintéticos; os recursos não foram validados com assets comerciais.
 
 ## Ordem das escolhas KAG
 
 Tags de escolha do subconjunto KAG implementado pelo Kotonoha (`[select]` e `[choices]`) agora apresentam `option1`, `option2`, `option10` na ordem numérica e não tratam atributos não numéricos como `optionColor` como opções. O teste sintético também verifica que a callback da escolha retoma o script. Isso não substitui o interpretador TJS2 nem comprova a interface original de NEKOPARA.
+
+## Ponte gráfica experimental TJS2 → Kotonoha
+
+O subconjunto TJS2 inclui agora **objetos gráficos virtuais** `new Window()`,
+`window.primaryLayer` e `new Layer(window[, parentLayer])`. `Layer` aceita
+`left`, `top`, `width`, `height`, `visible`, `enabled`, `opacity`, `order`,
+`loadImages("image/arquivo.tlg")`, `setPos(x,y)`, `setSize(w,h)` e
+`show()`/`hide()`. As imagens vêm do provedor XP3 e são compostas na cena
+do Kotonoha, com origem relativa aos pais e ordem de camadas.
+
+Uma função TJS2 **nomeada ou anônima** (sem captura de escopo léxico) pode ser atribuída a `layer.onClick`, `layer.onMouseDown`, `layer.onMouseEnter` ou `layer.onMouseLeave`. O runtime realiza hit-testing em coordenadas lógicas, dispara os handlers de clique e de entrada/saída do mouse na VM preservada
+e reconhece `Scripts.execStorage("roteiro.ks")` para entrar no KAG. Se o
+bootstrap produzir camadas com imagens e regiões clicáveis e terminar
+sem erro, a interface gerada pelo script substitui o menu provisório.
+Em outros casos, o menu provisório permanece acessível.
+
+```tjs
+var window = new Window();
+var button = new Layer(window, window.primaryLayer);
+button.setPos(100, 80);
+button.setSize(320, 100);
+button.loadImages("image/title.tlg");
+function startGame() { Scripts.execStorage("scenario/start.ks"); }
+button.onClick = startGame;
+```
+
+**Limitações:** viewport compatível de 1280×720, sem janelas do SO nem DLLs.
+Closures completas, eventos de teclado e movimento contínuo do mouse, timers, animações, classes nativas reais e bytecode TJS2 seguem pendentes. Caso as imagens ou callbacks do menu TJS2 falhem, o menu de compatibilidade é restaurado. Isto **não comprova o
+menu original de NEKOPARA**; os testes usam arquivos sintéticos.

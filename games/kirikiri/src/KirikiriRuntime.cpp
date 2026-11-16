@@ -21,6 +21,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 
@@ -131,6 +132,9 @@ struct KirikiriRuntime::Impl {
 
   bool running = false;
   bool titleShown = false;
+  bool nativeTitleUi = false;
+  bool nativeTitleDisabled = false;
+  std::set<std::string> failedNativePictures;
   Kotonoha::Providers::TjsBootstrapReport bootstrap;
   Kotonoha::Providers::TjsStartupResult startupExecution;
   bool waitingChoice = false;
@@ -243,10 +247,17 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
   Kotonoha::GetVNBacklogRuntime(engine).clear();
   Kotonoha::GetVNBacklogRuntime(engine).close();
 
-  AddScene(impl.textbox);
-  AddScene(impl.choiceScene);
-  AddScene(impl.backlog);
-  AddScene(impl.menu);
+  // Rebuilding a title after a failed native UI must not register the same
+  // scenes twice (duplicate input and rendering callbacks).
+  const auto attachOnce = [&](Kotonoha::Scene *scene) {
+    const auto &scenes = GetScenes(Kotonoha::GameState::Gameplay);
+    if (std::find(scenes.begin(), scenes.end(), scene) == scenes.end())
+      AddScene(scene);
+  };
+  attachOnce(impl.textbox);
+  attachOnce(impl.choiceScene);
+  attachOnce(impl.backlog);
+  attachOnce(impl.menu);
 
   if (impl.runner && !impl.runner->isFinished()) {
     // Resume a running scenario.
@@ -267,6 +278,8 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
       impl.titleShown = true;
       impl.bootstrap = Kotonoha::Providers::inspectTjsBootstrap(*impl.assets);
       impl.startupExecution = {};
+      impl.nativeTitleUi = false;
+      impl.failedNativePictures.clear();
       if (!impl.bootstrap.entry.empty()) {
         impl.startupExecution =
             Kotonoha::Providers::runTjsStartupSubset(*impl.assets);
@@ -294,7 +307,34 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "KiriKiri: cannot inspect startup.tjs: %s",
                     impl.bootstrap.error.c_str());
+      // Enable the script-authored title only when it has drawable,
+      // interactive layers and the bounded source VM completed its entry.
+      // Otherwise retain the accessible Kotonoha fallback menu.
+      const auto &ui = impl.startupExecution;
+      const bool imagePresent =
+          std::any_of(ui.layers.begin(), ui.layers.end(),
+                      [&](const Kotonoha::Providers::TjsUiLayer &layer) {
+                        return layer.visible && !layer.storage.empty() &&
+                            !resolveVisual(*impl.assets, layer.storage, true).empty();
+                      });
+      const bool hasClickTarget =
+          std::any_of(ui.layers.begin(), ui.layers.end(),
+                      [](const Kotonoha::Providers::TjsUiLayer &layer) {
+                        return layer.visible && layer.enabled &&
+                               !layer.onClick.empty() &&
+                               ((layer.width > 0 && layer.height > 0) ||
+                                !layer.storage.empty());
+                      });
+      impl.nativeTitleUi = !impl.nativeTitleDisabled &&
+                           ui.subsetCompleted && ui.error.empty() &&
+                           imagePresent && hasClickTarget;
+      SDL_Log("KiriKiri: TJS2 title projection: %zu layers, interactive=%d",
+              ui.layers.size(), impl.nativeTitleUi ? 1 : 0);
       impl.titlePicture = {findTitlePicture(*impl.assets), 0, 0, false};
+      if (impl.nativeTitleUi) {
+        impl.choiceScene->hide();
+        return;
+      }
       const auto savePath =
           Kotonoha::preferredDocumentsDirectory("kirikiri") / "quicksave.kns";
       std::vector<Kotonoha::ChoiceOption> options;
@@ -353,6 +393,10 @@ void KirikiriRuntime::update() {
     impl.running = false;
     impl.titleShown = false;
     impl.currentScenario.clear();
+    impl.nativeTitleUi = false;
+    impl.nativeTitleDisabled = false;
+    impl.startupExecution = {};
+    impl.failedNativePictures.clear();
     impl.background = {};
     impl.characters.clear();
     impl.dialogueVisible = false;
@@ -360,6 +404,32 @@ void KirikiriRuntime::update() {
     SetState(Kotonoha::GameState::Gameplay);
     init(*impl.engine);
     return;
+  }
+  // An otherwise compatible script title can still contain an unsupported
+  // image. If every visible picture failed to decode, bring back the
+  // Kotonoha menu instead of leaving an invisible, unclickable title.
+  if (impl.nativeTitleUi && impl.engine &&
+      impl.currentScenario.empty() &&
+      !impl.failedNativePictures.empty()) {
+    std::size_t pictures = 0, failed = 0;
+    for (const auto &layer : impl.startupExecution.layers) {
+      if (!layer.visible || layer.storage.empty())
+        continue;
+      ++pictures;
+      if (impl.failedNativePictures.count(layer.storage))
+        ++failed;
+    }
+    if (pictures > 0 && failed == pictures) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "KiriKiri: no script-created Layer image decoded, "
+                  "returning to compatibility menu");
+      impl.nativeTitleUi = false;
+      impl.nativeTitleDisabled = true;
+      impl.titleShown = false;
+      impl.choiceScene->hide();
+      initGameplay(*impl.engine);
+      return;
+    }
   }
   // Resume pending waits on the runtime thread, never an SDL timer worker.
   if (impl.waitingWait && SDL_GetTicks() >= impl.waitingDeadline) {
@@ -399,9 +469,45 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                   visual.id.c_str(), error.what());
     }
   };
-  if (impl.currentScenario.empty())
+  if (impl.currentScenario.empty()) {
     draw(impl.titlePicture, true);
-  else {
+    // The bounded TJS2 VM projects Window/Layer objects onto the same
+    // novel-space renderer as KAG. The layer list is sorted by script order.
+    if (impl.startupExecution.subsetCompleted) {
+      for (auto &layer : impl.startupExecution.layers) {
+        if (!layer.visible || layer.opacity == 0 || layer.storage.empty() ||
+            impl.failedNativePictures.count(layer.storage))
+          continue;
+        try {
+          const auto id = resolveVisual(*impl.assets, layer.storage, true);
+          if (id.empty())
+            throw std::runtime_error("asset not found");
+          auto &texture = impl.assets->texture(renderer, id);
+          // KiriKiri loadImages uses intrinsic dimensions unless the script
+          // explicitly specifies a destination size.
+          if (layer.width <= 0) layer.width = texture.w;
+          if (layer.height <= 0) layer.height = texture.h;
+          const SDL_FRect destination{float(layer.left), float(layer.top),
+                                      float(layer.width), float(layer.height)};
+          Uint8 previousAlpha = 255;
+          if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
+              !SDL_SetTextureAlphaMod(
+                  &texture, static_cast<Uint8>(layer.opacity)))
+            throw std::runtime_error(SDL_GetError());
+          const bool success =
+              SDL_RenderTexture(&renderer, &texture, nullptr, &destination);
+          SDL_SetTextureAlphaMod(&texture, previousAlpha);
+          if (!success)
+            throw std::runtime_error(SDL_GetError());
+        } catch (const std::exception &error) {
+          if (impl.failedNativePictures.insert(layer.storage).second)
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "KiriKiri: TJS2 Layer image %s unavailable: %s",
+                        layer.storage.c_str(), error.what());
+        }
+      }
+    }
+  } else {
     draw(impl.background, true);
     for (auto &[layer, visual] : impl.characters)
       draw(visual, false);
@@ -446,6 +552,57 @@ bool KirikiriRuntime::handleAdvanceAction() {
 bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
   auto mapped = Kotonoha::MapControllerEvent(event);
   auto &impl = *impl_;
+  // The engine already converted pointer coordinates to novel space.
+  // Failed scripted UI must not strand the user on an empty title.
+  const auto nativeFallback = [&] {
+    impl.nativeTitleUi = false;
+    impl.nativeTitleDisabled = true;
+    impl.titleShown = false;
+    impl.choiceScene->hide();
+    if (impl.engine)
+      initGameplay(*impl.engine);
+  };
+  if (impl.currentScenario.empty() && impl.nativeTitleUi &&
+      mapped.type == SDL_EVENT_MOUSE_MOTION) {
+    if (Kotonoha::Providers::dispatchTjsUiHover(
+            impl.startupExecution, mapped.motion.x, mapped.motion.y)) {
+      impl.failedNativePictures.clear();
+      if (!impl.startupExecution.error.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "KiriKiri: TJS2 hover event failed: %s",
+                    impl.startupExecution.error.c_str());
+        nativeFallback();
+      }
+      return true;
+    }
+  }
+  if (impl.currentScenario.empty() && impl.nativeTitleUi &&
+      mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      mapped.button.button == SDL_BUTTON_LEFT) {
+    if (Kotonoha::Providers::dispatchTjsUiClick(
+            impl.startupExecution, mapped.button.x, mapped.button.y)) {
+      impl.failedNativePictures.clear();
+      const auto &run = impl.startupExecution;
+      if (!run.error.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "KiriKiri: TJS2 click handler failed: %s",
+                    run.error.c_str());
+        nativeFallback();
+      } else if (!run.kagEntry.empty()) {
+        const auto target = run.kagEntry;
+        if (startScenario(target)) {
+          impl.nativeTitleUi = false;
+          impl.choiceScene->hide();
+        } else {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: UI requested unavailable KAG scenario: %s",
+                      target.c_str());
+          nativeFallback();
+        }
+      }
+      return true;
+    }
+  }
   if (impl.dialogueVisible && !impl.waitingChoice &&
       !impl.choiceScene->isActive() &&
       (mapped.type == SDL_EVENT_KEY_DOWN ||

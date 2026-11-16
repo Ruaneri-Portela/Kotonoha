@@ -1304,6 +1304,157 @@ int main() {
     }
   }
 
+  // A synthetic Window and clickable Layer use the same TLG image provider
+  // as the KAG renderer. The VM retains function state for click dispatch
+  // without calling any platform-native Window/Layer constructor.
+  {
+    const auto write = [](const std::filesystem::path &path,
+                          const std::string &content) {
+      std::ofstream out(path, std::ios::binary);
+      out << content;
+    };
+    write(tempDir / "startup.tjs",
+          "var win = new Window();\n"
+          "win.left = 10; win.top = 20;\n"
+          "win.primaryLayer.setPos(3, 4);\n"
+          "var logo = new Layer(win, win.primaryLayer);\n"
+          "logo.setPos(20, 30); logo.setSize(60, 40);\n"
+          "logo.loadImages(\"image/tlg5.tlg\");\n"
+          "logo.opacity = 180;\n"
+          "function chooseTitle() {\n"
+          "  logo.visible = false;\n"
+          "  Scripts.execStorage(\"scenario/first.ks\");\n"
+          "}\n"
+          "logo.onClick = chooseTitle;\n"
+          "var cover = new Layer(win);\n"
+          "cover.setPos(0, 0); cover.setSize(150, 150);\n"
+          "cover.order = 100; cover.visible = false;\n"
+          "cover.onClick = chooseTitle;\n");
+    try {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      auto found = std::find_if(
+          run.layers.begin(), run.layers.end(),
+          [](const Kotonoha::Providers::TjsUiLayer &layer) {
+            return layer.storage == "image/tlg5.tlg";
+          });
+      if (!run.subsetCompleted || !run.error.empty() ||
+          !run.uiSession || run.layers.size() != 3 ||
+          found == run.layers.end() || found->left != 33 || found->top != 54 ||
+          found->width != 60 || found->height != 40 ||
+          found->opacity != 180 || found->onClick != "chooseTitle") {
+        std::printf("FAIL: TJS2 Window/Layer hierarchy or image projection\n");
+        ++failures;
+      } else {
+        if (Kotonoha::Providers::dispatchTjsUiClick(run, 5.0f, 5.0f) ||
+            !Kotonoha::Providers::dispatchTjsUiClick(run, 40.0f, 65.0f) ||
+            run.kagEntry != "scenario/first.ks" ||
+            !run.error.empty()) {
+          std::printf("FAIL: TJS2 Layer onClick did not select KAG entry\n");
+          ++failures;
+        } else {
+          auto after = std::find_if(
+              run.layers.begin(), run.layers.end(),
+              [](const Kotonoha::Providers::TjsUiLayer &layer) {
+                return layer.storage == "image/tlg5.tlg";
+              });
+          if (after == run.layers.end() || after->visible ||
+              Kotonoha::Providers::dispatchTjsUiClick(run, 40.0f, 65.0f)) {
+            std::printf("FAIL: TJS2 click handler did not retain visibility\n");
+            ++failures;
+          }
+        }
+      }
+    } catch (const std::exception &error) {
+      std::printf("FAIL: TJS2 Window/Layer synthetic bridge: %s\n",
+                  error.what());
+      ++failures;
+    }
+    // Real KiriKiri title scripts often assign an inline function expression
+    // to an event property. Mouse coordinates and button data are forwarded
+    // through the same retained, bounded source VM.
+    write(tempDir / "startup.tjs",
+          "var win = new Window();\n"
+          "var button = new Layer(win);\n"
+          "button.setPos(8, 10); button.setSize(80, 50);\n"
+          "button.loadImages(\"image/tlg5.tlg\");\n"
+          "button.onMouseDown = function(x, y, mb, shift) {\n"
+          "  if (x >= 8 && y >= 10 && mb == 1 && shift == 0)\n"
+          "    Scripts.execStorage(\"scenario/first.ks\");\n"
+          "};\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.layers.size() != 2 ||
+          !Kotonoha::Providers::dispatchTjsUiClick(run, 20.0f, 30.0f) ||
+          run.kagEntry != "scenario/first.ks" || !run.error.empty()) {
+        std::printf("FAIL: anonymous TJS2 onMouseDown callback arguments\n");
+        ++failures;
+      }
+    }
+    // Hover state is retained across frames and only changes on
+    // enter/leave; callbacks update script-owned Layer properties.
+    write(tempDir / "startup.tjs",
+          "var win = new Window();\n"
+          "var button = new Layer(win);\n"
+          "button.setPos(8, 10); button.setSize(80, 50);\n"
+          "button.loadImages(\"image/tlg5.tlg\");\n"
+          "button.onMouseEnter = function(x, y) {\n"
+          "  if (x >= 8 && y >= 10) button.opacity = 140;\n"
+          "};\n"
+          "button.onMouseLeave = function(x, y) {\n"
+          "  button.opacity = 255;\n"
+          "};\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      const auto getOpacity = [&] {
+        for (const auto &layer : run.layers)
+          if (layer.storage == "image/tlg5.tlg")
+            return layer.opacity;
+        return -1;
+      };
+      if (!run.subsetCompleted || !run.error.empty() ||
+          !Kotonoha::Providers::dispatchTjsUiHover(run, 20.0f, 30.0f) ||
+          getOpacity() != 140 ||
+          Kotonoha::Providers::dispatchTjsUiHover(run, 22.0f, 32.0f) ||
+          !Kotonoha::Providers::dispatchTjsUiHover(run, -2.0f, -2.0f) ||
+          getOpacity() != 255 || !run.error.empty()) {
+        std::printf("FAIL: TJS2 onMouseEnter/onMouseLeave hover state\n");
+        ++failures;
+      }
+    }
+    // Layer constructor ownership may not cross Window boundaries.
+    write(tempDir / "startup.tjs",
+          "var a = new Window(); var b = new Window();\n"
+          "var bad = new Layer(a, b.primaryLayer);\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (run.subsetCompleted ||
+          run.error.find("another Window") == std::string::npos) {
+        std::printf("FAIL: TJS2 cross-window Layer owner was accepted\n");
+        ++failures;
+      }
+    }
+    // Guard the allocation budget even for source code without file loops.
+    write(tempDir / "startup.tjs",
+          "var w = new Window();\n"
+          "for (var i = 0; i < 300; i++) { var x = new Layer(w); }\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input, 10000);
+      if (run.subsetCompleted || run.error.empty()) {
+        std::printf("FAIL: TJS2 repeated Layer allocation was unbounded\n");
+        ++failures;
+      }
+    }
+    std::filesystem::remove(tempDir / "startup.tjs");
+  }
+
   std::filesystem::remove_all(tempDir);
 
   if (failures == 0) {
