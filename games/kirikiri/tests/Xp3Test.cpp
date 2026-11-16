@@ -154,6 +154,24 @@ int main() {
     std::printf("FAIL: containsAsset(scenario/first.ks) should be true\n");
     ++failures;
   }
+  // XP3 resource names are often mixed case while scripts use Windows
+  // separators. ASCII case folding must work without changing stored names.
+  if (!assets.containsAsset("SCENARIO\\\\FIRST.KS") ||
+      !assets.containsAsset("Scenario/First.Ks")) {
+    std::printf("FAIL: XP3 paths were not matched case-insensitively\\n");
+    ++failures;
+  }
+  try {
+    const auto alternate = assets.readAsset("SCENARIO\\\\FIRST.KS");
+    if (std::string(alternate.begin(), alternate.end()) != fileContent) {
+      std::printf("FAIL: folded XP3 lookup returned wrong contents\\n");
+      ++failures;
+    }
+  } catch (const std::exception &e) {
+    std::printf("FAIL: folded XP3 read threw: %s\\n", e.what());
+    ++failures;
+  }
+
   if (assets.containsAsset("nonexistent.ks")) {
     std::printf("FAIL: containsAsset(nonexistent.ks) should be false\n");
     ++failures;
@@ -173,7 +191,7 @@ int main() {
     ++failures;
   }
 
-  auto files = assets.listAsset("scenario/");
+  auto files = assets.listAsset("SCENARIO/");
   bool found = false;
   for (const auto &f : files) {
     if (f == "scenario/first.ks")
