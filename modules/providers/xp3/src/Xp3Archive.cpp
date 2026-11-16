@@ -528,7 +528,7 @@ bool KirikiriAssets::readXp3(const std::string &id) {
       Xp3Entry entry;
       entry.archiveId = id;
       std::size_t sp = 0;
-      bool hasInfo = false, hasSegments = false, protectedEntry = false;
+      bool hasInfo = false, hasSegments = false;
       std::uint64_t storedTotal = 0, originalTotal = 0;
       std::uint64_t declaredStored = 0;
       while (sp < chunkSize) {
@@ -545,6 +545,9 @@ bool KirikiriAssets::readXp3(const std::string &id) {
           if (subSize < 22)
             throw std::runtime_error("XP3 truncated info: " + id);
           const auto flags = readU32LE(sub);
+          // Protected flags are advisory metadata; some retail packages use
+          // them with already-plain contents. Keep the file discoverable.
+          (void)flags;
           entry.originalSize = readU64LE(sub + 4);
           declaredStored = readU64LE(sub + 12);
           const auto nameUnits = readU16LE(sub + 20);
@@ -553,7 +556,6 @@ bool KirikiriAssets::readXp3(const std::string &id) {
           std::size_t namePos = 22;
           entry.name = readUtf16Le(sub, namePos, nameUnits);
           hasInfo = true;
-          protectedEntry = (flags & 0x80000000u) != 0;
           // Compare this declared size with the sum of all stored spans.
         } else if (subTag == 0x6d676573u) { // "segm"
           if (subSize == 0 || subSize % 28 != 0)
@@ -587,12 +589,8 @@ bool KirikiriAssets::readXp3(const std::string &id) {
         if (originalTotal != entry.originalSize ||
             storedTotal != declaredStored)
           throw std::runtime_error("XP3 mismatched decompressed file size: " + id);
-        if (protectedEntry) {
-          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "KiriKiri: XP3 protected asset needs game filter: %s",
-                      entry.name.c_str());
-          continue;
-        }
+        // A title-specific filter may still be needed at extraction time;
+        // indexing must not hide the file solely because its info flag is set.
         entries.push_back(std::move(entry));
       }
     }
