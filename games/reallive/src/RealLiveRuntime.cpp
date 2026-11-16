@@ -394,6 +394,8 @@ struct RealLiveRuntime::Impl {
   AudioConfig audio;
   Engine *engine = nullptr;
   SDL_Cursor *mouseCursor = nullptr;
+  int mouseCursorNumber = -1;
+  bool mouseCursorApplied = false;
   std::unique_ptr<Stage> stage;
   std::unique_ptr<Text> textbox;
   std::unique_ptr<ChoiceQuestionScene> choice;
@@ -498,6 +500,7 @@ struct RealLiveRuntime::Impl {
             [this](const std::string &id) { return assets->localPath(id); }),
         audio(parseAudioConfig(assets->settingsSource())) {
     syscomEntries.fill(1);
+    mouseCursorNumber = assets->settings().integer("MOUSE_CURSOR", -1);
     // Each RealLive release declares its own front-end in Gameexe.ini.
     titleScenario = assets->settings().integer("SEEN_MENU", 9032);
     vm.speaker = [this](std::string t) {
@@ -1771,29 +1774,43 @@ struct RealLiveRuntime::Impl {
     return int(f.from + (f.to - f.from) * t);
   }
   bool command(const libreallive::CommandElement &c);
-  void bind(Engine &e) {
-    engine = &e;
-    if (!mouseCursor) {
-      const int number = assets->settings().integer("MOUSE_CURSOR", -1);
-      if (number >= 0 && number <= 999) {
-        std::ostringstream key;
-        key << "MOUSE_CURSOR." << std::setw(3) << std::setfill('0') << number;
-        const auto name = assets->settings().text(key.str() + ".NAME");
-        if (!name.empty()) {
-          const auto id = assets->graphic(name);
-          if (!id.empty()) {
-            auto atlas = assets->loadSurface(id);
-            auto frame = mouseCursorFrame(atlas.get());
-            if (frame.surface) {
-              mouseCursor = SDL_CreateColorCursor(
-                  frame.surface.get(), frame.hotspotX, frame.hotspotY);
-              if (mouseCursor)
-                SDL_SetCursor(mouseCursor);
-            }
-          }
+
+  // RealLive sys 1:4:207 selects a configured mouse cursor image.
+  // Keep the requested number for sys 1:4:206 even when no image exists.
+  void selectMouseCursor(int number) {
+    if (mouseCursorApplied && mouseCursorNumber == number)
+      return;
+    mouseCursorNumber = number;
+    if (!engine)
+      return;
+    SDL_Cursor *next = nullptr;
+    if (number >= 0 && number <= 999) {
+      std::ostringstream key;
+      key << "MOUSE_CURSOR." << std::setw(3) << std::setfill('0') << number;
+      const auto name = assets->settings().text(key.str() + ".NAME");
+      if (!name.empty()) {
+        const auto id = assets->graphic(name);
+        if (!id.empty()) {
+          auto atlas = assets->loadSurface(id);
+          auto frame = mouseCursorFrame(atlas.get());
+          if (frame.surface)
+            next = SDL_CreateColorCursor(frame.surface.get(), frame.hotspotX,
+                                         frame.hotspotY);
         }
       }
     }
+    // Always switch before releasing the previous cursor. Missing images
+    // use the SDL default without changing cursor visibility (204/205).
+    SDL_SetCursor(next ? next : SDL_GetDefaultCursor());
+    SDL_Cursor *old = mouseCursor;
+    mouseCursor = next;
+    if (old)
+      SDL_DestroyCursor(old);
+    mouseCursorApplied = true;
+  }
+  void bind(Engine &e) {
+    engine = &e;
+    selectMouseCursor(mouseCursorNumber);
     if (!stage) {
       stage = std::make_unique<Stage>(e);
       textbox = std::make_unique<Text>(e, *assets);
@@ -1830,6 +1847,7 @@ struct RealLiveRuntime::Impl {
     m.SetOnReturnToMenu([this] {
       GetInGameMenuRuntime(*engine).close();
       vm.jump(titleScenario);
+      selectMouseCursor(assets->settings().integer("MOUSE_CURSOR", -1));
       autoMode = skipMode = skipHeld = false;
       autoDeadline = 0;
       textbox->controls.reset();
@@ -2244,6 +2262,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     case 205:
       SDL_HideCursor();
+      return true;
+    case 206:
+      machine.set_store_register(mouseCursorNumber);
+      return true;
+    case 207:
+      selectMouseCursor(value(c, 0));
       return true;
     case 332:
       machine.set_store_register(skipMode);
@@ -3489,6 +3513,7 @@ RealLiveRuntime::RealLiveRuntime(
       impl(std::make_unique<Impl>(*this, std::move(a), scene)) {}
 RealLiveRuntime::~RealLiveRuntime() = default;
 std::string RealLiveRuntime::diagnostic() const { return impl->error; }
+int RealLiveRuntime::debugMouseCursor() const { return impl->mouseCursorNumber; }
 RealLiveRuntime::RenderStats RealLiveRuntime::renderStats() const {
   return impl->renderStats;
 }

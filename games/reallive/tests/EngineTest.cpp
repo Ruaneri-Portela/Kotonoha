@@ -1185,6 +1185,45 @@ int main(int argc, char **argv) {
       }
       return 0;
     }
+    if (argc > 2 && std::string(argv[2]) == "--cursor-opcode-check") {
+      // Execute the actual command from an installed game archive.
+      const int sceneNumber = argc > 3 ? std::stoi(argv[3]) : 6900;
+      auto archive = assets->scripts();
+      size_t index = 0;
+      int expected = -1;
+      bool found = false;
+      RLMachine machine;
+      for (const auto &entry : archive.Scenario(sceneNumber)) {
+        const auto *command =
+            dynamic_cast<const libreallive::CommandElement *>(entry.get());
+        if (command && command->modtype() == 1 &&
+            command->module() == 4 && command->opcode() == 207 &&
+            command->overload() == 0 && command->GetParamCount() == 1) {
+          expected = RealLive::IntegerParameter(machine, *command, 0);
+          found = true;
+          break;
+        }
+        ++index;
+      }
+      check(found, "Scenario lacks SET_MOUSE_CURSOR");
+      RealLive::RealLiveRuntime game(assets);
+      game.SetState(GameState::Menu);
+      EngineOptions options;
+      options.assets = assets;
+      options.persistSettings = false;
+      Engine engine(game, options);
+      game.debugJumpToNode(std::to_string(sceneNumber) + ":" +
+                           std::to_string(index));
+      check(game.debugStep(), "SET_MOUSE_CURSOR must advance");
+      check(game.diagnostic().empty(), "SET_MOUSE_CURSOR must not fail");
+      check(game.debugMouseCursor() == expected,
+            "SET_MOUSE_CURSOR must update the requested cursor number");
+      game.shutdown();
+      check(SDL_GetCursor() == SDL_GetDefaultCursor(),
+            "Shutdown must restore the SDL default cursor");
+      std::cout << "SET_MOUSE_CURSOR selected " << expected << '\n';
+      return 0;
+    }
     if (argc > 2 && std::string(argv[2]) == "--cursor-check") {
       RealLive::RealLiveRuntime game(assets);
       game.SetState(GameState::Menu);

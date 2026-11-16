@@ -23,6 +23,7 @@ public:
   void shutdown();
   bool continuousTouch() const override { return true; }
   std::string diagnostic() const override;
+  int debugMouseCursor() const;
   RenderStats renderStats() const;
   void initMenu(Kotonoha::Engine &) override;
   void initGameplay(Kotonoha::Engine &) override;
