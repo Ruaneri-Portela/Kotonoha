@@ -1180,7 +1180,9 @@ Value Interpreter::call(const std::string &name,
         method == "setSize" || method == "show" || method == "hide") {
       const auto receiver = get(name.substr(0, dot));
       const auto ptr = std::get_if<ObjectPtr>(&receiver.data);
-      if (!ptr || !*ptr || (*ptr)->kind == Object::Kind::Dictionary)
+      if (!ptr || !*ptr ||
+          ((*ptr)->kind != Object::Kind::Window &&
+           (*ptr)->kind != Object::Kind::Layer))
         throw std::runtime_error(
             "TJS2 UI: method receiver is not a Layer/Window");
       auto &obj = *ptr;
