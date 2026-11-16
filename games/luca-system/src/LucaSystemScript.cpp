@@ -166,6 +166,29 @@ void Script::parse() {
   valid_ = true;
 }
 
+std::vector<std::uint8_t> Script::serialize() const {
+  if (!valid_)
+    throw std::runtime_error("Cannot serialize malformed LucaSystem script: " +
+                             error_);
+  std::vector<std::uint8_t> output;
+  output.reserve(data_.size());
+  for (const auto &ins : instructions_) {
+    if (ins.pos != output.size() || ins.len < 4 ||
+        ins.rawBytes.size() != size_t(ins.len) - 4 ||
+        ins.align.size() != (ins.len & 1u))
+      throw std::runtime_error("Inconsistent LucaSystem instruction layout");
+    output.push_back(static_cast<std::uint8_t>(ins.len));
+    output.push_back(static_cast<std::uint8_t>(ins.len >> 8));
+    output.push_back(ins.opcode);
+    output.push_back(ins.fixedFlag);
+    output.insert(output.end(), ins.rawBytes.begin(), ins.rawBytes.end());
+    output.insert(output.end(), ins.align.begin(), ins.align.end());
+  }
+  if (output.size() != data_.size())
+    throw std::runtime_error("LucaSystem script byte size changed");
+  return output;
+}
+
 std::string Disassemble(const ScriptInstruction &ins) {
   std::string out;
   out += std::to_string(ins.opcode);
