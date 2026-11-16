@@ -411,6 +411,7 @@ bool migrateLegacyDocuments(const StorageLocations &current,
   std::error_code error;
   if (!std::filesystem::is_directory(source, error) || error ||
       std::filesystem::is_symlink(source, error) || error ||
+      std::filesystem::is_symlink(destination, error) || error ||
       std::filesystem::exists(destination, error) || error)
     return false;
   std::filesystem::create_directories(destination.parent_path(), error);
