@@ -21,6 +21,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 
@@ -131,6 +132,8 @@ struct KirikiriRuntime::Impl {
 
   bool running = false;
   bool titleShown = false;
+  bool nativeTitleUi = false;
+  std::set<std::string> failedNativePictures;
   Kotonoha::Providers::TjsBootstrapReport bootstrap;
   Kotonoha::Providers::TjsStartupResult startupExecution;
   bool waitingChoice = false;
@@ -267,6 +270,8 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
       impl.titleShown = true;
       impl.bootstrap = Kotonoha::Providers::inspectTjsBootstrap(*impl.assets);
       impl.startupExecution = {};
+      impl.nativeTitleUi = false;
+      impl.failedNativePictures.clear();
       if (!impl.bootstrap.entry.empty()) {
         impl.startupExecution =
             Kotonoha::Providers::runTjsStartupSubset(*impl.assets);
@@ -294,7 +299,23 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "KiriKiri: cannot inspect startup.tjs: %s",
                     impl.bootstrap.error.c_str());
+      // Enable the script-authored title only when it has drawable,
+      // interactive layers and the bounded source VM completed its entry.
+      // Otherwise retain the accessible Kotonoha fallback menu.
+      const auto &ui = impl.startupExecution;
+      impl.nativeTitleUi = ui.subsetCompleted && ui.error.empty() &&
+          std::any_of(ui.layers.begin(), ui.layers.end(),
+                      [](const Kotonoha::Providers::TjsUiLayer &layer) {
+                        return layer.visible && layer.enabled &&
+                               !layer.storage.empty() && !layer.onClick.empty();
+                      });
+      SDL_Log("KiriKiri: TJS2 title projection: %zu layers, interactive=%d",
+              ui.layers.size(), impl.nativeTitleUi ? 1 : 0);
       impl.titlePicture = {findTitlePicture(*impl.assets), 0, 0, false};
+      if (impl.nativeTitleUi) {
+        impl.choiceScene->hide();
+        return;
+      }
       const auto savePath =
           Kotonoha::preferredDocumentsDirectory("kirikiri") / "quicksave.kns";
       std::vector<Kotonoha::ChoiceOption> options;
@@ -353,6 +374,9 @@ void KirikiriRuntime::update() {
     impl.running = false;
     impl.titleShown = false;
     impl.currentScenario.clear();
+    impl.nativeTitleUi = false;
+    impl.startupExecution = {};
+    impl.failedNativePictures.clear();
     impl.background = {};
     impl.characters.clear();
     impl.dialogueVisible = false;
