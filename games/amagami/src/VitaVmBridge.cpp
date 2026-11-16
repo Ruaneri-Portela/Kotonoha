@@ -85,6 +85,36 @@ void SpriteTween::finish() {
   current = target;
 }
 
+void SpinState::set(double value, int mode, double frames, int component) {
+  if (component != 0 && component != 1)
+    throw std::runtime_error("Amagami Vita: invalid spin component");
+  std::array<double, 3> target{{value, 0, 0}};
+  SpriteTween next = component == 0 ? base : speed;
+  next.start(target, 1, mode, frames); // Validate before changing either field.
+  if (component == 1) {
+    speed = next;
+    return;
+  }
+  // The Vita spin absolute-angle tween inherits the running angular
+  // velocity as its initial slope; setting the absolute angle then stops the
+  // velocity and restarts the accumulated-turn counter (open-amagami Spin).
+  if (frames > 0 && (mode == 1 || mode == 2)) {
+    const double initialSlope = speed.current[0] / 30.0;
+    next.a[0] += (mode == 1 ? -initialSlope : initialSlope) / frames;
+  }
+  base = next;
+  speed.start({{0, 0, 0}}, 1, 0, 0);
+  turned = 0;
+}
+void SpinState::step(double frames) {
+  speed.step(frames);
+  const double velocity = speed.current[0];
+  turned += frames * velocity / 30.0;
+  if (turned >= 2.0 || turned <= -2.0)
+    turned = std::fmod(turned, 2.0);
+  base.step(frames);
+}
+
 void SpriteState::refresh() {
   const auto value = [this](std::size_t group, std::size_t i) -> double {
     const auto &base = tweens[group][0].current;
@@ -98,6 +128,7 @@ void SpriteState::refresh() {
     return base[i] + wave;
   };
   alpha = value(0, 0);
+  angle = spin.value();
   for (std::size_t i = 0; i < 3; ++i)
     light[i] = value(1, i);
   // Vita character/sprite position waves affect Y, both oscillators.
@@ -163,6 +194,7 @@ void VitaVmBridge::tick(double frames) {
         }
       }
     }
+    sprite.spin.step(frames);
     sprite.refresh();
   }
 }
@@ -437,6 +469,9 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     case 6:
       shared = 6;
       break; // setLayer
+    case 14:
+      shared = 12;
+      break; // original spin (angle or speed)
     case 15:
       shared = 17;
       break; // finish tweens
@@ -611,6 +646,21 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       }
       return receiver;
     }
+    if (number == 12) { // spin(value, mode, duration, component)
+      expectCount(args, 4);
+      const double value = valueNumber(args[0]);
+      const int mode = int(argument(args, 1));
+      const double duration = valueNumber(args[2]);
+      const int component = int(argument(args, 3));
+      SpinState next;
+      if (it != sprites_.end()) next = it->second.spin;
+      next.set(value, mode, duration, component);
+      if (it != sprites_.end()) {
+        it->second.spin = next;
+        it->second.refresh();
+      }
+      return receiver;
+    }
     if (number >= 13 && number <= 16) {
       if (number == 13)
         return vibrate(0, 1, 1); // alpha
@@ -638,7 +688,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
             !(args[0].kind == VmValue::Number && args[0].number == 0);
       return receiver;
     }
-    return std::nullopt; // Spin remains unimplemented.
+    return std::nullopt; // Unknown sprite native method.
   }
   if (owner != "K2X_Script")
     return std::nullopt; // Do not hide unrelated PS2/Vita primitives.

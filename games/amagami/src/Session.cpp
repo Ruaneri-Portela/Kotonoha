@@ -1875,6 +1875,14 @@ void Session::load(const std::string &path) {
   campaign_ = std::move(candidate.campaign_);
   campaignActions_ = std::move(candidate.campaignActions_);
   block_ = candidate.block_;
+  // These replay-derived clocks control synthetic ControlPad triggers,
+  // sleep-loop detection and visual frame timing. Reusing the previous
+  // session's counters after loading a different save changes subsequent
+  // native results, even if the VM bytecode and event history match.
+  syntheticInputTick_ = candidate.syntheticInputTick_;
+  sleepLoopCount_ = candidate.sleepLoopCount_;
+  sleepLoopBlock_ = candidate.sleepLoopBlock_;
+  presentationFrames_ = candidate.presentationFrames_;
   musicTrack_ = candidate.musicTrack_;
   musicGain_ = candidate.musicGain_;
   ambienceTrack_ = candidate.ambienceTrack_;

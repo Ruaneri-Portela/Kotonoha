@@ -34,6 +34,16 @@ struct SpriteTween {
   void finish();
 };
 
+// Vita Spin has an absolute angle and an independently tweened angular
+// velocity. One full turn is 2 units (angle is measured in multiples of pi).
+struct SpinState {
+  SpriteTween base, speed;
+  double turned = 0.0;
+  void set(double value, int mode, double frames, int component);
+  void step(double frames);
+  double value() const { return base.current[0] + turned; }
+};
+
 // Records screen objects created by the original Vita Sprite SCF primitives.
 // The renderer can resolve a sprite via VitaGraphicsAssets::uiSurface using
 // texture/variant and apply rect/layer without reinterpreting the VM bytecode.
@@ -57,6 +67,8 @@ struct SpriteState {
   bool paused = false;
   // Current visual values, updated by VitaVmBridge::tick().
   double alpha = 1.0;
+  double angle = 0.0; // Multiplier of pi; positive rotates counterclockwise.
+  SpinState spin;
   std::array<double, 3> light{{1, 1, 1}};
   std::array<double, 2> position{{0, 0}}, zoom{{1, 1}};
   // channel order: alpha, light, position, zoom; component 0 base,

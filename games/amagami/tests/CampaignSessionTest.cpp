@@ -1,5 +1,6 @@
 #include <Amagami/Session.hpp>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -113,6 +114,26 @@ int main(int argc, char **argv) {
                 mapReload.campaignDate() == session.campaignDate() &&
                 mapReload.campaignPeriod() == session.campaignPeriod(),
             "Reloaded map event retains all previous original campaign flags");
+    // A pre-existing Session must not keep its old synthetic ControlPad or
+    // presentation clocks when replaced by a different campaign checkpoint.
+    // The freshly loaded and reused instances replayed the same SCF inputs.
+    Amagami::Session reused(source);
+    reused.startCampaign();
+    reused.tick(2.0);
+    require(reused.presentationSeconds() >= 2.0,
+            "Existing campaign has an unrelated animation clock");
+    reused.load(savePath.string());
+    require(reused.history().size() == mapReload.history().size() &&
+                reused.campaignDate() == mapReload.campaignDate() &&
+                reused.campaignPeriod() == mapReload.campaignPeriod() &&
+                std::abs(reused.presentationSeconds() -
+                         mapReload.presentationSeconds()) < 0.000001,
+            "Quick-load replaces previous input and presentation clocks");
+    reused.tick(1.0 / 60.0);
+    mapReload.tick(1.0 / 60.0);
+    require(std::abs(reused.presentationSeconds() -
+                     mapReload.presentationSeconds()) < 0.000001,
+            "Restored campaign clocks remain synchronized after another tick");
     playEvent(session);
     playEvent(mapReload);
     require(mapReload.history().size() == session.history().size() &&

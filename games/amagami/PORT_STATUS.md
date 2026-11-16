@@ -743,7 +743,8 @@ components; the positional waveform adds both oscillators to Y, as in the
 Vita reference implementation. Invalid arity, numeric ranges and durations
 are rejected before mutating active animation channels. The existing
 `pause` and `skip` mechanisms operate on these new components.
-Rotation/spin and several other native graphics classes remain pending.
+Spin is implemented for Sprite and BG_Picture; other rotation-bearing
+graphics classes and many other native graphics classes remain pending.
 
 ```sh
 cmake --build build --target AmagamiVitaVibrationTest AmagamiVitaFontCharTest
@@ -762,3 +763,47 @@ calendar/map state.
 
 Neither test suite has been executed against the user's remote assets here:
 the proposed external host could not be resolved from this environment.
+
+
+### Vita Spin rotation and PS2 restored playback clocks
+
+The Vita native graphics bridge now implements `Sprite.spin` (primitive
+12) and `BG_Picture.spin` (primitive 14) with four arguments:
+`(value, interpolationMode, frames, component)`. Component 0 sets an
+absolute angle in multiples of pi (2 = one revolution); component 1 sets
+angular speed, measured as a fraction of a turn per script frame by
+`speed / 30`. A new absolute-angle request resets the speed and accumulated
+turns, and the quadratic angle transition inherits the initial angular
+velocity as in `open-amagami`'s Spin state. Pause freezes the spin; the
+original `skip` operation does **not** finish the independent Spin state.
+
+`VitaSpriteRenderer` now uses SDL3's rotated texture primitive around
+the original scene-object centre for UI sprites, named CPK backgrounds and
+font glyphs. Atlas clipping keeps the original rotation pivot.
+Texture-zero rectangles use a lazily cached 1×1 black texture when rotated,
+rather than continuing to draw an unrotated black bar. Positive Vita
+angles are counterclockwise; SDL3's clockwise convention is negated.
+
+```sh
+cmake --build build --target AmagamiVitaSpinTest AmagamiVitaSpriteRenderTest
+ctest --test-dir build -R 'Amagami.Vita(Spin|SpriteRender|Background)' --output-on-failure
+```
+
+The synthetic `Amagami.VitaSpin` regression checks original SCF primitive
+numbers, orientation with a red/green test image, angular velocity,
+interpolation, pause, skip semantics, BG rotation, black-rectangle rotation,
+and invalid arguments. It requires no original game art.
+
+For PS2 replay saves, `Session::load()` now replaces the previous session's
+replay-derived `syntheticInputTick_`, sleep-loop counters and
+`presentationFrames_` with those reconstructed from the action journal.
+These values influence headless ControlPad results, sleep-loop recovery and
+animation blinking. The original time delta between inputs is still not
+serialized, so this is best-effort reconstruction, **not** exact real-time
+presentation state. The disc-required `Amagami.CampaignSession` test
+replaces an existing active session's state and compares its presentation
+clock against an independently restored instance.
+
+Both areas remain unverified against actual game data in this environment.
+Native actor/event-picture classes, full Vita UI scheduling and extensive
+PS2 campaign routes are still not completely implemented.
