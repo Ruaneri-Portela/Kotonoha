@@ -165,8 +165,7 @@ jobs:
         env:
           SDL_VIDEO_DRIVER: dummy
           SDL_AUDIO_DRIVER: dummy
-        run: ctest --test-dir build-linux -L '^synthetic
- --output-on-failure --no-tests=error
+        run: ctest --test-dir build-linux -L synthetic --output-on-failure --no-tests=error
 
       - name: Warn if synthetic CTest failed
         if: steps.synthetic-ctest.outcome == 'failure'
