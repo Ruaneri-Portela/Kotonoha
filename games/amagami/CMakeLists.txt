@@ -45,6 +45,11 @@ if(KOTONOHA_BUILD_HOST_TOOLS)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(AMAGAMI_JSON REQUIRED IMPORTED_TARGET json-c>=0.15)
     target_link_libraries(AmagamiInspect PRIVATE AmagamiFormats amagami_port Kotonoha::Vmamagami PkgConfig::AMAGAMI_JSON)
+
+    # Standalone Vita game-data inspector (execution remains PS2-only).
+    add_executable(AmagamiVitaInspect tools/InspectVita.cpp)
+    target_link_libraries(AmagamiVitaInspect PRIVATE AmagamiFormats Kotonoha::ProviderAmagami)
+    target_compile_features(AmagamiVitaInspect PRIVATE cxx_std_17)
 endif()
 
 if(BUILD_TESTING)

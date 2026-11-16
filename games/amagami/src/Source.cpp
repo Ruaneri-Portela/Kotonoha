@@ -44,9 +44,12 @@ Source::Source(const std::string &path)
     if (bytes > entry->size || bytes > 32 * 1024 * 1024)
       throw std::runtime_error("Invalid archive index length");
     header = disc_->read(*entry, 0, bytes);
-    archives_.emplace(name,
-                      Archive{*entry, afs ? ParseAfs(header, entry->size)
-                                          : ParseArc(header, entry->size)});
+    Archive parsed{*entry, afs ? ParseAfs(header, entry->size)
+                               : ParseArc(header, entry->size)};
+    if (!afs)
+      for (size_t i = 0; i < parsed.entries.size(); ++i)
+        parsed.byHash.emplace(parsed.entries[i].hash, i);
+    archives_.emplace(name, std::move(parsed));
   }
   // Keep the script archive in memory: scanning 2,308 scenes otherwise issues
   // thousands of small seeks, particularly costly when the disc is on SMB.
@@ -187,10 +190,8 @@ int Source::find(const std::string &archiveName,
   for (unsigned char c : name)
     hash = hash * 0x3fad + int8_t(c);
   const auto &a = archive(archiveName);
-  for (size_t i = 0; i < a.entries.size(); ++i)
-    if (a.entries[i].hash == hash)
-      return int(i);
-  return -1;
+  const auto found = a.byHash.find(hash);
+  return found == a.byHash.end() ? -1 : int(found->second);
 }
 Bytes Source::ambience(unsigned index) const {
   const auto &a = archive("SOUND/SOUND.AFS");
