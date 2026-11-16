@@ -1,0 +1,41 @@
+name: Xcode macOS and iOS scheme validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xcode-project-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  xcode-project:
+    name: Xcode ${{ matrix.platform }} project (configuration check)
+    runs-on: macos-15
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macOS-arm64
+            sdk: macosx
+            scheme: KotonohaExample (macOS)
+          - platform: iOS-simulator-arm64
+            sdk: iphonesimulator
+            scheme: KotonohaExample (iOS)
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate project metadata
+        run: python3 tools/ValidateBuildMetadata.py
+      - name: Check Xcode schemes and build configuration
+        run: |
+          xcodebuild -version
+          xcodebuild -list -project buildsystems/xcode/Kotonoha.xcodeproj
+          xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj \
+            -scheme "${{ matrix.scheme }}" -configuration Debug \
+            -sdk "${{ matrix.sdk }}" -showBuildSettings \
+            > "$RUNNER_TEMP/xcode-${{ matrix.sdk }}-settings.log"
+          grep -q "CLANG_CXX_LANGUAGE_STANDARD = c++17" "$RUNNER_TEMP/xcode-${{ matrix.sdk }}-settings.log"
