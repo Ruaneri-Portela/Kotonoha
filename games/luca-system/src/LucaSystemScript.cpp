@@ -4,6 +4,7 @@
 #include <Kotonoha/localization/Encoding.hpp>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <locale>
 #include <stdexcept>
@@ -94,19 +95,31 @@ void Script::parse() {
     ins.opcode = data_[pos + 2];
     ins.fixedFlag = data_[pos + 3];
 
-    if (ins.len < 4 || pos + ins.len > n) {
+    const size_t padded = (size_t(ins.len) + 1u) & ~size_t(1);
+    if (ins.len < 4 || padded > n - pos) {
       error_ = "script instruction at offset " + std::to_string(pos) +
-               " has invalid len " + std::to_string(ins.len);
+               " has invalid or truncated len " + std::to_string(ins.len);
       valid_ = false;
       return;
     }
 
+    // LuckSystem CodeLine: Len INCLUDES the entire payload, and Align
+    // follows the instruction only when Len is odd. Do not discard the
+    // final payload byte on odd-length instructions.
     ins.rawBytes.assign(data_.begin() + pos + 4,
-                        data_.begin() + pos + ins.len - (ins.len & 1));
-    ins.align.assign(data_.begin() + pos + ins.len - (ins.len & 1),
-                     data_.begin() + pos + ins.len);
+                        data_.begin() + pos + ins.len);
+    ins.align.assign(data_.begin() + pos + ins.len,
+                     data_.begin() + pos + padded);
 
     // Fixed parameters (little-endian uint16 values), per fixedFlag.
+    const size_t fixedSize = ins.fixedFlag >= 2 ? 4u :
+                             ins.fixedFlag == 1 ? 2u : 0u;
+    if (ins.rawBytes.size() < fixedSize) {
+      error_ = "script instruction at offset " + std::to_string(pos) +
+               " has truncated fixed parameters";
+      valid_ = false;
+      return;
+    }
     size_t cursor = 0;
     if (ins.fixedFlag >= 2 && cursor + 4 <= ins.rawBytes.size()) {
       ins.fixedParam.push_back(ins.rawBytes[cursor]);
@@ -127,8 +140,9 @@ void Script::parse() {
     if (ins.opcode == 36 && ins.paramBytes.size() >= 2) {
       size_t text = 2;
       auto japanese = readUtf16String(ins.paramBytes, text);
-      auto english = japanese.empty() ? std::string()
-                                      : readUtf8String(ins.paramBytes, text);
+      // Empty Japanese strings are valid. The next field is still
+      // the length-prefixed UTF-8 translation (LuckSystem AIR layout).
+      auto english = readUtf8String(ins.paramBytes, text);
       if (!english.empty())
         ins.text = std::move(english);
       else if (!japanese.empty())
@@ -140,9 +154,15 @@ void Script::parse() {
     instructions_.push_back(std::move(ins));
 
     // Advance to next instruction: ((len + 1) & ~1)
-    pos += ((instructions_.back().len + 1) & ~1u);
+    pos += (size_t(instructions_.back().len) + 1u) & ~size_t(1);
   }
 
+  if (pos != n) {
+    error_ = "script has truncated trailing instruction at offset " +
+             std::to_string(pos);
+    valid_ = false;
+    return;
+  }
   valid_ = true;
 }
 

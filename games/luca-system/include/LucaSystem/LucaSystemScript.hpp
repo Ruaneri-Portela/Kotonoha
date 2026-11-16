@@ -4,11 +4,11 @@
 //
 // The script format is decoded following wetor/LuckSystem (script.go). A
 // script is a sequence of instructions, each:
+//   uint16 len         unpadded instruction length incl. the 4-byte header
 //   uint8  opcode
 //   uint8  fixedFlag   (0: no fixed params, 1: one uint16, 2+: two uint16)
-//   uint16 len         total instruction length incl. this 4-byte header
 //   raw bytes (len - 4)
-//   align  (len & 1)
+//   align byte (only when len is odd; not included in len)
 // The instruction stream advances by ((len + 1) & ~1) and is read until EOF.
 //
 // Opcodes and their parameter semantics are game-specific (defined by an
@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 

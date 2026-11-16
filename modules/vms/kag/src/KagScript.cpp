@@ -59,7 +59,34 @@ KagScript::Script KagScript::parse(const std::string &text,
       tag.column = 1;
       script.labels.emplace(label, script.tags.size());
       script.tags.push_back(std::move(tag));
-    } else if (c == '[') {
+    } else if (c == ';' && column == 1) {
+      // KAG line comments must not become dialogue text.
+      while (i < n && text[i] != '\r' && text[i] != '\n') {
+        ++i;
+        ++column;
+      }
+    } else if (c == '@' && column == 1) {
+      // A command at the start of a line is equivalent to a bracketed tag.
+      // Parse with the same attribute grammar to avoid diverging semantics.
+      const int commandLineNumber = line;
+      ++i;
+      ++column;
+      std::string commandLine;
+      while (i < n && text[i] != '\r' && text[i] != '\n') {
+        commandLine.push_back(text[i++]);
+        ++column;
+      }
+      if (!trim(commandLine).empty()) {
+        auto parsed = parse("[" + commandLine + "]", sourceName);
+        for (const auto &entry : parsed.labels)
+          script.labels.emplace(entry.first, script.tags.size() + entry.second);
+        for (auto &tag : parsed.tags) {
+          tag.line = commandLineNumber;
+          tag.column = 1;
+          script.tags.push_back(std::move(tag));
+        }
+      }
+    } else if (c == '[' && !(i + 1 < n && text[i + 1] == '[')) {
       // Command tag
       ++i;
       ++column;
@@ -150,8 +177,14 @@ KagScript::Script KagScript::parse(const std::string &text,
     } else {
       // Plain text accumulates until next '['
       std::string textBuf;
-      while (i < n && text[i] != '[') {
-        if (text[i] == '\n') {
+      while (i < n && (text[i] != '[' ||
+                        (i + 1 < n && text[i + 1] == '['))) {
+        if (text[i] == '[') {
+          // KAG [[ escapes a literal [ in dialogue.
+          textBuf.push_back('[');
+          i += 2;
+          column += 2;
+        } else if (text[i] == '\n') {
           nextLine();
           ++i;
           break;
