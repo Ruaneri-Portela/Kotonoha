@@ -68,6 +68,10 @@ if(BUILD_TESTING)
     add_executable(PmailAnimationFormatCheck tests/AnimationFormat.cpp)
     target_link_libraries(PmailAnimationFormatCheck PRIVATE Kotonoha::ProviderADV)
     add_test(NAME Pmail.AnimationFormat COMMAND PmailAnimationFormatCheck)
+    # Build the route audit on all platforms, but run it only with retail
+    # assets provided explicitly by the developer. Never run in default CI.
+    add_executable(PmailRouteAuditCheck tests/RouteAudit.cpp)
+    target_link_libraries(PmailRouteAuditCheck PRIVATE PmailPort)
     add_executable(PmailAudioCheck tests/AudioAssets.cpp)
     target_link_libraries(PmailAudioCheck PRIVATE Kotonoha::ProviderADV)
     target_compile_features(PmailAudioCheck PRIVATE cxx_std_17)
@@ -92,6 +96,9 @@ if(BUILD_TESTING)
         add_test(NAME Pmail.SaveState COMMAND PmailSaveStateCheck
             "${PMAIL_TEST_ASSET_DIR}/data/pack/script.dat")
         set_tests_properties(Pmail.SaveState PROPERTIES TIMEOUT 60)
+        add_test(NAME Pmail.RouteAudit
+            COMMAND PmailRouteAuditCheck "${PMAIL_TEST_ASSET_DIR}")
+        set_tests_properties(Pmail.RouteAudit PROPERTIES TIMEOUT 120)
     endif()
 endif()
 
@@ -105,4 +112,5 @@ kotonoha_label_directory_tests(REAL
     Pmail.AnimationRender
     Pmail.AudioCommands
     Pmail.SaveState
+    Pmail.RouteAudit
 )

@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -128,6 +129,11 @@ public:
     std::lock_guard lock(mutex_);
     return vm_.ended();
   }
+
+  std::vector<int> unhandledNativeIds() const {
+    std::lock_guard lock(mutex_);
+    return {unhandledNativeIds_.begin(), unhandledNativeIds_.end()};
+  }
   ::Pmail::Vm &vm() { return vm_; }
 
   std::string currentScript() const {
@@ -246,6 +252,8 @@ private:
   std::vector<std::string> choiceText_;
   std::vector<int> choiceValue_;
   std::map<int, std::string> spriteSlots_;
+  // Diagnostic only: unknown original native commands seen this run.
+  std::set<int> unhandledNativeIds_;
 };
 
 } // namespace Kotonoha::PmailPort

@@ -36,6 +36,32 @@ on the SDL renderer (Linear is the compatible fallback).
 The pre-Overflow animation still requires comparison against the running DVD
 with its original assets; its exact content and timing are not yet verified.
 
+**Quick access:** F5 writes `pmail-quick.vn` to the game's save directory,
+and F9 loads it. The regular save-slot UI remains available. The keyboard
+shortcuts are a cross-platform Kotonoha addition, not verified original keys.
+
+## Story route auditing
+
+After supplying your legally obtained game directory, build the real test
+runner with `-DBUILD_TESTING=ON`. `PmailRouteAuditCheck` traverses dialogue,
+script branches and animation barriers while printing visited scripts and
+native opcode counts. Pass optional zero-based choice indices such as
+`0,1,2` and an optional time budget in seconds:
+
+```sh
+cmake -S . -B build -DBUILD_TESTING=ON -DKOTONOHA_BUILD_PMAIL=ON \
+  -DPMAIL_TEST_ASSET_DIR=/path/to/PMAILDVD
+cmake --build build --target PmailRouteAuditCheck
+ctest --test-dir build -R 'Pmail.RouteAudit' --output-on-failure
+# Or invoke the compiled PmailRouteAuditCheck with:
+# /path/to/PMAILDVD 0,1,2 300
+```
+
+The CI only runs synthetic tests, including `Pmail.Expression32`. The
+retail-only route auditor reports missing objects and unimplemented native
+commands as failures; this does not imply any ending is already verified.
+
+
 ## Detailed research
 
 [Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.

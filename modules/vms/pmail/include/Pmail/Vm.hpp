@@ -1,5 +1,6 @@
 #pragma once
 #include <Kotonoha/core/Vm.hpp>
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -119,6 +120,7 @@ private:
   uint32_t curFramePc_ = 0;
   // The 2001 pmail.exe PE initializes its random seed to 1 (VA 0x43f7dc).
   uint32_t rng_ = 1;
+  std::array<bool, 256> unknownOpcodeLogged_{}; // diagnostics only
   bool blocked_ = false;
   bool ended_ = true;
 };

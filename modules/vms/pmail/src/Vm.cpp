@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
+#include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
@@ -28,6 +30,47 @@ uint32_t rd32(const std::vector<uint8_t> &d, size_t o) {
 }
 uint16_t rd16(const std::vector<uint8_t> &d, size_t o) {
   return o + 2 <= d.size() ? uint16_t(d[o] | (d[o + 1] << 8)) : 0;
+}
+
+// PMAIL expressions run on a 32-bit x86 interpreter. Signed overflow in
+// C++17 is undefined behavior, so reproduce 32-bit two's-complement results
+// without relying on the compiler optimizer or host integer width.
+int32_t signedWord(uint32_t word) {
+  if (word <= uint32_t(INT32_MAX))
+    return int32_t(word);
+  return -1 - int32_t(~word);
+}
+int32_t addWord(int32_t a, int32_t b) {
+  return signedWord(uint32_t(a) + uint32_t(b));
+}
+int32_t subtractWord(int32_t a, int32_t b) {
+  return signedWord(uint32_t(a) - uint32_t(b));
+}
+int32_t multiplyWord(int32_t a, int32_t b) {
+  return signedWord(uint32_t(a) * uint32_t(b));
+}
+int32_t divideWord(int32_t a, int32_t b) {
+  if (!b)
+    return 0;
+  // Avoid the sole signed 32-bit division overflow, without a host crash.
+  // The retail executable's exception path still needs direct tracing.
+  if (a == INT32_MIN && b == -1)
+    return INT32_MIN;
+  return a / b;
+}
+int32_t moduloWord(int32_t a, int32_t b) {
+  if (!b || (a == INT32_MIN && b == -1))
+    return 0;
+  return a % b;
+}
+int32_t shiftRightArithmetic(int32_t a, uint32_t count) {
+  count &= 31u; // x86 masks 32-bit shift counts
+  const auto bits = uint32_t(a);
+  if (!count)
+    return a;
+  const uint32_t shifted = (bits >> count) |
+      ((bits & 0x80000000u) ? ~(UINT32_MAX >> count) : 0u);
+  return signedWord(shifted);
 }
 } // namespace
 
@@ -107,6 +150,7 @@ void Vm::reset(bool clearVariables) {
     slot = {};
   pc_ = acc_ = curFramePc_ = 0;
   rng_ = 1; // original pmail.exe seed (VA 0x43f7dc)
+  unknownOpcodeLogged_.fill(false);
   blocked_ = false;
   ended_ = true;
 }
@@ -230,6 +274,7 @@ void Vm::deserialize(const std::string &data) {
   acc_ = acc;
   curFramePc_ = framePc;
   rng_ = rng;
+  unknownOpcodeLogged_.fill(false);
   blocked_ = blocked;
   ended_ = ended;
 }
@@ -247,6 +292,7 @@ void Vm::swapState(Vm &other) noexcept {
   swap(acc_, other.acc_);
   swap(curFramePc_, other.curFramePc_);
   swap(rng_, other.rng_);
+  swap(unknownOpcodeLogged_, other.unknownOpcodeLogged_);
   swap(blocked_, other.blocked_);
   swap(ended_, other.ended_);
 }
@@ -392,23 +438,23 @@ int32_t Vm::evalExpr(const std::string &e) {
       const uint32_t ua = uint32_t(a), sh = uint32_t(b) & 31;
       int32_t r = 0;
       if (t == "*")
-        r = a * b;
+        r = multiplyWord(a, b);
       else if (t == "/")
-        r = b ? a / b : 0;
+        r = divideWord(a, b);
       else if (t == "%")
-        r = b ? a % b : 0;
+        r = moduloWord(a, b);
       else if (t == "+")
-        r = a + b;
+        r = addWord(a, b);
       else if (t == "-")
-        r = a - b;
+        r = subtractWord(a, b);
       else if (t == ">>")
-        r = a >> sh;
+        r = shiftRightArithmetic(a, sh);
       else if (t == "<<")
-        r = int32_t(ua << sh);
+        r = signedWord(ua << sh);
       else if (t == ">>>")
-        r = int32_t(sh ? (ua >> sh) | (ua << (32 - sh)) : ua);
+        r = signedWord(sh ? (ua >> sh) | (ua << (32 - sh)) : ua);
       else if (t == "<<<")
-        r = int32_t(sh ? (ua << sh) | (ua >> (32 - sh)) : ua);
+        r = signedWord(sh ? (ua << sh) | (ua >> (32 - sh)) : ua);
       else if (t == ">")
         r = a > b;
       else if (t == "<")
@@ -645,10 +691,14 @@ bool Vm::step() {
     }
     break;
   default:
-    PMAIL_VM_DEBUG << "[PmailVm Debug] NOP (Unknown Opcode Bypass) op=0x"
-                   << std::hex << int(op) << " mode=0x" << int(mode)
-                   << " imm=0x" << imm << std::dec << " kind=" << kind
-                   << " val=" << val << std::endl;
+    if (!unknownOpcodeLogged_[op]) {
+      unknownOpcodeLogged_[op] = true;
+      std::ostringstream warning;
+      warning << "Unsupported PMAIL bytecode 0x" << std::hex << unsigned(op)
+              << " in " << (cur_ ? cur_->name : "<null>") << ":0x"
+              << (pc_ - 1) << " (mode 0x" << unsigned(mode) << ")";
+      host_.log(warning.str());
+    }
     break;
   }
 
