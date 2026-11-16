@@ -429,8 +429,10 @@ void SettingsMenu::render(RendererRef renderer) {
   auto &ui = engine.GetUI();
   constexpr const char *modes[]{"Windowed", "Borderless fullscreen",
                                 "Exclusive fullscreen"};
+#if KOTONOHA_ENABLE_UPSCALER
   constexpr const char *backends[]{"Off", "Linear (SDL)", "MPV / OpenGL",
                                    "MetalFX", "Automatic"};
+#endif
   DisplayModeChoice shown{draft.width, draft.height, draft.refreshRate};
   if (draft.mode != WindowMode::Windowed && draft.fullscreenWidth > 0 &&
       draft.fullscreenHeight > 0) {
@@ -456,12 +458,20 @@ void SettingsMenu::render(RendererRef renderer) {
       "Monitor: " + std::to_string(draft.display + 1),
       std::string("Resizable: ") + (draft.resizable ? "Yes" : "No"),
       std::string("VSync: ") + (draft.vsync ? "Yes" : "No"),
+#if KOTONOHA_ENABLE_UPSCALER
       std::string("Upscaler: ") + backends[int(draft.upscaling.backend)],
       std::string("Shader: ") + UpscalePresetName(draft.upscaling.preset),
       "Factor: " + std::to_string(draft.upscaling.factor).substr(0, 3) + "x",
+#else
+      "", "", "",
+#endif
       "Apply and save",
       "Cancel",
+#if KOTONOHA_ENABLE_UPSCALER
       "Custom GLSL files...",
+#else
+      "",
+#endif
       "Master volume",
       std::string("Mute all: ") + (draft.masterMuted ? "Yes" : "No"),
       std::string("VN font: ") +
