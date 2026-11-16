@@ -12,6 +12,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace Kotonoha::PmailPort {
@@ -166,6 +167,25 @@ public:
     std::lock_guard lock(mutex_);
     return {unhandledNativeIds_.begin(), unhandledNativeIds_.end()};
   }
+
+  // Evidence for each distinct unknown native call site. String arguments
+  // are represented by VM reference IDs, not by retail text or player input.
+  struct NativeGap {
+    int id = 0;
+    std::string script;
+    uint32_t pc = 0;
+    std::string signature;
+    std::size_t hits = 0;
+  };
+  static constexpr std::size_t NativeGapLimit = 512;
+  std::vector<NativeGap> unhandledNativeSites() const {
+    std::lock_guard lock(mutex_);
+    std::vector<NativeGap> out;
+    out.reserve(unhandledNativeSites_.size());
+    for (const auto &entry : unhandledNativeSites_)
+      out.push_back(entry.second);
+    return out;
+  }
   ::Pmail::Vm &vm() { return vm_; }
 
   std::string currentScript() const {
@@ -288,6 +308,8 @@ private:
   std::map<int, std::string> spriteSlots_;
   // Diagnostic only: unknown original native commands seen this run.
   std::set<int> unhandledNativeIds_;
+  std::map<std::tuple<int, std::string, uint32_t>, NativeGap>
+      unhandledNativeSites_;
 };
 
 } // namespace Kotonoha::PmailPort

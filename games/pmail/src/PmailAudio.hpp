@@ -28,6 +28,26 @@ public:
   PmailAudio(Kotonoha::AudioMixer &mixer,
              std::shared_ptr<Kotonoha::Providers::SnowAssets> assets);
   ~PmailAudio();
+  // Avoid decoding VM string references for unrelated/unknown native calls.
+  // Keep this list synchronized with the cases handled by Handle().
+  static constexpr bool HandlesSyscall(int id) {
+    switch (id) {
+    case 96:
+    case 97:
+    case 98:
+    case 99:
+    case 100:
+    case 112:
+    case 115:
+    case 116:
+    case 128:
+    case 132:
+      return true;
+    default:
+      return false;
+    }
+  }
+
   bool Handle(int syscall, const std::vector<int> &numbers,
               const std::vector<std::string> &strings);
   void Update();
