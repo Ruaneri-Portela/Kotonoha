@@ -51,12 +51,17 @@ Source::Source(const std::string &path)
         parsed.byHash.emplace(parsed.entries[i].hash, i);
     archives_.emplace(name, std::move(parsed));
   }
-  // Keep the script archive in memory: scanning 2,308 scenes otherwise issues
-  // thousands of small seeks, particularly costly when the disc is on SMB.
+  // Native builds retain the scenario archive to avoid repeated disk/SMB
+  // seeks while indexing the 2,308 scenes. In WASM the disc can be remote
+  // (HTTP Range): eagerly caching hundreds of MiB duplicates the browser's
+  // bounded Fetch cache and can exhaust WebAssembly memory before the title.
+  // Read one scene at a time instead; the shared HTTP provider caches pages.
   const auto &scenario = archive("SCENARIO.ARC");
+#ifndef __EMSCRIPTEN__
   if (scenario.file.size > 256 * 1024 * 1024)
     throw std::runtime_error("Scenario archive exceeds memory limit");
   scenarioArchive_ = disc_->read(scenario.file, 0, scenario.file.size);
+#endif
   const auto count = scenario.entries.size();
   for (size_t i = 0; i < count; ++i) {
     auto s = script(i);
@@ -159,13 +164,15 @@ const Source::Archive &Source::archive(const std::string &name) const {
 Bytes Source::read(const std::string &name, size_t index) const {
   const auto &a = archive(name);
   const auto &entry = a.entries.at(index);
-  if (name == "SCENARIO.ARC") {
+  if (name == "SCENARIO.ARC" && !scenarioArchive_.empty()) {
     if (entry.offset > scenarioArchive_.size() ||
         entry.size > scenarioArchive_.size() - entry.offset)
       throw std::runtime_error("Scenario outside cached archive");
     return Bytes(scenarioArchive_.begin() + entry.offset,
                  scenarioArchive_.begin() + entry.offset + entry.size);
   }
+  // WASM streams only the requested SCF entry through ISO sectors and HTTP
+  // Range. Never allocate the entire SCENARIO.ARC in WebAssembly linear memory.
   return disc_->read(a.file, entry.offset, entry.size);
 }
 Script Source::script(size_t index) const {
