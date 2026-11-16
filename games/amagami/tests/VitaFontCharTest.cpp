@@ -39,7 +39,11 @@ std::array<Uint8, 4> pixel(SDL_Surface *surface, int x, int y) {
 void present(Amagami::Vita::VitaSpriteRenderer &renderer,
              const Amagami::Vita::VitaVmBridge &bridge,
              SDL_Renderer *out) {
-  renderer.draw(bridge);
+  // A mid-grey backdrop makes black and white shadow pixels observable.
+  require(SDL_SetRenderDrawColor(out, 100, 100, 100, 255),
+          "Set contrast background");
+  require(SDL_RenderClear(out), "Clear contrast background");
+  renderer.draw(bridge, false);
   require(SDL_RenderPresent(out), "Present Vita font frame");
 }
 } // namespace
