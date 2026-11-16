@@ -405,6 +405,32 @@ void KirikiriRuntime::update() {
     init(*impl.engine);
     return;
   }
+  // An otherwise compatible script title can still contain an unsupported
+  // image. If every visible picture failed to decode, bring back the
+  // Kotonoha menu instead of leaving an invisible, unclickable title.
+  if (impl.nativeTitleUi && impl.engine &&
+      impl.currentScenario.empty() &&
+      !impl.failedNativePictures.empty()) {
+    std::size_t pictures = 0, failed = 0;
+    for (const auto &layer : impl.startupExecution.layers) {
+      if (!layer.visible || layer.storage.empty())
+        continue;
+      ++pictures;
+      if (impl.failedNativePictures.count(layer.storage))
+        ++failed;
+    }
+    if (pictures > 0 && failed == pictures) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "KiriKiri: no script-created Layer image decoded, "
+                  "returning to compatibility menu");
+      impl.nativeTitleUi = false;
+      impl.nativeTitleDisabled = true;
+      impl.titleShown = false;
+      impl.choiceScene->hide();
+      initGameplay(*impl.engine);
+      return;
+    }
+  }
   // Resume pending waits on the runtime thread, never an SDL timer worker.
   if (impl.waitingWait && SDL_GetTicks() >= impl.waitingDeadline) {
     impl.waitingWait = false;
