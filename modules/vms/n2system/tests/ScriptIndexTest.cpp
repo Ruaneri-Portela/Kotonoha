@@ -36,6 +36,14 @@ int main() {
     check(main && main->labels.size() == 2, "main chapter labels");
     check(main->findLabel("begin") && main->findLabel("done"), "label lookup");
     check(main->findLabel("begin")->line == 3, "source line tracking");
+    check(main->invocations.size() == 3,
+          "NsScript call sites exclude comments and if conditions");
+    check(main->invocations[0].function == "WaitKey" &&
+              main->invocations[1].function == "Show" &&
+              main->invocations[2].function == "DoThing",
+          "NsScript call order");
+    check(main->invocations[0].line == 4,
+          "NsScript call source location");
     check(src.substr(main->findLabel("begin")->offset, 5) == "begin",
           "label source offset");
     check(main->start < main->end, "chapter source range");
