@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <sstream>
@@ -211,7 +212,7 @@ struct LucaSystemRuntime::Impl {
   std::unordered_map<uint32_t, std::string> stringVars; // EQU string variables
   std::unordered_map<uint32_t, bool> flags;             // ARFLAG
   std::vector<size_t> callStack;
-  int waitDeadline = 0;
+  std::uint64_t waitDeadline = 0;
   bool waiting = false;
   bool skipMode = false;
   bool autoMode = false;
@@ -368,14 +369,13 @@ struct LucaSystemRuntime::Impl {
   }
 
   void runUntilPause() {
-    while (instructionIndex < instructions.size()) {
-      const auto &ins = instructions[instructionIndex++];
-
-      if (waiting) {
-        // A WAIT is pending; stop here and resume on next frame.
-        --instructionIndex;
+    // An untrusted script can jump to itself. Yield to the next runtime frame
+    // instead of monopolizing the UI thread.
+    std::size_t budget = 8192;
+    while (instructionIndex < instructions.size() && budget-- > 0) {
+      if (waiting)
         return;
-      }
+      const auto &ins = instructions[instructionIndex++];
 
       switch (ins.opcode) {
       case OP_MESSAGE: {
@@ -399,8 +399,9 @@ struct LucaSystemRuntime::Impl {
         if (ms <= 0)
           ms = 500;
         waiting = true;
-        waitDeadline = int(SDL_GetTicks()) + ms;
-        --instructionIndex;
+        waitDeadline = SDL_GetTicks() + static_cast<std::uint64_t>(ms);
+        // The instruction was consumed. Replaying it would create an
+        // endless timer loop instead of advancing the scenario.
         return;
       }
       case OP_IMAGELOAD: {
@@ -422,8 +423,8 @@ struct LucaSystemRuntime::Impl {
         if (ins.paramBytes.size() >= 2)
           frames = int(paramU16(ins, 0));
         waiting = true;
-        waitDeadline = int(SDL_GetTicks()) + frames * 17;
-        --instructionIndex;
+        waitDeadline = SDL_GetTicks() +
+                       static_cast<std::uint64_t>(frames) * 17u;
         return;
       }
       case OP_FADE: {
@@ -435,8 +436,7 @@ struct LucaSystemRuntime::Impl {
           ms = int(paramU16(ins, 0));
         // Simple fade: just wait, the visual fade is handled by the engine.
         waiting = true;
-        waitDeadline = int(SDL_GetTicks()) + ms;
-        --instructionIndex;
+        waitDeadline = SDL_GetTicks() + static_cast<std::uint64_t>(ms);
         return;
       }
       case OP_INIT: {
@@ -732,7 +732,7 @@ void LucaSystemRuntime::update() {
     impl.runUntilPause();
   }
   if (impl.waiting && impl.engine && !impl.engine->isStoryPaused()) {
-    if (int(SDL_GetTicks()) >= impl.waitDeadline) {
+    if (SDL_GetTicks() >= impl.waitDeadline) {
       impl.waiting = false;
       impl.runUntilPause();
     }
