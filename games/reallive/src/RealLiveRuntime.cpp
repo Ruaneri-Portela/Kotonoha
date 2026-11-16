@@ -1888,7 +1888,7 @@ struct RealLiveRuntime::Impl {
     runtime.RemoveScene(saves.get());
     runtime.AddScene(saves.get());
   }
-  void advanceText(bool manual = true) {
+  void advanceText(bool manual = true, bool preserveReadSkip = false) {
     if (!pause)
       return;
     if (!textbox->isDialogueComplete())
@@ -1900,7 +1900,7 @@ struct RealLiveRuntime::Impl {
       if (manual) {
         autoMode = false;
         skipMode = false;
-      } else {
+      } else if (!preserveReadSkip) {
         skipMode = false;
       }
       if (pauseKind != 205) {
@@ -2019,10 +2019,18 @@ struct RealLiveRuntime::Impl {
     }
     if (pause && textbox->isVisible()) {
       if (textbox->concealed) {
-        if ((e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-             e.button.button == SDL_BUTTON_LEFT) ||
-            (e.type == SDL_EVENT_KEY_DOWN &&
-             (e.key.key == SDLK_SPACE || e.key.key == SDLK_RETURN))) {
+        const bool touchRelease =
+            e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+            e.button.which == SDL_TOUCH_MOUSEID;
+        const bool mousePress =
+            e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+            e.button.which != SDL_TOUCH_MOUSEID;
+        if (((touchRelease || mousePress) &&
+             e.button.button == SDL_BUTTON_LEFT &&
+             e.button.x >= 0 && e.button.y >= 0) ||
+            (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+             (e.key.key == SDLK_SPACE || e.key.key == SDLK_RETURN ||
+              e.key.key == SDLK_KP_ENTER))) {
           textbox->concealed = false;
           return true;
         }
@@ -2089,13 +2097,20 @@ struct RealLiveRuntime::Impl {
         GetInGameMenuRuntime(*engine).toggle();
       return true;
     }
-    bool advance =
-        (e.type == (pauseKind == 205 || e.button.which == SDL_TOUCH_MOUSEID
-                        ? SDL_EVENT_MOUSE_BUTTON_UP
-                        : SDL_EVENT_MOUSE_BUTTON_DOWN) &&
-         e.button.button == SDL_BUTTON_LEFT) ||
-        (e.type == SDL_EVENT_KEY_DOWN &&
-         (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE));
+    // Do not read e.button on keyboard events. Engine touch cancellation
+    // releases the synthetic pointer at (-1,-1); it is not a valid tap.
+    const bool pointer = e.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                         e.type == SDL_EVENT_MOUSE_BUTTON_UP;
+    const bool leftClick = pointer && e.button.button == SDL_BUTTON_LEFT &&
+                           e.button.x >= 0 && e.button.y >= 0;
+    const bool touch = leftClick && e.button.which == SDL_TOUCH_MOUSEID;
+    const bool advance =
+        (leftClick &&
+         e.type == ((pauseKind == 205 || touch) ? SDL_EVENT_MOUSE_BUTTON_UP
+                                             : SDL_EVENT_MOUSE_BUTTON_DOWN)) ||
+        (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+         (e.key.key == SDLK_RETURN || e.key.key == SDLK_KP_ENTER ||
+          e.key.key == SDLK_SPACE));
     if (advance && pause) {
       advanceText();
       return true;
@@ -3637,7 +3652,9 @@ void RealLiveRuntime::update() {
   if (!paused && i.pause && !i.textbox->concealed) {
     if ((i.skipMode && i.currentRead) || (i.skipHeld && i.ctrlSkipEnabled)) {
       i.textbox->completeDialogue();
-      i.advanceText();
+      // Automated read-skip must stay enabled until the first unread page.
+      // A held Ctrl/gamepad skip is independent of that persistent mode.
+      i.advanceText(false, i.skipMode && i.currentRead);
     } else if (i.autoMode && i.textbox->isDialogueComplete() &&
                !i.voice.Playing()) {
       if (!i.autoDeadline) {
