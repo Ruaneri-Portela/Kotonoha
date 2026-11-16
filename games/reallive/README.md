@@ -98,3 +98,32 @@ The `Str.strcpy` count overload now truncates by complete Shift-JIS
 **characters**, not raw bytes. It avoids leaving an orphan lead byte in
 script string variables. Synthetic coverage is added to
 `RealLiveStringOpsTests`; no retail files are required.
+
+## Input controls (macOS, iOS and SDL3 gamepads)
+
+- **Keyboard:** Enter/Space advances dialogue; hold Left/Right Ctrl for held
+  skip (when the scenario allows it); S toggles skipping previously read pages;
+  A toggles auto advance; Page Up opens backlog; Escape opens the pause menu.
+- **Gamepad:** East confirms/advances, South holds skip during dialogue,
+  either trigger also holds skip, West toggles read-skip, Right Shoulder toggles
+  auto, Back/Left Shoulder opens backlog, and Start opens the pause menu.
+  D-pad and the left stick navigate the native title and choices. The global
+  swap-A/B preference is respected for face buttons.
+- **Touch:** a tap releases on the native RealLive pointer; text and the
+  original toolbar activate on touch release. Swipes, canceled fingers and
+  multi-touch must not advance or trigger toolbar buttons. Menu/backlog gestures
+  remain managed by the shared engine.
+
+Read-skip persists from one **read** page to the next and stops at an unread
+page. Held Ctrl/gamepad skip is independent and may advance unread dialogue
+when the RealLive script has not disabled Ctrl-skip.
+
+The data-free input regression can be run with:
+
+```sh
+cmake --build build --target RealLiveInputTests
+ctest --test-dir build -R '^RealLive.Input$' --output-on-failure
+```
+
+Game-specific controller layouts and original touch hitboxes still require
+macOS and iOS hardware testing with the relevant RealLive editions.
