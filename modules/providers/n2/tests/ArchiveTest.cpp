@@ -1,0 +1,105 @@
+// Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
+#include <N2System/Archive.hpp>
+#include <cassert>
+#include <cstdint>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+namespace {
+using Bytes=std::vector<std::uint8_t>;
+void put32(Bytes& d, std::uint32_t v) {
+  for (int j=0;j<4;++j) d.push_back(static_cast<std::uint8_t>(v>>(8*j)));
+}
+void set32(Bytes& d,std::size_t p,std::uint32_t v) {
+  for (int j=0;j<4;++j) d.at(p+j)=static_cast<std::uint8_t>(v>>(8*j));
+}
+void add(Bytes& d,const std::string& s) {d.insert(d.end(),s.begin(),s.end());}
+template<typename F> void rejects(F fn) {
+  bool failed=false;
+  try {fn();} catch(const std::exception&) {failed=true;}
+  assert(failed);
+}
+Bytes afs() {
+  Bytes d={'A','F','S',0};
+  put32(d,2);
+  put32(d,124); put32(d,3);
+  put32(d,127); put32(d,4);
+  put32(d,28);
+  d.resize(124);
+  const std::string n1="first.dat",n2="SECOND.DAT";
+  for(std::size_t i=0;i<n1.size();++i) d[28+i]=n1[i];
+  for(std::size_t i=0;i<n2.size();++i) d[76+i]=n2[i];
+  add(d,"oneTWO!");
+  return d;
+}
+std::uint8_t crypt(std::uint32_t ch,std::uint32_t entry,
+                   std::uint32_t first,std::uint32_t second) {
+  const std::uint32_t keys=first*second;
+  std::uint32_t v=0xfcu*ch;
+  for(int shift:{24,16,8,0}) v-=shift ? keys>>shift : keys&255u;
+  for(int shift:{24,16,8,0}) v-=shift ? entry>>shift : entry;
+  return static_cast<std::uint8_t>(v);
+}
+Bytes npa() {
+  Bytes d={'N','P','A',1,0,0,0};
+  const std::uint32_t first=7,second=13;
+  put32(d,first); put32(d,second);
+  d.push_back(0); d.push_back(0);
+  put32(d,1); put32(d,0); put32(d,1);
+  for(int j=0;j<8;++j) d.push_back(0);
+  put32(d,0);
+  const std::string name="DIR\\Sample.TXT";
+  put32(d,static_cast<std::uint32_t>(name.size()));
+  for(std::size_t i=0;i<name.size();++i)
+    d.push_back(static_cast<std::uint8_t>(
+      static_cast<std::uint8_t>(name[i])-crypt(i,0,first,second)));
+  d.push_back(2);
+  put32(d,9); put32(d,0); put32(d,4); put32(d,4);
+  set32(d,37,static_cast<std::uint32_t>(d.size()-41));
+  add(d,"GOOD");
+  return d;
+}
+} // namespace
+
+int main() {
+  const auto a=afs();
+  N2System::Archive archive(a);
+  assert(archive.format()==N2System::ArchiveFormat::AFS);
+  assert(archive.entries().size()==2);
+  assert(archive.contains("FIRST.DAT"));
+  assert(archive.read("first.dat")==Bytes({'o','n','e'}));
+  assert(archive.read("second.dat")==Bytes({'T','W','O','!'}));
+  auto badAfs=a;
+  set32(badAfs,8,99999);
+  rejects([&]{N2System::Archive invalid(badAfs);});
+  badAfs=a;
+  set32(badAfs,24,99999);
+  rejects([&]{N2System::Archive invalid(badAfs);});
+  badAfs=a;
+  set32(badAfs,4,0xffffffff);
+  rejects([&]{N2System::Archive invalid(badAfs);});
+
+  const auto n=npa();
+  N2System::Archive packed(n);
+  assert(packed.format()==N2System::ArchiveFormat::NPA);
+  assert(packed.entries().size()==1);
+  assert(packed.contains("dir/sample.txt"));
+  assert(packed.read("DIR\\Sample.TXT")==Bytes({'G','O','O','D'}));
+  auto badNpa=n;
+  badNpa[15]=1;
+  rejects([&]{N2System::Archive invalid(badNpa);});
+  badNpa=n;
+  badNpa[16]=1;
+  rejects([&]{N2System::Archive invalid(badNpa);});
+  badNpa=n;
+  set32(badNpa,25,2);
+  rejects([&]{N2System::Archive invalid(badNpa);});
+  badNpa=n;
+  set32(badNpa,37,999999);
+  rejects([&]{N2System::Archive invalid(badNpa);});
+  badNpa=n;
+  badNpa.pop_back();
+  rejects([&]{N2System::Archive invalid(badNpa);});
+  std::cout<<"N2System AFS/NPA archive tests passed\n";
+}
