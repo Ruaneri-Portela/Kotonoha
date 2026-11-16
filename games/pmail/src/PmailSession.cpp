@@ -5,12 +5,13 @@
 #include "PmailTitleMenu.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Pmail/Port.hpp>
 #include <SDL3/SDL.h>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
+#include <sstream>
 
 namespace Kotonoha::PmailPort {
 
@@ -255,7 +256,11 @@ std::filesystem::path nameProfilePath() {
 
 void PmailSession::loadNameProfile() {
   try {
-    std::ifstream file(nameProfilePath(), std::ios::binary);
+    const auto path = nameProfilePath();
+    if (!std::filesystem::exists(path))
+      return;
+    const auto bytes = Kotonoha::Filesystem::readLocalFile(path, 1024);
+    std::istringstream file(std::string(bytes.begin(), bytes.end()));
     std::string no, ho;
     if (std::getline(file, no) && std::getline(file, ho))
       game_->setPlayerNames(no, ho);
@@ -269,10 +274,9 @@ void PmailSession::saveNameProfile() const {
   try {
     const auto path = nameProfilePath();
     std::filesystem::create_directories(path.parent_path());
-    std::ofstream out(path, std::ios::binary | std::ios::trunc);
-    if (!out || !(out << game_->playerNameNO() << '\n'
-                      << game_->playerNameHO() << '\n'))
-      throw std::runtime_error("Cannot persist Pure Mail names");
+    Kotonoha::writeTextFileAtomically(
+        path.string(),
+        game_->playerNameNO() + "\n" + game_->playerNameHO() + "\n");
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "[PmailPort] Cannot save player name profile: %s",
