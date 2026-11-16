@@ -1,3 +1,4 @@
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -49,28 +50,24 @@ struct App {
 
 bool validate(const std::string &path, std::string &info) {
   try {
-    if (Kotonoha::isISOImage(path)) {
-      Kotonoha::DiscImage disc(path);
-      info = "Game data found (direct ISO access)";
-      return true;
+    // The runtime reads PAKs through the virtual filesystem. Validate the
+    // same view, including ISO images and case-insensitive archive filenames,
+    // instead of accepting any well-formed but unrelated ISO.
+    auto source = Kotonoha::Filesystem::Filesystem::mount(path);
+    const std::string prefix =
+        !source->exists("SCRIPT.PAK") && source->exists("files/SCRIPT.PAK")
+            ? "files/"
+            : "";
+    for (const char *name : {"PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK"}) {
+      const std::string id = prefix + name;
+      if (!source->exists(id) ||
+          source->stat(id).type !=
+              Kotonoha::Filesystem::FileType::Regular) {
+        info = "LucaSystem requires PARAM.PAK, SCRIPT.PAK and SYSSE.PAK";
+        return false;
+      }
     }
-    auto dataPath = std::filesystem::path(path);
-    if (!std::filesystem::is_regular_file(dataPath / "SCRIPT.PAK") &&
-        std::filesystem::is_regular_file(dataPath / "files" / "SCRIPT.PAK"))
-      dataPath /= "files";
-    std::set<std::string> corePaks;
-    for (const auto &entry : std::filesystem::directory_iterator(dataPath)) {
-      if (!entry.is_regular_file())
-        continue;
-      auto name = entry.path().filename().string();
-      if (name == "PARAM.PAK" || name == "SCRIPT.PAK" || name == "SYSSE.PAK")
-        corePaks.insert(name);
-    }
-    if (corePaks.size() != 3) {
-      info = "No LucaSystem archive (PARAM.PAK/SCRIPT.PAK/SYSSE.PAK) found";
-      return false;
-    }
-    info = "LucaSystem game data found";
+    info = "LucaSystem archives present in virtual game source";
     return true;
   } catch (const std::exception &error) {
     info = error.what();
