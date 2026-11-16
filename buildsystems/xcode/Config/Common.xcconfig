@@ -44,7 +44,10 @@ LIBRARY_SEARCH_PATHS = $(inherited) "$(KOTONOHA_VCPKG_LIB)"
 FRAMEWORK_SEARCH_PATHS = $(inherited) "$(BUILT_PRODUCTS_DIR)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)"
 CLANG_CXX_LANGUAGE_STANDARD = c++17
 CLANG_CXX_LIBRARY = libc++
-GCC_PREPROCESSOR_DEFINITIONS = $(inherited) KOTONOHA_HAS_METALFX=1
+// macOS: optional features ON. iOS device and simulator: MCP OFF.
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) KOTONOHA_HAS_METALFX=1 KOTONOHA_ENABLE_UPSCALER=1 KOTONOHA_ENABLE_MCP=1
+GCC_PREPROCESSOR_DEFINITIONS[sdk=iphoneos*] = $(inherited) KOTONOHA_HAS_METALFX=1 KOTONOHA_ENABLE_UPSCALER=1 KOTONOHA_ENABLE_MCP=0
+GCC_PREPROCESSOR_DEFINITIONS[sdk=iphonesimulator*] = $(inherited) KOTONOHA_HAS_METALFX=1 KOTONOHA_ENABLE_UPSCALER=1 KOTONOHA_ENABLE_MCP=0
 
 // The original projects link dynamic SDL3 / SDL3_ttf and vcpkg libraries.
 KOTONOHA_SHARED_LIBS = -ljson-c -lass -lz -lharfbuzz -lfribidi -lfreetype -lfontconfig -liconv -lbz2 -lbrotlidec -lbrotlicommon -lexpat -lpng -lunibreak

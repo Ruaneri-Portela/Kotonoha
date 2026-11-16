@@ -212,6 +212,11 @@ Engine::Engine(Runtime &run, EngineOptions options)
   if (!options.rendererOverride.empty())
     settings.renderer = options.rendererOverride;
   settings.validate();
+#if !KOTONOHA_ENABLE_UPSCALER
+  // A build without this module never inherits a saved backend/preset.
+  settings.upscaling = {};
+  settings.upscaling.backend = UpscaleBackend::None;
+#endif
   if (options.translationPath.empty()) {
     if (!settings.translationPath.empty())
       options.translationPath = settings.translationPath;
@@ -221,9 +226,11 @@ Engine::Engine(Runtime &run, EngineOptions options)
   if (!options.translationPath.empty())
     translation.load(options.translationPath);
   SDL_WindowFlags graphicsFlags = 0;
+#if KOTONOHA_ENABLE_UPSCALER
   if (isMobilePlatform() && settings.upscaling.backend == UpscaleBackend::MPV &&
       options.rendererOverride.empty())
     settings.renderer = "opengles2";
+#endif
   if (settings.renderer == "opengles2") {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -271,6 +278,7 @@ Engine::Engine(Runtime &run, EngineOptions options)
     dumpTranslation(options.dumpTranslationPath);
     translationDumpComplete = true;
   }
+#if KOTONOHA_ENABLE_MCP
   if (options.enableMCP) {
     if (options.mcpPort > 0)
       mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot,
@@ -278,6 +286,7 @@ Engine::Engine(Runtime &run, EngineOptions options)
     else
       mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot);
   }
+#endif
   frameClock.reset();
   SDL_LogInfo(LogCore, "Engine started (%s renderer)",
               SDL_GetRendererName(renderer.get()));
@@ -390,9 +399,11 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
   if (value.renderer != settings.renderer)
     throw std::invalid_argument(
         "Changing the renderer requires an engine restart");
+#if KOTONOHA_ENABLE_UPSCALER
   if (!upscaler->supports(value.upscaling.backend))
     throw std::invalid_argument(
         "Upscaler is unavailable for the current renderer");
+#endif
   std::unique_ptr<UI> nextUI, nextVNUI;
   if (value.fontPath != settings.fontPath) {
     nextUI = std::make_unique<UI>(value.fontPath);
@@ -418,6 +429,10 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
     audio.setMasterMuted(value.masterMuted);
     audio.setUserVolumes(value.channelVolumes);
     settings = value;
+#if !KOTONOHA_ENABLE_UPSCALER
+    settings.upscaling = {};
+    settings.upscaling.backend = UpscaleBackend::None;
+#endif
     if (persist)
       saveSettings();
     updateCursor(settings.customCursorPath);
@@ -883,8 +898,10 @@ SDL_AppResult Engine::Iterate() {
     return SDL_APP_SUCCESS;
   configureRenderSpace(RenderSpace::Novel);
   synchronizeTimeline();
+#if KOTONOHA_ENABLE_MCP
   if (mcp && !mcp->pump())
     return SDL_APP_SUCCESS;
+#endif
   if (!runtime.devPauseRequested() || runtime.devConsumeStep())
     runtime.update();
   else

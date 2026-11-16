@@ -92,7 +92,9 @@ DebugOverlay::DebugOverlay(Engine &engine) : engine(engine) {
   const auto ktrf =
       documentsDirectory(engine.GetRuntime().identify) / "story.ktnroute";
   SDL_strlcpy(ktrfPath, ktrf.string().c_str(), sizeof(ktrfPath));
+#if KOTONOHA_ENABLE_UPSCALER
   shaderPicker = std::make_unique<ImGuiTheme::ShaderFilePicker>();
+#endif
   dubbingApplet = std::make_unique<VoiceDubbingApplet>(engine);
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -1532,16 +1534,22 @@ void DebugOverlay::drawDubbingTools() { dubbingApplet->draw(); }
 void DebugOverlay::drawDisplayTools() {
   ImGuiTheme::cardBegin("card_display", false, nullptr);
   {
+#if KOTONOHA_ENABLE_UPSCALER
     ImGuiTheme::sectionHeader("Window / renderer / upscaler");
+#else
+    ImGuiTheme::sectionHeader("Window / renderer");
+#endif
     const auto &settings = engine.GetSettings();
     ImGui::Text("Window: %dx%d | display: %d | VSync: %s", settings.width,
                 settings.height, settings.display + 1,
                 settings.vsync ? "on" : "off");
     ImGui::Text("Renderer: %s", SDL_GetRendererName(&engine.GetRenderer()));
+#if KOTONOHA_ENABLE_UPSCALER
     auto &upscaling = engine.GetUpscaler();
     ImGui::Text("Upscaler: %s -> %s",
                 UpscaleBackendName(settings.upscaling.backend),
                 UpscaleBackendName(upscaling.activeBackend()));
+#endif
     auto draft = settings;
     bool changed = false;
     if (canChangeDisplaySize()) {
@@ -1589,6 +1597,7 @@ void DebugOverlay::drawDisplayTools() {
           ImGui::Checkbox("Resizable window", &draft.resizable) || changed;
     }
     changed = ImGui::Checkbox("VSync", &draft.vsync) || changed;
+#if KOTONOHA_ENABLE_UPSCALER
     ImGui::SeparatorText("Texture upscaling");
     constexpr UpscaleBackend backends[]{
         UpscaleBackend::Auto, UpscaleBackend::Linear, UpscaleBackend::MPV,
@@ -1633,16 +1642,23 @@ void DebugOverlay::drawDisplayTools() {
       changed = true;
     } else if (!ImGui::IsItemActive())
       upscaleFactor = draft.upscaling.factor;
+#endif
     if (changed) {
       try {
         engine.applySettings(draft);
+#if KOTONOHA_ENABLE_UPSCALER
         status = "Display / upscaling settings applied";
+#else
+        status = "Display settings applied";
+#endif
         statusError = false;
       } catch (const std::exception &error) {
         status = error.what();
         statusError = true;
       }
+#if KOTONOHA_ENABLE_UPSCALER
       upscaleFactor = engine.GetSettings().upscaling.factor;
+#endif
     }
     if (ImGui::Button("Open game settings")) {
       visible = false;
