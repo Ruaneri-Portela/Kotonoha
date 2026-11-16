@@ -143,6 +143,36 @@ int main() {
     require(!bridge.primitive("FontChar", "", false, dim, 7, {}),
             "Unimplemented font vibration must not be silently ignored");
 
+    // Verify the real SCF bytecode dispatcher reaches FontChar rather than
+    // exercising only direct calls to the bridge.
+    Amagami::Script script;
+    script.name = "FontChar";
+    Amagami::Method method;
+    method.name = "create";
+    method.arguments = 7;
+    method.code = {0x34, 0, 2}; // native FontChar #0, return
+    script.methods.push_back(method);
+    Amagami::Vm vm;
+    vm.add(script);
+    vm.scopedPrimitive = [&bridge](const std::string &owner,
+        const std::string &selector, bool cls, const VmValue &receiver,
+        unsigned primitive, const std::vector<VmValue> &args) {
+      return bridge.primitive(owner, selector, cls, receiver,
+                              primitive, args);
+    };
+    const auto dispatched = vm.instance("FontChar");
+    vm.call(dispatched, "create",
+            {n(0x82a2), n(1), n(12), n(60), n(5), n(1), n(1)});
+    vm.run(1000);
+    require(vm.finished() && dispatched.object &&
+            dispatched.object->fields[0].kind == VmValue::Number,
+            "Original SCF FontChar native method returns to the VM");
+    const uint64_t dispatchedId =
+        uint64_t(dispatched.object->fields[0].number);
+    require(bridge.sprites().at(dispatchedId).characterCode == 0x82a2 &&
+            bridge.sprites().at(dispatchedId).fontPalette == 1,
+            "SCF native method arguments create a real FontChar scene object");
+
     std::cout << "Vita FontChar native/SDL3 rendering tests passed\n";
     return 0;
   } catch (const std::exception &e) {
