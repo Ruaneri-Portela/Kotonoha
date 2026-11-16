@@ -36,7 +36,7 @@ struct App {
     Kotonoha::Engine engine;
     Game(std::shared_ptr<Kotonoha::Providers::KirikiriAssets> a,
          Kotonoha::EngineOptions o)
-        : runtime(std::move(a)), engine(runtime, std::move(o)) {}
+        : runtime(a), engine(runtime, withAssets(std::move(o), std::move(a))) {}
   };
   std::unique_ptr<Game> game;
 
@@ -46,7 +46,7 @@ struct App {
             directory, options.assetOverlayDirectory()));
     // Archive precedence is indexed from the virtual mount before gameplay.
     assets->mountAllXp3();
-    game = std::make_unique<Game>(std::move(assets), std::move(options));
+    game = std::make_unique<Game>(std::move(assets), options);
   }
 };
 
