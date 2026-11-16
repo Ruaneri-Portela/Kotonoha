@@ -576,6 +576,65 @@ public:
   }
 };
 
+Value Interpreter::call(const std::string &name,
+                        const std::vector<Value> &params,
+                        const std::string &current, bool activeFlag) {
+  if (!activeFlag) return {};
+
+  if (auto it = functions.find(name); it != functions.end()) {
+    // Copy the descriptor: nested declarations can rehash the function table.
+    const SourceFunction function = it->second;
+    if (params.size() != function.parameters.size())
+      throw std::runtime_error("TJS2 subset: argument count mismatch: " + name);
+    if (functionDepth >= 16)
+      throw std::runtime_error("TJS2 subset: function recursion limit exceeded");
+    std::unordered_map<std::string, Value> frame;
+    for (std::size_t index = 0; index < params.size(); ++index)
+      frame.emplace(function.parameters[index], params[index]);
+    frames.push_back(std::move(frame));
+    ++functionDepth;
+    try {
+      Parser parser(*this, function.source, function.body);
+      parser.run();
+    } catch (const FunctionReturn &returned) {
+      --functionDepth;
+      frames.pop_back();
+      return returned.value;
+    } catch (...) {
+      --functionDepth;
+      frames.pop_back();
+      throw;
+    }
+    --functionDepth;
+    frames.pop_back();
+    return {};
+  }
+
+  if (params.size() != 1)
+    throw std::runtime_error("TJS2 subset: exactly one argument required for " +
+                             name);
+  const auto requested = params.front().string();
+  if (name == "Storages.isExistentStorage") {
+    const auto id = resolve(requested, current);
+    return Value(assets.contains(id));
+  }
+  if (name == "Scripts.execStorage" || name == "Scripts.evalStorage") {
+    const auto id = resolve(requested, current);
+    runFile(id, active.size() + 1);
+    return {};
+  }
+  if (name == "Plugins.link") {
+    const auto id = safeName(requested);
+    if (std::find(result.requestedPlugins.begin(),
+                  result.requestedPlugins.end(), id) ==
+        result.requestedPlugins.end())
+      result.requestedPlugins.push_back(id);
+    result.requiresNativeRuntime = true;
+    return Value(false); // No native plugin was loaded.
+  }
+  throw std::runtime_error("TJS2 subset: native call not implemented: " + name);
+}
+
 void Interpreter::runFile(std::string id, std::size_t depth) {
   id = safeName(std::move(id));
   if (depth > 16)
