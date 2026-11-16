@@ -91,3 +91,10 @@ partially mutate persistent VM string storage. Standalone C++17 regression:
 cmake --build build --target RealLiveBoundedRangeTests
 ctest --test-dir build -R RealLive.BoundedRange --output-on-failure
 ```
+
+## Partial Shift-JIS string copy
+
+The `Str.strcpy` count overload now truncates by complete Shift-JIS
+**characters**, not raw bytes. It avoids leaving an orphan lead byte in
+script string variables. Synthetic coverage is added to
+`RealLiveStringOpsTests`; no retail files are required.

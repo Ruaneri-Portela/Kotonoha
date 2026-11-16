@@ -51,6 +51,10 @@ public:
   const Invocation *peek() const;
   const Invocation *advance();
   std::size_t remaining() const;
+  std::size_t position() const { return next_; }
+  // Reposition by invocation ordinal for exact subroutine returns.
+  // Unlike source-text labels this may designate the end of a chapter.
+  bool seekPosition(std::size_t position);
   std::string_view chapterName() const;
 private:
   const ScriptIndex &index_;

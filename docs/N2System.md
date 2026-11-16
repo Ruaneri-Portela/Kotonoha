@@ -113,3 +113,18 @@ desse objeto para evitar ponteiros suspensos ao mover/destruir a instância
 original. As garantias são verificadas por asserções de compilação no teste
 de execução sintético. O frontend deve conservar o executor enquanto houver
 callbacks ou estado NsScript ativo.
+
+## Chamadas de subrotina experimentais
+
+O executor NsScript aceita os resultados de callback `CallLabel`,
+`CallChapter` e `Return` para chamadas com retorno entre labels e
+capítulos. A pilha guarda o capítulo e o índice exato da próxima instrução;
+o limite é 1024 quadros, e um destino ausente não altera o cursor nem a
+pilha. `EnterChapter` (salto permanente) descarta retornos pendentes;
+`Finish` também limpa a pilha.
+
+Essas são **ações da VM propostas para integração com o frontend**, não
+uma interpretação automática de todo o dialeto NsScript. Comandos reais,
+expressões, loops e condições ainda precisam ser identificados e suportados.
+Os testes sintéticos verificam chamada local, chamada entre capítulos,
+retorno, ausência de destino e recursão excessiva.

@@ -94,3 +94,10 @@ o teste C++17 independente `RealLive.BoundedRange`, sem arquivos de jogo:
 cmake --build build --target RealLiveBoundedRangeTests
 ctest --test-dir build -R RealLive.BoundedRange --output-on-failure
 ```
+
+## Cópia parcial de strings Shift-JIS
+
+O overload de `Str.strcpy` com contagem limita o número de **caracteres**
+Shift-JIS completos, não o número de bytes. Assim não corta um caractere
+multibyte e não produz uma sequência inválida em diálogos ou variáveis. A
+regressão foi adicionada ao `RealLiveStringOpsTests`, sem dados comerciais.

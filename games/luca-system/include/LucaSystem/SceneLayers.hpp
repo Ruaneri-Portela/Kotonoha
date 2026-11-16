@@ -33,6 +33,9 @@ public:
   const std::vector<SceneObject> &visible() const { return visible_; }
   const std::vector<SceneObject> &outgoing() const { return outgoing_; }
   const std::vector<SceneObject> &pending() const { return pending_; }
+  // A transition appends staged objects to the previously visible layer.
+  // Rendering that previous layer twice makes transparent pixels too dark.
+  std::size_t incomingStart() const { return outgoing_.size(); }
   void stage(SceneObject object) {
     if (visible_.size() + pending_.size() >= MaxObjects)
       throw std::runtime_error("LucaSystem object layer limit exceeded");

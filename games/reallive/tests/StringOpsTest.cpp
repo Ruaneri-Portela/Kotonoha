@@ -20,6 +20,17 @@ int main() {
                     text, std::numeric_limits<std::size_t>::max()) ==
                     text.size(),
             "S-JIS offsets clamp without integer overflow");
+    // Str.strcpy's count overload preserves complete Shift-JIS characters.
+    auto copied = text;
+    copied.resize(RealLive::scriptCharOffset(copied, 1));
+    require(copied == std::string(text.data(), 2),
+            "strcpy count must not split Shift-JIS characters");
+    copied = text;
+    copied.resize(RealLive::scriptCharOffset(copied, 2));
+    require(copied == std::string(text.data(), 3),
+            "strcpy count includes subsequent ASCII characters");
+    copied.resize(RealLive::scriptCharOffset(copied, 0));
+    require(copied.empty(), "zero-length strcpy is empty");
     require(RealLive::scriptSubstring(text, 0, 1) ==
                     std::string(text.data(), 2) &&
                 RealLive::scriptSubstring(text, 1, 2) ==
