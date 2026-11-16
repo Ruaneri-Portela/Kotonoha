@@ -212,6 +212,11 @@ Engine::Engine(Runtime &run, EngineOptions options)
   if (!options.rendererOverride.empty())
     settings.renderer = options.rendererOverride;
   settings.validate();
+#if !KOTONOHA_ENABLE_UPSCALER
+  // A build without this module never inherits a saved backend/preset.
+  settings.upscaling = {};
+  settings.upscaling.backend = UpscaleBackend::None;
+#endif
   if (options.translationPath.empty()) {
     if (!settings.translationPath.empty())
       options.translationPath = settings.translationPath;
@@ -394,9 +399,11 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
   if (value.renderer != settings.renderer)
     throw std::invalid_argument(
         "Changing the renderer requires an engine restart");
+#if KOTONOHA_ENABLE_UPSCALER
   if (!upscaler->supports(value.upscaling.backend))
     throw std::invalid_argument(
         "Upscaler is unavailable for the current renderer");
+#endif
   std::unique_ptr<UI> nextUI, nextVNUI;
   if (value.fontPath != settings.fontPath) {
     nextUI = std::make_unique<UI>(value.fontPath);
@@ -422,6 +429,10 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
     audio.setMasterMuted(value.masterMuted);
     audio.setUserVolumes(value.channelVolumes);
     settings = value;
+#if !KOTONOHA_ENABLE_UPSCALER
+    settings.upscaling = {};
+    settings.upscaling.backend = UpscaleBackend::None;
+#endif
     if (persist)
       saveSettings();
     updateCursor(settings.customCursorPath);
