@@ -195,6 +195,15 @@ std::string KirikiriRuntime::diagnostic() const {
           << report.staticallyReferenced.size() << " dependências estáticas, "
           << report.missing.size() << " ausentes, "
           << report.dynamicCalls << " referências dinâmicas";
+  if (!report.missing.empty()) {
+    message << "; primeiras ausentes: ";
+    for (std::size_t i = 0;
+         i < report.missing.size() && i < 3; ++i) {
+      if (i)
+        message << ", ";
+      message << report.missing[i];
+    }
+  }
   if (!report.error.empty())
     message << "; erro de análise: " << report.error;
   return message.str();
