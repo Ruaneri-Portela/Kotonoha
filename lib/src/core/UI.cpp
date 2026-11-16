@@ -3,11 +3,16 @@
 #include <Kotonoha/localization/Translation.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <filesystem>
 #include <stdexcept>
 
 namespace Kotonoha {
+
+namespace {
+std::atomic<std::uint64_t> nextUiInstance{1};
+}
 
 std::size_t utf8Prefix(const std::string &text, std::size_t characters) {
   std::size_t i = 0;
@@ -30,7 +35,8 @@ void eraseLastCharacter(std::string &text) {
   text.erase(i);
 }
 
-UI::UI(const std::string &fontPath) {
+UI::UI(const std::string &fontPath)
+    : instanceId_(nextUiInstance.fetch_add(1, std::memory_order_relaxed)) {
   try {
     fontData = FileResolver::loadFontMemory(fontPath);
     if (fontData.empty()) {
@@ -144,10 +150,28 @@ float UI::textSized(RendererRef renderer, const std::string &original, float x,
   return entry.height;
 }
 
-float UI::textHeight(RendererRef renderer, const std::string &value,
+float UI::textHeight(RendererRef renderer, const std::string &original,
                      float wrap) {
-  // Use the same cached layout as rendering, outside the visible viewport.
-  return text(renderer, value, -10000, -10000, wrap);
+  // Measure text on the CPU. Rendering it off-screen created GPU textures for
+  // every historical dialogue line and caused cache churn while scrolling.
+  const auto value = translation ? translation->text(-1, original) : original;
+  if (value.empty())
+    return 0.0f;
+  const float raster = rasterDensity(renderer);
+  const int pixels = std::max(1, static_cast<int>(std::ceil(wrap * raster)));
+  const float oldSize = TTF_GetFontSize(font.get());
+  struct RestoreSize {
+    TTF_Font *font;
+    float size;
+    ~RestoreSize() { TTF_SetFontSize(font, size); }
+  } restore{font.get(), oldSize};
+  if (!TTF_SetFontSize(font.get(), 24.0f * raster))
+    throw std::runtime_error(SDL_GetError());
+  int width = 0, height = 0;
+  if (!TTF_GetStringSizeWrapped(font.get(), value.c_str(), value.size(),
+                                pixels, &width, &height))
+    throw std::runtime_error(SDL_GetError());
+  return static_cast<float>(height) / raster;
 }
 
 SDL_FPoint UI::textSize(const std::string &value, float width) const {
