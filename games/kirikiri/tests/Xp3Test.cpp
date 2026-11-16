@@ -1140,6 +1140,33 @@ int main() {
       }
     }
 
+    // Common TJS2 bootstrap for-loops run with bounded post-increment and
+    // scoped variables; a disabled for-loop has no observable side effects.
+    write(tempDir / "startup.tjs",
+          "var sum = 0;\n"
+          "for (var i = 0; i < 3; i++) { sum += 1; }\n"
+          "if (false) for (var j = 0; j < 2; j++) { sum += 99; }\n"
+          "if (sum == 3) Scripts.execStorage(\"scenario/first.ks\");\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.kagEntry != "scenario/first.ks") {
+        std::printf("FAIL: TJS2 bounded for loop/inactive branch\n");
+        ++failures;
+      }
+    }
+    write(tempDir / "startup.tjs", "for (;;) { var tick = 1; }");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input, 10000);
+      if (run.subsetCompleted || run.error.empty()) {
+        std::printf("FAIL: unbounded TJS2 for-loop not stopped\n");
+        ++failures;
+      }
+    }
+
     // Mutual/nested recursion must terminate even with a high instruction
     // budget, independent of the script-call depth limiter.
     write(tempDir / "startup.tjs",
