@@ -16,7 +16,7 @@ Kotonoha's C++17 KiriKiri port: XP3 asset mounting, an experimental KAG interpre
 
 **A fallback title is not the original NEKOPARA menu.** The original KiriKiri startup path executes `startup.tjs` and depends on the TJS2 runtime, plugins and title-specific UI. This port does not yet execute general TJS2 or all compiled PSB/SCN semantics. **TLG6 method 3 raw planes are handled experimentally only when precisely sized. Gamma (method 1), modified LZSS (method 2), and game-specific XP3 filters remain unsupported.** The upstream KiriKiri Z decoder itself rejects non-Golomb TLG6 modes. Support for save states, effects, translations and audio is not equivalent to an original retail game.
 
-Class definitions, methods, native objects/windows, native plugins and compiled TJS2 bytecode **are not implemented**; the subset stops on unhandled syntax, with an explicit diagnostic. These changes have not been validated against a commercial NEKOPARA installation; successful XP3 indexing or a fallback title does not establish full playability. Only synthetic data is used in repository tests.
+User-defined classes, complete native Window/Layer behavior, native plugins and compiled TJS2 bytecode **are not implemented**; the subset stops on unhandled syntax, with an explicit diagnostic. These changes have not been validated against a commercial NEKOPARA installation; successful XP3 indexing or a fallback title does not establish full playability. Only synthetic data is used in repository tests.
 
 ## Build and test
 
@@ -39,9 +39,7 @@ member reads and writes.
 These capabilities allow simple bootstrap configuration functions to compute
 a KAG entry or title caption before the Kotonoha fallback menu is shown.
 
-**Not full TJS2:** Function expressions, user-defined classes, native
-`Window`/`Layer` objects, the genuine KiriKiri title scene and bytecode
-execution are still missing. Unsupported native constructors cause explicit
+**Not full TJS2:** Simple inline event functions and virtual Window/Layer objects are supported, but lexical closures, user-defined classes, the original KiriKiri title implementation and TJS2 bytecode execution are still missing. Unsupported native constructors cause explicit
 errors instead of showing a fake original menu. Only synthetic cases are
 covered by these regressions; execution with retail assets is unverified.
 
@@ -57,8 +55,7 @@ Layer properties include position, size, visibility, enabled state, opacity,
 order, `loadImages`, `setPos`, `setSize`, `show` and `hide`. XP3-backed
 textures are rendered using parent-relative coordinates.
 
-A **named or inline anonymous** TJS2 function (without lexical closure capture) can be assigned to `layer.onClick` or `layer.onMouseDown`. Mouse-down
-events are hit-tested front-to-back and invoke the retained bounded VM.
+A **named or inline anonymous** TJS2 function (without lexical closure capture) can be assigned to `layer.onClick`, `layer.onMouseDown`, `layer.onMouseEnter` or `layer.onMouseLeave`. Mouse-down and hover transition events are hit-tested front-to-back and invoke the retained bounded VM.
 A callback may choose a `.ks` entry using `Scripts.execStorage` and start
 the KAG interpreter. A completely parsed interactive title may replace
 the generic fallback; unsupported bootstrap scripts still use the fallback.
@@ -74,5 +71,4 @@ button.onClick = startGame;
 ```
 
 This is **not** complete KiriKiri native windowing or the original NEKOPARA
-menu. Full closures, keyboard/hover events, timers, native plugins
-and compiled TJS2 bytecode remain unsupported. Tests are synthetic.
+menu. Full closures, keyboard callbacks, continuous mouse-motion callbacks, timers, native plugins and compiled TJS2 bytecode remain unsupported. The compatibility menu is restored if the scripted title cannot render or its callback fails. Tests are synthetic.
