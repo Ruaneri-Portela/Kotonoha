@@ -67,9 +67,9 @@ struct SpriteState {
   void refresh();
 };
 
-// Handles Vita K2X_Script screen primitives and the first Sprite primitives.
-// This is a *headless scene model*: the presentation loop and animation
-// primitives still need integration; unhandled primitives are never swallowed.
+// Handles the implemented Vita K2X_Script, Sprite, BG_Picture and FontChar
+// native subset. The scene can be rendered through VitaSpriteRenderer;
+// remaining unsupported natives are never swallowed.
 class VitaVmBridge {
 public:
   // Optional provider-backed resolver; no retail graphics are built in.
