@@ -14,7 +14,8 @@ class ScriptArchive {
 public:
   explicit ScriptArchive(const std::filesystem::path &seen);
   ScriptArchive(const std::vector<std::uint8_t> &bytes,
-                const std::map<int, std::vector<std::uint8_t>> &overrides = {});
+                const std::map<int, std::vector<std::uint8_t>> &overrides = {},
+                const std::string &regname = "");
   std::vector<int> ScenarioNumbers() const;
   libreallive::Scenario &Scenario(int number);
   std::size_t ValidateAll();
