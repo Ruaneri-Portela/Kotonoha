@@ -145,6 +145,12 @@ if(KOTONOHA_TEST_FFMPEG)
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 endif()
 
+# Pure C++17 wrapping test; runs without SDL, a window or game assets.
+add_executable(KotonohaTextWrappingStandaloneTests TextWrappingStandalone.cpp)
+target_include_directories(KotonohaTextWrappingStandaloneTests PRIVATE
+    "${KOTONOHA_PROJECT_ROOT}/lib/include")
+add_test(NAME Kotonoha.TextWrapping COMMAND KotonohaTextWrappingStandaloneTests)
+
 add_executable(KotonohaInputActionsTests InputActionsTests.cpp)
 target_link_libraries(KotonohaInputActionsTests PRIVATE Kotonoha::Engine)
 add_test(NAME Kotonoha.InputActions COMMAND KotonohaInputActionsTests)
