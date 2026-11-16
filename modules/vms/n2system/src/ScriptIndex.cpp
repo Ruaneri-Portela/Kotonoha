@@ -50,12 +50,20 @@ public:
       while (pos_ < source_.size()) {
         const char value = source_[pos_++];
         if (value == '\\' && pos_ < source_.size()) {
-          if (source_[pos_] == '\n')
+          if (source_[pos_] == '\r') {
             ++line_;
-          ++pos_;
+            ++pos_;
+            if (pos_ < source_.size() && source_[pos_] == '\n') ++pos_;
+          } else {
+            if (source_[pos_] == '\n') ++line_;
+            ++pos_;
+          }
         } else if (value == quote) {
           closed = true;
           break;
+        } else if (value == '\r') {
+          ++line_;
+          if (pos_ < source_.size() && source_[pos_] == '\n') ++pos_;
         } else if (value == '\n') {
           ++line_;
         }
@@ -77,19 +85,28 @@ private:
     while (pos_ < source_.size()) {
       const char c = source_[pos_];
       if (std::isspace(static_cast<unsigned char>(c))) {
-        if (c == '\n') ++line_;
-        ++pos_;
+        if (c == '\r') {
+          ++line_;
+          ++pos_;
+          if (pos_ < source_.size() && source_[pos_] == '\n') ++pos_;
+        } else {
+          if (c == '\n') ++line_;
+          ++pos_;
+        }
       } else if (c == '/' && pos_ + 1 < source_.size() &&
                  source_[pos_ + 1] == '/') {
         pos_ += 2;
-        while (pos_ < source_.size() && source_[pos_] != '\n') ++pos_;
+        while (pos_ < source_.size() && source_[pos_] != '\n' &&
+               source_[pos_] != '\r') ++pos_;
       } else if (c == '/' && pos_ + 1 < source_.size() &&
                  source_[pos_ + 1] == '*') {
         const unsigned startLine = line_;
         pos_ += 2;
         bool closed = false;
         while (pos_ + 1 < source_.size()) {
-          if (source_[pos_] == '\n') ++line_;
+          if (source_[pos_] == '\n' ||
+              (source_[pos_] == '\r' &&
+               source_[pos_ + 1] != '\n')) ++line_;
           if (source_[pos_] == '*' && source_[pos_ + 1] == '/') {
             pos_ += 2;
             closed = true;
@@ -110,7 +127,8 @@ private:
   unsigned line_ = 1;
 };
 bool startsLine(std::string_view source, std::size_t offset) {
-  const auto newline = source.rfind('\n', offset ? offset - 1 : 0);
+  const auto newline = offset == 0 ? std::string_view::npos
+      : source.find_last_of("\r\n", offset - 1);
   const auto first = newline == std::string_view::npos ? 0 : newline + 1;
   for (std::size_t i = first; i < offset; ++i)
     if (source[i] != ' ' && source[i] != '\t' && source[i] != '\r')

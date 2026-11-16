@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <LucaSystem/SaveState.hpp>
+#include <LucaSystem/DialogueFlow.hpp>
 
 #include <iostream>
 #include <stdexcept>
@@ -24,6 +25,17 @@ void rejects(F fn, const char *message) {
 
 int main() {
   try {
+    // One input reveals pending glyphs; only a subsequent confirm advances
+    // the VM. No input can pull arbitrary extracted dialogue out of order.
+    using LucaSystem::DialogueAdvance;
+    require(LucaSystem::nextDialogueAction(false, false) ==
+                DialogueAdvance::None, "Hidden dialogue is not advanceable");
+    require(LucaSystem::nextDialogueAction(true, false) ==
+                DialogueAdvance::Reveal, "First confirm reveals text");
+    require(LucaSystem::nextDialogueAction(true, true) ==
+                DialogueAdvance::ResumeScript,
+            "Second confirm resumes the script without skipping commands");
+
     LucaSystem::SaveState state;
     state.scenario = "seen163";
     state.instructionIndex = 1234;

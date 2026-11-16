@@ -51,6 +51,23 @@ int main() {
     check(ending && !ending->findLabel("finish"),
           "inline label should not be a line label");
     check(!parsed.findChapter("missing"), "missing chapter");
+    const std::string oldMac =
+        "chapter legacy {\r"
+        "  label_one:\r"
+        "  Show(\"line\");\r"
+        "  /* ignore\rbraces { } */\r"
+        "  label_two:\r"
+        "  WaitKey();\r"
+        "}\r";
+    const auto cr = N2System::ScriptIndex::Parse(oldMac);
+    const auto *legacy = cr.findChapter("legacy");
+    check(legacy && legacy->findLabel("label_one") &&
+          legacy->findLabel("label_two") &&
+          legacy->findLabel("label_two")->line == 5,
+          "CR-only NsScript source lines and labels");
+    check(legacy && legacy->invocations.size() == 2 &&
+          legacy->invocations[1].line == 6,
+          "CR-only NsScript invocation line numbers");
     rejects("chapter main {");
     rejects("chapter { }");
     rejects("chapter main ( )");

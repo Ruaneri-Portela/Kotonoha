@@ -45,3 +45,15 @@ cmake -S . -B build -DBUILD_TESTING=ON -DKOTONOHA_BUILD_LUCA_SYSTEM=ON
 cmake --build build --target LucaSystemSaveCodecTests
 ctest --test-dir build -R LucaSystem.SaveCodec --output-on-failure
 ```
+
+## Diálogos na ordem dos opcodes
+
+A entrada agora usa a mesma rotina para teclado, mouse e ações de avanço:
+primeiro revela a fala incompleta; depois retoma o interpretador no próximo
+opcode. Isso impede que o motor mostre a lista de textos extraídos ignorando
+comandos de imagem, música, waits ou desvios intermediários.
+
+F5/F6 têm prioridade sobre a confirmação da caixa de diálogo, permitindo
+salvar/carregar enquanto uma fala está visível. Um teste sintético verifica
+a decisão `Reveal` versus `ResumeScript`. Ainda é necessária a validação
+com o AIR original.

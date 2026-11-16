@@ -8,6 +8,28 @@
 #include <utility>
 namespace N2System {
 namespace {
+// Reject traversal and ambiguous aliases before adding them to the index.
+// Normalize only ASCII lettercase and separators; legacy multibyte name
+// bytes remain untouched.
+bool safeArchiveName(std::string_view value) {
+  if (value.empty() || value.front() == '/' || value.back() == '/')
+    return false;
+  std::size_t begin = 0;
+  while (begin < value.size()) {
+    const auto end = value.find('/', begin);
+    const auto part = value.substr(begin,
+        end == std::string_view::npos ? value.size() - begin : end - begin);
+    if (part.empty() || part == "." || part == "..")
+      return false;
+    for (unsigned char c : part)
+      if (c < 0x20 || c == 0x7f || c == ':')
+        return false;
+    if (end == std::string_view::npos)
+      break;
+    begin = end + 1;
+  }
+  return true;
+}
 std::uint8_t nameKey(std::uint32_t character, std::uint32_t entry,
                      std::uint32_t first, std::uint32_t second) {
   const std::uint32_t keys = first * second;
@@ -60,10 +82,7 @@ std::string Archive::normalize(std::string_view name) {
 void Archive::add(ArchiveEntry entry) {
   check(entry.offset,entry.size);
   entry.name=normalize(entry.name);
-  if (entry.name.empty() || entry.name.front()=='/' ||
-      entry.name==".." || entry.name.find("../")!=std::string::npos ||
-      (entry.name.size()>2 &&
-       entry.name.compare(entry.name.size()-3,3,"/..")==0))
+  if (!safeArchiveName(entry.name))
     throw std::runtime_error("N2System: unsafe path in archive");
   if (!index_.emplace(entry.name,entries_.size()).second)
     throw std::runtime_error("N2System: duplicate entry "+entry.name);
@@ -172,9 +191,7 @@ void Archive::addAfsNames(std::string_view ini) {
       throw std::runtime_error("N2System: malformed AFS name record");
     const auto name = normalize(line.substr(0, comma));
     const auto ordinal = decimal(line.substr(comma + 1));
-    if (ordinal >= entries_.size() || name.empty() ||
-        name.front() == '/' || name.find("../") != std::string::npos ||
-        name == ".." || name.find(':') != std::string::npos)
+    if (ordinal >= entries_.size() || !safeArchiveName(name))
       throw std::runtime_error("N2System: unsafe AFS alias or invalid index");
     const auto [it, inserted] = newIndex.emplace(name, ordinal);
     if (!inserted && it->second != ordinal)

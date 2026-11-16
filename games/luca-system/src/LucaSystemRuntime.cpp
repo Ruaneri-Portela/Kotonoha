@@ -5,6 +5,7 @@
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
+#include <LucaSystem/DialogueFlow.hpp>
 #include <LucaSystem/SaveState.hpp>
 
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
@@ -612,24 +613,25 @@ struct LucaSystemRuntime::Impl {
   }
 
   void advanceDialogue() {
-    if (!dialogueVisible && dialogueIndex < dialogueLines.size()) {
-      dialogueVisible = true;
-      const auto &line = dialogueLines[dialogueIndex];
-      runtime.dialogueText_ = line;
-      runtime.dialogueSpeaker_.clear();
-      textbox->setDialogue(runtime.dialogueSpeaker_, runtime.dialogueText_);
-      textbox->show();
-      backlog->addEntry("", line);
+    if (!textbox)
       return;
-    }
-    if (dialogueVisible && textbox && textbox->isDialogueComplete()) {
+    switch (nextDialogueAction(dialogueVisible,
+                               textbox->isDialogueComplete())) {
+    case DialogueAdvance::None:
+      return;
+    case DialogueAdvance::Reveal:
+      textbox->completeDialogue();
+      return;
+    case DialogueAdvance::ResumeScript:
+      // The VM must process the next command in order, including graphics,
+      // music, waits and branches between consecutive dialogue messages.
       dialogueVisible = false;
+      textbox->hide();
       ++dialogueIndex;
-      if (dialogueIndex < dialogueLines.size()) {
-        advanceDialogue();
-      } else {
-        runUntilPause();
-      }
+      runtime.dialogueText_.clear();
+      runtime.dialogueSpeaker_.clear();
+      runUntilPause();
+      return;
     }
   }
 
@@ -800,16 +802,10 @@ void LucaSystemRuntime::advanceDialogue() { impl_->advanceDialogue(); }
 
 bool LucaSystemRuntime::handleAdvanceAction() {
   auto &impl = *impl_;
-  if (impl.dialogueVisible && impl.textbox) {
-    if (!impl.textbox->isDialogueComplete()) {
-      impl.textbox->completeDialogue();
-      return true;
-    }
-    impl.dialogueVisible = false;
-    impl.runUntilPause();
-    return true;
-  }
-  return false;
+  if (!impl.dialogueVisible)
+    return false;
+  impl.advanceDialogue();
+  return true;
 }
 
 bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
@@ -880,6 +876,24 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     initGameplay(*impl.engine);
     return startScenario("seen163");
   }
+  // Handle save/load before generic dialogue input, otherwise F5/F6
+  // are consumed as confirmation keys while the textbox is visible.
+  if (!impl.originalTitle && mapped.type == SDL_EVENT_KEY_DOWN &&
+      !mapped.key.repeat &&
+      mapped.key.key == SDLK_F5) {
+    auto path =
+        Kotonoha::preferredDocumentsDirectory("luca_system") / "quicksave.kns";
+    saveGame(path.string());
+    return true;
+  }
+  if (!impl.originalTitle && mapped.type == SDL_EVENT_KEY_DOWN &&
+      !mapped.key.repeat &&
+      mapped.key.key == SDLK_F6) {
+    auto path =
+        Kotonoha::preferredDocumentsDirectory("luca_system") / "quicksave.kns";
+    loadGame(path.string());
+    return true;
+  }
   if (impl.dialogueVisible && (mapped.type == SDL_EVENT_KEY_DOWN ||
                                mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
                                mapped.type == SDL_EVENT_FINGER_DOWN)) {
@@ -887,20 +901,6 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
       advanceDialogue();
       return true;
     }
-  }
-  if (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
-      mapped.key.key == SDLK_F5) {
-    auto path =
-        Kotonoha::preferredDocumentsDirectory("luca_system") / "quicksave.kns";
-    saveGame(path.string());
-    return true;
-  }
-  if (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
-      mapped.key.key == SDLK_F6) {
-    auto path =
-        Kotonoha::preferredDocumentsDirectory("luca_system") / "quicksave.kns";
-    loadGame(path.string());
-    return true;
   }
   return Runtime::onEvent(mapped);
 }
@@ -943,7 +943,7 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
                    std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
   if (!candidate.valid() ||
       state.instructionIndex > candidate.instructionCount() ||
-      state.dialogueIndex > candidate.strings().size() ||
+      state.dialogueIndex > 1000000 ||
       state.callStack.size() > 1024)
     throw std::runtime_error("Invalid LucaSystem save script position");
   for (const auto returnTo : state.callStack)

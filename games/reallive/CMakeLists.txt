@@ -83,6 +83,19 @@ if(BUILD_TESTING)
         endif()
     endforeach()
 
+    # Data-independent verification of switch/case selection semantics.
+    add_executable(RealLiveCaseSelectionTests tests/CaseSelectionTest.cpp)
+    target_include_directories(RealLiveCaseSelectionTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")
+    target_compile_features(RealLiveCaseSelectionTests PRIVATE cxx_std_17)
+    if(MSVC)
+        target_compile_options(RealLiveCaseSelectionTests PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(RealLiveCaseSelectionTests PRIVATE -UNDEBUG)
+    endif()
+    add_test(NAME RealLive.CaseSelection COMMAND RealLiveCaseSelectionTests)
+    set_tests_properties(RealLive.CaseSelection PROPERTIES LABELS synthetic)
+
     add_executable(RealLiveEngineTests tests/EngineTest.cpp)
     target_link_libraries(RealLiveEngineTests PRIVATE reallive_port)
     add_executable(RealLiveConfigTests tests/ConfigTest.cpp)
