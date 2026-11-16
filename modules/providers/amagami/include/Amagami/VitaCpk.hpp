@@ -1,7 +1,7 @@
 // Adapted from hokagocafe/open-amagami (MIT, copyright 2026 hokagocafe).
-// Reading the PS Vita release's CRI CPK containers (GRAPH.CPK): a C++ rendition of
-// tools/cpk.py, TOC-layout only (the layout GRAPH.CPK and SCENARIO.CPK use; the
-// ITOC layout MUSIC/SOUND/VOICE.CPK use is not needed here).
+// Read-only CRI CPK support for decrypted PS Vita game data. Both TOC
+// (SCENARIO/GRAPH) and ITOC (MUSIC/SOUND/VOICE) archive indexes are handled.
+// A separate Vita asset provider and native runtime are still required.
 // Format documentation: https://github.com/hokagocafe/open-amagami/blob/main/docs/technical/vita-cpk-format.md.
 // Licence notice: third_party/open-amagami-LICENSE.txt.
 #pragma once
