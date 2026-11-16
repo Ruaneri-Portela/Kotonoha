@@ -1888,6 +1888,14 @@ int main(int argc, char **argv) {
     game.RemoveScene(&namedSave);
     std::filesystem::remove_all(namedDirectory);
     game.saveGame(path.string());
+    check(VNSave::read(path.string()).gameData.rfind(
+              "REALLIVE-PRESENTATION-6", 0) == 0,
+          "REALLIVE v6 save format must store cursor state");
+    const int cursorBeforeLoad = game.debugMouseCursor();
+    game.debugJumpToNode("9032");
+    game.loadGame(path.string());
+    check(game.debugMouseCursor() == cursorBeforeLoad,
+          "A version 6 save must restore the cursor index");
     check(VNSave::read(path.string()).gameData.find("17 de Julho (Seg)") !=
               std::string::npos,
           "REALLIVE must save the script-provided date title");

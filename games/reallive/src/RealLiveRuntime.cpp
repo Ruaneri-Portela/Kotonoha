@@ -3694,7 +3694,7 @@ void RealLiveRuntime::saveGame(const std::string &path) {
     throw std::runtime_error(
         "Salve durante uma fala, após terminar a transição.");
   std::ostringstream out;
-  out << "REALLIVE-PRESENTATION-5\n"
+  out << "REALLIVE-PRESENTATION-6\n"
       << std::quoted(i.vm.snapshot()) << '\n'
       << std::quoted(i.dialogue) << ' ' << std::quoted(i.speakerName) << ' '
       << i.pauseKind << '\n';
@@ -3775,6 +3775,7 @@ void RealLiveRuntime::saveGame(const std::string &path) {
   out << i.dc.size() << '\n';
   for (const auto &[id, pixels] : i.dc)
     out << id << ' ' << indices.at(i.dcImage(id).get()) << '\n';
+  out << i.mouseCursorNumber << '\n';
   VNSave save;
   save.nodeId = i.vm.scenario();
   save.gameData = out.str();
@@ -3795,6 +3796,7 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   int64_t end, loopStart;
   double position;
   int pauseKind;
+  int restoredMouseCursor = i.assets->settings().integer("MOUSE_CURSOR", -1);
   if (!(in >> version >> std::quoted(state) >> std::quoted(dialogue) >>
         std::quoted(speaker) >> pauseKind >> std::quoted(music) >> loop >>
         end >> loopStart >> position) ||
@@ -3802,7 +3804,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
        version != "REALLIVE-PRESENTATION-2" &&
        version != "REALLIVE-PRESENTATION-3" &&
        version != "REALLIVE-PRESENTATION-4" &&
-       version != "REALLIVE-PRESENTATION-5") ||
+       version != "REALLIVE-PRESENTATION-5" &&
+       version != "REALLIVE-PRESENTATION-6") ||
       (pauseKind != 17 && pauseKind != 205) || position < 0 ||
       !std::isfinite(position))
     invalid();
@@ -3837,11 +3840,13 @@ void RealLiveRuntime::loadGame(const std::string &path) {
       o.colour = {Uint8(r), Uint8(g), Uint8(b), Uint8(a)};
       if ((version == "REALLIVE-PRESENTATION-3" ||
            version == "REALLIVE-PRESENTATION-4" ||
-           version == "REALLIVE-PRESENTATION-5") &&
+           (version == "REALLIVE-PRESENTATION-5" ||
+            version == "REALLIVE-PRESENTATION-6")) &&
           (!(in >> o.frameMs >> o.animationElapsed) || o.frameMs < 0))
         invalid();
       if (version == "REALLIVE-PRESENTATION-4" ||
-          version == "REALLIVE-PRESENTATION-5")
+          version == "REALLIVE-PRESENTATION-5" ||
+          version == "REALLIVE-PRESENTATION-6")
         for (auto &adjustment : o.adjustments)
           if (!(in >> adjustment.x >> adjustment.y))
             invalid();
@@ -3876,12 +3881,14 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   std::string saveName;
   std::map<int, std::shared_ptr<DCImage>> dcImages;
   in >> std::ws;
-  if (version == "REALLIVE-PRESENTATION-5" && in.eof())
+  if ((version == "REALLIVE-PRESENTATION-5" ||
+       version == "REALLIVE-PRESENTATION-6") && in.eof())
     invalid();
   if (!in.eof()) {
     if (!(in >> std::quoted(saveName)))
       invalid();
-    if (version == "REALLIVE-PRESENTATION-5") {
+    if (version == "REALLIVE-PRESENTATION-5" ||
+        version == "REALLIVE-PRESENTATION-6") {
       size_t count;
       if (!(in >> count) || count > 65536)
         invalid();
@@ -3943,6 +3950,9 @@ void RealLiveRuntime::loadGame(const std::string &path) {
           invalid();
       }
     }
+    if (version == "REALLIVE-PRESENTATION-6" &&
+        !(in >> restoredMouseCursor))
+      invalid();
     in >> std::ws;
     if (!in.eof())
       invalid();
@@ -3951,7 +3961,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
     invalid();
   i.vm.restore(state);
   if (version != "REALLIVE-PRESENTATION-4" &&
-      version != "REALLIVE-PRESENTATION-5") {
+      version != "REALLIVE-PRESENTATION-5" &&
+      version != "REALLIVE-PRESENTATION-6") {
     const auto restoreAdjustments = [&](std::map<int, Object> &objects) {
       for (auto &[id, o] : objects)
         for (size_t slot = 0; slot < o.adjustments.size(); ++slot) {
@@ -4020,6 +4031,7 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.fadeStops = fadeStops;
   i.audioTick = SDL_GetTicks();
   i.bgm.SetGain(gain);
+  i.selectMouseCursor(restoredMouseCursor);
 }
 
 bool RealLiveRuntime::onEvent(EventRef e) {
