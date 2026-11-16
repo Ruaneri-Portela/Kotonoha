@@ -41,6 +41,43 @@ PmailGame::PmailGame(std::vector<uint8_t> scriptPack, std::string packPath)
 
 PmailGame::~PmailGame() = default;
 
+void PmailGame::setPlayerNames(std::string no, std::string ho) {
+  std::lock_guard lock(mutex_);
+  auto valid = [](const std::string &s) {
+    return !s.empty() && s.size() <= 64 &&
+           s.find_first_of("\r\n\t") == std::string::npos;
+  };
+  if (!valid(no) || !valid(ho))
+    throw std::invalid_argument("Pure Mail names must be 1-64 bytes without controls");
+  playerNameNO_ = std::move(no);
+  playerNameHO_ = std::move(ho);
+}
+
+std::string PmailGame::expandPlayerNames(const std::string &source) const {
+  std::lock_guard lock(mutex_);
+  std::string result;
+  result.reserve(source.size());
+  for (size_t i = 0; i < source.size();) {
+    if (source.compare(i, 3, "$NO") == 0) {
+      result += playerNameNO_;
+      i += 3;
+    } else if (source.compare(i, 3, "$HO") == 0) {
+      result += playerNameHO_;
+      i += 3;
+    } else {
+      result += source[i++];
+    }
+  }
+  return result;
+}
+
+void PmailGame::clearComputerOverlay() {
+  computerText_.clear();
+  chatHistory_.clear();
+  computerClock_.clear();
+  computerOverlayVisible_ = false;
+}
+
 void PmailGame::indexPack() {
   std::lock_guard lock(mutex_);
   entries_.clear();
@@ -203,9 +240,7 @@ bool PmailGame::init() {
   title_ = false;
   message_.clear();
   messageQueue_.clear();
-  computerText_.clear();
-  computerClock_.clear();
-  chatHistory_.clear();
+  clearComputerOverlay();
   return true;
 }
 
@@ -214,7 +249,7 @@ std::string PmailGame::serialize() const {
   if (returningToTitle_)
     throw std::runtime_error("Cannot save while returning to title");
   ::Pmail::StateIO::Writer out;
-  out.string("PMAIL-GAME-3");
+  out.string("PMAIL-GAME-4");
   out.u64(::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()));
   out.string(vm_.serialize());
   auto object = [&](const ::Pmail::ObjectPtr &obj) {
@@ -298,6 +333,9 @@ std::string PmailGame::serialize() const {
     out.u32(uint32_t(line.mode));
     out.string(line.text);
   }
+  out.string(playerNameNO_);
+  out.string(playerNameHO_);
+  out.boolean(computerOverlayVisible_);
   return out.finish();
 }
 
@@ -306,7 +344,7 @@ void PmailGame::deserialize(const std::string &data) {
   ::Pmail::StateIO::Reader in(data);
   const auto version = in.string(32);
   if (version != "PMAIL-GAME-1" && version != "PMAIL-GAME-2" &&
-      version != "PMAIL-GAME-3")
+      version != "PMAIL-GAME-3" && version != "PMAIL-GAME-4")
     throw std::runtime_error("Unsupported PMAIL save version");
   if (in.u64() != ::Pmail::StateIO::fingerprint(pack_.data(), pack_.size()))
     throw std::runtime_error("PMAIL save belongs to a different script pack");
@@ -378,7 +416,8 @@ void PmailGame::deserialize(const std::string &data) {
   }
   int voiceActor = -1;
   std::vector<AnimationState> animations;
-  if (version == "PMAIL-GAME-2" || version == "PMAIL-GAME-3") {
+  if (version == "PMAIL-GAME-2" || version == "PMAIL-GAME-3" ||
+      version == "PMAIL-GAME-4") {
     const auto count = in.count(4096);
     for (uint32_t i = 0; i < count; ++i) {
       AnimationState animation;
@@ -405,7 +444,7 @@ void PmailGame::deserialize(const std::string &data) {
   std::vector<ComputerText> computerText;
   std::vector<ChatLine> chatHistory;
   std::string computerClock;
-  if (version == "PMAIL-GAME-3") {
+  if (version == "PMAIL-GAME-3" || version == "PMAIL-GAME-4") {
     for (auto n = in.count(ComputerTextLimit); n; --n) {
       ComputerText slot;
       slot.text = in.string(4096);
@@ -428,6 +467,18 @@ void PmailGame::deserialize(const std::string &data) {
       ChatLine line{int32_t(in.u32()), in.string(4096)};
       chatHistory.push_back(std::move(line));
     }
+  }
+  std::string savedNO = playerNameNO_, savedHO = playerNameHO_;
+  bool overlayVisible = !computerText.empty() || !chatHistory.empty() ||
+                        !computerClock.empty();
+  if (version == "PMAIL-GAME-4") {
+    savedNO = in.string(64);
+    savedHO = in.string(64);
+    overlayVisible = in.boolean();
+    if (savedNO.empty() || savedHO.empty() ||
+        savedNO.find_first_of("\r\n\t") != std::string::npos ||
+        savedHO.find_first_of("\r\n\t") != std::string::npos)
+      throw std::runtime_error("Invalid PMAIL player customization");
   }
   in.end();
   ::Pmail::Vm staged(*this);
@@ -466,6 +517,9 @@ void PmailGame::deserialize(const std::string &data) {
   computerText_ = std::move(computerText);
   computerClock_ = std::move(computerClock);
   chatHistory_ = std::move(chatHistory);
+  playerNameNO_ = std::move(savedNO);
+  playerNameHO_ = std::move(savedHO);
+  computerOverlayVisible_ = overlayVisible;
   returningToTitle_ = false;
   ++sceneVersion_;
 }
@@ -482,6 +536,7 @@ void PmailGame::returnToTitle() {
   message_.clear();
   speakerName_.clear();
   messageQueue_.clear();
+  clearComputerOverlay();
   choiceText_.clear();
   choiceValue_.clear();
   choosing_ = false;
@@ -518,7 +573,7 @@ void PmailGame::flushLines() {
     } catch (...) {
     }
     std::cout << "[PmailPort] TEXT: " << utf << std::endl;
-    messageQueue_.push_back(std::move(utf));
+    messageQueue_.push_back(expandPlayerNames(utf));
   }
   lines.clear();
   if (!messageQueue_.empty() && message_.empty())
@@ -728,7 +783,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
         } catch (...) {
         }
         std::cout << "[PmailPort] TEXT: " << utf << std::endl;
-        messageQueue_.push_back(std::move(utf));
+        messageQueue_.push_back(expandPlayerNames(utf));
         if (message_.empty())
           showNext();
       }
@@ -748,7 +803,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
   case 5:
     for (const auto &a : args)
       if (a.tag() == 2)
-        speakerName_ = ::Kotonoha::ShiftJisToUtf8(vm.text(a));
+        speakerName_ = expandPlayerNames(::Kotonoha::ShiftJisToUtf8(vm.text(a)));
     break;
   case 9: {
     // Choice: args include option strings and a target var ref.
@@ -757,7 +812,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     choiceVar_ = 0;
     for (const auto &a : args) {
       if (a.tag() == 2)
-        choiceText_.push_back(::Kotonoha::ShiftJisToUtf8(vm.text(a)));
+        choiceText_.push_back(expandPlayerNames(::Kotonoha::ShiftJisToUtf8(vm.text(a))));
       else if (a.tag() == 1)
         choiceVar_ = a.value();
       else if (a.tag() == 0)
@@ -786,6 +841,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
           break;
       }
     if (!name.empty()) {
+      clearComputerOverlay();
       callStack_.push_back({scriptName_, vm.returnPc()});
       loadScript(name, true);
     }
@@ -794,6 +850,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
   case 28: {
     std::string name = firstString();
     if (!name.empty()) {
+      clearComputerOverlay();
       callStack_.push_back({scriptName_, vm.returnPc()});
       loadScript(name, true);
     }
@@ -817,6 +874,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
         background_ = vm.text(arg);
         sprites_.clear();
         animations_.clear();
+        clearComputerOverlay();
         filled_ = false;
         ++sceneVersion_;
         break;
@@ -904,6 +962,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     slot.size = std::clamp(values[4], 1, 256);
     slot.color = std::clamp(values[5], 0, 255);
     computerText_.push_back(std::move(slot));
+    computerOverlayVisible_ = true;
     ++sceneVersion_;
     break;
   }
@@ -917,6 +976,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     }
     if (computerClock_.size() > 32)
       computerClock_.resize(32);
+    computerOverlayVisible_ = true;
     ++sceneVersion_;
     break;
   }
@@ -934,7 +994,8 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     }
     if (chatHistory_.size() == ChatHistoryLimit)
       chatHistory_.erase(chatHistory_.begin());
-    chatHistory_.push_back({argInt(0), std::move(text)});
+    chatHistory_.push_back({argInt(0), expandPlayerNames(text)});
+    computerOverlayVisible_ = true;
     ++sceneVersion_;
     break;
   }
@@ -956,6 +1017,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
       background_.clear();
       sprites_.clear();
       animations_.clear();
+      clearComputerOverlay();
       filled_ = true;
       fillColor_ = uint32_t(c[0] << 16 | c[1] << 8 | c[2]);
       ++sceneVersion_;

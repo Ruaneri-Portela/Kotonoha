@@ -26,7 +26,8 @@ int main() {
     auto object = std::make_shared<Pmail::ScriptObject>();
     object->id = 3;
     object->name = "synthetic-computer.obj";
-    object->strings = {"mail", "hello", "12:30", "one", "two"};
+    object->strings = {"mail", "hello", "12:30", "one", "two",
+                       "$NO meets $HO", "ROOM"};
     game.vm().registerObject(object);
     const auto call = [&](int id, std::vector<Pmail::Arg> args) {
       game.native(game.vm(), id, args);
@@ -67,7 +68,34 @@ int main() {
     call(161, {});
     check(game.chatHistory().empty(), "SYS 161 did not clear chat");
 
-    std::cout << "Pure Mail computer text, clock and chat commands passed\n";
+    game.setPlayerNames("Alice", "Bob");
+    check(game.expandPlayerNames("$NO and $HO / $NO") ==
+              "Alice and Bob / Alice",
+          "Chosen player names were not substituted");
+    call(4, {string(5)});
+    check(game.waitingForClick() && game.message() == "Alice meets Bob",
+          "Dialogue did not expand customized $NO / $HO");
+    call(160, {integer(1), string(5)});
+    check(game.hasComputerOverlay() && game.chatHistory().back().text ==
+              "Alice meets Bob",
+          "Chat customization did not expand player names");
+    call(48, {string(6)});
+    check(!game.hasComputerOverlay() && game.computerText().empty() &&
+              game.chatHistory().empty() && game.computerClock().empty(),
+          "Changing the scene retained previous computer overlays");
+
+    call(160, {integer(2), string(3)});
+    check(game.hasComputerOverlay(), "Chat overlay did not activate");
+    call(69, {integer(0), integer(0), integer(0)});
+    check(!game.hasComputerOverlay(),
+          "Clearing the scene retained computer overlays");
+
+    const auto saved = game.serialize();
+    check(saved.find("PMAIL-GAME-4") != std::string::npos &&
+              saved.find("Alice") != std::string::npos,
+          "Name customization not included in game save state");
+    std::cout << "Pure Mail computer UI, player names, scene transitions"
+                 " and save format passed\n";
     return 0;
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';

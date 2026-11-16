@@ -19,11 +19,21 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
 - VM/host save/load with validation, backlog persistence, engine save slots and
   return to title. Translation lookup and current audio/assets are connected to
   the engine tools. Debug node display includes active animation/frame.
-- Computer display groundwork: SYS 52 positioned text, SYS 80 clock, and
+- Computer display groundwork: SYS 52 positioned text, SYS 80 clock,
   SYS 160/162 chat accumulation (15-entry limit), SYS 161 reset and SYS 163
-  redraw. UI is composited in the native 800×600 scene. Computer UI state
-  persists in version 3 game saves; version 1/2 saves remain readable.
-  Synthetic opcode tests do not require commercial game data.
+  redraw. Scene transitions now clear computer overlays, avoiding ghost text
+  over the visual-novel dialogue. No commercial assets are needed for tests.
+- A native pre-New-Game customization panel accepts $NO and $HO, expands
+  their tokens in dialogue, speakers, choices and chat, and persists them
+  in a player profile and version 4 game saves. Versions 1-3 remain readable.
+- Save-name/rename TextInputDialog now gets input and renders above the save
+  screen. Reopening saves restores its scene registration after closing.
+- Message window now reads MesWin_R/G/B from OF_ADV2.INI (defaults 0/0/150),
+  preserves original CHAR alpha and exposes diagnostics through
+  PMAIL_MESWIN_R/G/B. Default text uses darker colors for light backing;
+  user text-color overrides are respected.
+- Game art and title textures now use the engine's configurable upscaling
+  pipeline (factor > 1; Linear, MetalFX or MPV/OpenGL where available).
 
 ## Remaining parity work
 
@@ -31,8 +41,11 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
   icon commands (SYS 50, 176–179, 192–195), plus remaining scene-specific
   presentation details.
 - Original CPU/configuration-dependent AVI selection, timing/composition,
-  logo presentation and full movie/title sequence.
-- Exact textbox typography and complete original menu/backlog visual behavior.
+  pre-Overflow animation, logo presentation and full movie/title sequence.
+  A matching original-game animation trace and legal assets are needed to
+  reproduce the missing pre-Overflow effect without guessing a sequence.
+- Exact textbox typography, original configured color interpretation,
+  name-entry appearance and complete original menu/backlog visual behavior.
 - CURSOR02 automatic advance mode and full translation-export workflow.
 - Sample-exact fade/lip scheduling and synchronized audio/visual comparison
   against a running original executable.

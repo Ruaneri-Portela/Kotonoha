@@ -3,12 +3,14 @@
 #include "Pmail/Port.hpp"
 #include "PmailSession.hpp"
 #include <Kotonoha/components/VNSave.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -216,6 +218,11 @@ void PmailRuntime::update() {
     currentVoice_ = state[2].id;
   }
   if (saves_ && saves_->isOpen()) {
+    // The save/rename editor lives in the active scene list, but Pure Mail
+    // owns the update pump. Start SDL text input and IME for that modal.
+    for (auto *scene : GetActiveScenes())
+      if (auto *dialog = dynamic_cast<Kotonoha::TextInputDialog *>(scene))
+        dialog->update();
     if (session_)
       session_->resetClock();
     return;
@@ -248,9 +255,15 @@ void PmailRuntime::render(Kotonoha::RendererRef renderer, float scale) {
 }
 
 void PmailRuntime::renderOverlay(Kotonoha::RendererRef renderer, float scale) {
-  // Session draws its own pause/backlog in order; saves sit above the session.
-  if (saves_ && saves_->isOpen())
+  // The Save menu creates a separate TextInputDialog for new save names and
+  // renames. It must be rendered above the menu, or the save modal is
+  // invisible despite accepting the "New save" action.
+  if (saves_ && saves_->isOpen()) {
     renderScene(*saves_, renderer, scale);
+    for (auto *scene : GetActiveScenes())
+      if (scene && dynamic_cast<Kotonoha::TextInputDialog *>(scene))
+        renderScene(*scene, renderer, scale);
+  }
 }
 
 bool PmailRuntime::onEvent(Kotonoha::EventRef rawEvent) {
@@ -260,6 +273,15 @@ bool PmailRuntime::onEvent(Kotonoha::EventRef rawEvent) {
   const SDL_Event mapped = Kotonoha::MapControllerEvent(rawEvent);
   Kotonoha::EventRef event = mapped;
   if (saves_ && saves_->isOpen()) {
+    // The editable save-name modal is a separate Scene. It was previously
+    // bypassed by the save menu event path, preventing save creation/rename.
+    const auto &scenes = GetActiveScenes();
+    for (auto it = scenes.rbegin(); it != scenes.rend(); ++it) {
+      if (*it && dynamic_cast<Kotonoha::TextInputDialog *>(*it)) {
+        dispatchEvent(**it, event);
+        return true;
+      }
+    }
     dispatchEvent(*saves_, event);
     return true;
   }
@@ -297,10 +319,17 @@ std::string PmailRuntime::debugNode() const {
 void PmailRuntime::openSaves(bool load) {
   if (!saves_ || !session_)
     return;
+  if (!load && (!game_ || game_->atTitle()))
+    return;
   session_->closeMenus();
   const auto directory = Kotonoha::saveDirectory() / "slots";
   std::filesystem::create_directories(directory);
   saves_->open(directory.string(), load);
+  // Closing the shared save menu removes it from the runtime scene list.
+  // Re-register when it is opened again so modal input and pause work.
+  const auto &scenes = GetActiveScenes();
+  if (std::find(scenes.begin(), scenes.end(), saves_.get()) == scenes.end())
+    AddScene(saves_.get(), GetState());
 }
 
 void PmailRuntime::saveGame(const std::string &path) {

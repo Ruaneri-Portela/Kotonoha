@@ -18,6 +18,24 @@ cmake --build build --target Pmail
 Use a pasta original PMAILDVD, com data/pack/*.dat e data/movie.
 Use o launcher ou passe `--pmail /caminho/para/dados` ao executável. Nunca versione dados comerciais.
 
+## Personalização, saves e upscaling
+
+Selecione **Novo jogo** para editar os nomes que substituem `$NO` e `$HO`
+nos diálogos. Os valores são gravados no perfil `pmail-names.txt` e nos
+saves. A janela de nomear/renomear saves agora recebe teclado e aparece sobre
+a lista de slots. Saves antigos continuam aceitos pelo porte.
+
+Os parâmetros originais `MesWin_R`, `MesWin_G` e `MesWin_B` do
+`OF_ADV2.INI` controlam a tonalidade do fundo da caixa de diálogo. É
+possível testar ajustes temporários por `PMAIL_MESWIN_R/G/B`.
+
+As imagens e o título usam o upscaler compartilhado do Kotonoha. Para
+ativá-lo, configure fator maior que 1 no menu gráfico; o backend depende
+do renderizador SDL (Linear é a alternativa compatível).
+
+A animação antes da imagem Overflow ainda exige comparação com o DVD original
+e seus assets: o conteúdo e os tempos exatos não estão comprovados.
+
 ## Investigação detalhada
 
 [Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.
