@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include "RealLive/Session.hpp"
+#include "RealLive/DecimalDigits.hpp"
 #include "RealLive/StringOps.hpp"
 #include "RealLive/CaseSelection.hpp"
 #include <algorithm>
@@ -323,6 +324,22 @@ bool Session::strings(const CommandElement &c) {
     } catch (const std::exception &) {
       machine_.set_store_register(0);
     }
+    break;
+  }
+  case 19: { // Str.digits(value) -> number of decimal digits.
+    if (c.overload() != 0 || c.GetParamCount() != 1)
+      return false;
+    machine_.set_store_register(decimalDigits(num(0)));
+    break;
+  }
+  case 20: { // Str.digit(value, output, oneBasedPositionFromRight).
+    if (c.overload() != 0 || c.GetParamCount() != 3)
+      return false;
+    const auto value = num(0);
+    const auto fromRight = num(2);
+    const auto digit = decimalDigit(value, fromRight); // validates first
+    *p(1).GetIntegerReferenceIterator(machine_) = digit;
+    machine_.set_store_register(decimalDigits(value));
     break;
   }
   case 30:

@@ -67,3 +67,20 @@ readable but have no recorded placements.
 Original scene compositing, background layers, transitions, animations
 and full game compatibility remain outside this change. Saves do not
 embed retail image data.
+
+## Experimental scene composition and transitions
+
+`SceneLayers` stages `IMAGELOAD` objects until `DRAW`, with bounded
+alpha interpolation from the previous visible layer. `MESSAGE`/`END`
+flush pending images when a script does not invoke `DRAW`. `FADE`
+uses a timed black overlay and `WIPE` currently approximates a wipe with
+cross-fading. The V4 save format still records only committed objects.
+
+This is **not** 1:1 AIR scene composition: original masks, directions,
+curves, animation semantics and background behavior require original
+binary/asset validation. Standalone C++17 regression test:
+
+```sh
+cmake --build build --target LucaSystemSceneLayersTests
+ctest --test-dir build -R LucaSystem.SceneLayers --output-on-failure
+```

@@ -41,6 +41,12 @@ if(BUILD_TESTING)
   target_include_directories(LucaSystemSaveCodecTests PRIVATE include)
   target_compile_features(LucaSystemSaveCodecTests PRIVATE cxx_std_17)
   add_test(NAME LucaSystem.SaveCodec COMMAND LucaSystemSaveCodecTests)
+
+  # SDL-free scene staging and transition-clock regressions.
+  add_executable(LucaSystemSceneLayersTests tests/SceneLayersTest.cpp)
+  target_include_directories(LucaSystemSceneLayersTests PRIVATE include)
+  target_compile_features(LucaSystemSceneLayersTests PRIVATE cxx_std_17)
+  add_test(NAME LucaSystem.SceneLayers COMMAND LucaSystemSceneLayersTests)
 endif()
 
 if(BUILD_TESTING)

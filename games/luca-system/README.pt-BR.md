@@ -69,3 +69,23 @@ e o formato são testados sem dados comerciais.
 **Limites:** o efeito visual original, as camadas de fundo, transições e
 animações ainda exigem reconstrução. O save não inclui pixels nem arquivos
 de mídia; o jogo original precisa estar acessível no carregamento.
+
+## Composição e transições experimentais
+
+`SceneLayers` agora separa imagens `IMAGELOAD` ainda não apresentadas das
+camadas exibidas. O opcode `DRAW` publica as imagens em ordem e usa uma
+transição de opacidade com duração limitada. O final de uma instrução
+`MESSAGE` ou `END` também publica imagens pendentes se o título omitir
+`DRAW`. `FADE` usa uma sobreposição preta temporizada e `WIPE` utiliza
+uma transição de opacidade provisória. A renderização SDL aplica a opacidade
+por camada, enquanto o codec V4 continua salvando apenas o estado exibido.
+
+**Importante:** ainda são *aproximações visuais*, não a implementação exata
+das curvas, máscaras, direção dos wipes, composição original do fundo ou
+operações de animação do AIR. Precisam ser comparadas com o executável e
+assets originais. Teste C++17 sem SDL:
+
+```sh
+cmake --build build --target LucaSystemSceneLayersTests
+ctest --test-dir build -R LucaSystem.SceneLayers --output-on-failure
+```

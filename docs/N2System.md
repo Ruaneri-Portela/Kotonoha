@@ -64,3 +64,43 @@ viabiliza ferramentas de inspeção e pontos de entrada para uma futura VM.
 expressões são ainda indexados em ordem textual, sem avaliação de branches,
 loops ou semântica de comandos. Não se deve apresentar essa navegação como
 prova de jogabilidade.
+
+## Executor experimental NsScript (C++17)
+
+`N2System::ScriptExecutor` conecta o `ScriptCursor` a callbacks do host,
+com orçamento de comandos por chamada de `run()`, pausa explícita
+(`VmActionKind::Pause` / `resume()`), término e saltos para capítulos
+ou labels. Em vez de executar a lista de chamadas indiscriminadamente,
+o compilador **valida todo o script antes da primeira ação**. O subconjunto
+aceito é: capítulos, labels no início da linha e chamadas diretas de
+funções com argumentos literais (strings ou inteiros decimais), terminadas
+por ponto e vírgula. Os callbacks decidem o significado de cada função;
+nomes como `Show` e `WaitKey` são exemplos de integração, não um contrato
+afirmado para todos os títulos N2System.
+
+```cpp
+N2System::ScriptExecutor vm(source, "main",
+  [&](const N2System::Invocation& call,
+      const std::vector<std::string>& args) -> N2System::VmAction {
+    if (call.function == "Show") {
+      drawText(args.at(0)); // callback implementado pelo frontend
+      return {};
+    }
+    if (call.function == "WaitKey")
+      return {N2System::VmActionKind::Pause, {}};
+    throw std::runtime_error("NsScript command unsupported");
+  });
+vm.run(1024); // não bloqueia indefinidamente a thread da interface
+// Na próxima confirmação do jogador:
+vm.resume();
+vm.run(1024);
+```
+
+Qualquer fluxo `if`, loop, atribuição ou expressão aninhada é rejeitado no
+pré-processamento. Isso é intencional: o N2System ainda **não possui VM
+NsScript completa** nem frontend de jogo integrado. Teste independente:
+
+```sh
+cmake --build build --target KotonohaN2SystemExecutorTests
+ctest --test-dir build -R Kotonoha.N2System.Executor --output-on-failure
+```
