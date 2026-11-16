@@ -353,6 +353,18 @@ class Parser {
     return tokens[pc++].text;
   }
   Value primary(bool active) {
+    if (match("new")) {
+      const auto type = identifier();
+      if (match("(")) {
+        if (!match(")"))
+          throw std::runtime_error(
+              "TJS2 subset: native constructor arguments not supported");
+      }
+      if (type == "Dictionary")
+        return active ? Value(std::make_shared<Object>()) : Value();
+      throw std::runtime_error(
+          "TJS2 subset: native class not implemented: " + type);
+    }
     if (match("(")) {
       auto v = expression(active);
       expect(")");
