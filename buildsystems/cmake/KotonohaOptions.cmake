@@ -6,6 +6,26 @@ option(KOTONOHA_WEB_SELFTEST "Build optional WebAssembly integration self-test h
 option(KOTONOHA_VERBOSE_BUILD "Print full compiler and linker commands" OFF)
 option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
 option(KOTONOHA_BUILD_ALL "Build every game port" OFF)
+# Single feature switches propagated to engine, game ports and public headers.
+set(_kotonoha_upscaler_default ON)
+set(_kotonoha_mcp_default ON)
+if(EMSCRIPTEN)
+    set(_kotonoha_upscaler_default OFF)
+    set(_kotonoha_mcp_default OFF)
+elseif(ANDROID OR (APPLE AND CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS|watchOS"))
+    set(_kotonoha_mcp_default OFF)
+endif()
+option(KOTONOHA_ENABLE_UPSCALER "Compile image upscaler infrastructure" ${_kotonoha_upscaler_default})
+option(KOTONOHA_ENABLE_MCP "Compile MCP server and command-line interface" ${_kotonoha_mcp_default})
+# Platform policy overrides stale build caches and explicit ON requests.
+if(EMSCRIPTEN)
+    set(KOTONOHA_ENABLE_UPSCALER OFF CACHE BOOL "Compile image upscaler infrastructure" FORCE)
+    set(KOTONOHA_ENABLE_MCP OFF CACHE BOOL "Compile MCP server and command-line interface" FORCE)
+elseif(ANDROID OR (APPLE AND CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS|watchOS"))
+    set(KOTONOHA_ENABLE_MCP OFF CACHE BOOL "Compile MCP server and command-line interface" FORCE)
+endif()
+unset(_kotonoha_upscaler_default)
+unset(_kotonoha_mcp_default)
 # WASM starts at 128 MiB and grows only as needed. The HTTP VFS keeps a
 # bounded page cache, not entire retail .bin/.gpk images in browser memory.
 set(KOTONOHA_WASM_INITIAL_MEMORY 134217728 CACHE STRING
