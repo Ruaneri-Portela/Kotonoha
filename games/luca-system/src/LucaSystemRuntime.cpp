@@ -161,7 +161,7 @@ protected:
     SDL_Rect clip{56, 548, 1168, 116};
     SDL_SetRenderClipRect(&renderer, &clip);
     auto measure = [this](const std::string &value) {
-      return engine.GetVNUI().textSize(value, 1168).x;
+      return engine.GetVNUI().textWidth(value);
     };
     const auto lines = Kotonoha::VNTextBoxUtility::RevealLines(
         fullDialogue, visibleDialogue.size(), measure, 1168);

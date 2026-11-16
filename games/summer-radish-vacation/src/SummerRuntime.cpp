@@ -69,7 +69,7 @@ class SummerText final : public VNTextBox {
   }
   void renderDialogue(RendererRef r) override {
     auto measure = [&](const std::string &value) {
-      return engine.GetVNUI().textSize(value, 10000).x;
+      return engine.GetVNUI().textWidth(value);
     };
     const auto lines = VNTextBoxUtility::RevealLines(
         fullDialogue, visibleDialogue.size(), measure, 710);

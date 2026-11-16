@@ -1,11 +1,13 @@
 #pragma once
 #include <Kotonoha/components/TouchActivation.hpp>
+#include <Kotonoha/utils/TextWrapping.hpp>
 
 #include <Kotonoha/core/Clock.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Scene.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -28,6 +30,14 @@ protected:
   bool isComplete = false;
   bool visible = true;
   bool userHidden = false;
+
+  // Cached full-dialogue line breaks are stable during typewriter reveal.
+  // Rebuild only when text, UI font instance or raster scale changes.
+  TextWrapping::Layout dialogueLayout_;
+  std::string layoutSource_;
+  std::uint64_t layoutUiId_ = 0;
+  float layoutDensity_ = 0.0f;
+  bool layoutValid_ = false;
 
   virtual double charactersPerSecond() const { return cps; }
   virtual void recordDialogue(const std::string &speaker,
@@ -98,15 +108,7 @@ public:
   }
 
   static size_t NextUtf8Char(const std::string &str, size_t index) {
-    if (index >= str.size())
-      return str.size();
-    const unsigned char c = static_cast<unsigned char>(str[index]);
-    const size_t length = (c < 0x80)           ? 1
-                          : ((c >> 5) == 0x6)  ? 2
-                          : ((c >> 4) == 0xE)  ? 3
-                          : ((c >> 3) == 0x1E) ? 4
-                                               : 1;
-    return std::min(str.size(), index + length);
+    return index >= str.size() ? str.size() : TextWrapping::nextUtf8(str, index);
   }
 
   static std::string GetSubStringUtf8(const std::string &str,
@@ -118,142 +120,26 @@ public:
     return str.substr(0, index);
   }
 
+  // Text layout understands real newlines, escaped CR/LF/CRLF, literal
+  // backslashes and UTF-8 character boundaries.
   static std::vector<std::string>
   RevealLines(const std::string &text, std::size_t visibleBytes,
               const std::function<float(const std::string &)> &measure,
               float width) {
-    const auto lines = WrapText(text, measure, width);
-    std::vector<std::string> visible;
-    std::size_t offset = 0;
-    for (const auto &line : lines) {
-      if (line.empty()) {
-        if (offset >= visibleBytes)
-          break;
-        visible.push_back("");
-        while (offset < text.size()) {
-          if (text.compare(offset, 4, "\\r\\n") == 0) {
-            offset += 4;
-          } else if (text.compare(offset, 2, "\\n") == 0 ||
-                     text.compare(offset, 2, "\\r") == 0 ||
-                     text.compare(offset, 2, "\r\n") == 0) {
-            offset += 2;
-          } else if (text[offset] == '\n' || text[offset] == '\r') {
-            offset += 1;
-          } else {
-            break;
-          }
-        }
-        continue;
-      }
-      auto start = text.find(line, offset);
-      if (start == std::string::npos || start >= visibleBytes)
-        break;
-      visible.push_back(
-          line.substr(0, std::min(line.size(), visibleBytes - start)));
-      offset = start + line.size();
-      while (offset < text.size()) {
-        if (text.compare(offset, 4, "\\r\\n") == 0) {
-          offset += 4;
-        } else if (text.compare(offset, 2, "\\n") == 0 ||
-                   text.compare(offset, 2, "\\r") == 0 ||
-                   text.compare(offset, 2, "\r\n") == 0) {
-          offset += 2;
-        } else if (text[offset] == '\n' || text[offset] == '\r') {
-          offset += 1;
-        } else {
-          break;
-        }
-      }
-    }
-    return visible;
+    return TextWrapping::reveal(text, visibleBytes, measure, width);
   }
 
   static bool IsCJK(const std::string &ch) {
-    if (ch.empty())
-      return false;
-    const unsigned char c = static_cast<unsigned char>(ch[0]);
-    return (c >= 0xE0);
+    return !ch.empty() && static_cast<unsigned char>(ch[0]) >= 0xe0;
   }
 
   static std::vector<std::string>
   WrapText(const std::string &text,
            const std::function<float(const std::string &)> &measureWidthFunc,
            float maxWidth) {
-    std::vector<std::string> lines;
-    if (text.empty())
-      return lines;
-
-    std::string currentLine;
-    std::string currentWord;
-
-    for (size_t i = 0; i < text.size();) {
-      size_t newlineSeqLen = 0;
-      if (text.compare(i, 4, "\\r\\n") == 0) {
-        newlineSeqLen = 4;
-      } else if (text.compare(i, 2, "\\n") == 0 ||
-                 text.compare(i, 2, "\\r") == 0) {
-        newlineSeqLen = 2;
-      } else if (text.compare(i, 2, "\r\n") == 0) {
-        newlineSeqLen = 2;
-      } else if (text[i] == '\n' || text[i] == '\r') {
-        newlineSeqLen = 1;
-      }
-
-      if (newlineSeqLen > 0) {
-        currentLine += currentWord;
-        lines.push_back(std::move(currentLine));
-        currentLine.clear();
-        currentWord.clear();
-        i += newlineSeqLen;
-        continue;
-      }
-
-      const size_t next = NextUtf8Char(text, i);
-      const std::string ch = text.substr(i, next - i);
-      i = next;
-
-      if (IsCJK(ch)) {
-        currentLine += currentWord;
-        currentWord.clear();
-
-        if (!currentLine.empty() &&
-            measureWidthFunc(currentLine + ch) > maxWidth) {
-          lines.push_back(std::move(currentLine));
-          currentLine = ch;
-        } else {
-          currentLine += ch;
-        }
-      } else if (ch == " ") {
-        currentWord += ch;
-        if (!currentLine.empty() &&
-            measureWidthFunc(currentLine + currentWord) > maxWidth) {
-          lines.push_back(std::move(currentLine));
-          currentLine = currentWord;
-        } else {
-          currentLine += currentWord;
-        }
-        currentWord.clear();
-      } else {
-        currentWord += ch;
-        if (measureWidthFunc(currentLine + currentWord) > maxWidth) {
-          if (!currentLine.empty()) {
-            lines.push_back(std::move(currentLine));
-            currentLine.clear();
-          } else {
-            lines.push_back(std::move(currentWord));
-            currentWord.clear();
-          }
-        }
-      }
-    }
-
-    currentLine += currentWord;
-    if (!currentLine.empty()) {
-      lines.push_back(std::move(currentLine));
-    }
-
-    return lines;
+    return TextWrapping::wrap(text, measureWidthFunc, maxWidth);
   }
+
 };
 
 } // namespace Kotonoha
