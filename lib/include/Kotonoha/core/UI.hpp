@@ -47,6 +47,8 @@ public:
                   SDL_Color color = {240, 240, 245, 255});
   SDL_FPoint measureSized(const std::string &value, float width,
                           float fontSize) const;
+  // Measure an unwrapped line for the shared word-wrapping algorithms.
+  float textWidth(const std::string &value, float fontSize = 24.0f) const;
   float textHeight(RendererRef renderer, const std::string &value, float width);
   SDL_FPoint textSize(const std::string &value, float width) const;
   void panel(RendererRef renderer, SDL_FRect rect,
