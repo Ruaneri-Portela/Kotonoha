@@ -47,7 +47,8 @@ inline std::size_t nextUtf8(const std::string &source, std::size_t start) {
 
 inline std::vector<Unit> tokenize(const std::string &source) {
   std::vector<Unit> result;
-  result.reserve(source.size());
+  // Avoid allocating a huge Unit array for multibyte or untrusted text.
+  result.reserve(std::min(source.size(), std::size_t{1024}));
   for (std::size_t i = 0; i < source.size();) {
     const std::size_t begin = i;
     Unit part;
