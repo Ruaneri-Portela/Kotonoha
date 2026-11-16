@@ -1719,7 +1719,45 @@ void Session::load(const std::string &path) {
     for (auto &action : actions) {
       if (!(in >> std::quoted(action.kind) >> std::quoted(action.value)))
         throw std::runtime_error("Invalid Amagami campaign save action entry");
+      if (action.kind.size() > 16 || action.value.size() > 256)
+        throw std::runtime_error("Oversized Amagami campaign replay action");
     }
+
+    // Every current-scenario input must have exactly one matching action.
+    // Earlier scenarios have their own actions; each "event" resets the
+    // input cursor because Session::start() resets inputs_. This catches
+    // malformed journals *before* replaying their original SCF commands.
+    size_t inputCursor = 0;
+    for (const auto &action : actions) {
+      if (action.kind == "event") {
+        if (action.value.empty())
+          throw std::runtime_error("Empty campaign event action");
+        inputCursor = 0;
+      } else if (action.kind == "period") {
+        if (!action.value.empty())
+          throw std::runtime_error("Invalid campaign period action");
+      } else if (action.kind == "advance") {
+        if (!action.value.empty() || inputCursor >= inputs.size() ||
+            inputs[inputCursor++] != -1)
+          throw std::runtime_error("Campaign advance/input journal mismatch");
+      } else if (action.kind == "choose") {
+        if (action.value.empty() || action.value.size() > 2 ||
+            !std::all_of(action.value.begin(), action.value.end(),
+                         [](unsigned char c) {
+                           return c >= '0' && c <= '9';
+                         }))
+          throw std::runtime_error("Invalid campaign choice selector");
+        const int chosen = std::stoi(action.value);
+        if (action.value != std::to_string(chosen) ||
+            inputCursor >= inputs.size() ||
+            inputs[inputCursor++] != chosen)
+          throw std::runtime_error("Campaign choice/input journal mismatch");
+      } else {
+        throw std::runtime_error("Unknown Amagami campaign save action");
+      }
+    }
+    if (inputCursor != inputs.size())
+      throw std::runtime_error("Incomplete campaign input journal");
   }
 
   int speed = 0, automatic = 0, skip = 0;
