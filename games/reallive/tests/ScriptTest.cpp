@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
                std::string::npos;
   }
   assert(rejected);
-  RealLive::ScriptArchive voiced(fullVoice, {}, "KEY\\\\CLANNAD_FV");
+  RealLive::ScriptArchive voiced(fullVoice, {}, "KEY\\CLANNAD_FV");
   assert(voiced.ScenarioNumbers().size() == 1);
   assert(voiced.Scenario(0).encoding() == 0);
 
