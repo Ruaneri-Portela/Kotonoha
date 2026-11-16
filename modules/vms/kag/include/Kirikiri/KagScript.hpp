@@ -92,6 +92,15 @@ public:
     std::size_t position() const { return pc_; }
     std::size_t callDepth() const { return returnStack_.size(); }
     void setBlocked(bool value) { blocked_ = value; }
+    // VM state captured inside a local KAG subroutine. The host separately
+    // persists sprites, assets and other presentation state.
+    struct State {
+      std::size_t position = 0;
+      std::vector<std::size_t> returnStack;
+      bool finished = false;
+    };
+    State saveState() const;
+    void restoreState(const State &state);
     void restorePosition(std::size_t position);
     bool jumpToLabel(const std::string &label);
     // Pump the runner: continue executing non-blocking tags. The host calls
