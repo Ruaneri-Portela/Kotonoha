@@ -120,11 +120,20 @@ jobs:
           fail-on-cache-miss: true
 
 
+      - name: Restore incremental WASM build directories
+        id: build-tree-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build-web/**
+            !build-web/vcpkg_installed/**
+            !build-web/packages/**
+          key: kotonoha-build-v1-wasm-3.1.73-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
+          restore-keys: |
+            kotonoha-build-v1-wasm-3.1.73-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-
+
       - name: Enforce game/engine Emscripten isolation
         run: python3 tools/check_game_platform_isolation.py
-
-      - name: Verify HTTP Range server before WASM tests
-        run: python3 -m unittest discover -s tools -p test_serve_web.py -v
 
       - name: Configure Emscripten self-test
         run: |
@@ -145,6 +154,31 @@ jobs:
 
       - name: Compile all enabled WASM game ports and self-test
         run: cmake --build build-web --target all --parallel 2
+      - name: Save compiled WASM build directories
+        if: steps.build-tree-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build-web/**
+            !build-web/vcpkg_installed/**
+            !build-web/packages/**
+          key: kotonoha-build-v1-wasm-3.1.73-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
+
+
+      - name: Package WASM browser outputs into ZIP
+        run: |
+          mkdir -p build-web/packages
+          (cd build-web/outputs && zip -qr ../packages/Kotonoha-wasm32-emscripten.zip .)
+
+      - name: Upload WASM game artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-wasm-vcpkg
+          path: |
+            build-web/outputs/
+            build-web/packages/*.zip
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Verify Asyncify exports for every generated WASM game
         run: |
@@ -183,14 +217,8 @@ jobs:
           print(f"Validated {len(game_js)} WASM entrypoints")
           PY
 
-      - name: Upload WASM game artifacts
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kotonoha-wasm-vcpkg
-          path: build-web/outputs/
-          if-no-files-found: error
-          retention-days: 14
+      - name: Verify HTTP Range server before WASM tests
+        run: python3 -m unittest discover -s tools -p test_serve_web.py -v
 
       - name: Upload diagnostics on failure
         if: failure()
