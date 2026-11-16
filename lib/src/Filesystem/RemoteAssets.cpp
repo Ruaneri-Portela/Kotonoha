@@ -72,6 +72,11 @@ std::string assetSubfolder(const std::filesystem::path &root) {
   for (const auto &part : root.lexically_normal()) {
     const auto name = part.generic_string();
     if (found) {
+      // Some browser launch candidates repeat the game-assets container.
+      // The Fetch base URL already points inside that container, so avoid
+      // producing game-assets/game-assets/Seen.txt when mounting its root.
+      if (sub.empty() && name == "game-assets")
+        continue;
       if (!sub.empty())
         sub += "/";
       sub += name;
