@@ -95,8 +95,17 @@ std::vector<std::uint8_t> zlibInflate(const std::uint8_t *data,
     stream.avail_in =
         size > stream.total_in ? static_cast<uInt>(size - stream.total_in) : 0;
     stream.avail_out = static_cast<uInt>(out.size() - total);
+    const auto previousIn = stream.total_in;
+    const auto previousOut = stream.total_out;
     ret = inflate(&stream, Z_NO_FLUSH);
     total = stream.total_out;
+    // A truncated stream can return Z_BUF_ERROR forever without making any
+    // progress. Stop instead of freezing the game's loading screen.
+    if (ret != Z_STREAM_END && stream.total_in == previousIn &&
+        stream.total_out == previousOut) {
+      inflateEnd(&stream);
+      throw std::runtime_error("Truncated or stalled XP3 zlib stream");
+    }
     if (ret == Z_STREAM_END)
       break;
     if (ret != Z_OK && ret != Z_BUF_ERROR) {
@@ -107,6 +116,8 @@ std::vector<std::uint8_t> zlibInflate(const std::uint8_t *data,
       out.resize(out.size() * 2);
   } while (ret != Z_STREAM_END);
   inflateEnd(&stream);
+  if (expectedOriginal != 0 && total != expectedOriginal)
+    throw std::runtime_error("XP3 zlib decoded size mismatch");
   out.resize(total);
   return out;
 }
