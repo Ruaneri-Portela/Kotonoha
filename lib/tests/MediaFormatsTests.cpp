@@ -66,6 +66,14 @@ void encoding() {
   require(ShiftJisToUtf8("") == "", "Empty text");
   require(ConvertEncoding("caf\xe9", "LATIN1") == "caf\xC3\xA9",
           "Generic conversion");
+  require(ConvertEncoding("caf\xe9 \x80", "CP1252") ==
+              "caf\xC3\xA9 \xE2\x82\xAC",
+          "CP1252 accented characters and euro sign");
+  require(ConvertEncoding("\xE2\x82\xAC", "UTF-8", "CP1252") ==
+              std::string("\x80", 1),
+          "UTF-8 euro sign to CP1252");
+  require(ConvertEncoding(std::string("\x81", 1), "CP1252") == "?",
+          "Undefined CP1252 byte replacement");
   rejects([] { ConvertEncoding("x", "NOT-AN-ENCODING"); },
           "Reject unknown encoding");
 }

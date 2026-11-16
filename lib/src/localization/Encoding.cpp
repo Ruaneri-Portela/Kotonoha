@@ -275,11 +275,28 @@ public:
 
 namespace Kotonoha {
 
+#if defined(__APPLE__)
+// Implemented with Foundation in Encoding.mm. SDL_iconv in some Xcode SDL3
+// builds does not expose Windows-1252 even though system iconv does.
+std::string Windows1252ToUtf8(std::string_view text);
+std::string Utf8ToWindows1252(std::string_view text);
+#endif
+
 std::string ConvertEncoding(std::string_view text, const char *from,
                             const char *to) {
 #if defined(__ANDROID__)
   return ConvertViaJNI(text, from, to);
 #else
+#if defined(__APPLE__)
+  const auto isWindows1252 = [](std::string_view encoding) {
+    return encoding == "CP1252" || encoding == "WINDOWS-1252" ||
+           encoding == "windows-1252";
+  };
+  if (isWindows1252(from) && std::string_view(to) == "UTF-8")
+    return Windows1252ToUtf8(text);
+  if (std::string_view(from) == "UTF-8" && isWindows1252(to))
+    return Utf8ToWindows1252(text);
+#endif
   if (std::string_view(from) == "LATIN1")
     from = "ISO-8859-1";
   if (std::string_view(to) == "LATIN1")
