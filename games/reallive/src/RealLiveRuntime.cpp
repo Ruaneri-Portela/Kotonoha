@@ -526,6 +526,13 @@ struct RealLiveRuntime::Impl {
             decodeText(raw, archive.Scenario(vm.scenario()).encoding());
     };
     vm.command = [this](auto &c) { return command(c); };
+    vm.onUnhandled = [](const UnhandledCommand &c) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "RealLive unhandled command scene=%d pc=%zu type=%d "
+                  "module=%d opcode=%d overload=%d",
+                  c.scenario, c.instruction, c.moduleType,
+                  c.module, c.opcode, c.overload);
+    };
     vm.text = [this](std::string t) {
       dialogue += decodeText(t, archive.Scenario(vm.scenario()).encoding());
     };

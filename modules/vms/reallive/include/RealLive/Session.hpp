@@ -4,6 +4,7 @@
 #include <Kotonoha/core/Vm.hpp>
 #include <functional>
 #include <map>
+#include <optional>
 #include <vector>
 namespace RealLive {
 struct GlossCursor {
@@ -11,6 +12,14 @@ struct GlossCursor {
 };
 struct GlossRectangle {
   int left = 0, top = 0, right = 0, bottom = 0;
+};
+struct UnhandledCommand {
+  int scenario = 0;
+  std::size_t instruction = 0;
+  int moduleType = 0;
+  int module = 0;
+  int opcode = 0;
+  int overload = 0;
 };
 class Session : public Kotonoha::Vm {
   ScriptArchive &archive_;
@@ -24,6 +33,7 @@ class Session : public Kotonoha::Vm {
   int scene_ = 0;
   std::size_t pc_ = 0;
   bool blocked_ = false, finished_ = false;
+  std::optional<UnhandledCommand> lastUnhandled_;
   const std::vector<const libreallive::BytecodeElement *> &script(int);
 
 protected:
@@ -49,6 +59,11 @@ private:
   void target(const libreallive::CommandElement &, int, bool);
 
 public:
+  // Called once when an opcode cannot be interpreted by the VM or frontend.
+  std::function<void(const UnhandledCommand &)> onUnhandled;
+  const std::optional<UnhandledCommand> &lastUnhandled() const {
+    return lastUnhandled_;
+  }
   // True consumes an external command; false leaves its PC blocked for retry.
   std::function<bool(const libreallive::CommandElement &)> command;
   std::function<void(std::string)> text;
