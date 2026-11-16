@@ -1371,6 +1371,30 @@ int main() {
                   error.what());
       ++failures;
     }
+    // Real KiriKiri title scripts often assign an inline function expression
+    // to an event property. Mouse coordinates and button data are forwarded
+    // through the same retained, bounded source VM.
+    write(tempDir / "startup.tjs",
+          "var win = new Window();\n"
+          "var button = new Layer(win);\n"
+          "button.setPos(8, 10); button.setSize(80, 50);\n"
+          "button.loadImages(\"image/tlg5.tlg\");\n"
+          "button.onMouseDown = function(x, y, mb, shift) {\n"
+          "  if (x >= 8 && y >= 10 && mb == 1 && shift == 0)\n"
+          "    Scripts.execStorage(\"scenario/first.ks\");\n"
+          "};\n");
+    {
+      Kotonoha::Providers::KirikiriAssets input(tempDir);
+      input.mountXp3("data.xp3");
+      auto run = Kotonoha::Providers::runTjsStartupSubset(input);
+      if (!run.subsetCompleted || !run.error.empty() ||
+          run.layers.size() != 2 ||
+          !Kotonoha::Providers::dispatchTjsUiClick(run, 20.0f, 30.0f) ||
+          run.kagEntry != "scenario/first.ks" || !run.error.empty()) {
+        std::printf("FAIL: anonymous TJS2 onMouseDown callback arguments\n");
+        ++failures;
+      }
+    }
     // Layer constructor ownership may not cross Window boundaries.
     write(tempDir / "startup.tjs",
           "var a = new Window(); var b = new Window();\n"
