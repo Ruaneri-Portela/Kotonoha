@@ -238,6 +238,7 @@ public:
   std::vector<std::string> active;
   std::vector<ObjectPtr> windows, layers;
   std::size_t nextLayerId = 1;
+  std::size_t nextAnonymousFunction = 1;
   std::size_t remaining;
   std::size_t functionDepth = 0;
 
@@ -362,6 +363,50 @@ class Parser {
     return tokens[pc++].text;
   }
   Value primary(bool active) {
+    if (match("function")) {
+      // Function expressions are useful for Layer.onClick/onMouseDown.
+      // These functions share global VM state; lexical closure capture is
+      // explicitly not implemented by the source subset.
+      std::string functionName;
+      if (look().kind == Token::Identifier && look(1).text == "(")
+        functionName = identifier();
+      expect("(");
+      std::vector<std::string> parameters;
+      if (!match(")")) {
+        do {
+          if (parameters.size() >= 8)
+            throw std::runtime_error("TJS2 UI: too many handler parameters");
+          const auto parameter = identifier();
+          if (std::find(parameters.begin(), parameters.end(), parameter) !=
+              parameters.end())
+            throw std::runtime_error("TJS2 UI: repeated handler parameter");
+          parameters.push_back(parameter);
+        } while (match(","));
+        expect(")");
+      }
+      if (look().text != "{")
+        throw std::runtime_error("TJS2 UI: function expression body expected");
+      const auto start = look().offset;
+      std::size_t braces = 0;
+      do {
+        if (look().kind == Token::End)
+          throw std::runtime_error("TJS2 UI: unterminated event handler");
+        if (look().text == "{") ++braces;
+        else if (look().text == "}") --braces;
+        ++pc;
+      } while (braces);
+      if (!active) return {};
+      if (machine.functions.size() >= 256)
+        throw std::runtime_error("TJS2 UI: handler count limit exceeded");
+      if (functionName.empty())
+        functionName = "__tjs_handler_" +
+                       std::to_string(machine.nextAnonymousFunction++);
+      const auto finish = tokens[pc - 1].offset + 1;
+      machine.functions[functionName] = SourceFunction{
+          functionName, sourceName, sourceCode.substr(start, finish - start),
+          std::move(parameters)};
+      return Value(functionName);
+    }
     if (match("new")) {
       const auto type = identifier();
       std::vector<Value> args;
@@ -812,6 +857,8 @@ void Interpreter::snapshotLayers() {
     if (!frame.storage.empty())
       frame.storage = safeName(frame.storage);
     frame.onClick = member(layer, "onClick").string();
+    if (frame.onClick.empty())
+      frame.onClick = member(layer, "onMouseDown").string();
     if (!frame.onClick.empty() &&
         (frame.onClick.size() > 128 || !functions.count(frame.onClick)))
       throw std::runtime_error(
