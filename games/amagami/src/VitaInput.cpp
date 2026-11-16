@@ -51,6 +51,10 @@ int axisIndex(uint8_t axis) {
 } // namespace
 
 void VitaInput::handle(const SDL_Event &e) {
+  if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+    keyboard_ = 0; // Don't stick held keys when Alt-Tab releases them.
+    return;
+  }
   if (e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) {
     const uint32_t bit = keyboardButton(e.key.key);
     if (e.type == SDL_EVENT_KEY_DOWN) keyboard_ |= bit;
@@ -82,6 +86,13 @@ void VitaInput::handle(const SDL_Event &e) {
     if (axis >= 0)
       analog_[std::size_t(axis)] =
           std::clamp(int(e.gaxis.value) / 256, -128, 128);
+    if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
+        e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) {
+      const uint32_t bit =
+          e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? 1u : 2u;
+      if (e.gaxis.value > 16384) gamepad_ |= bit;
+      else gamepad_ &= ~bit;
+    }
   }
 }
 } // namespace Amagami::Vita
