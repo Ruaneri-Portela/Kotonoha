@@ -12,6 +12,9 @@ int main(int argc, char **argv) {
          !session.finished());
   session.run(10000);
   assert(session.blocked());
+  assert(session.lastUnhandled().has_value());
+  assert(session.lastUnhandled()->scenario == session.scenario());
+  assert(session.lastUnhandled()->instruction == session.index());
   const int scene = session.scenario();
   const auto pc = session.index();
   assert(!session.step() && session.scenario() == scene &&

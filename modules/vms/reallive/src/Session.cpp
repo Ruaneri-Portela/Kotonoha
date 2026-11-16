@@ -943,7 +943,12 @@ void Session::execute(const CommandElement &c) {
   if (command && command(c)) {
     if (scene_ == beforeScene && pc_ == beforePc)
       ++pc_;
-  } else
+  } else {
+    lastUnhandled_ = UnhandledCommand{
+        scene_, pc_, c.modtype(), c.module(), c.opcode(), c.overload()};
     blocked_ = true;
+    if (onUnhandled)
+      onUnhandled(*lastUnhandled_);
+  }
 }
 } // namespace RealLive
