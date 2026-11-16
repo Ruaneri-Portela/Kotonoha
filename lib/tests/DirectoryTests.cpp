@@ -111,6 +111,41 @@ void layouts(const fs::path &root) {
           "Missing metadata cannot silently create a game-name save directory");
 }
 
+void legacyMigration(const fs::path &root) {
+  StorageLocations locations;
+  locations.platform = StoragePlatform::Desktop;
+  locations.userData = root / "legacy-migration";
+  locations.packageIdentifier = "org.kotonoha.example";
+  auto legacy = locations;
+  legacy.packageIdentifier = "me.hirameki.kotonoha";
+  const auto oldRoot = directoryLayout(legacy).documents;
+  const auto newRoot = directoryLayout(locations).documents;
+  fs::create_directories(oldRoot / "save");
+  std::ofstream(oldRoot / "settings.json") << "legacy settings";
+  std::ofstream(oldRoot / "save" / "slot.vn") << "legacy save";
+  require(migrateLegacyDocuments(locations, legacy.packageIdentifier),
+          "Existing legacy Documents move to corrected bundle identifier");
+  require(fs::exists(newRoot / "settings.json") &&
+              fs::exists(newRoot / "save" / "slot.vn") &&
+              !fs::exists(oldRoot),
+          "Migrated settings and saves remain intact");
+  fs::create_directories(oldRoot);
+  std::ofstream(oldRoot / "settings.json") << "old";
+  require(!migrateLegacyDocuments(locations, legacy.packageIdentifier) &&
+              fs::exists(newRoot / "save" / "slot.vn") &&
+              fs::exists(oldRoot / "settings.json"),
+          "Migration never overwrites or deletes a newer directory");
+
+  // Both mobile layouts are OS-scoped: changing a logical app identifier must
+  // not rename an iOS Documents or Android/data directory.
+  for (auto platform : {StoragePlatform::IOS, StoragePlatform::Android}) {
+    locations.platform = platform;
+    locations.userData = root / "mobile-documents";
+    require(!migrateLegacyDocuments(locations, legacy.packageIdentifier),
+            "Mobile OS-managed Documents layout must remain untouched");
+  }
+}
+
 void relocation(Fixture &fixture) {
   fs::current_path(fixture.root);
   fs::create_directories("overlay2");
@@ -214,6 +249,7 @@ int main() {
     SDL_SetAppMetadata("Directory tests", "1", "org.kotonoha.directories");
     Fixture fixture;
     layouts(fixture.root);
+    legacyMigration(fixture.root);
     relocation(fixture);
     std::cout << "Directory layouts, references and relocation passed\n";
     return 0;
