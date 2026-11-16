@@ -45,6 +45,47 @@ int main() {
                                             std::vector<std::string>{invalid},
           "Malformed UTF-8 remains bounded and is not discarded");
 
+    // Every UTF-8 boundary must be safe, including the end of an empty
+    // string and malformed but continuation-shaped byte sequences.
+    check(nextUtf8("", 0) == 0 && nextUtf8("a", 1) == 1 &&
+              nextUtf8("a", 99) == 1,
+          "UTF-8 cursor must stay within its source bounds");
+    const auto sequence = [](std::initializer_list<unsigned char> bytes) {
+      std::string s;
+      for (unsigned char byte : bytes)
+        s.push_back(static_cast<char>(byte));
+      return s;
+    };
+    const auto valid3 = sequence({0xe0, 0xa0, 0x80});
+    const auto valid4 = sequence({0xf4, 0x8f, 0xbf, 0xbf});
+    check(nextUtf8(valid3, 0) == 3 && nextUtf8(valid4, 0) == 4,
+          "Legal UTF-8 boundary scalars must stay intact");
+    for (const auto &bad : {
+             sequence({0xe0, 0x80, 0x80}), // overlong 3-byte
+             sequence({0xed, 0xa0, 0x80}), // UTF-16 high surrogate
+             sequence({0xed, 0xbf, 0xbf}), // UTF-16 low surrogate
+             sequence({0xf0, 0x80, 0x80, 0x80}), // overlong 4-byte
+             sequence({0xf4, 0x90, 0x80, 0x80}), // above U+10FFFF
+             sequence({0xf5, 0x80, 0x80, 0x80}), // invalid lead
+             sequence({0xc0, 0xaf}), // overlong 2-byte
+             sequence({0xe2, 0x82}), // truncated sequence
+             sequence({0x80}), // standalone continuation
+         }) {
+      check(nextUtf8(bad, 0) == 1 &&
+                wrap(bad, measure, 100) ==
+                    std::vector<std::string>{bad},
+            "Invalid UTF-8 must not be grouped or silently discarded");
+      const auto state = layout(bad, measure, 100);
+      for (std::size_t i = 0; i <= bad.size(); ++i) {
+        const auto visible = visibleLines(state, i);
+        check(i == 0 ? visible.empty()
+                     : visible == std::vector<std::string>{bad.substr(0, i)},
+              "Malformed UTF-8 must reveal one source byte at a time");
+      }
+    }
+
+
+
     // Exhaustively verify monotonic reveal and final layout equivalence for
     // short source strings containing escapes, CR, LF and spaces.
     const std::string alphabet = "a b\\nr\n\rt";
