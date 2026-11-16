@@ -61,6 +61,26 @@ kotonoha_configure_app(RealLive
     BUNDLE_ID me.hirameki.kotonoha.reallive GAME reallive)
 
 if(BUILD_TESTING)
+    # Regression: RealLive's little-endian reads must work with both plain
+    # char modes, independent of the legacy -funsigned-char build setting.
+    foreach(char_mode IN ITEMS signed unsigned)
+        set(test_target "RealLiveEndianRead${char_mode}Tests")
+        add_executable(${test_target} tests/EndianReadTest.cpp)
+        target_include_directories(${test_target} PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/vendor")
+        target_compile_features(${test_target} PRIVATE cxx_std_17)
+        set_target_properties(${test_target} PROPERTIES CXX_EXTENSIONS OFF)
+        if(MSVC)
+            if(char_mode STREQUAL "unsigned")
+                target_compile_options(${test_target} PRIVATE /J)
+            endif()
+        else()
+            target_compile_options(${test_target} PRIVATE "-f${char_mode}-char")
+        endif()
+        add_test(NAME "RealLive.EndianRead.${char_mode}" COMMAND ${test_target})
+        set_tests_properties("RealLive.EndianRead.${char_mode}"
+            PROPERTIES LABELS synthetic)
+    endforeach()
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats Kotonoha::Vmreallive)
