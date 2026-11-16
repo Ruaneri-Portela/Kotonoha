@@ -33,6 +33,12 @@ add_executable(SchoolDaysAssetsListTest SchoolDaysAssetsListTest.cpp)
 target_link_libraries(SchoolDaysAssetsListTest PRIVATE school_days)
 add_test(NAME SchoolDaysAssetsListTest COMMAND SchoolDaysAssetsListTest)
 
+# Synthetic GlobalFlag durability, recovery and fail-injection tests; never
+# reads commercial packs or personal saves.
+add_executable(SchoolDaysGlobalFlagAtomicTest
+    SchoolDaysGlobalFlagAtomicTest.cpp)
+target_link_libraries(SchoolDaysGlobalFlagAtomicTest PRIVATE school_days)
+add_test(NAME SchoolDays.GlobalFlagAtomic COMMAND SchoolDaysGlobalFlagAtomicTest)
 add_executable(SchoolDaysGpkStreamingTest SchoolDaysGpkStreamingTest.cpp)
 target_link_libraries(SchoolDaysGpkStreamingTest PRIVATE school_days ZLIB::ZLIB)
 add_test(NAME SchoolDaysGpkStreamingTest COMMAND SchoolDaysGpkStreamingTest)
@@ -212,6 +218,7 @@ if(WIN32)
         SchoolDaysPlayDataSessionTest
         SchoolDaysReplayRuntimeIsolationTest
         SchoolDaysReplayRuntimeUiTest
+        SchoolDays.GlobalFlagAtomic
         SchoolDaysRuntimeSmoke
         SchoolDaysLauncherTest
         SchoolDaysMediaTest
