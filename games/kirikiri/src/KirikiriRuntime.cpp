@@ -1,5 +1,6 @@
 #include <Kirikiri/KirikiriRuntime.hpp>
 #include <Kirikiri/TjsBootstrap.hpp>
+#include <Kirikiri/TjsStartupVm.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
@@ -131,6 +132,7 @@ struct KirikiriRuntime::Impl {
   bool running = false;
   bool titleShown = false;
   Kotonoha::Providers::TjsBootstrapReport bootstrap;
+  Kotonoha::Providers::TjsStartupResult startupExecution;
   bool waitingChoice = false;
   bool waitingWait = false;
   std::uint64_t waitingDeadline = 0;
@@ -206,6 +208,16 @@ std::string KirikiriRuntime::diagnostic() const {
   }
   if (!report.error.empty())
     message << "; erro de análise: " << report.error;
+  const auto &run = state.startupExecution;
+  if (!run.visitedScripts.empty())
+    message << "; TJS2 subset percorreu " << run.visitedScripts.size()
+            << " arquivos, " << run.statements << " instruções";
+  if (!run.kagEntry.empty())
+    message << "; roteiro KAG: " << run.kagEntry;
+  if (!run.error.empty())
+    message << "; limite da VM: " << run.error;
+  else if (run.subsetCompleted && run.requiresNativeRuntime)
+    message << "; requer UI/plugins nativos";
   return message.str();
 }
 
@@ -254,7 +266,19 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
       // game a blank screen with no explanation or accessible menu.
       impl.titleShown = true;
       impl.bootstrap = Kotonoha::Providers::inspectTjsBootstrap(*impl.assets);
+      impl.startupExecution = {};
       if (!impl.bootstrap.entry.empty()) {
+        impl.startupExecution =
+            Kotonoha::Providers::runTjsStartupSubset(*impl.assets);
+        const auto &run = impl.startupExecution;
+        SDL_Log("KiriKiri: TJS2 subset visited %zu scripts, %zu statements, "
+                "KAG entry='%s', completed=%d, native UI needed=%d",
+                run.visitedScripts.size(), run.statements,
+                run.kagEntry.c_str(), run.subsetCompleted ? 1 : 0,
+                run.requiresNativeRuntime ? 1 : 0);
+        if (!run.error.empty())
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: TJS2 subset stopped: %s", run.error.c_str());
         SDL_Log("KiriKiri: found TJS2 entry %s; %zu static dependencies, "
                 "%zu missing and %zu dynamic calls",
                 impl.bootstrap.entry.c_str(),
@@ -275,15 +299,21 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
           Kotonoha::preferredDocumentsDirectory("kirikiri") / "quicksave.kns";
       std::vector<Kotonoha::ChoiceOption> options;
       if (!scenarios.empty())
-        options.push_back({"Iniciar (KAG experimental)", 0});
+        options.push_back({
+            impl.startupExecution.kagEntry.empty()
+                ? "Iniciar (KAG experimental)"
+                : "Iniciar (KAG indicado pelo TJS2)", 0});
       if (std::filesystem::exists(savePath))
         options.push_back({"Continuar", 1});
       options.push_back({"Configurações", 2});
-      const std::string title = scenarios.empty()
-          ? (impl.bootstrap.entry.empty()
-                 ? "KiriKiri: scripts KAG não encontrados"
-                 : "KiriKiri: startup.tjs identificado; VM TJS2 pendente")
-          : "KiriKiri: menu de compatibilidade";
+      const std::string title =
+          !impl.startupExecution.title.empty()
+              ? impl.startupExecution.title + " (menu de compatibilidade)"
+              : scenarios.empty()
+                  ? (impl.bootstrap.entry.empty()
+                         ? "KiriKiri: scripts KAG não encontrados"
+                         : "KiriKiri: startup.tjs identificado; UI TJS2 pendente")
+                  : "KiriKiri: menu de compatibilidade";
       impl.choiceScene->setQuestion(
           title, options,
           [this, savePath](int option, const std::string &) {
@@ -297,7 +327,9 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
               loadGame(savePath.string());
               return;
             }
-            const auto startup = state.assets->startupScenario();
+            const auto startup = !state.startupExecution.kagEntry.empty()
+                ? state.startupExecution.kagEntry
+                : state.assets->startupScenario();
             if (startup.empty() || !startScenario(startup)) {
               SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                           "KiriKiri: no supported KAG startup script");
