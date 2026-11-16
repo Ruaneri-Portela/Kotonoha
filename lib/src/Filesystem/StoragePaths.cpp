@@ -393,6 +393,43 @@ DirectoryLayout applicationDirectories(const std::string &game) {
   return directoryLayout(applicationStorageLocations(), game);
 }
 
+// A corrected bundle ID must not strand existing save data. Move only a
+// legacy *directory* into a missing destination, never overwrite or follow a
+// legacy symlink. Mobile OS-managed Documents paths are unchanged by app ID.
+bool migrateLegacyDocuments(const StorageLocations &current,
+                            const std::string &legacyIdentifier) {
+  if (legacyIdentifier.empty() ||
+      legacyIdentifier == current.packageIdentifier ||
+      current.packageIdentifier.empty() || current.userData.empty())
+    return false;
+  auto previous = current;
+  previous.packageIdentifier = legacyIdentifier;
+  const auto source = directoryLayout(previous).documents;
+  const auto destination = directoryLayout(current).documents;
+  if (source.empty() || destination.empty() || source == destination)
+    return false;
+  std::error_code error;
+  if (!std::filesystem::is_directory(source, error) || error ||
+      std::filesystem::is_symlink(source, error) || error ||
+      std::filesystem::exists(destination, error) || error)
+    return false;
+  std::filesystem::create_directories(destination.parent_path(), error);
+  if (!error)
+    std::filesystem::rename(source, destination, error);
+  if (error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "Legacy documents migration skipped: %s",
+                error.message().c_str());
+    return false;
+  }
+  return true;
+}
+
+bool migrateLegacyDocuments(const std::string &legacyIdentifier) {
+  return migrateLegacyDocuments(applicationStorageLocations(),
+                                legacyIdentifier);
+}
+
 std::filesystem::path preferredDataDirectory() {
   return preferredDataDirectory(preferredGameIdentifier());
 }
