@@ -490,7 +490,36 @@ ctest --test-dir build -R 'Amagami.VitaBootstrap' --output-on-failure
 
 The probe loads and validates all scenario SCFs and can run a bounded VM
 entry point. A native-call error or instruction-budget stop is expected until
-the Vita native methods, texture objects, input, sound and presentation
-are connected. It **does not start playable Vita gameplay** and does not
-modify the PS2 runtime. The synthetic test covers CPK/IMG construction,
-class loading, a real SCF bytecode call and Vita display primitives.
+remaining Vita native methods, input, sound and presentation are connected.
+It **does not start playable Vita gameplay** and does not modify the PS2
+runtime. The synthetic test covers CPK/IMG construction, class loading,
+a real SCF bytecode call and Vita display primitives.
+
+### Vita Sprite state and original UI texture lookup
+
+`VitaVmBridge` now handles a limited set of the original Vita `Sprite`
+primitives: create (1), clone (2), destroy (3), change texture/variant (4),
+source rectangle (5), layer (6), update without active tweens (7) and pause
+(18). A `K2X_Script.resetPrim` also clears the recorded screen objects.
+Each sprite retains its logical ID, render order, layer, texture ID/variant,
+rect and paused state. Rectangles for decoded Vita UI pictures use two
+texels per script unit; the built-in texture zero is a 480×272
+script-space rectangle. Unsupported animation primitives continue to
+throw through the SCF VM; these objects **are not yet rasterised on screen**.
+
+Optionally pass a plain, unwrapped Vita ELF to the probe. The probe then
+mounts `graph/GRAPH.CPK` through `VitaGraphicsAssets` and resolves each
+Sprite texture through `uiSurface(texture, variant)`; no game data or
+decryption code is shipped with the engine. It prints up to twelve sprite
+objects even after an unsupported native stops execution, which helps
+locate the next missing presentation primitive.
+
+```sh
+cmake --build build --target AmagamiVitaProbe AmagamiVitaSpriteBridgeTest
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291 --boot --ui-elf /path/to/unwrapped/eboot.elf
+ctest --test-dir build -R 'Amagami.Vita(SpriteBridge|Bootstrap)' --output-on-failure
+```
+
+This is **scene-state preparation for the Vita renderer**, not a playable
+title/menu. Animations, compositing, font object primitives, controls and
+audio are still needed. The existing PS2 port is unchanged.
