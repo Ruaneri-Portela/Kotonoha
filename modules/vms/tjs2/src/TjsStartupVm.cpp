@@ -915,6 +915,38 @@ public:
   }
 };
 
+Value Interpreter::invokeSource(const SourceFunction &function,
+                                const std::vector<Value> &args,
+                                const ObjectPtr &receiver) {
+  if (args.size() != function.parameters.size())
+    throw std::runtime_error("TJS2 subset: argument count mismatch: " +
+                             function.name);
+  if (functionDepth >= 16)
+    throw std::runtime_error("TJS2 subset: function recursion limit exceeded");
+  std::unordered_map<std::string, Value> frame;
+  for (std::size_t index = 0; index < args.size(); ++index)
+    frame.emplace(function.parameters[index], args[index]);
+  if (receiver)
+    frame["this"] = Value(receiver);
+  frames.push_back(std::move(frame));
+  ++functionDepth;
+  try {
+    Parser parser(*this, function.source, function.body);
+    parser.run();
+  } catch (const FunctionReturn &returned) {
+    --functionDepth;
+    frames.pop_back();
+    return returned.value;
+  } catch (...) {
+    --functionDepth;
+    frames.pop_back();
+    throw;
+  }
+  --functionDepth;
+  frames.pop_back();
+  return {};
+}
+
 Value Interpreter::construct(const std::string &type,
                              const std::vector<Value> &args) {
   const auto integer = [](int value) { return Value(double(value)); };
@@ -1067,34 +1099,29 @@ Value Interpreter::call(const std::string &name,
   if (!activeFlag)
     return {};
 
+  if (auto it = boundMethods.find(name); it != boundMethods.end()) {
+    const BoundMethod bound = it->second;
+    return invokeSource(bound.function, params, bound.receiver);
+  }
   if (auto it = functions.find(name); it != functions.end()) {
-    // Copy the descriptor: nested declarations can rehash the function table.
     const SourceFunction function = it->second;
-    if (params.size() != function.parameters.size())
-      throw std::runtime_error("TJS2 subset: argument count mismatch: " + name);
-    if (functionDepth >= 16)
-      throw std::runtime_error(
-          "TJS2 subset: function recursion limit exceeded");
-    std::unordered_map<std::string, Value> frame;
-    for (std::size_t index = 0; index < params.size(); ++index)
-      frame.emplace(function.parameters[index], params[index]);
-    frames.push_back(std::move(frame));
-    ++functionDepth;
+    return invokeSource(function, params, {});
+  }
+  // Dotted method calls are resolved through the object member table, so
+  // aliases like this.start() and controller.start() retain their receiver.
+  if (name.find('.') != std::string::npos) {
     try {
-      Parser parser(*this, function.source, function.body);
-      parser.run();
-    } catch (const FunctionReturn &returned) {
-      --functionDepth;
-      frames.pop_back();
-      return returned.value;
-    } catch (...) {
-      --functionDepth;
-      frames.pop_back();
-      throw;
+      const Value candidate = get(name);
+      if (auto id = std::get_if<std::string>(&candidate.data)) {
+        if (auto bound = boundMethods.find(*id); bound != boundMethods.end()) {
+          const BoundMethod method = bound->second;
+          return invokeSource(method.function, params, method.receiver);
+        }
+      }
+    } catch (const std::runtime_error &) {
+      // A native Layer method has no matching script member; it is checked
+      // by the restricted built-in method table below.
     }
-    --functionDepth;
-    frames.pop_back();
-    return {};
   }
 
   // A small safe subset of Layer/Window methods. All methods mutate only
