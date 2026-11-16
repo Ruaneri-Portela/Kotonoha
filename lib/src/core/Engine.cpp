@@ -176,7 +176,8 @@ void SDLSession::deviceEvent(EventRef event) {
     openGamepad(event.gdevice.which);
   else if (event.type == SDL_EVENT_GAMEPAD_REMOVED)
     gamepads.erase(event.gdevice.which);
-  else if (event.type == SDL_EVENT_JOYSTICK_ADDED)
+  else if (event.type == SDL_EVENT_JOYSTICK_ADDED &&
+           SDL_IsGamepad(event.jdevice.which))
     openGamepad(event.jdevice.which);
   else if (event.type == SDL_EVENT_JOYSTICK_REMOVED)
     gamepads.erase(event.jdevice.which);
@@ -738,16 +739,17 @@ SDL_AppResult Engine::Event(EventPtr event) {
   event = &normalized;
   session.deviceEvent(*event);
   const auto navigation = controllerNavigation.process(*event);
+  // Synthetic D-pad releases must also reach the runtime when a controller
+  // disconnects or the window loses focus, not only on axis motion.
+  for (auto button : navigation) {
+    const auto result = Event(&button);
+    if (result != SDL_APP_CONTINUE)
+      return result;
+  }
   if (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
       (event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX ||
-       event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY)) {
-    for (auto button : navigation) {
-      const auto result = Event(&button);
-      if (result != SDL_APP_CONTINUE)
-        return result;
-    }
+       event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY))
     return SDL_APP_CONTINUE;
-  }
   inputActions.process(*event);
   SDL_Event pointer{};
   const bool nativeTouch = runtime.continuousTouch() || settingsMenu->isOpen();
