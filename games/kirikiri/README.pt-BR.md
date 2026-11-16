@@ -47,3 +47,34 @@ são sintéticos; os recursos não foram validados com assets comerciais.
 ## Ordem das escolhas KAG
 
 Tags de escolha do subconjunto KAG implementado pelo Kotonoha (`[select]` e `[choices]`) agora apresentam `option1`, `option2`, `option10` na ordem numérica e não tratam atributos não numéricos como `optionColor` como opções. O teste sintético também verifica que a callback da escolha retoma o script. Isso não substitui o interpretador TJS2 nem comprova a interface original de NEKOPARA.
+
+## Ponte gráfica experimental TJS2 → Kotonoha
+
+O subconjunto TJS2 inclui agora **objetos gráficos virtuais** `new Window()`,
+`window.primaryLayer` e `new Layer(window[, parentLayer])`. `Layer` aceita
+`left`, `top`, `width`, `height`, `visible`, `enabled`, `opacity`, `order`,
+`loadImages("image/arquivo.tlg")`, `setPos(x,y)`, `setSize(w,h)` e
+`show()`/`hide()`. As imagens vêm do provedor XP3 e são compostas na cena
+do Kotonoha, com origem relativa aos pais e ordem de camadas.
+
+Uma função TJS2 **nomeada** pode ser atribuída a `layer.onClick`. O runtime
+realiza hit-testing em coordenadas lógicas, dispara o handler na VM preservada
+e reconhece `Scripts.execStorage("roteiro.ks")` para entrar no KAG. Se o
+bootstrap produzir camadas com imagens e regiões clicáveis e terminar
+sem erro, a interface gerada pelo script substitui o menu provisório.
+Em outros casos, o menu provisório permanece acessível.
+
+```tjs
+var window = new Window();
+var button = new Layer(window, window.primaryLayer);
+button.setPos(100, 80);
+button.setSize(320, 100);
+button.loadImages("image/title.tlg");
+function startGame() { Scripts.execStorage("scenario/start.ks"); }
+button.onClick = startGame;
+```
+
+**Limitações:** viewport compatível de 1280×720, sem janelas do SO nem DLLs.
+Handlers anônimos, eventos de teclado/hover, timers, animações, classes
+nativas reais e bytecode TJS2 seguem pendentes. Isto **não comprova o
+menu original de NEKOPARA**; os testes usam arquivos sintéticos.
