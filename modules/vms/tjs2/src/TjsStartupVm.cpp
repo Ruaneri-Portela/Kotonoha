@@ -63,10 +63,14 @@ struct Value {
   }
 };
 
-// Minimal heap-backed TJS Dictionary value. Copies share member state, but
-// native KiriKiri Window/Layer objects and prototype dispatch are excluded.
+// Small retained object graph. A Layer is always attached to an existing
+// Window or parent Layer, and is projected onto the Kotonoha render viewport.
+// This is not a replacement for KiriKiri's platform Window/Layer classes.
 struct Object {
+  enum class Kind { Dictionary, Window, Layer } kind = Kind::Dictionary;
   std::unordered_map<std::string, Value> members;
+  std::weak_ptr<Object> parent;
+  std::size_t layerId = 0;
 };
 
 struct Token {
@@ -232,8 +236,13 @@ public:
   std::unordered_map<std::string, SourceFunction> functions;
   std::vector<std::unordered_map<std::string, Value>> frames;
   std::vector<std::string> active;
+  std::vector<ObjectPtr> windows, layers;
+  std::size_t nextLayerId = 1;
   std::size_t remaining;
   std::size_t functionDepth = 0;
+
+  Value construct(const std::string &type, const std::vector<Value> &args);
+  void snapshotLayers();
 
   Value get(const std::string &name) const {
     // Exact qualified built-ins like System.title remain supported.
@@ -355,26 +364,17 @@ class Parser {
   Value primary(bool active) {
     if (match("new")) {
       const auto type = identifier();
-      std::size_t argumentCount = 0;
+      std::vector<Value> args;
       if (match("(") && !match(")")) {
         do {
-          if (++argumentCount > 8)
+          if (args.size() >= 8)
             throw std::runtime_error(
-                "TJS2 subset: too many native constructor arguments");
-          // A disabled TJS branch can contain native constructors. Parse
-          // the arguments but do not resolve symbols or run side effects.
-          (void)expression(false);
+                "TJS2 subset: too many constructor arguments");
+          args.push_back(expression(active));
         } while (match(","));
         expect(")");
       }
-      if (!active) return {};
-      if (type == "Dictionary" && argumentCount == 0)
-        return Value(std::make_shared<Object>());
-      if (type == "Dictionary")
-        throw std::runtime_error(
-            "TJS2 subset: Dictionary constructor takes no arguments");
-      throw std::runtime_error(
-          "TJS2 subset: native class not implemented: " + type);
+      return active ? machine.construct(type, args) : Value();
     }
     if (match("(")) {
       auto v = expression(active);
