@@ -591,3 +591,34 @@ ctest --test-dir build -R 'Amagami.Vita(ControlPad|SpriteRender|SpriteBridge)' -
 The test uses synthetic SCF methods to validate held/trig/rapid, byte order,
 shoulder buttons, analog magnitudes, repeat reset and release/re-press. There
 are no included proprietary resources.
+
+
+### Vita window with live SDL3 input (experimental diagnostic)
+
+The new desktop-only \`AmagamiVitaLive\` executable connects the already
+implemented Vita VM bridge, native Sprite renderer, a real SDL3 window and
+keyboard/gamepad input. It attempts the original Vita \`SystemStartup.run\`
+instance method by default (overridable with \`--entry\`), runs SCF in bounded
+1000-instruction cooperative steps, advances one script animation frame per
+presented frame and renders a 960×544 logical view (letterboxed when resized).
+SDL keyboard, gamepad buttons, analog sticks and digital triggers update the
+native \`ControlPad\` frame state. Keyboard defaults: arrows=direction,
+Z/Space=Circle(confirm), X=Cross(cancel), A/S=Square/Triangle, Q/W=L/R,
+E/R=L2/R2, Return=Start, Backspace=Select; Escape closes the window.
+Gamepad East=Circle, South=Cross, shoulders and axes follow SDL mappings.
+
+\`\`\`sh
+cmake --build build --target AmagamiVitaLive AmagamiVitaInputTest
+build/games/amagami/AmagamiVitaLive /path/to/decrypted/PCSG00291 \
+  /path/to/unwrapped/eboot.elf --frames 3600
+ctest --test-dir build -R 'Amagami.Vita(Input|ControlPad|SpriteRender)' --output-on-failure
+\`\`\`
+
+**Not a playable Vita game yet.** The VM pauses its execution budget every
+frame to keep the SDL event loop responsive. Unknown native methods are logged
+with SCF location and leave the last scene on screen for inspection; the
+process returns status 3 after an unimplemented native is encountered. Native
+\`FontChar\`, \`BG_Picture\`, other visual classes, sound and many script
+primitives are not yet implemented. No gameplay/audio fidelity is asserted.
+The tool is compiled for desktop host builds only, does not change the PS2
+port and requires a separate, already-decrypted Vita copy and plain ELF.
