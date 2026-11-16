@@ -1,6 +1,7 @@
 #include <Kirikiri/KagScript.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
 #include <Kirikiri/TlgImage.hpp>
+#include <Kirikiri/TjsBootstrap.hpp>
 
 #include <cstdio>
 #include <array>
@@ -1080,6 +1081,44 @@ int main() {
       }
     } catch (const std::exception &error) {
       std::printf("FAIL: TLG5 image compatibility: %s\n", error.what());
+      ++failures;
+    }
+  }
+
+  // The TJS2 bootstrap probe only inspects literal dependency references.
+  // It must ignore code-like strings/comments and never execute TJS.
+  {
+    const auto dir = tempDir / "system";
+    std::filesystem::create_directories(dir);
+    const auto loaded = dir / "boot.tjs";
+    {
+      std::ofstream script(loaded);
+      script << "// Synthetic TJS2 dependency\n";
+    }
+    {
+      std::ofstream script(tempDir / "startup.tjs");
+      script << "// Scripts.execStorage(\"ignore-comment.tjs\");\n"
+             << "/* Plugins.link(\"ignore-block.dll\"); */\n"
+             << "var example = 'Scripts.execStorage(\"ignore-string.tjs\")';\n"
+             << "Scripts.execStorage(\"system/boot.tjs\");\n"
+             << "Scripts.evalStorage(\"system/boot.tjs\");\n"
+             << "Plugins.link('plugins/missing.dll');\n"
+             << "Scripts.execStorage(runtimeStorageName);\n";
+    }
+    try {
+      Kotonoha::Providers::KirikiriAssets testAssets(tempDir);
+      const auto report = Kotonoha::Providers::inspectTjsBootstrap(testAssets);
+      const std::vector<std::string> expected{
+          "system/boot.tjs", "plugins/missing.dll"};
+      if (report.entry != "startup.tjs" ||
+          report.staticallyReferenced != expected ||
+          report.missing != std::vector<std::string>{"plugins/missing.dll"} ||
+          report.dynamicCalls != 1 || !report.error.empty()) {
+        std::printf("FAIL: static TJS bootstrap dependencies/comments\n");
+        ++failures;
+      }
+    } catch (const std::exception &error) {
+      std::printf("FAIL: TJS bootstrap diagnostic: %s\n", error.what());
       ++failures;
     }
   }
