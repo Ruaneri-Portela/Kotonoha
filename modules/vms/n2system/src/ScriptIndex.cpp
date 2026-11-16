@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/ScriptIndex.hpp>
+#include <algorithm>
 #include <cctype>
 #include <stdexcept>
 #include <utility>
@@ -210,4 +211,54 @@ ScriptIndex ScriptIndex::Parse(std::string_view source) {
                              result.chapters_.back().name);
   return result;
 }
+ScriptCursor::ScriptCursor(const ScriptIndex &index, std::string_view chapter)
+    : index_(index) {
+  if (!enterChapter(chapter))
+    throw std::out_of_range("N2System: missing NsScript chapter");
+}
+
+bool ScriptCursor::enterChapter(std::string_view name) {
+  const auto *chapter = index_.findChapter(name);
+  if (!chapter)
+    return false;
+  current_ = chapter;
+  next_ = 0;
+  return true;
+}
+
+bool ScriptCursor::jumpToLabel(std::string_view name) {
+  const auto *label = current_->findLabel(name);
+  if (!label)
+    return false;
+  // Labels are source offsets, while invocation metadata is also ordered
+  // by source offset. Never execute the next call while seeking.
+  const auto &calls = current_->invocations;
+  next_ = static_cast<std::size_t>(std::lower_bound(
+      calls.begin(), calls.end(), label->offset,
+      [](const Invocation &call, std::size_t offset) {
+        return call.offset < offset;
+      }) - calls.begin());
+  return true;
+}
+
+const Invocation *ScriptCursor::peek() const {
+  return next_ < current_->invocations.size()
+      ? &current_->invocations[next_] : nullptr;
+}
+
+const Invocation *ScriptCursor::advance() {
+  const Invocation *call = peek();
+  if (call)
+    ++next_;
+  return call;
+}
+
+std::size_t ScriptCursor::remaining() const {
+  return current_->invocations.size() - next_;
+}
+
+std::string_view ScriptCursor::chapterName() const {
+  return current_->name;
+}
+
 } // namespace N2System

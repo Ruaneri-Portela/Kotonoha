@@ -52,6 +52,7 @@ int main() {
     state.flags[1] = false;
     state.flags[42] = true;
     state.callStack = {3, 17, 1023};
+    state.images = {{17, -50, 20}, {2048, 900, -34}};
     auto encoded = LucaSystem::encodeSaveState(state);
     const auto decoded = LucaSystem::decodeSaveState(encoded);
     require(decoded.scenario == state.scenario &&
@@ -64,15 +65,48 @@ int main() {
                 decoded.numbers == state.numbers &&
                 decoded.strings == state.strings &&
                 decoded.flags == state.flags &&
-                decoded.callStack == state.callStack,
-            "LucaSystem V3 round-trip must preserve all VM fields");
+                decoded.callStack == state.callStack &&
+                decoded.images.size() == state.images.size() &&
+                decoded.images[0].assetId == 17 &&
+                decoded.images[0].x == -50 &&
+                decoded.images[0].y == 20 &&
+                decoded.images[1].assetId == 2048 &&
+                decoded.images[1].x == 900 &&
+                decoded.images[1].y == -34,
+            "LucaSystem V4 round-trip must preserve VM and visible images");
     require(LucaSystem::encodeSaveState(decoded) == encoded,
-            "LucaSystem V3 saves must be stable on a repeat encode");
+            "LucaSystem V4 saves must be stable on a repeat encode");
+
+    // A valid V3 payload is exactly the shared prefix, without the new
+    // image-count and image-position tail. It must still restore correctly.
+    auto prior = state;
+    prior.images.clear();
+    auto oldBytes = LucaSystem::encodeSaveState(prior);
+    oldBytes.replace(0, LucaSystem::SaveCodec::Magic.size(),
+                     LucaSystem::SaveCodec::V3Magic);
+    oldBytes.resize(oldBytes.size() - 4);
+    const auto oldState = LucaSystem::decodeSaveState(oldBytes);
+    require(oldState.scenario == prior.scenario &&
+                oldState.callStack == prior.callStack &&
+                oldState.strings == prior.strings &&
+                oldState.images.empty(),
+            "Older V3 save must decode with an empty visual layer");
 
     rejects([&] { LucaSystem::decodeSaveState(encoded.substr(0, encoded.size() - 1)); },
-            "Truncated V3 payload must be rejected");
+            "Truncated V4 image payload must be rejected");
     rejects([&] { LucaSystem::decodeSaveState(encoded + "junk"); },
+            "Trailing V4 data must be rejected");
+    rejects([&] { LucaSystem::decodeSaveState(oldBytes + "junk"); },
             "Trailing V3 data must be rejected");
+    auto manyImages = state;
+    manyImages.images.resize(LucaSystem::SaveCodec::MaxImages + 1);
+    rejects([&] { LucaSystem::encodeSaveState(manyImages); },
+            "Excessive V4 image count must be rejected");
+    auto invalidImageCount = encoded;
+    invalidImageCount.replace(encoded.size() - (4 + state.images.size() * 12),
+                              4, 4, '\xff');
+    rejects([&] { LucaSystem::decodeSaveState(invalidImageCount); },
+            "Corrupt V4 image count must be rejected");
     auto oversized = encoded;
     const auto offset = LucaSystem::SaveCodec::Magic.size();
     oversized.replace(offset, 4, 4, '\xff');

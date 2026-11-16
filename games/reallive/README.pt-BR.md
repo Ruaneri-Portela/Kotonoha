@@ -57,3 +57,15 @@ sem o arquivo `Seen.txt`:
 cmake --build build --target RealLiveCaseSelectionTests
 ctest --test-dir build -R RealLive.CaseSelection --output-on-failure
 ```
+
+## Strings Shift-JIS e bytes nulos
+
+As operações de comprimento, comparação e substring agora preservam bytes
+NUL existentes na memória da VM, contam caracteres Shift-JIS em tempo
+linear e evitam overflow em somas de offsets de substring. O teste sintético
+`RealLive.StringOps` não depende do `Seen.txt`.
+
+```sh
+cmake --build build --target RealLiveStringOpsTests
+ctest --test-dir build -R RealLive.StringOps --output-on-failure
+```

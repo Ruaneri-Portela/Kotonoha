@@ -416,7 +416,13 @@ struct LucaSystemRuntime::Impl {
           // Store placement; rendered in renderGameplay.
           // For simplicity we draw immediately at (x,y) on a base canvas.
           // The original engine composites objects onto the background.
-          objectPlacements_.push_back({id, x, y});
+          // Bound retained sprites until the original object manager's
+          // replacement/clear semantics are fully implemented.
+          if (objectPlacements_.size() < SaveCodec::MaxImages)
+            objectPlacements_.push_back({id, x, y});
+          else
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "LucaSystem: image placement cap reached");
         }
         break;
       }
@@ -925,6 +931,9 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
   state.strings.insert(impl.stringVars.begin(), impl.stringVars.end());
   state.flags.insert(impl.flags.begin(), impl.flags.end());
   state.callStack = impl.callStack;
+  state.images.reserve(impl.objectPlacements_.size());
+  for (const auto &place : impl.objectPlacements_)
+    state.images.push_back({place.id, place.x, place.y});
   Kotonoha::GetVNManagerRuntime(*impl.engine).save(
       path, encodeSaveState(state));
 }
@@ -961,6 +970,12 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
   impl.flags.clear();
   impl.flags.insert(state.flags.begin(), state.flags.end());
   impl.callStack = state.callStack;
+  impl.objectPlacements_.clear();
+  impl.objectPlacements_.reserve(state.images.size());
+  for (const auto &place : state.images) {
+    impl.loadObjectImage(place.assetId);
+    impl.objectPlacements_.push_back({place.assetId, place.x, place.y});
+  }
   impl.dialogueIndex = state.dialogueIndex;
   impl.waiting = state.waiting;
   impl.waitDeadline = SDL_GetTicks() + state.waitRemainingMs;

@@ -84,6 +84,13 @@ if(BUILD_TESTING)
     endforeach()
 
     # Data-independent verification of switch/case selection semantics.
+    add_executable(RealLiveStringOpsTests tests/StringOpsTest.cpp)
+    target_include_directories(RealLiveStringOpsTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")
+    target_compile_features(RealLiveStringOpsTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.StringOps COMMAND RealLiveStringOpsTests)
+    set_tests_properties(RealLive.StringOps PROPERTIES LABELS synthetic)
+
     add_executable(RealLiveCaseSelectionTests tests/CaseSelectionTest.cpp)
     target_include_directories(RealLiveCaseSelectionTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")

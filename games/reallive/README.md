@@ -56,3 +56,15 @@ synthetic `RealLive.CaseSelection` regression test needs no `Seen.txt`:
 cmake --build build --target RealLiveCaseSelectionTests
 ctest --test-dir build -R RealLive.CaseSelection --output-on-failure
 ```
+
+## Shift-JIS strings and binary memory
+
+String length, substring and comparison now account for embedded NUL bytes,
+avoid quadratic Shift-JIS length scans and prevent integer overflow when
+combining substring offsets. The synthetic `RealLive.StringOps` test requires
+no `Seen.txt`.
+
+```sh
+cmake --build build --target RealLiveStringOpsTests
+ctest --test-dir build -R RealLive.StringOps --output-on-failure
+```

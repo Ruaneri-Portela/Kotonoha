@@ -52,3 +52,15 @@ g++ -std=c++17 -Imodules/vms/n2system/include \
   modules/vms/n2system/tests/ScriptIndexTest.cpp -o /tmp/n2-script-test
 /tmp/n2-script-test
 ```
+
+## Navegação experimental por capítulos
+
+O `ScriptCursor` percorre chamadas identificadas pelo `ScriptIndex` com
+operações `peek()`, `advance()`, `enterChapter()` e `jumpToLabel()`.
+Uma referência de capítulo/label inexistente não altera a posição atual. Isso
+viabiliza ferramentas de inspeção e pontos de entrada para uma futura VM.
+
+**O cursor não executa NsScript.** Os comandos dentro de condições e
+expressões são ainda indexados em ordem textual, sem avaliação de branches,
+loops ou semântica de comandos. Não se deve apresentar essa navegação como
+prova de jogabilidade.
