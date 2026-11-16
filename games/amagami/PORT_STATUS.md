@@ -433,12 +433,27 @@ under its original MIT licence, preserved at
 `modules/providers/amagami/third_party/open-amagami-LICENSE.txt`.
 No proprietary game files, decryption tools or encryption keys are included.
 
+The Vita graphics integration now includes a headerless 8-bit palette decoder
+for `bg/`, `epi/` and `body/` (`*.gxt`, BGRA palettes), plus
+`face/` and `eface/` (`*.tm2`, RGBA palettes). It validates exact
+dimensions and expands indexed colours to standard RGBA8 without applying the
+PS2 TIM2 colour-swizzle or alpha conventions. `VitaGraphicsAssets` mounts
+`graph/GRAPH.CPK` through the normal Kotonoha `AssetProvider` interface,
+including the existing texture/upscaling pipeline. Font atlases (4-bit),
+`system/sysgraph.tm2` (packed UI textures), Vita-specific rendering scale,
+controller input, audio and native primitives remain unimplemented for Vita.
+
+CPK parsing now rejects out-of-range entries, duplicate TOC names and malformed
+UTF row counts, and checks decoded member sizes. The optional inspector flag
+`--verify-graphics` reads and decodes supported graphics from a decrypted
+Vita copy; the existing `--verify` independently checks SCF scripts.
+
 A read-only Vita inspector is available on desktop builds:
 
 ```sh
-cmake --build build --target AmagamiVitaInspect AmagamiVitaCpkTest
-build/games/amagami/AmagamiVitaInspect /path/to/decrypted/PCSG00291 --verify
-ctest --test-dir build -R 'Amagami.VitaCpk' --output-on-failure
+cmake --build build --target AmagamiVitaInspect AmagamiVitaCpkTest AmagamiVitaGraphicsTest
+build/games/amagami/AmagamiVitaInspect /path/to/decrypted/PCSG00291 --verify --verify-graphics
+ctest --test-dir build -R 'Amagami.(VitaCpk|VitaGraphics)' --output-on-failure
 ```
 
 It checks the system image and CPK scenario scripts using the existing

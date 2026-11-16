@@ -130,6 +130,12 @@ int main() {
     auto badRow = simpleUtf();
     badRow[8 + 19] = 8; // advertised row length differs from actual columns
     rejects([&] { cpk_parse_utf(badRow); });
+    auto tooManyRows = simpleUtf();
+    tooManyRows[8 + 20] = char(255);
+    tooManyRows[8 + 21] = char(255);
+    tooManyRows[8 + 22] = char(255);
+    tooManyRows[8 + 23] = char(255);
+    rejects([&] { cpk_parse_utf(tooManyRows); });
     check(cpk_decompress_crilayla("uncompressed") == "uncompressed",
           "Uncompressed CPK entries pass through");
     Bytes truncated = "CRILAYLA";
@@ -166,6 +172,34 @@ int main() {
           "Read CPK source entry");
     check(!cpk_read(filePath.string(), index, "not-found", raw),
           "Missing CPK member should not throw");
+    auto wrongExpanded = index;
+    wrongExpanded.at("test.scf").extract_size = 5;
+    rejects([&] { cpk_read(filePath.string(), wrongExpanded, "test.scf", raw); });
+    {
+      auto truncated = filePath;
+      truncated += ".truncated";
+      std::ofstream out(truncated, std::ios::binary);
+      out.write(cpk.data(), 256); // only headers; no graphic/script payload
+      out.close();
+      rejects([&] { cpk_read_index(truncated.string()); });
+      rejects([&] { cpk_read_entries(truncated.string()); });
+      std::filesystem::remove(truncated);
+    }
+    {
+      auto badOffset = filePath;
+      badOffset += ".bad-offset";
+      auto corrupt = cpk;
+      // TOC row: 128-byte packet base, 16-byte packet prefix, 8-byte
+      // UTF prefix, 39-byte table header/schema, 4-byte filename field.
+      const size_t offsetField = 128 + 16 + 8 + 39 + 4;
+      for (size_t k = 0; k < 8; ++k)
+        corrupt[offsetField + k] = char(255);
+      std::ofstream out(badOffset, std::ios::binary);
+      out.write(corrupt.data(), std::streamsize(corrupt.size()));
+      out.close();
+      rejects([&] { cpk_read_index(badOffset.string()); });
+      std::filesystem::remove(badOffset);
+    }
     std::filesystem::remove(filePath);
     std::cout << "Vita CPK provider tests passed\n";
     return 0;
