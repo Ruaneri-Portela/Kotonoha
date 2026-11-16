@@ -303,12 +303,22 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
       // interactive layers and the bounded source VM completed its entry.
       // Otherwise retain the accessible Kotonoha fallback menu.
       const auto &ui = impl.startupExecution;
-      impl.nativeTitleUi = ui.subsetCompleted && ui.error.empty() &&
+      const bool imagePresent =
+          std::any_of(ui.layers.begin(), ui.layers.end(),
+                      [&](const Kotonoha::Providers::TjsUiLayer &layer) {
+                        return layer.visible && !layer.storage.empty() &&
+                            !resolveVisual(*impl.assets, layer.storage, true).empty();
+                      });
+      const bool hasClickTarget =
           std::any_of(ui.layers.begin(), ui.layers.end(),
                       [](const Kotonoha::Providers::TjsUiLayer &layer) {
                         return layer.visible && layer.enabled &&
-                               !layer.storage.empty() && !layer.onClick.empty();
+                               !layer.onClick.empty() &&
+                               ((layer.width > 0 && layer.height > 0) ||
+                                !layer.storage.empty());
                       });
+      impl.nativeTitleUi = ui.subsetCompleted && ui.error.empty() &&
+                           imagePresent && hasClickTarget;
       SDL_Log("KiriKiri: TJS2 title projection: %zu layers, interactive=%d",
               ui.layers.size(), impl.nativeTitleUi ? 1 : 0);
       impl.titlePicture = {findTitlePicture(*impl.assets), 0, 0, false};
