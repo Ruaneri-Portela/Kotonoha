@@ -33,8 +33,8 @@ Use uma pasta legítima de jogo com scripts KAG ou pacotes XP3. Execute o launch
 ## Funções e objetos Dictionary no subconjunto TJS2
 
 A VM experimental em `modules/vms/tjs2` agora aceita funções nomeadas
-com parâmetros e `return`, variáveis locais por chamada, recursão limitada
-e objetos compartilhados `new Dictionary()` com leitura/escrita de
+com parâmetros e `return`, variáveis locais por chamada, recursão limitada,
+laços `for` limitados e objetos compartilhados `new Dictionary()` com leitura/escrita de
 propriedades aninhadas. Isso permite calcular configurações e o roteiro
 KAG inicial antes de apresentar o menu provisório do Kotonoha.
 
