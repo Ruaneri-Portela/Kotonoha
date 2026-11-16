@@ -6,15 +6,18 @@
 
 | SYS ID | Call site reported | Current status |
 | --- | --- | --- |
-| 18 | `start.obj:5` | Unimplemented; native semantics unknown |
+| 18 | `start.obj:5`, `PRO1.OBJ:3` | Unimplemented; native semantics unknown |
 | 24 | `start.obj:7` | Unimplemented; native semantics unknown |
 | 20 | `start.obj:11` | Unimplemented; native semantics unknown |
 | 216 | `start.obj:14` | Unimplemented; native semantics unknown |
 | 17 | `start.obj:899` | Unimplemented; native semantics unknown |
+| 19 | `PRO1.OBJ:5` | Unimplemented; native semantics unknown |
+| 65 | `PRO1.OBJ:809` | Unimplemented; native semantics unknown |
+| 137 | `PRO1.OBJ:2413` | Unimplemented; native semantics unknown |
 | 212 | `extra.OBJ:83` | Unimplemented; native semantics unknown |
 
 These warnings come from the `PmailGame::native` fallback, rather than
-`PmailAudio`. None of the six IDs is implemented by the currently
+`PmailAudio`. None of the nine IDs is implemented by the currently
 documented audio or presentation handlers. **Do not assign guessed no-op
 semantics or suppress their warnings**: an unsupported native call may
 affect state, presentation, input or control flow.
@@ -37,7 +40,7 @@ the route audit; this is **not** a compatibility-complete fix.
 
 ## Validation
 
-- `Pmail.ComputerUi` (synthetic; no game assets) checks all six observed
+- `Pmail.ComputerUi` (synthetic; no game assets) checks all nine observed
   IDs are reported, duplicates are coalesced, reference-based signatures are
   retained and audio/unknown routing is separated.
 - `Pmail.RouteAudit` (retail data required) reports each distinct
@@ -48,3 +51,17 @@ the route audit; this is **not** a compatibility-complete fix.
   scene/audio/state effects. Add a synthetic regression, then compare the
   affected route with the original executable.
 - No native semantics have been fabricated for the six unknown IDs.
+ 
+## Other messages observed on macOS
+
+- `com.apple.linkd.autoShortcut` / AppIntents / error 4097:
+  system XPC service connection failure, not a VM syscall.
+- `[aqsrv] AudioQueueInternalStop_Sync -66671` and
+  `AudioObjectGetPropertyData: no object with given ID 0`:
+  CoreAudio diagnostics. If audio is missing or crackling, investigate
+  the default output device, device changes, and audio start/stop timing.
+  These logs alone do not establish a VM fault.
+- `AddInstanceForFactory ... F8BB1C28-...`: CoreAudio plugin message
+  observed in other programs; also not a VM syscall.
+- `Upscaler backend=2` / `Anime4K ... initialized`: informational
+  rendering initialization messages.
