@@ -1013,7 +1013,11 @@ int main() {
           std::printf("FAIL: TLG6 byte source became unreadable\n");
           ++failures;
         }
-        const auto providerImage = provider.loadSurface("image/blue6.tlg");
+        // The indexed loose-file provider snapshots names at mount time.
+        // Create it after adding the TLG6 test resource.
+        Kotonoha::Providers::KirikiriAssets tlg6Provider(tempDir);
+        const auto providerImage =
+            tlg6Provider.loadSurface("image/blue6.tlg");
         const auto *p = static_cast<const std::uint8_t *>(
             providerImage->pixels);
         if (p[0] != 0 || p[1] != 0 || p[2] != 1 || p[3] != 255) {
