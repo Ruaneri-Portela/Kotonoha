@@ -2,10 +2,6 @@ name: WASM vcpkg artifacts
 
 on:
   workflow_dispatch:
-  push:
-    branches: [dev, main]
-  pull_request:
-    branches: [dev, main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
