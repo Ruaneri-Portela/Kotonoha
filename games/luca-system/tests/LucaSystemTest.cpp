@@ -229,9 +229,9 @@ int main() {
     // UTF-8 'OK' + NUL, followed by optional Chinese field.
     const std::vector<std::uint8_t> payload = {
         0, 0, 0, 0, 0xfe, 0xff, 'O', 'K', 0};
-    std::vector<std::uint8_t> bytes = {0x0f, 0x00, 36, 0};
+    std::vector<std::uint8_t> bytes = {0x0d, 0x00, 36, 0};
     bytes.insert(bytes.end(), payload.begin(), payload.end());
-    bytes.push_back(0); // alignment: length 15 is odd
+    bytes.push_back(0); // alignment: length 13 is odd
     LucaSystem::Script message("message.scr", std::move(bytes));
     check(message.valid() && message.strings().size() == 1 &&
               message.strings().front() == "OK",
