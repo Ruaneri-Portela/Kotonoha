@@ -423,9 +423,45 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                   visual.id.c_str(), error.what());
     }
   };
-  if (impl.currentScenario.empty())
+  if (impl.currentScenario.empty()) {
     draw(impl.titlePicture, true);
-  else {
+    // The bounded TJS2 VM projects Window/Layer objects onto the same
+    // novel-space renderer as KAG. The layer list is sorted by script order.
+    if (impl.startupExecution.subsetCompleted) {
+      for (auto &layer : impl.startupExecution.layers) {
+        if (!layer.visible || layer.opacity == 0 || layer.storage.empty() ||
+            impl.failedNativePictures.count(layer.storage))
+          continue;
+        try {
+          const auto id = resolveVisual(*impl.assets, layer.storage, true);
+          if (id.empty())
+            throw std::runtime_error("asset not found");
+          auto &texture = impl.assets->texture(renderer, id);
+          // KiriKiri loadImages uses intrinsic dimensions unless the script
+          // explicitly specifies a destination size.
+          if (layer.width <= 0) layer.width = texture.w;
+          if (layer.height <= 0) layer.height = texture.h;
+          const SDL_FRect destination{float(layer.left), float(layer.top),
+                                      float(layer.width), float(layer.height)};
+          Uint8 previousAlpha = 255;
+          if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
+              !SDL_SetTextureAlphaMod(
+                  &texture, static_cast<Uint8>(layer.opacity)))
+            throw std::runtime_error(SDL_GetError());
+          const bool success =
+              SDL_RenderTexture(&renderer, &texture, nullptr, &destination);
+          SDL_SetTextureAlphaMod(&texture, previousAlpha);
+          if (!success)
+            throw std::runtime_error(SDL_GetError());
+        } catch (const std::exception &error) {
+          if (impl.failedNativePictures.insert(layer.storage).second)
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "KiriKiri: TJS2 Layer image %s unavailable: %s",
+                        layer.storage.c_str(), error.what());
+        }
+      }
+    }
+  } else {
     draw(impl.background, true);
     for (auto &[layer, visual] : impl.characters)
       draw(visual, false);
