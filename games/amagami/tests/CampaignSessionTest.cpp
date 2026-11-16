@@ -2,6 +2,7 @@
 #include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <set>
 #include <stdexcept>
 
 namespace {
@@ -124,6 +125,49 @@ int main(int argc, char **argv) {
     }
     require(nextMeeting && !excludedMeeting,
             "Executed branch opens and excludes the original follow-up nodes");
+    // After the first route event, exercise the actual campaign map's
+    // next-period commands (GameParam.nextTime/nextDay and EventNode.timeEnd).
+    // Checkpoints must reproduce the same calendar and available events
+    // after loading, not merely the current dialogue history.
+    for (unsigned i = 0; i < 6; ++i) {
+      const int beforeDay = session.campaignDate();
+      const int beforePeriod = session.campaignPeriod();
+      session.nextCampaignPeriod();
+      require(session.campaignDate() > beforeDay ||
+                  (session.campaignDate() == beforeDay &&
+                   session.campaignPeriod() > beforePeriod),
+              "Original PS2 campaign map advances its calendar period");
+      require(session.campaignDate() >= 1 && session.campaignDate() <= 42 &&
+                  session.campaignPeriod() >= 0 && session.campaignPeriod() < 14,
+              "Campaign map dates remain inside the original six-week span");
+    }
+    session.save(savePath.string());
+    Amagami::Session calendarResume(source);
+    calendarResume.load(savePath.string());
+    require(calendarResume.campaignActive() &&
+                calendarResume.campaignDate() == session.campaignDate() &&
+                calendarResume.campaignPeriod() == session.campaignPeriod() &&
+                calendarResume.history().size() == session.history().size(),
+            "Calendar period checkpoint reloads into the correct original map");
+    const auto eventNames = [](const Amagami::Session &current) {
+      std::set<std::string> result;
+      for (const auto &event : current.availableEvents())
+        result.insert(event.name);
+      return result;
+    };
+    require(eventNames(calendarResume) == eventNames(session),
+            "Calendar save restores exactly the original unlockable nodes");
+    // Continue native period transitions after the temporary load session
+    // has been destroyed; catch stale pointers and replay journal drift.
+    for (unsigned i = 0; i < 8; ++i) {
+      session.nextCampaignPeriod();
+      calendarResume.nextCampaignPeriod();
+      require(calendarResume.campaignDate() == session.campaignDate() &&
+                  calendarResume.campaignPeriod() == session.campaignPeriod(),
+              "Saved PS2 calendar stays synchronized after further periods");
+    }
+    require(eventNames(calendarResume) == eventNames(session),
+            "Later-day available events match uninterrupted campaign state");
     std::cout
         << "Campaign prologue, map selection and original follow-up passed\n";
     return 0;
