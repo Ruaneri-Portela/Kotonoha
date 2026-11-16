@@ -158,6 +158,16 @@ ScriptIndex ScriptIndex::Parse(std::string_view source) {
       previous = {};
       continue;
     }
+    // NsScript commands use call syntax, e.g. WaitKey() and Show(...).
+    // Index calls without interpreting arguments or running them. Exclude
+    // control-flow keywords whose parenthesized expressions are not calls.
+    if (t.text == "(" && previous.kind == Kind::Identifier &&
+        previous.text != "if" && previous.text != "while" &&
+        previous.text != "for" && previous.text != "switch" &&
+        previous.text != "catch") {
+      result.chapters_.back().invocations.push_back(
+          {previous.text, previous.offset, previous.line});
+    }
     if (t.text == "{") {
       ++depth;
     } else if (t.text == "}") {
