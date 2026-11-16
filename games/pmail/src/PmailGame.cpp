@@ -182,33 +182,22 @@ bool PmailGame::init() {
   std::lock_guard lock(mutex_);
   // pmail.exe:0x422357-0x4223df loads pmail.obj (the user-function library
   // with slots 3, 112, 113, ...) and start.obj, then runs start.obj at pc 0.
-  lib_ = loadByName("pmail.obj");
-  if (lib_) {
-    vm_.registerObject(lib_);
-    std::cout << "[PmailPort] Registered library: pmail.obj" << std::endl;
-  }
-  const char *candidates[] = {"start.obj", "main.obj", "01m1.obj", "a.obj",
-                              nullptr};
-  ::Pmail::ObjectPtr start;
-  for (int i = 0; candidates[i]; ++i) {
-    start = loadByName(candidates[i]);
-    if (start) {
-      std::cout << "[PmailPort] Starting script: " << candidates[i]
-                << std::endl;
-      break;
-    }
-  }
-  if (!start && !entries_.empty()) {
-    start = loadByName(entries_.front().name);
-    if (start)
-      std::cout << "[PmailPort] Starting first indexed script: "
-                << entries_.front().name << std::endl;
-  }
-  if (!start)
+  // pmail.exe:0x422357–0x4223df requires pmail.obj and start.obj.
+  // Guessing another entry object silently changes the original story.
+  const auto library = loadByName("pmail.obj");
+  const auto start = loadByName("start.obj");
+  if (!library || !start) {
+    std::cerr << "[PmailPort] Boot requires pmail.obj and start.obj"
+              << " in data/pack/script.dat" << std::endl;
     return false;
+  }
+  lib_ = library;
   main_ = start;
   scriptName_ = start->name;
+  vm_.registerObject(lib_);
   vm_.registerObject(main_);
+  std::cout << "[PmailPort] Registered pmail.obj; starting start.obj"
+            << std::endl;
   vm_.start(start, 0);
   waiting_ = false;
   title_ = false;
