@@ -70,6 +70,10 @@ private:
   std::vector<std::pair<std::string, std::vector<Xp3Entry>>> archives;
 
   std::string resolveId(const std::string &id) const;
+  // Match logical XP3 paths independent of ASCII case and slash direction.
+  // A folded collision is rejected instead of selecting a random asset.
+  const Xp3Entry *findXp3Entry(const std::string &id,
+                              bool *collision = nullptr) const;
   bool readXp3(const std::string &id);
   std::vector<std::uint8_t> extractXp3Entry(const Xp3Entry &entry) const;
 };
