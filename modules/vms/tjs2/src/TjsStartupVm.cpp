@@ -355,13 +355,24 @@ class Parser {
   Value primary(bool active) {
     if (match("new")) {
       const auto type = identifier();
-      if (match("(")) {
-        if (!match(")"))
-          throw std::runtime_error(
-              "TJS2 subset: native constructor arguments not supported");
+      std::size_t argumentCount = 0;
+      if (match("(") && !match(")")) {
+        do {
+          if (++argumentCount > 8)
+            throw std::runtime_error(
+                "TJS2 subset: too many native constructor arguments");
+          // A disabled TJS branch can contain native constructors. Parse
+          // the arguments but do not resolve symbols or run side effects.
+          (void)expression(false);
+        } while (match(","));
+        expect(")");
       }
+      if (!active) return {};
+      if (type == "Dictionary" && argumentCount == 0)
+        return Value(std::make_shared<Object>());
       if (type == "Dictionary")
-        return active ? Value(std::make_shared<Object>()) : Value();
+        throw std::runtime_error(
+            "TJS2 subset: Dictionary constructor takes no arguments");
       throw std::runtime_error(
           "TJS2 subset: native class not implemented: " + type);
     }
