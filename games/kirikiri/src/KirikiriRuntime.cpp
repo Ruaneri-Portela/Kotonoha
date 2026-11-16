@@ -526,27 +526,52 @@ bool KirikiriRuntime::handleAdvanceAction() {
 bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
   auto mapped = Kotonoha::MapControllerEvent(event);
   auto &impl = *impl_;
-  // Engine::Event already converts pointer coordinates into the novel
-  // viewport. Dispatch topmost script-authored click regions first.
+  // The engine already converted pointer coordinates to novel space.
+  // Failed scripted UI must not strand the user on an empty title.
+  const auto nativeFallback = [&] {
+    impl.nativeTitleUi = false;
+    impl.nativeTitleDisabled = true;
+    impl.titleShown = false;
+    impl.choiceScene->hide();
+    if (impl.engine)
+      initGameplay(*impl.engine);
+  };
+  if (impl.currentScenario.empty() && impl.nativeTitleUi &&
+      mapped.type == SDL_EVENT_MOUSE_MOTION) {
+    if (Kotonoha::Providers::dispatchTjsUiHover(
+            impl.startupExecution, mapped.motion.x, mapped.motion.y)) {
+      impl.failedNativePictures.clear();
+      if (!impl.startupExecution.error.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "KiriKiri: TJS2 hover event failed: %s",
+                    impl.startupExecution.error.c_str());
+        nativeFallback();
+      }
+      return true;
+    }
+  }
   if (impl.currentScenario.empty() && impl.nativeTitleUi &&
       mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
       mapped.button.button == SDL_BUTTON_LEFT) {
     if (Kotonoha::Providers::dispatchTjsUiClick(
             impl.startupExecution, mapped.button.x, mapped.button.y)) {
-      impl.failedNativePictures.clear(); // a callback may change an image
+      impl.failedNativePictures.clear();
       const auto &run = impl.startupExecution;
-      if (!run.error.empty())
+      if (!run.error.empty()) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "KiriKiri: TJS2 click handler failed: %s",
                     run.error.c_str());
-      if (run.error.empty() && !run.kagEntry.empty()) {
-        if (startScenario(run.kagEntry)) {
+        nativeFallback();
+      } else if (!run.kagEntry.empty()) {
+        const auto target = run.kagEntry;
+        if (startScenario(target)) {
           impl.nativeTitleUi = false;
           impl.choiceScene->hide();
         } else {
           SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "KiriKiri: click requested unsupported scenario %s",
-                      run.kagEntry.c_str());
+                      "KiriKiri: UI requested unavailable KAG scenario: %s",
+                      target.c_str());
+          nativeFallback();
         }
       }
       return true;
