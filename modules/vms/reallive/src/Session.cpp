@@ -72,13 +72,17 @@ void Session::target(const CommandElement &c, int which, bool call) {
     ++pc_;
     return;
   }
-  if (call)
-    stack_.push_back({scene_, pc_ + 1});
+  // Resolve the destination before recording a call frame. Malformed
+  // bytecode must not leave a phantom frame on the VM return stack.
   const auto *ptr = c.GetPointer(which)->get();
+  if (!ptr)
+    throw std::runtime_error("REALLIVE null jump target");
   const auto &s = script(scene_);
   auto it = std::find(s.begin(), s.end(), ptr);
   if (it == s.end())
     throw std::runtime_error("REALLIVE jump target outside scenario");
+  if (call)
+    stack_.push_back({scene_, pc_ + 1});
   pc_ = static_cast<std::size_t>(it - s.begin());
 }
 bool Session::flow(const CommandElement &c) {
