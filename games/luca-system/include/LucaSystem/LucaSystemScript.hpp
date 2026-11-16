@@ -17,6 +17,7 @@
 // parameters, without assuming a particular opcode table.
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -72,6 +73,14 @@ private:
   std::string error_;
   void parse();
 };
+
+// Jump destinations from LuckSystem's 32-bit byte offsets. These helpers
+// accept only exact instruction boundaries to avoid corrupt control flow.
+std::optional<std::size_t> FindInstructionAtOffset(
+    const std::vector<ScriptInstruction>& instructions, std::uint64_t offset);
+// The older title-specific JUMPPOINT form, never arbitrary opcode payloads.
+std::optional<std::size_t> FindJumpPoint(
+    const std::vector<ScriptInstruction>& instructions, std::string_view name);
 
 // Disassemble one instruction into a human readable line.
 std::string Disassemble(const ScriptInstruction &inst);

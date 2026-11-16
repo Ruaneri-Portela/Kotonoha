@@ -203,6 +203,35 @@ std::vector<std::uint8_t> Script::replaceRaw(
   return result;
 }
 
+std::optional<std::size_t> FindInstructionAtOffset(
+    const std::vector<ScriptInstruction>& instructions,
+    std::uint64_t offset) {
+  const auto it = std::lower_bound(
+      instructions.begin(), instructions.end(), offset,
+      [](const ScriptInstruction &ins, std::uint64_t target) {
+        return ins.pos < target;
+      });
+  if (it == instructions.end() || it->pos != offset)
+    return std::nullopt;
+  return static_cast<std::size_t>(it - instructions.begin());
+}
+
+std::optional<std::size_t> FindJumpPoint(
+    const std::vector<ScriptInstruction>& instructions, std::string_view name) {
+  if (name.empty()) return std::nullopt;
+  for (std::size_t i = 0; i < instructions.size(); ++i) {
+    const auto& ins = instructions[i];
+    if (ins.opcode != 38) continue; // AIR JUMPPOINT
+    if (ins.text == name) return i + 1;
+    const auto end = std::find(ins.paramBytes.begin(), ins.paramBytes.end(), 0);
+    const std::string_view param(
+        reinterpret_cast<const char*>(ins.paramBytes.data()),
+        static_cast<std::size_t>(end - ins.paramBytes.begin()));
+    if (param == name) return i + 1;
+  }
+  return std::nullopt;
+}
+
 std::string Disassemble(const ScriptInstruction &ins) {
   std::string out;
   out += std::to_string(ins.opcode);

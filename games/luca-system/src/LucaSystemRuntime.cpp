@@ -507,28 +507,19 @@ struct LucaSystemRuntime::Impl {
         textbox->hide();
         break;
       }
-      case OP_GOTO: {
-        // Jump to label. fixed param = label hash, param = label string.
-        if (!ins.paramBytes.empty()) {
-          std::string label(ins.paramBytes.begin(), ins.paramBytes.end());
-          jumpToLabel(label);
+      case OP_GOTO:
+      case OP_JUMP:
+        jumpFrom(ins);
+        break;
+      case OP_CALL: {
+        const auto next = instructionIndex;
+        if (jumpFrom(ins)) {
+          if (callStack.size() >= 1024)
+            throw std::runtime_error("LucaSystem: call stack limit exceeded");
+          callStack.push_back(next);
         }
         break;
       }
-      case OP_JUMP: {
-        if (!ins.paramBytes.empty()) {
-          std::string label(ins.paramBytes.begin(), ins.paramBytes.end());
-          jumpToLabel(label);
-        }
-        break;
-      }
-      case OP_CALL:
-        callStack.push_back(instructionIndex);
-        if (!ins.paramBytes.empty()) {
-          std::string label(ins.paramBytes.begin(), ins.paramBytes.end());
-          jumpToLabel(label);
-        }
-        break;
       case OP_RETURN:
         if (!callStack.empty()) {
           instructionIndex = callStack.back();
@@ -594,25 +585,29 @@ struct LucaSystemRuntime::Impl {
     running = false;
   }
 
-  void jumpToLabel(const std::string &label) {
-    // Search for a JUMPPOINT instruction with matching label text.
-    for (size_t i = 0; i < instructions.size(); ++i) {
-      const auto &ins = instructions[i];
-      if (ins.opcode == 38 && !ins.text.empty() && ins.text == label) {
-        instructionIndex = i + 1;
-        return;
-      }
-      // Also match by raw param bytes.
-      if (!ins.paramBytes.empty()) {
-        std::string cand(ins.paramBytes.begin(), ins.paramBytes.end());
-        if (cand == label) {
-          instructionIndex = i + 1;
-          return;
-        }
+  bool jumpFrom(const ScriptInstruction &ins) {
+    // LuckSystem's ReadJump reads a uint32 file position. Resolve only exact
+    // instruction offsets; do not interpret arbitrary payload bytes as labels.
+    if (ins.paramBytes.size() >= 4) {
+      if (const auto index =
+              FindInstructionAtOffset(instructions, paramU32(ins, 0))) {
+        instructionIndex = *index;
+        return true;
       }
     }
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: label not found: %s",
-                label.c_str());
+    // Older per-title scripts may contain a NUL-terminated symbolic label.
+    const auto end = std::find(ins.paramBytes.begin(), ins.paramBytes.end(), 0);
+    const std::string_view label(
+        reinterpret_cast<const char*>(ins.paramBytes.data()),
+        static_cast<std::size_t>(end - ins.paramBytes.begin()));
+    if (const auto index = FindJumpPoint(instructions, label)) {
+      instructionIndex = *index;
+      return true;
+    }
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "LucaSystem: unresolved jump opcode=%u at offset=%llu",
+                unsigned(ins.opcode), static_cast<unsigned long long>(ins.pos));
+    return false;
   }
 
   void advanceDialogue() {
@@ -1024,13 +1019,10 @@ bool LucaSystemRuntime::startScenario(const std::string &name,
 
 bool LucaSystemRuntime::debugJumpToLabel(const std::string &label) {
   auto &impl = *impl_;
-  for (size_t i = 0; i < impl.instructions.size(); ++i) {
-    const auto &ins = impl.instructions[i];
-    if (!ins.text.empty() && ins.text == label) {
-      impl.instructionIndex = i + 1;
-      impl.runUntilPause();
-      return true;
-    }
+  if (const auto index = FindJumpPoint(impl.instructions, label)) {
+    impl.instructionIndex = *index;
+    impl.runUntilPause();
+    return true;
   }
   return false;
 }
