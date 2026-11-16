@@ -1700,8 +1700,9 @@ void Session::load(const std::string &path) {
   unsigned version = 0;
   size_t count = 0;
   if (!(in >> magic >> version >> std::quoted(name) >> count) ||
-      (magic != "AMAGAMI_REPLAY" && magic != "AMAGAMI_CAMPAIGN_REPLAY") ||
-      count > 1000000)
+      !((magic == "AMAGAMI_REPLAY" && version == 2) ||
+        (magic == "AMAGAMI_CAMPAIGN_REPLAY" && version == 1)) ||
+      name.empty() || name.size() > 256 || count > 1000000)
     throw std::runtime_error("Invalid Amagami save");
   std::vector<int> inputs(count);
   for (auto &i : inputs)
@@ -1743,35 +1744,62 @@ void Session::load(const std::string &path) {
   candidate.replaying_ = true;
   candidate.seenLines_ = std::move(seen);
   if (isCampaign) {
+    // The campaign action journal is an ordered input stream, *not* a list
+    // of completed events. Replaying every event with choice 0 discards the
+    // player's decisions and cannot reconstruct a mid-event quick-save.
     candidate.startCampaign();
     for (const auto &action : actions) {
-      if (action.kind == "event") {
-        candidate.selectCampaignEvent(action.value);
-        while (!candidate.ended_) {
-          if (!candidate.choices_.empty())
-            candidate.choose(0);
-          else if (candidate.waiting())
-            candidate.tick(1);
-          else
-            candidate.advance();
+      // In headless replay, original SCF sleep/wait commands can still
+      // suspend the VM. Advance its logical 60 Hz clock before an input.
+      if (action.kind == "advance" || action.kind == "choose") {
+        for (unsigned ticks = 0; candidate.waiting() && ticks < 60; ++ticks)
+          candidate.tick(1.0); // 60 script frames per tick
+        if (candidate.waiting() || candidate.ended_)
+          throw std::runtime_error("Campaign save replay diverged before input");
+        if (action.kind == "advance") {
+          if (!action.value.empty() || !candidate.choices_.empty())
+            throw std::runtime_error("Invalid campaign advance action");
+          candidate.advance();
+        } else {
+          if (action.value.empty() || action.value.size() > 4 ||
+              !std::all_of(action.value.begin(), action.value.end(),
+                           [](unsigned char c) { return c >= '0' && c <= '9'; }))
+            throw std::runtime_error("Invalid campaign choice action");
+          const unsigned choice = unsigned(std::stoul(action.value));
+          if (choice >= candidate.choices_.size())
+            throw std::runtime_error("Campaign save choice diverged");
+          candidate.choose(choice);
         }
-        candidate.completeCampaignEvent();
+      } else if (action.kind == "event") {
+        if (!candidate.ended_ || action.value.empty() ||
+            action.value.size() > 256)
+          throw std::runtime_error("Campaign save event diverged");
+        candidate.selectCampaignEvent(action.value);
       } else if (action.kind == "period") {
+        if (!action.value.empty() || !candidate.ended_)
+          throw std::runtime_error("Campaign save period diverged");
         candidate.nextCampaignPeriod();
       } else {
         throw std::runtime_error("Unknown campaign replay action");
       }
     }
-  }
-  candidate.start(name);
-  for (int i : inputs) {
-    if (candidate.ended_ || (i == -1 && !candidate.choices_.empty()) ||
-        (i >= 0 && size_t(i) >= candidate.choices_.size()))
-      throw std::runtime_error("Save replay diverged");
-    if (i < 0)
-      candidate.advance();
-    else
-      candidate.choose(size_t(i));
+    // A trailing event action may save during dialogue rather than after
+    // completion. Never re-start the last script; it resets the preserved
+    // campaign VM, character flags, and action-specific branch state.
+    if (candidate.scenario_ != name || candidate.inputs_ != inputs)
+      throw std::runtime_error("Campaign save replay diverged from last event");
+    candidate.campaignActions_ = std::move(actions);
+  } else {
+    candidate.start(name);
+    for (int i : inputs) {
+      if (candidate.ended_ || (i == -1 && !candidate.choices_.empty()) ||
+          (i >= 0 && size_t(i) >= candidate.choices_.size()))
+        throw std::runtime_error("Save replay diverged");
+      if (i < 0)
+        candidate.advance();
+      else
+        candidate.choose(size_t(i));
+    }
   }
   candidate.setMessageSpeed(speed);
   candidate.setAutoMode(automatic != 0);
