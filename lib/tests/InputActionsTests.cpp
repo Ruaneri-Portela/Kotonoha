@@ -1,5 +1,6 @@
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/events/InputActions.hpp>
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 using namespace Kotonoha;
@@ -45,6 +46,13 @@ int main() {
     a.process(down);
     a.process(finger(SDL_EVENT_FINGER_UP, 1, .5, .8));
     check(a.tap(), "Single tap recognized");
+    a.process(finger(SDL_EVENT_FINGER_DOWN, 3, .01f, .5f));
+    auto swipe = finger(SDL_EVENT_FINGER_MOTION, 3, .25f, .5f);
+    a.process(swipe);
+    check(a.back(swipe) && !a.backlog(swipe),
+          "Edge swipe is recognized as a back gesture");
+    a.process(finger(SDL_EVENT_FINGER_UP, 3, .25f, .5f));
+    check(!a.tap(), "Edge swipe does not activate a touch button");
     SDL_Event wheel{};
     wheel.type = SDL_EVENT_MOUSE_WHEEL;
     wheel.wheel.y = 1;
@@ -90,7 +98,27 @@ int main() {
     buttons = navigation.process(axis);
     check(buttons.size() == 1 && !buttons[0].gbutton.down,
           "Returning stick to center releases navigation");
-    navigation.process(lost);
+    // Removing a held controller releases only its own virtual D-pad.
+    axis.gaxis.which = 8;
+    axis.gaxis.value = -20000;
+    navigation.process(axis);
+    axis.gaxis.which = 7;
+    axis.gaxis.value = 20000;
+    navigation.process(axis);
+    SDL_Event removed{};
+    removed.type = SDL_EVENT_GAMEPAD_REMOVED;
+    removed.gdevice.which = 8;
+    buttons = navigation.process(removed);
+    check(buttons.size() == 1 && !buttons[0].gbutton.down &&
+              buttons[0].gbutton.which == 8 &&
+              buttons[0].gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_UP,
+          "Unplugging a controller releases only that controller's stick");
+    buttons = navigation.process(lost);
+    check(buttons.size() == 1 && !buttons[0].gbutton.down &&
+              buttons[0].gbutton.which == 7 &&
+              buttons[0].gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+          "Focus loss releases all remaining stick directions");
+    axis.gaxis.value = 0;
     check(navigation.process(axis).empty(), "Focus loss clears analog state");
     check(MapControllerEvent(pad(SDL_GAMEPAD_BUTTON_EAST)).key.key ==
                   SDLK_RETURN &&
@@ -154,6 +182,39 @@ int main() {
     keyboard.key.key = SDLK_ESCAPE;
     check(MapControllerEvent(keyboard).key.key == SDLK_ESCAPE,
           "Non-controller events pass through unchanged");
+    ControllerTriggerSkip triggers;
+    SDL_Event trigger{};
+    trigger.type = SDL_EVENT_GAMEPAD_AXIS_MOTION;
+    trigger.gaxis.which = 7;
+    trigger.gaxis.axis = SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
+    trigger.gaxis.value = 20000;
+    check(triggers.process(trigger) && triggers.active() &&
+              triggers.pressure() > 0.5f,
+          "Analog trigger enables proportional skip");
+    trigger.gaxis.which = 8;
+    trigger.gaxis.axis = SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+    trigger.gaxis.value = 30000;
+    triggers.process(trigger);
+    const float stronger = triggers.pressure();
+    trigger.gaxis.which = 7;
+    trigger.gaxis.value = 0;
+    triggers.process(trigger);
+    check(triggers.active() &&
+              std::abs(triggers.pressure() - stronger) < 0.001f,
+          "Releasing one trigger retains the other controller's pressure");
+    removed.gdevice.which = 7;
+    triggers.process(removed);
+    check(triggers.active(), "Unplugging an idle controller preserves skip");
+    removed.gdevice.which = 8;
+    triggers.process(removed);
+    check(!triggers.active() && triggers.pressure() == 0.0f,
+          "Unplugging the active controller releases skip");
+    trigger.gaxis.which = 7;
+    trigger.gaxis.value = 18000;
+    triggers.process(trigger);
+    triggers.process(lost);
+    check(!triggers.active() && triggers.pressure() == 0.0f,
+          "Focus loss clears all active trigger pressure");
     std::cout << "Input action tests passed\n";
   } catch (std::exception &e) {
     std::cerr << e.what() << '\n';
