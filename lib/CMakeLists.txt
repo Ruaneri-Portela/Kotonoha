@@ -250,9 +250,25 @@ if (APPLE)
     )
     list(APPEND KOTONOHA_ENGINE_SOURCES ${KOTONOHA_ENGINE_SOURCES_OBJC})
 endif ()
+# Do not compile backend modules that are disabled for this build.
+# Upscaler.cpp provides a small SDL-only compatibility facade when OFF.
+if(DEFINED KOTONOHA_ENABLE_MCP AND NOT KOTONOHA_ENABLE_MCP)
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/mcp/")
+endif()
+if(DEFINED KOTONOHA_ENABLE_UPSCALER AND NOT KOTONOHA_ENABLE_UPSCALER)
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/media/upscaling/(MPVCompatibleUpscaler|MetalFXUpscaler)\\.(cpp|mm)$")
+endif()
 
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
 add_library(Kotonoha::Engine ALIAS KotonohaEngine)
+if(DEFINED KOTONOHA_ENABLE_UPSCALER)
+    target_compile_definitions(KotonohaEngine PUBLIC
+        KOTONOHA_ENABLE_UPSCALER=$<BOOL:${KOTONOHA_ENABLE_UPSCALER}>)
+endif()
+if(DEFINED KOTONOHA_ENABLE_MCP)
+    target_compile_definitions(KotonohaEngine PUBLIC
+        KOTONOHA_ENABLE_MCP=$<BOOL:${KOTONOHA_ENABLE_MCP}>)
+endif()
 if(EMSCRIPTEN)
     target_compile_definitions(KotonohaEngine PUBLIC
         KOTONOHA_WASM_FETCH_CACHE_MIB=${KOTONOHA_WASM_FETCH_CACHE_MIB})
@@ -323,7 +339,7 @@ else ()
 endif ()
 
 # Configuracoes especificas do Metal (Apple)
-if (APPLE)
+if (APPLE AND (NOT DEFINED KOTONOHA_ENABLE_UPSCALER OR KOTONOHA_ENABLE_UPSCALER))
     set_source_files_properties(src/media/upscaling/MetalFXUpscaler.mm
             PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
     find_library(METALFX_FRAMEWORK MetalFX)
@@ -345,8 +361,20 @@ get_filename_component(kotonoha_project_root "${CMAKE_CURRENT_SOURCE_DIR}/.." AB
 set(KOTONOHA_PROJECT_ROOT "${kotonoha_project_root}"
         CACHE INTERNAL "Kotonoha source root" FORCE)
 
-set(KOTONOHA_ENGINE_ASSETS "${KOTONOHA_PROJECT_ROOT}/assets"
+# Exclude unused shader packs from feature-OFF app bundles and WASM
+# preloads. Keep all other shared engine assets (fonts/icons/UI) unchanged.
+set(_kotonoha_engine_assets "${KOTONOHA_PROJECT_ROOT}/assets")
+if(DEFINED KOTONOHA_ENABLE_UPSCALER AND NOT KOTONOHA_ENABLE_UPSCALER)
+    set(_kotonoha_engine_assets "${CMAKE_CURRENT_BINARY_DIR}/assets-no-upscaler")
+    file(REMOVE_RECURSE "${_kotonoha_engine_assets}")
+    file(COPY "${KOTONOHA_PROJECT_ROOT}/assets/"
+         DESTINATION "${_kotonoha_engine_assets}"
+         PATTERN "Anime4K" EXCLUDE
+         PATTERN "ArtCNN" EXCLUDE)
+endif()
+set(KOTONOHA_ENGINE_ASSETS "${_kotonoha_engine_assets}"
         CACHE INTERNAL "Kotonoha engine assets" FORCE)
+unset(_kotonoha_engine_assets)
 
 include("${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/KotonohaApp.cmake")
 

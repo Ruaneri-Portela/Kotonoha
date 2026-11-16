@@ -22,6 +22,7 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
   option("--renderer", "NAME", "SDL renderer override (requires restart)",
          engine.rendererOverride);
   option("--log", "FILE", "Write engine logs to this file", engine.logPath);
+#if KOTONOHA_ENABLE_MCP
   flag("--mcp", "Enable the stdio MCP interface", engine.enableMCP);
   option("--mcp-root", "DIRECTORY", "Restrict MCP files to this root",
          engine.mcpFileRoot);
@@ -30,6 +31,7 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
          [&engine](const std::string &value) {
            engine.mcpPort = std::stoi(value);
          });
+#endif
   option("--asset-overlay", "DIRECTORY", "Override game assets from a folder",
          [&engine](const std::string &path) {
            engine.assetOverlayPath = path;

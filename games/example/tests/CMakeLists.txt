@@ -58,9 +58,16 @@ else()
 endif()
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
-add_test(NAME Kotonoha.MCP COMMAND "${Python3_EXECUTABLE}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/MCPTests.py" "$<TARGET_FILE:Kotonoha>"
-    "${KOTONOHA_PROJECT_ROOT}/lib/tests/fixtures/SvgTestFont.ttf")
-set_tests_properties(Kotonoha.MCP PROPERTIES TIMEOUT 30)
+if(KOTONOHA_ENABLE_MCP)
+    add_test(NAME Kotonoha.MCP COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/MCPTests.py" "$<TARGET_FILE:Kotonoha>"
+        "${KOTONOHA_PROJECT_ROOT}/lib/tests/fixtures/SvgTestFont.ttf")
+    set_tests_properties(Kotonoha.MCP PROPERTIES TIMEOUT 30)
+else()
+    # Test OFF behavior explicitly instead of silently skipping the module.
+    add_test(NAME Kotonoha.MCPDisabled COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/MCPDisabledTests.py" "$<TARGET_FILE:Kotonoha>")
+    set_tests_properties(Kotonoha.MCPDisabled PROPERTIES TIMEOUT 30)
+endif()
 
 kotonoha_label_directory_tests()

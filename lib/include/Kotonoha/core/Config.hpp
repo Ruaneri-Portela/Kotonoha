@@ -1,4 +1,27 @@
 #pragma once
+// Feature switches shared by CMake, native Xcode and all engine clients.
+// An OFF module has no runtime services or visible controls.
+#ifndef KOTONOHA_ENABLE_UPSCALER
+# if defined(__EMSCRIPTEN__)
+#  define KOTONOHA_ENABLE_UPSCALER 0
+# else
+#  define KOTONOHA_ENABLE_UPSCALER 1
+# endif
+#endif
+#ifndef KOTONOHA_ENABLE_MCP
+# if defined(__EMSCRIPTEN__) || defined(__ANDROID__)
+#  define KOTONOHA_ENABLE_MCP 0
+# elif defined(__APPLE__)
+#  include <TargetConditionals.h>
+#  if TARGET_OS_IPHONE
+#   define KOTONOHA_ENABLE_MCP 0
+#  else
+#   define KOTONOHA_ENABLE_MCP 1
+#  endif
+# else
+#  define KOTONOHA_ENABLE_MCP 1
+# endif
+#endif
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #endif
