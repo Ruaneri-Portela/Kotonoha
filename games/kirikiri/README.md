@@ -33,8 +33,9 @@ Use a lawful game folder with KAG scripts or XP3 packages. Start the launcher or
 ## TJS2 source function and Dictionary subset
 
 The experimental `modules/vms/tjs2` VM now accepts named source functions
-with parameters and `return`, per-call local variables, bounded recursion
-and shared `new Dictionary()` values with dotted member reads and writes.
+with parameters and `return`, per-call local variables, bounded recursion,
+bounded `for` loops and shared `new Dictionary()` values with dotted
+member reads and writes.
 These capabilities allow simple bootstrap configuration functions to compute
 a KAG entry or title caption before the Kotonoha fallback menu is shown.
 
