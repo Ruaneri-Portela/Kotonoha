@@ -2,6 +2,7 @@
 #pragma once
 #include <N2System/Archive.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <memory>
 namespace N2System {
 // Adapter to Kotonoha's asset pipeline. User-supplied archives remain read-only.
 class N2ArchiveAssets final : public Kotonoha::AssetProvider {
@@ -11,7 +12,10 @@ public:
   bool containsAsset(const std::string& path) const override;
   std::vector<Uint8> readAsset(const std::string& path) const override;
   std::vector<std::string> listAsset(const std::string& prefix) const override;
+  // Stream media from the mounted archive without a second full-size copy.
+  std::unique_ptr<Kotonoha::AssetStream>
+  openStream(const std::string& path) const override;
 private:
-  std::vector<Archive> archives_;
+  std::vector<std::shared_ptr<const Archive>> archives_;
 };
 } // namespace N2System

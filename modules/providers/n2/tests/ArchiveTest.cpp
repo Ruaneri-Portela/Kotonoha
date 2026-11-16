@@ -1,6 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/Archive.hpp>
-#include <cassert>
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
@@ -8,6 +8,9 @@
 #include <vector>
 namespace {
 using Bytes=std::vector<std::uint8_t>;
+void require(bool condition, const char* message = "archive verification failed") {
+  if (!condition) throw std::runtime_error(message);
+}
 void put32(Bytes& d, std::uint32_t v) {
   for (int j=0;j<4;++j) d.push_back(static_cast<std::uint8_t>(v>>(8*j)));
 }
@@ -18,7 +21,7 @@ void add(Bytes& d,const std::string& s) {d.insert(d.end(),s.begin(),s.end());}
 template<typename F> void rejects(F fn) {
   bool failed=false;
   try {fn();} catch(const std::exception&) {failed=true;}
-  assert(failed);
+  require(failed);
 }
 Bytes afs() {
   Bytes d={'A','F','S',0};
@@ -65,11 +68,19 @@ Bytes npa() {
 int main() {
   const auto a=afs();
   N2System::Archive archive(a);
-  assert(archive.format()==N2System::ArchiveFormat::AFS);
-  assert(archive.entries().size()==2);
-  assert(archive.contains("FIRST.DAT"));
-  assert(archive.read("first.dat")==Bytes({'o','n','e'}));
-  assert(archive.read("second.dat")==Bytes({'T','W','O','!'}));
+  require(archive.format()==N2System::ArchiveFormat::AFS);
+  require(archive.entries().size()==2);
+  require(archive.contains("FIRST.DAT"));
+  require(archive.read("first.dat")==Bytes({'o','n','e'}));
+  require(archive.read("second.dat")==Bytes({'T','W','O','!'}));
+  std::uint8_t chunk[4] = {};
+  const auto* first = archive.find("first.dat");
+  require(first != nullptr);
+  require(archive.readAt(*first, 1, chunk, sizeof(chunk)) == 2);
+  require(chunk[0] == 'n' && chunk[1] == 'e');
+  require(archive.readAt(*first, 3, chunk, sizeof(chunk)) == 0);
+  require(archive.readAt(*first, 999, chunk, sizeof(chunk)) == 0);
+  rejects([&]{ (void)archive.readAt(*first, 0, nullptr, 1); });
   auto badAfs=a;
   set32(badAfs,8,99999);
   rejects([&]{N2System::Archive invalid(badAfs);});
@@ -82,10 +93,10 @@ int main() {
 
   const auto n=npa();
   N2System::Archive packed(n);
-  assert(packed.format()==N2System::ArchiveFormat::NPA);
-  assert(packed.entries().size()==1);
-  assert(packed.contains("dir/sample.txt"));
-  assert(packed.read("DIR\\Sample.TXT")==Bytes({'G','O','O','D'}));
+  require(packed.format()==N2System::ArchiveFormat::NPA);
+  require(packed.entries().size()==1);
+  require(packed.contains("dir/sample.txt"));
+  require(packed.read("DIR\\Sample.TXT")==Bytes({'G','O','O','D'}));
   auto badNpa=n;
   badNpa[15]=1;
   rejects([&]{N2System::Archive invalid(badNpa);});

@@ -23,6 +23,9 @@ public:
   bool contains(std::string_view name) const;
   std::vector<std::uint8_t> read(std::string_view name) const;
   std::vector<std::uint8_t> read(const ArchiveEntry& entry) const;
+  // Read a range directly from the archive without copying the whole asset.
+  std::size_t readAt(const ArchiveEntry& entry, std::uint64_t offset,
+                     std::uint8_t* buffer, std::size_t capacity) const;
   static std::string normalize(std::string_view name);
 private:
   void parseAfs();
