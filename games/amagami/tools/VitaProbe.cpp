@@ -50,6 +50,11 @@ void saveSnapshot(const std::string &path,
       return graphics && graphics->contains(name)
                  ? graphics->loadSurface(name) : Kotonoha::SurfacePtr{};
     });
+    presenter.setFontSource([graphics](unsigned font, uint16_t code,
+                                      unsigned palette) {
+      return graphics ? graphics->fontGlyph(font, code, palette)
+                      : Kotonoha::SurfacePtr{};
+    });
     presenter.draw(bridge);
     if (!SDL_RenderPresent(software.get()))
       throw std::runtime_error(SDL_GetError());
