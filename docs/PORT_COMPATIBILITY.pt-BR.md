@@ -10,7 +10,7 @@ comandos, cenas, rotas, transições ou finais funcionem.
 
 | Porte | Cobertura existente e limites | Avanço desta revisão |
 | --- | --- | --- |
-| Example | Demonstração de cenas, interface e motor compartilhado; não necessita de jogo comercial | Verificação de contratos e smoke test nativo de inicialização |
+| Example | Demonstração de cenas, interface e motor compartilhado; não necessita de jogo comercial | ID do runtime alinhado ao bundle com migração conservadora dos arquivos legados; smoke test nativo de inicialização |
 | Amagami | Prólogo e mapa inicial implementados; calendário, rotas posteriores e finais ainda não verificados | Validação do startup e do identificador de assets |
 | Zero no Tsukaima | Nocturne jogável; cobertura distinta para Concerto e Symphony | Verificação de inicialização e metadados; comparação multidisco pendente |
 | Snow Radish Vacation!! | ADV3 jogável; efeitos originais e temporização incompletos | Verificação de inicialização e metadados |
@@ -55,7 +55,7 @@ nas plataformas atendidas. Não incluir os dados comerciais no Git.
   eventos SDL não significa que os comandos correspondem ao jogo original.
 - Encontrar nomes de arquivos numa ISO comprova apenas o layout de entrada,
   não a decodificação ou a jogabilidade.
-- No LucaSystem, o diretório legado só é movido se existir, não for symlink
+- No LucaSystem e no exemplo, o diretório legado só é movido se existir, não for symlink
   e o destino ainda não existir; dados novos nunca são sobrescritos.
 - **Não foram executadas** compilações completas de macOS/iOS/Android/Linux/
   Windows/WebAssembly nem validações com mídia comercial nesta revisão.
