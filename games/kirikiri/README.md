@@ -57,7 +57,7 @@ Layer properties include position, size, visibility, enabled state, opacity,
 order, `loadImages`, `setPos`, `setSize`, `show` and `hide`. XP3-backed
 textures are rendered using parent-relative coordinates.
 
-A **named** TJS2 function can be assigned to `layer.onClick`. Mouse-down
+A **named or inline anonymous** TJS2 function (without lexical closure capture) can be assigned to `layer.onClick` or `layer.onMouseDown`. Mouse-down
 events are hit-tested front-to-back and invoke the retained bounded VM.
 A callback may choose a `.ks` entry using `Scripts.execStorage` and start
 the KAG interpreter. A completely parsed interactive title may replace
@@ -74,5 +74,5 @@ button.onClick = startGame;
 ```
 
 This is **not** complete KiriKiri native windowing or the original NEKOPARA
-menu. Anonymous closures, keyboard/hover events, timers, native plugins
+menu. Full closures, keyboard/hover events, timers, native plugins
 and compiled TJS2 bytecode remain unsupported. Tests are synthetic.
