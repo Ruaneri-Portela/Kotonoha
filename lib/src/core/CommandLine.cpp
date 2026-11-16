@@ -1,6 +1,6 @@
+#include <Kotonoha/core/BuildVersion.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/BuildVersion.hpp>
 #include <algorithm>
 #include <charconv>
 #include <iomanip>

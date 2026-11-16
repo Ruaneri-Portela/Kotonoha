@@ -147,8 +147,8 @@ int main(int argc, char **argv) {
       campaign.advancePeriod(vm);
       const int afterDay = campaign.date(vm);
       const int afterPeriod = campaign.period(vm);
-      require(afterDay >= 1 && afterDay <= 42 &&
-                  afterPeriod >= 0 && afterPeriod < 14,
+      require(afterDay >= 1 && afterDay <= 42 && afterPeriod >= 0 &&
+                  afterPeriod < 14,
               "Original calendar stays inside its documented bounds");
       require(afterDay > beforeDay ||
                   (afterDay == beforeDay && afterPeriod > beforePeriod),
@@ -161,9 +161,8 @@ int main(int argc, char **argv) {
     require(campaign.date(vm) > initialDay,
             "Campaign period advancement crosses a real day boundary");
 
-    std::cout << "Original campaign: 588 timetable cells ("
-              << scheduledEvents << " event cells, "
-              << scheduledMethods << " method cells, "
+    std::cout << "Original campaign: 588 timetable cells (" << scheduledEvents
+              << " event cells, " << scheduledMethods << " method cells, "
               << emptySlots << " empty), "
               << "24 native transitions over " << campaign.date(vm) - initialDay
               << " day(s) audited\n";

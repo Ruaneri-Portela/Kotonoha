@@ -1,6 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
-#include <LucaSystem/SaveState.hpp>
 #include <LucaSystem/DialogueFlow.hpp>
+#include <LucaSystem/SaveState.hpp>
 
 #include <iostream>
 #include <stdexcept>
@@ -11,8 +11,7 @@ void require(bool good, const char *message) {
   if (!good)
     throw std::runtime_error(message);
 }
-template <typename F>
-void rejects(F fn, const char *message) {
+template <typename F> void rejects(F fn, const char *message) {
   bool caught = false;
   try {
     fn();
@@ -29,9 +28,11 @@ int main() {
     // the VM. No input can pull arbitrary extracted dialogue out of order.
     using LucaSystem::DialogueAdvance;
     require(LucaSystem::nextDialogueAction(false, false) ==
-                DialogueAdvance::None, "Hidden dialogue is not advanceable");
+                DialogueAdvance::None,
+            "Hidden dialogue is not advanceable");
     require(LucaSystem::nextDialogueAction(true, false) ==
-                DialogueAdvance::Reveal, "First confirm reveals text");
+                DialogueAdvance::Reveal,
+            "First confirm reveals text");
     require(LucaSystem::nextDialogueAction(true, true) ==
                 DialogueAdvance::ResumeScript,
             "Second confirm resumes the script without skipping commands");
@@ -55,25 +56,22 @@ int main() {
     state.images = {{17, -50, 20}, {2048, 900, -34}};
     auto encoded = LucaSystem::encodeSaveState(state);
     const auto decoded = LucaSystem::decodeSaveState(encoded);
-    require(decoded.scenario == state.scenario &&
-                decoded.instructionIndex == state.instructionIndex &&
-                decoded.dialogueIndex == state.dialogueIndex &&
-                decoded.dialogueVisible == state.dialogueVisible &&
-                decoded.dialogueText == state.dialogueText &&
-                decoded.waiting == state.waiting &&
-                decoded.waitRemainingMs == state.waitRemainingMs &&
-                decoded.numbers == state.numbers &&
-                decoded.strings == state.strings &&
-                decoded.flags == state.flags &&
-                decoded.callStack == state.callStack &&
-                decoded.images.size() == state.images.size() &&
-                decoded.images[0].assetId == 17 &&
-                decoded.images[0].x == -50 &&
-                decoded.images[0].y == 20 &&
-                decoded.images[1].assetId == 2048 &&
-                decoded.images[1].x == 900 &&
-                decoded.images[1].y == -34,
-            "LucaSystem V4 round-trip must preserve VM and visible images");
+    require(
+        decoded.scenario == state.scenario &&
+            decoded.instructionIndex == state.instructionIndex &&
+            decoded.dialogueIndex == state.dialogueIndex &&
+            decoded.dialogueVisible == state.dialogueVisible &&
+            decoded.dialogueText == state.dialogueText &&
+            decoded.waiting == state.waiting &&
+            decoded.waitRemainingMs == state.waitRemainingMs &&
+            decoded.numbers == state.numbers &&
+            decoded.strings == state.strings && decoded.flags == state.flags &&
+            decoded.callStack == state.callStack &&
+            decoded.images.size() == state.images.size() &&
+            decoded.images[0].assetId == 17 && decoded.images[0].x == -50 &&
+            decoded.images[0].y == 20 && decoded.images[1].assetId == 2048 &&
+            decoded.images[1].x == 900 && decoded.images[1].y == -34,
+        "LucaSystem V4 round-trip must preserve VM and visible images");
     require(LucaSystem::encodeSaveState(decoded) == encoded,
             "LucaSystem V4 saves must be stable on a repeat encode");
 
@@ -88,12 +86,14 @@ int main() {
     const auto oldState = LucaSystem::decodeSaveState(oldBytes);
     require(oldState.scenario == prior.scenario &&
                 oldState.callStack == prior.callStack &&
-                oldState.strings == prior.strings &&
-                oldState.images.empty(),
+                oldState.strings == prior.strings && oldState.images.empty(),
             "Older V3 save must decode with an empty visual layer");
 
-    rejects([&] { LucaSystem::decodeSaveState(encoded.substr(0, encoded.size() - 1)); },
-            "Truncated V4 image payload must be rejected");
+    rejects(
+        [&] {
+          LucaSystem::decodeSaveState(encoded.substr(0, encoded.size() - 1));
+        },
+        "Truncated V4 image payload must be rejected");
     rejects([&] { LucaSystem::decodeSaveState(encoded + "junk"); },
             "Trailing V4 data must be rejected");
     rejects([&] { LucaSystem::decodeSaveState(oldBytes + "junk"); },
@@ -124,32 +124,32 @@ int main() {
 
     // Old whitespace-separated V2 files remain readable if their original
     // string fields contain no whitespace (V2 could not preserve it).
-    const std::string v2 =
-        "LUCA_SYSTEM_SAVE_2\nseen23\n10\n1\n1\n"
-        "1\n5 -22\n"
-        "1\n7 String\n"
-        "1\n9 1\n";
+    const std::string v2 = "LUCA_SYSTEM_SAVE_2\nseen23\n10\n1\n1\n"
+                           "1\n5 -22\n"
+                           "1\n7 String\n"
+                           "1\n9 1\n";
     const auto legacy = LucaSystem::decodeSaveState(v2);
-    require(legacy.scenario == "seen23" &&
-                legacy.instructionIndex == 10 &&
+    require(legacy.scenario == "seen23" && legacy.instructionIndex == 10 &&
                 legacy.dialogueIndex == 1 && legacy.dialogueVisible &&
                 legacy.numbers.at(5) == -22 &&
-                legacy.strings.at(7) == "String" &&
-                legacy.flags.at(9) && legacy.callStack.empty(),
+                legacy.strings.at(7) == "String" && legacy.flags.at(9) &&
+                legacy.callStack.empty(),
             "Legacy V2 saved state is readable");
     const auto oldest = LucaSystem::decodeSaveState("seen99\n");
     require(oldest.scenario == "seen99" && oldest.instructionIndex == 0,
             "Legacy scenario-only save is readable");
-    rejects([&] {
-      LucaSystem::decodeSaveState(
-          "LUCA_SYSTEM_SAVE_2\nseen23\n0\n0\n0\n65537\n");
-    }, "Invalid V2 collection bound must be rejected");
+    rejects(
+        [&] {
+          LucaSystem::decodeSaveState(
+              "LUCA_SYSTEM_SAVE_2\nseen23\n0\n0\n0\n65537\n");
+        },
+        "Invalid V2 collection bound must be rejected");
 
     std::cout << "LucaSystem save codec regression tests passed\n";
     return 0;
   } catch (const std::exception &error) {
-    std::cerr << "LucaSystem save codec regression failed: "
-              << error.what() << '\n';
+    std::cerr << "LucaSystem save codec regression failed: " << error.what()
+              << '\n';
     return 1;
   }
 }

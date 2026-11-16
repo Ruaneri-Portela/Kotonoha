@@ -11,9 +11,10 @@ void word(std::vector<uint8_t> &data, std::uint32_t value) {
     data.push_back(static_cast<std::uint8_t>(value >> (8 * i)));
 }
 void require(bool condition, const char *message) {
-  if (!condition) throw std::runtime_error(message);
+  if (!condition)
+    throw std::runtime_error(message);
 }
-}
+} // namespace
 
 int main() {
   try {
@@ -27,7 +28,7 @@ int main() {
     index[0x48] = static_cast<std::uint8_t>(object.size());
     archive.insert(archive.end(), index.begin(), index.end());
     word(archive, static_cast<std::uint32_t>(index.size()) ^ 0xf0f0f0f0u);
-    word(archive, 0xf0f0f0f0u);  // unknown raw index size: scan directly
+    word(archive, 0xf0f0f0f0u); // unknown raw index size: scan directly
     word(archive, 0xf0f0f0f0u);
 
     Kotonoha::PmailPort::PmailPack reader;

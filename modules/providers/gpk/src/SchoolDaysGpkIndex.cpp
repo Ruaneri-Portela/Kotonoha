@@ -131,9 +131,8 @@ bool SchoolDaysGpkIndex::ParseDecoded(const uint8_t *bytes, size_t size,
       // Reject overlapping ranges, but do not require exact adjacency.
       if (static_cast<uint64_t>(entry.offset) < expected) {
         Clear();
-        return Fail(
-            error,
-            "School Days GPK PIDX physical entry ranges overlap");
+        return Fail(error,
+                    "School Days GPK PIDX physical entry ranges overlap");
       }
     }
     entries_.push_back(std::move(entry));

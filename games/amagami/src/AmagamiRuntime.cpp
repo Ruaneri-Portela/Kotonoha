@@ -1,9 +1,9 @@
-#include <Kotonoha/core/SDL.hpp>
 #include "AmagamiRuntime.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/components/SubtitleScene.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>

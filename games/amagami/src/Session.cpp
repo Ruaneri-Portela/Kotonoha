@@ -1,10 +1,10 @@
 #include <Amagami/Session.hpp>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -1740,10 +1740,9 @@ void Session::load(const std::string &path) {
           throw std::runtime_error("Invalid campaign period/advance action");
       } else if (action.kind == "choose") {
         if (action.value.empty() || action.value.size() > 2 ||
-            !std::all_of(action.value.begin(), action.value.end(),
-                         [](unsigned char c) {
-                           return c >= '0' && c <= '9';
-                         }) ||
+            !std::all_of(
+                action.value.begin(), action.value.end(),
+                [](unsigned char c) { return c >= '0' && c <= '9'; }) ||
             action.value[0] == '0' && action.value.size() > 1)
           throw std::runtime_error("Invalid campaign choice selector");
       } else {
@@ -1754,10 +1753,9 @@ void Session::load(const std::string &path) {
     for (size_t i = currentScenarioStart; i < actions.size(); ++i) {
       const auto &action = actions[i];
       if (action.kind == "advance" || action.kind == "choose") {
-        const int expected = action.kind == "advance" ? -1 :
-                             std::stoi(action.value);
-        if (inputCursor >= inputs.size() ||
-            inputs[inputCursor++] != expected)
+        const int expected =
+            action.kind == "advance" ? -1 : std::stoi(action.value);
+        if (inputCursor >= inputs.size() || inputs[inputCursor++] != expected)
           throw std::runtime_error("Campaign action/input journal mismatch");
       }
     }
@@ -1798,15 +1796,17 @@ void Session::load(const std::string &path) {
         for (unsigned ticks = 0; candidate.waiting() && ticks < 60; ++ticks)
           candidate.tick(1.0); // 60 script frames per tick
         if (candidate.waiting() || candidate.ended_)
-          throw std::runtime_error("Campaign save replay diverged before input");
+          throw std::runtime_error(
+              "Campaign save replay diverged before input");
         if (action.kind == "advance") {
           if (!action.value.empty() || !candidate.choices_.empty())
             throw std::runtime_error("Invalid campaign advance action");
           candidate.advance();
         } else {
           if (action.value.empty() || action.value.size() > 4 ||
-              !std::all_of(action.value.begin(), action.value.end(),
-                           [](unsigned char c) { return c >= '0' && c <= '9'; }))
+              !std::all_of(
+                  action.value.begin(), action.value.end(),
+                  [](unsigned char c) { return c >= '0' && c <= '9'; }))
             throw std::runtime_error("Invalid campaign choice action");
           const unsigned choice = unsigned(std::stoul(action.value));
           if (choice >= candidate.choices_.size())

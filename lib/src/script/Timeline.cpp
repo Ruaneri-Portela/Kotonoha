@@ -1,10 +1,10 @@
 #include <Kotonoha/media/AudioMixer.hpp>
 #include <Kotonoha/script/Timeline.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <limits>
 #include <sstream>

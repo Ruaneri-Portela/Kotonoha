@@ -3,10 +3,10 @@
 
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysRuntime.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <SchoolDays/SchoolDaysAssets.hpp>
 #include <chrono>
 #include <cstdio>
@@ -67,10 +67,11 @@ struct KotonohaPortCallbacks final {
   static void quit(void *state, SDL_AppResult result);
 };
 
-SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
+                                          char **argv) {
   *appstate = nullptr;
   KOTONOHA_SET_APP_METADATA("School Days HQ",
-                     "me.hirameki.kotonoha.schooldays");
+                            "me.hirameki.kotonoha.schooldays");
   try {
     auto app = std::make_unique<App>();
     std::string directory;

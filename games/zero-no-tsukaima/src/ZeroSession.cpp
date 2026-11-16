@@ -3,15 +3,15 @@
 
 #include <ZeroNoTsukaima/Vag.hpp>
 
-#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/Engine.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <sstream>
 #include <utility>
 

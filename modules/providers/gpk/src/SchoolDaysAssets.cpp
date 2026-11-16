@@ -1,8 +1,8 @@
 #include <SchoolDays/SchoolDaysAssets.hpp>
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #ifdef __EMSCRIPTEN__
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
@@ -402,8 +402,8 @@ bool SchoolDaysAssets::checkDirectory(const std::filesystem::path &root,
     for (const char *prefix : {"", "Packs/"}) {
       const std::string name = std::string(prefix) + "BGM.GPK";
       if (vfs->exists(name)) {
-        info = "School Days retail GPK data found via HTTP VFS (" +
-               name + "); remaining packs validated on mount";
+        info = "School Days retail GPK data found via HTTP VFS (" + name +
+               "); remaining packs validated on mount";
         return true;
       }
     }

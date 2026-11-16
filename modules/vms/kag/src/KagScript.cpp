@@ -178,8 +178,7 @@ KagScript::Script KagScript::parse(const std::string &text,
     } else {
       // Plain text accumulates until next '['
       std::string textBuf;
-      while (i < n && (text[i] != '[' ||
-                        (i + 1 < n && text[i + 1] == '['))) {
+      while (i < n && (text[i] != '[' || (i + 1 < n && text[i + 1] == '['))) {
         if (text[i] == '[') {
           // KAG [[ escapes a literal [ in dialogue.
           textBuf.push_back('[');
@@ -227,7 +226,8 @@ void KagScript::Runner::restoreState(const State &state) {
     throw std::out_of_range("KAG save position exceeds scenario length");
   for (const auto frame : state.returnStack)
     if (frame == 0 || frame > script_.tags.size())
-      throw std::out_of_range("KAG save return address exceeds scenario length");
+      throw std::out_of_range(
+          "KAG save return address exceeds scenario length");
   if (state.ifBranches.size() > script_.tags.size() ||
       state.callIfDepth.size() != state.returnStack.size())
     throw std::out_of_range("KAG save conditional stack is inconsistent");
@@ -263,9 +263,8 @@ void KagScript::Runner::restorePosition(std::size_t position) {
 
 bool KagScript::Runner::jumpToLabel(const std::string &label) {
   // Real KAG scripts commonly refer to labels as target=*label.
-  const auto normalized = !label.empty() && label.front() == '*'
-                              ? label.substr(1)
-                              : label;
+  const auto normalized =
+      !label.empty() && label.front() == '*' ? label.substr(1) : label;
   auto position = findLabel(normalized);
   if (position == script_.tags.size())
     return false;
@@ -407,8 +406,7 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
         callIfDepth_.push_back(ifDepth);
       } else
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Kirikiri: unknown local call target '%s'",
-                    label.c_str());
+                    "Kirikiri: unknown local call target '%s'", label.c_str());
     } else if (cb_.jump && !storage.empty()) {
       cb_.jump(label.empty() ? storage : storage + "#" + label);
     }
@@ -466,9 +464,9 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     };
     std::vector<Choice> numbered;
     for (const auto &[key, caption] : tag.attrs) {
-      const std::size_t prefix =
-          key.rfind("option", 0) == 0 ? 6u :
-          key.rfind("btn", 0) == 0 ? 3u : 0u;
+      const std::size_t prefix = key.rfind("option", 0) == 0 ? 6u
+                                 : key.rfind("btn", 0) == 0  ? 3u
+                                                             : 0u;
       if (!prefix || key.size() <= prefix)
         continue;
       unsigned index = 0;
@@ -486,8 +484,7 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     }
     std::sort(numbered.begin(), numbered.end(),
               [](const Choice &a, const Choice &b) {
-                return a.index == b.index ? a.key < b.key
-                                          : a.index < b.index;
+                return a.index == b.index ? a.key < b.key : a.index < b.index;
               });
     std::vector<std::string> options;
     options.reserve(numbered.size());
@@ -518,8 +515,7 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
   if (name == "bgshow" || name == "bg" || name == "back") {
     if (cb_.showBg)
       cb_.showBg(getAttr(tag, "storage", getAttr(tag, "file", "")),
-                 getAttrInt(tag, "time",
-                            getAttrInt(tag, "transition", 0)));
+                 getAttrInt(tag, "time", getAttrInt(tag, "transition", 0)));
     return false;
   }
 
@@ -539,8 +535,8 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     }
     return false;
   }
-  if (name == "freeimage" || name == "chara_hide" ||
-      name == "chide" || name == "hide") {
+  if (name == "freeimage" || name == "chara_hide" || name == "chide" ||
+      name == "hide") {
     const auto layer = getAttr(tag, "layer", "0");
     if (layer == "base") {
       if (cb_.showBg)
@@ -560,8 +556,7 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     }
     return false;
   }
-  if (name == "trans" || name == "wt" || name == "backlay" ||
-      name == "forelay")
+  if (name == "trans" || name == "wt" || name == "backlay" || name == "forelay")
     return false; // Immediate presentation, no authentic timing yet.
 
   // Kotonoha's explicit character commands.
@@ -614,12 +609,12 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
 
 bool KagScript::Runner::condition(const Tag &tag) const {
   const auto expr = trim(getAttr(tag, "exp", getAttr(tag, "cond", "")));
-  if (expr.empty()) return false;
+  if (expr.empty())
+    return false;
   const auto operand = [this](std::string token) -> std::string {
     token = trim(token);
-    if (token.size() > 1 &&
-        ((token.front() == '"' && token.back() == '"') ||
-         (token.front() == '\'' && token.back() == '\'')))
+    if (token.size() > 1 && ((token.front() == '"' && token.back() == '"') ||
+                             (token.front() == '\'' && token.back() == '\'')))
       return token.substr(1, token.size() - 2);
     if (token == "true" || token == "false" || token == "null" ||
         token == "nil" || token.empty())
@@ -631,36 +626,45 @@ bool KagScript::Runner::condition(const Tag &tag) const {
     if (!token.empty() && token.front() == '&')
       token.erase(0, 1);
     const auto found = vars_.find(token);
-    if (found != vars_.end()) return found->second;
+    if (found != vars_.end())
+      return found->second;
     return cb_.getVar ? cb_.getVar(token) : std::string();
   };
-  const auto truthy = [](const std::string& value) {
-    if (value.empty() || value == "false" || value == "nil" ||
-        value == "null") return false;
-    char* end = nullptr;
+  const auto truthy = [](const std::string &value) {
+    if (value.empty() || value == "false" || value == "nil" || value == "null")
+      return false;
+    char *end = nullptr;
     const auto number = std::strtod(value.c_str(), &end);
     if (end != value.c_str() && *end == 0)
       return number != 0.0;
     return true;
   };
-  for (const char* op : {"==", "!=", ">=", "<=", ">", "<"}) {
+  for (const char *op : {"==", "!=", ">=", "<=", ">", "<"}) {
     const auto pos = expr.find(op);
-    if (pos == std::string::npos) continue;
+    if (pos == std::string::npos)
+      continue;
     const auto left = operand(expr.substr(0, pos));
-    const auto right = operand(expr.substr(pos + std::char_traits<char>::length(op)));
-    if (std::string(op) == "==") return left == right;
-    if (std::string(op) == "!=") return left != right;
+    const auto right =
+        operand(expr.substr(pos + std::char_traits<char>::length(op)));
+    if (std::string(op) == "==")
+      return left == right;
+    if (std::string(op) == "!=")
+      return left != right;
     char *endL = nullptr, *endR = nullptr;
     const auto lv = std::strtod(left.c_str(), &endL);
     const auto rv = std::strtod(right.c_str(), &endR);
     if (endL == left.c_str() || *endL || endR == right.c_str() || *endR)
       return false;
-    if (std::string(op) == ">=") return lv >= rv;
-    if (std::string(op) == "<=") return lv <= rv;
-    if (std::string(op) == ">") return lv > rv;
+    if (std::string(op) == ">=")
+      return lv >= rv;
+    if (std::string(op) == "<=")
+      return lv <= rv;
+    if (std::string(op) == ">")
+      return lv > rv;
     return lv < rv;
   }
-  if (expr.front() == '!') return !truthy(operand(expr.substr(1)));
+  if (expr.front() == '!')
+    return !truthy(operand(expr.substr(1)));
   return truthy(operand(expr));
 }
 

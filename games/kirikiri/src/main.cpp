@@ -1,12 +1,12 @@
-#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
 #include <Kirikiri/KirikiriRuntime.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -63,10 +63,9 @@ bool validate(const std::string &path, std::string &info) {
       scenario = scenario || extension == ".ks";
       xp3 = xp3 || extension == ".xp3";
       auto name = std::filesystem::path(entry.path).filename().string();
-      std::transform(name.begin(), name.end(), name.begin(),
-                     [](unsigned char ch) {
-                       return static_cast<char>(std::tolower(ch));
-                     });
+      std::transform(
+          name.begin(), name.end(), name.begin(),
+          [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
       tjsBootstrap = tjsBootstrap || name == "startup.tjs";
     }
     if (!scenario && !xp3 && !tjsBootstrap) {

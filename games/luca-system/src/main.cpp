@@ -1,9 +1,9 @@
-#include <Kotonoha/core/SDLCallbackApp.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <LucaSystem/LucaSystemAssets.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <SDL3/SDL.h>

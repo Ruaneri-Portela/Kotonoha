@@ -1,7 +1,7 @@
 #include <Kotonoha/core/Log.hpp>
 
-#include <deque>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <deque>
 #include <mutex>
 #include <stdexcept>
 

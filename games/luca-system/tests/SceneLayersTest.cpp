@@ -6,11 +6,10 @@
 #include <vector>
 
 static void check(bool ok, const char *message) {
-  if (!ok) throw std::runtime_error(message);
+  if (!ok)
+    throw std::runtime_error(message);
 }
-static bool close(float a, float b) {
-  return std::fabs(a - b) <= 0.001f;
-}
+static bool close(float a, float b) { return std::fabs(a - b) <= 0.001f; }
 int main() {
   try {
     LucaSystem::SceneLayers scene;
@@ -29,15 +28,14 @@ int main() {
     auto halfway = scene.blend(1100);
     auto done = scene.blend(1500);
     check(close(atStart.outgoing, 1) && close(atStart.incoming, 0) &&
-              close(halfway.outgoing, 0.5f) &&
-              close(halfway.incoming, 0.5f) &&
+              close(halfway.outgoing, 0.5f) && close(halfway.incoming, 0.5f) &&
               close(done.outgoing, 0) && close(done.incoming, 1),
           "crossfade interpolates alpha with a stable clock");
     check(close(LucaSystem::wipeVisibleWidth(100, 200, 0), 0) &&
-          close(LucaSystem::wipeVisibleWidth(100, 200, 200), 100) &&
-          close(LucaSystem::wipeVisibleWidth(100, 200, 500), 200) &&
-          close(LucaSystem::wipeVisibleWidth(-50, 150, 50), 100) &&
-          close(LucaSystem::wipeVisibleWidth(100, -10, 200), 0),
+              close(LucaSystem::wipeVisibleWidth(100, 200, 200), 100) &&
+              close(LucaSystem::wipeVisibleWidth(100, 200, 500), 200) &&
+              close(LucaSystem::wipeVisibleWidth(-50, 150, 50), 100) &&
+              close(LucaSystem::wipeVisibleWidth(100, -10, 200), 0),
           "directional wipe crops without resizing or revealing beyond edge");
     // Wipe transitions now carry a dedicated mode instead of silently
     // reusing alpha blending. A renderer can clip incoming objects to the
@@ -48,27 +46,25 @@ int main() {
     const auto wipeHalf = scene.blend(1600);
     const auto wipeEnd = scene.blend(1700);
     check(wipeStart.wipeLeftToRight && wipeHalf.wipeLeftToRight &&
-          wipeEnd.wipeLeftToRight &&
-          close(wipeStart.incoming, 0) &&
-          close(wipeHalf.incoming, 0.5f) &&
-          close(wipeEnd.incoming, 1),
+              wipeEnd.wipeLeftToRight && close(wipeStart.incoming, 0) &&
+              close(wipeHalf.incoming, 0.5f) && close(wipeEnd.incoming, 1),
           "WIPE exposes a timed, directional reveal extent");
     scene.commit(1800, 0);
     scene.beginBlackout(1500, 200, true);
     check(close(scene.blend(1500).blackout, 0) &&
-          close(scene.blend(1600).blackout, 0.5f) &&
-          close(scene.blend(1700).blackout, 1),
+              close(scene.blend(1600).blackout, 0.5f) &&
+              close(scene.blend(1700).blackout, 1),
           "fade-out approaches an opaque screen");
     scene.beginBlackout(1800, 100, false);
     check(close(scene.blend(1800).blackout, 1) &&
-          close(scene.blend(1900).blackout, 0),
+              close(scene.blend(1900).blackout, 0),
           "fade-in restores the rendered scene");
     scene.stage({3, 9, 9});
     scene.reset({{77, -15, 33}});
     check(scene.visible().size() == 1 && scene.visible()[0].id == 77 &&
-          scene.outgoing().empty() && scene.pending().empty() &&
-          close(scene.blend(1900).incoming, 1) &&
-          close(scene.blend(1900).blackout, 0),
+              scene.outgoing().empty() && scene.pending().empty() &&
+              close(scene.blend(1900).incoming, 1) &&
+              close(scene.blend(1900).blackout, 0),
           "save restore resets pending objects and in-flight transitions");
     bool rejected = false;
     try {
@@ -83,8 +79,8 @@ int main() {
     std::cout << "LucaSystem composition tests passed\n";
     return 0;
   } catch (const std::exception &error) {
-    std::cerr << "LucaSystem composition tests failed: "
-              << error.what() << '\n';
+    std::cerr << "LucaSystem composition tests failed: " << error.what()
+              << '\n';
     return 1;
   }
 }

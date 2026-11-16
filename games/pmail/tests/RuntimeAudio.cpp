@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
     for (auto *scene : runtime.GetActiveScenes())
       if (dynamic_cast<Kotonoha::TextInputDialog *>(scene))
         throw std::runtime_error("Cancelled save editor remained active");
-    runtime.onEvent(escape); // Close save list completely.
+    runtime.onEvent(escape);  // Close save list completely.
     runtime.openSaves(false); // Must re-register after VNSaveMenu::close().
     bool reopened = false;
     for (auto *scene : runtime.GetActiveScenes())
@@ -91,7 +91,8 @@ int main(int argc, char **argv) {
       throw std::runtime_error("Save menu cannot reopen after closing");
     if (engine.Iterate() != SDL_APP_CONTINUE)
       throw std::runtime_error("Reopened save list could not render");
-    std::cout << "Runtime save/load, name-entry modal and menu reopening passed.\n";
+    std::cout
+        << "Runtime save/load, name-entry modal and menu reopening passed.\n";
     runtime.shutdown();
     return 0;
   } catch (const std::exception &error) {

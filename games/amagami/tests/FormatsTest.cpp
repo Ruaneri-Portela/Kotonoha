@@ -55,12 +55,12 @@ int main() {
     Bytes grouped;
     u32(grouped, 3);
     u32(grouped, 68); // 8 + 20 * 3
-    u16(grouped, 2); // bucket 0: hashes 0 and 3
-    u16(grouped, 1); // bucket 1: hash 1
-    u16(grouped, 0); // bucket 2: empty
-    u16(grouped, 0); // first index for bucket 0
-    u16(grouped, 2); // first index for bucket 1
-    u16(grouped, 0); // empty buckets have first index zero
+    u16(grouped, 2);  // bucket 0: hashes 0 and 3
+    u16(grouped, 1);  // bucket 1: hash 1
+    u16(grouped, 0);  // bucket 2: empty
+    u16(grouped, 0);  // first index for bucket 0
+    u16(grouped, 2);  // first index for bucket 1
+    u16(grouped, 0);  // empty buckets have first index zero
     for (uint32_t hash : {0u, 3u, 1u}) {
       u32(grouped, 1);
       u32(grouped, hash);

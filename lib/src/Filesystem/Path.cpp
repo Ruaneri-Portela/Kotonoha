@@ -1,5 +1,5 @@
-#include <Kotonoha/Filesystem/Path.hpp>
 #include <Kotonoha/Filesystem/IMount.hpp>
+#include <Kotonoha/Filesystem/Path.hpp>
 
 #include <algorithm>
 #include <vector>
@@ -29,7 +29,8 @@ std::string normalizePath(std::string_view value, bool allowRoot) {
     const auto size = (end == std::string::npos ? source.size() : end) - from;
     const auto part = source.substr(from, size);
     if (part == "..")
-      throw FilesystemError(ErrorCode::InvalidPath, "Traversal in virtual path");
+      throw FilesystemError(ErrorCode::InvalidPath,
+                            "Traversal in virtual path");
     if (!part.empty() && part != ".")
       parts.push_back(part);
     if (end == std::string::npos)

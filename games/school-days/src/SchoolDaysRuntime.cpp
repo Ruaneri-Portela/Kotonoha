@@ -6,6 +6,8 @@
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/SchoolDaysAudioEventState.hpp>
 #include <Kotonoha/SchoolDaysBgmEventState.hpp>
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
@@ -16,7 +18,6 @@
 #include <Kotonoha/core/BackgroundWorker.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/SDL.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
@@ -46,7 +47,6 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <deque>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iterator>
 #include <limits>
 #include <mutex>
@@ -639,7 +639,8 @@ void SaveRemasterAspectPreference(const std::filesystem::path &documents,
                                   int preference) {
   std::string contents;
   {
-    Kotonoha::Filesystem::InputFile input(RemasterDisplaySettingsPath(documents));
+    Kotonoha::Filesystem::InputFile input(
+        RemasterDisplaySettingsPath(documents));
     contents.assign(std::istreambuf_iterator<char>(input),
                     std::istreambuf_iterator<char>());
   }

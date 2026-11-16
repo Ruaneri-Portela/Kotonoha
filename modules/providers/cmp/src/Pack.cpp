@@ -1,10 +1,10 @@
 // CMP archive and image codecs, shared across Summer editions.
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <SummerRadish/Pack.hpp>
 #include <algorithm>
 #include <array>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
-#include <utility>
 #include <stdexcept>
+#include <utility>
 namespace SummerRadish {
 namespace {
 void require(bool ok, const char *message) {
@@ -26,8 +26,8 @@ Bytes readRange(Kotonoha::Filesystem::Filesystem &filesystem,
   Bytes bytes(size);
   size_t position = 0;
   while (position != bytes.size()) {
-    const auto read = handle->read(bytes.data() + position,
-                                   bytes.size() - position);
+    const auto read =
+        handle->read(bytes.data() + position, bytes.size() - position);
     require(read > 0, "Cannot read/truncated CMP pack");
     position += static_cast<size_t>(read);
   }
@@ -109,7 +109,8 @@ std::string canonical(std::string s) {
 Pack::Pack(const std::filesystem::path &file)
     : Pack(Kotonoha::Filesystem::Filesystem::mount(
                (file.has_parent_path() ? file.parent_path()
-                                       : std::filesystem::path(".")).string()),
+                                       : std::filesystem::path("."))
+                   .string()),
            file.filename().string()) {}
 
 Pack::Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
@@ -121,8 +122,8 @@ Pack::Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
   require(info.type == Kotonoha::Filesystem::FileType::Regular &&
               length >= 12 && length <= UINT32_MAX,
           "Invalid CMP size");
-  auto footer = readRange(*filesystem, sourceId,
-                          static_cast<size_t>(length - 8), 8);
+  auto footer =
+      readRange(*filesystem, sourceId, static_cast<size_t>(length - 8), 8);
 
   // O Summer Radish Vacation usa duas chaves de cifragem CMP distintas:
   // a chave original e uma chave alternativa usada por uma segunda
@@ -206,8 +207,7 @@ Bytes Pack::read(const std::string &name) const {
   auto it = directory.find(canonical(name));
   if (it == directory.end())
     throw std::runtime_error("CMP asset missing: " + name);
-  auto d = readRange(*filesystem, sourceId, it->second.offset,
-                     it->second.size);
+  auto d = readRange(*filesystem, sourceId, it->second.offset, it->second.size);
   return it->second.compressed ? decompress(d, word(d, 0), 4) : d;
 }
 Image decodeImage(const Bytes &d, const std::string &extension) {

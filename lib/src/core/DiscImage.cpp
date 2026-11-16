@@ -1,13 +1,13 @@
 #include <Kotonoha/core/DiscImage.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #ifdef __EMSCRIPTEN__
-#include <Kotonoha/Filesystem/RemoteAssets.hpp>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/Adapters/SDLIOAdapter.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #endif
 #include <map>
 #include <stdexcept>
@@ -67,7 +67,8 @@ bool DiscImage::tryOpen(const std::filesystem::path &file, std::string *error) {
       auto vfs = Filesystem::mountGameAssets("/game-assets");
       next->io.reset(Filesystem::openSDLIO(vfs->open(relative)));
     } catch (const std::exception &failure) {
-      if (error) *error = failure.what();
+      if (error)
+        *error = failure.what();
       return false;
     }
   } else

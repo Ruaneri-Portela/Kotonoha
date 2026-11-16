@@ -7,11 +7,16 @@
 
 namespace {
 void check(bool value, const char *why) {
-  if (!value) throw std::runtime_error(why);
+  if (!value)
+    throw std::runtime_error(why);
 }
 template <class Callback> void rejects(Callback fn) {
   bool rejected = false;
-  try { fn(); } catch (const std::runtime_error &) { rejected = true; }
+  try {
+    fn();
+  } catch (const std::runtime_error &) {
+    rejected = true;
+  }
   check(rejected, "Expected invalid Vita data to be rejected");
 }
 void put16(std::string &data, size_t at, uint16_t value) {
@@ -36,8 +41,12 @@ std::string sampleFont() {
 std::string sampleElf() {
   const uint32_t base = 0x81000000, length = 0x120000;
   std::string elf(0x100 + length, '\0');
-  elf.replace(0, 4, "\x7f" "ELF", 4);
-  elf[4] = 1; elf[5] = 1;
+  elf.replace(0, 4,
+              "\x7f"
+              "ELF",
+              4);
+  elf[4] = 1;
+  elf[5] = 1;
   put32(elf, 28, 52); // 32-bit program-header table
   put16(elf, 42, 32);
   put16(elf, 44, 1);
@@ -58,8 +67,8 @@ std::string sampleElf() {
   put32(elf, offset(records + 16), 2);
   const uint32_t sizes = 0x810adf44;
   for (uint32_t e = 1; e <= 2; ++e) {
-    put32(elf, offset(sizes + 16 * e + 4), 2); // visible width
-    put32(elf, offset(sizes + 16 * e + 8), 2); // visible height
+    put32(elf, offset(sizes + 16 * e + 4), 2);  // visible width
+    put32(elf, offset(sizes + 16 * e + 8), 2);  // visible height
     put32(elf, offset(sizes + 16 * e + 12), 3); // padded row pitch
   }
   return elf;
@@ -98,16 +107,19 @@ int main() {
     rejects([&] { decodeFontGlyph(font, 0x8140, 4); });
     rejects([&] { decodeFontGlyph(font, 0x817f, 0); });
     rejects([&] { decodeFontGlyph(font, 0x8240, 1); }); // second glyph row
-    rejects([&] { decodeFontGlyph(font.substr(0, font.size() - 1), 0x8140, 0); });
+    rejects(
+        [&] { decodeFontGlyph(font.substr(0, font.size() - 1), 0x8140, 0); });
 
     UiAtlas atlas(sampleElf(), sampleSysgraph());
     const auto entry = atlas.decode(2, 3);
     check(entry && entry->width == 2 && entry->height == 2 &&
-          entry->rgba.size() == 16, "Vita sysgraph texture dimensions");
+              entry->rgba.size() == 16,
+          "Vita sysgraph texture dimensions");
     check(entry->rgba[0] == 19 && entry->rgba[1] == 23 &&
-          entry->rgba[2] == 41 && entry->rgba[3] == 173 &&
-          entry->rgba[4] == 0 && entry->rgba[8] == 0 &&
-          entry->rgba[12] == 19, "Vita UI RGBA palette and padded row pitch");
+              entry->rgba[2] == 41 && entry->rgba[3] == 173 &&
+              entry->rgba[4] == 0 && entry->rgba[8] == 0 &&
+              entry->rgba[12] == 19,
+          "Vita UI RGBA palette and padded row pitch");
     check(atlas.decode(2, 100) && atlas.decode(2, 100)->width == 2,
           "Missing variant falls back to variant zero");
     check(!atlas.decode(0, 0) && !atlas.decodeEntry(0),

@@ -3,8 +3,8 @@
 
 #include <json-c/json.h>
 
-#include <charconv>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <charconv>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -28,8 +28,8 @@ bool validSection(const std::string &name) {
 } // namespace
 
 void Translation::load(const std::string &path) {
-  Kotonoha::Filesystem::InputFile input(FileResolver::findAsset(path).value_or(path),
-                      std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(
+      FileResolver::findAsset(path).value_or(path), std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open translation: " + path);
   std::string source((std::istreambuf_iterator<char>(input)), {});

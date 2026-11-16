@@ -6,10 +6,10 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -73,17 +73,16 @@ std::string readCString(const std::vector<std::uint8_t> &data, size_t &cursor) {
 namespace LucaSystem {
 
 PakArchive::PakArchive(std::filesystem::path path)
-    : PakArchive(
-          Kotonoha::Filesystem::Filesystem::mount(
-              (path.has_parent_path() ? path.parent_path()
-                                      : std::filesystem::path(".")).string()),
-          path.filename().string()) {
+    : PakArchive(Kotonoha::Filesystem::Filesystem::mount(
+                     (path.has_parent_path() ? path.parent_path()
+                                             : std::filesystem::path("."))
+                         .string()),
+                 path.filename().string()) {
   path_ = std::move(path);
 }
 
-PakArchive::PakArchive(
-    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
-    std::string sourceId)
+PakArchive::PakArchive(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+                       std::string sourceId)
     : path_(sourceId), source_(std::move(source)),
       sourceId_(std::move(sourceId)) {
   if (!source_)
@@ -259,7 +258,8 @@ LucaSystemAssets::LucaSystemAssets(
   std::string prefix;
   if (!source_->exists("SCRIPT.PAK") && source_->exists("files/SCRIPT.PAK"))
     prefix = "files/";
-  const std::vector<std::string> core = {"PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK"};
+  const std::vector<std::string> core = {"PARAM.PAK", "SCRIPT.PAK",
+                                         "SYSSE.PAK"};
   for (const auto &name : core) {
     const auto key = prefix + name;
     if (source_->exists(key) &&

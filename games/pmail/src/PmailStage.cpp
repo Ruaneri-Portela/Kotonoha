@@ -1,8 +1,8 @@
 #include "PmailStage.hpp"
-#include <Pmail/Port.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <Pmail/Port.hpp>
 #include <algorithm>
 #include <iostream>
 #include <set>
@@ -43,9 +43,8 @@ void PmailStage::render(Kotonoha::RendererRef renderer, float scale) {
   // layers at that resolution, then scale once; scaling every accumulated
   // OSBOOT frame separately makes software renderers progressively slower.
   if (!sceneTexture_) {
-    sceneTexture_.reset(SDL_CreateTexture(
-        &renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
-        800, 600));
+    sceneTexture_.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA8888,
+                                          SDL_TEXTUREACCESS_TARGET, 800, 600));
     if (!sceneTexture_)
       throw std::runtime_error(SDL_GetError());
     SDL_SetTextureBlendMode(sceneTexture_.get(), SDL_BLENDMODE_NONE);
@@ -86,9 +85,8 @@ void PmailStage::render(Kotonoha::RendererRef renderer, float scale) {
   // Apply the engine-selected upscaler to the 800x600 original game raster.
   // VN text and pause/save controls are rendered separately at full output
   // resolution; the original artwork is the part that benefits from scaling.
-  if (!Kotonoha::RenderUpscaledTexture(
-          &renderer, sceneTexture_.get(), nullptr, &stage,
-          SDL_GetTicksNS()))
+  if (!Kotonoha::RenderUpscaledTexture(&renderer, sceneTexture_.get(), nullptr,
+                                       &stage, SDL_GetTicksNS()))
     throw std::runtime_error(SDL_GetError());
 }
 
@@ -151,7 +149,8 @@ void PmailStage::renderSprites(Kotonoha::RendererRef renderer) {
                     it->second.w, it->second.h};
       // Apply tint
       SDL_SetTextureColorMod(
-          it->second.tex.get(), Uint8(std::clamp(sp.tint[0], 0, 0x100) * 255 / 0x100),
+          it->second.tex.get(),
+          Uint8(std::clamp(sp.tint[0], 0, 0x100) * 255 / 0x100),
           Uint8(std::clamp(sp.tint[1], 0, 0x100) * 255 / 0x100),
           Uint8(std::clamp(sp.tint[2], 0, 0x100) * 255 / 0x100));
       SDL_SetTextureBlendMode(it->second.tex.get(), SDL_BLENDMODE_BLEND);
@@ -170,8 +169,7 @@ void PmailStage::renderAnimationFrame(Kotonoha::RendererRef renderer,
   if (found == animationCache_.end()) {
     const auto surface = assets_.loadSurfaceAsset(id);
     SpriteTex texture;
-    texture.tex.reset(
-        SDL_CreateTextureFromSurface(&renderer, surface.get()));
+    texture.tex.reset(SDL_CreateTextureFromSurface(&renderer, surface.get()));
     if (!texture.tex)
       throw std::runtime_error(std::string("Cannot create ANIM texture: ") +
                                SDL_GetError());
@@ -238,10 +236,10 @@ void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
   for (const auto &line : history) {
     if (y >= 570)
       break;
-    const SDL_Color color = line.mode == 2 ? computerColor(8)
-                                          : computerColor(1);
-    const float consumed = ui.textSized(renderer, line.text, 85, y, 624,
-                                        17, color);
+    const SDL_Color color =
+        line.mode == 2 ? computerColor(8) : computerColor(1);
+    const float consumed =
+        ui.textSized(renderer, line.text, 85, y, 624, 17, color);
     y += std::clamp(consumed, 22.0f, 54.0f);
   }
   // The executable has separate chat and mail renderers (0x417d80 and
@@ -260,10 +258,9 @@ void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
     for (const auto &line : panel.entries) {
       if (lineY >= 565.0f)
         break;
-      const auto color = line.mode == 2 ? computerColor(8)
-                                        : computerColor(1);
-      const auto height = ui.textSized(renderer, line.text, x, lineY, width,
-                                       17.0f, color);
+      const auto color = line.mode == 2 ? computerColor(8) : computerColor(1);
+      const auto height =
+          ui.textSized(renderer, line.text, x, lineY, width, 17.0f, color);
       lineY += std::clamp(height, 22.0f, 50.0f);
     }
   };

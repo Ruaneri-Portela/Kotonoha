@@ -73,25 +73,27 @@ int main(int argc, char **argv) {
     Amagami::Vm vm;
     scripts.installAll(vm);
     if (!vm.hasClass(options.klass))
-      throw std::runtime_error("Missing Vita SCF entry class: " + options.klass);
+      throw std::runtime_error("Missing Vita SCF entry class: " +
+                               options.klass);
 
     Amagami::Vita::VitaVmBridge bridge;
     bridge.setTextureSizeResolver(
         [graphics](uint32_t id, uint32_t variant)
             -> std::optional<std::pair<uint32_t, uint32_t>> {
           auto surface = graphics->uiSurface(id, variant);
-          if (!surface) return std::nullopt;
-          return std::make_pair(uint32_t(surface->w),
-                                uint32_t(surface->h));
+          if (!surface)
+            return std::nullopt;
+          return std::make_pair(uint32_t(surface->w), uint32_t(surface->h));
         });
     bridge.setNamedPictureSizeResolver(
         [graphics](const std::string &name)
             -> std::optional<std::pair<uint32_t, uint32_t>> {
-          if (!graphics->contains(name)) return std::nullopt;
+          if (!graphics->contains(name))
+            return std::nullopt;
           auto surface = graphics->loadSurface(name);
-          if (!surface) return std::nullopt;
-          return std::make_pair(uint32_t(surface->w),
-                                uint32_t(surface->h));
+          if (!surface)
+            return std::nullopt;
+          return std::make_pair(uint32_t(surface->w), uint32_t(surface->h));
         });
     vm.scopedPrimitive = [&bridge](const std::string &owner,
                                    const std::string &method, bool classMethod,
@@ -107,15 +109,14 @@ int main(int argc, char **argv) {
     SDLRuntime sdl;
     SDL_Window *rawWindow = nullptr;
     SDL_Renderer *rawRenderer = nullptr;
-    if (!SDL_CreateWindowAndRenderer(
-            "Kotonoha / Amagami Vita (experimental)", 960, 544,
-            SDL_WINDOW_RESIZABLE, &rawWindow, &rawRenderer))
+    if (!SDL_CreateWindowAndRenderer("Kotonoha / Amagami Vita (experimental)",
+                                     960, 544, SDL_WINDOW_RESIZABLE, &rawWindow,
+                                     &rawRenderer))
       throw std::runtime_error(std::string("SDL3 window: ") + SDL_GetError());
     Kotonoha::WindowPtr window(rawWindow);
     Kotonoha::RendererPtr renderer(rawRenderer);
-    if (!SDL_SetRenderLogicalPresentation(
-            renderer.get(), 960, 544,
-            SDL_LOGICAL_PRESENTATION_LETTERBOX))
+    if (!SDL_SetRenderLogicalPresentation(renderer.get(), 960, 544,
+                                          SDL_LOGICAL_PRESENTATION_LETTERBOX))
       throw std::runtime_error(SDL_GetError());
     Amagami::Vita::VitaSpriteRenderer presenter(
         renderer.get(), [graphics](uint32_t id, uint32_t variant) {
@@ -125,11 +126,11 @@ int main(int argc, char **argv) {
       return graphics->contains(name) ? graphics->loadSurface(name)
                                       : Kotonoha::SurfacePtr{};
     });
-    presenter.setFontSource([graphics](unsigned font, uint16_t code,
-                                      unsigned palette) {
-      return graphics ? graphics->fontGlyph(font, code, palette)
-                      : Kotonoha::SurfacePtr{};
-    });
+    presenter.setFontSource(
+        [graphics](unsigned font, uint16_t code, unsigned palette) {
+          return graphics ? graphics->fontGlyph(font, code, palette)
+                          : Kotonoha::SurfacePtr{};
+        });
     Amagami::Vita::VitaInput input;
     Kotonoha::GamepadPtr gamepad;
     int count = 0;
@@ -153,10 +154,12 @@ int main(int argc, char **argv) {
           gamepad.reset();
         input.handle(e);
       }
-      if (!running) break;
+      if (!running)
+        break;
       bridge.inputFrame(input.buttons(), input.analog());
       if (!vm.finished() && !halted) {
-        if (vm.paused()) vm.resume();
+        if (vm.paused())
+          vm.resume();
         try {
           vm.run(1000);
         } catch (const std::exception &e) {
@@ -178,7 +181,9 @@ int main(int argc, char **argv) {
     }
     std::cout << "Vita SDL3 diagnostic: " << bridge.sprites().size()
               << " sprite(s), SCF "
-              << (halted ? "halted" : vm.finished() ? "finished" : "interrupted")
+              << (halted          ? "halted"
+                  : vm.finished() ? "finished"
+                                  : "interrupted")
               << ", texture cache " << presenter.cachedTextures() << '\n';
     return halted ? 3 : 0;
   } catch (const std::exception &e) {

@@ -1,9 +1,9 @@
 #include "PmailPack.hpp"
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iostream>
 
 namespace Kotonoha::PmailPort {
@@ -75,7 +75,8 @@ bool PmailPack::open(const std::string &path) {
   // Compatibility entrypoint for native tools. Game runtimes use openBytes()
   // with a VFS FileHandle and never need this physical path.
   Kotonoha::Filesystem::InputFile in(path, std::ios::binary | std::ios::ate);
-  if (!in) return false;
+  if (!in)
+    return false;
   const auto size = in.tellg();
   if (size < 12 || size > std::streamoff(256u * 1024u * 1024u))
     return false;
@@ -94,12 +95,14 @@ bool PmailPack::openBytes(const std::vector<uint8_t> &data,
   entries_.clear();
   ok_ = false;
   const auto sz = data.size();
-  if (sz < 12) return false;
+  if (sz < 12)
+    return false;
   const uint8_t *foot = data.data() + sz - 12;
   auto x = [&](int i) { return rd32(foot + i) ^ 0xF0F0F0F0u; };
   const uint32_t compIndexSize = x(0);
   const uint32_t uncompIndexSize = x(4);
-  if (!compIndexSize || compIndexSize > sz - 12) return false;
+  if (!compIndexSize || compIndexSize > sz - 12)
+    return false;
   const std::size_t indexOff = sz - 12 - compIndexSize;
   std::vector<uint8_t> comp(
       data.begin() + static_cast<std::ptrdiff_t>(indexOff),
@@ -120,8 +123,8 @@ bool PmailPack::openBytes(const std::vector<uint8_t> &data,
     // Fallback: keep raw comp as index bytes for best-effort scan
     index = comp;
   } else {
-    std::cout << "[PmailPack] Decoded index: " << path_ << " -> " << index.size()
-              << " bytes" << std::endl;
+    std::cout << "[PmailPack] Decoded index: " << path_ << " -> "
+              << index.size() << " bytes" << std::endl;
   }
 
   ok_ = parseIndex(index);

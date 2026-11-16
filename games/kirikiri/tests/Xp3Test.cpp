@@ -1,16 +1,16 @@
 #include <Kirikiri/KagScript.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
-#include <Kirikiri/TlgImage.hpp>
 #include <Kirikiri/TjsStartupVm.hpp>
+#include <Kirikiri/TlgImage.hpp>
 
-#include <cstdio>
 #include <array>
-#include <zlib.h>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
+#include <zlib.h>
 
 namespace {
 
@@ -230,10 +230,10 @@ int main() {
         SDL_CreateSurface(2, 2, SDL_PIXELFORMAT_RGBA32));
     bool wrote = bool(pixels);
     if (pixels) {
-      wrote = SDL_FillSurfaceRect(
-                  pixels.get(), nullptr,
-                  SDL_MapSurfaceRGB(pixels.get(), 120, 90, 40)) &&
-              SDL_SaveBMP(pixels.get(), titlePath.string().c_str());
+      wrote =
+          SDL_FillSurfaceRect(pixels.get(), nullptr,
+                              SDL_MapSurfaceRGB(pixels.get(), 120, 90, 40)) &&
+          SDL_SaveBMP(pixels.get(), titlePath.string().c_str());
     }
     if (!wrote) {
       std::printf("FAIL: cannot create synthetic title artwork\n");
@@ -262,14 +262,12 @@ int main() {
       ++failures;
     } else {
       auto unicodeArchive = data;
-      const std::size_t namePos =
-          static_cast<std::size_t>(tableMetaOffset) + 17u +
-          infoSizePos + 12u + 22u;
+      const std::size_t namePos = static_cast<std::size_t>(tableMetaOffset) +
+                                  17u + infoSizePos + 12u + 22u;
       for (std::size_t i = 0; i < japaneseName.size(); ++i) {
         const std::uint16_t unit = japaneseName[i];
         unicodeArchive.at(namePos + i * 2u) = std::uint8_t(unit & 0xff);
-        unicodeArchive.at(namePos + i * 2u + 1u) =
-            std::uint8_t(unit >> 8);
+        unicodeArchive.at(namePos + i * 2u + 1u) = std::uint8_t(unit >> 8);
       }
       const auto path = tempDir / "unicode.xp3";
       std::ofstream out(path, std::ios::binary);
@@ -316,16 +314,16 @@ int main() {
         "[layopt layer=0 visible=false]\n"
         "[image layer=2 storage=hero.png left=30 top=40]\n"
         "[freeimage layer=2]\n"
-        "[end]\n", "visual-tags.ks");
+        "[end]\n",
+        "visual-tags.ks");
     std::vector<std::string> calls;
     Kirikiri::KagScript::Callbacks cb;
     cb.showBg = [&](std::string file, int time) {
       calls.push_back("bg:" + file + ":" + std::to_string(time));
     };
-    cb.showChar = [&](std::string layer, std::string file,
-                      int x, int y, int) {
-      calls.push_back("fg:" + layer + ":" + file + ":" +
-                      std::to_string(x) + ":" + std::to_string(y));
+    cb.showChar = [&](std::string layer, std::string file, int x, int y, int) {
+      calls.push_back("fg:" + layer + ":" + file + ":" + std::to_string(x) +
+                      ":" + std::to_string(y));
     };
     cb.hideChar = [&](std::string layer, int) {
       calls.push_back("hide:" + layer);
@@ -333,8 +331,8 @@ int main() {
     Kirikiri::KagScript::Runner runner(script, cb);
     runner.run();
     const std::vector<std::string> expected = {
-        "bg:room:120", "bg:title.png:0", "fg:0:cat.png:10:20",
-        "hide:0", "fg:2:hero.png:30:40", "hide:2"};
+        "bg:room:120", "bg:title.png:0",      "fg:0:cat.png:10:20",
+        "hide:0",      "fg:2:hero.png:30:40", "hide:2"};
     if (calls != expected || !runner.isFinished()) {
       std::printf("FAIL: KAG graphical tag callbacks did not run\n");
       ++failures;
@@ -416,16 +414,14 @@ int main() {
   // KAG syntax used by Kirikiri2/Z: @commands, column-one comments
   // and escaped brackets must survive parsing without becoming dialogue.
   {
-    const auto parsed = Kirikiri::KagScript::parse(
-        "; comment ignored\n"
-        "@wait time=12\n"
-        "*next|Caption\n"
-        "hello [[world\n"
-        "[cm text=\"ready\"]", "kag-compat.ks");
-    if (parsed.tags.size() != 4 ||
-        parsed.tags[0].name != "wait" ||
-        parsed.tags[0].attrs.at("time") != "12" ||
-        parsed.tags[0].line != 2 ||
+    const auto parsed = Kirikiri::KagScript::parse("; comment ignored\n"
+                                                   "@wait time=12\n"
+                                                   "*next|Caption\n"
+                                                   "hello [[world\n"
+                                                   "[cm text=\"ready\"]",
+                                                   "kag-compat.ks");
+    if (parsed.tags.size() != 4 || parsed.tags[0].name != "wait" ||
+        parsed.tags[0].attrs.at("time") != "12" || parsed.tags[0].line != 2 ||
         parsed.labels.count("next") != 1 ||
         parsed.tags[2].type != Kirikiri::KagScript::TagType::Text ||
         parsed.tags[2].text != "hello [world") {
@@ -437,16 +433,16 @@ int main() {
   // In-script [call target=*label] and [return] must preserve continuation
   // after a blocked text command. A saved PC cannot inherit stale frames.
   {
-    auto script = Kirikiri::KagScript::parse(
-        "[jump target=*start]\n"
-        "[cm text=\"skipped\"]\n"
-        "*sub\n"
-        "[cm text=\"inside\"]\n"
-        "[return]\n"
-        "*start\n"
-        "[call target=*sub]\n"
-        "[cm text=\"after\"]\n"
-        "[end]\n", "calls.ks");
+    auto script = Kirikiri::KagScript::parse("[jump target=*start]\n"
+                                             "[cm text=\"skipped\"]\n"
+                                             "*sub\n"
+                                             "[cm text=\"inside\"]\n"
+                                             "[return]\n"
+                                             "*start\n"
+                                             "[call target=*sub]\n"
+                                             "[cm text=\"after\"]\n"
+                                             "[end]\n",
+                                             "calls.ks");
     std::vector<std::string> shown;
     Kirikiri::KagScript::Callbacks cb;
     cb.showText = [&](std::string, std::string value) {
@@ -517,25 +513,25 @@ int main() {
   // KAG flags/branches and nested conditionals must follow the selected
   // control path, and local variables survive a save within that path.
   {
-    auto script = Kirikiri::KagScript::parse(
-        "[set name=flag value=1]\n"
-        "[if exp=\"flag == 1\"]\n"
-        "  [if exp=\"flag == 0\"]\n"
-        "    [cm text=\"wrong-inner\"]\n"
-        "  [else]\n"
-        "    [cm text=\"inner\"]\n"
-        "  [endif]\n"
-        "[else]\n"
-        "  [cm text=\"wrong-outer\"]\n"
-        "[endif]\n"
-        "[if exp=\"flag != 1\"]\n"
-        "  [cm text=\"wrong-elsif\"]\n"
-        "[elsif exp=\"flag >= 1\"]\n"
-        "  [cm text=\"elseif\"]\n"
-        "[else]\n"
-        "  [cm text=\"wrong-else\"]\n"
-        "[endif]\n"
-        "[end]\n", "conditionals.ks");
+    auto script = Kirikiri::KagScript::parse("[set name=flag value=1]\n"
+                                             "[if exp=\"flag == 1\"]\n"
+                                             "  [if exp=\"flag == 0\"]\n"
+                                             "    [cm text=\"wrong-inner\"]\n"
+                                             "  [else]\n"
+                                             "    [cm text=\"inner\"]\n"
+                                             "  [endif]\n"
+                                             "[else]\n"
+                                             "  [cm text=\"wrong-outer\"]\n"
+                                             "[endif]\n"
+                                             "[if exp=\"flag != 1\"]\n"
+                                             "  [cm text=\"wrong-elsif\"]\n"
+                                             "[elsif exp=\"flag >= 1\"]\n"
+                                             "  [cm text=\"elseif\"]\n"
+                                             "[else]\n"
+                                             "  [cm text=\"wrong-else\"]\n"
+                                             "[endif]\n"
+                                             "[end]\n",
+                                             "conditionals.ks");
     std::vector<std::string> shown;
     Kirikiri::KagScript::Callbacks cb;
     cb.showText = [&](std::string, std::string value) {
@@ -574,7 +570,8 @@ int main() {
     // No timer callback must not leave a headless engine permanently blocked.
     auto script = Kirikiri::KagScript::parse(
         "[wait time=10][set name=ready value=1][if exp=\"ready\"]"
-        "[cm text=\"ready\"][endif][end]", "no-timer.ks");
+        "[cm text=\"ready\"][endif][end]",
+        "no-timer.ks");
     std::vector<std::string> shown;
     Kirikiri::KagScript::Callbacks cb;
     cb.showText = [&](std::string, std::string value) {
@@ -597,7 +594,8 @@ int main() {
         "[elsif exp=\"flag == 0\"][cm text=\"wrong-first-elsif\"]"
         "[elsif exp=\"flag == 2\"][cm text=\"matched\"]"
         "[else][cm text=\"wrong-else\"][endif]"
-        "[cm text=\"after\"][end]", "elsif.ks");
+        "[cm text=\"after\"][end]",
+        "elsif.ks");
     std::vector<std::string> shown;
     Kirikiri::KagScript::Callbacks cb;
     cb.showText = [&](std::string, std::string value) {
@@ -623,8 +621,8 @@ int main() {
   {
     // An unconditional self-jump yields to the host at the instruction
     // budget instead of blocking the window or growing the call stack.
-    auto script = Kirikiri::KagScript::parse(
-        "*loop\n[jump target=*loop]", "budget.ks");
+    auto script =
+        Kirikiri::KagScript::parse("*loop\n[jump target=*loop]", "budget.ks");
     Kirikiri::KagScript::Callbacks cb;
     Kirikiri::KagScript::Runner runner(script, cb);
     runner.run();
@@ -653,7 +651,8 @@ int main() {
   {
     auto script = Kirikiri::KagScript::parse(
         "[choices question=Pick option10=ten option2=two option1=one "
-        "btn3=three optionColor=red][end]", "choice-order.ks");
+        "btn3=three optionColor=red][end]",
+        "choice-order.ks");
     std::vector<std::string> shown;
     std::function<void(int)> select;
     Kirikiri::KagScript::Callbacks callbacks;
@@ -683,14 +682,14 @@ int main() {
   // pointer immediately after their payload. One storage may have several
   // physical, independently compressed segments.
   {
-    using Segment = std::array<std::uint64_t, 4>; // method, offset, orig, stored
+    using Segment =
+        std::array<std::uint64_t, 4>; // method, offset, orig, stored
     const auto patch64 = [](std::vector<std::uint8_t> &bytes,
                             std::size_t offset, std::uint64_t value) {
       for (std::size_t i = 0; i < 8; ++i)
         bytes.at(offset + i) = static_cast<std::uint8_t>(value >> (8 * i));
     };
-    const auto makeRecord = [&](const std::string &name,
-                                std::uint64_t fileSize,
+    const auto makeRecord = [&](const std::string &name, std::uint64_t fileSize,
                                 const std::vector<Segment> &segments) {
       std::vector<std::uint8_t> record;
       const auto tag = [&](const char *value) {
@@ -736,8 +735,8 @@ int main() {
     const std::string secondText =
         "[bg storage=room]\n[image layer=0 storage=cat.png]\n[end]\n";
     const auto cut = secondText.size() / 2;
-    const std::vector<std::uint8_t> remaining(
-        secondText.begin() + cut, secondText.end());
+    const std::vector<std::uint8_t> remaining(secondText.begin() + cut,
+                                              secondText.end());
     const auto packedRemaining = compress(remaining);
     std::vector<std::uint8_t> standard(magic, magic + 11);
     putLE(standard, std::uint64_t(0)); // patched canonical index pointer
@@ -751,13 +750,14 @@ int main() {
     standard.insert(standard.end(), packedRemaining.begin(),
                     packedRemaining.end());
 
-    const auto firstIndex = makeRecord(
-        fileName, fileContent.size(),
-        {{0, firstOffset, fileContent.size(), fileContent.size()}});
-    const auto secondIndex = makeRecord(
-        secondName, secondText.size(),
-        {{0, rawSecondOffset, cut, cut},
-         {1, compressedSecondOffset, remaining.size(), packedRemaining.size()}});
+    const auto firstIndex =
+        makeRecord(fileName, fileContent.size(),
+                   {{0, firstOffset, fileContent.size(), fileContent.size()}});
+    const auto secondIndex =
+        makeRecord(secondName, secondText.size(),
+                   {{0, rawSecondOffset, cut, cut},
+                    {1, compressedSecondOffset, remaining.size(),
+                     packedRemaining.size()}});
     const auto compressedIndex = compress(secondIndex);
     const auto indexOffset = static_cast<std::uint64_t>(standard.size());
     const auto nextIndex = indexOffset + 9 + firstIndex.size() + 8;
@@ -788,22 +788,24 @@ int main() {
       if (std::string(first.begin(), first.end()) != fileContent ||
           std::string(second.begin(), second.end()) != secondText ||
           !assets.containsAsset(secondName)) {
-        std::printf("FAIL: canonical XP3 index chain/segments returned bad data\n");
+        std::printf(
+            "FAIL: canonical XP3 index chain/segments returned bad data\n");
         ++failures;
       }
     } catch (const std::exception &error) {
-      std::printf("FAIL: canonical XP3 index chain/segments: %s\n", error.what());
+      std::printf("FAIL: canonical XP3 index chain/segments: %s\n",
+                  error.what());
       ++failures;
     }
     // Updates to a path in the second index take precedence over the
     // first index (without replacing unrelated storages).
     auto replacedIndex = secondIndex;
-    auto laterRecord = makeRecord(
-        fileName, secondText.size(),
-        {{0, rawSecondOffset, cut, cut},
-         {1, compressedSecondOffset, remaining.size(), packedRemaining.size()}});
-    replacedIndex.insert(replacedIndex.end(),
-                         laterRecord.begin(), laterRecord.end());
+    auto laterRecord = makeRecord(fileName, secondText.size(),
+                                  {{0, rawSecondOffset, cut, cut},
+                                   {1, compressedSecondOffset, remaining.size(),
+                                    packedRemaining.size()}});
+    replacedIndex.insert(replacedIndex.end(), laterRecord.begin(),
+                         laterRecord.end());
     const auto compressedReplacement = compress(replacedIndex);
     auto replacementArchive = standard;
     replacementArchive.resize(static_cast<std::size_t>(nextIndex));
@@ -818,7 +820,8 @@ int main() {
       assets.mountXp3("index-update.xp3");
       const auto changed = assets.readAsset(fileName);
       if (std::string(changed.begin(), changed.end()) != secondText) {
-        std::printf("FAIL: later XP3 index entry did not override earlier path\n");
+        std::printf(
+            "FAIL: later XP3 index entry did not override earlier path\n");
         ++failures;
       }
     } catch (const std::exception &error) {
@@ -827,9 +830,9 @@ int main() {
     }
     // Segment offsets must point inside the physical archive.
     auto invalidSegment = standard;
-    const auto firstSegOffset =
-        static_cast<std::size_t>(indexOffset) + 9u +
-        12u + 12u + 22u + fileName.size() * 2u + 12u + 4u;
+    const auto firstSegOffset = static_cast<std::size_t>(indexOffset) + 9u +
+                                12u + 12u + 22u + fileName.size() * 2u + 12u +
+                                4u;
     patch64(invalidSegment, firstSegOffset, standard.size() + 1024);
     writeArchive("bad-segment.xp3", invalidSegment);
     bool rejectedSegment = false;
@@ -874,8 +877,8 @@ int main() {
   // Decode canonical TLG5 images without relying on FFmpeg or proprietary
   // assets. A single pixel exercises blue/green residuals and RGB ordering.
   {
-    std::vector<std::uint8_t> tlg5{
-        'T', 'L', 'G', '5', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+    std::vector<std::uint8_t> tlg5{'T', 'L', 'G', '5', '.', '0',
+                                   0,   'r', 'a', 'w', 0x1a};
     tlg5.push_back(3);
     putLE(tlg5, std::uint32_t(1)); // width
     putLE(tlg5, std::uint32_t(1)); // height
@@ -895,10 +898,9 @@ int main() {
       const auto surface = Kotonoha::Providers::decodeTlgImage(image);
       if (!surface || surface->w != 1 || surface->h != 1)
         return false;
-      const auto *pixel =
-          static_cast<const std::uint8_t *>(surface->pixels);
-      return pixel[0] == 30 && pixel[1] == 10 &&
-             pixel[2] == 15 && pixel[3] == alpha;
+      const auto *pixel = static_cast<const std::uint8_t *>(surface->pixels);
+      return pixel[0] == 30 && pixel[1] == 10 && pixel[2] == 15 &&
+             pixel[3] == alpha;
     };
     try {
       if (!checkColor(tlg5, 255)) {
@@ -913,8 +915,8 @@ int main() {
                        compressed.begin() + planeOffset + 6);
       const std::vector<std::uint8_t> encodedBlue{
           0, 2, 0, 0, 0, 0, 5}; // flag 0, stored size 2, literal flag+5
-      compressed.insert(compressed.begin() + planeOffset,
-                        encodedBlue.begin(), encodedBlue.end());
+      compressed.insert(compressed.begin() + planeOffset, encodedBlue.begin(),
+                        encodedBlue.end());
       if (!checkColor(compressed, 255)) {
         std::printf("FAIL: TLG5 slide-compressed RGB pixel decoding\n");
         ++failures;
@@ -926,8 +928,8 @@ int main() {
         std::printf("FAIL: TLG5 raw alpha channel decoding\n");
         ++failures;
       }
-      std::vector<std::uint8_t> wrapped{
-          'T', 'L', 'G', '0', '.', '0', 0, 's', 'd', 's', 0x1a};
+      std::vector<std::uint8_t> wrapped{'T', 'L', 'G', '0', '.', '0',
+                                        0,   's', 'd', 's', 0x1a};
       putLE(wrapped, std::uint32_t(tlg5.size()));
       wrapped.insert(wrapped.end(), tlg5.begin(), tlg5.end());
       if (!checkColor(wrapped, 255)) {
@@ -936,8 +938,8 @@ int main() {
       }
       // Two scanlines in separate blocks exercise vertical prediction,
       // while two pixels per row exercise horizontal delta composition.
-      std::vector<std::uint8_t> tiled{
-          'T', 'L', 'G', '5', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+      std::vector<std::uint8_t> tiled{'T', 'L', 'G', '5', '.', '0',
+                                      0,   'r', 'a', 'w', 0x1a};
       tiled.push_back(3);
       putLE(tiled, std::uint32_t(2)); // width
       putLE(tiled, std::uint32_t(2)); // height
@@ -957,16 +959,15 @@ int main() {
       rawRow(0, 0);
       rawRow(0, 0);
       auto tiledSurface = Kotonoha::Providers::decodeTlgImage(tiled);
-      bool tiledOK = tiledSurface && tiledSurface->w == 2 &&
-                     tiledSurface->h == 2;
+      bool tiledOK =
+          tiledSurface && tiledSurface->w == 2 && tiledSurface->h == 2;
       if (tiledOK) {
-        const auto *pixel = static_cast<const std::uint8_t *>(
-            tiledSurface->pixels);
+        const auto *pixel =
+            static_cast<const std::uint8_t *>(tiledSurface->pixels);
         for (unsigned y = 0; y < 2; ++y)
           for (unsigned x = 0; x < 2; ++x) {
             const auto *p = pixel + y * tiledSurface->pitch + x * 4;
-            if (p[0] != 30 || p[1] != 10 ||
-                p[2] != 15 || p[3] != 255)
+            if (p[0] != 30 || p[1] != 10 || p[2] != 15 || p[3] != 255)
               tiledOK = false;
           }
       }
@@ -974,8 +975,8 @@ int main() {
         std::printf("FAIL: TLG5 horizontal/vertical predictor\n");
         ++failures;
       }
-      std::vector<std::uint8_t> unsupported{
-          'T', 'L', 'G', '6', '.', '0', 0, 'r', 'a', 'w', 0x1a};
+      std::vector<std::uint8_t> unsupported{'T', 'L', 'G', '6', '.', '0',
+                                            0,   'r', 'a', 'w', 0x1a};
       bool rejectedTlg6 = false;
       try {
         (void)Kotonoha::Providers::decodeTlgImage(unsupported);
@@ -1010,9 +1011,10 @@ int main() {
       Kotonoha::Providers::KirikiriAssets provider(tempDir);
       const auto surface = provider.loadSurface("image/tlg5.tlg");
       const auto *pixel =
-          surface ? static_cast<const std::uint8_t *>(surface->pixels) : nullptr;
-      if (!pixel || pixel[0] != 30 || pixel[1] != 10 ||
-          pixel[2] != 15 || pixel[3] != 255) {
+          surface ? static_cast<const std::uint8_t *>(surface->pixels)
+                  : nullptr;
+      if (!pixel || pixel[0] != 30 || pixel[1] != 10 || pixel[2] != 15 ||
+          pixel[3] != 255) {
         std::printf("FAIL: Kirikiri provider did not route TLG5 decoding\n");
         ++failures;
       }
@@ -1033,16 +1035,16 @@ int main() {
       std::ofstream out(path, std::ios::binary);
       out << text;
     };
-    write(bootDir / "next.tjs",
-          "var scenario = \"scenario/\" + \"first.ks\";\n"
-          "Scripts.execStorage(scenario);\n");
+    write(bootDir / "next.tjs", "var scenario = \"scenario/\" + \"first.ks\";\n"
+                                "Scripts.execStorage(scenario);\n");
     write(tempDir / "startup.tjs",
           "// Scripts.execStorage(\"comment-not-real.tjs\");\n"
           "var fake = 'Plugins.link(\"string-not-real.dll\")';\n"
           "var count = 0;\n"
           "var target = 0x2;\n"
           "while (count < target) { count++; }\n"
-          "if (count == target && Storages.isExistentStorage(\"boot/next.tjs\")) {\n"
+          "if (count == target && "
+          "Storages.isExistentStorage(\"boot/next.tjs\")) {\n"
           "  Scripts.execStorage(\"boot/next.tjs\");\n"
           "} else { Scripts.execStorage(\"never.tjs\"); }\n"
           "System.title = \"TJS2\" + \" demo\";\n"
@@ -1052,12 +1054,13 @@ int main() {
       input.mountXp3("data.xp3");
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
       if (!run.subsetCompleted || !run.error.empty() ||
-          run.kagEntry != "scenario/first.ks" ||
-          run.title != "TJS2 demo" || !run.requiresNativeRuntime ||
-          run.visitedScripts != std::vector<std::string>{
-              "startup.tjs", "boot/next.tjs"} ||
-          run.requestedPlugins != std::vector<std::string>{
-              "plugins/unused.dll"} || !run.missing.empty()) {
+          run.kagEntry != "scenario/first.ks" || run.title != "TJS2 demo" ||
+          !run.requiresNativeRuntime ||
+          run.visitedScripts !=
+              std::vector<std::string>{"startup.tjs", "boot/next.tjs"} ||
+          run.requestedPlugins !=
+              std::vector<std::string>{"plugins/unused.dll"} ||
+          !run.missing.empty()) {
         std::printf("FAIL: TJS2 source subset bootstrap flow\n");
         ++failures;
       }
@@ -1084,8 +1087,8 @@ int main() {
       input.mountXp3("data.xp3");
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
       if (!run.subsetCompleted || !run.error.empty() ||
-          run.kagEntry != "scenario/first.ks" ||
-          run.title != "Global" || !run.requiresNativeRuntime) {
+          run.kagEntry != "scenario/first.ks" || run.title != "Global" ||
+          !run.requiresNativeRuntime) {
         std::printf("FAIL: TJS2 function return/local scope/KAG entry\n");
         ++failures;
       }
@@ -1107,8 +1110,7 @@ int main() {
       input.mountXp3("data.xp3");
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
       if (!run.subsetCompleted || !run.error.empty() ||
-          run.kagEntry != "scenario/first.ks" ||
-          run.title != "Configured") {
+          run.kagEntry != "scenario/first.ks" || run.title != "Configured") {
         std::printf("FAIL: TJS2 Dictionary objects/member updates\n");
         ++failures;
       }
@@ -1133,8 +1135,7 @@ int main() {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
       if (run.subsetCompleted ||
-          run.error.find("native class not implemented") ==
-              std::string::npos) {
+          run.error.find("native class not implemented") == std::string::npos) {
         std::printf("FAIL: unsupported native TJS2 object was accepted\n");
         ++failures;
       }
@@ -1169,13 +1170,11 @@ int main() {
 
     // Mutual/nested recursion must terminate even with a high instruction
     // budget, independent of the script-call depth limiter.
-    write(tempDir / "startup.tjs",
-          "function again() { return again(); }\n"
-          "again();\n");
+    write(tempDir / "startup.tjs", "function again() { return again(); }\n"
+                                   "again();\n");
     {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
-      const auto run =
-          Kotonoha::Providers::runTjsStartupSubset(input, 10000);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input, 10000);
       if (run.subsetCompleted ||
           run.error.find("recursion limit") == std::string::npos) {
         std::printf("FAIL: TJS2 function recursion cap\n");
@@ -1217,8 +1216,7 @@ int main() {
     write(tempDir / "startup.tjs", "while (true) { var x = 1; }");
     {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
-      const auto run =
-          Kotonoha::Providers::runTjsStartupSubset(input, 40);
+      const auto run = Kotonoha::Providers::runTjsStartupSubset(input, 40);
       if (run.subsetCompleted || run.error.empty()) {
         std::printf("FAIL: unbounded TJS2 loop was not stopped\n");
         ++failures;
@@ -1237,8 +1235,8 @@ int main() {
     // without case-folding or corrupting the multibyte storage names.
     write(tempDir / "startup.tjs",
           std::string("\xef\xbb\xbf") +
-          u8"var 猫 = 2; if (猫 == 2) "
-          u8"{ Scripts.execStorage(\"scenario/first.ks\"); }");
+              u8"var 猫 = 2; if (猫 == 2) "
+              u8"{ Scripts.execStorage(\"scenario/first.ks\"); }");
     {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
       input.mountXp3("data.xp3");
@@ -1255,14 +1253,14 @@ int main() {
   // samples but does not implement it. Accept only exactly 8 bits per pixel;
   // Gamma (ID 1) and experimental LZSS (ID 2) remain rejected.
   {
-    std::vector<std::uint8_t> tlg{
-        'T', 'L', 'G', '6', '.', '0', 0, 'r', 'a', 'w', 0x1a,
-        3, 0, 0, 0};
+    std::vector<std::uint8_t> tlg{'T', 'L', 'G',  '6', '.', '0', 0, 'r',
+                                  'a', 'w', 0x1a, 3,   0,   0,   0};
     putLE(tlg, std::uint32_t(1)); // width
     putLE(tlg, std::uint32_t(1)); // height
     putLE(tlg, std::uint32_t(8)); // max bits
     putLE(tlg, std::uint32_t(2)); // LZSS filter bytes
-    tlg.push_back(0); tlg.push_back(0); // literal filter 0 = MED
+    tlg.push_back(0);
+    tlg.push_back(0); // literal filter 0 = MED
     const auto infoAt = tlg.size();
     putLE(tlg, std::uint32_t(0xc0000008)); // raw 8 bits / pixel
     tlg.push_back(5);                      // blue residual
@@ -1273,8 +1271,8 @@ int main() {
     try {
       auto image = Kotonoha::Providers::decodeTlgImage(tlg);
       const auto *p = static_cast<const std::uint8_t *>(image->pixels);
-      if (image->w != 1 || image->h != 1 || p[0] != 0 ||
-          p[1] != 0 || p[2] != 5 || p[3] != 255) {
+      if (image->w != 1 || image->h != 1 || p[0] != 0 || p[1] != 0 ||
+          p[2] != 5 || p[3] != 255) {
         std::printf("FAIL: TLG6 raw residual decode\n");
         ++failures;
       }
@@ -1334,31 +1332,30 @@ int main() {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
       input.mountXp3("data.xp3");
       auto run = Kotonoha::Providers::runTjsStartupSubset(input);
-      auto found = std::find_if(
-          run.layers.begin(), run.layers.end(),
-          [](const Kotonoha::Providers::TjsUiLayer &layer) {
-            return layer.storage == "image/tlg5.tlg";
-          });
-      if (!run.subsetCompleted || !run.error.empty() ||
-          !run.uiSession || run.layers.size() != 3 ||
-          found == run.layers.end() || found->left != 33 || found->top != 54 ||
-          found->width != 60 || found->height != 40 ||
-          found->opacity != 180 || found->onClick != "chooseTitle") {
+      auto found =
+          std::find_if(run.layers.begin(), run.layers.end(),
+                       [](const Kotonoha::Providers::TjsUiLayer &layer) {
+                         return layer.storage == "image/tlg5.tlg";
+                       });
+      if (!run.subsetCompleted || !run.error.empty() || !run.uiSession ||
+          run.layers.size() != 3 || found == run.layers.end() ||
+          found->left != 33 || found->top != 54 || found->width != 60 ||
+          found->height != 40 || found->opacity != 180 ||
+          found->onClick != "chooseTitle") {
         std::printf("FAIL: TJS2 Window/Layer hierarchy or image projection\n");
         ++failures;
       } else {
         if (Kotonoha::Providers::dispatchTjsUiClick(run, 5.0f, 5.0f) ||
             !Kotonoha::Providers::dispatchTjsUiClick(run, 40.0f, 65.0f) ||
-            run.kagEntry != "scenario/first.ks" ||
-            !run.error.empty()) {
+            run.kagEntry != "scenario/first.ks" || !run.error.empty()) {
           std::printf("FAIL: TJS2 Layer onClick did not select KAG entry\n");
           ++failures;
         } else {
-          auto after = std::find_if(
-              run.layers.begin(), run.layers.end(),
-              [](const Kotonoha::Providers::TjsUiLayer &layer) {
-                return layer.storage == "image/tlg5.tlg";
-              });
+          auto after =
+              std::find_if(run.layers.begin(), run.layers.end(),
+                           [](const Kotonoha::Providers::TjsUiLayer &layer) {
+                             return layer.storage == "image/tlg5.tlg";
+                           });
           if (after == run.layers.end() || after->visible ||
               Kotonoha::Providers::dispatchTjsUiClick(run, 40.0f, 65.0f)) {
             std::printf("FAIL: TJS2 click handler did not retain visibility\n");

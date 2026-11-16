@@ -1,9 +1,9 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include "RealLive/Session.hpp"
 #include "RealLive/BoundedRange.hpp"
+#include "RealLive/CaseSelection.hpp"
 #include "RealLive/DecimalDigits.hpp"
 #include "RealLive/StringOps.hpp"
-#include "RealLive/CaseSelection.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -161,8 +161,8 @@ bool Session::flow(const CommandElement &c) {
     const int v = value(0);
     // Bytecode may place a default () before a later matching expression.
     // Do not branch to default until all explicit cases have been examined.
-    const auto selected = selectCase(
-        c.GetCaseCount(), [&](std::size_t i) -> std::optional<bool> {
+    const auto selected =
+        selectCase(c.GetCaseCount(), [&](std::size_t i) -> std::optional<bool> {
           const auto raw = c.GetCase(static_cast<int>(i));
           if (raw == "()")
             return std::nullopt;
@@ -270,13 +270,15 @@ bool Session::strings(const CommandElement &c) {
     if (op == 6) {
       const auto length = scriptCharCount(s);
       const auto reverse = static_cast<std::size_t>(off);
-      off = static_cast<int>(length > reverse
-          ? std::min<std::size_t>(length - reverse,
-                                  std::numeric_limits<int>::max())
-          : 0);
+      off = static_cast<int>(
+          length > reverse
+              ? std::min<std::size_t>(length - reverse,
+                                      std::numeric_limits<int>::max())
+              : 0);
     }
     write(0, scriptSubstring(s, off,
-         c.overload() ? std::optional<int>(num(3)) : std::nullopt));
+                             c.overload() ? std::optional<int>(num(3))
+                                          : std::nullopt));
     break;
   }
   case 7: {
@@ -289,8 +291,8 @@ bool Session::strings(const CommandElement &c) {
   }
   case 8: {
     auto s = str(0);
-    s.resize(scriptCharOffset(s, static_cast<std::size_t>(
-        std::max(0, num(1)))));
+    s.resize(
+        scriptCharOffset(s, static_cast<std::size_t>(std::max(0, num(1)))));
     write(0, s);
     break;
   }
@@ -977,8 +979,8 @@ void Session::execute(const CommandElement &c) {
     if (scene_ == beforeScene && pc_ == beforePc)
       ++pc_;
   } else {
-    lastUnhandled_ = UnhandledCommand{
-        scene_, pc_, c.modtype(), c.module(), c.opcode(), c.overload()};
+    lastUnhandled_ = UnhandledCommand{scene_,     pc_,        c.modtype(),
+                                      c.module(), c.opcode(), c.overload()};
     blocked_ = true;
     if (onUnhandled)
       onUnhandled(*lastUnhandled_);

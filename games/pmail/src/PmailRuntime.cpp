@@ -1,12 +1,13 @@
 #include "PmailRuntime.hpp"
-#include "PmailMovieSelection.hpp"
 #include "Pmail/Port.hpp"
+#include "PmailMovieSelection.hpp"
 #include "PmailSession.hpp"
-#include <Kotonoha/components/VNSave.hpp>
-#include <Kotonoha/components/TextInputDialog.hpp>
-#include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/VNSave.hpp>
+#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <SDL3/SDL.h>
@@ -14,7 +15,6 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -53,15 +53,16 @@ bool PmailRuntime::loadScriptPack() {
   }
   // The case-insensitive VFS resolves these logical IDs for local archives,
   // and the HTTP provider retries the lowercase URL on case-sensitive hosts.
-  for (const char *relative : {"data/pack/script.dat", "pack/script.dat",
-                               "script.dat", "data/pack/SCRIPT.DAT",
-                               "SCRIPT.DAT"}) {
+  for (const char *relative :
+       {"data/pack/script.dat", "pack/script.dat", "script.dat",
+        "data/pack/SCRIPT.DAT", "SCRIPT.DAT"}) {
     try {
       if (!source->exists(relative) ||
-          source->stat(relative).type != Kotonoha::Filesystem::FileType::Regular)
+          source->stat(relative).type !=
+              Kotonoha::Filesystem::FileType::Regular)
         continue;
-      auto data = Kotonoha::Filesystem::readAll(
-          *source->open(relative), 256u * 1024u * 1024u);
+      auto data = Kotonoha::Filesystem::readAll(*source->open(relative),
+                                                256u * 1024u * 1024u);
       if (data.empty())
         continue;
       const std::string logical = relative;
@@ -73,8 +74,8 @@ bool PmailRuntime::loadScriptPack() {
       if (error.code() == Kotonoha::Filesystem::ErrorCode::NotFound)
         continue;
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "[PmailPort] Cannot read virtual %s: %s",
-                   relative, error.what());
+                   "[PmailPort] Cannot read virtual %s: %s", relative,
+                   error.what());
       throw;
     }
   }
@@ -153,8 +154,8 @@ void PmailRuntime::startMovie() {
   // Port-only debugging aid to compare a particular original video.
   const char *preferred = SDL_getenv("PMAIL_MOVIE_VARIANT");
   const std::string moviePath = selectOpeningMovie(
-      [&](const std::string &path) { return vfs->exists(path); },
-      browser, preferred ? preferred : "");
+      [&](const std::string &path) { return vfs->exists(path); }, browser,
+      preferred ? preferred : "");
   if (moviePath.empty()) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "[PmailPort] Opening movie not found in VFS "
@@ -174,8 +175,8 @@ void PmailRuntime::startMovie() {
     }
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "[PmailPort] Movie failed: %s (%s)",
-                moviePath.c_str(), error.what());
+                "[PmailPort] Movie failed: %s (%s)", moviePath.c_str(),
+                error.what());
     moviePlayer_.reset();
     movieFinished_ = true;
   }
@@ -293,8 +294,8 @@ bool PmailRuntime::onEvent(Kotonoha::EventRef rawEvent) {
   // Portable accessibility shortcut for saving during long routes.
   // F5/F9 are Kotonoha convenience controls, not asserted to be the
   // original game's hotkeys. Preserve the regular menu-based save slots.
-  if (game_ && !game_->atTitle() &&
-      event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+  if (game_ && !game_->atTitle() && event.type == SDL_EVENT_KEY_DOWN &&
+      !event.key.repeat &&
       (event.key.key == SDLK_F5 || event.key.key == SDLK_F9)) {
     try {
       const auto quickPath = Kotonoha::saveDirectory() / "pmail-quick.vn";

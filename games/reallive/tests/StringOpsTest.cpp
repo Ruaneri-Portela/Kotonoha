@@ -6,7 +6,8 @@
 #include <string>
 
 static void require(bool condition, const char *message) {
-  if (!condition) throw std::runtime_error(message);
+  if (!condition)
+    throw std::runtime_error(message);
 }
 int main() {
   try {
@@ -14,13 +15,15 @@ int main() {
     require(RealLive::scriptCharCount(text) == 4,
             "Shift-JIS glyphs and embedded NUL count as characters");
     require(RealLive::scriptCharOffset(text, 1) == 2 &&
-            RealLive::scriptCharOffset(text, 3) == 4 &&
-            RealLive::scriptCharOffset(text, std::numeric_limits<std::size_t>::max()) == text.size(),
+                RealLive::scriptCharOffset(text, 3) == 4 &&
+                RealLive::scriptCharOffset(
+                    text, std::numeric_limits<std::size_t>::max()) ==
+                    text.size(),
             "S-JIS offsets clamp without integer overflow");
     require(RealLive::scriptSubstring(text, 0, 1) ==
-                std::string(text.data(), 2) &&
-            RealLive::scriptSubstring(text, 1, 2) ==
-                std::string(text.data() + 2, 2),
+                    std::string(text.data(), 2) &&
+                RealLive::scriptSubstring(text, 1, 2) ==
+                    std::string(text.data() + 2, 2),
             "substrings preserve S-JIS glyph boundaries and NUL bytes");
     require(RealLive::scriptSubstring(text, INT_MAX, INT_MAX).empty(),
             "large substring offsets do not overflow signed integers");
@@ -28,18 +31,21 @@ int main() {
                 std::string(text.data() + 3, 2),
             "no-length substring copies the remaining bytes");
     bool caught = false;
-    try { (void)RealLive::scriptSubstring(text, -1); }
-    catch (const std::out_of_range &) { caught = true; }
+    try {
+      (void)RealLive::scriptSubstring(text, -1);
+    } catch (const std::out_of_range &) {
+      caught = true;
+    }
     require(caught, "negative offsets must be rejected");
 
     const std::string a("item\0a", 6), b("item\0b", 6);
     require(RealLive::scriptStringCompare(a, b) < 0 &&
-            RealLive::scriptStringCompare(a, a) == 0 &&
-            RealLive::scriptStringCompare(b, a) > 0,
+                RealLive::scriptStringCompare(a, a) == 0 &&
+                RealLive::scriptStringCompare(b, a) > 0,
             "string compare must inspect bytes after embedded NUL");
     const std::string truncated = {char(0x82)};
     require(RealLive::scriptCharCount(truncated) == 1 &&
-            RealLive::scriptCharOffset(truncated, 1) == 1,
+                RealLive::scriptCharOffset(truncated, 1) == 1,
             "truncated S-JIS lead byte remains bounded");
     std::cout << "RealLive string operation tests passed\n";
     return 0;

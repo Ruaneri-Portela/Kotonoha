@@ -1,10 +1,10 @@
-#include <Kotonoha/debug/SystemInfo.hpp>
-#include <Kotonoha/debug/ImGuiTheme.hpp>
-#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/BuildVersion.hpp>
+#include <Kotonoha/core/SDL.hpp>
+#include <Kotonoha/debug/ImGuiTheme.hpp>
+#include <Kotonoha/debug/SystemInfo.hpp>
 
-#include <imgui.h>
 #include <cstdio>
+#include <imgui.h>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -24,12 +24,18 @@ std::string versionString(int version) {
 }
 const char *batteryLabel(SDL_PowerState state) {
   switch (state) {
-    case SDL_POWERSTATE_ON_BATTERY: return "On battery";
-    case SDL_POWERSTATE_NO_BATTERY: return "No battery";
-    case SDL_POWERSTATE_CHARGING: return "Charging";
-    case SDL_POWERSTATE_CHARGED: return "Charged";
-    case SDL_POWERSTATE_UNKNOWN: return "Unknown";
-    default: return "Unavailable";
+  case SDL_POWERSTATE_ON_BATTERY:
+    return "On battery";
+  case SDL_POWERSTATE_NO_BATTERY:
+    return "No battery";
+  case SDL_POWERSTATE_CHARGING:
+    return "Charging";
+  case SDL_POWERSTATE_CHARGED:
+    return "Charged";
+  case SDL_POWERSTATE_UNKNOWN:
+    return "Unknown";
+  default:
+    return "Unavailable";
   }
 }
 void row(SystemInfoSection &section, const char *name, std::string value) {
@@ -49,7 +55,7 @@ std::string SystemInfoSnapshot::text() const {
 }
 
 SystemInfoSnapshot captureSystemInfo(SDL_Window *window,
-                                    SDL_Renderer *renderer) {
+                                     SDL_Renderer *renderer) {
   SystemInfoSnapshot result;
   auto &build = result.sections.emplace_back();
   build.title = "Kotonoha build";
@@ -69,17 +75,17 @@ SystemInfoSnapshot captureSystemInfo(SDL_Window *window,
   const int cores = SDL_GetNumLogicalCPUCores();
   row(cpu, "Logical CPU cores", cores > 0 ? std::to_string(cores) : "Unknown");
   const int ram = SDL_GetSystemRAM();
-  row(cpu, "System RAM (total)", ram > 0 ?
-      std::to_string(ram) + " MiB" : "Unavailable");
+  row(cpu, "System RAM (total)",
+      ram > 0 ? std::to_string(ram) + " MiB" : "Unavailable");
   const int cacheLine = SDL_GetCPUCacheLineSize();
-  row(cpu, "CPU cache line", cacheLine > 0 ?
-      std::to_string(cacheLine) + " bytes" : "Unavailable");
-  row(cpu, "SIMD alignment",
-      std::to_string(SDL_GetSIMDAlignment()) + " bytes");
+  row(cpu, "CPU cache line",
+      cacheLine > 0 ? std::to_string(cacheLine) + " bytes" : "Unavailable");
+  row(cpu, "SIMD alignment", std::to_string(SDL_GetSIMDAlignment()) + " bytes");
   std::string simd;
   const auto add = [&](const char *name, bool supported) {
     if (supported) {
-      if (!simd.empty()) simd += ", ";
+      if (!simd.empty())
+        simd += ", ";
       simd += name;
     }
   };
@@ -94,39 +100,36 @@ SystemInfoSnapshot captureSystemInfo(SDL_Window *window,
   add("NEON", SDL_HasNEON());
   add("ARM SIMD", SDL_HasARMSIMD());
   row(cpu, "SIMD features", simd.empty() ? "None reported" : simd);
-  row(cpu, "Free RAM / process usage",
-      "Not exposed by SDL3 CPU APIs");
+  row(cpu, "Free RAM / process usage", "Not exposed by SDL3 CPU APIs");
 
   auto &video = result.sections.emplace_back();
   video.title = "Video and GPU";
   row(video, "SDL video backend", valid(SDL_GetCurrentVideoDriver()));
-  row(video, "Renderer", renderer ?
-      valid(SDL_GetRendererName(renderer)) : "No renderer");
-  const SDL_PropertiesID properties = renderer ?
-      SDL_GetRendererProperties(renderer) : 0;
+  row(video, "Renderer",
+      renderer ? valid(SDL_GetRendererName(renderer)) : "No renderer");
+  const SDL_PropertiesID properties =
+      renderer ? SDL_GetRendererProperties(renderer) : 0;
   if (properties) {
-    const auto maxTexture = SDL_GetNumberProperty(properties,
-        SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
+    const auto maxTexture = SDL_GetNumberProperty(
+        properties, SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     if (maxTexture > 0)
-      row(video, "Max texture dimension",
-          std::to_string(maxTexture) + " px");
-    const auto vsync = SDL_GetNumberProperty(properties,
-        SDL_PROP_RENDERER_VSYNC_NUMBER, -1);
+      row(video, "Max texture dimension", std::to_string(maxTexture) + " px");
+    const auto vsync =
+        SDL_GetNumberProperty(properties, SDL_PROP_RENDERER_VSYNC_NUMBER, -1);
     row(video, "Renderer VSync",
         vsync == -1 ? "Unavailable" : std::to_string(vsync));
   }
-  std::string gpuName =
-      "Unavailable for this SDL_Renderer backend";
-#if defined(SDL_PROP_RENDERER_GPU_DEVICE_POINTER) && defined(SDL_PROP_GPU_DEVICE_NAME_STRING)
+  std::string gpuName = "Unavailable for this SDL_Renderer backend";
+#if defined(SDL_PROP_RENDERER_GPU_DEVICE_POINTER) &&                           \
+    defined(SDL_PROP_GPU_DEVICE_NAME_STRING)
   if (properties) {
-    auto *device = static_cast<SDL_GPUDevice *>(
-        SDL_GetPointerProperty(properties, SDL_PROP_RENDERER_GPU_DEVICE_POINTER,
-                               nullptr));
+    auto *device = static_cast<SDL_GPUDevice *>(SDL_GetPointerProperty(
+        properties, SDL_PROP_RENDERER_GPU_DEVICE_POINTER, nullptr));
     if (device) {
       const auto gpuProps = SDL_GetGPUDeviceProperties(device);
       if (gpuProps)
-        gpuName = valid(SDL_GetStringProperty(gpuProps,
-                               SDL_PROP_GPU_DEVICE_NAME_STRING, nullptr));
+        gpuName = valid(SDL_GetStringProperty(
+            gpuProps, SDL_PROP_GPU_DEVICE_NAME_STRING, nullptr));
     }
   }
 #endif
@@ -164,16 +167,15 @@ SystemInfoSnapshot captureSystemInfo(SDL_Window *window,
     row(video, ("Display " + std::to_string(i + 1)).c_str(), value);
   }
 
-
   auto &power = result.sections.emplace_back();
   power.title = "Power";
   int seconds = -1, percent = -1;
   const auto powerState = SDL_GetPowerInfo(&seconds, &percent);
   row(power, "Status", batteryLabel(powerState));
-  row(power, "Battery", percent < 0 ?
-      "Unavailable" : std::to_string(percent) + "%");
-  row(power, "Remaining time", seconds < 0 ?
-      "Unavailable" : std::to_string(seconds / 60) + " min");
+  row(power, "Battery",
+      percent < 0 ? "Unavailable" : std::to_string(percent) + "%");
+  row(power, "Remaining time",
+      seconds < 0 ? "Unavailable" : std::to_string(seconds / 60) + " min");
 
   auto &input = result.sections.emplace_back();
   input.title = "Input";
@@ -187,7 +189,6 @@ SystemInfoSnapshot captureSystemInfo(SDL_Window *window,
   int touches = 0;
   SDLArrayPtr<SDL_TouchID> touchIds(SDL_GetTouchDevices(&touches));
   row(input, "Touch devices", std::to_string(touches));
-
 
   auto &audio = result.sections.emplace_back();
   audio.title = "Audio";
@@ -227,11 +228,13 @@ void drawSystemInfoPanel(SDL_Window *window, SDL_Renderer *renderer) {
   for (const auto &section : cache.data.sections) {
     ImGuiTheme::sectionHeader(section.title.c_str());
     if (ImGui::BeginTable(section.title.c_str(), 2,
-           ImGuiTableFlags_SizingStretchProp |
-               ImGuiTableFlags_BordersInnerH |
-               ImGuiTableFlags_RowBg)) {
-      ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthStretch, 0.42f);
-      ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 0.58f);
+                          ImGuiTableFlags_SizingStretchProp |
+                              ImGuiTableFlags_BordersInnerH |
+                              ImGuiTableFlags_RowBg)) {
+      ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthStretch,
+                              0.42f);
+      ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch,
+                              0.58f);
       for (const auto &[key, value] : section.fields) {
         ImGui::TableNextRow();
         ImGui::TableNextColumn();

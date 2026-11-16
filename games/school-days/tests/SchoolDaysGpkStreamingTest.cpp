@@ -50,12 +50,10 @@ std::vector<uint8_t> Deflate(const std::vector<uint8_t> &input) {
   return out;
 }
 
-std::vector<uint8_t> BuildPack(const std::u16string &name,
-                               const std::vector<uint8_t> &logical,
-                               bool compressed, size_t prefixLength,
-                               size_t bodyPadding = 0u,
-                               size_t indexPadding = 0u,
-                               uint8_t indexPaddingValue = 0u) {
+std::vector<uint8_t>
+BuildPack(const std::u16string &name, const std::vector<uint8_t> &logical,
+          bool compressed, size_t prefixLength, size_t bodyPadding = 0u,
+          size_t indexPadding = 0u, uint8_t indexPaddingValue = 0u) {
   constexpr uint32_t firstOffset = 5120u;
   std::vector<uint8_t> pack(firstOffset, 0u);
   std::vector<uint8_t> stored = compressed ? Deflate(logical) : logical;

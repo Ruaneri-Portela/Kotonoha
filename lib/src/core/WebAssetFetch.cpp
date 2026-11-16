@@ -53,7 +53,6 @@ EMSCRIPTEN_KEEPALIVE void KotonohaSyncSaveStorage() {
   });
 }
 
-
 // The HTML shell fetches the manifest asynchronously before releasing its
 // preRun dependency; C++ owns subsequent Fetch requests and their byte cache.
 EMSCRIPTEN_KEEPALIVE int KotonohaConfigureRemoteAssetManifest(
@@ -69,8 +68,8 @@ EMSCRIPTEN_KEEPALIVE int KotonohaConfigureRemoteAssetManifest(
     // Set the source before starting requests so consumers can use
     // mountGameAssets() immediately after the bootstrap barrier completes.
     Filesystem::setRemoteGameAssets(provider);
-    provider->begin(static_cast<std::size_t>(
-        std::min(preloadBytes, 256 * 1024 * 1024)));
+    provider->begin(
+        static_cast<std::size_t>(std::min(preloadBytes, 256 * 1024 * 1024)));
     return 1;
   } catch (const std::exception &error) {
     Filesystem::setRemoteGameAssets({});
@@ -86,8 +85,8 @@ EMSCRIPTEN_KEEPALIVE int KotonohaConfigureRemoteAssetUrl(const char *baseUrl) {
   try {
     if (!baseUrl || !*baseUrl)
       return 0;
-    auto provider = Filesystem::FetchAssetProvider::fromUrl(
-        baseUrl, 256u * 1024u * 1024u);
+    auto provider =
+        Filesystem::FetchAssetProvider::fromUrl(baseUrl, 256u * 1024u * 1024u);
     Filesystem::setRemoteGameAssets(provider);
     provider->begin(0);
     return 1;
@@ -100,7 +99,8 @@ EMSCRIPTEN_KEEPALIVE int KotonohaConfigureRemoteAssetUrl(const char *baseUrl) {
 
 EMSCRIPTEN_KEEPALIVE int KotonohaRequestRemoteAsset(const char *path) {
   auto provider = Filesystem::remoteGameAssets();
-  if (!provider || !path || !*path) return -1;
+  if (!provider || !path || !*path)
+    return -1;
   try {
     if (provider->manifestFree())
       provider->requestAsset(path);
@@ -120,9 +120,11 @@ EMSCRIPTEN_KEEPALIVE int KotonohaAssetFetchLoaded() {
 }
 EMSCRIPTEN_KEEPALIVE int KotonohaAssetFetchDeferred() {
   const auto source = Filesystem::remoteGameAssets();
-  return source ? static_cast<int>(
-      source->fileCount() > source->totalRequests()
-        ? source->fileCount() - source->totalRequests() : 0) : 0;
+  return source ? static_cast<int>(source->fileCount() > source->totalRequests()
+                                       ? source->fileCount() -
+                                             source->totalRequests()
+                                       : 0)
+                : 0;
 }
 EMSCRIPTEN_KEEPALIVE int KotonohaAssetFetchDone() {
   const auto source = Filesystem::remoteGameAssets();

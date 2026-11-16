@@ -3,8 +3,8 @@
 #include "Ddlc/Runtime.hpp"
 #include <Kotonoha/components/VNSave.hpp>
 
-#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
@@ -15,13 +15,13 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <climits>
 #include <cmath>
 #include <cstring>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <functional>
 #include <iomanip>
 #include <map>

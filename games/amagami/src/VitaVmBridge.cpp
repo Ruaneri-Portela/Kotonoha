@@ -1,8 +1,8 @@
 #include <Amagami/VitaVmBridge.hpp>
 #include <algorithm>
 #include <cmath>
-#include <ctime>
 #include <cstdio>
+#include <ctime>
 #include <limits>
 #include <stdexcept>
 
@@ -43,7 +43,6 @@ std::vector<VmValue> &spriteFields(const VmValue &self) {
 }
 } // namespace
 
-
 void SpriteTween::start(const std::array<double, 3> &values, std::size_t n,
                         int mode, double frames) {
   if (n == 0 || n > 3 || !std::isfinite(frames) || frames < 0 ||
@@ -74,7 +73,8 @@ void SpriteTween::start(const std::array<double, 3> &values, std::size_t n,
   }
 }
 void SpriteTween::step(double frames) {
-  if (remaining <= 0) return;
+  if (remaining <= 0)
+    return;
   remaining = std::max(0.0, remaining - frames);
   const double r = remaining;
   for (std::size_t i = 0; i < length; ++i)
@@ -91,10 +91,10 @@ void SpriteState::refresh() {
     const auto &amp = tweens[group][1].current;
     const auto &freq = tweens[group][2].current;
     const double wave = std::sin(wavePhase[group][i] * freq[i] *
-                                  3.14159265358979323846 / 30.0) * amp[i];
-    if (group == 3)  // Zoom's fractional waves have multiplicative scaling.
-      return wave >= 0 ? base[i] * (1.0 + wave)
-                       : base[i] / (1.0 - wave);
+                                 3.14159265358979323846 / 30.0) *
+                        amp[i];
+    if (group == 3) // Zoom's fractional waves have multiplicative scaling.
+      return wave >= 0 ? base[i] * (1.0 + wave) : base[i] / (1.0 - wave);
     return base[i] + wave;
   };
   alpha = value(0, 0);
@@ -106,8 +106,9 @@ void SpriteState::refresh() {
   for (std::size_t i = 0; i < 2; ++i) {
     const auto &amp = tweens[2][1].current;
     const auto &freq = tweens[2][2].current;
-    position[1] += std::sin(wavePhase[2][i] * freq[i] *
-                             3.14159265358979323846 / 30.0) * amp[i];
+    position[1] +=
+        std::sin(wavePhase[2][i] * freq[i] * 3.14159265358979323846 / 30.0) *
+        amp[i];
     zoom[i] = value(3, i);
   }
 }
@@ -115,30 +116,27 @@ void SpriteState::refresh() {
 // L/R are also exposed in the Vita trigger bits, matching the original port.
 namespace {
 uint32_t sceButtons(uint32_t physical) {
-  const uint32_t bytes = ((physical & 0xffu) << 8) |
-                         ((physical >> 8) & 0xffu);
+  const uint32_t bytes = ((physical & 0xffu) << 8) | ((physical >> 8) & 0xffu);
   return bytes | ((physical & 4u) ? 0x100u : 0u) |
          ((physical & 8u) ? 0x200u : 0u);
 }
 } // namespace
 
-void VitaVmBridge::inputFrame(uint32_t heldButtons,
-                              std::array<int, 4> analog) {
+void VitaVmBridge::inputFrame(uint32_t heldButtons, std::array<int, 4> analog) {
   const uint32_t previous = padHeld_;
   padHeld_ = heldButtons & 0xffffu;
   padPressed_ = padHeld_ & ~previous;
   if (!padHeld_ || padHeld_ != previous)
     rapidCount_ = 0;
   else
-    rapidCount_ = rapidCount_ < 20 ? rapidCount_ + 1 :
-                  (rapidCount_ + 1 >= 25 ? 20 : rapidCount_ + 1);
+    rapidCount_ = rapidCount_ < 20
+                      ? rapidCount_ + 1
+                      : (rapidCount_ + 1 >= 25 ? 20 : rapidCount_ + 1);
   padRapid_ = padPressed_ | (rapidCount_ == 20 ? padHeld_ : 0u);
   for (std::size_t i = 0; i < 4; ++i)
     padAnalog_[i] = std::clamp(analog[i], -128, 128);
 }
-uint32_t VitaVmBridge::vitaButtonsHeld() const {
-  return sceButtons(padHeld_);
-}
+uint32_t VitaVmBridge::vitaButtonsHeld() const { return sceButtons(padHeld_); }
 uint32_t VitaVmBridge::vitaButtonsPressed() const {
   return sceButtons(padPressed_);
 }
@@ -150,7 +148,8 @@ void VitaVmBridge::tick(double frames) {
   if (!std::isfinite(frames) || frames < 0 || frames > 360000)
     throw std::runtime_error("Amagami Vita: invalid scene time delta");
   for (auto &[uid, sprite] : sprites_) {
-    if (sprite.paused) continue;
+    if (sprite.paused)
+      continue;
     for (std::size_t group = 0; group < 4; ++group) {
       for (auto &component : sprite.tweens[group])
         component.step(frames);
@@ -159,8 +158,8 @@ void VitaVmBridge::tick(double frames) {
         if (freq[i] <= 0) {
           sprite.wavePhase[group][i] = 0;
         } else {
-          sprite.wavePhase[group][i] = std::fmod(
-              sprite.wavePhase[group][i] + frames, 60.0 / freq[i]);
+          sprite.wavePhase[group][i] =
+              std::fmod(sprite.wavePhase[group][i] + frames, 60.0 / freq[i]);
         }
       }
     }
@@ -184,7 +183,8 @@ void VitaVmBridge::setTexture(SpriteState &sprite, uint32_t tex,
           dimensions->first > 4096 || dimensions->second > 4096)
         throw std::runtime_error("Amagami Vita: invalid resolved texture size");
       sprite.hasImage = true;
-      sprite.rect[2] = dimensions->first;  // Source texture dimensions in texels.
+      sprite.rect[2] =
+          dimensions->first; // Source texture dimensions in texels.
       sprite.rect[3] = dimensions->second;
     }
   }
@@ -224,8 +224,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
   // frequency) of an existing visual channel. RGB light uses one shared
   // frequency; the other channels have one frequency per amplitude.
   auto vibrate = [&](std::size_t group, std::size_t count,
-                     std::size_t frequencyCount)
-      -> std::optional<VmValue> {
+                     std::size_t frequencyCount) -> std::optional<VmValue> {
     expectCount(args, count + frequencyCount + 3);
     std::array<double, 3> amplitude{{0, 0, 0}};
     std::array<double, 3> frequency{{0, 0, 0}};
@@ -233,8 +232,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       amplitude[i] = valueNumber(args[i]);
     const int64_t amplitudeMode = argument(args, count);
     for (std::size_t i = 0; i < count; ++i)
-      frequency[i] = valueNumber(args[count + 1 +
-                                   (frequencyCount == 1 ? 0 : i)]);
+      frequency[i] =
+          valueNumber(args[count + 1 + (frequencyCount == 1 ? 0 : i)]);
     const int64_t frequencyMode = argument(args, count + 1 + frequencyCount);
     const double duration = valueNumber(args[count + 2 + frequencyCount]);
 
@@ -250,7 +249,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
         std::trunc(fields[0].number) != fields[0].number)
       return receiver;
     const auto it = sprites_.find(uint64_t(fields[0].number));
-    if (it == sprites_.end()) return receiver;
+    if (it == sprites_.end())
+      return receiver;
     auto &channels = it->second.tweens[group];
     channels[1].start(amplitude, count, int(amplitudeMode), duration);
     channels[2].start(frequency, count, int(frequencyMode), duration);
@@ -261,9 +261,9 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
   // Vita FontChar native wrappers. FontCharEx inherits the standard font;
   // FontChar2 uses the alternate "im" atlas. Each object is a real scene
   // graphic with inherited alpha/position/zoom channels and layer ordering.
-  if (owner == "FontChar" || owner == "FontCharEx" ||
-      owner == "FontChar2") {
-    if (classMethod) return std::nullopt;
+  if (owner == "FontChar" || owner == "FontCharEx" || owner == "FontChar2") {
+    if (classMethod)
+      return std::nullopt;
     if (number == 0) { // new(code, palette, layer, x, y, sx, sy)
       expectCount(args, 7);
       const int64_t code = argument(args, 0);
@@ -287,7 +287,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       picture.tweens[2][0].start({{x, y, 0}}, 2, 0, 0);
       picture.tweens[3][0].start({{sx, sy, 0}}, 2, 0, 0);
       picture.refresh();
-      if (fields.empty()) fields.resize(1);
+      if (fields.empty())
+        fields.resize(1);
       fields[0] = VmValue::num(uid);
       return receiver;
     }
@@ -310,21 +311,30 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       return receiver;
     }
     if (owner == "FontChar" && number >= 7 && number <= 9) {
-      if (number == 7) return vibrate(0, 1, 1); // alpha
-      if (number == 8) return vibrate(2, 2, 2); // position
-      return vibrate(3, 2, 2); // zoom
+      if (number == 7)
+        return vibrate(0, 1, 1); // alpha
+      if (number == 8)
+        return vibrate(2, 2, 2); // position
+      return vibrate(3, 2, 2);   // zoom
     }
     if (owner == "FontChar") {
       // The original FontChar animation primitives change only base
       // channels; BG_Picture has the exact same base-tween signatures.
       switch (number) {
-      case 1: return primitive("Sprite", method, false, receiver, 3, args);
-      case 2: return primitive("Sprite", method, false, receiver, 7, args);
-      case 3: return primitive("BG_Picture", method, false, receiver, 8, args);
-      case 4: return primitive("BG_Picture", method, false, receiver, 9, args);
-      case 5: return primitive("BG_Picture", method, false, receiver, 10, args);
-      case 10: return primitive("BG_Picture", method, false, receiver, 7, args);
-      default: break; // Remaining font primitives are not implemented.
+      case 1:
+        return primitive("Sprite", method, false, receiver, 3, args);
+      case 2:
+        return primitive("Sprite", method, false, receiver, 7, args);
+      case 3:
+        return primitive("BG_Picture", method, false, receiver, 8, args);
+      case 4:
+        return primitive("BG_Picture", method, false, receiver, 9, args);
+      case 5:
+        return primitive("BG_Picture", method, false, receiver, 10, args);
+      case 10:
+        return primitive("BG_Picture", method, false, receiver, 7, args);
+      default:
+        break; // Remaining font primitives are not implemented.
       }
     }
     return std::nullopt;
@@ -339,22 +349,23 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       const int64_t place = argument(args, 0);
       const int64_t scene = argument(args, 1);
       const int64_t mobility = argument(args, 2);
-      if (place < 0 || place > 999 || scene < 0 || scene > 99 ||
-          mobility < 0 || mobility > 99)
+      if (place < 0 || place > 999 || scene < 0 || scene > 99 || mobility < 0 ||
+          mobility > 99)
         throw std::runtime_error("Amagami Vita: invalid background ID");
       char filename[64]{};
-      std::snprintf(filename, sizeof filename,
-                    "bg/%03lld_%lld%lld.gxt", (long long)place,
-                    (long long)scene, (long long)mobility);
-      const auto dimensions = namedPictureSize_ ?
-          namedPictureSize_(filename) : std::nullopt;
+      std::snprintf(filename, sizeof filename, "bg/%03lld_%lld%lld.gxt",
+                    (long long)place, (long long)scene, (long long)mobility);
+      const auto dimensions =
+          namedPictureSize_ ? namedPictureSize_(filename) : std::nullopt;
       if (number == 0) {
-        if (!classMethod) return std::nullopt;
+        if (!classMethod)
+          return std::nullopt;
         auto exists = VmValue::num(dimensions ? 1 : 0);
         exists.kind = VmValue::Boolean;
         return exists;
       }
-      if (classMethod) return std::nullopt;
+      if (classMethod)
+        return std::nullopt;
       const int64_t layer = argument(args, 3);
       if (dimensions && (!dimensions->first || !dimensions->second ||
                          dimensions->first > 4096 || dimensions->second > 4096))
@@ -367,17 +378,21 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       picture.worldView = true;
       picture.hasImage = bool(dimensions);
       picture.rect = {{0, 0, dimensions ? double(dimensions->first) : 960,
-                            dimensions ? double(dimensions->second) : 544}};
+                       dimensions ? double(dimensions->second) : 544}};
       auto &fields = spriteFields(receiver);
-      if (fields.empty()) fields.resize(1);
+      if (fields.empty())
+        fields.resize(1);
       fields[0] = VmValue::num(uid);
       return receiver;
     }
-    if (classMethod) return std::nullopt;
+    if (classMethod)
+      return std::nullopt;
     // Shared lifecycle operations and base-channel tweens.
     if (number >= 7 && number <= 10) {
-      const std::size_t group = number == 7 ? 1 : number == 8 ? 0 :
-                                number == 9 ? 2 : 3;
+      const std::size_t group = number == 7   ? 1
+                                : number == 8 ? 0
+                                : number == 9 ? 2
+                                              : 3;
       const std::size_t n = group == 1 ? 3 : group == 0 ? 1 : 2;
       expectCount(args, n + 2); // values, mode, duration; always component 0
       std::array<double, 3> target{{0, 0, 0}};
@@ -392,8 +407,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       if (fields.empty() || fields[0].kind != VmValue::Number)
         return receiver;
       const double rawUid = fields[0].number;
-      if (rawUid <= 0 || rawUid >= 1000000 ||
-          std::trunc(rawUid) != rawUid)
+      if (rawUid <= 0 || rawUid >= 1000000 || std::trunc(rawUid) != rawUid)
         return receiver;
       const auto found = sprites_.find(uint64_t(rawUid));
       if (found != sprites_.end()) {
@@ -403,19 +417,34 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       return receiver;
     }
     if (number >= 11 && number <= 13) {
-      if (number == 11) return vibrate(0, 1, 1);
-      if (number == 12) return vibrate(2, 2, 2);
+      if (number == 11)
+        return vibrate(0, 1, 1);
+      if (number == 12)
+        return vibrate(2, 2, 2);
       return vibrate(3, 2, 2);
     }
     unsigned shared = 0;
     switch (number) {
-    case 2: shared = 2; break; // clone
-    case 3: shared = 3; break; // destroy
-    case 4: shared = 7; break; // update remaining channel frames
-    case 6: shared = 6; break; // setLayer
-    case 15: shared = 17; break; // finish tweens
-    case 16: shared = 18; break; // pause
-    default: return std::nullopt; // Spin and other natives pending.
+    case 2:
+      shared = 2;
+      break; // clone
+    case 3:
+      shared = 3;
+      break; // destroy
+    case 4:
+      shared = 7;
+      break; // update remaining channel frames
+    case 6:
+      shared = 6;
+      break; // setLayer
+    case 15:
+      shared = 17;
+      break; // finish tweens
+    case 16:
+      shared = 18;
+      break; // pause
+    default:
+      return std::nullopt; // Spin and other natives pending.
     }
     return primitive("Sprite", method, false, receiver, shared, args);
   }
@@ -427,9 +456,10 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
   if (owner == "ControlPad") {
     if (number == 0 || number == 1 || number == 2 || number == 4) {
       expectCount(args, 0);
-      const uint32_t mask = number == 0 ? vitaButtonsHeld() :
-                            number == 1 ? vitaButtonsPressed() :
-                            number == 2 ? vitaButtonsRapid() : 0;
+      const uint32_t mask = number == 0   ? vitaButtonsHeld()
+                            : number == 1 ? vitaButtonsPressed()
+                            : number == 2 ? vitaButtonsRapid()
+                                          : 0;
       return VmValue::num(mask);
     }
     if (number == 3) { // resetRapid()
@@ -452,7 +482,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     }
     if (number == 6) { // actPausePrim: vibration (no desktop haptics yet)
       expectCount(args, 2);
-      (void)argument(args, 0); (void)argument(args, 1);
+      (void)argument(args, 0);
+      (void)argument(args, 1);
       return receiver;
     }
     return std::nullopt;
@@ -469,9 +500,10 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       const int64_t tex = argument(args, 0), variant = argument(args, 1);
       const int64_t layer = argument(args, 2);
       if (tex < 0 || tex >= 337 || variant < 0 || variant > 255)
-        throw std::runtime_error("Amagami Vita: Sprite texture id out of range");
-      fields[0] = VmValue::num(
-          newSprite(uint32_t(tex), uint32_t(variant), layer));
+        throw std::runtime_error(
+            "Amagami Vita: Sprite texture id out of range");
+      fields[0] =
+          VmValue::num(newSprite(uint32_t(tex), uint32_t(variant), layer));
       return receiver;
     }
     if (number == 2) { // attach(sourceUid): clone source graphic
@@ -502,8 +534,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       return receiver;
     }
     uint64_t id = 0;
-    if (fields[0].kind == VmValue::Number &&
-        std::isfinite(fields[0].number) && fields[0].number > 0 &&
+    if (fields[0].kind == VmValue::Number && std::isfinite(fields[0].number) &&
+        fields[0].number > 0 &&
         std::trunc(fields[0].number) == fields[0].number &&
         fields[0].number < 1000000)
       id = uint64_t(fields[0].number);
@@ -513,7 +545,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       expectCount(args, 2);
       const int64_t tex = argument(args, 0), variant = argument(args, 1);
       if (tex < 0 || tex >= 337 || variant < 0 || variant > 255)
-        throw std::runtime_error("Amagami Vita: Sprite texture id out of range");
+        throw std::runtime_error(
+            "Amagami Vita: Sprite texture id out of range");
       if (it != sprites_.end()) {
         auto candidate = it->second;
         setTexture(candidate, uint32_t(tex), uint32_t(variant));
@@ -528,7 +561,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
         rect[i] = valueNumber(args[i]);
       if (it != sprites_.end()) {
         const double texels = it->second.hasImage ? 2.0 : 1.0;
-        for (auto &v : rect) v *= texels;
+        for (auto &v : rect)
+          v *= texels;
         it->second.rect = rect;
       }
       return receiver;
@@ -556,8 +590,10 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       return receiver;
     }
     if (number >= 8 && number <= 11) { // light, alpha, position, zoom
-      const std::size_t group = number == 8 ? 1 : number == 9 ? 0 :
-                                number == 10 ? 2 : 3;
+      const std::size_t group = number == 8    ? 1
+                                : number == 9  ? 0
+                                : number == 10 ? 2
+                                               : 3;
       const std::size_t n = group == 1 ? 3 : group == 0 ? 1 : 2;
       expectCount(args, n + 3); // values, interpolation mode, time, component
       std::array<double, 3> target{{0, 0, 0}};
@@ -569,17 +605,20 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       if (component < 0 || component > 2)
         throw std::runtime_error("Amagami Vita: invalid tween component");
       if (it != sprites_.end()) {
-        it->second.tweens[group][size_t(component)].start(target, n,
-                                                            int(mode), time);
+        it->second.tweens[group][size_t(component)].start(target, n, int(mode),
+                                                          time);
         it->second.refresh();
       }
       return receiver;
     }
     if (number >= 13 && number <= 16) {
-      if (number == 13) return vibrate(0, 1, 1); // alpha
-      if (number == 14) return vibrate(1, 3, 1); // RGB light
-      if (number == 15) return vibrate(2, 2, 2); // position
-      return vibrate(3, 2, 2); // zoom
+      if (number == 13)
+        return vibrate(0, 1, 1); // alpha
+      if (number == 14)
+        return vibrate(1, 3, 1); // RGB light
+      if (number == 15)
+        return vibrate(2, 2, 2); // position
+      return vibrate(3, 2, 2);   // zoom
     }
     if (number == 17) { // skip: snap all in-progress channels to target
       expectCount(args, 0);
@@ -594,7 +633,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     if (number == 18) { // pause(on)
       expectCount(args, 1);
       if (it != sprites_.end())
-        it->second.paused = args[0].truth() &&
+        it->second.paused =
+            args[0].truth() &&
             !(args[0].kind == VmValue::Number && args[0].number == 0);
       return receiver;
     }
@@ -624,8 +664,8 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
 #endif
     auto object = std::make_shared<VmObject>();
     object->type = "Array";
-    for (int value : {local.tm_mon + 1, local.tm_mday,
-                      local.tm_hour, local.tm_min})
+    for (int value :
+         {local.tm_mon + 1, local.tm_mday, local.tm_hour, local.tm_min})
       object->fields.push_back(VmValue::num(value));
     return VmValue::ref(std::move(object), VmValue::Array);
   }

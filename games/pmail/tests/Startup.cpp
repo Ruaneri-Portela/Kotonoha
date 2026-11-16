@@ -9,12 +9,13 @@
 #include <vector>
 
 namespace {
-void check(bool ok, const char* reason) {
-  if (!ok) throw std::runtime_error(reason);
+void check(bool ok, const char *reason) {
+  if (!ok)
+    throw std::runtime_error(reason);
 }
 struct Host : Pmail::Host {
-  void native(Pmail::Vm&, int, const std::vector<Pmail::Arg>&) override {}
-  Pmail::ObjectPtr loadByName(const std::string&) override { return {}; }
+  void native(Pmail::Vm &, int, const std::vector<Pmail::Arg> &) override {}
+  Pmail::ObjectPtr loadByName(const std::string &) override { return {}; }
   Pmail::ObjectPtr loadById(uint32_t) override { return {}; }
 };
 void checkRng() {
@@ -28,9 +29,9 @@ void checkRng() {
   obj->codeWords = 3;
   obj->data.resize(12);
   const uint32_t words[] = {
-    0x11050000u, // accumulator = eval("@")
-    0x10204001u, // var(0x4001) = accumulator
-    0x00000000u  // halt
+      0x11050000u, // accumulator = eval("@")
+      0x10204001u, // var(0x4001) = accumulator
+      0x00000000u  // halt
   };
   for (size_t i = 0; i < 3; ++i)
     for (unsigned b = 0; b < 4; ++b)
@@ -49,19 +50,15 @@ void checkRng() {
 }
 void checkMovies() {
   using Kotonoha::PmailPort::selectOpeningMovie;
-  std::set<std::string> files{
-    "data/movie/PM01L_I3.avi",
-    "data/movie/PM01L_I3.avi.webm",
-    "data/movie/PM01S_I3.avi"
-  };
-  auto exists = [&](const std::string& name) {
+  std::set<std::string> files{"data/movie/PM01L_I3.avi",
+                              "data/movie/PM01L_I3.avi.webm",
+                              "data/movie/PM01S_I3.avi"};
+  auto exists = [&](const std::string &name) {
     return files.find(name) != files.end();
   };
-  check(selectOpeningMovie(exists, false) ==
-            "data/movie/PM01L_I3.avi",
+  check(selectOpeningMovie(exists, false) == "data/movie/PM01L_I3.avi",
         "Native selector must recognize PM01L_I3 and prefer original AVI");
-  check(selectOpeningMovie(exists, true) ==
-            "data/movie/PM01L_I3.avi.webm",
+  check(selectOpeningMovie(exists, true) == "data/movie/PM01L_I3.avi.webm",
         "Web selector must prefer playable sidecar");
   check(selectOpeningMovie(exists, false, "PM01S_I3") ==
             "data/movie/PM01S_I3.avi",
@@ -85,7 +82,7 @@ int main() {
     checkMovies();
     std::cout << "PMAIL startup synthetic checks passed\n";
     return 0;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     std::cerr << e.what() << '\n';
     return 1;
   }

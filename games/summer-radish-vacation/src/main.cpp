@@ -1,10 +1,10 @@
-#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include "SummerRuntime.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 #include <SummerRadish/SummerAssets.hpp>
 #include <cstdio>
@@ -33,8 +33,7 @@ struct App {
   std::unique_ptr<Game> game;
   void start(const std::string &directory) {
     auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(
-        std::filesystem::path(directory),
-        options.assetOverlayDirectory());
+        std::filesystem::path(directory), options.assetOverlayDirectory());
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Game>(assets, options);
   }
@@ -60,7 +59,7 @@ struct KotonohaPortCallbacks final {
 SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
   KOTONOHA_SET_APP_METADATA("Summer Radish Vacation!!",
-                     "me.hirameki.kotonoha.summerradishvacation");
+                            "me.hirameki.kotonoha.summerradishvacation");
   try {
     auto app = std::make_unique<App>();
     auto &options = app->options;

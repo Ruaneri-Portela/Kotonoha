@@ -26,10 +26,13 @@ VitaSpriteRenderer::VitaSpriteRenderer(SDL_Renderer *renderer,
 SDL_Texture *VitaSpriteRenderer::textureFor(uint32_t id, uint32_t variant) {
   const auto key = std::make_pair(id, variant);
   const auto cached = cache_.find(key);
-  if (cached != cache_.end()) return cached->second.get();
-  if (!source_) return nullptr;
+  if (cached != cache_.end())
+    return cached->second.get();
+  if (!source_)
+    return nullptr;
   Kotonoha::SurfacePtr surface = source_(id, variant);
-  if (!surface) return nullptr;
+  if (!surface)
+    return nullptr;
   Kotonoha::TexturePtr texture(
       SDL_CreateTextureFromSurface(renderer_, surface.get()));
   if (!texture)
@@ -44,10 +47,13 @@ SDL_Texture *VitaSpriteRenderer::textureFor(uint32_t id, uint32_t variant) {
 
 SDL_Texture *VitaSpriteRenderer::namedTextureFor(const std::string &name) {
   const auto it = namedCache_.find(name);
-  if (it != namedCache_.end()) return it->second.get();
-  if (!namedSource_) return nullptr;
+  if (it != namedCache_.end())
+    return it->second.get();
+  if (!namedSource_)
+    return nullptr;
   Kotonoha::SurfacePtr surface = namedSource_(name);
-  if (!surface) return nullptr;
+  if (!surface)
+    return nullptr;
   Kotonoha::TexturePtr texture(
       SDL_CreateTextureFromSurface(renderer_, surface.get()));
   if (!texture)
@@ -60,15 +66,17 @@ SDL_Texture *VitaSpriteRenderer::namedTextureFor(const std::string &name) {
   return handle;
 }
 
-SDL_Texture *VitaSpriteRenderer::fontTextureFor(unsigned font,
-                                                 uint16_t code,
-                                                 unsigned palette) {
+SDL_Texture *VitaSpriteRenderer::fontTextureFor(unsigned font, uint16_t code,
+                                                unsigned palette) {
   const auto key = std::make_tuple(font, code, palette);
   auto it = fontCache_.find(key);
-  if (it != fontCache_.end()) return it->second.get();
-  if (!fontSource_) return nullptr;
+  if (it != fontCache_.end())
+    return it->second.get();
+  if (!fontSource_)
+    return nullptr;
   Kotonoha::SurfacePtr surface = fontSource_(font, code, palette);
-  if (!surface) return nullptr;
+  if (!surface)
+    return nullptr;
   Kotonoha::TexturePtr texture(
       SDL_CreateTextureFromSurface(renderer_, surface.get()));
   if (!texture)
@@ -92,13 +100,13 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
     drawList.push_back(&sprite);
   std::stable_sort(drawList.begin(), drawList.end(),
                    [](const SpriteState *a, const SpriteState *b) {
-    if (a->layer != b->layer) return a->layer < b->layer;
-    return a->order < b->order;
-  });
+                     if (a->layer != b->layer)
+                       return a->layer < b->layer;
+                     return a->order < b->order;
+                   });
   for (const SpriteState *sprite : drawList) {
-    if (sprite->alpha <= 0 || sprite->zoom[0] <= 0 ||
-        sprite->zoom[1] <= 0 || sprite->rect[2] <= 0 ||
-        sprite->rect[3] <= 0)
+    if (sprite->alpha <= 0 || sprite->zoom[0] <= 0 || sprite->zoom[1] <= 0 ||
+        sprite->rect[2] <= 0 || sprite->rect[3] <= 0)
       continue;
     // The original Vita UI view has 2 screen pixels per SCF coordinate.
     // Raster pictures already contain those full-resolution source texels.
@@ -107,12 +115,10 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
                          (sprite->hasImage ? 1.0 : 2.0) * cameraScale;
     const double height = sprite->rect[3] * sprite->zoom[1] *
                           (sprite->hasImage ? 1.0 : 2.0) * cameraScale;
-    if (width <= 0 || height <= 0 ||
-        width > 100000 || height > 100000)
+    if (width <= 0 || height <= 0 || width > 100000 || height > 100000)
       continue;
     const SDL_FRect dst{
-        float(480.0 + sprite->position[0] * 2.0 * cameraScale -
-              width / 2.0),
+        float(480.0 + sprite->position[0] * 2.0 * cameraScale - width / 2.0),
         float(272.0 + sprite->position[1] * 2.0 * cameraScale +
               (sprite->worldView ? bridge.view().originY * 2.0 : 0.0) -
               height / 2.0),
@@ -122,16 +128,16 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
       // the fixed UI view (not the background's world camera). Palette
       // selectors 3/7/11 use the white palette tinted to 20% brightness.
       const int normalized = ((sprite->fontPalette % 4) + 4) % 4;
-      SDL_Texture *text = fontTextureFor(sprite->fontAtlas,
-                                         sprite->characterCode,
-                                         unsigned(normalized == 3 ? 0 :
-                                                  normalized));
-      if (!text) continue;
+      SDL_Texture *text =
+          fontTextureFor(sprite->fontAtlas, sprite->characterCode,
+                         unsigned(normalized == 3 ? 0 : normalized));
+      if (!text)
+        continue;
       // The original FontChar emits a shadow first, shifted one script unit
       // right and down; it is black for palette 0..2, white for palette 3.
       if (sprite->fontPalette >= 0 && sprite->fontPalette < 4) {
-        SDL_Texture *shadow = fontTextureFor(sprite->fontAtlas,
-                                            sprite->characterCode, 0);
+        SDL_Texture *shadow =
+            fontTextureFor(sprite->fontAtlas, sprite->characterCode, 0);
         if (shadow) {
           const Uint8 shade = sprite->fontPalette == 3 ? 255 : 0;
           require(SDL_SetTextureAlphaMod(shadow, modulate(sprite->alpha)));
@@ -144,10 +150,9 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
       }
       const double tint = normalized == 3 ? 0.2 : 1.0;
       require(SDL_SetTextureAlphaMod(text, modulate(sprite->alpha)));
-      require(SDL_SetTextureColorMod(
-          text, modulate(sprite->light[0] * tint),
-          modulate(sprite->light[1] * tint),
-          modulate(sprite->light[2] * tint)));
+      require(SDL_SetTextureColorMod(text, modulate(sprite->light[0] * tint),
+                                     modulate(sprite->light[1] * tint),
+                                     modulate(sprite->light[2] * tint)));
       require(SDL_RenderTexture(renderer_, text, nullptr, &dst));
       continue;
     }
@@ -157,15 +162,16 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
       // Texture zero is the opaque black screen/side-bar rectangle. It must
       // occlude lower layers; it is not a missing white placeholder.
       require(SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND));
-      require(SDL_SetRenderDrawColor(renderer_, 0, 0, 0,
-                                     modulate(sprite->alpha)));
+      require(
+          SDL_SetRenderDrawColor(renderer_, 0, 0, 0, modulate(sprite->alpha)));
       require(SDL_RenderFillRect(renderer_, &dst));
       continue;
     }
     SDL_Texture *texture = sprite->assetName.empty()
-        ? textureFor(sprite->texture, sprite->variant)
-        : namedTextureFor(sprite->assetName);
-    if (!texture) continue; // A missing texture can be diagnosed separately.
+                               ? textureFor(sprite->texture, sprite->variant)
+                               : namedTextureFor(sprite->assetName);
+    if (!texture)
+      continue; // A missing texture can be diagnosed separately.
     float textureW = 0, textureH = 0;
     require(SDL_GetTextureSize(texture, &textureW, &textureH));
     SDL_FRect src{float(sprite->rect[0]), float(sprite->rect[1]),
@@ -189,9 +195,9 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
     src.w -= left + right;
     src.h -= top + bottom;
     require(SDL_SetTextureAlphaMod(texture, modulate(sprite->alpha)));
-    require(SDL_SetTextureColorMod(
-        texture, modulate(sprite->light[0]),
-        modulate(sprite->light[1]), modulate(sprite->light[2])));
+    require(SDL_SetTextureColorMod(texture, modulate(sprite->light[0]),
+                                   modulate(sprite->light[1]),
+                                   modulate(sprite->light[2])));
     require(SDL_RenderTexture(renderer_, texture, &src, &clipped));
   }
 }

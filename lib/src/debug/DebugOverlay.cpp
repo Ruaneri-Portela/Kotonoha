@@ -1,6 +1,7 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/debug/VoiceDubbingApplet.hpp>
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/components/VNManager.hpp>
@@ -8,14 +9,13 @@
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
+#include <Kotonoha/core/BuildVersion.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/debug/SystemInfo.hpp>
-#include <Kotonoha/core/BuildVersion.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -1219,8 +1219,8 @@ void DebugOverlay::drawAppletHub() {
                    ImGuiWindowFlags_MenuBar)) {
     drawMenuBar();
     ImGui::TextColored(ImGuiTheme::accent(), "KOTONOHA / DEBUG");
-    ImGui::TextDisabled("Engine %s  |  Commit %s",
-                        BuildVersion::Base, BuildVersion::ShortCommit);
+    ImGui::TextDisabled("Engine %s  |  Commit %s", BuildVersion::Base,
+                        BuildVersion::ShortCommit);
     ImGui::TextWrapped("Branch: %s", BuildVersion::Branch);
     ImGuiTheme::sectionHeader("Applets");
     ImGui::TextWrapped("Inspect the current game, change settings, or open "
@@ -1233,14 +1233,16 @@ void DebugOverlay::drawAppletHub() {
     const ImVec2 buttonSize(width, 42 * contentScale);
     if (ImGuiTheme::primaryButton("Settings", buttonSize))
       showOptionsWindow = true;
-    if (twoColumns) ImGui::SameLine();
+    if (twoColumns)
+      ImGui::SameLine();
     if (ImGuiTheme::primaryButton("Translation", buttonSize)) {
       showTranslationWindow = true;
       transSourcesStale = true;
     }
     if (ImGuiTheme::primaryButton("Voice dubbing", buttonSize))
       showDubbingWindow = true;
-    if (twoColumns) ImGui::SameLine();
+    if (twoColumns)
+      ImGui::SameLine();
     if (ImGuiTheme::primaryButton("System info", buttonSize))
       showInfoWindow = true;
     ImGui::SeparatorText("Scene inspector");
@@ -1318,10 +1320,9 @@ void DebugOverlay::drawInfoWindow() {
   if (!showInfoWindow)
     return;
   const auto size = ImGui::GetIO().DisplaySize;
-  ImGui::SetNextWindowSize(
-      ImVec2(std::min(800.0f * contentScale, size.x),
-             std::min(700.0f * contentScale, size.y)),
-      ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowSize(ImVec2(std::min(800.0f * contentScale, size.x),
+                                  std::min(700.0f * contentScale, size.y)),
+                           ImGuiCond_FirstUseEver);
   if (ImGui::Begin("System Information / SDL3", &showInfoWindow,
                    ImGuiWindowFlags_MenuBar)) {
     drawMenuBar();

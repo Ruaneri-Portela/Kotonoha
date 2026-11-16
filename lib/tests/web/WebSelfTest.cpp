@@ -5,18 +5,18 @@
 #ifdef KOTONOHA_WEB_SELFTEST
 #ifdef __EMSCRIPTEN__
 
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
-#include <Kotonoha/Filesystem/RemoteAssets.hpp>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 
 #include <SDL3/SDL.h>
 #include <emscripten/emscripten.h>
 
-#include <filesystem>
 #include <cstring>
+#include <filesystem>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -59,8 +59,7 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestRemoteSize(const char *name) {
     if (!name || !*name || !Kotonoha::Filesystem::remoteGameAssets())
       return -1;
     auto source = Kotonoha::Filesystem::mountGameAssets("/game-assets");
-    auto bytes = Kotonoha::Filesystem::readAll(
-        *source->open(name), 32u << 20);
+    auto bytes = Kotonoha::Filesystem::readAll(*source->open(name), 32u << 20);
     return static_cast<int>(bytes.size());
   } catch (const std::exception &error) {
     logFailure("remote FileHandle", error);
@@ -78,8 +77,7 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestLargeRemoteTail() {
     auto source = Kotonoha::Filesystem::mountGameAssets("/game-assets");
     auto file = source->open("event01.gpk");
     if (file->size() != kFileSize ||
-        file->seek(-8, Kotonoha::Filesystem::SeekOrigin::End) !=
-            kFileSize - 8)
+        file->seek(-8, Kotonoha::Filesystem::SeekOrigin::End) != kFileSize - 8)
       return -2;
     char trailer[8] = {};
     if (file->read(trailer, sizeof(trailer)) != 8 ||
@@ -102,11 +100,13 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestLargeRemoteTail() {
 // stale VFS index that would otherwise require restarting every game.
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestLiveLocalSize(const char *id) {
   try {
-    if (!id || !*id) return -1;
+    if (!id || !*id)
+      return -1;
     if (!liveFolderMount)
       liveFolderMount = Kotonoha::Filesystem::mountGameAssets("/game-assets");
     auto file = liveFolderMount->open(id);
-    return static_cast<int>(Kotonoha::Filesystem::readAll(*file, 32u << 20).size());
+    return static_cast<int>(
+        Kotonoha::Filesystem::readAll(*file, 32u << 20).size());
   } catch (const std::exception &error) {
     logFailure("live browser folder", error);
     return -1;

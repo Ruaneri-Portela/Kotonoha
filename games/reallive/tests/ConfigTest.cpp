@@ -39,10 +39,9 @@ int main() {
   }
   assert(threw);
   // Startup and title scripts differ across RealLive releases.
-  const RealLive::Config frontend(
-      "#SEEN_START=9030\n"
-      "#SEEN_MENU=9042\n"
-      "#REGNAME=\"KEY\\CLANNAD_FV\"\n");
+  const RealLive::Config frontend("#SEEN_START=9030\n"
+                                  "#SEEN_MENU=9042\n"
+                                  "#REGNAME=\"KEY\\CLANNAD_FV\"\n");
   assert(frontend.integer("SEEN_START") == 9030);
   assert(frontend.integer("SEEN_MENU") == 9042);
   assert(frontend.text("REGNAME") == "KEY\\CLANNAD_FV");

@@ -1,6 +1,6 @@
-#include <Pmail/Assets.hpp>
-#include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/Filesystem/Path.hpp>
+#include <Kotonoha/media/MediaDecoder.hpp>
+#include <Pmail/Assets.hpp>
 
 #include <algorithm>
 #include <stdexcept>
@@ -9,7 +9,8 @@
 namespace Kotonoha::Providers {
 
 PmailAssets::PmailAssets(const std::filesystem::path &directory)
-    : PmailAssets(Kotonoha::Filesystem::Filesystem::mount(directory.string())) {}
+    : PmailAssets(Kotonoha::Filesystem::Filesystem::mount(directory.string())) {
+}
 
 PmailAssets::PmailAssets(
     std::shared_ptr<Kotonoha::Filesystem::Filesystem> source)

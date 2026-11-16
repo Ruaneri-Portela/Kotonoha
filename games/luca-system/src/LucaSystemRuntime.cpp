@@ -3,12 +3,13 @@
 // via reverse engineering of the original AIR.exe binaries with rizin/REA and
 // analysis of the SCRIPT.PAK bytecode format.
 #include <LucaSystem/CzImage.hpp>
+#include <LucaSystem/DialogueFlow.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
-#include <LucaSystem/DialogueFlow.hpp>
 #include <LucaSystem/SaveState.hpp>
 #include <LucaSystem/SceneLayers.hpp>
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
@@ -16,7 +17,6 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
@@ -25,8 +25,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstring>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <memory>
 #include <sstream>
@@ -351,9 +351,8 @@ struct LucaSystemRuntime::Impl {
     }
   }
 
-  void renderObject(Kotonoha::RendererRef renderer, uint32_t id, int x,
-                    int y, float opacity = 1.0f,
-                    float rightClip = -1.0f) {
+  void renderObject(Kotonoha::RendererRef renderer, uint32_t id, int x, int y,
+                    float opacity = 1.0f, float rightClip = -1.0f) {
     if (opacity <= 0.0f)
       return;
     auto it = objectImages.find(id);
@@ -370,8 +369,9 @@ struct LucaSystemRuntime::Impl {
         throw std::runtime_error(SDL_GetError());
       SDL_SetTextureBlendMode(tex.get(), SDL_BLENDMODE_BLEND);
     }
-    SDL_SetTextureAlphaMod(tex.get(), static_cast<Uint8>(
-        std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f)));
+    SDL_SetTextureAlphaMod(
+        tex.get(), static_cast<Uint8>(
+                       std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f)));
     SDL_FRect dst{float(x), float(y), float(it->second.width),
                   float(it->second.height)};
     SDL_FRect source{};
@@ -380,8 +380,8 @@ struct LucaSystemRuntime::Impl {
       // A directional wipe reveals only the region to the left of the
       // advancing screen-space edge. Clip both source and destination to
       // avoid stretching the pixels across the full object width.
-      const float visibleWidth = wipeVisibleWidth(
-          float(x), float(it->second.width), rightClip);
+      const float visibleWidth =
+          wipeVisibleWidth(float(x), float(it->second.width), rightClip);
       if (visibleWidth <= 0.0f)
         return;
       source = SDL_FRect{0, 0, visibleWidth, float(it->second.height)};
@@ -447,8 +447,8 @@ struct LucaSystemRuntime::Impl {
         int frames = 0;
         if (ins.paramBytes.size() >= 2)
           frames = int(paramU16(ins, 0));
-        const auto duration = static_cast<std::uint64_t>(
-            std::clamp(frames, 0, 3600)) * 17u;
+        const auto duration =
+            static_cast<std::uint64_t>(std::clamp(frames, 0, 3600)) * 17u;
         sceneLayers.commit(SDL_GetTicks(), duration);
         if (duration) {
           waiting = true;
@@ -592,7 +592,8 @@ struct LucaSystemRuntime::Impl {
         // Transitional approximation while decoding AIR-specific wipe
         // directions: commit staged images with a bounded cross-fade.
         const auto ms = ins.paramBytes.size() >= 2
-            ? static_cast<std::uint64_t>(paramU16(ins, 0)) : 300u;
+                            ? static_cast<std::uint64_t>(paramU16(ins, 0))
+                            : 300u;
         sceneLayers.commit(SDL_GetTicks(), ms,
                            SceneTransition::WipeLeftToRight);
         if (ms) {
@@ -652,7 +653,7 @@ struct LucaSystemRuntime::Impl {
     // Older per-title scripts may contain a NUL-terminated symbolic label.
     const auto end = std::find(ins.paramBytes.begin(), ins.paramBytes.end(), 0);
     const std::string_view label(
-        reinterpret_cast<const char*>(ins.paramBytes.data()),
+        reinterpret_cast<const char *>(ins.paramBytes.data()),
         static_cast<std::size_t>(end - ins.paramBytes.begin()));
     if (const auto index = FindJumpPoint(instructions, label)) {
       instructionIndex = *index;
@@ -667,8 +668,8 @@ struct LucaSystemRuntime::Impl {
   void advanceDialogue() {
     if (!textbox)
       return;
-    switch (nextDialogueAction(dialogueVisible,
-                               textbox->isDialogueComplete())) {
+    switch (
+        nextDialogueAction(dialogueVisible, textbox->isDialogueComplete())) {
     case DialogueAdvance::None:
       return;
     case DialogueAdvance::Reveal:
@@ -849,11 +850,11 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     const auto &visible = impl.sceneLayers.visible();
     // Newly staged objects are appended after the outgoing composition.
     // Re-rendering its old objects would double-blend transparent pixels.
-    for (std::size_t i = impl.sceneLayers.outgoing().size();
-         i < visible.size(); ++i) {
+    for (std::size_t i = impl.sceneLayers.outgoing().size(); i < visible.size();
+         ++i) {
       const auto &place = visible[i];
-      impl.renderObject(renderer, place.id, place.x, place.y,
-                        1.0f, revealRight);
+      impl.renderObject(renderer, place.id, place.x, place.y, 1.0f,
+                        revealRight);
     }
   } else {
     for (const auto &place : impl.sceneLayers.outgoing())
@@ -863,8 +864,10 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
   }
   if (blend.blackout > 0.0f) {
     SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, static_cast<Uint8>(
-        std::lround(std::clamp(blend.blackout, 0.0f, 1.0f) * 255.0f)));
+    SDL_SetRenderDrawColor(
+        &renderer, 0, 0, 0,
+        static_cast<Uint8>(
+            std::lround(std::clamp(blend.blackout, 0.0f, 1.0f) * 255.0f)));
     SDL_FRect screen{0, 0, 1280, 720};
     SDL_RenderFillRect(&renderer, &screen);
   }
@@ -952,16 +955,14 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
   // Handle save/load before generic dialogue input, otherwise F5/F6
   // are consumed as confirmation keys while the textbox is visible.
   if (!impl.originalTitle && mapped.type == SDL_EVENT_KEY_DOWN &&
-      !mapped.key.repeat &&
-      mapped.key.key == SDLK_F5) {
+      !mapped.key.repeat && mapped.key.key == SDLK_F5) {
     auto path =
         Kotonoha::preferredDocumentsDirectory("luca_system") / "quicksave.kns";
     saveGame(path.string());
     return true;
   }
   if (!impl.originalTitle && mapped.type == SDL_EVENT_KEY_DOWN &&
-      !mapped.key.repeat &&
-      mapped.key.key == SDLK_F6) {
+      !mapped.key.repeat && mapped.key.key == SDLK_F6) {
     auto path =
         Kotonoha::preferredDocumentsDirectory("luca_system") / "quicksave.kns";
     loadGame(path.string());
@@ -989,8 +990,8 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
   state.waiting = impl.waiting;
   if (impl.waiting) {
     const auto now = SDL_GetTicks();
-    const auto remaining = impl.waitDeadline > now
-        ? impl.waitDeadline - now : 0;
+    const auto remaining =
+        impl.waitDeadline > now ? impl.waitDeadline - now : 0;
     state.waitRemainingMs = static_cast<std::uint32_t>(
         std::min<std::uint64_t>(remaining, SaveCodec::MaxWaitMs));
   }
@@ -1001,8 +1002,8 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
   state.images.reserve(impl.sceneLayers.visible().size());
   for (const auto &place : impl.sceneLayers.visible())
     state.images.push_back({place.id, place.x, place.y});
-  Kotonoha::GetVNManagerRuntime(*impl.engine).save(
-      path, encodeSaveState(state));
+  Kotonoha::GetVNManagerRuntime(*impl.engine)
+      .save(path, encodeSaveState(state));
 }
 
 void LucaSystemRuntime::loadGame(const std::string &path) {
@@ -1019,8 +1020,7 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
                    std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
   if (!candidate.valid() ||
       state.instructionIndex > candidate.instructionCount() ||
-      state.dialogueIndex > 1000000 ||
-      state.callStack.size() > 1024)
+      state.dialogueIndex > 1000000 || state.callStack.size() > 1024)
     throw std::runtime_error("Invalid LucaSystem save script position");
   for (const auto returnTo : state.callStack)
     if (returnTo > candidate.instructionCount())
@@ -1073,8 +1073,8 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
   }
 }
 
-bool LucaSystemRuntime::startScenario(const std::string &name,
-                                      size_t position, bool resume) {
+bool LucaSystemRuntime::startScenario(const std::string &name, size_t position,
+                                      bool resume) {
   auto &impl = *impl_;
   auto *pak = impl.assets->scriptPak();
   if (!pak)

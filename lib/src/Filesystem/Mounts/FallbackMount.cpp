@@ -39,8 +39,10 @@ bool FallbackMount::isKnownRegularFile(std::string_view path) const {
   if (localExists && (!remote_ || remote_->preferLocalWhenPresent()))
     return local_->stat(key).type == FileType::Regular;
   if (remote_) {
-    if (remote_->isKnownRegularFile(key)) return true;
-    if (remote_->isKnownDirectory(key)) return false;
+    if (remote_->isKnownRegularFile(key))
+      return true;
+    if (remote_->isKnownDirectory(key))
+      return false;
   }
   return localExists && local_->stat(key).type == FileType::Regular;
 }
@@ -51,8 +53,10 @@ bool FallbackMount::isKnownDirectory(std::string_view path) const {
   if (localExists && (!remote_ || remote_->preferLocalWhenPresent()))
     return local_->stat(key).type == FileType::Directory;
   if (remote_) {
-    if (remote_->isKnownDirectory(key)) return true;
-    if (remote_->isKnownRegularFile(key)) return false;
+    if (remote_->isKnownDirectory(key))
+      return true;
+    if (remote_->isKnownRegularFile(key))
+      return false;
   }
   return localExists && local_->stat(key).type == FileType::Directory;
 }
@@ -63,13 +67,15 @@ FileInfo FallbackMount::stat(std::string_view path) const {
   const auto key = normalizePath(path, true);
   const auto *source = select(key);
   if (!source)
-    throw FilesystemError(ErrorCode::NotFound, "Asset not in local or remote mount: " + key);
+    throw FilesystemError(ErrorCode::NotFound,
+                          "Asset not in local or remote mount: " + key);
   return source->stat(key);
 }
 std::vector<FileInfo> FallbackMount::list(std::string_view dir) const {
   const auto key = normalizePath(dir, true);
   if (stat(key).type != FileType::Directory)
-    throw FilesystemError(ErrorCode::NotDirectory, "Not a game-assets directory: " + key);
+    throw FilesystemError(ErrorCode::NotDirectory,
+                          "Not a game-assets directory: " + key);
   std::map<std::string, FileInfo> result;
   for (const auto *source : {remote_.get(), local_.get()}) {
     if (!source || !source->exists(key) ||
@@ -90,9 +96,11 @@ std::unique_ptr<FileHandle> FallbackMount::open(std::string_view path) const {
   const auto key = normalizePath(path);
   const auto *source = select(key);
   if (!source)
-    throw FilesystemError(ErrorCode::NotFound, "Asset not in local or remote mount: " + key);
+    throw FilesystemError(ErrorCode::NotFound,
+                          "Asset not in local or remote mount: " + key);
   if (source->stat(key).type != FileType::Regular)
-    throw FilesystemError(ErrorCode::IsDirectory, "Cannot open directory: " + key);
+    throw FilesystemError(ErrorCode::IsDirectory,
+                          "Cannot open directory: " + key);
   return source->open(key);
 }
 } // namespace Kotonoha::Filesystem

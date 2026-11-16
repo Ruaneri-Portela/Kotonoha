@@ -1,9 +1,9 @@
-#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include "AmagamiLauncher.hpp"
 #include "AmagamiRuntime.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 #include <cstdio>
 #include <memory>

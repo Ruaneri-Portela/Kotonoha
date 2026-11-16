@@ -1,10 +1,10 @@
 #include "SnowLauncher.hpp"
 
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
-#include <Kotonoha/Filesystem/RemoteAssets.hpp>
 
 namespace SnowRadish {
 

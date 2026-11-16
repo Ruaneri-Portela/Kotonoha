@@ -1,5 +1,5 @@
-#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
 
 #include <imgui.h>
@@ -7,8 +7,8 @@
 
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 
-#include <filesystem>
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <filesystem>
 #include <stdexcept>
 
 namespace Kotonoha {

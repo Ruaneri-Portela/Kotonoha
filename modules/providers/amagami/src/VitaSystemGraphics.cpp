@@ -24,9 +24,14 @@ uint32_t le32(std::string_view bytes, size_t offset) {
          (uint32_t(uint8_t(bytes[offset + 3])) << 24);
 }
 void checkElf(std::string_view elf) {
-  if (elf.size() < 52 || std::memcmp(elf.data(), "\x7f" "ELF", 4) ||
+  if (elf.size() < 52 ||
+      std::memcmp(elf.data(),
+                  "\x7f"
+                  "ELF",
+                  4) ||
       uint8_t(elf[4]) != 1 || uint8_t(elf[5]) != 1)
-    throw std::runtime_error("Amagami Vita: expected a 32-bit little-endian ELF");
+    throw std::runtime_error(
+        "Amagami Vita: expected a 32-bit little-endian ELF");
   const uint32_t phoff = le32(elf, 28);
   const uint16_t phsize = le16(elf, 42), phcount = le16(elf, 44);
   if (phsize < 32 || uint64_t(phoff) + uint64_t(phsize) * phcount > elf.size())
@@ -43,9 +48,9 @@ int glyphIndex(uint16_t sjis) {
 Picture indexedWithPitch(std::string_view bytes, uint32_t width,
                          uint32_t height, uint32_t pitch) {
   const uint64_t pixels = uint64_t(width) * height;
-  if (!width || !height || width > 4096 || height > 4096 ||
-      pitch < width || pitch > 8192 || pixels > 4u * 1024 * 1024 ||
-      bytes.size() < 1024 || uint64_t(pitch) * height > bytes.size() - 1024)
+  if (!width || !height || width > 4096 || height > 4096 || pitch < width ||
+      pitch > 8192 || pixels > 4u * 1024 * 1024 || bytes.size() < 1024 ||
+      uint64_t(pitch) * height > bytes.size() - 1024)
     throw std::runtime_error("Amagami Vita: invalid UI texture dimensions");
   Picture image;
   image.width = width;
@@ -109,7 +114,8 @@ UiAtlas::UiAtlas(std::string elf, std::string sysgraph)
   bool text = false, data = false;
   for (uint16_t i = 0; i < count; ++i) {
     const size_t at = size_t(phoff) + size_t(stride) * i;
-    if (le32(elf_, at) != 1) continue; // PT_LOAD
+    if (le32(elf_, at) != 1)
+      continue; // PT_LOAD
     const uint32_t va = le32(elf_, at + 8);
     const uint32_t fileSize = le32(elf_, at + 16);
     const uint32_t memSize = le32(elf_, at + 20);
@@ -120,8 +126,10 @@ UiAtlas::UiAtlas(std::string elf, std::string sysgraph)
 }
 
 uint32_t UiAtlas::tableVa(uint32_t original) const {
-  if (!patched_) return original;
-  if (original == 0x810ddf94) return original + 4; // texture pointers
+  if (!patched_)
+    return original;
+  if (original == 0x810ddf94)
+    return original + 4; // texture pointers
   if (original >= 0x810ac158 && original < 0x810ac158 + 762 * 8)
     return original + 0x230; // entry records
   if (original >= 0x810adf44 && original < 0x810adf44 + 762 * 16)
@@ -134,13 +142,16 @@ size_t UiAtlas::fileOffset(uint32_t virtualAddress, size_t bytes) const {
   const uint16_t stride = le16(elf_, 42), count = le16(elf_, 44);
   for (uint16_t i = 0; i < count; ++i) {
     const size_t at = size_t(phoff) + size_t(stride) * i;
-    if (le32(elf_, at) != 1) continue;
+    if (le32(elf_, at) != 1)
+      continue;
     const uint32_t offset = le32(elf_, at + 4);
     const uint32_t address = le32(elf_, at + 8);
     const uint32_t length = le32(elf_, at + 16);
-    if (virtualAddress < address) continue;
+    if (virtualAddress < address)
+      continue;
     const uint64_t distance = uint64_t(virtualAddress) - address;
-    if (distance > length || bytes > length - distance) continue;
+    if (distance > length || bytes > length - distance)
+      continue;
     const uint64_t position = uint64_t(offset) + distance;
     if (position > elf_.size() || bytes > elf_.size() - position)
       continue;
@@ -153,7 +164,8 @@ uint32_t UiAtlas::word(uint32_t virtualAddress) const {
 }
 
 std::optional<Picture> UiAtlas::decodeEntry(uint32_t entry) const {
-  if (entry == 0) return std::nullopt;
+  if (entry == 0)
+    return std::nullopt;
   if (entry >= 762)
     throw std::runtime_error("Amagami Vita: sysgraph entry out of range");
   const uint32_t offset = le32(sysgraph_, size_t(entry) * 4);
@@ -165,8 +177,8 @@ std::optional<Picture> UiAtlas::decodeEntry(uint32_t entry) const {
   const uint32_t pitch = word(uint32_t(info + 12));
   if (offset > sysgraph_.size() || sysgraph_.size() - offset < 1024)
     throw std::runtime_error("Amagami Vita: UI resource offset out of range");
-  return indexedWithPitch(
-      std::string_view(sysgraph_).substr(offset), width, height, pitch);
+  return indexedWithPitch(std::string_view(sysgraph_).substr(offset), width,
+                          height, pitch);
 }
 
 std::optional<Picture> UiAtlas::decode(uint32_t textureId,
@@ -177,7 +189,8 @@ std::optional<Picture> UiAtlas::decode(uint32_t textureId,
   if (table > std::numeric_limits<uint32_t>::max())
     throw std::runtime_error("Amagami Vita: texture table overflows");
   const uint32_t variants = word(uint32_t(table));
-  if (!variants) return std::nullopt;
+  if (!variants)
+    return std::nullopt;
 
   const uint32_t records = tableVa(0x810ac158);
   const auto getRecord = [&](uint32_t v) -> uint32_t {
@@ -190,8 +203,10 @@ std::optional<Picture> UiAtlas::decode(uint32_t textureId,
     return pointer;
   };
   uint32_t record = getRecord(variant);
-  if (!record) record = getRecord(0);
-  if (!record) return std::nullopt;
+  if (!record)
+    record = getRecord(0);
+  if (!record)
+    return std::nullopt;
   return decodeEntry(word(record));
 }
 } // namespace Amagami::Vita

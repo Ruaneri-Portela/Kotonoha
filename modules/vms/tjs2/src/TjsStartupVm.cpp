@@ -1,8 +1,8 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 // Bounded TJS2 *source subset*, not a substitute for upstream TJS2 bytecode.
-#include <Kirikiri/TjsStartupVm.hpp>
-#include <Kirikiri/TjsBootstrap.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
+#include <Kirikiri/TjsBootstrap.hpp>
+#include <Kirikiri/TjsStartupVm.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -30,29 +30,40 @@ struct Value {
   explicit Value(std::string x) : data(std::move(x)) {}
   explicit Value(ObjectPtr x) : data(std::move(x)) {}
   bool truthy() const {
-    if (auto b = std::get_if<bool>(&data)) return *b;
-    if (auto n = std::get_if<double>(&data)) return *n != 0.0;
-    if (auto s = std::get_if<std::string>(&data)) return !s->empty();
-    if (auto object = std::get_if<ObjectPtr>(&data)) return bool(*object);
+    if (auto b = std::get_if<bool>(&data))
+      return *b;
+    if (auto n = std::get_if<double>(&data))
+      return *n != 0.0;
+    if (auto s = std::get_if<std::string>(&data))
+      return !s->empty();
+    if (auto object = std::get_if<ObjectPtr>(&data))
+      return bool(*object);
     return false;
   }
   std::string string() const {
-    if (auto s = std::get_if<std::string>(&data)) return *s;
-    if (std::holds_alternative<ObjectPtr>(data)) return "[Dictionary]";
-    if (auto b = std::get_if<bool>(&data)) return *b ? "true" : "false";
+    if (auto s = std::get_if<std::string>(&data))
+      return *s;
+    if (std::holds_alternative<ObjectPtr>(data))
+      return "[Dictionary]";
+    if (auto b = std::get_if<bool>(&data))
+      return *b ? "true" : "false";
     if (auto n = std::get_if<double>(&data)) {
       auto s = std::to_string(*n);
       if (s.find('.') != std::string::npos) {
-        while (!s.empty() && s.back() == '0') s.pop_back();
-        if (!s.empty() && s.back() == '.') s.pop_back();
+        while (!s.empty() && s.back() == '0')
+          s.pop_back();
+        if (!s.empty() && s.back() == '.')
+          s.pop_back();
       }
       return s;
     }
     return {};
   }
   double number() const {
-    if (auto n = std::get_if<double>(&data)) return *n;
-    if (auto b = std::get_if<bool>(&data)) return *b ? 1.0 : 0.0;
+    if (auto n = std::get_if<double>(&data))
+      return *n;
+    if (auto b = std::get_if<bool>(&data))
+      return *b ? 1.0 : 0.0;
     if (auto s = std::get_if<std::string>(&data)) {
       char *end = nullptr;
       const double x = std::strtod(s->c_str(), &end);
@@ -80,11 +91,10 @@ struct Token {
 };
 
 bool nameBegin(unsigned char c) {
-  return std::isalpha(c) != 0 || c >= 0x80 || c == '_' || c == '$'; // UTF-8 names
+  return std::isalpha(c) != 0 || c >= 0x80 || c == '_' ||
+         c == '$'; // UTF-8 names
 }
-bool nameChar(unsigned char c) {
-  return nameBegin(c) || std::isdigit(c) != 0;
-}
+bool nameChar(unsigned char c) { return nameBegin(c) || std::isdigit(c) != 0; }
 
 std::vector<Token> lex(const std::string &source) {
   if (source.size() > 256u * 1024u)
@@ -97,14 +107,17 @@ std::vector<Token> lex(const std::string &source) {
   };
   for (std::size_t i = 0; i < source.size();) {
     const unsigned char c = static_cast<unsigned char>(source[i]);
-    if (std::isspace(c)) { ++i; continue; }
-    if (c == '/' && i + 1 < source.size() && source[i+1] == '/') {
+    if (std::isspace(c)) {
+      ++i;
+      continue;
+    }
+    if (c == '/' && i + 1 < source.size() && source[i + 1] == '/') {
       i += 2;
       while (i < source.size() && source[i] != '\n' && source[i] != '\r')
         ++i;
       continue;
     }
-    if (c == '/' && i + 1 < source.size() && source[i+1] == '*') {
+    if (c == '/' && i + 1 < source.size() && source[i + 1] == '*') {
       const auto end = source.find("*/", i + 2);
       if (end == std::string::npos)
         throw std::runtime_error("TJS2 subset: unterminated block comment");
@@ -115,7 +128,8 @@ std::vector<Token> lex(const std::string &source) {
     if (nameBegin(c)) {
       ++i;
       while (i < source.size() &&
-             nameChar(static_cast<unsigned char>(source[i]))) ++i;
+             nameChar(static_cast<unsigned char>(source[i])))
+        ++i;
       add(Token::Identifier, source.substr(begin, i - begin), begin);
       continue;
     }
@@ -145,17 +159,34 @@ std::vector<Token> lex(const std::string &source) {
       bool closed = false;
       while (i < source.size()) {
         const char v = source[i++];
-        if (v == c) { closed = true; break; }
+        if (v == c) {
+          closed = true;
+          break;
+        }
         if (v == '\\' && i < source.size()) {
           const char escaped = source[i++];
           switch (escaped) {
-            case 'n': value += '\n'; break;
-            case 'r': value += '\r'; break;
-            case 't': value += '\t'; break;
-            case '\\': case '\'': case '"': value += escaped; break;
-            default: value += '\\'; value += escaped; break;
+          case 'n':
+            value += '\n';
+            break;
+          case 'r':
+            value += '\r';
+            break;
+          case 't':
+            value += '\t';
+            break;
+          case '\\':
+          case '\'':
+          case '"':
+            value += escaped;
+            break;
+          default:
+            value += '\\';
+            value += escaped;
+            break;
           }
-        } else value += v;
+        } else
+          value += v;
       }
       if (!closed)
         throw std::runtime_error("TJS2 subset: unterminated string literal");
@@ -164,19 +195,18 @@ std::vector<Token> lex(const std::string &source) {
     }
     if (i + 1 < source.size()) {
       const auto two = source.substr(i, 2);
-      if (two == "==" || two == "!=" || two == "<=" ||
-          two == ">=" || two == "&&" || two == "||" ||
-          two == "+=" || two == "-=" ||
+      if (two == "==" || two == "!=" || two == "<=" || two == ">=" ||
+          two == "&&" || two == "||" || two == "+=" || two == "-=" ||
           two == "++" || two == "--") {
         add(Token::Symbol, two, i);
         i += 2;
         continue;
       }
     }
-    if (std::string("{}();,.=+-*/!<>").find(source[i]) ==
-        std::string::npos)
-      throw std::runtime_error("TJS2 subset: unsupported lexical token at byte " +
-                               std::to_string(i));
+    if (std::string("{}();,.=+-*/!<>").find(source[i]) == std::string::npos)
+      throw std::runtime_error(
+          "TJS2 subset: unsupported lexical token at byte " +
+          std::to_string(i));
     add(Token::Symbol, source.substr(i++, 1), begin);
   }
   add(Token::End, {}, source.size());
@@ -184,27 +214,28 @@ std::vector<Token> lex(const std::string &source) {
 }
 
 std::string safeName(std::string id) {
-  if (id.empty() || id.size() > 1024 ||
-      id.front() == '/' || id.find("://") != std::string::npos ||
-      id.find(':') != std::string::npos)
+  if (id.empty() || id.size() > 1024 || id.front() == '/' ||
+      id.find("://") != std::string::npos || id.find(':') != std::string::npos)
     throw std::runtime_error("TJS2 subset: unsafe storage ID");
   std::replace(id.begin(), id.end(), '\\', '/');
   while (id.compare(0, 2, "./") == 0)
     id.erase(0, 2);
   for (std::size_t p = 0; p < id.size();) {
     const auto slash = id.find('/', p);
-    const auto part = id.substr(p, slash == std::string::npos
-                                     ? slash : slash-p);
+    const auto part =
+        id.substr(p, slash == std::string::npos ? slash : slash - p);
     if (part == "..")
       throw std::runtime_error("TJS2 subset: storage path traversal");
-    if (slash == std::string::npos) break;
+    if (slash == std::string::npos)
+      break;
     p = slash + 1;
   }
   return id;
 }
 
 bool endsWith(const std::string &text, std::string suffix) {
-  if (text.size() < suffix.size()) return false;
+  if (text.size() < suffix.size())
+    return false;
   const auto begin = text.end() - static_cast<std::ptrdiff_t>(suffix.size());
   return std::equal(begin, text.end(), suffix.begin(), suffix.end(),
                     [](char a, char b) {
@@ -214,7 +245,8 @@ bool endsWith(const std::string &text, std::string suffix) {
 }
 
 // Functions are represented by bounded source slices; the parser reuses its
-// ordinary expression evaluator on calls, but cannot execute native TJS objects.
+// ordinary expression evaluator on calls, but cannot execute native TJS
+// objects.
 struct SourceFunction {
   std::string name;
   std::string source;
@@ -259,17 +291,19 @@ public:
     Value current = get(name.substr(0, dot));
     for (auto first = dot + 1; first < name.size();) {
       const auto next = name.find('.', first);
-      const auto key = name.substr(first, next == std::string::npos
-                                              ? next : next - first);
+      const auto key =
+          name.substr(first, next == std::string::npos ? next : next - first);
       const auto ptr = std::get_if<ObjectPtr>(&current.data);
       if (!ptr || !*ptr)
-        throw std::runtime_error("TJS2 subset: property read on non-Dictionary");
+        throw std::runtime_error(
+            "TJS2 subset: property read on non-Dictionary");
       const auto found = (*ptr)->members.find(key);
       if (found == (*ptr)->members.end())
         throw std::runtime_error("TJS2 subset: missing Dictionary property: " +
                                  key);
       current = found->second;
-      if (next == std::string::npos) break;
+      if (next == std::string::npos)
+        break;
       first = next + 1;
     }
     return current;
@@ -289,8 +323,7 @@ public:
       // otherwise preserve legacy special-qualified bootstrap assignments.
       try {
         const auto owner = get(rootName);
-        if (const auto obj = std::get_if<ObjectPtr>(&owner.data);
-            obj && *obj) {
+        if (const auto obj = std::get_if<ObjectPtr>(&owner.data); obj && *obj) {
           const auto member = name.substr(dot + 1);
           if ((*obj)->members.count(member) == 0 &&
               (*obj)->members.size() >= 1024)
@@ -323,11 +356,13 @@ public:
   std::string resolve(const std::string &requested,
                       const std::string &current) const {
     const auto normalized = safeName(requested);
-    if (assets.contains(normalized)) return normalized;
+    if (assets.contains(normalized))
+      return normalized;
     const auto slash = current.find_last_of('/');
     if (slash != std::string::npos) {
       const auto near = safeName(current.substr(0, slash + 1) + normalized);
-      if (assets.contains(near)) return near;
+      if (assets.contains(near))
+        return near;
     }
     return normalized;
   }
@@ -347,15 +382,15 @@ class Parser {
     return tokens[std::min(pc + offset, tokens.size() - 1)];
   }
   bool match(const std::string &text) {
-    if (look().text != text) return false;
+    if (look().text != text)
+      return false;
     ++pc;
     return true;
   }
   void expect(const std::string &text) {
     if (!match(text))
       throw std::runtime_error("TJS2 subset: expected '" + text +
-                               "' near byte " +
-                               std::to_string(look().offset));
+                               "' near byte " + std::to_string(look().offset));
   }
   std::string identifier() {
     if (look().kind != Token::Identifier)
@@ -391,16 +426,19 @@ class Parser {
       do {
         if (look().kind == Token::End)
           throw std::runtime_error("TJS2 UI: unterminated event handler");
-        if (look().text == "{") ++braces;
-        else if (look().text == "}") --braces;
+        if (look().text == "{")
+          ++braces;
+        else if (look().text == "}")
+          --braces;
         ++pc;
       } while (braces);
-      if (!active) return {};
+      if (!active)
+        return {};
       if (machine.functions.size() >= 256)
         throw std::runtime_error("TJS2 UI: handler count limit exceeded");
       if (functionName.empty())
-        functionName = "__tjs_handler_" +
-                       std::to_string(machine.nextAnonymousFunction++);
+        functionName =
+            "__tjs_handler_" + std::to_string(machine.nextAnonymousFunction++);
       const auto finish = tokens[pc - 1].offset + 1;
       machine.functions[functionName] = SourceFunction{
           functionName, sourceName, sourceCode.substr(start, finish - start),
@@ -431,29 +469,35 @@ class Parser {
     if (look().kind == Token::Number) {
       const auto spelling = tokens[pc++].text;
       char *end = nullptr;
-      const double n = spelling.size() > 2 && spelling[0] == '0' &&
-                       (spelling[1] == 'x' || spelling[1] == 'X')
-                           ? static_cast<double>(
-                                 std::strtoull(spelling.c_str(), &end, 16))
-                           : std::strtod(spelling.c_str(), &end);
+      const double n =
+          spelling.size() > 2 && spelling[0] == '0' &&
+                  (spelling[1] == 'x' || spelling[1] == 'X')
+              ? static_cast<double>(std::strtoull(spelling.c_str(), &end, 16))
+              : std::strtod(spelling.c_str(), &end);
       if (end == spelling.c_str() || *end != '\0' || !std::isfinite(n))
         throw std::runtime_error("TJS2 subset: invalid number");
       return Value(n);
     }
     if (look().kind != Token::Identifier)
-      throw std::runtime_error("TJS2 subset: unexpected expression token near " +
-                               std::to_string(look().offset));
+      throw std::runtime_error(
+          "TJS2 subset: unexpected expression token near " +
+          std::to_string(look().offset));
     auto name = identifier();
-    if (name == "true") return Value(true);
-    if (name == "false") return Value(false);
-    if (name == "null" || name == "void") return {};
-    while (match(".")) name += "." + identifier();
+    if (name == "true")
+      return Value(true);
+    if (name == "false")
+      return Value(false);
+    if (name == "null" || name == "void")
+      return {};
+    while (match("."))
+      name += "." + identifier();
     if (match("(")) {
       std::vector<Value> args;
       if (!match(")")) {
         do {
           if (args.size() >= 8)
-            throw std::runtime_error("TJS2 subset: too many function arguments");
+            throw std::runtime_error(
+                "TJS2 subset: too many function arguments");
           args.push_back(expression(active));
         } while (match(","));
         expect(")");
@@ -481,12 +525,13 @@ class Parser {
     while (look().text == "*" || look().text == "/") {
       const auto op = tokens[pc++].text;
       const auto rhs = unary(active);
-      if (!active) continue;
+      if (!active)
+        continue;
       const auto denominator = rhs.number();
       if (op == "/" && denominator == 0)
         throw std::runtime_error("TJS2 subset: division by zero");
-      lhs = Value(op == "*" ? lhs.number()*denominator
-                            : lhs.number()/denominator);
+      lhs = Value(op == "*" ? lhs.number() * denominator
+                            : lhs.number() / denominator);
     }
     return lhs;
   }
@@ -495,26 +540,29 @@ class Parser {
     while (look().text == "+" || look().text == "-") {
       const auto op = tokens[pc++].text;
       const auto rhs = product(active);
-      if (!active) continue;
+      if (!active)
+        continue;
       if (op == "+" && (std::holds_alternative<std::string>(lhs.data) ||
                         std::holds_alternative<std::string>(rhs.data)))
         lhs = Value(lhs.string() + rhs.string());
       else
-        lhs = Value(op == "+" ? lhs.number()+rhs.number()
-                              : lhs.number()-rhs.number());
+        lhs = Value(op == "+" ? lhs.number() + rhs.number()
+                              : lhs.number() - rhs.number());
     }
     return lhs;
   }
   Value compare(bool active) {
     auto lhs = sum(active);
-    while (look().text == "<" || look().text == "<=" ||
-           look().text == ">" || look().text == ">=") {
+    while (look().text == "<" || look().text == "<=" || look().text == ">" ||
+           look().text == ">=") {
       const auto op = tokens[pc++].text;
       const auto rhs = sum(active);
       if (active) {
         const auto a = lhs.number(), b = rhs.number();
-        lhs = Value(op == "<" ? a < b : op == "<=" ? a <= b :
-                    op == ">" ? a > b : a >= b);
+        lhs = Value(op == "<"    ? a < b
+                    : op == "<=" ? a <= b
+                    : op == ">"  ? a > b
+                                 : a >= b);
       }
     }
     return lhs;
@@ -526,7 +574,8 @@ class Parser {
       const auto rhs = compare(active);
       if (active) {
         const bool equal = lhs.data.index() == rhs.data.index()
-            ? lhs.data == rhs.data : lhs.string() == rhs.string();
+                               ? lhs.data == rhs.data
+                               : lhs.string() == rhs.string();
         lhs = Value(op == "==" ? equal : !equal);
       }
     }
@@ -537,7 +586,8 @@ class Parser {
     while (match("&&")) {
       const bool go = active && lhs.truthy();
       auto rhs = equality(go);
-      if (active) lhs = Value(go && rhs.truthy());
+      if (active)
+        lhs = Value(go && rhs.truthy());
     }
     return lhs;
   }
@@ -546,7 +596,8 @@ class Parser {
     while (match("||")) {
       const bool go = active && !lhs.truthy();
       auto rhs = conjunction(go);
-      if (active) lhs = Value(!go || rhs.truthy());
+      if (active)
+        lhs = Value(!go || rhs.truthy());
     }
     return lhs;
   }
@@ -554,7 +605,8 @@ class Parser {
 
   void statement(bool active) {
     machine.tick();
-    if (match(";")) return;
+    if (match(";"))
+      return;
     if (match("return")) {
       const auto value = look().text == ";" ? Value() : expression(active);
       expect(";");
@@ -588,13 +640,16 @@ class Parser {
       do {
         if (look().kind == Token::End)
           throw std::runtime_error("TJS2 subset: unterminated function body");
-        if (look().text == "{") ++braces;
-        else if (look().text == "}") --braces;
+        if (look().text == "{")
+          ++braces;
+        else if (look().text == "}")
+          --braces;
         ++pc;
       } while (braces);
       if (active) {
         if (machine.functions.size() >= 256)
-          throw std::runtime_error("TJS2 subset: function count limit exceeded");
+          throw std::runtime_error(
+              "TJS2 subset: function count limit exceeded");
         const auto finish = tokens[pc - 1].offset + 1;
         machine.functions[functionName] = SourceFunction{
             functionName, sourceName, sourceCode.substr(start, finish - start),
@@ -615,14 +670,16 @@ class Parser {
       const auto test = expression(active);
       expect(")");
       statement(active && test.truthy());
-      if (match("else")) statement(active && !test.truthy());
+      if (match("else"))
+        statement(active && !test.truthy());
       return;
     }
     if (match("for")) {
       expect("(");
       // The initializer uses the same bounded statement subset as ordinary
       // declarations/assignments, including its terminating semicolon.
-      if (!match(";")) statement(active);
+      if (!match(";"))
+        statement(active);
       const auto checkAt = pc;
       const bool hasCondition = look().text != ";";
       auto checked = hasCondition ? expression(active) : Value(true);
@@ -633,9 +690,12 @@ class Parser {
       const auto updateStart = look().offset;
       std::size_t nested = 0;
       while (look().kind != Token::End) {
-        if (look().text == ")" && nested == 0) break;
-        if (look().text == "(") ++nested;
-        if (look().text == ")") --nested;
+        if (look().text == ")" && nested == 0)
+          break;
+        if (look().text == "(")
+          ++nested;
+        if (look().text == ")")
+          --nested;
         ++pc;
       }
       if (look().kind == Token::End)
@@ -648,7 +708,8 @@ class Parser {
       const auto bodyAt = pc;
       statement(active && checked.truthy());
       const auto afterBody = pc;
-      if (!active) return;
+      if (!active)
+        return;
 
       unsigned iterations = checked.truthy() ? 1 : 0;
       while (checked.truthy()) {
@@ -661,7 +722,8 @@ class Parser {
         pc = checkAt;
         checked = hasCondition ? expression(true) : Value(true);
         expect(";");
-        if (!checked.truthy()) break;
+        if (!checked.truthy())
+          break;
         pc = bodyAt;
         statement(true);
         if (pc != afterBody)
@@ -679,7 +741,8 @@ class Parser {
       const auto bodyAt = pc;
       statement(active && test.truthy());
       const auto pastBody = pc;
-      if (!active) return;
+      if (!active)
+        return;
       unsigned iterations = test.truthy() ? 1 : 0;
       while (test.truthy()) {
         if (++iterations > 256)
@@ -687,7 +750,8 @@ class Parser {
         pc = checkAt;
         test = expression(true);
         expect(")");
-        if (!test.truthy()) break;
+        if (!test.truthy())
+          break;
         pc = bodyAt;
         statement(true);
         if (pc != pastBody)
@@ -701,7 +765,8 @@ class Parser {
       do {
         const auto name = identifier();
         const auto value = match("=") ? expression(active) : Value();
-        if (active) machine.set(name, value, true);
+        if (active)
+          machine.set(name, value, true);
       } while (match(","));
       expect(";");
       return;
@@ -712,18 +777,21 @@ class Parser {
     if (look().kind == Token::Identifier) {
       const auto saved = pc;
       auto name = identifier();
-      while (match(".")) name += "." + identifier();
+      while (match("."))
+        name += "." + identifier();
       if (match("++") || match("--")) {
-        const auto op = tokens[pc-1].text;
+        const auto op = tokens[pc - 1].text;
         expect(";");
         if (active) {
-          machine.set(name, Value(machine.get(name).number() +
-                                  (op == "++" ? 1.0 : -1.0)), false);
+          machine.set(
+              name,
+              Value(machine.get(name).number() + (op == "++" ? 1.0 : -1.0)),
+              false);
         }
         return;
       }
       if (match("=") || match("+=")) {
-        const auto op = tokens[pc-1].text;
+        const auto op = tokens[pc - 1].text;
         auto value = expression(active);
         expect(";");
         if (active) {
@@ -736,7 +804,8 @@ class Parser {
               value = Value(before.number() + value.number());
           }
           machine.set(name, value, false);
-          if (name == "System.title") machine.result.title = value.string();
+          if (name == "System.title")
+            machine.result.title = value.string();
         }
         return;
       }
@@ -748,10 +817,11 @@ class Parser {
 
 public:
   Parser(Interpreter &vm, std::string file, std::string text)
-      : machine(vm), sourceName(std::move(file)),
-        sourceCode(std::move(text)), tokens(lex(sourceCode)) {}
+      : machine(vm), sourceName(std::move(file)), sourceCode(std::move(text)),
+        tokens(lex(sourceCode)) {}
   void run() {
-    while (look().kind != Token::End) statement(true);
+    while (look().kind != Token::End)
+      statement(true);
   }
 };
 
@@ -786,7 +856,8 @@ Value Interpreter::construct(const std::string &type,
     // implemented and real KiriKiri scripts may still require them.
     result.requiresNativeRuntime = true;
     if (!args.empty())
-      throw std::runtime_error("TJS2 UI: Window constructor arguments unsupported");
+      throw std::runtime_error(
+          "TJS2 UI: Window constructor arguments unsupported");
     if (windows.size() >= 4)
       throw std::runtime_error("TJS2 UI: Window count limit exceeded");
     auto window = std::make_shared<Object>();
@@ -822,11 +893,13 @@ Value Interpreter::construct(const std::string &type,
       while (ancestor && ancestor->kind == Object::Kind::Layer)
         ancestor = ancestor->parent.lock();
       if (!ancestor || ancestor != *root)
-        throw std::runtime_error("TJS2 UI: Layer parent belongs to another Window");
+        throw std::runtime_error(
+            "TJS2 UI: Layer parent belongs to another Window");
     }
     return Value(createLayer(parent, false));
   }
-  throw std::runtime_error("TJS2 subset: native class not implemented: " + type);
+  throw std::runtime_error("TJS2 subset: native class not implemented: " +
+                           type);
 }
 
 void Interpreter::snapshotLayers() {
@@ -838,7 +911,8 @@ void Interpreter::snapshotLayers() {
   const auto bounded = [&](const ObjectPtr &object, const char *name,
                            int fallback, int low, int high) -> int {
     const auto value = member(object, name);
-    if (std::holds_alternative<std::monostate>(value.data)) return fallback;
+    if (std::holds_alternative<std::monostate>(value.data))
+      return fallback;
     const auto number = value.number();
     if (!std::isfinite(number) || number < low || number > high)
       throw std::runtime_error(std::string("TJS2 UI: invalid ") + name);
@@ -861,10 +935,11 @@ void Interpreter::snapshotLayers() {
       frame.onClick = member(layer, "onMouseDown").string();
     const auto callback = [&](const char *property) {
       const auto value = member(layer, property).string();
-      if (!value.empty() &&
-          (value.size() > 128 || !functions.count(value)))
-        throw std::runtime_error(std::string(
-            "TJS2 UI: event must name a declared script function: ") + property);
+      if (!value.empty() && (value.size() > 128 || !functions.count(value)))
+        throw std::runtime_error(
+            std::string(
+                "TJS2 UI: event must name a declared script function: ") +
+            property);
       return value;
     };
     if (!frame.onClick.empty() &&
@@ -880,7 +955,8 @@ void Interpreter::snapshotLayers() {
          ++depth, owner = owner->parent.lock()) {
       x += bounded(owner, "left", 0, -8192, 8192);
       y += bounded(owner, "top", 0, -8192, 8192);
-      if (!member(owner, "visible").truthy()) frame.visible = false;
+      if (!member(owner, "visible").truthy())
+        frame.visible = false;
       if (owner != layer)
         alpha = alpha * bounded(owner, "opacity", 255, 0, 255) / 255;
     }
@@ -898,7 +974,8 @@ void Interpreter::snapshotLayers() {
 Value Interpreter::call(const std::string &name,
                         const std::vector<Value> &params,
                         const std::string &current, bool activeFlag) {
-  if (!activeFlag) return {};
+  if (!activeFlag)
+    return {};
 
   if (auto it = functions.find(name); it != functions.end()) {
     // Copy the descriptor: nested declarations can rehash the function table.
@@ -906,7 +983,8 @@ Value Interpreter::call(const std::string &name,
     if (params.size() != function.parameters.size())
       throw std::runtime_error("TJS2 subset: argument count mismatch: " + name);
     if (functionDepth >= 16)
-      throw std::runtime_error("TJS2 subset: function recursion limit exceeded");
+      throw std::runtime_error(
+          "TJS2 subset: function recursion limit exceeded");
     std::unordered_map<std::string, Value> frame;
     for (std::size_t index = 0; index < params.size(); ++index)
       frame.emplace(function.parameters[index], params[index]);
@@ -934,13 +1012,13 @@ Value Interpreter::call(const std::string &name,
   const auto dot = name.rfind('.');
   if (dot != std::string::npos) {
     const auto method = name.substr(dot + 1);
-    if (method == "loadImages" || method == "setImage" ||
-        method == "setPos" || method == "setSize" ||
-        method == "show" || method == "hide") {
+    if (method == "loadImages" || method == "setImage" || method == "setPos" ||
+        method == "setSize" || method == "show" || method == "hide") {
       const auto receiver = get(name.substr(0, dot));
       const auto ptr = std::get_if<ObjectPtr>(&receiver.data);
       if (!ptr || !*ptr || (*ptr)->kind == Object::Kind::Dictionary)
-        throw std::runtime_error("TJS2 UI: method receiver is not a Layer/Window");
+        throw std::runtime_error(
+            "TJS2 UI: method receiver is not a Layer/Window");
       auto &obj = *ptr;
       const auto integer = [&](std::size_t index) {
         const auto n = params.at(index).number();
@@ -955,7 +1033,8 @@ Value Interpreter::call(const std::string &name,
         return {};
       }
       if (obj->kind != Object::Kind::Layer)
-        throw std::runtime_error("TJS2 UI: image/position method requires Layer");
+        throw std::runtime_error(
+            "TJS2 UI: image/position method requires Layer");
       if (method == "loadImages" || method == "setImage") {
         if (params.size() != 1)
           throw std::runtime_error("TJS2 UI: loadImages needs one storage ID");
@@ -985,8 +1064,8 @@ Value Interpreter::call(const std::string &name,
   if (name == "Plugins.link") {
     const auto id = safeName(requested);
     if (std::find(result.requestedPlugins.begin(),
-                  result.requestedPlugins.end(), id) ==
-        result.requestedPlugins.end())
+                  result.requestedPlugins.end(),
+                  id) == result.requestedPlugins.end())
       result.requestedPlugins.push_back(id);
     result.requiresNativeRuntime = true;
     return Value(false); // No native plugin was loaded.
@@ -1007,7 +1086,8 @@ void Interpreter::runFile(std::string id, std::size_t depth) {
     throw std::runtime_error("TJS2 subset: missing storage " + id);
   }
   if (endsWith(id, ".ks") || endsWith(id, ".ks.scn")) {
-    if (result.kagEntry.empty()) result.kagEntry = id;
+    if (result.kagEntry.empty())
+      result.kagEntry = id;
     result.requiresNativeRuntime = true; // KAG is not TJS2.
     return;
   }
@@ -1038,7 +1118,7 @@ public:
 };
 
 TjsStartupResult runTjsStartupSubset(const KirikiriAssets &assets,
-                                    std::size_t instructionBudget) {
+                                     std::size_t instructionBudget) {
   auto session = std::make_shared<TjsUiSession>(assets, instructionBudget);
   auto &vm = session->vm;
   const auto inspected = inspectTjsBootstrap(assets);
@@ -1060,8 +1140,8 @@ TjsStartupResult runTjsStartupSubset(const KirikiriAssets &assets,
 
 bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
   auto session = result.uiSession;
-  if (!session || !result.subsetCompleted ||
-      !std::isfinite(x) || !std::isfinite(y))
+  if (!session || !result.subsetCompleted || !std::isfinite(x) ||
+      !std::isfinite(y))
     return false;
   for (auto it = result.layers.rbegin(); it != result.layers.rend(); ++it) {
     const auto &layer = *it;
@@ -1082,10 +1162,14 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
       const auto arity = found->second.parameters.size();
       if (arity > 4)
         throw std::runtime_error("TJS2 UI: unsupported pointer event arity");
-      if (arity >= 1) arguments.emplace_back(double(x));
-      if (arity >= 2) arguments.emplace_back(double(y));
-      if (arity >= 3) arguments.emplace_back(1.0); // left mouse button
-      if (arity >= 4) arguments.emplace_back(0.0); // no keyboard modifiers
+      if (arity >= 1)
+        arguments.emplace_back(double(x));
+      if (arity >= 2)
+        arguments.emplace_back(double(y));
+      if (arity >= 3)
+        arguments.emplace_back(1.0); // left mouse button
+      if (arity >= 4)
+        arguments.emplace_back(0.0); // no keyboard modifiers
       vm.call(layer.onClick, arguments, {}, true);
       vm.snapshotLayers();
     } catch (const std::exception &error) {
@@ -1100,8 +1184,8 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
 
 bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
   auto session = result.uiSession;
-  if (!session || !result.subsetCompleted ||
-      !std::isfinite(x) || !std::isfinite(y))
+  if (!session || !result.subsetCompleted || !std::isfinite(x) ||
+      !std::isfinite(y))
     return false;
 
   std::size_t next = 0;
@@ -1121,7 +1205,8 @@ bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
     nextHandler = layer.onMouseEnter;
     break;
   }
-  if (session->hoveredLayer == next) return false;
+  if (session->hoveredLayer == next)
+    return false;
   for (const auto &layer : result.layers) {
     if (layer.id == session->hoveredLayer) {
       previousHandler = layer.onMouseLeave;
@@ -1133,7 +1218,8 @@ bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
   bool called = false;
   try {
     const auto invoke = [&](const std::string &name) {
-      if (name.empty()) return;
+      if (name.empty())
+        return;
       const auto found = vm.functions.find(name);
       if (found == vm.functions.end())
         throw std::runtime_error("TJS2 UI: hover handler not found");
@@ -1141,16 +1227,21 @@ bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
       if (arity > 4)
         throw std::runtime_error("TJS2 UI: excessive hover parameters");
       std::vector<Value> args;
-      if (arity >= 1) args.emplace_back(double(x));
-      if (arity >= 2) args.emplace_back(double(y));
-      if (arity >= 3) args.emplace_back(0.0);
-      if (arity >= 4) args.emplace_back(0.0);
+      if (arity >= 1)
+        args.emplace_back(double(x));
+      if (arity >= 2)
+        args.emplace_back(double(y));
+      if (arity >= 3)
+        args.emplace_back(0.0);
+      if (arity >= 4)
+        args.emplace_back(0.0);
       vm.call(name, args, {}, true);
       called = true;
     };
     invoke(previousHandler);
     invoke(nextHandler);
-    if (called) vm.snapshotLayers();
+    if (called)
+      vm.snapshotLayers();
   } catch (const std::exception &error) {
     vm.result.error = std::string("TJS2 UI hover: ") + error.what();
     called = true;

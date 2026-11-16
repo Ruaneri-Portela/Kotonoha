@@ -14,25 +14,23 @@
 namespace {
 void reportScene(const Amagami::Vita::VitaVmBridge &bridge) {
   const auto &view = bridge.view();
-  std::cout << "Vita view: scale=" << view.scale
-            << " originY=" << view.originY << '\n';
+  std::cout << "Vita view: scale=" << view.scale << " originY=" << view.originY
+            << '\n';
   std::cout << "Vita Sprite objects: " << bridge.sprites().size() << '\n';
   size_t shown = 0;
   for (const auto &[uid, sprite] : bridge.sprites()) {
-    if (++shown > 12) break;
+    if (++shown > 12)
+      break;
     std::cout << "  sprite " << uid << " texture=" << sprite.texture
-              << " variant=" << sprite.variant
-              << " layer=" << sprite.layer
+              << " variant=" << sprite.variant << " layer=" << sprite.layer
               << " image=" << (sprite.hasImage ? "decoded" : "none/unknown")
-              << " rect=(" << sprite.rect[0] << ", " << sprite.rect[1]
-              << ", " << sprite.rect[2] << ", " << sprite.rect[3]
-              << ")\n";
+              << " rect=(" << sprite.rect[0] << ", " << sprite.rect[1] << ", "
+              << sprite.rect[2] << ", " << sprite.rect[3] << ")\n";
   }
 }
-void saveSnapshot(const std::string &path,
-                  const Amagami::Vita::VitaVmBridge &bridge,
-                  const std::shared_ptr<Kotonoha::Providers::VitaGraphicsAssets>
-                      &graphics) {
+void saveSnapshot(
+    const std::string &path, const Amagami::Vita::VitaVmBridge &bridge,
+    const std::shared_ptr<Kotonoha::Providers::VitaGraphicsAssets> &graphics) {
   Kotonoha::SurfacePtr canvas(
       SDL_CreateSurface(960, 544, SDL_PIXELFORMAT_RGBA32));
   if (!canvas)
@@ -47,14 +45,14 @@ void saveSnapshot(const std::string &path,
                           : Kotonoha::SurfacePtr{};
         });
     presenter.setNamedSource([graphics](const std::string &name) {
-      return graphics && graphics->contains(name)
-                 ? graphics->loadSurface(name) : Kotonoha::SurfacePtr{};
+      return graphics && graphics->contains(name) ? graphics->loadSurface(name)
+                                                  : Kotonoha::SurfacePtr{};
     });
-    presenter.setFontSource([graphics](unsigned font, uint16_t code,
-                                      unsigned palette) {
-      return graphics ? graphics->fontGlyph(font, code, palette)
-                      : Kotonoha::SurfacePtr{};
-    });
+    presenter.setFontSource(
+        [graphics](unsigned font, uint16_t code, unsigned palette) {
+          return graphics ? graphics->fontGlyph(font, code, palette)
+                          : Kotonoha::SurfacePtr{};
+        });
     presenter.draw(bridge);
     if (!SDL_RenderPresent(software.get()))
       throw std::runtime_error(SDL_GetError());
@@ -76,18 +74,20 @@ int main(int argc, char **argv) {
   }
   try {
     int positional = argc;
-    const bool haveSnapshot = positional >= 4 &&
-                      std::string(argv[positional - 2]) == "--snapshot";
-    const std::string snapshot = haveSnapshot ?
-        std::string(argv[positional - 1]) : std::string{};
-    if (haveSnapshot) positional -= 2;
-    const bool haveElf = positional >= 4 &&
-                         std::string(argv[positional - 2]) == "--ui-elf";
-    const std::string elf = haveElf ? std::string(argv[positional - 1])
-                                    : std::string{};
-    if (haveElf) positional -= 2;
-    if (positional != 2 && positional != 3 &&
-        positional != 5 && positional != 6)
+    const bool haveSnapshot =
+        positional >= 4 && std::string(argv[positional - 2]) == "--snapshot";
+    const std::string snapshot =
+        haveSnapshot ? std::string(argv[positional - 1]) : std::string{};
+    if (haveSnapshot)
+      positional -= 2;
+    const bool haveElf =
+        positional >= 4 && std::string(argv[positional - 2]) == "--ui-elf";
+    const std::string elf =
+        haveElf ? std::string(argv[positional - 1]) : std::string{};
+    if (haveElf)
+      positional -= 2;
+    if (positional != 2 && positional != 3 && positional != 5 &&
+        positional != 6)
       throw std::invalid_argument("Invalid Vita probe argument count");
 
     Amagami::Vita::VitaScripts source(argv[1]);
@@ -103,10 +103,9 @@ int main(int argc, char **argv) {
     };
     std::shared_ptr<Kotonoha::Providers::VitaGraphicsAssets> graphics;
     if (haveElf) {
-      graphics =
-          std::make_shared<Kotonoha::Providers::VitaGraphicsAssets>(
-              (std::filesystem::path(argv[1]) / "graph" / "GRAPH.CPK").string(),
-              elf);
+      graphics = std::make_shared<Kotonoha::Providers::VitaGraphicsAssets>(
+          (std::filesystem::path(argv[1]) / "graph" / "GRAPH.CPK").string(),
+          elf);
       // The new Sprite SCF primitives consult the actual CPK/ELF decoder
       // to get a picture's dimensions. Only metadata is retained by the
       // scene bridge, never a second copy of every pixel buffer.
@@ -114,26 +113,28 @@ int main(int argc, char **argv) {
           [graphics](uint32_t texture, uint32_t variant)
               -> std::optional<std::pair<uint32_t, uint32_t>> {
             auto surface = graphics->uiSurface(texture, variant);
-            if (!surface) return std::nullopt;
-            return std::make_pair(uint32_t(surface->w),
-                                  uint32_t(surface->h));
+            if (!surface)
+              return std::nullopt;
+            return std::make_pair(uint32_t(surface->w), uint32_t(surface->h));
           });
     }
     if (graphics)
       bridge.setNamedPictureSizeResolver(
           [graphics](const std::string &name)
               -> std::optional<std::pair<uint32_t, uint32_t>> {
-            if (!graphics->contains(name)) return std::nullopt;
+            if (!graphics->contains(name))
+              return std::nullopt;
             auto surface = graphics->loadSurface(name);
-            if (!surface) return std::nullopt;
-            return std::make_pair(uint32_t(surface->w),
-                                  uint32_t(surface->h));
+            if (!surface)
+              return std::nullopt;
+            return std::make_pair(uint32_t(surface->w), uint32_t(surface->h));
           });
     std::cout << "Vita SCF VM loaded " << source.systemCount()
               << " system classes and " << source.scenarioCount()
               << " scenario classes\n";
     if (positional == 2) {
-      if (!snapshot.empty()) saveSnapshot(snapshot, bridge, graphics);
+      if (!snapshot.empty())
+        saveSnapshot(snapshot, bridge, graphics);
       return 0;
     }
 
@@ -144,7 +145,8 @@ int main(int argc, char **argv) {
         throw std::invalid_argument("--boot takes no extra arguments");
     } else if (std::string(argv[2]) == "--probe") {
       if (positional != 5 && positional != 6)
-        throw std::invalid_argument("--probe expects CLASS METHOD [--instance]");
+        throw std::invalid_argument(
+            "--probe expects CLASS METHOD [--instance]");
       klass = argv[3];
       method = argv[4];
       if (positional == 6) {
@@ -155,9 +157,9 @@ int main(int argc, char **argv) {
     } else {
       throw std::invalid_argument("Expected --boot or --probe");
     }
-    const auto receiver = instance ? vm.instance(klass)
-                                   : Amagami::VmValue::str(klass,
-                                                           Amagami::VmValue::Class);
+    const auto receiver =
+        instance ? vm.instance(klass)
+                 : Amagami::VmValue::str(klass, Amagami::VmValue::Class);
     if (!vm.hasClass(klass))
       throw std::runtime_error("No Vita SCF class " + klass);
     vm.call(receiver, method);
@@ -165,11 +167,13 @@ int main(int argc, char **argv) {
       vm.run(250000); // bounded diagnostic, never an unattended game loop
     } catch (...) {
       reportScene(bridge); // Inspect objects reached before an unknown native.
-      if (!snapshot.empty()) saveSnapshot(snapshot, bridge, graphics);
+      if (!snapshot.empty())
+        saveSnapshot(snapshot, bridge, graphics);
       throw;
     }
     reportScene(bridge);
-    if (!snapshot.empty()) saveSnapshot(snapshot, bridge, graphics);
+    if (!snapshot.empty())
+      saveSnapshot(snapshot, bridge, graphics);
     if (!vm.finished()) {
       std::cout << "Vita VM budget exhausted at " << vm.location() << '\n';
       return 3;

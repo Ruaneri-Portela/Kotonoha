@@ -5,9 +5,9 @@
 #include "ZeroRuntime.hpp"
 #include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <cstdio>
 
 #include <cstdlib>
@@ -73,10 +73,11 @@ struct KotonohaPortCallbacks final {
   static void quit(void *state, SDL_AppResult result);
 };
 
-SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
+                                          char **argv) {
   *appstate = nullptr;
   KOTONOHA_SET_APP_METADATA("Zero no Tsukaima",
-                     "me.hirameki.kotonoha.zeronotsukaima");
+                            "me.hirameki.kotonoha.zeronotsukaima");
   try {
     auto app = std::make_unique<App>();
     Kotonoha::EngineOptions &options = app->options;

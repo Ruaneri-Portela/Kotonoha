@@ -151,7 +151,8 @@ std::vector<std::string> UpscalePresetShaderFiles(UpscalePreset preset) {
 }
 
 bool UpscaleSettings::enabled() const {
-  return KOTONOHA_ENABLE_UPSCALER && backend != UpscaleBackend::None && factor > 1;
+  return KOTONOHA_ENABLE_UPSCALER && backend != UpscaleBackend::None &&
+         factor > 1;
 }
 
 const char *UpscaleBackendName(UpscaleBackend backend) {
@@ -626,14 +627,16 @@ bool RenderUpscaledTextureRotated(SDL_Renderer *renderer, SDL_Texture *texture,
 
 } // namespace Kotonoha
 
-#else // !KOTONOHA_ENABLE_UPSCALER
+#else  // !KOTONOHA_ENABLE_UPSCALER
 // OFF builds keep only the SDL render path required by game ports.
 // No GPU upscale backends, shaders, caches, or renderer property hooks.
 Upscaler::Upscaler(RendererRef value) : renderer(value) {}
 Upscaler::~Upscaler() = default;
 Uint64 Upscaler::retryDeadline() const { return 0; }
 void Upscaler::clearBackendCache() {}
-SDL_PixelFormat Upscaler::workingFormat() const { return SDL_PIXELFORMAT_RGBA32; }
+SDL_PixelFormat Upscaler::workingFormat() const {
+  return SDL_PIXELFORMAT_RGBA32;
+}
 void Upscaler::configure(const UpscaleSettings &value) { settings = value; }
 const UpscaleSettings &Upscaler::getSettings() const { return settings; }
 SDL_Texture &Upscaler::process(TextureRef texture, Uint64) { return texture; }
@@ -666,14 +669,15 @@ TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
     throw std::invalid_argument("Scale must be in (0, 16]");
   const int w = std::max(1, static_cast<int>(std::lround(texture.w * scale)));
   const int h = std::max(1, static_cast<int>(std::lround(texture.h * scale)));
-  const auto maximum = SDL_GetNumberProperty(
-      SDL_GetRendererProperties(&renderer),
-      SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
+  const auto maximum =
+      SDL_GetNumberProperty(SDL_GetRendererProperties(&renderer),
+                            SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
   if (maximum > 0 && (w > maximum || h > maximum))
     throw std::runtime_error("Scaled picture exceeds the texture size limit");
   TexturePtr result(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
                                       SDL_TEXTUREACCESS_TARGET, w, h));
-  if (!result) throw std::runtime_error(SDL_GetError());
+  if (!result)
+    throw std::runtime_error(SDL_GetError());
   SDL_ScaleMode oldMode = SDL_SCALEMODE_LINEAR;
   requireSDL(SDL_GetTextureScaleMode(&texture, &oldMode));
   requireSDL(SDL_SetTextureScaleMode(&texture, SDL_SCALEMODE_LINEAR));
@@ -692,18 +696,22 @@ SurfacePtr Upscaling::scaled(const SDL_Surface &surface, float scale) {
     throw std::invalid_argument("Scale must be in (0, 16]");
   const int w = std::max(1, static_cast<int>(std::lround(surface.w * scale)));
   const int h = std::max(1, static_cast<int>(std::lround(surface.h * scale)));
-  SurfacePtr output(SDL_ScaleSurface(const_cast<SDL_Surface *>(&surface),
-                                    w, h, SDL_SCALEMODE_LINEAR));
-  if (!output) throw std::runtime_error(SDL_GetError());
-  if (output->format == SDL_PIXELFORMAT_RGBA32) return output;
+  SurfacePtr output(SDL_ScaleSurface(const_cast<SDL_Surface *>(&surface), w, h,
+                                     SDL_SCALEMODE_LINEAR));
+  if (!output)
+    throw std::runtime_error(SDL_GetError());
+  if (output->format == SDL_PIXELFORMAT_RGBA32)
+    return output;
   SurfacePtr rgba(SDL_ConvertSurface(output.get(), SDL_PIXELFORMAT_RGBA32));
-  if (!rgba) throw std::runtime_error(SDL_GetError());
+  if (!rgba)
+    throw std::runtime_error(SDL_GetError());
   return rgba;
 }
 bool RenderUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                            const SDL_FRect *source,
                            const SDL_FRect *destination, Uint64) {
-  if (!renderer || !texture) return SDL_SetError("Missing renderer or texture");
+  if (!renderer || !texture)
+    return SDL_SetError("Missing renderer or texture");
   return SDL_RenderTexture(renderer, texture, source, destination);
 }
 bool RenderUpscaledTextureRotated(SDL_Renderer *renderer, SDL_Texture *texture,
@@ -711,7 +719,8 @@ bool RenderUpscaledTextureRotated(SDL_Renderer *renderer, SDL_Texture *texture,
                                   const SDL_FRect *destination, double angle,
                                   const SDL_FPoint *center, SDL_FlipMode flip,
                                   Uint64) {
-  if (!renderer || !texture) return SDL_SetError("Missing renderer or texture");
+  if (!renderer || !texture)
+    return SDL_SetError("Missing renderer or texture");
   return angle == 0 && flip == SDL_FLIP_NONE && !center
              ? SDL_RenderTexture(renderer, texture, source, destination)
              : SDL_RenderTextureRotated(renderer, texture, source, destination,

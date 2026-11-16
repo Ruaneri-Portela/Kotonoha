@@ -66,9 +66,8 @@ int main(int argc, char **argv) {
   }
   {
     // An NWK slice keeps its offset/size when the archive is virtual.
-    const std::vector<std::uint8_t> archive{1, 0, 0, 0, 4, 0, 0, 0,
-                                            16, 0, 0, 0, 9, 0, 0, 0,
-                                            'O', 'g', 'g', 'S'};
+    const std::vector<std::uint8_t> archive{
+        1, 0, 0, 0, 4, 0, 0, 0, 16, 0, 0, 0, 9, 0, 0, 0, 'O', 'g', 'g', 'S'};
     const RealLive::VoiceIndex mounted(
         std::vector<std::string>{"KOE/z0001.nwk"},
         [&](const std::string &) { return archive; },

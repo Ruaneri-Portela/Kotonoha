@@ -5,15 +5,15 @@
 
 #include <zlib.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
-#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#include <limits>
 #include <memory>
 #include <set>
-#include <limits>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -241,8 +241,8 @@ KirikiriAssets::findXp3Entry(const std::string &id, bool *collision) const {
     bool ambiguous = false;
     // A later index chunk may replace an entry earlier in the same archive.
     // Look backwards so chain updates take precedence just like patch XP3s.
-    for (auto item = archive->second.rbegin();
-         item != archive->second.rend(); ++item) {
+    for (auto item = archive->second.rbegin(); item != archive->second.rend();
+         ++item) {
       const auto &entry = *item;
       if (resolveId(entry.name) == normalized)
         return &entry;
@@ -338,8 +338,9 @@ KirikiriAssets::loadSurfaceAsset(const std::string &id) const {
   const auto dot = id.find_last_of('.');
   if (dot != std::string::npos) {
     std::string extension = id.substr(dot);
-    std::transform(extension.begin(), extension.end(), extension.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(
+        extension.begin(), extension.end(), extension.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (extension == ".tlg" || extension == ".tlg5" || extension == ".tlg6") {
       const auto bytes = read(id);
       return decodeTlgImage(bytes);
@@ -370,9 +371,7 @@ void KirikiriAssets::mountXp3(const std::filesystem::path &path) {
   const auto logical = id.generic_string();
   const auto name = id.filename().string();
   if (std::any_of(archives.begin(), archives.end(),
-                  [&](const auto &archive) {
-                    return archive.first == name;
-                  }))
+                  [&](const auto &archive) { return archive.first == name; }))
     return;
   if (!readXp3(logical))
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -384,21 +383,21 @@ void KirikiriAssets::mountAllXp3() {
   for (const auto &entry : source_->list("")) {
     if (entry.type != Kotonoha::Filesystem::FileType::Regular)
       continue;
-    const auto extension = std::filesystem::path(entry.path).extension().string();
+    const auto extension =
+        std::filesystem::path(entry.path).extension().string();
     std::string lower = extension;
-    std::transform(lower.begin(), lower.end(), lower.begin(),
-                   [](unsigned char ch) {
-                     return static_cast<char>(std::tolower(ch));
-                   });
+    std::transform(
+        lower.begin(), lower.end(), lower.begin(),
+        [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     if (lower == ".xp3")
       names.push_back(entry.path);
   }
   const auto rank = [](std::string name) {
-    std::transform(name.begin(), name.end(), name.begin(),
-                   [](unsigned char ch) {
-                     return static_cast<char>(std::tolower(ch));
-                   });
-    if (name.find("patch") != std::string::npos) return 2;
+    std::transform(
+        name.begin(), name.end(), name.begin(),
+        [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    if (name.find("patch") != std::string::npos)
+      return 2;
     return name == "data.xp3" ? 0 : 1;
   };
   std::sort(names.begin(), names.end(), [&](const auto &a, const auto &b) {
@@ -413,8 +412,8 @@ void KirikiriAssets::mountAllXp3() {
       // One unsupported/corrupt patch must not prevent other XP3 archives
       // from reaching the launcher and its diagnostic title screen.
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "KiriKiri: cannot mount XP3 %s: %s",
-                  id.c_str(), error.what());
+                  "KiriKiri: cannot mount XP3 %s: %s", id.c_str(),
+                  error.what());
     }
   }
 }
@@ -466,15 +465,13 @@ bool KirikiriAssets::readXp3(const std::string &id) {
   constexpr std::uint64_t kMaxIndexBytes = 64ull * 1024 * 1024;
   constexpr std::size_t kMaxIndexParts = 64;
 
-  const auto readAt = [&](std::uint64_t pos, void *out,
-                          std::size_t size) {
+  const auto readAt = [&](std::uint64_t pos, void *out, std::size_t size) {
     if (pos > fileSize || size > fileSize - pos ||
         pos > static_cast<std::uint64_t>(
                   std::numeric_limits<std::int64_t>::max()) ||
         f->seek(static_cast<std::int64_t>(pos),
                 Kotonoha::Filesystem::SeekOrigin::Begin) < 0 ||
-        (size && f->read(out, size) !=
-                     static_cast<std::int64_t>(size)))
+        (size && f->read(out, size) != static_cast<std::int64_t>(size)))
       throw std::runtime_error("XP3 truncated or invalid storage range: " + id);
   };
   const auto read64At = [&](std::uint64_t pos) {
@@ -509,8 +506,7 @@ bool KirikiriAssets::readXp3(const std::string &id) {
     if (compressed) {
       originalSize = read64At(indexOffset + 9);
       payloadOffset += 8;
-    } else if (indexOffset <= fileSize - 17 &&
-               storedSize <= kMaxIndexBytes) {
+    } else if (indexOffset <= fileSize - 17 && storedSize <= kMaxIndexBytes) {
       // Old synthetic XP3 v2 fixtures included both size fields for raw
       // indices. Accept this variant only when its extra eight bytes precede
       // a valid-looking File chunk; canonical raw indices use just one.
@@ -618,7 +614,8 @@ bool KirikiriAssets::readXp3(const std::string &id) {
       if (hasInfo && hasSegments && !entry.name.empty()) {
         if (originalTotal != entry.originalSize ||
             storedTotal != declaredStored)
-          throw std::runtime_error("XP3 mismatched decompressed file size: " + id);
+          throw std::runtime_error("XP3 mismatched decompressed file size: " +
+                                   id);
         // A title-specific filter may still be needed at extraction time;
         // indexing must not hide the file solely because its info flag is set.
         entries.push_back(std::move(entry));
@@ -629,8 +626,9 @@ bool KirikiriAssets::readXp3(const std::string &id) {
       std::size_t segmentCount = 0;
       for (const auto &entry : entries)
         segmentCount += entry.segments.size();
-      SDL_Log("KiriKiri: indexed %s: %zu assets, %zu segments, %zu index blocks",
-              id.c_str(), entries.size(), segmentCount, visited.size());
+      SDL_Log(
+          "KiriKiri: indexed %s: %zu assets, %zu segments, %zu index blocks",
+          id.c_str(), entries.size(), segmentCount, visited.size());
       archives.emplace_back(std::filesystem::path(id).filename().string(),
                             std::move(entries));
       return true;
@@ -666,15 +664,16 @@ KirikiriAssets::extractXp3Entry(const Xp3Entry &entry) const {
     if (f->seek(static_cast<std::int64_t>(segment.offset),
                 Kotonoha::Filesystem::SeekOrigin::Begin) < 0)
       throw std::runtime_error("Cannot seek XP3 segment: " + entry.name);
-    std::vector<std::uint8_t> packed(static_cast<std::size_t>(segment.storedSize));
-    if (!packed.empty() &&
-        f->read(packed.data(), packed.size()) !=
-            static_cast<std::int64_t>(packed.size()))
+    std::vector<std::uint8_t> packed(
+        static_cast<std::size_t>(segment.storedSize));
+    if (!packed.empty() && f->read(packed.data(), packed.size()) !=
+                               static_cast<std::int64_t>(packed.size()))
       throw std::runtime_error("Cannot read XP3 segment: " + entry.name);
-    auto decoded = segment.compressed
-        ? zlibInflate(packed.data(), packed.size(),
-                      static_cast<std::size_t>(segment.originalSize))
-        : std::move(packed);
+    auto decoded =
+        segment.compressed
+            ? zlibInflate(packed.data(), packed.size(),
+                          static_cast<std::size_t>(segment.originalSize))
+            : std::move(packed);
     if (decoded.size() != segment.originalSize ||
         decoded.size() > entry.originalSize - result.size())
       throw std::runtime_error("XP3 invalid decoded segment size: " +

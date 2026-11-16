@@ -11,7 +11,11 @@ void check(bool value, const char *message) {
 }
 template <class F> void rejects(F fn) {
   bool error = false;
-  try { fn(); } catch (const std::runtime_error &) { error = true; }
+  try {
+    fn();
+  } catch (const std::runtime_error &) {
+    error = true;
+  }
   check(error, "Malformed Vita picture should be rejected");
 }
 } // namespace
@@ -24,20 +28,20 @@ int main() {
     const auto face = pictureLayout("face/f1_Ax.tm2");
     const auto event = pictureLayout("epi/e1_01a0.gxt");
     const auto expression = pictureLayout("eface/f1_Ax.tm2");
-    check(background && background->width == 960 &&
-          background->height == 720 && background->bgra,
+    check(background && background->width == 960 && background->height == 720 &&
+              background->bgra,
           "Vita background layout");
     check(event && event->width == 960 && event->bgra,
           "Vita event image layout");
-    check(body && body->width == 1024 && body->height == 1536 &&
-          body->bgra, "Vita body layout");
-    check(face && face->width == 1024 && face->height == 1024 &&
-          !face->bgra && expression && !expression->bgra,
+    check(body && body->width == 1024 && body->height == 1536 && body->bgra,
+          "Vita body layout");
+    check(face && face->width == 1024 && face->height == 1024 && !face->bgra &&
+              expression && !expression->bgra,
           "Vita face layouts");
     check(!pictureLayout("font/AMV_font18_21.tm2") &&
-          !pictureLayout("system/sysgraph.tm2") &&
-          !pictureLayout("../body/a.gxt") &&
-          !pictureLayout("body/not_image.tm2"),
+              !pictureLayout("system/sysgraph.tm2") &&
+              !pictureLayout("../body/a.gxt") &&
+              !pictureLayout("body/not_image.tm2"),
           "Unsupported resources must not use an incorrect 8-bit layout");
 
     std::string indexed(1024 + 4, '\0');
@@ -57,14 +61,12 @@ int main() {
     auto rgba = decodeIndexed8(indexed, {2, 2, false});
     check(bgra.width == 2 && bgra.height == 2 && bgra.rgba.size() == 16,
           "RGBA output dimensions");
-    check(bgra.rgba[0] == 30 && bgra.rgba[1] == 20 &&
-          bgra.rgba[2] == 10 && bgra.rgba[3] == 128 &&
-          rgba.rgba[0] == 10 && rgba.rgba[1] == 20 &&
-          rgba.rgba[2] == 30 && rgba.rgba[3] == 128,
+    check(bgra.rgba[0] == 30 && bgra.rgba[1] == 20 && bgra.rgba[2] == 10 &&
+              bgra.rgba[3] == 128 && rgba.rgba[0] == 10 && rgba.rgba[1] == 20 &&
+              rgba.rgba[2] == 30 && rgba.rgba[3] == 128,
           "BGRA versus RGBA palette channel order and unchanged alpha");
-    check(bgra.rgba[4] == 25 && bgra.rgba[5] == 64 &&
-          bgra.rgba[6] == 240 && bgra.rgba[7] == 255 &&
-          bgra.rgba[8] == 25 && bgra.rgba[12] == 30,
+    check(bgra.rgba[4] == 25 && bgra.rgba[5] == 64 && bgra.rgba[6] == 240 &&
+              bgra.rgba[7] == 255 && bgra.rgba[8] == 25 && bgra.rgba[12] == 30,
           "Palette index expansion keeps pixel order");
     rejects([&] { decodeIndexed8(indexed.substr(0, 1027), {2, 2, true}); });
     rejects([&] { decodeIndexed8(indexed + "x", {2, 2, true}); });

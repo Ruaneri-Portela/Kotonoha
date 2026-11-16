@@ -1,10 +1,10 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/Config.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Launcher.hpp>
-#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Log.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 
 #include <imgui.h>
@@ -12,9 +12,9 @@
 #include <imgui_impl_sdlrenderer3.h>
 #include <imgui_stdlib.h>
 
+#include <Kotonoha/core/BuildVersion.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/debug/SystemInfo.hpp>
-#include <Kotonoha/core/BuildVersion.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -418,8 +418,8 @@ void Launcher::draw() {
     ImGui::TextDisabled("%s", settingsPath.empty()
                                   ? "Settings will not be saved"
                                   : settingsPath.c_str());
-    ImGui::TextDisabled("Engine %s  |  Commit %s",
-                        BuildVersion::Base, BuildVersion::ShortCommit);
+    ImGui::TextDisabled("Engine %s  |  Commit %s", BuildVersion::Base,
+                        BuildVersion::ShortCommit);
     if (ImGui::IsItemHovered())
       ImGui::SetTooltip("%s\nBranch: %s", BuildVersion::Full,
                         BuildVersion::Branch);
@@ -592,10 +592,8 @@ void Launcher::drawVideo() {
         }
         ImGui::EndCombo();
       }
-
     }
     if (count > 0) {
-
     }
   } else {
     ImGui::TextDisabled(

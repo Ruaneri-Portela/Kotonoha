@@ -3,12 +3,12 @@
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #ifdef __EMSCRIPTEN__
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
@@ -222,8 +222,9 @@ bool ReadFilesystem(std::string_view reference, std::vector<uint8_t> *out,
   if (out == nullptr)
     return Fail(error, "School Days asset output is null");
   out->clear();
-  Kotonoha::Filesystem::InputFile file(std::filesystem::path(std::string(reference)),
-                     std::ios::binary | std::ios::ate);
+  Kotonoha::Filesystem::InputFile file(
+      std::filesystem::path(std::string(reference)),
+      std::ios::binary | std::ios::ate);
   if (!file)
     return Fail(error, "School Days asset file could not be opened");
   const std::streamoff end = file.tellg();

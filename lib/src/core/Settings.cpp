@@ -2,9 +2,9 @@
 #include <Kotonoha/core/Settings.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <cmath>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <json-c/json.h>
 #include <limits>
 #include <memory>

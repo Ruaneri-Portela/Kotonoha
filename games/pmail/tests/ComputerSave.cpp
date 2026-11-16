@@ -13,20 +13,23 @@
 
 namespace {
 void require(bool ok, const char *what) {
-  if (!ok) throw std::runtime_error(what);
+  if (!ok)
+    throw std::runtime_error(what);
 }
 void u16(std::vector<uint8_t> &d, size_t pos, uint16_t v) {
   d.at(pos) = uint8_t(v);
   d.at(pos + 1) = uint8_t(v >> 8);
 }
 void u32(std::vector<uint8_t> &d, size_t pos, uint32_t v) {
-  for (int i = 0; i < 4; ++i) d.at(pos + i) = uint8_t(v >> (i * 8));
+  for (int i = 0; i < 4; ++i)
+    d.at(pos + i) = uint8_t(v >> (i * 8));
 }
 void append32(std::vector<uint8_t> &d, uint32_t v) {
-  for (int i = 0; i < 4; ++i) d.push_back(uint8_t(v >> (i * 8)));
+  for (int i = 0; i < 4; ++i)
+    d.push_back(uint8_t(v >> (i * 8)));
 }
 std::vector<uint8_t> object(uint16_t id,
-                             const std::vector<std::string> &strings) {
+                            const std::vector<std::string> &strings) {
   std::vector<uint8_t> d(4 + strings.size() * 4, 0);
   for (size_t i = 0; i < strings.size(); ++i) {
     const auto offset = d.size();
@@ -37,7 +40,8 @@ std::vector<uint8_t> object(uint16_t id,
     d.insert(d.end(), strings[i].begin(), strings[i].end());
     d.push_back(0);
   }
-  while (d.size() % 4) d.push_back(0);
+  while (d.size() % 4)
+    d.push_back(0);
   u16(d, 0, uint16_t(d.size())); // user table offset
   u16(d, 2, uint16_t(strings.size()));
   append32(d, 4); // user table length
@@ -49,9 +53,10 @@ std::vector<uint8_t> object(uint16_t id,
 std::vector<uint8_t> pack() {
   std::vector<uint8_t> archive;
   std::vector<uint8_t> index(3 * 0x50, 0);
-  const std::array<std::pair<std::string, std::vector<std::string>>, 3>
-      items{{{"pmail.obj", {}}, {"start.obj", {}},
-             {"text.obj", {"$NO at $HO", "12:30", "hello"}}}};
+  const std::array<std::pair<std::string, std::vector<std::string>>, 3> items{
+      {{"pmail.obj", {}},
+       {"start.obj", {}},
+       {"text.obj", {"$NO at $HO", "12:30", "hello"}}}};
   for (size_t i = 0; i < items.size(); ++i) {
     const auto pos = i * 0x50;
     const auto data = object(uint16_t(i + 1), items[i].second);
@@ -69,12 +74,8 @@ std::vector<uint8_t> pack() {
   append32(archive, 0xf0f0f0f0u);
   return archive;
 }
-Pmail::Arg number(int value) {
-  return {uint32_t(uint16_t(value))};
-}
-Pmail::Arg text(size_t id) {
-  return {(3u << 20) | (2u << 16) | uint32_t(id)};
-}
+Pmail::Arg number(int value) { return {uint32_t(uint16_t(value))}; }
+Pmail::Arg text(size_t id) { return {(3u << 20) | (2u << 16) | uint32_t(id)}; }
 void checkPanels(const Kotonoha::PmailPort::PmailGame &game) {
   const auto chat = game.chatPanel();
   const auto mail = game.mailPanel();
@@ -88,8 +89,8 @@ void checkPanels(const Kotonoha::PmailPort::PmailGame &game) {
   const auto icons = game.computerIcons();
   require(icons[24].active && icons[24].x == 245 && icons[24].y == 152,
           "SYS 50 icon position was not restored");
-  require(game.computerClock() == "12:30" &&
-              game.playerNameNO() == "Alice" && game.playerNameHO() == "Bob",
+  require(game.computerClock() == "12:30" && game.playerNameNO() == "Alice" &&
+              game.playerNameHO() == "Bob",
           "Clock or customized names were not restored");
 }
 void checksum(std::string &blob) {
@@ -113,16 +114,17 @@ void testSaveAndCorruption() {
     game.native(game.vm(), id, args);
   };
   call(50, {number(24), number(245), number(152)});
-  call(52, {text(0), number(1), number(2), number(200),
-            number(30), number(16), number(8)});
+  call(52, {text(0), number(1), number(2), number(200), number(30), number(16),
+            number(8)});
   call(80, {text(1)});
   call(176, {number(1), text(0)});
-  call(179, {number(1), number(2), number(3), number(4),
-             number(5), number(6), number(7)});
+  call(179, {number(1), number(2), number(3), number(4), number(5), number(6),
+             number(7)});
   call(192, {number(2), text(2)});
   call(195, {number(9)});
   call(51, {number(0), number(245), number(152)});
-  for (int i = 0; i < 4; ++i) game.advanceAnimation(54);
+  for (int i = 0; i < 4; ++i)
+    game.advanceAnimation(54);
   game.advanceAnimation(17);
   require(game.animating() && game.animations().back().frame == 4,
           "Synthetic OSBOOT pre-logo animation checkpoint failed");
@@ -149,7 +151,11 @@ void testSaveAndCorruption() {
   std::string corrupt = afterResume;
   corrupt.back() ^= 1;
   bool rejected = false;
-  try { restored.deserialize(corrupt); } catch (...) { rejected = true; }
+  try {
+    restored.deserialize(corrupt);
+  } catch (...) {
+    rejected = true;
+  }
   require(rejected && restored.serialize() == afterResume,
           "Corrupt checksum modified live computer/animation state");
 
@@ -161,7 +167,11 @@ void testSaveAndCorruption() {
     corrupt[iconTable + 4 + i] = char(uint32_t(9999) >> (8 * i));
   checksum(corrupt);
   rejected = false;
-  try { restored.deserialize(corrupt); } catch (...) { rejected = true; }
+  try {
+    restored.deserialize(corrupt);
+  } catch (...) {
+    rejected = true;
+  }
   require(rejected && restored.serialize() == afterResume,
           "Invalid icon coordinates modified live state");
 
@@ -171,8 +181,7 @@ void testSaveAndCorruption() {
   require(oldGame.init(), "Legacy synthetic pack did not load");
   oldGame.setPlayerNames("Alice", "Bob");
   std::string legacy = oldGame.serialize();
-  constexpr size_t extra = 2u * (4u + 4u + 7u * 4u + 4u) +
-                           25u * (4u + 4u + 4u);
+  constexpr size_t extra = 2u * (4u + 4u + 7u * 4u + 4u) + 25u * (4u + 4u + 4u);
   require(legacy.size() > extra + 8 + 16, "Legacy V5 fixture too small");
   legacy.erase(legacy.size() - 8 - extra, extra);
   legacy.replace(4, 12, "PMAIL-GAME-4");

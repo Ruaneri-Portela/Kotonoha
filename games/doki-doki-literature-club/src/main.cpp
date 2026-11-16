@@ -5,11 +5,11 @@
 #include "DdlcRuntime.hpp"
 #include <Ddlc/DdlcAssets.hpp>
 
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <cstdio>
 
 #include <cstdlib>
@@ -83,10 +83,11 @@ struct KotonohaPortCallbacks final {
   static void quit(void *state, SDL_AppResult result);
 };
 
-SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
+                                          char **argv) {
   *appstate = nullptr;
   KOTONOHA_SET_APP_METADATA("Doki Doki Literature Club!",
-                     "me.hirameki.kotonoha.dokidokiliteratureclub");
+                            "me.hirameki.kotonoha.dokidokiliteratureclub");
   try {
     auto app = std::make_unique<App>();
     auto &options = app->options;

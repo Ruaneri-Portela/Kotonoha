@@ -1,6 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
-#include <Kirikiri/TjsBootstrap.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
+#include <Kirikiri/TjsBootstrap.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -33,7 +33,8 @@ std::vector<Token> tokenize(const std::string &text) {
     if (text[i] == '/' && i + 1 < size) {
       if (text[i + 1] == '/') {
         i += 2;
-        while (i < size && text[i] != '\n' && text[i] != '\r') ++i;
+        while (i < size && text[i] != '\n' && text[i] != '\r')
+          ++i;
         continue;
       }
       if (text[i + 1] == '*') {
@@ -76,8 +77,7 @@ std::vector<Token> tokenize(const std::string &text) {
     }
     if (identifierChar(value)) {
       const auto first = i++;
-      while (i < size &&
-             identifierChar(static_cast<unsigned char>(text[i])))
+      while (i < size && identifierChar(static_cast<unsigned char>(text[i])))
         ++i;
       tokens.push_back({Token::Identifier, text.substr(first, i - first)});
       continue;
@@ -89,8 +89,10 @@ std::vector<Token> tokenize(const std::string &text) {
 
 std::string folded(std::string value) {
   for (auto &ch : value) {
-    if (ch == '\\') ch = '/';
-    else if (ch >= 'A' && ch <= 'Z') ch = static_cast<char>(ch - 'A' + 'a');
+    if (ch == '\\')
+      ch = '/';
+    else if (ch >= 'A' && ch <= 'Z')
+      ch = static_cast<char>(ch - 'A' + 'a');
   }
   return value;
 }
@@ -109,10 +111,11 @@ bool safeStorage(const std::string &id) {
   const auto normalized = folded(id);
   for (std::size_t i = 0; i < normalized.size();) {
     const auto next = normalized.find('/', i);
-    if (normalized.substr(i, next == std::string::npos
-                                ? next : next - i) == "..")
+    if (normalized.substr(i, next == std::string::npos ? next : next - i) ==
+        "..")
       return false;
-    if (next == std::string::npos) break;
+    if (next == std::string::npos)
+      break;
     i = next + 1;
   }
   return true;
@@ -148,10 +151,8 @@ TjsBootstrapReport inspectTjsBootstrap(const KirikiriAssets &assets) {
   }
   const auto tokens = tokenize(script);
   for (std::size_t i = 0; i + 4 < tokens.size(); ++i) {
-    if (tokens[i].kind != Token::Identifier ||
-        tokens[i + 1].text != "." ||
-        tokens[i + 2].kind != Token::Identifier ||
-        tokens[i + 3].text != "(" ||
+    if (tokens[i].kind != Token::Identifier || tokens[i + 1].text != "." ||
+        tokens[i + 2].kind != Token::Identifier || tokens[i + 3].text != "(" ||
         !supportedCall(tokens[i].text, tokens[i + 2].text))
       continue;
     const auto &arg = tokens[i + 4];
@@ -160,8 +161,8 @@ TjsBootstrapReport inspectTjsBootstrap(const KirikiriAssets &assets) {
       continue;
     }
     if (std::find(report.staticallyReferenced.begin(),
-                  report.staticallyReferenced.end(), arg.text) !=
-        report.staticallyReferenced.end())
+                  report.staticallyReferenced.end(),
+                  arg.text) != report.staticallyReferenced.end())
       continue;
     report.staticallyReferenced.push_back(arg.text);
     if (!assets.contains(arg.text))

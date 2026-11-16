@@ -29,20 +29,18 @@ Pmail::ObjectPtr makeExpressions() {
   // Every expression is evaluated by the real opcode 0x11/mode 0x05 and its
   // result is stored by opcode 0x10/mode 0x20. Comparisons preserve the
   // full 32-bit intermediate instead of masking overflow to 16 bits.
-  obj->strings = {
-      "2147483647 1 + 0 <",         // wrap to INT_MIN
-      "2147483647 1 + -2147483648 ==",
-      "50000 50000 * 0 <",         // wrapped multiplication
-      "-2147483648 1 - 0 >",       // wrap to INT_MAX
-      "-2147483648 -1 / -2147483648 ==",
-      "-2147483648 -1 % 0 ==",
-      "-1 1 >> -1 ==",             // arithmetic right shift
-      "1 32 << 1 ==",              // masked x86 shift count
-      "1 8 <<< 256 ==",            // rotate left 8
-      "256 8 >>> 1 ==",            // rotate right 8
-      "10 0 / 0 ==",               // defensive zero divisor
-      "123456789 987654321 + 0 >="
-  };
+  obj->strings = {"2147483647 1 + 0 <", // wrap to INT_MIN
+                  "2147483647 1 + -2147483648 ==",
+                  "50000 50000 * 0 <",   // wrapped multiplication
+                  "-2147483648 1 - 0 >", // wrap to INT_MAX
+                  "-2147483648 -1 / -2147483648 ==",
+                  "-2147483648 -1 % 0 ==",
+                  "-1 1 >> -1 ==",  // arithmetic right shift
+                  "1 32 << 1 ==",   // masked x86 shift count
+                  "1 8 <<< 256 ==", // rotate left 8
+                  "256 8 >>> 1 ==", // rotate right 8
+                  "10 0 / 0 ==",    // defensive zero divisor
+                  "123456789 987654321 + 0 >="};
   obj->codeOffset = 0;
   obj->codeWords = obj->strings.size() * 2 + 1;
   obj->data.assign(obj->codeWords * 4, 0);
@@ -69,13 +67,11 @@ int main() {
       vm.start(obj);
       vm.run(1000);
       require(vm.ended(), "Synthetic expression program did not terminate");
-      const std::vector<uint32_t> expected{
-          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+      const std::vector<uint32_t> expected{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
       for (size_t i = 0; i < expected.size(); ++i)
         if (vm.var(uint32_t(0x4000 + i)) != expected[i])
           throw std::runtime_error(
-              "Unexpected x86 expression result at index " +
-              std::to_string(i));
+              "Unexpected x86 expression result at index " + std::to_string(i));
       vm.reset();
     }
     auto unsupported = std::make_shared<Pmail::ScriptObject>();
@@ -83,16 +79,16 @@ int main() {
     unsupported->name = "synthetic-unknown-opcode.obj";
     unsupported->codeWords = 3;
     unsupported->data = {
-        0, 0, 0, 0xfe,  // unknown opcode FE
-        0, 0, 0, 0xfe,  // reported once, not every instruction
+        0, 0, 0, 0xfe, // unknown opcode FE
+        0, 0, 0, 0xfe, // reported once, not every instruction
         0, 0, 0, 0     // halt
     };
     vm.registerObject(unsupported);
     vm.start(unsupported);
     vm.run(5);
     require(host.diagnostics.size() == 1 &&
-                host.diagnostics.front().find("Unsupported PMAIL bytecode")
-                    != std::string::npos,
+                host.diagnostics.front().find("Unsupported PMAIL bytecode") !=
+                    std::string::npos,
             "Unknown VM bytecode must emit one diagnostic per opcode");
     vm.reset();
     vm.registerObject(unsupported);

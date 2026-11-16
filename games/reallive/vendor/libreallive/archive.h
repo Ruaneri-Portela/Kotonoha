@@ -56,7 +56,7 @@ public:
   explicit Archive(const string &filename);
   Archive(std::vector<char> bytes,
           std::map<int, std::vector<char>> overrides = {},
-          const std::string& regname = "");
+          const std::string &regname = "");
 
   // Creates an interface to a SEEN.TXT file. Uses |regname| to look up
   // per-game xor key for newer games.
