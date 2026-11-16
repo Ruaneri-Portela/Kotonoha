@@ -570,6 +570,58 @@ class Parser {
       if (match("else")) statement(active && !test.truthy());
       return;
     }
+    if (match("for")) {
+      expect("(");
+      // The initializer uses the same bounded statement subset as ordinary
+      // declarations/assignments, including its terminating semicolon.
+      if (!match(";")) statement(active);
+      const auto checkAt = pc;
+      const bool hasCondition = look().text != ";";
+      auto checked = hasCondition ? expression(active) : Value(true);
+      expect(";");
+
+      // Preserve the update expression text, then execute it as a statement
+      // only after an active iteration. This avoids running disabled branches.
+      const auto updateStart = look().offset;
+      std::size_t nested = 0;
+      while (look().kind != Token::End) {
+        if (look().text == ")" && nested == 0) break;
+        if (look().text == "(") ++nested;
+        if (look().text == ")") --nested;
+        ++pc;
+      }
+      if (look().kind == Token::End)
+        throw std::runtime_error("TJS2 subset: unterminated for header");
+      const auto updateEnd = look().offset;
+      const auto updateText =
+          sourceCode.substr(updateStart, updateEnd - updateStart);
+      expect(")");
+
+      const auto bodyAt = pc;
+      statement(active && checked.truthy());
+      const auto afterBody = pc;
+      if (!active) return;
+
+      unsigned iterations = checked.truthy() ? 1 : 0;
+      while (checked.truthy()) {
+        if (iterations++ >= 256)
+          throw std::runtime_error("TJS2 subset: for iteration cap exceeded");
+        if (!updateText.empty()) {
+          Parser update(machine, sourceName, updateText + ";");
+          update.run();
+        }
+        pc = checkAt;
+        checked = hasCondition ? expression(true) : Value(true);
+        expect(";");
+        if (!checked.truthy()) break;
+        pc = bodyAt;
+        statement(true);
+        if (pc != afterBody)
+          throw std::runtime_error("TJS2 subset: unstable for body");
+      }
+      pc = afterBody;
+      return;
+    }
     if (match("while")) {
       expect("(");
       const auto checkAt = pc;
