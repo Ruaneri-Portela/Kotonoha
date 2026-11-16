@@ -10,9 +10,9 @@ namespace Kotonoha::Providers {
 // Returns true for the native TLG5/TLG6 and TLG0 structured-data signatures.
 bool isTlgImage(const std::vector<std::uint8_t> &bytes);
 
-// Decode TLG5 (3-channel RGB or 4-channel RGBA) to an RGBA32 SDL surface.
-// TLG0 wrappers containing TLG5 are accepted. Invalid/truncated images and
-// unsupported TLG6 streams throw std::runtime_error.
+// Decode TLG5 RGB/RGBA and TLG6 Golomb-coded 1/3/4-channel images to an
+// RGBA32 SDL surface. TLG0 structured wrappers are accepted.
+// Non-Golomb TLG6 entropy methods and malformed streams throw.
 Kotonoha::SurfacePtr decodeTlgImage(
     const std::vector<std::uint8_t> &bytes);
 
