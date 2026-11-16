@@ -133,6 +133,7 @@ struct KirikiriRuntime::Impl {
   bool running = false;
   bool titleShown = false;
   bool nativeTitleUi = false;
+  bool nativeTitleDisabled = false;
   std::set<std::string> failedNativePictures;
   Kotonoha::Providers::TjsBootstrapReport bootstrap;
   Kotonoha::Providers::TjsStartupResult startupExecution;
@@ -246,10 +247,17 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
   Kotonoha::GetVNBacklogRuntime(engine).clear();
   Kotonoha::GetVNBacklogRuntime(engine).close();
 
-  AddScene(impl.textbox);
-  AddScene(impl.choiceScene);
-  AddScene(impl.backlog);
-  AddScene(impl.menu);
+  // Rebuilding a title after a failed native UI must not register the same
+  // scenes twice (duplicate input and rendering callbacks).
+  const auto attachOnce = [&](Kotonoha::Scene *scene) {
+    const auto &scenes = GetScenes(Kotonoha::GameState::Gameplay);
+    if (std::find(scenes.begin(), scenes.end(), scene) == scenes.end())
+      AddScene(scene);
+  };
+  attachOnce(impl.textbox);
+  attachOnce(impl.choiceScene);
+  attachOnce(impl.backlog);
+  attachOnce(impl.menu);
 
   if (impl.runner && !impl.runner->isFinished()) {
     // Resume a running scenario.
@@ -317,7 +325,8 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
                                ((layer.width > 0 && layer.height > 0) ||
                                 !layer.storage.empty());
                       });
-      impl.nativeTitleUi = ui.subsetCompleted && ui.error.empty() &&
+      impl.nativeTitleUi = !impl.nativeTitleDisabled &&
+                           ui.subsetCompleted && ui.error.empty() &&
                            imagePresent && hasClickTarget;
       SDL_Log("KiriKiri: TJS2 title projection: %zu layers, interactive=%d",
               ui.layers.size(), impl.nativeTitleUi ? 1 : 0);
@@ -385,6 +394,7 @@ void KirikiriRuntime::update() {
     impl.titleShown = false;
     impl.currentScenario.clear();
     impl.nativeTitleUi = false;
+    impl.nativeTitleDisabled = false;
     impl.startupExecution = {};
     impl.failedNativePictures.clear();
     impl.background = {};
