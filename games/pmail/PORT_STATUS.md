@@ -52,6 +52,15 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
   cover panel separation, icon bounds and scene cleanup.
   This is functional groundwork; exact original font/layout and icon
   sprite mapping are not yet claimed 1:1.
+- The V4/V5 save parser now accepts both versions without a syntax error.
+  New `Pmail.ComputerSave` builds an indexed synthetic script pack and
+  exercises panel/name/icon round-tripping, OSBOOT animation continuation,
+  legacy V4 upgrade and atomic rejection of invalid saves. This test is
+  registered but still needs execution in a native build.
+- `Pmail.TransitionTrace` checks bounded transition evidence output.
+  The real-only `Pmail.RouteAudit` can emit a TSV timeline of graphical
+  SYS calls, assets, script/PC and sampled animation frames for comparison
+  with the retail executable (not an assertion of parity).
 
 ## Remaining parity work
 
@@ -73,5 +82,6 @@ is not established**. Do not treat the smoke tests as a complete-route pass.
 ## Evidence and reproduction
 
 [ANIMATIONS.md](docs/ANIMATIONS.md) records original addresses, formats,
-presets and test coverage. [AUDIO_PARITY.md](docs/AUDIO_PARITY.md) records codec
-and native audio findings. See [README.md](README.md) for build and CTest commands.
+presets and test coverage. [TRANSITIONS.md](docs/TRANSITIONS.md) explains
+reproducible asset/VM traces and the still-unverified pre-Overflow animation.
+[AUDIO_PARITY.md](docs/AUDIO_PARITY.md) records codec and native audio findings. See [README.md](README.md) for build and CTest commands.

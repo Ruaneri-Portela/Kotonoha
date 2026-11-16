@@ -55,7 +55,8 @@ ctest --test-dir build -R 'Pmail.RouteAudit' --output-on-failure
 # Ou chame PmailRouteAuditCheck com: /caminho/PMAILDVD 0,1,2 300
 ```
 
-A CI só executa testes sintéticos, incluindo `Pmail.Expression32`. A
+A CI só executa testes sintéticos, incluindo `Pmail.Expression32`,
+`Pmail.ComputerSave` e `Pmail.TransitionTrace`. A
 auditoria real reprova quando encontra scripts ausentes, bytecodes
 desconhecidos ou SYS ainda não implementados. Não significa que todos os
 finais já estejam reproduzidos.
@@ -65,7 +66,7 @@ finais já estejam reproduzidos.
 
 [Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.
 
-[Inicialização](docs/STARTUP.pt-BR.md), [Pesquisa de animações](docs/ANIMATIONS.pt-BR.md), [áudio](docs/AUDIO_PARITY.pt-BR.md) e [caixa de diálogo](docs/TEXTBOX.pt-BR.md).
+[Inicialização](docs/STARTUP.pt-BR.md), [rastreamento de transições](docs/TRANSITIONS.pt-BR.md), [pesquisa de animações](docs/ANIMATIONS.pt-BR.md), [áudio](docs/AUDIO_PARITY.pt-BR.md) e [caixa de diálogo](docs/TEXTBOX.pt-BR.md).
 
 [Guias de compilação](../../docs/BUILD_GUIDES.pt-BR.md) · [Índice de ports](../README.pt-BR.md)
 
