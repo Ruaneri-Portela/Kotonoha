@@ -702,7 +702,8 @@ class Parser {
       if (active) {
         if (machine.classes.size() >= 128)
           throw std::runtime_error("TJS2 subset: class count limit exceeded");
-        if (!machine.classes.emplace(definition.name, std::move(definition)).second)
+        const auto className = definition.name;
+        if (!machine.classes.emplace(className, std::move(definition)).second)
           throw std::runtime_error("TJS2 subset: duplicate class name");
       }
       return;
@@ -998,8 +999,10 @@ Value Interpreter::construct(const std::string &type,
       boundMethods.emplace(alias, BoundMethod{instance, method.second});
       instance->members[method.first] = Value(alias);
     }
-    if (const auto ctor = definition.methods.find(type);
-        ctor != definition.methods.end()) {
+    auto ctor = definition.methods.find(type);
+    if (ctor == definition.methods.end())
+      ctor = definition.methods.find("constructor");
+    if (ctor != definition.methods.end()) {
       (void)invokeSource(ctor->second, args, instance);
     } else if (!args.empty() && definition.base != "Layer") {
       throw std::runtime_error(
