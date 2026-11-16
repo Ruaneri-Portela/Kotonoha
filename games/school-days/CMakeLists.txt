@@ -130,12 +130,15 @@ if(WIN32 AND NOT ANDROID)
     if(NOT EXISTS "${SCHOOL_DAYS_LAUNCHER_HERO}")
         message(WARNING "School Days HQ launcher artwork missing: ${SCHOOL_DAYS_LAUNCHER_HERO}")
     endif()
-    get_property(_school_days_hero_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-    if(_school_days_hero_multi_config)
-        set(_school_days_hero_out "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets")
-    else()
-        set(_school_days_hero_out "${CMAKE_CURRENT_BINARY_DIR}/assets")
+    # The executable is emitted under outputs/<config>/SchoolDays, not the
+    # CMake subdirectory. Read the configured target property rather than using
+    # $<TARGET_FILE_DIR:SchoolDays>, which would create a CMake dependency cycle
+    # because SchoolDays itself depends on this staging target.
+    get_target_property(_school_days_runtime_output SchoolDays RUNTIME_OUTPUT_DIRECTORY)
+    if(NOT _school_days_runtime_output)
+        message(FATAL_ERROR "School Days runtime output directory is undefined")
     endif()
+    set(_school_days_hero_out "${_school_days_runtime_output}/assets")
     # Keep this target even when optional art is currently missing, so a new
     # file can be supplied and staged by the next build without reconfiguring.
     add_custom_target(SchoolDaysLauncherArtwork
@@ -166,12 +169,9 @@ if(WIN32 AND NOT ANDROID)
        NOT EXISTS "${SCHOOL_DAYS_DISPLAY_OVERLAY}/System/Option/Option_Display.cmap")
         message(WARNING "School Days HQ Display Options PNG/CMAP missing under: ${SCHOOL_DAYS_DISPLAY_OVERLAY}")
     endif()
-    get_property(_school_days_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-    if(_school_days_multi_config)
-        set(_school_days_overlay_output "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/display-options")
-    else()
-        set(_school_days_overlay_output "${CMAKE_CURRENT_BINARY_DIR}/display-options")
-    endif()
+    # Stage the custom options beside SchoolDays.exe as well, so a clean
+    # distribution does not silently lose them when moved from its build tree.
+    set(_school_days_overlay_output "${_school_days_runtime_output}/display-options")
     # Always sync assets, including edits made without recompiling C++.
     add_custom_target(SchoolDaysOptionAssets
         COMMAND "${CMAKE_COMMAND}"

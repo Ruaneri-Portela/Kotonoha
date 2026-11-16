@@ -33,6 +33,28 @@ protected:
   void save() override { ++saved; }
 };
 
+class CustomLauncher final : public Launcher {
+public:
+  using Launcher::Launcher;
+  int customFrames = 0;
+  int genericFrames = 0;
+
+  std::pair<int, int> actualWindowSize() const {
+    int width = 0, height = 0;
+    require(SDL_GetWindowSize(launcherWindow(), &width, &height),
+            "Cannot query custom launcher window size");
+    return {width, height};
+  }
+
+protected:
+  std::pair<int, int> preferredWindowSize() const override { return {950, 600}; }
+  bool drawCustomContents() override {
+    ++customFrames;
+    return true;
+  }
+  void drawGameOptions() override { ++genericFrames; }
+};
+
 class TestRuntime final : public Runtime {
 public:
   TestRuntime() : Runtime("LauncherTests", "1", "launcher-tests") {}
@@ -151,6 +173,17 @@ void launcher(const std::filesystem::path &directory) {
   const auto path = (directory / "settings.json").string();
   const auto transPath = (directory / "translation.json").string();
   std::ofstream(transPath) << "{}\n";
+  {
+    CustomLauncher custom("Custom", (directory / "custom.json").string());
+    custom.open();
+    require(custom.actualWindowSize() == std::make_pair(950, 600),
+            "Custom launcher window must use its preferred size");
+    for (int i = 0; i < 3; ++i)
+      custom.iterate();
+    require(custom.customFrames == 3 && custom.genericFrames == 0,
+            "Custom launcher must render without generic tabs");
+    custom.close();
+  }
   {
     TestLauncher launcher("Test", path);
     require(launcher.state() == Launcher::State::Running &&
