@@ -850,8 +850,8 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     const float revealRight = 1280.0f * blend.incoming;
     for (std::size_t i = firstNew; i < visible.size(); ++i) {
       const auto &place = visible[i];
-      impl.renderObject(renderer, place.id, place.x, place.y,
-                        1.0f, revealRight);
+      impl.renderObject(renderer, place.id, place.x, place.y, 1.0f,
+                        revealRight);
     }
   } else if (blend.incoming < 1.0f && !outgoing.empty()) {
     // Old images also remain inside visible. Drawing them twice causes

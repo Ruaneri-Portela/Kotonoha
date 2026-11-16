@@ -1196,9 +1196,9 @@ int main(int argc, char **argv) {
       for (const auto &entry : archive.Scenario(sceneNumber)) {
         const auto *command =
             dynamic_cast<const libreallive::CommandElement *>(entry.get());
-        if (command && command->modtype() == 1 &&
-            command->module() == 4 && command->opcode() == 207 &&
-            command->overload() == 0 && command->GetParamCount() == 1) {
+        if (command && command->modtype() == 1 && command->module() == 4 &&
+            command->opcode() == 207 && command->overload() == 0 &&
+            command->GetParamCount() == 1) {
           expected = RealLive::IntegerParameter(machine, *command, 0);
           found = true;
           break;
@@ -1888,8 +1888,8 @@ int main(int argc, char **argv) {
     game.RemoveScene(&namedSave);
     std::filesystem::remove_all(namedDirectory);
     game.saveGame(path.string());
-    check(VNSave::read(path.string()).gameData.rfind(
-              "REALLIVE-PRESENTATION-6", 0) == 0,
+    check(VNSave::read(path.string())
+                  .gameData.rfind("REALLIVE-PRESENTATION-6", 0) == 0,
           "REALLIVE v6 save format must store cursor state");
     const int cursorBeforeLoad = game.debugMouseCursor();
     game.debugJumpToNode("9032");

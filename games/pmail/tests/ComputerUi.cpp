@@ -162,8 +162,7 @@ int main() {
       if (message.find("Unhandled PMAIL SYS 250") != std::string::npos)
         ++count;
     check(count == 1, "Unknown native syscall warnings were duplicated");
-    for (const int id : {96, 97, 98, 99, 100, 112, 115, 116, 128,
-                         132})
+    for (const int id : {96, 97, 98, 99, 100, 112, 115, 116, 128, 132})
       check(Kotonoha::PmailPort::PmailAudio::HandlesSyscall(id),
             "Audio subsystem must handle the documented audio native IDs");
     for (const int id : {17, 18, 19, 20, 24, 65, 137, 212, 216, 250})
@@ -191,9 +190,10 @@ int main() {
         check(site.signature.find("argc=0") != std::string::npos,
               "Zero-argument native signature changed");
       else
-        check(site.signature.find("argc=2") != std::string::npos &&
-                  site.signature.find("strref:3:5") != std::string::npos,
-              "Unsupported calls must retain their arguments by type/reference");
+        check(
+            site.signature.find("argc=2") != std::string::npos &&
+                site.signature.find("strref:3:5") != std::string::npos,
+            "Unsupported calls must retain their arguments by type/reference");
       check(site.signature.find("$NO") == std::string::npos &&
                 site.signature.find("$HO") == std::string::npos,
             "Native evidence must never copy story or player-name strings");
@@ -204,7 +204,6 @@ int main() {
         ++warnings;
     check(warnings == int(expected.size()),
           "Duplicate unknown-native warnings were not suppressed");
-
 
     std::cout << "Pure Mail computer UI, player names, scene transitions"
                  " and save format passed\n";

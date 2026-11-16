@@ -3,8 +3,8 @@
 
 #include "PmailRuntime.hpp"
 
-#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
@@ -36,9 +36,9 @@ struct Application {
 // Resolve packaged or user-provided game data independently of developer
 // machine volumes. SnowAssets expects SCRIPT.DAT and GRAPHIC.DAT together.
 std::string DefaultDirectory() {
-  for (const char *relative : {"data/pack/SCRIPT.DAT",
-                               "data/pack/script.dat", "pack/SCRIPT.DAT",
-                               "pack/script.dat", "SCRIPT.DAT", "script.dat"}) {
+  for (const char *relative :
+       {"data/pack/SCRIPT.DAT", "data/pack/script.dat", "pack/SCRIPT.DAT",
+        "pack/script.dat", "SCRIPT.DAT", "script.dat"}) {
     const auto found = Kotonoha::FileResolver::findGameAsset("pmail", relative);
     if (!found)
       continue;
@@ -175,7 +175,7 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
     if (result != SDL_APP_CONTINUE)
       return result;
     return app.frames > 0 && --app.frames == 0 ? SDL_APP_SUCCESS
-                                             : SDL_APP_CONTINUE;
+                                               : SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Frame failed: %s",
                  error.what());

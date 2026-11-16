@@ -225,9 +225,9 @@ int main(int argc, char **argv) {
     // sites. A single SYS id can have multiple argument signatures depending
     // on the script and state. Never print game dialogue or player text.
     for (const auto &site : game.unhandledNativeSites())
-      std::cerr << "PMAIL_UNHANDLED_SITE\t" << site.id << "\t"
-                << site.script << "\t" << site.pc << "\t"
-                << site.hits << "\t" << site.signature << "\n";
+      std::cerr << "PMAIL_UNHANDLED_SITE\t" << site.id << "\t" << site.script
+                << "\t" << site.pc << "\t" << site.hits << "\t"
+                << site.signature << "\n";
     // A bounded, machine-readable timeline of scene/asset/animation events.
     // Captures the first events, last events and (when named) the history
     // preceding an Overflow resource, without emitting retail story text.

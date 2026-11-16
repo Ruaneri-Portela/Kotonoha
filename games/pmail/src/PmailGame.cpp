@@ -881,7 +881,7 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
           utf = ::Kotonoha::ShiftJisToUtf8(text);
         } catch (...) {
         }
-            messageQueue_.push_back(expandPlayerNames(utf));
+        messageQueue_.push_back(expandPlayerNames(utf));
         if (message_.empty())
           showNext();
       }

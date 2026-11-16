@@ -207,8 +207,8 @@ void PmailStage::renderLips(Kotonoha::RendererRef renderer,
                                     std::to_string(region.first + i));
     renderAnimationFrame(
         renderer, name,
-        uint32_t(MouthRegionFrame(region.first, region.count, frame)),
-        x, y, tint);
+        uint32_t(MouthRegionFrame(region.first, region.count, frame)), x, y,
+        tint);
   }
 }
 

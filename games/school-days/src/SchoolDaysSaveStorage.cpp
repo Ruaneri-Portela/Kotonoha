@@ -3,16 +3,9 @@
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <climits>
-#include <cerrno>
-#include <exception>
-#include <fstream>
-#include <algorithm>
-#include <atomic>
-#include <chrono>
-#include <climits>
-#include <cerrno>
 #include <exception>
 #include <fstream>
 #include <limits>
@@ -74,8 +67,8 @@ void PruneStaleGlobalFlagTemps(const std::filesystem::path &target) {
     unsigned long long pid = 0;
     try {
       const auto token = name.substr(prefix.size(), delimiter - prefix.size());
-      if (token.empty() || token.find_first_not_of("0123456789") !=
-                               std::string::npos)
+      if (token.empty() ||
+          token.find_first_not_of("0123456789") != std::string::npos)
         continue;
       pid = std::stoull(token);
     } catch (const std::exception &) {
@@ -84,9 +77,8 @@ void PruneStaleGlobalFlagTemps(const std::filesystem::path &target) {
     if (pid == 0 || pid > static_cast<unsigned long long>(INT_MAX))
       continue;
 #ifdef _WIN32
-    HANDLE process =
-        OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
-                    static_cast<DWORD>(pid));
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+                                 static_cast<DWORD>(pid));
     if (process != nullptr) {
       CloseHandle(process);
       continue;
@@ -109,18 +101,19 @@ void PruneStaleGlobalFlagTemps(const std::filesystem::path &target) {
   }
 }
 
-std::filesystem::path UniqueGlobalFlagTemp(const std::filesystem::path &target) {
+std::filesystem::path
+UniqueGlobalFlagTemp(const std::filesystem::path &target) {
   auto temp = target;
-  const auto ticks = std::chrono::steady_clock::now()
-                         .time_since_epoch().count();
+  const auto ticks =
+      std::chrono::steady_clock::now().time_since_epoch().count();
   const auto sequence = gGlobalFlagTempSequence.fetch_add(1);
 #ifdef _WIN32
   const auto pid = GetCurrentProcessId();
 #else
   const auto pid = ::getpid();
 #endif
-  temp += ".pending." + std::to_string(pid) + "." +
-          std::to_string(ticks) + "." + std::to_string(sequence);
+  temp += ".pending." + std::to_string(pid) + "." + std::to_string(ticks) +
+          "." + std::to_string(sequence);
   return temp;
 }
 
@@ -236,14 +229,14 @@ bool SchoolDaysSaveStorage::WriteGlobalFlagAtomic(
   using Fault = GlobalFlagWriteFault;
 
 #ifdef _WIN32
-  HANDLE handle = CreateFileW(temp.c_str(), GENERIC_WRITE, 0, nullptr,
-                              CREATE_NEW,
-                              FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH,
-                              nullptr);
+  HANDLE handle =
+      CreateFileW(temp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
+                  FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
   if (handle == INVALID_HANDLE_VALUE)
     return Fail(error, ("School Days GlobalFlag temp create failed at " +
                         temp.u8string() + " (Win32 " +
-                        std::to_string(GetLastError()) + ")").c_str());
+                        std::to_string(GetLastError()) + ")")
+                           .c_str());
   if (globalFlagWriteFaultForTesting_ == Fault::Write) {
     DWORD written = 0;
     (void)WriteFile(handle, bytes.data(), 1, &written, nullptr);
@@ -260,7 +253,8 @@ bool SchoolDaysSaveStorage::WriteGlobalFlagAtomic(
       const auto code = GetLastError();
       CloseHandle(handle);
       return Fail(error, ("School Days GlobalFlag temp write failed (Win32 " +
-                          std::to_string(code) + ")").c_str());
+                          std::to_string(code) + ")")
+                             .c_str());
     }
     offset += written;
   }
@@ -269,7 +263,8 @@ bool SchoolDaysSaveStorage::WriteGlobalFlagAtomic(
     const auto code = GetLastError();
     CloseHandle(handle);
     return Fail(error, ("School Days GlobalFlag temp flush failed (Win32 " +
-                        std::to_string(code) + ")").c_str());
+                        std::to_string(code) + ")")
+                           .c_str());
   }
   if (!CloseHandle(handle))
     return Fail(error, "School Days GlobalFlag temp close failed");
@@ -286,15 +281,15 @@ bool SchoolDaysSaveStorage::WriteGlobalFlagAtomic(
                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
       return true;
     last = GetLastError();
-    if (attempt == 2 || (last != ERROR_SHARING_VIOLATION &&
-                         last != ERROR_LOCK_VIOLATION &&
-                         last != ERROR_ACCESS_DENIED))
+    if (attempt == 2 ||
+        (last != ERROR_SHARING_VIOLATION && last != ERROR_LOCK_VIOLATION &&
+         last != ERROR_ACCESS_DENIED))
       break;
     Sleep(40u * static_cast<DWORD>(attempt + 1));
   }
   return Fail(error, ("School Days GlobalFlag atomic replace failed at " +
-                      path.u8string() + " (Win32 " +
-                      std::to_string(last) + "); previous file preserved")
+                      path.u8string() + " (Win32 " + std::to_string(last) +
+                      "); previous file preserved")
                          .c_str());
 #else
   const int fd = ::open(temp.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC,
@@ -308,8 +303,8 @@ bool SchoolDaysSaveStorage::WriteGlobalFlagAtomic(
   }
   size_t offset = 0;
   while (offset < bytes.size()) {
-    const auto count = ::write(fd, bytes.data() + offset,
-                               bytes.size() - offset);
+    const auto count =
+        ::write(fd, bytes.data() + offset, bytes.size() - offset);
     if (count < 0 && errno == EINTR)
       continue;
     if (count <= 0) {

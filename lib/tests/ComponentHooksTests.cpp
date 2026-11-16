@@ -536,18 +536,19 @@ void testStableReveal() {
                   twoLines,
           "Both escaped and real carriage returns are handled");
 
-  require(VNTextBoxUtility::WrapText(R"(a\\nb)", measure, 100) ==
-                  std::vector<std::string>{R"(a\nb)"} &&
-              VNTextBoxUtility::WrapText(R"(a\qb)", measure, 100) ==
-                  std::vector<std::string>{R"(a\qb)"} &&
-              VNTextBoxUtility::WrapText(R"(a\)", measure, 100) ==
-                  std::vector<std::string>{R"(a\)"},
-          "Escaped backslashes, unknown escapes and trailing slash are literal");
+  require(
+      VNTextBoxUtility::WrapText(R"(a\\nb)", measure, 100) ==
+              std::vector<std::string>{R"(a\nb)"} &&
+          VNTextBoxUtility::WrapText(R"(a\qb)", measure, 100) ==
+              std::vector<std::string>{R"(a\qb)"} &&
+          VNTextBoxUtility::WrapText(R"(a\)", measure, 100) ==
+              std::vector<std::string>{R"(a\)"},
+      "Escaped backslashes, unknown escapes and trailing slash are literal");
   require(VNTextBoxUtility::WrapText(R"(a\tb)", measure, 100) ==
-                  std::vector<std::string>{"a\tb"},
+              std::vector<std::string>{"a\tb"},
           "Escaped tab is decoded without losing neighboring text");
   require(VNTextBoxUtility::WrapText(R"(a\n\nb)", measure, 100) ==
-                  std::vector<std::string>{"a", "", "b"},
+              std::vector<std::string>{"a", "", "b"},
           "Consecutive escaped newlines preserve empty lines");
 
   const std::string source = R"(a\nb)";

@@ -60,10 +60,9 @@ int main() {
     check(cursor.advance() && cursor.remaining() == 2 && cursor.peek() &&
               cursor.peek()->function == "Show",
           "cursor advances to next indexed call");
-    check(cursor.position() == 1 &&
-              cursor.seekPosition(3) && cursor.remaining() == 0 &&
-              cursor.seekPosition(1) && cursor.peek() &&
-              cursor.peek()->function == "Show" &&
+    check(cursor.position() == 1 && cursor.seekPosition(3) &&
+              cursor.remaining() == 0 && cursor.seekPosition(1) &&
+              cursor.peek() && cursor.peek()->function == "Show" &&
               !cursor.seekPosition(4) && cursor.position() == 1,
           "cursor validates exact return PC without consuming invocation");
     check(!cursor.jumpToLabel("missing") && cursor.remaining() == 2,

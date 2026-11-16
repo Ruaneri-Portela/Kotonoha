@@ -168,8 +168,8 @@ float UI::textHeight(RendererRef renderer, const std::string &original,
   if (!TTF_SetFontSize(font.get(), 24.0f * raster))
     throw std::runtime_error(SDL_GetError());
   int width = 0, height = 0;
-  if (!TTF_GetStringSizeWrapped(font.get(), value.c_str(), value.size(),
-                                pixels, &width, &height))
+  if (!TTF_GetStringSizeWrapped(font.get(), value.c_str(), value.size(), pixels,
+                                &width, &height))
     throw std::runtime_error(SDL_GetError());
   return static_cast<float>(height) / raster;
 }
@@ -190,8 +190,8 @@ float UI::textWidth(const std::string &original, float fontSize) const {
   if (!TTF_SetFontSize(font.get(), fontSize * density))
     throw std::runtime_error(SDL_GetError());
   int width = 0, height = 0;
-  if (!TTF_GetStringSize(font.get(), value.c_str(), value.size(),
-                         &width, &height))
+  if (!TTF_GetStringSize(font.get(), value.c_str(), value.size(), &width,
+                         &height))
     throw std::runtime_error(SDL_GetError());
   return static_cast<float>(width) / density;
 }

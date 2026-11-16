@@ -41,8 +41,8 @@ std::string Windows1252ToUtf8(std::string_view text) {
 
   NSString *decoded =
       [[NSString alloc] initWithBytes:input.data()
-                              length:input.size()
-                            encoding:NSWindowsCP1252StringEncoding];
+                               length:input.size()
+                             encoding:NSWindowsCP1252StringEncoding];
   if (decoded == nil)
     throw std::runtime_error("Windows-1252 to UTF-8 conversion failed");
   return bytesFromData([decoded dataUsingEncoding:NSUTF8StringEncoding]);
@@ -51,15 +51,13 @@ std::string Windows1252ToUtf8(std::string_view text) {
 std::string Utf8ToWindows1252(std::string_view text) {
   if (text.empty())
     return {};
-  NSString *decoded =
-      [[NSString alloc] initWithBytes:text.data()
-                              length:text.size()
-                            encoding:NSUTF8StringEncoding];
+  NSString *decoded = [[NSString alloc] initWithBytes:text.data()
+                                               length:text.size()
+                                             encoding:NSUTF8StringEncoding];
   if (decoded == nil)
     throw std::runtime_error("Invalid UTF-8 input for Windows-1252 conversion");
-  return bytesFromData([decoded
-      dataUsingEncoding:NSWindowsCP1252StringEncoding
-  allowLossyConversion:YES]);
+  return bytesFromData([decoded dataUsingEncoding:NSWindowsCP1252StringEncoding
+                             allowLossyConversion:YES]);
 }
 
 std::u16string Utf8ToUtf16(std::string_view text) {

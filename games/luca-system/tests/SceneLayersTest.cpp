@@ -66,9 +66,8 @@ int main() {
     scene.stage({3, 9, 9});
     scene.reset({{77, -15, 33}});
     check(scene.visible().size() == 1 && scene.visible()[0].id == 77 &&
-              scene.incomingStart() == 0 &&
-              scene.outgoing().empty() && scene.pending().empty() &&
-              close(scene.blend(1900).incoming, 1) &&
+              scene.incomingStart() == 0 && scene.outgoing().empty() &&
+              scene.pending().empty() && close(scene.blend(1900).incoming, 1) &&
               close(scene.blend(1900).blackout, 0),
           "save restore resets pending objects and in-flight transitions");
     bool rejected = false;

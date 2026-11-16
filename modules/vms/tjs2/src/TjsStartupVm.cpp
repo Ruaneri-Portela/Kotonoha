@@ -78,7 +78,12 @@ struct Value {
 // Window or parent Layer, and is projected onto the Kotonoha render viewport.
 // This is not a replacement for KiriKiri's platform Window/Layer classes.
 struct Object {
-  enum class Kind { Dictionary, Window, Layer, ScriptClass } kind = Kind::Dictionary;
+  enum class Kind {
+    Dictionary,
+    Window,
+    Layer,
+    ScriptClass
+  } kind = Kind::Dictionary;
   std::string className;
   std::unordered_map<std::string, Value> members;
   std::weak_ptr<Object> parent;
@@ -654,7 +659,8 @@ class Parser {
       expect("{");
       while (!match("}")) {
         if (look().kind == Token::End)
-          throw std::runtime_error("TJS2 subset: unterminated class declaration");
+          throw std::runtime_error(
+              "TJS2 subset: unterminated class declaration");
         // This bounded subset deliberately rejects script class properties,
         // native dispatch/override syntax and dynamic member declarations.
         expect("function");
@@ -664,11 +670,13 @@ class Parser {
         if (!match(")")) {
           do {
             if (parameters.size() >= 16)
-              throw std::runtime_error("TJS2 subset: too many method parameters");
+              throw std::runtime_error(
+                  "TJS2 subset: too many method parameters");
             const auto name = identifier();
             if (std::find(parameters.begin(), parameters.end(), name) !=
                 parameters.end())
-              throw std::runtime_error("TJS2 subset: duplicate method parameter");
+              throw std::runtime_error(
+                  "TJS2 subset: duplicate method parameter");
             parameters.push_back(name);
           } while (match(","));
           expect(")");
@@ -680,19 +688,23 @@ class Parser {
         do {
           if (look().kind == Token::End)
             throw std::runtime_error("TJS2 subset: unterminated class method");
-          if (look().text == "{") ++braces;
-          else if (look().text == "}") --braces;
+          if (look().text == "{")
+            ++braces;
+          else if (look().text == "}")
+            --braces;
           ++pc;
         } while (braces);
         if (active) {
           if (definition.methods.size() >= 64)
-            throw std::runtime_error("TJS2 subset: class method limit exceeded");
+            throw std::runtime_error(
+                "TJS2 subset: class method limit exceeded");
           const auto finish = tokens[pc - 1].offset + 1;
           if (!definition.methods
-                   .emplace(methodName,
-                            SourceFunction{methodName, sourceName,
-                                           sourceCode.substr(start, finish-start),
-                                           std::move(parameters)})
+                   .emplace(
+                       methodName,
+                       SourceFunction{methodName, sourceName,
+                                      sourceCode.substr(start, finish - start),
+                                      std::move(parameters)})
                    .second)
             throw std::runtime_error("TJS2 subset: duplicate class method");
         }
@@ -979,16 +991,15 @@ Value Interpreter::construct(const std::string &type,
     if (definition.base.empty()) {
       instance = std::make_shared<Object>();
       instance->kind = Object::Kind::ScriptClass;
-    } else if (definition.base == "Window" ||
-               definition.base == "Dictionary") {
+    } else if (definition.base == "Window" || definition.base == "Dictionary") {
       const auto base = construct(definition.base, {});
       instance = std::get<ObjectPtr>(base.data);
     } else if (definition.base == "Layer") {
       const auto base = construct("Layer", args);
       instance = std::get<ObjectPtr>(base.data);
     } else {
-      throw std::runtime_error(
-          "TJS2 subset: unsupported source class base: " + definition.base);
+      throw std::runtime_error("TJS2 subset: unsupported source class base: " +
+                               definition.base);
     }
     instance->className = type;
     instances.push_back(instance);

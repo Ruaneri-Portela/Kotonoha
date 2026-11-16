@@ -145,7 +145,8 @@ int main() {
           "chapter call saves exact return frame");
     check(subroutines.run(16) == 6 && subroutines.finished() &&
               subroutines.callDepth() == 0 &&
-              calls == std::vector<std::string>({"worker", "inner", "returned"}),
+              calls ==
+                  std::vector<std::string>({"worker", "inner", "returned"}),
           "nested label call and returns restore instructions in order");
 
     N2System::ScriptExecutor missingCall(

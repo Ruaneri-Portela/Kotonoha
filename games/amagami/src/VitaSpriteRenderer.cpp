@@ -131,9 +131,8 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
       if (std::abs(sprite->angle) < 1e-10) {
         require(SDL_RenderTexture(renderer_, tex, source, &destination));
       } else {
-        const SDL_FPoint pivot{
-            dst.x + dst.w / 2 - destination.x,
-            dst.y + dst.h / 2 - destination.y};
+        const SDL_FPoint pivot{dst.x + dst.w / 2 - destination.x,
+                               dst.y + dst.h / 2 - destination.y};
         require(SDL_RenderTextureRotated(renderer_, tex, source, &destination,
                                          -sprite->angle * 180.0, &pivot,
                                          SDL_FLIP_NONE));
@@ -194,11 +193,11 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
               SDL_CreateTextureFromSurface(renderer_, black.get()));
           if (!solidBlack_)
             throw std::runtime_error(SDL_GetError());
-          require(SDL_SetTextureBlendMode(solidBlack_.get(),
-                                          SDL_BLENDMODE_BLEND));
+          require(
+              SDL_SetTextureBlendMode(solidBlack_.get(), SDL_BLENDMODE_BLEND));
         }
-        require(SDL_SetTextureAlphaMod(solidBlack_.get(),
-                                        modulate(sprite->alpha)));
+        require(
+            SDL_SetTextureAlphaMod(solidBlack_.get(), modulate(sprite->alpha)));
         renderImage(solidBlack_.get(), nullptr, dst);
       }
       continue;

@@ -232,8 +232,8 @@ bool Session::strings(const CommandElement &c) {
     if (c.overload()) {
       // Count complete Shift-JIS characters, not bytes. A byte resize can
       // split a lead/trail pair and corrupt the next dialogue string.
-      s.resize(scriptCharOffset(
-          s, static_cast<std::size_t>(std::max(0, num(2)))));
+      s.resize(
+          scriptCharOffset(s, static_cast<std::size_t>(std::max(0, num(2)))));
     }
     write(0, s);
     break;

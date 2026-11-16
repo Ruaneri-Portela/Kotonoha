@@ -1227,7 +1227,8 @@ int main() {
       Kotonoha::Providers::KirikiriAssets input(tempDir);
       const auto run = Kotonoha::Providers::runTjsStartupSubset(input);
       if (run.subsetCompleted || run.error.empty()) {
-        std::printf("FAIL: unsupported TJS2 class property accepted silently\n");
+        std::printf(
+            "FAIL: unsupported TJS2 class property accepted silently\n");
         ++failures;
       }
     }
@@ -1507,11 +1508,11 @@ int main() {
         std::printf("FAIL: TJS2 separate controller bound to Layer onClick\n");
         ++failures;
       } else {
-        const auto after = std::find_if(
-            run.layers.begin(), run.layers.end(),
-            [](const Kotonoha::Providers::TjsUiLayer &layer) {
-              return layer.storage == "image/tlg5.tlg";
-            });
+        const auto after =
+            std::find_if(run.layers.begin(), run.layers.end(),
+                         [](const Kotonoha::Providers::TjsUiLayer &layer) {
+                           return layer.storage == "image/tlg5.tlg";
+                         });
         if (after == run.layers.end() || after->visible) {
           std::printf("FAIL: bound TJS2 controller lost its Layer receiver\n");
           ++failures;
@@ -1537,26 +1538,25 @@ int main() {
       Kotonoha::Providers::KirikiriAssets provider(tempDir);
       provider.mountXp3("data.xp3");
       auto run = Kotonoha::Providers::runTjsStartupSubset(provider);
-      const auto before = std::find_if(
-          run.layers.begin(), run.layers.end(),
-          [](const Kotonoha::Providers::TjsUiLayer &layer) {
-            return layer.storage == "image/tlg5.tlg";
-          });
+      const auto before =
+          std::find_if(run.layers.begin(), run.layers.end(),
+                       [](const Kotonoha::Providers::TjsUiLayer &layer) {
+                         return layer.storage == "image/tlg5.tlg";
+                       });
       if (!run.subsetCompleted || !run.error.empty() ||
           run.layers.size() != 2 || before == run.layers.end() ||
-          before->left != 20 || before->top != 30 ||
-          before->width != 70 || before->height != 40 ||
-          before->onClick.empty() ||
+          before->left != 20 || before->top != 30 || before->width != 70 ||
+          before->height != 40 || before->onClick.empty() ||
           !Kotonoha::Providers::dispatchTjsUiClick(run, 30.0f, 40.0f) ||
           run.kagEntry != "scenario/first.ks" || !run.error.empty()) {
         std::printf("FAIL: TJS2 subclass of Layer and bound onClick\n");
         ++failures;
       } else {
-        const auto after = std::find_if(
-            run.layers.begin(), run.layers.end(),
-            [](const Kotonoha::Providers::TjsUiLayer &layer) {
-              return layer.storage == "image/tlg5.tlg";
-            });
+        const auto after =
+            std::find_if(run.layers.begin(), run.layers.end(),
+                         [](const Kotonoha::Providers::TjsUiLayer &layer) {
+                           return layer.storage == "image/tlg5.tlg";
+                         });
         if (after == run.layers.end() || after->visible ||
             Kotonoha::Providers::dispatchTjsUiClick(run, 30.0f, 40.0f)) {
           std::printf("FAIL: TJS2 bound method retained Layer visibility\n");
@@ -1591,12 +1591,11 @@ int main() {
       }
     }
 
-    write(tempDir / "startup.tjs",
-          "class Broken {\n"
-          "  function explode() { return 8 / 0; }\n"
-          "}\n"
-          "var instance = new Broken();\n"
-          "instance.explode();\n");
+    write(tempDir / "startup.tjs", "class Broken {\n"
+                                   "  function explode() { return 8 / 0; }\n"
+                                   "}\n"
+                                   "var instance = new Broken();\n"
+                                   "instance.explode();\n");
     {
       Kotonoha::Providers::KirikiriAssets provider(tempDir);
       const auto run = Kotonoha::Providers::runTjsStartupSubset(provider);
@@ -1607,12 +1606,11 @@ int main() {
       }
     }
 
-    write(tempDir / "startup.tjs",
-          "class Recursive {\n"
-          "  function next() { return this.next(); }\n"
-          "}\n"
-          "var instance = new Recursive();\n"
-          "instance.next();\n");
+    write(tempDir / "startup.tjs", "class Recursive {\n"
+                                   "  function next() { return this.next(); }\n"
+                                   "}\n"
+                                   "var instance = new Recursive();\n"
+                                   "instance.next();\n");
     {
       Kotonoha::Providers::KirikiriAssets provider(tempDir);
       const auto run =

@@ -19,11 +19,11 @@ void require(bool value, const char *message) {
 
 class Fixture {
 public:
-  fs::path root = fs::temp_directory_path() /
-                  ("kotonoha-game-probe-" +
-                   std::to_string(std::chrono::steady_clock::now()
-                                      .time_since_epoch()
-                                      .count()));
+  fs::path root =
+      fs::temp_directory_path() /
+      ("kotonoha-game-probe-" +
+       std::to_string(
+           std::chrono::steady_clock::now().time_since_epoch().count()));
   Fixture() { fs::create_directories(root); }
   ~Fixture() {
     std::error_code error;
@@ -64,14 +64,12 @@ int main() {
                                      {"", "files/"}),
             "LucaSystem: reject incomplete PAK group");
     const auto pmail = findRequiredFilesPrefix(
-        *source, {"SCRIPT.DAT", "GRAPHIC.DAT"},
-        {"", "pack/", "data/pack/"});
+        *source, {"SCRIPT.DAT", "GRAPHIC.DAT"}, {"", "pack/", "data/pack/"});
     require(pmail && *pmail == "data/pack/",
             "Pure Mail: recognize nested script/graphics in data/pack/");
     const auto ddlc = findRequiredFilesPrefix(
         *source, {"scripts.rpa", "images.rpa"}, {"game/", ""});
-    require(ddlc && *ddlc == "game/",
-            "DDLC: recognize game/ archive pair");
+    require(ddlc && *ddlc == "game/", "DDLC: recognize game/ archive pair");
     require(findRequiredFilesPrefix(*source, {"seen.txt", "gameexe.ini"}) ==
                 std::optional<std::string>{""},
             "RealLive: recognize mixed-case VFS filenames");

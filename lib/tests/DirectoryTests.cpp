@@ -126,8 +126,7 @@ void legacyMigration(const fs::path &root) {
   require(migrateLegacyDocuments(locations, legacy.packageIdentifier),
           "Existing legacy Documents move to corrected bundle identifier");
   require(fs::exists(newRoot / "settings.json") &&
-              fs::exists(newRoot / "save" / "slot.vn") &&
-              !fs::exists(oldRoot),
+              fs::exists(newRoot / "save" / "slot.vn") && !fs::exists(oldRoot),
           "Migrated settings and saves remain intact");
   fs::create_directories(oldRoot);
   std::ofstream(oldRoot / "settings.json") << "old";
