@@ -53,6 +53,10 @@ public:
 
   bool valid() const { return valid_; }
   const std::string &error() const { return error_; }
+  // Lossless byte-for-byte reconstruction of parsed CodeLine instructions.
+  // Useful for preservation tests and future opcode-aware script patching.
+  // Throws if parsing failed or the decoded instruction layout is inconsistent.
+  std::vector<std::uint8_t> serialize() const;
 
 private:
   std::string name_;
