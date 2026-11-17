@@ -166,6 +166,15 @@ add_executable(SchoolDaysGlobalFlagAtomicTest
 target_link_libraries(SchoolDaysGlobalFlagAtomicTest PRIVATE school_days)
 add_test(NAME SchoolDays.GlobalFlagAtomic COMMAND SchoolDaysGlobalFlagAtomicTest)
 
+# Complete synthetic end-count boundary with an isolated FlgH restart; depends
+# on the normal synthetic route fixture, never on retail files or saves.
+add_executable(SchoolDaysAllClearSyntheticTest SchoolDaysAllClearSyntheticTest.cpp)
+target_link_libraries(SchoolDaysAllClearSyntheticTest PRIVATE school_days)
+add_test(NAME SchoolDays.AllClearSynthetic COMMAND SchoolDaysAllClearSyntheticTest
+    "${SCHOOL_DAYS_ROUTE}" "${CMAKE_CURRENT_BINARY_DIR}/fixtures/Script/English")
+set_tests_properties(SchoolDays.AllClearSynthetic PROPERTIES
+    FIXTURES_REQUIRED school_days_assets)
+
 # Pure, private CMAP regression: clicking the currently selected Save/Load tab
 # must not clear the occupancy latch and disable an otherwise valid LOAD row.
 add_executable(SchoolDaysSaveLoadSamePageTest SchoolDaysSaveLoadSamePageTest.cpp)
@@ -369,6 +378,7 @@ if(WIN32)
         SchoolDaysReplayRuntimeIsolationTest
         SchoolDaysReplayRuntimeUiTest
         SchoolDays.GlobalFlagAtomic
+        SchoolDays.AllClearSynthetic
         SchoolDaysRuntimeSmoke
         SchoolDaysLauncherTest
         ${_school_days_dev_only_ctests}
