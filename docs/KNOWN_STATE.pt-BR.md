@@ -112,3 +112,54 @@ não foi pulado, desativado nem enfraquecido. O teste complementar
 porta/raiz MCP e logging de debug. CTest Windows Release final desta feature:
 DEV **80/81** (só a falha conhecida MetalFX/software) e DIST **74/75**
 (só o teste positivo MCP registrado na engine).
+
+### Escolha pendente bloqueia o transporte — 17/11/2026
+
+O `SkipToEnd` do School Days não pode mais avançar por cima de um `SetSELECT`
+não resolvido. O runtime específico do jogo reconhece a escolha ainda antes
+de a janela de interação aparecer, calcula um destino protegido, fixa-o quando
+o menu superior inicia o fade preto e revalida esse mesmo destino antes do
+salto. Escolha surgida durante o fade, mudança de cena ou avanço do relógio
+cancelam o transporte, sem seek, continuação do fade ou confirmação de opção.
+O primeiro salto permitido ainda leva a `SkipFRAME - 24` ticks; cenas sem
+escolhas e o percurso normal anterior à escolha em `SkipToNextChoice` mantêm
+o comportamento existente.
+
+A proteção abrange também a seta DIREITA, a seta ESQUERDA/Back enquanto a
+escolha aguarda resposta, controle direto 3 do menu, mouse/toque e entradas
+sintéticas de gamepad para skip. A reprodução de Replay Data preserva as
+escolhas registradas. A MenuBar superior inteira fica oculta durante a
+escolha não confirmada. Seleção legítima, timeout, AUTO mode, pausa,
+velocidade escolhida e cauda visual somente com o medidor continuam
+independentes dessa barreira. O menu normal retorna na próxima cena física.
+
+Testes C++ determinísticos e sintéticos no Windows cobrem escolha visível,
+corrida do fade preto, 2/3/10/50 entradas rápidas, DIREITA/ESQUERDA,
+controle direto 3, `SkipToNextChoice`, escolha manual, cenas sem escolha,
+timeout, além de sequências pseudoaleatórias com semente fixa (**256
+sequências, 12 ações cada, semente `0x5EEDBEEF`**). Os testes existentes
+de Replay Data e H-scene foram preservados. As falhas anteriores à correção
+estão registradas em `build/_skip-choice-log.md`, fora do Git; não foram
+usados scripts retail, saves reais ou GPKs comerciais.
+
+**Não verificado:** teste manual/visual com a mídia comercial, GPU real,
+fidelidade exata ao executável original onde a documentação existente não
+estabelece os fatos (em especial menu e setas durante escolhas), gamepad ou
+toque em hardware móvel e compilações para Linux/macOS/Android/iOS. Testes
+sintéticos e build Windows não substituem o QA que será executado pelo
+usuário. O procedimento está no checklist não rastreado
+`build/CHECKLIST-QA-SKIP-CHOICE.md`.
+
+Verificação Windows Release desta feature local, somente com fixtures
+sintéticas: build DEV completo **PASS**, CTest DEV **80/81** (apenas a falha
+histórica `Kotonoha.Infrastructure`/MetalFX com software), build DIST
+completo **PASS** e CTest DIST **74/75** (apenas o teste positivo
+`Kotonoha.MCPCommandLine` incompatível, já descrito acima). Ambas as
+variantes passaram as sequências aleatórias de barreira do
+`SchoolDaysNextChoiceRuntimeTest`. O stress DEV headless executado
+separadamente passou **36/36** casos com `--documents` e `--config` isolados;
+`ValidateBuildMetadata.py` passou. A incompatibilidade MCP na DIST **não**
+atende a um critério rígido de aceitação que permite somente a falha MetalFX.
+Nenhum teste em `lib/` foi modificado ou suprimido para escondê-la. O stress
+específico da DIST não foi verificado porque `stress_l4.py` atualmente usa
+os controles `--node` / `--ktrf`, exclusivos de DEV.

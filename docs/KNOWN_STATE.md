@@ -110,3 +110,53 @@ The separate `SchoolDays.DistDebugAbsence` test passes in DIST and explicitly
 rejects MCP, MCP port/root and debug logging options. Final Windows Release
 CTest for this feature: DEV **80/81** (only known software MetalFX failure),
 DIST **74/75** (only this registered MCP positive test).
+
+### Pending choice is a transport barrier — 2026-11-17
+
+School Days `SkipToEnd` can no longer seek across an unresolved `SetSELECT`.
+Its game-specific runtime identifies an unresolved authored prompt even before
+its input window appears, computes one protected destination, captures it when
+the upper menu initiates a black fade, and revalidates the same destination
+before navigating. A late prompt, stale scene or advanced clock cancels the
+transport without a seek, fade continuation or choice commit. In particular,
+the first permitted jump remains `SkipFRAME - 24` ticks; ordinary no-choice
+scenes and pre-choice `SkipToNextChoice` keep their existing behavior.
+
+The safeguard also applies to gameplay RIGHT, the LEFT/Back input while a
+prompt is actively waiting, direct menu control 3, mouse/touch and synthetic
+gamepad skip input; replay-owned transports retain their recorded-choice
+semantics. The upper MenuBar is entirely suppressed while an uncommitted
+choice owns input. Legitimate player clicks, timed-out prompts, AUTO mode,
+pause, selected playback speed and the confirmed-choice feeling-meter tail
+remain separate from this transport barrier. Normal menu ownership resumes
+with the next physical scene.
+
+Deterministic synthetic C++ tests on Windows exercise visible choices,
+black-fade races, repeated inputs (2/3/10/50), RIGHT/LEFT, direct control 3,
+`SkipToNextChoice`, manual selection, choice-free scripts, timed choice expiry,
+and fixed-seed randomized sequences (**256 sequences, 12 actions each,
+seed `0x5EEDBEEF`**). The old test suite for Replay Data and H-scene playback
+is preserved unchanged. The barrier failures were recorded before any
+production fix in the ignored `build/_skip-choice-log.md`; no retail script,
+real save or commercial GPK was used.
+
+**Not verified:** GUI/manual playthrough with real School Days media, real GPU
+behavior, timing fidelity against the original commercial binary where the
+existing documentation does not establish it (in particular top-menu
+visibility and arrow-key behavior at an open prompt), mobile gamepad/touch
+hardware, Linux/macOS/Android/iOS builds. Synthetic tests and a successful
+Windows build cannot substitute for the user's manual gameplay QA. The
+untracked `build/CHECKLIST-QA-SKIP-CHOICE.md` records the manual procedure.
+
+Windows Release verification for this local choice-barrier feature, with
+synthetic fixtures only: full DEV build **PASS**, DEV CTest **80/81** (only
+the historical `Kotonoha.Infrastructure` software MetalFX failure), full
+DIST build **PASS**, and DIST CTest **74/75** (only the existing positive
+`Kotonoha.MCPCommandLine` mismatch detailed above). Both variants passed the
+`SchoolDaysNextChoiceRuntimeTest` randomized barrier cases. The separately
+run headless DEV stress passed **36/36** isolated `--documents`/`--config`
+smoke cases; `ValidateBuildMetadata.py` passed. The DIST MCP mismatch does
+**not** satisfy a strict acceptance gate permitting only the MetalFX failure.
+No `lib/` test was changed or suppressed to conceal it. DIST-specific stress
+is not verified because `stress_l4.py` currently invokes DEV-only `--node` /
+`--ktrf` controls.
