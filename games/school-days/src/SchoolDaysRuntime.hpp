@@ -155,6 +155,8 @@ class Runtime final : public Kotonoha::Runtime {
   Kotonoha::SchoolDaysLxhFade lxhFade;
   Kotonoha::SchoolDaysLoadTransition loadTransition;
   Kotonoha::SchoolDaysTransportFade transportFade;
+  std::optional<Kotonoha_SceneTick> transportSkipTarget;
+  std::string transportSkipScene;
   Kotonoha::SchoolDaysExitTransition exitTransition;
   Kotonoha::SchoolDaysSystemPanelTransition systemPanelTransition;
   Kotonoha::SchoolDaysRetailConfigPolicy::State config =
@@ -355,6 +357,9 @@ class Runtime final : public Kotonoha::Runtime {
   void reset();
   void back();
   void seek(Kotonoha_SceneTick target);
+  bool unresolvedChoice() const;
+  Kotonoha::SchoolDaysOptionalTick protectedSkipToEndTarget() const;
+  void requestSkipToEnd();
   void skipToNextChoice();
   void flushGlobal();
   void armHandoff();
