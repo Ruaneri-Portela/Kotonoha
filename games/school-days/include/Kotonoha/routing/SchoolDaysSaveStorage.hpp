@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include <Kotonoha/routing/SchoolDaysAtomicFile.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveService.hpp>
 
@@ -17,13 +18,7 @@ class SchoolDaysSaveStorage {
 public:
     // Synthetic fault injection. Per-instance; never read from retail data or
     // environment variables, and inactive unless a test explicitly sets it.
-    enum class GlobalFlagWriteFault {
-        None,
-        Write,
-        Flush,
-        Publish,
-        SimulatedInterruption
-    };
+    using GlobalFlagWriteFault = SchoolDaysAtomicFile::Fault;
 
     void SetGlobalFlagWriteFaultForTesting(GlobalFlagWriteFault fault) {
         globalFlagWriteFaultForTesting_ = fault;
@@ -68,9 +63,6 @@ private:
     static bool WriteFileTruncate(const std::filesystem::path& path,
                                   const std::vector<uint8_t>& bytes,
                                   std::string* error);
-    bool WriteGlobalFlagAtomic(const std::filesystem::path& path,
-                               const std::vector<uint8_t>& bytes,
-                               std::string* error) const;
 
     std::filesystem::path baseDirectory_;
     SchoolDaysSaveProfile profile_;
