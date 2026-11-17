@@ -86,12 +86,47 @@ void WriteScripts(const fs::path &root) {
       "[Next]=00:04:00;\n");
 }
 
+void EnterChoiceSceneByPlayer(SchoolDays::Runtime &runtime) {
+  Require(!runtime.retailConfig().skip,
+          "choice fixture must start with unread-script stopping enabled");
+  Require(runtime.debugNode() == "00/00-00-A00",
+          "choice fixture did not begin at A00");
+  for (const char *next : {"00/00-00-A01", "00/00-00-A02",
+                           "00/00-00-A03"}) {
+    runtime.openPanel(4); // Native next-choice; stop at each unread script.
+    Require(runtime.debugNode() == next,
+            std::string("player next-choice did not reach ") + next);
+    Require(runtime.debugNodeSeconds() && *runtime.debugNodeSeconds() == 0.0,
+            std::string("player next-choice did not enter ") + next +
+                " at tick zero");
+  }
+}
+
 void TestCurrentScriptChoiceSeek(const char *route, const fs::path &root) {
   const auto documents = root / "documents-current";
   fs::create_directories(documents);
   auto assets = std::make_shared<SchoolDays::Assets>(root);
+  // Keep developer API assertions in an independent session: a debug jump
+  // can update the read/history markers that govern the real player path.
+  const auto probeDocuments = root / "documents-debug-api";
+  fs::create_directories(probeDocuments);
+  {
+    Application probe(assets, route, probeDocuments);
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+    probe.runtime.debugJumpToNode("00/00-00-A03");
+    Require(probe.runtime.debugNode() == "00/00-00-A00",
+            "DIST unexpectedly accepted the developer scene jump");
+#else
+    probe.runtime.debugJumpToNode("00/00-00-A03");
+    Require(probe.runtime.debugNode() == "00/00-00-A03",
+            "DEV developer scene jump did not reach A03");
+    probe.runtime.debugJumpToNode("00/00-00-A00");
+    Require(probe.runtime.debugNode() == "00/00-00-A00",
+            "DEV developer scene jump did not restore A00");
+#endif
+  }
   Application app(assets, route, documents);
-  app.runtime.debugJumpToNode("00/00-00-A03");
+  EnterChoiceSceneByPlayer(app.runtime);
   Require(app.runtime.debugNode() == "00/00-00-A03",
           "current-script fixture did not enter A03");
   Require(*app.runtime.debugNodeSeconds() == 0.0,
@@ -269,7 +304,7 @@ void TestRetailChoiceSelectedTail(const char *route, const fs::path &root) {
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
 
-  app.runtime.debugJumpToNode("00/00-00-A03");
+  EnterChoiceSceneByPlayer(app.runtime);
   Access::Seek(app.runtime, 48);
   Require(Access::Pending(app.runtime),
           "retail SetSELECT did not open at authored start tick");
@@ -323,7 +358,7 @@ void TestRetailChoiceTimeoutTail(const char *route, const fs::path &root) {
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
 
-  app.runtime.debugJumpToNode("00/00-00-A03");
+  EnterChoiceSceneByPlayer(app.runtime);
   Access::Seek(app.runtime, 48);
   Access::SetTick(app.runtime, 70);
   Require(Access::Pending(app.runtime),
@@ -353,7 +388,7 @@ void TestTurboStopsAtChoiceAndRestores(const char *route, const fs::path &root) 
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
 
-  app.runtime.debugJumpToNode("00/00-00-A03");
+  EnterChoiceSceneByPlayer(app.runtime);
   Access::SetSpeed(app.runtime, 4); // UI x32 maps to internal 24x.
   Require(Access::SelectedSpeed(app.runtime) == 4 &&
               Access::EffectiveSpeed(app.runtime) == 24.0 &&
@@ -386,7 +421,7 @@ void TestTurboCannotCrossChoiceWithLongFrame(const char *route, const fs::path &
   auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
-  app.runtime.debugJumpToNode("00/00-00-A03");
+  EnterChoiceSceneByPlayer(app.runtime);
   Access::SetSpeed(app.runtime, 4);
   // An oversized update used to seek straight across the entire 48..72
   // SetSELECT. Its clamped boundary must be 48, not the authored timeout.
@@ -405,7 +440,7 @@ void TestTransportFadeBeforeSeek(const char *route, const fs::path &root) {
   Application app(assets, route, documents);
   using Access = SchoolDays::RuntimeChoiceTestAccess;
   using Fade = Kotonoha::SchoolDaysTransportFade;
-  app.runtime.debugJumpToNode("00/00-00-A03");
+  EnterChoiceSceneByPlayer(app.runtime);
 
   const uint64_t skipAt = SDL_GetTicks();
   Access::ClickTransport(app.runtime, false);
@@ -431,7 +466,11 @@ void TestTransportFadeBeforeSeek(const char *route, const fs::path &root) {
           "SkipToEnd fade did not unlock the following transport action");
 
   // Rewind uses the same state4 fade but targets the current scene start.
-  app.runtime.debugJumpToNode("00/00-00-A03");
+  // Restart the existing physical script without a developer scene jump.
+  Access::Seek(app.runtime, 0);
+  Require(app.runtime.debugNode() == "00/00-00-A03" &&
+              Access::CurrentTick(app.runtime) == 0,
+          "transport fixture did not restore A03 to its first frame");
   Access::Seek(app.runtime, 24);
   const uint64_t rewindAt = SDL_GetTicks();
   Access::ClickTransport(app.runtime, true);

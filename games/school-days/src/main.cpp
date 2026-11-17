@@ -379,12 +379,16 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv
     // non-interactive behavior even when no window server is available.
     if (!app->dump.empty() || !app->startNode.empty() || arguments.frames > 0)
       app->options.launcher = false;
+#else
+    // --frames is already a documented, engine-level command in the public
+    // CommandLine parser. Honour its bounded exit without exposing developer
+    // scene-jump, graph export or diagnostic interfaces in a DIST build.
+    if (arguments.frames > 0)
+      app->options.launcher = false;
 #endif
     DevStartupLog("arguments-parsed");
     if (arguments.wantsHelp()) { std::fputs(arguments.help().c_str(), stdout); return SDL_APP_SUCCESS; }
-#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     app->frames = arguments.frames;
-#endif
     if (app->options.subtitleStylePath.empty())
       if (const auto styles = Kotonoha::FileResolver::findGameAsset("school-days", "styles.ass"))
         app->options.subtitleStylePath = styles->string();
@@ -603,9 +607,9 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
     }
     if (result != SDL_APP_CONTINUE)
       DevStartupLog("engine-iterate-result", std::to_string(result));
-#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+    // The generic --frames option must behave the same in DEV and DIST.  It
+    // gives headless tests a real game loop without reinstating debug APIs.
     if (app->frames > 0 && --app->frames == 0) return SDL_APP_SUCCESS;
-#endif
     return result;
   } catch (const std::exception &error) {
     DevStartupLog("frame-error", error.what());
