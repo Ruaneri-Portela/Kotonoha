@@ -7,7 +7,7 @@
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
-#include <Kotonoha/media/TextureAlpha.hpp>
+#include <Kotonoha/media/SurfaceTexture.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <cmath>
@@ -29,18 +29,6 @@ IOStreamPtr memoryStream(const std::vector<Uint8> &bytes) {
   return stream;
 }
 
-void prepareLinearSurface(SDL_Surface *surface) {
-  if (!surface || surface->format != SDL_PIXELFORMAT_RGBA32)
-    return;
-  const bool lock = SDL_MUSTLOCK(surface);
-  if (lock && !SDL_LockSurface(surface))
-    return;
-  prepareStraightAlphaForLinearFiltering(static_cast<Uint8 *>(surface->pixels),
-                                         surface->w, surface->h,
-                                         surface->pitch);
-  if (lock)
-    SDL_UnlockSurface(surface);
-}
 } // namespace
 
 AssetProvider::AssetProvider() = default;
@@ -354,8 +342,11 @@ SDL_Texture &AssetProvider::stageTexture(RendererRef renderer,
     return *found->second;
   if (!surface)
     throw std::invalid_argument("Staged asset surface is empty");
-  prepareLinearSurface(surface.get());
-  TexturePtr created(SDL_CreateTextureFromSurface(&renderer, surface.get()));
+  const SurfacePtr prepared = prepareSurfaceForLinearSampling(surface.get());
+  if (!prepared)
+    throw std::runtime_error("Cannot prepare picture " + id + ": " +
+                             SDL_GetError());
+  TexturePtr created(SDL_CreateTextureFromSurface(&renderer, prepared.get()));
   if (!created)
     throw std::runtime_error("Cannot upload picture " + id + ": " +
                              SDL_GetError());
@@ -384,9 +375,12 @@ SDL_Texture &AssetProvider::texture(RendererRef renderer, const std::string &id,
   TexturePtr created;
   {
     const SurfacePtr source = loadSurface(id);
-    prepareLinearSurface(source.get());
+    const SurfacePtr prepared = prepareSurfaceForLinearSampling(source.get());
+    if (!prepared)
+      throw std::runtime_error("Cannot prepare picture " + id + ": " +
+                               SDL_GetError());
     SurfacePtr resized(SDL_ScaleSurface(
-        source.get(), std::max(1, int(std::lround(source->w * scale))),
+        prepared.get(), std::max(1, int(std::lround(source->w * scale))),
         std::max(1, int(std::lround(source->h * scale))),
         SDL_SCALEMODE_LINEAR));
     if (!resized)
@@ -407,12 +401,15 @@ SurfacePtr AssetProvider::surface(RendererRef renderer, const std::string &id,
   if (!std::isfinite(scale) || scale <= 0)
     throw std::invalid_argument("Surface scale must be positive");
   const SurfacePtr source = loadSurface(id);
-  prepareLinearSurface(source.get());
+  const SurfacePtr prepared = prepareSurfaceForLinearSampling(source.get());
+  if (!prepared)
+    throw std::runtime_error("Cannot prepare picture " + id + ": " +
+                             SDL_GetError());
   if (upscaling)
-    return upscaling->scaled(*source, scale);
+    return upscaling->scaled(*prepared, scale);
   (void)renderer;
   SurfacePtr resized(SDL_ScaleSurface(
-      source.get(), std::max(1, int(std::lround(source->w * scale))),
+      prepared.get(), std::max(1, int(std::lround(source->w * scale))),
       std::max(1, int(std::lround(source->h * scale))), SDL_SCALEMODE_LINEAR));
   if (!resized)
     throw std::runtime_error("Cannot scale picture " + id + ": " +
