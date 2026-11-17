@@ -30,7 +30,10 @@ else()
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/CMakeLists.txt")
-target_link_libraries(RealLiveFormats PUBLIC Kotonoha::Vmreallive)
+# Formats expose VM declarations as headers but never link backwards into
+# the VM. The VM links Formats, keeping the static-library DAG acyclic.
+target_include_directories(RealLiveFormats PUBLIC
+    $<TARGET_PROPERTY:kotonoha_vm_reallive,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(KOTONOHA_BUILD_HOST_TOOLS)
     add_executable(RealLiveInspect tools/RealLiveInspect.cpp)
@@ -38,7 +41,7 @@ if(KOTONOHA_BUILD_HOST_TOOLS)
 endif()
 
 find_package(Iconv REQUIRED)
-target_link_libraries(RealLiveFormats PUBLIC Kotonoha::Engine Iconv::Iconv)
+target_link_libraries(RealLiveFormats PUBLIC KotonohaEngine Iconv::Iconv)
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/reallive"
     "${CMAKE_CURRENT_BINARY_DIR}/providers/reallive")
@@ -48,10 +51,10 @@ target_include_directories(reallive_port PUBLIC src)
 set_target_properties(reallive_port PROPERTIES CXX_EXTENSIONS OFF)
 target_link_libraries(reallive_port PUBLIC
     RealLiveFormats
-    Kotonoha::Engine
+    KotonohaEngine
     Iconv::Iconv
-    Kotonoha::ProviderRealLive
-    Kotonoha::Vmreallive
+    kotonoha_provider_reallive
+    kotonoha_vm_reallive
 )
 
 kotonoha_add_app(RealLive src/main.cpp)
@@ -94,7 +97,7 @@ if(BUILD_TESTING)
     endforeach()
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
-        target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats Kotonoha::Vmreallive)
+        target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)
         if(format STREQUAL "Session")
             # These older tests use assert(), which Release -DNDEBUG would
             # otherwise compile away instead of checking retail scenarios.
