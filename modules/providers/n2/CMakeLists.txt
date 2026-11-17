@@ -1,5 +1,5 @@
 # N2System source-only AFS/NPA support. Tested independently of SDL.
-if(TARGET Kotonoha::Modules::Providers::N2)
+if(TARGET kotonoha_provider_n2)
     return()
 endif()
 add_library(kotonoha_n2_archive_formats STATIC src/Archive.cpp)
@@ -7,10 +7,8 @@ target_include_directories(kotonoha_n2_archive_formats PUBLIC "${CMAKE_CURRENT_L
 target_compile_features(kotonoha_n2_archive_formats PUBLIC cxx_std_17)
 set_target_properties(kotonoha_n2_archive_formats PROPERTIES CXX_EXTENSIONS OFF)
 add_library(kotonoha_provider_n2 STATIC src/N2ArchiveAssets.cpp)
-add_library(Kotonoha::Modules::Providers::N2 ALIAS kotonoha_provider_n2)
-add_library(Kotonoha::ProviderN2 ALIAS kotonoha_provider_n2)
 target_include_directories(kotonoha_provider_n2 PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
-target_link_libraries(kotonoha_provider_n2 PUBLIC kotonoha_n2_archive_formats Kotonoha::Engine)
+target_link_libraries(kotonoha_provider_n2 PUBLIC kotonoha_n2_archive_formats KotonohaEngine)
 target_compile_features(kotonoha_provider_n2 PUBLIC cxx_std_17)
 set_target_properties(kotonoha_provider_n2 PROPERTIES CXX_EXTENSIONS OFF)
 if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN)

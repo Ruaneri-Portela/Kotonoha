@@ -18,7 +18,7 @@ add_library(ZeroNoTsukaimaFormats STATIC
     src/Game.cpp
 )
 target_include_directories(ZeroNoTsukaimaFormats PUBLIC include)
-target_link_libraries(ZeroNoTsukaimaFormats PUBLIC Kotonoha::Engine)
+target_link_libraries(ZeroNoTsukaimaFormats PUBLIC KotonohaEngine)
 target_compile_features(ZeroNoTsukaimaFormats PUBLIC cxx_std_17)
 set_target_properties(ZeroNoTsukaimaFormats PROPERTIES CXX_EXTENSIONS OFF)
 
@@ -35,9 +35,9 @@ add_library(zero_no_tsukaima STATIC
 )
 target_include_directories(zero_no_tsukaima PUBLIC src)
 target_link_libraries(zero_no_tsukaima PUBLIC
-    Kotonoha::Engine
+    KotonohaEngine
     ZeroNoTsukaimaFormats
-    Kotonoha::Modules::Providers::Zero
+    kotonoha_provider_zero
 )
 set_target_properties(zero_no_tsukaima PROPERTIES CXX_EXTENSIONS OFF)
 
