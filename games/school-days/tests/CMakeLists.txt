@@ -165,17 +165,18 @@ if(KOTONOHA_DISTRIBUTION_BUILD)
     # Public build: exercise the real headless game loop, without scene-jump
     # or KTRF export options that correctly do not exist in this variant.
     # DEV keeps the stronger original route/export assertions below.
-    add_test(NAME SchoolDaysRuntimeSmoke COMMAND SchoolDays
-        --school-days "${CMAKE_CURRENT_BINARY_DIR}/fixtures"
-        --documents "${CMAKE_CURRENT_BINARY_DIR}/documents"
+    set(_school_days_runtime_smoke_args
         --no-config --no-launcher --renderer software --frames 4)
 else()
-    add_test(NAME SchoolDaysRuntimeSmoke COMMAND SchoolDays
-        --school-days "${CMAKE_CURRENT_BINARY_DIR}/fixtures"
-        --documents "${CMAKE_CURRENT_BINARY_DIR}/documents"
+    set(_school_days_runtime_smoke_args
         --no-config --renderer software --frames 4 --node 0
         --dump-ktrf "${CMAKE_CURRENT_BINARY_DIR}/smoke.ktnroute")
 endif()
+add_test(NAME SchoolDaysRuntimeSmoke COMMAND SchoolDays
+    --school-days "${CMAKE_CURRENT_BINARY_DIR}/fixtures"
+    --documents "${CMAKE_CURRENT_BINARY_DIR}/documents"
+    ${_school_days_runtime_smoke_args})
+unset(_school_days_runtime_smoke_args)
 set_tests_properties(SchoolDaysRuntimeSmoke PROPERTIES
     FIXTURES_REQUIRED school_days_assets
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
