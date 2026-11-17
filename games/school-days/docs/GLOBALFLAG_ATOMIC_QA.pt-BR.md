@@ -38,3 +38,16 @@ e recusa sobrescrever sem `--replace`; `tools/inspect_synthetic_globalflag.py`
 
 A sequência completa de finais **não teve validação visual**. A confirmação
 de paridade integral requer uma partida de verificação.
+
+### Limite do teste MCP na DIST
+
+`Kotonoha.MCPCommandLine` é registrado pelo motor em
+`lib/tests/CMakeLists.txt:20-22` e valida positivamente argumentos MCP de
+desenvolvimento. Na configuração DIST do fork de origem, esses argumentos
+ficam deliberadamente indisponíveis; essa é a **única incompatibilidade
+conhecida de teste da engine**, não evidência de MCP ativo no jogador público.
+O teste positivo permanece ativo e inalterado, sem desativação ou pulo. O teste
+específico `SchoolDays.DistDebugAbsence` verifica a rejeição quando a macro
+`KOTONOHA_DISTRIBUTION_BUILD` está habilitada. Esta contribuição não altera
+`lib/` nem cria seletores DEV/DIST globais no CMake do upstream; a escolha dos
+testes da versão atual do upstream exige verificação separada.

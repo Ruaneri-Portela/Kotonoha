@@ -37,3 +37,15 @@ QA profile and refuses overwrites without `--replace`; the read-only
 
 The complete sequence of ending scenes has **not** been visually validated.
 An end-to-end retail parity claim would require gameplay verification.
+
+### DIST MCP test boundary
+
+`Kotonoha.MCPCommandLine` is registered by the shared engine in
+`lib/tests/CMakeLists.txt:20-22` and positively tests developer MCP arguments.
+On the downstream fork's DIST configuration, those arguments are intentionally
+unavailable; this is the **single classified engine-test mismatch**, not
+evidence of MCP in the public player. The positive engine test is unchanged,
+active and not skipped. The game-specific `SchoolDays.DistDebugAbsence` test
+checks the negative behavior when `KOTONOHA_DISTRIBUTION_BUILD` is enabled.
+This contribution does not modify `lib/` or introduce upstream-wide DEV/DIST
+CMake switches; upstream's current test selection must be assessed separately.
