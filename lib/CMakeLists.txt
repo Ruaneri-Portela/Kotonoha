@@ -117,6 +117,15 @@ else()
         get_target_property(_ttf_target SDL3_ttf::SDL3_ttf ALIASED_TARGET)
         set_property(TARGET ${_ttf_target} PROPERTY LINKER_LANGUAGE CXX)
     endif()
+    # SDL is built once from its vendored sources. Disabling the versioned
+    # filename prevents extra libSDL3.{major}.dylib / symlink outputs while
+    # preserving the canonical target's SONAME/install-name pairing.
+    foreach(_kotonoha_sdl_shared IN ITEMS SDL3-shared SDL3_ttf-shared)
+        if(TARGET ${_kotonoha_sdl_shared})
+            set_target_properties(${_kotonoha_sdl_shared} PROPERTIES
+                VERSION "" SOVERSION "")
+        endif()
+    endforeach()
 endif()
 
 # --- Bibliotecas Externas (Ass, FFmpeg, JSON-C) ---
@@ -213,10 +222,8 @@ if(KOTONOHA_IMGUI_FROM_VCPKG)
     if(NOT TARGET imgui::imgui)
         message(FATAL_ERROR "The vcpkg ImGui target imgui::imgui is missing")
     endif()
-    # Keep the project's existing 'imgui' link name without rebuilding any
-    # of the ImGui sources or SDL renderer backends.
-    add_library(imgui INTERFACE)
-    target_link_libraries(imgui INTERFACE imgui::imgui)
+    # Directly consume the external target: no project-owned wrapper target.
+    set(KOTONOHA_IMGUI_TARGET imgui::imgui)
 else()
     add_library(imgui ${KOTONOHA_LIB_TYPE}
             submodules/imgui/imgui.cpp
@@ -233,7 +240,11 @@ else()
             submodules/imgui/misc/cpp
     )
     target_link_libraries(imgui PUBLIC SDL3::SDL3)
+    set(KOTONOHA_IMGUI_TARGET imgui)
 endif()
+# Also visible to sibling game CMakeLists and deployment helpers.
+set(KOTONOHA_IMGUI_TARGET "${KOTONOHA_IMGUI_TARGET}" CACHE INTERNAL
+    "Single ImGui link target for the active toolchain" FORCE)
 
 # ==============================================================================
 # Target principal: KotonohaEngine
@@ -260,7 +271,6 @@ if(DEFINED KOTONOHA_ENABLE_UPSCALER AND NOT KOTONOHA_ENABLE_UPSCALER)
 endif()
 
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
-add_library(Kotonoha::Engine ALIAS KotonohaEngine)
 if(DEFINED KOTONOHA_ENABLE_UPSCALER)
     target_compile_definitions(KotonohaEngine PUBLIC
         KOTONOHA_ENABLE_UPSCALER=$<BOOL:${KOTONOHA_ENABLE_UPSCALER}>)
@@ -279,15 +289,11 @@ target_compile_features(KotonohaEngine PUBLIC cxx_std_17)
 
 set_target_properties(KotonohaEngine PROPERTIES
         CXX_EXTENSIONS OFF
-        VERSION ${PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION_MAJOR}
         WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 if(NOT KOTONOHA_IMGUI_FROM_VCPKG)
     set_target_properties(imgui PROPERTIES
             CXX_EXTENSIONS OFF
-            VERSION ${PROJECT_VERSION}
-            SOVERSION ${PROJECT_VERSION_MAJOR}
             WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
@@ -307,7 +313,7 @@ target_link_libraries(KotonohaEngine
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
         ${kotonoha_ffmpeg_target}
-        imgui
+        ${KOTONOHA_IMGUI_TARGET}
         PRIVATE
         ${kotonoha_json_target}
         ${kotonoha_ass_target}
@@ -381,7 +387,7 @@ include("${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/KotonohaApp.cmake")
 if(EMSCRIPTEN AND KOTONOHA_WEB_SELFTEST)
     kotonoha_add_app(KotonohaWebSelfTest
         tests/web/main.cpp tests/web/WebSelfTest.cpp)
-    target_link_libraries(KotonohaWebSelfTest PRIVATE Kotonoha::Engine)
+    target_link_libraries(KotonohaWebSelfTest PRIVATE KotonohaEngine)
     target_compile_definitions(KotonohaWebSelfTest PRIVATE KOTONOHA_WEB_SELFTEST)
     kotonoha_configure_app(KotonohaWebSelfTest
         GAME_ASSET_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/tests/web/game-assets")
