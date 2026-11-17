@@ -9,6 +9,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -84,6 +85,31 @@ constexpr const char *kA03 =
     "[SkipFRAME]=00:02:00;\n"
     "[SetSELECT]=00:02:00\tStay here\tLeave now\t00:03:00;\n"
     "[Next]=00:04:00;\n";
+constexpr const char *kIntermediate =
+    "[PrintText]=00:00:00\tNarrator\tSynthetic intermediate.\t00:01:00;\n"
+    "[SkipFRAME]=00:01:00;\n"
+    "[Next]=00:02:00;\n";
+
+void ReachChoiceByPlayer(SchoolDays::Runtime &runtime,
+                         std::array<int, 2> *intermediateRoutes = nullptr) {
+  Require(runtime.debugNode() == "00/00-00-A00",
+          "JSON player-path fixture must start at A00");
+  std::size_t sceneIndex = 0;
+  for (const char *next : {"00/00-00-A01", "00/00-00-A02",
+                           "00/00-00-A03"}) {
+    runtime.openPanel(4); // Player next-choice, default Skip OFF.
+    Require(runtime.debugNode() == next,
+            std::string("JSON player path did not enter ") + next);
+    Require(runtime.debugNodeSeconds() && *runtime.debugNodeSeconds() == 0.0,
+            std::string("JSON player path skipped the start of ") + next);
+    if (sceneIndex < 2 && intermediateRoutes) {
+      (*intermediateRoutes)[sceneIndex] = runtime.translationRoute();
+      Require((*intermediateRoutes)[sceneIndex] >= 0,
+              std::string("Intermediate scene has no translation ID: ") + next);
+    }
+    ++sceneIndex;
+  }
+}
 
 void CheckUnmodifiedScript(const fs::path &path) {
   const auto raw = Read(path);
@@ -134,24 +160,65 @@ void VerifyJsonIntegration(const char *route) {
   const auto first = scripts / "00-00-A00.ENG.ORS";
   const auto choice = scripts / "00-00-A03.ENG.ORS";
   Write(first, kA00);
+  Write(scripts / "00-00-A01.ENG.ORS", kIntermediate);
+  Write(scripts / "00-00-A02.ENG.ORS", kIntermediate);
   Write(choice, kA03);
   const auto documents = temp.root / "documents";
   fs::create_directories(documents);
 
   auto assets = std::make_shared<SchoolDays::Assets>(temp.root);
-  SchoolDays::Runtime runtime(assets, route, documents);
-  Require(runtime.debugNode() == "00/00-00-A00", "Fixture failed to open A00");
-  const int a00 = runtime.translationRoute();
-  Require(a00 >= 0, "A00 lacks a stable KTRF node translation ID");
-  runtime.debugJumpToNode("00/00-00-A03");
-  const int a03 = runtime.translationRoute();
-  Require(runtime.debugNode() == "00/00-00-A03" && a03 >= 0 && a03 != a00,
-          "Different scenes must preserve distinct translation route IDs");
+  int a00 = -1;
+  int a03 = -1;
+  std::array<int, 2> intermediateRoutes{{-1, -1}};
+  Kotonoha::Translation::SourceTexts sources;
+  // Probe the debug API separately. Its scene jumps can affect the session's
+  // read markers, so it cannot own the player-path coverage session.
+  {
+    const auto probeDocuments = temp.root / "debug-probe-documents";
+    fs::create_directories(probeDocuments);
+    SchoolDays::Runtime probe(assets, route, probeDocuments);
+    Require(probe.debugNode() == "00/00-00-A00", "Fixture failed to open A00");
+    a00 = probe.translationRoute();
+    Require(a00 >= 0, "A00 lacks a stable KTRF node translation ID");
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+    probe.debugJumpToNode("00/00-00-A03");
+    Require(probe.debugNode() == "00/00-00-A00" &&
+                probe.translationRoute() == a00,
+            "DIST exposed the development scene jump through the translation route");
+#else
+    probe.debugJumpToNode("00/00-00-A03");
+    Require(probe.debugNode() == "00/00-00-A03" &&
+                probe.translationRoute() != a00,
+            "DEV debug scene jump lost the A03 translation route");
+    probe.debugJumpToNode("00/00-00-A00");
+    Require(probe.debugNode() == "00/00-00-A00" &&
+                probe.translationRoute() == a00,
+            "DEV debug return lost the A00 translation route");
+#endif
+    probe.shutdown();
+  }
+  {
+    const auto probeDocuments = temp.root / "player-probe-documents";
+    fs::create_directories(probeDocuments);
+    SchoolDays::Runtime player(assets, route, probeDocuments);
+    Require(player.debugNode() == "00/00-00-A00" &&
+                player.translationRoute() == a00,
+            "Fresh player-path probe lost the A00 translation route");
+    ReachChoiceByPlayer(player, &intermediateRoutes);
+    a03 = player.translationRoute();
+    Require(player.debugNode() == "00/00-00-A03" && a03 >= 0 && a03 != a00,
+            "Player scene navigation lost distinct KTRF translation IDs");
+    Require(intermediateRoutes[0] != a00 && intermediateRoutes[1] != a00 &&
+                intermediateRoutes[0] != intermediateRoutes[1] &&
+                intermediateRoutes[0] != a03 && intermediateRoutes[1] != a03,
+            "Intermediate scenes must have distinct translation route IDs");
+    sources = player.translationSources();
+    player.shutdown();
+  }
 
   // The exporter must collect ORIGINAL dialogue and choice strings from the
   // authored ORS, not just whichever scene is visible. A canonical speaker
   // name is an ASS style ID, not a translatable user-facing dialogue string.
-  const auto sources = runtime.translationSources();
   Require(!Contains(sources, a00, "Narrator") &&
               Contains(sources, a00, "Shared line.") &&
               Contains(sources, a00, "A00 alone."),
@@ -163,6 +230,9 @@ void VerifyJsonIntegration(const char *route) {
           "A03 PRINT_TEXT/SET_SELECT export is incomplete");
   Require(!Contains(sources, a00, "Stay here"),
           "A03 choices were assigned to the wrong KTRF route");
+  Require(Contains(sources, intermediateRoutes[0], "Synthetic intermediate.") &&
+              Contains(sources, intermediateRoutes[1], "Synthetic intermediate."),
+          "Intermediate ORS dialogue was not collected for translation");
 
   const auto json = temp.root / "translation.json";
   Write(json,
@@ -172,6 +242,10 @@ void VerifyJsonIntegration(const char *route) {
             std::to_string(a00) +
             "\": {\"Shared line.\": \"Linha A00.\", "
             "\"A00 alone.\": \"Somente A00.\"},\n  \"" +
+            std::to_string(intermediateRoutes[0]) +
+            "\": {\"Synthetic intermediate.\": \"Cena intermediaria um.\"},\n  \"" +
+            std::to_string(intermediateRoutes[1]) +
+            "\": {\"Synthetic intermediate.\": \"Cena intermediaria dois.\"},\n  \"" +
             std::to_string(a03) +
             "\": {\"Stay here\": \"Ficar aqui\"}\n}\n");
   Kotonoha::Translation standalone;
@@ -180,6 +254,10 @@ void VerifyJsonIntegration(const char *route) {
               standalone.text(a03, "Shared line.") == "Linha comum." &&
               standalone.text(a03, "Stay here") == "Ficar aqui" &&
               standalone.text(a03, "Leave now") == "Sair agora" &&
+              standalone.text(intermediateRoutes[0], "Synthetic intermediate.") ==
+                  "Cena intermediaria um." &&
+              standalone.text(intermediateRoutes[1], "Synthetic intermediate.") ==
+                  "Cena intermediaria dois." &&
               standalone.text(a00, "Narrator") == "Narrador" &&
               standalone.text(a03, "not in JSON") == "not in JSON",
           "Route-specific override/global nodo fallback/original fallback drifted");
@@ -188,7 +266,10 @@ void VerifyJsonIntegration(const char *route) {
   VerifyChoiceGeometry(standalone.text(a03, "Stay here"));
   VerifyChoiceGeometry(standalone.text(a03, "Leave now"));
 
-  runtime.debugJumpToNode("00/00-00-A00");
+  SchoolDays::Runtime runtime(assets, route, documents);
+  Require(runtime.debugNode() == "00/00-00-A00" &&
+              runtime.translationRoute() == a00,
+          "Fresh JSON gameplay did not restore original A00 route");
   Kotonoha::EngineOptions options;
   options.assets = assets;
   options.persistSettings = false;
@@ -212,14 +293,19 @@ void VerifyJsonIntegration(const char *route) {
     Require(exported.text(a00, "Shared line.") == "Linha A00." &&
                 exported.text(a03, "Shared line.") == "Linha comum." &&
                 exported.text(a03, "Stay here") == "Ficar aqui" &&
-                exported.text(a03, "Leave now") == "Sair agora",
+                exported.text(a03, "Leave now") == "Sair agora" &&
+                exported.text(intermediateRoutes[0], "Synthetic intermediate.") ==
+                    "Cena intermediaria um." &&
+                exported.text(intermediateRoutes[1], "Synthetic intermediate.") ==
+                    "Cena intermediaria dois.",
             "Engine JSON export lost route or choice text");
     Require(Read(exportedPath).find("A00 alone.") != std::string::npos,
             "Engine JSON export lost a source-only text key");
 
     // Use the public live-edit API: unlike mutating the dictionary directly,
     // this also notifies active presentation scenes to invalidate text caches.
-    runtime.debugJumpToNode("00/00-00-A03");
+    runtime.SetState(Kotonoha::GameState::Gameplay);
+    ReachChoiceByPlayer(runtime);
     Require(runtime.translationRoute() == a03,
             "Live translation edits lost the active KTRF scene route");
     engine.setTranslation(std::to_string(a03), "Stay here", "Remain for now");
@@ -238,6 +324,9 @@ void VerifyJsonIntegration(const char *route) {
   runtime.shutdown();
   CheckUnmodifiedScript(choice);
   Require(Read(first) == kA00, "JSON translation modified the A00 source file");
+  Require(Read(scripts / "00-00-A01.ENG.ORS") == kIntermediate &&
+              Read(scripts / "00-00-A02.ENG.ORS") == kIntermediate,
+          "JSON translation modified an intermediate player-path ORS");
 }
 
 } // namespace

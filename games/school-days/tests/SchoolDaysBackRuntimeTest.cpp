@@ -72,7 +72,22 @@ void TestTwoStageBack(const char *route, const fs::path &root) {
   auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
 
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  // The public runtime cannot jump to an arbitrary script. Confirm that the
+  // developer API is inert, then traverse A00 -> A01 -> A02 using the
+  // player's NextChoice control with its default unread-script stop.
+  Require(app.runtime.debugNode() == "00/00-00-A00",
+          "DIST Back fixture did not start at A00");
   app.runtime.debugJumpToNode("00/00-00-A02");
+  Require(app.runtime.debugNode() == "00/00-00-A00",
+          "DIST exposed developer scene jumping");
+  app.runtime.openPanel(4);
+  Require(app.runtime.debugNode() == "00/00-00-A01",
+          "DIST NextChoice did not traverse A00 to A01");
+  app.runtime.openPanel(4);
+#else
+  app.runtime.debugJumpToNode("00/00-00-A02");
+#endif
   Require(app.runtime.debugNode() == "00/00-00-A02",
           "fixture did not enter A02");
 

@@ -3,6 +3,7 @@
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 #include <Kotonoha/routing/SchoolDaysDesktopStartupProfile.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 #include <Kotonoha/routing/SchoolDaysRetailConfigPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysLxhContent.hpp>
 #include <Kotonoha/routing/SchoolDaysTranslationCoverage.hpp>
@@ -68,6 +69,7 @@ std::string read(const fs::path &path) {
   return {std::istreambuf_iterator<char>(input), {}};
 }
 
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 void run(const std::vector<std::string> &arguments) {
   std::vector<const char *> argv;
   for (const auto &argument : arguments)
@@ -80,6 +82,18 @@ void run(const std::vector<std::string> &arguments) {
   const bool waited = SDL_WaitProcess(process, true, &exitCode);
   SDL_DestroyProcess(process);
   require(waited && exitCode == 0, "School Days process failed");
+}
+#endif
+
+// Extracted ORS fixtures intentionally contain no language GPKs. In a
+// distribution the *default* EnglishGpk must reject that incomplete install;
+// choose loose native English only for scenarios testing launcher UI/settings.
+void selectSyntheticEnglish(SchoolDays::Launcher &launcher) {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  launcher.setLanguage(SchoolDays::Launcher::Language::English);
+#else
+  (void)launcher;
+#endif
 }
 
 struct TemporaryDirectory {
@@ -94,6 +108,22 @@ struct TemporaryDirectory {
     fs::remove_all(path, error);
   }
 };
+
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+// Only the specific default-route resolver probe uses the source root. The
+// rest of the launcher test keeps its original CTest working directory, where
+// an explicitly missing route cannot silently become the bundled default.
+struct ScopedWorkingDirectory {
+  fs::path previous = fs::current_path();
+  explicit ScopedWorkingDirectory(const fs::path &temporary) {
+    fs::current_path(temporary);
+  }
+  ~ScopedWorkingDirectory() {
+    std::error_code ignored;
+    fs::current_path(previous, ignored);
+  }
+};
+#endif
 } // namespace
 
 int main(int argc, char **argv) {
@@ -325,6 +355,21 @@ int main(int argc, char **argv) {
       launcher.iterate();
       require(launcher.pathValid() && launcher.routeValid(),
               "Launcher frames must keep the selected game and route");
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+      require(launcher.language() ==
+                  SchoolDays::Launcher::Language::EnglishGpk,
+              "Fresh DIST launcher must default to native EnglishGpk");
+      const bool missingNativePackLaunched = launcher.launch();
+      require(!missingNativePackLaunched &&
+                  launcher.state() != Kotonoha::Launcher::State::Launch &&
+                  launcher.getStatus().find(
+                      "Missing or invalid en LxH *language* script GPK") !=
+                      std::string::npos &&
+                  !fs::exists(settings),
+              "DIST accepted missing native LxH language GPK "
+              "(status=" + launcher.getStatus() + ")");
+#endif
+      selectSyntheticEnglish(launcher);
       require(launcher.launch() &&
                   launcher.state() == Kotonoha::Launcher::State::Launch,
               "Valid route and game directory must launch");
@@ -349,6 +394,7 @@ int main(int argc, char **argv) {
       const auto enginePath = (root / "settings.json").string();
       SchoolDays::Launcher fresh(enginePath, fixtures.string(), original.string());
       fresh.setRetailConfigRoot(root);
+      selectSyntheticEnglish(fresh);
       require(!fs::exists(root / "Config.DAT"),
               "Opening a fresh launcher profile created Config.DAT before Play");
       require(fresh.launch(), fresh.getStatus());
@@ -383,6 +429,7 @@ int main(int argc, char **argv) {
       {
         SchoolDays::Launcher coupled(enginePath, fixtures.string(),
                                      original.string());
+        selectSyntheticEnglish(coupled);
         require(!coupled.hasRetailConfigRoot(),
                 "Launcher must not infer commercial Config.DAT root");
         coupled.setRetailConfigRoot(root);
@@ -483,6 +530,7 @@ int main(int argc, char **argv) {
 
       SchoolDays::Launcher afterGame(enginePath, fixtures.string(),
                                      original.string());
+      selectSyntheticEnglish(afterGame);
       afterGame.setRetailConfigRoot(root);
       const auto hasGameDisplay = [](const Kotonoha::EngineSettings &settings) {
         return settings.mode == Kotonoha::WindowMode::Exclusive &&
@@ -507,6 +555,7 @@ int main(int argc, char **argv) {
       const auto conflictSettings = (root / "conflict-settings.json").string();
       SchoolDays::Launcher conflict(conflictSettings, fixtures.string(),
                                     original.string());
+      selectSyntheticEnglish(conflict);
       conflict.setRetailConfigRoot(root);
       conflict.setContentAspectPreference(2);
       write(root / "Kotonoha.ini",
@@ -517,6 +566,7 @@ int main(int argc, char **argv) {
           (root / "config-conflict-settings.json").string();
       SchoolDays::Launcher configConflict(configConflictSettings, fixtures.string(),
                                           original.string());
+      selectSyntheticEnglish(configConflict);
       configConflict.setRetailConfigRoot(root);
       write(retailPath, "externally modified retail Config.DAT\n");
       require(!configConflict.launch() && !fs::exists(configConflictSettings),
@@ -551,6 +601,7 @@ int main(int argc, char **argv) {
               "Game-owned shader sidecar failed to restore both exact paths");
       SchoolDays::Launcher shaderReopened(settingsFile, fixtures.string(),
                                           original.string());
+      selectSyntheticEnglish(shaderReopened);
       require(shaderReopened.settings().upscaling.shaderFiles == paths,
               "Launcher did not restore full custom GLSL path on restart");
       require(shaderReopened.settings().renderer == "software",
@@ -843,6 +894,7 @@ int main(int argc, char **argv) {
               "Integrated LxH with equivalent Spanish JSON failed: " +
                   layered.getStatus());
     }
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     const auto rememberedDump =
         (temporary.path / "remembered.ktnroute").string();
     const auto explicitDump = (temporary.path / "explicit.ktnroute").string();
@@ -876,6 +928,58 @@ int main(int argc, char **argv) {
     run(command);
     require(read(defaultDump) == read(original),
             "Disabling configuration must use the bundled default route");
+#else
+    // The public executable deliberately has no --dump-ktrf/--ktrf, so do
+    // not launch it as an interactive subprocess. Verify the player-facing
+    // persisted route and the immutable default using the read-only routing
+    // model. main.cpp always forces defaultRoute() in DIST, independently of
+    // the route remembered by the launcher's options state.
+    const auto remembered = Kotonoha::GameLauncher::rememberedPath(
+        settings, SchoolDays::Launcher::RouteRememberFile);
+    require(!remembered.empty(), "DIST did not persist a route reference");
+    auto rememberedPath = fs::path(remembered);
+    if (!rememberedPath.is_absolute()) {
+      const auto root = fs::path(settings).parent_path();
+      const auto local = root / rememberedPath;
+      rememberedPath = fs::is_regular_file(local)
+                           ? local : root / "game-assets" / rememberedPath;
+    }
+    require(fs::is_regular_file(rememberedPath) &&
+                fs::equivalent(rememberedPath, custom) &&
+                read(rememberedPath) == read(custom),
+            "DIST launcher lost its remembered custom route preference");
+    Kotonoha::SchoolDaysKtrfSession rememberedSession;
+    Kotonoha_KtrfError routeError{};
+    const auto rememberedString = rememberedPath.string();
+    require(rememberedSession.Open(rememberedString.c_str(), fixtures.string().c_str(),
+                                   &routeError),
+            std::string("Remembered route is not readable: ") +
+                routeError.message);
+    fs::path defaultRoute;
+    {
+      // Source checkout root derived from the existing route fixture path;
+      // the lookup reads the tracked route only, with no file copies.
+      const auto root = original.parent_path().parent_path().parent_path()
+                            .parent_path();
+      ScopedWorkingDirectory workingRoot(root);
+      defaultRoute = SchoolDays::Assets::defaultRoute();
+    }
+    require(fs::is_regular_file(defaultRoute) &&
+                read(defaultRoute) == read(original) &&
+                read(defaultRoute) != read(rememberedPath),
+            "DIST default route must remain the original profile, independent "
+            "of the remembered custom route");
+    Kotonoha::SchoolDaysKtrfSession defaultSession;
+    require(defaultSession.Open(defaultRoute.string().c_str(),
+                                 fixtures.string().c_str(), &routeError),
+            std::string("DIST default route is not readable: ") +
+                routeError.message);
+    require(explicitRoute.routePath() == original.string() &&
+                read(explicitRoute.routePath()) == read(defaultRoute),
+            "Explicit launcher route selection did not select original KTRF");
+    // This is also the path selected by --no-config in the public player;
+    // no unsupported debug options or unbounded GUI subprocess are needed.
+#endif
 
     std::ofstream(custom, std::ios::binary | std::ios::trunc) << "corrupt";
     require(!reopened.launch() &&
