@@ -162,6 +162,34 @@ void surfaceUploadFormats() {
               SDL_SurfaceHasColorKey(keyed.get()),
           "Preparation must not change source blend mode or color key");
 
+  // Palette-index color keys refer to the original pixel index, not its
+  // RGB value. Duplicated palette colors must not acquire false transparency.
+  Kotonoha::SurfacePtr indexed(
+      SDL_CreateSurface(3, 3, SDL_PIXELFORMAT_INDEX8));
+  require(bool(indexed), "Allocate INDEX8 source surface");
+  auto *palette = SDL_CreateSurfacePalette(indexed.get());
+  const SDL_Color colors[3] = {{255, 0, 255, 255},
+                               {18, 91, 220, 255},
+                               {255, 0, 255, 255}};
+  require(palette && SDL_SetPaletteColors(palette, colors, 0, 3) &&
+              SDL_FillSurfaceRect(indexed.get(), nullptr, 0) &&
+              SDL_SetSurfaceColorKey(indexed.get(), true, 0),
+          "Configure indexed palette and its transparent pixel index");
+  const SDL_Rect otherIndex{0, 2, 1, 1};
+  require(SDL_FillSurfaceRect(indexed.get(), &center, 1) &&
+              SDL_FillSurfaceRect(indexed.get(), &otherIndex, 2),
+          "Paint two distinct indexed entries");
+  const auto indexedPrepared =
+      Kotonoha::prepareSurfaceForLinearSampling(indexed.get());
+  require(bool(indexedPrepared) &&
+              pixel(*indexedPrepared, 0, 0).a == 0 &&
+              pixel(*indexedPrepared, 1, 1).a == 255 &&
+              pixel(*indexedPrepared, 0, 2).a == 255 &&
+              pixel(*indexedPrepared, 0, 2).r == 255 &&
+              SDL_SurfaceHasColorKey(indexed.get()) &&
+              SDL_GetSurfacePalette(indexed.get()) == palette,
+          "Indexed color-key conversion must preserve non-key palette entries");
+
   // A non-keyed RGB source must stay opaque and convert accurately.
   Kotonoha::SurfacePtr rgb(SDL_CreateSurface(2, 2, SDL_PIXELFORMAT_RGB24));
   require(bool(rgb) &&
