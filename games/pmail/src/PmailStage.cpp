@@ -26,6 +26,20 @@ SDL_Color computerColor(int index) {
     return {35, 43, 59, 255};
   }
 }
+// Native chat/panel records carry a style byte. Retail traces use 1 for
+// system lines, 2 for the player and 11 for other speakers.
+SDL_Color computerLineColor(int mode) {
+  switch (mode) {
+  case 1:
+    return computerColor(1);
+  case 2:
+    return computerColor(8);
+  case 11:
+    return computerColor(10);
+  default:
+    return computerColor(0);
+  }
+}
 } // namespace
 
 PmailStage::PmailStage(Kotonoha::Engine &engine, PmailGame &game,
@@ -213,70 +227,116 @@ void PmailStage::renderLips(Kotonoha::RendererRef renderer,
 }
 
 void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
-  // The previous implementation painted desktop/chat records onto unrelated
-  // VN dialogue scenes. Native scene-change syscalls clear their lifetime,
-  // and waiting story dialogue must never be covered by computer overlays.
-  if (!game_.hasComputerOverlay() || game_.waitingForClick())
+  if (!game_.hasComputerOverlay())
     return;
   // All positions are in native 800x600 scene units. The original game draws
-  // chat text into its back buffer immediately; this renderer retains the
-  // equivalent VM history and composites it over the background each frame.
+  // each computer command into its back buffer immediately; this renderer
+  // retains the equivalent VM streams and composites them over the background
+  // each frame. Native order at 0x425c6b is panel, clock slots, then SYS 52
+  // text slots. SYS 160/162 append and redraw the chat transcript before that
+  // composite, so the transcript stays visible while dialogue waits for a
+  // click (retail traces interleave sys 1/5 with sys 160).
   auto &ui = engine.GetVNUI();
-  for (const auto &slot : game_.computerText()) {
-    if (slot.width <= 0 || slot.height <= 0 || slot.text.empty())
-      continue;
-    ui.textSized(renderer, slot.text, float(slot.x), float(slot.y),
-                 float(std::min(slot.width, 800)),
-                 float(std::clamp(slot.size, 8, 48)),
-                 computerColor(slot.color));
-  }
-  const auto clock = game_.computerClock();
-  if (!clock.empty())
-    ui.textSized(renderer, clock, 604, 32, 175, 18, computerColor(1));
 
-  // The native chat pane's exact line offsets, font palette and wrapping
-  // are under investigation; keep the window usable without claiming parity.
+  // 1. Chat transcript (0x407ad0 / 0x407f10). The original keeps the newest
+  // 15 lines and resolves each line through its owning script object.
   const auto history = game_.chatHistory();
-  float y = 174;
+  float historyY = 174;
   for (const auto &line : history) {
-    if (y >= 570)
+    if (historyY >= 570)
       break;
-    const SDL_Color color =
-        line.mode == 2 ? computerColor(8) : computerColor(1);
     const float consumed =
-        ui.textSized(renderer, line.text, 85, y, 624, 17, color);
-    y += std::clamp(consumed, 22.0f, 54.0f);
+        ui.textSized(renderer, line.text, 85, historyY, 624, 17,
+                     computerLineColor(line.mode));
+    historyY += std::clamp(consumed, 22.0f, 54.0f);
   }
-  // The executable has separate chat and mail renderers (0x417d80 and
-  // 0x411320). Keep their text streams distinct even when a scene contains
-  // both. The final native coordinates/font sizes are still under study;
-  // these are bounded fallback placements on the existing DVD backdrop.
+
+  // 2. Native panels. 0x423710 (SYS 179) copies seven integers into
+  // 0xf8a77a..0xf8a792 and calls 0x417a50: x, y, width, height, right
+  // margin, body indent and header flag.
   const auto chat = game_.chatPanel();
   const auto mail = game_.mailPanel();
-  const bool split = chat.active && mail.active;
+  const bool chatConfigured =
+      chat.active && chat.params[2] > 0 && chat.params[3] > 0;
   auto drawPanel = [&](const PmailGame::ComputerPanel &panel, float x,
-                       float top, float width) {
+                       float y, float width, float height) {
     if (!panel.active || panel.entries.empty())
       return;
-    float lineY = top;
-    // Keep only text that fits in the authored 800x600 frame.
-    for (const auto &line : panel.entries) {
-      if (lineY >= 565.0f)
+    const bool configured = panel.params[2] > 0 && panel.params[3] > 0;
+    const float margin = configured ? float(std::max(panel.params[4], 0)) : 0;
+    const float indent = configured ? float(std::max(panel.params[5], 0)) : 0;
+    const bool drawHeader = configured && panel.params[6] != 0;
+    float lineY = y;
+    for (size_t i = 0; i < panel.entries.size(); ++i) {
+      if (lineY >= y + height)
         break;
-      const auto color = line.mode == 2 ? computerColor(8) : computerColor(1);
-      const auto height =
-          ui.textSized(renderer, line.text, x, lineY, width, 17.0f, color);
-      lineY += std::clamp(height, 22.0f, 50.0f);
+      const auto &line = panel.entries[i];
+      // 0x417e00 lays out the first three entries with a 5px right inset
+      // when the header flag is set; the body is indented and wrapped inside
+      // the authored right margin.
+      const bool header = drawHeader && i < 3;
+      const float lineX = x + (header ? 0.0f : indent);
+      const float wrap =
+          std::max(16.0f, width - (header ? 0.0f : indent + margin));
+      const float consumed =
+          ui.textSized(renderer, line.text, lineX, lineY, wrap, 16,
+                       computerLineColor(line.mode));
+      lineY += std::clamp(consumed, 18.0f, 48.0f);
     }
   };
   // On original layouts the background provides the panel artwork; do not
   // invent a new mail/chat window frame or substitute unrelated sprites.
-  if (split) {
-    drawPanel(chat, 85.0f, 202.0f, 288.0f);
-    drawPanel(mail, 422.0f, 202.0f, 292.0f);
+  if (chatConfigured) {
+    drawPanel(chat, float(chat.params[0]), float(chat.params[1]),
+              float(chat.params[2]), float(chat.params[3]));
+    // SYS 192..195 is unused by retail scripts; keep the mail-family stream
+    // on the opposite pane when a scene happens to enable both.
+    if (mail.active)
+      drawPanel(mail, 85, 202, 288, 363);
+  } else if (chat.active && mail.active) {
+    drawPanel(chat, 85, 202, 288, 363);
+    drawPanel(mail, 422, 202, 292, 363);
   } else {
-    drawPanel(chat, 85.0f, 202.0f, 620.0f);
-    drawPanel(mail, 85.0f, 202.0f, 620.0f);
+    drawPanel(chat, 85, 202, 620, 363);
+    drawPanel(mail, 85, 202, 620, 363);
+  }
+
+  // 3. Clock (0x4136b0). Native glyph slots sit on the bottom bar at
+  // y=0x249 (585): 692, 704, 718, 735, 747 and 762. Digits and the colon are
+  // 11x10; the trailing AM/PM mark is a 24x10 combined glyph.
+  const auto clock = game_.computerClock();
+  if (!clock.empty()) {
+    static constexpr float clockX[6] = {692, 704, 718, 735, 747, 762};
+    for (size_t i = 0; i < 6 && i < clock.size(); ++i) {
+      const char ch = clock[i];
+      if (ch == ' ')
+        continue;
+      std::string glyph(1, ch);
+      if (i == 5 && (ch == 'A' || ch == 'P'))
+        glyph += 'M';
+      ui.textSized(renderer, glyph, clockX[i], 585, i == 5 ? 24.0f : 12.0f,
+                   10, computerColor(1));
+    }
+  }
+
+  // 4. SYS 52 positioned text slots (0x423d50 / 0x42b230). Each slot owns an
+  // authored box; the native renderer wraps to width and clips to height.
+  for (const auto &slot : game_.computerText()) {
+    if (slot.width <= 0 || slot.height <= 0 || slot.text.empty())
+      continue;
+    const int clipX = std::clamp(slot.x, 0, 800);
+    const int clipY = std::clamp(slot.y, 0, 600);
+    const int clipW = std::clamp(slot.width, 0, 800 - clipX);
+    const int clipH = std::clamp(slot.height, 0, 600 - clipY);
+    if (!clipW || !clipH)
+      continue;
+    const SDL_Rect clip{clipX, clipY, clipW, clipH};
+    SDL_SetRenderClipRect(&renderer, &clip);
+    ui.textSized(renderer, slot.text, float(slot.x), float(slot.y),
+                 float(std::min(slot.width, 800)),
+                 float(std::clamp(slot.size, 8, 48)),
+                 computerColor(slot.color));
+    SDL_SetRenderClipRect(&renderer, nullptr);
   }
 }
 

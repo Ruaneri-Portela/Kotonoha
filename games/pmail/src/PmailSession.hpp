@@ -65,6 +65,9 @@ private:
   bool handleNameEntry(Kotonoha::EventRef event);
   void loadNameProfile();
   void saveNameProfile() const;
+  // Mirrors the original's global flag file (SAVE\SAVEFL99.SAV).
+  void loadExtrasProfile();
+  void saveExtrasProfile() const;
 
   bool HandleTitleEvent(Kotonoha::EventRef event, SDL_FPoint stagePoint,
                         bool haveStagePoint);
@@ -85,6 +88,7 @@ private:
   int nameField_ = 0;
   std::string editableNameNO_, editableNameHO_;
   std::string nameEntryError_;
+  uint32_t extrasVersion_ = 0;
   void chooseTitle(int index);
 };
 

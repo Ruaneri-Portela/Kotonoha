@@ -42,11 +42,17 @@ public:
     case 116:
     case 128:
     case 132:
+    case 137:
       return true;
     default:
       return false;
     }
   }
+
+  // pmail.exe:0x4248f0 expands SYS 137(category, day) into the retail sound
+  // name V<base>5<variant><base>00<action>. Days 613..652 select actions
+  // 0..39 and later days use action 40; category 12 synthesizes no name.
+  static std::string DaySoundName(int category, int day);
 
   bool Handle(int syscall, const std::vector<int> &numbers,
               const std::vector<std::string> &strings);

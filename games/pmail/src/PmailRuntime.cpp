@@ -104,6 +104,9 @@ void PmailRuntime::initGlobal(Kotonoha::Engine &engine) {
     game_->animationFrameCount = [this](const std::string &name) {
       return assets_->AnimationOf(name).frames.size();
     };
+    game_->playMovie = [this](const std::string &stem) {
+      return startMovie(stem);
+    };
     game_->onNative = [this](int id, const std::vector<::Pmail::Arg> &args) {
       handleNative(id, args);
     };
@@ -118,7 +121,6 @@ void PmailRuntime::initGlobal(Kotonoha::Engine &engine) {
       session_->setMenuActions([this] { openSaves(false); },
                                [this] { openSaves(true); },
                                [this] { returnToTitle(); });
-      startMovie();
     } else {
       status_ = "Failed to initialize PMAIL script VM";
     }
@@ -134,35 +136,33 @@ void PmailRuntime::initMenu(Kotonoha::Engine &engine) {}
 
 void PmailRuntime::initGameplay(Kotonoha::Engine &engine) {}
 
-void PmailRuntime::startMovie() {
-  if (!engine_ || movieFinished_)
-    return;
-  if (SDL_getenv("PMAIL_SKIP_INTRO")) {
-    movieFinished_ = true;
-    return;
-  }
+bool PmailRuntime::startMovie(const std::string &stem) {
+  if (!engine_ || stem.empty())
+    return false;
+  if (SDL_getenv("PMAIL_SKIP_INTRO"))
+    return false;
   const auto vfs = assets_ ? assets_->source() : nullptr;
   if (!vfs) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                  "[PmailPort] Movie source VFS is unavailable");
-    movieFinished_ = true;
-    return;
+    return false;
   }
   // The original binary enumerates four AVI variants. Preserve original AVI
   // quality on native hosts, but prefer playable WebM/MP4 sidecars on browsers.
   const bool browser = Kotonoha::isBrowserPlatform();
   // Port-only debugging aid to compare a particular original video.
   const char *preferred = SDL_getenv("PMAIL_MOVIE_VARIANT");
-  const std::string moviePath = selectOpeningMovie(
-      [&](const std::string &path) { return vfs->exists(path); }, browser,
+  const std::string moviePath = selectMovie(
+      stem, [&](const std::string &path) { return vfs->exists(path); }, browser,
       preferred ? preferred : "");
   if (moviePath.empty()) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "[PmailPort] Opening movie not found in VFS "
-                "(data/movie or movie, original PM01*.avi)");
-    movieFinished_ = true;
-    return;
+                "[PmailPort] Movie not found in VFS (data/movie or movie, "
+                "original %s*.avi)",
+                upperAscii(stem).c_str());
+    return false;
   }
+  moviePlayer_.reset();
   try {
     moviePlayer_ = std::make_unique<Kotonoha::MediaPlayer>(engine_->GetAudio());
     moviePlayer_->open(vfs->open(moviePath), moviePath, false, "bgm");
@@ -171,15 +171,17 @@ void PmailRuntime::startMovie() {
                   "[PmailPort] Movie decoder could not open: %s",
                   moviePath.c_str());
       moviePlayer_.reset();
-      movieFinished_ = true;
+      return false;
     }
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "[PmailPort] Movie failed: %s (%s)", moviePath.c_str(),
                 error.what());
     moviePlayer_.reset();
-    movieFinished_ = true;
+    return false;
   }
+  movieFinished_ = false;
+  return true;
 }
 
 void PmailRuntime::stopMovie() {
@@ -188,6 +190,9 @@ void PmailRuntime::stopMovie() {
     moviePlayer_.reset();
   }
   movieFinished_ = true;
+  // SYS 53 blocks the VM until the retail movie finishes.
+  if (game_)
+    game_->resumeFromMovie();
 }
 
 void PmailRuntime::handleNative(int id, const std::vector<::Pmail::Arg> &args) {

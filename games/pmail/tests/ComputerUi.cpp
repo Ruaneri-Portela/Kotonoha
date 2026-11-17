@@ -25,8 +25,8 @@ int main() {
     auto object = std::make_shared<Pmail::ScriptObject>();
     object->id = 3;
     object->name = "synthetic-computer.obj";
-    object->strings = {"mail", "hello",         "12:30", "one",
-                       "two",  "$NO meets $HO", "ROOM"};
+    object->strings = {"mail",  "hello", "12:30", "one",  "two",
+                       "$NO meets $HO", "ROOM", "etc00", "pm01"};
     game.vm().registerObject(object);
     const auto call = [&](int id, std::vector<Pmail::Arg> args) {
       game.native(game.vm(), id, args);
@@ -66,6 +66,67 @@ int main() {
           "Chat history must retain the newest 15 entries");
     call(161, {});
     check(game.chatHistory().empty(), "SYS 161 did not clear chat");
+
+    // Native message/text lifecycle recovered from pmail.exe:
+    // 18/25 -> 0x422bb0/0x422c20 current/next text refs, 19/20 -> 0x4251d0/
+    // 0x425100 text-surface lifetime, 216 -> 0xa8add8 text mode, 34 ->
+    // 0x423a00 timed pause, 32/65 -> save-slot and framebuffer refreshes.
+    call(18, {string(0)});
+    call(25, {string(1)});
+    check(game.currentTextRef() == std::pair<int, int>({3, 0}) &&
+              game.nextTextRef() == std::pair<int, int>({3, 1}),
+          "SYS 18/25 did not retain native text references");
+    call(19, {});
+    check(game.textSurfacesReady(), "SYS 19 did not initialize text surfaces");
+    call(216, {integer(4)});
+    check(game.textMode() == 4, "SYS 216 did not store the text mode");
+    call(20, {});
+    check(!game.textSurfacesReady(), "SYS 20 did not release text surfaces");
+    call(17, {});
+    check(game.textMode() == 0 &&
+              game.currentTextRef() == std::pair<int, int>({-1, -1}) &&
+              game.nextTextRef() == std::pair<int, int>({-1, -1}),
+          "SYS 17 did not reset the native text state");
+    call(160, {integer(1), string(1)});
+    call(24, {});
+    check(game.chatHistory().empty(),
+          "SYS 24 did not clear the displayed chat transcript");
+    call(160, {integer(1), string(1)});
+    call(216, {integer(0)});
+    check(game.chatHistory().empty() && game.textMode() == 0,
+          "SYS 216(0) did not reset the displayed text and chat");
+    call(34, {integer(5000)});
+    check(game.nativeTimeWaitActive(), "SYS 34 did not start its timed wait");
+    check(game.click(), "SYS 34 timed wait must be skippable by input");
+    check(!game.nativeTimeWaitActive(),
+          "SYS 34 timed wait did not end after input");
+    call(32, {});
+    call(65, {});
+    check(Kotonoha::PmailPort::PmailAudio::DaySoundName(3, 613) ==
+                  "V35330000" &&
+              Kotonoha::PmailPort::PmailAudio::DaySoundName(3, 614) ==
+                  "V35330001" &&
+              Kotonoha::PmailPort::PmailAudio::DaySoundName(10, 613) ==
+                  "V35530000" &&
+              Kotonoha::PmailPort::PmailAudio::DaySoundName(11, 613) ==
+                  "V35130000" &&
+              Kotonoha::PmailPort::PmailAudio::DaySoundName(12, 613).empty(),
+          "SYS 137 native day-sound naming changed");
+    // SYS 53 -> pmail.exe:0x424e70 plays the L_/S_ x I5/I3 AVI variant for a
+    // script-supplied stem. Without a runtime movie backend the VM must keep
+    // running, but the requested stem is still observable.
+    call(53, {string(8)});
+    check(game.lastRequestedMovie() == "pm01" && !game.movieWaitActive(),
+          "SYS 53 did not record its movie stem or blocked without a backend");
+    // SYS 215 -> 0x422650 marks one of the 32 entries at 0x44f394 unlocked;
+    // unknown names are ignored.
+    call(215, {string(7)});
+    call(215, {string(7)});
+    call(215, {string(6)});
+    check(game.extraUnlocked("etc00") && !game.extraUnlocked("ROOM") &&
+              game.unlockedExtras() ==
+                  std::vector<std::string>({"etc00"}),
+          "SYS 215 did not retain the native extra/gallery unlock set");
 
     game.setPlayerNames("Alice", "Bob");
     check(game.expandPlayerNames("$NO and $HO / $NO") ==
@@ -129,6 +190,13 @@ int main() {
     check(!game.chatPanel().active && game.chatPanel().entries.empty() &&
               game.mailPanel().entries.size() == 2,
           "SYS 177 reset unexpectedly affected the mail-family panel");
+    // Native 0x417d80 keeps at most 0x3c (60) records and shifts the oldest
+    // one out before appending, unlike the former 64-entry port limit.
+    for (int i = 0; i < 65; ++i)
+      call(178, {integer(1), string(1)});
+    check(Kotonoha::PmailPort::PmailGame::ComputerPanelLimit == 60 &&
+              game.chatPanel().entries.size() == 60,
+          "SYS 178 panel history must retain the newest 60 entries");
     call(193, {});
     check(!game.mailPanel().active && game.mailPanel().entries.empty(),
           "SYS 193 did not reset the mail-family state");
@@ -162,23 +230,22 @@ int main() {
       if (message.find("Unhandled PMAIL SYS 250") != std::string::npos)
         ++count;
     check(count == 1, "Unknown native syscall warnings were duplicated");
-    for (const int id : {96, 97, 98, 99, 100, 112, 115, 116, 128, 132})
+    for (const int id : {96, 97, 98, 99, 100, 112, 115, 116, 128, 132, 137})
       check(Kotonoha::PmailPort::PmailAudio::HandlesSyscall(id),
             "Audio subsystem must handle the documented audio native IDs");
-    for (const int id : {17, 18, 19, 20, 24, 65, 137, 212, 216, 250})
+    for (const int id : {17, 18, 19, 20, 24, 32, 34, 65, 212, 216, 250})
       check(!Kotonoha::PmailPort::PmailAudio::HandlesSyscall(id),
             "Non-audio calls must never be sent to the audio decoder");
 
-    // Regression cases reported by native retail startup, PRO1 and extra.OBJ
-    // traces. Until the original dispatch semantics are identified these calls
-    // must be diagnosed, not silently declared implemented or discarded.
-    for (const int id : {17, 18, 19, 20, 24, 65, 137, 212, 216}) {
+    // Only genuinely unidentified opcodes remain in the diagnostic ledger.
+    // 17, 18, 19, 20, 24, 25, 32, 34, 65, 216 and 137 now have recovered
+    // native semantics; 212 has never been observed in retail scripts.
+    for (const int id : {212}) {
       call(id, {integer(id), string(5)});
       call(id, {integer(id), string(5)});
     }
     const auto sites = game.unhandledNativeSites();
-    const auto expected =
-        std::vector<int>({17, 18, 19, 20, 24, 65, 137, 212, 216, 250});
+    const auto expected = std::vector<int>({212, 250});
     check(game.unhandledNativeIds() == expected,
           "Missing native commands were accidentally marked as supported");
     check(sites.size() == expected.size(),

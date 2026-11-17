@@ -38,8 +38,12 @@ public:
     int mode = 0;
     std::string text;
   };
-  // Two native computer screen families: SYS 176..179 calls 0x417d80,
-  // while SYS 192..195 uses 0x411320. Their final layout is under study.
+  // Two native computer screen families: SYS 176..179 appends to the
+  // chat-family records at 0xa6d6a0 (0x417d80), while SYS 192..195 uses the
+  // mail-family records at 0x93d6e0 (0x411320). Each native record is
+  // {uint16 objId, uint16 stringIndex, uint8 mode}; mode selects the text
+  // style. SYS 179 copies seven integers into 0xf8a77a..0xf8a792 and calls
+  // 0x417a50: (x, y, width, height, rightMargin, indent, drawHeader).
   struct ComputerPanel {
     bool active = false;
     std::vector<ChatLine> entries;
@@ -51,7 +55,7 @@ public:
     int32_t x = 0;
     int32_t y = 0;
   };
-  static constexpr size_t ComputerPanelLimit = 64;
+  static constexpr size_t ComputerPanelLimit = 60;
   static constexpr size_t ComputerIconLimit = 25;
   static constexpr size_t ComputerTextLimit = 10;
   static constexpr size_t ChatHistoryLimit = 15;
@@ -224,6 +228,56 @@ public:
     std::lock_guard lock(mutex_);
     return choiceText_;
   }
+  // Native message-window state. pmail.exe keeps the current and next text
+  // as {objectId, stringIndex} pairs at 0xf87d6e/0x76; SYS 18 selects the
+  // current pair, SYS 25 the next one. SYS 19/20 create and release the text
+  // surfaces, and SYS 216 stores the text mode at 0xa8add8.
+  int textMode() const {
+    std::lock_guard lock(mutex_);
+    return textMode_;
+  }
+  bool textSurfacesReady() const {
+    std::lock_guard lock(mutex_);
+    return textSurfacesReady_;
+  }
+  std::pair<int, int> currentTextRef() const {
+    std::lock_guard lock(mutex_);
+    return {currentTextObject_, currentTextIndex_};
+  }
+  std::pair<int, int> nextTextRef() const {
+    std::lock_guard lock(mutex_);
+    return {nextTextObject_, nextTextIndex_};
+  }
+  bool nativeTimeWaitActive() const {
+    std::lock_guard lock(mutex_);
+    return audioWait_ == AudioWait::Time;
+  }
+  // SYS 53 selects a retail movie stem (pm01, ...) and blocks the VM until
+  // playback ends, matching pmail.exe:0x4011b0.
+  std::string lastRequestedMovie() const {
+    std::lock_guard lock(mutex_);
+    return lastRequestedMovie_;
+  }
+  bool movieWaitActive() const {
+    std::lock_guard lock(mutex_);
+    return movieWait_;
+  }
+  // Called by the runtime when the selected movie ends or is skipped.
+  void resumeFromMovie();
+  // SYS 215 marks one of the 32 retail extra/gallery entries as unlocked.
+  bool extraUnlocked(const std::string &name) const {
+    std::lock_guard lock(mutex_);
+    return unlockedExtras_.count(name) != 0;
+  }
+  std::vector<std::string> unlockedExtras() const;
+  // Original global flag block 0x7933c0 is persisted to SAVE\SAVEFL99.SAV
+  // (pmail.exe:0x40eea0 load / 0x40eef0 save). The version lets the host
+  // mirror that file whenever a new entry is unlocked.
+  uint32_t extrasVersion() const {
+    std::lock_guard lock(mutex_);
+    return extrasVersion_;
+  }
+  void loadUnlockedExtras(const std::vector<std::string> &names);
 
   // Optional hooks for runtime integration.
   std::function<void(const std::string &)> trace;
@@ -236,6 +290,8 @@ public:
     return voiceActor_;
   }
   std::function<size_t(const std::string &)> animationFrameCount;
+  // Returns true when a movie actually started; false lets the VM continue.
+  std::function<bool(const std::string &)> playMovie;
 
   // Host
   void native(::Pmail::Vm &vm, int id,
@@ -295,6 +351,16 @@ private:
   bool waiting_ = false;
   bool title_ = false;
   bool choosing_ = false;
+  int textMode_ = 0;
+  bool textSurfacesReady_ = false;
+  int currentTextObject_ = -1;
+  int currentTextIndex_ = -1;
+  int nextTextObject_ = -1;
+  int nextTextIndex_ = -1;
+  std::string lastRequestedMovie_;
+  bool movieWait_ = false;
+  std::set<std::string> unlockedExtras_;
+  uint32_t extrasVersion_ = 0;
   AudioWait audioWait_ = AudioWait::None;
   uint64_t waitUntil_ = 0;
   uint32_t titleChoiceVar_ = 0;
