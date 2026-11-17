@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
@@ -259,6 +260,33 @@ public:
     return runtime.transportFade.CurrentPhase();
   }
   static bool SeekPending(const Runtime &runtime) { return runtime.pendingSeek.has_value(); }
+  static void Control(Runtime &runtime, int control) {
+    runtime.activateControl(control);
+  }
+  static bool BarSuppressed(const Runtime &runtime) {
+    return runtime.menuBarProjection().fullBarSuppressed;
+  }
+  static Kotonoha::SchoolDaysOptionalTick RawSkipTarget(const Runtime &runtime) {
+    return runtime.timeline.ComputeSkipToEndTarget(runtime.tick);
+  }
+  static void Pause(Runtime &runtime, bool enabled) { runtime.paused = enabled; }
+  static void Auto(Runtime &runtime, bool enabled) {
+    runtime.config.autoMode = enabled;
+    runtime.choiceInteraction.SetAutoMode(enabled);
+  }
+  // Deterministic simulation of an authored choice becoming visible before
+  // an already started 500 ms transport fade is allowed to navigate.
+  static void DispatchChoiceDuringFade(Runtime &runtime) {
+    runtime.tick = 48;
+    runtime.elapsed = 2.0;
+    for (auto *event : runtime.timeline.AdvanceTo(48))
+      runtime.dispatch(*event);
+    Require(runtime.choice != nullptr && !runtime.committed,
+            "fade race fixture failed to dispatch an unresolved choice");
+    runtime.tick = 49;
+    runtime.elapsed = 49.0 / 24.0;
+    runtime.updateChoiceInteraction();
+  }
 };
 
 } // namespace SchoolDays
@@ -487,6 +515,200 @@ void TestTransportFadeBeforeSeek(const char *route, const fs::path &root) {
           "Rewind did not reveal the scene start after its seek settled");
 }
 
+void TestSkipChoiceVisible(const char *route, const fs::path &root) {
+  using Access = SchoolDays::RuntimeChoiceTestAccess;
+  const auto documents = root / "documents-skip-visible";
+  fs::create_directories(documents);
+  Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+  EnterChoiceSceneByPlayer(app.runtime);
+  Access::Seek(app.runtime, 48);
+  Access::SetTick(app.runtime, 49);
+  Require(Access::Pending(app.runtime), "visible choice fixture is not pending");
+  Require(Access::BarSuppressed(app.runtime),
+          "T1: the top bar was not suppressed while the prompt was visible");
+  Access::ClickTransport(app.runtime, false);
+  Require(Access::TransportPhase(app.runtime) ==
+              Kotonoha::SchoolDaysTransportFade::Phase::Idle &&
+              !Access::SeekPending(app.runtime) &&
+              Access::CurrentTick(app.runtime) == 49 &&
+              Access::Pending(app.runtime) && Access::Result(app.runtime) == -2,
+          "T1: clicking SkipToEnd on the prompt started a fade or changed the choice");
+}
+
+void TestSkipChoiceFadeRace(const char *route, const fs::path &root) {
+  using Access = SchoolDays::RuntimeChoiceTestAccess;
+  using Phase = Kotonoha::SchoolDaysTransportFade::Phase;
+  const auto documents = root / "documents-skip-race";
+  fs::create_directories(documents);
+  Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+  EnterChoiceSceneByPlayer(app.runtime);
+  const uint64_t now = SDL_GetTicks();
+  Access::ClickTransport(app.runtime, false);
+  Require(Access::TransportPhase(app.runtime) == Phase::FadeOut,
+          "T2: first SkipToEnd did not arm the expected fade");
+  Access::DispatchChoiceDuringFade(app.runtime);
+  Access::PumpTransport(app.runtime, now + 600u);
+  Require(Access::TransportPhase(app.runtime) == Phase::Idle &&
+              !Access::SeekPending(app.runtime) &&
+              Access::CurrentTick(app.runtime) == 49 &&
+              Access::Pending(app.runtime) && Access::Result(app.runtime) == -2,
+          "T2: fade that crossed SetSELECT recomputed a target and sought over the prompt");
+}
+
+void TestSkipChoiceKeyboard(const char *route, const fs::path &root) {
+  using Access = SchoolDays::RuntimeChoiceTestAccess;
+  const auto documents = root / "documents-skip-keyboard";
+  fs::create_directories(documents);
+  Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+  EnterChoiceSceneByPlayer(app.runtime);
+  Access::Seek(app.runtime, 48);
+  Access::SetTick(app.runtime, 49);
+  app.runtime.onEvent(KeyDown(SDLK_RIGHT));
+  Require(!Access::SeekPending(app.runtime) && Access::Pending(app.runtime) &&
+              Access::CurrentTick(app.runtime) == 49,
+          "T3: RIGHT skipped over an unresolved choice");
+  app.runtime.onEvent(KeyDown(SDLK_LEFT));
+  Require(!Access::SeekPending(app.runtime) && Access::Pending(app.runtime) &&
+              Access::CurrentTick(app.runtime) == 49,
+          "T3: LEFT restarted the scene while a choice was waiting");
+}
+
+void TestSkipChoiceControlAndNext(const char *route, const fs::path &root) {
+  using Access = SchoolDays::RuntimeChoiceTestAccess;
+  const auto documents = root / "documents-skip-control";
+  fs::create_directories(documents);
+  Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+  EnterChoiceSceneByPlayer(app.runtime);
+  Access::Seek(app.runtime, 48);
+  Access::SetTick(app.runtime, 49);
+  Access::Control(app.runtime, 3);
+  Require(!Access::SeekPending(app.runtime) && Access::Pending(app.runtime),
+          "T6: activateControl(3) crossed a pending choice");
+  Access::Control(app.runtime, 4);
+  Require(!Access::SeekPending(app.runtime) && Access::Pending(app.runtime) &&
+              Access::CurrentTick(app.runtime) == 49 &&
+              Access::Result(app.runtime) == -2,
+          "T7: next-choice from an active prompt resolved or bypassed it");
+}
+
+void TestSkipChoiceRapidAndSettings(const char *route, const fs::path &root) {
+  using Access = SchoolDays::RuntimeChoiceTestAccess;
+  using Phase = Kotonoha::SchoolDaysTransportFade::Phase;
+  const auto documents = root / "documents-skip-rapid";
+  fs::create_directories(documents);
+  Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+  EnterChoiceSceneByPlayer(app.runtime);
+  Access::Seek(app.runtime, 48);
+  Access::SetTick(app.runtime, 49);
+  for (const int count : {2, 3, 10, 50}) {
+    for (int i = 0; i < count; ++i) {
+      Access::Pause(app.runtime, (i % 2) == 0);
+      Access::Auto(app.runtime, (i % 3) == 0);
+      Access::SetSpeed(app.runtime, (i % 2) ? 1 : 4); // UI x2 / x32
+      Access::ClickTransport(app.runtime, false);
+      Access::PumpTransport(app.runtime,
+                            SDL_GetTicks() + 500u + uint64_t(i % 5) * 113u);
+      Require(Access::TransportPhase(app.runtime) == Phase::Idle &&
+                  !Access::SeekPending(app.runtime) &&
+                  Access::CurrentTick(app.runtime) == 49 &&
+                  Access::Pending(app.runtime) && Access::Result(app.runtime) == -2,
+              "T4/T5: repeated skip under AUTO, pause or x2/x32 changed the choice");
+    }
+  }
+}
+
+void TestSkipChoicePostCommitAndNoChoice(const char *route,
+                                         const fs::path &root) {
+  using Access = SchoolDays::RuntimeChoiceTestAccess;
+  {
+    const auto documents = root / "documents-skip-post-choice";
+    fs::create_directories(documents);
+    Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+    EnterChoiceSceneByPlayer(app.runtime);
+    Access::Seek(app.runtime, 48);
+    Require(Access::Handle(app.runtime, MouseMotion(640.0f, 540.0f)) &&
+                Access::Handle(app.runtime, LeftDown(640.0f, 540.0f)) &&
+                Access::Committed(app.runtime) && Access::Result(app.runtime) == 1,
+            "T8: legitimate player selection failed");
+    Access::Control(app.runtime, 3);
+    Require(Access::SeekPending(app.runtime),
+            "T8: a confirmed choice did not release transport to the next part");
+  }
+  {
+    const auto documents = root / "documents-skip-no-choice";
+    fs::create_directories(documents);
+    Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+    // The launcher has not yet bound A00's physical timeline. Enter the
+    // next explicitly authored, still choice-free physical scene first.
+    Access::Control(app.runtime, 4);
+    Require(app.runtime.debugNode() == "00/00-00-A01",
+            "T9: no-choice fixture did not enter A01 by the player route");
+    const auto originalTarget = Access::RawSkipTarget(app.runtime);
+    Require(originalTarget.has_value(),
+            "T9: ordinary scene must expose an authored skip target");
+    Access::Control(app.runtime, 3);
+    Require(Access::SeekPending(app.runtime),
+            "T9: scene without a choice lost its ordinary SkipToEnd at tick " +
+                std::to_string(Access::CurrentTick(app.runtime)) +
+                " expected destination " + std::to_string(*originalTarget));
+    Require(app.runtime.debugNodeSeconds() &&
+                *app.runtime.debugNodeSeconds() == 0.0,
+            "T9: seek must still be pending until the runtime processes it");
+  }
+}
+
+void TestSkipChoiceRandomSequences(const char *route, const fs::path &root) {
+  using Access = SchoolDays::RuntimeChoiceTestAccess;
+  const auto documents = root / "documents-skip-random";
+  fs::create_directories(documents);
+  Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+  EnterChoiceSceneByPlayer(app.runtime);
+  Access::Seek(app.runtime, 48);
+  Access::SetTick(app.runtime, 49);
+  uint32_t seed = 0x5EEDBEEFu;
+  const auto next = [&seed]() {
+    seed = seed * 1664525u + 1013904223u;
+    return seed;
+  };
+  for (int sequence = 0; sequence < 256; ++sequence) {
+    for (int step = 0; step < 12; ++step) {
+      switch (next() % 9u) {
+      case 0: Access::ClickTransport(app.runtime, false); break;
+      case 1: app.runtime.onEvent(KeyDown(SDLK_RIGHT)); break;
+      case 2: app.runtime.onEvent(KeyDown(SDLK_LEFT)); break;
+      case 3: Access::Control(app.runtime, 3); break;
+      case 4: Access::Control(app.runtime, 4); break;
+      case 5: app.runtime.onEvent(GamepadDown()); break;
+      case 6: Access::Auto(app.runtime, (next() & 1u) != 0); break;
+      case 7: Access::Pause(app.runtime, (next() & 1u) != 0); break;
+      case 8: Access::SetSpeed(app.runtime, (next() & 1u) != 0 ? 1 : 4); break;
+      }
+      Access::PumpTransport(app.runtime, SDL_GetTicks() + 750u);
+      Require(Access::Pending(app.runtime) && !Access::Committed(app.runtime) &&
+                  Access::Result(app.runtime) == -2 &&
+                  Access::CurrentTick(app.runtime) == 49 &&
+                  !Access::SeekPending(app.runtime) &&
+                  Access::TransportPhase(app.runtime) ==
+                      Kotonoha::SchoolDaysTransportFade::Phase::Idle,
+              "randomized skip sequence crossed or resolved an uncommitted choice; sequence=" +
+                  std::to_string(sequence) + " step=" + std::to_string(step));
+    }
+  }
+  std::cout << "SkipChoiceRandomSequences: 256 sequences x 12 steps, seed=0x5EEDBEEF PASS\n";
+}
+
+int RunBarrierCase(const char *name, void (*test)(const char*, const fs::path&),
+                   const char *route, const fs::path &root) {
+  try {
+    test(route, root);
+    std::cout << "[skip-choice] " << name << ": PASS\n";
+    return 0;
+  } catch (const std::exception &error) {
+    std::cerr << "[skip-choice] " << name << ": FAIL: " << error.what() << '\n';
+    return 1;
+  }
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -502,6 +724,17 @@ int main(int argc, char **argv) {
     TestTurboStopsAtChoiceAndRestores(argv[1], temporary.path);
     TestTurboCannotCrossChoiceWithLongFrame(argv[1], temporary.path);
     TestTransportFadeBeforeSeek(argv[1], temporary.path);
+    int failures = 0;
+    failures += RunBarrierCase("T1 menu visible", TestSkipChoiceVisible, argv[1], temporary.path);
+    failures += RunBarrierCase("T2 fade race", TestSkipChoiceFadeRace, argv[1], temporary.path);
+    failures += RunBarrierCase("T3 arrows", TestSkipChoiceKeyboard, argv[1], temporary.path);
+    failures += RunBarrierCase("T4/T5 rapid/settings", TestSkipChoiceRapidAndSettings, argv[1], temporary.path);
+    failures += RunBarrierCase("T6/T7 controls", TestSkipChoiceControlAndNext, argv[1], temporary.path);
+    failures += RunBarrierCase("T8/T9 postcommit/no-choice", TestSkipChoicePostCommitAndNoChoice,
+                               argv[1], temporary.path);
+    failures += RunBarrierCase("T1-T7 randomized", TestSkipChoiceRandomSequences,
+                               argv[1], temporary.path);
+    Require(failures == 0, std::to_string(failures) + " skip-choice regression groups failed");
     std::cout << "SchoolDaysNextChoiceRuntimeTest PASS\n";
     return 0;
   } catch (const std::exception &error) {
