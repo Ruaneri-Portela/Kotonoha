@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include <Kotonoha/routing/SchoolDaysAtomicFile.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveService.hpp>
 
@@ -15,14 +16,9 @@ namespace Kotonoha {
 // can commit in-memory metadata between them, matching EXE 0x0042AEA0.
 class SchoolDaysSaveStorage {
 public:
-  // Synthetic fault injection is per instance and disabled by default.
-  enum class GlobalFlagWriteFault {
-    None,
-    Write,
-    Flush,
-    Publish,
-    SimulatedInterruption
-  };
+    // Synthetic fault injection. Per-instance; never read from retail data or
+    // environment variables, and inactive unless a test explicitly sets it.
+    using GlobalFlagWriteFault = SchoolDaysAtomicFile::Fault;
 
   void SetGlobalFlagWriteFaultForTesting(GlobalFlagWriteFault fault) {
     globalFlagWriteFaultForTesting_ = fault;
@@ -54,16 +50,15 @@ public:
   const std::filesystem::path &BaseDirectory() const { return baseDirectory_; }
 
 private:
-  bool ResolveRelative(const std::string &configured,
-                       std::filesystem::path *out, std::string *error) const;
-  static bool ReadFile(const std::filesystem::path &path,
-                       std::vector<uint8_t> *bytes, std::string *error);
-  static bool WriteFileTruncate(const std::filesystem::path &path,
-                                const std::vector<uint8_t> &bytes,
-                                std::string *error);
-  bool WriteGlobalFlagAtomic(const std::filesystem::path &path,
-                             const std::vector<uint8_t> &bytes,
-                             std::string *error) const;
+    bool ResolveRelative(const std::string& configured,
+                         std::filesystem::path* out,
+                         std::string* error) const;
+    static bool ReadFile(const std::filesystem::path& path,
+                         std::vector<uint8_t>* bytes,
+                         std::string* error);
+    static bool WriteFileTruncate(const std::filesystem::path& path,
+                                  const std::vector<uint8_t>& bytes,
+                                  std::string* error);
 
   std::filesystem::path baseDirectory_;
   SchoolDaysSaveProfile profile_;

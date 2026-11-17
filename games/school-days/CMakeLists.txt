@@ -52,6 +52,7 @@ add_library(school_days STATIC
     src/SchoolDaysRouteMapRenderPlan.cpp
     src/SchoolDaysFontData.cpp
     src/SchoolDaysSaveProfile.cpp
+    src/SchoolDaysAtomicFile.cpp
     src/SchoolDaysSaveStorage.cpp
     src/SchoolDaysSaveMetadata.cpp
     src/SchoolDaysSaveMetadataState.cpp
