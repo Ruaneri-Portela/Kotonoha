@@ -96,3 +96,19 @@ certificam o comportamento do jogo comercial, saves reais nem plataformas
 não testadas. Preservar `PORT_STATUS.md` e notas históricas. Nenhum GPK,
 EXE retail, tradução privada, save real ou ICO opcional deve entrar em
 commits públicos.
+
+### Incompatibilidade conhecida do teste MCP na DIST — 17/11/2026
+
+`Kotonoha.MCPCommandLine` é registrado em
+`lib/tests/CMakeLists.txt:20-22`, fora do escopo autorizado de alterações
+específicas do jogo. O teste positivo inalterado em
+`lib/tests/MCPCommandLineTests.cpp:39-60` exige `--mcp` / `--mcp-port`, mas o
+parser da DIST exclui deliberadamente essas opções em
+`lib/src/core/CommandLine.cpp:24-42`. Por isso, **falha na DIST** devido à
+expectativa positiva incompatível, sem indicar MCP ativo no executável
+público. O teste original continua registrado, executável e inalterado;
+não foi pulado, desativado nem enfraquecido. O teste complementar
+`SchoolDays.DistDebugAbsence` passa na DIST e comprova a rejeição de MCP,
+porta/raiz MCP e logging de debug. CTest Windows Release final desta feature:
+DEV **80/81** (só a falha conhecida MetalFX/software) e DIST **74/75**
+(só o teste positivo MCP registrado na engine).
