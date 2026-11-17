@@ -13,7 +13,7 @@ add_library(AmagamiFormats STATIC
     src/Campaign.cpp
 )
 target_include_directories(AmagamiFormats PUBLIC include)
-target_link_libraries(AmagamiFormats PUBLIC Kotonoha::Engine Kotonoha::Vmamagami)
+target_link_libraries(AmagamiFormats PUBLIC KotonohaEngine)
 target_compile_features(AmagamiFormats PUBLIC cxx_std_17)
 set_target_properties(AmagamiFormats PROPERTIES CXX_EXTENSIONS OFF)
 
@@ -28,9 +28,9 @@ add_library(amagami_port STATIC src/AmagamiRuntime.cpp src/AmagamiLauncher.cpp)
 target_include_directories(amagami_port PUBLIC src)
 target_link_libraries(amagami_port PUBLIC
     AmagamiFormats
-    Kotonoha::Engine
-    Kotonoha::ProviderAmagami
-    Kotonoha::Vmamagami
+    KotonohaEngine
+    kotonoha_provider_amagami
+    kotonoha_vm_amagami
 )
 set_target_properties(amagami_port PROPERTIES CXX_EXTENSIONS OFF)
 
@@ -51,7 +51,7 @@ if(KOTONOHA_BUILD_HOST_TOOLS)
     )
     target_include_directories(AmagamiVitaData PUBLIC include)
     target_link_libraries(AmagamiVitaData PUBLIC
-        AmagamiFormats Kotonoha::ProviderAmagami Kotonoha::Vmamagami)
+        AmagamiFormats kotonoha_provider_amagami kotonoha_vm_amagami)
     target_compile_features(AmagamiVitaData PUBLIC cxx_std_17)
     set_target_properties(AmagamiVitaData PROPERTIES CXX_EXTENSIONS OFF)
 endif()
@@ -60,11 +60,11 @@ if(KOTONOHA_BUILD_HOST_TOOLS)
     add_executable(AmagamiInspect tools/Inspect.cpp)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(AMAGAMI_JSON REQUIRED IMPORTED_TARGET json-c>=0.15)
-    target_link_libraries(AmagamiInspect PRIVATE AmagamiFormats amagami_port Kotonoha::Vmamagami PkgConfig::AMAGAMI_JSON)
+    target_link_libraries(AmagamiInspect PRIVATE AmagamiFormats amagami_port kotonoha_vm_amagami PkgConfig::AMAGAMI_JSON)
 
     # Standalone Vita game-data inspector (execution remains PS2-only).
     add_executable(AmagamiVitaInspect tools/InspectVita.cpp)
-    target_link_libraries(AmagamiVitaInspect PRIVATE AmagamiFormats Kotonoha::ProviderAmagami)
+    target_link_libraries(AmagamiVitaInspect PRIVATE AmagamiFormats kotonoha_provider_amagami)
     target_compile_features(AmagamiVitaInspect PRIVATE cxx_std_17)
 
     if(TARGET AmagamiVitaData)
