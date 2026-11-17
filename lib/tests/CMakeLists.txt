@@ -56,7 +56,7 @@ if(SDLTTF_PLUTOSVG)
 endif()
 
 add_executable(KotonohaAudioChannelsTests AudioChannelsTests.cpp)
-target_link_libraries(KotonohaAudioChannelsTests PRIVATE KotonohaEngine imgui)
+target_link_libraries(KotonohaAudioChannelsTests PRIVATE KotonohaEngine ${KOTONOHA_IMGUI_TARGET})
 add_test(NAME Kotonoha.AudioChannels COMMAND KotonohaAudioChannelsTests)
 set_tests_properties(Kotonoha.AudioChannels PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
