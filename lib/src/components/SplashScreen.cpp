@@ -3,6 +3,7 @@
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
+#include <Kotonoha/media/SurfaceTexture.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
@@ -116,8 +117,11 @@ void SplashScreen::load(RendererRef renderer) {
         SDL_Log("Splash %s: %s", media[current].string().c_str(), error.what());
       }
     }
-    if (surface)
-      texture.reset(SDL_CreateTextureFromSurface(&renderer, surface.get()));
+    if (surface) {
+      const SurfacePtr prepared = prepareSurfaceForLinearSampling(surface.get());
+      if (prepared)
+        texture.reset(SDL_CreateTextureFromSurface(&renderer, prepared.get()));
+    }
     if (!texture) {
       next();
       continue;
