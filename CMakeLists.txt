@@ -10,9 +10,13 @@ project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 # CMake 3.29+ deduplicates repeated static archives where the linker
 # supports it (notably Apple's ld64). Earlier versions retain compatibility.
 if(POLICY CMP0156)
+    # Each game/module invokes cmake_minimum_required(VERSION 3.16), which
+    # resets newer policies unless their default is inherited explicitly.
+    set(CMAKE_POLICY_DEFAULT_CMP0156 NEW)
     cmake_policy(SET CMP0156 NEW)
 endif()
 if(POLICY CMP0179)
+    set(CMAKE_POLICY_DEFAULT_CMP0179 NEW)
     cmake_policy(SET CMP0179 NEW)
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/BuildVersion.cmake")
