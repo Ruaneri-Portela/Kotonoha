@@ -24,7 +24,7 @@ add_custom_command(TARGET KotonohaDemoTests POST_BUILD
     VERBATIM)
 
 add_executable(KotonohaImGuiTests ImGuiTests.cpp)
-target_link_libraries(KotonohaImGuiTests PRIVATE Kotonoha::Engine imgui)
+target_link_libraries(KotonohaImGuiTests PRIVATE KotonohaEngine ${KOTONOHA_IMGUI_TARGET})
 add_test(NAME Kotonoha.ImGuiHiDPI COMMAND KotonohaImGuiTests)
 set_tests_properties(Kotonoha.ImGuiHiDPI PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")

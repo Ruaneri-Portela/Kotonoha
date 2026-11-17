@@ -7,15 +7,15 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 # PMAIL VM and asset provider modules
-if(NOT TARGET Kotonoha::Modules::VMs::Pmail)
+if(NOT TARGET kotonoha_vm_pmail)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/pmail"
         "${CMAKE_CURRENT_BINARY_DIR}/modules/vms/pmail")
 endif()
-if(NOT TARGET Kotonoha::ProviderPmail)
+if(NOT TARGET kotonoha_provider_pmail)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/pmail"
         "${CMAKE_CURRENT_BINARY_DIR}/modules/providers/pmail")
 endif()
-if(NOT TARGET Kotonoha::ProviderADV)
+if(NOT TARGET kotonoha_provider_adv)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/adv"
         "${CMAKE_CURRENT_BINARY_DIR}/modules/providers/adv")
 endif()
@@ -38,10 +38,10 @@ target_include_directories(PmailPort PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 target_link_libraries(PmailPort PUBLIC
-    Kotonoha::Engine
-    Kotonoha::Modules::VMs::Pmail
-    Kotonoha::ProviderPmail
-    Kotonoha::ProviderADV
+    KotonohaEngine
+    kotonoha_vm_pmail
+    kotonoha_provider_pmail
+    kotonoha_provider_adv
 )
 target_compile_features(PmailPort PUBLIC cxx_std_17)
 set_target_properties(PmailPort PROPERTIES CXX_EXTENSIONS OFF)
@@ -72,17 +72,17 @@ if(BUILD_TESTING)
     target_link_libraries(PmailStartupCheck PRIVATE PmailPort)
     add_test(NAME Pmail.Startup COMMAND PmailStartupCheck)
     add_executable(PmailAnimationFormatCheck tests/AnimationFormat.cpp)
-    target_link_libraries(PmailAnimationFormatCheck PRIVATE Kotonoha::ProviderADV)
+    target_link_libraries(PmailAnimationFormatCheck PRIVATE kotonoha_provider_adv)
     add_test(NAME Pmail.AnimationFormat COMMAND PmailAnimationFormatCheck)
     # Build the route audit on all platforms, but run it only with retail
     # assets provided explicitly by the developer. Never run in default CI.
     add_executable(PmailRouteAuditCheck tests/RouteAudit.cpp)
     target_link_libraries(PmailRouteAuditCheck PRIVATE PmailPort)
     add_executable(PmailAudioCheck tests/AudioAssets.cpp)
-    target_link_libraries(PmailAudioCheck PRIVATE Kotonoha::ProviderADV)
+    target_link_libraries(PmailAudioCheck PRIVATE kotonoha_provider_adv)
     target_compile_features(PmailAudioCheck PRIVATE cxx_std_17)
     add_executable(PmailGraphicsCheck tests/GraphicsAssets.cpp)
-    target_link_libraries(PmailGraphicsCheck PRIVATE Kotonoha::ProviderADV)
+    target_link_libraries(PmailGraphicsCheck PRIVATE kotonoha_provider_adv)
     target_compile_features(PmailGraphicsCheck PRIVATE cxx_std_17)
     foreach(check IN ITEMS RuntimeAudio RuntimeBoot StoryFlow SaveState AnimationPlayback AnimationRender AudioCommands)
         set(check_target Pmail${check}Check)

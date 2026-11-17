@@ -1,4 +1,4 @@
-if(TARGET Kotonoha::Modules::Providers::XP3)
+if(TARGET kotonoha_provider_xp3)
     return()
 endif()
 
@@ -11,10 +11,8 @@ add_library(kotonoha_provider_xp3 STATIC
     src/Tlg6Image.cpp
     src/TjsBootstrap.cpp
 )
-add_library(Kotonoha::Modules::Providers::XP3 ALIAS kotonoha_provider_xp3)
-add_library(Kotonoha::ProviderXP3 ALIAS kotonoha_provider_xp3)
 
 target_include_directories(kotonoha_provider_xp3 PUBLIC include)
-target_link_libraries(kotonoha_provider_xp3 PUBLIC Kotonoha::Engine PRIVATE ZLIB::ZLIB)
+target_link_libraries(kotonoha_provider_xp3 PUBLIC KotonohaEngine PRIVATE ZLIB::ZLIB)
 target_compile_features(kotonoha_provider_xp3 PUBLIC cxx_std_17)
 set_target_properties(kotonoha_provider_xp3 PROPERTIES CXX_EXTENSIONS OFF)

@@ -7,7 +7,7 @@ if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLE
     # depends on, so fixup_bundle can resolve all @rpath entries.
     set(_ddlc_dep_dirs
         $<TARGET_FILE_DIR:SDL3::SDL3>
-        $<TARGET_FILE_DIR:Kotonoha::Engine>
+        $<TARGET_FILE_DIR:KotonohaEngine>
         $<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>)
     # imgui can be an INTERFACE target; only runtime shared libraries have a file directory.
     if(TARGET imgui)

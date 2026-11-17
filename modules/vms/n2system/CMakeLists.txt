@@ -1,9 +1,8 @@
 # C++17 NsScript indexing foundation (no .NET dependency).
-if(TARGET Kotonoha::Modules::VMs::N2System)
+if(TARGET kotonoha_vm_n2system)
     return()
 endif()
 add_library(kotonoha_vm_n2system STATIC src/ScriptIndex.cpp src/ScriptExecutor.cpp)
-add_library(Kotonoha::Modules::VMs::N2System ALIAS kotonoha_vm_n2system)
 target_include_directories(kotonoha_vm_n2system PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 target_compile_features(kotonoha_vm_n2system PUBLIC cxx_std_17)
 set_target_properties(kotonoha_vm_n2system PROPERTIES CXX_EXTENSIONS OFF)

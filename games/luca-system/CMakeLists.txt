@@ -15,7 +15,7 @@ add_library(luca_system_formats STATIC
   src/LucaSystemRuntime.cpp
 )
 target_include_directories(luca_system_formats PUBLIC src include)
-target_link_libraries(luca_system_formats PUBLIC Kotonoha::Engine Kotonoha::ProviderPAK)
+target_link_libraries(luca_system_formats PUBLIC KotonohaEngine kotonoha_provider_pak)
 target_compile_features(luca_system_formats PUBLIC cxx_std_17)
 
 if(KOTONOHA_BUILD_HOST_TOOLS)

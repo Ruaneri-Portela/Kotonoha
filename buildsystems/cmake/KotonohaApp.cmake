@@ -86,7 +86,7 @@ function(kotonoha_copy_runtime_libraries target dependency_dirs)
     # These shared CMake targets must be shipped even if they are hidden
     # behind an indirect dependency or imported from a toolchain.
     set(_cmake_shared)
-    foreach(_lib IN ITEMS KotonohaEngine imgui SDL3::SDL3 SDL3_ttf::SDL3_ttf)
+    foreach(_lib IN ITEMS KotonohaEngine ${KOTONOHA_IMGUI_TARGET} SDL3::SDL3 SDL3_ttf::SDL3_ttf)
         if(TARGET ${_lib})
             get_target_property(_alias ${_lib} ALIASED_TARGET)
             if(_alias)

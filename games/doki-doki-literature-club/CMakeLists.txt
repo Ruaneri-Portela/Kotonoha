@@ -17,7 +17,6 @@ if(KOTONOHA_USE_PYTHON_STUBS)
     set(DDLC_SOURCES
         src/Archive.cpp
         src/Display.cpp
-        src/Replay.cpp
         src/Script.cpp
         src/Value.cpp
         src/PythonDummy.cpp
@@ -27,7 +26,6 @@ else()
         src/Archive.cpp
         src/Display.cpp
         src/Python.cpp
-        src/Replay.cpp
         src/Script.cpp
         src/Value.cpp
     )
@@ -44,9 +42,11 @@ else()
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/renpy/CMakeLists.txt")
-target_link_libraries(DdlcFormats PUBLIC Kotonoha::Modules::VMs::Renpy)
+# Replay reads live VM state, so compile it once in the VM archive rather
+# than making the format/parser library depend on the VM backwards.
+target_sources(kotonoha_vm_renpy PRIVATE src/Replay.cpp)
 target_include_directories(DdlcFormats PUBLIC
-    $<TARGET_PROPERTY:Kotonoha::Modules::VMs::Renpy,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:kotonoha_vm_renpy,INTERFACE_INCLUDE_DIRECTORIES>)
 set_target_properties(DdlcFormats PROPERTIES CXX_EXTENSIONS OFF)
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/rpa"
@@ -59,10 +59,10 @@ add_library(doki_doki_literature_club STATIC
 )
 target_include_directories(doki_doki_literature_club PUBLIC src)
 target_link_libraries(doki_doki_literature_club PUBLIC
-    Kotonoha::Engine
+    KotonohaEngine
     DdlcFormats
-    Kotonoha::Modules::Providers::RPA
-    Kotonoha::Modules::VMs::Renpy
+    kotonoha_provider_rpa
+    kotonoha_vm_renpy
 )
 set_target_properties(doki_doki_literature_club PROPERTIES CXX_EXTENSIONS OFF)
 

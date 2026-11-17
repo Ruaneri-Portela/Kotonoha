@@ -6,7 +6,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
-if(NOT TARGET Kotonoha::ProviderXP3)
+if(NOT TARGET kotonoha_provider_xp3)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/xp3"
         "${CMAKE_CURRENT_BINARY_DIR}/providers/xp3")
 endif()
@@ -20,11 +20,11 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/kag/CMakeLists.txt")
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/tjs2/CMakeLists.txt")
 find_package(ZLIB REQUIRED)
 target_link_libraries(kirikiri_formats PUBLIC
-    Kotonoha::Engine
-    Kotonoha::ProviderXP3
+    KotonohaEngine
+    kotonoha_provider_xp3
     ZLIB::ZLIB
-    Kotonoha::Vmkag
-    Kotonoha::Vmtjs2
+    kotonoha_vm_kag
+    kotonoha_vm_tjs2
 )
 
 kotonoha_add_app(Kirikiri src/main.cpp)
