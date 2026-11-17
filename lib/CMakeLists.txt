@@ -122,8 +122,10 @@ else()
     # preserving the canonical target's SONAME/install-name pairing.
     foreach(_kotonoha_sdl_shared IN ITEMS SDL3-shared SDL3_ttf-shared)
         if(TARGET ${_kotonoha_sdl_shared})
-            set_target_properties(${_kotonoha_sdl_shared} PROPERTIES
-                VERSION "" SOVERSION "")
+            # Clearing these properties is required: empty strings still
+            # produce versioned names and sometimes self-referential links.
+            set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY VERSION)
+            set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY SOVERSION)
         endif()
     endforeach()
 endif()
