@@ -416,9 +416,31 @@ void PrepareAssets(const fs::path &sourceFixture, const fs::path &root) {
   WriteSystemUiAssets(root);
 }
 
+void PrepareInitialNarrative(SchoolDays::Runtime &runtime) {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  // Public runtimes start on A00 and have no developer jump implementation.
+  Require(runtime.debugNode() == "00/00-00-A00",
+          "DIST narrative fixture did not start at its route entry");
+#else
+  runtime.debugJumpToNode("00/00-00-A00");
+#endif
+}
+
 void ArmFirstEpisodeHandoff(SchoolDays::Runtime &runtime) {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  // Reach the first real episode boundary using the gameplay bridge, which is
+  // also how a player reaches it. The development jump is absent in DIST.
+  for (int step = 0;
+       step < 256 && !SchoolDays::RuntimeHandoffTestAccess::Pending(runtime);
+       ++step) {
+    SchoolDays::RuntimeHandoffTestAccess::AdvanceDeterministic(runtime);
+  }
+  Require(runtime.debugNode() == "00/00-00-L00",
+          "DIST first episode path did not reach the L00 boundary");
+#else
   runtime.debugJumpToNode("00/00-00-L00");
   SchoolDays::RuntimeHandoffTestAccess::Advance(runtime);
+#endif
   Require(SchoolDays::RuntimeHandoffTestAccess::Pending(runtime),
           "L00 did not produce a pending episode handoff");
   Require(!SchoolDays::RuntimeHandoffTestAccess::PendingTerminal(runtime),
@@ -533,7 +555,7 @@ void TestOrdinaryCommentEscape(const char *route, const fs::path &root) {
   fs::create_directories(documents);
   auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
-  app.runtime.debugJumpToNode("00/00-00-A00");
+  PrepareInitialNarrative(app.runtime);
   app.runtime.openPanel(10);
   Require(app.runtime.panels().IsSaveLoadOpen(),
           "ordinary SaveLoad did not open");
@@ -556,7 +578,7 @@ void TestMainMenuConfirmNarrative(const char *route, const fs::path &root) {
   fs::create_directories(documents);
   auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
-  app.runtime.debugJumpToNode("00/00-00-A00");
+  PrepareInitialNarrative(app.runtime);
   auto *owner = SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime);
   const std::string node = app.runtime.debugNode();
   Require(owner != nullptr, "narrative MainMenu fixture has no Gameplay owner");
@@ -598,7 +620,7 @@ void TestMainMenuConfirmTemporary(const char *route, const fs::path &root) {
   fs::create_directories(documents);
   auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
-  app.runtime.debugJumpToNode("00/00-00-A00");
+  PrepareInitialNarrative(app.runtime);
   auto *liveOwner = SchoolDays::RuntimeHandoffTestAccess::GameplayOwner(app.runtime);
   SchoolDays::RuntimeHandoffTestAccess::StartReplay(app.runtime, 1);
   Require(SchoolDays::RuntimeHandoffTestAccess::Temporary(app.runtime),
@@ -641,14 +663,19 @@ void TestMissingExitPopupDoesNotQuit(const char *route, const fs::path &root) {
   fs::create_directories(documents);
   auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
-  app.runtime.debugJumpToNode("00/00-00-A00");
+  PrepareInitialNarrative(app.runtime);
   SDL_FlushEvent(SDL_EVENT_QUIT);
   app.runtime.openPanel(16);
   SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime, SDL_GetTicks() + 500u);
-  Require(!app.runtime.panels().IsExitOpen() &&
-              SchoolDays::RuntimeHandoffTestAccess::ExitFailureReported(app.runtime) &&
-              !SDL_HasEvent(SDL_EVENT_QUIT),
+  Require(!app.runtime.panels().IsExitOpen() && !SDL_HasEvent(SDL_EVENT_QUIT),
           "missing EXIT popup bypassed confirmation and queued process shutdown");
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  Require(!SchoolDays::RuntimeHandoffTestAccess::ExitFailureReported(app.runtime),
+          "DIST exposed an internal EXIT artwork diagnostic");
+#else
+  Require(SchoolDays::RuntimeHandoffTestAccess::ExitFailureReported(app.runtime),
+          "DEV did not report missing EXIT confirmation artwork");
+#endif
 }
 
 void TestFrontendTransitions(const char *route, const fs::path &root) {
@@ -887,14 +914,23 @@ int main(int argc, char **argv) {
                   << " pending=" << SchoolDays::RuntimeHandoffTestAccess::Pending(app.runtime)
                   << '\n';
       }
+      std::string generatedScene;
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+      // Slot 6 is a real saved ending. Re-saving it verifies a newly created
+      // slot's LxH timeline without a development-only scene jump.
+      generatedScene = scenes[6];
+#else
       app.runtime.debugJumpToNode("05/05-A2-F00");
+      generatedScene = "05/05-A2-F00";
+#endif
       SchoolDays::RuntimeHandoffTestAccess::SaveSlot(app.runtime, 7);
       SchoolDays::RuntimeHandoffTestAccess::LoadSlot(app.runtime, 7);
-      Require(app.runtime.debugNode() == "05/05-A2-F00" &&
+      Require(app.runtime.debugNode() == generatedScene &&
                   app.runtime.GetState() == Kotonoha::GameState::Gameplay &&
                   SchoolDays::RuntimeHandoffTestAccess::LxhFadeEnabled(app.runtime),
               "Generated seventh ending save did not reopen its LxH timeline");
-      std::cout << "LXH_RUNTIME_LOAD 7 scene=05/05-A2-F00 generated=1\n";
+      std::cout << "LXH_RUNTIME_LOAD 7 scene=" << generatedScene
+                << " generated=1\n";
       return 0;
     }
     Require(argc == 3,
