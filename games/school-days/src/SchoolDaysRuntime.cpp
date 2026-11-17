@@ -5665,7 +5665,12 @@ Runtime::MenuBarProjection Runtime::menuBarProjection() const {
   const bool temporary = replay || playData;
   MenuBarProjection projection;
   projection.actionInhibit = replay;
-  projection.fullBarSuppressed = temporary ? false : bridge.HasPendingHandoff();
+  // While SETSELECT owns input, no transport/system chrome may be projected.
+  // The subsequent confirmed-choice tail retains its existing meter-only
+  // presentation, so the full bar reappears only with the next physical scene.
+  projection.fullBarSuppressed =
+      (choice != nullptr && unresolvedChoice()) ||
+      (!temporary && bridge.HasPendingHandoff());
   projection.replayIndicator = playData;
   return projection;
 }
@@ -5740,6 +5745,10 @@ void Runtime::setPlaybackSpeedIndex(int index) {
 void Runtime::activateMenuAction(
     const Kotonoha::SchoolDaysMenuBarPresenter::Action &action) {
   using Kind = Kotonoha::SchoolDaysMenuBarPresenter::ActionKind;
+  // Guard actions synthesized by mouse, touch or future gamepad adapters even
+  // when a presenter still carries a hover selection from the prior frame.
+  // ESC/keyboard Config does not route through this physical menu.
+  if (choice != nullptr && unresolvedChoice()) return;
   const bool temporary = temporaryPlaybackActive();
   const bool playData = playDataPlayback && playDataPlayback->IsOpen();
 
