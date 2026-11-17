@@ -44,9 +44,8 @@ else()
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/renpy/CMakeLists.txt")
-target_link_libraries(DdlcFormats PUBLIC Kotonoha::Modules::VMs::Renpy)
 target_include_directories(DdlcFormats PUBLIC
-    $<TARGET_PROPERTY:Kotonoha::Modules::VMs::Renpy,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:kotonoha_vm_renpy,INTERFACE_INCLUDE_DIRECTORIES>)
 set_target_properties(DdlcFormats PROPERTIES CXX_EXTENSIONS OFF)
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/rpa"
@@ -59,10 +58,10 @@ add_library(doki_doki_literature_club STATIC
 )
 target_include_directories(doki_doki_literature_club PUBLIC src)
 target_link_libraries(doki_doki_literature_club PUBLIC
-    Kotonoha::Engine
+    KotonohaEngine
     DdlcFormats
-    Kotonoha::Modules::Providers::RPA
-    Kotonoha::Modules::VMs::Renpy
+    kotonoha_provider_rpa
+    kotonoha_vm_renpy
 )
 set_target_properties(doki_doki_literature_club PROPERTIES CXX_EXTENSIONS OFF)
 
