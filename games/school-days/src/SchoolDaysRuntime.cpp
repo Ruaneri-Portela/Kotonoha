@@ -1448,8 +1448,18 @@ void Runtime::beginTransportFade(Kotonoha::SchoolDaysTransportFade::Operation op
   if (currentState != Kotonoha::GameState::Gameplay || panelOpen() ||
       pendingSeek || pendingBackCapture || exitTransition.Active() ||
       systemPanelTransition.Active() || transportFade.Active()) return;
-  if (operation == Kotonoha::SchoolDaysTransportFade::Operation::SkipToEnd &&
-      !timeline.ComputeSkipToEndTarget(tick)) return;
+  // Every route to SkipToEnd uses the same choice-aware target decision.
+  // Capture it when the player clicks: a 500 ms fade must not recompute a
+  // farther destination after SetSELECT becomes active in the meantime.
+  if (choice != nullptr && unresolvedChoice()) return;
+  transportSkipTarget.reset();
+  transportSkipScene.clear();
+  if (operation == Kotonoha::SchoolDaysTransportFade::Operation::SkipToEnd) {
+    const auto target = protectedSkipToEndTarget();
+    if (!target) return;
+    transportSkipTarget = *target;
+    transportSkipScene = scene.sceneKey;
+  }
   (void)transportFade.Begin(operation, SDL_GetTicks());
 }
 
@@ -1457,13 +1467,30 @@ void Runtime::updateTransportFade(uint64_t nowMs) {
   using Fade = Kotonoha::SchoolDaysTransportFade;
   if (transportFade.Update(nowMs) != Fade::Event::Navigate) return;
   try {
+    if (choice != nullptr && unresolvedChoice()) {
+      transportSkipTarget.reset();
+      transportFade.Reset();
+      return;
+    }
     if (transportFade.CurrentOperation() == Fade::Operation::Rewind) {
       back();
-    } else if (auto target = timeline.ComputeSkipToEndTarget(tick)) {
-      seek(*target);
+    } else {
+      const auto safe = protectedSkipToEndTarget();
+      // A scene swap, a late choice, or a clock advancing beyond the click's
+      // destination makes the original request stale. Cancel without seeking.
+      if (!transportSkipTarget || transportSkipScene != scene.sceneKey ||
+          !safe || *safe != *transportSkipTarget ||
+          tick >= *transportSkipTarget) {
+        transportSkipTarget.reset();
+        transportFade.Reset();
+        return;
+      }
+      seek(*transportSkipTarget);
     }
+    transportSkipTarget.reset();
     transportFade.Navigated();
   } catch (const std::exception &error) {
+    transportSkipTarget.reset();
     transportFade.Reset();
     setStatus(error.what());
     SDL_LogError(Kotonoha::LogUI, "School Days transport fade seek failed: %s",
@@ -3315,7 +3342,38 @@ void Runtime::seek(Kotonoha_SceneTick target) {
   for (auto &item : playing) item.player->setPaused(true);
 }
 
+bool Runtime::unresolvedChoice() const {
+  if (committed) return false;
+  // The prompt may not have been dispatched yet. The authored SETSELECT is
+  // still an unresolved boundary even before it becomes visible on screen.
+  if (choice != nullptr) return true;
+  for (auto *event = script.data; event != nullptr; event = event->next)
+    if (event->command == SetSELECT) return true;
+  return false;
+}
+
+Kotonoha::SchoolDaysOptionalTick Runtime::protectedSkipToEndTarget() const {
+  const auto target = timeline.ComputeSkipToEndTarget(tick);
+  if (!target) return {};
+  if (!unresolvedChoice()) return target;
+  // Once the prompt is dispatched, SkipToEnd is not a choice input; it cannot
+  // start a transport, rewind time or advance to the authored Next marker.
+  if (choice != nullptr || *target <= tick) return {};
+  for (auto *event = script.data; event != nullptr; event = event->next) {
+    if (event->command == SetSELECT && *target >= event->startTick)
+      return {};
+  }
+  return target;
+}
+
+void Runtime::requestSkipToEnd() {
+  if (auto target = protectedSkipToEndTarget()) seek(*target);
+}
+
 void Runtime::skipToNextChoice() {
+  // Mode5 may travel across multiple scripts, but it cannot consume an
+  // already visible prompt. The normal pre-choice path remains unchanged.
+  if (choice != nullptr && unresolvedChoice()) return;
   if (temporaryPlaybackActive()) {
     setStatus("Next-choice skip is unavailable during Replay playback");
     return;
@@ -3337,7 +3395,7 @@ void Runtime::skipToNextChoice() {
     // frame from the destination leaks to presentation.
     if (scene.sceneKey != bridge.CurrentScene().sceneKey)
       openScene(bridge.CurrentScene());
-    const auto target = timeline.ComputeSkipToEndTarget(tick);
+    const auto target = protectedSkipToEndTarget();
     if (!target)
       throw std::runtime_error("School Days next-choice destination has no skip target");
     seek(*target);
@@ -5553,9 +5611,9 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
       saveGame((documents / "QuickSave").string());
     if (!temporaryPlaybackActive() && event.key.key == SDLK_F6)
       loadGame((documents / "QuickSave").string());
-    if (event.key.key == SDLK_LEFT) back();
-    if (event.key.key == SDLK_RIGHT)
-      if (auto target = timeline.ComputeSkipToEndTarget(tick)) seek(*target);
+    if (event.key.key == SDLK_LEFT &&
+        !(choice != nullptr && unresolvedChoice())) back();
+    if (event.key.key == SDLK_RIGHT) requestSkipToEnd();
   } catch (const std::exception &error) {
     setStatus(error.what());
     return true;
@@ -5568,9 +5626,10 @@ void Runtime::activateControl(int control) {
   const bool playData = playDataPlayback && playDataPlayback->IsOpen();
   if (replay || playData) {
     if (control == 1) paused = !paused;
-    else if (control == 2) back();
-    else if (control == 3) {
-      if (auto target = timeline.ComputeSkipToEndTarget(tick)) seek(*target);
+    else if (control == 2) {
+      if (!(choice != nullptr && unresolvedChoice())) back();
+    } else if (control == 3) {
+      requestSkipToEnd();
     } else if (playData && (control == 10 || control == 11)) {
       openSaveLoad(control == 10);
     } else if (playData && control == 12) {
@@ -5585,9 +5644,11 @@ void Runtime::activateControl(int control) {
     return;
   }
   if (control == 1) paused = !paused;
-  else if (control == 2) back();
+  else if (control == 2) {
+    if (!(choice != nullptr && unresolvedChoice())) back();
+  }
   else if (control == 3) {
-    if (auto target = timeline.ComputeSkipToEndTarget(tick)) seek(*target);
+    requestSkipToEnd();
   } else if (control == 4) skipToNextChoice();
   else if (control == 10 || control == 11) {
     openSaveLoad(control == 10 && currentState == Kotonoha::GameState::Gameplay);
