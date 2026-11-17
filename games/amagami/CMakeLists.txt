@@ -6,11 +6,11 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
+# Pure formats and disc source parsing do not depend on the VM.
+# Session/Campaign are VM consumers and belong to the VM's sole archive.
 add_library(AmagamiFormats STATIC
     src/Formats.cpp
     src/Source.cpp
-    src/Session.cpp
-    src/Campaign.cpp
 )
 target_include_directories(AmagamiFormats PUBLIC include)
 target_link_libraries(AmagamiFormats PUBLIC KotonohaEngine)
@@ -18,6 +18,10 @@ target_compile_features(AmagamiFormats PUBLIC cxx_std_17)
 set_target_properties(AmagamiFormats PROPERTIES CXX_EXTENSIONS OFF)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/amagami/CMakeLists.txt")
+target_sources(kotonoha_vm_amagami PRIVATE
+    src/Session.cpp
+    src/Campaign.cpp
+)
 target_include_directories(AmagamiFormats PUBLIC
     $<TARGET_PROPERTY:kotonoha_vm_amagami,INTERFACE_INCLUDE_DIRECTORIES>)
 
