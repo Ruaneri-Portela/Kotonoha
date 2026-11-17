@@ -22,6 +22,8 @@ PmailSession::PmailSession(
   components_ = std::make_unique<PmailComponents>(*game_, engine_, *assets_);
   titleMenu_ = std::make_unique<PmailTitleMenu>(engine_, *game_, *assets_);
   loadNameProfile();
+  loadExtrasProfile();
+  extrasVersion_ = game_->extrasVersion();
 }
 
 PmailSession::~PmailSession() {
@@ -87,6 +89,11 @@ void PmailSession::update() {
   if (!initialized_ || !game_)
     return;
 
+  if (game_->extrasVersion() != extrasVersion_) {
+    saveExtrasProfile();
+    extrasVersion_ = game_->extrasVersion();
+  }
+
   if (game_->atTitle()) {
     updateTitle();
   } else {
@@ -135,6 +142,20 @@ void PmailSession::onEvent(Kotonoha::EventRef event) {
     if (components_ && components_->pauseMenu()->IsOpen()) {
       components_->onEvent(event);
       return;
+    }
+    if (game_->nativeTimeWaitActive()) {
+      // pmail.exe:0x423a00 polls the input ring every iteration and exits the
+      // pause as soon as an advance event arrives. The text box is hidden for
+      // these timer-only beats, so the session owns the skip.
+      const bool advance =
+          (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+           event.button.button == SDL_BUTTON_LEFT) ||
+          (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+           (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE));
+      if (advance) {
+        game_->click();
+        return;
+      }
     }
     if (game_->choosing()) {
       const auto choices = game_->choices();
@@ -250,6 +271,12 @@ namespace {
 std::filesystem::path nameProfilePath() {
   return Kotonoha::saveDirectory() / "pmail-names.txt";
 }
+std::filesystem::path extrasProfilePath() {
+  // Original SAVE\SAVEFL99.SAV stores the 4096-dword global flag block used
+  // by SYS 215 (pmail.exe:0x40eea0/0x40eef0). Keep the same unlock set in a
+  // small, human-readable profile next to the player-name profile.
+  return Kotonoha::saveDirectory() / "pmail-extras.txt";
+}
 } // namespace
 
 void PmailSession::loadNameProfile() {
@@ -278,6 +305,46 @@ void PmailSession::saveNameProfile() const {
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "[PmailPort] Cannot save player name profile: %s",
+                error.what());
+  }
+}
+
+void PmailSession::loadExtrasProfile() {
+  try {
+    const auto path = extrasProfilePath();
+    if (!std::filesystem::exists(path))
+      return;
+    const auto bytes = Kotonoha::Filesystem::readLocalFile(path, 4096);
+    std::istringstream file(std::string(bytes.begin(), bytes.end()));
+    std::vector<std::string> names;
+    std::string name;
+    while (std::getline(file, name)) {
+      if (!name.empty() && name.back() == '\r')
+        name.pop_back();
+      if (!name.empty())
+        names.push_back(name);
+    }
+    game_->loadUnlockedExtras(names);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[PmailPort] Extra unlock profile ignored: %s",
+                error.what());
+  }
+}
+
+void PmailSession::saveExtrasProfile() const {
+  try {
+    const auto path = extrasProfilePath();
+    std::filesystem::create_directories(path.parent_path());
+    std::string text;
+    for (const auto &name : game_->unlockedExtras()) {
+      text += name;
+      text += '\n';
+    }
+    Kotonoha::writeTextFileAtomically(path.string(), text);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[PmailPort] Cannot save extra unlock profile: %s",
                 error.what());
   }
 }
