@@ -7,7 +7,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 find_package(ZLIB REQUIRED)
-if(NOT TARGET Kotonoha::Modules::Providers::GPK)
+if(NOT TARGET kotonoha_provider_gpk)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/gpk"
         "${CMAKE_CURRENT_BINARY_DIR}/providers/gpk")
 endif()
@@ -68,7 +68,7 @@ add_library(school_days STATIC
 )
 target_include_directories(school_days PUBLIC include src)
 target_compile_features(school_days PUBLIC cxx_std_17)
-target_link_libraries(school_days PUBLIC Kotonoha::Engine Kotonoha::Modules::Providers::GPK PRIVATE ZLIB::ZLIB)
+target_link_libraries(school_days PUBLIC KotonohaEngine kotonoha_provider_gpk PRIVATE ZLIB::ZLIB)
 set_target_properties(school_days PROPERTIES CXX_EXTENSIONS OFF)
 
 kotonoha_add_app(SchoolDays src/main.cpp)
