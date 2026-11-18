@@ -109,7 +109,8 @@ void test() {
   for (auto &thread : threads)
     thread.join();
   for (const auto &failure : failures)
-    check(failure.empty(), "Concurrent writer failed");
+    if (!failure.empty())
+      throw std::runtime_error("Concurrent writer failed: " + failure);
   check((read(path) == first || read(path) == second) && pending(path) == 0,
         "Concurrent publishers must leave exactly one complete file");
 
