@@ -11,13 +11,16 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <cstdlib>
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
 #include <system_error>
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#include <process.h>
+#else
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -603,41 +606,14 @@ int launchModularPortProcess(const char *argv0,
   if (binDir.parent_path().has_parent_path())
     addBinSearch(binDir.parent_path().parent_path(), entry.targetBinary);
 
-  // Also search sibling /tmp/kotonoha-build* directories during development.
-  for (const char *devBuild :
-       {"/Users/nero/Codes/Kotonoha/out/build/macos-arm64-debug",
-        "/tmp/kotonoha-build", "/tmp/kotonoha-build-reallive",
-        "/tmp/kotonoha-build-ddlc", "/tmp/kotonoha-build-kirikiri",
-        "/tmp/kotonoha-build-ponscripter", "/tmp/kotonoha-build-overflow",
-        "/tmp/kotonoha-build-ps2"}) {
-    addBinSearch(fs::path(devBuild), entry.targetBinary);
-  }
+  // Resolve only next to this executable and its build/output parents.
+  // Machine-specific paths can accidentally launch unrelated stale builds.
 
-  std::string activeCliOption = entry.cliOption;
   fs::path resolvedBinary;
   for (const auto &cand : searchCandidates) {
     if (fs::is_regular_file(cand, ec)) {
       resolvedBinary = cand;
       break;
-    }
-  }
-  // Fallback for PONScripter if hosted in N2SystemGame
-  if (resolvedBinary.empty() && entry.targetBinary == "PonscripterGame") {
-    searchCandidates.clear();
-    addBinSearch(binDir, "N2SystemGame");
-    if (binDir.has_parent_path())
-      addBinSearch(binDir.parent_path(), "N2SystemGame");
-    for (const char *devBuild :
-         {"/tmp/kotonoha-build", "/tmp/kotonoha-build-reallive",
-          "/tmp/kotonoha-build-ponscripter"}) {
-      addBinSearch(fs::path(devBuild), "N2SystemGame");
-    }
-    for (const auto &cand : searchCandidates) {
-      if (fs::is_regular_file(cand, ec)) {
-        resolvedBinary = cand;
-        activeCliOption = "--n2system";
-        break;
-      }
     }
   }
   if (resolvedBinary.empty()) {
@@ -647,10 +623,9 @@ int launchModularPortProcess(const char *argv0,
     return -1;
   }
 
-#if !defined(_WIN32)
   std::vector<std::string> args;
   args.push_back(resolvedBinary.string());
-  args.push_back(activeCliOption);
+  args.push_back(entry.cliOption);
   // Some engines store assets in a subdirectory (e.g. MEO → Personal/MISSEACHOTHER/).
   // Pass the full resolved path so the port finds its assets.
   if (!entry.engine.dataPrefix.empty()) {
@@ -683,16 +658,38 @@ int launchModularPortProcess(const char *argv0,
     args.push_back(std::to_string(frames));
   }
 
-  std::vector<char *> cargs;
-  cargs.reserve(args.size() + 1);
-  for (auto &a : args)
-    cargs.push_back(a.data());
-  cargs.push_back(nullptr);
-
-  // Debug: print all args
   for (std::size_t i = 0; i < args.size(); ++i)
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "Launcher exec arg[%zu]: '%s'", i, args[i].c_str());
+
+#if defined(_WIN32)
+  // Use the wide CRT process API so game-data paths containing Unicode are
+  // preserved. Avoid invoking a shell (which would require quoting).
+  std::vector<std::wstring> wideArgs;
+  wideArgs.reserve(args.size());
+  for (const auto &arg : args)
+    wideArgs.push_back(fs::u8path(arg).wstring());
+  std::vector<const wchar_t *> wideArgv;
+  wideArgv.reserve(wideArgs.size() + 1);
+  for (const auto &arg : wideArgs)
+    wideArgv.push_back(arg.c_str());
+  wideArgv.push_back(nullptr);
+
+  const auto exitCode =
+      _wspawnv(_P_WAIT, resolvedBinary.wstring().c_str(), wideArgv.data());
+  if (exitCode == -1) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                 "Failed to launch '%s' (errno=%d)",
+                 resolvedBinary.string().c_str(), errno);
+    return -1;
+  }
+  return static_cast<int>(exitCode);
+#else
+  std::vector<char *> cargs;
+  cargs.reserve(args.size() + 1);
+  for (auto &arg : args)
+    cargs.push_back(arg.data());
+  cargs.push_back(nullptr);
 
   const pid_t pid = fork();
   if (pid == 0) {
@@ -704,8 +701,8 @@ int launchModularPortProcess(const char *argv0,
       return WEXITSTATUS(status);
     return 1;
   }
-#endif
   return -1;
+#endif
 }
 
 UnifiedLauncher::UnifiedLauncher(std::string settingsPath,
