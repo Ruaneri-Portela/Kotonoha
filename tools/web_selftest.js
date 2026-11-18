@@ -181,8 +181,14 @@ function updateManifest() {
   };
   traverse(root);
   entries.sort((a, b) => a.path.localeCompare(b.path));
-  fs.writeFileSync(path.join(root, 'manifest.json'),
-                   JSON.stringify({entries, files: entries.map(e => e.path)}));
+  // Exercise manifest transfer above the typical WASM stack size. This is
+  // metadata padding only: every indexed file remains a real test fixture.
+  // ccall("string") would place this ~256 KiB JSON on the native WASM stack.
+  const manifest = {
+    entries, files: entries.map(e => e.path),
+    testMetadataPadding: 'x'.repeat(256 * 1024)
+  };
+  fs.writeFileSync(path.join(root, 'manifest.json'), JSON.stringify(manifest));
 }
 
 async function waitForServer() {
@@ -451,6 +457,8 @@ async function main() {
       };
     });
     console.log('OPTIONAL_MANIFEST', JSON.stringify(indexed));
+    assert(fs.statSync(manifestPath).size > 256 * 1024,
+      'manifest fixture must be large enough to reproduce ccall stack overflow');
     assert(indexed.selected && indexed.listed === 1 &&
       indexed.late === Buffer.byteLength(lateBody),
       'manifest index must enumerate nested files and fall back to direct ' +
