@@ -116,7 +116,7 @@ const base = "https://example.invalid/RealLive/game-assets/";
 const files = new Map([
     ["opening.bin", new TextEncoder().encode("Kotonoha opening!")],
     ["later.bin", new TextEncoder().encode("Next story scene")],
-    ["oversized.bin", new Uint8Array(3 * 1024 * 1024)]
+    ["oversized.bin", new Uint8Array(10 * 1024 * 1024)]
 ]);
 async function fetchNetwork(url, options = {}) {
     if (!online) throw new TypeError("Offline");
@@ -217,7 +217,7 @@ const manager = browserWindow.KotonohaAssetCache;
     malformed = true;
     await assert.rejects(manager.fetchJob({
         url: base + "oversized.bin", path: "oversized.bin",
-        remotePath: "oversized.bin", fileSize: 3 * 1024 * 1024,
+        remotePath: "oversized.bin", fileSize: 10 * 1024 * 1024,
         start: 0, length: 64, full: false, discovery: false
     }), /exceeds|Range/);
     console.log("Kotonoha persistent IndexedDB/preload runtime tests passed.");
