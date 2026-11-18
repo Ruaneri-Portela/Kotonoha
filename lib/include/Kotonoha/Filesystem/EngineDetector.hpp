@@ -269,6 +269,19 @@ inline DetectedEngine detectEngine(const Filesystem &source) {
     }
   }
 
+  // HTTP(S) mounts without a manifest cannot list undiscovered files.
+  // Probe canonical Kirikiri entrypoints before falling back to enumeration;
+  // this also preserves the same detector behavior for directory/ISO mounts.
+  for (const char *id :
+       {"data.xp3", "patch.xp3", "startup.tjs", "startup.ks",
+        "scenario/startup.ks", "scenario/first.ks", "first.ks",
+        "data/data.xp3"}) {
+    if (hasRegularFile(source, id)) {
+      return {EngineKind::Kirikiri, "kirikiri", "KiriKiri2 / KiriKiriZ",
+              "", id, true};
+    }
+  }
+
   // 9. Scan top-level and common subdirectories for archive extensions & magic
   for (const std::string_view scanDir :
        {"", "game", "data", "archive", "Packs", "USRDIR"}) {
