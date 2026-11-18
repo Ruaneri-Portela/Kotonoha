@@ -35,7 +35,7 @@ O repositório contém **13 aplicativos de jogos no CMake/Android** (incluindo E
 
 Os artefatos Linux e WebAssembly são compilados sequencialmente em **um único job do GitHub Actions**. O cache de builds incrementais do motor/jogos foi desabilitado, mantendo somente o cache binário de dependências do vcpkg. Veja [instruções de CI](docs/CI_VCPKG.md). Testes sintéticos não comprovam paridade com os jogos comerciais.
 
-O novo [launcher unificado independente](launcher/README.pt-BR.md) funciona no desktop, identifica fontes de jogos e inicia seus executáveis modulares.
+O [launcher unificado independente](launcher/README.pt-BR.md) funciona no desktop e linka diretamente as bibliotecas dos ports habilitados, executando cada jogo no mesmo processo, sem iniciar binários secundários.
 
 ## Estrutura
 
