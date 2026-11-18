@@ -4,7 +4,7 @@
 
 Kotonoha is a modular **C++17 visual novel engine** built with SDL3. It provides scenes, dialogue, saves, input, asset providers, media playback (FFmpeg), subtitles (libass), and developer tools (Dear ImGui). Selected ports use additional runtimes such as CPython.
 
-> **Development status:** Game ports have different levels of compatibility. A working scene or smoke test does **not** mean complete parity with the original game.
+> **Development status:** The active integration branch is `dev`; `main` can lag behind. Game ports have different levels of compatibility. A working scene or smoke test does **not** mean complete parity with the original game.
 
 ## Quick start
 
@@ -13,6 +13,7 @@ Requirements: CMake, a C++17 toolchain, Git/submodules, and the dependencies dec
 ```sh
 git clone --recurse-submodules https://github.com/Ruaneri-Portela/Kotonoha.git
 cd Kotonoha
+git switch dev  # Latest integrated development fixes
 cmake -S . -B build -DKOTONOHA_BUILD_EXAMPLE=ON
 cmake --build build --target Kotonoha
 ```
@@ -23,9 +24,16 @@ If using vcpkg explicitly, add `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buil
 
 - **[Documentation index](docs/README.md)** — all guides and platform entry points.
 - **[Build guides](docs/BUILD_GUIDES.md)** — desktop, Android, iOS, macOS, and WebAssembly.
+- **[CI and vcpkg](docs/CI_VCPKG.md)** — one-runner Linux/WASM pipeline, artifact builds, and cache policy.
 - **[Game ports](games/README.md)** — supported modules, limitations, and game-specific instructions.
 - **[Modules](modules/vms/README.md)** — script VMs; **[asset providers](modules/providers/README.md)** — file and archive access.
 - **[Overlays](docs/ASSET_OVERLAYS.md)**, **[storage](docs/DIRECTORY_POLICY.md)**, and **[engine settings](docs/ENGINE_SETTINGS.md)**.
+
+## Current integration notes
+
+The source tree includes **12 CMake/Android game applications** (including Example and N2System). The shared launcher is the default for interactive starts; `--no-launcher`, `--frames`, and MCP/headless execution are handled centrally. N2System is **not yet available as a checked-in macOS/iOS Xcode scheme**; see [build validation](docs/BUILD_VALIDATION.md).
+
+Linux and WebAssembly artifacts are built sequentially in **one GitHub Actions job**. Incremental game/engine build caches are disabled; vcpkg dependency binary caching is retained. See [CI instructions](docs/CI_VCPKG.md). Source and synthetic tests cannot establish full retail-game parity.
 
 ## Repository layout
 
