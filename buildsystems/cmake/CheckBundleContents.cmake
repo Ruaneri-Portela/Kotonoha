@@ -17,6 +17,19 @@ foreach(item IN LISTS resource_items)
 endforeach()
 
 set(frameworks "${BUNDLE_CONTENTS}/Frameworks")
+# A Python.app nested in an embedded Python.framework is an accidental
+# helper application, not the CPython runtime needed by the game. Reject it
+# even if a dependency fixup operation reintroduces it after cleanup.
+file(GLOB _python_versions LIST_DIRECTORIES TRUE
+    "${frameworks}/Python.framework/Versions/*")
+foreach(_version_dir IN LISTS _python_versions)
+    if(EXISTS "${_version_dir}/Resources/Python.app" OR
+       IS_SYMLINK "${_version_dir}/Resources/Python.app")
+        message(FATAL_ERROR
+            "Unexpected nested Python.app in staged framework: ${_version_dir}")
+    endif()
+endforeach()
+
 if(APP_GAME STREQUAL "doki-doki-literature-club" OR
    (APP_GAME STREQUAL "launcher" AND PYTHON_VERSION))
     if(NOT PYTHON_VERSION)
