@@ -261,22 +261,47 @@ uint8_t SchoolDaysMenuBarPresenter::FadeAlpha(uint8_t startAlpha,
 SchoolDaysMenuBarPresenter::RenderVisibility
 SchoolDaysMenuBarPresenter::VisibilityForState(uint8_t barAlpha,
                                                bool fullBarSuppressed,
-                                               bool meterOnly) {
-  const bool chrome = barAlpha != 0 && !fullBarSuppressed && !meterOnly;
-  return {chrome || meterOnly, chrome};
+                                               bool meterOnly,
+                                               bool feelingLatch) {
+    const bool chrome = barAlpha != 0 && !fullBarSuppressed && !meterOnly;
+    // The host feeling latch updates meter sprites independently of hover,
+    // including when all surrounding chrome has already faded away. Explicit
+    // handoff suppression still owns the whole view unless it is a choice.
+    return {chrome || meterOnly || (feelingLatch && !fullBarSuppressed), chrome};
+}
+
+SchoolDaysMenuBarPresenter::RenderVisibility
+SchoolDaysMenuBarPresenter::VisibilityForFrozenChoiceTail(
+    uint8_t barAlpha, bool fullBarSuppressed, bool showMeter) {
+    // An exiting choice cannot generate the mouse hover needed to show normal
+    // chrome. An inherited nonzero alpha is stale, not evidence of a hover.
+    // The isolated meter is allowed only after the detector reports a delta.
+    (void)barAlpha;
+    (void)fullBarSuppressed;
+    return {showMeter, false};
+}
+
+uint8_t SchoolDaysMenuBarPresenter::MeterAlphaForState(
+    uint8_t barAlpha, bool chromeVisible, bool feelingLatch,
+    bool meterOnly, bool choiceTailFrozen) {
+    // Retail 0x1002585F..0x100258DB skips the alpha setter for the meter
+    // sprites (this+0x80/+0x98/+0x9C/+0xA0) when host +0x154 is active.
+    // Keep the same authored contrast for the changed post-choice meter,
+    // even when surrounding top controls fade or are hovered.
+    if (feelingLatch || meterOnly || choiceTailFrozen) return 255;
+    return chromeVisible ? barAlpha : 255;
 }
 
 SchoolDaysMenuBarPresenter::PersistentTransport
 SchoolDaysMenuBarPresenter::PersistentTransportForState(
     bool autoMode, int speedIndex, bool speedControlsEnabled,
     bool transportLocked, bool fullBarSuppressed, bool meterOnly) {
-  // Persistent native sprites are distinct from the fading 800x75 chrome.
-  // Choice-tail meterOnly and an explicit handoff suppression hide them.
-  if (fullBarSuppressed || meterOnly)
-    return {};
-  return {speedIndex > 0 && speedIndex < 5 && speedControlsEnabled &&
-              !transportLocked,
-          autoMode};
+    // AUTO ON is an independent persistent status sprite: even a pending
+    // SetSELECT, isolated post-choice Feel, or scene handoff cannot hide it.
+    // Only the selected-speed highlight follows menu suppression.
+    return {speedIndex > 0 && speedIndex < 5 && speedControlsEnabled &&
+                !transportLocked && !fullBarSuppressed && !meterOnly,
+            autoMode};
 }
 
 int SchoolDaysMenuBarPresenter::AutoLightRecordForTime(uint32_t nowMs,
