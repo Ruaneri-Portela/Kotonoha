@@ -117,7 +117,8 @@
     "RealLive": "reallive",
     "Kirikiri": "kirikiri",
     "LucaSystem": "luca-system",
-    "Pmail": "pmail"
+    "Pmail": "pmail",
+    "N2SystemGame": "n2system"
   },
   "modules": {
     "VM": [

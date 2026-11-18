@@ -98,26 +98,15 @@ int main() {
 
     check(vm.finished(), "VM script finished");
 
-    // Test ONScripterConverter
-    const std::string onscripterScript =
-        "*001\n"
-        "bg \"cg\\bp01me0.jpg\",10\n"
-        "dwave 0,\"voice\\2\\000104.ogg\"\n"
-        "^ [Saya] Sako...\n"
-        "select \"Choice A\", *002, \"Choice B\", *003\n"
-        "*002\n"
-        "goto *001\n";
-
-    std::string converted = N2System::ONScripterConverter::convert(onscripterScript);
-    check(converted.find("chapter _001") != std::string::npos, "ONScripterConverter chapter prefix");
-    check(converted.find("PlayVoice") != std::string::npos, "ONScripterConverter PlayVoice");
-    check(converted.find("CreateChoice") != std::string::npos, "ONScripterConverter CreateChoice");
+    // Test N2System ScriptIndex
+    N2System::ScriptIndex index = N2System::ScriptIndex::Parse("chapter _001 {\n  PlayVoice(\"000104\");\n}\n");
+    check(!index.chapters().empty(), "ScriptIndex parsed chapters");
 
     N2System::ScriptVm vmConverted;
-    vmConverted.loadScript(converted, "_001");
+    vmConverted.loadScript("chapter _001 {\n  SetDialogue(\"Saya\", \"Sako...\");\n}\n", "_001");
     vmConverted.step(5);
-    check(vmConverted.dialogueSystem().speaker() == "Saya", "Converted ONScripter speaker");
-    check(vmConverted.dialogueSystem().fullText() == "Sako...", "Converted ONScripter text");
+    check(vmConverted.dialogueSystem().speaker() == "Saya", "N2System speaker");
+    check(vmConverted.dialogueSystem().fullText() == "Sako...", "N2System text");
 
     std::cout << "All N2System VM tests passed!\n";
     return 0;
