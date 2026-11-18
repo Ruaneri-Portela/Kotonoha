@@ -33,7 +33,9 @@ def audit() -> list[str]:
         if slug in registry:
             issues.append(f"Duplicate launcher registry entry for {slug}")
         registry[slug] = match.groupdict()
-    expected_slugs = set(games.values())
+    expected_slugs = set(games.values()) - {"example"}
+    if "example" in registry:
+        issues.append("Example must not be registered in the launcher")
     if set(registry) != expected_slugs:
         issues.append(
             "Launcher registration and game manifest differ: " +
@@ -91,6 +93,10 @@ def audit() -> list[str]:
     factories = (ROOT / "launcher/src/GameFactories.cpp").read_text(
         encoding="utf-8")
     hub_main = (ROOT / "launcher/src/main.cpp").read_text(encoding="utf-8")
+    if '"EXAMPLE|' in cmake or "KOTONOHA_LAUNCH_EXAMPLE" in factories:
+        issues.append("The launcher must exclude the Example demo")
+    if "KOTONOHA_BUILD_ALL" not in cmake:
+        issues.append("The launcher CMake target must require BUILD_ALL")
     if "src/GameFactories.cpp" not in cmake or (
         "target_link_libraries(kotonoha_unified_launcher PUBLIC" not in cmake
     ):
@@ -99,6 +105,8 @@ def audit() -> list[str]:
         r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"',
         (ROOT / "buildsystems/cmake/KotonohaGames.cmake").read_text(
             encoding="utf-8")):
+        if option == "EXAMPLE":
+            continue
         if f"KOTONOHA_LAUNCH_{option}" not in factories:
             issues.append(f"{slug}: no linked C++ runtime factory")
         if f'"{option}|' not in cmake:
@@ -121,7 +129,7 @@ def audit() -> list[str]:
         issues.append("N2System must reuse only the Ponscripter library")
 
     root_cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-    if 'NOT ANDROID AND NOT EMSCRIPTEN' not in root_cmake:
+    if 'KOTONOHA_BUILD_ALL AND NOT ANDROID AND NOT EMSCRIPTEN' not in root_cmake:
         issues.append("Native-only standalone launcher guard is missing")
     return issues
 
@@ -137,5 +145,5 @@ if __name__ == "__main__":
         print(f"[Launcher contracts] {finding}", file=sys.stderr)
     if failures:
         raise SystemExit(1)
-    print("[Launcher contracts] All modular executables, CLI flags and "
-          "package IDs match the CMake/Android game matrix")
+    print("[Launcher contracts] All 12 linked game runtimes match their "
+          "CMake/Android identities; Example excluded; BUILD_ALL required")
