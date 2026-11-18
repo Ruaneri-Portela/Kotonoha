@@ -46,6 +46,21 @@ def validate():
                 for key, data in manifest["targets"].items()
                 for platform, name in [key.split("/", 1)]
                 if name not in ("KotonohaEngine", "KotonohaImGui")}
+    # A CMake/Android port is NOT automatically an Xcode scheme. Missing
+    # macOS/iOS schemes must be explicitly reported and may not silently be
+    # counted as Apple-compatible.
+    pending_xcode = set()
+    for cmake_target, slug in manifest["games"].items():
+        platforms = {platform for platform in ("macOS", "iOS")
+                     if (platform, cmake_target) in expected}
+        if not platforms:
+            pending_xcode.add(slug)
+        else:
+            require(platforms == {"macOS", "iOS"},
+                    f"Partial Xcode target for {slug}: {sorted(platforms)}")
+    require(pending_xcode == set(manifest.get("xcode_pending", [])),
+            f"Untracked Xcode scheme gap: {sorted(pending_xcode)}")
+
     schemes = list(SCHEMES.glob("*.xcscheme"))
     require(len(schemes) == len(expected) == manifest["schemes"],
             "Incorrect number of Xcode schemes")
@@ -70,7 +85,8 @@ def validate():
         require(any("PrepareApple.py" in action.get("scriptText", "") for action in actions),
                 f"Missing preparation step: {scheme.name}")
     require(seen == set(expected), "Some Xcode schemes are missing")
-    print(f"[Kotonoha] OK: {len(rows)} games; {len(schemes)} schemes; CMake/Xcode consistent")
+    print(f"[Kotonoha] OK: {len(rows)} CMake games; {len(schemes)} existing Xcode "
+          f"schemes; Xcode pending: {', '.join(sorted(pending_xcode)) or 'none'}")
 
 
 if __name__ == "__main__":

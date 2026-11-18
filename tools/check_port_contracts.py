@@ -98,6 +98,32 @@ def errors():
         if re.search(r'/(Volumes|Users|home)/[^"\s]+', source):
             issues.append(f"{slug}: machine-specific absolute game path in main.cpp")
 
+    # All packaged ports share a real launcher; none may override the
+    # explicit --no-launcher choice after CommandLine::parse().
+    for target, slug in manifest["games"].items():
+        if slug == "example":
+            continue
+        source = (ROOT / "games" / slug / "src/main.cpp").read_text()
+        if "launcher->open()" not in source:
+            issues.append(f"{slug}: missing launcher open path")
+        if re.search(r"\\b(?:app->)?options\\.launcher\\s*=\\s*true\\b", source):
+            issues.append(
+                f"{slug}: startup forcibly enables launcher despite --no-launcher"
+            )
+
+    shared_cli = (ROOT / "lib/src/core/CommandLine.cpp").read_text()
+    for required in ("frames > 0", "engine.enableMCP",
+                     "engine.launcher = false"):
+        if required not in shared_cli:
+            issues.append(f"Shared CLI missing headless launcher policy: {required}")
+
+    # Every CMake game must be discoverable in both human-facing indices.
+    for language in ("README.md", "README.pt-BR.md"):
+        index = (ROOT / "games" / language).read_text(encoding="utf-8")
+        for slug in manifest["games"].values():
+            if f"({slug}/README" not in index:
+                issues.append(f"{language}: missing port index entry for {slug}")
+
     return issues, len(manifest["games"])
 
 

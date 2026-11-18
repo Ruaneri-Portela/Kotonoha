@@ -1,6 +1,8 @@
 #include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 
 #include <chrono>
+#include <algorithm>
+#include <vector>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -50,6 +52,9 @@ int main() {
     fixture.touch("data/pack/graphic.dat");
     fixture.touch("game/scripts.rpa");
     fixture.touch("game/images.rpa");
+    fixture.touch("nss/0_boot.nss");
+    fixture.touch("archives/sub/game.NPA");
+    fixture.touch("archives/sub/voice.AFS");
     fixture.touch("Seen.TXT");
     fixture.touch("GameExe.INI");
     fs::create_directories(fixture.root / "fake.dat");
@@ -75,6 +80,26 @@ int main() {
             "RealLive: recognize mixed-case VFS filenames");
     require(!findRequiredFilesPrefix(*source, {"fake.dat"}),
             "A directory cannot masquerade as a game archive");
+    const auto allFiles = Kotonoha::Filesystem::listGameSourceFiles(*source);
+    const auto rootFiles = Kotonoha::Filesystem::listGameSourceFiles(*source, 0);
+    const auto includesFile = [](const std::vector<Kotonoha::Filesystem::FileInfo> &files,
+                                 const std::string &id) {
+      return std::any_of(files.begin(), files.end(),
+                         [&](const auto &file) { return file.path == id; });
+    };
+    require(includesFile(allFiles, "nss/0_boot.nss") &&
+                includesFile(allFiles, "archives/sub/game.NPA") &&
+                includesFile(allFiles, "archives/sub/voice.AFS"),
+            "N2System: find script and archive files nested below source root");
+    require(!includesFile(rootFiles, "nss/0_boot.nss"),
+            "Depth-zero traversal must not descend into nested folders");
+    bool bounded = false;
+    try {
+      (void)Kotonoha::Filesystem::listGameSourceFiles(*source, 4, 1);
+    } catch (const Kotonoha::Filesystem::FilesystemError &error) {
+      bounded = error.code() == Kotonoha::Filesystem::ErrorCode::IOError;
+    }
+    require(bounded, "VFS recursion must reject exceeding the traversal limit");
     require(!findRequiredFilesPrefix(*source, {}),
             "An empty required-file set does not validate any source");
 

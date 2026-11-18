@@ -9,6 +9,16 @@ if(WIN32)
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
 endif()
 
+# The shared CLI owns launcher/headless decisions for every game port.
+add_executable(KotonohaCommandLineTests CommandLineTests.cpp)
+target_link_libraries(KotonohaCommandLineTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.CommandLine COMMAND KotonohaCommandLineTests)
+if(WIN32)
+    set_tests_properties(Kotonoha.CommandLine PROPERTIES
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+endif()
+
 add_executable(KotonohaVmTests VmTests.cpp)
 target_link_libraries(KotonohaVmTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.Vm COMMAND KotonohaVmTests)

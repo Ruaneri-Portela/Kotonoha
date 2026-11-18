@@ -138,7 +138,13 @@ jobs:
           from pathlib import Path
           from zipfile import ZipFile
           packages = sorted(Path("build-linux/packages").glob("*.zip"))
-          assert len(packages) >= 11, f"Expected 11 game packages, got {len(packages)}"
+          import json
+          expected = len(json.loads(
+              Path("buildsystems/xcode/ProjectManifest.json").read_text(
+                  encoding="utf-8"))["games"])
+          assert len(packages) >= expected, (
+              f"Expected at least {expected} game packages, got {len(packages)}"
+          )
           for archive in packages:
               with ZipFile(archive) as package:
                   assert package.namelist(), f"Empty archive: {archive}"

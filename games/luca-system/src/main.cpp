@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <set>
 #include <string>
 #include <vector>
@@ -115,8 +116,10 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
          downloads ? (std::filesystem::path(downloads) / "LucaSystem").string()
                    : ""},
         validate, {""}, true);
-    if (directory.empty())
-      options.launcher = true;
+    // Honor the shared default and explicit --no-launcher. Automated
+    // --frames and MCP runs bypass the launcher in CommandLine::parse().
+    if (directory.empty() && !options.launcher)
+      throw std::runtime_error("No valid LucaSystem source; pass --luca-system DIRECTORY|ISO");
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "LucaSystem", settingsPath, directory, validate, options.settings,

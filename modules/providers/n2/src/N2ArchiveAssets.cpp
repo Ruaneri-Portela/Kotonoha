@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/N2ArchiveAssets.hpp>
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <algorithm>
 #include <cctype>
 #include <set>
@@ -76,12 +77,15 @@ N2ArchiveAssets::N2ArchiveAssets(std::string_view rootDir,
 }
 
 void N2ArchiveAssets::setRootDirectory(std::string_view rootDir) {
+  // Changing the source must not retain indexed archives from a prior game.
+  archives_.clear();
   vfs_.reset();
   if (!rootDir.empty()) {
     rootDirectory_ = std::filesystem::path(rootDir);
     try {
       vfs_ = Kotonoha::Filesystem::Filesystem::mount(std::string(rootDir));
-      for (const auto &info : vfs_->list()) {
+      for (const auto &info :
+           Kotonoha::Filesystem::listGameSourceFiles(*vfs_)) {
         if (info.type != Kotonoha::Filesystem::FileType::Regular)
           continue;
         std::string lower = info.path;
@@ -155,7 +159,8 @@ N2ArchiveAssets::listAsset(const std::string &prefix) const {
       if (name.compare(0, lookup.size(), lookup) == 0)
         names.insert(name);
   if (vfs_) {
-    for (const auto &entry : vfs_->list()) {
+    for (const auto &entry :
+         Kotonoha::Filesystem::listGameSourceFiles(*vfs_)) {
       if (entry.type != Kotonoha::Filesystem::FileType::Regular)
         continue;
       const auto norm = Archive::normalize(entry.path);

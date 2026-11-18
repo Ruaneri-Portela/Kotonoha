@@ -222,5 +222,8 @@
       ],
       "note": "Vendor files are referenced in the source repository; the Xcode project includes no vendor source copies."
     }
-  }
+  },
+  "xcode_pending": [
+    "n2system"
+  ]
 }
