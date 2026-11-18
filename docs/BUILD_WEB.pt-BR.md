@@ -18,6 +18,45 @@ cmake --build build-web --target RealLive
 
 Os caminhos das toolchains variam conforme a instalação. `KOTONOHA_BUILD_ALL=ON` seleciona os ports web suportados, mas exclui DDLC. Sirva o resultado por **HTTP**, não por `file://`.
 
+## Um PWA instalável para cada jogo web
+
+Cada target compilado com Emscripten vira um Progressive Web App próprio em
+`build-web/outputs/<target>/`. A pasta inclui `index.html`,
+`manifest.webmanifest`, `service-worker.js`, ícones PNG 180/192/512,
+`KotonohaPreloadCache.js` e os arquivos JS/WASM/data do jogo. Nome,
+identidade da instalação, cor do ícone e escopo do Service Worker são
+específicos de cada jogo. Assim, `/RealLive/` e `/Kirikiri/` são PWAs
+independentes. Os ícones são gerados sem dependências extras de Python.
+
+Para instalar, hospede por **HTTPS** (ou `http://localhost` no
+desenvolvimento) e use **Instalar aplicativo** no navegador ou **Adicionar à
+Tela de Início** no iOS. O Service Worker armazena o shell e, após a
+inicialização, os arquivos JS/WASM/data do runtime para uso offline posterior.
+Ele **não intercepta `game-assets/`**, requisições `HEAD` ou HTTP `Range`.
+Assets de jogos ficam no cache de blocos do IndexedDB, separado do PWA.
+Instalar o PWA não baixa todos os arquivos do jogo: jogar offline exige que os
+dados necessários já estejam no cache. Limites de armazenamento ainda se
+aplicam.
+
+### Gerar preload.json pelo console
+
+Escolha a origem HTTP(S), navegue pelos menus e cenas que devem fazer parte
+do primeiro boot e, no console de desenvolvedor, execute:
+
+```javascript
+await KotonohaDumpPreload();
+```
+
+O navegador baixa um `preload.json`. Publique-o em
+`game-assets/preload.json`, ao lado do `manifest.json`. O dump registra
+**somente os arquivos e intervalos realmente baixados** até aquele momento;
+não copia todos os nomes do manifesto. Quando um `preload.json` existir, o
+boot HTTP(S) aguarda que todos os trechos exigidos estejam no IndexedDB,
+baixando os que faltarem antes de iniciar o WASM. O dump identifica a versão
+do manifesto para não combinar caches incompatíveis. O guia e o índice
+também podem ser recuperados offline quando já salvos; se faltarem blocos
+obrigatórios, o boot permanece bloqueado. A origem local não faz preload HTTP.
+
 ## Armazenamento e assets no navegador
 
 - **Saves:** volume IDBFS em `/save`, sincronizado com IndexedDB pelo adaptador web.
