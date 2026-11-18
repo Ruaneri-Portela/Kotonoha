@@ -11,12 +11,27 @@
    - Identifies all Kotonoha port engine families (LucaSystem, RealLive / rlBabel, KiriKiri2/Z, Ren'Py + VNX patches, N2System, PONScripter/ONScripter, Amagami PS2 SCF, School Days HQ GPK, Pure Mail ADV, Snow Radish ADV, Summer Radish / MEO CMP, Zero no Tsukaima PS2 Squirrel/KAG).
    - Automatically pairs companion translation overlays (such as `DDLC_PT-BR_Patch` -> `DDLC`).
 
-2. **Engines Built as Modular Libraries (`EngineLibraryRegistry`)**:
-   - Maps each detected `EngineKind` to its modular CMake static/shared library target (`luca_system_formats`, `reallive_port`, `kirikiri_formats`, `doki_doki_literature_club`, `n2system_formats`, `ponscripter_port`, `amagami_port`, `school_days`, `PmailPort`, `snow_radish_vacation`, `summer_radish_vacation`, `zero_no_tsukaima`).
-   - Dispatches to modular game executables on desktop. `EngineLibraryFactory` is an extension hook, but no in-process game factories are registered by default.
+2. **Linked game runtimes (`EngineLibraryRegistry`)**:
+   - CMake links every *enabled* game's runtime library directly into `kotonoha_unified_launcher`. `GameFactories.cpp` registers the concrete `Runtime` and asset-provider constructors at link time.
+   - `KotonohaLauncher` instantiates `Runtime` + `Engine` **in the same process** and returns to the hub after the game exits, restoring its per-game save environment. No game `main.cpp` or second executable is invoked.
+   - A detectable game with an unlinked port is shown in the catalog, but cannot be launched until that port is enabled in CMake.
 
 3. **Per-Game Save & Config Folder Isolation (`splitSavesByGame`)**:
    - Isolates `KOTONOHA_USER_DATA_DIR` and `settings.json` under `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/Kotonoha/<packageId>/save` so multiple titles sharing the same engine (e.g., `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` on RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` on CMP; `ZeroNoTsukaima0..2` on Zero) never collide.
+
+## Build with game libraries
+
+```sh
+# All desktop game runtime libraries linked directly into the hub
+cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
+cmake --build build --target KotonohaLauncher
+
+# A lighter hub linked to only a selected game's runtime
+cmake -S . -B build-reallive -DKOTONOHA_BUILD_REALLIVE=ON
+cmake --build build-reallive --target KotonohaLauncher
+```
+
+All source dependencies (including optional Python development packages for DDLC) must be installed for a complete build. An engine may be recognized from its files even when its runtime library was not selected. The linked hub is a desktop component only.
 
 ## CLI Usage
 
