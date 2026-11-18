@@ -149,7 +149,7 @@ async function fetchNetwork(url, options = {}) {
 const browserWindow = {indexedDB};
 vm.runInNewContext(source, {
     window: browserWindow, indexedDB, IDBKeyRange: idbRange,
-    URL, TextEncoder, Uint8Array, Blob, Response, console,
+    URL, TextEncoder, Uint8Array, Blob, Response, AbortController, console,
     navigator: {onLine: true}, fetch: fetchNetwork,
     setTimeout, Date, Math
 }, {filename: "KotonohaPreloadCache.js"});
