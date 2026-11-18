@@ -14,6 +14,14 @@
 namespace Kotonoha {
 
 namespace {
+// Do not pass HTTP URLs through std::filesystem::path or FileResolver: that
+// transforms their scheme (http:// -> http:/) into a local path. The WebAssembly
+// VFS knows how to mount a direct URL and probe its known filenames.
+bool isHttpGameSource(const std::string &path) {
+  return path.rfind("https://", 0) == 0 ||
+         path.rfind("http://", 0) == 0;
+}
+
 std::string rememberFilePath(const std::string &settingsPath,
                              const std::string &rememberFile) {
   if (settingsPath.empty() || rememberFile.empty())
@@ -74,6 +82,11 @@ std::string GameLauncher::findGamePath(
     }
   };
   for (std::size_t i = 0; i < preferred.size(); ++i) {
+    if (isHttpGameSource(preferred[i])) {
+      if (valid(preferred[i], false))
+        return preferred[i];
+      continue;
+    }
     const bool required = i == 0 && isISOImage(preferred[i]);
     for (const auto &path : FileResolver::candidates(preferred[i], game)) {
       if (required && !std::filesystem::is_regular_file(path))
@@ -158,6 +171,19 @@ void GameLauncher::check(PathField &field, bool force) {
     return;
   }
   field.info.clear();
+  if (isHttpGameSource(field.current)) {
+    try {
+      if (field.validator(field.current, field.info)) {
+        field.valid = true;
+        field.resolved = field.current;
+      }
+    } catch (const std::exception &error) {
+      field.info = error.what();
+    }
+    if (!field.valid && field.info.empty())
+      field.info = "Invalid HTTP(S) game source";
+    return;
+  }
   for (const auto &candidate : FileResolver::candidates(field.current)) {
     try {
       const auto input =
