@@ -174,6 +174,7 @@ function updateManifest() {
         traverse(absolute, relative);
       } else if (item.isFile() &&
                  item.name !== 'manifest.json' &&
+                 item.name !== 'preload.json' &&
                  item.name !== 'README.txt') {
         entries.push({path: relative, size: fs.statSync(absolute).size});
       }
