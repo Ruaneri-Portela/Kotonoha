@@ -345,7 +345,63 @@ const manager = browserWindow.KotonohaAssetCache;
         remotePath: "oversized.bin", fileSize: 10 * 1024 * 1024,
         start: 0, length: 64, full: false, discovery: false
     }), /exceed|Range/i);
-    console.log("Kotonoha persistent IndexedDB/preload runtime tests passed.");
+    malformed = false;
+
+    // LRU: the most recently accessed chunk survives while old blocks
+    // are removed to satisfy a configurable, cross-game byte limit.
+    manager.configure(base, manifest); // Releases boot pins from old session.
+    browserWindow.KotonohaCacheMaxBytes = 51;
+    await manager.readRange("later.bin", 0, 16);
+    await new Promise(resolve => setTimeout(resolve, 12));
+    const freshData = new TextEncoder().encode("Fresh cache item of 24b!");
+    files.set("fresh.bin", freshData);
+    await manager.fetchJob({
+        url: base + "fresh.bin", path: "fresh.bin",
+        remotePath: "fresh.bin", fileSize: freshData.length,
+        start: 0, length: freshData.length, full: false, discovery: false
+    });
+    let stats = await manager.getCacheStats();
+    assert(stats.usageBytes <= 51, "cache cannot exceed its configured limit");
+    assert.equal(await manager.readRange("opening.bin", 0, 17), null,
+        "oldest chunk should have been evicted");
+    assert.equal(Buffer.from(await manager.readRange("later.bin", 0, 16))
+        .toString(), "Next story scene",
+        "recently read chunk should survive oldest-first eviction");
+
+    // Browser quota can be lower than the configured limit or estimate.
+    // A quota rejection must evict more old chunks and retry the write.
+    browserWindow.KotonohaCacheMaxBytes = 256;
+    quotaCap = 48;
+    const quotaData = new TextEncoder().encode("Quota fallback payload...");
+    files.set("quota.bin", quotaData);
+    await manager.fetchJob({
+        url: base + "quota.bin", path: "quota.bin",
+        remotePath: "quota.bin", fileSize: quotaData.length,
+        start: 0, length: quotaData.length, full: false, discovery: false
+    });
+    stats = await manager.getCacheStats();
+    assert(stats.usageBytes <= 48, "quota retry must free oldest chunks");
+    assert.equal(Buffer.from(await manager.readRange(
+        "quota.bin", 0, quotaData.length)).toString(),
+        "Quota fallback payload...");
+
+    // The mandatory guide must pin all boot chunks while filling them.
+    quotaCap = Infinity;
+    browserWindow.KotonohaCacheMaxBytes = 35;
+    manager.configure(base, manifest);
+    assert.equal(await manager.preloadIfPresent(), true);
+    assert.equal(Buffer.from(await manager.readRange(
+        "opening.bin", 0, 17)).toString(), "Kotonoha opening!");
+    assert.equal(Buffer.from(await manager.readRange(
+        "later.bin", 0, 16)).toString(), "Next story scene");
+    stats = await manager.getCacheStats();
+    assert(stats.usageBytes <= 35);
+    browserWindow.KotonohaCacheMaxBytes = 20;
+    await assert.rejects(manager.preloadIfPresent(),
+        /Mandatory preload exceeds cache limit/,
+        "boot must fail if the required assets cannot fit in cache");
+
+    console.log("Kotonoha persistent IndexedDB/preload/LRU runtime tests passed.");
 })().catch(error => {
     console.error(error);
     process.exitCode = 1;
