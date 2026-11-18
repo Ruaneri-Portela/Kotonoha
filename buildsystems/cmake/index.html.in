@@ -886,15 +886,34 @@
                                 if (started !== 1)
                                     throw new Error("Provider Fetch não pôde ser configurado");
                             }
+                            // A mandatory preload, if present, is a snapshot
+                            // of downloaded byte ranges created by the console
+                            // command KotonohaDumpPreload(). Do not release the
+                            // Emscripten startup dependency until every range
+                            // exists in persistent IndexedDB.
+                            if (!window.KotonohaAssetCache)
+                                throw new Error("KotonohaPreloadCache.js is missing");
+                            window.KotonohaAssetCache.configure(origin.href, manifest);
                             window.KotonohaRemoteManifestIndexed = indexed;
                             window.KotonohaFetchAsset = function(path) {
                                 return Module.ccall("KotonohaRequestRemoteAsset",
                                     "number", ["string"], [path],
                                     { async: true });
                             };
-                            setStatus(indexed
-                                ? "Índice HTTP carregado; listagens e Fetch sob demanda prontos."
-                                : "Fetch HTTP(S) sem índice; arquivos conhecidos sob demanda.");
+                            setStatus("Verificando preload.json opcional...");
+                            const preloaded = await window.KotonohaAssetCache.preloadIfPresent(
+                                (completed, total, path) => {
+                                    setStatus("Preload obrigatório: " + completed +
+                                        "/" + total + " blocos — " + path);
+                                    if (barEl) barEl.style.width =
+                                        Math.round(completed / total * 100) + "%";
+                                });
+                            window.KotonohaInitialPreloadReady = preloaded;
+                            setStatus(preloaded
+                                ? "Preload completo. Iniciando engine..."
+                                : indexed
+                                  ? "Índice HTTP carregado; iniciando engine..."
+                                  : "Fetch HTTP(S) sem índice; iniciando engine...");
                             finish();
                         } catch (error) {
                             console.error("[Kotonoha] Fetch HTTP(S):", error);
@@ -1159,6 +1178,7 @@
             });
         })();
     </script>
+    <script src="KotonohaPreloadCache.js"></script>
     <script src="@TARGET_NAME@.js"></script>
 </body>
 </html>
