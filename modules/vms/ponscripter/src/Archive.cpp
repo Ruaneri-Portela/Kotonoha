@@ -71,9 +71,7 @@ struct BitReader {
     return val;
   }
 
-  std::uint8_t getByte() {
-    return static_cast<std::uint8_t>(getBits(8));
-  }
+  std::uint8_t getByte() { return static_cast<std::uint8_t>(getBits(8)); }
 };
 
 // NScripter LZSS decompression (EI=8, EJ=4, P=1 -> N=256, F=17, THRESHOLD=2)
@@ -112,7 +110,8 @@ std::vector<std::uint8_t> decompressLzss(const std::uint8_t *src,
   return out;
 }
 
-// NScripter SPB decompression (24-bit BMP with boustrophedon planar Huffman/delta coding)
+// NScripter SPB decompression (24-bit BMP with boustrophedon planar
+// Huffman/delta coding)
 std::vector<std::uint8_t> decompressSpb(const std::uint8_t *src,
                                         std::size_t srcLen,
                                         std::uint32_t outLen) {
@@ -183,8 +182,8 @@ std::vector<std::uint8_t> decompressSpb(const std::uint8_t *src,
       }
     }
 
-    std::uint8_t *pbuf =
-        out.data() + 54 + rowStride * (height - 1) + static_cast<std::size_t>(ch);
+    std::uint8_t *pbuf = out.data() + 54 + rowStride * (height - 1) +
+                         static_cast<std::size_t>(ch);
     const std::uint8_t *psbuf = chBuf.data();
     for (std::uint16_t y = 0; y < height; ++y) {
       if (y & 1) {

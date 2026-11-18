@@ -86,9 +86,10 @@ void runRetailSayaAudit(const std::string &sayaDir) {
 
   // Walk through *start -> *saya_config_chk -> *warning -> *logo -> *main_menu
   runtime.vm().setSkipMode(true);
-  for (int i = 0; i < 40 &&
-                  runtime.vm().waitState() != Ponscripter::WaitState::WaitSelect &&
-                  runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
+  for (int i = 0;
+       i < 40 &&
+       runtime.vm().waitState() != Ponscripter::WaitState::WaitSelect &&
+       runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
        ++i) {
     runtime.vm().tick(1000.0);
     if (runtime.vm().waitState() == Ponscripter::WaitState::WaitVideo)
@@ -100,8 +101,8 @@ void runRetailSayaAudit(const std::string &sayaDir) {
     check(runtime.vm().selectChoice(0), "Accept license terms (*accepted)");
   }
 
-  for (int i = 0; i < 40 &&
-                  runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
+  for (int i = 0;
+       i < 40 && runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
        ++i) {
     runtime.vm().tick(1000.0);
     if (runtime.vm().waitState() == Ponscripter::WaitState::WaitVideo)
@@ -115,8 +116,8 @@ void runRetailSayaAudit(const std::string &sayaDir) {
 
   // Click New Game (button 1 -> *saya_start -> *grotesque -> *001)
   check(runtime.vm().selectButton(1), "Click New Game button (1)");
-  for (int i = 0; i < 30 &&
-                  runtime.vm().waitState() != Ponscripter::WaitState::WaitSelect;
+  for (int i = 0;
+       i < 30 && runtime.vm().waitState() != Ponscripter::WaitState::WaitSelect;
        ++i) {
     runtime.vm().tick(1000.0);
   }
@@ -124,11 +125,53 @@ void runRetailSayaAudit(const std::string &sayaDir) {
         "Must reach *grotesque filter select");
   check(runtime.vm().selectChoice(0), "Select default grotesque setting");
 
+  // Step into scene *001 up to the first dialogue wait and verify Kotonoha
+  // Scene Inspector, Translation Applet, Voice Dubbing, and Save/Load
+  // round-trip!
+  runtime.vm().setSkipMode(false);
+  for (int step = 0;
+       step < 400 &&
+       runtime.vm().waitState() != Ponscripter::WaitState::WaitClickInline &&
+       runtime.vm().waitState() != Ponscripter::WaitState::WaitClickPage;
+       ++step) {
+    runtime.vm().tick(1000.0);
+  }
+  check(!runtime.debugNodes().empty(),
+        "Kotonoha Scene Inspector debugNodes() must be populated");
+  check(runtime.translationRoute() >= 0,
+        "Kotonoha Translation Applet translationRoute() must be >= 0");
+  check(!runtime.translationRoutes().empty() &&
+            !runtime.translationSources().empty(),
+        "Kotonoha Translation Applet routes and sources must be populated");
+  check(!runtime.activeTranslationKeys().empty(),
+        "Active dialogue line must expose activeTranslationKeys()");
+  check(!runtime.debugSceneAudio().empty(),
+        "Scene *001 must expose voice dubbing lines via debugSceneAudio()");
+  const auto firstVoice = runtime.debugSceneAudio().front();
+  const auto origClip = runtime.debugOriginalAudio(firstVoice.id);
+  check(origClip.has_value() && !origClip->data.empty(),
+        "debugOriginalAudio() must load voice asset samples from arc.nsa");
+
+  // Save & Load round-trip via Kotonoha saveGame / loadGame
+  const std::string savedLabel = runtime.vm().currentLabel();
+  const std::string savedText = runtime.dialogueText();
+  const auto tmpSavePath =
+      (std::filesystem::temp_directory_path() / "ponscr_test_save.ksav")
+          .string();
+  runtime.saveGame(tmpSavePath);
+  runtime.debugJumpToNode("*005");
+  check(runtime.vm().currentLabel() == "005", "Current label must be 005");
+  runtime.loadGame(tmpSavePath);
+  check(runtime.vm().currentLabel() == savedLabel &&
+            runtime.dialogueText() == savedText,
+        "loadGame() must restore exact saved scene label and dialogue text");
+  std::error_code ec;
+  std::filesystem::remove(tmpSavePath, ec);
+
   // Fast-forward through scenes *001..*010 up to Choice 1 (*select_01)
   runtime.vm().setSkipMode(true);
-  for (int step = 0;
-       step < 10000 &&
-       runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
+  for (int step = 0; step < 10000 && runtime.vm().waitState() !=
+                                         Ponscripter::WaitState::WaitButton;
        ++step) {
     runtime.vm().tick(1000.0);
   }
@@ -140,9 +183,8 @@ void runRetailSayaAudit(const std::string &sayaDir) {
   // Choose Option 2 ("Não preciso mais disso" -> *chapter_3)
   check(runtime.vm().selectButton(2), "Select Option 2 (*chapter_3)");
   runtime.vm().setSkipMode(true);
-  for (int step = 0;
-       step < 10000 &&
-       runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
+  for (int step = 0; step < 10000 && runtime.vm().waitState() !=
+                                         Ponscripter::WaitState::WaitButton;
        ++step) {
     runtime.vm().tick(1000.0);
   }
@@ -165,7 +207,8 @@ void runRetailSayaAudit(const std::string &sayaDir) {
   check(runtime.vm().variables().getNum("end1_clear") == 1 &&
             runtime.vm().variables().getNum("end2_clear") == 1 &&
             runtime.vm().variables().getNum("end3_clear") == 1,
-        "All 3 endings (%end1_clear, %end2_clear, %end3_clear) must complete and unlock 100% extras");
+        "All 3 endings (%end1_clear, %end2_clear, %end3_clear) must complete "
+        "and unlock 100% extras");
 }
 
 } // namespace

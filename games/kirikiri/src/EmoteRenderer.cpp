@@ -80,12 +80,12 @@ std::string EmoteRenderer::resolveVisualAsset(
   const bool hasExtension =
       dot != std::string::npos && (slash == std::string::npos || dot > slash);
   const std::vector<std::string> folders =
-      foreground ? std::vector<std::string>{"",         "VNX+/",    "fgimage/",
-                                            "evimage/", "emote/",   "image/",
-                                            "bgimage/", "system/"}
-                 : std::vector<std::string>{"",         "VNX+/",    "bgimage/",
-                                            "evimage/", "image/",   "fgimage/",
-                                            "system/",  "emote/"};
+      foreground
+          ? std::vector<std::string>{"",       "VNX+/",  "fgimage/", "evimage/",
+                                     "emote/", "image/", "bgimage/", "system/"}
+          : std::vector<std::string>{"",         "VNX+/",  "bgimage/",
+                                     "evimage/", "image/", "fgimage/",
+                                     "system/",  "emote/"};
   for (const auto &folder : folders) {
     const auto base = folder + storage;
     for (const char *extension : {"", ".png", ".jpg", ".jpeg", ".bmp", ".webp",
@@ -236,8 +236,8 @@ void EmoteRenderer::renderCharacter(Kotonoha::RendererRef renderer,
   const auto theme = themeForCharacter(ch.name);
   const float baseW = static_cast<float>(220.0 * std::clamp(scale, 0.6, 1.5));
   const float baseH = static_cast<float>(410.0 * std::clamp(scale, 0.6, 1.5));
-  const float cx =
-      static_cast<float>(640.0 + ch.xpos + ch.offsetx * 0.25 + ch.imagex + moveX);
+  const float cx = static_cast<float>(640.0 + ch.xpos + ch.offsetx * 0.25 +
+                                      ch.imagex + moveX);
   const float cy = static_cast<float>(330.0 + ch.ypos * 0.25 +
                                       ch.offsety * 0.15 + ch.imagey + moveY);
   const SDL_FRect card{cx - baseW * 0.5f, cy - baseH * 0.5f, baseW, baseH};

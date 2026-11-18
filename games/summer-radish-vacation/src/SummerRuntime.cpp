@@ -285,12 +285,11 @@ public:
         }
       }
       for (auto &item : layout.locations) {
-        auto v = vm.variables.find(
-            "@" + mapCharacterVariable(item.result, isSrv2));
+        auto v =
+            vm.variables.find("@" + mapCharacterVariable(item.result, isSrv2));
         int actor = v == vm.variables.end() ? 0 : int(number(v->second));
-        int face = mapFaceIndex(nativeMode,
-                                size_t(&item - layout.locations.data()), actor,
-                                isSrv2);
+        int face = mapFaceIndex(
+            nativeMode, size_t(&item - layout.locations.data()), actor, isSrv2);
         const int maxFaces = isSrv2 ? 6 : 8;
         const int faceW = isSrv2 ? 90 : 98;
         const int faceH = isSrv2 ? 90 : 62;
@@ -1149,7 +1148,8 @@ struct SummerRuntime::Impl {
     if (r.size() > 5) {
       const auto stemStr = string(vm.evaluate(r[5]));
       auto id = "VOICE/" + stemStr + ".ogg";
-      if (!assets->contains(id) && assets->contains("VOICE/" + stemStr + ".wav"))
+      if (!assets->contains(id) &&
+          assets->contains("VOICE/" + stemStr + ".wav"))
         id = "VOICE/" + stemStr + ".wav";
       if (assets->contains(id)) {
         audio(voice, id, "Voice");
@@ -1468,8 +1468,7 @@ struct SummerRuntime::Impl {
     assignCharacterPositions(
         positions, std::max<unsigned>(1u, unsigned(positionOffsets.size())));
     const bool voicePlaying = voice.Playing();
-    const int mouthFrame =
-        voicePlaying ? int((SDL_GetTicks() / 120) % 3) : 0;
+    const int mouthFrame = voicePlaying ? int((SDL_GetTicks() / 120) % 3) : 0;
     auto updateMouth = [&](std::vector<CharacterAnimation> &anims) {
       for (auto &anim : anims)
         if (anim.selector == 0)
@@ -1530,13 +1529,12 @@ struct SummerRuntime::Impl {
     if (!canvasTexture || canvasKey != state.str()) {
       if (decodedImages.size() > 96)
         decodedImages.clear();
-      Image canvas =
-          (choice->mode() >= 0 || title)
-              ? image(base)
-              : ((presented.rgba.empty() || voice.Playing() ||
-                  scrollDuration > 0)
-                     ? composeScene()
-                     : presented);
+      Image canvas = (choice->mode() >= 0 || title)
+                         ? image(base)
+                         : ((presented.rgba.empty() || voice.Playing() ||
+                             scrollDuration > 0)
+                                ? composeScene()
+                                : presented);
       if (transitionDuration > 0 && choice->mode() < 0 && !title) {
         const Image *maskPtr = nullptr;
         const auto maskPath = wipeMaskAsset(transitionType);
@@ -1567,9 +1565,8 @@ struct SummerRuntime::Impl {
             const bool focused = i == size_t(titleFocus);
             compositeImageRegion(canvas, image(titleChipTexture), titleBaseX,
                                  titleBaseY + int(i) * titleChipSpacing,
-                                 focused ? chip.atlasW : 0,
-                                 chip.atlasY, chip.atlasW,
-                                 chip.atlasH);
+                                 focused ? chip.atlasW : 0, chip.atlasY,
+                                 chip.atlasW, chip.atlasH);
           }
       }
       if (!canvasTexture)
@@ -2043,7 +2040,8 @@ void SummerRuntime::loadGame(const std::string &path) {
     i.function("SELECT", args);
   } else {
     bool uniform = pending == "UNIFORM";
-    int mode = uniform ? 100 : int(number(i.vm.variables["@KOTONOHA_MAP_MODE"]));
+    int mode =
+        uniform ? 100 : int(number(i.vm.variables["@KOTONOHA_MAP_MODE"]));
     i.choice->setNative(mode, *i.assets,
                         [&i, uniform](int value, const std::string &) {
                           if (!i.lastCanvas.rgba.empty())

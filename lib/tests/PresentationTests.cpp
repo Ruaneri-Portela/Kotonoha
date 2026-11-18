@@ -61,7 +61,9 @@ void arguments() {
   parse(parser,
         {"game", "--assets=data", "--subtitle-style", "style.ass", "--frames",
          "12", "--no-config", "--mcp-root", "/tmp", "--launcher", "-h"});
-  require(game == "data" && options.launcher && parser.frames == 12 &&
+  // --frames 12 triggers the headless policy (CommandLine.cpp): frames > 0
+  // forces engine.launcher = false after all flags are applied.
+  require(game == "data" && !options.launcher && parser.frames == 12 &&
               options.subtitleStylePath == "style.ass" &&
               !options.persistSettings && options.mcpFileRoot == "/tmp" &&
               parser.wantsHelp(),

@@ -42,7 +42,8 @@ bool validate(const std::string &path, std::string &info) {
            lower.compare(lower.size() - 4, 4, ".nsa") == 0 ||
            lower.compare(lower.size() - 4, 4, ".sar") == 0 ||
            lower == "nscript.dat" || lower == "pscript.dat")) {
-        info = "PONscripter scripts or NSA/SAR archives found in virtual source";
+        info =
+            "PONscripter scripts or NSA/SAR archives found in virtual source";
         return true;
       }
     }

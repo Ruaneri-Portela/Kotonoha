@@ -15,8 +15,7 @@ std::string trim(std::string_view sv) {
          std::isspace(static_cast<unsigned char>(sv[start])))
     ++start;
   std::size_t end = sv.size();
-  while (end > start &&
-         std::isspace(static_cast<unsigned char>(sv[end - 1])))
+  while (end > start && std::isspace(static_cast<unsigned char>(sv[end - 1])))
     --end;
   return std::string(sv.substr(start, end - start));
 }
@@ -49,8 +48,7 @@ bool parseHexColor24(std::string_view text, std::uint32_t &outRgb24) {
   while (!text.empty() &&
          std::isspace(static_cast<unsigned char>(text.front())))
     text.remove_prefix(1);
-  while (!text.empty() &&
-         std::isspace(static_cast<unsigned char>(text.back())))
+  while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back())))
     text.remove_suffix(1);
   if (!text.empty() && text.front() == '#')
     text.remove_prefix(1);
@@ -86,8 +84,9 @@ TaggedImageSpec parseTaggedString(std::string_view raw,
 
   // Direct color keywords or #RRGGBB
   std::string lower = trimmed;
-  std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  std::transform(
+      lower.begin(), lower.end(), lower.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   if (lower == "black") {
     spec.trans = TransMode::DirectColor;
     spec.color = 0x000000u;
@@ -218,12 +217,13 @@ TaggedImageSpec parseTaggedString(std::string_view raw,
       ++pos;
     const std::size_t nextSemi = trimmed.find(';', pos);
     if (nextSemi != std::string::npos) {
-      spec.maskPath =
-          normalizeAssetPath(std::string_view(trimmed).substr(pos, nextSemi - pos));
+      spec.maskPath = normalizeAssetPath(
+          std::string_view(trimmed).substr(pos, nextSemi - pos));
       spec.imagePath =
           normalizeAssetPath(std::string_view(trimmed).substr(nextSemi + 1));
     } else {
-      spec.imagePath = normalizeAssetPath(std::string_view(trimmed).substr(pos));
+      spec.imagePath =
+          normalizeAssetPath(std::string_view(trimmed).substr(pos));
     }
     return spec;
   }
@@ -247,8 +247,8 @@ TaggedImageSpec parseTaggedString(std::string_view raw,
       if (c2 == std::string_view::npos) {
         spec.durationMs = std::max(0, parseIntOr(animSpec.substr(c1 + 1), 0));
       } else {
-        spec.durationMs = std::max(
-            0, parseIntOr(animSpec.substr(c1 + 1, c2 - (c1 + 1)), 0));
+        spec.durationMs =
+            std::max(0, parseIntOr(animSpec.substr(c1 + 1, c2 - (c1 + 1)), 0));
         spec.loopMode =
             std::clamp(parseIntOr(animSpec.substr(c2 + 1), 0), 0, 3);
       }

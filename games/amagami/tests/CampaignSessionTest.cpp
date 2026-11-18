@@ -148,7 +148,10 @@ int main(int argc, char **argv) {
       session.nextCampaignPeriod();
       for (const auto &ev : session.availableEvents())
         if (ev.name == "n1dea_ev04A" || ev.name == "n1dea_ev01B")
-          std::cerr << "after period step " << i << " (day=" << session.campaignDate() << " per=" << session.campaignPeriod() << "): " << ev.name << "\n";
+          std::cerr << "after period step " << i
+                    << " (day=" << session.campaignDate()
+                    << " per=" << session.campaignPeriod() << "): " << ev.name
+                    << "\n";
       require(session.campaignDate() > beforeDay ||
                   (session.campaignDate() == beforeDay &&
                    session.campaignPeriod() > beforePeriod),
@@ -160,6 +163,14 @@ int main(int argc, char **argv) {
     }
     const auto unlocked = session.availableEvents();
     bool nextMeeting = false, excludedMeeting = false;
+    for (const auto &event : session.campaignMapEvents()) {
+      if (event.name == "n1dea_ev04A" || event.name == "n1dea_ev01B" ||
+          event.name == "n1dea_ev01A")
+        std::cerr << "mapEvent: " << event.name << " icon=" << event.icon
+                  << " firstDay=" << event.firstDay
+                  << " lastDay=" << event.lastDay << " cat=" << event.category
+                  << " lvl=" << event.level << "\n";
+    }
     for (const auto &event : unlocked) {
       nextMeeting |= event.name == "n1dea_ev04A";
       excludedMeeting |= event.name == "n1dea_ev01B";

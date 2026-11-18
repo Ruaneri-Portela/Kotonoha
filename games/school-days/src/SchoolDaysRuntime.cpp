@@ -5452,9 +5452,10 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
                                                               event.key.mod);
     if (globalAccel ==
         Kotonoha::SchoolDaysInputPolicy::Accelerator::ToggleFullscreen) {
-      handleConfig({Kotonoha::SchoolDaysConfigMenuModel::ActionKind::RequestFull,
-                    Kotonoha::SchoolDaysConfigMenuModel::Page::Def, -1, -1,
-                    displayBackend.windowMode == 0 ? 0 : 1});
+      handleConfig(
+          {Kotonoha::SchoolDaysConfigMenuModel::ActionKind::RequestFull,
+           Kotonoha::SchoolDaysConfigMenuModel::Page::Def, -1, -1,
+           displayBackend.windowMode == 0 ? 0 : 1});
       return true;
     }
     if (globalAccel ==
@@ -5645,9 +5646,8 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
         activateTitleSelection();
       }
       if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-        const auto menuKey =
-            Kotonoha::SchoolDaysInputPolicy::TranslateMenuKey(event.key.key,
-                                                              event.key.mod);
+        const auto menuKey = Kotonoha::SchoolDaysInputPolicy::TranslateMenuKey(
+            event.key.key, event.key.mod);
         if (menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Up ||
             menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Left) {
           const int before = title.Selection();
@@ -5676,14 +5676,15 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
     }
     if (currentState == Kotonoha::GameState::Gameplay &&
         event.type == SDL_EVENT_MOUSE_WHEEL) {
-      const bool choiceActive =
-          choice != nullptr && !committed && choiceInteraction.VisibleAtTick(tick);
+      const bool choiceActive = choice != nullptr && !committed &&
+                                choiceInteraction.VisibleAtTick(tick);
       if (!choiceActive) {
         const Uint64 nowMs = SDL_GetTicks();
         if (nowMs - lastWheelTickMs > 500u)
           wheelAccumDelta = 0;
         lastWheelTickMs = nowMs;
-        wheelAccumDelta += static_cast<int>(std::lround(event.wheel.y * 120.0f));
+        wheelAccumDelta +=
+            static_cast<int>(std::lround(event.wheel.y * 120.0f));
         if (config.mouseWheelMode == 0) {
           if (menuBarProjection().speedControlsEnabled) {
             if (wheelAccumDelta > 180) {
@@ -5718,9 +5719,9 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
       if (displayBackend.windowMode != 0 ||
           (engine &&
            engine->GetSettings().mode != Kotonoha::WindowMode::Windowed)) {
-        handleConfig({Kotonoha::SchoolDaysConfigMenuModel::ActionKind::RequestFull,
-                      Kotonoha::SchoolDaysConfigMenuModel::Page::Def, -1, -1,
-                      1});
+        handleConfig(
+            {Kotonoha::SchoolDaysConfigMenuModel::ActionKind::RequestFull,
+             Kotonoha::SchoolDaysConfigMenuModel::Page::Def, -1, -1, 1});
       }
       return true;
     }
@@ -5729,8 +5730,8 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
     const bool replay = replayPlayback && replayPlayback->IsOpen();
     const bool endMode =
         !temporaryPlaybackActive() && bridge.HasPendingHandoff();
-    const bool choiceActive =
-        choice != nullptr && !committed && choiceInteraction.VisibleAtTick(tick);
+    const bool choiceActive = choice != nullptr && !committed &&
+                              choiceInteraction.VisibleAtTick(tick);
     using Accel = Kotonoha::SchoolDaysInputPolicy::Accelerator;
     switch (accel) {
     case Accel::TogglePause:

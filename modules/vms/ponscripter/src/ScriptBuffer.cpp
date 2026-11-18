@@ -14,8 +14,7 @@ std::string trim(std::string_view sv) {
          std::isspace(static_cast<unsigned char>(sv[start])))
     ++start;
   std::size_t end = sv.size();
-  while (end > start &&
-         std::isspace(static_cast<unsigned char>(sv[end - 1])))
+  while (end > start && std::isspace(static_cast<unsigned char>(sv[end - 1])))
     --end;
   return std::string(sv.substr(start, end - start));
 }
@@ -27,7 +26,8 @@ bool isTextStart(std::string_view trimmed) {
   return c == '^' || c == '`' || c >= 0x80u;
 }
 
-// Splits a single script line into colon-separated statements, while respecting:
+// Splits a single script line into colon-separated statements, while
+// respecting:
 // - `;` comments outside strings and text lines
 // - `"..."` quoted strings
 // - `^...` or `` `... `` text lines (which consume the rest of the line!)
@@ -102,8 +102,7 @@ void splitLineIntoStatements(std::string_view line, std::size_t lineNumber,
         while (peek < line.size() &&
                std::isspace(static_cast<unsigned char>(line[peek])))
           ++peek;
-        if (peek < line.size() &&
-            isTextStart(line.substr(peek))) {
+        if (peek < line.size() && isTextStart(line.substr(peek))) {
           flushSegment(line.size());
           return;
         }
@@ -124,8 +123,7 @@ void ScriptBuffer::clear() {
 }
 
 std::string ScriptBuffer::stripBom(std::string_view raw) {
-  if (raw.size() >= 3 &&
-      static_cast<unsigned char>(raw[0]) == 0xEFu &&
+  if (raw.size() >= 3 && static_cast<unsigned char>(raw[0]) == 0xEFu &&
       static_cast<unsigned char>(raw[1]) == 0xBBu &&
       static_cast<unsigned char>(raw[2]) == 0xBFu) {
     raw.remove_prefix(3);
@@ -138,8 +136,9 @@ std::string ScriptBuffer::normalizeLabel(std::string_view raw) {
   if (!s.empty() && s.front() == '*')
     s.erase(s.begin());
   s = trim(s);
-  std::transform(s.begin(), s.end(), s.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
   return s;
 }
 
@@ -166,18 +165,18 @@ void ScriptBuffer::appendFile(std::string_view fileName,
       std::string trimmedLine = trim(line);
       if (!trimmedLine.empty() && trimmedLine.front() == ';') {
         std::string lower = trimmedLine.substr(1);
-        std::transform(lower.begin(), lower.end(), lower.begin(),
-                       [](unsigned char c) {
-                         return static_cast<char>(std::tolower(c));
-                       });
-        // Directives may be separated by commas on line 1 (e.g. `;mode800,value500`)
+        std::transform(
+            lower.begin(), lower.end(), lower.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        // Directives may be separated by commas on line 1 (e.g.
+        // `;mode800,value500`)
         std::size_t dpos = 0;
         while (dpos < lower.size()) {
           const std::size_t comma = lower.find(',', dpos);
-          std::string token = trim(
-              (comma == std::string::npos)
-                  ? std::string_view(lower).substr(dpos)
-                  : std::string_view(lower).substr(dpos, comma - dpos));
+          std::string token =
+              trim((comma == std::string::npos)
+                       ? std::string_view(lower).substr(dpos)
+                       : std::string_view(lower).substr(dpos, comma - dpos));
           if (token == "mode800") {
             directives_.resolution = {800, 600};
           } else if (token == "mode640") {

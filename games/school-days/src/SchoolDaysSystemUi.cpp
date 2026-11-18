@@ -1717,11 +1717,10 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer *renderer,
           output->hasReplayAction = true;
           output->replayAction = action;
         }
-        output->uiSfx =
-            (wasSceneCheck && !replay_.SceneCheckOpen() &&
-             action.kind == SchoolDaysReplayModel::ActionKind::None)
-                ? UiSfxCue::Cancel
-                : UiSfxCue::Click;
+        output->uiSfx = (wasSceneCheck && !replay_.SceneCheckOpen() &&
+                         action.kind == SchoolDaysReplayModel::ActionKind::None)
+                            ? UiSfxCue::Cancel
+                            : UiSfxCue::Click;
         return true;
       }
       if (routeMap_.IsOpen()) {

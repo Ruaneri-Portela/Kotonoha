@@ -127,8 +127,8 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
   for (int i = 0; i < 3; ++i) {
     if (data.standing[i].loaded) {
       out << "STAND\t" << i << '\t' << data.standing[i].x << '\t'
-          << data.standing[i].y << '\t' << escapeLine(data.standing[i].spec.rawTag)
-          << '\n';
+          << data.standing[i].y << '\t'
+          << escapeLine(data.standing[i].spec.rawTag) << '\n';
     }
   }
   for (const auto &[id, sp] : data.sprites) {
@@ -149,10 +149,25 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
       << '\n';
   out << "PAGETEXT\t" << escapeLine(data.pagePlainText) << '\n';
   for (const auto &span : data.pageSpans) {
-    out << "SPAN\t" << (span.isLineBreak ? 1 : 0) << '\t'
-        << span.style.fontSlot << '\t' << (span.style.italic ? 1 : 0) << '\t'
+    out << "SPAN\t" << (span.isLineBreak ? 1 : 0) << '\t' << span.style.fontSlot
+        << '\t' << (span.style.italic ? 1 : 0) << '\t'
         << (span.style.bold ? 1 : 0) << '\t' << span.style.colorRgb << '\t'
         << escapeLine(span.text) << '\n';
+    if (!span.lineKey.empty()) {
+      out << "SPANKEY\t" << escapeLine(span.lineKey) << '\n';
+    }
+  }
+  out << "WAIT\t" << static_cast<int>(data.waitState) << '\t'
+      << data.btnwaitDestVar << '\t' << (data.btnwaitPreserveButtons ? 1 : 0)
+      << '\n';
+  for (const auto &btn : data.buttons) {
+    out << "BTN\t" << static_cast<int>(btn.kind) << '\t' << btn.id << '\t'
+        << btn.spriteNo << '\t' << btn.x << '\t' << btn.y << '\t' << btn.w
+        << '\t' << btn.h << '\t' << btn.srcX << '\t' << btn.srcY << '\n';
+  }
+  for (const auto &opt : data.selectOptions) {
+    out << "SEL\t" << escapeLine(opt.text) << '\t'
+        << escapeLine(opt.targetLabel) << '\n';
   }
   out << "BGM\t" << (data.activeBgmLoop ? 1 : 0) << '\t'
       << escapeLine(data.activeBgm) << '\n';
@@ -305,6 +320,30 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       span.style.colorRgb = col;
       span.text = unescapeLine(t);
       outData.pageSpans.push_back(std::move(span));
+    } else if (kind == "SPANKEY") {
+      std::string k;
+      std::getline(ls, k);
+      if (!outData.pageSpans.empty()) {
+        outData.pageSpans.back().lineKey = unescapeLine(k);
+      }
+    } else if (kind == "WAIT") {
+      int ws = static_cast<int>(WaitState::WaitClickInline);
+      int preserve = 0;
+      ls >> ws >> outData.btnwaitDestVar >> preserve;
+      outData.waitState = static_cast<WaitState>(ws);
+      outData.btnwaitPreserveButtons = (preserve != 0);
+    } else if (kind == "BTN") {
+      int k = 0;
+      ButtonDef btn;
+      ls >> k >> btn.id >> btn.spriteNo >> btn.x >> btn.y >> btn.w >> btn.h >>
+          btn.srcX >> btn.srcY;
+      btn.kind = static_cast<ButtonDef::Kind>(k);
+      outData.buttons.push_back(btn);
+    } else if (kind == "SEL") {
+      std::string t, lbl;
+      std::getline(ls, t, '\t');
+      std::getline(ls, lbl);
+      outData.selectOptions.push_back({unescapeLine(t), unescapeLine(lbl)});
     } else if (kind == "BGM") {
       int loop = 0;
       ls >> loop;

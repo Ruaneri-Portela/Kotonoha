@@ -25,7 +25,8 @@ int main() {
         "numalias cgset_0,904\n"
         "numalias end1_clear,901\n"
         "effect 10,10,500\n"
-        "rmenu \"^~~ Salvar ~~\",save,\"^~~ Carregar ~~\",load,\"^\",,\"^~~ Voltar ~~\",reset\n"
+        "rmenu \"^~~ Salvar ~~\",save,\"^~~ Carregar ~~\",load,\"^\",,\"^~~ "
+        "Voltar ~~\",reset\n"
         "game\n"
         "*start\n"
         "setwindow3 60,70,34,20,20,20,0,4,24,1,1,\":a;data\\f05.png\",40,50\n"
@@ -57,7 +58,8 @@ int main() {
     check(vm.rmenuEntries().size() == 4 && vm.rmenuEntries()[2].command.empty(),
           "rmenu must preserve empty spacer entry (\"^\",,)");
 
-    // Step from *start up to `print 10,2000`, then advance past the 2000ms effect
+    // Step from *start up to `print 10,2000`, then advance past the 2000ms
+    // effect
     vm.tick(16.0);
     check(vm.waitState() == Ponscripter::WaitState::WaitEffect,
           "VM must enter WaitEffect on print 10,2000");
@@ -79,12 +81,23 @@ int main() {
     // clamp >255 to 0 instant!) and `^Final 1...` (must auto-show text window!)
     check(vm.selectButton(1), "Selecting button 1 must succeed");
     vm.tick(16.0);
-    check(vm.waitState() == Ponscripter::WaitState::WaitClickPage,
-          "VM must reach *parting_end page wait without crashing on print 2000");
+    check(
+        vm.waitState() == Ponscripter::WaitState::WaitClickPage,
+        "VM must reach *parting_end page wait without crashing on print 2000");
     check(vm.isTextWindowVisible(),
           "^ text line after textoff must automatically re-enable text window");
 
-    // Test slot & global save serialization round-trip
+    // Test right-click rmenu -> save systemcall transition & slot save
+    // round-trip
+    check(vm.rightClick(), "Right-click at page wait must open rmenu");
+    check(vm.waitState() == Ponscripter::WaitState::WaitSystemCall &&
+              vm.activeSystemCall() == "rmenu",
+          "Must be in rmenu systemcall");
+    vm.enterSystemCall("save");
+    check(vm.waitState() == Ponscripter::WaitState::WaitSystemCall &&
+              vm.activeSystemCall() == "save",
+          "Must transition from rmenu to save systemcall");
+
     const auto slotData = vm.exportSlotSave();
     const std::string serializedSlot =
         Ponscripter::SaveSerializer::serializeSlot(slotData);
@@ -94,14 +107,30 @@ int main() {
           "Slot save round-trip must succeed");
     check(loadedSlot.currentLabel == "parting_end",
           "Saved label must be parting_end");
+    check(loadedSlot.waitState == Ponscripter::WaitState::WaitClickPage,
+          "Saved waitState during rmenu->save must preserve WaitClickPage");
+
+    vm.finishSystemCall();
+    check(vm.waitState() == Ponscripter::WaitState::WaitClickPage,
+          "Finishing save systemcall must restore WaitClickPage");
 
     // Advance past `\` page wait -> sets `%end1_clear = 1` and executes `reset`
     vm.advance(); // reveal typewriter if active
     vm.advance(); // advance page
     vm.tick(16.0);
-    check(vm.variables().getNum("end1_clear") == 1 &&
-              vm.variables().getNum("cgset_0") == 1,
-          "Global variables %end1_clear and %cgset_0 must persist across reset");
+    check(
+        vm.variables().getNum("end1_clear") == 1 &&
+            vm.variables().getNum("cgset_0") == 1,
+        "Global variables %end1_clear and %cgset_0 must persist across reset");
+
+    // Now test importing the saved slot while in systemcall load
+    vm.enterSystemCall("load");
+    vm.importSlotSave(loadedSlot);
+    vm.finishSystemCall();
+    check(vm.currentLabel() == "parting_end" &&
+              vm.waitState() == Ponscripter::WaitState::WaitClickPage,
+          "Loading slot from load menu must restore parting_end and "
+          "WaitClickPage");
 
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;

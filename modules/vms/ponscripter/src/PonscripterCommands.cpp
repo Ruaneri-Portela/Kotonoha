@@ -12,18 +12,20 @@ namespace Ponscripter {
 void PonscripterVm::registerCommand(std::string_view name,
                                     CommandHandler handler) {
   std::string key(name);
-  std::transform(key.begin(), key.end(), key.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
   funcLut_[std::move(key)] = handler;
 }
 
 void PonscripterVm::registerCommands() {
   // 1. Structure & Lifecycle
   for (const char *c :
-       {"game", "end", "reset", "definereset", "globalon", "nsa", "ns2", "ns3",
-        "arc", "nsaoffset", "caption", "apptitle", "versionstr", "humanz",
-        "underline", "windowback", "filelog", "labellog", "kidokuskip",
-        "kidokumode", "mode_ext", "mode_saya", "mode_wave_demo"}) {
+       {"game",       "end",       "reset",         "definereset", "globalon",
+        "nsa",        "ns2",       "ns3",           "arc",         "nsaoffset",
+        "caption",    "apptitle",  "versionstr",    "humanz",      "underline",
+        "windowback", "filelog",   "labellog",      "kidokuskip",  "kidokumode",
+        "mode_ext",   "mode_saya", "mode_wave_demo"}) {
     registerCommand(c, &PonscripterVm::cmdLifecycle);
   }
 
@@ -42,23 +44,26 @@ void PonscripterVm::registerCommands() {
 
   // 4. Variables & Math
   for (const char *c :
-       {"mov", "mov3", "mov4", "mov5", "mov6", "mov7", "mov8", "mov9", "mov10",
-        "movl", "inc", "dec", "add", "sub", "mul", "div", "mod", "rnd", "rnd2",
-        "cmp", "atoi", "itoa", "itoa2", "len", "mid", "sin", "cos", "tan",
-        "intlimit", "date", "time", "savetime", "fileexist"}) {
+       {"mov",      "mov3",  "mov4", "mov5",     "mov6",     "mov7", "mov8",
+        "mov9",     "mov10", "movl", "inc",      "dec",      "add",  "sub",
+        "mul",      "div",   "mod",  "rnd",      "rnd2",     "cmp",  "atoi",
+        "itoa",     "itoa2", "len",  "mid",      "sin",      "cos",  "tan",
+        "intlimit", "date",  "time", "savetime", "fileexist"}) {
     registerCommand(c, &PonscripterVm::cmdVars);
   }
 
   // 5. Backgrounds, Standing & Extended Sprites
   for (const char *c :
-       {"bg", "bgcopy", "bgcpy", "ld", "cl", "lsp", "lsph", "lsp2", "lsph2",
-        "lsp2add", "lsp2sub", "lsph2add", "lsph2sub", "csp", "csp2", "vsp",
-        "vsp2", "msp", "msp2", "amsp", "amsp2", "cell", "getspsize",
-        "getspmode", "allsphide", "allspresume", "allsp2hide", "allsp2resume",
-        "spstr", "strsp", "strsph", "bar", "barclear", "prnum", "prnumclear",
-        "blt", "draw", "drawbg", "drawbg2", "drawsp", "drawsp2", "drawsp3",
-        "drawfill", "drawclear", "drawtext", "monocro", "nega", "quake",
-        "quakex", "quakey"}) {
+       {"bg",          "bgcopy",     "bgcpy",        "ld",        "cl",
+        "lsp",         "lsph",       "lsp2",         "lsph2",     "lsp2add",
+        "lsp2sub",     "lsph2add",   "lsph2sub",     "csp",       "csp2",
+        "vsp",         "vsp2",       "msp",          "msp2",      "amsp",
+        "amsp2",       "cell",       "getspsize",    "getspmode", "allsphide",
+        "allspresume", "allsp2hide", "allsp2resume", "spstr",     "strsp",
+        "strsph",      "bar",        "barclear",     "prnum",     "prnumclear",
+        "blt",         "draw",       "drawbg",       "drawbg2",   "drawsp",
+        "drawsp2",     "drawsp3",    "drawfill",     "drawclear", "drawtext",
+        "monocro",     "nega",       "quake",        "quakex",    "quakey"}) {
     registerCommand(c, &PonscripterVm::cmdGraphics);
   }
 
@@ -69,50 +74,93 @@ void PonscripterVm::registerCommands() {
   }
 
   // 7. Text, Fonts, Cursors & Windowing
-  for (const char *c :
-       {"h_mapfont", "pmapfont", "h_rendering", "prendering", "h_fontstyle",
-        "pfontstyle", "h_defwindow", "pdefwindow", "h_usewindow", "pusewindow",
-        "h_usewindow3", "pusewindow3", "h_locate", "plocate", "pligate",
-        "pbreakstr", "pindentstr", "pcenterline", "pspeedpercent", "bidirect",
-        "gettextextent", "gettextheight", "localestring", "setwindow",
-        "setwindow2", "setwindow3", "setcursor", "abssetcursor", "br", "br2",
-        "textoff", "texton", "textclear", "erasetextwindow", "textspeed",
-        "defaultspeed", "defaultfont", "automode", "automode_time", "autoclick",
-        "skipoff", "locate", "puttext", "clickstr", "linepage", "linepage2",
-        "shadedistance"}) {
+  for (const char *c : {"h_mapfont",       "pmapfont",     "h_rendering",
+                        "prendering",      "h_fontstyle",  "pfontstyle",
+                        "h_defwindow",     "pdefwindow",   "h_usewindow",
+                        "pusewindow",      "h_usewindow3", "pusewindow3",
+                        "h_locate",        "plocate",      "pligate",
+                        "pbreakstr",       "pindentstr",   "pcenterline",
+                        "pspeedpercent",   "bidirect",     "gettextextent",
+                        "gettextheight",   "localestring", "setwindow",
+                        "setwindow2",      "setwindow3",   "setcursor",
+                        "abssetcursor",    "br",           "br2",
+                        "textoff",         "texton",       "textclear",
+                        "erasetextwindow", "textspeed",    "defaultspeed",
+                        "defaultfont",     "automode",     "automode_time",
+                        "autoclick",       "skipoff",      "locate",
+                        "puttext",         "clickstr",     "linepage",
+                        "linepage2",       "shadedistance"}) {
     registerCommand(c, &PonscripterVm::cmdTextAndWindow);
   }
 
   // 8. Interactive Buttons, Timers & Input
-  for (const char *c :
-       {"btndef", "btn", "spbtn", "exbtn", "exbtn_d", "btnwait", "btnwait2",
-        "btntime", "btntime2", "btndown", "transbtn", "getmousepos", "click",
-        "lrclick", "wait", "delay", "waittimer", "resettimer", "gettimer",
-        "getbtntimer", "cellcheckspbtn", "cellcheckexbtn", "existspbtn"}) {
+  for (const char *c : {"btndef",         "btn",         "spbtn",
+                        "exbtn",          "exbtn_d",     "btnwait",
+                        "btnwait2",       "btntime",     "btntime2",
+                        "btndown",        "transbtn",    "getmousepos",
+                        "click",          "lrclick",     "wait",
+                        "delay",          "waittimer",   "resettimer",
+                        "gettimer",       "getbtntimer", "cellcheckspbtn",
+                        "cellcheckexbtn", "existspbtn"}) {
     registerCommand(c, &PonscripterVm::cmdButtonsAndInput);
   }
 
   // 9. Audio & Video
-  for (const char *c :
-       {"mp3", "mp3loop", "mp3save", "mp3fadein", "mp3fadeout", "mp3stop",
-        "bgm", "bgmonce", "bgmstop", "play", "playonce", "playstop", "wave",
-        "waveloop", "wavestop", "dwave", "dwaveload", "dwaveloop", "dwaveplay",
-        "dwaveplayloop", "dwavestop", "stop", "bgmvol", "mp3vol", "sevol",
-        "voicevol", "chvol", "defmp3vol", "defsevol", "defvoicevol",
-        "getbgmvol", "getmp3vol", "getsevol", "getvoicevol", "clickvoice",
-        "selectvoice", "menuselectvoice", "mpegplay", "avi", "movie"}) {
+  for (const char *c : {"mp3",
+                        "mp3loop",
+                        "mp3save",
+                        "mp3fadein",
+                        "mp3fadeout",
+                        "mp3stop",
+                        "bgm",
+                        "bgmonce",
+                        "bgmstop",
+                        "play",
+                        "playonce",
+                        "playstop",
+                        "wave",
+                        "waveloop",
+                        "wavestop",
+                        "dwave",
+                        "dwaveload",
+                        "dwaveloop",
+                        "dwaveplay",
+                        "dwaveplayloop",
+                        "dwavestop",
+                        "stop",
+                        "bgmvol",
+                        "mp3vol",
+                        "sevol",
+                        "voicevol",
+                        "chvol",
+                        "defmp3vol",
+                        "defsevol",
+                        "defvoicevol",
+                        "getbgmvol",
+                        "getmp3vol",
+                        "getsevol",
+                        "getvoicevol",
+                        "clickvoice",
+                        "selectvoice",
+                        "menuselectvoice",
+                        "mpegplay",
+                        "avi",
+                        "movie"}) {
     registerCommand(c, &PonscripterVm::cmdAudioAndVideo);
   }
 
   // 10. Menus, Save/Load & System Calls
-  for (const char *c :
-       {"savename", "savenumber", "rmenu", "rmode", "menusetwindow",
-        "menuselectcolor", "selectcolor", "lookbackbutton", "lookbackcolor",
-        "lookbackflush", "lookbacksp", "systemcall", "isfull", "menu_window",
-        "menu_full", "menu_automode", "menu_click_def", "menu_click_page",
-        "menu_waveon", "menu_waveoff", "savegame", "savegame2", "loadgame",
-        "saveon", "saveoff", "savefileexist", "savescreenshot",
-        "savescreenshot2", "getscreenshot", "deletescreenshot", "lsp_savethumb"}) {
+  for (const char *c : {"savename",        "savenumber",     "rmenu",
+                        "rmode",           "menusetwindow",  "menuselectcolor",
+                        "selectcolor",     "lookbackbutton", "lookbackcolor",
+                        "lookbackflush",   "lookbacksp",     "systemcall",
+                        "isfull",          "menu_window",    "menu_full",
+                        "menu_automode",   "menu_click_def", "menu_click_page",
+                        "menu_waveon",     "menu_waveoff",   "savegame",
+                        "savegame2",       "loadgame",       "saveon",
+                        "saveoff",         "savefileexist",  "savescreenshot",
+                        "savescreenshot2", "getscreenshot",  "deletescreenshot",
+                        "lsp_savethumb"}) {
     registerCommand(c, &PonscripterVm::cmdMenusAndSystem);
   }
 }
@@ -215,10 +263,9 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
     auto fchkFn = [this](std::string_view p) {
       std::string norm(p);
       std::replace(norm.begin(), norm.end(), '\\', '/');
-      std::transform(norm.begin(), norm.end(), norm.begin(),
-                     [](unsigned char c) {
-                       return static_cast<char>(std::tolower(c));
-                     });
+      std::transform(
+          norm.begin(), norm.end(), norm.begin(),
+          [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
       return seenFiles_.count(norm) > 0;
     };
     auto lchkFn = [this](std::string_view l) {
@@ -247,10 +294,9 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
     lexer.skipWhitespace();
     if (!lexer.eof()) {
       StatementSlice tail;
-      tail.lineIndex =
-          (pc_ > 0 && pc_ <= script_.statements().size())
-              ? script_.statements()[pc_ - 1].lineIndex
-              : 0;
+      tail.lineIndex = (pc_ > 0 && pc_ <= script_.statements().size())
+                           ? script_.statements()[pc_ - 1].lineIndex
+                           : 0;
       tail.statementIndex = (pc_ > 0) ? (pc_ - 1) : 0;
       tail.text = std::string(lexer.remaining());
       tail.isText = (!tail.text.empty() &&
@@ -425,8 +471,7 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
     const int strId = lexer.parseStrVarRef();
     lexer.consumeComma();
     const int idx = lexer.parseIntExpr();
-    if (strId >= 0 && idx >= 0 &&
-        idx < static_cast<int>(cselOptions_.size())) {
+    if (strId >= 0 && idx >= 0 && idx < static_cast<int>(cselOptions_.size())) {
       vars_.setStr(strId, cselOptions_[idx].text);
     }
     return;
@@ -709,10 +754,9 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
     bg_ = parseTaggedString(rawArg, TransMode::Copy);
     if (!bg_.imagePath.empty()) {
       std::string lower = bg_.imagePath;
-      std::transform(lower.begin(), lower.end(), lower.begin(),
-                     [](unsigned char c) {
-                       return static_cast<char>(std::tolower(c));
-                     });
+      std::transform(
+          lower.begin(), lower.end(), lower.begin(),
+          [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
       seenFiles_.insert(lower);
     }
     if (!lexer.eof()) {
@@ -743,10 +787,9 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
     populateStandingDimensions(slot, slotIdx);
     if (!slot.spec.imagePath.empty()) {
       std::string lower = slot.spec.imagePath;
-      std::transform(lower.begin(), lower.end(), lower.begin(),
-                     [](unsigned char c) {
-                       return static_cast<char>(std::tolower(c));
-                     });
+      std::transform(
+          lower.begin(), lower.end(), lower.begin(),
+          [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
       seenFiles_.insert(lower);
     }
 

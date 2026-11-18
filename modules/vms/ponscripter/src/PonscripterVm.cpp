@@ -7,8 +7,7 @@
 
 namespace Ponscripter {
 
-PonscripterVm::PonscripterVm(HostCallbacks *callbacks)
-    : callbacks_(callbacks) {
+PonscripterVm::PonscripterVm(HostCallbacks *callbacks) : callbacks_(callbacks) {
   registerCommands();
 }
 
@@ -110,10 +109,9 @@ void PonscripterVm::resetToStart() {
   waitState_ = WaitState::Running;
   inDefineBlock_ = false;
   jumpToLabel("start");
-  // Advance pc_ past the `*start` label statement so currentLabel_ stays "start"
-  // without re-executing `*start` on the next step
-  if (pc_ < script_.statements().size() &&
-      script_.statements()[pc_].isLabel) {
+  // Advance pc_ past the `*start` label statement so currentLabel_ stays
+  // "start" without re-executing `*start` on the next step
+  if (pc_ < script_.statements().size() && script_.statements()[pc_].isLabel) {
     ++pc_;
   }
   if (callbacks_)
@@ -325,8 +323,10 @@ void PonscripterVm::tick(double dtMs, std::size_t maxInstructions) {
       typewriterChars_ = totalPageChars_;
     } else {
       // PONscripter textspeed: ms per character (~24 -> ~15ms/char)
-      const double msPerChar =
-          std::max(2.0, static_cast<double>(101 - std::clamp(window_.textSpeed, 1, 100)) * 0.4);
+      const double msPerChar = std::max(
+          2.0,
+          static_cast<double>(101 - std::clamp(window_.textSpeed, 1, 100)) *
+              0.4);
       typewriterAccumMs_ += dtMs;
       while (typewriterAccumMs_ >= msPerChar &&
              typewriterChars_ < totalPageChars_) {
@@ -511,7 +511,8 @@ bool PonscripterVm::advance() {
 bool PonscripterVm::rightClick() {
   if (waitState_ == WaitState::WaitButton) {
     // In PONscripter, right-clicking during `btnwait %var` stores -1 in `%var`
-    // and resumes script execution (`00.utf:384,657,796,1062,1478`, `01.utf:4166`).
+    // and resumes script execution (`00.utf:384,657,796,1062,1478`,
+    // `01.utf:4166`).
     return selectButton(-1);
   }
   if (waitState_ == WaitState::WaitSystemCall) {
@@ -577,8 +578,7 @@ bool PonscripterVm::selectButton(int buttonId) {
 bool PonscripterVm::selectChoice(int optionIndex) {
   if (waitState_ != WaitState::WaitSelect)
     return false;
-  if (optionIndex < 0 ||
-      optionIndex >= static_cast<int>(selectOptions_.size()))
+  if (optionIndex < 0 || optionIndex >= static_cast<int>(selectOptions_.size()))
     return false;
   const std::string target = selectOptions_[optionIndex].targetLabel;
   selectOptions_.clear();
@@ -605,7 +605,8 @@ void PonscripterVm::populateSpriteDimensions(SpriteSlot &slot) {
   slot.cellWidth = 0;
   slot.cellHeight = 0;
   if (slot.spec.trans == TransMode::String) {
-    const int fw = slot.spec.fontWidth > 0 ? slot.spec.fontWidth : window_.fontW;
+    const int fw =
+        slot.spec.fontWidth > 0 ? slot.spec.fontWidth : window_.fontW;
     const int fh =
         slot.spec.fontHeight > 0 ? slot.spec.fontHeight : window_.fontH;
     slot.cellWidth =
@@ -766,6 +767,13 @@ SlotSaveData PonscripterVm::exportSlotSave() const {
   data.activeBgm = activeBgm_;
   data.activeBgmLoop = activeBgmLoop_;
   data.loopingWaves = loopingWaves_;
+  data.waitState = (waitState_ == WaitState::WaitSystemCall)
+                       ? preSystemCallWaitState_
+                       : waitState_;
+  data.btnwaitDestVar = btnwaitDestVar_;
+  data.btnwaitPreserveButtons = btnwaitPreserveButtons_;
+  data.buttons = buttons_;
+  data.selectOptions = selectOptions_;
   return data;
 }
 
@@ -792,6 +800,11 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   window_ = data.window;
   textWindowVisible_ = data.textWindowVisible;
   pageSpans_ = data.pageSpans;
+  pageLineKeys_.clear();
+  for (const auto &s : pageSpans_) {
+    if (!s.lineKey.empty())
+      pageLineKeys_.push_back(s.lineKey);
+  }
   pagePlainText_ = data.pagePlainText;
   totalPageChars_ = 0;
   for (const auto &s : pageSpans_)
@@ -801,6 +814,12 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   activeBgm_ = data.activeBgm;
   activeBgmLoop_ = data.activeBgmLoop;
   loopingWaves_ = data.loopingWaves;
+
+  btnwaitDestVar_ = data.btnwaitDestVar;
+  btnwaitPreserveButtons_ = data.btnwaitPreserveButtons;
+  buttons_ = data.buttons;
+  selectOptions_ = data.selectOptions;
+  hoveredButtonId_ = 0;
 
   if (callbacks_) {
     if (!activeBgm_.empty())
@@ -814,8 +833,15 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
     callbacks_->onSceneDirty();
   }
 
-  waitState_ = !pageSpans_.empty() ? WaitState::WaitClickInline
-                                   : WaitState::Running;
+  WaitState restoredWait = data.waitState;
+  if (restoredWait == WaitState::WaitSystemCall ||
+      restoredWait == WaitState::Halted) {
+    restoredWait =
+        !pageSpans_.empty() ? WaitState::WaitClickInline : WaitState::Running;
+  }
+  activeSystemCall_.clear();
+  waitState_ = restoredWait;
+  preSystemCallWaitState_ = restoredWait;
 }
 
 } // namespace Ponscripter

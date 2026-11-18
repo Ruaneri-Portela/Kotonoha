@@ -159,31 +159,107 @@ struct Text : VNTextBox {
   FontPtr font;
   int canvasW = 640, canvasH = 480;
 
-  int boxWidth() const { return back && back->w > 0 ? back->w : canvasW; }
-  int boxHeight() const { return back && back->h > 0 ? back->h : 135; }
-  int boxX() const { return (canvasW - boxWidth()) / 2; }
-  int boxY() const { return canvasH - boxHeight(); }
+  int boxWidth() const {
+    if (back && back->w > 0)
+      return back->w;
+    if (frame && frame->w > 0)
+      return frame->w;
+    return canvasW;
+  }
+  int boxHeight() const {
+    if (back && back->h > 0)
+      return back->h;
+    if (frame && frame->h > 0)
+      return frame->h;
+    return 122;
+  }
+  int boxX() const {
+    const auto &pos = assets.settings().get("WINDOW.000.POS");
+    if (pos.size() >= 3) {
+      const int mod = assets.settings().integer("WINDOW.000.POS", 0, 0);
+      const int px = assets.settings().integer("WINDOW.000.POS", 0, 1);
+      return (mod == 1 || mod == 3) ? (canvasW - boxWidth() - px) : px;
+    }
+    return (canvasW - boxWidth()) / 2;
+  }
+  int boxY() const {
+    const auto &pos = assets.settings().get("WINDOW.000.POS");
+    if (pos.size() >= 3) {
+      const int mod = assets.settings().integer("WINDOW.000.POS", 0, 0);
+      const int py = assets.settings().integer("WINDOW.000.POS", 0, 2);
+      return (mod == 2 || mod == 3) ? (canvasH - boxHeight() - py) : py;
+    }
+    return canvasH - boxHeight();
+  }
   float scaleX() const { return float(boxWidth()) / 640.0f; }
-  float scaleY() const { return float(boxHeight()) / 135.0f; }
+  float scaleY() const { return float(boxHeight()) / 122.0f; }
+  int mojiTop() const {
+    return assets.settings().integer("WINDOW.000.MOJI_POS", 19, 0);
+  }
+  int mojiLeft() const {
+    return std::max(20,
+                    assets.settings().integer("WINDOW.000.MOJI_POS", 53, 2));
+  }
+  float wrapWidth() const {
+    return float(boxWidth()) - float(mojiLeft()) - 59.0f * scaleX();
+  }
 
   void updateLayout(int w, int h) {
     canvasW = w;
     canvasH = h;
     const float bx = float(boxX()), by = float(boxY());
     const float bw = float(boxWidth()), bh = float(boxHeight());
-    const float sx = scaleX(), sy = scaleY();
 
     if (controls.buttons.size() >= 5) {
-      controls.buttons[0].area = {bx + bw - 56.0f * sx, by + 4.0f * sy,
-                                  31.0f * sx, 7.0f * sy};
-      controls.buttons[1].area = {bx + bw - 24.0f * sx, by + 4.0f * sy,
-                                  12.0f * sx, 38.0f * sy};
-      controls.buttons[2].area = {bx + bw - 24.0f * sx, by + 43.0f * sy,
-                                  12.0f * sx, 38.0f * sy};
-      controls.buttons[3].area = {bx + bw - 24.0f * sx, by + 82.0f * sy,
-                                  12.0f * sx, 16.0f * sy};
-      controls.buttons[4].area = {bx + bw - 24.0f * sx, by + 99.0f * sy,
-                                  12.0f * sx, 16.0f * sy};
+      const int wakuSet =
+          std::max(0, assets.settings().integer("WINDOW.000.WAKU_SETNO", 0));
+      const int wakuNo =
+          std::max(0, assets.settings().integer("WINDOW.000.WAKU_NO", 0));
+      std::ostringstream prefix;
+      prefix << "WAKU." << std::setw(3) << std::setfill('0') << wakuSet << "."
+             << std::setw(3) << std::setfill('0') << wakuNo;
+      const std::string wakuBase = prefix.str();
+
+      struct BtnSpec {
+        const char *useKey;
+        const char *boxSuffix;
+        int defX, defY, defW, defH;
+      };
+      static constexpr BtnSpec specs[5] = {
+          {"WINDOW.000.CLEAR_USE", ".CLEAR_BOX", 584, 4, 31, 7},
+          {"WINDOW.000.MSGBKLEFT_USE", ".MSGBKLEFT_BOX", 616, 4, 12, 38},
+          {"WINDOW.000.MSGBKRIGHT_USE", ".MSGBKRIGHT_BOX", 616, 43, 12, 38},
+          {"WINDOW.000.AUTOMODE_USE", ".AUTOMODE_BOX", 616, 82, 12, 16},
+          {"WINDOW.000.READJUMP_USE", ".READJUMP_BOX", 616, 99, 12, 16},
+      };
+      for (std::size_t i = 0; i < 5; ++i) {
+        if (assets.settings().integer(specs[i].useKey, 1) == 0) {
+          controls.buttons[i].area = {0, 0, 0, 0};
+          continue;
+        }
+        const std::string boxKey = wakuBase + specs[i].boxSuffix;
+        const auto &tokens = assets.settings().get(boxKey);
+        if (tokens.size() >= 5) {
+          const int mod = assets.settings().integer(boxKey, 0, 0);
+          const int rx = assets.settings().integer(boxKey, 0, 1);
+          const int ry = assets.settings().integer(boxKey, 0, 2);
+          const int rw = assets.settings().integer(boxKey, 0, 3);
+          const int rh = assets.settings().integer(boxKey, 0, 4);
+          if (rw <= 0 || rh <= 0) {
+            controls.buttons[i].area = {0, 0, 0, 0};
+          } else {
+            const float x =
+                (mod == 1 || mod == 3) ? (bx + bw - rw - rx) : (bx + rx);
+            const float y =
+                (mod == 2 || mod == 3) ? (by + bh - rh - ry) : (by + ry);
+            controls.buttons[i].area = {x, y, float(rw), float(rh)};
+          }
+        } else {
+          controls.buttons[i].area = {
+              bx + float(specs[i].defX), by + float(specs[i].defY),
+              float(specs[i].defW), float(specs[i].defH)};
+        }
+      }
     }
   }
 
@@ -191,22 +267,47 @@ struct Text : VNTextBox {
        int h = 480)
       : VNTextBox(e, "", "", 40), assets(a), canvasW(w), canvasH(h) {
     hide();
-    auto smw00c = assets.graphic("smw00c", false);
-    if (!smw00c.empty()) {
-      auto bytes = assets.read(smw00c);
-      if (bytes.size() >= 5)
-        buttonImage = decodeG00(bytes);
-      buttonSurface = assets.loadSurface(smw00c);
+    const int wakuSet =
+        std::max(0, assets.settings().integer("WINDOW.000.WAKU_SETNO", 0));
+    const int wakuNo =
+        std::max(0, assets.settings().integer("WINDOW.000.WAKU_NO", 0));
+    std::ostringstream prefix;
+    prefix << "WAKU." << std::setw(3) << std::setfill('0') << wakuSet << "."
+           << std::setw(3) << std::setfill('0') << wakuNo;
+    const std::string wakuBase = prefix.str();
+
+    const std::string btnName =
+        assets.settings().text(wakuBase + ".BTN", "smw00c");
+    if (!btnName.empty()) {
+      auto smw00c = assets.graphic(btnName, false);
+      if (!smw00c.empty()) {
+        auto bytes = assets.read(smw00c);
+        if (bytes.size() >= 5)
+          buttonImage = decodeG00(bytes);
+        buttonSurface = assets.loadSurface(smw00c);
+      }
     }
-    auto kcur00 = assets.graphic("kcur00", false);
-    if (!kcur00.empty())
-      cursor = assets.loadSurface(kcur00);
-    auto smw00a = assets.graphic("smw00a", false);
-    if (!smw00a.empty())
-      frame = assets.loadSurface(smw00a);
-    auto smw00b = assets.graphic("smw00b", false);
-    if (!smw00b.empty())
-      back = assets.loadSurface(smw00b);
+    const std::string curName =
+        assets.settings().text("CURSOR.000.NAME", "kcur00");
+    if (!curName.empty()) {
+      auto kcur00 = assets.graphic(curName, false);
+      if (!kcur00.empty())
+        cursor = assets.loadSurface(kcur00);
+    }
+    const std::string frameName =
+        assets.settings().text(wakuBase + ".NAME", "smw00a");
+    if (!frameName.empty()) {
+      auto smw00a = assets.graphic(frameName, false);
+      if (!smw00a.empty())
+        frame = assets.loadSurface(smw00a);
+    }
+    const std::string backName =
+        assets.settings().text(wakuBase + ".BACK", "smw00b");
+    if (!backName.empty()) {
+      auto smw00b = assets.graphic(backName, false);
+      if (!smw00b.empty())
+        back = assets.loadSurface(smw00b);
+    }
 
     if (back && back->w > 0 && back->h > 0 && back->pixels) {
       int r = assets.settings().integer(
@@ -2502,12 +2603,13 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 114:
     case 122:
     case 124:
-      machine.set_store_register(int(
-          SDL_GetTicks() - timers[(op >= 120 ? 256 : 0) + value(c, 0)]));
+      machine.set_store_register(
+          int(SDL_GetTicks() - timers[(op >= 120 ? 256 : 0) + value(c, 0)]));
       return true;
     case 116:
     case 126:
-      timers[(op == 126 ? 256 : 0) + value(c, 1)] = SDL_GetTicks() - value(c, 0);
+      timers[(op == 126 ? 256 : 0) + value(c, 1)] =
+          SDL_GetTicks() - value(c, 0);
       return true;
     case 111:
     case 121: {
@@ -2930,8 +3032,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     case 1001: {
       int num = value(c, 0), den = value(c, 1);
-      machine.set_store_register(
-          den != 0 ? int((long long)(num) * 100 / den) : 0);
+      machine.set_store_register(den != 0 ? int((long long)(num) * 100 / den)
+                                          : 0);
       return true;
     }
     case 1002: {

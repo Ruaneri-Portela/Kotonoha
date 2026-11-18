@@ -140,9 +140,8 @@ struct JsonParser {
   std::size_t pos = 0;
 
   void skipWs() {
-    while (pos < src.size() &&
-           (src[pos] == ' ' || src[pos] == '\t' || src[pos] == '\r' ||
-            src[pos] == '\n'))
+    while (pos < src.size() && (src[pos] == ' ' || src[pos] == '\t' ||
+                                src[pos] == '\r' || src[pos] == '\n'))
       ++pos;
   }
 
@@ -680,9 +679,9 @@ PsbFile PsbFile::parse(const std::uint8_t *data, std::size_t size) {
   if (hdr.encrypt != 0)
     throw std::runtime_error("PSB: encrypted PSB streams are not supported");
 
-  const auto readUintArray =
-      [&](std::size_t pos,
-          std::size_t *nextPos = nullptr) -> std::vector<std::uint64_t> {
+  const auto readUintArray = [&](std::size_t pos,
+                                 std::size_t *nextPos =
+                                     nullptr) -> std::vector<std::uint64_t> {
     if (pos >= rawSize)
       throw std::runtime_error("PSB: uint array offset out of bounds");
     if (raw[pos] == 0x00u && pos + 1 < rawSize && raw[pos + 1] >= 0x0cu &&
@@ -746,7 +745,8 @@ PsbFile PsbFile::parse(const std::uint8_t *data, std::size_t size) {
         if (parent >= offsets.size() ||
             cur < offsets[static_cast<std::size_t>(parent)])
           throw std::runtime_error("PSB: invalid name trie transition");
-        const std::uint64_t ch = cur - offsets[static_cast<std::size_t>(parent)];
+        const std::uint64_t ch =
+            cur - offsets[static_cast<std::size_t>(parent)];
         if (ch > 0xffu)
           throw std::runtime_error("PSB: invalid byte in name trie");
         if (ch != 0)
@@ -869,8 +869,8 @@ PsbFile PsbFile::parse(const std::uint8_t *data, std::size_t size) {
       for (std::uint64_t rel : offsets) {
         if (rel > rawSize - payloadStart)
           throw std::runtime_error("PSB: list element offset out of bounds");
-        list.push_back(
-            self(self, payloadStart + static_cast<std::size_t>(rel), depth + 1));
+        list.push_back(self(self, payloadStart + static_cast<std::size_t>(rel),
+                            depth + 1));
       }
       return PsbValue::makeList(std::move(list));
     }
@@ -888,10 +888,11 @@ PsbFile PsbFile::parse(const std::uint8_t *data, std::size_t size) {
           throw std::runtime_error("PSB: dictionary key ID out of range");
         const std::uint64_t rel = valOffsets[i];
         if (rel > rawSize - payloadStart)
-          throw std::runtime_error("PSB: dictionary value offset out of bounds");
-        dict.emplace(
-            file.names_[static_cast<std::size_t>(keyId)],
-            self(self, payloadStart + static_cast<std::size_t>(rel), depth + 1));
+          throw std::runtime_error(
+              "PSB: dictionary value offset out of bounds");
+        dict.emplace(file.names_[static_cast<std::size_t>(keyId)],
+                     self(self, payloadStart + static_cast<std::size_t>(rel),
+                          depth + 1));
       }
       return PsbValue::makeDict(std::move(dict));
     }

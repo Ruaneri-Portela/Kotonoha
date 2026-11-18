@@ -67,8 +67,7 @@ std::string resolveAudio(const Kotonoha::Providers::KirikiriAssets &assets,
   const auto dot = storage.find_last_of('.');
   const bool hasExtension =
       dot != std::string::npos && (slash == std::string::npos || dot > slash);
-  for (const char *folder :
-       {"", "bgm/", "sound/", "se/", "voice/", "VNX+/"}) {
+  for (const char *folder : {"", "bgm/", "sound/", "se/", "voice/", "VNX+/"}) {
     const std::string base = std::string(folder) + storage;
     for (const char *ext : {"", ".ogg", ".opus", ".wav"}) {
       if (hasExtension && *ext)
@@ -97,10 +96,10 @@ findTitlePicture(const Kotonoha::Providers::KirikiriAssets &assets) {
     images.emplace(std::move(key), id);
   }
   for (const char *base :
-       {"vnx+/langselect_cn@base%base", "vnx+/title_cn@bg.layer",
-        "image/title", "image/title_bg", "image/titlebase", "system/title",
-        "system/title_bg", "bgimage/title", "title/titlebase", "title/title",
-        "title", "menu/title", "image/menu"}) {
+       {"vnx+/langselect_cn@base%base", "vnx+/title_cn@bg.layer", "image/title",
+        "image/title_bg", "image/titlebase", "system/title", "system/title_bg",
+        "bgimage/title", "title/titlebase", "title/title", "title",
+        "menu/title", "image/menu"}) {
     for (const char *ext : {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tlg"}) {
       if (auto it = images.find(std::string(base) + ext); it != images.end())
         return it->second;
@@ -169,15 +168,7 @@ struct KirikiriRuntime::Impl {
   std::shared_ptr<Kotonoha::Providers::KirikiriAssets> assets;
   Kotonoha::Engine *engine = nullptr;
 
-  enum class ScreenMode {
-    None,
-    Title,
-    Save,
-    Load,
-    Config,
-    Backlog,
-    Extra
-  };
+  enum class ScreenMode { None, Title, Save, Load, Config, Backlog, Extra };
 
   struct BacklogEntry {
     std::string speaker;
@@ -210,7 +201,7 @@ struct KirikiriRuntime::Impl {
   float mouseX = -1.0f;
   float mouseY = -1.0f;
   bool mouseDown = false;
-  int configTab = 0; // 0 = game, 1 = effsnd, 2 = voice
+  int configTab = 0;             // 0 = game, 1 = effsnd, 2 = voice
   std::size_t languageIndex = 2; // 2 = PT-BR (VNX+ slot), 1 = EN, 0 = JP
   bool autoMode = false;
   bool skipMode = false;
@@ -392,10 +383,9 @@ struct KirikiriRuntime::Impl {
                      const std::string &overAsset, const std::string &onAsset,
                      const SDL_FRect &rect, bool forceActive = false) {
     const bool hovered = pointInRect(mouseX, mouseY, rect);
-    const std::string &chosen =
-        (forceActive || (hovered && mouseDown))
-            ? onAsset
-            : (hovered ? overAsset : normalAsset);
+    const std::string &chosen = (forceActive || (hovered && mouseDown))
+                                    ? onAsset
+                                    : (hovered ? overAsset : normalAsset);
     return drawVnxAsset(renderer, chosen, &rect);
   }
 
@@ -517,10 +507,9 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
   Kotonoha::GetVNBacklogRuntime(engine).clear();
   Kotonoha::GetVNBacklogRuntime(engine).close();
 
-  impl.hasVnxUi =
-      !resolveVisual(*impl.assets, "VNX+/title_cn@start%button;normal.png",
-                     true)
-           .empty();
+  impl.hasVnxUi = !resolveVisual(*impl.assets,
+                                 "VNX+/title_cn@start%button;normal.png", true)
+                       .empty();
 
   const auto attachOnce = [&](Kotonoha::Scene *scene) {
     const auto &scenes = GetScenes(Kotonoha::GameState::Gameplay);
@@ -669,10 +658,10 @@ void KirikiriRuntime::update() {
   if (impl.processPendingJump())
     return;
   const std::uint64_t nowMs = SDL_GetTicks();
-  const int elapsedMs =
-      impl.lastTickMs > 0
-          ? static_cast<int>(std::min<std::uint64_t>(nowMs - impl.lastTickMs, 250))
-          : 16;
+  const int elapsedMs = impl.lastTickMs > 0
+                            ? static_cast<int>(std::min<std::uint64_t>(
+                                  nowMs - impl.lastTickMs, 250))
+                            : 16;
   impl.lastTickMs = nowMs;
   if (impl.scnRunner && impl.engine && !impl.engine->isStoryPaused() &&
       impl.screenMode == Impl::ScreenMode::None) {
@@ -701,8 +690,7 @@ void KirikiriRuntime::update() {
     }
   }
   // Resume pending waits on the runtime thread, never an SDL timer worker.
-  if (impl.waitingWait &&
-      (nowMs >= impl.waitingDeadline || impl.skipMode)) {
+  if (impl.waitingWait && (nowMs >= impl.waitingDeadline || impl.skipMode)) {
     impl.waitingWait = false;
     auto done = std::move(impl.finishWait);
     impl.finishWait = {};
@@ -818,17 +806,23 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         bool active;
       };
       const std::array<ToolbarItem, 7> toolbar{{
-          {"VNX+/window@help__qsave%layer.png", {580.0f, 668.0f, 86.0f, 16.0f},
+          {"VNX+/window@help__qsave%layer.png",
+           {580.0f, 668.0f, 86.0f, 16.0f},
            false},
-          {"VNX+/window@help__qload%layer.png", {680.0f, 668.0f, 90.0f, 16.0f},
+          {"VNX+/window@help__qload%layer.png",
+           {680.0f, 668.0f, 90.0f, 16.0f},
            false},
-          {"VNX+/window@help__save%layer.png", {784.0f, 668.0f, 44.0f, 16.0f},
+          {"VNX+/window@help__save%layer.png",
+           {784.0f, 668.0f, 44.0f, 16.0f},
            false},
-          {"VNX+/window@help__load%layer.png", {842.0f, 668.0f, 46.0f, 16.0f},
+          {"VNX+/window@help__load%layer.png",
+           {842.0f, 668.0f, 46.0f, 16.0f},
            false},
-          {"VNX+/window@help__auto%layer.png", {902.0f, 668.0f, 88.0f, 16.0f},
+          {"VNX+/window@help__auto%layer.png",
+           {902.0f, 668.0f, 88.0f, 16.0f},
            impl.autoMode},
-          {"VNX+/window@help__skip%layer.png", {1004.0f, 668.0f, 40.0f, 16.0f},
+          {"VNX+/window@help__skip%layer.png",
+           {1004.0f, 668.0f, 40.0f, 16.0f},
            impl.skipMode},
           {"VNX+/window@help__config%layer.png",
            {1058.0f, 668.0f, 60.0f, 16.0f},
@@ -982,46 +976,41 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                           &cardRect);
 
         const auto &slot = impl.saveSlots[static_cast<std::size_t>(i)];
-        drawTextLine(impl.engine, renderer,
-                     "SLOT 0" + std::to_string(i + 1), 18, sx + 152.0f,
-                     sy + 18.0f, SDL_Color{95, 45, 65, 255}, false, false);
+        drawTextLine(impl.engine, renderer, "SLOT 0" + std::to_string(i + 1),
+                     18, sx + 152.0f, sy + 18.0f, SDL_Color{95, 45, 65, 255},
+                     false, false);
         if (slot.exists) {
           drawTextLine(impl.engine, renderer, slot.chapterTitle, 18,
                        sx + 152.0f, sy + 46.0f, SDL_Color{55, 28, 40, 255},
                        false, false);
-          drawTextLine(impl.engine, renderer, slot.previewText, 14,
-                       sx + 152.0f, sy + 76.0f, SDL_Color{120, 75, 92, 255},
-                       false, false);
+          drawTextLine(impl.engine, renderer, slot.previewText, 14, sx + 152.0f,
+                       sy + 76.0f, SDL_Color{120, 75, 92, 255}, false, false);
         } else {
-          drawTextLine(impl.engine, renderer, "— Slot Vazio —", 17,
-                       sx + 152.0f, sy + 52.0f, SDL_Color{150, 115, 128, 255},
-                       false, false);
+          drawTextLine(impl.engine, renderer, "— Slot Vazio —", 17, sx + 152.0f,
+                       sy + 52.0f, SDL_Color{150, 115, 128, 255}, false, false);
         }
 
         // Action badge inside card
         const SDL_FRect actionRect{sx + 18.0f, sy + 82.0f, 117.0f, 26.0f};
         if (isSave) {
-          impl.drawVnxButton(renderer,
-                             "VNX+/saveload@item%button;save__defo.png",
-                             "VNX+/saveload@item%button;save__over.png",
-                             "VNX+/saveload@item%button;save__on.png",
-                             actionRect);
+          impl.drawVnxButton(
+              renderer, "VNX+/saveload@item%button;save__defo.png",
+              "VNX+/saveload@item%button;save__over.png",
+              "VNX+/saveload@item%button;save__on.png", actionRect);
         } else if (slot.exists) {
-          impl.drawVnxButton(renderer,
-                             "VNX+/saveload@item%button;load__defo.png",
-                             "VNX+/saveload@item%button;load__over.png",
-                             "VNX+/saveload@item%button;load__on.png",
-                             actionRect);
+          impl.drawVnxButton(
+              renderer, "VNX+/saveload@item%button;load__defo.png",
+              "VNX+/saveload@item%button;load__over.png",
+              "VNX+/saveload@item%button;load__on.png", actionRect);
         } else {
-          impl.drawVnxAsset(
-              renderer, "VNX+/saveload@item%button;load__disable.png",
-              &actionRect);
+          impl.drawVnxAsset(renderer,
+                            "VNX+/saveload@item%button;load__disable.png",
+                            &actionRect);
         }
 
         if (slot.exists) {
           const SDL_FRect delRect{sx + 305.0f, sy + 14.0f, 117.0f, 26.0f};
-          impl.drawVnxButton(renderer,
-                             "VNX+/saveload@delete%button;normal.png",
+          impl.drawVnxButton(renderer, "VNX+/saveload@delete%button;normal.png",
                              "VNX+/saveload@delete%button;over.png",
                              "VNX+/saveload@delete%button;on.png", delRect);
         }
@@ -1032,26 +1021,22 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       const SDL_FRect menuLoadRect{1030.0f, 240.0f, 204.0f, 74.0f};
       const SDL_FRect menuTitleRect{1030.0f, 330.0f, 204.0f, 74.0f};
       const SDL_FRect menuExitRect{1030.0f, 420.0f, 204.0f, 74.0f};
-      impl.drawVnxButton(renderer,
-                         "VNX+/saveload_cn@menusave%button;normal.png",
-                         "VNX+/saveload_cn@menusave%button;over.png",
-                         "VNX+/saveload_cn@menusave%button;on.png",
-                         menuSaveRect, isSave);
-      impl.drawVnxButton(renderer,
-                         "VNX+/saveload_cn@menuload%button;normal.png",
-                         "VNX+/saveload_cn@menuload%button;over.png",
-                         "VNX+/saveload_cn@menuload%button;on.png",
-                         menuLoadRect, !isSave);
-      impl.drawVnxButton(renderer,
-                         "VNX+/saveload_cn@menutitle%button;normal.png",
-                         "VNX+/saveload_cn@menutitle%button;over.png",
-                         "VNX+/saveload_cn@menutitle%button;on.png",
-                         menuTitleRect);
-      impl.drawVnxButton(renderer,
-                         "VNX+/saveload_cn@menuexit%button;normal.png",
-                         "VNX+/saveload_cn@menuexit%button;over.png",
-                         "VNX+/saveload_cn@menuexit%button;on.png",
-                         menuExitRect);
+      impl.drawVnxButton(
+          renderer, "VNX+/saveload_cn@menusave%button;normal.png",
+          "VNX+/saveload_cn@menusave%button;over.png",
+          "VNX+/saveload_cn@menusave%button;on.png", menuSaveRect, isSave);
+      impl.drawVnxButton(
+          renderer, "VNX+/saveload_cn@menuload%button;normal.png",
+          "VNX+/saveload_cn@menuload%button;over.png",
+          "VNX+/saveload_cn@menuload%button;on.png", menuLoadRect, !isSave);
+      impl.drawVnxButton(
+          renderer, "VNX+/saveload_cn@menutitle%button;normal.png",
+          "VNX+/saveload_cn@menutitle%button;over.png",
+          "VNX+/saveload_cn@menutitle%button;on.png", menuTitleRect);
+      impl.drawVnxButton(
+          renderer, "VNX+/saveload_cn@menuexit%button;normal.png",
+          "VNX+/saveload_cn@menuexit%button;over.png",
+          "VNX+/saveload_cn@menuexit%button;on.png", menuExitRect);
 
       const SDL_FRect backRect{1176.0f, 616.0f, 66.0f, 81.0f};
       impl.drawVnxButton(renderer, "VNX+/saveload@back%button;normal.png",
@@ -1065,8 +1050,7 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       const SDL_FRect tabGame{260.0f, 22.0f, 179.0f, 92.0f};
       const SDL_FRect tabSnd{452.0f, 22.0f, 179.0f, 92.0f};
       const SDL_FRect tabVoice{644.0f, 22.0f, 179.0f, 92.0f};
-      impl.drawVnxButton(renderer,
-                         "VNX+/config_cn@tab__game%button;normal.png",
+      impl.drawVnxButton(renderer, "VNX+/config_cn@tab__game%button;normal.png",
                          "VNX+/config_cn@tab__game%button;over.png",
                          "VNX+/config_cn@tab__game%button;on.png", tabGame,
                          impl.configTab == 0);
@@ -1087,17 +1071,15 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                           "VNX+/config_cn@frame__game__vol01%layer.png",
                           &frameRect);
         const SDL_FRect scrModeRect{135.0f, 238.0f, 317.0f, 70.0f};
-        impl.drawVnxButton(renderer,
-                           "VNX+/config_cn@allscrmode%cref;normal.png",
-                           "VNX+/config_cn@allscrmode%cref;over.png",
-                           "VNX+/config_cn@allscrmode%cref;on.png",
-                           scrModeRect);
+        impl.drawVnxButton(
+            renderer, "VNX+/config_cn@allscrmode%cref;normal.png",
+            "VNX+/config_cn@allscrmode%cref;over.png",
+            "VNX+/config_cn@allscrmode%cref;on.png", scrModeRect);
         const SDL_FRect langRect{820.0f, 446.0f, 144.0f, 34.0f};
-        impl.drawVnxButton(renderer,
-                           "VNX+/config_game@language%button;cn__defo.png",
-                           "VNX+/config_game@language%button;cn__over.png",
-                           "VNX+/config_game@language%button;cn__on.png",
-                           langRect, true);
+        impl.drawVnxButton(
+            renderer, "VNX+/config_game@language%button;cn__defo.png",
+            "VNX+/config_game@language%button;cn__over.png",
+            "VNX+/config_game@language%button;cn__on.png", langRect, true);
         const char *langName =
             impl.languageIndex == 2
                 ? "Idioma ativo: Português (PT-BR)"
@@ -1189,7 +1171,8 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                    142.0f, SDL_Color{95, 42, 62, 255}, true, false);
 
       // 15 Chapters in a 3x5 grid
-      const std::size_t count = std::min<std::size_t>(impl.chapterList.size(), 15);
+      const std::size_t count =
+          std::min<std::size_t>(impl.chapterList.size(), 15);
       for (std::size_t i = 0; i < count; ++i) {
         const std::size_t col = i % 3;
         const std::size_t row = i / 3;
@@ -1295,8 +1278,7 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
     // Modal screens (`Title`, `Save`, `Load`, `Config`, `Backlog`, `Extra`)
     if (impl.screenMode != Impl::ScreenMode::None) {
       if (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat) {
-        if (mapped.key.key == SDLK_ESCAPE ||
-            mapped.key.key == SDLK_BACKSPACE) {
+        if (mapped.key.key == SDLK_ESCAPE || mapped.key.key == SDLK_BACKSPACE) {
           if (impl.screenMode != Impl::ScreenMode::Title) {
             impl.closeOverlayScreen();
             return true;
@@ -1440,10 +1422,9 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
           }
           if (impl.configTab == 0 &&
               pointInRect(px, py, {820.0f, 446.0f, 144.0f, 34.0f})) {
-            impl.languageIndex =
-                (impl.languageIndex == 2)
-                    ? 1
-                    : ((impl.languageIndex == 1) ? 0 : 2);
+            impl.languageIndex = (impl.languageIndex == 2)
+                                     ? 1
+                                     : ((impl.languageIndex == 1) ? 0 : 2);
             if (impl.scnRunner)
               impl.scnRunner->setLanguageIndex(impl.languageIndex);
             return true;
@@ -1864,9 +1845,8 @@ bool KirikiriRuntime::startScenario(
     impl.dialogueVisible = true;
     impl.messageHiddenByUser = false;
     impl.nextAutoAdvanceMs =
-        SDL_GetTicks() +
-        static_cast<std::uint64_t>(
-            std::clamp<std::size_t>(dialogueText_.size() * 42 + 1200, 1800, 5200));
+        SDL_GetTicks() + static_cast<std::uint64_t>(std::clamp<std::size_t>(
+                             dialogueText_.size() * 42 + 1200, 1800, 5200));
     impl.history.push_back(
         {dialogueSpeaker_, dialogueText_, impl.dialogueNameplate});
     if (impl.history.size() > 200)
@@ -1936,8 +1916,7 @@ bool KirikiriRuntime::startScenario(
       }
       return;
     }
-    if (!label.empty() && label.front() != '*' &&
-        !debugJumpToLabel(label)) {
+    if (!label.empty() && label.front() != '*' && !debugJumpToLabel(label)) {
       impl.pendingJumpStorage = label;
       impl.pendingJumpTarget.clear();
     } else {
@@ -2027,8 +2006,7 @@ bool KirikiriRuntime::startScenario(
           Kotonoha::Providers::PsbFile::isPsbBytes(rawBytes.data(),
                                                    rawBytes.size())) {
         auto psb = Kotonoha::Providers::PsbFile::parse(rawBytes);
-        if (psb.root()["scenes"].isList() &&
-            psb.root()["scenes"].size() > 0) {
+        if (psb.root()["scenes"].isList() && psb.root()["scenes"].size() > 0) {
           for (const auto &scn : psb.root()["scenes"].asList()) {
             const auto &txList = scn["texts"];
             if (!txList.isList())
@@ -2060,27 +2038,25 @@ bool KirikiriRuntime::startScenario(
 
           ScnRunner::Callbacks scnCb;
           scnCb.kag = callbacks;
-          scnCb.showDialogue =
-              [this, playAudio,
-               showText = callbacks.showText](std::string speaker,
-                                              std::string text,
-                                              std::string nameplate,
-                                              std::vector<std::string> voices) {
-                auto &state = *impl_;
-                state.dialogueNameplate = nameplate;
-                const std::string resolvedPlate =
-                    resolveVisual(*state.assets, nameplate, true);
-                if (!resolvedPlate.empty())
-                  state.nameplateVisual = {resolvedPlate, 88, 466, false};
-                else
-                  state.nameplateVisual = {};
-                for (std::size_t i = 0;
-                     i < voices.size() && i < state.voices.size(); ++i) {
-                  playAudio(state.voices[i], voices[i], "VOICE", false);
-                }
-                if (showText)
-                  showText(std::move(speaker), std::move(text));
-              };
+          scnCb.showDialogue = [this, playAudio, showText = callbacks.showText](
+                                   std::string speaker, std::string text,
+                                   std::string nameplate,
+                                   std::vector<std::string> voices) {
+            auto &state = *impl_;
+            state.dialogueNameplate = nameplate;
+            const std::string resolvedPlate =
+                resolveVisual(*state.assets, nameplate, true);
+            if (!resolvedPlate.empty())
+              state.nameplateVisual = {resolvedPlate, 88, 466, false};
+            else
+              state.nameplateVisual = {};
+            for (std::size_t i = 0;
+                 i < voices.size() && i < state.voices.size(); ++i) {
+              playAudio(state.voices[i], voices[i], "VOICE", false);
+            }
+            if (showText)
+              showText(std::move(speaker), std::move(text));
+          };
           scnCb.unlockFlag = [this](std::string flag) {
             impl_->unlockedFlags.insert(std::move(flag));
           };

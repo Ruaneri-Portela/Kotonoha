@@ -99,6 +99,7 @@ private:
   // Draws the shared UI/ImGui font selector bound to settings.fontPath.
   void drawFontSelector(std::string &fontPath);
 
+  bool drawing_ = false; // re-entrancy guard for draw() (macOS Cocoa)
   std::string overlayChecked, overlayInfo;
   bool overlayValid = true;
   bool overlayCheckedOnce = false;

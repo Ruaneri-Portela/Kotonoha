@@ -168,8 +168,7 @@ std::string stripPsbFontTags(std::string text) {
     }
   }
   // Strip outer Japanese corner brackets 「...」 when wrapping the whole line.
-  if (text.size() >= 6 &&
-      std::memcmp(text.data(), "\xE3\x80\x8C", 3) == 0 &&
+  if (text.size() >= 6 && std::memcmp(text.data(), "\xE3\x80\x8C", 3) == 0 &&
       std::memcmp(text.data() + text.size() - 3, "\xE3\x80\x8D", 3) == 0) {
     text = text.substr(3, text.size() - 6);
   }
@@ -232,7 +231,7 @@ resolveNekoparaSpeaker(const std::string &primary, const std::string &combined,
           {"ショコラ＆バニラ＆時雨",
            {"Chocola, Vanilla & Shigure",
             "VNX+/cn_name_chocola_vanilla_shigure.png"}},
-      };
+  };
   if (auto it = kMap.find(key); it != kMap.end())
     return it->second;
   if (!enDisplay.empty())
@@ -298,14 +297,12 @@ std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
               const std::string objName = item["name"].asString();
               const std::string cls = item["class"].asString();
               if (objName == "bgm" || cls == "bgm") {
-                const std::string file =
-                    item["replay"]["filename"].asString();
+                const std::string file = item["replay"]["filename"].asString();
                 if (file == "bgm_" || file.empty()) {
                   if (!file.empty())
                     script += "[stopbgm]\n";
                 } else {
-                  const bool loop =
-                      item["replay"]["loop"].toInt(1) != 0;
+                  const bool loop = item["replay"]["loop"].toInt(1) != 0;
                   script += "[playbgm file=\"" + escapeKagAttr(file) +
                             "\" loop=\"" + (loop ? "true" : "false") + "\"]\n";
                 }
@@ -320,8 +317,8 @@ std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
                 const std::string file =
                     item["redraw"]["imageFile"]["file"].asString();
                 if (!file.empty())
-                  script +=
-                      "[bg storage=\"" + escapeKagAttr(file) + "\" time=\"0\"]\n";
+                  script += "[bg storage=\"" + escapeKagAttr(file) +
+                            "\" time=\"0\"]\n";
               } else if (cls == "event" || objName == "ev" ||
                          objName == "ev1" || objName == "eventf" ||
                          objName == "cutin") {
@@ -409,9 +406,11 @@ std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
                   if (!cleanText.empty()) {
                     script += "[cm";
                     if (!speakerName.empty())
-                      script += " speaker=\"" + escapeKagAttr(speakerName) + "\"";
+                      script +=
+                          " speaker=\"" + escapeKagAttr(speakerName) + "\"";
                     if (!nameplate.empty())
-                      script += " nameplate=\"" + escapeKagAttr(nameplate) + "\"";
+                      script +=
+                          " nameplate=\"" + escapeKagAttr(nameplate) + "\"";
                     if (!voiceFile.empty())
                       script += " voice=\"" + escapeKagAttr(voiceFile) + "\"";
                     script += " text=\"" + escapeKagAttr(cleanText) + "\"]\n";
@@ -421,10 +420,9 @@ std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
             } else if (line.isString()) {
               const std::string flag = line.asString();
               if (!flag.empty())
-                script += "[set name=\"" + escapeKagAttr(flag) +
-                          "\" value=\"1\"]\n";
-            } else if (line.isList() && line.size() > 0 &&
-                       line[0].isString()) {
+                script +=
+                    "[set name=\"" + escapeKagAttr(flag) + "\" value=\"1\"]\n";
+            } else if (line.isList() && line.size() > 0 && line[0].isString()) {
               const std::string cmd = line[0].asString();
               if (cmd == "envupdate") {
                 for (std::size_t i = 1; i + 1 < line.size(); ++i) {
@@ -798,9 +796,9 @@ std::string KirikiriAssets::startupScenario() const {
   // sysmenu.ks. Prefer the first non-sysmenu scenario file.
   for (const auto &file : files) {
     auto lower = std::filesystem::path(file).filename().string();
-    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {
-      return static_cast<char>(std::tolower(c));
-    });
+    std::transform(
+        lower.begin(), lower.end(), lower.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (lower != "sysmenu.ks" && lower != "sysmenu.ks.scn")
       return file;
   }

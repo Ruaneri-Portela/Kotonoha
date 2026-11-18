@@ -78,9 +78,9 @@ int main(int argc, char **argv) {
   }
   {
     // An OVK archive uses 16-byte table entries (size, offset, id, samples).
-    const std::vector<std::uint8_t> ovkArchive{
-        1, 0, 0, 0, 4, 0, 0, 0, 20,  0,   0,   0,
-        7, 0, 0, 0, 0, 0, 0, 0, 'O', 'g', 'g', 'S'};
+    const std::vector<std::uint8_t> ovkArchive{1,  0, 0, 0, 4,   0,   0,   0,
+                                               20, 0, 0, 0, 7,   0,   0,   0,
+                                               0,  0, 0, 0, 'O', 'g', 'g', 'S'};
     const RealLive::VoiceIndex mountedOvk(
         std::vector<std::string>{"KOE/z0002.ovk"},
         [&](const std::string &) { return ovkArchive; },

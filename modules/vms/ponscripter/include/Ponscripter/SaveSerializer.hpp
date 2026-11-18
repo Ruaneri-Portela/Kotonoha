@@ -50,6 +50,12 @@ struct SlotSaveData {
   std::string activeBgm;
   bool activeBgmLoop = false;
   std::map<int, std::string> loopingWaves;
+
+  WaitState waitState = WaitState::WaitClickInline;
+  int btnwaitDestVar = -1;
+  bool btnwaitPreserveButtons = false;
+  std::vector<ButtonDef> buttons;
+  std::vector<SelectOption> selectOptions;
 };
 
 class SaveSerializer {

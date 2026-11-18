@@ -321,4 +321,62 @@ std::string N2Runtime::dialogueSpeaker() const {
   return std::string(vm_.dialogueSystem().speaker());
 }
 
+std::vector<Kotonoha::DebugNode> N2Runtime::debugNodes() const {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->debugNodes();
+  return {};
+}
+
+void N2Runtime::debugJumpToNode(const std::string &id) {
+  if (impl_->ponscripter)
+    impl_->ponscripter->debugJumpToNode(id);
+}
+
+void N2Runtime::debugRestartScene() {
+  if (impl_->ponscripter)
+    impl_->ponscripter->debugRestartScene();
+}
+
+int N2Runtime::translationRoute() const {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->translationRoute();
+  return -1;
+}
+
+std::vector<int> N2Runtime::translationRoutes() const {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->translationRoutes();
+  return {};
+}
+
+Kotonoha::Translation::SourceTexts N2Runtime::translationSources() const {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->translationSources();
+  return {};
+}
+
+std::vector<std::string> N2Runtime::activeTranslationKeys() const {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->activeTranslationKeys();
+  return {};
+}
+
+std::vector<Kotonoha::DebugAudioAsset> N2Runtime::debugSceneAudio() {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->debugSceneAudio();
+  return {};
+}
+
+std::optional<Kotonoha::AudioClip>
+N2Runtime::debugOriginalAudio(const std::string &id) {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->debugOriginalAudio(id);
+  return std::nullopt;
+}
+
+void N2Runtime::debugOverlayAssetChanged(const std::string &id) {
+  if (impl_->ponscripter)
+    impl_->ponscripter->debugOverlayAssetChanged(id);
+}
+
 } // namespace N2System

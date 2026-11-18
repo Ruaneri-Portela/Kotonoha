@@ -375,11 +375,10 @@ SDL_AppResult Launcher::iterate() {
                                new std::shared_ptr<Dialog>(active),
                                window.get(), init, false);
     } else {
-      SDL_ShowOpenFileDialog(dialogFinished,
-                             new std::shared_ptr<Dialog>(active), window.get(),
-                             active->filters.data(),
-                             static_cast<int>(active->filters.size()), init,
-                             false);
+      SDL_ShowOpenFileDialog(
+          dialogFinished, new std::shared_ptr<Dialog>(active), window.get(),
+          active->filters.data(), static_cast<int>(active->filters.size()),
+          init, false);
     }
   }
   return SDL_APP_CONTINUE;
@@ -388,12 +387,20 @@ SDL_AppResult Launcher::iterate() {
 void Launcher::draw() {
   if (!context)
     return;
-  ImGui::SetCurrentContext(context);
-  // If a macOS live-resize timer re-enters draw() while a frame is already in
-  // flight on this context, skip the re-entrant draw instead of corrupting
-  // the outer ImGui frame.
-  if (context->WithinFrameScope)
+  // If a macOS Cocoa live-resize timer or modal NSOpenPanel re-enters
+  // SDL_AppIterate -> iterate() -> draw() while a frame is already in flight,
+  // skip the re-entrant call entirely. Trying to EndFrame()/NewFrame() from
+  // inside the re-entrant call corrupts ImGui internals (EXC_BAD_ACCESS in
+  // UpdateAliasKey). The simple boolean guard avoids all ImGui calls.
+  if (drawing_)
     return;
+  drawing_ = true;
+  // Reset drawing_ on every exit path (early return, exception, normal end).
+  struct DrawGuard {
+    bool &flag;
+    ~DrawGuard() { flag = false; }
+  } guard{drawing_};
+  ImGui::SetCurrentContext(context);
   ImGui_ImplSDLRenderer3_NewFrame();
   ImGui_ImplSDL3_NewFrame();
   auto &io = ImGui::GetIO();
