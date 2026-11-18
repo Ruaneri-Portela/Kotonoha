@@ -1,0 +1,25 @@
+{
+  "id": "./",
+  "name": "@APP_TITLE@ - Kotonoha Engine",
+  "short_name": "@APP_TITLE@",
+  "description": "Play @APP_TITLE@ with the Kotonoha Engine.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#080c13",
+  "theme_color": "#101623",
+  "icons": [
+    {
+      "src": "./pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
