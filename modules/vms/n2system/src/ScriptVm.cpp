@@ -18,7 +18,7 @@ void ScriptVm::loadScript(std::string source, std::string_view initialChapter) {
 std::size_t ScriptVm::step(std::size_t budget) {
   if (!executor_)
     return 0;
-  if (dialogueSystem_.isWaitingForKey() || dialogueSystem_.isTyping())
+  if (dialogueSystem_.isWaitingForKey())
     return 0;
   return executor_->run(budget);
 }
@@ -121,19 +121,28 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv,
     return {VmActionKind::Finish, {}};
   }
 
+  const auto resolveStr = [this](const std::string &arg) -> std::string {
+    if (!arg.empty() &&
+        (arg[0] == '@' || arg[0] == '$' || arg[0] == '#' || arg[0] == '"' ||
+         arg[0] == '\'')) {
+      return variables_.evaluateString(arg);
+    }
+    return arg;
+  };
+
   // Dialogue Commands
   if (func == "SetDialogue" || func == "Dialogue" || func == "Talk" ||
       func == "Message") {
     std::string speaker, text, voice;
     if (args.size() == 1) {
-      text = variables_.evaluateString(args[0]);
+      text = resolveStr(args[0]);
     } else if (args.size() == 2) {
-      speaker = variables_.evaluateString(args[0]);
-      text = variables_.evaluateString(args[1]);
+      speaker = resolveStr(args[0]);
+      text = resolveStr(args[1]);
     } else if (args.size() >= 3) {
-      speaker = variables_.evaluateString(args[0]);
-      text = variables_.evaluateString(args[1]);
-      voice = variables_.evaluateString(args[2]);
+      speaker = resolveStr(args[0]);
+      text = resolveStr(args[1]);
+      voice = resolveStr(args[2]);
     }
     dialogueSystem_.setDialogue(speaker, text, voice);
     if (!voice.empty())

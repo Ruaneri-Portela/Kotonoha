@@ -363,9 +363,49 @@ public:
   }
   void loadUnlockedExtras(const std::vector<std::string> &names);
 
+  struct TransitionInfo {
+    int type = 0;
+    int param = 0;
+    int speed = 0;
+    uint32_t version = 0;
+  };
+  struct StaffRollState {
+    bool active = false;
+    int category = 3;
+    int bgmTrack = 23;
+    uint32_t elapsedMs = 0;
+    uint32_t durationMs = 48000;
+    std::vector<std::string> vignettes;
+  };
+  TransitionInfo lastTransition() const {
+    std::lock_guard lock(mutex_);
+    return lastTransition_;
+  }
+  StaffRollState staffRoll() const {
+    std::lock_guard lock(mutex_);
+    return staffRoll_;
+  }
+  bool staffRollActive() const {
+    std::lock_guard lock(mutex_);
+    return staffRoll_.active;
+  }
+  void setInteractiveStaffRoll(bool enabled) {
+    std::lock_guard lock(mutex_);
+    interactiveStaffRoll_ = enabled;
+  }
+  bool skipStaffRoll();
+  std::vector<std::string> endingVignettes(int category) const {
+    std::lock_guard lock(mutex_);
+    const auto it = endingVignettes_.find(category);
+    return it == endingVignettes_.end() ? std::vector<std::string>{}
+                                        : it->second;
+  }
+
   // Optional hooks for runtime integration.
   std::function<void(const std::string &)> trace;
   std::function<void(int id, const std::vector<::Pmail::Arg> &)> onNative;
+  std::function<void(int type, int param, int speed)> onTransition;
+  std::function<void(const std::string &)> onChoiceSelected;
   std::function<bool()> sePlaying;
   std::function<bool()> voicePlaying;
   std::function<int()> voiceMouthFrame;
@@ -482,6 +522,11 @@ private:
   std::vector<std::string> choiceText_;
   std::vector<int> choiceValue_;
   std::map<int, std::string> spriteSlots_;
+  std::map<int, std::vector<std::string>> endingVignettes_;
+  TransitionInfo lastTransition_{};
+  uint32_t transitionVersion_ = 0;
+  StaffRollState staffRoll_{};
+  bool interactiveStaffRoll_ = false;
   // Diagnostic only: unknown original native commands seen this run.
   std::set<int> unhandledNativeIds_;
   std::map<std::tuple<int, std::string, uint32_t>, NativeGap>

@@ -372,7 +372,10 @@ static StorageLocations storageLocations() {
 #else
   // Ask SDL for the organization root, not for the game name. This also
   // preserves Kotonoha on platforms that ignore SDL_GetPrefPath's org field.
-  if (char *path = SDL_GetPrefPath(nullptr, "Kotonoha")) {
+  if (const char *overrideDir = SDL_getenv("KOTONOHA_USER_DATA_DIR");
+      overrideDir && *overrideDir) {
+    locations.userData = normalizeDirectory(overrideDir);
+  } else if (char *path = SDL_GetPrefPath(nullptr, "Kotonoha")) {
     locations.userData = normalizeDirectory(path).parent_path();
     SDL_free(path);
   }
@@ -410,10 +413,12 @@ bool migrateLegacyDocuments(const StorageLocations &current,
     return false;
   std::error_code error;
   if (!std::filesystem::is_directory(source, error) || error ||
-      std::filesystem::is_symlink(source, error) || error ||
-      std::filesystem::is_symlink(destination, error) || error ||
-      std::filesystem::exists(destination, error) || error)
+      std::filesystem::is_symlink(source, error) || error)
     return false;
+  const auto dstStatus = std::filesystem::symlink_status(destination, error);
+  if (dstStatus.type() != std::filesystem::file_type::not_found)
+    return false;
+  error.clear();
   std::filesystem::create_directories(destination.parent_path(), error);
   if (!error)
     std::filesystem::rename(source, destination, error);

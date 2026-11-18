@@ -11,7 +11,6 @@ add_library(kotonoha_vm_n2system STATIC
     src/DialogueSystem.cpp
     src/SaveState.cpp
     src/ScriptVm.cpp
-    src/ONScripterConverter.cpp
 )
 target_include_directories(kotonoha_vm_n2system PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 target_compile_features(kotonoha_vm_n2system PUBLIC cxx_std_17)

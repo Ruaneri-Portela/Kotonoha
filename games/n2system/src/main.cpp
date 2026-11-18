@@ -1,19 +1,19 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
-#include <Kotonoha/core/SDLCallbackApp.hpp>
-#include <SDL3/SDL.h>
-
-#include <N2System/N2Runtime.hpp>
-
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
+#include <N2System/N2Runtime.hpp>
+#include <SDL3/SDL.h>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <exception>
 #include <filesystem>
-#include <fstream>
 #include <memory>
 #include <string>
 
@@ -28,21 +28,22 @@ withAssets(Kotonoha::EngineOptions options,
 
 bool validate(const std::string &path, std::string &info) {
   try {
-    if (std::filesystem::exists(path + "/00.utf") ||
-        std::filesystem::exists(path + "/01.utf") ||
-        std::filesystem::exists(path + "/scenario.nss") ||
-        std::filesystem::exists(path + "/n2system.nss") ||
-        std::filesystem::exists(path + "/start.nss")) {
-      info = "Valid N2System / ONScripter game directory found";
-      return true;
-    }
     auto source = Kotonoha::Filesystem::Filesystem::mount(path);
-    if (source->exists("00.utf") || source->exists("01.utf") ||
-        source->exists("scenario.nss") || source->exists("n2system.nss")) {
-      info = "N2System / ONScripter script files found in virtual source";
-      return true;
+    for (const auto &entry : source->list()) {
+      if (entry.type != Kotonoha::Filesystem::FileType::Regular)
+        continue;
+      std::string lower = entry.path;
+      std::transform(lower.begin(), lower.end(), lower.begin(),
+                     [](unsigned char c) { return char(std::tolower(c)); });
+      if (lower.size() > 4 &&
+          (lower.compare(lower.size() - 4, 4, ".nss") == 0 ||
+           lower.compare(lower.size() - 4, 4, ".npa") == 0 ||
+           lower.compare(lower.size() - 4, 4, ".afs") == 0)) {
+        info = "N2System archives or NsScript files found in virtual source";
+        return true;
+      }
     }
-    info = "Select a directory containing 00.utf/01.utf or .nss script files";
+    info = "Select a directory or archive containing .nss, .npa, or .afs files";
     return false;
   } catch (const std::exception &error) {
     info = error.what();
@@ -50,39 +51,23 @@ bool validate(const std::string &path, std::string &info) {
   }
 }
 
-struct Application {
-  N2System::N2Runtime game;
-  Kotonoha::Engine engine;
-  long framesLeft = -1;
-
-  Application(std::shared_ptr<N2System::N2ArchiveAssets> assets,
-              Kotonoha::EngineOptions options)
-      : game(assets), engine(game, withAssets(std::move(options), assets)) {}
-};
-
 struct App {
-  std::unique_ptr<Kotonoha::FolderGameLauncher> launcher;
-  std::unique_ptr<Application> game;
   Kotonoha::EngineOptions options;
   long frames = -1;
+  std::unique_ptr<Kotonoha::FolderGameLauncher> launcher;
+  struct Game {
+    N2System::N2Runtime runtime;
+    Kotonoha::Engine engine;
+    Game(std::shared_ptr<N2System::N2ArchiveAssets> a,
+         Kotonoha::EngineOptions o)
+        : runtime(a), engine(runtime, withAssets(std::move(o), std::move(a))) {}
+  };
+  std::unique_ptr<Game> game;
 
   void start(const std::string &directory) {
-    auto assets = std::make_shared<N2System::N2ArchiveAssets>();
-    if (!directory.empty() && std::filesystem::is_directory(directory)) {
-      // Mount directory assets if present
-      for (const auto &entry : std::filesystem::recursive_directory_iterator(directory)) {
-        if (entry.is_regular_file() && (entry.path().extension() == ".npa" || entry.path().extension() == ".afs")) {
-          std::ifstream ifs(entry.path(), std::ios::binary);
-          if (ifs) {
-            std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(ifs)),
-                                       std::istreambuf_iterator<char>());
-            assets->mount(std::move(bytes));
-          }
-        }
-      }
-    }
-    game = std::make_unique<Application>(std::move(assets), options);
-    game->framesLeft = frames;
+    auto assets = std::make_shared<N2System::N2ArchiveAssets>(
+        directory, options.assetOverlayDirectory());
+    game = std::make_unique<Game>(std::move(assets), options);
   }
 };
 
@@ -103,9 +88,9 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     auto app = std::make_unique<App>();
     Kotonoha::EngineOptions &options = app->options;
     options.persistSettings = true;
-    std::string directory = "/Volumes/Nero 256GB/KotonohaAssets/SayaNoUta_PT-BR";
-    Kotonoha::CommandLine cli("N2System", options);
-    cli.option("--n2system", "DIRECTORY|NPA", "N2System game data directory",
+    std::string directory;
+    Kotonoha::CommandLine cli("N2SystemGame", options);
+    cli.option("--n2system", "DIRECTORY|ISO", "N2System game data directory",
                directory);
     cli.parse(argc, argv);
     if (cli.wantsHelp()) {
@@ -114,20 +99,27 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     }
     app->frames = cli.frames;
 
+    if (options.enableMCP && options.settingsPath.empty())
+      options.persistSettings = false;
     if (options.persistSettings && options.settingsPath.empty())
       options.settingsPath = Kotonoha::EngineSettings::defaultPath();
-    const auto settingsPath = options.persistSettings ? options.settingsPath : std::string();
+    const auto settingsPath =
+        options.persistSettings ? options.settingsPath : std::string();
+    const char *env = SDL_getenv("N2SYSTEM_DIR");
 
     directory = Kotonoha::GameLauncher::findGamePath(
         "n2system",
-        {directory, "/Volumes/Nero 256GB/KotonohaAssets/SayaNoUta_PT-BR",
-         Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt")},
+        {directory, env ? env : "",
+         Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
+         Kotonoha::gameAssetDirectory("n2system").string()},
         validate, {""}, true);
 
-    if (directory.empty() || options.launcher) {
+    if (directory.empty())
       options.launcher = true;
+    if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
-          "N2System", settingsPath, directory, validate, options.settings, true);
+          "N2System", settingsPath, directory, validate, options.settings,
+          true);
       app->launcher->open();
     } else {
       app->start(directory);
@@ -143,15 +135,10 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
 }
 
 SDL_AppResult KotonohaPortCallbacks::event(void *appstate, SDL_Event *event) {
-  auto *app = static_cast<App *>(appstate);
   try {
-    if (app) {
-      if (app->launcher)
-        return app->launcher->event(*event);
-      if (app->game)
-        return app->game->engine.Event(event);
-    }
-    return SDL_APP_CONTINUE;
+    auto &app = *static_cast<App *>(appstate);
+    return app.launcher ? app.launcher->event(*event)
+                        : app.game->engine.Event(event);
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "N2System event failed: %s",
                  error.what());
@@ -160,31 +147,21 @@ SDL_AppResult KotonohaPortCallbacks::event(void *appstate, SDL_Event *event) {
 }
 
 SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
-  auto *app = static_cast<App *>(appstate);
   try {
-    if (app) {
-      if (app->launcher) {
-        app->launcher->iterate();
-        if (app->launcher->state() == Kotonoha::Launcher::State::Quit)
-          return SDL_APP_SUCCESS;
-        if (app->launcher->state() == Kotonoha::Launcher::State::Launch) {
-          const auto directory = app->launcher->path();
-          app->options.settings = app->launcher->settings();
-          app->launcher.reset();
-          app->start(directory);
-        }
+    auto &app = *static_cast<App *>(appstate);
+    if (app.launcher) {
+      app.launcher->iterate();
+      if (app.launcher->state() == Kotonoha::Launcher::State::Quit)
+        return SDL_APP_SUCCESS;
+      if (app.launcher->state() != Kotonoha::Launcher::State::Launch)
         return SDL_APP_CONTINUE;
-      }
-
-      if (app->game) {
-        Application &game = *app->game;
-        const SDL_AppResult result = game.engine.Iterate();
-        if (game.framesLeft > 0 && --game.framesLeft == 0)
-          return SDL_APP_SUCCESS;
-        return result;
-      }
+      const auto directory = app.launcher->path();
+      app.options.settings = app.launcher->settings();
+      app.launcher.reset();
+      app.start(directory);
     }
-    return SDL_APP_CONTINUE;
+    const auto result = app.game->engine.Iterate();
+    return app.frames > 0 && --app.frames == 0 ? SDL_APP_SUCCESS : result;
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "N2System frame failed: %s",
                  error.what());

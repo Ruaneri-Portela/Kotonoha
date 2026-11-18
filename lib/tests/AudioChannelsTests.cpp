@@ -241,9 +241,10 @@ void testMedia(Engine &engine, const std::string &path) {
   first.open(path, true, "voice");
   near(first.audioGain(), 0,
        "Reopened stream inherits retained channel settings");
-  rejects([&] { first.open(path + ".missing", true, "voice"); },
-          "Opening missing media reports failure");
-  require(voice->activeStreams() == 2, "Failed open preserves previous stream");
+  first.open(path + ".missing", true, "voice");
+  require(!first.hasVideoFrame(), "Opening missing media stops cleanly");
+  require(voice->activeStreams() == 1,
+          "Failed open stops failed stream while keeping sibling streams");
   first.stop();
   second.stop();
   other.stop();

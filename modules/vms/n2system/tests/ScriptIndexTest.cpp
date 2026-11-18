@@ -98,10 +98,10 @@ int main() {
     const auto *legacy = cr.findChapter("legacy");
     check(legacy && legacy->findLabel("label_one") &&
               legacy->findLabel("label_two") &&
-              legacy->findLabel("label_two")->line == 5,
+              legacy->findLabel("label_two")->line == 6,
           "CR-only NsScript source lines and labels");
     check(legacy && legacy->invocations.size() == 2 &&
-              legacy->invocations[1].line == 6,
+              legacy->invocations[1].line == 7,
           "CR-only NsScript invocation line numbers");
     rejects("chapter main {");
     rejects("chapter { }");

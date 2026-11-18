@@ -1,7 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/N2ArchiveAssets.hpp>
 #include <algorithm>
-#include <fstream>
+#include <cctype>
 #include <set>
 #include <stdexcept>
 #include <utility>
@@ -32,31 +32,78 @@ private:
   ArchiveEntry entry_;
   std::uint64_t cursor_ = 0;
 };
+
+class VfsStream final : public Kotonoha::AssetStream {
+public:
+  explicit VfsStream(std::unique_ptr<Kotonoha::Filesystem::FileHandle> handle)
+      : handle_(std::move(handle)) {}
+
+  std::uint64_t size() const override {
+    const auto s = handle_->size();
+    return s > 0 ? static_cast<std::uint64_t>(s) : 0;
+  }
+  std::uint64_t tell() const override {
+    const auto t = handle_->tell();
+    return t > 0 ? static_cast<std::uint64_t>(t) : 0;
+  }
+  std::size_t read(Uint8 *buffer, std::size_t count) override {
+    const auto received = handle_->read(buffer, count);
+    return received > 0 ? static_cast<std::size_t>(received) : 0;
+  }
+  bool seek(std::uint64_t position) override {
+    return handle_->seek(static_cast<std::int64_t>(position),
+                         Kotonoha::Filesystem::SeekOrigin::Begin) >= 0;
+  }
+
+private:
+  std::unique_ptr<Kotonoha::Filesystem::FileHandle> handle_;
+};
+
+std::string normalizeVfsId(std::string_view raw) {
+  std::string out(raw);
+  std::replace(out.begin(), out.end(), '\\', '/');
+  while (!out.empty() && out.front() == '/')
+    out.erase(out.begin());
+  return out;
+}
 } // namespace
 
-N2ArchiveAssets::N2ArchiveAssets(std::string_view rootDir) {
+N2ArchiveAssets::N2ArchiveAssets(std::string_view rootDir,
+                                 std::filesystem::path overlayDir) {
+  if (!overlayDir.empty())
+    setOverlay(std::move(overlayDir));
   setRootDirectory(rootDir);
 }
 
 void N2ArchiveAssets::setRootDirectory(std::string_view rootDir) {
+  vfs_.reset();
   if (!rootDir.empty()) {
     rootDirectory_ = std::filesystem::path(rootDir);
+    try {
+      vfs_ = Kotonoha::Filesystem::Filesystem::mount(std::string(rootDir));
+      for (const auto &info : vfs_->list()) {
+        if (info.type != Kotonoha::Filesystem::FileType::Regular)
+          continue;
+        std::string lower = info.path;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+                       [](unsigned char c) { return char(std::tolower(c)); });
+        if (lower.size() > 4 &&
+            (lower.compare(lower.size() - 4, 4, ".npa") == 0 ||
+             lower.compare(lower.size() - 4, 4, ".afs") == 0)) {
+          try {
+            auto handle = vfs_->open(info.path);
+            if (handle)
+              mount(Kotonoha::Filesystem::readAll(*handle));
+          } catch (...) {
+          }
+        }
+      }
+    } catch (...) {
+      vfs_.reset();
+    }
   } else {
     rootDirectory_.clear();
   }
-}
-
-std::filesystem::path N2ArchiveAssets::resolveFsPath(std::string_view path) const {
-  if (rootDirectory_.empty())
-    return {};
-  std::string normPath(path);
-  for (char &c : normPath) {
-    if (c == '\\') c = '/';
-  }
-  auto target = rootDirectory_ / normPath;
-  if (std::filesystem::is_regular_file(target))
-    return target;
-  return {};
 }
 
 void N2ArchiveAssets::mount(std::vector<std::uint8_t> data) {
@@ -74,10 +121,12 @@ bool N2ArchiveAssets::containsAsset(const std::string &path) const {
   for (auto it = archives_.rbegin(); it != archives_.rend(); ++it)
     if ((*it)->contains(path))
       return true;
-
-  if (!resolveFsPath(path).empty())
-    return true;
-
+  if (vfs_) {
+    const auto norm = normalizeVfsId(path);
+    if (!norm.empty() && vfs_->exists(norm) &&
+        vfs_->stat(norm).type == Kotonoha::Filesystem::FileType::Regular)
+      return true;
+  }
   return false;
 }
 
@@ -85,16 +134,15 @@ std::vector<Uint8> N2ArchiveAssets::readAsset(const std::string &path) const {
   for (auto it = archives_.rbegin(); it != archives_.rend(); ++it)
     if ((*it)->contains(path))
       return (*it)->read(path);
-
-  auto fsPath = resolveFsPath(path);
-  if (!fsPath.empty()) {
-    std::ifstream ifs(fsPath, std::ios::binary);
-    if (ifs) {
-      return std::vector<Uint8>((std::istreambuf_iterator<char>(ifs)),
-                                std::istreambuf_iterator<char>());
+  if (vfs_) {
+    const auto norm = normalizeVfsId(path);
+    if (!norm.empty() && vfs_->exists(norm) &&
+        vfs_->stat(norm).type == Kotonoha::Filesystem::FileType::Regular) {
+      auto handle = vfs_->open(norm);
+      if (handle)
+        return Kotonoha::Filesystem::readAll(*handle);
     }
   }
-
   throw std::out_of_range("N2System: missing asset " + path);
 }
 
@@ -106,17 +154,15 @@ N2ArchiveAssets::listAsset(const std::string &prefix) const {
     for (const auto &name : archive->names())
       if (name.compare(0, lookup.size(), lookup) == 0)
         names.insert(name);
-
-  if (!rootDirectory_.empty() && std::filesystem::is_directory(rootDirectory_)) {
-    for (const auto &entry : std::filesystem::recursive_directory_iterator(rootDirectory_)) {
-      if (entry.is_regular_file()) {
-        auto rel = std::filesystem::relative(entry.path(), rootDirectory_).generic_string();
-        if (rel.compare(0, lookup.size(), lookup) == 0)
-          names.insert(rel);
-      }
+  if (vfs_) {
+    for (const auto &entry : vfs_->list()) {
+      if (entry.type != Kotonoha::Filesystem::FileType::Regular)
+        continue;
+      const auto norm = Archive::normalize(entry.path);
+      if (norm.compare(0, lookup.size(), lookup) == 0)
+        names.insert(norm);
     }
   }
-
   return {names.begin(), names.end()};
 }
 
@@ -126,6 +172,15 @@ N2ArchiveAssets::openStream(const std::string &path) const {
     const auto *entry = (*it)->find(path);
     if (entry)
       return std::make_unique<ArchiveStream>(*it, *entry);
+  }
+  if (vfs_) {
+    const auto norm = normalizeVfsId(path);
+    if (!norm.empty() && vfs_->exists(norm) &&
+        vfs_->stat(norm).type == Kotonoha::Filesystem::FileType::Regular) {
+      auto handle = vfs_->open(norm);
+      if (handle)
+        return std::make_unique<VfsStream>(std::move(handle));
+    }
   }
   return nullptr;
 }

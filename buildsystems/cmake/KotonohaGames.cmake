@@ -15,4 +15,6 @@ set(KOTONOHA_GAMES
         "LUCA_SYSTEM|luca-system|games/luca-system"
         "PMAIL|pmail|games/pmail"
         "N2SYSTEM|n2system|games/n2system"
+        "PONSCRIPTER|ponscripter|games/ponscripter"
+        "MEO|meo|games/meo"
 )
