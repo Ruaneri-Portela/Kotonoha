@@ -477,8 +477,10 @@ void GameScene::render(Kotonoha::RendererRef renderer, float) {
 }
 
 bool GameScene::handleMenuBarEvent(Kotonoha::EventRef event) {
-  if (runtime.modal() || !ensureMenuBar())
-    return false;
+  // Decline top-menu input while the choice owns the pointer, allowing the
+  // same event to reach the actual choice handler instead of swallowing it.
+  if (runtime.choice != nullptr && runtime.unresolvedChoice()) return false;
+  if (runtime.modal() || !ensureMenuBar()) return false;
   Kotonoha::SchoolDaysMenuBarPresenter::Action action;
   const bool consumed =
       menuBar.HandleEvent(&engine.GetRenderer(), &event, &action);
@@ -490,6 +492,10 @@ bool GameScene::handleMenuBarEvent(Kotonoha::EventRef event) {
 }
 
 void GameScene::renderMenuBar(Kotonoha::RendererRef renderer) {
+  // The presenter explicitly hides both chrome and Feel for unresolved
+  // SETSELECT (AUTO ON's separate status chip remains available), while
+  // retaining the draw path for a later, delta-triggered post-choice meter.
+  // Input remains independently owned by the choice.
   if (menuBar.IsOpen()) {
     std::string error;
     if (!menuBar.Render(&renderer, &error)) {
