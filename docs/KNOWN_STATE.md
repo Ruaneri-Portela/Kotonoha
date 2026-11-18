@@ -125,8 +125,9 @@ scenes and pre-choice `SkipToNextChoice` keep their existing behavior.
 The safeguard also applies to gameplay RIGHT, the LEFT/Back input while a
 prompt is actively waiting, direct menu control 3, mouse/touch and synthetic
 gamepad skip input; replay-owned transports retain their recorded-choice
-semantics. The upper MenuBar is entirely suppressed while an uncommitted
-choice owns input. Legitimate player clicks, timed-out prompts, AUTO mode,
+semantics. The upper MenuBar **controls and background chrome** are suppressed
+while an uncommitted choice owns input; the independent **feeling meter stays
+visible**. Legitimate player clicks, timed-out prompts, AUTO mode,
 pause and selected playback speed remain separate from this transport barrier.
 
 **Post-choice menu correction (user's direct observation, November 17):**
@@ -186,3 +187,23 @@ save/load. See
 `games/school-days/docs/parity/BACK_FEEL_CHECKPOINT_REA_2026-11-18.md`.
 The post-choice bar's precise original action-unlock timing still lacks
 independent retail frame/video confirmation.
+
+**Top Menu / Feel rendering (REA 2026-11-18):** original `SysMenuSDHQ.dll`
+draws the feeling frame/fills separately from the hover MenuBar, with the
+meter in the central `x=116..654, y=3..25` region. `0x10025690` explicitly
+does not apply the chrome fade alpha to meter sprites while a feeling update
+is active; `0x10026B40` initializes those sprites at full opacity. In the
+port, an unresolved prompt previously suppressed the entire composite,
+`GameScene::renderMenuBar` short-circuited the render pass, and the shared
+CHIP alpha caused the meter to fade with the surrounding chrome. The
+game-specific presenter now projects a meter-only state for active prompts,
+keeps meter updates visible without hover, and draws both the frame and fill
+at independent alpha during active Feel/choice tails. This does **not**
+unfreeze Top Menu actions or permit SkipToEnd/SuperSkip to bypass choices.
+An SDL software pixel-readback regression now checks that an isolated choice
+draws only the Feel meter and that hovered frozen chrome leaves its full-alpha
+meter pixels intact. Original skip dispatch and the `SkipFRAME == SetSELECT < Next` ordering in
+287/287 authored choice scenes were verified statically. See
+`games/school-days/docs/parity/TOP_MENU_FEEL_COMPOSITION_REA_2026-11-18.md`.
+Precise native post-choice input unlock remains an open verification item,
+not a proven consequence of the OGG cue's duration.

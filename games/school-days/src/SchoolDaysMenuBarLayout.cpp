@@ -262,9 +262,13 @@ uint8_t SchoolDaysMenuBarPresenter::FadeAlpha(uint8_t startAlpha,
 SchoolDaysMenuBarPresenter::RenderVisibility
 SchoolDaysMenuBarPresenter::VisibilityForState(uint8_t barAlpha,
                                                bool fullBarSuppressed,
-                                               bool meterOnly) {
+                                               bool meterOnly,
+                                               bool feelingLatch) {
     const bool chrome = barAlpha != 0 && !fullBarSuppressed && !meterOnly;
-    return {chrome || meterOnly, chrome};
+    // The host feeling latch updates meter sprites independently of hover,
+    // including when all surrounding chrome has already faded away. Explicit
+    // handoff suppression still owns the whole view unless it is a choice.
+    return {chrome || meterOnly || (feelingLatch && !fullBarSuppressed), chrome};
 }
 
 SchoolDaysMenuBarPresenter::RenderVisibility
@@ -273,6 +277,17 @@ SchoolDaysMenuBarPresenter::VisibilityForFrozenChoiceTail(
     auto visible = VisibilityForState(barAlpha, fullBarSuppressed, false);
     visible.meter = true;  // Keep feeling meter without pointer hover.
     return visible;       // Chrome may still appear, but controls remain inert.
+}
+
+uint8_t SchoolDaysMenuBarPresenter::MeterAlphaForState(
+    uint8_t barAlpha, bool chromeVisible, bool feelingLatch,
+    bool meterOnly, bool choiceTailFrozen) {
+    // Retail 0x1002585F..0x100258DB skips the alpha setter for the meter
+    // sprites (this+0x80/+0x98/+0x9C/+0xA0) when host +0x154 is active.
+    // Keep the same authored contrast for the choice-only and post-choice
+    // meter, even when the surrounding top controls fade or are hovered.
+    if (feelingLatch || meterOnly || choiceTailFrozen) return 255;
+    return chromeVisible ? barAlpha : 255;
 }
 
 SchoolDaysMenuBarPresenter::PersistentTransport

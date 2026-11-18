@@ -342,7 +342,8 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
     // controls that label independently; only chrome obeys barAlpha_.
     const RenderVisibility visibility = choiceTailFrozen_
         ? VisibilityForFrozenChoiceTail(barAlpha_, fullBarSuppressed_)
-        : VisibilityForState(barAlpha_, fullBarSuppressed_, meterOnly_);
+        : VisibilityForState(barAlpha_, fullBarSuppressed_, meterOnly_,
+                             feelingLatch_);
     const PersistentTransport persistent = choiceTailFrozen_
         ? PersistentTransport{}
         : PersistentTransportForState(
@@ -351,12 +352,16 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
     const uint8_t replayAlpha = ReplayIndicatorAlphaForState(
         replayIndicatorAvailable_, replayIndicatorAlpha_, fullBarSuppressed_,
         meterOnly_);
+    const uint8_t chromeChipAlpha = visibility.chrome ? barAlpha_ : 255;
+    const uint8_t meterAlpha = MeterAlphaForState(
+        barAlpha_, visibility.chrome, feelingLatch_, meterOnly_,
+        choiceTailFrozen_);
     if (!visibility.meter && !persistent.selectedSpeed && !persistent.autoOn &&
         replayAlpha == 0)
         return true;
 
     SDL_SetTextureAlphaMod(base_, barAlpha_);
-    SDL_SetTextureAlphaMod(chip_, visibility.chrome ? barAlpha_ : 255);
+    SDL_SetTextureAlphaMod(chip_, chromeChipAlpha);
 
     // The persistent artwork has an independent full-opacity composition;
     // restoring chrome alpha matters for the subsequent hover/help sprites.
@@ -364,7 +369,7 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
         SDL_SetTextureAlphaMod(chip_, 255);
         const bool ok = RenderClipped(renderer, chip_, record.source,
                                       record.destination, viewport, error);
-        SDL_SetTextureAlphaMod(chip_, visibility.chrome ? barAlpha_ : 255);
+        SDL_SetTextureAlphaMod(chip_, chromeChipAlpha);
         return ok;
     };
     const auto drawPersistentSpeed = [&]() {
@@ -391,7 +396,7 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
         const ChipRecord label = FixedChipRecord(68, variant_);
         const bool ok = RenderClipped(renderer, chip_, label.source,
                                       label.destination, viewport, error);
-        SDL_SetTextureAlphaMod(chip_, visibility.chrome ? barAlpha_ : 255);
+        SDL_SetTextureAlphaMod(chip_, chromeChipAlpha);
         return ok;
     };
 
@@ -412,10 +417,12 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
     // KOTONOHA/SEKAI labels/frame that are not part of MenuBar.PNG.
     if (visibility.meter) {
         const ChipRecord meterFrame = FixedChipRecord(67, variant_);
+        SDL_SetTextureAlphaMod(chip_, meterAlpha);
         if (!RenderClipped(renderer, chip_, meterFrame.source,
                            meterFrame.destination, viewport, error)) {
             return false;
         }
+        SDL_SetTextureAlphaMod(chip_, chromeChipAlpha);
     }
 
     if (visibility.chrome) {
@@ -525,7 +532,11 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
                            plan.source.w, plan.source.h};
     const SDL_FRect destination{plan.destination.x, plan.destination.y,
                                 plan.destination.w, plan.destination.h};
-    return RenderClipped(renderer, chip_, source, destination, viewport, error);
+    SDL_SetTextureAlphaMod(chip_, meterAlpha);
+    const bool rendered = RenderClipped(renderer, chip_, source, destination,
+                                        viewport, error);
+    SDL_SetTextureAlphaMod(chip_, chromeChipAlpha);
+    return rendered;
 }
 
 } // namespace Kotonoha

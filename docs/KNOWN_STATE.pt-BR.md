@@ -128,8 +128,9 @@ o comportamento existente.
 A proteção abrange também a seta DIREITA, a seta ESQUERDA/Back enquanto a
 escolha aguarda resposta, controle direto 3 do menu, mouse/toque e entradas
 sintéticas de gamepad para skip. A reprodução de Replay Data preserva as
-escolhas registradas. A MenuBar superior inteira fica oculta durante a
-escolha não confirmada. Seleção legítima, timeout, AUTO mode, pausa,
+escolhas registradas. Os **botões e o fundo do Top Menu** ficam ocultos durante
+a escolha não confirmada, mas o **medidor de Feel permanece visível**.
+Seleção legítima, timeout, AUTO mode, pausa,
 velocidade escolhida continuam independentes dessa barreira.
 
 **Correção do menu após escolha (observação direta do usuário em 17/11):**
@@ -189,3 +190,23 @@ Detalhes em
 `games/school-days/docs/parity/BACK_FEEL_CHECKPOINT_REA_2026-11-18.md`.
 O instante exato do desbloqueio da barra pós-escolha no original ainda
 necessita comparação visual independente do retail.
+
+**Top Menu / sobreposição do Feel (REA 18/11/2026):** no original,
+`SysMenuSDHQ.dll` desenha separadamente o quadro e os preenchimentos do Feel,
+em região própria `x=116..654, y=3..25`. A rotina `0x10025690` não aplica o
+fade do Top Menu aos sprites do Feel enquanto a atualização de sentimentos
+está ativa; `0x10026B40` os inicializa com opacidade integral. No port, a
+escolha não resolvida escondia erroneamente o composto inteiro, a cena
+impedia até a renderização do medidor e os dois elementos compartilhavam o
+alpha do atlas CHIP. A implementação específica do jogo agora mostra apenas
+o Feel enquanto a escolha aguarda resposta, mantém o medidor independente
+durante sua atualização e o desenha com opacidade própria, sem liberar os
+controles congelados ou permitir que Skip/SuperSkip atravesse escolhas.
+A regressão com leitura de pixels do SDL/software comprova que uma escolha
+pendente desenha só o Feel e que o menu congelado mostrado por hover não altera
+os pixels do medidor. A análise estática original também confirmou o despacho de Skip e a ordem
+`SkipFRAME == SetSELECT < Next` nas 287/287 cenas de escolha auditadas.
+Detalhes em
+`games/school-days/docs/parity/TOP_MENU_FEEL_COMPOSITION_REA_2026-11-18.md`.
+O momento exato de desbloqueio nativo dos botões após uma escolha ainda não
+está comprovado; a duração do OGG sozinha não demonstra esse predicado.

@@ -5708,6 +5708,9 @@ Runtime::MenuBarProjection Runtime::menuBarProjection() const {
   projection.fullBarSuppressed =
       (choice != nullptr && unresolvedChoice()) ||
       (!temporary && bridge.HasPendingHandoff());
+  // The prompt suppresses MenuBar controls, NOT the standalone feeling
+  // meter. Its render/input owner remains independent of the hover chrome.
+  projection.meterOnly = choice != nullptr && unresolvedChoice();
   projection.replayIndicator = playData;
   projection.choiceTailFrozen = !temporary && choiceMenuFrozen;
   return projection;
@@ -5728,7 +5731,7 @@ void Runtime::updateMenuBar(Kotonoha::SchoolDaysMenuBarPresenter &presenter,
   // A confirmed choice restores hover chrome visually, but the actions stay
   // frozen. The meter remains visible at full opacity outside the hover bar.
   // Release needs BOTH the next physical scene and the ending meter effect.
-  presenter.SetMeterOnly(false);
+  presenter.SetMeterOnly(projection.meterOnly);
   presenter.SetChoiceTailFrozen(projection.choiceTailFrozen);
   presenter.SetReplayIndicatorState(projection.replayIndicator);
 
