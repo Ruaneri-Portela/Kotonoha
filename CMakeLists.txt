@@ -60,7 +60,9 @@ foreach(game IN LISTS KOTONOHA_GAMES)
     endif()
 endforeach()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launcher/CMakeLists.txt")
+# The standalone hub spawns native sibling executables; no fork/spawn on mobile/web.
+if(NOT ANDROID AND NOT EMSCRIPTEN AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launcher/CMakeLists.txt")
     add_subdirectory(launcher)
 endif()
 
