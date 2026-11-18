@@ -231,6 +231,7 @@ std::shared_ptr<FetchAssetProvider> FetchAssetProvider::fromManifest(
       throw FilesystemError(ErrorCode::InvalidPath,
                             "Remote file/directory collision: " + name);
   }
+  provider->manifestIndex_ = true;
   return provider;
 }
 
