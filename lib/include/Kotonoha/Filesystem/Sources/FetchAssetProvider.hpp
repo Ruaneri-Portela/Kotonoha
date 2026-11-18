@@ -47,6 +47,7 @@ class FetchAssetProvider final
   std::size_t budget_ = static_cast<std::size_t>(KOTONOHA_WASM_FETCH_CACHE_MIB) << 20;
   bool started_ = false;
   bool discover_ = false;
+  bool manifestIndex_ = false;
 
   FetchAssetProvider(std::string base, std::size_t budget);
   void enqueue(Job job);
@@ -69,7 +70,12 @@ public:
   static std::shared_ptr<FetchAssetProvider>
   fromUrl(std::string baseUrl, std::size_t cacheBudget = static_cast<std::size_t>(KOTONOHA_WASM_FETCH_CACHE_MIB) << 20);
   bool requestAsset(std::string_view id);
+  // A size-aware manifest provides directory enumeration, while unknown
+  // names can still be discovered directly via HEAD/Range. Used by the
+  // optional-manifest browser bootstrap; strict fromManifest stays indexed.
+  void enableOnDemandDiscovery() noexcept { discover_ = true; }
   bool manifestFree() const noexcept { return discover_; }
+  bool hasManifestIndex() const noexcept { return manifestIndex_; }
   bool preferLocalWhenPresent() const noexcept override { return discover_; }
 
   static std::shared_ptr<FetchAssetProvider>
