@@ -93,6 +93,55 @@ struct RealLiveErrorScene final : Scene {
   bool handleEvent(EventRef e) override { return false; }
   bool designSpace() const override { return false; }
 };
+
+void processSpeakerAndDialogue(const std::string &rawSpeaker,
+                               const std::string &rawDialogue,
+                               std::string &outSpeaker,
+                               std::string &outDialogue) {
+  outSpeaker = rawSpeaker;
+  outDialogue = rawDialogue;
+
+  if (outDialogue.empty())
+    return;
+
+  if (!outSpeaker.empty()) {
+    if (outDialogue.rfind(outSpeaker, 0) == 0) {
+      std::size_t pos = outSpeaker.size();
+      while (pos < outDialogue.size() && (outDialogue[pos] == ' ' || outDialogue[pos] == ':'))
+        ++pos;
+      if (pos < outDialogue.size() && (outDialogue[pos] == '"' || outDialogue[pos] == '\'' ||
+                                       outDialogue[pos] == ' ' || outDialogue[pos] == ':')) {
+        outDialogue = outDialogue.substr(pos);
+      }
+    }
+  }
+
+  if (outSpeaker.empty()) {
+    std::size_t quotePos = outDialogue.find_first_of("\"'「");
+    std::size_t colonPos = outDialogue.find(": ");
+    std::size_t sepPos = std::string::npos;
+    if (quotePos != std::string::npos && quotePos <= 30)
+      sepPos = quotePos;
+    if (colonPos != std::string::npos && colonPos < sepPos && colonPos <= 30)
+      sepPos = colonPos;
+
+    if (sepPos != std::string::npos && sepPos > 0) {
+      std::string cand = outDialogue.substr(0, sepPos);
+      while (!cand.empty() && cand.back() == ' ')
+        cand.pop_back();
+      if (!cand.empty()) {
+        outSpeaker = cand;
+        std::size_t startPos = sepPos;
+        if (outDialogue[sepPos] == ':') {
+          ++startPos;
+          while (startPos < outDialogue.size() && outDialogue[startPos] == ' ')
+            ++startPos;
+        }
+        outDialogue = outDialogue.substr(startPos);
+      }
+    }
+  }
+}
 } // namespace
 
 struct Text : VNTextBox {
@@ -1032,32 +1081,19 @@ struct RealLiveRuntime::Impl {
       preparedBackground = &dcTexture(dcImage(0), surface(0));
     else {
       auto &background = surface(0);
-      bool changed = !backgroundPixels || backgroundPixels->w != background.w ||
-                     backgroundPixels->h != background.h;
-      for (int y = 0; !changed && y < background.h; ++y)
-        changed = std::memcmp(static_cast<Uint8 *>(backgroundPixels->pixels) +
-                                  y * backgroundPixels->pitch,
-                              static_cast<Uint8 *>(background.pixels) +
-                                  y * background.pitch,
-                              background.w * 4) != 0;
-      if (changed) {
-        if (!backgroundTexture || backgroundTexture->w != background.w ||
-            backgroundTexture->h != background.h)
-          backgroundTexture.reset(SDL_CreateTexture(
-              &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
-              background.w, background.h));
-        if (!backgroundTexture ||
-            !SDL_SetTextureBlendMode(backgroundTexture.get(),
-                                     SDL_BLENDMODE_NONE) ||
-            !SDL_SetTextureScaleMode(backgroundTexture.get(),
-                                     SDL_SCALEMODE_LINEAR) ||
-            !SDL_UpdateTexture(backgroundTexture.get(), nullptr,
-                               background.pixels, background.pitch))
-          throw std::runtime_error(SDL_GetError());
-        backgroundPixels.reset(SDL_DuplicateSurface(&background));
-        if (!backgroundPixels)
-          throw std::runtime_error(SDL_GetError());
-        ++renderStats.textureUploads;
+      if (!backgroundTexture || backgroundTexture->w != background.w ||
+          backgroundTexture->h != background.h) {
+        backgroundTexture.reset(SDL_CreateTexture(
+            &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
+            background.w, background.h));
+        if (backgroundTexture) {
+          SDL_SetTextureBlendMode(backgroundTexture.get(), SDL_BLENDMODE_NONE);
+          SDL_SetTextureScaleMode(backgroundTexture.get(), SDL_SCALEMODE_LINEAR);
+        }
+      }
+      if (backgroundTexture) {
+        SDL_UpdateTexture(backgroundTexture.get(), nullptr,
+                           background.pixels, background.pitch);
       }
       preparedBackground = backgroundTexture.get();
     }
@@ -2228,14 +2264,19 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       autoDeadline = 0;
       textbox->concealed = op == 205;
       pause = true;
-      auto translated = engine->GetTranslation().text(vm.scenario(), dialogue);
-      if (translated == dialogue && !dialogue.empty() &&
+      auto translatedSpeaker =
+          engine->GetTranslation().text(vm.scenario(), speakerName);
+      auto translatedDialogue =
+          engine->GetTranslation().text(vm.scenario(), dialogue);
+      if (translatedDialogue == dialogue && !dialogue.empty() &&
           dialogue.front() == ' ')
-        translated =
+        translatedDialogue =
             engine->GetTranslation().text(vm.scenario(), dialogue.substr(1));
-      textbox->setDialogue(
-          engine->GetTranslation().text(vm.scenario(), speakerName),
-          translated);
+
+      std::string finalSpeaker, finalDialogue;
+      processSpeakerAndDialogue(translatedSpeaker, translatedDialogue,
+                                finalSpeaker, finalDialogue);
+      textbox->setDialogue(finalSpeaker, finalDialogue);
       textbox->show();
       return true;
     }
@@ -4415,15 +4456,19 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.sounds.clear();
   i.bgm.Stop();
   i.musicID.clear();
-  auto translated =
+  auto translatedSpeaker =
+      i.engine->GetTranslation().text(i.vm.scenario(), i.speakerName);
+  auto translatedDialogue =
       i.engine->GetTranslation().text(i.vm.scenario(), i.dialogue);
-  if (translated == i.dialogue && !i.dialogue.empty() &&
+  if (translatedDialogue == i.dialogue && !i.dialogue.empty() &&
       i.dialogue.front() == ' ')
-    translated =
+    translatedDialogue =
         i.engine->GetTranslation().text(i.vm.scenario(), i.dialogue.substr(1));
-  i.textbox->setDialogue(
-      i.engine->GetTranslation().text(i.vm.scenario(), i.speakerName),
-      translated);
+
+  std::string finalSpeaker, finalDialogue;
+  processSpeakerAndDialogue(translatedSpeaker, translatedDialogue,
+                            finalSpeaker, finalDialogue);
+  i.textbox->setDialogue(finalSpeaker, finalDialogue);
   i.textbox->completeDialogue();
   i.textbox->show();
   if (!music.empty())
