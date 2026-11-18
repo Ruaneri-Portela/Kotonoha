@@ -174,6 +174,27 @@
             cursor: wait;
             opacity: 0.5;
         }
+        #kotonoha-language {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 18px;
+        }
+        #kotonoha-language button {
+            color: #ddd;
+            background: #242424;
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 7px 12px;
+            cursor: pointer;
+            min-height: 36px;
+        }
+        #kotonoha-language button[aria-pressed="true"] {
+            color: white;
+            border-color: #c18bdc;
+            background: #49345a;
+        }
 
         #kotonoha-video-player {
             position: fixed;
@@ -193,25 +214,175 @@
 <body>
     <div id="loading-overlay">
         <div id="loading-title">@APP_TITLE@ - Kotonoha Engine</div>
-        <div id="loading-build" aria-label="Versão do motor">v@KOTONOHA_VERSION_FULL@</div>
-        <div id="loading-status">Escolha a origem dos arquivos para iniciar.</div>
+        <div id="loading-build" data-i18n-aria-label="engineVersion" aria-label="Engine version">v@KOTONOHA_VERSION_FULL@</div>
+        <div id="loading-status" data-i18n="chooseSource">Choose an asset source to start.</div>
         <div id="loading-progress-container">
             <div id="loading-bar"></div>
         </div>
         <div id="asset-source-actions">
-            <button id="select-local-assets" type="button" disabled>Usar pasta local</button>
-            <button id="use-server-assets" type="button" disabled>Usar HTTP(S)</button>
+            <button id="select-local-assets" type="button" data-i18n="localFolder" disabled>Use local folder</button>
+            <button id="use-server-assets" type="button" data-i18n="useHttp" disabled>Use HTTP(S)</button>
         </div>
         <input id="local-assets-folder" type="file" webkitdirectory multiple hidden>
+        <div id="kotonoha-language" role="group" data-i18n-aria-label="language" aria-label="Language">
+            <button id="kotonoha-lang-en" type="button" aria-pressed="true">English</button>
+            <button id="kotonoha-lang-pt" type="button" aria-pressed="false">Português</button>
+        </div>
     </div>
 
-    <div id="browser-folder-tools" aria-label="Pastas do jogo">
-        <button id="add-browser-folder" type="button" title="Montar uma pasta local no filesystem">+ Adicionar pasta</button>
+    <div id="browser-folder-tools" data-i18n-aria-label="gameFolders" aria-label="Game folders">
+        <button id="add-browser-folder" type="button" data-i18n="addFolder" data-i18n-title="mountFolder" title="Mount a local folder in the filesystem">+ Add folder</button>
         <input id="add-browser-folder-input" type="file" webkitdirectory multiple hidden>
         <div id="browser-folder-status" role="status" aria-live="polite"></div>
     </div>
-    <canvas id="canvas" tabindex="0" aria-label="@APP_TITLE@ - área de jogo" oncontextmenu="event.preventDefault()"></canvas>
+    <canvas id="canvas" tabindex="0" data-i18n-aria-label="gameCanvas" aria-label="@APP_TITLE@ - game canvas" oncontextmenu="event.preventDefault()"></canvas>
     <video id="kotonoha-video-player" playsinline preload="auto"></video>
+
+    <script>
+        // All browser startup UI text is localized independently of the game
+        // scripts. Language is remembered per origin; no build is required.
+        (function() {
+            const messages = {
+                en: {
+                    language: "Language",
+                    engineVersion: "Engine version",
+                    gameFolders: "Game folders",
+                    gameCanvas: "@APP_TITLE@ - game canvas",
+                    chooseSource: "Choose a local folder or HTTP(S) to start.",
+                    localFolder: "Use local folder",
+                    useHttp: "Use HTTP(S)",
+                    addFolder: "+ Add folder",
+                    mountFolder: "Mount a local folder in the filesystem",
+                    searchingIndex: "Looking for an optional HTTP(S) index...",
+                    checkingPreload: "Checking for optional preload.json...",
+                    preloadProgress: "Required preload: {done}/{total} chunks — {path}",
+                    preloadDone: "Preload complete. Starting engine...",
+                    indexedReady: "HTTP index loaded. Starting engine...",
+                    directReady: "HTTP(S) without an index. Starting engine...",
+                    memoryFatal: "Fatal WebAssembly memory error. Reload after deploying the corrected build.",
+                    fetchFailed: "Could not configure HTTP Fetch: {error}",
+                    retry: "{message} — try again or choose HTTP(S).",
+                    localLoading: "Loading local folder ({done}/{total})",
+                    localReady: "Local folder mounted. Starting engine...",
+                    localFailed: "Invalid local folder: {error}",
+                    invalidPath: "Invalid file path: {path}",
+                    duplicateLocal: "Duplicate local file: {path}",
+                    emptyFolder: "Folder is empty",
+                    remoteProtocol: "Remote assets require HTTP(S)",
+                    remoteCredentials: "Remote URL cannot contain credentials or query parameters",
+                    manifestTooLarge: "HTTP index exceeds 4 MiB in UTF-8",
+                    manifestAllocation: "Not enough memory for the HTTP index",
+                    manifestHeap: "WebAssembly heap unavailable for HTTP index",
+                    remoteUnavailable: "Unable to configure Fetch provider",
+                    invalidFolderName: "Invalid folder name (use letters, numbers, _ or -)",
+                    wasmUnavailable: "WASM filesystem is not available yet",
+                    unsafePath: "Unsafe path: {path}",
+                    duplicateFile: "Duplicate file: {path}",
+                    alreadyMounted: "Folder already mounted: {path}",
+                    fileAsFolder: "File used as folder: {path}",
+                    folderExists: "Directory /{path} already exists",
+                    fileExists: "File already exists: {path}",
+                    folderMounting: "Mounting /{root}: {done}/{total}",
+                    folderMounted: "{count} file(s) mounted in /{root}",
+                    folderPrompt: "Virtual folder name (e.g. game-assets, forced_subtitles, ovrlay):",
+                    fatal: "Fatal error: {reason}"
+                },
+                pt: {
+                    language: "Idioma",
+                    engineVersion: "Versão do motor",
+                    gameFolders: "Pastas do jogo",
+                    gameCanvas: "@APP_TITLE@ - área de jogo",
+                    chooseSource: "Escolha pasta local ou HTTP(S) para iniciar.",
+                    localFolder: "Usar pasta local",
+                    useHttp: "Usar HTTP(S)",
+                    addFolder: "+ Adicionar pasta",
+                    mountFolder: "Montar uma pasta local no filesystem",
+                    searchingIndex: "Procurando índice HTTP(S) opcional...",
+                    checkingPreload: "Verificando preload.json opcional...",
+                    preloadProgress: "Preload obrigatório: {done}/{total} blocos — {path}",
+                    preloadDone: "Preload completo. Iniciando engine...",
+                    indexedReady: "Índice HTTP carregado. Iniciando engine...",
+                    directReady: "Fetch HTTP(S) sem índice. Iniciando engine...",
+                    memoryFatal: "Falha fatal de memória no WebAssembly. Atualize a página após instalar o build corrigido.",
+                    fetchFailed: "Falha ao configurar Fetch: {error}",
+                    retry: "{message} — tente novamente ou escolha HTTP(S).",
+                    localLoading: "Carregando pasta ({done}/{total})",
+                    localReady: "Pasta local montada. Iniciando engine...",
+                    localFailed: "Pasta local inválida: {error}",
+                    invalidPath: "Caminho inválido: {path}",
+                    duplicateLocal: "Nome local duplicado: {path}",
+                    emptyFolder: "Pasta local vazia",
+                    remoteProtocol: "Os assets remotos exigem HTTP(S)",
+                    remoteCredentials: "A origem remota não pode conter credenciais ou parâmetros",
+                    manifestTooLarge: "Índice HTTP ultrapassa 4 MiB em UTF-8",
+                    manifestAllocation: "Memória insuficiente para índice HTTP",
+                    manifestHeap: "Heap WASM não disponível para índice HTTP",
+                    remoteUnavailable: "Provider Fetch não pôde ser configurado",
+                    invalidFolderName: "Nome de pasta inválido (use letras, números, _ ou -)",
+                    wasmUnavailable: "Filesystem WASM ainda não está disponível",
+                    unsafePath: "Caminho inseguro: {path}",
+                    duplicateFile: "Arquivo duplicado: {path}",
+                    alreadyMounted: "Pasta já montada: {path}",
+                    fileAsFolder: "Arquivo usado como pasta: {path}",
+                    folderExists: "O diretório /{path} já existe",
+                    fileExists: "Arquivo já existe: {path}",
+                    folderMounting: "Montando /{root}: {done}/{total}",
+                    folderMounted: "{count} arquivo(s) montado(s) em /{root}",
+                    folderPrompt: "Nome da pasta virtual (ex.: game-assets, forced_subtitles, ovrlay):",
+                    fatal: "Erro fatal: {reason}"
+                }
+            };
+            let language = "en";
+            let lastStatus = {key: "chooseSource", params: {}};
+            const translate = (key, params = {}) => {
+                const text = messages[language][key] ||
+                    messages.en[key] || key;
+                return text.replace(/\{(\w+)\}/g, (_, name) =>
+                    String(params[name] ?? ""));
+            };
+            const apply = () => {
+                document.documentElement.lang = language === "pt" ? "pt-BR" : "en";
+                for (const node of document.querySelectorAll("[data-i18n]"))
+                    node.textContent = translate(node.dataset.i18n);
+                for (const node of document.querySelectorAll("[data-i18n-title]"))
+                    node.title = translate(node.dataset.i18nTitle);
+                for (const node of document.querySelectorAll("[data-i18n-aria-label]"))
+                    node.setAttribute("aria-label", translate(node.dataset.i18nAriaLabel));
+                const status = document.getElementById("loading-status");
+                if (status) status.textContent =
+                    translate(lastStatus.key, lastStatus.params);
+                document.getElementById("kotonoha-lang-en")
+                    .setAttribute("aria-pressed", String(language === "en"));
+                document.getElementById("kotonoha-lang-pt")
+                    .setAttribute("aria-pressed", String(language === "pt"));
+            };
+            window.KotonohaText = (key, params) => translate(key, params);
+            window.KotonohaStatus = (key, params = {}) => {
+                lastStatus = {key, params};
+                const status = document.getElementById("loading-status");
+                if (status) status.textContent = translate(key, params);
+            };
+            window.KotonohaSetLanguage = value => {
+                language = String(value).toLowerCase().startsWith("pt") ? "pt" : "en";
+                try { localStorage.setItem("kotonoha-language", language); }
+                catch (error) { /* Private mode may disable storage. */ }
+                apply();
+            };
+            try {
+                language = localStorage.getItem("kotonoha-language") ||
+                    window.KotonohaLanguage ||
+                    (navigator.language?.toLowerCase().startsWith("pt") ? "pt" : "en");
+            } catch (error) {
+                language = navigator.language?.toLowerCase().startsWith("pt") ? "pt" : "en";
+            }
+            language = String(language).toLowerCase().startsWith("pt") ? "pt" : "en";
+            document.getElementById("kotonoha-lang-en").addEventListener(
+                "click", () => window.KotonohaSetLanguage("en"));
+            document.getElementById("kotonoha-lang-pt").addEventListener(
+                "click", () => window.KotonohaSetLanguage("pt"));
+            apply();
+        })();
+    </script>
 
     <script>
         const kotonohaLocalAssets = new Map();
