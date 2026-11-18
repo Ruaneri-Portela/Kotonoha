@@ -216,6 +216,8 @@ async function main() {
   // fixture BEFORE writing the manifest, then create it afterwards.
   const lateName = 'late-unindexed.txt';
   const lateBody = 'unindexed HTTP file';
+  const preloadPath = path.join(output, 'game-assets', 'preload.json');
+  fs.rmSync(preloadPath, { force: true });
   fs.rmSync(path.join(output, 'game-assets', lateName), { force: true });
   updateManifest();
   fs.writeFileSync(path.join(output, 'game-assets', lateName), lateBody);
@@ -465,6 +467,63 @@ async function main() {
       'HEAD/Range for files missing from stale manifests');
     assert(sourceRequests.length > 0,
       'HTTP choice should attempt optional manifest.json before startup');
+
+    // Capture exactly the byte ranges the real WASM FileHandle downloaded.
+    // This must NOT dump the entire manifest, especially the 320 MiB GPK.
+    const preloadSnapshot = await page.evaluate(async () => {
+      const largeTail = await Module.ccall('KotonohaWebSelfTestLargeRemoteTail',
+        'number', [], [], { async: true });
+      const dump = await window.KotonohaAssetCache.buildPreload();
+      return {largeTail, dump};
+    });
+    assert(preloadSnapshot.largeTail === 1 &&
+      preloadSnapshot.dump.entries.some(item =>
+        item.path === 'event01.gpk' &&
+        item.ranges.some(([offset, length]) =>
+          offset >= 319 * 1024 * 1024 && length <= 1024 * 1024)),
+      'downloaded byte ranges must be exported instead of all manifest files');
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.evaluate(() => window.KotonohaDumpPreload())
+    ]);
+    assert(download.suggestedFilename() === 'preload.json',
+      'browser console dump must download preload.json');
+    const fromDownload = JSON.parse(fs.readFileSync(await download.path(), 'utf8'));
+    assert(fromDownload.entries.some(item => item.path === 'event01.gpk'),
+      'downloaded preload.json must contain previously fetched archive ranges');
+
+    // Install the dumped guide server-side. The extra uncached file proves
+    // the startup run dependency stays held until HTTP Range + IndexedDB
+    // have completed, while the GPK chunks must be reused from IndexedDB.
+    const required = structuredClone(preloadSnapshot.dump);
+    required.entries.push({path: lateName,
+      ranges: [[0, Buffer.byteLength(lateBody)]]});
+    fs.writeFileSync(preloadPath, JSON.stringify(required));
+    let gpkReloadRequests = 0;
+    const measureReload = request => {
+      if (new URL(request.url()).pathname.endsWith('/game-assets/event01.gpk'))
+        gpkReloadRequests++;
+    };
+    page.on('request', measureReload);
+    try {
+      await page.reload({waitUntil: 'domcontentloaded'});
+      await page.locator('#use-server-assets').click();
+      await ready();
+      const preloadReady = await page.evaluate(async () => ({
+        completed: window.KotonohaInitialPreloadReady === true,
+        loaded: new TextDecoder().decode(await
+          window.KotonohaAssetCache.readRange('late-unindexed.txt',
+            0, Buffer.byteLength(lateBody)))
+      }));
+      assert(preloadReady.completed && preloadReady.loaded === lateBody,
+        'required preload must be committed to IndexedDB before engine boot');
+      assert(gpkReloadRequests === 0,
+        'reload must reuse persisted GPK ranges without a second network fetch');
+    } finally {
+      page.off('request', measureReload);
+      fs.rmSync(preloadPath, {force: true});
+    }
 
     const prepared = await page.evaluate(() => {
       let staged = false;
