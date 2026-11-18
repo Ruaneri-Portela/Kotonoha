@@ -12,9 +12,9 @@ A pasta `launcher/` fornece o launcher unificado multi-motor e o registro modula
    - Associa automaticamente patches/overlays de tradução (como `DDLC_PT-BR_Patch` -> `DDLC`).
 
 2. **Runtimes vinculados diretamente (`EngineLibraryRegistry`)**:
-   - O CMake linka a biblioteca de runtime de cada jogo *habilitado* diretamente em `kotonoha_unified_launcher`. O arquivo `GameFactories.cpp` registra construtores concretos de `Runtime` e dos provedores de assets.
+   - Com `KOTONOHA_BUILD_ALL=ON`, o CMake linka as bibliotecas dos **12 jogos reais** (sem Example) diretamente em `kotonoha_unified_launcher`. O arquivo `GameFactories.cpp` registra construtores concretos de `Runtime` e dos provedores de assets.
    - O `KotonohaLauncher` instancia `Runtime` + `Engine` **no mesmo processo**. Ao sair do jogo, libera os recursos, restaura o ambiente de saves e reabre o hub. Não invoca os `main.cpp` nem executáveis secundários.
-   - Um jogo pode ser detectado sem estar linkado: nesse caso, aparece no catálogo, mas não pode ser iniciado até habilitar a opção CMake do seu port.
+   - O Example permanece como aplicativo independente e nunca é registrado nem linkado no hub. O launcher não é criado quando se compila um único port.
 
 3. **Divisão da Pasta de Save e Config por Jogo (`splitSavesByGame`)**:
    - Isola `KOTONOHA_USER_DATA_DIR` e `settings.json` em `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/Kotonoha/<packageId>/save` para que múltiplos títulos do mesmo motor (ex.: `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` no RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` no CMP; `ZeroNoTsukaima0..2` no Zero) nunca entrem em conflito.
@@ -26,12 +26,11 @@ A pasta `launcher/` fornece o launcher unificado multi-motor e o registro modula
 cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
 cmake --build build --target KotonohaLauncher
 
-# Hub menor: somente um port selecionado
-cmake -S . -B build-reallive -DKOTONOHA_BUILD_REALLIVE=ON
-cmake --build build-reallive --target KotonohaLauncher
+# Compilar um único port NÃO cria o alvo KotonohaLauncher.
+# O Example continua independente, fora do launcher.
 ```
 
-A compilação completa exige as dependências de todos os ports, incluindo Python de desenvolvimento para DDLC quando necessário. A detecção de um motor não significa que ele esteja linkado. O hub independente é exclusivo do desktop.
+A compilação completa exige as dependências de todos os ports, incluindo Python de desenvolvimento para DDLC quando necessário. O launcher é compilado somente com `KOTONOHA_BUILD_ALL=ON`, em plataformas desktop nativas, e exclui o Example. No macOS, o bundle do hub também inclui a biblioteca padrão do Python para o DDLC.
 
 ## Uso via CLI
 
