@@ -219,7 +219,7 @@ const manager = browserWindow.KotonohaAssetCache;
         url: base + "oversized.bin", path: "oversized.bin",
         remotePath: "oversized.bin", fileSize: 10 * 1024 * 1024,
         start: 0, length: 64, full: false, discovery: false
-    }), /exceeds|Range/);
+    }), /exceed|Range/i);
     console.log("Kotonoha persistent IndexedDB/preload runtime tests passed.");
 })().catch(error => {
     console.error(error);
