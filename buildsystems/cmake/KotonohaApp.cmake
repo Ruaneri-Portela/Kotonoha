@@ -272,7 +272,7 @@ function(kotonoha_configure_app target)
             target_link_options(${target} PRIVATE
                 -fexceptions
                 "SHELL:-sDISABLE_EXCEPTION_CATCHING=0"
-                "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS','ccall','FS_readFile']"
+                "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS','ccall','FS_readFile','HEAPU8']"
                 "SHELL:-sFORCE_FILESYSTEM=1"
                 "SHELL:-sALLOW_MEMORY_GROWTH=1"
                 "SHELL:-sINITIAL_MEMORY=${KOTONOHA_WASM_INITIAL_MEMORY}"
