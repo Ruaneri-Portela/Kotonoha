@@ -67,7 +67,7 @@ jobs:
           update: true
           install: >-
             mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-SDL3
+            mingw-w64-ucrt-x86_64-sdl3
             mingw-w64-ucrt-x86_64-pkgconf
       - name: Compile and run SDL-managed writer on Windows
         shell: msys2 {0}
