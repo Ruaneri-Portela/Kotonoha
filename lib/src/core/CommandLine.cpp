@@ -133,7 +133,10 @@ void CommandLine::parse(int argc, char **argv) {
     }
     found->action(value);
   }
-  if (!engine.dumpTranslationPath.empty())
+  // Headless CLI operations must reach the game without opening an ImGui
+  // launcher. This policy is shared by every port, including newly added
+  // games, and is independent of the order of command-line switches.
+  if (!engine.dumpTranslationPath.empty() || frames > 0 || engine.enableMCP)
     engine.launcher = false;
 }
 std::string CommandLine::help() const {
