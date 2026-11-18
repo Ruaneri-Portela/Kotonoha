@@ -54,16 +54,9 @@ inline WindowMode defaultWindowMode() {
   return isMobilePlatform() ? WindowMode::Borderless : WindowMode::Windowed;
 }
 
-// Default launcher state: Enabled on Linux, Windows, and Mobile
-inline bool defaultLauncherEnabled() {
-  return true;
-#if defined(__linux__) || defined(_WIN32) || defined(__ANDROID__) ||           \
-    (defined(__APPLE__) && TARGET_OS_IOS)
-  return true;
-#else
-  return isMobilePlatform();
-#endif
-}
+// Every game port uses the same launcher default on desktop, mobile and
+// browser builds. Automated invocations opt out in CommandLine::parse().
+inline bool defaultLauncherEnabled() { return true; }
 
 // Default font name used across the engine (SDL_ttf, ImGui, libass)
 inline const char *defaultFontName() { return "NotoSansJP-Regular.ttf"; }
