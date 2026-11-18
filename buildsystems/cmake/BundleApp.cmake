@@ -5,6 +5,8 @@ endif()
 if(NOT APP_GAME)
     message(FATAL_ERROR "App bundle game identifier is missing")
 endif()
+# Remove Python's nested helper application only from the staged bundle.
+include("${CMAKE_CURRENT_LIST_DIR}/PruneNestedPythonApp.cmake")
 # The unified hub links DDLC's runtime when built with BUILD_ALL.
 # Its macOS bundle needs the same Python deployment as standalone DDLC.
 if(APP_GAME STREQUAL "doki-doki-literature-club" OR
@@ -53,10 +55,9 @@ set(BU_CHMOD_BUNDLE_ITEMS ON)
 
 if(include_python)
     if(python_framework)
-        if(EXISTS "${python_version_dir}/Resources/Python.app")
-            message(FATAL_ERROR
-                "The bundle contains a stale nested Python.app. Clean the build before packaging.")
-        endif()
+        # A prior build/fixup may have staged Homebrew's Python.app helper.
+        # Prune it without forcing users to delete the whole build directory.
+        kotonoha_prune_nested_python_app("${python_version_dir}")
         file(MAKE_DIRECTORY "${python_version_dir}/Resources")
         file(COPY "${python_framework_version}/Python" DESTINATION "${python_version_dir}")
         if(EXISTS "${python_framework_version}/Resources/Info.plist")
@@ -103,6 +104,12 @@ if(include_python)
 endif()
 
 fixup_bundle("${APP_EXECUTABLE}" "${plugins}" "${DEPENDENCY_DIRS}")
+
+# CMake's dependency fix-up can copy the original Python.framework again;
+# normalize the final staged version before validating/signing the .app.
+if(include_python AND python_framework)
+    kotonoha_prune_nested_python_app("${python_version_dir}")
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/CheckBundleContents.cmake")
 foreach(plugin IN LISTS plugins)
