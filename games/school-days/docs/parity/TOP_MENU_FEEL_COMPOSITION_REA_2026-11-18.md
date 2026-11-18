@@ -227,8 +227,11 @@ never a pending-SetSELECT state. On the 18 November follow-up, the player
 reported an additional regression: *stale pre-choice hover alpha* caused
 chrome to reappear automatically after a manual or omitted result. The
 presenter now drops hover selection, pointer latch and fade alpha when the
-choice takes ownership; while frozen, chrome stays hidden, and a fresh
-physical mouse motion after release may reveal it. AUTO ON is an independent
+choice takes ownership; while frozen, chrome stays hidden. A real pointer
+motion into the top strip **during the frozen result** is remembered only as
+a position, never as a hover fade or an actionable control. On release,
+chrome may fade in if that pointer remains over the strip; if it has moved
+away, nothing automatically reappears. AUTO ON is an independent
 full-opacity CHIP sprite that remains visible in the pending prompt,
 unchanged/omitted result, changed Feel presentation and scene handoff.
 The ordinary feeling latch alone no longer exposes the meter after a
@@ -261,8 +264,10 @@ pixels using fully opaque **synthetic** PNG fixtures. During an unanswered
 choice and after manual/omitted confirmation, chrome and unearned Feel are
 absent while the blue AUTO ON chip remains. Changed Feel has its own full
 alpha without exposing chrome, including after the next scene binds.
-After release, no stale hover is inherited; only new pointer motion can reveal
-chrome. A delayed latch with unchanged raw feelings cannot resurrect Feel,
+After release, no stale **pre-choice** hover is inherited. A pointer moved
+into the upper strip during the frozen result may reveal chrome on unlock
+without a second movement; an actual move away still keeps chrome hidden.
+A delayed latch with unchanged raw feelings cannot resurrect Feel,
 and a synthetic omitted result with an actual raw delta remains visually
 suppressed after releasing the frozen choice tail.
 These tests do **not** by themselves prove retail GPU visual parity.
@@ -280,3 +285,63 @@ The original process never reached the title or SetSELECT, so no screen-based
 observation of the prompt, omitted choice, Feel or AUTO may be inferred from
 this attempt. The QA original `Save` stayed empty; the retail files and
 personal saves were not modified. See the QA `Evidence/QA-runtime-evidence.txt`.
+
+**Second isolated retail attempt (physical QA copy, medium-integrity Windows):**
+copied all 30 retail GPKs into a **normal directory, not a junction** at
+`D:\Dev\Preserved\SchoolDaysHQ\QA-Retail-Physical-20261118-worker5`,
+with a separate empty Save and redirected profile directories. The copied
+`Script.GPK` matched the retail SHA-256 exactly. Using FFmpeg's DXGI Desktop
+Duplication `ddagrab` (ordinary GDI fullscreen screenshots were black),
+actual original v1.02 evidence was captured in that QA's `Evidence/` folder:
+
+- `ddagrab-medium-20261118-1221.png`: native title with START/LOAD/OPTION;
+- `ddagrab-after-start-8s-20261118-122315.png`: genuine narrative scene
+  with no upper MenuBar while the pointer was away from the top;
+- `ddagrab-hover-top-20261118-1223.png`: moving the pointer into the upper
+  strip revealed the original menu chrome, controls and Feel artwork;
+- `ddagrab-speed32-away-20261118-1224.png`: after selecting x32 and moving
+  the pointer away, the chrome disappeared but the orange x32 status
+  indicator remained independently visible.
+- `ddagrab-run2-hover-before-auto-20261118-1227.png`: second retail run with
+  upper hover and the native `AUTO MODE OFF` control;
+- `ddagrab-run2-AUTO-ON-away-20261118-1227.png`: after clicking AUTO and
+  moving the pointer to the center, only the **blue `AUTO MODE / ON`** chip
+  remains at top left, without chrome or Feel on the narrative video;
+- `ddagrab-run2-AUTO-ON-x4-away-20261118-1228.png`: after engaging x4 and
+  moving the pointer away, **both** the independent blue AUTO ON and orange
+  x4 selected-speed chips persist, with ordinary chrome/Feel hidden.
+
+These captures **directly confirm hover-dependent chrome and independent
+AUTO/speed status sprites in ordinary gameplay**, not yet the exact
+post-choice behavior or AUTO ON during a choice. The first medium retail clone
+exited with Windows `0xC0000005` (EventID1000, faulting module `ntdll.dll`)
+shortly after x32 was activated; timing alone does not establish causation.
+A separate medium clone run captured AUTO ON with conservative x4 playback.
+Do not reinterpret normal-playback screenshots as proof of pending SetSELECT
+or omitted/selected choice results without scene-specific captures.
+
+### User-supplied manual SetSELECT recording (18 November 2026)
+
+The user subsequently supplied a **17.13-second, 1280x720, 60-fps H.264
+recording** named `QA-Retail-Physical-20261118-worker5 2026.11.18 -
+12.57.21.02.mp4`. They explicitly confirmed that **they selected the option
+manually, not AUTO**. These are direct sampled-frame observations
+(approximate recording-relative timestamps):
+
+| Time | Retail visual evidence |
+| --- | --- |
+| `0.0..2.5s` | Normal gameplay chrome shown on upper hover; AUTO shows OFF |
+| `4.5..6.3s` | A03 choices `So what?` / `No` visible with **no normal chrome and no standalone Feel**, even when the cursor is near the upper strip (`~x590,y30`) |
+| `~6.4..6.8s` | Player manually confirms the upper choice; the **standalone Feel meter starts appearing** while selected text is still fading |
+| `~7.5..10.9s` | Text disappears; Feel remains isolated while pointer is already over the meter/top strip (`~x635,y24`); normal chrome remains hidden |
+| `~11.0s` | Full MenuBar chrome returns while cursor **is** in the top strip. No new motion at the exact unlock instant is apparent; this does **not** demonstrate a spontaneous return with pointer away |
+| `11.5..17s` | Normal narrative continues with chrome under top hover |
+
+The top-right `A gravação foi iniciada` pop-up belongs to the **recorder**,
+not the game's MenuBar. This clip does **not** show omission, AUTO ON during
+SetSELECT, a manual no-delta selection, or whether an earlier menu action was
+clickable while frozen. The visible timing corroborates the independent
+Feel phase but does **not** prove that OGG playback completion governs the
+input gate. The port's hover-probe regression now distinguishes a live
+pointer already at the top **during** the frozen result from inherited
+pre-choice chrome alpha; only the former may reveal chrome upon release.

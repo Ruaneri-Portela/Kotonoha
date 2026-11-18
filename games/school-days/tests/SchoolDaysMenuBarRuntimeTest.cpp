@@ -228,6 +228,13 @@ void CheckMeterCompositingPixels(Application &app,
   menu.SetRuntimeState(true, false, 0, false, true, false,
                        false, true); // prompt suppresses chrome and Feel
   menu.SetMeterOnly(false);
+  SDL_Event hover{};
+  hover.type = SDL_EVENT_MOUSE_MOTION;
+  hover.motion.x = viewport.x + 200.0f * viewport.scale;
+  hover.motion.y = viewport.y + 35.0f * viewport.scale;
+  Presenter::Action action;
+  (void)menu.HandleEvent(&renderer, &hover, &action);
+  menu.Update(static_cast<uint32_t>(SDL_GetTicks()) + 350u, 10, 20);
   paint();
   const auto choiceMeter = sample(200, 5);
   const auto hiddenChrome = sample(0, 40);
@@ -238,7 +245,7 @@ void CheckMeterCompositingPixels(Application &app,
             hiddenChrome[2] == 0 &&
             promptAuto[0] == 5 && promptAuto[1] == 235 &&
             promptAuto[2] == 245,
-        "pending choice exposed chrome/Feel or hid persistent AUTO ON");
+        "retail A03: cursor over the pending choice's top strip exposed chrome/Feel or hid AUTO ON");
 
   menu.SetMeterOnly(false);
   menu.SetRuntimeState(true, false, 0, false, true, false,
@@ -257,14 +264,9 @@ void CheckMeterCompositingPixels(Application &app,
             silentAuto[2] == 245,
         "silent confirmed choice revealed Feel/chrome or hid AUTO without hover");
 
-  SDL_Event hover{};
-  hover.type = SDL_EVENT_MOUSE_MOTION;
-  hover.motion.x = viewport.x + 200.0f * viewport.scale;
-  hover.motion.y = viewport.y + 35.0f * viewport.scale;
-  Presenter::Action action;
   (void)menu.HandleEvent(&renderer, &hover, &action);
   const uint32_t nowMs = static_cast<uint32_t>(SDL_GetTicks());
-  menu.Update(nowMs + 350u, 10, 20); // hover fully reveals red chrome
+  menu.Update(nowMs + 350u, 10, 20); // ignored while result remains frozen
   // Frozen choice must not restart the whole Top Menu even when stale mouse
   // motion or a previous hover targeted its area. The only persistent top
   // sprite is AUTO ON; an omitted/no-delta result cannot show Feel later.
@@ -311,6 +313,13 @@ void CheckMeterCompositingPixels(Application &app,
             frozenAuto[0] == 5 && frozenAuto[1] == 235 &&
             frozenAuto[2] == 245,
         "scene rebind revealed chrome or obscured Feel/AUTO while frozen");
+
+  // An actual pointer move away *during* the frozen result must invalidate
+  // earlier top-hover probes. A stale old hover must never pop the chrome at
+  // release when the cursor is currently outside the top strip.
+  SDL_Event movedAway = hover;
+  movedAway.motion.y = viewport.y + 250.0f * viewport.scale;
+  (void)menu.HandleEvent(&renderer, &movedAway, &action);
 
   // After the frozen tail ends, no synthetic mouse hover should be inherited
   // from the old choice. A real new move into the top region alone may reveal
@@ -377,6 +386,28 @@ void CheckMeterCompositingPixels(Application &app,
   Check(hoveredChrome[0] == 220 && hoveredChrome[1] == 10 &&
             hoveredChrome[2] == 10,
         "Top Menu did not respond to a fresh real hover after choice release");
+
+  // Real retail A03 recording: after manual selection, the cursor enters
+  // the meter's top strip during the result animation and stays there. Chrome
+  // remains hidden until the result gate releases; then it may return without
+  // requiring another mouse motion. The event MUST NOT activate a button or
+  // paint chrome while frozen, and must not resurrect Feel on omission.
+  menu.SetChoiceTailFrozen(true);
+  (void)menu.HandleEvent(&renderer, &hover, &action);
+  Check(action.kind == Presenter::ActionKind::None,
+        "mouse entered a frozen result and activated MenuBar control");
+  paint();
+  const auto actuallyFrozenChrome = sample(0, 40);
+  Check(actuallyFrozenChrome[0] == 0 && actuallyFrozenChrome[1] == 0 &&
+            actuallyFrozenChrome[2] == 0,
+        "hover while result was frozen exposed chrome prematurely");
+  menu.SetChoiceTailFrozen(false);
+  menu.Update(static_cast<uint32_t>(SDL_GetTicks()) + 350u, 10, 20);
+  paint();
+  const auto releasedUnderPointer = sample(0, 40);
+  Check(releasedUnderPointer[0] == 220 && releasedUnderPointer[1] == 10 &&
+            releasedUnderPointer[2] == 10,
+        "retail A03: frozen physical hover did not reveal chrome on unlock");
   menu.Close();
 }
 
