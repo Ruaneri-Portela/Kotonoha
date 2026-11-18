@@ -1,6 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
-#include <N2System/N2ArchiveAssets.hpp>
 #include <Kotonoha/Filesystem/GameSourceProbe.hpp>
+#include <N2System/N2ArchiveAssets.hpp>
 #include <algorithm>
 #include <cctype>
 #include <set>
@@ -159,8 +159,7 @@ N2ArchiveAssets::listAsset(const std::string &prefix) const {
       if (name.compare(0, lookup.size(), lookup) == 0)
         names.insert(name);
   if (vfs_) {
-    for (const auto &entry :
-         Kotonoha::Filesystem::listGameSourceFiles(*vfs_)) {
+    for (const auto &entry : Kotonoha::Filesystem::listGameSourceFiles(*vfs_)) {
       if (entry.type != Kotonoha::Filesystem::FileType::Regular)
         continue;
       const auto norm = Archive::normalize(entry.path);

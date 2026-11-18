@@ -14,8 +14,8 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
-#include <stdexcept>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -128,7 +128,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     // Honor the shared default and explicit --no-launcher. Automated
     // --frames and MCP runs bypass the launcher in CommandLine::parse().
     if (directory.empty() && !options.launcher)
-      throw std::runtime_error("No valid Kirikiri source; pass --kirikiri DIRECTORY|ISO");
+      throw std::runtime_error(
+          "No valid Kirikiri source; pass --kirikiri DIRECTORY|ISO");
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "Kirikiri", settingsPath, directory, validate, options.settings,

@@ -109,7 +109,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     // Honor the shared default and explicit --no-launcher. Automated
     // --frames and MCP runs bypass the launcher in CommandLine::parse().
     if (disc.empty() && !options.launcher)
-      throw std::runtime_error("No valid Zero no Tsukaima source; pass --zero DISC.bin");
+      throw std::runtime_error(
+          "No valid Zero no Tsukaima source; pass --zero DISC.bin");
 
     if (options.launcher) {
       app->launcher =

@@ -1,13 +1,13 @@
 #include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 
-#include <chrono>
 #include <algorithm>
-#include <vector>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace {
 namespace fs = std::filesystem;
@@ -81,12 +81,14 @@ int main() {
     require(!findRequiredFilesPrefix(*source, {"fake.dat"}),
             "A directory cannot masquerade as a game archive");
     const auto allFiles = Kotonoha::Filesystem::listGameSourceFiles(*source);
-    const auto rootFiles = Kotonoha::Filesystem::listGameSourceFiles(*source, 0);
-    const auto includesFile = [](const std::vector<Kotonoha::Filesystem::FileInfo> &files,
-                                 const std::string &id) {
-      return std::any_of(files.begin(), files.end(),
-                         [&](const auto &file) { return file.path == id; });
-    };
+    const auto rootFiles =
+        Kotonoha::Filesystem::listGameSourceFiles(*source, 0);
+    const auto includesFile =
+        [](const std::vector<Kotonoha::Filesystem::FileInfo> &files,
+           const std::string &id) {
+          return std::any_of(files.begin(), files.end(),
+                             [&](const auto &file) { return file.path == id; });
+        };
     require(includesFile(allFiles, "nss/0_boot.nss") &&
                 includesFile(allFiles, "archives/sub/game.NPA") &&
                 includesFile(allFiles, "archives/sub/voice.AFS"),

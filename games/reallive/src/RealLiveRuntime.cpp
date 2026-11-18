@@ -108,10 +108,12 @@ void processSpeakerAndDialogue(const std::string &rawSpeaker,
   if (!outSpeaker.empty()) {
     if (outDialogue.rfind(outSpeaker, 0) == 0) {
       std::size_t pos = outSpeaker.size();
-      while (pos < outDialogue.size() && (outDialogue[pos] == ' ' || outDialogue[pos] == ':'))
+      while (pos < outDialogue.size() &&
+             (outDialogue[pos] == ' ' || outDialogue[pos] == ':'))
         ++pos;
-      if (pos < outDialogue.size() && (outDialogue[pos] == '"' || outDialogue[pos] == '\'' ||
-                                       outDialogue[pos] == ' ' || outDialogue[pos] == ':')) {
+      if (pos < outDialogue.size() &&
+          (outDialogue[pos] == '"' || outDialogue[pos] == '\'' ||
+           outDialogue[pos] == ' ' || outDialogue[pos] == ':')) {
         outDialogue = outDialogue.substr(pos);
       }
     }
@@ -1091,16 +1093,16 @@ struct RealLiveRuntime::Impl {
                      backgroundPixels->w != background.w ||
                      backgroundPixels->h != background.h;
       for (int y = 0; !changed && y < background.h; ++y)
-        changed = std::memcmp(
-                      static_cast<const Uint8 *>(backgroundPixels->pixels) +
-                          y * backgroundPixels->pitch,
-                      static_cast<const Uint8 *>(background.pixels) +
-                          y * background.pitch,
-                      std::size_t(background.w) * 4) != 0;
+        changed =
+            std::memcmp(static_cast<const Uint8 *>(backgroundPixels->pixels) +
+                            y * backgroundPixels->pitch,
+                        static_cast<const Uint8 *>(background.pixels) +
+                            y * background.pitch,
+                        std::size_t(background.w) * 4) != 0;
       if (recreate) {
-        backgroundTexture.reset(SDL_CreateTexture(
-            &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
-            background.w, background.h));
+        backgroundTexture.reset(SDL_CreateTexture(&r, SDL_PIXELFORMAT_RGBA32,
+                                                  SDL_TEXTUREACCESS_STREAMING,
+                                                  background.w, background.h));
         if (!backgroundTexture ||
             !SDL_SetTextureBlendMode(backgroundTexture.get(),
                                      SDL_BLENDMODE_NONE) ||
@@ -4495,8 +4497,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
         i.engine->GetTranslation().text(i.vm.scenario(), i.dialogue.substr(1));
 
   std::string finalSpeaker, finalDialogue;
-  processSpeakerAndDialogue(translatedSpeaker, translatedDialogue,
-                            finalSpeaker, finalDialogue);
+  processSpeakerAndDialogue(translatedSpeaker, translatedDialogue, finalSpeaker,
+                            finalDialogue);
   i.textbox->setDialogue(finalSpeaker, finalDialogue);
   i.textbox->completeDialogue();
   i.textbox->show();

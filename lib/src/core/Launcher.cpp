@@ -13,8 +13,8 @@
 #include <imgui_stdlib.h>
 
 #include <Kotonoha/core/BuildVersion.hpp>
-#include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/debug/ImGuiFrameScope.hpp>
+#include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/debug/SystemInfo.hpp>
 
 #include <algorithm>
