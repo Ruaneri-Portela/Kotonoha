@@ -12,7 +12,7 @@ add_library(kotonoha_demo STATIC
     src/DemoStage.cpp
 )
 target_include_directories(kotonoha_demo PUBLIC src)
-target_link_libraries(kotonoha_demo PUBLIC Kotonoha::Engine)
+target_link_libraries(kotonoha_demo PUBLIC KotonohaEngine)
 set_target_properties(kotonoha_demo PROPERTIES CXX_EXTENSIONS OFF)
 
 kotonoha_add_app(Kotonoha src/main.cpp)

@@ -5,11 +5,11 @@
 #include "DdlcRuntime.hpp"
 #include <Ddlc/DdlcAssets.hpp>
 
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <cstdio>
 
 #include <cstdlib>
@@ -56,7 +56,6 @@ struct App {
       assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
           std::filesystem::path(directory), options.assetOverlayDirectory());
     }
-    assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(assets, options);
     game->framesLeft = frames;
   }
@@ -83,10 +82,11 @@ struct KotonohaPortCallbacks final {
   static void quit(void *state, SDL_AppResult result);
 };
 
-SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
+                                          char **argv) {
   *appstate = nullptr;
   KOTONOHA_SET_APP_METADATA("Doki Doki Literature Club!",
-                     "me.hirameki.kotonoha.dokidokiliteratureclub");
+                            "me.hirameki.kotonoha.dokidokiliteratureclub");
   try {
     auto app = std::make_unique<App>();
     auto &options = app->options;
@@ -96,6 +96,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv
     Kotonoha::CommandLine arguments("DokiDoki", options);
     arguments.option("--ddlc", "DIRECTORY|ISO",
                      "DDLC directory or ISO containing scripts.rpa", directory);
+    arguments.alias("--asset-overlay", "--overlay");
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) {
       std::fputs(arguments.help().c_str(), stdout);
@@ -115,8 +116,11 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
          defaultDirectory()},
         Ddlc::GameLauncher::validatePath, {"", "game"});
-    if (directory.empty())
-      options.launcher = true;
+    // Honor the shared default and explicit --no-launcher. Automated
+    // --frames and MCP runs bypass the launcher in CommandLine::parse().
+    if (directory.empty() && !options.launcher)
+      throw std::runtime_error(
+          "No valid DDLC source; pass --ddlc DIRECTORY|ISO");
 
     if (options.launcher) {
       app->launcher =

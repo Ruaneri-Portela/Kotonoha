@@ -92,6 +92,8 @@ bool SchoolDaysMenuBarPresenter::Open(SDL_Renderer* renderer,
     replayIndicatorAvailable_ = false;
     replayIndicatorControl_ = 24;
     replayIndicatorAlpha_ = 255;
+    autoHideLocked_ = false;
+    topMeterHidden_ = false;
     opened_ = true;
     return true;
 }
@@ -124,6 +126,8 @@ void SchoolDaysMenuBarPresenter::Close() {
     replayIndicatorAvailable_ = false;
     replayIndicatorControl_ = 24;
     replayIndicatorAlpha_ = 255;
+    autoHideLocked_ = false;
+    topMeterHidden_ = false;
 }
 
 void SchoolDaysMenuBarPresenter::ResetHoverChrome() {
@@ -136,8 +140,20 @@ void SchoolDaysMenuBarPresenter::ResetHoverChrome() {
 }
 
 void SchoolDaysMenuBarPresenter::ResumePhysicalHoverAfterChoice() {
-    if (fullBarSuppressed_ || meterOnly_ || choiceTailFrozen_ ||
-        !suppressedPointerKnown_) return;
+    if (fullBarSuppressed_ || meterOnly_ || choiceTailFrozen_) return;
+    // A consciously locked menu may return after the choice gate releases;
+    // never reveal inherited pre-choice alpha before release.
+    if (autoHideLocked_) {
+        if (!fadeTargetVisible_) {
+            fadeStartAlpha_ = barAlpha_;
+            fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
+            fadeTargetVisible_ = true;
+        }
+        suppressedPointerKnown_ = false;
+        suppressedPointerInsideBar_ = false;
+        return;
+    }
+    if (!suppressedPointerKnown_) return;
     const bool inside = suppressedPointerInsideBar_;
     suppressedPointerKnown_ = false;
     suppressedPointerInsideBar_ = false;
@@ -222,7 +238,7 @@ bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer* renderer,
             pointerInsideBar_ = inside;
             fadeStartAlpha_ = barAlpha_;
             fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
-            fadeTargetVisible_ = inside;
+            fadeTargetVisible_ = inside || autoHideLocked_;
         }
         selection_ = available;
         return inside;
@@ -481,7 +497,7 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
 
     // Static feeling-meter artwork (record67) carries the authored
     // KOTONOHA/SEKAI labels/frame that are not part of MenuBar.PNG.
-    if (visibility.meter) {
+    if (visibility.meter && !topMeterHidden_) {
         const ChipRecord meterFrame = FixedChipRecord(67, variant_);
         SDL_SetTextureAlphaMod(chip_, meterAlpha);
         if (!RenderClipped(renderer, chip_, meterFrame.source,
@@ -587,7 +603,7 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
             !drawReplayLabel()) return false;
     } // MenuBar controls, help, and repeat strip are absent in meter-only mode.
 
-    if (!visibility.meter) return true;
+    if (!visibility.meter || topMeterHidden_) return true;
 
     const auto plan = SchoolDaysTopMeterRenderPlan::Build(
         meter_.CurrentVisual(), layout_.layoutScale);

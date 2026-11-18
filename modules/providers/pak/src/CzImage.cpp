@@ -14,6 +14,10 @@ std::uint16_t u16(const std::vector<std::uint8_t> &d, size_t p) {
   return std::uint16_t(d[p]) | (std::uint16_t(d[p + 1]) << 8);
 }
 
+std::int16_t s16(const std::vector<std::uint8_t> &d, size_t p) {
+  return static_cast<std::int16_t>(u16(d, p));
+}
+
 std::uint32_t u32(const std::vector<std::uint8_t> &d, size_t p) {
   if (p + 4 > d.size())
     throw std::runtime_error("CZ: truncated uint32");
@@ -35,6 +39,7 @@ std::vector<std::uint8_t> decodeLzw(const std::vector<std::uint8_t> &data,
     throw std::runtime_error("CZ3: invalid initial LZW code");
   auto previous = dictionary[first];
   std::vector<std::uint8_t> out;
+  out.reserve(expected);
   for (std::uint32_t i = 0; i < codeCount; ++i) {
     const auto code = u16(data, offset);
     offset += 2;
@@ -68,11 +73,31 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
     throw std::runtime_error("Not a CZ image");
   const auto kind = data[2];
   const auto headerLength = u32(data, 4);
+  if (headerLength < 15 || headerLength > data.size())
+    throw std::runtime_error("CZ: invalid header length");
+
   CzImage image;
   image.width = u16(data, 8);
   image.height = u16(data, 10);
+  image.cropWidth = image.width;
+  image.cropHeight = image.height;
+  image.canvasWidth = image.width;
+  image.canvasHeight = image.height;
+  if (headerLength >= 28) {
+    image.cropX = s16(data, 16);
+    image.cropY = s16(data, 18);
+    image.cropWidth = u16(data, 20);
+    image.cropHeight = u16(data, 22);
+    image.canvasWidth = u16(data, 24);
+    image.canvasHeight = u16(data, 26);
+  }
+  if (headerLength >= 36) {
+    image.anchorX = s16(data, 28);
+    image.anchorY = s16(data, 30);
+  }
+
   auto bits = u16(data, 12);
-  if (kind == '1' && bits > 32)
+  if ((kind == '1' || kind == '2') && bits > 32)
     bits = 8;
   if (image.width <= 0 || image.height <= 0 ||
       (bits != 4 && bits != 8 && bits != 24 && bits != 32))
@@ -86,29 +111,48 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
                       data.begin() + headerLength + pixelBytes);
     return image;
   }
-  if (kind != '1' && kind != '3' && kind != '4')
-    throw std::runtime_error("CZ: decoder supports CZ0/CZ1/CZ3/CZ4 only");
+  if (kind != '1' && kind != '2' && kind != '3' && kind != '4')
+    throw std::runtime_error("CZ: decoder supports CZ0/CZ1/CZ2/CZ3/CZ4 only");
   size_t blockTable = headerLength;
   std::vector<std::array<std::uint8_t, 4>> palette;
-  if (kind == '1' && (bits == 4 || bits == 8)) {
+  if ((kind == '1' || kind == '2') && (bits == 4 || bits == 8)) {
     const size_t colors = size_t(1) << bits;
-    if (blockTable + colors * 4 > data.size())
+    if (blockTable + colors * 4 <= data.size() && kind == '1') {
+      palette.resize(colors);
+      for (size_t i = 0; i < colors; ++i) {
+        const auto p = blockTable + i * 4;
+        // CZ1 palettes store RGBA byte order directly (verified against
+        // EVENTCG.PAK 32bpp ground truth).
+        palette[i] = {data[p], data[p + 1], data[p + 2], data[p + 3]};
+      }
+      blockTable += colors * 4;
+    } else if (kind == '1') {
       throw std::runtime_error("CZ1: truncated palette");
-    palette.resize(colors);
-    for (size_t i = 0; i < colors; ++i) {
-      const auto p = blockTable + i * 4;
-      palette[i] = {data[p + 2], data[p + 1], data[p], data[p + 3]};
+    } else if (kind == '2') {
+      // CZ2 font/mask bitmaps may carry a 256*4 palette or raw 8-bit alpha.
+      if (blockTable + colors * 4 + 4 <= data.size()) {
+        const auto maybeCount = u32(data, blockTable + colors * 4);
+        if (maybeCount > 0 && maybeCount < 65536 &&
+            blockTable + colors * 4 + 4 + size_t(maybeCount) * 8 <=
+                data.size()) {
+          palette.resize(colors);
+          for (size_t i = 0; i < colors; ++i) {
+            const auto p = blockTable + i * 4;
+            palette[i] = {data[p], data[p + 1], data[p + 2], data[p + 3]};
+          }
+          blockTable += colors * 4;
+        }
+      }
     }
-    blockTable += colors * 4;
   }
   if (blockTable + 4 > data.size())
-    throw std::runtime_error("CZ3: truncated block table");
+    throw std::runtime_error("CZ: truncated block table");
 
   const auto blockCount = u32(data, blockTable);
   size_t table = blockTable + 4;
   size_t compressed = table + size_t(blockCount) * 8;
   if (compressed > data.size())
-    throw std::runtime_error("CZ3: invalid block table");
+    throw std::runtime_error("CZ: invalid block table");
   std::vector<std::uint8_t> pixels;
   pixels.reserve(pixelBytes);
   for (std::uint32_t i = 0; i < blockCount; ++i) {
@@ -118,14 +162,44 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
     pixels.insert(pixels.end(), block.begin(), block.end());
   }
   const size_t rawBytes =
-      kind == '1'
+      (kind == '1' || kind == '2')
           ? (bits == 4
                  ? (size_t(image.width) * size_t(image.height) + 1) / 2
                  : size_t(image.width) * size_t(image.height) * (bits / 8))
           : pixelBytes;
   if (pixels.size() < rawBytes)
-    throw std::runtime_error("CZ3: incomplete image");
+    throw std::runtime_error("CZ: incomplete image");
   pixels.resize(rawBytes);
+
+  if (kind == '2') {
+    const size_t count = size_t(image.width) * size_t(image.height);
+    if (bits == 8 && pixels.size() >= count) {
+      const int blockH = (image.height + 2) / 3;
+      for (int y = 0; y < image.height; ++y) {
+        if (y % blockH == 0)
+          continue;
+        const size_t line = size_t(y) * size_t(image.width);
+        const size_t prev = line - size_t(image.width);
+        for (size_t x = 0; x < size_t(image.width); ++x)
+          pixels[line + x] = std::uint8_t(pixels[line + x] + pixels[prev + x]);
+      }
+      std::vector<std::uint8_t> rgba(pixelBytes);
+      if (!palette.empty()) {
+        for (size_t i = 0; i < count; ++i)
+          std::copy(palette.at(pixels[i]).begin(), palette.at(pixels[i]).end(),
+                    rgba.begin() + i * 4);
+      } else {
+        for (size_t i = 0; i < count; ++i) {
+          rgba[i * 4] = 255;
+          rgba[i * 4 + 1] = 255;
+          rgba[i * 4 + 2] = 255;
+          rgba[i * 4 + 3] = pixels[i];
+        }
+      }
+      image.rgba = std::move(rgba);
+      return image;
+    }
+  }
 
   if (kind == '1') {
     std::vector<std::uint8_t> rgba(pixelBytes);

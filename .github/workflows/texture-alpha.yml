@@ -1,0 +1,41 @@
+name: Shared texture alpha C++17 regressions
+
+on:
+  pull_request:
+    paths:
+      - 'lib/src/media/TextureAlpha.cpp'
+      - 'lib/include/Kotonoha/media/TextureAlpha.hpp'
+      - 'lib/src/media/SurfaceTexture.cpp'
+      - 'lib/include/Kotonoha/media/SurfaceTexture.hpp'
+      - 'lib/src/core/AssetProvider.cpp'
+      - 'lib/src/components/SplashScreen.cpp'
+      - 'lib/tests/TextureAlphaStandalone.cpp'
+      - 'lib/tests/MediaAnalysisTests.cpp'
+      - '.github/workflows/texture-alpha.yml'
+  push:
+    branches: [dev]
+    paths:
+      - 'lib/src/media/TextureAlpha.cpp'
+      - 'lib/include/Kotonoha/media/TextureAlpha.hpp'
+      - 'lib/src/media/SurfaceTexture.cpp'
+      - 'lib/include/Kotonoha/media/SurfaceTexture.hpp'
+      - 'lib/src/core/AssetProvider.cpp'
+      - 'lib/src/components/SplashScreen.cpp'
+      - 'lib/tests/TextureAlphaStandalone.cpp'
+      - 'lib/tests/MediaAnalysisTests.cpp'
+      - '.github/workflows/texture-alpha.yml'
+  workflow_dispatch:
+
+jobs:
+  alpha-edges:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile standalone RGBA-edge tests with C++17
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror -pedantic \
+            -Ilib/include lib/src/media/TextureAlpha.cpp \
+            lib/tests/TextureAlphaStandalone.cpp \
+            -o /tmp/kotonoha-texture-alpha-test
+      - name: Run standalone RGBA-edge tests
+        run: /tmp/kotonoha-texture-alpha-test

@@ -6,21 +6,21 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
-if(NOT TARGET Kotonoha::Modules::Providers::ADV)
+if(NOT TARGET kotonoha_provider_adv)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/adv"
         "${CMAKE_CURRENT_BINARY_DIR}/providers/adv")
 endif()
 
 add_library(SnowRadishFormats STATIC src/Game.cpp)
 target_include_directories(SnowRadishFormats PUBLIC include)
-target_link_libraries(SnowRadishFormats PUBLIC Kotonoha::Engine Kotonoha::Modules::Providers::ADV)
+target_link_libraries(SnowRadishFormats PUBLIC KotonohaEngine kotonoha_provider_adv)
 target_compile_features(SnowRadishFormats PUBLIC cxx_std_17)
 set_target_properties(SnowRadishFormats PROPERTIES CXX_EXTENSIONS OFF)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/snow-radish/CMakeLists.txt")
-target_link_libraries(SnowRadishFormats PUBLIC Kotonoha::Modules::VMs::SnowRadish)
+target_link_libraries(SnowRadishFormats PUBLIC kotonoha_vm_snow-radish)
 target_include_directories(SnowRadishFormats PUBLIC
-    $<TARGET_PROPERTY:Kotonoha::Modules::VMs::SnowRadish,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:kotonoha_vm_snow-radish,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_library(snow_radish_vacation STATIC
     src/SnowSession.cpp
@@ -30,9 +30,9 @@ add_library(snow_radish_vacation STATIC
 )
 target_include_directories(snow_radish_vacation PUBLIC src)
 target_link_libraries(snow_radish_vacation PUBLIC
-    Kotonoha::Engine
+    KotonohaEngine
     SnowRadishFormats
-    Kotonoha::Modules::VMs::SnowRadish
+    kotonoha_vm_snow-radish
 )
 set_target_properties(snow_radish_vacation PROPERTIES CXX_EXTENSIONS OFF)
 

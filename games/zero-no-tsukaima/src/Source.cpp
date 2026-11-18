@@ -95,10 +95,25 @@ bool SceneSource::Open(const std::string &discPath, std::string *error) {
       return false;
     }
     startupScene_ = "0005.KS"; // Prologue; entries 0..4 are engine/menu code.
-    for (const char *movie : {"ZERO.PSS", "ZEROED.PSS"}) {
-      if (!disc_->find(std::string("MOVIE/") + movie))
-        break;
-      movies_.emplace_back(movie);
+    std::vector<uint8_t> movieList;
+    if (normalBin_ && ReadEntry(*normalBin_, normalIndex_, 69, &movieList)) {
+      for (size_t o = 0; o + 14 <= movieList.size(); o += 14) {
+        std::string name(reinterpret_cast<const char *>(movieList.data() + o),
+                         14);
+        name.resize(name.find('\0') == std::string::npos ? name.size()
+                                                         : name.find('\0'));
+        if (name.empty())
+          break;
+        if (disc_->find("MOVIE/" + name))
+          movies_.push_back(name);
+      }
+    }
+    if (movies_.empty()) {
+      for (const char *movie : {"ZERO.PSS", "ZEROED.PSS"}) {
+        if (!disc_->find(std::string("MOVIE/") + movie))
+          break;
+        movies_.emplace_back(movie);
+      }
     }
     for (size_t i = 0; i < sceneIndex_.size(); ++i) {
       char name[32];
@@ -241,13 +256,21 @@ std::map<std::string, int> ParseNameList(const std::vector<uint8_t> &text) {
       line.pop_back();
     if (line.empty() || line.compare(0, 2, "//") == 0 || line[0] == '[')
       continue;
-    std::string key = line.substr(line.find_last_of("\\/") == std::string::npos
-                                      ? 0
-                                      : line.find_last_of("\\/") + 1);
-    key = key.substr(0, key.find('.'));
+    std::string base = line.substr(line.find_last_of("\\/") == std::string::npos
+                                       ? 0
+                                       : line.find_last_of("\\/") + 1);
+    const size_t dot = base.find('.');
+    std::string key = base.substr(0, dot);
+    std::string ext =
+        dot == std::string::npos ? std::string{} : base.substr(dot);
     for (char &c : key)
       c = char(std::toupper(static_cast<unsigned char>(c)));
-    out.emplace(key, index++);
+    for (char &c : ext)
+      c = char(std::toupper(static_cast<unsigned char>(c)));
+    if (ext == ".PSH")
+      out.emplace(key, index++);
+    else
+      out[key] = index++;
   }
   return out;
 }

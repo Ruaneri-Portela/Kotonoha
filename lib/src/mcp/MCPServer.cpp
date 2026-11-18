@@ -1,3 +1,5 @@
+#include <Kotonoha/core/Config.hpp>
+#if KOTONOHA_ENABLE_MCP
 #include <Kotonoha/mcp/MCPServer.hpp>
 
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
@@ -908,3 +910,5 @@ bool MCPServer::pump() {
 #endif
 
 } // namespace Kotonoha
+
+#endif // KOTONOHA_ENABLE_MCP

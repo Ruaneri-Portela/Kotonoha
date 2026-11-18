@@ -1,6 +1,6 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <SDL3/SDL.h>
 
@@ -52,17 +52,11 @@ void layouts(const fs::path &root) {
         root / ".local/share"}) {
     locations.userData = base;
     auto layout = directoryLayout(locations, "amagami");
-    // The upstream source uses a per-application Kotonoha namespace rather
-    // than the userData root. Preserve this isolation on desktop and keep
-    // a single save subdirectory within that namespace.
-    const auto appDocuments =
-        base / "Kotonoha" / locations.packageIdentifier;
-    require(layout.documents == appDocuments,
-            "Desktop Documents are namespaced by engine and package");
-    require(layout.saves == appDocuments / "save",
-            "Every desktop saves inside the namespaced save directory");
-    require(layout.saves != base / "save",
-            "Desktop must not write saves into the shared userData root");
+    const auto expectedDocs = base / "Kotonoha" / locations.packageIdentifier;
+    require(layout.documents == expectedDocs,
+            "Desktop Documents root excludes the save directory");
+    require(layout.saves == expectedDocs / "save",
+            "Every desktop uses the package's singular save directory");
     require(layout.engineAssets.front() == locations.resources / "assets",
             "Bundle engine assets take precedence over the working directory");
     require(layout.gameAssets.front() == locations.resources / "game-assets",
@@ -116,6 +110,41 @@ void layouts(const fs::path &root) {
   locations.packageIdentifier.clear();
   require(directoryLayout(locations).saves.empty(),
           "Missing metadata cannot silently create a game-name save directory");
+}
+
+void legacyMigration(const fs::path &root) {
+  StorageLocations locations;
+  locations.platform = StoragePlatform::Desktop;
+  locations.resources = root / "resources";
+  locations.userData = root / "legacy-migration";
+  locations.packageIdentifier = "org.kotonoha.example";
+  auto legacy = locations;
+  legacy.packageIdentifier = "me.hirameki.kotonoha";
+  const auto oldRoot = directoryLayout(legacy).documents;
+  const auto newRoot = directoryLayout(locations).documents;
+  fs::create_directories(oldRoot / "save");
+  std::ofstream(oldRoot / "settings.json") << "legacy settings";
+  std::ofstream(oldRoot / "save" / "slot.vn") << "legacy save";
+  require(migrateLegacyDocuments(locations, legacy.packageIdentifier),
+          "Existing legacy Documents move to corrected bundle identifier");
+  require(fs::exists(newRoot / "settings.json") &&
+              fs::exists(newRoot / "save" / "slot.vn") && !fs::exists(oldRoot),
+          "Migrated settings and saves remain intact");
+  fs::create_directories(oldRoot);
+  std::ofstream(oldRoot / "settings.json") << "old";
+  require(!migrateLegacyDocuments(locations, legacy.packageIdentifier) &&
+              fs::exists(newRoot / "save" / "slot.vn") &&
+              fs::exists(oldRoot / "settings.json"),
+          "Migration never overwrites or deletes a newer directory");
+
+  // Both mobile layouts are OS-scoped: changing a logical app identifier must
+  // not rename an iOS Documents or Android/data directory.
+  for (auto platform : {StoragePlatform::IOS, StoragePlatform::Android}) {
+    locations.platform = platform;
+    locations.userData = root / "mobile-documents";
+    require(!migrateLegacyDocuments(locations, legacy.packageIdentifier),
+            "Mobile OS-managed Documents layout must remain untouched");
+  }
 }
 
 void relocation(Fixture &fixture) {
@@ -221,6 +250,7 @@ int main() {
     SDL_SetAppMetadata("Directory tests", "1", "org.kotonoha.directories");
     Fixture fixture;
     layouts(fixture.root);
+    legacyMigration(fixture.root);
     relocation(fixture);
     std::cout << "Directory layouts, references and relocation passed\n";
     return 0;

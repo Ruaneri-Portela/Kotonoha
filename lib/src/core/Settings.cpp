@@ -2,9 +2,9 @@
 #include <Kotonoha/core/Settings.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <cmath>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <json-c/json.h>
 #include <limits>
 #include <memory>
@@ -50,7 +50,9 @@ void read(json_object *root, const char *name, std::string &target) {
 } // namespace
 
 void EngineSettings::validate() const {
+#if KOTONOHA_ENABLE_UPSCALER
   upscaling.validate();
+#endif
   if (!std::isfinite(vnTextSpeed) || vnTextSpeed < 0 || vnTextSpeed > 300)
     throw std::invalid_argument("Invalid VN text speed");
   if (vnFontPath.find('\0') != std::string::npos)
@@ -112,8 +114,10 @@ EngineSettings EngineSettings::load(const std::string &path,
     throw std::runtime_error("Invalid settings JSON: " + path);
   EngineSettings result = defaults;
   int version = 1, mode = static_cast<int>(result.mode);
+#if KOTONOHA_ENABLE_UPSCALER
   int backend = static_cast<int>(result.upscaling.backend);
   int preset = static_cast<int>(result.upscaling.preset);
+#endif
   int priority = result.logPriority;
   read(root.get(), "version", version);
   if (version != 1)
@@ -135,10 +139,12 @@ EngineSettings EngineSettings::load(const std::string &path,
   read(root.get(), "renderScale", result.renderScale);
   read(root.get(), "renderer", result.renderer);
   read(root.get(), "logPriority", priority);
+#if KOTONOHA_ENABLE_UPSCALER
   read(root.get(), "upscaler", backend);
   read(root.get(), "preset", preset);
   read(root.get(), "factor", result.upscaling.factor);
   read(root.get(), "shaderFiles", result.upscaling.shaderFiles);
+#endif
   read(root.get(), "translationPath", result.translationPath);
   if (auto *overlays = member(root.get(), "assetOverlays", json_type_object)) {
     json_object_object_foreach(overlays, name, value) {
@@ -188,8 +194,14 @@ EngineSettings EngineSettings::load(const std::string &path,
     }
   }
   result.mode = static_cast<WindowMode>(mode);
+#if KOTONOHA_ENABLE_UPSCALER
   result.upscaling.backend = static_cast<UpscaleBackend>(backend);
   result.upscaling.preset = static_cast<UpscalePreset>(preset);
+#else
+  // Ignore historical settings saved by feature-enabled builds.
+  result.upscaling = {};
+  result.upscaling.backend = UpscaleBackend::None;
+#endif
   if (priority < SDL_LOG_PRIORITY_TRACE || priority > SDL_LOG_PRIORITY_CRITICAL)
     throw std::runtime_error("Invalid log priority: " + path);
   result.logPriority = static_cast<SDL_LogPriority>(priority);
@@ -257,6 +269,7 @@ void EngineSettings::save(const std::string &path) const {
   json_object_object_add(root.get(), "renderer",
                          json_object_new_string(renderer.c_str()));
   integer("logPriority", static_cast<int>(logPriority));
+#if KOTONOHA_ENABLE_UPSCALER
   integer("upscaler", static_cast<int>(upscaling.backend));
   integer("preset", static_cast<int>(upscaling.preset));
   json_object_object_add(root.get(), "factor",
@@ -267,6 +280,7 @@ void EngineSettings::save(const std::string &path) const {
   json_object_object_add(
       root.get(), "shaderFiles",
       json_object_new_string(UpscaleShaderFileList(shaderReferences).c_str()));
+#endif
   auto *overlays = json_object_new_object();
   for (const auto &[name, absolute] : assetOverlays)
     json_object_object_add(overlays, name.c_str(),

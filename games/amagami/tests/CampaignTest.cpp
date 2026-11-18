@@ -56,6 +56,30 @@ int main(int argc, char **argv) {
     require(method.kind == Amagami::Campaign::TimeEntry::ScriptMethod &&
                 method.name == "SanTaku",
             "Script-method timetable entries are preserved as methods");
+    // Audit every original NodeTable timetable slot (42 days * 14 periods),
+    // not just the two example cells on the first day.
+    std::size_t scheduledEvents = 0, scheduledMethods = 0, emptySlots = 0;
+    for (int day = 1; day <= 42; ++day) {
+      for (int period = 0; period < 14; ++period) {
+        const auto entry = campaign.scheduled(day, period);
+        if (entry.kind == Amagami::Campaign::TimeEntry::None) {
+          ++emptySlots;
+          require(entry.name.empty(), "Empty timetable cell has no action");
+        } else {
+          require(!entry.name.empty() && entry.name.size() <= 256,
+                  "Original timetable cell has a bounded nonempty selector");
+          if (entry.kind == Amagami::Campaign::TimeEntry::EventName)
+            ++scheduledEvents;
+          else if (entry.kind == Amagami::Campaign::TimeEntry::ScriptMethod)
+            ++scheduledMethods;
+          else
+            throw std::runtime_error("Unknown timetable action type");
+        }
+      }
+    }
+    require(scheduledEvents + scheduledMethods + emptySlots == 42u * 14u &&
+                scheduledEvents > 0 && scheduledMethods > 0,
+            "Original six-week 588-slot timetable is fully readable");
     require(Amagami::Campaign::holiday(7) && !Amagami::Campaign::holiday(8) &&
                 Amagami::Campaign::holiday(41),
             "Original relative-day holiday rule is preserved");
@@ -113,8 +137,35 @@ int main(int argc, char **argv) {
     campaign.beginEvent(vm, "n2dea_ev01A");
     require(vm.classField("EventNode", 19).number == 2,
             "Beginning a map event preserves the original selected category");
-    std::cout
-        << "Original campaign catalog, scheduling, nodes and saves passed\n";
+    // Advance original GameParam.nextTime/nextDay transitions across at
+    // least one real day boundary; assert no frozen or out-of-range period.
+    campaign.setDate(vm, 1, 5);
+    const int initialDay = campaign.date(vm);
+    for (int i = 0; i < 24; ++i) {
+      const int beforeDay = campaign.date(vm);
+      const int beforePeriod = campaign.period(vm);
+      campaign.advancePeriod(vm);
+      const int afterDay = campaign.date(vm);
+      const int afterPeriod = campaign.period(vm);
+      require(afterDay >= 1 && afterDay <= 42 && afterPeriod >= 0 &&
+                  afterPeriod < 14,
+              "Original calendar stays inside its documented bounds");
+      require(afterDay > beforeDay ||
+                  (afterDay == beforeDay && afterPeriod > beforePeriod),
+              "Each native nextTime/nextDay call advances campaign time");
+      const auto current = campaign.scheduled(afterDay, afterPeriod);
+      require(current.kind == Amagami::Campaign::TimeEntry::None ||
+                  !current.name.empty(),
+              "Advanced period has a valid original scheduled action");
+    }
+    require(campaign.date(vm) > initialDay,
+            "Campaign period advancement crosses a real day boundary");
+
+    std::cout << "Original campaign: 588 timetable cells (" << scheduledEvents
+              << " event cells, " << scheduledMethods << " method cells, "
+              << emptySlots << " empty), "
+              << "24 native transitions over " << campaign.date(vm) - initialDay
+              << " day(s) audited\n";
     return 0;
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';

@@ -28,6 +28,24 @@ bool systemCommand(RLMachine &m, const libreallive::CommandElement &c,
     return config ? config(key, fallback) : fallback;
   };
   const int op = c.opcode();
+  if (op == 460 || op == 461) {
+    int window = (op == 461 && c.GetParamCount() < 2)
+                     ? 0
+                     : (c.GetParamCount() > 0 ? num(0) : 0);
+    if (window < 0 || window > 65535)
+      throw std::out_of_range("REALLIVE attr_mod window");
+    int key = 20000 + window;
+    if (op == 461) {
+      set(key, c.GetParamCount() > 1 ? num(1)
+                                     : (c.GetParamCount() > 0 ? num(0) : 0));
+    } else {
+      std::ostringstream path;
+      path << "WINDOW." << std::setw(3) << std::setfill('0') << window
+           << ".ATTR_MOD";
+      m.set_store_register(state(key, cfg(path.str(), 0)));
+    }
+    return true;
+  }
   if (op >= 462 && op <= 469) {
     int window = num(0);
     if (window < 0 || window > 65535)
@@ -147,12 +165,45 @@ bool systemCommand(RLMachine &m, const libreallive::CommandElement &c,
       {2251, 2351, "AUTO_CHAR_TIME", 30},
       {2252, 2352, "MESSAGE_KEY_WAIT_TIME", 1000},
       {2256, 2356, "FONT_WEIGHT", 0},
+      {2260, 2360, "WINDOW_ATTR_R", 100},
+      {2261, 2361, "WINDOW_ATTR_G", 100},
+      {2262, 2362, "WINDOW_ATTR_B", 160},
+      {2263, 2363, "WINDOW_ATTR_A", 200},
+      {2264, 2364, "WINDOW_ATTR_F", 0},
       {2207, 2207, "SYS_CONFIG_2207", 0},
-      {2374, 2374, "SYS_CONFIG_2374", 0},
-      {2375, 2375, "SYS_CONFIG_2375", 0},
-      {2367, 2367, "SYS_CONFIG_2367", 0},
       {2275, 2375, "SCREEN_MODE", 0},
-      {2370, 2370, "SYS_CONFIG_2370", 0}};
+      {2270, 2370, "SYS_CONFIG_2370", 1}};
+  if (op == 2267) {
+    for (std::size_t i = 0; i < c.GetParamCount() && i < 5; ++i)
+      set(2360 + int(i), num(int(i)));
+    return true;
+  }
+  if (op == 2367 || op == 2617) {
+    static constexpr int defaults[5] = {100, 100, 160, 200, 0};
+    for (std::size_t i = 0; i < c.GetParamCount() && i < 5; ++i) {
+      auto p = param(int(i));
+      if (p.IsLValue())
+        p.SetIntegerValue(m, state(2360 + int(i), defaults[i]));
+    }
+    m.set_store_register(0);
+    return true;
+  }
+  if (op == 2274 || op == 2374) {
+    int idx = c.GetParamCount() > 0 ? num(0) : 0;
+    int key = 30000 + std::clamp(idx, 0, 4095);
+    if (op == 2274) {
+      int val =
+          c.GetParamCount() > 1 ? num(1) : (c.GetParamCount() > 0 ? num(0) : 1);
+      set(key, val);
+    } else {
+      m.set_store_register(state(key, 1));
+    }
+    return true;
+  }
+  if (op >= 2600 && op <= 2616) {
+    m.set_store_register(0);
+    return true;
+  }
   for (const auto &setting : settings) {
     if (op == setting.setter) {
       if (c.GetParamCount() == 0)

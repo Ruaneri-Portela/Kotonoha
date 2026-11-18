@@ -19,13 +19,12 @@ void LayeredMount::addOverlay(std::shared_ptr<IMount> overlay, int priority) {
   std::stable_sort(layers_.begin(), layers_.end(),
                    [](const Layer &a, const Layer &b) {
                      return a.priority != b.priority ? a.priority > b.priority
-                                                      : a.order > b.order;
+                                                     : a.order > b.order;
                    });
   ++generation_;
 }
 
-bool LayeredMount::blocked(std::size_t index,
-                           const std::string &path) const {
+bool LayeredMount::blocked(std::size_t index, const std::string &path) const {
   for (auto pos = path.find('/'); pos != std::string::npos;
        pos = path.find('/', pos + 1)) {
     const auto ancestor = path.substr(0, pos);
@@ -44,8 +43,8 @@ bool LayeredMount::blocked(std::size_t index,
   return false;
 }
 
-const LayeredMount::Layer *
-LayeredMount::visible(const std::string &path, bool overlayOnly) const {
+const LayeredMount::Layer *LayeredMount::visible(const std::string &path,
+                                                 bool overlayOnly) const {
   for (std::size_t i = 0; i < layers_.size(); ++i) {
     const auto &layer = layers_[i];
     if (overlayOnly && !layer.overlay)
@@ -62,9 +61,12 @@ bool LayeredMount::isKnownRegularFile(std::string_view path) const {
   const auto key = normalizePath(path, true);
   for (std::size_t i = 0; i < layers_.size(); ++i) {
     const auto &mount = layers_[i].mount;
-    if (blocked(i, key)) continue;
-    if (mount->isKnownRegularFile(key)) return true;
-    if (mount->isKnownDirectory(key)) return false;
+    if (blocked(i, key))
+      continue;
+    if (mount->isKnownRegularFile(key))
+      return true;
+    if (mount->isKnownDirectory(key))
+      return false;
   }
   return false;
 }
@@ -72,9 +74,12 @@ bool LayeredMount::isKnownDirectory(std::string_view path) const {
   const auto key = normalizePath(path, true);
   for (std::size_t i = 0; i < layers_.size(); ++i) {
     const auto &mount = layers_[i].mount;
-    if (blocked(i, key)) continue;
-    if (mount->isKnownRegularFile(key)) return false;
-    if (mount->isKnownDirectory(key)) return true;
+    if (blocked(i, key))
+      continue;
+    if (mount->isKnownRegularFile(key))
+      return false;
+    if (mount->isKnownDirectory(key))
+      return true;
   }
   return false;
 }
@@ -86,7 +91,8 @@ FileInfo LayeredMount::stat(std::string_view path) const {
   const auto name = normalizePath(path, true);
   const auto *layer = visible(name, false);
   if (!layer)
-    throw FilesystemError(ErrorCode::NotFound, "Virtual file not found: " + name);
+    throw FilesystemError(ErrorCode::NotFound,
+                          "Virtual file not found: " + name);
   return layer->mount->stat(name);
 }
 
@@ -119,7 +125,8 @@ std::unique_ptr<FileHandle> LayeredMount::open(std::string_view path) const {
   const auto name = normalizePath(path);
   const auto *layer = visible(name, false);
   if (!layer)
-    throw FilesystemError(ErrorCode::NotFound, "Virtual file not found: " + name);
+    throw FilesystemError(ErrorCode::NotFound,
+                          "Virtual file not found: " + name);
   return layer->mount->open(name);
 }
 

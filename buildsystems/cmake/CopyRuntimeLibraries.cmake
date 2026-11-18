@@ -83,7 +83,32 @@ if(WIN32)
                             "^[Ee][Xx][Tt]-[Mm][Ss]-[Ww][Ii][Nn]-.*"
         POST_EXCLUDE_REGEXES ".*[/\\\\][Ww][Ii][Nn][Dd][Oo][Ww][Ss][/\\\\].*"
         RESOLVED_DEPENDENCIES_VAR _windows_dlls
-        UNRESOLVED_DEPENDENCIES_VAR _windows_missing)
+        UNRESOLVED_DEPENDENCIES_VAR _windows_missing
+        CONFLICTING_DEPENDENCIES_PREFIX _windows_conflicts)
+    # vcpkg's app-local deployment can place copies of the same DLL in
+    # both the shared build bin directory and individual game directories.
+    # Accept duplicates only when their bytes match; never silently select
+    # one of two different DLL builds with the same basename.
+    foreach(_dll_name IN LISTS _windows_conflicts_FILENAMES)
+        set(_candidates "${_windows_conflicts_${_dll_name}}")
+        set(_expected_hash "")
+        set(_identical TRUE)
+        foreach(_candidate IN LISTS _candidates)
+            file(SHA256 "${_candidate}" _candidate_hash)
+            if(_expected_hash AND NOT _candidate_hash STREQUAL _expected_hash)
+                set(_identical FALSE)
+                break()
+            endif()
+            set(_expected_hash "${_candidate_hash}")
+        endforeach()
+        if(NOT _identical)
+            message(FATAL_ERROR
+                "[Kotonoha] Different runtime DLLs share the name "
+                "${_dll_name}: ${_candidates}")
+        endif()
+        list(GET _candidates 0 _identical_dll)
+        list(APPEND _windows_dlls "${_identical_dll}")
+    endforeach()
     if(_windows_missing)
         message(WARNING
             "[Kotonoha] Unresolved Windows runtime DLLs: ${_windows_missing}")
@@ -105,6 +130,7 @@ set(pre_exclude
         "^/usr/lib64/"
         "^/System/")
 set(post_exclude
+        ".*/outputs/.*"
         ".*/libc\\.so.*"
         ".*/libm\\.so.*"
         ".*/libdl\\.so.*"

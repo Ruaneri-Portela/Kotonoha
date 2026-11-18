@@ -1,30 +1,29 @@
 #include <SnowRadish/SnowAssets.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/Path.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
-#include <Kotonoha/Filesystem/Path.hpp>
-#include <utility>
 #include <stdexcept>
+#include <utility>
 
 namespace Kotonoha::Providers {
 using namespace SnowRadish;
 namespace {
 
-std::vector<uint8_t> ReadFile(
-    const Kotonoha::Filesystem::Filesystem &source,
-    const std::filesystem::path &path) {
-  return Kotonoha::Filesystem::readAll(
-      *source.open(path.generic_string()));
+std::vector<uint8_t> ReadFile(const Kotonoha::Filesystem::Filesystem &source,
+                              const std::filesystem::path &path) {
+  return Kotonoha::Filesystem::readAll(*source.open(path.generic_string()));
 }
 
-std::filesystem::path FindPackDirectory(
-    const Kotonoha::Filesystem::Filesystem &source) {
+std::filesystem::path
+FindPackDirectory(const Kotonoha::Filesystem::Filesystem &source) {
   for (const char *candidate : {"", "pack", "data/pack"}) {
     const auto prefix = std::string(candidate);
     const auto name = prefix.empty() ? "SCRIPT.DAT" : prefix + "/SCRIPT.DAT";
-    const auto graphic = prefix.empty() ? "GRAPHIC.DAT" : prefix + "/GRAPHIC.DAT";
+    const auto graphic =
+        prefix.empty() ? "GRAPHIC.DAT" : prefix + "/GRAPHIC.DAT";
     if (source.exists(name) && source.exists(graphic) &&
         source.stat(name).type == Kotonoha::Filesystem::FileType::Regular &&
         source.stat(graphic).type == Kotonoha::Filesystem::FileType::Regular)
@@ -124,19 +123,18 @@ std::string SnowAssets::Lower(std::string s) {
 }
 
 SnowAssets::SnowAssets(std::filesystem::path directory)
-    : SnowAssets(Kotonoha::Filesystem::Filesystem::mount(
-          directory.string())) {
+    : SnowAssets(Kotonoha::Filesystem::Filesystem::mount(directory.string())) {
   directory_ = std::move(directory);
 }
 
-SnowAssets::SnowAssets(
-    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source)
+SnowAssets::SnowAssets(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source)
     : source_(std::move(source)) {
   if (!source_)
     throw std::invalid_argument("SnowAssets requires a virtual source");
   const auto packDirectory = FindPackDirectory(*source_);
   const auto base = packDirectory.empty()
-      ? std::string{} : packDirectory.generic_string() + "/";
+                        ? std::string{}
+                        : packDirectory.generic_string() + "/";
   const auto choose = [&](const char *name) -> std::filesystem::path {
     const auto path = base + name;
     if (source_->exists(path) &&
@@ -489,6 +487,62 @@ Kotonoha::SurfacePtr SnowAssets::loadSurfaceAsset(const std::string &id) const {
       }
     }
     throw std::runtime_error("Cannot decode picture " + id);
+  }
+  if (ext == "cgg" || ext == "cgm" || ext == "edg" || ext == "dib") {
+    const auto data = Graphic(key);
+    int W = 0, H = 0;
+    if (ext == "cgg" || ext == "cgm") {
+      W = 160;
+      H = 120;
+    } else if (ext == "edg") {
+      W = 345;
+      H = 460;
+    } else if (ext == "dib") {
+      W = 800;
+      H = 970;
+    }
+    if (W > 0 && H > 0 && data.size() == size_t(W) * size_t(H) * 3) {
+      std::vector<uint8_t> rgba(size_t(W) * size_t(H) * 4, 255);
+      for (int i = 0; i < W * H; ++i) {
+        const uint8_t b = data[size_t(i) * 3 + 0];
+        const uint8_t g = data[size_t(i) * 3 + 1];
+        const uint8_t r = data[size_t(i) * 3 + 2];
+        const size_t target = size_t(H - 1 - i / W) * size_t(W) + size_t(i % W);
+        uint8_t *o = &rgba[target * 4];
+        o[0] = r;
+        o[1] = g;
+        o[2] = b;
+        o[3] = 255;
+      }
+      return RgbaSurface(W, H, rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
+    }
+  }
+  if (ext == "rol") {
+    // PureMail staff-roll credit strips (pmail.exe:0x0040fc70..0x0040fd10):
+    // 608-byte row stride; row[0] != 0 marks an empty row, otherwise
+    // 200 pixels at row[8 + x * 3] store subtractive darkness over light cards.
+    const auto data = Graphic(key);
+    if (!data.empty() && data.size() % 608 == 0) {
+      const int W = 200;
+      const int H = int(data.size() / 608);
+      std::vector<uint8_t> rgba(size_t(W) * size_t(H) * 4, 0);
+      for (int y = 0; y < H; ++y) {
+        const uint8_t *row = data.data() + size_t(y) * 608;
+        if (row[0] != 0)
+          continue;
+        for (int x = 0; x < W; ++x) {
+          const uint8_t darkness = row[8 + size_t(x) * 3];
+          if (darkness == 0)
+            continue;
+          uint8_t *o = &rgba[(size_t(y) * size_t(W) + size_t(x)) * 4];
+          o[0] = 0;
+          o[1] = 0;
+          o[2] = 0;
+          o[3] = darkness;
+        }
+      }
+      return RgbaSurface(W, H, rgba.data(), SDL_PIXELFORMAT_RGBA32, 4);
+    }
   }
   if (ext == "chd" || ext == "char") {
     SnowRadish::Sprite sprite;

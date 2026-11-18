@@ -1,8 +1,8 @@
 #include "Kotonoha/routing/SchoolDaysKtrfAssetResolver.hpp"
 #include "Kotonoha/routing/SchoolDaysKtrfProfile.hpp"
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
-#include <filesystem>
 #include <exception>
+#include <filesystem>
 
 #include <stdarg.h>
 #include <stdio.h>

@@ -1,13 +1,13 @@
-#include <Kotonoha/core/AssetProvider.hpp>
-#include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
-#include <Kotonoha/media/TextureAlpha.hpp>
+#include <Kotonoha/media/SurfaceTexture.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <cmath>
@@ -29,17 +29,6 @@ IOStreamPtr memoryStream(const std::vector<Uint8> &bytes) {
   return stream;
 }
 
-void prepareLinearSurface(SDL_Surface *surface) {
-  if (!surface || surface->format != SDL_PIXELFORMAT_RGBA32)
-    return;
-  const bool lock = SDL_MUSTLOCK(surface);
-  if (lock && !SDL_LockSurface(surface))
-    return;
-  prepareStraightAlphaForLinearFiltering(
-      static_cast<Uint8 *>(surface->pixels), surface->w, surface->h, surface->pitch);
-  if (lock)
-    SDL_UnlockSurface(surface);
-}
 } // namespace
 
 AssetProvider::AssetProvider() = default;
@@ -351,9 +340,13 @@ SDL_Texture &AssetProvider::stageTexture(RendererRef renderer,
   }
   if (auto found = textures.find(id); found != textures.end())
     return *found->second;
-  if (!surface) throw std::invalid_argument("Staged asset surface is empty");
-  prepareLinearSurface(surface.get());
-  TexturePtr created(SDL_CreateTextureFromSurface(&renderer, surface.get()));
+  if (!surface)
+    throw std::invalid_argument("Staged asset surface is empty");
+  const SurfacePtr prepared = prepareSurfaceForLinearSampling(surface.get());
+  if (!prepared)
+    throw std::runtime_error("Cannot prepare picture " + id + ": " +
+                             SDL_GetError());
+  TexturePtr created(SDL_CreateTextureFromSurface(&renderer, prepared.get()));
   if (!created)
     throw std::runtime_error("Cannot upload picture " + id + ": " +
                              SDL_GetError());
@@ -382,9 +375,12 @@ SDL_Texture &AssetProvider::texture(RendererRef renderer, const std::string &id,
   TexturePtr created;
   {
     const SurfacePtr source = loadSurface(id);
-    prepareLinearSurface(source.get());
+    const SurfacePtr prepared = prepareSurfaceForLinearSampling(source.get());
+    if (!prepared)
+      throw std::runtime_error("Cannot prepare picture " + id + ": " +
+                               SDL_GetError());
     SurfacePtr resized(SDL_ScaleSurface(
-        source.get(), std::max(1, int(std::lround(source->w * scale))),
+        prepared.get(), std::max(1, int(std::lround(source->w * scale))),
         std::max(1, int(std::lround(source->h * scale))),
         SDL_SCALEMODE_LINEAR));
     if (!resized)
@@ -405,12 +401,15 @@ SurfacePtr AssetProvider::surface(RendererRef renderer, const std::string &id,
   if (!std::isfinite(scale) || scale <= 0)
     throw std::invalid_argument("Surface scale must be positive");
   const SurfacePtr source = loadSurface(id);
-  prepareLinearSurface(source.get());
+  const SurfacePtr prepared = prepareSurfaceForLinearSampling(source.get());
+  if (!prepared)
+    throw std::runtime_error("Cannot prepare picture " + id + ": " +
+                             SDL_GetError());
   if (upscaling)
-    return upscaling->scaled(*source, scale);
+    return upscaling->scaled(*prepared, scale);
   (void)renderer;
   SurfacePtr resized(SDL_ScaleSurface(
-      source.get(), std::max(1, int(std::lround(source->w * scale))),
+      prepared.get(), std::max(1, int(std::lround(source->w * scale))),
       std::max(1, int(std::lround(source->h * scale))), SDL_SCALEMODE_LINEAR));
   if (!resized)
     throw std::runtime_error("Cannot scale picture " + id + ": " +
@@ -452,9 +451,9 @@ public:
   }
   bool seek(std::uint64_t position) override {
     return position <= static_cast<std::uint64_t>(INT64_MAX) &&
-        file_->seek(static_cast<std::int64_t>(position),
-                    Filesystem::SeekOrigin::Begin) ==
-            static_cast<std::int64_t>(position);
+           file_->seek(static_cast<std::int64_t>(position),
+                       Filesystem::SeekOrigin::Begin) ==
+               static_cast<std::int64_t>(position);
   }
 };
 } // namespace
@@ -492,7 +491,8 @@ const std::filesystem::path &FileSystemAssetProvider::getRoot() const {
 }
 
 std::string FileSystemAssetProvider::name() const {
-  if (mounted_) return "Mounted files (virtual)";
+  if (mounted_)
+    return "Mounted files (virtual)";
   return root.empty() ? "Files" : "Files (" + root.string() + ")";
 }
 
@@ -528,8 +528,8 @@ bool FileSystemAssetProvider::containsAsset(const std::string &id) const {
     }
   }
   if (fallback_) {
-    const auto name = id.compare(0, 12, "game-assets/") == 0
-                          ? id.substr(12) : id;
+    const auto name =
+        id.compare(0, 12, "game-assets/") == 0 ? id.substr(12) : id;
     try {
       if (fallback_->exists(name) &&
           fallback_->stat(name).type == Filesystem::FileType::Regular)
@@ -625,7 +625,8 @@ FileSystemAssetProvider::listAsset(const std::string &prefix) const {
 std::string
 FileSystemAssetProvider::localPathAsset(const std::string &id) const {
   // Virtual sources (TAR/ISO/HTTP) never require a physical path.
-  if (mounted_) return {};
+  if (mounted_)
+    return {};
   const auto path = resolve(id);
   if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
       fallback_->exists(id.substr(12))) {
@@ -645,8 +646,7 @@ FileSystemAssetProvider::openStream(const std::string &id) const {
     return std::make_unique<MountedAssetStream>(mounted_->open(id));
   if (fallback_ && id.compare(0, 12, "game-assets/") == 0 &&
       fallback_->exists(id.substr(12)))
-    return std::make_unique<MountedAssetStream>(
-        fallback_->open(id.substr(12)));
+    return std::make_unique<MountedAssetStream>(fallback_->open(id.substr(12)));
   const auto local = resolve(id);
   if (std::filesystem::is_regular_file(local))
     return std::make_unique<MountedAssetStream>(
@@ -665,12 +665,14 @@ IndexedFileSystemAssetProvider::IndexedFileSystemAssetProvider(
 
 bool IndexedFileSystemAssetProvider::containsAsset(
     const std::string &id) const {
-  if (mounted()) return FileSystemAssetProvider::containsAsset(id);
+  if (mounted())
+    return FileSystemAssetProvider::containsAsset(id);
   return !index.resolve(id).empty();
 }
 std::string
 IndexedFileSystemAssetProvider::localPathAsset(const std::string &id) const {
-  if (mounted()) return {};
+  if (mounted())
+    return {};
   const auto path = index.resolve(id);
   if (path.empty())
     throw std::runtime_error("Asset not found in " + getRoot().string() + ": " +
@@ -679,14 +681,16 @@ IndexedFileSystemAssetProvider::localPathAsset(const std::string &id) const {
 }
 std::vector<Uint8>
 IndexedFileSystemAssetProvider::readAsset(const std::string &id) const {
-  if (mounted()) return FileSystemAssetProvider::readAsset(id);
+  if (mounted())
+    return FileSystemAssetProvider::readAsset(id);
   const auto relative =
       std::filesystem::path(localPathAsset(id)).lexically_relative(getRoot());
   return FileSystemAssetProvider::readAsset(relative.generic_string());
 }
 std::vector<std::string>
 IndexedFileSystemAssetProvider::listAsset(const std::string &prefix) const {
-  if (mounted()) return FileSystemAssetProvider::listAsset(prefix);
+  if (mounted())
+    return FileSystemAssetProvider::listAsset(prefix);
   return index.list(prefix);
 }
 

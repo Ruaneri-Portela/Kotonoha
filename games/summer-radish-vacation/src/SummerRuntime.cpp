@@ -1,6 +1,7 @@
-#include <Kotonoha/core/SDL.hpp>
 #include "SummerRuntime.hpp"
 #include "SummerBacklog.hpp"
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/ImageButtonBar.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
@@ -10,7 +11,7 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
@@ -25,7 +26,6 @@
 #include <algorithm>
 #include <charconv>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -36,11 +36,13 @@ namespace {
 class SummerText final : public VNTextBox {
   Kotonoha::Providers::SummerAssets &assets;
   std::unique_ptr<ClickMap> controlMap;
+  // SRV1 uses GRAPHIC/FRAME/MESSFRAME, SRV2 uses GRAPHIC/MESFRAME/MESFRAME.
+  std::string frameTexb, frameCmap, selectTexb;
   void renderFrame(RendererRef r) override {
     // The normal frame is already composited by the stage. Overlay the
     // original atlas states without rebuilding/upscaling the whole canvas.
-    if (assets.contains("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
-      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
+    if (assets.contains(frameTexb)) {
+      auto &atlas = assets.texture(r, frameTexb);
       for (int i = 0; i < 6; ++i) {
         const int state = controls.state(i);
         const bool active = (i == 0 && skipActive && skipActive()) ||
@@ -69,7 +71,7 @@ class SummerText final : public VNTextBox {
   }
   void renderDialogue(RendererRef r) override {
     auto measure = [&](const std::string &value) {
-      return engine.GetVNUI().textSize(value, 10000).x;
+      return engine.GetVNUI().textWidth(value);
     };
     const auto lines = VNTextBoxUtility::RevealLines(
         fullDialogue, visibleDialogue.size(), measure, 710);
@@ -80,8 +82,8 @@ class SummerText final : public VNTextBox {
                                 : SDL_Color{240, 240, 245, 255});
   }
   void renderIndicator(RendererRef r) override {
-    if (assets.contains("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
-      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
+    if (assets.contains(frameTexb)) {
+      auto &atlas = assets.texture(r, frameTexb);
       SDL_FRect source{float(256 + ((SDL_GetTicks() / 200) % 4) * 16), 210, 16,
                        40};
       SDL_FRect target{719, 526, 16, 40};
@@ -105,8 +107,14 @@ public:
   }
   SummerText(Engine &e, Kotonoha::Providers::SummerAssets &a)
       : VNTextBox(e, "", "", 40), assets(a) {
+    // SRV2 uses GRAPHIC/MESFRAME/*; SRV1 uses GRAPHIC/FRAME/*.
+    const bool srv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
+    const std::string prefix = srv2 ? "GRAPHIC/MESFRAME/" : "GRAPHIC/FRAME/";
+    frameTexb = prefix + (srv2 ? "MESFRAME.TEXB" : "MESSFRAME.TEXB");
+    frameCmap = prefix + (srv2 ? "MESFRAME.CMAP" : "MESSFRAME.CMAP");
+    selectTexb = prefix + "SELECT.TEXB";
     hide();
-    if (auto cmap = assets.tryReadAsset("GRAPHIC/FRAME/MESSFRAME.CMAP"))
+    if (auto cmap = assets.tryReadAsset(frameCmap))
       controlMap = std::make_unique<ClickMap>(std::move(*cmap));
     controls.hitTest = [this](SDL_FPoint p) {
       const int id =
@@ -124,6 +132,7 @@ public:
 };
 class SummerChoice final : public ChoiceQuestionScene {
   Kotonoha::Providers::SummerAssets &assets;
+  std::string selectTexb;
   std::vector<bool> readStates;
   bool pointerFocus = false, keyboardFocus = false;
   void layout() override {
@@ -148,8 +157,8 @@ class SummerChoice final : public ChoiceQuestionScene {
     const auto &rect = options[index].hitBox;
     const bool read = index < readStates.size() && readStates[index];
     const float start = (read ? 160 : 0) + (focused ? 80 : 0);
-    if (assets.contains("GRAPHIC/FRAME/SELECT.TEXB")) {
-      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/SELECT.TEXB");
+    if (assets.contains(selectTexb)) {
+      auto &atlas = assets.texture(r, selectTexb);
       SDL_FRect source{start, 0, 32, 42}, target{rect.x, rect.y, 32, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
       source = {start + 32, 0, 16, 42};
@@ -178,12 +187,17 @@ class SummerChoice final : public ChoiceQuestionScene {
   }
   std::unique_ptr<ClickMap> hitmap;
   int nativeMode = -1, focus = -1, uniformPhase = 0, uniformIndex = 0;
+  bool isSrv2 = false;
   float oldX = -100, oldY = -100;
 
 public:
   std::function<void(const std::string &)> nativeSound;
   explicit SummerChoice(Engine &e, Kotonoha::Providers::SummerAssets &a)
-      : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {}
+      : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {
+    isSrv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
+    selectTexb =
+        isSrv2 ? "GRAPHIC/MESFRAME/SELECT.TEXB" : "GRAPHIC/FRAME/SELECT.TEXB";
+  }
   void setReadStates(std::vector<bool> states) {
     readStates = std::move(states);
   }
@@ -205,28 +219,40 @@ public:
   }
   void setNative(int mode, Kotonoha::Providers::SummerAssets &assets,
                  std::function<void(int, const std::string &)> cb) {
+    // mode == 100 represents UNISELECT so SRV2 MAPSELECT(0..3) doesn't collide.
+    const bool uniform = (mode == 100);
     nativeMode = mode;
-    focus = mode == 3 ? 0 : -1;
+    focus = uniform ? 0 : -1;
     uniformPhase = 0;
     oldX = oldY = -100;
-    const auto id =
-        mode == 3 ? "GRAPHIC/UNIFORM/UNICHOICE.CMAP" : mapLayout(mode).hitmap;
+    const auto id = uniform ? "GRAPHIC/UNIFORM/UNICHOICE.CMAP"
+                            : mapLayout(mode, isSrv2).hitmap;
     hitmap = std::make_unique<ClickMap>(assets.read(id));
     std::vector<ChoiceOption> list;
-    if (mode == 3)
+    if (uniform)
       for (int i = 0; i < 3; ++i)
         list.push_back({std::to_string(i), i});
     else
-      for (const auto &location : mapLayout(mode).locations)
+      for (const auto &location : mapLayout(mode, isSrv2).locations)
         list.push_back(
-            {mapCharacterVariable(location.result), location.result});
+            {mapCharacterVariable(location.result, isSrv2), location.result});
     ChoiceQuestionScene::setQuestion("", list, std::move(cb));
-    if (mode == 3 && nativeSound)
-      nativeSound("systemmsg_0000");
+    if (uniform && nativeSound)
+      nativeSound(isSrv2 ? "SE/SELUNI/000" : "systemmsg_0000");
   }
   std::string nativeBackground() const {
-    if (nativeMode == 3) {
+    if (nativeMode == 100) {
       if (uniformPhase) {
+        if (isSrv2) {
+          static const char *srv2Uniforms[3] = {
+              "GRAPHIC/UNIFORM/DECCRU.CGD",
+              "GRAPHIC/UNIFORM/DECLEM.CGD",
+              "GRAPHIC/UNIFORM/DECSUK.CGD",
+          };
+          if (uniformIndex >= 0 && uniformIndex < 3 &&
+              assets.contains(srv2Uniforms[uniformIndex]))
+            return srv2Uniforms[uniformIndex];
+        }
         const std::string kakunin = std::string("GRAPHIC/UNIFORM/KAKUNIN_") +
                                     char('A' + uniformIndex) + ".CGD";
         if (assets.contains(kakunin))
@@ -235,15 +261,15 @@ public:
       }
       return "GRAPHIC/UNIFORM/UNICHOICE.CGD";
     }
-    return nativeMode >= 0 ? mapLayout(nativeMode).background : "";
+    return nativeMode >= 0 ? mapLayout(nativeMode, isSrv2).background : "";
   }
   void compose(Image &canvas,
                const std::function<const Image &(const std::string &)> &image,
                const Machine &vm) const {
     if (!active || nativeMode < 0)
       return;
-    if (nativeMode < 3) {
-      const auto &layout = mapLayout(nativeMode);
+    if (nativeMode != 100) {
+      const auto &layout = mapLayout(nativeMode, isSrv2);
       if (focus >= 0 && focus < int(layout.locations.size())) {
         const auto &item = layout.locations[focus];
         compositeImageRegion(canvas, image(layout.texture), item.position.left,
@@ -251,15 +277,29 @@ public:
                              item.source.top,
                              item.source.right - item.source.left,
                              item.source.bottom - item.source.top);
+        if (isSrv2 && assets.contains("GRAPHIC/MAP/MAPNAME.TEXB")) {
+          const auto &mapName = image("GRAPHIC/MAP/MAPNAME.TEXB");
+          if (focus * 75 + 75 <= mapName.height && mapName.width >= 210)
+            compositeImageRegion(canvas, mapName, 28, 494, 0, focus * 75, 210,
+                                 75);
+        }
       }
       for (auto &item : layout.locations) {
-        auto v = vm.variables.find("@" + mapCharacterVariable(item.result));
+        auto v =
+            vm.variables.find("@" + mapCharacterVariable(item.result, isSrv2));
         int actor = v == vm.variables.end() ? 0 : int(number(v->second));
-        int face = mapFaceIndex(nativeMode,
-                                size_t(&item - layout.locations.data()), actor);
-        if (face >= 0 && face < 8)
-          compositeImageRegion(canvas, image("GRAPHIC/MAP/FACE.TEXB"),
-                               item.face.x, item.face.y, 0, face * 62, 98, 62);
+        int face = mapFaceIndex(
+            nativeMode, size_t(&item - layout.locations.data()), actor, isSrv2);
+        const int maxFaces = isSrv2 ? 6 : 8;
+        const int faceW = isSrv2 ? 90 : 98;
+        const int faceH = isSrv2 ? 90 : 62;
+        if (face >= 0 && face < maxFaces &&
+            assets.contains("GRAPHIC/MAP/FACE.TEXB")) {
+          const auto &faceTex = image("GRAPHIC/MAP/FACE.TEXB");
+          if (face * faceH + faceH <= faceTex.height && faceTex.width >= faceW)
+            compositeImageRegion(canvas, faceTex, item.face.x, item.face.y, 0,
+                                 face * faceH, faceW, faceH);
+        }
       }
     } else if (uniformPhase == 0) {
       if (focus >= 0) {
@@ -297,7 +337,7 @@ public:
       return ChoiceQuestionScene::onEvent(e);
     }
     if (BackAction(engine, e)) {
-      if (nativeMode == 3 && uniformPhase) {
+      if (nativeMode == 100 && uniformPhase) {
         uniformPhase = 0;
         focus = uniformIndex;
       } else
@@ -312,7 +352,7 @@ public:
                  e.button.button == SDL_BUTTON_LEFT;
     if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
       if (e.key.key == SDLK_ESCAPE) {
-        if (nativeMode == 3 && uniformPhase) {
+        if (nativeMode == 100 && uniformPhase) {
           uniformPhase = 0;
           focus = uniformIndex;
           return true;
@@ -326,9 +366,12 @@ public:
                       : e.key.key == SDLK_RIGHT ? 3
                                                 : -1;
       if (direction >= 0) {
-        if (nativeMode < 3)
-          focus = mapNavigate(nativeMode, focus, direction);
-        else if (uniformPhase == 2)
+        if (nativeMode != 100) {
+          const int prev = focus;
+          focus = mapNavigate(nativeMode, focus, direction, isSrv2);
+          if (focus != prev && focus >= 0 && isSrv2 && nativeSound)
+            nativeSound("SE/SELMAP/016");
+        } else if (uniformPhase == 2)
           focus = focus == 0 ? 1 : 0;
         else if (uniformPhase == 0) {
           static const int up[4] = {2, 1, 2, 0}, down[4] = {1, 2, 0, 1};
@@ -338,22 +381,27 @@ public:
     }
     if (e.type == SDL_EVENT_MOUSE_MOTION &&
         (std::abs(e.motion.x - oldX) > 3 || std::abs(e.motion.y - oldY) > 3)) {
-      if (nativeMode == 3 && uniformPhase == 2)
+      if (nativeMode == 100 && uniformPhase == 2)
         focus = (e.motion.y >= 413 && e.motion.y < 441)
                     ? (e.motion.x >= 288 && e.motion.x < 388   ? 0
                        : e.motion.x >= 414 && e.motion.x < 514 ? 1
                                                                : -1)
                     : -1;
-      else if (!uniformPhase)
+      else if (!uniformPhase) {
+        const int prev = focus;
         focus = hitmap->locationIndex(int(e.motion.x), int(e.motion.y),
                                       options.size());
+        if (focus != prev && focus >= 0 && nativeMode != 100 && isSrv2 &&
+            nativeSound)
+          nativeSound("SE/SELMAP/016");
+      }
       oldX = e.motion.x;
       oldY = e.motion.y;
     }
     if (mouse) {
-      if (nativeMode == 3 && uniformPhase == 1)
+      if (nativeMode == 100 && uniformPhase == 1)
         confirm = true;
-      else if (nativeMode == 3 && uniformPhase == 2)
+      else if (nativeMode == 100 && uniformPhase == 2)
         confirm = focus >= 0 && e.button.y >= 413 && e.button.y < 441 &&
                   e.button.x >= (focus == 0 ? 288 : 414) &&
                   e.button.x < (focus == 0 ? 388 : 514);
@@ -364,28 +412,35 @@ public:
     }
     if (!confirm)
       return false;
-    if (nativeMode < 3) {
-      if (focus >= 0)
+    if (nativeMode != 100) {
+      if (focus >= 0) {
+        if (isSrv2 && nativeSound)
+          nativeSound("SE/SELMAP/018");
         select(size_t(focus));
+      }
       return true;
     }
     if (uniformPhase == 0 && focus >= 0) {
       uniformIndex = focus;
       uniformPhase = 1;
-      if (nativeSound)
-        nativeSound("systemmsg_000" + std::to_string(4 * (uniformIndex + 1)));
+      if (nativeSound) {
+        if (isSrv2)
+          nativeSound("SE/SELUNI/00" + std::to_string(2 * (uniformIndex + 1)));
+        else
+          nativeSound("systemmsg_000" + std::to_string(4 * (uniformIndex + 1)));
+      }
       return true;
     }
     if (uniformPhase == 1) {
       uniformPhase = 2;
       focus = -1;
       if (nativeSound)
-        nativeSound("systemmsg_0016");
+        nativeSound(isSrv2 ? "SE/SELUNI/008" : "systemmsg_0016");
       return true;
     }
     if (uniformPhase == 2 && focus == 0) {
       if (nativeSound)
-        nativeSound("systemmsg_0020");
+        nativeSound(isSrv2 ? "SE/SELUNI/010" : "systemmsg_0020");
       select(size_t(uniformIndex));
       return true;
     }
@@ -393,7 +448,7 @@ public:
       uniformPhase = 0;
       focus = uniformIndex;
       if (nativeSound)
-        nativeSound("systemmsg_0024");
+        nativeSound(isSrv2 ? "SE/SELUNI/014" : "systemmsg_0024");
       return true;
     }
     return false;
@@ -446,8 +501,14 @@ struct SummerRuntime::Impl {
   TexturePtr canvasTexture;
   Uint64 canvasContentSerial = 0;
   Image presented, transitionFrom, lastCanvas;
-  int transitionType = 0, transitionDuration = 0;
+  int transitionType = 0, transitionOption = 0, transitionDuration = 0;
   uint64_t transitionStart = 0;
+  int bgOffsetX = 0, bgOffsetY = 0;
+  int scrollStartX = 0, scrollStartY = 0, scrollTargetX = 0, scrollTargetY = 0;
+  int scrollDuration = 0;
+  uint64_t scrollStart = 0;
+  int currentMessageActor = 0;
+  std::vector<int> extraVoiceActors_;
   uint64_t bgmFadeStart = 0;
   int bgmFadeDuration = 0;
   std::string nextMusic;
@@ -455,6 +516,8 @@ struct SummerRuntime::Impl {
   std::string canvasKey;
   std::map<std::string, std::pair<int, int>> origins;
   std::vector<std::string> speakers;
+  // SRV1: {0, -200, 200}; SRV2: parsed from GRAPHIC.INI Position line.
+  std::vector<int> positionOffsets = {0, -200, 200};
   std::array<std::string, 4> defaultNames{};
   TextInputForm *nameForm = nullptr;
   static std::string nameKey(const char *prefix, size_t index) {
@@ -532,12 +595,29 @@ struct SummerRuntime::Impl {
   // Per-edition title layout loaded from EASYTITLE.INI.
   struct TitleChip {
     std::string name;
+    std::string flag;
     int atlasX = 0, atlasY = 0, atlasW = 0, atlasH = 0; // Source rect in atlas
   };
   int titleBaseX = 0, titleBaseY = 0; // Screen base position from [TITLE000]
   int titleChipSpacing = 40;          // Vertical spacing between chips
   std::string titleChipTexture;       // TEMPLATENAME or fallback
+  std::vector<TitleChip> allTitleChips;
   std::vector<TitleChip> titleChips;
+  void refreshTitleChips() {
+    titleChips.clear();
+    for (const auto &chip : allTitleChips) {
+      if (chip.name.empty())
+        continue;
+      if (!chip.flag.empty()) {
+        auto it = vm.variables.find("$" + chip.flag);
+        if (it == vm.variables.end() || number(it->second) == 0)
+          continue;
+      }
+      titleChips.push_back(chip);
+    }
+    if (titleFocus >= int(titleChips.size()))
+      titleFocus = 0;
+  }
   std::set<std::string> warned;
   explicit Impl(SummerRuntime &r,
                 std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
@@ -549,21 +629,26 @@ struct SummerRuntime::Impl {
     std::istringstream stream(
         assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
     std::string line;
-    speakers.resize(32);
+    speakers.resize(64);
     while (std::getline(stream, line)) {
       if (line.rfind("PlayerName0", 0) == 0 && line.size() > 12 &&
           line[11] >= '0' && line[11] <= '3') {
         const auto eq = line.find('=');
         if (eq != line.npos) {
-          auto hex = line.substr(eq + 1);
-          hex.erase(0, hex.find_first_not_of(" \t"));
-          hex.erase(hex.find_last_not_of(" \t\r") + 1);
-          if (hex.size() % 2 ||
-              hex.find_first_not_of("0123456789abcdefABCDEF") != hex.npos)
-            throw std::runtime_error("Invalid native player name");
+          auto val = line.substr(eq + 1);
+          val.erase(0, val.find_first_not_of(" \t"));
+          val.erase(val.find_last_not_of(" \t\r") + 1);
           auto &name = defaultNames[size_t(line[11] - '0')];
-          for (size_t at = 0; at < hex.size(); at += 2)
-            name += char(std::stoi(hex.substr(at, 2), nullptr, 16));
+          if (!val.empty() && val[0] == '@') {
+            // SRV2: @-prefixed literal UTF-8 string (after UTF-16LE decode).
+            name = val.substr(1);
+          } else if (val.size() % 2 == 0 &&
+                     val.find_first_not_of("0123456789abcdefABCDEF") ==
+                         val.npos) {
+            // SRV1: hex-encoded byte string.
+            for (size_t at = 0; at < val.size(); at += 2)
+              name += char(std::stoi(val.substr(at, 2), nullptr, 16));
+          }
         }
       }
       if (line.size() > 11 && line.substr(0, 3) == "CHR" &&
@@ -572,15 +657,49 @@ struct SummerRuntime::Impl {
         auto eq = line.find('=');
         if (i >= int(speakers.size()) || eq == line.npos)
           continue;
-        std::string hex = line.substr(eq + 1);
-        hex.erase(0, hex.find_first_not_of(" \t"));
-        hex.erase(hex.find_last_not_of(" \t\r") + 1);
-        if (hex.size() % 2 == 0 &&
-            hex.find_first_not_of("0123456789ABCDEFabcdef") == hex.npos) {
+        std::string val = line.substr(eq + 1);
+        val.erase(0, val.find_first_not_of(" \t"));
+        val.erase(val.find_last_not_of(" \t\r") + 1);
+        if (!val.empty() && val[0] == '@') {
+          // SRV2: @-prefixed literal UTF-8 string.
+          speakers[i] = val.substr(1);
+        } else if (val.size() % 2 == 0 &&
+                   val.find_first_not_of("0123456789ABCDEFabcdef") ==
+                       val.npos) {
+          // SRV1: hex-encoded byte string.
           std::string name;
-          for (size_t p = 0; p < hex.size(); p += 2)
-            name += char(std::stoi(hex.substr(p, 2), nullptr, 16));
+          for (size_t p = 0; p < val.size(); p += 2)
+            name += char(std::stoi(val.substr(p, 2), nullptr, 16));
           speakers[i] = name;
+        }
+      }
+    }
+    // Parse character position offsets from GRAPHIC.INI (SRV2 has 7 slots).
+    if (assets->contains("INI/GRAPHIC.INI")) {
+      std::istringstream gfx(
+          assets->loadTextUtf8("INI/GRAPHIC.INI", "UTF-16LE"));
+      std::string gline;
+      while (std::getline(gfx, gline)) {
+        if (gline.rfind("Position ", 0) == 0 ||
+            gline.rfind("Position=", 0) == 0 ||
+            gline.rfind("Position\t", 0) == 0) {
+          auto eq = gline.find('=');
+          if (eq == gline.npos)
+            continue;
+          std::string csv = gline.substr(eq + 1);
+          csv.erase(0, csv.find_first_not_of(" \t"));
+          csv.erase(csv.find_last_not_of(" \t\r") + 1);
+          std::vector<int> parsed;
+          std::istringstream ss(csv);
+          std::string token;
+          while (std::getline(ss, token, ',')) {
+            token.erase(0, token.find_first_not_of(" \t"));
+            token.erase(token.find_last_not_of(" \t") + 1);
+            if (!token.empty())
+              parsed.push_back(std::stoi(token));
+          }
+          if (!parsed.empty())
+            positionOffsets = std::move(parsed);
         }
       }
     }
@@ -594,7 +713,8 @@ struct SummerRuntime::Impl {
     return Kotonoha::saveDirectory();
   }
   void loadSystem() {
-    Kotonoha::Filesystem::InputFile input(saveDirectory() / "system.dat", std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(saveDirectory() / "system.dat",
+                                          std::ios::binary);
     if (!input)
       return;
     std::string version;
@@ -613,8 +733,8 @@ struct SummerRuntime::Impl {
         variables[key] = value;
       } else {
         int64_t number = 0;
-        const auto result = std::from_chars(value.data(),
-                                            value.data() + value.size(), number);
+        const auto result =
+            std::from_chars(value.data(), value.data() + value.size(), number);
         if (result.ec != std::errc{} ||
             result.ptr != value.data() + value.size()) {
           SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -651,7 +771,8 @@ struct SummerRuntime::Impl {
     if (previous == data.str())
       return;
     const auto temporary = path.string() + ".tmp";
-    Kotonoha::Filesystem::OutputFile output(temporary, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile output(temporary,
+                                            std::ios::binary | std::ios::trunc);
     output << data.str();
     output.close();
     if (!output)
@@ -662,6 +783,8 @@ struct SummerRuntime::Impl {
     if (vm.resource.children.size() > 1)
       vm.markRead(vm.resource.children[1]);
     voice.Stop();
+    extraVoiceActors_.clear();
+    currentMessageActor = 0;
     pending.clear();
     autoMode = skipMode = false;
     vm.resume();
@@ -742,6 +865,7 @@ struct SummerRuntime::Impl {
   // leading '@' from the path (the original engine's INI pack marker).
   void loadEasyTitle(const std::string &iniPath) {
     titleChipTexture.clear();
+    allTitleChips.clear();
     titleChips.clear();
     titleBaseX = 0;
     titleBaseY = 0;
@@ -790,8 +914,8 @@ struct SummerRuntime::Impl {
         if (section.rfind("CHIP", 0) == 0) {
           chipIndex = std::stoi(section.substr(4));
           if (chipIndex >= 0)
-            titleChips.resize(
-                std::max(titleChips.size(), size_t(chipIndex + 1)));
+            allTitleChips.resize(
+                std::max(allTitleChips.size(), size_t(chipIndex + 1)));
         }
         continue;
       }
@@ -809,6 +933,9 @@ struct SummerRuntime::Impl {
           titleChipTexture = val;
       } else if (section.rfind("TITLE", 0) == 0) {
         if (key == "DRAWAREA") {
+          for (char &ch : val)
+            if (ch == ',')
+              ch = ' ';
           std::istringstream v(val);
           int a, b, c, d, e;
           if (v >> a >> b >> c >> d >> e) {
@@ -817,13 +944,18 @@ struct SummerRuntime::Impl {
           }
         }
       } else if (section.rfind("CHIP", 0) == 0 && chipIndex >= 0 &&
-                 chipIndex < int(titleChips.size())) {
-        auto &chip = titleChips[size_t(chipIndex)];
+                 chipIndex < int(allTitleChips.size())) {
+        auto &chip = allTitleChips[size_t(chipIndex)];
         if (key == "NAME")
           chip.name = val;
+        else if (key == "FLAG")
+          chip.flag = val;
         else if (key == "SIZE") {
           titleChipSpacing = std::stoi(val);
         } else if (key == "AREA" || key == "DRAWAREA") {
+          for (char &ch : val)
+            if (ch == ',')
+              ch = ' ';
           std::istringstream v(val);
           int a, b, c, d, e;
           if (v >> a >> b >> c >> d >> e) {
@@ -839,21 +971,22 @@ struct SummerRuntime::Impl {
       titleChipTexture = assets->contains("GRAPHIC/TITLE/TITLECHIP.TEXB")
                              ? "GRAPHIC/TITLE/TITLECHIP.TEXB"
                              : "GRAPHIC/TITLE/TITLE.TEXB";
-    if (titleChips.empty()) {
+    if (allTitleChips.empty()) {
       // Hardcoded fallback: four chips at the classic positions.
-      titleChips.resize(4);
+      allTitleChips.resize(4);
       static const char *names[4] = {"START", "LOAD", "CONFIG", "QUIT"};
       for (int i = 0; i < 4; ++i) {
-        titleChips[i].name = names[i];
-        titleChips[i].atlasX = 0;
-        titleChips[i].atlasY = i * 32;
-        titleChips[i].atlasW = 230;
-        titleChips[i].atlasH = 32;
+        allTitleChips[i].name = names[i];
+        allTitleChips[i].atlasX = 0;
+        allTitleChips[i].atlasY = i * 32;
+        allTitleChips[i].atlasW = 230;
+        allTitleChips[i].atlasH = 32;
       }
       titleBaseX = 285;
       titleBaseY = 342;
       titleChipSpacing = 40;
     }
+    refreshTitleChips();
   }
   void begin(const std::string &script = "START") {
     if (movie)
@@ -996,12 +1129,13 @@ struct SummerRuntime::Impl {
     if (r.size() < 5)
       throw std::runtime_error("Invalid MESSAGE resource");
     int actor = int(number(vm.evaluate(r[4])));
+    currentMessageActor = actor;
     std::string speaker =
         actor > 0 && actor < int(speakers.size()) ? speakers[actor] : "";
 
     currentRead = vm.hasRead(r[1]);
     const auto names = playerNames();
-    if (actor == 1)
+    if (actor == 1 && !names[1].empty())
       speaker = names[1];
     text->setDialogue(
         translated(speaker),
@@ -1012,7 +1146,11 @@ struct SummerRuntime::Impl {
       skipMode = false;
     voice.Stop();
     if (r.size() > 5) {
-      auto id = "VOICE/" + string(vm.evaluate(r[5])) + ".ogg";
+      const auto stemStr = string(vm.evaluate(r[5]));
+      auto id = "VOICE/" + stemStr + ".ogg";
+      if (!assets->contains(id) &&
+          assets->contains("VOICE/" + stemStr + ".wav"))
+        id = "VOICE/" + stemStr + ".wav";
       if (assets->contains(id)) {
         audio(voice, id, "Voice");
         GetVNBacklogRuntime(*engine).setLastVoice(id);
@@ -1062,11 +1200,37 @@ struct SummerRuntime::Impl {
       auto id = "GRAPHIC/" + string(arg(0));
       id += graphicSuffix(uint32_t(number(arg(1)))) +
             (name == "LOADBACK" ? ".BGD" : ".CGD");
+      bgOffsetX = name == "LOADEVENT" ? int(number(arg(2))) : 0;
+      bgOffsetY = name == "LOADEVENT" ? int(number(arg(3))) : 0;
+      scrollDuration = 0;
       if (assets->contains(id)) {
         background = id;
         sprites.clear();
       } else
         warn("Missing picture: " + id);
+      return;
+    }
+    if (name == "SCROLLCG") {
+      scrollStartX = bgOffsetX;
+      scrollStartY = bgOffsetY;
+      scrollTargetX = int(number(arg(1)));
+      scrollTargetY = int(number(arg(2)));
+      scrollDuration = int(number(arg(0)));
+      if (scrollDuration > 0) {
+        scrollStart = SDL_GetTicks();
+        pending = "SCROLLCG";
+        vm.waiting = true;
+        deadline = scrollStart + uint64_t(scrollDuration);
+        text->hide();
+      } else {
+        bgOffsetX = scrollTargetX;
+        bgOffsetY = scrollTargetY;
+        presented = composeScene();
+      }
+      return;
+    }
+    if (name == "ADDVOICEANIMECHAR") {
+      extraVoiceActors_.push_back(int(number(arg(0))));
       return;
     }
     if (name == "LOADCHAR" || name == "LOADADDCHAR") {
@@ -1158,7 +1322,7 @@ struct SummerRuntime::Impl {
       pending = uniform ? "UNIFORM" : "MAP";
       vm.waiting = true;
       text->hide();
-      int mode = uniform ? 3 : int(number(arg(0)));
+      int mode = uniform ? 100 : int(number(arg(0)));
       vm.variables["@KOTONOHA_MAP_MODE"] = int64_t(mode);
       choice->setNative(mode, *assets,
                         [this, uniform](int value, const std::string &) {
@@ -1185,6 +1349,7 @@ struct SummerRuntime::Impl {
     if (name == "WIPE") {
       text->hide();
       transitionType = int(number(arg(0)));
+      transitionOption = int(number(arg(1)));
       transitionDuration = wipeDuration(transitionType);
       transitionStart = SDL_GetTicks();
       transitionFrom =
@@ -1195,6 +1360,11 @@ struct SummerRuntime::Impl {
         vm.waiting = true;
         deadline = transitionStart + transitionDuration;
       }
+      return;
+    }
+    if (name == "EASYCGMODE" || name == "EASYSOUNDMODE" ||
+        name == "EASYREPLAYMODE") {
+      vm.variables["@RESULT"] = std::string("BACK");
       return;
     }
     if (name == "GAMESTART") {
@@ -1243,8 +1413,8 @@ struct SummerRuntime::Impl {
       return;
     }
     if (name == "PLAYMOVIE") {
-      movie->open(assets->movieHandle(string(arg(0))),
-                       string(arg(0)), false, "BGM");
+      movie->open(assets->movieHandle(string(arg(0))), string(arg(0)), false,
+                  "BGM");
       text->hide();
       vm.waiting = true;
       pending = "MOVIE";
@@ -1272,7 +1442,19 @@ struct SummerRuntime::Impl {
     return it->second;
   }
   Image composeScene() {
-    Image canvas = image(background);
+    const auto &bgImg = image(background);
+    Image canvas;
+    if (bgImg.width == 800 && bgImg.height == 600 && bgOffsetX == 0 &&
+        bgOffsetY == 0) {
+      canvas = bgImg;
+    } else {
+      canvas.width = 800;
+      canvas.height = 600;
+      canvas.rgba.assign(800 * 600 * 4, 0);
+      for (size_t i = 3; i < canvas.rgba.size(); i += 4)
+        canvas.rgba[i] = 255;
+      compositeImage(canvas, bgImg, bgOffsetX, bgOffsetY);
+    }
     std::vector<std::pair<int, Sprite *>> ordered;
     for (auto &[slot, sprite] : sprites)
       if (slot < 100)
@@ -1283,17 +1465,36 @@ struct SummerRuntime::Impl {
     std::vector<CharacterPlacement> positions;
     for (const auto &[slot, sprite] : ordered)
       positions.push_back({sprite->requestedPosition, sprite->positionSlot});
-    assignCharacterPositions(positions);
-    static constexpr int offsets[] = {0, -200, 200};
+    assignCharacterPositions(
+        positions, std::max<unsigned>(1u, unsigned(positionOffsets.size())));
+    const bool voicePlaying = voice.Playing();
+    const int mouthFrame = voicePlaying ? int((SDL_GetTicks() / 120) % 3) : 0;
+    auto updateMouth = [&](std::vector<CharacterAnimation> &anims) {
+      for (auto &anim : anims)
+        if (anim.selector == 0)
+          anim.currentFrame = 0;
+      if (voicePlaying) {
+        if (currentMessageActor > 0)
+          selectCharacterAnimationFrame(anims, currentMessageActor, 0,
+                                        mouthFrame);
+        for (int extraActor : extraVoiceActors_)
+          selectCharacterAnimationFrame(anims, extraActor, 0, mouthFrame);
+      }
+    };
     for (size_t i = 0; i < ordered.size(); ++i) {
       auto &[slot, pointer] = ordered[i];
       auto &sprite = *pointer;
       sprite.positionSlot = positions[i].previous;
-      sprite.x = offsets[sprite.positionSlot];
+      // SRV1 uses 3 slots {0,-200,200}; SRV2 uses 7 from GRAPHIC.INI.
+      sprite.x = sprite.positionSlot < positionOffsets.size()
+                     ? positionOffsets[sprite.positionSlot]
+                     : 0;
       auto origin = origins.at(sprite.id);
       compositeImage(canvas, image(sprite.id), origin.first + sprite.x,
                      origin.second);
-      compositeCharacterAnimations(canvas, animations(sprite.id), sprite.x);
+      auto anims = animations(sprite.id);
+      updateMouth(anims);
+      compositeCharacterAnimations(canvas, anims, sprite.x);
       // Native additional characters are attached to their base actor and
       // rendered immediately after it using the same assigned x offset.
       const auto added = sprites.find(slot + 100);
@@ -1301,8 +1502,9 @@ struct SummerRuntime::Impl {
         const auto addOrigin = origins.at(added->second.id);
         compositeImage(canvas, image(added->second.id),
                        addOrigin.first + sprite.x, addOrigin.second);
-        compositeCharacterAnimations(canvas, animations(added->second.id),
-                                     sprite.x);
+        auto addAnims = animations(added->second.id);
+        updateMouth(addAnims);
+        compositeCharacterAnimations(canvas, addAnims, sprite.x);
       }
     }
     return canvas;
@@ -1311,8 +1513,10 @@ struct SummerRuntime::Impl {
     std::string base =
         choice->mode() >= 0 ? choice->nativeBackground() : background;
     std::ostringstream state;
-    state << base << byteOverlay << ':' << transitionDuration << ':'
+    state << base << byteOverlay << ':' << bgOffsetX << ':' << bgOffsetY << ':'
+          << transitionDuration << ':'
           << (transitionDuration ? (SDL_GetTicks() - transitionStart) / 8 : 0)
+          << ':' << (voice.Playing() ? (SDL_GetTicks() / 120) % 3 + 1 : 0)
           << ':' << title << ':' << titleFocus << ':' << text->isVisible()
           << ':' << text->concealed << ':' << choice->mode() << ':'
           << choice->focused();
@@ -1325,20 +1529,32 @@ struct SummerRuntime::Impl {
     if (!canvasTexture || canvasKey != state.str()) {
       if (decodedImages.size() > 96)
         decodedImages.clear();
-      Image canvas =
-          (choice->mode() >= 0 || title)
-              ? image(base)
-              : (presented.rgba.empty() ? composeScene() : presented);
-      if (transitionDuration > 0 && choice->mode() < 0 && !title)
+      Image canvas = (choice->mode() >= 0 || title)
+                         ? image(base)
+                         : ((presented.rgba.empty() || voice.Playing() ||
+                             scrollDuration > 0)
+                                ? composeScene()
+                                : presented);
+      if (transitionDuration > 0 && choice->mode() < 0 && !title) {
+        const Image *maskPtr = nullptr;
+        const auto maskPath = wipeMaskAsset(transitionType);
+        if (!maskPath.empty() && assets->contains(maskPath))
+          maskPtr = &image(maskPath);
         canvas = wipeFrame(transitionFrom, presented, transitionType,
                            int(SDL_GetTicks() - transitionStart),
-                           transitionDuration);
+                           transitionDuration, maskPtr, transitionOption);
+      }
       if (!byteOverlay.empty())
         compositeImage(canvas, image(byteOverlay), 216, 161);
-      if (text->isVisible() && !text->concealed &&
-          assets->contains("GRAPHIC/FRAME/MESSFRAME.TEXB"))
-        compositeImageRegion(canvas, image("GRAPHIC/FRAME/MESSFRAME.TEXB"), 0,
-                             391, 0, 0, 800, 209);
+      if (text->isVisible() && !text->concealed) {
+        const std::string framePath =
+            assets->contains("GRAPHIC/MESFRAME/MESFRAME.TEXB")
+                ? "GRAPHIC/MESFRAME/MESFRAME.TEXB"
+                : "GRAPHIC/FRAME/MESSFRAME.TEXB";
+        if (assets->contains(framePath))
+          compositeImageRegion(canvas, image(framePath), 0, 391, 0, 0, 800,
+                               209);
+      }
       choice->compose(
           canvas, [this](const auto &id) -> const Image & { return image(id); },
           vm);
@@ -1349,9 +1565,8 @@ struct SummerRuntime::Impl {
             const bool focused = i == size_t(titleFocus);
             compositeImageRegion(canvas, image(titleChipTexture), titleBaseX,
                                  titleBaseY + int(i) * titleChipSpacing,
-                                 focused ? chip.atlasW : 0,
-                                 int(i) * chip.atlasH, chip.atlasW,
-                                 chip.atlasH);
+                                 focused ? chip.atlasW : 0, chip.atlasY,
+                                 chip.atlasW, chip.atlasH);
           }
       }
       if (!canvasTexture)
@@ -1377,20 +1592,30 @@ struct SummerRuntime::Impl {
     }
   }
   void titleAction(int index) {
-    if (index == 0) {
+    if (index < 0 || size_t(index) >= titleChips.size())
+      return;
+    const std::string chipName = canonical(titleChips[size_t(index)].name);
+    if (chipName == "START") {
       title = false;
       pending.clear();
       vm.variables["@RESULT"] = std::string("START");
       vm.resume();
-    }
-    if (index == 1)
+    } else if (chipName == "LOAD") {
       openSaves(true);
-    if (index == 2)
+    } else if (chipName == "CONFIG") {
       engine->openSettings();
-    if (index == 3) {
+    } else if (chipName == "EXIT" || chipName == "QUIT") {
       SDL_Event e{};
       e.type = SDL_EVENT_QUIT;
       SDL_PushEvent(&e);
+    } else if (chipName == "CG" || chipName == "_CG" || chipName == "SOUND" ||
+               chipName == "_SOUND" || chipName == "REPLAY" ||
+               chipName == "_REPLAY" || chipName == "OMAKE" ||
+               chipName == "BACK") {
+      title = false;
+      pending.clear();
+      vm.variables["@RESULT"] = titleChips[size_t(index)].name;
+      vm.resume();
     }
   }
   bool event(EventRef e) {
@@ -1416,12 +1641,14 @@ struct SummerRuntime::Impl {
     if (engine->isStoryPaused() || choice->isActive())
       return false;
     if (title) {
+      refreshTitleChips();
       if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
-        const auto chipCount = titleChips.empty() ? 4 : titleChips.size();
+        const auto chipCount =
+            titleChips.empty() ? size_t(1) : titleChips.size();
         if (e.key.key == SDLK_DOWN)
           titleFocus = (titleFocus + 1) % int(chipCount);
         else if (e.key.key == SDLK_UP)
-          titleFocus = (titleFocus + 3) % int(chipCount);
+          titleFocus = (titleFocus + int(chipCount) - 1) % int(chipCount);
         else if (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE)
           titleAction(titleFocus);
       }
@@ -1516,7 +1743,7 @@ struct SummerRuntime::Impl {
                     (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE));
     if (advance && vm.waiting &&
         (pending == "MESSAGE" || pending == "WAIT" || pending == "BYTEVIEW" ||
-         pending == "WIPE")) {
+         pending == "WIPE" || pending == "SCROLLCG")) {
       if (pending == "MESSAGE" && !text->isDialogueComplete())
         text->completeDialogue();
       else {
@@ -1525,6 +1752,12 @@ struct SummerRuntime::Impl {
         else if (pending != "WAIT" || waitSkippable) {
           if (waitSe)
             se.Stop();
+          if (pending == "SCROLLCG") {
+            bgOffsetX = scrollTargetX;
+            bgOffsetY = scrollTargetY;
+            scrollDuration = 0;
+            presented = composeScene();
+          }
           transitionDuration = 0;
           byteOverlay.clear();
           pending.clear();
@@ -1590,12 +1823,30 @@ void SummerRuntime::update() {
       i.deadline += now - i.lastUpdate;
     if (i.transitionDuration && i.lastUpdate)
       i.transitionStart += now - i.lastUpdate;
+    if (i.scrollDuration && i.lastUpdate)
+      i.scrollStart += now - i.lastUpdate;
     if (i.bgmFadeDuration && i.lastUpdate)
       i.bgmFadeStart += now - i.lastUpdate;
     i.lastUpdate = now;
     return;
   }
   i.lastUpdate = now;
+  if (i.pending == "SCROLLCG" && i.scrollDuration > 0) {
+    const float t = std::clamp(
+        float(now - i.scrollStart) / float(i.scrollDuration), 0.0f, 1.0f);
+    i.bgOffsetX = int(std::lrint(float(i.scrollStartX) +
+                                 float(i.scrollTargetX - i.scrollStartX) * t));
+    i.bgOffsetY = int(std::lrint(float(i.scrollStartY) +
+                                 float(i.scrollTargetY - i.scrollStartY) * t));
+    if (now >= i.deadline) {
+      i.bgOffsetX = i.scrollTargetX;
+      i.bgOffsetY = i.scrollTargetY;
+      i.scrollDuration = 0;
+      i.presented = i.composeScene();
+      i.pending.clear();
+      i.vm.resume();
+    }
+  }
   if (i.pending == "MOVIE" && i.movie && i.movie->finished()) {
     i.movie->stop();
     i.pending.clear();
@@ -1682,7 +1933,8 @@ bool SummerRuntime::onEvent(EventRef e) {
 void SummerRuntime::saveGame(const std::string &path) {
   auto &i = *impl;
   if (!i.vm.waiting || i.pending == "WAIT" || i.pending == "WIPE" ||
-      i.pending == "BYTEVIEW" || i.pending == "MOVIE" || i.title)
+      i.pending == "BYTEVIEW" || i.pending == "MOVIE" ||
+      i.pending == "SCROLLCG" || i.title)
     throw std::runtime_error("Save at a dialogue or choice");
   std::ostringstream s;
   s << "SUMMER-PRESENTATION-2\n"
@@ -1735,7 +1987,8 @@ void SummerRuntime::loadGame(const std::string &path) {
     if (version == "SUMMER-PRESENTATION-2") {
       if (!(s >> sprite.requestedPosition >> sprite.positionSlot >>
             sprite.creationOrder) ||
-          sprite.positionSlot >= 3 || sprite.creationOrder == UINT64_MAX)
+          sprite.positionSlot >= i.positionOffsets.size() ||
+          sprite.creationOrder == UINT64_MAX)
         throw std::runtime_error("Invalid saved character placement");
     } else {
       sprite.positionSlot = sprite.x < 0 ? 1 : sprite.x > 0 ? 2 : 0;
@@ -1787,7 +2040,8 @@ void SummerRuntime::loadGame(const std::string &path) {
     i.function("SELECT", args);
   } else {
     bool uniform = pending == "UNIFORM";
-    int mode = uniform ? 3 : int(number(i.vm.variables["@KOTONOHA_MAP_MODE"]));
+    int mode =
+        uniform ? 100 : int(number(i.vm.variables["@KOTONOHA_MAP_MODE"]));
     i.choice->setNative(mode, *i.assets,
                         [&i, uniform](int value, const std::string &) {
                           if (!i.lastCanvas.rgba.empty())

@@ -9,8 +9,9 @@ namespace Kotonoha::Providers {
 using namespace RealLive;
 RealLiveAssets::RealLiveAssets(const std::filesystem::path &directory,
                                const std::filesystem::path &overlay)
-    : RealLiveAssets(Kotonoha::Filesystem::Filesystem::mount(
-                         directory.string()), overlay) {
+    : RealLiveAssets(
+          Kotonoha::Filesystem::Filesystem::mount(directory.string()),
+          overlay) {
   root = directory;
 }
 
@@ -22,8 +23,7 @@ RealLiveAssets::RealLiveAssets(
     throw std::invalid_argument("RealLive requires a virtual game source");
   if (!overlay.empty())
     mounted->addOverlay(overlay.string());
-  source = std::make_unique<Kotonoha::IndexedFileSystemAssetProvider>(
-      mounted);
+  source = std::make_unique<Kotonoha::IndexedFileSystemAssetProvider>(mounted);
   setOverlay(overlay);
   const auto ini = read("Gameexe.ini");
   configSource.assign(ini.begin(), ini.end());
@@ -61,7 +61,9 @@ ScriptArchive RealLiveAssets::scripts() const {
       continue;
     overrides.emplace(std::stoi(name.substr(4, 4)), read(id));
   }
-  return ScriptArchive(read("Seen.txt"), overrides);
+  // VFS/ISO archives must preserve #REGNAME: newer RealLive games use a
+  // per-title second-level format key, including CLANNAD Full Voice.
+  return ScriptArchive(read("Seen.txt"), overrides, config.text("REGNAME"));
 }
 std::string RealLiveAssets::graphic(const std::string &name, bool warn) const {
   std::string file = name;

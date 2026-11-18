@@ -108,5 +108,8 @@ public:
   // Explicit NewGame/LOAD/RouteMap restoration changes KTRF session state
   // while this GameScene and its MenuBar remain alive in the same process.
   void restoreMenuBarFeelingState();
+  // Retail keyboard accelerators from upstream use the presenter controls.
+  void toggleMenuBarAutoHideLock() { menuBar.ToggleAutoHideLock(); }
+  void toggleMenuBarTopMeter() { menuBar.ToggleTopMeter(); }
 };
 } // namespace SchoolDays

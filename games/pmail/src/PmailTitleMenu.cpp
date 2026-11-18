@@ -1,4 +1,5 @@
 #include "PmailTitleMenu.hpp"
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <Pmail/Port.hpp>
 #include <algorithm>
 #include <iostream>
@@ -26,7 +27,7 @@ void PmailTitleMenu::renderTitle(Kotonoha::RendererRef renderer) {
   SDL_Texture *tex = LoadTitleGraphic(renderer, bgFile);
   if (tex) {
     const SDL_FRect stage{0, 0, 800, 600};
-    SDL_RenderTexture(&renderer, tex, nullptr, &stage);
+    Kotonoha::RenderUpscaledTexture(&renderer, tex, nullptr, &stage);
   }
 }
 
@@ -44,7 +45,7 @@ void PmailTitleMenu::renderItem(Kotonoha::RendererRef renderer, int index,
   if (tex) {
     SDL_FRect dst = itemRect(index);
     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-    SDL_RenderTexture(&renderer, tex, nullptr, &dst);
+    Kotonoha::RenderUpscaledTexture(&renderer, tex, nullptr, &dst);
   }
 }
 

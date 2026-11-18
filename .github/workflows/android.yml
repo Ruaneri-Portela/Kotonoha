@@ -1,0 +1,244 @@
+name: Android arm64 all game APKs (Gradle and NDK)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-vcpkg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vcpkg-deps:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore prebuilt dependency archives
+        id: deps-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v3-android-arm64-ndk28-python-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          restore-keys: |
+            kotonoha-deps-v3-android-arm64-ndk28-python-
+      - uses: android-actions/setup-android@v4
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+
+      - name: Install Android build tools
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;28.2.13676358" "cmake;3.22.1"
+
+      - name: Install host autotools for vcpkg
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf autoconf-archive automake libtool
+          for program in autoconf automake aclocal libtoolize; do
+            command -v "$program" >/dev/null || { echo "::error::Missing $program"; exit 1; }
+          done
+          dpkg-query -W autoconf-archive
+
+      - name: Install pinned vcpkg
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+      - name: Precompile Android ARM64 vcpkg packages
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          mkdir -p vcpkg-binary-cache
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
+          "$VCPKG_ROOT/vcpkg" install --triplet=arm64-android --x-feature=android-python \
+            "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
+      - name: Save finished vcpkg dependency archives
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v3-android-arm64-ndk28-python-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+
+  android:
+    needs: vcpkg-deps
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.14.6'
+          cache-disabled: true
+          # Gradle is run from the verified distribution set up above, not
+          # SDL's vendored Android wrapper. That upstream wrapper uses a
+          # legacy JAR unknown to the Gradle validation list.
+          validate-wrappers: false
+
+      - uses: android-actions/setup-android@v4
+
+      - name: Install Android build tools
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" \
+            "ndk;28.2.13676358" "cmake;3.22.1"
+
+      - name: Install host autotools for vcpkg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            autoconf autoconf-archive automake libtool
+          for program in autoconf automake aclocal libtoolize; do
+            command -v "$program" >/dev/null || { echo "::error::Missing $program"; exit 1; }
+          done
+          dpkg-query -W autoconf-archive
+
+      - name: Install pinned vcpkg
+        run: |
+          git clone --quiet https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Restore vcpkg archives built in the dependency job
+        uses: actions/cache/restore@v4
+        with:
+          path: vcpkg-binary-cache
+          key: kotonoha-deps-v3-android-arm64-ndk28-python-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          fail-on-cache-miss: true
+
+
+      - name: Verify Android SDL, SDL_ttf and ImGui submodules
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("lib/submodules")
+          sources = [
+              root / "SDL/CMakeLists.txt",
+              root / "SDL_ttf/CMakeLists.txt",
+              root / "imgui/imgui.cpp",
+              root / "imgui/backends/imgui_impl_sdl3.cpp",
+              root / "imgui/backends/imgui_impl_sdlrenderer3.cpp",
+              root / "SDL/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java",
+              root / "SDL/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java",
+          ]
+          for source in sources:
+              assert source.is_file(), f"Missing Android SDL/submodule source: {source}"
+          print("Verified native submodules and SDL Android Java integration")
+          PY
+
+      - name: Validate shared build metadata
+        run: |
+          python3 tools/ValidateBuildMetadata.py
+          python3 tools/check_game_platform_isolation.py
+
+      - name: Build all game APKs from the Gradle matrix (arm64-v8a Debug)
+        working-directory: buildsystems/android
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,read"
+          # Includes DokiDoki (CPython from the vcpkg android-python feature).
+          # SDL3 native/Java, SDL3_ttf and ImGui remain submodule sources.
+          gradle :app:assembleDebug \
+            -Pabis=arm64-v8a -PbundleGameAssets=false --no-daemon --stacktrace
+      - name: Package Android APK binaries into ZIP
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile, ZIP_DEFLATED
+          apk_root = Path("buildsystems/android/app/build/outputs/apk")
+          apks = sorted(apk_root.rglob("*.apk"))
+          # Derive APK variants from the real Gradle flavor matrix.
+          # Cross-check their CMake slugs against ProjectManifest so newly
+          # added game apps cannot silently disappear from release checks.
+          import json
+          import re
+          gradle = Path("buildsystems/android/app/build.gradle").read_text(
+              encoding="utf-8")
+          matrix = gradle.split("def games = [", 1)[1].split("\n]", 1)[0]
+          flavor_entries = re.findall(
+              r"(?m)^  ([A-Za-z][A-Za-z0-9_]*)\s*:\s*\['([^']+)'",
+              matrix)
+          expected = set(json.loads(
+              Path("buildsystems/xcode/ProjectManifest.json").read_text(
+                  encoding="utf-8"))["games"].values())
+          assert {slug for _, slug in flavor_entries} == expected, (
+              "Android Gradle flavors differ from the CMake game matrix")
+          flavors = [flavor for flavor, _ in flavor_entries]
+          for flavor in flavors:
+              suffix = f"-{flavor.lower()}-debug.apk"
+              assert sum(p.name.lower().endswith(suffix) for p in apks) == 1, (
+                  f"Missing or duplicate Debug APK: {flavor}"
+              )
+          dest = Path("buildsystems/android/app/build/outputs/kotonoha-android-arm64.zip")
+          with ZipFile(dest, "w", compression=ZIP_DEFLATED, compresslevel=1) as archive:
+              for apk in apks:
+                  archive.write(apk, apk.relative_to(apk_root))
+          print(f"Archived {len(apks)} APKs into {dest}")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-android-arm64-debug
+          path: |
+            buildsystems/android/app/build/outputs/apk/**/*.apk
+            buildsystems/android/app/build/outputs/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Verify APK outputs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import re
+          caches = list(Path("buildsystems/android/app/.cxx").rglob("CMakeCache.txt"))
+          assert caches, "No Android CMake cache generated"
+          for cache in caches:
+              settings = cache.read_text(encoding="utf-8")
+              for option in ("KOTONOHA_SDL_FROM_VCPKG", "KOTONOHA_IMGUI_FROM_VCPKG"):
+                  assert re.search(rf"^{option}:[^=]+=(OFF|FALSE|0)$", settings, re.M), (cache, option)
+          # Derive APK variants from the real Gradle flavor matrix.
+          # Cross-check their CMake slugs against ProjectManifest so newly
+          # added game apps cannot silently disappear from release checks.
+          import json
+          import re
+          gradle = Path("buildsystems/android/app/build.gradle").read_text(
+              encoding="utf-8")
+          matrix = gradle.split("def games = [", 1)[1].split("\n]", 1)[0]
+          flavor_entries = re.findall(
+              r"(?m)^  ([A-Za-z][A-Za-z0-9_]*)\s*:\s*\['([^']+)'",
+              matrix)
+          expected = set(json.loads(
+              Path("buildsystems/xcode/ProjectManifest.json").read_text(
+                  encoding="utf-8"))["games"].values())
+          assert {slug for _, slug in flavor_entries} == expected, (
+              "Android Gradle flavors differ from the CMake game matrix")
+          flavors = [flavor for flavor, _ in flavor_entries]
+          apk_dir = Path("buildsystems/android/app/build/outputs/apk")
+          apk_files = list(apk_dir.rglob("*.apk"))
+          for flavor in flavors:
+              suffix = f"-{flavor.lower()}-debug.apk"
+              matching = [apk for apk in apk_files if apk.name.lower().endswith(suffix)]
+              assert len(matching) == 1, f"Expected one {flavor} Debug APK, got {matching}"
+              with ZipFile(matching[0]) as archive:
+                  libraries = set(archive.namelist())
+                  for libname in ("libSDL3.so", "libSDL3_ttf.so", "libimgui.so"):
+                      expected = f"lib/arm64-v8a/{libname}"
+                      assert expected in libraries, f"Missing {expected} in {matching[0]}"
+          print(f"Validated all {len(flavors)} Android ARM64 Debug APKs")
+          PY

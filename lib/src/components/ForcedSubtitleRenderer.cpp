@@ -1,11 +1,11 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cmath>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <optional>
 #include <sstream>
 #include <stdexcept>

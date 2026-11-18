@@ -7,10 +7,10 @@
 #include <SDL3/SDL_thread.h>
 #include <SDL3/SDL_timer.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <sstream>
 
 namespace Ddlc {
@@ -252,7 +252,9 @@ void Vm::threadMain() {
   } catch (const AbortSignal &) {
   } catch (const RestartSignal &) {
     last.k = Interaction::K::Restart;
-  } catch (const QuitSignal &) {
+  } catch (const QuitSignal &q) {
+    if (q.relaunch)
+      last.k = Interaction::K::Restart;
   } catch (const std::exception &e) {
     errors.push_back(std::string("script: ") + e.what());
     backend.log(errors.back());
@@ -422,8 +424,184 @@ static std::filesystem::path userFile(const Vm &vm, const std::string &key) {
          std::filesystem::path(key.substr(std::string(kRootPrefix).size()));
 }
 
+static std::string dirKey(Vm &vm, const std::string &name, bool &isRoot) {
+  if (name.empty() || name.find('\0') != std::string::npos)
+    throw PyError("IOError: invalid directory path");
+  std::string normalized = name;
+  std::replace(normalized.begin(), normalized.end(), '\\', '/');
+  while (normalized.size() > 1 && normalized.back() == '/')
+    normalized.pop_back();
+  std::error_code error;
+  const auto game = std::filesystem::weakly_canonical(
+      std::filesystem::absolute(vm.assets.dir()), error);
+  if (error)
+    throw PyError("IOError: cannot resolve the game directory");
+  const auto root = game.parent_path();
+  const std::filesystem::path requested(normalized);
+  const auto path = std::filesystem::weakly_canonical(
+      requested.is_absolute() ? requested : game / requested, error);
+  if (error)
+    throw PyError("IOError: cannot resolve " + name);
+  if (!vm.userDirectory.empty()) {
+    const auto user = std::filesystem::weakly_canonical(
+        std::filesystem::absolute(vm.userDirectory), error);
+    if (!error) {
+      if (path == user) {
+        isRoot = true;
+        return {};
+      }
+      if (const auto relative = path.lexically_relative(user);
+          beneath(relative)) {
+        if (relative == "game") {
+          isRoot = false;
+          return {};
+        }
+        if (*relative.begin() == "game") {
+          const auto inGame = relative.lexically_relative("game");
+          if (beneath(inGame)) {
+            isRoot = false;
+            return inGame.generic_string();
+          }
+        }
+        isRoot = true;
+        return relative.generic_string();
+      }
+    }
+  }
+  if (path == root) {
+    isRoot = true;
+    return {};
+  }
+  if (path == game) {
+    isRoot = false;
+    return {};
+  }
+  const auto relative = path.lexically_relative(root);
+  if (!beneath(relative))
+    throw PyError("IOError: path is outside the game installation: " + name);
+  const auto withinGame = path.lexically_relative(game);
+  if (beneath(withinGame)) {
+    isRoot = false;
+    return withinGame.generic_string();
+  }
+  isRoot = true;
+  return relative.generic_string();
+}
+
+bool Vm::isDir(const std::string &name) {
+  bool isRoot = false;
+  std::string rel;
+  try {
+    rel = dirKey(*this, name, isRoot);
+  } catch (const PyError &) {
+    return false;
+  }
+  if (rel.empty())
+    return true;
+  const std::string fullKey = isRoot ? (kRootPrefix + rel) : rel;
+  if (std::find(virtualDirs_.begin(), virtualDirs_.end(), fullKey) !=
+      virtualDirs_.end())
+    return true;
+  const std::string prefix = rel + "/";
+  if (isRoot) {
+    if (virtualRootFiles) {
+      for (const auto &[k, _] : *virtualRootFiles)
+        if (k.compare(0, prefix.size(), prefix) == 0)
+          return true;
+    }
+    if (!userDirectory.empty()) {
+      std::error_code ec;
+      if (std::filesystem::is_directory(userDirectory / rel, ec))
+        return true;
+    }
+    for (const auto &f : assets.overlayRootNames())
+      if (f.compare(0, prefix.size(), prefix) == 0)
+        return true;
+    std::error_code ec;
+    const auto game = std::filesystem::absolute(assets.dir());
+    if (std::filesystem::is_directory(game.parent_path() / rel, ec))
+      return true;
+  } else {
+    for (const auto &f : assets.names())
+      if (f.compare(0, prefix.size(), prefix) == 0)
+        return true;
+    std::error_code ec;
+    const auto game = std::filesystem::absolute(assets.dir());
+    if (std::filesystem::is_directory(game / rel, ec))
+      return true;
+  }
+  return false;
+}
+
+void Vm::makeDirs(const std::string &name) {
+  bool isRoot = false;
+  const std::string rel = dirKey(*this, name, isRoot);
+  if (rel.empty())
+    return;
+  const std::string fullKey = isRoot ? (kRootPrefix + rel) : rel;
+  if (std::find(virtualDirs_.begin(), virtualDirs_.end(), fullKey) ==
+      virtualDirs_.end())
+    virtualDirs_.push_back(fullKey);
+  if (isRoot && !virtualRootFiles && !userDirectory.empty()) {
+    std::error_code ec;
+    std::filesystem::create_directories(userDirectory / rel, ec);
+  }
+}
+
+std::vector<std::string> Vm::listDir(const std::string &name) {
+  bool isRoot = false;
+  const std::string rel = dirKey(*this, name, isRoot);
+  if (!isDir(name))
+    throw PyError("OSError: directory does not exist: " + name);
+  const std::string prefix = rel.empty() ? std::string() : (rel + "/");
+  std::vector<std::string> entries;
+  auto addFromPath = [&](const std::string &p) {
+    if (p.compare(0, prefix.size(), prefix) != 0 || p.size() <= prefix.size())
+      return;
+    const std::string rest = p.substr(prefix.size());
+    const auto slash = rest.find('/');
+    entries.push_back(slash == std::string::npos ? rest
+                                                 : rest.substr(0, slash));
+  };
+  if (isRoot) {
+    if (virtualRootFiles) {
+      for (const auto &[k, _] : *virtualRootFiles)
+        addFromPath(k);
+    }
+    for (const auto &f : assets.overlayRootNames())
+      addFromPath(f);
+    if (!userDirectory.empty()) {
+      std::error_code ec;
+      const auto dir = rel.empty() ? userDirectory : (userDirectory / rel);
+      if (std::filesystem::is_directory(dir, ec))
+        for (const auto &e : std::filesystem::directory_iterator(dir, ec))
+          entries.push_back(e.path().filename().string());
+    }
+    std::error_code ec;
+    const auto root = std::filesystem::absolute(assets.dir()).parent_path();
+    const auto dir = rel.empty() ? root : (root / rel);
+    if (std::filesystem::is_directory(dir, ec))
+      for (const auto &e : std::filesystem::directory_iterator(dir, ec))
+        entries.push_back(e.path().filename().string());
+  } else {
+    for (const auto &f : assets.names())
+      addFromPath(f);
+    std::error_code ec;
+    const auto game = std::filesystem::absolute(assets.dir());
+    const auto dir = rel.empty() ? game : (game / rel);
+    if (std::filesystem::is_directory(dir, ec))
+      for (const auto &e : std::filesystem::directory_iterator(dir, ec))
+        entries.push_back(e.path().filename().string());
+  }
+  std::sort(entries.begin(), entries.end());
+  entries.erase(std::unique(entries.begin(), entries.end()), entries.end());
+  return entries;
+}
+
 void Vm::setVirtualFile(const std::string &name, const Value &value) {
   const std::string key = fileKey(*this, name);
+  if (value.isNone())
+    ephemeralFiles_.erase(key);
   if (isRootKey(key) && virtualRootFiles) {
     auto logical = key.substr(std::string(kRootPrefix).size());
     if (value.isNone())
@@ -446,10 +624,15 @@ void Vm::setVirtualFile(const std::string &name, const Value &value) {
     if (error)
       throw PyError("IOError: cannot create " + path.parent_path().string() +
                     ": " + error.message());
-    Kotonoha::Filesystem::OutputFile out(path, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile out(path,
+                                         std::ios::binary | std::ios::trunc);
     const std::string data = value.text();
     if (!out || !out.write(data.data(), std::streamsize(data.size())))
       throw PyError("IOError: cannot write " + path.string());
+    return;
+  }
+  if (!isRootKey(key) && value.isStr() && value.s.size() > 4096) {
+    ephemeralFiles_[key] = value;
     return;
   }
   Value vfs = persistent.get("_ddlc_files");
@@ -552,16 +735,26 @@ std::string Vm::readFile(const std::string &name, bool &ok) {
     Kotonoha::Filesystem::InputFile in;
     if (std::filesystem::is_regular_file(path, error))
       in.open(path, std::ios::binary);
-    ok = in.is_open() && in.good();
+    if (in.is_open() && in.good()) {
+      ok = true;
+      return std::string(std::istreambuf_iterator<char>(in), {});
+    }
     const auto logical = key.substr(std::string(kRootPrefix).size());
     std::vector<uint8_t> bytes;
-    if (!ok && assets.readOverlayRoot(logical, &bytes)) {
+    if (assets.readOverlayRoot(logical, &bytes)) {
       ok = true;
       return std::string(bytes.begin(), bytes.end());
     }
-
-    return ok ? std::string(std::istreambuf_iterator<char>(in), {})
-              : std::string();
+    if (logical.rfind("characters/", 0) == 0 ||
+        logical == "CAN YOU HEAR ME.txt" || logical == "hxppy thxughts.png" ||
+        logical == "iiiiii.txt") {
+      ok = false;
+      return {};
+    }
+  }
+  if (auto ep = ephemeralFiles_.find(key); ep != ephemeralFiles_.end()) {
+    ok = !ep->second.isNone();
+    return ok ? ep->second.text() : std::string();
   }
   Value vfs = persistent.get("_ddlc_files");
   if (vfs.isObj())
@@ -598,6 +791,8 @@ std::string Vm::readFile(const std::string &name, bool &ok) {
 // ---- init -------------------------------------------------------------------
 
 void Vm::init(const std::string &persistentText) {
+  ephemeralFiles_.clear();
+  virtualDirs_.clear();
   auto ns = [&](const char *name) {
     Value v = Interp::nameSpace(name);
     py.set(name, v);
@@ -658,6 +853,7 @@ void Vm::init(const std::string &persistentText) {
       errors.push_back(n->file + ":" + std::to_string(n->line) + ": " +
                        e.what() + " [" + src.substr(0, 90) + "]");
     } catch (const JumpSignal &) {
+    } catch (const QuitSignal &) {
     }
   }
   if (failures)
@@ -770,6 +966,18 @@ void Vm::execInit(Node *n) {
       py.setAttr(py.lookup(store.substr(6)), t->name, atlValue(t, this));
     break;
   }
+  case Node::K::Style: {
+    const std::string sname = n->str("style_name");
+    if (!sname.empty()) {
+      Value s = makeInstance("Style");
+      s.o->attrs["name"] = Value::str(sname);
+      const Value &parent = n->ast.get("parent");
+      if (!parent.isNone())
+        s.o->attrs["parent"] = parent;
+      py.setAttr(styleNs, sname, s);
+    }
+    break;
+  }
   default:
     break;
   }
@@ -851,9 +1059,27 @@ void VmNatives::install(Vm &vm) {
   def(osPath, "exists", [v](Interp &, Args &a, Kwargs &) {
     bool ok = false;
     v->readFile(a.at(0).text(), ok);
-    return Value::boolean(ok);
+    return Value::boolean(ok || v->isDir(a.at(0).text()));
+  });
+  def(osPath, "isdir", [v](Interp &, Args &a, Kwargs &) {
+    return Value::boolean(v->isDir(a.at(0).text()));
+  });
+  def(os, "makedirs", [v](Interp &, Args &a, Kwargs &) {
+    v->makeDirs(a.at(0).text());
+    return Value();
+  });
+  def(os, "listdir", [v](Interp &, Args &a, Kwargs &) {
+    std::vector<Value> out;
+    for (auto &entry : v->listDir(a.at(0).text()))
+      out.push_back(Value::str(entry));
+    return makeList(out);
   });
   os.o->attrs["path"] = osPath;
+  if (py.builtins.count("time")) {
+    Value timeMod = py.builtins["time"];
+    if (timeMod.isObj())
+      def(timeMod, "sleep", [](Interp &, Args &, Kwargs &) { return Value(); });
+  }
   Value environment = Interp::nameSpace("os.environ");
   environment.o->openAttrs = false;
   def(environment, "get", [](Interp &, Args &a, Kwargs &) {
@@ -927,10 +1153,43 @@ void VmNatives::install(Vm &vm) {
     return v->dispValue(disp(a.at(0)));
   });
   def(im, "Grayscale", [v, disp](Interp &, Args &a, Kwargs &) {
-    return v->dispValue(disp(a.at(0)));
+    return v->dispValue(makeGrayscaleDisp(disp(a.at(0))));
   });
-  def(im, "Flip", [v, disp](Interp &, Args &a, Kwargs &) {
-    return v->dispValue(disp(a.at(0)));
+  def(im, "Flip", [v, disp](Interp &, Args &a, Kwargs &kw) {
+    if (a.empty())
+      return Value();
+    auto t = std::make_shared<AtlTemplate>();
+    t->name = "Flip";
+    t->child = disp(a[0]);
+    if (argOr(a, 1, kw, "horizontal").truthy())
+      t->props.emplace_back("xzoom", Value::real(-1.0));
+    if (argOr(a, 2, kw, "vertical").truthy())
+      t->props.emplace_back("yzoom", Value::real(-1.0));
+    return atlValue(t, v);
+  });
+  def(im, "Crop", [v, disp](Interp &, Args &a, Kwargs &) {
+    if (a.empty())
+      return Value();
+    auto t = std::make_shared<AtlTemplate>();
+    t->name = "Crop";
+    t->child = disp(a[0]);
+    if (a.size() >= 2 && a[1].isObj() && a[1].items().size() >= 4)
+      t->props.emplace_back("crop", a[1]);
+    else if (a.size() >= 5)
+      t->props.emplace_back("crop", makeTuple({a[1], a[2], a[3], a[4]}));
+    return atlValue(t, v);
+  });
+  def(im, "FactorScale", [v, disp](Interp &, Args &a, Kwargs &) {
+    if (a.empty())
+      return Value();
+    auto t = std::make_shared<AtlTemplate>();
+    t->name = "FactorScale";
+    t->child = disp(a[0]);
+    const double sx = a.size() > 1 ? a[1].num() : 1.0;
+    const double sy = a.size() > 2 && !a[2].isNone() ? a[2].num() : sx;
+    t->props.emplace_back("xzoom", Value::real(sx));
+    t->props.emplace_back("yzoom", Value::real(sy));
+    return atlValue(t, v);
   });
   py.def("Image", [v, disp](Interp &, Args &a, Kwargs &) {
     return v->dispValue(disp(a.at(0)));
@@ -942,8 +1201,16 @@ void VmNatives::install(Vm &vm) {
     return v->dispValue(makeNullDisp(argOr(a, 0, kw, "width").num(),
                                      argOr(a, 1, kw, "height").num()));
   });
-  py.def("AnimatedMask", [v](Interp &, Args &, Kwargs &) {
-    return v->dispValue(makeNullDisp(0, 0));
+  py.def("AnimatedMask", [v, disp](Interp &, Args &a, Kwargs &kw) {
+    DispP child = a.empty() ? makeNullDisp(0, 0) : disp(a[0]);
+    const double oc = argOr(a, 3, kw, "oc", Value::real(0.0)).num();
+    const bool moving =
+        argOr(a, 5, kw, "moving", Value::boolean(true)).truthy();
+    const double speed = argOr(a, 6, kw, "speed", Value::real(1.0)).num();
+    const double freq = argOr(a, 7, kw, "frequency", Value::real(1.0)).num();
+    const double amount = argOr(a, 8, kw, "amount", Value::real(0.5)).num();
+    return v->dispValue(
+        makeAnimatedMaskDisp(child, moving, speed, freq, amount, oc));
   });
   py.def("ParticleBurst", [v](Interp &, Args &, Kwargs &) {
     return v->dispValue(makeNullDisp(0, 0));
@@ -963,18 +1230,21 @@ void VmNatives::install(Vm &vm) {
           "    _history_list.append(HistoryEntry(kind, who, what))\n"
           "    while len(_history_list) > (config.history_length or 250):\n"
           "        _history_list.pop(0)\n");
-  // Particles are decorative: sprites are tracked but never drawn.
   py.exec("class _KtSprite(object):\n"
-          "    x = 0\n"
-          "    y = 0\n"
+          "    def __init__(self, d=None):\n"
+          "        self.d = d\n"
+          "        self.x = 0\n"
+          "        self.y = 0\n"
+          "        self.destroyed = False\n"
           "    def destroy(self):\n"
-          "        pass\n"
+          "        self.destroyed = True\n"
           "class SpriteManager(object):\n"
           "    def __init__(self, update=None, event=None, predict=None, "
           "ignore_time=False, **kw):\n"
+          "        self.update_fn = update\n"
           "        self.children = []\n"
           "    def create(self, d):\n"
-          "        s = _KtSprite()\n"
+          "        s = _KtSprite(d)\n"
           "        self.children.append(s)\n"
           "        return s\n"
           "    def redraw(self, delay=0):\n"
@@ -1147,29 +1417,44 @@ void VmNatives::install(Vm &vm) {
   def(renpy, "context",
       [context](Interp &, Args &, Kwargs &) { return context; });
 
-  auto audioSpec = [](const Value &f) -> std::string {
-    Value x = f.isObj() && !f.items().empty() ? f.items()[0] : f;
-    return x.text();
+  auto audioSpecs = [](const Value &f) -> std::vector<std::string> {
+    std::vector<std::string> out;
+    if (f.isObj() && !f.items().empty()) {
+      for (const auto &it : f.items())
+        if (!it.text().empty())
+          out.push_back(it.text());
+    } else if (!f.text().empty()) {
+      out.push_back(f.text());
+    }
+    return out;
   };
   Value music = sub(renpy, "music");
-  def(music, "play", [v, audioSpec](Interp &, Args &a, Kwargs &kw) {
+  def(music, "play", [v, audioSpecs](Interp &, Args &a, Kwargs &kw) {
     const std::string ch =
         argOr(a, 1, kw, "channel", Value::str("music")).text();
-    Value loop = kwGet(kw, "loop");
-    if (const Value *ic = kwFind(kw, "if_changed");
-        ic && ic->truthy() && v->backend.playing(ch) == audioSpec(a.at(0)))
+    const auto specs = audioSpecs(argOr(a, 0, kw, "filenames"));
+    if (specs.empty())
       return Value();
-    v->backend.play(ch, audioSpec(argOr(a, 0, kw, "filenames")),
-                    kwGet(kw, "fadein").num(),
-                    loop.isNone() ? ch != "sound" : loop.truthy());
+    Value loop = kwGet(kw, "loop");
+    const bool loopFlag = loop.isNone() ? ch != "sound" : loop.truthy();
+    if (const Value *ic = kwFind(kw, "if_changed");
+        ic && ic->truthy() && v->backend.playing(ch) == specs[0])
+      return Value();
+    v->backend.play(ch, specs[0], kwGet(kw, "fadein").num(),
+                    specs.size() == 1 ? loopFlag : false,
+                    kwGet(kw, "fadeout").num());
+    for (size_t i = 1; i < specs.size(); ++i)
+      v->backend.queue(ch, specs[i], i + 1 == specs.size() ? loopFlag : false);
     return Value();
   });
-  def(music, "queue", [v, audioSpec](Interp &, Args &a, Kwargs &kw) {
+  def(music, "queue", [v, audioSpecs](Interp &, Args &a, Kwargs &kw) {
     const std::string ch =
         argOr(a, 1, kw, "channel", Value::str("music")).text();
+    const auto specs = audioSpecs(argOr(a, 0, kw, "filenames"));
     Value loop = kwGet(kw, "loop");
-    v->backend.queue(ch, audioSpec(argOr(a, 0, kw, "filenames")),
-                     loop.isNone() ? ch != "sound" : loop.truthy());
+    const bool loopFlag = loop.isNone() ? ch != "sound" : loop.truthy();
+    for (size_t i = 0; i < specs.size(); ++i)
+      v->backend.queue(ch, specs[i], i + 1 == specs.size() ? loopFlag : false);
     return Value();
   });
   def(music, "stop", [v](Interp &, Args &a, Kwargs &kw) {
@@ -1194,16 +1479,29 @@ void VmNatives::install(Vm &vm) {
   def(music, "set_volume", [](Interp &, Args &, Kwargs &) { return Value(); });
   Value sound = sub(renpy, "sound");
   sound.o->attrs = music.o->attrs;
-  def(sound, "play", [v, audioSpec](Interp &, Args &a, Kwargs &kw) {
-    v->backend.play(argOr(a, 1, kw, "channel", Value::str("sound")).text(),
-                    audioSpec(a.at(0)), 0, false);
+  def(sound, "play", [v, audioSpecs](Interp &, Args &a, Kwargs &kw) {
+    const std::string ch =
+        argOr(a, 1, kw, "channel", Value::str("sound")).text();
+    const auto specs = audioSpecs(a.at(0));
+    if (!specs.empty()) {
+      v->backend.play(ch, specs[0], kwGet(kw, "fadein").num(), false,
+                      kwGet(kw, "fadeout").num());
+      for (size_t i = 1; i < specs.size(); ++i)
+        v->backend.queue(ch, specs[i], false);
+    }
     return Value();
   });
-  def(renpy, "play", [v, audioSpec](Interp &, Args &a, Kwargs &kw) {
+  def(renpy, "play", [v, audioSpecs](Interp &, Args &a, Kwargs &kw) {
     if (a.empty() || a[0].isNone())
       return Value();
-    v->backend.play(argOr(a, 1, kw, "channel", Value::str("sound")).text(),
-                    audioSpec(a[0]), 0, false);
+    const std::string ch =
+        argOr(a, 1, kw, "channel", Value::str("sound")).text();
+    const auto specs = audioSpecs(a[0]);
+    if (!specs.empty()) {
+      v->backend.play(ch, specs[0], 0, false);
+      for (size_t i = 1; i < specs.size(); ++i)
+        v->backend.queue(ch, specs[i], false);
+    }
     return Value();
   });
 
@@ -1245,6 +1543,7 @@ void VmNatives::install(Vm &vm) {
   });
   def(renpy, "scene", [v](Interp &, Args &, Kwargs &) {
     v->scene.master.clear();
+    v->scene.masterXf.reset();
     return Value();
   });
   def(renpy, "showing", [v, nameOf](Interp &, Args &a, Kwargs &) {
@@ -1276,8 +1575,9 @@ void VmNatives::install(Vm &vm) {
   def(renpy, "call", [](Interp &, Args &a, Kwargs &) -> Value {
     throw JumpSignal{a.at(0).text(), true};
   });
-  def(renpy, "quit",
-      [](Interp &, Args &, Kwargs &) -> Value { throw QuitSignal{}; });
+  def(renpy, "quit", [](Interp &, Args &a, Kwargs &kw) -> Value {
+    throw QuitSignal{argOr(a, 0, kw, "relaunch").truthy()};
+  });
   def(renpy, "utter_restart",
       [](Interp &, Args &, Kwargs &) -> Value { throw RestartSignal{}; });
   def(renpy, "full_restart",
@@ -1736,6 +2036,41 @@ Node *Vm::exec(Node *n) {
   case Node::K::User:
     execUser(n->str("line"));
     return n->next;
+  case Node::K::ShowLayer: {
+    const std::string layer = n->str("layer");
+    std::vector<std::shared_ptr<AtlTemplate>> templs;
+    for (const auto &a : n->ast.get("at_list").items()) {
+      try {
+        Value v = py.eval(a.text());
+        if (v.cls() == "ATLTransform" && v.o->payload)
+          templs.push_back(std::static_pointer_cast<AtlTemplate>(v.o->payload));
+      } catch (const PyError &e) {
+        backend.log("show layer at " + a.text() + ": " + e.what());
+      }
+    }
+    if (n->ast.get("atl").isObj()) {
+      auto t = std::make_shared<AtlTemplate>();
+      t->atl = n->ast.get("atl");
+      t->name = layer;
+      templs.push_back(t);
+    }
+    if (layer.empty() || layer == "master") {
+      if (templs.empty()) {
+        scene.masterXf.reset();
+      } else {
+        DispP cur;
+        for (auto &tp : templs) {
+          auto x = std::make_shared<TransformDisp>(tp);
+          if (cur)
+            x->setChild(cur, 0);
+          cur = x;
+        }
+        scene.masterXf = std::static_pointer_cast<TransformDisp>(cur);
+        scene.masterXfAt = now();
+      }
+    }
+    return n->next;
+  }
   default:
     return n->next;
   }
@@ -1746,18 +2081,24 @@ void Vm::execUser(const std::string &line) {
   if (t.empty())
     return;
   const std::string &verb = t[0];
-  auto audioName = [&](const std::string &tok) -> std::string {
+  auto audioNames = [&](const std::string &tok) -> std::vector<std::string> {
     if (!tok.empty() &&
         (std::isalpha((unsigned char)tok[0]) || tok[0] == '_') &&
         tok.find_first_of("()[]+") == std::string::npos) {
       if (const Value *a = audio.attr(tok))
-        return a->text();
+        return {a->text()};
     }
     try {
       Value v = py.eval(tok);
-      if (v.isObj() && !v.items().empty())
-        v = v.items()[0];
-      return v.text();
+      std::vector<std::string> out;
+      if (v.isObj() && !v.items().empty()) {
+        for (const auto &it : v.items())
+          if (!it.text().empty())
+            out.push_back(it.text());
+      } else if (!v.text().empty()) {
+        out.push_back(v.text());
+      }
+      return out;
     } catch (const PyError &e) {
       backend.log("audio '" + tok + "': " + e.what());
       return {};
@@ -1775,20 +2116,25 @@ void Vm::execUser(const std::string &line) {
 
   if ((verb == "play" || verb == "queue") && t.size() >= 3) {
     const std::string ch = t[1];
-    const std::string spec = audioName(t[2]);
-    if (spec.empty())
+    const auto specs = audioNames(t[2]);
+    if (specs.empty())
       return;
     bool loop = ch != "sound";
     if (flag("loop"))
       loop = true;
     if (flag("noloop"))
       loop = false;
-    if (verb == "queue")
-      backend.queue(ch, spec, loop);
-    else {
-      if (flag("if_changed") && backend.playing(ch) == spec)
+    if (verb == "queue") {
+      for (size_t i = 0; i < specs.size(); ++i)
+        backend.queue(ch, specs[i], i + 1 == specs.size() ? loop : false);
+    } else {
+      if (flag("if_changed") && backend.playing(ch) == specs[0])
         return;
-      backend.play(ch, spec, option("fadein", 3).num(), loop);
+      backend.play(ch, specs[0], option("fadein", 3).num(),
+                   specs.size() == 1 ? loop : false,
+                   option("fadeout", 3).num());
+      for (size_t i = 1; i < specs.size(); ++i)
+        backend.queue(ch, specs[i], i + 1 == specs.size() ? loop : false);
     }
   } else if (verb == "stop" && t.size() >= 2) {
     backend.stop(t[1], option("fadeout", 2).num());
@@ -1943,6 +2289,8 @@ void Vm::say(const Value &who, const std::string &what, const Value &attrs) {
   w.visible = true;
   w.who = name;
   w.what = text;
+  const Value sd = styleNs.get("say_dialogue");
+  w.monika = sd.isObj() && sd.get("name").text() == "default_monika";
   w.rich = parseRich(text, textCps);
   size_t from = 0;
   auto segment = [&](size_t to, int kind, double time) {
@@ -2035,6 +2383,7 @@ Value Vm::callScreen(const std::string &name, Args args, Kwargs kw) {
 void Vm::show(const Value &imspec, const Value &atl, bool sceneStmt) {
   if (sceneStmt) {
     scene.master.clear();
+    scene.masterXf.reset();
     if (windowAuto_ && scene.window.visible)
       scene.window.visible = false;
   }

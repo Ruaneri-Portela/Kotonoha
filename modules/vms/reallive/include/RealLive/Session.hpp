@@ -4,6 +4,7 @@
 #include <Kotonoha/core/Vm.hpp>
 #include <functional>
 #include <map>
+#include <optional>
 #include <vector>
 namespace RealLive {
 struct GlossCursor {
@@ -11,6 +12,14 @@ struct GlossCursor {
 };
 struct GlossRectangle {
   int left = 0, top = 0, right = 0, bottom = 0;
+};
+struct UnhandledCommand {
+  int scenario = 0;
+  std::size_t instruction = 0;
+  int moduleType = 0;
+  int module = 0;
+  int opcode = 0;
+  int overload = 0;
 };
 class Session : public Kotonoha::Vm {
   ScriptArchive &archive_;
@@ -24,6 +33,7 @@ class Session : public Kotonoha::Vm {
   int scene_ = 0;
   std::size_t pc_ = 0;
   bool blocked_ = false, finished_ = false;
+  std::optional<UnhandledCommand> lastUnhandled_;
   const std::vector<const libreallive::BytecodeElement *> &script(int);
 
 protected:
@@ -39,6 +49,7 @@ private:
   int babelGetChar(int output, int xmod);
   int babelAppend(int address);
   std::string babelBuffer_;
+  std::string babelSpeaker_;
   std::size_t babelIndex_ = 0;
   unsigned babelStarts_ = 0;
   bool babelItalic_ = false;
@@ -49,6 +60,11 @@ private:
   void target(const libreallive::CommandElement &, int, bool);
 
 public:
+  // Called once when an opcode cannot be interpreted by the VM or frontend.
+  std::function<void(const UnhandledCommand &)> onUnhandled;
+  const std::optional<UnhandledCommand> &lastUnhandled() const {
+    return lastUnhandled_;
+  }
   // True consumes an external command; false leaves its PC blocked for retry.
   std::function<bool(const libreallive::CommandElement &)> command;
   std::function<void(std::string)> text;
@@ -60,8 +76,13 @@ public:
   std::function<int(const std::string &)> glyphPosition;
   // Return 3 for a new line, or 4 when the page is full.
   std::function<int()> lineBreak;
+  // Return true when appending the next word token overflows the current page.
+  std::function<bool(const std::string &)> pageOverflow;
   std::function<std::string(bool, int)> resolveName;
   int currentWindow = 0;
+  // Initialise #WINDOW.<w>.NAME_MOD values from Gameexe.ini so that the
+  // speaker name rendering mode matches the retail rlBabel.dll behaviour.
+  void setBabelNameMode(int window, int mode) { babelNameModes_[window] = mode; }
   explicit Session(ScriptArchive &, int start = 9030);
   Session(const Session &) = delete;
   Session &operator=(const Session &) = delete;

@@ -5,9 +5,9 @@
 #include "ZeroRuntime.hpp"
 #include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <cstdio>
 
 #include <cstdlib>
@@ -55,7 +55,10 @@ struct App {
 };
 
 std::string DefaultDisc() {
-  for (const char *disc : {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso"})
+  for (const char *disc :
+       {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso", "ZeroNoTsukaima1.bin",
+        "ZeroNoTsukaima1.iso", "ZeroNoTsukaima0.bin", "ZeroNoTsukaima0.iso",
+        "ZeroNoTsukaima2.bin", "ZeroNoTsukaima2.iso"})
     if (auto found =
             Kotonoha::FileResolver::findGameAsset("zero-no-tsukaima", disc))
       return found->string();
@@ -73,10 +76,11 @@ struct KotonohaPortCallbacks final {
   static void quit(void *state, SDL_AppResult result);
 };
 
-SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
+                                          char **argv) {
   *appstate = nullptr;
   KOTONOHA_SET_APP_METADATA("Zero no Tsukaima",
-                     "me.hirameki.kotonoha.zeronotsukaima");
+                            "me.hirameki.kotonoha.zeronotsukaima");
   try {
     auto app = std::make_unique<App>();
     Kotonoha::EngineOptions &options = app->options;
@@ -104,9 +108,14 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "disc.txt"),
          DefaultDisc()},
         ZeroNoTsukaima::ZeroLauncher::validatePath,
-        {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso"});
-    if (disc.empty())
-      options.launcher = true;
+        {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso", "ZeroNoTsukaima1.bin",
+         "ZeroNoTsukaima1.iso", "ZeroNoTsukaima0.bin", "ZeroNoTsukaima0.iso",
+         "ZeroNoTsukaima2.bin", "ZeroNoTsukaima2.iso"});
+    // Honor the shared default and explicit --no-launcher. Automated
+    // --frames and MCP runs bypass the launcher in CommandLine::parse().
+    if (disc.empty() && !options.launcher)
+      throw std::runtime_error(
+          "No valid Zero no Tsukaima source; pass --zero DISC.bin");
 
     if (options.launcher) {
       app->launcher =

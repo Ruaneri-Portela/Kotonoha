@@ -103,6 +103,7 @@ public:
   bool SaveTo(const std::string &path) const;
   bool LoadFrom(const std::string &path);
   static std::string SlotPath(int slot);
+  std::string EditionSlotPath(int slot) const;
 
   // ---- Drawing (640x448 logical units) ----
   // Device pixels per logical unit, so text is rasterised sharp.
@@ -195,7 +196,7 @@ private:
   PcmPlayer voice_, bgm_, se_;
   std::string lastBgm_;
   SystemData system_;
-  std::string systemPath_, readPath_;
+  std::string saveDir_, systemPath_, readPath_;
   std::set<std::string> read_;
 
   std::map<std::string, ZeroNoTsukaima::Picture> pictures_;

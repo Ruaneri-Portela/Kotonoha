@@ -122,6 +122,9 @@ void archiveTests(const std::filesystem::path &root) {
 }
 
 struct HeadlessBackend : Ddlc::Backend {
+  std::vector<std::string> played;
+  std::vector<std::string> queued;
+  double lastFadeout = 0;
   bool imageSize(const std::string &, int &w, int &h) override {
     w = 1280;
     h = 720;
@@ -131,6 +134,14 @@ struct HeadlessBackend : Ddlc::Backend {
                 float &h) override {
     w = float(text.size()) * style.size * .5f;
     h = style.size;
+  }
+  void play(const std::string &, const std::string &spec, double, bool,
+            double fadeout) override {
+    played.push_back(spec);
+    lastFadeout = fadeout;
+  }
+  void queue(const std::string &, const std::string &spec, bool) override {
+    queued.push_back(spec);
   }
   void log(const std::string &) override {}
 };
@@ -150,6 +161,47 @@ void runtimeTests(const Kotonoha::Providers::DdlcAssets &game,
           "Poem words must initialize, including UTF8 patch words");
   require(bool(vm.imageNamed({"bedroom"})),
           "RenPy automatic basename image registration");
+  // Verify vnxsurvival os.path.isdir / os.makedirs / os.listdir / time.sleep.
+  vm.py.exec("import os, shutil, time\n"
+             "src_dir = config.basedir + '/vnx_test_src/sub'\n"
+             "dst_dir = config.basedir + '/vnx_test_dst'\n"
+             "os.makedirs(src_dir)\n"
+             "assert os.path.isdir(src_dir)\n"
+             "with open(src_dir + '/item.txt', 'wb') as f: f.write('vnx')\n"
+             "assert 'item.txt' in os.listdir(src_dir)\n"
+             "os.makedirs(dst_dir)\n"
+             "shutil.copyfile(src_dir + '/item.txt', dst_dir + '/item.txt')\n"
+             "time.sleep(0.01)\n"
+             "assert open(dst_dir + '/item.txt').read() == 'vnx'\n");
+  // Verify im.Grayscale, im.Crop, im.FactorScale, im.Flip, AnimatedMask,
+  // SpriteManager, ATL size, and {size=...} rich text tags.
+  {
+    auto rich = Ddlc::parseRich("{size=+10}A{/size}{size=40}B{/size}", 0);
+    require(rich.glyphs.size() == 2 && rich.glyphs[0].sizeDelta == 10.f &&
+                rich.glyphs[1].sizeOverride == 40.f,
+            "Rich text size tags parse relative and absolute sizes");
+    auto grayDisp =
+        vm.toDisp(vm.py.eval("im.Grayscale('images/bg/bedroom.png')"));
+    require(bool(grayDisp), "im.Grayscale displayable created");
+    auto grayRender = grayDisp->render(vm, 0, 0);
+    require(!grayRender.ops.empty() && grayRender.ops[0].grayscale,
+            "im.Grayscale marks DrawOp as grayscale");
+    auto cropDisp = vm.toDisp(
+        vm.py.eval("im.Crop('images/bg/bedroom.png', (10, 20, 300, 200))"));
+    auto cropRender = cropDisp->render(vm, 0, 0);
+    require(cropRender.w == 300 && cropRender.h == 200,
+            "im.Crop clips dimensions to 300x200");
+    auto scaleDisp = vm.toDisp(
+        vm.py.eval("im.FactorScale('images/bg/bedroom.png', 0.5, 0.25)"));
+    auto scaleRender = scaleDisp->render(vm, 0, 0);
+    require(scaleRender.w == 640 && scaleRender.h == 180,
+            "im.FactorScale scales dimensions");
+    auto maskDisp = vm.toDisp(vm.py.eval(
+        "AnimatedMask('images/bg/bedroom.png', None, None, 0.2, 0.8)"));
+    auto maskRender = maskDisp->render(vm, 1.0, 1.0);
+    require(!maskRender.ops.empty() && maskRender.ops[0].alpha >= 0.2f,
+            "AnimatedMask renders child with modulated alpha");
+  }
   require(!std::filesystem::exists(user / "CAN YOU HEAR ME.txt"),
           "An archived note is not a file in basedir");
   vm.py.exec("try: renpy.file(config.basedir+'/CAN YOU HEAR ME.txt')\nexcept: "

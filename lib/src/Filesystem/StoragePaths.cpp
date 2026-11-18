@@ -1,6 +1,6 @@
-#include <Kotonoha/core/Config.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/Config.hpp>
 #ifdef __EMSCRIPTEN__
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #endif
@@ -372,7 +372,10 @@ static StorageLocations storageLocations() {
 #else
   // Ask SDL for the organization root, not for the game name. This also
   // preserves Kotonoha on platforms that ignore SDL_GetPrefPath's org field.
-  if (char *path = SDL_GetPrefPath(nullptr, "Kotonoha")) {
+  if (const char *overrideDir = SDL_getenv("KOTONOHA_USER_DATA_DIR");
+      overrideDir && *overrideDir) {
+    locations.userData = normalizeDirectory(overrideDir);
+  } else if (char *path = SDL_GetPrefPath(nullptr, "Kotonoha")) {
     locations.userData = normalizeDirectory(path).parent_path();
     SDL_free(path);
   }
@@ -391,6 +394,46 @@ StorageLocations applicationStorageLocations() { return storageLocations(); }
 
 DirectoryLayout applicationDirectories(const std::string &game) {
   return directoryLayout(applicationStorageLocations(), game);
+}
+
+// A corrected bundle ID must not strand existing save data. Move only a
+// legacy *directory* into a missing destination, never overwrite or follow a
+// legacy symlink. Mobile OS-managed Documents paths are unchanged by app ID.
+bool migrateLegacyDocuments(const StorageLocations &current,
+                            const std::string &legacyIdentifier) {
+  if (legacyIdentifier.empty() ||
+      legacyIdentifier == current.packageIdentifier ||
+      current.packageIdentifier.empty() || current.userData.empty())
+    return false;
+  auto previous = current;
+  previous.packageIdentifier = legacyIdentifier;
+  const auto source = directoryLayout(previous).documents;
+  const auto destination = directoryLayout(current).documents;
+  if (source.empty() || destination.empty() || source == destination)
+    return false;
+  std::error_code error;
+  if (!std::filesystem::is_directory(source, error) || error ||
+      std::filesystem::is_symlink(source, error) || error)
+    return false;
+  const auto dstStatus = std::filesystem::symlink_status(destination, error);
+  if (dstStatus.type() != std::filesystem::file_type::not_found)
+    return false;
+  error.clear();
+  std::filesystem::create_directories(destination.parent_path(), error);
+  if (!error)
+    std::filesystem::rename(source, destination, error);
+  if (error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "Legacy documents migration skipped: %s",
+                error.message().c_str());
+    return false;
+  }
+  return true;
+}
+
+bool migrateLegacyDocuments(const std::string &legacyIdentifier) {
+  return migrateLegacyDocuments(applicationStorageLocations(),
+                                legacyIdentifier);
 }
 
 std::filesystem::path preferredDataDirectory() {
@@ -661,7 +704,8 @@ FileResolver::getFontMap() {
             std::string filename = entry.path().filename().string();
             if (cache.find(filename) == cache.end()) {
               try {
-                auto bytes = Filesystem::readLocalFile(entry.path(), 256u << 20);
+                auto bytes =
+                    Filesystem::readLocalFile(entry.path(), 256u << 20);
                 if (!bytes.empty())
                   cache[filename] = std::move(bytes);
               } catch (const std::exception &) {
@@ -677,8 +721,7 @@ FileResolver::getFontMap() {
       auto defPath = font(defaultFontName());
       if (!isFontFile(defPath))
         throw std::runtime_error("Invalid default font: " + defPath.string());
-      cache[defaultFontName()] =
-          Filesystem::readLocalFile(defPath, 256u << 20);
+      cache[defaultFontName()] = Filesystem::readLocalFile(defPath, 256u << 20);
     }
   });
   return cache;

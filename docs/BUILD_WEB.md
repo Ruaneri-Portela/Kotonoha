@@ -34,12 +34,17 @@ To test the optional web integration route, enable `-DKOTONOHA_WEB_SELFTEST=ON`,
 
 **Startup waits for an explicit choice:** **Use local folder** or
 **Use HTTP(S)**, without automatic selection. Local mode reads imported files
-without contacting the server. HTTP(S) **always boots directly using on-demand
-Fetch**, even with an empty, stale or missing `manifest.json`. The HTML does
-not require a manifest and never copies remote files into MEMFS.
+without contacting the server. HTTP(S) **checks for an optional `game-assets/manifest.json`** after
+the user chooses the remote source. If a valid size-aware `entries` index
+exists, it supplies VFS directory listings (including nested folders)
+immediately, so ports can discover arbitrary archive names. HTTP file bytes
+are still retrieved on demand using Fetch/Range, never copied into MEMFS.
+Files missing from a stale index can still be discovered by HTTP HEAD.
+Absent, empty or invalid manifests fall back to direct Fetch automatically.
 
-`tools/generate_manifest.py` remains available for optional external
-indexing, but the HTML startup does not consult it.
+`tools/generate_manifest.py` can generate the optional size-aware index.
+No manifest request is made in local-folder mode or before the user makes a
+source choice.
 
 By default, the browser resolves `game-assets/` relative to the page. You can
 configure an HTTPS CDN **before** the app script initializes:
@@ -53,7 +58,12 @@ configure an HTTPS CDN **before** the app script initializes:
 Cross-origin hosts need correct CORS. Direct Fetch uses HEAD, GET Range,
 Asyncify and a bounded cache without blocking the browser main thread.
 Ordinary HTTP does not enumerate arbitrary filenames without an index;
-the port needs to know the filenames it wants.
+the port needs to know the filenames it wants. PONscripter and Kirikiri
+now probe common scripts and `arc.nsa` / `data.xp3` names explicitly rather
+than requiring a remote directory listing. For archives with unusual
+names, provide a local folder or an indexed asset source. PONscripter's
+SAR/NSA decoder currently buffers entire archives and may not fit large
+files in browser memory; Kirikiri's XP3 reader uses Range access.
 
 Local/remote startup is always manual. The legacy
 `window.KotonohaAutoServerAssets` switch is no longer needed.
@@ -96,9 +106,10 @@ path resolution and touchscreen gameplay must be tested separately.
 
 ### Manifest-free Fetch with Asyncify
 
-The HTML always registers `game-assets/` directly as a Fetch mount
-for HTTP(S) startup, without querying `manifest.json`. Games can
-access **known** relative paths without providing a manifest. The provider
+The HTML checks for `game-assets/manifest.json` **only after the
+HTTP(S) source is selected**. Indexed entries enable `list()` / directory
+enumeration; unknown files remain available via direct Fetch discovery. Games
+can also access **known** relative paths without any manifest. The provider
 first requests HTTP `HEAD` to determine the file size; reads then use bounded
 `GET Range` requests and a byte cache. A small object from a server that
 ignores Range can be accepted as a complete HTTP 200 response. No remote file

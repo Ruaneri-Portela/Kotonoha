@@ -34,13 +34,18 @@ Para o autoteste opcional, habilite `-DKOTONOHA_WEB_SELFTEST=ON`, compile `Koton
 
 **O início aguarda uma escolha explícita:** **Usar pasta local** ou
 **Usar HTTP(S)**, sem seleção automática. O modo local lê arquivos importados
-antes do boot e não consulta o servidor. O modo HTTP(S) inicia **diretamente
-com Fetch sob demanda**, mesmo quando o servidor contém um `manifest.json`
-vazio, antigo ou inexistente. Não há leitura obrigatória de manifesto, nem
-cópia dos arquivos remotos para MEMFS.
+antes do boot e não consulta o servidor. No modo HTTP(S), o navegador **procura opcionalmente
+`game-assets/manifest.json`** depois que o usuário escolhe essa origem.
+Quando o manifesto tem um índice válido `entries` com tamanho dos arquivos,
+ele alimenta a listagem virtual de diretórios (inclusive pastas aninhadas),
+permitindo descobrir pacotes com nomes variados. Os bytes ainda são obtidos
+via Fetch/Range sob demanda, sem cópia para MEMFS. Arquivos ausentes de um
+índice desatualizado continuam acessíveis por HEAD; índices inexistentes,
+vazios ou inválidos ativam automaticamente o Fetch direto.
 
-O script `tools/generate_manifest.py` continua disponível para índices
-auxiliares, mas o HTML não depende dele para inicializar.
+`tools/generate_manifest.py` pode criar esse índice opcional. A pasta local
+não dispara requisições de manifesto, e nenhuma consulta ocorre antes da
+escolha explícita da origem.
 
 O endereço padrão é `game-assets/` relativo à página. Para usar um CDN
 HTTPS, configure **antes do script de inicialização**:
@@ -54,7 +59,12 @@ HTTPS, configure **antes do script de inicialização**:
 A hospedagem em outra origem exige CORS correto. O modo direto usa HEAD,
 GET Range e Asyncify com cache limitado, sem bloquear a thread principal.
 Não é possível listar nomes arbitrários de arquivos em HTTP comum sem
-um índice: o porte deve conhecer os nomes dos seus arquivos.
+um índice: o porte deve conhecer os nomes dos seus arquivos. PONscripter e
+Kirikiri agora consultam scripts e arquivos conhecidos como `arc.nsa` e
+`data.xp3` diretamente, sem depender de listagem HTTP. Pacotes com nomes
+incomuns ainda exigem pasta local ou índice. O leitor SAR/NSA do PONscripter
+mantém arquivos completos em memória e pode exceder os limites do navegador;
+o leitor XP3 do Kirikiri utiliza acesso via Range.
 
 A escolha local/remota é sempre manual. A antiga configuração
 `window.KotonohaAutoServerAssets` deixou de ser necessária.
@@ -99,8 +109,10 @@ e a jogabilidade por toque precisam ser verificados em cada jogo.
 
 ### Fetch sem manifesto com Asyncify
 
-O HTML registra `game-assets/` diretamente como origem Fetch em todas
-as inicializações HTTP(S), sem consultar `manifest.json`. O provider
+O HTML procura o índice opcional `game-assets/manifest.json` somente
+quando o usuário escolhe HTTP(S). Um índice válido permite `list()` e
+a descoberta de nomes arbitrários; arquivos ausentes ainda são consultados
+via Fetch/HEAD. O provider
 solicita HTTP `HEAD` para descobrir o tamanho dos **caminhos conhecidos**.
 Depois, usa `GET Range` para ler partes dos arquivos e manter os bytes em cache.
 Se um servidor ignorar Range e devolver o objeto completo com HTTP 200, o

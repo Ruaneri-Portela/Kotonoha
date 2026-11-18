@@ -1,6 +1,6 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/SubtitleScene.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
 

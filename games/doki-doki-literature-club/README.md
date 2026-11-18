@@ -4,7 +4,7 @@
 
 Ren'Py-compatible scripting integration, media, translation, and optional VNX overlays.
 
-**Status:** Compatibility depends on the installed game/patch and test coverage.
+**Status:** Full Acts 1–4 base (EN) and VNX PT-BR patch support implemented and tested — see [STATUS.md](STATUS.md).
 
 ## Build
 

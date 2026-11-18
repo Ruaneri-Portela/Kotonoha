@@ -1,6 +1,6 @@
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Meo/TimelineParser.hpp>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <regex>
 #include <sstream>
 #include <stdexcept>

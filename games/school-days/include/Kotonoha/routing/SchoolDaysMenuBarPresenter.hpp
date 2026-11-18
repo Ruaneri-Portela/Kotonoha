@@ -224,6 +224,19 @@ public:
     int Selection() const { return selection_; }
     uint8_t BarAlpha() const { return barAlpha_; }
     bool PointerInsideBar() const { return pointerInsideBar_; }
+    // The new upstream Ctrl+A / Ctrl+R controls never override the
+    // pending-choice or frozen-result render/input gate.
+    bool AutoHideLocked() const { return autoHideLocked_; }
+    bool TopMeterHidden() const { return topMeterHidden_; }
+    void ToggleAutoHideLock() {
+        autoHideLocked_ = !autoHideLocked_;
+        if (fullBarSuppressed_ || meterOnly_ || choiceTailFrozen_) return;
+        fadeStartAlpha_ = barAlpha_;
+        fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
+        fadeTargetVisible_ = autoHideLocked_ || pointerInsideBar_;
+        if (autoHideLocked_) barAlpha_ = 255;
+    }
+    void ToggleTopMeter() { topMeterHidden_ = !topMeterHidden_; }
     const SchoolDaysTopMeterModel& Meter() const { return meter_; }
 
 private:
@@ -279,6 +292,8 @@ private:
     uint8_t fadeStartAlpha_ = 0;
     uint32_t fadeStartMs_ = 0;
     bool fadeTargetVisible_ = false;
+    bool autoHideLocked_ = false;
+    bool topMeterHidden_ = false;
 };
 
 } // namespace Kotonoha

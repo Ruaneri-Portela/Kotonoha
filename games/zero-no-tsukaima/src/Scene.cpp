@@ -118,6 +118,11 @@ void Proto(Reader &r, NutFunction *fn) {
   r.Part();
   for (int i = 0; i < nf && r.ok; ++i)
     Proto(r, nullptr);
+  r.I32(); // stacksize
+  if (r.p + 2 <= r.b.size())
+    r.p += 2; // bgenerator, varparams
+  else
+    r.ok = false;
 }
 
 } // namespace

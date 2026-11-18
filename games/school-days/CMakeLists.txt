@@ -4,12 +4,16 @@ project(SchoolDays VERSION 0.1.0 LANGUAGES C CXX)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
-if(NOT TARGET Kotonoha::Engine)
+if(NOT TARGET KotonohaEngine)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
         "${CMAKE_CURRENT_BINARY_DIR}/kotonoha")
 endif()
 
 find_package(ZLIB REQUIRED)
+if(NOT TARGET kotonoha_provider_gpk)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/gpk"
+        "${CMAKE_CURRENT_BINARY_DIR}/providers/gpk")
+endif()
 add_library(school_days STATIC
     src/KtrfAssetResolver.cpp
     src/KtrfStateStore.cpp
@@ -73,11 +77,14 @@ add_library(school_days STATIC
     src/SchoolDaysLauncher.cpp
 )
 target_include_directories(school_days PUBLIC include src)
-target_link_libraries(school_days PUBLIC Kotonoha::Engine PRIVATE ZLIB::ZLIB)
+target_link_libraries(school_days PUBLIC KotonohaEngine kotonoha_provider_gpk
+    PRIVATE ZLIB::ZLIB)
 target_compile_features(school_days PUBLIC cxx_std_17)
 if(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
     target_compile_definitions(school_days PUBLIC KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY=1)
 endif()
+# Provider exposes only shared interface headers. The game-specific archive,
+# translation and LxH implementations above have one owner in this target.
 set_target_properties(school_days PROPERTIES CXX_EXTENSIONS OFF)
 
 kotonoha_add_app(SchoolDays src/main.cpp)

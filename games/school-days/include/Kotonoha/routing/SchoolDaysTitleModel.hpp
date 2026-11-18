@@ -45,9 +45,10 @@ public:
               const HostState& state, std::string* error = nullptr);
     void Close();
 
-    int HitItem(int x, int y) const;
-    bool SetSelectionFromPointer(int x, int y);
-    bool ActivateSelection(Activation* out) const;
+  int HitItem(int x, int y) const;
+  bool SetSelectionFromPointer(int x, int y);
+  void StepSelection(int delta);
+  bool ActivateSelection(Activation *out) const;
 
     bool IsOpen() const { return open_; }
     int Selection() const { return selection_; }

@@ -28,6 +28,32 @@ public:
   PmailAudio(Kotonoha::AudioMixer &mixer,
              std::shared_ptr<Kotonoha::Providers::SnowAssets> assets);
   ~PmailAudio();
+  // Avoid decoding VM string references for unrelated/unknown native calls.
+  // Keep this list synchronized with the cases handled by Handle().
+  static constexpr bool HandlesSyscall(int id) {
+    switch (id) {
+    case 96:
+    case 97:
+    case 98:
+    case 99:
+    case 100:
+    case 112:
+    case 115:
+    case 116:
+    case 128:
+    case 132:
+    case 137:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  // pmail.exe:0x4248f0 expands SYS 137(category, day) into the retail sound
+  // name V<base>5<variant><base>00<action>. Days 613..652 select actions
+  // 0..39 and later days use action 40; category 12 synthesizes no name.
+  static std::string DaySoundName(int category, int day);
+
   bool Handle(int syscall, const std::vector<int> &numbers,
               const std::vector<std::string> &strings);
   void Update();

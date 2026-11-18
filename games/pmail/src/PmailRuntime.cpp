@@ -1,17 +1,20 @@
 #include "PmailRuntime.hpp"
 #include "Pmail/Port.hpp"
+#include "PmailMovieSelection.hpp"
 #include "PmailSession.hpp"
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -50,15 +53,16 @@ bool PmailRuntime::loadScriptPack() {
   }
   // The case-insensitive VFS resolves these logical IDs for local archives,
   // and the HTTP provider retries the lowercase URL on case-sensitive hosts.
-  for (const char *relative : {"data/pack/script.dat", "pack/script.dat",
-                               "script.dat", "data/pack/SCRIPT.DAT",
-                               "SCRIPT.DAT"}) {
+  for (const char *relative :
+       {"data/pack/script.dat", "pack/script.dat", "script.dat",
+        "data/pack/SCRIPT.DAT", "SCRIPT.DAT"}) {
     try {
       if (!source->exists(relative) ||
-          source->stat(relative).type != Kotonoha::Filesystem::FileType::Regular)
+          source->stat(relative).type !=
+              Kotonoha::Filesystem::FileType::Regular)
         continue;
-      auto data = Kotonoha::Filesystem::readAll(
-          *source->open(relative), 256u * 1024u * 1024u);
+      auto data = Kotonoha::Filesystem::readAll(*source->open(relative),
+                                                256u * 1024u * 1024u);
       if (data.empty())
         continue;
       const std::string logical = relative;
@@ -70,8 +74,8 @@ bool PmailRuntime::loadScriptPack() {
       if (error.code() == Kotonoha::Filesystem::ErrorCode::NotFound)
         continue;
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                   "[PmailPort] Cannot read virtual %s: %s",
-                   relative, error.what());
+                   "[PmailPort] Cannot read virtual %s: %s", relative,
+                   error.what());
       throw;
     }
   }
@@ -100,6 +104,46 @@ void PmailRuntime::initGlobal(Kotonoha::Engine &engine) {
     game_->animationFrameCount = [this](const std::string &name) {
       return assets_->AnimationOf(name).frames.size();
     };
+    game_->playMovie = [this](const std::string &stem) {
+      return startMovie(stem);
+    };
+    game_->openSaveMenu = [this](bool load) {
+      openSaves(load);
+      return saves_ && saves_->isOpen();
+    };
+    game_->musicTracks = [this] {
+      std::vector<std::string> ids;
+      if (!assets_)
+        return ids;
+      for (const auto &id : assets_->listAsset("sound/mm")) {
+        const auto slash = id.rfind('/');
+        if (slash == std::string::npos || id.compare(slash + 1, 2, "mm") != 0)
+          continue;
+        bool digits = id.size() > slash + 3;
+        for (std::size_t i = slash + 3; i < id.size(); ++i)
+          if (id[i] < '0' || id[i] > '9') {
+            digits = false;
+            break;
+          }
+        if (digits)
+          ids.push_back(id);
+      }
+      std::sort(ids.begin(), ids.end());
+      return ids;
+    };
+    game_->playMusic = [this](const std::string &id) {
+      if (!audio_)
+        return;
+      const auto pos = id.find("mm");
+      const int number =
+          pos == std::string::npos ? 0 : std::atoi(id.c_str() + pos + 2);
+      if (number > 0)
+        audio_->Handle(112, {number, 0}, {});
+    };
+    game_->stopMusic = [this] {
+      if (audio_)
+        audio_->Handle(115, {}, {});
+    };
     game_->onNative = [this](int id, const std::vector<::Pmail::Arg> &args) {
       handleNative(id, args);
     };
@@ -114,7 +158,6 @@ void PmailRuntime::initGlobal(Kotonoha::Engine &engine) {
       session_->setMenuActions([this] { openSaves(false); },
                                [this] { openSaves(true); },
                                [this] { returnToTitle(); });
-      startMovie();
     } else {
       status_ = "Failed to initialize PMAIL script VM";
     }
@@ -130,46 +173,33 @@ void PmailRuntime::initMenu(Kotonoha::Engine &engine) {}
 
 void PmailRuntime::initGameplay(Kotonoha::Engine &engine) {}
 
-void PmailRuntime::startMovie() {
-  if (!engine_ || movieFinished_)
-    return;
-  if (SDL_getenv("PMAIL_SKIP_INTRO")) {
-    movieFinished_ = true;
-    return;
-  }
+bool PmailRuntime::startMovie(const std::string &stem) {
+  if (!engine_ || stem.empty())
+    return false;
+  if (SDL_getenv("PMAIL_SKIP_INTRO"))
+    return false;
   const auto vfs = assets_ ? assets_->source() : nullptr;
   if (!vfs) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                  "[PmailPort] Movie source VFS is unavailable");
-    movieFinished_ = true;
-    return;
+    return false;
   }
-  // Root and data/movie are common distributions. The browser cannot
-  // enumerate an HTTP folder; test the explicitly documented retail names.
-  // Prefer an optional browser-playable sidecar before the original AVI, but
-  // retain the AVI/FFmpeg decoder fallback for unconverted retail files.
-  std::string moviePath;
-  for (const char *prefix : {"data/movie/", "movie/"}) {
-    for (const char *name : {"PM01L_I5", "PM01S_I5", "PM01S_I3"}) {
-      for (const char *extension :
-           {".avi.webm", ".webm", ".mp4", ".avi"}) {
-        const std::string candidate = std::string(prefix) + name + extension;
-        if (vfs->exists(candidate)) {
-          moviePath = candidate;
-          break;
-        }
-      }
-      if (!moviePath.empty()) break;
-    }
-    if (!moviePath.empty()) break;
-  }
+  // The original binary enumerates four AVI variants. Preserve original AVI
+  // quality on native hosts, but prefer playable WebM/MP4 sidecars on browsers.
+  const bool browser = Kotonoha::isBrowserPlatform();
+  // Port-only debugging aid to compare a particular original video.
+  const char *preferred = SDL_getenv("PMAIL_MOVIE_VARIANT");
+  const std::string moviePath = selectMovie(
+      stem, [&](const std::string &path) { return vfs->exists(path); }, browser,
+      preferred ? preferred : "");
   if (moviePath.empty()) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "[PmailPort] Opening movie not found in VFS "
-                "(data/movie or movie, original PM01*.avi)");
-    movieFinished_ = true;
-    return;
+                "[PmailPort] Movie not found in VFS (data/movie or movie, "
+                "original %s*.avi)",
+                upperAscii(stem).c_str());
+    return false;
   }
+  moviePlayer_.reset();
   try {
     moviePlayer_ = std::make_unique<Kotonoha::MediaPlayer>(engine_->GetAudio());
     moviePlayer_->open(vfs->open(moviePath), moviePath, false, "bgm");
@@ -178,15 +208,17 @@ void PmailRuntime::startMovie() {
                   "[PmailPort] Movie decoder could not open: %s",
                   moviePath.c_str());
       moviePlayer_.reset();
-      movieFinished_ = true;
+      return false;
     }
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "[PmailPort] Movie failed: %s (%s)",
-                moviePath.c_str(), error.what());
+                "[PmailPort] Movie failed: %s (%s)", moviePath.c_str(),
+                error.what());
     moviePlayer_.reset();
-    movieFinished_ = true;
+    return false;
   }
+  movieFinished_ = false;
+  return true;
 }
 
 void PmailRuntime::stopMovie() {
@@ -195,10 +227,13 @@ void PmailRuntime::stopMovie() {
     moviePlayer_.reset();
   }
   movieFinished_ = true;
+  // SYS 53 blocks the VM until the retail movie finishes.
+  if (game_)
+    game_->resumeFromMovie();
 }
 
 void PmailRuntime::handleNative(int id, const std::vector<::Pmail::Arg> &args) {
-  if (!audio_ || !game_)
+  if (!audio_ || !game_ || !PmailAudio::HandlesSyscall(id))
     return;
   std::vector<int> numbers;
   std::vector<std::string> strings;
@@ -222,10 +257,18 @@ void PmailRuntime::update() {
     currentVoice_ = state[2].id;
   }
   if (saves_ && saves_->isOpen()) {
+    // The save/rename editor lives in the active scene list, but Pure Mail
+    // owns the update pump. Start SDL text input and IME for that modal.
+    for (auto *scene : GetActiveScenes())
+      if (auto *dialog = dynamic_cast<Kotonoha::TextInputDialog *>(scene))
+        dialog->update();
     if (session_)
       session_->resetClock();
     return;
   }
+  // SYS 225/226 keep the script blocked while the save dialog is open.
+  if (game_ && game_->saveMenuWaitActive())
+    game_->resumeFromSaveMenu();
   if (session_ && (movieFinished_ || !moviePlayer_))
     session_->update();
   if (game_ && movieFinished_)
@@ -254,9 +297,15 @@ void PmailRuntime::render(Kotonoha::RendererRef renderer, float scale) {
 }
 
 void PmailRuntime::renderOverlay(Kotonoha::RendererRef renderer, float scale) {
-  // Session draws its own pause/backlog in order; saves sit above the session.
-  if (saves_ && saves_->isOpen())
+  // The Save menu creates a separate TextInputDialog for new save names and
+  // renames. It must be rendered above the menu, or the save modal is
+  // invisible despite accepting the "New save" action.
+  if (saves_ && saves_->isOpen()) {
     renderScene(*saves_, renderer, scale);
+    for (auto *scene : GetActiveScenes())
+      if (scene && dynamic_cast<Kotonoha::TextInputDialog *>(scene))
+        renderScene(*scene, renderer, scale);
+  }
 }
 
 bool PmailRuntime::onEvent(Kotonoha::EventRef rawEvent) {
@@ -266,6 +315,15 @@ bool PmailRuntime::onEvent(Kotonoha::EventRef rawEvent) {
   const SDL_Event mapped = Kotonoha::MapControllerEvent(rawEvent);
   Kotonoha::EventRef event = mapped;
   if (saves_ && saves_->isOpen()) {
+    // The editable save-name modal is a separate Scene. It was previously
+    // bypassed by the save menu event path, preventing save creation/rename.
+    const auto &scenes = GetActiveScenes();
+    for (auto it = scenes.rbegin(); it != scenes.rend(); ++it) {
+      if (*it && dynamic_cast<Kotonoha::TextInputDialog *>(*it)) {
+        dispatchEvent(**it, event);
+        return true;
+      }
+    }
     dispatchEvent(*saves_, event);
     return true;
   }
@@ -276,6 +334,35 @@ bool PmailRuntime::onEvent(Kotonoha::EventRef rawEvent) {
         (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
          event.button.button == SDL_BUTTON_LEFT))
       stopMovie();
+    return true;
+  }
+  // Portable accessibility shortcut for saving during long routes.
+  // F5/F9 are Kotonoha convenience controls, not asserted to be the
+  // original game's hotkeys. Preserve the regular menu-based save slots.
+  if (game_ && !game_->atTitle() && event.type == SDL_EVENT_KEY_DOWN &&
+      !event.key.repeat &&
+      (event.key.key == SDLK_F5 || event.key.key == SDLK_F9)) {
+    try {
+      const auto quickPath = Kotonoha::saveDirectory() / "pmail-quick.vn";
+      if (event.key.key == SDLK_F5) {
+        std::filesystem::create_directories(quickPath.parent_path());
+        saveGame(quickPath.string());
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "[PmailPort] Quicksave written: %s",
+                    quickPath.string().c_str());
+      } else if (std::filesystem::is_regular_file(quickPath)) {
+        loadGame(quickPath.string());
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "[PmailPort] Quicksave restored: %s",
+                    quickPath.string().c_str());
+      } else {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "[PmailPort] No quicksave found");
+      }
+    } catch (const std::exception &error) {
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "[PmailPort] Quick save/load failed: %s", error.what());
+    }
     return true;
   }
   if (session_) {
@@ -303,10 +390,17 @@ std::string PmailRuntime::debugNode() const {
 void PmailRuntime::openSaves(bool load) {
   if (!saves_ || !session_)
     return;
+  if (!load && (!game_ || game_->atTitle()))
+    return;
   session_->closeMenus();
   const auto directory = Kotonoha::saveDirectory() / "slots";
   std::filesystem::create_directories(directory);
   saves_->open(directory.string(), load);
+  // Closing the shared save menu removes it from the runtime scene list.
+  // Re-register when it is opened again so modal input and pause work.
+  const auto &scenes = GetActiveScenes();
+  if (std::find(scenes.begin(), scenes.end(), saves_.get()) == scenes.end())
+    AddScene(saves_.get(), GetState());
 }
 
 void PmailRuntime::saveGame(const std::string &path) {

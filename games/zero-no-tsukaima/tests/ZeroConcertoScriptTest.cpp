@@ -130,6 +130,39 @@ int main() {
   layers.Pump();
   CHECK(layers.Scene().size() == 1 && layers.Text() == "hidden");
 
+  Game progression(
+      {"0000.KS", "0001.KS"}, [&](size_t i, std::vector<uint8_t> *out) {
+        *out = Bytes(i == 0 ? R"(
+      initVariable();
+      like("シエスタ", 15);
+      tndl(10);
+      item("ルイズ特製スープ", 2);
+      checkRoute();
+      checkKiss();
+      if (isMax(3)) {
+        moveInit((0x01000000+1), (0x02000000+85), 1, (0x03000000+2));
+        moveItem("厨房", (0x02000000+303), (0x01000000+1));
+        move();
+      }
+    )"
+                            : R"(talk("n", null, "moved", null);)");
+        return true;
+      });
+  CHECK(progression.Start("0000.KS"));
+  progression.Pump();
+  progression.FinishWait();
+  progression.Pump();
+  progression.FinishWait();
+  progression.Pump();
+  CHECK(progression.Flag("f.like_3") == 15);
+  CHECK(progression.Flag("f.tundele") == 137);
+  CHECK(progression.Flag("f.item_1") == 2);
+  CHECK(progression.Flag("f.route") == 4 && progression.Flag("f.kiss") == 1);
+  CHECK(progression.Moving() && progression.Choices().size() == 1);
+  CHECK(progression.Choose(0));
+  progression.Pump();
+  CHECK(progression.ScriptName() == "0001.KS" && progression.Text() == "moved");
+
   for (const char *bad : {"talk(\"broken", "/* missing", "if (true) {",
                           "while(true) {talk(\"n\",null,\"x\",null);}",
                           "if (unknown()) { msgon(); }",

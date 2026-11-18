@@ -63,6 +63,9 @@ public:
   bool hasLabel(const std::string &name) const {
     return labels_.count(name) != 0;
   }
+  bool hasScreen(const std::string &name) const {
+    return screens_.count(name) != 0;
+  }
   // Init-time statements (Define, Default, Image, Transform, Python...) in run
   // order.
   const std::vector<Node *> &inits() const { return inits_; }
@@ -79,6 +82,7 @@ private:
 
   std::vector<std::unique_ptr<Node>> nodes_;
   std::map<std::string, Node *> labels_;
+  std::map<std::string, Node *> screens_;
   std::vector<std::pair<int, Node *>> initOrder_;
   std::vector<Node *> inits_;
   std::map<std::string, int> routes_;

@@ -10,7 +10,26 @@ plugins {
 
 def engineRoot = rootProject.projectDir.parentFile.parentFile
 def sdlRoot = new File(engineRoot, 'lib/submodules/SDL')
+def sdlTtfRoot = new File(engineRoot, 'lib/submodules/SDL_ttf')
+def imguiRoot = new File(engineRoot, 'lib/submodules/imgui')
+def sdlJavaRoot = new File(sdlRoot, 'android-project/app/src/main/java')
 def vcpkgRoot = providers.environmentVariable('VCPKG_ROOT').orNull
+
+// The SDL Android glue is part of the SDL source checkout, not vcpkg.
+// Fail fast before CMake or Java compilation if a submodule is incomplete.
+[
+  new File(sdlRoot, 'CMakeLists.txt'),
+  new File(sdlTtfRoot, 'CMakeLists.txt'),
+  new File(imguiRoot, 'imgui.cpp'),
+  new File(imguiRoot, 'backends/imgui_impl_sdl3.cpp'),
+  new File(imguiRoot, 'backends/imgui_impl_sdlrenderer3.cpp'),
+  new File(sdlJavaRoot, 'org/libsdl/app/SDLActivity.java'),
+  new File(sdlJavaRoot, 'org/libsdl/app/SDLSurface.java')
+].each { source ->
+  if (!source.isFile()) {
+    throw new GradleException("Missing SDL/SDL_ttf/ImGui submodule source: ${source}. Run git submodule update --init --recursive.")
+  }
+}
 
 if (!vcpkgRoot) {
   throw new GradleException('Set VCPKG_ROOT to your vcpkg checkout before opening Android.')
@@ -40,7 +59,7 @@ if (abis.isEmpty() || !supportedAbis.containsAll(abis)) {
 
 // Format: CMake game ID, native target, application ID, display name.
 def games = [
-  example       : ['example', 'Kotonoha', 'me.kotonoha.example', 'Kotonoha'],
+  example       : ['example', 'Kotonoha', 'org.kotonoha.example', 'Kotonoha'],
   amagami       : ['amagami', 'Amagami', 'me.hirameki.kotonoha.amagami', 'Amagami'],
   zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
   snowRadish    : ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
@@ -50,7 +69,9 @@ def games = [
   summerRadish  : ['summer-radish-vacation', 'SummerRadish', 'me.hirameki.kotonoha.summerradishvacation', 'Summer Radish Vacation!!'],
   kirikiri      : ['kirikiri', 'Kirikiri', 'me.hirameki.kotonoha.kirikiri', 'KiriKiri'],
   lucaSystem    : ['luca-system', 'LucaSystem', 'me.hirameki.kotonoha.lucasystem', 'Luca System'],
-  pmail         : ['pmail', 'Pmail', 'me.hirameki.kotonoha.pmail', 'Pure Mail']
+  pmail         : ['pmail', 'Pmail', 'me.hirameki.kotonoha.pmail', 'Pure Mail'],
+  ponscripter   : ['ponscripter', 'PonscripterGame', 'me.hirameki.kotonoha.ponscripter', 'PONscripter'],
+  n2System      : ['n2system', 'N2SystemGame', 'me.hirameki.kotonoha.n2system', 'N2System Game']
 ]
 
 android {
@@ -74,6 +95,10 @@ android {
           "-DVCPKG_MANIFEST_DIR=${engineRoot}",
           "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=${android.ndkDirectory}/build/cmake/android.toolchain.cmake",
           "-DKOTONOHA_SDL_SOURCE_DIR=${sdlRoot}",
+          // Android requires SDL's Java bindings and matching native sources.
+          // Keep SDL3, SDL3_ttf and ImGui from their checked-out submodules.
+          '-DKOTONOHA_SDL_FROM_VCPKG=OFF',
+          '-DKOTONOHA_IMGUI_FROM_VCPKG=OFF',
           '-DANDROID_PLATFORM=android-28',
           '-DANDROID_STL=c++_shared'
       }
@@ -130,7 +155,7 @@ android {
 
   sourceSets {
     main {
-      java.srcDirs += new File(sdlRoot, 'android-project/app/src/main/java')
+      java.srcDirs += sdlJavaRoot
     }
   }
 

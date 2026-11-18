@@ -1,153 +1,133 @@
 #!/usr/bin/env python3
-"""Read-only Windows L4 CMake and source-safety audit for this Kotonoha fork.
-
-The upstream root registers games through KotonohaGames/KotonohaOptions; this
-Windows-only audit retains the fork's School Days asset and Git boundaries.
-It intentionally does NOT test Android, Xcode/iOS, macOS, Linux or Web.
-"""
-
-from __future__ import annotations
-
+"""Read-only consistency check for CMake and Xcode metadata (Python 3.8+)."""
+import json
 import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
-SCHOOL_DAYS = ROOT / "games" / "school-days"
+XCODE = ROOT / "buildsystems" / "xcode"
+SCHEMES = XCODE / "Kotonoha.xcodeproj" / "xcshareddata" / "xcschemes"
 
 
-def require(condition: bool, message: str) -> None:
-    if not condition:
+def require(value, message):
+    if not value:
         raise ValueError(message)
 
 
-def source(path: Path) -> str:
-    require(path.is_file(), f"Missing build metadata: {path.relative_to(ROOT)}")
-    return path.read_text(encoding="utf-8")
 
 
-def validate_git_safety() -> int:
-    result = subprocess.run(
+def validate_fork_retained_git_safety():
+    """Forbid accidentally versioning commercial School Days or personal files."""
+    tracked_result = subprocess.run(
         ["git", "ls-files", "-z"], cwd=ROOT, check=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
-    tracked = [p.decode("utf-8") for p in result.stdout.split(b"\0") if p]
+    tracked = [p.decode("utf-8") for p in tracked_result.stdout.split(b"\0") if p]
     allowlisted_assets = {
         "games/school-days/game-assets/.gitignore",
         "games/school-days/game-assets/README.txt",
         "games/school-days/game-assets/school-days-hq.ktnroute",
         "games/school-days/game-assets/styles.ass",
     }
-    forbidden_suffixes = (
-        ".gpk", ".iso", ".img", ".vhd", ".vhdx", ".apk",
-        ".exe", ".msi", ".zip", ".7z", ".rar", ".pfx",
-        ".jks", ".keystore", ".pem",
-    )
-    for path in tracked:
-        lower = path.lower()
+    forbidden_suffixes = (".gpk", ".iso", ".img", ".vhd", ".vhdx",
+                          ".apk", ".exe", ".msi", ".zip", ".7z",
+                          ".rar", ".pfx", ".jks", ".keystore", ".pem")
+    for name in tracked:
+        lower = name.lower()
         parts = lower.split("/")
         require(not lower.endswith(forbidden_suffixes),
-                f"Forbidden tracked binary/archive: {path}")
+                f"Forbidden tracked commercial binary/archive: {name}")
         require(parts[0] not in ("build", "dist", "translations"),
-                f"Forbidden generated/private directory tracked: {path}")
+                f"Forbidden generated or private directory: {name}")
         require("packs" not in parts and "save" not in parts,
-                f"Forbidden retail/save directory tracked: {path}")
+                f"Forbidden retail pack/save directory: {name}")
         if lower.startswith("games/school-days/game-assets/"):
-            require(path in allowlisted_assets,
-                    f"Non-allowlisted School Days asset tracked: {path}")
-    ignores = source(ROOT / ".gitignore")
+            require(name in allowlisted_assets,
+                    f"Unexpected tracked private School Days asset: {name}")
+    ignores = (ROOT / ".gitignore").read_text(encoding="utf-8")
     require("*.[Gg][Pp][Kk]" in ignores and "/translations/" in ignores,
-            "Private game archives and translations must remain ignored")
-    return len(tracked)
+            "Retail archives/private translations must remain ignored")
 
-
-def validate() -> None:
-    root = source(ROOT / "CMakeLists.txt")
-    game = source(SCHOOL_DAYS / "CMakeLists.txt")
-    matrix = source(ROOT / "buildsystems" / "cmake" / "KotonohaGames.cmake")
-    options_file = source(ROOT / "buildsystems" / "cmake" / "KotonohaOptions.cmake")
-    rows = re.findall(
-        r'"([A-Z_]+)\|([^|"\n]+)\|(games/[^"\n]+)"', matrix
-    )
-    require(rows and len(rows) == len({x[0] for x in rows}),
-            "Invalid or duplicate upstream CMake game matrix")
-    require(len(rows) == len({x[1] for x in rows}) ==
-            len({x[2] for x in rows}),
-            "Duplicate game IDs or directories in upstream game matrix")
-    require("option(KOTONOHA_BUILD_${game_option}" in options_file,
-            "Upstream game options are no longer defined by the matrix")
-    require("if(KOTONOHA_BUILD_${game_option})" in root and
-            'add_subdirectory("${game_directory}")' in root,
-            "Root must use upstream game matrix to register games")
+def validate():
+    manifest = json.loads((XCODE / "ProjectManifest.json").read_text(encoding="utf-8"))
+    root = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+    modules = ("KotonohaGames", "KotonohaAndroid", "KotonohaOptions", "KotonohaReport")
+    positions = [root.index(name + ".cmake") for name in modules]
+    require(positions == sorted(positions), "CMake includes must remain ordered")
     require(root.index("KotonohaAndroid.cmake") < root.index("project(Kotonoha"),
-            "Android toolchain entry must precede project()")
-    for name in ("KotonohaGames", "KotonohaAndroid", "KotonohaOptions",
-                 "KotonohaReport", "KotonohaCPack"):
-        require(name + ".cmake" in root, f"Missing upstream CMake module {name}")
-    for _, _, relative in rows:
-        require((ROOT / relative / "CMakeLists.txt").is_file(),
-                f"Missing registered CMake game: {relative}")
-    require("option(KOTONOHA_DISTRIBUTION_BUILD" in root and
-            "option(KOTONOHA_DEV_CONTROL" in root and
-            "option(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY" in root,
-            "Missing inherited Windows L4 DEV/DIST/retail-only build gates")
+            "Android toolchain selection must precede project()")
+    matrix = (ROOT / "buildsystems/cmake/KotonohaGames.cmake").read_text(encoding="utf-8")
+    rows = re.findall(r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"', matrix)
+    require(len(rows) == len(manifest["games"]), "Incorrect number of CMake games")
+    require({path: slug for _, slug, path in rows} ==
+            {"games/" + slug: slug for slug in manifest["games"].values()},
+            "CMake game IDs differ from Xcode ProjectManifest")
+    require(len({option for option, _, _ in rows}) == len(rows),
+            "Duplicate CMake build option")
+    options = (ROOT / "buildsystems/cmake/KotonohaOptions.cmake").read_text(encoding="utf-8")
+    require("KOTONOHA_BUILD_GAME" in options and "KOTONOHA_BUILD_" in options,
+            "Missing CMake game selection")
 
-    require("target_compile_features(school_days PUBLIC cxx_std_17)" in game,
-            "School Days target must remain C++17")
-    library = re.search(r"add_library\(school_days STATIC\s*(.*?)\n\)",
-                        game, re.S)
-    require(library is not None, "Missing School Days static target")
-    sources = re.findall(r"\bsrc/[A-Za-z0-9_/]+\.cpp\b", library.group(1))
-    require(sources and len(sources) == len(set(sources)),
-            "Missing or duplicated School Days C++ source list")
-    for item in sources + ["src/main.cpp"]:
-        require((SCHOOL_DAYS / item).is_file(),
-                f"Missing School Days CMake source: {item}")
+    for config in (XCODE / "Config").glob("*.xcconfig"):
+        content = config.read_text(encoding="utf-8")
+        for inc in re.findall(r'^\s*#include\s+"([^"]+)"', content, re.M):
+            require((config.parent / inc).is_file(), f"{config.name}: missing {inc}")
 
-    require("if(WIN32 AND NOT ANDROID)" in game,
-            "Windows artwork staging must be platform-gated")
-    require("game-assets/launcher-art/SchoolDaysHQ-Launcher.png" in game,
-            "Launcher source path is not the approved private asset location")
-    require("game-assets/display-options" in game,
-            "Display Options source path is not the approved private overlay")
-    require("SchoolDaysLauncherArtwork" in game and
-            "SchoolDaysOptionAssets" in game and
-            "StageOptionalAssets.cmake" in game,
-            "Expected Windows artwork staging targets are missing")
-    stage = source(SCHOOL_DAYS / "windows" / "StageOptionalAssets.cmake")
-    require("message(WARNING" in stage and "copy_if_different" in stage and
-            "copy_directory" in stage,
-            "Artwork staging must warn on missing input and copy both kinds")
-    require((SCHOOL_DAYS / "windows" / "SchoolDays.rc").is_file(),
-            "Missing Windows icon resource declaration")
-    require((SCHOOL_DAYS / "tests" / "CMakeLists.txt").is_file(),
-            "Missing School Days test registration")
+    pbx = (XCODE / "Kotonoha.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
+    expected = {(platform, name): data["target"]
+                for key, data in manifest["targets"].items()
+                for platform, name in [key.split("/", 1)]
+                if name not in ("KotonohaEngine", "KotonohaImGui")}
+    # A CMake/Android port is NOT automatically an Xcode scheme. Missing
+    # macOS/iOS schemes must be explicitly reported and may not silently be
+    # counted as Apple-compatible.
+    pending_xcode = set()
+    for cmake_target, slug in manifest["games"].items():
+        platforms = {platform for platform in ("macOS", "iOS")
+                     if (platform, cmake_target) in expected}
+        if not platforms:
+            pending_xcode.add(slug)
+        else:
+            require(platforms == {"macOS", "iOS"},
+                    f"Partial Xcode target for {slug}: {sorted(platforms)}")
+    require(pending_xcode == set(manifest.get("xcode_pending", [])),
+            f"Untracked Xcode scheme gap: {sorted(pending_xcode)}")
 
-    for base in (
-        ROOT / "docs" / "README",
-        ROOT / "docs" / "MAINTENANCE_BACKLOG",
-        SCHOOL_DAYS / "docs" / "README",
-        SCHOOL_DAYS / "docs" / "configuration" / "display-options" / "README",
-    ):
-        english = base.with_suffix(".md")
-        portuguese = base.with_name(base.name + ".pt-BR.md")
-        require(english.is_file() and portuguese.is_file(),
-                f"Missing bilingual pair: {base.relative_to(ROOT)}")
-        require(portuguese.name in source(english),
-                f"Missing cross-language README link: {english.relative_to(ROOT)}")
-
-    tracked_count = validate_git_safety()
-    print(f"[Kotonoha] OK: Windows L4 metadata; {len(rows)} game options; "
-          f"{len(sources)} School Days sources; {tracked_count} tracked paths checked")
-    print("[Kotonoha] Skipped: Android, iOS, macOS, Linux, Web metadata")
+    schemes = list(SCHEMES.glob("*.xcscheme"))
+    require(len(schemes) == len(expected) == manifest["schemes"],
+            "Incorrect number of Xcode schemes")
+    seen = set()
+    for scheme in schemes:
+        match = re.fullmatch(r"(.+) \((macOS|iOS)\)\.xcscheme", scheme.name)
+        require(match, f"Unexpected/duplicate scheme: {scheme.name}")
+        name, platform = match.groups()
+        key = platform, name
+        require(key in expected and key not in seen, f"Unexpected scheme: {scheme.name}")
+        seen.add(key)
+        xml = ET.parse(scheme).getroot()
+        refs = xml.findall(".//BuildableReference")
+        require(refs, f"Missing Xcode buildable reference: {scheme.name}")
+        for ref in refs:
+            require(ref.get("ReferencedContainer") == "container:Kotonoha.xcodeproj",
+                    f"Stale Xcode project reference: {scheme.name}")
+            require(ref.get("BlueprintIdentifier") == expected[key],
+                    f"Incorrect target ID: {scheme.name}")
+        require(expected[key] in pbx, f"Target absent from project.pbxproj: {scheme.name}")
+        actions = xml.findall(".//BuildAction/PreActions/ExecutionAction/ActionContent")
+        require(any("PrepareApple.py" in action.get("scriptText", "") for action in actions),
+                f"Missing preparation step: {scheme.name}")
+    require(seen == set(expected), "Some Xcode schemes are missing")
+    validate_fork_retained_git_safety()
+    print(f"[Kotonoha] OK: {len(rows)} CMake games; {len(schemes)} existing Xcode "
+          f"schemes; Xcode pending: {', '.join(sorted(pending_xcode)) or 'none'}")
 
 
 if __name__ == "__main__":
     try:
         validate()
-    except (ValueError, OSError, UnicodeError,
-            subprocess.CalledProcessError) as error:
-        print(f"[Kotonoha] Validation failed: {error}", file=sys.stderr)
+    except (ValueError, OSError, ET.ParseError, subprocess.CalledProcessError) as exc:
+        print(f"[Kotonoha] Validation failed: {exc}", file=sys.stderr)
         sys.exit(1)

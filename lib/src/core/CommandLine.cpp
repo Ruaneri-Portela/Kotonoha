@@ -1,6 +1,6 @@
+#include <Kotonoha/core/BuildVersion.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/BuildVersion.hpp>
 #include <algorithm>
 #include <charconv>
 #include <iomanip>
@@ -23,6 +23,7 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
          engine.rendererOverride);
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   option("--log", "FILE", "Write engine logs to this file", engine.logPath);
+#if KOTONOHA_ENABLE_MCP
   flag("--mcp", "Enable the stdio MCP interface", engine.enableMCP);
   option("--mcp-root", "DIRECTORY", "Restrict MCP files to this root",
          engine.mcpFileRoot);
@@ -40,6 +41,7 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
            engine.enableMCP = true;
          });
 #endif
+#endif // !KOTONOHA_DISTRIBUTION_BUILD
   option("--asset-overlay", "DIRECTORY", "Override game assets from a folder",
          [&engine](const std::string &path) {
            engine.assetOverlayPath = path;
@@ -141,7 +143,10 @@ void CommandLine::parse(int argc, char **argv) {
     }
     found->action(value);
   }
-  if (!engine.dumpTranslationPath.empty())
+  // Headless CLI operations must reach the game without opening an ImGui
+  // launcher. This policy is shared by every port, including newly added
+  // games, and is independent of the order of command-line switches.
+  if (!engine.dumpTranslationPath.empty() || frames > 0 || engine.enableMCP)
     engine.launcher = false;
 }
 std::string CommandLine::help() const {

@@ -1,9 +1,9 @@
-#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include "AmagamiLauncher.hpp"
 #include "AmagamiRuntime.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 #include <cstdio>
 #include <memory>
@@ -92,11 +92,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
          Kotonoha::GameLauncher::rememberedPath(settings, "disc.txt"),
          DefaultDisc()},
         Amagami::AmagamiLauncher::validatePath, {"Amagami.bin"});
-    if (disc.empty()) {
-      if (args.frames > 0 || options.enableMCP)
-        throw std::runtime_error("No Amagami disc; pass --amagami DISC.bin");
-      options.launcher = true;
-    }
+    if (disc.empty() && !options.launcher)
+      throw std::runtime_error("No Amagami disc; pass --amagami DISC.bin");
     if (options.launcher) {
       app->launcher =
           std::make_unique<Amagami::AmagamiLauncher>(settings, disc);

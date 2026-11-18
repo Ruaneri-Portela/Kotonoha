@@ -1,5 +1,7 @@
 #include <Amagami/Source.hpp>
+#include <Kotonoha/core/Config.hpp>
 #include <cstdio>
+#include <cstring>
 #include <stdexcept>
 
 namespace Amagami {
@@ -10,6 +12,12 @@ uint32_t u32(const Bytes &b, size_t p) {
   return uint32_t(b[p]) | uint32_t(b[p + 1]) << 8 | uint32_t(b[p + 2]) << 16 |
          uint32_t(b[p + 3]) << 24;
 }
+float f32(const Bytes &b, size_t p) {
+  const uint32_t bits = u32(b, p);
+  float v = 0;
+  std::memcpy(&v, &bits, 4);
+  return v;
+}
 } // namespace
 Source::Source(const std::string &path)
     : disc_(std::make_shared<Kotonoha::DiscImage>(path)) {
@@ -17,6 +25,19 @@ Source::Source(const std::string &path)
     throw std::runtime_error("Expected Amagami Japan PS2 disc (SLPS_259.18)");
   // Original pose -> body/face prefix table, SLPS_259.18 VA 0x1b7a70.
   const auto executable = disc_->read("SLPS_259.18");
+  auto cstr = [&](uint32_t address) {
+    if (address == 0)
+      return std::string{};
+    if (address < 0xff000 || address - 0xff000 >= executable.size())
+      throw std::runtime_error("Invalid executable string pointer");
+    const size_t start = address - 0xff000;
+    size_t end = start;
+    while (end < executable.size() && executable[end] && end - start < 256)
+      ++end;
+    if (end >= executable.size() || executable[end] != 0)
+      throw std::runtime_error("Unterminated executable string");
+    return std::string(executable.begin() + start, executable.begin() + end);
+  };
   auto prefix = [&](uint32_t address) {
     if (address < 0xff000 || address - 0xff000 + 4 >= executable.size())
       throw std::runtime_error("Invalid actor asset table pointer");
@@ -30,6 +51,37 @@ Source::Source(const std::string &path)
     actorAssets_.emplace_back(prefix(u32(executable, p)),
                               prefix(u32(executable, p + 4)));
   }
+  // Weekday suffix table for Sprite argKind == 2, SLPS_259.18 VA 0x00289868.
+  for (size_t i = 0; i < 7; ++i)
+    weekdays_[i] = cstr(u32(executable, 0x00289868 - 0xff000 + i * 4));
+  // Native Sprite texture descriptor table (252 entries x 36 bytes),
+  // SLPS_259.18 VA 0x001b5700 .. 0x001b7a70 (including 0x001b74d0 bgsam/kaiwa).
+  spriteTemplates_.reserve(252);
+  for (size_t i = 0; i < 252; ++i) {
+    const size_t p = 0x001b5700 - 0xff000 + i * 36;
+    SpriteTemplate tpl;
+    tpl.format = cstr(u32(executable, p));
+    tpl.argKind = u32(executable, p + 4);
+    tpl.rect = {f32(executable, p + 8), f32(executable, p + 12),
+                f32(executable, p + 16), f32(executable, p + 20)};
+    tpl.flags = u32(executable, p + 24);
+    tpl.archiveHint = int32_t(u32(executable, p + 28));
+    tpl.extra = int32_t(u32(executable, p + 32));
+    spriteTemplates_.push_back(std::move(tpl));
+  }
+  // Classic BGM table (VA 0x0028e710, 41 entries) and Arrange BGM table
+  // (VA 0x0028e7b4, 41 entries), plus Ambient SOUND.AFS table (VA 0x0028e6d0).
+  classicMusic_.reserve(41);
+  arrangeMusic_.reserve(41);
+  for (size_t i = 0; i < 41; ++i) {
+    classicMusic_.push_back(
+        int32_t(u32(executable, 0x0028e710 - 0xff000 + i * 4)));
+    arrangeMusic_.push_back(
+        int32_t(u32(executable, 0x0028e7b4 - 0xff000 + i * 4)));
+  }
+  for (size_t i = 0; i < 8; ++i)
+    ambienceTable_.push_back(
+        int32_t(u32(executable, 0x0028e6d0 - 0xff000 + i * 4)));
   for (const auto &name :
        {"SCENARIO.ARC", "GRAPH/GRAPH0.ARC", "GRAPH/GRAPH1.ARC",
         "GRAPH/GRAPH2.ARC", "SOUND/MUSIC.ARC", "SOUND/MUSIC.AFS",
@@ -44,16 +96,24 @@ Source::Source(const std::string &path)
     if (bytes > entry->size || bytes > 32 * 1024 * 1024)
       throw std::runtime_error("Invalid archive index length");
     header = disc_->read(*entry, 0, bytes);
-    archives_.emplace(name,
-                      Archive{*entry, afs ? ParseAfs(header, entry->size)
-                                          : ParseArc(header, entry->size)});
+    Archive parsed{*entry, afs ? ParseAfs(header, entry->size)
+                               : ParseArc(header, entry->size)};
+    if (!afs)
+      for (size_t i = 0; i < parsed.entries.size(); ++i)
+        parsed.byHash.emplace(parsed.entries[i].hash, i);
+    archives_.emplace(name, std::move(parsed));
   }
-  // Keep the script archive in memory: scanning 2,308 scenes otherwise issues
-  // thousands of small seeks, particularly costly when the disc is on SMB.
+  // Native builds retain the scenario archive to avoid repeated disk/SMB
+  // seeks while indexing the 2,308 scenes. In WASM the disc can be remote
+  // (HTTP Range): eagerly caching hundreds of MiB duplicates the browser's
+  // bounded Fetch cache and can exhaust WebAssembly memory before the title.
+  // Read one scene at a time instead; the shared HTTP provider caches pages.
   const auto &scenario = archive("SCENARIO.ARC");
-  if (scenario.file.size > 256 * 1024 * 1024)
-    throw std::runtime_error("Scenario archive exceeds memory limit");
-  scenarioArchive_ = disc_->read(scenario.file, 0, scenario.file.size);
+  if (!Kotonoha::isBrowserPlatform()) {
+    if (scenario.file.size > 256 * 1024 * 1024)
+      throw std::runtime_error("Scenario archive exceeds memory limit");
+    scenarioArchive_ = disc_->read(scenario.file, 0, scenario.file.size);
+  }
   const auto count = scenario.entries.size();
   for (size_t i = 0; i < count; ++i) {
     auto s = script(i);
@@ -122,6 +182,47 @@ Source::Source(const std::string &path)
         name[2] <= '9')
       music_.emplace((name[1] - '0') * 10 + name[2] - '0', i);
   }
+  // SOUND/MUSIC.ARC contains systemBank.bd (entry 0) and systemBank.hd (entry
+  // 1, Sony IECS header with Vagi sample table at +0x50 for 49 waves 0..48).
+  const int bdIdx = find("SOUND/MUSIC.ARC", "systemBank.bd");
+  const int hdIdx = find("SOUND/MUSIC.ARC", "systemBank.hd");
+  if (bdIdx >= 0 && hdIdx >= 0) {
+    const auto bd = read("SOUND/MUSIC.ARC", size_t(bdIdx));
+    const auto hd = read("SOUND/MUSIC.ARC", size_t(hdIdx));
+    constexpr size_t kVagiOffset = 0x50;
+    if (hd.size() >= kVagiOffset + 16 &&
+        std::memcmp(hd.data() + kVagiOffset, "IECSigaV", 8) == 0) {
+      const int32_t maxIndex = int32_t(u32(hd, kVagiOffset + 12));
+      if (maxIndex >= 0 && maxIndex < 1024 &&
+          kVagiOffset + 16 + size_t(maxIndex + 1) * 4 <= hd.size()) {
+        const size_t count = size_t(maxIndex + 1);
+        std::vector<uint32_t> recOffsets(count);
+        for (size_t i = 0; i < count; ++i)
+          recOffsets[i] = u32(hd, kVagiOffset + 16 + i * 4);
+        soundEffects_.resize(count);
+        for (size_t i = 0; i < count; ++i) {
+          const size_t recPos = kVagiOffset + recOffsets[i];
+          if (recPos + 8 > hd.size())
+            throw std::runtime_error("Truncated systemBank.hd Vagi entry");
+          const uint32_t bdStart = u32(hd, recPos);
+          const uint16_t rate =
+              uint16_t(hd[recPos + 4]) | (uint16_t(hd[recPos + 5]) << 8);
+          const uint32_t bdEnd =
+              (i + 1 < count &&
+               kVagiOffset + recOffsets[i + 1] + 4 <= hd.size())
+                  ? u32(hd, kVagiOffset + recOffsets[i + 1])
+                  : uint32_t(bd.size());
+          if (bdStart > bd.size() || bdEnd > bd.size() || bdEnd < bdStart)
+            throw std::runtime_error("Invalid systemBank.bd wave bounds");
+          soundEffects_[i].adpcm.assign(bd.begin() + bdStart,
+                                        bd.begin() + bdEnd);
+          soundEffects_[i].sampleRate = rate > 0 ? int(rate) : 39000;
+          soundEffects_[i].baseNote = hd[recPos + 6];
+          soundEffects_[i].pan = hd[recPos + 7];
+        }
+      }
+    }
+  }
   const auto &voice = archive("SOUND/VOICE.AFS");
   for (size_t i = 0; i < voice.entries.size(); ++i) {
     const auto &bank = voice.entries[i];
@@ -156,13 +257,15 @@ const Source::Archive &Source::archive(const std::string &name) const {
 Bytes Source::read(const std::string &name, size_t index) const {
   const auto &a = archive(name);
   const auto &entry = a.entries.at(index);
-  if (name == "SCENARIO.ARC") {
+  if (name == "SCENARIO.ARC" && !scenarioArchive_.empty()) {
     if (entry.offset > scenarioArchive_.size() ||
         entry.size > scenarioArchive_.size() - entry.offset)
       throw std::runtime_error("Scenario outside cached archive");
     return Bytes(scenarioArchive_.begin() + entry.offset,
                  scenarioArchive_.begin() + entry.offset + entry.size);
   }
+  // WASM streams only the requested SCF entry through ISO sectors and HTTP
+  // Range. Never allocate the entire SCENARIO.ARC in WebAssembly linear memory.
   return disc_->read(a.file, entry.offset, entry.size);
 }
 Script Source::script(size_t index) const {
@@ -187,10 +290,8 @@ int Source::find(const std::string &archiveName,
   for (unsigned char c : name)
     hash = hash * 0x3fad + int8_t(c);
   const auto &a = archive(archiveName);
-  for (size_t i = 0; i < a.entries.size(); ++i)
-    if (a.entries[i].hash == hash)
-      return int(i);
-  return -1;
+  const auto found = a.byHash.find(hash);
+  return found == a.byHash.end() ? -1 : int(found->second);
 }
 Bytes Source::ambience(unsigned index) const {
   const auto &a = archive("SOUND/SOUND.AFS");
@@ -270,8 +371,70 @@ int Source::breathDirection(unsigned character, unsigned pose) const {
              ? breathDirections_[character][pose]
              : 0;
 }
-int Source::musicIndex(unsigned number) const {
+int Source::musicIndex(unsigned number, bool classic) const {
+  // In SLPS_259.18, Music.setup passes track (1..40) when Music.classic is
+  // true, and track + 40 (41..80) when Music.classic is false, indexing
+  // VA 0x0028e710 (Classic, 41 entries 0..40) followed immediately by
+  // VA 0x0028e7b4 (Arrange, 41 entries 41..81).
+  if (number >= 41 && number <= 80 && number - 41 < arrangeMusic_.size())
+    return arrangeMusic_[number - 41];
+  if (classic) {
+    if (number < classicMusic_.size())
+      return classicMusic_[number];
+    return -1;
+  }
+  if (number == 0 && !classicMusic_.empty())
+    return classicMusic_[0];
+  if (number >= 1 && number <= 40 && number - 1 < arrangeMusic_.size())
+    return arrangeMusic_[number - 1];
   auto i = music_.find(number);
   return i == music_.end() ? -1 : int(i->second);
+}
+int Source::ambienceIndex(unsigned id) const {
+  if (id < ambienceTable_.size())
+    return ambienceTable_[id];
+  return -1;
+}
+Source::SoundEffect Source::soundEffect(unsigned index) const {
+  // Support direct Vagi wave indices 0..48 as well as MIDI note IDs 12..60
+  // (where Smpl[i] has base note 12 + i). If index is 49..60, map to index
+  // - 12.
+  const size_t resolved =
+      index < soundEffects_.size()
+          ? size_t(index)
+          : (index >= 12 && index - 12 < soundEffects_.size()
+                 ? size_t(index - 12)
+                 : soundEffects_.size());
+  if (resolved >= soundEffects_.size())
+    throw std::out_of_range("Sound effect index outside systemBank");
+  return soundEffects_[resolved];
+}
+std::optional<Source::SpriteDescriptor>
+Source::spriteDescriptor(unsigned texId, unsigned variant) const {
+  if (texId >= spriteTemplates_.size())
+    return std::nullopt;
+  const auto &tpl = spriteTemplates_[texId];
+  SpriteDescriptor desc;
+  desc.rect = tpl.rect;
+  desc.flags = tpl.flags;
+  desc.archiveHint = tpl.archiveHint;
+  desc.extra = tpl.extra;
+  if (!tpl.format.empty()) {
+    char buf[128];
+    const bool hasExt = tpl.format.size() >= 4 &&
+                        tpl.format.substr(tpl.format.size() - 4) == ".tm2";
+    const std::string fmtWithExt = hasExt ? tpl.format : (tpl.format + ".tm2");
+    if (tpl.argKind == 1) {
+      std::snprintf(buf, sizeof(buf), fmtWithExt.c_str(), variant);
+      desc.asset = buf;
+    } else if (tpl.argKind == 2) {
+      std::snprintf(buf, sizeof(buf), fmtWithExt.c_str(),
+                    weekdays_[variant % 7].c_str());
+      desc.asset = buf;
+    } else {
+      desc.asset = fmtWithExt;
+    }
+  }
+  return desc;
 }
 } // namespace Amagami

@@ -24,10 +24,16 @@ Sint64 SDLCALL fileSize(void *data) {
 Sint64 SDLCALL fileSeek(void *data, Sint64 offset, SDL_IOWhence whence) {
   SeekOrigin origin = SeekOrigin::Begin;
   switch (whence) {
-  case SDL_IO_SEEK_SET: break;
-  case SDL_IO_SEEK_CUR: origin = SeekOrigin::Current; break;
-  case SDL_IO_SEEK_END: origin = SeekOrigin::End; break;
-  default: return -1;
+  case SDL_IO_SEEK_SET:
+    break;
+  case SDL_IO_SEEK_CUR:
+    origin = SeekOrigin::Current;
+    break;
+  case SDL_IO_SEEK_END:
+    origin = SeekOrigin::End;
+    break;
+  default:
+    return -1;
   }
   try {
     return static_cast<Context *>(data)->file->seek(offset, origin);
@@ -37,7 +43,7 @@ Sint64 SDLCALL fileSeek(void *data, Sint64 offset, SDL_IOWhence whence) {
 }
 
 size_t SDLCALL fileRead(void *data, void *dst, size_t amount,
-                       SDL_IOStatus *status) {
+                        SDL_IOStatus *status) {
   auto &input = *static_cast<Context *>(data)->file;
   auto *bytes = static_cast<std::uint8_t *>(dst);
   size_t read = 0;
@@ -56,8 +62,8 @@ size_t SDLCALL fileRead(void *data, void *dst, size_t amount,
       read += static_cast<size_t>(got);
     }
   } catch (const FilesystemError &error) {
-    *status = error.code() == ErrorCode::WouldBlock
-                  ? SDL_IO_STATUS_NOT_READY : SDL_IO_STATUS_ERROR;
+    *status = error.code() == ErrorCode::WouldBlock ? SDL_IO_STATUS_NOT_READY
+                                                    : SDL_IO_STATUS_ERROR;
   } catch (...) {
     *status = SDL_IO_STATUS_ERROR;
   }

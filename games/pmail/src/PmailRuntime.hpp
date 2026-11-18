@@ -71,8 +71,8 @@ private:
   bool sawTitle_ = false;
   TTF_Font *font_ = nullptr;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer_;
-  bool movieFinished_ = false;
-  void startMovie();
+  bool movieFinished_ = true;
+  bool startMovie(const std::string &stem);
   void stopMovie();
 };
 

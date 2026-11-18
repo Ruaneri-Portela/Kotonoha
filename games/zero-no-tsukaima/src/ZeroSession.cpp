@@ -3,15 +3,15 @@
 
 #include <ZeroNoTsukaima/Vag.hpp>
 
-#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/Engine.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <sstream>
 #include <utility>
 
@@ -108,7 +108,11 @@ ZeroSession::ZeroSession(
   if (!disc_)
     throw std::invalid_argument("Zero no Tsukaima needs its disc");
   {
-    const auto documents = Kotonoha::saveDirectory();
+    const auto documents =
+        Kotonoha::saveDirectory() / disc_->Source().EditionSlug();
+    std::error_code ec;
+    std::filesystem::create_directories(documents, ec);
+    saveDir_ = documents.string();
     systemPath_ = (documents / "system.txt").string();
     readPath_ = (documents / "read.txt").string();
     system_.Load(systemPath_);
@@ -117,6 +121,7 @@ ZeroSession::ZeroSession(
       if (!line.empty())
         read_.insert(line);
   }
+  SDL_SetWindowTitle(&engine_.GetWindow(), disc_->Source().EditionTitle());
   fontData_ =
       Kotonoha::FileResolver::loadFontMemory(engine_.GetSettings().fontPath);
   if (!fontData_.empty()) {
@@ -310,31 +315,56 @@ void ZeroSession::PlayVoiceIndex(int index) {
 // Music by SOUND_ID.LST name: "bgm04" -> SOUND\BGM04.STV, "BGMA01" ->
 // SOUND\BGMA01.STV.
 void ZeroSession::PlayBgm(const std::string &name) {
-  if (name == lastBgm_)
+  std::string actual = name;
+  if (!actual.empty() && disc_->Source().SoundIndex(actual) < 0) {
+    if (Upper(actual) == "BGMA01") {
+      if (GameEdition() == SceneSource::Edition::Symphony)
+        actual = "BGMB01";
+      else if (GameEdition() == SceneSource::Edition::Concerto)
+        actual = "1";
+    }
+  }
+  if (actual == lastBgm_)
     return;
-  lastBgm_ = name;
+  lastBgm_ = actual;
   bgm_.Stop();
   std::vector<uint8_t> raw;
-  if (!name.empty() && ReadAsset("sound/" + name, &raw)) {
+  if (!actual.empty() && ReadAsset("sound/" + actual, &raw)) {
     if (!PlayStream(bgm_, "bgm", raw, bgmRate_, true))
       SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                  "[zero] bgm %s: PlayStream failed", name.c_str());
+                  "[zero] bgm %s: PlayStream failed", actual.c_str());
   } else {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "[zero] bgm %s: ReadAsset failed or empty name", name.c_str());
+                "[zero] bgm %s: ReadAsset failed or empty name",
+                actual.c_str());
   }
 }
 
 void ZeroSession::PlaySe(const std::string &name) {
+  std::string actual = name;
+  if (!actual.empty() && disc_->Source().SoundIndex(actual) < 0 &&
+      GameEdition() == SceneSource::Edition::Concerto) {
+    const std::string up = Upper(actual);
+    if (up == "SYS_SE01")
+      actual = "84";
+    else if (up == "SYS_SE02")
+      actual = "85";
+    else if (up == "SYS_SE03")
+      actual = "86";
+    else if (up == "SYS_SE04")
+      actual = "87";
+    else if (up == "SYS_SE05")
+      actual = "88";
+  }
   se_.Stop();
   std::vector<uint8_t> raw;
-  if (!name.empty() && ReadAsset("sound/" + name, &raw)) {
+  if (!actual.empty() && ReadAsset("sound/" + actual, &raw)) {
     if (!PlayStream(se_, "se", raw, seRate_, false))
       SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                  "[zero] se %s: PlayStream failed", name.c_str());
+                  "[zero] se %s: PlayStream failed", actual.c_str());
   } else {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "[zero] se %s: ReadAsset failed or empty name", name.c_str());
+                "[zero] se %s: ReadAsset failed or empty name", actual.c_str());
   }
 }
 
@@ -466,10 +496,16 @@ std::string ZeroSession::SlotPath(int slot) {
       .string();
 }
 
+std::string ZeroSession::EditionSlotPath(int slot) const {
+  const auto dir = saveDir_.empty() ? Kotonoha::saveDirectory()
+                                    : std::filesystem::path(saveDir_);
+  return (dir / ("slot" + std::to_string(slot) + ".sav")).string();
+}
+
 bool ZeroSession::Slot(int slot, SlotInfo *info) {
   if (slot < 0 || slot >= kSaveSlots)
     return false;
-  Kotonoha::Filesystem::InputFile in(SlotPath(slot));
+  Kotonoha::Filesystem::InputFile in(EditionSlotPath(slot));
   std::string label;
   if (!in || !std::getline(in, label))
     return false;
@@ -817,7 +853,9 @@ void ZeroSession::Remember() {
     }
   }
   const std::string ev = Upper(game_->Event());
-  if (!ev.empty() && ev.compare(0, 2, "CG") == 0 &&
+  if (!ev.empty() &&
+      (ev.rfind("CG", 0) == 0 || ev.rfind("ECG", 0) == 0 ||
+       ev.rfind("EV", 0) == 0 || ev.rfind("TUN", 0) == 0) &&
       system_.seen.insert(ev).second)
     changed = true;
   if (changed && !systemPath_.empty())
@@ -987,7 +1025,7 @@ bool ZeroSession::LoadFrom(const std::string &path) {
 }
 
 bool ZeroSession::SaveSlot(int slot) {
-  if (slot < 0 || slot >= kSaveSlots || !SaveTo(SlotPath(slot)))
+  if (slot < 0 || slot >= kSaveSlots || !SaveTo(EditionSlotPath(slot)))
     return false;
   SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "[save] slot %d (%zu inputs)",
               slot + 1, inputs_.size());
@@ -995,7 +1033,7 @@ bool ZeroSession::SaveSlot(int slot) {
 }
 
 bool ZeroSession::LoadSlot(int slot) {
-  return slot >= 0 && slot < kSaveSlots && LoadFrom(SlotPath(slot));
+  return slot >= 0 && slot < kSaveSlots && LoadFrom(EditionSlotPath(slot));
 }
 
 // ---------------------------------------------------------------- drawing
@@ -1178,9 +1216,12 @@ void ZeroSession::DrawMeter(SDL_Renderer *r, const Game::Meter &m) {
       std::clamp(float(game_->Clock() - m.start) / 1000.0f, 0.0f, 1.0f);
   if (m.kind == Game::Meter::Like) {
     static const std::map<std::string, std::string> kIcons = {
-        {"RU", "RUIZE"},  {"CU", "KYURUKE"},  {"TA", "TABASA"},
-        {"SI", "SIESTA"}, {"AN", "ANRIETTA"}, {"CH", "KURISH"},
-        {"RI", "RISH"},   {"YRI", "YRISH"}};
+        {"RU", "RUIZE"},     {"CU", "KYURUKE"},  {"TA", "TABASA"},
+        {"SI", "SIESTA"},    {"AN", "ANRIETTA"}, {"CH", "KURISH"},
+        {"RI", "RISH"},      {"YRI", "YRISH"},   {"RIZ", "LOUISE"},
+        {"TAV", "TABITHA"},  {"SIE", "SIESTA"},  {"ANL", "HENRIETTA"},
+        {"SYL", "IRUKUKWU"}, {"TEF", "TIFANIA"}, {"KYU", "KYU"},
+        {"ERE", "ELEONORE"}};
     auto it = kIcons.find(Upper(m.name));
     if (it != kIcons.end())
       DrawNormal(r, "MAIN_LOVE" + it->second, 242, 208);

@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """Source-only checks for the shared SDL3 bridge and desktop packaging."""
 from pathlib import Path
+import json
 import re
 
 root = Path(__file__).resolve().parents[1]
 games = sorted((root / "games").glob("*/src/main.cpp"))
-assert len(games) == 11, f"Expected 11 ports, got {len(games)}"
+expected_slugs = set(json.loads(
+    (root / "buildsystems/xcode/ProjectManifest.json").read_text(
+        encoding="utf-8"))["games"].values())
+actual_slugs = {entry.parents[1].name for entry in games}
+assert actual_slugs == expected_slugs, (
+    f"SDL game entrypoints differ from manifest: missing="
+    f"{sorted(expected_slugs - actual_slugs)}, extra="
+    f"{sorted(actual_slugs - expected_slugs)}")
 for entry in games:
     code = entry.read_text(encoding="utf-8")
     assert "#include <Kotonoha/core/SDLCallbackApp.hpp>" in code, entry

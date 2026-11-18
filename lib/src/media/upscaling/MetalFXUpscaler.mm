@@ -1,7 +1,9 @@
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 
-#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__)
+#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) &&                     \
+    KOTONOHA_ENABLE_UPSCALER
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -98,8 +100,16 @@ id<MTLTexture> GetMetalTextureFromSDLTexture(SDL_Texture *texture) {
     return nil;
   }
 
-  void *opaqueTexture = SDL_GetPointerProperty(
-      properties, SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER, nullptr);
+  // SDL3 versions that predate the named Metal texture property macro
+  // still expose the renderer property by its stable string key.
+#ifdef SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER
+  constexpr const char *metalTextureProperty =
+      SDL_PROP_TEXTURE_METAL_TEXTURE_POINTER;
+#else
+  constexpr const char *metalTextureProperty = "SDL.texture.metal";
+#endif
+  void *opaqueTexture =
+      SDL_GetPointerProperty(properties, metalTextureProperty, nullptr);
 
   if (opaqueTexture == nullptr) {
     return nil;
@@ -523,9 +533,11 @@ void KotonohaMetalFXClearScalerCache(void) {
 } // namespace
 } // namespace Kotonoha
 
-#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__)
+#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) &&
+       // KOTONOHA_ENABLE_UPSCALER
 
-#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__)
+#if defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) &&                     \
+    KOTONOHA_ENABLE_UPSCALER
 namespace Kotonoha {
 
 MetalFXUpscaler::MetalFXUpscaler(RendererRef renderer) : Upscaler(renderer) {
@@ -560,4 +572,5 @@ bool MetalFXUpscaler::renderInto(TextureRef input, TextureRef output) {
 void MetalFXUpscaler::clearBackendCache() { KotonohaMetalFXClearScalerCache(); }
 
 } // namespace Kotonoha
-#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__)
+#endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) &&
+       // KOTONOHA_ENABLE_UPSCALER

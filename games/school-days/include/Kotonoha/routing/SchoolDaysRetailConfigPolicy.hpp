@@ -22,19 +22,20 @@ public:
         Voice = 2,
     };
 
-    struct State {
-        float masterVolume = -1.0f;
-        int voiceVolume = 5;
-        int bgmVolume = 5;
-        int seVolume = 5;
-        bool textView = true;
-        bool menVoice = true;
-        bool mute = false;
-        bool skip = false;
-        bool autoDraw = true;
-        bool autoMode = false;
-        bool superSkip = false;
-    };
+  struct State {
+    float masterVolume = -1.0f;
+    int voiceVolume = 5;
+    int bgmVolume = 5;
+    int seVolume = 5;
+    bool textView = true;
+    bool menVoice = true;
+    bool mute = false;
+    bool skip = false;
+    bool autoDraw = true;
+    bool autoMode = false;
+    bool superSkip = false;
+    int mouseWheelMode = 0; // _GetMouseWheel@0: 0 = Playback Speed, 1 = Volume
+  };
 
     static State Defaults();
     static bool Validate(const State& state);

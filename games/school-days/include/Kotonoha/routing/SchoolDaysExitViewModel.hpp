@@ -48,9 +48,10 @@ public:
               std::string* error = nullptr);
     void Close();
 
-    int HitChoice(int x, int y) const;
-    bool SetSelectionFromPointer(int x, int y);
-    bool Activate(Activation* activation) const;
+  int HitChoice(int x, int y) const;
+  bool SetSelectionFromPointer(int x, int y);
+  void StepSelection(int delta);
+  bool Activate(Activation *activation) const;
 
     bool IsOpen() const { return open_; }
     int Selection() const { return selection_; }

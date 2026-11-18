@@ -1,8 +1,8 @@
-#include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
-#include <Kotonoha/Filesystem/Path.hpp>
 #include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/Filesystem/Mounts/FallbackMount.hpp>
+#include <Kotonoha/Filesystem/Path.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 
 #include <filesystem>
@@ -23,6 +23,7 @@ class SubtreeMount final : public IMount {
     const auto key = normalizePath(relative, true);
     return key.empty() ? prefix_ : prefix_ + "/" + key;
   }
+
 public:
   SubtreeMount(std::shared_ptr<IMount> source, std::string prefix)
       : source_(std::move(source)), prefix_(normalizePath(prefix)) {}
@@ -43,7 +44,8 @@ public:
   }
   FileInfo stat(std::string_view path) const override {
     const auto relative = normalizePath(path, true);
-    if (relative.empty()) return FileInfo{"", FileType::Directory, 0};
+    if (relative.empty())
+      return FileInfo{"", FileType::Directory, 0};
     auto info = source_->stat(full(relative));
     info.path = relative;
     return info;
@@ -70,7 +72,13 @@ std::string assetSubfolder(const std::filesystem::path &root) {
   for (const auto &part : root.lexically_normal()) {
     const auto name = part.generic_string();
     if (found) {
-      if (!sub.empty()) sub += "/";
+      // Some browser launch candidates repeat the game-assets container.
+      // The Fetch base URL already points inside that container, so avoid
+      // producing game-assets/game-assets/Seen.txt when mounting its root.
+      if (sub.empty() && name == "game-assets")
+        continue;
+      if (!sub.empty())
+        sub += "/";
       sub += name;
     } else if (name == "game-assets") {
       found = true;
@@ -88,8 +96,7 @@ std::shared_ptr<FetchAssetProvider> remoteGameAssets() {
   std::lock_guard<std::mutex> lock(registryMutex);
   return registered;
 }
-std::shared_ptr<Filesystem> mountGameAssets(
-    const std::filesystem::path &root) {
+std::shared_ptr<Filesystem> mountGameAssets(const std::filesystem::path &root) {
   std::shared_ptr<IMount> local;
   std::error_code ec;
   if (!root.empty() && std::filesystem::is_directory(root, ec)) {
@@ -107,12 +114,13 @@ std::shared_ptr<Filesystem> mountGameAssets(
   // Some packaged manifests already use the selected game's asset folder
   // as their logical root; do not strip a prefix that is not in the index.
   if (provider && !subfolder.empty() &&
-      (provider->manifestFree() || provider->hasIndexedDirectory(subfolder)))
+      (provider->hasManifestIndex()
+           ? provider->hasIndexedDirectory(subfolder)
+           : provider->manifestFree()))
     remote = std::make_shared<SubtreeMount>(std::move(remote), subfolder);
   if (remote)
     return Filesystem::mount(
-        std::make_shared<FallbackMount>(std::move(local),
-                                        std::move(remote)));
+        std::make_shared<FallbackMount>(std::move(local), std::move(remote)));
   if (!local)
     throw FilesystemError(ErrorCode::NotFound,
                           "game-assets directory is missing and HTTP(S) "

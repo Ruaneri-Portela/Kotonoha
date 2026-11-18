@@ -1,13 +1,13 @@
+#include <Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp>
+#include <Kotonoha/Filesystem/Adapters/SDLIOAdapter.hpp>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
-#include <Kotonoha/Filesystem/Mounts/FallbackMount.hpp>
+#include <Kotonoha/Filesystem/IMount.hpp>
 #include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
+#include <Kotonoha/Filesystem/Mounts/FallbackMount.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
-#include <Kotonoha/Filesystem/Adapters/SDLIOAdapter.hpp>
-#include <Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
-#include <Kotonoha/Filesystem/IMount.hpp>
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -33,9 +33,9 @@ void require(bool ok, const char *reason) {
 struct Temp {
   fs::path root;
   Temp() {
-    const auto tick = std::chrono::steady_clock::now().time_since_epoch().count();
-    root = fs::temp_directory_path() /
-           ("kotonoha-v2-" + std::to_string(tick));
+    const auto tick =
+        std::chrono::steady_clock::now().time_since_epoch().count();
+    root = fs::temp_directory_path() / ("kotonoha-v2-" + std::to_string(tick));
     fs::create_directories(root);
   }
   ~Temp() {
@@ -66,8 +66,7 @@ std::string readText(std::unique_ptr<VFS::FileHandle> file) {
   return {data.begin(), data.end()};
 }
 
-template <class Action>
-void expectCode(VFS::ErrorCode code, Action run) {
+template <class Action> void expectCode(VFS::ErrorCode code, Action run) {
   bool caught = false;
   try {
     run();
@@ -135,8 +134,7 @@ void testLocalAndOverlays() {
   auto independent = files->open("DATA/data.pak");
   auto same = files->open("DATA/data.pak");
   char a = 0, b = 0;
-  require(independent->read(&a, 1) == 1 &&
-              independent->read(&a, 1) == 1 &&
+  require(independent->read(&a, 1) == 1 && independent->read(&a, 1) == 1 &&
               same->read(&b, 1) == 1 && b == 'o',
           "Open handles shared a cursor");
   require(independent->seek(0, VFS::SeekOrigin::Begin) == 0 &&
@@ -158,7 +156,8 @@ void testLocalAndOverlays() {
   require(readText(files->open("DATA/data.pak")) == "replacement-package",
           "Source-package override lost");
   require(readText(files->tryOpenLogicalOverride("DATA/PHOTO.crgb")) ==
-              "replacement-logical", "Logical override lost");
+              "replacement-logical",
+          "Logical override lost");
   require(!files->tryOpenLogicalOverride("DATA/BaseOnly.crgb"),
           "Base data must never be an override");
   require(readText(files->open("DATA/BaseOnly.crgb")) == "original-only",
@@ -166,16 +165,14 @@ void testLocalAndOverlays() {
   require(files->list("DATA").size() == 3, "Layer merge is not unique");
   require(!files->exists("MASK/child.bin"),
           "Higher file must hide lower directory contents");
-  expectCode(VFS::ErrorCode::NotDirectory,
-             [&] { files->list("MASK"); });
+  expectCode(VFS::ErrorCode::NotDirectory, [&] { files->list("MASK"); });
 
   files->addOverlay(other.string(), 200);
   require(files->generation() == 2 &&
               readText(files->open("DATA/data.pak")) == "highest-package",
           "Priority override lost");
 
-  expectCode(VFS::ErrorCode::InvalidPath,
-             [&] { files->exists("../outside"); });
+  expectCode(VFS::ErrorCode::InvalidPath, [&] { files->exists("../outside"); });
   expectCode(VFS::ErrorCode::InvalidPath,
              [&] { files->open("/absolute.txt"); });
   expectCode(VFS::ErrorCode::InvalidPath,
@@ -200,33 +197,27 @@ void testISO() {
   char bytes[8]{};
   require(first->read(bytes, 2) == 2 && std::string(bytes, 2) == "he",
           "ISO stream read failed");
-  require(second->read(bytes, 5) == 5 &&
-              std::string(bytes, 5) == "hello",
+  require(second->read(bytes, 5) == 5 && std::string(bytes, 5) == "hello",
           "ISO handles share a cursor");
   require(first->seek(1, VFS::SeekOrigin::Current) == 3 &&
-              first->read(bytes, 2) == 2 &&
-              std::string(bytes, 2) == "lo" &&
+              first->read(bytes, 2) == 2 && std::string(bytes, 2) == "lo" &&
               first->read(bytes, 2) == 0,
           "ISO seek or EOF failed");
 }
 
-
-void putOctal(std::array<char, 512> &header, std::size_t at,
-              std::size_t width, std::uint64_t value) {
+void putOctal(std::array<char, 512> &header, std::size_t at, std::size_t width,
+              std::uint64_t value) {
   auto current = value;
   for (std::size_t i = 0; i < width - 1; ++i) {
-    header[at + width - 2 - i] =
-        static_cast<char>('0' + (current & 7));
+    header[at + width - 2 - i] = static_cast<char>('0' + (current & 7));
     current >>= 3;
   }
   require(current == 0, "TAR fixture overflow");
   header[at + width - 1] = '\0';
 }
 
-void addTar(std::vector<std::uint8_t> &out,
-            const std::string &name,
-            const std::string &data,
-            char type = '0') {
+void addTar(std::vector<std::uint8_t> &out, const std::string &name,
+            const std::string &data, char type = '0') {
   std::array<char, 512> header{};
   require(name.size() < 100, "TAR test path too long");
   std::memcpy(header.data(), name.data(), name.size());
@@ -262,14 +253,12 @@ void testTAR() {
   require(tar->list("DATA").size() == 1, "Bad TAR listing");
   require(readText(tar->open("data/EXAMPLE.TXT")) == "tar-content",
           "TAR random-access file failed");
-  require(readText(tar->open("empty.txt")).empty(),
-          "Empty TAR entry failed");
+  require(readText(tar->open("empty.txt")).empty(), "Empty TAR entry failed");
   auto first = tar->open("DATA/example.txt");
   require(first->seek(-7, VFS::SeekOrigin::End) == 4,
           "TAR seek from end failed");
   char suffix[8]{};
-  require(first->read(suffix, 7) == 7 &&
-              std::string(suffix, 7) == "content",
+  require(first->read(suffix, 7) == 7 && std::string(suffix, 7) == "content",
           "TAR slice cursor failed");
 
   // Windows keeps a TAR opened by first->base_ locked against rewriting.
@@ -279,11 +268,9 @@ void testTAR() {
   tar.reset();
   bytes[148] ^= 1; // corrupt checksum
   writeFile(file, bytes);
-  expectCode(VFS::ErrorCode::CorruptImage, [&] {
-    VFS::Filesystem::mount(file.string());
-  });
+  expectCode(VFS::ErrorCode::CorruptImage,
+             [&] { VFS::Filesystem::mount(file.string()); });
 }
-
 
 void testRemoteManifest() {
   auto remote = VFS::FetchAssetProvider::fromManifest(
@@ -294,13 +281,11 @@ void testRemoteManifest() {
           "Remote manifest lookup failed");
   require(remote->list(std::string_view{"DATA"}).size() == 1,
           "Remote manifest directory list failed");
-  auto files = VFS::Filesystem::mount(
-      std::static_pointer_cast<VFS::IMount>(remote));
+  auto files =
+      VFS::Filesystem::mount(std::static_pointer_cast<VFS::IMount>(remote));
   auto handle = files->open("DATA/REMOTE.BIN");
   char chunk[4];
-  expectCode(VFS::ErrorCode::WouldBlock, [&] {
-    handle->read(chunk, 4);
-  });
+  expectCode(VFS::ErrorCode::WouldBlock, [&] { handle->read(chunk, 4); });
   require(files->open("EMPTY")->read(chunk, 4) == 0,
           "Manifest empty remote file is not EOF");
   expectCode(VFS::ErrorCode::InvalidPath, [&] {
@@ -316,10 +301,10 @@ void testRemoteManifest() {
 }
 
 void testManifestFreeMountConfiguration() {
-  auto remote = VFS::FetchAssetProvider::fromUrl(
-      "https://example.invalid/game-assets/");
+  auto remote =
+      VFS::FetchAssetProvider::fromUrl("https://example.invalid/game-assets/");
   require(remote->manifestFree() && remote->fileCount() == 0 &&
-          remote->exists(""),
+              remote->exists(""),
           "Manifest-free remote root was not configured");
   expectCode(VFS::ErrorCode::InvalidPath, [&] {
     VFS::FetchAssetProvider::fromUrl("file:///tmp/game-assets");
@@ -332,11 +317,10 @@ void testManifestFreeMountConfiguration() {
   Temp temp;
   const auto assets = temp.root / "game-assets";
   writeFile(assets / "local.bin", "offline");
-  auto combined = VFS::Filesystem::mount(
-      std::make_shared<VFS::FallbackMount>(
-          std::make_shared<VFS::DirectoryMount>(assets), remote));
+  auto combined = VFS::Filesystem::mount(std::make_shared<VFS::FallbackMount>(
+      std::make_shared<VFS::DirectoryMount>(assets), remote));
   require(readText(combined->open("local.bin")) == "offline" &&
-          remote->totalRequests() == 0,
+              remote->totalRequests() == 0,
           "Manifest-free fallback unexpectedly probed local file over HTTP");
 }
 
@@ -347,19 +331,20 @@ void testUnifiedAssetSources() {
   writeFile(local / "data/pack/script.dat", "local-script");
   writeFile(local / "data/pack/graphic.dat", "local-graphic");
   writeFile(overlay / "data/pack/script.dat", "override-script");
-  auto remote = VFS::FetchAssetProvider::fromUrl(
-      "https://example.invalid/game-assets/");
+  auto remote =
+      VFS::FetchAssetProvider::fromUrl("https://example.invalid/game-assets/");
   // A user-supplied directory must remain readable without dispatching
   // unknown HEAD probes for "data" or "data/pack".
-  auto combined = VFS::Filesystem::mount(
-      std::make_shared<VFS::FallbackMount>(
-          std::make_shared<VFS::DirectoryMount>(local), remote));
+  auto combined = VFS::Filesystem::mount(std::make_shared<VFS::FallbackMount>(
+      std::make_shared<VFS::DirectoryMount>(local), remote));
   require(readText(combined->open("DATA/PACK/SCRIPT.DAT")) == "local-script" &&
               remote->totalRequests() == 0,
           "Local source unexpectedly required Fetch");
   combined->addOverlay(overlay.string(), 10);
-  require(readText(combined->open("data/pack/script.dat")) == "override-script" &&
-              readText(combined->open("data/pack/graphic.dat")) == "local-graphic" &&
+  require(readText(combined->open("data/pack/script.dat")) ==
+                  "override-script" &&
+              readText(combined->open("data/pack/graphic.dat")) ==
+                  "local-graphic" &&
               remote->totalRequests() == 0,
           "Layered local overlay triggered HTTP or shadowed wrong resource");
   require(combined->stat("data/pack").type == VFS::FileType::Directory,
@@ -398,18 +383,16 @@ void testSDLAdapters() {
   require(SDL_SeekIO(io, 8, SDL_IO_SEEK_SET) == 8,
           "Custom SDL_IOStream seek failed");
   char tail[5]{};
-  require(SDL_ReadIO(io, tail, 4) == 4 &&
-              std::string(tail, 4) == "data",
+  require(SDL_ReadIO(io, tail, 4) == 4 && std::string(tail, 4) == "data",
           "Custom SDL_IOStream read failed");
   require(SDL_CloseIO(io), "Custom SDL_IOStream failed to close");
 #ifndef __EMSCRIPTEN__
   expectCode(VFS::ErrorCode::UnsupportedMount, [&] {
-    VFS::BrowserBlobAdapter blob(
-        std::make_unique<VFS::SDLFileSource>(path), "video/webm");
+    VFS::BrowserBlobAdapter blob(std::make_unique<VFS::SDLFileSource>(path),
+                                 "video/webm");
   });
 #endif
 }
-
 
 void testLocalHttpFallback() {
   Temp temp;
@@ -420,34 +403,30 @@ void testLocalHttpFallback() {
   const auto remote = VFS::FetchAssetProvider::fromManifest(
       "https://example.invalid/game-assets/",
       R"({"entries":[{"path":"valid.txt","size":5},{"path":"wrong.txt","size":7},{"path":"missing.txt","size":4}]})");
-  auto merged = VFS::Filesystem::mount(
-      std::make_shared<VFS::FallbackMount>(
-          std::make_shared<VFS::DirectoryMount>(assets), remote));
+  auto merged = VFS::Filesystem::mount(std::make_shared<VFS::FallbackMount>(
+      std::make_shared<VFS::DirectoryMount>(assets), remote));
   require(readText(merged->open("VALID.TXT")) == "local",
           "Valid local file was not preferred");
   require(readText(merged->open("extra.txt")) == "original",
           "Local-only file went missing");
   require(merged->stat("wrong.txt").size == 7,
           "Corrupt local file was not replaced by manifest entry");
-  require(merged->exists("missing.txt") &&
-          merged->list("").size() == 4,
+  require(merged->exists("missing.txt") && merged->list("").size() == 4,
           "Remote-only file was not included in merged directory");
   char byte{};
-  expectCode(VFS::ErrorCode::WouldBlock, [&] {
-    merged->open("wrong.txt")->read(&byte, 1);
-  });
+  expectCode(VFS::ErrorCode::WouldBlock,
+             [&] { merged->open("wrong.txt")->read(&byte, 1); });
   VFS::setRemoteGameAssets(remote);
   auto selected = VFS::mountGameAssets(assets);
   require(readText(selected->open("valid.txt")) == "local" &&
-          selected->stat("missing.txt").size == 4,
+              selected->stat("missing.txt").size == 4,
           "Browser-style local/HTTP selection failed");
   auto remoteOnly = VFS::mountGameAssets(temp.root / "missing");
   require(remoteOnly->exists("missing.txt"),
           "Missing directory did not fall back to remote manifest");
   VFS::setRemoteGameAssets({});
-  expectCode(VFS::ErrorCode::NotFound, [&] {
-    VFS::mountGameAssets(temp.root / "missing");
-  });
+  expectCode(VFS::ErrorCode::NotFound,
+             [&] { VFS::mountGameAssets(temp.root / "missing"); });
 }
 
 void testDirectorySafety() {
@@ -456,9 +435,8 @@ void testDirectorySafety() {
   writeFile(base / "abc.bin", "one");
   writeFile(base / "ABC.bin", "two");
   if (!fs::equivalent(base / "abc.bin", base / "ABC.bin")) {
-    expectCode(VFS::ErrorCode::InvalidPath, [&] {
-      VFS::Filesystem::mount(base.string());
-    });
+    expectCode(VFS::ErrorCode::InvalidPath,
+               [&] { VFS::Filesystem::mount(base.string()); });
   }
 
   auto outside = temp.root / "outside.bin";
@@ -466,9 +444,8 @@ void testDirectorySafety() {
   std::error_code error;
   fs::create_symlink(outside, base / "escape.bin", error);
   if (!error) {
-    expectCode(VFS::ErrorCode::InvalidPath, [&] {
-      VFS::Filesystem::mount(base.string());
-    });
+    expectCode(VFS::ErrorCode::InvalidPath,
+               [&] { VFS::Filesystem::mount(base.string()); });
   }
 }
 

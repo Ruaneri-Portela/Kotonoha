@@ -38,5 +38,18 @@ int main() {
     threw = true;
   }
   assert(threw);
+  // Startup and title scripts differ across RealLive releases.
+  const RealLive::Config frontend("#SEEN_START=9030\n"
+                                  "#SEEN_MENU=9042\n"
+                                  "#REGNAME=\"KEY\\CLANNAD_FV\"\n"
+                                  "#SCREENSIZE_MOD=1\n");
+  assert(frontend.integer("SEEN_START") == 9030);
+  assert(frontend.integer("SEEN_MENU") == 9042);
+  assert(frontend.text("REGNAME") == "KEY\\CLANNAD_FV");
+  const auto res = frontend.detectResolution();
+  assert(res.width == 800 && res.height == 600);
+  const RealLive::Config vga("#SCREENSIZE_MOD=0\n");
+  const auto vgaRes = vga.detectResolution();
+  assert(vgaRes.width == 640 && vgaRes.height == 480);
   return 0;
 }

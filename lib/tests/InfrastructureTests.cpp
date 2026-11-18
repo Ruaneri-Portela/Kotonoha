@@ -1,10 +1,10 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/GameMenu.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/components/VNManager.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
@@ -328,6 +328,25 @@ void testControllerNavigation(Engine &engine, EventRuntime &runtime) {
   engine.Event(&axis);
   require(runtime.controllerButtons == before + 2,
           "Engine delivers stick release on returning to the dead zone");
+  axis.gaxis.value = 24000;
+  engine.Event(&axis);
+  const int beforeRemoval = runtime.controllerButtons;
+  SDL_Event removed{};
+  removed.type = SDL_EVENT_GAMEPAD_REMOVED;
+  removed.gdevice.which = axis.gaxis.which;
+  engine.Event(&removed);
+  require(runtime.controllerButtons == beforeRemoval + 1 &&
+              runtime.lastControllerButton == SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+          "Controller removal dispatches a virtual D-pad release");
+  axis.gaxis.value = 24000;
+  engine.Event(&axis);
+  const int beforeFocusLoss = runtime.controllerButtons;
+  SDL_Event lost{};
+  lost.type = SDL_EVENT_WINDOW_FOCUS_LOST;
+  engine.Event(&lost);
+  require(runtime.controllerButtons == beforeFocusLoss + 1 &&
+              runtime.lastControllerButton == SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+          "Focus loss releases a held virtual D-pad through Engine");
   engine.openSettings();
   SDL_Event cancel{};
   cancel.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
@@ -436,13 +455,20 @@ void testContinuousTouch(Engine &engine, EventRuntime &runtime) {
   runtime.touch = false;
   runtime.SetState(GameState::Gameplay);
   const int before = runtime.backCalls;
+  SDL_Event start{};
+  start.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+  start.gbutton.button = SDL_GAMEPAD_BUTTON_START;
+  start.gbutton.down = true;
+  engine.Event(&start);
+  require(runtime.backCalls == before + 1,
+          "Controller Start shares the global Escape/back navigation");
   runtime.screenHandler = [&](EventRef event) {
     return BackAction(engine, event);
   };
   auto back = key(SDLK_ESCAPE);
   engine.Event(&back);
   require(
-      runtime.backCalls == before,
+      runtime.backCalls == before + 1,
       "Back consumed by screen UI must not be dispatched again to navigation");
   runtime.screenHandler = {};
 }

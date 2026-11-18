@@ -1,11 +1,11 @@
 #include "PmailRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <SDL3/SDL.h>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <set>
 #include <stdexcept>
-#include <cstring>
 
 using namespace Kotonoha::PmailPort;
 namespace {

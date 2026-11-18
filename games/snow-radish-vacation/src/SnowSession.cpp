@@ -1,17 +1,17 @@
 #include "SnowSession.hpp"
 #include <Kotonoha/core/UI.hpp>
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <sstream>
 
 namespace SnowRadish {
@@ -239,7 +239,8 @@ void SnowSession::PersistCleared(bool flag) {
   if (muted_ || cleared_ == flag || systemPath_.empty())
     return;
   const char system[] = {83, 82, 86, 1, char(flag)};
-  Kotonoha::Filesystem::OutputFile out(systemPath_, std::ios::binary | std::ios::trunc);
+  Kotonoha::Filesystem::OutputFile out(systemPath_,
+                                       std::ios::binary | std::ios::trunc);
   out.write(system, sizeof system);
   out.flush();
   if (out)

@@ -2,6 +2,7 @@
 
 #include <zlib.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <cerrno>
 #include <charconv>
 #include <cmath>
@@ -383,19 +384,24 @@ bool SchoolDaysConfigStorage::Flush(std::string* error) {
     if (error != nullptr) error->clear();
     if (!initialized_ || !loaded_) return Fail(error, "Config.DAT storage is not loaded");
     if (!dirty_) return true;
-    std::string logical;
-    std::vector<uint8_t> encoded;
-    if (!SerializeLogical(&logical, error) || !EncodeDocument(logical, &encoded, error))
-        return false;
-    std::ofstream file(path_, std::ios::binary | std::ios::trunc);
-    if (!file) return Fail(error, "Config.DAT could not be opened for write");
-    file.write(reinterpret_cast<const char*>(encoded.data()),
-               static_cast<std::streamsize>(encoded.size()));
-    if (!file) return Fail(error, "Config.DAT write failed");
-    file.close();
-    if (!file) return Fail(error, "Config.DAT close failed");
-    dirty_ = false;
-    return true;
+  std::string logical;
+  std::vector<uint8_t> encoded;
+  if (!SerializeLogical(&logical, error) ||
+      !EncodeDocument(logical, &encoded, error))
+    return false;
+  Kotonoha::Filesystem::OutputFile file(path_,
+                                        std::ios::binary | std::ios::trunc);
+  if (!file)
+    return Fail(error, "Config.DAT could not be opened for write");
+  file.write(reinterpret_cast<const char *>(encoded.data()),
+             static_cast<std::streamsize>(encoded.size()));
+  if (!file)
+    return Fail(error, "Config.DAT write failed");
+  file.close();
+  if (!file)
+    return Fail(error, "Config.DAT close failed");
+  dirty_ = false;
+  return true;
 }
 
 } // namespace Kotonoha

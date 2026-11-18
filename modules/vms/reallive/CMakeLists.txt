@@ -1,15 +1,13 @@
 # RealLive Session virtual machine. Reads RealLive/Script.hpp and the
 # libreallive vendor headers exposed by RealLiveFormats.
-if(TARGET Kotonoha::Modules::VMs::RealLive)
+if(TARGET kotonoha_vm_reallive)
     return()
 endif()
 
 add_library(kotonoha_vm_reallive STATIC "${CMAKE_CURRENT_LIST_DIR}/src/Session.cpp")
-add_library(Kotonoha::Modules::VMs::RealLive ALIAS kotonoha_vm_reallive)
-add_library(Kotonoha::Vmreallive ALIAS kotonoha_vm_reallive)
 
 target_include_directories(kotonoha_vm_reallive PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
-target_link_libraries(kotonoha_vm_reallive PUBLIC Kotonoha::Engine PRIVATE RealLiveFormats)
+target_link_libraries(kotonoha_vm_reallive PUBLIC KotonohaEngine PRIVATE RealLiveFormats)
 
 if(MSVC)
     target_compile_options(kotonoha_vm_reallive PUBLIC /J)

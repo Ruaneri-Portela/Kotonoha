@@ -51,13 +51,19 @@ private:
   std::string decodeTextAsset(const std::string &id,
                               const std::vector<Uint8> &bytes,
                               const char *encoding) const override;
+  struct Xp3Segment {
+    std::uint64_t offset = 0;
+    std::uint64_t storedSize = 0;
+    std::uint64_t originalSize = 0;
+    bool compressed = false;
+  };
   struct Xp3Entry {
     std::string name;
     std::string archiveId; // virtual identifier for the XP3 source
-    std::uint64_t offset = 0;
-    std::uint64_t compressedSize = 0;
     std::uint64_t originalSize = 0;
-    bool compressed = false;
+    // A Kirikiri storage may span many raw or zlib-compressed segments.
+    // Keep the physical spans rather than incorrectly returning only one.
+    std::vector<Xp3Segment> segments;
   };
 
   std::filesystem::path root;
@@ -70,6 +76,10 @@ private:
   std::vector<std::pair<std::string, std::vector<Xp3Entry>>> archives;
 
   std::string resolveId(const std::string &id) const;
+  // Match logical XP3 paths independent of ASCII case and slash direction.
+  // A folded collision is rejected instead of selecting a random asset.
+  const Xp3Entry *findXp3Entry(const std::string &id,
+                              bool *collision = nullptr) const;
   bool readXp3(const std::string &id);
   std::vector<std::uint8_t> extractXp3Entry(const Xp3Entry &entry) const;
 };

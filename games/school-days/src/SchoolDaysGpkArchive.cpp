@@ -2,10 +2,10 @@
 
 #include <zlib.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <array>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #ifdef __EMSCRIPTEN__
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
@@ -176,8 +176,8 @@ bool FoldLogicalPath(std::string_view input, std::string *folded) {
   return NormalizeLogicalPath(input, nullptr, folded);
 }
 
-bool ReadRange(Kotonoha::Filesystem::InputFile *file, uint64_t offset, size_t size,
-               std::vector<uint8_t> *out) {
+bool ReadRange(Kotonoha::Filesystem::InputFile *file, uint64_t offset,
+               size_t size, std::vector<uint8_t> *out) {
   if (file == nullptr || out == nullptr ||
       size > static_cast<size_t>(std::numeric_limits<std::streamsize>::max()) ||
       offset >
@@ -325,9 +325,10 @@ bool SchoolDaysGpkArchive::Open(const std::filesystem::path &path,
       foldedCollisions.insert(std::move(folded));
     canonicalEntries.push_back(std::move(canonical));
   }
-  if (lastPhysicalEnd != pidxOffset)
-    return Fail(error,
-                "School Days GPK final body does not meet the PIDX boundary");
+  // Index data may be aligned after the final entry. All entry ranges
+  // have already been checked against pidxOffset above; a gap is harmless.
+  if (lastPhysicalEnd > pidxOffset)
+    return Fail(error, "School Days GPK final body exceeds the PIDX boundary");
 
   path_ = path;
   pidxOffset_ = pidxOffset;

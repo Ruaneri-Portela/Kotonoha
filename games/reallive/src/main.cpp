@@ -1,17 +1,19 @@
-#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include "RealLiveRuntime.hpp"
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <RealLive/RealLiveAssets.hpp>
 #include <SDL3/SDL.h>
 #include <cstdio>
 #include <filesystem>
 #include <memory>
 #include <set>
+#include <stdexcept>
 namespace {
 Kotonoha::EngineOptions
 withAssets(Kotonoha::EngineOptions options,
@@ -42,7 +44,8 @@ struct App {
 bool validate(const std::string &path, std::string &info) {
   try {
     auto source = Kotonoha::Filesystem::Filesystem::mount(path);
-    if (!source->exists("Seen.txt") || !source->exists("Gameexe.ini")) {
+    if (!Kotonoha::Filesystem::findRequiredFilesPrefix(
+            *source, {"Seen.txt", "Gameexe.ini"})) {
       info = "REALLIVE source is missing Seen.txt or Gameexe.ini";
       return false;
     }
@@ -99,8 +102,11 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
                          .string()
                    : ""},
         validate, {""}, true);
-    if (directory.empty())
-      options.launcher = true;
+    // Honor the shared default and explicit --no-launcher. Automated
+    // --frames and MCP runs bypass the launcher in CommandLine::parse().
+    if (directory.empty() && !options.launcher)
+      throw std::runtime_error(
+          "No valid RealLive source; pass --reallive DIRECTORY|ISO");
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "REALLIVE", settingsPath, directory, validate, options.settings,

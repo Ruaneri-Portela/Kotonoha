@@ -184,14 +184,11 @@ struct Parser {
       return;
     }
     if (Eat("if")) {
-      auto condition = Group();
+      auto condition = ExpandCondition(Group());
       // Normal scene entry is not a debug/load jump. Rebuilding a saved state
       // by replay likewise runs the ordinary scene path.
+      ValidateExpression(condition);
       std::string expr = Value(condition);
-      if (expr == "isJump ( )")
-        expr = "false";
-      else
-        ValidateExpression(condition);
       const auto id = std::to_string(serial++);
       const auto otherwise = "*concerto_else_" + id;
       const auto done = "*concerto_end_" + id;
@@ -273,9 +270,46 @@ struct Parser {
     if (operand || depth != 0)
       throw std::runtime_error("incomplete expression");
   }
+  static Tokens ExpandCondition(const Tokens &t) {
+    Tokens out;
+    for (size_t i = 0; i < t.size(); ++i) {
+      if (!t[i].string && (t[i].text == "isJump" || t[i].text == "isJump2") &&
+          i + 2 < t.size() && !t[i + 1].string && t[i + 1].text == "(" &&
+          !t[i + 2].string && t[i + 2].text == ")") {
+        out.push_back({"false", false});
+        i += 2;
+        continue;
+      }
+      if (!t[i].string && t[i].text == "isMax" && i + 3 < t.size() &&
+          !t[i + 1].string && t[i + 1].text == "(" && !t[i + 2].string &&
+          t[i + 2].text.size() == 1 && t[i + 2].text[0] >= '0' &&
+          t[i + 2].text[0] <= '5' && !t[i + 3].string && t[i + 3].text == ")") {
+        const int n = t[i + 2].text[0] - '0';
+        const std::string target = "f.like_" + std::to_string(n);
+        out.push_back({"(", false});
+        bool first = true;
+        for (int k = 0; k < 6; ++k) {
+          if (k == n)
+            continue;
+          if (!first)
+            out.push_back({"&&", false});
+          first = false;
+          out.push_back({target, false});
+          out.push_back({">=", false});
+          out.push_back({"f.like_" + std::to_string(k), false});
+        }
+        out.push_back({")", false});
+        i += 3;
+        continue;
+      }
+      out.push_back(t[i]);
+    }
+    return out;
+  }
   static std::string Condition(const Tokens &t) {
     // next/selectItem accept either a boolean expression or its string form.
-    Tokens expression = t.size() == 1 && t[0].string ? Lex(t[0].text) : t;
+    Tokens expression =
+        ExpandCondition(t.size() == 1 && t[0].string ? Lex(t[0].text) : t);
     ValidateExpression(expression);
     return Value(expression);
   }
@@ -413,6 +447,153 @@ struct Parser {
     } else if (name == "beginSkip" || name == "endSkip") {
       count(0);
       Add(name == "beginSkip" ? "beginskip" : "endskip");
+    } else if (name == "sync") {
+      count(1);
+      Add("wact", {{"target", text(0)}});
+    } else if (name == "stopAction") {
+      count(0);
+      Add("stopaction");
+    } else if (name == "stopBGM") {
+      count(0);
+      Add("concerto_sound", {{"name", "bgm"}, {"stop", "1"}});
+    } else if (name == "waitBGMStop") {
+      count(2);
+      Add("wait", {{"time", Value(a[0])}});
+    } else if (name == "stopSE") {
+      count(0);
+      Add("concerto_sound", {{"name", "se0"}, {"stop", "1"}});
+    } else if (name == "waitSEStop") {
+      count(2);
+      Add("se", {{"wait", "1"}});
+    } else if (name == "create") {
+      count(3);
+      Add("concerto_layer", {{"name", text(0)}});
+    } else if (name == "destroy") {
+      count(1);
+      Add("dellay", {{text(0), "1"}});
+    } else if (name == "vibrate") {
+      count(1);
+      Add("vibrate", {{"n", Value(a[0])}});
+    } else if (name == "syssave") {
+      count(0);
+      Add("syssave");
+    } else if (name == "setClear") {
+      count(0);
+      Add("setclear");
+    } else if (name == "coffee") {
+      count(0);
+      Add("coffee");
+    } else if (name == "initVariable") {
+      count(0);
+      Add("concerto_init_variable");
+    } else if (name == "tndl") {
+      count(1);
+      Add("concerto_tndl", {{"add", Value(a[0])}});
+    } else if (name == "tndlDummy") {
+      count(2);
+      Add("concerto_tndl_dummy",
+          {{"before", Value(a[0])}, {"after", Value(a[1])}});
+    } else if (name == "tndlInit") {
+      count(0);
+      Add("concerto_tndl_init");
+    } else if (name == "tndlStart") {
+      count(0);
+      Add("concerto_tndl_start");
+    } else if (name == "tndlEnd") {
+      count(0);
+      Add("concerto_tndl_end");
+    } else if (name == "tndlTest") {
+      count(1);
+      Add("concerto_tndl_test", {{"level", Value(a[0])}});
+    } else if (name == "like") {
+      count(2);
+      Add("concerto_like", {{"name", text(0)}, {"add", Value(a[1])}});
+    } else if (name == "item") {
+      count(2);
+      Add("concerto_item", {{"name", text(0)}, {"num", Value(a[1])}});
+    } else if (name == "checkRoute") {
+      count(0);
+      Add("concerto_check_route");
+    } else if (name == "checkKiss") {
+      count(0);
+      Add("concerto_check_kiss");
+    } else if (name == "moveInit") {
+      count(4);
+      auto optDisc = [](const Tokens &toks, unsigned base) -> std::string {
+        try {
+          return DiscId(toks, base, true);
+        } catch (const std::exception &) {
+          return Value(toks);
+        }
+      };
+      Add("concerto_move_init", {{"storage", SceneName(a[0], true)},
+                                 {"back", optDisc(a[1], 0x02000000)},
+                                 {"count", Value(a[2])},
+                                 {"bgm", optDisc(a[3], 0x03000000)}});
+    } else if (name == "moveItem" || name == "moveItemForLoad") {
+      count(3);
+      const std::string room =
+          (a[0].size() == 1 && a[0][0].string) ? a[0][0].text : Value(a[0]);
+      std::string pose;
+      try {
+        pose = DiscId(a[1], 0x02000000, true);
+      } catch (const std::exception &) {
+        pose =
+            (a[1].size() == 1 && a[1][0].string) ? a[1][0].text : Value(a[1]);
+      }
+      Add("concerto_move_item",
+          {{"room", room}, {"pose", pose}, {"storage", SceneName(a[2], true)}});
+    } else if (name == "move") {
+      count(0);
+      Add("move");
+    } else if (name == "dateItem") {
+      count(2);
+      Add("concerto_date_item",
+          {{"name", text(0)}, {"storage", SceneName(a[1], true)}});
+    } else if (name == "date") {
+      count(3);
+      std::string bgm;
+      try {
+        bgm = DiscId(a[2], 0x03000000, true);
+      } catch (const std::exception &) {
+        bgm = Value(a[2]);
+      }
+      Add("concerto_date", {{"storage", SceneName(a[0], true)},
+                            {"restrict", Value(a[1])},
+                            {"bgm", bgm}});
+    } else if (name == "resetSelect") {
+      count(2);
+      Add("concerto_reset_select",
+          {{"luiz", SceneName(a[0], true)}, {"noluiz", SceneName(a[1], true)}});
+    } else if (name == "resetSelect2") {
+      count(1);
+      Add("concerto_reset_select2", {{"storage", SceneName(a[0], true)}});
+    } else if (name == "battleInit") {
+      count(1);
+      std::string back;
+      try {
+        back = DiscId(a[0], 0x02000000, true);
+      } catch (const std::exception &) {
+        back = Value(a[0]);
+      }
+      Add("concerto_battle_init", {{"back", back}});
+    } else if (name == "battleAdd") {
+      count(1);
+      Add("concerto_battle_add", {{"name", text(0)}});
+    } else if (name == "battleEnemy") {
+      count(3);
+      std::string pose;
+      try {
+        pose = DiscId(a[2], 0x02000000, true);
+      } catch (const std::exception &) {
+        pose =
+            (a[2].size() == 1 && a[2][0].string) ? a[2][0].text : Value(a[2]);
+      }
+      Add("concerto_battle_enemy",
+          {{"pos", text(0)}, {"name", text(1)}, {"pose", pose}});
+    } else if (name == "battle") {
+      count(0);
+      Add("concerto_battle");
     } else {
       // Preserve the fact that these commands were NOT implemented. Hosts can
       // display UnsupportedCommands(); the headless runner reports it.
@@ -420,6 +601,30 @@ struct Parser {
     }
   }
 };
+bool IsValidUtf8(const std::string &s) {
+  size_t i = 0;
+  while (i < s.size()) {
+    const auto c = static_cast<unsigned char>(s[i]);
+    size_t len = 0;
+    if (c < 0x80)
+      len = 1;
+    else if ((c & 0xE0) == 0xC0 && c >= 0xC2)
+      len = 2;
+    else if ((c & 0xF0) == 0xE0)
+      len = 3;
+    else if ((c & 0xF8) == 0xF0 && c <= 0xF4)
+      len = 4;
+    else
+      return false;
+    if (i + len > s.size())
+      return false;
+    for (size_t k = 1; k < len; ++k)
+      if ((static_cast<unsigned char>(s[i + k]) & 0xC0) != 0x80)
+        return false;
+    i += len;
+  }
+  return true;
+}
 } // namespace
 
 bool ParseConcertoScene(const std::vector<uint8_t> &source,
@@ -427,8 +632,10 @@ bool ParseConcertoScene(const std::vector<uint8_t> &source,
   try {
     if (source.empty())
       throw std::runtime_error("empty Concerto source");
-    const std::string cp932(source.begin(), source.end());
-    Parser parser{Lex(Kotonoha::ShiftJisToUtf8(cp932))};
+    const std::string raw(source.begin(), source.end());
+    const std::string utf8 =
+        IsValidUtf8(raw) ? raw : Kotonoha::ShiftJisToUtf8(raw);
+    Parser parser{Lex(utf8)};
     while (parser.p < parser.tokens.size())
       parser.Statement();
     *out = std::move(parser.tags);

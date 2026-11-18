@@ -21,11 +21,11 @@ struct MapLayout {
   std::string background, hitmap, texture;
   std::vector<MapLocation> locations;
 };
-const MapLayout &mapLayout(int mode);
-int mapNavigate(int mode, int focused, size_t direction);
-std::string mapCharacterVariable(int location);
-int mapFaceIndex(int character);
-int mapFaceIndex(int mode, size_t item, int character);
+const MapLayout &mapLayout(int mode, bool srv2 = false);
+int mapNavigate(int mode, int focused, size_t direction, bool srv2 = false);
+std::string mapCharacterVariable(int location, bool srv2 = false);
+int mapFaceIndex(int character, bool srv2 = false);
+int mapFaceIndex(int mode, size_t item, int character, bool srv2 = false);
 int byteViewDuration(int wipeSpeed);
 // BYTEVIEW is displayed only for cafe locations 10..14.
 std::string byteViewPicture(int location);

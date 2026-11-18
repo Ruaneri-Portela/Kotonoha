@@ -1,9 +1,14 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include "RealLive/Session.hpp"
+#include "RealLive/BoundedRange.hpp"
+#include "RealLive/CaseSelection.hpp"
+#include "RealLive/DecimalDigits.hpp"
+#include "RealLive/StringOps.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <iomanip>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -34,6 +39,7 @@ void Session::seek(int n, std::size_t index) {
   scene_ = n;
   pc_ = index;
   blocked_ = finished_ = false;
+  lastUnhandled_.reset();
 }
 void Session::jump(int n, int entry) {
   auto &s = archive_.Scenario(n);
@@ -50,6 +56,9 @@ bool Session::step() {
   }
   const int scene = scene_;
   const auto index = pc_;
+  // This diagnostic describes the command at the currently blocked PC.
+  // Once a retry begins, a successful interpreter step clears it.
+  lastUnhandled_.reset();
   try {
     s[pc_]->RunOnMachine(machine_);
   } catch (const std::exception &e) {
@@ -72,13 +81,22 @@ void Session::target(const CommandElement &c, int which, bool call) {
     ++pc_;
     return;
   }
-  if (call)
-    stack_.push_back({scene_, pc_ + 1});
+  // Resolve the destination before recording a call frame. Malformed
+  // bytecode must not leave a phantom frame on the VM return stack.
   const auto *ptr = c.GetPointer(which)->get();
+  if (!ptr)
+    throw std::runtime_error("REALLIVE null jump target");
   const auto &s = script(scene_);
   auto it = std::find(s.begin(), s.end(), ptr);
   if (it == s.end())
     throw std::runtime_error("REALLIVE jump target outside scenario");
+  if (call) {
+    // Match snapshot's maximum validated return-stack depth. Untrusted
+    // recursive jumps must not allocate until the browser runs out of memory.
+    if (stack_.size() >= 65536)
+      throw std::runtime_error("REALLIVE call stack limit exceeded");
+    stack_.push_back({scene_, pc_ + 1});
+  }
   pc_ = static_cast<std::size_t>(it - s.begin());
 }
 bool Session::flow(const CommandElement &c) {
@@ -140,22 +158,23 @@ bool Session::flow(const CommandElement &c) {
     return true;
   }
   if (op == 4 || op == 9) {
-    int v = value(0);
-    for (std::size_t i = 0; i < c.GetCaseCount(); ++i) {
-      auto raw = c.GetCase(static_cast<int>(i));
-      if (raw == "()") {
-        target(c, static_cast<int>(i), op == 9);
-        return true;
-      }
-      if (raw.size() < 2)
-        throw std::runtime_error("REALLIVE malformed case");
-      const char *p = raw.c_str() + 1;
-      if (libreallive::GetExpression(p).GetIntegerValue(machine_) == v) {
-        target(c, static_cast<int>(i), op == 9);
-        return true;
-      }
-    }
-    throw std::runtime_error("REALLIVE case has no match");
+    const int v = value(0);
+    // Bytecode may place a default () before a later matching expression.
+    // Do not branch to default until all explicit cases have been examined.
+    const auto selected =
+        selectCase(c.GetCaseCount(), [&](std::size_t i) -> std::optional<bool> {
+          const auto raw = c.GetCase(static_cast<int>(i));
+          if (raw == "()")
+            return std::nullopt;
+          if (raw.size() < 2)
+            throw std::runtime_error("REALLIVE malformed case");
+          const char *p = raw.c_str() + 1;
+          return libreallive::GetExpression(p).GetIntegerValue(machine_) == v;
+        });
+    if (!selected)
+      throw std::runtime_error("REALLIVE case has no match");
+    target(c, static_cast<int>(*selected), op == 9);
+    return true;
   }
   if (op == 10 || op == 13 || op == 17 || op == 19) {
     if ((op == 17 || op == 19) && c.GetParamCount())
@@ -164,9 +183,11 @@ bool Session::flow(const CommandElement &c) {
       finished_ = true;
       return true;
     }
-    auto f = stack_.back();
-    stack_.pop_back();
+    const auto f = stack_.back();
+    // Validate the destination before consuming the pending return frame.
+    // An unavailable scenario must leave the VM's stack intact.
     seek(f.scene, f.pc);
+    stack_.pop_back();
     return true;
   }
   if (op == 16) {
@@ -180,26 +201,21 @@ bool Session::flow(const CommandElement &c) {
     std::optional<std::pair<std::vector<int>, std::vector<std::string>>> data;
     if (op == 18)
       data = withData(2);
-    if (op == 12 || op == 18)
-      stack_.push_back({scene_, pc_ + 1});
+    const bool call = op == 12 || op == 18;
+    if (call && stack_.size() >= 65536)
+      throw std::runtime_error("REALLIVE call stack limit exceeded");
+    const Frame returnTo{scene_, pc_ + 1};
+    // Resolve cross-scenario targets before recording a return frame.
+    // Failure to find a scenario/entrypoint may throw from jump().
     jump(n, entry);
+    if (call)
+      stack_.push_back(returnTo);
     if (data)
       writeWithData(*data);
     return true;
   }
   return false;
 }
-namespace {
-std::size_t CharOffset(const std::string &s, int n) {
-  std::size_t p = 0;
-  for (int i = 0; i < n && p < s.size(); ++i) {
-    unsigned char c = s[p++];
-    if (((c >= 0x81 && c <= 0x9f) || (c >= 0xe0 && c <= 0xfc)) && p < s.size())
-      ++p;
-  }
-  return p;
-}
-} // namespace
 bool Session::strings(const CommandElement &c) {
   if (c.modtype() != 1 || c.module() != 10)
     return false;
@@ -213,9 +229,12 @@ bool Session::strings(const CommandElement &c) {
   switch (op) {
   case 0: {
     auto s = str(1);
-    if (c.overload())
+    if (c.overload()) {
+      // Count complete Shift-JIS characters, not bytes. A byte resize can
+      // split a lead/trail pair and corrupt the next dialogue string.
       s.resize(
-          std::min(s.size(), static_cast<std::size_t>(std::max(0, num(2)))));
+          scriptCharOffset(s, static_cast<std::size_t>(std::max(0, num(2)))));
+    }
     write(0, s);
     break;
   }
@@ -225,9 +244,11 @@ bool Session::strings(const CommandElement &c) {
     else {
       auto a = p(0).GetStringReferenceIterator(machine_),
            b = p(1).GetStringReferenceIterator(machine_);
-      for (std::size_t n = 0; a != b && n < 100000; ++n, ++a)
-        *a = "";
-      *b = "";
+      // Reject unbounded/reversed intervals without partially clearing
+      // thousands of persistent game string variables on the way.
+      auto positions = collectInclusiveRange(a, b);
+      for (auto &location : positions)
+        *location = "";
     }
     break;
   }
@@ -238,47 +259,116 @@ bool Session::strings(const CommandElement &c) {
     machine_.set_store_register(static_cast<int>(str(0).size()));
     break;
   case 4:
-    machine_.set_store_register(std::strcmp(str(0).c_str(), str(1).c_str()));
+    machine_.set_store_register(scriptStringCompare(str(0), str(1)));
     break;
   case 15:
     write(c.overload() ? 1 : 0, str(0));
     break;
   case 5:
   case 6: {
-    auto s = str(1);
+    const auto s = str(1);
     int off = num(2);
     if (off < 0)
       throw std::out_of_range("REALLIVE negative substring offset");
     if (op == 6) {
-      int length = 0;
-      for (std::size_t k = 0; k < s.size(); k = CharOffset(s, ++length)) {
-      }
-      off = std::max(0, length - off);
+      const auto length = scriptCharCount(s);
+      const auto reverse = static_cast<std::size_t>(off);
+      off = static_cast<int>(
+          length > reverse
+              ? std::min<std::size_t>(length - reverse,
+                                      std::numeric_limits<int>::max())
+              : 0);
     }
-    auto begin = CharOffset(s, off);
-    auto end =
-        c.overload() ? CharOffset(s, off + std::max(0, num(3))) : s.size();
-    write(0, s.substr(begin, end - begin));
+    write(0, scriptSubstring(s, off,
+                             c.overload() ? std::optional<int>(num(3))
+                                          : std::nullopt));
     break;
   }
   case 7: {
-    auto s = str(0);
-    int len = 0;
-    for (std::size_t k = 0; k < s.size(); k = CharOffset(s, ++len)) {
-    }
-    machine_.set_store_register(len);
+    const auto s = str(0);
+    const auto length = scriptCharCount(s);
+    if (length > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+      throw std::out_of_range("REALLIVE string length exceeds VM integer");
+    machine_.set_store_register(static_cast<int>(length));
     break;
   }
   case 8: {
     auto s = str(0);
-    s.resize(CharOffset(s, std::max(0, num(1))));
+    s.resize(
+        scriptCharOffset(s, static_cast<std::size_t>(std::max(0, num(1)))));
     write(0, s);
     break;
   }
   case 10:
   case 11: {
-    if (archive_.Scenario(scene_).encoding() == 0)
-      return false;
+    if (archive_.Scenario(scene_).encoding() == 0) {
+      auto s = str(0);
+      std::string out;
+      out.reserve(s.size() * 2);
+      if (op == 11) {
+        for (std::size_t i = 0; i < s.size(); ++i) {
+          unsigned char c1 = static_cast<unsigned char>(s[i]);
+          if (((c1 >= 0x81 && c1 <= 0x9f) || (c1 >= 0xe0 && c1 <= 0xfc)) &&
+              i + 1 < s.size()) {
+            unsigned char c2 = static_cast<unsigned char>(s[++i]);
+            if (c1 == 0x82 && c2 >= 0x4f && c2 <= 0x58)
+              out += static_cast<char>('0' + (c2 - 0x4f));
+            else if (c1 == 0x82 && c2 >= 0x60 && c2 <= 0x79)
+              out += static_cast<char>('A' + (c2 - 0x60));
+            else if (c1 == 0x82 && c2 >= 0x81 && c2 <= 0x9a)
+              out += static_cast<char>('a' + (c2 - 0x81));
+            else if (c1 == 0x81 && c2 == 0x40)
+              out += ' ';
+            else if (c1 == 0x81 && c2 == 0x49)
+              out += '!';
+            else if (c1 == 0x81 && c2 == 0x7b)
+              out += '+';
+            else if (c1 == 0x81 && c2 == 0x7c)
+              out += '-';
+            else {
+              out += static_cast<char>(c1);
+              out += static_cast<char>(c2);
+            }
+          } else {
+            out += static_cast<char>(c1);
+          }
+        }
+      } else {
+        for (std::size_t i = 0; i < s.size(); ++i) {
+          unsigned char c1 = static_cast<unsigned char>(s[i]);
+          if (((c1 >= 0x81 && c1 <= 0x9f) || (c1 >= 0xe0 && c1 <= 0xfc)) &&
+              i + 1 < s.size()) {
+            out += static_cast<char>(c1);
+            out += s[++i];
+          } else if (c1 >= '0' && c1 <= '9') {
+            out += static_cast<char>(0x82);
+            out += static_cast<char>(0x4f + (c1 - '0'));
+          } else if (c1 >= 'A' && c1 <= 'Z') {
+            out += static_cast<char>(0x82);
+            out += static_cast<char>(0x60 + (c1 - 'A'));
+          } else if (c1 >= 'a' && c1 <= 'z') {
+            out += static_cast<char>(0x82);
+            out += static_cast<char>(0x81 + (c1 - 'a'));
+          } else if (c1 == ' ') {
+            out += static_cast<char>(0x81);
+            out += static_cast<char>(0x40);
+          } else if (c1 == '!') {
+            out += static_cast<char>(0x81);
+            out += static_cast<char>(0x49);
+          } else if (c1 == '+') {
+            out += static_cast<char>(0x81);
+            out += static_cast<char>(0x7b);
+          } else if (c1 == '-') {
+            out += static_cast<char>(0x81);
+            out += static_cast<char>(0x7c);
+          } else {
+            out += static_cast<char>(c1);
+          }
+        }
+      }
+      write(c.overload() ? 1 : 0, out);
+      break;
+    }
     write(c.overload() ? 1 : 0, str(0));
     break;
   }
@@ -310,12 +400,33 @@ bool Session::strings(const CommandElement &c) {
     }
     break;
   }
+  case 19: { // Str.digits(value) -> number of decimal digits.
+    if (c.overload() != 0 || c.GetParamCount() != 1)
+      return false;
+    machine_.set_store_register(decimalDigits(num(0)));
+    break;
+  }
+  case 20: { // Str.digit(value, output, oneBasedPositionFromRight).
+    if (c.overload() != 0 || c.GetParamCount() != 3)
+      return false;
+    const auto value = num(0);
+    const auto fromRight = num(2);
+    const auto digit = decimalDigit(value, fromRight); // validates first
+    *p(1).GetIntegerReferenceIterator(machine_) = digit;
+    machine_.set_store_register(decimalDigits(value));
+    break;
+  }
   case 30:
   case 31: {
     auto s = str(0), find = str(1);
     auto n = op == 30 ? s.find(find) : s.rfind(find);
     machine_.set_store_register(n == std::string::npos ? -1
                                                        : static_cast<int>(n));
+    break;
+  }
+  case 32: {
+    auto s = str(0), find = str(1);
+    machine_.set_store_register(s.find(find) != std::string::npos ? 1 : 0);
     break;
   }
   case 100:
@@ -386,6 +497,13 @@ bool Session::memory(const CommandElement &c) {
       *dest = v;
       dest = dest + step;
     }
+    break;
+  }
+  case 5: {
+    auto a = ref(0), b = ref(1);
+    int temp = int(*a);
+    *a = int(*b);
+    *b = temp;
     break;
   }
   case 6: {
@@ -490,7 +608,8 @@ int Session::babelAppend(int address) {
           static_cast<unsigned char>(source[i + 1]) <= 0x58) {
         int offset = static_cast<unsigned char>(source[i + 1]) - 0x4f;
         i += 2;
-        auto pos = CharOffset(name, offset), end = CharOffset(name, offset + 1);
+        auto pos = scriptCharOffset(name, static_cast<std::size_t>(offset));
+        auto end = scriptCharOffset(name, static_cast<std::size_t>(offset + 1));
         name = name.substr(pos, end - pos);
       }
       babelBuffer_ += name;
@@ -528,6 +647,7 @@ int Session::babelGetChar(int output, int xmod) {
       if (end == std::string::npos)
         return result(1);
       auto name = babelBuffer_.substr(babelIndex_, end - babelIndex_);
+      babelSpeaker_ = name;
       if (speaker)
         speaker(name);
       if (babelNameModes_[currentWindow] >= 1)
@@ -539,8 +659,12 @@ int Session::babelGetChar(int output, int xmod) {
         return result(1);
       continue;
     }
-    if (ch == 3)
-      return result(lineBreak ? lineBreak() : 3);
+    if (ch == 3) {
+      int code = lineBreak ? lineBreak() : 3;
+      if (code == 4)
+        dest = babelSpeaker_;
+      return result(code);
+    }
     if (ch == 4)
       return result(5);
     if (ch == 5)
@@ -563,6 +687,32 @@ int Session::babelGetChar(int output, int xmod) {
       dest += babelBuffer_[babelIndex_++];
     if (dest == std::string("\x89\xa0", 2))
       dest = " ";
+    if (dest == " " && babelIndex_ > 1 && pageOverflow) {
+      std::size_t scan = babelIndex_;
+      while (scan < babelBuffer_.size() && babelBuffer_[scan] == ' ')
+        ++scan;
+      std::string nextWord;
+      std::size_t p = scan;
+      while (p < babelBuffer_.size()) {
+        unsigned char b0 = static_cast<unsigned char>(babelBuffer_[p]);
+        if (b0 <= 0x20)
+          break;
+        if (b0 == 0x89 && p + 1 < babelBuffer_.size() &&
+            static_cast<unsigned char>(babelBuffer_[p + 1]) == 0xa0)
+          break;
+        nextWord += static_cast<char>(b0);
+        ++p;
+        if (((b0 >= 0x81 && b0 <= 0x9f) || (b0 >= 0xe0 && b0 <= 0xfc)) &&
+            p < babelBuffer_.size()) {
+          nextWord += babelBuffer_[p++];
+        }
+      }
+      if (!nextWord.empty() && pageOverflow(" " + nextWord)) {
+        babelIndex_ = scan;
+        dest = babelSpeaker_;
+        return result(4);
+      }
+    }
     int position = glyphPosition ? glyphPosition(dest) : 0;
     machine_.SetIntValue(
         libreallive::IntMemRef(
@@ -588,8 +738,11 @@ bool Session::babel(const CommandElement &c) {
   case 10:
     ++babelStarts_;
     babelBuffer_.clear();
+    babelSpeaker_.clear();
     babelIndex_ = 0;
     babelItalic_ = false;
+    if (babelControl)
+      babelControl(10);
     if (a != -1)
       result = babelAppend(a);
     break;
@@ -601,9 +754,14 @@ bool Session::babel(const CommandElement &c) {
     result = babelGetChar(a, b);
     break;
   case 13:
+    if (babelControl)
+      babelControl(13);
     if (!babelString(a).empty()) {
       auto rest = babelBuffer_.substr(babelIndex_);
-      babelBuffer_ = babelString(a) + char(2) + '"' + rest;
+      babelSpeaker_ = babelString(a);
+      // rlBabel.dll 0x1000c410: StartNewPage always prepends char(1) so the
+      // name delimiter is recognised by babelGetChar's ch==1 branch.
+      babelBuffer_ = char(1) + babelString(a) + char(2) + '"' + rest;
       babelIndex_ = 0;
       babelItalic_ = false;
     }
@@ -657,6 +815,7 @@ bool Session::babel(const CommandElement &c) {
     result = babelNameModes_[a < 0 ? currentWindow : a];
     break;
   case 102:
+    babelSpeaker_ = babelString(a);
     if (speaker)
       speaker(babelString(a));
     break;
@@ -930,6 +1089,7 @@ void Session::restore(const std::string &data) {
   babelGlosses_.swap(glosses);
   glossStart_ = glossStart;
   glossRectangles_.swap(rectangles);
+  lastUnhandled_.reset(); // diagnostics are per-execution, not persisted
 }
 void Session::execute(const CommandElement &c) {
   if (flow(c) || strings(c) || memory(c) || babel(c))
@@ -939,7 +1099,12 @@ void Session::execute(const CommandElement &c) {
   if (command && command(c)) {
     if (scene_ == beforeScene && pc_ == beforePc)
       ++pc_;
-  } else
+  } else {
+    lastUnhandled_ = UnhandledCommand{scene_,     pc_,        c.modtype(),
+                                      c.module(), c.opcode(), c.overload()};
     blocked_ = true;
+    if (onUnhandled)
+      onUnhandled(*lastUnhandled_);
+  }
 }
 } // namespace RealLive

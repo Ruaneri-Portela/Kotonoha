@@ -1,13 +1,13 @@
-#include <SummerRadish/SummerAssets.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/Path.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
-#include <cstring>
+#include <SummerRadish/SummerAssets.hpp>
 #include <algorithm>
-#include <utility>
+#include <cstring>
 #include <optional>
 #include <stdexcept>
+#include <utility>
 namespace Kotonoha::Providers {
 using namespace SummerRadish;
 namespace {
@@ -87,11 +87,13 @@ SummerAssets::SummerAssets(
   const auto files = source_->list(packRoot);
   for (const auto *type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
     const auto desired = std::string(type) + ".CMP";
-    auto entry = std::find_if(files.begin(), files.end(), [&](const auto &file) {
-      return file.type == Kotonoha::Filesystem::FileType::Regular &&
-             canonical(std::filesystem::path(file.path).filename().string()) ==
-                 desired;
-    });
+    auto entry =
+        std::find_if(files.begin(), files.end(), [&](const auto &file) {
+          return file.type == Kotonoha::Filesystem::FileType::Regular &&
+                 canonical(
+                     std::filesystem::path(file.path).filename().string()) ==
+                     desired;
+        });
     if (entry == files.end())
       throw std::runtime_error("Missing " + desired + " in virtual source");
     packs.emplace(type, std::make_unique<Pack>(source_, entry->path));
@@ -103,8 +105,8 @@ SummerAssets::moviePath(const std::string &filename) const {
   if (requested.empty() || requested.is_absolute())
     throw std::runtime_error("Invalid Summer movie filename: " + filename);
 
-  const auto findMovie = [](const std::filesystem::path &path)
-      -> std::filesystem::path {
+  const auto findMovie =
+      [](const std::filesystem::path &path) -> std::filesystem::path {
     const auto directory = path.parent_path();
     if (!std::filesystem::is_directory(directory))
       return {};

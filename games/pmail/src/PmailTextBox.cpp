@@ -1,8 +1,13 @@
 #include "PmailTextBox.hpp"
+#include "PmailWindowTint.hpp"
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Pmail/Port.hpp>
 #include <algorithm>
+#include <cstdlib>
 #include <iostream>
+#include <string_view>
 
 namespace Kotonoha::PmailPort {
 
@@ -118,6 +123,19 @@ bool PmailTextBox::onEvent(Kotonoha::EventRef event) {
   }
   if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
       event.button.button == SDL_BUTTON_LEFT) {
+    // bot.msk hit-test regions for the two on-screen message-window buttons:
+    // value 253: [753, 548]..[764, 558] (Backlog / Up)
+    // value 254: [753, 565]..[764, 575] (Auto / Menu)
+    if (event.button.x >= 753.0f && event.button.x <= 764.0f &&
+        event.button.y >= 548.0f && event.button.y <= 558.0f) {
+      openBacklog();
+      return true;
+    }
+    if (event.button.x >= 753.0f && event.button.x <= 764.0f &&
+        event.button.y >= 565.0f && event.button.y <= 575.0f) {
+      openMenu();
+      return true;
+    }
     if (!isDialogueComplete())
       completeDialogue();
     else
@@ -153,13 +171,19 @@ void PmailTextBox::renderSpeaker(Kotonoha::RendererRef renderer) {
   if (getSpeaker().empty())
     return;
 
+  const auto &settings = engine.GetSettings();
   engine.GetVNUI().text(renderer, getSpeaker(), 74, 463, 640,
-                        SDL_Color{255, 215, 100, 255});
+                        settings.vnTextColorOverride
+                            ? settings.vnSpeakerColor
+                            : SDL_Color{122, 71, 46, 255});
 }
 
 void PmailTextBox::renderDialogue(Kotonoha::RendererRef renderer) {
+  const auto &settings = engine.GetSettings();
   engine.GetVNUI().text(renderer, getVisibleText(), 74, 492, 650,
-                        SDL_Color{240, 240, 245, 255});
+                        settings.vnTextColorOverride
+                            ? settings.vnTextColor
+                            : SDL_Color{48, 45, 62, 255});
 }
 
 void PmailTextBox::renderIndicator(Kotonoha::RendererRef renderer) {
@@ -194,15 +218,48 @@ SDL_Texture *PmailTextBox::LoadTextBoxGraphic(Kotonoha::RendererRef renderer,
             SDL_ConvertSurface(surface.get(), SDL_PIXELFORMAT_RGBA32));
         if (!surface)
           return nullptr;
-        // locpu.dll AddRgbChr (0x10002800) moves each channel towards
-        // white by tint/256. MesWin_R/G/B defaults are 0,0,150; alpha
-        // remains the original CHAR coverage. SDL color modulation would
-        // multiply black and incorrectly leave this backing black.
+        // Honor OF_ADV2.INI's MesWin_R/G/B, not a hard-coded blue tint.
+        // The original locpu.dll AddRgbChr adjusts RGB, preserving alpha.
+        // VFS access also works when the game files come from HTTP/archives.
+        PmailMessageTint tint;
+        if (auto source = assets_.source()) {
+          for (const char *name : {"OF_ADV2.INI", "data/OF_ADV2.INI"}) {
+            try {
+              if (!source->exists(name))
+                continue;
+              const auto bytes = Kotonoha::Filesystem::readAll(
+                  *source->open(name), 64u * 1024u);
+              const auto sourceText = std::string_view(
+                  reinterpret_cast<const char *>(bytes.data()), bytes.size());
+              tint = ParsePmailMessageTint(sourceText, tint);
+              break;
+            } catch (const std::exception &error) {
+              SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                          "[PmailPort] Cannot read MesWin settings: %s",
+                          error.what());
+            }
+          }
+        }
+        auto overrideChannel = [](const char *key, int &channel) {
+          const char *value = SDL_getenv(key);
+          if (!value || !*value)
+            return;
+          char *end = nullptr;
+          const long chosen = std::strtol(value, &end, 10);
+          if (end && !*end && chosen >= 0 && chosen <= 256)
+            channel = int(chosen);
+        };
+        overrideChannel("PMAIL_MESWIN_R", tint.red);
+        overrideChannel("PMAIL_MESWIN_G", tint.green);
+        overrideChannel("PMAIL_MESWIN_B", tint.blue);
         for (int y = 0; y < surface->h; ++y) {
           auto *pixel =
               static_cast<uint8_t *>(surface->pixels) + y * surface->pitch;
-          for (int x = 0; x < surface->w; ++x, pixel += 4)
-            pixel[2] += ((255 - pixel[2]) * 150) >> 8;
+          for (int x = 0; x < surface->w; ++x, pixel += 4) {
+            pixel[0] = PmailAddRgbChr(pixel[0], tint.red);
+            pixel[1] = PmailAddRgbChr(pixel[1], tint.green);
+            pixel[2] = PmailAddRgbChr(pixel[2], tint.blue);
+          }
         }
       }
       entry.tex.reset(SDL_CreateTextureFromSurface(&renderer, surface.get()));

@@ -1,0 +1,104 @@
+name: Game port startup and compatibility contracts
+
+on:
+  pull_request:
+    paths:
+      - "games/**"
+      - "launcher/**"
+      - "tools/check_unified_launcher_registry.py"
+      - "tools/check_sdl_cpack.py"
+      - "tools/check_web_shell.js"
+      - "tools/web_selftest.js"
+      - "buildsystems/cmake/index.html.in"
+      - "lib/src/core/WebAssetFetch.cpp"
+      - "lib/src/Filesystem/RemoteAssets.cpp"
+      - "lib/src/Filesystem/Sources/FetchAssetProvider.cpp"
+      - "lib/include/Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp"
+      - "lib/tests/web/WebSelfTest.cpp"
+      - "tools/test_nested_python_bundle.cmake"
+      - "buildsystems/cmake/PruneNestedPythonApp.cmake"
+      - "buildsystems/cmake/BundleApp.cmake"
+      - "buildsystems/cmake/CheckBundleContents.cmake"
+      - "lib/include/Kotonoha/Filesystem/GameSourceProbe.hpp"
+      - "lib/tests/GameSourceProbeTests.cpp"
+      - "lib/src/core/CommandLine.cpp"
+      - "lib/include/Kotonoha/core/Config.hpp"
+      - "lib/tests/CommandLineTests.cpp"
+      - "modules/providers/n2/**"
+      - "tools/ValidateBuildMetadata.py"
+      - "docs/PORT_COMPATIBILITY*"
+      - "tools/check_release_matrix.py"
+      - ".github/workflows/android.yml"
+      - ".github/workflows/linux.yml"
+      - ".github/workflows/macos.yml"
+      - ".github/workflows/windows.yml"
+      - "buildsystems/xcode/Kotonoha.xcodeproj/**"
+      - "buildsystems/cmake/KotonohaGames.cmake"
+      - "buildsystems/xcode/ProjectManifest.json"
+      - "tools/check_port_contracts.py"
+      - ".github/workflows/port-contracts.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "games/**"
+      - "launcher/**"
+      - "tools/check_unified_launcher_registry.py"
+      - "tools/check_sdl_cpack.py"
+      - "tools/check_web_shell.js"
+      - "tools/web_selftest.js"
+      - "buildsystems/cmake/index.html.in"
+      - "lib/src/core/WebAssetFetch.cpp"
+      - "lib/src/Filesystem/RemoteAssets.cpp"
+      - "lib/src/Filesystem/Sources/FetchAssetProvider.cpp"
+      - "lib/include/Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp"
+      - "lib/tests/web/WebSelfTest.cpp"
+      - "tools/test_nested_python_bundle.cmake"
+      - "buildsystems/cmake/PruneNestedPythonApp.cmake"
+      - "buildsystems/cmake/BundleApp.cmake"
+      - "buildsystems/cmake/CheckBundleContents.cmake"
+      - "lib/include/Kotonoha/Filesystem/GameSourceProbe.hpp"
+      - "lib/tests/GameSourceProbeTests.cpp"
+      - "lib/src/core/CommandLine.cpp"
+      - "lib/include/Kotonoha/core/Config.hpp"
+      - "lib/tests/CommandLineTests.cpp"
+      - "modules/providers/**"
+      - "modules/vms/**"
+      - "tools/ValidateBuildMetadata.py"
+      - "docs/PORT_COMPATIBILITY*"
+      - "docs/BUILD_VALIDATION*"
+      - "tools/check_release_matrix.py"
+      - ".github/workflows/android.yml"
+      - ".github/workflows/linux.yml"
+      - ".github/workflows/macos.yml"
+      - ".github/workflows/windows.yml"
+      - "buildsystems/xcode/Kotonoha.xcodeproj/**"
+      - "buildsystems/cmake/KotonohaGames.cmake"
+      - "buildsystems/xcode/ProjectManifest.json"
+      - "tools/check_port_contracts.py"
+      - ".github/workflows/port-contracts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Validate all game port metadata and portable startup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify game manifest and shared input source contracts
+        run: |
+          python3 tools/check_port_contracts.py
+          python3 tools/check_game_platform_isolation.py
+          python3 tools/ValidateBuildMetadata.py
+          python3 tools/check_release_matrix.py
+          python3 tools/check_unified_launcher_registry.py
+          python3 tools/check_sdl_cpack.py
+      - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
+        run: |
+          node tools/check_web_shell.js
+          node --check tools/web_selftest.js
+      - name: Test nested Python.framework cleanup without macOS SDK
+        run: cmake -P tools/test_nested_python_bundle.cmake

@@ -14,7 +14,9 @@ struct JumpSignal {
   std::string label;
   bool call = false;
 };
-struct QuitSignal {};
+struct QuitSignal {
+  bool relaunch = false;
+};
 
 struct Scope {
   std::unordered_map<std::string, Value> vars;

@@ -10,6 +10,10 @@ const assert = require('node:assert/strict');
 
 const htmlPath = path.join(__dirname, '..', 'buildsystems', 'cmake', 'index.html.in');
 const html = fs.readFileSync(htmlPath, 'utf8');
+const wasmBuild = fs.readFileSync(path.join(__dirname, '..',
+  'buildsystems', 'cmake', 'KotonohaApp.cmake'), 'utf8');
+const webBridge = fs.readFileSync(path.join(__dirname, '..',
+  'lib', 'src', 'core', 'WebAssetFetch.cpp'), 'utf8');
 const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
 assert(scripts.length >= 2, 'HTML shell must contain bootstrap and folder scripts');
 for (let i = 0; i < scripts.length; ++i) {
@@ -54,10 +58,32 @@ assert(html.includes('toolbar.hidden = true'),
   'Folder toolbar must be hidden when the source is chosen');
 assert(!html.includes('KotonohaAutoServerAssets'),
   'Browser startup must not automatically select remote assets');
-assert(!html.includes('fetch(new URL("manifest.json"'),
-  'HTTP startup must not query a stale or empty manifest');
-assert(!html.includes('KotonohaConfigureRemoteAssetManifest'),
-  'HTTP bootstrap must always select direct on-demand Fetch');
+assert(html.includes('new URL("manifest.json", origin)'),
+  'HTTP startup must probe the optional manifest after explicit source selection');
+assert(html.includes('KotonohaConfigureRemoteAssetIndexedManifest') &&
+       html.includes('KotonohaConfigureRemoteAssetUrl'),
+  'HTTP bootstrap must support indexed listings and direct Fetch fallback');
+assert(html.includes('window.KotonohaRemoteManifestIndexed = indexed'),
+  'The source selection must report whether the optional index was used');
+assert(html.includes('KotonohaAllocateRemoteManifest') &&
+       html.includes('KotonohaFreeRemoteManifest') &&
+       html.includes('new TextEncoder().encode(manifest)') &&
+       html.includes('Module.HEAPU8') &&
+       html.includes('["string", "number"]') &&
+       !html.includes('["string", "string"],\n                                    [origin.href, manifest]'),
+  'Large manifest JSON must be marshalled via bounded WASM heap, not ccall stack');
+assert(html.includes('error instanceof WebAssembly.RuntimeError') &&
+       html.includes('serverButton.disabled = true'),
+  'A fatal WASM memory trap must not allow repeated broken startup attempts');
+assert(wasmBuild.includes("'HEAPU8'"),
+  'WebAssembly link must export the current heap view under memory growth');
+assert(webBridge.includes('KotonohaAllocateRemoteManifest') &&
+       webBridge.includes('KotonohaFreeRemoteManifest') &&
+       webBridge.includes('std::free(memory)'),
+  'WASM bridge must allocate and free bounded manifest transfers');
+assert(html.includes('if (!indexed)') &&
+       html.includes('const loadServerAssets = async function()'),
+  'Manifest failures must fall back to direct Fetch asynchronously');
 assert(html.includes('setStatus("Escolha pasta local ou HTTP(S) para iniciar.")'),
   'Boot must wait for an explicit source choice');
 assert(html.includes('setStatus("Pasta local montada. Iniciando engine...");'),
