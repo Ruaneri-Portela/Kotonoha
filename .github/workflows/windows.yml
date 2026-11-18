@@ -66,18 +66,6 @@ jobs:
           key: kotonoha-deps-v2-windows-x64-windows-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
           fail-on-cache-miss: true
 
-      - name: Restore incremental Windows x64 build directories
-        id: build-tree-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            build-windows/**
-            !build-windows/vcpkg_installed/**
-            !build-windows/packages/**
-          key: kotonoha-build-v1-windows-x64-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
-          restore-keys: |
-            kotonoha-build-v1-windows-x64-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-
-
       - name: Audit build scripts
         shell: pwsh
         run: |
@@ -94,16 +82,6 @@ jobs:
       - name: Build all game ports
         shell: pwsh
         run: cmake --build build-windows --config Release --parallel 3
-      - name: Save compiled Windows x64 build directories
-        if: steps.build-tree-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            build-windows/**
-            !build-windows/vcpkg_installed/**
-            !build-windows/packages/**
-          key: kotonoha-build-v1-windows-x64-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
-
       - name: Create ZIP packages
         shell: pwsh
         run: cpack --config build-windows/CPackConfig.cmake -C Release -G ZIP
