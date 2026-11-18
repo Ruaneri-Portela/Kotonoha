@@ -23,6 +23,8 @@ ctest --test-dir build --output-on-failure
 
 Configure `CMAKE_TOOLCHAIN_FILE` para o vcpkg quando necessário. Para jogos, use `-DKOTONOHA_BUILD_<OPCAO>=ON`; as opções incluem `AMAGAMI`, `ZERO`, `SNOW`, `SUMMER`, `DDLC`, `SCHOOL_DAYS`, `REALLIVE`, `KIRIKIRI`, `LUCA_SYSTEM`, `PMAIL`, `PONSCRIPTER` e `N2SYSTEM`. `-DKOTONOHA_BUILD_ALL=ON` solicita todos os ports desktop e pode exigir dependências adicionais. Veja o [índice de jogos](../games/README.pt-BR.md). N2System e PONscripter possuem targets CMake/Android, mas os schemes macOS/iOS no Xcode ainda estão pendentes.
 
+No desktop, o alvo `KotonohaLauncher` linka as bibliotecas dos ports habilitados e roda jogos no mesmo processo. Use `-DKOTONOHA_BUILD_ALL=ON` para incluir todos os ports desktop; veja o [guia do launcher](../launcher/README.pt-BR.md).
+
 Na CI do GitHub Actions, Linux e WASM usam um único runner, sem cache das builds incrementais; veja os [detalhes de CI/vcpkg](CI_VCPKG.md).
 
 O CMake não baixa assets comerciais. Compilar com sucesso não significa que o jogo inteiro funciona.
