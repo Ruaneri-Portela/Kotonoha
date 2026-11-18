@@ -53,7 +53,12 @@ configure an HTTPS CDN **before** the app script initializes:
 Cross-origin hosts need correct CORS. Direct Fetch uses HEAD, GET Range,
 Asyncify and a bounded cache without blocking the browser main thread.
 Ordinary HTTP does not enumerate arbitrary filenames without an index;
-the port needs to know the filenames it wants.
+the port needs to know the filenames it wants. PONscripter and Kirikiri
+now probe common scripts and `arc.nsa` / `data.xp3` names explicitly rather
+than requiring a remote directory listing. For archives with unusual
+names, provide a local folder or an indexed asset source. PONscripter's
+SAR/NSA decoder currently buffers entire archives and may not fit large
+files in browser memory; Kirikiri's XP3 reader uses Range access.
 
 Local/remote startup is always manual. The legacy
 `window.KotonohaAutoServerAssets` switch is no longer needed.
