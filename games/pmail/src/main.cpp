@@ -129,7 +129,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     // Honor the shared default and explicit --no-launcher. Automated
     // --frames and MCP runs bypass the launcher in CommandLine::parse().
     if (directory.empty() && !options.launcher)
-      throw std::runtime_error("No valid Pure Mail source; pass --pmail DIRECTORY|ISO");
+      throw std::runtime_error(
+          "No valid Pure Mail source; pass --pmail DIRECTORY|ISO");
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "Pure Mail", settingsPath, directory, validate, options.settings,

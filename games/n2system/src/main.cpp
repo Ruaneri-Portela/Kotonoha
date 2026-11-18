@@ -30,7 +30,8 @@ withAssets(Kotonoha::EngineOptions options,
 bool validate(const std::string &path, std::string &info) {
   try {
     auto source = Kotonoha::Filesystem::Filesystem::mount(path);
-    for (const auto &entry : Kotonoha::Filesystem::listGameSourceFiles(*source)) {
+    for (const auto &entry :
+         Kotonoha::Filesystem::listGameSourceFiles(*source)) {
       if (entry.type != Kotonoha::Filesystem::FileType::Regular)
         continue;
       std::string lower = entry.path;
@@ -118,7 +119,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     // Honor the shared default and explicit --no-launcher. Automated
     // --frames and MCP runs bypass the launcher in CommandLine::parse().
     if (directory.empty() && !options.launcher)
-      throw std::runtime_error("No valid N2System source; pass --n2system DIRECTORY|ISO");
+      throw std::runtime_error(
+          "No valid N2System source; pass --n2system DIRECTORY|ISO");
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "N2System", settingsPath, directory, validate, options.settings,

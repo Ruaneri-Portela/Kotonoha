@@ -1,8 +1,8 @@
 #include <Kotonoha/debug/ImGuiFrameScope.hpp>
 
 #include <imgui.h>
-#include <stdexcept>
 #include <iostream>
+#include <stdexcept>
 
 namespace {
 void check(bool success, const char *why) {
