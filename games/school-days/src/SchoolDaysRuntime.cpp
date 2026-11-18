@@ -5716,16 +5716,18 @@ Runtime::MenuBarProjection Runtime::menuBarProjection() const {
   MenuBarProjection projection;
   projection.actionInhibit = replay;
   // While SETSELECT owns input, no transport/system chrome may be projected.
-  // After confirmation the chrome can appear on hover, but all controls stay
-  // frozen until the next scene and any directional meter cue have finished.
+  // Post-confirmation chrome is likewise held until the frozen choice exit is
+  // released; the presenter then requires fresh actual pointer motion to
+  // reveal it, rather than inheriting an old pre-choice hover/fade.
   projection.fullBarSuppressed =
       (choice != nullptr && unresolvedChoice()) ||
       (!temporary && bridge.HasPendingHandoff());
-  // SETSELECT presents only the choices, never the Feel bar. After a real
-  // selection, the meter alone appears only if its own native delta detector
+  // SETSELECT presents choices without the Feel bar or normal chrome;
+  // an enabled AUTO status chip is separately persistent. After a real
+  // selection, the meter alone appears only if its native delta detector
   // emitted SeUp/SeDown; the normal top chrome remains frozen separately.
   projection.meterOnly = !temporary && choiceMenuFrozen &&
-                         choiceFeelVisible && !choiceMenuNextSceneBound;
+                         choiceFeelVisible;
   projection.replayIndicator = playData;
   projection.choiceTailFrozen = !temporary && choiceMenuFrozen;
   return projection;
