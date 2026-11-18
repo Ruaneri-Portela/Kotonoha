@@ -121,17 +121,6 @@ jobs:
           fail-on-cache-miss: true
 
 
-      - name: Restore incremental Android ARM64 build directories
-        id: build-tree-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            buildsystems/android/app/.cxx/**
-            buildsystems/android/app/build/**
-          key: kotonoha-build-v2-android-arm64-all-flavors-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
-          restore-keys: |
-            kotonoha-build-v2-android-arm64-all-flavors-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-
-
       - name: Verify Android SDL, SDL_ttf and ImGui submodules
         run: |
           python3 - <<'PY'
@@ -165,16 +154,6 @@ jobs:
           # SDL3 native/Java, SDL3_ttf and ImGui remain submodule sources.
           gradle :app:assembleDebug \
             -Pabis=arm64-v8a -PbundleGameAssets=false --no-daemon --stacktrace
-      - name: Save compiled Android ARM64 build directories
-        if: steps.build-tree-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            buildsystems/android/app/.cxx/**
-            buildsystems/android/app/build/**
-          key: kotonoha-build-v2-android-arm64-all-flavors-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**', 'CMakeLists.txt', 'buildsystems/cmake/**') }}-${{ github.sha }}
-
-
       - name: Package Android APK binaries into ZIP
         run: |
           python3 - <<'PY'
