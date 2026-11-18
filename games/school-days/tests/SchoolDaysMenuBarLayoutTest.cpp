@@ -56,14 +56,18 @@ int main() {
         CheckLayout(Variant::Wide, 800, 450, 1.0f, 800.0f, 75.0f);
         CheckLayout(Variant::WideFull, 1280, 720, 1.6f, 1280.0f, 120.0f);
         CheckLayout(Variant::WideNote, 1024, 576, 1.28f, 1024.0f, 96.0f);
-        // User-observed post-choice presentation: chrome responds to hover,
-        // feelings stay visible with no hover, and the presenter is frozen.
-        const auto idleTail = Presenter::VisibilityForFrozenChoiceTail(0, false);
-        const auto hoveredTail = Presenter::VisibilityForFrozenChoiceTail(200, false);
-        const auto hiddenTail = Presenter::VisibilityForFrozenChoiceTail(200, true);
+        // Confirming a choice does NOT reveal a meter on its own. The meter
+        // appears only when the native feeling-change detector emits code3/4.
+        const auto idleTail = Presenter::VisibilityForFrozenChoiceTail(0, false, true);
+        const auto hoveredTail = Presenter::VisibilityForFrozenChoiceTail(200, false, true);
+        const auto hiddenTail = Presenter::VisibilityForFrozenChoiceTail(200, true, true);
+        const auto unchangedTail = Presenter::VisibilityForFrozenChoiceTail(0, false, false);
+        const auto unchangedHover = Presenter::VisibilityForFrozenChoiceTail(200, false, false);
         Check(idleTail.meter && !idleTail.chrome && hoveredTail.meter &&
-                  hoveredTail.chrome && hiddenTail.meter && !hiddenTail.chrome,
-              "post-choice frozen menu must render idle meter and hover chrome");
+                  hoveredTail.chrome && hiddenTail.meter && !hiddenTail.chrome &&
+                  !unchangedTail.meter && !unchangedTail.chrome &&
+                  !unchangedHover.meter && unchangedHover.chrome,
+              "frozen menu exposed Feel without a change or obscured changed Feel");
         Presenter frozenMenu;
         frozenMenu.SetChoiceTailFrozen(true);
         Check(frozenMenu.ChoiceTailFrozen(), "post-choice lock did not latch");
@@ -372,8 +376,8 @@ int main() {
         Check(Presenter::FadeAlpha(100, false, 500) == 50,
               "MenuBar interrupted hide interpolation drifted");
 
-        // Outgoing choice-tail composition retains the complete feeling meter
-        // even while the shared MenuBar alpha is zero or its chrome suppressed.
+        // The optional meter-only composition is a POST-selection delta
+        // effect; it must never be projected by an unresolved prompt.
         const auto hidden = Presenter::VisibilityForState(0, false, false);
         const auto ordinary = Presenter::VisibilityForState(255, false, false);
         const auto suppressed = Presenter::VisibilityForState(255, true, false);
@@ -390,7 +394,7 @@ int main() {
                   meterOnlyVisible.meter && !meterOnlyVisible.chrome &&
                   independentlyLatched.meter && !independentlyLatched.chrome &&
                   !handoffLatched.meter && !handoffLatched.chrome,
-              "Choice-tail must keep feeling meter while suppressing all MenuBar chrome");
+              "Choice-tail meter-only visibility and independent latch drifted");
 
         // Native SysMenu's chrome-fade setter explicitly skips feeling-meter
         // sprites when host +0x154 reports a pending feeling update. The

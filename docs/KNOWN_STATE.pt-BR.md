@@ -133,10 +133,13 @@ a escolha não confirmada, mas o **medidor de Feel permanece visível**.
 Seleção legítima, timeout, AUTO mode, pausa,
 velocidade escolhida continuam independentes dessa barreira.
 
-**Correção do menu após escolha (observação direta do usuário em 17/11):**
-depois da seleção, a barra superior volta a aparecer ao passar o mouse no
-topo, mas **todos os botões ficam congelados**. Sem hover, apenas o medidor
-de sentimentos permanece visível. O desbloqueio exige que a próxima cena
+**Correção do menu após escolha (observação direta do usuário em 17/11,
+esclarecida em 18/11):** depois da seleção, a barra superior pode voltar a
+aparecer ao passar o mouse no topo, mas **todos os botões ficam congelados**.
+Sem hover, o medidor de sentimentos aparece sozinho **apenas quando uma
+escolha confirmada efetivamente altera os pontos**. A tela de escolhas
+pendentes mostra só as opções; uma escolha omissa ou sem delta não cria a
+apresentação isolada do Feel. O desbloqueio exige que a próxima cena
 física seja associada **e** que a animação do medidor e eventual efeito
 `SeUp` / `SeDown` terminem. As durações já documentadas são 3,924172 s e
 4,022857 s; o código usa o arredondamento para cima em milissegundos. Se a
@@ -191,20 +194,23 @@ Detalhes em
 O instante exato do desbloqueio da barra pós-escolha no original ainda
 necessita comparação visual independente do retail.
 
-**Top Menu / sobreposição do Feel (REA 18/11/2026):** no original,
+**Top Menu / sobreposição do Feel (REA 18/11/2026, corrigida após novo relato):** no original,
 `SysMenuSDHQ.dll` desenha separadamente o quadro e os preenchimentos do Feel,
 em região própria `x=116..654, y=3..25`. A rotina `0x10025690` não aplica o
 fade do Top Menu aos sprites do Feel enquanto a atualização de sentimentos
-está ativa; `0x10026B40` os inicializa com opacidade integral. No port, a
-escolha não resolvida escondia erroneamente o composto inteiro, a cena
-impedia até a renderização do medidor e os dois elementos compartilhavam o
-alpha do atlas CHIP. A implementação específica do jogo agora mostra apenas
-o Feel enquanto a escolha aguarda resposta, mantém o medidor independente
-durante sua atualização e o desenha com opacidade própria, sem liberar os
-controles congelados ou permitir que Skip/SuperSkip atravesse escolhas.
+está ativa; `0x10026B40` os inicializa com opacidade integral. A correção
+inicial do port exibia equivocadamente o medidor **antes de responder à
+escolha** e o forçava depois de qualquer confirmação. Agora, o prompt mostra
+**apenas as escolhas**, com `SeView` (código5), e a seleção emite `SeSelect`
+(ou `SeCancel` na omissão). Somente a detecção de mudança verdadeira de pontos
+emite `SeUp`/`SeDown` (códigos3/4) e exibe o Feel isolado. Se não houver delta,
+o menu congelado pode responder visualmente ao hover, mas sem desenhar o
+medidor. O Feel permanece independente do alpha do Top Menu quando ativado;
+Skip/SuperSkip não atravessam escolhas.
 A regressão com leitura de pixels do SDL/software comprova que uma escolha
-pendente desenha só o Feel e que o menu congelado mostrado por hover não altera
-os pixels do medidor. A análise estática original também confirmou o despacho de Skip e a ordem
+pendente não mostra Feel nem chrome, que omissão ou ausência de delta não
+criam um medidor isolado e que, quando ativo, o Feel não é coberto pelo menu.
+A análise estática original também confirmou o despacho de Skip e a ordem
 `SkipFRAME == SetSELECT < Next` nas 287/287 cenas de escolha auditadas.
 Detalhes em
 `games/school-days/docs/parity/TOP_MENU_FEEL_COMPOSITION_REA_2026-11-18.md`.

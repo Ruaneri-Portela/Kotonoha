@@ -1670,6 +1670,8 @@ void Runtime::openTitle(bool startBgm) {
   transportFade.Reset();
   choiceMenuFrozen = false;
   choiceMenuNextSceneBound = false;
+  choiceFeelEligible = false;
+  choiceFeelVisible = false;
   choiceMenuCueDurationMs = 0;
   lxhFade.Reset();
   choiceSpeedOverrideActive = false;
@@ -3021,6 +3023,9 @@ void Runtime::configureChoice(Kotonoha_orsEvent &event) {
     choiceSpeedOverrideActive = true;
     applyEffectivePlaybackRate(1.0);
   }
+  // Retail EXE 0x0043181B..0x00431828 dispatches host sound code 5 when
+  // SETSELECT becomes visible. This is independent of the feeling meter.
+  playSound(Ui::UiSfxCue::View);
 }
 
 int Runtime::semanticChoiceForSlot(int slot) const {
@@ -3046,6 +3051,8 @@ void Runtime::armChoiceExit(int selected) {
   if (!temporaryPlaybackActive()) {
     choiceMenuFrozen = true;
     choiceMenuNextSceneBound = false;
+    choiceFeelEligible = selected >= 0;
+    choiceFeelVisible = false;
     choiceMenuCueDurationMs = 0;
   }
   playSound(selected >= 0 ? Ui::UiSfxCue::Select : Ui::UiSfxCue::Cancel);
@@ -3083,6 +3090,10 @@ bool Runtime::choicePresentationComplete() const {
 
 void Runtime::noteChoiceMenuCue(int code, uint32_t nowMs) {
   if (!choiceMenuFrozen || (code != 3 && code != 4)) return;
+  // The sole choice-result Feel presentation is activated by an actual
+  // changed raw feeling. The SetSELECT opening sound, SeSelect and an omitted
+  // or unchanged choice never show the isolated meter by themselves.
+  if (choiceFeelEligible) choiceFeelVisible = true;
   // These durations come from the existing NewSys SeUp/SeDown OGG audit,
   // not from the choice's 48-tick text tail or the 3.5s meter animation.
   choiceMenuCueStartedMs = nowMs;
@@ -3098,6 +3109,8 @@ void Runtime::updateChoiceMenuUnlock(uint32_t nowMs,
           choiceMenuCueDurationMs) return;
   choiceMenuFrozen = false;
   choiceMenuNextSceneBound = false;
+  choiceFeelEligible = false;
+  choiceFeelVisible = false;
   choiceMenuCueDurationMs = 0;
 }
 
@@ -5708,9 +5721,11 @@ Runtime::MenuBarProjection Runtime::menuBarProjection() const {
   projection.fullBarSuppressed =
       (choice != nullptr && unresolvedChoice()) ||
       (!temporary && bridge.HasPendingHandoff());
-  // The prompt suppresses MenuBar controls, NOT the standalone feeling
-  // meter. Its render/input owner remains independent of the hover chrome.
-  projection.meterOnly = choice != nullptr && unresolvedChoice();
+  // SETSELECT presents only the choices, never the Feel bar. After a real
+  // selection, the meter alone appears only if its own native delta detector
+  // emitted SeUp/SeDown; the normal top chrome remains frozen separately.
+  projection.meterOnly = !temporary && choiceMenuFrozen &&
+                         choiceFeelVisible && !choiceMenuNextSceneBound;
   projection.replayIndicator = playData;
   projection.choiceTailFrozen = !temporary && choiceMenuFrozen;
   return projection;
@@ -5728,11 +5743,11 @@ void Runtime::updateMenuBar(Kotonoha::SchoolDaysMenuBarPresenter &presenter,
                             config.superSkip, projection.speedControlsEnabled,
                             projection.transportLocked, projection.actionInhibit,
                             projection.fullBarSuppressed);
-  // A confirmed choice restores hover chrome visually, but the actions stay
-  // frozen. The meter remains visible at full opacity outside the hover bar.
-  // Release needs BOTH the next physical scene and the ending meter effect.
+  // Keep choice presentation, meter and input independent. No meter for a
+  // pending prompt or a confirmed choice without an actual feeling change.
   presenter.SetMeterOnly(projection.meterOnly);
   presenter.SetChoiceTailFrozen(projection.choiceTailFrozen);
+  presenter.SetChoiceTailFeelingVisible(choiceFeelVisible);
   presenter.SetReplayIndicatorState(projection.replayIndicator);
 
   int64_t feeling001 = 0;
@@ -5759,6 +5774,8 @@ void Runtime::updateMenuBar(Kotonoha::SchoolDaysMenuBarPresenter &presenter,
   // belongs to the later animated meter, not to every choice unconditionally.
   const int feelingSfx = presenter.ConsumeFeelingDirectionCode();
   noteChoiceMenuCue(feelingSfx, nowMs);
+  presenter.SetMeterOnly(menuBarProjection().meterOnly);
+  presenter.SetChoiceTailFeelingVisible(choiceFeelVisible);
   if (feelingSfx == 3)
     playSound(Ui::UiSfxCue::Up);
   else if (feelingSfx == 4)
@@ -6755,6 +6772,8 @@ void Runtime::loadGame(const std::string &path) {
   // a failed load must not accidentally unfreeze the still-active prompt.
   choiceMenuFrozen = false;
   choiceMenuNextSceneBound = false;
+  choiceFeelEligible = false;
+  choiceFeelVisible = false;
   choiceMenuCueDurationMs = 0;
   closePanels();
   backlogStore.ResetTransient();

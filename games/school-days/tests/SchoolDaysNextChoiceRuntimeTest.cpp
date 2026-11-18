@@ -297,6 +297,9 @@ public:
   static bool PromptMeterOnly(const Runtime &runtime) {
     return runtime.menuBarProjection().meterOnly;
   }
+  static bool ChoiceFeelVisible(const Runtime &runtime) {
+    return runtime.choiceFeelVisible;
+  }
   static Kotonoha::SchoolDaysOptionalTick RawSkipTarget(const Runtime &runtime) {
     return runtime.timeline.ComputeSkipToEndTarget(runtime.tick);
   }
@@ -426,6 +429,16 @@ void TestRetailChoiceTimeoutTail(const char *route, const fs::path &root) {
   Require(Access::Committed(app.runtime) && Access::Result(app.runtime) == -1 &&
               Access::ExitStart(app.runtime) == 71,
           "choice timeout did not commit native -1 exactly at endTick-1");
+  Require(Access::ChoiceMenuFrozen(app.runtime) &&
+              !Access::ChoiceFeelVisible(app.runtime) &&
+              !Access::PromptMeterOnly(app.runtime),
+          "timeout/omission displayed the post-selection Feel bar");
+  // A route may still invoke _SetFeeling for omission. A test-only
+  // directional event must never grant omission the confirmed-choice overlay.
+  Access::ChoiceMeterCue(app.runtime, 3, 200u);
+  Require(!Access::ChoiceFeelVisible(app.runtime) &&
+              !Access::PromptMeterOnly(app.runtime),
+          "omitted choice projected Feel solely because a route rule ran");
 
   Access::SetTick(app.runtime, 94);
   Require(Access::TailActive(app.runtime),
@@ -557,8 +570,9 @@ void TestSkipChoiceVisible(const char *route, const fs::path &root) {
   Require(Access::Pending(app.runtime), "visible choice fixture is not pending");
   Require(Access::BarSuppressed(app.runtime),
           "T1: the top bar was not suppressed while the prompt was visible");
-  Require(Access::PromptMeterOnly(app.runtime),
-          "T1: hiding the Top Menu during a choice also hid the feeling bar");
+  Require(!Access::PromptMeterOnly(app.runtime) &&
+              !Access::ChoiceFeelVisible(app.runtime),
+          "T1: an unanswered choice showed the post-selection Feel meter");
   Access::ClickTransport(app.runtime, false);
   Require(Access::TransportPhase(app.runtime) ==
               Kotonoha::SchoolDaysTransportFade::Phase::Idle &&
@@ -585,7 +599,9 @@ void TestSelectedChoiceTailDoesNotAcceptMenuActions(const char *route,
   Require(!Access::BarSuppressed(app.runtime),
           "selected prompt must restore MenuBar chrome ownership");
   Require(!Access::PromptMeterOnly(app.runtime),
-          "selected choice incorrectly retained prompt-only meter composition");
+          "selected choice displayed the Feel meter before any points changed");
+  Require(!Access::ChoiceFeelVisible(app.runtime),
+          "clicking choice without a delta detector revealed Feel too early");
   Require(Access::ChoiceMenuFrozen(app.runtime) &&
               !Access::ChoiceMenuNewSceneBound(app.runtime),
           "selected prompt must restore visible but noninteractive menu");
@@ -602,6 +618,9 @@ void TestSelectedChoiceTailDoesNotAcceptMenuActions(const char *route,
 
   constexpr uint32_t cueAt = 1000u;
   Access::ChoiceMeterCue(app.runtime, 3, cueAt);
+  Require(Access::ChoiceFeelVisible(app.runtime) &&
+              Access::PromptMeterOnly(app.runtime),
+          "confirmed point change did not reveal Feel alone before next scene");
   Access::MaybeUnlockChoiceMenu(app.runtime, cueAt + 6000u, false);
   Require(Access::ChoiceMenuFrozen(app.runtime),
           "menu thawed before the next physical scene was associated");
@@ -613,7 +632,9 @@ void TestSelectedChoiceTailDoesNotAcceptMenuActions(const char *route,
           "rebinding the same current part must not thaw the bar");
   Access::SimulatePhysicalSceneRebind(app.runtime);
   Require(Access::ChoiceMenuNewSceneBound(app.runtime) &&
-              Access::ChoiceMenuFrozen(app.runtime),
+              Access::ChoiceMenuFrozen(app.runtime) &&
+              Access::ChoiceFeelVisible(app.runtime) &&
+              !Access::PromptMeterOnly(app.runtime),
           "physical scene rebind released the frozen menu before the cue");
   Access::MaybeUnlockChoiceMenu(app.runtime, cueAt + 3924u, false);
   Require(Access::ChoiceMenuFrozen(app.runtime),
@@ -624,6 +645,9 @@ void TestSelectedChoiceTailDoesNotAcceptMenuActions(const char *route,
   Access::MaybeUnlockChoiceMenu(app.runtime, cueAt + 3925u, false);
   Require(!Access::ChoiceMenuFrozen(app.runtime),
           "menu failed to thaw after new scene, meter and SeUp had completed");
+  Require(!Access::ChoiceFeelVisible(app.runtime) &&
+              !Access::PromptMeterOnly(app.runtime),
+          "completed feeling cue left standalone Feel stuck on screen");
   Access::MenuAction(app.runtime, Kind::TogglePause);
   Require(Access::Paused(app.runtime),
           "ordinary MenuBar control did not work again after the cue ended");
@@ -642,6 +666,8 @@ void TestChoiceMenuDownAndSilentRelease(const char *route, const fs::path &root)
             "synthetic SeDown fixture did not confirm player choice");
     Access::SimulatePhysicalSceneRebind(app.runtime);
     Access::ChoiceMeterCue(app.runtime, 4, 250u);
+    Require(Access::ChoiceFeelVisible(app.runtime),
+            "SeDown feeling change did not trigger standalone meter");
     Access::MaybeUnlockChoiceMenu(app.runtime, 4272u, false);
     Require(Access::ChoiceMenuFrozen(app.runtime),
             "SeDown release happened before the 4.022857-second effect ended");
@@ -663,6 +689,9 @@ void TestChoiceMenuDownAndSilentRelease(const char *route, const fs::path &root)
           "silent synthetic choice did not commit");
   Access::SimulatePhysicalSceneRebind(silent.runtime);
   Access::ChoiceMeterCue(silent.runtime, 0, 250u);
+  Require(!Access::ChoiceFeelVisible(silent.runtime) &&
+              !Access::PromptMeterOnly(silent.runtime),
+          "unchanged confirmed choice invented a standalone Feel meter");
   Access::MaybeUnlockChoiceMenu(silent.runtime, 250u, false);
   Require(!Access::ChoiceMenuFrozen(silent.runtime),
           "no-change choice invented a second musical cue or artificial delay");

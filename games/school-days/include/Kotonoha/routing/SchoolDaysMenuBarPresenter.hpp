@@ -112,10 +112,11 @@ public:
                                                bool meterOnly,
                                                bool feelingLatch = false);
     static RenderVisibility VisibilityForFrozenChoiceTail(
-        uint8_t barAlpha, bool fullBarSuppressed);
+        uint8_t barAlpha, bool fullBarSuppressed, bool showMeter);
     // Retail SysMenu 0x10025690 does not apply the surrounding MenuBar fade
     // to meter sprites while host +0x154 reports an active feeling update.
-    // During a choice the meter is likewise composed without its chrome.
+    // During a *changed post-choice* feeling effect, meter-only composition
+    // likewise preserves full alpha. Pending SetSELECT never shows Feel.
     static uint8_t MeterAlphaForState(uint8_t barAlpha,
                                       bool chromeVisible,
                                       bool feelingLatch,
@@ -166,8 +167,8 @@ public:
                          bool superSkipEnabled, bool speedControlsEnabled,
                          bool transportLocked, bool actionInhibit,
                          bool fullBarSuppressed);
-    // During the outgoing choice tail retail keeps only the feeling meter.
-    // This survives an invisible/suppressed MenuBar and uses full opacity.
+    // Used only for a detected, changed-feeling post-choice effect, never for
+    // the unanswered SETSELECT itself or an unchanged/omitted choice.
     void SetMeterOnly(bool enabled) {
         meterOnly_ = enabled;
         if (enabled) {
@@ -175,11 +176,17 @@ public:
             pointerInsideBar_ = false;
         }
     }
-    // Post-choice: the idle feeling meter remains visible without hover;
-    // pointing at the top may reveal chrome, but never activates a control.
+    // Post-choice: controls remain frozen whether or not any feeling changed;
+    // the separately gated meter may appear on actual detected change only.
     void SetChoiceTailFrozen(bool enabled) {
         choiceTailFrozen_ = enabled;
         if (enabled) selection_ = -1;
+    }
+    // Confirmation freezes transport regardless of whether feelings change.
+    // Only an actual post-choice SeUp/SeDown detector event may reveal the
+    // otherwise hidden standalone feeling bar.
+    void SetChoiceTailFeelingVisible(bool visible) {
+        choiceTailFeelingVisible_ = visible;
     }
     bool ChoiceTailFrozen() const { return choiceTailFrozen_; }
     void SetReplayIndicatorState(bool available, int control = -1) {
@@ -234,6 +241,7 @@ private:
     bool fullBarSuppressed_ = false;
     bool meterOnly_ = false;
     bool choiceTailFrozen_ = false;
+    bool choiceTailFeelingVisible_ = false;
     int speedIndex_ = 0;
     bool replayIndicatorAvailable_ = false;
     int replayIndicatorControl_ = 24;

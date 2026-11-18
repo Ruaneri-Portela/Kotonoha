@@ -226,20 +226,31 @@ void CheckMeterCompositingPixels(Application &app,
   };
 
   menu.SetRuntimeState(false, false, 0, false, true, false,
-                       false, true); // prompt suppresses all chrome
-  menu.SetMeterOnly(true);
+                       false, true); // prompt suppresses chrome and Feel
+  menu.SetMeterOnly(false);
   paint();
   const auto choiceMeter = sample(200, 5);
   const auto hiddenChrome = sample(0, 40);
-  Check(choiceMeter[0] == 5 && choiceMeter[1] == 235 &&
-            choiceMeter[2] == 245 &&
+  Check(choiceMeter[0] == 0 && choiceMeter[1] == 0 &&
+            choiceMeter[2] == 0 &&
             hiddenChrome[0] == 0 && hiddenChrome[1] == 0 &&
             hiddenChrome[2] == 0,
-        "prompt rendered Top Menu chrome over Feel or hid the meter entirely");
+        "pending choice showed Feel or Top Menu instead of only its choices");
 
   menu.SetMeterOnly(false);
   menu.SetRuntimeState(false, false, 0, false, true, false,
                        false, false);
+  menu.SetChoiceTailFrozen(true);
+  menu.SetChoiceTailFeelingVisible(false); // no delta: no isolated Feel
+  paint();
+  const auto idleSilentMeter = sample(200, 5);
+  const auto idleSilentChrome = sample(0, 40);
+  Check(idleSilentMeter[0] == 0 && idleSilentMeter[1] == 0 &&
+            idleSilentMeter[2] == 0 &&
+            idleSilentChrome[0] == 0 && idleSilentChrome[1] == 0 &&
+            idleSilentChrome[2] == 0,
+        "silent confirmed choice revealed Feel without any hover or delta");
+
   SDL_Event hover{};
   hover.type = SDL_EVENT_MOUSE_MOTION;
   hover.motion.x = viewport.x + 200.0f * viewport.scale;
@@ -248,15 +259,41 @@ void CheckMeterCompositingPixels(Application &app,
   (void)menu.HandleEvent(&renderer, &hover, &action);
   const uint32_t nowMs = static_cast<uint32_t>(SDL_GetTicks());
   menu.Update(nowMs + 350u, 10, 20); // hover fully reveals red chrome
-  menu.SetChoiceTailFrozen(true);    // but selected choice remains inert
+  // The frozen chrome may become visible on hover. In that state the central
+  // background is red, but the cyan *meter* must not have appeared.
   paint();
-  const auto frozenMeter = sample(200, 5);
+  const auto silentMeter = sample(200, 5);
   const auto visibleChrome = sample(0, 40);
-  Check(frozenMeter[0] == 5 && frozenMeter[1] == 235 &&
-            frozenMeter[2] == 245 &&
+  Check(silentMeter[0] == 220 && silentMeter[1] == 10 &&
+            silentMeter[2] == 10 &&
             visibleChrome[0] == 220 && visibleChrome[1] == 10 &&
             visibleChrome[2] == 10,
-        "hovered frozen Top Menu painted over Feel or lost authored chrome");
+        "unchanged/omitted choice displayed an unsupported standalone Feel bar");
+
+  // The meter's actual changed-feeling event triggers a second presentation:
+  // Feel alone (chrome hidden) until the next physical scene is associated.
+  menu.SetChoiceTailFeelingVisible(true);
+  menu.SetMeterOnly(true);
+  paint();
+  const auto soloMeter = sample(200, 5);
+  const auto soloChrome = sample(0, 40);
+  Check(soloMeter[0] == 5 && soloMeter[1] == 235 &&
+            soloMeter[2] == 245 &&
+            soloChrome[0] == 0 && soloChrome[1] == 0 &&
+            soloChrome[2] == 0,
+        "point change did not show the full-alpha Feel meter alone");
+
+  // Once the next scene is bound, the disabled chrome may respond visually
+  // to hover but must not change the meter's independent, top-layer opacity.
+  menu.SetMeterOnly(false);
+  paint();
+  const auto frozenMeter = sample(200, 5);
+  const auto frozenChrome = sample(0, 40);
+  Check(frozenMeter[0] == 5 && frozenMeter[1] == 235 &&
+            frozenMeter[2] == 245 &&
+            frozenChrome[0] == 220 && frozenChrome[1] == 10 &&
+            frozenChrome[2] == 10,
+        "hovered frozen Top Menu painted over the changed feeling meter");
   menu.Close();
 }
 
