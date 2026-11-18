@@ -233,7 +233,8 @@ function(kotonoha_configure_app target)
         )
 
         # Assets must be in place before BundleApp validates the bundle.
-        kotonoha_copy_assets(${target} GAME "${APP_GAME}")
+        kotonoha_copy_assets(${target} GAME "${APP_GAME}"
+            GAME_ASSET_SOURCE "${_game_asset_source}")
 
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}"
