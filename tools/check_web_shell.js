@@ -61,6 +61,16 @@ assert(html.includes('KotonohaConfigureRemoteAssetIndexedManifest') &&
   'HTTP bootstrap must support indexed listings and direct Fetch fallback');
 assert(html.includes('window.KotonohaRemoteManifestIndexed = indexed'),
   'The source selection must report whether the optional index was used');
+assert(html.includes('KotonohaAllocateRemoteManifest') &&
+       html.includes('KotonohaFreeRemoteManifest') &&
+       html.includes('new TextEncoder().encode(manifest)') &&
+       html.includes('Module.HEAPU8') &&
+       html.includes('["string", "number"]') &&
+       !html.includes('["string", "string"],\n                                    [origin.href, manifest]'),
+  'Large manifest JSON must be marshalled via bounded WASM heap, not ccall stack');
+assert(html.includes('error instanceof WebAssembly.RuntimeError') &&
+       html.includes('serverButton.disabled = true'),
+  'A fatal WASM memory trap must not allow repeated broken startup attempts');
 assert(html.includes('if (!indexed)') &&
        html.includes('const loadServerAssets = async function()'),
   'Manifest failures must fall back to direct Fetch asynchronously');
