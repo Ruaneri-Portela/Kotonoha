@@ -1,6 +1,7 @@
 #include <Kirikiri/KirikiriAssets.hpp>
 #include <Kirikiri/KirikiriRuntime.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -54,6 +55,17 @@ struct App {
 bool validate(const std::string &path, std::string &info) {
   try {
     auto fs = Kotonoha::Filesystem::Filesystem::mount(path);
+    // Manifest-free HTTP cannot enumerate an undiscovered XP3 or script.
+    // Recognize common entrypoints with direct VFS HEAD/Range probes first.
+    for (const char *marker :
+         {"data.xp3", "patch.xp3", "startup.tjs", "startup.ks",
+          "scenario/startup.ks", "scenario/first.ks", "first.ks",
+          "data/data.xp3", "data.xp3.001"}) {
+      if (Kotonoha::Filesystem::isGameSourceRegularFile(*fs, marker)) {
+        info = std::string("Kirikiri virtual source detected: ") + marker;
+        return true;
+      }
+    }
     bool scenario = false, xp3 = false, tjsBootstrap = false;
     for (const auto &entry : fs->list("")) {
       if (entry.type != Kotonoha::Filesystem::FileType::Regular)
