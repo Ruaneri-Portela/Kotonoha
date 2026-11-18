@@ -510,12 +510,12 @@ async function main() {
       await page.reload({waitUntil: 'domcontentloaded'});
       await page.locator('#use-server-assets').click();
       await ready();
-      const preloadReady = await page.evaluate(async () => ({
+      const preloadReady = await page.evaluate(async expectedLength => ({
         completed: window.KotonohaInitialPreloadReady === true,
         loaded: new TextDecoder().decode(await
           window.KotonohaAssetCache.readRange('late-unindexed.txt',
-            0, Buffer.byteLength(lateBody)))
-      }));
+            0, expectedLength))
+      }), Buffer.byteLength(lateBody));
       assert(preloadReady.completed && preloadReady.loaded === lateBody,
         'required preload must be committed to IndexedDB before engine boot');
       assert(gpkReloadRequests === 0,
