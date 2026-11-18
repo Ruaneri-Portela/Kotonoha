@@ -11,20 +11,11 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cerrno>
 #include <cstdlib>
 #include <filesystem>
 #include <iomanip>
-#include <optional>
 #include <sstream>
 #include <system_error>
-
-#if defined(_WIN32)
-#include <process.h>
-#else
-#include <sys/wait.h>
-#include <unistd.h>
-#endif
 
 namespace KotonohaLauncher {
 
@@ -95,54 +86,6 @@ fs::path defaultBaseUserDataDir() {
   }();
   return cachedBase;
 }
-
-// The game process inherits a per-title save root. Restore the hub's
-// original process environment after child exit (or launch failure).
-// SDL's environment and the C runtime environment are maintained separately.
-class ScopedUserDataEnvironment {
-public:
-  ScopedUserDataEnvironment() {
-    if (const char *value = SDL_getenv("KOTONOHA_USER_DATA_DIR"))
-      originalSdl_ = value;
-#if defined(_WIN32)
-    if (const wchar_t *value = _wgetenv(L"KOTONOHA_USER_DATA_DIR"))
-      originalNative_ = value;
-#else
-    if (const char *value = std::getenv("KOTONOHA_USER_DATA_DIR"))
-      originalNative_ = value;
-#endif
-  }
-
-  ScopedUserDataEnvironment(const ScopedUserDataEnvironment &) = delete;
-  ScopedUserDataEnvironment &operator=(const ScopedUserDataEnvironment &) = delete;
-
-  ~ScopedUserDataEnvironment() {
-    if (auto *env = SDL_GetEnvironment()) {
-      if (originalSdl_)
-        SDL_SetEnvironmentVariable(env, "KOTONOHA_USER_DATA_DIR",
-                                   originalSdl_->c_str(), true);
-      else
-        SDL_UnsetEnvironmentVariable(env, "KOTONOHA_USER_DATA_DIR");
-    }
-#if defined(_WIN32)
-    _wputenv_s(L"KOTONOHA_USER_DATA_DIR",
-               originalNative_ ? originalNative_->c_str() : L"");
-#else
-    if (originalNative_)
-      setenv("KOTONOHA_USER_DATA_DIR", originalNative_->c_str(), 1);
-    else
-      unsetenv("KOTONOHA_USER_DATA_DIR");
-#endif
-  }
-
-private:
-  std::optional<std::string> originalSdl_;
-#if defined(_WIN32)
-  std::optional<std::wstring> originalNative_;
-#else
-  std::optional<std::string> originalNative_;
-#endif
-};
 
 } // namespace
 
@@ -277,6 +220,7 @@ EngineLibraryRegistry::EngineLibraryRegistry() {
   registerLibrary({EngineKind::Unknown, "example", "Kotonoha Demo Runtime",
                    "kotonoha_demo", "Kotonoha", "", "org.kotonoha.example",
                    {}});
+  registerLinkedEngineFactories(*this);
 }
 
 void EngineLibraryRegistry::registerLibrary(
@@ -610,162 +554,6 @@ formatDiscoveredGamesReport(const std::vector<DiscoveredGameEntry> &entries,
   return out.str();
 }
 
-int launchModularPortProcess(const char *argv0,
-                             const DiscoveredGameEntry &entry,
-                             const Kotonoha::EngineOptions &options,
-                             long frames, bool splitSavesByGame,
-                             std::string_view customSaveRoot) {
-  if (entry.targetBinary.empty() || entry.cliOption.empty())
-    return -1;
-
-  ScopedUserDataEnvironment savedEnvironment;
-  Kotonoha::EngineOptions portOptions = options;
-  applyPerGameSaveIsolation(entry, portOptions, splitSavesByGame,
-                            customSaveRoot);
-#if defined(_WIN32)
-  const std::wstring nativeUserDataPath =
-      fs::u8path(resolveIsolatedUserDataRoot(entry, splitSavesByGame,
-                                             customSaveRoot)).wstring();
-  if (_wputenv_s(L"KOTONOHA_USER_DATA_DIR",
-                 nativeUserDataPath.c_str()) != 0) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Unable to prepare the per-game user data environment");
-    return -1;
-  }
-#endif
-
-  std::error_code ec;
-  fs::path selfPath = argv0 ? fs::path(argv0) : fs::path();
-  fs::path binDir = selfPath.has_parent_path()
-                        ? fs::weakly_canonical(selfPath.parent_path(), ec)
-                        : fs::current_path(ec);
-
-  std::vector<fs::path> searchCandidates;
-#if defined(_WIN32)
-  const std::string exeName = entry.targetBinary + ".exe";
-#else
-  const std::string exeName = entry.targetBinary;
-#endif
-  auto addBinSearch = [&](const fs::path &root, const std::string &targetBin) {
-#if defined(_WIN32)
-    const std::string name = targetBin + ".exe";
-#else
-    const std::string name = targetBin;
-#endif
-    searchCandidates.push_back(root / name);
-    searchCandidates.push_back(root / targetBin / name);
-    searchCandidates.push_back(root / "outputs" / targetBin / name);
-    searchCandidates.push_back(root / (targetBin + ".app") / "Contents" /
-                               "MacOS" / name);
-    searchCandidates.push_back(root / "outputs" / (targetBin + ".app") /
-                               "Contents" / "MacOS" / name);
-  };
-
-  addBinSearch(binDir, entry.targetBinary);
-  if (binDir.has_parent_path())
-    addBinSearch(binDir.parent_path(), entry.targetBinary);
-  if (binDir.parent_path().has_parent_path())
-    addBinSearch(binDir.parent_path().parent_path(), entry.targetBinary);
-
-  // Resolve only next to this executable and its build/output parents.
-  // Machine-specific paths can accidentally launch unrelated stale builds.
-
-  fs::path resolvedBinary;
-  for (const auto &cand : searchCandidates) {
-    if (fs::is_regular_file(cand, ec)) {
-      resolvedBinary = cand;
-      break;
-    }
-  }
-  if (resolvedBinary.empty()) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Could not locate modular port executable '%s' for '%s'",
-                 entry.targetBinary.c_str(), entry.title.c_str());
-    return -1;
-  }
-
-  std::vector<std::string> args;
-  args.push_back(resolvedBinary.string());
-  args.push_back(entry.cliOption);
-  // Some engines store assets in a subdirectory (e.g. MEO → Personal/MISSEACHOTHER/).
-  // Pass the full resolved path so the port finds its assets.
-  if (!entry.engine.dataPrefix.empty()) {
-    const auto resolvedAssetPath =
-        (fs::path(entry.path) / entry.engine.dataPrefix).string();
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "Launcher: resolved asset path '%s' (root='%s' prefix='%s')",
-                resolvedAssetPath.c_str(), entry.path.c_str(),
-                entry.engine.dataPrefix.c_str());
-    args.push_back(resolvedAssetPath);
-  } else {
-    args.push_back(entry.path);
-  }
-  args.push_back("--no-launcher");
-  if (!portOptions.settingsPath.empty()) {
-    args.push_back("--config");
-    args.push_back(portOptions.settingsPath);
-  }
-  if (!entry.overlayPath.empty()) {
-    args.push_back("--asset-overlay");
-    args.push_back(entry.overlayPath);
-  }
-  if (entry.engine.kind == EngineKind::SchoolDays && splitSavesByGame) {
-    args.push_back("--documents");
-    args.push_back(
-        resolveGameSaveDirectory(entry, splitSavesByGame, customSaveRoot));
-  }
-  if (frames > 0) {
-    args.push_back("--frames");
-    args.push_back(std::to_string(frames));
-  }
-
-  for (std::size_t i = 0; i < args.size(); ++i)
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "Launcher exec arg[%zu]: '%s'", i, args[i].c_str());
-
-#if defined(_WIN32)
-  // Use the wide CRT process API so game-data paths containing Unicode are
-  // preserved. Avoid invoking a shell (which would require quoting).
-  std::vector<std::wstring> wideArgs;
-  wideArgs.reserve(args.size());
-  for (const auto &arg : args)
-    wideArgs.push_back(fs::u8path(arg).wstring());
-  std::vector<const wchar_t *> wideArgv;
-  wideArgv.reserve(wideArgs.size() + 1);
-  for (const auto &arg : wideArgs)
-    wideArgv.push_back(arg.c_str());
-  wideArgv.push_back(nullptr);
-
-  const auto exitCode =
-      _wspawnv(_P_WAIT, resolvedBinary.wstring().c_str(), wideArgv.data());
-  if (exitCode == -1) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "Failed to launch '%s' (errno=%d)",
-                 resolvedBinary.string().c_str(), errno);
-    return -1;
-  }
-  return static_cast<int>(exitCode);
-#else
-  std::vector<char *> cargs;
-  cargs.reserve(args.size() + 1);
-  for (auto &arg : args)
-    cargs.push_back(arg.data());
-  cargs.push_back(nullptr);
-
-  const pid_t pid = fork();
-  if (pid == 0) {
-    execv(resolvedBinary.c_str(), cargs.data());
-    _exit(127);
-  } else if (pid > 0) {
-    int status = 0;
-    if (waitpid(pid, &status, 0) != -1 && WIFEXITED(status))
-      return WEXITSTATUS(status);
-    return 1;
-  }
-  return -1;
-#endif
-}
-
 UnifiedLauncher::UnifiedLauncher(std::string settingsPath,
                                  std::string initialLibraryPath,
                                  Kotonoha::EngineSettings defaults)
@@ -959,10 +747,12 @@ bool UnifiedLauncher::validate(std::string &error) {
     return false;
   }
   const auto current = selectedEntry();
-  if (!current.engine.implementedInKotonoha) {
-    error = "Engine family '" + current.engine.displayName +
-            "' is recognized by the engine detector but has no registered "
-            "Kotonoha runtime library yet.";
+  const auto &registry = EngineLibraryRegistry::instance();
+  if (!current.engine.implementedInKotonoha ||
+      !registry.canInstantiateInProcess(current.engine.kind)) {
+    error = "The selected game engine is detectable but its runtime library "
+            "is not linked into this KotonohaLauncher. Reconfigure with "
+            "-DKOTONOHA_BUILD_<PORT>=ON or -DKOTONOHA_BUILD_ALL=ON.";
     return false;
   }
   return true;
