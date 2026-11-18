@@ -255,6 +255,17 @@ int SchoolDaysBackLogModel::DeltaForSelection(int selection) {
   return selection >= 0 && selection < 4 ? kDelta[selection] : 0;
 }
 
+bool SchoolDaysBackLogModel::StepCursor(int delta) {
+  if (!open_ || rawCountSnapshot_ == 0u || delta == 0)
+    return false;
+  const int last = static_cast<int>(rawCountSnapshot_ - 1u);
+  const int next = std::clamp(currentRawIndex_ + delta, 0, last);
+  if (next == currentRawIndex_)
+    return false;
+  currentRawIndex_ = next;
+  return true;
+}
+
 bool SchoolDaysBackLogModel::ActivatePointer(int x, int y, Action *out) {
   if (!open_ || out == nullptr)
     return false;

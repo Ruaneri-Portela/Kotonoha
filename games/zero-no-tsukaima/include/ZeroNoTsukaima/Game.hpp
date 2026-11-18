@@ -266,6 +266,12 @@ private:
   int moveCount_ = 0;
   std::string moveBack_, moveBgm_, moveDone_;
   std::vector<MoveDestination> moves_, moveShown_;
+  std::string bookDoneStorage_, bookSelect_, tndlDoneStorage_;
+  std::vector<std::string> bookChoices_;
+  bool booking_ = false;
+  std::string concertoTndlScene_, concertoTndlDone_, concertoBattleBack_;
+  int concertoTndlFlag_ = 0, concertoTndlNo_ = 0;
+  int concertoTunEvent_[6]{}, concertoDeleEvent_[6]{};
   uint32_t version_ = 0;
 };
 

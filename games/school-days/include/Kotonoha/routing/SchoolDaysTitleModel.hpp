@@ -47,6 +47,7 @@ public:
 
   int HitItem(int x, int y) const;
   bool SetSelectionFromPointer(int x, int y);
+  void StepSelection(int delta);
   bool ActivateSelection(Activation *out) const;
 
   bool IsOpen() const { return open_; }

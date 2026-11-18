@@ -123,6 +123,20 @@ bool SchoolDaysTitleModel::SetSelectionFromPointer(int x, int y) {
   return true;
 }
 
+void SchoolDaysTitleModel::StepSelection(int delta) {
+  if (!open_ || delta == 0)
+    return;
+  const int count = 6;
+  int cur = selection_ < 0 ? (delta > 0 ? -1 : 0) : selection_;
+  for (int i = 0; i < count; ++i) {
+    cur = (cur + (delta > 0 ? 1 : count - 1)) % count;
+    if (ItemAvailable(cur, host_)) {
+      selection_ = cur;
+      return;
+    }
+  }
+}
+
 bool SchoolDaysTitleModel::ActivateSelection(Activation *out) const {
   if (!open_ || out == nullptr || !SelectionAvailable())
     return false;

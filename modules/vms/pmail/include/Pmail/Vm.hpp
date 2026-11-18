@@ -121,6 +121,7 @@ private:
   // The 2001 pmail.exe PE initializes its random seed to 1 (VA 0x43f7dc).
   uint32_t rng_ = 1;
   std::array<bool, 256> unknownOpcodeLogged_{}; // diagnostics only
+  bool accIs32_ = false;
   bool blocked_ = false;
   bool ended_ = true;
 };

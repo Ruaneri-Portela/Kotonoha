@@ -93,6 +93,67 @@ void PmailStage::render(Kotonoha::RendererRef renderer, float scale) {
   renderSprites(renderer);
   renderAnimations(renderer);
   renderComputerUi(renderer);
+  if (game_.staffRollActive()) {
+    const auto roll = game_.staffRoll();
+    if (!roll.vignettes.empty()) {
+      const std::size_t vigIdx =
+          (static_cast<std::size_t>(roll.elapsedMs) * roll.vignettes.size()) /
+          std::max<std::uint32_t>(1, roll.durationMs);
+      const std::string &vigName =
+          roll.vignettes[std::min(vigIdx, roll.vignettes.size() - 1)];
+      const std::string cacheKey = vigName + ".edg";
+      auto it = spriteCache_.find(cacheKey);
+      if (it == spriteCache_.end()) {
+        SpriteTex st;
+        try {
+          auto surface = assets_.loadSurfaceAsset("graphic/" + cacheKey);
+          if (surface) {
+            st.tex.reset(
+                SDL_CreateTextureFromSurface(&renderer, surface.get()));
+            if (st.tex)
+              SDL_GetTextureSize(st.tex.get(), &st.w, &st.h);
+          }
+        } catch (...) {
+        }
+        it = spriteCache_.emplace(cacheKey, std::move(st)).first;
+      }
+      if (it->second.tex) {
+        const SDL_FRect dst{70.0f, 70.0f, it->second.w, it->second.h};
+        SDL_RenderTexture(&renderer, it->second.tex.get(), nullptr, &dst);
+      }
+    }
+    const int rollIdx =
+        std::clamp(int((uint64_t(roll.elapsedMs) * 12) /
+                       std::max<uint32_t>(1, roll.durationMs)),
+                   0, 11);
+    char rollFile[32];
+    std::snprintf(rollFile, sizeof(rollFile), "roll_%02d.rol", rollIdx);
+    auto it = spriteCache_.find(rollFile);
+    if (it == spriteCache_.end()) {
+      SpriteTex st;
+      try {
+        auto surface =
+            assets_.loadSurfaceAsset("graphic/" + std::string(rollFile));
+        if (surface) {
+          st.tex.reset(SDL_CreateTextureFromSurface(&renderer, surface.get()));
+          if (st.tex) {
+            SDL_GetTextureSize(st.tex.get(), &st.w, &st.h);
+            SDL_SetTextureBlendMode(st.tex.get(), SDL_BLENDMODE_BLEND);
+          }
+        }
+      } catch (...) {
+      }
+      it = spriteCache_.emplace(rollFile, std::move(st)).first;
+    }
+    if (it->second.tex) {
+      const uint32_t segMs = std::max<uint32_t>(1, roll.durationMs / 12);
+      const float progress =
+          float(roll.elapsedMs % segMs) / float(segMs);
+      const float y = 600.0f - progress * (600.0f + it->second.h);
+      const SDL_FRect dst{556.0f, y, it->second.w, it->second.h};
+      SDL_RenderTexture(&renderer, it->second.tex.get(), nullptr, &dst);
+    }
+  }
   if (!SDL_SetRenderTarget(&renderer, previousTarget))
     throw std::runtime_error(SDL_GetError());
   const SDL_FRect stage{0, 0, 800, 600};
@@ -115,16 +176,19 @@ void PmailStage::updateBackground(Kotonoha::RendererRef renderer) {
   if (renderedBackground_ != bgName) {
     backgroundTexture_.reset();
 
-    try {
-      auto surface = assets_.loadSurfaceAsset("graphic/" + bgName + ".CRGB");
-      if (surface) {
-        backgroundTexture_.reset(
-            SDL_CreateTextureFromSurface(&renderer, surface.get()));
-        renderedBackground_ = bgName;
+    for (const char *ext : {".CRGB", ".DIB", ".img", ".evd"}) {
+      try {
+        auto surface = assets_.loadSurfaceAsset("graphic/" + bgName + ext);
+        if (surface) {
+          backgroundTexture_.reset(
+              SDL_CreateTextureFromSurface(&renderer, surface.get()));
+          renderedBackground_ = bgName;
+          break;
+        }
+      } catch (...) {
       }
-    } catch (...) {
-      renderedBackground_ = bgName;
     }
+    renderedBackground_ = bgName;
   }
 }
 
@@ -288,16 +352,31 @@ void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
   if (chatConfigured) {
     drawPanel(chat, float(chat.params[0]), float(chat.params[1]),
               float(chat.params[2]), float(chat.params[3]));
-    // SYS 192..195 is unused by retail scripts; keep the mail-family stream
-    // on the opposite pane when a scene happens to enable both.
     if (mail.active)
       drawPanel(mail, 85, 202, 288, 363);
   } else if (chat.active && mail.active) {
     drawPanel(chat, 85, 202, 288, 363);
     drawPanel(mail, 422, 202, 292, 363);
+  } else if (mail.active && !mail.entries.empty()) {
+    // pmail.exe:0x411390 (SYS 192..195) renders centered monologue/poem lines
+    // at x = (800 - 512) / 2 = 144, vertically centered with 48px line stride.
+    if (mail.selection != 0) {
+      SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 96);
+      const SDL_FRect dim{0, 0, 800, 600};
+      SDL_RenderFillRect(&renderer, &dim);
+    }
+    const float totalH = float(mail.entries.size()) * 48.0f;
+    float lineY = std::max(40.0f, (600.0f - totalH) * 0.5f);
+    for (const auto &line : mail.entries) {
+      if (lineY >= 560.0f)
+        break;
+      ui.textSized(renderer, line.text, 144.0f, lineY, 512.0f, 18.0f,
+                   computerLineColor(line.mode));
+      lineY += 48.0f;
+    }
   } else {
     drawPanel(chat, 85, 202, 620, 363);
-    drawPanel(mail, 85, 202, 620, 363);
   }
 
   // 3. Clock (0x4136b0). Native glyph slots sit on the bottom bar at

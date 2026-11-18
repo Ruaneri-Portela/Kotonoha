@@ -53,6 +53,17 @@ bool AmagamiAssets::containsAsset(const std::string &id) const {
     return contains(id.substr(11));
   if (id.rfind("voice/", 0) == 0 || id.rfind("music/", 0) == 0)
     return true;
+  if (id.rfind("se/", 0) == 0) {
+    try {
+      size_t used = 0;
+      const auto index = std::stoul(id.substr(3), &used);
+      return used == id.size() - 3 &&
+             (index < source_->soundEffectCount() ||
+              (index >= 12 && index - 12 < source_->soundEffectCount()));
+    } catch (const std::exception &) {
+      return false;
+    }
+  }
   if (id.rfind("sound/", 0) == 0) {
     try {
       size_t used = 0;
@@ -88,6 +99,19 @@ std::vector<Uint8> AmagamiAssets::readAsset(const std::string &id) const {
     if (used != id.size() - 6)
       throw std::runtime_error("Invalid ambient sound ID");
     return source_->ambience(unsigned(index));
+  }
+  if (id.rfind("se/", 0) == 0) {
+    size_t used = 0;
+    const auto index = std::stoul(id.substr(3), &used);
+    if (used != id.size() - 3)
+      throw std::runtime_error("Invalid sound effect ID");
+    return source_->soundEffect(unsigned(index)).adpcm;
+  }
+  if (id.rfind("music/classic/", 0) == 0) {
+    int index = source_->musicIndex(std::stoul(id.substr(14)), true);
+    if (index < 0)
+      throw std::runtime_error("Unknown Amagami classic music number");
+    return source_->read("SOUND/MUSIC.AFS", index);
   }
   if (id.rfind("music/", 0) == 0) {
     int index = source_->musicIndex(std::stoul(id.substr(6)));
@@ -161,6 +185,50 @@ AmagamiAssets::loadSurfaceAsset(const std::string &id) const {
 
 namespace Kotonoha::Providers {
 Kotonoha::AudioClip AmagamiAssets::loadAudioAsset(const std::string &id) const {
+  if (id.rfind("se/", 0) == 0) {
+    size_t used = 0;
+    const auto index = std::stoul(id.substr(3), &used);
+    if (used != id.size() - 3)
+      throw std::runtime_error("Invalid sound effect ID");
+    const auto se = source_->soundEffect(unsigned(index));
+    static constexpr int kF0[5] = {0, 60, 115, 98, 122};
+    static constexpr int kF1[5] = {0, 0, -52, -55, -60};
+    std::vector<int16_t> pcm;
+    pcm.reserve((se.adpcm.size() / 16) * 28);
+    int32_t s0 = 0, s1 = 0;
+    for (size_t off = 0; off + 16 <= se.adpcm.size(); off += 16) {
+      const uint8_t *blk = se.adpcm.data() + off;
+      int shift = blk[0] & 0x0f;
+      if (shift > 12)
+        shift = 9;
+      int filter = (blk[0] >> 4) & 0x07;
+      if (filter > 4)
+        filter = 0;
+      const uint8_t flags = blk[1];
+      if (flags == 7)
+        break;
+      for (int i = 2; i < 16; ++i) {
+        const uint8_t byte = blk[i];
+        for (int n = 0; n < 2; ++n) {
+          const int nibble = (n == 0) ? (byte & 0x0f) : ((byte >> 4) & 0x0f);
+          int32_t sample = int32_t(int16_t(uint16_t(nibble) << 12) >> shift);
+          sample += (s0 * kF0[filter] + s1 * kF1[filter] + 32) >> 6;
+          sample = std::clamp(sample, -32768, 32767);
+          s1 = s0;
+          s0 = sample;
+          pcm.push_back(int16_t(sample));
+        }
+      }
+      if (flags & 1)
+        break;
+    }
+    Kotonoha::AudioClip clip;
+    clip.spec = SDL_AudioSpec{SDL_AUDIO_S16, 1, se.sampleRate};
+    clip.data.resize(pcm.size() * sizeof(int16_t));
+    if (!pcm.empty())
+      std::memcpy(clip.data.data(), pcm.data(), clip.data.size());
+    return clip;
+  }
   if (id.rfind("voice/", 0) == 0 || id.rfind("music/", 0) == 0 ||
       id.rfind("sound/", 0) == 0)
     return Kotonoha::decodeCriAudio(readAsset(id), {0x5a17, 0x509f, 0x5bfd});

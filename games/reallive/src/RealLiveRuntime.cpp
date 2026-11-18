@@ -270,6 +270,24 @@ struct Text : VNTextBox {
     }
     return p;
   }
+  int wrappedLineCount(const std::string &value) const {
+    if (value.empty())
+      return 0;
+    const float sx = scaleX();
+    const float wrapWidth = (float(boxWidth()) - 112.0f) * sx;
+    auto width = [&](const std::string &v) {
+      int w = 0, h = 0;
+      if (!engine.GetSettings().vnFontPath.empty())
+        return engine.GetVNUI().measureSized(v, 10000, 25).x;
+      if (font)
+        TTF_GetStringSize(font.get(), v.data(), v.size(), &w, &h);
+      else
+        w = int(v.size()) * 13;
+      return static_cast<float>(w);
+    };
+    return int(
+        Kotonoha::VNTextBoxUtility::WrapText(value, width, wrapWidth).size());
+  }
   bool designSpace() const override { return false; }
   void image(RendererRef r, SurfaceRef s, float x, float y,
              bool upscale = true) {
@@ -546,6 +564,7 @@ struct RealLiveRuntime::Impl {
   std::optional<bool> gpuDither;
   int ditherStep = -1, ditherStyle = -1;
   int maxDialogueLines = 3; // #WINDOW.<w>.MOJI_CNT[1], default 3
+  int currentDialogueLine = 0;
   SurfacePtr backgroundPixels;
   std::map<std::pair<std::string, int>, TexturePtr> objectTextTextures;
   RenderStats renderStats;
@@ -645,6 +664,50 @@ struct RealLiveRuntime::Impl {
       auto glyph = decodeText(raw, archive.Scenario(vm.scenario()).encoding());
       return textbox ? textbox->textCursor(dialogue + glyph).x - 53 : 0;
     };
+    vm.babelControl = [this](int code) {
+      if (code == 1 || code == 4 || code == 10 || code == 13)
+        currentDialogueLine = 0;
+    };
+    vm.lineBreak = [this] {
+      std::ostringstream key;
+      key << "WINDOW." << std::setw(3) << std::setfill('0') << vm.currentWindow
+          << ".MOJI_CNT";
+      maxDialogueLines =
+          std::max(1, assets->settings().integer(key.str(), 3, 1));
+      std::string finalSpeaker, finalDialogue;
+      processSpeakerAndDialogue(speakerName, dialogue, finalSpeaker,
+                                finalDialogue);
+      const int wrapped =
+          textbox ? std::max(1, textbox->wrappedLineCount(finalDialogue)) : 1;
+      const int curLine = std::max(currentDialogueLine, wrapped - 1);
+      if (curLine + 1 >= maxDialogueLines) {
+        currentDialogueLine = 0;
+        return 4;
+      }
+      currentDialogueLine = curLine + 1;
+      return 3;
+    };
+    vm.pageOverflow = [this](const std::string &rawWord) {
+      if (!textbox || dialogue.empty())
+        return false;
+      std::ostringstream key;
+      key << "WINDOW." << std::setw(3) << std::setfill('0') << vm.currentWindow
+          << ".MOJI_CNT";
+      maxDialogueLines =
+          std::max(1, assets->settings().integer(key.str(), 3, 1));
+      auto word =
+          decodeText(rawWord, archive.Scenario(vm.scenario()).encoding());
+      std::string simulated = dialogue + word;
+      std::string finalSpeaker, finalDialogue;
+      processSpeakerAndDialogue(speakerName, simulated, finalSpeaker,
+                                finalDialogue);
+      const int lines = textbox->wrappedLineCount(finalDialogue);
+      if (lines > maxDialogueLines) {
+        currentDialogueLine = 0;
+        return true;
+      }
+      return false;
+    };
     vm.selectionText = [this](int window,
                               const std::vector<std::string> &labels) {
       selectionWindow =
@@ -671,6 +734,45 @@ struct RealLiveRuntime::Impl {
     auto resolution = assets->settings().detectResolution();
     canvasW = resolution.width;
     canvasH = resolution.height;
+  }
+  struct SelEffect {
+    SDL_Rect src{};
+    SDL_Rect dst{};
+    int durationMs = 0;
+    int style = 0;
+    int opacity = 255;
+  };
+  SelEffect parseSelEffect(int index, int defaultDurationMs = 0) const {
+    std::ostringstream selrKey, selKey;
+    selrKey << "SELR." << std::setw(3) << std::setfill('0') << index;
+    selKey << "SEL." << std::setw(3) << std::setfill('0') << index;
+    const auto &cfg = assets->settings();
+    SelEffect out;
+    if (!cfg.get(selrKey.str()).empty()) {
+      const auto k = selrKey.str();
+      out.src = {cfg.integer(k, 0, 0), cfg.integer(k, 0, 1),
+                 cfg.integer(k, canvasW, 2), cfg.integer(k, canvasH, 3)};
+      out.dst = {cfg.integer(k, 0, 4), cfg.integer(k, 0, 5), 0, 0};
+      out.durationMs = cfg.integer(k, defaultDurationMs, 6);
+      out.style = cfg.integer(k, 0, 7);
+      out.opacity = cfg.integer(k, 255, 14);
+    } else {
+      const auto k = selKey.str();
+      const int x1 = cfg.integer(k, 0, 0);
+      const int y1 = cfg.integer(k, 0, 1);
+      const int x2 = cfg.integer(k, canvasW - 1, 2);
+      const int y2 = cfg.integer(k, canvasH - 1, 3);
+      out.src = {x1, y1, x2 - x1 + 1, y2 - y1 + 1};
+      out.dst = {cfg.integer(k, 0, 4), cfg.integer(k, 0, 5), 0, 0};
+      out.durationMs = cfg.integer(k, defaultDurationMs, 6);
+      out.style = cfg.integer(k, 0, 7);
+      out.opacity = cfg.integer(k, 255, 14);
+    }
+    return out;
+  }
+  std::filesystem::path slotSavePath(int slot) const {
+    return Kotonoha::saveDirectory() /
+           ("slot_" + std::to_string(std::max(0, slot)) + ".vn");
   }
   SurfaceRef surface(int n) {
     if (n < 0 || n > 15)
@@ -2056,6 +2158,7 @@ struct RealLiveRuntime::Impl {
       if (pauseKind != 205) {
         dialogue.clear();
         speakerName.clear();
+        currentDialogueLine = 0;
         textbox->hide();
         voice.Stop();
       }
@@ -2272,8 +2375,6 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         return base + extension;
     return std::string();
   };
-  if (type == 1 && (m == 12 || m == 13 || m == 40 || m == 41 || m == 255))
-    return true;
   if (type == 0 && m == 4)
     return true;
   if (type == 0 && m == 3) {
@@ -2317,17 +2418,21 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 161:
     case 162:
       dialogue.clear();
+      currentDialogueLine = 0;
       textbox->hide();
       return true;
     case 201:
       dialogue += '\n';
+      return true;
+    case 210:
+      dialogue.clear();
+      currentDialogueLine = 0;
       return true;
     case 101:
     case 102:
     case 103:
     case 104:
     case 105:
-    case 210:
     case 300:
     case 301:
     case 310:
@@ -2337,10 +2442,6 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
   }
   if (type == 0 && m == 2 && (op >= 0 && op <= 4)) {
-    if (op == 3) {
-      machine.set_store_register(0);
-      return true;
-    }
     auto *s = dynamic_cast<const libreallive::SelectElement *>(&c);
     if (!s)
       throw std::runtime_error("Invalid REALLIVE selection");
@@ -2397,11 +2498,16 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 120:
       timers[(op == 120 ? 256 : 0) + value(c, 0)] = SDL_GetTicks();
       return true;
+    case 112:
     case 114:
-      machine.set_store_register(int(SDL_GetTicks() - timers[value(c, 0)]));
+    case 122:
+    case 124:
+      machine.set_store_register(int(
+          SDL_GetTicks() - timers[(op >= 120 ? 256 : 0) + value(c, 0)]));
       return true;
     case 116:
-      timers[value(c, 1)] = SDL_GetTicks() - value(c, 0);
+    case 126:
+      timers[(op == 126 ? 256 : 0) + value(c, 1)] = SDL_GetTicks() - value(c, 0);
       return true;
     case 111:
     case 121: {
@@ -2471,14 +2577,33 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     case 212:
     case 214:
-    case 215:
-    case 216:
     case 217:
     case 218:
     case 219:
       machine.set_store_register(mouseCursorNumber >= 0 ? mouseCursorNumber
                                                         : 0);
       return true;
+    case 215:
+    case 216: {
+      if (c.GetParamCount() >= 2) {
+        const int synthetic = titlePoll(c) ? titleInput.poll() : -1;
+        assign(c, 0, int(mouseX));
+        assign(c, 1, int(mouseY));
+        if (c.GetParamCount() >= 3)
+          assign(c, 2, synthetic >= 0 ? synthetic : button1);
+        if (c.GetParamCount() >= 4)
+          assign(c, 3, button2);
+        if (c.GetParamCount() >= 5)
+          assign(c, 4, 0);
+        if (c.GetParamCount() >= 3) {
+          button1 = button1 == 2 ? 0 : button1;
+          button2 = button2 == 2 ? 0 : button2;
+        }
+      }
+      machine.set_store_register(mouseCursorNumber >= 0 ? mouseCursorNumber
+                                                        : 0);
+      return true;
+    }
     case 213:
       if (c.GetParamCount() >= 2) {
         mouseX = value(c, 0);
@@ -2588,6 +2713,23 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       for (int i = 0; i < c.GetParamCount(); ++i)
         assign(c, i, assets->settings().integer("WINDOW_ATTR", 0, i));
       return true;
+    case 500:
+    case 501:
+    case 520:
+    case 521: {
+      int key = value(c, 0) + (op >= 520 ? 256 : 0);
+      frames[key] = {value(c, 1), value(c, 2), value(c, 3), SDL_GetTicks()};
+      frames[key].loop = (op == 501 || op == 521);
+      frames[key].value = frames[key].from;
+      frames[key].lastCheck = frames[key].start;
+      return true;
+    }
+    case 510:
+    case 530: {
+      int key = value(c, 0) + (op == 530 ? 256 : 0);
+      machine.set_store_register(frameValue(key));
+      return true;
+    }
     case 600:
     case 601:
     case 620: {
@@ -2632,6 +2774,28 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       openSaves(op == 3001);
       refreshRequested = true;
       return true;
+    case 3107: {
+      const int slot = value(c, 0);
+      if (pause && error.empty() && (!choice || !choice->isActive())) {
+        try {
+          runtime.saveGame(slotSavePath(slot).string());
+        } catch (...) {
+        }
+      }
+      return true;
+    }
+    case 3109: {
+      const int slot = value(c, 0);
+      const auto p = slotSavePath(slot);
+      std::error_code ec;
+      if (std::filesystem::is_regular_file(p, ec)) {
+        try {
+          runtime.loadGame(p.string());
+        } catch (...) {
+        }
+      }
+      return true;
+    }
     case 1200: {
       SDL_Event quit{};
       quit.type = SDL_EVENT_QUIT;
@@ -2639,8 +2803,11 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
       pause = true;
       return true;
+    case 1201:
     case 1203:
       vm.jump(titleScenario);
+      return true;
+    case 1204:
       return true;
     case 1211:
     case 1212:
@@ -2654,6 +2821,85 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
           throw std::out_of_range("REALLIVE system menu entry");
         syscomEntries[entry] = op == 1211 ? 1 : 0;
       }
+      return true;
+    case 1214: {
+      const int entry = value(c, 0);
+      machine.set_store_register(
+          (entry >= 0 && entry < int(syscomEntries.size()))
+              ? int(syscomEntries[entry])
+              : 0);
+      return true;
+    }
+    case 1215: {
+      const int entry = value(c, 0);
+      if (entry == 0 || entry == 1) {
+        openSaves(entry == 1);
+        refreshRequested = true;
+      }
+      machine.set_store_register(0);
+      return true;
+    }
+    case 1218: {
+      if (c.GetParamCount() > 0) {
+        const int entry = value(c, 0);
+        if (entry >= 0 && entry < int(syscomEntries.size()))
+          syscomEntries[entry] = 0;
+      }
+      return true;
+    }
+    case 1409: {
+      const int slot = value(c, 0);
+      std::error_code ec;
+      machine.set_store_register(
+          std::filesystem::is_regular_file(slotSavePath(slot), ec) ? 1 : 0);
+      return true;
+    }
+    case 1413: {
+      const int slot = value(c, 0);
+      const auto p = slotSavePath(slot);
+      std::error_code ec;
+      const bool exists = std::filesystem::is_regular_file(p, ec);
+      for (int i = 1; i <= 8 && i < c.GetParamCount(); ++i)
+        assign(c, i, 0);
+      if (c.GetParamCount() >= 10) {
+        try {
+          auto param = Parameter(c, 9);
+          if (param.IsLValue())
+            param.SetStringValue(machine, "");
+        } catch (...) {
+        }
+      }
+      machine.set_store_register(exists ? 1 : 0);
+      return true;
+    }
+    case 1414:
+      machine.set_store_register(0);
+      return true;
+    case 1421: {
+      int latestSlot = -1;
+      std::filesystem::file_time_type latestTime{};
+      std::error_code ec;
+      const auto dir = Kotonoha::saveDirectory();
+      if (std::filesystem::is_directory(dir, ec)) {
+        for (int s = 0; s < 100; ++s) {
+          auto p = slotSavePath(s);
+          if (std::filesystem::is_regular_file(p, ec)) {
+            auto t = std::filesystem::last_write_time(p, ec);
+            if (latestSlot < 0 || t > latestTime) {
+              latestSlot = s;
+              latestTime = t;
+            }
+          }
+        }
+      }
+      machine.set_store_register(latestSlot);
+      return true;
+    }
+    case 301:
+      button1 = button2 = 0;
+      return true;
+    case 302:
+      machine.set_store_register(button1 != 0 ? 1 : 0);
       return true;
     case 300:
     case 1231:
@@ -2669,18 +2915,43 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 3509:
     case 3510:
       return true;
-    case 1000:
-    case 1001:
-    case 1002:
-      machine.set_store_register(std::abs(value(c, 0, 0)));
-      return true;
-    case 1003:
-    case 1004:
-    case 1005: {
-      int maxVal = value(c, 0, 100);
-      machine.set_store_register(maxVal > 0 ? (std::rand() % maxVal) : 0);
+    case 1000: {
+      if (over == 1 || c.GetParamCount() >= 2) {
+        int lo = value(c, 0), hi = value(c, 1);
+        if (lo > hi)
+          std::swap(lo, hi);
+        machine.set_store_register(
+            lo + (hi > lo ? (std::rand() % (hi - lo + 1)) : 0));
+      } else {
+        int maxVal = value(c, 0);
+        machine.set_store_register(maxVal > 0 ? (std::rand() % maxVal) : 0);
+      }
       return true;
     }
+    case 1001: {
+      int num = value(c, 0), den = value(c, 1);
+      machine.set_store_register(
+          den != 0 ? int((long long)(num) * 100 / den) : 0);
+      return true;
+    }
+    case 1002: {
+      auto v = static_cast<long long>(value(c, 0, 0));
+      machine.set_store_register(
+          static_cast<int>(std::min(v < 0 ? -v : v, 2147483647LL)));
+      return true;
+    }
+    case 1003:
+      machine.set_store_register(-value(c, 0, 0));
+      return true;
+    case 1004: {
+      int a = value(c, 0, 0), b = value(c, 1, 1);
+      machine.set_store_register(b != 0 ? (a % b) : 0);
+      return true;
+    }
+    case 1005:
+    case 1006:
+      machine.set_store_register(0);
+      return true;
     case 1502:
       machine.set_store_register(0);
       return true;
@@ -2790,20 +3061,20 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     transitionOld = compose(presentationScale());
     transitionTexture.reset();
     transitionStart = SDL_GetTicks();
-    std::ostringstream key;
     const int sel = blankBackground ? value(c, 0) : value(c, 1);
-    key << "SEL." << std::setw(3) << std::setfill('0') << sel;
-    transitionMs = assets->settings().integer(key.str(), 0, 6);
-    transitionStyle = assets->settings().integer(key.str(), 0, 7);
+    const auto effect = parseSelEffect(sel, 0);
+    transitionMs = effect.durationMs;
+    transitionStyle = effect.style;
     wait(transitionMs);
     if (blankBackground) {
       auto &destination = surface(0);
       SDL_FillSurfaceRect(&destination, nullptr,
                           SDL_MapSurfaceRGBA(&destination, 0, 0, 0, 0));
       lastGraphic.clear();
-    } else {
+    } else if (!name.empty() && name != "?") {
       auto &g = graphic(name);
-      blit(*g.surface, surface(0));
+      if (g.surface)
+        blit(*g.surface, surface(0));
       lastGraphic = name;
     }
     fg = std::move(bg);
@@ -2811,6 +3082,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     textbox->hide();
     return true;
   }
+  if (type == 1 && (m == 12 || m == 13 || m == 40 || m == 41 || m == 255))
+    return true;
   if (type == 1 && m == 5) {
     if (op == 0) {
       // File/resource query (statement form); no side effect needed in this
@@ -3113,8 +3386,6 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     return true;
   }
   if (type == 1 && (m == 71 || m == 72)) {
-    if (op == 1101)
-      return true;
     auto &objects = m == 71 ? fg : bg;
     auto &o = objects[value(c, 0)];
     if (op == 1000) {
@@ -3149,23 +3420,36 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       // Unknown object configuration; no side effect needed in this port.
       return true;
     }
-    if (op == 1101 && over == 2) {
+    if (op == 1101) {
       o.file.clear();
+      o.text.clear();
+      o.anm.reset();
+      o.anmPlaying = false;
       o.kind = Object::Kind::Sprite;
       o.frameMs = 0;
       o.animationElapsed = 0;
-      if (c.GetParamCount() == 6) {
+      if (c.GetParamCount() >= 6) {
         o.x = value(c, 1);
         o.y = value(c, 2);
         o.width = value(c, 3);
         o.height = value(c, 4);
-        o.visible = value(c, 5);
-      } else {
+        o.visible = value(c, 5) != 0;
+      } else if (c.GetParamCount() == 5) {
+        o.x = value(c, 1);
+        o.y = value(c, 2);
+        o.width = value(c, 3);
+        o.height = value(c, 4);
+      } else if (c.GetParamCount() == 4) {
         o.width = value(c, 1);
         o.height = value(c, 2);
         o.x = (canvasW - o.width) / 2;
         o.y = (canvasH - o.height) / 2;
-        o.visible = value(c, 3);
+        o.visible = value(c, 3) != 0;
+      } else {
+        o.x = 0;
+        o.y = 0;
+        o.width = canvasW;
+        o.height = canvasH;
       }
       return true;
     }
@@ -3311,13 +3595,24 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   }
   if (type == 1 && (m == 61 || m == 62)) {
     auto &objects = m == 61 ? fg : bg;
-    int id = value(c, 0);
-    if (op == 0 || op == 1 || op == 2 || op == 4 || op == 10) {
-      objects[id] = Object{};
+    int first = value(c, 0);
+    int last = (over == 1 && c.GetParamCount() >= 2) ? value(c, 1) : first;
+    if (first > last)
+      std::swap(first, last);
+    last = std::min(last, first + 1024);
+    if (op == 0 || op == 1 || op == 4 || op == 10) {
+      for (int id = first; id <= last; ++id)
+        objects[id] = Object{};
+      return true;
+    }
+    if (op == 2) {
+      auto &dest = m == 61 ? bg : fg;
+      dest[c.GetParamCount() > 1 ? value(c, 1) : first] = objects[first];
       return true;
     }
     if (op == 11) {
-      objects.erase(id);
+      for (int id = first; id <= last; ++id)
+        objects.erase(id);
       return true;
     }
   }
@@ -3495,10 +3790,6 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     value(c, 0);
     return true;
   }
-  if (type == 1 && m == 62 && op == 2) {
-    fg[value(c, 1)] = bg[value(c, 0)];
-    return true;
-  }
   if (type == 1 && m == 60 && op == 111) {
     fg.clear();
     bg.clear();
@@ -3592,17 +3883,18 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       transitionOld = compose(presentationScale());
       transitionTexture.reset();
       transitionStart = SDL_GetTicks();
-      std::ostringstream selector;
-      selector << "SEL." << std::setw(3) << std::setfill('0') << value(c, 1);
-      transitionMs = assets->settings().integer(selector.str(), 0, 6);
-      transitionStyle = assets->settings().integer(selector.str(), 0, 7);
+      const auto mainEffect = parseSelEffect(value(c, 1), 0);
+      transitionMs = mainEffect.durationMs;
+      transitionStyle = mainEffect.style;
       if (op == 75) {
         auto name = str(c, 0);
         if (name == "???")
           name = lastGraphic;
-        if (name != "?")
-          blit(*graphic(name).surface, surface(1), nullptr, nullptr, 255,
-               false);
+        if (name != "?" && !name.empty()) {
+          auto &g = graphic(name);
+          if (g.surface)
+            blit(*g.surface, surface(1), nullptr, nullptr, 255, false);
+        }
       } else if (value(c, 0) != 1)
         blit(surface(value(c, 0)), surface(1), nullptr, nullptr, 255, false);
       for (std::size_t i = 2; i < c.GetParamCount(); ++i) {
@@ -3617,7 +3909,11 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         if (pieces.empty() || tag < 0 || tag > 4)
           throw std::runtime_error("REALLIVE grpMulti invalid operation");
         auto filename = pieces[0].GetStringValue(machine);
+        if (filename.empty())
+          continue;
         auto &image = graphic(filename);
+        if (!image.surface)
+          continue;
         SDL_Rect sr{0, 0, image.surface->w, image.surface->h}, dst{0, 0, 0, 0};
         int alpha = 255;
         auto n = [&](std::size_t k) {
@@ -3626,16 +3922,9 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
           return pieces[k].GetIntegerValue(machine);
         };
         if (tag == 1 || tag == 2) {
-          std::ostringstream sel;
-          sel << "SEL." << std::setw(3) << std::setfill('0') << n(1);
-          sr = {assets->settings().integer(sel.str(), 0, 0),
-                assets->settings().integer(sel.str(), 0, 1),
-                assets->settings().integer(sel.str(), 639, 2) + 1,
-                assets->settings().integer(sel.str(), 479, 3) + 1};
-          sr.w -= sr.x;
-          sr.h -= sr.y;
-          dst.x = assets->settings().integer(sel.str(), 0, 4);
-          dst.y = assets->settings().integer(sel.str(), 0, 5);
+          const auto subEffect = parseSelEffect(n(1), 0);
+          sr = subEffect.src;
+          dst = subEffect.dst;
           if (tag == 2)
             alpha = n(2);
         }
@@ -3878,18 +4167,14 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       transitionOld = compose(presentationScale());
       transitionTexture.reset();
       transitionStart = SDL_GetTicks();
-      std::ostringstream selKey;
-      selKey << "SEL." << std::setw(3) << std::setfill('0') << value(c, 1);
-      const auto sel = selKey.str();
-      transitionMs =
-          over == 4 ? value(c, 7) : assets->settings().integer(sel, 500, 6);
-      transitionStyle =
-          over == 4 ? value(c, 8) : assets->settings().integer(sel, 0, 7);
+      const auto selEffect = parseSelEffect(value(c, 1), 500);
+      transitionMs = over == 4 ? value(c, 7) : selEffect.durationMs;
+      transitionStyle = over == 4 ? value(c, 8) : selEffect.style;
       wait(transitionMs);
       // "?" reuses DC1; copying DC0 here would destroy that prepared image.
       if (name != "?")
         blit(surface(0), surface(1));
-      if (name != "?") {
+      if (name != "?" && !name.empty()) {
         if (op != 74)
           lastGraphic = name;
         auto &g = graphic(name);
@@ -3901,17 +4186,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
           sr.h -= sr.y;
         }
         if (over == 0) {
-          sr = {assets->settings().integer(sel, 0, 0),
-                assets->settings().integer(sel, 0, 1),
-                assets->settings().integer(sel, 639, 2) + 1,
-                assets->settings().integer(sel, 479, 3) + 1};
-          sr.w -= sr.x;
-          sr.h -= sr.y;
-          dst = {assets->settings().integer(sel, 0, 4),
-                 assets->settings().integer(sel, 0, 5), 0, 0};
+          sr = selEffect.src;
+          dst = selEffect.dst;
         }
-        blit(*g.surface, surface(1), &sr, &dst,
-             over == 4 ? value(c, 15, 255) : 255, op == 74);
+        if (g.surface)
+          blit(*g.surface, surface(1), &sr, &dst,
+               over == 4 ? value(c, 15, 255) : 255, op == 74);
       }
       blit(surface(1), surface(0), nullptr, nullptr, 255, false);
       fg = std::move(bg);

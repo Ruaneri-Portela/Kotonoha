@@ -33,15 +33,56 @@ VoiceIndex::VoiceIndex(const std::filesystem::path &root) {
     return;
   const std::regex pattern("z?0*([0-9]{6,9})\\.(ogg|wav|nwa|koe)",
                            std::regex::icase);
+  const std::regex nwkPattern("z?0*([0-9]{1,4})\\.(nwk|nwa|ovk)",
+                              std::regex::icase);
   for (const auto &entry : std::filesystem::recursive_directory_iterator(dir)) {
     if (!entry.is_regular_file())
       continue;
     std::smatch match;
     const auto name = lower(entry.path().filename().string());
-    if (std::regex_match(name, match, pattern))
+    if (std::regex_match(name, match, pattern)) {
       files_.emplace(
           std::stoi(match[1].str()),
           Entry{"", entry.path(), 0, std::filesystem::file_size(entry.path())});
+    } else if (std::regex_match(name, match, nwkPattern)) {
+      const int archive = std::stoi(match[1].str());
+      const auto ext = lower(entry.path().extension().string());
+      const std::size_t stride = (ext == ".ovk") ? 16 : 12;
+      Kotonoha::Filesystem::InputFile input(entry.path(), std::ios::binary);
+      std::uint8_t countBytes[4]{};
+      if (!input.read(reinterpret_cast<char *>(countBytes), 4))
+        continue;
+      const auto count = std::uint32_t(countBytes[0]) |
+                         (std::uint32_t(countBytes[1]) << 8) |
+                         (std::uint32_t(countBytes[2]) << 16) |
+                         (std::uint32_t(countBytes[3]) << 24);
+      if (count > 1000000)
+        continue;
+      std::vector<std::uint8_t> table(4 + std::size_t(count) * stride);
+      std::copy(countBytes, countBytes + 4, table.begin());
+      if (!input.read(reinterpret_cast<char *>(table.data() + 4),
+                      std::streamsize(table.size() - 4)))
+        continue;
+      auto payloadLocal = entry.path();
+      if (ext == ".nwk") {
+        auto nwaLower = entry.path();
+        nwaLower.replace_extension(".nwa");
+        auto nwaUpper = entry.path();
+        nwaUpper.replace_extension(".NWA");
+        if (std::filesystem::is_regular_file(nwaLower))
+          payloadLocal = nwaLower;
+        else if (std::filesystem::is_regular_file(nwaUpper))
+          payloadLocal = nwaUpper;
+      }
+      for (std::uint32_t i = 0; i < count; ++i) {
+        const auto p = 4 + std::size_t(i) * stride;
+        const auto size = read32(table, p);
+        const auto offset = read32(table, p + 4);
+        const auto number = read32(table, p + 8);
+        files_[archive * 100000 + int(number)] =
+            Entry{"", payloadLocal, offset, size};
+      }
+    }
   }
 }
 VoiceIndex::VoiceIndex(const std::vector<std::string> &assets) {
@@ -67,7 +108,7 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
       files_.emplace(std::stoi(match[1].str()),
                      Entry{id, std::filesystem::u8path(localPath(id)), 0, 0});
   }
-  const std::regex nwkPattern("z?0*([0-9]{1,4})\\.(nwk|nwa)",
+  const std::regex nwkPattern("z?0*([0-9]{1,4})\\.(nwk|nwa|ovk)",
                               std::regex::icase);
   for (const auto &asset : assets) {
     std::smatch match;
@@ -75,6 +116,8 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
     if (!std::regex_match(name, match, nwkPattern))
       continue;
     const int archive = std::stoi(match[1].str());
+    const auto ext = lower(std::filesystem::path(asset).extension().string());
+    const std::size_t stride = (ext == ".ovk") ? 16 : 12;
     const auto local = std::filesystem::u8path(localPath(asset));
 
     // Determine the corresponding audio payload asset (e.g. .NWA instead of
@@ -82,7 +125,7 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
     std::string payloadAsset = asset;
     std::filesystem::path payloadLocal = local;
     auto extPos = asset.rfind('.');
-    if (extPos != std::string::npos) {
+    if (extPos != std::string::npos && ext != ".ovk") {
       std::string nwaCandidate = asset.substr(0, extPos) + ".nwa";
       std::string nwaUpperCandidate = asset.substr(0, extPos) + ".NWA";
       auto foundIt =
@@ -108,7 +151,7 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
                          (std::uint32_t(countBytes[3]) << 24);
       if (count > 1000000)
         continue;
-      table.resize(4 + std::size_t(count) * 12);
+      table.resize(4 + std::size_t(count) * stride);
       std::copy(countBytes, countBytes + 4, table.begin());
       if (!input.read(reinterpret_cast<char *>(table.data() + 4),
                       std::streamsize(table.size() - 4)))
@@ -119,10 +162,10 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
     if (table.size() < 4)
       continue;
     const auto count = read32(table, 0);
-    if (count > 1000000 || table.size() < 4 + std::size_t(count) * 12)
+    if (count > 1000000 || table.size() < 4 + std::size_t(count) * stride)
       continue;
     for (std::uint32_t i = 0; i < count; ++i) {
-      const auto p = 4 + std::size_t(i) * 12;
+      const auto p = 4 + std::size_t(i) * stride;
       const auto size = read32(table, p);
       const auto offset = read32(table, p + 4);
       const auto number = read32(table, p + 8);

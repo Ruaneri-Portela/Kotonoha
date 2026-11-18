@@ -59,9 +59,11 @@ public:
       std::function<bool(const std::string &, std::vector<uint8_t> *)>;
   using OverlayNames = std::function<std::vector<std::string>()>;
   void mountOverlay(const std::vector<std::string> &packages, OverlayRead read,
-                    OverlayNames names, OverlayRead rootRead = {});
+                    OverlayNames names, OverlayRead rootRead = {},
+                    OverlayNames rootNames = {});
   bool readOverlayRoot(const std::string &name,
                        std::vector<uint8_t> *out) const;
+  std::vector<std::string> overlayRootNames() const;
   const std::string &dir() const { return dir_; }
   bool has(const std::string &name) const;
   std::vector<uint8_t> read(const std::string &name) const;
@@ -76,7 +78,7 @@ private:
   std::map<std::string, std::string> virtualLoose_;
   std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted_;
   OverlayRead overlayRead_, rootRead_;
-  OverlayNames overlayNames_;
+  OverlayNames overlayNames_, rootNames_;
 };
 
 // .rpyc: RENPY RPC2 slot 1 holds (data, [statements]).

@@ -76,6 +76,19 @@ int main(int argc, char **argv) {
     assert(bytes && std::string(bytes->begin(), bytes->end()) == "OggS");
     assert(!mounted.read(9));
   }
+  {
+    // An OVK archive uses 16-byte table entries (size, offset, id, samples).
+    const std::vector<std::uint8_t> ovkArchive{
+        1, 0, 0, 0, 4, 0, 0, 0, 20,  0,   0,   0,
+        7, 0, 0, 0, 0, 0, 0, 0, 'O', 'g', 'g', 'S'};
+    const RealLive::VoiceIndex mountedOvk(
+        std::vector<std::string>{"KOE/z0002.ovk"},
+        [&](const std::string &) { return ovkArchive; },
+        [](const std::string &) { return std::string(); });
+    const auto bytes = mountedOvk.read(200007);
+    assert(bytes && std::string(bytes->begin(), bytes->end()) == "OggS");
+    assert(!mountedOvk.read(7));
+  }
   if (argc < 2)
     return 0;
   const std::filesystem::path root(argv[1]);

@@ -24,6 +24,7 @@ struct N2Runtime::Impl {
   Kotonoha::Engine *engine = nullptr;
   bool choiceActive = false;
   std::string currentBgm;
+  std::unique_ptr<Ponscripter::PonscripterRuntime> ponscripter;
 };
 
 N2Runtime::N2Runtime(std::shared_ptr<N2ArchiveAssets> assets)
@@ -34,10 +35,57 @@ N2Runtime::N2Runtime(std::shared_ptr<N2ArchiveAssets> assets)
   }
 }
 
-N2Runtime::~N2Runtime() = default;
+N2Runtime::~N2Runtime() { shutdown(); }
+
+void N2Runtime::shutdown() {
+  if (!impl_)
+    return;
+  if (impl_->ponscripter) {
+    impl_->ponscripter->shutdown();
+    impl_->ponscripter.reset();
+  }
+  impl_->choiceScene.reset();
+  impl_->menu.reset();
+  impl_->backlog.reset();
+  impl_->textBox.reset();
+  impl_->engine = nullptr;
+}
+
+SDL_Point N2Runtime::viewport() const {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->viewport();
+  return SDL_Point{1280, 720};
+}
+
+bool N2Runtime::isPonscripterActive() const {
+  return impl_->ponscripter != nullptr;
+}
+
+Ponscripter::PonscripterVm *N2Runtime::ponscripterVm() {
+  return impl_->ponscripter ? &impl_->ponscripter->vm() : nullptr;
+}
+
+const Ponscripter::PonscripterVm *N2Runtime::ponscripterVm() const {
+  return impl_->ponscripter ? &impl_->ponscripter->vm() : nullptr;
+}
 
 void N2Runtime::init(Kotonoha::Engine &engine) {
   impl_->engine = &engine;
+
+  // Check if the mounted directory is a PONscripter title (e.g. 0.utf, 00.utf,
+  // 01.utf, arc.nsa) such as SayaNoUta_PT-BR.
+  if (assets_ && !assets_->rootDirectory().empty()) {
+    auto ponAssets = std::make_shared<Ponscripter::PonscripterAssets>(
+        assets_->rootDirectory().string(), assets_->overlayDirectory());
+    if (!ponAssets->discoverScripts().empty()) {
+      impl_->ponscripter =
+          std::make_unique<Ponscripter::PonscripterRuntime>(ponAssets);
+      engine.SetAssetProvider(ponAssets);
+      impl_->ponscripter->init(engine);
+      SetState(Kotonoha::GameState::Gameplay);
+      return;
+    }
+  }
 
   impl_->textBox = std::make_shared<Kotonoha::VNTextBox>(engine, "", "", 30.0);
   impl_->backlog = std::make_shared<Kotonoha::VNBacklog>(engine);
@@ -98,6 +146,11 @@ void N2Runtime::initGameplay(Kotonoha::Engine &engine) {
 }
 
 void N2Runtime::update() {
+  if (impl_->ponscripter) {
+    impl_->ponscripter->update();
+    return;
+  }
+
   constexpr float dt = 1.0f / 60.0f;
   vm_.update(dt);
 
@@ -133,6 +186,11 @@ void N2Runtime::update() {
 }
 
 void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
+  if (impl_->ponscripter) {
+    impl_->ponscripter->renderGameplay(renderer, scale);
+    return;
+  }
+
   SDL_SetRenderDrawColor(&renderer, 20, 24, 32, 255);
   SDL_RenderClear(&renderer);
 
@@ -179,6 +237,9 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 }
 
 bool N2Runtime::onEvent(Kotonoha::EventRef event) {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->onEvent(event);
+
   if (impl_->choiceActive && impl_->choiceScene) {
     if (impl_->choiceScene->onEvent(event))
       return true;
@@ -202,9 +263,24 @@ bool N2Runtime::onEvent(Kotonoha::EventRef event) {
   return false;
 }
 
-bool N2Runtime::handleAdvanceAction() { return vm_.advance(); }
+bool N2Runtime::handleAdvanceAction() {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->handleAdvanceAction();
+  return vm_.advance();
+}
+
+bool N2Runtime::advanceStoryTime(double seconds) {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->advanceStoryTime(seconds);
+  vm_.update(static_cast<float>(seconds));
+  return true;
+}
 
 void N2Runtime::saveGame(const std::string &path) {
+  if (impl_->ponscripter) {
+    impl_->ponscripter->saveGame(path);
+    return;
+  }
   auto saveData = vm_.saveState();
   auto bytes = SaveStateCodec::serializeBinary(saveData);
   std::string err;
@@ -213,6 +289,10 @@ void N2Runtime::saveGame(const std::string &path) {
 }
 
 void N2Runtime::loadGame(const std::string &path) {
+  if (impl_->ponscripter) {
+    impl_->ponscripter->loadGame(path);
+    return;
+  }
   try {
     auto bytes = Kotonoha::Filesystem::readLocalFile(path);
     SaveData loaded;
@@ -223,11 +303,21 @@ void N2Runtime::loadGame(const std::string &path) {
   }
 }
 
+std::string N2Runtime::debugNode() const {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->debugNode();
+  return {};
+}
+
 std::string N2Runtime::dialogueText() const {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->dialogueText();
   return std::string(vm_.dialogueSystem().fullText());
 }
 
 std::string N2Runtime::dialogueSpeaker() const {
+  if (impl_->ponscripter)
+    return impl_->ponscripter->dialogueSpeaker();
   return std::string(vm_.dialogueSystem().speaker());
 }
 

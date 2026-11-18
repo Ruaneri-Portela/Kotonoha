@@ -40,12 +40,15 @@ bool validate(const std::string &path, std::string &info) {
       if (lower.size() > 4 &&
           (lower.compare(lower.size() - 4, 4, ".nss") == 0 ||
            lower.compare(lower.size() - 4, 4, ".npa") == 0 ||
-           lower.compare(lower.size() - 4, 4, ".afs") == 0)) {
-        info = "N2System archives or NsScript files found in virtual source";
+           lower.compare(lower.size() - 4, 4, ".afs") == 0 ||
+           lower.compare(lower.size() - 4, 4, ".utf") == 0 ||
+           lower.compare(lower.size() - 4, 4, ".nsa") == 0 ||
+           lower.compare(lower.size() - 4, 4, ".sar") == 0)) {
+        info = "N2System / PONscripter archives or scripts found in virtual source";
         return true;
       }
     }
-    info = "Select a directory or archive containing .nss, .npa, or .afs files";
+    info = "Select a directory or archive containing .nss, .npa, .afs, .utf, or .nsa files";
     return false;
   } catch (const std::exception &error) {
     info = error.what();
@@ -60,6 +63,7 @@ struct App {
   struct Game {
     N2System::N2Runtime runtime;
     Kotonoha::Engine engine;
+    ~Game() { runtime.shutdown(); }
     Game(std::shared_ptr<N2System::N2ArchiveAssets> a,
          Kotonoha::EngineOptions o)
         : runtime(a), engine(runtime, withAssets(std::move(o), std::move(a))) {}

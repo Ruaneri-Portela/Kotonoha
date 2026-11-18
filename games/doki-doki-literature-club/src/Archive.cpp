@@ -521,6 +521,7 @@ bool Assets::open(const std::string &gameDir) {
   overlayRead_ = {};
   rootRead_ = {};
   overlayNames_ = {};
+  rootNames_ = {};
   std::error_code ec;
   std::vector<std::filesystem::path> packages;
   for (const auto &entry :
@@ -562,6 +563,7 @@ bool Assets::open(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source) {
   overlayRead_ = {};
   rootRead_ = {};
   overlayNames_ = {};
+  rootNames_ = {};
 
   // A retail DDLC tree is commonly rooted at game/, but some clients pass
   // that folder as the root. Index relative IDs the same way in both cases.
@@ -603,7 +605,7 @@ bool Assets::open(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source) {
 }
 void Assets::mountOverlay(const std::vector<std::string> &packages,
                           OverlayRead read, OverlayNames names,
-                          OverlayRead rootRead) {
+                          OverlayRead rootRead, OverlayNames rootNames) {
   std::vector<std::unique_ptr<Archive>> mounted;
   for (const auto &file : packages) {
     auto archive = std::make_unique<Archive>();
@@ -615,10 +617,14 @@ void Assets::mountOverlay(const std::vector<std::string> &packages,
   overlayRead_ = std::move(read);
   overlayNames_ = std::move(names);
   rootRead_ = std::move(rootRead);
+  rootNames_ = std::move(rootNames);
 }
 bool Assets::readOverlayRoot(const std::string &name,
                              std::vector<uint8_t> *out) const {
   return rootRead_ && rootRead_(name, out);
+}
+std::vector<std::string> Assets::overlayRootNames() const {
+  return rootNames_ ? rootNames_() : std::vector<std::string>{};
 }
 bool Assets::has(const std::string &name) const {
   if (overlayRead_ && overlayRead_(name, nullptr))

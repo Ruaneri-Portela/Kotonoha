@@ -49,6 +49,7 @@ private:
   int babelGetChar(int output, int xmod);
   int babelAppend(int address);
   std::string babelBuffer_;
+  std::string babelSpeaker_;
   std::size_t babelIndex_ = 0;
   unsigned babelStarts_ = 0;
   bool babelItalic_ = false;
@@ -75,6 +76,8 @@ public:
   std::function<int(const std::string &)> glyphPosition;
   // Return 3 for a new line, or 4 when the page is full.
   std::function<int()> lineBreak;
+  // Return true when appending the next word token overflows the current page.
+  std::function<bool(const std::string &)> pageOverflow;
   std::function<std::string(bool, int)> resolveName;
   int currentWindow = 0;
   // Initialise #WINDOW.<w>.NAME_MOD values from Gameexe.ini so that the

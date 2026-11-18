@@ -15,8 +15,8 @@
 
 namespace Kotonoha::Filesystem {
 
-// Canonical engine identifiers across Kotonoha ports and the ZScripter
-// compatibility catalog (https://zscripter.com/engines/).
+// Canonical engine identifiers across Kotonoha ports and supported visual novel
+// engine families.
 enum class EngineKind {
   Unknown,
   // Reference-backed & active Kotonoha ports
@@ -31,7 +31,7 @@ enum class EngineKind {
   SnowRadish,
   SummerRadish,
   ZeroNoTsukaima,
-  // Additional ZScripter multi-engine catalog families
+  // Additional multi-engine catalog families
   ONScripter,
   AVG32,
   Siglus,

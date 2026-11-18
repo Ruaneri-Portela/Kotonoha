@@ -28,6 +28,9 @@ namespace Kotonoha {
 struct Launcher::Dialog {
   std::mutex mutex;
   bool finished = false;
+  bool pendingLaunch = false;
+  bool isFolder = false;
+  std::string initialPath;
   std::string path;
   // SDL keeps pointers to the filters until the callback runs.
   std::vector<std::string> names, patterns;
@@ -282,6 +285,9 @@ void Launcher::browseFile(const FileFilters &filters,
   if (dialog)
     return;
   auto next = std::make_shared<Dialog>();
+  next->pendingLaunch = true;
+  next->isFolder = false;
+  next->initialPath = initial;
   next->names.reserve(filters.size());
   next->patterns.reserve(filters.size());
   next->filters.reserve(filters.size());
@@ -294,12 +300,6 @@ void Launcher::browseFile(const FileFilters &filters,
         {next->names[i].c_str(), next->patterns[i].c_str()});
   dialog = next;
   dialogDone = std::move(done);
-  // The callback may run on another thread and after the launcher is gone,
-  // so it owns a reference to the shared state.
-  SDL_ShowOpenFileDialog(dialogFinished, new std::shared_ptr<Dialog>(next),
-                         window.get(), next->filters.data(),
-                         static_cast<int>(next->filters.size()),
-                         initial.empty() ? nullptr : initial.c_str(), false);
 }
 
 void Launcher::browseFolder(const std::string &initial,
@@ -307,11 +307,11 @@ void Launcher::browseFolder(const std::string &initial,
   if (dialog)
     return;
   auto next = std::make_shared<Dialog>();
+  next->pendingLaunch = true;
+  next->isFolder = true;
+  next->initialPath = initial;
   dialog = next;
   dialogDone = std::move(done);
-  SDL_ShowOpenFolderDialog(dialogFinished, new std::shared_ptr<Dialog>(next),
-                           window.get(),
-                           initial.empty() ? nullptr : initial.c_str(), false);
 }
 
 SDL_AppResult Launcher::event(const SDL_Event &event) {
@@ -361,11 +361,39 @@ SDL_AppResult Launcher::iterate() {
     }
   }
   draw();
+  // Open any queued native OS file/folder dialog AFTER ImGui::Render() has
+  // closed the current ImGui frame. On macOS Cocoa, SDL_ShowOpenFolderDialog
+  // and SDL_ShowOpenFileDialog spin a modal NSOpenPanel run-loop that can
+  // trigger SDL_OnWindowLiveResizeUpdate -> SDL_AppIterate re-entrantly.
+  if (dialog && dialog->pendingLaunch) {
+    dialog->pendingLaunch = false;
+    auto active = dialog;
+    const char *init =
+        active->initialPath.empty() ? nullptr : active->initialPath.c_str();
+    if (active->isFolder) {
+      SDL_ShowOpenFolderDialog(dialogFinished,
+                               new std::shared_ptr<Dialog>(active),
+                               window.get(), init, false);
+    } else {
+      SDL_ShowOpenFileDialog(dialogFinished,
+                             new std::shared_ptr<Dialog>(active), window.get(),
+                             active->filters.data(),
+                             static_cast<int>(active->filters.size()), init,
+                             false);
+    }
+  }
   return SDL_APP_CONTINUE;
 }
 
 void Launcher::draw() {
+  if (!context)
+    return;
   ImGui::SetCurrentContext(context);
+  // If a macOS live-resize timer re-enters draw() while a frame is already in
+  // flight on this context, skip the re-entrant draw instead of corrupting
+  // the outer ImGui frame.
+  if (context->WithinFrameScope)
+    return;
   ImGui_ImplSDLRenderer3_NewFrame();
   ImGui_ImplSDL3_NewFrame();
   auto &io = ImGui::GetIO();

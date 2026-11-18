@@ -346,6 +346,44 @@ int main() {
               messages.back().find("Missing PMAIL script") != std::string::npos,
           "Missing script objects were silently ignored");
 
+    // SYS 7 (interactive choice menu), SYS 4 (first string only), SYS 21
+    // (debug trace), SYS 214/211 (ending vignettes and staff roll), SYS 64(7)
+    // (hiro17.DIB tall CG pan).
+    game.vm().lines().push_back({3, 3});
+    game.vm().lines().push_back({3, 4});
+    const Pmail::Arg choiceVar = {uint32_t(1u << 16) | 0x34e4};
+    std::string chosenBacklog;
+    game.onChoiceSelected = [&](const std::string &text) {
+      chosenBacklog = text;
+    };
+    call(7, {choiceVar});
+    check(game.choosing() &&
+              game.choices() == std::vector<std::string>({"one", "two"}) &&
+              game.vm().lines().empty(),
+          "SYS 7 did not populate choice options from queued lines");
+    check(game.choose(1) && !game.choosing() &&
+              game.vm().var(0x34e4) == 2 && chosenBacklog == "two",
+          "SYS 7 did not write 1-based choice index or record backlog");
+    call(2, {});
+    call(4, {integer(1), string(3), string(7), string(8)});
+    check(game.waitingForClick() && game.message() == "one",
+          "SYS 4 concatenated trailing metadata string arguments");
+    game.click();
+    call(21, {string(0)});
+    check(!game.waitingForClick() && game.unhandledNativeIds().empty(),
+          "SYS 21 blocked or was marked unhandled");
+    call(214, {integer(3), string(7), string(0), string(0)});
+    call(214, {integer(3), string(8), string(0), string(0)});
+    check(game.endingVignettes(3) ==
+              std::vector<std::string>({"etc00", "pm01"}),
+          "SYS 214 overwrote per-category ending vignette list");
+    call(211, {integer(3), integer(23)});
+    check(game.background() == "END03_03" && !game.vm().blocked(),
+          "SYS 211 non-interactive staff roll did not set ending card");
+    call(64, {integer(7), integer(0), integer(3)});
+    check(game.background() == "hiro17" && game.lastTransition().type == 7,
+          "SYS 64(7) did not select hiro17 tall CG");
+
     // Unrecognized native IDs are recorded once per ID, not silently
     // treated as confirmed engine behavior.
     call(96, {});  // handled by the audio callback, not an unknown native

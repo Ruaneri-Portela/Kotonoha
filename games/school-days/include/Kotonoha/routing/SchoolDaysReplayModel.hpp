@@ -41,6 +41,7 @@ public:
   bool SwitchView(const std::string &assetsRoot, View view,
                   std::string *error = nullptr);
   bool SetSelectionFromPointer(int x, int y);
+  void StepSelection(int delta);
   int HitControl(int x, int y) const;
   bool Activate(Action *out);
 

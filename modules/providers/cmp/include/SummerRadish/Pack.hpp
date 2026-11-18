@@ -6,11 +6,21 @@
 #include <memory>
 #include <string>
 #include <vector>
-namespace Kotonoha::Filesystem { class Filesystem; }
+namespace Kotonoha::Filesystem {
+class Filesystem;
+class FileHandle;
+} // namespace Kotonoha::Filesystem
 namespace SummerRadish {
 using Bytes = std::vector<uint8_t>;
+enum class CmpKeyProfile {
+  Auto,
+  SummerRadish1,
+  SummerRadish2,
+  MeoZeroKey,
+};
 uint32_t word(const Bytes &, size_t);
 Bytes decompress(const Bytes &, size_t size, size_t offset = 0);
+Bytes decodeStackWork(const Bytes &);
 std::string utf16(const Bytes &, size_t offset, size_t units);
 std::string canonical(std::string);
 struct Entry {
@@ -22,14 +32,24 @@ class Pack {
   std::shared_ptr<Kotonoha::Filesystem::Filesystem> filesystem;
   std::string sourceId;
   std::map<std::string, Entry> directory;
+  CmpKeyProfile detectedProfile = CmpKeyProfile::Auto;
 
 public:
-  explicit Pack(const std::filesystem::path &); // legacy physical-path adapter
+  explicit Pack(
+      const std::filesystem::path &,
+      CmpKeyProfile profile = CmpKeyProfile::Auto); // legacy physical-path adapter
   Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> filesystem,
-       std::string sourceId);
+       std::string sourceId, CmpKeyProfile profile = CmpKeyProfile::Auto);
+  CmpKeyProfile keyProfile() const { return detectedProfile; }
   const std::map<std::string, Entry> &entries() const { return directory; }
   bool contains(const std::string &name) const;
+  const Entry &entry(const std::string &name) const;
   Bytes read(const std::string &name) const;
+  Bytes readRange(const std::string &name, size_t offset, size_t size) const;
+  size_t readEntry(const Entry &entry, void *dst, size_t offset,
+                   size_t size) const;
+  std::unique_ptr<Kotonoha::Filesystem::FileHandle>
+  openEntryStream(const std::string &name) const;
 };
 struct Image {
   int width = 0, height = 0, x = 0, y = 0;

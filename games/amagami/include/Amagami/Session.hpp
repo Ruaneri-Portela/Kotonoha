@@ -85,8 +85,26 @@ public:
   bool ended() const { return ended_; }
   int musicTrack() const { return musicTrack_; }
   int musicGain() const { return musicGain_; }
+  bool classicMusic() const;
+  void setClassicMusic(bool classic);
   int ambienceTrack() const { return ambienceTrack_; }
   int ambienceGain() const { return ambienceGain_; }
+  void setPadInput(int held, int trig = 0) {
+    padHeld_ = held;
+    padTrig_ = trig;
+  }
+  struct SceneSprite {
+    unsigned texId = 0, variant = 0;
+    std::string asset;
+    SDL_FRect src{0, 0, 0, 0};
+    float x = 0, y = 0, scaleX = 1, scaleY = 1, alpha = 1, angle = 0;
+    int layer = 0;
+    bool visible = false;
+    std::string text;
+  };
+  const std::map<const VmObject *, SceneSprite> &sceneSprites() const {
+    return sceneSprites_;
+  }
   const std::string &name() const { return scenario_; }
   std::string location() const { return scenario_ + " | " + vm_.location(); }
   std::function<void(const std::string &, int)> sound;
@@ -173,6 +191,8 @@ private:
   std::vector<Answer> choices_;
   std::map<std::string, Visual> visuals_;
   std::map<std::string, ActorTransition> actorTransitions_;
+  std::map<const VmObject *, SceneSprite> sceneSprites_;
+  int padHeld_ = 0, padTrig_ = 0;
   float actorFadeFrames_ = 30;
   int breathAmount_ = 0;
   void transitionActor(const std::string &, const Visual &, double);

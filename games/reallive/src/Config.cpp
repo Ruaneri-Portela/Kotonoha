@@ -158,6 +158,20 @@ std::string decodeText(const std::string &input, int encoding) {
 
 Config::Resolution Config::detectResolution() const {
   Resolution res;
+  const auto &screenSizeMod = get("SCREENSIZE_MOD");
+  if (!screenSizeMod.empty()) {
+    const int mod = integer("SCREENSIZE_MOD", 0, 0);
+    if (mod == 0) {
+      res = {640, 480};
+    } else if (mod == 1) {
+      res = {800, 600};
+    } else if (mod == 2) {
+      res = {320, 240};
+    } else if (mod == 999 && screenSizeMod.size() >= 3) {
+      res.width = integer("SCREENSIZE_MOD", 640, 1);
+      res.height = integer("SCREENSIZE_MOD", 480, 2);
+    }
+  }
   const auto &novelback = get("WINDOW.000.NOVELBACK");
   if (novelback.size() >= 4) {
     int x0 = integer("WINDOW.000.NOVELBACK", 0, 0);

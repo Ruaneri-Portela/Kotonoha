@@ -1,5 +1,6 @@
 // Reusable XP3 provider; independent of the KAG runtime.
 #include <Kirikiri/KirikiriAssets.hpp>
+#include <Kirikiri/PsbFile.hpp>
 #include <Kirikiri/TlgImage.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 
@@ -153,24 +154,328 @@ std::vector<std::uint8_t> zlibInflate(const std::uint8_t *data,
 // Decompress an MDF container ("mdf\0" header + zlib data) into raw PSB bytes.
 std::vector<std::uint8_t> decompressMdf(const std::uint8_t *data,
                                         std::size_t size) {
-  if (size < 8 || std::memcmp(data, kMdfMagic, 4) != 0)
-    throw std::runtime_error("Not an MDF file");
-  // Skip mdf magic(4) + 4 header bytes, zlib data follows.
-  const std::uint8_t *zlibData = data + 8;
-  std::size_t zlibSize = size - 8;
-  return zlibInflate(zlibData, zlibSize, 0);
+  return PsbFile::decompressMdf(data, size);
 }
 
-// Extract readable KAG/script text from a decompressed PSB (E-Mote) binary.
-// PSB stores dialogue as null-terminated strings with "%f<font>;<text>" markers
-// and Japanese brackets「 」.  We collect dialogue strings wrapped as KAG cm
-// tags plus any bare KAG labels (starting with '*').
+std::string stripPsbFontTags(std::string text) {
+  std::size_t fpos = 0;
+  while ((fpos = text.find("%f", fpos)) != std::string::npos) {
+    const auto semi = text.find(';', fpos);
+    if (semi != std::string::npos && semi - fpos < 64) {
+      text.erase(fpos, semi - fpos + 1);
+    } else {
+      fpos += 2;
+    }
+  }
+  // Strip outer Japanese corner brackets 「...」 when wrapping the whole line.
+  if (text.size() >= 6 &&
+      std::memcmp(text.data(), "\xE3\x80\x8C", 3) == 0 &&
+      std::memcmp(text.data() + text.size() - 3, "\xE3\x80\x8D", 3) == 0) {
+    text = text.substr(3, text.size() - 6);
+  }
+  return text;
+}
+
+std::string escapeKagAttr(const std::string &s) {
+  std::string out;
+  out.reserve(s.size());
+  for (char c : s) {
+    if (c == '"')
+      out.push_back('\'');
+    else if (c == '\r' || c == '\n')
+      out.push_back(' ');
+    else
+      out.push_back(c);
+  }
+  return out;
+}
+
+std::pair<std::string, std::string>
+resolveNekoparaSpeaker(const std::string &primary, const std::string &combined,
+                       const std::string &enDisplay) {
+  const std::string key = !combined.empty() ? combined : primary;
+  static const std::map<std::string, std::pair<std::string, std::string>> kMap =
+      {
+          {"ショコラ", {"Chocola", "VNX+/cn_name_chocola.png"}},
+          {"バニラ", {"Vanilla", "VNX+/cn_name_vanilla.png"}},
+          {"時雨", {"Shigure", "VNX+/cn_name_shigure.png"}},
+          {"アズキ", {"Azuki", "VNX+/cn_name_azuki.png"}},
+          {"メイプル", {"Maple", "VNX+/cn_name_maple.png"}},
+          {"シナモン", {"Cinnamon", "VNX+/cn_name_cinnamon.png"}},
+          {"ココナツ", {"Coconut", "VNX+/cn_name_coconut.png"}},
+          {"全員", {"Todos", "VNX+/cn_name_all.png"}},
+          {"ショコラ＆バニラ",
+           {"Chocola & Vanilla", "VNX+/cn_name_chocola_vanilla.png"}},
+          {"ショコラ＆時雨",
+           {"Chocola & Shigure", "VNX+/cn_name_chocola_shigure.png"}},
+          {"メイプル＆アズキ",
+           {"Maple & Azuki", "VNX+/cn_name_maple_azuki.png"}},
+          {"アズキ＆シナモン",
+           {"Azuki & Cinnamon", "VNX+/cn_name_azuki_cinnamon.png"}},
+          {"ココナツ＆アズキ",
+           {"Coconut & Azuki", "VNX+/cn_name_coconut_azuki.png"}},
+          {"ココナツ＆メイプル",
+           {"Coconut & Maple", "VNX+/cn_name_coconut_maple.png"}},
+          {"ココナツ＆シナモン",
+           {"Coconut & Cinnamon", "VNX+/cn_name_coconut_cinnamon.png"}},
+          {"メイプル＆シナモン",
+           {"Maple & Cinnamon", "VNX+/cn_name_maple_cinnamon.png"}},
+          {"メイプル＆時雨",
+           {"Maple & Shigure", "VNX+/cn_name_maple_shigure.png"}},
+          {"時雨＆ココナツ",
+           {"Shigure & Coconut", "VNX+/cn_name_shigure_coconut.png"}},
+          {"バニラ＆シナモン",
+           {"Vanilla & Cinnamon", "VNX+/cn_name_vanilla_cinnamon.png"}},
+          {"ショコラ＆バニラ＆ココナツ",
+           {"Chocola, Vanilla & Coconut",
+            "VNX+/cn_name_chocola_vanilla_coconut.png"}},
+          {"ショコラ＆バニラ＆時雨",
+           {"Chocola, Vanilla & Shigure",
+            "VNX+/cn_name_chocola_vanilla_shigure.png"}},
+      };
+  if (auto it = kMap.find(key); it != kMap.end())
+    return it->second;
+  if (!enDisplay.empty())
+    return {enDisplay, {}};
+  return {key, {}};
+}
+
+// Decompile a PSB v2 KAGEnv scenario (.ks.scn) into structured KAG tags using
+// the PSB binary tree parser. Selects language slot 2 (PT-BR in VNX+) when
+// present, preserving speaker names, voices, backgrounds, CGs, characters,
+// BGM/SE, timed waits, persistent gallery flags, and chapter transitions.
 std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
   std::string script;
   try {
+    const auto psb = PsbFile::parse(psbData);
+    const auto &root = psb.root();
+    const auto &scenes = root["scenes"];
+    if (scenes.isList() && scenes.size() > 0) {
+      for (const auto &scene : scenes.asList()) {
+        if (!scene.isDict())
+          continue;
+        std::string label = scene["label"].asString();
+        if (label.empty())
+          label = "*start";
+        if (label.front() != '*')
+          label.insert(label.begin(), '*');
+        std::string title;
+        const auto &titles = scene["title"];
+        if (titles.isList() && titles.size() > 0) {
+          const std::size_t langIdx =
+              titles.size() > 2 && !titles[2].asString().empty()
+                  ? 2
+                  : (titles.size() > 1 && !titles[1].asString().empty() ? 1
+                                                                        : 0);
+          title = titles[langIdx].asString();
+        }
+        script += label;
+        if (!title.empty())
+          script += "|" + escapeKagAttr(title);
+        script += "\n";
+
+        const auto &texts = scene["texts"];
+        const auto &lines = scene["lines"];
+        auto emitEnvUpdateList = [&](const PsbValue &updateList) {
+          if (!updateList.isList())
+            return;
+          for (const auto &item : updateList.asList()) {
+            if (item.isList() && item.size() >= 2) {
+              const std::string op = item[0].asString();
+              if (op == "init") {
+                script += "[freeimage layer=\"base\"]\n";
+              } else if (op == "del") {
+                const std::string target = item[1].asString();
+                if (target == "bg")
+                  script += "[freeimage layer=\"base\"]\n";
+                else if (target == "bgm")
+                  script += "[stopbgm]\n";
+                else if (!target.empty())
+                  script +=
+                      "[chara_hide layer=\"" + escapeKagAttr(target) + "\"]\n";
+              }
+            } else if (item.isDict()) {
+              const std::string objName = item["name"].asString();
+              const std::string cls = item["class"].asString();
+              if (objName == "bgm" || cls == "bgm") {
+                const std::string file =
+                    item["replay"]["filename"].asString();
+                if (file == "bgm_" || file.empty()) {
+                  if (!file.empty())
+                    script += "[stopbgm]\n";
+                } else {
+                  const bool loop =
+                      item["replay"]["loop"].toInt(1) != 0;
+                  script += "[playbgm file=\"" + escapeKagAttr(file) +
+                            "\" loop=\"" + (loop ? "true" : "false") + "\"]\n";
+                }
+              } else if (objName == "se" || objName == "se1" || cls == "se") {
+                if (item["stop"].toInt(0) == 0) {
+                  const std::string file =
+                      item["replay"]["filename"].asString();
+                  if (!file.empty())
+                    script += "[playse file=\"" + escapeKagAttr(file) + "\"]\n";
+                }
+              } else if (objName == "bg" || cls == "stage") {
+                const std::string file =
+                    item["redraw"]["imageFile"]["file"].asString();
+                if (!file.empty())
+                  script +=
+                      "[bg storage=\"" + escapeKagAttr(file) + "\" time=\"0\"]\n";
+              } else if (cls == "event" || objName == "ev" ||
+                         objName == "ev1" || objName == "eventf" ||
+                         objName == "cutin") {
+                const std::string file =
+                    item["redraw"]["imageFile"]["file"].asString();
+                if (!file.empty()) {
+                  if (objName == "ev" || objName == "eventf")
+                    script += "[bg storage=\"" + escapeKagAttr(file) +
+                              "\" time=\"0\"]\n";
+                  else
+                    script += "[chara_show layer=\"" + escapeKagAttr(objName) +
+                              "\" storage=\"" + escapeKagAttr(file) + "\"]\n";
+                }
+              } else if (cls == "character" && !objName.empty()) {
+                const std::string file =
+                    item["redraw"]["imageFile"]["file"].asString();
+                int xpos = 0, ypos = 0;
+                const auto &actions = item["action"];
+                if (actions.isList()) {
+                  for (const auto &act : actions.asList()) {
+                    if (act.isList() && act.size() >= 2) {
+                      const std::string prop = act[0].asString();
+                      if (prop == "xpos" && act[1].isNumber())
+                        xpos = static_cast<int>(act[1].asInt());
+                      else if (prop == "ypos" && act[1].isNumber())
+                        ypos = static_cast<int>(act[1].asInt());
+                    }
+                  }
+                }
+                if (!file.empty()) {
+                  script += "[chara_show layer=\"" + escapeKagAttr(objName) +
+                            "\" storage=\"" + escapeKagAttr(file) + "\" x=\"" +
+                            std::to_string(xpos) + "\" y=\"" +
+                            std::to_string(ypos) + "\"]\n";
+                }
+              }
+            }
+          }
+        };
+
+        if (lines.isList()) {
+          for (const auto &line : lines.asList()) {
+            if (line.isInt()) {
+              const std::int64_t idx = line.asInt();
+              if (idx >= 1 && texts.isList() &&
+                  static_cast<std::size_t>(idx) <= texts.size()) {
+                const auto &tx = texts[static_cast<std::size_t>(idx - 1)];
+                if (tx.isList() && tx.size() >= 3) {
+                  const std::string primary = tx[0].asString();
+                  const std::string combined = tx[1].asString();
+                  const auto &langs = tx[2];
+                  std::string enDisp;
+                  std::string rawText;
+                  if (langs.isList() && langs.size() > 0) {
+                    if (langs.size() > 1 && langs[1].isList() &&
+                        langs[1].size() >= 1)
+                      enDisp = langs[1][0].asString();
+                    std::size_t chosen = 0;
+                    if (langs.size() > 2 && langs[2].isList() &&
+                        langs[2].size() >= 2 &&
+                        !langs[2][1].asString().empty()) {
+                      chosen = 2;
+                    } else if (langs.size() > 1 && langs[1].isList() &&
+                               langs[1].size() >= 2 &&
+                               !langs[1][1].asString().empty()) {
+                      chosen = 1;
+                    }
+                    if (langs[chosen].isList() && langs[chosen].size() >= 2)
+                      rawText = langs[chosen][1].asString();
+                  }
+                  const std::string cleanText = stripPsbFontTags(rawText);
+                  const auto [speakerName, nameplate] =
+                      resolveNekoparaSpeaker(primary, combined, enDisp);
+                  std::string voiceFile;
+                  if (tx.size() >= 4 && tx[3].isList() && tx[3].size() > 0) {
+                    for (const auto &v : tx[3].asList()) {
+                      const std::string vf = v["voice"].asString();
+                      if (!vf.empty()) {
+                        if (!voiceFile.empty())
+                          voiceFile += ",";
+                        voiceFile += vf;
+                      }
+                    }
+                  }
+                  if (!cleanText.empty()) {
+                    script += "[cm";
+                    if (!speakerName.empty())
+                      script += " speaker=\"" + escapeKagAttr(speakerName) + "\"";
+                    if (!nameplate.empty())
+                      script += " nameplate=\"" + escapeKagAttr(nameplate) + "\"";
+                    if (!voiceFile.empty())
+                      script += " voice=\"" + escapeKagAttr(voiceFile) + "\"";
+                    script += " text=\"" + escapeKagAttr(cleanText) + "\"]\n";
+                  }
+                }
+              }
+            } else if (line.isString()) {
+              const std::string flag = line.asString();
+              if (!flag.empty())
+                script += "[set name=\"" + escapeKagAttr(flag) +
+                          "\" value=\"1\"]\n";
+            } else if (line.isList() && line.size() > 0 &&
+                       line[0].isString()) {
+              const std::string cmd = line[0].asString();
+              if (cmd == "envupdate") {
+                for (std::size_t i = 1; i + 1 < line.size(); ++i) {
+                  if (line[i].isString() &&
+                      (line[i].asString() == "update" ||
+                       line[i].asString() == "pretrans")) {
+                    emitEnvUpdateList(line[i + 1]);
+                  }
+                }
+              } else if (cmd == "wait") {
+                for (std::size_t i = 1; i + 1 < line.size(); ++i) {
+                  if (line[i].asString() == "time") {
+                    const auto ms = line[i + 1].toInt(0);
+                    if (ms > 0)
+                      script += "[wait time=\"" + std::to_string(ms) + "\"]\n";
+                  }
+                }
+              } else if (cmd == "msgoff") {
+                script += "[msgoff]\n";
+              } else if (cmd == "meswinload") {
+                script += "[meswinload]\n";
+              }
+            }
+          }
+        }
+
+        const auto &nexts = scene["nexts"];
+        if (nexts.isList() && nexts.size() > 0 && nexts[0].isDict()) {
+          const std::string storage = nexts[0]["storage"].asString();
+          const std::string target = nexts[0]["target"].asString();
+          const std::int64_t nextType = nexts[0]["type"].toInt(0);
+          if (nextType == 0 && !storage.empty()) {
+            script += "[jump storage=\"" + escapeKagAttr(storage) + "\"";
+            if (!target.empty())
+              script += " target=\"" + escapeKagAttr(target) + "\"";
+            script += "]\n";
+          } else {
+            script += "[s]\n";
+          }
+        }
+      }
+      if (!script.empty())
+        return script;
+    }
+  } catch (const std::exception &) {
+    // Fall back to string scan for minimal synthetic non-KAGEnv PSB fixtures.
+  }
+
+  try {
     std::size_t i = 0;
     while (i < psbData.size()) {
-      // Japanese opening bracket "「" (UTF-8: e3 80 8c) -> dialogue text.
       if (i + 3 <= psbData.size() && psbData[i] == 0xE3 &&
           psbData[i + 1] == 0x80 && psbData[i + 2] == 0x8C) {
         i += 3;
@@ -181,41 +486,21 @@ std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
             i += 3;
             break;
           }
-          if (i >= psbData.size())
-            break;
           unsigned char c = psbData[i];
-          if (c >= 0x80) {
-            dialogue.push_back(static_cast<char>(c));
-            i++;
-            while (i < psbData.size() && (psbData[i] & 0xC0) == 0x80) {
-              dialogue.push_back(static_cast<char>(psbData[i]));
-              i++;
-            }
-          } else if (c == 0) {
+          if (c == 0)
             break;
-          } else {
-            dialogue.push_back(static_cast<char>(c));
-            i++;
-          }
+          dialogue.push_back(static_cast<char>(c));
+          ++i;
         }
-        // Strip any embedded font tags like "%fSourceHanSansCN-M;" or "%f;"
-        std::size_t fpos = 0;
-        while ((fpos = dialogue.find("%f", fpos)) != std::string::npos) {
-          const auto semi = dialogue.find(';', fpos);
-          if (semi != std::string::npos && semi - fpos < 64) {
-            dialogue.erase(fpos, semi - fpos + 1);
-          } else {
-            fpos += 2;
-          }
-        }
+        dialogue = stripPsbFontTags(std::move(dialogue));
         if (!dialogue.empty()) {
           script += "[cm text=\"";
-          script += dialogue;
+          script += escapeKagAttr(dialogue);
           script += "\"]\n";
         }
         continue;
       }
-      i++;
+      ++i;
     }
   } catch (const std::exception &e) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -345,6 +630,41 @@ KirikiriAssets::loadSurfaceAsset(const std::string &id) const {
       const auto bytes = read(id);
       return decodeTlgImage(bytes);
     }
+    if (extension == ".pimg" || extension == ".psb") {
+      const auto bytes = read(id);
+      if (PsbFile::isMdfBytes(bytes.data(), bytes.size()) ||
+          PsbFile::isPsbBytes(bytes.data(), bytes.size())) {
+        const auto psb = PsbFile::parse(bytes);
+        const auto &root = psb.root();
+        const int w = static_cast<int>(root["width"].toInt(0));
+        const int h = static_cast<int>(root["height"].toInt(0));
+        if (w > 0 && h > 0 && root["pixel"].isChunk()) {
+          const auto chunk = psb.chunkBytes(root["pixel"].asChunk().index);
+          if (chunk.size() ==
+              static_cast<std::size_t>(w) * static_cast<std::size_t>(h) * 4u) {
+            Kotonoha::SurfacePtr surface(
+                SDL_CreateSurface(w, h, SDL_PIXELFORMAT_RGBA32));
+            if (surface) {
+              for (int y = 0; y < h; ++y) {
+                const auto *src =
+                    chunk.data() + static_cast<std::size_t>(y) *
+                                       static_cast<std::size_t>(w) * 4u;
+                auto *dst = static_cast<std::uint8_t *>(surface->pixels) +
+                            static_cast<std::size_t>(y) *
+                                static_cast<std::size_t>(surface->pitch);
+                for (int x = 0; x < w; ++x) {
+                  dst[x * 4 + 0] = src[x * 4 + 2];
+                  dst[x * 4 + 1] = src[x * 4 + 1];
+                  dst[x * 4 + 2] = src[x * 4 + 0];
+                  dst[x * 4 + 3] = src[x * 4 + 3];
+                }
+              }
+              return surface;
+            }
+          }
+        }
+      }
+    }
   }
   return AssetProvider::loadSurfaceAsset(id);
 }
@@ -452,8 +772,38 @@ std::string KirikiriAssets::startupScenario() const {
           std::filesystem::path(lower).filename().string() == wanted)
         return file;
     }
-  // Translation packs such as VNX+ expose numbered .ks.scn chapters. The
-  // first numbered chapter is the best playable entry after the title menu.
+  // Check scenelist.scn (e.g. VNX+/scn/scenelist.scn) for the canonical first
+  // chapter entry before falling back to alphabetical scenario sorting.
+  for (const char *scnListPath :
+       {"scenelist.scn", "scn/scenelist.scn", "VNX+/scn/scenelist.scn"}) {
+    if (!containsAsset(scnListPath))
+      continue;
+    try {
+      const auto psb = PsbFile::parse(readAsset(scnListPath));
+      const auto &list = psb.root()["list"];
+      if (list.isList() && list.size() > 0) {
+        const std::string firstStorage = list[0]["storage"].asString();
+        if (!firstStorage.empty()) {
+          for (const auto &file : files) {
+            const auto fname = std::filesystem::path(file).filename().string();
+            if (fname == firstStorage || fname == firstStorage + ".scn")
+              return file;
+          }
+        }
+      }
+    } catch (...) {
+    }
+  }
+  // Translation packs such as VNX+ expose numbered .ks.scn chapters alongside
+  // sysmenu.ks. Prefer the first non-sysmenu scenario file.
+  for (const auto &file : files) {
+    auto lower = std::filesystem::path(file).filename().string();
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {
+      return static_cast<char>(std::tolower(c));
+    });
+    if (lower != "sysmenu.ks" && lower != "sysmenu.ks.scn")
+      return file;
+  }
   return files.front();
 }
 

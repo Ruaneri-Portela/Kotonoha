@@ -82,5 +82,7 @@ public:
   void render(Kotonoha::RendererRef renderer, float scale) override;
   bool handleMenuBarEvent(Kotonoha::EventRef event);
   void renderMenuBar(Kotonoha::RendererRef renderer);
+  void toggleMenuBarAutoHideLock() { menuBar.ToggleAutoHideLock(); }
+  void toggleMenuBarTopMeter() { menuBar.ToggleTopMeter(); }
 };
 } // namespace SchoolDays

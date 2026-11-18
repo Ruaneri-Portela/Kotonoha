@@ -397,6 +397,14 @@ void Session::setSkipMode(bool enabled) {
 void Session::setMessageSpeed(int speed) {
   vm_.classField("GameParam", 4) = VmValue::num(std::clamp(speed, 0, 3));
 }
+bool Session::classicMusic() const {
+  return vm_.classFieldValue("Music", 5).truth();
+}
+void Session::setClassicMusic(bool classic) {
+  auto value = VmValue::num(classic);
+  value.kind = VmValue::Boolean;
+  vm_.classField("Music", 5) = value;
+}
 void Session::startCampaign() {
   campaignActive_ = true;
   campaign_ = std::make_unique<Campaign>(source_);
@@ -443,8 +451,8 @@ void Session::nextCampaignPeriod() {
 }
 void Session::completeCampaignEvent() {
   campaign_->queueCompletion(vm_, scenario_);
-  campaign_->finishPeriod(vm_);
   campaign_->applyRequests(vm_);
+  campaign_->finishPeriod(vm_);
   if (scenario_ == "n0dea_ev01A")
     campaign_->completePrologue(vm_);
   campaign_->capture(vm_);
@@ -915,7 +923,12 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     return r;
   }
   if (t == "Sound" && (s == "play" || s == "playPrim")) {
-    const int index = int(number(a, 0));
+    const int rawIndex = int(number(a, 0));
+    const int index =
+        (rawIndex == 7 &&
+         size_t(rawIndex) == source_->archive("SOUND/SOUND.AFS").entries.size())
+            ? source_->ambienceIndex(unsigned(rawIndex))
+            : rawIndex;
     if (index < 0 ||
         size_t(index) >= source_->archive("SOUND/SOUND.AFS").entries.size())
       return r; // índice fora do range: ignora, sem tocar som
@@ -934,8 +947,9 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
   // directly. Guarded so headless/audit runs without an audio device.
   if (t == "Sound" && s == "playSEPrim") {
     const int note = int(number(a, 0));
-    if (sound && !replaying_)
-      sound("se", note);
+    const int wave = (note >= 12 && note <= 60) ? (note - 12) : note;
+    if (sound && !replaying_ && wave >= 0 && wave < 49)
+      sound("se", wave);
     return r;
   }
   if (t == "Sound" && (s == "stop" || s == "stopPrim")) {
@@ -1489,6 +1503,77 @@ std::optional<VmValue> Session::primitive(const std::string &owner,
   }
   if (owner == "ControlPad" && n == 5)
     return VmValue::num(0);
+  if (owner == "ControlPad" && realtime_) {
+    if (n == 0)
+      return VmValue::num(padHeld_);
+    if (n == 1)
+      return VmValue::num(padTrig_);
+    if (n == 2 || n == 3)
+      return VmValue::num(0);
+    if (n == 4 || n == 6)
+      return r;
+  }
+  if (owner == "Interface" && n == 0)
+    return r;
+  if (owner == "Sprite" && r.object) {
+    auto &sp = sceneSprites_[r.object.get()];
+    if (n == 1) {
+      const unsigned texId =
+          a.empty() ? 0 : unsigned(std::max(0, int(a[0].number)));
+      const unsigned variant =
+          a.size() >= 2 ? unsigned(std::max(0, int(a[1].number))) : 0;
+      sp.texId = texId;
+      sp.variant = variant;
+      sp.visible = true;
+      if (auto desc = source_->spriteDescriptor(texId, variant)) {
+        sp.asset = desc->asset;
+        sp.src = desc->rect;
+      }
+      return r;
+    }
+    if (n == 4 && a.size() >= 5) {
+      const unsigned texId = unsigned(std::max(0, int(a[0].number)));
+      const unsigned variant =
+          a.size() >= 6 ? unsigned(std::max(0, int(a[5].number))) : 0;
+      sp.texId = texId;
+      sp.variant = variant;
+      sp.visible = true;
+      if (auto desc = source_->spriteDescriptor(texId, variant))
+        sp.asset = desc->asset;
+      sp.src = {float(a[1].number), float(a[2].number), float(a[3].number),
+                float(a[4].number)};
+      return r;
+    }
+    if (n == 5 && a.size() >= 5) {
+      if (a[0].object) {
+        auto it = sceneSprites_.find(a[0].object.get());
+        if (it != sceneSprites_.end())
+          sp = it->second;
+      }
+      sp.visible = true;
+      sp.src = {float(a[1].number), float(a[2].number), float(a[3].number),
+                float(a[4].number)};
+      return r;
+    }
+    if (n == 2) {
+      sceneSprites_.erase(r.object.get());
+      return r;
+    }
+  }
+  if (owner == "NodeMapIcon") {
+    if (classMethod && (n == 0 || n == 1)) {
+      auto value = VmValue::num(1);
+      value.kind = VmValue::Boolean;
+      return value;
+    }
+    if (!classMethod && n == 7) {
+      auto value = VmValue::num(0);
+      value.kind = VmValue::Boolean;
+      return value;
+    }
+    if (!classMethod && n <= 6)
+      return r;
+  }
   // setLayer only records draw order on the PS2. The port orders pictures by
   // category, so returning self keeps the original wrappers chaining.
   if ((owner == "BG_Picture" && n == 6) || (owner == "Sprite" && n == 6) ||
@@ -1530,6 +1615,8 @@ std::optional<VmValue> Session::primitive(const std::string &owner,
     return r;
   // FontChar2 primitives restantes: diversos -- todos retornam self.
   if (owner == "FontChar2" && n >= 2 && n <= 19)
+    return r;
+  if (owner == "FontCharEx" && !classMethod && n == 0)
     return r;
   if (owner == "System" && n == 3)
     return r; // System.gc: sem coletor de lixo no port, retorna self.

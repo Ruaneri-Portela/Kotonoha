@@ -377,6 +377,9 @@ void Vm::setVar(uint32_t id, uint32_t v) {
   case 3:
     v = uint32_t(int32_t(int16_t(v)));
     break;
+  case 5:
+    // pmail.exe:0x402a50 — bank 5 (0x5000..0x5fff) stores full 32-bit values.
+    break;
   default:
     v &= 0xffff;
     break;
@@ -670,7 +673,7 @@ bool Vm::step() {
     PMAIL_VM_DEBUG << "[PmailVm Debug] STORE op=0x10 kind=" << kind
                    << " val=" << v16 << " acc=" << acc16 << std::endl;
     if (kind == 1)
-      setVar(v16, acc16);
+      setVar(v16, (((v16 >> 12) & 0xf) == 5 && accIs32_) ? acc_ : acc16);
     break;
   case 0x11: // load/set accumulator based on kind
     PMAIL_VM_DEBUG << "[PmailVm Debug] LOAD_ACC op=0x11 kind=" << kind
@@ -678,15 +681,19 @@ bool Vm::step() {
     switch (kind) {
     case 0:
       acc_ = v16 | objBits;
+      accIs32_ = false;
       break;
     case 1:
       acc_ = v16 | 0x10000 | objBits;
+      accIs32_ = false;
       break;
     case 2:
       acc_ = v16 | 0x20000 | objBits;
+      accIs32_ = false;
       break;
     case 5:
       acc_ = val;
+      accIs32_ = true;
       break;
     default:
       break;

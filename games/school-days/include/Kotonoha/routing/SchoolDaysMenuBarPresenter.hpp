@@ -180,6 +180,22 @@ public:
   int Selection() const { return selection_; }
   uint8_t BarAlpha() const { return barAlpha_; }
   bool PointerInsideBar() const { return pointerInsideBar_; }
+  bool AutoHideLocked() const { return autoHideLocked_; }
+  bool TopMeterHidden() const { return topMeterHidden_; }
+  void ToggleAutoHideLock() {
+    autoHideLocked_ = !autoHideLocked_;
+    if (autoHideLocked_) {
+      fadeStartAlpha_ = barAlpha_;
+      fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
+      fadeTargetVisible_ = true;
+      barAlpha_ = 255;
+    } else if (!pointerInsideBar_) {
+      fadeStartAlpha_ = barAlpha_;
+      fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
+      fadeTargetVisible_ = false;
+    }
+  }
+  void ToggleTopMeter() { topMeterHidden_ = !topMeterHidden_; }
   const SchoolDaysTopMeterModel &Meter() const { return meter_; }
 
 private:
@@ -218,6 +234,8 @@ private:
   uint8_t fadeStartAlpha_ = 0;
   uint32_t fadeStartMs_ = 0;
   bool fadeTargetVisible_ = false;
+  bool autoHideLocked_ = false;
+  bool topMeterHidden_ = false;
 };
 
 } // namespace Kotonoha

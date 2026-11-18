@@ -1,5 +1,8 @@
 #include <Kirikiri/KagScript.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
+#include <Kirikiri/KirikiriRuntime.hpp>
+#include <Kirikiri/PsbFile.hpp>
+#include <Kirikiri/ScnRunner.hpp>
 #include <Kirikiri/TjsStartupVm.hpp>
 #include <Kirikiri/TlgImage.hpp>
 
@@ -1622,6 +1625,131 @@ int main() {
       }
     }
     std::filesystem::remove(tempDir / "startup.tjs");
+  }
+
+  // PSB v2 + MDF binary serialization/parsing and ScnRunner execution (PT-BR
+  // slot selection, speaker nameplate mapping, multi-channel voices, savepoint
+  // snapshot restoration, and cross-chapter nexts transitions).
+  {
+    using PsbValue = Kotonoha::Providers::PsbValue;
+    using PsbFile = Kotonoha::Providers::PsbFile;
+
+    PsbValue::List textEntry = {
+        PsbValue::makeString("ショコラ"),
+        PsbValue::makeNull(),
+        PsbValue::makeList({
+            PsbValue::makeList({PsbValue::makeNull(),
+                                PsbValue::makeString("「おはよう！」")}),
+            PsbValue::makeList({PsbValue::makeString("Chocola"),
+                                PsbValue::makeString("「Good morning!」")}),
+            PsbValue::makeList(
+                {PsbValue::makeString("巧克力"),
+                 PsbValue::makeString(
+                     "%fSourceHanSansCN-M;「%f;Bom dia!%fSourceHanSansCN-M;」")}),
+        }),
+        PsbValue::makeList({
+            PsbValue::makeDict({
+                {"name", PsbValue::makeString("ショコラ")},
+                {"voice", PsbValue::makeString("syo_drama_0001")},
+            }),
+        }),
+    };
+
+    PsbValue snapshot = PsbValue::makeDict({
+        {"data",
+         PsbValue::makeList({
+             PsbValue::makeList({
+                 PsbValue::makeString("bg"),
+                 PsbValue::makeString("stage"),
+                 PsbValue::makeDict({
+                     {"name", PsbValue::makeString("bg")},
+                     {"class", PsbValue::makeString("stage")},
+                     {"redraw",
+                      PsbValue::makeDict({
+                          {"imageFile",
+                           PsbValue::makeDict({{"file", PsbValue::makeString(
+                                                            "room_day")}})},
+                      })},
+                 }),
+             }),
+         })},
+    });
+
+    PsbValue scene = PsbValue::makeDict({
+        {"label", PsbValue::makeString("*start")},
+        {"title",
+         PsbValue::makeList({PsbValue::makeString("JP"),
+                             PsbValue::makeString("EN"),
+                             PsbValue::makeString("Capítulo 1")})},
+        {"texts", PsbValue::makeList({PsbValue::makeList(std::move(textEntry))})},
+        {"lines",
+         PsbValue::makeList({
+             PsbValue::makeString("cg_zero_01a"),
+             PsbValue::makeList({PsbValue::makeInt(1), snapshot}),
+             PsbValue::makeInt(1),
+         })},
+        {"nexts",
+         PsbValue::makeList({
+             PsbValue::makeDict({
+                 {"storage", PsbValue::makeString("00_02.ks")},
+                 {"target", PsbValue::makeString("*start")},
+                 {"type", PsbValue::makeInt(0)},
+             }),
+         })},
+    });
+
+    PsbValue root = PsbValue::makeDict({
+        {"name", PsbValue::makeString("00_01.ks")},
+        {"scenes", PsbValue::makeList({scene})},
+    });
+
+    try {
+      const auto mdfBytes = PsbFile::serializeV2(root, {}, true);
+      const auto parsed = PsbFile::parse(mdfBytes);
+      if (parsed.root()["name"].asString() != "00_01.ks") {
+        std::printf("FAIL: PSB v2 / MDF round-trip failed\n");
+        ++failures;
+      }
+
+      std::string shownSpeaker, shownText, shownPlate, jumpedTo;
+      std::vector<std::string> shownVoices;
+      Kirikiri::ScnRunner::Callbacks cb;
+      cb.showDialogue = [&](std::string sp, std::string tx, std::string plate,
+                            std::vector<std::string> vc) {
+        shownSpeaker = std::move(sp);
+        shownText = std::move(tx);
+        shownPlate = std::move(plate);
+        shownVoices = std::move(vc);
+      };
+      cb.kag.jump = [&](std::string target) { jumpedTo = std::move(target); };
+
+      Kirikiri::ScnRunner runner(parsed, cb, 2);
+      runner.run();
+      if (!runner.isBlocked() || shownSpeaker != "Chocola" ||
+          shownText != "Bom dia!" ||
+          shownPlate != "VNX+/cn_name_chocola.png" ||
+          shownVoices != std::vector<std::string>{"syo_drama_0001"} ||
+          !runner.unlockedFlags().count("cg_zero_01a")) {
+        std::printf("FAIL: ScnRunner PT-BR dialogue or nameplate failed\n");
+        ++failures;
+      }
+      const auto saved = runner.saveState();
+      runner.resumeDialogue();
+      if (!runner.isFinished() || jumpedTo != "00_02.ks#*start") {
+        std::printf("FAIL: ScnRunner nexts transition failed\n");
+        ++failures;
+      }
+
+      Kirikiri::ScnRunner restored(parsed, cb, 2);
+      restored.restoreState(saved);
+      if (restored.stage().file != "room_day") {
+        std::printf("FAIL: ScnRunner snapshot restore failed\n");
+        ++failures;
+      }
+    } catch (const std::exception &e) {
+      std::printf("FAIL: PSB/ScnRunner exception: %s\n", e.what());
+      ++failures;
+    }
   }
 
   std::filesystem::remove_all(tempDir);

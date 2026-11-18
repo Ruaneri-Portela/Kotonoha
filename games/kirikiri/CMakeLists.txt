@@ -11,7 +11,10 @@ if(NOT TARGET kotonoha_provider_xp3)
         "${CMAKE_CURRENT_BINARY_DIR}/providers/xp3")
 endif()
 
-add_library(kirikiri_formats STATIC src/KirikiriRuntime.cpp)
+add_library(kirikiri_formats STATIC
+    src/KirikiriRuntime.cpp
+    src/EmoteRenderer.cpp
+)
 target_include_directories(kirikiri_formats PUBLIC src include)
 target_compile_features(kirikiri_formats PUBLIC cxx_std_17)
 set_target_properties(kirikiri_formats PROPERTIES CXX_EXTENSIONS OFF)

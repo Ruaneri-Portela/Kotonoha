@@ -26,7 +26,9 @@ class RealLiveSelection final : public Kotonoha::ChoiceQuestionScene {
     return out.str();
   }
   SDL_FRect listArea() const override { return content; }
-  float scrollInputHeight() const override { return 480; }
+  float scrollInputHeight() const override {
+    return float(assets.settings().detectResolution().height);
+  }
   void layout() override {
     controls.buttons.clear();
     float y = content.y - scroll;
@@ -52,8 +54,10 @@ class RealLiveSelection final : public Kotonoha::ChoiceQuestionScene {
       Kotonoha::RenderUpscaledTexture(&r, backingTexture.get(), nullptr,
                                       &target);
     }
-    auto &frame = assets.texture(r, frameID);
-    Kotonoha::RenderUpscaledTexture(&r, &frame, nullptr, &window);
+    if (!frameID.empty()) {
+      auto &frame = assets.texture(r, frameID);
+      Kotonoha::RenderUpscaledTexture(&r, &frame, nullptr, &window);
+    }
   }
   void renderOption(Kotonoha::RendererRef r, std::size_t index, bool) override {
     const auto &option = options[index];
@@ -93,20 +97,28 @@ public:
         std::max(1.0f, fontSize + config.integer(key + "MOJI_REP", -1));
     const float height =
         std::max(1, config.integer(key + "MOJI_CNT", 3, 1)) * lineHeight;
+    const auto res = config.detectResolution();
+    const float canvasW = float(res.width);
+    const float canvasH = float(res.height);
     const auto waku =
         numbered("WAKU.", config.integer(key + "WAKU_SETNO")) + ".000.";
-    frameID = assets.graphic(config.text(waku + "NAME", "smw00a"));
-    auto frame = assets.loadSurface(frameID);
-    window = {0, 0, float(frame->w), float(frame->h)};
+    const auto wakuName = config.text(waku + "NAME", "smw00a");
+    frameID = wakuName.empty() ? std::string() : assets.graphic(wakuName, false);
+    if (!frameID.empty()) {
+      auto frame = assets.loadSurface(frameID);
+      window = {0, 0, float(frame->w), float(frame->h)};
+    } else {
+      window = {0, 0, width, height};
+    }
     const int origin = config.integer(key + "POS");
     window.x = config.integer(key + "POS", 0, 1);
     window.y = config.integer(key + "POS", 345, 2);
     if (origin & 1)
-      window.x = 640 - window.w - window.x;
+      window.x = canvasW - window.w - window.x;
     if (origin & 2)
-      window.y = 480 - window.h - window.y;
-    window.x = std::clamp(window.x, 0.0f, std::max(0.0f, 640 - window.w));
-    window.y = std::clamp(window.y, 0.0f, std::max(0.0f, 480 - window.h));
+      window.y = canvasH - window.h - window.y;
+    window.x = std::clamp(window.x, 0.0f, std::max(0.0f, canvasW - window.w));
+    window.y = std::clamp(window.y, 0.0f, std::max(0.0f, canvasH - window.h));
     content = {window.x + config.integer(key + "MOJI_POS", 53, 2),
                window.y + config.integer(key + "MOJI_POS", 19), width, height};
     textColor = {Uint8(config.integer("COLOR_TABLE.000", 255)),

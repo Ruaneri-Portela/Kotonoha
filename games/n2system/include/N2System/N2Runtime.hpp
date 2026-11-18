@@ -4,6 +4,7 @@
 #include <Kotonoha/core/Runtime.hpp>
 #include <N2System/N2ArchiveAssets.hpp>
 #include <N2System/ScriptVm.hpp>
+#include <Ponscripter/PonscripterRuntime.hpp>
 
 #include <memory>
 #include <string>
@@ -15,6 +16,10 @@ class N2Runtime : public Kotonoha::Runtime {
 public:
   explicit N2Runtime(std::shared_ptr<N2ArchiveAssets> assets = nullptr);
   ~N2Runtime() override;
+  void shutdown();
+
+  SDL_Point viewport() const override;
+  bool continuousTouch() const override { return true; }
 
   void init(Kotonoha::Engine &engine) override;
   void initGlobal(Kotonoha::Engine &engine) override;
@@ -27,15 +32,21 @@ public:
   bool onEvent(Kotonoha::EventRef event) override;
 
   bool handleAdvanceAction() override;
+  bool advanceStoryTime(double seconds) override;
 
   void saveGame(const std::string &path) override;
   void loadGame(const std::string &path) override;
 
+  std::string debugNode() const override;
   std::string dialogueText() const override;
   std::string dialogueSpeaker() const override;
 
   ScriptVm &vm() { return vm_; }
   const ScriptVm &vm() const { return vm_; }
+
+  bool isPonscripterActive() const;
+  Ponscripter::PonscripterVm *ponscripterVm();
+  const Ponscripter::PonscripterVm *ponscripterVm() const;
 
   std::shared_ptr<N2ArchiveAssets> assets() const { return assets_; }
 

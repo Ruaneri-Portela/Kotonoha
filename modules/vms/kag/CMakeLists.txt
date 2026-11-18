@@ -4,9 +4,15 @@ if(TARGET kotonoha_vm_kag)
     return()
 endif()
 
-add_library(kotonoha_vm_kag STATIC "${CMAKE_CURRENT_LIST_DIR}/src/KagScript.cpp")
+add_library(kotonoha_vm_kag STATIC
+    "${CMAKE_CURRENT_LIST_DIR}/src/KagScript.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/ScnRunner.cpp"
+)
 
-target_include_directories(kotonoha_vm_kag PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
-target_link_libraries(kotonoha_vm_kag PUBLIC KotonohaEngine)
+target_include_directories(kotonoha_vm_kag PUBLIC
+    "${CMAKE_CURRENT_LIST_DIR}/include"
+    "${CMAKE_CURRENT_LIST_DIR}/../../providers/xp3/include"
+)
+target_link_libraries(kotonoha_vm_kag PUBLIC KotonohaEngine kotonoha_provider_xp3)
 target_compile_features(kotonoha_vm_kag PUBLIC cxx_std_17)
 set_target_properties(kotonoha_vm_kag PROPERTIES CXX_EXTENSIONS OFF)

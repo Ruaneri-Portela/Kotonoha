@@ -26,5 +26,11 @@ void testMap() {
           mapFaceIndex(0) == -2);
   require(mapCharacterVariable(12) == "CHAR_倉庫" &&
           !byteViewPicture(10).empty() && byteViewPicture(9).empty());
+  require(mapLayout(0, true).locations.size() == 11 &&
+          mapLayout(3, true).locations.size() == 11 &&
+          mapLayout(3, true).background == "GRAPHIC/MAP/MAP_YORU.CGD");
+  require(mapCharacterVariable(8, true) == "CHAR_駅前" &&
+          mapFaceIndex(1, true) == 0 && mapFaceIndex(13, true) == 5 &&
+          mapNavigate(3, -1, 0, true) == 0);
 }
 } // namespace SummerRadish

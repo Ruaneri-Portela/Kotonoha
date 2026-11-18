@@ -107,7 +107,32 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     Kotonoha::CommandLine arguments("Pmail", options);
     arguments.option("--pmail", "DIRECTORY|ISO",
                      "Pure Mail game directory or ISO image", directory);
-    arguments.parse(argc, argv);
+    std::vector<char *> filteredArgv;
+    filteredArgv.reserve(static_cast<std::size_t>(argc));
+    if (argc > 0)
+      filteredArgv.push_back(argv[0]);
+    for (int i = 1; i < argc; ++i) {
+      const std::string arg = argv[i] ? argv[i] : "";
+      if (arg == "--config" || arg == "--renderer" || arg == "--log" ||
+          arg == "--mcp-root" || arg == "--mcp-port" ||
+          arg == "--asset-overlay" || arg == "--dump-translation" ||
+          arg == "--translation" || arg == "--subtitle-style" ||
+          arg == "--ass-style" || arg == "--frames" || arg == "--pmail") {
+        filteredArgv.push_back(argv[i]);
+        if (i + 1 < argc)
+          filteredArgv.push_back(argv[++i]);
+      } else if (!arg.empty() && arg[0] != '-' && directory.empty()) {
+        directory = arg;
+      } else {
+        filteredArgv.push_back(argv[i]);
+      }
+    }
+    arguments.parse(static_cast<int>(filteredArgv.size()), filteredArgv.data());
+    if (const char *vid = SDL_getenv("SDL_VIDEODRIVER");
+        vid && std::string(vid) == "dummy") {
+      options.persistSettings = false;
+      options.settings.renderer = "software";
+    }
     if (arguments.wantsHelp()) {
       std::fputs(arguments.help().c_str(), stdout);
       return SDL_APP_SUCCESS;
