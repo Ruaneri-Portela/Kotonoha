@@ -6,6 +6,11 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
+if(NOT KOTONOHA_BUILD_ALL)
+    message(FATAL_ERROR
+        "[KotonohaLauncher] Enable KOTONOHA_BUILD_ALL=ON to build the unified launcher")
+endif()
+
 add_library(kotonoha_unified_launcher STATIC
     src/UnifiedLauncher.cpp
     src/GameFactories.cpp
@@ -15,11 +20,9 @@ target_link_libraries(kotonoha_unified_launcher PUBLIC KotonohaEngine)
 target_compile_features(kotonoha_unified_launcher PUBLIC cxx_std_17)
 set_target_properties(kotonoha_unified_launcher PROPERTIES CXX_EXTENSIONS OFF)
 
-# Link actual game runtime libraries into the hub: no external port binary
-# lookup and no executable entrypoints. A partial build only exposes factories
-# for the game options selected during CMake configuration.
+# Link every real game runtime, but never the Example demo.
+# The hub is only available when KOTONOHA_BUILD_ALL=ON.
 set(_kotonoha_launcher_libraries
-    "EXAMPLE|kotonoha_demo"
     "AMAGAMI|amagami_port"
     "ZERO|zero_no_tsukaima"
     "SNOW|snow_radish_vacation"
@@ -37,26 +40,28 @@ foreach(_linked IN LISTS _kotonoha_launcher_libraries)
     string(REPLACE "|" ";" _fields "${_linked}")
     list(GET _fields 0 _game_option)
     list(GET _fields 1 _runtime_library)
-    if(KOTONOHA_BUILD_${_game_option})
-        if(NOT TARGET ${_runtime_library})
-            message(FATAL_ERROR
-                "[KotonohaLauncher] Enabled ${_game_option} has no library ${_runtime_library}")
-        endif()
-        target_link_libraries(kotonoha_unified_launcher PUBLIC ${_runtime_library})
-        target_compile_definitions(kotonoha_unified_launcher
-            PUBLIC KOTONOHA_LAUNCH_${_game_option}=1)
-        message(STATUS "[KotonohaLauncher] Linked game runtime: ${_game_option}")
+    if(NOT KOTONOHA_BUILD_${_game_option} OR NOT TARGET ${_runtime_library})
+        message(FATAL_ERROR
+            "[KotonohaLauncher] ALL build is missing the ${_game_option} runtime library ${_runtime_library}")
     endif()
+    target_link_libraries(kotonoha_unified_launcher PUBLIC ${_runtime_library})
+    target_compile_definitions(kotonoha_unified_launcher
+        PUBLIC KOTONOHA_LAUNCH_${_game_option}=1)
+    message(STATUS "[KotonohaLauncher] Linked game runtime: ${_game_option}")
 endforeach()
 unset(_kotonoha_launcher_libraries)
 
 kotonoha_add_app(KotonohaLauncher src/main.cpp)
 target_link_libraries(KotonohaLauncher PRIVATE kotonoha_unified_launcher)
 set_target_properties(KotonohaLauncher PROPERTIES CXX_EXTENSIONS OFF)
+# Keep the global engine resources, but do not copy the Example demo data.
+# An empty game-assets directory preserves the shared bundle layout contract.
+set(_kotonoha_launcher_empty_assets "${CMAKE_CURRENT_BINARY_DIR}/empty-game-assets")
+file(MAKE_DIRECTORY "${_kotonoha_launcher_empty_assets}")
 kotonoha_configure_app(KotonohaLauncher
     BUNDLE_ID me.hirameki.kotonoha.launcher
-    GAME example
-    GAME_ASSET_SOURCE "${KOTONOHA_PROJECT_ROOT}/games/example/game-assets")
+    GAME launcher
+    GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}")
 
 # School Days uses a tracked, non-commercial route definition. Ship this
 # together with the in-process hub instead of assuming the individual game's
