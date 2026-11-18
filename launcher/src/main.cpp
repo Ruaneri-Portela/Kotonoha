@@ -142,6 +142,10 @@ struct Application {
   }
 
   void openHub() {
+    // Engine initialization may set game-specific SDL application metadata.
+    // Restore the hub identity before reopening its settings/UI.
+    KOTONOHA_SET_APP_METADATA("KotonohaLauncher",
+                              "me.hirameki.kotonoha.launcher");
     launcher = std::make_unique<KotonohaLauncher::UnifiedLauncher>(
         options.persistSettings ? options.settingsPath : std::string{},
         libraryPath, options.settings);
