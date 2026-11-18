@@ -86,9 +86,33 @@ def audit() -> list[str]:
 
     if "/Users/nero/" in source or "/Volumes/Nero" in source:
         issues.append("Standalone launcher contains a machine-specific path")
-    for token in ("_wspawnv(", "execv(", "ScopedUserDataEnvironment"):
-        if token not in source:
-            issues.append(f"Missing cross-platform launcher contract: {token}")
+    # Every selected port's library must be part of the launcher link graph.
+    cmake = (ROOT / "launcher/CMakeLists.txt").read_text(encoding="utf-8")
+    factories = (ROOT / "launcher/src/GameFactories.cpp").read_text(
+        encoding="utf-8")
+    hub_main = (ROOT / "launcher/src/main.cpp").read_text(encoding="utf-8")
+    if "src/GameFactories.cpp" not in cmake or (
+        "target_link_libraries(kotonoha_unified_launcher PUBLIC" not in cmake
+    ):
+        issues.append("Game factories are not statically linked into the hub")
+    for option, slug, _ in re.findall(
+        r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"',
+        (ROOT / "buildsystems/cmake/KotonohaGames.cmake").read_text(
+            encoding="utf-8")):
+        if f"KOTONOHA_LAUNCH_{option}" not in factories:
+            issues.append(f"{slug}: no linked C++ runtime factory")
+        if f'"{option}|' not in cmake:
+            issues.append(f"{slug}: no launcher CMake link entry")
+    for token in ("registerLinkedEngineFactories", "MountedEngineInstance"):
+        if token not in factories or token not in (factories + source):
+            issues.append(f"Missing linked runtime support: {token}")
+    for token in ("startInProcess(", "gameEnvironment", "stopGame()"):
+        if token not in hub_main:
+            issues.append(f"Missing in-process game lifecycle step: {token}")
+    for forbidden in ("launchModularPortProcess(", "fork(", "execv(",
+                      "_wspawnv(", "system(", "popen("):
+        if forbidden in source or forbidden in hub_main:
+            issues.append(f"Process spawning is forbidden in hub: {forbidden}")
 
     n2 = (ROOT / "games/n2system/CMakeLists.txt").read_text(encoding="utf-8")
     if 'PonscripterLibrary.cmake' not in n2 or (
