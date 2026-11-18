@@ -32,6 +32,8 @@ struct DiscoveredGameEntry {
 struct MountedEngineInstance {
   std::unique_ptr<Kotonoha::Runtime> runtime;
   std::shared_ptr<Kotonoha::AssetProvider> assets;
+  // Release game-owned textures/audio before the Engine renderer is destroyed.
+  std::function<void(Kotonoha::Runtime &)> shutdown;
 };
 
 using EngineLibraryFactory = std::function<MountedEngineInstance(
@@ -49,8 +51,8 @@ struct EngineLibraryDescriptor {
   EngineLibraryFactory factory;
 };
 
-// Registry allowing each engine/game port library to be registered and swapped
-// in-process inside KotonohaLauncher, or dispatched via its modular port target.
+// Registry of linked in-process game runtimes. Unlinked ports remain detectable
+// but cannot be launched until their CMake game option is enabled.
 class EngineLibraryRegistry {
 public:
   static EngineLibraryRegistry &instance();
@@ -72,6 +74,10 @@ private:
   EngineLibraryRegistry();
   std::vector<EngineLibraryDescriptor> descriptors_;
 };
+
+// Linked game libraries supply their in-process factories at build time.
+// No dynamic executable search, fork, exec, or shell dispatch.
+void registerLinkedEngineFactories(EngineLibraryRegistry &registry);
 
 // Computes a safe, deterministic per-game profile identifier from a game's
 // folder or disc filename (e.g. "Clannad_PT-BR" -> "clannad_pt-br",
@@ -125,16 +131,6 @@ scanGameLibrary(const std::string &libraryOrGamePath);
 std::string formatDiscoveredGamesReport(
     const std::vector<DiscoveredGameEntry> &entries,
     bool splitSavesByGame = true);
-
-// Resolves and spawns the modular port binary when a game is chosen and its
-// engine library is hosted in a sibling executable. Automatically passes the
-// isolated per-game save environment (`KOTONOHA_USER_DATA_DIR`).
-int launchModularPortProcess(const char *argv0,
-                             const DiscoveredGameEntry &entry,
-                             const Kotonoha::EngineOptions &options,
-                             long frames = -1,
-                             bool splitSavesByGame = true,
-                             std::string_view customSaveRoot = {});
 
 // Unified Kotonoha multi-engine launcher hub (lives in `launcher/`,
 // outside `games/`).
