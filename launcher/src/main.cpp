@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -95,6 +96,15 @@ struct Application {
     gameEnvironment = std::make_unique<ScopedGameUserData>();
     KotonohaLauncher::applyPerGameSaveIsolation(
         entry, gameOptions, splitSavesByGame, customSaveRoot);
+#if defined(_WIN32)
+    // The CRT and SDL have separate environment storage on Windows.
+    // Preserve Unicode profile paths for runtimes using std::filesystem.
+    const std::wstring nativeRoot = std::filesystem::u8path(
+        KotonohaLauncher::resolveIsolatedUserDataRoot(
+            entry, splitSavesByGame, customSaveRoot)).wstring();
+    if (_wputenv_s(L"KOTONOHA_USER_DATA_DIR", nativeRoot.c_str()) != 0)
+      throw std::runtime_error("Unable to set the game save environment");
+#endif
 
     auto mounted = registry.instantiate(entry, gameOptions);
     if (!mounted.runtime) {
