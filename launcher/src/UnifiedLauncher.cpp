@@ -244,9 +244,9 @@ EngineLibraryRegistry::EngineLibraryRegistry() {
                    "me.hirameki.kotonoha.kirikiri", {}});
   registerLibrary({EngineKind::RenPy, "doki-doki-literature-club", "Ren'Py",
                    "doki_doki_literature_club", "DokiDoki", "--ddlc",
-                   "me.hirameki.kotonoha.ddlc", {}});
+                   "me.hirameki.kotonoha.dokidokiliteratureclub", {}});
   registerLibrary({EngineKind::N2System, "n2system", "N2System / Nitroplus",
-                   "n2system_formats", "N2System", "--n2system",
+                   "n2system_formats", "N2SystemGame", "--n2system",
                    "me.hirameki.kotonoha.n2system", {}});
   registerLibrary({EngineKind::ONScripter, "ponscripter",
                    "PONScripter / ONScripter", "ponscripter_port",
