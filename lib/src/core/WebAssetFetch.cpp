@@ -94,6 +94,17 @@ EMSCRIPTEN_KEEPALIVE void KotonohaFreeRemoteManifest(void *memory) {
   std::free(memory);
 }
 
+// JS Fetch cache copies at most 8 MiB per completion into the WASM heap.
+// Range reads normally use 1 MiB. Larger bodies are rejected before transfer.
+EMSCRIPTEN_KEEPALIVE void *KotonohaAllocateRemoteFetchBuffer(int bytes) {
+  return bytes > 0 && bytes <= 8 * 1024 * 1024
+             ? std::malloc(static_cast<std::size_t>(bytes))
+             : nullptr;
+}
+EMSCRIPTEN_KEEPALIVE void KotonohaFreeRemoteFetchBuffer(void *memory) {
+  std::free(memory);
+}
+
 // Optional HTTP index: use the manifest for directory enumeration, but keep
 // on-demand HEAD/Range discovery enabled for names absent from a stale index.
 // Unlike the strict manifest API, a valid index is not an allow-list.
