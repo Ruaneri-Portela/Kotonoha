@@ -14,7 +14,7 @@ def generate_manifest(asset_dir, output_json):
     entries = []
     for root, dirs, filenames in os.walk(asset_dir):
         for filename in filenames:
-            if filename == ".gitignore" or filename == "README.txt" or filename == "manifest.json":
+            if filename in (".gitignore", "README.txt", "manifest.json", "preload.json"):
                 continue
             full_path = os.path.join(root, filename)
             rel_path = os.path.relpath(full_path, asset_dir)
