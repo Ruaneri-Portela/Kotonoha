@@ -25,6 +25,16 @@ def audit() -> list[str]:
         r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"', cmake)
     cmake_slugs = {slug for _, slug, _ in cmake_rows}
     expected_slugs = set(canonical.values())
+    # Detect newly added games that have a CMakeLists.txt but were never
+    # registered in the canonical build / Android / packaging matrices.
+    discovered_slugs = {
+        folder.parent.name
+        for folder in (ROOT / "games").glob("*/CMakeLists.txt")
+    }
+    if discovered_slugs != expected_slugs:
+        problems.append(
+            "Unregistered game directories: " +
+            ", ".join(sorted(discovered_slugs ^ expected_slugs)))
     if cmake_slugs != expected_slugs or len(cmake_rows) != len(expected_slugs):
         problems.append("CMake game matrix and ProjectManifest disagree")
 
