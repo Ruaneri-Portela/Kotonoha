@@ -76,6 +76,108 @@ int main() {
                     "zero_no_tsukaima",
             "ZeroNoTsukaima maps to zero_no_tsukaima library");
 
+    // The registry is a link-time contract. No external executable is needed.
+#if defined(KOTONOHA_LAUNCH_EXAMPLE)
+    require(reg.canInstantiateInProcess(EngineKind::Unknown),
+            "Linked EXAMPLE must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::Unknown),
+            "Unlinked EXAMPLE must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_AMAGAMI)
+    require(reg.canInstantiateInProcess(EngineKind::Amagami),
+            "Linked AMAGAMI must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::Amagami),
+            "Unlinked AMAGAMI must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_ZERO)
+    require(reg.canInstantiateInProcess(EngineKind::ZeroNoTsukaima),
+            "Linked ZERO must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::ZeroNoTsukaima),
+            "Unlinked ZERO must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_SNOW)
+    require(reg.canInstantiateInProcess(EngineKind::SnowRadish),
+            "Linked SNOW must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::SnowRadish),
+            "Unlinked SNOW must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_SUMMER)
+    require(reg.canInstantiateInProcess(EngineKind::SummerRadish),
+            "Linked SUMMER must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::SummerRadish),
+            "Unlinked SUMMER must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_DDLC)
+    require(reg.canInstantiateInProcess(EngineKind::RenPy),
+            "Linked DDLC must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::RenPy),
+            "Unlinked DDLC must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_SCHOOL_DAYS)
+    require(reg.canInstantiateInProcess(EngineKind::SchoolDays),
+            "Linked SCHOOL_DAYS must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::SchoolDays),
+            "Unlinked SCHOOL_DAYS must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_REALLIVE)
+    require(reg.canInstantiateInProcess(EngineKind::RealLive),
+            "Linked REALLIVE must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::RealLive),
+            "Unlinked REALLIVE must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_KIRIKIRI)
+    require(reg.canInstantiateInProcess(EngineKind::Kirikiri),
+            "Linked KIRIKIRI must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::Kirikiri),
+            "Unlinked KIRIKIRI must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_LUCA_SYSTEM)
+    require(reg.canInstantiateInProcess(EngineKind::LucaSystem),
+            "Linked LUCA_SYSTEM must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::LucaSystem),
+            "Unlinked LUCA_SYSTEM must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_PMAIL)
+    require(reg.canInstantiateInProcess(EngineKind::PureMail),
+            "Linked PMAIL must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::PureMail),
+            "Unlinked PMAIL must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_N2SYSTEM)
+    require(reg.canInstantiateInProcess(EngineKind::N2System),
+            "Linked N2SYSTEM must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::N2System),
+            "Unlinked N2SYSTEM must not advertise an in-process runtime");
+#endif
+#if defined(KOTONOHA_LAUNCH_PONSCRIPTER)
+    require(reg.canInstantiateInProcess(EngineKind::ONScripter),
+            "Linked PONSCRIPTER must expose a real in-process factory");
+#else
+    require(!reg.canInstantiateInProcess(EngineKind::ONScripter),
+            "Unlinked PONSCRIPTER must not advertise an in-process runtime");
+#endif
+
+#if defined(KOTONOHA_LAUNCH_EXAMPLE)
+    DiscoveredGameEntry demo;
+    demo.engine.kind = EngineKind::Unknown;
+    Kotonoha::EngineOptions demoOptions;
+    auto mounted = reg.instantiate(demo, demoOptions);
+    require(static_cast<bool>(mounted.runtime),
+            "The linked demo factory must instantiate a real Runtime");
+#endif
+
     // 2. Build a synthetic multi-game library with same-engine titles and
     //    companion patches to verify detection + per-game save splitting.
     SyntheticLibrary lib;
