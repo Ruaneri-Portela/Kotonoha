@@ -150,6 +150,22 @@ struct Text : VNTextBox {
     if (!smw00b.empty())
       back = assets.loadSurface(smw00b);
 
+    if (back && back->w > 0 && back->h > 0 && back->pixels) {
+      int r = assets.settings().integer("WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 0), 0);
+      int g = assets.settings().integer("WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 1), 1);
+      int b = assets.settings().integer("WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 160, 2), 2);
+      int a = assets.settings().integer("WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 200, 3), 3);
+      for (int y = 0; y < back->h; ++y)
+        for (int x = 0; x < back->w; ++x) {
+          auto *p =
+              static_cast<Uint8 *>(back->pixels) + y * back->pitch + x * 4;
+          p[0] = Uint8(r);
+          p[1] = Uint8(g);
+          p[2] = Uint8(b);
+          p[3] = Uint8(int(p[3]) * a / 255);
+        }
+    }
+
     const char *path = "/System/Library/Fonts/Supplemental/Verdana.ttf";
     if (std::filesystem::exists(path)) {
       font.reset(TTF_OpenFont(path, 25));
