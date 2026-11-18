@@ -14,6 +14,7 @@
 
 #include <Kotonoha/core/BuildVersion.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
+#include <Kotonoha/debug/ImGuiFrameScope.hpp>
 #include <Kotonoha/debug/SystemInfo.hpp>
 
 #include <algorithm>
@@ -374,8 +375,8 @@ void Launcher::draw() {
     throw std::runtime_error(SDL_GetError());
   if (io.DisplaySize.x <= 0 || io.DisplaySize.y <= 0 || pixelWidth <= 0 ||
       pixelHeight <= 0) {
-    ImGui::NewFrame();
-    ImGui::EndFrame();
+    // Keep the frame balanced even when the window is minimized.
+    ImGuiFrameScope frame;
     return;
   }
   io.DisplayFramebufferScale = {pixelWidth / io.DisplaySize.x,
@@ -388,7 +389,7 @@ void Launcher::draw() {
     ImGuiTheme::apply(scale);
     contentScale = scale;
   }
-  ImGui::NewFrame();
+  ImGuiFrameScope frame;
   ImGui::SetNextWindowPos({0, 0});
   ImGui::SetNextWindowSize(io.DisplaySize);
   ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
@@ -506,7 +507,7 @@ void Launcher::draw() {
                         BuildVersion::ShortCommit);
   }
   ImGui::End();
-  ImGui::Render();
+  frame.render();
   SDL_SetRenderScale(renderer.get(), io.DisplayFramebufferScale.x,
                      io.DisplayFramebufferScale.y);
   SDL_SetRenderDrawColor(renderer.get(), 23, 18, 33, 255);

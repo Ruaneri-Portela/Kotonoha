@@ -15,6 +15,7 @@
 
 #include <Kotonoha/core/BuildVersion.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
+#include <Kotonoha/debug/ImGuiFrameScope.hpp>
 #include <Kotonoha/debug/SystemInfo.hpp>
 
 #include <imgui.h>
@@ -1373,7 +1374,7 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
     ImGuiTheme::apply(scale);
     contentScale = scale;
   }
-  ImGui::NewFrame();
+  ImGuiFrameScope frame;
   drawAppletHub();
   drawOptionsWindow();
   drawTranslationWindow();
@@ -1381,7 +1382,7 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   drawInfoWindow();
   if (!isVisible())
     stopPreviewAudio();
-  ImGui::Render();
+  frame.render();
   // SDLRenderer3 expects vertex scaling through SDL, not just FramebufferScale.
   // Disable logical presentation so the density is applied exactly once.
   if (!SDL_SetRenderViewport(&renderer, nullptr) ||
