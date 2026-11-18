@@ -11,6 +11,14 @@
 
 namespace Kotonoha::Filesystem {
 
+// Probe a known filename without relying on directory enumeration. HTTP(S)
+// Fetch mounts cannot list undiscovered remote files, but can resolve known
+// relative paths through HEAD/Range metadata requests.
+inline bool isGameSourceRegularFile(const Filesystem &source,
+                                    std::string_view path) {
+  return source.exists(path) && source.stat(path).type == FileType::Regular;
+}
+
 // Locate a group of required regular files in a mounted game source.
 // The lookup uses the same case-insensitive, layered virtual filesystem as
 // the asset providers, including ISO images. A directory with the right name
