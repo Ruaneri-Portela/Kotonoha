@@ -36,11 +36,13 @@ namespace {
 class SummerText final : public VNTextBox {
   Kotonoha::Providers::SummerAssets &assets;
   std::unique_ptr<ClickMap> controlMap;
+  // SRV1 uses GRAPHIC/FRAME/MESSFRAME, SRV2 uses GRAPHIC/MESFRAME/MESFRAME.
+  std::string frameTexb, frameCmap, selectTexb;
   void renderFrame(RendererRef r) override {
     // The normal frame is already composited by the stage. Overlay the
     // original atlas states without rebuilding/upscaling the whole canvas.
-    if (assets.contains("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
-      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
+    if (assets.contains(frameTexb)) {
+      auto &atlas = assets.texture(r, frameTexb);
       for (int i = 0; i < 6; ++i) {
         const int state = controls.state(i);
         const bool active = (i == 0 && skipActive && skipActive()) ||
@@ -80,8 +82,8 @@ class SummerText final : public VNTextBox {
                                 : SDL_Color{240, 240, 245, 255});
   }
   void renderIndicator(RendererRef r) override {
-    if (assets.contains("GRAPHIC/FRAME/MESSFRAME.TEXB")) {
-      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/MESSFRAME.TEXB");
+    if (assets.contains(frameTexb)) {
+      auto &atlas = assets.texture(r, frameTexb);
       SDL_FRect source{float(256 + ((SDL_GetTicks() / 200) % 4) * 16), 210, 16,
                        40};
       SDL_FRect target{719, 526, 16, 40};
@@ -105,8 +107,15 @@ public:
   }
   SummerText(Engine &e, Kotonoha::Providers::SummerAssets &a)
       : VNTextBox(e, "", "", 40), assets(a) {
+    // SRV2 uses GRAPHIC/MESFRAME/*; SRV1 uses GRAPHIC/FRAME/*.
+    const bool srv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
+    const std::string prefix =
+        srv2 ? "GRAPHIC/MESFRAME/" : "GRAPHIC/FRAME/";
+    frameTexb = prefix + (srv2 ? "MESFRAME.TEXB" : "MESSFRAME.TEXB");
+    frameCmap = prefix + (srv2 ? "MESFRAME.CMAP" : "MESSFRAME.CMAP");
+    selectTexb = prefix + "SELECT.TEXB";
     hide();
-    if (auto cmap = assets.tryReadAsset("GRAPHIC/FRAME/MESSFRAME.CMAP"))
+    if (auto cmap = assets.tryReadAsset(frameCmap))
       controlMap = std::make_unique<ClickMap>(std::move(*cmap));
     controls.hitTest = [this](SDL_FPoint p) {
       const int id =
@@ -124,6 +133,7 @@ public:
 };
 class SummerChoice final : public ChoiceQuestionScene {
   Kotonoha::Providers::SummerAssets &assets;
+  std::string selectTexb;
   std::vector<bool> readStates;
   bool pointerFocus = false, keyboardFocus = false;
   void layout() override {
@@ -148,8 +158,8 @@ class SummerChoice final : public ChoiceQuestionScene {
     const auto &rect = options[index].hitBox;
     const bool read = index < readStates.size() && readStates[index];
     const float start = (read ? 160 : 0) + (focused ? 80 : 0);
-    if (assets.contains("GRAPHIC/FRAME/SELECT.TEXB")) {
-      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/SELECT.TEXB");
+    if (assets.contains(selectTexb)) {
+      auto &atlas = assets.texture(r, selectTexb);
       SDL_FRect source{start, 0, 32, 42}, target{rect.x, rect.y, 32, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
       source = {start + 32, 0, 16, 42};
@@ -183,7 +193,11 @@ class SummerChoice final : public ChoiceQuestionScene {
 public:
   std::function<void(const std::string &)> nativeSound;
   explicit SummerChoice(Engine &e, Kotonoha::Providers::SummerAssets &a)
-      : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {}
+      : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {
+    const bool srv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
+    selectTexb = srv2 ? "GRAPHIC/MESFRAME/SELECT.TEXB"
+                      : "GRAPHIC/FRAME/SELECT.TEXB";
+  }
   void setReadStates(std::vector<bool> states) {
     readStates = std::move(states);
   }
@@ -455,6 +469,8 @@ struct SummerRuntime::Impl {
   std::string canvasKey;
   std::map<std::string, std::pair<int, int>> origins;
   std::vector<std::string> speakers;
+  // SRV1: {0, -200, 200}; SRV2: parsed from GRAPHIC.INI Position line.
+  std::vector<int> positionOffsets = {0, -200, 200};
   std::array<std::string, 4> defaultNames{};
   TextInputForm *nameForm = nullptr;
   static std::string nameKey(const char *prefix, size_t index) {
@@ -549,21 +565,26 @@ struct SummerRuntime::Impl {
     std::istringstream stream(
         assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
     std::string line;
-    speakers.resize(32);
+    speakers.resize(64);
     while (std::getline(stream, line)) {
       if (line.rfind("PlayerName0", 0) == 0 && line.size() > 12 &&
           line[11] >= '0' && line[11] <= '3') {
         const auto eq = line.find('=');
         if (eq != line.npos) {
-          auto hex = line.substr(eq + 1);
-          hex.erase(0, hex.find_first_not_of(" \t"));
-          hex.erase(hex.find_last_not_of(" \t\r") + 1);
-          if (hex.size() % 2 ||
-              hex.find_first_not_of("0123456789abcdefABCDEF") != hex.npos)
-            throw std::runtime_error("Invalid native player name");
+          auto val = line.substr(eq + 1);
+          val.erase(0, val.find_first_not_of(" \t"));
+          val.erase(val.find_last_not_of(" \t\r") + 1);
           auto &name = defaultNames[size_t(line[11] - '0')];
-          for (size_t at = 0; at < hex.size(); at += 2)
-            name += char(std::stoi(hex.substr(at, 2), nullptr, 16));
+          if (!val.empty() && val[0] == '@') {
+            // SRV2: @-prefixed literal UTF-8 string (after UTF-16LE decode).
+            name = val.substr(1);
+          } else if (val.size() % 2 == 0 &&
+                     val.find_first_not_of("0123456789abcdefABCDEF") ==
+                         val.npos) {
+            // SRV1: hex-encoded byte string.
+            for (size_t at = 0; at < val.size(); at += 2)
+              name += char(std::stoi(val.substr(at, 2), nullptr, 16));
+          }
         }
       }
       if (line.size() > 11 && line.substr(0, 3) == "CHR" &&
@@ -572,15 +593,49 @@ struct SummerRuntime::Impl {
         auto eq = line.find('=');
         if (i >= int(speakers.size()) || eq == line.npos)
           continue;
-        std::string hex = line.substr(eq + 1);
-        hex.erase(0, hex.find_first_not_of(" \t"));
-        hex.erase(hex.find_last_not_of(" \t\r") + 1);
-        if (hex.size() % 2 == 0 &&
-            hex.find_first_not_of("0123456789ABCDEFabcdef") == hex.npos) {
+        std::string val = line.substr(eq + 1);
+        val.erase(0, val.find_first_not_of(" \t"));
+        val.erase(val.find_last_not_of(" \t\r") + 1);
+        if (!val.empty() && val[0] == '@') {
+          // SRV2: @-prefixed literal UTF-8 string.
+          speakers[i] = val.substr(1);
+        } else if (val.size() % 2 == 0 &&
+                   val.find_first_not_of("0123456789ABCDEFabcdef") ==
+                       val.npos) {
+          // SRV1: hex-encoded byte string.
           std::string name;
-          for (size_t p = 0; p < hex.size(); p += 2)
-            name += char(std::stoi(hex.substr(p, 2), nullptr, 16));
+          for (size_t p = 0; p < val.size(); p += 2)
+            name += char(std::stoi(val.substr(p, 2), nullptr, 16));
           speakers[i] = name;
+        }
+      }
+    }
+    // Parse character position offsets from GRAPHIC.INI (SRV2 has 7 slots).
+    if (assets->contains("INI/GRAPHIC.INI")) {
+      std::istringstream gfx(
+          assets->loadTextUtf8("INI/GRAPHIC.INI", "UTF-16LE"));
+      std::string gline;
+      while (std::getline(gfx, gline)) {
+        if (gline.rfind("Position ", 0) == 0 ||
+            gline.rfind("Position=", 0) == 0 ||
+            gline.rfind("Position\t", 0) == 0) {
+          auto eq = gline.find('=');
+          if (eq == gline.npos)
+            continue;
+          std::string csv = gline.substr(eq + 1);
+          csv.erase(0, csv.find_first_not_of(" \t"));
+          csv.erase(csv.find_last_not_of(" \t\r") + 1);
+          std::vector<int> parsed;
+          std::istringstream ss(csv);
+          std::string token;
+          while (std::getline(ss, token, ',')) {
+            token.erase(0, token.find_first_not_of(" \t"));
+            token.erase(token.find_last_not_of(" \t") + 1);
+            if (!token.empty())
+              parsed.push_back(std::stoi(token));
+          }
+          if (!parsed.empty())
+            positionOffsets = std::move(parsed);
         }
       }
     }
@@ -1286,12 +1341,14 @@ struct SummerRuntime::Impl {
     for (const auto &[slot, sprite] : ordered)
       positions.push_back({sprite->requestedPosition, sprite->positionSlot});
     assignCharacterPositions(positions);
-    static constexpr int offsets[] = {0, -200, 200};
     for (size_t i = 0; i < ordered.size(); ++i) {
       auto &[slot, pointer] = ordered[i];
       auto &sprite = *pointer;
       sprite.positionSlot = positions[i].previous;
-      sprite.x = offsets[sprite.positionSlot];
+      // SRV1 uses 3 slots {0,-200,200}; SRV2 uses 7 from GRAPHIC.INI.
+      sprite.x = sprite.positionSlot < positionOffsets.size()
+                     ? positionOffsets[sprite.positionSlot]
+                     : 0;
       auto origin = origins.at(sprite.id);
       compositeImage(canvas, image(sprite.id), origin.first + sprite.x,
                      origin.second);
@@ -1737,7 +1794,7 @@ void SummerRuntime::loadGame(const std::string &path) {
     if (version == "SUMMER-PRESENTATION-2") {
       if (!(s >> sprite.requestedPosition >> sprite.positionSlot >>
             sprite.creationOrder) ||
-          sprite.positionSlot >= 3 || sprite.creationOrder == UINT64_MAX)
+          sprite.positionSlot >= i.positionOffsets.size() || sprite.creationOrder == UINT64_MAX)
         throw std::runtime_error("Invalid saved character placement");
     } else {
       sprite.positionSlot = sprite.x < 0 ? 1 : sprite.x > 0 ? 2 : 0;

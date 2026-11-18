@@ -110,6 +110,12 @@ void Vm::setVar(uint32_t id, uint32_t v) {
   vars_[id & 0xffff] = v;
 }
 
+void Vm::clearLocalVars() {
+  // Banks 0..4 occupy 0x0000..0x4fff; bank 5 (0x5000..0x5fff) is persistent.
+  const size_t n = vars_.size() < 0x5000 ? vars_.size() : 0x5000;
+  std::fill(vars_.begin(), vars_.begin() + ptrdiff_t(n), 0u);
+}
+
 int32_t Vm::value(const Arg &a) const {
   if (a.tag() == 1)
     return int32_t(var(a.value()));
@@ -351,7 +357,11 @@ bool Vm::step() {
     lines_.clear();
     break;
   case 0x10:
-    if (kind == 1)
+    // of_adv3.exe:0x404c14 unconditionally calls setVar(v16, acc16).
+    // mode=0x20 (kind=1) is a direct varRef; mode=0x42 (kind=5) is an
+    // indirect caller variable-reference word on the stack whose tag
+    // bits encode kind=1 at ((val >> 16) & 0xf).  Both must store.
+    if (kind == 1 || (kind == 5 && ((val >> 16) & 0xf) == 1))
       setVar(v16, acc16);
     break;
   case 0x11:

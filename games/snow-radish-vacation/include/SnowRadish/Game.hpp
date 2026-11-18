@@ -2,6 +2,7 @@
 #include "SnowRadish/Pack.hpp"
 #include "SnowRadish/Vm.hpp"
 
+#include <cstdint>
 #include <deque>
 #include <functional>
 #include <map>
@@ -120,6 +121,25 @@ public:
   // before the story starts, so the script just continues with "start").
   std::function<void()> title;
   std::function<void(const std::string &name)> movie;
+  // sys 26: quit the application.
+  std::function<void()> quit;
+  // sys 52: pan an oversized CG (name, startY, steps, tickMs).
+  std::function<void(const std::string &name, int startY, int steps,
+                     int tickMs)>
+      cgPan;
+  // sys 223: ending staff roll (Credit00..14.evd + snow particles over BGM).
+  std::function<void()> staffRoll;
+  // sys 209: open the CG gallery / scene replay browser.
+  std::function<void()> gallery;
+
+  // Chapter / scene titles set by sys 18 / sys 25, available for save labels.
+  const std::string &chapterTitle() const { return chapterTitle_; }
+  const std::string &sceneTitle() const { return sceneTitle_; }
+
+  // Returns the current timer deadline (ms since epoch), 0 if no timer active.
+  uint64_t timerDeadlineMs() const { return waitDeadlineMs_; }
+  // Advance the timer: call with the current time to check if expired.
+  void tickTimer(uint64_t nowMs);
 
   // Optional trace of every native call (id, rendered arguments).
   std::function<void(const std::string &)> trace;
@@ -165,7 +185,14 @@ private:
   bool filled_ = false;
   uint32_t fillColor_ = 0;
   uint32_t sceneVersion_ = 0;
-  enum class AudioWait { None, Voice, VoiceSkippable, SeSkippable, Transition };
+  enum class AudioWait {
+    None,
+    Voice,
+    VoiceSkippable,
+    SeSkippable,
+    Transition,
+    TimerSkippable
+  };
   AudioWait audioWait_ = AudioWait::None;
   bool choosing_ = false;
   ChoiceKind kind_ = ChoiceKind::Text;
@@ -175,6 +202,9 @@ private:
   std::vector<int> choiceRoute_;
   std::vector<int> choiceValue_;
   uint32_t choiceVar_ = 0;
+  std::string chapterTitle_;
+  std::string sceneTitle_;
+  uint64_t waitDeadlineMs_ = 0;
 };
 
 } // namespace SnowRadish
