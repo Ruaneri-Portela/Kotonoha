@@ -130,13 +130,25 @@ escolha aguarda resposta, controle direto 3 do menu, mouse/toque e entradas
 sintéticas de gamepad para skip. A reprodução de Replay Data preserva as
 escolhas registradas. A MenuBar superior inteira fica oculta durante a
 escolha não confirmada. Seleção legítima, timeout, AUTO mode, pausa,
-velocidade escolhida e cauda visual somente com o medidor continuam
-independentes dessa barreira. O menu normal retorna na próxima cena física.
+velocidade escolhida continuam independentes dessa barreira.
+
+**Correção do menu após escolha (observação direta do usuário em 17/11):**
+depois da seleção, a barra superior volta a aparecer ao passar o mouse no
+topo, mas **todos os botões ficam congelados**. Sem hover, apenas o medidor
+de sentimentos permanece visível. O desbloqueio exige que a próxima cena
+física seja associada **e** que a animação do medidor e eventual efeito
+`SeUp` / `SeDown` terminem. As durações já documentadas são 3,924172 s e
+4,022857 s; o código usa o arredondamento para cima em milissegundos. Se a
+escolha não alterar os sentimentos, não se inventa um segundo som nem uma
+espera artificial de quatro segundos. O `SeSelect` continua no instante da
+confirmação, e Esc/configuração por teclado permanecem como antes.
 
 Testes C++ determinísticos e sintéticos no Windows cobrem escolha visível,
 corrida do fade preto, 2/3/10/50 entradas rápidas, DIREITA/ESQUERDA,
 controle direto 3, `SkipToNextChoice`, escolha manual, cenas sem escolha,
-timeout, além de sequências pseudoaleatórias com semente fixa (**256
+timeout, botões inertes após seleção, hover/medidor, limites de desbloqueio
+para `SeUp` e `SeDown` e escolha sem mudança de sentimentos, além de
+sequências pseudoaleatórias com semente fixa (**256
 sequências, 12 ações cada, semente `0x5EEDBEEF`**). Os testes existentes
 de Replay Data e H-scene foram preservados. As falhas anteriores à correção
 estão registradas em `build/_skip-choice-log.md`, fora do Git; não foram
@@ -144,7 +156,8 @@ usados scripts retail, saves reais ou GPKs comerciais.
 
 **Não verificado:** teste manual/visual com a mídia comercial, GPU real,
 fidelidade exata ao executável original onde a documentação existente não
-estabelece os fatos (em especial menu e setas durante escolhas), gamepad ou
+estabelece os fatos (a observação do menu veio do usuário, sem captura
+independente do retail; setas durante escolhas ainda não verificadas), gamepad ou
 toque em hardware móvel e compilações para Linux/macOS/Android/iOS. Testes
 sintéticos e build Windows não substituem o QA que será executado pelo
 usuário. O procedimento está no checklist não rastreado

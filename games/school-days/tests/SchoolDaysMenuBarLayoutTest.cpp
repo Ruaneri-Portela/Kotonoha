@@ -56,6 +56,19 @@ int main() {
         CheckLayout(Variant::Wide, 800, 450, 1.0f, 800.0f, 75.0f);
         CheckLayout(Variant::WideFull, 1280, 720, 1.6f, 1280.0f, 120.0f);
         CheckLayout(Variant::WideNote, 1024, 576, 1.28f, 1024.0f, 96.0f);
+        // User-observed post-choice presentation: chrome responds to hover,
+        // feelings stay visible with no hover, and the presenter is frozen.
+        const auto idleTail = Presenter::VisibilityForFrozenChoiceTail(0, false);
+        const auto hoveredTail = Presenter::VisibilityForFrozenChoiceTail(200, false);
+        const auto hiddenTail = Presenter::VisibilityForFrozenChoiceTail(200, true);
+        Check(idleTail.meter && !idleTail.chrome && hoveredTail.meter &&
+                  hoveredTail.chrome && hiddenTail.meter && !hiddenTail.chrome,
+              "post-choice frozen menu must render idle meter and hover chrome");
+        Presenter frozenMenu;
+        frozenMenu.SetChoiceTailFrozen(true);
+        Check(frozenMenu.ChoiceTailFrozen(), "post-choice lock did not latch");
+        frozenMenu.SetChoiceTailFrozen(false);
+        Check(!frozenMenu.ChoiceTailFrozen(), "post-choice lock did not release");
         // SysMenu stores CMAP-1 in this+0xD4. Internal control12 is therefore
         // raw CMAP value13; its case pushes ReMenu(3), the BackLog view.
         CheckBackLogRect(Variant::Standard, 603.0f, 26.0f, 61.0f, 27.0f);

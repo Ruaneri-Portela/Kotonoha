@@ -110,6 +110,8 @@ public:
     static RenderVisibility VisibilityForState(uint8_t barAlpha,
                                                bool fullBarSuppressed,
                                                bool meterOnly);
+    static RenderVisibility VisibilityForFrozenChoiceTail(
+        uint8_t barAlpha, bool fullBarSuppressed);
     // The retail x2..x32 selection and AUTO ON remain visible at full opacity
     // after ordinary hover chrome fades completely out.
     static PersistentTransport PersistentTransportForState(
@@ -164,6 +166,13 @@ public:
             pointerInsideBar_ = false;
         }
     }
+    // Post-choice: the idle feeling meter remains visible without hover;
+    // pointing at the top may reveal chrome, but never activates a control.
+    void SetChoiceTailFrozen(bool enabled) {
+        choiceTailFrozen_ = enabled;
+        if (enabled) selection_ = -1;
+    }
+    bool ChoiceTailFrozen() const { return choiceTailFrozen_; }
     void SetReplayIndicatorState(bool available, int control = -1) {
         replayIndicatorAvailable_ = available;
         if (control >= 15 && control <= 24)
@@ -215,6 +224,7 @@ private:
     bool actionInhibit_ = false;
     bool fullBarSuppressed_ = false;
     bool meterOnly_ = false;
+    bool choiceTailFrozen_ = false;
     int speedIndex_ = 0;
     bool replayIndicatorAvailable_ = false;
     int replayIndicatorControl_ = 24;

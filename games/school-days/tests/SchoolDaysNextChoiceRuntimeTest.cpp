@@ -263,6 +263,34 @@ public:
   static void Control(Runtime &runtime, int control) {
     runtime.activateControl(control);
   }
+  static void MenuAction(
+      Runtime &runtime,
+      Kotonoha::SchoolDaysMenuBarPresenter::ActionKind kind) {
+    Kotonoha::SchoolDaysMenuBarPresenter::Action action{};
+    action.kind = kind;
+    runtime.activateMenuAction(action);
+  }
+  static bool Paused(const Runtime &runtime) { return runtime.paused; }
+  static bool ChoiceMenuFrozen(const Runtime &runtime) {
+    return runtime.choiceMenuFrozen &&
+           runtime.menuBarProjection().choiceTailFrozen;
+  }
+  static bool ChoiceMenuNewSceneBound(const Runtime &runtime) {
+    return runtime.choiceMenuNextSceneBound;
+  }
+  static void SimulatePhysicalSceneRebind(Runtime &runtime,
+                                          bool nextScene = true) {
+    auto synthetic = runtime.bridge.CurrentScene();
+    if (nextScene) synthetic.sceneKey = "00/00-00-SYNTHETIC-NEXT";
+    runtime.bindScene(synthetic, runtime.bridge.CurrentGameplay());
+  }
+  static void ChoiceMeterCue(Runtime &runtime, int code, uint32_t nowMs) {
+    runtime.noteChoiceMenuCue(code, nowMs);
+  }
+  static void MaybeUnlockChoiceMenu(Runtime &runtime, uint32_t nowMs,
+                                    bool meterAnimating) {
+    runtime.updateChoiceMenuUnlock(nowMs, meterAnimating);
+  }
   static bool BarSuppressed(const Runtime &runtime) {
     return runtime.menuBarProjection().fullBarSuppressed;
   }
@@ -535,6 +563,104 @@ void TestSkipChoiceVisible(const char *route, const fs::path &root) {
           "T1: clicking SkipToEnd on the prompt started a fade or changed the choice");
 }
 
+void TestSelectedChoiceTailDoesNotAcceptMenuActions(const char *route,
+                                                     const fs::path &root) {
+  using Access = SchoolDays::RuntimeChoiceTestAccess;
+  using Kind = Kotonoha::SchoolDaysMenuBarPresenter::ActionKind;
+  const auto documents = root / "documents-choice-frozen-tail";
+  fs::create_directories(documents);
+  Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+  EnterChoiceSceneByPlayer(app.runtime);
+  Access::Seek(app.runtime, 48);
+  Require(Access::Pending(app.runtime), "tail fixture has no pending choice");
+  Require(Access::Handle(app.runtime, MouseMotion(640.0f, 540.0f)) &&
+              Access::Handle(app.runtime, LeftDown(640.0f, 540.0f)) &&
+              Access::Committed(app.runtime),
+          "tail fixture player choice was not committed");
+  Require(!Access::BarSuppressed(app.runtime),
+          "selected prompt must restore MenuBar chrome ownership");
+  Require(Access::ChoiceMenuFrozen(app.runtime) &&
+              !Access::ChoiceMenuNewSceneBound(app.runtime),
+          "selected prompt must restore visible but noninteractive menu");
+  Require(!Access::Paused(app.runtime), "fixture started paused");
+  Access::MenuAction(app.runtime, Kind::TogglePause);
+  Require(!Access::Paused(app.runtime),
+          "selected choice tail accepted the frozen MenuBar PAUSE action");
+  Access::Control(app.runtime, 3);
+  app.runtime.onEvent(KeyDown(SDLK_RIGHT));
+  Require(!Access::SeekPending(app.runtime) &&
+              Access::TransportPhase(app.runtime) ==
+                  Kotonoha::SchoolDaysTransportFade::Phase::Idle,
+          "selected choice tail accepted skip before the musical meter phase");
+
+  constexpr uint32_t cueAt = 1000u;
+  Access::ChoiceMeterCue(app.runtime, 3, cueAt);
+  Access::MaybeUnlockChoiceMenu(app.runtime, cueAt + 6000u, false);
+  Require(Access::ChoiceMenuFrozen(app.runtime),
+          "menu thawed before the next physical scene was associated");
+  // Rebind an isolated, synthetic physical scene through the same runtime
+  // owner switch used by narrative transitions; no retail timeline involved.
+  Access::SimulatePhysicalSceneRebind(app.runtime, false);
+  Require(!Access::ChoiceMenuNewSceneBound(app.runtime) &&
+              Access::ChoiceMenuFrozen(app.runtime),
+          "rebinding the same current part must not thaw the bar");
+  Access::SimulatePhysicalSceneRebind(app.runtime);
+  Require(Access::ChoiceMenuNewSceneBound(app.runtime) &&
+              Access::ChoiceMenuFrozen(app.runtime),
+          "physical scene rebind released the frozen menu before the cue");
+  Access::MaybeUnlockChoiceMenu(app.runtime, cueAt + 3924u, false);
+  Require(Access::ChoiceMenuFrozen(app.runtime),
+          "SeUp menu unlocked before the documented 3.924172-second cue ended");
+  Access::MaybeUnlockChoiceMenu(app.runtime, cueAt + 3925u, true);
+  Require(Access::ChoiceMenuFrozen(app.runtime),
+          "menu unlocked before the feeling meter finished animating");
+  Access::MaybeUnlockChoiceMenu(app.runtime, cueAt + 3925u, false);
+  Require(!Access::ChoiceMenuFrozen(app.runtime),
+          "menu failed to thaw after new scene, meter and SeUp had completed");
+  Access::MenuAction(app.runtime, Kind::TogglePause);
+  Require(Access::Paused(app.runtime),
+          "ordinary MenuBar control did not work again after the cue ended");
+}
+
+void TestChoiceMenuDownAndSilentRelease(const char *route, const fs::path &root) {
+  using Access = SchoolDays::RuntimeChoiceTestAccess;
+  const auto documents = root / "documents-frozen-cue-variants";
+  fs::create_directories(documents);
+  {
+    Application app(std::make_shared<SchoolDays::Assets>(root), route, documents);
+    EnterChoiceSceneByPlayer(app.runtime);
+    Access::Seek(app.runtime, 48);
+    Require(Access::Handle(app.runtime, MouseMotion(640.0f, 540.0f)) &&
+                Access::Handle(app.runtime, LeftDown(640.0f, 540.0f)),
+            "synthetic SeDown fixture did not confirm player choice");
+    Access::SimulatePhysicalSceneRebind(app.runtime);
+    Access::ChoiceMeterCue(app.runtime, 4, 250u);
+    Access::MaybeUnlockChoiceMenu(app.runtime, 4272u, false);
+    Require(Access::ChoiceMenuFrozen(app.runtime),
+            "SeDown release happened before the 4.022857-second effect ended");
+    Access::MaybeUnlockChoiceMenu(app.runtime, 4273u, false);
+    Require(!Access::ChoiceMenuFrozen(app.runtime),
+            "SeDown release did not follow the documented effect duration");
+  }
+
+  // Some confirmed choices change no feeling value. There must be no
+  // invented second cue or mandatory four-second wait in that case.
+  const auto silentDocuments = root / "documents-frozen-cue-silent";
+  fs::create_directories(silentDocuments);
+  Application silent(std::make_shared<SchoolDays::Assets>(root), route,
+                     silentDocuments);
+  EnterChoiceSceneByPlayer(silent.runtime);
+  Access::Seek(silent.runtime, 48);
+  Require(Access::Handle(silent.runtime, MouseMotion(640.0f, 540.0f)) &&
+              Access::Handle(silent.runtime, LeftDown(640.0f, 540.0f)),
+          "silent synthetic choice did not commit");
+  Access::SimulatePhysicalSceneRebind(silent.runtime);
+  Access::ChoiceMeterCue(silent.runtime, 0, 250u);
+  Access::MaybeUnlockChoiceMenu(silent.runtime, 250u, false);
+  Require(!Access::ChoiceMenuFrozen(silent.runtime),
+          "no-change choice invented a second musical cue or artificial delay");
+}
+
 void TestSkipChoiceFadeRace(const char *route, const fs::path &root) {
   using Access = SchoolDays::RuntimeChoiceTestAccess;
   using Phase = Kotonoha::SchoolDaysTransportFade::Phase;
@@ -631,8 +757,16 @@ void TestSkipChoicePostCommitAndNoChoice(const char *route,
                 Access::Committed(app.runtime) && Access::Result(app.runtime) == 1,
             "T8: legitimate player selection failed");
     Access::Control(app.runtime, 3);
+    Require(!Access::SeekPending(app.runtime) &&
+                Access::ChoiceMenuFrozen(app.runtime),
+            "T8: a confirmed choice activated skip before the feeling tail ended");
+    Access::SimulatePhysicalSceneRebind(app.runtime);
+    Access::MaybeUnlockChoiceMenu(app.runtime, 0u, false);
+    Require(!Access::ChoiceMenuFrozen(app.runtime),
+            "T8: no-effect scene transition did not release the menu");
+    Access::Control(app.runtime, 3);
     Require(Access::SeekPending(app.runtime),
-            "T8: a confirmed choice did not release transport to the next part");
+            "T8: skip did not resume after the next scene's soundless transition");
   }
   {
     const auto documents = root / "documents-skip-no-choice";
@@ -726,6 +860,12 @@ int main(int argc, char **argv) {
     TestTransportFadeBeforeSeek(argv[1], temporary.path);
     int failures = 0;
     failures += RunBarrierCase("T1 menu visible", TestSkipChoiceVisible, argv[1], temporary.path);
+    failures += RunBarrierCase("T12 frozen post-choice menu",
+                               TestSelectedChoiceTailDoesNotAcceptMenuActions,
+                               argv[1], temporary.path);
+    failures += RunBarrierCase("T13 SeDown and silent choice",
+                               TestChoiceMenuDownAndSilentRelease,
+                               argv[1], temporary.path);
     failures += RunBarrierCase("T2 fade race", TestSkipChoiceFadeRace, argv[1], temporary.path);
     failures += RunBarrierCase("T3 arrows", TestSkipChoiceKeyboard, argv[1], temporary.path);
     failures += RunBarrierCase("T4/T5 rapid/settings", TestSkipChoiceRapidAndSettings, argv[1], temporary.path);
