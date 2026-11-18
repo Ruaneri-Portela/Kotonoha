@@ -54,10 +54,16 @@ assert(html.includes('toolbar.hidden = true'),
   'Folder toolbar must be hidden when the source is chosen');
 assert(!html.includes('KotonohaAutoServerAssets'),
   'Browser startup must not automatically select remote assets');
-assert(!html.includes('fetch(new URL("manifest.json"'),
-  'HTTP startup must not query a stale or empty manifest');
-assert(!html.includes('KotonohaConfigureRemoteAssetManifest'),
-  'HTTP bootstrap must always select direct on-demand Fetch');
+assert(html.includes('new URL("manifest.json", origin)'),
+  'HTTP startup must probe the optional manifest after the user's choice');
+assert(html.includes('KotonohaConfigureRemoteAssetIndexedManifest') &&
+       html.includes('KotonohaConfigureRemoteAssetUrl'),
+  'HTTP bootstrap must support indexed listings and direct Fetch fallback');
+assert(html.includes('window.KotonohaRemoteManifestIndexed = indexed'),
+  'The source selection must report whether the optional index was used');
+assert(html.includes('if (!indexed)') &&
+       html.includes('const loadServerAssets = async function()'),
+  'Manifest failures must fall back to direct Fetch asynchronously');
 assert(html.includes('setStatus("Escolha pasta local ou HTTP(S) para iniciar.")'),
   'Boot must wait for an explicit source choice');
 assert(html.includes('setStatus("Pasta local montada. Iniciando engine...");'),
