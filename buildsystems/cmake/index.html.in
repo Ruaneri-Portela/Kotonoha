@@ -328,7 +328,7 @@
                     fileExists: "Arquivo já existe: {path}",
                     folderMounting: "Montando /{root}: {done}/{total}",
                     folderMounted: "{count} arquivo(s) montado(s) em /{root}",
-                    folderPrompt: "Nome da pasta virtual (ex.: game-assets, forced_subtitles, ovrlay):",
+                    folderPrompt: window.KotonohaText("folderPrompt"),
                     fatal: "Erro fatal: {reason}"
                 }
             };
@@ -947,12 +947,11 @@
                             window.KotonohaCloseStartupFolderTools();
                         Module.removeRunDependency(depId);
                     };
-                    const setStatus = function(message) {
-                        if (statusEl) statusEl.textContent = message;
-                    };
-                    const unlock = function(message) {
+                    const setStatus = window.KotonohaStatus;
+                    const unlock = function(key, params = {}) {
+                        const message = window.KotonohaText(key, params);
                         console.warn("[Kotonoha] " + message);
-                        setStatus(message + " — tente novamente ou escolha HTTP(S).");
+                        setStatus("retry", {message});
                         busy = false;
                         folderButton.disabled = false;
                         serverButton.disabled = false;
@@ -970,10 +969,10 @@
                         const supplied = window.KotonohaAssetBaseURL || "game-assets/";
                         const origin = new URL(supplied, document.baseURI);
                         if (origin.protocol !== "http:" && origin.protocol !== "https:")
-                            throw new Error("Os assets remotos exigem HTTP(S)");
+                            throw new Error(window.KotonohaText("remoteProtocol"));
                         if (origin.username || origin.password ||
                             origin.search || origin.hash)
-                            throw new Error("A origem remota não pode conter credenciais ou parâmetros");
+                            throw new Error(window.KotonohaText("remoteCredentials"));
                         if (!origin.pathname.endsWith("/")) origin.pathname += "/";
                         return origin;
                     };
@@ -987,7 +986,7 @@
                         busy = true;
                         folderButton.disabled = true;
                         serverButton.disabled = true;
-                        setStatus("Procurando índice HTTP(S) opcional...");
+                        setStatus("searchingIndex");
                         try {
                             const origin = httpRoot();
                             let manifest = null;
@@ -1062,18 +1061,18 @@
                                 // ccall string. Fetch requests remain lazy.
                                 const bytes = new TextEncoder().encode(manifest);
                                 if (bytes.length > 4 * 1024 * 1024)
-                                    throw new Error("Índice HTTP ultrapassa 4 MiB em UTF-8");
+                                    throw new Error(window.KotonohaText("manifestTooLarge"));
                                 const pointer = Module.ccall(
                                     "KotonohaAllocateRemoteManifest", "number",
                                     ["number"], [bytes.length + 1]);
                                 if (!pointer)
-                                    throw new Error("Memória insuficiente para índice HTTP");
+                                    throw new Error(window.KotonohaText("manifestAllocation"));
                                 try {
                                     // Acquire HEAPU8 AFTER allocation, since
                                     // ALLOW_MEMORY_GROWTH may replace its buffer.
                                     const heap = Module.HEAPU8;
                                     if (!heap || pointer + bytes.length + 1 > heap.length)
-                                        throw new Error("Heap WASM não disponível para índice HTTP");
+                                        throw new Error(window.KotonohaText("manifestHeap"));
                                     heap.set(bytes, pointer);
                                     heap[pointer + bytes.length] = 0;
                                     indexed = Module.ccall(
@@ -1092,7 +1091,7 @@
                                     "KotonohaConfigureRemoteAssetUrl", "number",
                                     ["string"], [origin.href]);
                                 if (started !== 1)
-                                    throw new Error("Provider Fetch não pôde ser configurado");
+                                    throw new Error(window.KotonohaText("remoteUnavailable"));
                             }
                             // A mandatory preload, if present, is a snapshot
                             // of downloaded byte ranges created by the console
@@ -1108,20 +1107,18 @@
                                     "number", ["string"], [path],
                                     { async: true });
                             };
-                            setStatus("Verificando preload.json opcional...");
+                            setStatus("checkingPreload");
                             const preloaded = await window.KotonohaAssetCache.preloadIfPresent(
                                 (completed, total, path) => {
-                                    setStatus("Preload obrigatório: " + completed +
-                                        "/" + total + " blocos — " + path);
+                                    setStatus("preloadProgress", {
+                                        done: completed, total, path
+                                    });
                                     if (barEl) barEl.style.width =
                                         Math.round(completed / total * 100) + "%";
                                 });
                             window.KotonohaInitialPreloadReady = preloaded;
-                            setStatus(preloaded
-                                ? "Preload completo. Iniciando engine..."
-                                : indexed
-                                  ? "Índice HTTP carregado; iniciando engine..."
-                                  : "Fetch HTTP(S) sem índice; iniciando engine...");
+                            setStatus(preloaded ? "preloadDone" :
+                                indexed ? "indexedReady" : "directReady");
                             finish();
                         } catch (error) {
                             console.error("[Kotonoha] Fetch HTTP(S):", error);
@@ -1130,14 +1127,14 @@
                             if (error instanceof WebAssembly.RuntimeError &&
                                 /memory access out of bounds|unreachable/i.test(
                                     String(error.message || error))) {
-                                setStatus("Falha fatal de memória no WebAssembly. " +
-                                    "Atualize a página após instalar o build corrigido.");
+                                setStatus("memoryFatal");
                                 folderButton.disabled = true;
                                 serverButton.disabled = true;
                                 return;
                             }
-                            unlock("Falha ao configurar Fetch: " +
-                                String(error.message || error));
+                            unlock("fetchFailed", {
+                                error: String(error.message || error)
+                            });
                         }
                     };
 
@@ -1167,10 +1164,10 @@
                                 if (parts[0] === "game-assets") parts.shift();
                                 const relative = parts.join("/");
                                 if (!validId(relative))
-                                    throw new Error("Caminho inválido: " + file.name);
+                                    throw new Error(window.KotonohaText("invalidPath", {path: file.name}));
                                 const key = relative.toLowerCase();
                                 if (localFiles.has(key))
-                                    throw new Error("Nome local duplicado: " + relative);
+                                    throw new Error(window.KotonohaText("duplicateLocal", {path: relative}));
                                 const directory = parts.slice(0, -1).join("/");
                                 if (directory)
                                     Module.FS_createPath("/game-assets", directory, true, true);
@@ -1184,21 +1181,22 @@
                                 loaded++;
                                 if (barEl) barEl.style.width =
                                     Math.round(loaded / files.length * 100) + "%";
-                                setStatus("Carregando pasta (" + loaded + "/" + files.length + ")");
+                                setStatus("localLoading", {done: loaded, total: files.length});
                                 if (loaded % 8 === 0)
                                     await pause(0);
                             }
                             if (!loaded)
-                                throw new Error("Pasta local vazia");
+                                throw new Error(window.KotonohaText("emptyFolder"));
                             Module.KotonohaVfsGeneration =
                                 (Module.KotonohaVfsGeneration | 0) + 1;
                             // A local choice must not implicitly contact HTTP.
-                            setStatus("Pasta local montada. Iniciando engine...");
+                            setStatus("localReady");
                             finish();
                         } catch (error) {
                             console.error("[Kotonoha] Pasta local inválida:", error);
-                            unlock("Pasta local inválida: " +
-                                   String(error.message || error));
+                            unlock("localFailed", {
+                                error: String(error.message || error)
+                            });
                         } finally {
                             folderInput.value = "";
                         }
@@ -1209,7 +1207,7 @@
                     // Explicit choice is mandatory for every web port.
                     // Never probe HTTP or release the startup run dependency
                     // until the user chooses a source.
-                    setStatus("Escolha pasta local ou HTTP(S) para iniciar.");
+                    setStatus("chooseSource");
                 }
             ],
 
@@ -1258,7 +1256,7 @@
                 const statusEl = document.getElementById("loading-status");
                 if (statusEl) {
                     statusEl.style.color = "#ff5252";
-                    statusEl.textContent = "Erro fatal: " + reason;
+                    statusEl.textContent = window.KotonohaText("fatal", {reason});
                 }
             }
         };
@@ -1291,46 +1289,47 @@
             window.KotonohaMountBrowserFolder = async function(files, name) {
                 const root = String(name || "").trim();
                 if (!validComponent(root))
-                    throw new Error("Nome de pasta inválido (use letras, números, _ ou -)");
+                    throw new Error(window.KotonohaText("invalidFolderName"));
                 if (!Module || !Module.FS_createPath || !Module.FS_createDataFile)
-                    throw new Error("Filesystem WASM ainda não está disponível");
+                    throw new Error(window.KotonohaText("wasmUnavailable"));
                 const selected = Array.from(files || []);
-                if (!selected.length) throw new Error("Pasta vazia");
+                if (!selected.length) throw new Error(window.KotonohaText("emptyFolder"));
                 const records = selected.map(file => {
                     const source = file.webkitRelativePath || file.name;
                     const parts = source.split("/");
                     // webkitdirectory includes the selected folder as first segment.
                     const relative = parts.length > 1 ? parts.slice(1).join("/") : parts[0];
                     if (!validPath(relative))
-                        throw new Error("Caminho inseguro: " + source);
+                        throw new Error(window.KotonohaText("unsafePath", {path: source}));
                     return {file, relative, key: relative.toLowerCase()};
                 });
                 const unique = new Set();
                 for (const record of records) {
                     if (unique.has(record.key))
-                        throw new Error("Arquivo duplicado: " + record.relative);
+                        throw new Error(window.KotonohaText("duplicateFile", {path: record.relative}));
                     unique.add(record.key);
                 }
                 if (roots.has(root))
-                    throw new Error("Pasta já montada: " + root);
+                    throw new Error(window.KotonohaText("alreadyMounted", {path: root}));
                 for (const record of records) {
                     const pieces = record.key.split("/");
                     for (let i = 1; i < pieces.length; ++i) {
                         if (unique.has(pieces.slice(0, i).join("/")))
-                            throw new Error("Arquivo usado como pasta: " +
-                                record.relative);
+                            throw new Error(window.KotonohaText("fileAsFolder", {
+                                path: record.relative
+                            }));
                     }
                 }
                 // Do not overwrite an existing root, including engine-managed /save.
                 if (Module.FS && Module.FS.analyzePath("/" + root).exists &&
                     root !== "game-assets")
-                    throw new Error("O diretório /" + root + " já existe");
+                    throw new Error(window.KotonohaText("folderExists", {path: root}));
                 // Validate all destination collisions before writing anything.
                 if (Module.FS) {
                     for (const {relative} of records) {
                         const target = "/" + root + "/" + relative;
                         if (Module.FS.analyzePath(target).exists)
-                            throw new Error("Arquivo já existe: " + target);
+                            throw new Error(window.KotonohaText("fileExists", {path: target}));
                     }
                 }
                 const dependency = "kotonoha_browser_folder_" + (++nextImportId);
@@ -1357,8 +1356,9 @@
                         kotonohaLocalAssets.set(relative, file);
                     }
                     imported++;
-                    status.textContent = "Montando /" + root + ": " +
-                        imported + "/" + records.length;
+                    status.textContent = window.KotonohaText("folderMounting", {
+                        root, done: imported, total: records.length
+                    });
                 }
                     roots.add(root);
                     // Invalidate DirectoryMount indexes already in use by a game.
@@ -1386,7 +1386,9 @@
                 button.disabled = true;
                 try {
                     const count = await window.KotonohaMountBrowserFolder(input.files, chosen);
-                    status.textContent = count + " arquivo(s) montado(s) em /" + chosen;
+                    status.textContent = window.KotonohaText("folderMounted", {
+                        count, root: chosen
+                    });
                 } catch (error) {
                     console.error("[Kotonoha] Importação da pasta:", error);
                     status.textContent = String(error.message || error);
