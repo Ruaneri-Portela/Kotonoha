@@ -206,11 +206,12 @@ async function main() {
   ensureVirtualIsoFixture();
   ensureLargeRangeFixture();
   const testLegacySidecar = ensureLegacySidecar();
-  updateManifest();
-  // A stale index must not hide a legitimate file on the HTTP server.
-  // Intentionally create this file AFTER the manifest is generated.
+  // Make repeated test runs deterministic: remove any previous unindexed
+  // fixture BEFORE writing the manifest, then create it afterwards.
   const lateName = 'late-unindexed.txt';
   const lateBody = 'unindexed HTTP file';
+  fs.rmSync(path.join(output, 'game-assets', lateName), { force: true });
+  updateManifest();
   fs.writeFileSync(path.join(output, 'game-assets', lateName), lateBody);
   const server = spawn('python3', [
     path.join(__dirname, 'serve_web.py'),
