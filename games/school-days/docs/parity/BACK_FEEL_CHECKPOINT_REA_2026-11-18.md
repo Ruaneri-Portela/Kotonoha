@@ -74,11 +74,36 @@ does not rely on the rendered bar's interpolation.
 The existing retail static audit
 `CHOICE_RESULT_METER_SFX_RETAIL_2026-11-05.md` identifies the conditional
 directional UI SE calls (`SeUp`/`SeDown`) and the menu meter's 1500 ms
-interpolation plus 2000 ms hold. The original full-bar hover/freeze and exact
-action-unlock time after a selection still lack a frame-accurate independent
-retail playthrough. Those rules in Kotonoha remain an implementation of the
-player's visual observations, not proven byte-equivalent to the original by
-the feeling/Back evidence above.
+interpolation plus 2000 ms hold. A second REA/Ghidra read-only pass found
+separate code paths for meter updating and button permission:
+
+- `SysMenuSDHQ.dll:0x10024C60` checks host vtable `+0x154` (EXE getter
+  `0x0042C3A0`, field `+0x770`) and, if active, only calls the meter state
+  machine `0x10026B40` and geometry `0x10026540`. The meter FSM keeps its own
+  state in `this+0x44`, emits directional SE host code 3/4 through vtable
+  `+0x50`, and clears the meter signal through host `+0x30` at completion.
+- MenuBar **input** instead enters `SysMenuSDHQ.dll:0x10024100`. At
+  `0x10024126` it checks host vtable `+0x13C` (EXE `0x0042BF70`, a getter
+  of the low byte at host `+0x228`); a nonzero value rejects the input before
+  hit-testing. The button-permission method `0x10023FB0` applies per-control
+  host-state checks, e.g. `+0x104`, `+0x110`, `+0x88` and `+0x98`. Its observed
+  predicates do not inspect `this+0x44`, wait for audio codes 3/4, or check
+  elapsed OGG playback time.
+- The EXE uses `+0x228` in the state machine at `0x00426620` (states 0–11);
+  SETSELECT code at `0x00431740` reads this field, but the complete
+  post-choice host-state chronology was not recovered. The exact timing of
+  re-enabling clicks relative to the next scene, meter animation and SE is
+  therefore **UNKNOWN**, not an authenticated conjunctive predicate.
+
+REA/Ghidra evidence IDs: meter
+`ev_cc8fc4f434bb2f6bc554c112cd1bc63e96a708df8e59d980964ae27dd62d4618`;
+button permissions
+`ev_b917ce0fcbb65e86fafc46c4d5b9ca96eb024d0faa61f1f23319034539186db8`.
+Consequently, Kotonoha's existing rule that waits for a new scene, the meter
+latch and the known 3925/4023 ms sound lengths remains a *conservative*
+implementation of the player's direct observation, not yet proven
+frame-for-frame equivalent to retail. No speculative change was made to that
+menu gate during the Back/Feel correction.
 
 ## Safety and scope
 
