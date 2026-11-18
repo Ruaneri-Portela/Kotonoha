@@ -99,7 +99,7 @@ assert(html.includes('id="loading-build"') &&
        html.includes('@KOTONOHA_VERSION_FULL@'),
   'Every browser game must display its CMake/Git version on the asset picker');
 assert(html.includes('touch-action: none'), 'Touch gesture handling must stay active');
-assert(html.includes('id="browser-folder-tools" aria-label="Pastas do jogo"'),
+assert(html.includes('id="browser-folder-tools" data-i18n-aria-label="gameFolders"'),
   'Pre-game toolbar must be an ordinary fixed element, not a Safari popover');
 assert(!html.includes('popover="manual"') && !html.includes('showPopover('),
   'Pre-game controls must not enter the browser popover top layer');
@@ -163,9 +163,25 @@ assert(browserTransport.includes('KotonohaCompleteBrowserFetch') &&
   'The C++ Fetch provider must delegate HTTP Range reads to the persistent cache');
 assert(wasmBuild.includes('lib/web/KotonohaPreloadCache.js'),
   'Every WASM output must bundle its cache manager');
-assert(html.includes('setStatus("Escolha pasta local ou HTTP(S) para iniciar.")'),
+assert(html.includes('setStatus("chooseSource");'),
   'Boot must wait for an explicit source choice');
-assert(html.includes('setStatus("Pasta local montada. Iniciando engine...");'),
+assert(html.includes('setStatus("localReady");'),
   'Local startup must finish without a server manifest probe');
+assert(html.includes('id="kotonoha-lang-en"') &&
+       html.includes('id="kotonoha-lang-pt"') &&
+       html.includes('window.KotonohaSetLanguage') &&
+       html.includes('localStorage.setItem("kotonoha-language"') &&
+       html.includes('setStatus("preloadProgress"') &&
+       html.includes('setStatus("searchingIndex"') &&
+       html.includes('setStatus("memoryFatal"') &&
+       html.includes('data-i18n-title="mountFolder"') &&
+       html.includes('data-i18n-aria-label="gameCanvas"'),
+  'Startup UI, errors and preload progress must be localized in EN/PT');
+assert(persistentCache.includes('records.index("byLastAccess").openCursor()') &&
+       persistentCache.includes('isBootProtected(row)') &&
+       persistentCache.includes('cacheStats') &&
+       persistentCache.includes('isQuotaError') &&
+       persistentCache.includes('touchChunk(row.key)'),
+  'The persistent asset cache must implement bounded transactional LRU');
 
 console.log('Kotonoha HTML shell static checks passed (' + scripts.length + ' scripts).');
