@@ -10,6 +10,10 @@ const assert = require('node:assert/strict');
 
 const htmlPath = path.join(__dirname, '..', 'buildsystems', 'cmake', 'index.html.in');
 const html = fs.readFileSync(htmlPath, 'utf8');
+const wasmBuild = fs.readFileSync(path.join(__dirname, '..',
+  'buildsystems', 'cmake', 'KotonohaApp.cmake'), 'utf8');
+const webBridge = fs.readFileSync(path.join(__dirname, '..',
+  'lib', 'src', 'core', 'WebAssetFetch.cpp'), 'utf8');
 const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
 assert(scripts.length >= 2, 'HTML shell must contain bootstrap and folder scripts');
 for (let i = 0; i < scripts.length; ++i) {
@@ -71,6 +75,12 @@ assert(html.includes('KotonohaAllocateRemoteManifest') &&
 assert(html.includes('error instanceof WebAssembly.RuntimeError') &&
        html.includes('serverButton.disabled = true'),
   'A fatal WASM memory trap must not allow repeated broken startup attempts');
+assert(wasmBuild.includes("'HEAPU8'"),
+  'WebAssembly link must export the current heap view under memory growth');
+assert(webBridge.includes('KotonohaAllocateRemoteManifest') &&
+       webBridge.includes('KotonohaFreeRemoteManifest') &&
+       webBridge.includes('std::free(memory)'),
+  'WASM bridge must allocate and free bounded manifest transfers');
 assert(html.includes('if (!indexed)') &&
        html.includes('const loadServerAssets = async function()'),
   'Manifest failures must fall back to direct Fetch asynchronously');
