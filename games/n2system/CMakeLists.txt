@@ -16,31 +16,17 @@ if(NOT TARGET kotonoha_vm_n2system)
       "${CMAKE_CURRENT_BINARY_DIR}/vms/n2system")
 endif()
 
-if(NOT TARGET kotonoha_vm_ponscripter)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/ponscripter"
-      "${CMAKE_CURRENT_BINARY_DIR}/vms/ponscripter")
-endif()
-
-if(NOT TARGET kotonoha_provider_ponscripter)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/ponscripter"
-      "${CMAKE_CURRENT_BINARY_DIR}/providers/ponscripter")
-endif()
-
-if(NOT TARGET PonscripterGame AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../ponscripter/CMakeLists.txt")
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../ponscripter"
-      "${CMAKE_CURRENT_BINARY_DIR}/ponscripter")
-endif()
+# Reuse PONscripter without creating its standalone executable.
+include("${CMAKE_CURRENT_SOURCE_DIR}/../ponscripter/PonscripterLibrary.cmake")
 
 add_library(n2system_formats STATIC
   src/N2Runtime.cpp
 )
-target_include_directories(n2system_formats PUBLIC include ../ponscripter/include)
+target_include_directories(n2system_formats PUBLIC include)
 target_link_libraries(n2system_formats PUBLIC
   KotonohaEngine
   kotonoha_provider_n2
   kotonoha_vm_n2system
-  kotonoha_provider_ponscripter
-  kotonoha_vm_ponscripter
   ponscripter_port
 )
 target_compile_features(n2system_formats PUBLIC cxx_std_17)
