@@ -710,6 +710,19 @@ void KirikiriAssets::mountAllXp3() {
     if (lower == ".xp3")
       names.push_back(entry.path);
   }
+  // HTTP(S) without a manifest has no directory listing. Query only common
+  // archive IDs directly; the Fetch provider discovers their metadata with
+  // HEAD and later reads the XP3 index/segments via bounded Range requests.
+  if (names.empty()) {
+    for (const char *id :
+         {"data.xp3", "patch.xp3", "patch2.xp3", "patch3.xp3",
+          "startup.xp3", "scenario.xp3", "data/data.xp3",
+          "data/patch.xp3"}) {
+      if (source_->exists(id) &&
+          source_->stat(id).type == Kotonoha::Filesystem::FileType::Regular)
+        names.emplace_back(id);
+    }
+  }
   const auto rank = [](std::string name) {
     std::transform(
         name.begin(), name.end(), name.begin(),
@@ -747,6 +760,16 @@ std::vector<std::string> KirikiriAssets::scenarioFiles() const {
     if ((lower.size() >= 3 && lower.substr(lower.size() - 3) == ".ks") ||
         (lower.size() >= 7 && lower.substr(lower.size() - 7) == ".ks.scn"))
       result.push_back(f);
+  }
+  if (result.empty()) {
+    // Pure loose-script web games also lack a remote index. This is a
+    // bounded set of known KAG entrypoints, not HTTP directory enumeration.
+    for (const char *id :
+         {"startup.ks", "start.ks", "first.ks", "main.ks", "title.ks",
+          "scenario/startup.ks", "scenario/first.ks", "scenario/main.ks"}) {
+      if (containsAsset(id))
+        result.emplace_back(id);
+    }
   }
   std::sort(result.begin(), result.end());
   return result;
