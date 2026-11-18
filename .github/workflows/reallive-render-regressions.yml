@@ -1,0 +1,54 @@
+name: RealLive scene and ImGui frame regressions
+
+on:
+  pull_request:
+    paths:
+      - 'games/reallive/src/SceneTexture.hpp'
+      - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/tests/SceneTextureTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - 'lib/include/Kotonoha/debug/ImGuiFrameScope.hpp'
+      - 'lib/src/core/Launcher.cpp'
+      - 'lib/src/debug/DebugOverlay.cpp'
+      - 'lib/tests/ImGuiFrameScopeTests.cpp'
+      - 'lib/tests/CMakeLists.txt'
+      - '.github/workflows/reallive-render-regressions.yml'
+  push:
+    branches: [dev]
+    paths:
+      - 'games/reallive/src/SceneTexture.hpp'
+      - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/tests/SceneTextureTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - 'lib/include/Kotonoha/debug/ImGuiFrameScope.hpp'
+      - 'lib/src/core/Launcher.cpp'
+      - 'lib/src/debug/DebugOverlay.cpp'
+      - 'lib/tests/ImGuiFrameScopeTests.cpp'
+      - 'lib/tests/CMakeLists.txt'
+      - '.github/workflows/reallive-render-regressions.yml'
+  workflow_dispatch:
+
+jobs:
+  synthetic-render:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install isolated test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ pkg-config libsdl3-dev libimgui-dev
+      - name: Compile RealLive SDL3 synthetic scene test
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/SceneTextureTest.cpp \
+            $(pkg-config --cflags --libs sdl3) -o /tmp/reallive-scene-test
+      - name: Test alpha-independent scene presentation
+        run: SDL_VIDEODRIVER=dummy /tmp/reallive-scene-test
+      - name: Compile isolated Dear ImGui frame contract
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror -pedantic \
+            -Ilib/include lib/tests/ImGuiFrameScopeTests.cpp \
+            $(pkg-config --cflags --libs imgui) -o /tmp/imgui-frame-test
+      - name: Recover UI frames after widget errors
+        run: /tmp/imgui-frame-test
