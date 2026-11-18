@@ -51,7 +51,17 @@ await KotonohaDumpPreload();
 
 The browser downloads `preload.json`. Put it next to the source manifest at
 `game-assets/preload.json`. This dump includes **only successfully downloaded
-files and ranges**, not every file listed by `manifest.json`. If that preload
+files and ranges**, not every file listed by `manifest.json`. The runtime
+also records current story nodes, which assets were downloaded while visiting
+each node, and observed transitions. These are exported in the optional
+`nodes` map of the guide. On later runs the shared C++ runtime notifies the
+browser when the node changes; the JavaScript scheduler prefetches current and
+neighboring node assets, limited to an 8 MiB budget and two concurrent
+requests. Speculative prefetching can be cancelled on another scene change.
+The exported `entries` remain the **mandatory boot set**: all listed byte
+ranges must finish before the engine starts. If you only want boot menus and
+the first scene to block startup, trim `entries` to those ranges while keeping
+the other scenes and their relations under `nodes`. If that preload
 file exists, the HTTP(S) startup waits until each required range is in
 IndexedDB, fetching any missing chunks before releasing the WASM startup
 dependency. The dump includes a manifest fingerprint to prevent mixing two
