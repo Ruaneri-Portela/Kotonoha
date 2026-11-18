@@ -84,6 +84,61 @@ Event dispatch `ev_46c9bb11d3638edc2f11f6dce5cb5d89132c4d8cd42063c91604ad80dcacd
 skip/route state machine
 `ev_c23ce9fffe4d29735164398dc131fd119edde6e13df7e8927041033b23e4dab2`.
 
+## Input-release state branches and per-control permissions (additional static audit)
+
+The EXE scheduler `0x00425BF0` dispatches by **outerHost+0x224** (not the
+MenuBar gate `+0x254`, nor the transition FSM `+0x228`) through table
+`0x00426600`, states `0..7`. Its parent dispatcher at
+`0x0042740D..0x00427437` takes *different* paths according to
+`outerHost+0x220`: state `3` uses normal gameplay `0x425550` ->
+`0x4252E0` -> `0x425331` -> SetSELECT `0x431740`, whereas state `4`
+calls the transition FSM `0x425BF0`. These paths are mutually exclusive
+for an individual dispatch. Observed transition-state targets are:
+
+| State | Target | Possible input-gate release |
+| --- | --- | --- |
+| 0 / 1 / 2 | `0x425C4E` / `0x425CA1` / `0x425CF3` | Not directly through the inspected reset calls |
+| 3 | `0x425D3F` | Subphase `+0x2D4==1` calls `0x425AD0` at `0x425D78`; other conditions can call it at `0x425F19` |
+| 4 / 5 | `0x425FF4` / `0x426052` | Timed/presentation steps, not an identified Feel/OGG release predicate |
+| 6 | `0x4260AF` | Can call `0x425AD0` at `0x426218` |
+| 7 | `0x4262D6` | Calls RouteProc `_GetNextScriptFile@12` at `0x42630D`, then `0x431420` at `0x4263E6` after preparing the script key, subject to active script-context flag |
+
+`0x425AD0` calls `0x431E00` at `0x425B49`. If its script controller is
+active (`controller+4 != 0`), `0x431E00` clears the MenuBar input and render
+gates before the script rebind. Likewise `0x431420` clears both gates if its
+controller is active. These are **conditional state/rebind edges**, not a
+single fixed delay counted from the choice click. The branch for a specific
+A03-to-A04 handoff and its exact scheduler frame remain unproven. In
+particular, the original 48-tick result tail is not itself a comparison
+for clearing `+0x254` in the inspected setter/rebind paths.
+
+Within the SysMenu button-availability function `0x10023FB0`, a separate
+25-entry class selector/jump table around `0x100240CC..0x100240E0`
+implements the following predicates
+*after* the global input gate has allowed event handling:
+
+| Control indices | Predicate class |
+| --- | --- |
+| `0..3`, `13..14` | Always allowed by this *particular* availability function |
+| `4` (NextChoice/SuperSkip) | `!host+0x104 && !host+0x110 && SuperSkipFlag` |
+| `5..9` (speed selections) | `!host+0x110 && host+0x88` |
+| `10..12` (Save/Load/BackLog) | `!host+0x104` |
+| `15..24` | `host+0x98` |
+
+The listed `host+...` names are **SysMenu interface virtual-method slots**,
+not byte offsets in the outer object. Their EXE implementations include
+`+0x104 -> 0x42BEB0` (reads physical `outerHost+0x150`),
+`+0x98 -> 0x42BEF0` (reads physical `outerHost+0x1E0`), while
+`+0x88 -> 0x427490` and `+0x110 -> 0x428210` query script/skip conditions,
+including the scene-key lookup. The input handler tests `+0x13C` at
+`0x10024126` *before* hover/hit-test, and the click dispatch
+(`0x1002459E` and its per-control branches) checks availability again.
+Consequently, clearing `outerHost+0x254` does **not** guarantee every
+individual control is actionable; the scene and flags still matter. Neither
+`0x10023FB0` nor the inspected input-release setters directly tests the
+Feel latch or audio completion. A global claim excluding all indirect
+conditions is **not** established.
+
 ## Kotonoha differences corrected
 
 **Correction to this report on 18 November, after further user-observed
