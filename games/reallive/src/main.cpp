@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <set>
 namespace {
 Kotonoha::EngineOptions
@@ -101,8 +102,10 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
                          .string()
                    : ""},
         validate, {""}, true);
-    if (directory.empty())
-      options.launcher = true;
+    // Honor the shared default and explicit --no-launcher. Automated
+    // --frames and MCP runs bypass the launcher in CommandLine::parse().
+    if (directory.empty() && !options.launcher)
+      throw std::runtime_error("No valid RealLive source; pass --reallive DIRECTORY|ISO");
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "REALLIVE", settingsPath, directory, validate, options.settings,
