@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iomanip>
+#include <optional>
 #include <sstream>
 #include <system_error>
 
@@ -94,6 +95,54 @@ fs::path defaultBaseUserDataDir() {
   }();
   return cachedBase;
 }
+
+// The game process inherits a per-title save root. Restore the hub's
+// original process environment after child exit (or launch failure).
+// SDL's environment and the C runtime environment are maintained separately.
+class ScopedUserDataEnvironment {
+public:
+  ScopedUserDataEnvironment() {
+    if (const char *value = SDL_getenv("KOTONOHA_USER_DATA_DIR"))
+      originalSdl_ = value;
+#if defined(_WIN32)
+    if (const wchar_t *value = _wgetenv(L"KOTONOHA_USER_DATA_DIR"))
+      originalNative_ = value;
+#else
+    if (const char *value = std::getenv("KOTONOHA_USER_DATA_DIR"))
+      originalNative_ = value;
+#endif
+  }
+
+  ScopedUserDataEnvironment(const ScopedUserDataEnvironment &) = delete;
+  ScopedUserDataEnvironment &operator=(const ScopedUserDataEnvironment &) = delete;
+
+  ~ScopedUserDataEnvironment() {
+    if (auto *env = SDL_GetEnvironment()) {
+      if (originalSdl_)
+        SDL_SetEnvironmentVariable(env, "KOTONOHA_USER_DATA_DIR",
+                                   originalSdl_->c_str(), true);
+      else
+        SDL_UnsetEnvironmentVariable(env, "KOTONOHA_USER_DATA_DIR");
+    }
+#if defined(_WIN32)
+    _wputenv_s(L"KOTONOHA_USER_DATA_DIR",
+               originalNative_ ? originalNative_->c_str() : L"");
+#else
+    if (originalNative_)
+      setenv("KOTONOHA_USER_DATA_DIR", originalNative_->c_str(), 1);
+    else
+      unsetenv("KOTONOHA_USER_DATA_DIR");
+#endif
+  }
+
+private:
+  std::optional<std::string> originalSdl_;
+#if defined(_WIN32)
+  std::optional<std::wstring> originalNative_;
+#else
+  std::optional<std::string> originalNative_;
+#endif
+};
 
 } // namespace
 
@@ -569,9 +618,21 @@ int launchModularPortProcess(const char *argv0,
   if (entry.targetBinary.empty() || entry.cliOption.empty())
     return -1;
 
+  ScopedUserDataEnvironment savedEnvironment;
   Kotonoha::EngineOptions portOptions = options;
   applyPerGameSaveIsolation(entry, portOptions, splitSavesByGame,
                             customSaveRoot);
+#if defined(_WIN32)
+  const std::wstring nativeUserDataPath =
+      fs::u8path(resolveIsolatedUserDataRoot(entry, splitSavesByGame,
+                                             customSaveRoot)).wstring();
+  if (_wputenv_s(L"KOTONOHA_USER_DATA_DIR",
+                 nativeUserDataPath.c_str()) != 0) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                 "Unable to prepare the per-game user data environment");
+    return -1;
+  }
+#endif
 
   std::error_code ec;
   fs::path selfPath = argv0 ? fs::path(argv0) : fs::path();
