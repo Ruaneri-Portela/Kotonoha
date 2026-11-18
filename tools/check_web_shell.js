@@ -55,7 +55,7 @@ assert(html.includes('toolbar.hidden = true'),
 assert(!html.includes('KotonohaAutoServerAssets'),
   'Browser startup must not automatically select remote assets');
 assert(html.includes('new URL("manifest.json", origin)'),
-  'HTTP startup must probe the optional manifest after the user's choice');
+  'HTTP startup must probe the optional manifest after explicit source selection');
 assert(html.includes('KotonohaConfigureRemoteAssetIndexedManifest') &&
        html.includes('KotonohaConfigureRemoteAssetUrl'),
   'HTTP bootstrap must support indexed listings and direct Fetch fallback');
