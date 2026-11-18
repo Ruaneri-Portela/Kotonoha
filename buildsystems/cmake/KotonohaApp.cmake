@@ -302,6 +302,14 @@ function(kotonoha_configure_app target)
                 @ONLY
             )
 
+            # Serve the persistent IndexedDB/HTTP bridge beside the generated
+            # shell. It must load before the Emscripten main JS file.
+            configure_file(
+                "${KOTONOHA_PROJECT_ROOT}/lib/web/KotonohaPreloadCache.js"
+                "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/KotonohaPreloadCache.js"
+                COPYONLY
+            )
+
             # Detect a mismatched/broken JS + WASM Asyncify pair at build
             # time, before browsers can abort with _asyncify_start_unwind.
             add_custom_command(TARGET ${target} POST_BUILD
