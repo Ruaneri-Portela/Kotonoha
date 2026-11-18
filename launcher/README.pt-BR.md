@@ -11,12 +11,27 @@ A pasta `launcher/` fornece o launcher unificado multi-motor e o registro modula
    - Identifica todas as famílias de motores do Kotonoha (LucaSystem, RealLive / rlBabel, KiriKiri2/Z, Ren'Py + patches VNX, N2System, PONScripter/ONScripter, Amagami PS2 SCF, School Days HQ GPK, Pure Mail ADV, Snow Radish ADV, Summer Radish / MEO CMP, Zero no Tsukaima PS2 Squirrel/KAG).
    - Associa automaticamente patches/overlays de tradução (como `DDLC_PT-BR_Patch` -> `DDLC`).
 
-2. **Motores Construídos como Bibliotecas Modulares (`EngineLibraryRegistry`)**:
-   - Mapeia cada `EngineKind` para sua biblioteca CMake modular (`luca_system_formats`, `reallive_port`, `kirikiri_formats`, `doki_doki_literature_club`, `n2system_formats`, `ponscripter_port`, `amagami_port`, `school_days`, `PmailPort`, `snow_radish_vacation`, `summer_radish_vacation`, `zero_no_tsukaima`).
-   - Inicia executáveis modulares no desktop. `EngineLibraryFactory` permite implementações futuras, mas nenhuma fábrica de runtime em processo é registrada por padrão.
+2. **Runtimes vinculados diretamente (`EngineLibraryRegistry`)**:
+   - O CMake linka a biblioteca de runtime de cada jogo *habilitado* diretamente em `kotonoha_unified_launcher`. O arquivo `GameFactories.cpp` registra construtores concretos de `Runtime` e dos provedores de assets.
+   - O `KotonohaLauncher` instancia `Runtime` + `Engine` **no mesmo processo**. Ao sair do jogo, libera os recursos, restaura o ambiente de saves e reabre o hub. Não invoca os `main.cpp` nem executáveis secundários.
+   - Um jogo pode ser detectado sem estar linkado: nesse caso, aparece no catálogo, mas não pode ser iniciado até habilitar a opção CMake do seu port.
 
 3. **Divisão da Pasta de Save e Config por Jogo (`splitSavesByGame`)**:
    - Isola `KOTONOHA_USER_DATA_DIR` e `settings.json` em `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/Kotonoha/<packageId>/save` para que múltiplos títulos do mesmo motor (ex.: `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` no RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` no CMP; `ZeroNoTsukaima0..2` no Zero) nunca entrem em conflito.
+
+## Compilar com as bibliotecas dos jogos
+
+```sh
+# Todas as bibliotecas dos runtimes desktop ligadas diretamente ao hub
+cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
+cmake --build build --target KotonohaLauncher
+
+# Hub menor: somente um port selecionado
+cmake -S . -B build-reallive -DKOTONOHA_BUILD_REALLIVE=ON
+cmake --build build-reallive --target KotonohaLauncher
+```
+
+A compilação completa exige as dependências de todos os ports, incluindo Python de desenvolvimento para DDLC quando necessário. A detecção de um motor não significa que ele esteja linkado. O hub independente é exclusivo do desktop.
 
 ## Uso via CLI
 
