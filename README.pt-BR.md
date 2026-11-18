@@ -4,7 +4,7 @@
 
 Kotonoha é um **motor modular de visual novels em C++17** baseado em SDL3. Inclui cenas, diálogo, saves, entrada, provedores de assets, reprodução de mídia (FFmpeg), legendas (libass) e ferramentas de depuração (Dear ImGui). Alguns ports usam runtimes adicionais, como CPython.
 
-> **Estado de desenvolvimento:** Cada port tem um nível diferente de compatibilidade. Executar uma cena ou passar em testes básicos **não** significa reproduzir integralmente o jogo original.
+> **Estado de desenvolvimento:** A branch de integração ativa é `dev`; a `main` pode estar defasada. Cada port tem um nível diferente de compatibilidade. Executar uma cena ou passar em testes básicos **não** significa reproduzir integralmente o jogo original.
 
 ## Início rápido
 
@@ -13,6 +13,7 @@ Requisitos: CMake, compilador C++17, Git/submódulos e as dependências em [`vcp
 ```sh
 git clone --recurse-submodules https://github.com/Ruaneri-Portela/Kotonoha.git
 cd Kotonoha
+git switch dev  # Últimas correções integradas
 cmake -S . -B build -DKOTONOHA_BUILD_EXAMPLE=ON
 cmake --build build --target Kotonoha
 ```
@@ -23,9 +24,16 @@ Para usar o vcpkg explicitamente, acrescente `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROO
 
 - **[Índice da documentação](docs/README.pt-BR.md)** — guias e plataformas.
 - **[Guias de compilação](docs/BUILD_GUIDES.pt-BR.md)** — desktop, Android, iOS, macOS e WebAssembly.
+- **[CI e vcpkg](docs/CI_VCPKG.md)** — Linux/WASM no mesmo runner, artefatos e política de cache.
 - **[Ports de jogos](games/README.pt-BR.md)** — módulos, limitações e instruções específicas.
 - **[Máquinas virtuais](modules/vms/README.pt-BR.md)** e **[provedores de assets](modules/providers/README.pt-BR.md)**.
 - **[Overlays](docs/ASSET_OVERLAYS.pt-BR.md)**, **[armazenamento](docs/DIRECTORY_POLICY.pt-BR.md)** e **[configurações](docs/ENGINE_SETTINGS.pt-BR.md)**.
+
+## Estado atual da integração
+
+O repositório contém **12 aplicativos de jogos no CMake/Android** (incluindo Example e N2System). O launcher compartilhado é o padrão para inicialização interativa; `--no-launcher`, `--frames` e MCP/modo sem interface seguem a política central. O N2System **ainda não tem schemes macOS/iOS versionados no Xcode**; consulte [validação de build](docs/BUILD_VALIDATION.pt-BR.md).
+
+Os artefatos Linux e WebAssembly são compilados sequencialmente em **um único job do GitHub Actions**. O cache de builds incrementais do motor/jogos foi desabilitado, mantendo somente o cache binário de dependências do vcpkg. Veja [instruções de CI](docs/CI_VCPKG.md). Testes sintéticos não comprovam paridade com os jogos comerciais.
 
 ## Estrutura
 
