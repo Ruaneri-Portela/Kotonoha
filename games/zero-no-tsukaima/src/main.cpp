@@ -106,8 +106,10 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
          DefaultDisc()},
         ZeroNoTsukaima::ZeroLauncher::validatePath,
         {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso"});
-    if (disc.empty())
-      options.launcher = true;
+    // Honor the shared default and explicit --no-launcher. Automated
+    // --frames and MCP runs bypass the launcher in CommandLine::parse().
+    if (disc.empty() && !options.launcher)
+      throw std::runtime_error("No valid Zero no Tsukaima source; pass --zero DISC.bin");
 
     if (options.launcher) {
       app->launcher =

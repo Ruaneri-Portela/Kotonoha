@@ -16,15 +16,16 @@ Use `contains`, `list`, `openStream`, and `localPath` where appropriate. Always 
 
 | Module | Target | Format |
 | --- | --- | --- |
-| `cmp` | `Kotonoha::ProviderCMP` | Summer CMP |
-| `adv` | `Kotonoha::ProviderADV` | Overflow DAT |
-| `gpk` | `Kotonoha::ProviderGPK` | School Days GPK |
-| `xp3` | `Kotonoha::ProviderXP3` | Kirikiri XP3 |
-| `pak` | `Kotonoha::ProviderPAK` | LucaSystem PAK |
-| `reallive` | `Kotonoha::ProviderRealLive` | Seen/RealLive |
-| `rpa` | `Kotonoha::ProviderRPA` | DDLC RPA |
-| `amagami` | `Kotonoha::ProviderAmagami` | Amagami |
-| `pmail` | `Kotonoha::ProviderPmail` | Pure Mail |
-| `zero` | `Kotonoha::ProviderZero` | Zero No Tsukaima |
+| `cmp` | `kotonoha_provider_cmp` | Summer CMP |
+| `adv` | `kotonoha_provider_adv` | Overflow DAT |
+| `gpk` | `kotonoha_provider_gpk` | School Days GPK |
+| `xp3` | `kotonoha_provider_xp3` | Kirikiri XP3 |
+| `pak` | `kotonoha_provider_pak` | LucaSystem PAK |
+| `reallive` | `kotonoha_provider_reallive` | Seen/RealLive |
+| `rpa` | `kotonoha_provider_rpa` | DDLC RPA |
+| `amagami` | `kotonoha_provider_amagami` | Amagami |
+| `pmail` | `kotonoha_provider_pmail` | Pure Mail |
+| `zero` | `kotonoha_provider_zero` | Zero No Tsukaima |
+| `n2` | `kotonoha_provider_n2` | NPA/AFS archives |
 
 Format-specific adapters may depend on their game library and cannot always be built in isolation. Generic filesystem and disc providers live in the shared engine. See [overlays](../../docs/ASSET_OVERLAYS.md).

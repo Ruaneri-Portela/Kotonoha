@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 namespace {
 Kotonoha::EngineOptions
 withAssets(Kotonoha::EngineOptions options,
@@ -81,20 +82,17 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     const auto settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
     const auto env = SDL_getenv("SUMMER_DIR");
-    const bool hadSummer = !directory.empty();
     directory = Kotonoha::GameLauncher::findGamePath(
         "summer-radish-vacation",
         {directory, env ? env : "",
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
          Kotonoha::gameAssetDirectory("summer-radish-vacation").string()},
         validate);
-    if (directory.empty()) {
-      if (!options.launcher)
-        throw std::runtime_error(
-            "No game directory specified; use --summer DIRECTORY|ISO");
-      options.launcher = true;
-    } else if (hadSummer || !options.launcher)
-      options.launcher = false;
+    // An explicit game source must not silently suppress the launcher.
+    // --frames/--mcp and --no-launcher are handled by CommandLine.
+    if (directory.empty() && !options.launcher)
+      throw std::runtime_error(
+          "No game directory specified; use --summer DIRECTORY|ISO");
 
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(

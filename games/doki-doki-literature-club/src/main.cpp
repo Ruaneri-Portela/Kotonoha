@@ -116,8 +116,10 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
          defaultDirectory()},
         Ddlc::GameLauncher::validatePath, {"", "game"});
-    if (directory.empty())
-      options.launcher = true;
+    // Honor the shared default and explicit --no-launcher. Automated
+    // --frames and MCP runs bypass the launcher in CommandLine::parse().
+    if (directory.empty() && !options.launcher)
+      throw std::runtime_error("No valid DDLC source; pass --ddlc DIRECTORY|ISO");
 
     if (options.launcher) {
       app->launcher =

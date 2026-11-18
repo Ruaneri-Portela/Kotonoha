@@ -156,7 +156,7 @@ jobs:
           python3 tools/ValidateBuildMetadata.py
           python3 tools/check_game_platform_isolation.py
 
-      - name: Build all 11 game APKs (arm64-v8a Debug)
+      - name: Build all game APKs from the Gradle matrix (arm64-v8a Debug)
         working-directory: buildsystems/android
         run: |
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
@@ -182,11 +182,23 @@ jobs:
           from zipfile import ZipFile, ZIP_DEFLATED
           apk_root = Path("buildsystems/android/app/build/outputs/apk")
           apks = sorted(apk_root.rglob("*.apk"))
-          flavors = (
-              "example", "amagami", "zeroNoTsukaima", "snowRadish",
-              "dokiDoki", "schoolDays", "reallive", "summerRadish",
-              "kirikiri", "lucaSystem", "pmail",
-          )
+          # Derive APK variants from the real Gradle flavor matrix.
+          # Cross-check their CMake slugs against ProjectManifest so newly
+          # added game apps cannot silently disappear from release checks.
+          import json
+          import re
+          gradle = Path("buildsystems/android/app/build.gradle").read_text(
+              encoding="utf-8")
+          matrix = gradle.split("def games = [", 1)[1].split("\n]", 1)[0]
+          flavor_entries = re.findall(
+              r"(?m)^  ([A-Za-z][A-Za-z0-9_]*)\s*:\s*\['([^']+)'",
+              matrix)
+          expected = set(json.loads(
+              Path("buildsystems/xcode/ProjectManifest.json").read_text(
+                  encoding="utf-8"))["games"].values())
+          assert {slug for _, slug in flavor_entries} == expected, (
+              "Android Gradle flavors differ from the CMake game matrix")
+          flavors = [flavor for flavor, _ in flavor_entries]
           for flavor in flavors:
               suffix = f"-{flavor.lower()}-debug.apk"
               assert sum(p.name.lower().endswith(suffix) for p in apks) == 1, (
@@ -220,11 +232,23 @@ jobs:
               settings = cache.read_text(encoding="utf-8")
               for option in ("KOTONOHA_SDL_FROM_VCPKG", "KOTONOHA_IMGUI_FROM_VCPKG"):
                   assert re.search(rf"^{option}:[^=]+=(OFF|FALSE|0)$", settings, re.M), (cache, option)
-          flavors = (
-              "example", "amagami", "zeroNoTsukaima", "snowRadish",
-              "dokiDoki", "schoolDays", "reallive", "summerRadish",
-              "kirikiri", "lucaSystem", "pmail",
-          )
+          # Derive APK variants from the real Gradle flavor matrix.
+          # Cross-check their CMake slugs against ProjectManifest so newly
+          # added game apps cannot silently disappear from release checks.
+          import json
+          import re
+          gradle = Path("buildsystems/android/app/build.gradle").read_text(
+              encoding="utf-8")
+          matrix = gradle.split("def games = [", 1)[1].split("\n]", 1)[0]
+          flavor_entries = re.findall(
+              r"(?m)^  ([A-Za-z][A-Za-z0-9_]*)\s*:\s*\['([^']+)'",
+              matrix)
+          expected = set(json.loads(
+              Path("buildsystems/xcode/ProjectManifest.json").read_text(
+                  encoding="utf-8"))["games"].values())
+          assert {slug for _, slug in flavor_entries} == expected, (
+              "Android Gradle flavors differ from the CMake game matrix")
+          flavors = [flavor for flavor, _ in flavor_entries]
           apk_dir = Path("buildsystems/android/app/build/outputs/apk")
           apk_files = list(apk_dir.rglob("*.apk"))
           for flavor in flavors:
