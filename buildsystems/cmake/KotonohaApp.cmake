@@ -227,6 +227,7 @@ function(kotonoha_configure_app target)
 
         set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/BundleApp.cmake"
+            "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PruneNestedPythonApp.cmake"
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundleContents.cmake"
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageAssets.cmake"
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundledAssets.cmake"
