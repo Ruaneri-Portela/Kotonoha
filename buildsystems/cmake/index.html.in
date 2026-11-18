@@ -328,7 +328,7 @@
                     fileExists: "Arquivo já existe: {path}",
                     folderMounting: "Montando /{root}: {done}/{total}",
                     folderMounted: "{count} arquivo(s) montado(s) em /{root}",
-                    folderPrompt: window.KotonohaText("folderPrompt"),
+                    folderPrompt: "Nome da pasta virtual (ex.: game-assets, forced_subtitles, ovrlay):",
                     fatal: "Erro fatal: {reason}"
                 }
             };
@@ -1380,8 +1380,7 @@
                 const suggested = input.files[0].webkitRelativePath.split("/")[0] ||
                     "game-assets";
                 const chosen = window.prompt(
-                    "Nome da pasta virtual (ex.: game-assets, forced_subtitles, ovrlay):",
-                    suggested);
+                    window.KotonohaText("folderPrompt"), suggested);
                 if (chosen === null) { input.value = ""; return; }
                 button.disabled = true;
                 try {
