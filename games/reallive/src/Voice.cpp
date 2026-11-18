@@ -31,7 +31,7 @@ VoiceIndex::VoiceIndex(const std::filesystem::path &root) {
     dir = root / "koe";
   if (!std::filesystem::is_directory(dir))
     return;
-  const std::regex pattern("z([0-9]{9})\\.ogg");
+  const std::regex pattern("z?0*([0-9]{6,9})\\.(ogg|wav|nwa|koe)", std::regex::icase);
   for (const auto &entry : std::filesystem::recursive_directory_iterator(dir)) {
     if (!entry.is_regular_file())
       continue;
@@ -44,7 +44,7 @@ VoiceIndex::VoiceIndex(const std::filesystem::path &root) {
   }
 }
 VoiceIndex::VoiceIndex(const std::vector<std::string> &assets) {
-  const std::regex pattern("z([0-9]{9})\\.ogg");
+  const std::regex pattern("z?0*([0-9]{6,9})\\.(ogg|wav|nwa|koe)", std::regex::icase);
   for (const auto &id : assets) {
     std::smatch match;
     const auto name = lower(std::filesystem::path(id).filename().string());
@@ -56,7 +56,7 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets) {
 VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
                        LocalPath localPath)
     : reader_(std::move(reader)) {
-  const std::regex pattern("z([0-9]{9})\\.ogg");
+  const std::regex pattern("z?0*([0-9]{6,9})\\.(ogg|wav|nwa|koe)", std::regex::icase);
   for (const auto &id : assets) {
     std::smatch match;
     const auto name = lower(std::filesystem::path(id).filename().string());
@@ -64,7 +64,7 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
       files_.emplace(std::stoi(match[1].str()),
                      Entry{id, std::filesystem::u8path(localPath(id)), 0, 0});
   }
-  const std::regex nwkPattern("z([0-9]{4})\\.nwk");
+  const std::regex nwkPattern("z?0*([0-9]{1,4})\\.(nwk|nwa)", std::regex::icase);
   for (const auto &asset : assets) {
     std::smatch match;
     const auto name = lower(std::filesystem::path(asset).filename().string());
@@ -72,6 +72,23 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
       continue;
     const int archive = std::stoi(match[1].str());
     const auto local = std::filesystem::u8path(localPath(asset));
+
+    // Determine the corresponding audio payload asset (e.g. .NWA instead of .NWK)
+    std::string payloadAsset = asset;
+    std::filesystem::path payloadLocal = local;
+    auto extPos = asset.rfind('.');
+    if (extPos != std::string::npos) {
+      std::string nwaCandidate = asset.substr(0, extPos) + ".nwa";
+      std::string nwaUpperCandidate = asset.substr(0, extPos) + ".NWA";
+      auto foundIt = std::find_if(assets.begin(), assets.end(), [&](const std::string &a) {
+        return lower(a) == lower(nwaCandidate) || lower(a) == lower(nwaUpperCandidate);
+      });
+      if (foundIt != assets.end()) {
+        payloadAsset = *foundIt;
+        payloadLocal = std::filesystem::u8path(localPath(payloadAsset));
+      }
+    }
+
     std::vector<std::uint8_t> table;
     if (!local.empty()) {
       Kotonoha::Filesystem::InputFile input(local, std::ios::binary);
@@ -103,7 +120,7 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
       const auto offset = read32(table, p + 4);
       const auto number = read32(table, p + 8);
       files_[archive * 100000 + int(number)] =
-          Entry{asset, local, offset, size};
+          Entry{payloadAsset, payloadLocal, offset, size};
     }
   }
 }

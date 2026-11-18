@@ -105,8 +105,33 @@ struct Text : VNTextBox {
   std::map<SDL_Surface *, TexturePtr> imageTextures;
   std::vector<Uint8> fontData;
   FontPtr font;
-  Text(Engine &e, Kotonoha::Providers::RealLiveAssets &a)
-      : VNTextBox(e, "", "", 40), assets(a) {
+  int canvasW = 640, canvasH = 480;
+
+  int boxWidth() const { return back && back->w > 0 ? back->w : canvasW; }
+  int boxHeight() const { return back && back->h > 0 ? back->h : 135; }
+  int boxX() const { return (canvasW - boxWidth()) / 2; }
+  int boxY() const { return canvasH - boxHeight(); }
+  float scaleX() const { return float(boxWidth()) / 640.0f; }
+  float scaleY() const { return float(boxHeight()) / 135.0f; }
+
+  void updateLayout(int w, int h) {
+    canvasW = w;
+    canvasH = h;
+    const float bx = float(boxX()), by = float(boxY());
+    const float bw = float(boxWidth()), bh = float(boxHeight());
+    const float sx = scaleX(), sy = scaleY();
+
+    if (controls.buttons.size() >= 5) {
+      controls.buttons[0].area = {bx + bw - 56.0f * sx, by + 4.0f * sy, 31.0f * sx, 7.0f * sy};
+      controls.buttons[1].area = {bx + bw - 24.0f * sx, by + 4.0f * sy, 12.0f * sx, 38.0f * sy};
+      controls.buttons[2].area = {bx + bw - 24.0f * sx, by + 43.0f * sy, 12.0f * sx, 38.0f * sy};
+      controls.buttons[3].area = {bx + bw - 24.0f * sx, by + 82.0f * sy, 12.0f * sx, 16.0f * sy};
+      controls.buttons[4].area = {bx + bw - 24.0f * sx, by + 99.0f * sy, 12.0f * sx, 16.0f * sy};
+    }
+  }
+
+  Text(Engine &e, Kotonoha::Providers::RealLiveAssets &a, int w = 640, int h = 480)
+      : VNTextBox(e, "", "", 40), assets(a), canvasW(w), canvasH(h) {
     hide();
     auto smw00c = assets.graphic("smw00c", false);
     if (!smw00c.empty()) {
@@ -125,24 +150,6 @@ struct Text : VNTextBox {
     if (!smw00b.empty())
       back = assets.loadSurface(smw00b);
 
-    // Validar superfície antes de acessar pixels
-    if (back && back->w > 0 && back->h > 0 && back->pixels) {
-      for (int y = 0; y < back->h; ++y)
-        for (int x = 0; x < back->w; ++x) {
-          auto *p =
-              static_cast<Uint8 *>(back->pixels) + y * back->pitch + x * 4;
-          p[0] = 100;
-          p[1] = 100;
-          p[2] = 160;
-          p[3] = Uint8(int(p[3]) * 200 / 255);
-        }
-    } else if (!smw00b.empty()) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "REALLIVE: Background surface invalid (smw00b): %s",
-                  !back ? "null"
-                        : (back->w <= 0 || back->h <= 0 ? "invalid dimensions"
-                                                        : "no pixels"));
-    }
     const char *path = "/System/Library/Fonts/Supplemental/Verdana.ttf";
     if (std::filesystem::exists(path)) {
       font.reset(TTF_OpenFont(path, 25));
@@ -160,6 +167,8 @@ struct Text : VNTextBox {
   }
   GlossCursor textCursor(const std::string &value) const {
     GlossCursor p;
+    const float sx = scaleX(), sy = scaleY();
+    const float wrapWidth = (float(boxWidth()) - 112.0f) * sx;
     auto width = [&](const std::string &v) {
       int w = 0, h = 0;
       if (font)
@@ -169,13 +178,13 @@ struct Text : VNTextBox {
       return static_cast<float>(w);
     };
     const auto lines =
-        Kotonoha::VNTextBoxUtility::WrapText(value, width, 528.0f);
+        Kotonoha::VNTextBoxUtility::WrapText(value, width, wrapWidth);
     if (!lines.empty()) {
-      p.y = static_cast<float>((lines.size() - 1) * 28);
-      p.x = 53.0f + width(lines.back());
+      p.y = float(boxY()) + static_cast<float>((lines.size() - 1) * 28.0f * sy);
+      p.x = float(boxX()) + 53.0f * sx + width(lines.back());
     } else {
-      p.x = 53.0f;
-      p.y = 0.0f;
+      p.x = float(boxX()) + 53.0f * sx;
+      p.y = float(boxY());
     }
     return p;
   }
@@ -252,16 +261,20 @@ struct Text : VNTextBox {
   bool handleEvent(EventRef event) override {
     if (!isVisible() || concealed)
       return false;
-    // The sprite toolbar is pointer-only. D-pad and arrow keys belong to the
-    // dialogue/game menus; otherwise a stray D-pad press leaves hidden keyboard
-    // focus on a toolbar button and East activates it instead of advancing.
+    updateLayout(canvasW, canvasH);
     if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP)
       return false;
     return controls.handle(event);
   }
   void renderFrame(RendererRef r) override {
-    image(r, *back, 0, 345);
-    image(r, *frame, 0, 345);
+    updateLayout(canvasW, canvasH);
+    const float bx = float(boxX()), by = float(boxY());
+    if (back)
+      image(r, *back, bx, by);
+    if (frame)
+      image(r, *frame, bx, by);
+    if (!buttonSurface)
+      return;
     auto &texture = imageTextures[buttonSurface.get()];
     if (!texture)
       texture.reset(SDL_CreateTextureFromSurface(&r, buttonSurface.get()));
@@ -272,18 +285,23 @@ struct Text : VNTextBox {
       const int index =
           groups[i] +
           (active && controls.state(int(i)) == 0 ? 3 : controls.state(int(i)));
-      const auto &region = buttonImage.regions.at(index);
-      SDL_FRect source{float(region.atlasX), float(region.atlasY),
-                       float(region.x2 - region.x1 + 1),
-                       float(region.y2 - region.y1 + 1)};
-      RenderUpscaledTexture(&r, texture.get(), &source,
-                            &controls.buttons[i].area);
+      if (index < int(buttonImage.regions.size())) {
+        const auto &region = buttonImage.regions.at(index);
+        SDL_FRect source{float(region.atlasX), float(region.atlasY),
+                         float(region.x2 - region.x1 + 1),
+                         float(region.y2 - region.y1 + 1)};
+        RenderUpscaledTexture(&r, texture.get(), &source,
+                              &controls.buttons[i].area);
+      }
     }
   }
   void renderSpeaker(RendererRef r) override {
-    print(r, speakerName, 33, 315, 500, true);
+    const float sx = scaleX(), sy = scaleY();
+    print(r, speakerName, float(boxX()) + 33.0f * sx, float(boxY()) - 30.0f * sy, int(500 * sx), true);
   }
   void renderDialogue(RendererRef r) override {
+    const float sx = scaleX(), sy = scaleY();
+    const float wrapWidth = (float(boxWidth()) - 112.0f) * sx;
     auto measure = [this](const std::string &text) {
       int w = 0, h = 0;
       if (!engine.GetSettings().vnFontPath.empty())
@@ -293,19 +311,22 @@ struct Text : VNTextBox {
       return float(w);
     };
     const auto lines = VNTextBoxUtility::RevealLines(
-        fullDialogue, visibleDialogue.size(), measure, 528);
+        fullDialogue, visibleDialogue.size(), measure, wrapWidth);
     for (std::size_t n = 0; n < lines.size(); ++n)
-      print(r, lines[n], 53, 364 + n * 28);
+      print(r, lines[n], float(boxX()) + 53.0f * sx, float(boxY()) + 19.0f * sy + n * 28.0f * sy, int(wrapWidth));
   }
   void renderIndicator(RendererRef r) override {
+    if (!cursor)
+      return;
     auto &t = imageTextures[cursor.get()];
     if (!t) {
       t.reset(SDL_CreateTextureFromSurface(&r, cursor.get()));
       if (auto *pipeline = Upscaling::forRenderer(r))
         pipeline->process(*t, 0);
     }
+    const float sx = scaleX(), sy = scaleY();
     SDL_FRect src{float((SDL_GetTicks() % 850) * 4 / 850 * 16), 0, 16, 16},
-        dst{591, 436, 16, 16};
+        dst{float(boxX() + boxWidth()) - 49.0f * sx, float(boxY() + boxHeight()) - 44.0f * sy, 16.0f * sx, 16.0f * sy};
     RenderUpscaledTexture(&r, t.get(), &src, &dst);
   }
 };
@@ -1814,7 +1835,7 @@ struct RealLiveRuntime::Impl {
     selectMouseCursor(mouseCursorNumber);
     if (!stage) {
       stage = std::make_unique<Stage>(e);
-      textbox = std::make_unique<Text>(e, *assets);
+      textbox = std::make_unique<Text>(e, *assets, canvasW, canvasH);
       textbox->autoActive = [this] { return autoMode; };
       textbox->skipActive = [this] { return skipMode || skipHeld; };
       textbox->controls.buttons = {
@@ -1833,6 +1854,7 @@ struct RealLiveRuntime::Impl {
              if (skipMode)
                autoMode = false;
            }}};
+      textbox->updateLayout(canvasW, canvasH);
       choice = std::make_unique<RealLiveSelection>(e, *assets);
       stage->draw = [this](auto &r) { draw(r); };
       stage->input = [this](auto &e) { return event(e); };
@@ -1886,7 +1908,19 @@ struct RealLiveRuntime::Impl {
     if (!saves)
       saves = std::make_unique<VNSaveMenu>(*engine);
     std::string dir = Kotonoha::saveDirectory().string();
-    saves->open(dir, load, load ? "" : saveName);
+    auto sanitize = [](std::string name) {
+      for (char &ch : name) {
+        if (ch == '/' || ch == '\\' || ch == ':' || ch == '*' ||
+            ch == '?' || ch == '"' || ch == '<' || ch == '>' || ch == '|') {
+          ch = '_';
+        }
+      }
+      while (!name.empty() && (name.back() == '.' || name.back() == ' ')) {
+        name.pop_back();
+      }
+      return name.empty() ? "Save" : name;
+    };
+    saves->open(dir, load, load ? "" : sanitize(saveName));
     runtime.RemoveScene(saves.get());
     runtime.AddScene(saves.get());
   }
@@ -2298,6 +2332,62 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 207:
       selectMouseCursor(value(c, 0));
       return true;
+    case 210:
+      machine.set_store_register(1);
+      return true;
+    case 211:
+      if (c.GetParamCount() > 0 && value(c, 0) == 0)
+        SDL_HideCursor();
+      else
+        SDL_ShowCursor();
+      return true;
+    case 212:
+    case 214:
+    case 215:
+    case 216:
+    case 217:
+    case 218:
+    case 219:
+      machine.set_store_register(mouseCursorNumber >= 0 ? mouseCursorNumber : 0);
+      return true;
+    case 213:
+      if (c.GetParamCount() >= 2) {
+        mouseX = value(c, 0);
+        mouseY = value(c, 1);
+      }
+      return true;
+    case 220:
+    case 221:
+    case 222:
+    case 223:
+    case 224:
+    case 225:
+    case 226:
+    case 227:
+    case 228:
+    case 229:
+    case 230:
+    case 231:
+    case 232:
+    case 233:
+    case 234:
+    case 235:
+    case 236:
+    case 237:
+    case 238:
+    case 239:
+    case 240:
+    case 241:
+    case 242:
+    case 243:
+    case 244:
+    case 245:
+    case 246:
+    case 247:
+    case 248:
+    case 249:
+      machine.set_store_register(0);
+      return true;
     case 330:
       machine.set_store_register(skipMode ? 1 : 0);
       return true;
@@ -2333,6 +2423,36 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     case 365:
       autoMode = value(c, 0) != 0;
+      return true;
+    case 366:
+    case 368:
+    case 369:
+      machine.set_store_register(assets->settings().integer("AUTO_CHAR_TIME", 30));
+      return true;
+    case 367:
+      return true;
+    case 370:
+    case 371:
+    case 372:
+    case 373:
+    case 374:
+    case 375:
+    case 376:
+    case 377:
+    case 378:
+    case 379:
+    case 380:
+    case 381:
+    case 382:
+    case 383:
+    case 384:
+    case 385:
+    case 386:
+    case 387:
+    case 388:
+    case 389:
+      if (op % 2 == 0)
+        machine.set_store_register(0);
       return true;
     case 410:
       for (int i = 0; i < c.GetParamCount(); ++i)
@@ -2405,14 +2525,32 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         syscomEntries[entry] = op == 1211 ? 1 : 0;
       }
       return true;
-    case 3501:
-    case 3502:
-      return true;
-    // The port's script-driven title UI replaces these original-only hooks.
     case 300:
     case 1231:
+    case 3500:
+    case 3501:
+    case 3502:
     case 3503:
+    case 3504:
+    case 3505:
+    case 3506:
+    case 3507:
+    case 3508:
+    case 3509:
+    case 3510:
       return true;
+    case 1000:
+    case 1001:
+    case 1002:
+      machine.set_store_register(std::abs(value(c, 0, 0)));
+      return true;
+    case 1003:
+    case 1004:
+    case 1005: {
+      int maxVal = value(c, 0, 100);
+      machine.set_store_register(maxVal > 0 ? (std::rand() % maxVal) : 0);
+      return true;
+    }
     case 1502:
       machine.set_store_register(0);
       return true;

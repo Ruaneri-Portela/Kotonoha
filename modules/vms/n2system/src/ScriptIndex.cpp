@@ -170,16 +170,19 @@ ScriptIndex ScriptIndex::Parse(std::string_view source) {
       if (t.kind != Kind::Identifier || t.text != "chapter")
         continue;
       const Token name = scanner.next();
-      if (name.kind != Kind::Identifier)
+      if (name.text == "{" || name.text.empty() || name.kind == Kind::End)
         throw std::runtime_error("N2System: expected chapter name at line " +
                                  std::to_string(t.line));
       const Token brace = scanner.next();
       if (brace.text != "{")
         throw std::runtime_error("N2System: expected '{' after " + name.text);
-      if (result.findChapter(name.text))
-        throw std::runtime_error("N2System: duplicate chapter " + name.text);
+      std::string chapterName = name.text;
+      int dupCount = 1;
+      while (result.findChapter(chapterName)) {
+        chapterName = name.text + "_" + std::to_string(++dupCount);
+      }
       Chapter chapter;
-      chapter.name = name.text;
+      chapter.name = chapterName;
       chapter.start = brace.end;
       result.chapters_.push_back(std::move(chapter));
       active = true;
