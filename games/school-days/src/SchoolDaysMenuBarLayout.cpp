@@ -267,6 +267,14 @@ SchoolDaysMenuBarPresenter::VisibilityForState(uint8_t barAlpha,
     return {chrome || meterOnly, chrome};
 }
 
+SchoolDaysMenuBarPresenter::RenderVisibility
+SchoolDaysMenuBarPresenter::VisibilityForFrozenChoiceTail(
+    uint8_t barAlpha, bool fullBarSuppressed) {
+    auto visible = VisibilityForState(barAlpha, fullBarSuppressed, false);
+    visible.meter = true;  // Keep feeling meter without pointer hover.
+    return visible;       // Chrome may still appear, but controls remain inert.
+}
+
 SchoolDaysMenuBarPresenter::PersistentTransport
 SchoolDaysMenuBarPresenter::PersistentTransportForState(
     bool autoMode, int speedIndex, bool speedControlsEnabled,

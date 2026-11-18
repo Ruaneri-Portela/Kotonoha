@@ -82,6 +82,7 @@ bool SchoolDaysMenuBarPresenter::Open(SDL_Renderer* renderer,
     actionInhibit_ = false;
     fullBarSuppressed_ = false;
     meterOnly_ = false;
+    choiceTailFrozen_ = false;
     speedIndex_ = 0;
     replayIndicatorAvailable_ = false;
     replayIndicatorControl_ = 24;
@@ -109,6 +110,7 @@ void SchoolDaysMenuBarPresenter::Close() {
     autoLightRecord_ = 43;
     opened_ = false;
     meterOnly_ = false;
+    choiceTailFrozen_ = false;
     replayIndicatorAvailable_ = false;
     replayIndicatorControl_ = 24;
     replayIndicatorAlpha_ = 255;
@@ -156,7 +158,7 @@ bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer* renderer,
     const float y = (wy - viewport.y) / viewport.scale;
     const int hit = HitTest(x, y, variant_);
     const bool availableNow =
-        !fullBarSuppressed_ &&
+        !fullBarSuppressed_ && !choiceTailFrozen_ &&
         ControlAvailable(hit, transportLocked_, actionInhibit_,
                          speedControlsEnabled_, superSkipEnabled_,
                          replayIndicatorAvailable_);
@@ -338,11 +340,14 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
     // Native persistent AUTO ON, selected x2..x32 and the Replay Data status
     // label survive the ordinary hover-bar fade. A replay-opacity selector
     // controls that label independently; only chrome obeys barAlpha_.
-    const RenderVisibility visibility =
-        VisibilityForState(barAlpha_, fullBarSuppressed_, meterOnly_);
-    const PersistentTransport persistent = PersistentTransportForState(
-        autoMode_, speedIndex_, speedControlsEnabled_, transportLocked_,
-        fullBarSuppressed_, meterOnly_);
+    const RenderVisibility visibility = choiceTailFrozen_
+        ? VisibilityForFrozenChoiceTail(barAlpha_, fullBarSuppressed_)
+        : VisibilityForState(barAlpha_, fullBarSuppressed_, meterOnly_);
+    const PersistentTransport persistent = choiceTailFrozen_
+        ? PersistentTransport{}
+        : PersistentTransportForState(
+              autoMode_, speedIndex_, speedControlsEnabled_, transportLocked_,
+              fullBarSuppressed_, meterOnly_);
     const uint8_t replayAlpha = ReplayIndicatorAlphaForState(
         replayIndicatorAvailable_, replayIndicatorAlpha_, fullBarSuppressed_,
         meterOnly_);

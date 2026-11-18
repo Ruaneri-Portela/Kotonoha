@@ -114,6 +114,7 @@ class Runtime final : public Kotonoha::Runtime {
     bool actionInhibit = false;
     bool fullBarSuppressed = false;
     bool replayIndicator = false;
+    bool choiceTailFrozen = false;
   };
   std::shared_ptr<Assets> assets;
   Kotonoha::Engine *engine = nullptr;
@@ -243,6 +244,12 @@ class Runtime final : public Kotonoha::Runtime {
     bool exitActive = false;
     bool finalFrameRendered = false;
   } choicePresentation;
+  // A confirmed prompt restores the hover bar visually but keeps every menu
+  // action inert until a new physical scene and its feeling-meter cue finish.
+  bool choiceMenuFrozen = false;
+  bool choiceMenuNextSceneBound = false;
+  uint32_t choiceMenuCueStartedMs = 0;
+  uint32_t choiceMenuCueDurationMs = 0;
   Kotonoha::SchoolDaysPromptInteraction choiceInteraction;
   std::string routePath, background, status;
   Kotonoha_SceneTick backgroundStartTick = 0;
@@ -351,6 +358,8 @@ class Runtime final : public Kotonoha::Runtime {
   bool choiceTailActive() const;
   bool choiceNeedsFinalFrame() const;
   bool choicePresentationComplete() const;
+  void noteChoiceMenuCue(int code, uint32_t nowMs);
+  void updateChoiceMenuUnlock(uint32_t nowMs, bool feelingAnimationActive);
   void advance();
   void configureLxhFade();
   void renderLxhFade(Kotonoha::RendererRef renderer, uint64_t nowMs);

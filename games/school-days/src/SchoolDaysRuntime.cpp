@@ -1447,7 +1447,8 @@ void Runtime::renderLoadTransition(Kotonoha::RendererRef renderer, uint64_t nowM
 void Runtime::beginTransportFade(Kotonoha::SchoolDaysTransportFade::Operation operation) {
   if (currentState != Kotonoha::GameState::Gameplay || panelOpen() ||
       pendingSeek || pendingBackCapture || exitTransition.Active() ||
-      systemPanelTransition.Active() || transportFade.Active()) return;
+      systemPanelTransition.Active() || transportFade.Active() ||
+      choiceMenuFrozen) return;
   // Every route to SkipToEnd uses the same choice-aware target decision.
   // Capture it when the player clicks: a 500 ms fade must not recompute a
   // farther destination after SetSELECT becomes active in the meantime.
@@ -1467,7 +1468,7 @@ void Runtime::updateTransportFade(uint64_t nowMs) {
   using Fade = Kotonoha::SchoolDaysTransportFade;
   if (transportFade.Update(nowMs) != Fade::Event::Navigate) return;
   try {
-    if (choice != nullptr && unresolvedChoice()) {
+    if (choiceMenuFrozen || (choice != nullptr && unresolvedChoice())) {
       transportSkipTarget.reset();
       transportFade.Reset();
       return;
@@ -1667,6 +1668,9 @@ bool Runtime::pointerToBackLog(float x, float y, int *virtualX, int *virtualY) c
 
 void Runtime::openTitle(bool startBgm) {
   transportFade.Reset();
+  choiceMenuFrozen = false;
+  choiceMenuNextSceneBound = false;
+  choiceMenuCueDurationMs = 0;
   lxhFade.Reset();
   choiceSpeedOverrideActive = false;
   setPlaybackSpeedIndex(0);
@@ -1970,6 +1974,11 @@ void Runtime::openScene(const Kotonoha::SchoolDaysKtrfScene &next, bool restoreC
 
 void Runtime::bindScene(const Kotonoha::SchoolDaysKtrfScene &next,
                         Kotonoha::Gameplay *gameplay, bool restoreChoice) {
+  // Rebinding the same script (for example when restoring its first frame)
+  // is not the *next* physical scene after this confirmed choice.
+  if (choiceMenuFrozen && !scene.sceneKey.empty() &&
+      next.sceneKey != scene.sceneKey)
+    choiceMenuNextSceneBound = true;
   // EXE 0x4251D0 restores the pre-SETSELECT effective speed after a choice
   // handoff. Keep the selected speed index unchanged for the persistent chip.
   if (choiceSpeedOverrideActive) {
@@ -3034,6 +3043,11 @@ void Runtime::armChoiceExit(int selected) {
   choicePresentation.exitStartTick = tick;
   choicePresentation.exitActive = true;
   choicePresentation.finalFrameRendered = false;
+  if (!temporaryPlaybackActive()) {
+    choiceMenuFrozen = true;
+    choiceMenuNextSceneBound = false;
+    choiceMenuCueDurationMs = 0;
+  }
   playSound(selected >= 0 ? Ui::UiSfxCue::Select : Ui::UiSfxCue::Cancel);
 }
 
@@ -3065,6 +3079,26 @@ bool Runtime::choiceNeedsFinalFrame() const {
 
 bool Runtime::choicePresentationComplete() const {
   return !choicePresentation.exitActive || choicePresentation.finalFrameRendered;
+}
+
+void Runtime::noteChoiceMenuCue(int code, uint32_t nowMs) {
+  if (!choiceMenuFrozen || (code != 3 && code != 4)) return;
+  // These durations come from the existing NewSys SeUp/SeDown OGG audit,
+  // not from the choice's 48-tick text tail or the 3.5s meter animation.
+  choiceMenuCueStartedMs = nowMs;
+  choiceMenuCueDurationMs = code == 3 ? 3925u : 4023u;
+}
+
+void Runtime::updateChoiceMenuUnlock(uint32_t nowMs,
+                                     bool feelingAnimationActive) {
+  if (!choiceMenuFrozen || !choiceMenuNextSceneBound ||
+      feelingAnimationActive) return;
+  if (choiceMenuCueDurationMs != 0 &&
+      static_cast<uint32_t>(nowMs - choiceMenuCueStartedMs) <
+          choiceMenuCueDurationMs) return;
+  choiceMenuFrozen = false;
+  choiceMenuNextSceneBound = false;
+  choiceMenuCueDurationMs = 0;
 }
 
 void Runtime::choose(int value) {
@@ -3367,10 +3401,12 @@ Kotonoha::SchoolDaysOptionalTick Runtime::protectedSkipToEndTarget() const {
 }
 
 void Runtime::requestSkipToEnd() {
+  if (choiceMenuFrozen) return;
   if (auto target = protectedSkipToEndTarget()) seek(*target);
 }
 
 void Runtime::skipToNextChoice() {
+  if (choiceMenuFrozen) return;
   // Mode5 may travel across multiple scripts, but it cannot consume an
   // already visible prompt. The normal pre-choice path remains unchanged.
   if (choice != nullptr && unresolvedChoice()) return;
@@ -5611,7 +5647,7 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
       saveGame((documents / "QuickSave").string());
     if (!temporaryPlaybackActive() && event.key.key == SDLK_F6)
       loadGame((documents / "QuickSave").string());
-    if (event.key.key == SDLK_LEFT &&
+    if (event.key.key == SDLK_LEFT && !choiceMenuFrozen &&
         !(choice != nullptr && unresolvedChoice())) back();
     if (event.key.key == SDLK_RIGHT) requestSkipToEnd();
   } catch (const std::exception &error) {
@@ -5622,6 +5658,7 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
 }
 
 void Runtime::activateControl(int control) {
+  if (choiceMenuFrozen) return;
   const bool replay = replayPlayback && replayPlayback->IsOpen();
   const bool playData = playDataPlayback && playDataPlayback->IsOpen();
   if (replay || playData) {
@@ -5666,12 +5703,13 @@ Runtime::MenuBarProjection Runtime::menuBarProjection() const {
   MenuBarProjection projection;
   projection.actionInhibit = replay;
   // While SETSELECT owns input, no transport/system chrome may be projected.
-  // The subsequent confirmed-choice tail retains its existing meter-only
-  // presentation, so the full bar reappears only with the next physical scene.
+  // After confirmation the chrome can appear on hover, but all controls stay
+  // frozen until the next scene and any directional meter cue have finished.
   projection.fullBarSuppressed =
       (choice != nullptr && unresolvedChoice()) ||
       (!temporary && bridge.HasPendingHandoff());
   projection.replayIndicator = playData;
+  projection.choiceTailFrozen = !temporary && choiceMenuFrozen;
   return projection;
 }
 
@@ -5687,10 +5725,11 @@ void Runtime::updateMenuBar(Kotonoha::SchoolDaysMenuBarPresenter &presenter,
                             config.superSkip, projection.speedControlsEnabled,
                             projection.transportLocked, projection.actionInhibit,
                             projection.fullBarSuppressed);
-  // Native choice-result tail removes transport/system controls while the
-  // KOTONOHA/SEKAI feelings meter remains visible at full opacity. Normal
-  // MenuBar ownership resumes when the next scene is bound.
-  presenter.SetMeterOnly(!temporary && choicePresentation.exitActive);
+  // A confirmed choice restores hover chrome visually, but the actions stay
+  // frozen. The meter remains visible at full opacity outside the hover bar.
+  // Release needs BOTH the next physical scene and the ending meter effect.
+  presenter.SetMeterOnly(false);
+  presenter.SetChoiceTailFrozen(projection.choiceTailFrozen);
   presenter.SetReplayIndicatorState(projection.replayIndicator);
 
   int64_t feeling001 = 0;
@@ -5716,10 +5755,13 @@ void Runtime::updateMenuBar(Kotonoha::SchoolDaysMenuBarPresenter &presenter,
   // remains the immediate choice click; the ~4s directional musical effect
   // belongs to the later animated meter, not to every choice unconditionally.
   const int feelingSfx = presenter.ConsumeFeelingDirectionCode();
+  noteChoiceMenuCue(feelingSfx, nowMs);
   if (feelingSfx == 3)
     playSound(Ui::UiSfxCue::Up);
   else if (feelingSfx == 4)
     playSound(Ui::UiSfxCue::Down);
+  updateChoiceMenuUnlock(nowMs, presenter.FeelingLatch());
+  presenter.SetChoiceTailFrozen(choiceMenuFrozen && !temporary);
 }
 
 void Runtime::applyEffectivePlaybackRate(double rate) {
@@ -5748,7 +5790,7 @@ void Runtime::activateMenuAction(
   // Guard actions synthesized by mouse, touch or future gamepad adapters even
   // when a presenter still carries a hover selection from the prior frame.
   // ESC/keyboard Config does not route through this physical menu.
-  if (choice != nullptr && unresolvedChoice()) return;
+  if (choiceMenuFrozen || (choice != nullptr && unresolvedChoice())) return;
   const bool temporary = temporaryPlaybackActive();
   const bool playData = playDataPlayback && playDataPlayback->IsOpen();
 
@@ -6706,6 +6748,11 @@ void Runtime::loadGame(const std::string &path) {
   Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult result;
   retireSceneEventPointers();
   Check(bridge.LoadSave(saveBytes, &result, &error), error);
+  // A successful explicit load replaces the original choice transaction;
+  // a failed load must not accidentally unfreeze the still-active prompt.
+  choiceMenuFrozen = false;
+  choiceMenuNextSceneBound = false;
+  choiceMenuCueDurationMs = 0;
   closePanels();
   backlogStore.ResetTransient();
   if (backlogFallback) backlogFallback->clear();

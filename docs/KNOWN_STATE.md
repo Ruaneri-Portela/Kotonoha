@@ -127,13 +127,25 @@ prompt is actively waiting, direct menu control 3, mouse/touch and synthetic
 gamepad skip input; replay-owned transports retain their recorded-choice
 semantics. The upper MenuBar is entirely suppressed while an uncommitted
 choice owns input. Legitimate player clicks, timed-out prompts, AUTO mode,
-pause, selected playback speed and the confirmed-choice feeling-meter tail
-remain separate from this transport barrier. Normal menu ownership resumes
-with the next physical scene.
+pause and selected playback speed remain separate from this transport barrier.
+
+**Post-choice menu correction (user's direct observation, November 17):**
+after the player confirms a choice, the upper bar becomes visually available
+again on pointer hover but **all of its controls remain frozen**. Without
+hover, only the feeling meter remains visible. The menu becomes interactive
+again only after the next physical scene is associated **and** the feeling
+meter has finished its animation and any directional `SeUp` / `SeDown` effect.
+Existing audited resource lengths are 3.924172 s / 4.022857 s respectively;
+the game-specific release gate uses their ceiling in milliseconds. When the
+choice does not change feelings, no second sound or artificial four-second
+delay is introduced. `SeSelect` remains the immediate choice-confirmation cue;
+ESC / keyboard configuration keeps its existing behavior.
 
 Deterministic synthetic C++ tests on Windows exercise visible choices,
 black-fade races, repeated inputs (2/3/10/50), RIGHT/LEFT, direct control 3,
 `SkipToNextChoice`, manual selection, choice-free scripts, timed choice expiry,
+post-choice inert buttons, hover/meter projection, `SeUp` and `SeDown` unlock
+boundaries and soundless confirmation,
 and fixed-seed randomized sequences (**256 sequences, 12 actions each,
 seed `0x5EEDBEEF`**). The old test suite for Replay Data and H-scene playback
 is preserved unchanged. The barrier failures were recorded before any
@@ -142,8 +154,9 @@ real save or commercial GPK was used.
 
 **Not verified:** GUI/manual playthrough with real School Days media, real GPU
 behavior, timing fidelity against the original commercial binary where the
-existing documentation does not establish it (in particular top-menu
-visibility and arrow-key behavior at an open prompt), mobile gamepad/touch
+existing documentation does not establish it (the top-menu description above
+was observed by the user, not independently captured in retail; arrow-key
+behavior at an open prompt remains unverified), mobile gamepad/touch
 hardware, Linux/macOS/Android/iOS builds. Synthetic tests and a successful
 Windows build cannot substitute for the user's manual gameplay QA. The
 untracked `build/CHECKLIST-QA-SKIP-CHOICE.md` records the manual procedure.
