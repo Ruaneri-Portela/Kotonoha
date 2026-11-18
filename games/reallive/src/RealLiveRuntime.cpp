@@ -541,6 +541,22 @@ struct RealLiveRuntime::Impl {
     mouseCursorNumber = assets->settings().integer("MOUSE_CURSOR", -1);
     // Each RealLive release declares its own front-end in Gameexe.ini.
     titleScenario = assets->settings().integer("SEEN_MENU", 9032);
+    // rlBabel Bug #2: Pre-load #WINDOW.<w>.NAME_MOD from Gameexe.ini so the
+    // rlBabel name-display mode matches the retail rlBabel.dll default of
+    // reading the INI at load time. Without this, babelNameModes_ defaults
+    // to 0 for all windows, breaking speaker-name rendering in titles that
+    // set NAME_MOD=1 (e.g. AIR_PT-BR #WINDOW.000.NAME_MOD=1).
+    {
+      std::ostringstream key;
+      for (int w = 0; w < 64; ++w) {
+        key.str("");
+        key << "WINDOW." << std::setw(3) << std::setfill('0') << w
+            << ".NAME_MOD";
+        int mode = assets->settings().integer(key.str(), -1);
+        if (mode >= 0)
+          vm.setBabelNameMode(w, mode);
+      }
+    }
     vm.speaker = [this](std::string t) {
       speakerName = decodeText(t, archive.Scenario(vm.scenario()).encoding());
     };
@@ -564,7 +580,9 @@ struct RealLiveRuntime::Impl {
       selectionWindow =
           window < 0 ? assets->settings().integer("DEFAULT_SEL_WINDOW", 0)
                      : window;
-      selectionLabels.clear();
+      // rlBabel func=200 may be called multiple times (batched selections in
+      // Clannad_PT-BR with 4-5 options across two calls). Accumulate labels
+      // instead of clearing; clear only when SelectElement consumes them.
       for (const auto &raw : labels)
         selectionLabels[raw] =
             decodeText(raw, archive.Scenario(vm.scenario()).encoding());
@@ -2264,6 +2282,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       vm.machine().set_store_register(n);
       choice->hide();
     });
+    // Consume the batched rlBabel selection labels now that the SelectElement
+    // has been presented. This prevents stale labels from leaking into the
+    // next unrelated selection.
+    selectionLabels.clear();
     return true;
   }
   if (type == 1 && m == 4) {

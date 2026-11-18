@@ -656,7 +656,9 @@ bool Session::babel(const CommandElement &c) {
   case 13:
     if (!babelString(a).empty()) {
       auto rest = babelBuffer_.substr(babelIndex_);
-      babelBuffer_ = babelString(a) + char(2) + '"' + rest;
+      // rlBabel.dll 0x1000c410: StartNewPage always prepends char(1) so the
+      // name delimiter is recognised by babelGetChar's ch==1 branch.
+      babelBuffer_ = char(1) + babelString(a) + char(2) + '"' + rest;
       babelIndex_ = 0;
       babelItalic_ = false;
     }

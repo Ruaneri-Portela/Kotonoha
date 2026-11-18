@@ -77,6 +77,9 @@ public:
   std::function<int()> lineBreak;
   std::function<std::string(bool, int)> resolveName;
   int currentWindow = 0;
+  // Initialise #WINDOW.<w>.NAME_MOD values from Gameexe.ini so that the
+  // speaker name rendering mode matches the retail rlBabel.dll behaviour.
+  void setBabelNameMode(int window, int mode) { babelNameModes_[window] = mode; }
   explicit Session(ScriptArchive &, int start = 9030);
   Session(const Session &) = delete;
   Session &operator=(const Session &) = delete;
