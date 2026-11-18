@@ -6,6 +6,7 @@
 #include <Kotonoha/core/Log.hpp>
 
 #include <algorithm>
+#include <cstdlib>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -77,6 +78,20 @@ EMSCRIPTEN_KEEPALIVE int KotonohaConfigureRemoteAssetManifest(
                  "[Kotonoha] Remote asset manifest rejected: %s", error.what());
     return 0;
   }
+}
+
+// Transfer a large JSON manifest into WASM heap storage instead of the
+// ccall "string" converter, which allocates its UTF-8 copy on the WASM stack.
+// Typical asset indexes are much larger than the application's C stack.
+EMSCRIPTEN_KEEPALIVE void *KotonohaAllocateRemoteManifest(int bytes) {
+  constexpr int kMaxManifestTransfer = 4 * 1024 * 1024 + 1;
+  return bytes > 0 && bytes <= kMaxManifestTransfer
+             ? std::malloc(static_cast<std::size_t>(bytes))
+             : nullptr;
+}
+
+EMSCRIPTEN_KEEPALIVE void KotonohaFreeRemoteManifest(void *memory) {
+  std::free(memory);
 }
 
 // Optional HTTP index: use the manifest for directory enumeration, but keep
