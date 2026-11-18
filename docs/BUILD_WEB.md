@@ -69,6 +69,39 @@ asset versions. A cached guide and cached index can also be restored when
 offline; missing required chunks prevent the startup barrier from completing.
 No HTTP preload is attempted when choosing a local folder.
 
+## Browser language and bounded asset cache
+
+Every generated game page provides **English / Português** buttons in the
+startup overlay. Browser language is the initial default; the selected language
+is remembered with `localStorage` and applies to the asset picker, progress,
+folder mounting, error messages, and accessibility labels. The choice does
+not change in-game script localization.
+
+Asset chunks use an **oldest-first (LRU)** IndexedDB cache shared by games
+hosted on the same web origin. The default upper bound is **2 GiB** of cached
+binary chunks (not game saves or the PWA runtime). A successful read refreshes
+its last-access time. Before adding a chunk, the manager attempts to free old
+chunks to remain under the cap and `navigator.storage.estimate()` headroom.
+If a browser returns `QuotaExceededError`, older chunks are evicted and the
+write retried. Deletions are transactional: the binary data, metadata, and
+stored byte count change together. The boot guide's required byte ranges are
+protected from eviction during the session; if those ranges cannot fit, the
+preload fails rather than launching with incomplete required assets.
+
+Optionally set a per-origin cache size **before starting an HTTP game**:
+
+```javascript
+window.KotonohaCacheMaxBytes = 512 * 1024 * 1024; // 512 MiB
+// Once the HTTP source has been configured:
+await KotonohaAssetCache.getCacheStats();
+```
+
+Changing this value applies to subsequent writes, not an immediate purge.
+Only the asset chunk cache is evicted; `/save` IDBFS and PWA shell Cache
+Storage are not affected. If persistent caching cannot write, normal online
+asset reads can still continue. Offline use requires that the needed chunks
+remain cached.
+
 ## Browser storage and assets
 
 - **Saves:** an IDBFS mount at `/save` synchronizes with IndexedDB; writes are flushed through the web storage adapter.
