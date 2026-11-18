@@ -6,27 +6,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   include(CTest)
 endif()
 
-if(NOT TARGET kotonoha_vm_ponscripter)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/ponscripter"
-      "${CMAKE_CURRENT_BINARY_DIR}/vms/ponscripter")
-endif()
-
-if(NOT TARGET kotonoha_provider_ponscripter)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/ponscripter"
-      "${CMAKE_CURRENT_BINARY_DIR}/providers/ponscripter")
-endif()
-
-add_library(ponscripter_port STATIC
-  src/PonscripterRuntime.cpp
-)
-target_include_directories(ponscripter_port PUBLIC include)
-target_link_libraries(ponscripter_port PUBLIC
-  KotonohaEngine
-  kotonoha_provider_ponscripter
-  kotonoha_vm_ponscripter
-)
-target_compile_features(ponscripter_port PUBLIC cxx_std_17)
-set_target_properties(ponscripter_port PROPERTIES CXX_EXTENSIONS OFF)
+include("${CMAKE_CURRENT_LIST_DIR}/PonscripterLibrary.cmake")
 
 kotonoha_add_app(PonscripterGame src/main.cpp)
 target_link_libraries(PonscripterGame PRIVATE ponscripter_port)
