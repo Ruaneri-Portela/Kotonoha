@@ -3,6 +3,7 @@
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
 #include "RealLiveTransition.hpp"
+#include "SceneTexture.hpp"
 #include "TitleInput.hpp"
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
@@ -1143,11 +1144,7 @@ struct RealLiveRuntime::Impl {
       // A completed scene is a replacement raster, never a translucent
       // overlay over the engine's black clear. RGBA alpha of intermediary DCs
       // must not erase otherwise visible script backgrounds.
-      if (!compositionTexture ||
-          !SDL_SetTextureScaleMode(compositionTexture.get(),
-                                   SDL_SCALEMODE_LINEAR) ||
-          !SDL_SetTextureBlendMode(compositionTexture.get(),
-                                   SDL_BLENDMODE_NONE))
+      if (!configureSceneTexture(compositionTexture.get()))
         throw std::runtime_error(SDL_GetError());
     }
     struct RestoreTarget {
@@ -1772,8 +1769,7 @@ struct RealLiveRuntime::Impl {
             softwareEffect ? canvasTexture.get() : compositionTexture.get();
         filteredScene =
             engine->GetUpscaler().scaled(*native, imageUpscaling.factor);
-        if (!filteredScene ||
-            !SDL_SetTextureBlendMode(filteredScene.get(), SDL_BLENDMODE_NONE))
+        if (!configureSceneTexture(filteredScene.get()))
           throw std::runtime_error(std::string("REALLIVE filtered scene: ") +
                                    SDL_GetError());
         ++renderStats.filteredSceneFrames;
