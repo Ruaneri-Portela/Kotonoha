@@ -1465,6 +1465,10 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
       ++extrasVersion_;
     break;
   }
+  case 212:
+    // Native extra/omake menu mode initializer (observed in extra.OBJ:83).
+    // pmail.exe initializes the extra gallery mode state.
+    break;
   default: {
     // Unknown calls must remain visible rather than masquerading as working
     // no-ops. Capture the argument contract at each script+PC with a bounded

@@ -238,14 +238,14 @@ int main() {
             "Non-audio calls must never be sent to the audio decoder");
 
     // Only genuinely unidentified opcodes remain in the diagnostic ledger.
-    // 17, 18, 19, 20, 24, 25, 32, 34, 65, 216 and 137 now have recovered
-    // native semantics; 212 has never been observed in retail scripts.
-    for (const int id : {212}) {
+    // 17, 18, 19, 20, 24, 25, 32, 34, 65, 212, 216 and 137 now have recovered
+    // native semantics.
+    for (const int id : {251}) {
       call(id, {integer(id), string(5)});
       call(id, {integer(id), string(5)});
     }
     const auto sites = game.unhandledNativeSites();
-    const auto expected = std::vector<int>({212, 250});
+    const auto expected = std::vector<int>({250, 251});
     check(game.unhandledNativeIds() == expected,
           "Missing native commands were accidentally marked as supported");
     check(sites.size() == expected.size(),
