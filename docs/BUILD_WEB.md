@@ -18,6 +18,47 @@ cmake --build build-web --target RealLive
 
 Toolchain locations vary by installation. `KOTONOHA_BUILD_ALL=ON` enables supported web ports but excludes DDLC. Serve the generated output through **HTTP**, not `file://`.
 
+## One installable PWA per browser game
+
+Each Emscripten target is packaged as its own installable Progressive Web App
+under `build-web/outputs/<target>/`. The directory includes
+`index.html`, `manifest.webmanifest`, `service-worker.js`,
+`pwa-icon-180.png`, `pwa-icon-192.png`, `pwa-icon-512.png`,
+`KotonohaPreloadCache.js`, and the matching game JS/WASM/data artifacts.
+The install name, identity, icon accent and Service Worker scope are specific
+to that target. For example, `/RealLive/` and `/Kirikiri/` install separately.
+The generated icons need no additional Python packages.
+
+Serve each directory over **HTTPS**, or use `http://localhost` while
+developing; Service Workers are unavailable for ordinary insecure HTTP sites.
+Install from your browser's menu (or **Add to Home Screen** on iOS). The PWA
+worker caches the application shell and, after the runtime initializes, its
+JS/WASM/data for later offline use. It **never intercepts `game-assets/`**,
+`HEAD`, or HTTP `Range`: game assets and preloading are handled by the
+separate, persistent IndexedDB byte-range cache. Offline gameplay requires all
+assets the engine needs to have been cached previously; installing a PWA alone
+does not download an entire game's archives. Storage quotas and eviction still
+apply.
+
+### Console-driven initial preload
+
+With an HTTP(S) source selected, play through the menus and initial scenes to
+record the actual fetched byte ranges. In DevTools, run:
+
+```javascript
+await KotonohaDumpPreload();
+```
+
+The browser downloads `preload.json`. Put it next to the source manifest at
+`game-assets/preload.json`. This dump includes **only successfully downloaded
+files and ranges**, not every file listed by `manifest.json`. If that preload
+file exists, the HTTP(S) startup waits until each required range is in
+IndexedDB, fetching any missing chunks before releasing the WASM startup
+dependency. The dump includes a manifest fingerprint to prevent mixing two
+asset versions. A cached guide and cached index can also be restored when
+offline; missing required chunks prevent the startup barrier from completing.
+No HTTP preload is attempted when choosing a local folder.
+
 ## Browser storage and assets
 
 - **Saves:** an IDBFS mount at `/save` synchronizes with IndexedDB; writes are flushed through the web storage adapter.
