@@ -130,6 +130,7 @@ set(pre_exclude
         "^/usr/lib64/"
         "^/System/")
 set(post_exclude
+        ".*/outputs/.*"
         ".*/libc\\.so.*"
         ".*/libm\\.so.*"
         ".*/libdl\\.so.*"

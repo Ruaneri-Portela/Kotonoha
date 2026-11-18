@@ -2322,6 +2322,18 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 352:
       ctrlSkipEnabled = op == 351;
       return true;
+    case 360:
+    case 363:
+    case 364:
+      machine.set_store_register(autoMode ? 1 : 0);
+      return true;
+    case 361:
+    case 362:
+      autoMode = op == 361;
+      return true;
+    case 365:
+      autoMode = value(c, 0) != 0;
+      return true;
     case 410:
       for (int i = 0; i < c.GetParamCount(); ++i)
         assign(c, i, assets->settings().integer("WINDOW_ATTR", 0, i));
@@ -3547,15 +3559,21 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     if (op == 100 || op == 101 || op == 1100 || op == 1101) {
       int sourceDC = value(c, over >= 2 ? 4 : 0),
           targetDC = value(c, over >= 2 ? 7 : 1);
-      if (sourceDC != targetDC) {
-        SDL_Rect source{value(c, 0), value(c, 1), value(c, 2), value(c, 3)},
-            dest{value(c, 5), value(c, 6), 0, 0};
-        if (op < 1000) {
-          source.w -= source.x;
-          source.h -= source.y;
-        }
-        ensureDC(targetDC, over >= 2 ? dest.x + source.w : surface(sourceDC).w,
-                 over >= 2 ? dest.y + source.h : surface(sourceDC).h);
+      SDL_Rect source{value(c, 0), value(c, 1), value(c, 2), value(c, 3)},
+          dest{value(c, 5), value(c, 6), 0, 0};
+      if (op < 1000) {
+        source.w -= source.x;
+        source.h -= source.y;
+      }
+      ensureDC(targetDC, over >= 2 ? dest.x + source.w : surface(sourceDC).w,
+               over >= 2 ? dest.y + source.h : surface(sourceDC).h);
+      if (sourceDC == targetDC) {
+        auto temp = blank(surface(sourceDC).w, surface(sourceDC).h);
+        blit(surface(sourceDC), *temp);
+        blit(*temp, surface(targetDC),
+             over >= 2 ? &source : nullptr, over >= 2 ? &dest : nullptr,
+             value(c, over >= 2 ? 8 : 2, 255), op == 101 || op == 1101);
+      } else {
         blit(surface(sourceDC), surface(targetDC),
              over >= 2 ? &source : nullptr, over >= 2 ? &dest : nullptr,
              value(c, over >= 2 ? 8 : 2, 255), op == 101 || op == 1101);

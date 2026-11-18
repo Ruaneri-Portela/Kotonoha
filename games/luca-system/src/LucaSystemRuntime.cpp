@@ -103,6 +103,9 @@ enum Opcode : uint8_t {
   OP_CLOSE_WINDOW = 41,  // 0x29: hide text box
   OP_VOICE = 46,         // 0x2E: play voice audio
   OP_VOICE_STOP = 47,    // 0x2F: stop voice audio
+  OP_WAIT_COUNT = 48,    // 0x30: wait count
+  OP_WAIT_TIME = 49,     // 0x31: wait time
+  OP_WAIT_TEXTFEED = 50, // 0x32: wait textfeed
   OP_INIT = 53,          // 0x35: init subsystem
   OP_IMAGELOAD = 55,     // 0x37: load image
   OP_IMAGEUPDATE = 56,   // 0x38: update image object
@@ -116,6 +119,7 @@ enum Opcode : uint8_t {
   OP_WAIT = 72,          // 0x48: delay/wait
   OP_DRAW = 74,          // 0x4A: draw scene composition
   OP_WIPE = 75,          // 0x4B: wipe transition
+  OP_DELAY = 80,         // 0x50: delay
   OP_TONE = 82,          // 0x52: set image tone
   OP_DISP = 87,          // 0x57: toggle object display
   OP_FACE = 89,          // 0x59: facial expression layer
@@ -220,8 +224,30 @@ public:
         frame_(tryReadCz(assets, "MWIN1280_0")),
         cursor_(tryReadCz(assets, "MWIN_CURSOR")) {}
 };
-        cursor_(DecodeCzImage(assets.read("MWIN_CURSOR"))) {}
-};
+
+inline void parseSpeakerAndText(const std::string &rawText, std::string &speaker, std::string &text) {
+  speaker.clear();
+  text = rawText;
+  if (rawText.empty()) return;
+
+  if (rawText.rfind("【", 0) == 0) {
+    size_t end = rawText.find("】");
+    if (end != std::string::npos && end > 3) {
+      speaker = rawText.substr(3, end - 3);
+      if (end + 3 < rawText.size()) {
+        text = rawText.substr(end + 3);
+      } else {
+        text.clear();
+      }
+    }
+  } else if (rawText.front() == '[') {
+    size_t end = rawText.find(']');
+    if (end != std::string::npos && end > 1) {
+      speaker = rawText.substr(1, end - 1);
+      text = (end + 1 < rawText.size()) ? rawText.substr(end + 1) : "";
+    }
+  }
+}
 
 } // namespace
 
@@ -270,6 +296,9 @@ struct LucaSystemRuntime::Impl {
   Kotonoha::PcmPlayer bgm;
   Kotonoha::PcmPlayer voice;
   Kotonoha::PcmPlayer se;
+
+  std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
+  bool movieFinished = false;
 
   explicit Impl(LucaSystemRuntime &r,
                 std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> a)
@@ -443,10 +472,35 @@ struct LucaSystemRuntime::Impl {
     sound.Stop();
   }
 
+  Kotonoha::AudioClip loadAudioClip(uint32_t id) {
+    std::string idStr = std::to_string(id);
+    if (assets->containsAsset(idStr)) {
+      try { return assets->loadAudio(idStr); } catch (...) {}
+    }
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%04u", id);
+    if (assets->containsAsset(buf)) {
+      try { return assets->loadAudio(buf); } catch (...) {}
+    }
+    std::snprintf(buf, sizeof(buf), "%05u", id);
+    if (assets->containsAsset(buf)) {
+      try { return assets->loadAudio(buf); } catch (...) {}
+    }
+    std::snprintf(buf, sizeof(buf), "v%04u", id);
+    if (assets->containsAsset(buf)) {
+      try { return assets->loadAudio(buf); } catch (...) {}
+    }
+    std::snprintf(buf, sizeof(buf), "v%05u", id);
+    if (assets->containsAsset(buf)) {
+      try { return assets->loadAudio(buf); } catch (...) {}
+    }
+    return assets->loadAudio(idStr);
+  }
+
   void playVoice(uint32_t id) {
     try {
       voice.Stop();
-      auto decoded = assets->loadAudio(std::to_string(id));
+      auto decoded = loadAudioClip(id);
       SDL_AudioSpec target{SDL_AUDIO_S16, 1, 22050};
       Uint8 *converted = nullptr;
       int size = 0;
@@ -471,7 +525,7 @@ struct LucaSystemRuntime::Impl {
 
   void playBgm(uint32_t id, bool loop) {
     try {
-      auto decoded = assets->loadAudio(std::to_string(id));
+      auto decoded = loadAudioClip(id);
       SDL_AudioSpec target{SDL_AUDIO_S16, 2, 44100};
       Uint8 *converted = nullptr;
       int size = 0;
@@ -496,7 +550,7 @@ struct LucaSystemRuntime::Impl {
 
   void playSe(uint32_t id) {
     try {
-      auto decoded = assets->loadAudio(std::to_string(id));
+      auto decoded = loadAudioClip(id);
       SDL_AudioSpec target{SDL_AUDIO_S16, 2, 44100};
       Uint8 *converted = nullptr;
       int size = 0;
@@ -517,6 +571,38 @@ struct LucaSystemRuntime::Impl {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: se %u: %s", id,
                   e.what());
     }
+  }
+
+  void playMovie(const std::string &name) {
+    if (!engine || !assets) return;
+    std::string base = name.empty() ? "AIR_OP_A" : name;
+    std::vector<std::string> candidates = {
+        base,
+        base + ".wmv", base + ".mp4", base + ".ogv", base + ".mkv", base + ".avi",
+        "movie/" + base, "movie/" + base + ".wmv", "movie/" + base + ".mp4", "movie/" + base + ".ogv", "movie/" + base + ".avi",
+        "MOV/" + base, "MOV/" + base + ".wmv", "MOV/" + base + ".mp4",
+        "AIR_OP_A", "AIR_OP_A.wmv", "AIR_OP_A.mp4", "AIR_OP_A.ogv",
+        "movie/AIR_OP_A.wmv", "movie/AIR_OP_A.mp4", "movie/AIR_OP_A.ogv", "movie/AIR_OP_A.avi",
+        "movie/AIR_OP.wmv", "movie/AIR_OP.mp4", "movie/AIR_OP.ogv",
+        "movie/0.mp4", "movie/0.wmv", "movie/0.ogv"
+    };
+    for (const auto &cand : candidates) {
+      try {
+        if (assets->containsAsset(cand)) {
+          moviePlayer = std::make_unique<Kotonoha::MediaPlayer>(engine->GetAudio());
+          moviePlayer->open(*assets, cand, false, "bgm");
+          if (moviePlayer->isOpen()) {
+            movieFinished = false;
+            waiting = true;
+            SDL_Log("LucaSystem: playing opening movie %s", cand.c_str());
+            return;
+          }
+        }
+      } catch (const std::exception &e) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: movie %s open error: %s", cand.c_str(), e.what());
+      }
+    }
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: opening movie %s not found", base.c_str());
   }
 
   void loadObjectImage(uint32_t id) {
@@ -594,12 +680,21 @@ struct LucaSystemRuntime::Impl {
       case OP_MESSAGE: {
         sceneLayers.commit(SDL_GetTicks(), 0);
         if (!ins.text.empty()) {
+          std::string speaker, text;
+          parseSpeakerAndText(ins.text, speaker, text);
           dialogueVisible = true;
-          runtime.dialogueText_ = ins.text;
-          runtime.dialogueSpeaker_.clear();
-          textbox->setDialogue("", ins.text);
+          runtime.dialogueText_ = text;
+          runtime.dialogueSpeaker_ = speaker;
+          textbox->setDialogue(speaker, text);
           textbox->show();
-          backlog->addEntry("", ins.text);
+          backlog->addEntry(speaker, text);
+          return;
+        }
+        break;
+      }
+      case OP_MOVIE: {
+        playMovie(ins.text);
+        if (moviePlayer && moviePlayer->isOpen()) {
           return;
         }
         break;
@@ -1193,11 +1288,22 @@ void LucaSystemRuntime::initGameplay(Kotonoha::Engine &engine) {
 void LucaSystemRuntime::update() {
   Runtime::update();
   auto &impl = *impl_;
+  if (impl.moviePlayer && !impl.movieFinished) {
+    if (impl.engine) {
+      impl.moviePlayer->update(impl.engine->GetRenderer());
+    }
+    if (impl.moviePlayer->finished()) {
+      impl.movieFinished = true;
+      impl.moviePlayer.reset();
+      impl.waiting = false;
+      impl.runUntilPause();
+    }
+  }
   if (impl.engine && impl.running && !impl.dialogueVisible &&
       !impl.engine->isStoryPaused() && !impl.waiting) {
     impl.runUntilPause();
   }
-  if (impl.waiting && impl.engine && !impl.engine->isStoryPaused()) {
+  if (impl.waiting && impl.engine && !impl.engine->isStoryPaused() && !impl.moviePlayer) {
     if (SDL_GetTicks() >= impl.waitDeadline) {
       impl.waiting = false;
       impl.runUntilPause();
@@ -1208,6 +1314,11 @@ void LucaSystemRuntime::update() {
 void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                                        float scale) {
   auto &impl = *impl_;
+  if (impl.moviePlayer && !impl.movieFinished && impl.moviePlayer->isOpen()) {
+    SDL_FRect screen{0, 0, 1280, 720};
+    impl.moviePlayer->render(renderer, screen, nullptr, true);
+    return;
+  }
   if (impl.originalTitle) {
     auto texture = [&renderer](Kotonoha::TexturePtr &target,
                                const CzImage &image) -> SDL_Texture * {
@@ -1310,6 +1421,20 @@ bool LucaSystemRuntime::handleAdvanceAction() {
 bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
   auto mapped = Kotonoha::MapControllerEvent(event);
   auto &impl = *impl_;
+  if (impl.moviePlayer && !impl.movieFinished &&
+      (mapped.type == SDL_EVENT_KEY_DOWN ||
+       mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+       mapped.type == SDL_EVENT_FINGER_DOWN ||
+       mapped.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)) {
+    if (mapped.type != SDL_EVENT_KEY_DOWN || !mapped.key.repeat) {
+      impl.movieFinished = true;
+      impl.moviePlayer->stop();
+      impl.moviePlayer.reset();
+      impl.waiting = false;
+      impl.runUntilPause();
+      return true;
+    }
+  }
   static constexpr int menuGroups[][2] = {
       {15, 222},    {258, 542},   {577, 809},   {842, 950},  {984, 1154},
       {1188, 1352}, {1386, 1466}, {1500, 1679}, {1714, 1855}};
@@ -1373,6 +1498,7 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     impl.titleBackgroundTexture.reset();
     impl.titleMenuTexture.reset();
     initGameplay(*impl.engine);
+    impl.playMovie("AIR_OP_A");
     return startScenario("seen163");
   }
   // Handle save/load before generic dialogue input, otherwise F5/F6

@@ -107,6 +107,44 @@ void PmailRuntime::initGlobal(Kotonoha::Engine &engine) {
     game_->playMovie = [this](const std::string &stem) {
       return startMovie(stem);
     };
+    game_->openSaveMenu = [this](bool load) {
+      openSaves(load);
+      return saves_ && saves_->isOpen();
+    };
+    game_->musicTracks = [this] {
+      std::vector<std::string> ids;
+      if (!assets_)
+        return ids;
+      for (const auto &id : assets_->listAsset("sound/mm")) {
+        const auto slash = id.rfind('/');
+        if (slash == std::string::npos || id.compare(slash + 1, 2, "mm") != 0)
+          continue;
+        bool digits = id.size() > slash + 3;
+        for (std::size_t i = slash + 3; i < id.size(); ++i)
+          if (id[i] < '0' || id[i] > '9') {
+            digits = false;
+            break;
+          }
+        if (digits)
+          ids.push_back(id);
+      }
+      std::sort(ids.begin(), ids.end());
+      return ids;
+    };
+    game_->playMusic = [this](const std::string &id) {
+      if (!audio_)
+        return;
+      const auto pos = id.find("mm");
+      const int number = pos == std::string::npos
+                             ? 0
+                             : std::atoi(id.c_str() + pos + 2);
+      if (number > 0)
+        audio_->Handle(112, {number, 0}, {});
+    };
+    game_->stopMusic = [this] {
+      if (audio_)
+        audio_->Handle(115, {}, {});
+    };
     game_->onNative = [this](int id, const std::vector<::Pmail::Arg> &args) {
       handleNative(id, args);
     };
@@ -229,6 +267,9 @@ void PmailRuntime::update() {
       session_->resetClock();
     return;
   }
+  // SYS 225/226 keep the script blocked while the save dialog is open.
+  if (game_ && game_->saveMenuWaitActive())
+    game_->resumeFromSaveMenu();
   if (session_ && (movieFinished_ || !moviePlayer_))
     session_->update();
   if (game_ && movieFinished_)

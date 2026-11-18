@@ -42,6 +42,10 @@ public:
   DialogueSystem &dialogueSystem() { return dialogueSystem_; }
   const DialogueSystem &dialogueSystem() const { return dialogueSystem_; }
 
+  bool hasPendingChoice() const;
+  std::vector<std::string> pendingChoiceOptions() const;
+  void selectChoice(int index);
+
   SaveData saveState() const;
   bool loadState(const SaveData &data);
 

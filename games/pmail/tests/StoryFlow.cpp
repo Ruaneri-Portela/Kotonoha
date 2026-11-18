@@ -57,6 +57,33 @@ int main(int argc, char **argv) {
     return 0;
   }
   Kotonoha::Providers::SnowAssets assets(argv[1]);
+  if (const char *filter = SDL_getenv("PMAIL_FLOW_LIST")) {
+    for (const auto &id : assets.listAsset())
+      if (std::string(filter).empty() || id.find(filter) != std::string::npos)
+        std::cout << id << '\n';
+    return 0;
+  }
+  if (const char *asset = SDL_getenv("PMAIL_FLOW_ASSET")) {
+    try {
+      const auto bytes = assets.readAsset(asset);
+      std::cerr << asset << " -> " << bytes.size() << " bytes\n";
+      if (const char *path = SDL_getenv("PMAIL_FLOW_ASSET_SAVE")) {
+        std::ofstream out(path, std::ios::binary);
+        out.write(reinterpret_cast<const char *>(bytes.data()),
+                  std::streamsize(bytes.size()));
+      }
+    } catch (const std::exception &error) {
+      std::cerr << asset << " -> " << error.what() << '\n';
+    }
+    return 0;
+  }
+  if (const char *sprite = SDL_getenv("PMAIL_FLOW_SPRITE")) {
+    const auto placement = assets.Sprite(sprite);
+    std::cout << sprite << " valid=" << placement.valid << " x=" << placement.x
+              << " y=" << placement.y << " w=" << placement.w
+              << " h=" << placement.h << '\n';
+    return 0;
+  }
   if (const char *graphic = SDL_getenv("PMAIL_FLOW_GRAPHIC")) {
     auto surface = assets.loadSurfaceAsset(graphic);
     std::cerr << graphic << " -> "
