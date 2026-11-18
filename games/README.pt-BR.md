@@ -17,6 +17,7 @@ Kotonoha oferece múltiplos interpretadores e runtimes específicos. **Suporte n
 | Kirikiri2 / KirikiriZ | `KOTONOHA_BUILD_KIRIKIRI` | `Kirikiri` | [Guia](kirikiri/README.pt-BR.md) |
 | LucaSystem | `KOTONOHA_BUILD_LUCA_SYSTEM` | `LucaSystem` | [Guia](luca-system/README.pt-BR.md) |
 | Pure Mail | `KOTONOHA_BUILD_PMAIL` | `Pmail` | [Guia](pmail/README.pt-BR.md) |
+| PONscripter / ONScripter | `KOTONOHA_BUILD_PONSCRIPTER` | `PonscripterGame` | [Guia](ponscripter/README.pt-BR.md) |
 | N2System | `KOTONOHA_BUILD_N2SYSTEM` | `N2SystemGame` | [Guia](n2system/README.pt-BR.md) |
 
 Compile um port habilitando sua opção: `cmake -S . -B build -DKOTONOHA_BUILD_REALLIVE=ON`, depois `cmake --build build --target RealLive`. Para testes, use `ctest --test-dir build --output-on-failure`.
