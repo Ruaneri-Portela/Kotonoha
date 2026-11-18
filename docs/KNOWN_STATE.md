@@ -133,8 +133,12 @@ pause and selected playback speed remain separate from this transport barrier.
 **Post-choice menu correction (user's direct observation, November 17, extended
 November 18):** after the player confirms or omits a choice, the upper bar
 must not automatically reappear due to inherited hover alpha; its controls
-remain frozen during the choice exit, and only a new pointer hover after
-release can reveal the ordinary MenuBar. AUTO ON remains visible throughout.
+remain frozen during the choice exit. If the pointer actually moves into the
+upper strip **during** the frozen result and is still there at release, the
+ordinary MenuBar can return without another mouse movement. A pointer outside
+the top never reveals chrome just because the scene advances. AUTO ON remains
+visible throughout. This refinement is grounded in the user's supplied A03
+manual-choice retail video (November 18, ~7.5–11.0 s).
 The isolated feeling meter appears without hover **only if a real raw feeling
 change was detected after a selected choice**. An unanswered `SetSELECT`
 displays options only (not the meter); omission/unchanged feelings do not

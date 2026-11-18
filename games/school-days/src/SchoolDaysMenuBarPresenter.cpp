@@ -70,6 +70,8 @@ bool SchoolDaysMenuBarPresenter::Open(SDL_Renderer* renderer,
     suppressChoiceOriginFeel_ = false;
     pendingFeelingDirectionCode_ = 0;
     pointerInsideBar_ = false;
+    suppressedPointerKnown_ = false;
+    suppressedPointerInsideBar_ = false;
     fadeTargetVisible_ = false;
     fadeStartAlpha_ = 0;
     fadeStartMs_ = 0;
@@ -106,6 +108,8 @@ void SchoolDaysMenuBarPresenter::Close() {
     pendingFeelingDirectionCode_ = 0;
     selection_ = -1;
     pointerInsideBar_ = false;
+    suppressedPointerKnown_ = false;
+    suppressedPointerInsideBar_ = false;
     fadeTargetVisible_ = false;
     fadeStartAlpha_ = 0;
     fadeStartMs_ = 0;
@@ -131,15 +135,38 @@ void SchoolDaysMenuBarPresenter::ResetHoverChrome() {
     barAlpha_ = 0;
 }
 
+void SchoolDaysMenuBarPresenter::ResumePhysicalHoverAfterChoice() {
+    if (fullBarSuppressed_ || meterOnly_ || choiceTailFrozen_ ||
+        !suppressedPointerKnown_) return;
+    const bool inside = suppressedPointerInsideBar_;
+    suppressedPointerKnown_ = false;
+    suppressedPointerInsideBar_ = false;
+    if (!inside) return;
+    // The cursor is still physically in the top strip: native chrome may
+    // return when the result gate releases, without a *new* motion event.
+    // Unlike stale alpha, this probe was recorded while the choice was owned.
+    pointerInsideBar_ = true;
+    fadeStartAlpha_ = barAlpha_;
+    fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
+    fadeTargetVisible_ = true;
+    selection_ = -1; // a future real hover must select an actionable control
+}
+
 bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer* renderer,
                                              const SDL_Event* event,
                                              Action* action) {
     if (action != nullptr) *action = {};
-    // A prompt or frozen exit owns input entirely. Do not let mouse motion
-    // accumulate a hover that would automatically reveal stale chrome on the
-    // first unlocked frame (the retail +0x13C early-return semantics).
-    if (!opened_ || meterOnly_ || fullBarSuppressed_ || choiceTailFrozen_ ||
-        renderer == nullptr || event == nullptr || action == nullptr) {
+    // The choice owns *actions* entirely. We may still record a physical
+    // position during its result animation without showing chrome or changing
+    // actionable hover; this lets an already-hovering cursor reveal the menu
+    // once the input gate finally releases, as observed in retail A03.
+    if (!opened_ || renderer == nullptr || event == nullptr || action == nullptr) {
+        return false;
+    }
+    const bool suppressed = meterOnly_ || fullBarSuppressed_ || choiceTailFrozen_;
+    if (suppressed && event->type == SDL_EVENT_WINDOW_MOUSE_LEAVE) {
+        suppressedPointerKnown_ = true;
+        suppressedPointerInsideBar_ = false;
         return false;
     }
     if (event->type != SDL_EVENT_MOUSE_MOTION &&
@@ -183,6 +210,13 @@ bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer* renderer,
 
     const bool inside = x >= 0.0f && x < layout_.barWidth &&
                         y >= 0.0f && y < layout_.barHeight;
+    if (suppressed) {
+        if (event->type == SDL_EVENT_MOUSE_MOTION) {
+            suppressedPointerKnown_ = true;
+            suppressedPointerInsideBar_ = inside;
+        }
+        return false;
+    }
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
         if (inside != pointerInsideBar_) {
             pointerInsideBar_ = inside;
@@ -276,8 +310,13 @@ void SchoolDaysMenuBarPresenter::SetRuntimeState(bool autoMode, bool paused,
     speedControlsEnabled_ = speedControlsEnabled;
     transportLocked_ = transportLocked;
     actionInhibit_ = actionInhibit;
-    if (fullBarSuppressed && !fullBarSuppressed_) ResetHoverChrome();
+    if (fullBarSuppressed && !fullBarSuppressed_) {
+        ResetHoverChrome();
+        suppressedPointerKnown_ = false;
+        suppressedPointerInsideBar_ = false;
+    }
     fullBarSuppressed_ = fullBarSuppressed;
+    if (!fullBarSuppressed) ResumePhysicalHoverAfterChoice();
 }
 
 SDL_FRect SchoolDaysMenuBarPresenter::Transform(const SDL_FRect& logical,

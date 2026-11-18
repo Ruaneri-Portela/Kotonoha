@@ -180,12 +180,14 @@ public:
     void SetMeterOnly(bool enabled) {
         if (enabled && !meterOnly_) ResetHoverChrome();
         meterOnly_ = enabled;
+        if (!enabled) ResumePhysicalHoverAfterChoice();
     }
     // Post-choice: controls remain frozen whether or not any feeling changed;
     // the separately gated meter may appear on actual detected change only.
     void SetChoiceTailFrozen(bool enabled) {
         if (enabled && !choiceTailFrozen_) {
             ResetHoverChrome();
+            suppressedPointerKnown_ = false;
             // Omissions may still execute RouteProc SetFeeling. The result's
             // raw delta must not emerge as a generic standalone Feel after
             // the frozen visual phase ends.
@@ -193,6 +195,7 @@ public:
         }
         choiceTailFrozen_ = enabled;
         if (enabled) selection_ = -1;
+        else ResumePhysicalHoverAfterChoice();
     }
     // Confirmation freezes transport regardless of whether feelings change.
     // Only an actual post-choice SeUp/SeDown detector event may reveal the
@@ -225,9 +228,11 @@ public:
 
 private:
     // The native input gate prevents mouse hover from generating chrome.
-    // Discard any pre-choice fade/selection when the game takes ownership;
-    // only a new physical mouse-motion event may reveal it after unlock.
+    // Discard any pre-choice fade/selection when the game takes ownership.
+    // A pointer actually moved into the bar while the result is frozen may
+    // reveal chrome *after* release; an old hover alpha may never do so.
     void ResetHoverChrome();
+    void ResumePhysicalHoverAfterChoice();
     static SDL_FRect Transform(const SDL_FRect& logical,
                                const Viewport& viewport);
     static bool RenderClipped(SDL_Renderer* renderer, SDL_Texture* texture,
@@ -250,6 +255,10 @@ private:
     bool opened_ = false;
     int selection_ = -1;
     bool pointerInsideBar_ = false;
+    // Last real pointer motion during a suppressed choice result, not a stale
+    // pre-choice hover or a synthetic visibility latch.
+    bool suppressedPointerKnown_ = false;
+    bool suppressedPointerInsideBar_ = false;
     bool autoMode_ = false;
     uint32_t autoOnAtMs_ = 0;
     int autoLightRecord_ = 43;

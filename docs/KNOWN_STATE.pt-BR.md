@@ -137,9 +137,12 @@ velocidade escolhida continuam independentes dessa barreira.
 **Correção do menu após escolha (observação direta do usuário em 17/11,
 ampliada em 18/11):** depois da seleção ou omissão, a barra superior não
 pode reaparecer automaticamente por causa do hover anterior. Seus comandos
-permanecem congelados durante a saída da escolha, e somente um novo hover
-após a liberação pode revelar a MenuBar normal. O indicador AUTO ON continua
-visível em todas essas fases.
+permanecem congelados durante a saída da escolha. Quando o mouse entra de
+verdade na região superior **durante** o resultado e permanece ali, a MenuBar
+pode voltar após a liberação, mesmo sem outro movimento naquele instante.
+Com o cursor fora do topo, a mudança de cena não revela o menu. O indicador
+AUTO ON continua visível em todas essas fases. Refinamento confirmado pelo
+vídeo retail de escolha manual A03 enviado pelo usuário (18/11, ~7,5–11 s).
 Sem hover, o medidor de sentimentos aparece sozinho **apenas quando uma
 escolha confirmada efetivamente altera os pontos**. A tela de escolhas
 pendentes mostra só as opções; uma escolha omissa ou sem delta não cria a
