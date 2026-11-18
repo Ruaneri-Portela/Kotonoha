@@ -31,14 +31,17 @@ Para usar o vcpkg explicitamente, acrescente `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROO
 
 ## Estado atual da integração
 
-O repositório contém **12 aplicativos de jogos no CMake/Android** (incluindo Example e N2System). O launcher compartilhado é o padrão para inicialização interativa; `--no-launcher`, `--frames` e MCP/modo sem interface seguem a política central. O N2System **ainda não tem schemes macOS/iOS versionados no Xcode**; consulte [validação de build](docs/BUILD_VALIDATION.pt-BR.md).
+O repositório contém **13 aplicativos de jogos no CMake/Android** (incluindo Example, N2System e PONscripter). O launcher compartilhado é o padrão para inicialização interativa; `--no-launcher`, `--frames` e MCP/modo sem interface seguem a política central. N2System e PONscripter **ainda não têm schemes macOS/iOS versionados no Xcode**; consulte [validação de build](docs/BUILD_VALIDATION.pt-BR.md).
 
 Os artefatos Linux e WebAssembly são compilados sequencialmente em **um único job do GitHub Actions**. O cache de builds incrementais do motor/jogos foi desabilitado, mantendo somente o cache binário de dependências do vcpkg. Veja [instruções de CI](docs/CI_VCPKG.md). Testes sintéticos não comprovam paridade com os jogos comerciais.
+
+O novo [launcher unificado independente](launcher/README.pt-BR.md) funciona no desktop, identifica fontes de jogos e inicia seus executáveis modulares.
 
 ## Estrutura
 
 | Pasta | Função |
 | --- | --- |
+| `launcher/` | Launcher unificado desktop para vários motores |
 | `lib/` | Motor compartilhado, headers públicos e testes |
 | `modules/vms/` | Máquinas virtuais de scripts |
 | `modules/providers/` | Leitura de assets e arquivos compactados |
