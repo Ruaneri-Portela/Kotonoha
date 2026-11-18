@@ -634,8 +634,8 @@ void TestSelectedChoiceTailDoesNotAcceptMenuActions(const char *route,
   Require(Access::ChoiceMenuNewSceneBound(app.runtime) &&
               Access::ChoiceMenuFrozen(app.runtime) &&
               Access::ChoiceFeelVisible(app.runtime) &&
-              !Access::PromptMeterOnly(app.runtime),
-          "physical scene rebind released the frozen menu before the cue");
+              Access::PromptMeterOnly(app.runtime),
+          "physical scene rebind exposed Top Menu chrome during changed Feel");
   Access::MaybeUnlockChoiceMenu(app.runtime, cueAt + 3924u, false);
   Require(Access::ChoiceMenuFrozen(app.runtime),
           "SeUp menu unlocked before the documented 3.924172-second cue ended");

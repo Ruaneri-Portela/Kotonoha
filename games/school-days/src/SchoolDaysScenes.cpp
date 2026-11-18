@@ -562,8 +562,9 @@ bool GameScene::handleMenuBarEvent(Kotonoha::EventRef event) {
 
 void GameScene::renderMenuBar(Kotonoha::RendererRef renderer) {
   // The presenter explicitly hides both chrome and Feel for unresolved
-  // SETSELECT, while retaining the draw path for a later, delta-triggered
-  // post-choice meter. Input remains independently owned by the choice.
+  // SETSELECT (AUTO ON's separate status chip remains available), while
+  // retaining the draw path for a later, delta-triggered post-choice meter.
+  // Input remains independently owned by the choice.
   if (menuBar.IsOpen()) {
     std::string error;
     if (!menuBar.Render(&renderer, &error)) {

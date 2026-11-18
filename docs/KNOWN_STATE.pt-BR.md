@@ -128,14 +128,18 @@ o comportamento existente.
 A proteção abrange também a seta DIREITA, a seta ESQUERDA/Back enquanto a
 escolha aguarda resposta, controle direto 3 do menu, mouse/toque e entradas
 sintéticas de gamepad para skip. A reprodução de Replay Data preserva as
-escolhas registradas. Os **botões e o fundo do Top Menu** ficam ocultos durante
-a escolha não confirmada, mas o **medidor de Feel permanece visível**.
+escolhas registradas. Os **botões, o fundo do Top Menu e o medidor Feel** ficam
+ocultos durante a escolha não confirmada. O indicador **AUTO ON**, quando
+ativado, permanece visível independentemente desses elementos.
 Seleção legítima, timeout, AUTO mode, pausa,
 velocidade escolhida continuam independentes dessa barreira.
 
 **Correção do menu após escolha (observação direta do usuário em 17/11,
-esclarecida em 18/11):** depois da seleção, a barra superior pode voltar a
-aparecer ao passar o mouse no topo, mas **todos os botões ficam congelados**.
+ampliada em 18/11):** depois da seleção ou omissão, a barra superior não
+pode reaparecer automaticamente por causa do hover anterior. Seus comandos
+permanecem congelados durante a saída da escolha, e somente um novo hover
+após a liberação pode revelar a MenuBar normal. O indicador AUTO ON continua
+visível em todas essas fases.
 Sem hover, o medidor de sentimentos aparece sozinho **apenas quando uma
 escolha confirmada efetivamente altera os pontos**. A tela de escolhas
 pendentes mostra só as opções; uma escolha omissa ou sem delta não cria a
@@ -204,8 +208,10 @@ escolha** e o forçava depois de qualquer confirmação. Agora, o prompt mostra
 **apenas as escolhas**, com `SeView` (código5), e a seleção emite `SeSelect`
 (ou `SeCancel` na omissão). Somente a detecção de mudança verdadeira de pontos
 emite `SeUp`/`SeDown` (códigos3/4) e exibe o Feel isolado. Se não houver delta,
-o menu congelado pode responder visualmente ao hover, mas sem desenhar o
-medidor. O Feel permanece independente do alpha do Top Menu quando ativado;
+o menu congelado permanece sem chrome, mesmo após uma atualização tardia sem
+mudança real. A correção limpa o hover/alpha herdado ao entrar na escolha e
+mantém o AUTO ON desenhado separadamente. O Feel permanece independente do
+alpha do Top Menu quando ativado;
 Skip/SuperSkip não atravessam escolhas.
 A regressão com leitura de pixels do SDL/software comprova que uma escolha
 pendente não mostra Feel nem chrome, que omissão ou ausência de delta não

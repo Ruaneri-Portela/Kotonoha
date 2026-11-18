@@ -125,14 +125,16 @@ scenes and pre-choice `SkipToNextChoice` keep their existing behavior.
 The safeguard also applies to gameplay RIGHT, the LEFT/Back input while a
 prompt is actively waiting, direct menu control 3, mouse/touch and synthetic
 gamepad skip input; replay-owned transports retain their recorded-choice
-semantics. The upper MenuBar **controls and background chrome** are suppressed
-while an uncommitted choice owns input; the independent **feeling meter stays
-visible**. Legitimate player clicks, timed-out prompts, AUTO mode,
+semantics. The upper MenuBar **controls, background chrome and Feel meter**
+are suppressed while an uncommitted choice owns input, but an enabled
+**AUTO ON status sprite remains independently visible**. Legitimate player clicks, timed-out prompts, AUTO mode,
 pause and selected playback speed remain separate from this transport barrier.
 
-**Post-choice menu correction (user's direct observation, November 17, corrected
-November 18):** after the player confirms a choice, the upper bar can become
-visually available on pointer hover but **all of its controls remain frozen**.
+**Post-choice menu correction (user's direct observation, November 17, extended
+November 18):** after the player confirms or omits a choice, the upper bar
+must not automatically reappear due to inherited hover alpha; its controls
+remain frozen during the choice exit, and only a new pointer hover after
+release can reveal the ordinary MenuBar. AUTO ON remains visible throughout.
 The isolated feeling meter appears without hover **only if a real raw feeling
 change was detected after a selected choice**. An unanswered `SetSELECT`
 displays options only (not the meter); omission/unchanged feelings do not
@@ -201,14 +203,19 @@ choice was still pending**, and forced the meter visible after confirmations
 that changed no feelings. The corrected runtime shows **only choices plus
 SeView (sound code5)** at prompt entry, then plays `SeSelect` for a confirmed
 option or `SeCancel` for omission; only a genuine changed-feeling event
-(`SeUp`/`SeDown`, codes3/4) activates standalone Feel. A frozen menu with no
-Feel may still show its chrome on hover. The meter retains independent alpha
-during an actual feeling effect. This does **not**
+(`SeUp`/`SeDown`, codes3/4) activates standalone Feel. The additional
+November 18 correction clears stale pointer/fade state on entering SetSELECT,
+does not show frozen choice chrome automatically, and preserves AUTO ON as a
+standalone sprite during the pending prompt, chosen/omitted result and handoff.
+A late unchanged feeling refresh cannot resurrect Feel. The meter retains
+independent alpha during an actual feeling effect. This does **not**
 unfreeze Top Menu actions or permit SkipToEnd/SuperSkip to bypass choices.
 An SDL software pixel-readback regression now checks that a pending choice
 draws neither Feel nor chrome, an omitted/unchanged choice never draws an
-isolated meter, and a genuine changed-Feel display keeps full alpha under
-later hovered chrome. Original skip dispatch and the `SkipFRAME == SetSELECT < Next` ordering in
+isolated meter (even after a delayed no-delta refresh), and a genuine
+changed-Feel display stays full-alpha without waking chrome. The AUTO ON
+chip remains visible in all these phases. Original skip dispatch and the
+`SkipFRAME == SetSELECT < Next` ordering in
 287/287 authored choice scenes were verified statically. See
 `games/school-days/docs/parity/TOP_MENU_FEEL_COMPOSITION_REA_2026-11-18.md`.
 Precise native post-choice input unlock remains an open verification item,

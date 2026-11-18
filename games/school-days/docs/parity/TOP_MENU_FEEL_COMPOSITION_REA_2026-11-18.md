@@ -223,9 +223,17 @@ Implementation: `choiceFeelEligible` distinguishes an actual selected option
 from omission; `choiceFeelVisible` is raised only by meter Detect code3/4.
 `VisibilityForFrozenChoiceTail(..., showMeter)` separates frozen controls
 from the optional Feel sprite, and `meterOnly` is now a **post-choice** state,
-never a pending-SetSELECT state. The condition for rendering chrome was also
-separated from the condition for rendering Feel, so a no-delta frozen menu
-can still be visually hovered without drawing an unearned meter.
+never a pending-SetSELECT state. On the 18 November follow-up, the player
+reported an additional regression: *stale pre-choice hover alpha* caused
+chrome to reappear automatically after a manual or omitted result. The
+presenter now drops hover selection, pointer latch and fade alpha when the
+choice takes ownership; while frozen, chrome stays hidden, and a fresh
+physical mouse motion after release may reveal it. AUTO ON is an independent
+full-opacity CHIP sprite that remains visible in the pending prompt,
+unchanged/omitted result, changed Feel presentation and scene handoff.
+The ordinary feeling latch alone no longer exposes the meter after a
+no-delta refresh; only raw delta detection does so outside the choice-specific
+presentation. No additional fabricated SeUp/SeDown is played on an omission.
 
 ## Limits / unresolved fidelity
 
@@ -243,12 +251,25 @@ nonzero. The OGG length is not itself evidence of an input unlock timer.
 
 Game-specific synthetic tests cover prompt meter projection, suppression of
 transport actions and click dispatch, alpha independence and repeated choice
-tails. `SchoolDaysMenuBarRuntimeTest` additionally uses two tiny generated,
-fully opaque **synthetic** PNG fixtures and reads actual SDL software-rendered
-pixels: while the choice owns the view, **both Feel and chrome are absent**;
-after confirmation without delta, no standalone Feel appears, even if frozen
-chrome can be hovered; only a synthetic changed-Feel event renders the meter
-alone with full alpha; when frozen chrome becomes visible later, it does not
-obscure the meter. Timeout/-1 and unchanged choices also retain a hidden
-standalone Feel state. Real-GPU and manual visual parity require a separate
-QA playthrough.
+tails. `SchoolDaysMenuBarRuntimeTest` additionally reads actual SDL software
+pixels using fully opaque **synthetic** PNG fixtures. During an unanswered
+choice and after manual/omitted confirmation, chrome and unearned Feel are
+absent while the blue AUTO ON chip remains. Changed Feel has its own full
+alpha without exposing chrome, including after the next scene binds.
+After release, no stale hover is inherited; only new pointer motion can reveal
+chrome. A delayed latch with unchanged raw feelings cannot resurrect Feel.
+These tests do **not** by themselves prove retail GPU visual parity.
+
+### Direct retail execution attempt, isolated (18 November 2026)
+
+The user authorized a **new runtime test of the original EXE**, superseding
+the earlier static-only restriction for this research. The protected QA copy
+at `D:\Dev\Preserved\SchoolDaysHQ\QA-Retail-20261118-worker5` was launched
+under a Windows **Low-integrity** token, with separate empty `Save`, copied
+EXE/DLL/Config and a `Packs` junction used only for read access under MIC.
+The actual screenshot `Evidence/screen-initial-20261118-115716.png` records
+`ExeModule: GraphicBase initialisation error / Failed to load DX3D device..`.
+The original process never reached the title or SetSELECT, so no screen-based
+observation of the prompt, omitted choice, Feel or AUTO may be inferred from
+this attempt. The QA original `Save` stayed empty; the retail files and
+personal saves were not modified. See the QA `Evidence/QA-runtime-evidence.txt`.

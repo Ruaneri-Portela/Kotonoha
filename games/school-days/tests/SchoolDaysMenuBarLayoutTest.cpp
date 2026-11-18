@@ -64,10 +64,10 @@ int main() {
         const auto unchangedTail = Presenter::VisibilityForFrozenChoiceTail(0, false, false);
         const auto unchangedHover = Presenter::VisibilityForFrozenChoiceTail(200, false, false);
         Check(idleTail.meter && !idleTail.chrome && hoveredTail.meter &&
-                  hoveredTail.chrome && hiddenTail.meter && !hiddenTail.chrome &&
+                  !hoveredTail.chrome && hiddenTail.meter && !hiddenTail.chrome &&
                   !unchangedTail.meter && !unchangedTail.chrome &&
-                  !unchangedHover.meter && unchangedHover.chrome,
-              "frozen menu exposed Feel without a change or obscured changed Feel");
+                  !unchangedHover.meter && !unchangedHover.chrome,
+              "frozen menu revealed stale hover chrome or unsupported Feel");
         Presenter frozenMenu;
         frozenMenu.SetChoiceTailFrozen(true);
         Check(frozenMenu.ChoiceTailFrozen(), "post-choice lock did not latch");
@@ -412,7 +412,9 @@ int main() {
 
         // The retail selected-speed square and AUTO ON are full-opacity
         // standalone sprites even while the ordinary hover chrome is hidden.
-        // The outgoing-choice meter and explicit handoff suppress them.
+        // Only the selected speed is suppressed by choice/scene transitions:
+        // when AUTO is ON its blue animated chip remains visible during the
+        // pending choice, changed-feeling meter and omitted-choice tail.
         const auto persistentAuto = Presenter::PersistentTransportForState(
             true, 0, true, false, false, false);
         const auto persistentSpeed = Presenter::PersistentTransportForState(
@@ -437,10 +439,10 @@ int main() {
                   persistentLocked.autoOn && !persistentLocked.selectedSpeed &&
                   persistentSpeedDisabled.autoOn &&
                   !persistentSpeedDisabled.selectedSpeed &&
-                  !persistentMeter.autoOn && !persistentMeter.selectedSpeed &&
-                  !persistentHandoff.autoOn &&
+                  persistentMeter.autoOn && !persistentMeter.selectedSpeed &&
+                  persistentHandoff.autoOn &&
                   !persistentHandoff.selectedSpeed,
-              "Hidden/menu-only AUTO and speed sprite persistence drifted");
+              "Choice and handoff hid persistent AUTO ON or exposed speed chrome");
 
         // SysMenu 0x100252BA..0x10025323 takes AUTO-on GetTickCount epoch
         // (EXE vtable+0x138, host+0x224), chooses 1000/(speedIndex+1) ms per

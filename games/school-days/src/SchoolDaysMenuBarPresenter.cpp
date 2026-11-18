@@ -66,6 +66,7 @@ bool SchoolDaysMenuBarPresenter::Open(SDL_Renderer* renderer,
     // Initialize() mirrors native callback_30(0): no update cycle is active
     // until a feeling writer raises the host latch again.
     feelingLatch_ = false;
+    feelingDeltaDetected_ = false;
     pendingFeelingDirectionCode_ = 0;
     pointerInsideBar_ = false;
     fadeTargetVisible_ = false;
@@ -99,6 +100,7 @@ void SchoolDaysMenuBarPresenter::Close() {
     chip_ = nullptr;
     assets_ = nullptr;
     feelingLatch_ = false;
+    feelingDeltaDetected_ = false;
     pendingFeelingDirectionCode_ = 0;
     selection_ = -1;
     pointerInsideBar_ = false;
@@ -118,12 +120,24 @@ void SchoolDaysMenuBarPresenter::Close() {
     replayIndicatorAlpha_ = 255;
 }
 
+void SchoolDaysMenuBarPresenter::ResetHoverChrome() {
+    selection_ = -1;
+    pointerInsideBar_ = false;
+    fadeTargetVisible_ = false;
+    fadeStartAlpha_ = 0;
+    fadeStartMs_ = 0;
+    barAlpha_ = 0;
+}
+
 bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer* renderer,
                                              const SDL_Event* event,
                                              Action* action) {
     if (action != nullptr) *action = {};
-    if (!opened_ || meterOnly_ || renderer == nullptr ||
-        event == nullptr || action == nullptr) {
+    // A prompt or frozen exit owns input entirely. Do not let mouse motion
+    // accumulate a hover that would automatically reveal stale chrome on the
+    // first unlocked frame (the retail +0x13C early-return semantics).
+    if (!opened_ || meterOnly_ || fullBarSuppressed_ || choiceTailFrozen_ ||
+        renderer == nullptr || event == nullptr || action == nullptr) {
         return false;
     }
     if (event->type != SDL_EVENT_MOUSE_MOTION &&
@@ -160,7 +174,6 @@ bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer* renderer,
     const float y = (wy - viewport.y) / viewport.scale;
     const int hit = HitTest(x, y, variant_);
     const bool availableNow =
-        !fullBarSuppressed_ && !choiceTailFrozen_ &&
         ControlAvailable(hit, transportLocked_, actionInhibit_,
                          speedControlsEnabled_, superSkipEnabled_,
                          replayIndicatorAvailable_);
@@ -208,6 +221,7 @@ void SchoolDaysMenuBarPresenter::RestoreFeelingState(int feeling001,
     if (!opened_) return;
     (void)meter_.Initialize(feeling001, feeling002);
     feelingLatch_ = false;
+    feelingDeltaDetected_ = false;
     pendingFeelingDirectionCode_ = 0;
 }
 
@@ -229,8 +243,10 @@ void SchoolDaysMenuBarPresenter::Update(uint32_t nowMs, int feeling001,
 
     if (feelingLatch_) {
         const auto tick = meter_.Tick(nowMs, feeling001, feeling002);
-        if (tick.hostDirectionCode == 3 || tick.hostDirectionCode == 4)
+        if (tick.hostDirectionCode == 3 || tick.hostDirectionCode == 4) {
+            feelingDeltaDetected_ = true;
             pendingFeelingDirectionCode_ = tick.hostDirectionCode;
+        }
         if (tick.clearFeelingLatch) feelingLatch_ = false;
     }
 }
@@ -257,6 +273,7 @@ void SchoolDaysMenuBarPresenter::SetRuntimeState(bool autoMode, bool paused,
     speedControlsEnabled_ = speedControlsEnabled;
     transportLocked_ = transportLocked;
     actionInhibit_ = actionInhibit;
+    if (fullBarSuppressed && !fullBarSuppressed_) ResetHoverChrome();
     fullBarSuppressed_ = fullBarSuppressed;
 }
 
@@ -348,12 +365,13 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
              ? VisibilityForFrozenChoiceTail(barAlpha_, fullBarSuppressed_,
                                              choiceTailFeelingVisible_)
              : VisibilityForState(barAlpha_, fullBarSuppressed_, false,
-                                  feelingLatch_));
-    const PersistentTransport persistent = choiceTailFrozen_
-        ? PersistentTransport{}
-        : PersistentTransportForState(
-              autoMode_, speedIndex_, speedControlsEnabled_, transportLocked_,
-              fullBarSuppressed_, meterOnly_);
+                                  feelingLatch_ && feelingDeltaDetected_));
+    // AUTO ON is a persistent, independent sprite, including through the
+    // choice prompt, its frozen exit, and the next-scene handoff. The selected
+    // speed highlight is not projected during those suppressed phases.
+    const PersistentTransport persistent = PersistentTransportForState(
+        autoMode_, speedIndex_, speedControlsEnabled_, transportLocked_,
+        fullBarSuppressed_ || choiceTailFrozen_, meterOnly_);
     const uint8_t replayAlpha = ReplayIndicatorAlphaForState(
         replayIndicatorAvailable_, replayIndicatorAlpha_, fullBarSuppressed_,
         meterOnly_);

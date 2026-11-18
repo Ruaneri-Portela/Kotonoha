@@ -225,31 +225,37 @@ void CheckMeterCompositingPixels(Application &app,
           "MenuBar synthetic draw failed: " + error);
   };
 
-  menu.SetRuntimeState(false, false, 0, false, true, false,
+  menu.SetRuntimeState(true, false, 0, false, true, false,
                        false, true); // prompt suppresses chrome and Feel
   menu.SetMeterOnly(false);
   paint();
   const auto choiceMeter = sample(200, 5);
   const auto hiddenChrome = sample(0, 40);
+  const auto promptAuto = sample(50, 10);
   Check(choiceMeter[0] == 0 && choiceMeter[1] == 0 &&
             choiceMeter[2] == 0 &&
             hiddenChrome[0] == 0 && hiddenChrome[1] == 0 &&
-            hiddenChrome[2] == 0,
-        "pending choice showed Feel or Top Menu instead of only its choices");
+            hiddenChrome[2] == 0 &&
+            promptAuto[0] == 5 && promptAuto[1] == 235 &&
+            promptAuto[2] == 245,
+        "pending choice exposed chrome/Feel or hid persistent AUTO ON");
 
   menu.SetMeterOnly(false);
-  menu.SetRuntimeState(false, false, 0, false, true, false,
+  menu.SetRuntimeState(true, false, 0, false, true, false,
                        false, false);
   menu.SetChoiceTailFrozen(true);
   menu.SetChoiceTailFeelingVisible(false); // no delta: no isolated Feel
   paint();
   const auto idleSilentMeter = sample(200, 5);
   const auto idleSilentChrome = sample(0, 40);
+  const auto silentAuto = sample(50, 10);
   Check(idleSilentMeter[0] == 0 && idleSilentMeter[1] == 0 &&
             idleSilentMeter[2] == 0 &&
             idleSilentChrome[0] == 0 && idleSilentChrome[1] == 0 &&
-            idleSilentChrome[2] == 0,
-        "silent confirmed choice revealed Feel without any hover or delta");
+            idleSilentChrome[2] == 0 &&
+            silentAuto[0] == 5 && silentAuto[1] == 235 &&
+            silentAuto[2] == 245,
+        "silent confirmed choice revealed Feel/chrome or hid AUTO without hover");
 
   SDL_Event hover{};
   hover.type = SDL_EVENT_MOUSE_MOTION;
@@ -259,16 +265,20 @@ void CheckMeterCompositingPixels(Application &app,
   (void)menu.HandleEvent(&renderer, &hover, &action);
   const uint32_t nowMs = static_cast<uint32_t>(SDL_GetTicks());
   menu.Update(nowMs + 350u, 10, 20); // hover fully reveals red chrome
-  // The frozen chrome may become visible on hover. In that state the central
-  // background is red, but the cyan *meter* must not have appeared.
+  // Frozen choice must not restart the whole Top Menu even when stale mouse
+  // motion or a previous hover targeted its area. The only persistent top
+  // sprite is AUTO ON; an omitted/no-delta result cannot show Feel later.
   paint();
   const auto silentMeter = sample(200, 5);
-  const auto visibleChrome = sample(0, 40);
-  Check(silentMeter[0] == 220 && silentMeter[1] == 10 &&
-            silentMeter[2] == 10 &&
-            visibleChrome[0] == 220 && visibleChrome[1] == 10 &&
-            visibleChrome[2] == 10,
-        "unchanged/omitted choice displayed an unsupported standalone Feel bar");
+  const auto silentChrome = sample(0, 40);
+  const auto tailAuto = sample(50, 10);
+  Check(silentMeter[0] == 0 && silentMeter[1] == 0 &&
+            silentMeter[2] == 0 &&
+            silentChrome[0] == 0 && silentChrome[1] == 0 &&
+            silentChrome[2] == 0 &&
+            tailAuto[0] == 5 && tailAuto[1] == 235 &&
+            tailAuto[2] == 245,
+        "unchanged/omitted choice revealed Top Menu/Feel or lost AUTO ON");
 
   // The meter's actual changed-feeling event triggers a second presentation:
   // Feel alone (chrome hidden) until the next physical scene is associated.
@@ -277,23 +287,76 @@ void CheckMeterCompositingPixels(Application &app,
   paint();
   const auto soloMeter = sample(200, 5);
   const auto soloChrome = sample(0, 40);
+  const auto soloAuto = sample(50, 10);
   Check(soloMeter[0] == 5 && soloMeter[1] == 235 &&
             soloMeter[2] == 245 &&
             soloChrome[0] == 0 && soloChrome[1] == 0 &&
-            soloChrome[2] == 0,
-        "point change did not show the full-alpha Feel meter alone");
+            soloChrome[2] == 0 &&
+            soloAuto[0] == 5 && soloAuto[1] == 235 &&
+            soloAuto[2] == 245,
+        "point change did not show full-alpha Feel with standalone AUTO ON");
 
-  // Once the next scene is bound, the disabled chrome may respond visually
-  // to hover but must not change the meter's independent, top-layer opacity.
+  // The confirmed choice stays in its frozen result phase across scene bind:
+  // the normal top controls must not come back merely because the script
+  // advanced. The meter and AUTO ON retain their own independent surfaces.
   menu.SetMeterOnly(false);
   paint();
   const auto frozenMeter = sample(200, 5);
   const auto frozenChrome = sample(0, 40);
+  const auto frozenAuto = sample(50, 10);
   Check(frozenMeter[0] == 5 && frozenMeter[1] == 235 &&
             frozenMeter[2] == 245 &&
-            frozenChrome[0] == 220 && frozenChrome[1] == 10 &&
-            frozenChrome[2] == 10,
-        "hovered frozen Top Menu painted over the changed feeling meter");
+            frozenChrome[0] == 0 && frozenChrome[1] == 0 &&
+            frozenChrome[2] == 0 &&
+            frozenAuto[0] == 5 && frozenAuto[1] == 235 &&
+            frozenAuto[2] == 245,
+        "scene rebind revealed chrome or obscured Feel/AUTO while frozen");
+
+  // After the frozen tail ends, no synthetic mouse hover should be inherited
+  // from the old choice. A real new move into the top region alone may reveal
+  // chrome. Outside the region, only AUTO ON remains on top of gameplay.
+  menu.SetChoiceTailFrozen(false);
+  menu.SetChoiceTailFeelingVisible(false);
+  menu.Update(nowMs + 5000u, 10, 20);
+  paint();
+  const auto releasedChrome = sample(0, 40);
+  const auto releasedAuto = sample(50, 10);
+  Check(releasedChrome[0] == 0 && releasedChrome[1] == 0 &&
+            releasedChrome[2] == 0 &&
+            releasedAuto[0] == 5 && releasedAuto[1] == 235 &&
+            releasedAuto[2] == 245,
+        "MenuBar jumped visible at choice release instead of waiting for hover");
+
+  // An omitted choice can request the host's Feeling refresh without any
+  // actual raw 001/002 delta. A bare latch must not resurrect Feel after a
+  // delay, especially after the post-choice freeze has been removed.
+  menu.RequestFeelingRefresh();
+  menu.Update(nowMs + 5500u, 10, 20); // Capture
+  menu.Update(nowMs + 5501u, 10, 20); // Detect: both raw values unchanged
+  Check(menu.ConsumeFeelingDirectionCode() == 0,
+        "omitted/no-delta refresh invented SeUp or SeDown");
+  paint();
+  const auto omittedLateMeter = sample(200, 5);
+  const auto omittedLateChrome = sample(0, 40);
+  Check(omittedLateMeter[0] == 0 && omittedLateMeter[1] == 0 &&
+            omittedLateMeter[2] == 0 &&
+            omittedLateChrome[0] == 0 && omittedLateChrome[1] == 0 &&
+            omittedLateChrome[2] == 0,
+        "unchanged omitted choice resurrected standalone Feel after unlock");
+  menu.Update(nowMs + 8500u, 10, 20);
+  paint();
+  const auto omittedAfterHold = sample(200, 5);
+  Check(omittedAfterHold[0] == 0 && omittedAfterHold[1] == 0 &&
+            omittedAfterHold[2] == 0,
+        "omitted choice displayed Feel again after the hold timer");
+
+  (void)menu.HandleEvent(&renderer, &hover, &action);
+  menu.Update(static_cast<uint32_t>(SDL_GetTicks()) + 350u, 10, 20);
+  paint();
+  const auto hoveredChrome = sample(0, 40);
+  Check(hoveredChrome[0] == 220 && hoveredChrome[1] == 10 &&
+            hoveredChrome[2] == 10,
+        "Top Menu did not respond to a fresh real hover after choice release");
   menu.Close();
 }
 

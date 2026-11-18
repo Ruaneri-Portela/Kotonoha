@@ -274,9 +274,12 @@ SchoolDaysMenuBarPresenter::VisibilityForState(uint8_t barAlpha,
 SchoolDaysMenuBarPresenter::RenderVisibility
 SchoolDaysMenuBarPresenter::VisibilityForFrozenChoiceTail(
     uint8_t barAlpha, bool fullBarSuppressed, bool showMeter) {
-    auto visible = VisibilityForState(barAlpha, fullBarSuppressed, false);
-    visible.meter = showMeter;  // No standalone meter without a real feeling delta.
-    return visible;            // Chrome may still appear, but controls remain inert.
+    // An exiting choice cannot generate the mouse hover needed to show normal
+    // chrome. An inherited nonzero alpha is stale, not evidence of a hover.
+    // The isolated meter is allowed only after the detector reports a delta.
+    (void)barAlpha;
+    (void)fullBarSuppressed;
+    return {showMeter, false};
 }
 
 uint8_t SchoolDaysMenuBarPresenter::MeterAlphaForState(
@@ -294,11 +297,11 @@ SchoolDaysMenuBarPresenter::PersistentTransport
 SchoolDaysMenuBarPresenter::PersistentTransportForState(
     bool autoMode, int speedIndex, bool speedControlsEnabled,
     bool transportLocked, bool fullBarSuppressed, bool meterOnly) {
-    // Persistent native sprites are distinct from the fading 800x75 chrome.
-    // Choice-tail meterOnly and an explicit handoff suppression hide them.
-    if (fullBarSuppressed || meterOnly) return {};
+    // AUTO ON is an independent persistent status sprite: even a pending
+    // SetSELECT, isolated post-choice Feel, or scene handoff cannot hide it.
+    // Only the selected-speed highlight follows menu suppression.
     return {speedIndex > 0 && speedIndex < 5 && speedControlsEnabled &&
-                !transportLocked,
+                !transportLocked && !fullBarSuppressed && !meterOnly,
             autoMode};
 }
 

@@ -149,7 +149,10 @@ public:
               std::string* error = nullptr);
     void Close();
 
-    void RequestFeelingRefresh() { feelingLatch_ = true; }
+    void RequestFeelingRefresh() {
+        if (!feelingLatch_) feelingDeltaDetected_ = false;
+        feelingLatch_ = true;
+    }
     // Loading a different save replaces the KTRF feeling state without a
     // normal SET_FLAG writer notification. Keep the MenuBar textures/chrome,
     // but rebase its visual value and clear any old choice animation/cue.
@@ -170,15 +173,13 @@ public:
     // Used only for a detected, changed-feeling post-choice effect, never for
     // the unanswered SETSELECT itself or an unchanged/omitted choice.
     void SetMeterOnly(bool enabled) {
+        if (enabled && !meterOnly_) ResetHoverChrome();
         meterOnly_ = enabled;
-        if (enabled) {
-            selection_ = -1;
-            pointerInsideBar_ = false;
-        }
     }
     // Post-choice: controls remain frozen whether or not any feeling changed;
     // the separately gated meter may appear on actual detected change only.
     void SetChoiceTailFrozen(bool enabled) {
+        if (enabled && !choiceTailFrozen_) ResetHoverChrome();
         choiceTailFrozen_ = enabled;
         if (enabled) selection_ = -1;
     }
@@ -212,6 +213,10 @@ public:
     const SchoolDaysTopMeterModel& Meter() const { return meter_; }
 
 private:
+    // The native input gate prevents mouse hover from generating chrome.
+    // Discard any pre-choice fade/selection when the game takes ownership;
+    // only a new physical mouse-motion event may reveal it after unlock.
+    void ResetHoverChrome();
     static SDL_FRect Transform(const SDL_FRect& logical,
                                const Viewport& viewport);
     static bool RenderClipped(SDL_Renderer* renderer, SDL_Texture* texture,
@@ -227,6 +232,9 @@ private:
     SchoolDaysTopMeterModel meter_;
     int pendingFeelingDirectionCode_ = 0;
     bool feelingLatch_ = false;
+    // A refresh request is not proof of changed raw 001/002. Only the meter's
+    // Detect phase may reveal a standalone feeling animation.
+    bool feelingDeltaDetected_ = false;
     bool opened_ = false;
     int selection_ = -1;
     bool pointerInsideBar_ = false;
