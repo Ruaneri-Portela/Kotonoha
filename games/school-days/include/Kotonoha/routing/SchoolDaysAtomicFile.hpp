@@ -5,8 +5,9 @@
 #include <string>
 #include <vector>
 
-// Game-specific atomic GlobalFlag storage, with no engine or SDL dependency.
-// Kept standalone so this exact implementation can be compiled on POSIX CI.
+// Small game-specific GlobalFlag payload policy. File creation, Unicode
+// filenames, flush, publication and cleanup are handled by the shared
+// Kotonoha::Filesystem SDL backend; no OS-specific I/O belongs here.
 namespace Kotonoha::SchoolDaysAtomicFile {
 
 enum class Fault {
