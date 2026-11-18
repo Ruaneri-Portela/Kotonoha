@@ -1,8 +1,8 @@
 #include <Kotonoha/routing/SchoolDaysSaveStorage.hpp>
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
-#include <fstream>
-#include <limits>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
 namespace Kotonoha {
 namespace {
@@ -33,8 +33,8 @@ bool SchoolDaysSaveStorage::Initialize(
   std::filesystem::path folder;
   if (!ResolveRelative(profile_.saveFolder, &folder, error))
     return false;
-  // Native init ignores CreateDirectoryA's return. Mirror that ownership:
-  // attempt exactly once here and let later slot open report any real failure.
+  // Create the designated save folder once at startup. Later slot access
+  // reports real failures rather than silently changing the directory tree.
   std::error_code ignored;
   (void)std::filesystem::create_directories(folder, ignored);
   initialized_ = true;
@@ -71,28 +71,19 @@ bool SchoolDaysSaveStorage::ReadFile(const std::filesystem::path &path,
   if (bytes == nullptr)
     return Fail(error, "School Days read output is null");
   bytes->clear();
-  // Save profiles are physical OS files, never virtual assets. Opening the
-  // filesystem::path directly preserves its wide Unicode spelling on Windows;
-  // the current SDLFileSource path adapter uses path.string() (ANSI), which
-  // fails on non-ASCII folders even after a successful atomic publication.
-  std::ifstream file(path, std::ios::binary | std::ios::ate);
-  if (!file)
-    return Fail(error, "School Days save file could not be opened for read");
-  const auto end = file.tellg();
-  if (end < 0 ||
-      static_cast<uintmax_t>(end) >
-          static_cast<uintmax_t>(std::numeric_limits<size_t>::max())) {
-    return Fail(error, "School Days save file size is invalid");
-  }
-  bytes->resize(static_cast<size_t>(end));
-  file.seekg(0, std::ios::beg);
-  if (!bytes->empty() &&
-      !file.read(reinterpret_cast<char *>(bytes->data()),
-                 static_cast<std::streamsize>(bytes->size()))) {
+  // Reading physical saves goes through the same SDL-backed adapter as
+  // every other Kotonoha provider. It also accepts Unicode directories on
+  // Windows because SDLFileSource passes UTF-8 to SDL_IOFromFile.
+  try {
+    *bytes = Kotonoha::Filesystem::readLocalFile(path);
+    return true;
+  } catch (const std::exception &failure) {
     bytes->clear();
-    return Fail(error, "School Days save file read failed");
+    if (error)
+      *error = std::string("School Days save file read failed: ") +
+               failure.what();
+    return false;
   }
-  return true;
 }
 
 bool SchoolDaysSaveStorage::WriteFileTruncate(const std::filesystem::path &path,
@@ -164,10 +155,12 @@ bool SchoolDaysSaveStorage::ProbeSaveFile(int slot, bool *openable,
 
   // Native +0x9C treats an unsuccessful file open as an unoccupied slot and
   // returns 0; it does not escalate the miss through the SysMenu interface.
-  std::ifstream file(path, std::ios::binary);
-  if (!file)
-    return true;
-  *openable = true;
+  try {
+    Kotonoha::Filesystem::SDLFileSource probe(path);
+    *openable = true;
+  } catch (const std::exception &) {
+    // An inaccessible or missing slot is an empty row, not a save failure.
+  }
   return true;
 }
 
