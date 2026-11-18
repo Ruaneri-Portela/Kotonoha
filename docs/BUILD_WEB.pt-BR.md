@@ -66,6 +66,40 @@ do manifesto para não combinar caches incompatíveis. O guia e o índice
 também podem ser recuperados offline quando já salvos; se faltarem blocos
 obrigatórios, o boot permanece bloqueado. A origem local não faz preload HTTP.
 
+## Idioma no navegador e limite do cache de assets
+
+Cada jogo web possui os botões **English / Português** na tela inicial.
+A escolha padrão acompanha o idioma do navegador, mas a preferência é
+salva no `localStorage`. A tradução cobre seleção de assets, progresso,
+montagem de pastas, mensagens de erro e rótulos de acessibilidade.
+O idioma dos scripts dentro dos jogos não é alterado por esse seletor.
+
+O cache de blocos no IndexedDB utiliza **LRU**: remove os blocos acessados há
+mais tempo primeiro, compartilhando o limite entre jogos da mesma origem web.
+O limite padrão é **2 GiB** de chunks binários, sem incluir saves nem o
+runtime armazenado pelo PWA. Leituras atualizam a data de último acesso.
+Antes de gravar um bloco, o gerenciador libera dados antigos se necessário,
+considerando o limite configurado e a estimativa de espaço do navegador.
+Em caso de `QuotaExceededError`, remove mais blocos antigos e tenta gravar
+novamente. Dados, metadados e contagem de bytes são alterados numa mesma
+transação IndexedDB. Os intervalos obrigatórios do `preload.json` permanecem
+protegidos contra a limpeza durante a sessão; se não couberem no cache, o
+preload falha em vez de iniciar incompleto.
+
+Para definir um limite diferente **antes de iniciar o jogo via HTTP(S)**:
+
+```javascript
+window.KotonohaCacheMaxBytes = 512 * 1024 * 1024; // 512 MiB
+// Depois de configurar a origem HTTP:
+await KotonohaAssetCache.getCacheStats();
+```
+
+Alterar esse valor afeta as próximas gravações, não limpa o cache
+imediatamente. A limpeza não remove saves em `/save` nem os arquivos do
+Service Worker/Cache Storage do PWA. Se não houver espaço para persistir um
+asset, a leitura pela rede pode continuar normalmente; o uso offline depende
+dos blocos que permaneceram armazenados.
+
 ## Armazenamento e assets no navegador
 
 - **Saves:** volume IDBFS em `/save`, sincronizado com IndexedDB pelo adaptador web.
