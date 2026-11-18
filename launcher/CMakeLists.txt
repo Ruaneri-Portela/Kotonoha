@@ -58,6 +58,15 @@ kotonoha_configure_app(KotonohaLauncher
     GAME example
     GAME_ASSET_SOURCE "${KOTONOHA_PROJECT_ROOT}/games/example/game-assets")
 
+# School Days uses a tracked, non-commercial route definition. Ship this
+# together with the in-process hub instead of assuming the individual game's
+# standalone output directory is available at runtime.
+if(KOTONOHA_BUILD_SCHOOL_DAYS)
+    kotonoha_preload_asset(KotonohaLauncher
+        "${KOTONOHA_PROJECT_ROOT}/games/school-days/game-assets/school-days-hq.ktnroute"
+        "/game-assets/school-days-hq.ktnroute")
+endif()
+
 if(BUILD_TESTING)
     add_executable(KotonohaUnifiedLauncherTests tests/UnifiedLauncherTests.cpp)
     target_link_libraries(KotonohaUnifiedLauncherTests PRIVATE kotonoha_unified_launcher)
