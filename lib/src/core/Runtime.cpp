@@ -10,6 +10,10 @@
 #include <charconv>
 #include <stdexcept>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 namespace Kotonoha {
 
 Runtime::Runtime(std::string name, std::string version, std::string identify)
