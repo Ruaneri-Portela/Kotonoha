@@ -1,10 +1,13 @@
 #include <Kotonoha/Filesystem/GameSourceProbe.hpp>
+#include <Kotonoha/Filesystem/EngineDetector.hpp>
 
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -18,6 +21,37 @@ void require(bool value, const char *message) {
   if (!value)
     throw std::runtime_error(message);
 }
+
+// Emulates a manifest-free HTTP source: HEAD/stat of known names succeeds,
+// but a directory listing returns no entries at all.
+class UnindexedHttpFixture final : public Kotonoha::Filesystem::IMount {
+  std::set<std::string> files_;
+
+public:
+  explicit UnindexedHttpFixture(std::initializer_list<std::string> files)
+      : files_(files) {}
+
+  bool exists(std::string_view path) const override {
+    return path.empty() || files_.count(std::string(path)) != 0;
+  }
+  Kotonoha::Filesystem::FileInfo
+  stat(std::string_view path) const override {
+    if (path.empty())
+      return {"", Kotonoha::Filesystem::FileType::Directory, 0};
+    if (!exists(path))
+      throw Kotonoha::Filesystem::FilesystemError(
+          Kotonoha::Filesystem::ErrorCode::NotFound, "HTTP 404");
+    return {std::string(path), Kotonoha::Filesystem::FileType::Regular, 42};
+  }
+  std::vector<Kotonoha::Filesystem::FileInfo>
+  list(std::string_view) const override {
+    return {};
+  }
+  std::unique_ptr<Kotonoha::Filesystem::FileHandle>
+  open(std::string_view) const override {
+    return nullptr;
+  }
+};
 
 class Fixture {
 public:
@@ -104,6 +138,29 @@ int main() {
     require(bounded, "VFS recursion must reject exceeding the traversal limit");
     require(!findRequiredFilesPrefix(*source, {}),
             "An empty required-file set does not validate any source");
+
+    const auto ponscripter = Filesystem::mount(
+        std::make_shared<UnindexedHttpFixture>(
+            std::initializer_list<std::string>{"00.utf", "arc.nsa"}));
+    require(Kotonoha::Filesystem::listGameSourceFiles(*ponscripter).empty(),
+            "HTTP fixture must not enumerate any directory");
+    require(Kotonoha::Filesystem::isGameSourceRegularFile(
+                *ponscripter, "00.utf"),
+            "PONscripter script must be found without a directory listing");
+    require(Kotonoha::Filesystem::detectEngine(*ponscripter).kind ==
+                Kotonoha::Filesystem::EngineKind::ONScripter,
+            "PONscripter detection must work on unindexed HTTP mounts");
+
+    const auto kirikiri = Filesystem::mount(
+        std::make_shared<UnindexedHttpFixture>(
+            std::initializer_list<std::string>{"data.xp3"}));
+    require(Kotonoha::Filesystem::listGameSourceFiles(*kirikiri).empty(),
+            "Kirikiri HTTP fixture must not enumerate remote files");
+    require(Kotonoha::Filesystem::isGameSourceRegularFile(*kirikiri, "data.xp3"),
+            "Kirikiri XP3 must be found without a directory listing");
+    require(Kotonoha::Filesystem::detectEngine(*kirikiri).kind ==
+                Kotonoha::Filesystem::EngineKind::Kirikiri,
+            "Kirikiri detection must work on unindexed HTTP mounts");
 
     std::cout << "Virtual game source compatibility probes passed\n";
   } catch (const std::exception &error) {
