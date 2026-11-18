@@ -30,7 +30,7 @@ withAssets(Kotonoha::EngineOptions options,
 bool validate(const std::string &path, std::string &info) {
   try {
     auto source = Kotonoha::Filesystem::Filesystem::mount(path);
-    for (const auto &entry : source->list()) {
+    for (const auto &entry : Kotonoha::Filesystem::listGameSourceFiles(*source)) {
       if (entry.type != Kotonoha::Filesystem::FileType::Regular)
         continue;
       std::string lower = entry.path;
