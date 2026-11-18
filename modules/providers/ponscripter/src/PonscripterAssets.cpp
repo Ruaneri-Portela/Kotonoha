@@ -109,7 +109,41 @@ void PonscripterAssets::setRootDirectory(std::string_view rootDir) {
         }
       }
     }
-  } catch (...) {
+    // The manifest-free browser backend cannot enumerate unknown filenames.
+    // Discover common loose scripts and archives by their canonical paths.
+    // Indexed directory/ISO sources have already been handled above.
+    for (const char *known :
+         {"00.utf", "0.utf", "nscript.dat", "pscript.dat", "00.txt",
+          "0.txt", "arc.nsa", "arc1.nsa", "arc2.nsa", "arc3.nsa",
+          "arc4.nsa", "arc5.nsa", "arc6.nsa", "arc7.nsa",
+          "arc8.nsa", "arc9.nsa", "arc.sar"}) {
+      if (caseIndex_.count(known) || !vfs_->exists(known) ||
+          vfs_->stat(known).type != Kotonoha::Filesystem::FileType::Regular)
+        continue;
+      caseIndex_[known] = known;
+      const std::string name(known);
+      if (name.size() < 4 ||
+          (name.substr(name.size() - 4) != ".nsa" &&
+           name.substr(name.size() - 4) != ".sar"))
+        continue;
+      try {
+        auto handle = vfs_->open(known);
+        if (handle)
+          mountArchive(
+              Kotonoha::Filesystem::readAll(*handle),
+              name.substr(name.size() - 4) == ".sar"
+                  ? ArchiveFormat::SAR
+                  : ArchiveFormat::NSA,
+              0);
+      } catch (const std::exception &error) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "PONscripter HTTP archive %s unavailable: %s", known,
+                    error.what());
+      }
+    }
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "PONscripter VFS mount failed: %s", error.what());
     vfs_.reset();
   }
 }
@@ -133,6 +167,11 @@ PonscripterAssets::resolveActualPath(std::string_view requestedPath) const {
   const auto it = caseIndex_.find(norm);
   if (it != caseIndex_.end())
     return it->second;
+  // An unindexed HTTP source may expose the requested loose asset only after
+  // a HEAD probe. Do not require it to appear in listGameSourceFiles().
+  if (vfs_ && vfs_->exists(norm) &&
+      vfs_->stat(norm).type == Kotonoha::Filesystem::FileType::Regular)
+    return norm;
 
   // 2. Mounted NSA/SAR archive
   for (auto ait = archives_.rbegin(); ait != archives_.rend(); ++ait) {
@@ -147,6 +186,10 @@ PonscripterAssets::resolveActualPath(std::string_view requestedPath) const {
     const auto vit = caseIndex_.find(fallbackNorm);
     if (vit != caseIndex_.end())
       return vit->second;
+    if (vfs_ && vfs_->exists(fallbackNorm) &&
+        vfs_->stat(fallbackNorm).type ==
+            Kotonoha::Filesystem::FileType::Regular)
+      return fallbackNorm;
     for (auto ait = archives_.rbegin(); ait != archives_.rend(); ++ait) {
       if ((*ait)->contains(fallbackNorm))
         return fallbackNorm;
@@ -200,6 +243,11 @@ std::vector<Uint8> PonscripterAssets::readAsset(const std::string &path) const {
     if (handle)
       return Kotonoha::Filesystem::readAll(*handle);
   }
+  if (it == caseIndex_.end() && vfs_ && vfs_->exists(norm) &&
+      vfs_->stat(norm).type == Kotonoha::Filesystem::FileType::Regular) {
+    if (auto handle = vfs_->open(norm))
+      return Kotonoha::Filesystem::readAll(*handle);
+  }
 
   for (auto ait = archives_.rbegin(); ait != archives_.rend(); ++ait) {
     if ((*ait)->contains(norm))
@@ -212,6 +260,12 @@ std::vector<Uint8> PonscripterAssets::readAsset(const std::string &path) const {
     if (vit != caseIndex_.end() && vfs_) {
       auto handle = vfs_->open(vit->second);
       if (handle)
+        return Kotonoha::Filesystem::readAll(*handle);
+    }
+    if (vit == caseIndex_.end() && vfs_ && vfs_->exists(fallbackNorm) &&
+        vfs_->stat(fallbackNorm).type ==
+            Kotonoha::Filesystem::FileType::Regular) {
+      if (auto handle = vfs_->open(fallbackNorm))
         return Kotonoha::Filesystem::readAll(*handle);
     }
     for (auto ait = archives_.rbegin(); ait != archives_.rend(); ++ait) {
@@ -272,6 +326,11 @@ PonscripterAssets::openStream(const std::string &path) const {
     if (handle)
       return std::make_unique<VfsStream>(std::move(handle));
   }
+  if (it == caseIndex_.end() && vfs_ && vfs_->exists(norm) &&
+      vfs_->stat(norm).type == Kotonoha::Filesystem::FileType::Regular) {
+    if (auto handle = vfs_->open(norm))
+      return std::make_unique<VfsStream>(std::move(handle));
+  }
   for (auto ait = archives_.rbegin(); ait != archives_.rend(); ++ait) {
     if ((*ait)->contains(norm))
       return std::make_unique<MemoryStream>((*ait)->extract(norm));
@@ -282,6 +341,12 @@ PonscripterAssets::openStream(const std::string &path) const {
     if (vit != caseIndex_.end() && vfs_) {
       auto handle = vfs_->open(vit->second);
       if (handle)
+        return std::make_unique<VfsStream>(std::move(handle));
+    }
+    if (vit == caseIndex_.end() && vfs_ && vfs_->exists(fallbackNorm) &&
+        vfs_->stat(fallbackNorm).type ==
+            Kotonoha::Filesystem::FileType::Regular) {
+      if (auto handle = vfs_->open(fallbackNorm))
         return std::make_unique<VfsStream>(std::move(handle));
     }
     for (auto ait = archives_.rbegin(); ait != archives_.rend(); ++ait) {
