@@ -2119,14 +2119,20 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         return base + extension;
     return std::string();
   };
-  if (type == 1 && (m == 12 || m == 13 || m == 41 || m == 255))
+  if (type == 1 && (m == 12 || m == 13 || m == 40 || m == 41 || m == 255))
     return true;
   if (type == 0 && m == 4)
     return true;
   if (type == 0 && m == 3) {
     switch (op) {
+    case 0:
+    case 1:
+    case 2:
     case 3:
+    case 4:
+    case 16:
     case 17:
+    case 200:
     case 205: {
       pauseKind = op;
       currentPage = {vm.scenario(), vm.index()};
@@ -2134,7 +2140,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (!currentRead)
         skipMode = false;
       autoDeadline = 0;
-      textbox->concealed = false;
+      textbox->concealed = op == 205;
       pause = true;
       auto translated = engine->GetTranslation().text(vm.scenario(), dialogue);
       if (translated == dialogue && !dialogue.empty() &&
@@ -2172,7 +2178,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
   }
-  if (type == 0 && m == 2 && (op == 0 || op == 1 || op == 3)) {
+  if (type == 0 && m == 2 && (op >= 0 && op <= 4)) {
     if (op == 3) {
       machine.set_store_register(0);
       return true;
@@ -3078,8 +3084,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 1001) {
       int slot = value(c, 1);
-      machine.set_store_register(
-          slot >= 0 && slot < 16 ? o.adjustments[slot].y : 0);
+      machine.set_store_register(slot >= 0 && slot < 16 ? o.adjustments[slot].y
+                                                        : 0);
       return true;
     }
     if (op == 1003) {

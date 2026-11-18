@@ -198,16 +198,16 @@ std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
             i++;
           }
         }
-        // Strip trailing font-reset marker "%fSourceHanSansCN-M;" if present.
-        static const char *kFontReset = "%fSourceHanSansCN-M;";
-        if (dialogue.size() > strlen(kFontReset) &&
-            dialogue.compare(dialogue.size() - strlen(kFontReset),
-                             strlen(kFontReset), kFontReset) == 0)
-          dialogue.resize(dialogue.size() - strlen(kFontReset));
-        // Strip leading "%f;" if present.
-        if (dialogue.size() >= 3 && dialogue[0] == '%' && dialogue[1] == 'f' &&
-            dialogue[2] == ';')
-          dialogue.erase(0, 3);
+        // Strip any embedded font tags like "%fSourceHanSansCN-M;" or "%f;"
+        std::size_t fpos = 0;
+        while ((fpos = dialogue.find("%f", fpos)) != std::string::npos) {
+          const auto semi = dialogue.find(';', fpos);
+          if (semi != std::string::npos && semi - fpos < 64) {
+            dialogue.erase(fpos, semi - fpos + 1);
+          } else {
+            fpos += 2;
+          }
+        }
         if (!dialogue.empty()) {
           script += "[cm text=\"";
           script += dialogue;
@@ -612,8 +612,8 @@ bool KirikiriAssets::readXp3(const std::string &id) {
         }
       }
       if (hasInfo && hasSegments && !entry.name.empty()) {
-        // Protected archives (such as NEKOPARA) may carry advisory size mismatch
-        // markers in their info header. Trust the actual segment sum.
+        // Protected archives (such as NEKOPARA) may carry advisory size
+        // mismatch markers in their info header. Trust the actual segment sum.
         if (originalTotal != entry.originalSize)
           entry.originalSize = originalTotal;
         entries.push_back(std::move(entry));

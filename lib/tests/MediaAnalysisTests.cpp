@@ -1,6 +1,6 @@
 #include <Kotonoha/media/MediaDecoder.hpp>
-#include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/media/SurfaceTexture.hpp>
+#include <Kotonoha/media/TextureAlpha.hpp>
 
 #include <atomic>
 #include <cstdint>
@@ -107,7 +107,6 @@ void straightAlphaEdges() {
   }
 }
 
-
 struct Pixel {
   Uint8 r, g, b, a;
 };
@@ -128,8 +127,7 @@ void surfaceUploadFormats() {
 
   // Color-keyed RGB24: the hidden magenta backdrop must become alpha zero,
   // including when the upload source does not provide an alpha channel.
-  Kotonoha::SurfacePtr keyed(
-      SDL_CreateSurface(3, 3, SDL_PIXELFORMAT_RGB24));
+  Kotonoha::SurfacePtr keyed(SDL_CreateSurface(3, 3, SDL_PIXELFORMAT_RGB24));
   require(bool(keyed), "Allocate RGB24 color-keyed surface");
   const Uint32 key = SDL_MapSurfaceRGB(keyed.get(), 255, 0, 255);
   require(SDL_FillSurfaceRect(keyed.get(), nullptr, key) &&
@@ -137,8 +135,8 @@ void surfaceUploadFormats() {
               SDL_SetSurfaceBlendMode(keyed.get(), SDL_BLENDMODE_BLEND),
           "Configure RGB24 color-keyed surface");
   const SDL_Rect center{1, 1, 1, 1};
-  require(SDL_FillSurfaceRect(
-              keyed.get(), &center, SDL_MapSurfaceRGB(keyed.get(), 18, 91, 220)),
+  require(SDL_FillSurfaceRect(keyed.get(), &center,
+                              SDL_MapSurfaceRGB(keyed.get(), 18, 91, 220)),
           "Draw a single visible pixel into keyed surface");
   SDL_BlendMode originalBlend = SDL_BLENDMODE_INVALID;
   require(SDL_GetSurfaceBlendMode(keyed.get(), &originalBlend),
@@ -151,8 +149,8 @@ void surfaceUploadFormats() {
               middle.a == 255,
           "Color-keyed conversion retains visible pixel colors");
   const auto border = pixel(*prepared, 0, 1);
-  require(border.a == 0 && border.r == middle.r &&
-              border.g == middle.g && border.b == middle.b,
+  require(border.a == 0 && border.r == middle.r && border.g == middle.g &&
+              border.b == middle.b,
           "Linear-sampling preparation fills RGB of transparent neighbors");
   require(pixel(*prepared, 0, 0).a == 0,
           "Color-keyed canvas background stays transparent");
@@ -164,13 +162,11 @@ void surfaceUploadFormats() {
 
   // Palette-index color keys refer to the original pixel index, not its
   // RGB value. Duplicated palette colors must not acquire false transparency.
-  Kotonoha::SurfacePtr indexed(
-      SDL_CreateSurface(3, 3, SDL_PIXELFORMAT_INDEX8));
+  Kotonoha::SurfacePtr indexed(SDL_CreateSurface(3, 3, SDL_PIXELFORMAT_INDEX8));
   require(bool(indexed), "Allocate INDEX8 source surface");
   auto *palette = SDL_CreateSurfacePalette(indexed.get());
-  const SDL_Color colors[3] = {{255, 0, 255, 255},
-                               {18, 91, 220, 255},
-                               {255, 0, 255, 255}};
+  const SDL_Color colors[3] = {
+      {255, 0, 255, 255}, {18, 91, 220, 255}, {255, 0, 255, 255}};
   require(palette && SDL_SetPaletteColors(palette, colors, 0, 3) &&
               SDL_FillSurfaceRect(indexed.get(), nullptr, 0) &&
               SDL_SetSurfaceColorKey(indexed.get(), true, 0),
@@ -181,8 +177,7 @@ void surfaceUploadFormats() {
           "Paint two distinct indexed entries");
   const auto indexedPrepared =
       Kotonoha::prepareSurfaceForLinearSampling(indexed.get());
-  require(bool(indexedPrepared) &&
-              pixel(*indexedPrepared, 0, 0).a == 0 &&
+  require(bool(indexedPrepared) && pixel(*indexedPrepared, 0, 0).a == 0 &&
               pixel(*indexedPrepared, 1, 1).a == 255 &&
               pixel(*indexedPrepared, 0, 2).a == 255 &&
               pixel(*indexedPrepared, 0, 2).r == 255 &&
@@ -193,26 +188,25 @@ void surfaceUploadFormats() {
   // A non-keyed RGB source must stay opaque and convert accurately.
   Kotonoha::SurfacePtr rgb(SDL_CreateSurface(2, 2, SDL_PIXELFORMAT_RGB24));
   require(bool(rgb) &&
-              SDL_FillSurfaceRect(
-                  rgb.get(), nullptr, SDL_MapSurfaceRGB(rgb.get(), 31, 49, 68)),
+              SDL_FillSurfaceRect(rgb.get(), nullptr,
+                                  SDL_MapSurfaceRGB(rgb.get(), 31, 49, 68)),
           "Create opaque RGB24 surface");
   const auto opaque = Kotonoha::prepareSurfaceForLinearSampling(rgb.get());
   require(bool(opaque) && pixel(*opaque, 0, 0).a == 255 &&
-              pixel(*opaque, 0, 0).r == 31 &&
-              pixel(*opaque, 0, 0).g == 49 &&
+              pixel(*opaque, 0, 0).r == 31 && pixel(*opaque, 0, 0).g == 49 &&
               pixel(*opaque, 0, 0).b == 68,
           "RGB24 conversion must not add artificial transparency");
 
   // A 32-bit BGRA surface must preserve straight RGBA values.
   Kotonoha::SurfacePtr bgra(SDL_CreateSurface(2, 2, SDL_PIXELFORMAT_BGRA32));
   require(bool(bgra) && SDL_FillSurfaceRect(
-              bgra.get(), nullptr,
-              SDL_MapSurfaceRGBA(bgra.get(), 121, 44, 239, 127)),
+                            bgra.get(), nullptr,
+                            SDL_MapSurfaceRGBA(bgra.get(), 121, 44, 239, 127)),
           "Create BGRA32 surface");
   const auto converted = Kotonoha::prepareSurfaceForLinearSampling(bgra.get());
   const auto value = converted ? pixel(*converted, 0, 0) : Pixel{0, 0, 0, 0};
-  require(converted && value.r == 121 && value.g == 44 &&
-              value.b == 239 && value.a == 127,
+  require(converted && value.r == 121 && value.g == 44 && value.b == 239 &&
+              value.a == 127,
           "BGRA32 conversion must preserve channels and partial alpha");
 }
 
@@ -223,21 +217,20 @@ void nativeCanvasComposite() {
   Kotonoha::SurfacePtr canvas(
       SDL_CreateSurface(800, 600, SDL_PIXELFORMAT_RGBA32));
   require(bool(canvas) && SDL_FillSurfaceRect(
-              canvas.get(), nullptr,
-              SDL_MapSurfaceRGBA(canvas.get(), 3, 46, 58, 255)),
+                              canvas.get(), nullptr,
+                              SDL_MapSurfaceRGBA(canvas.get(), 3, 46, 58, 255)),
           "Create opaque 800x600 presentation canvas");
 
-  Kotonoha::SurfacePtr sprite(
-      SDL_CreateSurface(3, 3, SDL_PIXELFORMAT_RGBA32));
-  require(bool(sprite) && SDL_FillSurfaceRect(
-              sprite.get(), nullptr,
-              SDL_MapSurfaceRGBA(sprite.get(), 0, 0, 0, 0)),
+  Kotonoha::SurfacePtr sprite(SDL_CreateSurface(3, 3, SDL_PIXELFORMAT_RGBA32));
+  require(bool(sprite) &&
+              SDL_FillSurfaceRect(sprite.get(), nullptr,
+                                  SDL_MapSurfaceRGBA(sprite.get(), 0, 0, 0, 0)),
           "Create transparent overlay fixture");
   const SDL_Rect center{1, 1, 1, 1};
-  require(SDL_FillSurfaceRect(
-              sprite.get(), &center,
-              SDL_MapSurfaceRGBA(sprite.get(), 231, 119, 43, 255)),
-          "Draw overlay foreground pixel");
+  require(
+      SDL_FillSurfaceRect(sprite.get(), &center,
+                          SDL_MapSurfaceRGBA(sprite.get(), 231, 119, 43, 255)),
+      "Draw overlay foreground pixel");
   const auto prepared = Kotonoha::prepareSurfaceForLinearSampling(sprite.get());
   require(bool(prepared) && pixel(*sprite, 0, 1).r == 0 &&
               pixel(*prepared, 0, 1).r == 231,
@@ -247,13 +240,14 @@ void nativeCanvasComposite() {
   require(bool(scaled) && scaled->w == 96 && scaled->h == 96,
           "Scale transparent overlay using linear interpolation");
   const SDL_Rect destination{290, 170, 96, 96};
-  require(SDL_SetSurfaceBlendMode(scaled.get(), SDL_BLENDMODE_BLEND) &&
-              SDL_BlitSurface(scaled.get(), nullptr, canvas.get(), &destination),
-          "Composite overlay on native-resolution canvas");
+  require(
+      SDL_SetSurfaceBlendMode(scaled.get(), SDL_BLENDMODE_BLEND) &&
+          SDL_BlitSurface(scaled.get(), nullptr, canvas.get(), &destination),
+      "Composite overlay on native-resolution canvas");
   const auto background = pixel(*canvas, 0, 0);
   const auto foreground = pixel(*canvas, 338, 218);
-  require(background.r == 3 && background.g == 46 &&
-              background.b == 58 && background.a == 255,
+  require(background.r == 3 && background.g == 46 && background.b == 58 &&
+              background.a == 255,
           "Scene composition must preserve the rest of the 800x600 canvas");
   require(foreground.r > background.r && foreground.b != background.b &&
               foreground.a == 255,

@@ -28,6 +28,7 @@ add_library(PmailPort STATIC
     src/PmailSession.cpp
     src/PmailComponents.cpp
     src/PmailTitleMenu.cpp
+    src/PmailExtrasMenu.cpp
     src/PmailStage.cpp
     src/PmailTextBox.cpp
     src/PmailPauseMenu.cpp

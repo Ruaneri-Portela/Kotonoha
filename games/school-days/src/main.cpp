@@ -125,8 +125,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     // Bounded headless QA must reach the game loop rather than the launcher.
     // DIST does not expose route-jump or KTRF export developer commands.
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
-    if (!app->dump.empty() || !app->startNode.empty() ||
-        arguments.frames > 0 || app->options.enableMCP)
+    if (!app->dump.empty() || !app->startNode.empty() || arguments.frames > 0 ||
+        app->options.enableMCP)
       app->options.launcher = false;
 #else
     if (arguments.frames > 0)

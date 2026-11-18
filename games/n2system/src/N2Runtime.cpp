@@ -54,17 +54,11 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
   vm_.loadScript(defaultScript, "main");
 }
 
-void N2Runtime::initGlobal(Kotonoha::Engine &engine) {
-  (void)engine;
-}
+void N2Runtime::initGlobal(Kotonoha::Engine &engine) { (void)engine; }
 
-void N2Runtime::initSplash(Kotonoha::Engine &engine) {
-  (void)engine;
-}
+void N2Runtime::initSplash(Kotonoha::Engine &engine) { (void)engine; }
 
-void N2Runtime::initMenu(Kotonoha::Engine &engine) {
-  (void)engine;
-}
+void N2Runtime::initMenu(Kotonoha::Engine &engine) { (void)engine; }
 
 void N2Runtime::initGameplay(Kotonoha::Engine &engine) {
   impl_->engine = &engine;
@@ -91,15 +85,14 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 }
 
 bool N2Runtime::onEvent(Kotonoha::EventRef event) {
-  if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+  if (event.type == SDL_EVENT_KEY_DOWN ||
+      event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
     return handleAdvanceAction();
   }
   return false;
 }
 
-bool N2Runtime::handleAdvanceAction() {
-  return vm_.advance();
-}
+bool N2Runtime::handleAdvanceAction() { return vm_.advance(); }
 
 void N2Runtime::saveGame(const std::string &path) {
   auto saveData = vm_.saveState();

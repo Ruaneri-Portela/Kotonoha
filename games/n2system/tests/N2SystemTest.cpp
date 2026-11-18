@@ -26,7 +26,8 @@ int main() {
     runtime.update();
 
     check(runtime.dialogueSpeaker() == "Kurisu", "N2Runtime speaker match");
-    check(runtime.dialogueText() == "Mad scientist!", "N2Runtime dialogue match");
+    check(runtime.dialogueText() == "Mad scientist!",
+          "N2Runtime dialogue match");
 
     bool advanceResult = runtime.handleAdvanceAction();
     check(advanceResult, "N2Runtime handleAdvanceAction");

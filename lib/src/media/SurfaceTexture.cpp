@@ -14,8 +14,8 @@ SurfacePtr prepareSurfaceForLinearSampling(SDL_Surface *source) {
     // source pixel format and palette index when evaluating its color key.
     rgba.reset(SDL_CreateSurface(source->w, source->h, SDL_PIXELFORMAT_RGBA32));
     if (!rgba ||
-        !SDL_FillSurfaceRect(
-            rgba.get(), nullptr, SDL_MapSurfaceRGBA(rgba.get(), 0, 0, 0, 0)))
+        !SDL_FillSurfaceRect(rgba.get(), nullptr,
+                             SDL_MapSurfaceRGBA(rgba.get(), 0, 0, 0, 0)))
       return {};
     SDL_BlendMode previous = SDL_BLENDMODE_NONE;
     if (!SDL_GetSurfaceBlendMode(source, &previous) ||
@@ -34,8 +34,8 @@ SurfacePtr prepareSurfaceForLinearSampling(SDL_Surface *source) {
   const bool lock = SDL_MUSTLOCK(rgba.get());
   if (lock && !SDL_LockSurface(rgba.get()))
     return {};
-  prepareStraightAlphaForLinearFiltering(
-      static_cast<Uint8 *>(rgba->pixels), rgba->w, rgba->h, rgba->pitch);
+  prepareStraightAlphaForLinearFiltering(static_cast<Uint8 *>(rgba->pixels),
+                                         rgba->w, rgba->h, rgba->pitch);
   if (lock)
     SDL_UnlockSurface(rgba.get());
   return rgba;

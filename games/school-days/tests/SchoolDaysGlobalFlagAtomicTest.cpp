@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-
 namespace {
 namespace fs = std::filesystem;
 using Storage = Kotonoha::SchoolDaysSaveStorage;

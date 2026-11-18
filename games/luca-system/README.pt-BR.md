@@ -58,13 +58,12 @@ salvar/carregar enquanto uma fala está visível. Um teste sintético verifica
 a decisão `Reveal` versus `ResumeScript`. Ainda é necessária a validação
 com o AIR original.
 
-## Saves visuais V4
+## Saves visuais V4 e chamadas entre cenários V5
 
-O formato `LUCA_SYSTEM_SAVE_4` agora registra também os IDs das imagens
-carregadas com `IMAGELOAD` e suas posições, restaurando a camada visual
-já implementada a partir dos PAK originais. Os saves `V3` e `V2` seguem
-legíveis (sem imagens preservadas, pois não possuíam esse campo). Os limites
-e o formato são testados sem dados comerciais.
+O formato `LUCA_SYSTEM_SAVE_5` registra os IDs de imagem, posições dos objetos
+`IMAGELOAD` e os quadros da pilha de chamadas entre múltiplos cenários (`CallStackFrame`).
+Ao carregar, reabre as imagens dos PAKs originais e restaura a camada visual e o histórico
+de sub-rotinas entre scripts. Saves `V4`, `V3` e `V2` permanecem 100% legíveis.
 
 **Limites:** o efeito visual original, as camadas de fundo, transições e
 animações ainda exigem reconstrução. O save não inclui pixels nem arquivos

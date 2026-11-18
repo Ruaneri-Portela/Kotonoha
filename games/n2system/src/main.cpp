@@ -55,7 +55,8 @@ struct KotonohaPortCallbacks final {
   static void quit(void *state, SDL_AppResult result);
 };
 
-SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
+                                          char **argv) {
   *appstate = nullptr;
   KOTONOHA_SET_APP_METADATA("N2System Game", "me.hirameki.kotonoha.n2system");
   try {
@@ -64,7 +65,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv
     options.persistSettings = true;
     std::string directory;
     Kotonoha::CommandLine cli("N2System", options);
-    cli.option("--n2system", "DIRECTORY|NPA", "N2System game data directory", directory);
+    cli.option("--n2system", "DIRECTORY|NPA", "N2System game data directory",
+               directory);
     cli.parse(argc, argv);
     if (cli.wantsHelp()) {
       std::fputs(cli.help().c_str(), stdout);
@@ -75,7 +77,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv
     *appstate = app.release();
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "N2System init failed: %s", error.what());
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "N2System init failed: %s",
+                 error.what());
     return SDL_APP_FAILURE;
   }
 }
@@ -87,7 +90,8 @@ SDL_AppResult KotonohaPortCallbacks::event(void *appstate, SDL_Event *event) {
       return app->game->engine.Event(event);
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "N2System event failed: %s", error.what());
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "N2System event failed: %s",
+                 error.what());
     return SDL_APP_FAILURE;
   }
 }
@@ -104,7 +108,8 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
     }
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "N2System frame failed: %s", error.what());
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "N2System frame failed: %s",
+                 error.what());
     return SDL_APP_FAILURE;
   }
 }

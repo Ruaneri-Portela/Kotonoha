@@ -87,8 +87,9 @@ bool SceneGraph::destroyEntity(std::string_view name) {
   if (!e->parent.empty()) {
     auto *p = findEntity(e->parent);
     if (p) {
-      p->children.erase(std::remove(p->children.begin(), p->children.end(), actualName),
-                        p->children.end());
+      p->children.erase(
+          std::remove(p->children.begin(), p->children.end(), actualName),
+          p->children.end());
     }
   }
 
@@ -109,7 +110,8 @@ void SceneGraph::clear() {
   renderOrder_.clear();
 }
 
-bool SceneGraph::setParent(std::string_view childName, std::string_view parentName) {
+bool SceneGraph::setParent(std::string_view childName,
+                           std::string_view parentName) {
   auto *child = findEntity(childName);
   if (!child)
     return false;
@@ -118,9 +120,10 @@ bool SceneGraph::setParent(std::string_view childName, std::string_view parentNa
     if (!child->parent.empty()) {
       auto *oldParent = findEntity(child->parent);
       if (oldParent) {
-        oldParent->children.erase(
-            std::remove(oldParent->children.begin(), oldParent->children.end(), child->name),
-            oldParent->children.end());
+        oldParent->children.erase(std::remove(oldParent->children.begin(),
+                                              oldParent->children.end(),
+                                              child->name),
+                                  oldParent->children.end());
       }
     }
     child->parent.clear();
@@ -132,7 +135,8 @@ bool SceneGraph::setParent(std::string_view childName, std::string_view parentNa
     return false;
 
   child->parent = parent->name;
-  if (std::find(parent->children.begin(), parent->children.end(), child->name) == parent->children.end())
+  if (std::find(parent->children.begin(), parent->children.end(),
+                child->name) == parent->children.end())
     parent->children.push_back(child->name);
 
   rebuildRenderOrder();
@@ -147,7 +151,8 @@ bool SceneGraph::setAlias(std::string_view entityName, std::string_view alias) {
   return true;
 }
 
-void SceneGraph::moveEntity(std::string_view name, float targetX, float targetY, float durationMs) {
+void SceneGraph::moveEntity(std::string_view name, float targetX, float targetY,
+                            float durationMs) {
   auto *e = findEntity(name);
   if (!e)
     return;
@@ -164,7 +169,8 @@ void SceneGraph::moveEntity(std::string_view name, float targetX, float targetY,
   }
 }
 
-void SceneGraph::fadeEntity(std::string_view name, float targetOpacity, float durationMs) {
+void SceneGraph::fadeEntity(std::string_view name, float targetOpacity,
+                            float durationMs) {
   auto *e = findEntity(name);
   if (!e)
     return;
@@ -179,7 +185,8 @@ void SceneGraph::fadeEntity(std::string_view name, float targetOpacity, float du
   }
 }
 
-void SceneGraph::zoomEntity(std::string_view name, float targetScaleX, float targetScaleY, float durationMs) {
+void SceneGraph::zoomEntity(std::string_view name, float targetScaleX,
+                            float targetScaleY, float durationMs) {
   auto *e = findEntity(name);
   if (!e)
     return;
@@ -209,15 +216,16 @@ void SceneGraph::rebuildRenderOrder() {
     renderOrder_.push_back(name);
   }
 
-  std::sort(renderOrder_.begin(), renderOrder_.end(), [this](const std::string &a, const std::string &b) {
-    const auto *ea = findEntity(a);
-    const auto *eb = findEntity(b);
-    if (!ea || !eb)
-      return false;
-    if (ea->z != eb->z)
-      return ea->z < eb->z;
-    return ea->name < eb->name;
-  });
+  std::sort(renderOrder_.begin(), renderOrder_.end(),
+            [this](const std::string &a, const std::string &b) {
+              const auto *ea = findEntity(a);
+              const auto *eb = findEntity(b);
+              if (!ea || !eb)
+                return false;
+              if (ea->z != eb->z)
+                return ea->z < eb->z;
+              return ea->name < eb->name;
+            });
 }
 
 } // namespace N2System

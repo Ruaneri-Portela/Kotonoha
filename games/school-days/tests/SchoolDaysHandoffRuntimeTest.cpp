@@ -603,14 +603,17 @@ void TestMissingExitPopupDoesNotQuit(const char *route, const fs::path &root) {
   app.runtime.openPanel(16);
   SchoolDays::RuntimeHandoffTestAccess::TickExit(app.runtime,
                                                  SDL_GetTicks() + 500u);
-  Require(!app.runtime.panels().IsExitOpen() && !SDL_HasEvent(SDL_EVENT_QUIT),
-          "missing EXIT popup bypassed confirmation and queued process shutdown");
+  Require(
+      !app.runtime.panels().IsExitOpen() && !SDL_HasEvent(SDL_EVENT_QUIT),
+      "missing EXIT popup bypassed confirmation and queued process shutdown");
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
-  Require(!SchoolDays::RuntimeHandoffTestAccess::ExitFailureReported(app.runtime),
-          "DIST exposed an internal EXIT artwork diagnostic");
+  Require(
+      !SchoolDays::RuntimeHandoffTestAccess::ExitFailureReported(app.runtime),
+      "DIST exposed an internal EXIT artwork diagnostic");
 #else
-  Require(SchoolDays::RuntimeHandoffTestAccess::ExitFailureReported(app.runtime),
-          "DEV did not report missing EXIT confirmation artwork");
+  Require(
+      SchoolDays::RuntimeHandoffTestAccess::ExitFailureReported(app.runtime),
+      "DEV did not report missing EXIT confirmation artwork");
 #endif
 }
 

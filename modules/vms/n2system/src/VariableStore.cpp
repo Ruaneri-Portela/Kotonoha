@@ -23,7 +23,8 @@ void VariableStore::setInt(std::string_view name, int64_t value) {
     integers_[norm] = value;
 }
 
-int64_t VariableStore::getInt(std::string_view name, int64_t defaultValue) const {
+int64_t VariableStore::getInt(std::string_view name,
+                              int64_t defaultValue) const {
   const auto norm = normalizeName(name);
   const auto it = integers_.find(norm);
   if (it != integers_.end())
@@ -37,7 +38,8 @@ void VariableStore::setString(std::string_view name, std::string_view value) {
     strings_[norm] = std::string(value);
 }
 
-std::string VariableStore::getString(std::string_view name, std::string_view defaultValue) const {
+std::string VariableStore::getString(std::string_view name,
+                                     std::string_view defaultValue) const {
   const auto norm = normalizeName(name);
   const auto it = strings_.find(norm);
   if (it != strings_.end())
@@ -112,7 +114,8 @@ VarValue VariableStore::evaluate(std::string_view expr) const {
     return int64_t(0);
 
   // String literal
-  if ((s.front() == '"' && s.back() == '"') || (s.front() == '\'' && s.back() == '\'')) {
+  if ((s.front() == '"' && s.back() == '"') ||
+      (s.front() == '\'' && s.back() == '\'')) {
     if (s.size() >= 2)
       return s.substr(1, s.size() - 2);
     return std::string();
@@ -141,8 +144,10 @@ VarValue VariableStore::evaluate(std::string_view expr) const {
         quoteChar = c;
         continue;
       }
-      if (c == '(') parenDepth++;
-      else if (c == ')') parenDepth--;
+      if (c == '(')
+        parenDepth++;
+      else if (c == ')')
+        parenDepth--;
       if (parenDepth == 0 && s.substr(i, op.size()) == op)
         return i;
     }
@@ -190,8 +195,10 @@ VarValue VariableStore::evaluate(std::string_view expr) const {
   if (auto pos = findOp("+"); pos != std::string::npos && pos > 0) {
     auto left = evaluate(s.substr(0, pos));
     auto right = evaluate(s.substr(pos + 1));
-    if (std::holds_alternative<std::string>(left) || std::holds_alternative<std::string>(right))
-      return evaluateString(s.substr(0, pos)) + evaluateString(s.substr(pos + 1));
+    if (std::holds_alternative<std::string>(left) ||
+        std::holds_alternative<std::string>(right))
+      return evaluateString(s.substr(0, pos)) +
+             evaluateString(s.substr(pos + 1));
     return evaluateInt(s.substr(0, pos)) + evaluateInt(s.substr(pos + 1));
   }
   if (auto pos = findOp("-"); pos != std::string::npos && pos > 0) {

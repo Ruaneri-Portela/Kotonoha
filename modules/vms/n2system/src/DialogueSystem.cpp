@@ -4,7 +4,9 @@
 
 namespace N2System {
 
-void DialogueSystem::setDialogue(std::string_view speaker, std::string_view text, std::string_view voicePath) {
+void DialogueSystem::setDialogue(std::string_view speaker,
+                                 std::string_view text,
+                                 std::string_view voicePath) {
   speaker_ = std::string(speaker);
   text_ = std::string(text);
   voicePath_ = std::string(voicePath);
@@ -55,7 +57,8 @@ bool DialogueSystem::advance() {
 void DialogueSystem::update(float dtSeconds) {
   if (isTyping_ && typewriterSpeed_ > 0.0f) {
     typewriterElapsed_ += dtSeconds;
-    std::size_t count = static_cast<std::size_t>(typewriterElapsed_ * typewriterSpeed_);
+    std::size_t count =
+        static_cast<std::size_t>(typewriterElapsed_ * typewriterSpeed_);
     if (count >= text_.size()) {
       visibleCharCount_ = text_.size();
       isTyping_ = false;

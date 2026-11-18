@@ -41,8 +41,8 @@ struct Scratch {
   Scratch() {
     dir = fs::temp_directory_path() /
           ("kotonoha-atomic-test-" +
-           std::to_string(std::chrono::steady_clock::now()
-                              .time_since_epoch().count()));
+           std::to_string(
+               std::chrono::steady_clock::now().time_since_epoch().count()));
     check(fs::create_directories(dir), "Cannot create sandbox");
   }
   ~Scratch() {
@@ -66,10 +66,10 @@ void test() {
   check(read(path) == second && pending(path) == 0,
         "Replacement changed bytes or left pending file");
 
-  for (auto fault : {atomic::AtomicFileFault::Write,
-                     atomic::AtomicFileFault::Flush,
-                     atomic::AtomicFileFault::Publish,
-                     atomic::AtomicFileFault::DirectoryFlushBefore}) {
+  for (auto fault :
+       {atomic::AtomicFileFault::Write, atomic::AtomicFileFault::Flush,
+        atomic::AtomicFileFault::Publish,
+        atomic::AtomicFileFault::DirectoryFlushBefore}) {
     check(!atomic::writeBinaryFileAtomically(path, first, &error, fault) &&
               !error.empty() && read(path) == second && pending(path) == 0,
           "Pre-publication failure must preserve old file and clean own temp");
@@ -85,11 +85,11 @@ void test() {
   for (const auto &entry : fs::directory_iterator(path.parent_path()))
     if (entry.path() != path)
       check(fs::remove(entry.path()), "Cannot remove synthetic orphan");
-  check(!atomic::writeBinaryFileAtomically(
-            path, second, &error,
-            atomic::AtomicFileFault::DirectoryFlushAfter) &&
-            !error.empty() && read(path) == second && pending(path) == 0,
-        "Post-publication failure cannot roll back a completed rename");
+  check(
+      !atomic::writeBinaryFileAtomically(
+          path, second, &error, atomic::AtomicFileFault::DirectoryFlushAfter) &&
+          !error.empty() && read(path) == second && pending(path) == 0,
+      "Post-publication failure cannot roll back a completed rename");
 
   // Prove that several writers never produce partial published files.
   std::vector<std::thread> threads;

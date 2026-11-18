@@ -118,7 +118,8 @@ void SplashScreen::load(RendererRef renderer) {
       }
     }
     if (surface) {
-      const SurfacePtr prepared = prepareSurfaceForLinearSampling(surface.get());
+      const SurfacePtr prepared =
+          prepareSurfaceForLinearSampling(surface.get());
       if (prepared)
         texture.reset(SDL_CreateTextureFromSurface(&renderer, prepared.get()));
     }

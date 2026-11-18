@@ -204,7 +204,8 @@ TjsBootstrapReport inspectTjsBootstrap(const KirikiriAssets &assets) {
     return report;
   }
 
-  if (rawBytes.size() >= 8 && std::memcmp(rawBytes.data(), "TJS2100\0", 8) == 0) {
+  if (rawBytes.size() >= 8 &&
+      std::memcmp(rawBytes.data(), "TJS2100\0", 8) == 0) {
     const auto compiledStrings = extractTjs2CompiledStrings(rawBytes);
     for (const auto &str : compiledStrings) {
       if (!safeStorage(str))
