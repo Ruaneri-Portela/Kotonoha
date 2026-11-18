@@ -1,0 +1,79 @@
+name: Shared filesystem and launcher contracts
+
+on:
+  pull_request:
+    paths:
+      - 'lib/include/Kotonoha/Filesystem/AtomicFile.hpp'
+      - 'lib/src/Filesystem/AtomicFile.cpp'
+      - 'lib/src/Filesystem/Sources/SDLFileSource.cpp'
+      - 'lib/src/Filesystem/Adapters/StreamAdapter.cpp'
+      - 'lib/tests/AtomicFileTests.cpp'
+      - 'games/school-days/**'
+      - 'tools/check_school_days_platform_io.py'
+      - '.github/workflows/shared-atomic-storage.yml'
+  push:
+    branches: [dev]
+    paths:
+      - 'lib/include/Kotonoha/Filesystem/AtomicFile.hpp'
+      - 'lib/src/Filesystem/AtomicFile.cpp'
+      - 'lib/src/Filesystem/Sources/SDLFileSource.cpp'
+      - 'lib/src/Filesystem/Adapters/StreamAdapter.cpp'
+      - 'lib/tests/AtomicFileTests.cpp'
+      - 'games/school-days/**'
+      - 'tools/check_school_days_platform_io.py'
+      - '.github/workflows/shared-atomic-storage.yml'
+  workflow_dispatch:
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prevent OS I/O and launcher regressions
+        run: python3 tools/check_school_days_platform_io.py
+
+  atomic-linux-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-26.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SDL3 on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl3-dev pkg-config g++
+      - name: Install SDL3 on macOS
+        if: runner.os == 'macOS'
+        run: brew install sdl3 pkg-config
+      - name: Compile shared SDL writer as C++17
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Wpedantic -Werror -pthread \
+            -Ilib/include lib/src/Filesystem/AtomicFile.cpp \
+            lib/tests/AtomicFileTests.cpp \
+            $(pkg-config --cflags --libs sdl3) -o ./atomic-file-test
+      - name: Run synthetic atomic file tests
+        run: ./atomic-file-test
+
+  atomic-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-sdl3
+            mingw-w64-ucrt-x86_64-pkgconf
+      - name: Compile and run SDL-managed writer on Windows
+        shell: msys2 {0}
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Wpedantic -Werror -pthread \
+            -Ilib/include lib/src/Filesystem/AtomicFile.cpp \
+            lib/tests/AtomicFileTests.cpp \
+            $(pkg-config --cflags --libs sdl3) -o atomic-file-test.exe
+          ./atomic-file-test.exe

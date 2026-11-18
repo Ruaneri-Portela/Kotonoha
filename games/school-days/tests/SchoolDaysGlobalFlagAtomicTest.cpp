@@ -10,14 +10,6 @@
 #include <string>
 #include <vector>
 
-#ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#else
-#include <sys/stat.h>
-#endif
 
 namespace {
 namespace fs = std::filesystem;
@@ -171,6 +163,8 @@ void CheckStorage(const fs::path &root) {
   CheckFailure(storage, target, second, first, faultFlush, false);
   CheckFailure(storage, target, second, first, faultPublish, false);
   CheckFailure(storage, target, second, first,
+               Storage::GlobalFlagWriteFault::DirectoryFlushBefore, false);
+  CheckFailure(storage, target, second, first,
                Storage::GlobalFlagWriteFault::SimulatedInterruption, true);
 
   // A simulated crash leaves a valid but unreferenced temp. A subsequent
@@ -201,7 +195,11 @@ void CheckStorage(const fs::path &root) {
   Require(storage.WriteGlobalFlagBytes(first, &error),
           "Cannot recover after orphan: " + error);
   CheckFlag(target, first);
-  Require(PendingCount(target) == 0, "Stale orphan was not pruned");
+  // The shared SDL layer never guesses whether another process is alive;
+  // old unowned pending files are ignored, not deleted by a new writer.
+  Require(PendingCount(target) == 1 && fs::exists(orphan),
+          "Unrelated pending file must not be deleted or promoted");
+  Require(fs::remove(orphan), "Cannot clean up synthetic orphan");
 
   // A recently created pending file may belong to another active process.
   const auto recent = fs::path(target.wstring() + L".pending.active");
@@ -226,27 +224,16 @@ void CheckStorage(const fs::path &root) {
           "Oversized GlobalFlag replaced a valid profile");
   Require(PendingCount(target) == 0, "Size rejection left pending files");
 
-#ifdef _WIN32
-  HANDLE locked =
-      CreateFileW(target.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
-                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-  Require(locked != INVALID_HANDLE_VALUE,
-          "Could not lock synthetic GlobalFlag for sharing test");
+  // An injected post-publication error cannot roll back a completed write.
+  storage.SetGlobalFlagWriteFaultForTesting(
+      Storage::GlobalFlagWriteFault::DirectoryFlushAfter);
   Require(!storage.WriteGlobalFlagBytes(first, &error) && !error.empty(),
-          "Locked destination was replaced without file-delete sharing");
-  CloseHandle(locked);
-  CheckFlag(target, second);
-  Require(PendingCount(target) == 0, "Sharing failure left pending file");
-
-  Require(SetFileAttributesW(target.c_str(), FILE_ATTRIBUTE_READONLY) != 0,
-          "Could not set read-only attribute in synthetic profile");
-  const bool wroteReadonly = storage.WriteGlobalFlagBytes(first, &error);
-  Require(SetFileAttributesW(target.c_str(), FILE_ATTRIBUTE_NORMAL) != 0,
-          "Could not restore synthetic file attributes");
-  Require(!wroteReadonly, "Read-only GlobalFlag destination was overwritten");
-  CheckFlag(target, second);
-  Require(PendingCount(target) == 0, "Read-only failure left pending file");
-#endif
+          "Post-publication uncertainty must be reported");
+  CheckFlag(target, first);
+  Require(PendingCount(target) == 0,
+          "Published file must not leave a temporary name");
+  storage.SetGlobalFlagWriteFaultForTesting(
+      Storage::GlobalFlagWriteFault::None);
 }
 } // namespace
 
