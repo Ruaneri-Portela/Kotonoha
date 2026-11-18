@@ -233,7 +233,12 @@ full-opacity CHIP sprite that remains visible in the pending prompt,
 unchanged/omitted result, changed Feel presentation and scene handoff.
 The ordinary feeling latch alone no longer exposes the meter after a
 no-delta refresh; only raw delta detection does so outside the choice-specific
-presentation. No additional fabricated SeUp/SeDown is played on an omission.
+presentation. A result-origin refresh remains marked as choice-owned through
+the frozen exit: even if the RouteProc rule for an **omitted** choice produces
+an actual `001`/`002` delta, that change cannot leak into the generic
+standalone Feel path after the choice freeze releases. A later *fresh*
+nonchoice gameplay refresh is independent. No additional fabricated
+SeUp/SeDown is played solely because the player omitted a choice.
 
 ## Limits / unresolved fidelity
 
@@ -257,7 +262,9 @@ choice and after manual/omitted confirmation, chrome and unearned Feel are
 absent while the blue AUTO ON chip remains. Changed Feel has its own full
 alpha without exposing chrome, including after the next scene binds.
 After release, no stale hover is inherited; only new pointer motion can reveal
-chrome. A delayed latch with unchanged raw feelings cannot resurrect Feel.
+chrome. A delayed latch with unchanged raw feelings cannot resurrect Feel,
+and a synthetic omitted result with an actual raw delta remains visually
+suppressed after releasing the frozen choice tail.
 These tests do **not** by themselves prove retail GPU visual parity.
 
 ### Direct retail execution attempt, isolated (18 November 2026)

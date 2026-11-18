@@ -150,6 +150,11 @@ public:
     void Close();
 
     void RequestFeelingRefresh() {
+        // Once a result tail has finished, a fresh ordinary gameplay writer
+        // may again drive standalone Feel. A refresh raised while exiting a
+        // choice stays choice-originated, even if its raw values changed.
+        if (!choiceTailFrozen_ && !fullBarSuppressed_ && !meterOnly_)
+            suppressChoiceOriginFeel_ = false;
         if (!feelingLatch_) feelingDeltaDetected_ = false;
         feelingLatch_ = true;
     }
@@ -179,7 +184,13 @@ public:
     // Post-choice: controls remain frozen whether or not any feeling changed;
     // the separately gated meter may appear on actual detected change only.
     void SetChoiceTailFrozen(bool enabled) {
-        if (enabled && !choiceTailFrozen_) ResetHoverChrome();
+        if (enabled && !choiceTailFrozen_) {
+            ResetHoverChrome();
+            // Omissions may still execute RouteProc SetFeeling. The result's
+            // raw delta must not emerge as a generic standalone Feel after
+            // the frozen visual phase ends.
+            suppressChoiceOriginFeel_ = true;
+        }
         choiceTailFrozen_ = enabled;
         if (enabled) selection_ = -1;
     }
@@ -235,6 +246,7 @@ private:
     // A refresh request is not proof of changed raw 001/002. Only the meter's
     // Detect phase may reveal a standalone feeling animation.
     bool feelingDeltaDetected_ = false;
+    bool suppressChoiceOriginFeel_ = false;
     bool opened_ = false;
     int selection_ = -1;
     bool pointerInsideBar_ = false;

@@ -209,7 +209,9 @@ escolha** e o forçava depois de qualquer confirmação. Agora, o prompt mostra
 (ou `SeCancel` na omissão). Somente a detecção de mudança verdadeira de pontos
 emite `SeUp`/`SeDown` (códigos3/4) e exibe o Feel isolado. Se não houver delta,
 o menu congelado permanece sem chrome, mesmo após uma atualização tardia sem
-mudança real. A correção limpa o hover/alpha herdado ao entrar na escolha e
+mudança real. Mesmo se uma regra de omissão modificar `001`/`002`, a origem
+de escolha bloqueia que o Feel apareça tardiamente após o congelamento.
+A correção limpa o hover/alpha herdado ao entrar na escolha e
 mantém o AUTO ON desenhado separadamente. O Feel permanece independente do
 alpha do Top Menu quando ativado;
 Skip/SuperSkip não atravessam escolhas.

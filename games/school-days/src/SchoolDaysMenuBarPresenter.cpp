@@ -67,6 +67,7 @@ bool SchoolDaysMenuBarPresenter::Open(SDL_Renderer* renderer,
     // until a feeling writer raises the host latch again.
     feelingLatch_ = false;
     feelingDeltaDetected_ = false;
+    suppressChoiceOriginFeel_ = false;
     pendingFeelingDirectionCode_ = 0;
     pointerInsideBar_ = false;
     fadeTargetVisible_ = false;
@@ -101,6 +102,7 @@ void SchoolDaysMenuBarPresenter::Close() {
     assets_ = nullptr;
     feelingLatch_ = false;
     feelingDeltaDetected_ = false;
+    suppressChoiceOriginFeel_ = false;
     pendingFeelingDirectionCode_ = 0;
     selection_ = -1;
     pointerInsideBar_ = false;
@@ -222,6 +224,7 @@ void SchoolDaysMenuBarPresenter::RestoreFeelingState(int feeling001,
     (void)meter_.Initialize(feeling001, feeling002);
     feelingLatch_ = false;
     feelingDeltaDetected_ = false;
+    suppressChoiceOriginFeel_ = false;
     pendingFeelingDirectionCode_ = 0;
 }
 
@@ -365,7 +368,8 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
              ? VisibilityForFrozenChoiceTail(barAlpha_, fullBarSuppressed_,
                                              choiceTailFeelingVisible_)
              : VisibilityForState(barAlpha_, fullBarSuppressed_, false,
-                                  feelingLatch_ && feelingDeltaDetected_));
+                                  feelingLatch_ && feelingDeltaDetected_ &&
+                                      !suppressChoiceOriginFeel_));
     // AUTO ON is a persistent, independent sprite, including through the
     // choice prompt, its frozen exit, and the next-scene handoff. The selected
     // speed highlight is not projected during those suppressed phases.
