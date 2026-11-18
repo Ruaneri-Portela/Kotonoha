@@ -14,6 +14,11 @@ const wasmBuild = fs.readFileSync(path.join(__dirname, '..',
   'buildsystems', 'cmake', 'KotonohaApp.cmake'), 'utf8');
 const webBridge = fs.readFileSync(path.join(__dirname, '..',
   'lib', 'src', 'core', 'WebAssetFetch.cpp'), 'utf8');
+const browserTransport = fs.readFileSync(path.join(__dirname, '..',
+  'lib', 'src', 'Filesystem', 'Sources', 'FetchAssetProvider.cpp'), 'utf8');
+const persistentCache = fs.readFileSync(path.join(__dirname, '..',
+  'lib', 'web', 'KotonohaPreloadCache.js'), 'utf8');
+new vm.Script(persistentCache, {filename: 'KotonohaPreloadCache.js'});
 const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
 assert(scripts.length >= 2, 'HTML shell must contain bootstrap and folder scripts');
 for (let i = 0; i < scripts.length; ++i) {
@@ -84,6 +89,25 @@ assert(webBridge.includes('KotonohaAllocateRemoteManifest') &&
 assert(html.includes('if (!indexed)') &&
        html.includes('const loadServerAssets = async function()'),
   'Manifest failures must fall back to direct Fetch asynchronously');
+assert(html.includes('window.KotonohaAssetCache.configure(origin.href, manifest)') &&
+       html.includes('await window.KotonohaAssetCache.preloadIfPresent(') &&
+       html.includes('window.KotonohaInitialPreloadReady = preloaded') &&
+       html.includes('<script src="KotonohaPreloadCache.js"></script>'),
+  'HTTP startup must finish mandatory preload before releasing the engine');
+assert(persistentCache.includes('window.KotonohaDumpPreload = dumpPreload') &&
+       persistentCache.includes('link.download = "preload.json"') &&
+       persistentCache.includes('entries: await listDownloaded()') &&
+       persistentCache.includes('await storeRange(path, start, bytes)'),
+  'Console dump must export actually downloaded ranges to the preload guide');
+assert(persistentCache.includes('await readRange(path, start, length)') &&
+       persistentCache.includes('await fetchRequiredRange(path, start, length)'),
+  'Mandatory preload must reuse IndexedDB and fetch missing ranges');
+assert(browserTransport.includes('KotonohaCompleteBrowserFetch') &&
+       browserTransport.includes('window.KotonohaAssetCache.fetchJob') &&
+       webBridge.includes('KotonohaAllocateRemoteFetchBuffer'),
+  'The C++ Fetch provider must delegate HTTP Range reads to the persistent cache');
+assert(wasmBuild.includes('lib/web/KotonohaPreloadCache.js'),
+  'Every WASM output must bundle its cache manager');
 assert(html.includes('setStatus("Escolha pasta local ou HTTP(S) para iniciar.")'),
   'Boot must wait for an explicit source choice');
 assert(html.includes('setStatus("Pasta local montada. Iniciando engine...");'),
