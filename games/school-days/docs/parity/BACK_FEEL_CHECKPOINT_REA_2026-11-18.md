@@ -1,0 +1,89 @@
+# School Days HQ v1.02 — normal Back, RouteMap checkpoints and feeling replay
+
+**2026-11-18; Windows L4, game-specific.** This record separates observations
+from the authenticated retail binaries, the Kotonoha reproduction, and what
+still requires a visual retail comparison. Retail EXE/installer and real saves
+were **not executed or modified**. The original EXE and DLL were read for
+static reverse engineering only, via REA 6.7.0/Ghidra 12.1.4 and independent
+disassembly of the same bytes.
+
+## Retail observations (static evidence)
+
+- `RouteProcSDHQ.dll:0x10005EB0` applies per-scene feeling effects. On reverse
+  navigation, `0x10005CE0` subtracts the scene's feeling delta before
+  predecessor resolution. This follows `SPEC-BACK-ROUTING.md` in the preserved
+  REA research and is already encoded in the generated game-specific Back
+  table (`SchoolDaysBackRules::InverseFeelingDelta`). No blanket feeling reset
+  or `0..100` clamp occurs on the examined reverse path.
+- `SCHOOLDAYS HQ.exe:0x004331A0` retrieves the selected `SLog` type-3/SP
+  checkpoint from the manager, applies its `FlgH` via `0x00432670`, and prunes
+  the selected checkpoint and later ones. Read-only xrefs of the EXE `.text`
+  found its call from `0x00428437` (`0x00428400`), itself called from
+  `0x00423CC6`. The caller at `0x00423CB0` tests the selector against decimal
+  `100`, branching away for smaller values. Thus this restore/prune operation
+  is reached by **RouteMap checkpoint selection**, not the ordinary Back route.
+- `EXE:0x00428A20` (apply saved `FlgH`) had direct callsites at
+  `0x004326B0` (checkpoint restoration) and `0x00433B7D` (save load), not an
+  ordinary Back handler. Indirect paths were not exhaustively proven absent.
+- In `RouteProcSDHQ.dll`, `_GetNextScriptFile@12` at `0x10006870` reaches
+  Route0 handler `0x1000D440`. This calls `0x1000D320` for `SP` processing
+  before its scene/choice switch. `A03` corresponds to `SP101`. This
+  establishes call order inside the handler; it does **not** establish the
+  earlier timing of the host's feeling application.
+
+REA/Ghidra read-only evidence IDs: EXE
+`ev_a3c252b39ebfce4aca83e2de602286b598d955f1733752fb163c05fcfa012364`;
+RouteProc
+`ev_3d134d756d8c55a47fe09cd3cbc281b37dff9e530fa66f54a457512b983a07dd`.
+The previously consolidated R2 implementation notes mistakenly treated the
+checkpoint restoration as part of ordinary Back. The additional callsite
+audit here narrows that interpretation to the RouteMap selector path.
+
+## Port regression: RED before fix, GREEN after fix
+
+Fixture: tracked route, synthetic/extracted game data; `KtrfSchoolDaysSessionTest`.
+Original route0 first prompt is `A03`:
+
+| Step | Feeling `001` | Feeling `002` |
+| --- | ---: | ---: |
+| Before first choice at A03 | 0 | 0 |
+| Select first option and advance to A04 | 0 | 5 |
+| Apply the normal Back inverse for A04 alone | 0 | 0 |
+| **Before correction**, after full normal Back A04 → A03 | **0** | **5 (wrong)** |
+| **After correction**, after normal Back A04 → A03 | 0 | 0 |
+
+Cause: `SchoolDaysKtrfSession::CommitBack` correctly applied the source's
+inverse (`A04: 002 -= 5`) but then called
+`SchoolDaysPersistence::RestoreBackCheckpoint(A03)`. `SP101` had recorded
+`002=5` at first choice exit; the extra restore overwrote the inverse with
+`+5`, and pruned the type-3 checkpoint so inspecting the log *after* Back hid
+the cause. The correction removes that `RestoreBackCheckpoint` call from the
+normal `CommitBack` path only. The separate `CommitRouteMapCheckpoint` path
+retains its original restore/prune contract, and choice-history type-4 entries
+remain available for Replay Data.
+
+Regression coverage repeats A03 → A04 → Back twice, includes a save/load of
+the reopened uncommitted A03 choice with historical type-4 record, and then
+chooses the *other* A03 option (A05: `001 += 5`) and returns through Back.
+Each normal Back must restore both raw feelings, and normal Back must **not**
+consume the `SP101` checkpoint reserved for RouteMap selection. This test
+does not rely on the rendered bar's interpolation.
+
+## Separate post-choice MenuBar question
+
+The existing retail static audit
+`CHOICE_RESULT_METER_SFX_RETAIL_2026-11-05.md` identifies the conditional
+directional UI SE calls (`SeUp`/`SeDown`) and the menu meter's 1500 ms
+interpolation plus 2000 ms hold. The original full-bar hover/freeze and exact
+action-unlock time after a selection still lack a frame-accurate independent
+retail playthrough. Those rules in Kotonoha remain an implementation of the
+player's visual observations, not proven byte-equivalent to the original by
+the feeling/Back evidence above.
+
+## Safety and scope
+
+- Only game-specific source, regression tests and documentation are changed.
+- No new EXE/installer execution, no GPK rewrite, no real-save modification,
+  no `lib/` edits, and no remote push.
+- Automated tests establish state and routing behavior, **not** real-GPU or
+  frame-accurate GUI parity.
