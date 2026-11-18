@@ -30,6 +30,17 @@ withAssets(Kotonoha::EngineOptions options,
 bool validate(const std::string &path, std::string &info) {
   try {
     auto source = Kotonoha::Filesystem::Filesystem::mount(path);
+    // Manifest-free HTTP sources cannot enumerate unknown paths. Prefer
+    // well-known script/archive markers (HEAD + Range through the VFS).
+    for (const char *marker :
+         {"00.utf", "0.utf", "nscript.dat", "pscript.dat", "arc.nsa",
+          "arc.sar", "00.txt", "0.txt", "arc1.nsa"}) {
+      if (Kotonoha::Filesystem::isGameSourceRegularFile(*source, marker)) {
+        info = std::string("PONscripter source detected: ") + marker;
+        return true;
+      }
+    }
+    // Keep directory/ISO and indexed-manifest support for less common names.
     for (const auto &entry :
          Kotonoha::Filesystem::listGameSourceFiles(*source)) {
       if (entry.type != Kotonoha::Filesystem::FileType::Regular)
