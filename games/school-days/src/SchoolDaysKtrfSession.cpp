@@ -1582,10 +1582,15 @@ bool SchoolDaysKtrfSession::CommitBack(BackPlan *plan,
       return false;
     }
 
-    bool checkpointRestored = false;
-    if (!persistence.RestoreBackCheckpoint(plan->destination, &state,
-                                           &checkpointRestored, error) ||
-        !persistence.ReplaceCurrentScriptSnapshot(
+    // RouteProcSDHQ's ordinary Back already applies the inverse feeling
+    // delta for the source scene. EXE 0x004331A0 (SLog tag3 restore/prune)
+    // is reached through the RouteMap SP selector >=100 at 0x00423CC6,
+    // not from normal GetBackScriptFile. Restoring the destination's SP
+    // checkpoint here would replay the just-discarded choice's feeling and
+    // make Back -> choose -> Back accumulate points. Leave tag3 history
+    // untouched; explicit RouteMap navigation still restores/prunes it in
+    // CommitRouteMapCheckpoint.
+    if (!persistence.ReplaceCurrentScriptSnapshot(
             plan->destination.sceneKey, UINT32_C(0x3f800000), state, error)) {
       Kotonoha_KtrfError ignored{};
       (void)state.Restore(before, &ignored);
@@ -1595,8 +1600,6 @@ bool SchoolDaysKtrfSession::CommitBack(BackPlan *plan,
       pendingEndings = endingsBefore;
       return false;
     }
-    (void)checkpointRestored;
-
     int restoredRoute = 0;
     int restoredScene = 0;
     if (!state.ReadCoordinate(&restoredRoute, &restoredScene, error) ||

@@ -726,6 +726,13 @@ int main(int argc, char **argv) {
             choiceScene.sceneKey, UINT32_C(0x3f800000), state, &error),
         std::string("A03 tag1 setup failed: ") + error.message);
 
+  // REA RouteProcSDHQ: A04 adds +5 to 002 and its Back handler removes
+  // exactly that +5. Re-selecting the same option after Back must never
+  // accumulate the discarded branch's feeling. Capture both independent
+  // feelings so a spurious 001 mutation cannot hide behind the meter ratio.
+  const int64_t beforeA03Choice001 = ReadState("001");
+  const int64_t beforeA03Choice002 = ReadState("002");
+
   const int64_t revisitChoiceValue =
       FirstChoiceValue(session.Adapter(), &error);
   int revisitAccepted = 0;
@@ -740,6 +747,15 @@ int main(int argc, char **argv) {
         return true;
     }
     return false;
+  };
+  auto HasA03Sp101 = [&]() {
+    return std::any_of(
+        session.Persistence().SaveLogDocument().records.begin(),
+        session.Persistence().SaveLogDocument().records.end(),
+        [](const auto &record) {
+          return record.tag == 3 && record.name == u"00/00-00-A03" &&
+                 record.secondary == u"SP101";
+        });
   };
   Check(HasA03Tag4(), "A03 choice commit did not create historical tag4");
 
@@ -776,6 +792,11 @@ int main(int argc, char **argv) {
   Check(toA04.kind == Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
             toA04.scene.sceneKey == "00/00-00-A04",
         "committed A03 choice did not advance to A04");
+  Check(ReadState("001") == beforeA03Choice001 &&
+            ReadState("002") == beforeA03Choice002 + 5,
+        "first A03->A04 selection did not apply exactly one +5 to 002");
+  Check(HasA03Sp101(),
+        "A03 first choice exit did not record SP101 for RouteMap");
 
   Kotonoha::SchoolDaysKtrfSession::BackPlan revisitBack;
   if (!session.PlanBack(&revisitBack, &error) ||
@@ -785,6 +806,11 @@ int main(int argc, char **argv) {
   Check(revisitBack.kind == Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
             revisitBack.scene.sceneKey == "00/00-00-A03",
         "Back from A04 did not revisit A03");
+  Check(ReadState("001") == beforeA03Choice001 &&
+            ReadState("002") == beforeA03Choice002,
+        "normal Back A04->A03 did not undo the discarded +5 feeling");
+  Check(HasA03Sp101(),
+        "normal Back incorrectly pruned RouteMap SP101 checkpoint");
   Check(HasA03Tag4(),
         "Back incorrectly deleted historical A03 tag4 needed by PlayData");
 
@@ -835,6 +861,75 @@ int main(int argc, char **argv) {
             state.DetachedSession().count("__KOTONOHA_LIVE_CHOICE_COMMITTED") ==
                 0u,
         "pending A03 LOAD suppressed the choice or lost historical tag4");
+  Check(ReadState("001") == beforeA03Choice001 &&
+            ReadState("002") == beforeA03Choice002,
+        "pending A03 LOAD silently replayed an abandoned choice feeling");
+
+  // Repeat choice -> scene -> Back after the historical tag4 survives and a
+  // pending A03 save was restored. This is precisely the sequence reported
+  // by the player; simple single-pass Back checks cannot detect the leak.
+  for (int repeat = 0; repeat < 2; ++repeat) {
+    int acceptedAgain = 0;
+    if (!session.CommitChoice(revisitChoiceValue, &acceptedAgain, &error) ||
+        acceptedAgain == 0)
+      Fail(std::string("A03 re-choice failed: ") + error.message);
+    Kotonoha::SchoolDaysKtrfSession::StepResult repeatedForward;
+    if (!session.Advance("ktrf:next", &repeatedForward, &error))
+      Fail(std::string("A03 repeat advance failed: ") + error.message);
+    Check(repeatedForward.kind == Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
+              repeatedForward.scene.sceneKey == "00/00-00-A04" &&
+              ReadState("001") == beforeA03Choice001 &&
+              ReadState("002") == beforeA03Choice002 + 5,
+          "repeating a discarded choice accumulated feel beyond +5");
+    Kotonoha::SchoolDaysKtrfSession::BackPlan repeatedBack;
+    if (!session.PlanBack(&repeatedBack, &error) ||
+        !session.CommitBack(&repeatedBack, &error))
+      Fail(std::string("A04 repeat Back failed: ") + error.message);
+    Check(repeatedBack.kind == Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
+              repeatedBack.scene.sceneKey == "00/00-00-A03" &&
+              ReadState("001") == beforeA03Choice001 &&
+              ReadState("002") == beforeA03Choice002,
+          "repeating choice/Back did not restore the original feeling pair");
+    Check(HasA03Sp101(),
+          "repeated normal Back incorrectly consumed RouteMap SP101");
+  }
+
+  // Switching to the other branch after multiple Back cycles must not keep
+  // the abandoned +5 for 002. The native Route0 second branch A05 grants
+  // +5 to 001, and its own reverse handler removes exactly that value.
+  uint32_t alternateChoiceIndex = KOTONOHA_KTRF_NULL_INDEX;
+  if (!Kotonoha_KtrfRouterCurrentChoiceAt(
+          &session.Adapter()->router, 0u, &alternateChoiceIndex, &error))
+    Fail(std::string("A03 alternative choice lookup failed: ") + error.message);
+  Kotonoha_KtrfChoiceOption alternateOption{};
+  if (!Kotonoha_KtrfGetChoiceOption(session.Adapter()->document,
+                                    alternateChoiceIndex, 1u,
+                                    &alternateOption, &error) ||
+      alternateOption.value.kind != KOTONOHA_KTRF_SCALAR_INT64)
+    Fail(std::string("A03 second branch is not a valid integer choice: ") +
+         error.message);
+  int alternateAccepted = 0;
+  if (!session.CommitChoice(alternateOption.value.as.int64_value,
+                            &alternateAccepted, &error) ||
+      alternateAccepted == 0)
+    Fail(std::string("A03 alternate choice failed: ") + error.message);
+  Kotonoha::SchoolDaysKtrfSession::StepResult alternateForward;
+  if (!session.Advance("ktrf:next", &alternateForward, &error))
+    Fail(std::string("A03 -> A05 advance failed: ") + error.message);
+  Check(alternateForward.kind == Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
+            alternateForward.scene.sceneKey == "00/00-00-A05" &&
+            ReadState("001") == beforeA03Choice001 + 5 &&
+            ReadState("002") == beforeA03Choice002,
+        "switching A03 branch retained feelings from the abandoned A04 path");
+  Kotonoha::SchoolDaysKtrfSession::BackPlan alternateBack;
+  if (!session.PlanBack(&alternateBack, &error) ||
+      !session.CommitBack(&alternateBack, &error))
+    Fail(std::string("A05 -> Back A03 failed: ") + error.message);
+  Check(alternateBack.kind == Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
+            alternateBack.scene.sceneKey == "00/00-00-A03" &&
+            ReadState("001") == beforeA03Choice001 &&
+            ReadState("002") == beforeA03Choice002 && HasA03Sp101(),
+        "Back from alternate A05 branch did not restore both feelings");
 
   // Save/load during A03's post-choice visual tail remains the opposite case:
   // restore the latch/value only; the choice effects already live in tag1.

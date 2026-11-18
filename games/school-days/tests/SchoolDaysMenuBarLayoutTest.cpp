@@ -57,6 +57,23 @@ int main() {
     CheckLayout(Variant::Wide, 800, 450, 1.0f, 800.0f, 75.0f);
     CheckLayout(Variant::WideFull, 1280, 720, 1.6f, 1280.0f, 120.0f);
     CheckLayout(Variant::WideNote, 1024, 576, 1.28f, 1024.0f, 96.0f);
+    // Confirming a choice does NOT reveal a meter on its own. The meter
+    // appears only when the native feeling-change detector emits code3/4.
+    const auto idleTail = Presenter::VisibilityForFrozenChoiceTail(0, false, true);
+    const auto hoveredTail = Presenter::VisibilityForFrozenChoiceTail(200, false, true);
+    const auto hiddenTail = Presenter::VisibilityForFrozenChoiceTail(200, true, true);
+    const auto unchangedTail = Presenter::VisibilityForFrozenChoiceTail(0, false, false);
+    const auto unchangedHover = Presenter::VisibilityForFrozenChoiceTail(200, false, false);
+    Check(idleTail.meter && !idleTail.chrome && hoveredTail.meter &&
+              !hoveredTail.chrome && hiddenTail.meter && !hiddenTail.chrome &&
+              !unchangedTail.meter && !unchangedTail.chrome &&
+              !unchangedHover.meter && !unchangedHover.chrome,
+          "frozen menu revealed stale hover chrome or unsupported Feel");
+    Presenter frozenMenu;
+    frozenMenu.SetChoiceTailFrozen(true);
+    Check(frozenMenu.ChoiceTailFrozen(), "post-choice lock did not latch");
+    frozenMenu.SetChoiceTailFrozen(false);
+    Check(!frozenMenu.ChoiceTailFrozen(), "post-choice lock did not release");
     // SysMenu stores CMAP-1 in this+0xD4. Internal control12 is therefore
     // raw CMAP value13; its case pushes ReMenu(3), the BackLog view.
     CheckBackLogRect(Variant::Standard, 603.0f, 26.0f, 61.0f, 27.0f);
@@ -368,24 +385,45 @@ int main() {
     Check(Presenter::FadeAlpha(100, false, 500) == 50,
           "MenuBar interrupted hide interpolation drifted");
 
-    // Outgoing choice-tail composition retains the complete feeling meter
-    // even while the shared MenuBar alpha is zero or its chrome suppressed.
+    // The optional meter-only composition is a POST-selection delta
+    // effect; it must never be projected by an unresolved prompt.
     const auto hidden = Presenter::VisibilityForState(0, false, false);
     const auto ordinary = Presenter::VisibilityForState(255, false, false);
     const auto suppressed = Presenter::VisibilityForState(255, true, false);
     const auto meterOnlyHidden = Presenter::VisibilityForState(0, true, true);
-    const auto meterOnlyVisible =
-        Presenter::VisibilityForState(255, false, true);
-    Check(!hidden.meter && !hidden.chrome && ordinary.meter &&
-              ordinary.chrome && !suppressed.meter && !suppressed.chrome &&
+    const auto meterOnlyVisible = Presenter::VisibilityForState(255, false, true);
+    const auto independentlyLatched = Presenter::VisibilityForState(
+        0, false, false, true);
+    const auto handoffLatched = Presenter::VisibilityForState(
+        0, true, false, true);
+    Check(!hidden.meter && !hidden.chrome &&
+              ordinary.meter && ordinary.chrome &&
+              !suppressed.meter && !suppressed.chrome &&
               meterOnlyHidden.meter && !meterOnlyHidden.chrome &&
-              meterOnlyVisible.meter && !meterOnlyVisible.chrome,
-          "Choice-tail must keep feeling meter while suppressing all MenuBar "
-          "chrome");
+              meterOnlyVisible.meter && !meterOnlyVisible.chrome &&
+              independentlyLatched.meter && !independentlyLatched.chrome &&
+              !handoffLatched.meter && !handoffLatched.chrome,
+          "Choice-tail meter-only visibility and independent latch drifted");
+
+    // Native SysMenu's chrome-fade setter explicitly skips feeling-meter
+    // sprites when host +0x154 reports a pending feeling update. The
+    // choice-only meter and frozen post-choice meter likewise remain at
+    // full opacity even when the mouse reveals/fades the surrounding bar.
+    const auto meterAlpha = Presenter::MeterAlphaForState;
+    Check(meterAlpha(0, false, false, true, false) == 255 &&
+              meterAlpha(120, true, false, true, false) == 255 &&
+              meterAlpha(120, true, true, false, false) == 255 &&
+              meterAlpha(120, true, false, false, true) == 255 &&
+              meterAlpha(0, false, true, false, false) == 255 &&
+              meterAlpha(120, true, false, false, false) == 120 &&
+              meterAlpha(255, true, false, false, false) == 255,
+          "Top Menu hover fade obscured the independent feeling meter");
 
     // The retail selected-speed square and AUTO ON are full-opacity
     // standalone sprites even while the ordinary hover chrome is hidden.
-    // The outgoing-choice meter and explicit handoff suppress them.
+    // Only the selected speed is suppressed by choice/scene transitions:
+    // when AUTO is ON its blue animated chip remains visible during the
+    // pending choice, changed-feeling meter and omitted-choice tail.
     const auto persistentAuto = Presenter::PersistentTransportForState(
         true, 0, true, false, false, false);
     const auto persistentSpeed = Presenter::PersistentTransportForState(
@@ -403,16 +441,17 @@ int main() {
     const auto persistentSpeedDisabled = Presenter::PersistentTransportForState(
         true, 2, false, false, false, false);
     Check(!hidden.chrome && persistentAuto.autoOn &&
-              !persistentAuto.selectedSpeed && persistentSpeed.selectedSpeed &&
-              !persistentSpeed.autoOn && persistentBoth.autoOn &&
-              persistentBoth.selectedSpeed && !persistentOff.autoOn &&
-              !persistentOff.selectedSpeed && persistentLocked.autoOn &&
-              !persistentLocked.selectedSpeed &&
+              !persistentAuto.selectedSpeed &&
+              persistentSpeed.selectedSpeed && !persistentSpeed.autoOn &&
+              persistentBoth.autoOn && persistentBoth.selectedSpeed &&
+              !persistentOff.autoOn && !persistentOff.selectedSpeed &&
+              persistentLocked.autoOn && !persistentLocked.selectedSpeed &&
               persistentSpeedDisabled.autoOn &&
               !persistentSpeedDisabled.selectedSpeed &&
-              !persistentMeter.autoOn && !persistentMeter.selectedSpeed &&
-              !persistentHandoff.autoOn && !persistentHandoff.selectedSpeed,
-          "Hidden/menu-only AUTO and speed sprite persistence drifted");
+              persistentMeter.autoOn && !persistentMeter.selectedSpeed &&
+              persistentHandoff.autoOn &&
+              !persistentHandoff.selectedSpeed,
+          "Choice and handoff hid persistent AUTO ON or exposed speed chrome");
 
     // SysMenu 0x100252BA..0x10025323 takes AUTO-on GetTickCount epoch
     // (EXE vtable+0x138, host+0x224), chooses 1000/(speedIndex+1) ms per

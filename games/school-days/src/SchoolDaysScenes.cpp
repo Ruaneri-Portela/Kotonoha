@@ -477,6 +477,10 @@ void GameScene::render(Kotonoha::RendererRef renderer, float) {
 }
 
 bool GameScene::handleMenuBarEvent(Kotonoha::EventRef event) {
+  // During unanswered SetSELECT the prompt owns pointer input.
+  // Keep MenuBar chrome/Feel hidden and let choice handling consume it.
+  if (runtime.choice != nullptr && runtime.unresolvedChoice())
+    return false;
   if (runtime.modal() || !ensureMenuBar())
     return false;
   Kotonoha::SchoolDaysMenuBarPresenter::Action action;
@@ -490,6 +494,10 @@ bool GameScene::handleMenuBarEvent(Kotonoha::EventRef event) {
 }
 
 void GameScene::renderMenuBar(Kotonoha::RendererRef renderer) {
+  // The presenter explicitly hides both chrome and Feel for unresolved
+  // SETSELECT (AUTO ON's separate status chip remains available), while
+  // retaining the draw path for a later, delta-triggered post-choice meter.
+  // Input remains independently owned by the choice.
   if (menuBar.IsOpen()) {
     std::string error;
     if (!menuBar.Render(&renderer, &error)) {
