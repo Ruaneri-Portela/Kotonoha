@@ -295,11 +295,35 @@ function(kotonoha_configure_app target)
 
             set(APP_TITLE "${target}")
             set(TARGET_NAME "${target}")
+            # Every output directory is a standalone PWA with its own
+            # start URL, installation identity and Service Worker scope.
+            # A stable cache key keeps installations isolated by release.
+            string(SHA256 PWA_CACHE_KEY
+                "${target}|${KOTONOHA_VERSION_FULL}|${CMAKE_BUILD_TYPE}")
 
             configure_file(
                 "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/index.html.in"
                 "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/index.html"
                 @ONLY
+            )
+
+            configure_file(
+                "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/pwa.webmanifest.in"
+                "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/manifest.webmanifest"
+                @ONLY
+            )
+            configure_file(
+                "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/service-worker.js.in"
+                "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/service-worker.js"
+                @ONLY
+            )
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND python3
+                    "${KOTONOHA_PROJECT_ROOT}/tools/generate_pwa_icons.py"
+                    "${target}"
+                    "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}"
+                COMMENT "Generating installable PWA icons for ${target}"
+                VERBATIM
             )
 
             # Serve the persistent IndexedDB/HTTP bridge beside the generated
