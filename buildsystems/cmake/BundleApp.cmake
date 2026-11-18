@@ -5,13 +5,16 @@ endif()
 if(NOT APP_GAME)
     message(FATAL_ERROR "App bundle game identifier is missing")
 endif()
-if(APP_GAME STREQUAL "doki-doki-literature-club")
+# The unified hub links DDLC's runtime when built with BUILD_ALL.
+# Its macOS bundle needs the same Python deployment as standalone DDLC.
+if(APP_GAME STREQUAL "doki-doki-literature-club" OR
+   (APP_GAME STREQUAL "launcher" AND PYTHON_STDLIB AND PYTHON_VERSION))
     if(NOT IS_DIRECTORY "${PYTHON_STDLIB}" OR NOT PYTHON_VERSION)
         message(FATAL_ERROR "Python standard library is missing: ${PYTHON_STDLIB}")
     endif()
     set(include_python ON)
 elseif(PYTHON_STDLIB OR PYTHON_VERSION)
-    message(FATAL_ERROR "Only Doki Doki Literature Club may bundle Python")
+    message(FATAL_ERROR "Only Doki Doki Literature Club and the linked launcher may bundle Python")
 else()
     set(include_python OFF)
 endif()
