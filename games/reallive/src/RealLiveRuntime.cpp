@@ -1081,19 +1081,43 @@ struct RealLiveRuntime::Impl {
       preparedBackground = &dcTexture(dcImage(0), surface(0));
     else {
       auto &background = surface(0);
-      if (!backgroundTexture || backgroundTexture->w != background.w ||
-          backgroundTexture->h != background.h) {
+      // DC0 is the authoritative native raster. Upload only on pixel changes,
+      // but always upload after a texture has been recreated (device/resize).
+      const bool recreate = !backgroundTexture ||
+                            backgroundTexture->w != background.w ||
+                            backgroundTexture->h != background.h;
+      bool changed = recreate || !backgroundPixels ||
+                     backgroundPixels->w != background.w ||
+                     backgroundPixels->h != background.h;
+      for (int y = 0; !changed && y < background.h; ++y)
+        changed = std::memcmp(
+                      static_cast<const Uint8 *>(backgroundPixels->pixels) +
+                          y * backgroundPixels->pitch,
+                      static_cast<const Uint8 *>(background.pixels) +
+                          y * background.pitch,
+                      std::size_t(background.w) * 4) != 0;
+      if (recreate) {
         backgroundTexture.reset(SDL_CreateTexture(
             &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
             background.w, background.h));
-        if (backgroundTexture) {
-          SDL_SetTextureBlendMode(backgroundTexture.get(), SDL_BLENDMODE_NONE);
-          SDL_SetTextureScaleMode(backgroundTexture.get(), SDL_SCALEMODE_LINEAR);
-        }
+        if (!backgroundTexture ||
+            !SDL_SetTextureBlendMode(backgroundTexture.get(),
+                                     SDL_BLENDMODE_NONE) ||
+            !SDL_SetTextureScaleMode(backgroundTexture.get(),
+                                     SDL_SCALEMODE_LINEAR))
+          throw std::runtime_error(std::string("REALLIVE DC0 texture: ") +
+                                   SDL_GetError());
       }
-      if (backgroundTexture) {
-        SDL_UpdateTexture(backgroundTexture.get(), nullptr,
-                           background.pixels, background.pitch);
+      if (changed) {
+        if (!SDL_UpdateTexture(backgroundTexture.get(), nullptr,
+                               background.pixels, background.pitch))
+          throw std::runtime_error(std::string("REALLIVE DC0 upload: ") +
+                                   SDL_GetError());
+        backgroundPixels.reset(SDL_DuplicateSurface(&background));
+        if (!backgroundPixels)
+          throw std::runtime_error(std::string("REALLIVE DC0 snapshot: ") +
+                                   SDL_GetError());
+        ++renderStats.textureUploads;
       }
       preparedBackground = backgroundTexture.get();
     }
@@ -1116,9 +1140,14 @@ struct RealLiveRuntime::Impl {
       compositionTexture.reset(SDL_CreateTexture(
           &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, canvasW * scale,
           canvasH * scale));
+      // A completed scene is a replacement raster, never a translucent
+      // overlay over the engine's black clear. RGBA alpha of intermediary DCs
+      // must not erase otherwise visible script backgrounds.
       if (!compositionTexture ||
           !SDL_SetTextureScaleMode(compositionTexture.get(),
-                                   SDL_SCALEMODE_LINEAR))
+                                   SDL_SCALEMODE_LINEAR) ||
+          !SDL_SetTextureBlendMode(compositionTexture.get(),
+                                   SDL_BLENDMODE_NONE))
         throw std::runtime_error(SDL_GetError());
     }
     struct RestoreTarget {
@@ -1743,6 +1772,10 @@ struct RealLiveRuntime::Impl {
             softwareEffect ? canvasTexture.get() : compositionTexture.get();
         filteredScene =
             engine->GetUpscaler().scaled(*native, imageUpscaling.factor);
+        if (!filteredScene ||
+            !SDL_SetTextureBlendMode(filteredScene.get(), SDL_BLENDMODE_NONE))
+          throw std::runtime_error(std::string("REALLIVE filtered scene: ") +
+                                   SDL_GetError());
         ++renderStats.filteredSceneFrames;
         sceneBackground = dcImage(0);
         sceneKey = key;
