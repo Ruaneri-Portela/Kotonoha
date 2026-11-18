@@ -7,6 +7,14 @@ on:
       - "launcher/**"
       - "tools/check_unified_launcher_registry.py"
       - "tools/check_sdl_cpack.py"
+      - "tools/check_web_shell.js"
+      - "tools/web_selftest.js"
+      - "buildsystems/cmake/index.html.in"
+      - "lib/src/core/WebAssetFetch.cpp"
+      - "lib/src/Filesystem/RemoteAssets.cpp"
+      - "lib/src/Filesystem/Sources/FetchAssetProvider.cpp"
+      - "lib/include/Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp"
+      - "lib/tests/web/WebSelfTest.cpp"
       - "tools/test_nested_python_bundle.cmake"
       - "buildsystems/cmake/PruneNestedPythonApp.cmake"
       - "buildsystems/cmake/BundleApp.cmake"
@@ -36,6 +44,14 @@ on:
       - "launcher/**"
       - "tools/check_unified_launcher_registry.py"
       - "tools/check_sdl_cpack.py"
+      - "tools/check_web_shell.js"
+      - "tools/web_selftest.js"
+      - "buildsystems/cmake/index.html.in"
+      - "lib/src/core/WebAssetFetch.cpp"
+      - "lib/src/Filesystem/RemoteAssets.cpp"
+      - "lib/src/Filesystem/Sources/FetchAssetProvider.cpp"
+      - "lib/include/Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp"
+      - "lib/tests/web/WebSelfTest.cpp"
       - "tools/test_nested_python_bundle.cmake"
       - "buildsystems/cmake/PruneNestedPythonApp.cmake"
       - "buildsystems/cmake/BundleApp.cmake"
@@ -80,5 +96,9 @@ jobs:
           python3 tools/check_release_matrix.py
           python3 tools/check_unified_launcher_registry.py
           python3 tools/check_sdl_cpack.py
+      - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
+        run: |
+          node tools/check_web_shell.js
+          node --check tools/web_selftest.js
       - name: Test nested Python.framework cleanup without macOS SDK
         run: cmake -P tools/test_nested_python_bundle.cmake
