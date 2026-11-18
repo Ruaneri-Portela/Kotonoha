@@ -1,5 +1,6 @@
 #include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/EngineDetector.hpp>
+#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -161,6 +162,25 @@ int main() {
     require(Kotonoha::Filesystem::detectEngine(*kirikiri).kind ==
                 Kotonoha::Filesystem::EngineKind::Kirikiri,
             "Kirikiri detection must work on unindexed HTTP mounts");
+
+    // A size-aware HTTP manifest makes arbitrary directory names visible
+    // without a network directory listing, even before any GET/HEAD requests.
+    auto indexed = Kotonoha::Filesystem::FetchAssetProvider::fromManifest(
+        "https://example.invalid/game-assets/",
+        R"({"entries":[{"path":"data.xp3","size":1024},{"path":"misc/voice.xp3","size":2048}]})");
+    indexed->enableOnDemandDiscovery();
+    require(indexed->hasManifestIndex() && indexed->manifestFree(),
+            "Optional manifest must index listings and retain direct Fetch");
+    auto indexedSource = Filesystem::mount(
+        std::static_pointer_cast<Kotonoha::Filesystem::IMount>(indexed));
+    require(Kotonoha::Filesystem::isGameSourceRegularFile(
+                *indexedSource, "data.xp3"),
+            "Manifest must reveal archive metadata without network requests");
+    const auto manifestRoot = indexedSource->list("");
+    const auto manifestNested = indexedSource->list("misc");
+    require(manifestRoot.size() == 2 && manifestNested.size() == 1 &&
+                manifestNested.front().path == "misc/voice.xp3",
+            "Manifest must enumerate indexed root and nested directories");
 
     std::cout << "Virtual game source compatibility probes passed\n";
   } catch (const std::exception &error) {
