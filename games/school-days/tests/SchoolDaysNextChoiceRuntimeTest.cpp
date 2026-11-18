@@ -294,6 +294,9 @@ public:
   static bool BarSuppressed(const Runtime &runtime) {
     return runtime.menuBarProjection().fullBarSuppressed;
   }
+  static bool PromptMeterOnly(const Runtime &runtime) {
+    return runtime.menuBarProjection().meterOnly;
+  }
   static Kotonoha::SchoolDaysOptionalTick RawSkipTarget(const Runtime &runtime) {
     return runtime.timeline.ComputeSkipToEndTarget(runtime.tick);
   }
@@ -554,6 +557,8 @@ void TestSkipChoiceVisible(const char *route, const fs::path &root) {
   Require(Access::Pending(app.runtime), "visible choice fixture is not pending");
   Require(Access::BarSuppressed(app.runtime),
           "T1: the top bar was not suppressed while the prompt was visible");
+  Require(Access::PromptMeterOnly(app.runtime),
+          "T1: hiding the Top Menu during a choice also hid the feeling bar");
   Access::ClickTransport(app.runtime, false);
   Require(Access::TransportPhase(app.runtime) ==
               Kotonoha::SchoolDaysTransportFade::Phase::Idle &&
@@ -579,6 +584,8 @@ void TestSelectedChoiceTailDoesNotAcceptMenuActions(const char *route,
           "tail fixture player choice was not committed");
   Require(!Access::BarSuppressed(app.runtime),
           "selected prompt must restore MenuBar chrome ownership");
+  Require(!Access::PromptMeterOnly(app.runtime),
+          "selected choice incorrectly retained prompt-only meter composition");
   Require(Access::ChoiceMenuFrozen(app.runtime) &&
               !Access::ChoiceMenuNewSceneBound(app.runtime),
           "selected prompt must restore visible but noninteractive menu");

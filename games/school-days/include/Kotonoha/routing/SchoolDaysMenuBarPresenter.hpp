@@ -109,9 +109,18 @@ public:
                              uint32_t elapsedMs);
     static RenderVisibility VisibilityForState(uint8_t barAlpha,
                                                bool fullBarSuppressed,
-                                               bool meterOnly);
+                                               bool meterOnly,
+                                               bool feelingLatch = false);
     static RenderVisibility VisibilityForFrozenChoiceTail(
         uint8_t barAlpha, bool fullBarSuppressed);
+    // Retail SysMenu 0x10025690 does not apply the surrounding MenuBar fade
+    // to meter sprites while host +0x154 reports an active feeling update.
+    // During a choice the meter is likewise composed without its chrome.
+    static uint8_t MeterAlphaForState(uint8_t barAlpha,
+                                      bool chromeVisible,
+                                      bool feelingLatch,
+                                      bool meterOnly,
+                                      bool choiceTailFrozen);
     // The retail x2..x32 selection and AUTO ON remain visible at full opacity
     // after ordinary hover chrome fades completely out.
     static PersistentTransport PersistentTransportForState(

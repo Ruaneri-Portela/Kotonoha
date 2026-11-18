@@ -113,6 +113,7 @@ class Runtime final : public Kotonoha::Runtime {
     bool transportLocked = false;
     bool actionInhibit = false;
     bool fullBarSuppressed = false;
+    bool meterOnly = false;
     bool replayIndicator = false;
     bool choiceTailFrozen = false;
   };

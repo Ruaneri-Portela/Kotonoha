@@ -5,6 +5,7 @@
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 #include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
 
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -163,6 +164,102 @@ void CheckMeterSfxHostCodes(Application &app, const fs::path &scratchRoot) {
   meter.Close();
 }
 
+void CheckMeterCompositingPixels(Application &app,
+                                 const fs::path &scratchRoot) {
+  // Authored, fully opaque synthetic PNGs: red MenuBar background and cyan
+  // CHIP atlas. No commercial assets are loaded. Read pixels from the actual
+  // SDL software renderer to detect a future shared-alpha or render-order
+  // regression that purely logical visibility assertions would miss.
+  const fs::path source = fs::path(__FILE__).parent_path() /
+                          "fixtures" / "menubar-alpha";
+  const fs::path root = scratchRoot / "meter-composite";
+  const fs::path images = root / "System" / "MenuBar";
+  fs::create_directories(images);
+  fs::create_directories(root / "Script" / "English");
+  for (const char *name : {"MenuBar.png", "MenuBar_Chip.png"}) {
+    const fs::path from = source / name;
+    Check(fs::is_regular_file(from),
+          "missing synthetic MenuBar alpha fixture: " + from.string());
+    fs::copy_file(from, images / name);
+  }
+
+  auto sprites = std::make_shared<SchoolDays::Assets>(root);
+  auto &renderer = app.engine.GetRenderer();
+  using Presenter = Kotonoha::SchoolDaysMenuBarPresenter;
+  Presenter menu;
+  std::string error;
+  Check(menu.Open(&renderer, sprites.get(), root.string(),
+                  Presenter::Variant::Standard, 10, 20, &error),
+        "compositing fixture failed to open: " + error);
+  int outputWidth = 0, outputHeight = 0;
+  SDL_RendererLogicalPresentation presentation{};
+  Check(SDL_GetRenderLogicalPresentation(&renderer, &outputWidth,
+                                         &outputHeight, &presentation),
+        "could not query MenuBar render output");
+  if (presentation == SDL_LOGICAL_PRESENTATION_DISABLED)
+    Check(SDL_GetCurrentRenderOutputSize(&renderer, &outputWidth,
+                                         &outputHeight),
+          "could not query software output dimensions");
+  const auto viewport = Presenter::FitViewport(
+      outputWidth, outputHeight,
+      Presenter::LayoutForVariant(Presenter::Variant::Standard));
+  Check(viewport.scale > 0.0f, "compositing fixture viewport invalid");
+
+  const auto sample = [&](float logicalX, float logicalY) {
+    SDL_Surface *frame = SDL_RenderReadPixels(&renderer, nullptr);
+    Check(frame != nullptr,
+          std::string("SDL software pixel readback failed: ") + SDL_GetError());
+    const int x = static_cast<int>(std::lround(viewport.x + logicalX *
+                                              viewport.scale));
+    const int y = static_cast<int>(std::lround(viewport.y + logicalY *
+                                              viewport.scale));
+    Uint8 r = 0, g = 0, b = 0, a = 0;
+    const bool ok = SDL_ReadSurfacePixel(frame, x, y, &r, &g, &b, &a);
+    SDL_DestroySurface(frame);
+    Check(ok, "MenuBar readback sample was out of bounds");
+    return std::array<int, 3>{{r, g, b}};
+  };
+  const auto paint = [&]() {
+    Check(SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255) &&
+              SDL_RenderClear(&renderer) && menu.Render(&renderer, &error),
+          "MenuBar synthetic draw failed: " + error);
+  };
+
+  menu.SetRuntimeState(false, false, 0, false, true, false,
+                       false, true); // prompt suppresses all chrome
+  menu.SetMeterOnly(true);
+  paint();
+  const auto choiceMeter = sample(200, 5);
+  const auto hiddenChrome = sample(0, 40);
+  Check(choiceMeter[0] == 5 && choiceMeter[1] == 235 &&
+            choiceMeter[2] == 245 &&
+            hiddenChrome[0] == 0 && hiddenChrome[1] == 0 &&
+            hiddenChrome[2] == 0,
+        "prompt rendered Top Menu chrome over Feel or hid the meter entirely");
+
+  menu.SetMeterOnly(false);
+  menu.SetRuntimeState(false, false, 0, false, true, false,
+                       false, false);
+  SDL_Event hover{};
+  hover.type = SDL_EVENT_MOUSE_MOTION;
+  hover.motion.x = viewport.x + 200.0f * viewport.scale;
+  hover.motion.y = viewport.y + 35.0f * viewport.scale;
+  Presenter::Action action;
+  (void)menu.HandleEvent(&renderer, &hover, &action);
+  const uint32_t nowMs = static_cast<uint32_t>(SDL_GetTicks());
+  menu.Update(nowMs + 350u, 10, 20); // hover fully reveals red chrome
+  menu.SetChoiceTailFrozen(true);    // but selected choice remains inert
+  paint();
+  const auto frozenMeter = sample(200, 5);
+  const auto visibleChrome = sample(0, 40);
+  Check(frozenMeter[0] == 5 && frozenMeter[1] == 235 &&
+            frozenMeter[2] == 245 &&
+            visibleChrome[0] == 220 && visibleChrome[1] == 10 &&
+            visibleChrome[2] == 10,
+        "hovered frozen Top Menu painted over Feel or lost authored chrome");
+  menu.Close();
+}
+
 } // namespace
 
 namespace SchoolDays {
@@ -264,6 +361,7 @@ int main(int argc, char **argv) {
             "default AutoMode is unexpectedly enabled");
 
       CheckMeterSfxHostCodes(app, temporary.path);
+      CheckMeterCompositingPixels(app, temporary.path);
 
       Access::Apply(app.runtime, Kind::ToggleAutoMode);
       Check(app.runtime.retailConfig().autoMode,

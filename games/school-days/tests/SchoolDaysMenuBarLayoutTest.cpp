@@ -379,12 +379,32 @@ int main() {
         const auto suppressed = Presenter::VisibilityForState(255, true, false);
         const auto meterOnlyHidden = Presenter::VisibilityForState(0, true, true);
         const auto meterOnlyVisible = Presenter::VisibilityForState(255, false, true);
+        const auto independentlyLatched = Presenter::VisibilityForState(
+            0, false, false, true);
+        const auto handoffLatched = Presenter::VisibilityForState(
+            0, true, false, true);
         Check(!hidden.meter && !hidden.chrome &&
                   ordinary.meter && ordinary.chrome &&
                   !suppressed.meter && !suppressed.chrome &&
                   meterOnlyHidden.meter && !meterOnlyHidden.chrome &&
-                  meterOnlyVisible.meter && !meterOnlyVisible.chrome,
+                  meterOnlyVisible.meter && !meterOnlyVisible.chrome &&
+                  independentlyLatched.meter && !independentlyLatched.chrome &&
+                  !handoffLatched.meter && !handoffLatched.chrome,
               "Choice-tail must keep feeling meter while suppressing all MenuBar chrome");
+
+        // Native SysMenu's chrome-fade setter explicitly skips feeling-meter
+        // sprites when host +0x154 reports a pending feeling update. The
+        // choice-only meter and frozen post-choice meter likewise remain at
+        // full opacity even when the mouse reveals/fades the surrounding bar.
+        const auto meterAlpha = Presenter::MeterAlphaForState;
+        Check(meterAlpha(0, false, false, true, false) == 255 &&
+                  meterAlpha(120, true, false, true, false) == 255 &&
+                  meterAlpha(120, true, true, false, false) == 255 &&
+                  meterAlpha(120, true, false, false, true) == 255 &&
+                  meterAlpha(0, false, true, false, false) == 255 &&
+                  meterAlpha(120, true, false, false, false) == 120 &&
+                  meterAlpha(255, true, false, false, false) == 255,
+              "Top Menu hover fade obscured the independent feeling meter");
 
         // The retail selected-speed square and AUTO ON are full-opacity
         // standalone sprites even while the ordinary hover chrome is hidden.
