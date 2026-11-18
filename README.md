@@ -35,7 +35,7 @@ The source tree includes **13 CMake/Android game applications** (including Examp
 
 Linux and WebAssembly artifacts are built sequentially in **one GitHub Actions job**. Incremental game/engine build caches are disabled; vcpkg dependency binary caching is retained. See [CI instructions](docs/CI_VCPKG.md). Source and synthetic tests cannot establish full retail-game parity.
 
-The [standalone unified launcher](launcher/README.md) is a desktop executable that links enabled game runtime libraries directly and runs each game in the same process; it does not spawn separate game binaries.
+The [standalone unified launcher](launcher/README.md) is a desktop executable that links all 12 real game runtime libraries directly (excluding Example) and runs each game in the same process; it does not spawn separate game binaries. It is generated only with `KOTONOHA_BUILD_ALL=ON` on native desktop.
 
 ## Repository layout
 
