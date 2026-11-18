@@ -1,15 +1,16 @@
-#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include "SummerRuntime.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 #include <SummerRadish/SummerAssets.hpp>
 #include <cstdio>
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 namespace {
 Kotonoha::EngineOptions
 withAssets(Kotonoha::EngineOptions options,
@@ -33,8 +34,7 @@ struct App {
   std::unique_ptr<Game> game;
   void start(const std::string &directory) {
     auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(
-        std::filesystem::path(directory),
-        options.assetOverlayDirectory());
+        std::filesystem::path(directory), options.assetOverlayDirectory());
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Game>(assets, options);
   }
@@ -60,7 +60,7 @@ struct KotonohaPortCallbacks final {
 SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
   KOTONOHA_SET_APP_METADATA("Summer Radish Vacation!!",
-                     "me.hirameki.kotonoha.summerradishvacation");
+                            "me.hirameki.kotonoha.summerradishvacation");
   try {
     auto app = std::make_unique<App>();
     auto &options = app->options;
@@ -82,20 +82,17 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     const auto settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
     const auto env = SDL_getenv("SUMMER_DIR");
-    const bool hadSummer = !directory.empty();
     directory = Kotonoha::GameLauncher::findGamePath(
         "summer-radish-vacation",
         {directory, env ? env : "",
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
          Kotonoha::gameAssetDirectory("summer-radish-vacation").string()},
         validate);
-    if (directory.empty()) {
-      if (!options.launcher)
-        throw std::runtime_error(
-            "No game directory specified; use --summer DIRECTORY|ISO");
-      options.launcher = true;
-    } else if (hadSummer || !options.launcher)
-      options.launcher = false;
+    // An explicit game source must not silently suppress the launcher.
+    // --frames/--mcp and --no-launcher are handled by CommandLine.
+    if (directory.empty() && !options.launcher)
+      throw std::runtime_error(
+          "No game directory specified; use --summer DIRECTORY|ISO");
 
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(

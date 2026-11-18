@@ -4,18 +4,18 @@
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysRuntime.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/routing/SchoolDaysTranslationCoverage.hpp>
 #include <Kotonoha/routing/SchoolDaysGpkLanguageProfile.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -312,24 +312,22 @@ struct KotonohaPortCallbacks final {
   static void quit(void *appstate, SDL_AppResult result);
 };
 
-SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
+                                          char **argv) {
   *appstate = nullptr;
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
   SDL_SetLogPriorities(SDL_LOG_PRIORITY_ERROR);
 #endif
   DevStartupLog("app-init-entered");
-  KOTONOHA_SET_APP_METADATA("School Days HQ", "me.hirameki.kotonoha.schooldays");
+  KOTONOHA_SET_APP_METADATA("School Days HQ",
+                            "me.hirameki.kotonoha.schooldays");
   try {
     auto app = std::make_unique<App>();
     std::string directory;
     app->options.persistSettings = true;
-    // Desktop owns an ImGui launcher; Android owns a touch-first Java Activity
-    // that handles SAF, language and options before creating this SDL Surface.
-    // Never open a second, desktop-style launcher inside GameActivity.
+    // Ruaneri's shared EngineOptions default enables desktop launchers.
 #if defined(_WIN32) && !defined(__ANDROID__)
     app->options.launcher = true;
-#else
-    app->options.launcher = false;
 #endif
 #if defined(_WIN32) && !defined(__ANDROID__)
     // The School Days commercial-test profile exposed Anime4K/ArtCNN to the
@@ -365,29 +363,39 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv
     arguments.alias("--school-days", "--assets");
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     arguments.option("--ktrf", "FILE", "School Days routing graph", app->route);
-    arguments.option("--scripts", "DIRECTORY", "Translated ORS script directory", app->scripts);
-    arguments.option("--documents", "DIRECTORY", "Save-game and GlobalFlag directory", app->documents);
-    arguments.option("--node", "ID", "Start at an index or scene key", app->startNode);
-    arguments.option("--dump-ktrf", "FILE", "Export the active routing graph", app->dump);
 #endif
-#if defined(KOTONOHA_DISTRIBUTION_BUILD)
-    arguments.option("--documents", "DIRECTORY", "Save-game and GlobalFlag directory", app->documents);
+    arguments.option("--scripts", "DIRECTORY",
+                     "Translated ORS script directory", app->scripts);
+    arguments.option("--documents", "DIRECTORY",
+                     "Save-game and GlobalFlag directory", app->documents);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+    arguments.option("--node", "ID", "Start at an index or scene key",
+                     app->startNode);
+    arguments.option("--dump-ktrf", "FILE", "Export the active routing graph",
+                     app->dump);
 #endif
     arguments.parse(argc, argv);
+    // Android's SAF/language/options Activity owns the launch flow. Apply
+    // this policy only after parsing so command-line handling remains shared
+    // and desktop startup never inherits a premature launcher-disable state.
+#if defined(__ANDROID__) || defined(ANDROID)
+    app->options.launcher = false;
+#endif
+    // Bounded headless QA must reach the game loop rather than the launcher.
+    // DIST must not expose route-jump, KTRF export or developer controls.
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
-    // Analysis/QA commands are not a user double-click. Preserve their
-    // non-interactive behavior even when no window server is available.
-    if (!app->dump.empty() || !app->startNode.empty() || arguments.frames > 0)
+    if (!app->dump.empty() || !app->startNode.empty() || arguments.frames > 0 ||
+        app->options.enableMCP)
       app->options.launcher = false;
 #else
-    // --frames is already a documented, engine-level command in the public
-    // CommandLine parser. Honour its bounded exit without exposing developer
-    // scene-jump, graph export or diagnostic interfaces in a DIST build.
     if (arguments.frames > 0)
       app->options.launcher = false;
 #endif
+    if (arguments.wantsHelp()) {
+      std::fputs(arguments.help().c_str(), stdout);
+      return SDL_APP_SUCCESS;
+    }
     DevStartupLog("arguments-parsed");
-    if (arguments.wantsHelp()) { std::fputs(arguments.help().c_str(), stdout); return SDL_APP_SUCCESS; }
     app->frames = arguments.frames;
     if (app->options.subtitleStylePath.empty())
       if (const auto styles = Kotonoha::FileResolver::findGameAsset("school-days", "styles.ass"))
@@ -609,7 +617,8 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
       DevStartupLog("engine-iterate-result", std::to_string(result));
     // The generic --frames option must behave the same in DEV and DIST.  It
     // gives headless tests a real game loop without reinstating debug APIs.
-    if (app->frames > 0 && --app->frames == 0) return SDL_APP_SUCCESS;
+    if (app->frames > 0 && --app->frames == 0)
+      return SDL_APP_SUCCESS;
     return result;
   } catch (const std::exception &error) {
     DevStartupLog("frame-error", error.what());

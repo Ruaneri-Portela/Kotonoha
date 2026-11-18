@@ -1,9 +1,9 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
-#include <Kotonoha/Filesystem/RemoteAssets.hpp>
-#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/Filesystem/Mounts/ISO9660Mount.hpp>
 #include <Kotonoha/Filesystem/Mounts/TarMount.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
+#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
 #include <algorithm>
@@ -24,13 +24,11 @@ std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
   // Do not treat URL components named game-assets as physical directories.
   if (source.find("://") != std::string::npos) {
 #ifdef __EMSCRIPTEN__
-    if (source.rfind("https://", 0) != 0 &&
-        source.rfind("http://", 0) != 0)
+    if (source.rfind("https://", 0) != 0 && source.rfind("http://", 0) != 0)
       throw FilesystemError(ErrorCode::InvalidPath,
                             "Only HTTP(S) direct mounts are supported");
     if (auto remote = remoteGameAssets())
-      if (source == remote->baseUrl() ||
-          source + "/" == remote->baseUrl())
+      if (source == remote->baseUrl() || source + "/" == remote->baseUrl())
         return mount(std::static_pointer_cast<IMount>(remote));
     return mount(std::static_pointer_cast<IMount>(
         FetchAssetProvider::fromUrl(std::move(source))));
@@ -43,7 +41,8 @@ std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
   if (remoteGameAssets()) {
     const std::filesystem::path path(source);
     for (const auto &part : path)
-      if (part == "game-assets") return mountGameAssets(path);
+      if (part == "game-assets")
+        return mountGameAssets(path);
   }
 #endif
   std::error_code ec;
@@ -56,10 +55,9 @@ std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
     base = std::make_shared<DirectoryMount>(root);
   } else if (std::filesystem::is_regular_file(root)) {
     auto ext = root.extension().string();
-    std::transform(ext.begin(), ext.end(), ext.begin(),
-                   [](unsigned char ch) {
-                     return static_cast<char>(std::tolower(ch));
-                   });
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char ch) {
+      return static_cast<char>(std::tolower(ch));
+    });
     if (ext == ".tar")
       base = std::make_shared<TarMount>(root);
     else if (ext == ".iso" || ext == ".bin" || ext == ".img")
@@ -74,8 +72,7 @@ std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
   return std::shared_ptr<Filesystem>(new Filesystem(std::move(base)));
 }
 
-std::shared_ptr<Filesystem>
-Filesystem::mount(std::shared_ptr<IMount> source) {
+std::shared_ptr<Filesystem> Filesystem::mount(std::shared_ptr<IMount> source) {
   return std::shared_ptr<Filesystem>(new Filesystem(std::move(source)));
 }
 
@@ -121,7 +118,8 @@ std::vector<std::uint8_t> readAll(FileHandle &file, std::size_t maxBytes) {
   std::vector<std::uint8_t> bytes(static_cast<std::size_t>(size));
   std::size_t cursor = 0;
   while (cursor < bytes.size()) {
-    const auto chunk = std::min<std::size_t>(bytes.size() - cursor, 1024u * 1024u);
+    const auto chunk =
+        std::min<std::size_t>(bytes.size() - cursor, 1024u * 1024u);
     const auto count = file.read(bytes.data() + cursor, chunk);
     if (count <= 0)
       throw FilesystemError(ErrorCode::IOError,
@@ -132,8 +130,8 @@ std::vector<std::uint8_t> readAll(FileHandle &file, std::size_t maxBytes) {
   return bytes;
 }
 
-std::vector<std::uint8_t> readLocalFile(
-    const std::filesystem::path &path, std::size_t maxBytes) {
+std::vector<std::uint8_t> readLocalFile(const std::filesystem::path &path,
+                                        std::size_t maxBytes) {
   SDLFileSource input(path);
   return readAll(input, maxBytes);
 }

@@ -1,9 +1,11 @@
-#include <Kotonoha/core/SDL.hpp>
 #include "RealLiveRuntime.hpp"
+#include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
 #include "RealLiveTransition.hpp"
+#include "SceneTexture.hpp"
 #include "TitleInput.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/ImageButtonBar.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
@@ -12,7 +14,7 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/TransformTween.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
@@ -92,6 +94,57 @@ struct RealLiveErrorScene final : Scene {
   bool handleEvent(EventRef e) override { return false; }
   bool designSpace() const override { return false; }
 };
+
+void processSpeakerAndDialogue(const std::string &rawSpeaker,
+                               const std::string &rawDialogue,
+                               std::string &outSpeaker,
+                               std::string &outDialogue) {
+  outSpeaker = rawSpeaker;
+  outDialogue = rawDialogue;
+
+  if (outDialogue.empty())
+    return;
+
+  if (!outSpeaker.empty()) {
+    if (outDialogue.rfind(outSpeaker, 0) == 0) {
+      std::size_t pos = outSpeaker.size();
+      while (pos < outDialogue.size() &&
+             (outDialogue[pos] == ' ' || outDialogue[pos] == ':'))
+        ++pos;
+      if (pos < outDialogue.size() &&
+          (outDialogue[pos] == '"' || outDialogue[pos] == '\'' ||
+           outDialogue[pos] == ' ' || outDialogue[pos] == ':')) {
+        outDialogue = outDialogue.substr(pos);
+      }
+    }
+  }
+
+  if (outSpeaker.empty()) {
+    std::size_t quotePos = outDialogue.find_first_of("\"'「");
+    std::size_t colonPos = outDialogue.find(": ");
+    std::size_t sepPos = std::string::npos;
+    if (quotePos != std::string::npos && quotePos <= 30)
+      sepPos = quotePos;
+    if (colonPos != std::string::npos && colonPos < sepPos && colonPos <= 30)
+      sepPos = colonPos;
+
+    if (sepPos != std::string::npos && sepPos > 0) {
+      std::string cand = outDialogue.substr(0, sepPos);
+      while (!cand.empty() && cand.back() == ' ')
+        cand.pop_back();
+      if (!cand.empty()) {
+        outSpeaker = cand;
+        std::size_t startPos = sepPos;
+        if (outDialogue[sepPos] == ':') {
+          ++startPos;
+          while (startPos < outDialogue.size() && outDialogue[startPos] == ' ')
+            ++startPos;
+        }
+        outDialogue = outDialogue.substr(startPos);
+      }
+    }
+  }
+}
 } // namespace
 
 struct Text : VNTextBox {
@@ -104,44 +157,182 @@ struct Text : VNTextBox {
   std::map<SDL_Surface *, TexturePtr> imageTextures;
   std::vector<Uint8> fontData;
   FontPtr font;
-  Text(Engine &e, Kotonoha::Providers::RealLiveAssets &a)
-      : VNTextBox(e, "", "", 40), assets(a) {
-    hide();
-    auto smw00c = assets.graphic("smw00c", false);
-    if (!smw00c.empty()) {
-      auto bytes = assets.read(smw00c);
-      if (bytes.size() >= 5)
-        buttonImage = decodeG00(bytes);
-      buttonSurface = assets.loadSurface(smw00c);
-    }
-    auto kcur00 = assets.graphic("kcur00", false);
-    if (!kcur00.empty())
-      cursor = assets.loadSurface(kcur00);
-    auto smw00a = assets.graphic("smw00a", false);
-    if (!smw00a.empty())
-      frame = assets.loadSurface(smw00a);
-    auto smw00b = assets.graphic("smw00b", false);
-    if (!smw00b.empty())
-      back = assets.loadSurface(smw00b);
+  int canvasW = 640, canvasH = 480;
 
-    // Validar superfície antes de acessar pixels
+  int boxWidth() const {
+    if (back && back->w > 0)
+      return back->w;
+    if (frame && frame->w > 0)
+      return frame->w;
+    return canvasW;
+  }
+  int boxHeight() const {
+    if (back && back->h > 0)
+      return back->h;
+    if (frame && frame->h > 0)
+      return frame->h;
+    return 122;
+  }
+  int boxX() const {
+    const auto &pos = assets.settings().get("WINDOW.000.POS");
+    if (pos.size() >= 3) {
+      const int mod = assets.settings().integer("WINDOW.000.POS", 0, 0);
+      const int px = assets.settings().integer("WINDOW.000.POS", 0, 1);
+      return (mod == 1 || mod == 3) ? (canvasW - boxWidth() - px) : px;
+    }
+    return (canvasW - boxWidth()) / 2;
+  }
+  int boxY() const {
+    const auto &pos = assets.settings().get("WINDOW.000.POS");
+    if (pos.size() >= 3) {
+      const int mod = assets.settings().integer("WINDOW.000.POS", 0, 0);
+      const int py = assets.settings().integer("WINDOW.000.POS", 0, 2);
+      return (mod == 2 || mod == 3) ? (canvasH - boxHeight() - py) : py;
+    }
+    return canvasH - boxHeight();
+  }
+  float scaleX() const { return float(boxWidth()) / 640.0f; }
+  float scaleY() const { return float(boxHeight()) / 122.0f; }
+  int mojiTop() const {
+    return assets.settings().integer("WINDOW.000.MOJI_POS", 19, 0);
+  }
+  int mojiLeft() const {
+    return std::max(20,
+                    assets.settings().integer("WINDOW.000.MOJI_POS", 53, 2));
+  }
+  float wrapWidth() const {
+    return float(boxWidth()) - float(mojiLeft()) - 59.0f * scaleX();
+  }
+
+  void updateLayout(int w, int h) {
+    canvasW = w;
+    canvasH = h;
+    const float bx = float(boxX()), by = float(boxY());
+    const float bw = float(boxWidth()), bh = float(boxHeight());
+
+    if (controls.buttons.size() >= 5) {
+      const int wakuSet =
+          std::max(0, assets.settings().integer("WINDOW.000.WAKU_SETNO", 0));
+      const int wakuNo =
+          std::max(0, assets.settings().integer("WINDOW.000.WAKU_NO", 0));
+      std::ostringstream prefix;
+      prefix << "WAKU." << std::setw(3) << std::setfill('0') << wakuSet << "."
+             << std::setw(3) << std::setfill('0') << wakuNo;
+      const std::string wakuBase = prefix.str();
+
+      struct BtnSpec {
+        const char *useKey;
+        const char *boxSuffix;
+        int defX, defY, defW, defH;
+      };
+      static constexpr BtnSpec specs[5] = {
+          {"WINDOW.000.CLEAR_USE", ".CLEAR_BOX", 584, 4, 31, 7},
+          {"WINDOW.000.MSGBKLEFT_USE", ".MSGBKLEFT_BOX", 616, 4, 12, 38},
+          {"WINDOW.000.MSGBKRIGHT_USE", ".MSGBKRIGHT_BOX", 616, 43, 12, 38},
+          {"WINDOW.000.AUTOMODE_USE", ".AUTOMODE_BOX", 616, 82, 12, 16},
+          {"WINDOW.000.READJUMP_USE", ".READJUMP_BOX", 616, 99, 12, 16},
+      };
+      for (std::size_t i = 0; i < 5; ++i) {
+        if (assets.settings().integer(specs[i].useKey, 1) == 0) {
+          controls.buttons[i].area = {0, 0, 0, 0};
+          continue;
+        }
+        const std::string boxKey = wakuBase + specs[i].boxSuffix;
+        const auto &tokens = assets.settings().get(boxKey);
+        if (tokens.size() >= 5) {
+          const int mod = assets.settings().integer(boxKey, 0, 0);
+          const int rx = assets.settings().integer(boxKey, 0, 1);
+          const int ry = assets.settings().integer(boxKey, 0, 2);
+          const int rw = assets.settings().integer(boxKey, 0, 3);
+          const int rh = assets.settings().integer(boxKey, 0, 4);
+          if (rw <= 0 || rh <= 0) {
+            controls.buttons[i].area = {0, 0, 0, 0};
+          } else {
+            const float x =
+                (mod == 1 || mod == 3) ? (bx + bw - rw - rx) : (bx + rx);
+            const float y =
+                (mod == 2 || mod == 3) ? (by + bh - rh - ry) : (by + ry);
+            controls.buttons[i].area = {x, y, float(rw), float(rh)};
+          }
+        } else {
+          controls.buttons[i].area = {
+              bx + float(specs[i].defX), by + float(specs[i].defY),
+              float(specs[i].defW), float(specs[i].defH)};
+        }
+      }
+    }
+  }
+
+  Text(Engine &e, Kotonoha::Providers::RealLiveAssets &a, int w = 640,
+       int h = 480)
+      : VNTextBox(e, "", "", 40), assets(a), canvasW(w), canvasH(h) {
+    hide();
+    const int wakuSet =
+        std::max(0, assets.settings().integer("WINDOW.000.WAKU_SETNO", 0));
+    const int wakuNo =
+        std::max(0, assets.settings().integer("WINDOW.000.WAKU_NO", 0));
+    std::ostringstream prefix;
+    prefix << "WAKU." << std::setw(3) << std::setfill('0') << wakuSet << "."
+           << std::setw(3) << std::setfill('0') << wakuNo;
+    const std::string wakuBase = prefix.str();
+
+    const std::string btnName =
+        assets.settings().text(wakuBase + ".BTN", "smw00c");
+    if (!btnName.empty()) {
+      auto smw00c = assets.graphic(btnName, false);
+      if (!smw00c.empty()) {
+        auto bytes = assets.read(smw00c);
+        if (bytes.size() >= 5)
+          buttonImage = decodeG00(bytes);
+        buttonSurface = assets.loadSurface(smw00c);
+      }
+    }
+    const std::string curName =
+        assets.settings().text("CURSOR.000.NAME", "kcur00");
+    if (!curName.empty()) {
+      auto kcur00 = assets.graphic(curName, false);
+      if (!kcur00.empty())
+        cursor = assets.loadSurface(kcur00);
+    }
+    const std::string frameName =
+        assets.settings().text(wakuBase + ".NAME", "smw00a");
+    if (!frameName.empty()) {
+      auto smw00a = assets.graphic(frameName, false);
+      if (!smw00a.empty())
+        frame = assets.loadSurface(smw00a);
+    }
+    const std::string backName =
+        assets.settings().text(wakuBase + ".BACK", "smw00b");
+    if (!backName.empty()) {
+      auto smw00b = assets.graphic(backName, false);
+      if (!smw00b.empty())
+        back = assets.loadSurface(smw00b);
+    }
+
     if (back && back->w > 0 && back->h > 0 && back->pixels) {
+      int r = assets.settings().integer(
+          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 0),
+          0);
+      int g = assets.settings().integer(
+          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 1),
+          1);
+      int b = assets.settings().integer(
+          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 160, 2),
+          2);
+      int a = assets.settings().integer(
+          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 200, 3),
+          3);
       for (int y = 0; y < back->h; ++y)
         for (int x = 0; x < back->w; ++x) {
           auto *p =
               static_cast<Uint8 *>(back->pixels) + y * back->pitch + x * 4;
-          p[0] = 100;
-          p[1] = 100;
-          p[2] = 160;
-          p[3] = Uint8(int(p[3]) * 200 / 255);
+          p[0] = Uint8(r);
+          p[1] = Uint8(g);
+          p[2] = Uint8(b);
+          p[3] = Uint8(int(p[3]) * a / 255);
         }
-    } else if (!smw00b.empty()) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "REALLIVE: Background surface invalid (smw00b): %s",
-                  !back ? "null"
-                        : (back->w <= 0 || back->h <= 0 ? "invalid dimensions"
-                                                        : "no pixels"));
     }
+
     const char *path = "/System/Library/Fonts/Supplemental/Verdana.ttf";
     if (std::filesystem::exists(path)) {
       font.reset(TTF_OpenFont(path, 25));
@@ -159,6 +350,8 @@ struct Text : VNTextBox {
   }
   GlossCursor textCursor(const std::string &value) const {
     GlossCursor p;
+    const float sx = scaleX(), sy = scaleY();
+    const float wrapWidth = (float(boxWidth()) - 112.0f) * sx;
     auto width = [&](const std::string &v) {
       int w = 0, h = 0;
       if (font)
@@ -168,15 +361,33 @@ struct Text : VNTextBox {
       return static_cast<float>(w);
     };
     const auto lines =
-        Kotonoha::VNTextBoxUtility::WrapText(value, width, 528.0f);
+        Kotonoha::VNTextBoxUtility::WrapText(value, width, wrapWidth);
     if (!lines.empty()) {
-      p.y = static_cast<float>((lines.size() - 1) * 28);
-      p.x = 53.0f + width(lines.back());
+      p.y = float(boxY()) + static_cast<float>((lines.size() - 1) * 28.0f * sy);
+      p.x = float(boxX()) + 53.0f * sx + width(lines.back());
     } else {
-      p.x = 53.0f;
-      p.y = 0.0f;
+      p.x = float(boxX()) + 53.0f * sx;
+      p.y = float(boxY());
     }
     return p;
+  }
+  int wrappedLineCount(const std::string &value) const {
+    if (value.empty())
+      return 0;
+    const float sx = scaleX();
+    const float wrapWidth = (float(boxWidth()) - 112.0f) * sx;
+    auto width = [&](const std::string &v) {
+      int w = 0, h = 0;
+      if (!engine.GetSettings().vnFontPath.empty())
+        return engine.GetVNUI().measureSized(v, 10000, 25).x;
+      if (font)
+        TTF_GetStringSize(font.get(), v.data(), v.size(), &w, &h);
+      else
+        w = int(v.size()) * 13;
+      return static_cast<float>(w);
+    };
+    return int(
+        Kotonoha::VNTextBoxUtility::WrapText(value, width, wrapWidth).size());
   }
   bool designSpace() const override { return false; }
   void image(RendererRef r, SurfaceRef s, float x, float y,
@@ -251,16 +462,20 @@ struct Text : VNTextBox {
   bool handleEvent(EventRef event) override {
     if (!isVisible() || concealed)
       return false;
-    // The sprite toolbar is pointer-only. D-pad and arrow keys belong to the
-    // dialogue/game menus; otherwise a stray D-pad press leaves hidden keyboard
-    // focus on a toolbar button and East activates it instead of advancing.
+    updateLayout(canvasW, canvasH);
     if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP)
       return false;
     return controls.handle(event);
   }
   void renderFrame(RendererRef r) override {
-    image(r, *back, 0, 345);
-    image(r, *frame, 0, 345);
+    updateLayout(canvasW, canvasH);
+    const float bx = float(boxX()), by = float(boxY());
+    if (back)
+      image(r, *back, bx, by);
+    if (frame)
+      image(r, *frame, bx, by);
+    if (!buttonSurface)
+      return;
     auto &texture = imageTextures[buttonSurface.get()];
     if (!texture)
       texture.reset(SDL_CreateTextureFromSurface(&r, buttonSurface.get()));
@@ -271,18 +486,24 @@ struct Text : VNTextBox {
       const int index =
           groups[i] +
           (active && controls.state(int(i)) == 0 ? 3 : controls.state(int(i)));
-      const auto &region = buttonImage.regions.at(index);
-      SDL_FRect source{float(region.atlasX), float(region.atlasY),
-                       float(region.x2 - region.x1 + 1),
-                       float(region.y2 - region.y1 + 1)};
-      RenderUpscaledTexture(&r, texture.get(), &source,
-                            &controls.buttons[i].area);
+      if (index < int(buttonImage.regions.size())) {
+        const auto &region = buttonImage.regions.at(index);
+        SDL_FRect source{float(region.atlasX), float(region.atlasY),
+                         float(region.x2 - region.x1 + 1),
+                         float(region.y2 - region.y1 + 1)};
+        RenderUpscaledTexture(&r, texture.get(), &source,
+                              &controls.buttons[i].area);
+      }
     }
   }
   void renderSpeaker(RendererRef r) override {
-    print(r, speakerName, 33, 315, 500, true);
+    const float sx = scaleX(), sy = scaleY();
+    print(r, speakerName, float(boxX()) + 33.0f * sx,
+          float(boxY()) - 30.0f * sy, int(500 * sx), true);
   }
   void renderDialogue(RendererRef r) override {
+    const float sx = scaleX(), sy = scaleY();
+    const float wrapWidth = (float(boxWidth()) - 112.0f) * sx;
     auto measure = [this](const std::string &text) {
       int w = 0, h = 0;
       if (!engine.GetSettings().vnFontPath.empty())
@@ -292,19 +513,24 @@ struct Text : VNTextBox {
       return float(w);
     };
     const auto lines = VNTextBoxUtility::RevealLines(
-        fullDialogue, visibleDialogue.size(), measure, 528);
+        fullDialogue, visibleDialogue.size(), measure, wrapWidth);
     for (std::size_t n = 0; n < lines.size(); ++n)
-      print(r, lines[n], 53, 364 + n * 28);
+      print(r, lines[n], float(boxX()) + 53.0f * sx,
+            float(boxY()) + 19.0f * sy + n * 28.0f * sy, int(wrapWidth));
   }
   void renderIndicator(RendererRef r) override {
+    if (!cursor)
+      return;
     auto &t = imageTextures[cursor.get()];
     if (!t) {
       t.reset(SDL_CreateTextureFromSurface(&r, cursor.get()));
       if (auto *pipeline = Upscaling::forRenderer(r))
         pipeline->process(*t, 0);
     }
+    const float sx = scaleX(), sy = scaleY();
     SDL_FRect src{float((SDL_GetTicks() % 850) * 4 / 850 * 16), 0, 16, 16},
-        dst{591, 436, 16, 16};
+        dst{float(boxX() + boxWidth()) - 49.0f * sx,
+            float(boxY() + boxHeight()) - 44.0f * sy, 16.0f * sx, 16.0f * sy};
     RenderUpscaledTexture(&r, t.get(), &src, &dst);
   }
 };
@@ -394,6 +620,8 @@ struct RealLiveRuntime::Impl {
   AudioConfig audio;
   Engine *engine = nullptr;
   SDL_Cursor *mouseCursor = nullptr;
+  int mouseCursorNumber = -1;
+  bool mouseCursorApplied = false;
   std::unique_ptr<Stage> stage;
   std::unique_ptr<Text> textbox;
   std::unique_ptr<ChoiceQuestionScene> choice;
@@ -407,8 +635,8 @@ struct RealLiveRuntime::Impl {
   std::map<int, EditField> editFields;
   int focusedEdit = -1;
   bool autoMode = false, skipMode = false, skipHeld = false;
-  ControllerTriggerSkip triggerSkip;
-  Uint64 autoDeadline = 0, skipDeadline = 0;
+  RealLiveInput input;
+  Uint64 autoDeadline = 0;
   bool ctrlSkipEnabled = true, currentRead = false;
   std::pair<int, std::size_t> currentPage;
   std::set<std::pair<int, std::size_t>> readPages;
@@ -436,6 +664,8 @@ struct RealLiveRuntime::Impl {
   TexturePtr ditherTexture, maskedTransitionTexture;
   std::optional<bool> gpuDither;
   int ditherStep = -1, ditherStyle = -1;
+  int maxDialogueLines = 3; // #WINDOW.<w>.MOJI_CNT[1], default 3
+  int currentDialogueLine = 0;
   SurfacePtr backgroundPixels;
   std::map<std::pair<std::string, int>, TexturePtr> objectTextTextures;
   RenderStats renderStats;
@@ -457,6 +687,7 @@ struct RealLiveRuntime::Impl {
   // AIR title, so input readiness follows the refresh instead of a hardcoded
   // instruction offset.
   bool titleReady = false;
+  int titleScenario = 9032;
   std::vector<int> titleHitObjects;
   std::map<std::pair<int, int>, int> settings;
   std::map<int, Uint64> timers;
@@ -497,6 +728,25 @@ struct RealLiveRuntime::Impl {
             [this](const std::string &id) { return assets->localPath(id); }),
         audio(parseAudioConfig(assets->settingsSource())) {
     syscomEntries.fill(1);
+    mouseCursorNumber = assets->settings().integer("MOUSE_CURSOR", -1);
+    // Each RealLive release declares its own front-end in Gameexe.ini.
+    titleScenario = assets->settings().integer("SEEN_MENU", 9032);
+    // rlBabel Bug #2: Pre-load #WINDOW.<w>.NAME_MOD from Gameexe.ini so the
+    // rlBabel name-display mode matches the retail rlBabel.dll default of
+    // reading the INI at load time. Without this, babelNameModes_ defaults
+    // to 0 for all windows, breaking speaker-name rendering in titles that
+    // set NAME_MOD=1 (e.g. AIR_PT-BR #WINDOW.000.NAME_MOD=1).
+    {
+      std::ostringstream key;
+      for (int w = 0; w < 64; ++w) {
+        key.str("");
+        key << "WINDOW." << std::setw(3) << std::setfill('0') << w
+            << ".NAME_MOD";
+        int mode = assets->settings().integer(key.str(), -1);
+        if (mode >= 0)
+          vm.setBabelNameMode(w, mode);
+      }
+    }
     vm.speaker = [this](std::string t) {
       speakerName = decodeText(t, archive.Scenario(vm.scenario()).encoding());
     };
@@ -515,23 +765,115 @@ struct RealLiveRuntime::Impl {
       auto glyph = decodeText(raw, archive.Scenario(vm.scenario()).encoding());
       return textbox ? textbox->textCursor(dialogue + glyph).x - 53 : 0;
     };
+    vm.babelControl = [this](int code) {
+      if (code == 1 || code == 4 || code == 10 || code == 13)
+        currentDialogueLine = 0;
+    };
+    vm.lineBreak = [this] {
+      std::ostringstream key;
+      key << "WINDOW." << std::setw(3) << std::setfill('0') << vm.currentWindow
+          << ".MOJI_CNT";
+      maxDialogueLines =
+          std::max(1, assets->settings().integer(key.str(), 3, 1));
+      std::string finalSpeaker, finalDialogue;
+      processSpeakerAndDialogue(speakerName, dialogue, finalSpeaker,
+                                finalDialogue);
+      const int wrapped =
+          textbox ? std::max(1, textbox->wrappedLineCount(finalDialogue)) : 1;
+      const int curLine = std::max(currentDialogueLine, wrapped - 1);
+      if (curLine + 1 >= maxDialogueLines) {
+        currentDialogueLine = 0;
+        return 4;
+      }
+      currentDialogueLine = curLine + 1;
+      return 3;
+    };
+    vm.pageOverflow = [this](const std::string &rawWord) {
+      if (!textbox || dialogue.empty())
+        return false;
+      std::ostringstream key;
+      key << "WINDOW." << std::setw(3) << std::setfill('0') << vm.currentWindow
+          << ".MOJI_CNT";
+      maxDialogueLines =
+          std::max(1, assets->settings().integer(key.str(), 3, 1));
+      auto word =
+          decodeText(rawWord, archive.Scenario(vm.scenario()).encoding());
+      std::string simulated = dialogue + word;
+      std::string finalSpeaker, finalDialogue;
+      processSpeakerAndDialogue(speakerName, simulated, finalSpeaker,
+                                finalDialogue);
+      const int lines = textbox->wrappedLineCount(finalDialogue);
+      if (lines > maxDialogueLines) {
+        currentDialogueLine = 0;
+        return true;
+      }
+      return false;
+    };
     vm.selectionText = [this](int window,
                               const std::vector<std::string> &labels) {
       selectionWindow =
           window < 0 ? assets->settings().integer("DEFAULT_SEL_WINDOW", 0)
                      : window;
-      selectionLabels.clear();
+      // rlBabel func=200 may be called multiple times (batched selections in
+      // Clannad_PT-BR with 4-5 options across two calls). Accumulate labels
+      // instead of clearing; clear only when SelectElement consumes them.
       for (const auto &raw : labels)
         selectionLabels[raw] =
             decodeText(raw, archive.Scenario(vm.scenario()).encoding());
     };
     vm.command = [this](auto &c) { return command(c); };
+    vm.onUnhandled = [](const UnhandledCommand &c) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "RealLive unhandled command scene=%d pc=%zu type=%d "
+                  "module=%d opcode=%d overload=%d",
+                  c.scenario, c.instruction, c.moduleType, c.module, c.opcode,
+                  c.overload);
+    };
     vm.text = [this](std::string t) {
       dialogue += decodeText(t, archive.Scenario(vm.scenario()).encoding());
     };
     auto resolution = assets->settings().detectResolution();
     canvasW = resolution.width;
     canvasH = resolution.height;
+  }
+  struct SelEffect {
+    SDL_Rect src{};
+    SDL_Rect dst{};
+    int durationMs = 0;
+    int style = 0;
+    int opacity = 255;
+  };
+  SelEffect parseSelEffect(int index, int defaultDurationMs = 0) const {
+    std::ostringstream selrKey, selKey;
+    selrKey << "SELR." << std::setw(3) << std::setfill('0') << index;
+    selKey << "SEL." << std::setw(3) << std::setfill('0') << index;
+    const auto &cfg = assets->settings();
+    SelEffect out;
+    if (!cfg.get(selrKey.str()).empty()) {
+      const auto k = selrKey.str();
+      out.src = {cfg.integer(k, 0, 0), cfg.integer(k, 0, 1),
+                 cfg.integer(k, canvasW, 2), cfg.integer(k, canvasH, 3)};
+      out.dst = {cfg.integer(k, 0, 4), cfg.integer(k, 0, 5), 0, 0};
+      out.durationMs = cfg.integer(k, defaultDurationMs, 6);
+      out.style = cfg.integer(k, 0, 7);
+      out.opacity = cfg.integer(k, 255, 14);
+    } else {
+      const auto k = selKey.str();
+      const int x1 = cfg.integer(k, 0, 0);
+      const int y1 = cfg.integer(k, 0, 1);
+      const int x2 = cfg.integer(k, canvasW - 1, 2);
+      const int y2 = cfg.integer(k, canvasH - 1, 3);
+      out.src = {x1, y1, x2 - x1 + 1, y2 - y1 + 1};
+      out.dst = {cfg.integer(k, 0, 4), cfg.integer(k, 0, 5), 0, 0};
+      out.durationMs = cfg.integer(k, defaultDurationMs, 6);
+      out.style = cfg.integer(k, 0, 7);
+      out.opacity = cfg.integer(k, 255, 14);
+    }
+    return out;
+  }
+  std::filesystem::path slotSavePath(int slot) const {
+    return Kotonoha::saveDirectory() /
+           ("slot_" + std::to_string(std::max(0, slot)) + ".vn");
   }
   SurfaceRef surface(int n) {
     if (n < 0 || n > 15)
@@ -945,31 +1287,42 @@ struct RealLiveRuntime::Impl {
       preparedBackground = &dcTexture(dcImage(0), surface(0));
     else {
       auto &background = surface(0);
-      bool changed = !backgroundPixels || backgroundPixels->w != background.w ||
+      // DC0 is the authoritative native raster. Upload only on pixel changes,
+      // but always upload after a texture has been recreated (device/resize).
+      const bool recreate = !backgroundTexture ||
+                            backgroundTexture->w != background.w ||
+                            backgroundTexture->h != background.h;
+      bool changed = recreate || !backgroundPixels ||
+                     backgroundPixels->w != background.w ||
                      backgroundPixels->h != background.h;
       for (int y = 0; !changed && y < background.h; ++y)
-        changed = std::memcmp(static_cast<Uint8 *>(backgroundPixels->pixels) +
-                                  y * backgroundPixels->pitch,
-                              static_cast<Uint8 *>(background.pixels) +
-                                  y * background.pitch,
-                              background.w * 4) != 0;
-      if (changed) {
-        if (!backgroundTexture || backgroundTexture->w != background.w ||
-            backgroundTexture->h != background.h)
-          backgroundTexture.reset(SDL_CreateTexture(
-              &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
-              background.w, background.h));
+        changed =
+            std::memcmp(static_cast<const Uint8 *>(backgroundPixels->pixels) +
+                            y * backgroundPixels->pitch,
+                        static_cast<const Uint8 *>(background.pixels) +
+                            y * background.pitch,
+                        std::size_t(background.w) * 4) != 0;
+      if (recreate) {
+        backgroundTexture.reset(SDL_CreateTexture(&r, SDL_PIXELFORMAT_RGBA32,
+                                                  SDL_TEXTUREACCESS_STREAMING,
+                                                  background.w, background.h));
         if (!backgroundTexture ||
             !SDL_SetTextureBlendMode(backgroundTexture.get(),
                                      SDL_BLENDMODE_NONE) ||
             !SDL_SetTextureScaleMode(backgroundTexture.get(),
-                                     SDL_SCALEMODE_LINEAR) ||
-            !SDL_UpdateTexture(backgroundTexture.get(), nullptr,
+                                     SDL_SCALEMODE_LINEAR))
+          throw std::runtime_error(std::string("REALLIVE DC0 texture: ") +
+                                   SDL_GetError());
+      }
+      if (changed) {
+        if (!SDL_UpdateTexture(backgroundTexture.get(), nullptr,
                                background.pixels, background.pitch))
-          throw std::runtime_error(SDL_GetError());
+          throw std::runtime_error(std::string("REALLIVE DC0 upload: ") +
+                                   SDL_GetError());
         backgroundPixels.reset(SDL_DuplicateSurface(&background));
         if (!backgroundPixels)
-          throw std::runtime_error(SDL_GetError());
+          throw std::runtime_error(std::string("REALLIVE DC0 snapshot: ") +
+                                   SDL_GetError());
         ++renderStats.textureUploads;
       }
       preparedBackground = backgroundTexture.get();
@@ -993,9 +1346,10 @@ struct RealLiveRuntime::Impl {
       compositionTexture.reset(SDL_CreateTexture(
           &r, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, canvasW * scale,
           canvasH * scale));
-      if (!compositionTexture ||
-          !SDL_SetTextureScaleMode(compositionTexture.get(),
-                                   SDL_SCALEMODE_LINEAR))
+      // A completed scene is a replacement raster, never a translucent
+      // overlay over the engine's black clear. RGBA alpha of intermediary DCs
+      // must not erase otherwise visible script backgrounds.
+      if (!configureSceneTexture(compositionTexture.get()))
         throw std::runtime_error(SDL_GetError());
     }
     struct RestoreTarget {
@@ -1620,6 +1974,9 @@ struct RealLiveRuntime::Impl {
             softwareEffect ? canvasTexture.get() : compositionTexture.get();
         filteredScene =
             engine->GetUpscaler().scaled(*native, imageUpscaling.factor);
+        if (!configureSceneTexture(filteredScene.get()))
+          throw std::runtime_error(std::string("REALLIVE filtered scene: ") +
+                                   SDL_GetError());
         ++renderStats.filteredSceneFrames;
         sceneBackground = dcImage(0);
         sceneKey = key;
@@ -1761,32 +2118,46 @@ struct RealLiveRuntime::Impl {
     return int(f.from + (f.to - f.from) * t);
   }
   bool command(const libreallive::CommandElement &c);
-  void bind(Engine &e) {
-    engine = &e;
-    if (!mouseCursor) {
-      const int number = assets->settings().integer("MOUSE_CURSOR", -1);
-      if (number >= 0 && number <= 999) {
-        std::ostringstream key;
-        key << "MOUSE_CURSOR." << std::setw(3) << std::setfill('0') << number;
-        const auto name = assets->settings().text(key.str() + ".NAME");
-        if (!name.empty()) {
-          const auto id = assets->graphic(name);
-          if (!id.empty()) {
-            auto atlas = assets->loadSurface(id);
-            auto frame = mouseCursorFrame(atlas.get());
-            if (frame.surface) {
-              mouseCursor = SDL_CreateColorCursor(
-                  frame.surface.get(), frame.hotspotX, frame.hotspotY);
-              if (mouseCursor)
-                SDL_SetCursor(mouseCursor);
-            }
-          }
+
+  // RealLive sys 1:4:207 selects a configured mouse cursor image.
+  // Keep the requested number for sys 1:4:206 even when no image exists.
+  void selectMouseCursor(int number) {
+    if (mouseCursorApplied && mouseCursorNumber == number)
+      return;
+    mouseCursorNumber = number;
+    if (!engine)
+      return;
+    SDL_Cursor *next = nullptr;
+    if (number >= 0 && number <= 999) {
+      std::ostringstream key;
+      key << "MOUSE_CURSOR." << std::setw(3) << std::setfill('0') << number;
+      const auto name = assets->settings().text(key.str() + ".NAME");
+      if (!name.empty()) {
+        const auto id = assets->graphic(name);
+        if (!id.empty()) {
+          auto atlas = assets->loadSurface(id);
+          auto frame = mouseCursorFrame(atlas.get());
+          if (frame.surface)
+            next = SDL_CreateColorCursor(frame.surface.get(), frame.hotspotX,
+                                         frame.hotspotY);
         }
       }
     }
+    // Always switch before releasing the previous cursor. Missing images
+    // use the SDL default without changing cursor visibility (204/205).
+    SDL_SetCursor(next ? next : SDL_GetDefaultCursor());
+    SDL_Cursor *old = mouseCursor;
+    mouseCursor = next;
+    if (old)
+      SDL_DestroyCursor(old);
+    mouseCursorApplied = true;
+  }
+  void bind(Engine &e) {
+    engine = &e;
+    selectMouseCursor(mouseCursorNumber);
     if (!stage) {
       stage = std::make_unique<Stage>(e);
-      textbox = std::make_unique<Text>(e, *assets);
+      textbox = std::make_unique<Text>(e, *assets, canvasW, canvasH);
       textbox->autoActive = [this] { return autoMode; };
       textbox->skipActive = [this] { return skipMode || skipHeld; };
       textbox->controls.buttons = {
@@ -1805,6 +2176,7 @@ struct RealLiveRuntime::Impl {
              if (skipMode)
                autoMode = false;
            }}};
+      textbox->updateLayout(canvasW, canvasH);
       choice = std::make_unique<RealLiveSelection>(e, *assets);
       stage->draw = [this](auto &r) { draw(r); };
       stage->input = [this](auto &e) { return event(e); };
@@ -1819,8 +2191,10 @@ struct RealLiveRuntime::Impl {
     m.SetOnLoad([this] { openSaves(true); });
     m.SetOnReturnToMenu([this] {
       GetInGameMenuRuntime(*engine).close();
-      vm.jump(9032);
+      vm.jump(titleScenario);
+      selectMouseCursor(assets->settings().integer("MOUSE_CURSOR", -1));
       autoMode = skipMode = skipHeld = false;
+      input.resetSkip();
       autoDeadline = 0;
       textbox->controls.reset();
       textbox->concealed = false;
@@ -1856,11 +2230,23 @@ struct RealLiveRuntime::Impl {
     if (!saves)
       saves = std::make_unique<VNSaveMenu>(*engine);
     std::string dir = Kotonoha::saveDirectory().string();
-    saves->open(dir, load, load ? "" : saveName);
+    auto sanitize = [](std::string name) {
+      for (char &ch : name) {
+        if (ch == '/' || ch == '\\' || ch == ':' || ch == '*' || ch == '?' ||
+            ch == '"' || ch == '<' || ch == '>' || ch == '|') {
+          ch = '_';
+        }
+      }
+      while (!name.empty() && (name.back() == '.' || name.back() == ' ')) {
+        name.pop_back();
+      }
+      return name.empty() ? "Save" : name;
+    };
+    saves->open(dir, load, load ? "" : sanitize(saveName));
     runtime.RemoveScene(saves.get());
     runtime.AddScene(saves.get());
   }
-  void advanceText(bool manual = true) {
+  void advanceText(bool manual = true, bool preserveReadSkip = false) {
     if (!pause)
       return;
     if (!textbox->isDialogueComplete())
@@ -1869,15 +2255,11 @@ struct RealLiveRuntime::Impl {
       readPages.insert(currentPage);
       pause = false;
       autoDeadline = 0;
-      if (manual) {
-        autoMode = false;
-        skipMode = false;
-      } else {
-        skipMode = false;
-      }
+      updateAdvanceModes(manual, preserveReadSkip, autoMode, skipMode);
       if (pauseKind != 205) {
         dialogue.clear();
         speakerName.clear();
+        currentDialogueLine = 0;
         textbox->hide();
         voice.Stop();
       }
@@ -1888,7 +2270,7 @@ struct RealLiveRuntime::Impl {
   // stop at different instruction indices (AIR at 860, planetarian at 587),
   // therefore readiness is tracked from the refresh command itself.
   bool titleMenu() const {
-    return titleReady && vm.scenario() == 9032 &&
+    return titleReady && vm.scenario() == titleScenario &&
            runtime.GetState() == GameState::Menu && !pause &&
            !choice->isActive() && error.empty();
   }
@@ -1896,12 +2278,12 @@ struct RealLiveRuntime::Impl {
     return std::any_of(syscomEntries.begin(), syscomEntries.end(),
                        [](Uint8 state) { return state != 0; });
   }
-  // Other loops in SEEN 9032 poll intA and must stay pointer-only; the title
-  // menu is the poll that writes the button register intF[1003].
-  // The title script enumerates its native clickable regions through 1:84
-  // before every menu poll. Record those object ids and derive keyboard /
-  // gamepad targets from their live positions, so each RealLive release keeps
-  // its own layout instead of sharing AIR's hardcoded coordinates.
+  // Other loops in the title scenario poll intA and must stay pointer-only; the
+  // title menu is the poll that writes the button register intF[1003]. The
+  // title script enumerates its native clickable regions through 1:84 before
+  // every menu poll. Record those object ids and derive keyboard / gamepad
+  // targets from their live positions, so each RealLive release keeps its own
+  // layout instead of sharing AIR's hardcoded coordinates.
   void installTitleTargets() {
     std::vector<TitleInput::Target> targets;
     for (int id : titleHitObjects) {
@@ -1930,7 +2312,7 @@ struct RealLiveRuntime::Impl {
     titleInput.setTargets(std::move(targets));
   }
   bool titlePoll(const libreallive::CommandElement &c) {
-    if (vm.scenario() != 9032 || c.GetParamCount() < 3)
+    if (vm.scenario() != titleScenario || c.GetParamCount() < 3)
       return false;
     // The menu poll stores the button state in an intF register. AIR uses
     // intF[1003], CLANNAD uses intF[1202] and planetarian intF[1003]; the
@@ -1981,35 +2363,35 @@ struct RealLiveRuntime::Impl {
       return true;
     }
 
-    if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
-        e.type == SDL_EVENT_GAMEPAD_REMOVED)
-      skipHeld = false;
-    if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) &&
-        (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL)) {
-      skipHeld = e.type == SDL_EVENT_KEY_DOWN;
-      return true;
-    }
     if (pause && textbox->isVisible()) {
       if (textbox->concealed) {
-        if ((e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-             e.button.button == SDL_BUTTON_LEFT) ||
-            (e.type == SDL_EVENT_KEY_DOWN &&
-             (e.key.key == SDLK_SPACE || e.key.key == SDLK_RETURN))) {
+        const bool touchRelease = e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+                                  e.button.which == SDL_TOUCH_MOUSEID;
+        const bool mousePress = e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                                e.button.which != SDL_TOUCH_MOUSEID;
+        if (((touchRelease || mousePress) &&
+             e.button.button == SDL_BUTTON_LEFT && e.button.x >= 0 &&
+             e.button.y >= 0) ||
+            (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+             (e.key.key == SDLK_SPACE || e.key.key == SDLK_RETURN ||
+              e.key.key == SDLK_KP_ENTER))) {
           textbox->concealed = false;
           return true;
         }
       } else if (textbox->handleEvent(e))
         return true;
-      if (!engine->isStoryPaused() && e.type == SDL_EVENT_KEY_DOWN &&
-          !e.key.repeat && e.key.key == SDLK_A) {
+      if (focusedEdit < 0 && !engine->isStoryPaused() &&
+          e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+          e.key.key == SDLK_A) {
         autoMode = !autoMode;
         if (autoMode)
           skipMode = false;
         autoDeadline = 0;
         return true;
       }
-      if (!engine->isStoryPaused() && e.type == SDL_EVENT_KEY_DOWN &&
-          !e.key.repeat && e.key.key == SDLK_S) {
+      if (focusedEdit < 0 && !engine->isStoryPaused() &&
+          e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+          e.key.key == SDLK_S) {
         skipMode = !skipMode;
         if (skipMode)
           autoMode = false;
@@ -2061,13 +2443,20 @@ struct RealLiveRuntime::Impl {
         GetInGameMenuRuntime(*engine).toggle();
       return true;
     }
-    bool advance =
-        (e.type == (pauseKind == 205 || e.button.which == SDL_TOUCH_MOUSEID
-                        ? SDL_EVENT_MOUSE_BUTTON_UP
-                        : SDL_EVENT_MOUSE_BUTTON_DOWN) &&
-         e.button.button == SDL_BUTTON_LEFT) ||
-        (e.type == SDL_EVENT_KEY_DOWN &&
-         (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE));
+    // Do not read e.button on keyboard events. Engine touch cancellation
+    // releases the synthetic pointer at (-1,-1); it is not a valid tap.
+    const bool pointer = e.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                         e.type == SDL_EVENT_MOUSE_BUTTON_UP;
+    const bool leftClick = pointer && e.button.button == SDL_BUTTON_LEFT &&
+                           e.button.x >= 0 && e.button.y >= 0;
+    const bool touch = leftClick && e.button.which == SDL_TOUCH_MOUSEID;
+    const bool advance =
+        (leftClick && e.type == ((pauseKind == 205 || touch)
+                                     ? SDL_EVENT_MOUSE_BUTTON_UP
+                                     : SDL_EVENT_MOUSE_BUTTON_DOWN)) ||
+        (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+         (e.key.key == SDLK_RETURN || e.key.key == SDLK_KP_ENTER ||
+          e.key.key == SDLK_SPACE));
     if (advance && pause) {
       advanceText();
       return true;
@@ -2087,14 +2476,18 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         return base + extension;
     return std::string();
   };
-  if (type == 1 && (m == 12 || m == 13 || m == 41 || m == 255))
-    return true;
   if (type == 0 && m == 4)
     return true;
   if (type == 0 && m == 3) {
     switch (op) {
+    case 0:
+    case 1:
+    case 2:
     case 3:
+    case 4:
+    case 16:
     case 17:
+    case 200:
     case 205: {
       pauseKind = op;
       currentPage = {vm.scenario(), vm.index()};
@@ -2102,16 +2495,21 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (!currentRead)
         skipMode = false;
       autoDeadline = 0;
-      textbox->concealed = false;
+      textbox->concealed = op == 205;
       pause = true;
-      auto translated = engine->GetTranslation().text(vm.scenario(), dialogue);
-      if (translated == dialogue && !dialogue.empty() &&
+      auto translatedSpeaker =
+          engine->GetTranslation().text(vm.scenario(), speakerName);
+      auto translatedDialogue =
+          engine->GetTranslation().text(vm.scenario(), dialogue);
+      if (translatedDialogue == dialogue && !dialogue.empty() &&
           dialogue.front() == ' ')
-        translated =
+        translatedDialogue =
             engine->GetTranslation().text(vm.scenario(), dialogue.substr(1));
-      textbox->setDialogue(
-          engine->GetTranslation().text(vm.scenario(), speakerName),
-          translated);
+
+      std::string finalSpeaker, finalDialogue;
+      processSpeakerAndDialogue(translatedSpeaker, translatedDialogue,
+                                finalSpeaker, finalDialogue);
+      textbox->setDialogue(finalSpeaker, finalDialogue);
       textbox->show();
       return true;
     }
@@ -2121,17 +2519,21 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 161:
     case 162:
       dialogue.clear();
+      currentDialogueLine = 0;
       textbox->hide();
       return true;
     case 201:
       dialogue += '\n';
+      return true;
+    case 210:
+      dialogue.clear();
+      currentDialogueLine = 0;
       return true;
     case 101:
     case 102:
     case 103:
     case 104:
     case 105:
-    case 210:
     case 300:
     case 301:
     case 310:
@@ -2140,11 +2542,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
   }
-  if (type == 0 && m == 2 && (op == 0 || op == 1 || op == 3)) {
-    if (op == 3) {
-      machine.set_store_register(0);
-      return true;
-    }
+  if (type == 0 && m == 2 && (op >= 0 && op <= 4)) {
     auto *s = dynamic_cast<const libreallive::SelectElement *>(&c);
     if (!s)
       throw std::runtime_error("Invalid REALLIVE selection");
@@ -2176,6 +2574,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       vm.machine().set_store_register(n);
       choice->hide();
     });
+    // Consume the batched rlBabel selection labels now that the SelectElement
+    // has been presented. This prevents stale labels from leaking into the
+    // next unrelated selection.
+    selectionLabels.clear();
     return true;
   }
   if (type == 1 && m == 4) {
@@ -2197,11 +2599,17 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 120:
       timers[(op == 120 ? 256 : 0) + value(c, 0)] = SDL_GetTicks();
       return true;
+    case 112:
     case 114:
-      machine.set_store_register(int(SDL_GetTicks() - timers[value(c, 0)]));
+    case 122:
+    case 124:
+      machine.set_store_register(
+          int(SDL_GetTicks() - timers[(op >= 120 ? 256 : 0) + value(c, 0)]));
       return true;
     case 116:
-      timers[value(c, 1)] = SDL_GetTicks() - value(c, 0);
+    case 126:
+      timers[(op == 126 ? 256 : 0) + value(c, 1)] =
+          SDL_GetTicks() - value(c, 0);
       return true;
     case 111:
     case 121: {
@@ -2217,6 +2625,15 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 130:
       button1 = button2 = 0;
       return true;
+    case 131:
+      machine.set_store_register(button1 != 0 ? 1 : 0);
+      return true;
+    case 132:
+      machine.set_store_register(button2 != 0 ? 1 : 0);
+      return true;
+    case 134:
+      machine.set_store_register(1);
+      return true;
     case 133: {
       // Keyboard/gamepad title input is injected at the native poll so it
       // cannot be lost to the script's own 1:4:130 register clear.
@@ -2229,11 +2646,109 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       button2 = button2 == 2 ? 0 : button2;
       return true;
     }
+    case 200:
+      machine.set_store_register(int(mouseX));
+      return true;
+    case 201:
+      machine.set_store_register(int(mouseY));
+      return true;
+    case 202:
+      assign(c, 0, int(mouseX));
+      assign(c, 1, int(mouseY));
+      return true;
     case 204:
       SDL_ShowCursor();
       return true;
     case 205:
       SDL_HideCursor();
+      return true;
+    case 206:
+      machine.set_store_register(mouseCursorNumber);
+      return true;
+    case 207:
+      selectMouseCursor(value(c, 0));
+      return true;
+    case 210:
+      machine.set_store_register(1);
+      return true;
+    case 211:
+      if (c.GetParamCount() > 0 && value(c, 0) == 0)
+        SDL_HideCursor();
+      else
+        SDL_ShowCursor();
+      return true;
+    case 212:
+    case 214:
+    case 217:
+    case 218:
+    case 219:
+      machine.set_store_register(mouseCursorNumber >= 0 ? mouseCursorNumber
+                                                        : 0);
+      return true;
+    case 215:
+    case 216: {
+      if (c.GetParamCount() >= 2) {
+        const int synthetic = titlePoll(c) ? titleInput.poll() : -1;
+        assign(c, 0, int(mouseX));
+        assign(c, 1, int(mouseY));
+        if (c.GetParamCount() >= 3)
+          assign(c, 2, synthetic >= 0 ? synthetic : button1);
+        if (c.GetParamCount() >= 4)
+          assign(c, 3, button2);
+        if (c.GetParamCount() >= 5)
+          assign(c, 4, 0);
+        if (c.GetParamCount() >= 3) {
+          button1 = button1 == 2 ? 0 : button1;
+          button2 = button2 == 2 ? 0 : button2;
+        }
+      }
+      machine.set_store_register(mouseCursorNumber >= 0 ? mouseCursorNumber
+                                                        : 0);
+      return true;
+    }
+    case 213:
+      if (c.GetParamCount() >= 2) {
+        mouseX = value(c, 0);
+        mouseY = value(c, 1);
+      }
+      return true;
+    case 220:
+    case 221:
+    case 222:
+    case 223:
+    case 224:
+    case 225:
+    case 226:
+    case 227:
+    case 228:
+    case 229:
+    case 230:
+    case 231:
+    case 232:
+    case 233:
+    case 234:
+    case 235:
+    case 236:
+    case 237:
+    case 238:
+    case 239:
+    case 240:
+    case 241:
+    case 242:
+    case 243:
+    case 244:
+    case 245:
+    case 246:
+    case 247:
+    case 248:
+    case 249:
+      machine.set_store_register(0);
+      return true;
+    case 330:
+      machine.set_store_register(skipMode ? 1 : 0);
+      return true;
+    case 331:
+      skipMode = value(c, 0) != 0;
       return true;
     case 332:
       machine.set_store_register(skipMode);
@@ -2253,10 +2768,70 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 352:
       ctrlSkipEnabled = op == 351;
       return true;
+    case 360:
+    case 363:
+    case 364:
+      machine.set_store_register(autoMode ? 1 : 0);
+      return true;
+    case 361:
+    case 362:
+      autoMode = op == 361;
+      return true;
+    case 365:
+      autoMode = value(c, 0) != 0;
+      return true;
+    case 366:
+    case 368:
+    case 369:
+      machine.set_store_register(
+          assets->settings().integer("AUTO_CHAR_TIME", 30));
+      return true;
+    case 367:
+      return true;
+    case 370:
+    case 371:
+    case 372:
+    case 373:
+    case 374:
+    case 375:
+    case 376:
+    case 377:
+    case 378:
+    case 379:
+    case 380:
+    case 381:
+    case 382:
+    case 383:
+    case 384:
+    case 385:
+    case 386:
+    case 387:
+    case 388:
+    case 389:
+      if (op % 2 == 0)
+        machine.set_store_register(0);
+      return true;
     case 410:
       for (int i = 0; i < c.GetParamCount(); ++i)
         assign(c, i, assets->settings().integer("WINDOW_ATTR", 0, i));
       return true;
+    case 500:
+    case 501:
+    case 520:
+    case 521: {
+      int key = value(c, 0) + (op >= 520 ? 256 : 0);
+      frames[key] = {value(c, 1), value(c, 2), value(c, 3), SDL_GetTicks()};
+      frames[key].loop = (op == 501 || op == 521);
+      frames[key].value = frames[key].from;
+      frames[key].lastCheck = frames[key].start;
+      return true;
+    }
+    case 510:
+    case 530: {
+      int key = value(c, 0) + (op == 530 ? 256 : 0);
+      machine.set_store_register(frameValue(key));
+      return true;
+    }
     case 600:
     case 601:
     case 620: {
@@ -2301,6 +2876,28 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       openSaves(op == 3001);
       refreshRequested = true;
       return true;
+    case 3107: {
+      const int slot = value(c, 0);
+      if (pause && error.empty() && (!choice || !choice->isActive())) {
+        try {
+          runtime.saveGame(slotSavePath(slot).string());
+        } catch (...) {
+        }
+      }
+      return true;
+    }
+    case 3109: {
+      const int slot = value(c, 0);
+      const auto p = slotSavePath(slot);
+      std::error_code ec;
+      if (std::filesystem::is_regular_file(p, ec)) {
+        try {
+          runtime.loadGame(p.string());
+        } catch (...) {
+        }
+      }
+      return true;
+    }
     case 1200: {
       SDL_Event quit{};
       quit.type = SDL_EVENT_QUIT;
@@ -2308,8 +2905,11 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
       pause = true;
       return true;
+    case 1201:
     case 1203:
-      vm.jump(9032);
+      vm.jump(titleScenario);
+      return true;
+    case 1204:
       return true;
     case 1211:
     case 1212:
@@ -2324,13 +2924,135 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         syscomEntries[entry] = op == 1211 ? 1 : 0;
       }
       return true;
-    case 3501:
-    case 3502:
+    case 1214: {
+      const int entry = value(c, 0);
+      machine.set_store_register(
+          (entry >= 0 && entry < int(syscomEntries.size()))
+              ? int(syscomEntries[entry])
+              : 0);
       return true;
-    // The port's script-driven title UI replaces these original-only hooks.
+    }
+    case 1215: {
+      const int entry = value(c, 0);
+      if (entry == 0 || entry == 1) {
+        openSaves(entry == 1);
+        refreshRequested = true;
+      }
+      machine.set_store_register(0);
+      return true;
+    }
+    case 1218: {
+      if (c.GetParamCount() > 0) {
+        const int entry = value(c, 0);
+        if (entry >= 0 && entry < int(syscomEntries.size()))
+          syscomEntries[entry] = 0;
+      }
+      return true;
+    }
+    case 1409: {
+      const int slot = value(c, 0);
+      std::error_code ec;
+      machine.set_store_register(
+          std::filesystem::is_regular_file(slotSavePath(slot), ec) ? 1 : 0);
+      return true;
+    }
+    case 1413: {
+      const int slot = value(c, 0);
+      const auto p = slotSavePath(slot);
+      std::error_code ec;
+      const bool exists = std::filesystem::is_regular_file(p, ec);
+      for (int i = 1; i <= 8 && i < c.GetParamCount(); ++i)
+        assign(c, i, 0);
+      if (c.GetParamCount() >= 10) {
+        try {
+          auto param = Parameter(c, 9);
+          if (param.IsLValue())
+            param.SetStringValue(machine, "");
+        } catch (...) {
+        }
+      }
+      machine.set_store_register(exists ? 1 : 0);
+      return true;
+    }
+    case 1414:
+      machine.set_store_register(0);
+      return true;
+    case 1421: {
+      int latestSlot = -1;
+      std::filesystem::file_time_type latestTime{};
+      std::error_code ec;
+      const auto dir = Kotonoha::saveDirectory();
+      if (std::filesystem::is_directory(dir, ec)) {
+        for (int s = 0; s < 100; ++s) {
+          auto p = slotSavePath(s);
+          if (std::filesystem::is_regular_file(p, ec)) {
+            auto t = std::filesystem::last_write_time(p, ec);
+            if (latestSlot < 0 || t > latestTime) {
+              latestSlot = s;
+              latestTime = t;
+            }
+          }
+        }
+      }
+      machine.set_store_register(latestSlot);
+      return true;
+    }
+    case 301:
+      button1 = button2 = 0;
+      return true;
+    case 302:
+      machine.set_store_register(button1 != 0 ? 1 : 0);
+      return true;
     case 300:
     case 1231:
+    case 3500:
+    case 3501:
+    case 3502:
     case 3503:
+    case 3504:
+    case 3505:
+    case 3506:
+    case 3507:
+    case 3508:
+    case 3509:
+    case 3510:
+      return true;
+    case 1000: {
+      if (over == 1 || c.GetParamCount() >= 2) {
+        int lo = value(c, 0), hi = value(c, 1);
+        if (lo > hi)
+          std::swap(lo, hi);
+        machine.set_store_register(
+            lo + (hi > lo ? (std::rand() % (hi - lo + 1)) : 0));
+      } else {
+        int maxVal = value(c, 0);
+        machine.set_store_register(maxVal > 0 ? (std::rand() % maxVal) : 0);
+      }
+      return true;
+    }
+    case 1001: {
+      int num = value(c, 0), den = value(c, 1);
+      machine.set_store_register(den != 0 ? int((long long)(num) * 100 / den)
+                                          : 0);
+      return true;
+    }
+    case 1002: {
+      auto v = static_cast<long long>(value(c, 0, 0));
+      machine.set_store_register(
+          static_cast<int>(std::min(v < 0 ? -v : v, 2147483647LL)));
+      return true;
+    }
+    case 1003:
+      machine.set_store_register(-value(c, 0, 0));
+      return true;
+    case 1004: {
+      int a = value(c, 0, 0), b = value(c, 1, 1);
+      machine.set_store_register(b != 0 ? (a % b) : 0);
+      return true;
+    }
+    case 1005:
+    case 1006:
+      machine.set_store_register(0);
       return true;
     case 1502:
       machine.set_store_register(0);
@@ -2441,20 +3163,20 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     transitionOld = compose(presentationScale());
     transitionTexture.reset();
     transitionStart = SDL_GetTicks();
-    std::ostringstream key;
     const int sel = blankBackground ? value(c, 0) : value(c, 1);
-    key << "SEL." << std::setw(3) << std::setfill('0') << sel;
-    transitionMs = assets->settings().integer(key.str(), 0, 6);
-    transitionStyle = assets->settings().integer(key.str(), 0, 7);
+    const auto effect = parseSelEffect(sel, 0);
+    transitionMs = effect.durationMs;
+    transitionStyle = effect.style;
     wait(transitionMs);
     if (blankBackground) {
       auto &destination = surface(0);
       SDL_FillSurfaceRect(&destination, nullptr,
                           SDL_MapSurfaceRGBA(&destination, 0, 0, 0, 0));
       lastGraphic.clear();
-    } else {
+    } else if (!name.empty() && name != "?") {
       auto &g = graphic(name);
-      blit(*g.surface, surface(0));
+      if (g.surface)
+        blit(*g.surface, surface(0));
       lastGraphic = name;
     }
     fg = std::move(bg);
@@ -2462,6 +3184,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     textbox->hide();
     return true;
   }
+  if (type == 1 && (m == 12 || m == 13 || m == 40 || m == 41 || m == 255))
+    return true;
   if (type == 1 && m == 5) {
     if (op == 0) {
       // File/resource query (statement form); no side effect needed in this
@@ -2476,7 +3200,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
   }
   if (type == 1 && m == 20) {
-    if (op == 0 || op == 2) {
+    if (op == 0 || op == 1 || op == 2 || op == 3) {
       auto name = str(c, 0);
       for (auto &ch : name)
         if (ch >= 'A' && ch <= 'Z')
@@ -2488,7 +3212,18 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       std::string id = "BGM/" + t.file;
       if (!assets->contains(id))
         id += ".NWA";
-      play(bgm, id, "BGM", op == 0, t.from, t.to, t.loop);
+      play(bgm, id, "BGM", op == 0 || op == 1, t.from, t.to, t.loop);
+      if (op == 1 || op == 3) {
+        fadeFrom = 0;
+        fadeTo = bgmGain > 0 ? bgmGain : 255;
+        fadeElapsed = 0;
+        fadeDuration = std::max(0, value(c, 1, 1000));
+        fadeStops = false;
+      }
+      return true;
+    }
+    if (op == 8) {
+      machine.set_store_register(bgm.Playing() ? 1 : 0);
       return true;
     }
     if (op == 9) {
@@ -2497,6 +3232,26 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 10) {
       bgmGain = value(c, 0);
+      return true;
+    }
+    if (op == 11) {
+      if (c.GetParamCount() > 0)
+        Parameter(c, 0).SetStringValue(machine, musicID);
+      else
+        machine.set_store_register(musicID.empty() ? 0 : 1);
+      return true;
+    }
+    if (op == 12) {
+      bgm.SetPaused(true);
+      return true;
+    }
+    if (op == 13) {
+      bgm.SetPaused(false);
+      return true;
+    }
+    if (op == 14) {
+      bgm.Stop();
+      musicID.clear();
       return true;
     }
     if (op == 1002) {
@@ -2512,6 +3267,16 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         id += ".NWA";
       play(bgm, id, "BGM", false, track->second.from, track->second.to,
            track->second.loop, value(c, 1));
+      return true;
+    }
+    if (op == 101 || op == 102 || op == 103) {
+      fadeFrom = bgmGain;
+      fadeTo = std::clamp(value(c, 0, 0), 0, 255);
+      fadeElapsed = 0;
+      fadeDuration = std::max(0, value(c, 1, 1000));
+      fadeStops = fadeTo == 0;
+      if (op == 102 || op == 103)
+        wait(fadeDuration);
       return true;
     }
     if (op == 105 || op == 106 || op == 107) {
@@ -2535,56 +3300,93 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       musicID.clear();
       return true;
     }
-    if (op >= 12 && op <= 14)
-      return true;
   }
-  if (type == 1 && m == 23 && (op == 0 || op == 3 || op == 6 || op == 101)) {
-    if (op != 0)
-      return true;
-    const int voiceId = value(c, 0);
-    const std::string overlayVoice =
-        "voice/" + std::to_string(voiceId) + ".wav";
-    if (!assets->overlayPath(overlayVoice).empty()) {
-      auto clip = assets->loadAudio(overlayVoice);
-      playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
-               "Voice");
-      return true;
-    }
-    auto bytes = voices.read(voiceId);
-    if (bytes) {
-      auto encoded = bytes->size() >= 4 && (*bytes)[0] == 'O' &&
-                             (*bytes)[1] == 'g' && (*bytes)[2] == 'g' &&
-                             (*bytes)[3] == 'S'
-                         ? std::move(*bytes)
-                         : nwaToWav(*bytes);
-      Kotonoha::AudioClip clip;
-      if (Kotonoha::MediaDecoder::tryDecodeAudio(encoded, clip)) {
-        assets->noteAudio(overlayVoice, clip);
+  if (type == 1 && m == 23) {
+    if (op == 0 || op == 2) {
+      const int voiceId = value(c, 0);
+      const std::string overlayVoice =
+          "voice/" + std::to_string(voiceId) + ".wav";
+      if (!assets->overlayPath(overlayVoice).empty()) {
+        auto clip = assets->loadAudio(overlayVoice);
         playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
                  "Voice");
+        return true;
       }
-    } else if (voiceId > 0) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "Warning: REALLIVE voice missing for index %d", voiceId);
-    }
-    return true;
-  }
-  if (type == 1 && m == 22 && op == 0) {
-    auto mapping = audio.soundEffects.find(value(c, 0));
-    if (mapping != audio.soundEffects.end()) {
-      auto &sound = sounds[mapping->second.channel];
-      if (!sound)
-        sound = std::make_unique<PcmPlayer>();
-      std::string id = audioAsset("WAV/" + mapping->second.file);
-      if (id.empty()) {
+      auto bytes = voices.read(voiceId);
+      if (bytes) {
+        auto encoded = bytes->size() >= 4 && (*bytes)[0] == 'O' &&
+                               (*bytes)[1] == 'g' && (*bytes)[2] == 'g' &&
+                               (*bytes)[3] == 'S'
+                           ? std::move(*bytes)
+                           : nwaToWav(*bytes);
+        Kotonoha::AudioClip clip;
+        if (Kotonoha::MediaDecoder::tryDecodeAudio(encoded, clip)) {
+          assets->noteAudio(overlayVoice, clip);
+          playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
+                   "Voice");
+        }
+      } else if (voiceId > 0) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Warning: Sound effect not found: WAV/%s",
-                    mapping->second.file.c_str());
-        return true; // Skip missing sound effect
+                    "Warning: REALLIVE voice missing for index %d", voiceId);
       }
-      play(*sound, id, "Se");
+      return true;
     }
-    return true;
+    if (op == 1) {
+      voice.Stop();
+      return true;
+    }
+    if (op == 8 || op == 11) {
+      machine.set_store_register(voice.Playing() ? 1 : 0);
+      return true;
+    }
+    if (op == 9) {
+      machine.set_store_register(255);
+      return true;
+    }
+    if (op == 10) {
+      return true;
+    }
+    if (op == 3 || op == 6 || op == 101) {
+      return true;
+    }
+  }
+  if (type == 1 && m == 22) {
+    if (op == 0 || op == 2) {
+      auto mapping = audio.soundEffects.find(value(c, 0));
+      if (mapping != audio.soundEffects.end()) {
+        auto &sound = sounds[mapping->second.channel];
+        if (!sound)
+          sound = std::make_unique<PcmPlayer>();
+        std::string id = audioAsset("WAV/" + mapping->second.file);
+        if (id.empty()) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "Warning: Sound effect not found: WAV/%s",
+                      mapping->second.file.c_str());
+          return true; // Skip missing sound effect
+        }
+        play(*sound, id, "Se", op == 2);
+      }
+      return true;
+    }
+    if (op == 1) {
+      auto mapping = audio.soundEffects.find(value(c, 0));
+      if (mapping != audio.soundEffects.end()) {
+        sounds.erase(mapping->second.channel);
+      }
+      return true;
+    }
+    if (op == 8 || op == 11) {
+      auto mapping = audio.soundEffects.find(value(c, 0));
+      bool playing = false;
+      if (mapping != audio.soundEffects.end()) {
+        auto it = sounds.find(mapping->second.channel);
+        playing = (it != sounds.end() && it->second && it->second->Playing());
+      }
+      machine.set_store_register(playing ? 1 : 0);
+      return true;
+    }
+    if (op == 9 || op == 10)
+      return true;
   }
   if (type == 1 && m == 21) {
     if (op == 4)
@@ -2601,6 +3403,25 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         return true; // Skip missing PCM
       }
       play(*p, id, "PCM", op == 2);
+      return true;
+    }
+    if (op == 1) {
+      int channel = value(c, 0);
+      sounds.erase(channel);
+      return true;
+    }
+    if (op == 8 || op == 11) {
+      int channel = value(c, 0);
+      auto it = sounds.find(channel);
+      machine.set_store_register(
+          (it != sounds.end() && it->second && it->second->Playing()) ? 1 : 0);
+      return true;
+    }
+    if (op == 9) {
+      machine.set_store_register(255);
+      return true;
+    }
+    if (op == 10) {
       return true;
     }
     if (op == 5 || op == 12 || op == 20 || op == 105) {
@@ -2667,8 +3488,6 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     return true;
   }
   if (type == 1 && (m == 71 || m == 72)) {
-    if (op == 1101)
-      return true;
     auto &objects = m == 71 ? fg : bg;
     auto &o = objects[value(c, 0)];
     if (op == 1000) {
@@ -2703,23 +3522,36 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       // Unknown object configuration; no side effect needed in this port.
       return true;
     }
-    if (op == 1101 && over == 2) {
+    if (op == 1101) {
       o.file.clear();
+      o.text.clear();
+      o.anm.reset();
+      o.anmPlaying = false;
       o.kind = Object::Kind::Sprite;
       o.frameMs = 0;
       o.animationElapsed = 0;
-      if (c.GetParamCount() == 6) {
+      if (c.GetParamCount() >= 6) {
         o.x = value(c, 1);
         o.y = value(c, 2);
         o.width = value(c, 3);
         o.height = value(c, 4);
-        o.visible = value(c, 5);
-      } else {
+        o.visible = value(c, 5) != 0;
+      } else if (c.GetParamCount() == 5) {
+        o.x = value(c, 1);
+        o.y = value(c, 2);
+        o.width = value(c, 3);
+        o.height = value(c, 4);
+      } else if (c.GetParamCount() == 4) {
         o.width = value(c, 1);
         o.height = value(c, 2);
         o.x = (canvasW - o.width) / 2;
         o.y = (canvasH - o.height) / 2;
-        o.visible = value(c, 3);
+        o.visible = value(c, 3) != 0;
+      } else {
+        o.x = 0;
+        o.y = 0;
+        o.width = canvasW;
+        o.height = canvasH;
       }
       return true;
     }
@@ -2797,6 +3629,16 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       }
       return true;
     }
+    case 1001: {
+      int slot = value(c, 1);
+      if (slot >= 0 && slot < 16)
+        o.adjustments[slot] = {value(c, 2), value(c, 3)};
+      return true;
+    }
+    case 1040:
+      o.clipped = true;
+      o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
+      return true;
     case 1034:
       o.clipped = over == 1;
       o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
@@ -2805,12 +3647,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       o.colour = {Uint8(value(c, 1)), Uint8(value(c, 2)), Uint8(value(c, 3)),
                   Uint8(value(c, 4))};
       return true;
-    case 1001:
     case 1002:
     case 1009:
     case 1021:
     case 1025:
-    case 1040:
     case 1046:
     case 1048:
     case 1049:
@@ -2857,13 +3697,24 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   }
   if (type == 1 && (m == 61 || m == 62)) {
     auto &objects = m == 61 ? fg : bg;
-    int id = value(c, 0);
-    if (op == 2 || op == 4 || op == 10) {
-      objects[id] = Object{};
+    int first = value(c, 0);
+    int last = (over == 1 && c.GetParamCount() >= 2) ? value(c, 1) : first;
+    if (first > last)
+      std::swap(first, last);
+    last = std::min(last, first + 1024);
+    if (op == 0 || op == 1 || op == 4 || op == 10) {
+      for (int id = first; id <= last; ++id)
+        objects[id] = Object{};
+      return true;
+    }
+    if (op == 2) {
+      auto &dest = m == 61 ? bg : fg;
+      dest[c.GetParamCount() > 1 ? value(c, 1) : first] = objects[first];
       return true;
     }
     if (op == 11) {
-      objects.erase(id);
+      for (int id = first; id <= last; ++id)
+        objects.erase(id);
       return true;
     }
   }
@@ -2897,7 +3748,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && m == 84) {
     auto &o = fg[value(c, 0)];
     if (op == 1000) {
-      if (vm.scenario() == 9032 && runtime.GetState() == GameState::Menu) {
+      if (vm.scenario() == titleScenario &&
+          runtime.GetState() == GameState::Menu) {
         const int id = value(c, 0);
         if (std::find(titleHitObjects.begin(), titleHitObjects.end(), id) ==
             titleHitObjects.end())
@@ -2907,8 +3759,34 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       assign(c, 2, o.y);
       return true;
     }
+    if (op == 1001) {
+      int slot = value(c, 1);
+      machine.set_store_register(slot >= 0 && slot < 16 ? o.adjustments[slot].y
+                                                        : 0);
+      return true;
+    }
     if (op == 1003) {
       machine.set_store_register(o.alpha);
+      return true;
+    }
+    if (op == 1004) {
+      machine.set_store_register(o.visible ? 1 : 0);
+      return true;
+    }
+    if (op == 1039) {
+      machine.set_store_register(o.pattern);
+      return true;
+    }
+    if (op == 1011) {
+      assign(c, 1, o.x);
+      assign(c, 2, o.y);
+      return true;
+    }
+    if (op == 1016) {
+      assign(c, 1, o.colour.r);
+      assign(c, 2, o.colour.g);
+      assign(c, 3, o.colour.b);
+      assign(c, 4, o.colour.a);
       return true;
     }
     if (op == 1006) {
@@ -2944,7 +3822,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 2 && m == 84) {
     auto &o = fg[value(c, 0)];
     if (op == 1000) {
-      if (vm.scenario() == 9032 && runtime.GetState() == GameState::Menu) {
+      if (vm.scenario() == titleScenario &&
+          runtime.GetState() == GameState::Menu) {
         const int id = value(c, 0);
         if (std::find(titleHitObjects.begin(), titleHitObjects.end(), id) ==
             titleHitObjects.end())
@@ -2969,11 +3848,33 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       assign(c, 2, o.y);
       return true;
     }
+    if (op == 1003) {
+      machine.set_store_register(o.alpha);
+      return true;
+    }
+    if (op == 1004) {
+      machine.set_store_register(o.visible ? 1 : 0);
+      return true;
+    }
+    if (op == 1039) {
+      machine.set_store_register(o.pattern);
+      return true;
+    }
+    if (op == 1011) {
+      assign(c, 1, o.x);
+      assign(c, 2, o.y);
+      return true;
+    }
     if (op == 1100) {
       assign(c, 1, o.width);
       assign(c, 2, o.height);
       return true;
     }
+    return true;
+  }
+  if (type == 1 && m == 60 && op == 10) {
+    int id = value(c, 0);
+    std::swap(fg[id], bg[id]);
     return true;
   }
   if (type == 1 && m == 60 && op == 2) {
@@ -2989,10 +3890,6 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     // REALLIVE's objEraseWipeCopy(0) matches the port's default promotion
     // behavior.
     value(c, 0);
-    return true;
-  }
-  if (type == 1 && m == 62 && op == 2) {
-    fg[value(c, 1)] = bg[value(c, 0)];
     return true;
   }
   if (type == 1 && m == 60 && op == 111) {
@@ -3025,7 +3922,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       (op == 0 || op == 3 || op == 4 || op == 20 || op == 22))
     return true;
   if (type == 1 && m == 31 && op == 0) {
-    if (vm.scenario() == 9032 && runtime.GetState() == GameState::Menu) {
+    if (vm.scenario() == titleScenario &&
+        runtime.GetState() == GameState::Menu) {
       installTitleTargets();
       titleReady = true;
     }
@@ -3087,17 +3985,18 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       transitionOld = compose(presentationScale());
       transitionTexture.reset();
       transitionStart = SDL_GetTicks();
-      std::ostringstream selector;
-      selector << "SEL." << std::setw(3) << std::setfill('0') << value(c, 1);
-      transitionMs = assets->settings().integer(selector.str(), 0, 6);
-      transitionStyle = assets->settings().integer(selector.str(), 0, 7);
+      const auto mainEffect = parseSelEffect(value(c, 1), 0);
+      transitionMs = mainEffect.durationMs;
+      transitionStyle = mainEffect.style;
       if (op == 75) {
         auto name = str(c, 0);
         if (name == "???")
           name = lastGraphic;
-        if (name != "?")
-          blit(*graphic(name).surface, surface(1), nullptr, nullptr, 255,
-               false);
+        if (name != "?" && !name.empty()) {
+          auto &g = graphic(name);
+          if (g.surface)
+            blit(*g.surface, surface(1), nullptr, nullptr, 255, false);
+        }
       } else if (value(c, 0) != 1)
         blit(surface(value(c, 0)), surface(1), nullptr, nullptr, 255, false);
       for (std::size_t i = 2; i < c.GetParamCount(); ++i) {
@@ -3112,7 +4011,11 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         if (pieces.empty() || tag < 0 || tag > 4)
           throw std::runtime_error("REALLIVE grpMulti invalid operation");
         auto filename = pieces[0].GetStringValue(machine);
+        if (filename.empty())
+          continue;
         auto &image = graphic(filename);
+        if (!image.surface)
+          continue;
         SDL_Rect sr{0, 0, image.surface->w, image.surface->h}, dst{0, 0, 0, 0};
         int alpha = 255;
         auto n = [&](std::size_t k) {
@@ -3121,16 +4024,9 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
           return pieces[k].GetIntegerValue(machine);
         };
         if (tag == 1 || tag == 2) {
-          std::ostringstream sel;
-          sel << "SEL." << std::setw(3) << std::setfill('0') << n(1);
-          sr = {assets->settings().integer(sel.str(), 0, 0),
-                assets->settings().integer(sel.str(), 0, 1),
-                assets->settings().integer(sel.str(), 639, 2) + 1,
-                assets->settings().integer(sel.str(), 479, 3) + 1};
-          sr.w -= sr.x;
-          sr.h -= sr.y;
-          dst.x = assets->settings().integer(sel.str(), 0, 4);
-          dst.y = assets->settings().integer(sel.str(), 0, 5);
+          const auto subEffect = parseSelEffect(n(1), 0);
+          sr = subEffect.src;
+          dst = subEffect.dst;
           if (tag == 2)
             alpha = n(2);
         }
@@ -3322,15 +4218,21 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     if (op == 100 || op == 101 || op == 1100 || op == 1101) {
       int sourceDC = value(c, over >= 2 ? 4 : 0),
           targetDC = value(c, over >= 2 ? 7 : 1);
-      if (sourceDC != targetDC) {
-        SDL_Rect source{value(c, 0), value(c, 1), value(c, 2), value(c, 3)},
-            dest{value(c, 5), value(c, 6), 0, 0};
-        if (op < 1000) {
-          source.w -= source.x;
-          source.h -= source.y;
-        }
-        ensureDC(targetDC, over >= 2 ? dest.x + source.w : surface(sourceDC).w,
-                 over >= 2 ? dest.y + source.h : surface(sourceDC).h);
+      SDL_Rect source{value(c, 0), value(c, 1), value(c, 2), value(c, 3)},
+          dest{value(c, 5), value(c, 6), 0, 0};
+      if (op < 1000) {
+        source.w -= source.x;
+        source.h -= source.y;
+      }
+      ensureDC(targetDC, over >= 2 ? dest.x + source.w : surface(sourceDC).w,
+               over >= 2 ? dest.y + source.h : surface(sourceDC).h);
+      if (sourceDC == targetDC) {
+        auto temp = blank(surface(sourceDC).w, surface(sourceDC).h);
+        blit(surface(sourceDC), *temp);
+        blit(*temp, surface(targetDC), over >= 2 ? &source : nullptr,
+             over >= 2 ? &dest : nullptr, value(c, over >= 2 ? 8 : 2, 255),
+             op == 101 || op == 1101);
+      } else {
         blit(surface(sourceDC), surface(targetDC),
              over >= 2 ? &source : nullptr, over >= 2 ? &dest : nullptr,
              value(c, over >= 2 ? 8 : 2, 255), op == 101 || op == 1101);
@@ -3367,18 +4269,14 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       transitionOld = compose(presentationScale());
       transitionTexture.reset();
       transitionStart = SDL_GetTicks();
-      std::ostringstream selKey;
-      selKey << "SEL." << std::setw(3) << std::setfill('0') << value(c, 1);
-      const auto sel = selKey.str();
-      transitionMs =
-          over == 4 ? value(c, 7) : assets->settings().integer(sel, 500, 6);
-      transitionStyle =
-          over == 4 ? value(c, 8) : assets->settings().integer(sel, 0, 7);
+      const auto selEffect = parseSelEffect(value(c, 1), 500);
+      transitionMs = over == 4 ? value(c, 7) : selEffect.durationMs;
+      transitionStyle = over == 4 ? value(c, 8) : selEffect.style;
       wait(transitionMs);
       // "?" reuses DC1; copying DC0 here would destroy that prepared image.
       if (name != "?")
         blit(surface(0), surface(1));
-      if (name != "?") {
+      if (name != "?" && !name.empty()) {
         if (op != 74)
           lastGraphic = name;
         auto &g = graphic(name);
@@ -3390,17 +4288,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
           sr.h -= sr.y;
         }
         if (over == 0) {
-          sr = {assets->settings().integer(sel, 0, 0),
-                assets->settings().integer(sel, 0, 1),
-                assets->settings().integer(sel, 639, 2) + 1,
-                assets->settings().integer(sel, 479, 3) + 1};
-          sr.w -= sr.x;
-          sr.h -= sr.y;
-          dst = {assets->settings().integer(sel, 0, 4),
-                 assets->settings().integer(sel, 0, 5), 0, 0};
+          sr = selEffect.src;
+          dst = selEffect.dst;
         }
-        blit(*g.surface, surface(1), &sr, &dst,
-             over == 4 ? value(c, 15, 255) : 255, op == 74);
+        if (g.surface)
+          blit(*g.surface, surface(1), &sr, &dst,
+               over == 4 ? value(c, 15, 255) : 255, op == 74);
       }
       blit(surface(1), surface(0), nullptr, nullptr, 255, false);
       fg = std::move(bg);
@@ -3476,6 +4369,9 @@ RealLiveRuntime::RealLiveRuntime(
       impl(std::make_unique<Impl>(*this, std::move(a), scene)) {}
 RealLiveRuntime::~RealLiveRuntime() = default;
 std::string RealLiveRuntime::diagnostic() const { return impl->error; }
+int RealLiveRuntime::debugMouseCursor() const {
+  return impl->mouseCursorNumber;
+}
 RealLiveRuntime::RenderStats RealLiveRuntime::renderStats() const {
   return impl->renderStats;
 }
@@ -3599,7 +4495,9 @@ void RealLiveRuntime::update() {
   if (!paused && i.pause && !i.textbox->concealed) {
     if ((i.skipMode && i.currentRead) || (i.skipHeld && i.ctrlSkipEnabled)) {
       i.textbox->completeDialogue();
-      i.advanceText();
+      // Automated read-skip must stay enabled until the first unread page.
+      // A held Ctrl/gamepad skip is independent of that persistent mode.
+      i.advanceText(false, i.skipMode && i.currentRead);
     } else if (i.autoMode && i.textbox->isDialogueComplete() &&
                !i.voice.Playing()) {
       if (!i.autoDeadline) {
@@ -3656,7 +4554,7 @@ void RealLiveRuntime::saveGame(const std::string &path) {
     throw std::runtime_error(
         "Salve durante uma fala, após terminar a transição.");
   std::ostringstream out;
-  out << "REALLIVE-PRESENTATION-5\n"
+  out << "REALLIVE-PRESENTATION-6\n"
       << std::quoted(i.vm.snapshot()) << '\n'
       << std::quoted(i.dialogue) << ' ' << std::quoted(i.speakerName) << ' '
       << i.pauseKind << '\n';
@@ -3737,6 +4635,7 @@ void RealLiveRuntime::saveGame(const std::string &path) {
   out << i.dc.size() << '\n';
   for (const auto &[id, pixels] : i.dc)
     out << id << ' ' << indices.at(i.dcImage(id).get()) << '\n';
+  out << i.mouseCursorNumber << '\n';
   VNSave save;
   save.nodeId = i.vm.scenario();
   save.gameData = out.str();
@@ -3757,6 +4656,7 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   int64_t end, loopStart;
   double position;
   int pauseKind;
+  int restoredMouseCursor = i.assets->settings().integer("MOUSE_CURSOR", -1);
   if (!(in >> version >> std::quoted(state) >> std::quoted(dialogue) >>
         std::quoted(speaker) >> pauseKind >> std::quoted(music) >> loop >>
         end >> loopStart >> position) ||
@@ -3764,7 +4664,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
        version != "REALLIVE-PRESENTATION-2" &&
        version != "REALLIVE-PRESENTATION-3" &&
        version != "REALLIVE-PRESENTATION-4" &&
-       version != "REALLIVE-PRESENTATION-5") ||
+       version != "REALLIVE-PRESENTATION-5" &&
+       version != "REALLIVE-PRESENTATION-6") ||
       (pauseKind != 17 && pauseKind != 205) || position < 0 ||
       !std::isfinite(position))
     invalid();
@@ -3799,11 +4700,13 @@ void RealLiveRuntime::loadGame(const std::string &path) {
       o.colour = {Uint8(r), Uint8(g), Uint8(b), Uint8(a)};
       if ((version == "REALLIVE-PRESENTATION-3" ||
            version == "REALLIVE-PRESENTATION-4" ||
-           version == "REALLIVE-PRESENTATION-5") &&
+           (version == "REALLIVE-PRESENTATION-5" ||
+            version == "REALLIVE-PRESENTATION-6")) &&
           (!(in >> o.frameMs >> o.animationElapsed) || o.frameMs < 0))
         invalid();
       if (version == "REALLIVE-PRESENTATION-4" ||
-          version == "REALLIVE-PRESENTATION-5")
+          version == "REALLIVE-PRESENTATION-5" ||
+          version == "REALLIVE-PRESENTATION-6")
         for (auto &adjustment : o.adjustments)
           if (!(in >> adjustment.x >> adjustment.y))
             invalid();
@@ -3838,12 +4741,15 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   std::string saveName;
   std::map<int, std::shared_ptr<DCImage>> dcImages;
   in >> std::ws;
-  if (version == "REALLIVE-PRESENTATION-5" && in.eof())
+  if ((version == "REALLIVE-PRESENTATION-5" ||
+       version == "REALLIVE-PRESENTATION-6") &&
+      in.eof())
     invalid();
   if (!in.eof()) {
     if (!(in >> std::quoted(saveName)))
       invalid();
-    if (version == "REALLIVE-PRESENTATION-5") {
+    if (version == "REALLIVE-PRESENTATION-5" ||
+        version == "REALLIVE-PRESENTATION-6") {
       size_t count;
       if (!(in >> count) || count > 65536)
         invalid();
@@ -3905,6 +4811,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
           invalid();
       }
     }
+    if (version == "REALLIVE-PRESENTATION-6" && !(in >> restoredMouseCursor))
+      invalid();
     in >> std::ws;
     if (!in.eof())
       invalid();
@@ -3913,7 +4821,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
     invalid();
   i.vm.restore(state);
   if (version != "REALLIVE-PRESENTATION-4" &&
-      version != "REALLIVE-PRESENTATION-5") {
+      version != "REALLIVE-PRESENTATION-5" &&
+      version != "REALLIVE-PRESENTATION-6") {
     const auto restoreAdjustments = [&](std::map<int, Object> &objects) {
       for (auto &[id, o] : objects)
         for (size_t slot = 0; slot < o.adjustments.size(); ++slot) {
@@ -3960,15 +4869,19 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.sounds.clear();
   i.bgm.Stop();
   i.musicID.clear();
-  auto translated =
+  auto translatedSpeaker =
+      i.engine->GetTranslation().text(i.vm.scenario(), i.speakerName);
+  auto translatedDialogue =
       i.engine->GetTranslation().text(i.vm.scenario(), i.dialogue);
-  if (translated == i.dialogue && !i.dialogue.empty() &&
+  if (translatedDialogue == i.dialogue && !i.dialogue.empty() &&
       i.dialogue.front() == ' ')
-    translated =
+    translatedDialogue =
         i.engine->GetTranslation().text(i.vm.scenario(), i.dialogue.substr(1));
-  i.textbox->setDialogue(
-      i.engine->GetTranslation().text(i.vm.scenario(), i.speakerName),
-      translated);
+
+  std::string finalSpeaker, finalDialogue;
+  processSpeakerAndDialogue(translatedSpeaker, translatedDialogue, finalSpeaker,
+                            finalDialogue);
+  i.textbox->setDialogue(finalSpeaker, finalDialogue);
   i.textbox->completeDialogue();
   i.textbox->show();
   if (!music.empty())
@@ -3982,22 +4895,40 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.fadeStops = fadeStops;
   i.audioTick = SDL_GetTicks();
   i.bgm.SetGain(gain);
+  i.selectMouseCursor(restoredMouseCursor);
 }
 
 bool RealLiveRuntime::onEvent(EventRef e) {
   if (!impl)
     return Runtime::onEvent(e);
-  // Modal scenes translate controller input in their own context. Pre-mapping
-  // would turn South into held skip while the pause/save menus are open and
-  // would hide the history state from the backlog. Holding South while a modal
-  // opens must also stop skipping in the background.
+
+  // Engine sends raw fingers before synthetic SDL_TOUCH_MOUSEID pointer
+  // events. Ignore mouse releases from drags, multi-touch and cancellations.
+  if (!impl->input.acceptTouch(e)) {
+    impl->titleInput.reset();
+    if (impl->textbox)
+      impl->textbox->controls.reset();
+    impl->button1 = impl->button2 = 0;
+    return true;
+  }
+
+  // Menu/save/backlog own input, and must never inherit a held skip key.
   for (auto *scene : GetActiveScenes())
     if (scene && scene->capturesInput()) {
+      impl->input.resetSkip();
       impl->skipHeld = false;
       return Runtime::onEvent(e);
     }
-  const bool dialogue =
-      impl->textbox && impl->textbox->isVisible() && !impl->textbox->concealed;
+
+  const bool dialogue = impl->pause && impl->textbox &&
+                        impl->textbox->isVisible() &&
+                        !impl->textbox->concealed &&
+                        !impl->choice->isActive() && impl->focusedEdit < 0;
+  if (impl->input.processSkip(e, dialogue)) {
+    impl->skipHeld = impl->input.skipHeld();
+    return true;
+  }
+  impl->skipHeld = impl->input.skipHeld();
   return Runtime::onEvent(Kotonoha::MapControllerEvent(e, dialogue));
 }
 int RealLiveRuntime::translationRoute() const { return impl->vm.scenario(); }

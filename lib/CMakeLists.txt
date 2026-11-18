@@ -56,6 +56,9 @@ set(SDLTTF_STRICT ON CACHE BOOL "Require enabled SDL_ttf dependencies")
 set(SDLTTF_PLUTOSVG ON CACHE BOOL "Optional SVG emoji support")
 
 option(KOTONOHA_SDL_FROM_VCPKG "Import SDL3/SDL3_ttf from vcpkg instead of building submodules" OFF)
+if(ANDROID AND KOTONOHA_SDL_FROM_VCPKG)
+    message(FATAL_ERROR "Android must build SDL3 and SDL3_ttf from the SDL submodules (including SDL Java integration); set KOTONOHA_SDL_FROM_VCPKG=OFF")
+endif()
 set(KOTONOHA_SDL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL"
         CACHE PATH "SDL3 sources (Android uses a pinned remote Git checkout)")
 
@@ -114,6 +117,17 @@ else()
         get_target_property(_ttf_target SDL3_ttf::SDL3_ttf ALIASED_TARGET)
         set_property(TARGET ${_ttf_target} PROPERTY LINKER_LANGUAGE CXX)
     endif()
+    # SDL is built once from its vendored sources. Disabling the versioned
+    # filename prevents extra libSDL3.{major}.dylib / symlink outputs while
+    # preserving the canonical target's SONAME/install-name pairing.
+    foreach(_kotonoha_sdl_shared IN ITEMS SDL3-shared SDL3_ttf-shared)
+        if(TARGET ${_kotonoha_sdl_shared})
+            # Clearing these properties is required: empty strings still
+            # produce versioned names and sometimes self-referential links.
+            set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY VERSION)
+            set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY SOVERSION)
+        endif()
+    endforeach()
 endif()
 
 # --- Bibliotecas Externas (Ass, FFmpeg, JSON-C) ---
@@ -201,6 +215,9 @@ endif ()
 
 option(KOTONOHA_IMGUI_FROM_VCPKG
         "Import ImGui with SDL3/SDL3 Renderer backends from vcpkg" OFF)
+if(ANDROID AND KOTONOHA_IMGUI_FROM_VCPKG)
+    message(FATAL_ERROR "Android must build ImGui and its SDL3 backends from the imgui submodule; set KOTONOHA_IMGUI_FROM_VCPKG=OFF")
+endif()
 
 if(KOTONOHA_IMGUI_FROM_VCPKG)
     if(NOT VCPKG_INSTALLED_DIR)
@@ -211,10 +228,8 @@ if(KOTONOHA_IMGUI_FROM_VCPKG)
     if(NOT TARGET imgui::imgui)
         message(FATAL_ERROR "The vcpkg ImGui target imgui::imgui is missing")
     endif()
-    # Keep the project's existing 'imgui' link name without rebuilding any
-    # of the ImGui sources or SDL renderer backends.
-    add_library(imgui INTERFACE)
-    target_link_libraries(imgui INTERFACE imgui::imgui)
+    # Directly consume the external target: no project-owned wrapper target.
+    set(KOTONOHA_IMGUI_TARGET imgui::imgui)
 else()
     if(KOTONOHA_STATIC_IMGUI)
         set(_kotonoha_imgui_type STATIC)
@@ -236,7 +251,11 @@ else()
             submodules/imgui/misc/cpp
     )
     target_link_libraries(imgui PUBLIC SDL3::SDL3)
+    set(KOTONOHA_IMGUI_TARGET imgui)
 endif()
+# Also visible to sibling game CMakeLists and deployment helpers.
+set(KOTONOHA_IMGUI_TARGET "${KOTONOHA_IMGUI_TARGET}" CACHE INTERNAL
+    "Single ImGui link target for the active toolchain" FORCE)
 
 # ==============================================================================
 # Target principal: KotonohaEngine
@@ -269,9 +288,16 @@ if (APPLE)
     )
     list(APPEND KOTONOHA_ENGINE_SOURCES ${KOTONOHA_ENGINE_SOURCES_OBJC})
 endif ()
+# Do not compile backend modules that are disabled for this build.
+# Upscaler.cpp provides a small SDL-only compatibility facade when OFF.
+if(DEFINED KOTONOHA_ENABLE_MCP AND NOT KOTONOHA_ENABLE_MCP)
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/mcp/")
+endif()
+if(DEFINED KOTONOHA_ENABLE_UPSCALER AND NOT KOTONOHA_ENABLE_UPSCALER)
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/media/upscaling/(MPVCompatibleUpscaler|MetalFXUpscaler)\\.(cpp|mm)$")
+endif()
 
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
-add_library(Kotonoha::Engine ALIAS KotonohaEngine)
 if(KOTONOHA_DISTRIBUTION_BUILD)
     target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_DISTRIBUTION_BUILD=1)
 endif()
@@ -280,6 +306,14 @@ if(KOTONOHA_DISTRIBUTION_BUILD AND KOTONOHA_ENABLE_PLAYER_DUBBING)
 endif()
 if(KOTONOHA_DEV_CONTROL AND WIN32 AND NOT ANDROID)
     target_compile_definitions(KotonohaEngine PRIVATE KOTONOHA_DEV_CONTROL=1)
+endif()
+if(DEFINED KOTONOHA_ENABLE_UPSCALER)
+    target_compile_definitions(KotonohaEngine PUBLIC
+        KOTONOHA_ENABLE_UPSCALER=$<BOOL:${KOTONOHA_ENABLE_UPSCALER}>)
+endif()
+if(DEFINED KOTONOHA_ENABLE_MCP)
+    target_compile_definitions(KotonohaEngine PUBLIC
+        KOTONOHA_ENABLE_MCP=$<BOOL:${KOTONOHA_ENABLE_MCP}>)
 endif()
 if(EMSCRIPTEN)
     target_compile_definitions(KotonohaEngine PUBLIC
@@ -291,15 +325,11 @@ target_compile_features(KotonohaEngine PUBLIC cxx_std_17)
 
 set_target_properties(KotonohaEngine PROPERTIES
         CXX_EXTENSIONS OFF
-        VERSION ${PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION_MAJOR}
         WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 if(NOT KOTONOHA_IMGUI_FROM_VCPKG)
     set_target_properties(imgui PROPERTIES
             CXX_EXTENSIONS OFF
-            VERSION ${PROJECT_VERSION}
-            SOVERSION ${PROJECT_VERSION_MAJOR}
             WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
@@ -319,7 +349,7 @@ target_link_libraries(KotonohaEngine
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
         ${kotonoha_ffmpeg_target}
-        imgui
+        ${KOTONOHA_IMGUI_TARGET}
         PRIVATE
         ${kotonoha_json_target}
         ${kotonoha_ass_target}
@@ -337,7 +367,10 @@ if (WIN32 AND NOT ANDROID)
     target_link_libraries(KotonohaEngine PRIVATE user32 ws2_32)
 endif ()
 
-if (ANDROID)
+if (EMSCRIPTEN)
+    # Emscripten provides WebGL through its GLES interface, not OpenGL::GL.
+    target_link_libraries(KotonohaEngine PRIVATE GLESv2)
+elseif (ANDROID)
     target_link_libraries(KotonohaEngine PRIVATE GLESv2)
 elseif (APPLE AND CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS")
     find_library(OPENGLES_FRAMEWORK OpenGLES REQUIRED)
@@ -348,7 +381,7 @@ else ()
 endif ()
 
 # Configuracoes especificas do Metal (Apple)
-if (APPLE)
+if (APPLE AND (NOT DEFINED KOTONOHA_ENABLE_UPSCALER OR KOTONOHA_ENABLE_UPSCALER))
     set_source_files_properties(src/media/upscaling/MetalFXUpscaler.mm
             PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
     find_library(METALFX_FRAMEWORK MetalFX)
@@ -370,15 +403,27 @@ get_filename_component(kotonoha_project_root "${CMAKE_CURRENT_SOURCE_DIR}/.." AB
 set(KOTONOHA_PROJECT_ROOT "${kotonoha_project_root}"
         CACHE INTERNAL "Kotonoha source root" FORCE)
 
-set(KOTONOHA_ENGINE_ASSETS "${KOTONOHA_PROJECT_ROOT}/assets"
+# Exclude unused shader packs from feature-OFF app bundles and WASM
+# preloads. Keep all other shared engine assets (fonts/icons/UI) unchanged.
+set(_kotonoha_engine_assets "${KOTONOHA_PROJECT_ROOT}/assets")
+if(DEFINED KOTONOHA_ENABLE_UPSCALER AND NOT KOTONOHA_ENABLE_UPSCALER)
+    set(_kotonoha_engine_assets "${CMAKE_CURRENT_BINARY_DIR}/assets-no-upscaler")
+    file(REMOVE_RECURSE "${_kotonoha_engine_assets}")
+    file(COPY "${KOTONOHA_PROJECT_ROOT}/assets/"
+         DESTINATION "${_kotonoha_engine_assets}"
+         PATTERN "Anime4K" EXCLUDE
+         PATTERN "ArtCNN" EXCLUDE)
+endif()
+set(KOTONOHA_ENGINE_ASSETS "${_kotonoha_engine_assets}"
         CACHE INTERNAL "Kotonoha engine assets" FORCE)
+unset(_kotonoha_engine_assets)
 
 include("${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/KotonohaApp.cmake")
 
 if(EMSCRIPTEN AND KOTONOHA_WEB_SELFTEST)
     kotonoha_add_app(KotonohaWebSelfTest
         tests/web/main.cpp tests/web/WebSelfTest.cpp)
-    target_link_libraries(KotonohaWebSelfTest PRIVATE Kotonoha::Engine)
+    target_link_libraries(KotonohaWebSelfTest PRIVATE KotonohaEngine)
     target_compile_definitions(KotonohaWebSelfTest PRIVATE KOTONOHA_WEB_SELFTEST)
     kotonoha_configure_app(KotonohaWebSelfTest
         GAME_ASSET_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/tests/web/game-assets")
@@ -389,6 +434,9 @@ if (BUILD_TESTING)
 endif ()
 
 # Add modules to the build system
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../modules/providers/n2" "${CMAKE_CURRENT_BINARY_DIR}/n2archive")
+# C++17 N2System/NsScript index (independent of the other game VMs).
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../modules/vms/n2system" "${CMAKE_CURRENT_BINARY_DIR}/n2system")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../modules/vms/meo" "${CMAKE_CURRENT_BINARY_DIR}/meo" EXCLUDE_FROM_ALL)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../modules/vms/pmail" "${CMAKE_CURRENT_BINARY_DIR}/pmail" EXCLUDE_FROM_ALL)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../modules/providers/pmail" "${CMAKE_CURRENT_BINARY_DIR}/pmail_provider" EXCLUDE_FROM_ALL)

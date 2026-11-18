@@ -207,6 +207,18 @@ int main(int argc, char **argv) {
     auto music = assets->loadAudio("music/1");
     require(!music.data.empty() && music.spec.channels == 2,
             "Encrypted ADX music decoded");
+    auto classicMusic = assets->loadAudio("music/classic/1");
+    require(!classicMusic.data.empty() && classicMusic.spec.channels == 2,
+            "Classic BGM MC01.ADX decoded");
+    for (unsigned seIdx = 0; seIdx < 49; ++seIdx) {
+      const auto id = "se/" + std::to_string(seIdx);
+      require(assets->contains(id), "SE asset exists: " + id);
+      const auto seClip = assets->loadAudio(id);
+      require(!seClip.data.empty() && seClip.spec.freq == 39000 &&
+                  seClip.spec.channels == 1 &&
+                  seClip.spec.format == SDL_AUDIO_S16,
+              "SPU2 ADPCM SE decodes to 39 kHz mono S16 PCM: " + id);
+    }
     std::cout << "AHX peak=" << peak << " RMS=" << rms << '\n';
     for (unsigned n = 0; n < 160; ++n) {
       auto actor = game.session()->visuals().find("MIY");

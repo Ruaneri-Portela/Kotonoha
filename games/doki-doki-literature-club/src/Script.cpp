@@ -120,6 +120,13 @@ void Script::collect(const std::vector<Node *> &block, int priority,
   for (Node *n : block) {
     if (n->k == Node::K::Label)
       labels_[n->str("name")] = n;
+    if (n->k == Node::K::Screen) {
+      std::string sname = n->str("name");
+      if (sname.empty())
+        sname = n->ast.get("screen").get("name").text();
+      if (!sname.empty())
+        screens_[sname] = n;
+    }
     if (n->k == Node::K::Init) {
       const int p = int(n->ast.get("priority").integer());
       for (Node *c : n->blocks[0])

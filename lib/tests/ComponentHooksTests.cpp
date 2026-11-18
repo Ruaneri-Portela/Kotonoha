@@ -12,6 +12,7 @@
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/SurfaceBlend.hpp>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -510,15 +511,68 @@ void testNativeButtons() {
 }
 
 void testStableReveal() {
+  using Kotonoha::VNTextBoxUtility;
   auto measure = [](const std::string &s) { return float(s.size()); };
   const std::string full = "one lengthyword end";
-  const auto before =
-      Kotonoha::VNTextBoxUtility::RevealLines(full, 7, measure, 10);
-  const auto after =
-      Kotonoha::VNTextBoxUtility::RevealLines(full, 10, measure, 10);
+  const auto before = VNTextBoxUtility::RevealLines(full, 7, measure, 10);
+  const auto after = VNTextBoxUtility::RevealLines(full, 10, measure, 10);
   require(before.size() == 2 && after.size() == 2 && before[0] == after[0] &&
               before[1] == "len" && after[1] == "length",
           "Revealing a word must not move already visible text between lines");
+
+  const std::vector<std::string> twoLines{"first", "second"};
+  require(VNTextBoxUtility::WrapText(R"(first\nsecond)", measure, 100) ==
+                  twoLines &&
+              VNTextBoxUtility::WrapText(R"(first\r\nsecond)", measure, 100) ==
+                  twoLines &&
+              VNTextBoxUtility::WrapText("first\r\nsecond", measure, 100) ==
+                  twoLines &&
+              VNTextBoxUtility::WrapText("first\nsecond", measure, 100) ==
+                  twoLines,
+          "Literal and escaped LF/CRLF represent exactly one line break");
+  require(VNTextBoxUtility::WrapText(R"(first\rsecond)", measure, 100) ==
+                  twoLines &&
+              VNTextBoxUtility::WrapText("first\rsecond", measure, 100) ==
+                  twoLines,
+          "Both escaped and real carriage returns are handled");
+
+  require(
+      VNTextBoxUtility::WrapText(R"(a\\nb)", measure, 100) ==
+              std::vector<std::string>{R"(a\nb)"} &&
+          VNTextBoxUtility::WrapText(R"(a\qb)", measure, 100) ==
+              std::vector<std::string>{R"(a\qb)"} &&
+          VNTextBoxUtility::WrapText(R"(a\)", measure, 100) ==
+              std::vector<std::string>{R"(a\)"},
+      "Escaped backslashes, unknown escapes and trailing slash are literal");
+  require(VNTextBoxUtility::WrapText(R"(a\tb)", measure, 100) ==
+              std::vector<std::string>{"a\tb"},
+          "Escaped tab is decoded without losing neighboring text");
+  require(VNTextBoxUtility::WrapText(R"(a\n\nb)", measure, 100) ==
+              std::vector<std::string>{"a", "", "b"},
+          "Consecutive escaped newlines preserve empty lines");
+
+  const std::string source = R"(a\nb)";
+  require(VNTextBoxUtility::RevealLines(source, 2, measure, 100) ==
+                  std::vector<std::string>{"a"} &&
+              VNTextBoxUtility::RevealLines(source, 3, measure, 100) ==
+                  std::vector<std::string>{"a"} &&
+              VNTextBoxUtility::RevealLines(source, 4, measure, 100) ==
+                  std::vector<std::string>{"a", "b"},
+          "Escaped newlines never expose partial escape markers");
+
+  // Explicit bytes keep this check independent of the MSVC source code page.
+  const std::string utf8 = "\xC3\xA0\xF0\x9F\x8C\xB8";
+  require(VNTextBoxUtility::RevealLines(utf8, 1, measure, 100).empty() &&
+              VNTextBoxUtility::RevealLines(utf8, 2, measure, 100) ==
+                  std::vector<std::string>{"\xC3\xA0"} &&
+              VNTextBoxUtility::RevealLines(utf8, utf8.size(), measure, 100) ==
+                  std::vector<std::string>{utf8},
+          "Typewriter reveal never cuts inside UTF-8 characters");
+  const std::string invalid("\xc3x", 2);
+  require(VNTextBoxUtility::WrapText(invalid, measure, 100) ==
+                  std::vector<std::string>{invalid} &&
+              VNTextBoxUtility::NextUtf8Char(invalid, 0) == 1,
+          "Malformed UTF-8 advances safely and is not silently discarded");
 }
 
 class NativeHistory final : public Kotonoha::VNBacklog {
@@ -527,6 +581,23 @@ public:
   NativeHistory(Kotonoha::Engine &engine, int value)
       : VNBacklog(engine), marker(value) {}
 };
+
+void testTextMetrics(Kotonoha::Engine &engine) {
+  auto &ui = engine.GetUI();
+  auto &renderer = engine.GetRenderer();
+  const std::size_t before = ui.cachedTextCount();
+  const std::string text = "Kotonoha measurement without texture allocation";
+  const float measured = ui.textHeight(renderer, text, 580.0f);
+  require(measured > 0.0f && ui.cachedTextCount() == before,
+          "Measuring text height must not allocate a cached GPU texture");
+  const float rendered = ui.text(renderer, text, -10000.0f, -10000.0f, 580.0f);
+  require(std::abs(measured - rendered) < 0.01f,
+          "CPU text measurements agree with rendered SDL_ttf dimensions");
+  require(ui.cachedTextCount() == before + 1,
+          "Only visible text rendering allocates a cached texture");
+  const float unwrapped = ui.textWidth(text);
+  require(unwrapped > 0.0f, "Unwrapped text width can be measured separately");
+}
 
 void testNativeHistoryInjection(Kotonoha::Engine &engine) {
   auto &native =
@@ -573,6 +644,7 @@ int main() {
       testNativeButtons();
       testSurfaceOpacity();
       testStableReveal();
+      testTextMetrics(engine);
       testTextBox(engine);
       testLiveTranslation(engine);
       testChoice(engine);

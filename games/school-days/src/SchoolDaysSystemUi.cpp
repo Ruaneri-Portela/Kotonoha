@@ -3,6 +3,7 @@
 #include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysExitViewRenderPlan.hpp>
+#include <Kotonoha/routing/SchoolDaysInputPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysRouteMapRenderPlan.hpp>
 
@@ -1462,173 +1463,390 @@ void SchoolDaysSystemUi::Next() {
     saveFeel_.Next();
 }
 
-bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer* renderer,
-                                     const SDL_Event* event, Output* output) {
-    if (output != nullptr) *output = {};
-    if ((!saveFeel_.IsOpen() && !saveLoad_.IsOpen() &&
-         !configMenu_.IsOpen() && !exitView_.IsOpen() && !replay_.IsOpen() &&
-         !routeMap_.IsOpen()) ||
-        event == nullptr || (resultEmitted_ && !saveLoad_.IsOpen())) return false;
+bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer *renderer,
+                                     const SDL_Event *event, Output *output) {
+  if (output != nullptr)
+    *output = {};
+  if ((!saveFeel_.IsOpen() && !saveLoad_.IsOpen() && !configMenu_.IsOpen() &&
+       !exitView_.IsOpen() && !replay_.IsOpen() && !routeMap_.IsOpen()) ||
+      event == nullptr || (resultEmitted_ && !saveLoad_.IsOpen()))
+    return false;
 
-    if (saveLoadCommentEditorOpen_) {
-        return HandleSaveLoadCommentEditorEvent(event);
-    }
+  if (saveLoadCommentEditorOpen_) {
+    return HandleSaveLoadCommentEditorEvent(event);
+  }
 
-    float x = 0.0f;
-    float y = 0.0f;
-    bool pointerMoved = false;
-    bool pointerActivated = false;
-    if (event->type == SDL_EVENT_MOUSE_MOTION) {
-        x = event->motion.x;
-        y = event->motion.y;
-        pointerMoved = true;
-    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-               event->button.button == SDL_BUTTON_LEFT) {
-        x = event->button.x;
-        y = event->button.y;
-        pointerMoved = true;
-        pointerActivated = true;
-    } else {
-        return false;
-    }
-
-    int virtualX = 0;
-    int virtualY = 0;
-    if (!PointerToVirtual(renderer, x, y, &virtualX, &virtualY)) return false;
-    // Activation can cross the presentation/semantic boundary (SaveFeel result,
-    // SaveLoad close/comment/save request).  A null output sink must never make
-    // those transitions disappear while still mutating the model.  Hover is
-    // safe without a sink, so only fail closed for activation.
-    if (pointerActivated && output == nullptr) return false;
+  auto emitCancel = [&]() -> bool {
+    if (output == nullptr)
+      return false;
     if (replay_.IsOpen()) {
-        if (pointerActivated) {
-            const int hit = replay_.HitControl(virtualX, virtualY);
-            const int selected = replay_.SceneCheckOpen()
-                ? replay_.SceneCheckSelection() : replay_.Selection();
-            if (hit < 0 || hit != selected) return false;
-            SchoolDaysReplayModel::Action action;
-            if (!replay_.Activate(&action)) return false;
-            if (action.kind != SchoolDaysReplayModel::ActionKind::None) {
-                output->hasReplayAction = true;
-                output->replayAction = action;
-            }
-            // Retail pointer clicks, including CLOSE, use SeClick_01.
-            output->uiSfx = UiSfxCue::Click;
-            return true;
-        }
-        if (!pointerMoved) return false;
-        const bool changed = replay_.SetSelectionFromPointer(virtualX, virtualY);
-        if (changed && output != nullptr && !replay_.SceneCheckOpen() &&
-            replay_.CurrentView() == SchoolDaysReplayModel::View::PlayData &&
-            replay_.Selection() >= 23 && replay_.Selection() <= 32) {
-            // 0x1001EB16..0x1001EB62: secondary PlayData row-hit transition.
-            output->uiSfx = UiSfxCue::Open;
-        }
-        return changed;
+      if (replay_.SceneCheckOpen()) {
+        replay_.CancelSceneCheck();
+        output->uiSfx = UiSfxCue::Cancel;
+        return true;
+      }
+      output->hasReplayAction = true;
+      output->replayAction.kind = SchoolDaysReplayModel::ActionKind::Close;
+      output->uiSfx = UiSfxCue::Cancel;
+      return true;
     }
     if (routeMap_.IsOpen()) {
-        if (pointerActivated) {
-            const int hit = routeMap_.HitControl(virtualX, virtualY);
-            if (hit < 0 || hit != routeMap_.Selection()) return false;
-            const int oldMajor = routeMap_.Major();
-            const int oldSubpage = routeMap_.Subpage();
-            SchoolDaysRouteMapModel::Action action;
-            std::string routeError;
-            if (!routeMap_.Activate(&action, &routeError)) return false;
-            if ((routeMap_.Major() != oldMajor || routeMap_.Subpage() != oldSubpage) &&
-                !EnsureRouteMapTextures(renderer, &routeError)) {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                             "School Days RouteMap page resource reload failed: %s",
-                             routeError.c_str());
-                return false;
-            }
-            if (action.kind != SchoolDaysRouteMapModel::ActionKind::None) {
-                output->hasRouteMapAction = true;
-                output->routeMapAction = action;
-            }
-            output->uiSfx = UiSfxCue::Click;
-            return true;
-        }
-        return pointerMoved && routeMap_.SetSelectionFromPointer(virtualX, virtualY);
+      output->hasRouteMapAction = true;
+      output->routeMapAction.kind =
+          SchoolDaysRouteMapModel::ActionKind::ReturnToLoad;
+      output->uiSfx = UiSfxCue::Cancel;
+      return true;
     }
     if (configMenu_.IsOpen()) {
-        if (pointerActivated) {
-            const int hit = configMenu_.HitControl(virtualX, virtualY);
-            if (hit < 0 || hit != configMenu_.Selection()) return false;
-            SchoolDaysConfigMenuModel::Action action;
-            if (!configMenu_.Activate(&action)) return false;
-            output->hasConfigAction = true;
-            output->configAction = action;
-            output->uiSfx = UiSfxCue::Click;
-            return true;
-        }
-        return pointerMoved &&
-               configMenu_.SetSelectionFromPointer(virtualX, virtualY);
+      output->hasConfigAction = true;
+      output->configAction.kind = SchoolDaysConfigMenuModel::ActionKind::Close;
+      output->uiSfx = UiSfxCue::Cancel;
+      return true;
     }
     if (exitView_.IsOpen()) {
-        if (pointerActivated) {
-            const int hit = exitView_.HitChoice(virtualX, virtualY);
-            if (hit < 0 || hit != exitView_.Selection()) return false;
-            SchoolDaysExitViewModel::Activation activation;
-            if (!exitView_.Activate(&activation)) return false;
-            output->hasExitActivation = true;
-            output->exitActivation = activation;
-            output->uiSfx = UiSfxCue::Click;
-            return true;
-        }
-        return pointerMoved && exitView_.SetSelectionFromPointer(virtualX, virtualY);
+      output->hasExitActivation = true;
+      output->exitActivation.outcome =
+          SchoolDaysExitViewModel::Outcome::ReturnToTitle;
+      output->uiSfx = UiSfxCue::Cancel;
+      return true;
     }
     if (saveLoad_.IsOpen()) {
-        if (pointerActivated) {
-            const int hit = saveLoad_.HitControl(virtualX, virtualY);
-            if (hit < 0 || hit != saveLoad_.Selection() || saveLoad_.SavePending()) {
-                return false;
-            }
-            SchoolDaysSaveLoadModel::Output modelOutput;
-            if (!saveLoad_.Activate(&modelOutput)) return false;
-            if (modelOutput.action ==
-                SchoolDaysSaveLoadModel::Action::CommentInputRequested) {
-                if (!BeginSaveLoadCommentEditor(renderer, modelOutput.slot)) {
-                    (void)saveLoad_.CancelComment();
-                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                                 "School Days comment editor could not start: %s",
-                                 SDL_GetError());
-                }
-                output->uiSfx = UiSfxCue::Click;
-                return true;
-            }
-            if (modelOutput.action != SchoolDaysSaveLoadModel::Action::None &&
-                output != nullptr) {
-                output->hasSaveLoadOutput = true;
-                output->saveLoadOutput = modelOutput;
-            }
-            output->uiSfx = UiSfxCue::Click;
-            return true;
-        }
-        if (!pointerMoved) return false;
-        const bool changed = saveLoad_.SetSelectionFromPointer(virtualX, virtualY);
-        if (changed && output != nullptr && saveLoad_.Selection() >= 22 &&
-            saveLoad_.Selection() <= 31) {
-            // 0x10015061..0x10015095: secondary SaveLoad row-hit transition.
-            output->uiSfx = UiSfxCue::Open;
-        }
-        return changed;
-    }
-    if (pointerActivated) {
-        // Native coordinate activation recomputes the CMAP hit and accepts only
-        // when it already matches the current selection.  Do not turn a click
-        // on a different control into an implicit hover+activate operation.
-        const int hit = saveFeel_.HitChoice(virtualX, virtualY);
-        if (saveFeel_.Interactive() && hit >= 0 &&
-            hit == saveFeel_.Selection()) {
-            return Activate(output);
-        }
+      if (saveLoad_.SavePending() || saveLoad_.CommentInputPending())
         return false;
+      output->hasSaveLoadOutput = true;
+      output->saveLoadOutput.action = SchoolDaysSaveLoadModel::Action::Close;
+      output->uiSfx = UiSfxCue::Cancel;
+      return true;
     }
-    if (pointerMoved) {
-        return saveFeel_.SetSelectionFromPointer(virtualX, virtualY);
+    if (saveFeel_.IsOpen() && saveFeel_.Interactive()) {
+      output->uiSfx = UiSfxCue::Cancel;
+      return EmitModelResult(SchoolDaysSaveFeelModel::Result::Skip, output);
     }
     return false;
+  };
+
+  if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      event->button.button == SDL_BUTTON_RIGHT) {
+    return emitCancel();
+  }
+
+  if (event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat) {
+    const auto menuKey =
+        SchoolDaysInputPolicy::TranslateMenuKey(event->key.key, event->key.mod);
+    if (menuKey == SchoolDaysInputPolicy::MenuKey::Cancel) {
+      return emitCancel();
+    }
+    if (menuKey == SchoolDaysInputPolicy::MenuKey::Up ||
+        menuKey == SchoolDaysInputPolicy::MenuKey::Left ||
+        menuKey == SchoolDaysInputPolicy::MenuKey::Down ||
+        menuKey == SchoolDaysInputPolicy::MenuKey::Right) {
+      const int step = (menuKey == SchoolDaysInputPolicy::MenuKey::Up ||
+                        menuKey == SchoolDaysInputPolicy::MenuKey::Left)
+                           ? -1
+                           : 1;
+      if (replay_.IsOpen()) {
+        const int before = replay_.SceneCheckOpen()
+                               ? replay_.SceneCheckSelection()
+                               : replay_.Selection();
+        replay_.StepSelection(step);
+        const int after = replay_.SceneCheckOpen()
+                              ? replay_.SceneCheckSelection()
+                              : replay_.Selection();
+        if (after != before && output != nullptr)
+          output->uiSfx = UiSfxCue::Select;
+        return after != before;
+      }
+      if (exitView_.IsOpen()) {
+        const int before = exitView_.Selection();
+        exitView_.StepSelection(step);
+        if (exitView_.Selection() != before && output != nullptr)
+          output->uiSfx = UiSfxCue::Select;
+        return exitView_.Selection() != before;
+      }
+      if (saveLoad_.IsOpen()) {
+        if (saveLoad_.SavePending() || saveLoad_.CommentInputPending())
+          return false;
+        const int before = saveLoad_.Selection();
+        saveLoad_.StepSelection(step);
+        if (saveLoad_.Selection() != before && output != nullptr) {
+          output->uiSfx =
+              (saveLoad_.Selection() >= 22 && saveLoad_.Selection() <= 31)
+                  ? UiSfxCue::Open
+                  : UiSfxCue::Select;
+        }
+        return saveLoad_.Selection() != before;
+      }
+      if (saveFeel_.IsOpen() && saveFeel_.Interactive()) {
+        const int before = saveFeel_.Selection();
+        if (step < 0)
+          saveFeel_.Previous();
+        else
+          saveFeel_.Next();
+        if (saveFeel_.Selection() != before && output != nullptr)
+          output->uiSfx = UiSfxCue::Select;
+        return saveFeel_.Selection() != before;
+      }
+      return false;
+    }
+    if (menuKey == SchoolDaysInputPolicy::MenuKey::Confirm) {
+      if (output == nullptr)
+        return false;
+      if (replay_.IsOpen()) {
+        const bool wasSceneCheck = replay_.SceneCheckOpen();
+        SchoolDaysReplayModel::Action action;
+        if (!replay_.Activate(&action))
+          return false;
+        if (action.kind != SchoolDaysReplayModel::ActionKind::None) {
+          output->hasReplayAction = true;
+          output->replayAction = action;
+        }
+        output->uiSfx = (wasSceneCheck && !replay_.SceneCheckOpen() &&
+                         action.kind == SchoolDaysReplayModel::ActionKind::None)
+                            ? UiSfxCue::Cancel
+                            : UiSfxCue::Click;
+        return true;
+      }
+      if (routeMap_.IsOpen()) {
+        const int oldMajor = routeMap_.Major();
+        const int oldSubpage = routeMap_.Subpage();
+        SchoolDaysRouteMapModel::Action action;
+        std::string routeError;
+        if (!routeMap_.Activate(&action, &routeError))
+          return false;
+        if ((routeMap_.Major() != oldMajor ||
+             routeMap_.Subpage() != oldSubpage) &&
+            !EnsureRouteMapTextures(renderer, &routeError)) {
+          return false;
+        }
+        if (action.kind != SchoolDaysRouteMapModel::ActionKind::None) {
+          output->hasRouteMapAction = true;
+          output->routeMapAction = action;
+        }
+        output->uiSfx = UiSfxCue::Click;
+        return true;
+      }
+      if (configMenu_.IsOpen()) {
+        SchoolDaysConfigMenuModel::Action action;
+        if (!configMenu_.Activate(&action))
+          return false;
+        output->hasConfigAction = true;
+        output->configAction = action;
+        output->uiSfx = UiSfxCue::Click;
+        return true;
+      }
+      if (exitView_.IsOpen()) {
+        SchoolDaysExitViewModel::Activation activation;
+        if (!exitView_.Activate(&activation))
+          return false;
+        output->hasExitActivation = true;
+        output->exitActivation = activation;
+        output->uiSfx = UiSfxCue::Click;
+        return true;
+      }
+      if (saveLoad_.IsOpen()) {
+        if (saveLoad_.SavePending())
+          return false;
+        SchoolDaysSaveLoadModel::Output modelOutput;
+        if (!saveLoad_.Activate(&modelOutput))
+          return false;
+        if (modelOutput.action ==
+            SchoolDaysSaveLoadModel::Action::CommentInputRequested) {
+          if (!BeginSaveLoadCommentEditor(renderer, modelOutput.slot))
+            (void)saveLoad_.CancelComment();
+          output->uiSfx = UiSfxCue::Click;
+          return true;
+        }
+        if (modelOutput.action != SchoolDaysSaveLoadModel::Action::None) {
+          output->hasSaveLoadOutput = true;
+          output->saveLoadOutput = modelOutput;
+        }
+        output->uiSfx = UiSfxCue::Click;
+        return true;
+      }
+      if (saveFeel_.IsOpen() && saveFeel_.Interactive()) {
+        output->uiSfx = UiSfxCue::Click;
+        return Activate(output);
+      }
+      return false;
+    }
+  }
+
+  float x = 0.0f;
+  float y = 0.0f;
+  bool pointerMoved = false;
+  bool pointerActivated = false;
+  if (event->type == SDL_EVENT_MOUSE_MOTION) {
+    x = event->motion.x;
+    y = event->motion.y;
+    pointerMoved = true;
+  } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+             event->button.button == SDL_BUTTON_LEFT) {
+    x = event->button.x;
+    y = event->button.y;
+    pointerMoved = true;
+    pointerActivated = true;
+  } else {
+    return false;
+  }
+
+  int virtualX = 0;
+  int virtualY = 0;
+  if (!PointerToVirtual(renderer, x, y, &virtualX, &virtualY))
+    return false;
+  // Activation can cross the presentation/semantic boundary (SaveFeel result,
+  // SaveLoad close/comment/save request).  A null output sink must never make
+  // those transitions disappear while still mutating the model.  Hover is
+  // safe without a sink, so only fail closed for activation.
+  if (pointerActivated && output == nullptr)
+    return false;
+  if (replay_.IsOpen()) {
+    if (pointerActivated) {
+      const int hit = replay_.HitControl(virtualX, virtualY);
+      const int selected = replay_.SceneCheckOpen()
+                               ? replay_.SceneCheckSelection()
+                               : replay_.Selection();
+      if (hit < 0 || hit != selected)
+        return false;
+      const bool wasSceneCheck = replay_.SceneCheckOpen();
+      SchoolDaysReplayModel::Action action;
+      if (!replay_.Activate(&action))
+        return false;
+      if (action.kind != SchoolDaysReplayModel::ActionKind::None) {
+        output->hasReplayAction = true;
+        output->replayAction = action;
+      }
+      // Retail pointer clicks, including CLOSE, use SeClick_01; SceneCheck
+      // Return (hit 4) uses SeCancel.
+      output->uiSfx = (wasSceneCheck && !replay_.SceneCheckOpen() &&
+                       action.kind == SchoolDaysReplayModel::ActionKind::None)
+                          ? UiSfxCue::Cancel
+                          : UiSfxCue::Click;
+      return true;
+    }
+    if (!pointerMoved)
+      return false;
+    const bool changed = replay_.SetSelectionFromPointer(virtualX, virtualY);
+    if (changed && output != nullptr && !replay_.SceneCheckOpen() &&
+        replay_.CurrentView() == SchoolDaysReplayModel::View::PlayData &&
+        replay_.Selection() >= 23 && replay_.Selection() <= 32) {
+      // 0x1001EB16..0x1001EB62: secondary PlayData row-hit transition.
+      output->uiSfx = UiSfxCue::Open;
+    }
+    return changed;
+  }
+  if (routeMap_.IsOpen()) {
+    if (pointerActivated) {
+      const int hit = routeMap_.HitControl(virtualX, virtualY);
+      if (hit < 0 || hit != routeMap_.Selection())
+        return false;
+      const int oldMajor = routeMap_.Major();
+      const int oldSubpage = routeMap_.Subpage();
+      SchoolDaysRouteMapModel::Action action;
+      std::string routeError;
+      if (!routeMap_.Activate(&action, &routeError))
+        return false;
+      if ((routeMap_.Major() != oldMajor ||
+           routeMap_.Subpage() != oldSubpage) &&
+          !EnsureRouteMapTextures(renderer, &routeError)) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "School Days RouteMap page resource reload failed: %s",
+                     routeError.c_str());
+        return false;
+      }
+      if (action.kind != SchoolDaysRouteMapModel::ActionKind::None) {
+        output->hasRouteMapAction = true;
+        output->routeMapAction = action;
+      }
+      output->uiSfx = UiSfxCue::Click;
+      return true;
+    }
+    return pointerMoved &&
+           routeMap_.SetSelectionFromPointer(virtualX, virtualY);
+  }
+  if (configMenu_.IsOpen()) {
+    if (pointerActivated) {
+      const int hit = configMenu_.HitControl(virtualX, virtualY);
+      if (hit < 0 || hit != configMenu_.Selection())
+        return false;
+      SchoolDaysConfigMenuModel::Action action;
+      if (!configMenu_.Activate(&action))
+        return false;
+      output->hasConfigAction = true;
+      output->configAction = action;
+      output->uiSfx = UiSfxCue::Click;
+      return true;
+    }
+    return pointerMoved &&
+           configMenu_.SetSelectionFromPointer(virtualX, virtualY);
+  }
+  if (exitView_.IsOpen()) {
+    if (pointerActivated) {
+      const int hit = exitView_.HitChoice(virtualX, virtualY);
+      if (hit < 0 || hit != exitView_.Selection())
+        return false;
+      SchoolDaysExitViewModel::Activation activation;
+      if (!exitView_.Activate(&activation))
+        return false;
+      output->hasExitActivation = true;
+      output->exitActivation = activation;
+      output->uiSfx = UiSfxCue::Click;
+      return true;
+    }
+    return pointerMoved &&
+           exitView_.SetSelectionFromPointer(virtualX, virtualY);
+  }
+  if (saveLoad_.IsOpen()) {
+    if (pointerActivated) {
+      const int hit = saveLoad_.HitControl(virtualX, virtualY);
+      if (hit < 0 || hit != saveLoad_.Selection() || saveLoad_.SavePending()) {
+        return false;
+      }
+      SchoolDaysSaveLoadModel::Output modelOutput;
+      if (!saveLoad_.Activate(&modelOutput))
+        return false;
+      if (modelOutput.action ==
+          SchoolDaysSaveLoadModel::Action::CommentInputRequested) {
+        if (!BeginSaveLoadCommentEditor(renderer, modelOutput.slot)) {
+          (void)saveLoad_.CancelComment();
+          SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                       "School Days comment editor could not start: %s",
+                       SDL_GetError());
+        }
+        output->uiSfx = UiSfxCue::Click;
+        return true;
+      }
+      if (modelOutput.action != SchoolDaysSaveLoadModel::Action::None &&
+          output != nullptr) {
+        output->hasSaveLoadOutput = true;
+        output->saveLoadOutput = modelOutput;
+      }
+      output->uiSfx = UiSfxCue::Click;
+      return true;
+    }
+    if (!pointerMoved)
+      return false;
+    const bool changed = saveLoad_.SetSelectionFromPointer(virtualX, virtualY);
+    if (changed && output != nullptr && saveLoad_.Selection() >= 22 &&
+        saveLoad_.Selection() <= 31) {
+      // 0x10015061..0x10015095: secondary SaveLoad row-hit transition.
+      output->uiSfx = UiSfxCue::Open;
+    }
+    return changed;
+  }
+  if (pointerActivated) {
+    // Native coordinate activation recomputes the CMAP hit and accepts only
+    // when it already matches the current selection.  Do not turn a click
+    // on a different control into an implicit hover+activate operation.
+    const int hit = saveFeel_.HitChoice(virtualX, virtualY);
+    if (saveFeel_.Interactive() && hit >= 0 && hit == saveFeel_.Selection()) {
+      return Activate(output);
+    }
+    return false;
+  }
+  if (pointerMoved) {
+    return saveFeel_.SetSelectionFromPointer(virtualX, virtualY);
+  }
+  return false;
 }
 
 void SchoolDaysSystemUi::Update(uint32_t nowMs, int64_t feeling001,

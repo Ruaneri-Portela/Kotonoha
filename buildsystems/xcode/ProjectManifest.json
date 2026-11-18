@@ -117,7 +117,9 @@
     "RealLive": "reallive",
     "Kirikiri": "kirikiri",
     "LucaSystem": "luca-system",
-    "Pmail": "pmail"
+    "Pmail": "pmail",
+    "PonscripterGame": "ponscripter",
+    "N2SystemGame": "n2system"
   },
   "modules": {
     "VM": [
@@ -221,5 +223,9 @@
       ],
       "note": "Vendor files are referenced in the source repository; the Xcode project includes no vendor source copies."
     }
-  }
+  },
+  "xcode_pending": [
+    "n2system",
+    "ponscripter"
+  ]
 }

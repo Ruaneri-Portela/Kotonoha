@@ -799,33 +799,116 @@
                         if (!origin.pathname.endsWith("/")) origin.pathname += "/";
                         return origin;
                     };
-                    // Direct Fetch is the primary HTTP source. Do not trust a
-                    // generated manifest to enumerate a user's retail files:
-                    // the manifest can be empty or stale even when files are
-                    // served at the requested URLs. Games must discover their
-                    // known filenames through VFS HEAD + Range.
-                    const loadServerAssets = function() {
+                    // The HTTP manifest is OPTIONAL. When present, it indexes
+                    // directory contents so archive-heavy ports can enumerate
+                    // files immediately. Unknown or stale entries remain
+                    // resolvable with direct HEAD/Range instead of becoming
+                    // an allow-list. Local-folder mode never fetches this.
+                    const loadServerAssets = async function() {
                         if (finished || busy) return;
                         busy = true;
                         folderButton.disabled = true;
                         serverButton.disabled = true;
-                        setStatus("Configurando Fetch HTTP(S) sob demanda...");
+                        setStatus("Procurando índice HTTP(S) opcional...");
                         try {
                             const origin = httpRoot();
-                            const started = Module.ccall(
-                                "KotonohaConfigureRemoteAssetUrl", "number",
-                                ["string"], [origin.href]);
-                            if (started !== 1)
-                                throw new Error("Provider Fetch não pôde ser configurado");
+                            let manifest = null;
+                            const timeout = new AbortController();
+                            const deadline = setTimeout(() => timeout.abort(), 5000);
+                            try {
+                                const response = await fetch(
+                                    new URL("manifest.json", origin), {
+                                        signal: timeout.signal,
+                                        cache: "no-store"
+                                    });
+                                if (response.ok) {
+                                    const declaredSize = Number(
+                                        response.headers.get("content-length") || 0);
+                                    if (declaredSize <= 4 * 1024 * 1024) {
+                                        const payload = await response.text();
+                                        if (payload.length <= 4 * 1024 * 1024) {
+                                            const parsed = JSON.parse(payload);
+                                            if (parsed && Array.isArray(parsed.entries) &&
+                                                parsed.entries.length > 0)
+                                                manifest = payload;
+                                        } else {
+                                            console.warn("[Kotonoha] Índice HTTP excede 4 MiB");
+                                        }
+                                    }
+                                }
+                            } catch (error) {
+                                // Missing, invalid or CORS-blocked manifests do
+                                // not disable normal manifest-free Fetch.
+                                console.warn("[Kotonoha] Índice HTTP opcional indisponível:",
+                                    error);
+                            } finally {
+                                clearTimeout(deadline);
+                            }
+                            let indexed = false;
+                            if (manifest) {
+                                // Emscripten ccall("string") places the entire
+                                // UTF-8 JSON on the WASM stack. Large indexes
+                                // overflow that stack and permanently abort the
+                                // module. Allocate only this argument on the
+                                // bounded WASM heap; the URL stays a short
+                                // ccall string. Fetch requests remain lazy.
+                                const bytes = new TextEncoder().encode(manifest);
+                                if (bytes.length > 4 * 1024 * 1024)
+                                    throw new Error("Índice HTTP ultrapassa 4 MiB em UTF-8");
+                                const pointer = Module.ccall(
+                                    "KotonohaAllocateRemoteManifest", "number",
+                                    ["number"], [bytes.length + 1]);
+                                if (!pointer)
+                                    throw new Error("Memória insuficiente para índice HTTP");
+                                try {
+                                    // Acquire HEAPU8 AFTER allocation, since
+                                    // ALLOW_MEMORY_GROWTH may replace its buffer.
+                                    const heap = Module.HEAPU8;
+                                    if (!heap || pointer + bytes.length + 1 > heap.length)
+                                        throw new Error("Heap WASM não disponível para índice HTTP");
+                                    heap.set(bytes, pointer);
+                                    heap[pointer + bytes.length] = 0;
+                                    indexed = Module.ccall(
+                                        "KotonohaConfigureRemoteAssetIndexedManifest",
+                                        "number", ["string", "number"],
+                                        [origin.href, pointer]) === 1;
+                                } finally {
+                                    Module.ccall("KotonohaFreeRemoteManifest",
+                                        null, ["number"], [pointer]);
+                                }
+                                if (!indexed)
+                                    console.warn("[Kotonoha] Índice HTTP rejeitado; usando Fetch direto");
+                            }
+                            if (!indexed) {
+                                const started = Module.ccall(
+                                    "KotonohaConfigureRemoteAssetUrl", "number",
+                                    ["string"], [origin.href]);
+                                if (started !== 1)
+                                    throw new Error("Provider Fetch não pôde ser configurado");
+                            }
+                            window.KotonohaRemoteManifestIndexed = indexed;
                             window.KotonohaFetchAsset = function(path) {
                                 return Module.ccall("KotonohaRequestRemoteAsset",
                                     "number", ["string"], [path],
                                     { async: true });
                             };
-                            setStatus("Fetch HTTP(S) pronto; os jogos consultam arquivos sob demanda.");
+                            setStatus(indexed
+                                ? "Índice HTTP carregado; listagens e Fetch sob demanda prontos."
+                                : "Fetch HTTP(S) sem índice; arquivos conhecidos sob demanda.");
                             finish();
                         } catch (error) {
                             console.error("[Kotonoha] Fetch HTTP(S):", error);
+                            // An out-of-bounds WebAssembly trap is fatal; do
+                            // not offer a retry against the same corrupt VM.
+                            if (error instanceof WebAssembly.RuntimeError &&
+                                /memory access out of bounds|unreachable/i.test(
+                                    String(error.message || error))) {
+                                setStatus("Falha fatal de memória no WebAssembly. " +
+                                    "Atualize a página após instalar o build corrigido.");
+                                folderButton.disabled = true;
+                                serverButton.disabled = true;
+                                return;
+                            }
                             unlock("Falha ao configurar Fetch: " +
                                 String(error.message || error));
                         }

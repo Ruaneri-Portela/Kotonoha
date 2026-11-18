@@ -39,7 +39,8 @@ int main() {
     Bytes arc;
     u32(arc, 1);
     u32(arc, 28);
-    u32(arc, 0);
+    u16(arc, 1); // bucket 0 has the only entry
+    u16(arc, 0); // first entry of bucket 0
     u32(arc, 1);
     u32(arc, 0x1234);
     u32(arc, 28);
@@ -49,6 +50,44 @@ int main() {
     rejects([&] { ParseArc(arc, 31); });
     arc[4] = 29;
     rejects([&] { ParseArc(arc, 32); });
+
+    // ARC buckets are grouped by hash % count, not payload order.
+    Bytes grouped;
+    u32(grouped, 3);
+    u32(grouped, 68); // 8 + 20 * 3
+    u16(grouped, 2);  // bucket 0: hashes 0 and 3
+    u16(grouped, 1);  // bucket 1: hash 1
+    u16(grouped, 0);  // bucket 2: empty
+    u16(grouped, 0);  // first index for bucket 0
+    u16(grouped, 2);  // first index for bucket 1
+    u16(grouped, 0);  // empty buckets have first index zero
+    for (uint32_t hash : {0u, 3u, 1u}) {
+      u32(grouped, 1);
+      u32(grouped, hash);
+      u32(grouped, 68 + hash % 3);
+      u32(grouped, 1);
+    }
+    check(ParseArc(grouped, 71).size() == 3);
+    {
+      auto bad = grouped;
+      bad[8] = 1; // bucket count sum is now incomplete
+      rejects([&] { ParseArc(bad, 71); });
+    }
+    {
+      auto bad = grouped;
+      bad[14] = 1; // bucket 0 must start at entry zero
+      rejects([&] { ParseArc(bad, 71); });
+    }
+    {
+      auto bad = grouped;
+      bad[18] = 2; // empty bucket must use first index zero
+      rejects([&] { ParseArc(bad, 71); });
+    }
+    {
+      auto bad = grouped;
+      bad[8 + 12 + 16 + 4] = 2; // second hash is in the wrong bucket
+      rejects([&] { ParseArc(bad, 71); });
+    }
     Bytes afs{'A', 'F', 'S', 0};
     u32(afs, 1);
     u32(afs, 16);

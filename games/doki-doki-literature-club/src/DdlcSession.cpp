@@ -3,8 +3,8 @@
 #include "Ddlc/Runtime.hpp"
 #include <Kotonoha/components/VNSave.hpp>
 
-#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
@@ -15,13 +15,13 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <climits>
 #include <cmath>
 #include <cstring>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <functional>
 #include <iomanip>
 #include <map>
@@ -82,7 +82,7 @@ struct Pcm {
 
 struct AudioSpec {
   std::string file;
-  double from = 0, loop = -1;
+  double from = 0, to = -1, loop = -1, silence = 0;
 };
 AudioSpec parseSpec(const std::string &spec) {
   AudioSpec a;
@@ -96,8 +96,12 @@ AudioSpec parseSpec(const std::string &spec) {
       while (in >> k >> v) {
         if (k == "from")
           a.from = v;
+        else if (k == "to")
+          a.to = v;
         else if (k == "loop")
           a.loop = v;
+        else if (k == "silence")
+          a.silence = v;
       }
       a.file = spec.substr(e + 1);
     }
@@ -194,6 +198,28 @@ public:
     return (g.bold ? TTF_STYLE_BOLD : 0) | (g.italic ? TTF_STYLE_ITALIC : 0);
   }
 
+  static int glyphPx(const Glyph &g, float baseSize, float scale = 1.f) {
+    const float sz =
+        g.sizeOverride > 0 ? g.sizeOverride : (baseSize + g.sizeDelta);
+    return std::max(1, int(std::lround(sz * scale)));
+  }
+
+  TTF_Font *glyphFont(const std::string &file, int px, int outline, int style,
+                      const std::string &ch) {
+    TTF_Font *f = font(file, px, outline, style);
+    const uint32_t cp = utf8Code(ch);
+    if (f && (cp <= 0x20 || TTF_FontHasGlyph(f, cp)))
+      return f;
+    for (const char *fb : {"gui/font/Aller_Rg.ttf", "gui/font/Vera.ttf"}) {
+      if (file == fb)
+        continue;
+      if (TTF_Font *alt = font(fb, px, outline, style))
+        if (TTF_FontHasGlyph(alt, cp))
+          return alt;
+    }
+    return f;
+  }
+
   float advance(TTF_Font *f, const std::string &ch) {
     if (!f)
       return 0;
@@ -232,7 +258,9 @@ public:
         continue;
       }
       x += g.space;
-      const float a = advance(font(st.font, px, 0, styleBits(g)), g.ch);
+      const int gpx = glyphPx(g, st.size);
+      const float a =
+          advance(glyphFont(st.font, gpx, 0, styleBits(g), g.ch), g.ch);
       if (st.maxWidth > 0 && x + a > st.maxWidth && g.ch != " " &&
           lastSpace >= long(lineStart)) {
         lineW.push_back(L.x[size_t(lastSpace)]);
@@ -341,7 +369,6 @@ private:
     const int H = std::max(1, int(std::ceil(L.h * scale + 2 * t.pad)));
     t.w = float(W), t.h = float(H);
     std::vector<uint8_t> px(size_t(W) * H * 4, 0);
-    const int fpx = std::max(1, int(std::lround(st.size * scale)));
     const auto &gs = L.rich.glyphs;
     const size_t n = std::min(visible, gs.size());
     auto layer = [&](int outlinePx, const uint32_t *outlineColor) {
@@ -351,11 +378,16 @@ private:
           ++i;
           continue;
         }
+        const int gpx = glyphPx(gs[i], st.size, scale);
+        TTF_Font *f =
+            glyphFont(st.font, gpx, outlinePx, styleBits(gs[i]), gs[i].ch);
         size_t j = i + 1;
         while (j < n && gs[j].ch != "\n" && L.line[j] == L.line[i] &&
                gs[j].italic == gs[i].italic && gs[j].bold == gs[i].bold &&
                gs[j].hasColor == gs[i].hasColor && gs[j].color == gs[i].color &&
-               gs[j].space == 0)
+               gs[j].space == 0 && glyphPx(gs[j], st.size, scale) == gpx &&
+               glyphFont(st.font, gpx, outlinePx, styleBits(gs[j]), gs[j].ch) ==
+                   f)
           ++j;
         std::string s;
         for (size_t q = i; q < j; ++q)
@@ -363,7 +395,7 @@ private:
         const uint32_t c = outlineColor     ? *outlineColor
                            : gs[i].hasColor ? gs[i].color
                                             : st.color;
-        if (TTF_Font *f = font(st.font, fpx, outlinePx, styleBits(gs[i]))) {
+        if (f) {
           if (SDL_Surface *surf =
                   TTF_RenderText_Blended(f, s.data(), s.size(), sdlColor(c))) {
             const int ox = int(std::lround(t.pad + L.x[i] * scale)) - outlinePx;
@@ -402,8 +434,9 @@ private:
 
 struct Channel {
   std::unique_ptr<Kotonoha::PcmPlayer> player;
-  std::string spec, queued;
-  bool queuedLoop = false, loop = false;
+  std::string spec;
+  std::vector<std::pair<std::string, bool>> queue;
+  bool loop = false;
   AudioSpec parsed;
   double duration = 0;
   double fadeFrom = 1, fadeTo = 1, fadeStart = 0, fadeLen = 0;
@@ -517,21 +550,25 @@ public:
 
   void play(const std::string &channel, const std::string &spec, double fade,
             bool loop) override {
+    play(channel, spec, fade, loop, 0);
+  }
+  void play(const std::string &channel, const std::string &spec, double fade,
+            bool loop, double fadeout) override {
     std::lock_guard<std::mutex> lock(commandsMutex_);
     requested_[channel] = spec;
-    commands_.push_back({Command::Play, channel, spec, fade, loop});
+    commands_.push_back({Command::Play, channel, spec, fade, loop, fadeout});
   }
   void queue(const std::string &channel, const std::string &spec,
              bool loop) override {
     std::lock_guard<std::mutex> lock(commandsMutex_);
     if (requested_[channel].empty())
       requested_[channel] = spec;
-    commands_.push_back({Command::Queue, channel, spec, 0, loop});
+    commands_.push_back({Command::Queue, channel, spec, 0, loop, 0});
   }
   void stop(const std::string &channel, double fade) override {
     std::lock_guard<std::mutex> lock(commandsMutex_);
     requested_.erase(channel);
-    commands_.push_back({Command::Stop, channel, {}, fade, false});
+    commands_.push_back({Command::Stop, channel, {}, fade, false, fade});
   }
   std::string playing(const std::string &channel) override {
     std::lock_guard<std::mutex> lock(commandsMutex_);
@@ -575,21 +612,23 @@ public:
     for (const Command &command : commands) {
       Channel &channel = channels_[command.channel];
       if (command.kind == Command::Play) {
-        channel.queued.clear();
-        if (channel.player)
+        channel.queue.clear();
+        if (channel.player && command.fadeout > 0 && channel.player->Playing())
+          fading_.push_back({std::move(channel.player), currentGain(channel),
+                             realNow(), command.fadeout});
+        else if (channel.player)
           channel.player->Stop();
         start(command.channel, channel, command.spec, command.fade,
               command.loop);
       } else if (command.kind == Command::Queue) {
         if (channel.player && channel.player->Playing() &&
             !channel.spec.empty()) {
-          channel.queued = command.spec;
-          channel.queuedLoop = command.loop;
+          channel.queue.emplace_back(command.spec, command.loop);
         } else {
           start(command.channel, channel, command.spec, 0, command.loop);
         }
       } else {
-        channel.queued.clear();
+        channel.queue.clear();
         channel.spec.clear();
         if (channel.player && command.fade > 0 && channel.player->Playing())
           fading_.push_back({std::move(channel.player), currentGain(channel),
@@ -608,18 +647,18 @@ public:
       }
       channel.player->SetGain(muted_.count(name) ? 0.f
                                                  : float(currentGain(channel)));
-      if (!channel.queued.empty() &&
+      if (!channel.queue.empty() &&
           (!channel.player->Playing() ||
            channel.player->Position() >= channel.duration)) {
-        const std::string next = std::exchange(channel.queued, {});
-        const bool loop = channel.queuedLoop;
+        const auto [next, loop] = channel.queue.front();
+        channel.queue.erase(channel.queue.begin());
         channel.player->Stop();
         start(name, channel, next, 0, loop);
         std::lock_guard<std::mutex> lock(commandsMutex_);
         requested_[name] = channel.spec;
       }
       std::lock_guard<std::mutex> lock(commandsMutex_);
-      if (!channel.player->Playing() && channel.queued.empty()) {
+      if (!channel.player->Playing() && channel.queue.empty()) {
         requested_.erase(name);
         positions_.erase(name);
       } else {
@@ -679,9 +718,13 @@ public:
     std::vector<ReplayAudio> result;
     for (auto &[name, channel] : channels_)
       if (channel.player && !channel.spec.empty() && channel.player->Playing())
-        result.push_back({name, channel.spec, channel.queued, channel.loop,
-                          channel.queuedLoop, position(name),
-                          currentGain(channel)});
+        result.push_back(
+            {name, channel.spec,
+             channel.queue.empty() ? std::string()
+                                   : channel.queue.front().first,
+             channel.loop,
+             channel.queue.empty() ? false : channel.queue.front().second,
+             position(name), currentGain(channel)});
     return result;
   }
   void restoreAudio(const std::vector<ReplayAudio> &clips) {
@@ -696,8 +739,9 @@ public:
       auto &channel = channels_[a.channel];
       start(a.channel, channel, spec.str(), 0, a.loop);
       channel.spec = a.spec;
-      channel.queued = a.queued;
-      channel.queuedLoop = a.queuedLoop;
+      channel.queue.clear();
+      if (!a.queued.empty())
+        channel.queue.emplace_back(a.queued, a.queuedLoop);
       channel.fadeFrom = channel.fadeTo = a.gain;
       if (channel.player)
         channel.player->SetGain(float(a.gain));
@@ -741,6 +785,7 @@ private:
     std::string channel, spec;
     double fade;
     bool loop;
+    double fadeout = 0;
   };
 
   static double currentGain(const Channel &channel) {
@@ -753,7 +798,14 @@ private:
   void start(const std::string &name, Channel &channel, const std::string &spec,
              double fade, bool loop) {
     const AudioSpec parsed = parseSpec(spec);
-    const auto data = pcm(parsed.file);
+    std::shared_ptr<Pcm> data;
+    if (parsed.silence > 0 && parsed.file.empty()) {
+      data = std::make_shared<Pcm>();
+      data->rate = 44100;
+      data->samples.assign(size_t(parsed.silence * data->rate) * 2, 0);
+    } else {
+      data = pcm(parsed.file);
+    }
     channel.spec.clear();
     if (!data)
       return;
@@ -761,6 +813,11 @@ private:
       channel.player = std::make_unique<Kotonoha::PcmPlayer>();
     Kotonoha::PcmPlayer::Clip clip;
     clip.samples = data->samples;
+    if (parsed.to > 0) {
+      const size_t maxSamples = size_t(parsed.to * data->rate) * 2;
+      if (maxSamples < clip.samples.size())
+        clip.samples.resize(maxSamples);
+    }
     clip.channels = 2;
     clip.rate = data->rate;
     clip.loop = loop;
@@ -775,7 +832,8 @@ private:
     channel.spec = spec;
     channel.parsed = parsed;
     channel.loop = loop;
-    channel.duration = data->seconds();
+    channel.duration =
+        data->rate ? double(clip.samples.size() / 2) / data->rate : 0;
     channel.fadeFrom = fade > 0 ? 0 : 1;
     channel.fadeTo = 1;
     channel.fadeStart = realNow();
@@ -813,10 +871,14 @@ public:
   }
   void play(const std::string &channel, const std::string &spec, double fade,
             bool loop) override {
+    play(channel, spec, fade, loop, 0);
+  }
+  void play(const std::string &channel, const std::string &spec, double fade,
+            bool loop, double fadeout) override {
     if (replay)
       input.playing[channel] = spec;
     else
-      host_.play(channel, spec, fade, loop);
+      host_.play(channel, spec, fade, loop, fadeout);
   }
   void queue(const std::string &channel, const std::string &spec,
              bool loop) override {
@@ -998,13 +1060,18 @@ struct Game {
   float mx = -1, my = -1;
   bool ctrl = false, skipToggle = false,
        autoMode = SDL_getenv("DDLC_TMP_AUTO") != nullptr; // TMP-SMOKE
-  bool pauseMenu = false, nameInput = false;
-  enum class SubMenu { None, Save, Load, History };
+  bool pauseMenu = false, nameInput = false, corruptLoadPending = false,
+       corruptLoadStart = false;
+  enum class SubMenu { None, Save, Load, History, Credits };
   SubMenu subMenu = SubMenu::None;
   std::string nameText, notice;
   std::vector<Button> buttons, drawn;
   std::string hoverKey;
   float poemScroll = 0, poemMax = 0, historyScroll = 0, historyMax = 0;
+
+  bool isPtBr() const {
+    return script.hasScreen("credits") || assets->contains("bgm/1v.ogg");
+  }
 
   // Screen effects of effects.rpy: Tear strips and the Invert flash.
   struct TearPiece {
@@ -1211,8 +1278,9 @@ struct Game {
 
   // ---- primitives (logical 1280x720 coordinates, render scale set) ----
 
-  Tex *image(SDL_Renderer *r, const std::string &file) {
-    Tex &t = images[file];
+  Tex *image(SDL_Renderer *r, const std::string &file, bool grayscale = false) {
+    const std::string key = grayscale ? (file + "#gray") : file;
+    Tex &t = images[key];
     t.used = frame;
     if (t.failed)
       return nullptr;
@@ -1220,7 +1288,26 @@ struct Game {
       if ((t.logicalW <= 0 || t.logicalH <= 0) &&
           !host.imageSize(file, t.logicalW, t.logicalH))
         throw std::runtime_error("Cannot determine image dimensions");
-      auto &original = assets->texture(*r, file);
+      if (grayscale && !t.texture) {
+        auto decoded = assets->loadSurface(file);
+        Kotonoha::SurfacePtr rgba(
+            SDL_ConvertSurface(decoded.get(), SDL_PIXELFORMAT_RGBA32));
+        if (!rgba)
+          throw std::runtime_error(SDL_GetError());
+        for (int y = 0; y < rgba->h; ++y) {
+          auto *row = static_cast<uint8_t *>(rgba->pixels) +
+                      size_t(y) * size_t(rgba->pitch);
+          for (int x = 0; x < rgba->w; ++x) {
+            const uint8_t lum =
+                uint8_t((77u * row[x * 4] + 150u * row[x * 4 + 1] +
+                         29u * row[x * 4 + 2]) >>
+                        8);
+            row[x * 4] = row[x * 4 + 1] = row[x * 4 + 2] = lum;
+          }
+        }
+        assets->stageTexture(*r, key, std::move(rgba));
+      }
+      auto &original = assets->texture(*r, key);
       SDL_Texture &texture = engine.GetUpscaler().process(original, 0);
       float w = 0, h = 0;
       if (!SDL_GetTextureSize(&texture, &w, &h))
@@ -1292,7 +1379,7 @@ struct Game {
       cx = op.crop[0], cy = op.crop[1], cw = op.crop[2], ch = op.crop[3];
     switch (op.k) {
     case DrawOp::K::Image: {
-      Tex *t = image(r, op.image);
+      Tex *t = image(r, op.image, op.grayscale);
       if (!t)
         return;
       const float sx = op.w > 0 ? float(t->w) / op.w : 1,
@@ -1473,13 +1560,21 @@ struct Game {
   }
 
   void drawQuickMenu(SDL_Renderer *r) {
-    static const char *labels[] = {"History", "Skip", "Auto",
-                                   "Save",    "Load", "Settings"};
+    static const char *enLabels[] = {"History", "Skip", "Auto",
+                                     "Save",    "Load", "Settings"};
+    static const char *ptLabels[] = {"Hist\xC3\xB3rico",
+                                     "Pular",
+                                     "Auto",
+                                     "Salvar",
+                                     "Carregar",
+                                     "Op\xC3\xA7\xC3\xB5"
+                                     "es"};
+    const char *const *labels = isPtBr() ? ptLabels : enLabels;
     const TextStyle base = uiStyle(kAller, 14, 0x552222ff);
     float total = 0, h = 0;
     std::vector<SDL_FPoint> sizes;
-    for (const char *l : labels) {
-      sizes.push_back(textSize(l, base));
+    for (size_t i = 0; i < 6; ++i) {
+      sizes.push_back(textSize(labels[i], base));
       total += sizes.back().x + 8;
       h = std::max(h, sizes.back().y + 8);
     }
@@ -1487,10 +1582,13 @@ struct Game {
     const float y = (kH - h) * .995f;
     for (size_t i = 0; i < 6; ++i) {
       const std::string l = labels[i];
+      const std::string actionKey = enLabels[i];
       const SDL_FRect b{x, y, sizes[i].x + 8, h};
-      const bool hov =
-          button(b, [this, l] { quickAction(l); }, "quick" + l, false);
-      const bool sel = (l == "Skip" && skipToggle) || (l == "Auto" && autoMode);
+      const bool hov = button(
+          b, [this, actionKey] { quickAction(actionKey); }, "quick" + actionKey,
+          false);
+      const bool sel = (actionKey == "Skip" && skipToggle) ||
+                       (actionKey == "Auto" && autoMode);
       TextStyle s = base;
       s.color = hov ? 0xffccccff : sel ? 0xffffffff : 0x552222ff;
       drawText(r, l, s, x + 4, y + 4);
@@ -1642,9 +1740,11 @@ struct Game {
     if (in.screen == "confirm") {
       const Value yes = screenArg(in, 1, "yes_action"),
                   no = screenArg(in, 2, "no_action");
+      const char *yesLbl = isPtBr() ? "Sim" : "Yes";
+      const char *noLbl = isPtBr() ? "N\xC3\xA3o" : "No";
       drawConfirm(r, in.message,
-                  {{"Yes", [this, yes] { screenAction(yes); }},
-                   {"No", [this, no] { screenAction(no); }}},
+                  {{yesLbl, [this, yes] { screenAction(yes); }},
+                   {noLbl, [this, no] { screenAction(no); }}},
                   nullptr);
     } else {
       const Value ok = screenArg(in, 1, "ok_action");
@@ -1715,10 +1815,23 @@ struct Game {
   }
 
   void drawBase(SDL_Renderer *r, const Scene &sc, double t) {
-    drawRender(r, vm->renderLayer(sc.master, t));
+    if (!sc.hasScreen("poem")) {
+      drawRender(r, vm->renderLayer(sc.master, t));
+      return;
+    }
+    std::vector<Shown> below, above;
+    for (const auto &it : sc.master) {
+      if (it.tag == "poem_dismiss")
+        above.push_back(it);
+      else
+        below.push_back(it);
+    }
+    drawRender(r, vm->renderLayer(below, t));
     for (auto &s : sc.screens)
       if (s.name == "poem")
         drawPoem(r, s, t);
+    if (!above.empty())
+      drawRender(r, vm->renderLayer(above, t));
   }
 
   void drawScene(SDL_Renderer *r, const Scene &sc, double t, bool live) {
@@ -2062,11 +2175,22 @@ struct Game {
     reportErrors();
   }
 
+  void checkSplashTransition() {
+    if (phase != Phase::Splash || !vm || vm->finished())
+      return;
+    const Node *n = vm->currentNode();
+    if ((n && n->file != "splash.rpyc") ||
+        vm->py.lookup("s_kill_early").truthy()) {
+      phase = Phase::Play;
+    }
+  }
+
   void startSplash() {
     phase = Phase::Splash;
     newVm();
     replay.label = "splashscreen";
     vm->start("splashscreen");
+    checkSplashTransition();
     reportErrors();
   }
 
@@ -2350,12 +2474,13 @@ struct Game {
     if (!fake && !skipping())
       return;
     const TextStyle st = uiStyle(kAller, 16, 0xffffffff);
-    const SDL_FPoint size = textSize("Skipping", st);
+    const char *skipLbl = isPtBr() ? "Pulando Di\xC3\xA1logo" : "Skipping";
+    const SDL_FPoint size = textSize(skipLbl, st);
     const float tri = 10, gap = 6;
     const float width = 16 + size.x + 3 * (gap + tri) + 50,
                 height = 5 + size.y + 5;
     drawFrame(r, "gui/skip.png", {0, 10, width, height}, 16, 5, 50, 5);
-    drawText(r, "Skipping", st, 16, 15);
+    drawText(r, skipLbl, st, 16, 15);
     // delayed_blink(delay, 1.0): alpha .5, then .2s up to 1, hold .2s, .2s
     // down, rest.
     const double t = realNow();
@@ -2378,7 +2503,11 @@ struct Game {
   // screen history: the dialogue the script recorded in _history_list.
   void drawHistory(SDL_Renderer *r) {
     drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
-    drawText(r, "History", navStyle(false, false), 80, 30);
+    const char *histTitle = isPtBr() ? "Hist\xC3\xB3rico" : "History";
+    const char *emptyMsg = isPtBr() ? "O hist\xC3\xB3rico est\xC3\xA1 vazio."
+                                    : "The dialogue history is empty.";
+    const char *retLbl = isPtBr() ? "Voltar" : "Return";
+    drawText(r, histTitle, navStyle(false, false), 80, 30);
     struct Entry {
       std::string who, what;
     };
@@ -2430,11 +2559,51 @@ struct Game {
     }
     SDL_SetRenderClipRect(r, nullptr);
     if (entries.empty())
-      drawText(r, "The dialogue history is empty.", whatStyle, 360, top);
-    navButton(r, "Return", 80, kH - 60,
-              textSize("Return", navStyle(false, false)).x + 8, [this] {
+      drawText(r, emptyMsg, whatStyle, 360, top);
+    navButton(r, retLbl, 80, kH - 60,
+              textSize(retLbl, navStyle(false, false)).x + 8, [this] {
                 subMenu = SubMenu::None;
                 openPause(false);
+              });
+  }
+
+  void drawCreditsMenu(SDL_Renderer *r) {
+    drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    drawText(r,
+             "Cr\xC3\xA9"
+             "ditos",
+             navStyle(false, false), 80, 30);
+    TextStyle header = uiStyle(kRiffic, 28, 0xffffffff);
+    header.outlines = {{3.f, 0xbb5599ff}};
+    TextStyle body = uiStyle(kAller, 22, 0x000000ff);
+    auto block = [&](float x, float y, const char *title,
+                     const std::vector<const char *> &names) {
+      drawText(r, title, header, x, y);
+      y += 40;
+      for (const char *n : names) {
+        drawText(r, n, body, x + 10, y);
+        y += 30;
+      }
+    };
+    block(360, 120, "Administra\xC3\xA7\xC3\xA3o:", {"Zetsubou", "Lewdnatic"});
+    block(360, 260, "Tradu\xC3\xA7\xC3\xA3o:",
+          {"Zetsubou", "Sora", "Ewerton1334", "Zero-senpai"});
+    block(360, 460, "Revis\xC3\xA3o:", {"Zetsubou", "Sora"});
+    block(740, 120, "Agradecimentos:", {"ColdAsSans", "Gledson999"});
+    block(740, 260,
+          "Design Gr\xC3\xA1"
+          "fico:",
+          {"Kin testando", "Sora", "Zetsubou"});
+    block(740, 430, "Hacking:", {"Solid One", "Zetsubou"});
+    TextStyle vnx = uiStyle(kRiffic, 60, 0xffffffff);
+    vnx.outlines = {{4.f, 0xbb5599ff}};
+    drawText(r, "VNX+", vnx, 560, 560);
+    const char *retLbl = isPtBr() ? "Voltar" : "Return";
+    navButton(r, retLbl, 80, kH - 60,
+              textSize(retLbl, navStyle(false, false)).x + 8, [this] {
+                subMenu = SubMenu::None;
+                if (phase == Phase::Play)
+                  openPause(false);
               });
   }
 
@@ -2469,6 +2638,7 @@ struct Game {
         replayError = error.what();
       }
     vm->resume(std::move(v));
+    checkSplashTransition();
     // The script stops skipping by clearing config.skipping (Act 3).
     if (skip && vm->running() && !vm->finished() &&
         !vm->py.getAttr(vm->config, "skipping").truthy())
@@ -2507,6 +2677,7 @@ struct Game {
       return;
     if (phase == Phase::Menu)
       return vm->collectHidden();
+    checkSplashTransition();
     if (vm->finished() || !vm->running())
       return onFinished();
     if (pauseMenu)
@@ -2570,6 +2741,13 @@ struct Game {
       if (in.dismiss)
         resume();
       break;
+    case Interaction::K::Menu:
+      if (phase == Phase::Splash && in.items.size() == 1 &&
+          in.items[0].enabled) {
+        sfx("gui/sfx/select.ogg");
+        resume(in.items[0].value);
+      }
+      break;
     default:
       break;
     }
@@ -2582,32 +2760,73 @@ struct Game {
     startGame();
   }
 
+  void dismissNotice() {
+    notice.clear();
+    if (corruptLoadPending) {
+      corruptLoadPending = false;
+      corruptLoadStart = true;
+      notice = isPtBr() ? "Voc\xC3\xAA est\xC3\xA1 tentando trapacear?"
+                        : "Are you trying to cheat?";
+    } else if (corruptLoadStart) {
+      corruptLoadStart = false;
+      openPause(false);
+      startGame();
+    }
+  }
+
   void drawSaveLoadMenu(SDL_Renderer *r) {
     drawn.clear();
     drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    const bool ptBr = isPtBr();
     std::vector<std::pair<std::string, std::function<void()>>> slotButtons;
     for (int i = 1; i <= 6; ++i) {
       std::string label = "Slot " + std::to_string(i);
       slotButtons.push_back(
-          {label, [this, i] {
+          {label, [this, i, ptBr] {
+             const int pt =
+                 vm ? int(vm->py.getAttr(vm->persistent, "playthrough")
+                              .integer())
+                    : 0;
+             if (subMenu == SubMenu::Save && pt == 3) {
+               notice = ptBr ? "N\xC3\xA3o h\xC3\xA1 sentido em salvar agora.\n"
+                               "N\xC3\xA3o se preocupe, eu n\xC3\xA3o vou a "
+                               "lugar algum."
+                             : "There's no point in saving anymore.\n"
+                               "Don't worry, I'm not going anywhere.";
+               subMenu = SubMenu::None;
+               return;
+             }
+             if (subMenu == SubMenu::Load && pt == 2 &&
+                 !std::filesystem::is_regular_file(
+                     charactersDirectory(host.directory()) / "sayori.chr")) {
+               corruptLoadPending = true;
+               notice = ptBr ? "O arquivo n\xC3\xA3o p\xC3\xB4"
+                               "de ser carregado."
+                             : "File could not be loaded.";
+               subMenu = SubMenu::None;
+               return;
+             }
              std::filesystem::path path =
                  Kotonoha::saveDirectory() /
                  ("ddlc_slot" + std::to_string(i) + ".vn");
              if (subMenu == SubMenu::Save) {
                saveGame(path.string());
-               notice = "Game saved to Slot " + std::to_string(i);
+               notice = (ptBr ? "Jogo salvo no Slot " : "Game saved to Slot ") +
+                        std::to_string(i);
                subMenu = SubMenu::None;
              } else if (subMenu == SubMenu::Load) {
                if (std::filesystem::exists(path)) {
                  loadGame(path.string());
                  openPause(false);
                } else {
-                 notice = "Slot " + std::to_string(i) + " is empty";
+                 notice = "Slot " + std::to_string(i) +
+                          (ptBr ? " est\xC3\xA1 vazio" : " is empty");
                }
              }
            }});
     }
-    slotButtons.push_back({"Back", [this] { subMenu = SubMenu::None; }});
+    slotButtons.push_back(
+        {ptBr ? "Voltar" : "Back", [this] { subMenu = SubMenu::None; }});
     navigation(r, slotButtons);
   }
 
@@ -2619,43 +2838,60 @@ struct Game {
                vm->renderLayer(
                    std::vector<Shown>(m.begin(), m.begin() + long(below)), t));
     const double pt = vm->py.getAttr(vm->persistent, "playthrough").num();
+    const bool ptBr = isPtBr();
     const std::string newGame =
         pt == 1 ? "\xC5\x94\xC5\x97\xC3\xB1\xC4\xAE\xC2\xBC\xC2\xBB\xC5\xA7\xC3"
                   "\xBE\xC5\x80\xC3"
                   "\x82\xC5\xBB\xC5\x95\xC4\x9B\xC5\x8D\xC3\xAC\xC2\xAB"
-                : "New Game";
+                : (ptBr ? "Novo Jogo" : "New Game");
     if (subMenu == SubMenu::Load) {
       drawSaveLoadMenu(r);
+    } else if (subMenu == SubMenu::Credits) {
+      drawn.clear();
+      drawCreditsMenu(r);
     } else if (!nameInput && notice.empty()) {
-      navigation(
-          r,
-          {{newGame,
-            [this] {
-              if (vm->py.getAttr(vm->persistent, "playername").truthy())
-                return startGame();
-              nameInput = true;
-              nameText.clear();
-              if (!SDL_StartTextInput(&engine.GetWindow()))
-                throw std::runtime_error(SDL_GetError());
-            }},
-           {"Load Game", [this] { subMenu = SubMenu::Load; }},
-           {"Settings", [this] { engine.openSettings(); }},
-           {"Help",
-            [this] {
-              notice =
-                  "Doki Doki Literature Club! is a free game by Team Salvato.";
-            }},
-           {"Quit", [this] { quit = true; }}});
+      std::vector<std::pair<std::string, std::function<void()>>> items = {
+          {newGame,
+           [this] {
+             if (vm->py.getAttr(vm->persistent, "playername").truthy())
+               return startGame();
+             nameInput = true;
+             nameText.clear();
+             if (!SDL_StartTextInput(&engine.GetWindow()))
+               throw std::runtime_error(SDL_GetError());
+           }},
+          {ptBr ? "Carregar Jogo" : "Load Game",
+           [this] { subMenu = SubMenu::Load; }},
+          {ptBr ? "Op\xC3\xA7\xC3\xB5"
+                  "es"
+                : "Settings",
+           [this] { engine.openSettings(); }}};
+      if (ptBr)
+        items.push_back({"Cr\xC3\xA9"
+                         "ditos",
+                         [this] { subMenu = SubMenu::Credits; }});
+      items.push_back(
+          {ptBr ? "Ajuda" : "Help", [this, ptBr] {
+             notice = ptBr ? "Doki Doki Literature Club! \xC3\xA9 um jogo "
+                             "gratuito da Team Salvato."
+                           : "Doki Doki Literature Club! is a free game by "
+                             "Team Salvato.";
+           }});
+      items.push_back({ptBr ? "Sair" : "Quit", [this] { quit = true; }});
+      navigation(r, items);
     }
-    drawRender(r, vm->renderLayer(
-                      std::vector<Shown>(m.begin() + long(below), m.end()), t));
+    if (subMenu != SubMenu::Credits)
+      drawRender(r,
+                 vm->renderLayer(
+                     std::vector<Shown>(m.begin() + long(below), m.end()), t));
     if (nameInput) {
       drawn.clear();
-      drawConfirm(r, "Please enter your name",
-                  {{"OK", [this] { submitName(); }}}, &nameText);
+      drawConfirm(
+          r, ptBr ? "Por favor, digite seu nome" : "Please enter your name",
+          {{"OK", [this] { submitName(); }}}, &nameText);
     } else if (!notice.empty()) {
       drawn.clear();
-      drawConfirm(r, notice, {{"OK", [this] { notice.clear(); }}}, nullptr);
+      drawConfirm(r, notice, {{"OK", [this] { dismissNotice(); }}}, nullptr);
     }
   }
 
@@ -2665,6 +2901,11 @@ struct Game {
       drawHistory(r);
       return;
     }
+    if (subMenu == SubMenu::Credits) {
+      drawn.clear();
+      drawCreditsMenu(r);
+      return;
+    }
     if (subMenu != SubMenu::None) {
       drawSaveLoadMenu(r);
       return;
@@ -2672,15 +2913,33 @@ struct Game {
     drawn.clear();
     drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
     if (!notice.empty()) {
-      drawConfirm(r, notice, {{"OK", [this] { notice.clear(); }}}, nullptr);
+      drawConfirm(r, notice, {{"OK", [this] { dismissNotice(); }}}, nullptr);
       return;
     }
 
-    navigation(r, {{"Return", [this] { openPause(false); }},
-                   {"Save Game", [this] { subMenu = SubMenu::Save; }},
-                   {"Load Game", [this] { subMenu = SubMenu::Load; }},
-                   {"Main Menu", [this] { returnToMenu(); }},
-                   {"Quit", [this] { quit = true; }}});
+    const bool ptBr = isPtBr();
+    std::vector<std::pair<std::string, std::function<void()>>> items = {
+        {ptBr ? "Hist\xC3\xB3rico" : "History",
+         [this] {
+           subMenu = SubMenu::History;
+           historyScroll = 0;
+         }},
+        {ptBr ? "Salvar Jogo" : "Save Game",
+         [this] { subMenu = SubMenu::Save; }},
+        {ptBr ? "Carregar Jogo" : "Load Game",
+         [this] { subMenu = SubMenu::Load; }},
+        {ptBr ? "Menu Principal" : "Main Menu", [this] { returnToMenu(); }},
+        {ptBr ? "Op\xC3\xA7\xC3\xB5"
+                "es"
+              : "Settings",
+         [this] { engine.openSettings(); }}};
+    if (ptBr)
+      items.push_back({"Cr\xC3\xA9"
+                       "ditos",
+                       [this] { subMenu = SubMenu::Credits; }});
+    items.push_back({ptBr ? "Voltar" : "Return", [this] { openPause(false); }});
+    items.push_back({ptBr ? "Sair" : "Quit", [this] { quit = true; }});
+    navigation(r, items);
   }
 
   void beginFrame(SDL_Renderer *r, float pixelScale) {
@@ -2858,18 +3117,22 @@ struct Game {
         }
         break;
       }
-      if (phase == Phase::Splash)
+      if (phase == Phase::Splash) {
+        if ((k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_SPACE) &&
+            !e->key.repeat)
+          advance();
         break;
+      }
       if (k == SDLK_ESCAPE) {
         if (!notice.empty())
-          notice.clear();
+          dismissNotice();
         else if (phase == Phase::Menu)
           quit = true;
         else
           openPause(!pauseMenu);
       } else if (k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_SPACE) {
         if (!notice.empty())
-          notice.clear();
+          dismissNotice();
         else if (!e->key.repeat)
           advance();
       } else if (k == SDLK_TAB && phase == Phase::Play) {

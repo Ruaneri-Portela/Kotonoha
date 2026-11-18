@@ -5,8 +5,9 @@
 #include <string>
 #include <vector>
 
-// Game-specific atomic GlobalFlag storage, with no engine or SDL dependency.
-// Kept standalone so this exact implementation can be compiled on POSIX CI.
+// School Days-specific FlgH size and fault policy; the shared Filesystem
+// atomic helper owns Unicode paths, exclusive temporaries, native sync/rename
+// and old orphan cleanup. No platform-specific I/O belongs in this port.
 namespace Kotonoha::SchoolDaysAtomicFile {
 
 enum class Fault {

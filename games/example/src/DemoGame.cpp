@@ -1,6 +1,7 @@
 #include "DemoGame.hpp"
 #include "DemoStage.hpp"
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/GameMenu.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
@@ -10,7 +11,6 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
@@ -21,7 +21,7 @@
 
 namespace KotonohaExample {
 
-DemoGame::DemoGame() : Runtime("Kotonoha", "0.1.0", "me.hirameki.kotonoha") {}
+DemoGame::DemoGame() : Runtime("Kotonoha", "0.1.0", "org.kotonoha.example") {}
 DemoGame::~DemoGame() = default;
 
 void DemoGame::init(Kotonoha::Engine &engineRef) {

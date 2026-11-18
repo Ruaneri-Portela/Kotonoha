@@ -1,10 +1,10 @@
 #include <Amagami/Session.hpp>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <set>
 #include <sstream>
@@ -397,6 +397,14 @@ void Session::setSkipMode(bool enabled) {
 void Session::setMessageSpeed(int speed) {
   vm_.classField("GameParam", 4) = VmValue::num(std::clamp(speed, 0, 3));
 }
+bool Session::classicMusic() const {
+  return vm_.classFieldValue("Music", 5).truth();
+}
+void Session::setClassicMusic(bool classic) {
+  auto value = VmValue::num(classic);
+  value.kind = VmValue::Boolean;
+  vm_.classField("Music", 5) = value;
+}
 void Session::startCampaign() {
   campaignActive_ = true;
   campaign_ = std::make_unique<Campaign>(source_);
@@ -443,8 +451,8 @@ void Session::nextCampaignPeriod() {
 }
 void Session::completeCampaignEvent() {
   campaign_->queueCompletion(vm_, scenario_);
-  campaign_->finishPeriod(vm_);
   campaign_->applyRequests(vm_);
+  campaign_->finishPeriod(vm_);
   if (scenario_ == "n0dea_ev01A")
     campaign_->completePrologue(vm_);
   campaign_->capture(vm_);
@@ -915,7 +923,12 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     return r;
   }
   if (t == "Sound" && (s == "play" || s == "playPrim")) {
-    const int index = int(number(a, 0));
+    const int rawIndex = int(number(a, 0));
+    const int index =
+        (rawIndex == 7 &&
+         size_t(rawIndex) == source_->archive("SOUND/SOUND.AFS").entries.size())
+            ? source_->ambienceIndex(unsigned(rawIndex))
+            : rawIndex;
     if (index < 0 ||
         size_t(index) >= source_->archive("SOUND/SOUND.AFS").entries.size())
       return r; // índice fora do range: ignora, sem tocar som
@@ -934,8 +947,9 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
   // directly. Guarded so headless/audit runs without an audio device.
   if (t == "Sound" && s == "playSEPrim") {
     const int note = int(number(a, 0));
-    if (sound && !replaying_)
-      sound("se", note);
+    const int wave = (note >= 12 && note <= 60) ? (note - 12) : note;
+    if (sound && !replaying_ && wave >= 0 && wave < 49)
+      sound("se", wave);
     return r;
   }
   if (t == "Sound" && (s == "stop" || s == "stopPrim")) {
@@ -1489,6 +1503,77 @@ std::optional<VmValue> Session::primitive(const std::string &owner,
   }
   if (owner == "ControlPad" && n == 5)
     return VmValue::num(0);
+  if (owner == "ControlPad" && realtime_) {
+    if (n == 0)
+      return VmValue::num(padHeld_);
+    if (n == 1)
+      return VmValue::num(padTrig_);
+    if (n == 2 || n == 3)
+      return VmValue::num(0);
+    if (n == 4 || n == 6)
+      return r;
+  }
+  if (owner == "Interface" && n == 0)
+    return r;
+  if (owner == "Sprite" && r.object) {
+    auto &sp = sceneSprites_[r.object.get()];
+    if (n == 1) {
+      const unsigned texId =
+          a.empty() ? 0 : unsigned(std::max(0, int(a[0].number)));
+      const unsigned variant =
+          a.size() >= 2 ? unsigned(std::max(0, int(a[1].number))) : 0;
+      sp.texId = texId;
+      sp.variant = variant;
+      sp.visible = true;
+      if (auto desc = source_->spriteDescriptor(texId, variant)) {
+        sp.asset = desc->asset;
+        sp.src = desc->rect;
+      }
+      return r;
+    }
+    if (n == 4 && a.size() >= 5) {
+      const unsigned texId = unsigned(std::max(0, int(a[0].number)));
+      const unsigned variant =
+          a.size() >= 6 ? unsigned(std::max(0, int(a[5].number))) : 0;
+      sp.texId = texId;
+      sp.variant = variant;
+      sp.visible = true;
+      if (auto desc = source_->spriteDescriptor(texId, variant))
+        sp.asset = desc->asset;
+      sp.src = {float(a[1].number), float(a[2].number), float(a[3].number),
+                float(a[4].number)};
+      return r;
+    }
+    if (n == 5 && a.size() >= 5) {
+      if (a[0].object) {
+        auto it = sceneSprites_.find(a[0].object.get());
+        if (it != sceneSprites_.end())
+          sp = it->second;
+      }
+      sp.visible = true;
+      sp.src = {float(a[1].number), float(a[2].number), float(a[3].number),
+                float(a[4].number)};
+      return r;
+    }
+    if (n == 2) {
+      sceneSprites_.erase(r.object.get());
+      return r;
+    }
+  }
+  if (owner == "NodeMapIcon") {
+    if (classMethod && (n == 0 || n == 1)) {
+      auto value = VmValue::num(1);
+      value.kind = VmValue::Boolean;
+      return value;
+    }
+    if (!classMethod && n == 7) {
+      auto value = VmValue::num(0);
+      value.kind = VmValue::Boolean;
+      return value;
+    }
+    if (!classMethod && n <= 6)
+      return r;
+  }
   // setLayer only records draw order on the PS2. The port orders pictures by
   // category, so returning self keeps the original wrappers chaining.
   if ((owner == "BG_Picture" && n == 6) || (owner == "Sprite" && n == 6) ||
@@ -1530,6 +1615,8 @@ std::optional<VmValue> Session::primitive(const std::string &owner,
     return r;
   // FontChar2 primitives restantes: diversos -- todos retornam self.
   if (owner == "FontChar2" && n >= 2 && n <= 19)
+    return r;
+  if (owner == "FontCharEx" && !classMethod && n == 0)
     return r;
   if (owner == "System" && n == 3)
     return r; // System.gc: sem coletor de lixo no port, retorna self.
@@ -1700,8 +1787,9 @@ void Session::load(const std::string &path) {
   unsigned version = 0;
   size_t count = 0;
   if (!(in >> magic >> version >> std::quoted(name) >> count) ||
-      (magic != "AMAGAMI_REPLAY" && magic != "AMAGAMI_CAMPAIGN_REPLAY") ||
-      count > 1000000)
+      !((magic == "AMAGAMI_REPLAY" && version == 2) ||
+        (magic == "AMAGAMI_CAMPAIGN_REPLAY" && version == 1)) ||
+      name.empty() || name.size() > 256 || count > 1000000)
     throw std::runtime_error("Invalid Amagami save");
   std::vector<int> inputs(count);
   for (auto &i : inputs)
@@ -1718,7 +1806,48 @@ void Session::load(const std::string &path) {
     for (auto &action : actions) {
       if (!(in >> std::quoted(action.kind) >> std::quoted(action.value)))
         throw std::runtime_error("Invalid Amagami campaign save action entry");
+      if (action.kind.size() > 16 || action.value.size() > 256)
+        throw std::runtime_error("Oversized Amagami campaign replay action");
     }
+
+    // All historic events are validated for shape. Only the *last*
+    // scenario's actions are compared with inputs_: Session::start() resets
+    // inputs_ whenever a new event starts, while campaignActions_ remains a
+    // journal of the entire campaign. Comparing earlier event actions to the
+    // current event's inputs would reject legitimate mid-campaign saves.
+    size_t currentScenarioStart = 0;
+    for (size_t i = 0; i < actions.size(); ++i) {
+      const auto &action = actions[i];
+      if (action.kind == "event") {
+        if (action.value.empty())
+          throw std::runtime_error("Empty campaign event action");
+        currentScenarioStart = i + 1;
+      } else if (action.kind == "period" || action.kind == "advance") {
+        if (!action.value.empty())
+          throw std::runtime_error("Invalid campaign period/advance action");
+      } else if (action.kind == "choose") {
+        if (action.value.empty() || action.value.size() > 2 ||
+            !std::all_of(
+                action.value.begin(), action.value.end(),
+                [](unsigned char c) { return c >= '0' && c <= '9'; }) ||
+            action.value[0] == '0' && action.value.size() > 1)
+          throw std::runtime_error("Invalid campaign choice selector");
+      } else {
+        throw std::runtime_error("Unknown Amagami campaign save action");
+      }
+    }
+    size_t inputCursor = 0;
+    for (size_t i = currentScenarioStart; i < actions.size(); ++i) {
+      const auto &action = actions[i];
+      if (action.kind == "advance" || action.kind == "choose") {
+        const int expected =
+            action.kind == "advance" ? -1 : std::stoi(action.value);
+        if (inputCursor >= inputs.size() || inputs[inputCursor++] != expected)
+          throw std::runtime_error("Campaign action/input journal mismatch");
+      }
+    }
+    if (inputCursor != inputs.size())
+      throw std::runtime_error("Incomplete campaign input journal");
   }
 
   int speed = 0, automatic = 0, skip = 0;
@@ -1743,35 +1872,64 @@ void Session::load(const std::string &path) {
   candidate.replaying_ = true;
   candidate.seenLines_ = std::move(seen);
   if (isCampaign) {
+    // The campaign action journal is an ordered input stream, *not* a list
+    // of completed events. Replaying every event with choice 0 discards the
+    // player's decisions and cannot reconstruct a mid-event quick-save.
     candidate.startCampaign();
     for (const auto &action : actions) {
-      if (action.kind == "event") {
-        candidate.selectCampaignEvent(action.value);
-        while (!candidate.ended_) {
-          if (!candidate.choices_.empty())
-            candidate.choose(0);
-          else if (candidate.waiting())
-            candidate.tick(1);
-          else
-            candidate.advance();
+      // In headless replay, original SCF sleep/wait commands can still
+      // suspend the VM. Advance its logical 60 Hz clock before an input.
+      if (action.kind == "advance" || action.kind == "choose") {
+        for (unsigned ticks = 0; candidate.waiting() && ticks < 60; ++ticks)
+          candidate.tick(1.0); // 60 script frames per tick
+        if (candidate.waiting() || candidate.ended_)
+          throw std::runtime_error(
+              "Campaign save replay diverged before input");
+        if (action.kind == "advance") {
+          if (!action.value.empty() || !candidate.choices_.empty())
+            throw std::runtime_error("Invalid campaign advance action");
+          candidate.advance();
+        } else {
+          if (action.value.empty() || action.value.size() > 4 ||
+              !std::all_of(
+                  action.value.begin(), action.value.end(),
+                  [](unsigned char c) { return c >= '0' && c <= '9'; }))
+            throw std::runtime_error("Invalid campaign choice action");
+          const unsigned choice = unsigned(std::stoul(action.value));
+          if (choice >= candidate.choices_.size())
+            throw std::runtime_error("Campaign save choice diverged");
+          candidate.choose(choice);
         }
-        candidate.completeCampaignEvent();
+      } else if (action.kind == "event") {
+        if (!candidate.ended_ || action.value.empty() ||
+            action.value.size() > 256)
+          throw std::runtime_error("Campaign save event diverged");
+        candidate.selectCampaignEvent(action.value);
       } else if (action.kind == "period") {
+        if (!action.value.empty() || !candidate.ended_)
+          throw std::runtime_error("Campaign save period diverged");
         candidate.nextCampaignPeriod();
       } else {
         throw std::runtime_error("Unknown campaign replay action");
       }
     }
-  }
-  candidate.start(name);
-  for (int i : inputs) {
-    if (candidate.ended_ || (i == -1 && !candidate.choices_.empty()) ||
-        (i >= 0 && size_t(i) >= candidate.choices_.size()))
-      throw std::runtime_error("Save replay diverged");
-    if (i < 0)
-      candidate.advance();
-    else
-      candidate.choose(size_t(i));
+    // A trailing event action may save during dialogue rather than after
+    // completion. Never re-start the last script; it resets the preserved
+    // campaign VM, character flags, and action-specific branch state.
+    if (candidate.scenario_ != name || candidate.inputs_ != inputs)
+      throw std::runtime_error("Campaign save replay diverged from last event");
+    candidate.campaignActions_ = std::move(actions);
+  } else {
+    candidate.start(name);
+    for (int i : inputs) {
+      if (candidate.ended_ || (i == -1 && !candidate.choices_.empty()) ||
+          (i >= 0 && size_t(i) >= candidate.choices_.size()))
+        throw std::runtime_error("Save replay diverged");
+      if (i < 0)
+        candidate.advance();
+      else
+        candidate.choose(size_t(i));
+    }
   }
   candidate.setMessageSpeed(speed);
   candidate.setAutoMode(automatic != 0);
@@ -1789,12 +1947,29 @@ void Session::load(const std::string &path) {
                                const auto &r, unsigned n, const auto &a) {
     return primitive(owner, method, classMethod, r, n, a);
   };
+  // Vm::shouldYield closes over Session (and calls tick()). Rebind after
+  // moving candidate.vm_: the copied lambda otherwise retains &candidate,
+  // a destroyed stack object once load() returns. Do not copy callbacks
+  // carrying the temporary Session's lifetime into the restored VM.
+  vm_.shouldYield = [this]() {
+    if (!realtime_)
+      tick(1.0 / 60.0);
+    return false;
+  };
   placeholderTags_ = std::move(candidate.placeholderTags_);
   self_ = std::move(candidate.self_);
   campaignActive_ = candidate.campaignActive_;
   campaign_ = std::move(candidate.campaign_);
   campaignActions_ = std::move(candidate.campaignActions_);
   block_ = candidate.block_;
+  // These replay-derived clocks control synthetic ControlPad triggers,
+  // sleep-loop detection and visual frame timing. Reusing the previous
+  // session's counters after loading a different save changes subsequent
+  // native results, even if the VM bytecode and event history match.
+  syntheticInputTick_ = candidate.syntheticInputTick_;
+  sleepLoopCount_ = candidate.sleepLoopCount_;
+  sleepLoopBlock_ = candidate.sleepLoopBlock_;
+  presentationFrames_ = candidate.presentationFrames_;
   musicTrack_ = candidate.musicTrack_;
   musicGain_ = candidate.musicGain_;
   ambienceTrack_ = candidate.ambienceTrack_;

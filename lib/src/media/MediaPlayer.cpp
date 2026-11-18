@@ -1,8 +1,8 @@
-#include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
-#include <Kotonoha/Filesystem/Adapters/BrowserBlobAdapter.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/media/FFmpegSupport.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
@@ -127,8 +127,7 @@ struct MediaPlayer::State {
   std::string webVideoId, webVideoMime, webVideoUrl;
   std::string webFallbackPath, webFallbackId;
 
-  static std::string mimeForMediaPath(const std::string &path,
-                                      bool audioOnly) {
+  static std::string mimeForMediaPath(const std::string &path, bool audioOnly) {
     std::string ext = std::filesystem::path(path).extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) {
       return static_cast<char>(std::tolower(c));
@@ -221,34 +220,36 @@ struct MediaPlayer::State {
                                : 0;
                   },
                   webVideoUrl.c_str(), webAudioOnly ? 1 : 0)
-            : webVideoBlobMode
-                ? EM_ASM_INT(
-                      {
-                        return typeof KotonohaMediaBeginBlob == "function"
-                                   ? KotonohaMediaBeginBlob(HEAPU8.subarray($0, $0 + $1),
-                                                            UTF8ToString($2), $3)
-                                   : 0;
-                      },
-                      bytes.data(), static_cast<int>(bytes.size()),
-                      webVideoMime.c_str(), webAudioOnly ? 1 : 0)
-                : EM_ASM_INT(
-                      {
-                        return typeof KotonohaMediaBegin == "function"
-                                   ? KotonohaMediaBegin(UTF8ToString($0),
-                                                        UTF8ToString($1), $2, $3)
-                                   : 0;
-                      },
-                      webVideoId.c_str(), webVideoMime.c_str(),
-                      static_cast<int>(
-                          std::min<std::uint64_t>(webVideoSize, INT_MAX)),
-                      webAudioOnly ? 1 : 0);
+        : webVideoBlobMode
+            ? EM_ASM_INT(
+                  {
+                    return typeof KotonohaMediaBeginBlob == "function"
+                               ? KotonohaMediaBeginBlob(
+                                     HEAPU8.subarray($0, $0 + $1),
+                                     UTF8ToString($2), $3)
+                               : 0;
+                  },
+                  bytes.data(), static_cast<int>(bytes.size()),
+                  webVideoMime.c_str(), webAudioOnly ? 1 : 0)
+            : EM_ASM_INT(
+                  {
+                    return typeof KotonohaMediaBegin == "function"
+                               ? KotonohaMediaBegin(UTF8ToString($0),
+                                                    UTF8ToString($1), $2, $3)
+                               : 0;
+                  },
+                  webVideoId.c_str(), webVideoMime.c_str(),
+                  static_cast<int>(
+                      std::min<std::uint64_t>(webVideoSize, INT_MAX)),
+                  webAudioOnly ? 1 : 0);
     if (session <= 0) {
       webVideoFailed = true;
       return false;
     }
     webVideoSession = session;
     webVideoStarted = true;
-    webVideoReady = webVideoUrlMode; // Blob mode will be set later in serviceWebVideo
+    webVideoReady =
+        webVideoUrlMode; // Blob mode will be set later in serviceWebVideo
     return true;
   }
 
@@ -269,10 +270,14 @@ struct MediaPlayer::State {
     if (!beginWebVideo())
       return;
     if (webVideoBlobMode) {
-      if (EM_ASM_INT({
-            return typeof KotonohaMediaReady == "function" &&
-                   KotonohaMediaReady($0) ? 1 : 0;
-          }, webVideoSession)) {
+      if (EM_ASM_INT(
+              {
+                return typeof KotonohaMediaReady == "function" &&
+                               KotonohaMediaReady($0)
+                           ? 1
+                           : 0;
+              },
+              webVideoSession)) {
         webVideoReady = true;
       }
       return;
@@ -816,19 +821,18 @@ struct MediaPlayer::State {
     // GLES2 can sample planar 4:2:0 directly. Keep DVD MPEG frames in their
     // decoder format so the GPU performs YUV conversion during rendering.
     // Other matrices/ranges retain the established swscale path.
-    const bool directYuv =
-        image->format == AV_PIX_FMT_YUV420P && !(image->width & 1) &&
-        !(image->height & 1) &&
-        (image->color_range == AVCOL_RANGE_UNSPECIFIED ||
-         image->color_range == AVCOL_RANGE_MPEG) &&
-        (image->colorspace == AVCOL_SPC_UNSPECIFIED ||
-         image->colorspace == AVCOL_SPC_BT470BG ||
-         image->colorspace == AVCOL_SPC_SMPTE170M) &&
-        image->linesize[0] > 0 && image->linesize[1] > 0 &&
-        image->linesize[2] > 0;
-    const SDL_PixelFormat wanted =
-        directYuv && !yuvTextureUnavailable ? SDL_PIXELFORMAT_IYUV
-                                            : SDL_PIXELFORMAT_RGBA32;
+    const bool directYuv = image->format == AV_PIX_FMT_YUV420P &&
+                           !(image->width & 1) && !(image->height & 1) &&
+                           (image->color_range == AVCOL_RANGE_UNSPECIFIED ||
+                            image->color_range == AVCOL_RANGE_MPEG) &&
+                           (image->colorspace == AVCOL_SPC_UNSPECIFIED ||
+                            image->colorspace == AVCOL_SPC_BT470BG ||
+                            image->colorspace == AVCOL_SPC_SMPTE170M) &&
+                           image->linesize[0] > 0 && image->linesize[1] > 0 &&
+                           image->linesize[2] > 0;
+    const SDL_PixelFormat wanted = directYuv && !yuvTextureUnavailable
+                                       ? SDL_PIXELFORMAT_IYUV
+                                       : SDL_PIXELFORMAT_RGBA32;
     if (!texture || width != image->width || height != image->height ||
         textureFormat != wanted) {
       width = image->width;
@@ -838,8 +842,8 @@ struct MediaPlayer::State {
                              ? av_q2d(image->sample_aspect_ratio)
                              : 1.0;
       aspect = width * sar / height;
-      texture.reset(SDL_CreateTexture(&renderer, wanted,
-                                      SDL_TEXTUREACCESS_STREAMING, width, height));
+      texture.reset(SDL_CreateTexture(
+          &renderer, wanted, SDL_TEXTUREACCESS_STREAMING, width, height));
       textureFormat = wanted;
       if (!texture && directYuv) {
         yuvTextureUnavailable = true;
@@ -895,32 +899,32 @@ void MediaPlayer::open(std::unique_ptr<Filesystem::FileHandle> source,
   if (!source)
     throw std::invalid_argument("Media input FileHandle is null");
   try {
-  auto next = std::make_unique<State>();
-  next->channel = mixer.channel(
-      channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
+    auto next = std::make_unique<State>();
+    next->channel = mixer.channel(
+        channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
 #ifdef __EMSCRIPTEN__
-  const auto mime = State::mimeForMediaPath(logicalName, audioOnly);
-  const auto length = source->size();
-  if (!logicalName.empty() && State::canPlayWebMedia(mime) &&
-      length >= 0 && length <= (64ll << 20)) {
-    next->webVirtualBlob = std::make_unique<Filesystem::BrowserBlobAdapter>(
-        std::move(source), mime);
-    next->webVideo = true;
-    next->webAudioOnly = mime.compare(0, 6, "audio/") == 0;
-    next->webVideoUrlMode = true;
-    next->webVideoId = logicalName;
-    next->webVideoMime = mime;
-    next->webVideoUrl = next->webVirtualBlob->url();
-    next->webVideoSize = static_cast<std::uint64_t>(length);
-    start(std::move(next), {}, audioOnly, false);
-    return;
-  }
+    const auto mime = State::mimeForMediaPath(logicalName, audioOnly);
+    const auto length = source->size();
+    if (!logicalName.empty() && State::canPlayWebMedia(mime) && length >= 0 &&
+        length <= (64ll << 20)) {
+      next->webVirtualBlob = std::make_unique<Filesystem::BrowserBlobAdapter>(
+          std::move(source), mime);
+      next->webVideo = true;
+      next->webAudioOnly = mime.compare(0, 6, "audio/") == 0;
+      next->webVideoUrlMode = true;
+      next->webVideoId = logicalName;
+      next->webVideoMime = mime;
+      next->webVideoUrl = next->webVirtualBlob->url();
+      next->webVideoSize = static_cast<std::uint64_t>(length);
+      start(std::move(next), {}, audioOnly, false);
+      return;
+    }
 #else
-  (void)logicalName;
+    (void)logicalName;
 #endif
-  next->attachAssetStream(
-      std::make_unique<HandleAssetStream>(std::move(source)));
-  start(std::move(next), {}, audioOnly, false);
+    next->attachAssetStream(
+        std::make_unique<HandleAssetStream>(std::move(source)));
+    start(std::move(next), {}, audioOnly, false);
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "[Kotonoha] Media source/decoder failed: %s", error.what());
@@ -951,8 +955,8 @@ void MediaPlayer::open(const std::string &path, bool audioOnly,
                 path, audioOnly, channelName);
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "[Kotonoha] Media file open failed (%s): %s",
-                path.c_str(), error.what());
+                "[Kotonoha] Media file open failed (%s): %s", path.c_str(),
+                error.what());
     stop();
   }
 }
@@ -960,30 +964,30 @@ void MediaPlayer::open(const std::string &path, bool audioOnly,
 void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
                        bool audioOnly, const std::string &channelName) {
   try {
-  auto next = std::make_unique<State>();
-  next->channel = mixer.channel(
-      channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
+    auto next = std::make_unique<State>();
+    next->channel = mixer.channel(
+        channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
 #ifdef __EMSCRIPTEN__
-  if (next->configureWebVideo(assets, id, audioOnly)) {
-    next->webFallbackPath = assets.localPath(id);
-    next->webFallbackId = id;
-    start(std::move(next), {}, audioOnly, false);
-    return;
-  }
+    if (next->configureWebVideo(assets, id, audioOnly)) {
+      next->webFallbackPath = assets.localPath(id);
+      next->webFallbackId = id;
+      start(std::move(next), {}, audioOnly, false);
+      return;
+    }
 #endif
-  const std::string path = assets.localPath(id);
-  if (!path.empty() && std::filesystem::is_regular_file(path)) {
-    next->attachAssetStream(std::make_unique<HandleAssetStream>(
-        std::make_unique<Filesystem::SDLFileSource>(
-            std::filesystem::path(path))));
+    const std::string path = assets.localPath(id);
+    if (!path.empty() && std::filesystem::is_regular_file(path)) {
+      next->attachAssetStream(std::make_unique<HandleAssetStream>(
+          std::make_unique<Filesystem::SDLFileSource>(
+              std::filesystem::path(path))));
+      start(std::move(next), {}, audioOnly, false);
+      return;
+    }
+    if (auto source = assets.openStream(id))
+      next->attachAssetStream(std::move(source));
+    else
+      next->attachMemory(assets.read(id));
     start(std::move(next), {}, audioOnly, false);
-    return;
-  }
-  if (auto source = assets.openStream(id))
-    next->attachAssetStream(std::move(source));
-  else
-    next->attachMemory(assets.read(id));
-  start(std::move(next), {}, audioOnly, false);
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "[Kotonoha] Media asset/decoder failed: %s", error.what());
@@ -994,30 +998,30 @@ void MediaPlayer::open(const AssetProvider &assets, const std::string &id,
 void MediaPlayer::prepare(const AssetProvider &assets, const std::string &id,
                           bool audioOnly, const std::string &channelName) {
   try {
-  auto next = std::make_unique<State>();
-  next->channel = mixer.channel(
-      channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
+    auto next = std::make_unique<State>();
+    next->channel = mixer.channel(
+        channelName.empty() ? (audioOnly ? "audio" : "video") : channelName);
 #ifdef __EMSCRIPTEN__
-  if (next->configureWebVideo(assets, id, audioOnly)) {
-    next->webFallbackPath = assets.localPath(id);
-    next->webFallbackId = id;
-    start(std::move(next), {}, audioOnly, true);
-    return;
-  }
+    if (next->configureWebVideo(assets, id, audioOnly)) {
+      next->webFallbackPath = assets.localPath(id);
+      next->webFallbackId = id;
+      start(std::move(next), {}, audioOnly, true);
+      return;
+    }
 #endif
-  const std::string path = assets.localPath(id);
-  if (!path.empty() && std::filesystem::is_regular_file(path)) {
-    next->attachAssetStream(std::make_unique<HandleAssetStream>(
-        std::make_unique<Filesystem::SDLFileSource>(
-            std::filesystem::path(path))));
+    const std::string path = assets.localPath(id);
+    if (!path.empty() && std::filesystem::is_regular_file(path)) {
+      next->attachAssetStream(std::make_unique<HandleAssetStream>(
+          std::make_unique<Filesystem::SDLFileSource>(
+              std::filesystem::path(path))));
+      start(std::move(next), {}, audioOnly, true);
+      return;
+    }
+    if (auto source = assets.openStream(id))
+      next->attachAssetStream(std::move(source));
+    else
+      next->attachMemory(assets.read(id));
     start(std::move(next), {}, audioOnly, true);
-    return;
-  }
-  if (auto source = assets.openStream(id))
-    next->attachAssetStream(std::move(source));
-  else
-    next->attachMemory(assets.read(id));
-  start(std::move(next), {}, audioOnly, true);
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "[Kotonoha] Media preparation failed: %s", error.what());
@@ -1073,16 +1077,15 @@ MediaPlayer::prepareInput(const AssetProvider &assets, const std::string &id,
     return prepareInputUnchecked(assets, id, audioOnly, std::move(cancelled));
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "[Kotonoha] Failed to prepare media %s: %s",
-                id.c_str(), error.what());
+                "[Kotonoha] Failed to prepare media %s: %s", id.c_str(),
+                error.what());
     return nullptr;
   }
 }
 
-std::unique_ptr<MediaPlayer::PreparedInput>
-MediaPlayer::prepareInputUnchecked(const AssetProvider &assets,
-                                   const std::string &id, bool audioOnly,
-                                   std::shared_ptr<std::atomic_bool> cancelled) {
+std::unique_ptr<MediaPlayer::PreparedInput> MediaPlayer::prepareInputUnchecked(
+    const AssetProvider &assets, const std::string &id, bool audioOnly,
+    std::shared_ptr<std::atomic_bool> cancelled) {
   auto next = std::make_unique<State>();
   next->cancelled = std::move(cancelled);
 #ifdef __EMSCRIPTEN__
@@ -1194,8 +1197,9 @@ void MediaPlayer::start(std::unique_ptr<State> next, const std::string &url,
       openDecoder(*next, url, audioOnly);
     auto input =
         std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next)));
-    const std::string channelName =
-        input->state->channel ? input->state->channel->getName() : std::string();
+    const std::string channelName = input->state->channel
+                                        ? input->state->channel->getName()
+                                        : std::string();
     adoptPreparedInput(std::move(input), channelName);
     if (!prepared)
       setPaused(false);
@@ -1405,8 +1409,7 @@ void MediaPlayer::update(RendererRef renderer, double position) {
     // A broken asset, decoder, seek or audio stream must never propagate
     // into a game's render/event loop. Tear down only this media session.
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "[Kotonoha] Stopping failed media playback: %s",
-                error.what());
+                "[Kotonoha] Stopping failed media playback: %s", error.what());
     stop();
   }
 }
@@ -1461,14 +1464,20 @@ void MediaPlayer::updateDecoder(RendererRef renderer, double position) {
           },
           s.webVideoSession, position, audioGain());
     if (s.webVideoStarted && !s.webAudioOnly) {
-      const int width = EM_ASM_INT({
-        return typeof KotonohaMediaVideoWidth == "function"
-                   ? KotonohaMediaVideoWidth($0) : 0;
-      }, s.webVideoSession);
-      const int height = EM_ASM_INT({
-        return typeof KotonohaMediaVideoHeight == "function"
-                   ? KotonohaMediaVideoHeight($0) : 0;
-      }, s.webVideoSession);
+      const int width = EM_ASM_INT(
+          {
+            return typeof KotonohaMediaVideoWidth == "function"
+                       ? KotonohaMediaVideoWidth($0)
+                       : 0;
+          },
+          s.webVideoSession);
+      const int height = EM_ASM_INT(
+          {
+            return typeof KotonohaMediaVideoHeight == "function"
+                       ? KotonohaMediaVideoHeight($0)
+                       : 0;
+          },
+          s.webVideoSession);
       if (width > 0 && height > 0) {
         if (width > 4096 || height > 4096) {
           s.webVideoFailed = true;
@@ -1485,11 +1494,17 @@ void MediaPlayer::updateDecoder(RendererRef renderer, double position) {
           s.aspect = static_cast<double>(width) / height;
         }
         std::vector<Uint8> pixels(static_cast<std::size_t>(width) * height * 4);
-        const bool copied = EM_ASM_INT({
-          return typeof KotonohaMediaCopyVideoFrame == "function" &&
-                 KotonohaMediaCopyVideoFrame($0,
-                     HEAPU8.subarray($1, $1 + $2)) ? 1 : 0;
-        }, s.webVideoSession, pixels.data(), static_cast<int>(pixels.size())) != 0;
+        const bool copied =
+            EM_ASM_INT(
+                {
+                  return typeof KotonohaMediaCopyVideoFrame == "function" &&
+                                 KotonohaMediaCopyVideoFrame(
+                                     $0, HEAPU8.subarray($1, $1 + $2))
+                             ? 1
+                             : 0;
+                },
+                s.webVideoSession, pixels.data(),
+                static_cast<int>(pixels.size())) != 0;
         if (copied) {
           if (!SDL_UpdateTexture(s.texture.get(), nullptr, pixels.data(),
                                  width * 4))

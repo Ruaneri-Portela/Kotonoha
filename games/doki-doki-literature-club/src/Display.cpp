@@ -242,6 +242,83 @@ struct SwitchDisp : Disp {
   }
 };
 
+struct GrayscaleDisp : Disp {
+  DispP child;
+  DispP instance() override {
+    auto c = std::make_shared<GrayscaleDisp>(*this);
+    if (c->child)
+      c->child = c->child->instance();
+    return c;
+  }
+  Render render(Vm &vm, double st, double at) override {
+    if (!child)
+      return {};
+    Render r = child->render(vm, st, at);
+    for (auto &op : r.ops)
+      op.grayscale = true;
+    return r;
+  }
+};
+
+struct AnimatedMaskDisp : Disp {
+  DispP child;
+  bool moving = true;
+  double speed = 1.0, frequency = 1.0, amount = 0.5, oc = 0.0;
+  DispP instance() override {
+    auto c = std::make_shared<AnimatedMaskDisp>(*this);
+    if (c->child)
+      c->child = c->child->instance();
+    return c;
+  }
+  Render render(Vm &vm, double st, double at) override {
+    if (!child)
+      return {};
+    Render r = child->render(vm, st, at);
+    double alpha = oc;
+    if (moving)
+      alpha += std::pow(std::sin(st * speed / 8.0), 64.0 * frequency) * amount;
+    alpha = std::clamp(alpha, 0.0, 1.0);
+    for (auto &op : r.ops)
+      op.alpha *= float(alpha);
+    return r;
+  }
+};
+
+struct SpriteManagerDisp : Disp {
+  Value sm;
+  Render render(Vm &vm, double st, double at) override {
+    Render r;
+    r.w = kScreenW, r.h = kScreenH;
+    if (!sm.isObj())
+      return r;
+    const Value *uf = sm.attr("update_fn");
+    if (uf && uf->isObj() && uf->o->fn) {
+      try {
+        vm.py.call(*uf, {Value::real(st)});
+      } catch (const PyError &) {
+      }
+    }
+    const Value *ch = sm.attr("children");
+    if (ch && ch->isObj()) {
+      for (const auto &s : ch->items()) {
+        if (!s.isObj() || s.get("destroyed").truthy())
+          continue;
+        DispP d = vm.toDisp(s.get("d"));
+        if (!d)
+          continue;
+        Render cr = d->render(vm, st, at);
+        r.blit(cr, s.get("x").num(), s.get("y").num());
+      }
+    }
+    return r;
+  }
+};
+
+struct LayerHoldDisp : Disp {
+  Render held;
+  Render render(Vm &, double, double) override { return held; }
+};
+
 // ---- ATL --------------------------------------------------------------------
 
 struct AState {
@@ -408,6 +485,15 @@ void applyProp(TransformState &cur, const TransformState &beg,
         cur.crop[i] =
             lerp(beg.cropSet ? beg.crop[i] : pair(i).num(), pair(i).num());
       cur.cropSet = true;
+    }
+  } else if (name == "size") {
+    if (v.isNone())
+      cur.sizeSet = false;
+    else {
+      cur.width = lerp(beg.sizeSet ? beg.width : pair(0).num(), pair(0).num());
+      cur.height =
+          lerp(beg.sizeSet ? beg.height : pair(1).num(), pair(1).num());
+      cur.sizeSet = true;
     }
   }
 }
@@ -997,7 +1083,11 @@ Render TransformDisp::render(Vm &vm, double st, double at) {
     }
     cr = std::move(t);
   }
-  const double zx = state.zoom * state.xzoom, zy = state.zoom * state.yzoom;
+  double zx = state.zoom * state.xzoom, zy = state.zoom * state.yzoom;
+  if (state.sizeSet && cr.w > 0 && cr.h > 0) {
+    zx *= state.width / cr.w;
+    zy *= state.height / cr.h;
+  }
   double W = std::fabs(cr.w * zx), H = std::fabs(cr.h * zy);
   Aff a{zx, 0, zx < 0 ? W : 0, 0, zy, zy < 0 ? H : 0};
   if (state.rotateSet && std::fabs(state.rotate) > 1e-9) {
@@ -1042,6 +1132,7 @@ RichText parseRich(const std::string &text, double cps) {
   RichText out;
   bool italic = false, bold = false;
   std::vector<uint32_t> colors;
+  std::vector<std::pair<float, float>> sizes;
   double t = 0, rate = cps, base = cps;
   float space = 0;
   for (size_t i = 0; i < text.size();) {
@@ -1069,6 +1160,16 @@ RichText parseRich(const std::string &text, double cps) {
           colors.push_back(parseColor(arg));
         else if (name == "/color" && !colors.empty())
           colors.pop_back();
+        else if (name == "size") {
+          const float curDelta = sizes.empty() ? 0.f : sizes.back().first;
+          const float curOverride = sizes.empty() ? 0.f : sizes.back().second;
+          if (!arg.empty() && (arg[0] == '+' || arg[0] == '-'))
+            sizes.emplace_back(curDelta + float(std::atof(arg.c_str())),
+                               curOverride);
+          else if (!arg.empty())
+            sizes.emplace_back(0.f, float(std::atof(arg.c_str())));
+        } else if (name == "/size" && !sizes.empty())
+          sizes.pop_back();
         else if (name == "cps") {
           if (!arg.empty() && arg[0] == '*')
             rate = base * std::atof(arg.c_str() + 1);
@@ -1105,6 +1206,10 @@ RichText parseRich(const std::string &text, double cps) {
     g.italic = italic, g.bold = bold;
     if (!colors.empty())
       g.hasColor = true, g.color = colors.back();
+    if (!sizes.empty()) {
+      g.sizeDelta = sizes.back().first;
+      g.sizeOverride = sizes.back().second;
+    }
     g.space = space;
     space = 0;
     g.t = t;
@@ -1229,6 +1334,18 @@ DispP Vm::toDisp(const Value &v) {
   if (v.cls() == "ATLTransform" && v.o->payload)
     return std::make_shared<TransformDisp>(
         std::static_pointer_cast<AtlTemplate>(v.o->payload));
+  if (v.cls() == "SpriteManager")
+    return makeSpriteManagerDisp(v);
+  if (v.cls() == "AnimatedMask") {
+    const Value *mv = v.attr("moving");
+    const Value *sp = v.attr("speed");
+    const Value *fr = v.attr("frequency");
+    const Value *am = v.attr("amount");
+    const Value *oc = v.attr("oc");
+    return makeAnimatedMaskDisp(
+        toDisp(v.get("child")), mv ? mv->truthy() : true, sp ? sp->num() : 1.0,
+        fr ? fr->num() : 1.0, am ? am->num() : 0.5, oc ? oc->num() : 0.0);
+  }
   return std::make_shared<NullDisp>();
 }
 
@@ -1294,6 +1411,29 @@ Render Vm::renderLayer(const std::vector<Shown> &items, double t) {
     out.blit(r, xp.at(out.w) - xa.at(r.w) + r.xoffset,
              yp.at(out.h) - ya.at(r.h) + r.yoffset);
   }
+  if (&items == &scene.master && scene.masterXf) {
+    auto hold = std::make_shared<LayerHoldDisp>();
+    hold->held = std::move(out);
+    DispP innermost = scene.masterXf;
+    while (auto tr = std::dynamic_pointer_cast<TransformDisp>(innermost)) {
+      if (!tr->child_ || std::dynamic_pointer_cast<LayerHoldDisp>(tr->child_)) {
+        tr->child_ = hold;
+        break;
+      }
+      innermost = tr->child_;
+    }
+    const double st = std::max(0.0, t - scene.masterXfAt);
+    Render r = scene.masterXf->render(*this, st, st);
+    const Pos xp = r.xpos.set ? r.xpos : Pos::frac(.5),
+              yp = r.ypos.set ? r.ypos : Pos::frac(1);
+    const Pos xa = r.xanchor.set ? r.xanchor : Pos::frac(.5),
+              ya = r.yanchor.set ? r.yanchor : Pos::frac(1);
+    Render finalOut;
+    finalOut.w = kScreenW, finalOut.h = kScreenH;
+    finalOut.blit(r, xp.at(finalOut.w) - xa.at(r.w) + r.xoffset,
+                  yp.at(finalOut.h) - ya.at(r.h) + r.yoffset);
+    return finalOut;
+  }
   return out;
 }
 
@@ -1356,6 +1496,27 @@ DispP makeTileDisp(const DispP &child) {
 DispP makeSwitchDisp(std::vector<std::pair<std::string, DispP>> cases) {
   auto s = std::make_shared<SwitchDisp>();
   s->cases = std::move(cases);
+  return s;
+}
+DispP makeGrayscaleDisp(const DispP &child) {
+  auto g = std::make_shared<GrayscaleDisp>();
+  g->child = child;
+  return g;
+}
+DispP makeAnimatedMaskDisp(const DispP &child, bool moving, double speed,
+                           double frequency, double amount, double oc) {
+  auto m = std::make_shared<AnimatedMaskDisp>();
+  m->child = child;
+  m->moving = moving;
+  m->speed = speed;
+  m->frequency = frequency;
+  m->amount = amount;
+  m->oc = oc;
+  return m;
+}
+DispP makeSpriteManagerDisp(const Value &sm) {
+  auto s = std::make_shared<SpriteManagerDisp>();
+  s->sm = sm;
   return s;
 }
 

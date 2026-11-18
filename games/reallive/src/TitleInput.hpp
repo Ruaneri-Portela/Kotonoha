@@ -49,12 +49,14 @@ public:
   // the event belongs to the virtual cursor. Pointer and touch events release
   // the virtual cursor so native hover/click keeps working.
   bool handle(const SDL_Event &event) {
+    // Native finger events arrive before their translated mouse events.
+    // Resetting on FINGER_UP used to discard a pending title click.
+    if (event.type >= SDL_EVENT_FINGER_DOWN &&
+        event.type <= SDL_EVENT_FINGER_CANCELED)
+      return false;
     if (event.type == SDL_EVENT_MOUSE_MOTION ||
         event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-        event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
-        event.type == SDL_EVENT_FINGER_DOWN ||
-        event.type == SDL_EVENT_FINGER_UP ||
-        event.type == SDL_EVENT_FINGER_MOTION) {
+        event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
       reset();
       return false;
     }

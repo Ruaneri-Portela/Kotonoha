@@ -67,10 +67,21 @@ bool SchoolDaysSaveLoadModel::SetSelectionFromPointer(int x, int y) {
     return true;
 }
 
-bool SchoolDaysSaveLoadModel::Activate(Output* output) {
-    if (output == nullptr) return false;
-    *output = {};
-    if (!open_ || selection_ < 0 || pendingRow_ >= 0 || commentRow_ >= 0) return false;
+void SchoolDaysSaveLoadModel::StepSelection(int delta) {
+  if (!open_ || pendingRow_ >= 0 || commentRow_ >= 0 || delta == 0)
+    return;
+  int row = (selection_ >= 0 && selection_ <= 9)     ? selection_
+            : (selection_ >= 22 && selection_ <= 31) ? (selection_ - 22)
+                                                     : (delta > 0 ? -1 : 0);
+  selection_ = (row + (delta > 0 ? 1 : 9)) % 10;
+}
+
+bool SchoolDaysSaveLoadModel::Activate(Output *output) {
+  if (output == nullptr)
+    return false;
+  *output = {};
+  if (!open_ || selection_ < 0 || pendingRow_ >= 0 || commentRow_ >= 0)
+    return false;
 
     // 10..19 are page tabs.  Activation changes page and refreshes the ten
     // visible slot rows; it does not emit a SysMenu result.

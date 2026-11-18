@@ -17,9 +17,11 @@ Kotonoha supports multiple engines and game-specific runtimes. **Support is not 
 | Kirikiri2 / KirikiriZ | `KOTONOHA_BUILD_KIRIKIRI` | `Kirikiri` | [Readme](kirikiri/README.md) |
 | LucaSystem | `KOTONOHA_BUILD_LUCA_SYSTEM` | `LucaSystem` | [Readme](luca-system/README.md) |
 | Pure Mail | `KOTONOHA_BUILD_PMAIL` | `Pmail` | [Readme](pmail/README.md) |
+| PONscripter / ONScripter | `KOTONOHA_BUILD_PONSCRIPTER` | `PonscripterGame` | [Readme](ponscripter/README.md) |
+| N2System | `KOTONOHA_BUILD_N2SYSTEM` | `N2SystemGame` | [Readme](n2system/README.md) |
 
 Build one port by enabling its option: `cmake -S . -B build -DKOTONOHA_BUILD_REALLIVE=ON`, then `cmake --build build --target RealLive`. For tests use `ctest --test-dir build --output-on-failure`.
 
 Files named `PORT_STATUS.md` and dated notes in game `docs/` directories retain development and reverse-engineering evidence. They may include older observations that later revisions superseded. For an accessible summary in both languages, start at each game's README.
 
-[Documentation index](../docs/README.md) · [Build guides](../docs/BUILD_GUIDES.md)
+[Documentation index](../docs/README.md) · [Build guides](../docs/BUILD_GUIDES.md) · [Compatibility audit of all ports](../docs/PORT_COMPATIBILITY.md)

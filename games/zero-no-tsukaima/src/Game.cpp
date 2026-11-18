@@ -177,6 +177,10 @@ constexpr ActionDef kActions[] = {
     {"びょんびょん", 0, 0, false, 0, 0, 0},
     {"おじぎ", 0, 0, false, 0, 0, 0},
     {"どっきり", 0, 0, false, 0, 0, 0},
+    {"揺れ縦", 10, 50, false, 0, 0, 0},
+    {"揺れ横", 10, 50, false, 0, 0, 0},
+    {"揺れゆっくり", 6, 100, false, 0, 0, 0},
+    {"ループアクション", 0, 0, false, 0, 0, 0},
 };
 
 const ActionDef *FindAction(const std::string &key) {
@@ -195,10 +199,13 @@ bool IsTime(const std::string &w) {
 // Tag attributes that are parameters rather than names.
 bool IsParam(const std::string &k) {
   static const char *const kParams[] = {
-      "tagname", "time",  "trans", "fade",  "sync", "nosync", "xpos",
-      "ypos",    "hide",  "show",  "reset", "file", "error",  "level",
-      "opacity", "stage", "stime", "buf",   "wait", "stop",   "loop",
-      "name",    "if",    "disp",  "left",  "top"};
+      "tagname",    "time",   "trans",   "notrans", "fade",     "sync",
+      "nosync",     "xpos",   "ypos",    "hide",    "show",     "reset",
+      "stopaction", "file",   "error",   "level",   "opacity",  "stage",
+      "stime",      "buf",    "wait",    "stop",    "loop",     "name",
+      "if",         "disp",   "left",    "top",     "zoom",     "afx",
+      "afy",        "origin", "vorigin", "noshift", "nocamera", "endtime",
+      "eol",        "page",   "line",    "count"};
   for (const char *p : kParams)
     if (k == p)
       return true;
@@ -375,12 +382,13 @@ bool Game::DebugJump(const std::string &scriptName) {
   waiting_ = choosing_ = finished_ = msgOn_ = false;
   external_ = Block::None;
   waitUntil_ = -1;
-  transMode_ = inSkip_ = skipping_ = moving_ = roulette_ = false;
+  transMode_ = inSkip_ = skipping_ = moving_ = roulette_ = booking_ = false;
   transition_ = {};
   choiceText_.clear();
   choiceTarget_.clear();
   choiceStorage_.clear();
   choiceExpression_.clear();
+  bookChoices_.clear();
   cues_.clear();
   text_.clear();
   return true;
@@ -681,9 +689,28 @@ void Game::Execute(const SceneTag &tag) {
       l.p.alpha.To(clock_, 0, IntAttr(tag, "opacityTime", 0));
     }
     if (tag.Get("action")) {
-      if (unsupportedCommands_.insert("layer action: " + attr("action")).second)
-        std::fprintf(stderr, "[zero] unsupported Concerto layer action: %s\n",
-                     attr("action").c_str());
+      const std::string act = attr("action");
+      if (act == "LayerVibrateActionModule" || act == "LayerJumpActionModule" ||
+          act == "LayerJumpOnceActionModule" ||
+          act == "LayerWaveActionModule" ||
+          act == "LayerWaveOnceActionModule") {
+        l.p.shake = std::max(1, std::abs(IntAttr(tag, "vibration", 10)));
+        l.p.shakeInterval = std::max(16, IntAttr(tag, "waitTime", 50));
+      } else if (act == "LayerAccelMoveModule" ||
+                 act == "LayerDecelMoveModule" ||
+                 act == "LayerFallActionModule") {
+        const int ms = IntAttr(tag, "time", IntAttr(tag, "moveTime", 300));
+        if (tag.Get("x"))
+          l.p.x.To(clock_, float(IntAttr(tag, "x", 0)), ms,
+                   act == "LayerDecelMoveModule");
+        if (tag.Get("y"))
+          l.p.y.To(clock_, float(IntAttr(tag, "y", 0)), ms,
+                   act == "LayerDecelMoveModule");
+      } else if (act != "LayerRotateModule" && act != "LayerZoomModule") {
+        if (unsupportedCommands_.insert("layer action: " + act).second)
+          std::fprintf(stderr, "[zero] unsupported Concerto layer action: %s\n",
+                       act.c_str());
+      }
     }
     ++version_;
   } else if (n == "ch")
@@ -860,6 +887,272 @@ void Game::Execute(const SceneTag &tag) {
   } else if (n == "hidebase") {
     stage_.visible = event_.visible = false;
     ++version_;
+  } else if (n == "hideall") {
+    stage_.visible = event_.visible = false;
+    for (CharacterState &c : characters_) {
+      c.visible = false;
+      c.p.alpha.Set(0);
+    }
+    for (LayerState &l : layers_)
+      l.visible = false;
+    ++version_;
+  } else if (n == "tndlcheck") {
+    const std::string title =
+        tag.Get("title") ? attr("title") : "『コーヒーブレイク』";
+    strings_["f.title"] = title;
+    strings_["f.coffeetitle"] = title;
+    tndlDoneStorage_ = attr("storage");
+    external_ = Block::Coffee;
+    if (tndlDoneStorage_.empty() || !LoadByName(tndlDoneStorage_))
+      finished_ = true;
+  } else if (n == "tndlbingo") {
+    static const char *const kBingo[10] = {
+        "TU_00A.KS", "TU_01A.KS", "TU_02A.KS", "TU_03A.KS", "TU_04A.KS",
+        "TU_05A.KS", "TU_06A.KS", "TU_07A.KS", "TU_08A.KS", "TU_09A.KS"};
+    choiceText_.clear();
+    choiceTarget_.clear();
+    choiceStorage_.clear();
+    choiceExpression_.clear();
+    for (int i = 0; i < 10; ++i) {
+      choiceText_.push_back("ツンデレビンゴ " + std::to_string(i + 1));
+      choiceTarget_.push_back({});
+      choiceStorage_.push_back(kBingo[i]);
+      choiceExpression_.push_back({});
+    }
+    choosing_ = true;
+  } else if (n == "book") {
+    struct BookDef {
+      const char *storage;
+      const char *title;
+    };
+    static constexpr BookDef kBooks[18] = {
+        {"BK1A_00.KS", "「サバイバルアイランド」"},
+        {"BK1B_01.KS", "「君と出会う街」"},
+        {"BK1C_00.KS", "「南海の孤島」"},
+        {"BK2A_00.KS", "「三姉妹物語」"},
+        {"BK2B_00.KS", "「魔法少女は大忙し」"},
+        {"CK2C_00.KS", "「メイドなメイド」"},
+        {"BK3A_00.KS", "「生徒会長によろしく！」"},
+        {"BK3B_00.KS", "「流れ星を探して」"},
+        {"BK3C_00.KS", "「同級生」"},
+        {"BK4A_00.KS", "「舞踏会で出会った君」"},
+        {"BK4B_00.KS", "「魔法の力がなくなっても……」"},
+        {"BK4C_00.KS", "「笑わないお姫様」"},
+        {"BK5A_00.KS", "「月と血と城」"},
+        {"BK5B_00.KS", "「怪盗と警官」"},
+        {"BK5C_00.KS", "「教会に向かって」"},
+        {"BK6A_00.KS", "「ドラゴンを探すの！」"},
+        {"BK6B_00.KS", "「えいえんのせかい」"},
+        {"BK6C_00.KS", "「トラブルダンジョン」"},
+    };
+    bookDoneStorage_ = attr("storage");
+    bookChoices_.clear();
+    choiceText_.clear();
+    const std::string sel = attr("select");
+    size_t start = 0;
+    while (start <= sel.size()) {
+      const size_t comma = sel.find(',', start);
+      const std::string tok =
+          sel.substr(start, comma == std::string::npos ? std::string::npos
+                                                       : comma - start);
+      const int id = std::atoi(tok.c_str());
+      if (id >= 1 && id <= 18) {
+        bookChoices_.push_back(kBooks[id - 1].storage);
+        choiceText_.push_back(kBooks[id - 1].title);
+      }
+      if (comma == std::string::npos)
+        break;
+      start = comma + 1;
+    }
+    if (!bookChoices_.empty()) {
+      choosing_ = booking_ = true;
+    }
+  } else if (n == "bookjump") {
+    const std::string target =
+        !bookSelect_.empty() ? bookSelect_ : bookDoneStorage_;
+    bookSelect_.clear();
+    if (target.empty() || !LoadByName(target))
+      finished_ = true;
+  } else if (n == "bookdone") {
+    const std::string target = bookDoneStorage_;
+    bookDoneStorage_.clear();
+    if (target.empty() || !LoadByName(target))
+      finished_ = true;
+  } else if (n == "時間経過暗転") {
+    if (!skipping_)
+      WaitFor(1000);
+  } else if (n == "vibrate" || n == "syssave" || n == "setclear") {
+    // Handled as presentation/system no-ops in story state.
+  } else if (n == "concerto_init_variable") {
+    flags_["f.tundele"] = 127;
+    flags_["f.tundele_count"] = 0;
+    flags_["f.route"] = 0;
+    flags_["f.kiss"] = 0;
+    for (int i = 0; i < 6; ++i) {
+      flags_["f.like_" + std::to_string(i)] = 0;
+      concertoTunEvent_[i] = 0;
+      concertoDeleEvent_[i] = 0;
+    }
+    for (int i = 0; i < 23; ++i)
+      flags_["f.item_" + std::to_string(i)] = 0;
+    strings_["f.title"] = "ゼロの使い魔";
+  } else if (n == "concerto_tndl") {
+    const std::string addStr = attr("add");
+    if (addStr == "null" || addStr.empty()) {
+      flags_["f.tundele"] = 127;
+    } else {
+      const int add = int(Eval(addStr));
+      const int before =
+          int(flags_.count("f.tundele") ? flags_["f.tundele"] : 127);
+      const int after = std::clamp(before + add, 0, 255);
+      flags_["f.tundele"] = after;
+      flags_["f.prm_tundere_eval"] = after;
+      if (!skipping_ && before != after) {
+        meter_ = {Meter::Tundere, {}, add, before, after, clock_, clock_ + 500};
+        WaitFor(500);
+      }
+    }
+  } else if (n == "concerto_tndl_dummy") {
+    const int before = int(Eval(attr("before")));
+    const int after = int(Eval(attr("after")));
+    if (!skipping_ && before != after) {
+      meter_ = {Meter::Tundere, {},     after - before, before,
+                after,          clock_, clock_ + 500};
+      WaitFor(500);
+    }
+  } else if (n == "concerto_tndl_init") {
+    for (int i = 0; i < 6; ++i) {
+      concertoTunEvent_[i] = 0;
+      concertoDeleEvent_[i] = 0;
+    }
+  } else if (n == "concerto_tndl_start") {
+    if (!concertoTndlScene_.empty())
+      LoadByName(concertoTndlScene_);
+  } else if (n == "concerto_tndl_end") {
+    if (!concertoTndlDone_.empty())
+      LoadByName(concertoTndlDone_);
+  } else if (n == "concerto_tndl_test") {
+    if (!concertoTndlDone_.empty())
+      LoadByName(concertoTndlDone_);
+  } else if (n == "concerto_like") {
+    static const std::map<std::string, std::pair<int, const char *>> kLikes = {
+        {"ルイズ", {0, "RU"}},       {"キュルケ", {1, "CU"}},
+        {"タバサ", {2, "TA"}},       {"シエスタ", {3, "SI"}},
+        {"アンリエッタ", {4, "AN"}}, {"ハルナ", {5, "CH"}}};
+    const std::string who = attr("name");
+    const std::string addStr = attr("add");
+    auto it = kLikes.find(who);
+    const int idx = it != kLikes.end() ? it->second.first : 0;
+    const char *code = it != kLikes.end() ? it->second.second : "RU";
+    if (addStr == "null") {
+      flags_["f.like_" + std::to_string(idx)] = 0;
+    } else {
+      const int add = int(Eval(addStr));
+      if (it != kLikes.end())
+        flags_["f.like_" + std::to_string(idx)] += add;
+      if (!skipping_) {
+        meter_ = {Meter::Like, code,   add > 0 ? 1 : -1, 0,
+                  0,           clock_, clock_ + 500};
+        WaitFor(500);
+      }
+    }
+  } else if (n == "concerto_item") {
+    static const std::map<std::string, int> kItems = {
+        {"ドッグフード", 0},
+        {"ルイズ特製スープ", 1},
+        {"ルイズ特製ケーキ", 2},
+        {"バナナ", 3},
+        {"パン", 4},
+        {"スープ", 5},
+        {"シエスタ特製スープ", 6},
+        {"薬草", 7},
+        {"青いポーション", 8},
+        {"いちご", 9},
+        {"レモン", 10},
+        {"チョコレート", 11},
+        {"ハート型チョコ", 12},
+        {"シエスタ特製ケーキ", 13},
+        {"ハチミツ", 14},
+        {"グレープジュース", 15},
+        {"ワイン", 16},
+        {"ハーブ", 17},
+        {"ハーブポーション", 18},
+        {"野菜ジュース", 19},
+        {"青汁", 20},
+        {"緑のポーション", 21},
+        {"エリクサー", 22}};
+    auto it = kItems.find(attr("name"));
+    if (it != kItems.end()) {
+      const std::string slot = "f.item_" + std::to_string(it->second);
+      const int64_t num = Eval(attr("num"));
+      flags_[slot] = std::clamp<int64_t>(flags_[slot] + num, 0, 9);
+    }
+  } else if (n == "concerto_check_route") {
+    auto isMax = [&](int target) {
+      const int64_t v = Flag("f.like_" + std::to_string(target));
+      for (int i = 0; i < 6; ++i)
+        if (i != target && Flag("f.like_" + std::to_string(i)) > v)
+          return false;
+      return true;
+    };
+    if (Flag("f.tundele_count") >= 4)
+      flags_["f.route"] = 1;
+    else if (isMax(5))
+      flags_["f.route"] = 6;
+    else if (isMax(3))
+      flags_["f.route"] = 4;
+    else if (isMax(4))
+      flags_["f.route"] = 5;
+    else if (isMax(2))
+      flags_["f.route"] = 3;
+    else if (isMax(1))
+      flags_["f.route"] = 2;
+    else
+      flags_["f.route"] = 1;
+  } else if (n == "concerto_check_kiss") {
+    flags_["f.kiss"] = Flag("f.tundele_count") >= 4 ? 0 : 1;
+  } else if (n == "concerto_move_init") {
+    moves_.clear();
+    moveDone_ = attr("storage");
+    moveBack_ = attr("back");
+    const std::string cnt = attr("count");
+    moveCount_ = (cnt == "null" || cnt.empty()) ? 1 : int(Eval(cnt));
+    const std::string bgm = attr("bgm");
+    moveBgm_ =
+        (bgm == "null" || bgm == "-1" || bgm.empty()) ? std::string{} : bgm;
+  } else if (n == "concerto_move_item") {
+    moves_.push_back({attr("room"), attr("pose"), attr("storage")});
+  } else if (n == "concerto_date_item") {
+    choiceText_.push_back(attr("name"));
+    choiceTarget_.push_back({});
+    choiceStorage_.push_back(attr("storage"));
+    choiceExpression_.push_back({});
+  } else if (n == "concerto_reset_select") {
+    const std::string luiz = attr("luiz");
+    const std::string noluiz = attr("noluiz");
+    for (size_t i = 0; i < choiceText_.size() && i < choiceStorage_.size(); ++i)
+      choiceStorage_[i] = (choiceText_[i] == "ルイズ") ? luiz : noluiz;
+  } else if (n == "concerto_reset_select2") {
+    const std::string st = attr("storage");
+    for (auto &s : choiceStorage_)
+      s = st;
+  } else if (n == "concerto_date") {
+    concertoTndlDone_ = attr("storage");
+    const std::string bgm = attr("bgm");
+    if (!bgm.empty() && bgm != "null" && bgm != "-1")
+      bgm_ = bgm;
+    if (!choiceText_.empty())
+      choosing_ = true;
+    else if (!concertoTndlDone_.empty())
+      LoadByName(concertoTndlDone_);
+  } else if (n == "concerto_battle_init") {
+    concertoBattleBack_ = attr("back");
+  } else if (n == "concerto_battle_add" || n == "concerto_battle_enemy") {
+    // Recorded for battle presentation; story continues on battle completion.
+  } else if (n == "concerto_battle") {
+    // Auto-resolve turn-based battle in VN story runner so narrative continues.
+    if (!skipping_)
+      WaitFor(300);
   } else if (n == "bgm") {
     bgm_.clear();
     for (const auto &[k, v] : tag.attrs)
@@ -1119,8 +1412,18 @@ std::vector<Game::Element> Game::SceneAt(int64_t t) const {
       place(e, c.p);
     }
   }
-  if (event_.visible)
-    place({Element::Event, event_.image}, event_.p);
+  if (event_.visible) {
+    const std::string evUp = Upper(event_.image);
+    if (evUp == "EV30D") {
+      place({Element::Event, "ev30l"}, event_.p);
+      place({Element::Event, "ev30r", 640, 0}, event_.p);
+    } else if (evUp == "EV73B") {
+      place({Element::Event, "ev73u"}, event_.p);
+      place({Element::Event, "ev73s", 0, 800}, event_.p);
+    } else {
+      place({Element::Event, event_.image}, event_.p);
+    }
+  }
   layersAt(5, 100);
   return out;
 }
@@ -1184,6 +1487,17 @@ bool Game::Click() {
 }
 
 bool Game::Choose(size_t index) {
+  if (choosing_ && booking_) {
+    if (index >= bookChoices_.size())
+      return false;
+    bookSelect_ = bookChoices_[index];
+    flags_["f.bookSeen_" + std::to_string(index + 1)] = 1;
+    choosing_ = booking_ = false;
+    choiceText_.clear();
+    bookChoices_.clear();
+    Pump();
+    return true;
+  }
   if (choosing_ && roulette_) {
     flags_["f.prm_tundere_boot"] = int64_t(index);
     roulette_ = choosing_ = false;

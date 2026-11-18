@@ -5,10 +5,10 @@
 #include "SnowRuntime.hpp"
 #include <SnowRadish/SnowAssets.hpp>
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <cstdio>
 
 #include <cstdlib>
@@ -77,10 +77,11 @@ struct KotonohaPortCallbacks final {
   static void quit(void *state, SDL_AppResult result);
 };
 
-SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
+                                          char **argv) {
   *appstate = nullptr;
   KOTONOHA_SET_APP_METADATA("Snow Radish Vacation!!",
-                     "me.hirameki.kotonoha.snowradishvacation");
+                            "me.hirameki.kotonoha.snowradishvacation");
   try {
     auto app = std::make_unique<App>();
     Kotonoha::EngineOptions &options = app->options;
@@ -108,8 +109,11 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
          DefaultDirectory()},
         SnowRadish::SnowLauncher::validatePath, {""});
-    if (directory.empty())
-      options.launcher = true;
+    // Honor the shared default and explicit --no-launcher. Automated
+    // --frames and MCP runs bypass the launcher in CommandLine::parse().
+    if (directory.empty() && !options.launcher)
+      throw std::runtime_error(
+          "No valid Snow Radish source; pass --snow DIRECTORY|ISO");
 
     if (options.launcher) {
       app->launcher =

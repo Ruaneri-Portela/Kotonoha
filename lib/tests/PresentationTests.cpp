@@ -1,3 +1,4 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/FadeScene.hpp>
 #include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
@@ -9,7 +10,6 @@
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/TransformTween.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
@@ -61,7 +61,9 @@ void arguments() {
   parse(parser,
         {"game", "--assets=data", "--subtitle-style", "style.ass", "--frames",
          "12", "--no-config", "--mcp-root", "/tmp", "--launcher", "-h"});
-  require(game == "data" && options.launcher && parser.frames == 12 &&
+  // --frames 12 triggers the headless policy (CommandLine.cpp): frames > 0
+  // forces engine.launcher = false after all flags are applied.
+  require(game == "data" && !options.launcher && parser.frames == 12 &&
               options.subtitleStylePath == "style.ass" &&
               !options.persistSettings && options.mcpFileRoot == "/tmp" &&
               parser.wantsHelp(),
@@ -253,9 +255,19 @@ void subtitles(Engine &engine) {
       "Live subtitle editing keeps the timeline and updates rendered glyphs");
   engine.GetRuntime().RemoveScene(&scene);
 
-  SDL_SetRenderScale(&renderer, 0.5f, 0.5f);
+  // The translation above deliberately reduces the cue to a single "X".
+  // Use a legible phrase to measure physical scaling across font rasterizers:
+  // a half-size glyph must remain visible and cover fewer pixels than at 1x.
+  scene.setCues({{1, 2, "SCALE CHECK", "Person"}});
   draw(1.5);
-  require(colored(renderer, 1) > 20, "Subtitle resizes with renderer scale");
+  const int fullScalePixels = colored(renderer, 1);
+  require(fullScalePixels > 100, "Scale reference has visible subtitle glyphs");
+  require(SDL_SetRenderScale(&renderer, 0.5f, 0.5f),
+          "Configure half-size subtitle renderer");
+  draw(1.5);
+  const int halfScalePixels = colored(renderer, 1);
+  require(halfScalePixels > 20 && halfScalePixels * 2 < fullScalePixels,
+          "Subtitle resizes with renderer scale");
   SDL_SetRenderScale(&renderer, 1, 1);
   class DialogueSubtitles : public SubtitleScene {
   protected:

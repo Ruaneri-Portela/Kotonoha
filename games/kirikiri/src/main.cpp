@@ -1,12 +1,13 @@
-#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <Kirikiri/KirikiriAssets.hpp>
 #include <Kirikiri/KirikiriRuntime.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -15,6 +16,7 @@
 #include <filesystem>
 #include <memory>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -36,7 +38,7 @@ struct App {
     Kotonoha::Engine engine;
     Game(std::shared_ptr<Kotonoha::Providers::KirikiriAssets> a,
          Kotonoha::EngineOptions o)
-        : runtime(std::move(a)), engine(runtime, std::move(o)) {}
+        : runtime(a), engine(runtime, withAssets(std::move(o), std::move(a))) {}
   };
   std::unique_ptr<Game> game;
 
@@ -46,14 +48,25 @@ struct App {
             directory, options.assetOverlayDirectory()));
     // Archive precedence is indexed from the virtual mount before gameplay.
     assets->mountAllXp3();
-    game = std::make_unique<Game>(std::move(assets), std::move(options));
+    game = std::make_unique<Game>(std::move(assets), options);
   }
 };
 
 bool validate(const std::string &path, std::string &info) {
   try {
     auto fs = Kotonoha::Filesystem::Filesystem::mount(path);
-    bool scenario = false, xp3 = false;
+    // Manifest-free HTTP cannot enumerate an undiscovered XP3 or script.
+    // Recognize common entrypoints with direct VFS HEAD/Range probes first.
+    for (const char *marker :
+         {"data.xp3", "patch.xp3", "startup.tjs", "startup.ks",
+          "scenario/startup.ks", "scenario/first.ks", "first.ks",
+          "data/data.xp3"}) {
+      if (Kotonoha::Filesystem::isGameSourceRegularFile(*fs, marker)) {
+        info = std::string("Kirikiri virtual source detected: ") + marker;
+        return true;
+      }
+    }
+    bool scenario = false, xp3 = false, tjsBootstrap = false;
     for (const auto &entry : fs->list("")) {
       if (entry.type != Kotonoha::Filesystem::FileType::Regular)
         continue;
@@ -62,9 +75,14 @@ bool validate(const std::string &path, std::string &info) {
                      [](unsigned char ch) { return std::tolower(ch); });
       scenario = scenario || extension == ".ks";
       xp3 = xp3 || extension == ".xp3";
+      auto name = std::filesystem::path(entry.path).filename().string();
+      std::transform(
+          name.begin(), name.end(), name.begin(),
+          [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+      tjsBootstrap = tjsBootstrap || name == "startup.tjs";
     }
-    if (!scenario && !xp3) {
-      info = "No Kirikiri scenario (.ks) or XP3 archive found";
+    if (!scenario && !xp3 && !tjsBootstrap) {
+      info = "No Kirikiri scenario (.ks), startup.tjs or XP3 archive found";
       return false;
     }
     info = "Virtual Kirikiri source validated";
@@ -97,7 +115,32 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     Kotonoha::CommandLine cli("Kirikiri", options);
     cli.option("--kirikiri", "DIRECTORY|ISO", "Kirikiri2/KirikiriZ game data",
                directory);
-    cli.parse(argc, argv);
+    std::vector<char *> filteredArgv;
+    filteredArgv.reserve(static_cast<std::size_t>(argc));
+    if (argc > 0)
+      filteredArgv.push_back(argv[0]);
+    for (int i = 1; i < argc; ++i) {
+      const std::string arg = argv[i] ? argv[i] : "";
+      if (arg == "--config" || arg == "--renderer" || arg == "--log" ||
+          arg == "--mcp-root" || arg == "--mcp-port" ||
+          arg == "--asset-overlay" || arg == "--dump-translation" ||
+          arg == "--translation" || arg == "--subtitle-style" ||
+          arg == "--ass-style" || arg == "--frames" || arg == "--kirikiri") {
+        filteredArgv.push_back(argv[i]);
+        if (i + 1 < argc)
+          filteredArgv.push_back(argv[++i]);
+      } else if (!arg.empty() && arg[0] != '-' && directory.empty()) {
+        directory = arg;
+      } else {
+        filteredArgv.push_back(argv[i]);
+      }
+    }
+    cli.parse(static_cast<int>(filteredArgv.size()), filteredArgv.data());
+    if (const char *vid = SDL_getenv("SDL_VIDEODRIVER");
+        vid && std::string(vid) == "dummy") {
+      options.persistSettings = false;
+      options.settings.renderer = "software";
+    }
     if (cli.wantsHelp()) {
       std::fputs(cli.help().c_str(), stdout);
       return SDL_APP_SUCCESS;
@@ -119,8 +162,11 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
          downloads ? (std::filesystem::path(downloads) / "Kirikiri").string()
                    : ""},
         validate, {""}, true);
-    if (directory.empty())
-      options.launcher = true;
+    // Honor the shared default and explicit --no-launcher. Automated
+    // --frames and MCP runs bypass the launcher in CommandLine::parse().
+    if (directory.empty() && !options.launcher)
+      throw std::runtime_error(
+          "No valid Kirikiri source; pass --kirikiri DIRECTORY|ISO");
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
           "Kirikiri", settingsPath, directory, validate, options.settings,

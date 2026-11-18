@@ -39,11 +39,12 @@ public:
               View view = View::HScene, std::string* error = nullptr);
     void Close();
 
-    bool SwitchView(const std::string& assetsRoot, View view,
-                    std::string* error = nullptr);
-    bool SetSelectionFromPointer(int x, int y);
-    int HitControl(int x, int y) const;
-    bool Activate(Action* out);
+  bool SwitchView(const std::string &assetsRoot, View view,
+                  std::string *error = nullptr);
+  bool SetSelectionFromPointer(int x, int y);
+  void StepSelection(int delta);
+  int HitControl(int x, int y) const;
+  bool Activate(Action *out);
 #if defined(__ANDROID__) || defined(ANDROID)
     bool MobileSwipePage(int delta) {
         if (!open_ || sceneCheckOpen_ || delta == 0) return false;
@@ -93,18 +94,18 @@ public:
         return sceneCheckOpen_ ? sceneCheckCmap_ : cmap_;
     }
 
-    static std::string CmapRelativePath(View view, Variant variant);
-    static std::string SceneCheckCmapRelativePath(int choiceCount,
-                                                  Variant variant);
-    static const char* BaseRelativePath(View view);
-    static const char* ChipRelativePath(View view);
-    static std::string SceneCheckBaseRelativePath(int choiceCount);
-    static std::string SceneCheckChipRelativePath(int choiceCount);
-    static int HSceneUnlockCount() { return 41; }
-    static const char* HSceneUnlockKey(int index);
-    static bool AnyHSceneUnlocked(const KtrfStateStore& state, bool* unlocked,
-                                  Kotonoha_KtrfError* error);
-    static const char* SceneCheckAvailabilityKey(int sceneCheckKey, int choice);
+  static std::string CmapRelativePath(View view, Variant variant);
+  static std::string SceneCheckCmapRelativePath(int choiceCount,
+                                                Variant variant);
+  static const char *BaseRelativePath(View view);
+  static const char *ChipRelativePath(View view);
+  static std::string SceneCheckBaseRelativePath(int choiceCount);
+  static std::string SceneCheckChipRelativePath(int choiceCount);
+  static int HSceneUnlockCount() { return 41; }
+  static const char *HSceneUnlockKey(int index);
+  static bool AnyHSceneUnlocked(const KtrfStateStore &state, bool *unlocked,
+                                Kotonoha_KtrfError *error);
+  static const char *SceneCheckAvailabilityKey(int sceneCheckKey, int choice);
 
 private:
     bool LoadViewCmap(const std::string& assetsRoot, View view,

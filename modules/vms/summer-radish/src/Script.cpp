@@ -305,6 +305,8 @@ Value Machine::evaluate(const Node &n) {
   auto op = n.attr("type");
   if (op == "MINUS")
     return -number(evaluate(n.children[0]));
+  if (op == "NOT" || op == "!")
+    return int64_t(!number(evaluate(n.children[0])));
   if (n.children.size() != 2)
     throw std::runtime_error("Invalid binary expression");
   if (op == "=") {
@@ -325,6 +327,18 @@ Value Machine::evaluate(const Node &n) {
   }
   if (op == "-")
     return x - y;
+  if (op == "*")
+    return x * y;
+  if (op == "/")
+    return y != 0 ? x / y : int64_t(0);
+  if (op == "%")
+    return y != 0 ? x % y : int64_t(0);
+  if (op == "&")
+    return x & y;
+  if (op == "|")
+    return x | y;
+  if (op == "^")
+    return x ^ y;
   if (op == "==")
     return int64_t(a == b);
   if (op == "!=")

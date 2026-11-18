@@ -14,6 +14,8 @@
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/SchoolDaysAudioEventState.hpp>
 #include <Kotonoha/SchoolDaysBgmEventState.hpp>
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
@@ -25,22 +27,26 @@
 #include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/mobile/AndroidDisplay.hpp>
 #include <Kotonoha/parsers/Documents.hpp>
-#include <Kotonoha/routing/SchoolDaysPlaybackPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysChoiceTextPlan.hpp>
+#include <Kotonoha/routing/SchoolDaysDesktopStartupProfile.hpp>
+#include <Kotonoha/routing/SchoolDaysInputPolicy.hpp>
+#include <Kotonoha/routing/SchoolDaysOrsFadeBoundary.hpp>
+#include <Kotonoha/routing/SchoolDaysOrsFadeFrame.hpp>
+#include <Kotonoha/routing/SchoolDaysPersistenceCodec.hpp>
+#include <Kotonoha/routing/SchoolDaysPlaybackPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleMovieClock.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysRouteMapModel.hpp>
 #include <Kotonoha/routing/SchoolDaysRouteMapOracle.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveMetadata.hpp>
-#include <Kotonoha/routing/SchoolDaysPersistenceCodec.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveService.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -62,6 +68,13 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#endif
+
+// WinUser.h maps TranslateAccelerator to TranslateAcceleratorA/W. The School
+// Days input policy defines a C++ method with that same unqualified name.
+// Keep the native Windows API macro from rewriting the game-specific call.
+#ifdef TranslateAccelerator
+#undef TranslateAccelerator
 #endif
 
 namespace SchoolDays {
@@ -469,7 +482,8 @@ int SelectedAndroidMode(const std::vector<Kotonoha::AndroidDisplayMode> &modes,
   }
   const int current = Kotonoha::AndroidCurrentDisplayModeId();
   for (size_t i = 0; i < modes.size(); ++i)
-    if (modes[i].modeId == current) return static_cast<int>(i);
+    if (modes[i].modeId == current)
+      return static_cast<int>(i);
   return 0;
 }
 
@@ -578,7 +592,8 @@ void SaveRemasterAspectPreference(const std::filesystem::path &documents,
                                   int preference) {
   std::string contents;
   {
-    std::ifstream input(RemasterDisplaySettingsPath(documents));
+    Kotonoha::Filesystem::InputFile input(
+        RemasterDisplaySettingsPath(documents));
     contents.assign(std::istreambuf_iterator<char>(input),
                     std::istreambuf_iterator<char>());
   }
@@ -1140,8 +1155,7 @@ void Runtime::init(Kotonoha::Engine &owner) {
     if (storage.IsInitialized() &&
         !storage.LoadGlobalFlag(&bytes, &present, &failure)) {
       throw std::runtime_error(
-          "School Days cannot read GlobalFlag.DAT at " +
-          globalPath.u8string() +
+          "School Days cannot read GlobalFlag.DAT at " + globalPath.u8string() +
           "; the existing file was not modified. Reason: " + failure);
     }
     const auto legacy = documents / "GlobalFlag";
@@ -1163,8 +1177,7 @@ void Runtime::init(Kotonoha::Engine &owner) {
         throw std::runtime_error(
             "School Days cannot load GlobalFlag.DAT at " +
             globalPath.u8string() +
-            "; the existing file was not modified. Reason: " +
-            error.message);
+            "; the existing file was not modified. Reason: " + error.message);
       }
     }
     loadConfig();
@@ -1245,11 +1258,16 @@ const std::string &Runtime::frontendBgmStem() const {
 }
 
 bool Runtime::startFrontendBgm(FrontendBgmOwner owner) {
-  if (titleBgm && frontendBgmOwner == owner) return true;
-  titleBgm.reset();
+  if (titleBgm && frontendBgmOwner == owner)
+    return true;
+  const std::string prevStem = frontendBgmStem();
   frontendBgmOwner = owner;
   const std::string &stem = frontendBgmStem();
-  if (!engine || stem.empty()) return true;
+  if (titleBgm && !stem.empty() && prevStem == stem)
+    return true;
+  titleBgm.reset();
+  if (!engine || stem.empty())
+    return true;
   try {
     titleBgm = std::make_unique<Kotonoha::MediaPlayer>(engine->GetAudio());
     titleBgm->setBufferSeconds(SchoolDaysMediaCacheSeconds);
@@ -1684,7 +1702,10 @@ void Runtime::openTitle(bool startBgm) {
   abcTextures.clear();
   abcDecodedSurfaces.clear();
   const bool preserveTitleBgm =
-      startBgm && titleBgm && frontendBgmOwner == FrontendBgmOwner::Title;
+      startBgm && titleBgm &&
+      (frontendBgmOwner == FrontendBgmOwner::Title ||
+       (!titleProfile.titleBgmStem.empty() &&
+        frontendBgmStem() == titleProfile.titleBgmStem));
   playing.clear();
   movieStates.clear();
   moveSom.Reset();
@@ -1712,10 +1733,12 @@ void Runtime::openTitle(bool startBgm) {
   Kotonoha::SchoolDaysTitleModel::HostState host;
   Kotonoha_KtrfError error{};
   int64_t endClear = 0;
-  Check(bridge.Session().State().ReadGlobalInt("EndClear", &endClear, &error), error);
+  Check(bridge.Session().State().ReadGlobalInt("EndClear", &endClear, &error),
+        error);
   bool hSceneUnlocked = false;
   Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
-            bridge.Session().State(), &hSceneUnlocked, &error), error);
+            bridge.Session().State(), &hSceneUnlocked, &error),
+        error);
   host.endClearReplay = endClear != 0 || hSceneUnlocked;
   std::string ignored;
   if (Kotonoha::SchoolDaysTitleProfile::Load(assets->root().string(), &titleProfile, &ignored)) {
@@ -3533,8 +3556,21 @@ void Runtime::update() {
   sounds.erase(std::remove_if(sounds.begin(), sounds.end(),
       [](const auto &sound) { return sound->finished(); }), sounds.end());
   const bool stopped = modal();
-  if (titleBgm) titleBgm->setPaused(stopped && currentState != Kotonoha::GameState::Menu);
-  if (currentState != Kotonoha::GameState::Gameplay) return;
+  // Upstream retail cursor idleness is orthogonal to the scene/Feel gate.
+  if (currentState == Kotonoha::GameState::Gameplay && !stopped &&
+      lastMouseMotionMs != 0 && now - lastMouseMotionMs >= 3000u) {
+    if (!cursorHidden) {
+      (void)SDL_HideCursor();
+      cursorHidden = true;
+    }
+  } else if (cursorHidden) {
+    (void)SDL_ShowCursor();
+    cursorHidden = false;
+  }
+  if (titleBgm)
+    titleBgm->setPaused(stopped && currentState != Kotonoha::GameState::Menu);
+  if (currentState != Kotonoha::GameState::Gameplay)
+    return;
   using TransportPhase = Kotonoha::SchoolDaysTransportFade::Phase;
   if (transportFade.CurrentPhase() == TransportPhase::FadeOut ||
       transportFade.CurrentPhase() == TransportPhase::AwaitNavigation) {
@@ -5505,6 +5541,24 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
   if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_AC_BACK)
     event.key.key = SDLK_ESCAPE;
 #endif
+  // The user's physical mouse movement reclaims the native cursor after the
+  // upstream three-second idle hide, without synthetic MenuBar hover events.
+  if (event.type == SDL_EVENT_MOUSE_MOTION ||
+      event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+      event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
+      event.type == SDL_EVENT_MOUSE_WHEEL) {
+    lastMouseMotionMs = SDL_GetTicks();
+    if (cursorHidden) {
+      (void)SDL_ShowCursor();
+      cursorHidden = false;
+    }
+  }
+  if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+       event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
+      !Kotonoha::SchoolDaysInputPolicy::AcceptsMouseButton(
+          event.button.button)) {
+    return false;
+  }
   if (currentState == Kotonoha::GameState::Splash) {
     return Kotonoha::Runtime::onEvent(event);
   }
@@ -5522,6 +5576,26 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
       handleDesktopDisplayPanel(event))
     return true;
 #endif
+  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+      (!systemUi.IsOpen() || !systemUi.IsSaveLoadCommentEditorOpen())) {
+    const auto globalAccel =
+        Kotonoha::SchoolDaysInputPolicy::TranslateAccelerator(event.key.key,
+                                                              event.key.mod);
+    if (globalAccel ==
+        Kotonoha::SchoolDaysInputPolicy::Accelerator::ToggleFullscreen) {
+      handleConfig(
+          {Kotonoha::SchoolDaysConfigMenuModel::ActionKind::RequestFull,
+           Kotonoha::SchoolDaysConfigMenuModel::Page::Def, -1, -1,
+           displayBackend.windowMode == 0 ? 0 : 1});
+      return true;
+    }
+    if (globalAccel ==
+        Kotonoha::SchoolDaysInputPolicy::Accelerator::QuitRequest) {
+      if (!exitTransition.Active() && !systemUi.IsExitOpen())
+        openExit();
+      return true;
+    }
+  }
   const bool escape = event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
                       event.key.key == SDLK_ESCAPE;
   if (saveMenu->isOpen()) {
@@ -5538,17 +5612,45 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
     return true;
   }
   if (backlogModel.IsOpen()) {
-    if (escape) {
+    const auto menuKey =
+        (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat)
+            ? Kotonoha::SchoolDaysInputPolicy::TranslateMenuKey(event.key.key,
+                                                                event.key.mod)
+            : Kotonoha::SchoolDaysInputPolicy::MenuKey::None;
+    const bool rightClick = (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                             event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
+                            event.button.button == SDL_BUTTON_RIGHT;
+    if (escape || rightClick ||
+        menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Cancel) {
       playSound(Ui::UiSfxCue::Cancel);
-      if (!beginSystemPanelClose()) closePanels();
-    }
+      if (!beginSystemPanelClose())
+        closePanels();
+    } else if (menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Up ||
+               menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Left) {
+      if (backlogModel.StepCursor(-1))
+        playSound(Ui::UiSfxCue::Select);
+    } else if (menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Down ||
+               menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Right) {
+      if (backlogModel.StepCursor(1))
+        playSound(Ui::UiSfxCue::Select);
+    } else if (menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Confirm) {
+      if (backlogModel.Selection() == 4) {
+        playSound(Ui::UiSfxCue::Click);
+        if (!beginSystemPanelClose())
+          closePanels();
+      }
+    } else if (event.type == SDL_EVENT_MOUSE_WHEEL) {
 #if defined(__ANDROID__) || defined(ANDROID)
-    else if (event.type == SDL_EVENT_MOUSE_WHEEL) {
-      // History scrolls by three native records per gesture tick.
-      backlogModel.MobileScroll(event.wheel.y > 0 ? -3 : 3);
-    }
+      // Touch-first Android: three authored BackLog records per gesture.
+      if (event.wheel.y != 0.0f)
+        backlogModel.MobileScroll(event.wheel.y > 0.0f ? -3 : 3);
+#else
+      if (event.wheel.y > 0.0f)
+        (void)backlogModel.StepCursor(-1);
+      else if (event.wheel.y < 0.0f)
+        (void)backlogModel.StepCursor(1);
 #endif
-    else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+    } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
       int x = -1, y = -1;
       if (pointerToBackLog(event.motion.x, event.motion.y, &x, &y))
         backlogModel.SetSelectionFromPointer(x, y);
@@ -5578,6 +5680,11 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
           (handoffUiState == HandoffUiState::SaveFeel ||
            handoffUiState == HandoffUiState::SaveLoad) &&
           (systemUi.IsSaveFeelOpen() || systemUi.IsSaveLoadOpen())) {
+        return true;
+      }
+      if (systemUi.IsReplayOpen() && systemUi.Replay().SceneCheckOpen()) {
+        playSound(Ui::UiSfxCue::Cancel);
+        (void)systemUi.CancelReplaySceneCheck();
         return true;
       }
       playSound(Ui::UiSfxCue::Cancel);
@@ -5621,15 +5728,7 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
           return true;
         }
     } else if (currentState == Kotonoha::GameState::Menu && title.IsOpen()) {
-      if (event.type == SDL_EVENT_MOUSE_MOTION) {
-        int x = -1, y = -1;
-        if (pointerToTitle(event.motion.x, event.motion.y, &x, &y))
-          title.SetSelectionFromPointer(x, y);
-      }
-      if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_LEFT) {
-        int x = -1, y = -1;
-        if (!pointerToTitle(event.button.x, event.button.y, &x, &y)) return true;
-        title.SetSelectionFromPointer(x, y);
+      auto activateTitleSelection = [&]() {
         Kotonoha::SchoolDaysTitleModel::Activation action;
         if (title.ActivateSelection(&action)) {
           using Result = Kotonoha::SchoolDaysTitleModel::Result;
@@ -5644,25 +5743,202 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
             beginTitleHandoff(FrontendHandoff::TitleReplay, SDL_GetTicks());
           else if (action.result == Result::Exit) openExit();
         }
+      };
+      if (event.type == SDL_EVENT_MOUSE_MOTION) {
+        int x = -1, y = -1;
+        if (pointerToTitle(event.motion.x, event.motion.y, &x, &y))
+          title.SetSelectionFromPointer(x, y);
+      }
+      if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+          event.button.button == SDL_BUTTON_RIGHT) {
+        openExit();
+        return true;
+      }
+      if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+          event.button.button == SDL_BUTTON_LEFT) {
+        int x = -1, y = -1;
+        if (!pointerToTitle(event.button.x, event.button.y, &x, &y))
+          return true;
+        title.SetSelectionFromPointer(x, y);
+        activateTitleSelection();
+      }
+      if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+        const auto menuKey = Kotonoha::SchoolDaysInputPolicy::TranslateMenuKey(
+            event.key.key, event.key.mod);
+        if (menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Up ||
+            menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Left) {
+          const int before = title.Selection();
+          title.StepSelection(-1);
+          if (title.Selection() != before)
+            playSound(Ui::UiSfxCue::Select);
+          return true;
+        }
+        if (menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Down ||
+            menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Right) {
+          const int before = title.Selection();
+          title.StepSelection(1);
+          if (title.Selection() != before)
+            playSound(Ui::UiSfxCue::Select);
+          return true;
+        }
+        if (menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Confirm) {
+          activateTitleSelection();
+          return true;
+        }
+        if (menuKey == Kotonoha::SchoolDaysInputPolicy::MenuKey::Cancel) {
+          openExit();
+          return true;
+        }
       }
     }
-    if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat) return true;
-    if (event.key.key == SDLK_ESCAPE) {
-      if (currentState == Kotonoha::GameState::Menu)
-        beginTitleHandoff(FrontendHandoff::TitleConfig, SDL_GetTicks());
-      else
-        openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page::Def);
+    if (currentState == Kotonoha::GameState::Gameplay &&
+        event.type == SDL_EVENT_MOUSE_WHEEL) {
+      const bool choiceActive = choice != nullptr && !committed &&
+                                choiceInteraction.VisibleAtTick(tick);
+      if (!choiceActive) {
+        const Uint64 nowMs = SDL_GetTicks();
+        if (nowMs - lastWheelTickMs > 500u)
+          wheelAccumDelta = 0;
+        lastWheelTickMs = nowMs;
+        wheelAccumDelta +=
+            static_cast<int>(std::lround(event.wheel.y * 120.0f));
+        if (config.mouseWheelMode == 0) {
+          if (menuBarProjection().speedControlsEnabled) {
+            if (wheelAccumDelta > 180) {
+              setPlaybackSpeedIndex(std::min(4, speedIndex + 1));
+              wheelAccumDelta = 0;
+            } else if (wheelAccumDelta < -180) {
+              setPlaybackSpeedIndex(std::max(0, speedIndex - 1));
+              wheelAccumDelta = 0;
+            }
+          }
+        } else {
+          if (wheelAccumDelta > 150) {
+            Policy::StepMasterVolume(&config, 1);
+            applyConfig();
+            cacheConfigState();
+            wheelAccumDelta = 0;
+          } else if (wheelAccumDelta < -150) {
+            Policy::StepMasterVolume(&config, 0);
+            applyConfig();
+            cacheConfigState();
+            wheelAccumDelta = 0;
+          }
+        }
+      }
       return true;
     }
-    if (currentState != Kotonoha::GameState::Gameplay) return true;
-    if (event.key.key == SDLK_SPACE) paused = !paused;
-    if (!temporaryPlaybackActive() && event.key.key == SDLK_F5)
-      saveGame((documents / "QuickSave").string());
-    if (!temporaryPlaybackActive() && event.key.key == SDLK_F6)
-      loadGame((documents / "QuickSave").string());
-    if (event.key.key == SDLK_LEFT && !choiceMenuFrozen &&
-        !(choice != nullptr && unresolvedChoice())) back();
-    if (event.key.key == SDLK_RIGHT) requestSkipToEnd();
+    if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat)
+      return true;
+    const auto accel = Kotonoha::SchoolDaysInputPolicy::TranslateAccelerator(
+        event.key.key, event.key.mod);
+    if (accel == Kotonoha::SchoolDaysInputPolicy::Accelerator::ExitFullscreen) {
+      if (displayBackend.windowMode != 0 ||
+          (engine &&
+           engine->GetSettings().mode != Kotonoha::WindowMode::Windowed)) {
+        handleConfig(
+            {Kotonoha::SchoolDaysConfigMenuModel::ActionKind::RequestFull,
+             Kotonoha::SchoolDaysConfigMenuModel::Page::Def, -1, -1, 1});
+      }
+      return true;
+    }
+    if (currentState != Kotonoha::GameState::Gameplay)
+      return true;
+    // The SetSELECT result/tail owns its input gate. Do not let keyboard
+    // shortcuts initiate Back, Skip, Save or a modal while it is unresolved.
+    // Fullscreen exit above remains an OS-level window action.
+    const bool choiceGate = choiceMenuFrozen ||
+                            (choice != nullptr && unresolvedChoice());
+    if (choiceGate)
+      return true;
+    // Keep the fork's explicit QA convenience keys and native Back/Skip
+    // boundaries without overriding Ruaneri's Ctrl+accelerator table.
+    if ((event.key.mod & (SDL_KMOD_CTRL | SDL_KMOD_SHIFT | SDL_KMOD_ALT)) == 0) {
+      if (event.key.key == SDLK_F5 && !temporaryPlaybackActive()) {
+        saveGame((documents / "QuickSave").string());
+        return true;
+      }
+      if (event.key.key == SDLK_F6 && !temporaryPlaybackActive()) {
+        loadGame((documents / "QuickSave").string());
+        return true;
+      }
+      if (event.key.key == SDLK_LEFT) {
+        back();
+        return true;
+      }
+      if (event.key.key == SDLK_RIGHT) {
+        requestSkipToEnd();
+        return true;
+      }
+    }
+    const bool replay = replayPlayback && replayPlayback->IsOpen();
+    const bool endMode =
+        !temporaryPlaybackActive() && bridge.HasPendingHandoff();
+    const bool choiceActive = choice != nullptr && !committed &&
+                              choiceInteraction.VisibleAtTick(tick);
+    using Accel = Kotonoha::SchoolDaysInputPolicy::Accelerator;
+    switch (accel) {
+    case Accel::TogglePause:
+      paused = !paused;
+      return true;
+    case Accel::Speed1x:
+    case Accel::Speed2x:
+    case Accel::Speed4x:
+    case Accel::Speed12x:
+    case Accel::Speed24x:
+      if (!choiceActive && menuBarProjection().speedControlsEnabled) {
+        setPlaybackSpeedIndex(
+            Kotonoha::SchoolDaysInputPolicy::SpeedIndexForAccelerator(accel));
+      }
+      return true;
+    case Accel::ToggleMenuBarLock:
+      if (gameScene)
+        gameScene->toggleMenuBarAutoHideLock();
+      return true;
+    case Accel::OpenConfig:
+      if (!replay && !endMode)
+        activateControl(13);
+      return true;
+    case Accel::ToggleSubtitles:
+      config.textView = !config.textView;
+      cacheConfigState();
+      return true;
+    case Accel::OpenPlayDataFeeling:
+    case Accel::OpenPlayDataHistory:
+    case Accel::OpenPlayDataRouteMap:
+      if (!replay && !endMode)
+        openRouteMap();
+      return true;
+    case Accel::SuperSkipNextChapter:
+      if (!replay && !endMode && !choiceActive && config.superSkip)
+        activateControl(4);
+      return true;
+    case Accel::ReturnToTitle:
+      activateControl(14);
+      return true;
+    case Accel::OpenLoad:
+      if (!replay && !endMode)
+        activateControl(11);
+      return true;
+    case Accel::OpenExitConfirm:
+      if (!replay)
+        activateControl(16);
+      return true;
+    case Accel::ToggleTopMeter:
+      if (gameScene)
+        gameScene->toggleMenuBarTopMeter();
+      return true;
+    case Accel::OpenSave:
+      if (!replay && !endMode)
+        activateControl(10);
+      return true;
+    case Accel::OpenBackLog:
+      if (!replay)
+        activateControl(12);
+      return true;
+    default:
+      break;
+    }
   } catch (const std::exception &error) {
     setStatus(error.what());
     return true;
@@ -6712,8 +6988,12 @@ void Runtime::loadCheckpoint(int selector) {
   // Validate the tag3 SLog checkpoint before retiring any pointers to the
   // currently presented scene. GlobalFlag SP flags alone are not resumable.
   Kotonoha::SchoolDaysKtrfSession::RouteMapCheckpointPlan plan;
-  Check(bridge.Session().PlanRouteMapCheckpoint(selector, &plan, &error), error);
+  Check(bridge.Session().PlanRouteMapCheckpoint(selector, &plan, &error),
+        error);
+  routeLoadLatch = true;
   retireSceneEventPointers();
+  replayPlayback.reset();
+  playDataPlayback.reset();
   Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult result;
   Check(bridge.LoadRouteMapSelector(selector, &result, &error), error);
   frontendChild = FrontendChild::None;
@@ -6723,6 +7003,7 @@ void Runtime::loadCheckpoint(int selector) {
   backlogScene.clear();
   openScene(result.scene);
   if (gameScene) gameScene->restoreMenuBarFeelingState();
+  routeLoadLatch = false;
 }
 
 void Runtime::flushGlobal() {

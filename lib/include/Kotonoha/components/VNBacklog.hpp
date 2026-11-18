@@ -5,6 +5,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Scene.hpp>
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -38,6 +39,12 @@ protected:
   Clock clock;
   ScrollGesture scrollGesture;
   std::function<void(const std::string &)> voiceReplay;
+  std::vector<float> entryOffsets_;
+  std::vector<float> speakerHeights_;
+  std::vector<float> textHeights_;
+  std::uint64_t layoutUiId_ = 0;
+  float layoutRaster_ = 0.0f;
+  void invalidateLayout() { entryOffsets_.clear(); }
   virtual SDL_FRect closeButtonArea() const { return {980, 100, 160, 44}; }
   virtual float scrollInputHeight() const { return 720; }
 
@@ -89,6 +96,10 @@ public:
   bool onEvent(EventRef event) override;
   void update() override;
   void render(RendererRef renderer, float scale) override;
+  void translationChanged(const std::string &, const std::string &,
+                          const std::string &) override {
+    invalidateLayout();
+  }
 };
 
 VNBacklog &GetVNBacklogRuntime(Engine &engineRef);

@@ -166,6 +166,9 @@ void Game::pump(size_t maxSteps) {
   if (waiting_)
     return;
   if (audioWait_ != AudioWait::None) {
+    // TimerSkippable is driven by tickTimer(), not by an audio channel.
+    if (audioWait_ == AudioWait::TimerSkippable)
+      return;
     const bool playing = audioWait_ == AudioWait::SeSkippable
                              ? (sePlaying && sePlaying())
                          : audioWait_ == AudioWait::Transition
@@ -227,6 +230,8 @@ bool Game::choose(size_t i) {
 bool Game::skipAudioWait() {
   if (audioWait_ == AudioWait::None || audioWait_ == AudioWait::Voice)
     return false;
+  if (audioWait_ == AudioWait::TimerSkippable)
+    waitDeadlineMs_ = 0;
   audioWait_ = AudioWait::None;
   vm_.unblock();
   return true;
@@ -286,8 +291,7 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
   };
 
   switch (id) {
-  case 1:
-  case 7: {
+  case 1: {
     for (const auto &l : vm.lines()) {
       Message m;
       m.actor = speakerMode_;
@@ -310,6 +314,34 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
     }
     break;
   }
+  case 3: // of_adv3.exe:0x434baa — hide message window
+    hasMsg_ = false;
+    break;
+  case 7: { // of_adv3.exe:0x434427 — 1-based text choice menu (mode=0)
+    kind_ = ChoiceKind::Text;
+    initialFocus_ = -1;
+    choiceText_.clear();
+    choiceRoute_.clear();
+    choiceValue_.clear();
+    choiceVar_ = 0;
+    for (const Arg &a : args)
+      if (a.tag() == 1)
+        choiceVar_ = a.value();
+    int index = 1;
+    for (const auto &l : vm.lines()) {
+      choiceText_.push_back(
+          Kotonoha::ShiftJisToUtf8(vm.textAt(l.object, l.index)));
+      choiceRoute_.push_back(int(l.object));
+      choiceValue_.push_back(index++);
+    }
+    vm.lines().clear();
+    if (!choiceText_.empty()) {
+      hasMsg_ = false;
+      choosing_ = true;
+      vm.block();
+    }
+    break;
+  }
   case 5: {
     for (const Arg &a : args) {
       if (a.tag() == 0)
@@ -325,6 +357,27 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
     loadScript(firstString(), true);
     break;
   }
+  case 17: // of_adv3.exe:0x432703 — clear non-system vars (0x0000..0x4fff)
+    vm_.clearLocalVars();
+    break;
+  case 18: // of_adv3.exe:0x432717 — set chapter label for save metadata
+    chapterTitle_ = Kotonoha::ShiftJisToUtf8(firstString());
+    break;
+  case 21: // of_adv3.exe:0x4327b7 — debug/error assertion log
+    if (trace)
+      trace("assert: " + Kotonoha::ShiftJisToUtf8(firstString()));
+    break;
+  case 25: // of_adv3.exe:0x436738 — set save-slot scene title
+    sceneTitle_ = Kotonoha::ShiftJisToUtf8(firstString());
+    break;
+  case 26: // of_adv3.exe:0x43275a — quit application
+    if (quit)
+      quit();
+    break;
+  case 27: // of_adv3.exe:0x43276d — reset/hide message window state
+    hasMsg_ = false;
+    queue_.clear();
+    break;
   case 28: {
     callStack_.push_back({scriptName_, vm.returnPc()});
     loadScript(firstString(), true);
@@ -334,6 +387,21 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
     popCall();
     break;
   }
+  case 32: // of_adv3.exe:0x434b73 — click-wait without message window
+    hasMsg_ = false;
+    waiting_ = true;
+    vm.block();
+    break;
+  case 33: // of_adv3.exe:0x434bd0 — skippable timed wait (ms)
+    if (!ints.empty() && ints[0] > 0) {
+      // Store deadline; tickTimer() will unblock when expired.
+      // Caller sets waitDeadlineMs_ = now + ints[0] in the presenter layer
+      // since Game has no clock.  We just record the duration request.
+      waitDeadlineMs_ = uint64_t(std::max(0, ints[0]));
+      audioWait_ = AudioWait::TimerSkippable;
+      vm.block();
+    }
+    break;
   case 219: {
     mapArgs_ = ints;
     kind_ = ChoiceKind::Map;
@@ -417,6 +485,22 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
     ++sceneVersion_;
     break;
   }
+  case 52: { // of_adv3.exe:0x43ec90 — pan oversized CG (3 calls in lib.obj)
+    std::string name = firstString();
+    int startY = ints.size() > 1 ? ints[1] : 0;
+    int steps = ints.size() > 4 ? ints[4] : 24;
+    int tickMs = ints.size() > 5 ? ints[5] : 10;
+    if (cgPan && !name.empty()) {
+      cgPan(name, startY, steps, tickMs);
+      // The presenter handles the animation; leave background set for the
+      // final frame.
+      background_ = name;
+      sprites_.clear();
+      filled_ = false;
+      ++sceneVersion_;
+    }
+    break;
+  }
   case 64: { // transition (type, pattern, speed); 0 just shows the new frame
     const int type = ints.empty() ? 0 : ints[0];
     const int pattern = ints.size() > 1 ? ints[1] : 0;
@@ -491,6 +575,7 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
     }
     break;
   case 132: // voice stop/fade
+  case 136: // of_adv3.exe:0x42dd64 — voice stop (lib.obj PCs 144, 171)
     if (sound)
       sound("voicestop", "", false);
     break;
@@ -561,8 +646,40 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
     }
     break;
   }
+  case 209: // of_adv3.exe:0x408eaf — CG gallery & scene replay browser
+    if (gallery)
+      gallery();
+    break;
+  case 223: // of_adv3.exe:0x44295e — ending staff roll (Credit00..14 + snow)
+    if (staffRoll)
+      staffRoll();
+    break;
+  case 225: // of_adv3.exe:0x4366f0 — load replay slot (pairs with sys 209)
+    // The gallery callback handles both browsing and replay loading.
+    if (gallery)
+      gallery();
+    break;
+  case 228: { // of_adv3.exe:0x436792 — register scene replay bookmark
+    int slot = !ints.empty() ? ints[0] : -1;
+    std::string replayTitle = Kotonoha::ShiftJisToUtf8(firstString());
+    if (trace)
+      trace("replay bookmark slot=" + std::to_string(slot) +
+            " title=" + replayTitle);
+    // Replay registration is handled by the presenter / session layer.
+    break;
+  }
   default:
     break;
+  }
+}
+
+void Game::tickTimer(uint64_t nowMs) {
+  if (audioWait_ != AudioWait::TimerSkippable || waitDeadlineMs_ == 0)
+    return;
+  if (nowMs >= waitDeadlineMs_) {
+    waitDeadlineMs_ = 0;
+    audioWait_ = AudioWait::None;
+    vm_.unblock();
   }
 }
 

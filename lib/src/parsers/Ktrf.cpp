@@ -1,10 +1,10 @@
 #include "Kotonoha/parsers/Ktrf.h"
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
-#include <memory>
-#include <filesystem>
 #include <cstdint>
 #include <exception>
+#include <filesystem>
+#include <memory>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -723,16 +723,15 @@ int Kotonoha_KtrfLoadFile(const char *path, Kotonoha_KtrfDocument *out,
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                      "KTRF path/out argument is null");
   try {
-    Kotonoha::Filesystem::SDLFileSource input{
-        std::filesystem::path(path)};
+    Kotonoha::Filesystem::SDLFileSource input{std::filesystem::path(path)};
     const auto length = input.size();
     if (length < 0 || static_cast<std::uint64_t>(length) >
                           static_cast<std::uint64_t>(SIZE_MAX))
-      return ktrf_fail(error, KOTONOHA_KTRF_ERROR_IO,
-                       "invalid KTRF file size");
+      return ktrf_fail(error, KOTONOHA_KTRF_ERROR_IO, "invalid KTRF file size");
     auto bytes = std::unique_ptr<uint8_t, decltype(&free)>(
-        length ? static_cast<uint8_t *>(malloc(
-                     static_cast<size_t>(length))) : nullptr, free);
+        length ? static_cast<uint8_t *>(malloc(static_cast<size_t>(length)))
+               : nullptr,
+        free);
     if (length && !bytes)
       return ktrf_fail(error, KOTONOHA_KTRF_ERROR_MEMORY,
                        "out of memory reading KTRF file");
@@ -745,8 +744,8 @@ int Kotonoha_KtrfLoadFile(const char *path, Kotonoha_KtrfDocument *out,
                          "short read while loading KTRF file");
       done += static_cast<std::size_t>(count);
     }
-    return Kotonoha_KtrfLoadMemoryCopy(bytes.get(),
-                                      static_cast<size_t>(length), out, error);
+    return Kotonoha_KtrfLoadMemoryCopy(bytes.get(), static_cast<size_t>(length),
+                                       out, error);
   } catch (const std::exception &) {
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_IO,
                      "failed to open or read KTRF file: %s", path);

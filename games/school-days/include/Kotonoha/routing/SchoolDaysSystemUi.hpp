@@ -177,25 +177,28 @@ public:
                exitView_.IsOpen() || replay_.IsOpen() || routeMap_.IsOpen();
     }
 
-    bool IsSaveFeelOpen() const { return saveFeel_.IsOpen(); }
-    bool IsSaveLoadOpen() const { return saveLoad_.IsOpen(); }
-    bool IsConfigOpen() const { return configMenu_.IsOpen(); }
-    bool IsExitOpen() const { return exitView_.IsOpen(); }
-    bool IsReplayOpen() const { return replay_.IsOpen(); }
-    bool IsRouteMapOpen() const { return routeMap_.IsOpen(); }
-    bool IsSaveLoadCommentEditorOpen() const { return saveLoadCommentEditorOpen_; }
-    const std::u16string& SaveLoadCommentEditorText() const {
-        return saveLoadCommentText_;
-    }
-    const SchoolDaysSaveFeelModel& SaveFeel() const { return saveFeel_; }
-    const SchoolDaysSaveLoadModel& SaveLoad() const { return saveLoad_; }
-    void RestoreSaveLoadSelection(int selection) {
-        saveLoad_.RestoreSelection(selection);
-    }
-    const SchoolDaysConfigMenuModel& ConfigMenu() const { return configMenu_; }
-    const SchoolDaysExitViewModel& ExitView() const { return exitView_; }
-    const SchoolDaysReplayModel& Replay() const { return replay_; }
-    const SchoolDaysRouteMapModel& RouteMap() const { return routeMap_; }
+  bool IsSaveFeelOpen() const { return saveFeel_.IsOpen(); }
+  bool IsSaveLoadOpen() const { return saveLoad_.IsOpen(); }
+  bool IsConfigOpen() const { return configMenu_.IsOpen(); }
+  bool IsExitOpen() const { return exitView_.IsOpen(); }
+  bool IsReplayOpen() const { return replay_.IsOpen(); }
+  bool IsRouteMapOpen() const { return routeMap_.IsOpen(); }
+  bool IsSaveLoadCommentEditorOpen() const {
+    return saveLoadCommentEditorOpen_;
+  }
+  const std::u16string &SaveLoadCommentEditorText() const {
+    return saveLoadCommentText_;
+  }
+  const SchoolDaysSaveFeelModel &SaveFeel() const { return saveFeel_; }
+  const SchoolDaysSaveLoadModel &SaveLoad() const { return saveLoad_; }
+  void RestoreSaveLoadSelection(int selection) {
+    saveLoad_.RestoreSelection(selection);
+  }
+  const SchoolDaysConfigMenuModel &ConfigMenu() const { return configMenu_; }
+  const SchoolDaysExitViewModel &ExitView() const { return exitView_; }
+  const SchoolDaysReplayModel &Replay() const { return replay_; }
+  bool CancelReplaySceneCheck() { return replay_.CancelSceneCheck(); }
+  const SchoolDaysRouteMapModel &RouteMap() const { return routeMap_; }
 
 private:
     struct Viewport {

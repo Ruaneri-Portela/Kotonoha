@@ -118,7 +118,9 @@ void CheckStorage(const fs::path &root) {
   Kotonoha::SchoolDaysSaveProfile profile;
   profile.saveFolder = "Save";
   profile.flagFileName = "Save/GlobalFlag.DAT";
-  profile.saveFileName = "Save/SaveFile%02d.DAT";
+  // The retail-style profile encodes the leading zeroes as literal filename
+  // characters; FormatIndexed intentionally accepts only one native %d token.
+  profile.saveFileName = "Save/SaveFile00%d.DAT";
   std::string error;
   Require(storage.Initialize(root, profile, &error),
           "Cannot initialize synthetic save storage: " + error);
@@ -143,8 +145,27 @@ void CheckStorage(const fs::path &root) {
   Require(storage.LoadGlobalFlag(&loaded, &present, &error) && present &&
               loaded == second,
           "GlobalFlag load differs after atomic publish");
-  Require(!fs::exists(root / "Save" / "SaveFile00.DAT"),
+  Require(!fs::exists(root / "Save" / "SaveFile000.DAT"),
           "GlobalFlag write unexpectedly created a slot save");
+
+  // Preserve upstream's Unicode slot read/probe coverage while using the
+  // exact retail-style %d format supported by SchoolDaysSaveProfile.
+  const auto slot = root / "Save" / "SaveFile000.DAT";
+  const std::string slotText = "synthetic-slot";
+  {
+    std::ofstream output(slot, std::ios::binary);
+    output << slotText;
+    Require(bool(output), "Cannot create synthetic slot");
+  }
+  bool openable = false;
+  Require(storage.ProbeSaveFile(0, &openable, &error) && openable,
+          "Unicode slot folder was not probed correctly");
+  std::vector<uint8_t> slotBytes;
+  Require(storage.ReadSaveFile(0, &slotBytes, &error) &&
+              slotBytes ==
+                  std::vector<uint8_t>(slotText.begin(), slotText.end()),
+          "Unicode slot folder was not read correctly");
+  Require(fs::remove(slot), "Cannot remove synthetic slot fixture");
 
   const auto faultWrite = Storage::GlobalFlagWriteFault::Write;
   const auto faultFlush = Storage::GlobalFlagWriteFault::Flush;
@@ -152,6 +173,8 @@ void CheckStorage(const fs::path &root) {
   CheckFailure(storage, target, second, first, faultWrite, false);
   CheckFailure(storage, target, second, first, faultFlush, false);
   CheckFailure(storage, target, second, first, faultPublish, false);
+  CheckFailure(storage, target, second, first,
+               Storage::GlobalFlagWriteFault::DirectoryFlushBefore, false);
   CheckFailure(storage, target, second, first,
                Storage::GlobalFlagWriteFault::SimulatedInterruption, true);
 
@@ -230,6 +253,18 @@ void CheckStorage(const fs::path &root) {
   CheckFlag(target, second);
   Require(PendingCount(target) == 0, "Read-only failure left pending file");
 #endif
+
+  // After the atomic rename a failed directory durability confirmation
+  // reports uncertainty, but must not roll back the newly published FlgH.
+  storage.SetGlobalFlagWriteFaultForTesting(
+      Storage::GlobalFlagWriteFault::DirectoryFlushAfter);
+  Require(!storage.WriteGlobalFlagBytes(first, &error) && !error.empty(),
+          "Post-publication uncertainty was not reported");
+  CheckFlag(target, first);
+  Require(PendingCount(target) == 0,
+          "Post-publication error left an unpublished temporary");
+  storage.SetGlobalFlagWriteFaultForTesting(
+      Storage::GlobalFlagWriteFault::None);
 }
 } // namespace
 

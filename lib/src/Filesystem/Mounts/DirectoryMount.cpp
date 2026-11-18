@@ -32,12 +32,13 @@ DirectoryMount::DirectoryMount(const std::filesystem::path &source) {
   std::filesystem::recursive_directory_iterator it(root_, ec), end;
   if (ec)
     throw FilesystemError(ErrorCode::IOError,
-                          "Cannot enumerate mount directory: " + root_.string());
+                          "Cannot enumerate mount directory: " +
+                              root_.string());
   for (; it != end; it.increment(ec)) {
     if (ec)
       throw FilesystemError(ErrorCode::IOError, "Cannot enumerate mount");
-    const auto id = normalizePath(
-        it->path().lexically_relative(root_).generic_string());
+    const auto id =
+        normalizePath(it->path().lexically_relative(root_).generic_string());
     const auto key = lookupKey(id);
     const auto real = std::filesystem::canonical(it->path(), ec);
     if (ec || !contained(real, root_))
@@ -56,12 +57,12 @@ DirectoryMount::DirectoryMount(const std::filesystem::path &source) {
     if (regular) {
       const auto actualSize = it->file_size(ec);
       if (ec || actualSize > static_cast<std::uintmax_t>(INT64_MAX))
-        throw FilesystemError(ErrorCode::IOError,
-                              "Invalid file size: " + id);
+        throw FilesystemError(ErrorCode::IOError, "Invalid file size: " + id);
       size = static_cast<std::int64_t>(actualSize);
     }
-    Node entry{FileInfo{id, directory ? FileType::Directory : FileType::Regular,
-                        size}, it->path()};
+    Node entry{
+        FileInfo{id, directory ? FileType::Directory : FileType::Regular, size},
+        it->path()};
     if (!nodes_.emplace(key, std::move(entry)).second)
       throw FilesystemError(ErrorCode::InvalidPath,
                             "Ambiguous case-insensitive mount entry: " + id);
@@ -74,9 +75,8 @@ DirectoryMount::DirectoryMount(const std::filesystem::path &source) {
 void DirectoryMount::refreshFromBrowser() const {
   // A virtual folder can be mounted after game startup. The browser changes
   // this generation only after a successful filesystem import.
-  const int current = EM_ASM_INT({
-    return Module["KotonohaVfsGeneration"] | 0;
-  });
+  const int current =
+      EM_ASM_INT({ return Module["KotonohaVfsGeneration"] | 0; });
   if (current == observedBrowserGeneration_)
     return;
   DirectoryMount updated(root_);
@@ -85,10 +85,34 @@ void DirectoryMount::refreshFromBrowser() const {
 }
 #endif
 
+void DirectoryMount::tryAddFile(std::string_view path) const {
+  const auto key = lookupKey(path, true);
+  if (nodes_.count(key))
+    return;
+  std::error_code ec;
+  const auto target = root_ / path;
+  if (!std::filesystem::exists(target, ec) ||
+      !std::filesystem::is_regular_file(target, ec))
+    return;
+  const auto real = std::filesystem::canonical(target, ec);
+  if (ec || !contained(real, root_))
+    return;
+  const auto id =
+      normalizePath(target.lexically_relative(root_).generic_string());
+  const auto actualSize = std::filesystem::file_size(target, ec);
+  if (ec)
+    return;
+  Node entry{
+      FileInfo{id, FileType::Regular, static_cast<std::int64_t>(actualSize)},
+      target};
+  nodes_.emplace(key, std::move(entry));
+}
+
 bool DirectoryMount::exists(std::string_view path) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  tryAddFile(path);
   return nodes_.count(lookupKey(path, true)) != 0;
 }
 
@@ -96,6 +120,7 @@ FileInfo DirectoryMount::stat(std::string_view path) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  tryAddFile(path);
   const auto found = nodes_.find(lookupKey(path, true));
   if (found == nodes_.end())
     throw FilesystemError(ErrorCode::NotFound, "File not found in mount");
@@ -125,11 +150,11 @@ std::vector<FileInfo> DirectoryMount::list(std::string_view directory) const {
   return entries;
 }
 
-std::unique_ptr<FileHandle>
-DirectoryMount::open(std::string_view path) const {
+std::unique_ptr<FileHandle> DirectoryMount::open(std::string_view path) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  tryAddFile(path);
   const auto found = nodes_.find(lookupKey(path));
   if (found == nodes_.end())
     throw FilesystemError(ErrorCode::NotFound, "File not found");

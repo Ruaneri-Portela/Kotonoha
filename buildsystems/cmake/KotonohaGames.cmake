@@ -14,4 +14,6 @@ set(KOTONOHA_GAMES
         "KIRIKIRI|kirikiri|games/kirikiri"
         "LUCA_SYSTEM|luca-system|games/luca-system"
         "PMAIL|pmail|games/pmail"
+        "PONSCRIPTER|ponscripter|games/ponscripter"
+        "N2SYSTEM|n2system|games/n2system"
 )

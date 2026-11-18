@@ -38,6 +38,7 @@ void VNTextBox::replaceTranslation(const std::string &original,
   };
   replace(speakerName);
   if (replace(fullDialogue)) {
+    layoutValid_ = false;
     if (isComplete) {
       visibleDialogue = fullDialogue;
       visibleChars = VNTextBoxUtility::CountUtf8Chars(fullDialogue);
@@ -60,6 +61,7 @@ void VNTextBox::setDialogue(const std::string &speaker,
                             const std::string &dialogue) {
   speakerName = speaker;
   fullDialogue = dialogue;
+  layoutValid_ = false;
   visibleDialogue.clear();
   visibleChars = 0;
   isComplete = fullDialogue.empty();
@@ -185,13 +187,24 @@ void VNTextBox::renderDialogue(RendererRef renderer) {
   SDL_Rect clip{60, 550, 1140, 130};
   SDL_SetRenderClipRect(&renderer, &clip);
 
-  // Utiliza textSize(str, width).x para obter a largura em pixels
-  auto measureText = [this](const std::string &str) -> float {
-    return engine.GetVNUI().textSize(str, 1140.0f).x;
-  };
+  auto &ui = engine.GetVNUI();
+  constexpr float textWidth = 1140.0f;
+  if (!layoutValid_ || layoutSource_ != fullDialogue ||
+      layoutDensity_ != ui.pixelDensity() || layoutUiId_ != ui.instanceId()) {
+    const auto measureText = [&ui](const std::string &str) -> float {
+      return ui.textWidth(str);
+    };
+    dialogueLayout_ =
+        TextWrapping::layout(fullDialogue, measureText, textWidth);
+    layoutSource_ = fullDialogue;
+    layoutDensity_ = ui.pixelDensity();
+    layoutUiId_ = ui.instanceId();
+    layoutValid_ = true;
+  }
 
-  const auto lines = VNTextBoxUtility::RevealLines(
-      fullDialogue, visibleDialogue.size(), measureText, 1140.0f);
+  // Revealing only slices the precomputed source-to-display mapping.
+  const auto lines =
+      TextWrapping::visibleLines(dialogueLayout_, visibleDialogue.size());
 
   int yOffset = 550;
   for (const auto &line : lines) {

@@ -1,7 +1,10 @@
+#include <Kotonoha/Filesystem/FileHandle.hpp>
 #include <SummerRadish/Native.hpp>
 #include <SummerRadish/Pack.hpp>
 #include <SummerRadish/Script.hpp>
 #include <SummerRadish/Transition.hpp>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 void testGraphics();
@@ -72,7 +75,10 @@ int main() {
     testGraphics();
     testMap();
     check(wipeDuration(1) == 300 && wipeDuration(2) == 1000 &&
-          wipeDuration(32768) == 4000 && wipeDuration(2, 1000) == 0);
+          wipeDuration(32768) == 4000 && wipeDuration(2, 1000) == 0 &&
+          wipeDuration(0x301) == 1000 && wipeDuration(0x401) == 3000 &&
+          wipeMaskAsset(0x301) == "GRAPHIC/ALPMASK/0001.ALP" &&
+          wipeMaskAsset(0x412) == "GRAPHIC/ALPMASK/0018.ALP");
     Image dark;
     dark.width = dark.height = 1;
     dark.rgba = {0, 10, 20, 255};
@@ -83,6 +89,16 @@ int main() {
     check(wipeFrame(dark, bright, 3, 0, 1000).rgba ==
           Bytes({255, 255, 255, 255}));
     check(wipeFrame(dark, bright, 4, 0, 1000).rgba == Bytes({0, 0, 0, 255}));
+    Bytes alpBytes;
+    for (uint32_t w : {uint32_t(1), uint32_t(1)})
+      for (int b = 0; b < 4; ++b)
+        alpBytes.push_back(uint8_t(w >> (b * 8)));
+    alpBytes.push_back(128);
+    auto alpImg = decodeImage(alpBytes, "ALP");
+    check(alpImg.width == 1 && alpImg.height == 1 &&
+          alpImg.rgba == Bytes({128, 128, 128, 128}));
+    check(wipeFrame(dark, bright, 0x101, 1000, 1000, &alpImg).rgba ==
+          bright.rgba);
     check(decompress({2, 'a', 'b', 'c', 0x88, 2}, 7) ==
           Bytes({'a', 'b', 'c', 'a', 'b', 'c', 'a'}));
     rejects([] { decompress({0x80, 0}, 2); });
@@ -167,6 +183,48 @@ int main() {
     cgd.pop_back();
     cgd.pop_back();
     rejects([&] { decodeImage(cgd, "CGD"); });
+    {
+      namespace fs = std::filesystem;
+      const auto tmpDir = fs::temp_directory_path() / "meo_zero_key_test_dir";
+      fs::create_directories(tmpDir);
+      const auto tmpCmp = tmpDir / "meo_zero_key_test.cmp";
+      // Data section: "ABCDEF" at offset 0 (6 bytes)
+      // Directory entry: offset=0 (4B), units=14 (1B), compressed=0 (1B),
+      // pad=0 (4B), UTF-16LE "TEST/HELLO.TXT" (28B) -> total 38 bytes.
+      // Literal LZSS chunk for 38 bytes: control byte 37 followed by 38 bytes.
+      Bytes dirRaw(10 + 28, 0);
+      dirRaw[4] = 14; // 14 UTF-16 units
+      const char *entryName = "TEST/HELLO.TXT";
+      for (int i = 0; i < 14; ++i)
+        dirRaw[10 + i * 2] = uint8_t(entryName[i]);
+      Bytes rawCmp = {'A', 'B', 'C', 'D', 'E', 'F'};
+      // Directory starts at offset 6: raw size = 38 (4B), then control byte 37
+      // + dirRaw
+      rawCmp.insert(rawCmp.end(), {38, 0, 0, 0, 37});
+      rawCmp.insert(rawCmp.end(), dirRaw.begin(), dirRaw.end());
+      // Footer (8B): "PACK" (XOR 0) + directory offset 6 (4B)
+      rawCmp.insert(rawCmp.end(), {'P', 'A', 'C', 'K', 6, 0, 0, 0});
+      {
+        std::ofstream out(tmpCmp, std::ios::binary | std::ios::trunc);
+        out.write(reinterpret_cast<const char *>(rawCmp.data()),
+                  std::streamsize(rawCmp.size()));
+      }
+      Pack zeroKeyPack(tmpCmp, CmpKeyProfile::Auto);
+      check(zeroKeyPack.keyProfile() == CmpKeyProfile::MeoZeroKey);
+      check(zeroKeyPack.contains("test\\hello.txt"));
+      check(zeroKeyPack.read("TEST/HELLO.TXT") ==
+            Bytes({'A', 'B', 'C', 'D', 'E', 'F'}));
+      check(zeroKeyPack.readRange("TEST/HELLO.TXT", 2, 3) ==
+            Bytes({'C', 'D', 'E'}));
+      auto stream = zeroKeyPack.openEntryStream("TEST/HELLO.TXT");
+      check(stream != nullptr && stream->size() == 6);
+      check(stream->seek(1, Kotonoha::Filesystem::SeekOrigin::Begin) == 1);
+      std::array<uint8_t, 4> buf{};
+      check(stream->read(buf.data(), 4) == 4 &&
+            buf == std::array<uint8_t, 4>{'B', 'C', 'D', 'E'});
+      std::error_code ec;
+      fs::remove_all(tmpDir, ec);
+    }
     std::cout << "Summer formats and script control flow passed\n";
     return 0;
   } catch (const std::exception &e) {

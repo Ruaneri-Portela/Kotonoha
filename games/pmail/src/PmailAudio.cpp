@@ -1,5 +1,5 @@
-#include <Kotonoha/core/SDL.hpp>
 #include "PmailAudio.hpp"
+#include <Kotonoha/core/SDL.hpp>
 #include <Pmail/Animation.hpp>
 #include <algorithm>
 #include <cmath>
@@ -37,6 +37,34 @@ unsigned PmailAudio::FadeInterval(int mode) {
   default:
     return 43;
   }
+}
+
+std::string PmailAudio::DaySoundName(int category, int day) {
+  if (day < 613 || day > 722)
+    return {};
+  int base = category;
+  int variant = 0;
+  if (category >= 3 && category <= 9) {
+    base = category;
+  } else if (category == 10) {
+    // Categories 10/11 are aliases of category 3 with the 55/51 name family.
+    base = 3;
+    variant = 1;
+  } else if (category == 11) {
+    base = 3;
+    variant = 2;
+  } else {
+    // Category 12 and unregistered categories never format a name in the
+    // original handler.
+    return {};
+  }
+  const int action = std::min(day - 613, 40);
+  const char *format = variant == 1   ? "V%d55%d00%02d"
+                       : variant == 2 ? "V%d51%d00%02d"
+                                      : "V%d53%d00%02d";
+  char name[32];
+  std::snprintf(name, sizeof(name), format, base, base, action);
+  return name;
 }
 
 Kotonoha::PcmPlayer::Clip PmailAudio::Load(const std::string &id,
@@ -305,6 +333,24 @@ bool PmailAudio::Handle(int syscall, const std::vector<int> &numbers,
   case 132:
     Stop(*slots_[2]);
     return true;
+  case 137: {
+    // Retail day-start cues use the same SE bus that SYS 101 waits on.
+    const auto sound = DaySoundName(number(0), number(1));
+    if (sound.empty())
+      return true;
+    const auto stem = Kotonoha::Providers::SnowAssets::Lower(sound);
+    const std::string voiceId = "voice/" + stem;
+    const std::string soundId = "sound/" + stem;
+    if (!assets_->contains(voiceId) && !assets_->contains(soundId)) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "[PmailAudio] SYS 137 sound missing: %s", sound.c_str());
+      return true;
+    }
+    Stop(*slots_[1]);
+    Stop(*outgoingSe_);
+    Play(1, assets_->contains(voiceId) ? voiceId : soundId, false);
+    return true;
+  }
   default:
     return false;
   }

@@ -1,6 +1,5 @@
 #include <Kotonoha/SchoolDaysGpkIndex.hpp>
 
-#include <limits>
 #include <utility>
 
 namespace Kotonoha {
@@ -57,13 +56,15 @@ bool SchoolDaysGpkIndex::ParseDecoded(const uint8_t *bytes, size_t size,
       return Fail(error, "School Days GPK PIDX filename length is truncated");
     }
     if (nameUnits == 0u) {
-      // All 29 shipped v1.02 indexes end with uint16(0), uint16(0).
-      if (size - cursor != 2u || bytes[cursor] != 0u ||
-          bytes[cursor + 1u] != 0u) {
-        Clear();
-        return Fail(error, "School Days GPK PIDX terminator is malformed");
+      // School Days HQ v1.02 ends with two zero u16s. Other FILMEngine
+      // indexes may carry additional zero padding after the first terminator.
+      // Accept padding only when every remaining byte is zero.
+      for (; cursor < size; ++cursor) {
+        if (bytes[cursor] != 0u) {
+          Clear();
+          return Fail(error, "School Days GPK PIDX terminator is malformed");
+        }
       }
-      cursor += 2u;
       sawTerminator = true;
       break;
     }
@@ -125,12 +126,12 @@ bool SchoolDaysGpkIndex::ParseDecoded(const uint8_t *bytes, size_t size,
       const Entry &previous = entries_.back();
       const uint64_t expected = static_cast<uint64_t>(previous.offset) +
                                 previous.PhysicalBodyLength();
-      if (expected > std::numeric_limits<uint32_t>::max() ||
-          entry.offset != static_cast<uint32_t>(expected)) {
+      // An archive can align entry bodies or leave gaps between files.
+      // Reject overlapping ranges, but do not require exact adjacency.
+      if (static_cast<uint64_t>(entry.offset) < expected) {
         Clear();
-        return Fail(
-            error,
-            "School Days GPK PIDX physical offset chain is inconsistent");
+        return Fail(error,
+                    "School Days GPK PIDX physical entry ranges overlap");
       }
     }
     entries_.push_back(std::move(entry));

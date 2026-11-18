@@ -59,6 +59,7 @@ std::string parentOf(const std::string &name) {
 class SliceHandle final : public FileHandle {
   std::unique_ptr<FileHandle> base_;
   std::int64_t begin_, length_, cursor_ = 0;
+
 public:
   SliceHandle(std::unique_ptr<FileHandle> base, std::uint64_t begin,
               std::uint64_t length)
@@ -69,20 +70,27 @@ public:
       throw FilesystemError(ErrorCode::CorruptImage, "TAR extent overflow");
   }
   std::int64_t read(void *dest, std::size_t count) override {
-    if (cursor_ == length_) return 0;
-    if (!dest && count) return -1;
+    if (cursor_ == length_)
+      return 0;
+    if (!dest && count)
+      return -1;
     if (base_->seek(begin_ + cursor_, SeekOrigin::Begin) < 0)
       return -1;
-    const auto n = base_->read(dest, static_cast<std::size_t>(
-        std::min<std::uint64_t>(count, length_ - cursor_)));
-    if (n > 0) cursor_ += n;
+    const auto n =
+        base_->read(dest, static_cast<std::size_t>(std::min<std::uint64_t>(
+                              count, length_ - cursor_)));
+    if (n > 0)
+      cursor_ += n;
     return n;
   }
   std::int64_t seek(std::int64_t offset, SeekOrigin origin) override {
-    const std::int64_t anchor = origin == SeekOrigin::Begin ? 0
-        : (origin == SeekOrigin::Current ? cursor_ : length_);
+    const std::int64_t anchor =
+        origin == SeekOrigin::Begin
+            ? 0
+            : (origin == SeekOrigin::Current ? cursor_ : length_);
     if (offset >= 0) {
-      if (offset > length_ - anchor) return -1;
+      if (offset > length_ - anchor)
+        return -1;
     } else if (offset < -anchor) {
       return -1;
     }
@@ -124,9 +132,8 @@ std::string paxPath(const std::string &payload) {
 } // namespace
 
 TarMount::TarMount(const std::filesystem::path &archive)
-    : TarMount([archive]() {
-        return std::make_unique<SDLFileSource>(archive);
-      }) {}
+    : TarMount(
+          [archive]() { return std::make_unique<SDLFileSource>(archive); }) {}
 
 TarMount::TarMount(std::function<std::unique_ptr<FileHandle>()> openSource)
     : source_(std::move(openSource)) {
@@ -140,8 +147,8 @@ TarMount::TarMount(std::function<std::unique_ptr<FileHandle>()> openSource)
   std::uint64_t offset = 0;
   std::string nextName;
   while (offset <= static_cast<std::uint64_t>(length) - 512) {
-    if (file->seek(static_cast<std::int64_t>(offset),
-                   SeekOrigin::Begin) != static_cast<std::int64_t>(offset))
+    if (file->seek(static_cast<std::int64_t>(offset), SeekOrigin::Begin) !=
+        static_cast<std::int64_t>(offset))
       throw FilesystemError(ErrorCode::IOError, "Cannot seek TAR");
     std::array<char, 512> hdr{};
     readExactly(*file, hdr.data(), hdr.size());
@@ -151,8 +158,7 @@ TarMount::TarMount(std::function<std::unique_ptr<FileHandle>()> openSource)
     auto stored = octal(hdr.data() + 148, 8);
     std::uint64_t sum = 0;
     for (std::size_t i = 0; i < hdr.size(); ++i)
-      sum += (i >= 148 && i < 156) ? 32
-             : static_cast<unsigned char>(hdr[i]);
+      sum += (i >= 148 && i < 156) ? 32 : static_cast<unsigned char>(hdr[i]);
     if (sum != stored)
       throw FilesystemError(ErrorCode::CorruptImage, "TAR checksum mismatch");
     const auto size = octal(hdr.data() + 124, 12);
@@ -163,21 +169,22 @@ TarMount::TarMount(std::function<std::unique_ptr<FileHandle>()> openSource)
     if (dataAt > static_cast<std::uint64_t>(length) ||
         padded > static_cast<std::uint64_t>(length) - dataAt ||
         size > INT64_MAX)
-      throw FilesystemError(ErrorCode::CorruptImage, "TAR extent out of bounds");
+      throw FilesystemError(ErrorCode::CorruptImage,
+                            "TAR extent out of bounds");
 
     const auto type = hdr[156];
     if (type == 'L' || type == 'x') {
       if (size > 1024 * 1024)
         throw FilesystemError(ErrorCode::CorruptImage,
                               "Oversized TAR extended filename");
-      if (file->seek(static_cast<std::int64_t>(dataAt),
-                     SeekOrigin::Begin) != static_cast<std::int64_t>(dataAt))
+      if (file->seek(static_cast<std::int64_t>(dataAt), SeekOrigin::Begin) !=
+          static_cast<std::int64_t>(dataAt))
         throw FilesystemError(ErrorCode::IOError, "Cannot seek TAR extension");
       std::string extension(static_cast<std::size_t>(size), '\0');
       if (size)
         readExactly(*file, extension.data(), extension.size());
-      nextName = type == 'x'
-          ? paxPath(extension) : field(extension.data(), extension.size());
+      nextName = type == 'x' ? paxPath(extension)
+                             : field(extension.data(), extension.size());
     } else if (type == '\0' || type == '0' || type == '5') {
       auto name = field(hdr.data(), 100);
       const auto prefix = field(hdr.data() + 345, 155);
@@ -203,8 +210,8 @@ TarMount::TarMount(std::function<std::unique_ptr<FileHandle>()> openSource)
             const auto key = lookupKey(*i);
             const auto found = nodes_.find(key);
             if (found == nodes_.end()) {
-              nodes_.emplace(key, Node{
-                  FileInfo{*i, FileType::Directory, 0}, 0});
+              nodes_.emplace(key,
+                             Node{FileInfo{*i, FileType::Directory, 0}, 0});
             } else if (found->second.info.type != FileType::Directory) {
               throw FilesystemError(ErrorCode::CorruptImage,
                                     "TAR file/directory conflict");
@@ -216,9 +223,11 @@ TarMount::TarMount(std::function<std::unique_ptr<FileHandle>()> openSource)
           addDirectory(name);
         } else {
           const auto key = lookupKey(name);
-          if (!nodes_.emplace(key, Node{
-                  FileInfo{name, FileType::Regular,
-                           static_cast<std::int64_t>(size)}, dataAt}).second)
+          if (!nodes_
+                   .emplace(key, Node{FileInfo{name, FileType::Regular,
+                                               static_cast<std::int64_t>(size)},
+                                      dataAt})
+                   .second)
             throw FilesystemError(ErrorCode::CorruptImage,
                                   "Duplicate TAR filename: " + name);
         }

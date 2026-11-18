@@ -30,6 +30,7 @@
 #define SRC_LIBREALLIVE_ALLDEFS_H_
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -73,14 +74,27 @@ inline void append_i32(string &dest, const int i32) {
   dest[++dpos] = (i32 >> 24) & 0xff;
 }
 
-inline int read_i16(const char *src) { return src[0] | (src[1] << 8); }
+inline int read_i16(const char *src) {
+  const auto *bytes = reinterpret_cast<const unsigned char *>(src);
+  return static_cast<int>(bytes[0]) | (static_cast<int>(bytes[1]) << 8);
+}
 
 inline int read_i16(const string &src, const int spos) {
   return read_i16(src.data() + spos);
 }
 
 inline long read_i32(const char *src) {
-  return src[0] | (src[1] << 8) | (src[2] << 16) | (src[3] << 24);
+  const auto *bytes = reinterpret_cast<const unsigned char *>(src);
+  const std::uint32_t value =
+      std::uint32_t(bytes[0]) | (std::uint32_t(bytes[1]) << 8) |
+      (std::uint32_t(bytes[2]) << 16) | (std::uint32_t(bytes[3]) << 24);
+
+  // Decode the signed 32-bit value without relying on signed char or
+  // implementation-defined unsigned-to-signed narrowing conversions.
+  return value >= 0x80000000u
+             ? static_cast<long>(static_cast<std::int64_t>(value) -
+                                 0x100000000LL)
+             : static_cast<long>(value);
 }
 
 inline long read_i32(const string &src, const int spos) {

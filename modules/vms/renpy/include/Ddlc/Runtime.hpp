@@ -67,6 +67,7 @@ struct DrawOp {
                        // + m4 v + m5
   float alpha = 1;
   float crop[4] = {0, 0, 0, 0}; // source sub-rectangle (w = 0: whole)
+  bool grayscale = false;
 };
 
 struct Render {
@@ -99,6 +100,8 @@ struct TransformState {
   int xtile = 1, ytile = 1;
   double crop[4] = {0, 0, 0, 0};
   bool cropSet = false;
+  double width = 0, height = 0;
+  bool sizeSet = false;
 };
 struct Transition;
 
@@ -170,6 +173,7 @@ struct Glyph {
   bool italic = false, bold = false;
   bool hasColor = false;
   uint32_t color = 0;
+  float sizeDelta = 0, sizeOverride = 0;
   float space = 0; // {space=N} advance before the glyph
   double t = 0;    // reveal time offset (seconds) from the start of the text
 };
@@ -198,6 +202,10 @@ DispP makeCompositeDisp(double w, double h,
                         bool live);
 DispP makeTileDisp(const DispP &child);
 DispP makeSwitchDisp(std::vector<std::pair<std::string, DispP>> cases);
+DispP makeGrayscaleDisp(const DispP &child);
+DispP makeAnimatedMaskDisp(const DispP &child, bool moving, double speed,
+                           double frequency, double amount, double oc);
+DispP makeSpriteManagerDisp(const Value &sm);
 
 struct Shown {
   std::string tag;
@@ -229,6 +237,8 @@ struct ScreenState {
 
 struct Scene {
   std::vector<Shown> master;
+  std::shared_ptr<TransformDisp> masterXf;
+  double masterXfAt = 0;
   Window window;
   std::vector<ScreenState> screens;
   bool hasScreen(const std::string &n) const;
@@ -275,6 +285,11 @@ public:
                         float &w, float &h) = 0;
   virtual void play(const std::string &channel, const std::string &spec,
                     double fadein, bool loop) {}
+  virtual void play(const std::string &channel, const std::string &spec,
+                    double fadein, bool loop, double fadeout) {
+    (void)fadeout;
+    play(channel, spec, fadein, loop);
+  }
   virtual void queue(const std::string &channel, const std::string &spec,
                      bool loop) {
     if (playing(channel).empty())
@@ -394,7 +409,12 @@ private:
                    bool append = false);
   std::string readFile(const std::string &name, bool &ok);
   void setVirtualFile(const std::string &name, const Value &value);
+  bool isDir(const std::string &name);
+  void makeDirs(const std::string &name);
+  std::vector<std::string> listDir(const std::string &name);
 
+  std::map<std::string, Value> ephemeralFiles_;
+  std::vector<std::string> virtualDirs_;
   std::vector<Node *> callStack_;
   Args pendingArgs_;
   Kwargs pendingKw_;

@@ -1,3 +1,5 @@
+#include <Kotonoha/core/Config.hpp>
+#if KOTONOHA_ENABLE_UPSCALER
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/OpenGL.hpp>
@@ -1127,3 +1129,5 @@ Uint64 OpenGLUpscaler::retryDeadline() const {
   return KotonohaMPVUpscalerRetryDeadlineMs();
 }
 } // namespace Kotonoha
+
+#endif // KOTONOHA_ENABLE_UPSCALER

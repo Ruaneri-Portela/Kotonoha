@@ -46,3 +46,12 @@ if(ZERO_DISC_IMAGE AND EXISTS "${ZERO_DISC_IMAGE}")
     set_tests_properties(ZeroNoTsukaima.Boot PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 endif()
+
+kotonoha_label_directory_tests(REAL
+    ZeroNoTsukaima.CONCERTOPresentation
+    ZeroNoTsukaima.SYMPHONYPresentation
+    ZeroNoTsukaima.ConcertoSource
+    ZeroNoTsukaima.NodeDebug
+    ZeroNoTsukaima.Engine
+    ZeroNoTsukaima.Boot
+)

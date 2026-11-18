@@ -10,7 +10,7 @@ if(SUMMER_DATA_DIR AND NOT ANDROID)
 endif()
 if(SUMMER_DATA_DIR AND NOT ANDROID)
     add_executable(SummerMoviePathTest MoviePathTest.cpp)
-    target_link_libraries(SummerMoviePathTest PRIVATE Kotonoha::ProviderCMP)
+    target_link_libraries(SummerMoviePathTest PRIVATE kotonoha_provider_cmp)
     add_test(NAME SummerRadish.MoviePath COMMAND SummerMoviePathTest "${SUMMER_DATA_DIR}")
     add_executable(SummerEngineTest EngineTest.cpp)
     target_link_libraries(SummerEngineTest PRIVATE summer_radish_vacation)
@@ -24,3 +24,11 @@ if(SUMMER_DATA_DIR AND NOT ANDROID)
     add_test(NAME SummerRadish.Routes COMMAND SummerRouteTest "${SUMMER_DATA_DIR}")
     set_tests_properties(SummerRadish.Routes PROPERTIES TIMEOUT 120)
 endif()
+
+kotonoha_label_directory_tests(REAL
+    SummerRadish.Retail
+    SummerRadish.Boot
+    SummerRadish.MoviePath
+    SummerRadish.Engine
+    SummerRadish.Routes
+)

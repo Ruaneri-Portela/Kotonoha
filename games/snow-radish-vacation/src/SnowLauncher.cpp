@@ -1,12 +1,10 @@
 #include "SnowLauncher.hpp"
 
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#ifdef __EMSCRIPTEN__
-#include <Kotonoha/Filesystem/Filesystem.hpp>
-#include <Kotonoha/Filesystem/RemoteAssets.hpp>
-#endif
 
 namespace SnowRadish {
 
@@ -55,8 +53,7 @@ bool SnowLauncher::checkPath(const std::string &path, std::string &info) {
 }
 
 bool SnowLauncher::validatePath(const std::string &path, std::string &info) {
-#ifdef __EMSCRIPTEN__
-  // In a manifest-free browser session only the named DAT files are known.
+  // A remote manifest may expose named DAT files without directory enumeration.
   // std::filesystem::directory_iterator cannot enumerate HTTP directories.
   if (Kotonoha::Filesystem::remoteGameAssets()) {
     try {
@@ -76,7 +73,6 @@ bool SnowLauncher::validatePath(const std::string &path, std::string &info) {
     info = "Snow Radish VFS cannot locate SCRIPT.DAT and GRAPHIC.DAT";
     return false;
   }
-#endif
   std::error_code ec;
   if (!std::filesystem::is_directory(path, ec)) {
     info = "Folder not found: " + path;

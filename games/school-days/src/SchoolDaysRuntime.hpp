@@ -279,6 +279,11 @@ class Runtime final : public Kotonoha::Runtime {
   int pendingReplayChoice = -1;
   bool replayHSceneTransitionActive = false;
   bool exitConfirmedByPlayer = false;
+  bool routeLoadLatch = false;
+  int wheelAccumDelta = 0;
+  Uint64 lastWheelTickMs = 0;
+  Uint64 lastMouseMotionMs = 0;
+  bool cursorHidden = false;
   double speed = 1.0, elapsed = 0.0;
   int speedIndex = 0;
   Kotonoha_SceneTick tick = 0;

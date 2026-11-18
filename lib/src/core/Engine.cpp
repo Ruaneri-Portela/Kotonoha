@@ -1,3 +1,4 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
@@ -6,7 +7,6 @@
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 #include <Kotonoha/debug/DebugOverlay.hpp>
@@ -184,7 +184,8 @@ void SDLSession::deviceEvent(EventRef event) {
     openGamepad(event.gdevice.which);
   else if (event.type == SDL_EVENT_GAMEPAD_REMOVED)
     gamepads.erase(event.gdevice.which);
-  else if (event.type == SDL_EVENT_JOYSTICK_ADDED)
+  else if (event.type == SDL_EVENT_JOYSTICK_ADDED &&
+           SDL_IsGamepad(event.jdevice.which))
     openGamepad(event.jdevice.which);
   else if (event.type == SDL_EVENT_JOYSTICK_REMOVED)
     gamepads.erase(event.jdevice.which);
@@ -220,6 +221,11 @@ Engine::Engine(Runtime &run, EngineOptions options)
   if (!options.rendererOverride.empty())
     settings.renderer = options.rendererOverride;
   settings.validate();
+#if !KOTONOHA_ENABLE_UPSCALER
+  // A build without this module never inherits a saved backend/preset.
+  settings.upscaling = {};
+  settings.upscaling.backend = UpscaleBackend::None;
+#endif
   if (options.translationPath.empty()) {
     if (!settings.translationPath.empty())
       options.translationPath = settings.translationPath;
@@ -229,9 +235,11 @@ Engine::Engine(Runtime &run, EngineOptions options)
   if (!options.translationPath.empty())
     translation.load(options.translationPath);
   SDL_WindowFlags graphicsFlags = 0;
+#if KOTONOHA_ENABLE_UPSCALER
   if (isMobilePlatform() && settings.upscaling.backend == UpscaleBackend::MPV &&
       options.rendererOverride.empty())
     settings.renderer = "opengles2";
+#endif
   if (settings.renderer == "opengles2") {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -289,10 +297,16 @@ Engine::Engine(Runtime &run, EngineOptions options)
     dumpTranslation(options.dumpTranslationPath);
     translationDumpComplete = true;
   }
-  if (options.enableMCP || options.mcpPort)
-    mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot,
-                                      options.mcpPort);
+#if KOTONOHA_ENABLE_MCP
+  if (options.enableMCP) {
+    if (options.mcpPort > 0)
+      mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot,
+                                        options.mcpPort);
+    else
+      mcp = std::make_unique<MCPServer>(*this, options.mcpFileRoot);
+  }
 #endif
+#endif // !KOTONOHA_DISTRIBUTION_BUILD
   frameClock.reset();
   SDL_LogInfo(LogCore, "Engine started (%s renderer)",
               SDL_GetRendererName(renderer.get()));
@@ -404,10 +418,14 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
   if (value.renderer != settings.renderer)
     throw std::invalid_argument(
         "Changing the renderer requires an engine restart");
+#if KOTONOHA_ENABLE_UPSCALER
   if (!upscaler->supports(value.upscaling.backend))
     throw std::invalid_argument(
         "Upscaler is unavailable for the current renderer");
-  std::unique_ptr<UI> nextVNUI;
+#endif
+  std::unique_ptr<UI> nextUI, nextVNUI;
+  if (value.fontPath != settings.fontPath)
+    nextUI = std::make_unique<UI>(value.fontPath);
   if (value.vnFontPath != settings.vnFontPath ||
       value.fontPath != settings.fontPath)
     nextVNUI = std::make_unique<UI>(
@@ -428,6 +446,10 @@ void Engine::applySettings(const EngineSettings &value, bool persist) {
     audio.setMasterMuted(value.masterMuted);
     audio.setUserVolumes(value.channelVolumes);
     settings = value;
+#if !KOTONOHA_ENABLE_UPSCALER
+    settings.upscaling = {};
+    settings.upscaling.backend = UpscaleBackend::None;
+#endif
     if (persist)
       saveSettings();
   } catch (const std::exception &error) {
@@ -733,16 +755,17 @@ SDL_AppResult Engine::Event(EventPtr event) {
   }
 #endif
   const auto navigation = controllerNavigation.process(*event);
+  // Synthetic D-pad releases must also reach the runtime when a controller
+  // disconnects or the window loses focus, not only on axis motion.
+  for (auto button : navigation) {
+    const auto result = Event(&button);
+    if (result != SDL_APP_CONTINUE)
+      return result;
+  }
   if (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
       (event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX ||
-       event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY)) {
-    for (auto button : navigation) {
-      const auto result = Event(&button);
-      if (result != SDL_APP_CONTINUE)
-        return result;
-    }
+       event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY))
     return SDL_APP_CONTINUE;
-  }
   inputActions.process(*event);
   SDL_Event pointer{};
   const bool nativeTouch = runtime.continuousTouch() || settingsMenu->isOpen();
@@ -908,11 +931,15 @@ SDL_AppResult Engine::Iterate() {
     return SDL_APP_SUCCESS;
   configureRenderSpace(RenderSpace::Novel);
   synchronizeTimeline();
-#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD) && KOTONOHA_ENABLE_MCP
   if (mcp && !mcp->pump())
     return SDL_APP_SUCCESS;
-  if (!runtime.devPauseRequested() || runtime.devConsumeStep()) runtime.update();
-  else runtime.devIdle();
+#endif
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+  if (!runtime.devPauseRequested() || runtime.devConsumeStep())
+    runtime.update();
+  else
+    runtime.devIdle();
 #else
   runtime.update();
 #endif

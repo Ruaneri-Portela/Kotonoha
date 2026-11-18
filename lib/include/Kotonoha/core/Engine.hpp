@@ -87,6 +87,10 @@ private:
   void synchronizeNodeClock(double delta);
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   std::unique_ptr<DebugOverlay> debug;
+#endif
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD) && KOTONOHA_ENABLE_MCP
+  // Feature-OFF builds do not compile MCPServer.cpp. Exclude its unique_ptr
+  // as well, or Engine's destructor still references an absent destructor.
   std::unique_ptr<MCPServer> mcp;
 #endif
 #if defined(KOTONOHA_PLAYER_DUBBING)

@@ -181,6 +181,13 @@ int main(int argc, char **argv) {
     engine.setTranslation(route, source, "");
     check(session->dialogueText() == before,
           "Clearing live edit restores native source");
+    engine.setTranslation(route, source,
+                          "\xE2\x80\x94\xE2\x80\xA6\xE2\x80\x9C\xE2\x80\x9D"
+                          "\xE2\x80\x98\xE2\x80\x99\xC3\xB1\xC3\x91\xC3\xBC"
+                          "\xC3\x9C");
+    check(dialoguePixels(engine, game) != originalPixels,
+          "PT-BR fallback characters render distinct glyph pixels");
+    engine.setTranslation(route, source, "");
     engine.GetDebug().setVisible(false);
     engine.Iterate();
     check(pause, "Native pause scene exists");

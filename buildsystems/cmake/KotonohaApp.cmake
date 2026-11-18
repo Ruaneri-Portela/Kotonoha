@@ -86,7 +86,7 @@ function(kotonoha_copy_runtime_libraries target dependency_dirs)
     # These shared CMake targets must be shipped even if they are hidden
     # behind an indirect dependency or imported from a toolchain.
     set(_cmake_shared)
-    foreach(_lib IN ITEMS KotonohaEngine imgui SDL3::SDL3 SDL3_ttf::SDL3_ttf)
+    foreach(_lib IN ITEMS KotonohaEngine ${KOTONOHA_IMGUI_TARGET} SDL3::SDL3 SDL3_ttf::SDL3_ttf)
         if(TARGET ${_lib})
             get_target_property(_alias ${_lib} ALIASED_TARGET)
             if(_alias)
@@ -227,13 +227,15 @@ function(kotonoha_configure_app target)
 
         set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/BundleApp.cmake"
+            "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PruneNestedPythonApp.cmake"
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundleContents.cmake"
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageAssets.cmake"
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundledAssets.cmake"
         )
 
         # Assets must be in place before BundleApp validates the bundle.
-        kotonoha_copy_assets(${target} GAME "${APP_GAME}")
+        kotonoha_copy_assets(${target} GAME "${APP_GAME}"
+            GAME_ASSET_SOURCE "${_game_asset_source}")
 
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}"
@@ -254,6 +256,7 @@ function(kotonoha_configure_app target)
                     "-DPYTHON_VERSION=${APP_PYTHON_VERSION}"
                     -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundleContents.cmake"
             )
+            set_tests_properties("Kotonoha.BundleLayout.${target}" PROPERTIES LABELS "synthetic")
         endif()
     else()
         # 2. Configuração para plataformas fora do macOS Bundle (Windows/Linux/Executáveis padrão)
@@ -269,7 +272,7 @@ function(kotonoha_configure_app target)
             target_link_options(${target} PRIVATE
                 -fexceptions
                 "SHELL:-sDISABLE_EXCEPTION_CATCHING=0"
-                "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS','ccall','FS_readFile']"
+                "SHELL:-sEXPORTED_RUNTIME_METHODS=['FS','ccall','FS_readFile','HEAPU8']"
                 "SHELL:-sFORCE_FILESYSTEM=1"
                 "SHELL:-sALLOW_MEMORY_GROWTH=1"
                 "SHELL:-sINITIAL_MEMORY=${KOTONOHA_WASM_INITIAL_MEMORY}"
@@ -286,7 +289,6 @@ function(kotonoha_configure_app target)
                 "SHELL:-sASYNCIFY=1"
                 "SHELL:-sASYNCIFY_STACK_SIZE=262144"
                 "SHELL:-sFETCH=1"
-                "SHELL:-sFETCH_STREAMING=1"
                 "SHELL:-lidbfs.js"
                 "SHELL:--preload-file ${KOTONOHA_ENGINE_ASSETS}@/assets"
             )
@@ -319,6 +321,17 @@ function(kotonoha_configure_app target)
 
         kotonoha_copy_assets(${target} GAME "${APP_GAME}"
             GAME_ASSET_SOURCE "${_game_asset_source}")
+    endif()
+    # Every native game must parse --help without retail assets or a running
+    # renderer. This catches broken SDL callback entrypoints and missing
+    # runtime dependencies across *all* enabled ports.
+    if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN AND
+       NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        add_test(NAME "Kotonoha.PortHelp.${target}"
+            COMMAND $<TARGET_FILE:${target}> --help)
+        set_tests_properties("Kotonoha.PortHelp.${target}" PROPERTIES
+            TIMEOUT 20
+            ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
     endif()
 endfunction()
 

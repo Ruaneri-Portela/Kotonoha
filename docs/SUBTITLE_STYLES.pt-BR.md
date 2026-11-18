@@ -2,6 +2,8 @@
 
 A legenda usa nomes canônicos (`PrintText.character`) dos scripts e seleciona o estilo ASS por comparação **exata** e **sensível a maiúsculas/minúsculas**: sem `trim`, sem normalização de acentos, sem remover prefixos/sufixos. A tradução do texto das falas não altera o nome do falante. Nome não encontrado (inclusive vazio) usa `Default`.
 
+O mesmo arquivo ASS atende **qualquer idioma** (EN, PT-BR, ES, RU, ZH) desde que o script preserve o identificador literal de falante. Traduções que alterem esse identificador precisam de uma linha de estilo própria.
+
 ## Paleta por slot
 
 As linhas individuais de `game-assets/styles.ass` usam **o nome exato do falante**, não o identificador do slot; nomes no mesmo slot têm as mesmas cores. ASS é `&HAABBGGRR` e RGB do contorno é `#RRGGBB`.
@@ -32,6 +34,10 @@ As linhas individuais de `game-assets/styles.ass` usam **o nome exato do falante
 
 Somente `PrimaryColour=&H00EEEEF9` e `OutlineColour=&H003F43BE` foram modificados no estilo `Setsuna`; os outros campos foram preservados. `Makoto` conserva suas cores anteriores.
 
+### Contraste dos grupos mais claros
+
+O upstream sugeriu contornos mais escuros para ExtraMan, Fairy e System, mas o fork preserva as cores originais aprovadas pelo usu?rio na tabela acima. A variante de contraste do upstream n?o foi aplicada silenciosamente; mudan?as futuras exigem QA visual espec?fico.
+
 ## ALIASES ADICIONADOS - REVISAR
 
 | Nome exato | Slot | Motivo |
@@ -43,15 +49,17 @@ Somente `PrimaryColour=&H00EEEEF9` e `OutlineColour=&H003F43BE` foram modificado
 
 A atribuição de alguns nomes a personagens ou funções é **inferida**, e uma correspondência entre rótulos em idiomas diferentes deve ser revista. Se houver dúvida sobre uma nova variante, não crie um alias automaticamente.
 
+O fork preserva os aliases Ameria e Chris previamente autorizados dentro de Fairy; diferentemente da proposta upstream, seus estilos exatos permanecem at? revis?o visual expressa.
+
 ## Como adicionar um personagem
 
-1. Levante a string **literal** `PrintText.character` do script e confirme-a no inventário T1; não copie o nome traduzido bonito nem texto de diálogo.
+1. Levante a string **literal** `PrintText.character` do script e confirme-a em uma cena do script; não copie o nome traduzido bonito nem texto de diálogo.
 2. Adicione `Style: <nome>,...` com **23 campos** conforme `Format:` na seção `[V4+ Styles]`; mantenha UTF-8 sem BOM e CRLF. Nomes com vírgula não são válidos.
 3. Use cores `&HAABBGGRR` explicitamente aprovadas. Não normalize ou renomeie outros estilos. Verifique duplicatas.
-4. Execute `python -B games/school-days/tools/test_styles_ass.py` e `SchoolDays.SubtitleSpeakerStyle` via CTest usando SDL dummy/software.
+4. Execute `python -B games/school-days/tools/test_styles_ass.py` e outros testes de renderização de legenda disponíveis no upstream, se configurados.
 
 ## Limitações e sincronização
 
-- **As cores novas são escolhas de design, não cores oficiais.** Apenas a correção de Setsuna tem como referência uma informação de fonte (olhos vermelhos); as demais cores não são extraídas de material oficial.
-- Parte da identificação dos falantes é inferida só a partir do nome; nenhuma verificação visual de cor foi realizada.
-- O `styles.ass` original era **byte a byte idêntico ao upstream** antes deste trabalho. Se o upstream modificar o arquivo em um futuro sync, **preserve as linhas novas dele e reaplique nossas adições e a correção de Setsuna**, resolvendo conflitos sem substituir o arquivo inteiro.
+- **As cores novas são escolhas de design, não cores oficiais.** A correção de Setsuna foi motivada pela referência visual dos olhos vermelhos da personagem; as demais cores não são extraídas de material oficial.
+- O usuário aprovou visualmente as cores anteriores em uma build local Windows, inclusive na cena de Roka/Ruka/Natsuki/Mugi. Não foram anexadas capturas ao PR; os três contornos agora escurecidos não foram reavaliados visualmente.
+- A proposta foi criada sobre o arquivo atual do upstream. Se o upstream modificar o arquivo em um futuro sync, **preserve as linhas novas dele e reaplique nossas adições e a correção de Setsuna**, resolvendo conflitos sem substituir o arquivo inteiro.

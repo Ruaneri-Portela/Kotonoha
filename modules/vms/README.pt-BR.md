@@ -4,14 +4,15 @@
 
 Os módulos desta pasta executam roteiros sem depender da apresentação visual do jogo ou da decodificação de pacotes.
 
-| Pasta | Runtime | Alias CMake |
+| Pasta | Runtime | Target CMake |
 | --- | --- | --- |
-| `amagami` | `Amagami::Vm` (SCF) | `Kotonoha::Vmamagami` |
-| `snow-radish` | `SnowRadish::Vm` (ADV3) | `Kotonoha::Vmsnow-radish` |
-| `summer-radish` | `SummerRadish::Machine` | `Kotonoha::Vmsummer-radish` |
-| `renpy` | `Ddlc::Vm` | `Kotonoha::Vmrenpy` |
-| `reallive` | `RealLive::Session` | `Kotonoha::Vmreallive` |
-| `pmail` | `Pmail::Vm` | `Kotonoha::Vmpmail` |
+| `amagami` | `Amagami::Vm` (SCF) | `kotonoha_vm_amagami` |
+| `snow-radish` | `SnowRadish::Vm` (ADV3) | `kotonoha_vm_snow-radish` |
+| `summer-radish` | `SummerRadish::Machine` | `kotonoha_vm_summer-radish` |
+| `renpy` | `Ddlc::Vm` | `kotonoha_vm_renpy` |
+| `reallive` | `RealLive::Session` | `kotonoha_vm_reallive` |
+| `pmail` | `Pmail::Vm` | `kotonoha_vm_pmail` |
+| `n2system` | `N2System::ScriptVm` | `kotonoha_vm_n2system` |
 
 Cada VM é uma biblioteca CMake estática ligada pelo respectivo jogo. A base comum é `Kotonoha::Vm` (`lib/include/Kotonoha/core/Vm.hpp`); `execute(budget)` delega a `dispatch(budget)`. O limite de instruções é indicativo quando o runtime pausa em interações.
 

@@ -1,9 +1,9 @@
-#include <Kotonoha/core/SDL.hpp>
 #include "AmagamiRuntime.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/components/SubtitleScene.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
@@ -96,7 +96,7 @@ void AmagamiTextBox::renderDialogue(Kotonoha::RendererRef r) {
     layoutKey_ = key;
     for (layoutFont_ = 24; layoutFont_ >= 14; layoutFont_ -= 2) {
       auto width = [&](const std::string &text) {
-        return engine.GetVNUI().measureSized(text, 2000, layoutFont_).x;
+        return engine.GetVNUI().textWidth(text, layoutFont_);
       };
       const auto count = Kotonoha::VNTextBoxUtility::RevealLines(
                              fullDialogue, fullDialogue.size(), width, 596 - x)
@@ -107,7 +107,7 @@ void AmagamiTextBox::renderDialogue(Kotonoha::RendererRef r) {
     }
   }
   auto measure = [&](const std::string &text) {
-    return engine.GetVNUI().measureSized(text, 2000, layoutFont_).x;
+    return engine.GetVNUI().textWidth(text, layoutFont_);
   };
   const auto lines = Kotonoha::VNTextBoxUtility::RevealLines(
       fullDialogue, visibleDialogue.size(), measure, 596 - x);
@@ -204,7 +204,7 @@ void AmagamiBacklog::ensureLayout() {
     Row row;
     row.text = speaker.empty() ? text : speaker + "　" + text;
     auto measure = [&](const std::string &value) {
-      return engine.GetVNUI().measureSized(value, 2000, 24).x;
+      return engine.GetVNUI().textWidth(value, 24);
     };
     row.lines = Kotonoha::VNTextBoxUtility::RevealLines(
         row.text, row.text.size(), measure, 552);
@@ -723,16 +723,19 @@ void AmagamiRuntime::start(const std::string &name, bool campaign) {
 void AmagamiRuntime::audio(const std::string &id, const std::string &channel,
                            bool loop, bool historyReplay) {
   try {
-    // Sound.playSEPrim's MIDI notes 12..60 map to the 49 decoded SPU waves.
-    // Out-of-range notes have no voice in the original program bank.
+    // Sound.playSEPrim's MIDI notes 12..60 map to the 49 decoded SPU waves
+    // (0..48). Accept both direct Vagi indices 0..48 and MIDI notes 12..60.
+    std::string resolvedId = id;
     if (channel == "se") {
       const auto slash = id.find('/');
       const int note =
           slash == std::string::npos ? -1 : std::stoi(id.substr(slash + 1));
-      if (note < 12 || note > 60)
+      if (note < 0 || note > 60)
         return;
+      const int wave = note > 48 ? note - 12 : note;
+      resolvedId = "se/" + std::to_string(wave);
     }
-    auto clip = assets_->loadAudio(id);
+    auto clip = assets_->loadAudio(resolvedId);
     if (clip.data.empty())
       return;
     if (channel == "voice" && !historyReplay &&
@@ -773,7 +776,7 @@ void AmagamiRuntime::audio(const std::string &id, const std::string &channel,
     // ADX v4 stores loop samples after its per-channel predictor histories.
     // Trim at loop end so PcmPlayer repeats only the original loop region.
     if (loop) {
-      const auto bytes = assets_->read(id);
+      const auto bytes = assets_->read(resolvedId);
       auto be32 = [&](size_t p) -> uint32_t {
         return uint32_t(bytes[p]) << 24 | uint32_t(bytes[p + 1]) << 16 |
                uint32_t(bytes[p + 2]) << 8 | bytes[p + 3];
@@ -825,8 +828,12 @@ void AmagamiRuntime::bindSessionAudio() {
     if (kind == "music") {
       if (n < 0)
         music_.Stop();
-      else
-        audio("music/" + std::to_string(n), "bgm", true);
+      else {
+        const std::string prefix = (session_ && session_->classicMusic())
+                                       ? "music/classic/"
+                                       : "music/";
+        audio(prefix + std::to_string(n), "bgm", true);
+      }
     } else if (kind == "music-gain")
       music_.SetGain(0.48f * std::clamp(n, 0, 100) / 100.0f);
     else if (kind == "ambience") {
@@ -1666,8 +1673,11 @@ void AmagamiRuntime::loadGame(const std::string &path) {
   ambience_.Stop();
   soundEffects_.clear();
   nextSoundEffect_ = 0;
-  if (session_->musicTrack() >= 0)
-    audio("music/" + std::to_string(session_->musicTrack()), "bgm", true);
+  if (session_->musicTrack() >= 0) {
+    const std::string prefix =
+        session_->classicMusic() ? "music/classic/" : "music/";
+    audio(prefix + std::to_string(session_->musicTrack()), "bgm", true);
+  }
   music_.SetGain(0.48f * session_->musicGain() / 100.0f);
   if (session_->ambienceTrack() >= 0)
     audio("sound/" + std::to_string(session_->ambienceTrack()), "ambient",

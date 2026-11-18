@@ -12,21 +12,12 @@
 
 namespace LucaSystem {
 
-// Runtime for a LucaSystem (Visual Art's / Key) game. Mounts the game's
-// .PAK archives, parses the LucaSystem script bytecode and presents the
-// extracted dialogue through Kotonoha scenes (textbox, choices, backlog,
-// menu).
-//
-// The VM implements the opcode semantics recovered by reverse engineering
-// the original AIR.exe binaries (via rizin/REA) and analysis of the
-// SCRIPT.PAK bytecode: MESSAGE, FADE, IMAGELOAD, DRAW, WAIT, INIT,
-// HAIKIE_SET, EQUN/EQU, BGM, VOICE, SE, JUMP, CALL, RETURN, CLOSE_WINDOW,
-// WIPE, IMAGEUPDATE and object animation opcodes.
 class LucaSystemRuntime : public Kotonoha::Runtime {
 public:
   LucaSystemRuntime(
       std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets);
   ~LucaSystemRuntime() override;
+  void shutdown();
 
   void init(Kotonoha::Engine &engine) override;
   void initGlobal(Kotonoha::Engine &engine) override;
@@ -43,10 +34,30 @@ public:
   void loadGame(const std::string &path) override;
 
   // Start / resume a scenario script by SCRIPT.PAK entry name.
-  bool startScenario(const std::string &name, size_t position = 0);
+  // resume=true restores a saved PC without executing script instructions.
+  bool startScenario(const std::string &name, size_t position = 0,
+                     bool resume = false);
   bool debugJumpToLabel(const std::string &label);
 
   void advanceDialogue();
+
+  // Programmatic / headless inspection & interaction helpers for integration
+  // testing and debug tooling.
+  std::string currentScenarioName() const;
+  size_t instructionPosition() const;
+  bool isRunning() const;
+  bool isDialogueVisible() const;
+  bool isChoiceActive() const;
+  std::vector<std::string> activeChoices() const;
+  bool selectChoice(int optionIndex);
+  bool isMoviePlaying() const;
+  void skipMovie();
+  void skipWait();
+  int32_t getVariable(uint32_t varId) const;
+  void setVariable(uint32_t varId, int32_t value);
+  uint32_t activeBgmId() const;
+  uint32_t lastVoiceId() const;
+  size_t visibleLayerCount() const;
 
   std::string dialogueText() const override { return dialogueText_; }
   std::string dialogueSpeaker() const override { return dialogueSpeaker_; }

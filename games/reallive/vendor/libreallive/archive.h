@@ -55,7 +55,8 @@ public:
   // Read an archive, assuming no per-game xor key. (Used in unit testing).
   explicit Archive(const string &filename);
   Archive(std::vector<char> bytes,
-          std::map<int, std::vector<char>> overrides = {});
+          std::map<int, std::vector<char>> overrides = {},
+          const std::string &regname = "");
 
   // Creates an interface to a SEEN.TXT file. Uses |regname| to look up
   // per-game xor key for newer games.
@@ -80,6 +81,7 @@ private:
   void ReadTOC();
 
   void ReadOverrides();
+  void SelectSecondLevelXorKey();
 
   scenarios_t scenarios_;
   accessed_t accessed_;

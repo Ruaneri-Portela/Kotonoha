@@ -63,7 +63,12 @@ looked up through the engine translation dictionary before display.
   clamped completion and remaining time, not the game's clock or textures.
 - Engine `DiscImage` ISO9660 reader and disc asset provider, following the ZNT
   integration. Read-only ARC/AFS ranges are checked against the disc file size.
-- ARC bucket tables and records; original case-sensitive filename hash
+- ARC bucket tables and records, with full count/first-index/hash-bucket
+  consistency checks based on the format research in
+  [open-amagami](https://github.com/hokagocafe/open-amagami/blob/main/docs/technical/arc-format.md).
+  Archive name resolution uses a prebuilt hash index instead of rescanning
+  every entry for each sprite/background lookup.
+- Original case-sensitive filename hash
   `h = h * 0x3fad + signed_char`. Every scenario filename resolves to its actual
   archive entry; backgrounds and character atlases are resolved by filename.
 - 2 KiB LZ ring, initial write index `0x7de`, 11-bit match offset and 5-bit
@@ -136,6 +141,16 @@ remain incomplete. The pause/backlog screens remain simplified.
 
 Replay saves restore dialogue/decision/costume state and restart music; they do
 not preserve presentation-thread phase or the exact in-flight transition.
+Campaign saves now replay the exact ordered `advance`, `choose`, `event`
+and `period` journal rather than choosing the first answer for every old
+event. After the reconstructed VM is moved into the active Session,
+`shouldYield` is rebound to that active object; previously it retained
+a pointer to the destroyed temporary Session, risking a use-after-free
+when later SCF loops reached the 1,000-instruction yield checkpoint. This restores mid-event campaign saves and retains the journal when
+saving again after load; old/corrupt input sequences are rejected before
+replacing the running Session. `Amagami.CampaignSession` exercises real-disc
+mid-prologue and selected-map-event save/load, and is opt-in with
+`-DAMAGAMI_DISC_IMAGE=...`.
 Gallery `setAlbum` has no gallery implementation. The classical MIDI soundtrack
 mode and controller rumble remain unimplemented. **Campaign-wide replay action journaling (`AMAGAMI_CAMPAIGN_REPLAY`) is fully implemented**, allowing campaign states and event sequences to be saved and replayed.
 Coverage of the prologue does not establish coverage of calendar/later routes.
@@ -410,3 +425,385 @@ an encounter system):
 - `n0dea_ev02A.scriptMain:1043` waits on instance field 4, a flag set by the
   campaign/encounter system, which is absent in standalone scenario entry.
 - Missing event picture asset `epi/e3_12c0.tm2` (1 scenario).
+
+## Related PS Vita research
+
+The MIT-licensed [open-amagami](https://github.com/hokagocafe/open-amagami)
+reverse-engineers the Vita release (`PCSG00291`). It confirms that Vita
+still uses SCF version 4 scripts and the same LZSS system-image format, but
+replaces PS2 ARC/AFS asset containers with CRI CPK and changes the graphics
+and audio codecs. The present Kotonoha game entry point still requires the
+PS2 ISO; this change improves the shared PS2 ARC handling, **not** Vita
+playability. A Vita backend should be a separate source/provider using the
+existing SCF parser, with CPK TOC/ITOC, CRILAYLA, Vita graphics/audio
+and Vita-specific native primitives tested before enabling it.
+
+The standalone Vita CPK reader, adapted from open-amagami, is included
+under its original MIT licence, preserved at
+`modules/providers/amagami/third_party/open-amagami-LICENSE.txt`.
+No proprietary game files, decryption tools or encryption keys are included.
+
+The Vita graphics integration now includes a headerless 8-bit palette decoder
+for `bg/`, `epi/` and `body/` (`*.gxt`, BGRA palettes), plus
+`face/` and `eface/` (`*.tm2`, RGBA palettes). It validates exact
+dimensions and expands indexed colours to standard RGBA8 without applying the
+PS2 TIM2 colour-swizzle or alpha conventions. `VitaGraphicsAssets` mounts
+`graph/GRAPH.CPK` through the normal Kotonoha `AssetProvider` interface,
+including the existing texture/upscaling pipeline. The Vita font atlas
+decoder now extracts 36x42 Shift-JIS glyphs from the 4bpp, 1024-pixel-wide
+`font/AMV_font18_21[im].tm2` archives, with four RGBA palettes. The
+`UiAtlas` decoder resolves Vita UI texture IDs and variants through the
+unwrapped ELF's texture tables and reads indexed RGBA pictures from the packed
+`system/sysgraph.tm2` container, honoring per-entry row pitch. A
+`VitaGraphicsAssets` instance can expose `fontGlyph` and `uiSurface`
+as SDL surfaces to renderer consumers. It requires a caller-provided **plain
+32-bit Vita ELF** for UI; neither game executable extraction nor decryption is
+included. Rendering scale, game VM integration, controller input, audio and
+Vita-specific native primitives remain incomplete. This is not a playable Vita
+runtime.
+
+CPK parsing now rejects out-of-range entries, duplicate TOC names and malformed
+UTF row counts, and checks decoded member sizes. The optional inspector flag
+`--verify-graphics` reads and decodes supported graphics from a decrypted
+Vita copy; the existing `--verify` independently checks SCF scripts.
+
+A read-only Vita inspector is available on desktop builds:
+
+```sh
+cmake --build build --target AmagamiVitaInspect AmagamiVitaCpkTest AmagamiVitaGraphicsTest AmagamiVitaSystemGraphicsTest
+build/games/amagami/AmagamiVitaInspect /path/to/decrypted/PCSG00291 --verify --verify-graphics --verify-fonts --verify-ui /path/to/unwrapped/eboot.elf
+ctest --test-dir build -R 'Amagami.(VitaCpk|VitaGraphics|VitaSystemGraphics)' --output-on-failure
+```
+
+It checks the system image and CPK scenario scripts using the existing
+Kotonoha SCF reader. It is not a Vita game launcher, and does not replace
+the PS2-only `Amagami` target.
+
+### Vita VM bootstrap diagnostic (development only)
+
+`VitaScripts` now loads the decrypted Vita `AMAGAMI.IMG` SCF classes and
+`SCENARIO.CPK` scenarios **directly into the same Kotonoha Amagami VM**
+used for the PS2 port. `VitaVmBridge` implements the Vita-only
+`K2X_Script` primitives 5–8: clock array, screen scale, screen Y-origin
+and trophy notification (platform-neutral no-op). It tracks view state for
+later renderer integration. Unhandled native operations still fail explicitly
+instead of being replaced with a fake menu or route.
+
+```sh
+cmake -S . -B build -DKOTONOHA_BUILD_AMAGAMI=ON -DKOTONOHA_BUILD_HOST_TOOLS=ON
+cmake --build build --target AmagamiVitaProbe AmagamiVitaBootstrapTest
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291 --boot
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291 --probe Application run
+ctest --test-dir build -R 'Amagami.VitaBootstrap' --output-on-failure
+```
+
+The probe loads and validates all scenario SCFs and can run a bounded VM
+entry point. A native-call error or instruction-budget stop is expected until
+remaining Vita native methods, input, sound and presentation are connected.
+It **does not start playable Vita gameplay** and does not modify the PS2
+runtime. The synthetic test covers CPK/IMG construction, class loading,
+a real SCF bytecode call and Vita display primitives.
+
+### Vita Sprite state and original UI texture lookup
+
+`VitaVmBridge` now handles a limited set of the original Vita `Sprite`
+primitives: create (1), clone (2), destroy (3), change texture/variant (4),
+source rectangle (5), layer (6), update without active tweens (7) and pause
+(18). A `K2X_Script.resetPrim` also clears the recorded screen objects.
+Each sprite retains its logical ID, render order, layer, texture ID/variant,
+rect and paused state. Rectangles for decoded Vita UI pictures use two
+texels per script unit; the built-in texture zero is a 480×272
+script-space rectangle. Unsupported animation primitives continue to
+throw through the SCF VM; these objects **are not yet rasterised on screen**.
+
+Optionally pass a plain, unwrapped Vita ELF to the probe. The probe then
+mounts `graph/GRAPH.CPK` through `VitaGraphicsAssets` and resolves each
+Sprite texture through `uiSurface(texture, variant)`; no game data or
+decryption code is shipped with the engine. It prints up to twelve sprite
+objects even after an unsupported native stops execution, which helps
+locate the next missing presentation primitive.
+
+```sh
+cmake --build build --target AmagamiVitaProbe AmagamiVitaSpriteBridgeTest
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291 --boot --ui-elf /path/to/unwrapped/eboot.elf
+ctest --test-dir build -R 'Amagami.Vita(SpriteBridge|Bootstrap)' --output-on-failure
+```
+
+This is **scene-state preparation for the Vita renderer**, not a playable
+title/menu. Animations, compositing, font object primitives, controls and
+audio are still needed. The existing PS2 port is unchanged.
+
+
+### Vita SDL3 Sprite preview and original animation channels
+
+The Vita Sprite scene can now be drawn to an SDL3 renderer using
+\`VitaSpriteRenderer\`. It targets the Vita's 960×544 frame, sorts by
+layer/order, resolves each UI atlas texture through the existing Vita provider,
+clips out-of-range texture coordinates, composites alpha and colour modulation,
+and caches decoded SDL textures. Texture ID zero renders an opaque black
+rectangle (for bars/transition masks); unresolved nonzero IDs are skipped, not
+silently rendered black. This is still the **Sprite** subset, not all of
+Amagami's GUI objects.
+
+\`VitaVmBridge::tick(frames)\` advances the original Vita alpha/light/position/
+zoom channels with three components (base, amplitude, frequency), using the
+Vita's linear/quadratic-in/quadratic-out interpolation modes.
+Sprite primitives 8–11 now animate these channels, 17 snaps their active
+tweens to their targets, 7 reports remaining times and 18 pauses an object.
+The bridge does not invent implementations for unported spin/vibration.
+
+The diagnostic can save a **real rendered 960×544 BMP snapshot**, including a
+partial scene when a later unhandled native stops execution. Use a decrypted
+copy and an already-unwrapped 32-bit Vita ELF:
+
+\`\`\`sh
+cmake --build build --target AmagamiVitaProbe AmagamiVitaSpriteRenderTest
+build/games/amagami/AmagamiVitaProbe /path/to/decrypted/PCSG00291 --boot --ui-elf /path/to/unwrapped/eboot.elf --snapshot /tmp/amagami-vita-preview.bmp
+ctest --test-dir build -R 'Amagami.Vita(SpriteBridge|SpriteRender|Bootstrap)' --output-on-failure
+\`\`\`
+
+This renderer and diagnostic do not yet run an interactive Vita window.
+ControlPad, font objects, additional visual classes, full menu transitions and
+audio still require integration. No game assets or protected executable are
+shipped, and the original PS2 runtime remains separate.
+
+
+### Vita ControlPad SCF primitives (preparing interactive input)
+
+\`VitaVmBridge::inputFrame(heldButtons, analog)\` now accepts one physical
+input frame, including up to four signed analog axes. Button positions are
+the port's PS2-style physical layout (e.g. circle=32, up=4096) and the
+\`ControlPad\` SCF system class exposes the Vita SceCtrl-byte-swapped values:
+\`held\` (primitive 0), \`trig\` (1), \`rapid\` (2), \`resetRapid\` (3),
+pressure=0 (4) and signed analog/stick magnitudes (5). The repeat cycle
+follows the original interval of 20 held frames followed by 5-frame repeats.
+Vibration primitive 6 returns its receiver without a haptics backend.
+
+This is a native input **adapter**, not an interactive Vita launcher yet:
+the caller must feed \`inputFrame\` from a real SDL input loop. The Vita
+system and Vita scenario scripts sometimes use different PS2/Vita button
+layouts; detection from the calling SCF class still needs an execution
+context hook. No gamepad hardware is polled inside the VM.
+
+\`\`\`sh
+cmake --build build --target AmagamiVitaControlPadTest
+ctest --test-dir build -R 'Amagami.Vita(ControlPad|SpriteRender|SpriteBridge)' --output-on-failure
+\`\`\`
+
+The test uses synthetic SCF methods to validate held/trig/rapid, byte order,
+shoulder buttons, analog magnitudes, repeat reset and release/re-press. There
+are no included proprietary resources.
+
+
+### Vita window with live SDL3 input (experimental diagnostic)
+
+The new desktop-only \`AmagamiVitaLive\` executable connects the already
+implemented Vita VM bridge, native Sprite renderer, a real SDL3 window and
+keyboard/gamepad input. It attempts the original Vita \`SystemStartup.run\`
+instance method by default (overridable with \`--entry\`), runs SCF in bounded
+1000-instruction cooperative steps, advances one script animation frame per
+presented frame and renders a 960×544 logical view (letterboxed when resized).
+SDL keyboard, gamepad buttons, analog sticks and digital triggers update the
+native \`ControlPad\` frame state. Keyboard defaults: arrows=direction,
+Z/Space=Circle(confirm), X=Cross(cancel), A/S=Square/Triangle, Q/W=L/R,
+E/R=L2/R2, Return=Start, Backspace=Select; Escape closes the window.
+Gamepad East=Circle, South=Cross, shoulders and axes follow SDL mappings.
+
+\`\`\`sh
+cmake --build build --target AmagamiVitaLive AmagamiVitaInputTest
+build/games/amagami/AmagamiVitaLive /path/to/decrypted/PCSG00291 \
+  /path/to/unwrapped/eboot.elf --frames 3600
+ctest --test-dir build -R 'Amagami.Vita(Input|ControlPad|SpriteRender)' --output-on-failure
+\`\`\`
+
+**Not a playable Vita game yet.** The VM pauses its execution budget every
+frame to keep the SDL event loop responsive. Unknown native methods are logged
+with SCF location and leave the last scene on screen for inspection; the
+process returns status 3 after an unimplemented native is encountered. Other
+visual classes, sound and many script primitives are still unsupported;
+\`FontChar\` and \`BG_Picture\` only have initial native subsets. No gameplay/audio fidelity is asserted.
+The tool is compiled for desktop host builds only, does not change the PS2
+port and requires a separate, already-decrypted Vita copy and plain ELF.
+
+### Vita FontChar text objects — initial bridge
+
+The Vita SCF bridge now creates actual `FontChar`, `FontCharEx` and
+`FontChar2` display objects from their original Shift-JIS code, font
+palette, layer, position and scale. `FontChar2` selects the `im` font
+atlas. `FontChar` supports destroy (1), tween-remaining update (2),
+alpha/position/zoom animations (3–5), change character (6), and light
+animation (10). The alternate-font class' set-layer primitive (1) uses
+the same scene layer ordering as Sprite. Unsupported vibration methods
+still report an unhandled native rather than being simulated incorrectly.
+
+The SDL3 scene renderer asks `VitaGraphicsAssets::fontGlyph` to decode
+the Vita 36×42 glyph cell and caches the texture by (font, SJIS, palette).
+The original shadow is rendered one script unit down-right: black for
+palettes 0–2 and white for palette 3, with palette 3's main glyph
+tinted to 20% brightness. Original script positions are in the fixed
+480×272 UI coordinate system mapped to 960×544 output; background camera
+scaling is not applied to text. Both `AmagamiVitaLive` and the probe's
+`--snapshot` use the same provider-backed glyph surface factory.
+
+```sh
+cmake --build build --target AmagamiVitaFontCharTest AmagamiVitaLive AmagamiVitaProbe
+ctest --test-dir build -R 'Amagami.Vita(FontChar|Background|SpriteRender)' --output-on-failure
+```
+
+The synthetic glyph test exercises native constructors, two font atlases,
+dark/bright shadows, pixel colour, frame-based position interpolation,
+layer changes, character replacement, and object disposal, without shipping
+retail font files. More Vita GUI primitives, animations, input scheduling
+and audio are still missing; this is not yet a playable Vita port.
+
+### PS2 six-week calendar validation (disc-required)
+
+`Amagami.Campaign` now reads and checks all 588 entries in the original
+42-day × 14-period NodeTable schedule and exercises 24 native
+`GameParam.nextTime` / `nextDay` transitions across a day boundary.
+`Amagami.CampaignSession` plays the prologue and a subsequent real map
+event, advances the map calendar, saves and reloads midway, and compares
+the actual available event names and later time progression against a
+continuous session. This validates the integration path beyond the prologue,
+not every ending, side event or minigame.
+
+```sh
+cmake -S . -B build -DKOTONOHA_BUILD_AMAGAMI=ON -DAMAGAMI_DISC_IMAGE='/path/to/Amagami (Japan).iso'
+cmake --build build --target AmagamiCampaignTest AmagamiCampaignSessionTest
+ctest --test-dir build -R 'Amagami.(Campaign|CampaignSession)
+
+
+### Vita BG_Picture in scene renderer (development)
+
+The `BG_Picture` native bridge now understands the original Vita system
+class primitives 0 (preload by filename), 1 (create from place/scene/mob),
+2 (clone), 3 (destroy), 4 (update), 6 (layer), 7–10
+(light/alpha/position/zoom), 15 (finish tweens) and 16 (pause).
+The constructor builds `bg/%03d_%d%d.gxt` names from original SCF parameters
+and asks `VitaGraphicsAssets` to resolve them through `graph/GRAPH.CPK`.
+Named backgrounds share the existing SDL3 layer renderer and texture cache;
+the world view applies `K2X_Script.setScrScl` and `setScrOrgY`.
+UI `Sprite` keeps its separate, fixed screen-space view.
+
+```sh
+cmake --build build --target AmagamiVitaBackgroundTest AmagamiVitaLive
+ctest --test-dir build -R 'Amagami.Vita(Background|SpriteRender|Input)' --output-on-failure
+```
+
+The synthetic `Amagami.VitaBackground` test checks the named-resource
+decoder hook, source dimensions, layered SDL pixels, camera scaling,
+tween update, cloning and destruction without retail assets. Missing
+resources do not render as black bars. Rotation, nontrivial waveform
+vibration, background interface-view flags from the ELF and other classes
+remain unsupported and must be verified against real Vita screenshots.
+This does **not** make the Vita version completely playable.
+ --output-on-failure
+```
+
+These PS2 tests need the user's original Japan ISO. Neither new Vita nor
+PS2 test results have been confirmed in this environment.
+
+
+
+### Vita BG_Picture in scene renderer (development)
+
+The `BG_Picture` native bridge now understands the original Vita system
+class primitives 0 (preload by filename), 1 (create from place/scene/mob),
+2 (clone), 3 (destroy), 4 (update), 6 (layer), 7–10
+(light/alpha/position/zoom), 15 (finish tweens) and 16 (pause).
+The constructor builds `bg/%03d_%d%d.gxt` names from original SCF parameters
+and asks `VitaGraphicsAssets` to resolve them through `graph/GRAPH.CPK`.
+Named backgrounds share the existing SDL3 layer renderer and texture cache;
+the world view applies `K2X_Script.setScrScl` and `setScrOrgY`.
+UI `Sprite` keeps its separate, fixed screen-space view.
+
+```sh
+cmake --build build --target AmagamiVitaBackgroundTest AmagamiVitaLive
+ctest --test-dir build -R 'Amagami.Vita(Background|SpriteRender|Input)' --output-on-failure
+```
+
+The synthetic `Amagami.VitaBackground` test checks the named-resource
+decoder hook, source dimensions, layered SDL pixels, camera scaling,
+tween update, cloning and destruction without retail assets. Missing
+resources do not render as black bars. Rotation, nontrivial waveform
+vibration, background interface-view flags from the ELF and other classes
+remain unsupported and must be verified against real Vita screenshots.
+This does **not** make the Vita version completely playable.
+
+
+### Vita native waveform animation and PS2 save replay integrity
+
+The Vita VM now implements the original `vibrate` native signatures for
+`Sprite` (13–16), `FontChar` (7–9) and `BG_Picture` (11–13).
+Each call writes independent amplitude and frequency Tween components,
+with interpolation modes and duration, feeding the existing frame-based sine
+animation. The RGB light channel uses one shared frequency for three colour
+components; the positional waveform adds both oscillators to Y, as in the
+Vita reference implementation. Invalid arity, numeric ranges and durations
+are rejected before mutating active animation channels. The existing
+`pause` and `skip` mechanisms operate on these new components.
+Spin is implemented for Sprite and BG_Picture; other rotation-bearing
+graphics classes and many other native graphics classes remain pending.
+
+```sh
+cmake --build build --target AmagamiVitaVibrationTest AmagamiVitaFontCharTest
+ctest --test-dir build -R 'Amagami.Vita(Vibration|FontChar|Background)' --output-on-failure
+```
+
+On the PS2 side, campaign save replay now validates the entire action
+journal's types and argument shapes and compares only the **last scenario's**
+`advance` and `choose` entries against the saved input history. The input
+history resets at each event; earlier events therefore must **not** be
+compared against the last event's inputs. Corrupted journals are rejected
+before replay and before replacing the active Session. The real-disc
+`Amagami.CampaignSession` regression now also modifies the saved action
+stream intentionally to check rejection and preservation of the active
+calendar/map state.
+
+Neither test suite has been executed against the user's remote assets here:
+the proposed external host could not be resolved from this environment.
+
+
+### Vita Spin rotation and PS2 restored playback clocks
+
+The Vita native graphics bridge now implements `Sprite.spin` (primitive
+12) and `BG_Picture.spin` (primitive 14) with four arguments:
+`(value, interpolationMode, frames, component)`. Component 0 sets an
+absolute angle in multiples of pi (2 = one revolution); component 1 sets
+angular speed, measured as a fraction of a turn per script frame by
+`speed / 30`. A new absolute-angle request resets the speed and accumulated
+turns, and the quadratic angle transition inherits the initial angular
+velocity as in `open-amagami`'s Spin state. Pause freezes the spin; the
+original `skip` operation does **not** finish the independent Spin state.
+
+`VitaSpriteRenderer` now uses SDL3's rotated texture primitive around
+the original scene-object centre for UI sprites, named CPK backgrounds and
+font glyphs. Atlas clipping keeps the original rotation pivot.
+Texture-zero rectangles use a lazily cached 1×1 black texture when rotated,
+rather than continuing to draw an unrotated black bar. Positive Vita
+angles are counterclockwise; SDL3's clockwise convention is negated.
+
+```sh
+cmake --build build --target AmagamiVitaSpinTest AmagamiVitaSpriteRenderTest
+ctest --test-dir build -R 'Amagami.Vita(Spin|SpriteRender|Background)' --output-on-failure
+```
+
+The synthetic `Amagami.VitaSpin` regression checks original SCF primitive
+numbers, orientation with a red/green test image, angular velocity,
+interpolation, pause, skip semantics, BG rotation, black-rectangle rotation,
+and invalid arguments. It requires no original game art.
+
+For PS2 replay saves, `Session::load()` now replaces the previous session's
+replay-derived `syntheticInputTick_`, sleep-loop counters and
+`presentationFrames_` with those reconstructed from the action journal.
+These values influence headless ControlPad results, sleep-loop recovery and
+animation blinking. The original time delta between inputs is still not
+serialized, so this is best-effort reconstruction, **not** exact real-time
+presentation state. The disc-required `Amagami.CampaignSession` test
+replaces an existing active session's state and compares its presentation
+clock against an independently restored instance.
+
+Both areas remain unverified against actual game data in this environment.
+Native actor/event-picture classes, full Vita UI scheduling and extensive
+PS2 campaign routes are still not completely implemented.

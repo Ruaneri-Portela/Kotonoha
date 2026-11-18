@@ -63,8 +63,9 @@ public:
     Variant CurrentVariant() const { return variant_; }
     const SchoolDaysCmap& Cmap() const { return cmap_; }
 
-    int HitControl(int x, int y) const;
-    bool SetSelectionFromPointer(int x, int y);
+  int HitControl(int x, int y) const;
+  bool SetSelectionFromPointer(int x, int y);
+  void StepSelection(int delta);
 
     // Executes the already-selected control.  SAVE rows emit a logical slot
     // request; the caller must reproduce the high-level Save boundary before

@@ -25,6 +25,7 @@ class UI {
   std::unordered_map<std::string, CachedText> cache;
   float density = 1;
   Translation *translation = nullptr;
+  std::uint64_t instanceId_ = 0;
 
 public:
   explicit UI(const std::string &fontPath = {});
@@ -34,6 +35,8 @@ public:
   void setTranslation(Translation *value) { translation = value; }
   void setPixelDensity(float value);
   float pixelDensity() const { return density; }
+  std::size_t cachedTextCount() const { return cache.size(); }
+  std::uint64_t instanceId() const { return instanceId_; }
   const char *fontFamily() const { return TTF_GetFontFamilyName(font.get()); }
   float rasterFontSize() const { return TTF_GetFontSize(font.get()); }
   static SDL_FPoint viewSize(RendererRef renderer);
@@ -45,6 +48,8 @@ public:
                   SDL_Color color = {240, 240, 245, 255});
   SDL_FPoint measureSized(const std::string &value, float width,
                           float fontSize) const;
+  // Measure an unwrapped line for the shared word-wrapping algorithms.
+  float textWidth(const std::string &value, float fontSize = 24.0f) const;
   float textHeight(RendererRef renderer, const std::string &value, float width);
   SDL_FPoint textSize(const std::string &value, float width) const;
   void panel(RendererRef renderer, SDL_FRect rect,

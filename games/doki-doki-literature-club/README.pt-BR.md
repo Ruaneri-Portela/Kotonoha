@@ -4,7 +4,7 @@
 
 Integração de roteiros compatíveis com Ren'Py, mídia, tradução e overlays VNX opcionais.
 
-**Estado:** A compatibilidade depende da instalação/patch e dos testes realizados.
+**Estado:** Suporte completo aos Atos 1–4 (EN) e ao patch PT-BR VNX implementado e testado — consulte [STATUS.pt-BR.md](STATUS.pt-BR.md).
 
 ## Compilação
 

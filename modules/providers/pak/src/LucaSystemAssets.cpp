@@ -3,17 +3,46 @@
 #include <LucaSystem/LucaSystemAssets.hpp>
 // PAK asset provider module.
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
-
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <filesystem>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
 using namespace LucaSystem;
+
+namespace {
+class VfsAssetStream final : public Kotonoha::AssetStream {
+public:
+  explicit VfsAssetStream(
+      std::unique_ptr<Kotonoha::Filesystem::FileHandle> handle)
+      : handle_(std::move(handle)) {}
+
+  std::uint64_t size() const override {
+    const auto s = handle_->size();
+    return s > 0 ? static_cast<std::uint64_t>(s) : 0;
+  }
+  std::uint64_t tell() const override {
+    const auto t = handle_->tell();
+    return t > 0 ? static_cast<std::uint64_t>(t) : 0;
+  }
+  std::size_t read(Uint8 *buffer, std::size_t count) override {
+    const auto got = handle_->read(buffer, count);
+    return got > 0 ? static_cast<std::size_t>(got) : 0;
+  }
+  bool seek(std::uint64_t position) override {
+    return handle_->seek(static_cast<std::int64_t>(position),
+                         Kotonoha::Filesystem::SeekOrigin::Begin) >= 0;
+  }
+
+private:
+  std::unique_ptr<Kotonoha::Filesystem::FileHandle> handle_;
+};
+} // namespace
 
 Kotonoha::SurfacePtr
 LucaSystemAssets::loadSurfaceAsset(const std::string &id) const {
@@ -47,14 +76,6 @@ uint32_t readU32(const std::vector<std::uint8_t> &data, size_t off) {
          (static_cast<uint32_t>(data[off + 3]) << 24);
 }
 
-uint16_t readU16(const std::vector<std::uint8_t> &data, size_t off) {
-  if (off + 2 > data.size())
-    throw std::runtime_error("PAK: truncated uint16 at offset " +
-                             std::to_string(off));
-  return static_cast<uint16_t>(data[off]) |
-         (static_cast<uint16_t>(data[off + 1]) << 8);
-}
-
 std::string readCString(const std::vector<std::uint8_t> &data, size_t &cursor) {
   size_t end = data.size();
   for (size_t i = cursor; i < data.size(); ++i) {
@@ -73,17 +94,16 @@ std::string readCString(const std::vector<std::uint8_t> &data, size_t &cursor) {
 namespace LucaSystem {
 
 PakArchive::PakArchive(std::filesystem::path path)
-    : PakArchive(
-          Kotonoha::Filesystem::Filesystem::mount(
-              (path.has_parent_path() ? path.parent_path()
-                                      : std::filesystem::path(".")).string()),
-          path.filename().string()) {
+    : PakArchive(Kotonoha::Filesystem::Filesystem::mount(
+                     (path.has_parent_path() ? path.parent_path()
+                                             : std::filesystem::path("."))
+                         .string()),
+                 path.filename().string()) {
   path_ = std::move(path);
 }
 
-PakArchive::PakArchive(
-    std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
-    std::string sourceId)
+PakArchive::PakArchive(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
+                       std::string sourceId)
     : path_(sourceId), source_(std::move(source)),
       sourceId_(std::move(sourceId)) {
   if (!source_)
@@ -131,7 +151,6 @@ void PakArchive::load() {
     throw std::runtime_error("Cannot read complete PAK header: " +
                              path_.string());
 
-  // Scan forward from offset 32 until a uint32 equals headerLength/blockSize.
   const uint32_t target = header_.headerLength / header_.blockSize;
   offsetPos = 32;
   while (offsetPos + 4 <= headerData_.size() &&
@@ -140,7 +159,6 @@ void PakArchive::load() {
   if (offsetPos + 4 > headerData_.size())
     throw std::runtime_error("PAK offset table not found: " + path_.string());
 
-  // Read fileCount * (offset, length) pairs. Offsets are in block units.
   const size_t tableEnd = offsetPos + size_t(header_.fileCount) * 8;
   if (tableEnd > headerData_.size())
     throw std::runtime_error("PAK offset table exceeds header: " +
@@ -149,17 +167,16 @@ void PakArchive::load() {
   for (uint32_t i = 0; i < header_.fileCount; ++i) {
     const size_t base = offsetPos + size_t(i) * 8;
     uint32_t offsetBlocks = readU32(headerData_, base);
-    uint32_t length = readU32(headerData_, base + 4);
+    uint32_t entryLength = readU32(headerData_, base + 4);
     PakEntry entry;
     entry.index = i;
     entry.id = header_.idStart + i;
     entry.offset = uint64_t(offsetBlocks) * header_.blockSize;
-    entry.length = length;
+    entry.length = entryLength;
     entries_.push_back(std::move(entry));
     byId_[entry.id] = entries_.size() - 1;
   }
 
-  // Read null-terminated file names, if present.
   if (named_) {
     const uint32_t nameBase = readU32(headerData_, offsetPos - 4);
     if (nameBase >= fileSize)
@@ -227,10 +244,6 @@ std::vector<std::uint8_t> PakArchive::read(std::string_view name) const {
   return read(*entry);
 }
 
-// ---------------------------------------------------------------------------
-// LucaSystemAssets
-// ---------------------------------------------------------------------------
-
 } // namespace LucaSystem
 
 namespace Kotonoha::Providers {
@@ -256,19 +269,19 @@ LucaSystemAssets::LucaSystemAssets(
     source_->addOverlay(overlayDirectory.string());
     setOverlay(overlayDirectory);
   }
-  std::string prefix;
   if (!source_->exists("SCRIPT.PAK") && source_->exists("files/SCRIPT.PAK"))
-    prefix = "files/";
-  const std::vector<std::string> core = {"PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK"};
+    prefix_ = "files/";
+  const std::vector<std::string> core = {"PARAM.PAK", "SCRIPT.PAK",
+                                         "SYSSE.PAK"};
   for (const auto &name : core) {
-    const auto key = prefix + name;
+    const auto key = prefix_ + name;
     if (source_->exists(key) &&
         source_->stat(key).type == Kotonoha::Filesystem::FileType::Regular)
       mountPak(key);
   }
 
   std::vector<std::string> other;
-  std::vector<std::string> dirs{prefix.empty() ? "" : "files"};
+  std::vector<std::string> dirs{prefix_.empty() ? "" : "files"};
   while (!dirs.empty()) {
     auto directory = std::move(dirs.back());
     dirs.pop_back();
@@ -280,13 +293,13 @@ LucaSystemAssets::LucaSystemAssets(
       auto name = std::filesystem::path(file.path);
       auto ext = name.extension().string();
       std::transform(ext.begin(), ext.end(), ext.begin(),
-                     [](unsigned char ch) { return std::tolower(ch); });
+                     [](unsigned char ch) { return char(std::tolower(ch)); });
       if (ext != ".pak")
         continue;
       const bool corePak = std::find(core.begin(), core.end(),
                                      name.filename().string()) != core.end();
-      if (file.path.compare(0, prefix.size(), prefix) == 0 &&
-          (file.path.substr(prefix.size()).find('/') != std::string::npos ||
+      if (file.path.compare(0, prefix_.size(), prefix_) == 0 &&
+          (file.path.substr(prefix_.size()).find('/') != std::string::npos ||
            !corePak))
         other.push_back(file.path);
     }
@@ -303,16 +316,49 @@ void LucaSystemAssets::mountPak(const std::string &path) {
   auto archive = std::make_unique<PakArchive>(source_, path);
   const PakArchive *raw = archive.get();
   const auto file = std::filesystem::path(path);
+  std::string fileNameUpper = file.filename().string();
+  std::transform(fileNameUpper.begin(), fileNameUpper.end(),
+                 fileNameUpper.begin(),
+                 [](unsigned char c) { return char(std::toupper(c)); });
+  std::string parentLower = file.parent_path().filename().string();
+  std::transform(parentLower.begin(), parentLower.end(), parentLower.begin(),
+                 [](unsigned char c) { return char(std::tolower(c)); });
 
-  // Register every entry under its logical name, first mount wins.
+  const bool isImageArchive =
+      parentLower == "image" || fileNameUpper.find("CG") != std::string::npos ||
+      fileNameUpper.find("IMAGE") != std::string::npos ||
+      fileNameUpper.find("PARTS") != std::string::npos ||
+      fileNameUpper.find("MANUAL") != std::string::npos;
+  const bool isVoiceArchive = parentLower == "voice" ||
+                              fileNameUpper.find("VOICE") != std::string::npos;
+  const bool isBgmArchive = parentLower == "music" ||
+                            fileNameUpper.find("MUSIC") != std::string::npos ||
+                            fileNameUpper.find("BGM") != std::string::npos;
+  const bool isSeArchive =
+      parentLower == "se" ||
+      (fileNameUpper == "SE.PAK" || fileNameUpper == "SYSSE.PAK");
+
   for (const auto &entry : raw->entries()) {
-    idToPak_.emplace(entry.name, raw);
+    if (!entry.name.empty()) {
+      idToPak_.emplace(entry.name, raw);
+    }
+    idToPak_.emplace(std::to_string(entry.id), raw);
     numericIdToPak_.emplace(entry.id, raw);
-    if (file.parent_path().filename() == "image")
+    if (isImageArchive)
       imageIdToPak_.emplace(entry.id, raw);
+    if (isVoiceArchive)
+      voiceIdToPak_.emplace(entry.id, raw);
+    if (isBgmArchive)
+      bgmIdToPak_.emplace(entry.id, raw);
+    if (isSeArchive)
+      seIdToPak_.emplace(entry.id, raw);
   }
 
-  const char *role = "image";
+  const char *role = isImageArchive   ? "image"
+                     : isVoiceArchive ? "voice"
+                     : isBgmArchive   ? "music"
+                     : isSeArchive    ? "se"
+                                      : "data";
   if (file.filename() == "PARAM.PAK") {
     paramPak_ = std::move(archive);
     role = "PARAM";
@@ -329,38 +375,183 @@ void LucaSystemAssets::mountPak(const std::string &path) {
           file.filename().string().c_str(), raw->entries().size());
 }
 
+std::string LucaSystemAssets::resolveLooseId(const std::string &id) const {
+  if (!source_ || id.empty())
+    return {};
+  std::string norm = id;
+  std::replace(norm.begin(), norm.end(), '\\', '/');
+  while (!norm.empty() && norm.front() == '/')
+    norm.erase(norm.begin());
+  if (norm.empty())
+    return {};
+  if (source_->exists(norm) &&
+      source_->stat(norm).type == Kotonoha::Filesystem::FileType::Regular)
+    return norm;
+  if (!prefix_.empty()) {
+    const std::string prefixed = prefix_ + norm;
+    if (source_->exists(prefixed) &&
+        source_->stat(prefixed).type == Kotonoha::Filesystem::FileType::Regular)
+      return prefixed;
+  }
+  return {};
+}
+
 bool LucaSystemAssets::containsAsset(const std::string &id) const {
-  return idToPak_.count(id) > 0;
+  if (id.rfind("voice:", 0) == 0) {
+    try {
+      return hasVoiceAsset(static_cast<uint32_t>(std::stoul(id.substr(6))));
+    } catch (...) {
+      return false;
+    }
+  }
+  if (id.rfind("bgm:", 0) == 0) {
+    try {
+      return hasBgmAsset(static_cast<uint32_t>(std::stoul(id.substr(4))));
+    } catch (...) {
+      return false;
+    }
+  }
+  if (id.rfind("se:", 0) == 0) {
+    try {
+      return hasSeAsset(static_cast<uint32_t>(std::stoul(id.substr(3))));
+    } catch (...) {
+      return false;
+    }
+  }
+  if (idToPak_.count(id) > 0)
+    return true;
+  return !resolveLooseId(id).empty();
 }
 
 std::vector<std::uint8_t>
 LucaSystemAssets::readAsset(const std::string &id) const {
+  if (id.rfind("voice:", 0) == 0)
+    return readVoiceAsset(static_cast<uint32_t>(std::stoul(id.substr(6))));
+  if (id.rfind("bgm:", 0) == 0)
+    return readBgmAsset(static_cast<uint32_t>(std::stoul(id.substr(4))));
+  if (id.rfind("se:", 0) == 0)
+    return readSeAsset(static_cast<uint32_t>(std::stoul(id.substr(3))));
   auto it = idToPak_.find(id);
-  if (it == idToPak_.end())
-    throw std::runtime_error("LucaSystem: asset not found: " + id);
-  return it->second->read(id);
+  if (it != idToPak_.end())
+    return it->second->read(id);
+  try {
+    uint32_t numId = static_cast<uint32_t>(std::stoul(id));
+    auto nit = numericIdToPak_.find(numId);
+    if (nit != numericIdToPak_.end()) {
+      const auto *entry = nit->second->findById(numId);
+      if (entry)
+        return nit->second->read(*entry);
+    }
+  } catch (...) {
+  }
+  const auto loose = resolveLooseId(id);
+  if (!loose.empty()) {
+    auto handle = source_->open(loose);
+    if (handle)
+      return Kotonoha::Filesystem::readAll(*handle);
+  }
+  throw std::runtime_error("LucaSystem: asset not found: " + id);
 }
 
 std::vector<std::uint8_t> LucaSystemAssets::readAsset(uint32_t id) const {
   auto it = numericIdToPak_.find(id);
-  if (it == numericIdToPak_.end())
-    throw std::runtime_error("LucaSystem: numeric asset not found: " +
-                             std::to_string(id));
-  const auto *entry = it->second->findById(id);
-  if (!entry)
-    throw std::runtime_error("LucaSystem: inconsistent numeric asset index");
-  return it->second->read(*entry);
+  if (it != numericIdToPak_.end()) {
+    const auto *entry = it->second->findById(id);
+    if (entry)
+      return it->second->read(*entry);
+  }
+  auto sit = idToPak_.find(std::to_string(id));
+  if (sit != idToPak_.end())
+    return sit->second->read(std::to_string(id));
+  throw std::runtime_error("LucaSystem: numeric asset not found: " +
+                           std::to_string(id));
 }
 
 std::vector<std::uint8_t> LucaSystemAssets::readImageAsset(uint32_t id) const {
   auto it = imageIdToPak_.find(id);
-  if (it == imageIdToPak_.end())
-    throw std::runtime_error("LucaSystem: image asset not found: " +
-                             std::to_string(id));
-  const auto *entry = it->second->findById(id);
-  if (!entry)
-    throw std::runtime_error("LucaSystem: inconsistent image asset index");
-  return it->second->read(*entry);
+  if (it != imageIdToPak_.end()) {
+    const auto *entry = it->second->findById(id);
+    if (entry)
+      return it->second->read(*entry);
+  }
+  // Virtual solid fills used by LucaSystem (65000 = white, 65001 = black).
+  // Must check BEFORE numericIdToPak_ because SYSVOICE.PAK uses 65000..65012!
+  if (id == 65000 || id == 65001) {
+    const std::uint8_t c = (id == 65000) ? 255 : 0;
+    // Synthesize a minimal CZ0 1x1 RGBA image; runtime scales 65000/65001 to
+    // full 1280x720 canvas.
+    std::vector<std::uint8_t> cz0 = {
+        'C', 'Z', '0', 0,  16, 0, 0, 0, // magic + headerLen=16
+        1,   0,   1,   0,  32, 0, 0, 0, // 1x1 32bpp
+        c,   c,   c,   255};
+    return cz0;
+  }
+  auto nit = numericIdToPak_.find(id);
+  if (nit != numericIdToPak_.end()) {
+    const auto *entry = nit->second->findById(id);
+    if (entry)
+      return nit->second->read(*entry);
+  }
+  auto sit = idToPak_.find(std::to_string(id));
+  if (sit != idToPak_.end())
+    return sit->second->read(std::to_string(id));
+  throw std::runtime_error("LucaSystem: image asset not found: " +
+                           std::to_string(id));
+}
+
+bool LucaSystemAssets::hasVoiceAsset(uint32_t id) const {
+  return voiceIdToPak_.count(id) > 0;
+}
+
+bool LucaSystemAssets::hasBgmAsset(uint32_t id) const {
+  return bgmIdToPak_.count(id) > 0;
+}
+
+bool LucaSystemAssets::hasSeAsset(uint32_t id) const {
+  return seIdToPak_.count(id) > 0;
+}
+
+std::vector<std::uint8_t> LucaSystemAssets::readVoiceAsset(uint32_t id) const {
+  auto it = voiceIdToPak_.find(id);
+  if (it != voiceIdToPak_.end()) {
+    const auto *entry = it->second->findById(id);
+    if (entry)
+      return it->second->read(*entry);
+  }
+  return readAsset(id);
+}
+
+std::vector<std::uint8_t> LucaSystemAssets::readBgmAsset(uint32_t id) const {
+  auto it = bgmIdToPak_.find(id);
+  if (it != bgmIdToPak_.end()) {
+    const auto *entry = it->second->findById(id);
+    if (entry)
+      return it->second->read(*entry);
+  }
+  return readAsset(id);
+}
+
+std::vector<std::uint8_t> LucaSystemAssets::readSeAsset(uint32_t id) const {
+  auto it = seIdToPak_.find(id);
+  if (it != seIdToPak_.end()) {
+    const auto *entry = it->second->findById(id);
+    if (entry)
+      return it->second->read(*entry);
+  }
+  return readAsset(id);
+}
+
+std::unique_ptr<Kotonoha::AssetStream>
+LucaSystemAssets::openStream(const std::string &id) const {
+  if (idToPak_.count(id) > 0)
+    return nullptr;
+  const auto loose = resolveLooseId(id);
+  if (!loose.empty()) {
+    auto handle = source_->open(loose);
+    if (handle)
+      return std::make_unique<VfsAssetStream>(std::move(handle));
+  }
+  return nullptr;
 }
 
 std::vector<std::string>
@@ -375,7 +566,16 @@ LucaSystemAssets::listAsset(const std::string &prefix) const {
 }
 
 std::string LucaSystemAssets::localPathAsset(const std::string &id) const {
-  return {}; // archived assets have no loose filesystem path
+  if (directory_.empty() || idToPak_.count(id) > 0)
+    return {};
+  const auto loose = resolveLooseId(id);
+  if (loose.empty())
+    return {};
+  std::error_code ec;
+  const auto candidate = directory_ / loose;
+  if (std::filesystem::is_regular_file(candidate, ec))
+    return candidate.string();
+  return {};
 }
 
 } // namespace Kotonoha::Providers

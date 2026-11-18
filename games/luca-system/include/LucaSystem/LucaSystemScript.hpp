@@ -4,11 +4,11 @@
 //
 // The script format is decoded following wetor/LuckSystem (script.go). A
 // script is a sequence of instructions, each:
+//   uint16 len         unpadded instruction length incl. the 4-byte header
 //   uint8  opcode
 //   uint8  fixedFlag   (0: no fixed params, 1: one uint16, 2+: two uint16)
-//   uint16 len         total instruction length incl. this 4-byte header
 //   raw bytes (len - 4)
-//   align  (len & 1)
+//   align byte (only when len is odd; not included in len)
 // The instruction stream advances by ((len + 1) & ~1) and is read until EOF.
 //
 // Opcodes and their parameter semantics are game-specific (defined by an
@@ -17,7 +17,9 @@
 // parameters, without assuming a particular opcode table.
 
 #include <cstdint>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -52,6 +54,15 @@ public:
 
   bool valid() const { return valid_; }
   const std::string &error() const { return error_; }
+  // Lossless byte-for-byte reconstruction of parsed CodeLine instructions.
+  // Useful for preservation tests and future opcode-aware script patching.
+  // Throws if parsing failed or the decoded instruction layout is inconsistent.
+  std::vector<std::uint8_t> serialize() const;
+  // Same-size instruction payload replacement for translation/patch tools.
+  // Offsets and unknown opcodes are preserved; changing instruction size
+  // requires a separate branch-relocation implementation.
+  std::vector<std::uint8_t> replaceRaw(std::size_t instructionIndex,
+                                       const std::vector<std::uint8_t> &bytes) const;
 
 private:
   std::string name_;
@@ -63,11 +74,24 @@ private:
   void parse();
 };
 
+// Jump destinations from LuckSystem's 32-bit byte offsets. These helpers
+// accept only exact instruction boundaries to avoid corrupt control flow.
+std::optional<std::size_t> FindInstructionAtOffset(
+    const std::vector<ScriptInstruction>& instructions, std::uint64_t offset);
+// The older title-specific JUMPPOINT form, never arbitrary opcode payloads.
+std::optional<std::size_t> FindJumpPoint(
+    const std::vector<ScriptInstruction>& instructions, std::string_view name);
+
 // Disassemble one instruction into a human readable line.
 std::string Disassemble(const ScriptInstruction &inst);
 
 // Extract Shift-JIS text runs from a byte buffer (null-terminated segments,
 // converted with Kotonoha::ShiftJisToUtf8).
 std::vector<std::string> ExtractShiftJisStrings(std::string_view bytes);
+
+// Decode LucaSystem length-prefixed UTF-8 (len = encoded ? 0x10000 - encoded : 0)
+// and UTF-16LE strings from instruction parameter payloads.
+std::string ReadLsUtf8(const std::vector<std::uint8_t> &bytes, size_t &cursor);
+std::string ReadLsUtf16(const std::vector<std::uint8_t> &bytes, size_t &cursor);
 
 } // namespace LucaSystem

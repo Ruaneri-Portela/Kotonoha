@@ -1,13 +1,13 @@
-#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/Path.hpp>
+#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 
-#include <json-c/json.h>
 #include <SDL3/SDL.h>
+#include <json-c/json.h>
 
 #include <algorithm>
-#include <cctype>
 #include <array>
+#include <cctype>
 #include <climits>
 #include <cstring>
 #include <functional>
@@ -16,8 +16,8 @@
 #include <vector>
 
 #ifdef __EMSCRIPTEN__
-#include <emscripten/fetch.h>
 #include <emscripten/emscripten.h>
+#include <emscripten/fetch.h>
 #endif
 
 namespace Kotonoha::Filesystem {
@@ -46,8 +46,8 @@ std::string encodePath(const std::string &path) {
   std::string encoded;
   for (unsigned char c : path) {
     if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-        (c >= '0' && c <= '9') || c == '/' || c == '.' ||
-        c == '_' || c == '-' || c == '~')
+        (c >= '0' && c <= '9') || c == '/' || c == '.' || c == '_' ||
+        c == '-' || c == '~')
       encoded.push_back(static_cast<char>(c));
     else {
       encoded.push_back('%');
@@ -66,23 +66,30 @@ class CachedHandle final : public FileHandle {
   };
   Lookup lookup_;
   std::int64_t offset_ = 0;
+
 public:
-  explicit CachedHandle(std::int64_t length,
-                        std::function<std::int64_t(
-                            void *, std::size_t, std::uint64_t)> read)
+  explicit CachedHandle(
+      std::int64_t length,
+      std::function<std::int64_t(void *, std::size_t, std::uint64_t)> read)
       : lookup_{std::move(read), length} {}
   std::int64_t read(void *dst, std::size_t amount) override {
-    if (!amount || offset_ == lookup_.length) return 0;
-    if (!dst) return -1;
-    const auto count = lookup_.read(dst, static_cast<std::size_t>(
-        std::min<std::uint64_t>(amount, lookup_.length - offset_)),
-        static_cast<std::uint64_t>(offset_));
-    if (count > 0) offset_ += count;
+    if (!amount || offset_ == lookup_.length)
+      return 0;
+    if (!dst)
+      return -1;
+    const auto count =
+        lookup_.read(dst,
+                     static_cast<std::size_t>(std::min<std::uint64_t>(
+                         amount, lookup_.length - offset_)),
+                     static_cast<std::uint64_t>(offset_));
+    if (count > 0)
+      offset_ += count;
     return count;
   }
   std::int64_t seek(std::int64_t delta, SeekOrigin origin) override {
-    const auto anchor = origin == SeekOrigin::Begin ? 0
-        : origin == SeekOrigin::Current ? offset_ : lookup_.length;
+    const auto anchor = origin == SeekOrigin::Begin     ? 0
+                        : origin == SeekOrigin::Current ? offset_
+                                                        : lookup_.length;
     if (delta >= 0 ? delta > lookup_.length - anchor : delta < -anchor)
       return -1;
     offset_ = anchor + delta;
@@ -94,6 +101,7 @@ public:
 
 class FetchStream final : public Kotonoha::AssetStream {
   std::unique_ptr<FileHandle> file_;
+
 public:
   explicit FetchStream(std::unique_ptr<FileHandle> file)
       : file_(std::move(file)) {}
@@ -111,8 +119,8 @@ public:
   }
   bool seek(std::uint64_t offset) override {
     return offset <= INT64_MAX &&
-        file_->seek(static_cast<std::int64_t>(offset), SeekOrigin::Begin) ==
-            static_cast<std::int64_t>(offset);
+           file_->seek(static_cast<std::int64_t>(offset), SeekOrigin::Begin) ==
+               static_cast<std::int64_t>(offset);
   }
 };
 } // namespace
@@ -123,8 +131,7 @@ FetchAssetProvider::FetchAssetProvider(std::string base, std::size_t budget)
        base_.compare(0, 8, "https://") != 0) ||
       base_.find('#') != std::string::npos ||
       base_.find('?') != std::string::npos ||
-      base_.find('@', base_.find("://") + 3) != std::string::npos ||
-      !budget)
+      base_.find('@', base_.find("://") + 3) != std::string::npos || !budget)
     throw FilesystemError(ErrorCode::InvalidPath,
                           "Fetch source must be an HTTP(S) base URL");
   if (base_.back() != '/')
@@ -141,30 +148,33 @@ FetchAssetProvider::fromUrl(std::string baseUrl, std::size_t cacheBudget) {
 }
 
 bool FetchAssetProvider::requestAsset(std::string_view id) {
-  if (!discover_) return false;
+  if (!discover_)
+    return false;
   // normalizePath rejects empty, traversal and absolute paths.
   const auto name = normalizePath(id);
   const auto key = lookupKey(name);
-  if (nodes_.count(key)) return true;
-  if (files_.count(key)) return false; // already in flight or failed
+  if (nodes_.count(key))
+    return true;
+  if (files_.count(key))
+    return false; // already in flight or failed
   auto file = std::make_shared<Slot>();
   file->info = FileInfo{name, FileType::Regular, -1};
   file->remotePath = name;
   files_.emplace(key, std::move(file));
   enqueue({key, 0, 0, true, true});
-  if (!started_) started_ = true;
+  if (!started_)
+    started_ = true;
   pump();
   return false;
 }
 
-std::shared_ptr<FetchAssetProvider>
-FetchAssetProvider::fromManifest(std::string baseUrl,
-                                 const std::string &manifest,
-                                 std::size_t cacheBudget) {
+std::shared_ptr<FetchAssetProvider> FetchAssetProvider::fromManifest(
+    std::string baseUrl, const std::string &manifest, std::size_t cacheBudget) {
   if (manifest.size() > 4 * 1024 * 1024)
     throw FilesystemError(ErrorCode::InvalidPath, "Oversized Fetch manifest");
   json_tokener *tok = json_tokener_new();
-  if (!tok) throw std::bad_alloc();
+  if (!tok)
+    throw std::bad_alloc();
   json_object *parsed = json_tokener_parse_ex(
       tok, manifest.c_str(), static_cast<int>(manifest.size()));
   const auto error = json_tokener_get_error(tok);
@@ -173,7 +183,8 @@ FetchAssetProvider::fromManifest(std::string baseUrl,
       parsed, json_object_put);
   if (error != json_tokener_success || !root ||
       !json_object_is_type(root.get(), json_type_object))
-    throw FilesystemError(ErrorCode::InvalidPath, "Invalid Fetch JSON manifest");
+    throw FilesystemError(ErrorCode::InvalidPath,
+                          "Invalid Fetch JSON manifest");
 
   json_object *entries = nullptr;
   if (!json_object_object_get_ex(root.get(), "entries", &entries) ||
@@ -211,8 +222,7 @@ FetchAssetProvider::fromManifest(std::string baseUrl,
       const auto k = lookupKey(path);
       const auto found = provider->nodes_.find(k);
       if (found == provider->nodes_.end())
-        provider->nodes_.emplace(
-            k, FileInfo{path, FileType::Directory, 0});
+        provider->nodes_.emplace(k, FileInfo{path, FileType::Directory, 0});
       else if (found->second.type != FileType::Directory)
         throw FilesystemError(ErrorCode::InvalidPath,
                               "Remote file/directory collision");
@@ -221,6 +231,7 @@ FetchAssetProvider::fromManifest(std::string baseUrl,
       throw FilesystemError(ErrorCode::InvalidPath,
                             "Remote file/directory collision: " + name);
   }
+  provider->manifestIndex_ = true;
   return provider;
 }
 
@@ -236,7 +247,8 @@ FetchAssetProvider::slot(std::string_view id) const {
 
 void FetchAssetProvider::enqueue(Job job) {
   const auto dedup = job.key + ":" + std::to_string(job.start) + ":" +
-                     std::to_string(job.length) + (job.lowercaseAttempt ? ":lower" : ":exact");
+                     std::to_string(job.length) +
+                     (job.lowercaseAttempt ? ":lower" : ":exact");
   if (requested_.insert(dedup).second) {
     ++requestedCount_;
     queued_.push_back(std::move(job));
@@ -281,7 +293,8 @@ bool FetchAssetProvider::ready(std::string_view id) const {
     return true;
   std::uint64_t next = 0;
   for (const auto &[start, bytes] : file->chunks) {
-    if (start > next) return false;
+    if (start > next)
+      return false;
     next = std::max(next, start + bytes->size());
     if (next >= static_cast<std::uint64_t>(file->info.size))
       return true;
@@ -301,8 +314,7 @@ bool FetchAssetProvider::allFilesReady() const {
 bool FetchAssetProvider::containsAsset(const std::string &id) const {
   return files_.count(lookupKey(id)) != 0;
 }
-std::vector<Uint8>
-FetchAssetProvider::readAsset(const std::string &id) const {
+std::vector<Uint8> FetchAssetProvider::readAsset(const std::string &id) const {
   auto file = open(id);
   return readAll(*file);
 }
@@ -328,7 +340,8 @@ bool FetchAssetProvider::hasIndexedDirectory(std::string_view path) const {
 }
 bool FetchAssetProvider::exists(std::string_view path) const {
   const auto key = lookupKey(path, true);
-  if (nodes_.count(key)) return true;
+  if (nodes_.count(key))
+    return true;
   // Unknown objects are discovered with HEAD, not invented as present.
   // Asyncify lets the caller yield until the response confirms the path.
   if (!discover_ || key.empty())
@@ -355,7 +368,8 @@ FileInfo FetchAssetProvider::stat(std::string_view path) const {
     (void)exists(path);
   const auto it = nodes_.find(key);
   if (it == nodes_.end())
-    throw FilesystemError(ErrorCode::NotFound, "Remote file metadata unavailable");
+    throw FilesystemError(ErrorCode::NotFound,
+                          "Remote file metadata unavailable");
   return it->second;
 }
 std::vector<FileInfo>
@@ -376,8 +390,8 @@ FetchAssetProvider::open(std::string_view id) const {
   // This is safe for C++ synchronous APIs because Asyncify yields while
   // Emscripten Fetch resolves the request.
   if (discover_ && !exists(id))
-    throw FilesystemError(ErrorCode::NotFound, "HTTP asset not found: " +
-                          std::string(id));
+    throw FilesystemError(ErrorCode::NotFound,
+                          "HTTP asset not found: " + std::string(id));
   const auto data = slot(id);
   auto owner = const_cast<FetchAssetProvider *>(this)->shared_from_this();
   const auto key = lookupKey(id);
@@ -389,13 +403,14 @@ FetchAssetProvider::open(std::string_view id) const {
           auto cachedAt = [&]() {
             const auto after = data->chunks.upper_bound(cursor);
             return after != data->chunks.begin() &&
-                cursor - std::prev(after)->first <
-                std::prev(after)->second->size();
+                   cursor - std::prev(after)->first <
+                       std::prev(after)->second->size();
           };
           if (!cachedAt() && !data->failed) {
-            const auto available = static_cast<std::uint64_t>(data->info.size) - cursor;
+            const auto available =
+                static_cast<std::uint64_t>(data->info.size) - cursor;
             owner->prefetchRange(key, cursor,
-                                  std::min<std::uint64_t>(available, 1u << 20));
+                                 std::min<std::uint64_t>(available, 1u << 20));
 #ifdef __EMSCRIPTEN__
             const double deadline = emscripten_get_now() + 31000;
             while (!data->failed && !cachedAt() &&
@@ -434,132 +449,173 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
                                   const std::string &headers) {
   const auto file = files_.at(job.key);
   if (job.discovery) {
-    if (status == 404 && !job.lowercaseAttempt &&
+    if (job.full && status == 404 && !job.lowercaseAttempt &&
         file->remotePath != lookupKey(file->remotePath)) {
-      // The VFS compares filenames case-insensitively, but a browser HTTP
-      // server does not. For known archive paths (e.g. SCRIPT.DAT versus
-      // data/pack/script.dat) retry once using the normalized spelling.
-      // Do not report NotFound while the retry is queued.
+      // Retry a case-insensitive filename using the exact lowercase spelling
+      // only after the original spelling was genuinely missing.
       enqueue({job.key, 0, 0, true, true, true});
       return;
     }
-    if (status != 200) {
-      file->failed = true;
-      file->failure = status == 404 ? ErrorCode::NotFound : ErrorCode::NetworkError;
-      file->message = "Remote HEAD failed, HTTP " + std::to_string(status);
+    if (job.full && (status == 405 || status == 501)) {
+      // Some static hosts do not implement HEAD. Probe one ranged byte.
+      enqueue({job.key, 0, 1, false, true, job.lowercaseAttempt});
       return;
     }
-    // A HEAD response exposes the length without downloading large disc
-    // images. Cross-origin servers must expose Content-Length via CORS.
-    std::string lengthValue;
-    std::string rangesValue;
+    if (status != 200 && (job.full || status != 206)) {
+      file->failed = true;
+      file->failure =
+          status == 404 ? ErrorCode::NotFound : ErrorCode::NetworkError;
+      file->message =
+          "Remote asset discovery failed, HTTP " + std::to_string(status);
+      return;
+    }
+
+    std::string lengthValue, rangesValue, contentRangeValue;
     for (std::size_t offset = 0; offset < headers.size();) {
       const auto end = headers.find('\n', offset);
-      auto line = headers.substr(offset, end == std::string::npos
-                                          ? std::string::npos : end - offset);
+      auto line = headers.substr(
+          offset, end == std::string::npos ? std::string::npos : end - offset);
       const auto colon = line.find(':');
       if (colon != std::string::npos) {
         auto name = line.substr(0, colon);
-        std::transform(name.begin(), name.end(), name.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        if (name == "content-length") {
-          lengthValue = line.substr(colon + 1);
-          lengthValue.erase(0, lengthValue.find_first_not_of(" \t"));
-          while (!lengthValue.empty() &&
-                 (lengthValue.back() == '\r' || lengthValue.back() == ' '))
-            lengthValue.pop_back();
-        }
-        if (name == "accept-ranges") {
-          rangesValue = line.substr(colon + 1);
-          rangesValue.erase(0, rangesValue.find_first_not_of(" \t"));
-          while (!rangesValue.empty() &&
-                 (rangesValue.back() == '\r' || rangesValue.back() == ' '))
-            rangesValue.pop_back();
+        std::transform(
+            name.begin(), name.end(), name.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        auto value = line.substr(colon + 1);
+        value.erase(0, value.find_first_not_of(" \t"));
+        while (!value.empty() && (value.back() == '\r' || value.back() == ' ' ||
+                                  value.back() == '\t'))
+          value.pop_back();
+        if (name == "content-length")
+          lengthValue = std::move(value);
+        else if (name == "accept-ranges") {
+          rangesValue = std::move(value);
           std::transform(rangesValue.begin(), rangesValue.end(),
-                         rangesValue.begin(),
-                         [](unsigned char c) {
+                         rangesValue.begin(), [](unsigned char c) {
                            return static_cast<char>(std::tolower(c));
                          });
-        }
+        } else if (name == "content-range")
+          contentRangeValue = std::move(value);
       }
-      if (end == std::string::npos) break;
+      if (end == std::string::npos)
+        break;
       offset = end + 1;
     }
-    std::uint64_t size = 0;
-    try {
-      if (lengthValue.empty() ||
-          !std::all_of(lengthValue.begin(), lengthValue.end(),
+
+    const auto parseSize = [](const std::string &value) -> std::uint64_t {
+      if (value.empty() ||
+          !std::all_of(value.begin(), value.end(),
                        [](unsigned char c) { return c >= '0' && c <= '9'; }))
-        throw std::invalid_argument("No usable Content-Length");
-      size = std::stoull(lengthValue);
+        throw std::invalid_argument("Invalid HTTP object size");
+      const auto size = std::stoull(value);
       if (size > static_cast<std::uint64_t>(INT64_MAX))
-        throw std::out_of_range("HTTP asset too large");
-    } catch (const std::exception &) {
-      file->failed = true;
-      file->failure = ErrorCode::NetworkError;
-      file->message = "HEAD requires accessible Content-Length";
-      return;
-    }
-    // If the host does not advertise byte ranges, do not risk materializing
-    // a huge GPK as an ignored HTTP 200 response in the browser's heap.
-    // Small files can still fall back to a complete response.
+        throw std::out_of_range("HTTP object too large");
+      return size;
+    };
     constexpr std::uint64_t kSmallWholeObject = 8u << 20;
-    if (size > kSmallWholeObject && rangesValue != "bytes") {
-      file->failed = true;
-      file->failure = ErrorCode::RangeUnsupported;
-      file->message = "Large HTTP archive requires Accept-Ranges: bytes "
-                      "and 206 Partial Content. The server has not "
-                      "advertised Range support; use tools/serve_web.py "
-                      "or configure your existing static file host.";
-      return;
+    std::uint64_t size = 0;
+    if (!job.full) {
+      // Discovery probe: GET Range: bytes=0-0.
+      if (status == 206) {
+        // A valid partial response announces the total length. Cross-origin
+        // hosts must expose Content-Range to JavaScript through CORS.
+        constexpr auto prefix = "bytes 0-0/";
+        if (count != 1 || !body || contentRangeValue.rfind(prefix, 0) != 0) {
+          file->failed = true;
+          file->failure = ErrorCode::RangeUnsupported;
+          file->message = "HTTP Range probe requires an accessible "
+                          "Content-Range: bytes 0-0/size header";
+          return;
+        }
+        try {
+          size = parseSize(contentRangeValue.substr(sizeof("bytes 0-0/") - 1));
+          if (!size)
+            throw std::invalid_argument("Empty partial object");
+        } catch (const std::exception &) {
+          file->failed = true;
+          file->failure = ErrorCode::RangeUnsupported;
+          file->message = "Invalid Content-Range on HTTP discovery probe";
+          return;
+        }
+      } else {
+        // A server may ignore Range; permit a complete response for small
+        // assets such as Seen.txt, but not large disc images or archives.
+        if (count > kSmallWholeObject || count > budget_ || (count && !body)) {
+          file->failed = true;
+          file->failure = ErrorCode::RangeUnsupported;
+          file->message = "HTTP Range probe returned an oversized 200 "
+                          "response; large assets require HTTP 206";
+          return;
+        }
+        size = count;
+      }
+    } else {
+      try {
+        size = parseSize(lengthValue);
+      } catch (const std::exception &) {
+        // HTTP 200 on HEAD proves existence even without Content-Length.
+        // Do not mistake missing metadata for a missing asset.
+        enqueue({job.key, 0, 1, false, true, job.lowercaseAttempt});
+        return;
+      }
+      // A valid 206 probe is more reliable than Accept-Ranges, which may
+      // be absent or hidden by cross-origin response-header restrictions.
+      if (size > kSmallWholeObject && rangesValue != "bytes") {
+        enqueue({job.key, 0, 1, false, true, job.lowercaseAttempt});
+        return;
+      }
     }
+
     if (job.lowercaseAttempt)
       file->remotePath = lookupKey(file->remotePath);
     file->info.size = static_cast<std::int64_t>(size);
     nodes_.emplace(job.key, file->info);
     for (auto p = parent(file->info.path); !p.empty(); p = parent(p))
       nodes_.emplace(lookupKey(p), FileInfo{p, FileType::Directory, 0});
+    if (!job.full) {
+      // Reuse the probe bytes, avoiding a second request for the same data.
+      complete(Job{job.key, 0, status == 206 ? 1u : size, status == 200, false,
+                   job.lowercaseAttempt},
+               status, body, count, headers);
+    }
     return;
   }
   // Simple HTTP servers may ignore Range. Accept their full 200 response
   // only if its length matches the entire object; store at offset zero.
-  const bool wholeResponse = !job.full && status == 200u &&
-      file->info.size >= 0 &&
+  const bool wholeResponse =
+      !job.full && status == 200u && file->info.size >= 0 &&
       count == static_cast<std::uint64_t>(file->info.size);
   if ((!wholeResponse && status != (job.full ? 200u : 206u)) ||
-      (!wholeResponse && count != job.length) ||
-      (count && !body)) {
+      (!wholeResponse && count != job.length) || (count && !body)) {
     file->failed = true;
-    file->failure = status == 200 && !job.full
-                        ? ErrorCode::RangeUnsupported : ErrorCode::NetworkError;
+    file->failure = status == 200 && !job.full ? ErrorCode::RangeUnsupported
+                                               : ErrorCode::NetworkError;
     file->message = "Remote Fetch failed, status " + std::to_string(status);
     return;
   }
   if (!job.full && !wholeResponse) {
     // Reject wrong Content-Range, which might otherwise corrupt ISO/TAR bytes.
-    const auto marker = std::string("bytes ") +
-        std::to_string(job.start) + "-" +
-        std::to_string(job.start + job.length - 1) + "/" +
-        std::to_string(file->info.size);
+    const auto marker = std::string("bytes ") + std::to_string(job.start) +
+                        "-" + std::to_string(job.start + job.length - 1) + "/" +
+                        std::to_string(file->info.size);
     bool rangeMatches = false;
     std::size_t begin = 0;
     while (begin < headers.size()) {
       const auto end = headers.find('\n', begin);
-      auto line = headers.substr(begin, end == std::string::npos
-                                            ? std::string::npos : end - begin);
+      auto line = headers.substr(
+          begin, end == std::string::npos ? std::string::npos : end - begin);
       if (!line.empty() && line.back() == '\r')
         line.pop_back();
       const auto colon = line.find(':');
       if (colon != std::string::npos) {
         auto key = line.substr(0, colon);
-        std::transform(key.begin(), key.end(), key.begin(),
-                       [](unsigned char c) {
-                         return static_cast<char>(std::tolower(c));
-                       });
+        std::transform(
+            key.begin(), key.end(), key.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         auto value = line.substr(colon + 1);
         value.erase(0, value.find_first_not_of(" \t"));
-        rangeMatches = rangeMatches ||
-            (key == "content-range" && value == marker);
+        rangeMatches =
+            rangeMatches || (key == "content-range" && value == marker);
       }
       if (end == std::string::npos)
         break;
@@ -664,14 +720,14 @@ void FetchAssetProvider::pump() {
   while (active_ < 4 && !queued_.empty()) {
     auto job = std::move(queued_.front());
     queued_.pop_front();
-    auto *ctx = new FetchContext{shared_from_this(), job.key, job.start,
-                                 job.length, job.full, job.discovery,
-                                 job.lowercaseAttempt, {}, {}};
+    auto *ctx = new FetchContext{shared_from_this(),   job.key,  job.start,
+                                 job.length,           job.full, job.discovery,
+                                 job.lowercaseAttempt, {},       {}};
     const auto &file = files_.at(job.key);
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
-    std::memcpy(attr.requestMethod, job.discovery ? "HEAD" : "GET",
-                job.discovery ? 5 : 4);
+    const bool head = job.discovery && job.full;
+    std::memcpy(attr.requestMethod, head ? "HEAD" : "GET", head ? 5 : 4);
     attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
     attr.timeoutMSecs = 30000;
     if (!job.full) {
@@ -705,13 +761,13 @@ void FetchAssetProvider::pump() {
         const auto count = emscripten_fetch_get_response_headers_length(fetch);
         if (count && count < 16384) {
           headers.resize(count + 1, '\0');
-          emscripten_fetch_get_response_headers(fetch,
-                                                headers.data(), headers.size());
+          emscripten_fetch_get_response_headers(fetch, headers.data(),
+                                                headers.size());
         }
-        provider->complete(
-            Job{ctx->path, ctx->start, ctx->length, ctx->full,
-                ctx->discovery, ctx->lowercaseAttempt},
-            fetch->status, fetch->data, fetch->numBytes, headers);
+        provider->complete(Job{ctx->path, ctx->start, ctx->length, ctx->full,
+                               ctx->discovery, ctx->lowercaseAttempt},
+                           fetch->status, fetch->data, fetch->numBytes,
+                           headers);
       } catch (const std::exception &error) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                      "[Kotonoha] HTTP Fetch callback for %s failed: %s",
@@ -725,9 +781,9 @@ void FetchAssetProvider::pump() {
       }
       // Only deduplicate queued/in-flight jobs. An evicted page must be
       // eligible for a new request on the next read of that offset.
-      provider->requested_.erase(ctx->path + ":" +
-          std::to_string(ctx->start) + ":" + std::to_string(ctx->length) +
-          (ctx->lowercaseAttempt ? ":lower" : ":exact"));
+      provider->requested_.erase(ctx->path + ":" + std::to_string(ctx->start) +
+                                 ":" + std::to_string(ctx->length) +
+                                 (ctx->lowercaseAttempt ? ":lower" : ":exact"));
       const auto it = provider->files_.find(ctx->path);
       ++provider->completed_;
       if (it != provider->files_.end() && it->second->failed) {
@@ -753,10 +809,11 @@ void FetchAssetProvider::pump() {
     };
     attr.onsuccess = finish;
     attr.onerror = finish;
-    const auto url = base_ + encodePath(
-        job.discovery && job.lowercaseAttempt
-            ? lookupKey(file->remotePath) : file->remotePath.empty()
-                ? file->info.path : file->remotePath);
+    const auto url =
+        base_ + encodePath(job.discovery && job.lowercaseAttempt
+                               ? lookupKey(file->remotePath)
+                           : file->remotePath.empty() ? file->info.path
+                                                      : file->remotePath);
     ++active_;
     if (!emscripten_fetch(&attr, url.c_str())) {
       --active_;

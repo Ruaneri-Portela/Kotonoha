@@ -157,12 +157,13 @@ DisplayModeCatalog::Enumerate(SDL_DisplayID display) {
 
   // SDL fallback (also the only catalog on macOS, Linux and mobile).
   int count = 0;
-  SDLArrayPtr<SDL_DisplayMode *> modes(SDL_GetFullscreenDisplayModes(display, &count));
+  SDLArrayPtr<SDL_DisplayMode *> modes(
+      SDL_GetFullscreenDisplayModes(display, &count));
   if (modes) {
     for (int i = 0; i < count; ++i)
       if (modes.get()[i])
-        AddUnique(result, {modes.get()[i]->w, modes.get()[i]->h, modes.get()[i]->refresh_rate});
-
+        AddUnique(result, {modes.get()[i]->w, modes.get()[i]->h,
+                           modes.get()[i]->refresh_rate});
   }
   if (const auto *desktop = SDL_GetDesktopDisplayMode(display))
     AddUnique(result, {desktop->w, desktop->h, desktop->refresh_rate});

@@ -119,8 +119,16 @@ std::vector<ArchiveEntry> ParseArc(const Bytes &header, uint64_t fileSize) {
   if (uint64_t(count) * 20 + 8 != start || start > fileSize)
     Invalid("invalid ARC index size");
   r.require(size_t(count) * 20);
-  // Two u16 hash bucket tables, then records in hash order (not payload order).
-  r.take(size_t(count) * 4);
+  // ARC stores two u16 arrays: per-bucket entry counts, then first indices.
+  // The records are grouped by hash % count, not by payload offset.
+  // Verify the complete directory before exposing any entries.
+  std::vector<uint16_t> counts, first;
+  counts.reserve(count);
+  first.reserve(count);
+  for (uint32_t i = 0; i < count; ++i)
+    counts.push_back(r.u16());
+  for (uint32_t i = 0; i < count; ++i)
+    first.push_back(r.u16());
   std::vector<ArchiveEntry> entries;
   entries.reserve(count);
   for (uint32_t i = 0; i < count; ++i) {
@@ -132,6 +140,23 @@ std::vector<ArchiveEntry> ParseArc(const Bytes &header, uint64_t fileSize) {
     range(e.offset, e.size, fileSize, start);
     entries.push_back(e);
   }
+  uint32_t next = 0;
+  for (uint32_t bucket = 0; bucket < count; ++bucket) {
+    if (!counts[bucket]) {
+      if (first[bucket] != 0)
+        Invalid("invalid ARC empty bucket index");
+      continue;
+    }
+    if (first[bucket] != next || counts[bucket] > count - next)
+      Invalid("invalid ARC bucket index");
+    const auto end = next + counts[bucket];
+    for (uint32_t i = next; i < end; ++i)
+      if (entries[i].hash % count != bucket)
+        Invalid("ARC entry in wrong hash bucket");
+    next = end;
+  }
+  if (next != count)
+    Invalid("ARC bucket counts do not cover every entry");
   return entries;
 }
 std::vector<ArchiveEntry> ParseAfs(const Bytes &header, uint64_t fileSize) {

@@ -2,6 +2,7 @@
 #include <SDL3/SDL.h>
 
 #include "DemoGame.hpp"
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <cstdio>
@@ -28,9 +29,12 @@ struct KotonohaPortCallbacks final {
   static void quit(void *state, SDL_AppResult result);
 };
 
-SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc, char **argv) {
+SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
+                                          char **argv) {
   *appstate = nullptr;
+  KOTONOHA_SET_APP_METADATA("Kotonoha", "org.kotonoha.example");
   try {
+    Kotonoha::migrateLegacyDocuments("me.hirameki.kotonoha");
     Kotonoha::EngineOptions options;
     options.persistSettings = true;
     Kotonoha::CommandLine arguments("Kotonoha", options);

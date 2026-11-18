@@ -105,30 +105,53 @@ inline SDL_Event MapControllerEvent(EventRef event, bool dialogue = false,
   return mapped;
 }
 
-// Convert the left stick into the same directional buttons used by menus.
-// Hysteresis prevents jitter around the dead zone from moving focus repeatedly.
+// Convert left-stick axes to virtual D-pad events. Releasing a controller or
+// losing focus also releases its held directions so no menu keeps a stuck key.
 class ControllerNavigation {
-  std::map<std::pair<SDL_JoystickID, Uint8>, int> directions;
+  using Axis = std::pair<SDL_JoystickID, Uint8>;
+  std::map<Axis, int> directions;
+
+  static SDL_Event button(const Axis &axis, int sign, bool down,
+                          Uint64 timestamp) {
+    SDL_Event result{};
+    result.type =
+        down ? SDL_EVENT_GAMEPAD_BUTTON_DOWN : SDL_EVENT_GAMEPAD_BUTTON_UP;
+    result.gbutton.timestamp = timestamp;
+    result.gbutton.which = axis.first;
+    result.gbutton.down = down;
+    result.gbutton.button = axis.second == SDL_GAMEPAD_AXIS_LEFTX
+                                ? (sign < 0 ? SDL_GAMEPAD_BUTTON_DPAD_LEFT
+                                            : SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
+                                : (sign < 0 ? SDL_GAMEPAD_BUTTON_DPAD_UP
+                                            : SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+    return result;
+  }
 
 public:
   std::vector<SDL_Event> process(EventRef event) {
-    if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
-      directions.clear();
-      return {};
-    }
-    if (event.type == SDL_EVENT_GAMEPAD_REMOVED) {
-      for (auto it = directions.begin(); it != directions.end();)
-        if (it->first.first == event.gdevice.which)
+    if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
+        event.type == SDL_EVENT_GAMEPAD_REMOVED) {
+      std::vector<SDL_Event> released;
+      for (auto it = directions.begin(); it != directions.end();) {
+        if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
+            it->first.first == event.gdevice.which) {
+          if (it->second)
+            released.push_back(button(it->first, it->second, false,
+                                      event.common.timestamp));
           it = directions.erase(it);
-        else
+        } else {
           ++it;
-      return {};
+        }
+      }
+      return released;
     }
     if (event.type != SDL_EVENT_GAMEPAD_AXIS_MOTION ||
         (event.gaxis.axis != SDL_GAMEPAD_AXIS_LEFTX &&
          event.gaxis.axis != SDL_GAMEPAD_AXIS_LEFTY))
       return {};
-    auto &previous = directions[{event.gaxis.which, event.gaxis.axis}];
+
+    const Axis axis{event.gaxis.which, event.gaxis.axis};
+    auto &previous = directions[axis];
     const int value = event.gaxis.value;
     const int direction = value <= -16000                     ? -1
                           : value >= 16000                    ? 1
@@ -137,62 +160,61 @@ public:
     if (direction == previous)
       return {};
     std::vector<SDL_Event> result;
-    auto append = [&](int sign, bool down) {
-      SDL_Event button{};
-      button.type =
-          down ? SDL_EVENT_GAMEPAD_BUTTON_DOWN : SDL_EVENT_GAMEPAD_BUTTON_UP;
-      button.gbutton.timestamp = event.gaxis.timestamp;
-      button.gbutton.which = event.gaxis.which;
-      button.gbutton.down = down;
-      button.gbutton.button = event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX
-                                  ? (sign < 0 ? SDL_GAMEPAD_BUTTON_DPAD_LEFT
-                                              : SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
-                                  : (sign < 0 ? SDL_GAMEPAD_BUTTON_DPAD_UP
-                                              : SDL_GAMEPAD_BUTTON_DPAD_DOWN);
-      result.push_back(button);
-    };
     if (previous)
-      append(previous, false);
+      result.push_back(button(axis, previous, false, event.gaxis.timestamp));
     if (direction)
-      append(direction, true);
+      result.push_back(button(axis, direction, true, event.gaxis.timestamp));
     previous = direction;
     return result;
   }
 };
 
-// Helper to track analog trigger pressure (L2 / R2) for variable skip speed.
+// Track both trigger axes of every connected gamepad separately. Releasing
+// one trigger must not cancel skip while another trigger remains depressed.
 class ControllerTriggerSkip {
-  float pressure_ = 0.0f; // 0.0 to 1.0
-  bool active_ = false;
+  using Axis = std::pair<SDL_JoystickID, Uint8>;
+  std::map<Axis, float> pressures_;
 
 public:
-  float pressure() const { return pressure_; }
-  bool active() const { return active_; }
+  float pressure() const {
+    float strongest = 0.0f;
+    for (const auto &entry : pressures_)
+      // Win32 consumers may have included the max(a,b) macro before this
+      // header. Parenthesizing the function name prevents macro expansion.
+      strongest = (std::max)(strongest, entry.second);
+    return strongest;
+  }
+  bool active() const { return !pressures_.empty(); }
 
   bool process(EventRef event) {
-    if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
-        event.type == SDL_EVENT_GAMEPAD_REMOVED) {
-      active_ = false;
-      pressure_ = 0.0f;
+    if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+      pressures_.clear();
       return false;
     }
-    if (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION &&
-        (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
-         event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)) {
-      const int val = event.gaxis.value;
-      constexpr int kThreshold = 4000;
-      if (val > kThreshold) {
-        active_ = true;
-        pressure_ = static_cast<float>(val - kThreshold) /
-                    static_cast<float>(32767 - kThreshold);
-        pressure_ = Clamp(pressure_, 0.0f, 1.0f);
-      } else {
-        active_ = false;
-        pressure_ = 0.0f;
+    if (event.type == SDL_EVENT_GAMEPAD_REMOVED) {
+      for (auto it = pressures_.begin(); it != pressures_.end();) {
+        if (it->first.first == event.gdevice.which)
+          it = pressures_.erase(it);
+        else
+          ++it;
       }
-      return true;
+      return false;
     }
-    return false;
+    if (event.type != SDL_EVENT_GAMEPAD_AXIS_MOTION ||
+        (event.gaxis.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER &&
+         event.gaxis.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER))
+      return false;
+    const Axis axis{event.gaxis.which, event.gaxis.axis};
+    constexpr int kThreshold = 4000;
+    if (event.gaxis.value > kThreshold) {
+      pressures_[axis] =
+          Clamp(static_cast<float>(event.gaxis.value - kThreshold) /
+                    static_cast<float>(32767 - kThreshold),
+                0.0f, 1.0f);
+    } else {
+      pressures_.erase(axis);
+    }
+    return true;
   }
 };
 

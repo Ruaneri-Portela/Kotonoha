@@ -9,11 +9,11 @@
 
 #include <imgui.h>
 
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstring>
-#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <mutex>
 #include <stdexcept>
@@ -439,7 +439,8 @@ void VoiceDubbingApplet::save() {
   auto temporary = output;
   temporary += ".tmp-" + std::to_string(SDL_GetTicksNS());
   {
-    Kotonoha::Filesystem::OutputFile file(temporary, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile file(temporary,
+                                          std::ios::binary | std::ios::trunc);
     if (!file.write(reinterpret_cast<const char *>(bytes.data()), bytes.size()))
       throw std::runtime_error("Cannot write overlay audio");
   }
@@ -710,7 +711,8 @@ void VoiceDubbingApplet::draw() {
     pollRecording();
     refreshSceneAudio();
     ImGui::TextColored(ImGuiTheme::accent(), "VOICE DUBBING / APPLET");
-    ImGui::TextDisabled("Preview originals and edit non-destructive audio overlays");
+    ImGui::TextDisabled(
+        "Preview originals and edit non-destructive audio overlays");
     ImGui::Spacing();
     ImGuiTheme::sectionHeader("Scene audio pairs");
     ImGui::TextWrapped("The left side always reads the untouched game/archive "
@@ -741,8 +743,7 @@ void VoiceDubbingApplet::draw() {
         characters.push_back(row.character);
     const char *filterLabel =
         characterFilter_.empty() ? "All characters" : characterFilter_.c_str();
-    ImGui::SetNextItemWidth(std::min(240.0f,
-        ImGui::GetContentRegionAvail().x));
+    ImGui::SetNextItemWidth(std::min(240.0f, ImGui::GetContentRegionAvail().x));
     ImGuiComboScope characterCombo{ImGui::BeginCombo("Character", filterLabel)};
     if (characterCombo.open) {
       if (ImGui::Selectable("All characters", characterFilter_.empty()))
@@ -771,11 +772,15 @@ void VoiceDubbingApplet::draw() {
     if (audioTable.open) {
       // Five columns can scroll on mobile instead of shrinking buttons and
       // voice IDs until the controls become impossible to interact with.
-      ImGui::TableSetupColumn("Character", ImGuiTableColumnFlags_WidthFixed, 120);
-      ImGui::TableSetupColumn("Line / scene audio", ImGuiTableColumnFlags_WidthFixed, 260);
-      ImGui::TableSetupColumn("Original", ImGuiTableColumnFlags_WidthFixed, 115);
+      ImGui::TableSetupColumn("Character", ImGuiTableColumnFlags_WidthFixed,
+                              120);
+      ImGui::TableSetupColumn("Line / scene audio",
+                              ImGuiTableColumnFlags_WidthFixed, 260);
+      ImGui::TableSetupColumn("Original", ImGuiTableColumnFlags_WidthFixed,
+                              115);
       ImGui::TableSetupColumn("Overlay", ImGuiTableColumnFlags_WidthFixed, 160);
-      ImGui::TableSetupColumn("Create / edit", ImGuiTableColumnFlags_WidthFixed, 115);
+      ImGui::TableSetupColumn("Create / edit", ImGuiTableColumnFlags_WidthFixed,
+                              115);
       ImGui::TableHeadersRow();
       for (const auto &row : rows) {
         if (!characterFilter_.empty() && row.character != characterFilter_)
@@ -836,8 +841,8 @@ void VoiceDubbingApplet::draw() {
       else if (rowAction == RowAction::DiscardOverlay)
         discardOverlay();
     }
-    ImGui::SetNextItemWidth(std::max(110.0f,
-        ImGui::GetContentRegionAvail().x - 180.0f));
+    ImGui::SetNextItemWidth(
+        std::max(110.0f, ImGui::GetContentRegionAvail().x - 180.0f));
     ImGui::InputText("Logical asset ID", manualId_, sizeof(manualId_));
     if (ImGui::GetContentRegionAvail().x >= 150.0f)
       ImGui::SameLine();

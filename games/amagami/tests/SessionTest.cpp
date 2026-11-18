@@ -40,6 +40,29 @@ int main(int argc, char **argv) {
     require(!source->voice("MIY", 1858).empty(),
             "Nested AFS voice name lookup");
     require(source->voice("XYZ", 9999).empty(), "Missing voice lookup");
+    require(source->soundEffectCount() == 49,
+            "systemBank.hd Vagi table has 49 sound effects (0..48)");
+    for (unsigned seIdx = 0; seIdx < 49; ++seIdx) {
+      const auto se = source->soundEffect(seIdx);
+      require(!se.adpcm.empty() && se.sampleRate == 39000,
+              "Every systemBank wave has 39000 Hz SPU2 ADPCM payload");
+    }
+    require(source->musicIndex(1, false) == 35 &&
+                source->musicIndex(40, false) == 74 &&
+                source->musicIndex(1, true) == 0 &&
+                source->musicIndex(33, true) == 67 &&
+                source->musicIndex(34, true) == 68 &&
+                source->musicIndex(35, true) == 32 &&
+                source->musicIndex(38, true) == 72 &&
+                source->musicIndex(40, true) == 74,
+            "Classic and Arrange BGM lookup tables match SLPS_259.18");
+    require(source->spriteDescriptorCount() == 252 &&
+                source->spriteDescriptor(1).has_value() &&
+                source->spriteDescriptor(1)->asset == "sysgraph/win0.tm2" &&
+                source->spriteDescriptor(212, 122).has_value() &&
+                source->spriteDescriptor(212, 122)->asset ==
+                    "bgsam/sam_bg122_10.tm2",
+            "PS2 Sprite descriptor table resolves format strings and variants");
     auto tmp = std::filesystem::temp_directory_path() /
                ("amagami-test-" + std::to_string(SDL_GetPerformanceCounter()) +
                 ".txt");

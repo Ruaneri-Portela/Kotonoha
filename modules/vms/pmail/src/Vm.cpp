@@ -3,11 +3,14 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <climits>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #ifdef PMAIL_VM_TRACE
@@ -28,6 +31,47 @@ uint32_t rd32(const std::vector<uint8_t> &d, size_t o) {
 }
 uint16_t rd16(const std::vector<uint8_t> &d, size_t o) {
   return o + 2 <= d.size() ? uint16_t(d[o] | (d[o + 1] << 8)) : 0;
+}
+
+// PMAIL expressions run on a 32-bit x86 interpreter. Signed overflow in
+// C++17 is undefined behavior, so reproduce 32-bit two's-complement results
+// without relying on the compiler optimizer or host integer width.
+int32_t signedWord(uint32_t word) {
+  if (word <= uint32_t(INT32_MAX))
+    return int32_t(word);
+  return -1 - int32_t(~word);
+}
+int32_t addWord(int32_t a, int32_t b) {
+  return signedWord(uint32_t(a) + uint32_t(b));
+}
+int32_t subtractWord(int32_t a, int32_t b) {
+  return signedWord(uint32_t(a) - uint32_t(b));
+}
+int32_t multiplyWord(int32_t a, int32_t b) {
+  return signedWord(uint32_t(a) * uint32_t(b));
+}
+int32_t divideWord(int32_t a, int32_t b) {
+  if (!b)
+    return 0;
+  // Avoid the sole signed 32-bit division overflow, without a host crash.
+  // The retail executable's exception path still needs direct tracing.
+  if (a == INT32_MIN && b == -1)
+    return INT32_MIN;
+  return a / b;
+}
+int32_t moduloWord(int32_t a, int32_t b) {
+  if (!b || (a == INT32_MIN && b == -1))
+    return 0;
+  return a % b;
+}
+int32_t shiftRightArithmetic(int32_t a, uint32_t count) {
+  count &= 31u; // x86 masks 32-bit shift counts
+  const auto bits = uint32_t(a);
+  if (!count)
+    return a;
+  const uint32_t shifted =
+      (bits >> count) | ((bits & 0x80000000u) ? ~(UINT32_MAX >> count) : 0u);
+  return signedWord(shifted);
 }
 } // namespace
 
@@ -106,7 +150,8 @@ void Vm::reset(bool clearVariables) {
   for (auto &slot : usr_)
     slot = {};
   pc_ = acc_ = curFramePc_ = 0;
-  rng_ = 12345;
+  rng_ = 1; // original pmail.exe seed (VA 0x43f7dc)
+  unknownOpcodeLogged_.fill(false);
   blocked_ = false;
   ended_ = true;
 }
@@ -230,6 +275,7 @@ void Vm::deserialize(const std::string &data) {
   acc_ = acc;
   curFramePc_ = framePc;
   rng_ = rng;
+  unknownOpcodeLogged_.fill(false);
   blocked_ = blocked;
   ended_ = ended;
 }
@@ -247,6 +293,7 @@ void Vm::swapState(Vm &other) noexcept {
   swap(acc_, other.acc_);
   swap(curFramePc_, other.curFramePc_);
   swap(rng_, other.rng_);
+  swap(unknownOpcodeLogged_, other.unknownOpcodeLogged_);
   swap(blocked_, other.blocked_);
   swap(ended_, other.ended_);
 }
@@ -303,8 +350,16 @@ void Vm::start(const ObjectPtr &obj, uint32_t pc) {
 }
 
 void Vm::jumpTo(const ObjectPtr &obj, uint32_t pc) {
+  // An external script transition must revive the interpreter after the
+  // previous object executed HALT. Without this, PmailGame::popCall()
+  // switches back to its caller but run() immediately stops again, so
+  // subsequent scene choices and story branches never execute.
+  if (obj && pc > obj->codeWords)
+    throw std::out_of_range("PMAIL jump exceeds script code size");
   cur_ = obj;
   pc_ = pc;
+  ended_ = !obj;
+  blocked_ = false;
 }
 
 void Vm::setVar(uint32_t id, uint32_t v) {
@@ -321,6 +376,9 @@ void Vm::setVar(uint32_t id, uint32_t v) {
     break;
   case 3:
     v = uint32_t(int32_t(int16_t(v)));
+    break;
+  case 5:
+    // pmail.exe:0x402a50 — bank 5 (0x5000..0x5fff) stores full 32-bit values.
     break;
   default:
     v &= 0xffff;
@@ -392,23 +450,23 @@ int32_t Vm::evalExpr(const std::string &e) {
       const uint32_t ua = uint32_t(a), sh = uint32_t(b) & 31;
       int32_t r = 0;
       if (t == "*")
-        r = a * b;
+        r = multiplyWord(a, b);
       else if (t == "/")
-        r = b ? a / b : 0;
+        r = divideWord(a, b);
       else if (t == "%")
-        r = b ? a % b : 0;
+        r = moduloWord(a, b);
       else if (t == "+")
-        r = a + b;
+        r = addWord(a, b);
       else if (t == "-")
-        r = a - b;
+        r = subtractWord(a, b);
       else if (t == ">>")
-        r = a >> sh;
+        r = shiftRightArithmetic(a, sh);
       else if (t == "<<")
-        r = int32_t(ua << sh);
+        r = signedWord(ua << sh);
       else if (t == ">>>")
-        r = int32_t(sh ? (ua >> sh) | (ua << (32 - sh)) : ua);
+        r = signedWord(sh ? (ua >> sh) | (ua << (32 - sh)) : ua);
       else if (t == "<<<")
-        r = int32_t(sh ? (ua << sh) | (ua >> (32 - sh)) : ua);
+        r = signedWord(sh ? (ua << sh) | (ua >> (32 - sh)) : ua);
       else if (t == ">")
         r = a > b;
       else if (t == "<")
@@ -497,8 +555,10 @@ bool Vm::step() {
     kind = 4;
     break;
   case 0x20:
-    val = imm;
-    kind = 1;
+    if ((imm & 0xf000u) <= 0x5000u) {
+      val = imm;
+      kind = 1;
+    }
     break;
   case 0x40:
   case 0x42:
@@ -595,6 +655,10 @@ bool Vm::step() {
     pc_ = uint32_t(s.pc);
     break;
   }
+  case 0x07:
+  case 0x08:
+    // pmail.exe:0x004026aa — user-function entry/exit boundary markers (no-op).
+    break;
   case 0x09:
     if (((acc_ >> 16) & 0xf) == 2) {
       lines_.push_back({acc_ >> 20, acc16});
@@ -609,7 +673,7 @@ bool Vm::step() {
     PMAIL_VM_DEBUG << "[PmailVm Debug] STORE op=0x10 kind=" << kind
                    << " val=" << v16 << " acc=" << acc16 << std::endl;
     if (kind == 1)
-      setVar(v16, acc16);
+      setVar(v16, (((v16 >> 12) & 0xf) == 5 && accIs32_) ? acc_ : acc16);
     break;
   case 0x11: // load/set accumulator based on kind
     PMAIL_VM_DEBUG << "[PmailVm Debug] LOAD_ACC op=0x11 kind=" << kind
@@ -617,15 +681,19 @@ bool Vm::step() {
     switch (kind) {
     case 0:
       acc_ = v16 | objBits;
+      accIs32_ = false;
       break;
     case 1:
       acc_ = v16 | 0x10000 | objBits;
+      accIs32_ = false;
       break;
     case 2:
       acc_ = v16 | 0x20000 | objBits;
+      accIs32_ = false;
       break;
     case 5:
       acc_ = val;
+      accIs32_ = true;
       break;
     default:
       break;
@@ -645,10 +713,14 @@ bool Vm::step() {
     }
     break;
   default:
-    PMAIL_VM_DEBUG << "[PmailVm Debug] NOP (Unknown Opcode Bypass) op=0x"
-                   << std::hex << int(op) << " mode=0x" << int(mode)
-                   << " imm=0x" << imm << std::dec << " kind=" << kind
-                   << " val=" << val << std::endl;
+    if (!unknownOpcodeLogged_[op]) {
+      unknownOpcodeLogged_[op] = true;
+      std::ostringstream warning;
+      warning << "Unsupported PMAIL bytecode 0x" << std::hex << unsigned(op)
+              << " in " << (cur_ ? cur_->name : "<null>") << ":0x" << (pc_ - 1)
+              << " (mode 0x" << unsigned(mode) << ")";
+      host_.log(warning.str());
+    }
     break;
   }
 

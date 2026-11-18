@@ -12,6 +12,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -190,14 +191,113 @@ int main() {
     scriptData.push_back(1); // fixedFlag
     scriptData.insert(scriptData.end(), raw.begin(), raw.end());
 
+    const auto originalScriptData = scriptData;
     LucaSystem::Script script("test.scr", std::move(scriptData));
     check(script.valid(), "script valid");
+    if (script.valid())
+      check(script.serialize() == originalScriptData,
+            "script CodeLine roundtrip preserves original bytes");
     check(script.instructionCount() == 1, "script one instruction");
+    if (script.valid()) {
+      const auto &original = script.instructions().front();
+      auto replacement = original.rawBytes;
+      if (replacement.size() >= 7)
+        replacement[2] = 'H'; // keep length, fixed field and other bytes
+      auto patchedData = script.replaceRaw(0, replacement);
+      LucaSystem::Script patched("patched.scr", patchedData);
+      check(patched.valid() &&
+                patched.instructions()[0].rawBytes == replacement,
+            "same-size instruction rewrite preserves opcode structure");
+      check(script.serialize() == originalScriptData,
+            "script patch does not mutate original bytes");
+      bool rejectsSize = false;
+      try {
+        (void)script.replaceRaw(0, {});
+      } catch (const std::invalid_argument &) {
+        rejectsSize = true;
+      }
+      check(rejectsSize, "instruction replacement rejects length changes");
+    }
     const auto &ins = script.instructions()[0];
     check(ins.opcode == 1, "instruction opcode == 1");
     check(ins.fixedFlag == 1, "instruction fixedFlag == 1");
     check(script.strings().empty(),
           "non-MESSAGE instruction does not expose arbitrary byte strings");
+  }
+
+  // ---- Odd-length CodeLine payloads and malformed stream handling ----
+  {
+    LucaSystem::Script odd("odd.scr", {0x05, 0x00, 0x01, 0x00, 0x7f, 0x00});
+    check(odd.valid() && odd.instructionCount() == 1,
+          "odd-length CodeLine with alignment parses");
+    if (odd.valid())
+      check(odd.serialize() ==
+                std::vector<std::uint8_t>({0x05, 0x00, 0x01, 0x00, 0x7f, 0x00}),
+            "odd-length CodeLine roundtrip keeps alignment byte");
+    if (odd.valid() && !odd.instructions().empty()) {
+      const auto &entry = odd.instructions().front();
+      check(entry.rawBytes == std::vector<std::uint8_t>{0x7f} &&
+                entry.align == std::vector<std::uint8_t>{0x00},
+            "odd-length CodeLine retains final payload byte");
+    }
+    LucaSystem::Script noPad("missing-pad.scr", {0x05, 0x00, 0x01, 0x00, 0x7f});
+    check(!noPad.valid(), "missing odd alignment is rejected");
+    LucaSystem::Script tail("tail.scr", {0x04, 0x00, 0x01, 0x00, 0xff});
+    check(!tail.valid(), "truncated trailing instruction is rejected");
+    LucaSystem::Script fixed("fixed.scr", {0x04, 0x00, 0x01, 0x02});
+    check(!fixed.valid(), "truncated fixed parameters are rejected");
+    bool rejectedMalformedSerialization = false;
+    try {
+      (void)fixed.serialize();
+    } catch (const std::runtime_error &) {
+      rejectedMalformedSerialization = true;
+    }
+    check(rejectedMalformedSerialization,
+          "malformed script cannot be serialized");
+  }
+
+  // An empty Japanese AIR MESSAGE must not suppress the English field.
+  {
+    // fixed uint16; Japanese UTF-16 length=0; English encoded length=-2;
+    // UTF-8 'OK' + NUL, followed by optional Chinese field.
+    const std::vector<std::uint8_t> payload = {0,    0,   0,   0, 0xfe,
+                                               0xff, 'O', 'K', 0};
+    std::vector<std::uint8_t> bytes = {0x0d, 0x00, 36, 0};
+    bytes.insert(bytes.end(), payload.begin(), payload.end());
+    bytes.push_back(0); // alignment: length 13 is odd
+    LucaSystem::Script message("message.scr", std::move(bytes));
+    check(message.valid() && message.strings().size() == 1 &&
+              message.strings().front() == "OK",
+          "AIR MESSAGE uses English even when Japanese is empty");
+  }
+
+  // ---- Offset jumps must target actual instruction starts, never bytes
+  // inside a payload. Symbolic labels are restricted to JUMPPOINT markers.
+  {
+    std::vector<LucaSystem::ScriptInstruction> instructions(3);
+    instructions[0].pos = 0;
+    instructions[0].opcode = 12; // an ordinary opcode with matching string
+    instructions[0].paramBytes = {'m', 'a', 'i', 'n', 0};
+    instructions[1].pos = 8;
+    instructions[1].opcode = 24; // JUMPPOINT (0x18 = 24)
+    instructions[1].paramBytes = {'m', 'a', 'i', 'n', 0};
+    instructions[2].pos = 16;
+    instructions[2].opcode = 36;
+    check(LucaSystem::FindInstructionAtOffset(instructions, 8) ==
+              std::optional<std::size_t>{1},
+          "byte offset resolves instruction boundary");
+    check(!LucaSystem::FindInstructionAtOffset(instructions, 9),
+          "middle of instruction is not a jump target");
+    check(!LucaSystem::FindInstructionAtOffset(instructions, 999),
+          "out-of-range offsets are rejected");
+    check(LucaSystem::FindJumpPoint(instructions, "main") ==
+              std::optional<std::size_t>{2},
+          "JUMPPOINT resolves after marker");
+    check(!LucaSystem::FindJumpPoint(instructions, "missing"),
+          "missing label is rejected");
+    instructions[1].opcode = 12;
+    check(!LucaSystem::FindJumpPoint(instructions, "main"),
+          "ordinary opcode payload is not a JUMPPOINT");
   }
 
   // ---- Real data (AIR) when available ----
@@ -223,6 +323,9 @@ int main() {
       check(bytes.size() > 100, "AIR seen163 has substantial bytecode");
       LucaSystem::Script parsed("seen163", std::move(bytes));
       check(parsed.valid(), "AIR seen163 parses");
+      if (parsed.valid())
+        check(parsed.serialize() == script.read(*seen),
+              "AIR seen163 roundtrip preserves retail bytecode");
       check(parsed.instructionCount() > 10,
             "AIR seen163 has many instructions");
       check(!parsed.strings().empty(), "AIR seen163 extracts dialogue strings");

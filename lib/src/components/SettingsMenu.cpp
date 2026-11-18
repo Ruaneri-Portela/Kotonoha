@@ -1,9 +1,9 @@
-#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/events/BackAction.hpp>
@@ -16,9 +16,11 @@
 #include <stdexcept>
 
 namespace Kotonoha {
-SettingsMenu::SettingsMenu(Engine &engine)
-    : engine(engine),
-      shaderPicker(std::make_unique<ImGuiTheme::ShaderFilePicker>()) {}
+SettingsMenu::SettingsMenu(Engine &engine) : engine(engine) {
+#if KOTONOHA_ENABLE_UPSCALER
+  shaderPicker = std::make_unique<ImGuiTheme::ShaderFilePicker>();
+#endif
+}
 SettingsMenu::~SettingsMenu() = default;
 
 int SettingsMenu::pageCount() const { return engine.GamepadCount() ? 4 : 3; }
@@ -28,11 +30,14 @@ std::vector<int> SettingsMenu::rows() const {
   if (page == 0) {
     if (canChangeDisplaySize())
       result.insert(result.end(), {0, 1, 2, 3});
-    result.insert(result.end(), {4, 5});
+    result.push_back(4);
+#if KOTONOHA_ENABLE_UPSCALER
+    result.push_back(5);
     if (engine.GetUpscaler().resolve(draft.upscaling.backend) ==
         UpscaleBackend::MPV)
       result.insert(result.end(), {6, 10});
     result.push_back(7);
+#endif
   } else if (page == 1) {
     result.insert(result.end(), {11, 12});
     for (int i = 0; i < int(channels.size()); ++i)
@@ -176,6 +181,7 @@ void SettingsMenu::activate(int index, int direction) {
     draft.resizable = !draft.resizable;
   else if (index == 4)
     draft.vsync = !draft.vsync;
+#if KOTONOHA_ENABLE_UPSCALER
   else if (index == 5) {
     for (int i = 1; i <= 5; ++i) {
       auto next = static_cast<UpscaleBackend>(
@@ -202,6 +208,7 @@ void SettingsMenu::activate(int index, int direction) {
   } else if (index == 7)
     draft.upscaling.factor =
         draft.upscaling.factor >= 4 ? 1 : draft.upscaling.factor + 0.5f;
+#endif
   else if (index == 8) {
     // On the Audio page everything is already live; just close the menu.
     if (page != 1)
@@ -215,8 +222,11 @@ void SettingsMenu::activate(int index, int direction) {
   } else if (index == 12) {
     draft.masterMuted = !draft.masterMuted;
     applyAudioDraft();
-  } else if (index == 10)
+  }
+#if KOTONOHA_ENABLE_UPSCALER
+  else if (index == 10)
     shaderPicker->browse(&engine.GetWindow());
+#endif
   else if (index == 13) {
     auto labels = fonts;
     labels.front() = "Original game font";
@@ -411,14 +421,18 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
 void SettingsMenu::render(RendererRef renderer) {
   if (!visible)
     return;
+#if KOTONOHA_ENABLE_UPSCALER
   shaderPicker->poll(draft.upscaling);
   if (!shaderPicker->errorMessage().empty())
     error = shaderPicker->errorMessage();
+#endif
   auto &ui = engine.GetUI();
   constexpr const char *modes[]{"Windowed", "Borderless fullscreen",
                                 "Exclusive fullscreen"};
+#if KOTONOHA_ENABLE_UPSCALER
   constexpr const char *backends[]{"Off", "Linear (SDL)", "MPV / OpenGL",
                                    "MetalFX", "Automatic"};
+#endif
   DisplayModeChoice shown{draft.width, draft.height, draft.refreshRate};
   if (draft.mode != WindowMode::Windowed && draft.fullscreenWidth > 0 &&
       draft.fullscreenHeight > 0) {
@@ -444,12 +458,22 @@ void SettingsMenu::render(RendererRef renderer) {
       "Monitor: " + std::to_string(draft.display + 1),
       std::string("Resizable: ") + (draft.resizable ? "Yes" : "No"),
       std::string("VSync: ") + (draft.vsync ? "Yes" : "No"),
+#if KOTONOHA_ENABLE_UPSCALER
       std::string("Upscaler: ") + backends[int(draft.upscaling.backend)],
       std::string("Shader: ") + UpscalePresetName(draft.upscaling.preset),
       "Factor: " + std::to_string(draft.upscaling.factor).substr(0, 3) + "x",
+#else
+      "",
+      "",
+      "",
+#endif
       "Apply and save",
       "Cancel",
+#if KOTONOHA_ENABLE_UPSCALER
       "Custom GLSL files...",
+#else
+      "",
+#endif
       "Master volume",
       std::string("Mute all: ") + (draft.masterMuted ? "Yes" : "No"),
       std::string("VN font: ") +

@@ -23,3 +23,10 @@ if(SNOW_DATA_DIR AND EXISTS "${SNOW_DATA_DIR}")
     set_tests_properties(SnowRadish.Boot PROPERTIES
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 endif()
+
+kotonoha_label_directory_tests(REAL
+    SnowRadish.NodeDebug
+    SnowRadish.Engine
+    SnowRadish.Retail
+    SnowRadish.Boot
+)

@@ -202,6 +202,25 @@ and 669,818 command occurrences. Counts establish presence, not runtime coverage
 
 All 184 opcode signatures across all 96 scenarios (1,386,166 bytecode elements) are now handled by the interpreter and runtime dispatch (`FOUND 0 PENDING / UNHANDLED OPCODES`). `1:12:3300/1` (syscom menu configuration) and particle/drift object opcodes (`1:71:1300/0` and `1:81:1031/0`) are fully implemented and integrated.
 
+In addition, referencing `eglaysher/rlvm`, RealLive engine support has been enhanced across multiple modules:
+- **Audio System (Modules 20, 21, 22, 23)**:
+  - BGM fade-in (`1:20:1`, `1:20:3`), status query (`1:20:8`), track name query (`1:20:11`), pause/resume (`1:20:12`, `1:20:13`), stop (`1:20:14`), and target volume fades (`1:20:101-103`).
+  - PCM sound channel stop (`1:21:1`), play query (`1:21:8`, `1:21:11`), and volume getters/setters (`1:21:9`, `1:21:10`).
+  - Mapped SE stop (`1:22:1`), loop play (`1:22:2`), and play state query (`1:22:8`, `1:22:11`).
+  - Voice/KOE stop (`1:23:1`), play state query (`1:23:8`, `1:23:11`), volume control (`1:23:9`, `1:23:10`), and wait (`1:23:101`).
+- **System & Mouse Queries (Module 4)**:
+  - Mouse button click states (`1:4:131`, `1:4:132`), hover state (`1:4:134`), mouse coordinates (`1:4:200`, `1:4:201`, `1:4:202`), cursor visibility/ID/region queries & setters (`1:4:210..219`), extended mouse & touch input queries (`1:4:220..249`), fast-forward skip queries/triggers (`1:4:330`, `1:4:331`), auto-mode status queries/setters (`1:4:360..369`), and message/voice skip options (`1:4:370..389`).
+- **Object Properties & Queries (Modules 60, 61, 62, 81, 82, 84, 85, 86)**:
+  - Extended object queries for adjustment slots, alpha, visibility, pattern index, position, and RGBA color across foreground (`1:84`) and background (`1:85`, `1:86`) objects.
+  - Object property setters for offsets (`1:81:1001`) and source clipping rectangles (`1:81:1040`).
+  - Object swap (`1:60:10`) and object reset/clear (`1:61:0`, `1:61:1`).
+- **String Operations (Module 10)**:
+  - Added string contains search (`1:10:32`).
+
+- **Dialogue & Selection Flow (CLANNAD & Planetarian)**:
+  - Dialogue page and line wait opcodes (`0:3:0`, `0:3:1`, `0:3:2`, `0:3:4`, `0:3:16`, `0:3:200`) and offscreen concealed waits (`0:3:205`) are integrated into the text pause handler, preventing script execution halts during story progression.
+  - Choice selection variants (`0:2:0..4`), intra-DC blit/copy operations (`1:33:100/101/1100/1101`), and window management commands (`1:40`) are fully handled.
+
 Use `AirInspect Seen.txt --find '1:20:1002'` to inspect each actual call.
 `1:20:1002/0` is implemented as a BGM seek, but its offset/timing semantics
 still need comparison with a native reference.

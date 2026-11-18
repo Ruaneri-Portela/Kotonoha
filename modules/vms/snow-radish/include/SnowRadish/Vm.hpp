@@ -78,6 +78,9 @@ public:
 
   uint32_t var(uint32_t id) const { return id < vars_.size() ? vars_[id] : 0; }
   void setVar(uint32_t id, uint32_t v);
+  // of_adv3.exe:0x432703 — sys 17: zero banks 0..4 (0x0000..0x4fff), keep
+  // bank 5 (0x5000..0x5fff) persistent system vars.
+  void clearLocalVars();
   // Value of an argument: variable references are dereferenced.
   int32_t value(const Arg &a) const;
   // String of a string-reference argument ("" when not a string).

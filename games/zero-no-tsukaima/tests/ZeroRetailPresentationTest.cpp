@@ -122,7 +122,18 @@ int main(int argc, char **argv) {
       std::cout << edition << " layer " << int(layer.kind) << " " << layer.image
                 << " at " << layer.x << "," << layer.y
                 << " alpha=" << layer.alpha << '\n';
-    if (!concerto) {
+    if (concerto) {
+      Require(disc->Source().MovieCount() == 26,
+              "Concerto movie table has 26 PSS entries");
+    } else {
+      Require(
+          disc->Source().SoundIndex("BGMB01") == 53,
+          "Symphony BGMB01 resolves to .STV stream entry (53), not .PSH (52)");
+      std::vector<uint8_t> bgmData;
+      Require(disc->Source().LoadSound(
+                  size_t(disc->Source().SoundIndex("BGMB01")), &bgmData) &&
+                  bgmData.size() > 100000,
+              "Symphony BGMB01 stream payload is non-empty");
       Require(session.Story()->Stage() == "ルイズの部屋 昼",
               "retail background tag executed");
       const int stage =

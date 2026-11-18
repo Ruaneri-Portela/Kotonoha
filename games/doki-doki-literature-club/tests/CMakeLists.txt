@@ -7,9 +7,15 @@ if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLE
     # depends on, so fixup_bundle can resolve all @rpath entries.
     set(_ddlc_dep_dirs
         $<TARGET_FILE_DIR:SDL3::SDL3>
-        $<TARGET_FILE_DIR:Kotonoha::Engine>
-        $<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>
-        $<TARGET_FILE_DIR:imgui>)
+        $<TARGET_FILE_DIR:KotonohaEngine>
+        $<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>)
+    # imgui can be an INTERFACE target; only runtime shared libraries have a file directory.
+    if(TARGET imgui)
+        get_target_property(_ddlc_imgui_type imgui TYPE)
+        if(_ddlc_imgui_type STREQUAL "SHARED_LIBRARY" OR _ddlc_imgui_type STREQUAL "MODULE_LIBRARY")
+            list(APPEND _ddlc_dep_dirs $<TARGET_FILE_DIR:imgui>)
+        endif()
+    endif()
     # Homebrew libraries (brotli, harfbuzz, freetype, plutosvg, etc.) are
     # transitive dependencies of SDL3_ttf and may live outside the build tree.
     if(EXISTS "/opt/homebrew/lib")
@@ -68,3 +74,14 @@ if(DDLC_DATA_DIR)
       WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}" ENVIRONMENT "SDL_AUDIODRIVER=dummy" TIMEOUT 60)
   endif()
 endif()
+
+kotonoha_label_directory_tests(REAL
+    DokiDoki.Script
+    DokiDoki.Playthrough
+    DokiDoki.VanillaAssets
+    DokiDoki.PatchedAssets
+    DokiDoki.PatchedScript
+    DokiDoki.PatchedPlaythrough
+    DokiDoki.Presentation
+    DokiDoki.PatchedPresentation
+)

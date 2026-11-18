@@ -1,6 +1,7 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/debug/VoiceDubbingApplet.hpp>
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/components/VNManager.hpp>
@@ -8,14 +9,14 @@
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
+#include <Kotonoha/core/BuildVersion.hpp>
+#include <Kotonoha/debug/ImGuiFrameScope.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/debug/SystemInfo.hpp>
-#include <Kotonoha/core/BuildVersion.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_sdl3.h>
@@ -92,7 +93,9 @@ DebugOverlay::DebugOverlay(Engine &engine) : engine(engine) {
   const auto ktrf =
       documentsDirectory(engine.GetRuntime().identify) / "story.ktnroute";
   SDL_strlcpy(ktrfPath, ktrf.string().c_str(), sizeof(ktrfPath));
+#if KOTONOHA_ENABLE_UPSCALER
   shaderPicker = std::make_unique<ImGuiTheme::ShaderFilePicker>();
+#endif
   dubbingApplet = std::make_unique<VoiceDubbingApplet>(engine);
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -1217,8 +1220,8 @@ void DebugOverlay::drawAppletHub() {
                    ImGuiWindowFlags_MenuBar)) {
     drawMenuBar();
     ImGui::TextColored(ImGuiTheme::accent(), "KOTONOHA / DEBUG");
-    ImGui::TextDisabled("Engine %s  |  Commit %s",
-                        BuildVersion::Base, BuildVersion::ShortCommit);
+    ImGui::TextDisabled("Engine %s  |  Commit %s", BuildVersion::Base,
+                        BuildVersion::ShortCommit);
     ImGui::TextWrapped("Branch: %s", BuildVersion::Branch);
     ImGuiTheme::sectionHeader("Applets");
     ImGui::TextWrapped("Inspect the current game, change settings, or open "
@@ -1231,14 +1234,16 @@ void DebugOverlay::drawAppletHub() {
     const ImVec2 buttonSize(width, 42 * contentScale);
     if (ImGuiTheme::primaryButton("Settings", buttonSize))
       showOptionsWindow = true;
-    if (twoColumns) ImGui::SameLine();
+    if (twoColumns)
+      ImGui::SameLine();
     if (ImGuiTheme::primaryButton("Translation", buttonSize)) {
       showTranslationWindow = true;
       transSourcesStale = true;
     }
     if (ImGuiTheme::primaryButton("Voice dubbing", buttonSize))
       showDubbingWindow = true;
-    if (twoColumns) ImGui::SameLine();
+    if (twoColumns)
+      ImGui::SameLine();
     if (ImGuiTheme::primaryButton("System info", buttonSize))
       showInfoWindow = true;
     ImGui::SeparatorText("Scene inspector");
@@ -1316,10 +1321,9 @@ void DebugOverlay::drawInfoWindow() {
   if (!showInfoWindow)
     return;
   const auto size = ImGui::GetIO().DisplaySize;
-  ImGui::SetNextWindowSize(
-      ImVec2(std::min(800.0f * contentScale, size.x),
-             std::min(700.0f * contentScale, size.y)),
-      ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowSize(ImVec2(std::min(800.0f * contentScale, size.x),
+                                  std::min(700.0f * contentScale, size.y)),
+                           ImGuiCond_FirstUseEver);
   if (ImGui::Begin("System Information / SDL3", &showInfoWindow,
                    ImGuiWindowFlags_MenuBar)) {
     drawMenuBar();
@@ -1370,7 +1374,7 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
     ImGuiTheme::apply(scale);
     contentScale = scale;
   }
-  ImGui::NewFrame();
+  ImGuiFrameScope frame;
   drawAppletHub();
   drawOptionsWindow();
   drawTranslationWindow();
@@ -1378,7 +1382,7 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   drawInfoWindow();
   if (!isVisible())
     stopPreviewAudio();
-  ImGui::Render();
+  frame.render();
   // SDLRenderer3 expects vertex scaling through SDL, not just FramebufferScale.
   // Disable logical presentation so the density is applied exactly once.
   if (!SDL_SetRenderViewport(&renderer, nullptr) ||
@@ -1532,16 +1536,22 @@ void DebugOverlay::drawDubbingTools() { dubbingApplet->draw(); }
 void DebugOverlay::drawDisplayTools() {
   ImGuiTheme::cardBegin("card_display", false, nullptr);
   {
+#if KOTONOHA_ENABLE_UPSCALER
     ImGuiTheme::sectionHeader("Window / renderer / upscaler");
+#else
+    ImGuiTheme::sectionHeader("Window / renderer");
+#endif
     const auto &settings = engine.GetSettings();
     ImGui::Text("Window: %dx%d | display: %d | VSync: %s", settings.width,
                 settings.height, settings.display + 1,
                 settings.vsync ? "on" : "off");
     ImGui::Text("Renderer: %s", SDL_GetRendererName(&engine.GetRenderer()));
+#if KOTONOHA_ENABLE_UPSCALER
     auto &upscaling = engine.GetUpscaler();
     ImGui::Text("Upscaler: %s -> %s",
                 UpscaleBackendName(settings.upscaling.backend),
                 UpscaleBackendName(upscaling.activeBackend()));
+#endif
     auto draft = settings;
     bool changed = false;
     if (canChangeDisplaySize()) {
@@ -1589,6 +1599,7 @@ void DebugOverlay::drawDisplayTools() {
           ImGui::Checkbox("Resizable window", &draft.resizable) || changed;
     }
     changed = ImGui::Checkbox("VSync", &draft.vsync) || changed;
+#if KOTONOHA_ENABLE_UPSCALER
     ImGui::SeparatorText("Texture upscaling");
     constexpr UpscaleBackend backends[]{
         UpscaleBackend::Auto, UpscaleBackend::Linear, UpscaleBackend::MPV,
@@ -1633,16 +1644,23 @@ void DebugOverlay::drawDisplayTools() {
       changed = true;
     } else if (!ImGui::IsItemActive())
       upscaleFactor = draft.upscaling.factor;
+#endif
     if (changed) {
       try {
         engine.applySettings(draft);
+#if KOTONOHA_ENABLE_UPSCALER
         status = "Display / upscaling settings applied";
+#else
+        status = "Display settings applied";
+#endif
         statusError = false;
       } catch (const std::exception &error) {
         status = error.what();
         statusError = true;
       }
+#if KOTONOHA_ENABLE_UPSCALER
       upscaleFactor = engine.GetSettings().upscaling.factor;
+#endif
     }
     if (ImGui::Button("Open game settings")) {
       visible = false;

@@ -1,10 +1,10 @@
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/AssetOverlay.hpp>
 #include <Kotonoha/core/Config.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Launcher.hpp>
-#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Log.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 
 #include <imgui.h>
@@ -12,9 +12,10 @@
 #include <imgui_impl_sdlrenderer3.h>
 #include <imgui_stdlib.h>
 
+#include <Kotonoha/core/BuildVersion.hpp>
+#include <Kotonoha/debug/ImGuiFrameScope.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 #include <Kotonoha/debug/SystemInfo.hpp>
-#include <Kotonoha/core/BuildVersion.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -27,6 +28,9 @@ namespace Kotonoha {
 struct Launcher::Dialog {
   std::mutex mutex;
   bool finished = false;
+  bool pendingLaunch = false;
+  bool isFolder = false;
+  std::string initialPath;
   std::string path;
   // SDL keeps pointers to the filters until the callback runs.
   std::vector<std::string> names, patterns;
@@ -73,7 +77,9 @@ const char *requiredRenderer(UpscaleBackend backend,
 Launcher::Launcher(std::string name, std::string path, EngineSettings values)
     : title(std::move(name)), settingsPath(std::move(path)), draft(values),
       defaults(std::move(values)) {
+#if KOTONOHA_ENABLE_UPSCALER
   shaderPicker = std::make_unique<ImGuiTheme::ShaderFilePicker>();
+#endif
   if (settingsPath.empty() || !std::filesystem::exists(settingsPath))
     return;
   try {
@@ -287,6 +293,9 @@ void Launcher::browseFile(const FileFilters &filters,
   if (dialog)
     return;
   auto next = std::make_shared<Dialog>();
+  next->pendingLaunch = true;
+  next->isFolder = false;
+  next->initialPath = initial;
   next->names.reserve(filters.size());
   next->patterns.reserve(filters.size());
   next->filters.reserve(filters.size());
@@ -299,12 +308,6 @@ void Launcher::browseFile(const FileFilters &filters,
         {next->names[i].c_str(), next->patterns[i].c_str()});
   dialog = next;
   dialogDone = std::move(done);
-  // The callback may run on another thread and after the launcher is gone,
-  // so it owns a reference to the shared state.
-  SDL_ShowOpenFileDialog(dialogFinished, new std::shared_ptr<Dialog>(next),
-                         window.get(), next->filters.data(),
-                         static_cast<int>(next->filters.size()),
-                         initial.empty() ? nullptr : initial.c_str(), false);
 }
 
 void Launcher::browseFolder(const std::string &initial,
@@ -312,11 +315,11 @@ void Launcher::browseFolder(const std::string &initial,
   if (dialog)
     return;
   auto next = std::make_shared<Dialog>();
+  next->pendingLaunch = true;
+  next->isFolder = true;
+  next->initialPath = initial;
   dialog = next;
   dialogDone = std::move(done);
-  SDL_ShowOpenFolderDialog(dialogFinished, new std::shared_ptr<Dialog>(next),
-                           window.get(),
-                           initial.empty() ? nullptr : initial.c_str(), false);
 }
 
 SDL_AppResult Launcher::event(const SDL_Event &event) {
@@ -366,10 +369,45 @@ SDL_AppResult Launcher::iterate() {
     }
   }
   draw();
+  // Open any queued native OS file/folder dialog AFTER ImGui::Render() has
+  // closed the current ImGui frame. On macOS Cocoa, SDL_ShowOpenFolderDialog
+  // and SDL_ShowOpenFileDialog spin a modal NSOpenPanel run-loop that can
+  // trigger SDL_OnWindowLiveResizeUpdate -> SDL_AppIterate re-entrantly.
+  if (dialog && dialog->pendingLaunch) {
+    dialog->pendingLaunch = false;
+    auto active = dialog;
+    const char *init =
+        active->initialPath.empty() ? nullptr : active->initialPath.c_str();
+    if (active->isFolder) {
+      SDL_ShowOpenFolderDialog(dialogFinished,
+                               new std::shared_ptr<Dialog>(active),
+                               window.get(), init, false);
+    } else {
+      SDL_ShowOpenFileDialog(
+          dialogFinished, new std::shared_ptr<Dialog>(active), window.get(),
+          active->filters.data(), static_cast<int>(active->filters.size()),
+          init, false);
+    }
+  }
   return SDL_APP_CONTINUE;
 }
 
 void Launcher::draw() {
+  if (!context)
+    return;
+  // If a macOS Cocoa live-resize timer or modal NSOpenPanel re-enters
+  // SDL_AppIterate -> iterate() -> draw() while a frame is already in flight,
+  // skip the re-entrant call entirely. Trying to EndFrame()/NewFrame() from
+  // inside the re-entrant call corrupts ImGui internals (EXC_BAD_ACCESS in
+  // UpdateAliasKey). The simple boolean guard avoids all ImGui calls.
+  if (drawing_)
+    return;
+  drawing_ = true;
+  // Reset drawing_ on every exit path (early return, exception, normal end).
+  struct DrawGuard {
+    bool &flag;
+    ~DrawGuard() { flag = false; }
+  } guard{drawing_};
   ImGui::SetCurrentContext(context);
   ImGui_ImplSDLRenderer3_NewFrame();
   ImGui_ImplSDL3_NewFrame();
@@ -380,8 +418,8 @@ void Launcher::draw() {
     throw std::runtime_error(SDL_GetError());
   if (io.DisplaySize.x <= 0 || io.DisplaySize.y <= 0 || pixelWidth <= 0 ||
       pixelHeight <= 0) {
-    ImGui::NewFrame();
-    ImGui::EndFrame();
+    // Keep the frame balanced even when the window is minimized.
+    ImGuiFrameScope frame;
     return;
   }
   io.DisplayFramebufferScale = {pixelWidth / io.DisplaySize.x,
@@ -394,7 +432,7 @@ void Launcher::draw() {
     ImGuiTheme::apply(scale);
     contentScale = scale;
   }
-  ImGui::NewFrame();
+  ImGuiFrameScope frame;
   ImGui::SetNextWindowPos({0, 0});
   ImGui::SetNextWindowSize(io.DisplaySize);
   ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
@@ -438,8 +476,8 @@ void Launcher::draw() {
     ImGui::TextDisabled("%s", settingsPath.empty()
                                   ? "Settings will not be saved"
                                   : settingsPath.c_str());
-    ImGui::TextDisabled("Engine %s  |  Commit %s",
-                        BuildVersion::Base, BuildVersion::ShortCommit);
+    ImGui::TextDisabled("Engine %s  |  Commit %s", BuildVersion::Base,
+                        BuildVersion::ShortCommit);
     if (ImGui::IsItemHovered())
       ImGui::SetTooltip("%s\nBranch: %s", BuildVersion::Full,
                         BuildVersion::Branch);
@@ -526,7 +564,7 @@ void Launcher::draw() {
                         BuildVersion::ShortCommit);
   }
   ImGui::End();
-  ImGui::Render();
+  frame.render();
   SDL_SetRenderScale(renderer.get(), io.DisplayFramebufferScale.x,
                      io.DisplayFramebufferScale.y);
   SDL_SetRenderDrawColor(renderer.get(), 23, 18, 33, 255);
@@ -612,10 +650,8 @@ void Launcher::drawVideo() {
         }
         ImGui::EndCombo();
       }
-
     }
     if (count > 0) {
-
     }
   } else {
     ImGui::TextDisabled(
@@ -644,6 +680,7 @@ void Launcher::drawVideo() {
 }
 
 void Launcher::drawUpscaling() {
+#if KOTONOHA_ENABLE_UPSCALER
   auto &upscaling = draft.upscaling;
   ImGuiTheme::sectionHeader("Scale");
   // Same rule as Kotonoha: 1.0 is off, anything above turns it on.
@@ -706,6 +743,10 @@ void Launcher::drawUpscaling() {
                        backendLabel(upscaling.backend), required);
   ImGui::TextWrapped("Automatic uses MetalFX on the metal renderer, Anime4K/"
                      "ArtCNN on OpenGL and Linear elsewhere.");
+#else
+  // Keep the configuration page useful without linking optional shader tools.
+  ImGui::TextDisabled("Upscaling is not available in this build.");
+#endif
 }
 
 void Launcher::drawAdvanced() {

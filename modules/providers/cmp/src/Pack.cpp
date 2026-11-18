@@ -1,19 +1,21 @@
-// CMP archive and image codecs, shared across Summer editions.
+// CMP archive and image codecs, shared across Summer editions and MEO.
+#include <Kotonoha/Filesystem/FileHandle.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <SummerRadish/Pack.hpp>
 #include <algorithm>
 #include <array>
-#include <Kotonoha/Filesystem/Filesystem.hpp>
-#include <utility>
+#include <cstring>
 #include <stdexcept>
+#include <utility>
 namespace SummerRadish {
 namespace {
 void require(bool ok, const char *message) {
   if (!ok)
     throw std::runtime_error(message);
 }
-Bytes readRange(Kotonoha::Filesystem::Filesystem &filesystem,
-                const std::string &id, size_t offset, size_t size) {
-  require(size <= (256u << 20), "CMP entry exceeds allocation limit");
+size_t readSliceInto(Kotonoha::Filesystem::Filesystem &filesystem,
+                     const std::string &id, size_t offset, void *dst,
+                     size_t size) {
   auto handle = filesystem.open(id);
   const auto length = handle->size();
   require(length >= 0 && uint64_t(offset) <= uint64_t(length) &&
@@ -23,16 +25,120 @@ Bytes readRange(Kotonoha::Filesystem::Filesystem &filesystem,
                        Kotonoha::Filesystem::SeekOrigin::Begin) ==
               static_cast<int64_t>(offset),
           "Cannot seek CMP pack");
-  Bytes bytes(size);
   size_t position = 0;
-  while (position != bytes.size()) {
-    const auto read = handle->read(bytes.data() + position,
-                                   bytes.size() - position);
+  auto *out = static_cast<uint8_t *>(dst);
+  while (position != size) {
+    const auto read = handle->read(out + position, size - position);
     require(read > 0, "Cannot read/truncated CMP pack");
     position += static_cast<size_t>(read);
   }
+  return position;
+}
+Bytes readSlice(Kotonoha::Filesystem::Filesystem &filesystem,
+                const std::string &id, size_t offset, size_t size) {
+  require(size <= (256u << 20), "CMP entry exceeds allocation limit");
+  Bytes bytes(size);
+  if (size > 0)
+    readSliceInto(filesystem, id, offset, bytes.data(), size);
   return bytes;
 }
+class CmpSliceFileHandle final : public Kotonoha::Filesystem::FileHandle {
+  std::unique_ptr<Kotonoha::Filesystem::FileHandle> base_;
+  int64_t baseOffset_ = 0;
+  int64_t size_ = 0;
+  int64_t cursor_ = 0;
+
+public:
+  CmpSliceFileHandle(std::unique_ptr<Kotonoha::Filesystem::FileHandle> base,
+                     uint32_t offset, uint32_t size)
+      : base_(std::move(base)), baseOffset_(offset), size_(size) {
+    require(base_ != nullptr, "CMP slice base handle is null");
+    const auto total = base_->size();
+    require(total >= 0 && baseOffset_ + size_ <= total,
+            "CMP slice exceeds archive bounds");
+    require(base_->seek(baseOffset_, Kotonoha::Filesystem::SeekOrigin::Begin) ==
+                baseOffset_,
+            "Cannot seek CMP slice");
+  }
+  int64_t read(void *buffer, size_t count) override {
+    if (cursor_ >= size_ || count == 0)
+      return 0;
+    const size_t avail = static_cast<size_t>(size_ - cursor_);
+    const size_t toRead = std::min(count, avail);
+    if (base_->tell() != baseOffset_ + cursor_) {
+      if (base_->seek(baseOffset_ + cursor_,
+                      Kotonoha::Filesystem::SeekOrigin::Begin) !=
+          baseOffset_ + cursor_)
+        return -1;
+    }
+    const int64_t got = base_->read(buffer, toRead);
+    if (got > 0)
+      cursor_ += got;
+    return got;
+  }
+  int64_t seek(int64_t offset,
+               Kotonoha::Filesystem::SeekOrigin origin) override {
+    int64_t target = 0;
+    switch (origin) {
+    case Kotonoha::Filesystem::SeekOrigin::Begin:
+      target = offset;
+      break;
+    case Kotonoha::Filesystem::SeekOrigin::Current:
+      target = cursor_ + offset;
+      break;
+    case Kotonoha::Filesystem::SeekOrigin::End:
+      target = size_ + offset;
+      break;
+    }
+    if (target < 0 || target > size_)
+      return -1;
+    if (base_->seek(baseOffset_ + target,
+                    Kotonoha::Filesystem::SeekOrigin::Begin) !=
+        baseOffset_ + target)
+      return -1;
+    cursor_ = target;
+    return cursor_;
+  }
+  int64_t tell() const override { return cursor_; }
+  int64_t size() const override { return size_; }
+};
+class CmpMemoryFileHandle final : public Kotonoha::Filesystem::FileHandle {
+  Bytes data_;
+  int64_t cursor_ = 0;
+
+public:
+  explicit CmpMemoryFileHandle(Bytes data) : data_(std::move(data)) {}
+  int64_t read(void *buffer, size_t count) override {
+    if (cursor_ >= static_cast<int64_t>(data_.size()) || count == 0)
+      return 0;
+    const size_t avail = data_.size() - static_cast<size_t>(cursor_);
+    const size_t toRead = std::min(count, avail);
+    std::memcpy(buffer, data_.data() + cursor_, toRead);
+    cursor_ += static_cast<int64_t>(toRead);
+    return static_cast<int64_t>(toRead);
+  }
+  int64_t seek(int64_t offset,
+               Kotonoha::Filesystem::SeekOrigin origin) override {
+    int64_t target = 0;
+    switch (origin) {
+    case Kotonoha::Filesystem::SeekOrigin::Begin:
+      target = offset;
+      break;
+    case Kotonoha::Filesystem::SeekOrigin::Current:
+      target = cursor_ + offset;
+      break;
+    case Kotonoha::Filesystem::SeekOrigin::End:
+      target = static_cast<int64_t>(data_.size()) + offset;
+      break;
+    }
+    if (target < 0 || target > static_cast<int64_t>(data_.size()))
+      return -1;
+    cursor_ = target;
+    return cursor_;
+  }
+  int64_t tell() const override { return cursor_; }
+  int64_t size() const override { return static_cast<int64_t>(data_.size()); }
+};
 void appendUtf8(std::string &out, uint32_t c) {
   if (c < 0x80)
     out += char(c);
@@ -80,6 +186,11 @@ Bytes decompress(const Bytes &d, size_t size, size_t p) {
   }
   return out;
 }
+Bytes decodeStackWork(const Bytes &d) {
+  if (d.size() >= 260 && std::memcmp(d.data(), "StackWorkFile1.0", 16) == 0)
+    return decompress(d, word(d, 256), 260);
+  return d;
+}
 std::string utf16(const Bytes &d, size_t p, size_t count) {
   require(p <= d.size() && count <= (d.size() - p) / 2,
           "Truncated UTF-16 string");
@@ -106,41 +217,54 @@ std::string canonical(std::string s) {
   }
   return s;
 }
-Pack::Pack(const std::filesystem::path &file)
+Pack::Pack(const std::filesystem::path &file, CmpKeyProfile profile)
     : Pack(Kotonoha::Filesystem::Filesystem::mount(
                (file.has_parent_path() ? file.parent_path()
-                                       : std::filesystem::path(".")).string()),
-           file.filename().string()) {}
+                                       : std::filesystem::path("."))
+                   .string()),
+           file.filename().string(), profile) {}
 
 Pack::Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
-           std::string id)
-    : filesystem(std::move(mounted)), sourceId(std::move(id)) {
+           std::string id, CmpKeyProfile requestedProfile)
+    : filesystem(std::move(mounted)), sourceId(std::move(id)),
+      detectedProfile(requestedProfile) {
   require(filesystem != nullptr, "CMP filesystem is null");
   const auto info = filesystem->stat(sourceId);
   const auto length = info.size;
   require(info.type == Kotonoha::Filesystem::FileType::Regular &&
               length >= 12 && length <= UINT32_MAX,
           "Invalid CMP size");
-  auto footer = readRange(*filesystem, sourceId,
-                          static_cast<size_t>(length - 8), 8);
+  auto footer =
+      readSlice(*filesystem, sourceId, static_cast<size_t>(length - 8), 8);
 
-  // O Summer Radish Vacation usa duas chaves de cifragem CMP distintas:
-  // a chave original e uma chave alternativa usada por uma segunda
-  // instalação (descoberta no executável original do jogo). Tentar ambas
-  // até uma validar.
+  // Summer Radish Vacation 1 & 2 use two distinct 16-byte XOR keys, while
+  // Miss Each Other (MEO) and INSTALL.cmp use an all-zero 16-byte XOR key.
   constexpr std::array<uint8_t, 16> key1{0x0f, 0x25, 0x3e, 0x5c, 0x2a, 0x4b,
                                          0x77, 0x90, 0x05, 0x8a, 0x8e, 0x46,
                                          0xeb, 0x3d, 0x11, 0x43};
   constexpr std::array<uint8_t, 16> key2{0x6c, 0x14, 0xf2, 0x03, 0xe3, 0x62,
                                          0x32, 0xac, 0x03, 0x04, 0xac, 0xf2,
                                          0xd3, 0x84, 0xf8, 0xca};
-  const std::array<const std::array<uint8_t, 16> *, 2> keys = {&key1, &key2};
+  constexpr std::array<uint8_t, 16> key0{};
+  struct CandidateKey {
+    CmpKeyProfile profile;
+    const std::array<uint8_t, 16> *key;
+  };
+  const std::array<CandidateKey, 3> allKeys = {{
+      {CmpKeyProfile::SummerRadish1, &key1},
+      {CmpKeyProfile::SummerRadish2, &key2},
+      {CmpKeyProfile::MeoZeroKey, &key0},
+  }};
 
   std::vector<uint8_t> data;
   size_t start = 0;
   bool parsed = false;
   std::string lastError;
-  for (const auto *key : keys) {
+  for (const auto &candidate : allKeys) {
+    if (requestedProfile != CmpKeyProfile::Auto &&
+        candidate.profile != requestedProfile)
+      continue;
+    const auto *key = candidate.key;
     bool signatureOk = true;
     for (size_t i = 0; i < 4; ++i) {
       if ((footer[i] ^ (*key)[i]) != uint8_t("PACK"[i])) {
@@ -153,7 +277,7 @@ Pack::Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
     size_t candidateStart = word(footer, 4);
     if (candidateStart > length - 12)
       continue;
-    auto encoded = readRange(*filesystem, sourceId, candidateStart,
+    auto encoded = readSlice(*filesystem, sourceId, candidateStart,
                              static_cast<size_t>(length - 8 - candidateStart));
     size_t raw = word(encoded, 0);
     if (raw > (16u << 20))
@@ -163,6 +287,7 @@ Pack::Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
     try {
       data = decompress(encoded, raw, 4);
       start = candidateStart;
+      detectedProfile = candidate.profile;
       parsed = true;
       break;
     } catch (const std::exception &error) {
@@ -202,19 +327,60 @@ Pack::Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
 bool Pack::contains(const std::string &name) const {
   return directory.count(canonical(name)) != 0;
 }
-Bytes Pack::read(const std::string &name) const {
+const Entry &Pack::entry(const std::string &name) const {
   auto it = directory.find(canonical(name));
   if (it == directory.end())
     throw std::runtime_error("CMP asset missing: " + name);
-  auto d = readRange(*filesystem, sourceId, it->second.offset,
-                     it->second.size);
-  return it->second.compressed ? decompress(d, word(d, 0), 4) : d;
+  return it->second;
+}
+Bytes Pack::read(const std::string &name) const {
+  const auto &e = entry(name);
+  auto d = readSlice(*filesystem, sourceId, e.offset, e.size);
+  return e.compressed ? decompress(d, word(d, 0), 4) : d;
+}
+Bytes Pack::readRange(const std::string &name, size_t offset,
+                      size_t size) const {
+  const auto &e = entry(name);
+  if (e.compressed) {
+    auto full = read(name);
+    require(offset <= full.size() && size <= full.size() - offset,
+            "CMP entry range out of bounds");
+    return Bytes(full.begin() + offset, full.begin() + offset + size);
+  }
+  require(offset <= e.size && size <= e.size - offset,
+          "CMP entry range out of bounds");
+  return readSlice(*filesystem, sourceId, e.offset + offset, size);
+}
+size_t Pack::readEntry(const Entry &e, void *dst, size_t offset,
+                       size_t size) const {
+  if (size == 0)
+    return 0;
+  require(dst != nullptr, "CMP readEntry destination is null");
+  if (e.compressed) {
+    auto d = readSlice(*filesystem, sourceId, e.offset, e.size);
+    auto full = decompress(d, word(d, 0), 4);
+    require(offset <= full.size() && size <= full.size() - offset,
+            "CMP entry range out of bounds");
+    std::memcpy(dst, full.data() + offset, size);
+    return size;
+  }
+  require(offset <= e.size && size <= e.size - offset,
+          "CMP entry range out of bounds");
+  return readSliceInto(*filesystem, sourceId, e.offset + offset, dst, size);
+}
+std::unique_ptr<Kotonoha::Filesystem::FileHandle>
+Pack::openEntryStream(const std::string &name) const {
+  const auto &e = entry(name);
+  if (e.compressed)
+    return std::make_unique<CmpMemoryFileHandle>(read(name));
+  return std::make_unique<CmpSliceFileHandle>(filesystem->open(sourceId),
+                                              e.offset, e.size);
 }
 Image decodeImage(const Bytes &d, const std::string &extension) {
   const auto ext = canonical(extension);
   Image img;
   size_t p = 16;
-  if (ext == "TEXB") {
+  if (ext == "TEXB" || ext == "ALP") {
     img.width = int(word(d, 0));
     img.height = int(word(d, 4));
     p = 8;
@@ -234,7 +400,7 @@ Image decodeImage(const Bytes &d, const std::string &extension) {
           "Invalid picture dimensions");
   const size_t pixels = size_t(img.width) * img.height;
   img.rgba.resize(pixels * 4);
-  if (ext == "CHR" || ext == "TEXB")
+  if (ext == "CHR" || ext == "TEXB" || ext == "ALP")
     img.nativePixels.resize(pixels * 4);
   auto put = [&](size_t index, uint8_t b, uint8_t g, uint8_t r,
                  uint8_t a = 255) {
@@ -275,7 +441,19 @@ Image decodeImage(const Bytes &d, const std::string &extension) {
     require(p < d.size(), "Truncated picture stream");
     return d[p++];
   };
-  if (ext == "TEXB") {
+  if (ext == "ALP") {
+    require(d.size() - p >= pixels, "Truncated ALP");
+    for (size_t i = 0; i < pixels; ++i) {
+      const uint8_t v = byte();
+      put(i, v, v, v, v);
+      const size_t at =
+          ((img.height - 1 - i / img.width) * img.width + i % img.width) * 4;
+      img.nativePixels[at] = v;
+      img.nativePixels[at + 1] = v;
+      img.nativePixels[at + 2] = v;
+      img.nativePixels[at + 3] = uint8_t((unsigned(v) * 128) / 255);
+    }
+  } else if (ext == "TEXB") {
     require(d.size() - p >= pixels * 4, "Truncated TEXB");
     for (size_t i = 0; i < pixels; ++i) {
       uint8_t b = byte(), g = byte(), r = byte(), a = byte();

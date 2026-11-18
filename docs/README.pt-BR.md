@@ -1,42 +1,36 @@
-# Índice de documentação — Kotonoha v3
+# Documentação
 
 [English (US)](README.md) | **Português (Brasil)**
 
-Os READMEs da raiz descrevem o projeto, os jogos e os fluxos básicos de build.
-Estes guias abrangem o motor compartilhado e ferramentas; permanecem nos
-caminhos já publicados para evitar a quebra de links existentes.
+Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 
-| Área | Documento | Objetivo |
-| --- | --- | --- |
-| Introdução | [README (English)](../README.md) / [Português](../README.pt-BR.md) | Visão geral e organização |
-| Compilação e validação | [BUILD_VALIDATION.md](BUILD_VALIDATION.md) | Requisitos, build e testes |
-| Configuração | [SETTINGS.md](SETTINGS.md) | Configurações compartilhadas do motor |
-| Assets e overlays | [ASSET_OVERLAYS.md](ASSET_OVERLAYS.md) | Proprietários, overlays e resolução |
-| Caminhos por plataforma | [Directories.pt-BR.md](Directories.pt-BR.md) | Diretórios por plataforma |
-| Android | [Android README](../Android/README.md) / [PT-BR](../Android/README.pt-BR.md) | Plataforma móvel adiada |
-| School Days HQ | [Índice School Days](../games/school-days/docs/README.pt-BR.md) | Windows L4, paridade, idiomas e QA |
-| Sincronização upstream histórica | [RUANERI_SYNC_FOLLOWUP_2026-11-04.md](RUANERI_SYNC_FOLLOWUP_2026-11-04.md) | Registro datado, não relatório atual |
-| Higiene do repositório | [REPOSITORY_HYGIENE_2026-11-09.md](REPOSITORY_HYGIENE_2026-11-09.md) | Limpeza segura, dados protegidos e reversão |
-| Próximas tarefas de arquitetura | [Pendências de manutenção](MAINTENANCE_BACKLOG.pt-BR.md) | CMake, SDL callbacks, RAII e StoragePaths pendentes |
+| Assunto | Guia |
+| --- | --- |
+| Compilação | [Guias de compilação](BUILD_GUIDES.pt-BR.md) |
+| Android | [Android](BUILD_ANDROID.pt-BR.md) · [Gradle](../buildsystems/android/README.pt-BR.md) |
+| Apple | [macOS](BUILD_MACOS.pt-BR.md) · [iOS](BUILD_IOS.pt-BR.md) · [Xcode](../buildsystems/xcode/README.pt-BR.md) |
+| Navegador | [WebAssembly](BUILD_WEB.pt-BR.md) |
+| Testes | [Validação](BUILD_VALIDATION.pt-BR.md) |
+| CI, artefatos e cache de dependências | [GitHub Actions e vcpkg](CI_VCPKG.md) |
+| Distribuição, callbacks SDL e ZIP | [Deploy e CPack](BUILD_PACKAGES.pt-BR.md) |
+| Assets e patches | [Overlays e traduções](ASSET_OVERLAYS.pt-BR.md) |
+| Caminhos de arquivos | [Política de diretórios](DIRECTORY_POLICY.pt-BR.md) |
+| Interface, legendas e preferências | [Configurações do motor](ENGINE_SETTINGS.pt-BR.md) |
+| Touchscreen, teclado e controles | [Entrada unificada](INPUT_CONTROLS.pt-BR.md) |
+| Debug UI, applets e versão Git | [Depuração e diagnósticos SDL](DEBUG_TOOLS.pt-BR.md) |
+| Ports de jogos | [Índice de ports](../games/README.pt-BR.md) · [Revisão de compatibilidade](PORT_COMPATIBILITY.pt-BR.md) |
+| Estrutura interna | [Máquinas virtuais](../modules/vms/README.pt-BR.md) · [Provedores](../modules/providers/README.pt-BR.md) |
 
-## Convenções de pastas
+## Padrão de documentação
 
-- `lib/`, `cmake/`, `games/` e o conteúdo versionado de `assets/` são fonte
-  ou insumos de build; **não** devem ser eliminados como arquivos gerados.
-- Tanto `cmake/` quanto `buildsystems/cmake/` são usados atualmente; não foram
-  consolidados. O projeto Windows L4 ainda inclui módulos de `cmake/`.
-- `build/`, `vcpkg_installed/` e saídas Android são gerados, mas o `build/`
-  **local contém GPKs comerciais, saves preservados, relatórios, junctions
-  para o retail e um ZIP de handoff**. Nunca o apague integralmente.
-- Notas datadas de pesquisa de School Days ficam separadas por tema na pasta
-  de documentação do jogo. Documentos publicados na raiz mantêm seus caminhos.
-- Capturas antes soltas na raiz foram arquivadas localmente em
-  `build/repo-cleanup-backup-20261109/root-qa-captures/`, com backup ZIP
-  separado também em `D:/Dev/Kotonoha-v3-reorg-backups/`. Não são assets Git.
+Guias ativos são concisos e mantidos em **en-US** (`*.md`) e **pt-BR** (`*.pt-BR.md`). Preserve nomes de comandos, símbolos e caminhos ao traduzir. Atualize os dois arquivos e confira os links.
 
-## Segurança
+Arquivos `PORT_STATUS.md`, notas datadas em `games/*/docs/`, licenças/avisos de terceiros e instruções das pastas de assets podem conter evidências técnicas ou obrigações legais. São **registros de referência**, não garantias do estado atual. Ao atualizar um resumo, preserve investigações e utilize o [índice de ports](../games/README.pt-BR.md) como ponto de entrada.
 
-Nenhum script de limpeza deve seguir junctions ou reparse points nem apagar
-o executável retail, GPKs, saves, traduções privadas ou a Release Windows L4.
-Notas históricas e capturas de QA são registros, não garantia de que os bugs
-ou etapas correspondentes permaneçam atuais.
+## Filesystem virtual experimental
+
+O [Filesystem V2](filesystem/README.pt-BR.md), experimental e somente para leitura, já está na árvore de código da `dev`, mas a migração dos leitores legados é parcial. A [especificação original](filesystem/SPECIFICATION.pt-BR.md) é a referência; nenhum port deve ser considerado inteiramente migrado sem testes.
+
+## Preserva??o do fork ? Windows L4
+
+Ao integrar o upstream, preserve os testes de paridade visual e funcional do School Days HQ Windows L4 e utilize apenas assets sint?ticos e perfis de teste `--documents` isolados. Nunca siga junctions NTFS em scripts de limpeza nem remova bin?rios retail originais, arquivos GPK, tradu??es privadas, distribui??es QA instaladas ou saves reais. Capturas hist?ricas de QA documentam as condi??es da ?poca, n?o necessariamente o estado atual. O ?ndice anterior do fork est? preservado no arquivo independente pr?-sincroniza??o.

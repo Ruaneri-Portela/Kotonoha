@@ -1,6 +1,8 @@
 #include <Kotonoha/core/CommandLine.hpp>
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
 
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -22,6 +24,7 @@ void parse(CommandLine &command, const std::vector<std::string> &arguments) {
   command.parse(static_cast<int>(argv.size()), argv.data());
 }
 
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD) && KOTONOHA_ENABLE_MCP
 void checkPortRejected(const std::string &port) {
   EngineOptions options;
   CommandLine command("engine", options);
@@ -34,10 +37,33 @@ void checkPortRejected(const std::string &port) {
   check(rejected && !options.enableMCP && options.mcpPort == 0,
         "Invalid MCP port must be rejected without enabling the server");
 }
+#else
+void checkUnavailableOption(const std::vector<std::string> &arguments,
+                            const std::string &name) {
+  EngineOptions options;
+  CommandLine command("engine", options);
+  check(command.help().find(name) == std::string::npos,
+        "Disabled MCP option must not appear in command-line help");
+
+  bool rejectedAsUnknown = false;
+  try {
+    parse(command, arguments);
+  } catch (const std::invalid_argument &failure) {
+    rejectedAsUnknown =
+        std::string(failure.what()).find("Unknown option: " + name) !=
+        std::string::npos;
+  }
+  check(rejectedAsUnknown, "Disabled MCP option must be rejected as unknown");
+  check(!options.enableMCP && options.mcpPort == 0 &&
+            options.mcpFileRoot == "." && options.launcher,
+        "Rejected MCP option must not modify engine settings");
+}
+#endif
 } // namespace
 
 int main() {
   try {
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD) && KOTONOHA_ENABLE_MCP
     EngineOptions stdio;
     CommandLine stdioCommand("engine", stdio);
     parse(stdioCommand, {"engine", "--mcp", "--mcp-root", "."});
@@ -61,8 +87,15 @@ int main() {
     for (const auto &value : {"0", "-1", "65536", "1junk", "1.5", "+5",
                               "999999999999999999999999"})
       checkPortRejected(value);
+#else
+    checkUnavailableOption({"engine", "--mcp"}, "--mcp");
+    checkUnavailableOption({"engine", "--mcp-root", "."}, "--mcp-root");
+    checkUnavailableOption({"engine", "--mcp-port", "49831"}, "--mcp-port");
+    checkUnavailableOption({"engine", "--mcp-port=49831"}, "--mcp-port");
+#endif
     return 0;
-  } catch (const std::exception &) {
+  } catch (const std::exception &failure) {
+    std::cerr << "Kotonoha.MCPCommandLine: " << failure.what() << '\n';
     return 1;
   }
 }

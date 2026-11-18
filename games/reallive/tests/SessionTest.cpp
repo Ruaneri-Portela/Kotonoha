@@ -12,6 +12,9 @@ int main(int argc, char **argv) {
          !session.finished());
   session.run(10000);
   assert(session.blocked());
+  assert(session.lastUnhandled().has_value());
+  assert(session.lastUnhandled()->scenario == session.scenario());
+  assert(session.lastUnhandled()->instruction == session.index());
   const int scene = session.scenario();
   const auto pc = session.index();
   assert(!session.step() && session.scenario() == scene &&
@@ -24,7 +27,9 @@ int main(int argc, char **argv) {
   session.resume();
   auto n = session.run(20000);
   assert(n > 0 && external > 0);
+  assert(!session.lastUnhandled().has_value());
   session.jump(9032);
+  assert(!session.lastUnhandled().has_value());
   assert(session.scenario() == 9032 && !session.blocked());
   session.run(20000);
   session.seek(9032, 0);
@@ -95,6 +100,13 @@ int main(int argc, char **argv) {
   assert(call({0, 12, out, xmod}) == 2 && m.GetStringValue(18, 4) == "i");
   // Invalid snapshots must leave every serialized field unchanged.
   const auto before = session.snapshot();
+  bool missingScenarioRejected = false;
+  try {
+    session.jump(-1);
+  } catch (const std::exception &) {
+    missingScenarioRejected = true;
+  }
+  assert(missingScenarioRejected && session.snapshot() == before);
   for (auto invalid :
        {std::string(), before.substr(0, before.size() - 1), before + "junk"}) {
     bool threw = false;
@@ -170,6 +182,26 @@ int main(int argc, char **argv) {
         window == -1 && labels.size() == 1 && labels[0] == "Gloss explanation";
   };
   assert(call({0, 200, -1, src, 0, 0}) == 1 && selected);
+  // Verify rlBabel lineBreak returning PageBreak (4) preserves speaker name for
+  // StartNewPage (func=13).
+  m.SetStringValue(18, 3,
+                   std::string(1, char(1)) + "Nagisa" + char(2) + "L1" +
+                       char(3) + "L2");
+  who.clear();
+  session.currentWindow = 0;
+  session.lineBreak = [] { return 4; };
+  assert(call({0, 10, src}) == 1);
+  assert(call({0, 12, out, xmod}) == 2 && who == "Nagisa" &&
+         m.GetStringValue(18, 4) == "L");
+  assert(call({0, 12, out, xmod}) == 2 && m.GetStringValue(18, 4) == "1");
+  assert(call({0, 12, out, xmod}) == 4 && m.GetStringValue(18, 4) == "Nagisa");
+  who.clear();
+  assert(call({0, 13, out}) == 1);
+  assert(call({0, 12, out, xmod}) == 2 && who == "Nagisa" &&
+         m.GetStringValue(18, 4) == "\"");
+  assert(call({0, 12, out, xmod}) == 2 && m.GetStringValue(18, 4) == "L");
+  assert(call({0, 12, out, xmod}) == 2 && m.GetStringValue(18, 4) == "2");
+  session.lineBreak = {};
   session.seek(9032, 0);
   std::cout << "startup instructions=" << n << " external=" << external
             << " scene=" << session.scenario() << '\n';

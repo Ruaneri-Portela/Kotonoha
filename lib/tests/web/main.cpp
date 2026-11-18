@@ -1,9 +1,9 @@
 #define SDL_MAIN_USE_CALLBACKS 1
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/core/DiscImage.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <emscripten/emscripten.h>
-#include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <string>
 
 namespace {
@@ -14,13 +14,13 @@ int touchUp = 0;
 int keyDown = 0;
 int padDown = 0;
 int padUp = 0;
-}
+} // namespace
 
 extern "C" {
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestVirtualDisc() {
   try {
-    const auto file = Kotonoha::FileResolver::findGameAsset(
-        "web-selftest", "web-disc.iso");
+    const auto file =
+        Kotonoha::FileResolver::findGameAsset("web-selftest", "web-disc.iso");
     if (!file)
       return 0; // Remote disc not discovered.
     Kotonoha::DiscImage disc;
@@ -30,7 +30,8 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestVirtualDisc() {
     const auto bytes = disc.read("HELLO.TXT");
     return bytes.size() == 5 &&
                    std::string(bytes.begin(), bytes.end()) == "hello"
-               ? 1 : -2;
+               ? 1
+               : -2;
   } catch (...) {
     return -3;
   }
@@ -38,18 +39,12 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestVirtualDisc() {
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestTouchDownCount() {
   return touchDown;
 }
-EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestTouchUpCount() {
-  return touchUp;
-}
-EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestKeyDownCount() {
-  return keyDown;
-}
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestTouchUpCount() { return touchUp; }
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestKeyDownCount() { return keyDown; }
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestGamepadDownCount() {
   return padDown;
 }
-EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestGamepadUpCount() {
-  return padUp;
-}
+EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestGamepadUpCount() { return padUp; }
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestConnectedGamepads() {
   int count = 0;
   SDL_JoystickID *ids = SDL_GetGamepads(&count);

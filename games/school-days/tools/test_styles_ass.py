@@ -151,6 +151,35 @@ class TestSchoolDaysStyles(unittest.TestCase):
         self.assertEqual(names[:len(ORIGINAL_COLORS)], list(ORIGINAL_COLORS))
         self.assertEqual(names[len(ORIGINAL_COLORS):], list(expected_new_styles()))
 
+    def test_three_approved_outlines_preserve_measured_contrast(self):
+        # The upstream >=6.0:1 darkening proposal conflicts with the user's
+        # explicitly approved literal ASS colours. Assert the actual contrast
+        # of that stable palette, rather than quietly changing any colour.
+        def luminance(color):
+            r, g, b = (int(color[i:i + 2], 16) / 255 for i in (8, 6, 4))
+
+            def linear(x):
+                return x / 12.92 if x <= .04045 else ((x + .055) / 1.055) ** 2.4
+
+            return .2126 * linear(r) + .7152 * linear(g) + .0722 * linear(b)
+
+        groups = {slot: (fill, outline) for slot, _, fill, outline, _ in SLOTS}
+        approved = {'ExtraMan': 3.4055051, 'Fairy': 3.4157023,
+                    'System': 3.3963868}
+        for slot, expected in approved.items():
+            a, b = sorted(map(luminance, groups[slot]))
+            with self.subTest(slot=slot):
+                self.assertAlmostEqual((b + .05) / (a + .05), expected, places=5)
+
+    def test_all_locale_aliases_preserved(self):
+        names = {row[0] for row in self.rows}
+        for name in ('Mãe da Sekai', 'Niño', 'Credits', 'Reporter', 'Roka',
+                     'Ruka', 'Natsuki', 'Mugi', 'Ameria', 'Chris', 'Boy B'):
+            self.assertIn(name, names)
+        expected = expected_new_styles()
+        self.assertEqual(expected['Ameria'], expected['Chris'])
+        self.assertEqual(expected['Ameria'], expected['Fairy A'])
+
 
 if __name__ == '__main__':
     unittest.main()
