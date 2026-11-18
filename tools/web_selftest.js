@@ -259,6 +259,26 @@ async function main() {
     await page.waitForFunction(() =>
       !document.getElementById('select-local-assets').disabled &&
       !document.getElementById('use-server-assets').disabled);
+
+    // English/Portuguese can be switched before source selection without
+    // starting the runtime or triggering a remote asset request.
+    await page.locator('#kotonoha-lang-en').click();
+    assert(await page.locator('#select-local-assets').innerText() ===
+      'Use local folder', 'English asset picker label must be localized');
+    assert(await page.locator('#loading-status').innerText() ===
+      'Choose a local folder or HTTP(S) to start.',
+      'English startup status must be localized');
+    await page.locator('#kotonoha-lang-pt').click();
+    assert(await page.locator('#select-local-assets').innerText() ===
+      'Usar pasta local', 'Portuguese asset picker label must be localized');
+    assert(await page.locator('#loading-status').innerText() ===
+      'Escolha pasta local ou HTTP(S) para iniciar.',
+      'Portuguese startup status must be localized');
+    assert(await page.evaluate(() =>
+      document.documentElement.lang === 'pt-BR' &&
+      localStorage.getItem('kotonoha-language') === 'pt'),
+      'Portuguese language selection must persist');
+    await page.locator('#kotonoha-lang-en').click();
     // The user may take as long as they want. No 500ms HTTP auto-start.
     await page.waitForTimeout(1150);
     const pendingChoice = await page.evaluate(() => ({
