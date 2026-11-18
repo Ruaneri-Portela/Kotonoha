@@ -224,8 +224,8 @@ FindJumpPoint(const std::vector<ScriptInstruction> &instructions,
     return std::nullopt;
   for (std::size_t i = 0; i < instructions.size(); ++i) {
     const auto &ins = instructions[i];
-    if (ins.opcode != 38)
-      continue; // AIR JUMPPOINT
+    if (ins.opcode != 24 && ins.opcode != 38)
+      continue; // LucaSystem JUMPPOINT (0x18 = 24)
     if (ins.text == name)
       return i + 1;
     const auto end = std::find(ins.paramBytes.begin(), ins.paramBytes.end(), 0);

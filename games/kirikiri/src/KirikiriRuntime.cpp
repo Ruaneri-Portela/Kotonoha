@@ -333,47 +333,15 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
         impl.choiceScene->hide();
         return;
       }
-      const auto savePath =
-          Kotonoha::preferredDocumentsDirectory("kirikiri") / "quicksave.kns";
-      std::vector<Kotonoha::ChoiceOption> options;
-      if (!scenarios.empty() || !impl.startupExecution.kagEntry.empty())
-        options.push_back({impl.startupExecution.kagEntry.empty()
-                               ? "Iniciar (KAG experimental)"
-                               : "Iniciar (KAG indicado pelo TJS2)",
-                           0});
-      if (std::filesystem::exists(savePath))
-        options.push_back({"Continuar", 1});
-      options.push_back({"Configurações", 2});
-      const std::string title =
-          !impl.startupExecution.title.empty()
-              ? impl.startupExecution.title + " (menu de compatibilidade)"
-          : scenarios.empty()
-              ? (impl.bootstrap.entry.empty()
-                     ? "KiriKiri: scripts KAG não encontrados"
-                     : "KiriKiri: startup.tjs identificado; UI TJS2 pendente")
-              : "KiriKiri: menu de compatibilidade";
-      impl.choiceScene->setQuestion(
-          title, options, [this, savePath](int option, const std::string &) {
-            auto &state = *impl_;
-            if (option == 2) {
-              state.engine->openSettings();
-              return;
-            }
-            state.choiceScene->hide();
-            if (option == 1) {
-              loadGame(savePath.string());
-              return;
-            }
-            const auto startup = !state.startupExecution.kagEntry.empty()
-                                     ? state.startupExecution.kagEntry
-                                     : state.assets->startupScenario();
-            if (startup.empty() || !startScenario(startup)) {
-              SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                          "KiriKiri: no supported KAG startup script");
-              state.titleShown = false;
-              state.currentScenario.clear();
-            }
-          });
+      const auto startup = !impl.startupExecution.kagEntry.empty()
+                               ? impl.startupExecution.kagEntry
+                               : impl.assets->startupScenario();
+      if (!startup.empty() && startScenario(startup)) {
+        impl.choiceScene->hide();
+        return;
+      }
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "KiriKiri: no supported KAG startup script found");
     }
   } else {
     startScenario(impl.currentScenario);

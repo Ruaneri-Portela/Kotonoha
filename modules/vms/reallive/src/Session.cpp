@@ -358,6 +358,11 @@ bool Session::strings(const CommandElement &c) {
                                                        : static_cast<int>(n));
     break;
   }
+  case 32: {
+    auto s = str(0), find = str(1);
+    machine_.set_store_register(s.find(find) != std::string::npos ? 1 : 0);
+    break;
+  }
   case 100:
     if (text)
       text(c.overload() ? std::to_string(num(0))

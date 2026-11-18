@@ -22,4 +22,8 @@ struct TjsBootstrapReport {
 // it never executes script text or guesses dynamically constructed names.
 TjsBootstrapReport inspectTjsBootstrap(const KirikiriAssets &assets);
 
+// Extract string constants from a compiled TJS2 bytecode file ("TJS2100\0").
+std::vector<std::string>
+extractTjs2CompiledStrings(const std::vector<std::uint8_t> &bytes);
+
 } // namespace Kotonoha::Providers

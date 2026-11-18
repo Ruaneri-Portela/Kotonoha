@@ -1272,6 +1272,19 @@ void Interpreter::runFile(std::string id, std::size_t depth) {
     throw std::runtime_error("TJS2 subset: storage is not source TJS2: " + id);
   active.push_back(id);
   result.visitedScripts.push_back(id);
+  const auto rawBytes = assets.readAsset(id);
+  if (rawBytes.size() >= 8 && std::memcmp(rawBytes.data(), "TJS2100\0", 8) == 0) {
+    const auto compiledStrings = extractTjs2CompiledStrings(rawBytes);
+    for (const auto &str : compiledStrings) {
+      if (endsWith(str, ".ks") || endsWith(str, ".ks.scn")) {
+        if (result.kagEntry.empty())
+          result.kagEntry = str;
+      }
+    }
+    result.requiresNativeRuntime = true;
+    active.pop_back();
+    return;
+  }
   try {
     Parser parser(*this, id, assets.loadTextUtf8(id, "CP932"));
     parser.run();

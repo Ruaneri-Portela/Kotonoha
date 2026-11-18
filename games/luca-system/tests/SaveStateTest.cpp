@@ -53,6 +53,7 @@ int main() {
     state.flags[1] = false;
     state.flags[42] = true;
     state.callStack = {3, 17, 1023};
+    state.callFrames = {{"seen001", 3}, {"seen002", 17}, {"seen163", 1023}};
     state.images = {{17, -50, 20}, {2048, 900, -34}};
     auto encoded = LucaSystem::encodeSaveState(state);
     const auto decoded = LucaSystem::decodeSaveState(encoded);
@@ -67,36 +68,74 @@ int main() {
             decoded.numbers == state.numbers &&
             decoded.strings == state.strings && decoded.flags == state.flags &&
             decoded.callStack == state.callStack &&
+            decoded.callFrames == state.callFrames &&
             decoded.images.size() == state.images.size() &&
             decoded.images[0].assetId == 17 && decoded.images[0].x == -50 &&
             decoded.images[0].y == 20 && decoded.images[1].assetId == 2048 &&
             decoded.images[1].x == 900 && decoded.images[1].y == -34,
-        "LucaSystem V4 round-trip must preserve VM and visible images");
+        "LucaSystem V5 round-trip must preserve VM, call frames, and visible images");
     require(LucaSystem::encodeSaveState(decoded) == encoded,
-            "LucaSystem V4 saves must be stable on a repeat encode");
+            "LucaSystem V5 saves must be stable on a repeat encode");
 
-    // A valid V3 payload is exactly the shared prefix, without the new
-    // image-count and image-position tail. It must still restore correctly.
-    auto prior = state;
-    prior.images.clear();
-    auto oldBytes = LucaSystem::encodeSaveState(prior);
-    oldBytes.replace(0, LucaSystem::SaveCodec::Magic.size(),
-                     LucaSystem::SaveCodec::V3Magic);
-    oldBytes.resize(oldBytes.size() - 4);
-    const auto oldState = LucaSystem::decodeSaveState(oldBytes);
-    require(oldState.scenario == prior.scenario &&
-                oldState.callStack == prior.callStack &&
-                oldState.strings == prior.strings && oldState.images.empty(),
+    // V4 backward compatibility test: construct a V4 payload with LUCA_SYSTEM_SAVE_4\n
+    using namespace LucaSystem::SaveCodec;
+    std::string v4Payload(V4Magic);
+    string(v4Payload, state.scenario);
+    u64(v4Payload, state.instructionIndex);
+    u64(v4Payload, state.dialogueIndex);
+    u32(v4Payload, state.dialogueVisible ? 1u : 0u);
+    string(v4Payload, state.dialogueText);
+    u32(v4Payload, state.waiting ? 1u : 0u);
+    u32(v4Payload, state.waitRemainingMs);
+    count(v4Payload, state.numbers.size());
+    for (const auto &[key, value] : state.numbers) {
+      u32(v4Payload, key);
+      u32(v4Payload, static_cast<std::uint32_t>(value));
+    }
+    count(v4Payload, state.strings.size());
+    for (const auto &[key, value] : state.strings) {
+      u32(v4Payload, key);
+      string(v4Payload, value);
+    }
+    count(v4Payload, state.flags.size());
+    for (const auto &[key, value] : state.flags) {
+      u32(v4Payload, key);
+      u32(v4Payload, value ? 1u : 0u);
+    }
+    count(v4Payload, state.callStack.size());
+    for (const auto pc : state.callStack)
+      u64(v4Payload, pc);
+    count(v4Payload, state.images.size());
+    for (const auto &image : state.images) {
+      u32(v4Payload, image.assetId);
+      u32(v4Payload, static_cast<std::uint32_t>(image.x));
+      u32(v4Payload, static_cast<std::uint32_t>(image.y));
+    }
+
+    const auto v4State = LucaSystem::decodeSaveState(v4Payload);
+    require(v4State.scenario == state.scenario &&
+            v4State.callStack == state.callStack &&
+            v4State.images.size() == state.images.size(),
+            "Older V4 save must decode correctly");
+
+    // V3 backward compatibility test: same as V4 without image list
+    std::string v3Payload(v4Payload);
+    v3Payload.replace(0, V4Magic.size(), V3Magic);
+    v3Payload.resize(v4Payload.size() - (4 + state.images.size() * 12));
+    const auto v3State = LucaSystem::decodeSaveState(v3Payload);
+    require(v3State.scenario == state.scenario &&
+            v3State.callStack == state.callStack &&
+            v3State.images.empty(),
             "Older V3 save must decode with an empty visual layer");
 
     rejects(
         [&] {
           LucaSystem::decodeSaveState(encoded.substr(0, encoded.size() - 1));
         },
-        "Truncated V4 image payload must be rejected");
+        "Truncated V5 image payload must be rejected");
     rejects([&] { LucaSystem::decodeSaveState(encoded + "junk"); },
-            "Trailing V4 data must be rejected");
-    rejects([&] { LucaSystem::decodeSaveState(oldBytes + "junk"); },
+            "Trailing V5 data must be rejected");
+    rejects([&] { LucaSystem::decodeSaveState(v3Payload + "junk"); },
             "Trailing V3 data must be rejected");
     auto manyImages = state;
     manyImages.images.resize(LucaSystem::SaveCodec::MaxImages + 1);
