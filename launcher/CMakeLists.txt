@@ -58,10 +58,24 @@ set_target_properties(KotonohaLauncher PROPERTIES CXX_EXTENSIONS OFF)
 # An empty game-assets directory preserves the shared bundle layout contract.
 set(_kotonoha_launcher_empty_assets "${CMAKE_CURRENT_BINARY_DIR}/empty-game-assets")
 file(MAKE_DIRECTORY "${_kotonoha_launcher_empty_assets}")
-kotonoha_configure_app(KotonohaLauncher
-    BUNDLE_ID me.hirameki.kotonoha.launcher
-    GAME launcher
-    GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}")
+# The unified hub links DDLC as a library. A macOS .app must therefore
+# bundle the Python standard library just as the standalone DDLC app does.
+# Without this, a packaged hub may fail during startup or when DDLC loads.
+if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES AND KOTONOHA_BUILD_DDLC
+   AND NOT KOTONOHA_USE_PYTHON_STUBS)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+    kotonoha_configure_app(KotonohaLauncher
+        BUNDLE_ID me.hirameki.kotonoha.launcher
+        GAME launcher
+        GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}"
+        PYTHON_STDLIB "${Python3_STDLIB}"
+        PYTHON_VERSION "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+else()
+    kotonoha_configure_app(KotonohaLauncher
+        BUNDLE_ID me.hirameki.kotonoha.launcher
+        GAME launcher
+        GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}")
+endif()
 
 # School Days uses a tracked, non-commercial route definition. Ship this
 # together with the in-process hub instead of assuming the individual game's
