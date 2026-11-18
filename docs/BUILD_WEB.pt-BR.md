@@ -50,7 +50,16 @@ await KotonohaDumpPreload();
 O navegador baixa um `preload.json`. Publique-o em
 `game-assets/preload.json`, ao lado do `manifest.json`. O dump registra
 **somente os arquivos e intervalos realmente baixados** até aquele momento;
-não copia todos os nomes do manifesto. Quando um `preload.json` existir, o
+não copia todos os nomes do manifesto. O runtime também registra os nodos
+visitados, quais assets foram baixados em cada nodo e as transições observadas.
+O campo opcional `nodes` guarda esse grafo, usado pelo JavaScript para
+prever assets de nodos vizinhos a cada mudança de cena notificada pelo C++.
+O prefetch especulativo utiliza um limite inicial de 8 MiB, duas requisições
+paralelas e pode ser cancelado após uma mudança de cena. O campo `entries`
+é **o conjunto obrigatório do boot**: todos esses bytes precisam estar em
+cache antes do jogo começar. Para bloquear o boot somente pelos menus e pela
+primeira cena, mantenha apenas esses intervalos em `entries`, preservando os
+demais em `nodes`. Quando um `preload.json` existir, o
 boot HTTP(S) aguarda que todos os trechos exigidos estejam no IndexedDB,
 baixando os que faltarem antes de iniciar o WASM. O dump identifica a versão
 do manifesto para não combinar caches incompatíveis. O guia e o índice
