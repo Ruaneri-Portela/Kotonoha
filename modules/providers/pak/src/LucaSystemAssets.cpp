@@ -329,13 +329,11 @@ void LucaSystemAssets::mountPak(const std::string &path) {
       fileNameUpper.find("IMAGE") != std::string::npos ||
       fileNameUpper.find("PARTS") != std::string::npos ||
       fileNameUpper.find("MANUAL") != std::string::npos;
-  const bool isVoiceArchive =
-      parentLower == "voice" ||
-      fileNameUpper.find("VOICE") != std::string::npos;
-  const bool isBgmArchive =
-      parentLower == "music" ||
-      fileNameUpper.find("MUSIC") != std::string::npos ||
-      fileNameUpper.find("BGM") != std::string::npos;
+  const bool isVoiceArchive = parentLower == "voice" ||
+                              fileNameUpper.find("VOICE") != std::string::npos;
+  const bool isBgmArchive = parentLower == "music" ||
+                            fileNameUpper.find("MUSIC") != std::string::npos ||
+                            fileNameUpper.find("BGM") != std::string::npos;
   const bool isSeArchive =
       parentLower == "se" ||
       (fileNameUpper == "SE.PAK" || fileNameUpper == "SYSSE.PAK");
@@ -483,8 +481,8 @@ std::vector<std::uint8_t> LucaSystemAssets::readImageAsset(uint32_t id) const {
     // Synthesize a minimal CZ0 1x1 RGBA image; runtime scales 65000/65001 to
     // full 1280x720 canvas.
     std::vector<std::uint8_t> cz0 = {
-        'C', 'Z', '0', 0,    16,  0,   0,   0, // magic + headerLen=16
-        1,   0,   1,   0,    32,  0,   0,   0, // 1x1 32bpp
+        'C', 'Z', '0', 0,  16, 0, 0, 0, // magic + headerLen=16
+        1,   0,   1,   0,  32, 0, 0, 0, // 1x1 32bpp
         c,   c,   c,   255};
     return cz0;
   }

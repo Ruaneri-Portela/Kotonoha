@@ -217,8 +217,7 @@ int main() {
     call(210, {recallVar});
     check(game.extrasViewerActive() &&
               game.extrasViewerMode() == ViewerMode::Recollection &&
-              game.extrasViewerCategory() == 0 &&
-              game.extrasViewerSlot() == 1,
+              game.extrasViewerCategory() == 0 && game.extrasViewerSlot() == 1,
           "SYS 210 did not open KAIROKU MODE on the unlocked entry");
     auto recallCells = game.extrasViewerCells();
     check(recallCells[0] == "open00" && recallCells[1].empty(),
@@ -236,8 +235,7 @@ int main() {
     // SYS 208 -> pmail.exe:0x41d810. MUSIC MODE keeps a 24-row list, transport
     // controls, repeat flag and routes playback through the SYS 112 BGM slot.
     game.musicTracks = [] {
-      return std::vector<std::string>{"sound/mm01", "sound/mm02",
-                                      "sound/mm03"};
+      return std::vector<std::string>{"sound/mm01", "sound/mm02", "sound/mm03"};
     };
     std::string playedTrack;
     bool stoppedMusic = false;

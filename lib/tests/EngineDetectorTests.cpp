@@ -13,9 +13,9 @@
 namespace {
 namespace fs = std::filesystem;
 using Kotonoha::Filesystem::DetectedEngine;
+using Kotonoha::Filesystem::detectEngine;
 using Kotonoha::Filesystem::EngineKind;
 using Kotonoha::Filesystem::Filesystem;
-using Kotonoha::Filesystem::detectEngine;
 
 void require(bool condition, const std::string &message) {
   if (!condition)
@@ -28,8 +28,9 @@ public:
   explicit TempSource(const std::string &tag)
       : root(fs::temp_directory_path() /
              ("kotonoha-engine-det-" + tag + "-" +
-              std::to_string(
-                  std::chrono::steady_clock::now().time_since_epoch().count()))) {
+              std::to_string(std::chrono::steady_clock::now()
+                                 .time_since_epoch()
+                                 .count()))) {
     fs::create_directories(root);
   }
   ~TempSource() {
@@ -43,9 +44,7 @@ public:
       throw std::runtime_error("Cannot create fixture file: " + rel.string());
     out.write(content.data(), static_cast<std::streamsize>(content.size()));
   }
-  void mkdir(const fs::path &rel) const {
-    fs::create_directories(root / rel);
-  }
+  void mkdir(const fs::path &rel) const { fs::create_directories(root / rel); }
   DetectedEngine detect() const {
     auto mounted = Filesystem::mount(root.string());
     return detectEngine(*mounted);

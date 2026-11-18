@@ -122,15 +122,21 @@ struct Text : VNTextBox {
     const float sx = scaleX(), sy = scaleY();
 
     if (controls.buttons.size() >= 5) {
-      controls.buttons[0].area = {bx + bw - 56.0f * sx, by + 4.0f * sy, 31.0f * sx, 7.0f * sy};
-      controls.buttons[1].area = {bx + bw - 24.0f * sx, by + 4.0f * sy, 12.0f * sx, 38.0f * sy};
-      controls.buttons[2].area = {bx + bw - 24.0f * sx, by + 43.0f * sy, 12.0f * sx, 38.0f * sy};
-      controls.buttons[3].area = {bx + bw - 24.0f * sx, by + 82.0f * sy, 12.0f * sx, 16.0f * sy};
-      controls.buttons[4].area = {bx + bw - 24.0f * sx, by + 99.0f * sy, 12.0f * sx, 16.0f * sy};
+      controls.buttons[0].area = {bx + bw - 56.0f * sx, by + 4.0f * sy,
+                                  31.0f * sx, 7.0f * sy};
+      controls.buttons[1].area = {bx + bw - 24.0f * sx, by + 4.0f * sy,
+                                  12.0f * sx, 38.0f * sy};
+      controls.buttons[2].area = {bx + bw - 24.0f * sx, by + 43.0f * sy,
+                                  12.0f * sx, 38.0f * sy};
+      controls.buttons[3].area = {bx + bw - 24.0f * sx, by + 82.0f * sy,
+                                  12.0f * sx, 16.0f * sy};
+      controls.buttons[4].area = {bx + bw - 24.0f * sx, by + 99.0f * sy,
+                                  12.0f * sx, 16.0f * sy};
     }
   }
 
-  Text(Engine &e, Kotonoha::Providers::RealLiveAssets &a, int w = 640, int h = 480)
+  Text(Engine &e, Kotonoha::Providers::RealLiveAssets &a, int w = 640,
+       int h = 480)
       : VNTextBox(e, "", "", 40), assets(a), canvasW(w), canvasH(h) {
     hide();
     auto smw00c = assets.graphic("smw00c", false);
@@ -151,10 +157,18 @@ struct Text : VNTextBox {
       back = assets.loadSurface(smw00b);
 
     if (back && back->w > 0 && back->h > 0 && back->pixels) {
-      int r = assets.settings().integer("WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 0), 0);
-      int g = assets.settings().integer("WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 1), 1);
-      int b = assets.settings().integer("WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 160, 2), 2);
-      int a = assets.settings().integer("WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 200, 3), 3);
+      int r = assets.settings().integer(
+          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 0),
+          0);
+      int g = assets.settings().integer(
+          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 1),
+          1);
+      int b = assets.settings().integer(
+          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 160, 2),
+          2);
+      int a = assets.settings().integer(
+          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 200, 3),
+          3);
       for (int y = 0; y < back->h; ++y)
         for (int x = 0; x < back->w; ++x) {
           auto *p =
@@ -313,7 +327,8 @@ struct Text : VNTextBox {
   }
   void renderSpeaker(RendererRef r) override {
     const float sx = scaleX(), sy = scaleY();
-    print(r, speakerName, float(boxX()) + 33.0f * sx, float(boxY()) - 30.0f * sy, int(500 * sx), true);
+    print(r, speakerName, float(boxX()) + 33.0f * sx,
+          float(boxY()) - 30.0f * sy, int(500 * sx), true);
   }
   void renderDialogue(RendererRef r) override {
     const float sx = scaleX(), sy = scaleY();
@@ -329,7 +344,8 @@ struct Text : VNTextBox {
     const auto lines = VNTextBoxUtility::RevealLines(
         fullDialogue, visibleDialogue.size(), measure, wrapWidth);
     for (std::size_t n = 0; n < lines.size(); ++n)
-      print(r, lines[n], float(boxX()) + 53.0f * sx, float(boxY()) + 19.0f * sy + n * 28.0f * sy, int(wrapWidth));
+      print(r, lines[n], float(boxX()) + 53.0f * sx,
+            float(boxY()) + 19.0f * sy + n * 28.0f * sy, int(wrapWidth));
   }
   void renderIndicator(RendererRef r) override {
     if (!cursor)
@@ -342,7 +358,8 @@ struct Text : VNTextBox {
     }
     const float sx = scaleX(), sy = scaleY();
     SDL_FRect src{float((SDL_GetTicks() % 850) * 4 / 850 * 16), 0, 16, 16},
-        dst{float(boxX() + boxWidth()) - 49.0f * sx, float(boxY() + boxHeight()) - 44.0f * sy, 16.0f * sx, 16.0f * sy};
+        dst{float(boxX() + boxWidth()) - 49.0f * sx,
+            float(boxY() + boxHeight()) - 44.0f * sy, 16.0f * sx, 16.0f * sy};
     RenderUpscaledTexture(&r, t.get(), &src, &dst);
   }
 };
@@ -476,6 +493,7 @@ struct RealLiveRuntime::Impl {
   TexturePtr ditherTexture, maskedTransitionTexture;
   std::optional<bool> gpuDither;
   int ditherStep = -1, ditherStyle = -1;
+  int maxDialogueLines = 3; // #WINDOW.<w>.MOJI_CNT[1], default 3
   SurfacePtr backgroundPixels;
   std::map<std::pair<std::string, int>, TexturePtr> objectTextTextures;
   RenderStats renderStats;
@@ -1944,8 +1962,8 @@ struct RealLiveRuntime::Impl {
     std::string dir = Kotonoha::saveDirectory().string();
     auto sanitize = [](std::string name) {
       for (char &ch : name) {
-        if (ch == '/' || ch == '\\' || ch == ':' || ch == '*' ||
-            ch == '?' || ch == '"' || ch == '<' || ch == '>' || ch == '|') {
+        if (ch == '/' || ch == '\\' || ch == ':' || ch == '*' || ch == '?' ||
+            ch == '"' || ch == '<' || ch == '>' || ch == '|') {
           ch = '_';
         }
       }
@@ -2386,7 +2404,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 217:
     case 218:
     case 219:
-      machine.set_store_register(mouseCursorNumber >= 0 ? mouseCursorNumber : 0);
+      machine.set_store_register(mouseCursorNumber >= 0 ? mouseCursorNumber
+                                                        : 0);
       return true;
     case 213:
       if (c.GetParamCount() >= 2) {
@@ -2465,7 +2484,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 366:
     case 368:
     case 369:
-      machine.set_store_register(assets->settings().integer("AUTO_CHAR_TIME", 30));
+      machine.set_store_register(
+          assets->settings().integer("AUTO_CHAR_TIME", 30));
       return true;
     case 367:
       return true;
@@ -3746,9 +3766,9 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (sourceDC == targetDC) {
         auto temp = blank(surface(sourceDC).w, surface(sourceDC).h);
         blit(surface(sourceDC), *temp);
-        blit(*temp, surface(targetDC),
-             over >= 2 ? &source : nullptr, over >= 2 ? &dest : nullptr,
-             value(c, over >= 2 ? 8 : 2, 255), op == 101 || op == 1101);
+        blit(*temp, surface(targetDC), over >= 2 ? &source : nullptr,
+             over >= 2 ? &dest : nullptr, value(c, over >= 2 ? 8 : 2, 255),
+             op == 101 || op == 1101);
       } else {
         blit(surface(sourceDC), surface(targetDC),
              over >= 2 ? &source : nullptr, over >= 2 ? &dest : nullptr,

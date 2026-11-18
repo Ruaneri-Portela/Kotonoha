@@ -23,8 +23,7 @@ PmailSession::PmailSession(
     : game_(std::move(game)), engine_(engine), assets_(std::move(assets)) {
   components_ = std::make_unique<PmailComponents>(*game_, engine_, *assets_);
   titleMenu_ = std::make_unique<PmailTitleMenu>(engine_, *game_, *assets_);
-  extrasMenu_ =
-      std::make_unique<PmailExtrasMenu>(engine_, *game_, *assets_);
+  extrasMenu_ = std::make_unique<PmailExtrasMenu>(engine_, *game_, *assets_);
   extrasViewer_ =
       std::make_unique<PmailExtrasViewer>(engine_, *game_, *assets_);
   loadNameProfile();
@@ -503,17 +502,15 @@ bool PmailSession::handleExtrasEvent(Kotonoha::EventRef event,
                                      SDL_FPoint stagePoint,
                                      bool haveStagePoint) {
   if (event.type == SDL_EVENT_MOUSE_MOTION && haveStagePoint) {
-    const int hover = extrasMenu_ ? extrasMenu_->hitTest(stagePoint.x,
-                                                         stagePoint.y)
-                                  : 0;
+    const int hover =
+        extrasMenu_ ? extrasMenu_->hitTest(stagePoint.x, stagePoint.y) : 0;
     game_->extrasHover(hover);
     return true;
   }
   if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
       event.button.button == SDL_BUTTON_LEFT) {
     if (haveStagePoint && extrasMenu_) {
-      const int choice =
-          extrasMenu_->hitTest(stagePoint.x, stagePoint.y);
+      const int choice = extrasMenu_->hitTest(stagePoint.x, stagePoint.y);
       if (choice >= 1 && choice <= 4)
         game_->extrasChoose(choice);
     }
@@ -631,15 +628,13 @@ bool PmailSession::handleExtrasViewerEvent(Kotonoha::EventRef event,
       game_->extrasViewerActivate();
       return true;
     case SDLK_UP:
-      music ? game_->extrasViewerTrackBy(-1)
-            : game_->extrasViewerMove(0, -1);
+      music ? game_->extrasViewerTrackBy(-1) : game_->extrasViewerMove(0, -1);
       return true;
     case SDLK_DOWN:
       music ? game_->extrasViewerTrackBy(1) : game_->extrasViewerMove(0, 1);
       return true;
     case SDLK_LEFT:
-      music ? game_->extrasViewerTrackBy(-1)
-            : game_->extrasViewerMove(-1, 0);
+      music ? game_->extrasViewerTrackBy(-1) : game_->extrasViewerMove(-1, 0);
       return true;
     case SDLK_RIGHT:
       music ? game_->extrasViewerTrackBy(1) : game_->extrasViewerMove(1, 0);
@@ -681,7 +676,8 @@ bool PmailSession::handleExtrasViewerEvent(Kotonoha::EventRef event,
 
 bool PmailSession::HandleTitleEvent(Kotonoha::EventRef event,
                                     SDL_FPoint stagePoint,
-                                    bool haveStagePoint) {  if (event.type == SDL_EVENT_MOUSE_MOTION && haveStagePoint) {
+                                    bool haveStagePoint) {
+  if (event.type == SDL_EVENT_MOUSE_MOTION && haveStagePoint) {
     for (int i = 0; i < game_->titleCount(); ++i) {
       const float y = float(326 + 62 * i);
       if (stagePoint.x >= 189 && stagePoint.x < 189 + 423 &&

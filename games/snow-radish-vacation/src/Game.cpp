@@ -314,7 +314,7 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
     }
     break;
   }
-  case 3:   // of_adv3.exe:0x434baa — hide message window
+  case 3: // of_adv3.exe:0x434baa — hide message window
     hasMsg_ = false;
     break;
   case 7: { // of_adv3.exe:0x434427 — 1-based text choice menu (mode=0)
@@ -663,8 +663,8 @@ void Game::native(Vm &vm, int id, const std::vector<Arg> &args) {
     int slot = !ints.empty() ? ints[0] : -1;
     std::string replayTitle = Kotonoha::ShiftJisToUtf8(firstString());
     if (trace)
-      trace("replay bookmark slot=" + std::to_string(slot) + " title=" +
-            replayTitle);
+      trace("replay bookmark slot=" + std::to_string(slot) +
+            " title=" + replayTitle);
     // Replay registration is handled by the presenter / session layer.
     break;
   }

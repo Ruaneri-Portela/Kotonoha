@@ -9,13 +9,12 @@ namespace {
 constexpr int kStageWidth = 800;
 constexpr int kStageHeight = 600;
 
-const std::array<const char *, 4> kItemGraphics{
-    "OMAMENU01a", "OMAMENU01b", "OMAMENU01c", "OMAMENU01d"};
+const std::array<const char *, 4> kItemGraphics{"OMAMENU01a", "OMAMENU01b",
+                                                "OMAMENU01c", "OMAMENU01d"};
 } // namespace
 
-PmailExtrasMenu::PmailExtrasMenu(
-    Kotonoha::Engine &engine, PmailGame &game,
-    Kotonoha::Providers::SnowAssets &assets)
+PmailExtrasMenu::PmailExtrasMenu(Kotonoha::Engine &engine, PmailGame &game,
+                                 Kotonoha::Providers::SnowAssets &assets)
     : engine_(engine), game_(game), assets_(assets) {}
 
 bool PmailExtrasMenu::loadMap() const {
@@ -55,8 +54,7 @@ SDL_Texture *PmailExtrasMenu::loadTexture(Kotonoha::RendererRef renderer,
   try {
     auto surface = assets_.loadSurfaceAsset("graphic/" + file);
     if (surface) {
-      texture.tex.reset(
-          SDL_CreateTextureFromSurface(&renderer, surface.get()));
+      texture.tex.reset(SDL_CreateTextureFromSurface(&renderer, surface.get()));
       if (texture.tex) {
         SDL_GetTextureSize(texture.tex.get(), &texture.w, &texture.h);
         SDL_SetTextureBlendMode(texture.tex.get(), SDL_BLENDMODE_BLEND);
@@ -77,8 +75,7 @@ SDL_Texture *PmailExtrasMenu::loadTexture(Kotonoha::RendererRef renderer,
 }
 
 void PmailExtrasMenu::render(Kotonoha::RendererRef renderer) {
-  if (auto *background =
-          loadTexture(renderer, "OMAMENU00", "OMAMENU00.CRGB")) {
+  if (auto *background = loadTexture(renderer, "OMAMENU00", "OMAMENU00.CRGB")) {
     const SDL_FRect stage{0, 0, float(kStageWidth), float(kStageHeight)};
     SDL_RenderTexture(&renderer, background, nullptr, &stage);
   }
