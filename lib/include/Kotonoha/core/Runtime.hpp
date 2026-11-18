@@ -49,6 +49,9 @@ protected:
 private:
   std::unique_ptr<SplashChainloader> splash;
   Engine *splashEngine = nullptr;
+  // Last story node reported to browser predictive caching. This remains
+  // unused on desktop builds and does not alter VM progression.
+  std::string lastPredictiveNode_;
 
 public:
   Runtime(std::string name, std::string version, std::string identify);
