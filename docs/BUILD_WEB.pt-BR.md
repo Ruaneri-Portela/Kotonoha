@@ -54,7 +54,12 @@ HTTPS, configure **antes do script de inicialização**:
 A hospedagem em outra origem exige CORS correto. O modo direto usa HEAD,
 GET Range e Asyncify com cache limitado, sem bloquear a thread principal.
 Não é possível listar nomes arbitrários de arquivos em HTTP comum sem
-um índice: o porte deve conhecer os nomes dos seus arquivos.
+um índice: o porte deve conhecer os nomes dos seus arquivos. PONscripter e
+Kirikiri agora consultam scripts e arquivos conhecidos como `arc.nsa` e
+`data.xp3` diretamente, sem depender de listagem HTTP. Pacotes com nomes
+incomuns ainda exigem pasta local ou índice. O leitor SAR/NSA do PONscripter
+mantém arquivos completos em memória e pode exceder os limites do navegador;
+o leitor XP3 do Kirikiri utiliza acesso via Range.
 
 A escolha local/remota é sempre manual. A antiga configuração
 `window.KotonohaAutoServerAssets` deixou de ser necessária.
