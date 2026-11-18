@@ -429,19 +429,47 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     finished_ = true;
     return true;
   }
-  if (name == "end") {
-    SDL_Log("KagScript: tag end");
+  if (name == "end" || name == "s") {
+    SDL_Log("KagScript: tag %s", name.c_str());
     finished_ = true;
     return true;
   }
 
-  // Label tags are no-ops at runtime.
-  if (name == "l" || name == "*" || (!name.empty() && name[0] == '*')) {
+  // Label tags or no-op markers.
+  if (name == "*" || (!name.empty() && name[0] == '*')) {
     SDL_Log("KagScript: tag label %s", name.c_str());
     return false;
   }
 
-  // Text display
+  // Inline TJS2 block in KAG scripts. Skip until matching [endscript].
+  if (name == "iscript") {
+    for (std::size_t i = pc_ + 1; i < script_.tags.size(); ++i) {
+      if (script_.tags[i].type == TagType::Command &&
+          script_.tags[i].name == "endscript") {
+        pc_ = i;
+        break;
+      }
+    }
+    return false;
+  }
+  if (name == "endscript")
+    return false;
+
+  // Text display and click waits
+  if (name == "l") {
+    if (tag.attrs.count("name") && !tag.attrs.at("name").empty())
+      return false; // label tag
+    SDL_Log("KagScript: tag l (line click wait)");
+    return true; // yield for click
+  }
+  if (name == "p") {
+    SDL_Log("KagScript: tag p (page click wait)");
+    return true; // yield for click
+  }
+  if (name == "r" || name == "position" || name == "current" ||
+      name == "quake" || name == "shake")
+    return false; // KAG layout and style tags
+
   if (name == "cm") {
     SDL_Log("KagScript: tag cm");
     if (cb_.showText) {
@@ -560,7 +588,8 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     return false; // Immediate presentation, no authentic timing yet.
 
   // Kotonoha's explicit character commands.
-  if (name == "chara_show" || name == "cshow" || name == "show") {
+  if (name == "chara_show" || name == "cshow" || name == "show" ||
+      name == "chara_mod" || name == "cmod" || name == "chara_pose") {
     if (cb_.showChar)
       cb_.showChar(getAttr(tag, "layer", "0"),
                    getAttr(tag, "storage", getAttr(tag, "file", "")),

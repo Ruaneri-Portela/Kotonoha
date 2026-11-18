@@ -22,7 +22,8 @@ struct N2Runtime::Impl {
 };
 
 N2Runtime::N2Runtime(std::shared_ptr<N2ArchiveAssets> assets)
-    : impl_(std::make_unique<Impl>()), assets_(std::move(assets)) {
+    : Kotonoha::Runtime("N2System", "0.1.0", "n2system"),
+      impl_(std::make_unique<Impl>()), assets_(std::move(assets)) {
   if (!assets_) {
     assets_ = std::make_shared<N2ArchiveAssets>();
   }
@@ -33,10 +34,11 @@ N2Runtime::~N2Runtime() = default;
 void N2Runtime::init(Kotonoha::Engine &engine) {
   impl_->engine = &engine;
 
-  impl_->textBox = std::make_shared<Kotonoha::VNTextBox>();
-  impl_->backlog = std::make_shared<Kotonoha::VNBacklog>();
-  impl_->menu = std::make_shared<Kotonoha::InGameMenu>();
-  impl_->choiceScene = std::make_shared<Kotonoha::ChoiceQuestionScene>();
+  impl_->textBox = std::make_shared<Kotonoha::VNTextBox>(engine, "", "", 30.0);
+  impl_->backlog = std::make_shared<Kotonoha::VNBacklog>(engine);
+  impl_->menu = std::make_shared<Kotonoha::InGameMenu>(engine);
+  impl_->choiceScene = std::make_shared<Kotonoha::ChoiceQuestionScene>(
+      engine, "", std::vector<Kotonoha::ChoiceOption>{{"", 0}}, nullptr);
 
   // Default sample script if none loaded from asset archive
   const std::string defaultScript =
@@ -77,8 +79,8 @@ void N2Runtime::update() {
   }
 
   if (impl_->textBox) {
-    impl_->textBox->setText(vm_.dialogueSystem().visibleText());
-    impl_->textBox->setSpeaker(std::string(vm_.dialogueSystem().speaker()));
+    impl_->textBox->setDialogue(std::string(vm_.dialogueSystem().speaker()),
+                                vm_.dialogueSystem().visibleText());
   }
 }
 
@@ -89,17 +91,9 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 }
 
 bool N2Runtime::onEvent(Kotonoha::EventRef event) {
-  if (!event)
-    return false;
-
-  if (event->type() == Kotonoha::EventType::Controller) {
-    auto &ce = static_cast<Kotonoha::ControllerEvent &>(*event);
-    if (ce.action() == Kotonoha::ControllerAction::Confirm ||
-        ce.action() == Kotonoha::ControllerAction::Advance) {
-      return handleAdvanceAction();
-    }
+  if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+    return handleAdvanceAction();
   }
-
   return false;
 }
 

@@ -459,14 +459,14 @@ struct LucaSystemRuntime::Impl {
     }
   }
 
-  void renderObject(Kotonoha::RendererRef renderer, uint32_t id, int x, int y,
-                    float opacity = 1.0f, float rightClip = -1.0f) {
-    if (opacity <= 0.0f)
+  void renderSceneObject(Kotonoha::RendererRef renderer, const SceneObject &obj,
+                         float opacityMod = 1.0f, float rightClip = -1.0f) {
+    if (!obj.visible || obj.alpha <= 0.0f || opacityMod <= 0.0f)
       return;
-    auto it = objectImages.find(id);
+    auto it = objectImages.find(obj.id);
     if (it == objectImages.end())
       return;
-    auto &tex = objectTextures[id];
+    auto &tex = objectTextures[obj.id];
     if (!tex) {
       const auto &img = it->second;
       tex.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
@@ -477,23 +477,37 @@ struct LucaSystemRuntime::Impl {
         throw std::runtime_error(SDL_GetError());
       SDL_SetTextureBlendMode(tex.get(), SDL_BLENDMODE_BLEND);
     }
+    const float alpha = std::clamp(obj.alpha * opacityMod, 0.0f, 1.0f);
     SDL_SetTextureAlphaMod(
-        tex.get(), static_cast<Uint8>(
-                       std::lround(std::clamp(opacity, 0.0f, 1.0f) * 255.0f)));
-    SDL_FRect dst{float(x), float(y), float(it->second.width),
-                  float(it->second.height)};
+        tex.get(), static_cast<Uint8>(std::lround(alpha * 255.0f)));
+    SDL_SetTextureColorMod(tex.get(), obj.r, obj.g, obj.b);
+
+    const float scaledW = float(it->second.width) * obj.scaleX;
+    const float scaledH = float(it->second.height) * obj.scaleY;
+    SDL_FRect dst{float(obj.x), float(obj.y), scaledW, scaledH};
     SDL_FRect source{};
     const SDL_FRect *sourcePtr = nullptr;
     if (rightClip >= 0.0f) {
       const float visibleWidth =
-          wipeVisibleWidth(float(x), float(it->second.width), rightClip);
+          wipeVisibleWidth(float(obj.x), scaledW, rightClip);
       if (visibleWidth <= 0.0f)
         return;
-      source = SDL_FRect{0, 0, visibleWidth, float(it->second.height)};
+      source = SDL_FRect{0, 0, visibleWidth / obj.scaleX, float(it->second.height)};
       sourcePtr = &source;
       dst.w = visibleWidth;
     }
-    SDL_RenderTexture(&renderer, tex.get(), sourcePtr, &dst);
+    if (obj.rotation != 0.0f) {
+      SDL_RenderTextureRotated(&renderer, tex.get(), sourcePtr, &dst,
+                               double(obj.rotation), nullptr, SDL_FLIP_NONE);
+    } else {
+      SDL_RenderTexture(&renderer, tex.get(), sourcePtr, &dst);
+    }
+  }
+
+  void renderObject(Kotonoha::RendererRef renderer, uint32_t id, int x, int y,
+                    float opacity = 1.0f, float rightClip = -1.0f) {
+    SceneObject tmp{id, x, y, opacity};
+    renderSceneObject(renderer, tmp, 1.0f, rightClip);
   }
 
   void runUntilPause() {
@@ -861,17 +875,68 @@ struct LucaSystemRuntime::Impl {
         }
         break;
       }
-      case OP_MOVE:
-      case OP_ROT:
-      case OP_SCALE:
+      case OP_MOVE: {
+        if (ins.paramBytes.size() >= 6) {
+          uint32_t id = paramU16(ins, 0);
+          int x = int(paramU16(ins, 2));
+          int y = int(paramU16(ins, 4));
+          sceneLayers.updateObject(id, [x, y](SceneObject &o) { o.x = x; o.y = y; });
+        }
+        break;
+      }
+      case OP_ROT: {
+        if (ins.paramBytes.size() >= 4) {
+          uint32_t id = paramU16(ins, 0);
+          float angle = float(int16_t(paramU16(ins, 2)));
+          sceneLayers.updateObject(id, [angle](SceneObject &o) { o.rotation = angle; });
+        }
+        break;
+      }
+      case OP_SCALE: {
+        if (ins.paramBytes.size() >= 6) {
+          uint32_t id = paramU16(ins, 0);
+          float sx = float(paramU16(ins, 2)) / 100.0f;
+          float sy = float(paramU16(ins, 4)) / 100.0f;
+          sceneLayers.updateObject(id, [sx, sy](SceneObject &o) { o.scaleX = sx; o.scaleY = sy; });
+        }
+        break;
+      }
+      case OP_FADE_OBJ: {
+        if (ins.paramBytes.size() >= 4) {
+          uint32_t id = paramU16(ins, 0);
+          float a = float(paramU16(ins, 2)) / 255.0f;
+          sceneLayers.updateObject(id, [a](SceneObject &o) { o.alpha = a; });
+        }
+        break;
+      }
+      case OP_PRIORITY: {
+        if (ins.paramBytes.size() >= 4) {
+          uint32_t id = paramU16(ins, 0);
+          int pri = int(paramU16(ins, 2));
+          sceneLayers.updateObject(id, [pri](SceneObject &o) { o.priority = pri; });
+        }
+        break;
+      }
+      case OP_DISP: {
+        if (ins.paramBytes.size() >= 4) {
+          uint32_t id = paramU16(ins, 0);
+          bool vis = paramU16(ins, 2) != 0;
+          sceneLayers.updateObject(id, [vis](SceneObject &o) { o.visible = vis; });
+        }
+        break;
+      }
+      case OP_TONE: {
+        if (ins.paramBytes.size() >= 8) {
+          uint32_t id = paramU16(ins, 0);
+          uint8_t r = ins.paramBytes[2], g = ins.paramBytes[4], b = ins.paramBytes[6];
+          sceneLayers.updateObject(id, [r, g, b](SceneObject &o) { o.r = r; o.g = g; o.b = b; });
+        }
+        break;
+      }
       case OP_SHAKE:
-      case OP_FADE_OBJ:
       case OP_BASE:
-      case OP_DISP:
       case OP_VOLUME:
-      case OP_TONE:
       case OP_SEPIA:
-      case OP_PRIORITY:
       case OP_FACE:
       case OP_EX:
       case OP_IMAGEUPDATE:
@@ -1104,25 +1169,24 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
   const auto firstNew = impl.sceneLayers.incomingStart();
   if (blend.wipeLeftToRight) {
     for (const auto &place : outgoing)
-      impl.renderObject(renderer, place.id, place.x, place.y);
+      impl.renderSceneObject(renderer, place);
     const float revealRight = 1280.0f * blend.incoming;
     for (std::size_t i = firstNew; i < visible.size(); ++i) {
       const auto &place = visible[i];
-      impl.renderObject(renderer, place.id, place.x, place.y, 1.0f,
-                        revealRight);
+      impl.renderSceneObject(renderer, place, 1.0f, revealRight);
     }
   } else if (blend.incoming < 1.0f && !outgoing.empty()) {
     // Old images also remain inside visible. Drawing them twice causes
     // partially transparent objects to become too opaque during DRAW.
     for (const auto &place : outgoing)
-      impl.renderObject(renderer, place.id, place.x, place.y);
+      impl.renderSceneObject(renderer, place);
     for (std::size_t i = firstNew; i < visible.size(); ++i) {
       const auto &place = visible[i];
-      impl.renderObject(renderer, place.id, place.x, place.y, blend.incoming);
+      impl.renderSceneObject(renderer, place, blend.incoming);
     }
   } else {
     for (const auto &place : visible)
-      impl.renderObject(renderer, place.id, place.x, place.y, blend.incoming);
+      impl.renderSceneObject(renderer, place, blend.incoming);
   }
   if (blend.blackout > 0.0f) {
     SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
