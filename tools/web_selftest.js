@@ -448,6 +448,31 @@ async function main() {
     await page.locator('#use-server-assets').click();
     await ready();
 
+    // Every compiled WASM game is also an installable, scope-isolated PWA.
+    // Its Service Worker never takes ownership of Range/game-assets caching.
+    const pwa = await page.evaluate(async () => {
+      const reply = await fetch('./manifest.webmanifest');
+      const manifest = await reply.json();
+      const registration = await navigator.serviceWorker.ready;
+      const icon = await fetch('./pwa-icon-192.png');
+      const iconBytes = await icon.arrayBuffer();
+      return {
+        name: manifest.short_name,
+        scope: manifest.scope,
+        start: manifest.start_url,
+        display: manifest.display,
+        registeredScope: registration.scope,
+        expectedScope: new URL('./', document.baseURI).href,
+        active: !!registration.active,
+        iconOk: icon.ok && iconBytes.byteLength > 1000
+      };
+    });
+    assert(pwa.name === 'KotonohaWebSelfTest' &&
+      pwa.scope === './' && pwa.start === './index.html' &&
+      pwa.display === 'standalone' && pwa.active && pwa.iconOk &&
+      pwa.registeredScope === pwa.expectedScope,
+      'WebAssembly test target must install as a scoped per-game PWA');
+
     const indexed = await page.evaluate(async () => {
       const listed = Module.ccall('KotonohaWebSelfTestRemoteListContains',
         'number', ['string', 'string'],
