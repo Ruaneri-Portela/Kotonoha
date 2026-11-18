@@ -11,6 +11,7 @@ on:
       - "tools/generate_pwa_icons.py"
       - "tools/test_pwa_worker.js"
       - "tools/test_preload_cache.js"
+      - "tools/test_web_locales.js"
       - "tools/serve_web.py"
       - "lib/web/**"
       - "buildsystems/cmake/pwa.webmanifest.in"
@@ -56,6 +57,7 @@ on:
       - "tools/generate_pwa_icons.py"
       - "tools/test_pwa_worker.js"
       - "tools/test_preload_cache.js"
+      - "tools/test_web_locales.js"
       - "tools/serve_web.py"
       - "lib/web/**"
       - "buildsystems/cmake/pwa.webmanifest.in"
@@ -117,6 +119,7 @@ jobs:
           node tools/check_web_shell.js
           node tools/test_pwa_worker.js
           node tools/test_preload_cache.js
+          node tools/test_web_locales.js
           node --check tools/web_selftest.js
       - name: Test nested Python.framework cleanup without macOS SDK
         run: cmake -P tools/test_nested_python_bundle.cmake
