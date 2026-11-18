@@ -69,7 +69,8 @@ def games = [
   summerRadish  : ['summer-radish-vacation', 'SummerRadish', 'me.hirameki.kotonoha.summerradishvacation', 'Summer Radish Vacation!!'],
   kirikiri      : ['kirikiri', 'Kirikiri', 'me.hirameki.kotonoha.kirikiri', 'KiriKiri'],
   lucaSystem    : ['luca-system', 'LucaSystem', 'me.hirameki.kotonoha.lucasystem', 'Luca System'],
-  pmail         : ['pmail', 'Pmail', 'me.hirameki.kotonoha.pmail', 'Pure Mail']
+  pmail         : ['pmail', 'Pmail', 'me.hirameki.kotonoha.pmail', 'Pure Mail'],
+  n2System      : ['n2system', 'N2SystemGame', 'me.hirameki.kotonoha.n2system', 'N2System Game']
 ]
 
 android {

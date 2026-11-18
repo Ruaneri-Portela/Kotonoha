@@ -1,0 +1,4 @@
+# Ignore commercial game assets
+*
+!.gitignore
+!README.txt

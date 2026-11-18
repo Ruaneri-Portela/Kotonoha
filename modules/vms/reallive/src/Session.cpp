@@ -433,6 +433,13 @@ bool Session::memory(const CommandElement &c) {
     }
     break;
   }
+  case 5: {
+    auto a = ref(0), b = ref(1);
+    int temp = int(*a);
+    *a = int(*b);
+    *b = temp;
+    break;
+  }
   case 6: {
     auto dest = ref(0);
     int off = num(1);

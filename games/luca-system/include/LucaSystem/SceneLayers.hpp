@@ -7,12 +7,19 @@
 #include <vector>
 
 namespace LucaSystem {
-// Lightweight scene state: original image asset IDs plus screen positions.
+// Lightweight scene state: original image asset IDs plus screen positions,
+// opacity, scaling, rotation and priority parameters.
 // Rendering belongs to SDL; this stage/commit/transition clock is testable
 // without an engine, GPU or original AIR assets.
 struct SceneObject {
   std::uint32_t id = 0;
   int x = 0, y = 0;
+  float alpha = 1.0f;
+  float scaleX = 1.0f, scaleY = 1.0f;
+  float rotation = 0.0f;
+  int priority = 0;
+  bool visible = true;
+  std::uint8_t r = 255, g = 255, b = 255;
 };
 // Width of an object's source rectangle revealed to the left of the
 // screen-space wipe boundary. Crop source and destination by this SAME width.
@@ -41,6 +48,23 @@ public:
       throw std::runtime_error("LucaSystem object layer limit exceeded");
     pending_.push_back(object);
   }
+  template <typename F>
+  bool updateObject(std::uint32_t id, F &&modifier) {
+    bool found = false;
+    for (auto &obj : visible_) {
+      if (obj.id == id) {
+        modifier(obj);
+        found = true;
+      }
+    }
+    for (auto &obj : pending_) {
+      if (obj.id == id) {
+        modifier(obj);
+        found = true;
+      }
+    }
+    return found;
+  }
   void commit(std::uint64_t now, std::uint64_t durationMs,
               SceneTransition transition = SceneTransition::Crossfade) {
     if (pending_.empty()) return;
@@ -51,6 +75,10 @@ public:
       outgoing_.clear();
     visible_.insert(visible_.end(), pending_.begin(), pending_.end());
     pending_.clear();
+    std::stable_sort(visible_.begin(), visible_.end(),
+                     [](const SceneObject &a, const SceneObject &b) {
+                       return a.priority < b.priority;
+                     });
     began_ = now;
     duration_ = duration;
     transition_ = transition;
