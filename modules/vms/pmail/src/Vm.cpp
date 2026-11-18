@@ -552,8 +552,10 @@ bool Vm::step() {
     kind = 4;
     break;
   case 0x20:
-    val = imm;
-    kind = 1;
+    if ((imm & 0xf000u) <= 0x5000u) {
+      val = imm;
+      kind = 1;
+    }
     break;
   case 0x40:
   case 0x42:
@@ -650,6 +652,10 @@ bool Vm::step() {
     pc_ = uint32_t(s.pc);
     break;
   }
+  case 0x07:
+  case 0x08:
+    // pmail.exe:0x004026aa — user-function entry/exit boundary markers (no-op).
+    break;
   case 0x09:
     if (((acc_ >> 16) & 0xf) == 2) {
       lines_.push_back({acc_ >> 20, acc16});

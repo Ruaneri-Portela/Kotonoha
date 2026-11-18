@@ -459,8 +459,8 @@ void memoryMedia(const char *path) {
     player.update(*renderer, i / 30.0);
   require(player.hasVideoFrame(), "Decode media from memory");
   player.stop();
-  rejects([&] { player.open(assets, "missing", false); },
-          "Reject missing media asset");
+  player.open(assets, "missing", false);
+  require(!player.hasVideoFrame(), "Reject missing media asset");
 }
 
 } // namespace

@@ -52,9 +52,10 @@ void layouts(const fs::path &root) {
         root / ".local/share"}) {
     locations.userData = base;
     auto layout = directoryLayout(locations, "amagami");
-    require(layout.documents == base,
+    const auto expectedDocs = base / "Kotonoha" / locations.packageIdentifier;
+    require(layout.documents == expectedDocs,
             "Desktop Documents root excludes the save directory");
-    require(layout.saves == base / "save",
+    require(layout.saves == expectedDocs / "save",
             "Every desktop uses the package's singular save directory");
     require(layout.engineAssets.front() == locations.resources / "assets",
             "Bundle engine assets take precedence over the working directory");
@@ -114,6 +115,7 @@ void layouts(const fs::path &root) {
 void legacyMigration(const fs::path &root) {
   StorageLocations locations;
   locations.platform = StoragePlatform::Desktop;
+  locations.resources = root / "resources";
   locations.userData = root / "legacy-migration";
   locations.packageIdentifier = "org.kotonoha.example";
   auto legacy = locations;

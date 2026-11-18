@@ -73,6 +73,30 @@ std::string readUtf8String(const std::vector<std::uint8_t> &bytes,
 
 } // namespace
 
+std::string ReadLsUtf16(const std::vector<std::uint8_t> &bytes,
+                        size_t &cursor) {
+  return readUtf16String(bytes, cursor);
+}
+
+std::string ReadLsUtf8(const std::vector<std::uint8_t> &bytes,
+                       size_t &cursor) {
+  if (cursor + 2 > bytes.size())
+    return {};
+  const unsigned encoded =
+      unsigned(bytes[cursor]) | (unsigned(bytes[cursor + 1]) << 8);
+  cursor += 2;
+  const size_t length =
+      encoded == 0 ? 0u
+                   : (encoded >= 0x8000u ? (0x10000u - encoded) : size_t(encoded));
+  if (cursor + length > bytes.size())
+    return {};
+  std::string text(bytes.begin() + cursor, bytes.begin() + cursor + length);
+  cursor += length;
+  if (cursor < bytes.size() && bytes[cursor] == 0)
+    ++cursor;
+  return text;
+}
+
 Script::Script(std::string name, std::vector<std::uint8_t> data)
     : name_(std::move(name)), data_(std::move(data)) {
   parse();

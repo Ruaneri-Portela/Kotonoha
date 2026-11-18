@@ -89,4 +89,9 @@ std::string Disassemble(const ScriptInstruction &inst);
 // converted with Kotonoha::ShiftJisToUtf8).
 std::vector<std::string> ExtractShiftJisStrings(std::string_view bytes);
 
+// Decode LucaSystem length-prefixed UTF-8 (len = encoded ? 0x10000 - encoded : 0)
+// and UTF-16LE strings from instruction parameter payloads.
+std::string ReadLsUtf8(const std::vector<std::uint8_t> &bytes, size_t &cursor);
+std::string ReadLsUtf16(const std::vector<std::uint8_t> &bytes, size_t &cursor);
+
 } // namespace LucaSystem

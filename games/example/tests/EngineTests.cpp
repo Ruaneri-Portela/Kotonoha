@@ -813,8 +813,8 @@ void testRuntime(Kotonoha::Engine &engine) {
 void testMedia(Kotonoha::Engine &engine, const char *path) {
   using namespace Kotonoha;
   MediaPlayer video;
-  rejects([&] { video.open("/missing/kotonoha.mp4", false); },
-          "Missing media reported explicitly");
+  video.open("/missing/kotonoha.mp4", false);
+  require(!video.hasVideoFrame(), "Missing media stops cleanly");
   video.open(path, false);
   video.update(engine.GetRenderer(), 0);
   require(video.hasVideoFrame(), "Video decodes first frame");

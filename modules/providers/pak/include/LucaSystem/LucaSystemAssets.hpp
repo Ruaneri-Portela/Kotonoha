@@ -114,6 +114,14 @@ public:
   Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &id) const override;
   std::vector<std::uint8_t> readAsset(uint32_t id) const;
   std::vector<std::uint8_t> readImageAsset(uint32_t id) const;
+  std::vector<std::uint8_t> readVoiceAsset(uint32_t id) const;
+  std::vector<std::uint8_t> readBgmAsset(uint32_t id) const;
+  std::vector<std::uint8_t> readSeAsset(uint32_t id) const;
+  bool hasVoiceAsset(uint32_t id) const;
+  bool hasBgmAsset(uint32_t id) const;
+  bool hasSeAsset(uint32_t id) const;
+  std::unique_ptr<Kotonoha::AssetStream>
+  openStream(const std::string &id) const override;
   std::vector<std::string>
   listAsset(const std::string &prefix = {}) const override;
   std::string localPathAsset(const std::string &id) const override;
@@ -124,6 +132,7 @@ public:
 
 private:
   std::filesystem::path directory_;
+  std::string prefix_;
   std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
   std::unique_ptr<PakArchive> paramPak_;
   std::unique_ptr<PakArchive> scriptPak_;
@@ -136,9 +145,13 @@ private:
   std::map<std::string, const PakArchive *> idToPak_;
   std::map<uint32_t, const PakArchive *> numericIdToPak_;
   // Numeric ids are only unique inside a resource class. In particular AIR
-  // reuses low ids in SCRIPT, fonts, BGCG and VOICE, so drawing must never use
-  // the generic first-mounted numeric map.
+  // reuses low ids in SCRIPT, fonts, BGCG and VOICE, so drawing/audio must use
+  // resource-class-specific maps.
   std::map<uint32_t, const PakArchive *> imageIdToPak_;
+  std::map<uint32_t, const PakArchive *> voiceIdToPak_;
+  std::map<uint32_t, const PakArchive *> bgmIdToPak_;
+  std::map<uint32_t, const PakArchive *> seIdToPak_;
+  std::string resolveLooseId(const std::string &id) const;
   void mountPak(const std::string &file);
 };
 

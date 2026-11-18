@@ -35,6 +35,7 @@ struct App {
   struct Game {
     LucaSystem::LucaSystemRuntime runtime;
     Kotonoha::Engine engine;
+    ~Game() { runtime.shutdown(); }
     Game(std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> a,
          Kotonoha::EngineOptions o)
         : runtime(a), engine(runtime, withAssets(std::move(o), std::move(a))) {}

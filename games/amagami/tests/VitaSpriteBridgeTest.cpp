@@ -140,8 +140,9 @@ int main() {
     rejects([&] {
       bridge.primitive("Sprite", "animate", false, original, 8, {});
     }); // Now implemented with strict native arity.
-    check(!bridge.primitive("Sprite", "spin", false, original, 12, {}),
-          "Unsupported spin remains an explicit VM error");
+    rejects([&] {
+      bridge.primitive("Sprite", "spin", false, original, 12, {});
+    }); // Spin is implemented with strict native arity.
     rejects([&] {
       bridge.primitive("BG_Picture", "spawn", false, original, 1, {});
     }); // BG_Picture now exists, with strict native argument count.

@@ -54,7 +54,7 @@ foreach(game IN LISTS KOTONOHA_GAMES)
     list(GET fields 1 game_id)
     list(GET fields 2 game_directory)
 
-    if(KOTONOHA_BUILD_${game_option})
+    if(KOTONOHA_BUILD_${game_option} AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${game_directory}/CMakeLists.txt")
         list(APPEND _KOTONOHA_ENABLED_GAME_DETAILS "${game_id}|${game_directory}")
         add_subdirectory("${game_directory}")
     endif()

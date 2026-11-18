@@ -47,8 +47,18 @@ if(BUILD_TESTING)
   target_include_directories(LucaSystemSceneLayersTests PRIVATE include)
   target_compile_features(LucaSystemSceneLayersTests PRIVATE cxx_std_17)
   add_test(NAME LucaSystem.SceneLayers COMMAND LucaSystemSceneLayersTests)
+
+  add_executable(LucaSystemRetailAirFlowTests tests/RetailAirFlowTest.cpp)
+  target_link_libraries(LucaSystemRetailAirFlowTests PRIVATE luca_system_formats)
+  if(LUCA_SYSTEM_TEST_DATA AND EXISTS "${LUCA_SYSTEM_TEST_DATA}")
+    add_test(NAME LucaSystem.RetailAirFlow
+        COMMAND LucaSystemRetailAirFlowTests "${LUCA_SYSTEM_TEST_DATA}")
+    set_tests_properties(LucaSystem.RetailAirFlow PROPERTIES
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+        TIMEOUT 120)
+  endif()
 endif()
 
 if(BUILD_TESTING)
-    kotonoha_label_directory_tests()
+    kotonoha_label_directory_tests(REAL LucaSystem.RetailAirFlow)
 endif()

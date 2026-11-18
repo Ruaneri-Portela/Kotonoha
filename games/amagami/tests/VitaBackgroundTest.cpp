@@ -126,8 +126,13 @@ int main() {
       malformed = true;
     }
     check(malformed, "Reject malformed BG IDs");
-    check(!bridge.primitive("BG_Picture", "", false, bg, 14, {}),
-          "Unported background rotation must not be silently ignored");
+    bool spinArityRejected = false;
+    try {
+      (void)bridge.primitive("BG_Picture", "", false, bg, 14, {});
+    } catch (const std::exception &) {
+      spinArityRejected = true;
+    }
+    check(spinArityRejected, "BG_Picture #14 enforces spin native arity");
     std::cout << "Vita BG_Picture native/SDL rendering tests passed\n";
     return 0;
   } catch (const std::exception &error) {

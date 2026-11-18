@@ -245,8 +245,12 @@ VarValue VariableStore::evaluate(std::string_view expr) const {
     }
   }
 
-  // Variable lookup
-  return get(s);
+  // Variable lookup (NsScript variables start with $, @, or #)
+  if (!s.empty() && (s[0] == '$' || s[0] == '@' || s[0] == '#'))
+    return get(s);
+  if (integers_.count(s) || strings_.count(s) || flags_.count(s))
+    return get(s);
+  return std::string(s);
 }
 
 bool VariableStore::evaluateBool(std::string_view expression) const {

@@ -645,6 +645,8 @@ void PmailGame::returnToTitle() {
   unhandledNativeSites_.clear();
   sprites_.clear();
   spriteSlots_.clear();
+  endingVignettes_.clear();
+  staffRoll_ = {};
   animations_.clear();
   background_.clear();
   message_.clear();
@@ -776,8 +778,41 @@ bool PmailGame::popCall() {
   return true;
 }
 
+bool PmailGame::skipStaffRoll() {
+  std::lock_guard lock(mutex_);
+  if (!staffRoll_.active)
+    return false;
+  char card[32];
+  std::snprintf(card, sizeof(card), "END%02d_03", staffRoll_.category);
+  background_ = card;
+  staffRoll_.active = false;
+  if (stopMusic)
+    stopMusic();
+  vm_.unblock();
+  ++sceneVersion_;
+  return true;
+}
+
 void PmailGame::advanceAnimation(uint32_t elapsedMs) {
   std::lock_guard lock(mutex_);
+  if (staffRoll_.active) {
+    staffRoll_.elapsedMs += std::min<uint32_t>(elapsedMs, 250);
+    if (staffRoll_.elapsedMs >= staffRoll_.durationMs) {
+      skipStaffRoll();
+    } else {
+      const int phase = std::clamp(
+          int((uint64_t(staffRoll_.elapsedMs) * 4) / staffRoll_.durationMs), 0,
+          3);
+      char card[32];
+      std::snprintf(card, sizeof(card), "END%02d_%02d", staffRoll_.category,
+                    phase);
+      if (background_ != card) {
+        background_ = card;
+        ++sceneVersion_;
+      }
+    }
+    return;
+  }
   if (!animating())
     return;
   auto &animation = animations_.back();
@@ -799,7 +834,7 @@ void PmailGame::advanceAnimation(uint32_t elapsedMs) {
 
 void PmailGame::pump(size_t maxSteps) {
   std::lock_guard lock(mutex_);
-  if (waiting_ || choosing_ || animating())
+  if (waiting_ || choosing_ || animating() || staffRoll_.active)
     return;
   if (audioWait_ != AudioWait::None) {
     bool playing = false;
@@ -853,12 +888,16 @@ bool PmailGame::choose(size_t i) {
   std::lock_guard lock(mutex_);
   if (!choosing_ || i >= choiceText_.size())
     return false;
+  const std::string selectedText = choiceText_[i];
   if (i < choiceValue_.size())
     vm_.setVar(choiceVar_, uint32_t(choiceValue_[i]));
   choosing_ = false;
   choiceText_.clear();
   choiceValue_.clear();
+  if (onChoiceSelected && !selectedText.empty())
+    onChoiceSelected(selectedText);
   vm_.unblock();
+  ++sceneVersion_;
   return true;
 }
 
@@ -1315,29 +1354,25 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
   };
 
   switch (id) {
-  case 1:
-  case 4:
-  case 7: {
+  case 1: {
     flushLines();
-    // sys 4 carries text as string args in PMAIL; avoid duplicating if already
-    // queued.
-    bool haveQueued = !message_.empty() || !messageQueue_.empty();
+    if (!message_.empty()) {
+      waiting_ = true;
+      vm.block();
+    }
+    break;
+  }
+  case 4: {
+    flushLines();
+    // pmail.exe:0x423440 captures ONLY the first tag==2 string argument
+    // (args[2..3] in PRO1.obj carry trailing metadata and must not display).
+    const bool haveQueued = !message_.empty() || !messageQueue_.empty();
     if (!haveQueued) {
-      std::string text;
-      for (size_t i = 0; i < args.size(); ++i) {
-        if (args[i].tag() == 2) {
-          std::string s = vm.text(args[i]);
-          if (!s.empty()) {
-            if (!text.empty())
-              text += "\n";
-            text += s;
-          }
-        }
-      }
-      if (!text.empty()) {
-        std::string utf = text;
+      const std::string raw = firstString();
+      if (!raw.empty()) {
+        std::string utf = raw;
         try {
-          utf = ::Kotonoha::ShiftJisToUtf8(text);
+          utf = ::Kotonoha::ShiftJisToUtf8(raw);
         } catch (...) {
         }
         messageQueue_.push_back(expandPlayerNames(utf));
@@ -1349,6 +1384,65 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
       waiting_ = true;
       vm.block();
     }
+    break;
+  }
+  case 7: {
+    // pmail.exe:0x423250 — interactive route choice menu (252 call sites in
+    // script.dat; SYS 9 has 0 calls). Consumes queued op-0x09 lines and writes
+    // the 1-based selection (1..N) into the variable reference argument.
+    choiceText_.clear();
+    choiceValue_.clear();
+    choiceVar_ = 0;
+    for (const auto &a : args) {
+      if (a.tag() == 1) {
+        choiceVar_ = a.value();
+        break;
+      }
+    }
+    auto &queued = vm.lines();
+    int idx = 1;
+    for (const auto &l : queued) {
+      const std::string raw = vm.textAt(l.object, l.index);
+      if (raw.empty())
+        continue;
+      std::string utf = raw;
+      try {
+        utf = ::Kotonoha::ShiftJisToUtf8(raw);
+      } catch (...) {
+      }
+      choiceText_.push_back(expandPlayerNames(utf));
+      choiceValue_.push_back(idx++);
+    }
+    queued.clear();
+    if (choiceText_.empty()) {
+      for (const auto &a : args) {
+        if (a.tag() == 2) {
+          const std::string raw = vm.text(a);
+          if (raw.empty())
+            continue;
+          std::string utf = raw;
+          try {
+            utf = ::Kotonoha::ShiftJisToUtf8(raw);
+          } catch (...) {
+          }
+          choiceText_.push_back(expandPlayerNames(utf));
+          choiceValue_.push_back(idx++);
+        }
+      }
+    }
+    if (!choiceText_.empty()) {
+      choosing_ = true;
+      vm.block();
+      ++sceneVersion_;
+    }
+    break;
+  }
+  case 21: {
+    // pmail.exe:0x423400 — compiled-out debug string trace; resolves tag==2
+    // string references (caching their owning object) and returns immediately.
+    for (const auto &a : args)
+      if (a.tag() == 2)
+        (void)vm.text(a);
     break;
   }
   case 2:
@@ -1782,23 +1876,39 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     // Original redraw/commit operation; the renderer is already retained.
     ++sceneVersion_;
     break;
-  case 64:
-  case 69:
-    if (id == 69) {
-      int c[3] = {0, 0, 0}, n = 0;
-      for (const auto &a : args)
-        if (a.tag() == 0 && n < 3)
-          c[n++] = std::clamp(int(a.value()), 0, 255);
-      background_.clear();
+  case 64: {
+    // pmail.exe:0x4244b0 -> 0x40c3a0 scene transition (type, param, speed).
+    // Mode 7 (0x4244e9) explicitly loads tall CG hiro17.DIB (800x970) and pans.
+    const int type = argInt(0);
+    const int param = argInt(1);
+    const int speed = argInt(2);
+    if (type == 7) {
+      background_ = "hiro17";
       sprites_.clear();
       animations_.clear();
       clearComputerOverlay();
-      filled_ = true;
-      fillColor_ = uint32_t(c[0] << 16 | c[1] << 8 | c[2]);
-      ++sceneVersion_;
+      filled_ = false;
     }
-    // Transitions not fully timed yet; do not block.
+    lastTransition_ = {type, param, speed, ++transitionVersion_};
+    ++sceneVersion_;
+    if (onTransition)
+      onTransition(type, param, speed);
     break;
+  }
+  case 69: {
+    int c[3] = {0, 0, 0}, n = 0;
+    for (const auto &a : args)
+      if (a.tag() == 0 && n < 3)
+        c[n++] = std::clamp(int(a.value()), 0, 255);
+    background_.clear();
+    sprites_.clear();
+    animations_.clear();
+    clearComputerOverlay();
+    filled_ = true;
+    fillColor_ = uint32_t(c[0] << 16 | c[1] << 8 | c[2]);
+    ++sceneVersion_;
+    break;
+  }
   case 101:
     if (sePlaying && sePlaying()) {
       audioWait_ = AudioWait::SeSkippable;
@@ -1854,12 +1964,52 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     vm.block();
     break;
   }
+  case 211: {
+    // pmail.exe:0x422780 -> 0x40f070 ending staff roll (pm_end.obj).
+    // Args: (heroineCategory 3..9, bgmTrack 23|26).
+    const int cat = std::clamp(argInt(0), 3, 9);
+    const int bgm = argInt(1);
+    if (bgm > 0 && playMusic) {
+      char track[32];
+      std::snprintf(track, sizeof(track), "sound/mm%03d", bgm);
+      playMusic(track);
+    }
+    message_.clear();
+    messageQueue_.clear();
+    speakerName_.clear();
+    sprites_.clear();
+    animations_.clear();
+    clearComputerOverlay();
+    filled_ = false;
+    staffRoll_.category = cat;
+    staffRoll_.bgmTrack = bgm;
+    staffRoll_.elapsedMs = 0;
+    staffRoll_.durationMs = 48000;
+    staffRoll_.vignettes = endingVignettes(cat);
+    char card[32];
+    std::snprintf(card, sizeof(card), "END%02d_%02d", cat,
+                  interactiveStaffRoll_ ? 0 : 3);
+    background_ = card;
+    if (interactiveStaffRoll_) {
+      staffRoll_.active = true;
+      vm.block();
+    } else {
+      staffRoll_.active = false;
+    }
+    ++sceneVersion_;
+    break;
+  }
   case 214: {
-    // sprite/resource registration/preload: (slot, name, ?, ?)
-    int slot = argInt(0);
-    std::string name = args.size() > 1 ? vm.text(args[1]) : firstString();
-    if (slot >= 0 && !name.empty())
+    // pmail.exe:0x422600 — registers ending .EDG cut-in lists per heroine
+    // category (start.obj:23..713) as well as sprite/voice associations.
+    const int slot = argInt(0);
+    const std::string name = args.size() > 1 ? vm.text(args[1]) : firstString();
+    if (slot >= 0 && !name.empty()) {
       spriteSlots_[slot] = name;
+      auto &list = endingVignettes_[slot];
+      if (std::find(list.begin(), list.end(), name) == list.end())
+        list.push_back(name);
+    }
     break;
   }
   case 215: {
