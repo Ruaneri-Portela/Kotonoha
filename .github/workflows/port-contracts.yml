@@ -6,6 +6,13 @@ on:
       - "games/**"
       - "lib/include/Kotonoha/Filesystem/GameSourceProbe.hpp"
       - "lib/tests/GameSourceProbeTests.cpp"
+      - "lib/src/core/CommandLine.cpp"
+      - "lib/include/Kotonoha/core/Config.hpp"
+      - "lib/tests/CommandLineTests.cpp"
+      - "modules/providers/n2/**"
+      - "tools/ValidateBuildMetadata.py"
+      - "docs/PORT_COMPATIBILITY*"
+      - "buildsystems/xcode/Kotonoha.xcodeproj/**"
       - "buildsystems/cmake/KotonohaGames.cmake"
       - "buildsystems/xcode/ProjectManifest.json"
       - "tools/check_port_contracts.py"
@@ -36,3 +43,4 @@ jobs:
         run: |
           python3 tools/check_port_contracts.py
           python3 tools/check_game_platform_isolation.py
+          python3 tools/ValidateBuildMetadata.py
