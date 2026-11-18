@@ -820,6 +820,7 @@
                         try {
                             const origin = httpRoot();
                             let manifest = null;
+                            let networkManifestError = false;
                             const timeout = new AbortController();
                             const deadline = setTimeout(() => timeout.abort(), 5000);
                             try {
@@ -844,12 +845,41 @@
                                     }
                                 }
                             } catch (error) {
-                                // Missing, invalid or CORS-blocked manifests do
-                                // not disable normal manifest-free Fetch.
+                                // Network outages may still use the last indexed
+                                // manifest stored in IndexedDB for this game.
+                                networkManifestError = true;
                                 console.warn("[Kotonoha] Índice HTTP opcional indisponível:",
                                     error);
                             } finally {
                                 clearTimeout(deadline);
+                            }
+                            if (!manifest && networkManifestError &&
+                                window.KotonohaAssetCache) {
+                                const cached = await window.KotonohaAssetCache
+                                    .cachedManifest(origin.href);
+                                if (cached) {
+                                    try {
+                                        const parsed = JSON.parse(cached);
+                                        if (parsed && Array.isArray(parsed.entries) &&
+                                            parsed.entries.length > 0) {
+                                            manifest = cached;
+                                            console.info("[Kotonoha] Índice restaurado do IndexedDB");
+                                        }
+                                    } catch (error) {
+                                        console.warn("[Kotonoha] Índice local inválido:", error);
+                                    }
+                                }
+                            }
+                            if (manifest && !networkManifestError &&
+                                window.KotonohaAssetCache) {
+                                try {
+                                    await window.KotonohaAssetCache.storeManifest(
+                                        origin.href, manifest);
+                                } catch (error) {
+                                    // Online gameplay is still supported without
+                                    // persistent metadata storage.
+                                    console.warn("[Kotonoha] Índice não persistido:", error);
+                                }
                             }
                             let indexed = false;
                             if (manifest) {
