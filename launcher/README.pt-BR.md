@@ -13,7 +13,7 @@ A pasta `launcher/` fornece o launcher unificado multi-motor e o registro modula
 
 2. **Motores Construídos como Bibliotecas Modulares (`EngineLibraryRegistry`)**:
    - Mapeia cada `EngineKind` para sua biblioteca CMake modular (`luca_system_formats`, `reallive_port`, `kirikiri_formats`, `doki_doki_literature_club`, `n2system_formats`, `ponscripter_port`, `amagami_port`, `school_days`, `PmailPort`, `snow_radish_vacation`, `summer_radish_vacation`, `zero_no_tsukaima`).
-   - Suporta troca de motor em processo via `EngineLibraryFactory` ou despacho modular transparente (`launchModularPortProcess`).
+   - Inicia executáveis modulares no desktop. `EngineLibraryFactory` permite implementações futuras, mas nenhuma fábrica de runtime em processo é registrada por padrão.
 
 3. **Divisão da Pasta de Save e Config por Jogo (`splitSavesByGame`)**:
    - Isola `KOTONOHA_USER_DATA_DIR` e `settings.json` em `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/Kotonoha/<packageId>/save` para que múltiplos títulos do mesmo motor (ex.: `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` no RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` no CMP; `ZeroNoTsukaima0..2` no Zero) nunca entrem em conflito.
@@ -22,11 +22,13 @@ A pasta `launcher/` fornece o launcher unificado multi-motor e o registro modula
 
 ```bash
 # Escanear uma biblioteca completa de jogos e exibir a matriz de motores e perfis de save
-KotonohaLauncher --scan-library "/Volumes/Nero 256GB/KotonohaAssets"
+KotonohaLauncher --scan-library "/caminho/para/biblioteca-de-jogos"
 
 # Detectar um único jogo (pasta ou imagem de disco)
-KotonohaLauncher --detect "/Volumes/Nero 256GB/KotonohaAssets/SayaNoUta_PT-BR"
+KotonohaLauncher --detect "/caminho/para/biblioteca-de-jogos/SayaNoUta_PT-BR"
 
 # Abrir o Launcher Unificado ImGui pré-carregado com uma biblioteca
-KotonohaLauncher --library "/Volumes/Nero 256GB/KotonohaAssets"
+KotonohaLauncher --library "/caminho/para/biblioteca-de-jogos"
 ```
+
+O launcher independente é compilado no desktop (Linux, macOS e Windows), mas não no Android nem no WebAssembly. Detecção de fontes e testes sintéticos não comprovam compatibilidade integral com os jogos originais.
