@@ -83,6 +83,7 @@ bool SchoolDaysMenuBarPresenter::Open(SDL_Renderer* renderer,
     fullBarSuppressed_ = false;
     meterOnly_ = false;
     choiceTailFrozen_ = false;
+    choiceTailFeelingVisible_ = false;
     speedIndex_ = 0;
     replayIndicatorAvailable_ = false;
     replayIndicatorControl_ = 24;
@@ -111,6 +112,7 @@ void SchoolDaysMenuBarPresenter::Close() {
     opened_ = false;
     meterOnly_ = false;
     choiceTailFrozen_ = false;
+    choiceTailFeelingVisible_ = false;
     replayIndicatorAvailable_ = false;
     replayIndicatorControl_ = 24;
     replayIndicatorAlpha_ = 255;
@@ -340,10 +342,13 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
     // Native persistent AUTO ON, selected x2..x32 and the Replay Data status
     // label survive the ordinary hover-bar fade. A replay-opacity selector
     // controls that label independently; only chrome obeys barAlpha_.
-    const RenderVisibility visibility = choiceTailFrozen_
-        ? VisibilityForFrozenChoiceTail(barAlpha_, fullBarSuppressed_)
-        : VisibilityForState(barAlpha_, fullBarSuppressed_, meterOnly_,
-                             feelingLatch_);
+    const RenderVisibility visibility = meterOnly_
+        ? VisibilityForState(barAlpha_, fullBarSuppressed_, true)
+        : (choiceTailFrozen_
+             ? VisibilityForFrozenChoiceTail(barAlpha_, fullBarSuppressed_,
+                                             choiceTailFeelingVisible_)
+             : VisibilityForState(barAlpha_, fullBarSuppressed_, false,
+                                  feelingLatch_));
     const PersistentTransport persistent = choiceTailFrozen_
         ? PersistentTransport{}
         : PersistentTransportForState(
@@ -355,9 +360,9 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer* renderer,
     const uint8_t chromeChipAlpha = visibility.chrome ? barAlpha_ : 255;
     const uint8_t meterAlpha = MeterAlphaForState(
         barAlpha_, visibility.chrome, feelingLatch_, meterOnly_,
-        choiceTailFrozen_);
-    if (!visibility.meter && !persistent.selectedSpeed && !persistent.autoOn &&
-        replayAlpha == 0)
+        choiceTailFrozen_ && choiceTailFeelingVisible_);
+    if (!visibility.chrome && !visibility.meter &&
+        !persistent.selectedSpeed && !persistent.autoOn && replayAlpha == 0)
         return true;
 
     SDL_SetTextureAlphaMod(base_, barAlpha_);

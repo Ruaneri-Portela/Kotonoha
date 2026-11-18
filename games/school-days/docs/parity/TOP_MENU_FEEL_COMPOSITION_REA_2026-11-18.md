@@ -29,17 +29,20 @@ player-observed UX, and gaps in proving complete retail equivalence.
    chrome alpha. Meter FSM capture at `0x10026B66..0x10026BC2` explicitly
    initializes these meter sprites to full ARGB `0xFFFFFFFF`.
 4. **Input permission is a separate mechanism.** The MenuBar input handler
-   at `0x10024100` checks host vtable `+0x13C` (EXE `0x0042BF70`, principal
-   host `+0x228`) at `0x10024126` before hit-testing/hover. A nonzero result
+   at `0x10024100` checks host vtable `+0x13C` (EXE `0x0042BF70`,
+   `SysMenu` interface `+0x228` = *outer host `+0x254`*) at `0x10024126`
+   before hit-testing/hover. A nonzero result
    rejects input early; `0x10023FB0` separately gates individual controls.
    The meter FSM `0x10026B40` itself only updates feelings (1500 ms
    interpolation + 2000 ms hold), dispatches directional sound codes 3/4,
    and eventually clears its own latch. Neither the meter code nor the
    button-permission function directly waits for an OGG to finish.
-5. **The choice's `+0x228` is NOT the menu-host `+0x228`.** The SETSELECT
+5. **Three unrelated `+0x228` offsets must not be conflated.** The SETSELECT
    routine `EXE:0x00431740` accesses a *choice context object* and compares
-   its own `+0x228` timing value. That field must not be conflated with the
-   principal host `+0x228` checked through MenuBar vtable `+0x13C`.
+   its own `+0x228` deadline. The `SysMenu` interface is a subobject rooted at
+   `outerHost+0x2C`, so its `+0x228` is physically `outerHost+0x254`
+   (the **actual** MenuBar global input gate). The `outerHost+0x228` field
+   tracked by EXE `0x00426620` is a *third* and different 0..11 transition FSM.
 6. **Skip has a script-aware stop, not a free scene advance.** The native EXE
    event queue `0x00426DB0` dispatches `0x800A` (SkipToEnd/right, via
    vtable `+0xFC(2)` → `0x0042A4A0`) and `0x800E` (SuperSkip, via
@@ -64,21 +67,28 @@ skip/route state machine
 
 ## Kotonoha differences corrected
 
+**Correction to this report on 18 November, after further user-observed
+retail behavior:** an *unanswered* `SetSELECT` displays **choices only, no
+Feel meter**. The earlier implementation/documentation treating the pending
+choice itself as a meter-only state was wrong; see the post-choice state
+machine below. The visual alpha separation remains authentic, but does not
+imply the meter must always be visible.
+
 - `Runtime::menuBarProjection()` had `fullBarSuppressed=true` on an unresolved
-  prompt but `Runtime::updateMenuBar()` always called `SetMeterOnly(false)`.
-  This suppressed **the meter as well as** the surrounding controls. The new
-  `meterOnly` projection for an active, unresolved choice keeps the meter
-  drawable while hiding all Top Menu chrome and refusing mouse actions.
+  prompt and was previously changed to `meterOnly=true` while awaiting a
+  reply. That incorrectly displayed Feel during the actual choices. The
+  corrected projection hides both chrome and Feel while awaiting `SetSELECT`;
+  input remains protected.
 - `GameScene::renderMenuBar()` also returned early for every unresolved
-  choice, preventing even a corrected meter-only presenter from appearing.
-  Only the *input* handler retains that early return; the render path proceeds
-  to the meter-only projection while choices are open.
+  choice. Its render path is now allowed to execute, but the presenter hides
+  both parts during the prompt, displaying only the *conditional* later
+  post-choice effect; only the input handler retains the early rejection.
 - `SchoolDaysMenuBarPresenter::Render()` used a shared CHIP texture alpha,
   setting it to the hover `barAlpha_` before drawing both record 67 and the
   dynamic meter fill. This incorrectly faded or visually buried the meter
   with the Top Menu. The frame and dynamic fill now each get a separate full
-  alpha when the feeling latch, choice-only display, or outgoing frozen
-  choice state is active. The ordinary surrounding controls keep their native
+  alpha when the feeling latch or a real post-choice changed feeling
+  presentation is active. The ordinary surrounding controls keep their native
   300/1000 ms hover fade. The meter still uses regular alpha when no
   independent meter state is active.
 - The existing **choice-aware SkipToEnd/NextChoice barrier** and **frozen
@@ -86,24 +96,77 @@ skip/route state machine
   prompts dispatched during a transport fade. The fix makes no edits to
   engine `lib/`, retail media, or native save formats.
 
+## Corrected SetSELECT → Feel chronology
+
+The following sequence combines authenticated retail callsites and the
+player's direct visual observation (the latter is **not** a retail frame
+capture):
+
+1. **Prompt opens:** `EXE:0x00431740`, `0x0043181B..0x00431828` sends host
+   sound **5** (`SeView`); it also overrides effective playback to 1x. The
+   options are visible, but **neither Top Menu chrome nor the Feel meter**
+   should be displayed as a standalone UI.
+2. **Choice is confirmed or omitted:** selection index >=0 sends host sound
+   **1** (`SeSelect`) at `0x00431AA0..0x00431AAD`; omission/index -1 sends
+   sound **0** (`SeCancel`) at `0x00431AC1..0x00431ACE`; -2 remains pending.
+   `_SetFeeling@8` is called via `EXE:0x00431A32` for the committed path,
+   including index -1. That call does *not* prove nonzero points: it routes to
+   game-specific decisions and may leave both raw feelings unchanged.
+3. **Feeling value changes:** `SysMenu:0x10026B40` Capture reads raw `001`
+   and `002`. Detect at `0x10026C5C..0x10026D4C` emits host sound **3**
+   (`SeUp`) or **4** (`SeDown`) **only when one of the raw values actually
+   differs from the previous sample**, preferring `001`. If identical, it
+   enters PostTarget without the directional sound. The standalone meter
+   now appears only when this *real Detect event* occurs for a manually
+   selected (index >=0) choice; the prompt and unchanged/omitted outcomes
+   never enable it by the selection or feeling-update latch alone.
+   Upstream of Detect, RouteProc `_SetFeeling@8` at
+   `RouteProcSDHQ.dll:0x1000BBA0` dispatches route-specific effect tables.
+   `0x10005EB0` parses the resulting per-scene deltas and invokes writer
+   `0x10005C60`; the writer **returns on zero delta** at `0x10005C64`, but
+   for nonzero deltas writes the variable and only raises the callback
+   `interface+0x30(1)` if the variable name is exactly UTF-16 `001` or `002`
+   (`0x100551EC`, `0x100551F4`). This independently substantiates that a
+   mere invocation of `_SetFeeling` is not enough to cause Feel. The real
+   latch lives at **outerHost+0x79C** (SysMenu interface `+0x770`), not
+   `outerHost+0x770`. For omission `-1`, the route-specific branch may still
+   invoke the effect function; the decision to hide the *standalone* meter on
+   omission follows the user's original-game observation, not a proven
+   assertion that all omission routes have delta zero.
+4. **Effect and release:** changed Feel stays at full independent alpha;
+   sound and meter follow their individual authored durations, while menu
+   transport actions remain frozen. The precise original host input-unlock
+   timestamp is still unproven, so the existing conservative Kotonoha gate
+   is left unchanged and is not described as exact retail timing.
+
+Implementation: `choiceFeelEligible` distinguishes an actual selected option
+from omission; `choiceFeelVisible` is raised only by meter Detect code3/4.
+`VisibilityForFrozenChoiceTail(..., showMeter)` separates frozen controls
+from the optional Feel sprite, and `meterOnly` is now a **post-choice** state,
+never a pending-SetSELECT state. The condition for rendering chrome was also
+separated from the condition for rendering Feel, so a no-delta frozen menu
+can still be visually hovered without drawing an unearned meter.
+
 ## Limits / unresolved fidelity
 
 Static disassembly proves separate meter drawing, exact geometry and the
 feeling-latch alpha exception. It does **not** yet prove an exact frame at
-which the principal host's global input gate clears after every SETSELECT.
+which the outer host's `+0x254` input gate clears after every SETSELECT.
 The current Kotonoha post-choice release rule (next physical scene AND meter
 finished AND sound duration elapsed) remains a conservative implementation
 of the user's observed menu freeze, **not** an authenticated native equation.
 Similarly, a visual original-run witness is still needed to distinguish
-which idle chrome sprites are shown on hover while the host input gate is
+which idle chrome sprites are shown on hover while the input gate is
 nonzero. The OGG length is not itself evidence of an input unlock timer.
 
 Game-specific synthetic tests cover prompt meter projection, suppression of
 transport actions and click dispatch, alpha independence and repeated choice
 tails. `SchoolDaysMenuBarRuntimeTest` additionally uses two tiny generated,
 fully opaque **synthetic** PNG fixtures and reads actual SDL software-rendered
-pixels: while the choice owns the view, the meter's central sample is visible
-and the surrounding menu is absent; on a hovered frozen choice tail, chrome
-appears at its authored location but the same meter sample remains fully
-opaque and above it. Real-GPU and manual visual parity require a separate
+pixels: while the choice owns the view, **both Feel and chrome are absent**;
+after confirmation without delta, no standalone Feel appears, even if frozen
+chrome can be hovered; only a synthetic changed-Feel event renders the meter
+alone with full alpha; when frozen chrome becomes visible later, it does not
+obscure the meter. Timeout/-1 and unchanged choices also retain a hidden
+standalone Feel state. Real-GPU and manual visual parity require a separate
 QA playthrough.

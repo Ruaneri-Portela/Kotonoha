@@ -561,11 +561,9 @@ bool GameScene::handleMenuBarEvent(Kotonoha::EventRef event) {
 }
 
 void GameScene::renderMenuBar(Kotonoha::RendererRef renderer) {
-  // Even while an unresolved SETSELECT owns all input, the original game
-  // retains a separate feeling meter at the top. updateMenuBar() selects
-  // meter-only composition for that phase; never skip its render pass here.
-  // handleMenuBarEvent() independently prevents any Top Menu click from
-  // stealing the choice or bypassing the protected narrative boundary.
+  // The presenter explicitly hides both chrome and Feel for unresolved
+  // SETSELECT, while retaining the draw path for a later, delta-triggered
+  // post-choice meter. Input remains independently owned by the choice.
   if (menuBar.IsOpen()) {
     std::string error;
     if (!menuBar.Render(&renderer, &error)) {

@@ -249,6 +249,8 @@ class Runtime final : public Kotonoha::Runtime {
   // action inert until a new physical scene and its feeling-meter cue finish.
   bool choiceMenuFrozen = false;
   bool choiceMenuNextSceneBound = false;
+  bool choiceFeelEligible = false;
+  bool choiceFeelVisible = false;
   uint32_t choiceMenuCueStartedMs = 0;
   uint32_t choiceMenuCueDurationMs = 0;
   Kotonoha::SchoolDaysPromptInteraction choiceInteraction;
