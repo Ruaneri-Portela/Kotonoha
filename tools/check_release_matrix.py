@@ -73,4 +73,4 @@ if __name__ == "__main__":
         print(f"[Release matrix] {failure}", file=sys.stderr)
     if failures:
         raise SystemExit(1)
-    print("[Release matrix] 12 game slugs, native ZIPs, and Android flavors agree")
+    print("[Release matrix] Game slugs, native ZIPs, and Android flavors agree")
