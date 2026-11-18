@@ -60,7 +60,7 @@ bool validate(const std::string &path, std::string &info) {
     for (const char *marker :
          {"data.xp3", "patch.xp3", "startup.tjs", "startup.ks",
           "scenario/startup.ks", "scenario/first.ks", "first.ks",
-          "data/data.xp3", "data.xp3.001"}) {
+          "data/data.xp3"}) {
       if (Kotonoha::Filesystem::isGameSourceRegularFile(*fs, marker)) {
         info = std::string("Kirikiri virtual source detected: ") + marker;
         return true;
