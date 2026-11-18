@@ -25,8 +25,8 @@ int main() {
     auto object = std::make_shared<Pmail::ScriptObject>();
     object->id = 3;
     object->name = "synthetic-computer.obj";
-    object->strings = {"mail",  "hello", "12:30", "one",  "two",
-                       "$NO meets $HO", "ROOM", "etc00", "pm01"};
+    object->strings = {"mail",          "hello", "12:30", "one", "two",
+                       "$NO meets $HO", "ROOM",  "etc00", "pm01"};
     game.vm().registerObject(object);
     const auto call = [&](int id, std::vector<Pmail::Arg> args) {
       game.native(game.vm(), id, args);
@@ -124,9 +124,33 @@ int main() {
     call(215, {string(7)});
     call(215, {string(6)});
     check(game.extraUnlocked("etc00") && !game.extraUnlocked("ROOM") &&
-              game.unlockedExtras() ==
-                  std::vector<std::string>({"etc00"}),
+              game.unlockedExtras() == std::vector<std::string>({"etc00"}),
           "SYS 215 did not retain the native extra/gallery unlock set");
+    // SYS 212 -> pmail.exe:0x4225c0/0x41e9f0. The native omake menu starts at
+    // "no item" (0), wraps between 1..4, and writes the result back through
+    // the variable argument. Escape maps to 4 (EXIT).
+    const Pmail::Arg extrasVar = {uint32_t(1u << 16) | 0x2388};
+    call(212, {extrasVar});
+    check(game.extrasMenuActive() && game.extrasSelection() == 0 &&
+              game.vm().var(0x2388) == 0,
+          "SYS 212 did not open the native extras menu at item 0");
+    game.extrasMove(-1);
+    check(game.extrasSelection() == 4,
+          "SYS 212 up from the initial item must wrap to EXIT");
+    game.extrasMove(1);
+    check(game.extrasSelection() == 1,
+          "SYS 212 down from EXIT must wrap to CG MODE");
+    game.extrasHover(3);
+    check(game.extrasChoose(3) && !game.extrasMenuActive() &&
+              game.vm().var(0x2388) == 3,
+          "SYS 212 did not write the selected mode back to its variable");
+    call(212, {extrasVar});
+    game.extrasHover(2);
+    game.extrasMove(1);
+    check(game.extrasSelection() == 3,
+          "SYS 212 keyboard navigation did not advance from the hovered item");
+    check(game.extrasChoose(4) && game.vm().var(0x2388) == 4,
+          "SYS 212 Escape/EXIT did not return mode 4");
 
     game.setPlayerNames("Alice", "Bob");
     check(game.expandPlayerNames("$NO and $HO / $NO") ==

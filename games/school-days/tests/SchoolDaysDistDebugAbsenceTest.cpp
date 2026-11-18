@@ -26,8 +26,8 @@ void MustRejectDebugOption(const std::vector<std::string> &input) {
   try {
     parser.parse(static_cast<int>(argv.size()), argv.data());
   } catch (const std::exception &error) {
-    rejected = std::string(error.what()).find("Unknown option") !=
-               std::string::npos;
+    rejected =
+        std::string(error.what()).find("Unknown option") != std::string::npos;
   }
   Require(rejected, "DIST unexpectedly recognized a developer-only option");
   Require(options.enableMCP == baseline.enableMCP &&
@@ -55,8 +55,7 @@ int main() {
     std::cout << "SchoolDaysDistDebugAbsenceTest: PASS\n";
     return 0;
   } catch (const std::exception &error) {
-    std::cerr << "SchoolDaysDistDebugAbsenceTest: " << error.what()
-              << '\n';
+    std::cerr << "SchoolDaysDistDebugAbsenceTest: " << error.what() << '\n';
     return 2;
   }
 #else

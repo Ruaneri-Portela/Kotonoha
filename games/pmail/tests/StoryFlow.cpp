@@ -44,10 +44,10 @@ int main(int argc, char **argv) {
               << std::dec << " codeWords=" << object->codeWords << " ==\n";
     for (std::size_t i = begin; i < end; ++i) {
       const uint32_t w = object->word(i);
-      std::cerr << i << ": 0x" << std::hex << std::setw(8)
-                << std::setfill('0') << w << std::dec << "  op=0x" << std::hex
-                << (w >> 24) << " mode=0x" << ((w >> 16) & 0xff) << " imm=0x"
-                << (w & 0xffff) << std::dec;
+      std::cerr << i << ": 0x" << std::hex << std::setw(8) << std::setfill('0')
+                << w << std::dec << "  op=0x" << std::hex << (w >> 24)
+                << " mode=0x" << ((w >> 16) & 0xff) << " imm=0x" << (w & 0xffff)
+                << std::dec;
       const uint32_t imm = w & 0xffff;
       const uint32_t mode = (w >> 16) & 0xff;
       if (mode == 2 || mode == 5)
@@ -80,12 +80,15 @@ int main(int argc, char **argv) {
   const auto began = SDL_GetTicks();
   int messages = 0;
   bool started = false;
-  while (SDL_GetTicks() - began <
-             static_cast<uint64_t>(budgetSeconds) * 1000 &&
+  while (SDL_GetTicks() - began < static_cast<uint64_t>(budgetSeconds) * 1000 &&
          messages < maxMessages) {
     game.advanceAnimation(16);
     game.pump(10000);
-    if (game.atTitle()) {
+    if (game.extrasMenuActive()) {
+      // The native omake overlay is modal. Close it through EXIT so the
+      // trace can continue into the title script's extra.OBJ dispatch.
+      game.extrasChoose(4);
+    } else if (game.atTitle()) {
       if (started)
         break;
       game.titleChoose(titleChoice);

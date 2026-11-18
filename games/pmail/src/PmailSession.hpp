@@ -16,6 +16,7 @@ namespace Kotonoha::PmailPort {
 class PmailGame;
 class PmailComponents;
 class PmailTitleMenu;
+class PmailExtrasMenu;
 
 /**
  * PmailSession manages the high-level state of the PMAIL game instance.
@@ -71,6 +72,8 @@ private:
 
   bool HandleTitleEvent(Kotonoha::EventRef event, SDL_FPoint stagePoint,
                         bool haveStagePoint);
+  bool handleExtrasEvent(Kotonoha::EventRef event, SDL_FPoint stagePoint,
+                         bool haveStagePoint);
 
   std::shared_ptr<PmailGame> game_;
   Kotonoha::Engine &engine_;
@@ -78,6 +81,7 @@ private:
   std::unique_ptr<PmailComponents> components_;
 
   std::unique_ptr<PmailTitleMenu> titleMenu_;
+  std::unique_ptr<PmailExtrasMenu> extrasMenu_;
 
   // Status
   uint64_t lastUpdateMs_ = 0;

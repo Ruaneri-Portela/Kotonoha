@@ -32,8 +32,8 @@ std::string uniqueTemporary(const std::filesystem::path &path) {
   std::random_device random;
   std::filesystem::path temporary = path;
   temporary += ".pending." + std::to_string(tick) + "." +
-               std::to_string(sequence) + "." +
-               std::to_string(random()) + "." + std::to_string(random());
+               std::to_string(sequence) + "." + std::to_string(random()) + "." +
+               std::to_string(random());
   return temporary.u8string();
 }
 
@@ -61,14 +61,12 @@ bool writeBinaryFileAtomically(const std::filesystem::path &path,
   const auto status = std::filesystem::symlink_status(path, statusError);
   if (statusError && statusError != std::errc::no_such_file_or_directory)
     return fail(error, "Cannot inspect atomic file destination");
-  if (!statusError &&
-      (std::filesystem::is_symlink(status) ||
-       (std::filesystem::exists(status) &&
-        !std::filesystem::is_regular_file(status))))
+  if (!statusError && (std::filesystem::is_symlink(status) ||
+                       (std::filesystem::exists(status) &&
+                        !std::filesystem::is_regular_file(status))))
     return fail(error, "Atomic file destination is not a regular file");
-  const auto parent = path.parent_path().empty()
-                          ? std::filesystem::path(".")
-                          : path.parent_path();
+  const auto parent = path.parent_path().empty() ? std::filesystem::path(".")
+                                                 : path.parent_path();
   statusError.clear();
   const auto directory = std::filesystem::symlink_status(parent, statusError);
   if (statusError || !std::filesystem::is_directory(directory) ||
@@ -133,7 +131,8 @@ bool writeBinaryFileAtomically(const std::filesystem::path &path,
   if (!published)
     return fail(error, "Atomic file publish failed: " + renameError);
   if (fault == AtomicFileFault::DirectoryFlushAfter)
-    return fail(error, "Atomic file published; simulated durability uncertainty");
+    return fail(error,
+                "Atomic file published; simulated durability uncertainty");
   return true;
 }
 

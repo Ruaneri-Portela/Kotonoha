@@ -162,6 +162,19 @@ public:
   void titleHover(int index);
   void titleMove(int delta);
   bool titleChoose(int index);
+  // Native extras menu (pmail.exe:0x41e9f0, entered from sys 212). The
+  // original keeps 0 as "no item hovered" and returns 1..4 to the script.
+  bool extrasMenuActive() const {
+    std::lock_guard lock(mutex_);
+    return extrasMenu_;
+  }
+  int extrasSelection() const {
+    std::lock_guard lock(mutex_);
+    return extrasIndex_;
+  }
+  void extrasHover(int index);
+  void extrasMove(int delta);
+  bool extrasChoose(int index);
   bool ended() const {
     std::lock_guard lock(mutex_);
     return vm_.ended();
@@ -368,6 +381,9 @@ private:
   int titleCount_ = 3;
   int titleIndex_ = 1;
   int titleHover_ = 0;
+  bool extrasMenu_ = false;
+  int extrasIndex_ = 0;
+  uint32_t extrasMenuVar_ = 0;
   uint32_t choiceVar_ = 0;
   std::vector<std::string> choiceText_;
   std::vector<int> choiceValue_;

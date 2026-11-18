@@ -269,6 +269,8 @@ bool PmailGame::init() {
   messageQueue_.clear();
   lastRequestedMovie_.clear();
   movieWait_ = false;
+  extrasMenu_ = false;
+  extrasIndex_ = 0;
   clearComputerOverlay();
   return true;
 }
@@ -599,6 +601,8 @@ void PmailGame::deserialize(const std::string &data) {
   returningToTitle_ = false;
   lastRequestedMovie_.clear();
   movieWait_ = false;
+  extrasMenu_ = false;
+  extrasIndex_ = 0;
   // Runtime diagnostics belong to the live path, never to another save slot.
   unhandledNativeIds_.clear();
   unhandledNativeSites_.clear();
@@ -627,6 +631,8 @@ void PmailGame::returnToTitle() {
   waitUntil_ = 0;
   lastRequestedMovie_.clear();
   movieWait_ = false;
+  extrasMenu_ = false;
+  extrasIndex_ = 0;
   filled_ = false;
   voiceActor_ = -1;
   returningToTitle_ = true;
@@ -836,6 +842,39 @@ bool PmailGame::titleChoose(int index) {
   title_ = false;
   waiting_ = false;
   vm_.unblock();
+  return true;
+}
+
+void PmailGame::extrasHover(int index) {
+  std::lock_guard lock(mutex_);
+  if (!extrasMenu_)
+    return;
+  extrasIndex_ = index >= 0 && index <= 4 ? index : 0;
+}
+
+void PmailGame::extrasMove(int delta) {
+  std::lock_guard lock(mutex_);
+  if (!extrasMenu_ || delta == 0)
+    return;
+  // 0x41ec16/0x41ec66: the arrow keys wrap between 1 and 4, while 0 (no
+  // item) enters the list at either end.
+  if (delta < 0)
+    extrasIndex_ = extrasIndex_ <= 1 ? 4 : extrasIndex_ - 1;
+  else
+    extrasIndex_ = extrasIndex_ == 0 || extrasIndex_ == 4 ? 1
+                                                           : extrasIndex_ + 1;
+}
+
+bool PmailGame::extrasChoose(int index) {
+  std::lock_guard lock(mutex_);
+  if (!extrasMenu_ || index < 1 || index > 4)
+    return false;
+  // 0x4225c0 writes the menu result into the variable argument (0x402a50).
+  vm_.setVar(extrasMenuVar_, uint32_t(index));
+  extrasMenu_ = false;
+  extrasIndex_ = 0;
+  vm_.unblock();
+  ++sceneVersion_;
   return true;
 }
 
@@ -1465,10 +1504,29 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
       ++extrasVersion_;
     break;
   }
-  case 212:
-    // Native extra/omake menu mode initializer (observed in extra.OBJ:83).
-    // pmail.exe initializes the extra gallery mode state.
+  case 212: {
+    // pmail.exe:0x4225c0 -> 0x41e9f0. The first variable argument receives the
+    // selection (1 CG MODE, 2 KAIROKU MODE, 3 MUSIC MODE, 4 EXIT). The native
+    // menu is modal: the VM stays blocked until the player chooses.
+    uint32_t var = 0;
+    bool haveVar = false;
+    for (const auto &arg : args) {
+      if (arg.tag() == 1) {
+        var = arg.value();
+        haveVar = true;
+        break;
+      }
+    }
+    if (!haveVar)
+      break;
+    extrasMenuVar_ = var;
+    vm_.setVar(var, 0);
+    extrasIndex_ = 0;
+    extrasMenu_ = true;
+    vm_.block();
+    ++sceneVersion_;
     break;
+  }
   default: {
     // Unknown calls must remain visible rather than masquerading as working
     // no-ops. Capture the argument contract at each script+PC with a bounded

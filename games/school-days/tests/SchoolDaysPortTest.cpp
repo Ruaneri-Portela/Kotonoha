@@ -76,7 +76,8 @@ int main(int argc, char **argv) {
     }
     Require(rejected, "Traversal accepted");
     SchoolDays::Runtime runtime(assets, argv[1]);
-    Require(runtime.debugNode() == "00/00-00-A00", "New-game route is not original entry");
+    Require(runtime.debugNode() == "00/00-00-A00",
+            "New-game route is not original entry");
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
     // Public builds retain the ABI but must not expose the route inspection,
     // jump, import, or export controls. Persistence still has to work.
@@ -97,9 +98,11 @@ int main(int argc, char **argv) {
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
     Require(!fs::exists(dumped), "DIST exported a route through debug API");
 #else
-    Require(assets->read(dumped.string()) == assets->read(argv[1]), "Original KTRF dump is not byte-exact");
+    Require(assets->read(dumped.string()) == assets->read(argv[1]),
+            "Original KTRF dump is not byte-exact");
     runtime.debugJumpToNode("00/00-00-A01");
-    Require(runtime.debugNode() == "00/00-00-A01", "Scene-key debug jump failed");
+    Require(runtime.debugNode() == "00/00-00-A01",
+            "Scene-key debug jump failed");
 #endif
     runtime.saveGame((root / "QuickSave").string());
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
@@ -110,7 +113,8 @@ int main(int argc, char **argv) {
     Require(runtime.debugNode() == "00/00-00-A00",
             "DIST native save/load did not preserve the initial scene");
 #else
-    Require(runtime.debugNode() == "00/00-00-A01", "Native save/load did not restore scene");
+    Require(runtime.debugNode() == "00/00-00-A01",
+            "Native save/load did not restore scene");
 #endif
     Put(root / "invalid.ktnroute", "invalid");
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
@@ -127,14 +131,16 @@ int main(int argc, char **argv) {
     Require(rejected && runtime.debugNode() == "00/00-00-A01",
             "Invalid KTRF replaced the live route");
     runtime.loadKtrf(dumped.string());
-    Require(runtime.debugNode() == "00/00-00-A00", "KTRF load did not reset entry");
+    Require(runtime.debugNode() == "00/00-00-A00",
+            "KTRF load did not reset entry");
 #endif
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
     const auto originalKtrf = std::string(argv[1]);
 #else
     const auto originalKtrf = dumped.string();
 #endif
-    Require(Kotonoha_KtrfLoadFile(originalKtrf.c_str(), &document, &error), error.message);
+    Require(Kotonoha_KtrfLoadFile(originalKtrf.c_str(), &document, &error),
+            error.message);
     Kotonoha_KtrfNode second{};
     Require(Kotonoha_KtrfGetNode(&document, 1, &second, &error), error.message);
     const char *editedLabel = nullptr;
@@ -168,22 +174,26 @@ int main(int argc, char **argv) {
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
     // The binary KTRF builder must still produce a valid edited document even
     // though the packaged game cannot load it through the development API.
-    Require(Kotonoha_KtrfLoadFile(editedPath.string().c_str(), &document, &error),
-            error.message);
+    Require(
+        Kotonoha_KtrfLoadFile(editedPath.string().c_str(), &document, &error),
+        error.message);
     Kotonoha_KtrfNode first{};
     Require(Kotonoha_KtrfGetNode(&document, 0, &first, &error), error.message);
     const char *actualLabel = nullptr;
     size_t actualLabelSize = 0;
     Require(Kotonoha_KtrfGetString(&document, first.label_str, &actualLabel,
-                                  &actualLabelSize, &error), error.message);
-    Require(std::string(actualLabel, actualLabelSize) == expectedLabel,
-            "Edited KTRF node label did not round-trip through the binary parser");
+                                   &actualLabelSize, &error),
+            error.message);
+    Require(
+        std::string(actualLabel, actualLabelSize) == expectedLabel,
+        "Edited KTRF node label did not round-trip through the binary parser");
     Kotonoha_KtrfClean(&document);
     runtime.loadKtrf(editedPath.string());
     Require(runtime.debugNode() == "00/00-00-A00",
             "DIST imported an edited route through debug API");
     runtime.dumpKtrf(dumped.string());
-    Require(!fs::exists(dumped), "DIST exported an edited route through debug API");
+    Require(!fs::exists(dumped),
+            "DIST exported an edited route through debug API");
 #else
     runtime.loadKtrf(editedPath.string());
     Require(runtime.debugNodes().front().label == expectedLabel,
@@ -197,8 +207,11 @@ int main(int argc, char **argv) {
 #endif
     auto movie = Kotonoha::SchoolDaysMovieEventState::Create(
         Kotonoha::SchoolDaysMovieKind::PlayMovie, "Movie/test", 24, 48, 0);
-    Require(movie.resource == "Movie/test.wmv" && movie.Supported(), "Movie resource rule changed");
-    Require(!Kotonoha::Providers::SchoolDaysAssets::checkDirectory(root / "missing", info), "Missing root accepted");
+    Require(movie.resource == "Movie/test.wmv" && movie.Supported(),
+            "Movie resource rule changed");
+    Require(!Kotonoha::Providers::SchoolDaysAssets::checkDirectory(
+                root / "missing", info),
+            "Missing root accepted");
     std::cout << "SchoolDaysPortTest: discovery, binary compatibility, "
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
                  "DIST debug isolation, save/load passed\n";

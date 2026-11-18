@@ -80,8 +80,8 @@ bool SchoolDaysSaveStorage::ReadFile(const std::filesystem::path &path,
   } catch (const std::exception &failure) {
     bytes->clear();
     if (error)
-      *error = std::string("School Days save file read failed: ") +
-               failure.what();
+      *error =
+          std::string("School Days save file read failed: ") + failure.what();
     return false;
   }
 }

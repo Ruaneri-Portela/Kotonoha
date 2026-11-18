@@ -22,8 +22,10 @@ int main() {
     check(vars.getFlag("#flag_start") == true, "VariableStore getFlag");
 
     check(vars.evaluateInt("$counter + 5") == 15, "Expression evaluateInt +");
-    check(vars.evaluateBool("$counter == 10") == true, "Expression evaluateBool ==");
-    check(vars.evaluateString("@name + ' Rintarou'") == "Okabe Rintarou", "Expression evaluateString +");
+    check(vars.evaluateBool("$counter == 10") == true,
+          "Expression evaluateBool ==");
+    check(vars.evaluateString("@name + ' Rintarou'") == "Okabe Rintarou",
+          "Expression evaluateString +");
 
     // Test SceneGraph
     N2System::SceneGraph scene;
@@ -61,12 +63,14 @@ int main() {
 
     auto json = N2System::SaveStateCodec::serializeJson(saveData);
     N2System::SaveData loadedJson;
-    check(N2System::SaveStateCodec::deserializeJson(json, loadedJson), "SaveState deserializeJson");
+    check(N2System::SaveStateCodec::deserializeJson(json, loadedJson),
+          "SaveState deserializeJson");
     check(loadedJson.chapterName == "main", "SaveData chapter match");
 
     auto bytes = N2System::SaveStateCodec::serializeBinary(saveData);
     N2System::SaveData loadedBin;
-    check(N2System::SaveStateCodec::deserializeBinary(bytes, loadedBin), "SaveState deserializeBinary");
+    check(N2System::SaveStateCodec::deserializeBinary(bytes, loadedBin),
+          "SaveState deserializeBinary");
     check(loadedBin.integers["$counter"] == 42, "SaveData integer match");
 
     // Test ScriptVm
@@ -90,7 +94,7 @@ int main() {
     check(vm.dialogueSystem().isWaitingForKey(), "VM Waiting for key");
 
     vm.advance(); // User advances
-    vm.step(10); // Finish script
+    vm.step(10);  // Finish script
 
     check(vm.finished(), "VM script finished");
 

@@ -56,7 +56,8 @@ std::string_view ScriptVm::currentChapter() const {
   return executor_ ? executor_->chapterName() : "";
 }
 
-VmAction ScriptVm::handleInvocation(const Invocation &inv, const std::vector<std::string> &args) {
+VmAction ScriptVm::handleInvocation(const Invocation &inv,
+                                    const std::vector<std::string> &args) {
   const auto &func = inv.function;
 
   // Jump / Subroutine Flow Control
@@ -84,7 +85,8 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv, const std::vector<std
   }
 
   // Dialogue Commands
-  if (func == "SetDialogue" || func == "Dialogue" || func == "Talk" || func == "Message") {
+  if (func == "SetDialogue" || func == "Dialogue" || func == "Talk" ||
+      func == "Message") {
     std::string speaker, text, voice;
     if (args.size() == 1) {
       text = variables_.evaluateString(args[0]);
@@ -113,10 +115,12 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv, const std::vector<std
   }
 
   // Graphics & Entities
-  if (func == "CreateSprite" || func == "LoadImage" || func == "CreateTexture") {
+  if (func == "CreateSprite" || func == "LoadImage" ||
+      func == "CreateTexture") {
     if (!args.empty()) {
       std::string name = args[0];
-      std::string path = args.size() > 1 ? variables_.evaluateString(args[1]) : "";
+      std::string path =
+          args.size() > 1 ? variables_.evaluateString(args[1]) : "";
       auto *e = sceneGraph_.createEntity(name, EntityType::Sprite);
       e->imagePath = path;
     }
@@ -126,7 +130,8 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv, const std::vector<std
   if (func == "CreateText") {
     if (!args.empty()) {
       std::string name = args[0];
-      std::string text = args.size() > 1 ? variables_.evaluateString(args[1]) : "";
+      std::string text =
+          args.size() > 1 ? variables_.evaluateString(args[1]) : "";
       auto *e = sceneGraph_.createEntity(name, EntityType::Text);
       e->text = text;
     }
@@ -149,7 +154,9 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv, const std::vector<std
       std::string name = args[0];
       float x = static_cast<float>(variables_.evaluateInt(args[1]));
       float y = static_cast<float>(variables_.evaluateInt(args[2]));
-      float duration = args.size() >= 4 ? static_cast<float>(variables_.evaluateInt(args[3])) : 0.0f;
+      float duration = args.size() >= 4
+                           ? static_cast<float>(variables_.evaluateInt(args[3]))
+                           : 0.0f;
       sceneGraph_.moveEntity(name, x, y, duration);
     }
     return {VmActionKind::Next, {}};
@@ -158,9 +165,13 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv, const std::vector<std
   if (func == "SetOpacity" || func == "Fade") {
     if (args.size() >= 2) {
       std::string name = args[0];
-      float opacity = static_cast<float>(variables_.evaluateInt(args[1])) / 255.0f;
-      if (opacity > 1.0f) opacity = 1.0f;
-      float duration = args.size() >= 3 ? static_cast<float>(variables_.evaluateInt(args[2])) : 0.0f;
+      float opacity =
+          static_cast<float>(variables_.evaluateInt(args[1])) / 255.0f;
+      if (opacity > 1.0f)
+        opacity = 1.0f;
+      float duration = args.size() >= 3
+                           ? static_cast<float>(variables_.evaluateInt(args[2]))
+                           : 0.0f;
       sceneGraph_.fadeEntity(name, opacity, duration);
     }
     return {VmActionKind::Next, {}};
@@ -171,7 +182,9 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv, const std::vector<std
       std::string name = args[0];
       float sx = static_cast<float>(variables_.evaluateInt(args[1])) / 100.0f;
       float sy = static_cast<float>(variables_.evaluateInt(args[2])) / 100.0f;
-      float duration = args.size() >= 4 ? static_cast<float>(variables_.evaluateInt(args[3])) : 0.0f;
+      float duration = args.size() >= 4
+                           ? static_cast<float>(variables_.evaluateInt(args[3]))
+                           : 0.0f;
       sceneGraph_.zoomEntity(name, sx, sy, duration);
     }
     return {VmActionKind::Next, {}};
@@ -200,14 +213,18 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv, const std::vector<std
   if (func == "PlayBgm" || func == "Bgm") {
     if (!args.empty()) {
       std::string path = variables_.evaluateString(args[0]);
-      float fade = args.size() > 1 ? static_cast<float>(variables_.evaluateInt(args[1])) : 0.0f;
+      float fade = args.size() > 1
+                       ? static_cast<float>(variables_.evaluateInt(args[1]))
+                       : 0.0f;
       audioSystem_.playBgm(path, true, fade);
     }
     return {VmActionKind::Next, {}};
   }
 
   if (func == "StopBgm") {
-    float fade = !args.empty() ? static_cast<float>(variables_.evaluateInt(args[0])) : 0.0f;
+    float fade = !args.empty()
+                     ? static_cast<float>(variables_.evaluateInt(args[0]))
+                     : 0.0f;
     audioSystem_.stopBgm(fade);
     return {VmActionKind::Next, {}};
   }
@@ -228,7 +245,9 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv, const std::vector<std
   if (func == "PlaySE" || func == "SE") {
     if (!args.empty()) {
       std::string path = variables_.evaluateString(args[0]);
-      int ch = args.size() > 1 ? static_cast<int>(variables_.evaluateInt(args[1])) : 0;
+      int ch = args.size() > 1
+                   ? static_cast<int>(variables_.evaluateInt(args[1]))
+                   : 0;
       audioSystem_.playSe(path, ch);
     }
     return {VmActionKind::Next, {}};
@@ -282,7 +301,8 @@ bool ScriptVm::loadState(const SaveData &data) {
   for (const auto &[k, v] : data.flags)
     variables_.setFlag(k, v);
 
-  dialogueSystem_.setDialogue(data.activeSpeaker, data.activeText, data.activeVoice);
+  dialogueSystem_.setDialogue(data.activeSpeaker, data.activeText,
+                              data.activeVoice);
 
   return executor_->enterChapter(data.chapterName);
 }

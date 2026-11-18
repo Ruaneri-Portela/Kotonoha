@@ -1,5 +1,6 @@
 #include "PmailSession.hpp"
 #include "PmailComponents.hpp"
+#include "PmailExtrasMenu.hpp"
 #include "PmailTextBox.hpp"
 #include "PmailTitleMenu.hpp"
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -21,6 +22,8 @@ PmailSession::PmailSession(
     : game_(std::move(game)), engine_(engine), assets_(std::move(assets)) {
   components_ = std::make_unique<PmailComponents>(*game_, engine_, *assets_);
   titleMenu_ = std::make_unique<PmailTitleMenu>(engine_, *game_, *assets_);
+  extrasMenu_ =
+      std::make_unique<PmailExtrasMenu>(engine_, *game_, *assets_);
   loadNameProfile();
   loadExtrasProfile();
   extrasVersion_ = game_->extrasVersion();
@@ -94,6 +97,12 @@ void PmailSession::update() {
     extrasVersion_ = game_->extrasVersion();
   }
 
+  if (game_->extrasMenuActive()) {
+    // The native omake menu owns the whole 800x600 stage while it is open.
+    lastUpdateMs_ = SDL_GetTicks();
+    return;
+  }
+
   if (game_->atTitle()) {
     updateTitle();
   } else {
@@ -104,6 +113,12 @@ void PmailSession::update() {
 void PmailSession::render(Kotonoha::RendererRef renderer) {
   if (!initialized_ || !game_)
     return;
+
+  if (game_->extrasMenuActive()) {
+    if (extrasMenu_)
+      extrasMenu_->render(renderer);
+    return;
+  }
 
   if (game_->atTitle()) {
     renderTitle(renderer);
@@ -117,6 +132,23 @@ void PmailSession::onEvent(Kotonoha::EventRef event) {
     return;
   if (nameEntryOpen_) {
     handleNameEntry(event);
+    return;
+  }
+
+  if (game_->extrasMenuActive()) {
+    SDL_FPoint stagePoint{0, 0};
+    bool haveStagePoint = false;
+    if (event.type == SDL_EVENT_MOUSE_MOTION ||
+        event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+      const auto frame = Kotonoha::UI::fit({800.0f, 600.0f}, {800, 600});
+      const SDL_Event mapped = Kotonoha::UI::toFrame(event, frame);
+      stagePoint.x = mapped.type == SDL_EVENT_MOUSE_MOTION ? mapped.motion.x
+                                                           : mapped.button.x;
+      stagePoint.y = mapped.type == SDL_EVENT_MOUSE_MOTION ? mapped.motion.y
+                                                           : mapped.button.y;
+      haveStagePoint = true;
+    }
+    handleExtrasEvent(event, stagePoint, haveStagePoint);
     return;
   }
 
@@ -327,8 +359,7 @@ void PmailSession::loadExtrasProfile() {
     game_->loadUnlockedExtras(names);
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "[PmailPort] Extra unlock profile ignored: %s",
-                error.what());
+                "[PmailPort] Extra unlock profile ignored: %s", error.what());
   }
 }
 
@@ -436,10 +467,52 @@ void PmailSession::drawNameEntry(Kotonoha::RendererRef renderer) {
     ui.text(renderer, nameEntryError_, 165, 390, 460, {250, 120, 120, 255});
 }
 
+bool PmailSession::handleExtrasEvent(Kotonoha::EventRef event,
+                                     SDL_FPoint stagePoint,
+                                     bool haveStagePoint) {
+  if (event.type == SDL_EVENT_MOUSE_MOTION && haveStagePoint) {
+    const int hover = extrasMenu_ ? extrasMenu_->hitTest(stagePoint.x,
+                                                         stagePoint.y)
+                                  : 0;
+    game_->extrasHover(hover);
+    return true;
+  }
+  if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      event.button.button == SDL_BUTTON_LEFT) {
+    if (haveStagePoint && extrasMenu_) {
+      const int choice =
+          extrasMenu_->hitTest(stagePoint.x, stagePoint.y);
+      if (choice >= 1 && choice <= 4)
+        game_->extrasChoose(choice);
+    }
+    return true;
+  }
+  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+    switch (event.key.key) {
+    case SDLK_UP:
+      game_->extrasMove(-1);
+      return true;
+    case SDLK_DOWN:
+      game_->extrasMove(1);
+      return true;
+    case SDLK_RETURN:
+    case SDLK_KP_ENTER:
+      game_->extrasChoose(game_->extrasSelection());
+      return true;
+    case SDLK_ESCAPE:
+      // 0x41eca1: Escape takes the EXIT item (4).
+      game_->extrasChoose(4);
+      return true;
+    default:
+      break;
+    }
+  }
+  return true;
+}
+
 bool PmailSession::HandleTitleEvent(Kotonoha::EventRef event,
                                     SDL_FPoint stagePoint,
-                                    bool haveStagePoint) {
-  if (event.type == SDL_EVENT_MOUSE_MOTION && haveStagePoint) {
+                                    bool haveStagePoint) {  if (event.type == SDL_EVENT_MOUSE_MOTION && haveStagePoint) {
     for (int i = 0; i < game_->titleCount(); ++i) {
       const float y = float(326 + 62 * i);
       if (stagePoint.x >= 189 && stagePoint.x < 189 + 423 &&

@@ -95,8 +95,7 @@ void EnterChoiceSceneByPlayer(SchoolDays::Runtime &runtime) {
           "choice fixture must start with unread-script stopping enabled");
   Require(runtime.debugNode() == "00/00-00-A00",
           "choice fixture did not begin at A00");
-  for (const char *next : {"00/00-00-A01", "00/00-00-A02",
-                           "00/00-00-A03"}) {
+  for (const char *next : {"00/00-00-A01", "00/00-00-A02", "00/00-00-A03"}) {
     runtime.openPanel(4); // Native next-choice; stop at each unread script.
     Require(runtime.debugNode() == next,
             std::string("player next-choice did not reach ") + next);

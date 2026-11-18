@@ -73,11 +73,13 @@ int main() {
             decoded.images[0].assetId == 17 && decoded.images[0].x == -50 &&
             decoded.images[0].y == 20 && decoded.images[1].assetId == 2048 &&
             decoded.images[1].x == 900 && decoded.images[1].y == -34,
-        "LucaSystem V5 round-trip must preserve VM, call frames, and visible images");
+        "LucaSystem V5 round-trip must preserve VM, call frames, and visible "
+        "images");
     require(LucaSystem::encodeSaveState(decoded) == encoded,
             "LucaSystem V5 saves must be stable on a repeat encode");
 
-    // V4 backward compatibility test: construct a V4 payload with LUCA_SYSTEM_SAVE_4\n
+    // V4 backward compatibility test: construct a V4 payload with
+    // LUCA_SYSTEM_SAVE_4\n
     using namespace LucaSystem::SaveCodec;
     std::string v4Payload(V4Magic);
     string(v4Payload, state.scenario);
@@ -114,8 +116,8 @@ int main() {
 
     const auto v4State = LucaSystem::decodeSaveState(v4Payload);
     require(v4State.scenario == state.scenario &&
-            v4State.callStack == state.callStack &&
-            v4State.images.size() == state.images.size(),
+                v4State.callStack == state.callStack &&
+                v4State.images.size() == state.images.size(),
             "Older V4 save must decode correctly");
 
     // V3 backward compatibility test: same as V4 without image list
@@ -124,8 +126,7 @@ int main() {
     v3Payload.resize(v4Payload.size() - (4 + state.images.size() * 12));
     const auto v3State = LucaSystem::decodeSaveState(v3Payload);
     require(v3State.scenario == state.scenario &&
-            v3State.callStack == state.callStack &&
-            v3State.images.empty(),
+                v3State.callStack == state.callStack && v3State.images.empty(),
             "Older V3 save must decode with an empty visual layer");
 
     rejects(

@@ -303,16 +303,26 @@ void LucaSystemAssets::mountPak(const std::string &path) {
   auto archive = std::make_unique<PakArchive>(source_, path);
   const PakArchive *raw = archive.get();
   const auto file = std::filesystem::path(path);
+  std::string fileNameUpper = file.filename().string();
+  std::transform(fileNameUpper.begin(), fileNameUpper.end(), fileNameUpper.begin(), ::toupper);
 
-  // Register every entry under its logical name, first mount wins.
+  const bool isImageArchive =
+      file.parent_path().filename() == "image" ||
+      fileNameUpper.find("CG") != std::string::npos ||
+      fileNameUpper.find("IMAGE") != std::string::npos ||
+      fileNameUpper.find("PARTS") != std::string::npos;
+
   for (const auto &entry : raw->entries()) {
-    idToPak_.emplace(entry.name, raw);
+    if (!entry.name.empty()) {
+      idToPak_.emplace(entry.name, raw);
+    }
+    idToPak_.emplace(std::to_string(entry.id), raw);
     numericIdToPak_.emplace(entry.id, raw);
-    if (file.parent_path().filename() == "image")
+    if (isImageArchive)
       imageIdToPak_.emplace(entry.id, raw);
   }
 
-  const char *role = "image";
+  const char *role = isImageArchive ? "image" : "data";
   if (file.filename() == "PARAM.PAK") {
     paramPak_ = std::move(archive);
     role = "PARAM";
@@ -336,31 +346,48 @@ bool LucaSystemAssets::containsAsset(const std::string &id) const {
 std::vector<std::uint8_t>
 LucaSystemAssets::readAsset(const std::string &id) const {
   auto it = idToPak_.find(id);
-  if (it == idToPak_.end())
-    throw std::runtime_error("LucaSystem: asset not found: " + id);
-  return it->second->read(id);
+  if (it != idToPak_.end())
+    return it->second->read(id);
+  try {
+    uint32_t numId = static_cast<uint32_t>(std::stoul(id));
+    auto nit = numericIdToPak_.find(numId);
+    if (nit != numericIdToPak_.end()) {
+      const auto *entry = nit->second->findById(numId);
+      if (entry)
+        return nit->second->read(*entry);
+    }
+  } catch (...) {}
+  throw std::runtime_error("LucaSystem: asset not found: " + id);
 }
 
 std::vector<std::uint8_t> LucaSystemAssets::readAsset(uint32_t id) const {
   auto it = numericIdToPak_.find(id);
-  if (it == numericIdToPak_.end())
-    throw std::runtime_error("LucaSystem: numeric asset not found: " +
-                             std::to_string(id));
-  const auto *entry = it->second->findById(id);
-  if (!entry)
-    throw std::runtime_error("LucaSystem: inconsistent numeric asset index");
-  return it->second->read(*entry);
+  if (it != numericIdToPak_.end()) {
+    const auto *entry = it->second->findById(id);
+    if (entry)
+      return it->second->read(*entry);
+  }
+  auto sit = idToPak_.find(std::to_string(id));
+  if (sit != idToPak_.end())
+    return sit->second->read(std::to_string(id));
+  throw std::runtime_error("LucaSystem: numeric asset not found: " +
+                           std::to_string(id));
 }
 
 std::vector<std::uint8_t> LucaSystemAssets::readImageAsset(uint32_t id) const {
   auto it = imageIdToPak_.find(id);
   if (it == imageIdToPak_.end())
-    throw std::runtime_error("LucaSystem: image asset not found: " +
-                             std::to_string(id));
-  const auto *entry = it->second->findById(id);
-  if (!entry)
-    throw std::runtime_error("LucaSystem: inconsistent image asset index");
-  return it->second->read(*entry);
+    it = numericIdToPak_.find(id);
+  if (it != numericIdToPak_.end()) {
+    const auto *entry = it->second->findById(id);
+    if (entry)
+      return it->second->read(*entry);
+  }
+  auto sit = idToPak_.find(std::to_string(id));
+  if (sit != idToPak_.end())
+    return sit->second->read(std::to_string(id));
+  throw std::runtime_error("LucaSystem: image asset not found: " +
+                           std::to_string(id));
 }
 
 std::vector<std::string>

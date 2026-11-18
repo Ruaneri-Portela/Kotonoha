@@ -245,9 +245,8 @@ void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
   for (const auto &line : history) {
     if (historyY >= 570)
       break;
-    const float consumed =
-        ui.textSized(renderer, line.text, 85, historyY, 624, 17,
-                     computerLineColor(line.mode));
+    const float consumed = ui.textSized(renderer, line.text, 85, historyY, 624,
+                                        17, computerLineColor(line.mode));
     historyY += std::clamp(consumed, 22.0f, 54.0f);
   }
 
@@ -258,8 +257,8 @@ void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
   const auto mail = game_.mailPanel();
   const bool chatConfigured =
       chat.active && chat.params[2] > 0 && chat.params[3] > 0;
-  auto drawPanel = [&](const PmailGame::ComputerPanel &panel, float x,
-                       float y, float width, float height) {
+  auto drawPanel = [&](const PmailGame::ComputerPanel &panel, float x, float y,
+                       float width, float height) {
     if (!panel.active || panel.entries.empty())
       return;
     const bool configured = panel.params[2] > 0 && panel.params[3] > 0;
@@ -314,8 +313,8 @@ void PmailStage::renderComputerUi(Kotonoha::RendererRef renderer) {
       std::string glyph(1, ch);
       if (i == 5 && (ch == 'A' || ch == 'P'))
         glyph += 'M';
-      ui.textSized(renderer, glyph, clockX[i], 585, i == 5 ? 24.0f : 12.0f,
-                   10, computerColor(1));
+      ui.textSized(renderer, glyph, clockX[i], 585, i == 5 ? 24.0f : 12.0f, 10,
+                   computerColor(1));
     }
   }
 

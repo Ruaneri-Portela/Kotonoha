@@ -4,8 +4,8 @@
 
 namespace Kotonoha::SchoolDaysAtomicFile {
 
-bool Write(const std::filesystem::path &path,
-           const std::vector<uint8_t> &bytes, Fault fault, std::string *error) {
+bool Write(const std::filesystem::path &path, const std::vector<uint8_t> &bytes,
+           Fault fault, std::string *error) {
   // The only game-specific policy is the known FlgH file-size bound. All
   // on-disk I/O, unique temporary names and atomic publication are owned by
   // the engine's shared SDL-based filesystem; no Win32/POSIX calls here.
