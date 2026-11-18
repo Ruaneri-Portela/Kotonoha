@@ -173,3 +173,16 @@ smoke cases; `ValidateBuildMetadata.py` passed. The DIST MCP mismatch does
 No `lib/` test was changed or suppressed to conceal it. DIST-specific stress
 is not verified because `stress_l4.py` currently invokes DEV-only `--node` /
 `--ktrf` controls.
+
+**Normal Back feeling regression (REA 2026-11-18):** original static EXE
+callsite inspection distinguishes RouteMap `SP>=100` checkpoint restore/prune
+(`0x004331A0`) from ordinary `RouteProcSDHQ` reverse navigation. The old port
+incorrectly restored the type-3 checkpoint *after* applying the inverse
+feeling on ordinary Back, causing A03 → A04 → Back to retain `002=5` instead
+of returning to `002=0`. The correction leaves RouteMap checkpoint restoration
+intact and applies only the ordinary reverse effect for Back. New regression
+tests cover same-branch replay, alternate choice A05 and pending-choice
+save/load. See
+`games/school-days/docs/parity/BACK_FEEL_CHECKPOINT_REA_2026-11-18.md`.
+The post-choice bar's precise original action-unlock timing still lacks
+independent retail frame/video confirmation.

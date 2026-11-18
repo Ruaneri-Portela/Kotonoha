@@ -176,3 +176,16 @@ atende a um critério rígido de aceitação que permite somente a falha MetalFX
 Nenhum teste em `lib/` foi modificado ou suprimido para escondê-la. O stress
 específico da DIST não foi verificado porque `stress_l4.py` atualmente usa
 os controles `--node` / `--ktrf`, exclusivos de DEV.
+
+**Regressão de Feel no Back normal (REA 18/11/2026):** análise estática dos
+chamadores no EXE original distingue o restore/prune de checkpoint `SP>=100`
+do RouteMap (`0x004331A0`) do Back comum da `RouteProcSDHQ`. O port antigo
+restaurava o snapshot tag3 **depois** de aplicar a inversão de sentimentos do
+Back, reintroduzindo `002=5` ao retornar de A04 para A03 quando o correto era
+`002=0`. A correção preserva o restore de checkpoints no RouteMap e remove
+somente a reaplicação indevida no Back normal. O teste reproduz escolha/Back
+repetidos, ramificação alternativa A05 e Save/Load de escolha ainda pendente.
+Detalhes em
+`games/school-days/docs/parity/BACK_FEEL_CHECKPOINT_REA_2026-11-18.md`.
+O instante exato do desbloqueio da barra pós-escolha no original ainda
+necessita comparação visual independente do retail.
