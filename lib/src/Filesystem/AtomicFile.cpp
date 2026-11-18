@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
+#include <mutex>
 #include <random>
 #include <string>
 
@@ -11,6 +12,10 @@ namespace Kotonoha::Filesystem {
 namespace {
 
 std::atomic<std::uint64_t> nextTemporary{0};
+// Serialize in-process publishes. SDL_RenamePath on Windows can transiently
+// reject another thread's replacement while the destination is being opened.
+// This mutex is shared by all filesystem clients, not a game-specific lock.
+std::mutex atomicPublicationMutex;
 
 bool fail(std::string *error, const std::string &reason) {
   if (error)
@@ -48,6 +53,7 @@ bool writeBinaryFileAtomically(const std::filesystem::path &path,
                                std::string *error, AtomicFileFault fault) {
   if (error)
     error->clear();
+  std::lock_guard<std::mutex> lock(atomicPublicationMutex);
   if (path.empty() || path.filename().empty())
     return fail(error, "Atomic file path is empty");
   // Do not mutate directories or follow a symlink over a save file.
@@ -112,9 +118,20 @@ bool writeBinaryFileAtomically(const std::filesystem::path &path,
 
   // No delete-then-rename fallback: that would destroy the previous file if
   // publication fails. SDL_RenamePath replaces an existing destination.
-  if (!SDL_RenamePath(pending.name.c_str(), path.u8string().c_str()))
-    return fail(error, std::string("Atomic file publish failed: ") +
-                           SDL_GetError());
+  const std::string destination = path.u8string();
+  bool published = false;
+  std::string renameError;
+  for (int attempt = 0; attempt < 4; ++attempt) {
+    if (SDL_RenamePath(pending.name.c_str(), destination.c_str())) {
+      published = true;
+      break;
+    }
+    renameError = SDL_GetError();
+    if (attempt != 3)
+      SDL_Delay(static_cast<Uint32>(15 * (attempt + 1)));
+  }
+  if (!published)
+    return fail(error, "Atomic file publish failed: " + renameError);
   if (fault == AtomicFileFault::DirectoryFlushAfter)
     return fail(error, "Atomic file published; simulated durability uncertainty");
   return true;
