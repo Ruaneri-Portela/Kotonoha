@@ -18,6 +18,20 @@ Porte C++17 de KiriKiri para o Kotonoha: montagem XP3, interpretador KAG experim
 
 Classes TJS2 complexas, comportamento nativo completo de Window/Layer, plugins e bytecode TJS2 compilado **não foram implementados**; a VM parcial interrompe o script quando encontra sintaxe não suportada. Essas melhorias não foram validadas em uma instalação comercial de NEKOPARA. Montar o XP3 ou mostrar o menu provisório não comprova jogabilidade completa. Os testes do repositório usam dados sintéticos.
 
+## HTTP(S) e WebAssembly
+
+No navegador, um servidor HTTP comum não permite enumerar arquivos
+desconhecidos. O detector Kirikiri agora consulta caminhos conhecidos como
+`data.xp3`, `patch.xp3`, `startup.tjs` e `scenario/first.ks` diretamente.
+Sem índice de diretório, o provedor XP3 consulta nomes comuns e lê índice
+e segmentos sob demanda com Fetch/Range. Entradas KAG soltas também são
+consultadas por nome. Pacotes com nomes diferentes ainda podem exigir
+índice/manifesto ou pasta local. A detecção não comprova compatibilidade
+integral com o jogo.
+
+O servidor precisa aceitar Range (206), Content-Range e CORS apropriado;
+veja [guia WebAssembly](../../docs/BUILD_WEB.pt-BR.md).
+
 ## Compilação e testes
 
 ```sh
