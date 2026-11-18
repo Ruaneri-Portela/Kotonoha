@@ -7,6 +7,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
+const os = require('node:os');
+const {spawnSync} = require('node:child_process');
 
 const htmlPath = path.join(__dirname, '..', 'buildsystems', 'cmake', 'index.html.in');
 const html = fs.readFileSync(htmlPath, 'utf8');
@@ -19,6 +21,59 @@ const browserTransport = fs.readFileSync(path.join(__dirname, '..',
 const persistentCache = fs.readFileSync(path.join(__dirname, '..',
   'lib', 'web', 'KotonohaPreloadCache.js'), 'utf8');
 new vm.Script(persistentCache, {filename: 'KotonohaPreloadCache.js'});
+// Each Emscripten game must package a valid standalone PWA, with a scoped
+// Service Worker which leaves HTTP Range/game-assets to IndexedDB.
+const pwaTemplate = fs.readFileSync(path.join(__dirname, '..',
+  'buildsystems', 'cmake', 'pwa.webmanifest.in'), 'utf8');
+const serviceWorker = fs.readFileSync(path.join(__dirname, '..',
+  'buildsystems', 'cmake', 'service-worker.js.in'), 'utf8');
+new vm.Script(serviceWorker, {filename: 'service-worker.js.in'});
+const pwa = JSON.parse(pwaTemplate.replaceAll('@APP_TITLE@', 'RealLive'));
+assert(pwa.id === './' && pwa.scope === './' &&
+  pwa.start_url === './index.html' && pwa.display === 'standalone',
+  'PWA identity, scope and URL must be relative to each game directory');
+assert(pwa.icons.some(icon => icon.sizes === '192x192') &&
+       pwa.icons.some(icon => icon.sizes === '512x512') &&
+       pwa.icons.every(icon => icon.purpose.includes('maskable')),
+  'PWA needs 192/512 installable maskable icons');
+assert(serviceWorker.includes('request.headers.has("range")') &&
+       serviceWorker.includes('relative.startsWith("game-assets/")') &&
+       serviceWorker.includes('request.method !== "GET"') &&
+       serviceWorker.includes('new URL(self.registration.scope)') &&
+       serviceWorker.includes('CACHE_NAME'),
+  'Worker must be game-scoped and leave HTTP Range/assets to IndexedDB');
+assert(wasmBuild.includes('pwa.webmanifest.in') &&
+       wasmBuild.includes('service-worker.js.in') &&
+       wasmBuild.includes('tools/generate_pwa_icons.py'),
+  'CMake must package PWA files independently for every WebAssembly target');
+assert(html.includes('rel="manifest" href="./manifest.webmanifest"') &&
+       html.includes('rel="apple-touch-icon" href="./pwa-icon-180.png"') &&
+       html.includes('serviceWorker.register("./service-worker.js"') &&
+       html.includes('type: "KOTONOHA_CACHE_RUNTIME"'),
+  'Each game shell must register its own installable scoped PWA');
+const iconDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kotonoha-pwa-test-'));
+try {
+  const generator = path.join(__dirname, 'generate_pwa_icons.py');
+  for (const title of ['RealLive', 'Kirikiri']) {
+    const output = path.join(iconDir, title);
+    const result = spawnSync('python3', [generator, title, output],
+      {encoding: 'utf8'});
+    assert(result.status === 0,
+      'PWA icon generation failed: ' + result.stderr);
+    for (const size of [180, 192, 512]) {
+      const png = fs.readFileSync(path.join(output, 'pwa-icon-' + size + '.png'));
+      assert(png.subarray(0, 8).toString('hex') ===
+          '89504e470d0a1a0a' && png.readUInt32BE(16) === size &&
+          png.readUInt32BE(20) === size,
+        'Per-game PWA icon must be a valid PNG of the requested size');
+    }
+  }
+  assert(!fs.readFileSync(path.join(iconDir, 'RealLive', 'pwa-icon-192.png'))
+    .equals(fs.readFileSync(path.join(iconDir, 'Kirikiri', 'pwa-icon-192.png'))),
+  'Different game PWAs should have visually distinct icons');
+} finally {
+  fs.rmSync(iconDir, {recursive: true, force: true});
+}
 const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)];
 assert(scripts.length >= 2, 'HTML shell must contain bootstrap and folder scripts');
 for (let i = 0; i < scripts.length; ++i) {
