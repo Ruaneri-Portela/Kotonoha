@@ -12,9 +12,9 @@
    - Automatically pairs companion translation overlays (such as `DDLC_PT-BR_Patch` -> `DDLC`).
 
 2. **Linked game runtimes (`EngineLibraryRegistry`)**:
-   - CMake links every *enabled* game's runtime library directly into `kotonoha_unified_launcher`. `GameFactories.cpp` registers the concrete `Runtime` and asset-provider constructors at link time.
+   - With `KOTONOHA_BUILD_ALL=ON`, CMake links the **12 real game** runtime libraries (excluding Example) directly into `kotonoha_unified_launcher`. `GameFactories.cpp` registers the concrete `Runtime` and asset-provider constructors at link time.
    - `KotonohaLauncher` instantiates `Runtime` + `Engine` **in the same process** and returns to the hub after the game exits, restoring its per-game save environment. No game `main.cpp` or second executable is invoked.
-   - A detectable game with an unlinked port is shown in the catalog, but cannot be launched until that port is enabled in CMake.
+   - The Example demo is never registered or linked into the hub; it remains a separate game target. The hub is not generated for individual-port builds.
 
 3. **Per-Game Save & Config Folder Isolation (`splitSavesByGame`)**:
    - Isolates `KOTONOHA_USER_DATA_DIR` and `settings.json` under `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/Kotonoha/<packageId>/save` so multiple titles sharing the same engine (e.g., `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` on RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` on CMP; `ZeroNoTsukaima0..2` on Zero) never collide.
@@ -26,12 +26,11 @@
 cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
 cmake --build build --target KotonohaLauncher
 
-# A lighter hub linked to only a selected game's runtime
-cmake -S . -B build-reallive -DKOTONOHA_BUILD_REALLIVE=ON
-cmake --build build-reallive --target KotonohaLauncher
+# Individual port builds do NOT create KotonohaLauncher.
+# Example remains an independent application, never linked into the hub.
 ```
 
-All source dependencies (including optional Python development packages for DDLC) must be installed for a complete build. An engine may be recognized from its files even when its runtime library was not selected. The linked hub is a desktop component only.
+All source dependencies (including optional Python development packages for DDLC) must be installed for a complete build. The linked hub is built only with `KOTONOHA_BUILD_ALL=ON` on native desktop platforms. It does not include Example. macOS bundles include the DDLC Python standard library because the hub links that runtime.
 
 ## CLI Usage
 
