@@ -51,11 +51,12 @@ public:
 
 int main() {
   try {
-    // 1. Verify all 12 Kotonoha port engine libraries + demo are registered
-    //    in EngineLibraryRegistry.
+    // 1. The hub links the 12 real game families, never the Example demo.
     const auto &reg = EngineLibraryRegistry::instance();
-    require(reg.all().size() >= 13,
-            "All 12 port engine libraries + demo must be registered");
+    require(reg.all().size() == 12,
+            "Exactly 12 real game runtime libraries must be registered");
+    require(!reg.find(EngineKind::Unknown),
+            "The Example demo must not be registered in the hub");
     require(reg.find(EngineKind::RealLive) &&
                 reg.find(EngineKind::RealLive)->libraryTarget == "reallive_port",
             "RealLive maps to reallive_port library");
@@ -77,13 +78,6 @@ int main() {
             "ZeroNoTsukaima maps to zero_no_tsukaima library");
 
     // The registry is a link-time contract. No external executable is needed.
-#if defined(KOTONOHA_LAUNCH_EXAMPLE)
-    require(reg.canInstantiateInProcess(EngineKind::Unknown),
-            "Linked EXAMPLE must expose a real in-process factory");
-#else
-    require(!reg.canInstantiateInProcess(EngineKind::Unknown),
-            "Unlinked EXAMPLE must not advertise an in-process runtime");
-#endif
 #if defined(KOTONOHA_LAUNCH_AMAGAMI)
     require(reg.canInstantiateInProcess(EngineKind::Amagami),
             "Linked AMAGAMI must expose a real in-process factory");
@@ -167,15 +161,6 @@ int main() {
 #else
     require(!reg.canInstantiateInProcess(EngineKind::ONScripter),
             "Unlinked PONSCRIPTER must not advertise an in-process runtime");
-#endif
-
-#if defined(KOTONOHA_LAUNCH_EXAMPLE)
-    DiscoveredGameEntry demo;
-    demo.engine.kind = EngineKind::Unknown;
-    Kotonoha::EngineOptions demoOptions;
-    auto mounted = reg.instantiate(demo, demoOptions);
-    require(static_cast<bool>(mounted.runtime),
-            "The linked demo factory must instantiate a real Runtime");
 #endif
 
     // 2. Build a synthetic multi-game library with same-engine titles and
