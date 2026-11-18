@@ -173,6 +173,22 @@ void Runtime::update() {
   for (Scene *scene : activeScenes)
     if (scene)
       scene->update();
+#ifdef __EMSCRIPTEN__
+  // One node notification per story transition, shared by every game port.
+  // nodeClockKey() is the preferred stable scene identity; other runtimes
+  // expose their existing debugNode() without any per-port browser code.
+  if (currentState == GameState::Gameplay) {
+    const auto stable = nodeClockKey();
+    const auto node = stable.empty() ? debugNode() : stable;
+    if (!node.empty() && node != lastPredictiveNode_) {
+      lastPredictiveNode_ = node;
+      EM_ASM({
+        if (typeof window.KotonohaSceneEntered === "function")
+          window.KotonohaSceneEntered(UTF8ToString($0));
+      }, node.c_str());
+    }
+  }
+#endif
 }
 
 bool Runtime::onEvent(EventRef event) {
