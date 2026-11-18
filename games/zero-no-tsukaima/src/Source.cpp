@@ -261,7 +261,8 @@ std::map<std::string, int> ParseNameList(const std::vector<uint8_t> &text) {
                                        : line.find_last_of("\\/") + 1);
     const size_t dot = base.find('.');
     std::string key = base.substr(0, dot);
-    std::string ext = dot == std::string::npos ? std::string{} : base.substr(dot);
+    std::string ext =
+        dot == std::string::npos ? std::string{} : base.substr(dot);
     for (char &c : key)
       c = char(std::toupper(static_cast<unsigned char>(c)));
     for (char &c : ext)

@@ -16,8 +16,8 @@ void parseTildeTagContent(std::string_view content, TextStyle &style) {
       ++pos;
     if (pos >= content.size())
       break;
-    const char cmd =
-        static_cast<char>(std::tolower(static_cast<unsigned char>(content[pos++])));
+    const char cmd = static_cast<char>(
+        std::tolower(static_cast<unsigned char>(content[pos++])));
     switch (cmd) {
     case 'i':
       style.italic = !style.italic;
@@ -196,7 +196,8 @@ FormattedTextLine TextFormatter::formatLine(std::string_view rawLine,
       }
     }
 
-    // Check smart ligatures: `...` -> `…`, `---` -> `—`, `--` -> `–`, `` -> “, '' -> ”
+    // Check smart ligatures: `...` -> `…`, `---` -> `—`, `--` -> `–`, `` -> “,
+    // '' -> ”
     if (enableLigatures) {
       if (ch == '.' && pos + 2 < rawLine.size() && rawLine[pos + 1] == '.' &&
           rawLine[pos + 2] == '.') {
@@ -228,12 +229,12 @@ FormattedTextLine TextFormatter::formatLine(std::string_view rawLine,
     }
 
     // Check line/page terminators: `@`, `\`, `/`
-    // Note: in `00.utf:264`, `@` appears at the end of line or mid-line (`^... @ Nós...`).
-    // If `@` is at the end (or only followed by whitespace), it terminates the
-    // line with `ClickInline`. If `@` is mid-line, in PONscripter `@` pauses
-    // inline and continues; for simplicity, if `@` is at the end of the line,
-    // set `ClickInline`; if mid-line, we keep the rest of the line in the same
-    // text statement and end with the final terminator.
+    // Note: in `00.utf:264`, `@` appears at the end of line or mid-line (`^...
+    // @ Nós...`). If `@` is at the end (or only followed by whitespace), it
+    // terminates the line with `ClickInline`. If `@` is mid-line, in
+    // PONscripter `@` pauses inline and continues; for simplicity, if `@` is at
+    // the end of the line, set `ClickInline`; if mid-line, we keep the rest of
+    // the line in the same text statement and end with the final terminator.
     if (ch == '@' || ch == '\\' || ch == '/') {
       std::size_t rem = pos + 1;
       while (rem < rawLine.size() &&

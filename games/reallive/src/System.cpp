@@ -29,12 +29,15 @@ bool systemCommand(RLMachine &m, const libreallive::CommandElement &c,
   };
   const int op = c.opcode();
   if (op == 460 || op == 461) {
-    int window = (op == 461 && c.GetParamCount() < 2) ? 0 : (c.GetParamCount() > 0 ? num(0) : 0);
+    int window = (op == 461 && c.GetParamCount() < 2)
+                     ? 0
+                     : (c.GetParamCount() > 0 ? num(0) : 0);
     if (window < 0 || window > 65535)
       throw std::out_of_range("REALLIVE attr_mod window");
     int key = 20000 + window;
     if (op == 461) {
-      set(key, c.GetParamCount() > 1 ? num(1) : (c.GetParamCount() > 0 ? num(0) : 0));
+      set(key, c.GetParamCount() > 1 ? num(1)
+                                     : (c.GetParamCount() > 0 ? num(0) : 0));
     } else {
       std::ostringstream path;
       path << "WINDOW." << std::setw(3) << std::setfill('0') << window
@@ -189,7 +192,8 @@ bool systemCommand(RLMachine &m, const libreallive::CommandElement &c,
     int idx = c.GetParamCount() > 0 ? num(0) : 0;
     int key = 30000 + std::clamp(idx, 0, 4095);
     if (op == 2274) {
-      int val = c.GetParamCount() > 1 ? num(1) : (c.GetParamCount() > 0 ? num(0) : 1);
+      int val =
+          c.GetParamCount() > 1 ? num(1) : (c.GetParamCount() > 0 ? num(0) : 1);
       set(key, val);
     } else {
       m.set_store_register(state(key, 1));

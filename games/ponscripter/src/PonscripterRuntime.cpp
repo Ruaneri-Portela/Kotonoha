@@ -176,8 +176,8 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   Kotonoha::InGameMenu *inGameMenu = nullptr;
   std::size_t syncedBacklogCount = 0;
 
-  // Indexed script nodes & translation tables for Kotonoha Debug / Translation /
-  // Dubbing Applets
+  // Indexed script nodes & translation tables for Kotonoha Debug / Translation
+  // / Dubbing Applets
   struct IndexedSection {
     int routeId = 0;
     std::string label;
@@ -233,6 +233,12 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   void showBanner(std::string msg, std::uint64_t durationMs = 2200) {
     statusBannerText = std::move(msg);
     statusBannerUntilTick = SDL_GetTicks() + durationMs;
+  }
+
+  void ensureScriptIndex() {
+    if (sections.empty() && !runtime.vm().script().statements().empty()) {
+      buildKotonohaScriptIndex();
+    }
   }
 
   // Builds Kotonoha DebugNode, Translation::SourceTexts, and VoiceDubbingApplet
@@ -293,8 +299,7 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
           if (!pendingVoicePath.empty()) {
             currentSec.audioLines.push_back(
                 {pendingVoicePath,
-                 inferCharacterFromVoicePath(pendingVoicePath),
-                 fmt.plainText});
+                 inferCharacterFromVoicePath(pendingVoicePath), fmt.plainText});
             pendingVoicePath.clear();
           }
         }
@@ -416,10 +421,9 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
       return;
     const auto dir = saveRootDir() / "slots";
     std::filesystem::create_directories(dir);
-    const std::string suggestion =
-        !runtime.vm().currentLabel().empty()
-            ? runtime.vm().currentLabel()
-            : std::string("Saya no Uta");
+    const std::string suggestion = !runtime.vm().currentLabel().empty()
+                                       ? runtime.vm().currentLabel()
+                                       : std::string("Saya no Uta");
     saveMenu->open(dir.string(), load, suggestion);
     const auto &scenes = runtime.GetActiveScenes();
     if (std::find(scenes.begin(), scenes.end(), saveMenu.get()) == scenes.end())
@@ -560,9 +564,9 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
     if (resolved.empty())
       return nullptr;
 
-    const std::string cacheKey =
-        resolved + "|" + std::to_string(static_cast<int>(spec.trans)) + "|" +
-        std::to_string(spec.numCells);
+    const std::string cacheKey = resolved + "|" +
+                                 std::to_string(static_cast<int>(spec.trans)) +
+                                 "|" + std::to_string(spec.numCells);
     auto it = imageCache.find(cacheKey);
     if (it != imageCache.end() && it->second.texture)
       return it->second.texture.get();
@@ -572,8 +576,8 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
       if (!rawSurf)
         return nullptr;
       bool hadAlpha = false;
-      auto transSurf = buildTransSurface(rawSurf.get(), spec.trans,
-                                         spec.numCells, hadAlpha);
+      auto transSurf =
+          buildTransSurface(rawSurf.get(), spec.trans, spec.numCells, hadAlpha);
       if (!transSurf)
         return nullptr;
 
@@ -582,10 +586,9 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
       if (!tex)
         return nullptr;
       SDL_SetTextureScaleMode(tex.get(), SDL_SCALEMODE_LINEAR);
-      SDL_SetTextureBlendMode(tex.get(),
-                              spec.trans == TransMode::Copy
-                                  ? SDL_BLENDMODE_NONE
-                                  : SDL_BLENDMODE_BLEND);
+      SDL_SetTextureBlendMode(tex.get(), spec.trans == TransMode::Copy
+                                             ? SDL_BLENDMODE_NONE
+                                             : SDL_BLENDMODE_BLEND);
 
       ProcessedImage entry;
       entry.width = transSurf->w;
@@ -602,8 +605,8 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   }
 
   void playClipOnPlayer(Kotonoha::PcmPlayer &player,
-                        const std::string &channelName,
-                        const std::string &path, bool loop, float gain) {
+                        const std::string &channelName, const std::string &path,
+                        bool loop, float gain) {
     if (!engine || !assets || path.empty())
       return;
     const std::string resolved = assets->resolveActualPath(path);
@@ -617,8 +620,7 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
       SDL_AudioSpec targetSpec{};
       targetSpec.format = SDL_AUDIO_S16;
       targetSpec.channels = std::clamp(audioClip.spec.channels, 1, 2);
-      targetSpec.freq =
-          audioClip.spec.freq > 0 ? audioClip.spec.freq : 44100;
+      targetSpec.freq = audioClip.spec.freq > 0 ? audioClip.spec.freq : 44100;
 
       Uint8 *dstData = nullptr;
       int dstLen = 0;
@@ -754,17 +756,16 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
     systemMenuHoverIndex = -1;
     if (kind == "lookback") {
       const auto &pages = runtime.vm().backlogPages();
-      backlogScrollOffset =
-          std::max(0, static_cast<int>(pages.size()) - 1);
+      backlogScrollOffset = std::max(0, static_cast<int>(pages.size()) - 1);
     }
   }
 };
 
-PonscripterRuntime::PonscripterRuntime(std::shared_ptr<PonscripterAssets> assets)
+PonscripterRuntime::PonscripterRuntime(
+    std::shared_ptr<PonscripterAssets> assets)
     : Kotonoha::Runtime("PONscripter", "0.1.0",
                         "me.hirameki.kotonoha.ponscripter"),
-      impl_(std::make_unique<Impl>(*this, assets)),
-      assets_(std::move(assets)),
+      impl_(std::make_unique<Impl>(*this, assets)), assets_(std::move(assets)),
       vm_(impl_.get()) {
   if (!assets_) {
     assets_ = std::make_shared<PonscripterAssets>();
@@ -852,7 +853,8 @@ void PonscripterRuntime::init(Kotonoha::Engine &engine) {
         "caption \"PONscripter [Kotonoha]\"\n"
         "effect 10,10,250\n"
         "savename \"^~~ Salvar ~~\",\"^~~ Carregar ~~\",\"#\"\n"
-        "rmenu \"^~~ Salvar ~~\",save,\"^~~ Carregar ~~\",load,\"^\",,\"^~~ Histórico ~~\",lookback,\"^\",,\"^~~ Voltar ~~\",reset\n"
+        "rmenu \"^~~ Salvar ~~\",save,\"^~~ Carregar ~~\",load,\"^\",,\"^~~ "
+        "Histórico ~~\",lookback,\"^\",,\"^~~ Voltar ~~\",reset\n"
         "game\n"
         "*start\n"
         "setwindow3 60,70,34,20,20,20,0,4,24,1,1,#000000,40,50\n"
@@ -934,8 +936,8 @@ void PonscripterRuntime::update() {
       if (!vm_.lastVoicePath().empty() && assets_) {
         const std::string resolved =
             assets_->resolveActualPath(vm_.lastVoicePath());
-        impl_->backlog->setLastVoice(
-            !resolved.empty() ? resolved : vm_.lastVoicePath());
+        impl_->backlog->setLastVoice(!resolved.empty() ? resolved
+                                                       : vm_.lastVoicePath());
       }
     }
   }
@@ -959,15 +961,14 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
     SDL_RenderClear(&renderer);
     const SDL_FRect area{0.0f, 0.0f, viewW, viewH};
-    impl_->videoPlayer->render(renderer, area,
-                               impl_->engine ? &impl_->engine->GetUpscaler()
-                                             : nullptr,
-                               false);
+    impl_->videoPlayer->render(
+        renderer, area, impl_->engine ? &impl_->engine->GetUpscaler() : nullptr,
+        false);
     return;
   }
 
-  auto &ui = impl_->engine ? impl_->engine->GetVNUI()
-                           : *impl_->mappedUiFonts[0];
+  auto &ui =
+      impl_->engine ? impl_->engine->GetVNUI() : *impl_->mappedUiFonts[0];
   auto pickFont = [&](bool italic) -> Kotonoha::UI & {
     if (italic && impl_->mappedUiFonts[1])
       return *impl_->mappedUiFonts[1];
@@ -997,7 +998,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
     }
 
-    // 2. Character standing sprites (`ld l, c, r` in back-to-front order: l, r, c)
+    // 2. Character standing sprites (`ld l, c, r` in back-to-front order: l, r,
+    // c)
     const auto &standing = vm_.standingSlots();
     for (int idx : {0, 2, 1}) {
       const auto &st = standing[idx];
@@ -1026,22 +1028,20 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (sp.spec.trans == TransMode::String) {
         if (!sp.spec.text.empty()) {
           const std::string displayStr = impl_->translateLine(sp.spec.text);
-          const float fh = static_cast<float>(
-              sp.spec.fontHeight > 0 ? sp.spec.fontHeight
-                                     : vm_.windowSpec().fontH);
+          const float fh = static_cast<float>(sp.spec.fontHeight > 0
+                                                  ? sp.spec.fontHeight
+                                                  : vm_.windowSpec().fontH);
           const std::uint32_t colRgb =
               (sp.currentCell == 1 && sp.spec.hasHoverColor)
                   ? sp.spec.hoverColor
                   : sp.spec.color;
           auto &fontUi = pickFont(false);
-          fontUi.textSized(renderer, displayStr,
-                           static_cast<float>(sp.x + 1),
+          fontUi.textSized(renderer, displayStr, static_cast<float>(sp.x + 1),
                            static_cast<float>(sp.y + 1), viewW, fh,
                            SDL_Color{0, 0, 0, static_cast<Uint8>(sp.alpha)});
-          fontUi.textSized(
-              renderer, displayStr, static_cast<float>(sp.x),
-              static_cast<float>(sp.y), viewW, fh,
-              rgb24ToSdl(colRgb, static_cast<Uint8>(sp.alpha)));
+          fontUi.textSized(renderer, displayStr, static_cast<float>(sp.x),
+                           static_cast<float>(sp.y), viewW, fh,
+                           rgb24ToSdl(colRgb, static_cast<Uint8>(sp.alpha)));
         }
         continue;
       }
@@ -1090,8 +1090,7 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     }
 
     // 5. `btn` hover highlight slice from `btndef`
-    if (vm_.hoveredButtonId() > 0 &&
-        !vm_.btndefSpec().imagePath.empty()) {
+    if (vm_.hoveredButtonId() > 0 && !vm_.btndefSpec().imagePath.empty()) {
       for (const auto &btn : vm_.activeButtons()) {
         if (btn.id == vm_.hoveredButtonId() &&
             btn.kind == ButtonDef::Kind::RectBtn) {
@@ -1100,12 +1099,9 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
             SDL_SetTextureAlphaMod(tex, 255);
             SDL_FRect src{static_cast<float>(btn.srcX),
                           static_cast<float>(btn.srcY),
-                          static_cast<float>(btn.w),
-                          static_cast<float>(btn.h)};
-            SDL_FRect dst{static_cast<float>(btn.x),
-                          static_cast<float>(btn.y),
-                          static_cast<float>(btn.w),
-                          static_cast<float>(btn.h)};
+                          static_cast<float>(btn.w), static_cast<float>(btn.h)};
+            SDL_FRect dst{static_cast<float>(btn.x), static_cast<float>(btn.y),
+                          static_cast<float>(btn.w), static_cast<float>(btn.h)};
             SDL_RenderTexture(&renderer, tex, &src, &dst);
           }
           break;
@@ -1194,10 +1190,9 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         std::size_t p = 0;
         while (p < visibleRun.size()) {
           std::size_t nextSpace = visibleRun.find(' ', p);
-          std::string word =
-              (nextSpace == std::string::npos)
-                  ? visibleRun.substr(p)
-                  : visibleRun.substr(p, nextSpace - p + 1);
+          std::string word = (nextSpace == std::string::npos)
+                                 ? visibleRun.substr(p)
+                                 : visibleRun.substr(p, nextSpace - p + 1);
           p = (nextSpace == std::string::npos) ? visibleRun.size()
                                                : (nextSpace + 1);
 
@@ -1226,14 +1221,12 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         for (std::size_t i = 0; i < vm_.selectOptions().size(); ++i) {
           const auto &opt = vm_.selectOptions()[i];
           const std::string optDisplay = impl_->translateLine(opt.text);
-          const SDL_FRect optRect{startX, penY,
-                                  static_cast<float>(win.textAreaWidth()),
-                                  lineStep};
+          const SDL_FRect optRect{
+              startX, penY, static_cast<float>(win.textAreaWidth()), lineStep};
           const bool hovered =
               (vm_.mouseX() >= optRect.x &&
                vm_.mouseX() < optRect.x + optRect.w &&
-               vm_.mouseY() >= optRect.y &&
-               vm_.mouseY() >= optRect.y &&
+               vm_.mouseY() >= optRect.y && vm_.mouseY() >= optRect.y &&
                vm_.mouseY() < optRect.y + optRect.h);
           const std::uint32_t col =
               hovered ? vm_.selectHoverColor() : vm_.selectIdleColor();
@@ -1345,16 +1338,14 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         const float sx = 68.0f + col * 336.0f;
         const float sy = startY + row * rowH;
         const SDL_FRect slotRect{sx, sy, 320.0f, rowH - 5.0f};
-        const bool hovered =
-            (vm_.mouseX() >= slotRect.x &&
-             vm_.mouseX() < slotRect.x + slotRect.w &&
-             vm_.mouseY() >= slotRect.y &&
-             vm_.mouseY() < slotRect.y + slotRect.h);
+        const bool hovered = (vm_.mouseX() >= slotRect.x &&
+                              vm_.mouseX() < slotRect.x + slotRect.w &&
+                              vm_.mouseY() >= slotRect.y &&
+                              vm_.mouseY() < slotRect.y + slotRect.h);
 
         SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
-        SDL_SetRenderDrawColor(&renderer, hovered ? 60 : 24,
-                               hovered ? 40 : 28, hovered ? 50 : 38,
-                               hovered ? 210 : 155);
+        SDL_SetRenderDrawColor(&renderer, hovered ? 60 : 24, hovered ? 40 : 28,
+                               hovered ? 50 : 38, hovered ? 210 : 155);
         SDL_RenderFillRect(&renderer, &slotRect);
         SDL_SetRenderDrawColor(&renderer, hovered ? 255 : 95,
                                hovered ? 155 : 105, hovered ? 155 : 125, 190);
@@ -1363,11 +1354,10 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         const SaveTimestamp ts = impl_->querySaveSlot(slotNo);
         char labelBuf[160];
         if (ts.exists) {
-          std::snprintf(labelBuf, sizeof(labelBuf),
-                        "%s%02d  %02d/%02d %02d:%02d  [%s]",
-                        vm_.saveSlotPrefix().c_str(), slotNo, ts.day, ts.month,
-                        ts.hour, ts.minute,
-                        ts.title.empty() ? "Cena" : ts.title.c_str());
+          std::snprintf(
+              labelBuf, sizeof(labelBuf), "%s%02d  %02d/%02d %02d:%02d  [%s]",
+              vm_.saveSlotPrefix().c_str(), slotNo, ts.day, ts.month, ts.hour,
+              ts.minute, ts.title.empty() ? "Cena" : ts.title.c_str());
         } else {
           std::snprintf(labelBuf, sizeof(labelBuf), "%s%02d  ---- Vazio ----",
                         vm_.saveSlotPrefix().c_str(), slotNo);
@@ -1390,7 +1380,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       fontUi.textSized(
           renderer,
           "Histórico de mensagens (" +
-              std::to_string(pages.empty() ? 0 : impl_->backlogScrollOffset + 1) +
+              std::to_string(pages.empty() ? 0
+                                           : impl_->backlogScrollOffset + 1) +
               "/" + std::to_string(pages.size()) +
               ") — Roda do mouse / Setas | Clique direito: Fechar",
           60.0f, 62.0f, 680.0f, 16.0f, SDL_Color{255, 220, 130, 255});
@@ -1483,8 +1474,8 @@ bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
           const float menuY = (viewH - menuH) * 0.5f;
           float y = menuY + 16.0f;
           for (const auto &entry : vm_.rmenuEntries()) {
-            if (!entry.command.empty() && mx >= menuX &&
-                mx < menuX + menuW && my >= y && my < y + itemH) {
+            if (!entry.command.empty() && mx >= menuX && mx < menuX + menuW &&
+                my >= y && my < y + itemH) {
               if (entry.command == "reset") {
                 vm_.resetToStart();
                 return true;
@@ -1578,7 +1569,8 @@ bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
     const auto &pages = vm_.backlogPages();
     if (!pages.empty()) {
       if (event.wheel.y > 0)
-        impl_->backlogScrollOffset = std::max(0, impl_->backlogScrollOffset - 1);
+        impl_->backlogScrollOffset =
+            std::max(0, impl_->backlogScrollOffset - 1);
       else if (event.wheel.y < 0)
         impl_->backlogScrollOffset = std::min(
             static_cast<int>(pages.size()) - 1, impl_->backlogScrollOffset + 1);
@@ -1630,8 +1622,9 @@ bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
           return true;
         }
         if (event.key.key == SDLK_DOWN || event.key.key == SDLK_PAGEDOWN) {
-          impl_->backlogScrollOffset = std::min(
-              static_cast<int>(pages.size()) - 1, impl_->backlogScrollOffset + 1);
+          impl_->backlogScrollOffset =
+              std::min(static_cast<int>(pages.size()) - 1,
+                       impl_->backlogScrollOffset + 1);
           return true;
         }
       }
@@ -1719,17 +1712,19 @@ std::string PonscripterRuntime::debugNode() const {
 }
 
 std::vector<Kotonoha::DebugNode> PonscripterRuntime::debugNodes() const {
+  impl_->ensureScriptIndex();
   std::vector<Kotonoha::DebugNode> nodes;
   nodes.reserve(impl_->sections.size());
   for (const auto &sec : impl_->sections) {
-    nodes.push_back(
-        {std::to_string(sec.routeId), "*" + sec.label, sec.assets});
+    nodes.push_back({std::to_string(sec.routeId), "*" + sec.label, sec.assets});
   }
   return nodes;
 }
 
 void PonscripterRuntime::debugJumpToNode(const std::string &id) {
-  // Accept either routeId integer string ("4141") or label name ("*010" / "010")
+  impl_->ensureScriptIndex();
+  // Accept either routeId integer string ("4141") or label name ("*010" /
+  // "010")
   int routeId = -1;
   try {
     std::size_t pos = 0;
@@ -1776,6 +1771,7 @@ std::string PonscripterRuntime::dialogueSpeaker() const {
 }
 
 int PonscripterRuntime::translationRoute() const {
+  impl_->ensureScriptIndex();
   const auto it = impl_->labelToRouteId.find(vm_.currentLabel());
   if (it != impl_->labelToRouteId.end())
     return it->second;
@@ -1783,6 +1779,7 @@ int PonscripterRuntime::translationRoute() const {
 }
 
 std::vector<int> PonscripterRuntime::translationRoutes() const {
+  impl_->ensureScriptIndex();
   std::vector<int> routes;
   routes.reserve(impl_->sections.size());
   for (const auto &sec : impl_->sections) {
@@ -1794,6 +1791,7 @@ std::vector<int> PonscripterRuntime::translationRoutes() const {
 
 Kotonoha::Translation::SourceTexts
 PonscripterRuntime::translationSources() const {
+  impl_->ensureScriptIndex();
   return impl_->cachedTranslationSources;
 }
 
@@ -1815,6 +1813,7 @@ std::vector<std::string> PonscripterRuntime::activeTranslationKeys() const {
 }
 
 std::vector<Kotonoha::DebugAudioAsset> PonscripterRuntime::debugSceneAudio() {
+  impl_->ensureScriptIndex();
   std::vector<Kotonoha::DebugAudioAsset> out;
   const int routeId = translationRoute();
   const auto it = impl_->routeIdToSectionIndex.find(routeId);
@@ -1838,9 +1837,9 @@ std::vector<Kotonoha::DebugAudioAsset> PonscripterRuntime::debugSceneAudio() {
   };
 
   if (!vm_.lastVoicePath().empty()) {
-    const std::string lastLine =
-        !vm_.currentPageLineKeys().empty() ? vm_.currentPageLineKeys().back()
-                                           : vm_.currentPagePlainText();
+    const std::string lastLine = !vm_.currentPageLineKeys().empty()
+                                     ? vm_.currentPageLineKeys().back()
+                                     : vm_.currentPagePlainText();
     addIfMissing(vm_.lastVoicePath(),
                  inferCharacterFromVoicePath(vm_.lastVoicePath()), lastLine);
   }

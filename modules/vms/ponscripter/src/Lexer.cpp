@@ -57,8 +57,9 @@ std::string LineLexer::parseIdentifier() {
   while (pos_ < src_.size() && isIdentChar(src_[pos_]))
     ++pos_;
   std::string ident(src_.substr(start, pos_ - start));
-  std::transform(ident.begin(), ident.end(), ident.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  std::transform(
+      ident.begin(), ident.end(), ident.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   return ident;
 }
 
@@ -169,7 +170,8 @@ std::string LineLexer::parseStringExpr() {
       const int id = parseStrVarRef();
       return (vars_ && id >= 0) ? vars_->getStr(id) : std::string{};
     }
-    // Bareword stralias or unquoted token (e.g. `s02`, `black`, `white`, `#ffffff`)
+    // Bareword stralias or unquoted token (e.g. `s02`, `black`, `white`,
+    // `#ffffff`)
     const std::size_t start = pos_;
     while (pos_ < src_.size() && src_[pos_] != ',' && src_[pos_] != ':' &&
            src_[pos_] != '+' &&
@@ -452,8 +454,7 @@ std::string LineLexer::parseRawArg() {
     ++pos_;
   }
   std::size_t end = pos_;
-  while (end > start &&
-         std::isspace(static_cast<unsigned char>(src_[end - 1])))
+  while (end > start && std::isspace(static_cast<unsigned char>(src_[end - 1])))
     --end;
   return std::string(src_.substr(start, end - start));
 }

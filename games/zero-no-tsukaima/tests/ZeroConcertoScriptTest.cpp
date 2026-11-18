@@ -130,8 +130,9 @@ int main() {
   layers.Pump();
   CHECK(layers.Scene().size() == 1 && layers.Text() == "hidden");
 
-  Game progression({"0000.KS", "0001.KS"}, [&](size_t i, std::vector<uint8_t> *out) {
-    *out = Bytes(i == 0 ? R"(
+  Game progression(
+      {"0000.KS", "0001.KS"}, [&](size_t i, std::vector<uint8_t> *out) {
+        *out = Bytes(i == 0 ? R"(
       initVariable();
       like("シエスタ", 15);
       tndl(10);
@@ -143,9 +144,10 @@ int main() {
         moveItem("厨房", (0x02000000+303), (0x01000000+1));
         move();
       }
-    )" : R"(talk("n", null, "moved", null);)");
-    return true;
-  });
+    )"
+                            : R"(talk("n", null, "moved", null);)");
+        return true;
+      });
   CHECK(progression.Start("0000.KS"));
   progression.Pump();
   progression.FinishWait();

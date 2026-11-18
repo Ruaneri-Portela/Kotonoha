@@ -1416,8 +1416,7 @@ Render Vm::renderLayer(const std::vector<Shown> &items, double t) {
     hold->held = std::move(out);
     DispP innermost = scene.masterXf;
     while (auto tr = std::dynamic_pointer_cast<TransformDisp>(innermost)) {
-      if (!tr->child_ ||
-          std::dynamic_pointer_cast<LayerHoldDisp>(tr->child_)) {
+      if (!tr->child_ || std::dynamic_pointer_cast<LayerHoldDisp>(tr->child_)) {
         tr->child_ = hold;
         break;
       }

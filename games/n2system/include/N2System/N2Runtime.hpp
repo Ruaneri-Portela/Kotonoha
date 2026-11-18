@@ -38,8 +38,21 @@ public:
   void loadGame(const std::string &path) override;
 
   std::string debugNode() const override;
+  std::vector<Kotonoha::DebugNode> debugNodes() const override;
+  void debugJumpToNode(const std::string &id) override;
+  void debugRestartScene() override;
   std::string dialogueText() const override;
   std::string dialogueSpeaker() const override;
+
+  int translationRoute() const override;
+  std::vector<int> translationRoutes() const override;
+  Kotonoha::Translation::SourceTexts translationSources() const override;
+  std::vector<std::string> activeTranslationKeys() const override;
+
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
+  std::optional<Kotonoha::AudioClip>
+  debugOriginalAudio(const std::string &id) override;
+  void debugOverlayAssetChanged(const std::string &id) override;
 
   ScriptVm &vm() { return vm_; }
   const ScriptVm &vm() const { return vm_; }

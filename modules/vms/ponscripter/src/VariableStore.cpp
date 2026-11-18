@@ -41,12 +41,12 @@ std::string VariableStore::normalizeKey(std::string_view raw) {
          std::isspace(static_cast<unsigned char>(raw[start])))
     ++start;
   std::size_t end = raw.size();
-  while (end > start &&
-         std::isspace(static_cast<unsigned char>(raw[end - 1])))
+  while (end > start && std::isspace(static_cast<unsigned char>(raw[end - 1])))
     --end;
   std::string out(raw.substr(start, end - start));
-  std::transform(out.begin(), out.end(), out.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c) {
+    return static_cast<char>(std::tolower(c));
+  });
   return out;
 }
 

@@ -44,11 +44,13 @@ bool validate(const std::string &path, std::string &info) {
            lower.compare(lower.size() - 4, 4, ".utf") == 0 ||
            lower.compare(lower.size() - 4, 4, ".nsa") == 0 ||
            lower.compare(lower.size() - 4, 4, ".sar") == 0)) {
-        info = "N2System / PONscripter archives or scripts found in virtual source";
+        info = "N2System / PONscripter archives or scripts found in virtual "
+               "source";
         return true;
       }
     }
-    info = "Select a directory or archive containing .nss, .npa, .afs, .utf, or .nsa files";
+    info = "Select a directory or archive containing .nss, .npa, .afs, .utf, "
+           "or .nsa files";
     return false;
   } catch (const std::exception &error) {
     info = error.what();

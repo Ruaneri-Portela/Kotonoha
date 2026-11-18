@@ -1216,11 +1216,11 @@ void ZeroSession::DrawMeter(SDL_Renderer *r, const Game::Meter &m) {
       std::clamp(float(game_->Clock() - m.start) / 1000.0f, 0.0f, 1.0f);
   if (m.kind == Game::Meter::Like) {
     static const std::map<std::string, std::string> kIcons = {
-        {"RU", "RUIZE"},    {"CU", "KYURUKE"},   {"TA", "TABASA"},
-        {"SI", "SIESTA"},   {"AN", "ANRIETTA"},  {"CH", "KURISH"},
-        {"RI", "RISH"},     {"YRI", "YRISH"},    {"RIZ", "LOUISE"},
-        {"TAV", "TABITHA"}, {"SIE", "SIESTA"},   {"ANL", "HENRIETTA"},
-        {"SYL", "IRUKUKWU"},{"TEF", "TIFANIA"},  {"KYU", "KYU"},
+        {"RU", "RUIZE"},     {"CU", "KYURUKE"},  {"TA", "TABASA"},
+        {"SI", "SIESTA"},    {"AN", "ANRIETTA"}, {"CH", "KURISH"},
+        {"RI", "RISH"},      {"YRI", "YRISH"},   {"RIZ", "LOUISE"},
+        {"TAV", "TABITHA"},  {"SIE", "SIESTA"},  {"ANL", "HENRIETTA"},
+        {"SYL", "IRUKUKWU"}, {"TEF", "TIFANIA"}, {"KYU", "KYU"},
         {"ERE", "ELEONORE"}};
     auto it = kIcons.find(Upper(m.name));
     if (it != kIcons.end())

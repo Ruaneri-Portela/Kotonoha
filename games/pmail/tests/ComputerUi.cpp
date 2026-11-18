@@ -361,8 +361,8 @@ int main() {
               game.choices() == std::vector<std::string>({"one", "two"}) &&
               game.vm().lines().empty(),
           "SYS 7 did not populate choice options from queued lines");
-    check(game.choose(1) && !game.choosing() &&
-              game.vm().var(0x34e4) == 2 && chosenBacklog == "two",
+    check(game.choose(1) && !game.choosing() && game.vm().var(0x34e4) == 2 &&
+              chosenBacklog == "two",
           "SYS 7 did not write 1-based choice index or record backlog");
     call(2, {});
     call(4, {integer(1), string(3), string(7), string(8)});

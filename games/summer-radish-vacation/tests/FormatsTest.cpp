@@ -198,7 +198,8 @@ int main() {
       for (int i = 0; i < 14; ++i)
         dirRaw[10 + i * 2] = uint8_t(entryName[i]);
       Bytes rawCmp = {'A', 'B', 'C', 'D', 'E', 'F'};
-      // Directory starts at offset 6: raw size = 38 (4B), then control byte 37 + dirRaw
+      // Directory starts at offset 6: raw size = 38 (4B), then control byte 37
+      // + dirRaw
       rawCmp.insert(rawCmp.end(), {38, 0, 0, 0, 37});
       rawCmp.insert(rawCmp.end(), dirRaw.begin(), dirRaw.end());
       // Footer (8B): "PACK" (XOR 0) + directory offset 6 (4B)

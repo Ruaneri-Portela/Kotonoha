@@ -52,7 +52,8 @@ int main() {
     vars.setNumAlias("volmp3", 516);
     vars.setStrAlias("s02", "sound\\s02.ogg");
 
-    check(vars.setNum("gro", 1), "Setting %gro (500 >= 200) must mark global dirty");
+    check(vars.setNum("gro", 1),
+          "Setting %gro (500 >= 200) must mark global dirty");
     check(!vars.setNum(10, 42), "Setting %10 (< 200) is local");
     check(vars.getNum("gro") == 1 && vars.getNum(500) == 1,
           "numalias lookup must match numeric ID");
@@ -60,7 +61,8 @@ int main() {
     vars.setNum(3, 645);
     {
       Ponscripter::LineLexer lx("%3-600", &vars);
-      check(lx.parseIntExpr() == 45, "Slider arithmetic %3-600 must evaluate to 45");
+      check(lx.parseIntExpr() == 45,
+            "Slider arithmetic %3-600 must evaluate to 45");
     }
 
     {

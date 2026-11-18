@@ -126,8 +126,9 @@ int main(int argc, char **argv) {
       Require(disc->Source().MovieCount() == 26,
               "Concerto movie table has 26 PSS entries");
     } else {
-      Require(disc->Source().SoundIndex("BGMB01") == 53,
-              "Symphony BGMB01 resolves to .STV stream entry (53), not .PSH (52)");
+      Require(
+          disc->Source().SoundIndex("BGMB01") == 53,
+          "Symphony BGMB01 resolves to .STV stream entry (53), not .PSH (52)");
       std::vector<uint8_t> bgmData;
       Require(disc->Source().LoadSound(
                   size_t(disc->Source().SoundIndex("BGMB01")), &bgmData) &&

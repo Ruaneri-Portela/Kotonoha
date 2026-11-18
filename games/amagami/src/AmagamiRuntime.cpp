@@ -829,8 +829,9 @@ void AmagamiRuntime::bindSessionAudio() {
       if (n < 0)
         music_.Stop();
       else {
-        const std::string prefix =
-            (session_ && session_->classicMusic()) ? "music/classic/" : "music/";
+        const std::string prefix = (session_ && session_->classicMusic())
+                                       ? "music/classic/"
+                                       : "music/";
         audio(prefix + std::to_string(n), "bgm", true);
       }
     } else if (kind == "music-gain")

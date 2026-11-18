@@ -538,8 +538,8 @@ struct Parser {
       try {
         pose = DiscId(a[1], 0x02000000, true);
       } catch (const std::exception &) {
-        pose = (a[1].size() == 1 && a[1][0].string) ? a[1][0].text
-                                                    : Value(a[1]);
+        pose =
+            (a[1].size() == 1 && a[1][0].string) ? a[1][0].text : Value(a[1]);
       }
       Add("concerto_move_item",
           {{"room", room}, {"pose", pose}, {"storage", SceneName(a[2], true)}});
@@ -586,8 +586,8 @@ struct Parser {
       try {
         pose = DiscId(a[2], 0x02000000, true);
       } catch (const std::exception &) {
-        pose = (a[2].size() == 1 && a[2][0].string) ? a[2][0].text
-                                                    : Value(a[2]);
+        pose =
+            (a[2].size() == 1 && a[2][0].string) ? a[2][0].text : Value(a[2]);
       }
       Add("concerto_battle_enemy",
           {{"pos", text(0)}, {"name", text(1)}, {"pose", pose}});

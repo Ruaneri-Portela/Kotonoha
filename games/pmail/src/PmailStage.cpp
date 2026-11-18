@@ -122,10 +122,9 @@ void PmailStage::render(Kotonoha::RendererRef renderer, float scale) {
         SDL_RenderTexture(&renderer, it->second.tex.get(), nullptr, &dst);
       }
     }
-    const int rollIdx =
-        std::clamp(int((uint64_t(roll.elapsedMs) * 12) /
-                       std::max<uint32_t>(1, roll.durationMs)),
-                   0, 11);
+    const int rollIdx = std::clamp(int((uint64_t(roll.elapsedMs) * 12) /
+                                       std::max<uint32_t>(1, roll.durationMs)),
+                                   0, 11);
     char rollFile[32];
     std::snprintf(rollFile, sizeof(rollFile), "roll_%02d.rol", rollIdx);
     auto it = spriteCache_.find(rollFile);
@@ -147,8 +146,7 @@ void PmailStage::render(Kotonoha::RendererRef renderer, float scale) {
     }
     if (it->second.tex) {
       const uint32_t segMs = std::max<uint32_t>(1, roll.durationMs / 12);
-      const float progress =
-          float(roll.elapsedMs % segMs) / float(segMs);
+      const float progress = float(roll.elapsedMs % segMs) / float(segMs);
       const float y = 600.0f - progress * (600.0f + it->second.h);
       const SDL_FRect dst{556.0f, y, it->second.w, it->second.h};
       SDL_RenderTexture(&renderer, it->second.tex.get(), nullptr, &dst);

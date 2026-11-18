@@ -58,8 +58,8 @@ int main() {
   assert(call(2323, {}) && m.store_register() == 42);
   assert(call(461, {integer(0), integer(1)}));
   assert(call(460, {integer(0)}) && m.store_register() == 1);
-  assert(call(2267, {integer(10), integer(20), integer(30), integer(180),
-                     integer(1)}));
+  assert(call(
+      2267, {integer(10), integer(20), integer(30), integer(180), integer(1)}));
   assert(call(2360, {}) && m.store_register() == 10);
   assert(call(2361, {}) && m.store_register() == 20);
   assert(call(2362, {}) && m.store_register() == 30);

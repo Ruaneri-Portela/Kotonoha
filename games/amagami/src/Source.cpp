@@ -182,8 +182,8 @@ Source::Source(const std::string &path)
         name[2] <= '9')
       music_.emplace((name[1] - '0') * 10 + name[2] - '0', i);
   }
-  // SOUND/MUSIC.ARC contains systemBank.bd (entry 0) and systemBank.hd (entry 1,
-  // Sony IECS header with Vagi sample table at +0x50 for 49 waves 0..48).
+  // SOUND/MUSIC.ARC contains systemBank.bd (entry 0) and systemBank.hd (entry
+  // 1, Sony IECS header with Vagi sample table at +0x50 for 49 waves 0..48).
   const int bdIdx = find("SOUND/MUSIC.ARC", "systemBank.bd");
   const int hdIdx = find("SOUND/MUSIC.ARC", "systemBank.hd");
   if (bdIdx >= 0 && hdIdx >= 0) {
@@ -208,7 +208,8 @@ Source::Source(const std::string &path)
           const uint16_t rate =
               uint16_t(hd[recPos + 4]) | (uint16_t(hd[recPos + 5]) << 8);
           const uint32_t bdEnd =
-              (i + 1 < count && kVagiOffset + recOffsets[i + 1] + 4 <= hd.size())
+              (i + 1 < count &&
+               kVagiOffset + recOffsets[i + 1] + 4 <= hd.size())
                   ? u32(hd, kVagiOffset + recOffsets[i + 1])
                   : uint32_t(bd.size());
           if (bdStart > bd.size() || bdEnd > bd.size() || bdEnd < bdStart)
@@ -396,7 +397,8 @@ int Source::ambienceIndex(unsigned id) const {
 }
 Source::SoundEffect Source::soundEffect(unsigned index) const {
   // Support direct Vagi wave indices 0..48 as well as MIDI note IDs 12..60
-  // (where Smpl[i] has base note 12 + i). If index is 49..60, map to index - 12.
+  // (where Smpl[i] has base note 12 + i). If index is 49..60, map to index
+  // - 12.
   const size_t resolved =
       index < soundEffects_.size()
           ? size_t(index)
@@ -419,11 +421,9 @@ Source::spriteDescriptor(unsigned texId, unsigned variant) const {
   desc.extra = tpl.extra;
   if (!tpl.format.empty()) {
     char buf[128];
-    const bool hasExt =
-        tpl.format.size() >= 4 &&
-        tpl.format.substr(tpl.format.size() - 4) == ".tm2";
-    const std::string fmtWithExt =
-        hasExt ? tpl.format : (tpl.format + ".tm2");
+    const bool hasExt = tpl.format.size() >= 4 &&
+                        tpl.format.substr(tpl.format.size() - 4) == ".tm2";
+    const std::string fmtWithExt = hasExt ? tpl.format : (tpl.format + ".tm2");
     if (tpl.argKind == 1) {
       std::snprintf(buf, sizeof(buf), fmtWithExt.c_str(), variant);
       desc.asset = buf;

@@ -199,13 +199,13 @@ bool IsTime(const std::string &w) {
 // Tag attributes that are parameters rather than names.
 bool IsParam(const std::string &k) {
   static const char *const kParams[] = {
-      "tagname",    "time",     "trans",   "notrans", "fade",    "sync",
-      "nosync",     "xpos",     "ypos",    "hide",    "show",    "reset",
-      "stopaction", "file",     "error",   "level",   "opacity", "stage",
-      "stime",      "buf",      "wait",    "stop",    "loop",    "name",
-      "if",         "disp",     "left",    "top",     "zoom",    "afx",
-      "afy",        "origin",   "vorigin", "noshift", "nocamera","endtime",
-      "eol",        "page",     "line",    "count"};
+      "tagname",    "time",   "trans",   "notrans", "fade",     "sync",
+      "nosync",     "xpos",   "ypos",    "hide",    "show",     "reset",
+      "stopaction", "file",   "error",   "level",   "opacity",  "stage",
+      "stime",      "buf",    "wait",    "stop",    "loop",     "name",
+      "if",         "disp",   "left",    "top",     "zoom",     "afx",
+      "afy",        "origin", "vorigin", "noshift", "nocamera", "endtime",
+      "eol",        "page",   "line",    "count"};
   for (const char *p : kParams)
     if (k == p)
       return true;
@@ -692,7 +692,8 @@ void Game::Execute(const SceneTag &tag) {
       const std::string act = attr("action");
       if (act == "LayerVibrateActionModule" || act == "LayerJumpActionModule" ||
           act == "LayerJumpOnceActionModule" ||
-          act == "LayerWaveActionModule" || act == "LayerWaveOnceActionModule") {
+          act == "LayerWaveActionModule" ||
+          act == "LayerWaveOnceActionModule") {
         l.p.shake = std::max(1, std::abs(IntAttr(tag, "vibration", 10)));
         l.p.shakeInterval = std::max(16, IntAttr(tag, "waitTime", 50));
       } else if (act == "LayerAccelMoveModule" ||
@@ -1015,8 +1016,8 @@ void Game::Execute(const SceneTag &tag) {
     const int before = int(Eval(attr("before")));
     const int after = int(Eval(attr("after")));
     if (!skipping_ && before != after) {
-      meter_ = {
-          Meter::Tundere, {}, after - before, before, after, clock_, clock_ + 500};
+      meter_ = {Meter::Tundere, {},     after - before, before,
+                after,          clock_, clock_ + 500};
       WaitFor(500);
     }
   } else if (n == "concerto_tndl_init") {
@@ -1050,24 +1051,35 @@ void Game::Execute(const SceneTag &tag) {
       if (it != kLikes.end())
         flags_["f.like_" + std::to_string(idx)] += add;
       if (!skipping_) {
-        meter_ = {
-            Meter::Like, code, add > 0 ? 1 : -1, 0, 0, clock_, clock_ + 500};
+        meter_ = {Meter::Like, code,   add > 0 ? 1 : -1, 0,
+                  0,           clock_, clock_ + 500};
         WaitFor(500);
       }
     }
   } else if (n == "concerto_item") {
     static const std::map<std::string, int> kItems = {
-        {"ドッグフード", 0},         {"ルイズ特製スープ", 1},
-        {"ルイズ特製ケーキ", 2},     {"バナナ", 3},
-        {"パン", 4},                 {"スープ", 5},
-        {"シエスタ特製スープ", 6},   {"薬草", 7},
-        {"青いポーション", 8},       {"いちご", 9},
-        {"レモン", 10},              {"チョコレート", 11},
-        {"ハート型チョコ", 12},      {"シエスタ特製ケーキ", 13},
-        {"ハチミツ", 14},            {"グレープジュース", 15},
-        {"ワイン", 16},              {"ハーブ", 17},
-        {"ハーブポーション", 18},    {"野菜ジュース", 19},
-        {"青汁", 20},                {"緑のポーション", 21},
+        {"ドッグフード", 0},
+        {"ルイズ特製スープ", 1},
+        {"ルイズ特製ケーキ", 2},
+        {"バナナ", 3},
+        {"パン", 4},
+        {"スープ", 5},
+        {"シエスタ特製スープ", 6},
+        {"薬草", 7},
+        {"青いポーション", 8},
+        {"いちご", 9},
+        {"レモン", 10},
+        {"チョコレート", 11},
+        {"ハート型チョコ", 12},
+        {"シエスタ特製ケーキ", 13},
+        {"ハチミツ", 14},
+        {"グレープジュース", 15},
+        {"ワイン", 16},
+        {"ハーブ", 17},
+        {"ハーブポーション", 18},
+        {"野菜ジュース", 19},
+        {"青汁", 20},
+        {"緑のポーション", 21},
         {"エリクサー", 22}};
     auto it = kItems.find(attr("name"));
     if (it != kItems.end()) {
@@ -1106,7 +1118,8 @@ void Game::Execute(const SceneTag &tag) {
     const std::string cnt = attr("count");
     moveCount_ = (cnt == "null" || cnt.empty()) ? 1 : int(Eval(cnt));
     const std::string bgm = attr("bgm");
-    moveBgm_ = (bgm == "null" || bgm == "-1" || bgm.empty()) ? std::string{} : bgm;
+    moveBgm_ =
+        (bgm == "null" || bgm == "-1" || bgm.empty()) ? std::string{} : bgm;
   } else if (n == "concerto_move_item") {
     moves_.push_back({attr("room"), attr("pose"), attr("storage")});
   } else if (n == "concerto_date_item") {

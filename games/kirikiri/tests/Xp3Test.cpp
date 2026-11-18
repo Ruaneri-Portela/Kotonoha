@@ -1638,14 +1638,14 @@ int main() {
         PsbValue::makeString("ショコラ"),
         PsbValue::makeNull(),
         PsbValue::makeList({
-            PsbValue::makeList({PsbValue::makeNull(),
-                                PsbValue::makeString("「おはよう！」")}),
+            PsbValue::makeList(
+                {PsbValue::makeNull(), PsbValue::makeString("「おはよう！」")}),
             PsbValue::makeList({PsbValue::makeString("Chocola"),
                                 PsbValue::makeString("「Good morning!」")}),
             PsbValue::makeList(
                 {PsbValue::makeString("巧克力"),
-                 PsbValue::makeString(
-                     "%fSourceHanSansCN-M;「%f;Bom dia!%fSourceHanSansCN-M;」")}),
+                 PsbValue::makeString("%fSourceHanSansCN-M;「%f;Bom "
+                                      "dia!%fSourceHanSansCN-M;」")}),
         }),
         PsbValue::makeList({
             PsbValue::makeDict({
@@ -1667,8 +1667,8 @@ int main() {
                      {"redraw",
                       PsbValue::makeDict({
                           {"imageFile",
-                           PsbValue::makeDict({{"file", PsbValue::makeString(
-                                                            "room_day")}})},
+                           PsbValue::makeDict(
+                               {{"file", PsbValue::makeString("room_day")}})},
                       })},
                  }),
              }),
@@ -1677,25 +1677,23 @@ int main() {
 
     PsbValue scene = PsbValue::makeDict({
         {"label", PsbValue::makeString("*start")},
-        {"title",
-         PsbValue::makeList({PsbValue::makeString("JP"),
-                             PsbValue::makeString("EN"),
-                             PsbValue::makeString("Capítulo 1")})},
-        {"texts", PsbValue::makeList({PsbValue::makeList(std::move(textEntry))})},
-        {"lines",
-         PsbValue::makeList({
-             PsbValue::makeString("cg_zero_01a"),
-             PsbValue::makeList({PsbValue::makeInt(1), snapshot}),
-             PsbValue::makeInt(1),
-         })},
-        {"nexts",
-         PsbValue::makeList({
-             PsbValue::makeDict({
-                 {"storage", PsbValue::makeString("00_02.ks")},
-                 {"target", PsbValue::makeString("*start")},
-                 {"type", PsbValue::makeInt(0)},
-             }),
-         })},
+        {"title", PsbValue::makeList({PsbValue::makeString("JP"),
+                                      PsbValue::makeString("EN"),
+                                      PsbValue::makeString("Capítulo 1")})},
+        {"texts",
+         PsbValue::makeList({PsbValue::makeList(std::move(textEntry))})},
+        {"lines", PsbValue::makeList({
+                      PsbValue::makeString("cg_zero_01a"),
+                      PsbValue::makeList({PsbValue::makeInt(1), snapshot}),
+                      PsbValue::makeInt(1),
+                  })},
+        {"nexts", PsbValue::makeList({
+                      PsbValue::makeDict({
+                          {"storage", PsbValue::makeString("00_02.ks")},
+                          {"target", PsbValue::makeString("*start")},
+                          {"type", PsbValue::makeInt(0)},
+                      }),
+                  })},
     });
 
     PsbValue root = PsbValue::makeDict({
@@ -1726,8 +1724,7 @@ int main() {
       Kirikiri::ScnRunner runner(parsed, cb, 2);
       runner.run();
       if (!runner.isBlocked() || shownSpeaker != "Chocola" ||
-          shownText != "Bom dia!" ||
-          shownPlate != "VNX+/cn_name_chocola.png" ||
+          shownText != "Bom dia!" || shownPlate != "VNX+/cn_name_chocola.png" ||
           shownVoices != std::vector<std::string>{"syo_drama_0001"} ||
           !runner.unlockedFlags().count("cg_zero_01a")) {
         std::printf("FAIL: ScnRunner PT-BR dialogue or nameplate failed\n");

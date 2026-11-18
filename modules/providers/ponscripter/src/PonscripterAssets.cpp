@@ -140,7 +140,8 @@ PonscripterAssets::resolveActualPath(std::string_view requestedPath) const {
       return norm;
   }
 
-  // 3. SayaNoUta_PT-BR audio typo fallback: `sound/<subpath>` -> `voice/<subpath>`
+  // 3. SayaNoUta_PT-BR audio typo fallback: `sound/<subpath>` ->
+  // `voice/<subpath>`
   if (norm.rfind("sound/", 0) == 0) {
     const std::string fallbackNorm = "voice/" + norm.substr(6);
     const auto vit = caseIndex_.find(fallbackNorm);
@@ -240,8 +241,7 @@ PonscripterAssets::listAsset(const std::string &prefix) const {
   return {names.begin(), names.end()};
 }
 
-std::string
-PonscripterAssets::localPathAsset(const std::string &path) const {
+std::string PonscripterAssets::localPathAsset(const std::string &path) const {
   if (rootDirectory_.empty())
     return {};
   const std::string norm = ArchiveReader::normalizePath(path);

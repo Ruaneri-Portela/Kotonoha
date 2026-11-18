@@ -59,8 +59,7 @@ std::string ScnRunner::stripFormatting(std::string text) {
     else
       fpos += 2;
   }
-  if (text.size() >= 6 &&
-      std::memcmp(text.data(), "\xE3\x80\x8C", 3) == 0 &&
+  if (text.size() >= 6 && std::memcmp(text.data(), "\xE3\x80\x8C", 3) == 0 &&
       std::memcmp(text.data() + text.size() - 3, "\xE3\x80\x8D", 3) == 0) {
     text = text.substr(3, text.size() - 6);
   }
@@ -110,7 +109,7 @@ ScnRunner::resolveSpeaker(const std::string &primary,
           {"ショコラ＆バニラ＆時雨",
            {"Chocola, Vanilla & Shigure",
             "VNX+/cn_name_chocola_vanilla_shigure.png"}},
-      };
+  };
   if (auto it = kMap.find(key); it != kMap.end())
     return it->second;
   if (!fallbackDisplay.empty())
@@ -279,15 +278,13 @@ void ScnRunner::finishAllActions() {
     }
     obj.activeActions.clear();
   };
-  finishMap(stage_,
-            [this](ScnLayerState &l, const std::string &p) -> double & {
-              return layerPropertyRef(l, p);
-            });
+  finishMap(stage_, [this](ScnLayerState &l, const std::string &p) -> double & {
+    return layerPropertyRef(l, p);
+  });
   for (auto &[_, ev] : events_) {
-    finishMap(ev,
-              [this](ScnLayerState &l, const std::string &p) -> double & {
-                return layerPropertyRef(l, p);
-              });
+    finishMap(ev, [this](ScnLayerState &l, const std::string &p) -> double & {
+      return layerPropertyRef(l, p);
+    });
   }
   for (auto &[_, ch] : characters_) {
     finishMap(ch,
@@ -411,8 +408,8 @@ void ScnRunner::executeLine(const Kotonoha::Providers::PsbValue &line,
               langIdx_ < langs.size() ? langIdx_ : langs.size() - 1;
           if (!langs[chosen].isList() || langs[chosen].size() < 2 ||
               langs[chosen][1].asString().empty()) {
-            if (langs.size() > 2 && langs[2].isList() &&
-                langs[2].size() >= 2 && !langs[2][1].asString().empty())
+            if (langs.size() > 2 && langs[2].isList() && langs[2].size() >= 2 &&
+                !langs[2][1].asString().empty())
               chosen = 2;
             else if (langs.size() > 1 && langs[1].isList() &&
                      langs[1].size() >= 2 && !langs[1][1].asString().empty())
@@ -549,12 +546,12 @@ void ScnRunner::executeCommand(const Kotonoha::Providers::PsbValue &cmdList,
   if (cmd == "stopaction") {
     if (cmdList.size() >= 3 && cmdList[1].asString() == "delayrun") {
       const std::string target = cmdList[2].asString();
-      pendingDelays_.erase(
-          std::remove_if(pendingDelays_.begin(), pendingDelays_.end(),
-                         [&](const PendingDelay &d) {
-                           return d.trigger == target;
-                         }),
-          pendingDelays_.end());
+      pendingDelays_.erase(std::remove_if(pendingDelays_.begin(),
+                                          pendingDelays_.end(),
+                                          [&](const PendingDelay &d) {
+                                            return d.trigger == target;
+                                          }),
+                           pendingDelays_.end());
     } else {
       finishAllActions();
     }
@@ -731,9 +728,9 @@ void ScnRunner::applyObjectDict(const std::string &objName,
           kf.handler = kfDict["handler"].asString();
           if (kf.handler.empty())
             kf.handler = "MoveAction";
-          kf.durationMs = static_cast<int>(
-              kfDict.has("time") ? kfDict["time"].toInt(0)
-                                 : kfDict["waittime"].toInt(0));
+          kf.durationMs = static_cast<int>(kfDict.has("time")
+                                               ? kfDict["time"].toInt(0)
+                                               : kfDict["waittime"].toInt(0));
           kf.accel = kfDict["accel"].toString();
           kf.vibration = kfDict["vibration"].toDouble(0.0);
           kf.cycle = kfDict["cycle"].toDouble(500.0);
@@ -920,10 +917,12 @@ void ScnRunner::applySavepointSnapshot(
 }
 
 ScnRunner::State ScnRunner::saveState() const {
-  return {sceneIdx_,          pc_,
-          lastSavepointId_,   lastSnapshot_.isDict() ? lastSnapshot_.toJson()
-                                                     : std::string{},
-          unlockedFlags_,     finished_};
+  return {sceneIdx_,
+          pc_,
+          lastSavepointId_,
+          lastSnapshot_.isDict() ? lastSnapshot_.toJson() : std::string{},
+          unlockedFlags_,
+          finished_};
 }
 
 void ScnRunner::restoreState(const State &state) {

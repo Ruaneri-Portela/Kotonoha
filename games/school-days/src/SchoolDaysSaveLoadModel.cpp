@@ -77,9 +77,9 @@ bool SchoolDaysSaveLoadModel::SetSelectionFromPointer(int x, int y) {
 void SchoolDaysSaveLoadModel::StepSelection(int delta) {
   if (!open_ || pendingRow_ >= 0 || commentRow_ >= 0 || delta == 0)
     return;
-  int row = (selection_ >= 0 && selection_ <= 9) ? selection_
+  int row = (selection_ >= 0 && selection_ <= 9)     ? selection_
             : (selection_ >= 22 && selection_ <= 31) ? (selection_ - 22)
-            : (delta > 0 ? -1 : 0);
+                                                     : (delta > 0 ? -1 : 0);
   selection_ = (row + (delta > 0 ? 1 : 9)) % 10;
 }
 

@@ -560,7 +560,8 @@ std::vector<std::string> Vm::listDir(const std::string &name) {
       return;
     const std::string rest = p.substr(prefix.size());
     const auto slash = rest.find('/');
-    entries.push_back(slash == std::string::npos ? rest : rest.substr(0, slash));
+    entries.push_back(slash == std::string::npos ? rest
+                                                 : rest.substr(0, slash));
   };
   if (isRoot) {
     if (virtualRootFiles) {
@@ -744,8 +745,9 @@ std::string Vm::readFile(const std::string &name, bool &ok) {
       ok = true;
       return std::string(bytes.begin(), bytes.end());
     }
-    if (logical.rfind("characters/", 0) == 0 || logical == "CAN YOU HEAR ME.txt" ||
-        logical == "hxppy thxughts.png" || logical == "iiiiii.txt") {
+    if (logical.rfind("characters/", 0) == 0 ||
+        logical == "CAN YOU HEAR ME.txt" || logical == "hxppy thxughts.png" ||
+        logical == "iiiiii.txt") {
       ok = false;
       return {};
     }
@@ -1202,7 +1204,8 @@ void VmNatives::install(Vm &vm) {
   py.def("AnimatedMask", [v, disp](Interp &, Args &a, Kwargs &kw) {
     DispP child = a.empty() ? makeNullDisp(0, 0) : disp(a[0]);
     const double oc = argOr(a, 3, kw, "oc", Value::real(0.0)).num();
-    const bool moving = argOr(a, 5, kw, "moving", Value::boolean(true)).truthy();
+    const bool moving =
+        argOr(a, 5, kw, "moving", Value::boolean(true)).truthy();
     const double speed = argOr(a, 6, kw, "speed", Value::real(1.0)).num();
     const double freq = argOr(a, 7, kw, "frequency", Value::real(1.0)).num();
     const double amount = argOr(a, 8, kw, "amount", Value::real(0.5)).num();
@@ -2128,7 +2131,8 @@ void Vm::execUser(const std::string &line) {
       if (flag("if_changed") && backend.playing(ch) == specs[0])
         return;
       backend.play(ch, specs[0], option("fadein", 3).num(),
-                   specs.size() == 1 ? loop : false, option("fadeout", 3).num());
+                   specs.size() == 1 ? loop : false,
+                   option("fadeout", 3).num());
       for (size_t i = 1; i < specs.size(); ++i)
         backend.queue(ch, specs[i], i + 1 == specs.size() ? loop : false);
     }

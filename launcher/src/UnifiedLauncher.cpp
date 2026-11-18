@@ -651,7 +651,19 @@ int launchModularPortProcess(const char *argv0,
   std::vector<std::string> args;
   args.push_back(resolvedBinary.string());
   args.push_back(activeCliOption);
-  args.push_back(entry.path);
+  // Some engines store assets in a subdirectory (e.g. MEO → Personal/MISSEACHOTHER/).
+  // Pass the full resolved path so the port finds its assets.
+  if (!entry.engine.dataPrefix.empty()) {
+    const auto resolvedAssetPath =
+        (fs::path(entry.path) / entry.engine.dataPrefix).string();
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "Launcher: resolved asset path '%s' (root='%s' prefix='%s')",
+                resolvedAssetPath.c_str(), entry.path.c_str(),
+                entry.engine.dataPrefix.c_str());
+    args.push_back(resolvedAssetPath);
+  } else {
+    args.push_back(entry.path);
+  }
   args.push_back("--no-launcher");
   if (!portOptions.settingsPath.empty()) {
     args.push_back("--config");
@@ -676,6 +688,11 @@ int launchModularPortProcess(const char *argv0,
   for (auto &a : args)
     cargs.push_back(a.data());
   cargs.push_back(nullptr);
+
+  // Debug: print all args
+  for (std::size_t i = 0; i < args.size(); ++i)
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "Launcher exec arg[%zu]: '%s'", i, args[i].c_str());
 
   const pid_t pid = fork();
   if (pid == 0) {

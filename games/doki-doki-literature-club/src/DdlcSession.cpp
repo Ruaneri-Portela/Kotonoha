@@ -720,7 +720,8 @@ public:
       if (channel.player && !channel.spec.empty() && channel.player->Playing())
         result.push_back(
             {name, channel.spec,
-             channel.queue.empty() ? std::string() : channel.queue.front().first,
+             channel.queue.empty() ? std::string()
+                                   : channel.queue.front().first,
              channel.loop,
              channel.queue.empty() ? false : channel.queue.front().second,
              position(name), currentGain(channel)});
@@ -1297,9 +1298,10 @@ struct Game {
           auto *row = static_cast<uint8_t *>(rgba->pixels) +
                       size_t(y) * size_t(rgba->pitch);
           for (int x = 0; x < rgba->w; ++x) {
-            const uint8_t lum = uint8_t(
-                (77u * row[x * 4] + 150u * row[x * 4 + 1] + 29u * row[x * 4 + 2]) >>
-                8);
+            const uint8_t lum =
+                uint8_t((77u * row[x * 4] + 150u * row[x * 4 + 1] +
+                         29u * row[x * 4 + 2]) >>
+                        8);
             row[x * 4] = row[x * 4 + 1] = row[x * 4 + 2] = lum;
           }
         }
@@ -1560,10 +1562,13 @@ struct Game {
   void drawQuickMenu(SDL_Renderer *r) {
     static const char *enLabels[] = {"History", "Skip", "Auto",
                                      "Save",    "Load", "Settings"};
-    static const char *ptLabels[] = {"Hist\xC3\xB3rico", "Pular",
-                                     "Auto",             "Salvar",
-                                     "Carregar",         "Op\xC3\xA7\xC3\xB5"
-                                                         "es"};
+    static const char *ptLabels[] = {"Hist\xC3\xB3rico",
+                                     "Pular",
+                                     "Auto",
+                                     "Salvar",
+                                     "Carregar",
+                                     "Op\xC3\xA7\xC3\xB5"
+                                     "es"};
     const char *const *labels = isPtBr() ? ptLabels : enLabels;
     const TextStyle base = uiStyle(kAller, 14, 0x552222ff);
     float total = 0, h = 0;
@@ -1582,8 +1587,8 @@ struct Game {
       const bool hov = button(
           b, [this, actionKey] { quickAction(actionKey); }, "quick" + actionKey,
           false);
-      const bool sel =
-          (actionKey == "Skip" && skipToggle) || (actionKey == "Auto" && autoMode);
+      const bool sel = (actionKey == "Skip" && skipToggle) ||
+                       (actionKey == "Auto" && autoMode);
       TextStyle s = base;
       s.color = hov ? 0xffccccff : sel ? 0xffffffff : 0x552222ff;
       drawText(r, l, s, x + 4, y + 4);
@@ -2469,8 +2474,7 @@ struct Game {
     if (!fake && !skipping())
       return;
     const TextStyle st = uiStyle(kAller, 16, 0xffffffff);
-    const char *skipLbl =
-        isPtBr() ? "Pulando Di\xC3\xA1logo" : "Skipping";
+    const char *skipLbl = isPtBr() ? "Pulando Di\xC3\xA1logo" : "Skipping";
     const SDL_FPoint size = textSize(skipLbl, st);
     const float tri = 10, gap = 6;
     const float width = 16 + size.x + 3 * (gap + tri) + 50,
@@ -2565,7 +2569,10 @@ struct Game {
 
   void drawCreditsMenu(SDL_Renderer *r) {
     drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
-    drawText(r, "Cr\xC3\xA9" "ditos", navStyle(false, false), 80, 30);
+    drawText(r,
+             "Cr\xC3\xA9"
+             "ditos",
+             navStyle(false, false), 80, 30);
     TextStyle header = uiStyle(kRiffic, 28, 0xffffffff);
     header.outlines = {{3.f, 0xbb5599ff}};
     TextStyle body = uiStyle(kAller, 22, 0x000000ff);
@@ -2583,7 +2590,9 @@ struct Game {
           {"Zetsubou", "Sora", "Ewerton1334", "Zero-senpai"});
     block(360, 460, "Revis\xC3\xA3o:", {"Zetsubou", "Sora"});
     block(740, 120, "Agradecimentos:", {"ColdAsSans", "Gledson999"});
-    block(740, 260, "Design Gr\xC3\xA1" "fico:",
+    block(740, 260,
+          "Design Gr\xC3\xA1"
+          "fico:",
           {"Kin testando", "Sora", "Zetsubou"});
     block(740, 430, "Hacking:", {"Solid One", "Zetsubou"});
     TextStyle vnx = uiStyle(kRiffic, 60, 0xffffffff);
@@ -2775,14 +2784,15 @@ struct Game {
       slotButtons.push_back(
           {label, [this, i, ptBr] {
              const int pt =
-                 vm ? int(vm->py.getAttr(vm->persistent, "playthrough").integer())
+                 vm ? int(vm->py.getAttr(vm->persistent, "playthrough")
+                              .integer())
                     : 0;
              if (subMenu == SubMenu::Save && pt == 3) {
-               notice = ptBr
-                            ? "N\xC3\xA3o h\xC3\xA1 sentido em salvar agora.\n"
-                              "N\xC3\xA3o se preocupe, eu n\xC3\xA3o vou a lugar algum."
-                            : "There's no point in saving anymore.\n"
-                              "Don't worry, I'm not going anywhere.";
+               notice = ptBr ? "N\xC3\xA3o h\xC3\xA1 sentido em salvar agora.\n"
+                               "N\xC3\xA3o se preocupe, eu n\xC3\xA3o vou a "
+                               "lugar algum."
+                             : "There's no point in saving anymore.\n"
+                               "Don't worry, I'm not going anywhere.";
                subMenu = SubMenu::None;
                return;
              }
@@ -2790,7 +2800,8 @@ struct Game {
                  !std::filesystem::is_regular_file(
                      charactersDirectory(host.directory()) / "sayori.chr")) {
                corruptLoadPending = true;
-               notice = ptBr ? "O arquivo n\xC3\xA3o p\xC3\xB4" "de ser carregado."
+               notice = ptBr ? "O arquivo n\xC3\xA3o p\xC3\xB4"
+                               "de ser carregado."
                              : "File could not be loaded.";
                subMenu = SubMenu::None;
                return;
@@ -2851,14 +2862,16 @@ struct Game {
            }},
           {ptBr ? "Carregar Jogo" : "Load Game",
            [this] { subMenu = SubMenu::Load; }},
-          {ptBr ? "Op\xC3\xA7\xC3\xB5" "es" : "Settings",
+          {ptBr ? "Op\xC3\xA7\xC3\xB5"
+                  "es"
+                : "Settings",
            [this] { engine.openSettings(); }}};
       if (ptBr)
-        items.push_back(
-            {"Cr\xC3\xA9" "ditos", [this] { subMenu = SubMenu::Credits; }});
+        items.push_back({"Cr\xC3\xA9"
+                         "ditos",
+                         [this] { subMenu = SubMenu::Credits; }});
       items.push_back(
-          {ptBr ? "Ajuda" : "Help",
-           [this, ptBr] {
+          {ptBr ? "Ajuda" : "Help", [this, ptBr] {
              notice = ptBr ? "Doki Doki Literature Club! \xC3\xA9 um jogo "
                              "gratuito da Team Salvato."
                            : "Doki Doki Literature Club! is a free game by "
@@ -2868,9 +2881,9 @@ struct Game {
       navigation(r, items);
     }
     if (subMenu != SubMenu::Credits)
-      drawRender(r, vm->renderLayer(
-                        std::vector<Shown>(m.begin() + long(below), m.end()),
-                        t));
+      drawRender(r,
+                 vm->renderLayer(
+                     std::vector<Shown>(m.begin() + long(below), m.end()), t));
     if (nameInput) {
       drawn.clear();
       drawConfirm(
@@ -2916,11 +2929,14 @@ struct Game {
         {ptBr ? "Carregar Jogo" : "Load Game",
          [this] { subMenu = SubMenu::Load; }},
         {ptBr ? "Menu Principal" : "Main Menu", [this] { returnToMenu(); }},
-        {ptBr ? "Op\xC3\xA7\xC3\xB5" "es" : "Settings",
+        {ptBr ? "Op\xC3\xA7\xC3\xB5"
+                "es"
+              : "Settings",
          [this] { engine.openSettings(); }}};
     if (ptBr)
-      items.push_back(
-          {"Cr\xC3\xA9" "ditos", [this] { subMenu = SubMenu::Credits; }});
+      items.push_back({"Cr\xC3\xA9"
+                       "ditos",
+                       [this] { subMenu = SubMenu::Credits; }});
     items.push_back({ptBr ? "Voltar" : "Return", [this] { openPause(false); }});
     items.push_back({ptBr ? "Sair" : "Quit", [this] { quit = true; }});
     navigation(r, items);

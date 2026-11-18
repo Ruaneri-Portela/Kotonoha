@@ -18,8 +18,8 @@ void check(bool cond, const char *msg) {
 
 int main() {
   try {
-    const auto tempRoot =
-        std::filesystem::temp_directory_path() / "kotonoha_ponscr_provider_test";
+    const auto tempRoot = std::filesystem::temp_directory_path() /
+                          "kotonoha_ponscr_provider_test";
     std::filesystem::remove_all(tempRoot);
     std::filesystem::create_directories(tempRoot / "cg" / "menu");
     std::filesystem::create_directories(tempRoot / "voice" / "12");
@@ -50,7 +50,8 @@ int main() {
     check(assets.contains("cg\\MENU\\TITLE01.PNG"),
           "Case-insensitive cg\\MENU\\TITLE01.PNG lookup must succeed");
 
-    // 3. SayaNoUta_PT-BR sound/<dir>/<clip>.ogg -> voice/<dir>/<clip>.ogg fallback
+    // 3. SayaNoUta_PT-BR sound/<dir>/<clip>.ogg -> voice/<dir>/<clip>.ogg
+    // fallback
     check(assets.contains("sound\\12\\001400.ogg"),
           "sound\\12\\001400.ogg must fall back to voice/12/001400.ogg");
     const auto voxBytes = assets.read("sound\\12\\001400.ogg");
