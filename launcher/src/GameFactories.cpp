@@ -9,9 +9,6 @@
 #include <memory>
 #include <utility>
 
-#if defined(KOTONOHA_LAUNCH_EXAMPLE)
-#include "DemoGame.hpp"
-#endif
 #if defined(KOTONOHA_LAUNCH_AMAGAMI)
 #include "AmagamiRuntime.hpp"
 #include <Amagami/Assets.hpp>
@@ -113,13 +110,6 @@ std::function<void(Kotonoha::Runtime &)> shutdownRuntime() {
 } // namespace
 
 void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
-#if defined(KOTONOHA_LAUNCH_EXAMPLE)
-  bindFactory(registry, EngineKind::Unknown,
-              [](const DiscoveredGameEntry &, Kotonoha::EngineOptions &) {
-                return mount(std::make_unique<KotonohaExample::DemoGame>(),
-                             std::shared_ptr<Kotonoha::AssetProvider>{});
-              });
-#endif
 #if defined(KOTONOHA_LAUNCH_AMAGAMI)
   bindFactory(registry, EngineKind::Amagami,
               [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
