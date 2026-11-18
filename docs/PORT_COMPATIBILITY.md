@@ -20,6 +20,14 @@ that every script command, route, transition or ending works.
 | Kirikiri2/KirikiriZ | XP3/TLG/KAG, bounded experimental TJS2; general TJS/plugins and title parity absent | Injects its XP3 asset provider into both runtime and engine, rather than leaving the engine on a fallback source |
 | LucaSystem | AIR PAK and VM reference coverage; other LucaSystem games not certified | Fixes provider injection, packaged asset slug, case-insensitive VFS/ISO validation of the three PAKs, and metadata ID with guarded migration from legacy documents |
 | Pure Mail | DVD script/graphics, early story, audio and animation; computer UI/route parity incomplete | Removes machine-specific paths; supports remembered selection, portable launcher, ISO/VFS directory probing and matching script/graphics archives |
+| N2System | NsScript/NPA/AFS reference VM, scene graph and synthetic save tests; original title coverage remains unverified | Added to CMake/Android and startup audit; Apple Xcode target/schemes are still pending |
+
+## Launcher and platform parity (2026-11-18)
+
+- All 11 game launchers (plus the Example demo) follow one CLI policy: interactive startup uses the launcher by default; `--no-launcher`, `--frames N`, translation export and MCP launch without the launcher. Source discovery never overrides an explicit command-line choice.
+- `Kotonoha.CommandLine` exercises the shared headless behavior; `check_port_contracts.py` rejects per-port launcher overrides and missing documentation entries.
+- N2System is selectable in CMake and Android, but **no N2System macOS/iOS Xcode schemes exist** in the checked-in project. This is explicitly reported as `xcode_pending` until buildable Apple targets are generated and validated.
+- Synthetic checks cover startup contracts only; complete retail gameplay parity and device builds still require separate verification.
 
 ## Contract and synthetic tests
 
