@@ -67,6 +67,28 @@ EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestRemoteSize(const char *name) {
   }
 }
 
+// Verify that a present manifest provides real, indexed VFS directory
+// listings before any individual HTTP file is requested.
+EMSCRIPTEN_KEEPALIVE int
+KotonohaWebSelfTestRemoteListContains(const char *folder,
+                                      const char *relativeFile) {
+  try {
+    if (!relativeFile || !*relativeFile ||
+        !Kotonoha::Filesystem::remoteGameAssets())
+      return -1;
+    auto source = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+    for (const auto &entry : source->list(folder ? folder : "")) {
+      if (entry.type == Kotonoha::Filesystem::FileType::Regular &&
+          entry.path == relativeFile)
+        return 1;
+    }
+    return 0;
+  } catch (const std::exception &error) {
+    logFailure("remote manifest listing", error);
+    return -1;
+  }
+}
+
 // Regression: a multi-hundred-megabyte archive must allow a tiny remote
 // trailer read via HTTP 206 without allocating a complete GPK into MEMFS.
 EMSCRIPTEN_KEEPALIVE int KotonohaWebSelfTestLargeRemoteTail() {
