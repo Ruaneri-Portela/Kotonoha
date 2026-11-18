@@ -44,7 +44,7 @@ foreach(_linked IN LISTS _kotonoha_launcher_libraries)
         endif()
         target_link_libraries(kotonoha_unified_launcher PUBLIC ${_runtime_library})
         target_compile_definitions(kotonoha_unified_launcher
-            PRIVATE KOTONOHA_LAUNCH_${_game_option}=1)
+            PUBLIC KOTONOHA_LAUNCH_${_game_option}=1)
         message(STATUS "[KotonohaLauncher] Linked game runtime: ${_game_option}")
     endif()
 endforeach()
