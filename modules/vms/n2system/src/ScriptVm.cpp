@@ -56,6 +56,43 @@ std::string_view ScriptVm::currentChapter() const {
   return executor_ ? executor_->chapterName() : "";
 }
 
+bool ScriptVm::hasPendingChoice() const {
+  for (const auto &[name, entity] : sceneGraph_.entities()) {
+    if (entity.type == EntityType::Choice && !entity.choiceOptions.empty())
+      return true;
+  }
+  return false;
+}
+
+std::vector<std::string> ScriptVm::pendingChoiceOptions() const {
+  for (const auto &[name, entity] : sceneGraph_.entities()) {
+    if (entity.type == EntityType::Choice && !entity.choiceOptions.empty())
+      return entity.choiceOptions;
+  }
+  return {};
+}
+
+void ScriptVm::selectChoice(int index) {
+  std::string choiceEntityName;
+  std::string selectedOption;
+  for (const auto &[name, entity] : sceneGraph_.entities()) {
+    if (entity.type == EntityType::Choice && !entity.choiceOptions.empty()) {
+      choiceEntityName = name;
+      if (index >= 0 && static_cast<std::size_t>(index) < entity.choiceOptions.size())
+        selectedOption = entity.choiceOptions[index];
+      break;
+    }
+  }
+
+  if (!choiceEntityName.empty()) {
+    sceneGraph_.destroyEntity(choiceEntityName);
+  }
+
+  variables_.setInt("$selected_choice", index);
+  variables_.setString("@selected_option", selectedOption);
+  resume();
+}
+
 VmAction ScriptVm::handleInvocation(const Invocation &inv,
                                     const std::vector<std::string> &args) {
   const auto &func = inv.function;
@@ -138,7 +175,7 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv,
     return {VmActionKind::Next, {}};
   }
 
-  if (func == "CreateChoice") {
+  if (func == "CreateChoice" || func == "SelectChoice" || func == "Choice") {
     if (!args.empty()) {
       std::string name = args[0];
       auto *e = sceneGraph_.createEntity(name, EntityType::Choice);
@@ -146,7 +183,7 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv,
         e->choiceOptions.push_back(variables_.evaluateString(args[i]));
       }
     }
-    return {VmActionKind::Next, {}};
+    return {VmActionKind::Pause, {}};
   }
 
   if (func == "SetPosition" || func == "MovePosition") {

@@ -170,17 +170,25 @@ protected:
   void renderFrame(Kotonoha::RendererRef renderer) override {
     auto *tex = texture(renderer, frameTexture_, frame_);
     if (tex) {
-      for (int tile = 0; tile < 3; ++tile) {
-        SDL_FRect destination{float(16 + tile * 416), 520, 416, 180};
-        SDL_RenderTexture(&renderer, tex, nullptr, &destination);
-      }
+      SDL_FRect destination{160, 500, 950, 160};
+      SDL_RenderTexture(&renderer, tex, nullptr, &destination);
     } else {
       SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
-      SDL_SetRenderDrawColor(&renderer, 15, 18, 30, 220);
-      SDL_FRect box{20, 520, 1240, 180};
+      SDL_SetRenderDrawColor(&renderer, 40, 48, 72, 210);
+      SDL_FRect box{160, 500, 950, 160};
       SDL_RenderFillRect(&renderer, &box);
-      SDL_SetRenderDrawColor(&renderer, 255, 255, 255, 60);
+      SDL_SetRenderDrawColor(&renderer, 100, 115, 150, 120);
       SDL_RenderRect(&renderer, &box);
+    }
+    // Render Quick Menu buttons on right side matching AIR original UI
+    static const struct { const char *label; const char *icon; } items[] = {
+        {"Menu", "⚙"}, {"Skip", "⏩"}, {"Auto", "🔄"}, {"Voice", "🔊"}
+    };
+    float y = 505;
+    for (int i = 0; i < 4; ++i) {
+      std::string text = std::string(items[i].icon) + " " + items[i].label;
+      engine.GetVNUI().text(renderer, text, 1130, y, 140, SDL_Color{200, 210, 230, 220});
+      y += 38;
     }
   }
 
@@ -189,28 +197,28 @@ protected:
     if (tex) {
       const int frame = int((SDL_GetTicks() / 120) % 4);
       SDL_FRect source{0, float(frame * 38), 48, 38};
-      SDL_FRect destination{1184, 650, 48, 38};
+      SDL_FRect destination{1060, 615, 42, 32};
       SDL_RenderTexture(&renderer, tex, &source, &destination);
     }
   }
 
   void renderSpeaker(Kotonoha::RendererRef renderer) override {
     if (!speakerName.empty())
-      engine.GetVNUI().text(renderer, speakerName, 50, 530, 1180,
-                            SDL_Color{255, 240, 180, 255});
+      engine.GetVNUI().text(renderer, speakerName, 185, 510, 890,
+                            SDL_Color{255, 235, 170, 255});
   }
 
   void renderDialogue(Kotonoha::RendererRef renderer) override {
-    SDL_Rect clip{50, 565, 1180, 130};
+    SDL_Rect clip{185, 530, 890, 120};
     SDL_SetRenderClipRect(&renderer, &clip);
     auto measure = [this](const std::string &value) {
       return engine.GetVNUI().textWidth(value);
     };
     const auto lines = Kotonoha::VNTextBoxUtility::RevealLines(
-        fullDialogue, visibleDialogue.size(), measure, 1180);
-    float y = 565;
+        fullDialogue, visibleDialogue.size(), measure, 890);
+    float y = speakerName.empty() ? 535 : 555;
     for (const auto &line : lines) {
-      engine.GetVNUI().text(renderer, line, 50, y, 1180,
+      engine.GetVNUI().text(renderer, line, 185, y, 890,
                             SDL_Color{255, 255, 255, 255});
       y += 32;
     }
@@ -299,6 +307,34 @@ struct LucaSystemRuntime::Impl {
 
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
   bool movieFinished = false;
+
+  struct SplashLogo {
+    std::string assetName;
+    CzImage image;
+    Kotonoha::TexturePtr texture;
+  };
+  std::vector<SplashLogo> splashLogos;
+  size_t currentSplashIndex = 0;
+  uint64_t splashStartTime = 0;
+  bool showingSplash = false;
+
+  void setupSplashSequence() {
+    static const char *names[] = {"logo_key", "logo_va", "logo_prototype", "logo1", "logo2"};
+    splashLogos.clear();
+    for (const char *n : names) {
+      if (assets->containsAsset(n)) {
+        try {
+          auto img = DecodeCzImage(assets->read(n));
+          splashLogos.push_back({n, std::move(img), nullptr});
+        } catch (...) {}
+      }
+    }
+    if (!splashLogos.empty()) {
+      showingSplash = true;
+      currentSplashIndex = 0;
+      splashStartTime = SDL_GetTicks();
+    }
+  }
 
   explicit Impl(LucaSystemRuntime &r,
                 std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> a)
@@ -611,9 +647,14 @@ struct LucaSystemRuntime::Impl {
     try {
       objectImages[id] = DecodeCzImage(assets->readImageAsset(id));
       objectTextures[id].reset();
-    } catch (const std::exception &e) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: image %u: %s", id,
-                  e.what());
+    } catch (...) {
+      try {
+        objectImages[id] = DecodeCzImage(assets->readAsset(id));
+        objectTextures[id].reset();
+      } catch (const std::exception &e) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: image %u: %s", id,
+                    e.what());
+      }
     }
   }
 
@@ -640,8 +681,15 @@ struct LucaSystemRuntime::Impl {
                            static_cast<Uint8>(std::lround(alpha * 255.0f)));
     SDL_SetTextureColorMod(tex.get(), obj.r, obj.g, obj.b);
 
-    const float scaledW = float(it->second.width) * obj.scaleX;
-    const float scaledH = float(it->second.height) * obj.scaleY;
+    float scaleX = obj.scaleX;
+    float scaleY = obj.scaleY;
+    if (obj.x == 0 && obj.y == 0 &&
+        (it->second.width == 800 || it->second.width == 640 || it->second.width == 1024)) {
+      scaleX *= 1280.0f / float(it->second.width);
+      scaleY *= 720.0f / float(it->second.height);
+    }
+    const float scaledW = float(it->second.width) * scaleX;
+    const float scaledH = float(it->second.height) * scaleY;
     SDL_FRect dst{float(obj.x), float(obj.y), scaledW, scaledH};
     SDL_FRect source{};
     const SDL_FRect *sourcePtr = nullptr;
@@ -711,14 +759,18 @@ struct LucaSystemRuntime::Impl {
         waitDeadline = SDL_GetTicks() + 300;
         return;
       }
-      case OP_WAIT: {
+      case OP_WAIT:
+      case OP_WAIT_COUNT:
+      case OP_WAIT_TIME:
+      case OP_WAIT_TEXTFEED:
+      case OP_DELAY: {
         int ms = 0;
         if (ins.fixedFlag >= 1)
           ms = paramU16(ins, 0);
         else if (ins.paramBytes.size() >= 2)
           ms = paramU16(ins, 0);
         if (ms <= 0)
-          ms = 500;
+          ms = 300;
         waiting = true;
         waitDeadline = SDL_GetTicks() + static_cast<std::uint64_t>(ms);
         return;
@@ -766,8 +818,35 @@ struct LucaSystemRuntime::Impl {
         break;
       }
       case OP_INIT:
-      case OP_HAIKEI_SET:
         break;
+      case OP_HAIKEI_SET: {
+        uint32_t id = 0;
+        if (ins.fixedFlag >= 1)
+          id = paramU16(ins, 0);
+        else if (ins.paramBytes.size() >= 4)
+          id = paramU32(ins, 0);
+        else if (ins.paramBytes.size() >= 2)
+          id = paramU16(ins, 0);
+        if (id > 0) {
+          try {
+            background = DecodeCzImage(assets->readImageAsset(id));
+            backgroundTexture.reset();
+          } catch (...) {}
+        }
+        break;
+      }
+      case OP_FACE: {
+        if (ins.paramBytes.size() >= 6) {
+          uint32_t id = paramU16(ins, 0);
+          int x = int(paramU16(ins, 2));
+          int y = int(paramU16(ins, 4));
+          if (id > 0) {
+            loadObjectImage(id);
+            sceneLayers.stage({id, x, y, 1.0f, 1.0f, 1.0f, 0.0f, 100});
+          }
+        }
+        break;
+      }
 
       case OP_EQUN: {
         if (ins.paramBytes.size() >= 8) {
@@ -1129,7 +1208,6 @@ struct LucaSystemRuntime::Impl {
       case OP_BASE:
       case OP_VOLUME:
       case OP_SEPIA:
-      case OP_FACE:
       case OP_EX:
       case OP_IMAGEUPDATE:
         // Object animation opcodes — no-op for now, tracked for compatibility.
@@ -1140,8 +1218,18 @@ struct LucaSystemRuntime::Impl {
         break;
       case OP_END:
         sceneLayers.commit(SDL_GetTicks(), 0);
-        running = false;
-        return;
+        if (!callStack.empty()) {
+          auto frame = callStack.back();
+          callStack.pop_back();
+          if (frame.scenario != currentScenario) {
+            loadScenarioScript(frame.scenario);
+          }
+          instructionIndex = frame.instructionIndex;
+        } else {
+          running = false;
+          return;
+        }
+        break;
       default:
         // Unknown opcode — skip.
         break;
@@ -1245,6 +1333,8 @@ void LucaSystemRuntime::initGlobal(Kotonoha::Engine &engine) {
 }
 
 void LucaSystemRuntime::initSplash(Kotonoha::Engine &engine) {
+  auto &impl = *impl_;
+  impl.setupSplashSequence();
   SetState(Kotonoha::GameState::Gameplay);
   initGameplay(engine);
 }
@@ -1314,6 +1404,41 @@ void LucaSystemRuntime::update() {
 void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                                        float scale) {
   auto &impl = *impl_;
+  if (impl.showingSplash && !impl.splashLogos.empty()) {
+    const uint64_t elapsed = SDL_GetTicks() - impl.splashStartTime;
+    constexpr uint64_t logoDuration = 2200;
+    const size_t index = static_cast<size_t>(elapsed / logoDuration);
+    if (index >= impl.splashLogos.size()) {
+      impl.showingSplash = false;
+    } else {
+      auto &logo = impl.splashLogos[index];
+      if (!logo.texture && !logo.image.rgba.empty()) {
+        logo.texture.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                             SDL_TEXTUREACCESS_STATIC, logo.image.width,
+                                             logo.image.height));
+        if (logo.texture) {
+          SDL_UpdateTexture(logo.texture.get(), nullptr, logo.image.rgba.data(), logo.image.width * 4);
+          SDL_SetTextureBlendMode(logo.texture.get(), SDL_BLENDMODE_BLEND);
+        }
+      }
+      const uint64_t logoElapsed = elapsed % logoDuration;
+      float alpha = 1.0f;
+      if (logoElapsed < 400)
+        alpha = float(logoElapsed) / 400.0f;
+      else if (logoElapsed > 1800)
+        alpha = float(2200 - logoElapsed) / 400.0f;
+      alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+      SDL_FRect screen{0, 0, 1280, 720};
+      SDL_RenderFillRect(&renderer, &screen);
+      if (logo.texture) {
+        SDL_SetTextureAlphaMod(logo.texture.get(), static_cast<Uint8>(std::lround(alpha * 255.0f)));
+        SDL_RenderTexture(&renderer, logo.texture.get(), nullptr, &screen);
+      }
+      return;
+    }
+  }
   if (impl.moviePlayer && !impl.movieFinished && impl.moviePlayer->isOpen()) {
     SDL_FRect screen{0, 0, 1280, 720};
     impl.moviePlayer->render(renderer, screen, nullptr, true);
@@ -1421,6 +1546,16 @@ bool LucaSystemRuntime::handleAdvanceAction() {
 bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
   auto mapped = Kotonoha::MapControllerEvent(event);
   auto &impl = *impl_;
+  if (impl.showingSplash &&
+      (mapped.type == SDL_EVENT_KEY_DOWN ||
+       mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+       mapped.type == SDL_EVENT_FINGER_DOWN ||
+       mapped.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)) {
+    if (mapped.type != SDL_EVENT_KEY_DOWN || !mapped.key.repeat) {
+      impl.showingSplash = false;
+      return true;
+    }
+  }
   if (impl.moviePlayer && !impl.movieFinished &&
       (mapped.type == SDL_EVENT_KEY_DOWN ||
        mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||

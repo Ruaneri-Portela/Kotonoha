@@ -194,6 +194,24 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
       pixels[line + x] = std::uint8_t(pixels[line + x] + pixels[previous + x]);
   }
   image.rgba = std::move(pixels);
+
+  // Validate alpha channel: if no pixel has alpha > 0, set alpha of all pixels to 255 (opaque).
+  const size_t totalPixels = size_t(image.width) * size_t(image.height);
+  if (image.rgba.size() >= totalPixels * 4) {
+    bool hasNonZeroAlpha = false;
+    for (size_t i = 0; i < totalPixels; ++i) {
+      if (image.rgba[i * 4 + 3] > 0) {
+        hasNonZeroAlpha = true;
+        break;
+      }
+    }
+    if (!hasNonZeroAlpha) {
+      for (size_t i = 0; i < totalPixels; ++i) {
+        image.rgba[i * 4 + 3] = 255;
+      }
+    }
+  }
+
   return image;
 }
 
