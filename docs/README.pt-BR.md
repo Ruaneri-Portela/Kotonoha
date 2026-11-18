@@ -11,6 +11,7 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 | Apple | [macOS](BUILD_MACOS.pt-BR.md) · [iOS](BUILD_IOS.pt-BR.md) · [Xcode](../buildsystems/xcode/README.pt-BR.md) |
 | Navegador | [WebAssembly](BUILD_WEB.pt-BR.md) |
 | Testes | [Validação](BUILD_VALIDATION.pt-BR.md) |
+| CI, artefatos e cache de dependências | [GitHub Actions e vcpkg](CI_VCPKG.md) |
 | Distribuição, callbacks SDL e ZIP | [Deploy e CPack](BUILD_PACKAGES.pt-BR.md) |
 | Assets e patches | [Overlays e traduções](ASSET_OVERLAYS.pt-BR.md) |
 | Caminhos de arquivos | [Política de diretórios](DIRECTORY_POLICY.pt-BR.md) |
@@ -28,4 +29,4 @@ Arquivos `PORT_STATUS.md`, notas datadas em `games/*/docs/`, licenças/avisos de
 
 ## Filesystem virtual experimental
 
-A implementação inicial de [Filesystem V2](filesystem/README.pt-BR.md) está isolada em um PR de rascunho. A [especificação original](filesystem/SPECIFICATION.pt-BR.md) é a referência; nenhum port será considerado migrado sem testes.
+O [Filesystem V2](filesystem/README.pt-BR.md), experimental e somente para leitura, já está na árvore de código da `dev`, mas a migração dos leitores legados é parcial. A [especificação original](filesystem/SPECIFICATION.pt-BR.md) é a referência; nenhum port deve ser considerado inteiramente migrado sem testes.
