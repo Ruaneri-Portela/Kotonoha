@@ -118,6 +118,7 @@
     "Kirikiri": "kirikiri",
     "LucaSystem": "luca-system",
     "Pmail": "pmail",
+    "PonscripterGame": "ponscripter",
     "N2SystemGame": "n2system"
   },
   "modules": {
@@ -224,6 +225,7 @@
     }
   },
   "xcode_pending": [
-    "n2system"
+    "n2system",
+    "ponscripter"
   ]
 }
