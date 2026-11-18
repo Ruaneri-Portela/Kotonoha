@@ -217,9 +217,6 @@ EngineLibraryRegistry::EngineLibraryRegistry() {
                    "Zero no Tsukaima (PS2 Squirrel/KAG)", "zero_no_tsukaima",
                    "ZeroNoTsukaima", "--zero",
                    "me.hirameki.kotonoha.zeronotsukaima", {}});
-  registerLibrary({EngineKind::Unknown, "example", "Kotonoha Demo Runtime",
-                   "kotonoha_demo", "Kotonoha", "", "org.kotonoha.example",
-                   {}});
   registerLinkedEngineFactories(*this);
 }
 
