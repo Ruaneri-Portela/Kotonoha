@@ -18,6 +18,20 @@ Kotonoha's C++17 KiriKiri port: XP3 asset mounting, an experimental KAG interpre
 
 Full class semantics, complete native Window/Layer behavior, native plugins and compiled TJS2 bytecode **are not implemented**; the subset stops on unhandled syntax, with an explicit diagnostic. These changes have not been validated against a commercial NEKOPARA installation; successful XP3 indexing or a fallback title does not establish full playability. Only synthetic data is used in repository tests.
 
+## HTTP(S) and WebAssembly
+
+In browser builds, ordinary HTTP hosting cannot enumerate unknown files.
+The Kirikiri validator and engine detector now probe known paths such as
+`data.xp3`, `patch.xp3`, `startup.tjs` and `scenario/first.ks` directly.
+When there is no directory index, the XP3 provider also probes common archive
+names, then reads their index and segments on demand through Fetch/Range.
+Loose KAG entrypoints are probed by name. Other archive naming conventions
+still require a manifest/index or a local folder. Detection alone is not
+proof of complete game compatibility.
+
+Use an HTTP server with Range (206), Content-Range and appropriate CORS;
+see [WebAssembly build guide](../../docs/BUILD_WEB.md).
+
 ## Build and test
 
 ```sh
