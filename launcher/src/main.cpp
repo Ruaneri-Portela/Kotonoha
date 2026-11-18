@@ -6,43 +6,138 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <cstdio>
 
+#include <cstdio>
+#include <cstdlib>
 #include <exception>
+#include <functional>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
 namespace {
+
+// A game uses its own save root for its entire in-process lifetime. Restore
+// the hub's environment before opening the next game or exiting.
+struct ScopedGameUserData {
+  std::optional<std::string> previousSdl;
+#if defined(_WIN32)
+  std::optional<std::wstring> previousNative;
+#else
+  std::optional<std::string> previousNative;
+#endif
+
+  ScopedGameUserData() {
+    if (const char *value = SDL_getenv("KOTONOHA_USER_DATA_DIR"))
+      previousSdl = value;
+#if defined(_WIN32)
+    if (const wchar_t *value = _wgetenv(L"KOTONOHA_USER_DATA_DIR"))
+      previousNative = value;
+#else
+    if (const char *value = std::getenv("KOTONOHA_USER_DATA_DIR"))
+      previousNative = value;
+#endif
+  }
+
+  ScopedGameUserData(const ScopedGameUserData &) = delete;
+  ScopedGameUserData &operator=(const ScopedGameUserData &) = delete;
+  ~ScopedGameUserData() {
+    if (auto *env = SDL_GetEnvironment()) {
+      if (previousSdl)
+        SDL_SetEnvironmentVariable(env, "KOTONOHA_USER_DATA_DIR",
+                                   previousSdl->c_str(), true);
+      else
+        SDL_UnsetEnvironmentVariable(env, "KOTONOHA_USER_DATA_DIR");
+    }
+#if defined(_WIN32)
+    _wputenv_s(L"KOTONOHA_USER_DATA_DIR",
+               previousNative ? previousNative->c_str() : L"");
+#else
+    if (previousNative)
+      setenv("KOTONOHA_USER_DATA_DIR", previousNative->c_str(), 1);
+    else
+      unsetenv("KOTONOHA_USER_DATA_DIR");
+#endif
+  }
+};
+
 struct Application {
-  std::string argv0;
   Kotonoha::EngineOptions options;
+  Kotonoha::EngineOptions gameOptions;
   std::string libraryPath;
   std::string customSaveRoot;
   bool splitSavesByGame = true;
+  long frames = -1;
+  bool returnToHub = false;
+
   std::unique_ptr<KotonohaLauncher::UnifiedLauncher> launcher;
+  std::unique_ptr<ScopedGameUserData> gameEnvironment;
   std::unique_ptr<Kotonoha::Runtime> runtime;
   std::shared_ptr<Kotonoha::AssetProvider> assets;
+  std::function<void(Kotonoha::Runtime &)> shutdownRuntime;
   std::unique_ptr<Kotonoha::Engine> engine;
-  long frames = -1;
+
+  ~Application() { stopGame(); }
 
   bool startInProcess(const KotonohaLauncher::DiscoveredGameEntry &entry) {
-    // Do not mutate the hub's save environment when no in-process factory
-    // exists; the child-process dispatcher manages isolation itself.
     auto &registry = KotonohaLauncher::EngineLibraryRegistry::instance();
     if (!registry.canInstantiateInProcess(entry.engine.kind))
       return false;
+
+    gameOptions = options;
+    gameOptions.launcher = false;
+    if (!entry.overlayPath.empty() && !gameOptions.assetOverlaySpecified) {
+      gameOptions.assetOverlayPath = entry.overlayPath;
+      gameOptions.assetOverlaySpecified = true;
+    }
+
+    gameEnvironment = std::make_unique<ScopedGameUserData>();
     KotonohaLauncher::applyPerGameSaveIsolation(
-        entry, options, splitSavesByGame, customSaveRoot);
-    auto mounted = registry.instantiate(entry, options);
-    if (!mounted.runtime)
+        entry, gameOptions, splitSavesByGame, customSaveRoot);
+
+    auto mounted = registry.instantiate(entry, gameOptions);
+    if (!mounted.runtime) {
+      gameEnvironment.reset();
       return false;
+    }
     runtime = std::move(mounted.runtime);
     assets = std::move(mounted.assets);
+    shutdownRuntime = std::move(mounted.shutdown);
     if (assets)
-      options.assets = assets;
-    engine = std::make_unique<Kotonoha::Engine>(*runtime, options);
+      gameOptions.assets = assets;
+    engine = std::make_unique<Kotonoha::Engine>(*runtime, gameOptions);
+    returnToHub = false;
     return true;
+  }
+
+  void stopGame() {
+    if (runtime && shutdownRuntime) {
+      try {
+        shutdownRuntime(*runtime);
+      } catch (const std::exception &e) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Game runtime shutdown failed: %s", e.what());
+      }
+    }
+    // The engine owns the renderer. Destroy it before the game runtime and
+    // the provider, but after the runtime has released its textures/audio.
+    engine.reset();
+    runtime.reset();
+    assets.reset();
+    gameOptions.assets.reset();
+    shutdownRuntime = {};
+    gameEnvironment.reset();
+    returnToHub = false;
+  }
+
+  void openHub() {
+    launcher = std::make_unique<KotonohaLauncher::UnifiedLauncher>(
+        options.persistSettings ? options.settingsPath : std::string{},
+        libraryPath, options.settings);
+    launcher->setSplitSavesByGame(splitSavesByGame);
+    launcher->setCustomSaveRoot(customSaveRoot);
+    launcher->open();
   }
 };
 } // namespace
@@ -61,168 +156,150 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
                             "me.hirameki.kotonoha.launcher");
   try {
     auto app = std::make_unique<Application>();
-    if (argc > 0 && argv && argv[0])
-      app->argv0 = argv[0];
     app->options.persistSettings = true;
 
     std::string scanLibraryDir;
     std::string detectPath;
     bool sharedSaves = false;
-    Kotonoha::CommandLine arguments("KotonohaLauncher", app->options);
-    arguments.option("--library", "DIRECTORY|ISO",
-                     "Multi-engine game library directory or individual game",
-                     app->libraryPath);
-    arguments.option("--scan-library", "DIRECTORY",
-                     "Scan a library directory with Kotonoha multi-engine "
-                     "detection and print the catalog",
-                     scanLibraryDir);
-    arguments.option("--detect", "PATH",
-                     "Detect the engine family and CMake library for a single "
-                     "game directory or disc image",
-                     detectPath);
-    arguments.option("--save-root", "DIRECTORY",
-                     "Root directory for per-game isolated save profiles",
-                     app->customSaveRoot);
-    arguments.flag("--split-saves",
-                   "Isolate save & config folders per game title (default)",
-                   app->splitSavesByGame);
-    arguments.flag("--shared-engine-saves",
-                   "Share one save folder across all titles of the same engine",
-                   sharedSaves);
-    arguments.parse(argc, argv);
+    Kotonoha::CommandLine args("KotonohaLauncher", app->options);
+    args.option("--library", "DIRECTORY|ISO",
+                "Game library directory or individual game", app->libraryPath);
+    args.option("--scan-library", "DIRECTORY",
+                "Detect games and print the engine/linked-library catalog",
+                scanLibraryDir);
+    args.option("--detect", "PATH",
+                "Detect a game engine from a folder or disc image", detectPath);
+    args.option("--save-root", "DIRECTORY",
+                "Root directory for isolated game saves", app->customSaveRoot);
+    args.flag("--split-saves", "Isolate saves by game title (default)",
+              app->splitSavesByGame);
+    args.flag("--shared-engine-saves", "Share saves across the same engine",
+              sharedSaves);
+    args.parse(argc, argv);
     if (sharedSaves)
       app->splitSavesByGame = false;
-    if (arguments.wantsHelp()) {
-      std::fputs(arguments.help().c_str(), stdout);
+    if (args.wantsHelp()) {
+      std::fputs(args.help().c_str(), stdout);
       return SDL_APP_SUCCESS;
     }
+
     if (!detectPath.empty()) {
-      const auto det =
+      const auto detected =
           KotonohaLauncher::detectKotonohaEngineFromPath(detectPath);
-      if (det.kind == Kotonoha::Filesystem::EngineKind::Unknown) {
+      if (detected.kind == Kotonoha::Filesystem::EngineKind::Unknown) {
         std::fprintf(stderr, "Unknown engine at: %s\n", detectPath.c_str());
         return SDL_APP_FAILURE;
       }
       const auto entry =
-          KotonohaLauncher::buildDiscoveredGameEntry(detectPath, det);
-      const std::string report = KotonohaLauncher::formatDiscoveredGamesReport(
-          {entry}, app->splitSavesByGame);
-      std::fputs(report.c_str(), stdout);
+          KotonohaLauncher::buildDiscoveredGameEntry(detectPath, detected);
+      std::fputs(KotonohaLauncher::formatDiscoveredGamesReport(
+                     {entry}, app->splitSavesByGame).c_str(), stdout);
       return SDL_APP_SUCCESS;
     }
     if (!scanLibraryDir.empty()) {
-      const auto discovered = KotonohaLauncher::scanGameLibrary(scanLibraryDir);
-      const std::string report = KotonohaLauncher::formatDiscoveredGamesReport(
-          discovered, app->splitSavesByGame);
-      std::fputs(report.c_str(), stdout);
+      std::fputs(KotonohaLauncher::formatDiscoveredGamesReport(
+                     KotonohaLauncher::scanGameLibrary(scanLibraryDir),
+                     app->splitSavesByGame).c_str(), stdout);
       return SDL_APP_SUCCESS;
     }
 
-    app->frames = arguments.frames;
+    app->frames = args.frames;
     if (app->options.persistSettings && app->options.settingsPath.empty())
       app->options.settingsPath = Kotonoha::EngineSettings::defaultPath();
-    const std::string settingsPath =
-        app->options.persistSettings ? app->options.settingsPath : std::string();
 
     if (!app->options.launcher) {
-      if (app->libraryPath.empty()) {
+      if (app->libraryPath.empty())
         throw std::runtime_error(
-            "No game or library specified; pass --library DIRECTORY|ISO or "
-            "run with --launcher");
-      }
-      const auto discovered =
-          KotonohaLauncher::scanGameLibrary(app->libraryPath);
-      if (discovered.empty()) {
-        throw std::runtime_error("No supported game detected at: " +
+            "No game selected; pass --library DIRECTORY|ISO");
+      const auto games = KotonohaLauncher::scanGameLibrary(app->libraryPath);
+      if (games.empty())
+        throw std::runtime_error("No supported game found in: " +
                                  app->libraryPath);
-      }
-      const auto &chosen = discovered.front();
-      if (app->startInProcess(chosen)) {
-        *appstate = app.release();
-        return SDL_APP_CONTINUE;
-      }
-      const int rc = KotonohaLauncher::launchModularPortProcess(
-          app->argv0.c_str(), chosen, app->options, app->frames,
-          app->splitSavesByGame, app->customSaveRoot);
-      return rc == 0 ? SDL_APP_SUCCESS : SDL_APP_FAILURE;
+      if (!app->startInProcess(games.front()))
+        throw std::runtime_error(
+            "The selected game is not linked into this launcher; enable "
+            "its KOTONOHA_BUILD_<PORT> option or KOTONOHA_BUILD_ALL");
+    } else {
+      app->openHub();
     }
-
-    app->launcher = std::make_unique<KotonohaLauncher::UnifiedLauncher>(
-        settingsPath, app->libraryPath, app->options.settings);
-    app->launcher->setSplitSavesByGame(app->splitSavesByGame);
-    if (!app->customSaveRoot.empty())
-      app->launcher->setCustomSaveRoot(app->customSaveRoot);
-    app->launcher->open();
 
     *appstate = app.release();
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Initialization failed: %s",
-                 error.what());
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                 "Launcher initialization failed: %s", error.what());
     return SDL_APP_FAILURE;
   }
 }
 
-SDL_AppResult KotonohaPortCallbacks::event(void *appstate, SDL_Event *event) {
+SDL_AppResult KotonohaPortCallbacks::event(void *state, SDL_Event *event) {
   try {
-    auto &app = *static_cast<Application *>(appstate);
+    auto &app = *static_cast<Application *>(state);
     if (app.launcher)
       return app.launcher->event(*event);
-    return app.engine->Event(event);
+    if (!app.engine)
+      return SDL_APP_CONTINUE;
+    const auto result = app.engine->Event(event);
+    if (result == SDL_APP_SUCCESS && app.frames <= 0) {
+      app.returnToHub = true;
+      return SDL_APP_CONTINUE;
+    }
+    return result;
   } catch (const std::exception &error) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Event failed: %s",
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Game event failed: %s",
                  error.what());
     return SDL_APP_FAILURE;
   }
 }
 
-SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
+SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
   try {
-    auto &app = *static_cast<Application *>(appstate);
+    auto &app = *static_cast<Application *>(state);
     if (app.launcher) {
       const auto result = app.launcher->iterate();
       if (app.launcher->state() == Kotonoha::Launcher::State::Quit)
         return SDL_APP_SUCCESS;
       if (app.launcher->state() == Kotonoha::Launcher::State::Launch) {
-        const auto chosen = app.launcher->selectedEntry();
-        const std::string prevLibrary = app.launcher->libraryPath();
+        const auto choice = app.launcher->selectedEntry();
+        app.libraryPath = app.launcher->libraryPath();
         app.options.settings = app.launcher->settings();
         app.splitSavesByGame = app.launcher->splitSavesByGame();
         app.customSaveRoot = app.launcher->customSaveRoot();
         app.launcher->close();
         app.launcher.reset();
-        if (app.startInProcess(chosen))
-          return result;
-        const int rc = KotonohaLauncher::launchModularPortProcess(
-            app.argv0.c_str(), chosen, app.options, app.frames,
-            app.splitSavesByGame, app.customSaveRoot);
-        if (app.frames > 0)
-          return rc == 0 ? SDL_APP_SUCCESS : SDL_APP_FAILURE;
-        // Reopen the unified launcher hub after the child game exits so the
-        // user can immediately pick another game without restarting the hub.
-        const std::string hubSettingsPath =
-            app.options.persistSettings ? Kotonoha::EngineSettings::defaultPath()
-                                        : std::string();
-        app.launcher = std::make_unique<KotonohaLauncher::UnifiedLauncher>(
-            hubSettingsPath, prevLibrary, app.options.settings);
-        app.launcher->setSplitSavesByGame(app.splitSavesByGame);
-        app.launcher->setCustomSaveRoot(app.customSaveRoot);
-        app.launcher->open();
+        if (!app.startInProcess(choice))
+          throw std::runtime_error("Selected game runtime is not linked");
         return SDL_APP_CONTINUE;
       }
       return result;
     }
-    const auto result = app.engine->Iterate();
-    return app.frames > 0 && --app.frames == 0 ? SDL_APP_SUCCESS : result;
+
+    if (!app.engine)
+      return SDL_APP_FAILURE;
+    if (app.returnToHub) {
+      app.stopGame();
+      app.openHub();
+      return SDL_APP_CONTINUE;
+    }
+
+    const SDL_AppResult result = app.engine->Iterate();
+    if (app.frames > 0 && --app.frames == 0)
+      return SDL_APP_SUCCESS;
+    if (result == SDL_APP_SUCCESS) {
+      app.stopGame();
+      app.openHub();
+      return SDL_APP_CONTINUE;
+    }
+    return result;
   } catch (const std::exception &error) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Frame failed: %s",
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Game frame failed: %s",
                  error.what());
     return SDL_APP_FAILURE;
   }
 }
 
-void KotonohaPortCallbacks::quit(void *appstate, SDL_AppResult) {
-  delete static_cast<Application *>(appstate);
+void KotonohaPortCallbacks::quit(void *state, SDL_AppResult) {
+  delete static_cast<Application *>(state);
 }
 
 KOTONOHA_SDL_CALLBACK_APP(KotonohaPortCallbacks)
