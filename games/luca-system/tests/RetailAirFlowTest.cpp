@@ -147,28 +147,27 @@ int main(int argc, char **argv) {
       require(scr.valid(), "Scenario parses cleanly: " + entry.name);
       for (const auto &ins : scr.instructions()) {
         if (ins.opcode == 15 && ins.paramBytes.size() >= 4) { // GOTO
-          const uint32_t target =
-              uint32_t(ins.paramBytes[0]) | (uint32_t(ins.paramBytes[1]) << 8) |
-              (uint32_t(ins.paramBytes[2]) << 16) |
-              (uint32_t(ins.paramBytes[3]) << 24);
-          require(LucaSystem::FindInstructionAtOffset(scr.instructions(),
-                                                      target)
-                      .has_value(),
-                  entry.name + ": GOTO lands on exact instruction");
+          const uint32_t target = uint32_t(ins.paramBytes[0]) |
+                                  (uint32_t(ins.paramBytes[1]) << 8) |
+                                  (uint32_t(ins.paramBytes[2]) << 16) |
+                                  (uint32_t(ins.paramBytes[3]) << 24);
+          require(
+              LucaSystem::FindInstructionAtOffset(scr.instructions(), target)
+                  .has_value(),
+              entry.name + ": GOTO lands on exact instruction");
         } else if (ins.opcode == 19) { // IFN
           size_t cur = 0;
           const std::string expr = LucaSystem::ReadLsUtf8(ins.paramBytes, cur);
           require(!expr.empty() && cur + 4 <= ins.paramBytes.size(),
                   entry.name + ": IFN decodes ls_utf8 expression + target");
-          const uint32_t target =
-              uint32_t(ins.paramBytes[cur]) |
-              (uint32_t(ins.paramBytes[cur + 1]) << 8) |
-              (uint32_t(ins.paramBytes[cur + 2]) << 16) |
-              (uint32_t(ins.paramBytes[cur + 3]) << 24);
-          require(LucaSystem::FindInstructionAtOffset(scr.instructions(),
-                                                      target)
-                      .has_value(),
-                  entry.name + ": IFN lands on exact instruction");
+          const uint32_t target = uint32_t(ins.paramBytes[cur]) |
+                                  (uint32_t(ins.paramBytes[cur + 1]) << 8) |
+                                  (uint32_t(ins.paramBytes[cur + 2]) << 16) |
+                                  (uint32_t(ins.paramBytes[cur + 3]) << 24);
+          require(
+              LucaSystem::FindInstructionAtOffset(scr.instructions(), target)
+                  .has_value(),
+              entry.name + ": IFN lands on exact instruction");
         } else if (ins.opcode == 21) { // JUMP
           size_t cur = 0;
           const std::string dst = LucaSystem::ReadLsUtf8(ins.paramBytes, cur);
@@ -185,7 +184,8 @@ int main(int argc, char **argv) {
     LucaSystem::LucaSystemRuntime runtime(assets);
     require(runtime.startScenario("seen170"),
             "Launch canonical DREAM New Game root seen170");
-    bool sawSpeaker = false, sawVoice = false, sawBgm = false, sawChoice = false;
+    bool sawSpeaker = false, sawVoice = false, sawBgm = false,
+         sawChoice = false;
     std::string nextScenario;
     stepThroughScenario(runtime, 20000, 0, sawSpeaker, sawVoice, sawBgm,
                         sawChoice, nextScenario);

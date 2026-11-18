@@ -39,9 +39,8 @@ std::string TrackLabel(const std::string &id) {
 }
 } // namespace
 
-PmailExtrasViewer::PmailExtrasViewer(
-    Kotonoha::Engine &engine, PmailGame &game,
-    Kotonoha::Providers::SnowAssets &assets)
+PmailExtrasViewer::PmailExtrasViewer(Kotonoha::Engine &engine, PmailGame &game,
+                                     Kotonoha::Providers::SnowAssets &assets)
     : engine_(engine), game_(game), assets_(assets) {}
 
 SDL_Texture *PmailExtrasViewer::texture(Kotonoha::RendererRef renderer,
@@ -185,8 +184,9 @@ void PmailExtrasViewer::renderGrid(Kotonoha::RendererRef renderer,
       SDL_RenderFillRect(&renderer, &selected);
     }
     ui.textSized(renderer, kCategoryNames[i], x + 6, y + 2, kTabWidth - 12,
-                 13.0f, i == category ? SDL_Color{255, 226, 140, 255}
-                                      : SDL_Color{214, 228, 232, 255});
+                 13.0f,
+                 i == category ? SDL_Color{255, 226, 140, 255}
+                               : SDL_Color{214, 228, 232, 255});
   }
 
   const auto cells = game_.extrasViewerCells();

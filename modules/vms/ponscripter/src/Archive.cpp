@@ -124,13 +124,15 @@ bool ArchiveReader::loadFromMemory(std::vector<std::uint8_t> data,
   std::size_t cursor = nsaOffset;
   std::uint32_t count = readBE16(data.data() + cursor);
   cursor += 2;
-  // NSA v2 header has 0x0000 magic before 16-bit count if count == 0 && size >= 8
-  if (count == 0 && format == ArchiveFormat::NSA && data.size() >= nsaOffset + 8) {
+  // NSA v2 header has 0x0000 magic before 16-bit count if count == 0 && size >=
+  // 8
+  if (count == 0 && format == ArchiveFormat::NSA &&
+      data.size() >= nsaOffset + 8) {
     count = readBE16(data.data() + cursor);
     cursor += 2;
   }
-  const std::uint32_t baseOffset = readBE32(data.data() + cursor) +
-                                   static_cast<std::uint32_t>(nsaOffset);
+  const std::uint32_t baseOffset =
+      readBE32(data.data() + cursor) + static_cast<std::uint32_t>(nsaOffset);
   cursor += 4;
   if (baseOffset > data.size())
     return false;
@@ -229,7 +231,8 @@ std::vector<std::string> ArchiveReader::listEntries() const {
 }
 
 std::vector<std::uint8_t> ArchiveReader::buildSyntheticSar(
-    const std::vector<std::pair<std::string, std::vector<std::uint8_t>>> &files) {
+    const std::vector<std::pair<std::string, std::vector<std::uint8_t>>>
+        &files) {
   std::size_t headerSize = 6;
   for (const auto &f : files)
     headerSize += f.first.size() + 1 + 8;
@@ -254,7 +257,8 @@ std::vector<std::uint8_t> ArchiveReader::buildSyntheticSar(
 }
 
 std::vector<std::uint8_t> ArchiveReader::buildSyntheticNsa(
-    const std::vector<std::pair<std::string, std::vector<std::uint8_t>>> &files) {
+    const std::vector<std::pair<std::string, std::vector<std::uint8_t>>>
+        &files) {
   std::size_t headerSize = 6;
   for (const auto &f : files)
     headerSize += f.first.size() + 1 + 13;

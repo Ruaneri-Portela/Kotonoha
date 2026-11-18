@@ -109,8 +109,7 @@ public:
       : VNTextBox(e, "", "", 40), assets(a) {
     // SRV2 uses GRAPHIC/MESFRAME/*; SRV1 uses GRAPHIC/FRAME/*.
     const bool srv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
-    const std::string prefix =
-        srv2 ? "GRAPHIC/MESFRAME/" : "GRAPHIC/FRAME/";
+    const std::string prefix = srv2 ? "GRAPHIC/MESFRAME/" : "GRAPHIC/FRAME/";
     frameTexb = prefix + (srv2 ? "MESFRAME.TEXB" : "MESSFRAME.TEXB");
     frameCmap = prefix + (srv2 ? "MESFRAME.CMAP" : "MESSFRAME.CMAP");
     selectTexb = prefix + "SELECT.TEXB";
@@ -195,8 +194,8 @@ public:
   explicit SummerChoice(Engine &e, Kotonoha::Providers::SummerAssets &a)
       : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {
     const bool srv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
-    selectTexb = srv2 ? "GRAPHIC/MESFRAME/SELECT.TEXB"
-                      : "GRAPHIC/FRAME/SELECT.TEXB";
+    selectTexb =
+        srv2 ? "GRAPHIC/MESFRAME/SELECT.TEXB" : "GRAPHIC/FRAME/SELECT.TEXB";
   }
   void setReadStates(std::vector<bool> states) {
     readStates = std::move(states);
@@ -1794,7 +1793,8 @@ void SummerRuntime::loadGame(const std::string &path) {
     if (version == "SUMMER-PRESENTATION-2") {
       if (!(s >> sprite.requestedPosition >> sprite.positionSlot >>
             sprite.creationOrder) ||
-          sprite.positionSlot >= i.positionOffsets.size() || sprite.creationOrder == UINT64_MAX)
+          sprite.positionSlot >= i.positionOffsets.size() ||
+          sprite.creationOrder == UINT64_MAX)
         throw std::runtime_error("Invalid saved character placement");
     } else {
       sprite.positionSlot = sprite.x < 0 ? 1 : sprite.x > 0 ? 2 : 0;

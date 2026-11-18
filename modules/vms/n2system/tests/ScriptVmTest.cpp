@@ -99,14 +99,17 @@ int main() {
     check(vm.finished(), "VM script finished");
 
     // Test N2System ScriptIndex
-    N2System::ScriptIndex index = N2System::ScriptIndex::Parse("chapter _001 {\n  PlayVoice(\"000104\");\n}\n");
+    N2System::ScriptIndex index = N2System::ScriptIndex::Parse(
+        "chapter _001 {\n  PlayVoice(\"000104\");\n}\n");
     check(!index.chapters().empty(), "ScriptIndex parsed chapters");
 
     N2System::ScriptVm vmConverted;
-    vmConverted.loadScript("chapter _001 {\n  SetDialogue(\"Saya\", \"Sako...\");\n}\n", "_001");
+    vmConverted.loadScript(
+        "chapter _001 {\n  SetDialogue(\"Saya\", \"Sako...\");\n}\n", "_001");
     vmConverted.step(5);
     check(vmConverted.dialogueSystem().speaker() == "Saya", "N2System speaker");
-    check(vmConverted.dialogueSystem().fullText() == "Sako...", "N2System text");
+    check(vmConverted.dialogueSystem().fullText() == "Sako...",
+          "N2System text");
 
     std::cout << "All N2System VM tests passed!\n";
     return 0;

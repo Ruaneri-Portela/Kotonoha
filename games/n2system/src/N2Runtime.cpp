@@ -154,17 +154,16 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
       if (tex) {
         float tw = 1280.0f, th = 720.0f;
         SDL_GetTextureSize(tex, &tw, &th);
-        SDL_SetTextureAlphaMod(
-            tex, static_cast<Uint8>(entity->opacity * 255.0f));
+        SDL_SetTextureAlphaMod(tex,
+                               static_cast<Uint8>(entity->opacity * 255.0f));
         SDL_FRect dst{entity->x * scale, entity->y * scale, tw * scale,
                       th * scale};
         SDL_RenderTexture(&renderer, tex, nullptr, &dst);
       } else {
         SDL_FRect rect{entity->x * scale, entity->y * scale, 1280.0f * scale,
                        720.0f * scale};
-        SDL_SetRenderDrawColor(
-            &renderer, 30, 36, 48,
-            static_cast<Uint8>(entity->opacity * 255.0f));
+        SDL_SetRenderDrawColor(&renderer, 30, 36, 48,
+                               static_cast<Uint8>(entity->opacity * 255.0f));
         SDL_RenderFillRect(&renderer, &rect);
       }
     }

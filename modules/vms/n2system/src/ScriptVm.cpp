@@ -78,7 +78,8 @@ void ScriptVm::selectChoice(int index) {
   for (const auto &[name, entity] : sceneGraph_.entities()) {
     if (entity.type == EntityType::Choice && !entity.choiceOptions.empty()) {
       choiceEntityName = name;
-      if (index >= 0 && static_cast<std::size_t>(index) < entity.choiceOptions.size())
+      if (index >= 0 &&
+          static_cast<std::size_t>(index) < entity.choiceOptions.size())
         selectedOption = entity.choiceOptions[index];
       break;
     }
@@ -122,9 +123,8 @@ VmAction ScriptVm::handleInvocation(const Invocation &inv,
   }
 
   const auto resolveStr = [this](const std::string &arg) -> std::string {
-    if (!arg.empty() &&
-        (arg[0] == '@' || arg[0] == '$' || arg[0] == '#' || arg[0] == '"' ||
-         arg[0] == '\'')) {
+    if (!arg.empty() && (arg[0] == '@' || arg[0] == '$' || arg[0] == '#' ||
+                         arg[0] == '"' || arg[0] == '\'')) {
       return variables_.evaluateString(arg);
     }
     return arg;

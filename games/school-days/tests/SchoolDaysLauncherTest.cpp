@@ -119,7 +119,8 @@ int main(int argc, char **argv) {
     SchoolDays::Launcher reopened(settings, "", "");
     require(reopened.pathValid() && fs::equivalent(reopened.path(), fixtures),
             "The game directory was not remembered");
-    require(reopened.routeValid() && fs::equivalent(reopened.routePath(), custom),
+    require(reopened.routeValid() &&
+                fs::equivalent(reopened.routePath(), custom),
             "The selected route was not remembered");
     SchoolDays::Launcher explicitRoute(settings, fixtures.string(),
                                        original.string());

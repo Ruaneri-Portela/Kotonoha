@@ -45,9 +45,7 @@ namespace LucaSystem {
 
 namespace {
 
-bool isSystemScript(std::string_view name) {
-  return name.rfind("_", 0) == 0;
-}
+bool isSystemScript(std::string_view name) { return name.rfind("_", 0) == 0; }
 
 uint16_t paramU16(const ScriptInstruction &ins, size_t offset) {
   if (offset + 2 > ins.paramBytes.size())
@@ -186,8 +184,9 @@ std::vector<std::string> splitDelimiter(const std::string &str,
   size_t pos = 0;
   while (pos <= str.size()) {
     size_t found = str.find(delim, pos);
-    std::string item =
-        (found == std::string::npos) ? str.substr(pos) : str.substr(pos, found - pos);
+    std::string item = (found == std::string::npos)
+                           ? str.substr(pos)
+                           : str.substr(pos, found - pos);
     if (!item.empty())
       result.push_back(std::move(item));
     if (found == std::string::npos)
@@ -197,7 +196,8 @@ std::vector<std::string> splitDelimiter(const std::string &str,
   return result;
 }
 
-// Sanitize LucaSystem inline tags: @Speaker@, $n, $w, $[base$ruby$], $C(...), $S(...)
+// Sanitize LucaSystem inline tags: @Speaker@, $n, $w, $[base$ruby$], $C(...),
+// $S(...)
 void parseSpeakerAndSanitizeText(const std::string &rawText,
                                  std::string &speaker, std::string &text) {
   speaker.clear();
@@ -258,8 +258,7 @@ void parseSpeakerAndSanitizeText(const std::string &rawText,
             }
           }
           if ((next == 'S' || next == 'C' || next == 'F' || next == 'A') &&
-              i + 2 < src.size() &&
-              (src[i + 2] == '(' || src[i + 2] == '[')) {
+              i + 2 < src.size() && (src[i + 2] == '(' || src[i + 2] == '[')) {
             const char closer = (src[i + 2] == '(') ? ')' : ']';
             const size_t closePos = src.find(closer, i + 3);
             if (closePos != std::string::npos) {
@@ -320,7 +319,8 @@ public:
 protected:
   void renderFrame(Kotonoha::RendererRef renderer) override {
     const int idx = std::clamp(windowType_, 0, 4);
-    const CzImage &chosen = !frames_[idx].rgba.empty() ? frames_[idx] : frames_[0];
+    const CzImage &chosen =
+        !frames_[idx].rgba.empty() ? frames_[idx] : frames_[0];
     Kotonoha::TexturePtr &chosenTex =
         !frames_[idx].rgba.empty() ? frameTextures_[idx] : frameTextures_[0];
     auto *tex = texture(renderer, chosenTex, chosen);
@@ -425,7 +425,8 @@ class ExprParser {
       match(")");
       return v;
     }
-    if (src_[pos_] == '!' && (pos_ + 1 >= src_.size() || src_[pos_ + 1] != '=')) {
+    if (src_[pos_] == '!' &&
+        (pos_ + 1 >= src_.size() || src_[pos_ + 1] != '=')) {
       ++pos_;
       return parsePrimary() == 0 ? 1 : 0;
     }
@@ -839,8 +840,8 @@ struct LucaSystemRuntime::Impl {
   }
 
   void setupSplashSequence() {
-    static const char *names[] = {"logo0", "logo1", "logo2", "logo_key",
-                                  "logo_va", "logo_prototype"};
+    static const char *names[] = {"logo0",    "logo1",   "logo2",
+                                  "logo_key", "logo_va", "logo_prototype"};
     splashLogos.clear();
     for (const char *n : names) {
       if (assets->contains(n)) {
@@ -1071,11 +1072,16 @@ struct LucaSystemRuntime::Impl {
       return;
     const std::string base = name.empty() ? "AIR_OP_A" : name;
     const std::vector<std::string> candidates = {
-        "movie/" + base + "_EN.webm", "movie/" + base + ".webm",
-        base + "_EN.webm",            base + ".webm",
-        "movie/" + base + ".mp4",     "movie/" + base + ".ogv",
-        "movie/" + base + ".wmv",     base + ".mp4",
-        base + ".ogv",                base + ".wmv",
+        "movie/" + base + "_EN.webm",
+        "movie/" + base + ".webm",
+        base + "_EN.webm",
+        base + ".webm",
+        "movie/" + base + ".mp4",
+        "movie/" + base + ".ogv",
+        "movie/" + base + ".wmv",
+        base + ".mp4",
+        base + ".ogv",
+        base + ".wmv",
         base,
     };
     for (const auto &cand : candidates) {
@@ -1196,10 +1202,10 @@ struct LucaSystemRuntime::Impl {
       if (!tex || !SDL_UpdateTexture(tex.get(), nullptr, img.rgba.data(),
                                      img.width * 4))
         return;
-      SDL_SetTextureScaleMode(
-          tex.get(), (slot.assetId == 65000 || slot.assetId == 65001)
-                         ? SDL_SCALEMODE_NEAREST
-                         : SDL_SCALEMODE_LINEAR);
+      SDL_SetTextureScaleMode(tex.get(),
+                              (slot.assetId == 65000 || slot.assetId == 65001)
+                                  ? SDL_SCALEMODE_NEAREST
+                                  : SDL_SCALEMODE_LINEAR);
       SDL_SetTextureBlendMode(tex.get(), SDL_BLENDMODE_BLEND);
     }
 
@@ -1565,10 +1571,10 @@ struct LucaSystemRuntime::Impl {
         if (ins.paramBytes.size() == 4) {
           const uint16_t varId = paramU16(ins, 0);
           const uint16_t rawU16 = paramU16(ins, 2);
-          const int32_t val = (varId == 8001 || varId == 8002)
-                                  ? static_cast<int32_t>(rawU16)
-                                  : static_cast<int32_t>(
-                                        static_cast<int16_t>(rawU16));
+          const int32_t val =
+              (varId == 8001 || varId == 8002)
+                  ? static_cast<int32_t>(rawU16)
+                  : static_cast<int32_t>(static_cast<int16_t>(rawU16));
           setVar(varId, val);
         } else if (ins.paramBytes.size() >= 8) {
           const uint32_t varId = paramU32(ins, 0);
@@ -1814,9 +1820,8 @@ struct LucaSystemRuntime::Impl {
             const uint16_t frames = cursor + 2 <= ins.paramBytes.size()
                                         ? paramU16(ins, cursor)
                                         : 12;
-            flashColor = (colorName == "aka")
-                             ? SDL_Color{255, 32, 32, 255}
-                             : SDL_Color{255, 255, 255, 255};
+            flashColor = (colorName == "aka") ? SDL_Color{255, 32, 32, 255}
+                                              : SDL_Color{255, 255, 255, 255};
             flashStartTick = SDL_GetTicks();
             flashDurationMs = std::max<uint64_t>(120, framesToMs(frames));
           } else if (taskId == 3 || taskId == 4) {
@@ -1877,8 +1882,8 @@ struct LucaSystemRuntime::Impl {
         if (!targetScenario.empty() && loadScenarioScript(targetScenario)) {
           callStack.push_back({prevScenario, next});
           if (cursor + 4 <= ins.paramBytes.size()) {
-            if (const auto idx = FindInstructionAtOffset(
-                    instructions, paramU32(ins, cursor)))
+            if (const auto idx = FindInstructionAtOffset(instructions,
+                                                         paramU32(ins, cursor)))
               instructionIndex = *idx;
           }
         } else if (jumpFrom(ins)) {
@@ -1893,8 +1898,8 @@ struct LucaSystemRuntime::Impl {
             !ins.text.empty() ? ins.text : ReadLsUtf8(ins.paramBytes, cursor);
         if (!targetScenario.empty() && loadScenarioScript(targetScenario)) {
           if (cursor + 4 <= ins.paramBytes.size()) {
-            if (const auto idx = FindInstructionAtOffset(
-                    instructions, paramU32(ins, cursor)))
+            if (const auto idx = FindInstructionAtOffset(instructions,
+                                                         paramU32(ins, cursor)))
               instructionIndex = *idx;
           }
         } else {
@@ -2211,9 +2216,8 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       SDL_FRect screen{0, 0, 1280, 720};
       SDL_RenderFillRect(&renderer, &screen);
       if (logo.texture) {
-        SDL_SetTextureAlphaMod(
-            logo.texture.get(),
-            static_cast<Uint8>(std::lround(alpha * 255.0f)));
+        SDL_SetTextureAlphaMod(logo.texture.get(),
+                               static_cast<Uint8>(std::lround(alpha * 255.0f)));
         SDL_RenderTexture(&renderer, logo.texture.get(), nullptr, &screen);
       }
       return;
@@ -2274,10 +2278,10 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
   const bool inTransition =
       impl.drawDurationMs > 0 && now < impl.drawStartTick + impl.drawDurationMs;
   if (inTransition) {
-    const float t =
-        std::clamp(float(now > impl.drawStartTick ? (now - impl.drawStartTick) : 0) /
-                       float(impl.drawDurationMs),
-                   0.0f, 1.0f);
+    const float t = std::clamp(
+        float(now > impl.drawStartTick ? (now - impl.drawStartTick) : 0) /
+            float(impl.drawDurationMs),
+        0.0f, 1.0f);
     if (impl.drawWipeMode) {
       for (const auto &[key, slot] : impl.outgoingSlots)
         impl.renderSlottedLayer(renderer, slot, now, 1.0f);
@@ -2336,11 +2340,10 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
   auto mapped = Kotonoha::MapControllerEvent(event);
   auto &impl = *impl_;
 
-  if (impl.showingSplash &&
-      (mapped.type == SDL_EVENT_KEY_DOWN ||
-       mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-       mapped.type == SDL_EVENT_FINGER_DOWN ||
-       mapped.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)) {
+  if (impl.showingSplash && (mapped.type == SDL_EVENT_KEY_DOWN ||
+                             mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+                             mapped.type == SDL_EVENT_FINGER_DOWN ||
+                             mapped.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)) {
     if (mapped.type != SDL_EVENT_KEY_DOWN || !mapped.key.repeat) {
       impl.showingSplash = false;
       return true;
@@ -2413,11 +2416,13 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
       if (impl.choiceScene) {
         impl.choiceActive = true;
         std::vector<Kotonoha::ChoiceOption> chapters = {
-            {"DREAM", 0}, {"SUMMER", 1}, {"AIR", 2},
-            {"FIRST SKY (Hatsuzora)", 3}, {"Cancel", 4}};
+            {"DREAM", 0},
+            {"SUMMER", 1},
+            {"AIR", 2},
+            {"FIRST SKY (Hatsuzora)", 3},
+            {"Cancel", 4}};
         impl.choiceScene->setQuestion(
-            "SELECT STORY", chapters,
-            [this](int chId, const std::string &) {
+            "SELECT STORY", chapters, [this](int chId, const std::string &) {
               impl_->choiceActive = false;
               if (impl_->choiceScene)
                 impl_->choiceScene->hide();
@@ -2516,16 +2521,14 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
   const auto &impl = *impl_;
   SaveState state;
   state.scenario = impl.currentScenario;
-  state.instructionIndex =
-      (impl.choiceActive && impl.instructionIndex > 0)
-          ? (impl.instructionIndex - 1)
-          : impl.instructionIndex;
+  state.instructionIndex = (impl.choiceActive && impl.instructionIndex > 0)
+                               ? (impl.instructionIndex - 1)
+                               : impl.instructionIndex;
   state.dialogueIndex = impl.dialogueIndex;
   state.dialogueVisible = impl.dialogueVisible;
-  state.dialogueText =
-      dialogueSpeaker_.empty()
-          ? dialogueText_
-          : ("@" + dialogueSpeaker_ + "@" + dialogueText_);
+  state.dialogueText = dialogueSpeaker_.empty()
+                           ? dialogueText_
+                           : ("@" + dialogueSpeaker_ + "@" + dialogueText_);
   state.waiting = impl.waiting;
   if (impl.waiting) {
     const auto now = SDL_GetTicks();
@@ -2549,9 +2552,9 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
     // Encode (group, slot) in high bits of assetId only? No, keep assetId pure
     // for SaveState V5 compatibility and store group/slot in x/y or re-derive
     // group from assetId range (10001..10999 -> group 2, else group 0).
-    state.images.push_back(
-        {slot.assetId, static_cast<int32_t>(std::lround(slot.posX)),
-         static_cast<int32_t>(std::lround(slot.posY))});
+    state.images.push_back({slot.assetId,
+                            static_cast<int32_t>(std::lround(slot.posX)),
+                            static_cast<int32_t>(std::lround(slot.posY))});
   }
   if (impl.engine) {
     Kotonoha::GetVNManagerRuntime(*impl.engine)

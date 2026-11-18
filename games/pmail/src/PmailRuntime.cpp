@@ -135,9 +135,8 @@ void PmailRuntime::initGlobal(Kotonoha::Engine &engine) {
       if (!audio_)
         return;
       const auto pos = id.find("mm");
-      const int number = pos == std::string::npos
-                             ? 0
-                             : std::atoi(id.c_str() + pos + 2);
+      const int number =
+          pos == std::string::npos ? 0 : std::atoi(id.c_str() + pos + 2);
       if (number > 0)
         audio_->Handle(112, {number, 0}, {});
     };

@@ -950,8 +950,8 @@ void PmailGame::extrasMove(int delta) {
   if (delta < 0)
     extrasIndex_ = extrasIndex_ <= 1 ? 4 : extrasIndex_ - 1;
   else
-    extrasIndex_ = extrasIndex_ == 0 || extrasIndex_ == 4 ? 1
-                                                           : extrasIndex_ + 1;
+    extrasIndex_ =
+        extrasIndex_ == 0 || extrasIndex_ == 4 ? 1 : extrasIndex_ + 1;
 }
 
 bool PmailGame::extrasChoose(int index) {
@@ -1022,8 +1022,7 @@ std::vector<std::string> PmailGame::extrasViewerCells() const {
   if (extrasViewerMode_ == ExtrasViewerMode::Music) {
     const int first = std::clamp(extrasViewerTrackFirst_, 0,
                                  std::max(0, int(musicTrackIds_.size()) - 1));
-    for (int i = first;
-         i < int(musicTrackIds_.size()) && i < first + 24; ++i)
+    for (int i = first; i < int(musicTrackIds_.size()) && i < first + 24; ++i)
       out.push_back(musicTrackIds_[size_t(i)]);
     return out;
   }
@@ -1094,11 +1093,9 @@ void PmailGame::clampExtrasViewerSelection() {
         break;
       }
   }
-  const std::size_t index =
-      std::size_t(extrasViewerPage_ * GalleryPageSize +
-                  std::max(0, extrasViewerSlot_ - 1));
-  extrasViewerExtraIndex_ =
-      index < catalog.size() ? catalog[index] : -1;
+  const std::size_t index = std::size_t(extrasViewerPage_ * GalleryPageSize +
+                                        std::max(0, extrasViewerSlot_ - 1));
+  extrasViewerExtraIndex_ = index < catalog.size() ? catalog[index] : -1;
 }
 
 void PmailGame::extrasViewerMove(int dx, int dy) {
