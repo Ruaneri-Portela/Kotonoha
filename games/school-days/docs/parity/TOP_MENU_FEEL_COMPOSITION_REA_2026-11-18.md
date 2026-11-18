@@ -56,6 +56,25 @@ player-observed UX, and gaps in proving complete retail equivalence.
    This substantiates why normal skip cannot legally consume an unresolved
    authored prompt; it does not prove that every V3 protective fade-race
    guard is an exact native control-flow equivalent.
+7. **The input and render gates are separate host fields, with different
+   release points.** The SysMenu interface vtable at `EXE:0x004D2894` is
+   installed at `outerHost+0x2C`. Slot `+0x13C` (`EXE:0x0042BF70`)
+   reads interface `+0x228` = **outerHost+0x254** (input), while slot
+   `+0x140` (`EXE:0x0042BF90`) reads interface `+0x22C` =
+   **outerHost+0x258** (render suppression). `SysMenu:0x10024F45`
+   checks the latter and skips both chrome and Feel draw paths when nonzero.
+   The `[SetSELECT]` dispatch path around `EXE:0x0043ADA7..0x0043ADCB`
+   leads to `EXE:0x0043B12E` (`0x432060(1)` for input) followed by
+   `0x0043B141` (`0x4320A0(1)` for rendering). A resolved result
+   (`selected > -2`, including omission `-1`) calls `EXE:0x0043F330`
+   from `0x00431A02`, **before** `_SetFeeling@8` at `0x00431A32`:
+   `0x43F330` stores the result and calls only `0x4320A0(0)` at
+   `0x0043F35E`, clearing render suppression without clearing input.
+   Separate script-context paths `0x00431420` and `0x00431E00` clear
+   both fields through paired setters; determining their exact frame in
+   each post-choice handoff remains open. Therefore the **render gate is
+   definitely not held until SeUp/SeDown ends**, but this alone does not
+   establish when every menu control becomes actionable.
 
 Evidence: read-only REA/Ghidra 12.1.4 / llvm-objdump of authenticated retail
 bytes; meter `ev_cc8fc4f434bb2f6bc554c112cd1bc63e96a708df8e59d980964ae27dd62d4618`,
@@ -106,7 +125,11 @@ capture):
    sound **5** (`SeView`); it also overrides effective playback to 1x. The
    options are visible, but **neither Top Menu chrome nor the Feel meter**
    should be displayed as a standalone UI.
-2. **Choice is confirmed or omitted:** selection index >=0 sends host sound
+2. **Choice is confirmed or omitted:** a valid result first clears the native
+   visual-suppression field `outerHost+0x258` at `0x00431A02` via
+   `0x0043F330`, independently of input gate `outerHost+0x254`. This is a
+   permission to render, not a command to display Feel or to enable buttons.
+   Selection index >=0 sends host sound
    **1** (`SeSelect`) at `0x00431AA0..0x00431AAD`; omission/index -1 sends
    sound **0** (`SeCancel`) at `0x00431AC1..0x00431ACE`; -2 remains pending.
    `_SetFeeling@8` is called via `EXE:0x00431A32` for the committed path,
@@ -134,10 +157,12 @@ capture):
    omission follows the user's original-game observation, not a proven
    assertion that all omission routes have delta zero.
 4. **Effect and release:** changed Feel stays at full independent alpha;
-   sound and meter follow their individual authored durations, while menu
-   transport actions remain frozen. The precise original host input-unlock
-   timestamp is still unproven, so the existing conservative Kotonoha gate
-   is left unchanged and is not described as exact retail timing.
+   sound and meter follow their individual authored durations. The visual
+   suppression gate has **already cleared before** the feeling change, yet
+   input permission has its own field and per-control predicates. The
+   precise original host input-unlock timestamp is still unproven, so the
+   existing conservative Kotonoha action freeze remains unchanged and is
+   not described as exact retail timing.
 
 Implementation: `choiceFeelEligible` distinguishes an actual selected option
 from omission; `choiceFeelVisible` is raised only by meter Detect code3/4.
@@ -149,9 +174,11 @@ can still be visually hovered without drawing an unearned meter.
 
 ## Limits / unresolved fidelity
 
-Static disassembly proves separate meter drawing, exact geometry and the
-feeling-latch alpha exception. It does **not** yet prove an exact frame at
-which the outer host's `+0x254` input gate clears after every SETSELECT.
+Static disassembly proves separate meter drawing, exact geometry, the
+feeling-latch alpha exception, the **distinct `+0x254` input and `+0x258`
+render gates**, and the immediate render-gate clear on a resolved choice.
+It does **not** yet prove the exact frame at which the input gate clears
+after every SETSELECT or when all per-control predicates become permissive.
 The current Kotonoha post-choice release rule (next physical scene AND meter
 finished AND sound duration elapsed) remains a conservative implementation
 of the user's observed menu freeze, **not** an authenticated native equation.

@@ -78,22 +78,28 @@ interpolation plus 2000 ms hold. A second REA/Ghidra read-only pass found
 separate code paths for meter updating and button permission:
 
 - `SysMenuSDHQ.dll:0x10024C60` checks host vtable `+0x154` (EXE getter
-  `0x0042C3A0`, field `+0x770`) and, if active, only calls the meter state
+  `0x0042C3A0`, *interface* field `+0x770` = **outerHost+0x79C**) and, if
+  active, only calls the meter state
   machine `0x10026B40` and geometry `0x10026540`. The meter FSM keeps its own
   state in `this+0x44`, emits directional SE host code 3/4 through vtable
   `+0x50`, and clears the meter signal through host `+0x30` at completion.
 - MenuBar **input** instead enters `SysMenuSDHQ.dll:0x10024100`. At
   `0x10024126` it checks host vtable `+0x13C` (EXE `0x0042BF70`, a getter
-  of the low byte at host `+0x228`); a nonzero value rejects the input before
+  of the low byte at *interface* `+0x228` = **outerHost+0x254**); a nonzero
+  value rejects the input before
   hit-testing. The button-permission method `0x10023FB0` applies per-control
   host-state checks, e.g. `+0x104`, `+0x110`, `+0x88` and `+0x98`. Its observed
   predicates do not inspect `this+0x44`, wait for audio codes 3/4, or check
   elapsed OGG playback time.
-- The EXE uses `+0x228` in the state machine at `0x00426620` (states 0–11);
-  SETSELECT code at `0x00431740` reads this field, but the complete
-  post-choice host-state chronology was not recovered. The exact timing of
-  re-enabling clicks relative to the next scene, meter animation and SE is
-  therefore **UNKNOWN**, not an authenticated conjunctive predicate.
+- The EXE also uses the *distinct* `outerHost+0x228` in the state machine at
+  `0x00426620` (states 0–11); the SETSELECT context has its own `+0x228`
+  deadline. Neither is the menu input gate. Later static analysis proved a
+  separate render-suppression field at `outerHost+0x258`, getter
+  `0x0042BF90`, and proved that a resolved SetSELECT clears it at
+  `0x00431A02` before `_SetFeeling@8`, independently of `outerHost+0x254`.
+  Both gates can be reset by script-context routines `0x00431420` and
+  `0x00431E00`. The exact frame when clicks are re-enabled remains
+  **UNKNOWN**, not an authenticated conjunctive predicate.
 
 REA/Ghidra evidence IDs: meter
 `ev_cc8fc4f434bb2f6bc554c112cd1bc63e96a708df8e59d980964ae27dd62d4618`;
