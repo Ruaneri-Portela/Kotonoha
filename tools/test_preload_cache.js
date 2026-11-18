@@ -116,6 +116,7 @@ const base = "https://example.invalid/RealLive/game-assets/";
 const files = new Map([
     ["opening.bin", new TextEncoder().encode("Kotonoha opening!")],
     ["later.bin", new TextEncoder().encode("Next story scene")],
+    ["future.bin", new TextEncoder().encode("Future scene asset")],
     ["oversized.bin", new Uint8Array(10 * 1024 * 1024)]
 ]);
 async function fetchNetwork(url, options = {}) {
@@ -157,9 +158,11 @@ const manager = browserWindow.KotonohaAssetCache;
 (async () => {
     const manifest = JSON.stringify({entries: [
         {path: "opening.bin", size: 17},
-        {path: "later.bin", size: 16}
+        {path: "later.bin", size: 16},
+        {path: "future.bin", size: 18}
     ]});
     manager.configure(base, manifest);
+    await manager.sceneEntered("node-A");
     const file = files.get("opening.bin");
     let reply = await manager.fetchJob({
         url: base + "opening.bin", path: "opening.bin",
@@ -181,10 +184,16 @@ const manager = browserWindow.KotonohaAssetCache;
     const dump = await manager.buildPreload();
     assert.equal(dump.entries.length, 1);
     assert.equal(dump.entries[0].path, "opening.bin");
+    assert(dump.nodes["node-A"].assets.some(x => x.path === "opening.bin"),
+        "console dump should attribute fetched ranges to the active node");
     assert.equal(dump.entries[0].ranges[0][1], file.length);
     guide = JSON.stringify({...dump, entries: [
         ...dump.entries, {path: "later.bin", ranges: [[0, 16]]}
-    ]});
+    ], nodes: {
+        "node-A": {assets: [{path: "opening.bin"}],
+            next: [{id: "node-B", weight: 0.8}]},
+        "node-B": {assets: [{path: "future.bin"}], next: []}
+    }});
     let resolveHold;
     withhold = new Promise(resolve => {resolveHold = resolve;});
     let finished = false;
@@ -200,11 +209,22 @@ const manager = browserWindow.KotonohaAssetCache;
     assert.equal(networkFetches, 2,
         "preload should fetch only missing chunks");
 
+    // Starting node-A should predict node-B's assets, but not block gameplay.
+    await manager.sceneEntered("node-A");
+    assert.equal(Buffer.from(await manager.readRange(
+        "future.bin", 0, 18)).toString(), "Future scene asset");
+    assert.equal(networkFetches, 3,
+        "predictive scheduler must fetch neighboring node assets");
+    await manager.sceneEntered("node-B");
+    const graphDump = await manager.buildPreload();
+    assert(graphDump.nodes["node-A"].next.includes("node-B"),
+        "console dump should record observed story-node transitions");
+
     online = false;
     manager.configure(base, manifest);
     assert.equal(await manager.preloadIfPresent(), true,
         "offline boot must reuse the cached guide and all chunks");
-    assert.equal(networkFetches, 2,
+    assert.equal(networkFetches, 3,
         "offline restore must not fetch any asset again");
 
     // If the cache has no guide/manifest and there is no network,
