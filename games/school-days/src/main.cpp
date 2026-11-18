@@ -109,16 +109,29 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
                      "Retail Packs, extracted game directory or ISO",
                      directory);
     arguments.alias("--school-days", "--assets");
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     arguments.option("--ktrf", "FILE", "School Days routing graph", app->route);
+#endif
     arguments.option("--scripts", "DIRECTORY",
                      "Translated ORS script directory", app->scripts);
     arguments.option("--documents", "DIRECTORY",
                      "Save-game and GlobalFlag directory", app->documents);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     arguments.option("--node", "ID", "Start at an index or scene key",
                      app->startNode);
     arguments.option("--dump-ktrf", "FILE", "Export the active routing graph",
                      app->dump);
+#endif
     arguments.parse(argc, argv);
+    // Bounded headless QA must reach the game loop rather than the launcher.
+    // DIST does not expose route-jump or KTRF export developer commands.
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+    if (!app->dump.empty() || !app->startNode.empty() || arguments.frames > 0)
+      app->options.launcher = false;
+#else
+    if (arguments.frames > 0)
+      app->options.launcher = false;
+#endif
     if (arguments.wantsHelp()) {
       std::fputs(arguments.help().c_str(), stdout);
       return SDL_APP_SUCCESS;
@@ -238,7 +251,6 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
     if (!firstFrameLogged) {
       firstFrameLogged = true;
     }
-
     if (app->frames > 0 && --app->frames == 0)
       return SDL_APP_SUCCESS;
     return result;
