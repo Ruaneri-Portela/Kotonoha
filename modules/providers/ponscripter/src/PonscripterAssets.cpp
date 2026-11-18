@@ -214,7 +214,7 @@ PonscripterAssets::discoverScripts() const {
   bool manifestFreeHttp = false;
 #ifdef __EMSCRIPTEN__
   if (auto remote = Kotonoha::Filesystem::remoteGameAssets())
-    manifestFreeHttp = remote->manifestFree();
+    manifestFreeHttp = remote->manifestFree() && !remote->hasManifestIndex();
 #endif
   for (const char *ext : {"utf", "txt"}) {
     int consecutiveMissing = 0;
