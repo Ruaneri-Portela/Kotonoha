@@ -27,10 +27,14 @@ struct Application {
   long frames = -1;
 
   bool startInProcess(const KotonohaLauncher::DiscoveredGameEntry &entry) {
+    // Do not mutate the hub's save environment when no in-process factory
+    // exists; the child-process dispatcher manages isolation itself.
+    auto &registry = KotonohaLauncher::EngineLibraryRegistry::instance();
+    if (!registry.canInstantiateInProcess(entry.engine.kind))
+      return false;
     KotonohaLauncher::applyPerGameSaveIsolation(
         entry, options, splitSavesByGame, customSaveRoot);
-    auto mounted = KotonohaLauncher::EngineLibraryRegistry::instance()
-                       .instantiate(entry, options);
+    auto mounted = registry.instantiate(entry, options);
     if (!mounted.runtime)
       return false;
     runtime = std::move(mounted.runtime);
