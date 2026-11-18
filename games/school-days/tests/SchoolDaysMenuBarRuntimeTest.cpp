@@ -349,6 +349,26 @@ void CheckMeterCompositingPixels(Application &app,
   Check(omittedAfterHold[0] == 0 && omittedAfterHold[1] == 0 &&
             omittedAfterHold[2] == 0,
         "omitted choice displayed Feel again after the hold timer");
+  // The no-delta PostTarget path passes through Finalize on the next tick.
+  // Finish that cycle before simulating a distinct omitted-choice result.
+  menu.Update(nowMs + 8501u, 10, 20);
+
+  // RouteProc can apply a nonzero raw 001/002 delta even when SETSELECT's
+  // result is -1. That must not become a standalone Feel after the runtime
+  // exits the frozen omission phase, regardless of the detector's sound cue.
+  menu.SetChoiceTailFrozen(true);
+  menu.SetChoiceTailFeelingVisible(false);
+  menu.RequestFeelingRefresh();
+  menu.Update(nowMs + 9000u, 11, 20); // Capture actual nonzero omission delta
+  menu.Update(nowMs + 9001u, 11, 20); // Detect
+  Check(menu.ConsumeFeelingDirectionCode() == 3,
+        "synthetic omission delta failed to exercise real Feeling detector");
+  menu.SetChoiceTailFrozen(false);
+  paint();
+  const auto omittedChangedMeter = sample(200, 5);
+  Check(omittedChangedMeter[0] == 0 && omittedChangedMeter[1] == 0 &&
+            omittedChangedMeter[2] == 0,
+        "omitted choice with raw feeling delta revealed late standalone Feel");
 
   (void)menu.HandleEvent(&renderer, &hover, &action);
   menu.Update(static_cast<uint32_t>(SDL_GetTicks()) + 350u, 10, 20);

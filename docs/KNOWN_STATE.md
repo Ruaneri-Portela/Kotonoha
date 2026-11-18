@@ -207,7 +207,10 @@ option or `SeCancel` for omission; only a genuine changed-feeling event
 November 18 correction clears stale pointer/fade state on entering SetSELECT,
 does not show frozen choice chrome automatically, and preserves AUTO ON as a
 standalone sprite during the pending prompt, chosen/omitted result and handoff.
-A late unchanged feeling refresh cannot resurrect Feel. The meter retains
+A late unchanged feeling refresh cannot resurrect Feel. Even if an omitted
+choice's route executes a nonzero raw `001`/`002` delta, its choice-origin
+refresh cannot leak into the generic Feel renderer after the frozen exit.
+The meter retains
 independent alpha during an actual feeling effect. This does **not**
 unfreeze Top Menu actions or permit SkipToEnd/SuperSkip to bypass choices.
 An SDL software pixel-readback regression now checks that a pending choice
