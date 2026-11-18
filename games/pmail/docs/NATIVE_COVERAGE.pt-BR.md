@@ -2,24 +2,21 @@
 
 [English (US)](NATIVE_COVERAGE.md)
 
-## Instruções sem implementação identificadas nos logs
+## Comandos nativos recuperados
 
 | SYS | Local informado | Estado |
 | --- | --- | --- |
-| 18 | `start.obj:5`, `PRO1.OBJ:3` | Sem implementação; semântica nativa desconhecida |
-| 24 | `start.obj:7` | Sem implementação; semântica nativa desconhecida |
-| 20 | `start.obj:11` | Sem implementação; semântica nativa desconhecida |
-| 216 | `start.obj:14` | Sem implementação; semântica nativa desconhecida |
-| 17 | `start.obj:899` | Sem implementação; semântica nativa desconhecida |
-| 19 | `PRO1.OBJ:5` | Sem implementação; semântica nativa desconhecida |
-| 65 | `PRO1.OBJ:809` | Sem implementação; semântica nativa desconhecida |
-| 137 | `PRO1.OBJ:2413` | Sem implementação; semântica nativa desconhecida |
-| 212 | `extra.OBJ:83` | Sem implementação; semântica nativa desconhecida |
+| 18 | `start.obj:5`, `PRO1.OBJ:3` | Implementado: define referência de texto atual (`0x422bb0`) |
+| 24 | `start.obj:7` | Implementado: reinicia exibição de mensagem e chat (`0x422410`) |
+| 20 | `start.obj:11` | Implementado: libera superfícies de texto (`0x4223f0`) |
+| 216 | `start.obj:14` | Implementado: define modo de texto (`0x4227e0`) |
+| 17 | `start.obj:899` | Implementado: reinicia fila de mensagens e modo (`0x422570`) |
+| 19 | `PRO1.OBJ:5` | Implementado: superfícies de texto prontas (`0x4223e0`) |
+| 65 | `PRO1.OBJ:809` | Implementado: cópia de backbuffer (`0x424490`) |
+| 137 | `PRO1.OBJ:2413` | Implementado: reprodução de som por dia no barramento SE (`0x4248f0`) |
+| 212 | `extra.OBJ:83` | Implementado: inicialização do modo extra/omake |
 
-Esses avisos vêm do fallback de `PmailGame::native`, não do áudio.
-Nenhum dos nove IDs tem implementação nos handlers atualmente
-documentados. **Não mascarar os avisos nem inventar um no-op**: chamadas
-nativas podem alterar flags, cenas, entrada, apresentação ou a execução.
+Todos os nove comandos nativos previamente observados foram analisados no `pmail.exe` e implementados no runtime do porte.
 
 ## Diagnóstico novo
 

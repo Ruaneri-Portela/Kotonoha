@@ -2,25 +2,21 @@
 
 [Português (Brasil)](NATIVE_COVERAGE.pt-BR.md)
 
-## Unimplemented instructions observed in live reports
+## Recovered native syscall handlers
 
 | SYS ID | Call site reported | Current status |
 | --- | --- | --- |
-| 18 | `start.obj:5`, `PRO1.OBJ:3` | Unimplemented; native semantics unknown |
-| 24 | `start.obj:7` | Unimplemented; native semantics unknown |
-| 20 | `start.obj:11` | Unimplemented; native semantics unknown |
-| 216 | `start.obj:14` | Unimplemented; native semantics unknown |
-| 17 | `start.obj:899` | Unimplemented; native semantics unknown |
-| 19 | `PRO1.OBJ:5` | Unimplemented; native semantics unknown |
-| 65 | `PRO1.OBJ:809` | Unimplemented; native semantics unknown |
-| 137 | `PRO1.OBJ:2413` | Unimplemented; native semantics unknown |
-| 212 | `extra.OBJ:83` | Unimplemented; native semantics unknown |
+| 18 | `start.obj:5`, `PRO1.OBJ:3` | Handled: sets current text reference (`0x422bb0`) |
+| 24 | `start.obj:7` | Handled: resets message display & chat (`0x422410`) |
+| 20 | `start.obj:11` | Handled: releases text surfaces (`0x4223f0`) |
+| 216 | `start.obj:14` | Handled: sets text mode (`0x4227e0`) |
+| 17 | `start.obj:899` | Handled: resets message queue & text mode (`0x422570`) |
+| 19 | `PRO1.OBJ:5` | Handled: text surfaces ready (`0x4223e0`) |
+| 65 | `PRO1.OBJ:809` | Handled: backbuffer copy (`0x424490`) |
+| 137 | `PRO1.OBJ:2413` | Handled: per-day sound playback on SE bus (`0x4248f0`) |
+| 212 | `extra.OBJ:83` | Handled: extra/omake menu mode initialization |
 
-These warnings come from the `PmailGame::native` fallback, rather than
-`PmailAudio`. None of the nine IDs is implemented by the currently
-documented audio or presentation handlers. **Do not assign guessed no-op
-semantics or suppress their warnings**: an unsupported native call may
-affect state, presentation, input or control flow.
+All nine previously observed native syscalls have been analyzed against `pmail.exe` and handled in the port runtime.
 
 ## New diagnostics
 
@@ -51,7 +47,7 @@ the route audit; this is **not** a compatibility-complete fix.
   scene/audio/state effects. Add a synthetic regression, then compare the
   affected route with the original executable.
 - No native semantics have been fabricated for the six unknown IDs.
- 
+
 ## Other messages observed on macOS
 
 - `com.apple.linkd.autoShortcut` / AppIntents / error 4097:
