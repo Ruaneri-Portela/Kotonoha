@@ -846,10 +846,36 @@
                             }
                             let indexed = false;
                             if (manifest) {
-                                indexed = Module.ccall(
-                                    "KotonohaConfigureRemoteAssetIndexedManifest",
-                                    "number", ["string", "string"],
-                                    [origin.href, manifest]) === 1;
+                                // Emscripten ccall("string") places the entire
+                                // UTF-8 JSON on the WASM stack. Large indexes
+                                // overflow that stack and permanently abort the
+                                // module. Allocate only this argument on the
+                                // bounded WASM heap; the URL stays a short
+                                // ccall string. Fetch requests remain lazy.
+                                const bytes = new TextEncoder().encode(manifest);
+                                if (bytes.length > 4 * 1024 * 1024)
+                                    throw new Error("Índice HTTP ultrapassa 4 MiB em UTF-8");
+                                const pointer = Module.ccall(
+                                    "KotonohaAllocateRemoteManifest", "number",
+                                    ["number"], [bytes.length + 1]);
+                                if (!pointer)
+                                    throw new Error("Memória insuficiente para índice HTTP");
+                                try {
+                                    // Acquire HEAPU8 AFTER allocation, since
+                                    // ALLOW_MEMORY_GROWTH may replace its buffer.
+                                    const heap = Module.HEAPU8;
+                                    if (!heap || pointer + bytes.length + 1 > heap.length)
+                                        throw new Error("Heap WASM não disponível para índice HTTP");
+                                    heap.set(bytes, pointer);
+                                    heap[pointer + bytes.length] = 0;
+                                    indexed = Module.ccall(
+                                        "KotonohaConfigureRemoteAssetIndexedManifest",
+                                        "number", ["string", "number"],
+                                        [origin.href, pointer]) === 1;
+                                } finally {
+                                    Module.ccall("KotonohaFreeRemoteManifest",
+                                        null, ["number"], [pointer]);
+                                }
                                 if (!indexed)
                                     console.warn("[Kotonoha] Índice HTTP rejeitado; usando Fetch direto");
                             }
@@ -872,6 +898,17 @@
                             finish();
                         } catch (error) {
                             console.error("[Kotonoha] Fetch HTTP(S):", error);
+                            // An out-of-bounds WebAssembly trap is fatal; do
+                            // not offer a retry against the same corrupt VM.
+                            if (error instanceof WebAssembly.RuntimeError &&
+                                /memory access out of bounds|unreachable/i.test(
+                                    String(error.message || error))) {
+                                setStatus("Falha fatal de memória no WebAssembly. " +
+                                    "Atualize a página após instalar o build corrigido.");
+                                folderButton.disabled = true;
+                                serverButton.disabled = true;
+                                return;
+                            }
                             unlock("Falha ao configurar Fetch: " +
                                 String(error.message || error));
                         }
