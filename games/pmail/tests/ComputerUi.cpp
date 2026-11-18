@@ -152,6 +152,114 @@ int main() {
     check(game.extrasChoose(4) && game.vm().var(0x2388) == 4,
           "SYS 212 Escape/EXIT did not return mode 4");
 
+    // SYS 225/226 -> pmail.exe:0x422830 posts WM_COMMAND 0xbba (load) and
+    // 0xbbb (save), the original dialogs. The VM stays blocked until the
+    // host reports the dialog closed.
+    bool hostDialogLoad = false;
+    game.openSaveMenu = [&](bool load) {
+      hostDialogLoad = load;
+      return true;
+    };
+    call(225, {});
+    check(game.saveMenuWaitActive() && game.saveMenuWaitLoad() &&
+              hostDialogLoad && game.vm().blocked(),
+          "SYS 225 did not open the native load-dialog path");
+    game.resumeFromSaveMenu();
+    check(!game.saveMenuWaitActive() && !game.vm().blocked(),
+          "SYS 225 did not resume after the load dialog closed");
+    call(226, {});
+    check(game.saveMenuWaitActive() && !game.saveMenuWaitLoad() &&
+              game.vm().blocked(),
+          "SYS 226 did not open the native save-dialog path");
+    game.resumeFromSaveMenu();
+    check(!game.saveMenuWaitActive() && !game.vm().blocked(),
+          "SYS 226 did not resume after the save dialog closed");
+
+    // SYS 209 -> pmail.exe:0x405390. CG MODE lists the 129-entry retail CG
+    // table in eight category tabs, 12 thumbnails per page. Selecting a cell
+    // opens the full view; Escape returns to the grid and then to the menu.
+    using ViewerMode = Kotonoha::PmailPort::PmailGame::ExtrasViewerMode;
+    call(209, {});
+    check(game.extrasViewerActive() &&
+              game.extrasViewerMode() == ViewerMode::CgGrid,
+          "SYS 209 did not open CG MODE");
+    check(game.extrasViewerCategory() == 0 && game.extrasViewerPage() == 0 &&
+              game.extrasViewerPageCount() == 1 &&
+              !game.extrasViewerSlotLocked(1),
+          "SYS 209 started with the wrong ETC category/page");
+    auto cgCells = game.extrasViewerCells();
+    check(cgCells.size() == 12 && cgCells[0] == "open01" &&
+              cgCells[4] == "saku13" && cgCells[6] == "endi01" &&
+              cgCells[7].empty(),
+          "SYS 209 did not enumerate the retail ETC CG table");
+    check(game.extrasViewerActivate() && game.extrasViewerFullView(),
+          "SYS 209 did not open the selected CG");
+    game.extrasViewerBack();
+    check(!game.extrasViewerFullView() && game.extrasViewerActive(),
+          "SYS 209 did not return from the CG full view");
+    game.extrasViewerSetCategory(1);
+    cgCells = game.extrasViewerCells();
+    check(game.extrasViewerCategory() == 1 && cgCells[0] == "hiro01" &&
+              game.extrasViewerPageCount() == 4,
+          "SYS 209 category tab did not switch to HIRO");
+    game.extrasViewerPageBy(1);
+    check(game.extrasViewerPage() == 1 && game.extrasViewerSlot() == 1,
+          "SYS 209 page arrow did not advance the grid");
+    game.extrasViewerBack();
+    check(!game.extrasViewerActive() && !game.vm().blocked(),
+          "SYS 209 did not close back to the extras menu");
+
+    // SYS 210 -> pmail.exe:0x42a4c0. KAIROKU MODE lists only unlocked slots
+    // and returns the chosen slot (1..32) through its variable; cancelling
+    // writes 0.
+    const Pmail::Arg recallVar = {uint32_t(1u << 16) | 0x2389};
+    game.vm().setVar(0x2389, 0);
+    call(210, {recallVar});
+    check(game.extrasViewerActive() &&
+              game.extrasViewerMode() == ViewerMode::Recollection &&
+              game.extrasViewerCategory() == 0 &&
+              game.extrasViewerSlot() == 1,
+          "SYS 210 did not open KAIROKU MODE on the unlocked entry");
+    auto recallCells = game.extrasViewerCells();
+    check(recallCells[0] == "open00" && recallCells[1].empty(),
+          "SYS 210 did not filter the recollection list by unlock state");
+    check(game.extrasViewerActivate() && !game.extrasViewerActive() &&
+              game.vm().var(0x2389) == 1 && !game.vm().blocked(),
+          "SYS 210 did not return the selected recollection slot");
+    call(210, {recallVar});
+    check(game.extrasViewerSlot() == 1,
+          "SYS 210 did not preselect the slot from its variable");
+    game.extrasViewerBack();
+    check(!game.extrasViewerActive() && game.vm().var(0x2389) == 0,
+          "SYS 210 did not clear the slot variable on cancel");
+
+    // SYS 208 -> pmail.exe:0x41d810. MUSIC MODE keeps a 24-row list, transport
+    // controls, repeat flag and routes playback through the SYS 112 BGM slot.
+    game.musicTracks = [] {
+      return std::vector<std::string>{"sound/mm01", "sound/mm02",
+                                      "sound/mm03"};
+    };
+    std::string playedTrack;
+    bool stoppedMusic = false;
+    game.playMusic = [&](const std::string &id) { playedTrack = id; };
+    game.stopMusic = [&] { stoppedMusic = true; };
+    call(208, {});
+    check(game.extrasViewerActive() &&
+              game.extrasViewerMode() == ViewerMode::Music &&
+              game.extrasViewerTrackCount() == 3 &&
+              game.extrasViewerTrack() == 1,
+          "SYS 208 did not open MUSIC MODE with the host catalog");
+    game.extrasViewerTrackBy(1);
+    check(game.extrasViewerActivate() && playedTrack == "sound/mm02",
+          "SYS 208 did not route playback through the BGM bus");
+    game.extrasViewerToggleRepeat();
+    check(game.extrasViewerRepeat(), "SYS 208 repeat toggle did not change");
+    game.extrasViewerStopMusic();
+    game.extrasViewerBack();
+    check(!game.extrasViewerActive() && stoppedMusic &&
+              !game.extrasViewerRepeat() && !game.vm().blocked(),
+          "SYS 208 did not stop playback and close MUSIC MODE");
+
     game.setPlayerNames("Alice", "Bob");
     check(game.expandPlayerNames("$NO and $HO / $NO") ==
               "Alice and Bob / Alice",

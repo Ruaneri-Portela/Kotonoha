@@ -168,6 +168,65 @@ public:
     std::lock_guard lock(mutex_);
     return extrasMenu_;
   }
+  // Native omake viewers: sys 209 (CG MODE, 0x405390), sys 210 (KAIROKU
+  // MODE, 0x42a4c0) and sys 208 (MUSIC MODE, 0x41d810). Each keeps its own
+  // modal state and blocks the VM until the player leaves it.
+  enum class ExtrasViewerMode { None = 0, Music = 208, CgGrid = 209, Recollection = 210 };
+  bool extrasViewerActive() const {
+    std::lock_guard lock(mutex_);
+    return extrasViewerMode_ != ExtrasViewerMode::None;
+  }
+  ExtrasViewerMode extrasViewerMode() const {
+    std::lock_guard lock(mutex_);
+    return extrasViewerMode_;
+  }
+  int extrasViewerCategory() const {
+    std::lock_guard lock(mutex_);
+    return extrasViewerCategory_;
+  }
+  int extrasViewerCategoryCount() const { return 8; }
+  int extrasViewerPage() const {
+    std::lock_guard lock(mutex_);
+    return extrasViewerPage_;
+  }
+  int extrasViewerPageCount() const;
+  int extrasViewerSlot() const {
+    std::lock_guard lock(mutex_);
+    return extrasViewerSlot_;
+  }
+  // 0 means the cell has no selectable content (locked or empty).
+  bool extrasViewerSlotLocked(int slot) const;
+  bool extrasViewerFullView() const {
+    std::lock_guard lock(mutex_);
+    return extrasViewerFullView_;
+  }
+  // Grid cells for the current page: one entry per row in reading order.
+  // CG viewers return the CG resource stem, the music viewer the track id.
+  std::vector<std::string> extrasViewerCells() const;
+  int extrasViewerTrack() const {
+    std::lock_guard lock(mutex_);
+    return extrasViewerTrack_;
+  }
+  int extrasViewerTrackCount() const;
+  int extrasViewerTrackFirst() const {
+    std::lock_guard lock(mutex_);
+    return extrasViewerTrackFirst_;
+  }
+  void extrasViewerHover(int slot);
+  void extrasViewerMove(int dx, int dy);
+  void extrasViewerPageBy(int delta);
+  void extrasViewerCategoryBy(int delta);
+  void extrasViewerSetCategory(int category);
+  bool extrasViewerActivate();
+  void extrasViewerBack();
+  void extrasViewerSetTrack(int track);
+  void extrasViewerTrackBy(int delta);
+  void extrasViewerStopMusic();
+  void extrasViewerToggleRepeat();
+  bool extrasViewerRepeat() const {
+    std::lock_guard lock(mutex_);
+    return extrasViewerRepeat_;
+  }
   int extrasSelection() const {
     std::lock_guard lock(mutex_);
     return extrasIndex_;
@@ -277,6 +336,18 @@ public:
   }
   // Called by the runtime when the selected movie ends or is skipped.
   void resumeFromMovie();
+  // SYS 225/226 forward the original WM_COMMAND 0xbba (load) / 0xbbb (save)
+  // to the host save UI. The VM stays blocked while that dialog is open and
+  // resumes when the host reports it closed.
+  bool saveMenuWaitActive() const {
+    std::lock_guard lock(mutex_);
+    return saveMenuWait_;
+  }
+  bool saveMenuWaitLoad() const {
+    std::lock_guard lock(mutex_);
+    return saveMenuLoad_;
+  }
+  void resumeFromSaveMenu();
   // SYS 215 marks one of the 32 retail extra/gallery entries as unlocked.
   bool extraUnlocked(const std::string &name) const {
     std::lock_guard lock(mutex_);
@@ -305,6 +376,13 @@ public:
   std::function<size_t(const std::string &)> animationFrameCount;
   // Returns true when a movie actually started; false lets the VM continue.
   std::function<bool(const std::string &)> playMovie;
+  // Returns true when the host opened its save (false) or load (true) dialog.
+  std::function<bool(bool)> openSaveMenu;
+  // MUSIC MODE (sys 208) consults the host for the external track list and
+  // routes playback through the same BGM slot as SYS 112.
+  std::function<std::vector<std::string>()> musicTracks;
+  std::function<void(const std::string &)> playMusic;
+  std::function<void()> stopMusic;
 
   // Host
   void native(::Pmail::Vm &vm, int id,
@@ -372,6 +450,8 @@ private:
   int nextTextIndex_ = -1;
   std::string lastRequestedMovie_;
   bool movieWait_ = false;
+  bool saveMenuWait_ = false;
+  bool saveMenuLoad_ = false;
   std::set<std::string> unlockedExtras_;
   uint32_t extrasVersion_ = 0;
   AudioWait audioWait_ = AudioWait::None;
@@ -384,6 +464,20 @@ private:
   bool extrasMenu_ = false;
   int extrasIndex_ = 0;
   uint32_t extrasMenuVar_ = 0;
+  ExtrasViewerMode extrasViewerMode_ = ExtrasViewerMode::None;
+  int extrasViewerCategory_ = 0;
+  int extrasViewerPage_ = 0;
+  int extrasViewerSlot_ = 0;
+  bool extrasViewerFullView_ = false;
+  int extrasViewerExtraIndex_ = -1;
+  uint32_t extrasViewerVar_ = 0;
+  std::vector<std::string> musicTrackIds_;
+  int extrasViewerTrack_ = 0;
+  int extrasViewerTrackFirst_ = 0;
+  bool extrasViewerRepeat_ = false;
+  void closeExtrasViewer(int result);
+  std::vector<int> extrasViewerCatalog() const;
+  void clampExtrasViewerSelection();
   uint32_t choiceVar_ = 0;
   std::vector<std::string> choiceText_;
   std::vector<int> choiceValue_;

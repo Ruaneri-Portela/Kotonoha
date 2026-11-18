@@ -17,6 +17,7 @@ class PmailGame;
 class PmailComponents;
 class PmailTitleMenu;
 class PmailExtrasMenu;
+class PmailExtrasViewer;
 
 /**
  * PmailSession manages the high-level state of the PMAIL game instance.
@@ -74,6 +75,8 @@ private:
                         bool haveStagePoint);
   bool handleExtrasEvent(Kotonoha::EventRef event, SDL_FPoint stagePoint,
                          bool haveStagePoint);
+  bool handleExtrasViewerEvent(Kotonoha::EventRef event, SDL_FPoint stagePoint,
+                               bool haveStagePoint);
 
   std::shared_ptr<PmailGame> game_;
   Kotonoha::Engine &engine_;
@@ -82,6 +85,7 @@ private:
 
   std::unique_ptr<PmailTitleMenu> titleMenu_;
   std::unique_ptr<PmailExtrasMenu> extrasMenu_;
+  std::unique_ptr<PmailExtrasViewer> extrasViewer_;
 
   // Status
   uint64_t lastUpdateMs_ = 0;

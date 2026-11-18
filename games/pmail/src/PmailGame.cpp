@@ -1,4 +1,5 @@
 #include "Pmail/Port.hpp"
+#include "PmailGalleryData.hpp"
 #include "PmailPack.hpp"
 #include <Pmail/StateIO.hpp>
 
@@ -269,8 +270,21 @@ bool PmailGame::init() {
   messageQueue_.clear();
   lastRequestedMovie_.clear();
   movieWait_ = false;
+  saveMenuWait_ = false;
+  saveMenuLoad_ = false;
   extrasMenu_ = false;
   extrasIndex_ = 0;
+  extrasViewerMode_ = ExtrasViewerMode::None;
+  extrasViewerCategory_ = 0;
+  extrasViewerPage_ = 0;
+  extrasViewerSlot_ = 0;
+  extrasViewerFullView_ = false;
+  extrasViewerExtraIndex_ = -1;
+  extrasViewerVar_ = 0;
+  musicTrackIds_.clear();
+  extrasViewerTrack_ = 0;
+  extrasViewerTrackFirst_ = 0;
+  extrasViewerRepeat_ = false;
   clearComputerOverlay();
   return true;
 }
@@ -601,8 +615,21 @@ void PmailGame::deserialize(const std::string &data) {
   returningToTitle_ = false;
   lastRequestedMovie_.clear();
   movieWait_ = false;
+  saveMenuWait_ = false;
+  saveMenuLoad_ = false;
   extrasMenu_ = false;
   extrasIndex_ = 0;
+  extrasViewerMode_ = ExtrasViewerMode::None;
+  extrasViewerCategory_ = 0;
+  extrasViewerPage_ = 0;
+  extrasViewerSlot_ = 0;
+  extrasViewerFullView_ = false;
+  extrasViewerExtraIndex_ = -1;
+  extrasViewerVar_ = 0;
+  musicTrackIds_.clear();
+  extrasViewerTrack_ = 0;
+  extrasViewerTrackFirst_ = 0;
+  extrasViewerRepeat_ = false;
   // Runtime diagnostics belong to the live path, never to another save slot.
   unhandledNativeIds_.clear();
   unhandledNativeSites_.clear();
@@ -631,8 +658,21 @@ void PmailGame::returnToTitle() {
   waitUntil_ = 0;
   lastRequestedMovie_.clear();
   movieWait_ = false;
+  saveMenuWait_ = false;
+  saveMenuLoad_ = false;
   extrasMenu_ = false;
   extrasIndex_ = 0;
+  extrasViewerMode_ = ExtrasViewerMode::None;
+  extrasViewerCategory_ = 0;
+  extrasViewerPage_ = 0;
+  extrasViewerSlot_ = 0;
+  extrasViewerFullView_ = false;
+  extrasViewerExtraIndex_ = -1;
+  extrasViewerVar_ = 0;
+  musicTrackIds_.clear();
+  extrasViewerTrack_ = 0;
+  extrasViewerTrackFirst_ = 0;
+  extrasViewerRepeat_ = false;
   filled_ = false;
   voiceActor_ = -1;
   returningToTitle_ = true;
@@ -672,6 +712,16 @@ void PmailGame::resumeFromMovie() {
   if (!movieWait_)
     return;
   movieWait_ = false;
+  vm_.unblock();
+  ++sceneVersion_;
+}
+
+void PmailGame::resumeFromSaveMenu() {
+  std::lock_guard lock(mutex_);
+  if (!saveMenuWait_)
+    return;
+  saveMenuWait_ = false;
+  saveMenuLoad_ = false;
   vm_.unblock();
   ++sceneVersion_;
 }
@@ -876,6 +926,318 @@ bool PmailGame::extrasChoose(int index) {
   vm_.unblock();
   ++sceneVersion_;
   return true;
+}
+
+namespace {
+std::string LowerAscii(std::string value) {
+  for (auto &c : value)
+    if (c >= 'A' && c <= 'Z')
+      c = char(c - 'A' + 'a');
+  return value;
+}
+
+int GalleryCategoryOf(int tab) {
+  return int(GalleryCategoryFirst) + std::clamp(tab, 0, 7);
+}
+} // namespace
+
+std::vector<int> PmailGame::extrasViewerCatalog() const {
+  std::vector<int> out;
+  if (extrasViewerMode_ == ExtrasViewerMode::CgGrid) {
+    const int category = GalleryCategoryOf(extrasViewerCategory_);
+    for (int i = 0; i < int(std::size(GalleryCgTable)); ++i)
+      if (GalleryCgTable[i].category == category)
+        out.push_back(i);
+  } else if (extrasViewerMode_ == ExtrasViewerMode::Recollection) {
+    const int category = GalleryCategoryOf(extrasViewerCategory_);
+    for (int i = 0; i < int(std::size(GalleryExtraTable)); ++i)
+      if (GalleryExtraTable[i].category == category &&
+          unlockedExtras_.count(GalleryExtraTable[i].slot) != 0)
+        out.push_back(i);
+  }
+  return out;
+}
+
+int PmailGame::extrasViewerPageCount() const {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ == ExtrasViewerMode::Music)
+    return std::max(1, (int(musicTrackIds_.size()) + 23) / 24);
+  const auto catalog = extrasViewerCatalog();
+  return std::max(1, (int(catalog.size()) + GalleryPageSize - 1) /
+                         GalleryPageSize);
+}
+
+bool PmailGame::extrasViewerSlotLocked(int slot) const {
+  std::lock_guard lock(mutex_);
+  if (slot < 1 || slot > GalleryPageSize)
+    return true;
+  const auto catalog = extrasViewerCatalog();
+  const std::size_t index =
+      std::size_t(extrasViewerPage_ * GalleryPageSize + slot - 1);
+  return index >= catalog.size();
+}
+
+std::vector<std::string> PmailGame::extrasViewerCells() const {
+  std::lock_guard lock(mutex_);
+  std::vector<std::string> out;
+  if (extrasViewerMode_ == ExtrasViewerMode::Music) {
+    const int first = std::clamp(extrasViewerTrackFirst_, 0,
+                                 std::max(0, int(musicTrackIds_.size()) - 1));
+    for (int i = first;
+         i < int(musicTrackIds_.size()) && i < first + 24; ++i)
+      out.push_back(musicTrackIds_[size_t(i)]);
+    return out;
+  }
+  if (extrasViewerMode_ == ExtrasViewerMode::None)
+    return out;
+  const auto catalog = extrasViewerCatalog();
+  for (int slot = 0; slot < GalleryPageSize; ++slot) {
+    const std::size_t index =
+        std::size_t(extrasViewerPage_ * GalleryPageSize + slot);
+    if (index >= catalog.size()) {
+      out.emplace_back();
+      continue;
+    }
+    const int row = catalog[index];
+    out.emplace_back(LowerAscii(extrasViewerMode_ == ExtrasViewerMode::CgGrid
+                                    ? GalleryCgTable[row].file
+                                    : GalleryExtraTable[row].cg));
+  }
+  return out;
+}
+
+int PmailGame::extrasViewerTrackCount() const {
+  std::lock_guard lock(mutex_);
+  return int(musicTrackIds_.size());
+}
+
+void PmailGame::extrasViewerHover(int slot) {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ == ExtrasViewerMode::None ||
+      extrasViewerMode_ == ExtrasViewerMode::Music)
+    return;
+  if (slot >= 1 && slot <= GalleryPageSize && !extrasViewerSlotLocked(slot))
+    extrasViewerSlot_ = slot;
+}
+
+void PmailGame::clampExtrasViewerSelection() {
+  if (extrasViewerMode_ == ExtrasViewerMode::Music) {
+    if (musicTrackIds_.empty()) {
+      extrasViewerTrack_ = 0;
+      extrasViewerTrackFirst_ = 0;
+      return;
+    }
+    extrasViewerTrack_ =
+        std::clamp(extrasViewerTrack_, 1, int(musicTrackIds_.size()));
+    if (extrasViewerTrack_ <= extrasViewerTrackFirst_)
+      extrasViewerTrackFirst_ = extrasViewerTrack_ - 1;
+    if (extrasViewerTrack_ > extrasViewerTrackFirst_ + 24)
+      extrasViewerTrackFirst_ = extrasViewerTrack_ - 24;
+    extrasViewerTrackFirst_ =
+        std::clamp(extrasViewerTrackFirst_, 0,
+                   std::max(0, int(musicTrackIds_.size()) - 1));
+    return;
+  }
+  const int pages = extrasViewerPageCount();
+  extrasViewerPage_ = std::clamp(extrasViewerPage_, 0, pages - 1);
+  const auto catalog = extrasViewerCatalog();
+  if (catalog.empty()) {
+    extrasViewerSlot_ = 0;
+    extrasViewerExtraIndex_ = -1;
+    return;
+  }
+  extrasViewerSlot_ = std::clamp(extrasViewerSlot_, 1, GalleryPageSize);
+  if (extrasViewerSlotLocked(extrasViewerSlot_)) {
+    extrasViewerSlot_ = 0;
+    for (int slot = 1; slot <= GalleryPageSize; ++slot)
+      if (!extrasViewerSlotLocked(slot)) {
+        extrasViewerSlot_ = slot;
+        break;
+      }
+  }
+  const std::size_t index =
+      std::size_t(extrasViewerPage_ * GalleryPageSize +
+                  std::max(0, extrasViewerSlot_ - 1));
+  extrasViewerExtraIndex_ =
+      index < catalog.size() ? catalog[index] : -1;
+}
+
+void PmailGame::extrasViewerMove(int dx, int dy) {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ == ExtrasViewerMode::Music) {
+    if (!musicTrackIds_.empty() && (dx || dy))
+      extrasViewerTrack_ += dy != 0 ? dy : dx;
+    clampExtrasViewerSelection();
+    return;
+  }
+  if (extrasViewerMode_ == ExtrasViewerMode::None || extrasViewerFullView_)
+    return;
+  const auto catalog = extrasViewerCatalog();
+  if (catalog.empty())
+    return;
+  int slot = extrasViewerSlot_ > 0 ? extrasViewerSlot_ - 1 : 0;
+  int row = slot / 4, col = slot % 4;
+  int step = dx != 0 ? dx : dy;
+  const bool horizontal = dx != 0;
+  for (int guard = 0; guard < GalleryPageSize; ++guard) {
+    if (horizontal) {
+      col += step;
+      if (col < 0) {
+        col = 3;
+        row = (row + 3) % 3;
+      } else if (col > 3) {
+        col = 0;
+        row = (row + 1) % 3;
+      }
+    } else {
+      row = (row + step + 3) % 3;
+    }
+    const int candidate = row * 4 + col + 1;
+    if (!extrasViewerSlotLocked(candidate)) {
+      extrasViewerSlot_ = candidate;
+      clampExtrasViewerSelection();
+      return;
+    }
+  }
+}
+
+void PmailGame::extrasViewerPageBy(int delta) {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ == ExtrasViewerMode::None || delta == 0)
+    return;
+  const int pages = extrasViewerPageCount();
+  if (extrasViewerMode_ == ExtrasViewerMode::Music) {
+    if (!musicTrackIds_.empty())
+      extrasViewerTrack_ += delta * 24;
+    clampExtrasViewerSelection();
+    return;
+  }
+  extrasViewerPage_ = std::clamp(extrasViewerPage_ + delta, 0, pages - 1);
+  extrasViewerSlot_ = 0;
+  clampExtrasViewerSelection();
+}
+
+void PmailGame::extrasViewerCategoryBy(int delta) {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ == ExtrasViewerMode::None || delta == 0 ||
+      extrasViewerMode_ == ExtrasViewerMode::Music)
+    return;
+  extrasViewerCategory_ =
+      (extrasViewerCategory_ + delta + GalleryCategoryCount) %
+      GalleryCategoryCount;
+  extrasViewerPage_ = 0;
+  extrasViewerSlot_ = 0;
+  clampExtrasViewerSelection();
+}
+
+void PmailGame::extrasViewerSetCategory(int category) {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ == ExtrasViewerMode::None ||
+      extrasViewerMode_ == ExtrasViewerMode::Music)
+    return;
+  const int clamped = std::clamp(category, 0, int(GalleryCategoryCount) - 1);
+  if (clamped == extrasViewerCategory_)
+    return;
+  extrasViewerCategory_ = clamped;
+  extrasViewerPage_ = 0;
+  extrasViewerSlot_ = 0;
+  clampExtrasViewerSelection();
+}
+
+bool PmailGame::extrasViewerActivate() {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ == ExtrasViewerMode::Music) {
+    if (extrasViewerTrack_ >= 1 &&
+        extrasViewerTrack_ <= int(musicTrackIds_.size()) && playMusic)
+      playMusic(musicTrackIds_[size_t(extrasViewerTrack_ - 1)]);
+    return true;
+  }
+  if (extrasViewerMode_ == ExtrasViewerMode::None)
+    return false;
+  if (extrasViewerFullView_) {
+    extrasViewerFullView_ = false;
+    ++sceneVersion_;
+    return true;
+  }
+  if (extrasViewerSlot_ < 1 || extrasViewerSlotLocked(extrasViewerSlot_))
+    return false;
+  clampExtrasViewerSelection();
+  if (extrasViewerExtraIndex_ < 0)
+    return false;
+  if (extrasViewerMode_ == ExtrasViewerMode::CgGrid) {
+    extrasViewerFullView_ = true;
+    ++sceneVersion_;
+    return true;
+  }
+  // 回想 MODE returns the selected slot (1..32) so the script can show the
+  // associated comment.
+  closeExtrasViewer(extrasViewerExtraIndex_ + 1);
+  return true;
+}
+
+void PmailGame::extrasViewerBack() {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ == ExtrasViewerMode::None)
+    return;
+  if (extrasViewerFullView_) {
+    extrasViewerFullView_ = false;
+    ++sceneVersion_;
+    return;
+  }
+  closeExtrasViewer(0);
+}
+
+void PmailGame::extrasViewerSetTrack(int track) {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ != ExtrasViewerMode::Music)
+    return;
+  extrasViewerTrack_ = track;
+  clampExtrasViewerSelection();
+}
+
+void PmailGame::extrasViewerTrackBy(int delta) {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ != ExtrasViewerMode::Music || delta == 0)
+    return;
+  extrasViewerTrack_ += delta;
+  clampExtrasViewerSelection();
+}
+
+void PmailGame::extrasViewerStopMusic() {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ != ExtrasViewerMode::Music)
+    return;
+  if (stopMusic)
+    stopMusic();
+}
+
+void PmailGame::extrasViewerToggleRepeat() {
+  std::lock_guard lock(mutex_);
+  if (extrasViewerMode_ != ExtrasViewerMode::Music)
+    return;
+  extrasViewerRepeat_ = !extrasViewerRepeat_;
+  ++sceneVersion_;
+}
+
+void PmailGame::closeExtrasViewer(int result) {
+  if (extrasViewerMode_ == ExtrasViewerMode::None)
+    return;
+  if (extrasViewerMode_ == ExtrasViewerMode::Recollection)
+    vm_.setVar(extrasViewerVar_, uint32_t(std::max(0, result)));
+  extrasViewerMode_ = ExtrasViewerMode::None;
+  extrasViewerFullView_ = false;
+  extrasViewerSlot_ = 0;
+  extrasViewerCategory_ = 0;
+  extrasViewerPage_ = 0;
+  extrasViewerExtraIndex_ = -1;
+  extrasViewerTrack_ = 0;
+  extrasViewerTrackFirst_ = 0;
+  extrasViewerRepeat_ = false;
+  musicTrackIds_.clear();
+  if (stopMusic)
+    stopMusic();
+  vm_.unblock();
+  ++sceneVersion_;
 }
 
 // A diagnostic signature must not dump copyrighted dialogue strings, player
@@ -1335,6 +1697,20 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     // pmail.exe:0x424490 copies the back buffer to its saved framebuffer.
     // SDL owns the render targets in this port; there is no VM state.
     break;
+  case 225:
+  case 226: {
+    // pmail.exe:0x422830 posts WM_COMMAND 0xbba (SYS 225, load) or 0xbbb
+    // (SYS 226, save), the original save/load dialogs. The host owns the SDL
+    // save UI, so block the VM until that dialog closes.
+    const bool load = (id == 225);
+    saveMenuWait_ = true;
+    saveMenuLoad_ = load;
+    if (openSaveMenu && openSaveMenu(load))
+      vm_.block();
+    else
+      saveMenuWait_ = false;
+    break;
+  }
   case 137:
     // Routed to PmailAudio before this switch. pmail.exe:0x4248f0 builds a
     // per-day sound name (V<cat>5<variant><cat>00<day>) and plays it on the
@@ -1502,6 +1878,86 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
     }
     if (isExtraName(name) && unlockedExtras_.insert(std::move(name)).second)
       ++extrasVersion_;
+    break;
+  }
+  case 208: {
+    // pmail.exe:0x41d810. MUSIC MODE: 183-entry playlist, player controls and
+    // repeat toggle. The track catalog lives in external data, so the host
+    // supplies the available BGM ids and owns playback (SYS 112 bus).
+    musicTrackIds_.clear();
+    if (musicTracks) {
+      musicTrackIds_ = musicTracks();
+      musicTrackIds_.erase(
+          std::remove_if(musicTrackIds_.begin(), musicTrackIds_.end(),
+                         [](const std::string &id) { return id.empty(); }),
+          musicTrackIds_.end());
+    }
+    extrasViewerMode_ = ExtrasViewerMode::Music;
+    extrasViewerCategory_ = 0;
+    extrasViewerPage_ = 0;
+    extrasViewerSlot_ = 0;
+    extrasViewerExtraIndex_ = -1;
+    extrasViewerFullView_ = false;
+    extrasViewerVar_ = 0;
+    extrasViewerTrack_ = musicTrackIds_.empty() ? 0 : 1;
+    extrasViewerTrackFirst_ = 0;
+    vm_.block();
+    ++sceneVersion_;
+    break;
+  }
+  case 209: {
+    // pmail.exe:0x405390. CG MODE: 8 category tabs, pages of 12 thumbnails,
+    // page arrows and EXIT. Returns no value.
+    extrasViewerMode_ = ExtrasViewerMode::CgGrid;
+    extrasViewerCategory_ = 0;
+    extrasViewerPage_ = 0;
+    extrasViewerSlot_ = 0;
+    extrasViewerExtraIndex_ = -1;
+    extrasViewerFullView_ = false;
+    extrasViewerVar_ = 0;
+    clampExtrasViewerSelection();
+    vm_.block();
+    ++sceneVersion_;
+    break;
+  }
+  case 210: {
+    // pmail.exe:0x42a4c0. KAIROKU MODE: the same 12-per-page grid, but only
+    // unlocked slots are listed. Returns the selected slot (1..32) through
+    // the first variable argument, or 0 when the player leaves.
+    uint32_t var = 0;
+    bool haveVar = false;
+    for (const auto &arg : args) {
+      if (arg.tag() == 1) {
+        var = arg.value();
+        haveVar = true;
+        break;
+      }
+    }
+    extrasViewerMode_ = ExtrasViewerMode::Recollection;
+    extrasViewerCategory_ = 0;
+    extrasViewerPage_ = 0;
+    extrasViewerSlot_ = 0;
+    extrasViewerExtraIndex_ = -1;
+    extrasViewerFullView_ = false;
+    extrasViewerVar_ = var;
+    if (haveVar) {
+      const int value = int(vm_.var(var));
+      if (value >= 1 && value <= int(std::size(GalleryExtraTable)) &&
+          unlockedExtras_.count(GalleryExtraTable[value - 1].slot) != 0) {
+        extrasViewerCategory_ =
+            GalleryExtraTable[value - 1].category - GalleryCategoryFirst;
+        const auto catalog = extrasViewerCatalog();
+        for (int i = 0; i < int(catalog.size()); ++i)
+          if (catalog[size_t(i)] == value - 1) {
+            extrasViewerPage_ = i / GalleryPageSize;
+            extrasViewerSlot_ = i % GalleryPageSize + 1;
+            break;
+          }
+      }
+    }
+    clampExtrasViewerSelection();
+    vm_.block();
+    ++sceneVersion_;
     break;
   }
   case 212: {
