@@ -207,6 +207,11 @@ async function main() {
   ensureLargeRangeFixture();
   const testLegacySidecar = ensureLegacySidecar();
   updateManifest();
+  // A stale index must not hide a legitimate file on the HTTP server.
+  // Intentionally create this file AFTER the manifest is generated.
+  const lateName = 'late-unindexed.txt';
+  const lateBody = 'unindexed HTTP file';
+  fs.writeFileSync(path.join(output, 'game-assets', lateName), lateBody);
   const server = spawn('python3', [
     path.join(__dirname, 'serve_web.py'),
     '--port', String(port), '--root', output,
@@ -409,11 +414,12 @@ async function main() {
         } catch (_) { /* Remote Fetch must not be copied to MEMFS. */ }
         return {
           size, upperCaseSize, nestedSize, disc, largeTail, missing, staged,
-          configured: typeof window.KotonohaFetchAsset === 'function'
+          configured: typeof window.KotonohaFetchAsset === 'function',
+          indexed: window.KotonohaRemoteManifestIndexed === true
         };
       });
       console.log('MANIFEST_FREE', JSON.stringify(direct));
-      assert(direct.configured && direct.size > 0 &&
+      assert(direct.configured && !direct.indexed && direct.size > 0 &&
         direct.upperCaseSize === direct.size &&
         direct.nestedSize === Buffer.byteLength('browser-pack-fixture') &&
         direct.disc === 1 && direct.largeTail === 1 &&
@@ -431,6 +437,25 @@ async function main() {
     await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
     await page.locator('#use-server-assets').click();
     await ready();
+
+    const indexed = await page.evaluate(async () => {
+      const listed = Module.ccall('KotonohaWebSelfTestRemoteListContains',
+        'number', ['string', 'string'],
+        ['data/pack', 'data/pack/script.dat']);
+      const late = await Module.ccall('KotonohaWebSelfTestRemoteSize',
+        'number', ['string'], ['late-unindexed.txt'], { async: true });
+      return {
+        selected: window.KotonohaRemoteManifestIndexed === true,
+        listed, late
+      };
+    });
+    console.log('OPTIONAL_MANIFEST', JSON.stringify(indexed));
+    assert(indexed.selected && indexed.listed === 1 &&
+      indexed.late === Buffer.byteLength(lateBody),
+      'manifest index must enumerate nested files and fall back to direct ' +
+      'HEAD/Range for files missing from stale manifests');
+    assert(sourceRequests.length > 0,
+      'HTTP choice should attempt optional manifest.json before startup');
 
     const prepared = await page.evaluate(() => {
       let staged = false;
