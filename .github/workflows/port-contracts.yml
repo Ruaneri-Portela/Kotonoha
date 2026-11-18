@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "games/**"
+      - "launcher/**"
+      - "tools/check_unified_launcher_registry.py"
+      - "tools/check_sdl_cpack.py"
       - "lib/include/Kotonoha/Filesystem/GameSourceProbe.hpp"
       - "lib/tests/GameSourceProbeTests.cpp"
       - "lib/src/core/CommandLine.cpp"
@@ -26,6 +29,9 @@ on:
     branches: [dev]
     paths:
       - "games/**"
+      - "launcher/**"
+      - "tools/check_unified_launcher_registry.py"
+      - "tools/check_sdl_cpack.py"
       - "lib/include/Kotonoha/Filesystem/GameSourceProbe.hpp"
       - "lib/tests/GameSourceProbeTests.cpp"
       - "lib/src/core/CommandLine.cpp"
@@ -64,3 +70,5 @@ jobs:
           python3 tools/check_game_platform_isolation.py
           python3 tools/ValidateBuildMetadata.py
           python3 tools/check_release_matrix.py
+          python3 tools/check_unified_launcher_registry.py
+          python3 tools/check_sdl_cpack.py
