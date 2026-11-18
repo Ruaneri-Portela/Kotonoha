@@ -90,6 +90,13 @@ public:
   bool ready(std::string_view id) const;
   bool started() const noexcept { return started_; }
   std::size_t pending() const noexcept { return queued_.size() + active_; }
+  // Completion callback for JavaScript-backed HTTP/IndexedDB requests.
+  // Runs on the browser's ordinary callback turn; never suspends Asyncify.
+#ifdef __EMSCRIPTEN__
+  static void completeBrowserJob(void *opaque, unsigned status,
+                                 const char *body, std::uint64_t count,
+                                 const std::string &headers) noexcept;
+#endif
   std::size_t cachedBytes() const noexcept { return cached_; }
   std::size_t fileCount() const noexcept { return files_.size(); }
   std::size_t totalRequests() const noexcept { return requestedCount_; }
