@@ -64,6 +64,17 @@ kotonoha_configure_app(RealLive
     BUNDLE_ID me.hirameki.kotonoha.reallive GAME reallive)
 
 if(BUILD_TESTING)
+    # A completed RGBA scene must be presented without alpha masking. This
+    # synthetic renderer test uses no original game artwork or archives.
+    add_executable(RealLiveSceneTextureTests tests/SceneTextureTest.cpp)
+    target_include_directories(RealLiveSceneTextureTests PRIVATE src)
+    target_compile_features(RealLiveSceneTextureTests PRIVATE cxx_std_17)
+    target_link_libraries(RealLiveSceneTextureTests PRIVATE SDL3::SDL3)
+    add_test(NAME RealLive.SceneTexture COMMAND RealLiveSceneTextureTests)
+    set_tests_properties(RealLive.SceneTexture PROPERTIES
+        LABELS synthetic
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy")
+
     # Synthetic gamepad/touch regressions require no game archive.
     add_executable(RealLiveInputTests tests/InputTest.cpp)
     target_include_directories(RealLiveInputTests PRIVATE
