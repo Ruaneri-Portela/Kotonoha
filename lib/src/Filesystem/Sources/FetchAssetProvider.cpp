@@ -744,6 +744,7 @@ void FetchAssetProvider::pump() {
         const ctx = $0;
         const url = UTF8ToString($1);
         const path = UTF8ToString($2);
+        const remotePath = UTF8ToString($11);
         const start = ($3 >>> 0) + ($4 >>> 0) * 4294967296;
         const length = ($5 >>> 0) + ($6 >>> 0) * 4294967296;
         const full = !!$7;
@@ -752,7 +753,7 @@ void FetchAssetProvider::pump() {
         let delivered = false;
         Promise.resolve().then(function() {
           return window.KotonohaAssetCache.fetchJob({
-            url, path, start, length, full, discovery, fileSize
+            url, path, remotePath, start, length, full, discovery, fileSize
           });
         }).then(function(result) {
           const bytes = result.bytes || new Uint8Array(0);
@@ -796,7 +797,7 @@ void FetchAssetProvider::pump() {
          static_cast<int>(job.full), static_cast<int>(job.discovery),
          static_cast<std::uint32_t>(static_cast<std::uint64_t>(fileSize)),
          static_cast<std::uint32_t>(
-             static_cast<std::uint64_t>(fileSize) >> 32));
+             static_cast<std::uint64_t>(fileSize) >> 32), remotePath.c_str());
     }
     return;
   }
