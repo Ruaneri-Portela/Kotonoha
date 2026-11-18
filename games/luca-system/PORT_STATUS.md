@@ -13,18 +13,20 @@ scripts de bytecode em `SCRIPT.PAK` via LucaInspect.
 |---|---|---|
 | Leitura de arquivos .PAK (PARAM/SCRIPT/SYSSE/imagem/áudio/voz/fonte) | Completo | Descoberta recursiva; payloads lidos sob demanda, validado contra os arquivos reais do AIR (31 arquivos montados) |
 | Tabela de nomes e IDs de entrada | Completo | Flags, blockSize, deslocamentos em blocos, nomes null-terminated |
-| Parsing estrutural de scripts de bytecode | Completo | Cabeçalho `len/opcode/fixedFlag` corrigido; parâmetros tipados conforme tabela AIR |
+| Parsing estrutural de scripts de bytecode | Completo | Cabeçalho `len/opcode/fixedFlag` corrigido; alinhamento wetor/LuckSystem 0-138 opcodes |
 | Decodificação de texto UTF-16/UTF-8 por opcode | Completo | `MESSAGE` (opcode 36) decodifica japonês UTF-16 e inglês UTF-8 |
-| VM completa de opcodes | Completa | MESSAGE, FADE, IMAGELOAD, DRAW, WAIT, INIT, HAIKIE_SET, EQUN/EQU, BGM, VOICE, VOICE_STOP, SE, SE_STOP, JUMP, CALL, RETURN, CLOSE_WINDOW, WIPE, IMAGEUPDATE, GOTO, IFY, IFN, VARSTR, SET, ARFLAGSET e opcodes de objeto (MOVE, ROT, SCALE, SHAKE, FADE_OBJ, BASE, DISP, VOLUME, TONE, SEPIA, PRIORITY, FACE, EX) |
-| Variáveis numéricas (EQUN) e strings (EQU) | Completo | Serializadas em save/load |
-| Flags (ARFLAGSET) | Completo | Serializadas em save/load |
-| Pilha de chamadas (CALL/RETURN) | Completo | Suporte a sub-rotinas de script |
+| VM completa de opcodes | Completa | MESSAGE, FADE, IMAGELOAD, DRAW, WAIT, INIT, HAIKIE_SET, EQUN/EQU/EQUV, ADD, SUB, MUL, DIV, MOD, RANDOM, SET, BGM, VOICE, VOICE_STOP, SE, SE_STOP, JUMP, FARCALL, CALL/GOSUB, RETURN/FARRETURN, CLOSE_WINDOW, WIPE, IMAGEUPDATE, GOTO, IFY, IFN, ONGOTO, SELECT, VARSTR_SET, ARFLAGSET, FLAGCLR e opcodes de objeto (MOVE, ROT, SCALE, SHAKE, FADE_OBJ, BASE, DISP, VOLUME, TONE, SEPIA, PRIORITY, FACE, EX) |
+| Avaliação de expressões e desvios condicionais | Completo | `IFY`, `IFN` e `ONGOTO` com avaliação dinâmica de variáveis `VAR`, `Z`, `NUM`, `FLAG`, `FLG`, `ARFLAG` |
+| Chamadas entre cenários (FARCALL/JUMP) | Completo | Transição dinâmica entre scripts `.scr` mantendo pilha de chamadas entre cenários (`CallStackFrame`) |
+| Menu de escolhas (SELECT) | Completo | Extração nativa de opções de escolha integrada à `ChoiceQuestionScene` do Kotonoha |
+| Variáveis numéricas, strings e flags | Completo | Suporte a operações aritméticas, atribuição, aleatorização e flags booleanas serializadas em save/load |
+| Pilha de chamadas (CALL/FARCALL/RETURN) | Completo | Suporte a sub-rotinas locais e entre múltiplos arquivos de cenário |
 | Menu principal original de AIR | Completo | `title1a` e `title_menu` decodificados dos PAKs; 9 opções de menu; New Game entra em `seen163` |
 | Imagens CZ0/CZ1/CZ3/CZ4 | Completo | Decodificação nativa implementada e testada contra recursos do AIR |
 | Áudio BGM/VOICE/SE | Completo | Via Kotonoha PcmPlayer nos canais BGM/Voice/Se |
 | Launcher de pasta/ISO | Completo | `--luca-system` aceita raiz de AIR ou pasta `files`; suporte a ISO via DiscImage |
 | Apresentação de diálogo (VNTextBox) | Completo | AirTextBox com frame MWIN1280_0, cursor MWIN_CURSOR, texto UTF-16/UTF-8 |
-| Save/load | Completo | Serializa cenário, índice de instrução, diálogo, variáveis numéricas/strings, flags |
+| Save/load V5 | Completo | Serializa cenário, índice, diálogo, variáveis, flags, camadas de imagem e quadros de chamadas entre cenários |
 | Backlog, menu do jogo | Completo | Cenas Kotonoha nativas integradas aos scripts de AIR |
 
 ## Referência

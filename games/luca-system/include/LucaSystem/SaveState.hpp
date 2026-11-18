@@ -1,8 +1,9 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #pragma once
 
-// LucaSystem save payload. Version 3 is length-prefixed and preserves binary
-// and whitespace inside string variables, plus VM call/wait/dialogue state.
+// LucaSystem save payload. Version 5 preserves cross-scenario call frames
+// (scenario name + PC), binary and whitespace inside string variables,
+// numeric variables, flags, and VM wait/dialogue/visual state.
 // This codec deliberately has no SDL, PAK or game-data dependency so that
 // malformed saves can be tested without any commercial assets.
 #include <cstdint>
@@ -21,6 +22,17 @@ struct ImagePlacement {
   std::uint32_t assetId = 0;
   std::int32_t x = 0, y = 0;
 };
+
+struct CallStackFrame {
+  std::string scenario;
+  std::size_t instructionIndex = 0;
+
+  bool operator==(const CallStackFrame &other) const {
+    return scenario == other.scenario &&
+           instructionIndex == other.instructionIndex;
+  }
+};
+
 struct SaveState {
   std::string scenario;
   std::size_t instructionIndex = 0;
@@ -33,6 +45,7 @@ struct SaveState {
   std::map<std::uint32_t, std::string> strings;
   std::map<std::uint32_t, bool> flags;
   std::vector<std::size_t> callStack;
+  std::vector<CallStackFrame> callFrames;
   // Image IDs + coordinates, not raw game pixels. Restore from original PAK.
   std::vector<ImagePlacement> images;
 };
@@ -43,7 +56,8 @@ constexpr std::uint32_t MaxEntries = 65536;
 constexpr std::uint32_t MaxString = 1u << 20;
 constexpr std::uint32_t MaxWaitMs = 60u * 60u * 1000u;
 constexpr std::uint32_t MaxImages = 4096;
-constexpr std::string_view Magic = "LUCA_SYSTEM_SAVE_4\n";
+constexpr std::string_view Magic = "LUCA_SYSTEM_SAVE_5\n";
+constexpr std::string_view V4Magic = "LUCA_SYSTEM_SAVE_4\n";
 constexpr std::string_view V3Magic = "LUCA_SYSTEM_SAVE_3\n";
 
 inline void u32(std::string &out, std::uint32_t value) {
@@ -206,9 +220,20 @@ inline std::string encodeSaveState(const SaveState &state) {
     u32(out, key);
     u32(out, value ? 1u : 0u);
   }
-  count(out, state.callStack.size());
-  for (const auto pc : state.callStack)
-    u64(out, pc);
+
+  // Save call frames (scenario + PC). If callFrames is empty but callStack is
+  // present, populate from callStack using the active scenario.
+  auto frames = state.callFrames;
+  if (frames.empty() && !state.callStack.empty()) {
+    for (const auto pc : state.callStack)
+      frames.push_back({state.scenario, pc});
+  }
+  count(out, frames.size());
+  for (const auto &frame : frames) {
+    string(out, frame.scenario);
+    u64(out, frame.instructionIndex);
+  }
+
   if (state.images.size() > MaxImages)
     throw std::runtime_error("Too many LucaSystem save images");
   count(out, state.images.size());
@@ -226,11 +251,12 @@ inline SaveState decodeSaveState(std::string_view bytes) {
   using namespace SaveCodec;
   if (bytes.empty() || bytes.size() > MaxPayload)
     throw std::runtime_error("Invalid LucaSystem save payload size");
-  const bool v4 = bytes.substr(0, Magic.size()) == Magic;
+  const bool v5 = bytes.substr(0, Magic.size()) == Magic;
+  const bool v4 = bytes.substr(0, V4Magic.size()) == V4Magic;
   const bool v3 = bytes.substr(0, V3Magic.size()) == V3Magic;
-  if (!v4 && !v3)
+  if (!v5 && !v4 && !v3)
     return decodeLegacy(bytes);
-  Reader in{bytes, v4 ? Magic.size() : V3Magic.size()};
+  Reader in{bytes, v5 ? Magic.size() : (v4 ? V4Magic.size() : V3Magic.size())};
   SaveState state;
   state.scenario = in.getString();
   if (state.scenario.empty())
@@ -262,9 +288,21 @@ inline SaveState decodeSaveState(std::string_view bytes) {
     if (!state.flags.emplace(key, value).second)
       throw std::runtime_error("Duplicate LucaSystem save flag");
   }
-  for (std::uint32_t i = in.getCount(); i > 0; --i)
-    state.callStack.push_back(in.offset());
-  if (v4) {
+  if (v5) {
+    for (std::uint32_t i = in.getCount(); i > 0; --i) {
+      auto sc = in.getString();
+      auto pc = in.offset();
+      state.callFrames.push_back({std::move(sc), pc});
+      state.callStack.push_back(pc);
+    }
+  } else {
+    for (std::uint32_t i = in.getCount(); i > 0; --i) {
+      const auto pc = in.offset();
+      state.callStack.push_back(pc);
+      state.callFrames.push_back({state.scenario, pc});
+    }
+  }
+  if (v5 || v4) {
     const auto count = in.getCount();
     if (count > MaxImages)
       throw std::runtime_error("Too many LucaSystem save images");

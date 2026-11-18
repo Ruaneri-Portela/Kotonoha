@@ -123,6 +123,60 @@ bool safeStorage(const std::string &id) {
 
 } // namespace
 
+std::vector<std::string>
+extractTjs2CompiledStrings(const std::vector<std::uint8_t> &bytes) {
+  std::vector<std::string> strings;
+  if (bytes.size() < 28 || std::memcmp(bytes.data(), "TJS2100\0", 8) != 0)
+    return strings;
+
+  const auto readU16LE = [](const std::uint8_t *p) -> std::uint16_t {
+    return std::uint16_t(p[0]) | (std::uint16_t(p[1]) << 8);
+  };
+  const auto readU32LE = [](const std::uint8_t *p) -> std::uint32_t {
+    return std::uint32_t(p[0]) | (std::uint32_t(p[1]) << 8) |
+           (std::uint32_t(p[2]) << 16) | (std::uint32_t(p[3]) << 24);
+  };
+
+  std::size_t pos = 12;
+  while (pos + 8 <= bytes.size()) {
+    if (std::memcmp(bytes.data() + pos, "DATA", 4) == 0) {
+      const std::uint32_t dsz = readU32LE(bytes.data() + pos + 4);
+      pos += 8;
+      if (dsz > bytes.size() - pos || dsz < 28)
+        break;
+      const std::uint8_t *dbuf = bytes.data() + pos;
+      const std::uint32_t numStr = readU32LE(dbuf + 20);
+      std::size_t sp = 24;
+      for (std::uint32_t i = 0; i < numStr && sp + 2 <= dsz; ++i) {
+        const std::uint16_t slen = readU16LE(dbuf + sp);
+        sp += 2;
+        if (static_cast<std::size_t>(slen) * 2 > dsz - sp)
+          break;
+        std::string str;
+        for (std::size_t k = 0; k < slen; ++k) {
+          const std::uint16_t ch = readU16LE(dbuf + sp + k * 2);
+          if (ch <= 0x7f)
+            str.push_back(static_cast<char>(ch));
+          else if (ch <= 0x7ff) {
+            str.push_back(static_cast<char>(0xc0 | (ch >> 6)));
+            str.push_back(static_cast<char>(0x80 | (ch & 0x3f)));
+          } else {
+            str.push_back(static_cast<char>(0xe0 | (ch >> 12)));
+            str.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3f)));
+            str.push_back(static_cast<char>(0x80 | (ch & 0x3f)));
+          }
+        }
+        strings.push_back(std::move(str));
+        sp += static_cast<std::size_t>(slen) * 2;
+      }
+      break;
+    }
+    const std::uint32_t csz = readU32LE(bytes.data() + pos + 4);
+    pos += 8 + csz;
+  }
+  return strings;
+}
+
 TjsBootstrapReport inspectTjsBootstrap(const KirikiriAssets &assets) {
   TjsBootstrapReport report;
   const auto files = assets.list();
@@ -141,6 +195,30 @@ TjsBootstrapReport inspectTjsBootstrap(const KirikiriAssets &assets) {
       }
   if (report.entry.empty())
     return report;
+
+  std::vector<std::uint8_t> rawBytes;
+  try {
+    rawBytes = assets.readAsset(report.entry);
+  } catch (const std::exception &e) {
+    report.error = e.what();
+    return report;
+  }
+
+  if (rawBytes.size() >= 8 && std::memcmp(rawBytes.data(), "TJS2100\0", 8) == 0) {
+    const auto compiledStrings = extractTjs2CompiledStrings(rawBytes);
+    for (const auto &str : compiledStrings) {
+      if (!safeStorage(str))
+        continue;
+      if (std::find(report.staticallyReferenced.begin(),
+                    report.staticallyReferenced.end(),
+                    str) == report.staticallyReferenced.end()) {
+        report.staticallyReferenced.push_back(str);
+        if (!assets.contains(str))
+          report.missing.push_back(str);
+      }
+    }
+    return report;
+  }
 
   std::string script;
   try {

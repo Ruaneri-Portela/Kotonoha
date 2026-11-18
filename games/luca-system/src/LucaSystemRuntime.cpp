@@ -62,53 +62,71 @@ uint32_t paramU32(const ScriptInstruction &ins, size_t offset) {
          (uint32_t(ins.paramBytes[offset + 3]) << 24);
 }
 
-// LucaSystem opcode table recovered from AIR.exe via rizin/REA and SCRIPT.PAK
-// analysis.
+// LucaSystem opcode table matching wetor/LuckSystem standard specification
+// (AIR/Key/Prototype 0-indexed decimal opcodes).
 enum Opcode : uint8_t {
-  OP_EQUN = 94,
-  OP_EQU = 95,
-  OP_MESSAGE = 36,
-  OP_FADE = 46,
-  OP_IMAGELOAD = 55,
-  OP_DRAW = 57,
-  OP_WAIT = 62,
-  OP_INIT = 100,
-  OP_HAIKIE_SET = 101,
-  OP_BGM = 121,
-  OP_JUMP = 134,
-  OP_CLOSE_WINDOW = 138,
-  OP_END = 44,
-  OP_STARTUP_BEGIN = 40,
-  OP_STARTUP_END = 41,
-  OP_IMAGEUPDATE = 113,
-  OP_SELECT = 54,
-  OP_VOICE = 59,
-  OP_VOICE_STOP = 60,
-  OP_SE = 127,
-  OP_SE_STOP = 128,
-  OP_GOTO = 29,
-  OP_IFY = 32,
-  OP_IFN = 33,
-  OP_RETURN = 34,
-  OP_CALL = 31, // GOSUB
-  OP_VARSTR = 26,
-  OP_SET = 27,
-  OP_ARFLAGSET = 45,
-  OP_WIPE = 89,
-  OP_MOVE = 72,
-  OP_ROT = 74,
-  OP_SCALE = 77,
-  OP_SHAKE = 78,
-  OP_FADE_OBJ = 76,
-  OP_BASE = 80,
-  OP_DISP = 102,
-  OP_VOLUME = 132,
-  OP_TONE = 96,
-  OP_SEPIA = 104,
-  OP_PRIORITY = 112,
-  OP_FACE = 103,
-  OP_EX = 135,
-  OP_TASK = 138, // placeholder
+  OP_EQU = 0,             // 0x00: set string variable
+  OP_EQUN = 1,            // 0x01: set numeric variable
+  OP_EQUV = 2,            // 0x02: copy numeric variable
+  OP_ADD = 3,             // 0x03: add numeric variable
+  OP_SUB = 4,             // 0x04: subtract numeric variable
+  OP_MUL = 5,             // 0x05: multiply numeric variable
+  OP_DIV = 6,             // 0x06: divide numeric variable
+  OP_MOD = 7,             // 0x07: modulo numeric variable
+  OP_AND = 8,             // 0x08: bitwise AND variable
+  OP_OR = 9,              // 0x09: bitwise OR variable
+  OP_RANDOM = 10,         // 0x0A: random number generator
+  OP_VARSTR = 11,         // 0x0B: string variable ops
+  OP_VARSTR_ADD = 12,     // 0x0C: string variable concatenate
+  OP_SET = 13,            // 0x0D: set variable
+  OP_FLAGCLR = 14,        // 0x0E: clear flag
+  OP_GOTO = 15,           // 0x0F: jump to label/offset
+  OP_ONGOTO = 16,         // 0x10: multi-way jump array
+  OP_CALL = 17,           // 0x11: subroutine call (GOSUB)
+  OP_IFY = 18,            // 0x12: jump if condition true
+  OP_IFN = 19,            // 0x13: jump if condition false
+  OP_RETURN = 20,         // 0x14: return from subroutine
+  OP_JUMP = 21,           // 0x15: jump to script/label
+  OP_FARCALL = 22,        // 0x16: subroutine call to external scenario
+  OP_FARRETURN = 23,      // 0x17: return from external scenario
+  OP_JUMPPOINT = 24,      // 0x18: jump point marker
+  OP_END = 25,            // 0x19: scenario end
+  OP_STARTUP_BEGIN = 26,  // 0x1A: startup block start
+  OP_STARTUP_END = 27,    // 0x1B: startup block end
+  OP_VARSTR_SET = 29,     // 0x1D: set variable string
+  OP_ARFLAGSET = 31,      // 0x1F: set flag
+  OP_MESSAGE = 36,        // 0x24: display text message
+  OP_MESSAGE_CLEAR = 37,  // 0x25: clear message box
+  OP_MESSAGE_WAIT = 38,   // 0x26: wait for text feed
+  OP_SELECT = 40,         // 0x28: choice menu
+  OP_CLOSE_WINDOW = 41,   // 0x29: hide text box
+  OP_VOICE = 46,          // 0x2E: play voice audio
+  OP_VOICE_STOP = 47,     // 0x2F: stop voice audio
+  OP_INIT = 53,           // 0x35: init subsystem
+  OP_IMAGELOAD = 55,      // 0x37: load image
+  OP_IMAGEUPDATE = 56,    // 0x38: update image object
+  OP_MOVE = 58,           // 0x3A: move object
+  OP_ROT = 60,            // 0x3C: rotate object
+  OP_FADE = 62,           // 0x3E: screen fade
+  OP_SCALE = 63,          // 0x3F: scale object
+  OP_SHAKE = 64,          // 0x40: shake object
+  OP_BASE = 66,           // 0x42: object base position
+  OP_FADE_OBJ = 71,       // 0x47: object fade (MCFADE)
+  OP_WAIT = 72,           // 0x48: delay/wait
+  OP_DRAW = 74,           // 0x4A: draw scene composition
+  OP_WIPE = 75,           // 0x4B: wipe transition
+  OP_TONE = 82,           // 0x52: set image tone
+  OP_DISP = 87,           // 0x57: toggle object display
+  OP_FACE = 89,           // 0x59: facial expression layer
+  OP_SEPIA = 90,          // 0x5A: sepia filter
+  OP_PRIORITY = 98,       // 0x62: set z-order priority
+  OP_BGM = 107,           // 0x6B: play BGM
+  OP_SE = 113,            // 0x71: play sound effect
+  OP_SE_STOP = 114,       // 0x72: stop sound effect
+  OP_VOLUME = 118,        // 0x76: audio volume
+  OP_EX = 121,            // 0x79: extended effect
+  OP_TASK = 124,          // 0x7C: background task
+  OP_HAIKEI_SET = 137,    // 0x89: background set
 };
 
 class AirTextBox final : public Kotonoha::VNTextBox {
@@ -214,7 +232,7 @@ struct LucaSystemRuntime::Impl {
   std::unordered_map<uint32_t, int32_t> numericVars;    // EQUN variables
   std::unordered_map<uint32_t, std::string> stringVars; // EQU string variables
   std::unordered_map<uint32_t, bool> flags;             // ARFLAG
-  std::vector<size_t> callStack;
+  std::vector<CallStackFrame> callStack;
   std::uint64_t waitDeadline = 0;
   bool waiting = false;
   bool skipMode = false;
@@ -251,6 +269,98 @@ struct LucaSystemRuntime::Impl {
     return files.empty() ? std::string() : files.front();
   }
 
+  int evalTerm(const std::string &term) const {
+    std::string s = term;
+    s.erase(0, s.find_first_not_of(" \t\r\n"));
+    s.erase(s.find_last_not_of(" \t\r\n") + 1);
+    if (s.empty()) return 0;
+    auto parseBracketId = [&](std::string_view prefix) -> std::optional<uint32_t> {
+      if (s.rfind(prefix, 0) == 0) {
+        auto openB = s.find('[');
+        auto closeB = s.find(']');
+        if (openB != std::string::npos && closeB != std::string::npos && closeB > openB) {
+          try { return static_cast<uint32_t>(std::stoul(s.substr(openB + 1, closeB - openB - 1))); } catch (...) {}
+        }
+      }
+      return std::nullopt;
+    };
+    if (auto id = parseBracketId("VAR")) { auto it = numericVars.find(*id); return it != numericVars.end() ? it->second : 0; }
+    if (auto id = parseBracketId("Z")) { auto it = numericVars.find(*id); return it != numericVars.end() ? it->second : 0; }
+    if (auto id = parseBracketId("NUM")) { auto it = numericVars.find(*id); return it != numericVars.end() ? it->second : 0; }
+    if (auto id = parseBracketId("FLAG")) { auto it = flags.find(*id); return it != flags.end() ? (it->second ? 1 : 0) : 0; }
+    if (auto id = parseBracketId("FLG")) { auto it = flags.find(*id); return it != flags.end() ? (it->second ? 1 : 0) : 0; }
+    if (auto id = parseBracketId("ARFLAG")) { auto it = flags.find(*id); return it != flags.end() ? (it->second ? 1 : 0) : 0; }
+
+    try {
+      uint32_t varId = static_cast<uint32_t>(std::stoul(s));
+      auto it = numericVars.find(varId);
+      if (it != numericVars.end()) return it->second;
+      return std::stoi(s);
+    } catch (...) {}
+    return 0;
+  }
+
+  bool evaluateCondition(const std::string &expr) const {
+    if (expr.empty()) return true;
+    std::string s = expr;
+    s.erase(0, s.find_first_not_of(" \t\r\n"));
+    s.erase(s.find_last_not_of(" \t\r\n") + 1);
+    if (s.empty()) return true;
+
+    size_t opPos = std::string::npos;
+    std::string op;
+    if ((opPos = s.find("==")) != std::string::npos) op = "==";
+    else if ((opPos = s.find("!=")) != std::string::npos) op = "!=";
+    else if ((opPos = s.find("<=")) != std::string::npos) op = "<=";
+    else if ((opPos = s.find(">=")) != std::string::npos) op = ">=";
+    else if ((opPos = s.find("<")) != std::string::npos) op = "<";
+    else if ((opPos = s.find(">")) != std::string::npos) op = ">";
+
+    if (!op.empty() && opPos != std::string::npos) {
+      std::string left = s.substr(0, opPos);
+      std::string right = s.substr(opPos + op.size());
+      int lhs = evalTerm(left);
+      int rhs = evalTerm(right);
+      if (op == "==") return lhs == rhs;
+      if (op == "!=") return lhs != rhs;
+      if (op == "<=") return lhs <= rhs;
+      if (op == ">=") return lhs >= rhs;
+      if (op == "<") return lhs < rhs;
+      if (op == ">") return lhs > rhs;
+    }
+    return evalTerm(s) != 0;
+  }
+
+  bool loadScenarioScript(const std::string &name) {
+    if (name.empty()) return false;
+    std::string file = name;
+    if (file.rfind(".scr") == std::string::npos && file.rfind(".SCR") == std::string::npos) {
+      file += ".scr";
+    }
+    auto *pak = assets->scriptPak();
+    if (!pak) return false;
+    const PakEntry *entry = pak->findByName(file);
+    if (!entry) entry = pak->findByName(name);
+    if (!entry) return false;
+
+    auto bytes = assets->read(entry->name);
+    Script script(entry->name, std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
+    if (!script.valid()) return false;
+
+    currentScenario = entry->name;
+    instructions = script.instructions();
+    instructionIndex = 0;
+    dialogueLines = script.strings();
+    dialogueIndex = 0;
+    dialogueVisible = false;
+    runtime.scenarioTexts_.clear();
+    for (const auto &line : dialogueLines)
+      if (std::find(runtime.scenarioTexts_.begin(), runtime.scenarioTexts_.end(), line) ==
+          runtime.scenarioTexts_.end())
+        runtime.scenarioTexts_.push_back(line);
+    return true;
+  }
+
   // ------------------------------------------------------------------
   // VM execution helpers
   // ------------------------------------------------------------------
@@ -263,9 +373,7 @@ struct LucaSystemRuntime::Impl {
 
   void playVoice(uint32_t id) {
     try {
-      // LucaSystem voice entries are raw PCM/Ogg; decode via the asset system.
       voice.Stop();
-      // We push decoded PCM through the shared PcmPlayer on the Voice channel.
       auto decoded = assets->loadAudio(std::to_string(id));
       SDL_AudioSpec target{SDL_AUDIO_S16, 1, 22050};
       Uint8 *converted = nullptr;
@@ -377,9 +485,6 @@ struct LucaSystemRuntime::Impl {
     SDL_FRect source{};
     const SDL_FRect *sourcePtr = nullptr;
     if (rightClip >= 0.0f) {
-      // A directional wipe reveals only the region to the left of the
-      // advancing screen-space edge. Clip both source and destination to
-      // avoid stretching the pixels across the full object width.
       const float visibleWidth =
           wipeVisibleWidth(float(x), float(it->second.width), rightClip);
       if (visibleWidth <= 0.0f)
@@ -392,8 +497,6 @@ struct LucaSystemRuntime::Impl {
   }
 
   void runUntilPause() {
-    // An untrusted script can jump to itself. Yield to the next runtime frame
-    // instead of monopolizing the UI thread.
     std::size_t budget = 8192;
     while (instructionIndex < instructions.size() && budget-- > 0) {
       if (waiting)
@@ -402,7 +505,6 @@ struct LucaSystemRuntime::Impl {
 
       switch (ins.opcode) {
       case OP_MESSAGE: {
-        // In scripts that omit DRAW, publish staged images before text.
         sceneLayers.commit(SDL_GetTicks(), 0);
         if (!ins.text.empty()) {
           dialogueVisible = true;
@@ -415,6 +517,17 @@ struct LucaSystemRuntime::Impl {
         }
         break;
       }
+      case OP_MESSAGE_CLEAR:
+      case OP_CLOSE_WINDOW: {
+        dialogueVisible = false;
+        if (textbox) textbox->hide();
+        break;
+      }
+      case OP_MESSAGE_WAIT: {
+        waiting = true;
+        waitDeadline = SDL_GetTicks() + 300;
+        return;
+      }
       case OP_WAIT: {
         int ms = 0;
         if (ins.fixedFlag >= 1)
@@ -425,20 +538,14 @@ struct LucaSystemRuntime::Impl {
           ms = 500;
         waiting = true;
         waitDeadline = SDL_GetTicks() + static_cast<std::uint64_t>(ms);
-        // The instruction was consumed. Replaying it would create an
-        // endless timer loop instead of advancing the scenario.
         return;
       }
       case OP_IMAGELOAD: {
-        // IMAGELOAD param: image_id(uint16), x(uint16), y(uint16), ...
         if (ins.paramBytes.size() >= 6) {
           uint32_t id = paramU16(ins, 0);
           int x = int(paramU16(ins, 2));
           int y = int(paramU16(ins, 4));
           loadObjectImage(id);
-          // Defer composition until DRAW, allowing timed presentation and
-          // preserving outgoing layers for a cross-fade. A MESSAGE or END
-          // flushes pending objects if this title omits DRAW.
           sceneLayers.stage({id, x, y});
         }
         break;
@@ -464,8 +571,6 @@ struct LucaSystemRuntime::Impl {
         int ms = 500;
         if (ins.paramBytes.size() >= 2)
           ms = int(paramU16(ins, 0));
-        // Approximate the screen fade with a real alpha overlay. The
-        // proprietary per-title fade curves/types are not yet reproduced.
         ms = std::clamp(ms, 0, 60000);
         sceneLayers.beginBlackout(SDL_GetTicks(),
                                   static_cast<std::uint64_t>(ms),
@@ -477,33 +582,152 @@ struct LucaSystemRuntime::Impl {
         }
         break;
       }
-      case OP_INIT: {
-        int mode = 0;
-        if (ins.paramBytes.size() >= 2)
-          mode = int(paramU16(ins, 0));
-        // INIT 0001 = init text system, 02ff = init object system, etc.
+      case OP_INIT:
+      case OP_HAIKEI_SET:
         break;
-      }
-      case OP_HAIKIE_SET: {
-        // Set background from current object context.
-        break;
-      }
+
       case OP_EQUN: {
-        // EQUN: set numeric variable. param is a 4-byte variable id.
-        if (ins.paramBytes.size() >= 4) {
+        if (ins.paramBytes.size() >= 8) {
           uint32_t varId = paramU32(ins, 0);
-          // The value follows in subsequent EQUN or is implied.
-          numericVars[varId] = 0;
+          int32_t val = int32_t(paramU32(ins, 4));
+          numericVars[varId] = val;
+        } else if (ins.paramBytes.size() >= 4) {
+          uint32_t varId = paramU32(ins, 0);
+          int32_t val = ins.fixedFlag >= 1 ? int32_t(paramU16(ins, 0)) : 0;
+          numericVars[varId] = val;
         }
         break;
       }
       case OP_EQU: {
-        // EQU: set string variable. fixedFlag=1, fixed param = var id.
-        if (ins.fixedFlag >= 1 && !ins.paramBytes.empty()) {
+        if (ins.fixedFlag >= 1 || !ins.paramBytes.empty()) {
           uint32_t varId = paramU16(ins, 0);
           stringVars[varId] = ins.text;
         }
         break;
+      }
+      case OP_EQUV: {
+        if (ins.paramBytes.size() >= 8) {
+          uint32_t destId = paramU32(ins, 0);
+          uint32_t srcId = paramU32(ins, 4);
+          numericVars[destId] = numericVars[srcId];
+        }
+        break;
+      }
+      case OP_ADD: {
+        if (ins.paramBytes.size() >= 8) {
+          uint32_t varId = paramU32(ins, 0);
+          int32_t val = int32_t(paramU32(ins, 4));
+          numericVars[varId] += val;
+        } else if (ins.paramBytes.size() >= 4) {
+          uint32_t varId = paramU32(ins, 0);
+          numericVars[varId] += int32_t(paramU16(ins, 0));
+        }
+        break;
+      }
+      case OP_SUB: {
+        if (ins.paramBytes.size() >= 8) {
+          uint32_t varId = paramU32(ins, 0);
+          int32_t val = int32_t(paramU32(ins, 4));
+          numericVars[varId] -= val;
+        }
+        break;
+      }
+      case OP_MUL: {
+        if (ins.paramBytes.size() >= 8) {
+          uint32_t varId = paramU32(ins, 0);
+          int32_t val = int32_t(paramU32(ins, 4));
+          numericVars[varId] *= val;
+        }
+        break;
+      }
+      case OP_DIV: {
+        if (ins.paramBytes.size() >= 8) {
+          uint32_t varId = paramU32(ins, 0);
+          int32_t val = int32_t(paramU32(ins, 4));
+          if (val != 0) numericVars[varId] /= val;
+        }
+        break;
+      }
+      case OP_MOD: {
+        if (ins.paramBytes.size() >= 8) {
+          uint32_t varId = paramU32(ins, 0);
+          int32_t val = int32_t(paramU32(ins, 4));
+          if (val != 0) numericVars[varId] %= val;
+        }
+        break;
+      }
+      case OP_RANDOM: {
+        if (ins.paramBytes.size() >= 8) {
+          uint32_t varId = paramU32(ins, 0);
+          int32_t mod = int32_t(paramU32(ins, 4));
+          numericVars[varId] = std::rand() % (mod > 0 ? mod : 100);
+        }
+        break;
+      }
+      case OP_SET: {
+        if (ins.paramBytes.size() >= 8) {
+          uint32_t varId = paramU32(ins, 0);
+          int32_t val = int32_t(paramU32(ins, 4));
+          numericVars[varId] = val;
+        }
+        break;
+      }
+      case OP_FLAGCLR: {
+        if (ins.paramBytes.size() >= 2) {
+          uint32_t flagId = paramU16(ins, 0);
+          flags[flagId] = false;
+        }
+        break;
+      }
+      case OP_ARFLAGSET: {
+        if (ins.fixedFlag >= 1 || ins.paramBytes.size() >= 2) {
+          uint32_t flagId = paramU16(ins, 0);
+          flags[flagId] = true;
+        }
+        break;
+      }
+      case OP_VARSTR_SET: {
+        if (ins.paramBytes.size() >= 2) {
+          uint32_t varId = paramU16(ins, 0);
+          stringVars[varId] = ins.text;
+        }
+        break;
+      }
+      case OP_SELECT: {
+        std::vector<std::string> options;
+        auto strList = ExtractShiftJisStrings(std::string_view(
+            reinterpret_cast<const char *>(ins.paramBytes.data()),
+            ins.paramBytes.size()));
+        for (auto &st : strList) {
+          if (!st.empty() && st.size() > 1) {
+            options.push_back(st);
+          }
+        }
+        if (options.empty() && !ins.text.empty()) {
+          options.push_back(ins.text);
+        }
+        if (options.empty()) {
+          options = {"Option 1", "Option 2"};
+        }
+        waiting = true;
+        dialogueVisible = false;
+        if (textbox) textbox->hide();
+        if (choiceScene) {
+          std::vector<Kotonoha::ChoiceOption> choices;
+          for (size_t i = 0; i < options.size(); ++i) {
+            choices.push_back({options[i], int(i)});
+          }
+          choiceScene->setQuestion("", choices, [this](int optionId, const std::string &) {
+            numericVars[0] = optionId;
+            waiting = false;
+            if (choiceScene) choiceScene->hide();
+            runUntilPause();
+          });
+        } else {
+          numericVars[0] = 0;
+          waiting = false;
+        }
+        return;
       }
       case OP_BGM: {
         uint32_t id = 0;
@@ -539,52 +763,86 @@ struct LucaSystemRuntime::Impl {
       case OP_SE_STOP:
         se.Stop();
         break;
-      case OP_CLOSE_WINDOW: {
-        // Hide the message window.
-        dialogueVisible = false;
-        textbox->hide();
-        break;
-      }
       case OP_GOTO:
-      case OP_JUMP:
         jumpFrom(ins);
         break;
+      case OP_ONGOTO: {
+        int idx = evalTerm(ins.text);
+        if (ins.paramBytes.size() >= 2) {
+          uint16_t count = paramU16(ins, 0);
+          if (count > 0 && idx >= 0 && idx < int(count) && ins.paramBytes.size() >= 2 + static_cast<size_t>(count) * 4) {
+            uint32_t target = paramU32(ins, 2 + static_cast<size_t>(idx) * 4);
+            if (const auto index = FindInstructionAtOffset(instructions, target)) {
+              instructionIndex = *index;
+            }
+          }
+        }
+        break;
+      }
       case OP_CALL: {
-        // Reject overdeep calls before modifying the instruction pointer.
         if (callStack.size() >= 1024)
           throw std::runtime_error("LucaSystem: call stack limit exceeded");
         const auto next = instructionIndex;
         if (jumpFrom(ins))
-          callStack.push_back(next);
+          callStack.push_back({currentScenario, next});
+        break;
+      }
+      case OP_FARCALL: {
+        if (callStack.size() >= 1024)
+          throw std::runtime_error("LucaSystem: call stack limit exceeded");
+        const auto next = instructionIndex;
+        if (!ins.text.empty() && loadScenarioScript(ins.text)) {
+          callStack.push_back({currentScenario, next});
+          jumpFrom(ins);
+        } else {
+          if (jumpFrom(ins))
+            callStack.push_back({currentScenario, next});
+        }
+        break;
+      }
+      case OP_JUMP: {
+        if (!ins.text.empty() && loadScenarioScript(ins.text)) {
+          jumpFrom(ins);
+        } else {
+          jumpFrom(ins);
+        }
         break;
       }
       case OP_RETURN:
+      case OP_FARRETURN: {
         if (!callStack.empty()) {
-          instructionIndex = callStack.back();
+          auto frame = callStack.back();
           callStack.pop_back();
+          if (frame.scenario != currentScenario) {
+            loadScenarioScript(frame.scenario);
+          }
+          instructionIndex = frame.instructionIndex;
         }
         break;
+      }
       case OP_IFY: {
-        // If variable equals value, jump.
+        std::string expr = ins.text;
+        if (expr.empty() && ins.paramBytes.size() >= 2) {
+          uint16_t len = paramU16(ins, 0);
+          if (len > 0 && ins.paramBytes.size() >= 2 + len) {
+            expr = std::string(reinterpret_cast<const char *>(ins.paramBytes.data() + 2), len);
+          }
+        }
+        if (evaluateCondition(expr)) {
+          jumpFrom(ins);
+        }
         break;
       }
       case OP_IFN: {
-        // If variable not equals value, jump.
-        break;
-      }
-      case OP_VARSTR: {
-        // Variable string operation.
-        break;
-      }
-      case OP_SET: {
-        // Set variable.
-        break;
-      }
-      case OP_ARFLAGSET: {
-        // Set flag.
-        if (ins.fixedFlag >= 1) {
-          uint32_t flagId = paramU16(ins, 0);
-          flags[flagId] = true;
+        std::string expr = ins.text;
+        if (expr.empty() && ins.paramBytes.size() >= 2) {
+          uint16_t len = paramU16(ins, 0);
+          if (len > 0 && ins.paramBytes.size() >= 2 + len) {
+            expr = std::string(reinterpret_cast<const char *>(ins.paramBytes.data() + 2), len);
+          }
+        }
+        if (!evaluateCondition(expr)) {
+          jumpFrom(ins);
         }
         break;
       }
@@ -1002,7 +1260,9 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
   state.numbers.insert(impl.numericVars.begin(), impl.numericVars.end());
   state.strings.insert(impl.stringVars.begin(), impl.stringVars.end());
   state.flags.insert(impl.flags.begin(), impl.flags.end());
-  state.callStack = impl.callStack;
+  state.callFrames = impl.callStack;
+  for (const auto &frame : impl.callStack)
+    state.callStack.push_back(frame.instructionIndex);
   state.images.reserve(impl.sceneLayers.visible().size());
   for (const auto &place : impl.sceneLayers.visible())
     state.images.push_back({place.id, place.x, place.y});
@@ -1024,10 +1284,10 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
                    std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
   if (!candidate.valid() ||
       state.instructionIndex > candidate.instructionCount() ||
-      state.dialogueIndex > 1000000 || state.callStack.size() > 1024)
+      state.dialogueIndex > 1000000 || state.callFrames.size() > 1024)
     throw std::runtime_error("Invalid LucaSystem save script position");
-  for (const auto returnTo : state.callStack)
-    if (returnTo > candidate.instructionCount())
+  for (const auto &frame : state.callFrames)
+    if (frame.scenario == state.scenario && frame.instructionIndex > candidate.instructionCount())
       throw std::runtime_error("Invalid LucaSystem save return frame");
 
   // Resume without evaluating any instruction: normal scenario startup
@@ -1040,7 +1300,7 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
   impl.stringVars.insert(state.strings.begin(), state.strings.end());
   impl.flags.clear();
   impl.flags.insert(state.flags.begin(), state.flags.end());
-  impl.callStack = state.callStack;
+  impl.callStack = state.callFrames;
   std::vector<SceneObject> restoredImages;
   restoredImages.reserve(state.images.size());
   for (const auto &place : state.images) {

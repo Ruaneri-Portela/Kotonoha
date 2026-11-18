@@ -2,6 +2,7 @@
 #include <Kotonoha/Filesystem/IMount.hpp>
 #include <filesystem>
 #include <map>
+#include <string_view>
 namespace Kotonoha::Filesystem {
 class DirectoryMount final : public IMount {
   struct Node {
@@ -10,6 +11,7 @@ class DirectoryMount final : public IMount {
   };
   std::filesystem::path root_;
   mutable std::map<std::string, Node> nodes_;
+  void tryAddFile(std::string_view path) const;
 #ifdef __EMSCRIPTEN__
   mutable int observedBrowserGeneration_ = 0;
   // Browser folder imports invalidate the immutable constructor-time index.

@@ -85,10 +85,34 @@ void DirectoryMount::refreshFromBrowser() const {
 }
 #endif
 
+void DirectoryMount::tryAddFile(std::string_view path) const {
+  const auto key = lookupKey(path, true);
+  if (nodes_.count(key))
+    return;
+  std::error_code ec;
+  const auto target = root_ / path;
+  if (!std::filesystem::exists(target, ec) ||
+      !std::filesystem::is_regular_file(target, ec))
+    return;
+  const auto real = std::filesystem::canonical(target, ec);
+  if (ec || !contained(real, root_))
+    return;
+  const auto id =
+      normalizePath(target.lexically_relative(root_).generic_string());
+  const auto actualSize = std::filesystem::file_size(target, ec);
+  if (ec)
+    return;
+  Node entry{
+      FileInfo{id, FileType::Regular, static_cast<std::int64_t>(actualSize)},
+      target};
+  nodes_.emplace(key, std::move(entry));
+}
+
 bool DirectoryMount::exists(std::string_view path) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  tryAddFile(path);
   return nodes_.count(lookupKey(path, true)) != 0;
 }
 
@@ -96,6 +120,7 @@ FileInfo DirectoryMount::stat(std::string_view path) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  tryAddFile(path);
   const auto found = nodes_.find(lookupKey(path, true));
   if (found == nodes_.end())
     throw FilesystemError(ErrorCode::NotFound, "File not found in mount");
@@ -129,6 +154,7 @@ std::unique_ptr<FileHandle> DirectoryMount::open(std::string_view path) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  tryAddFile(path);
   const auto found = nodes_.find(lookupKey(path));
   if (found == nodes_.end())
     throw FilesystemError(ErrorCode::NotFound, "File not found");

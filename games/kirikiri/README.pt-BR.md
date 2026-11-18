@@ -6,10 +6,10 @@ Porte C++17 de KiriKiri para o Kotonoha: montagem XP3, interpretador KAG experim
 
 ## Compatibilidade implementada
 
-- O provedor XP3 aceita índices canônicos sem compressão ou com zlib, índices encadeados, vários segmentos por arquivo (inclusive mistos), nomes Unicode, busca ASCII sem diferenciar maiúsculas/minúsculas e prioridade de patches. A leitura dos recursos acontece sob demanda.
+- O provedor XP3 aceita índices canônicos sem compressão ou com zlib, índices encadeados, vários segmentos por arquivo (inclusive mistos), nomes Unicode, busca ASCII sem diferenciar maiúsculas/minúsculas, resolução de discrepâncias em pacotes protegidos (permitindo indexar pacotes como `data.xp3`, `emote.xp3`, `evimage.xp3`, `voice.xp3` do NEKOPARA) e prioridade de patches. A leitura dos recursos acontece sob demanda.
 - Além dos formatos comuns via SDL/FFmpeg, há decodificação de **TLG5 RGB/RGBA** e **TLG6 com entropia Golomb**, inclusive encapsulamento TLG0. O decodificador TLG6 inclui limites para sequências Golomb, filtros LZSS, transformações de cores e predição MED/AVG; testes sintéticos cobrem pixels, encapsulamentos e arquivos malformados.
 - Os comandos KAG `[bg storage=...]`, `[image layer=... storage=...]`, `[freeimage]` e `[layopt visible=false]` alteram as camadas realmente desenhadas. Algumas transições ainda ocorrem imediatamente.
-- Um **menu provisório do Kotonoha** aparece mesmo sem `.ks`. Além do analisador estático, existe um **interpretador experimental e limitado de TJS2 fonte** para variáveis, expressões numéricas e strings, condicionais, laços limitados e chamadas `Scripts.execStorage` / `Scripts.evalStorage` entre scripts. Ele reconhece o roteiro KAG referenciado e o oferece no botão Iniciar; não cria o menu original em TJS2. Requisições de plugins são apenas registradas, não executadas.
+- Um **menu provisório do Kotonoha** aparece mesmo sem `.ks`. Além do analisador estático, existe um **interpretador experimental e limitado de TJS2 fonte** para variáveis, expressões numéricas e strings, condicionais, laços limitados, extração de tabelas de constantes de bytecode compilado TJS2 (`TJS2100\0`) e chamadas `Scripts.execStorage` / `Scripts.evalStorage` entre scripts. Ele reconhece o roteiro KAG referenciado e o oferece no botão Iniciar; não cria o menu original em TJS2. Requisições de plugins são apenas registradas, não executadas.
 - Índices malformados, segmentos fora dos limites e encadeamentos cíclicos são rejeitados. Um XP3 inválido não bloqueia a montagem automática dos outros.
 
 ## Limitações conhecidas

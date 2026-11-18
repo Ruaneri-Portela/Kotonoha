@@ -279,7 +279,7 @@ int main() {
     instructions[0].opcode = 12; // an ordinary opcode with matching string
     instructions[0].paramBytes = {'m', 'a', 'i', 'n', 0};
     instructions[1].pos = 8;
-    instructions[1].opcode = 38; // JUMPPOINT
+    instructions[1].opcode = 24; // JUMPPOINT (0x18 = 24)
     instructions[1].paramBytes = {'m', 'a', 'i', 'n', 0};
     instructions[2].pos = 16;
     instructions[2].opcode = 36;

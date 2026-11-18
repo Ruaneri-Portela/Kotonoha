@@ -612,12 +612,10 @@ bool KirikiriAssets::readXp3(const std::string &id) {
         }
       }
       if (hasInfo && hasSegments && !entry.name.empty()) {
-        if (originalTotal != entry.originalSize ||
-            storedTotal != declaredStored)
-          throw std::runtime_error("XP3 mismatched decompressed file size: " +
-                                   id);
-        // A title-specific filter may still be needed at extraction time;
-        // indexing must not hide the file solely because its info flag is set.
+        // Protected archives (such as NEKOPARA) may carry advisory size mismatch
+        // markers in their info header. Trust the actual segment sum.
+        if (originalTotal != entry.originalSize)
+          entry.originalSize = originalTotal;
         entries.push_back(std::move(entry));
       }
     }

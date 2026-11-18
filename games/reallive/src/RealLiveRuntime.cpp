@@ -2249,6 +2249,15 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 130:
       button1 = button2 = 0;
       return true;
+    case 131:
+      machine.set_store_register(button1 != 0 ? 1 : 0);
+      return true;
+    case 132:
+      machine.set_store_register(button2 != 0 ? 1 : 0);
+      return true;
+    case 134:
+      machine.set_store_register(1);
+      return true;
     case 133: {
       // Keyboard/gamepad title input is injected at the native poll so it
       // cannot be lost to the script's own 1:4:130 register clear.
@@ -2261,6 +2270,16 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       button2 = button2 == 2 ? 0 : button2;
       return true;
     }
+    case 200:
+      machine.set_store_register(int(mouseX));
+      return true;
+    case 201:
+      machine.set_store_register(int(mouseY));
+      return true;
+    case 202:
+      assign(c, 0, int(mouseX));
+      assign(c, 1, int(mouseY));
+      return true;
     case 204:
       SDL_ShowCursor();
       return true;
@@ -2272,6 +2291,12 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     case 207:
       selectMouseCursor(value(c, 0));
+      return true;
+    case 330:
+      machine.set_store_register(skipMode ? 1 : 0);
+      return true;
+    case 331:
+      skipMode = value(c, 0) != 0;
       return true;
     case 332:
       machine.set_store_register(skipMode);
@@ -2514,7 +2539,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
   }
   if (type == 1 && m == 20) {
-    if (op == 0 || op == 2) {
+    if (op == 0 || op == 1 || op == 2 || op == 3) {
       auto name = str(c, 0);
       for (auto &ch : name)
         if (ch >= 'A' && ch <= 'Z')
@@ -2526,7 +2551,18 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       std::string id = "BGM/" + t.file;
       if (!assets->contains(id))
         id += ".NWA";
-      play(bgm, id, "BGM", op == 0, t.from, t.to, t.loop);
+      play(bgm, id, "BGM", op == 0 || op == 1, t.from, t.to, t.loop);
+      if (op == 1 || op == 3) {
+        fadeFrom = 0;
+        fadeTo = bgmGain > 0 ? bgmGain : 255;
+        fadeElapsed = 0;
+        fadeDuration = std::max(0, value(c, 1, 1000));
+        fadeStops = false;
+      }
+      return true;
+    }
+    if (op == 8) {
+      machine.set_store_register(bgm.Playing() ? 1 : 0);
       return true;
     }
     if (op == 9) {
@@ -2535,6 +2571,26 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 10) {
       bgmGain = value(c, 0);
+      return true;
+    }
+    if (op == 11) {
+      if (c.GetParamCount() > 0)
+        Parameter(c, 0).SetStringValue(machine, musicID);
+      else
+        machine.set_store_register(musicID.empty() ? 0 : 1);
+      return true;
+    }
+    if (op == 12) {
+      bgm.SetPaused(true);
+      return true;
+    }
+    if (op == 13) {
+      bgm.SetPaused(false);
+      return true;
+    }
+    if (op == 14) {
+      bgm.Stop();
+      musicID.clear();
       return true;
     }
     if (op == 1002) {
@@ -2550,6 +2606,16 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         id += ".NWA";
       play(bgm, id, "BGM", false, track->second.from, track->second.to,
            track->second.loop, value(c, 1));
+      return true;
+    }
+    if (op == 101 || op == 102 || op == 103) {
+      fadeFrom = bgmGain;
+      fadeTo = std::clamp(value(c, 0, 0), 0, 255);
+      fadeElapsed = 0;
+      fadeDuration = std::max(0, value(c, 1, 1000));
+      fadeStops = fadeTo == 0;
+      if (op == 102 || op == 103)
+        wait(fadeDuration);
       return true;
     }
     if (op == 105 || op == 106 || op == 107) {
@@ -2573,56 +2639,93 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       musicID.clear();
       return true;
     }
-    if (op >= 12 && op <= 14)
-      return true;
   }
-  if (type == 1 && m == 23 && (op == 0 || op == 3 || op == 6 || op == 101)) {
-    if (op != 0)
-      return true;
-    const int voiceId = value(c, 0);
-    const std::string overlayVoice =
-        "voice/" + std::to_string(voiceId) + ".wav";
-    if (!assets->overlayPath(overlayVoice).empty()) {
-      auto clip = assets->loadAudio(overlayVoice);
-      playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
-               "Voice");
-      return true;
-    }
-    auto bytes = voices.read(voiceId);
-    if (bytes) {
-      auto encoded = bytes->size() >= 4 && (*bytes)[0] == 'O' &&
-                             (*bytes)[1] == 'g' && (*bytes)[2] == 'g' &&
-                             (*bytes)[3] == 'S'
-                         ? std::move(*bytes)
-                         : nwaToWav(*bytes);
-      Kotonoha::AudioClip clip;
-      if (Kotonoha::MediaDecoder::tryDecodeAudio(encoded, clip)) {
-        assets->noteAudio(overlayVoice, clip);
+  if (type == 1 && m == 23) {
+    if (op == 0 || op == 2) {
+      const int voiceId = value(c, 0);
+      const std::string overlayVoice =
+          "voice/" + std::to_string(voiceId) + ".wav";
+      if (!assets->overlayPath(overlayVoice).empty()) {
+        auto clip = assets->loadAudio(overlayVoice);
         playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
                  "Voice");
+        return true;
       }
-    } else if (voiceId > 0) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "Warning: REALLIVE voice missing for index %d", voiceId);
-    }
-    return true;
-  }
-  if (type == 1 && m == 22 && op == 0) {
-    auto mapping = audio.soundEffects.find(value(c, 0));
-    if (mapping != audio.soundEffects.end()) {
-      auto &sound = sounds[mapping->second.channel];
-      if (!sound)
-        sound = std::make_unique<PcmPlayer>();
-      std::string id = audioAsset("WAV/" + mapping->second.file);
-      if (id.empty()) {
+      auto bytes = voices.read(voiceId);
+      if (bytes) {
+        auto encoded = bytes->size() >= 4 && (*bytes)[0] == 'O' &&
+                               (*bytes)[1] == 'g' && (*bytes)[2] == 'g' &&
+                               (*bytes)[3] == 'S'
+                           ? std::move(*bytes)
+                           : nwaToWav(*bytes);
+        Kotonoha::AudioClip clip;
+        if (Kotonoha::MediaDecoder::tryDecodeAudio(encoded, clip)) {
+          assets->noteAudio(overlayVoice, clip);
+          playClip(voice, std::move(clip), "voice:" + std::to_string(voiceId),
+                   "Voice");
+        }
+      } else if (voiceId > 0) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Warning: Sound effect not found: WAV/%s",
-                    mapping->second.file.c_str());
-        return true; // Skip missing sound effect
+                    "Warning: REALLIVE voice missing for index %d", voiceId);
       }
-      play(*sound, id, "Se");
+      return true;
     }
-    return true;
+    if (op == 1) {
+      voice.Stop();
+      return true;
+    }
+    if (op == 8 || op == 11) {
+      machine.set_store_register(voice.Playing() ? 1 : 0);
+      return true;
+    }
+    if (op == 9) {
+      machine.set_store_register(255);
+      return true;
+    }
+    if (op == 10) {
+      return true;
+    }
+    if (op == 3 || op == 6 || op == 101) {
+      return true;
+    }
+  }
+  if (type == 1 && m == 22) {
+    if (op == 0 || op == 2) {
+      auto mapping = audio.soundEffects.find(value(c, 0));
+      if (mapping != audio.soundEffects.end()) {
+        auto &sound = sounds[mapping->second.channel];
+        if (!sound)
+          sound = std::make_unique<PcmPlayer>();
+        std::string id = audioAsset("WAV/" + mapping->second.file);
+        if (id.empty()) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "Warning: Sound effect not found: WAV/%s",
+                      mapping->second.file.c_str());
+          return true; // Skip missing sound effect
+        }
+        play(*sound, id, "Se", op == 2);
+      }
+      return true;
+    }
+    if (op == 1) {
+      auto mapping = audio.soundEffects.find(value(c, 0));
+      if (mapping != audio.soundEffects.end()) {
+        sounds.erase(mapping->second.channel);
+      }
+      return true;
+    }
+    if (op == 8 || op == 11) {
+      auto mapping = audio.soundEffects.find(value(c, 0));
+      bool playing = false;
+      if (mapping != audio.soundEffects.end()) {
+        auto it = sounds.find(mapping->second.channel);
+        playing = (it != sounds.end() && it->second && it->second->Playing());
+      }
+      machine.set_store_register(playing ? 1 : 0);
+      return true;
+    }
+    if (op == 9 || op == 10)
+      return true;
   }
   if (type == 1 && m == 21) {
     if (op == 4)
@@ -2639,6 +2742,25 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         return true; // Skip missing PCM
       }
       play(*p, id, "PCM", op == 2);
+      return true;
+    }
+    if (op == 1) {
+      int channel = value(c, 0);
+      sounds.erase(channel);
+      return true;
+    }
+    if (op == 8 || op == 11) {
+      int channel = value(c, 0);
+      auto it = sounds.find(channel);
+      machine.set_store_register(
+          (it != sounds.end() && it->second && it->second->Playing()) ? 1 : 0);
+      return true;
+    }
+    if (op == 9) {
+      machine.set_store_register(255);
+      return true;
+    }
+    if (op == 10) {
       return true;
     }
     if (op == 5 || op == 12 || op == 20 || op == 105) {
@@ -2835,6 +2957,16 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       }
       return true;
     }
+    case 1001: {
+      int slot = value(c, 1);
+      if (slot >= 0 && slot < 16)
+        o.adjustments[slot] = {value(c, 2), value(c, 3)};
+      return true;
+    }
+    case 1040:
+      o.clipped = true;
+      o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
+      return true;
     case 1034:
       o.clipped = over == 1;
       o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
@@ -2843,12 +2975,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       o.colour = {Uint8(value(c, 1)), Uint8(value(c, 2)), Uint8(value(c, 3)),
                   Uint8(value(c, 4))};
       return true;
-    case 1001:
     case 1002:
     case 1009:
     case 1021:
     case 1025:
-    case 1040:
     case 1046:
     case 1048:
     case 1049:
@@ -2896,7 +3026,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && (m == 61 || m == 62)) {
     auto &objects = m == 61 ? fg : bg;
     int id = value(c, 0);
-    if (op == 2 || op == 4 || op == 10) {
+    if (op == 0 || op == 1 || op == 2 || op == 4 || op == 10) {
       objects[id] = Object{};
       return true;
     }
@@ -2946,8 +3076,34 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       assign(c, 2, o.y);
       return true;
     }
+    if (op == 1001) {
+      int slot = value(c, 1);
+      machine.set_store_register(
+          slot >= 0 && slot < 16 ? o.adjustments[slot].y : 0);
+      return true;
+    }
     if (op == 1003) {
       machine.set_store_register(o.alpha);
+      return true;
+    }
+    if (op == 1004) {
+      machine.set_store_register(o.visible ? 1 : 0);
+      return true;
+    }
+    if (op == 1039) {
+      machine.set_store_register(o.pattern);
+      return true;
+    }
+    if (op == 1011) {
+      assign(c, 1, o.x);
+      assign(c, 2, o.y);
+      return true;
+    }
+    if (op == 1016) {
+      assign(c, 1, o.colour.r);
+      assign(c, 2, o.colour.g);
+      assign(c, 3, o.colour.b);
+      assign(c, 4, o.colour.a);
       return true;
     }
     if (op == 1006) {
@@ -3009,11 +3165,33 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       assign(c, 2, o.y);
       return true;
     }
+    if (op == 1003) {
+      machine.set_store_register(o.alpha);
+      return true;
+    }
+    if (op == 1004) {
+      machine.set_store_register(o.visible ? 1 : 0);
+      return true;
+    }
+    if (op == 1039) {
+      machine.set_store_register(o.pattern);
+      return true;
+    }
+    if (op == 1011) {
+      assign(c, 1, o.x);
+      assign(c, 2, o.y);
+      return true;
+    }
     if (op == 1100) {
       assign(c, 1, o.width);
       assign(c, 2, o.height);
       return true;
     }
+    return true;
+  }
+  if (type == 1 && m == 60 && op == 10) {
+    int id = value(c, 0);
+    std::swap(fg[id], bg[id]);
     return true;
   }
   if (type == 1 && m == 60 && op == 2) {
