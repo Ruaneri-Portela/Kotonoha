@@ -195,6 +195,9 @@ int main(int argc, char **argv) {
         if (!game.choose(requested))
           throw std::runtime_error("Choice was not committed");
         ++choicePoints;
+      } else if (game.nativeTimeWaitActive()) {
+        if (!game.click())
+          throw std::runtime_error("Timed wait would not skip");
       } else if (game.waitingForClick()) {
         if (!game.click())
           throw std::runtime_error("Dialogue would not advance");

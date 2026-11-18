@@ -212,7 +212,7 @@ int main() {
               "Reject non-game folder");
     }
 
-    std::cout << "All 17 ZScripter/Kotonoha engine signature tests passed\n";
+    std::cout << "All 17 Kotonoha engine signature tests passed\n";
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "FAIL: " << error.what() << '\n';

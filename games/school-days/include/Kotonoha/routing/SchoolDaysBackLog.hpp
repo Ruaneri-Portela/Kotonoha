@@ -83,6 +83,7 @@ public:
 
   int HitControl(int x, int y) const;
   bool SetSelectionFromPointer(int x, int y);
+  bool StepCursor(int delta);
 
   // Mouse commit is intentionally authenticated: the release hit must equal
   // the selection stored by the preceding pointer-motion update.

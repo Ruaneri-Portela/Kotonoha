@@ -187,6 +187,7 @@ public:
   const SchoolDaysConfigMenuModel &ConfigMenu() const { return configMenu_; }
   const SchoolDaysExitViewModel &ExitView() const { return exitView_; }
   const SchoolDaysReplayModel &Replay() const { return replay_; }
+  bool CancelReplaySceneCheck() { return replay_.CancelSceneCheck(); }
   const SchoolDaysRouteMapModel &RouteMap() const { return routeMap_; }
 
 private:

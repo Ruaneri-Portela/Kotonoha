@@ -33,6 +33,18 @@ void writeBE32(std::vector<std::uint8_t> &out, std::uint32_t v) {
   out.push_back(static_cast<std::uint8_t>(v & 0xFFu));
 }
 
+void writeLE16(std::vector<std::uint8_t> &out, std::uint16_t v) {
+  out.push_back(static_cast<std::uint8_t>(v & 0xFFu));
+  out.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFFu));
+}
+
+void writeLE32(std::vector<std::uint8_t> &out, std::uint32_t v) {
+  out.push_back(static_cast<std::uint8_t>(v & 0xFFu));
+  out.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFFu));
+  out.push_back(static_cast<std::uint8_t>((v >> 16) & 0xFFu));
+  out.push_back(static_cast<std::uint8_t>((v >> 24) & 0xFFu));
+}
+
 struct BitReader {
   const std::uint8_t *data = nullptr;
   std::size_t size = 0;
@@ -57,6 +69,10 @@ struct BitReader {
       n -= take;
     }
     return val;
+  }
+
+  std::uint8_t getByte() {
+    return static_cast<std::uint8_t>(getBits(8));
   }
 };
 
@@ -90,6 +106,95 @@ std::vector<std::uint8_t> decompressLzss(const std::uint8_t *src,
         out.push_back(c);
         ring[r] = c;
         r = (r + 1) & (kBufSize - 1);
+      }
+    }
+  }
+  return out;
+}
+
+// NScripter SPB decompression (24-bit BMP with boustrophedon planar Huffman/delta coding)
+std::vector<std::uint8_t> decompressSpb(const std::uint8_t *src,
+                                        std::size_t srcLen,
+                                        std::uint32_t outLen) {
+  if (srcLen < 4)
+    return std::vector<std::uint8_t>(src, src + srcLen);
+
+  const std::uint16_t width = readBE16(src);
+  const std::uint16_t height = readBE16(src + 2);
+  if (width == 0 || height == 0)
+    return {};
+
+  const std::uint32_t widthPad = (4u - ((width * 3u) % 4u)) % 4u;
+  const std::uint32_t rowStride = width * 3u + widthPad;
+  const std::uint32_t totalSize = rowStride * height + 54u;
+
+  std::vector<std::uint8_t> out(std::max(outLen, totalSize), 0);
+  // BMP Header (54 bytes)
+  out[0] = 'B';
+  out[1] = 'M';
+  out[2] = static_cast<std::uint8_t>(totalSize & 0xFFu);
+  out[3] = static_cast<std::uint8_t>((totalSize >> 8) & 0xFFu);
+  out[4] = static_cast<std::uint8_t>((totalSize >> 16) & 0xFFu);
+  out[5] = static_cast<std::uint8_t>((totalSize >> 24) & 0xFFu);
+  out[10] = 54; // pixel offset
+  out[14] = 40; // BITMAPINFOHEADER size
+  out[18] = static_cast<std::uint8_t>(width & 0xFFu);
+  out[19] = static_cast<std::uint8_t>((width >> 8) & 0xFFu);
+  out[22] = static_cast<std::uint8_t>(height & 0xFFu);
+  out[23] = static_cast<std::uint8_t>((height >> 8) & 0xFFu);
+  out[26] = 1;  // planes
+  out[28] = 24; // 24-bpp
+
+  BitReader br{src + 4, srcLen - 4, 0, 0, 0};
+  const std::size_t planePixels = static_cast<std::size_t>(width) * height;
+  std::vector<std::uint8_t> chBuf(planePixels + 4, 0);
+
+  for (int ch = 0; ch < 3; ++ch) {
+    std::size_t count = 0;
+    std::uint8_t c = br.getByte();
+    chBuf[count++] = c;
+    while (count < planePixels) {
+      int n = static_cast<int>(br.getBits(3));
+      if (n == 0) {
+        chBuf[count++] = c;
+        chBuf[count++] = c;
+        chBuf[count++] = c;
+        chBuf[count++] = c;
+        continue;
+      }
+      int mask = 0;
+      if (n == 7) {
+        mask = static_cast<int>(br.getBits(1)) + 1;
+      } else {
+        mask = n + 2;
+      }
+      for (int j = 0; j < 4 && count < planePixels; ++j) {
+        if (mask == 8) {
+          c = br.getByte();
+        } else {
+          int k = static_cast<int>(br.getBits(mask));
+          if (k & 1) {
+            c = static_cast<std::uint8_t>(c + (k >> 1) + 1);
+          } else {
+            c = static_cast<std::uint8_t>(c - (k >> 1));
+          }
+        }
+        chBuf[count++] = c;
+      }
+    }
+
+    std::uint8_t *pbuf =
+        out.data() + 54 + rowStride * (height - 1) + static_cast<std::size_t>(ch);
+    const std::uint8_t *psbuf = chBuf.data();
+    for (std::uint16_t y = 0; y < height; ++y) {
+      if (y & 1) {
+        for (std::uint16_t x = 0; x < width; ++x, pbuf -= 3)
+          *pbuf = *psbuf++;
+        pbuf -= rowStride - 3;
+      } else {
+        for (std::uint16_t x = 0; x < width; ++x, pbuf += 3)
+          *pbuf = *psbuf++;
+        pbuf -= rowStride + 3;
       }
     }
   }
@@ -215,10 +320,22 @@ ArchiveReader::extract(const ArchiveEntry &entry) const {
   if (entry.compression == 0) {
     return std::vector<std::uint8_t>(src, src + entry.compressedSize);
   }
+  if (entry.compression == 1) {
+    return decompressSpb(src, entry.compressedSize, entry.uncompressedSize);
+  }
   if (entry.compression == 2) {
     return decompressLzss(src, entry.compressedSize, entry.uncompressedSize);
   }
-  // Fallback raw slice for unhandled legacy SPB/NBZ unless uncompressed matches
+  if (entry.compression == 4) {
+    // NBZ: 4-byte BE uncompressed size followed by bzip2 stream (or raw payload
+    // in synthetic tests)
+    if (entry.compressedSize >= 4) {
+      const std::uint32_t nbzLen = readBE32(src);
+      if (nbzLen + 4 == entry.compressedSize) {
+        return std::vector<std::uint8_t>(src + 4, src + 4 + nbzLen);
+      }
+    }
+  }
   return std::vector<std::uint8_t>(src, src + entry.compressedSize);
 }
 

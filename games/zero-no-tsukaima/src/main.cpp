@@ -55,7 +55,10 @@ struct App {
 };
 
 std::string DefaultDisc() {
-  for (const char *disc : {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso"})
+  for (const char *disc :
+       {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso", "ZeroNoTsukaima1.bin",
+        "ZeroNoTsukaima1.iso", "ZeroNoTsukaima0.bin", "ZeroNoTsukaima0.iso",
+        "ZeroNoTsukaima2.bin", "ZeroNoTsukaima2.iso"})
     if (auto found =
             Kotonoha::FileResolver::findGameAsset("zero-no-tsukaima", disc))
       return found->string();
@@ -105,7 +108,9 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
          Kotonoha::GameLauncher::rememberedPath(settingsPath, "disc.txt"),
          DefaultDisc()},
         ZeroNoTsukaima::ZeroLauncher::validatePath,
-        {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso"});
+        {"ZeroNoTsukaima.bin", "ZeroNoTsukaima.iso", "ZeroNoTsukaima1.bin",
+         "ZeroNoTsukaima1.iso", "ZeroNoTsukaima0.bin", "ZeroNoTsukaima0.iso",
+         "ZeroNoTsukaima2.bin", "ZeroNoTsukaima2.iso"});
     // Honor the shared default and explicit --no-launcher. Automated
     // --frames and MCP runs bypass the launcher in CommandLine::parse().
     if (disc.empty() && !options.launcher)

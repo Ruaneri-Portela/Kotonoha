@@ -56,7 +56,6 @@ struct App {
       assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
           std::filesystem::path(directory), options.assetOverlayDirectory());
     }
-    assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Application>(assets, options);
     game->framesLeft = frames;
   }
@@ -97,6 +96,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     Kotonoha::CommandLine arguments("DokiDoki", options);
     arguments.option("--ddlc", "DIRECTORY|ISO",
                      "DDLC directory or ISO containing scripts.rpa", directory);
+    arguments.alias("--asset-overlay", "--overlay");
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) {
       std::fputs(arguments.help().c_str(), stdout);

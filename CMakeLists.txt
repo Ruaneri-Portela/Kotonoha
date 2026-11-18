@@ -60,5 +60,9 @@ foreach(game IN LISTS KOTONOHA_GAMES)
     endif()
 endforeach()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launcher/CMakeLists.txt")
+    add_subdirectory(launcher)
+endif()
+
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaReport.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaCPack.cmake")

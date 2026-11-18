@@ -73,8 +73,12 @@ class SummerBacklog final : public Kotonoha::VNBacklog {
                   : SDL_Color{240, 240, 245, 255});
     }
     SDL_SetRenderClipRect(&r, clipped ? &previous : nullptr);
-    if (assets.containsAsset("GRAPHIC/FRAME/BACKLOG.TEXB")) {
-      auto &atlas = assets.texture(r, "GRAPHIC/FRAME/BACKLOG.TEXB");
+    const std::string backlogTex =
+        assets.containsAsset("GRAPHIC/MESFRAME/BACKLOG.TEXB")
+            ? "GRAPHIC/MESFRAME/BACKLOG.TEXB"
+            : "GRAPHIC/FRAME/BACKLOG.TEXB";
+    if (assets.containsAsset(backlogTex)) {
+      auto &atlas = assets.texture(r, backlogTex);
       SDL_FRect source{0, 0, 56, 600}, target{744, 0, 56, 600};
       Kotonoha::RenderUpscaledTexture(&r, &atlas, &source, &target);
       constexpr SDL_FRect sources[] = {{56, 0, 36, 32},   {56, 32, 36, 22},
@@ -91,8 +95,10 @@ public:
   Kotonoha::PcmPlayer replay;
   SummerBacklog(Kotonoha::Engine &e, Kotonoha::Providers::SummerAssets &a)
       : VNBacklog(e), assets(a), map() {
-    if (auto cmap = assets.tryReadAsset("GRAPHIC/FRAME/BACKLOG.CMAP"))
+    if (auto cmap = assets.tryReadAsset("GRAPHIC/MESFRAME/BACKLOG.CMAP"))
       map = ClickMap(std::move(*cmap)), hasCmap = true;
+    else if (auto cmap1 = assets.tryReadAsset("GRAPHIC/FRAME/BACKLOG.CMAP"))
+      map = ClickMap(std::move(*cmap1)), hasCmap = true;
     controls.axis = Kotonoha::ImageButtonBar::NavigationAxis::Vertical;
     controls.hitTest = [this](SDL_FPoint p) {
       const int id = map.value(int(p.x) - 744, int(p.y));

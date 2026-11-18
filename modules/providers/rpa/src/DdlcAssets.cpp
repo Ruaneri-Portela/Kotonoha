@@ -105,6 +105,9 @@ DdlcAssets::DdlcAssets(const std::filesystem::path &directory,
   auto gameDirectory = directory;
   if (std::filesystem::is_regular_file(directory / "game" / "scripts.rpa"))
     gameDirectory /= "game";
+  else if (std::filesystem::is_regular_file(directory / "vnx" / "game" /
+                                            "scripts.rpa"))
+    gameDirectory /= "vnx/game";
   if (!assets_.open(
           std::filesystem::absolute(gameDirectory).lexically_normal().string()))
     throw std::runtime_error("Cannot open Ren'Py archives in " +
@@ -121,16 +124,26 @@ DdlcAssets::DdlcAssets(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source,
 
 void DdlcAssets::configureOverlaysAndScripts(
     const std::filesystem::path &overlayDirectory, bool inspectCharacterPaths) {
-  if (!overlayDirectory.empty()) {
+  std::filesystem::path effectiveOverlay = overlayDirectory;
+  bool autoSiblingVnx = false;
+  if (effectiveOverlay.empty() && inspectCharacterPaths) {
+    const auto parent = std::filesystem::path(assets_.dir()).parent_path();
+    if (std::filesystem::is_directory(parent / "vnx" / "game")) {
+      effectiveOverlay = parent;
+      autoSiblingVnx = true;
+    }
+  }
+  if (!effectiveOverlay.empty()) {
     std::vector<std::filesystem::path> roots;
-    if (std::filesystem::is_directory(overlayDirectory / "game"))
-      roots.push_back(overlayDirectory / "game");
-    if (std::filesystem::is_directory(overlayDirectory / "vnx" / "game"))
-      roots.push_back(overlayDirectory / "vnx" / "game");
+    if (std::filesystem::is_directory(effectiveOverlay / "vnx" / "game"))
+      roots.push_back(effectiveOverlay / "vnx" / "game");
+    if (!autoSiblingVnx &&
+        std::filesystem::is_directory(effectiveOverlay / "game"))
+      roots.push_back(effectiveOverlay / "game");
     if (roots.empty())
-      roots.push_back(overlayDirectory);
+      roots.push_back(effectiveOverlay);
     auto rootOverlay =
-        std::make_shared<Kotonoha::AssetOverlay>(overlayDirectory);
+        std::make_shared<Kotonoha::AssetOverlay>(effectiveOverlay);
     auto overlays = std::make_shared<std::vector<Kotonoha::AssetOverlay>>();
     std::vector<std::string> packages;
     for (const auto &root : roots) {
@@ -179,7 +192,8 @@ void DdlcAssets::configureOverlaysAndScripts(
             *bytes = source.read(file);
           }
           return true;
-        });
+        },
+        [rootOverlay] { return rootOverlay->list(); });
     setOverlay(roots.front());
   }
   std::string error;

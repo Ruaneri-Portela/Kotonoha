@@ -174,7 +174,7 @@ bool SchoolDaysMenuBarPresenter::HandleEvent(SDL_Renderer *renderer,
       pointerInsideBar_ = inside;
       fadeStartAlpha_ = barAlpha_;
       fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
-      fadeTargetVisible_ = inside;
+      fadeTargetVisible_ = inside || autoHideLocked_;
     }
     selection_ = available;
     return inside;
@@ -407,7 +407,7 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer *renderer,
 
   // Static feeling-meter artwork (record67) carries the authored
   // KOTONOHA/SEKAI labels/frame that are not part of MenuBar.PNG.
-  if (visibility.meter) {
+  if (visibility.meter && !topMeterHidden_) {
     const ChipRecord meterFrame = FixedChipRecord(67, variant_);
     if (!RenderClipped(renderer, chip_, meterFrame.source,
                        meterFrame.destination, viewport, error)) {
@@ -517,7 +517,7 @@ bool SchoolDaysMenuBarPresenter::Render(SDL_Renderer *renderer,
       return false;
   } // MenuBar controls, help, and repeat strip are absent in meter-only mode.
 
-  if (!visibility.meter)
+  if (!visibility.meter || topMeterHidden_)
     return true;
 
   const auto plan = SchoolDaysTopMeterRenderPlan::Build(meter_.CurrentVisual(),

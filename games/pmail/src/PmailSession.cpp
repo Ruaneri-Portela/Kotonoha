@@ -26,6 +26,10 @@ PmailSession::PmailSession(
   extrasMenu_ = std::make_unique<PmailExtrasMenu>(engine_, *game_, *assets_);
   extrasViewer_ =
       std::make_unique<PmailExtrasViewer>(engine_, *game_, *assets_);
+  game_->onChoiceSelected = [this](const std::string &selected) {
+    if (components_ && components_->backlog() && !selected.empty())
+      components_->backlog()->addEntry("", selected);
+  };
   loadNameProfile();
   loadExtrasProfile();
   extrasVersion_ = game_->extrasVersion();
@@ -205,6 +209,18 @@ void PmailSession::onEvent(Kotonoha::EventRef event) {
     if (components_ && components_->pauseMenu()->IsOpen()) {
       components_->onEvent(event);
       return;
+    }
+    if (game_->staffRollActive()) {
+      const bool skip =
+          (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+           event.button.button == SDL_BUTTON_LEFT) ||
+          (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+           (event.key.key == SDLK_RETURN || event.key.key == SDLK_KP_ENTER ||
+            event.key.key == SDLK_SPACE || event.key.key == SDLK_ESCAPE));
+      if (skip) {
+        game_->skipStaffRoll();
+        return;
+      }
     }
     if (game_->nativeTimeWaitActive()) {
       // pmail.exe:0x423a00 polls the input ring every iteration and exits the

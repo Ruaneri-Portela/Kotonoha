@@ -191,6 +191,25 @@ bool SchoolDaysReplayModel::SetSelectionFromPointer(int x, int y) {
   return changed;
 }
 
+void SchoolDaysReplayModel::StepSelection(int delta) {
+  if (!open_ || delta == 0)
+    return;
+  if (sceneCheckOpen_) {
+    const int count = sceneCheckChoiceCount_;
+    if (count <= 0)
+      return;
+    int cur = sceneCheckSelection_ < 0 || sceneCheckSelection_ >= count
+                  ? (delta > 0 ? -1 : 0)
+                  : sceneCheckSelection_;
+    sceneCheckSelection_ = (cur + (delta > 0 ? 1 : count - 1)) % count;
+    return;
+  }
+  const int maxCtrl = view_ == View::HScene ? 19 : 33;
+  int cur = selection_ < 0 || selection_ >= maxCtrl ? (delta > 0 ? -1 : 0)
+                                                    : selection_;
+  selection_ = (cur + (delta > 0 ? 1 : maxCtrl - 1)) % maxCtrl;
+}
+
 void SchoolDaysReplayModel::ClearAvailability() {
   hSceneAvailable_.fill(false);
   playDataAvailable_.fill(false);
@@ -272,6 +291,9 @@ bool SchoolDaysReplayModel::Activate(Action *out) {
 
   if (sceneCheckOpen_) {
     const int choice = sceneCheckSelection_;
+    if (choice == sceneCheckChoiceCount_ || choice == 4) {
+      return CancelSceneCheck();
+    }
     if (choice < 0 || choice >= sceneCheckChoiceCount_ ||
         !sceneCheckChoiceAvailable_[static_cast<size_t>(choice)])
       return false;

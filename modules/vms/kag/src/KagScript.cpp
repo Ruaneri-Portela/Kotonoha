@@ -467,8 +467,13 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     return true; // yield for click
   }
   if (name == "r" || name == "position" || name == "current" ||
-      name == "quake" || name == "shake")
-    return false; // KAG layout and style tags
+      name == "quake" || name == "shake" || name == "locksnapshot" ||
+      name == "unlocksnapshot" || name == "history" || name == "dialog" ||
+      name == "stoptrans" || name == "syspage" || name == "systrans" ||
+      name == "rclick" || name == "sysrestore" || name == "msgoff" ||
+      name == "meswinload" || name == "touchmode" || name == "beginskip" ||
+      name == "endskip")
+    return false; // KAG layout, system-menu and KAGEnv state tags
 
   if (name == "cm") {
     SDL_Log("KagScript: tag cm");

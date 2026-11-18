@@ -301,8 +301,74 @@ bool Session::strings(const CommandElement &c) {
   }
   case 10:
   case 11: {
-    if (archive_.Scenario(scene_).encoding() == 0)
-      return false;
+    if (archive_.Scenario(scene_).encoding() == 0) {
+      auto s = str(0);
+      std::string out;
+      out.reserve(s.size() * 2);
+      if (op == 11) {
+        for (std::size_t i = 0; i < s.size(); ++i) {
+          unsigned char c1 = static_cast<unsigned char>(s[i]);
+          if (((c1 >= 0x81 && c1 <= 0x9f) || (c1 >= 0xe0 && c1 <= 0xfc)) &&
+              i + 1 < s.size()) {
+            unsigned char c2 = static_cast<unsigned char>(s[++i]);
+            if (c1 == 0x82 && c2 >= 0x4f && c2 <= 0x58)
+              out += static_cast<char>('0' + (c2 - 0x4f));
+            else if (c1 == 0x82 && c2 >= 0x60 && c2 <= 0x79)
+              out += static_cast<char>('A' + (c2 - 0x60));
+            else if (c1 == 0x82 && c2 >= 0x81 && c2 <= 0x9a)
+              out += static_cast<char>('a' + (c2 - 0x81));
+            else if (c1 == 0x81 && c2 == 0x40)
+              out += ' ';
+            else if (c1 == 0x81 && c2 == 0x49)
+              out += '!';
+            else if (c1 == 0x81 && c2 == 0x7b)
+              out += '+';
+            else if (c1 == 0x81 && c2 == 0x7c)
+              out += '-';
+            else {
+              out += static_cast<char>(c1);
+              out += static_cast<char>(c2);
+            }
+          } else {
+            out += static_cast<char>(c1);
+          }
+        }
+      } else {
+        for (std::size_t i = 0; i < s.size(); ++i) {
+          unsigned char c1 = static_cast<unsigned char>(s[i]);
+          if (((c1 >= 0x81 && c1 <= 0x9f) || (c1 >= 0xe0 && c1 <= 0xfc)) &&
+              i + 1 < s.size()) {
+            out += static_cast<char>(c1);
+            out += s[++i];
+          } else if (c1 >= '0' && c1 <= '9') {
+            out += static_cast<char>(0x82);
+            out += static_cast<char>(0x4f + (c1 - '0'));
+          } else if (c1 >= 'A' && c1 <= 'Z') {
+            out += static_cast<char>(0x82);
+            out += static_cast<char>(0x60 + (c1 - 'A'));
+          } else if (c1 >= 'a' && c1 <= 'z') {
+            out += static_cast<char>(0x82);
+            out += static_cast<char>(0x81 + (c1 - 'a'));
+          } else if (c1 == ' ') {
+            out += static_cast<char>(0x81);
+            out += static_cast<char>(0x40);
+          } else if (c1 == '!') {
+            out += static_cast<char>(0x81);
+            out += static_cast<char>(0x49);
+          } else if (c1 == '+') {
+            out += static_cast<char>(0x81);
+            out += static_cast<char>(0x7b);
+          } else if (c1 == '-') {
+            out += static_cast<char>(0x81);
+            out += static_cast<char>(0x7c);
+          } else {
+            out += static_cast<char>(c1);
+          }
+        }
+      }
+      write(c.overload() ? 1 : 0, out);
+      break;
+    }
     write(c.overload() ? 1 : 0, str(0));
     break;
   }
@@ -581,6 +647,7 @@ int Session::babelGetChar(int output, int xmod) {
       if (end == std::string::npos)
         return result(1);
       auto name = babelBuffer_.substr(babelIndex_, end - babelIndex_);
+      babelSpeaker_ = name;
       if (speaker)
         speaker(name);
       if (babelNameModes_[currentWindow] >= 1)
@@ -592,8 +659,12 @@ int Session::babelGetChar(int output, int xmod) {
         return result(1);
       continue;
     }
-    if (ch == 3)
-      return result(lineBreak ? lineBreak() : 3);
+    if (ch == 3) {
+      int code = lineBreak ? lineBreak() : 3;
+      if (code == 4)
+        dest = babelSpeaker_;
+      return result(code);
+    }
     if (ch == 4)
       return result(5);
     if (ch == 5)
@@ -616,6 +687,32 @@ int Session::babelGetChar(int output, int xmod) {
       dest += babelBuffer_[babelIndex_++];
     if (dest == std::string("\x89\xa0", 2))
       dest = " ";
+    if (dest == " " && babelIndex_ > 1 && pageOverflow) {
+      std::size_t scan = babelIndex_;
+      while (scan < babelBuffer_.size() && babelBuffer_[scan] == ' ')
+        ++scan;
+      std::string nextWord;
+      std::size_t p = scan;
+      while (p < babelBuffer_.size()) {
+        unsigned char b0 = static_cast<unsigned char>(babelBuffer_[p]);
+        if (b0 <= 0x20)
+          break;
+        if (b0 == 0x89 && p + 1 < babelBuffer_.size() &&
+            static_cast<unsigned char>(babelBuffer_[p + 1]) == 0xa0)
+          break;
+        nextWord += static_cast<char>(b0);
+        ++p;
+        if (((b0 >= 0x81 && b0 <= 0x9f) || (b0 >= 0xe0 && b0 <= 0xfc)) &&
+            p < babelBuffer_.size()) {
+          nextWord += babelBuffer_[p++];
+        }
+      }
+      if (!nextWord.empty() && pageOverflow(" " + nextWord)) {
+        babelIndex_ = scan;
+        dest = babelSpeaker_;
+        return result(4);
+      }
+    }
     int position = glyphPosition ? glyphPosition(dest) : 0;
     machine_.SetIntValue(
         libreallive::IntMemRef(
@@ -641,8 +738,11 @@ bool Session::babel(const CommandElement &c) {
   case 10:
     ++babelStarts_;
     babelBuffer_.clear();
+    babelSpeaker_.clear();
     babelIndex_ = 0;
     babelItalic_ = false;
+    if (babelControl)
+      babelControl(10);
     if (a != -1)
       result = babelAppend(a);
     break;
@@ -654,8 +754,11 @@ bool Session::babel(const CommandElement &c) {
     result = babelGetChar(a, b);
     break;
   case 13:
+    if (babelControl)
+      babelControl(13);
     if (!babelString(a).empty()) {
       auto rest = babelBuffer_.substr(babelIndex_);
+      babelSpeaker_ = babelString(a);
       // rlBabel.dll 0x1000c410: StartNewPage always prepends char(1) so the
       // name delimiter is recognised by babelGetChar's ch==1 branch.
       babelBuffer_ = char(1) + babelString(a) + char(2) + '"' + rest;
@@ -712,6 +815,7 @@ bool Session::babel(const CommandElement &c) {
     result = babelNameModes_[a < 0 ? currentWindow : a];
     break;
   case 102:
+    babelSpeaker_ = babelString(a);
     if (speaker)
       speaker(babelString(a));
     break;

@@ -123,6 +123,19 @@ bool PmailTextBox::onEvent(Kotonoha::EventRef event) {
   }
   if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
       event.button.button == SDL_BUTTON_LEFT) {
+    // bot.msk hit-test regions for the two on-screen message-window buttons:
+    // value 253: [753, 548]..[764, 558] (Backlog / Up)
+    // value 254: [753, 565]..[764, 575] (Auto / Menu)
+    if (event.button.x >= 753.0f && event.button.x <= 764.0f &&
+        event.button.y >= 548.0f && event.button.y <= 558.0f) {
+      openBacklog();
+      return true;
+    }
+    if (event.button.x >= 753.0f && event.button.x <= 764.0f &&
+        event.button.y >= 565.0f && event.button.y <= 575.0f) {
+      openMenu();
+      return true;
+    }
     if (!isDialogueComplete())
       completeDialogue();
     else

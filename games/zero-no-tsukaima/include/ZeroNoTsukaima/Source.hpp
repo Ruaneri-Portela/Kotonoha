@@ -19,6 +19,18 @@ class SceneSource {
 public:
   enum class Edition { Nocturne, Concerto, Symphony };
   Edition GameEdition() const { return edition_; }
+  const char *EditionSlug() const {
+    return edition_ == Edition::Concerto   ? "concerto"
+           : edition_ == Edition::Symphony ? "symphony"
+                                           : "nocturne";
+  }
+  const char *EditionTitle() const {
+    return edition_ == Edition::Concerto
+               ? "Zero no Tsukaima: Shouakuma to Shunpuu no Concerto"
+           : edition_ == Edition::Symphony
+               ? "Zero no Tsukaima: Maigo no Period to Ikusen no Symphony"
+               : "Zero no Tsukaima: Muma ga Tsumugu Yokaze no Nocturne";
+  }
   bool Open(const std::string &discPath, std::string *error);
   // The engine disc reader the archives are read through.
   const std::shared_ptr<Kotonoha::DiscImage> &Disc() const { return disc_; }

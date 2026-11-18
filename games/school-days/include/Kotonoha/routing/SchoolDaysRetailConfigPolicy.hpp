@@ -34,6 +34,7 @@ public:
     bool autoDraw = true;
     bool autoMode = false;
     bool superSkip = false;
+    int mouseWheelMode = 0; // _GetMouseWheel@0: 0 = Playback Speed, 1 = Volume
   };
 
   static State Defaults();

@@ -79,6 +79,15 @@ bool SchoolDaysExitViewModel::SetSelectionFromPointer(int x, int y) {
   return true;
 }
 
+void SchoolDaysExitViewModel::StepSelection(int delta) {
+  if (!open_ || delta == 0)
+    return;
+  if (selection_ < 0)
+    selection_ = 0;
+  else
+    selection_ = selection_ == 0 ? 1 : 0;
+}
+
 bool SchoolDaysExitViewModel::Activate(Activation *activation) const {
   if (!open_ || activation == nullptr)
     return false;

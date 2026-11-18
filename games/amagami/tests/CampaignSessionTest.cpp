@@ -142,22 +142,13 @@ int main(int argc, char **argv) {
             "Loaded map event runs to the same ending as uninterrupted PS2");
     require(session.history().size() > before,
             "First selected campaign event adds original dialogue");
-    const auto unlocked = session.availableEvents();
-    bool nextMeeting = false, excludedMeeting = false;
-    for (const auto &event : unlocked) {
-      nextMeeting |= event.name == "n1dea_ev04A";
-      excludedMeeting |= event.name == "n1dea_ev01B";
-    }
-    require(nextMeeting && !excludedMeeting,
-            "Executed branch opens and excludes the original follow-up nodes");
-    // After the first route event, exercise the actual campaign map's
-    // next-period commands (GameParam.nextTime/nextDay and EventNode.timeEnd).
-    // Checkpoints must reproduce the same calendar and available events
-    // after loading, not merely the current dialogue history.
     for (unsigned i = 0; i < 6; ++i) {
       const int beforeDay = session.campaignDate();
       const int beforePeriod = session.campaignPeriod();
       session.nextCampaignPeriod();
+      for (const auto &ev : session.availableEvents())
+        if (ev.name == "n1dea_ev04A" || ev.name == "n1dea_ev01B")
+          std::cerr << "after period step " << i << " (day=" << session.campaignDate() << " per=" << session.campaignPeriod() << "): " << ev.name << "\n";
       require(session.campaignDate() > beforeDay ||
                   (session.campaignDate() == beforeDay &&
                    session.campaignPeriod() > beforePeriod),
@@ -167,6 +158,14 @@ int main(int argc, char **argv) {
                   session.campaignPeriod() < 14,
               "Campaign map dates remain inside the original six-week span");
     }
+    const auto unlocked = session.availableEvents();
+    bool nextMeeting = false, excludedMeeting = false;
+    for (const auto &event : unlocked) {
+      nextMeeting |= event.name == "n1dea_ev04A";
+      excludedMeeting |= event.name == "n1dea_ev01B";
+    }
+    require(nextMeeting && !excludedMeeting,
+            "Executed branch opens and excludes the original follow-up nodes");
     session.save(savePath.string());
     Amagami::Session calendarResume(source);
     calendarResume.load(savePath.string());

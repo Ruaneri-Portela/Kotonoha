@@ -50,6 +50,7 @@ public:
 
   int HitChoice(int x, int y) const;
   bool SetSelectionFromPointer(int x, int y);
+  void StepSelection(int delta);
   bool Activate(Activation *activation) const;
 
   bool IsOpen() const { return open_; }

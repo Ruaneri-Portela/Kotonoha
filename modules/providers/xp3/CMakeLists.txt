@@ -7,6 +7,7 @@ find_package(ZLIB REQUIRED)
 add_library(kotonoha_provider_xp3 STATIC
     src/Xp3Archive.cpp
     src/KirikiriAssets.cpp
+    src/PsbFile.cpp
     src/TlgImage.cpp
     src/Tlg6Image.cpp
     src/TjsBootstrap.cpp

@@ -181,7 +181,8 @@ struct TextStyle {
 };
 
 struct TextSpan {
-  std::string text; // UTF-8 text run (or "\n" for explicit line break)
+  std::string text;      // UTF-8 text run (or "\n" for explicit line break)
+  std::string lineKey;   // Original line key for Kotonoha live translation
   TextStyle style;
   bool isLineBreak = false;
 };
