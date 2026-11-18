@@ -1,14 +1,23 @@
-# vcpkg CI / CI com vcpkg
+# GitHub Actions and vcpkg CI / GitHub Actions e CI com vcpkg
 
 ## EN-US
 
-Three GitHub Actions workflows produce artifacts:
+The build workflows in `.github/workflows/` are manually triggered using **Actions → Run workflow** on the `dev` branch. They publish compiled outputs without bundling commercial game data.
 
-- **WASM:** `wasm32-emscripten`; all browser game ports, browser smoke tests, uploaded output directory.
-- **Linux:** `x64-linux-dynamic`; all enabled game ports, native tests, CPack ZIP packages and output artifacts.
-- **Windows:** `x64-windows`; all enabled game ports, native tests, CPack ZIP packages and output artifacts.
+| Workflow | Runner and targets | Outputs and checks |
+| --- | --- | --- |
+| [`linux.yml`](../.github/workflows/linux.yml) | **One** `ubuntu-24.04` job; Linux `x64-linux-dynamic` **then** WASM `wasm32-emscripten` (Emscripten 3.1.73) | Separate Linux/WASM ZIPs and outputs; native synthetic tests, WebAssembly export checks, browser and HTTP smoke tests |
+| [`windows.yml`](../.github/workflows/windows.yml) | Windows x64, `x64-windows` | Native game ZIPs, outputs, synthetic tests |
+| [`macos.yml`](../.github/workflows/macos.yml) | macOS native architecture matrix, dynamic vcpkg triplets | App/ZIP artifacts and synthetic tests |
+| [`android.yml`](../.github/workflows/android.yml) | Android ARM64, NDK and Gradle | Debug APK variants and ZIP, APK structure checks |
 
-Enable the vcpkg features **sdl-vcpkg** and **imgui-vcpkg**, together with the CMake options **KOTONOHA_SDL_FROM_VCPKG=ON** and **KOTONOHA_IMGUI_FROM_VCPKG=ON**, to import SDL3, SDL3_ttf and ImGui (SDL3/SDL3 Renderer backends) from vcpkg. The three CI workflows do not initialize any Git submodule. By default, local builds still use the SDL submodules.
+The previous standalone `wasm.yml` was retired. Linux and WASM compile sequentially on a **single GitHub-hosted runner** rather than launching separate build VMs. Each target keeps its own CMake build directory and artifacts.
+
+**Cache policy:** build-tree/incremental compilation caches are **not restored or saved** in any platform workflow. Binary archives of **vcpkg dependencies** remain cached by target triplet so unchanged third-party packages need not be rebuilt. This is *not* a cache of compiled Kotonoha game/engine objects. The Emscripten setup may cache its SDK installation; the Android Gradle setup disables its build cache. Published GitHub Actions artifacts are retained separately from caches.
+
+In Linux, Windows, macOS and WASM, select the vcpkg features `sdl-vcpkg` and `imgui-vcpkg` together with `KOTONOHA_SDL_FROM_VCPKG=ON` and `KOTONOHA_IMGUI_FROM_VCPKG=ON`. Android uses checked-in SDL/ImGui submodules for native integration and vcpkg for other dependencies, including the `android-python` feature. The non-Android binary workflows do not initialize game submodules; local builds can still use the source submodules.
+
+Example Linux configure:
 
 ```sh
 cmake -S . -B build -G Ninja \
@@ -21,12 +30,27 @@ cmake -S . -B build -G Ninja \
 cmake --build build
 ```
 
-Use `x64-windows` for Windows. For WebAssembly use `wasm32-emscripten` and Emscripten's CMake chainload toolchain. Selecting the CMake option without the vcpkg toolchain is a configuration error; there is no silent fallback.
+For WASM, use `wasm32-emscripten` and the Emscripten CMake chainload toolchain. Choosing vcpkg-only SDL/ImGui without the vcpkg toolchain is an error, not an automatic fallback.
 
-Commercial game files are excluded from CI artifacts.
+Source/contract workflows (such as `port-contracts.yml` and `reallive-render-regressions.yml`) may run on pushes and pull requests. A successful source/synthetic check does **not** imply full-platform compilation or retail gameplay parity. The `xcode.yml` workflow checks Xcode project configuration; it does not build or sign every Apple target.
 
 ## PT-BR
 
-Os três workflows geram artefatos para WASM (`wasm32-emscripten`), Linux x64 com bibliotecas dinâmicas (`x64-linux-dynamic`) e Windows x64 (`x64-windows`). Linux e Windows executam testes nativos e geram ZIPs pelo CPack; o WASM executa testes de integração no navegador.
+As workflows de compilação em `.github/workflows/` são disparadas manualmente por **Actions → Run workflow** na branch `dev`. Elas publicam binários e pacotes sem incluir arquivos comerciais dos jogos.
 
-Para utilizar SDL3/SDL3_ttf e ImGui do vcpkg, habilite as features `sdl-vcpkg;imgui-vcpkg` e as opções `KOTONOHA_SDL_FROM_VCPKG=ON` e `KOTONOHA_IMGUI_FROM_VCPKG=ON`. Os workflows não baixam nenhum submódulo. O padrão dos builds locais permanece com submódulos. Os dados comerciais dos jogos não são distribuídos nos artefatos.
+| Workflow | Runner e plataformas | Artefatos e verificações |
+| --- | --- | --- |
+| [`linux.yml`](../.github/workflows/linux.yml) | **Um** job `ubuntu-24.04`; Linux `x64-linux-dynamic` **e depois** WASM `wasm32-emscripten` (Emscripten 3.1.73) | ZIPs e saídas separados por plataforma; testes nativos sintéticos, exports WASM, testes de navegador e HTTP |
+| [`windows.yml`](../.github/workflows/windows.yml) | Windows x64, `x64-windows` | ZIPs, binários e testes sintéticos |
+| [`macos.yml`](../.github/workflows/macos.yml) | Matriz de arquiteturas nativas macOS e triplets dinâmicos | Bundles/ZIPs e testes sintéticos |
+| [`android.yml`](../.github/workflows/android.yml) | Android ARM64, NDK e Gradle | APKs Debug e ZIP, conferência das bibliotecas empacotadas |
+
+O antigo `wasm.yml` foi removido. Linux e WASM são compilados em sequência no **mesmo runner**, evitando duas máquinas virtuais de compilação, com diretórios CMake e artefatos separados.
+
+**Política de cache:** nenhuma workflow restaura ou grava os diretórios de **compilação incremental** dos jogos e do motor. Mantemos apenas os arquivos binários de **dependências do vcpkg**, separados por triplet, para não recompilar bibliotecas externas desnecessariamente. O SDK do Emscripten pode usar cache de instalação, e o cache de build do Gradle foi desativado. Artefatos publicados pelo GitHub Actions são independentes desses caches.
+
+Em Linux, Windows, macOS e WASM, habilite as features `sdl-vcpkg;imgui-vcpkg` e as opções `KOTONOHA_SDL_FROM_VCPKG=ON` e `KOTONOHA_IMGUI_FROM_VCPKG=ON`. Android usa os submódulos SDL/ImGui para integração nativa e vcpkg para outras dependências, incluindo `android-python`. Builds locais ainda podem utilizar submódulos. Para um exemplo de configuração Linux, consulte o comando na seção EN-US acima.
+
+Para WASM, utilize `wasm32-emscripten` e a ferramenta de chainload CMake do Emscripten. Selecionar SDL/ImGui via vcpkg sem configurar a toolchain é erro de configuração.
+
+As workflows de contratos/código podem rodar em pushes e PRs. **Passar nos testes sintéticos não equivale a validar todas as plataformas ou os jogos comerciais.** A workflow `xcode.yml` valida a configuração do projeto Xcode, sem compilar nem assinar todos os alvos Apple.
