@@ -9,6 +9,7 @@ on:
       - "tools/check_sdl_cpack.py"
       - "tools/check_web_shell.js"
       - "tools/generate_pwa_icons.py"
+      - "tools/test_pwa_worker.js"
       - "tools/serve_web.py"
       - "lib/web/**"
       - "buildsystems/cmake/pwa.webmanifest.in"
@@ -52,6 +53,7 @@ on:
       - "tools/check_sdl_cpack.py"
       - "tools/check_web_shell.js"
       - "tools/generate_pwa_icons.py"
+      - "tools/test_pwa_worker.js"
       - "tools/serve_web.py"
       - "lib/web/**"
       - "buildsystems/cmake/pwa.webmanifest.in"
@@ -111,6 +113,7 @@ jobs:
       - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
         run: |
           node tools/check_web_shell.js
+          node tools/test_pwa_worker.js
           node --check tools/web_selftest.js
       - name: Test nested Python.framework cleanup without macOS SDK
         run: cmake -P tools/test_nested_python_bundle.cmake
