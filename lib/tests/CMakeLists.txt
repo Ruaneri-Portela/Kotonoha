@@ -29,6 +29,12 @@ target_link_libraries(KotonohaGameSourceProbeTests PRIVATE KotonohaEngine)
 target_compile_features(KotonohaGameSourceProbeTests PRIVATE cxx_std_17)
 add_test(NAME Kotonoha.GameSourceProbe COMMAND KotonohaGameSourceProbeTests)
 
+# Shared SDL-backed atomic persistence, including Unicode filenames and
+# interruption/replacement isolation. Synthetic fixtures only.
+add_executable(KotonohaAtomicFileTests AtomicFileTests.cpp)
+target_link_libraries(KotonohaAtomicFileTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.AtomicFile COMMAND KotonohaAtomicFileTests)
+
 add_executable(KotonohaFilesystemV2Tests FilesystemV2Tests.cpp)
 target_link_libraries(KotonohaFilesystemV2Tests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.FilesystemV2 COMMAND KotonohaFilesystemV2Tests)

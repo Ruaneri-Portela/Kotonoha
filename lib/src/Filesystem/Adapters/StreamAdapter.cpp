@@ -126,7 +126,7 @@ void InputFile::close() {
 bool OutputFile::Buffer::open(const std::filesystem::path &path,
                               std::ios_base::openmode mode) {
   close();
-  const auto name = path.string();
+  const auto name = path.u8string();
   stream_ = SDL_IOFromFile(name.c_str(), (mode & std::ios::app) ? "ab" : "wb");
   failure_ = !stream_;
   return !failure_;

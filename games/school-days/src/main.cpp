@@ -76,9 +76,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     auto app = std::make_unique<App>();
     std::string directory;
     app->options.persistSettings = true;
-    // The retail profile starts the game directly. CommandLine already owns
-    // --launcher/--no-launcher and writes this EngineOptions field.
-    app->options.launcher = false;
+    // Use EngineOptions' shared default: launchers are enabled on startup.
+    // Explicit --no-launcher or bounded automation can opt out below.
 #if defined(_WIN32) && !defined(__ANDROID__)
     // The School Days commercial-test profile exposed Anime4K/ArtCNN to the
     // player.  In v3 the MPV-compatible upscaler is hosted by SDL's OpenGL
@@ -126,7 +125,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     // Bounded headless QA must reach the game loop rather than the launcher.
     // DIST does not expose route-jump or KTRF export developer commands.
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
-    if (!app->dump.empty() || !app->startNode.empty() || arguments.frames > 0)
+    if (!app->dump.empty() || !app->startNode.empty() ||
+        arguments.frames > 0 || app->options.enableMCP)
       app->options.launcher = false;
 #else
     if (arguments.frames > 0)
