@@ -23,86 +23,191 @@ const idbRange = {
 };
 const tables = new Map();
 const indexes = new Map();
-const storeNames = {
-    contains(name) {return tables.has(name);}
-};
+// Minimal asynchronous IndexedDB transaction model: upgrade migrations,
+// cursor iteration, atomic delete/put, and completion ordering are exercised.
+let installedVersion = 0;
+let quotaCap = Infinity;
+function copyTables() {
+    return new Map([...tables].map(([name, rows]) =>
+        [name, new Map(rows)]));
+}
+function copyIndexes() {
+    return new Map([...indexes].map(([name, rows]) =>
+        [name, new Map(rows)]));
+}
+const storeNames = {contains(name) {return tables.has(name);}};
 function keysForIndex(name, indexName) {
-    const items = [...tables.get(name).values()];
     const fields = indexes.get(name).get(indexName);
-    return items.map(value => ({
+    return [...tables.get(name).values()].map(value => ({
         value,
         indexed: Array.isArray(fields) ? fields.map(f => value[f]) : value[fields]
-    })).sort((a, b) => compare(a.indexed, b.indexed));
+    })).filter(x => x.indexed !== undefined &&
+        (!Array.isArray(x.indexed) || x.indexed.every(v => v !== undefined)))
+      .sort((a, b) => compare(a.indexed, b.indexed));
 }
-function readCursor(rows, range, direction) {
-    let items = rows.filter(row => {
-        if (range.only !== undefined)
-            return compare(row.indexed, range.only) === 0;
-        return compare(row.indexed, range.low) >= 0 &&
-            compare(row.indexed, range.high) <= 0;
-    });
-    if (direction === "prev") items = items.reverse();
-    let index = 0;
-    const req = {};
-    const fire = () => queueMicrotask(() => {
-        const current = items[index];
-        req.result = current ? {
-            value: current.value,
-            continue() {index++; fire();}
-        } : null;
-        req.onsuccess?.();
-    });
-    fire();
-    return req;
+function createTransaction(names, mode = "readonly") {
+    const snapshot = mode === "readonly" ? null : copyTables();
+    let pending = 0, completed = false, aborted = false;
+    const tx = {
+        error: null,
+        abort() {
+            if (completed || aborted) return;
+            aborted = true;
+            if (snapshot) {
+                tables.clear();
+                for (const [name, rows] of snapshot) tables.set(name, rows);
+            }
+            queueMicrotask(() => tx.onabort?.());
+        },
+        maybeFinish() {
+            if (pending || completed || aborted) return;
+            queueMicrotask(() => {
+                if (!pending && !completed && !aborted) {
+                    completed = true;
+                    tx.oncomplete?.();
+                }
+            });
+        },
+        enqueue(fn) {
+            pending++;
+            const req = {result: null, error: null};
+            queueMicrotask(() => {
+                if (aborted) return;
+                try {
+                    fn(req);
+                    req.onsuccess?.({target: req});
+                } catch (error) {
+                    req.error = error;
+                    tx.error = error;
+                    tx.abort();
+                } finally {
+                    pending--;
+                    tx.maybeFinish();
+                }
+            });
+            return req;
+        },
+        objectStore(name) {
+            if (!tables.has(name))
+                throw new Error("Missing IndexedDB object store: " + name);
+            const store = {
+                indexNames: {
+                    contains(indexName) {
+                        return indexes.get(name).has(indexName);
+                    }
+                },
+                createIndex(indexName, fields) {
+                    indexes.get(name).set(indexName, fields);
+                },
+                put(value) {
+                    return tx.enqueue(() => {
+                        if (name === "chunks") {
+                            const rows = tables.get(name);
+                            const existing = rows.get(value.key);
+                            const total = [...rows.values()].reduce(
+                                (sum, row) => sum + row.length, 0);
+                            if (total - (existing?.length || 0) +
+                                value.length > quotaCap)
+                                throw Object.assign(new Error("Quota exceeded"),
+                                    {name: "QuotaExceededError"});
+                        }
+                        tables.get(name).set(value.key, value);
+                    });
+                },
+                delete(key) {
+                    return tx.enqueue(() => tables.get(name).delete(key));
+                },
+                get(key) {
+                    return tx.enqueue(req => {
+                        req.result = tables.get(name).get(key);
+                    });
+                },
+                openCursor(range, direction) {
+                    return cursorRequest([...tables.get(name).values()]
+                        .map(value => ({value, indexed: value.key}))
+                        .sort((a, b) => compare(a.indexed, b.indexed)),
+                        range, direction, name);
+                },
+                index(indexName) {
+                    return {
+                        openCursor(range, direction) {
+                            return cursorRequest(
+                                keysForIndex(name, indexName),
+                                range, direction, name);
+                        }
+                    };
+                }
+            };
+            return store;
+        }
+    };
+    function cursorRequest(rows, range, direction, name) {
+        const filtered = range ? rows.filter(row => {
+            if (range.only !== undefined)
+                return compare(row.indexed, range.only) === 0;
+            return compare(row.indexed, range.low) >= 0 &&
+                compare(row.indexed, range.high) <= 0;
+        }) : rows;
+        if (direction === "prev") filtered.reverse();
+        const req = {};
+        let position = 0;
+        pending++;
+        function fire() {
+            queueMicrotask(() => {
+                if (aborted) return;
+                const row = filtered[position];
+                if (row) {
+                    req.result = {
+                        value: row.value,
+                        key: row.value.key,
+                        update(value) {
+                            return tx.enqueue(() =>
+                                tables.get(name).set(value.key, value));
+                        },
+                        continue() {position++; fire();}
+                    };
+                    req.onsuccess?.({target: req});
+                } else {
+                    req.result = null;
+                    req.onsuccess?.({target: req});
+                    pending--;
+                    tx.maybeFinish();
+                }
+            });
+        }
+        fire();
+        return req;
+    }
+    tx.maybeFinish();
+    return tx;
 }
 const database = {
     objectStoreNames: storeNames,
     createObjectStore(name) {
         tables.set(name, new Map());
         indexes.set(name, new Map());
-        return {
-            createIndex(indexName, fields) {
-                indexes.get(name).set(indexName, fields);
-            }
-        };
+        return createTransaction([name], "versionchange").objectStore(name);
     },
-    transaction(names) {
-        const tx = {
-            objectStore(name) {
-                assert(tables.has(name));
-                return {
-                    put(value) {
-                        tables.get(name).set(value.key, value);
-                        queueMicrotask(() => tx.oncomplete?.());
-                    },
-                    get(key) {
-                        const req = {};
-                        queueMicrotask(() => {
-                            req.result = tables.get(name).get(key);
-                            req.onsuccess?.();
-                        });
-                        return req;
-                    },
-                    index(indexName) {
-                        return {
-                            openCursor(range, direction) {
-                                return readCursor(keysForIndex(name, indexName),
-                                    range, direction);
-                            }
-                        };
-                    }
-                };
-            }
-        };
-        return tx;
+    transaction(names, mode) {
+        return createTransaction(names, mode);
     }
 };
 const indexedDB = {
-    open() {
-        const req = {result: database};
+    open(name, version = 1) {
+        const req = {result: database, transaction: null};
         queueMicrotask(() => {
-            req.onupgradeneeded?.();
-            req.onsuccess?.();
+            if (installedVersion < version) {
+                const tx = createTransaction([], "versionchange");
+                req.transaction = tx;
+                req.onupgradeneeded?.();
+                tx.oncomplete = () => {
+                    installedVersion = version;
+                    req.onsuccess?.();
+                };
+                tx.maybeFinish();
+            } else {
+                req.onsuccess?.();
+            }
         });
         return req;
     }
