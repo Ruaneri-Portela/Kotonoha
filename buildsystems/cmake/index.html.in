@@ -4,6 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>@APP_TITLE@ - Kotonoha Engine</title>
+    <!-- Each WASM game is installable as its own scoped PWA. -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <meta name="theme-color" content="#101623">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="@APP_TITLE@">
+    <link rel="apple-touch-icon" href="./pwa-icon-180.png">
 
     <style>
         html, body {
@@ -1015,6 +1022,17 @@
 
             onRuntimeInitialized: function() {
                 window.KotonohaRuntimeStarted = true;
+                // This does not cache game-assets. The PWA worker stores only
+                // static runtime files, while IndexedDB owns asset chunks.
+                if ("serviceWorker" in navigator && window.isSecureContext) {
+                    navigator.serviceWorker.ready.then(registration => {
+                        if (registration.active)
+                            registration.active.postMessage({
+                                type: "KOTONOHA_CACHE_RUNTIME"
+                            });
+                    }).catch(error => console.warn(
+                        "[Kotonoha PWA] Offline runtime cache unavailable:", error));
+                }
                 if (window.KotonohaCloseStartupFolderTools)
                     window.KotonohaCloseStartupFolderTools();
                 // Keep keyboard input on the game surface, not a vanished
@@ -1177,6 +1195,21 @@
                 }
             });
         })();
+    </script>
+    <script>
+        // Registration is local to the game output directory. Installing
+        // RealLive and Kirikiri at /RealLive/ and /Kirikiri/ yields two PWAs.
+        // Service Workers require HTTPS or localhost; ordinary HTTP play
+        // continues without installability.
+        if ("serviceWorker" in navigator && window.isSecureContext) {
+            window.addEventListener("load", function() {
+                navigator.serviceWorker.register("./service-worker.js", {
+                    scope: "./",
+                    updateViaCache: "none"
+                }).catch(error => console.warn(
+                    "[Kotonoha PWA] Service Worker registration failed:", error));
+            });
+        }
     </script>
     <script src="KotonohaPreloadCache.js"></script>
     <script src="@TARGET_NAME@.js"></script>
