@@ -183,6 +183,16 @@ add_executable(KotonohaInputActionsTests InputActionsTests.cpp)
 target_link_libraries(KotonohaInputActionsTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.InputActions COMMAND KotonohaInputActionsTests)
 
+# A widget throwing or a minimized window must not leave ImGui's frame
+# open for the next loop, which otherwise triggers an internal assertion.
+add_executable(KotonohaImGuiFrameScopeTests ImGuiFrameScopeTests.cpp)
+target_include_directories(KotonohaImGuiFrameScopeTests PRIVATE
+    "${KOTONOHA_PROJECT_ROOT}/lib/include")
+target_compile_features(KotonohaImGuiFrameScopeTests PRIVATE cxx_std_17)
+target_link_libraries(KotonohaImGuiFrameScopeTests PRIVATE
+    ${KOTONOHA_IMGUI_TARGET})
+add_test(NAME Kotonoha.ImGuiFrameScope COMMAND KotonohaImGuiFrameScopeTests)
+
 add_executable(KotonohaDebugTranslationTests DebugTranslationTests.cpp)
 target_link_libraries(KotonohaDebugTranslationTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.DebugTranslation COMMAND KotonohaDebugTranslationTests)
