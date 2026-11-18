@@ -4,14 +4,15 @@
 
 The modules in this directory execute scripts independently of game presentation and archive decoding.
 
-| Directory | Runtime | CMake alias |
+| Directory | Runtime | CMake target |
 | --- | --- | --- |
-| `amagami` | `Amagami::Vm` (SCF) | `Kotonoha::Vmamagami` |
-| `snow-radish` | `SnowRadish::Vm` (ADV3) | `Kotonoha::Vmsnow-radish` |
-| `summer-radish` | `SummerRadish::Machine` | `Kotonoha::Vmsummer-radish` |
-| `renpy` | `Ddlc::Vm` | `Kotonoha::Vmrenpy` |
-| `reallive` | `RealLive::Session` | `Kotonoha::Vmreallive` |
-| `pmail` | `Pmail::Vm` | `Kotonoha::Vmpmail` |
+| `amagami` | `Amagami::Vm` (SCF) | `kotonoha_vm_amagami` |
+| `snow-radish` | `SnowRadish::Vm` (ADV3) | `kotonoha_vm_snow-radish` |
+| `summer-radish` | `SummerRadish::Machine` | `kotonoha_vm_summer-radish` |
+| `renpy` | `Ddlc::Vm` | `kotonoha_vm_renpy` |
+| `reallive` | `RealLive::Session` | `kotonoha_vm_reallive` |
+| `pmail` | `Pmail::Vm` | `kotonoha_vm_pmail` |
+| `n2system` | `N2System::ScriptVm` | `kotonoha_vm_n2system` |
 
 Each VM is a static CMake library linked by its game target. The common base is `Kotonoha::Vm` (`lib/include/Kotonoha/core/Vm.hpp`); `execute(budget)` delegates to `dispatch(budget)`. Execution budgets are advisory for runtimes that yield at interaction boundaries.
 
