@@ -242,6 +242,11 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                  "Launcher initialization failed: %s", error.what());
+    // A double-clicked macOS .app or Windows executable may have no visible
+    // terminal; show the actual SDL/configuration error instead of just exiting.
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+                             "KotonohaLauncher - initialization failed",
+                             error.what(), nullptr);
     return SDL_APP_FAILURE;
   }
 }
