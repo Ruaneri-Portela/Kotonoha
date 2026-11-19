@@ -129,6 +129,9 @@ constexpr int kMaxRasterLineHeight = kTextLineStep - 1;
 constexpr int kTextRightEdge = 1180;
 constexpr int kTextTopEdge = 80;
 constexpr int kTextBottomEdge = 640;
+// Nine 57px FONTDATA rows fit between the authored 80..640 clip edges.
+// Additional translated rows are scrollable within their own entry.
+constexpr int kVisibleTextRows = 9;
 
 bool IsUnsupportedRetailMarkup(uint16_t codepoint) {
   // 0x10002A90 routes these two codepoints into auxiliary native objects
@@ -158,12 +161,11 @@ std::vector<std::u16string> WrapFittedBackLog(const std::u16string &text,
       i += 2u;
       continue;
     }
-    if (IsUnsupportedRetailMarkup(codepoint)) {
-      if (unsupportedMarkup != nullptr)
-        *unsupportedMarkup = true;
-      ++i;
-      continue;
-    }
+    // The English retail FONTDATA path treats U+300A/U+FF5C as auxiliary
+    // markup; the original English scripts contain neither. Translations may
+    // legitimately contain 《 and ｜ (e.g. Chinese mail headings). They are
+    // actual text in the localized BackLog and must be rendered by SDL_ttf,
+    // never reject the whole player-facing panel in a DIST build.
     if (i > 0u && text[i - 1u] == u' ') {
       size_t wordLength = 0u;
       for (size_t j = i; j < text.size() && text[j] != u' '; ++j)
@@ -314,6 +316,7 @@ bool SchoolDaysBackLogModel::Open(const std::string &assetsRoot,
   rawCountSnapshot_ = store.Size();
   currentRawIndex_ =
       rawCountSnapshot_ == 0u ? -1 : static_cast<int>(rawCountSnapshot_ - 1u);
+  ResetCurrentLineOffset(true);
   selection_ = -1;
   open_ = true;
   return true;
@@ -324,6 +327,8 @@ void SchoolDaysBackLogModel::Close() {
   store_ = nullptr;
   rawCountSnapshot_ = 0;
   currentRawIndex_ = -1;
+  currentLineOffset_ = 0;
+  maxCurrentLineOffset_ = 0;
   selection_ = -1;
   open_ = false;
 }
@@ -349,14 +354,43 @@ int SchoolDaysBackLogModel::DeltaForSelection(int selection) {
   return selection >= 0 && selection < 4 ? kDelta[selection] : 0;
 }
 
+void SchoolDaysBackLogModel::ResetCurrentLineOffset(bool showLastLines) {
+  maxCurrentLineOffset_ = 0;
+  currentLineOffset_ = 0;
+  if (store_ == nullptr || currentRawIndex_ < 0)
+    return;
+  const auto *entry = store_->At(static_cast<size_t>(currentRawIndex_));
+  if (entry == nullptr || !entry->IsLogMessage())
+    return;
+  const auto rows = WrapFittedBackLog(entry->text, nullptr).size() +
+                    (entry->character.empty() ? 0u : 1u);
+  maxCurrentLineOffset_ =
+      std::max(0, static_cast<int>(rows) - kVisibleTextRows);
+  if (showLastLines)
+    currentLineOffset_ = maxCurrentLineOffset_;
+}
+
 bool SchoolDaysBackLogModel::StepCursor(int delta) {
   if (!open_ || rawCountSnapshot_ == 0u || delta == 0)
     return false;
+  // The original controls move between entries. They still do so for all
+  // ordinary messages; only an exceptionally tall translated message first
+  // scrolls its hidden lines so its beginning/end never becomes unreachable.
+  if (delta < 0 && currentLineOffset_ > 0) {
+    currentLineOffset_ = std::max(0, currentLineOffset_ + delta);
+    return true;
+  }
+  if (delta > 0 && currentLineOffset_ < maxCurrentLineOffset_) {
+    currentLineOffset_ =
+        std::min(maxCurrentLineOffset_, currentLineOffset_ + delta);
+    return true;
+  }
   const int last = static_cast<int>(rawCountSnapshot_ - 1u);
   const int next = std::clamp(currentRawIndex_ + delta, 0, last);
   if (next == currentRawIndex_)
     return false;
   currentRawIndex_ = next;
+  ResetCurrentLineOffset(delta < 0);
   return true;
 }
 
@@ -376,20 +410,14 @@ bool SchoolDaysBackLogModel::ActivatePointer(int x, int y, Action *out) {
 
   if (rawCountSnapshot_ == 0u)
     return false;
-  const int last = static_cast<int>(rawCountSnapshot_ - 1u);
-  currentRawIndex_ =
-      std::clamp(currentRawIndex_ + DeltaForSelection(hit), 0, last);
+  (void)StepCursor(DeltaForSelection(hit));
   out->kind = ActionKind::CursorChanged;
   out->rawIndex = currentRawIndex_;
   return true;
 }
 #if defined(__ANDROID__) || defined(ANDROID)
 bool SchoolDaysBackLogModel::MobileScroll(int delta) {
-  if (!open_ || rawCountSnapshot_ == 0 || delta == 0) return false;
-  const int last = static_cast<int>(rawCountSnapshot_ - 1u);
-  const int next = std::clamp(currentRawIndex_ + delta, 0, last);
-  if (next == currentRawIndex_) return false;
-  currentRawIndex_ = next;
+  if (!StepCursor(delta)) return false;
   selection_ = -1;
   return true;
 }
@@ -635,6 +663,9 @@ SchoolDaysBackLogRenderPlan::BuildRetailHorizonEnglish(
   const int currentExtent = MeasureRetailEnglish(*currentEntry, &unsupported);
   plan.unsupportedMarkup = unsupported;
   int top = kRetailCenter - currentExtent / 2;
+  if (model.MaxCurrentLineOffset() > 0)
+    top = kTextTopEdge + 8 -
+          model.CurrentLineOffset() * kTextLineStep;
   int bottom = top + currentExtent;
   plan.blocks.push_back(buildBlock(current, Phase::Current, top));
 
