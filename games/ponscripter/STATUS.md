@@ -10,3 +10,10 @@
 - **Sprite Tag & Compositor Semantics**: Supports `:a` (native PNG alpha or right-half mask for non-alpha BMPs like `system\uoncur.bmp`), `:c`, `:l`, `:r`, `:m`, and `:s[;][#RRGGBB]^text` string sprites, multi-cell animation modes `0` (loop), `1` (once), `2` (ping-pong), and `3` (manual button hover cells), and PONscripter `999 -> 0` sprite Z-order.
 - **Proportional Text & Inline Tags (`TextFormatter`)**: Handles `^` proportional text, `@` inline click-wait, `\` page-end click-wait + backlog push, `~i~`/`~b~`/`~c~`/`~s~` inline tags, `~~` literal tilde escape, `#RRGGBB` inline colors, and smart ligatures (`...` -> `…`, `--` -> `–`, `---` -> `—`).
 - **Save State & Extras (`SaveSerializer`)**: Persists global variables (`gloval.sav`: `%lic_accepted`, `%end1_clear..%end3_clear`, `%cgset_0..4`, `%gro`, `%vol*`, `%textspeed`, `%autospeed`, `%movplay`) and 20 save slots (`save1.dat`..`save20.dat`), unlocking the CG Gallery (`97` CGs), Music Box (`15` tracks), and Staff Notes across all 3 endings.
+
+## Kotonoha UI Integration
+
+- Native `rmenu` (`Salvar`, `Carregar`, `Histórico`, `Tela inicial`) opens a `PonscripterMenu` subclass of `Kotonoha::InGameMenu`. Each entry maps to the native system call (`save`, `load`, `lookback`, `reset`), preserving the original `rmenu` script semantics.
+- Native `lookback` opens the shared `Kotonoha::VNBacklog`; `systemcall save` and `systemcall load` open `Kotonoha::VNSaveMenu`. The VM remains in `WaitSystemCall` until the corresponding engine modal closes, and the close callback restores the previous wait state through `finishSystemCall()`.
+- The legacy custom rmenu/save/load/lookback overlay is retained only as a fallback and is suppressed while a Kotonoha modal is active.
+- `PonscripterRuntimeTests` covers both a synthetic script and the retail Saya no Uta data: right-click `rmenu`, Save/Load, History, direct `lookback`/`save`, and VM resumption after each modal closes.

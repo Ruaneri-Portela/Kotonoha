@@ -18,6 +18,7 @@ class VNSaveMenu final : public Scene {
   Confirmation confirmation = Confirmation::None;
   std::unique_ptr<TextInputDialog> renameDialog;
   std::string directory, error, suggestedName;
+  std::function<void()> onCloseCb;
   void beginCreate();
   std::vector<VNSaveSlot> slots;
   std::size_t selected = 0, first = 0;
@@ -41,6 +42,7 @@ public:
             const std::string &suggestedName = {});
   void close();
   bool isOpen() const { return opened; }
+  void SetOnClose(std::function<void()> cb) { onCloseCb = std::move(cb); }
   bool capturesInput() const override { return opened; }
   bool pausesStory() const override { return opened; }
   bool onEvent(EventRef event) override;

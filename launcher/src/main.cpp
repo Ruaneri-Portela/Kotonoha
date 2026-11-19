@@ -2,10 +2,10 @@
 #include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 
-#include <KotonohaLauncher/UnifiedLauncher.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <KotonohaLauncher/UnifiedLauncher.hpp>
 
 #include <cstdio>
 #include <cstdlib>
@@ -99,9 +99,10 @@ struct Application {
 #if defined(_WIN32)
     // The CRT and SDL have separate environment storage on Windows.
     // Preserve Unicode profile paths for runtimes using std::filesystem.
-    const std::wstring nativeRoot = std::filesystem::u8path(
-        KotonohaLauncher::resolveIsolatedUserDataRoot(
-            entry, splitSavesByGame, customSaveRoot)).wstring();
+    const std::wstring nativeRoot =
+        std::filesystem::u8path(KotonohaLauncher::resolveIsolatedUserDataRoot(
+                                    entry, splitSavesByGame, customSaveRoot))
+            .wstring();
     if (_wputenv_s(L"KOTONOHA_USER_DATA_DIR", nativeRoot.c_str()) != 0)
       throw std::runtime_error("Unable to set the game save environment");
 #endif
@@ -207,13 +208,17 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
       const auto entry =
           KotonohaLauncher::buildDiscoveredGameEntry(detectPath, detected);
       std::fputs(KotonohaLauncher::formatDiscoveredGamesReport(
-                     {entry}, app->splitSavesByGame).c_str(), stdout);
+                     {entry}, app->splitSavesByGame)
+                     .c_str(),
+                 stdout);
       return SDL_APP_SUCCESS;
     }
     if (!scanLibraryDir.empty()) {
       std::fputs(KotonohaLauncher::formatDiscoveredGamesReport(
                      KotonohaLauncher::scanGameLibrary(scanLibraryDir),
-                     app->splitSavesByGame).c_str(), stdout);
+                     app->splitSavesByGame)
+                     .c_str(),
+                 stdout);
       return SDL_APP_SUCCESS;
     }
 
@@ -243,7 +248,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                  "Launcher initialization failed: %s", error.what());
     // A double-clicked macOS .app or Windows executable may have no visible
-    // terminal; show the actual SDL/configuration error instead of just exiting.
+    // terminal; show the actual SDL/configuration error instead of just
+    // exiting.
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
                              "KotonohaLauncher - initialization failed",
                              error.what(), nullptr);

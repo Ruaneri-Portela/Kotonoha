@@ -8,6 +8,7 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <Kotonoha/script/TimelinePlayer.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -365,6 +366,52 @@ void AmagamiBacklog::renderEntries(Kotonoha::RendererRef r) {
         {240, 210, 180, 210});
   }
 }
+std::string AmagamiMenu::itemLabel(int index) const {
+  static const char *labels[]{"戻る", "セーブ", "ロード", "タイトルへ", "設定"};
+  return index >= 0 && index < 5
+             ? engine.GetTranslation().text(-1, labels[index])
+             : "";
+}
+SDL_FRect AmagamiMenu::itemRect(int index) const {
+  return {180, 100.0f + static_cast<float>(index) * 54.0f, 280, 44};
+}
+void AmagamiMenu::activate(int index) {
+  if (index == 0) {
+    close();
+    if (onResumeCb)
+      onResumeCb();
+    return;
+  }
+  if (index == 4) {
+    close();
+    if (onSettingsCb)
+      onSettingsCb();
+    else
+      engine.openSettings();
+    return;
+  }
+  if (index == 3) {
+    close();
+    engine.GetTimeline().stop();
+    if (onReturnToMenuCb)
+      onReturnToMenuCb();
+    else {
+      engine.GetRuntime().SetState(Kotonoha::GameState::Menu);
+      engine.GetRuntime().init(engine);
+    }
+    return;
+  }
+  close();
+  const auto &callback = index == 1 ? onSaveCb : onLoadCb;
+  if (callback)
+    callback();
+  else
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "No save/load handler registered");
+}
+void AmagamiMenu::renderPanel(Kotonoha::RendererRef r) {
+  engine.GetUI().backdrop(r, {0, 0, 0, 170});
+}
 void AmagamiEventMap::setEvents(
     std::vector<Campaign::Event> available, std::vector<Campaign::Event> map,
     int day, int period,
@@ -635,6 +682,10 @@ AmagamiRuntime::~AmagamiRuntime() { shutdown(); }
 void AmagamiRuntime::shutdown() {
   voice_.Stop();
   music_.Stop();
+  if (saveMenu_)
+    saveMenu_->close();
+  if (menu_)
+    menu_->close();
   if (eventMap_)
     eventMap_->hide();
   campaignMapKey_.clear();
@@ -676,6 +727,31 @@ void AmagamiRuntime::initGlobal(Kotonoha::Engine &e) {
     eventMap_ = std::make_unique<AmagamiEventMap>(e, *assets_);
     AddScene(eventMap_.get(), Kotonoha::GameState::Gameplay);
   }
+  if (!menu_) {
+    menu_ = std::make_unique<AmagamiMenu>(e);
+    menu_->SetOnSave([this] { openSaves(false); });
+    menu_->SetOnLoad([this] { openSaves(true); });
+    menu_->SetOnReturnToMenu([this] {
+      shutdown();
+      SetState(Kotonoha::GameState::Menu);
+    });
+    menu_->SetOnSettings([this] {
+      if (engine_)
+        engine_->openSettings();
+    });
+    menu_->SetOnClose([this] {
+      paused_ = false;
+      frameClock_.reset();
+    });
+    AddScene(menu_.get(), Kotonoha::GameState::Gameplay);
+  }
+  if (!saveMenu_) {
+    saveMenu_ = std::make_unique<Kotonoha::VNSaveMenu>(e);
+    saveMenu_->SetOnClose([this] {
+      paused_ = false;
+      frameClock_.reset();
+    });
+  }
   savePath_ = (Kotonoha::saveDirectory() / "quick-save.txt").string();
 }
 void AmagamiRuntime::initMenu(Kotonoha::Engine &) {
@@ -686,6 +762,18 @@ void AmagamiRuntime::initMenu(Kotonoha::Engine &) {
   }
 }
 void AmagamiRuntime::initGameplay(Kotonoha::Engine &) {}
+void AmagamiRuntime::openSaves(bool load) {
+  if (!saveMenu_ || !session_)
+    return;
+  const auto directory = Kotonoha::saveDirectory() / "amagami";
+  std::error_code ec;
+  std::filesystem::create_directories(directory, ec);
+  paused_ = true;
+  saveMenu_->open(directory.string(), load, session_->name());
+  const auto &scenes = GetActiveScenes();
+  if (std::find(scenes.begin(), scenes.end(), saveMenu_.get()) == scenes.end())
+    AddScene(saveMenu_.get(), Kotonoha::GameState::Gameplay);
+}
 void AmagamiRuntime::start(const std::string &name, bool campaign) {
   error_.clear();
   notice_.clear();
@@ -701,6 +789,10 @@ void AmagamiRuntime::start(const std::string &name, bool campaign) {
   choices_->hide();
   eventMap_->hide();
   campaignMapKey_.clear();
+  if (menu_)
+    menu_->close();
+  if (saveMenu_)
+    saveMenu_->close();
   if (campaign)
     session_->startCampaign();
   else
@@ -955,6 +1047,24 @@ void AmagamiRuntime::renderModeIndicators(Kotonoha::RendererRef r) {
            {level, level, level, 255});
     }
   }
+}
+bool AmagamiRuntime::handleBackAction() {
+  if (!session_ || GetState() != Kotonoha::GameState::Gameplay)
+    return false;
+  if (!error_.empty()) {
+    error_.clear();
+    shutdown();
+    return true;
+  }
+  if (backlogView_ && backlogView_->isVisible()) {
+    backlogView_->close();
+    return true;
+  }
+  if (menu_) {
+    menu_->toggle();
+    return true;
+  }
+  return false;
 }
 bool AmagamiRuntime::handleBacklogAction() {
   if (!session_ || !backlogView_)
@@ -1258,19 +1368,6 @@ void AmagamiRuntime::renderOverlay(Kotonoha::RendererRef r, float scale) {
     Kotonoha::UI::FrameScope frame(r,
                                    Kotonoha::UI::fit({640, 448}, viewport()));
     auto &ui = engine_->GetUI();
-    if (session_ && paused_) {
-      ui.backdrop(r);
-      const std::vector<std::string> menu = {"戻る", "セーブ", "ロード",
-                                             "タイトルへ", "設定"};
-      for (size_t i = 0; i < menu.size(); ++i) {
-        SDL_FRect b{180, float(100 + i * 54), 280, 44};
-        ui.panel(r, b,
-                 i == focus_ ? SDL_Color{133, 58, 110, 255}
-                             : SDL_Color{25, 30, 50, 255});
-        ui.textSized(r, engine_->GetTranslation().text(-1, menu[i]), b.x + 15,
-                     b.y + 8, b.w - 30, 24);
-      }
-    }
     if (!notice_.empty())
       ui.textSized(r, engine_->GetTranslation().text(-1, notice_), 10, 5, 620,
                    14, {255, 235, 150, 255});
@@ -1301,21 +1398,6 @@ void AmagamiRuntime::activate(size_t i) {
       quit.type = SDL_EVENT_QUIT;
       SDL_PushEvent(&quit);
     }
-    return;
-  }
-  if (paused_) {
-    if (i == 1)
-      saveGame(savePath_);
-    else if (i == 2)
-      loadGame(savePath_);
-    else if (i == 4)
-      engine_->openSettings();
-    else if (i == 3) {
-      shutdown();
-      SetState(Kotonoha::GameState::Menu);
-    }
-    paused_ = false;
-    focus_ = 0;
     return;
   }
   if (session_->ended()) {
@@ -1428,7 +1510,7 @@ bool AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
     }
     if (session_ && e.type == SDL_EVENT_WINDOW_FOCUS_LOST)
       session_->setSkipHeld(false);
-    size_t count = !session_ ? 3 : paused_ ? 5 : session_->choices().size();
+    size_t count = !session_ ? 3 : session_->choices().size();
     if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
       if (e.key.key == SDLK_ESCAPE) {
         if (session_)
@@ -1436,6 +1518,9 @@ bool AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
         if (!error_.empty()) {
           error_.clear();
           shutdown();
+        } else if (session_ && menu_) {
+          menu_->open();
+          focus_ = 0;
         } else {
           paused_ = !paused_;
           focus_ = 0;
@@ -1490,7 +1575,6 @@ bool AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
       }
       for (size_t i = 0; i < count; ++i) {
         SDL_FRect b = !session_ ? SDL_FRect{220, float(300 + i * 36), 200, 38}
-                      : paused_ ? SDL_FRect{180, float(100 + i * 54), 280, 44}
                                 : SDL_FRect{55, float(70 + i * 49), 530, 44};
         if (Kotonoha::UI::clicked(e, b)) {
           focus_ = i;
@@ -1524,6 +1608,7 @@ void AmagamiRuntime::update() {
     Runtime::update();
     return;
   }
+  paused_ = (menu_ && menu_->IsOpen()) || (saveMenu_ && saveMenu_->isOpen());
   const double delta = frameClock_.seconds();
   frameClock_.reset();
   if (session_ && !paused_ && !backlog_ && !engine_->isStoryPaused()) {
@@ -1571,6 +1656,7 @@ SDL_FPoint AmagamiRuntime::sceneSize(const Kotonoha::Scene &scene) const {
       dynamic_cast<const Kotonoha::SubtitleScene *>(&scene) ||
       dynamic_cast<const AmagamiChoices *>(&scene) ||
       dynamic_cast<const AmagamiBacklog *>(&scene) ||
+      dynamic_cast<const AmagamiMenu *>(&scene) ||
       dynamic_cast<const AmagamiEventMap *>(&scene))
     return {640, 448};
   return Runtime::sceneSize(scene);

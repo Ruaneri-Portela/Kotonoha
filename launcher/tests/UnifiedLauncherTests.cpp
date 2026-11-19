@@ -58,7 +58,8 @@ int main() {
     require(!reg.find(EngineKind::Unknown),
             "The Example demo must not be registered in the hub");
     require(reg.find(EngineKind::RealLive) &&
-                reg.find(EngineKind::RealLive)->libraryTarget == "reallive_port",
+                reg.find(EngineKind::RealLive)->libraryTarget ==
+                    "reallive_port",
             "RealLive maps to reallive_port library");
     require(reg.find(EngineKind::ONScripter) &&
                 reg.find(EngineKind::ONScripter)->libraryTarget ==
@@ -203,7 +204,8 @@ int main() {
                 std::to_string(catalog.size()));
 
     // 3. Verify that every game gets a unique isolated save directory when
-    //    splitSavesByGame is true, even when sharing the same engine & packageId!
+    //    splitSavesByGame is true, even when sharing the same engine &
+    //    packageId!
     const fs::path saveRoot = lib.root / "save-root";
     std::set<std::string> uniqueSaveDirs;
     bool foundDdlcOverlayPairing = false;

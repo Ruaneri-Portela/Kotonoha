@@ -41,10 +41,14 @@ void VNSaveMenu::open(const std::string &path, bool load,
 }
 
 void VNSaveMenu::close() {
+  if (!opened)
+    return;
   finishRename();
   opened = false;
   confirmation = Confirmation::None;
   engine.GetRuntime().RemoveScene(this);
+  if (onCloseCb)
+    onCloseCb();
 }
 
 bool VNSaveMenu::hasSelectedSave() const {

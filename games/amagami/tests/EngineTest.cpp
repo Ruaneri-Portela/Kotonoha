@@ -1,4 +1,5 @@
 #include "AmagamiRuntime.hpp"
+#include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -26,6 +27,13 @@ void press(Kotonoha::Engine &engine, SDL_Keycode key) {
   e.key.windowID = SDL_GetWindowID(&engine.GetWindow());
   engine.Event(&e);
   settle(dynamic_cast<Amagami::AmagamiRuntime &>(engine.GetRuntime()));
+}
+Kotonoha::InGameMenu *openMenu(Amagami::AmagamiRuntime &game) {
+  for (auto *scene : game.GetActiveScenes())
+    if (auto *menu = dynamic_cast<Kotonoha::InGameMenu *>(scene);
+        menu && menu->IsOpen())
+      return menu;
+  return nullptr;
 }
 void capture(Kotonoha::Engine &e, Amagami::AmagamiRuntime &game,
              const std::string &name) {
@@ -250,8 +258,12 @@ int main(int argc, char **argv) {
     capture(engine, game, "miya-upscaled");
     upscaler.configure(originalUpscaling);
     press(engine, SDLK_ESCAPE);
+    require(openMenu(game) != nullptr,
+            "Escape opens the connected Kotonoha pause menu");
     capture(engine, game, "pause");
     press(engine, SDLK_ESCAPE);
+    require(openMenu(game) == nullptr,
+            "Escape closes the connected Kotonoha pause menu");
     for (size_t i = 0; i < 500; ++i) {
       auto miya = game.session()->visuals().find("MIY");
       if (miya != game.session()->visuals().end() &&

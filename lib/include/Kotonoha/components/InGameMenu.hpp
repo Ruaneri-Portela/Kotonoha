@@ -26,6 +26,7 @@ protected:
   std::function<void()> onReturnToMenuCb;
   std::function<void()> onSettingsCb;
   std::function<void()> onSaveCb, onLoadCb;
+  std::function<void()> onCloseCb;
 
 public:
   bool designSpace() const override { return true; }
@@ -36,7 +37,13 @@ public:
     touchActivation.reset();
     isOpen = true;
   }
-  virtual void close() { isOpen = false; }
+  virtual void close() {
+    if (!isOpen)
+      return;
+    isOpen = false;
+    if (onCloseCb)
+      onCloseCb();
+  }
   void toggle() { IsOpen() ? close() : open(); }
   virtual bool IsOpen() const { return isOpen; }
   bool capturesInput() const override { return IsOpen(); }
@@ -49,6 +56,7 @@ public:
   void SetOnSettings(std::function<void()> cb) { onSettingsCb = std::move(cb); }
   void SetOnSave(std::function<void()> cb) { onSaveCb = std::move(cb); }
   void SetOnLoad(std::function<void()> cb) { onLoadCb = std::move(cb); }
+  void SetOnClose(std::function<void()> cb) { onCloseCb = std::move(cb); }
 
   bool onEvent(EventRef event) override;
   void update() override;
