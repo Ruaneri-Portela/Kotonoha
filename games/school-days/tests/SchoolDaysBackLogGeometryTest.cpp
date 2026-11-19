@@ -140,7 +140,7 @@ void CheckLongText(const fs::path &root, Model::Variant variant) {
   }
 
   Kotonoha::SchoolDaysBackLogStore oversizedStore;
-  oversizedStore.AppendLogMessage(0, u"", std::u16string(279u, u'W'));
+  oversizedStore.AppendLogMessage(0, u"", std::u16string(600u, u'W'));
   Model oversizedModel;
   Check(oversizedModel.Open(root.string(), oversizedStore,
                             Model::Orientation::Horizon, variant, &error),
@@ -150,6 +150,11 @@ void CheckLongText(const fs::path &root, Model::Variant variant) {
   Check(oversized.blocks.size() == 1u &&
             oversized.blocks[0].extent > 8 * 57,
         "Translated messages over eight lines must retain their full extent");
+  Check(oversizedModel.CurrentRawIndex() == 0 &&
+            oversizedModel.MaxCurrentLineOffset() > 0 &&
+            oversizedModel.CurrentLineOffset() ==
+                oversizedModel.MaxCurrentLineOffset(),
+        "Oversized BackLog must start at the final lines of the newest entry");
   std::vector<int> rows;
   for (const auto &glyph : oversized.blocks[0].glyphs)
     rows.push_back(glyph.y);
@@ -157,6 +162,78 @@ void CheckLongText(const fs::path &root, Model::Variant variant) {
   rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
   Check(rows.size() >= 9u,
         "Translated messages over eight lines must not be silently truncated");
+  int backSteps = 0;
+  while (oversizedModel.StepCursor(-1)) {
+    ++backSteps;
+    Check(oversizedModel.CurrentRawIndex() == 0,
+          "Intra-entry scrolling unexpectedly changed history record");
+    CheckGlyphPlan(Plan::BuildRetailHorizonEnglish(oversizedModel));
+    Check(backSteps <= oversizedModel.MaxCurrentLineOffset(),
+          "BackLog vertical scrolling failed to terminate");
+  }
+  Check(backSteps == oversizedModel.MaxCurrentLineOffset() &&
+            oversizedModel.CurrentLineOffset() == 0,
+        "Up navigation cannot reveal the first lines of oversized text");
+  int forwardSteps = 0;
+  while (oversizedModel.StepCursor(1)) {
+    ++forwardSteps;
+    Check(oversizedModel.CurrentRawIndex() == 0,
+          "Down navigation must scroll long text before changing record");
+    CheckGlyphPlan(Plan::BuildRetailHorizonEnglish(oversizedModel));
+    Check(forwardSteps <= oversizedModel.MaxCurrentLineOffset(),
+          "BackLog forward scrolling failed to terminate");
+  }
+  Check(forwardSteps == backSteps &&
+            oversizedModel.CurrentLineOffset() ==
+                oversizedModel.MaxCurrentLineOffset(),
+        "Down navigation cannot reveal the last lines of oversized text");
+
+  Kotonoha::SchoolDaysBackLogStore chineseStore;
+  chineseStore.AppendLogMessage(
+      0, u"Kotonoha", u"\u53D1\u4EF6\u4EBA\uFF1A\u6842\u8A00\u53F6\uFF5C\u6807\u9898\uFF1A\u300A\u5199\u771F\u300B");
+  Model chineseModel;
+  Check(chineseModel.Open(root.string(), chineseStore,
+                          Model::Orientation::Horizon, variant, &error),
+        "Could not open synthetic translated Chinese BackLog");
+  const auto chinesePlan = Plan::BuildRetailHorizonEnglish(chineseModel);
+  Check(chinesePlan.valid && !chinesePlan.unsupportedMarkup,
+        "Fullwidth Chinese punctuation unexpectedly disabled the BackLog");
+  bool hasVerticalBar = false, hasBookBracket = false;
+  for (const auto &block : chinesePlan.blocks)
+    for (const auto &glyph : block.glyphs) {
+      hasVerticalBar |= glyph.codepoint == 0xFF5Cu;
+      hasBookBracket |= glyph.codepoint == 0x300Au;
+    }
+  Check(hasVerticalBar && hasBookBracket,
+        "Localized Chinese glyphs were silently dropped from the BackLog");
+
+  // Short, untranslated-width Portuguese and Russian rows retain their
+  // source glyph identities. Neither clipping nor the fitted wrap policy may
+  // throw away ordinary accented/Cyrillic text from the history projection.
+  Kotonoha::SchoolDaysBackLogStore multilingualStore;
+  multilingualStore.AppendLogMessage(0, u"Kotonoha",
+                                   u"N\u00E3o, hoje volto de trem.");
+  multilingualStore.AppendLogMessage(
+      1, u"Sekai", u"\u041F\u0440\u0438\u0432\u0435\u0442, \u041C\u0430\u043A\u043E\u0442\u043E.");
+  Model multilingualModel;
+  Check(multilingualModel.Open(root.string(), multilingualStore,
+                               Model::Orientation::Horizon, variant, &error),
+        "Could not open Portuguese/Russian BackLog synthetic model");
+  auto hasGlyph = [](const Plan::NativeTextPlan &plan, uint16_t codepoint) {
+    for (const auto &block : plan.blocks)
+      for (const auto &glyph : block.glyphs)
+        if (glyph.codepoint == codepoint)
+          return true;
+    return false;
+  };
+  auto multilingualPlan = Plan::BuildRetailHorizonEnglish(multilingualModel);
+  Check(multilingualPlan.valid && hasGlyph(multilingualPlan, 0x0440u),
+        "Russian Cyrillic text was lost in BackLog projection");
+  Check(multilingualModel.StepCursor(-1),
+        "Cannot inspect previous localized BackLog message");
+  multilingualPlan = Plan::BuildRetailHorizonEnglish(multilingualModel);
+  Check(multilingualPlan.valid && hasGlyph(multilingualPlan, 0x00E3u),
+        "Portuguese accented text was lost in BackLog projection");
 }
 
 } // namespace
