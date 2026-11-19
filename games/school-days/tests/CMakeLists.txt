@@ -42,6 +42,13 @@ add_test(NAME SchoolDays.GpkLanguageProfile COMMAND SchoolDaysGpkLanguageProfile
 add_executable(SchoolDaysTranslationLayoutTest SchoolDaysTranslationLayoutTest.cpp)
 target_link_libraries(SchoolDaysTranslationLayoutTest PRIVATE school_days)
 add_test(NAME SchoolDays.TranslationLayout COMMAND SchoolDaysTranslationLayoutTest)
+# School Days' native horizontal BackLog must preserve glyph aspect and stay
+# outside the retail scroll controls and bottom skin band in every variant.
+# The synthetic CMAP fixture and dialogue are generated inside the build tree.
+add_executable(SchoolDaysBackLogGeometryTest SchoolDaysBackLogGeometryTest.cpp)
+target_link_libraries(SchoolDaysBackLogGeometryTest PRIVATE school_days)
+add_test(NAME SchoolDays.BackLogGeometry COMMAND SchoolDaysBackLogGeometryTest
+    "${CMAKE_CURRENT_BINARY_DIR}/backlog-geometry-fixture")
 add_executable(SchoolDaysTranslatedGpkMountTest SchoolDaysTranslatedGpkMountTest.cpp)
 target_link_libraries(SchoolDaysTranslatedGpkMountTest PRIVATE school_days ZLIB::ZLIB)
 add_test(NAME SchoolDays.TranslatedGpkMount COMMAND SchoolDaysTranslatedGpkMountTest)

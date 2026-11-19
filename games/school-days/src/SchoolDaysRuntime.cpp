@@ -1014,7 +1014,9 @@ void Runtime::shutdown() {
   engineSplash.reset();
   logoSplash.reset();
   saveMenu.reset();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   backlogFallback.reset();
+#endif
   assets->clearCache();
   bridge.Close();
   script = {};
@@ -1136,7 +1138,9 @@ void Runtime::init(Kotonoha::Engine &owner) {
     gameScene = std::make_unique<GameScene>(owner, *this);
     logoSplash = std::make_unique<LogoSplash>(owner, *assets);
     saveMenu = std::make_unique<Kotonoha::VNSaveMenu>(owner);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     backlogFallback = std::make_unique<Kotonoha::VNBacklog>(owner);
+#endif
 
     // FILMENGINE.INI drives the retail save layout, FONTDATA and system SFX.
     std::string failure;
@@ -1190,7 +1194,9 @@ void Runtime::init(Kotonoha::Engine &owner) {
 void Runtime::initGlobal(Kotonoha::Engine &) {
   AddScene(subtitles.get(), Kotonoha::GameState::Gameplay);
   AddScene(gameScene.get(), Kotonoha::GameState::Gameplay);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   AddScene(backlogFallback.get(), Kotonoha::GameState::Gameplay);
+#endif
   AddScene(saveMenu.get(), Kotonoha::GameState::Menu);
   AddScene(saveMenu.get(), Kotonoha::GameState::Gameplay);
 }
@@ -1225,7 +1231,9 @@ void Runtime::setStatus(std::string message, bool playerFacingFailure) {
 
 bool Runtime::panelOpen() const {
   return systemUi.IsOpen() || backlogModel.IsOpen() || (saveMenu && saveMenu->isOpen()) ||
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
          (backlogFallback && backlogFallback->isVisible()) ||
+#endif
          (engine && engine->GetSettingsMenu().isOpen());
 }
 
@@ -1241,7 +1249,9 @@ void Runtime::closePanels() {
   backlogModel.Close();
   backlogPresenter.Close();
   if (saveMenu && saveMenu->isOpen()) saveMenu->close();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (backlogFallback && backlogFallback->isVisible()) backlogFallback->close();
+#endif
   saveLoadPage = routeMapMajor = routeMapSubpage = -1;
   saveLoadOwner = SaveLoadOwner::None;
   backlogOwner = BackLogOwner::None;
@@ -2046,8 +2056,11 @@ void Runtime::bindScene(const Kotonoha::SchoolDaysKtrfScene &next,
   // Native ScriptChange truncates abandoned-branch BackLog messages. Replay
   // Data owns an isolated transient history; ordinary HScene Replay owns none.
   const bool playData = playDataPlayback && playDataPlayback->IsOpen();
-  const bool hostModalOpen = systemUi.IsOpen() || backlogModel.IsOpen() ||
-                             (backlogFallback && backlogFallback->isVisible());
+  const bool hostModalOpen = systemUi.IsOpen() || backlogModel.IsOpen()
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+      || (backlogFallback && backlogFallback->isVisible())
+#endif
+      ;
   if (playData && !hostModalOpen && !scene.sceneKey.empty() &&
       scene.sceneKey != playDataBacklogScene) {
     playDataBacklogStore.ObserveScriptChange(scene.sceneKey);
@@ -2135,7 +2148,9 @@ void Runtime::reset() {
   Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult result;
   Check(bridge.ResetNewGame(&result, &error), error);
   backlogStore.ResetTransient();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (backlogFallback) backlogFallback->clear();
+#endif
   backlogIndex = 0;
   backlogScene.clear();
   openScene(result.scene);
@@ -2983,10 +2998,15 @@ void Runtime::dispatch(Kotonoha_orsEvent &event) {
     if (!temporaryPlaybackActive()) {
       backlogStore.AppendLogMessage(backlogIndex++, Utf16(speaker),
                                     Utf16(displayed));
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
       backlogFallback->addEntry(speaker, displayed);
+#endif
     } else if (playDataPlayback && playDataPlayback->IsOpen() &&
-               !systemUi.IsOpen() && !backlogModel.IsOpen() &&
-               !(backlogFallback && backlogFallback->isVisible())) {
+               !systemUi.IsOpen() && !backlogModel.IsOpen()
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+               && !(backlogFallback && backlogFallback->isVisible())
+#endif
+               ) {
       playDataBacklogStore.AppendLogMessage(
           playDataBacklogIndex++, Utf16(speaker), Utf16(displayed));
     }
@@ -3531,7 +3551,9 @@ void Runtime::update() {
   updateTransportFade(now);
   lxhFade.Update(now);
   gameScene->update();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (backlogFallback->isVisible()) backlogFallback->update();
+#endif
   updateHandoffUi();
   if (systemUi.IsOpen()) {
     if (systemUi.IsSaveLoadOpen() && saveLoadPage != systemUi.SaveLoad().Page()) refreshSaveMetadata();
@@ -3948,13 +3970,20 @@ void Runtime::renderPanels(Kotonoha::RendererRef renderer) {
       if (privatePlayData)
         setStatus("Replay Data BackLog render failed: " + failure);
       else {
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
         backlogOwner = BackLogOwner::Narrative;
         backlogFallback->open();
+#else
+        // A player-facing DIST must never show generic Dialogue history.
+        setStatus("BackLog unavailable: " + failure, true);
+#endif
       }
     }
   }
   if (saveMenu->isOpen()) renderScene(*saveMenu, renderer, 1);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (backlogFallback->isVisible()) renderScene(*backlogFallback, renderer, 1);
+#endif
   renderStatus(renderer);
 }
 
@@ -5537,7 +5566,11 @@ bool Runtime::onScreenEvent(Kotonoha::EventRef event) {
 bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
   SDL_Event event = Kotonoha::MapControllerEvent(
       eventInput, currentState == Kotonoha::GameState::Gameplay,
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
       backlogFallback && backlogFallback->isVisible());
+#else
+      backlogModel.IsOpen());
+#endif
 #if defined(__ANDROID__) || defined(ANDROID)
   // SDL maps Android's physical/gesture Back key to AC_BACK. Reuse all the
   // existing ESC close/cancel routes (Save, BackLog, Config, Replay, Title)
@@ -5611,10 +5644,12 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
     dispatchEvent(*saveMenu, event);
     return true;
   }
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (backlogFallback->isVisible()) {
     dispatchEvent(*backlogFallback, event);
     return true;
   }
+#endif
   if (backlogModel.IsOpen()) {
     const auto menuKey =
         (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat)
@@ -6345,7 +6380,9 @@ void Runtime::loadSlot(int slot) {
   frontendChild = FrontendChild::None;
   closePanels();
   backlogStore.ResetTransient();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (backlogFallback) backlogFallback->clear();
+#endif
   backlogIndex = 0;
   backlogScene.clear();
   openScene(result.scene);
@@ -6799,7 +6836,9 @@ void Runtime::finishMainMenuReturn() {
   }
   script = {};
   backlogStore.ResetTransient();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (backlogFallback) backlogFallback->clear();
+#endif
   backlogIndex = 0;
   backlogScene.clear();
   flushGlobal();
@@ -6845,7 +6884,15 @@ void Runtime::openBacklog(bool playView) {
     return;
   }
   backlogOwner = BackLogOwner::Narrative;
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   backlogFallback->open();
+#else
+  // Keep only the retail BackLog in a distribution. A missing skin/font is
+  // a user-facing failure, not a reason to open generic "Dialogue history".
+  backlogOwner = BackLogOwner::None;
+  setStatus(failure.empty() ? "BackLog unavailable" :
+            "BackLog unavailable: " + failure, true);
+#endif
 }
 
 void Runtime::handlePanel(const Ui::Output &output) {
@@ -7002,7 +7049,9 @@ void Runtime::loadCheckpoint(int selector) {
   Check(bridge.LoadRouteMapSelector(selector, &result, &error), error);
   frontendChild = FrontendChild::None;
   backlogStore.ResetTransient();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (backlogFallback) backlogFallback->clear();
+#endif
   backlogIndex = 0;
   backlogScene.clear();
   openScene(result.scene);
@@ -7064,7 +7113,9 @@ void Runtime::loadGame(const std::string &path) {
   choiceMenuCueDurationMs = 0;
   closePanels();
   backlogStore.ResetTransient();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (backlogFallback) backlogFallback->clear();
+#endif
   backlogIndex = 0;
   backlogScene.clear();
   openScene(result.scene);

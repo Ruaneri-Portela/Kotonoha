@@ -2,6 +2,7 @@
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <utility>
 
 namespace Kotonoha {
@@ -122,6 +123,12 @@ constexpr int kRetailWrapCapacity = 48;
 constexpr int kRetailWrapLines = 8;
 constexpr int kRetailCenter = 380;
 constexpr int kRetailEnglishLimit = 1225;
+constexpr int kTextOriginX = 110;
+constexpr int kTextLineStep = 57;
+constexpr int kMaxRasterLineHeight = kTextLineStep - 1;
+constexpr int kTextRightEdge = 1180;
+constexpr int kTextTopEdge = 80;
+constexpr int kTextBottomEdge = 640;
 
 bool IsUnsupportedRetailMarkup(uint16_t codepoint) {
   // 0x10002A90 routes these two codepoints into auxiliary native objects
@@ -129,6 +136,93 @@ bool IsUnsupportedRetailMarkup(uint16_t codepoint) {
   // ORS corpus contains neither marker in any PrintText payload, so keep the
   // unneeded auxiliary branch fail-closed instead of inventing it.
   return codepoint == 0x300Au || codepoint == 0xFF5Cu;
+}
+
+// Keep native word wrapping for ordinary lines, but also fit the actual
+// FONTDATA advances into the dialogue column. Translated phrases, a run of
+// wide letters, or a single unbroken word can exceed the 48-character retail
+// approximation and otherwise draw through the right-side navigation chips.
+std::vector<std::u16string> WrapFittedBackLog(const std::u16string &text,
+                                              bool *unsupportedMarkup) {
+  // The native helper stops after eight lines. Retain its word-boundary rule
+  // here, but keep every line: lengthy PT-BR/ES translations must contribute
+  // their full measured height even when only a portion is visible in the
+  // clipped viewport. The exact retail helper remains available unchanged.
+  if (unsupportedMarkup != nullptr)
+    *unsupportedMarkup = false;
+  std::vector<std::u16string> retail;
+  std::u16string line;
+  for (size_t i = 0; i < text.size();) {
+    const auto codepoint = static_cast<uint16_t>(text[i]);
+    if (codepoint == u'\\' && i + 1u < text.size() && text[i + 1u] == u'n') {
+      i += 2u;
+      continue;
+    }
+    if (IsUnsupportedRetailMarkup(codepoint)) {
+      if (unsupportedMarkup != nullptr)
+        *unsupportedMarkup = true;
+      ++i;
+      continue;
+    }
+    if (i > 0u && text[i - 1u] == u' ') {
+      size_t wordLength = 0u;
+      for (size_t j = i; j < text.size() && text[j] != u' '; ++j)
+        ++wordLength;
+      if (line.size() + wordLength >= kRetailWrapCapacity && !line.empty()) {
+        retail.push_back(std::move(line));
+        line.clear();
+      }
+    }
+    line.push_back(text[i]);
+    ++i;
+  }
+  if (!line.empty())
+    retail.push_back(std::move(line));
+
+  std::vector<std::u16string> fitted;
+  fitted.reserve(retail.size());
+  const int maxWidth = kTextRightEdge - kTextOriginX;
+  for (const auto &row : retail) {
+    size_t start = 0u;
+    while (start < row.size()) {
+      while (start < row.size() && row[start] == u' ')
+        ++start;
+      if (start >= row.size())
+        break;
+      size_t end = start;
+      size_t lastSpace = std::u16string::npos;
+      int width = 0;
+      for (; end < row.size(); ++end) {
+        const int advance = Plan::RetailEnglishGlyphAdvance(
+            static_cast<uint16_t>(row[end]));
+        if (width + advance > maxWidth)
+          break;
+        width += advance;
+        if (row[end] == u' ')
+          lastSpace = end;
+      }
+      if (end == row.size()) {
+        fitted.push_back(row.substr(start));
+        break;
+      }
+      // A long word must be split even if it contains no spaces.
+      const size_t split = lastSpace != std::u16string::npos &&
+                                   lastSpace > start
+                               ? lastSpace
+                               : std::max(start + 1u, end);
+      fitted.push_back(row.substr(start, split - start));
+      start = split;
+    }
+  }
+  return fitted;
+}
+
+int FittedTextBlockExtent(size_t textRows, bool hasSpeaker) {
+  const int rows = static_cast<int>(textRows) + (hasSpeaker ? 1 : 0);
+  // FONTDATA rows are actually spaced 57 source pixels apart. The retail
+  // 36-pixel measure undercounts tall translated entries and interleaves the
+  // next entry's glyphs with the final lines of the current one.
+  return std::max(126 + 36 * rows, 68 + kTextLineStep * rows);
 }
 
 } // namespace
@@ -462,12 +556,10 @@ SchoolDaysBackLogRenderPlan::WrapRetailEnglish(const std::u16string &text,
 int SchoolDaysBackLogRenderPlan::MeasureRetailEnglish(
     const SchoolDaysBackLogStore::Entry &entry, bool *unsupportedMarkup) {
   bool unsupported = false;
-  const auto lines = WrapRetailEnglish(entry.text, &unsupported);
+  const auto lines = WrapFittedBackLog(entry.text, &unsupported);
   if (unsupportedMarkup != nullptr)
     *unsupportedMarkup = unsupported;
-  const int rows =
-      static_cast<int>(lines.size()) + (entry.character.empty() ? 0 : 1);
-  return 126 + 36 * rows;
+  return FittedTextBlockExtent(lines.size(), !entry.character.empty());
 }
 
 SchoolDaysBackLogRenderPlan::NativeTextPlan
@@ -497,18 +589,21 @@ SchoolDaysBackLogRenderPlan::BuildRetailHorizonEnglish(
       return block;
 
     bool unsupported = false;
-    const auto lines = WrapRetailEnglish(entry->text, &unsupported);
+    const auto lines = WrapFittedBackLog(entry->text, &unsupported);
     plan.unsupportedMarkup = plan.unsupportedMarkup || unsupported;
-    block.extent = 126 + 36 * (static_cast<int>(lines.size()) +
-                               (entry->character.empty() ? 0 : 1));
+    block.extent =
+        FittedTextBlockExtent(lines.size(), !entry->character.empty());
 
     int axis = top + 21;
     auto appendRun = [&](const std::u16string &text, int startX, int y) {
       int x = startX;
       for (char16_t ch : text) {
         const uint16_t codepoint = static_cast<uint16_t>(ch);
+        const int advance = RetailEnglishGlyphAdvance(codepoint);
+        if (x + advance > kTextRightEdge)
+          break;
         block.glyphs.push_back({codepoint, x, y});
-        x += RetailEnglishGlyphAdvance(codepoint);
+        x += advance;
       }
     };
 
@@ -526,7 +621,7 @@ SchoolDaysBackLogRenderPlan::BuildRetailHorizonEnglish(
     }
     for (const auto &line : lines) {
       if (axisVisible(axis))
-        appendRun(line, 110, axis - 6);
+        appendRun(line, kTextOriginX, axis - 6);
       axis += 57;
     }
     return block;
@@ -567,6 +662,27 @@ SchoolDaysBackLogRenderPlan::BuildRetailHorizonEnglish(
   }
   plan.valid = !plan.unsupportedMarkup;
   return plan;
+}
+
+SchoolDaysBackLogRenderPlan::Rect
+SchoolDaysBackLogRenderPlan::TextSurfaceClip() {
+  return {0.0f, static_cast<float>(kTextTopEdge),
+          static_cast<float>(kTextRightEdge),
+          static_cast<float>(kTextBottomEdge - kTextTopEdge)};
+}
+
+SchoolDaysBackLogRenderPlan::TextRasterSize
+SchoolDaysBackLogRenderPlan::FitTextRaster(int maxWidth, int rasterWidth,
+                                          int rasterHeight) {
+  if (maxWidth <= 0 || rasterWidth <= 0 || rasterHeight <= 0)
+    return {};
+  const double factor =
+      std::min({1.0, static_cast<double>(maxWidth) / rasterWidth,
+                static_cast<double>(kMaxRasterLineHeight) / rasterHeight});
+  return {std::clamp(static_cast<int>(std::lround(rasterWidth * factor)), 1,
+                     maxWidth),
+          std::clamp(static_cast<int>(std::lround(rasterHeight * factor)), 1,
+                     kMaxRasterLineHeight)};
 }
 
 SchoolDaysBackLogRenderPlan::Rect

@@ -139,7 +139,11 @@ class Runtime final : public Kotonoha::Runtime {
   std::unique_ptr<LogoSplash> logoSplash;
   // Engine fallbacks when the retail System artwork is unavailable.
   std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+  // Only DEV may show the generic "Dialogue history" window. DIST always
+  // uses the School Days BackLog UI, never a redundant engine fallback.
   std::unique_ptr<Kotonoha::VNBacklog> backlogFallback;
+#endif
   // Native School Days panels (SaveLoad, Config, Exit, RouteMap, BackLog).
   Kotonoha::SchoolDaysSystemUi systemUi;
   Kotonoha::SchoolDaysBackLogStore backlogStore;
@@ -467,6 +471,11 @@ class Runtime final : public Kotonoha::Runtime {
                                  Kotonoha_KtrfError *);
 
 public:
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  static constexpr bool GenericDialogueHistoryCompiled = false;
+#else
+  static constexpr bool GenericDialogueHistoryCompiled = true;
+#endif
   Runtime(std::shared_ptr<Assets> assets, std::string route,
           std::filesystem::path documents = {},
           std::string physicalSettingsPath = {});
