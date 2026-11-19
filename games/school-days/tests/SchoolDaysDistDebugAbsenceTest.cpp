@@ -1,5 +1,6 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include "SchoolDaysRuntime.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -41,6 +42,10 @@ void MustRejectDebugOption(const std::vector<std::string> &input) {
 
 int main() {
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  // This is a compile-time build contract: a DIST must not own, construct,
+  // register or open the generic "Dialogue history" scene at all.
+  static_assert(!SchoolDays::Runtime::GenericDialogueHistoryCompiled,
+                "School Days DIST must compile out generic Dialogue history");
   try {
     Kotonoha::EngineOptions options;
     Kotonoha::CommandLine command("School Days DIST", options);

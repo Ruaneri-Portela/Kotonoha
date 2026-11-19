@@ -185,6 +185,10 @@ public:
         bool unsupportedMarkup = false;
         std::vector<NativeTextBlock> blocks;
     };
+    struct TextRasterSize {
+        int w = 0;
+        int h = 0;
+    };
 
     static std::vector<TextEntry> BuildTextEntries(
         const SchoolDaysBackLogModel& model);
@@ -209,6 +213,14 @@ public:
                                     bool* unsupportedMarkup = nullptr);
     static NativeTextPlan BuildRetailHorizonEnglish(
         const SchoolDaysBackLogModel& model);
+    // Source-space area left clear of the right navigation buttons and the
+    // bottom status stripe. All 16:9 variants project this same 1280x720
+    // source over their corresponding 800x450 skin.
+    static Rect TextSurfaceClip();
+    // Fits a shaped glyph row without distorting its aspect ratio. The native
+    // FONTDATA advances supply a maximum width, not a forced raster width.
+    static TextRasterSize FitTextRaster(int maxWidth, int rasterWidth,
+                                        int rasterHeight);
     static Rect TextSurfaceSource();
     static Rect TextSurfaceDestination(SchoolDaysBackLogModel::Variant variant);
 

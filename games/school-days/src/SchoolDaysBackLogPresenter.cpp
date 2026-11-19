@@ -221,11 +221,18 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
       SDL_DestroySurface(scratch);
     return Fail(error, "School Days BackLog text surface setup failed");
   }
+  const auto clip = SchoolDaysBackLogRenderPlan::TextSurfaceClip();
+  const SDL_Rect safeArea{static_cast<int>(clip.x), static_cast<int>(clip.y),
+                          static_cast<int>(clip.w), static_cast<int>(clip.h)};
+  if (!SDL_SetSurfaceClipRect(scratch, &safeArea)) {
+    SDL_DestroySurface(scratch);
+    return Fail(error, "School Days BackLog text clipping setup failed");
+  }
   for (const auto &block : textPlan.blocks) {
     // Build one shaped TTF run per authenticated FONTDATA row. The run is
-    // then fitted back into the exact native advance span, so wrapping,
-    // centering and scroll geometry stay unchanged while glyph coverage
-    // comes from the engine's UI font chain.
+    // then proportionally fitted within the native advance span and line
+    // height. Forcing a shaped TTF row into an arbitrary 48-pixel height
+    // flattened accented and translated text relative to its true glyphs.
     std::map<int, std::vector<SchoolDaysBackLogRenderPlan::NativeGlyph>> rows;
     for (const auto &placement : block.glyphs)
       rows[placement.y].push_back(placement);
@@ -253,7 +260,9 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
                  SchoolDaysBackLogRenderPlan::RetailEnglishGlyphAdvance(
                      last.codepoint) -
                  first.x);
-      SDL_Rect destination{first.x, y, span, 48};
+      const auto size = SchoolDaysBackLogRenderPlan::FitTextRaster(
+          span, rendered->w, rendered->h);
+      SDL_Rect destination{first.x, y, size.w, size.h};
       const bool blitted = SDL_BlitSurfaceScaled(
           rendered, nullptr, scratch, &destination, SDL_SCALEMODE_LINEAR);
       SDL_DestroySurface(rendered);
