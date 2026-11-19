@@ -59,6 +59,12 @@
 #define NOMINMAX
 #endif // !NOMINMAX
 #include <windows.h>
+// Windows' generic-text API alias otherwise rewrites our
+// SchoolDaysInputPolicy::TranslateAccelerator method calls to
+// TranslateAcceleratorA at compile time.
+#ifdef TranslateAccelerator
+#undef TranslateAccelerator
+#endif
 #endif
 
 namespace SchoolDays {

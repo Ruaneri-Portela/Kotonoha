@@ -46,8 +46,11 @@ public:
   int Page() const { return page_; }
   int Selection() const { return selection_; }
   void RestoreSelection(int selection) {
-    if (open_ && selection >= -1 && selection <= 31)
-      selection_ = selection;
+    if (open_ && selection >= -1 && selection <= 31) {
+      // The saved LOAD selection can belong to an earlier pointer position.
+      // Returning from Route Map must not restore the blue hover on control 21.
+      selection_ = selection == 21 ? -1 : selection;
+    }
   }
   bool SavePending() const { return pendingRow_ >= 0; }
   bool CommentInputPending() const { return commentRow_ >= 0; }
