@@ -1,4 +1,5 @@
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
+#include <SDL3/SDL_stdinc.h>
 
 #include <algorithm>
 #include <cmath>
@@ -6,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -34,6 +36,11 @@ void WriteSyntheticCmap(const fs::path &root, Model::Variant variant) {
     bytes[static_cast<size_t>(i + 4)] =
         static_cast<uint8_t>(layout.logicalHeight >> (8 * i));
   }
+  // One authenticated close-control pixel permits an isolated hover test
+  // without embedding or copying any retail CMAP resource into the repo.
+  const auto &close = layout.controls[4].bounds;
+  bytes[8u + static_cast<size_t>(close.y) * layout.logicalWidth +
+        static_cast<size_t>(close.x)] = 5u;
   std::ofstream output(file, std::ios::binary | std::ios::trunc);
   output.write(reinterpret_cast<const char *>(bytes.data()),
                static_cast<std::streamsize>(bytes.size()));
@@ -234,6 +241,91 @@ void CheckLongText(const fs::path &root, Model::Variant variant) {
   multilingualPlan = Plan::BuildRetailHorizonEnglish(multilingualModel);
   Check(multilingualPlan.valid && hasGlyph(multilingualPlan, 0x00E3u),
         "Portuguese accented text was lost in BackLog projection");
+
+  // Leaving a window must clear a highlighted navigation/Close CHIP. The
+  // runtime forwards SDL window-leave/focus-lost to this same model state.
+  const auto &close = Model::LayoutFor(Model::Orientation::Horizon,
+                                      variant).controls[4].bounds;
+  Check(multilingualModel.SetSelectionFromPointer(close.x, close.y) &&
+            multilingualModel.Selection() == 4,
+        "BackLog close hover did not select the synthetic CMAP control");
+  const auto hovered = Plan::BuildSkin(multilingualModel);
+  Check(std::any_of(hovered.begin(), hovered.end(), [](const auto &sprite) {
+          return sprite.role == Plan::Role::SelectedControl &&
+                 sprite.control == 4;
+        }), "BackLog close did not draw the hover CHIP");
+  Check(multilingualModel.SetSelectionFromPointer(-1, -1) &&
+            multilingualModel.Selection() == -1,
+        "BackLog failed to clear hover when pointer left its window");
+  const auto cleared = Plan::BuildSkin(multilingualModel);
+  Check(std::none_of(cleared.begin(), cleared.end(), [](const auto &sprite) {
+          return sprite.role == Plan::Role::SelectedControl;
+        }), "BackLog blue hover remained after window leave");
+}
+
+void CheckSupplementaryUnicodeAndLongSpeaker(const fs::path &root,
+                                             Model::Variant variant) {
+  // Both speaker and line contain a real supplementary Unicode symbol. The
+  // old wrap split its UTF-16 surrogate pair at the right edge; the old
+  // speaker plan discarded the end of a 44+ character speaker entirely.
+  std::u16string speaker(52u, u'W');
+  speaker += u"\U0001F642";
+  std::u16string message(45u, u'a');
+  message += u"\U0001F642";
+  message += u"z";
+  Kotonoha::SchoolDaysBackLogStore store;
+  store.AppendLogMessage(0, speaker, message);
+  Model model;
+  std::string error;
+  Check(model.Open(root.string(), store, Model::Orientation::Horizon, variant,
+                   &error), "Failed to open supplementary Unicode BackLog");
+  const auto plan = Plan::BuildRetailHorizonEnglish(model);
+  CheckGlyphPlan(plan);
+  Check(plan.blocks.size() == 1u,
+        "Supplementary Unicode BackLog lost the current history entry");
+
+  std::map<int, std::u16string> rows;
+  for (const auto &glyph : plan.blocks.front().glyphs)
+    rows[glyph.y].push_back(static_cast<char16_t>(glyph.codepoint));
+  Check(rows.size() >= 3u,
+        "The long line did not wrap while keeping a separate speaker row");
+  Check(rows.begin()->second == speaker,
+        "Long speaker was truncated instead of proportionally fitted");
+  std::u16string reconstructed;
+  for (auto it = std::next(rows.begin()); it != rows.end(); ++it) {
+    const auto &line = it->second;
+    for (size_t i = 0u; i < line.size(); ++i) {
+      const bool high = line[i] >= 0xd800u && line[i] <= 0xdbffu;
+      const bool low = line[i] >= 0xdc00u && line[i] <= 0xdfffu;
+      if (high)
+        Check(i + 1u < line.size() && line[i + 1u] >= 0xdc00u &&
+                  line[i + 1u] <= 0xdfffu,
+              "BackLog wrap split high surrogate from low surrogate");
+      if (low)
+        Check(i > 0u && line[i - 1u] >= 0xd800u &&
+                  line[i - 1u] <= 0xdbffu,
+              "BackLog wrap left orphaned low surrogate");
+    }
+    reconstructed += line;
+  }
+  Check(reconstructed == message,
+        "BackLog dropped or reordered translated supplementary characters");
+
+  int utf8SmileRows = 0;
+  for (const auto &[y, line] : rows) {
+    (void)y;
+    char *encoded = SDL_iconv_string(
+        "UTF-8", "UTF-16LE", reinterpret_cast<const char *>(line.c_str()),
+        (line.size() + 1u) * sizeof(char16_t));
+    Check(encoded != nullptr,
+          "BackLog generated a row that SDL cannot convert to UTF-8");
+    const std::string utf8(encoded);
+    SDL_free(encoded);
+    if (utf8.find("\xF0\x9F\x99\x82") != std::string::npos)
+      ++utf8SmileRows;
+  }
+  Check(utf8SmileRows == 2,
+        "Speaker or translated text lost the UTF-8 smiley after wrapping");
 }
 
 } // namespace
@@ -248,6 +340,7 @@ int main(int argc, char **argv) {
                                Model::Variant::WideNote}) {
       CheckProjectedClip(variant);
       CheckLongText(root, variant);
+      CheckSupplementaryUnicodeAndLongSpeaker(root, variant);
     }
     std::cout << "School Days BackLog: aspect, safe regions, translated "
                  "wrapping and row spacing PASS\n";

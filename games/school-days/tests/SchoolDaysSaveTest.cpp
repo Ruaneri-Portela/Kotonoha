@@ -175,6 +175,14 @@ int main(int argc, char **argv) {
       app.runtime.onEvent(hover);
       check(hasBlueRouteMapHover(),
             "LOAD hover did not recover after pointer returned to the window");
+      SDL_Event focusLost{};
+      focusLost.type = SDL_EVENT_WINDOW_FOCUS_LOST;
+      app.runtime.onEvent(focusLost);
+      check(!hasBlueRouteMapHover(),
+            "LOAD Open Route Map stayed cyan after SDL focus loss");
+      app.runtime.onEvent(hover);
+      check(hasBlueRouteMapHover(),
+            "LOAD hover did not recover after SDL focus loss");
       hover.motion.x = -12.0f;
       hover.motion.y = -12.0f;
       app.runtime.onEvent(hover);

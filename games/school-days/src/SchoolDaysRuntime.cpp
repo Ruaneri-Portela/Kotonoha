@@ -5651,6 +5651,14 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
   }
 #endif
   if (backlogModel.IsOpen()) {
+    if (event.type == SDL_EVENT_WINDOW_MOUSE_LEAVE ||
+        event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+      // No mouse-motion event is guaranteed when the pointer leaves SDL or
+      // the window loses focus. Drop the stale selected blue arrow/Close CHIP
+      // without changing the BackLog entry or the current scroll offset.
+      (void)backlogModel.SetSelectionFromPointer(-1, -1);
+      return true;
+    }
     const auto menuKey =
         (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat)
             ? Kotonoha::SchoolDaysInputPolicy::TranslateMenuKey(event.key.key,

@@ -133,6 +133,30 @@ constexpr int kTextBottomEdge = 640;
 // Additional translated rows are scrollable within their own entry.
 constexpr int kVisibleTextRows = 9;
 
+bool IsHighSurrogate(char16_t value) {
+  return value >= 0xd800u && value <= 0xdbffu;
+}
+
+bool IsLowSurrogate(char16_t value) {
+  return value >= 0xdc00u && value <= 0xdfffu;
+}
+
+size_t Utf16UnitsAt(const std::u16string &text, size_t index) {
+  return IsHighSurrogate(text[index]) && index + 1u < text.size() &&
+                 IsLowSurrogate(text[index + 1u])
+             ? 2u
+             : 1u;
+}
+
+int Utf16SpanAdvance(const std::u16string &text, size_t index) {
+  int width = Plan::RetailEnglishGlyphAdvance(
+      static_cast<uint16_t>(text[index]));
+  if (Utf16UnitsAt(text, index) == 2u)
+    width += Plan::RetailEnglishGlyphAdvance(
+        static_cast<uint16_t>(text[index + 1u]));
+  return width;
+}
+
 bool IsUnsupportedRetailMarkup(uint16_t codepoint) {
   // 0x10002A90 routes these two codepoints into auxiliary native objects
   // rather than the ordinary FONTDATA pass.  The authenticated v1.02 English
@@ -175,8 +199,9 @@ std::vector<std::u16string> WrapFittedBackLog(const std::u16string &text,
         line.clear();
       }
     }
-    line.push_back(text[i]);
-    ++i;
+    const size_t units = Utf16UnitsAt(text, i);
+    line.append(text, i, units);
+    i += units;
   }
   if (!line.empty())
     retail.push_back(std::move(line));
@@ -194,14 +219,18 @@ std::vector<std::u16string> WrapFittedBackLog(const std::u16string &text,
       size_t end = start;
       size_t lastSpace = std::u16string::npos;
       int width = 0;
-      for (; end < row.size(); ++end) {
-        const int advance = Plan::RetailEnglishGlyphAdvance(
-            static_cast<uint16_t>(row[end]));
+      for (; end < row.size();) {
+        const int advance = Utf16SpanAdvance(row, end);
         if (width + advance > maxWidth)
           break;
         width += advance;
         if (row[end] == u' ')
           lastSpace = end;
+        // A supplementary Unicode symbol occupies two UTF-16 units. The
+        // fitted row must never end between its high and low surrogates:
+        // SDL_ttf receives each row independently and cannot recover a pair
+        // broken by the line wrapping algorithm.
+        end += Utf16UnitsAt(row, end);
       }
       if (end == row.size()) {
         fitted.push_back(row.substr(start));
@@ -623,15 +652,43 @@ SchoolDaysBackLogRenderPlan::BuildRetailHorizonEnglish(
         FittedTextBlockExtent(lines.size(), !entry->character.empty());
 
     int axis = top + 21;
-    auto appendRun = [&](const std::u16string &text, int startX, int y) {
-      int x = startX;
-      for (char16_t ch : text) {
-        const uint16_t codepoint = static_cast<uint16_t>(ch);
-        const int advance = RetailEnglishGlyphAdvance(codepoint);
+    auto appendRun = [&](const std::u16string &text, int startX, int y,
+                         bool fitFullRun = false) {
+      int64_t nativeWidth = 0;
+      int lastAdvance = 0;
+      if (fitFullRun) {
+        for (size_t i = 0u; i < text.size(); i += Utf16UnitsAt(text, i)) {
+          lastAdvance = Utf16SpanAdvance(text, i);
+          nativeWidth += lastAdvance;
+        }
+      }
+      const int available = kTextRightEdge - startX;
+      // Speaker names are kept complete even when localization/aliases make
+      // them wider than the retail column. Only their logical placement span
+      // is fitted; the presenter then fits the *entire shaped TTF row* with
+      // uniform scaling, never with a horizontally flattened glyph raster.
+      const double positionScale = fitFullRun && nativeWidth > available &&
+                                           nativeWidth > lastAdvance
+          ? static_cast<double>(available - lastAdvance) /
+                static_cast<double>(nativeWidth - lastAdvance)
+          : 1.0;
+      int64_t nativeX = 0;
+      for (size_t i = 0u; i < text.size();) {
+        const size_t units = Utf16UnitsAt(text, i);
+        const int advance = Utf16SpanAdvance(text, i);
+        const int x = startX + static_cast<int>(
+            std::lround(static_cast<double>(nativeX) * positionScale));
         if (x + advance > kTextRightEdge)
           break;
-        block.glyphs.push_back({codepoint, x, y});
-        x += advance;
+        int unitX = x;
+        for (size_t unit = 0u; unit < units; ++unit) {
+          block.glyphs.push_back(
+              {static_cast<uint16_t>(text[i + unit]), unitX, y});
+          unitX += RetailEnglishGlyphAdvance(
+              static_cast<uint16_t>(text[i + unit]));
+        }
+        nativeX += advance;
+        i += units;
       }
     };
 
@@ -641,9 +698,7 @@ SchoolDaysBackLogRenderPlan::BuildRetailHorizonEnglish(
     };
     if (!entry->character.empty()) {
       if (axisVisible(axis)) {
-        const size_t speakerUnits = std::min(
-            entry->character.size(), static_cast<size_t>(kRetailWrapCapacity));
-        appendRun(entry->character.substr(0u, speakerUnits), 0, axis - 6);
+        appendRun(entry->character, 0, axis - 6, true);
       }
       axis += 57;
     }
