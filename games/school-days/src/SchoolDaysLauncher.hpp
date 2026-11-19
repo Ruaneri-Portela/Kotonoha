@@ -17,10 +17,12 @@ namespace SchoolDays {
 
 class Launcher final : public Kotonoha::GameLauncher {
 public:
-  // GPK locales are opt-in and never silently replace legacy user JSONs.
+  // JSON and GPK are separate opt-in profiles. Keep CustomJson internally
+  // for existing language.txt / explicit CLI profiles; it is not a UI choice.
   enum class Language {
     English, Spanish, ChineseSimplified, CustomJson,
-    EnglishGpk, BrazilianGpk, ChineseGpk, SpanishGpk, RussianGpk
+    EnglishGpk, BrazilianGpk, ChineseGpk, SpanishGpk, RussianGpk,
+    EnglishJson, BrazilianJson, RussianJson
   };
 
   static bool validateRoute(const std::string &path, std::string &info);
@@ -162,6 +164,7 @@ private:
   std::filesystem::path effectiveOverlayRoot() const;
   std::string findSpanishJson() const;
   std::string findChineseJson() const;
+  std::string findInstalledJson(Language selection) const;
   const Kotonoha::EngineSettings &currentSettings() const;
   void seedFirstRunDisplayIfPossible();
   void drawSharedDisplayOptions();

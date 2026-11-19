@@ -167,6 +167,7 @@ std::string SchoolDaysTranslationCoverage::summary() const {
          " blank=" + std::to_string(blank) +
          " identity_needs_review=" + std::to_string(identical) +
          " reviewed_identity=" + std::to_string(reviewedIdentical) +
+         " supplied_identity=" + std::to_string(suppliedIdentical) +
          " contextual=" + std::to_string(contextual) +
          " invalid_dlc_keys=" + std::to_string(invalidDlcKeys) +
          " overridden_base_dlc_slots=" + std::to_string(overriddenBaseSlots) +
@@ -341,7 +342,8 @@ SchoolDaysTranslationCoverage SchoolDaysTranslationGate::CheckDetailed(
 SchoolDaysTranslationCoverage SchoolDaysTranslationGate::CheckLayered(
     const DetailedSources &sources, const Translation &base,
     const Translation &baseReviews, const Translation &dlc,
-    const Translation &dlcReviews, bool nativeHq) {
+    const Translation &dlcReviews, bool nativeHq,
+    bool explicitSourceIdentities) {
   SchoolDaysTranslationCoverage status;
   std::set<int> visited;
   std::set<int> incomplete;
@@ -392,6 +394,8 @@ SchoolDaysTranslationCoverage SchoolDaysTranslationGate::CheckLayered(
             entry.slot, entry.original);
         if (ReviewedReason(reason)) {
           ++status.reviewedIdentical;
+        } else if (explicitSourceIdentities) {
+          ++status.suppliedIdentical;
         } else {
           ++status.identical;
           incomplete.insert(entry.node);

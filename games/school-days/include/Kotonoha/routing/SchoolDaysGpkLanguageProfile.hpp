@@ -223,6 +223,23 @@ inline fs::path JsonPath(const std::string &settingsFile,
   return detail::Locate(detail::Translations(settingsFile), "jsons", filename);
 }
 
+// A canonical, installed JSON is an explicit per-slot player translation.
+// Keep exact name + actual-file identity: a similarly named external JSON,
+// missing translation, or another locale must never receive this provenance.
+inline bool IsInstalledLocaleJson(const std::string &settingsFile,
+                                  const std::string &selectedFile) {
+  if (settingsFile.empty() || selectedFile.empty()) return false;
+  const fs::path selected(selectedFile);
+  for (const char *name : {"en.json", "pt-BR.json", "es.json",
+                           "zh-CN.json", "ru.json"}) {
+    if (selected.filename().string() != name) continue;
+    const fs::path installed = JsonPath(settingsFile, name);
+    std::error_code ec;
+    return fs::equivalent(selected, installed, ec) && !ec;
+  }
+  return false;
+}
+
 // Enumerate installed translations without assuming that every JSON is a base
 // language. Sidecars/review manifests are deliberately omitted unless asked.
 inline std::vector<fs::path> DiscoverJsonFiles(const std::string &settingsFile,

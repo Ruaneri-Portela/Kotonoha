@@ -32,6 +32,9 @@ struct SchoolDaysTranslationCoverage {
   std::size_t blank = 0;
   std::size_t identical = 0;
   std::size_t reviewedIdentical = 0;
+  // Literal source-identical values explicitly supplied by a trusted installed
+  // locale file; not a human-reviewed translation and never a missing fallback.
+  std::size_t suppliedIdentical = 0;
   std::size_t contextual = 0;
   std::size_t invalidDlcKeys = 0;
   // Values the DLC sidecar would change relative to a translation already
@@ -50,8 +53,9 @@ struct SchoolDaysTranslationCoverage {
   bool allKeysPresent() const {
     return checked > 0 && missing == 0 && blank == 0;
   }
-  // A source-identical phrase might be valid Spanish, but without a reviewed
-  // provenance record it cannot establish the user's no-English guarantee.
+  // Missing/blank entries always fail. Unreviewed identities in arbitrary
+  // external dictionaries also fail; installed chosen dictionaries own their
+  // exact literal content and may intentionally contain unchanged phrases.
   bool certifiedForNonNativeDisplay() const {
     return allKeysPresent() && identical == 0 && invalidDlcKeys == 0;
   }
@@ -103,10 +107,14 @@ public:
       const Translation &reviewedIdentities);
   // DLC context -> DLC literal -> base context -> base literal -> base nodo.
   // Native HQ needs no base JSON; LxH always needs a translated entry.
+  // Installed canonical dictionaries provide explicit slot values that may
+  // coincide with source text. This is NOT fallback: missing and blank entries
+  // still fail, and arbitrary external JSON stays under strict review policy.
   static SchoolDaysTranslationCoverage CheckLayered(
       const DetailedSources &sources, const Translation &base,
       const Translation &baseReviews, const Translation &dlc,
-      const Translation &dlcReviews, bool nativeHq);
+      const Translation &dlcReviews, bool nativeHq,
+      bool explicitSourceIdentities = false);
   // <locale-json-stem>-reviewed-identities.json in the same directory as the
   // effective locale JSON. Missing means no identities certified; malformed
   // manifests fail closed through Translation::load.

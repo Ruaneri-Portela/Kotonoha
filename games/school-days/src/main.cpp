@@ -77,6 +77,7 @@ Kotonoha::EngineOptions WithAssets(Kotonoha::EngineOptions options,
 
 struct Application {
   std::string requestedTranslation;
+  std::string translationSettingsPath;
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
   Application(std::shared_ptr<SchoolDays::Assets> assets, const std::string &route,
@@ -84,6 +85,7 @@ struct Application {
               const std::string &lxhJsonOverride = {},
               const std::string &nativeGpkLocale = {})
       : requestedTranslation(options.translationPath),
+        translationSettingsPath(options.settingsPath),
         runtime(assets, route, documents, options.settingsPath),
         engine(runtime, WithAssets(std::move(options), assets)) {
     if (!nativeGpkLocale.empty()) {
@@ -144,7 +146,10 @@ struct Application {
                 translationFile)
           : Kotonoha::Translation{};
       const auto audit = Kotonoha::SchoolDaysTranslationGate::CheckLayered(
-          sources, dictionary, reviewed, dlc, reviewedDlc, !nonNativeSelected);
+          sources, dictionary, reviewed, dlc, reviewedDlc, !nonNativeSelected,
+          nonNativeSelected && (locale == "en" ||
+              Kotonoha::SchoolDaysGpkLanguageProfile::IsInstalledLocaleJson(
+                  translationSettingsPath, translationFile)));
       // The installed V4b Spanish dictionary already has all 273 LxH slots,
       // including nine independently corrected translations. A sidecar may
       // supply new missing slots, but must never silently replace these.
