@@ -1,4 +1,7 @@
 #include <Kotonoha/routing/SchoolDaysRouteMapModel.hpp>
+#include <Kotonoha/routing/SchoolDaysRouteMapRenderPlan.hpp>
+#include <Kotonoha/routing/SchoolDaysSaveLoadModel.hpp>
+#include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
 
 #include <algorithm>
 #include <array>
@@ -13,6 +16,9 @@
 
 namespace fs = std::filesystem;
 using Model = Kotonoha::SchoolDaysRouteMapModel;
+using MapPlan = Kotonoha::SchoolDaysRouteMapRenderPlan;
+using SaveModel = Kotonoha::SchoolDaysSaveLoadModel;
+using SavePlan = Kotonoha::SchoolDaysSaveLoadRenderPlan;
 
 namespace {
 
@@ -69,6 +75,56 @@ void WriteSyntheticMap(const fs::path &root, Model::Variant variant,
   Require(bool(file), "Could not write synthetic Route Map CMAP");
 }
 
+void CheckLoadButtonHover(const fs::path &root, Model::Variant variant) {
+  const auto saveVariant = static_cast<SaveModel::Variant>(variant);
+  const auto dims = ForVariant(variant);
+  const auto path = root / "hover-cmap" /
+                    (std::to_string(static_cast<int>(variant)) + ".cmap");
+  fs::create_directories(path.parent_path());
+  std::vector<uint8_t> bytes(8u + static_cast<size_t>(dims.width) *
+                                     static_cast<size_t>(dims.height), 0u);
+  for (int i = 0; i < 4; ++i) {
+    bytes[static_cast<size_t>(i)] =
+        static_cast<uint8_t>(dims.width >> (8 * i));
+    bytes[static_cast<size_t>(i + 4)] =
+        static_cast<uint8_t>(dims.height >> (8 * i));
+  }
+  bytes[8u + 60u * static_cast<size_t>(dims.width) + 12u] = 22u;
+  std::ofstream out(path, std::ios::binary | std::ios::trunc);
+  out.write(reinterpret_cast<const char *>(bytes.data()),
+            static_cast<std::streamsize>(bytes.size()));
+  Require(bool(out), "Could not write synthetic SaveLoad CMAP");
+  out.close();
+
+  auto hasBlueMapButton = [](const SaveModel &model) {
+    const auto plan = SavePlan::Build(model);
+    return std::any_of(plan.begin(), plan.end(), [](const auto &sprite) {
+      return sprite.role == SavePlan::Role::RouteMap;
+    });
+  };
+  std::string error;
+  SaveModel model;
+  Require(model.Open(path.string(), saveVariant, SaveModel::Mode::Load,
+                     false, &error), "LOAD CMAP could not open: " + error);
+  Require(model.Selection() == -1 && !hasBlueMapButton(model),
+          "LOAD Open Route Map has a permanent blue overlay at rest");
+  model.RestoreSelection(21); // Original route->LOAD flow saves control 21.
+  Require(model.Selection() == -1 && !hasBlueMapButton(model),
+          "Returning from Route Map restored a stale blue LOAD button");
+  Require(model.SetSelectionFromPointer(12, 60) &&
+              model.Selection() == 21 && hasBlueMapButton(model),
+          "LOAD Open Route Map fails to highlight when hovered");
+  Require(model.SetSelectionFromPointer(-1, -1) &&
+              model.Selection() == -1 && !hasBlueMapButton(model),
+          "LOAD Open Route Map blue hover did not clear on pointer exit");
+  model.Close();
+  Require(model.Open(path.string(), saveVariant, SaveModel::Mode::Save,
+                     false, &error), "SAVE CMAP could not open: " + error);
+  (void)model.SetSelectionFromPointer(12, 60);
+  Require(model.Selection() == -1 && !hasBlueMapButton(model),
+          "SAVE mode must never expose Open Route Map");
+}
+
 void CheckPage(const fs::path &root, Model::Variant variant, int major,
                int subpage, std::array<int, 6> &episodeNodes) {
   Model model;
@@ -81,6 +137,20 @@ void CheckPage(const fs::path &root, Model::Variant variant, int major,
           "Route Map variant dimensions changed");
   Require(model.Major() == major && model.Subpage() == subpage,
           "Route Map opened wrong episode/subpage");
+  const auto hasBlueClose = [&] {
+    const auto plan = MapPlan::Build(model);
+    return std::any_of(plan.begin(), plan.end(), [](const auto &sprite) {
+      return sprite.role == MapPlan::Role::CommonControl && sprite.index == 6;
+    });
+  };
+  Require(model.Selection() == -1 && !hasBlueClose(),
+          "Route Map Close button has a permanent blue overlay at rest");
+  Require(model.SetSelectionFromPointer(7, 2) &&
+              model.Selection() == 6 && hasBlueClose(),
+          "Route Map Close button fails to highlight on hover");
+  Require(model.SetSelectionFromPointer(-1, -1) &&
+              model.Selection() == -1 && !hasBlueClose(),
+          "Route Map Close blue hover did not clear on pointer exit");
   const auto page = Model::Page(major, subpage);
   episodeNodes[static_cast<size_t>(major)] += page.nodeCount;
   for (int local = 0; local < page.nodeCount; ++local) {
@@ -147,6 +217,7 @@ int main(int argc, char **argv) {
         Model::Variant::Standard, Model::Variant::Wide,
         Model::Variant::WideFull, Model::Variant::WideNote}};
     for (const auto variant : variants) {
+      CheckLoadButtonHover(root, variant);
       std::array<int, 6> nodes{};
       for (int major = 0; major < 6; ++major) {
         Require(Model::SubpageCountForMajor(major) ==
@@ -166,7 +237,8 @@ int main(int argc, char **argv) {
       }
     }
     std::cout << "School Days Route Map: 16 pages, 161 selectors, four "
-                 "CMAP variants, lock/unlock and navigation PASS\n";
+                 "CMAP variants, lock/unlock, navigation and both Route Map "
+                 "button hover states PASS\n";
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "SchoolDaysRouteMapMatrixTest: " << error.what() << '\n';

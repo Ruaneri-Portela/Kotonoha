@@ -136,12 +136,51 @@ int main(int argc, char **argv) {
     SDL_Delay(510);
     app.runtime.update();
     openPanel(11);
-    const auto loadSprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
-        app.runtime.panels().SaveLoad());
-    check(std::any_of(loadSprites.begin(), loadSprites.end(), [](const auto& sprite) {
+    const auto hasBlueRouteMapHover = [&] {
+      const auto sprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
+          app.runtime.panels().SaveLoad());
+      return std::any_of(sprites.begin(), sprites.end(), [](const auto& sprite) {
             return sprite.role == Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
-          }),
-          "Retail LOAD must retain Open Route Map");
+          });
+    };
+    check(!hasBlueRouteMapHover(),
+          "LOAD should display the neutral Open Route Map base without hover");
+    {
+      // Unlike the neutral label baked into LOAD.PNG, the cyan CHIP sprite
+      // must be visible only under a genuine pointer hit in region 21.
+      const auto &model = app.runtime.panels().SaveLoad();
+      const int width = int(model.Cmap().Width());
+      const int height = int(model.Cmap().Height());
+      int hitX = -1, hitY = -1;
+      for (int y = 0; y < height && hitX < 0; y += 2)
+        for (int x = 0; x < width; x += 2)
+          if (model.HitControl(x, y) == 21) {
+            hitX = x;
+            hitY = y;
+            break;
+          }
+      check(hitX >= 0, "Retail LOAD CMAP lacks its Route Map hitbox");
+      SDL_Event hover{};
+      hover.type = SDL_EVENT_MOUSE_MOTION;
+      hover.motion.x = float(hitX) * 1280.0f / float(width);
+      hover.motion.y = float(hitY) * 720.0f / float(height);
+      app.runtime.onEvent(hover);
+      check(hasBlueRouteMapHover(),
+            "LOAD Open Route Map did not highlight on actual pointer hover");
+      SDL_Event leave{};
+      leave.type = SDL_EVENT_WINDOW_MOUSE_LEAVE;
+      app.runtime.onEvent(leave);
+      check(!hasBlueRouteMapHover(),
+            "LOAD Open Route Map stayed cyan when pointer left the window");
+      app.runtime.onEvent(hover);
+      check(hasBlueRouteMapHover(),
+            "LOAD hover did not recover after pointer returned to the window");
+      hover.motion.x = -12.0f;
+      hover.motion.y = -12.0f;
+      app.runtime.onEvent(hover);
+      check(!hasBlueRouteMapHover(),
+            "LOAD Open Route Map stayed cyan after pointer left");
+    }
     row();
     // Retail LOAD now dims SaveLoad, presents POPUP_LOAD, fades the card to
     // black, restores the slot behind it, then reveals the new scene. Advance

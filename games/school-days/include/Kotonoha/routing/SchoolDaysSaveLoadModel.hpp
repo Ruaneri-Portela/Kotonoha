@@ -48,7 +48,12 @@ public:
     int Page() const { return page_; }
     int Selection() const { return selection_; }
     void RestoreSelection(int selection) {
-        if (open_ && selection >= -1 && selection <= 31) selection_ = selection;
+        if (open_ && selection >= -1 && selection <= 31) {
+            // Returning from Route Map restores LOAD's previous control 21,
+            // but the real pointer may already be elsewhere (Close/ESC).
+            // Never resurrect its blue hover without a fresh pointer hit.
+            selection_ = selection == 21 ? -1 : selection;
+        }
     }
     bool SavePending() const { return pendingRow_ >= 0; }
     bool CommentInputPending() const { return commentRow_ >= 0; }
