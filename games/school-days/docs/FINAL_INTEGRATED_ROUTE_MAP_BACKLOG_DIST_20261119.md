@@ -8,13 +8,15 @@ comparação de percursos retail ainda exigem QA manual.**
 ## Estado real recuperado
 
 - Worktree: `D:\Dev\_worktrees\school-days-menubar-cursor-20261119`;
-  branch `fix/school-days-dist-backlog-20261119`; baseline consolidado
-  `0c6e61eb22693c527d1416d4e58d26fa9c5605b0`, limpo após o commit.
+  branch `fix/school-days-dist-backlog-20261119`; baseline anterior do hover
+  `0c6e61eb22693c527d1416d4e58d26fa9c5605b0`, seguida do commit
+  integrado do BackLog `f8a31452`; worktree limpa após a consolidação.
 - Commits locais reaproveitados: `32af5e4e` (cursor da MenuBar), `9181cc5d`
   (launcher JSON/GPK), `2e02f9b9` (DIST sem Dialog Story e BackLog),
   `bea77ad6` (BackLog longo/multilíngue), `9eeb367e` (matriz Route Map e
   comparações nativas), `0c6e61eb` (hover Open/Close Route Map e diagnóstico
-  da partida importada). Nenhum push feito nesta integração.
+  da partida importada) e **`f8a31452`** (Unicode, falantes longos e perda de
+  foco no BackLog/LOAD/RouteMap). Nenhum push feito nesta integração.
 - DIST do usuário, preservada:
   `D:\Dev\Kotonoha-v3\dist\SchoolDaysHQ-Windows-DIST-Integrated-Final-20261119`.
   Contém **21 arquivos** no diretório `Save`, incluindo `GlobalFlag.DAT`.
@@ -26,11 +28,13 @@ comparação de percursos retail ainda exigem QA manual.**
   `C09336F879F0294A50E3CA362EF148AD79AF408AEBE161C1E4EECB24D466FFA5`.
 - DIST para a validação integrada **após os achados adicionais do BackLog**:
   `D:\Dev\Kotonoha-v3\dist\SchoolDaysHQ-Windows-DIST-RouteMap-BackLog-QA-20261119`.
-  Esta é a versão de homologação mais recente, a ser produzida com a
-  compilação DIST atualizada e manifesto próprio; as duas anteriores ficam
-  intactas.
+  **Produzida e verificada com 91/91 SHA-256**; manifesto do código
+  `f8a31452` e executável `SchoolDays.exe` SHA-256
+  `BAC53ECBAF5810B76717FF4417B7777F188875782D2E9C1B2F96488FF81785E6`.
+  Não contém diretório `Save`, `GlobalFlag.DAT` ou `Config.DAT`; as duas
+  distribuições anteriores ficaram intactas.
 - O pacote antigo também conservou **91/91 hashes**. Os arquivos e hashes
-  oficiais PT-BR HQ/L×H e `school-days-hq.ktnroute` são idênticos nas duas
+  oficiais PT-BR HQ/L×H e `school-days-hq.ktnroute` são idênticos nas três
   distribuições. A rota KTRF é SHA-256
   `557830833AA3BB4A8EFBA82FE75964211491E9F02D60D6090DDA1D5174D4E745`.
 
@@ -183,8 +187,8 @@ fontes, skins, fluidez e conteúdo de 8+ linhas continua exigida.
 | BackLog adicional, DIST | Build Release aprovada; `DistDebugAbsence`, `BackLogGeometry`, `RouteMapMatrix`, `SaveLoadSamePage` **4/4 PASS** |
 | Conversão UTF-16 → UTF-8 | Teste com speaker e fala contendo emoji: build/teste `BackLogGeometry` atualizado PASS na DEV e DIST |
 | Hover com perda de foco | Integração DEV `SchoolDaysSaveTest` usando arte privada correta e documentos temporários: **exit 0** depois do evento SDL de perda de foco |
-| Nova DIST, inicialização | Testes sintéticos `--documents` isolado, PT-BR GPK **exit 0**, PT-BR JSON **exit 0** |
-| Integridade artefatos | 91/91 hashes verificados para a DIST anterior e a corrigida; original com 21 arquivos Save preservado |
+| Nova DIST, inicialização | Smoke da **nova DIST f8a31452** em cópia temporária externa ao repositório, com `--documents` isolado e SDL dummy/software: PT-BR GPK **exit 0**, PT-BR JSON **exit 0**; cópia de smoke eliminada após validação |
+| Integridade artefatos | 91/91 hashes verificados nas três DISTs privadas; original com 21 arquivos Save e GlobalFlag SHA idêntico preservados |
 
 Não se reexecutou jogo comercial original, CTest completo ou stress sem
 mudança material. Nenhuma das novas mudanças tocou SetSELECT/Feel/AUTO,
