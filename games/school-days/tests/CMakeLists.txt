@@ -49,6 +49,12 @@ add_executable(SchoolDaysBackLogGeometryTest SchoolDaysBackLogGeometryTest.cpp)
 target_link_libraries(SchoolDaysBackLogGeometryTest PRIVATE school_days)
 add_test(NAME SchoolDays.BackLogGeometry COMMAND SchoolDaysBackLogGeometryTest
     "${CMAKE_CURRENT_BINARY_DIR}/backlog-geometry-fixture")
+# Exercises all 161 retail-inventoried selector IDs across the 16 pages and
+# four screen variants with generated CMAPs. No original GPK/save is used.
+add_executable(SchoolDaysRouteMapMatrixTest SchoolDaysRouteMapMatrixTest.cpp)
+target_link_libraries(SchoolDaysRouteMapMatrixTest PRIVATE school_days)
+add_test(NAME SchoolDays.RouteMapMatrix COMMAND SchoolDaysRouteMapMatrixTest
+    "${CMAKE_CURRENT_BINARY_DIR}/route-map-matrix-fixture")
 add_executable(SchoolDaysTranslatedGpkMountTest SchoolDaysTranslatedGpkMountTest.cpp)
 target_link_libraries(SchoolDaysTranslatedGpkMountTest PRIVATE school_days ZLIB::ZLIB)
 add_test(NAME SchoolDays.TranslatedGpkMount COMMAND SchoolDaysTranslatedGpkMountTest)

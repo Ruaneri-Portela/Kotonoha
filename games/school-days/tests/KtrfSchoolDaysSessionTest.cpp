@@ -2,8 +2,10 @@
 #include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayModel.hpp>
+#include <Kotonoha/routing/SchoolDaysRouteMapOracle.hpp>
 
 #include <algorithm>
+#include <cstring>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -173,6 +175,94 @@ int main(int argc, char **argv) {
               restarted.State().ReadGlobalInt("AllClear", &value, &error) &&
               value != 0,
           "new game erased global AllClear");
+  }
+  {
+    // The original RouteProc GetReadScriptCount enumerates exactly the 1825
+    // KTRF SceneKey IDs excluding -OP1, including two routing dispatchers.
+    // The two original ORS outside the KTRF graph are not in that native
+    // string table. Count global read flags by the authenticated native
+    // SceneKey set, not by presence of a physical ORS resource.
+    using Oracle = Kotonoha::SchoolDaysRouteMapOracle;
+    Kotonoha::SchoolDaysKtrfSession completionAudit;
+    Check(completionAudit.Open(argv[1], argv[2], &error), error.message);
+    Kotonoha::SchoolDaysKtrfScene firstScene;
+    Check(completionAudit.ResetNewGame(&firstScene, &error), error.message);
+    auto &flags = completionAudit.State();
+    Oracle::Completion initial;
+    Check(Oracle::ComputeCompletion(flags,
+                                   completionAudit.Adapter()->document,
+                                   &initial, &error) &&
+              initial.scriptCount == Oracle::kCompletionScriptCount,
+          "Route Map did not enumerate the 1825 native SceneKey flags");
+    Check(flags.WriteGlobalInt("03/03-B2-A00", 1, &error) &&
+              flags.WriteGlobalInt("03/03-KB-E00", 1, &error),
+          error.message);
+    Oracle::Completion afterDispatcher;
+    Check(Oracle::ComputeCompletion(flags,
+                                   completionAudit.Adapter()->document,
+                                   &afterDispatcher, &error) &&
+              afterDispatcher.readCount == initial.readCount + 2,
+          "Retail completion no longer counts native dispatcher SceneKeys");
+    Check(flags.WriteGlobalInt("01/01-00-OP2", 1, &error) &&
+              flags.WriteGlobalInt("05/05-9O-B00", 1, &error),
+          error.message);
+    Oracle::Completion withRetailOnly;
+    Check(Oracle::ComputeCompletion(flags,
+                                   completionAudit.Adapter()->document,
+                                   &withRetailOnly, &error) &&
+              withRetailOnly.readCount == initial.readCount + 2,
+          "Retail completion incorrectly counted two unlisted ORS flags");
+    Check(Oracle::CompletionPercentForReadCount(200) == 10 &&
+              Oracle::CompletionPercentForReadCount(201) == 11 &&
+              Oracle::CompletionPercentForReadCount(218) == 11 &&
+              Oracle::CompletionPercentForReadCount(219) == 12 &&
+              Oracle::CompletionPercentForReadCount(1825) == 100,
+          "Native Route Map completion percentage boundaries drifted");
+  }
+  {
+    // SP428 is present at ROUTE15/SCENE85 and ROUTE15/SCENE108 in the native
+    // BackRules inventory. The local SLog remains a first-visit collection
+    // keyed by SP; revisiting the second coordinate must not manufacture an
+    // ambiguous second tag-3 checkpoint for the same selector.
+    const char *firstKey =
+        Kotonoha::SchoolDaysBackRules::SceneKeyFor(15, 85);
+    const char *secondKey =
+        Kotonoha::SchoolDaysBackRules::SceneKeyFor(15, 108);
+    Check(firstKey != nullptr && secondKey != nullptr &&
+              Kotonoha::SchoolDaysBackRules::SpForScene(15, 85) == 428 &&
+              Kotonoha::SchoolDaysBackRules::SpForScene(15, 108) == 428,
+          "SP428 native two-coordinate source mapping changed");
+    for (const bool reverse : {false, true}) {
+      Kotonoha::SchoolDaysKtrfSession duplicateSp;
+      Check(duplicateSp.Open(argv[1], argv[2], &error), error.message);
+      Kotonoha::SchoolDaysKtrfScene firstScene;
+      Check(duplicateSp.ResetNewGame(&firstScene, &error), error.message);
+      auto &state = duplicateSp.State();
+      auto &persistence = duplicateSp.Persistence();
+      const int firstCoordinate = reverse ? 108 : 85;
+      const int secondCoordinate = reverse ? 85 : 108;
+      const char *savedFirstKey = reverse ? secondKey : firstKey;
+      const char *savedSecondKey = reverse ? firstKey : secondKey;
+      Check(state.WriteCoordinate(15, firstCoordinate, &error) &&
+                persistence.RecordCheckpoint(15, firstCoordinate,
+                                             savedFirstKey, &state, &error) &&
+                state.WriteCoordinate(15, secondCoordinate, &error) &&
+                persistence.RecordCheckpoint(15, secondCoordinate,
+                                             savedSecondKey, &state, &error),
+            error.message);
+      size_t sp428Count = 0u;
+      for (const auto &entry : persistence.SaveLogDocument().records) {
+        if (entry.tag != 3 || entry.secondary != u"SP428")
+          continue;
+        ++sp428Count;
+        Check(entry.name == std::u16string(
+                                savedFirstKey,
+                                savedFirstKey + std::strlen(savedFirstKey)),
+              "SP428 reverse visit changed the first checkpoint SceneKey");
+      }
+      Check(sp428Count == 1u,
+            "SP428 duplicate coordinate generated two tag3 checkpoints");
+    }
   }
   {
     Kotonoha::SchoolDaysKtrfSession routeAudit;
