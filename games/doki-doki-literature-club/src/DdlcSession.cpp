@@ -2188,8 +2188,9 @@ struct Game {
   void startSplash() {
     phase = Phase::Splash;
     newVm();
-    replay.label = "splashscreen";
-    vm->start("splashscreen");
+    const bool katawa = assets->name().compare(0, 13, "Katawa Shoujo") == 0;
+    replay.label = katawa ? "imachine" : "splashscreen";
+    vm->start(replay.label);
     checkSplashTransition();
     reportErrors();
   }
@@ -2833,6 +2834,8 @@ struct Game {
   void drawMainMenu(SDL_Renderer *r) {
     const double t = now();
     const auto &m = vm->scene.master;
+    if (m.empty() && vm->assets.has("presplash.png"))
+      drawImage(r, "presplash.png", 0, 0, kW, kH);
     const size_t below = std::min<size_t>(4, m.size());
     drawRender(r,
                vm->renderLayer(
@@ -2976,6 +2979,8 @@ struct Game {
     if (!vm || (phase != Phase::Splash && phase != Phase::Play) || pauseMenu ||
         phase == Phase::Menu)
       return;
+    if (vm->scene.master.empty() && vm->assets.has("presplash.png"))
+      drawImage(r, "presplash.png", 0, 0, kW, kH);
     const Interaction &interaction = vm->interaction();
     if (interaction.k == Interaction::K::Transition && interaction.trans)
       drawTransition(r, interaction, now());

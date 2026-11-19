@@ -590,6 +590,14 @@ struct SummerRuntime::Impl {
   uint64_t deadline = 0, lastUpdate = 0, lastSystemWrite = 0;
   bool title = false, autoMode = false, loaded = false, skipHeld = false,
        currentRead = false, openingPlayed = false;
+  bool meo = false;
+  std::map<std::string, Bytes> meoScripts;
+  std::map<std::string, std::string> meoText;
+  std::vector<Node> meoFrames;
+  std::string meoNextScript;
+  size_t meoFrame = 0;
+  uint64_t meoFrameStart = 0;
+  int meoFrameLength = 0;
   int titleFocus = 0;
   std::string pendingScript;
   // Per-edition title layout loaded from EASYTITLE.INI.
@@ -622,90 +630,104 @@ struct SummerRuntime::Impl {
   explicit Impl(SummerRuntime &r,
                 std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
       : runtime(r), assets(std::move(a)) {
-    for (auto &id : assets->list("SCRIPT/")) {
-      auto bytes = assets->read(id);
-      vm.add(stem(id.substr(7)), std::string(bytes.begin(), bytes.end()));
+    const auto scriptIds = assets->list("SCRIPT/");
+    meo = std::find(scriptIds.begin(), scriptIds.end(), "SCRIPT/A-00.XML") !=
+              scriptIds.end() ||
+          std::find(scriptIds.begin(), scriptIds.end(),
+                    "SCRIPT/Z-ED-GOOD.XML") != scriptIds.end();
+    if (meo) {
+      for (auto &id : scriptIds) {
+        if (canonical(id.substr(id.find_last_of('.') + 1)) == "XML")
+          meoScripts.emplace(id, assets->read(id));
+      }
+    } else {
+      for (auto &id : assets->list("SCRIPT/")) {
+        auto bytes = assets->read(id);
+        vm.add(stem(id.substr(7)), std::string(bytes.begin(), bytes.end()));
+      }
     }
-    std::istringstream stream(
-        assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
-    std::string line;
-    speakers.resize(64);
-    while (std::getline(stream, line)) {
-      if (line.rfind("PlayerName0", 0) == 0 && line.size() > 12 &&
-          line[11] >= '0' && line[11] <= '3') {
-        const auto eq = line.find('=');
-        if (eq != line.npos) {
-          auto val = line.substr(eq + 1);
+    if (!meo) {
+      std::istringstream stream(
+          assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
+      std::string line;
+      speakers.resize(64);
+      while (std::getline(stream, line)) {
+        if (line.rfind("PlayerName0", 0) == 0 && line.size() > 12 &&
+            line[11] >= '0' && line[11] <= '3') {
+          const auto eq = line.find('=');
+          if (eq != line.npos) {
+            auto val = line.substr(eq + 1);
+            val.erase(0, val.find_first_not_of(" \t"));
+            val.erase(val.find_last_not_of(" \t\r") + 1);
+            auto &name = defaultNames[size_t(line[11] - '0')];
+            if (!val.empty() && val[0] == '@') {
+              // SRV2: @-prefixed literal UTF-8 string (after UTF-16LE decode).
+              name = val.substr(1);
+            } else if (val.size() % 2 == 0 &&
+                       val.find_first_not_of("0123456789abcdefABCDEF") ==
+                           val.npos) {
+              // SRV1: hex-encoded byte string.
+              for (size_t at = 0; at < val.size(); at += 2)
+                name += char(std::stoi(val.substr(at, 2), nullptr, 16));
+            }
+          }
+        }
+        if (line.size() > 11 && line.substr(0, 3) == "CHR" &&
+            line.substr(6, 4) == "Name") {
+          int i = std::stoi(line.substr(3, 3));
+          auto eq = line.find('=');
+          if (i >= int(speakers.size()) || eq == line.npos)
+            continue;
+          std::string val = line.substr(eq + 1);
           val.erase(0, val.find_first_not_of(" \t"));
           val.erase(val.find_last_not_of(" \t\r") + 1);
-          auto &name = defaultNames[size_t(line[11] - '0')];
           if (!val.empty() && val[0] == '@') {
-            // SRV2: @-prefixed literal UTF-8 string (after UTF-16LE decode).
-            name = val.substr(1);
+            // SRV2: @-prefixed literal UTF-8 string.
+            speakers[i] = val.substr(1);
           } else if (val.size() % 2 == 0 &&
-                     val.find_first_not_of("0123456789abcdefABCDEF") ==
+                     val.find_first_not_of("0123456789ABCDEFabcdef") ==
                          val.npos) {
             // SRV1: hex-encoded byte string.
-            for (size_t at = 0; at < val.size(); at += 2)
-              name += char(std::stoi(val.substr(at, 2), nullptr, 16));
+            std::string name;
+            for (size_t p = 0; p < val.size(); p += 2)
+              name += char(std::stoi(val.substr(p, 2), nullptr, 16));
+            speakers[i] = name;
           }
         }
       }
-      if (line.size() > 11 && line.substr(0, 3) == "CHR" &&
-          line.substr(6, 4) == "Name") {
-        int i = std::stoi(line.substr(3, 3));
-        auto eq = line.find('=');
-        if (i >= int(speakers.size()) || eq == line.npos)
-          continue;
-        std::string val = line.substr(eq + 1);
-        val.erase(0, val.find_first_not_of(" \t"));
-        val.erase(val.find_last_not_of(" \t\r") + 1);
-        if (!val.empty() && val[0] == '@') {
-          // SRV2: @-prefixed literal UTF-8 string.
-          speakers[i] = val.substr(1);
-        } else if (val.size() % 2 == 0 &&
-                   val.find_first_not_of("0123456789ABCDEFabcdef") ==
-                       val.npos) {
-          // SRV1: hex-encoded byte string.
-          std::string name;
-          for (size_t p = 0; p < val.size(); p += 2)
-            name += char(std::stoi(val.substr(p, 2), nullptr, 16));
-          speakers[i] = name;
-        }
-      }
-    }
-    // Parse character position offsets from GRAPHIC.INI (SRV2 has 7 slots).
-    if (assets->contains("INI/GRAPHIC.INI")) {
-      std::istringstream gfx(
-          assets->loadTextUtf8("INI/GRAPHIC.INI", "UTF-16LE"));
-      std::string gline;
-      while (std::getline(gfx, gline)) {
-        if (gline.rfind("Position ", 0) == 0 ||
-            gline.rfind("Position=", 0) == 0 ||
-            gline.rfind("Position\t", 0) == 0) {
-          auto eq = gline.find('=');
-          if (eq == gline.npos)
-            continue;
-          std::string csv = gline.substr(eq + 1);
-          csv.erase(0, csv.find_first_not_of(" \t"));
-          csv.erase(csv.find_last_not_of(" \t\r") + 1);
-          std::vector<int> parsed;
-          std::istringstream ss(csv);
-          std::string token;
-          while (std::getline(ss, token, ',')) {
-            token.erase(0, token.find_first_not_of(" \t"));
-            token.erase(token.find_last_not_of(" \t") + 1);
-            if (!token.empty())
-              parsed.push_back(std::stoi(token));
+      // Parse character position offsets from GRAPHIC.INI (SRV2 has 7 slots).
+      if (assets->contains("INI/GRAPHIC.INI")) {
+        std::istringstream gfx(
+            assets->loadTextUtf8("INI/GRAPHIC.INI", "UTF-16LE"));
+        std::string gline;
+        while (std::getline(gfx, gline)) {
+          if (gline.rfind("Position ", 0) == 0 ||
+              gline.rfind("Position=", 0) == 0 ||
+              gline.rfind("Position\t", 0) == 0) {
+            auto eq = gline.find('=');
+            if (eq == gline.npos)
+              continue;
+            std::string csv = gline.substr(eq + 1);
+            csv.erase(0, csv.find_first_not_of(" \t"));
+            csv.erase(csv.find_last_not_of(" \t\r") + 1);
+            std::vector<int> parsed;
+            std::istringstream ss(csv);
+            std::string token;
+            while (std::getline(ss, token, ',')) {
+              token.erase(0, token.find_first_not_of(" \t"));
+              token.erase(token.find_last_not_of(" \t") + 1);
+              if (!token.empty())
+                parsed.push_back(std::stoi(token));
+            }
+            if (!parsed.empty())
+              positionOffsets = std::move(parsed);
           }
-          if (!parsed.empty())
-            positionOffsets = std::move(parsed);
         }
       }
+      vm.function = [this](const auto &name, const auto &args) {
+        function(name, args);
+      };
     }
-    vm.function = [this](const auto &name, const auto &args) {
-      function(name, args);
-    };
   }
   std::filesystem::path saveDirectory() const {
     if (const char *path = SDL_getenv("SUMMER_SAVE_DIR"))
@@ -988,6 +1010,252 @@ struct SummerRuntime::Impl {
     }
     refreshTitleChips();
   }
+  void applyMeoFrame(const Node &frame) {
+    if (!frame.children.empty()) {
+      for (const auto &child : frame.children) {
+        if (child.tag == "Text") {
+          const auto mess = meoText.find(child.attr("MESS"));
+          if (mess != meoText.end())
+            text->setDialogue(text->getSpeaker(), mess->second);
+          else
+            text->setDialogue("", child.attr("MESS"));
+        } else if (child.tag == "Log") {
+          const auto nameNo = child.attr("NAME");
+          if (nameNo != "-1") {
+            auto it = meoText.find(nameNo);
+            if (it != meoText.end())
+              text->setDialogue(it->second, text->getText());
+          }
+        } else if (child.tag == "EraseText") {
+          text->hide();
+        } else if (child.tag == "Objects") {
+          for (const auto &object : child.children) {
+            if (object.attr("CREATE") != "Movie")
+              continue;
+            auto file = object.attr("FILE");
+            if (file.empty())
+              continue;
+            auto slash = file.find('/');
+            if (slash != std::string::npos)
+              file = file.substr(slash + 1);
+            const std::string id = "GRAPHIC/" + file;
+            if (assets->contains(id)) {
+              movie->open(*assets, id, false, "BGM");
+              movie->setPaused(false);
+            }
+          }
+        }
+      }
+    }
+  }
+  void beginMeo(const std::string &scriptName) {
+    if (movie)
+      movie->stop();
+    text->hide();
+    meoText.clear();
+    meoFrames.clear();
+    meoNextScript.clear();
+    meoFrame = 0;
+    meoFrameLength = 0;
+
+    std::string wanted = canonical(scriptName);
+    if (wanted.find('.') == std::string::npos)
+      wanted += ".XML";
+    Bytes source;
+    bool found = false;
+    const std::string directId = "SCRIPT/" + canonical(scriptName) + ".XML";
+    if (auto bytes = assets->tryReadAsset(directId)) {
+      source = std::move(*bytes);
+      found = true;
+    } else {
+      try {
+        (void)assets->read(directId);
+      } catch (const std::exception &) {
+      }
+    }
+    if (!found) {
+      const std::string directLowerId = "SCRIPT/" + scriptName + ".XML";
+      try {
+        source = assets->read(directLowerId);
+        found = true;
+      } catch (const std::exception &) {
+      }
+    }
+    if (!found) {
+      for (const auto &[id, bytes] : meoScripts) {
+        auto filename = std::filesystem::path(id).filename().string();
+        auto stemId = stem(filename);
+        const auto slash = id.find_last_of('/');
+        const auto fallbackName =
+            slash == std::string::npos ? id : id.substr(slash + 1);
+        const auto fallbackStem = stem(fallbackName);
+        if (canonical(stemId) == canonical(scriptName) ||
+            canonical(fallbackStem) == canonical(scriptName)) {
+          source = bytes;
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) {
+      text->setDialogue(
+          "MISS EACH OTHER",
+          "MEO assets detected, but the initial script could not be indexed.");
+      text->show();
+      runtime.SetState(GameState::Gameplay);
+      return;
+    }
+
+    const std::string xml(source.begin(), source.end());
+    auto attrValue = [](const std::string &tag, const std::string &name) {
+      const std::string needle = name + "=\"";
+      auto start = tag.find(needle);
+      if (start == std::string::npos)
+        return std::string();
+      start += needle.size();
+      auto end = tag.find('"', start);
+      if (end == std::string::npos)
+        return std::string();
+      return tag.substr(start, end - start);
+    };
+
+    size_t textPos = 0;
+    while ((textPos = xml.find("<TextRes ", textPos)) != std::string::npos) {
+      const auto tagEnd = xml.find('>', textPos);
+      const auto valueStart =
+          tagEnd == std::string::npos ? std::string::npos : tagEnd + 1;
+      const auto valueEnd = valueStart == std::string::npos
+                                ? std::string::npos
+                                : xml.find("</TextRes>", valueStart);
+      if (tagEnd == std::string::npos || valueEnd == std::string::npos)
+        break;
+      const std::string tag = xml.substr(textPos, tagEnd - textPos);
+      meoText[attrValue(tag, "NO")] =
+          xml.substr(valueStart, valueEnd - valueStart);
+      textPos = valueEnd + 10;
+    }
+
+    const std::string lengthTag = "<FrameLength>";
+    auto lengthPos = xml.find(lengthTag);
+    if (lengthPos != std::string::npos) {
+      lengthPos += lengthTag.size();
+      const auto end = xml.find("</FrameLength>", lengthPos);
+      if (end != std::string::npos)
+        meoFrameLength = std::stoi(xml.substr(lengthPos, end - lengthPos));
+    }
+
+    const std::string timeoutMarker = "<FUNC NAME=\"SetTimeoutScript\">";
+    auto timeoutPos = xml.find(timeoutMarker);
+    if (timeoutPos != std::string::npos) {
+      const auto strStart = xml.find("<STRRES>", timeoutPos);
+      if (strStart != std::string::npos) {
+        const auto valueStart = strStart + 8;
+        const auto strEnd = xml.find("</STRRES>", valueStart);
+        if (strEnd != std::string::npos) {
+          const auto found =
+              meoText.find(xml.substr(valueStart, strEnd - valueStart));
+          if (found != meoText.end())
+            meoNextScript = found->second;
+        }
+      }
+    }
+
+    size_t framePos = 0;
+    while ((framePos = xml.find("<Frame ", framePos)) != std::string::npos) {
+      const auto tagEnd = xml.find('>', framePos);
+      const auto frameEnd = tagEnd == std::string::npos
+                                ? std::string::npos
+                                : xml.find("</Frame>", tagEnd);
+      if (tagEnd == std::string::npos || frameEnd == std::string::npos)
+        break;
+      const std::string tag = xml.substr(framePos, tagEnd - framePos);
+      const std::string body = xml.substr(tagEnd + 1, frameEnd - tagEnd - 1);
+
+      Node frame;
+      frame.tag = "Frame";
+      frame.attrs["TIME"] = attrValue(tag, "TIME");
+
+      size_t childPos = 0;
+      while ((childPos = body.find("<Log ", childPos)) != std::string::npos) {
+        const auto end = body.find("/>", childPos);
+        if (end == std::string::npos)
+          break;
+        std::string logTag = body.substr(childPos, end - childPos);
+        Node log;
+        log.tag = "Log";
+        log.attrs["NAME"] = attrValue(logTag, "NAME");
+        log.attrs["MESS"] = attrValue(logTag, "MESS");
+        frame.children.push_back(std::move(log));
+        childPos = end + 2;
+      }
+      childPos = 0;
+      while ((childPos = body.find("<Text ", childPos)) != std::string::npos) {
+        const auto end = body.find("/>", childPos);
+        if (end == std::string::npos)
+          break;
+        std::string textTag = body.substr(childPos, end - childPos);
+        Node text;
+        text.tag = "Text";
+        text.attrs["MESS"] = attrValue(textTag, "MESS");
+        frame.children.push_back(std::move(text));
+        childPos = end + 2;
+      }
+      if (body.find("<EraseText") != std::string::npos) {
+        Node erase;
+        erase.tag = "EraseText";
+        frame.children.push_back(std::move(erase));
+      }
+      size_t moviePos = 0;
+      while ((moviePos = body.find("CREATE=\"Movie\"", moviePos)) !=
+             std::string::npos) {
+        const auto tagStart = body.rfind('<', moviePos);
+        const auto tagEnd = body.find('>', moviePos);
+        if (tagStart == std::string::npos || tagEnd == std::string::npos)
+          break;
+        const std::string movieTag = body.substr(tagStart, tagEnd - tagStart);
+        Node objects;
+        objects.tag = "Objects";
+        Node object;
+        object.tag = "Object";
+        object.attrs["CREATE"] = "Movie";
+        object.attrs["FILE"] = attrValue(movieTag, "FILE");
+        objects.children.push_back(std::move(object));
+        frame.children.push_back(std::move(objects));
+        moviePos = tagEnd + 1;
+      }
+      meoFrames.push_back(std::move(frame));
+      framePos = frameEnd + 8;
+    }
+
+    meoFrameStart = SDL_GetTicks();
+    runtime.SetState(GameState::Gameplay);
+    text->show();
+    if (!meoFrames.empty()) {
+      meoFrame = 0;
+      applyMeoFrame(meoFrames[0]);
+    } else {
+      text->setDialogue("", "MEO timeline loaded, but no Frame nodes found.");
+    }
+  }
+  void updateMeo(Uint64 now) {
+    if (meoFrames.empty())
+      return;
+    const double seconds =
+        double(now >= meoFrameStart ? now - meoFrameStart : 0) / 1000.0;
+    const int frameTime = int(seconds * 60.0);
+    while (meoFrame + 1 < meoFrames.size()) {
+      const int nextTime = std::stoi(meoFrames[meoFrame + 1].attr("TIME"));
+      if (frameTime < nextTime)
+        break;
+      ++meoFrame;
+      applyMeoFrame(meoFrames[meoFrame]);
+    }
+    if (meoFrameLength > 0 && frameTime >= meoFrameLength &&
+        !meoNextScript.empty()) {
+      beginMeo(meoNextScript);
+      meoFrameLength = 0;
+    }
+  }
   void begin(const std::string &script = "START") {
     if (movie)
       movie->stop();
@@ -1016,7 +1284,8 @@ struct SummerRuntime::Impl {
     // Reproduz o vídeo de abertura (se existir) apenas na primeira
     // inicialização, antes do título, igual ao jogo original. Tenta nomes
     // conhecidos em cada instalação. Não inicia o script enquanto o filme
-    // estiver tocando; ele começa quando o filme termina (tratado em update()).
+    // estiver tocando; ele começa quando o filme termina (tratado em
+    // update()).
     if (!openingPlayed) {
       std::vector<std::string> openingCandidates{
           "DISC1/opening.mpg", "DISC1/summer_op.mpg", "opening.mpg",
@@ -1096,7 +1365,10 @@ struct SummerRuntime::Impl {
     if (!loaded) {
       loadSystem();
       loaded = true;
-      begin();
+      if (meo)
+        beginMeo("A-00");
+      else
+        begin();
     }
   }
   void options(const std::string &question, std::vector<std::string> labels,
@@ -1510,6 +1782,15 @@ struct SummerRuntime::Impl {
     return canvas;
   }
   void draw(RendererRef r, float) {
+    if (meo) {
+      if (movie && movie->isOpen())
+        movie->render(r);
+      else {
+        SDL_SetRenderDrawColor(&r, 16, 18, 28, 255);
+        SDL_RenderClear(&r);
+      }
+      return;
+    }
     std::string base =
         choice->mode() >= 0 ? choice->nativeBackground() : background;
     std::ostringstream state;
@@ -1811,6 +2092,12 @@ void SummerRuntime::update() {
   if (!impl->engine || !impl->loaded)
     return;
   auto &i = *impl;
+  if (i.meo) {
+    i.updateMeo(SDL_GetTicks());
+    if (i.movie)
+      i.movie->update(i.engine->GetRenderer());
+    return;
+  }
   const auto now = SDL_GetTicks();
   const bool paused = i.engine->isStoryPaused();
   i.bgm.SetPaused(paused);
@@ -1911,9 +2198,14 @@ void SummerRuntime::update() {
 }
 bool SummerRuntime::onEvent(EventRef e) {
   auto &i = *impl;
+  if (i.meo) {
+    if (i.text)
+      return i.text->onEvent(e);
+    return false;
+  }
   // Shared modals (pause, save browser, history, name entry) and choices map
-  // controller buttons in their own context. Pre-mapping would turn South into
-  // held skip while a menu is open.
+  // controller buttons in their own context. Pre-mapping would turn South
+  // into held skip while a menu is open.
   for (auto *scene : GetActiveScenes())
     if (scene && scene->capturesInput()) {
       i.skipHeld = false;

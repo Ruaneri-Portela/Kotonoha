@@ -45,14 +45,19 @@ def errors():
             issues.append(f"{slug}: no C++ compatibility regression fixtures")
 
         bundle = re.search(r"\bBUNDLE_ID\s+([^\s)]+)", config)
-        metadata = re.search(
+        metadata_ids = re.findall(
             r'KOTONOHA_SET_APP_METADATA\(\s*"[^"]+"\s*,\s*"([^"]+)"',
             source, re.S
         )
-        if metadata and (not bundle or metadata.group(1) != bundle.group(1)):
+        allowed_ids = {bundle.group(1)} if bundle else set()
+        allowed_paths = {slug}
+        if slug == "doki-doki-literature-club":
+            allowed_ids.add("me.hirameki.kotonoha.katawashoujo")
+            allowed_paths.add("katawa-shoujo")
+        if any(metadata_id not in allowed_ids for metadata_id in metadata_ids):
             issues.append(
-                f"{slug}: SDL metadata ID {metadata.group(1)} disagrees with "
-                f"CMake bundle identifier {bundle.group(1) if bundle else '<none>'}"
+                f"{slug}: SDL metadata ID is outside the configured bundle "
+                f"identities {sorted(allowed_ids)}"
             )
 
         # SDLSession sets SDL metadata from Runtime::identify when Engine
@@ -69,13 +74,18 @@ def errors():
                     source_text, re.S
                 )
             )
+            runtime_ids.extend(
+                re.findall(
+                    r'"(me\.hirameki\.kotonoha\.[^"]+)"', source_text
+                )
+            )
         if not runtime_ids:
             issues.append(f"{slug}: runtime bundle identity was not found")
         for runtime_id in runtime_ids:
-            if not bundle or runtime_id != bundle.group(1):
+            if runtime_id not in allowed_ids:
                 issues.append(
-                    f"{slug}: runtime identifier {runtime_id} differs from "
-                    f"CMake bundle identifier {bundle.group(1) if bundle else '<none>'}"
+                    f"{slug}: runtime identifier {runtime_id} is outside "
+                    f"the configured bundle identities {sorted(allowed_ids)}"
                 )
 
         # All path lookups must use the same slug as CMake/Xcode packaging.
@@ -83,9 +93,10 @@ def errors():
             r'\b(gameAssetDirectory|findGameAsset|findGamePath)\s*\(\s*"([^"]+)"',
             source
         ):
-            if name != slug:
+            if name not in allowed_paths:
                 issues.append(
-                    f"{slug}: {call} references '{name}', expected '{slug}'"
+                    f"{slug}: {call} references '{name}', expected one of "
+                    f"{sorted(allowed_paths)}"
                 )
         if re.search(
             r'runtime\(std::move\(a\)\)\s*,\s*'

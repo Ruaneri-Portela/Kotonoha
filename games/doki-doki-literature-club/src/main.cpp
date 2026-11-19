@@ -67,6 +67,12 @@ std::string defaultDirectory() {
   if (auto found = Kotonoha::FileResolver::findGameAsset(
           "doki-doki-literature-club", "game/scripts.rpa"))
     return found->parent_path().string();
+  if (auto found = Kotonoha::FileResolver::findGameAsset(
+          "katawa-shoujo", "game/script-a1-monday.rpyc"))
+    return found->parent_path().string();
+  if (auto found = Kotonoha::FileResolver::findGameAsset("katawa-shoujo",
+                                                         "game/data.rpa"))
+    return found->parent_path().string();
   return (Kotonoha::gameAssetDirectory("doki-doki-literature-club") / "game")
       .string();
 }
@@ -85,17 +91,30 @@ struct KotonohaPortCallbacks final {
 SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
                                           char **argv) {
   *appstate = nullptr;
-  KOTONOHA_SET_APP_METADATA("Doki Doki Literature Club!",
-                            "me.hirameki.kotonoha.dokidokiliteratureclub");
   try {
     auto app = std::make_unique<App>();
     auto &options = app->options;
     options.persistSettings = true;
     std::string directory;
 
+    bool katawaRequested = SDL_getenv("KATAWA_DIR") != nullptr;
+    for (int i = 1; i < argc; ++i)
+      if (argv[i] && (std::string(argv[i]) == "--katawa" ||
+                      std::string(argv[i]).compare(0, 8, "--katawa=") == 0))
+        katawaRequested = true;
+    if (katawaRequested)
+      KOTONOHA_SET_APP_METADATA("Katawa Shoujo",
+                                "me.hirameki.kotonoha.katawashoujo");
+    else
+      KOTONOHA_SET_APP_METADATA("Doki Doki Literature Club!",
+                                "me.hirameki.kotonoha.dokidokiliteratureclub");
+
     Kotonoha::CommandLine arguments("DokiDoki", options);
     arguments.option("--ddlc", "DIRECTORY|ISO",
                      "DDLC directory or ISO containing scripts.rpa", directory);
+    arguments.option("--katawa", "DIRECTORY|ISO",
+                     "Katawa Shoujo directory or ISO containing game data",
+                     directory);
     arguments.alias("--asset-overlay", "--overlay");
     arguments.parse(argc, argv);
     if (arguments.wantsHelp()) {
@@ -110,12 +129,36 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     const std::string settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
     const auto env = SDL_getenv("DDLC_DIR");
-    directory = Kotonoha::GameLauncher::findGamePath(
-        "doki-doki-literature-club",
-        {directory, env ? env : "",
-         Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
-         defaultDirectory()},
-        Ddlc::GameLauncher::validatePath, {"", "game"});
+    const auto katawa = SDL_getenv("KATAWA_DIR");
+    std::string selectedDirectory =
+        directory.empty() ? (katawa ? katawa : (env ? env : "")) : directory;
+    std::string validationInfo;
+    if (!selectedDirectory.empty() &&
+        Ddlc::GameLauncher::validatePath(selectedDirectory, validationInfo)) {
+      directory = selectedDirectory;
+    } else {
+      if (!selectedDirectory.empty())
+        SDL_Log("Katawa source validation: %s", validationInfo.c_str());
+      directory = Kotonoha::GameLauncher::findGamePath(
+          "doki-doki-literature-club",
+          {directory, katawa ? katawa : "", env ? env : "",
+           Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
+           defaultDirectory()},
+          Ddlc::GameLauncher::validatePath, {"", "game"});
+    }
+    const std::filesystem::path root(directory);
+    const std::filesystem::path game =
+        std::filesystem::is_regular_file(root / "script-a1-monday.rpyc") ||
+                std::filesystem::is_regular_file(root / "data.rpa")
+            ? root
+            : root / "game";
+    if (std::filesystem::is_regular_file(game / "script-a1-monday.rpyc")) {
+      KOTONOHA_SET_APP_METADATA("Katawa Shoujo",
+                                "me.hirameki.kotonoha.katawashoujo");
+    } else {
+      KOTONOHA_SET_APP_METADATA("Doki Doki Literature Club!",
+                                "me.hirameki.kotonoha.dokidokiliteratureclub");
+    }
     // Honor the shared default and explicit --no-launcher. Automated
     // --frames and MCP runs bypass the launcher in CommandLine::parse().
     if (directory.empty() && !options.launcher)

@@ -17,6 +17,10 @@ int main(int argc, char **argv) {
       root /= "DISC1/PACK";
     else if (std::filesystem::exists(root / "PACK"))
       root /= "PACK";
+    else if (std::filesystem::exists(root / "PACKS"))
+      root /= "PACKS";
+    else if (std::filesystem::exists(root / "Personal/MISSEACHOTHER/PACKS"))
+      root /= "Personal/MISSEACHOTHER/PACKS";
     Machine vm;
     const std::string mode = argc > 2 ? argv[2] : "";
     for (auto type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {

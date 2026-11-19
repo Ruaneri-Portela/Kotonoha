@@ -13,7 +13,11 @@
 
 ## Kotonoha UI Integration
 
-- Native `rmenu` (`Salvar`, `Carregar`, `Histórico`, `Tela inicial`) opens a `PonscripterMenu` subclass of `Kotonoha::InGameMenu`. Each entry maps to the native system call (`save`, `load`, `lookback`, `reset`), preserving the original `rmenu` script semantics.
-- Native `lookback` opens the shared `Kotonoha::VNBacklog`; `systemcall save` and `systemcall load` open `Kotonoha::VNSaveMenu`. The VM remains in `WaitSystemCall` until the corresponding engine modal closes, and the close callback restores the previous wait state through `finishSystemCall()`.
-- The legacy custom rmenu/save/load/lookback overlay is retained only as a fallback and is suppressed while a Kotonoha modal is active.
+- Native `rmenu` (`Salvar`, `Carregar`, `Histórico`, `Tela inicial`) opens `PonscripterMenu`, a PONscripter implementation injected through the shared `Kotonoha::InGameMenu` component. Its entries map to the native system calls (`save`, `load`, `lookback`, `reset`) and its rendering replaces the generic Kotonoha panel.
+- Native `lookback` opens `PonscripterBacklog`, a PONscripter implementation injected through `Kotonoha::VNBacklog`; Save/Load remain in the PONscripter-native slot overlay and do not use `Kotonoha::VNSaveMenu`.
+- The VM remains in `WaitSystemCall` until a PONscripter modal closes, with close callbacks restoring the previous wait state through `finishSystemCall()`.
+- PONscripter backlog navigation supports Up/Left/PageUp and Down/Right/PageDown, mouse wheel, `B`, `Escape`, and right-click close, and displays the native-style page counter and instruction line.
+- PONscripter backlog selection is clamped to the valid `[0, entries.size() - 1]` range at open, navigation, wheel movement, and render time.
+- PONscripter backlog and menu entries use `Engine::GetVNUI()` and apply `vnTextColorOverride`, `vnSpeakerColor`, and `vnTextColor`; generic VN backlog entries use the same shared controls.
+- Backgrounds, standing sprites, extended sprites, cursors, and text-window backdrops are cached after individual image processing and use the engine upscaler when enabled.
 - `PonscripterRuntimeTests` covers both a synthetic script and the retail Saya no Uta data: right-click `rmenu`, Save/Load, History, direct `lookback`/`save`, and VM resumption after each modal closes.

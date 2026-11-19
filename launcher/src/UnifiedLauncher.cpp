@@ -327,10 +327,10 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
   if (hasFileCaseInsensitive(source, "MISS EACH OTHER.msi") ||
       hasFileCaseInsensitive(source, "gEngine.gesl") ||
       hasFileCaseInsensitive(source, "MEO.exe") ||
-      findRequiredFilesPrefix(source, {"SCRIPT.CMP"},
-                              {"Personal/MISSEACHOTHER/",
-                               "Personal/MISSEACHOTHER/DATA/",
-                               "Personal/MISSEACHOTHER/PACK/"})) {
+      findRequiredFilesPrefix(
+          source, {"SCRIPT.CMP"},
+          {"Personal/MISSEACHOTHER/", "Personal/MISSEACHOTHER/DATA/",
+           "Personal/MISSEACHOTHER/PACK/", "Personal/MISSEACHOTHER/PACKS/"})) {
     return {EngineKind::SummerRadish,
             "summer-radish-vacation",
             "Overflow gEngine / FILMEngine (MEO CMP)",

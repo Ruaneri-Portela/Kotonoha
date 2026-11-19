@@ -13,7 +13,11 @@
 
 ## Integração com a UI de Kotonoha
 
-- O `rmenu` nativo (`Salvar`, `Carregar`, `Histórico`, `Tela inicial`) abre um `PonscripterMenu`, subclasse de `Kotonoha::InGameMenu`. Cada item mapeia para a system call nativa (`save`, `load`, `lookback`, `reset`), preservando a semântica original do script `rmenu`.
-- O `lookback` nativo abre o `Kotonoha::VNBacklog` compartilhado; `systemcall save` e `systemcall load` abrem o `Kotonoha::VNSaveMenu`. A VM permanece em `WaitSystemCall` até o modal correspondente do motor fechar, e o callback de fechamento restaura o estado de espera anterior via `finishSystemCall()`.
-- O overlay legado de rmenu/save/load/lookback é mantido apenas como fallback e fica suprimido enquanto um modal de Kotonoha estiver ativo.
+- O `rmenu` nativo (`Salvar`, `Carregar`, `Histórico`, `Tela inicial`) abre `PonscripterMenu`, implementação PONscripter injetada através do componente compartilhado `Kotonoha::InGameMenu`. Cada item mapeia para a system call nativa (`save`, `load`, `lookback`, `reset`) e a renderização substitui o painel genérico do Kotonoha.
+- O `lookback` nativo abre `PonscripterBacklog`, implementação PONscripter injetada através de `Kotonoha::VNBacklog`; Save/Load permanecem no overlay nativo de slots do PONscripter e não usam `Kotonoha::VNSaveMenu`.
+- A VM permanece em `WaitSystemCall` até um modal PONscripter fechar, com callbacks de fechamento restaurando o estado de espera anterior via `finishSystemCall()`.
+- A navegação do histórico PONscripter suporta Up/Left/PageUp e Down/Right/PageDown, roda do mouse, `B`, `Escape` e fechar com clique direito, além de contador de página e linha de instruções no estilo nativo.
+- A seleção do histórico PONscripter fica limitada ao intervalo válido `[0, entries.size() - 1]` ao abrir, navegar, mover com a roda e renderizar.
+- Os itens do histórico e do menu PONscripter usam `Engine::GetVNUI()` e respeitam `vnTextColorOverride`, `vnSpeakerColor` e `vnTextColor`; entradas do histórico genérico usam os mesmos controles compartilhados.
+- Fundos, personagens, sprites estendidos, cursores e fundos da janela de texto são processados individualmente, cacheados e passam pelo upscaler do motor quando ativo.
 - `PonscripterRuntimeTests` cobre um script sintético e os dados comerciais de Saya no Uta: `rmenu` por clique direito, Salvar/Carregar, Histórico, `lookback`/`save` diretos e a retomada da VM após fechar cada modal.

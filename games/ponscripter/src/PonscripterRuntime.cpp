@@ -5,17 +5,16 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
-#include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/components/VNManager.hpp>
 #include <Kotonoha/components/VNSave.hpp>
-#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -172,6 +171,8 @@ public:
       : InGameMenu(engineRef), onAction_(std::move(onAction)) {}
 
 protected:
+  bool designSpace() const override { return false; }
+
   int itemCount() const override { return 4; }
 
   std::string itemLabel(int index) const override {
@@ -197,8 +198,152 @@ protected:
     onAction_(actions[index]);
   }
 
+  void renderPanel(Kotonoha::RendererRef renderer) override {
+    SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 165);
+    SDL_FRect full{0.0f, 0.0f, 800.0f, 600.0f};
+    SDL_RenderFillRect(&renderer, &full);
+
+    constexpr float menuW = 340.0f;
+    constexpr float itemH = 30.0f;
+    const float menuH = static_cast<float>(itemCount()) * itemH + 32.0f;
+    const float menuX = (800.0f - menuW) * 0.5f;
+    const float menuY = (600.0f - menuH) * 0.5f;
+    SDL_SetRenderDrawColor(&renderer, 18, 22, 32, 235);
+    SDL_FRect panel{menuX, menuY, menuW, menuH};
+    SDL_RenderFillRect(&renderer, &panel);
+    SDL_SetRenderDrawColor(&renderer, 160, 175, 195, 210);
+    SDL_RenderRect(&renderer, &panel);
+  }
+
+  SDL_FRect itemRect(int index) const override {
+    return {230.0f, 240.0f + static_cast<float>(index) * 30.0f, 340.0f, 30.0f};
+  }
+
+  void renderItem(Kotonoha::RendererRef renderer, int index,
+                  bool focused) override {
+    auto &ui = engine.GetVNUI();
+    const auto &settings = engine.GetSettings();
+    const SDL_Color selected = settings.vnTextColorOverride
+                                   ? settings.vnSpeakerColor
+                                   : SDL_Color{255, 153, 153, 255};
+    const SDL_Color normal = settings.vnTextColorOverride
+                                 ? settings.vnTextColor
+                                 : SDL_Color{153, 255, 153, 255};
+    ui.text(renderer, itemLabel(index), itemRect(index).x + 24.0f,
+            itemRect(index).y + 5.0f, itemRect(index).w - 48.0f,
+            focused ? selected : normal);
+  }
+
 private:
   std::function<void(const std::string &)> onAction_;
+};
+
+class PonscripterBacklog final : public Kotonoha::VNBacklog {
+public:
+  explicit PonscripterBacklog(Kotonoha::Engine &engineRef)
+      : VNBacklog(engineRef) {}
+
+  bool designSpace() const override { return false; }
+  void open() override {
+    VNBacklog::open();
+    clampSelection();
+  }
+  void clear() override {
+    VNBacklog::clear();
+    selected = 0;
+  }
+  bool onEvent(Kotonoha::EventRef rawEvent) override {
+    if (!isVisible())
+      return false;
+    const auto event = Kotonoha::MapControllerEvent(rawEvent);
+    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+      if (event.key.key == SDLK_ESCAPE || event.key.key == SDLK_B) {
+        close();
+        return true;
+      }
+      if (event.key.key == SDLK_UP || event.key.key == SDLK_LEFT ||
+          event.key.key == SDLK_PAGEUP) {
+        moveSelection(-1);
+        return true;
+      }
+      if (event.key.key == SDLK_DOWN || event.key.key == SDLK_RIGHT ||
+          event.key.key == SDLK_PAGEDOWN) {
+        moveSelection(1);
+        return true;
+      }
+    }
+    if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+      moveSelection(event.wheel.y > 0 ? -1 : 1);
+      return true;
+    }
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event.button.button == SDL_BUTTON_RIGHT) {
+      close();
+      return true;
+    }
+    return VNBacklog::onEvent(rawEvent);
+  }
+
+protected:
+  void renderFrame(Kotonoha::RendererRef renderer) override {
+    SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(&renderer, 12, 16, 22, 230);
+    SDL_FRect box{40.0f, 50.0f, 720.0f, 500.0f};
+    SDL_RenderFillRect(&renderer, &box);
+    SDL_SetRenderDrawColor(&renderer, 150, 165, 190, 200);
+    SDL_RenderRect(&renderer, &box);
+  }
+
+  void renderEntries(Kotonoha::RendererRef renderer) override {
+    auto &ui = engine.GetVNUI();
+    const auto &settings = engine.GetSettings();
+    const SDL_Color speaker = settings.vnTextColorOverride
+                                  ? settings.vnSpeakerColor
+                                  : SDL_Color{255, 215, 100, 255};
+    const SDL_Color dialogue = settings.vnTextColorOverride
+                                   ? settings.vnTextColor
+                                   : SDL_Color{235, 235, 240, 255};
+    clampSelection();
+    ui.text(renderer, "Historico de mensagens", 60.0f, 62.0f, 680.0f, speaker);
+    const std::string count = entries.empty()
+                                  ? "0/0"
+                                  : std::to_string(selected + 1) + "/" +
+                                        std::to_string(entries.size());
+    ui.text(renderer, count + " - Roda / Setas | Clique direito: Fechar", 60.0f,
+            82.0f, 680.0f, dialogue);
+    if (entries.empty()) {
+      ui.text(renderer, "Nenhuma mensagem no historico ainda.", 60.0f, 96.0f,
+              680.0f, {170, 175, 185, 255});
+      return;
+    }
+    const auto &entry = entries[selected];
+    float y = 116.0f;
+    if (!entry.speaker.empty())
+      y += ui.text(renderer, entry.speaker, 60.0f, y, 680.0f, speaker);
+    ui.text(renderer, entry.text, 60.0f, y, 680.0f, dialogue);
+  }
+
+private:
+  void clampSelection() {
+    selected = entries.empty()
+                   ? 0
+                   : std::clamp(selected, std::size_t{0}, entries.size() - 1);
+  }
+  void moveSelection(int delta) {
+    if (entries.empty()) {
+      selected = 0;
+      return;
+    }
+    if (delta < 0) {
+      if (selected > 0)
+        --selected;
+    } else if (delta > 0) {
+      if (selected < entries.size() - 1)
+        ++selected;
+    }
+  }
+  std::size_t selected = 0;
 };
 
 struct PonscripterRuntime::Impl final : public HostCallbacks {
@@ -206,10 +351,9 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   std::shared_ptr<PonscripterAssets> assets;
   Kotonoha::Engine *engine = nullptr;
 
-  // Shared Kotonoha UI components
-  std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
+  // PONscripter-native implementations of Kotonoha shared UI components
   Kotonoha::VNBacklog *backlog = nullptr;
-  std::unique_ptr<Kotonoha::InGameMenu> inGameMenu;
+  Kotonoha::InGameMenu *inGameMenu = nullptr;
   std::size_t syncedBacklogCount = 0;
 
   // Indexed script nodes & translation tables for Kotonoha Debug / Translation
@@ -452,20 +596,6 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
     return dir / ("save" + std::to_string(slot) + ".dat");
   }
 
-  void openKotonohaSaveMenu(bool load) {
-    if (!engine || !saveMenu)
-      return;
-    const auto dir = saveRootDir() / "slots";
-    std::filesystem::create_directories(dir);
-    const std::string suggestion = !runtime.vm().currentLabel().empty()
-                                       ? runtime.vm().currentLabel()
-                                       : std::string("Saya no Uta");
-    saveMenu->open(dir.string(), load, suggestion);
-    const auto &scenes = runtime.GetActiveScenes();
-    if (std::find(scenes.begin(), scenes.end(), saveMenu.get()) == scenes.end())
-      runtime.AddScene(saveMenu.get(), runtime.GetState());
-  }
-
   void loadPersistedGlobals() {
     const auto path = globalSavePath();
     if (path.empty() || !std::filesystem::exists(path))
@@ -600,9 +730,14 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
     if (resolved.empty())
       return nullptr;
 
-    const std::string cacheKey = resolved + "|" +
-                                 std::to_string(static_cast<int>(spec.trans)) +
-                                 "|" + std::to_string(spec.numCells);
+    const auto &upscale = engine ? engine->GetUpscaler().getSettings()
+                                 : Kotonoha::UpscaleSettings{};
+    const std::string cacheKey =
+        resolved + "|" + std::to_string(static_cast<int>(spec.trans)) + "|" +
+        std::to_string(spec.numCells) + "|" +
+        std::to_string(static_cast<int>(upscale.backend)) + "|" +
+        std::to_string(static_cast<int>(upscale.preset)) + "|" +
+        std::to_string(upscale.factor);
     auto it = imageCache.find(cacheKey);
     if (it != imageCache.end() && it->second.texture)
       return it->second.texture.get();
@@ -631,13 +766,35 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
       entry.height = transSurf->h;
       entry.hasNativeAlpha = hadAlpha;
       entry.surface = std::move(transSurf);
-      SDL_Texture *rawPtr = tex.get();
-      entry.texture = std::move(tex);
+      if (engine && upscale.enabled()) {
+        entry.texture = engine->GetUpscaler().scaled(*tex, upscale.factor);
+      } else {
+        entry.texture = std::move(tex);
+      }
+      SDL_Texture *rawPtr = entry.texture.get();
       imageCache[cacheKey] = std::move(entry);
       return rawPtr;
     } catch (...) {
       return nullptr;
     }
+  }
+
+  const ProcessedImage *getProcessedImage(const TaggedImageSpec &spec) {
+    if (!assets || spec.imagePath.empty())
+      return nullptr;
+    const std::string resolved = assets->resolveActualPath(spec.imagePath);
+    if (resolved.empty())
+      return nullptr;
+    const auto &upscale = engine ? engine->GetUpscaler().getSettings()
+                                 : Kotonoha::UpscaleSettings{};
+    const std::string cacheKey =
+        resolved + "|" + std::to_string(static_cast<int>(spec.trans)) + "|" +
+        std::to_string(spec.numCells) + "|" +
+        std::to_string(static_cast<int>(upscale.backend)) + "|" +
+        std::to_string(static_cast<int>(upscale.preset)) + "|" +
+        std::to_string(upscale.factor);
+    const auto it = imageCache.find(cacheKey);
+    return it == imageCache.end() ? nullptr : &it->second;
   }
 
   void playClipOnPlayer(Kotonoha::PcmPlayer &player,
@@ -791,6 +948,8 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   void onSystemCall(const std::string &kind) override {
     systemMenuHoverIndex = -1;
     if (kind == "lookback") {
+      backlogScrollOffset =
+          std::max(0, static_cast<int>(runtime.vm().backlogPages().size()) - 1);
       if (backlog)
         backlog->open();
       return;
@@ -800,9 +959,7 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
         inGameMenu->open();
       return;
     }
-    if (kind == "save" || kind == "load") {
-      openKotonohaSaveMenu(kind == "load");
-    }
+    // Save/load keep the PONscripter-native overlay and slot format.
   }
 };
 
@@ -831,7 +988,6 @@ void PonscripterRuntime::shutdown() {
   for (auto &wp : impl_->wavePlayers)
     wp.Stop();
   ClearScenes();
-  impl_->saveMenu.reset();
   impl_->backlog = nullptr;
   impl_->inGameMenu = nullptr;
   for (auto &font : impl_->mappedUiFonts)
@@ -854,10 +1010,11 @@ void PonscripterRuntime::init(Kotonoha::Engine &engine) {
   impl_->engine = &engine;
   ClearScenes();
 
-  // Wire Kotonoha shared components (VNSaveMenu, VNBacklog with voice replay,
-  // InGameMenu)
+  // Install PONscripter-native implementations behind Kotonoha shared
+  // component helpers. Generic UI code therefore resolves the native design.
   (void)Kotonoha::GetVNManagerRuntime(engine);
-  impl_->backlog = &Kotonoha::GetVNBacklogRuntime(engine);
+  impl_->backlog =
+      &engine.configureSharedScene<Kotonoha::VNBacklog, PonscripterBacklog>();
   impl_->backlog->clear();
   impl_->backlog->setVoiceReplay([this](const std::string &voiceId) {
     impl_->onPlayWave(0, voiceId, false);
@@ -869,19 +1026,14 @@ void PonscripterRuntime::init(Kotonoha::Engine &engine) {
   });
   impl_->syncedBacklogCount = 0;
 
-  impl_->saveMenu = std::make_unique<Kotonoha::VNSaveMenu>(engine);
-  impl_->saveMenu->SetOnClose([this] {
-    if (vm_.waitState() == WaitState::WaitSystemCall &&
-        (vm_.activeSystemCall() == "save" || vm_.activeSystemCall() == "load"))
-      vm_.finishSystemCall();
-  });
-  impl_->inGameMenu = std::make_unique<PonscripterMenu>(
-      engine, [this](const std::string &action) {
-        if (action == "reset")
-          vm_.resetToStart();
-        else
-          vm_.enterSystemCall(action);
-      });
+  impl_->inGameMenu =
+      &engine.configureSharedScene<Kotonoha::InGameMenu, PonscripterMenu>(
+          [this](const std::string &action) {
+            if (action == "reset")
+              vm_.resetToStart();
+            else
+              vm_.enterSystemCall(action);
+          });
   impl_->inGameMenu->SetOnClose([this] {
     if (vm_.waitState() == WaitState::WaitSystemCall &&
         vm_.activeSystemCall() == "rmenu")
@@ -889,8 +1041,7 @@ void PonscripterRuntime::init(Kotonoha::Engine &engine) {
   });
 
   AddScene(impl_->backlog, Kotonoha::GameState::Gameplay);
-  AddScene(impl_->inGameMenu.get(), Kotonoha::GameState::Gameplay);
-  AddScene(impl_->saveMenu.get(), Kotonoha::GameState::Gameplay);
+  AddScene(impl_->inGameMenu, Kotonoha::GameState::Gameplay);
 
   vm_.clear();
 
@@ -956,14 +1107,6 @@ void PonscripterRuntime::initGameplay(Kotonoha::Engine &engine) {
 void PonscripterRuntime::update() {
   Runtime::update();
 
-  // If Kotonoha modal (VNSaveMenu, VNBacklog, InGameMenu, DebugOverlay) is
-  // open, update any active TextInputDialog and pause VM progression.
-  if (impl_->saveMenu && impl_->saveMenu->isOpen()) {
-    for (auto *scene : GetActiveScenes())
-      if (auto *dialog = dynamic_cast<Kotonoha::TextInputDialog *>(scene))
-        dialog->update();
-    return;
-  }
   if (isStoryPaused())
     return;
 
@@ -983,7 +1126,7 @@ void PonscripterRuntime::update() {
 
   vm_.tick(1000.0 / 60.0);
 
-  // Sync newly completed pages into Kotonoha's VNBacklog
+  // Sync newly completed pages into PONscripter's VNBacklog override
   if (impl_->backlog) {
     const auto &pages = vm_.backlogPages();
     while (impl_->syncedBacklogCount < pages.size()) {
@@ -1044,10 +1187,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       SDL_RenderClear(&renderer);
       if (!bg.imagePath.empty()) {
         if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, bg)) {
-          float tw = viewW, th = viewH;
-          SDL_GetTextureSize(tex, &tw, &th);
           SDL_SetTextureAlphaMod(tex, 255);
-          SDL_FRect dst{0.0f, 0.0f, tw, th};
+          SDL_FRect dst{0.0f, 0.0f, viewW, viewH};
           SDL_RenderTexture(&renderer, tex, nullptr, &dst);
         }
       }
@@ -1063,12 +1204,18 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, st.spec)) {
         float tw = 0.0f, th = 0.0f;
         SDL_GetTextureSize(tex, &tw, &th);
+        const auto *processed = impl_->getProcessedImage(st.spec);
+        const float logicalW =
+            processed ? static_cast<float>(processed->width) : tw;
+        const float logicalH =
+            processed ? static_cast<float>(processed->height) : th;
         const int cells = std::max(1, st.spec.numCells);
         const float cellW = tw / static_cast<float>(cells);
+        const float logicalCellW = logicalW / static_cast<float>(cells);
         SDL_SetTextureAlphaMod(tex, static_cast<Uint8>(st.alpha));
         SDL_FRect src{0.0f, 0.0f, cellW, th};
-        SDL_FRect dst{static_cast<float>(st.x), static_cast<float>(st.y), cellW,
-                      th};
+        SDL_FRect dst{static_cast<float>(st.x), static_cast<float>(st.y),
+                      logicalCellW, logicalH};
         SDL_RenderTexture(&renderer, tex, &src, &dst);
       }
     }
@@ -1115,13 +1262,19 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, sp.spec)) {
         float tw = 0.0f, th = 0.0f;
         SDL_GetTextureSize(tex, &tw, &th);
+        const auto *processed = impl_->getProcessedImage(sp.spec);
+        const float logicalW =
+            processed ? static_cast<float>(processed->width) : tw;
+        const float logicalH =
+            processed ? static_cast<float>(processed->height) : th;
         const int cells = std::max(1, sp.spec.numCells);
         const float cellW = tw / static_cast<float>(cells);
+        const float logicalCellW = logicalW / static_cast<float>(cells);
         const int cellIdx = std::clamp(sp.currentCell, 0, cells - 1);
         SDL_SetTextureAlphaMod(tex, static_cast<Uint8>(sp.alpha));
         SDL_FRect src{cellIdx * cellW, 0.0f, cellW, th};
-        SDL_FRect dst{static_cast<float>(sp.x), static_cast<float>(sp.y), cellW,
-                      th};
+        SDL_FRect dst{static_cast<float>(sp.x), static_cast<float>(sp.y),
+                      logicalCellW, logicalH};
         SDL_RenderTexture(&renderer, tex, &src, &dst);
       }
     }
@@ -1173,9 +1326,14 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                 impl_->getOrLoadTexture(renderer, win.backdrop)) {
           float tw = 0.0f, th = 0.0f;
           SDL_GetTextureSize(tex, &tw, &th);
+          const auto *processed = impl_->getProcessedImage(win.backdrop);
+          const float logicalW =
+              processed ? static_cast<float>(processed->width) : tw;
+          const float logicalH =
+              processed ? static_cast<float>(processed->height) : th;
           SDL_SetTextureAlphaMod(tex, 255);
           SDL_FRect dst{static_cast<float>(win.winX),
-                        static_cast<float>(win.winY), tw, th};
+                        static_cast<float>(win.winY), logicalW, logicalH};
           SDL_RenderTexture(&renderer, tex, nullptr, &dst);
         }
       } else if (win.backdrop.trans == TransMode::DirectColor) {
@@ -1306,8 +1464,14 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, cur.spec)) {
             float tw = 0.0f, th = 0.0f;
             SDL_GetTextureSize(tex, &tw, &th);
+            const auto *processed = impl_->getProcessedImage(cur.spec);
+            const float logicalW =
+                processed ? static_cast<float>(processed->width) : tw;
+            const float logicalH =
+                processed ? static_cast<float>(processed->height) : th;
             const int cells = std::max(1, cur.spec.numCells);
             const float cellW = tw / static_cast<float>(cells);
+            const float logicalCellW = logicalW / static_cast<float>(cells);
             const int cIdx = std::clamp(cur.currentCell, 0, cells - 1);
             const float cx = cur.absolute ? static_cast<float>(cur.offsetX)
                                           : (penX + 2.0f + cur.offsetX);
@@ -1315,7 +1479,7 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                                           : (penY + cur.offsetY);
             SDL_SetTextureAlphaMod(tex, 255);
             SDL_FRect src{cIdx * cellW, 0.0f, cellW, th};
-            SDL_FRect dst{cx, cy, cellW, th};
+            SDL_FRect dst{cx, cy, logicalCellW, logicalH};
             SDL_RenderTexture(&renderer, tex, &src, &dst);
           }
         }
@@ -1325,15 +1489,12 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
 
   renderSceneContents();
 
-  // 7. Modal System Call Overlay: native `rmenu`, `save`, `load` and
-  // `lookback` are routed to Kotonoha's InGameMenu, VNSaveMenu and VNBacklog
-  // in Impl::onSystemCall(). The legacy custom overlay is kept only as a
-  // fallback when no Kotonoha scene is active.
-  const bool kotonohaSystemModal =
-      (impl_->saveMenu && impl_->saveMenu->isOpen()) ||
-      (impl_->backlog && impl_->backlog->isVisible()) ||
-      (impl_->inGameMenu && impl_->inGameMenu->IsOpen());
-  if (vm_.waitState() == WaitState::WaitSystemCall && !kotonohaSystemModal) {
+  // 7. PONscripter-native modal overlays. Shared menu/backlog components are
+  // injected below as PonscripterMenu/PonscripterBacklog overrides.
+  const bool nativeSharedModal =
+      ((impl_->backlog && impl_->backlog->isVisible()) ||
+       (impl_->inGameMenu && impl_->inGameMenu->IsOpen()));
+  if (vm_.waitState() == WaitState::WaitSystemCall && !nativeSharedModal) {
     const std::string &kind = vm_.activeSystemCall();
     auto &fontUi = pickFont(false);
 
@@ -1474,30 +1635,13 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                      16.0f, SDL_Color{240, 250, 255, 255});
   }
 
-  // Render any active Kotonoha foreground/overlay scenes (VNSaveMenu,
-  // TextInputDialog, VNBacklog, InGameMenu)
+  // Render active PONscripter shared-component overrides (PonscripterBacklog,
+  // PonscripterMenu).
   Runtime::renderGameplay(renderer, scale);
-  if (impl_->saveMenu && impl_->saveMenu->isOpen()) {
-    for (auto *scene : GetActiveScenes())
-      if (scene && dynamic_cast<Kotonoha::TextInputDialog *>(scene))
-        renderScene(*scene, renderer, scale);
-  }
 }
 
 bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
-  // 1. If Kotonoha VNSaveMenu / TextInputDialog / VNBacklog / InGameMenu is
-  // open, let Kotonoha's modal scene system handle the event first!
-  if (impl_->saveMenu && impl_->saveMenu->isOpen()) {
-    const auto &scenes = GetActiveScenes();
-    for (auto it = scenes.rbegin(); it != scenes.rend(); ++it) {
-      if (*it && dynamic_cast<Kotonoha::TextInputDialog *>(*it)) {
-        dispatchEvent(**it, rawEvent);
-        return true;
-      }
-    }
-    dispatchEvent(*impl_->saveMenu, rawEvent);
-    return true;
-  }
+  // 1. PONscripter's native shared-component overrides handle open modals.
   if ((impl_->backlog && impl_->backlog->isVisible()) ||
       (impl_->inGameMenu && impl_->inGameMenu->IsOpen())) {
     return Runtime::onEvent(rawEvent);
@@ -1657,19 +1801,18 @@ bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
         }
         return true;
       }
-      // B: Open Kotonoha VNBacklog (with voice replay!)
+      // B: Open PONscripter VNBacklog (with voice replay!)
       if (event.key.key == SDLK_B && impl_->backlog) {
         impl_->backlog->toggle();
         return true;
       }
-      // F2: Open Kotonoha VNSaveMenu
+      // F2/F3: Open the PONscripter-native save/load system calls.
       if (event.key.key == SDLK_F2) {
-        impl_->openKotonohaSaveMenu(false);
+        vm_.enterSystemCall("save");
         return true;
       }
-      // F3: Open Kotonoha VNLoadMenu
       if (event.key.key == SDLK_F3) {
-        impl_->openKotonohaSaveMenu(true);
+        vm_.enterSystemCall("load");
         return true;
       }
     }
