@@ -33,12 +33,15 @@ bool GameLauncher::validatePath(const std::string &path, std::string &info) {
   if (std::filesystem::is_regular_file(path, error)) {
     try {
       const auto mounted = Kotonoha::Filesystem::Filesystem::mount(path);
-      if (!Kotonoha::Filesystem::findRequiredFilesPrefix(
-              *mounted, {"scripts.rpa", "images.rpa"}, {"game/", ""})) {
-        info = "Archive missing DDLC scripts.rpa or images.rpa";
+      bool hasRenpyScripts = mounted->exists("game/script-a1-monday.rpyc") ||
+                             mounted->exists("script-a1-monday.rpyc") ||
+                             mounted->exists("game/scripts.rpa") ||
+                             mounted->exists("scripts.rpa");
+      if (!hasRenpyScripts) {
+        info = "Archive missing Ren'Py scripts";
         return false;
       }
-      info = "Virtual DDLC archive: scripts and images found";
+      info = "Virtual Ren'Py archive: scripts found";
       return true;
     } catch (const std::exception &failure) {
       info = failure.what();
@@ -46,7 +49,9 @@ bool GameLauncher::validatePath(const std::string &path, std::string &info) {
     }
   }
   const auto game = std::filesystem::path(path) / "game";
-  if (std::filesystem::is_regular_file(game / "scripts.rpa", error))
+  if (std::filesystem::is_regular_file(game / "scripts.rpa", error) ||
+      std::filesystem::is_regular_file(game / "data.rpa", error) ||
+      std::filesystem::is_regular_file(game / "script-a1-monday.rpyc", error))
     return validatePath(game.string(), info);
   if (!std::filesystem::is_directory(path, error)) {
     info = "Game folder not found: " + path;
@@ -65,8 +70,12 @@ bool GameLauncher::validatePath(const std::string &path, std::string &info) {
     info = "Cannot read game folder: " + error.message();
     return false;
   }
-  if (!files.count("scripts.rpa") || !files.count("images.rpa")) {
-    info = "Select the game folder containing scripts.rpa and images.rpa";
+  const bool hasScripts = files.count("scripts.rpa") ||
+                          files.count("data.rpa") ||
+                          files.count("script-a1-monday.rpyc");
+  if (!hasScripts) {
+    info = "Select a Ren'Py game folder containing scripts or "
+           "script-a1-monday.rpyc";
     return false;
   }
   info =

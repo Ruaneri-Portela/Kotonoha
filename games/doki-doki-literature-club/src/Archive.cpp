@@ -336,14 +336,14 @@ private:
     }
     if (state.isObj() && state.o->k == Object::K::Tuple) {
       const auto &t = state.o->items;
-      bool dicts = true;
-      for (const auto &part : t)
-        if (!part.isNone() && !(part.isObj() && part.o->k == Object::K::Dict))
-          dicts = false;
-      if (dicts) {
-        for (const auto &part : t)
+      bool mergedDict = false;
+      for (const auto &part : t) {
+        if (part.isObj() && part.o->k == Object::K::Dict) {
           mergeState(o, part);
-      } else if (t.size() >= 2) {
+          mergedDict = true;
+        }
+      }
+      if (!mergedDict && t.size() >= 2) {
         // PyCode: (version, source, location, mode)
         o.attrs["source"] = t[1];
         if (t.size() >= 4)
@@ -686,6 +686,13 @@ std::vector<std::string> Assets::names() const {
 }
 
 bool loadRpyc(const std::vector<uint8_t> &file, Value &out) {
+  if (file.size() >= 2 && file[0] == 0x78) {
+    std::vector<uint8_t> raw;
+    if (!inflate(file.data(), file.size(), raw))
+      return false;
+    out = unpickle(raw);
+    return true;
+  }
   if (file.size() < 10 || std::memcmp(file.data(), "RENPY RPC2", 10) != 0)
     return false;
   size_t pos = 10;

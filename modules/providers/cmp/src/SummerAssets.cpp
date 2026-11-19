@@ -17,7 +17,8 @@ mountSummer(std::filesystem::path root, std::filesystem::path overlay) {
   // movies and sibling sources remain visible as virtual files.
   std::error_code ec;
   if (std::filesystem::is_directory(root, ec) &&
-      canonical(root.filename().string()) == "PACK")
+      (canonical(root.filename().string()) == "PACK" ||
+       canonical(root.filename().string()) == "PACKS"))
     root = root.parent_path();
   auto source = Kotonoha::Filesystem::Filesystem::mount(root.string());
   if (!overlay.empty())
@@ -57,7 +58,9 @@ SummerAssets::SummerAssets(
     // This also avoids treating an HTTP 404 for /DISC1/PACK as proof that its
     // children do not exist (many servers disable directory listings).
     bool found = false;
-    for (const char *candidate : {"DISC1/PACK", "PACK", ""}) {
+    for (const char *candidate :
+         {"DISC1/PACK", "PACK", "PACKS", "Personal/MISSEACHOTHER/PACKS",
+          "Personal/MISSEACHOTHER/PACK", ""}) {
       const std::string prefix = *candidate ? std::string(candidate) + "/" : "";
       if (source_->exists(prefix + "INI.CMP")) {
         packRoot = candidate;
@@ -74,9 +77,21 @@ SummerAssets::SummerAssets(
       }
     }
   } else {
-    if (source_->exists("DISC1/PACK") &&
-        source_->stat("DISC1/PACK").type ==
+    if (source_->exists("Personal/MISSEACHOTHER/PACKS") &&
+        source_->stat("Personal/MISSEACHOTHER/PACKS").type ==
             Kotonoha::Filesystem::FileType::Directory)
+      packRoot = "Personal/MISSEACHOTHER/PACKS";
+    else if (source_->exists("Personal/MISSEACHOTHER/PACK") &&
+             source_->stat("Personal/MISSEACHOTHER/PACK").type ==
+                 Kotonoha::Filesystem::FileType::Directory)
+      packRoot = "Personal/MISSEACHOTHER/PACK";
+    else if (source_->exists("PACKS") &&
+             source_->stat("PACKS").type ==
+                 Kotonoha::Filesystem::FileType::Directory)
+      packRoot = "PACKS";
+    else if (source_->exists("DISC1/PACK") &&
+             source_->stat("DISC1/PACK").type ==
+                 Kotonoha::Filesystem::FileType::Directory)
       packRoot = "DISC1/PACK";
     else if (source_->exists("PACK") &&
              source_->stat("PACK").type ==
@@ -84,6 +99,9 @@ SummerAssets::SummerAssets(
       packRoot = "PACK";
   }
 
+  const bool meoLayout = packRoot.find("Personal/MISSEACHOTHER") == 0 ||
+                         packRoot == "PACKS" || source_->exists("MEO.exe") ||
+                         source_->exists("gEngine.gesl");
   const auto files = source_->list(packRoot);
   for (const auto *type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
     const auto desired = std::string(type) + ".CMP";
@@ -94,6 +112,8 @@ SummerAssets::SummerAssets(
                      std::filesystem::path(file.path).filename().string()) ==
                      desired;
         });
+    if (entry == files.end() && std::string(type) == "VOICE" && meoLayout)
+      continue;
     if (entry == files.end())
       throw std::runtime_error("Missing " + desired + " in virtual source");
     packs.emplace(type, std::make_unique<Pack>(source_, entry->path));
@@ -184,7 +204,21 @@ bool SummerAssets::containsAsset(const std::string &id) const {
   if (slash == s.npos)
     return false;
   auto pack = packs.find(s.substr(0, slash));
-  return pack != packs.end() && pack->second->contains(s.substr(slash + 1));
+  if (pack == packs.end())
+    return false;
+  const auto name = s.substr(slash + 1);
+  if (pack->second->contains(name))
+    return true;
+  for (const auto &[entryName, entry] : pack->second->entries()) {
+    (void)entry;
+    auto stemName = entryName;
+    const auto dot = stemName.find_last_of('.');
+    if (dot != std::string::npos)
+      stemName.resize(dot);
+    if (canonical(stemName) == canonical(name))
+      return true;
+  }
+  return false;
 }
 Bytes SummerAssets::readAsset(const std::string &id) const {
   auto s = canonical(id);
@@ -192,12 +226,20 @@ Bytes SummerAssets::readAsset(const std::string &id) const {
   auto pack = packs.find(s.substr(0, slash));
   if (slash == s.npos || pack == packs.end())
     throw std::runtime_error("Unknown Summer asset: " + id);
-  return pack->second->read(s.substr(slash + 1));
+  auto name = s.substr(slash + 1);
+  if (!pack->second->contains(name)) {
+    for (const auto &[entryName, entry] : pack->second->entries()) {
+      (void)entry;
+      if (canonical(entryName) == canonical(name)) {
+        name = entryName;
+        break;
+      }
+    }
+  }
+  return pack->second->read(name);
 }
 
 std::optional<Bytes> SummerAssets::tryReadAsset(const std::string &id) const {
-  if (!containsAsset(id))
-    return std::nullopt;
   try {
     return readAsset(id);
   } catch (...) {

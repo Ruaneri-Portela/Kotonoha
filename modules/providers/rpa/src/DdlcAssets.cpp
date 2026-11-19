@@ -105,6 +105,11 @@ DdlcAssets::DdlcAssets(const std::filesystem::path &directory,
   auto gameDirectory = directory;
   if (std::filesystem::is_regular_file(directory / "game" / "scripts.rpa"))
     gameDirectory /= "game";
+  else if (std::filesystem::is_regular_file(directory / "game" / "data.rpa"))
+    gameDirectory /= "game";
+  else if (std::filesystem::is_regular_file(directory / "game" /
+                                            "script-a1-monday.rpyc"))
+    gameDirectory /= "game";
   else if (std::filesystem::is_regular_file(directory / "vnx" / "game" /
                                             "scripts.rpa"))
     gameDirectory /= "vnx/game";
@@ -200,11 +205,16 @@ void DdlcAssets::configureOverlaysAndScripts(
   if (!script_.load(assets_, &error))
     throw std::runtime_error("Cannot load DDLC scripts" +
                              (error.empty() ? std::string() : ": " + error));
-  if (!script_.hasLabel("start") || !script_.hasLabel("splashscreen"))
+  const bool katawa = std::filesystem::is_regular_file(
+      std::filesystem::path(assets_.dir()) / "script-a1-monday.rpyc");
+  if (!script_.hasLabel("start") && !script_.hasLabel("imachine"))
     throw std::runtime_error(
-        "The game directory does not contain DDLC's start and splash scripts");
+        "The game directory does not contain a start or imachine label");
+  if (!katawa && !script_.hasLabel("splashscreen"))
+    throw std::runtime_error(
+        "The game directory does not contain a splashscreen label");
   std::error_code pathError;
-  if (inspectCharacterPaths &&
+  if (!katawa && inspectCharacterPaths &&
       !hasOriginalCharacters(assets_.dir(), pathError)) {
     if (pathError)
       throw std::runtime_error("Cannot inspect DDLC character files: " +
@@ -215,6 +225,9 @@ void DdlcAssets::configureOverlaysAndScripts(
 }
 
 std::string DdlcAssets::name() const {
+  const std::filesystem::path game(assets_.dir());
+  if (std::filesystem::is_regular_file(game / "script-a1-monday.rpyc"))
+    return "Katawa Shoujo (" + assets_.dir() + ")";
   return "Doki Doki Literature Club! (" + assets_.dir() + ")";
 }
 

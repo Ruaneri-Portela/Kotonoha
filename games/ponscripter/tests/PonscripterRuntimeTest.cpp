@@ -3,7 +3,6 @@
 
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
-#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 
 #include <filesystem>
@@ -276,13 +275,13 @@ void runRetailMenuIntegrationTest(const std::string &sayaDir) {
   check(runtime.vm().rightClick(), "Retail Saya right click must open rmenu");
   Kotonoha::InGameMenu *menu = findActiveScene<Kotonoha::InGameMenu>(runtime);
   check(menu && menu->IsOpen(),
-        "Retail native rmenu must open the Kotonoha InGameMenu");
+        "Retail native rmenu must open the PONscripter InGameMenu");
   menu->close();
 
   runtime.vm().enterSystemCall("lookback");
   Kotonoha::VNBacklog *backlog = findActiveScene<Kotonoha::VNBacklog>(runtime);
   check(backlog && backlog->isVisible(),
-        "Retail native lookback must open the Kotonoha VNBacklog");
+        "Retail native lookback must open the PONscripter VNBacklog");
   backlog->close();
 }
 
@@ -326,7 +325,7 @@ void runEngineMenuIntegrationTest() {
     return nullptr;
   };
 
-  // Native right-click `rmenu` must open Kotonoha's InGameMenu and keep the
+  // Native right-click `rmenu` must open PONscripter's InGameMenu and keep the
   // VM blocked at WaitSystemCall until the engine menu closes.
   check(runtime.vm().rightClick(), "Right click must open native rmenu");
   check(runtime.vm().waitState() == Ponscripter::WaitState::WaitSystemCall,
@@ -334,24 +333,22 @@ void runEngineMenuIntegrationTest() {
   Kotonoha::InGameMenu *menu =
       findScene(static_cast<Kotonoha::InGameMenu *>(nullptr));
   check(menu && menu->IsOpen(),
-        "Native rmenu must open the Kotonoha InGameMenu scene");
+        "Native rmenu must open the PONscripter InGameMenu scene");
 
-  // The first native entry is Save: Enter must route to Kotonoha VNSaveMenu.
+  // The first native entry is Save: Enter must enter PONscripter's native
+  // save system call and keep the native overlay active.
   SDL_Event enter{};
   enter.type = SDL_EVENT_KEY_DOWN;
   enter.key.key = SDLK_RETURN;
   enter.key.down = true;
   check(runtime.onEvent(enter), "Save entry must be handled by the menu");
-  Kotonoha::VNSaveMenu *saveMenu =
-      findScene(static_cast<Kotonoha::VNSaveMenu *>(nullptr));
-  check(saveMenu && saveMenu->isOpen(),
-        "Native rmenu Save must open the Kotonoha VNSaveMenu scene");
-  saveMenu->close();
-  check(runtime.vm().waitState() != Ponscripter::WaitState::WaitSystemCall,
-        "Closing the Kotonoha save menu must release the native rmenu wait");
+  check(runtime.vm().waitState() == Ponscripter::WaitState::WaitSystemCall &&
+            runtime.vm().activeSystemCall() == "save",
+        "Native rmenu Save must enter PONscripter's save system call");
+  runtime.vm().finishSystemCall();
 
   // The third native entry is History: Down, Down, Enter must route to the
-  // Kotonoha VNBacklog scene.
+  // PONscripter VNBacklog override.
   check(runtime.vm().rightClick(), "Right click must reopen native rmenu");
   SDL_Event down{};
   down.type = SDL_EVENT_KEY_DOWN;
@@ -363,28 +360,48 @@ void runEngineMenuIntegrationTest() {
   Kotonoha::VNBacklog *backlog =
       findScene(static_cast<Kotonoha::VNBacklog *>(nullptr));
   check(backlog && backlog->isVisible(),
-        "Native rmenu History must open the Kotonoha VNBacklog scene");
+        "Native rmenu History must open the PONscripter VNBacklog scene");
+  SDL_Event left{};
+  left.type = SDL_EVENT_KEY_DOWN;
+  left.key.key = SDLK_LEFT;
+  left.key.down = true;
+  check(runtime.onEvent(left),
+        "PONscripter backlog must handle left-arrow navigation");
+  SDL_Event right{};
+  right.type = SDL_EVENT_KEY_DOWN;
+  right.key.key = SDLK_RIGHT;
+  right.key.down = true;
+  check(runtime.onEvent(right),
+        "PONscripter backlog must handle right-arrow navigation");
+  for (int i = 0; i < 40; ++i) {
+    check(runtime.onEvent(left),
+          "PONscripter backlog left navigation must stay in bounds");
+  }
+  for (int i = 0; i < 40; ++i) {
+    check(runtime.onEvent(right),
+          "PONscripter backlog right navigation must stay in bounds");
+  }
   backlog->close();
   check(runtime.vm().waitState() != Ponscripter::WaitState::WaitSystemCall,
-        "Closing the Kotonoha backlog must release the native rmenu wait");
+        "Closing the PONscripter backlog must release the native rmenu wait");
 
-  // Native `lookback` must open Kotonoha's VNBacklog scene directly.
+  // Native `lookback` must open PONscripter's VNBacklog scene directly.
   runtime.vm().enterSystemCall("lookback");
   check(runtime.vm().waitState() == Ponscripter::WaitState::WaitSystemCall,
         "Native lookback must block the VM");
   check(backlog->isVisible(),
-        "Native lookback must open the Kotonoha VNBacklog scene");
+        "Native lookback must open the PONscripter VNBacklog scene");
   backlog->close();
-  check(runtime.vm().waitState() != Ponscripter::WaitState::WaitSystemCall,
-        "Closing the Kotonoha backlog must release the native lookback wait");
+  check(
+      runtime.vm().waitState() != Ponscripter::WaitState::WaitSystemCall,
+      "Closing the PONscripter backlog must release the native lookback wait");
 
-  // Native `save` must open Kotonoha's VNSaveMenu scene directly.
+  // Native `save` must enter PONscripter's save system call directly.
   runtime.vm().enterSystemCall("save");
-  check(saveMenu->isOpen(),
-        "Native save must open the Kotonoha VNSaveMenu scene");
-  saveMenu->close();
-  check(runtime.vm().waitState() != Ponscripter::WaitState::WaitSystemCall,
-        "Closing the Kotonoha save menu must release the native save wait");
+  check(runtime.vm().waitState() == Ponscripter::WaitState::WaitSystemCall &&
+            runtime.vm().activeSystemCall() == "save",
+        "Native save must use the PONscripter save system call");
+  runtime.vm().finishSystemCall();
 }
 
 } // namespace

@@ -487,12 +487,17 @@ void SnowBacklog::renderEntries(Kotonoha::RendererRef renderer) {
   constexpr float kTop = 80, kHeight = 500, kLeft = 40, kWidth = 720,
                   kLine = 26;
   std::vector<std::pair<std::string, SDL_Color>> rows;
+  const auto &settings = engine.GetSettings();
+  const SDL_Color speaker =
+      settings.vnTextColorOverride ? settings.vnSpeakerColor : kGold;
+  const SDL_Color text =
+      settings.vnTextColorOverride ? settings.vnTextColor : kWhite;
   for (const auto &entry : entries) {
     if (!entry.speaker.empty())
-      rows.emplace_back(entry.speaker, kGold);
+      rows.emplace_back(entry.speaker, speaker);
     for (auto &line : Wrap(&renderer, entry.text, kWidth))
-      rows.emplace_back(std::move(line), kWhite);
-    rows.emplace_back(std::string(), kWhite);
+      rows.emplace_back(std::move(line), text);
+    rows.emplace_back(std::string(), text);
   }
   maxScroll = std::max(0.0f, float(rows.size()) * kLine - kHeight);
   scroll = scrollToBottom ? maxScroll : std::clamp(scroll, 0.0f, maxScroll);

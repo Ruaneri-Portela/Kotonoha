@@ -135,9 +135,13 @@ int runDdlcScriptTest(int argc, char **argv) {
     vm.init("");
     const auto game = std::filesystem::absolute(dir).lexically_normal();
     const auto virtualPath = game / "kotonoha-ddlc-virtual-test.tmp";
-    const auto sourcePath = std::filesystem::exists(game / "scripts.rpa")
-                                ? game / "scripts.rpa"
-                                : game / "game" / "scripts.rpa";
+    const auto sourcePath =
+        std::filesystem::exists(game / "scripts.rpa") ? game / "scripts.rpa"
+        : std::filesystem::exists(game / "game" / "scripts.rpa")
+            ? game / "game" / "scripts.rpa"
+        : std::filesystem::exists(game / "data.rpa")
+            ? game / "data.rpa"
+            : game / "game" / "data.rpa";
     if (std::filesystem::exists(virtualPath) ||
         !std::filesystem::exists(sourcePath))
       throw std::runtime_error("Cannot safely exercise the virtual filesystem");
@@ -211,7 +215,12 @@ int runDdlcScriptTest(int argc, char **argv) {
       std::printf("  init error: %s\n", e.c_str());
     failed += int(vm.errors.size());
     vm.errors.clear();
-    vm.start("start");
+    vm.start(std::filesystem::exists(std::filesystem::path(dir) /
+                                     "game/script-a1-monday.rpyc") ||
+                     std::filesystem::exists(std::filesystem::path(dir) /
+                                             "script-a1-monday.rpyc")
+                 ? "imachine"
+                 : "start");
     Stats st;
     const bool ok =
         drive(vm, clock, limit, st, std::getenv("DDLC_VERBOSE") != nullptr);

@@ -81,15 +81,26 @@ void VNBacklog::render(RendererRef renderer, float) {
 }
 
 void VNBacklog::renderFrame(RendererRef renderer) {
-  auto &ui = engine.GetUI();
+  auto &ui = engine.GetVNUI();
   ui.backdrop(renderer, {0, 0, 0, 160});
   ui.panel(renderer, {120, 80, 1040, 560});
-  ui.text(renderer, "Dialogue history", 145, 105, 800, {255, 215, 100, 255});
+  const auto &settings = engine.GetSettings();
+  const SDL_Color title = settings.vnTextColorOverride
+                              ? settings.vnSpeakerColor
+                              : SDL_Color{255, 215, 100, 255};
+  ui.text(renderer, "Dialogue history", 145, 105, 800, title);
   ui.button(renderer, {980, 100, 160, 44}, "Close [ESC]");
 }
 
 void VNBacklog::renderEntries(RendererRef renderer) {
-  auto &ui = engine.GetUI();
+  auto &ui = engine.GetVNUI();
+  const auto &settings = engine.GetSettings();
+  const SDL_Color speaker = settings.vnTextColorOverride
+                                ? settings.vnSpeakerColor
+                                : SDL_Color{255, 215, 100, 255};
+  const SDL_Color dialogue = settings.vnTextColorOverride
+                                 ? settings.vnTextColor
+                                 : SDL_Color{240, 240, 245, 255};
   constexpr float viewTop = 165.0f;
   constexpr float viewHeight = 450.0f;
   constexpr float viewBottom = viewTop + viewHeight;
@@ -127,7 +138,7 @@ void VNBacklog::renderEntries(RendererRef renderer) {
   const SDL_Rect clip{145, 165, 990, 450};
   SDL_SetRenderClipRect(&renderer, &clip);
   if (entries.empty())
-    ui.text(renderer, "No dialogue yet.", 145, viewTop, textWidth);
+    ui.text(renderer, "No dialogue yet.", 145, viewTop, textWidth, dialogue);
 
   // Binary search directly to the first potentially visible entry.
   const auto first =
@@ -144,10 +155,10 @@ void VNBacklog::renderEntries(RendererRef renderer) {
     if (y + speakerHeight + textHeight + spacing <= viewTop)
       continue;
     if (y + speakerHeight > viewTop && y < viewBottom)
-      ui.text(renderer, entry.speaker, 145, y, textWidth, {255, 215, 100, 255});
+      ui.text(renderer, entry.speaker, 145, y, textWidth, speaker);
     const float textY = y + speakerHeight;
     if (textY + textHeight > viewTop && textY < viewBottom)
-      ui.text(renderer, entry.text, 145, textY, textWidth);
+      ui.text(renderer, entry.text, 145, textY, textWidth, dialogue);
   }
   SDL_SetRenderClipRect(&renderer, nullptr);
 }

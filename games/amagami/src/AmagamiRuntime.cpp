@@ -345,6 +345,10 @@ void AmagamiBacklog::renderEntries(Kotonoha::RendererRef r) {
   SDL_Rect clip{44, 16, 552, 416};
   SDL_SetRenderClipRect(&r, &clip);
   auto &ui = engine.GetVNUI();
+  const auto &settings = engine.GetSettings();
+  const SDL_Color textColor = settings.vnTextColorOverride
+                                  ? settings.vnTextColor
+                                  : SDL_Color{240, 240, 245, 255};
   for (size_t i = 0; i < rows_.size(); ++i) {
     const auto &row = rows_[i];
     const float y = 16 + row.top - scroll;
@@ -354,7 +358,7 @@ void AmagamiBacklog::renderEntries(Kotonoha::RendererRef r) {
       engine.GetUI().panel(r, {44, y, 552, row.height}, {204, 153, 102, 42});
     for (size_t line = 0; line < row.lines.size(); ++line)
       ui.textSized(r, row.lines[line], 44, y + float(line) * 44, 552, 24,
-                   {240, 240, 245, 255});
+                   textColor);
   }
   SDL_SetRenderClipRect(&r, clipped ? &previous : nullptr);
   if (maxScroll > 0) {

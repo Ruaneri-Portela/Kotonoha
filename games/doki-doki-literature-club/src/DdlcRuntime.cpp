@@ -134,8 +134,13 @@ private:
 
 GameRuntime::GameRuntime(
     std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
-    : Runtime("Doki Doki Literature Club!", "0.1.0",
-              "me.hirameki.kotonoha.dokidokiliteratureclub"),
+    : Runtime(assets && assets->name().compare(0, 13, "Katawa Shoujo") == 0
+                  ? "Katawa Shoujo"
+                  : "Doki Doki Literature Club!",
+              "0.1.0",
+              assets && assets->name().compare(0, 13, "Katawa Shoujo") == 0
+                  ? "me.hirameki.kotonoha.katawashoujo"
+                  : "me.hirameki.kotonoha.dokidokiliteratureclub"),
       assets_(std::move(assets)) {
   if (!assets_)
     throw std::invalid_argument(

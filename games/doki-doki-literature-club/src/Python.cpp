@@ -568,6 +568,12 @@ def legacy_range(*args):
       Py_INCREF(bridge->hashModule);
       return bridge->hashModule;
     }
+    if (name == std::string("copy") || name == std::string("re")) {
+      PyObject *module = PyImport_ImportModule(name);
+      if (!module)
+        return nullptr;
+      return module;
+    }
     const auto found = bridge->modules.find(name);
     if (found == bridge->modules.end()) {
       PyErr_Format(PyExc_ImportError,

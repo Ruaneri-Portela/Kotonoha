@@ -1483,6 +1483,12 @@ void SnowSession::SelectTitle(TitleAction action) {
 SDL_FPoint SnowSession::DrawText(SDL_Renderer *r, const std::string &text,
                                  float x, float y, float size, SDL_Color color,
                                  bool measureOnly) {
+  if (!engine_.GetSettings().vnFontPath.empty()) {
+    if (measureOnly)
+      return engine_.GetVNUI().measureSized(text, 10000, size);
+    engine_.GetVNUI().textSized(*r, text, x, y, 10000, size, color);
+    return engine_.GetVNUI().measureSized(text, 10000, size);
+  }
   if (!font_ || text.empty())
     return {0, 0};
   // Rasterised at the output pixel scale so the text stays sharp.

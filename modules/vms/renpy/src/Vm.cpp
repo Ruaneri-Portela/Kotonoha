@@ -805,6 +805,7 @@ void Vm::init(const std::string &persistentText) {
   styleNs = ns("style");
   ns("build");
   ns("define");
+  ns("store");
 
   restorePersistentText(persistentText);
 
@@ -991,6 +992,22 @@ void VmNatives::install(Vm &vm) {
   auto def = [&](Value ns, const char *name, NativeFn fn) {
     ns.o->attrs[name] = makeFunction(name, std::move(fn));
   };
+  py.set("chapter", Value::integer(0));
+  py.set("playthroughflag", Value::integer(0));
+  py.set("m1", Value::integer(0));
+  py.set("m2", Value::integer(0));
+  py.set("m3", Value::integer(0));
+  py.set("m4", Value::integer(0));
+  py.set("m5", Value::integer(0));
+  py.def("wrap_label", [](Interp &, Args &a, Kwargs &) {
+    return a.size() > 1 ? a[1] : (a.empty() ? Value() : a[0]);
+  });
+  py.def("seen_scene",
+         [](Interp &, Args &, Kwargs &) { return Value::boolean(false); });
+  py.def("notextmode", [](Interp &, Args &, Kwargs &) { return Value(); });
+  py.def("scene_register", [](Interp &, Args &, Kwargs &) { return Value(); });
+  py.def("wdt_off", [](Interp &, Args &, Kwargs &) { return Value(); });
+  py.def("wdt_on", [](Interp &, Args &, Kwargs &) { return Value(); });
   auto disp = [v](const Value &x) { return v->toDisp(x); };
   auto size2 = [](const Value &t, double &w, double &h) {
     const auto &it = t.items();
@@ -1279,6 +1296,14 @@ void VmNatives::install(Vm &vm) {
       p.o->attrs[k] = val;
     return p;
   });
+  py.def("At", [v, disp](Interp &, Args &a, Kwargs &) -> Value {
+    if (a.empty())
+      return v->dispValue(makeNullDisp(0, 0));
+    DispP child = disp(a[0]);
+    if (a.size() < 2)
+      return v->dispValue(child);
+    return v->dispValue(child);
+  });
   py.def("Borders", [](Interp &, Args &a, Kwargs &) {
     Value b = makeInstance("Borders");
     b.o->items = a;
@@ -1397,6 +1422,10 @@ void VmNatives::install(Vm &vm) {
   renpy.o->attrs["mobile"] = Value::boolean(false);
   renpy.o->attrs["Displayable"] =
       Value::object(makeObj(Object::K::Class, "Displayable"));
+  if (py.has("ParameterizedText"))
+    renpy.o->attrs["ParameterizedText"] = py.lookup("ParameterizedText");
+  if (py.has("At"))
+    renpy.o->attrs["At"] = py.lookup("At");
   if (py.builtins.count("random"))
     renpy.o->attrs["random"] = py.builtins["random"];
   Value game = sub(renpy, "game");
