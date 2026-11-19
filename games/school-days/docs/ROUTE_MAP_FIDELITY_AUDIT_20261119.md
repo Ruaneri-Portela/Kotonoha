@@ -60,8 +60,9 @@ been independently compared with the retail screen for the same save.
    retail-vs-Kotonoha click/transition comparison exists. In particular,
    distinguish a SaveLog tag-3 checkpoint, a GlobalFlag-only blue unlock,
    restored saves and current gameplay. Kotonoha does not jump to a blue node
-   that has no saved tag-3 checkpoint; the retail result for that case is not
-   established by the available evidence.
+   that has no saved tag-3 checkpoint; a subsequent read-only disassembly of
+   the retail EXE confirmed the same **no-jump** rule through its tag-3 lookup,
+   while exact resulting frame/animation parity remains untested.
 2. **Visual state and hover equivalence:** known reference captures cover
    0%/100%, Episodes 1/2 and a subset of tab hover states. The behavior of
    band0 hover priority, band1 global unlock, band2 gameplay marker, band3
@@ -80,3 +81,60 @@ The earlier repository audits `MENU_ROUTE_MAP_AUDIT` and
 `MENU_SFX_AND_ROUTE_MAP_HOVER` document the narrower original-reference
 coverage. **Do not label the Route Map '100% faithful' until these behavior
 checks are witnessed or independently verified.**
+
+## Follow-up implementation and verification (same date)
+
+**New original-source evidence:** the 55-byte `_GetRouteMapPage@8` route case
+table at `RouteProcSDHQ.dll` VA `0x1000C350` matched the program's
+`kPageCaseByRoute` **55/55**. The six episode groups and 12 jump-table arms
+were also located in original code by read-only analysis. The retail EXE's
+selector >=100 handler performs a tag-3 `SP` checkpoint lookup and aborts the
+handoff when that checkpoint is absent: Kotonoha's GlobalFlag-only blue node
+does not jump either. This independently resolves the missing-tag3 question,
+but not the exact original graphical handoff frames.
+
+**Further native oracle verification:** the separate `_CheckScript@8` jump
+table contains **55 distinct ROUTE helpers**; all 55 call the SP fallback
+group selected in `kRouteRules`. The six native fallback functions reference
+all **161 SP strings** in exactly the descending order implemented by the
+Kotonoha fallback search. The native `_GetStory@4` route groups have lengths
+`[1,3,2,13,13,23]`, matching the 55-route partition in `NativeStoryFor`.
+Individual `SCENE` override conditions have not been exhaustively checked
+against original executable traces.
+
+**Original completion set independently authenticated:** a subsequent
+read-only extraction of `_GetReadScriptCount@4` at RouteProcSDHQ.dll VA
+`0x1000A350` enumerated **1,825 distinct UTF-16 SceneKeys** from 55 arms.
+Their set matches **exactly 1,825/1,825** KTRF NODE IDs after excluding 32
+`-OP1` keys. Crucially, the original counter **does include** the two
+synthetic dispatchers `03/03-B2-A00`, `03/03-KB-E00` and **excludes** the
+retail-only physical ORS `01/01-00-OP2`, `05/05-9O-B00`. A proposed change to
+replace dispatcher flags with original-only ORS flags was thus **rejected and
+reverted before commit**, preserving the retail-faithful `ComputeCompletion`
+implementation and the original **1,825** denominator. The mismatch between
+physical playable scenes and read-flag counter keys still requires gameplay
+validation of how/when the original sets those two dispatcher flags. Nothing
+was changed in the KTRF or the user's GlobalFlag files.
+
+**Added regression checks:** `SchoolDays.RouteMapMatrix` generates synthetic
+CMAPs for all **16×4 = 64** page/variant combinations and exercises every
+node selector in each variant (**161×4 = 644** cases), lock/unlock gating,
+SP key derivation, control bounds and navigation. The extended
+`SchoolDaysSessionTest` validates that progress **counts** both native
+dispatcher flags but **does not count** the two original-only ORS flags;
+validates the 200/201/218/219/1825
+percent boundaries; and confirms `SP428`'s two authenticated coordinates
+produce one first-visit tag-3 checkpoint in **both visit orders**, not
+duplicate records. These are
+**internal regression proofs** grounded in an independently inventoried
+retail mapping, not independent retail click-by-click playback.
+
+| Area | Implemented | Independently verified | Still unproven |
+| --- | --- | --- | --- |
+| Pages, 4 skins, hotspots | 16 pages, 96 assets, 161 nodes | All original CMAP/PNG counts and dimensions, 161/161 IDs | Per-pixel animated state/hover on a real GPU |
+| ROUTE dispatch and marker | 55 route cases, six descending SP fallback groups, 12 page-case arms | 55/55 page bytes, 55/55 CheckScript fallback dispatches, 161/161 descending original SP strings and six GetStory groups | Every SCENE override branch in live gameplay |
+| Selector / checkpoint | 161 SPs; tag-3 first-visit snapshot, SP428 duplicate coordinates | 162 BackRules mappings to physical nodes; 161×4 synthetic activations, SP428 internal test | Full 161 original click/handoff sequences, imported save combinations |
+| GlobalFlag-only unlock | Blue/available state, no jump without tag3 | Original EXE static tag3 failure branch matches no-jump | Every visual branch after a successful tag3 handoff |
+| Script graph | 1855 physical nodes + 2 dispatchers, 2458 transitions | Corpus sets, 1855/1857 physical overlap; SP targets statically reachable | 2 original-only ORS usage, orphan `04/04-C0-A05`, all predicate-dependent paths |
+| Choices and endings | 287 choices / 485 options / 22 ending codes | KTRF structural counts, previous directed session tests | Original path traversal of all choices/endings and seven L×H extensions |
+| Completion | Exact 1825 native keys; dispatchers counted, two original-only ORS excluded | 1825/1825 exact original DLL UTF-16 string-set match, plus synthetic boundary tests | Source and timing of dispatcher read flags, 100% on an actual retail-vs-Kotonoha playthrough |
