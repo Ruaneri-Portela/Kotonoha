@@ -84,5 +84,8 @@ public:
   void renderMenuBar(Kotonoha::RendererRef renderer);
   void toggleMenuBarAutoHideLock() { menuBar.ToggleAutoHideLock(); }
   void toggleMenuBarTopMeter() { menuBar.ToggleTopMeter(); }
+  bool pointerInsideMenuBar() const {
+    return menuBar.IsOpen() && menuBar.PointerInsideBar();
+  }
 };
 } // namespace SchoolDays
