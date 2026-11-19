@@ -86,6 +86,8 @@ void TestMissingFilesFailClosed() {
   Require(Profile::DiscoverJsonFiles(settings).empty() &&
               Profile::DiscoverScriptFiles(settings).empty(),
           "Empty translation directory returned phantom assets");
+  Require(!Profile::IsInstalledLocaleJson(settings, "ru.json"),
+          "Missing canonical JSON was accepted as installed");
   RequireReject([&] { (void)Profile::ScriptPath(settings, "fr"); },
                 "Unexpected native GPK language accepted");
   RequireReject([&] { (void)Profile::LxhPath(settings, "es-ES"); },
@@ -119,6 +121,16 @@ void TestOrganizedAndLegacyFallback() {
   temp.Write(temp.jsons / "es.json", "{}");
   temp.Write(temp.jsons / "es-lxh.json", "{}");
   temp.Write(temp.jsons / "zh-CN.json", "{}");
+  temp.Write(temp.jsons / "pt-BR.json", "{}");
+  Require(Profile::IsInstalledLocaleJson(settings,
+              (temp.jsons / "pt-BR.json").string()),
+          "Installed canonical PT-BR JSON was not recognized");
+  temp.Write(temp.folder / "external" / "pt-BR.json", "{}");
+  Require(!Profile::IsInstalledLocaleJson(settings,
+              (temp.folder / "external" / "pt-BR.json").string()) &&
+              !Profile::IsInstalledLocaleJson(settings,
+              (temp.jsons / "zh-CN.json").string() + "-not-an-installed-file"),
+          "External or missing JSON claimed installed locale identity");
   temp.Write(temp.translations / "Script - chinese.GPK");
   Require(Profile::ScriptPath(settings, "pt-BR") ==
               temp.scripts / "Script - Brazilian.GPK",
@@ -147,12 +159,13 @@ void TestOrganizedAndLegacyFallback() {
   temp.Write(temp.jsons / "es-lxh-reviewed-identities.json", "{}");
   temp.Write(temp.jsons / "fr.json", "{}");
   const auto base = Profile::DiscoverJsonFiles(settings);
-  Require(base.size() == 3 && base[0].filename() == "es.json" &&
+  Require(base.size() == 4 && base[0].filename() == "es.json" &&
               base[1].filename() == "fr.json" &&
-              base[2].filename() == "zh-CN.json",
+              base[2].filename() == "pt-BR.json" &&
+              base[3].filename() == "zh-CN.json",
           "JSON discovery must exclude LxH/reviews and avoid legacy duplicates");
   const auto full = Profile::DiscoverJsonFiles(settings, true);
-  Require(full.size() == 7, "Auxiliary discovery must include JSON sidecars");
+  Require(full.size() == 8, "Auxiliary discovery must include JSON sidecars");
   const auto gpks = Profile::DiscoverScriptFiles(settings);
   Require(gpks.size() == 6, "Script discovery did not merge old and new layouts");
   Require(gpks[0].filename() == "Script - Brazilian.GPK" &&

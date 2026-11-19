@@ -148,6 +148,44 @@ std::string gpkLocale(SchoolDays::Launcher::Language language) {
   }
 }
 
+struct JsonPreset {
+  SchoolDays::Launcher::Language language;
+  const char *filename;
+  const char *displayName;
+  const char *savedName;
+};
+
+constexpr std::array<JsonPreset, 5> kJsonPresets{{
+    {SchoolDays::Launcher::Language::EnglishJson, "en.json", "English", "english-json"},
+    {SchoolDays::Launcher::Language::BrazilianJson, "pt-BR.json", "Português (Brasil)", "brazilian-json"},
+    {SchoolDays::Launcher::Language::Spanish, "es.json", "Español", "spanish"},
+    {SchoolDays::Launcher::Language::ChineseSimplified, "zh-CN.json", "Chinese - Simplified", "chinese"},
+    {SchoolDays::Launcher::Language::RussianJson, "ru.json", "Russian", "russian-json"},
+}};
+
+const JsonPreset *jsonPresetForLanguage(SchoolDays::Launcher::Language language) {
+  for (const auto &preset : kJsonPresets)
+    if (preset.language == language) return &preset;
+  return nullptr;
+}
+
+const JsonPreset *jsonPresetForFilename(const std::string &path) {
+  const std::string filename = fs::path(path).filename().string();
+  for (const auto &preset : kJsonPresets)
+    if (filename == preset.filename) return &preset;
+  return nullptr;
+}
+
+const JsonPreset *jsonPresetForSavedName(const std::string &name) {
+  for (const auto &preset : kJsonPresets)
+    if (name == preset.savedName) return &preset;
+  return nullptr;
+}
+
+bool jsonPreferenceSelected(const std::string &name) {
+  return jsonPresetForSavedName(name) || name == "custom";
+}
+
 // Runtime reads exactly this game-owned sidecar key, leaving settings.json
 // exclusively responsible for physical monitor/output settings.
 constexpr std::string_view kAspectKey = "ContentAspectPreference=";
@@ -348,17 +386,18 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
     languagePreferenceFile =
         fs::path(getSettingsPath()).parent_path() / "language.txt";
     const auto savedLanguage = readLanguagePreference(languagePreferenceFile);
-    if (savedLanguage.name == "spanish" || savedLanguage.name == "chinese" ||
-        savedLanguage.name == "custom") {
-      selectedLanguage = savedLanguage.name == "spanish" ? Language::Spanish
-          : savedLanguage.name == "chinese" ? Language::ChineseSimplified
-                                             : Language::CustomJson;
+    if (jsonPreferenceSelected(savedLanguage.name)) {
+      const auto *preset = jsonPresetForSavedName(savedLanguage.name);
+      selectedLanguage = preset ? preset->language : Language::CustomJson;
       if (!savedLanguage.jsonPath.empty())
         settings().translationPath =
             resolveInstalledJson(getSettingsPath(), savedLanguage.jsonPath);
       selectedLocaleBaseJsonPath = settings().translationPath;
-    } else if (!settings().translationPath.empty())
-      selectedLanguage = Language::CustomJson;
+    } else if (!settings().translationPath.empty()) {
+      const auto *preset = jsonPresetForFilename(settings().translationPath);
+      selectedLanguage = preset ? preset->language : Language::CustomJson;
+      selectedLocaleBaseJsonPath = settings().translationPath;
+    }
 #if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
     if (!savedLanguage.lxhJsonPath.empty()) {
       selectedManualLxhJsonPath =
@@ -382,7 +421,9 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
       manualLxhBaseJsonPath.clear();
     }
   } else if (!settings().translationPath.empty()) {
-    selectedLanguage = Language::CustomJson;
+    const auto *preset = jsonPresetForFilename(settings().translationPath);
+    selectedLanguage = preset ? preset->language : Language::CustomJson;
+    selectedLocaleBaseJsonPath = settings().translationPath;
   }
 
   // The base launcher loads settings.json before video initialization. Do NOT
@@ -751,8 +792,7 @@ std::string Launcher::rememberedLocaleJsonPath(
   if (settingsPath.empty()) return {};
   const auto saved = readLanguagePreference(
       fs::path(settingsPath).parent_path() / "language.txt");
-  return saved.name == "spanish" || saved.name == "chinese" ||
-                 saved.name == "custom"
+  return jsonPreferenceSelected(saved.name)
              ? resolveInstalledJson(settingsPath, saved.jsonPath) : std::string{};
 }
 
@@ -761,7 +801,7 @@ bool Launcher::nonNativeLanguagePreferenceSelected(
   if (settingsPath.empty()) return false;
   const auto name = readLanguagePreference(
       fs::path(settingsPath).parent_path() / "language.txt").name;
-  return name == "spanish" || name == "chinese" || name == "custom";
+  return jsonPreferenceSelected(name);
 }
 
 std::string Launcher::rememberedLxhJsonPath(
@@ -926,8 +966,7 @@ Launcher::Language Launcher::language() const {
     return selectedLanguage;
   if (selectedLanguage == Language::English && path.empty())
     return Language::English;
-  if ((selectedLanguage == Language::Spanish ||
-       selectedLanguage == Language::ChineseSimplified) &&
+  if (jsonPresetForLanguage(selectedLanguage) &&
       path == selectedLocaleBaseJsonPath)
     return selectedLanguage;
   return Language::CustomJson;
@@ -939,15 +978,11 @@ void Launcher::setLanguage(Language selection) {
   selectedManualLxhJsonPath.clear();
   manualLxhBaseJsonPath.clear();
   if (selection == Language::English || isGpkLanguage(selection)) {
-    // Clear only on an explicit native-English choice; manual JSON selection
-    // in the generic Translation tab otherwise remains untouched.
     settings().translationPath.clear();
-  } else if (selection == Language::Spanish) {
-    // A custom JSON may be another language. Start Spanish from an explicitly
-    // discoverable Spanish file, never relabel the previous dictionary.
-    settings().translationPath = findSpanishJson();
-  } else if (selection == Language::ChineseSimplified) {
-    settings().translationPath = findChineseJson();
+  } else if (jsonPresetForLanguage(selection)) {
+    // Only match this explicit locale. Missing JSON must block Play; a
+    // different installed language must never become the fallback.
+    settings().translationPath = findInstalledJson(selection);
   }
   selectedLocaleBaseJsonPath = settings().translationPath;
   selectedLanguage = selection;
@@ -1076,6 +1111,22 @@ std::string Launcher::findChineseJson() const {
       if (regularTranslationFile(local.string())) return local.string();
     }
   }
+  return {};
+}
+
+std::string Launcher::findInstalledJson(Language selection) const {
+  const auto *preset = jsonPresetForLanguage(selection);
+  if (!preset) return {};
+  if (!getSettingsPath().empty()) {
+    const auto path = Kotonoha::SchoolDaysGpkLanguageProfile::JsonPath(
+        getSettingsPath(), preset->filename);
+    if (regularTranslationFile(path.string()))
+      return fs::absolute(path).string();
+  }
+  // Preserve previous Spanish/Chinese aliases only if the exact organized
+  // profile is absent. Never prefer a global resolver over this installation.
+  if (selection == Language::Spanish) return findSpanishJson();
+  if (selection == Language::ChineseSimplified) return findChineseJson();
   return {};
 }
 
@@ -1442,24 +1493,27 @@ void Launcher::drawLanguageOptions() {
   ImGui::Spacing();
   ImGui::SeparatorText("School Days HQ language");
   const auto beforeSelection = language();
-  const char *current = "Custom JSON";
+  std::string customLabel = fs::path(settings().translationPath).stem().string();
+  const char *current = customLabel.empty() ? "Select a language" : customLabel.c_str();
   switch (beforeSelection) {
-  case Language::English: current = "English (retail, original)"; break;
-  case Language::EnglishGpk: current = "English (Script.GPK)"; break;
-  case Language::BrazilianGpk: current = "Português (Brasil) (Script.GPK)"; break;
-  case Language::SpanishGpk: current = "Español (Script.GPK)"; break;
-  case Language::ChineseGpk: current = "Chinese - Simplified (Script.GPK)"; break;
-  case Language::RussianGpk: current = "Russian (Script.GPK - community translation)"; break;
-  case Language::Spanish: current = "Spanish (legacy JSON)"; break;
-  case Language::ChineseSimplified: current = "Chinese (legacy JSON)"; break;
-  case Language::CustomJson: current = "Custom JSON (legacy)"; break;
+  case Language::English:
+  case Language::EnglishGpk: current = "English"; break;
+  case Language::BrazilianGpk: current = "Português (Brasil)"; break;
+  case Language::SpanishGpk: current = "Español"; break;
+  case Language::ChineseGpk: current = "Chinese - Simplified"; break;
+  case Language::RussianGpk: current = "Russian"; break;
+  case Language::CustomJson: break; // Historic/CLI profile, not selectable.
+  default:
+    if (const auto *preset = jsonPresetForLanguage(beforeSelection))
+      current = preset->displayName;
+    break;
   }
   if (ImGui::BeginCombo("Language", current)) {
-    ImGui::SeparatorText("Native translated Script.GPK");
-    if (ImGui::Selectable("English (Script.GPK)",
+    ImGui::SeparatorText("GPK");
+    if (ImGui::Selectable("English##gpk",
                           beforeSelection == Language::EnglishGpk))
       setLanguage(Language::EnglishGpk);
-    if (ImGui::Selectable("Português (Brasil) (Script.GPK)",
+    if (ImGui::Selectable("Português (Brasil)##gpk",
                           beforeSelection == Language::BrazilianGpk))
       setLanguage(Language::BrazilianGpk);
     // The original Spanish NSIS patch modifies controls and media paths.
@@ -1475,7 +1529,7 @@ void Launcher::drawLanguageOptions() {
 #endif
         ;
     ImGui::BeginDisabled(!spanishPackReady);
-    if (ImGui::Selectable("Español (Script.GPK)",
+    if (ImGui::Selectable("Español##gpk",
                           beforeSelection == Language::SpanishGpk))
       setLanguage(Language::SpanishGpk);
     ImGui::EndDisabled();
@@ -1499,7 +1553,7 @@ void Launcher::drawLanguageOptions() {
 #endif
         ;
     ImGui::BeginDisabled(!chinesePackReady);
-    if (ImGui::Selectable("Chinese - Simplified (Script.GPK)",
+    if (ImGui::Selectable("Chinese - Simplified##gpk",
                           beforeSelection == Language::ChineseGpk))
       setLanguage(Language::ChineseGpk);
     ImGui::EndDisabled();
@@ -1515,7 +1569,7 @@ void Launcher::drawLanguageOptions() {
 #endif
         ;
     ImGui::BeginDisabled(!russianPackReady);
-    if (ImGui::Selectable("Russian (Script.GPK - community translation)",
+    if (ImGui::Selectable("Russian##gpk",
                           beforeSelection == Language::RussianGpk))
       setLanguage(Language::RussianGpk);
     ImGui::EndDisabled();
@@ -1525,19 +1579,23 @@ void Launcher::drawLanguageOptions() {
                           " and LxH"
 #endif
                           " archive(s).");
-    ImGui::SeparatorText("Compatibility / original");
-    if (ImGui::Selectable("English (retail original)", beforeSelection == Language::English))
-      setLanguage(Language::English);
-    if (ImGui::Selectable("Spanish (legacy JSON)", beforeSelection == Language::Spanish))
-      setLanguage(Language::Spanish);
-    if (ImGui::Selectable("Chinese (legacy JSON)",
-                          beforeSelection == Language::ChineseSimplified))
-      setLanguage(Language::ChineseSimplified);
-    if (ImGui::Selectable("Custom JSON (legacy)", beforeSelection == Language::CustomJson))
-      setLanguage(Language::CustomJson);
+    ImGui::SeparatorText("JSON");
+    for (const auto &preset : kJsonPresets) {
+      const bool installed = !getSettingsPath().empty() &&
+          regularTranslationFile(Kotonoha::SchoolDaysGpkLanguageProfile::
+              JsonPath(getSettingsPath(), preset.filename).string());
+      ImGui::BeginDisabled(!installed);
+      const std::string item = std::string(preset.displayName) + "##json-" +
+                               preset.filename;
+      if (ImGui::Selectable(item.c_str(), beforeSelection == preset.language))
+        setLanguage(preset.language);
+      ImGui::EndDisabled();
+    }
     ImGui::EndCombo();
   }
   const auto selected = language();
+  ImGui::TextDisabled("Format: %s", isGpkLanguage(selected) ||
+      selected == Language::English ? "GPK" : "JSON");
   if (isGpkLanguage(selected)) {
     const auto locale = gpkLocale(selected);
     if (!getSettingsPath().empty()) {
@@ -1589,42 +1647,7 @@ void Launcher::drawLanguageOptions() {
       ImGui::TextWrapped(
           "Base language JSON missing. Choose the matching HQ JSON before Play.");
     }
-#if defined(__ANDROID__) || defined(ANDROID)
-    ImGui::TextDisabled("Import JSON through Android game-file setup first.");
-    if (ImGui::BeginCombo("Installed HQ JSON##sd",
-                          settings().translationPath.empty() ? "Select imported JSON" :
-                          fs::path(settings().translationPath).filename().string().c_str())) {
-      if (!getSettingsPath().empty())
-        for (const auto &file : Kotonoha::SchoolDaysGpkLanguageProfile::
-                 DiscoverJsonFiles(getSettingsPath())) {
-          const auto name = file.filename().string();
-          if (ImGui::Selectable(name.c_str(), settings().translationPath == file.string())) {
-            if (selected == Language::Spanish) setSpanishJsonPath(file.string());
-            else if (selected == Language::ChineseSimplified)
-              setChineseJsonPath(file.string());
-            else setCustomJsonPath(file.string());
-          }
-        }
-      ImGui::EndCombo();
-    }
-#else
-    if (ImGui::Button("Choose base HQ JSON...")) {
-      const auto initial = settings().translationPath.empty()
-                               ? (getSettingsPath().empty() ? std::string{}
-                                    : (fs::path(getSettingsPath()).parent_path() /
-                                       "translations/jsons").string())
-                               : fs::path(settings().translationPath)
-                                     .parent_path().string();
-      browseFile({{"Translation JSON (*.json)", "json"},
-                  {"All files (*)", "*"}},
-                 initial, [this, selected](const std::string &path) {
-                   if (selected == Language::Spanish) setSpanishJsonPath(path);
-                   else if (selected == Language::ChineseSimplified)
-                     setChineseJsonPath(path);
-                   else setCustomJsonPath(path);
-                 });
-    }
-#endif
+    ImGui::TextDisabled("The JSON list contains installed language profiles only.");
   }
 
  #if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
@@ -1987,8 +2010,8 @@ void Launcher::drawOptionsScreen() {
       ImGui::SameLine();
       if (ImGui::Button("Automatic overlay"))
         settings().assetOverlayPath.clear();
-      if (ImGui::CollapsingHeader("Advanced translation and font paths"))
-        drawTranslation();
+      // School Days owns translation selection in the Language tab. Do not
+      // expose the generic arbitrary-JSON chooser in the Advanced tab.
       if (ImGui::CollapsingHeader("Advanced engine settings"))
         drawAdvanced();
       ImGui::EndTabItem();
@@ -2267,7 +2290,10 @@ bool Launcher::validate(std::string &error) {
     const auto sources = Kotonoha::SchoolDaysTranslationGate::CollectDetailed(
         sourceAssets, routePath());
     const auto audit = Kotonoha::SchoolDaysTranslationGate::CheckLayered(
-        sources, dictionary, reviewed, dlc, reviewedDlc, nativeHq);
+        sources, dictionary, reviewed, dlc, reviewedDlc, nativeHq,
+        !nativeHq && (locale == "en" ||
+            Kotonoha::SchoolDaysGpkLanguageProfile::IsInstalledLocaleJson(
+                getSettingsPath(), translationFile)));
     if (locale == "es" && audit.overriddenBaseSlots != 0) {
       error = "Spanish LxH JSON conflicts with the installed HQ V4b (" +
               std::to_string(audit.overriddenBaseSlots) +
@@ -2330,7 +2356,9 @@ void Launcher::save() {
                                ec.message());
   }
   if (!languagePreferenceFile.empty()) {
-    const char *value = language() == Language::Spanish ? "spanish"
+    const auto *jsonPreset = jsonPresetForLanguage(language());
+    const char *value = jsonPreset ? jsonPreset->savedName
+                        : language() == Language::Spanish ? "spanish"
                         : language() == Language::ChineseSimplified ? "chinese"
                         : language() == Language::English ? "english"
                         : language() == Language::EnglishGpk ? "english-gpk"

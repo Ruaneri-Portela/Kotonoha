@@ -131,6 +131,25 @@ void TestNativeBoundariesAndLayers() {
   } catch (const std::runtime_error &) { blocked = true; }
   Require(blocked, "Missing English DLC entry leaked Spanish source text");
 
+  // Explicit en.json is not the same as native/no-JSON English: all base
+  // and LxH keys must exist, but identity with the English source is valid.
+  enBase.mutableSections()["23"]["HQ original."] = "HQ original.";
+  enDlc.mutableSections()["23"][Gate::ContextKey(ordinals[1], 0)] =
+      "LxH fuente.";
+  enDlc.mutableSections()["23"][Gate::ContextKey(ordinals[2], 0)] =
+      "LxH fuente.";
+  audit = Gate::CheckLayered(slots, enBase, empty, enDlc, empty, false);
+  Require(!audit.certifiedForNonNativeDisplay() && audit.identical == 3,
+          "Unreviewed identities in a non-English locale were certified");
+  audit = Gate::CheckLayered(slots, enBase, empty, enDlc, empty, false, true);
+  Require(audit.checked == 3 && audit.suppliedIdentical == 3 &&
+              audit.certifiedForNonNativeDisplay(),
+          "Explicit English JSON should accept complete source-identical text");
+  enBase.mutableSections()["23"].erase("HQ original.");
+  audit = Gate::CheckLayered(slots, enBase, empty, enDlc, empty, false, true);
+  Require(audit.missing == 1 && !audit.certifiedForNonNativeDisplay(),
+          "Explicit English JSON unexpectedly accepted an absent HQ entry");
+
   // Complete Spanish V4b remains usable with no separate es-lxh.json.
   Kotonoha::Translation esBase, esReviews;
   esBase.mutableSections()["23"]["HQ original."] = "Original del HQ.";

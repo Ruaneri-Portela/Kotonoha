@@ -269,6 +269,14 @@ int main(int argc, char **argv) {
       write(jsons / "es.json", "{\"0\":{\"Hello\":\"Hola\"}}");
       write(jsons / "es-lxh.json", "{\"0\":{\"Hello\":\"Hola\"}}");
       write(jsons / "zh-CN.json", "{\"0\":{\"Hello\":\"你好\"}}");
+      // Installed JSON modes are five explicit locales, not an arbitrary
+      // Custom JSON picker. These tiny fixtures contain no retail dialogue.
+      for (const auto &locale : {"en", "pt-BR", "ru", "zh-CN"}) {
+        write(jsons / (std::string(locale) + ".json"),
+              "{\"0\":{\"Hello\":\"Fixture\"}}");
+        write(jsons / (std::string(locale) + "-lxh.json"),
+              "{\"0\":{\"Hello\":\"Fixture epilogue\"}}");
+      }
       const auto staleBase = (root / "translations/es.json").string();
       const auto staleLxh = (root / "translations/es-lxh.json").string();
       write(root / "language.txt",
@@ -289,6 +297,62 @@ int main(int argc, char **argv) {
                   profile, "missing-other-locale.json") ==
                   "missing-other-locale.json",
               "Missing translated language silently fell back to another JSON");
+      {
+        SchoolDays::Launcher installed(profile, fixtures.string(),
+                                       original.string());
+        using Lang = SchoolDays::Launcher::Language;
+        for (const auto &[mode, filename] : {
+                 std::pair{Lang::EnglishJson, "en.json"},
+                 std::pair{Lang::BrazilianJson, "pt-BR.json"},
+                 std::pair{Lang::Spanish, "es.json"},
+                 std::pair{Lang::ChineseSimplified, "zh-CN.json"},
+                 std::pair{Lang::RussianJson, "ru.json"}}) {
+          installed.setLanguage(mode);
+          const auto exact = fs::absolute(jsons / filename).string();
+          require(installed.language() == mode &&
+                      installed.translationPath() == exact,
+                  "Installed JSON preset did not bind its own locale: " +
+                      std::string(filename));
+          const auto pair = fs::path(filename).stem().string() + "-lxh.json";
+          require(fs::path(installed.lxhJsonPath()) == jsons / pair,
+                  "Installed JSON preset did not pair the matching LxH: " +
+                      std::string(filename));
+        }
+        installed.setLanguage(Lang::BrazilianGpk);
+        require(installed.language() == Lang::BrazilianGpk &&
+                    installed.translationPath().empty() &&
+                    installed.manualLxhJsonPath().empty(),
+                "Switching JSON to native PT-BR GPK retained a JSON override");
+        installed.setLanguage(Lang::RussianJson);
+        fs::remove(jsons / "ru.json");
+        installed.setLanguage(Lang::EnglishJson);
+        installed.setLanguage(Lang::RussianJson);
+        require(installed.language() == Lang::RussianJson &&
+                    installed.translationPath().empty(),
+                "Missing Russian JSON silently substituted another language");
+        write(jsons / "ru.json", "{\"0\":{\"Hello\":\"Fixture\"}}");
+      }
+      write(root / "language.txt", "brazilian-json\n" +
+                (jsons / "pt-BR.json").string() + "\n");
+      const bool restoredPtBr =
+          SchoolDays::Launcher::nonNativeLanguagePreferenceSelected(profile);
+      const auto restoredPtBrPath =
+          SchoolDays::Launcher::rememberedLocaleJsonPath(profile);
+      require(restoredPtBr && fs::equivalent(restoredPtBrPath,
+                                             jsons / "pt-BR.json"),
+              "PT-BR JSON preference was not restored for direct startup "
+              "(sidecar=" + read(root / "language.txt") +
+              ", selected=" + std::to_string(restoredPtBr) +
+              ", path=" + restoredPtBrPath + ")");
+      write(root / "language.txt", "russian-json\n" +
+                (jsons / "ru.json").string() + "\n");
+      SchoolDays::Launcher reopenedRussian(profile, fixtures.string(),
+                                           original.string());
+      require(reopenedRussian.language() ==
+                  SchoolDays::Launcher::Language::RussianJson &&
+                  fs::equivalent(reopenedRussian.translationPath(),
+                                 jsons / "ru.json"),
+              "New Russian JSON preference was not restored on restart");
     }
 
     // Synthetic, no-display policy: the monitor's native mode seeds only a
