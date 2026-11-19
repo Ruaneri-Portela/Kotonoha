@@ -134,9 +134,12 @@ SchoolDaysSaveLoadRenderPlan::Build(const SchoolDaysSaveLoadModel& model) {
                                                       layout)));
     }
 
-    // Original runtime: LOAD has "Open Route Map"; the corresponding strip on
-    // SAVE is blank. The common CMAP does not make this sprite visible.
-    if (model.CurrentMode() == SchoolDaysSaveLoadModel::Mode::Load) {
+    // LOAD's original base PNG already contains the neutral Open Route Map
+    // button and label. This CHIP record is its *blue hover* state only:
+    // drawing it unconditionally makes the pointer look permanently over it.
+    // SAVE has no Route Map button, even if the shared CMAP still contains it.
+    if (interactive && model.CurrentMode() == SchoolDaysSaveLoadModel::Mode::Load &&
+        selection == 21) {
         sprites.push_back(Chip(Role::RouteMap, 21, {1.0f, 1.0f, 194.0f, 38.0f},
                                ScaleSpriteDestination(10.0f, 54.0f, 194.0f,
                                                       38.0f, layout)));

@@ -1476,6 +1476,17 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer *renderer,
     return HandleSaveLoadCommentEditorEvent(event);
   }
 
+  // Leaving the SDL window may not generate another MOUSE_MOTION inside it.
+  // Clear stale cyan CHIP hover from LOAD and RouteMap immediately; the
+  // neutral buttons already exist in their original base PNGs.
+  if (event->type == SDL_EVENT_WINDOW_MOUSE_LEAVE) {
+    if (routeMap_.IsOpen())
+      return routeMap_.SetSelectionFromPointer(-1, -1);
+    if (saveLoad_.IsOpen())
+      return saveLoad_.SetSelectionFromPointer(-1, -1);
+    return false;
+  }
+
   auto emitCancel = [&]() -> bool {
     if (output == nullptr)
       return false;
