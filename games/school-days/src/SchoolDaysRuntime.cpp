@@ -3528,8 +3528,13 @@ void Runtime::update() {
                      [](const auto &sound) { return sound->finished(); }),
       sounds.end());
   const bool stopped = modal();
-  if (currentState == Kotonoha::GameState::Gameplay && !stopped &&
-      lastMouseMotionMs != 0 && now - lastMouseMotionMs >= 3000u) {
+  // Do not hide a stationary mouse while it is hovering the interactive
+  // MenuBar. Its visual hover/fade state is independent of cursor idleness.
+  const bool pointerInsideMenuBar =
+      gameScene && gameScene->pointerInsideMenuBar();
+  if (Kotonoha::SchoolDaysInputPolicy::ShouldAutoHideGameplayCursor(
+          currentState == Kotonoha::GameState::Gameplay, stopped,
+          pointerInsideMenuBar, now, lastMouseMotionMs)) {
     if (!cursorHidden) {
       (void)SDL_HideCursor();
       cursorHidden = true;
