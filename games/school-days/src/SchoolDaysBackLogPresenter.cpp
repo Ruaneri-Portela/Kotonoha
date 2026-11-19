@@ -1,6 +1,7 @@
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
 
 #include <algorithm>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <vector>
@@ -25,6 +26,33 @@ std::string Utf16ToUtf8BackLog(const std::u16string &text) {
   std::string result(converted);
   SDL_free(converted);
   return result;
+}
+
+// The bundled UI font and common Windows UI/CJK fonts do not necessarily
+// contain supplementary emoji. Only borrow a font from the Windows install;
+// a missing or unsupported system font is NOT a BackLog initialization error.
+TTF_Font *OpenWindowsEmojiFont(float pointSize) {
+#if defined(_WIN32) && !defined(__ANDROID__)
+  const char *windowsRoot = SDL_getenv("WINDIR");
+  if (windowsRoot == nullptr || *windowsRoot == '\0')
+    windowsRoot = SDL_getenv("SystemRoot");
+  if (windowsRoot == nullptr || *windowsRoot == '\0' || pointSize <= 0.0f)
+    return nullptr;
+
+  const auto path = std::filesystem::u8path(windowsRoot) / "Fonts" /
+                    "seguiemj.ttf";
+  TTF_Font *candidate = TTF_OpenFont(path.u8string().c_str(), pointSize);
+  if (candidate == nullptr)
+    return nullptr;
+  if (!TTF_FontHasGlyph(candidate, 0x1F642u)) {
+    TTF_CloseFont(candidate);
+    return nullptr;
+  }
+  return candidate;
+#else
+  (void)pointSize;
+  return nullptr;
+#endif
 }
 
 } // namespace
@@ -100,6 +128,17 @@ bool SchoolDaysBackLogPresenter::Open(
       return Fail(error, "School Days BackLog fallback chain setup failed");
     }
   }
+  // Preserve the requested CJK fallback first. Emoji is the last resort,
+  // added only when no earlier font in the chain can draw the smiley.
+  if (!TTF_FontHasGlyph(font_, 0x1F642u)) {
+    TTF_Font *candidate = OpenWindowsEmojiFont(TTF_GetFontSize(font_));
+    if (candidate != nullptr) {
+      if (TTF_AddFallbackFont(font_, candidate))
+        emojiFallbackFont_ = candidate;
+      else
+        TTF_CloseFont(candidate);
+    }
+  }
   text_ = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
                             SDL_TEXTUREACCESS_STREAMING, 2048, 1024);
   if (text_ == nullptr ||
@@ -131,8 +170,11 @@ void SchoolDaysBackLogPresenter::Close() {
   }
   if (fallbackFont_ != nullptr)
     TTF_CloseFont(fallbackFont_);
+  if (emojiFallbackFont_ != nullptr)
+    TTF_CloseFont(emojiFallbackFont_);
   font_ = nullptr;
   fallbackFont_ = nullptr;
+  emojiFallbackFont_ = nullptr;
   useEnglish_ = false;
   opened_ = false;
 }
