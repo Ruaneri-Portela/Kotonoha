@@ -3904,13 +3904,26 @@ void Runtime::renderPanels(Kotonoha::RendererRef renderer) {
       else {
         backlogOwner = BackLogOwner::Narrative;
         backlogFallback->open();
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+        if (!backlogFallback->isVisible()) {
+          backlogOwner = BackLogOwner::None;
+          setStatus("BackLog unavailable: " + backlogFallback->LastError());
+        }
+#endif
       }
     }
   }
   if (saveMenu->isOpen())
     renderScene(*saveMenu, renderer, 1);
-  if (backlogFallback->isVisible())
+  if (backlogFallback->isVisible()) {
     renderScene(*backlogFallback, renderer, 1);
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+    if (!backlogFallback->isVisible() && !backlogFallback->LastError().empty()) {
+      backlogOwner = BackLogOwner::None;
+      setStatus("BackLog unavailable: " + backlogFallback->LastError());
+    }
+#endif
+  }
   renderStatus(renderer);
 }
 
@@ -6720,6 +6733,12 @@ void Runtime::openBacklog(bool playView) {
   }
   backlogOwner = BackLogOwner::Narrative;
   backlogFallback->open();
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  if (!backlogFallback->isVisible()) {
+    backlogOwner = BackLogOwner::None;
+    setStatus("BackLog unavailable: " + backlogFallback->LastError());
+  }
+#endif
 }
 
 bool Runtime::handleBacklogAction() {

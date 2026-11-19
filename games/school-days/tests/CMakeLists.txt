@@ -36,6 +36,13 @@ add_executable(SchoolDaysSceneTimelineTest SchoolDaysSceneTimelineTest.cpp)
 target_link_libraries(SchoolDaysSceneTimelineTest PRIVATE school_days)
 add_test(NAME SchoolDaysSceneTimelineTest COMMAND SchoolDaysSceneTimelineTest)
 
+# Native BackLog text geometry, Unicode and scroll behavior. Creates only
+# synthetic dialogue and CMAP files in this test's private build directory.
+add_executable(SchoolDaysBackLogGeometryTest SchoolDaysBackLogGeometryTest.cpp)
+target_link_libraries(SchoolDaysBackLogGeometryTest PRIVATE school_days)
+add_test(NAME SchoolDays.BackLogGeometry COMMAND SchoolDaysBackLogGeometryTest
+    "${CMAKE_CURRENT_BINARY_DIR}/backlog-geometry-fixture")
+
 add_executable(SchoolDaysAudioEventStateTest SchoolDaysAudioEventStateTest.cpp)
 target_link_libraries(SchoolDaysAudioEventStateTest PRIVATE school_days)
 add_test(NAME SchoolDaysAudioEventStateTest COMMAND SchoolDaysAudioEventStateTest)
@@ -106,6 +113,10 @@ target_link_libraries(SchoolDaysBackRuntimeTest PRIVATE school_days)
 add_test(NAME SchoolDaysBackRuntimeTest COMMAND SchoolDaysBackRuntimeTest
     "${SCHOOL_DAYS_ROUTE}")
 set_tests_properties(SchoolDaysBackRuntimeTest PROPERTIES
+    ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
+add_test(NAME SchoolDays.BackLogFallback COMMAND SchoolDaysBackRuntimeTest
+    "${SCHOOL_DAYS_ROUTE}" "--fallback-only")
+set_tests_properties(SchoolDays.BackLogFallback PROPERTIES
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
 
 add_executable(SchoolDaysConfigStorageTest SchoolDaysConfigStorageTest.cpp)

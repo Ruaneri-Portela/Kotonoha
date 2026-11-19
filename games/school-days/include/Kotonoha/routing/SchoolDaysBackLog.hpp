@@ -83,6 +83,7 @@ public:
 
   int HitControl(int x, int y) const;
   bool SetSelectionFromPointer(int x, int y);
+  // Scroll long translated entries before changing the history record.
   bool StepCursor(int delta);
 
   // Mouse commit is intentionally authenticated: the release hit must equal
@@ -92,6 +93,8 @@ public:
   bool IsOpen() const { return open_; }
   int Selection() const { return selection_; }
   int CurrentRawIndex() const { return currentRawIndex_; }
+  int CurrentLineOffset() const { return currentLineOffset_; }
+  int MaxCurrentLineOffset() const { return maxCurrentLineOffset_; }
   size_t RawCountSnapshot() const { return rawCountSnapshot_; }
   Orientation CurrentOrientation() const { return orientation_; }
   Variant CurrentVariant() const { return variant_; }
@@ -105,6 +108,7 @@ public:
 
 private:
   static int DeltaForSelection(int selection);
+  void ResetCurrentLineOffset(bool showLastLines);
 
   SchoolDaysCmap cmap_;
   const SchoolDaysBackLogStore *store_ = nullptr;
@@ -112,6 +116,8 @@ private:
   Variant variant_ = Variant::Standard;
   size_t rawCountSnapshot_ = 0;
   int currentRawIndex_ = -1;
+  int currentLineOffset_ = 0;
+  int maxCurrentLineOffset_ = 0;
   int selection_ = -1;
   bool open_ = false;
 };
@@ -181,6 +187,10 @@ public:
     bool unsupportedMarkup = false;
     std::vector<NativeTextBlock> blocks;
   };
+  struct TextRasterSize {
+    int w = 0;
+    int h = 0;
+  };
 
   static std::vector<TextEntry>
   BuildTextEntries(const SchoolDaysBackLogModel &model);
@@ -206,6 +216,11 @@ public:
                                   bool *unsupportedMarkup = nullptr);
   static NativeTextPlan
   BuildRetailHorizonEnglish(const SchoolDaysBackLogModel &model);
+  // Source-space text clip leaves the navigation and bottom skin visible.
+  static Rect TextSurfaceClip();
+  // Proportional raster fit preserves glyph aspect and retail row spacing.
+  static TextRasterSize FitTextRaster(int maxWidth, int rasterWidth,
+                                      int rasterHeight);
   static Rect TextSurfaceSource();
   static Rect TextSurfaceDestination(SchoolDaysBackLogModel::Variant variant);
 
