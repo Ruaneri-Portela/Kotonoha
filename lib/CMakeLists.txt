@@ -273,6 +273,10 @@ if(DEFINED KOTONOHA_ENABLE_UPSCALER AND NOT KOTONOHA_ENABLE_UPSCALER)
 endif()
 
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
+if(KOTONOHA_DISTRIBUTION_BUILD)
+    # PUBLIC reaches CLI consumers, game ports and their tests as well.
+    target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_DISTRIBUTION_BUILD=1)
+endif()
 if(DEFINED KOTONOHA_ENABLE_UPSCALER)
     target_compile_definitions(KotonohaEngine PUBLIC
         KOTONOHA_ENABLE_UPSCALER=$<BOOL:${KOTONOHA_ENABLE_UPSCALER}>)
