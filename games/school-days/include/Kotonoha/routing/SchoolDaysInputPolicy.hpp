@@ -52,6 +52,18 @@ public:
   static constexpr uint32_t kLatchExpirationMs = 500u;
   static constexpr uint32_t kGameplayCursorAutoHideMs = 3000u;
 
+  // A stationary pointer over the interactive MenuBar must stay visible.
+  // Preserve the existing three-second timeout in the narrative area;
+  // physical mouse motion restores the cursor, and modals always show it.
+  static bool ShouldAutoHideGameplayCursor(bool gameplay, bool modal,
+                                           bool pointerInsideMenuBar,
+                                           uint64_t nowMs,
+                                           uint64_t lastMouseMotionMs) {
+    return gameplay && !modal && !pointerInsideMenuBar &&
+           lastMouseMotionMs != 0 && nowMs >= lastMouseMotionMs &&
+           nowMs - lastMouseMotionMs >= kGameplayCursorAutoHideMs;
+  }
+
   // Event routing is not SetSELECT authorization: the runtime must still
   // reject keyboard, wheel and synthetic actions while a choice owns input.
   static bool AcceptsGameplayEventType(Uint32 type) {
