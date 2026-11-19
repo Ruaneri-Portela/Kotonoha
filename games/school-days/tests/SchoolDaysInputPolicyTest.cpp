@@ -33,6 +33,31 @@ int main() {
             !Policy::AcceptsMouseButton(SDL_BUTTON_X2),
         "mouse button filter drifted");
 
+  using Cursor = Policy;
+  const uint64_t motion = 1000u;
+  const uint64_t deadline = motion + Cursor::kGameplayCursorAutoHideMs;
+  Check(!Cursor::ShouldAutoHideGameplayCursor(true, false, false,
+                                               deadline - 1u, motion) &&
+            Cursor::ShouldAutoHideGameplayCursor(true, false, false,
+                                               deadline, motion) &&
+            Cursor::ShouldAutoHideGameplayCursor(true, false, false,
+                                               deadline + 2000u, motion),
+        "narrative-area cursor idle timeout changed");
+  Check(!Cursor::ShouldAutoHideGameplayCursor(true, false, true,
+                                               deadline + 2000u, motion) &&
+            !Cursor::ShouldAutoHideGameplayCursor(true, true, false,
+                                                deadline + 2000u, motion) &&
+            !Cursor::ShouldAutoHideGameplayCursor(false, false, false,
+                                                deadline + 2000u, motion),
+        "MenuBar, modal, and title must keep the cursor visible");
+  Check(!Cursor::ShouldAutoHideGameplayCursor(true, false, false, deadline, 0) &&
+            !Cursor::ShouldAutoHideGameplayCursor(true, false, false,
+                                                motion - 1u, motion) &&
+            !Cursor::ShouldAutoHideGameplayCursor(true, false, false,
+                                                deadline + 2000u,
+                                                deadline + 1999u),
+        "uninitialized, non-monotonic, or recent movement hid cursor");
+
     Check(Policy::AcceptsGameplayEventType(SDL_EVENT_WINDOW_RESIZED) &&
               Policy::AcceptsGameplayEventType(SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) &&
               Policy::AcceptsGameplayEventType(SDL_EVENT_WINDOW_DISPLAY_CHANGED),
@@ -115,6 +140,7 @@ int main() {
 
   std::cout << "SCHOOL DAYS INPUT POLICY GATE PASS\n"
             << "mouse_motion_click=PASS\n"
+            << "cursor_idle_menubar=PASS\n"
             << "window_lifecycle=PASS\n"
             << "accelerators_22=PASS\n"
             << "menu_keys=PASS\n"
