@@ -165,6 +165,42 @@ std::string inferCharacterFromVoicePath(std::string_view voicePath) {
 
 } // namespace
 
+class PonscripterMenu final : public Kotonoha::InGameMenu {
+public:
+  PonscripterMenu(Kotonoha::Engine &engineRef,
+                  std::function<void(const std::string &)> onAction)
+      : InGameMenu(engineRef), onAction_(std::move(onAction)) {}
+
+protected:
+  int itemCount() const override { return 4; }
+
+  std::string itemLabel(int index) const override {
+    switch (index) {
+    case 0:
+      return "Salvar";
+    case 1:
+      return "Carregar";
+    case 2:
+      return "Histórico";
+    case 3:
+      return "Tela inicial";
+    default:
+      return {};
+    }
+  }
+
+  void activate(int index) override {
+    static const char *actions[]{"save", "load", "lookback", "reset"};
+    if (index < 0 || index >= 4)
+      return;
+    close();
+    onAction_(actions[index]);
+  }
+
+private:
+  std::function<void(const std::string &)> onAction_;
+};
+
 struct PonscripterRuntime::Impl final : public HostCallbacks {
   PonscripterRuntime &runtime;
   std::shared_ptr<PonscripterAssets> assets;
@@ -173,7 +209,7 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   // Shared Kotonoha UI components
   std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
   Kotonoha::VNBacklog *backlog = nullptr;
-  Kotonoha::InGameMenu *inGameMenu = nullptr;
+  std::unique_ptr<Kotonoha::InGameMenu> inGameMenu;
   std::size_t syncedBacklogCount = 0;
 
   // Indexed script nodes & translation tables for Kotonoha Debug / Translation
@@ -755,8 +791,17 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   void onSystemCall(const std::string &kind) override {
     systemMenuHoverIndex = -1;
     if (kind == "lookback") {
-      const auto &pages = runtime.vm().backlogPages();
-      backlogScrollOffset = std::max(0, static_cast<int>(pages.size()) - 1);
+      if (backlog)
+        backlog->open();
+      return;
+    }
+    if (kind == "rmenu") {
+      if (inGameMenu)
+        inGameMenu->open();
+      return;
+    }
+    if (kind == "save" || kind == "load") {
+      openKotonohaSaveMenu(kind == "load");
     }
   }
 };
@@ -817,24 +862,34 @@ void PonscripterRuntime::init(Kotonoha::Engine &engine) {
   impl_->backlog->setVoiceReplay([this](const std::string &voiceId) {
     impl_->onPlayWave(0, voiceId, false);
   });
+  impl_->backlog->SetOnClose([this] {
+    if (vm_.waitState() == WaitState::WaitSystemCall &&
+        vm_.activeSystemCall() == "lookback")
+      vm_.finishSystemCall();
+  });
   impl_->syncedBacklogCount = 0;
 
   impl_->saveMenu = std::make_unique<Kotonoha::VNSaveMenu>(engine);
-  impl_->inGameMenu = &Kotonoha::GetInGameMenuRuntime(engine);
-  impl_->inGameMenu->SetOnSave([this] {
-    if (impl_->inGameMenu)
-      impl_->inGameMenu->close();
-    impl_->openKotonohaSaveMenu(false);
+  impl_->saveMenu->SetOnClose([this] {
+    if (vm_.waitState() == WaitState::WaitSystemCall &&
+        (vm_.activeSystemCall() == "save" || vm_.activeSystemCall() == "load"))
+      vm_.finishSystemCall();
   });
-  impl_->inGameMenu->SetOnLoad([this] {
-    if (impl_->inGameMenu)
-      impl_->inGameMenu->close();
-    impl_->openKotonohaSaveMenu(true);
+  impl_->inGameMenu = std::make_unique<PonscripterMenu>(
+      engine, [this](const std::string &action) {
+        if (action == "reset")
+          vm_.resetToStart();
+        else
+          vm_.enterSystemCall(action);
+      });
+  impl_->inGameMenu->SetOnClose([this] {
+    if (vm_.waitState() == WaitState::WaitSystemCall &&
+        vm_.activeSystemCall() == "rmenu")
+      vm_.finishSystemCall();
   });
-  impl_->inGameMenu->SetOnReturnToMenu([this] { vm_.resetToStart(); });
 
   AddScene(impl_->backlog, Kotonoha::GameState::Gameplay);
-  AddScene(impl_->inGameMenu, Kotonoha::GameState::Gameplay);
+  AddScene(impl_->inGameMenu.get(), Kotonoha::GameState::Gameplay);
   AddScene(impl_->saveMenu.get(), Kotonoha::GameState::Gameplay);
 
   vm_.clear();
@@ -1270,8 +1325,15 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
 
   renderSceneContents();
 
-  // 7. Modal System Call Overlay (`rmenu`, `save`, `load`, `lookback`)
-  if (vm_.waitState() == WaitState::WaitSystemCall) {
+  // 7. Modal System Call Overlay: native `rmenu`, `save`, `load` and
+  // `lookback` are routed to Kotonoha's InGameMenu, VNSaveMenu and VNBacklog
+  // in Impl::onSystemCall(). The legacy custom overlay is kept only as a
+  // fallback when no Kotonoha scene is active.
+  const bool kotonohaSystemModal =
+      (impl_->saveMenu && impl_->saveMenu->isOpen()) ||
+      (impl_->backlog && impl_->backlog->isVisible()) ||
+      (impl_->inGameMenu && impl_->inGameMenu->IsOpen());
+  if (vm_.waitState() == WaitState::WaitSystemCall && !kotonohaSystemModal) {
     const std::string &kind = vm_.activeSystemCall();
     auto &fontUi = pickFont(false);
 

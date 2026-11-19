@@ -108,8 +108,9 @@ EMSCRIPTEN_KEEPALIVE void KotonohaFreeRemoteFetchBuffer(void *memory) {
 // Optional HTTP index: use the manifest for directory enumeration, but keep
 // on-demand HEAD/Range discovery enabled for names absent from a stale index.
 // Unlike the strict manifest API, a valid index is not an allow-list.
-EMSCRIPTEN_KEEPALIVE int KotonohaConfigureRemoteAssetIndexedManifest(
-    const char *baseUrl, const char *manifestJson) {
+EMSCRIPTEN_KEEPALIVE int
+KotonohaConfigureRemoteAssetIndexedManifest(const char *baseUrl,
+                                            const char *manifestJson) {
   if (KotonohaConfigureRemoteAssetManifest(baseUrl, manifestJson, 0) != 1)
     return 0;
   if (auto provider = Filesystem::remoteGameAssets()) {

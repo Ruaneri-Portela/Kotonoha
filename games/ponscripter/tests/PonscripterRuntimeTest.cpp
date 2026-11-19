@@ -1,6 +1,11 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <Ponscripter/PonscripterRuntime.hpp>
 
+#include <Kotonoha/components/InGameMenu.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
+#include <Kotonoha/core/Engine.hpp>
+
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -211,13 +216,191 @@ void runRetailSayaAudit(const std::string &sayaDir) {
         "and unlock 100% extras");
 }
 
+template <typename T> T *findActiveScene(Kotonoha::Runtime &runtime) {
+  for (auto *scene : runtime.GetActiveScenes())
+    if (auto *typed = dynamic_cast<T *>(scene))
+      return typed;
+  return nullptr;
+}
+
+void runRetailMenuIntegrationTest(const std::string &sayaDir) {
+  auto assets = std::make_shared<Ponscripter::PonscripterAssets>(sayaDir);
+  Ponscripter::PonscripterRuntime runtime(assets);
+  Kotonoha::Engine engine(runtime);
+  struct ShutdownGuard {
+    Ponscripter::PonscripterRuntime &runtime;
+    ~ShutdownGuard() { runtime.shutdown(); }
+  } guard{runtime};
+
+  runtime.vm().setSkipMode(true);
+  for (int i = 0;
+       i < 80 &&
+       runtime.vm().waitState() != Ponscripter::WaitState::WaitSelect &&
+       runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
+       ++i) {
+    runtime.vm().tick(1000.0);
+    if (runtime.vm().waitState() == Ponscripter::WaitState::WaitVideo)
+      runtime.vm().finishVideo();
+  }
+  if (runtime.vm().waitState() == Ponscripter::WaitState::WaitSelect)
+    check(runtime.vm().selectChoice(0), "Accept retail license terms");
+
+  for (int i = 0;
+       i < 80 && runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
+       ++i) {
+    runtime.vm().tick(1000.0);
+    if (runtime.vm().waitState() == Ponscripter::WaitState::WaitVideo)
+      runtime.vm().finishVideo();
+  }
+  check(runtime.vm().waitState() == Ponscripter::WaitState::WaitButton,
+        "Retail Saya must reach the title-screen buttons");
+  check(runtime.vm().selectButton(1), "Start a retail New Game");
+  for (int i = 0;
+       i < 80 && runtime.vm().waitState() != Ponscripter::WaitState::WaitSelect;
+       ++i)
+    runtime.vm().tick(1000.0);
+  check(runtime.vm().waitState() == Ponscripter::WaitState::WaitSelect,
+        "Retail Saya must reach the grotesque settings select");
+  check(runtime.vm().selectChoice(0), "Accept retail grotesque default");
+
+  for (int i = 0; i < 400; ++i) {
+    runtime.vm().tick(1000.0);
+    if (runtime.vm().waitState() == Ponscripter::WaitState::WaitClickInline ||
+        runtime.vm().waitState() == Ponscripter::WaitState::WaitClickPage)
+      break;
+  }
+  check(runtime.vm().waitState() == Ponscripter::WaitState::WaitClickInline ||
+            runtime.vm().waitState() == Ponscripter::WaitState::WaitClickPage,
+        "Retail Saya must reach its first dialogue wait");
+
+  check(runtime.vm().rightClick(), "Retail Saya right click must open rmenu");
+  Kotonoha::InGameMenu *menu = findActiveScene<Kotonoha::InGameMenu>(runtime);
+  check(menu && menu->IsOpen(),
+        "Retail native rmenu must open the Kotonoha InGameMenu");
+  menu->close();
+
+  runtime.vm().enterSystemCall("lookback");
+  Kotonoha::VNBacklog *backlog = findActiveScene<Kotonoha::VNBacklog>(runtime);
+  check(backlog && backlog->isVisible(),
+        "Retail native lookback must open the Kotonoha VNBacklog");
+  backlog->close();
+}
+
+void runEngineMenuIntegrationTest() {
+  auto assets = std::make_shared<Ponscripter::PonscripterAssets>();
+  Ponscripter::PonscripterRuntime runtime(assets);
+  Kotonoha::Engine engine(runtime);
+  struct ShutdownGuard {
+    Ponscripter::PonscripterRuntime &runtime;
+    ~ShutdownGuard() { runtime.shutdown(); }
+  } guard{runtime};
+
+  const std::string script =
+      "\xEF\xBB\xBF;mode800\n"
+      "*define\n"
+      "game\n"
+      "rmenu \"Salvar\",save,\"Carregar\",load,\"Histórico\",lookback,"
+      "\"Tela inicial\",reset\n"
+      "*start\n"
+      "setwindow3 60,70,34,20,20,20,0,4,0,1,1,#000000,40,50\n"
+      "^Primeira página.@\n"
+      "br\n"
+      "^Segunda página.@\n"
+      "br\n"
+      "end\n";
+  runtime.vm().appendScriptFile("00.utf", script);
+  runtime.init(engine);
+
+  for (int i = 0; i < 30 && runtime.vm().waitState() !=
+                                Ponscripter::WaitState::WaitClickInline;
+       ++i)
+    runtime.vm().tick(1000.0);
+  check(runtime.vm().waitState() == Ponscripter::WaitState::WaitClickInline,
+        "Synthetic menu script must reach its first dialogue wait");
+
+  const auto findScene = [&](auto *tag) -> decltype(tag) {
+    for (auto *scene : runtime.GetActiveScenes()) {
+      if (auto *typed = dynamic_cast<std::decay_t<decltype(tag)>>(scene))
+        return typed;
+    }
+    return nullptr;
+  };
+
+  // Native right-click `rmenu` must open Kotonoha's InGameMenu and keep the
+  // VM blocked at WaitSystemCall until the engine menu closes.
+  check(runtime.vm().rightClick(), "Right click must open native rmenu");
+  check(runtime.vm().waitState() == Ponscripter::WaitState::WaitSystemCall,
+        "Native rmenu must block the VM");
+  Kotonoha::InGameMenu *menu =
+      findScene(static_cast<Kotonoha::InGameMenu *>(nullptr));
+  check(menu && menu->IsOpen(),
+        "Native rmenu must open the Kotonoha InGameMenu scene");
+
+  // The first native entry is Save: Enter must route to Kotonoha VNSaveMenu.
+  SDL_Event enter{};
+  enter.type = SDL_EVENT_KEY_DOWN;
+  enter.key.key = SDLK_RETURN;
+  enter.key.down = true;
+  check(runtime.onEvent(enter), "Save entry must be handled by the menu");
+  Kotonoha::VNSaveMenu *saveMenu =
+      findScene(static_cast<Kotonoha::VNSaveMenu *>(nullptr));
+  check(saveMenu && saveMenu->isOpen(),
+        "Native rmenu Save must open the Kotonoha VNSaveMenu scene");
+  saveMenu->close();
+  check(runtime.vm().waitState() != Ponscripter::WaitState::WaitSystemCall,
+        "Closing the Kotonoha save menu must release the native rmenu wait");
+
+  // The third native entry is History: Down, Down, Enter must route to the
+  // Kotonoha VNBacklog scene.
+  check(runtime.vm().rightClick(), "Right click must reopen native rmenu");
+  SDL_Event down{};
+  down.type = SDL_EVENT_KEY_DOWN;
+  down.key.key = SDLK_DOWN;
+  down.key.down = true;
+  check(runtime.onEvent(down) && runtime.onEvent(down),
+        "History navigation must be handled by the menu");
+  check(runtime.onEvent(enter), "History entry must be handled by the menu");
+  Kotonoha::VNBacklog *backlog =
+      findScene(static_cast<Kotonoha::VNBacklog *>(nullptr));
+  check(backlog && backlog->isVisible(),
+        "Native rmenu History must open the Kotonoha VNBacklog scene");
+  backlog->close();
+  check(runtime.vm().waitState() != Ponscripter::WaitState::WaitSystemCall,
+        "Closing the Kotonoha backlog must release the native rmenu wait");
+
+  // Native `lookback` must open Kotonoha's VNBacklog scene directly.
+  runtime.vm().enterSystemCall("lookback");
+  check(runtime.vm().waitState() == Ponscripter::WaitState::WaitSystemCall,
+        "Native lookback must block the VM");
+  check(backlog->isVisible(),
+        "Native lookback must open the Kotonoha VNBacklog scene");
+  backlog->close();
+  check(runtime.vm().waitState() != Ponscripter::WaitState::WaitSystemCall,
+        "Closing the Kotonoha backlog must release the native lookback wait");
+
+  // Native `save` must open Kotonoha's VNSaveMenu scene directly.
+  runtime.vm().enterSystemCall("save");
+  check(saveMenu->isOpen(),
+        "Native save must open the Kotonoha VNSaveMenu scene");
+  saveMenu->close();
+  check(runtime.vm().waitState() != Ponscripter::WaitState::WaitSystemCall,
+        "Closing the Kotonoha save menu must release the native save wait");
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
   try {
+    if (SDL_getenv("SAYA_RETAIL_MENU_ONLY")) {
+      runRetailMenuIntegrationTest(argv[1]);
+      std::cout << "PonscripterRuntimeTests passed\n";
+      return 0;
+    }
     runSyntheticTest();
+    runEngineMenuIntegrationTest();
     if (argc > 1 && std::filesystem::exists(argv[1])) {
       runRetailSayaAudit(argv[1]);
+      runRetailMenuIntegrationTest(argv[1]);
     }
     std::cout << "PonscripterRuntimeTests passed\n";
     return 0;

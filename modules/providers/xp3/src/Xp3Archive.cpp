@@ -721,10 +721,10 @@ void KirikiriAssets::mountAllXp3() {
 #endif
   if (probeKnownArchives) {
     for (const char *id :
-         {"data.xp3", "emote.xp3", "evimage.xp3", "voice.xp3",
-          "bgimage.xp3", "image.xp3", "sound.xp3", "system.xp3",
-          "patch.xp3", "patch2.xp3", "patch3.xp3", "startup.xp3",
-          "scenario.xp3", "data/data.xp3", "data/patch.xp3"}) {
+         {"data.xp3", "emote.xp3", "evimage.xp3", "voice.xp3", "bgimage.xp3",
+          "image.xp3", "sound.xp3", "system.xp3", "patch.xp3", "patch2.xp3",
+          "patch3.xp3", "startup.xp3", "scenario.xp3", "data/data.xp3",
+          "data/patch.xp3"}) {
       const auto alreadyListed = std::any_of(
           names.begin(), names.end(), [id](const std::string &existing) {
             auto lower = existing;

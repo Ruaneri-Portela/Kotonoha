@@ -91,9 +91,10 @@ void bindFactory(EngineLibraryRegistry &registry, EngineKind kind,
 }
 
 template <class RuntimeType, class ProviderType>
-MountedEngineInstance mount(std::unique_ptr<RuntimeType> runtime,
-                            std::shared_ptr<ProviderType> provider,
-                            std::function<void(Kotonoha::Runtime &)> shutdown = {}) {
+MountedEngineInstance
+mount(std::unique_ptr<RuntimeType> runtime,
+      std::shared_ptr<ProviderType> provider,
+      std::function<void(Kotonoha::Runtime &)> shutdown = {}) {
   MountedEngineInstance instance;
   instance.runtime = std::move(runtime);
   instance.assets = std::move(provider);
@@ -111,133 +112,149 @@ std::function<void(Kotonoha::Runtime &)> shutdownRuntime() {
 
 void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
 #if defined(KOTONOHA_LAUNCH_AMAGAMI)
-  bindFactory(registry, EngineKind::Amagami,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                auto source = std::make_shared<Amagami::Source>(entry.path);
-                auto assets = std::make_shared<Kotonoha::Providers::AmagamiAssets>(source);
-                assets->setOverlay(opts.assetOverlayDirectory());
-                return mount(std::make_unique<Amagami::AmagamiRuntime>(assets),
-                             assets, shutdownRuntime<Amagami::AmagamiRuntime>());
-              });
+  bindFactory(
+      registry, EngineKind::Amagami,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        auto source = std::make_shared<Amagami::Source>(entry.path);
+        auto assets =
+            std::make_shared<Kotonoha::Providers::AmagamiAssets>(source);
+        assets->setOverlay(opts.assetOverlayDirectory());
+        return mount(std::make_unique<Amagami::AmagamiRuntime>(assets), assets,
+                     shutdownRuntime<Amagami::AmagamiRuntime>());
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_ZERO)
-  bindFactory(registry, EngineKind::ZeroNoTsukaima,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                auto assets = std::make_shared<Kotonoha::Providers::ZeroDiscAssets>(entry.path);
-                assets->setOverlay(opts.assetOverlayDirectory());
-                return mount(std::make_unique<ZeroNoTsukaima::ZeroRuntime>(assets),
-                             assets, [](Kotonoha::Runtime &runtime) {
-                               static_cast<ZeroNoTsukaima::ZeroRuntime &>(runtime).Shutdown();
-                             });
-              });
+  bindFactory(
+      registry, EngineKind::ZeroNoTsukaima,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        auto assets =
+            std::make_shared<Kotonoha::Providers::ZeroDiscAssets>(entry.path);
+        assets->setOverlay(opts.assetOverlayDirectory());
+        return mount(
+            std::make_unique<ZeroNoTsukaima::ZeroRuntime>(assets), assets,
+            [](Kotonoha::Runtime &runtime) {
+              static_cast<ZeroNoTsukaima::ZeroRuntime &>(runtime).Shutdown();
+            });
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_SNOW)
-  bindFactory(registry, EngineKind::SnowRadish,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(
-                    selectedSourcePath(entry));
-                assets->setOverlay(opts.assetOverlayDirectory());
-                return mount(std::make_unique<SnowRadish::SnowRuntime>(assets),
-                             assets);
-              });
+  bindFactory(
+      registry, EngineKind::SnowRadish,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(
+            selectedSourcePath(entry));
+        assets->setOverlay(opts.assetOverlayDirectory());
+        return mount(std::make_unique<SnowRadish::SnowRuntime>(assets), assets);
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_SUMMER)
-  bindFactory(registry, EngineKind::SummerRadish,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(
-                    selectedSourcePath(entry), opts.assetOverlayDirectory());
-                assets->setOverlay(opts.assetOverlayDirectory());
-                return mount(std::make_unique<SummerRadish::SummerRuntime>(assets),
-                             assets, shutdownRuntime<SummerRadish::SummerRuntime>());
-              });
+  bindFactory(
+      registry, EngineKind::SummerRadish,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(
+            selectedSourcePath(entry), opts.assetOverlayDirectory());
+        assets->setOverlay(opts.assetOverlayDirectory());
+        return mount(std::make_unique<SummerRadish::SummerRuntime>(assets),
+                     assets, shutdownRuntime<SummerRadish::SummerRuntime>());
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_DDLC)
-  bindFactory(registry, EngineKind::RenPy,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                const auto sourcePath = selectedSourcePath(entry);
-                std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets;
-                std::error_code ec;
-                if (std::filesystem::is_regular_file(sourcePath, ec)) {
-                  auto source = Kotonoha::Filesystem::Filesystem::mount(sourcePath);
-                  if (!opts.assetOverlayDirectory().empty())
-                    source->addOverlay(opts.assetOverlayDirectory());
-                  assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
-                      source, opts.assetOverlayDirectory());
-                } else {
-                  assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
-                      std::filesystem::path(sourcePath), opts.assetOverlayDirectory());
-                }
-                return mount(std::make_unique<Ddlc::GameRuntime>(assets),
-                             assets, shutdownRuntime<Ddlc::GameRuntime>());
-              });
+  bindFactory(
+      registry, EngineKind::RenPy,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        const auto sourcePath = selectedSourcePath(entry);
+        std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets;
+        std::error_code ec;
+        if (std::filesystem::is_regular_file(sourcePath, ec)) {
+          auto source = Kotonoha::Filesystem::Filesystem::mount(sourcePath);
+          if (!opts.assetOverlayDirectory().empty())
+            source->addOverlay(opts.assetOverlayDirectory());
+          assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
+              source, opts.assetOverlayDirectory());
+        } else {
+          assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
+              std::filesystem::path(sourcePath), opts.assetOverlayDirectory());
+        }
+        return mount(std::make_unique<Ddlc::GameRuntime>(assets), assets,
+                     shutdownRuntime<Ddlc::GameRuntime>());
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_SCHOOL_DAYS)
-  bindFactory(registry, EngineKind::SchoolDays,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(
-                    Kotonoha::gameDataDirectory(selectedSourcePath(entry)),
-                    opts.assetOverlayDirectory());
-                return mount(std::make_unique<SchoolDays::Runtime>(
-                                 assets, std::string{}, std::filesystem::path{}),
-                             assets, shutdownRuntime<SchoolDays::Runtime>());
-              });
+  bindFactory(
+      registry, EngineKind::SchoolDays,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(
+            Kotonoha::gameDataDirectory(selectedSourcePath(entry)),
+            opts.assetOverlayDirectory());
+        return mount(std::make_unique<SchoolDays::Runtime>(
+                         assets, std::string{}, std::filesystem::path{}),
+                     assets, shutdownRuntime<SchoolDays::Runtime>());
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_REALLIVE)
-  bindFactory(registry, EngineKind::RealLive,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                auto assets = std::make_shared<Kotonoha::Providers::RealLiveAssets>(
-                    selectedSourcePath(entry), opts.assetOverlayDirectory());
-                return mount(std::make_unique<RealLive::RealLiveRuntime>(assets),
-                             assets, shutdownRuntime<RealLive::RealLiveRuntime>());
-              });
+  bindFactory(
+      registry, EngineKind::RealLive,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        auto assets = std::make_shared<Kotonoha::Providers::RealLiveAssets>(
+            selectedSourcePath(entry), opts.assetOverlayDirectory());
+        return mount(std::make_unique<RealLive::RealLiveRuntime>(assets),
+                     assets, shutdownRuntime<RealLive::RealLiveRuntime>());
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_KIRIKIRI)
-  bindFactory(registry, EngineKind::Kirikiri,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                auto assets = std::make_shared<Kotonoha::Providers::KirikiriAssets>(
-                    selectedSourcePath(entry), opts.assetOverlayDirectory());
-                assets->mountAllXp3();
-                return mount(std::make_unique<Kirikiri::KirikiriRuntime>(assets), assets);
-              });
+  bindFactory(
+      registry, EngineKind::Kirikiri,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        auto assets = std::make_shared<Kotonoha::Providers::KirikiriAssets>(
+            selectedSourcePath(entry), opts.assetOverlayDirectory());
+        assets->mountAllXp3();
+        return mount(std::make_unique<Kirikiri::KirikiriRuntime>(assets),
+                     assets);
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_LUCA_SYSTEM)
-  bindFactory(registry, EngineKind::LucaSystem,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                auto assets = std::make_shared<Kotonoha::Providers::LucaSystemAssets>(
-                    selectedSourcePath(entry), opts.assetOverlayDirectory());
-                return mount(std::make_unique<LucaSystem::LucaSystemRuntime>(assets),
-                             assets, shutdownRuntime<LucaSystem::LucaSystemRuntime>());
-              });
+  bindFactory(
+      registry, EngineKind::LucaSystem,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        auto assets = std::make_shared<Kotonoha::Providers::LucaSystemAssets>(
+            selectedSourcePath(entry), opts.assetOverlayDirectory());
+        return mount(std::make_unique<LucaSystem::LucaSystemRuntime>(assets),
+                     assets, shutdownRuntime<LucaSystem::LucaSystemRuntime>());
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_PMAIL)
-  bindFactory(registry, EngineKind::PureMail,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                const auto path = selectedSourcePath(entry);
-                auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(path);
-                assets->setOverlay(opts.assetOverlayDirectory());
-                return mount(std::make_unique<Kotonoha::PmailPort::PmailRuntime>(
-                                 path, assets),
-                             assets, shutdownRuntime<Kotonoha::PmailPort::PmailRuntime>());
-              });
+  bindFactory(
+      registry, EngineKind::PureMail,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        const auto path = selectedSourcePath(entry);
+        auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(path);
+        assets->setOverlay(opts.assetOverlayDirectory());
+        return mount(
+            std::make_unique<Kotonoha::PmailPort::PmailRuntime>(path, assets),
+            assets, shutdownRuntime<Kotonoha::PmailPort::PmailRuntime>());
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_N2SYSTEM)
-  bindFactory(registry, EngineKind::N2System,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                auto assets = std::make_shared<N2System::N2ArchiveAssets>(
-                    selectedSourcePath(entry), opts.assetOverlayDirectory());
-                return mount(std::make_unique<N2System::N2Runtime>(assets), assets,
-                             shutdownRuntime<N2System::N2Runtime>());
-              });
+  bindFactory(
+      registry, EngineKind::N2System,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        auto assets = std::make_shared<N2System::N2ArchiveAssets>(
+            selectedSourcePath(entry), opts.assetOverlayDirectory());
+        return mount(std::make_unique<N2System::N2Runtime>(assets), assets,
+                     shutdownRuntime<N2System::N2Runtime>());
+      });
 #endif
 #if defined(KOTONOHA_LAUNCH_PONSCRIPTER)
-  bindFactory(registry, EngineKind::ONScripter,
-              [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-                const auto path = selectedSourcePath(entry);
-                auto assets = std::make_shared<Ponscripter::PonscripterAssets>(
-                    path, opts.assetOverlayDirectory());
-                return mount(std::make_unique<Ponscripter::PonscripterRuntime>(assets),
-                             assets, shutdownRuntime<Ponscripter::PonscripterRuntime>());
-              });
+  bindFactory(
+      registry, EngineKind::ONScripter,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        const auto path = selectedSourcePath(entry);
+        auto assets = std::make_shared<Ponscripter::PonscripterAssets>(
+            path, opts.assetOverlayDirectory());
+        return mount(std::make_unique<Ponscripter::PonscripterRuntime>(assets),
+                     assets,
+                     shutdownRuntime<Ponscripter::PonscripterRuntime>());
+      });
 #endif
 }
 

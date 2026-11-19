@@ -1,5 +1,5 @@
-#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/EngineDetector.hpp>
+#include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 
 #include <algorithm>
@@ -35,8 +35,7 @@ public:
   bool exists(std::string_view path) const override {
     return path.empty() || files_.count(std::string(path)) != 0;
   }
-  Kotonoha::Filesystem::FileInfo
-  stat(std::string_view path) const override {
+  Kotonoha::Filesystem::FileInfo stat(std::string_view path) const override {
     if (path.empty())
       return {"", Kotonoha::Filesystem::FileType::Directory, 0};
     if (!exists(path))
@@ -140,25 +139,26 @@ int main() {
     require(!findRequiredFilesPrefix(*source, {}),
             "An empty required-file set does not validate any source");
 
-    const auto ponscripter = Filesystem::mount(
-        std::make_shared<UnindexedHttpFixture>(
+    const auto ponscripter =
+        Filesystem::mount(std::make_shared<UnindexedHttpFixture>(
             std::initializer_list<std::string>{"00.utf", "arc.nsa"}));
     require(Kotonoha::Filesystem::listGameSourceFiles(*ponscripter).empty(),
             "HTTP fixture must not enumerate any directory");
-    require(Kotonoha::Filesystem::isGameSourceRegularFile(
-                *ponscripter, "00.utf"),
-            "PONscripter script must be found without a directory listing");
+    require(
+        Kotonoha::Filesystem::isGameSourceRegularFile(*ponscripter, "00.utf"),
+        "PONscripter script must be found without a directory listing");
     require(Kotonoha::Filesystem::detectEngine(*ponscripter).kind ==
                 Kotonoha::Filesystem::EngineKind::ONScripter,
             "PONscripter detection must work on unindexed HTTP mounts");
 
-    const auto kirikiri = Filesystem::mount(
-        std::make_shared<UnindexedHttpFixture>(
+    const auto kirikiri =
+        Filesystem::mount(std::make_shared<UnindexedHttpFixture>(
             std::initializer_list<std::string>{"data.xp3"}));
     require(Kotonoha::Filesystem::listGameSourceFiles(*kirikiri).empty(),
             "Kirikiri HTTP fixture must not enumerate remote files");
-    require(Kotonoha::Filesystem::isGameSourceRegularFile(*kirikiri, "data.xp3"),
-            "Kirikiri XP3 must be found without a directory listing");
+    require(
+        Kotonoha::Filesystem::isGameSourceRegularFile(*kirikiri, "data.xp3"),
+        "Kirikiri XP3 must be found without a directory listing");
     require(Kotonoha::Filesystem::detectEngine(*kirikiri).kind ==
                 Kotonoha::Filesystem::EngineKind::Kirikiri,
             "Kirikiri detection must work on unindexed HTTP mounts");
@@ -173,8 +173,8 @@ int main() {
             "Optional manifest must index listings and retain direct Fetch");
     auto indexedSource = Filesystem::mount(
         std::static_pointer_cast<Kotonoha::Filesystem::IMount>(indexed));
-    require(Kotonoha::Filesystem::isGameSourceRegularFile(
-                *indexedSource, "data.xp3"),
+    require(Kotonoha::Filesystem::isGameSourceRegularFile(*indexedSource,
+                                                          "data.xp3"),
             "Manifest must reveal archive metadata without network requests");
     const auto manifestRoot = indexedSource->list("");
     const auto manifestNested = indexedSource->list("misc");

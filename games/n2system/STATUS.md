@@ -18,3 +18,9 @@
 - **Sprite Tag & Compositor Semantics**: Supports `:a` (native PNG alpha or right-half mask for non-alpha BMPs like `system\uoncur.bmp`), `:c`, `:l`, `:r`, `:m`, and `:s[;][#RRGGBB]^text` string sprites, multi-cell animation modes `0` (loop), `1` (once), `2` (ping-pong), and `3` (manual button hover cells), and PONscripter `999 -> 0` sprite Z-order.
 - **Proportional Text & Inline Tags (`Ponscripter::TextFormatter`)**: Handles `^` proportional text, `@` inline click-wait, `\` page-end click-wait + backlog push, `~i~`/`~b~`/`~c~`/`~s~` inline tags, `~~` literal tilde escape, `#RRGGBB` inline colors, and smart ligatures (`...` -> `…`, `--` -> `–`, `---` -> `—`).
 - **Save State & Extras (`Ponscripter::SaveSerializer`)**: Persists global variables (`gloval.sav`: `%lic_accepted`, `%end1_clear..%end3_clear`, `%cgset_0..4`, `%gro`, `%vol*`, `%textspeed`, `%autospeed`, `%movplay`) and 20 save slots (`save1.dat`..`save20.dat`), unlocking the CG Gallery (`97` CGs), Music Box (`15` tracks), and Staff Notes across all 3 endings.
+
+### 3. Shared Kotonoha UI
+- **Pause menu (`InGameMenu`)**: `N2GameMenu` opens on `Esc`, routes History to the runtime-owned `VNBacklog`, and delegates Save/Load to `VNSaveMenu`.
+- **Backlog (`VNBacklog`)**: `B` toggles the same instance populated by the VM; while a modal is open, input is dispatched to the active engine scene.
+- **Save browser (`VNSaveMenu`)**: Save and Load entries open the engine save browser under `n2system/`; `F5`/`F9` remain quick-save shortcuts.
+- **Title return**: the pause menu closes through the engine callback and restarts the N2 runtime without leaving the modal scene dangling.

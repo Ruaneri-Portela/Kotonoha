@@ -7,22 +7,42 @@
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 
+#include <algorithm>
 #include <filesystem>
 #include <string>
 
 namespace N2System {
 
+namespace {
+// Route the pause menu's History item to the backlog instance owned and
+// populated by this runtime instead of the engine's unused shared backlog.
+class N2GameMenu final : public Kotonoha::InGameMenu {
+public:
+  N2GameMenu(Kotonoha::Engine &engine, Kotonoha::VNBacklog &backlog)
+      : InGameMenu(engine), backlog_(backlog) {}
+
+protected:
+  void openBacklog() override { backlog_.open(); }
+
+private:
+  Kotonoha::VNBacklog &backlog_;
+};
+} // namespace
+
 struct N2Runtime::Impl {
   std::shared_ptr<Kotonoha::VNTextBox> textBox;
   std::shared_ptr<Kotonoha::VNBacklog> backlog;
   std::shared_ptr<Kotonoha::InGameMenu> menu;
+  std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
   std::shared_ptr<Kotonoha::ChoiceQuestionScene> choiceScene;
   Kotonoha::Engine *engine = nullptr;
   bool choiceActive = false;
+  bool restartRequested = false;
   std::string currentBgm;
   std::unique_ptr<Ponscripter::PonscripterRuntime> ponscripter;
 };
@@ -45,6 +65,7 @@ void N2Runtime::shutdown() {
     impl_->ponscripter.reset();
   }
   impl_->choiceScene.reset();
+  impl_->saveMenu.reset();
   impl_->menu.reset();
   impl_->backlog.reset();
   impl_->textBox.reset();
@@ -89,9 +110,36 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
 
   impl_->textBox = std::make_shared<Kotonoha::VNTextBox>(engine, "", "", 30.0);
   impl_->backlog = std::make_shared<Kotonoha::VNBacklog>(engine);
-  impl_->menu = std::make_shared<Kotonoha::InGameMenu>(engine);
+  impl_->menu = std::make_shared<N2GameMenu>(engine, *impl_->backlog);
+  impl_->saveMenu = std::make_unique<Kotonoha::VNSaveMenu>(engine);
   impl_->choiceScene = std::make_shared<Kotonoha::ChoiceQuestionScene>(
       engine, "", std::vector<Kotonoha::ChoiceOption>{{"", 0}}, nullptr);
+
+  AddScene(impl_->backlog.get(), Kotonoha::GameState::Gameplay);
+  AddScene(impl_->menu.get(), Kotonoha::GameState::Gameplay);
+
+  const auto openSaves = [this](bool load) {
+    if (!impl_->saveMenu)
+      return;
+    const auto dir = Kotonoha::saveDirectory() / "n2system";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    impl_->saveMenu->open(dir.string(), load,
+                          std::string(vm_.currentChapter()));
+    const auto &scenes = GetActiveScenes();
+    if (std::find(scenes.begin(), scenes.end(), impl_->saveMenu.get()) ==
+        scenes.end())
+      AddScene(impl_->saveMenu.get(), Kotonoha::GameState::Gameplay);
+  };
+  impl_->menu->SetOnSave([this, openSaves] {
+    impl_->menu->close();
+    openSaves(false);
+  });
+  impl_->menu->SetOnLoad([this, openSaves] {
+    impl_->menu->close();
+    openSaves(true);
+  });
+  impl_->menu->SetOnReturnToMenu([this] { impl_->restartRequested = true; });
 
   std::string scriptSource;
   std::string initialChapter = "main";
@@ -150,6 +198,19 @@ void N2Runtime::update() {
     impl_->ponscripter->update();
     return;
   }
+
+  Runtime::update();
+  if (impl_->restartRequested && impl_->engine) {
+    impl_->restartRequested = false;
+    auto *engine = impl_->engine;
+    SetState(Kotonoha::GameState::Gameplay);
+    // init() replaces every registered scene; drop stale pointers first.
+    ClearScenes();
+    init(*engine);
+    return;
+  }
+  if (impl_->engine && impl_->engine->isStoryPaused())
+    return;
 
   constexpr float dt = 1.0f / 60.0f;
   vm_.update(dt);
@@ -240,12 +301,25 @@ bool N2Runtime::onEvent(Kotonoha::EventRef event) {
   if (impl_->ponscripter)
     return impl_->ponscripter->onEvent(event);
 
+  if ((impl_->saveMenu && impl_->saveMenu->isOpen()) ||
+      (impl_->backlog && impl_->backlog->isVisible()) ||
+      (impl_->menu && impl_->menu->IsOpen()))
+    return Runtime::onEvent(event);
+
   if (impl_->choiceActive && impl_->choiceScene) {
     if (impl_->choiceScene->onEvent(event))
       return true;
   }
 
-  if (event.type == SDL_EVENT_KEY_DOWN) {
+  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+    if (event.key.key == SDLK_ESCAPE && impl_->menu) {
+      impl_->menu->open();
+      return true;
+    }
+    if (event.key.key == SDLK_B && impl_->backlog) {
+      impl_->backlog->toggle();
+      return true;
+    }
     if (event.key.key == SDLK_F5) {
       saveGame((Kotonoha::saveDirectory() / "n2system_quick.n2sv").string());
       return true;

@@ -31,6 +31,17 @@ comandos, cenas, rotas, transições ou finais funcionem.
 - N2System e PONscripter possuem CMake/Android, porém **não há schemes Xcode macOS/iOS para esses ports** no projeto versionado. O manifesto registra `xcode_pending` para não anunciar suporte Apple não comprovado.
 - Testes sintéticos verificam contratos, não substituem validação completa em dispositivos nem com mídia original.
 
+## Integração compartilhada com a UI de Kotonoha (18/11/2026)
+
+Todos os portes conectam o menu in-game e o histórico nativos aos componentes
+do motor, diretamente ou por subclasses específicas do jogo:
+
+- Example, RealLive, Kirikiri2/KirikiriZ, LucaSystem, Summer Radish e N2System usam `InGameMenu`, `VNBacklog` e `VNSaveMenu`; o N2System cria uma subclasse do menu para que Histórico abra o backlog que ele popula.
+- Amagami, Zero no Tsukaima, Snow Radish, Doki Doki Literature Club, Pure Mail e PONscripter preservam rótulos, desenho e entrada nativos por meio de subclasses de `InGameMenu` e/ou `VNBacklog`.
+- Saya no Uta/PONscripter mapeia o `rmenu` nativo para um `InGameMenu` de quatro itens, o `lookback` nativo para `VNBacklog` e `save`/`load` nativos para `VNSaveMenu`; a VM permanece em `WaitSystemCall` até cada modal fechar.
+- School Days HQ mantém o MenuBar/SysMenu nativo autenticado e a pele de histórico; `VNSaveMenu` e `SchoolDaysBackLogEngine` (subclasse de `VNBacklog`) permanecem registrados como fallback.
+- Verificado nesta mudança com `AmagamiEngineTest` (disco comercial), `PonscripterRuntimeTests` (Saya no Uta sintético e comercial) e a suíte `N2System` (7 testes).
+
 ## Testes de contrato e validação sintética
 
 - `tools/check_port_contracts.py` revisa todos os aplicativos: manifesto,

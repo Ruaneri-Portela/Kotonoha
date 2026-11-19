@@ -18,3 +18,9 @@
 - **Tags de Sprite e Compositor**: Suporta `:a` (alfa nativo em PNG ou máscara na metade direita para BMPs sem alfa como `system\uoncur.bmp`), `:c`, `:l`, `:r`, `:m` e sprites de texto `:s[;][#RRGGBB]^texto`, modos de animação multicélula `0` (loop), `1` (uma vez), `2` (ping-pong) e `3` (célula manual de botão hover), e ordem Z `999 -> 0`.
 - **Texto Proporcional e Tags Inline (`Ponscripter::TextFormatter`)**: Processa texto proporcional `^`, espera inline `@`, quebra de página `\` com histórico (*backlog*), tags `~i~`/`~b~`/`~c~`/`~s~`, escape `~~` para til literal, cores `#RRGGBB` e ligaduras tipográficas (`...` -> `…`, `--` -> `–`, `---` -> `—`).
 - **Persistência de Save e Extras (`Ponscripter::SaveSerializer`)**: Persiste variáveis globais (`gloval.sav`: `%lic_accepted`, `%end1_clear..%end3_clear`, `%cgset_0..4`, `%gro`, `%vol*`, `%textspeed`, `%autospeed`, `%movplay`) e 20 slots de save (`save1.dat`..`save20.dat`), desbloqueando a Galeria de CGs (`97` CGs), Music Box (`15` faixas) e Comentários da Equipe nos 3 finais.
+
+### 3. UI compartilhada de Kotonoha
+- **Menu de pausa (`InGameMenu`)**: `N2GameMenu` abre com `Esc`, encaminha Histórico para o `VNBacklog` do runtime e delega Salvar/Carregar ao `VNSaveMenu`.
+- **Histórico (`VNBacklog`)**: `B` alterna a mesma instância populada pela VM; enquanto um modal estiver aberto, a entrada é despachada para a cena ativa do motor.
+- **Navegador de saves (`VNSaveMenu`)**: os itens Salvar e Carregar abrem o navegador do motor em `n2system/`; `F5`/`F9` continuam como atalhos de save rápido.
+- **Retorno ao título**: o menu de pausa fecha pelo callback do motor e reinicia o runtime N2 sem deixar a cena modal pendente.

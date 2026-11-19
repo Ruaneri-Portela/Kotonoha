@@ -721,83 +721,97 @@ void FetchAssetProvider::pump() {
   // Retain emscripten_fetch below as a compatibility fallback for old shells.
   if (EM_ASM_INT({
         return window.KotonohaAssetCache &&
-                       typeof window.KotonohaAssetCache.fetchJob === "function"
-                   ? 1 : 0;
+                   typeof window.KotonohaAssetCache.fetchJob ==
+               = "function" ? 1 : 0;
       })) {
     while (active_ < 4 && !queued_.empty()) {
       auto job = std::move(queued_.front());
       queued_.pop_front();
-      auto *ctx = new FetchContext{shared_from_this(), job.key, job.start,
-                                   job.length, job.full, job.discovery,
-                                   job.lowercaseAttempt, {}, {}};
+      auto *ctx =
+          new FetchContext{shared_from_this(),   job.key,  job.start,
+                           job.length,           job.full, job.discovery,
+                           job.lowercaseAttempt, {},       {}};
       const auto &file = files_.at(job.key);
-      const auto &remotePath =
-          job.discovery && job.lowercaseAttempt
-              ? lookupKey(file->remotePath)
-              : file->remotePath.empty() ? file->info.path : file->remotePath;
+      const auto &remotePath = job.discovery && job.lowercaseAttempt
+                                   ? lookupKey(file->remotePath)
+                               : file->remotePath.empty() ? file->info.path
+                                                          : file->remotePath;
       const std::string url = base_ + encodePath(remotePath);
       const auto fileSize = file->info.size;
       ++active_;
       // Explicit 32-bit halves avoid JS precision loss for i64 arguments.
       // All supported offsets are exact integers <= 2^53 - 1.
-      EM_ASM({
-        const ctx = $0;
-        const url = UTF8ToString($1);
-        const path = UTF8ToString($2);
-        const remotePath = UTF8ToString($11);
-        const start = ($3 >>> 0) + ($4 >>> 0) * 4294967296;
-        const length = ($5 >>> 0) + ($6 >>> 0) * 4294967296;
-        const full = !!$7;
-        const discovery = !!$8;
-        const fileSize = ($9 >>> 0) + ($10 >>> 0) * 4294967296;
-        let delivered = false;
-        Promise.resolve().then(function() {
-          return window.KotonohaAssetCache.fetchJob({
-            url, path, remotePath, start, length, full, discovery, fileSize
-          });
-        }).then(function(result) {
-          const bytes = result.bytes || new Uint8Array(0);
-          let pointer = 0;
-          try {
-            if (bytes.byteLength) {
-              pointer = Module.ccall("KotonohaAllocateRemoteFetchBuffer",
-                  "number", ["number"], [bytes.byteLength]);
-              if (!pointer)
-                throw new Error("Cannot allocate WASM HTTP response buffer");
-              const heap = Module.HEAPU8;
-              if (!heap || pointer + bytes.byteLength > heap.length)
-                throw new Error("Invalid WASM memory for HTTP response");
-              heap.set(bytes, pointer);
-            }
-            delivered = true;
-            Module.ccall("KotonohaCompleteBrowserFetch", null,
-                ["number", "number", "number", "number", "string"],
-                [ctx, result.status, pointer, bytes.byteLength,
-                 result.headers || ""]);
-          } finally {
-            if (pointer)
-              Module.ccall("KotonohaFreeRemoteFetchBuffer",
-                  null, ["number"], [pointer]);
-          }
-        }).catch(function(error) {
-          console.error("[Kotonoha] IndexedDB/HTTP asset request:", error);
-          if (!delivered) {
-            delivered = true;
-            Module.ccall("KotonohaCompleteBrowserFetch", null,
-                ["number", "number", "number", "number", "string"],
-                [ctx, 0, 0, 0, ""]);
-          }
-        });
-      }, static_cast<std::uintptr_t>(reinterpret_cast<std::uintptr_t>(ctx)),
-         url.c_str(), remotePath.c_str(),
-         static_cast<std::uint32_t>(job.start),
-         static_cast<std::uint32_t>(job.start >> 32),
-         static_cast<std::uint32_t>(job.length),
-         static_cast<std::uint32_t>(job.length >> 32),
-         static_cast<int>(job.full), static_cast<int>(job.discovery),
-         static_cast<std::uint32_t>(static_cast<std::uint64_t>(fileSize)),
-         static_cast<std::uint32_t>(
-             static_cast<std::uint64_t>(fileSize) >> 32), remotePath.c_str());
+      EM_ASM(
+          {
+            const ctx = $0;
+            const url = UTF8ToString($1);
+            const path = UTF8ToString($2);
+            const remotePath = UTF8ToString($11);
+            const start = ($3 >>> 0) + ($4 >>> 0) * 4294967296;
+            const length = ($5 >>> 0) + ($6 >>> 0) * 4294967296;
+            const full = !!$7;
+            const discovery = !!$8;
+            const fileSize = ($9 >>> 0) + ($10 >>> 0) * 4294967296;
+            let delivered = false;
+            Promise.resolve()
+                .then(function() {
+                  return window.KotonohaAssetCache.fetchJob(
+                      {url, path, remotePath, start, length, full, discovery,
+                       fileSize});
+                })
+                .then(function(result) {
+                  const bytes = result.bytes || new Uint8Array(0);
+                  let pointer = 0;
+                  try {
+                    if (bytes.byteLength) {
+                      pointer = Module.ccall(
+                          "KotonohaAllocateRemoteFetchBuffer",
+                          "number", ["number"], [bytes.byteLength]);
+                      if (!pointer)
+                        throw new Error(
+                            "Cannot allocate WASM HTTP response buffer");
+                      const heap = Module.HEAPU8;
+                      if (!heap || pointer + bytes.byteLength > heap.length)
+                        throw new Error(
+                            "Invalid WASM memory for HTTP response");
+                      heap.set(bytes, pointer);
+                    }
+                    delivered = true;
+                    Module.ccall(
+                        "KotonohaCompleteBrowserFetch", null,
+                        [ "number", "number", "number", "number", "string" ], [
+                          ctx, result.status, pointer, bytes.byteLength,
+                          result.headers || ""
+                        ]);
+                  } finally {
+                    if (pointer)
+                      Module.ccall("KotonohaFreeRemoteFetchBuffer",
+                                   null, ["number"], [pointer]);
+                  }
+                })
+                .catch(function(error) {
+                  console.error("[Kotonoha] IndexedDB/HTTP asset request:",
+                                error);
+                  if (!delivered) {
+                    delivered = true;
+                    Module.ccall(
+                        "KotonohaCompleteBrowserFetch", null,
+                        [ "number", "number", "number", "number", "string" ],
+                        [ ctx, 0, 0, 0, "" ]);
+                  }
+                });
+          },
+          static_cast<std::uintptr_t>(reinterpret_cast<std::uintptr_t>(ctx)),
+          url.c_str(), remotePath.c_str(),
+          static_cast<std::uint32_t>(job.start),
+          static_cast<std::uint32_t>(job.start >> 32),
+          static_cast<std::uint32_t>(job.length),
+          static_cast<std::uint32_t>(job.length >> 32),
+          static_cast<int>(job.full), static_cast<int>(job.discovery),
+          static_cast<std::uint32_t>(static_cast<std::uint64_t>(fileSize)),
+          static_cast<std::uint32_t>(static_cast<std::uint64_t>(fileSize) >>
+                                     32),
+          remotePath.c_str());
     }
     return;
   }
@@ -916,13 +930,13 @@ void FetchAssetProvider::completeBrowserJob(
     void *opaque, unsigned status, const char *body, std::uint64_t count,
     const std::string &headers) noexcept {
   std::unique_ptr<FetchContext> ctx(static_cast<FetchContext *>(opaque));
-  if (!ctx) return;
+  if (!ctx)
+    return;
   auto provider = ctx->provider;
   try {
-    provider->complete(
-        Job{ctx->path, ctx->start, ctx->length, ctx->full,
-            ctx->discovery, ctx->lowercaseAttempt},
-        status, body, count, headers);
+    provider->complete(Job{ctx->path, ctx->start, ctx->length, ctx->full,
+                           ctx->discovery, ctx->lowercaseAttempt},
+                       status, body, count, headers);
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                  "[Kotonoha] Browser cache callback for %s failed: %s",
@@ -955,7 +969,8 @@ void FetchAssetProvider::completeBrowserJob(
                 "[Kotonoha] HTTP asset unavailable: %s (HTTP %u): %s",
                 ctx->path.c_str(), status, found->second->message.c_str());
   }
-  if (provider->active_ > 0) --provider->active_;
+  if (provider->active_ > 0)
+    --provider->active_;
   try {
     provider->pump();
   } catch (const std::exception &error) {
@@ -968,13 +983,14 @@ void FetchAssetProvider::completeBrowserJob(
   }
 }
 
-extern "C" EMSCRIPTEN_KEEPALIVE void KotonohaCompleteBrowserFetch(
-    std::uintptr_t context, int status, const char *bytes, int count,
-    const char *headers) {
+extern "C" EMSCRIPTEN_KEEPALIVE void
+KotonohaCompleteBrowserFetch(std::uintptr_t context, int status,
+                             const char *bytes, int count,
+                             const char *headers) {
   FetchAssetProvider::completeBrowserJob(
       reinterpret_cast<void *>(context),
-      status >= 0 ? static_cast<unsigned>(status) : 0u,
-      bytes, count >= 0 ? static_cast<std::uint64_t>(count) : 0u,
+      status >= 0 ? static_cast<unsigned>(status) : 0u, bytes,
+      count >= 0 ? static_cast<std::uint64_t>(count) : 0u,
       headers ? std::string(headers) : std::string{});
 }
 #endif

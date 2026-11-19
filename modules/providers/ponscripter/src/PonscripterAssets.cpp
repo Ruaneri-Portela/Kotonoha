@@ -4,8 +4,8 @@
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #endif
-#include <SDL3/SDL.h>
 #include <Ponscripter/PonscripterAssets.hpp>
+#include <SDL3/SDL.h>
 
 #include <algorithm>
 #include <cctype>
@@ -118,28 +118,25 @@ void PonscripterAssets::setRootDirectory(std::string_view rootDir) {
     // Discover common loose scripts and archives by their canonical paths.
     // Indexed directory/ISO sources have already been handled above.
     for (const char *known :
-         {"00.utf", "0.utf", "nscript.dat", "pscript.dat", "00.txt",
-          "0.txt", "arc.nsa", "arc1.nsa", "arc2.nsa", "arc3.nsa",
-          "arc4.nsa", "arc5.nsa", "arc6.nsa", "arc7.nsa",
-          "arc8.nsa", "arc9.nsa", "arc.sar"}) {
+         {"00.utf", "0.utf", "nscript.dat", "pscript.dat", "00.txt", "0.txt",
+          "arc.nsa", "arc1.nsa", "arc2.nsa", "arc3.nsa", "arc4.nsa", "arc5.nsa",
+          "arc6.nsa", "arc7.nsa", "arc8.nsa", "arc9.nsa", "arc.sar"}) {
       if (caseIndex_.count(known) || !vfs_->exists(known) ||
           vfs_->stat(known).type != Kotonoha::Filesystem::FileType::Regular)
         continue;
       caseIndex_[known] = known;
       const std::string name(known);
-      if (name.size() < 4 ||
-          (name.substr(name.size() - 4) != ".nsa" &&
-           name.substr(name.size() - 4) != ".sar"))
+      if (name.size() < 4 || (name.substr(name.size() - 4) != ".nsa" &&
+                              name.substr(name.size() - 4) != ".sar"))
         continue;
       try {
         auto handle = vfs_->open(known);
         if (handle)
-          mountArchive(
-              Kotonoha::Filesystem::readAll(*handle),
-              name.substr(name.size() - 4) == ".sar"
-                  ? ArchiveFormat::SAR
-                  : ArchiveFormat::NSA,
-              0);
+          mountArchive(Kotonoha::Filesystem::readAll(*handle),
+                       name.substr(name.size() - 4) == ".sar"
+                           ? ArchiveFormat::SAR
+                           : ArchiveFormat::NSA,
+                       0);
       } catch (const std::exception &error) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "PONscripter HTTP archive %s unavailable: %s", known,
