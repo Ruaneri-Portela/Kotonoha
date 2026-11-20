@@ -23,7 +23,7 @@ def section(project: str, name: str) -> str:
 
 
 def objects(project: str, name: str) -> dict[str, str]:
-    expression = rf"(?ms)^\s*({ID})(?: /\* [^*]+ \*/)? = \{{(.*?)^\s*\}};"
+    expression = rf"(?ms)^\s*({ID})(?: /\* [^*]+ \*/)? = \{{(.*?)\}};"
     return dict(re.findall(expression, section(project, name)))
 
 
@@ -124,10 +124,95 @@ def main() -> int:
                 if (ROOT / rel).resolve() not in target:
                     errors.append(f"{name}-{platform} missing shared RenPy source: {rel}")
 
-    if "KotonohaLauncher-macOS" not in project:
-        errors.append("Unified launcher Xcode target is missing")
-    if "BuildUnifiedLauncher.sh" not in project:
-        errors.append("Unified launcher build script is missing")
+    # Check that this is a native PBXNativeTarget, not an aggregate
+    # target invoking CMake, and that it compiles one copy of each game source.
+    launcher = target_sources("KotonohaLauncher-macOS")
+    launcher_main = (ROOT / "launcher/src/main.cpp").resolve()
+    if launcher_main not in launcher:
+        errors.append("Native launcher does not compile its own main.cpp")
+    if "PBXAggregateTarget" in project or "BuildUnifiedLauncher.sh" in project:
+        errors.append("Obsolete CMake aggregate launcher still appears in Xcode")
+    for name in ("GameFactories.cpp", "UnifiedLauncher.cpp"):
+        if (ROOT / "launcher/src" / name).resolve() not in launcher:
+            errors.append(f"Native launcher missing {name}")
+    for filename in ("lib/src/media/SurfaceTexture.cpp",
+                     "lib/src/Filesystem/AtomicFile.cpp"):
+        path = (ROOT / filename).resolve()
+        if path not in mac or path not in ios:
+            errors.append(f"Engine is missing {filename} on Apple platforms")
+    for platform in ("macOS", "iOS"):
+        school = target_sources(f"SchoolDays-{platform}")
+        if (ROOT / "games/school-days/src/SchoolDaysAtomicFile.cpp").resolve() not in school:
+            errors.append(f"SchoolDays-{platform} missing SchoolDaysAtomicFile.cpp")
+
+    # A native multi-game target must include each platform game's library
+    # sources without compiling their independent SDL entrypoints.
+    all_sources = set()
+    for name in (
+        "Amagami", "ZeroNoTsukaima", "SnowRadish", "SummerRadish",
+        "DokiDoki", "KatawaShoujo", "MEO", "SchoolDays", "RealLive",
+        "Kirikiri", "LucaSystem", "Pmail", "N2SystemGame",
+        "PonscripterGame",
+    ):
+        for source in target_sources(f"{name}-macOS"):
+            if source is not None and source.name != "main.cpp":
+                all_sources.add(source)
+    for source in sorted(all_sources):
+        if source not in launcher:
+            errors.append(f"Native launcher missing game source: {source.relative_to(ROOT)}")
+    for source in launcher:
+        if source is not None and source.name == "main.cpp" and source != launcher_main:
+            errors.append(f"Native launcher has another game's main.cpp: {source}")
+    if any(source is None for source in launcher):
+        errors.append("Native launcher contains unresolved source file references")
+
+    # All native target configurations should inherit the shared header roots.
+    common_config = ROOT / "buildsystems/xcode/Config/Common.xcconfig"
+    common_text = common_config.read_text(encoding="utf-8")
+    config_lists = objects(project, "XCConfigurationList")
+    configurations = objects(project, "XCBuildConfiguration")
+    source_roots = set()
+    for source in all_sources | engine_sources:
+        relative = source.relative_to(ROOT)
+        parts = relative.parts
+        if len(parts) >= 4 and parts[0] == "modules":
+            source_roots.add("/".join(parts[:3]))
+        if len(parts) >= 3 and parts[0] == "games":
+            source_roots.add("/".join(parts[:2]))
+    for root_dir in sorted(source_roots):
+        for suffix in ("include", "src"):
+            token = "$(KOTONOHA_ROOT)/" + root_dir + "/" + suffix
+            if token not in common_text:
+                errors.append(f"Common.xcconfig is missing header root: {token}")
+
+    configs_by_id = {}
+    for config_id, body in configurations.items():
+        match = re.search(rf"baseConfigurationReference = ({ID})", body)
+        if match:
+            configs_by_id[config_id] = match.group(1)
+    configs_by_list = {
+        list_id: ids_in("buildConfigurations", body)
+        for list_id, body in config_lists.items()
+    }
+    for target in targets.values():
+        name_match = re.search(r'\\bname = "?([^";]+)"?;', target)
+        list_match = re.search(rf"buildConfigurationList = ({ID})", target)
+        if not name_match or not list_match:
+            continue
+        for config_id in configs_by_list.get(list_match.group(1), set()):
+            file_id = configs_by_id.get(config_id)
+            if not file_id or file_id not in file_paths:
+                errors.append(f"Missing xcconfig for {name_match.group(1)}: {config_id}")
+                continue
+            config_file = file_paths[file_id]
+            if not config_file.exists():
+                errors.append(f"Missing config file: {config_file}")
+                continue
+            contents = config_file.read_text(encoding="utf-8")
+            if (config_file.name != "Common.xcconfig"
+                    and "#include" not in contents):
+                errors.append(f"Target config does not include shared settings: {config_file}")
+
 
     if errors:
         for issue in errors:
