@@ -99,6 +99,20 @@ and Quick Load keep using `quicksave.kns`. History (B or Page Up) uses the
 original `backlog_texture` with Kotonoha's scrolling and voice replay. Open
 menus capture input without advancing dialogue.
 
+The AIR Save and Load screens use the original backgrounds, card frames,
+focus art and page arrows in a 20-card grid. Use the arrow keys or
+controller D-pad to select a card; use Page Up/Page Down or Z/C to change
+pages, and Escape or X to cancel. Kotonoha handles naming, overwriting,
+renaming and deleting `.vn` saves. Save cards show slot names rather than
+the original game's screenshots.
+
+From the title, open **Gallery** to browse the 72 CG slots in four
+categories. Use the arrows or controller direction buttons to navigate,
+Enter to open a slot, and Escape to go back. Page Up/Page Down switch pages
+in the grid. Each CG variant unlocks when it is drawn in the story, not when
+it is preloaded, and stays unlocked in `global_system.kns`. The gallery does
+not display artwork from locked variants.
+
 ## Detailed research
 
 [Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.

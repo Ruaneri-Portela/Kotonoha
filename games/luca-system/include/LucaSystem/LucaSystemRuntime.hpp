@@ -58,6 +58,9 @@ public:
   uint32_t activeBgmId() const;
   uint32_t lastVoiceId() const;
   size_t visibleLayerCount() const;
+  bool isGalleryOpen() const;
+  uint16_t galleryImageId() const;
+  bool isCgUnlocked(uint32_t id) const;
 
   std::string dialogueText() const override { return dialogueText_; }
   std::string dialogueSpeaker() const override { return dialogueSpeaker_; }

@@ -590,14 +590,21 @@ struct SummerRuntime::Impl {
   uint64_t deadline = 0, lastUpdate = 0, lastSystemWrite = 0;
   bool title = false, autoMode = false, loaded = false, skipHeld = false,
        currentRead = false, openingPlayed = false;
-  bool meo = false;
+  bool meo = false, meoMenu = false, meoSceneMenu = false;
   std::map<std::string, Bytes> meoScripts;
+  std::vector<std::string> meoScenes;
+  size_t meoSceneFocus = 0;
   std::map<std::string, std::string> meoText;
   std::vector<Node> meoFrames;
+  std::string meoCurrentScript;
   std::string meoNextScript;
+  std::vector<std::pair<std::string, std::string>> meoChoices;
   size_t meoFrame = 0;
   uint64_t meoFrameStart = 0;
+  uint64_t meoElapsedOffset = 0;
   int meoFrameLength = 0;
+  int meoSelectStart = 0, meoSelectEnd = 0;
+  bool meoChoiceShown = false;
   int titleFocus = 0;
   std::string pendingScript;
   // Per-edition title layout loaded from EASYTITLE.INI.
@@ -640,6 +647,8 @@ struct SummerRuntime::Impl {
         if (canonical(id.substr(id.find_last_of('.') + 1)) == "XML")
           meoScripts.emplace(id, assets->read(id));
       }
+      for (const auto &[id, bytes] : meoScripts)
+        meoScenes.push_back(stem(id.substr(id.find_last_of('/') + 1)));
     } else {
       for (auto &id : assets->list("SCRIPT/")) {
         auto bytes = assets->read(id);
@@ -1056,14 +1065,21 @@ struct SummerRuntime::Impl {
     }
   }
   void beginMeo(const std::string &scriptName) {
+    SDL_Log("MEO: begin script %s", scriptName.c_str());
+    meoMenu = false;
     if (movie)
       movie->stop();
     text->hide();
     meoText.clear();
     meoFrames.clear();
     meoNextScript.clear();
+    meoChoices.clear();
     meoFrame = 0;
     meoFrameLength = 0;
+    meoElapsedOffset = 0;
+    meoSelectStart = meoSelectEnd = 0;
+    meoChoiceShown = false;
+    choice->hide();
 
     std::string wanted = canonical(scriptName);
     if (wanted.find('.') == std::string::npos)
@@ -1115,6 +1131,7 @@ struct SummerRuntime::Impl {
       runtime.SetState(GameState::Gameplay);
       return;
     }
+    meoCurrentScript = wanted;
 
     const std::string xml(source.begin(), source.end());
     auto attrValue = [](const std::string &tag, const std::string &name) {
@@ -1152,6 +1169,45 @@ struct SummerRuntime::Impl {
       const auto end = xml.find("</FrameLength>", lengthPos);
       if (end != std::string::npos)
         meoFrameLength = std::stoi(xml.substr(lengthPos, end - lengthPos));
+    }
+
+    auto integerTag = [&](const char *tag) {
+      const std::string open = std::string("<") + tag + ">";
+      const std::string close = std::string("</") + tag + ">";
+      auto start = xml.find(open);
+      if (start == std::string::npos)
+        return 0;
+      start += open.size();
+      auto end = xml.find(close, start);
+      return end == std::string::npos ? 0
+                                      : std::stoi(xml.substr(start, end - start));
+    };
+    meoSelectStart = integerTag("SelectStartTime");
+    meoSelectEnd = integerTag("SelectEndTime");
+    const std::string selectMarker = "<FUNC NAME=\"SetSelectScript\">";
+    size_t selectPos = 0;
+    while ((selectPos = xml.find(selectMarker, selectPos)) != std::string::npos) {
+      const auto end = xml.find("</FUNC>", selectPos);
+      if (end == std::string::npos)
+        break;
+      std::vector<std::string> refs;
+      auto pos = selectPos + selectMarker.size();
+      while ((pos = xml.find("<STRRES>", pos)) != std::string::npos &&
+             pos < end) {
+        pos += 8;
+        const auto close = xml.find("</STRRES>", pos);
+        if (close == std::string::npos || close > end)
+          break;
+        refs.push_back(xml.substr(pos, close - pos));
+        pos = close + 9;
+      }
+      if (refs.size() >= 2) {
+        const auto target = meoText.find(refs[0]);
+        const auto label = meoText.find(refs[1]);
+        if (target != meoText.end() && label != meoText.end())
+          meoChoices.emplace_back(label->second, target->second);
+      }
+      selectPos = end + 7;
     }
 
     const std::string timeoutMarker = "<FUNC NAME=\"SetTimeoutScript\">";
@@ -1223,18 +1279,48 @@ struct SummerRuntime::Impl {
     if (!meoFrames.empty()) {
       meoFrame = 0;
       applyMeoFrame(meoFrames[0]);
-      SDL_Log("MEO: timeline %s (%zu frames)", wanted.c_str(),
-              meoFrames.size());
+      SDL_Log("MEO: timeline %s (%zu frames, length %d, next %s)",
+              wanted.c_str(), meoFrames.size(), meoFrameLength,
+              meoNextScript.c_str());
     } else {
       text->setDialogue("", "MEO timeline loaded, but no Frame nodes found.");
     }
   }
+  void openMeoMenu() {
+    if (movie)
+      movie->stop();
+    meoMenu = true;
+    meoSceneMenu = false;
+    titleFocus = 0;
+    text->hide();
+    runtime.SetState(GameState::Menu);
+  }
   void updateMeo(Uint64 now) {
-    if (meoFrames.empty())
+    if (meoMenu || meoFrames.empty())
       return;
     const double seconds =
-        double(now >= meoFrameStart ? now - meoFrameStart : 0) / 1000.0;
+        double(meoElapsedOffset +
+               (now >= meoFrameStart ? now - meoFrameStart : 0)) /
+        1000.0;
     const int frameTime = int(seconds * 60.0);
+    if (!meoChoices.empty() && meoSelectEnd > meoSelectStart &&
+        frameTime >= meoSelectStart && frameTime < meoSelectEnd &&
+        !meoChoiceShown) {
+      std::vector<ChoiceOption> options;
+      for (size_t i = 0; i < meoChoices.size(); ++i)
+        options.push_back({meoChoices[i].first, int(i)});
+      meoChoiceShown = true;
+      choice->setQuestion("", options,
+                          [this](int index, const std::string &) {
+                            if (index < 0 || size_t(index) >= meoChoices.size())
+                              return;
+                            const std::string target = meoChoices[index].second;
+                            choice->hide();
+                            beginMeo(target);
+                          });
+    }
+    if (meoChoiceShown && frameTime >= meoSelectEnd)
+      choice->hide();
     while (meoFrame + 1 < meoFrames.size()) {
       const int nextTime = std::stoi(meoFrames[meoFrame + 1].attr("TIME"));
       if (frameTime < nextTime)
@@ -1244,8 +1330,8 @@ struct SummerRuntime::Impl {
     }
     if (meoFrameLength > 0 && frameTime >= meoFrameLength &&
         !meoNextScript.empty()) {
-      beginMeo(meoNextScript);
-      meoFrameLength = 0;
+      const std::string next = meoNextScript;
+      beginMeo(next);
     }
   }
   void begin(const std::string &script = "START") {
@@ -1349,21 +1435,29 @@ struct SummerRuntime::Impl {
       runtime.AddScene(text.get(), GameState::Gameplay);
       runtime.AddScene(choice.get(), GameState::Gameplay);
     }
-    runtime.AddScene(&GetVNBacklogRuntime(e));
+    auto &backlog = GetVNBacklogRuntime(e);
+    runtime.AddScene(&backlog);
+    if (meo)
+      runtime.AddScene(&backlog, GameState::Gameplay);
     auto &menu = GetInGameMenuRuntime(e);
     menu.close();
     menu.SetOnSave([this] { openSaves(false); });
     menu.SetOnLoad([this] { openSaves(true); });
     menu.SetOnReturnToMenu([this] {
       GetInGameMenuRuntime(*engine).close();
-      begin();
+      if (meo)
+        openMeoMenu();
+      else
+        begin();
     });
     runtime.AddScene(&menu);
+    if (meo)
+      runtime.AddScene(&menu, GameState::Gameplay);
     if (!loaded) {
       loadSystem();
       loaded = true;
       if (meo)
-        beginMeo("A-00");
+        openMeoMenu();
       else
         begin();
     }
@@ -1780,6 +1874,37 @@ struct SummerRuntime::Impl {
   }
   void draw(RendererRef r, float) {
     if (meo) {
+      if (meoMenu) {
+        SDL_SetRenderDrawColor(&r, 0, 0, 0, 255);
+        SDL_RenderClear(&r);
+        const SDL_FRect source{0, 0, 640, 480};
+        const SDL_FRect destination{0, 0, 800, 600};
+        picture(r, "GRAPHIC/TITLE.TEX", destination, &source);
+        const SDL_FRect selected{194, float(480 + titleFocus * 48), 194, 48};
+        const SDL_FRect button{410, float(120 + titleFocus * 60), 243, 60};
+        picture(r, "GRAPHIC/TITLE.TEX", button, &selected);
+        if (meoSceneMenu) {
+          SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawColor(&r, 16, 18, 28, 238);
+          const SDL_FRect panel{100, 70, 600, 470};
+          SDL_RenderFillRect(&r, &panel);
+          const size_t page = meoSceneFocus / 12;
+          SDL_SetRenderDrawColor(&r, 255, 255, 255, 255);
+          SDL_RenderDebugText(&r, 130, 95,
+                              "SCENE  UP/DOWN: SELECT  ENTER: PLAY  ESC: BACK");
+          for (size_t row = 0; row < 12; ++row) {
+            const size_t index = page * 12 + row;
+            if (index >= meoScenes.size())
+              break;
+            SDL_SetRenderDrawColor(&r, index == meoSceneFocus ? 255 : 180,
+                                   index == meoSceneFocus ? 212 : 180,
+                                   index == meoSceneFocus ? 110 : 180, 255);
+            SDL_RenderDebugText(&r, 150, float(130 + row * 31),
+                                meoScenes[index].c_str());
+          }
+        }
+        return;
+      }
       if (movie && movie->isOpen())
         movie->render(r);
       else {
@@ -1897,6 +2022,78 @@ struct SummerRuntime::Impl {
     }
   }
   bool event(EventRef e) {
+    if (meo && meoMenu) {
+      if (meoSceneMenu) {
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+          if (e.key.key == SDLK_ESCAPE || e.key.key == SDLK_BACKSPACE)
+            meoSceneMenu = false;
+          else if (e.key.key == SDLK_UP && meoSceneFocus > 0)
+            --meoSceneFocus;
+          else if (e.key.key == SDLK_DOWN &&
+                   meoSceneFocus + 1 < meoScenes.size())
+            ++meoSceneFocus;
+          else if ((e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE) &&
+                   !meoScenes.empty())
+            beginMeo(meoScenes[meoSceneFocus]);
+        } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                   e.button.button == SDL_BUTTON_LEFT) {
+          const int row = int((e.button.y - 130) / 31);
+          if (e.button.x >= 150 && e.button.x < 650 && row >= 0 && row < 12) {
+            const size_t index = meoSceneFocus / 12 * 12 + size_t(row);
+            if (index < meoScenes.size()) {
+              meoSceneFocus = index;
+              beginMeo(meoScenes[index]);
+            }
+          }
+        }
+        return true;
+      }
+      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+        if (e.key.key == SDLK_UP)
+          titleFocus = (titleFocus + 3) % 4;
+        else if (e.key.key == SDLK_DOWN)
+          titleFocus = (titleFocus + 1) % 4;
+        else if (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE) {
+          if (titleFocus == 0)
+            beginMeo("A-00");
+          else if (titleFocus == 1)
+            openSaves(true);
+          else if (titleFocus == 2) {
+            meoSceneMenu = true;
+            meoSceneFocus = 0;
+          }
+          else if (titleFocus == 3) {
+            SDL_Event quit{};
+            quit.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&quit);
+          }
+        }
+      } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                 e.button.button == SDL_BUTTON_LEFT) {
+        for (int i = 0; i < 4; ++i) {
+          const SDL_FRect button{410, float(120 + i * 60), 243, 60};
+          const SDL_FPoint point{e.button.x, e.button.y};
+          if (SDL_PointInRectFloat(&point, &button)) {
+            titleFocus = i;
+            if (i == 0)
+              beginMeo("A-00");
+            else if (i == 1)
+              openSaves(true);
+            else if (i == 2) {
+              meoSceneMenu = true;
+              meoSceneFocus = 0;
+            }
+            else if (i == 3) {
+              SDL_Event quit{};
+              quit.type = SDL_EVENT_QUIT;
+              SDL_PushEvent(&quit);
+            }
+            break;
+          }
+        }
+      }
+      return true;
+    }
     if (pending == "MESSAGE" && BackAction(*engine, e)) {
       GetInGameMenuRuntime(*engine).open();
       return true;
@@ -2186,11 +2383,8 @@ void SummerRuntime::update() {
 }
 bool SummerRuntime::onEvent(EventRef e) {
   auto &i = *impl;
-  if (i.meo) {
-    if (i.text)
-      return i.text->onEvent(e);
-    return false;
-  }
+  if (i.meo)
+    return Runtime::onEvent(e);
   // Shared modals (pause, save browser, history, name entry) and choices map
   // controller buttons in their own context. Pre-mapping would turn South
   // into held skip while a menu is open.
@@ -2212,6 +2406,24 @@ bool SummerRuntime::onEvent(EventRef e) {
 }
 void SummerRuntime::saveGame(const std::string &path) {
   auto &i = *impl;
+  if (i.meo) {
+    if (i.meoMenu || i.meoCurrentScript.empty())
+      throw std::runtime_error("Start MEO before saving");
+    VNSave save;
+    save.nodeId = 0;
+    const Uint64 now = SDL_GetTicks();
+    const Uint64 elapsed =
+        i.meoElapsedOffset +
+        (now >= i.meoFrameStart ? now - i.meoFrameStart : 0);
+    save.gameData = "MEO-PRESENTATION-1\n" + i.meoCurrentScript + "\n" +
+                    std::to_string(elapsed) + "\n";
+    std::filesystem::create_directories(
+        std::filesystem::path(path).parent_path().empty()
+            ? "."
+            : std::filesystem::path(path).parent_path());
+    save.write(path);
+    return;
+  }
   if (!i.vm.waiting || i.pending == "WAIT" || i.pending == "WIPE" ||
       i.pending == "BYTEVIEW" || i.pending == "MOVIE" ||
       i.pending == "SCROLLCG" || i.title)
@@ -2239,6 +2451,23 @@ void SummerRuntime::saveGame(const std::string &path) {
 void SummerRuntime::loadGame(const std::string &path) {
   auto &i = *impl;
   auto save = VNSave::read(path);
+  if (i.meo) {
+    std::istringstream input(save.gameData);
+    std::string version, script;
+    Uint64 elapsed = 0;
+    if (!std::getline(input, version) || version != "MEO-PRESENTATION-1" ||
+        !std::getline(input, script) || !(input >> elapsed) ||
+        elapsed > 24ull * 60 * 60 * 1000)
+      throw std::runtime_error("Invalid MEO save");
+    i.beginMeo(script);
+    const Uint64 now = SDL_GetTicks();
+    i.meoFrameStart = now;
+    i.meoElapsedOffset = elapsed;
+    SDL_Log("MEO: restored %s at %llu ms", script.c_str(),
+            static_cast<unsigned long long>(elapsed));
+    i.updateMeo(now);
+    return;
+  }
   std::istringstream s(save.gameData);
   std::string version, data, background, music, pending, target;
   size_t count;
@@ -2354,9 +2583,13 @@ Translation::SourceTexts SummerRuntime::translationSources() const {
 }
 int SummerRuntime::translationRoute() const { return impl->route(); }
 std::string SummerRuntime::debugNode() const {
+  if (impl->meo)
+    return impl->meoCurrentScript + ":" + std::to_string(impl->meoFrame);
   return impl->vm.position.script + ":" + std::to_string(impl->vm.position.pc);
 }
 std::string SummerRuntime::nodeClockKey() const {
+  if (impl->meo)
+    return impl->meoCurrentScript;
   // All positions within the same script share the node clock; only the
   // event clock resets between PCs of a script.
   return impl->vm.position.script;

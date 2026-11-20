@@ -379,6 +379,24 @@ Pack::openEntryStream(const std::string &name) const {
 Image decodeImage(const Bytes &d, const std::string &extension) {
   const auto ext = canonical(extension);
   Image img;
+  if (ext == "TEX") {
+    img.width = int(word(d, 0));
+    img.height = int(word(d, 4));
+    require(img.width > 0 && img.height > 0 && img.width <= 8192 &&
+                img.height <= 8192 &&
+                size_t(img.width) * img.height <= (32u << 20),
+            "Invalid TEX dimensions");
+    const size_t pixels = size_t(img.width) * img.height;
+    require(d.size() - 8 >= pixels * 4, "Truncated TEX");
+    img.rgba.resize(pixels * 4);
+    for (size_t i = 0; i < pixels; ++i) {
+      img.rgba[i * 4] = d[8 + i * 4 + 2];
+      img.rgba[i * 4 + 1] = d[8 + i * 4 + 1];
+      img.rgba[i * 4 + 2] = d[8 + i * 4];
+      img.rgba[i * 4 + 3] = d[8 + i * 4 + 3];
+    }
+    return img;
+  }
   size_t p = 16;
   if (ext == "TEXB" || ext == "ALP") {
     img.width = int(word(d, 0));

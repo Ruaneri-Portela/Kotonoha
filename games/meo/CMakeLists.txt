@@ -17,4 +17,11 @@ if(BUILD_TESTING AND MEO_DATA_DIR AND NOT ANDROID)
     add_executable(MeoPresentationTest tests/MeoPresentationTest.cpp)
     target_link_libraries(MeoPresentationTest PRIVATE summer_radish_vacation)
     add_test(NAME MEO.Presentation COMMAND MeoPresentationTest "${MEO_DATA_DIR}")
+    add_test(NAME MEO.SceneMenu COMMAND MeoPresentationTest "${MEO_DATA_DIR}" scene)
+    add_test(NAME MEO.MouseMenu COMMAND MeoPresentationTest "${MEO_DATA_DIR}" mouse)
+    add_test(NAME MEO.NextScene COMMAND MeoPresentationTest "${MEO_DATA_DIR}" transition)
+    add_test(NAME MEO.Choice COMMAND MeoPresentationTest "${MEO_DATA_DIR}" choice)
+    set_tests_properties(MEO.Presentation MEO.SceneMenu MEO.MouseMenu
+        MEO.NextScene MEO.Choice PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 endif()

@@ -5,12 +5,17 @@
 // + IFN branch + cross-scenario JUMP (seen170 -> seen190 -> seen230) +
 // Save/Load roundtrip + SUMMER (seen700), AIR (seen163), FIRST SKY (seen800).
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
+#include <Kotonoha/core/Engine.hpp>
+#include <LucaSystem/AirGallery.hpp>
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/LucaSystemAssets.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
 #include <SDL3/SDL.h>
 
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -26,6 +31,247 @@ namespace {
 void require(bool cond, const std::string &msg) {
   if (!cond)
     throw std::runtime_error("LucaSystem RetailAirFlow FAIL: " + msg);
+}
+
+struct TestStorage {
+  const std::filesystem::path root =
+      std::filesystem::temp_directory_path() /
+      ("luca-retail-" +
+       std::to_string(
+           std::chrono::steady_clock::now().time_since_epoch().count()));
+  TestStorage() {
+    require(std::filesystem::create_directory(root), "create test storage");
+    require(SDL_SetEnvironmentVariable(SDL_GetEnvironment(),
+                                       "KOTONOHA_USER_DATA_DIR",
+                                       root.string().c_str(), true),
+            "set isolated save root");
+  }
+  ~TestStorage() {
+    std::error_code ignored;
+    std::filesystem::remove_all(root, ignored);
+  }
+};
+
+void checkGallery(
+    const std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> &assets) {
+  const TestStorage storage;
+  const auto catalog = LucaSystem::ParseAirGallery(assets->read("_cggallery"));
+  require(catalog.size() == 4 && catalog[0].size() == 22 &&
+              catalog[1].size() == 20 && catalog[2].size() == 16 &&
+              catalog[3].size() == 14,
+          "AIR gallery catalog contains 72 retail slots");
+  const auto first = catalog.front().front().variants;
+  require(first == std::vector<uint16_t>{1127, 1128, 1130},
+          "AIR gallery first slot resolves its grouped retail variants");
+  require(assets->read("image:1127") == assets->readImageAsset(1127),
+          "gallery image logical ID resolves the event CG class");
+
+  const auto setIdentity = [] {
+    // The Engine's SDLSession can clear app metadata on destruction.
+    require(SDL_SetAppMetadata("LucaSystem Gallery Test", "0.1.0",
+                               "me.hirameki.kotonoha.lucasystem.gallery-test"),
+            "set gallery test application identity");
+  };
+  const auto visitGallery = [&](bool unlocked) {
+    setIdentity();
+    LucaSystem::LucaSystemRuntime runtime(assets);
+    Kotonoha::EngineOptions options;
+    options.assets = assets;
+    options.launcher = false;
+    options.rendererOverride = "software";
+    Kotonoha::Engine engine(runtime, options);
+    const auto key = [&](SDL_Keycode value) {
+      SDL_Event event{};
+      event.type = SDL_EVENT_KEY_DOWN;
+      event.key.key = value;
+      require(runtime.onEvent(event), "gallery key is handled");
+    };
+    key(SDLK_ESCAPE); // retail splash logo
+    key(SDLK_LEFT);   // MUSIC
+    key(SDLK_LEFT);   // GALLERY
+    key(SDLK_RETURN);
+    require(runtime.isGalleryOpen() && runtime.isStoryPaused(),
+            "title opens gallery as a Kotonoha modal");
+    runtime.renderOverlay(engine.GetRenderer(), 1);
+    require(assets->cachedTextures() >= 2,
+            "gallery renders the original category background and atlas");
+    key(SDLK_RIGHT);
+    key(SDLK_RETURN);
+    key(SDLK_PAGEDOWN);
+    key(SDLK_ESCAPE);
+    key(SDLK_LEFT);
+    key(SDLK_RETURN);
+    key(SDLK_RETURN);
+    require(runtime.galleryImageId() == (unlocked ? first[0] : 0),
+            "gallery opens only the unlocked retail CG");
+    if (unlocked) {
+      key(SDLK_RIGHT);
+      require(runtime.galleryImageId() == first[0],
+              "gallery viewer cannot browse locked variants");
+      const auto cached = assets->cachedTextures();
+      runtime.renderOverlay(engine.GetRenderer(), 1);
+      require(assets->cachedTextures() > cached,
+              "gallery renderer loaded the unlocked full-size CG");
+      key(SDLK_ESCAPE);
+    } else {
+      runtime.renderOverlay(engine.GetRenderer(), 1);
+    }
+    key(SDLK_ESCAPE);
+    key(SDLK_ESCAPE);
+    require(!runtime.isGalleryOpen() && !runtime.isStoryPaused(),
+            "back returns to the AIR title and releases modal input");
+    runtime.shutdown();
+  };
+  visitGallery(false);
+  {
+    setIdentity();
+    LucaSystem::LucaSystemRuntime story(assets);
+    const LucaSystem::Script script("seen170", assets->read("seen170"));
+    const auto *load = script.instructions().data();
+    require(script.instructionCount() > 141 && load[133].opcode == 55 &&
+                load[141].opcode == 74 && load[133].paramBytes.size() == 4,
+            "retail seen170 starts by staging the first gallery CG");
+    require(story.startScenario("seen170", 133) &&
+                story.isCgUnlocked(first[0]) && !story.isCgUnlocked(first[1]),
+            "retail DRAW unlocks only the CG that appeared");
+    require(std::filesystem::is_regular_file(Kotonoha::saveDirectory() /
+                                             "global_system.kns"),
+            "CG unlock is persisted in Kotonoha's global save");
+  }
+  visitGallery(true);
+  std::cout << "AIR Gallery: 72 slots; title, navigation, locked variants, "
+               "retail DRAW, persistence and return verified\n";
+}
+
+void checkSaveGrid(
+    const std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> &assets) {
+  const TestStorage storage;
+  LucaSystem::LucaSystemRuntime runtime(assets);
+  Kotonoha::EngineOptions options;
+  options.assets = assets;
+  options.launcher = false;
+  options.rendererOverride = "software";
+  Kotonoha::Engine engine(runtime, options);
+  struct RuntimeCleanup {
+    LucaSystem::LucaSystemRuntime &runtime;
+    ~RuntimeCleanup() { runtime.shutdown(); }
+  } cleanup{runtime};
+  const auto key = [&](SDL_Keycode value) {
+    SDL_Event event{};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = value;
+    require(runtime.onEvent(event), "save grid key is handled");
+  };
+  const auto click = [&](float x, float y) {
+    SDL_Event event{};
+    event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    event.button.button = SDL_BUTTON_LEFT;
+    event.button.x = x;
+    event.button.y = y;
+    require(runtime.onEvent(event), "save grid pointer action is handled");
+  };
+  const auto slots = [&]() -> const Kotonoha::VNSaveMenu * {
+    for (auto *scene : runtime.GetActiveScenes())
+      if (auto *menu = dynamic_cast<Kotonoha::VNSaveMenu *>(scene))
+        return menu->isOpen() ? menu : nullptr;
+    return nullptr;
+  };
+  const auto openTitleLoad = [&] { click(621, 642); };
+  const auto openPauseLoad = [&] {
+    key(SDLK_ESCAPE);
+    key(SDLK_RIGHT);
+    key(SDLK_RETURN);
+  };
+  key(SDLK_ESCAPE); // skip retail startup logos
+  openTitleLoad();
+  require(slots() && runtime.isStoryPaused(), "title opens native load grid");
+  auto cached = assets->cachedTextures();
+  runtime.renderOverlay(engine.GetRenderer(), 1);
+  require(assets->cachedTextures() >= cached + 4,
+          "retail Load renders the original background, cards and arrows");
+  key(SDLK_X);
+  require(!slots() && !runtime.isStoryPaused(), "cancel Load returns to title");
+  click(70, 642); // NEW GAME
+  for (int i = 0; i < 1000 && !runtime.isDialogueVisible(); ++i) {
+    if (runtime.isMoviePlaying())
+      runtime.skipMovie();
+    else
+      runtime.skipWait();
+  }
+  require(runtime.currentScenarioName() == "seen170" &&
+              runtime.isDialogueVisible(),
+          "AIR title starts retail dialogue");
+  const auto pc = runtime.instructionPosition();
+  const auto line = runtime.dialogueText();
+  constexpr uint32_t marker = 6100;
+  runtime.setVariable(marker, 42);
+  key(SDLK_ESCAPE);
+  key(SDLK_RETURN); // Save
+  require(slots() && runtime.isStoryPaused(), "pause opens native save grid");
+  cached = assets->cachedTextures();
+  runtime.renderOverlay(engine.GetRenderer(), 1);
+  require(assets->cachedTextures() >= cached + 5,
+          "retail Save renders original art and focused card");
+  click(171, 147); // first card: native new-save dialog
+  Kotonoha::TextInputDialog *nameEditor = nullptr;
+  for (auto *scene : runtime.GetActiveScenes())
+    if (auto *dialog = dynamic_cast<Kotonoha::TextInputDialog *>(scene))
+      nameEditor = dialog;
+  require(nameEditor != nullptr, "new slot opens native naming editor");
+  nameEditor->update();
+  key(SDLK_RETURN); // accept the suggested scenario name
+  const auto directory = Kotonoha::saveDirectory();
+  const auto named = directory / "seen170.vn";
+  require(!slots() && std::filesystem::is_regular_file(named) &&
+              runtime.instructionPosition() == pc,
+          "naming editor saves a .vn without advancing the story");
+
+  // Populate a second page with real native saves carrying a different
+  // marker, so page navigation cannot pass by loading the initial card.
+  for (int i = 10; i < 30; ++i) {
+    runtime.setVariable(marker, i);
+    runtime.saveGame(
+        (directory / ("grid-" + std::to_string(i) + ".vn")).string());
+  }
+  runtime.setVariable(marker, 99);
+  openPauseLoad();
+  require(slots() && runtime.isStoryPaused(), "Load opens from pause");
+  key(SDLK_DOWN);
+  key(SDLK_ESCAPE);
+  require(!slots() && runtime.instructionPosition() == pc &&
+              runtime.getVariable(marker) == 99,
+          "cancelling pause Load does not resume a save");
+  openPauseLoad();
+  SDL_Event dpad{};
+  dpad.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+  dpad.gbutton.button = SDL_GAMEPAD_BUTTON_DPAD_DOWN;
+  require(runtime.onEvent(dpad), "save grid accepts the controller D-pad");
+  key(SDLK_RETURN);
+  require(!slots() && runtime.getVariable(marker) == 15,
+          "controller down moves by a full grid row");
+  openPauseLoad();
+  key(SDLK_C);
+  key(SDLK_RETURN);
+  require(!slots() && runtime.getVariable(marker) == 42 &&
+              runtime.instructionPosition() == pc &&
+              runtime.dialogueText() == line,
+          "pause Load restores the selected slot from page two");
+
+  key(SDLK_ESCAPE);
+  for (int i = 0; i < 3; ++i)
+    key(SDLK_RIGHT);
+  key(SDLK_RETURN); // return to title
+  runtime.setVariable(marker, 77);
+  openTitleLoad();
+  click(778, 675); // next page (original arrow)
+  click(171, 147); // first slot of second page
+  require(!slots() && !runtime.isStoryPaused() &&
+              runtime.instructionPosition() == pc &&
+              runtime.dialogueText() == line &&
+              runtime.getVariable(marker) == 42,
+          "title Load restores dialogue and reattaches gameplay scenes");
+  std::cout << "AIR save grid: original Save/Load art, title, pause, paging, "
+               "native .vn write/load and cancellation verified\n";
 }
 
 void stepThroughScenario(LucaSystem::LucaSystemRuntime &rt, int maxSteps,
@@ -104,10 +350,22 @@ int main(int argc, char **argv) {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
       throw std::runtime_error(SDL_GetError());
 
-    const std::string overlay = argc > 2 ? argv[2] : "";
+    const std::string_view mode = argc > 2 ? argv[2] : "";
+    const bool gallery = mode == "--gallery";
+    const bool saveGrid = mode == "--save-grid";
+    const std::string overlay = !gallery && !saveGrid ? std::string(mode) : "";
     const std::string_view expectedLine = argc > 3 ? argv[3] : "";
     auto assets = std::make_shared<Kotonoha::Providers::LucaSystemAssets>(
         airPath, overlay);
+    if (gallery || saveGrid) {
+      // This mode has no overlay and does not access the user's save slots.
+      if (gallery)
+        checkGallery(assets);
+      else
+        checkSaveGrid(assets);
+      SDL_Quit();
+      return 0;
+    }
 
     // 1. Verify resource-class asset separation (no VOICE.PAK / BGCG.PAK ID
     // collision!) and virtual 65000/65001 solid fills + loose WebM movies.

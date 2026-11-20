@@ -15,8 +15,10 @@
 - `LucaPak edit-glyph` modifica glifos existentes em CZ2 de 8 bits e suas métricas em PAKs reempacotados. O `VNTextBox` renderizou o glifo e o avanço editados com o overlay de fontes do AIR comercial.
 - `LucaPak add-glyph` adiciona um caractere BMP ainda não mapeado, ampliando o atlas CZ2 quando necessário. O `VNTextBox` do AIR renderizou um novo `U+E000` com o avanço importado e as cores de diálogo e de personagem configuradas no Kotonoha.
 - O menu de pausa, o manual e o histórico usam arte original do AIR. A lista de saves, as configurações, a captura de entrada e a repetição de voz no histórico usam componentes do Kotonoha.
+- Salvar e carregar usam os fundos, as molduras e as setas de página originais do AIR. O `VNSaveMenu` controla a seleção e as ações nos slots, e a VM do AIR grava seu próprio estado no formato `.vn` nativo sem depender de um nó da timeline do Kotonoha.
+- A opção **Gallery** do título abre as 72 posições e variantes agrupadas de `_cggallery` com fundos, arte das categorias, miniaturas e cursores originais do AIR. A VM grava o desbloqueio de cada CG exibida em `global_system.kns`; variantes ainda não exibidas continuam bloqueadas entre sessões.
 
-**Limitações:** A galeria de CG e os layouts originais das telas de saves e configurações ainda não estão implementados. As vozes Ogg avulsas foram validadas com o `AIR` comercial; os pacotes OggPak foram validados com dados sintéticos, não com outro jogo comercial. Entre os recursos das referências que ainda precisam ser portados ou validados estão a criação de fontes do zero, a importação de scripts além dos diálogos em inglês do AIR e os opcodes específicos de outros jogos.
+**Limitações:** Os cartões de save mostram os nomes dos saves em vez de capturas de tela. O layout original de configurações ainda não está implementado. As vozes Ogg avulsas foram validadas com o `AIR` comercial; os pacotes OggPak foram validados com dados sintéticos, não com outro jogo comercial. Entre os recursos das referências que ainda precisam ser portados ou validados estão a criação de fontes do zero, a importação de scripts além dos diálogos em inglês do AIR e os opcodes específicos de outros jogos.
 
 Os relatórios [PORT_STATUS.md](PORT_STATUS.md) e [docs/AIR_REA_2026_11_18.pt-BR.md](docs/AIR_REA_2026_11_18.pt-BR.md) contêm análises binárias detalhadas e notas históricas.
 
