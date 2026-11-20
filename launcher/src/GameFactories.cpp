@@ -74,6 +74,12 @@ std::string selectedSourcePath(const DiscoveredGameEntry &entry) {
   std::error_code error;
   if (!std::filesystem::is_directory(original, error))
     return entry.path;
+  // Ren'Py providers resolve their own game/ directory, and CMP providers
+  // recognize the retail disc layout from its root. Do not strip their
+  // game roots when the launcher selects a subfolder.
+  if (entry.engine.kind == EngineKind::RenPy ||
+      entry.engine.kind == EngineKind::SummerRadish)
+    return entry.path;
   const auto nested = original / entry.engine.dataPrefix;
   if (std::filesystem::is_directory(nested, error))
     return nested.string();
@@ -82,12 +88,16 @@ std::string selectedSourcePath(const DiscoveredGameEntry &entry) {
 
 void bindFactory(EngineLibraryRegistry &registry, EngineKind kind,
                  EngineLibraryFactory factory) {
-  const auto *existing = registry.find(kind);
-  if (!existing)
-    return;
-  EngineLibraryDescriptor descriptor = *existing;
-  descriptor.factory = std::move(factory);
-  registry.registerLibrary(std::move(descriptor));
+  // Multiple standalone ports can share one engine family (MEO/Summer,
+  // Katawa/DDLC). Binding only find(kind) left the other identity unlinked.
+  std::vector<EngineLibraryDescriptor> matching;
+  for (const auto &descriptor : registry.all())
+    if (descriptor.kind == kind)
+      matching.push_back(descriptor);
+  for (auto &descriptor : matching) {
+    descriptor.factory = factory;
+    registry.registerLibrary(std::move(descriptor));
+  }
 }
 
 template <class RuntimeType, class ProviderType>
@@ -256,28 +266,8 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
                      shutdownRuntime<Ponscripter::PonscripterRuntime>());
       });
 #endif
-#if defined(KOTONOHA_LAUNCH_DDLC)
-  if (const auto *base = registry.findBySlug("doki-doki-literature-club")) {
-    auto katawa = *base;
-    katawa.slug = "katawa-shoujo";
-    katawa.displayName = "Katawa Shoujo (Ren'Py)";
-    katawa.targetBinary = "KatawaShoujo";
-    katawa.cliOption = "--katawa";
-    katawa.packageId = "me.hirameki.kotonoha.katawashoujo";
-    registry.registerLibrary(std::move(katawa));
-  }
-#endif
-#if defined(KOTONOHA_LAUNCH_SUMMER)
-  if (const auto *base = registry.findBySlug("summer-radish-vacation")) {
-    auto meo = *base;
-    meo.slug = "meo";
-    meo.displayName = "Miss Each Other (Overflow CMP)";
-    meo.targetBinary = "MEO";
-    meo.cliOption = "--meo";
-    meo.packageId = "me.hirameki.kotonoha.meo";
-    registry.registerLibrary(std::move(meo));
-  }
-#endif
+// All variants were bound above by engine kind; no post-registration
+  // descriptor copies or dependence on registry insertion order.
 }
 
 } // namespace KotonohaLauncher
