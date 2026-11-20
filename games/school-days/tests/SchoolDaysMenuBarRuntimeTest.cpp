@@ -141,8 +141,8 @@ void CheckMeterCompositingPixels(Application &app,
   // CHIP atlas. No commercial assets are loaded. Read pixels from the actual
   // SDL software renderer to detect a future shared-alpha or render-order
   // regression that purely logical visibility assertions would miss.
-  const fs::path source = fs::path(__FILE__).parent_path() /
-                          "fixtures" / "menubar-alpha";
+  const fs::path source =
+      fs::path(__FILE__).parent_path() / "fixtures" / "menubar-alpha";
   const fs::path root = scratchRoot / "meter-composite";
   const fs::path images = root / "System" / "MenuBar";
   fs::create_directories(images);
@@ -164,13 +164,13 @@ void CheckMeterCompositingPixels(Application &app,
         "compositing fixture failed to open: " + error);
   int outputWidth = 0, outputHeight = 0;
   SDL_RendererLogicalPresentation presentation{};
-  Check(SDL_GetRenderLogicalPresentation(&renderer, &outputWidth,
-                                         &outputHeight, &presentation),
+  Check(SDL_GetRenderLogicalPresentation(&renderer, &outputWidth, &outputHeight,
+                                         &presentation),
         "could not query MenuBar render output");
   if (presentation == SDL_LOGICAL_PRESENTATION_DISABLED)
-    Check(SDL_GetCurrentRenderOutputSize(&renderer, &outputWidth,
-                                         &outputHeight),
-          "could not query software output dimensions");
+    Check(
+        SDL_GetCurrentRenderOutputSize(&renderer, &outputWidth, &outputHeight),
+        "could not query software output dimensions");
   const auto viewport = Presenter::FitViewport(
       outputWidth, outputHeight,
       Presenter::LayoutForVariant(Presenter::Variant::Standard));
@@ -180,10 +180,10 @@ void CheckMeterCompositingPixels(Application &app,
     SDL_Surface *frame = SDL_RenderReadPixels(&renderer, nullptr);
     Check(frame != nullptr,
           std::string("SDL software pixel readback failed: ") + SDL_GetError());
-    const int x = static_cast<int>(std::lround(viewport.x + logicalX *
-                                              viewport.scale));
-    const int y = static_cast<int>(std::lround(viewport.y + logicalY *
-                                              viewport.scale));
+    const int x =
+        static_cast<int>(std::lround(viewport.x + logicalX * viewport.scale));
+    const int y =
+        static_cast<int>(std::lround(viewport.y + logicalY * viewport.scale));
     Uint8 r = 0, g = 0, b = 0, a = 0;
     const bool ok = SDL_ReadSurfacePixel(frame, x, y, &r, &g, &b, &a);
     SDL_DestroySurface(frame);
@@ -196,8 +196,8 @@ void CheckMeterCompositingPixels(Application &app,
           "MenuBar synthetic draw failed: " + error);
   };
 
-  menu.SetRuntimeState(true, false, 0, false, true, false,
-                       false, true); // prompt suppresses chrome and Feel
+  menu.SetRuntimeState(true, false, 0, false, true, false, false,
+                       true); // prompt suppresses chrome and Feel
   menu.SetMeterOnly(false);
   SDL_Event hover{};
   hover.type = SDL_EVENT_MOUSE_MOTION;
@@ -210,30 +210,27 @@ void CheckMeterCompositingPixels(Application &app,
   const auto choiceMeter = sample(200, 5);
   const auto hiddenChrome = sample(0, 40);
   const auto promptAuto = sample(50, 10);
-  Check(choiceMeter[0] == 0 && choiceMeter[1] == 0 &&
-            choiceMeter[2] == 0 &&
+  Check(choiceMeter[0] == 0 && choiceMeter[1] == 0 && choiceMeter[2] == 0 &&
             hiddenChrome[0] == 0 && hiddenChrome[1] == 0 &&
-            hiddenChrome[2] == 0 &&
-            promptAuto[0] == 5 && promptAuto[1] == 235 &&
-            promptAuto[2] == 245,
-        "retail A03: cursor over the pending choice's top strip exposed chrome/Feel or hid AUTO ON");
+            hiddenChrome[2] == 0 && promptAuto[0] == 5 &&
+            promptAuto[1] == 235 && promptAuto[2] == 245,
+        "retail A03: cursor over the pending choice's top strip exposed "
+        "chrome/Feel or hid AUTO ON");
 
   menu.SetMeterOnly(false);
-  menu.SetRuntimeState(true, false, 0, false, true, false,
-                       false, false);
+  menu.SetRuntimeState(true, false, 0, false, true, false, false, false);
   menu.SetChoiceTailFrozen(true);
   menu.SetChoiceTailFeelingVisible(false); // no delta: no isolated Feel
   paint();
   const auto idleSilentMeter = sample(200, 5);
   const auto idleSilentChrome = sample(0, 40);
   const auto silentAuto = sample(50, 10);
-  Check(idleSilentMeter[0] == 0 && idleSilentMeter[1] == 0 &&
-            idleSilentMeter[2] == 0 &&
-            idleSilentChrome[0] == 0 && idleSilentChrome[1] == 0 &&
-            idleSilentChrome[2] == 0 &&
-            silentAuto[0] == 5 && silentAuto[1] == 235 &&
-            silentAuto[2] == 245,
-        "silent confirmed choice revealed Feel/chrome or hid AUTO without hover");
+  Check(
+      idleSilentMeter[0] == 0 && idleSilentMeter[1] == 0 &&
+          idleSilentMeter[2] == 0 && idleSilentChrome[0] == 0 &&
+          idleSilentChrome[1] == 0 && idleSilentChrome[2] == 0 &&
+          silentAuto[0] == 5 && silentAuto[1] == 235 && silentAuto[2] == 245,
+      "silent confirmed choice revealed Feel/chrome or hid AUTO without hover");
 
   (void)menu.HandleEvent(&renderer, &hover, &action);
   const uint32_t nowMs = static_cast<uint32_t>(SDL_GetTicks());
@@ -245,11 +242,9 @@ void CheckMeterCompositingPixels(Application &app,
   const auto silentMeter = sample(200, 5);
   const auto silentChrome = sample(0, 40);
   const auto tailAuto = sample(50, 10);
-  Check(silentMeter[0] == 0 && silentMeter[1] == 0 &&
-            silentMeter[2] == 0 &&
+  Check(silentMeter[0] == 0 && silentMeter[1] == 0 && silentMeter[2] == 0 &&
             silentChrome[0] == 0 && silentChrome[1] == 0 &&
-            silentChrome[2] == 0 &&
-            tailAuto[0] == 5 && tailAuto[1] == 235 &&
+            silentChrome[2] == 0 && tailAuto[0] == 5 && tailAuto[1] == 235 &&
             tailAuto[2] == 245,
         "unchanged/omitted choice revealed Top Menu/Feel or lost AUTO ON");
 
@@ -261,12 +256,9 @@ void CheckMeterCompositingPixels(Application &app,
   const auto soloMeter = sample(200, 5);
   const auto soloChrome = sample(0, 40);
   const auto soloAuto = sample(50, 10);
-  Check(soloMeter[0] == 5 && soloMeter[1] == 235 &&
-            soloMeter[2] == 245 &&
-            soloChrome[0] == 0 && soloChrome[1] == 0 &&
-            soloChrome[2] == 0 &&
-            soloAuto[0] == 5 && soloAuto[1] == 235 &&
-            soloAuto[2] == 245,
+  Check(soloMeter[0] == 5 && soloMeter[1] == 235 && soloMeter[2] == 245 &&
+            soloChrome[0] == 0 && soloChrome[1] == 0 && soloChrome[2] == 0 &&
+            soloAuto[0] == 5 && soloAuto[1] == 235 && soloAuto[2] == 245,
         "point change did not show full-alpha Feel with standalone AUTO ON");
 
   // The confirmed choice stays in its frozen result phase across scene bind:
@@ -277,12 +269,10 @@ void CheckMeterCompositingPixels(Application &app,
   const auto frozenMeter = sample(200, 5);
   const auto frozenChrome = sample(0, 40);
   const auto frozenAuto = sample(50, 10);
-  Check(frozenMeter[0] == 5 && frozenMeter[1] == 235 &&
-            frozenMeter[2] == 245 &&
+  Check(frozenMeter[0] == 5 && frozenMeter[1] == 235 && frozenMeter[2] == 245 &&
             frozenChrome[0] == 0 && frozenChrome[1] == 0 &&
-            frozenChrome[2] == 0 &&
-            frozenAuto[0] == 5 && frozenAuto[1] == 235 &&
-            frozenAuto[2] == 245,
+            frozenChrome[2] == 0 && frozenAuto[0] == 5 &&
+            frozenAuto[1] == 235 && frozenAuto[2] == 245,
         "scene rebind revealed chrome or obscured Feel/AUTO while frozen");
 
   // An actual pointer move away *during* the frozen result must invalidate
@@ -301,11 +291,11 @@ void CheckMeterCompositingPixels(Application &app,
   paint();
   const auto releasedChrome = sample(0, 40);
   const auto releasedAuto = sample(50, 10);
-  Check(releasedChrome[0] == 0 && releasedChrome[1] == 0 &&
-            releasedChrome[2] == 0 &&
-            releasedAuto[0] == 5 && releasedAuto[1] == 235 &&
-            releasedAuto[2] == 245,
-        "MenuBar jumped visible at choice release instead of waiting for hover");
+  Check(
+      releasedChrome[0] == 0 && releasedChrome[1] == 0 &&
+          releasedChrome[2] == 0 && releasedAuto[0] == 5 &&
+          releasedAuto[1] == 235 && releasedAuto[2] == 245,
+      "MenuBar jumped visible at choice release instead of waiting for hover");
 
   // An omitted choice can request the host's Feeling refresh without any
   // actual raw 001/002 delta. A bare latch must not resurrect Feel after a
@@ -319,9 +309,8 @@ void CheckMeterCompositingPixels(Application &app,
   const auto omittedLateMeter = sample(200, 5);
   const auto omittedLateChrome = sample(0, 40);
   Check(omittedLateMeter[0] == 0 && omittedLateMeter[1] == 0 &&
-            omittedLateMeter[2] == 0 &&
-            omittedLateChrome[0] == 0 && omittedLateChrome[1] == 0 &&
-            omittedLateChrome[2] == 0,
+            omittedLateMeter[2] == 0 && omittedLateChrome[0] == 0 &&
+            omittedLateChrome[1] == 0 && omittedLateChrome[2] == 0,
         "unchanged omitted choice resurrected standalone Feel after unlock");
   menu.Update(nowMs + 8500u, 10, 20);
   paint();

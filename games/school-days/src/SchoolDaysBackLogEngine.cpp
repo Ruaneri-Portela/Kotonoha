@@ -108,9 +108,8 @@ bool SchoolDaysBackLogEngine::onEvent(EventRef event) {
   if (!isOpen_)
     return false;
   const auto mapped = MapControllerEvent(event, false, true);
-  if (backlogModel_.IsOpen() &&
-      (mapped.type == SDL_EVENT_WINDOW_MOUSE_LEAVE ||
-       mapped.type == SDL_EVENT_WINDOW_FOCUS_LOST)) {
+  if (backlogModel_.IsOpen() && (mapped.type == SDL_EVENT_WINDOW_MOUSE_LEAVE ||
+                                 mapped.type == SDL_EVENT_WINDOW_FOCUS_LOST)) {
     // No further mouse-motion event is guaranteed after focus or window exit.
     // Clear only the blue hover CHIP; preserve entry and intra-entry scroll.
     (void)backlogModel_.SetSelectionFromPointer(-1, -1);
@@ -198,7 +197,8 @@ void SchoolDaysBackLogEngine::render(RendererRef renderer, float scale) {
         SDL_LogWarn(Kotonoha::LogUI, "School Days BackLog render failed: %s",
                     failure.c_str());
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
-      lastError_ = failure.empty() ? "native BackLog rendering failed" : failure;
+      lastError_ =
+          failure.empty() ? "native BackLog rendering failed" : failure;
       close();
 #endif
       return;
