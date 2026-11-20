@@ -189,6 +189,9 @@ struct MediaPlayer::State {
     const std::string mime = mimeForMediaPath(id, audioOnly);
     if (!canPlayWebMedia(mime))
       return false;
+    // Native browser playback takes precedence over FFmpeg. Keep the
+    // AssetProvider stream as the single source of bytes (including archives
+    // and IndexedDB-backed range fetches).
     auto source = assets.openStream(id);
     std::uint64_t size = source ? source->size() : 0;
     if (source && size) {
@@ -252,7 +255,8 @@ struct MediaPlayer::State {
     }
     webVideoSession = session;
     webVideoStarted = true;
-    SDL_Log("[Kotonoha] HTML5 media backend started; hardware video decoding is browser-controlled");
+    SDL_Log("[Kotonoha] Browser-native %s playback selected (%s); decoding acceleration is browser-controlled",
+            webAudioOnly ? "audio" : "video", webVideoMime.c_str());
     webVideoReady =
         webVideoUrlMode; // Blob mode will be set later in serviceWebVideo
     return true;
@@ -612,74 +616,69 @@ struct MediaPlayer::State {
       }
       return context;
     };
-    AVCodecContext *context = createContext();
+    // Hardware backends are discovered from the linked FFmpeg build rather
+    // than selected by operating-system macros. Only decoder-compatible
+    // devices are attempted. A failed device never prevents trying the next.
 #ifndef __EMSCRIPTEN__
     if (type == AVMEDIA_TYPE_VIDEO) {
-      // Only use hardware devices explicitly supported by this decoder.
-      // Prefer native platform backends; unsupported builds fall back to CPU.
-#if defined(__APPLE__)
-      const AVHWDeviceType preferred[] = {AV_HWDEVICE_TYPE_VIDEOTOOLBOX};
-#elif defined(_WIN32)
-      const AVHWDeviceType preferred[] = {AV_HWDEVICE_TYPE_D3D11VA,
-                                         AV_HWDEVICE_TYPE_DXVA2};
-#elif defined(__linux__)
-      const AVHWDeviceType preferred[] = {AV_HWDEVICE_TYPE_VAAPI};
-#else
-      const AVHWDeviceType preferred[] = {AV_HWDEVICE_TYPE_NONE};
-#endif
-      for (AVHWDeviceType typeToTry : preferred) {
-        if (typeToTry == AV_HWDEVICE_TYPE_NONE)
-          continue;
+      for (AVHWDeviceType deviceType = av_hwdevice_iterate_types(AV_HWDEVICE_TYPE_NONE);
+           deviceType != AV_HWDEVICE_TYPE_NONE;
+           deviceType = av_hwdevice_iterate_types(deviceType)) {
         for (int i = 0;; ++i) {
           const AVCodecHWConfig *config = avcodec_get_hw_config(codec, i);
           if (!config)
             break;
-          if (config->device_type != typeToTry ||
+          if (config->device_type != deviceType ||
               !(config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX))
             continue;
+
           AVBufferRef *device = nullptr;
-          const int result =
-              av_hwdevice_ctx_create(&device, typeToTry, nullptr, nullptr, 0);
-          if (result < 0) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                        "[Kotonoha] Hardware video device %s unavailable (%d); trying software",
-                        av_hwdevice_get_type_name(typeToTry), result);
+          const int deviceResult =
+              av_hwdevice_ctx_create(&device, deviceType, nullptr, nullptr, 0);
+          if (deviceResult < 0) {
+            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
+                         "[Kotonoha] Video acceleration backend %s unavailable (%d)",
+                         av_hwdevice_get_type_name(deviceType), deviceResult);
             continue;
           }
-          context->hw_device_ctx = av_buffer_ref(device);
+          AVCodecContext *candidate = createContext();
+          candidate->hw_device_ctx = av_buffer_ref(device);
           av_buffer_unref(&device);
-          if (!context->hw_device_ctx) {
-            avcodec_free_context(&context);
+          if (!candidate->hw_device_ctx) {
+            avcodec_free_context(&candidate);
             throw std::bad_alloc();
           }
           hardwarePixelFormat = config->pix_fmt;
-          context->opaque = this;
-          context->get_format = chooseHardwareFormat;
-          SDL_Log("[Kotonoha] Hardware video decoder requested: %s (%s)",
-                  av_hwdevice_get_type_name(typeToTry), codec->name);
-          break;
+          candidate->opaque = this;
+          candidate->get_format = chooseHardwareFormat;
+          SDL_Log("[Kotonoha] Trying hardware decoder %s (%s)",
+                  av_hwdevice_get_type_name(deviceType), codec->name);
+          const int result = avcodec_open2(candidate, codec, nullptr);
+          if (result >= 0) {
+            SDL_Log("[Kotonoha] Hardware decoder initialized: %s (%s); awaiting decoded frames",
+                    av_hwdevice_get_type_name(deviceType), codec->name);
+            return candidate;
+          }
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "[Kotonoha] Hardware decoder %s failed (%d); trying another backend",
+                      av_hwdevice_get_type_name(deviceType), result);
+          avcodec_free_context(&candidate);
+          hardwarePixelFormat = AV_PIX_FMT_NONE;
         }
-        if (context->hw_device_ctx)
-          break;
       }
     }
 #endif
-    int opened = avcodec_open2(context, codec, nullptr);
-    if (opened < 0 && context->hw_device_ctx) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "[Kotonoha] Hardware video decoder failed to open (%d); falling back to software",
-                  opened);
-      avcodec_free_context(&context);
-      hardwarePixelFormat = AV_PIX_FMT_NONE;
-      context = createContext();
-      opened = avcodec_open2(context, codec, nullptr);
-    }
+    AVCodecContext *context = createContext();
+    const int opened = avcodec_open2(context, codec, nullptr);
     if (opened < 0) {
       avcodec_free_context(&context);
       check(opened, "Open codec");
     }
-    if (type == AVMEDIA_TYPE_VIDEO && !context->hw_device_ctx)
-      SDL_Log("[Kotonoha] Video decoder: software (%s)", codec->name);
+    if (type == AVMEDIA_TYPE_VIDEO) {
+      hardwarePixelFormat = AV_PIX_FMT_NONE;
+      SDL_Log("[Kotonoha] Video decoder: software (%s); no usable hardware backend",
+              codec->name);
+    }
     return context;
   }
 
@@ -1560,13 +1559,15 @@ void MediaPlayer::updateDecoder(RendererRef renderer, double position) {
             (s.webFallbackId.empty() ? s.webVideoId : s.webFallbackId));
       openDecoder(*next, {}, s.webAudioOnly);
       const bool wasPaused = pausedAt != 0;
+      const bool wasAudioOnly = s.webAudioOnly;
       adoptPreparedInput(
           std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next))),
           channelName);
       clockOffset = position;
       if (!wasPaused)
         setPaused(false);
-      SDL_Log("[Kotonoha] HTML5 video failed; decoding locally with FFmpeg");
+      SDL_Log("[Kotonoha] Browser-native %s playback unavailable; falling back to FFmpeg",
+              wasAudioOnly ? "audio" : "video");
       update(renderer, position);
       return;
     }
