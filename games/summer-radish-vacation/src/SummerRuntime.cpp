@@ -595,6 +595,9 @@ struct SummerRuntime::Impl {
   std::vector<std::string> meoScenes;
   size_t meoSceneFocus = 0;
   std::map<std::string, std::string> meoText;
+  std::string meoRawSpeaker;
+  std::vector<std::string> activeOriginalKeys;
+  std::string currentRawSpeaker, currentRawDialogue, currentVoiceId;
   std::vector<Node> meoFrames;
   std::string meoCurrentScript;
   std::string meoNextScript;
@@ -816,6 +819,10 @@ struct SummerRuntime::Impl {
     voice.Stop();
     extraVoiceActors_.clear();
     currentMessageActor = 0;
+    activeOriginalKeys.clear();
+    currentVoiceId.clear();
+    currentRawSpeaker.clear();
+    currentRawDialogue.clear();
     pending.clear();
     autoMode = skipMode = false;
     vm.resume();
@@ -1020,7 +1027,7 @@ struct SummerRuntime::Impl {
     refreshTitleChips();
   }
   void applyMeoFrame(const Node &frame) {
-    std::string speaker = text->getSpeaker();
+    std::string speaker = meoRawSpeaker;
     std::string dialogue;
     bool hasDialogue = false;
     if (!frame.children.empty()) {
@@ -1060,7 +1067,16 @@ struct SummerRuntime::Impl {
       }
     }
     if (hasDialogue) {
-      text->setDialogue(speaker, dialogue);
+      meoRawSpeaker = speaker;
+      currentRawSpeaker = speaker;
+      currentRawDialogue = dialogue;
+      currentVoiceId.clear();
+      activeOriginalKeys.clear();
+      if (!speaker.empty())
+        activeOriginalKeys.push_back(speaker);
+      if (!dialogue.empty())
+        activeOriginalKeys.push_back(dialogue);
+      text->setDialogue(translated(speaker), translated(dialogue));
       text->show();
     }
   }
@@ -1071,6 +1087,11 @@ struct SummerRuntime::Impl {
       movie->stop();
     text->hide();
     meoText.clear();
+    meoRawSpeaker.clear();
+    activeOriginalKeys.clear();
+    currentRawSpeaker.clear();
+    currentRawDialogue.clear();
+    currentVoiceId.clear();
     meoFrames.clear();
     meoNextScript.clear();
     meoChoices.clear();
@@ -1308,7 +1329,7 @@ struct SummerRuntime::Impl {
         !meoChoiceShown) {
       std::vector<ChoiceOption> options;
       for (size_t i = 0; i < meoChoices.size(); ++i)
-        options.push_back({meoChoices[i].first, int(i)});
+        options.push_back({translated(meoChoices[i].first), int(i)});
       meoChoiceShown = true;
       choice->setQuestion("", options,
                           [this](int index, const std::string &) {
@@ -1500,9 +1521,16 @@ struct SummerRuntime::Impl {
     const auto names = playerNames();
     if (actor == 1 && !names[1].empty())
       speaker = names[1];
-    text->setDialogue(
-        translated(speaker),
-        translated(substitutePlayerNames(string(vm.evaluate(r[2])), names)));
+    currentRawSpeaker = speaker;
+    currentRawDialogue =
+        substitutePlayerNames(string(vm.evaluate(r[2])), names);
+    activeOriginalKeys.clear();
+    if (!speaker.empty())
+      activeOriginalKeys.push_back(speaker);
+    if (!currentRawDialogue.empty())
+      activeOriginalKeys.push_back(currentRawDialogue);
+    currentVoiceId.clear();
+    text->setDialogue(translated(speaker), translated(currentRawDialogue));
     text->show();
     text->concealed = false;
     if (!currentRead)
@@ -1515,6 +1543,7 @@ struct SummerRuntime::Impl {
           assets->contains("VOICE/" + stemStr + ".wav"))
         id = "VOICE/" + stemStr + ".wav";
       if (assets->contains(id)) {
+        currentVoiceId = id;
         audio(voice, id, "Voice");
         GetVNBacklogRuntime(*engine).setLastVoice(id);
       }
@@ -2570,6 +2599,29 @@ void SummerRuntime::loadGame(const std::string &path) {
 }
 Translation::SourceTexts SummerRuntime::translationSources() const {
   Translation::SourceTexts result;
+  if (impl->meo) {
+    // The MEO XML dialogue table is not part of the Summer script VM. Index
+    // its TextRes entries as original keys, including inactive story scenes.
+    auto &texts = result[0];
+    std::set<std::string> unique;
+    for (const auto &[id, bytes] : impl->meoScripts) {
+      const std::string xml(bytes.begin(), bytes.end());
+      std::size_t pos = 0;
+      while ((pos = xml.find("<TextRes ", pos)) != std::string::npos) {
+        const auto start = xml.find('>', pos);
+        if (start == std::string::npos)
+          break;
+        const auto end = xml.find("</TextRes>", start + 1);
+        if (end == std::string::npos)
+          break;
+        const auto value = xml.substr(start + 1, end - start - 1);
+        if (!value.empty() && unique.insert(value).second)
+          texts.push_back(value);
+        pos = end + sizeof("</TextRes>") - 1;
+      }
+    }
+    return result;
+  }
   int route = 0;
   for (auto &[name, script] : impl->vm.programs()) {
     for (auto &instruction : script.code)
@@ -2582,6 +2634,15 @@ Translation::SourceTexts SummerRuntime::translationSources() const {
   return result;
 }
 int SummerRuntime::translationRoute() const { return impl->route(); }
+std::vector<std::string> SummerRuntime::activeTranslationKeys() const {
+  return impl->activeOriginalKeys;
+}
+std::vector<DebugAudioAsset> SummerRuntime::debugSceneAudio() {
+  if (impl->currentVoiceId.empty())
+    return {};
+  return {{impl->currentVoiceId, impl->currentRawSpeaker,
+           impl->currentRawDialogue}};
+}
 std::string SummerRuntime::debugNode() const {
   if (impl->meo)
     return impl->meoCurrentScript + ":" + std::to_string(impl->meoFrame);
@@ -2596,6 +2657,13 @@ std::string SummerRuntime::nodeClockKey() const {
 }
 std::vector<DebugNode> SummerRuntime::debugNodes() const {
   std::vector<DebugNode> nodes;
+  if (impl->meo) {
+    for (const auto &[id, bytes] : impl->meoScripts) {
+      const auto name = std::filesystem::path(id).filename().string();
+      nodes.push_back({name, name, {id}});
+    }
+    return nodes;
+  }
   for (auto &[name, s] : impl->vm.programs()) {
     nodes.push_back({name, name, {}});
     for (auto &[label, pc] : s.labels)
