@@ -843,6 +843,8 @@
 		A1A100000000000000000016 /* WebAssetFetch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000003 /* WebAssetFetch.cpp */; };
 		A1A100000000000000000017 /* MetalFXUpscaler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000004 /* MetalFXUpscaler.cpp */; };
 		A1A100000000000000000018 /* MetalFXUpscaler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000004 /* MetalFXUpscaler.cpp */; };
+		C0C000000000000000000002 /* SchoolDaysAtomicFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C0C000000000000000000001 /* SchoolDaysAtomicFile.cpp */; };
+		C0C000000000000000000003 /* SchoolDaysAtomicFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C0C000000000000000000001 /* SchoolDaysAtomicFile.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -2031,6 +2033,7 @@
 		B5B500000000000000000009 /* UnifiedLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = UnifiedLauncher.cpp; path = ../../launcher/src/UnifiedLauncher.cpp; sourceTree = SOURCE_ROOT; };
 		B5B50000000000000000000A /* UnifiedLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = UnifiedLauncher.hpp; path = ../../launcher/include/KotonohaLauncher/UnifiedLauncher.hpp; sourceTree = SOURCE_ROOT; };
 		B5B50000000000000000000B /* BuildUnifiedLauncher.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; name = BuildUnifiedLauncher.sh; path = Scripts/BuildUnifiedLauncher.sh; sourceTree = SOURCE_ROOT; };
+		C0C000000000000000000001 /* SchoolDaysAtomicFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysAtomicFile.cpp; path = ../../games/school-days/src/SchoolDaysAtomicFile.cpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2847,6 +2850,7 @@
 				780A7ADC9019B8F33BE1D3E5 /* SchoolDaysSaveProfile.cpp */,
 				133FEB14CFB5BEAF36775A44 /* SchoolDaysSaveService.cpp */,
 				25D4F7ED89890B0AA3BABA20 /* SchoolDaysSaveServiceRead.cpp */,
+				C0C000000000000000000001 /* SchoolDaysAtomicFile.cpp */,
 				5CA619DF85A2D64DC71181D0 /* SchoolDaysSaveStorage.cpp */,
 				051BE4DA1D87AB250C0FDFF0 /* SchoolDaysScenes.cpp */,
 				3B00210150B5407CBD46C59A /* SchoolDaysSubtitleTypography.cpp */,
@@ -6211,6 +6215,7 @@
 				F0F1CDE8F744B3FECE4703C9 /* SchoolDaysPersistenceCodec.cpp in Sources */,
 				82D33007FEF102B92EB7C1AA /* SchoolDaysCmap.cpp in Sources */,
 				74C9A2B46EFA437A7FBB9B91 /* SchoolDaysTitleRenderPlan.cpp in Sources */,
+				C0C000000000000000000002 /* SchoolDaysAtomicFile.cpp in Sources */,
 				E33B03712E57E24BACAA7D20 /* SchoolDaysSaveStorage.cpp in Sources */,
 				F47170F9C9A9567F84F795C6 /* SchoolDaysReplayModel.cpp in Sources */,
 				728818139C51490431470FB8 /* SchoolDaysSaveLoadRenderPlan.cpp in Sources */,
@@ -6816,6 +6821,7 @@
 				C9446E4D79741EBFF055D506 /* SchoolDaysPersistenceCodec.cpp in Sources */,
 				96C159F5FF28F5CBD600C21E /* SchoolDaysCmap.cpp in Sources */,
 				DF08C9EB5D22795BDE445FBF /* SchoolDaysTitleRenderPlan.cpp in Sources */,
+				C0C000000000000000000003 /* SchoolDaysAtomicFile.cpp in Sources */,
 				A5223CC1C1B132291EAF9B5E /* SchoolDaysSaveStorage.cpp in Sources */,
 				BE47F83080F1B611A9C9B715 /* SchoolDaysReplayModel.cpp in Sources */,
 				AE444C21336924E71FA355C6 /* SchoolDaysSaveLoadRenderPlan.cpp in Sources */,
