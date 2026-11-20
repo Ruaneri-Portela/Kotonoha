@@ -28,8 +28,6 @@ set(_kotonoha_launcher_libraries
     "SNOW|snow_radish_vacation"
     "SUMMER|summer_radish_vacation"
     "DDLC|doki_doki_literature_club"
-    "KATAWA|doki_doki_literature_club"
-    "MEO|summer_radish_vacation"
     "SCHOOL_DAYS|school_days"
     "REALLIVE|reallive_port"
     "KIRIKIRI|kirikiri_formats"
