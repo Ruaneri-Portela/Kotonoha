@@ -164,8 +164,15 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
         auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(
             selectedSourcePath(entry), opts.assetOverlayDirectory());
         assets->setOverlay(opts.assetOverlayDirectory());
-        return mount(std::make_unique<SummerRadish::SummerRuntime>(assets),
-                     assets, shutdownRuntime<SummerRadish::SummerRuntime>());
+        // Shared CMP engine, but each port keeps its own window and save identity.
+        const bool isMeo = entry.engine.slug == "meo";
+        auto runtime = isMeo
+                           ? std::make_unique<SummerRadish::SummerRuntime>(
+                                 assets, "Miss Each Other",
+                                 "me.hirameki.kotonoha.meo")
+                           : std::make_unique<SummerRadish::SummerRuntime>(assets);
+        return mount(std::move(runtime), assets,
+                     shutdownRuntime<SummerRadish::SummerRuntime>());
       });
 #endif
 #if defined(KOTONOHA_LAUNCH_DDLC)
