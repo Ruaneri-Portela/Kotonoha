@@ -803,7 +803,7 @@ void DebugOverlay::decodeAssetText() {
   // untouched; replace embedded NULs only in the displayed representation.
   textAssetContent.assign(decoded);
   SDL_free(decoded);
-  std::replace(textAssetContent.begin(), textAssetContent.end(), '\\0', ' ');
+  std::replace(textAssetContent.begin(), textAssetContent.end(), '\0', ' ');
 }
 
 void DebugOverlay::drawAssetTextViewer() {
