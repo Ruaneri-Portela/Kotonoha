@@ -5,6 +5,7 @@
 #include <Kotonoha/media/AudioMixer.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 
+#include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 
 #include <imgui.h>
