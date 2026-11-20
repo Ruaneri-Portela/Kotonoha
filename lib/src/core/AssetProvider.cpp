@@ -188,9 +188,11 @@ std::uint64_t AssetProvider::dumpAsset(
     throw std::runtime_error("Cannot dump missing provider asset: " + id);
 
   // Never use an archive stream for effective bytes when an overlay wins.
-  auto stream = source == AssetSource::Effective && hasOverlay(id)
+  // Some legacy providers implement openOriginalStream by delegating to
+  // the effective stream. The raw original export must bypass that route.
+  auto stream = source == AssetSource::Original || hasOverlay(id)
                     ? std::unique_ptr<AssetStream>{}
-                    : openStream(id, source);
+                    : openStream(id);
   if (stream && stream->size() > maximumAssetSize)
     throw std::runtime_error("Asset dump exceeds the 1 GiB safety limit");
 
