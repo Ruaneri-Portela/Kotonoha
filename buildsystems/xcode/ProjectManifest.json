@@ -104,6 +104,38 @@
     "iOS/Pmail": {
       "target": "B1583208E1B067219E50E5CD",
       "sources": 16
+    },
+    "macOS/KatawaShoujo": {
+      "target": "06628F1E7E708814ECF8438D",
+      "sources": 12
+    },
+    "iOS/KatawaShoujo": {
+      "target": "E5F2C6617BB42988C1616485",
+      "sources": 12
+    },
+    "macOS/MEO": {
+      "target": "3388DC2CF1F900A563C4670D",
+      "sources": 10
+    },
+    "iOS/MEO": {
+      "target": "D234BAB08272DB319271934E",
+      "sources": 10
+    },
+    "macOS/PonscripterGame": {
+      "target": "D311171D4BD3A22A92216753",
+      "sources": 12
+    },
+    "iOS/PonscripterGame": {
+      "target": "4E4FFDFFD15EB42FD86B23AE",
+      "sources": 12
+    },
+    "macOS/N2SystemGame": {
+      "target": "F51AE3C0C88CE46B2E55E4AD",
+      "sources": 23
+    },
+    "iOS/N2SystemGame": {
+      "target": "DD05515AF63B6E92EACE87FF",
+      "sources": 23
     }
   },
   "games": {
@@ -119,7 +151,9 @@
     "LucaSystem": "luca-system",
     "Pmail": "pmail",
     "PonscripterGame": "ponscripter",
-    "N2SystemGame": "n2system"
+    "N2SystemGame": "n2system",
+    "KatawaShoujo": "katawa-shoujo",
+    "MEO": "meo"
   },
   "modules": {
     "VM": [
@@ -130,7 +164,9 @@
       "reallive",
       "renpy",
       "snow-radish",
-      "summer-radish"
+      "summer-radish",
+      "n2system",
+      "ponscripter"
     ],
     "Providers": [
       "adv",
@@ -142,11 +178,13 @@
       "reallive",
       "rpa",
       "xp3",
-      "zero"
+      "zero",
+      "n2",
+      "ponscripter"
     ]
   },
   "source_files": 241,
-  "schemes": 22,
+  "schemes": 30,
   "note": "The C++ sources and binary dependencies are external to this generated project.",
   "bundling": {
     "schema_version": 2,
@@ -165,16 +203,16 @@
     "script": "buildsystems/xcode/Scripts/EmbedSDLFrameworks.sh",
     "asset_copy_phase": "Copy Bundle Resources (native folder references)",
     "sdl_embed_phase": "Embed SDL3 + SDL3_ttf and Verify Assets",
-    "targets_configured": 22,
+    "targets_configured": 30,
     "shared_info_plist": "buildsystems/xcode/Info.plist (referenced, not duplicated)",
-    "all_app_configs_using_shared_plist": 44,
+    "all_app_configs_using_shared_plist": 60,
     "framework_embeds_require_prebuilt_binaries": true,
     "framework_embed_script_present": true,
     "macos_icon": "assets/icon.icns copied to Contents/Resources/icon.icns and processed Info.plist CFBundleIconFile=icon.icns",
     "macos_icon_script": "buildsystems/xcode/Scripts/ConfigureMacOSIcon.sh",
     "document_revisions_debug_enabled": false,
-    "disabled_in_shared_schemes": 22,
-    "ddlc_python": "CPython 3.15 prepared by tools/PrepareApple.py and packaged only by DokiDoki targets",
+    "disabled_in_shared_schemes": 30,
+    "ddlc_python": "CPython 3.15 prepared by tools/PrepareApple.py and packaged by DokiDoki and KatawaShoujo targets",
     "ddlc_python_script": "buildsystems/xcode/Scripts/EmbedDokiDokiPython.sh"
   },
   "preparation": {
@@ -185,8 +223,8 @@
       "ios": "buildsystems/xcode/vcpkg/ios/arm64-ios",
       "ios_simulator": "buildsystems/xcode/vcpkg/simulator/arm64-ios-simulator"
     },
-    "schemes_with_vcpkg_preaction": 22,
-    "schemes_with_python_preaction": 2
+    "schemes_with_vcpkg_preaction": 30,
+    "schemes_with_python_preaction": 4
   },
   "vendors": {
     "RealLive": {
@@ -224,8 +262,5 @@
       "note": "Vendor files are referenced in the source repository; the Xcode project includes no vendor source copies."
     }
   },
-  "xcode_pending": [
-    "n2system",
-    "ponscripter"
-  ]
+  "xcode_pending": []
 }

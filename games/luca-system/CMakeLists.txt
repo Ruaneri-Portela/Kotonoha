@@ -21,6 +21,8 @@ target_compile_features(luca_system_formats PUBLIC cxx_std_17)
 if(KOTONOHA_BUILD_HOST_TOOLS)
     add_executable(LucaInspect tools/LucaInspect.cpp)
     target_link_libraries(LucaInspect PRIVATE luca_system_formats)
+    add_executable(LucaPak tools/LucaPak.cpp)
+    target_link_libraries(LucaPak PRIVATE luca_system_formats)
 endif()
 
 kotonoha_add_app(LucaSystem src/main.cpp)
@@ -35,6 +37,12 @@ if(BUILD_TESTING)
   add_executable(LucaSystemFormatTests tests/LucaSystemTest.cpp)
   target_link_libraries(LucaSystemFormatTests PRIVATE luca_system_formats)
   add_test(NAME LucaSystemFormatTests COMMAND LucaSystemFormatTests)
+  if(KOTONOHA_BUILD_HOST_TOOLS)
+    add_test(NAME LucaSystem.FontOverlay
+        COMMAND LucaSystemFormatTests --font-overlay)
+    set_tests_properties(LucaSystem.FontOverlay PROPERTIES
+        ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+  endif()
 
   # Dependency-free C++17 test: no SDL, vcpkg, or retail AIR data required.
   add_executable(LucaSystemSaveCodecTests tests/SaveStateTest.cpp)

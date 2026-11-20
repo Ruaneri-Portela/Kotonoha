@@ -149,7 +149,7 @@ void processSpeakerAndDialogue(const std::string &rawSpeaker,
 
 struct Text : VNTextBox {
   Kotonoha::Providers::RealLiveAssets &assets;
-  SurfacePtr frame, back, cursor, buttonSurface;
+  SurfacePtr frame, cursor, buttonSurface;
   Image buttonImage;
   ImageButtonBar controls;
   bool concealed = false;
@@ -160,15 +160,11 @@ struct Text : VNTextBox {
   int canvasW = 640, canvasH = 480;
 
   int boxWidth() const {
-    if (back && back->w > 0)
-      return back->w;
     if (frame && frame->w > 0)
       return frame->w;
     return canvasW;
   }
   int boxHeight() const {
-    if (back && back->h > 0)
-      return back->h;
     if (frame && frame->h > 0)
       return frame->h;
     return 122;
@@ -301,38 +297,6 @@ struct Text : VNTextBox {
       if (!smw00a.empty())
         frame = assets.loadSurface(smw00a);
     }
-    const std::string backName =
-        assets.settings().text(wakuBase + ".BACK", "smw00b");
-    if (!backName.empty()) {
-      auto smw00b = assets.graphic(backName, false);
-      if (!smw00b.empty())
-        back = assets.loadSurface(smw00b);
-    }
-
-    if (back && back->w > 0 && back->h > 0 && back->pixels) {
-      int r = assets.settings().integer(
-          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 0),
-          0);
-      int g = assets.settings().integer(
-          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 100, 1),
-          1);
-      int b = assets.settings().integer(
-          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 160, 2),
-          2);
-      int a = assets.settings().integer(
-          "WINDOW.000.ATTR", assets.settings().integer("WINDOW_ATTR", 200, 3),
-          3);
-      for (int y = 0; y < back->h; ++y)
-        for (int x = 0; x < back->w; ++x) {
-          auto *p =
-              static_cast<Uint8 *>(back->pixels) + y * back->pitch + x * 4;
-          p[0] = Uint8(r);
-          p[1] = Uint8(g);
-          p[2] = Uint8(b);
-          p[3] = Uint8(int(p[3]) * a / 255);
-        }
-    }
-
     const char *path = "/System/Library/Fonts/Supplemental/Verdana.ttf";
     if (std::filesystem::exists(path)) {
       font.reset(TTF_OpenFont(path, 25));
@@ -470,8 +434,6 @@ struct Text : VNTextBox {
   void renderFrame(RendererRef r) override {
     updateLayout(canvasW, canvasH);
     const float bx = float(boxX()), by = float(boxY());
-    if (back)
-      image(r, *back, bx, by);
     if (frame)
       image(r, *frame, bx, by);
     if (!buttonSurface)

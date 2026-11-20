@@ -175,6 +175,18 @@ std::string pythonError() {
     if (!text.empty())
       result += ": " + text;
   }
+  if (traceback) {
+    auto *trace = reinterpret_cast<PyTracebackObject *>(traceback);
+    int depth = 0;
+    while (trace && depth++ < 32) {
+      Ref code(reinterpret_cast<PyObject *>(PyFrame_GetCode(trace->tb_frame)));
+      Ref name(code ? PyObject_GetAttrString(code.get(), "co_name") : nullptr);
+      if (name)
+        result += " <- " + utf8(name.get()) + ":" +
+                  std::to_string(trace->tb_lineno);
+      trace = trace->tb_next;
+    }
+  }
   PyErr_Clear();
   return result;
 }
@@ -222,6 +234,8 @@ struct Interp::State {
     builtinsDict = PyDict_Copy(PyEval_GetBuiltins());
     if (!globals || !builtinsDict)
       raiseCurrentError();
+    originalImport = PyDict_GetItemString(builtinsDict, "__import__");
+    Py_XINCREF(originalImport);
     if (PyDict_SetItemString(globals, "__builtins__", builtinsDict) < 0)
       raiseCurrentError();
 
@@ -357,6 +371,7 @@ def legacy_range(*args):
       Py_DECREF(code);
     Py_XDECREF(globals);
     Py_XDECREF(builtinsDict);
+    Py_XDECREF(originalImport);
     for (auto &[_, proxy] : proxies)
       Py_DECREF(proxy);
     Py_XDECREF(proxyType);
@@ -370,6 +385,7 @@ def legacy_range(*args):
   std::shared_ptr<BridgeContext> context;
   PyObject *globals = nullptr;
   PyObject *builtinsDict = nullptr;
+  PyObject *originalImport = nullptr;
   PyObject *proxyType = nullptr;
   PyObject *callableType = nullptr;
   PyObject *controlError = nullptr;
@@ -569,10 +585,7 @@ def legacy_range(*args):
       return bridge->hashModule;
     }
     if (name == std::string("copy") || name == std::string("re")) {
-      PyObject *module = PyImport_ImportModule(name);
-      if (!module)
-        return nullptr;
-      return module;
+      return PyObject_CallFunction(bridge->originalImport, "s", name);
     }
     const auto found = bridge->modules.find(name);
     if (found == bridge->modules.end()) {

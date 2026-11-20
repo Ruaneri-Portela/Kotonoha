@@ -18,6 +18,45 @@ cmake --build build --target LucaSystem
 Use PAK originais (incluindo PARAM.PAK e SCRIPT.PAK); AIR é o título de referência.
 Use o launcher ou passe `--luca-system /caminho/para/dados` ao executável. Nunca versione dados comerciais.
 
+## Importação e reempacotamento de PAK
+
+Em um build nativo, compile a ferramenta host `LucaPak`:
+
+```sh
+cmake --build build --target LucaPak
+build/bin/LucaPak list SCRIPT.PAK
+build/bin/LucaPak repack SCRIPT.PAK SCRIPT-patched.PAK name:seen170 replacement.bin
+build/bin/LucaPak repack VOICE.PAK VOICE-patched.PAK id:1 replacement.ogg
+```
+
+`list` mostra o ID, o tamanho em bytes e o nome. Passe um ou mais pares de
+seletor e arquivo para substituir entradas, ou omita os pares para
+reempacotar sem substituições. A ferramenta preserva os nomes, os IDs, a
+ordem e o alinhamento de blocos e grava um novo arquivo. Ela não adiciona
+nem renomeia entradas e não interpreta os dados importados. Mantenha os
+arquivos comerciais de origem e os PAKs reempacotados apenas localmente.
+
+### Importação de diálogos do AIR
+
+Use `LucaInspect` com o opcode `36` para localizar o offset decimal original
+do `MESSAGE` que você quer alterar. Salve o texto em inglês como UTF-8 sem
+BOM. Por exemplo, com um diretório `overlay` já existente:
+
+```sh
+cmake --build build --target LucaInspect LucaPak
+build/bin/LucaInspect /path/to/AIR/files seen170 36
+build/bin/LucaPak patch-air /path/to/AIR/files/SCRIPT.PAK overlay/SCRIPT.PAK name:seen170 2202 dialogue.txt
+```
+
+Passe `--asset-overlay overlay` ao executar o port com
+`/path/to/AIR/files`. Para importar várias alterações de uma vez, repita os
+argumentos de seletor, offset e arquivo usando os offsets do PAK de origem.
+A ferramenta preserva os IDs de voz e os outros idiomas, ajusta os offsets
+dos saltos conhecidos dentro de um cenário e entre cenários e gera um novo
+`SCRIPT.PAK`. O comando é voltado aos diálogos do AIR da Steam no Kotonoha;
+ele não altera escolhas, texto de histórico nem tabelas auxiliares do motor
+original.
+
 ## Investigação detalhada
 
 [Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.

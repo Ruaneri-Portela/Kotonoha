@@ -1019,6 +1019,7 @@ struct SummerRuntime::Impl {
             text->setDialogue(text->getSpeaker(), mess->second);
           else
             text->setDialogue("", child.attr("MESS"));
+          text->show();
         } else if (child.tag == "Log") {
           const auto nameNo = child.attr("NAME");
           if (nameNo != "-1") {
@@ -1176,52 +1177,32 @@ struct SummerRuntime::Impl {
       frame.attrs["TIME"] = attrValue(tag, "TIME");
 
       size_t childPos = 0;
-      while ((childPos = body.find("<Log ", childPos)) != std::string::npos) {
-        const auto end = body.find("/>", childPos);
+      while ((childPos = body.find('<', childPos)) != std::string::npos) {
+        const auto end = body.find('>', childPos);
         if (end == std::string::npos)
           break;
-        std::string logTag = body.substr(childPos, end - childPos);
-        Node log;
-        log.tag = "Log";
-        log.attrs["NAME"] = attrValue(logTag, "NAME");
-        log.attrs["MESS"] = attrValue(logTag, "MESS");
-        frame.children.push_back(std::move(log));
-        childPos = end + 2;
-      }
-      childPos = 0;
-      while ((childPos = body.find("<Text ", childPos)) != std::string::npos) {
-        const auto end = body.find("/>", childPos);
-        if (end == std::string::npos)
-          break;
-        std::string textTag = body.substr(childPos, end - childPos);
-        Node text;
-        text.tag = "Text";
-        text.attrs["MESS"] = attrValue(textTag, "MESS");
-        frame.children.push_back(std::move(text));
-        childPos = end + 2;
-      }
-      if (body.find("<EraseText") != std::string::npos) {
-        Node erase;
-        erase.tag = "EraseText";
-        frame.children.push_back(std::move(erase));
-      }
-      size_t moviePos = 0;
-      while ((moviePos = body.find("CREATE=\"Movie\"", moviePos)) !=
-             std::string::npos) {
-        const auto tagStart = body.rfind('<', moviePos);
-        const auto tagEnd = body.find('>', moviePos);
-        if (tagStart == std::string::npos || tagEnd == std::string::npos)
-          break;
-        const std::string movieTag = body.substr(tagStart, tagEnd - tagStart);
-        Node objects;
-        objects.tag = "Objects";
-        Node object;
-        object.tag = "Object";
-        object.attrs["CREATE"] = "Movie";
-        object.attrs["FILE"] = attrValue(movieTag, "FILE");
-        objects.children.push_back(std::move(object));
-        frame.children.push_back(std::move(objects));
-        moviePos = tagEnd + 1;
+        const std::string tag = body.substr(childPos, end - childPos + 1);
+        Node child;
+        if (tag.compare(0, 5, "<Log ") == 0) {
+          child.tag = "Log";
+          child.attrs["NAME"] = attrValue(tag, "NAME");
+          child.attrs["MESS"] = attrValue(tag, "MESS");
+        } else if (tag.compare(0, 6, "<Text ") == 0) {
+          child.tag = "Text";
+          child.attrs["MESS"] = attrValue(tag, "MESS");
+        } else if (tag.compare(0, 10, "<EraseText") == 0) {
+          child.tag = "EraseText";
+        } else if (tag.find("CREATE=\"Movie\"") != std::string::npos) {
+          child.tag = "Objects";
+          Node object;
+          object.tag = "Object";
+          object.attrs["CREATE"] = "Movie";
+          object.attrs["FILE"] = attrValue(tag, "FILE");
+          child.children.push_back(std::move(object));
+        }
+        if (!child.tag.empty())
+          frame.children.push_back(std::move(child));
+        childPos = end + 1;
       }
       meoFrames.push_back(std::move(frame));
       framePos = frameEnd + 8;

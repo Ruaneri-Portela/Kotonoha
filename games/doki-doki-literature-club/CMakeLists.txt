@@ -19,13 +19,11 @@ if(KOTONOHA_USE_PYTHON_STUBS)
         src/Display.cpp
         src/Script.cpp
         src/Value.cpp
-        src/PythonDummy.cpp
     )
 else()
     set(DDLC_SOURCES
         src/Archive.cpp
         src/Display.cpp
-        src/Python.cpp
         src/Script.cpp
         src/Value.cpp
     )
@@ -33,13 +31,11 @@ endif()
 
 add_library(DdlcFormats STATIC ${DDLC_SOURCES})
 target_include_directories(DdlcFormats PUBLIC include)
+target_include_directories(DdlcFormats PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/renpy/src")
 target_compile_features(DdlcFormats PUBLIC cxx_std_20)
 
-if(KOTONOHA_USE_PYTHON_STUBS)
-    target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB)
-else()
-    target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB PRIVATE Python3::Python)
-endif()
+target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/renpy/CMakeLists.txt")
 # Replay reads live VM state, so compile it once in the VM archive rather
@@ -66,13 +62,15 @@ target_link_libraries(doki_doki_literature_club PUBLIC
 )
 set_target_properties(doki_doki_literature_club PROPERTIES CXX_EXTENSIONS OFF)
 
-kotonoha_add_app(DokiDoki src/main.cpp)
-target_link_libraries(DokiDoki PRIVATE doki_doki_literature_club)
-set_target_properties(DokiDoki PROPERTIES CXX_EXTENSIONS OFF)
-kotonoha_configure_app(DokiDoki
-    BUNDLE_ID me.hirameki.kotonoha.dokidokiliteratureclub GAME doki-doki-literature-club
-    PYTHON_STDLIB "${Python3_STDLIB}"
-    PYTHON_VERSION "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+if(KOTONOHA_BUILD_DDLC OR CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    kotonoha_add_app(DokiDoki src/main.cpp)
+    target_link_libraries(DokiDoki PRIVATE doki_doki_literature_club)
+    set_target_properties(DokiDoki PROPERTIES CXX_EXTENSIONS OFF)
+    kotonoha_configure_app(DokiDoki
+        BUNDLE_ID me.hirameki.kotonoha.dokidokiliteratureclub GAME doki-doki-literature-club
+        PYTHON_STDLIB "${Python3_STDLIB}"
+        PYTHON_VERSION "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+endif()
 
 if(BUILD_TESTING)
 add_subdirectory(tests)

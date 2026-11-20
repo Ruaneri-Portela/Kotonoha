@@ -3,15 +3,22 @@
 // is available (LUCA_SYSTEM_TEST_DATA env, defaulting to the Steam AIR
 // installation) the tests validate PAK reading and script parsing against it;
 // otherwise they exercise a synthetic in-format archive.
+#include <LucaSystem/BitmapFont.hpp>
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/LucaSystemAssets.hpp>
+#include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
+
+#include <Kotonoha/components/VNTextBox.hpp>
+#include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/SDL.hpp>
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -48,15 +55,13 @@ std::vector<std::uint8_t> u16le(uint16_t v) {
 // Layout:
 //   [0..35]   header: headerLength, fileCount, idStart, blockSize, unk..,
 //             flags (at offset 32)
-//   [36..39]  nameTablePtr (points to name table after data, when named)
-//   [40..43]  sentinel = headerLength / blockSize
-//   [44..]    offset table: 8 bytes per entry (offsetInBlocks uint32, length
-//   uint32) then      data region (each entry padded to blockSize) then name
-//   table: null-terminated names (one per entry, in order)
-std::vector<std::uint8_t>
-buildPak(uint32_t idStart, uint32_t blockSize, uint32_t flags,
-         const std::vector<std::pair<std::string, std::vector<std::uint8_t>>>
-             &files) {
+//   [36..39]  nameTablePtr (when named)
+//   [40..]    offset table: 8 bytes per entry (offset in blocks, length).
+// The first offset is also the sentinel (headerLength / blockSize).
+std::vector<std::uint8_t> buildPak(
+    uint32_t idStart, uint32_t blockSize, uint32_t flags,
+    const std::vector<std::pair<std::string, std::vector<std::uint8_t>>> &files,
+    bool namesInHeader = false) {
   const bool named = (flags & 512u) != 0u;
   const size_t fileCount = files.size();
   const size_t offsetTableStart = 40;
@@ -64,8 +69,14 @@ buildPak(uint32_t idStart, uint32_t blockSize, uint32_t flags,
   // Dry run: compute data offsets/lengths and total data size.
   std::vector<uint32_t> offsetBlocks;
   std::vector<uint32_t> lengths;
-  const size_t dataStart = (offsetTableStart + 8 * fileCount + blockSize - 1) /
-                           blockSize * blockSize;
+  const size_t tableEnd = offsetTableStart + 8 * fileCount;
+  size_t nameBytes = 0;
+  if (named)
+    for (const auto &file : files)
+      nameBytes += file.first.size() + 1;
+  const size_t headerBytes = tableEnd + (namesInHeader ? nameBytes : 0);
+  const size_t dataStart =
+      (headerBytes + blockSize - 1) / blockSize * blockSize;
   size_t dataCursor = dataStart;
   for (const auto &[name, data] : files) {
     offsetBlocks.push_back(uint32_t(dataCursor / blockSize));
@@ -73,19 +84,11 @@ buildPak(uint32_t idStart, uint32_t blockSize, uint32_t flags,
     dataCursor += data.size();
     dataCursor += (blockSize - (data.size() % blockSize)) % blockSize;
   }
-  const size_t dataEnd = dataCursor; // end of data region (= names start)
+  const size_t dataEnd = dataCursor;
   const uint32_t headerLength = uint32_t(dataStart);
 
-  // Name table start (= end of data region), and total file size (after names).
-  size_t nameTableStart = dataEnd;
-  size_t totalSize = dataEnd;
-  if (named) {
-    for (const auto &[name, _] : files) {
-      totalSize += name.size() + 1; // + NUL
-    }
-    nameTableStart = dataEnd;
-  }
-
+  const size_t nameTableStart = namesInHeader ? tableEnd : dataEnd;
+  const size_t totalSize = dataEnd + (namesInHeader ? 0 : nameBytes);
   std::vector<std::uint8_t> out(totalSize, 0);
   auto u32 = [&](size_t off, uint32_t v) {
     std::memcpy(&out[off], u32le(v).data(), 4);
@@ -108,14 +111,15 @@ buildPak(uint32_t idStart, uint32_t blockSize, uint32_t flags,
     size_t base = offsetTableStart + 8 * i;
     u32(base, offsetBlocks[i]);
     u32(base + 4, lengths[i]);
-    std::memcpy(&out[dataCursor], data.data(), data.size());
+    if (!data.empty())
+      std::memcpy(out.data() + dataCursor, data.data(), data.size());
     dataCursor += data.size();
     dataCursor += (blockSize - (data.size() % blockSize)) % blockSize;
   }
 
   // Name table (named only).
   if (named) {
-    size_t cursor = dataEnd;
+    size_t cursor = nameTableStart;
     for (const auto &[name, _] : files) {
       std::memcpy(&out[cursor], name.data(), name.size());
       cursor += name.size() + 1; // + NUL
@@ -129,10 +133,411 @@ void writeFile(std::filesystem::path p, std::string_view data) {
   f.write(data.data(), static_cast<std::streamsize>(data.size()));
 }
 
+void writeBytes(const std::filesystem::path &path,
+                 const std::vector<uint8_t> &bytes) {
+  writeFile(path, {reinterpret_cast<const char *>(bytes.data()), bytes.size()});
+}
+
+void checkFontOverlay(const std::filesystem::path &base,
+                      const std::filesystem::path &overlay, int advance) {
+  const auto assets =
+      std::make_shared<Kotonoha::Providers::LucaSystemAssets>(base, overlay);
+  LucaSystem::LucaSystemRuntime runtime(assets);
+  Kotonoha::EngineOptions options;
+  options.assets = assets;
+  options.launcher = false;
+  options.rendererOverride = "software";
+  Kotonoha::Engine engine(runtime, options);
+  if (!runtime.startScenario("seen170", 0, true))
+    throw std::runtime_error("Cannot start font overlay test scenario");
+  runtime.SetState(Kotonoha::GameState::Gameplay);
+  runtime.initGameplay(engine);
+  Kotonoha::VNTextBox *box = nullptr;
+  for (auto *scene : runtime.GetActiveScenes()) {
+    if ((box = dynamic_cast<Kotonoha::VNTextBox *>(scene)))
+      break;
+  }
+  if (!box)
+    throw std::runtime_error("AIR did not register its VNTextBox");
+  box->setDialogue("", "AA");
+  box->show();
+  box->completeDialogue();
+  Kotonoha::SurfacePtr target(
+      SDL_CreateSurface(1280, 720, SDL_PIXELFORMAT_RGBA32));
+  Kotonoha::RendererPtr renderer(
+      target ? SDL_CreateSoftwareRenderer(target.get()) : nullptr);
+  if (!renderer)
+    throw std::runtime_error(SDL_GetError());
+  SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 255);
+  SDL_RenderClear(renderer.get());
+  box->render(*renderer, 1);
+  SDL_RenderPresent(renderer.get());
+  const auto white = [&](int x, int y) {
+    Uint8 r = 0, g = 0, b = 0;
+    return SDL_ReadSurfacePixel(target.get(), x, y, &r, &g, &b, nullptr) &&
+           r == 255 && g == 255 && b == 255;
+  };
+  // Patch: offset (3,4), with a 2x2 opaque square one pixel into the cell.
+  constexpr int x = 210 + 3 + 1;
+  constexpr int y = 534 + 4 + 1;
+  check(white(x, y) && white(x + advance, y) && !white(x + 2, y),
+        "AIR VNTextBox renders patched glyph pixels and advance via overlay");
+  runtime.shutdown();
+}
+
+void syntheticFontOverlay() {
+  const auto root = tempDir() / "font-patch";
+  const auto base = root / "base";
+  const auto overlay = root / "overlay";
+  std::filesystem::create_directories(base);
+  std::filesystem::create_directories(overlay);
+  constexpr size_t header = 18;
+  constexpr size_t table = header + 1024;
+  std::vector<uint8_t> atlas(table + 12 + 64, 0);
+  atlas[0] = 'C';
+  atlas[1] = 'Z';
+  atlas[2] = '2';
+  atlas[4] = header;
+  atlas[8] = 8;
+  atlas[10] = 4;
+  atlas[12] = 8;
+  atlas[table] = 1;
+  atlas[table + 4] = 64;
+  atlas[table + 8] = 32;
+  for (size_t i = header; i < header + 8; ++i)
+    atlas[i] = i == header + 3 ? 0 : 255;
+  constexpr size_t index = 6 + 2 * 3;
+  std::vector<uint8_t> info(index + 65536 * 4);
+  info[2] = 4;
+  info[4] = 2;
+  info[10] = 4;
+  info[index + 2 * 'A'] = 1;
+  const auto source = base / "FONT.PAK";
+  writeBytes(source, buildPak(1, 4, 512,
+                              {{"ゴシック27", atlas}, {"info27", info}}));
+  const std::vector<uint8_t> scenario = {
+      21, 0, 36, 0, 0, 0, 1, 0, 'A', 0, 0,
+      0,  254, 255, 'A', 'A', 0, 0, 0, 0, 0, 0};
+  writeBytes(base / "SCRIPT.PAK", buildPak(1, 4, 512, {{"seen170", scenario}}));
+  std::vector<uint8_t> alpha(16);
+  alpha[5] = alpha[6] = alpha[9] = alpha[10] = 255;
+  const auto patched = LucaSystem::PatchCz2Alpha(atlas, 4, 0, 4, 4, alpha);
+  LucaSystem::BitmapFont font(info);
+  font.setGlyphMetrics('A', 3, 4, 4, 12);
+  const auto atlasPath = root / "atlas.cz2";
+  const auto infoPath = root / "info.bin";
+  writeBytes(atlasPath, patched);
+  writeBytes(infoPath, font.bytes());
+  LucaSystem::PakArchive archive(source);
+  std::ostringstream repacked;
+  archive.repack(repacked, {{1, atlasPath}, {2, infoPath}});
+  writeFile(overlay / "FONT.PAK", repacked.str());
+  check(archive.read("ゴシック27") == atlas && archive.read("info27") == info,
+        "Font repack leaves original atlas and metrics byte-for-byte intact");
+  checkFontOverlay(base, overlay, 12);
+}
+
 } // namespace
 
-int main() {
+int main(int argc, char **argv) {
+  if (argc > 1 && std::string_view(argv[1]) == "--font-overlay") {
+    try {
+      if (argc == 4)
+        checkFontOverlay(argv[2], argv[3], 32);
+      else if (argc == 2)
+        syntheticFontOverlay();
+      else
+        return 2;
+    } catch (const std::exception &e) {
+      std::fprintf(stderr, "%s\n", e.what());
+      return 1;
+    }
+    return failures == 0 ? 0 : 1;
+  }
   std::printf("LucaSystem format tests\n");
+
+  {
+    using Bytes = std::vector<std::uint8_t>;
+    const auto append = [](Bytes &dst, const Bytes &src) {
+      dst.insert(dst.end(), src.begin(), src.end());
+    };
+    const auto instruction = [&](Bytes &script, uint8_t op, uint8_t flag,
+                                 const Bytes &raw) {
+      const auto len = uint16_t(4 + raw.size());
+      append(script, u16le(len));
+      script.push_back(op);
+      script.push_back(flag);
+      append(script, raw);
+      if (len & 1)
+        script.push_back(0x42);
+    };
+    // Voice ID, Japanese "J", English "E", Chinese "C" and opaque suffix.
+    const Bytes message{3,   0, 1, 0, 'J', 0, 0, 0, 255, 255,
+                        'E', 0, 1, 0, 'C', 0, 0, 0, 0xab};
+    Bytes a;
+    instruction(a, 36, 0, message);
+    const auto originalMessageSize = a.size();
+    // ONGOTO: UTF-8 expression "0", count=2, a backward and a forward branch.
+    const auto table = [&](uint32_t target) {
+      Bytes raw{255, 255, '0', 0, 2, 0};
+      append(raw, u32le(0));
+      append(raw, u32le(target));
+      return raw;
+    };
+    const auto end = uint32_t(a.size() + 8 + 4 + table(0).size());
+    instruction(a, 15, 0, u32le(end));
+    instruction(a, 16, 0, table(end));
+    instruction(a, 25, 0, {});
+    const auto cross = [&](uint32_t target) {
+      Bytes raw{8, 0, 249, 255, 's', 'e', 'e', 'n', '1', '7', '0', 0};
+      append(raw, u32le(target));
+      return raw;
+    };
+    // The incoming branch must be rewritten even though seen190 has no edit.
+    Bytes b;
+    instruction(b, 22, 1, cross(end));
+    instruction(b, 25, 0, {});
+    std::map<std::string, LucaSystem::Script> scripts;
+    scripts.try_emplace("seen170", "seen170", a);
+    scripts.try_emplace("seen190", "seen190", b);
+    check(LucaSystem::PatchAirMessages(scripts, {{"seen170", {{0, "E"}}}})
+              .empty(),
+          "AIR script import preserves unchanged bytecode");
+    const auto patched =
+        LucaSystem::PatchAirMessages(scripts, {{"seen170", {{0, "longer"}}}});
+    const LucaSystem::Script first("seen170", patched.at("seen170"));
+    const LucaSystem::Script second("seen190", patched.at("seen190"));
+    const auto &ops = first.instructions();
+    check(first.valid() && second.valid() && ops[0].text == "longer" &&
+              ops[0].rawBytes.back() == 0xab && ops[0].align.empty() &&
+              ops[3].pos == end + 4 && ops[1].paramBytes == u32le(end + 4) &&
+              ops[2].paramBytes == table(end + 4) &&
+              second.instructions()[0].rawBytes == cross(end + 4),
+          "AIR script import resizes MESSAGE and relocates local and incoming "
+          "branches");
+    scripts.insert_or_assign("seen170", first);
+    scripts.insert_or_assign("seen190", second);
+    const auto restored =
+        LucaSystem::PatchAirMessages(scripts, {{"seen170", {{0, "E"}}}});
+    auto expected = a;
+    expected[originalMessageSize - 1] = 0; // rebuilt padding
+    check(restored.at("seen170") == expected && restored.at("seen190") == b,
+          "AIR script import roundtrips bytes and targets after shrinking");
+    auto bad = b;
+    bad[16] = static_cast<uint8_t>(end + 1);
+    scripts.insert_or_assign("seen190", LucaSystem::Script("seen190", bad));
+    bool rejected = false;
+    try {
+      (void)LucaSystem::PatchAirMessages(scripts, {});
+    } catch (const std::runtime_error &e) {
+      rejected = std::string_view(e.what()).find("jump does not land") !=
+                 std::string_view::npos;
+    }
+    check(rejected, "AIR script import rejects branch into a payload");
+  }
+
+  {
+    const auto dir = tempDir();
+    const auto originalPath = dir / "repack-input.pak";
+    const auto outputPath = dir / "repack-output.pak";
+    const auto replacementPath = dir / "repack-replacement.bin";
+    const auto emptyPath = dir / "repack-empty.bin";
+    const std::string payload("patch\0with\0zeros", 16);
+    const std::vector<std::uint8_t> kept{0xab, 0, 0xcd};
+    writeFile(replacementPath, payload);
+    writeFile(emptyPath, {});
+    for (const auto layout : {0, 1, 2}) {
+      const bool named = layout != 0;
+      const bool namesInHeader = layout == 2;
+      const auto label = !named          ? "numeric"
+                         : namesInHeader ? "named, inline"
+                                         : "named, external";
+      auto original = buildPak(500, 8, named ? 513 : 1,
+                               {{"α", {1}}, {"beta", {2, 3}}, {"keep", kept}},
+                               namesInHeader);
+      original[16] = 0xc4; // opaque header field
+      writeFile(originalPath, {reinterpret_cast<const char *>(original.data()),
+                               original.size()});
+      const LucaSystem::PakArchive source(originalPath);
+      std::ostringstream stream;
+      source.repack(stream, {{500, replacementPath}, {501, emptyPath}});
+      const auto output = stream.str();
+      writeFile(outputPath, output);
+      const LucaSystem::PakArchive reopened(outputPath);
+      const auto &entries = reopened.entries();
+      const auto &sourceEntries = source.entries();
+      check(reopened.named() == named && reopened.blockSize() == 8 &&
+                reopened.idStart() == 500 && entries.size() == 3 &&
+                entries[0].name == sourceEntries[0].name &&
+                entries[1].name == sourceEntries[1].name &&
+                entries[2].name == sourceEntries[2].name &&
+                static_cast<uint8_t>(output[16]) == 0xc4 &&
+                static_cast<uint8_t>(output[33]) == original[33] &&
+                reopened.findById(502) == &entries[2] &&
+                (!named || reopened.findByName("α") == &entries[0]),
+            std::string("PAK repack preserves metadata: ") + label);
+      check(reopened.read(entries[0]) ==
+                    std::vector<std::uint8_t>(payload.begin(), payload.end()) &&
+                reopened.read(entries[1]).empty() &&
+                reopened.read(entries[2]) == kept &&
+                entries[2].offset == entries[0].offset + 16 &&
+                source.read(sourceEntries[0]) == std::vector<std::uint8_t>{1},
+            std::string("PAK repack preserves exact entry bytes: ") + label);
+    }
+  }
+
+  {
+    // Reuse Kotonoha's checked-in synthetic Vorbis tone, not commercial data.
+    const auto testDir = std::filesystem::path(__FILE__).parent_path();
+    const auto games = testDir.parent_path().parent_path();
+    const auto tone = Kotonoha::Filesystem::readLocalFile(
+        games / "school-days/tests/fixtures/Voice/test.OGG");
+    const std::vector<std::uint8_t> first{'O', 'g', 'g', 'S', 1};
+    std::vector<std::uint8_t> bundle{'O', 'g', 'g', 'P', 'a', 'k', 0};
+    for (const auto *clip : {&first, &tone}) {
+      for (const auto value : {44100u, uint32_t(clip->size())}) {
+        const auto bytes = u32le(value);
+        bundle.insert(bundle.end(), bytes.begin(), bytes.end());
+      }
+      bundle.insert(bundle.end(), clip->begin(), clip->end());
+    }
+    auto truncated = bundle;
+    truncated.pop_back();
+    auto shortHeader = bundle;
+    shortHeader.push_back(0);
+    auto variant = bundle;
+    variant[0] = 'X'; // Both references treat the seven bytes as opaque.
+    auto badCapture = bundle;
+    badCapture[15] = 0;
+    const auto pak = buildPak(100, 4, 512,
+                              {{"bundle", bundle},
+                               {"raw", tone},
+                               {"truncated", truncated},
+                               {"short_header", shortHeader},
+                               {"variant", variant},
+                               {"bad_capture", badCapture}});
+    const auto dir = tempDir() / "oggpak";
+    const auto overlay = dir / "overlays";
+    std::filesystem::create_directories(overlay / "voice/100");
+    writeFile(dir / "VOICE0.PAK",
+              {reinterpret_cast<const char *>(pak.data()), pak.size()});
+    // Small PCM WAV replacement with a different sample rate from the Ogg.
+    const std::vector<std::uint8_t> wav = {
+        'R', 'I', 'F', 'F', 40,  0,  0, 0, 'W', 'A', 'V', 'E',
+        'f', 'm', 't', ' ', 16,  0,  0, 0, 1,   0,   1,   0,
+        64,  31,  0,   0,   128, 62, 0, 0, 2,   0,   16,  0,
+        'd', 'a', 't', 'a', 4,   0,  0, 0, 0,   1,   0,   2};
+    writeFile(overlay / "voice/100/1.ogg",
+              {reinterpret_cast<const char *>(wav.data()), wav.size()});
+    Kotonoha::Providers::LucaSystemAssets assets(dir, overlay);
+    check(assets.read("voice:100") == first &&
+              assets.read("voice:100:0") == first &&
+              assets.readVoiceAsset(100, 1) == tone &&
+              assets.read("voice:104:1") == tone,
+          "OggPak selects distinct clips and accepts variant headers");
+    check(assets.contains("voice:100:1") && !assets.contains("voice:100:2") &&
+              !assets.contains("voice:100:") &&
+              !assets.contains("voice:100x") &&
+              !assets.contains("voice:4294967396"),
+          "OggPak rejects invalid IDs and missing clip indices");
+    check(assets.read("voice:101") == tone && !assets.contains("voice:101:1"),
+          "Direct Ogg voice entries remain unchanged");
+    const auto rejects = [&assets](const char *id, std::string_view error) {
+      try {
+        (void)assets.read(id);
+        return false;
+      } catch (const std::runtime_error &e) {
+        return std::string_view(e.what()).find(error) != std::string_view::npos;
+      }
+    };
+    check(rejects("voice:102", "truncated clip payload") &&
+              rejects("voice:103", "truncated clip header") &&
+              rejects("voice:105", "invalid Ogg capture"),
+          "OggPak rejects truncated and invalid records even for clip zero");
+    const auto original = assets.loadOriginalAudio("voice:100:1");
+    const auto replacement = assets.loadAudio("voice:100:1");
+    check(!original.data.empty() && original.spec.freq == 44100 &&
+              !replacement.data.empty() && replacement.spec.freq == 8000,
+          "Kotonoha decodes OggPak audio and honors per-clip voice overlays");
+  }
+
+  {
+    constexpr size_t index = 8 + 2 * 3;
+    constexpr size_t metrics = index + 65536 * 2;
+    std::vector<std::uint8_t> info(metrics + 65536 * 2);
+    info[2] = 16;  // cell size
+    info[4] = 100; // legacy glyph count marker
+    info[6] = 2;   // glyph count
+    info[9] = 8;   // space draw width
+    info[11] = 255;
+    info[12] = 6;
+    info[13] = 254;
+    info[index + 2 * 'A'] = 1;
+    info[metrics + 2 * 'A' + 1] = 7;
+    const LucaSystem::BitmapFont font(info);
+    const auto glyph = font.glyph('A');
+    check(glyph && glyph->x == 16 && glyph->y == 0 && glyph->offsetX == -1 &&
+              glyph->offsetY == -2 && glyph->advance == 7 &&
+              font.glyph(' ')->advance == 8,
+          "Bitmap font maps legacy cells, signed offsets and advances");
+    check(font.fitsAtlas(32, 16) && !font.fitsAtlas(31, 16),
+          "Bitmap font validates atlas dimensions");
+    check(!font.forEachGlyph("A🙂", [](const auto &) {}),
+          "Bitmap font requests fallback for an unsupported character");
+    info.pop_back();
+    bool rejected = false;
+    try {
+      (void)LucaSystem::BitmapFont(info);
+    } catch (const std::runtime_error &) {
+      rejected = true;
+    }
+    check(rejected, "Bitmap font rejects truncated metrics");
+  }
+
+  // Two CZ2 blocks with independent dictionaries. The first mixes narrow and
+  // wide codes; the second starts with a different palette index.
+  {
+    constexpr size_t headerSize = 18;
+    constexpr size_t table = headerSize + 256 * 4;
+    std::vector<std::uint8_t> cz2(table, 0);
+    cz2[0] = 'C';
+    cz2[1] = 'Z';
+    cz2[2] = '2';
+    cz2[4] = headerSize;
+    cz2[8] = 4;  // width
+    cz2[10] = 1; // height
+    cz2[12] = 8; // indexed
+    cz2[headerSize + 4] = 10;
+    cz2[headerSize + 5] = 20;
+    cz2[headerSize + 6] = 30;
+    cz2[headerSize + 7] = 40;
+    cz2[headerSize + 11] = 100;
+    for (const auto value : {2u, 4u, 3u, 2u, 1u}) {
+      const auto field = u32le(value);
+      cz2.insert(cz2.end(), field.begin(), field.end());
+    }
+    // Narrow literal 1, wide code 257 (1,1) ending in implicit zero padding,
+    // then narrow literal 2 in a separate block.
+    cz2.insert(cz2.end(), {2, 0, 3, 2, 4, 0});
+    const auto decoded = LucaSystem::DecodeCzImage(cz2);
+    const std::vector<std::uint8_t> expected = {
+        30, 20, 10, 40, 30, 20, 10, 40, 30, 20, 10, 40, 0, 0, 0, 100};
+    check(decoded.rgba == expected,
+          "CZ2 decodes mixed-width blocks and BGRA palette");
+    const auto rejects = [](const auto &bytes) {
+      try {
+        (void)LucaSystem::DecodeCzImage(bytes);
+        return false;
+      } catch (const std::runtime_error &) {
+        return true;
+      }
+    };
+    cz2.pop_back();
+    check(rejects(cz2), "CZ2 rejects a truncated final block");
+    cz2.push_back(0);
+    cz2[table + 8] = 5;
+    check(rejects(cz2), "CZ2 rejects a block exceeding the image size");
+  }
 
   // ---- Synthetic PAK round-trip ----
   {
@@ -308,8 +713,7 @@ int main() {
       payload.insert(payload.end(), field.begin(), field.end());
     }
 
-    LucaSystem::Script varstr(
-        "_varstr", makeInstruction(29, 0, payload));
+    LucaSystem::Script varstr("_varstr", makeInstruction(29, 0, payload));
     check(varstr.valid() && varstr.instructionCount() == 1,
           "VARSTR_SET synthetic script parses");
     if (varstr.valid() && !varstr.instructions().empty()) {
@@ -320,13 +724,12 @@ int main() {
         check(entry->scenario == "seen999",
               "VARSTR_SET reads NUL-terminated scenario name");
         check(entry->id == 202, "VARSTR_SET reads string id");
-        check(entry->text == "EN",
-              "VARSTR_SET prefers English translation");
+        check(entry->text == "EN", "VARSTR_SET prefers English translation");
       }
 
       size_t cursor = 2;
-      check(LucaSystem::ReadLsCString(
-                varstr.instructions().front().paramBytes, cursor) == "seen999",
+      check(LucaSystem::ReadLsCString(varstr.instructions().front().paramBytes,
+                                      cursor) == "seen999",
             "ReadLsCString consumes the NUL terminator");
       check(cursor == 2 + sizeof(scenario),
             "ReadLsCString advances past the terminator");
@@ -498,6 +901,54 @@ int main() {
                           ? std::filesystem::path(air).parent_path()
                           : std::filesystem::path(air);
     Kotonoha::Providers::LucaSystemAssets assets(root, {});
+    const LucaSystem::BitmapFont font(assets.read("info27"));
+    const auto dialogueAtlas = assets.loadSurface("ゴシック27");
+    const auto glyph = font.glyph(U'あ');
+    check(dialogueAtlas && font.fitsAtlas(dialogueAtlas->w, dialogueAtlas->h) &&
+              glyph && glyph->advance == 27,
+          "AIR dialogue font loads original atlas and Japanese glyph metrics");
+    check(font.forEachGlyph("A é あ", [](const auto &) {}),
+          "AIR dialogue bitmap font covers Latin and Japanese");
+    {
+      Kotonoha::SurfacePtr target(
+          SDL_CreateSurface(40, 40, SDL_PIXELFORMAT_RGBA32));
+      Kotonoha::RendererPtr renderer(
+          target ? SDL_CreateSoftwareRenderer(target.get()) : nullptr);
+      bool ink = false;
+      bool background = false;
+      if (renderer) {
+        SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 255);
+        SDL_RenderClear(renderer.get());
+        auto &texture = assets.texture(*renderer, "ゴシック27");
+        font.render(*renderer, texture, "あ", 4, 4, {255, 255, 255, 255});
+        SDL_RenderPresent(renderer.get());
+        for (int y = 4; y < 32; ++y) {
+          for (int x = 4; x < 32; ++x) {
+            Uint8 r = 0;
+            if (SDL_ReadSurfacePixel(target.get(), x, y, &r, nullptr, nullptr,
+                                     nullptr)) {
+              ink |= r > 128;
+              background |= r == 0;
+            }
+          }
+        }
+        assets.clearCache();
+      }
+      check(ink && background,
+            "AIR dialogue font renders glyph through cached SDL texture");
+    }
+    const auto atlasBytes = assets.read("ZCゴシック16");
+    check(atlasBytes.size() >= 3 && atlasBytes[2] == '2',
+          "AIR font atlas resolves to a retail CZ2 asset");
+    const auto atlas = LucaSystem::DecodeCzImage(atlasBytes);
+    bool transparent = false;
+    bool opaque = false;
+    for (size_t i = 3; i < atlas.rgba.size(); i += 4) {
+      transparent |= atlas.rgba[i] == 0;
+      opaque |= atlas.rgba[i] == 255;
+    }
+    check(transparent && opaque,
+          "AIR CZ2 font atlas preserves transparent and opaque pixels");
     check(assets.containsAsset("seen163"),
           "AIR root path resolves files/SCRIPT.PAK");
     check(assets.containsAsset("CANCEL"),

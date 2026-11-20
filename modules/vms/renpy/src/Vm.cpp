@@ -818,6 +818,7 @@ void Vm::init(const std::string &persistentText) {
       Value::str(userDirectory.empty() ? base : userDirectory.generic_string());
   c["gamedir"] = Value::str(dir.generic_string());
   c["images_directory"] = Value::str("images");
+  c["overlay_functions"] = makeList();
   c["developer"] = Value::boolean(false);
   c["allow_skipping"] = Value::boolean(true);
   c["skipping"] = Value::boolean(false);
@@ -1005,6 +1006,11 @@ void VmNatives::install(Vm &vm) {
   py.def("seen_scene",
          [](Interp &, Args &, Kwargs &) { return Value::boolean(false); });
   py.def("notextmode", [](Interp &, Args &, Kwargs &) { return Value(); });
+  py.def("nvl_clear", [v](Interp &, Args &, Kwargs &) {
+    v->scene.window.what.clear();
+    v->scene.window.rich = {};
+    return Value();
+  });
   py.def("scene_register", [](Interp &, Args &, Kwargs &) { return Value(); });
   py.def("wdt_off", [](Interp &, Args &, Kwargs &) { return Value(); });
   py.def("wdt_on", [](Interp &, Args &, Kwargs &) { return Value(); });
@@ -1445,6 +1451,13 @@ void VmNatives::install(Vm &vm) {
   Value context = Interp::nameSpace("context");
   def(renpy, "context",
       [context](Interp &, Args &, Kwargs &) { return context; });
+  Value statements = sub(renpy, "statements");
+  def(statements, "register", [](Interp &, Args &, Kwargs &) {
+    return Value();
+  });
+  def(renpy, "atl_warper", [](Interp &, Args &a, Kwargs &) {
+    return a.empty() ? Value() : a[0];
+  });
 
   auto audioSpecs = [](const Value &f) -> std::vector<std::string> {
     std::vector<std::string> out;
@@ -2110,6 +2123,17 @@ void Vm::execUser(const std::string &line) {
   if (t.empty())
     return;
   const std::string &verb = t[0];
+  if ((verb == "jump_in" || verb == "jump_out") && t.size() >= 2) {
+    Value parsed = makeDict();
+    const bool expression = t[1] == "expression";
+    const std::string label = expression && t.size() >= 3 ? t[2] : t[1];
+    py.setItem(parsed, Value::str("label"), Value::str(label));
+    py.setItem(parsed, Value::str("is_expr"), Value::boolean(expression));
+    py.call(py.lookup(verb == "jump_in" ? "execute_jump_in"
+                                         : "execute_jump_out"),
+            {parsed});
+    return;
+  }
   auto audioNames = [&](const std::string &tok) -> std::vector<std::string> {
     if (!tok.empty() &&
         (std::isalpha((unsigned char)tok[0]) || tok[0] == '_') &&

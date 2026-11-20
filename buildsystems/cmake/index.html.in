@@ -398,6 +398,83 @@
                 kotonohaLocalUrls.set(key, URL.createObjectURL(file));
             return kotonohaLocalUrls.get(key);
         }
+        // Decoded RGBA pixels cross back into the managed SDL surface. A
+        // failed browser decode returns zero and lets the C++ decoder try.
+        const decodedImages = new Map();
+        let nextDecodedImage = 0;
+        window.KotonohaDecodeImage = async function(bytes) {
+            if (!window.createImageBitmap || !bytes || !bytes.length) return 0;
+            try {
+                const bitmap = await createImageBitmap(new Blob([bytes]));
+                if (!bitmap.width || !bitmap.height ||
+                    bitmap.width > 16384 || bitmap.height > 16384) {
+                    bitmap.close();
+                    return 0;
+                }
+                const canvas = document.createElement("canvas");
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                const context = canvas.getContext("2d", {willReadFrequently: true});
+                if (!context) { bitmap.close(); return 0; }
+                context.drawImage(bitmap, 0, 0);
+                bitmap.close();
+                const pixels = context.getImageData(0, 0, canvas.width,
+                                                    canvas.height).data;
+                const token = ++nextDecodedImage;
+                decodedImages.set(token, {width: canvas.width,
+                                          height: canvas.height, pixels});
+                return token;
+            } catch (error) { return 0; }
+        };
+        window.KotonohaImageWidth = token => decodedImages.get(token)?.width || 0;
+        window.KotonohaImageHeight = token => decodedImages.get(token)?.height || 0;
+        window.KotonohaCopyImage = function(token, pointer, pitch) {
+            const image = decodedImages.get(token);
+            if (!image || pitch < image.width * 4) return 0;
+            for (let y = 0; y < image.height; ++y)
+                Module.HEAPU8.set(image.pixels.subarray(y * image.width * 4,
+                    (y + 1) * image.width * 4), pointer + y * pitch);
+            return 1;
+        };
+        window.KotonohaReleaseImage = token => decodedImages.delete(token);
+        const decodedAudio = new Map();
+        let nextDecodedAudio = 0;
+        window.KotonohaDecodeAudio = async function(bytes) {
+            if (!bytes || !bytes.length) return 0;
+            const AudioContextType = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextType) return 0;
+            let context;
+            try {
+                context = new AudioContextType();
+                const buffer = await context.decodeAudioData(bytes.buffer);
+                if (!buffer.length || !buffer.numberOfChannels ||
+                    buffer.numberOfChannels > 8 ||
+                    buffer.length * buffer.numberOfChannels * 4 > 1073741824)
+                    return 0;
+                const token = ++nextDecodedAudio;
+                decodedAudio.set(token, buffer);
+                return token;
+            } catch (error) { return 0; }
+            finally { if (context) context.close().catch(function() {}); }
+        };
+        window.KotonohaAudioChannels = token =>
+            decodedAudio.get(token)?.numberOfChannels || 0;
+        window.KotonohaAudioRate = token => decodedAudio.get(token)?.sampleRate || 0;
+        window.KotonohaAudioFrames = token => decodedAudio.get(token)?.length || 0;
+        window.KotonohaCopyAudio = function(token, pointer) {
+            const buffer = decodedAudio.get(token);
+            if (!buffer) return 0;
+            const channels = Array.from({length: buffer.numberOfChannels},
+                (_, index) => buffer.getChannelData(index));
+            const samples = new Float32Array(Module.HEAPU8.buffer, pointer,
+                buffer.length * channels.length);
+            for (let frame = 0; frame < buffer.length; ++frame)
+                for (let channel = 0; channel < channels.length; ++channel)
+                    samples[frame * channels.length + channel] =
+                        channels[channel][frame];
+            return 1;
+        };
+        window.KotonohaReleaseAudio = token => decodedAudio.delete(token);
         window.addEventListener("pagehide", function() {
             for (const url of kotonohaLocalUrls.values()) URL.revokeObjectURL(url);
             kotonohaLocalUrls.clear();
@@ -418,6 +495,10 @@
             let ready = false;
             let failed = false;
             let desiredPaused = true;
+            let userPaused = false;
+            let lastVideoProgress = performance.now();
+            let lastVideoTime = 0;
+            let videoLoadStarted = 0;
             let desiredRate = 1;
             let layoutKey = "";
             let lastLayoutCheck = 0;
@@ -524,6 +605,10 @@
                 session++;
                 resetElement();
                 desiredPaused = true;
+                userPaused = false;
+                lastVideoProgress = performance.now();
+                lastVideoTime = 0;
+                videoLoadStarted = 0;
                 desiredRate = 1;
             }
 
@@ -532,6 +617,10 @@
                 const promise = video.play();
                 if (!promise || !promise.catch) return;
                 promise.catch(function(error) {
+                    if (error && error.name === "NotSupportedError") {
+                        failed = true;
+                        return;
+                    }
                     console.warn("[Kotonoha] HTML5 video play blocked:", error);
                     if (!video.muted) {
                         video.muted = true;
@@ -550,6 +639,8 @@
 
             video.addEventListener("loadeddata", function() {
                 ready = true;
+                lastVideoProgress = performance.now();
+                lastVideoTime = video.currentTime || 0;
                 tryPlay();
             });
             video.addEventListener("error", function() {
@@ -557,6 +648,12 @@
                 console.error("[Kotonoha] HTML5 video error:",
                               video.error ? video.error.message : "unknown");
             });
+            for (const event of ["playing", "pause", "ended"])
+                video.addEventListener(event, function() {
+                    if (navigator.mediaSession && mode !== "none")
+                        navigator.mediaSession.playbackState =
+                            event === "playing" ? "playing" : "paused";
+                });
 
             // Keep media bytes in MEMFS. The browser may report a supported
             // MIME type and still fail to decode the actual stream; FFmpeg
@@ -577,6 +674,7 @@
                 video.loop = !!loop;
                 video.src = kotonohaAssetUrl(path);
                 video.load();
+                videoLoadStarted = performance.now();
                 ready = false;
                 layoutVideo(true);
                 return session;
@@ -607,6 +705,7 @@
                 blobUrl = URL.createObjectURL(blob);
                 video.src = blobUrl;
                 video.load();
+                videoLoadStarted = performance.now();
                 ready = false;
                 layoutVideo(true);
                 return session;
@@ -632,6 +731,7 @@
                 blobUrl = URL.createObjectURL(blob);
                 video.src = blobUrl;
                 video.load();
+                videoLoadStarted = performance.now();
                 ready = false;
                 return true;
             };
@@ -641,6 +741,7 @@
             window.KotonohaVideoSetPaused = function(id, paused) {
                 if (id !== session) return;
                 desiredPaused = !!paused;
+                if (!desiredPaused) userPaused = false;
                 if (desiredPaused) {
                     try { video.pause(); } catch (error) {}
                 } else {
@@ -694,6 +795,46 @@
             // Audio sessions are independent: a game may play music, voice
             // and effects at the same time. Video keeps its canvas overlay.
             const audioSessions = new Map();
+            // The browser/OS owns the media controls. Expose play and pause
+            // only; unregistered seek actions should not appear in its UI.
+            if (navigator.mediaSession) {
+                const currentMedia = function() {
+                    if (mode !== "none" && ready && !video.ended) return video;
+                    const sessions = [...audioSessions.values()].reverse();
+                    return (sessions.find(state => state.ready &&
+                            !state.element.ended && !state.element.paused) ||
+                        sessions.find(state => state.ready &&
+                            !state.element.ended))?.element || null;
+                };
+                const setUserPaused = function(element, paused) {
+                    if (element === video) userPaused = paused;
+                    else for (const state of audioSessions.values())
+                        if (state.element === element) state.userPaused = paused;
+                };
+                navigator.mediaSession.setActionHandler("pause", function() {
+                    const element = currentMedia();
+                    if (element) {
+                        setUserPaused(element, true);
+                        element.pause();
+                        navigator.mediaSession.playbackState = "paused";
+                    }
+                });
+                navigator.mediaSession.setActionHandler("play", function() {
+                    const element = currentMedia();
+                    if (element) {
+                        setUserPaused(element, false);
+                        element.play().catch(function() {});
+                        navigator.mediaSession.playbackState = "playing";
+                    }
+                });
+                for (const action of ["seekto", "seekbackward", "seekforward",
+                                      "previoustrack", "nexttrack", "skipad"])
+                    try { navigator.mediaSession.setActionHandler(action,
+                        null); } catch (error) {}
+                if (window.MediaMetadata)
+                    navigator.mediaSession.metadata =
+                        new MediaMetadata({title: "@APP_TITLE@"});
+            }
             let nextAudioSession = 1000000;
             function audioSession(mimeType) {
                 const id = ++nextAudioSession;
@@ -701,7 +842,9 @@
                 element.preload = "auto";
                 const state = { element, mimeType, ready: false, failed: false,
                                 paused: true, rate: 1, gain: 1, chunks: null,
-                                blobUrl: null, unlock: null };
+                                blobUrl: null, unlock: null, userPaused: false,
+                                lastProgress: performance.now(), lastTime: 0,
+                                loadStarted: 0 };
                 const tryPlay = function() {
                     if (state.paused || !state.ready || state.failed) return;
                     const promise = element.play();
@@ -724,6 +867,8 @@
                 state.tryPlay = tryPlay;
                 element.addEventListener("loadeddata", function() {
                     state.ready = true;
+                    state.lastProgress = performance.now();
+                    state.lastTime = element.currentTime || 0;
                     tryPlay();
                 });
                 element.addEventListener("error", function() {
@@ -731,6 +876,13 @@
                     console.error("[Kotonoha] HTML5 audio error:",
                                   element.error ? element.error.message : "unknown");
                 });
+                for (const event of ["playing", "pause", "ended"])
+                    element.addEventListener(event, function() {
+                        if (navigator.mediaSession &&
+                            (mode === "none" || video.paused))
+                            navigator.mediaSession.playbackState =
+                                event === "playing" ? "playing" : "paused";
+                    });
                 audioSessions.set(id, state);
                 return id;
             }
@@ -752,6 +904,7 @@
                     new Blob(parts, { type: state.mimeType }));
                 state.element.src = state.blobUrl;
                 state.element.load();
+                state.loadStarted = performance.now();
             }
             window.KotonohaMediaCanPlay = function(type) {
                 if (!type) return false;
@@ -767,6 +920,7 @@
                 const state = audioSessions.get(id);
                 state.element.src = kotonohaAssetUrl(path);
                 state.element.load();
+                state.loadStarted = performance.now();
                 return id;
             };
             window.KotonohaMediaBeginBlob = function(bytes, type, audioOnly) {
@@ -807,6 +961,7 @@
                 const state = audioSessions.get(id);
                 if (!state) return window.KotonohaVideoSetPaused(id, paused);
                 state.paused = !!paused;
+                if (!state.paused) state.userPaused = false;
                 if (state.paused) state.element.pause();
                 else state.tryPlay();
             };
@@ -856,7 +1011,36 @@
             };
             window.KotonohaMediaFailed = function(id) {
                 const state = audioSessions.get(id);
-                return state ? (state.failed ? 1 : 0) : window.KotonohaVideoFailed(id);
+                if (state) {
+                    if (state.failed) return 1;
+                    if (!state.ready)
+                        return state.loadStarted && !state.paused &&
+                            performance.now() - state.loadStarted > 15000 ? 1 : 0;
+                    if (state.paused || state.userPaused ||
+                        state.element.ended) return 0;
+                    const time = state.element.currentTime;
+                    if (!state.element.paused && !state.element.seeking &&
+                        state.element.readyState >= 3 &&
+                        time > state.lastTime + 0.01) {
+                        state.lastTime = time;
+                        state.lastProgress = performance.now();
+                    }
+                    return performance.now() - state.lastProgress > 5000 ? 1 : 0;
+                }
+                if (window.KotonohaVideoFailed(id)) return 1;
+                if (id !== session) return 0;
+                if (!ready)
+                    return videoLoadStarted && !desiredPaused &&
+                        performance.now() - videoLoadStarted > 15000 ? 1 : 0;
+                if (desiredPaused || userPaused ||
+                    video.ended) return 0;
+                const time = video.currentTime;
+                if (!video.paused && !video.seeking &&
+                    video.readyState >= 3 && time > lastVideoTime + 0.01) {
+                    lastVideoTime = time;
+                    lastVideoProgress = performance.now();
+                }
+                return performance.now() - lastVideoProgress > 5000 ? 1 : 0;
             };
 
             // Report only unexpected browser pauses. Deliberate pauses from

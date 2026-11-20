@@ -22,12 +22,13 @@
 //   file names, one per entry, in order.
 //   File data lives at offset * blockSize.
 
-#include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/core/AssetProvider.hpp>
 #include <memory>
 
 #include <cstdint>
 #include <filesystem>
+#include <iosfwd>
 #include <map>
 #include <string>
 #include <vector>
@@ -66,6 +67,12 @@ public:
   // Read an entry's complete contents.
   std::vector<std::uint8_t> read(const PakEntry &entry) const;
   std::vector<std::uint8_t> read(std::string_view name) const;
+
+  // Rebuild an archive without changing its entries, names or IDs. Keys in
+  // replacements are numeric entry IDs; payloads are streamed from disk.
+  void repack(
+      std::ostream &output,
+      const std::map<uint32_t, std::filesystem::path> &replacements = {}) const;
 
 private:
   struct Header {
@@ -114,7 +121,10 @@ public:
   Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &id) const override;
   std::vector<std::uint8_t> readAsset(uint32_t id) const;
   std::vector<std::uint8_t> readImageAsset(uint32_t id) const;
-  std::vector<std::uint8_t> readVoiceAsset(uint32_t id) const;
+  // Voice entries can be direct audio or OggPak bundles. The first clip is
+  // also available as voice:<id>; select a clip with voice:<id>:<index>.
+  std::vector<std::uint8_t> readVoiceAsset(uint32_t id,
+                                           uint32_t clipIndex = 0) const;
   std::vector<std::uint8_t> readBgmAsset(uint32_t id) const;
   std::vector<std::uint8_t> readSeAsset(uint32_t id) const;
   bool hasVoiceAsset(uint32_t id) const;
@@ -129,6 +139,9 @@ public:
   const PakArchive *scriptPak() const { return scriptPak_.get(); }
   const PakArchive *paramPak() const { return paramPak_.get(); }
   const PakArchive *syssePak() const { return syssePak_.get(); }
+
+protected:
+  std::string overlayId(const std::string &id) const override;
 
 private:
   std::filesystem::path directory_;
