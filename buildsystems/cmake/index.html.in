@@ -858,6 +858,22 @@
                 const state = audioSessions.get(id);
                 return state ? (state.failed ? 1 : 0) : window.KotonohaVideoFailed(id);
             };
+
+            // Report only unexpected browser pauses. Deliberate pauses from
+            // MediaPlayer::setPaused(), startup/loading, ended streams and
+            // failed sessions must not freeze the game. This also covers
+            // browser media controls and autoplay restrictions.
+            window.KotonohaMediaPlaybackBlocked = function() {
+                if (mode !== "none" && ready && !failed &&
+                    !desiredPaused && !video.ended && video.paused)
+                    return true;
+                for (const state of audioSessions.values()) {
+                    if (state.ready && !state.failed && !state.paused &&
+                        !state.element.ended && state.element.paused)
+                        return true;
+                }
+                return false;
+            };
             window.KotonohaMediaVideoWidth = function(id) {
                 return id === session && ready && !failed ? video.videoWidth : 0;
             };
