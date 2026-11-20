@@ -226,6 +226,11 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     if (app->options.persistSettings && app->options.settingsPath.empty())
       app->options.settingsPath = Kotonoha::EngineSettings::defaultPath();
 
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    // iOS always starts in its Documents/games hub, never via a stale
+    // desktop --library path or a noninteractive direct-game invocation.
+    app->options.launcher = true;
+#endif
     if (!app->options.launcher) {
       if (app->libraryPath.empty())
         throw std::runtime_error(
