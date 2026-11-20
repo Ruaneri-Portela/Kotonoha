@@ -13,3 +13,10 @@ kotonoha_configure_app(KatawaShoujo
     BUNDLE_ID me.hirameki.kotonoha.katawashoujo GAME katawa-shoujo
     PYTHON_STDLIB "${KOTONOHA_RENPY_PYTHON_STDLIB}"
     PYTHON_VERSION "${KOTONOHA_RENPY_PYTHON_VERSION}")
+
+set(KATAWA_DATA_DIR "" CACHE PATH "Katawa Shoujo retail game directory")
+if(BUILD_TESTING AND KATAWA_DATA_DIR AND NOT ANDROID)
+    add_executable(KatawaIdentityTest tests/KatawaIdentityTest.cpp)
+    target_link_libraries(KatawaIdentityTest PRIVATE doki_doki_literature_club)
+    add_test(NAME Katawa.Identity COMMAND KatawaIdentityTest "${KATAWA_DATA_DIR}")
+endif()
