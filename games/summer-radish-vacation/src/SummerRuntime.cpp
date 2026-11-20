@@ -1028,15 +1028,22 @@ struct SummerRuntime::Impl {
   }
   void applyMeoFrame(const Node &frame) {
     std::string speaker = meoRawSpeaker;
-    std::string dialogue;
+    std::string dialogue, originalDialogue;
+    std::vector<std::string> originalLines;
     bool hasDialogue = false;
     if (!frame.children.empty()) {
       for (const auto &child : frame.children) {
         if (child.tag == "Text") {
           const auto mess = meoText.find(child.attr("MESS"));
-          if (hasDialogue)
+          if (hasDialogue) {
             dialogue += '\n';
-          dialogue += mess != meoText.end() ? mess->second : child.attr("MESS");
+            originalDialogue += '\n';
+          }
+          const auto original =
+              mess != meoText.end() ? mess->second : child.attr("MESS");
+          originalDialogue += original;
+          dialogue += translated(original);
+          originalLines.push_back(original);
           hasDialogue = true;
         } else if (child.tag == "Log") {
           const auto nameNo = child.attr("NAME");
@@ -1069,14 +1076,15 @@ struct SummerRuntime::Impl {
     if (hasDialogue) {
       meoRawSpeaker = speaker;
       currentRawSpeaker = speaker;
-      currentRawDialogue = dialogue;
+      currentRawDialogue = originalDialogue;
       currentVoiceId.clear();
       activeOriginalKeys.clear();
       if (!speaker.empty())
         activeOriginalKeys.push_back(speaker);
-      if (!dialogue.empty())
-        activeOriginalKeys.push_back(dialogue);
-      text->setDialogue(translated(speaker), translated(dialogue));
+      for (const auto &line : originalLines)
+        if (!line.empty())
+          activeOriginalKeys.push_back(line);
+      text->setDialogue(translated(speaker), dialogue);
       text->show();
     }
   }
@@ -2660,7 +2668,24 @@ std::vector<DebugNode> SummerRuntime::debugNodes() const {
   if (impl->meo) {
     for (const auto &[id, bytes] : impl->meoScripts) {
       const auto name = std::filesystem::path(id).filename().string();
-      nodes.push_back({name, name, {id}});
+      std::vector<std::string> references{id};
+      if (name == impl->meoCurrentScript) {
+        for (const auto &frame : impl->meoFrames)
+          for (const auto &child : frame.children)
+            for (const auto &object : child.children) {
+              auto file = object.attr("FILE");
+              if (file.empty())
+                continue;
+              const auto slash = file.find('/');
+              if (slash != std::string::npos)
+                file = file.substr(slash + 1);
+              const auto logical = "GRAPHIC/" + file;
+              if (std::find(references.begin(), references.end(), logical) ==
+                  references.end())
+                references.push_back(logical);
+            }
+      }
+      nodes.push_back({name, name, std::move(references)});
     }
     return nodes;
   }
@@ -2676,7 +2701,10 @@ void SummerRuntime::debugJumpToNode(const std::string &node) {
     impl->movie->stop();
   if (!impl->engine)
     throw std::runtime_error("Runtime has not started");
-  impl->begin(node);
+  if (impl->meo)
+    impl->beginMeo(node);
+  else
+    impl->begin(node);
   SetState(GameState::Gameplay);
   for (auto *scene : GetScenes(GameState::Menu)) {
     const auto &gameplay = GetScenes(GameState::Gameplay);
