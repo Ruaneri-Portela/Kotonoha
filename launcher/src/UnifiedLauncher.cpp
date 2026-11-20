@@ -226,7 +226,7 @@ EngineLibraryRegistry::EngineLibraryRegistry() {
                    {}});
   registerLibrary({EngineKind::SummerRadish,
                    "meo",
-                   "Miss Each Other (Overflow CMP)",
+                   "Miss Each Other",
                    "summer_radish_vacation",
                    "MEO",
                    "--meo",
