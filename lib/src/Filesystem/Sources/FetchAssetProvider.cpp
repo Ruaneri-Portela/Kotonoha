@@ -721,8 +721,7 @@ void FetchAssetProvider::pump() {
   // Retain emscripten_fetch below as a compatibility fallback for old shells.
   if (EM_ASM_INT({
         return window.KotonohaAssetCache &&
-                   typeof window.KotonohaAssetCache.fetchJob ==
-               = "function" ? 1 : 0;
+                   typeof window.KotonohaAssetCache.fetchJob === "function" ? 1 : 0;
       })) {
     while (active_ < 4 && !queued_.empty()) {
       auto job = std::move(queued_.front());
