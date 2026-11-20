@@ -79,6 +79,33 @@ def errors():
                     r'"(me\.hirameki\.kotonoha\.[^"]+)"', source_text
                 )
             )
+        # Shared runtime libraries may receive an identity through a
+        # constructor argument (MEO) or select it from game assets (Katawa).
+        # In those cases check the actual wiring instead of requiring a
+        # literal package ID inside a per-port Runtime.cpp.
+        if not runtime_ids and bundle:
+            expected = bundle.group(1)
+            if slug == "summer-radish-vacation":
+                header = (root / "src/SummerRuntime.hpp").read_text(
+                    encoding="utf-8"
+                )
+                if (expected in header and "runtime(assets)" in source:
+                    runtime_ids.append(expected)
+            elif slug == "meo":
+                shared = (ROOT / "games/summer-radish-vacation/src/SummerRuntime.cpp").read_text(
+                    encoding="utf-8"
+                )
+                if (re.search(
+                    r'runtime\\(assets,\\s*"Miss Each Other",\\s*"' +
+                    re.escape(expected) + r'"\\)', source
+                ) and 'Runtime(std::move(name), "0.1.0", std::move(appId))' in shared):
+                    runtime_ids.append(expected)
+            elif slug == "katawa-shoujo":
+                shared = (ROOT / "games/doki-doki-literature-club/src/DdlcRuntime.cpp").read_text(
+                    encoding="utf-8"
+                )
+                if (expected in shared and '"Katawa Shoujo"' in shared and                         "Ddlc::GameRuntime game" in source:
+                    runtime_ids.append(expected)
         if not runtime_ids:
             issues.append(f"{slug}: runtime bundle identity was not found")
         for runtime_id in runtime_ids:
