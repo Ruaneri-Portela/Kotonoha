@@ -647,6 +647,55 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
     previewError.clear();
   if (ImGui::Button("Open as text (read-only)"))
     openAssetTextViewer(assetPath);
+  ImGui::Checkbox("Dump untouched original (ignore overlays)",
+                  &dumpOriginalAsset);
+  if (ImGui::Button("Dump raw asset to Documents")) {
+    try {
+      const std::string requested = assetPath;
+      const auto safeId = AssetOverlay::key(requested);
+      if (safeId.empty() || safeId.back() == '/')
+        throw std::invalid_argument("Choose a valid relative asset ID");
+
+      // Never export into the active asset overlay, and never let a virtual
+      // archive ID select an arbitrary filesystem destination.
+      const auto dumpRoot =
+          documentsDirectory(engine.GetRuntime().identify) / "asset-dumps";
+      const auto destinationRoot = dumpRoot /
+          (dumpOriginalAsset ? "original" : "effective");
+      const auto requestedPath = destinationRoot / std::filesystem::path(safeId);
+      std::filesystem::create_directories(requestedPath.parent_path());
+      const auto canonicalRoot = std::filesystem::canonical(destinationRoot);
+      const auto canonicalParent =
+          std::filesystem::canonical(requestedPath.parent_path());
+      const auto relativeParent =
+          canonicalParent.lexically_relative(canonicalRoot);
+      if (relativeParent.empty() ||
+          *relativeParent.begin() == "..")
+        throw std::runtime_error("Asset dump destination escapes Documents");
+
+      auto output = requestedPath;
+      for (unsigned copy = 1; std::filesystem::exists(output); ++copy) {
+        if (copy > 9999)
+          throw std::runtime_error("Too many dumps of this asset");
+        output = requestedPath.parent_path() /
+                 (requestedPath.stem().string() + "-" +
+                  std::to_string(copy) + requestedPath.extension().string());
+      }
+      const auto bytes = engine.GetAssets().dumpAsset(
+          requested, output,
+          dumpOriginalAsset ? AssetSource::Original : AssetSource::Effective);
+      assetDumpStatus = "Dumped " + std::to_string(bytes) + " raw bytes: " +
+                        output.string();
+      assetDumpError = false;
+    } catch (const std::exception &error) {
+      assetDumpStatus = error.what();
+      assetDumpError = true;
+      SDL_LogError(LogCore, "Asset dump: %s", error.what());
+    }
+  }
+  ImGui::TextDisabled("Raw bytes; no decoding or transcode. Existing dumps are preserved.");
+  if (!assetDumpStatus.empty())
+    ImGuiTheme::statusText(assetDumpStatus.c_str(), assetDumpError);
   ImGui::SameLine();
   ImGui::InputFloat("Frame position (seconds)", &previewSeconds, 1, 10, "%.2f");
   if (ImGui::Button("Preview picture / video frame")) {
