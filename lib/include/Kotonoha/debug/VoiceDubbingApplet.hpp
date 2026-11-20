@@ -22,6 +22,7 @@ class VoiceDubbingApplet {
   std::shared_ptr<FileDialog> dialog_;
   std::string selectedId_;
   std::string sceneNode_;
+  std::string sceneAudioMarker_;
   std::vector<DebugAudioAsset> sceneAudio_;
   std::string characterFilter_;
   char manualId_[1024]{};
