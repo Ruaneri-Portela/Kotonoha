@@ -28,6 +28,8 @@ set(_kotonoha_launcher_libraries
     "SNOW|snow_radish_vacation"
     "SUMMER|summer_radish_vacation"
     "DDLC|doki_doki_literature_club"
+    "KATAWA|doki_doki_literature_club"
+    "MEO|summer_radish_vacation"
     "SCHOOL_DAYS|school_days"
     "REALLIVE|reallive_port"
     "KIRIKIRI|kirikiri_formats"
@@ -68,8 +70,8 @@ if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES AND KOTONOHA_BUILD_DDLC
         BUNDLE_ID me.hirameki.kotonoha.launcher
         GAME launcher
         GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}"
-        PYTHON_STDLIB "${Python3_STDLIB}"
-        PYTHON_VERSION "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+        PYTHON_STDLIB "${KOTONOHA_RENPY_PYTHON_STDLIB}"
+        PYTHON_VERSION "${KOTONOHA_RENPY_PYTHON_VERSION}")
 else()
     kotonoha_configure_app(KotonohaLauncher
         BUNDLE_ID me.hirameki.kotonoha.launcher
