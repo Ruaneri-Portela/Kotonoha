@@ -68,8 +68,8 @@ if(KOTONOHA_BUILD_DDLC OR CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set_target_properties(DokiDoki PROPERTIES CXX_EXTENSIONS OFF)
     kotonoha_configure_app(DokiDoki
         BUNDLE_ID me.hirameki.kotonoha.dokidokiliteratureclub GAME doki-doki-literature-club
-        PYTHON_STDLIB "${Python3_STDLIB}"
-        PYTHON_VERSION "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+        PYTHON_STDLIB "${KOTONOHA_RENPY_PYTHON_STDLIB}"
+        PYTHON_VERSION "${KOTONOHA_RENPY_PYTHON_VERSION}")
 endif()
 
 if(BUILD_TESTING)
