@@ -184,7 +184,7 @@ void Runtime::update() {
       lastPredictiveNode_ = node;
       EM_ASM(
           {
-            if (typeof window.KotonohaSceneEntered == = "function")
+            if (typeof window.KotonohaSceneEntered === "function")
               window.KotonohaSceneEntered(UTF8ToString($0));
           },
           node.c_str());
