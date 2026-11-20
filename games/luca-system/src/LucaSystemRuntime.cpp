@@ -2,6 +2,7 @@
 // LucaSystem (Visual Art's / Key) runtime — 1:1 VM & presentation recovered via
 // clean-room REA + Rizin analysis of AIR.exe (.rdata opcode/chapter tables) and
 // exhaustive audit of all 31 .PAK archives.
+#include <LucaSystem/BitmapFont.hpp>
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/DialogueFlow.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
@@ -278,6 +279,9 @@ void parseSpeakerAndSanitizeText(const std::string &rawText,
 }
 
 class AirTextBox final : public Kotonoha::VNTextBox {
+  static constexpr const char *fontAtlasId_ = "ゴシック27";
+  Kotonoha::Providers::LucaSystemAssets &assets_;
+  std::optional<BitmapFont> font_;
   std::array<CzImage, 5> frames_;
   CzImage fallbackStrip_;
   CzImage cursor_;
@@ -285,6 +289,29 @@ class AirTextBox final : public Kotonoha::VNTextBox {
   Kotonoha::TexturePtr fallbackStripTexture_;
   Kotonoha::TexturePtr cursorTexture_;
   int windowType_ = 0;
+
+  std::optional<float> bitmapWidth(std::string_view text) const {
+    float width = 0;
+    if (font_ && font_->forEachGlyph(
+                     text, [&](const auto &glyph) { width += glyph.advance; }))
+      return width;
+    return std::nullopt;
+  }
+
+  SDL_Texture *bitmapTexture(Kotonoha::RendererRef renderer) {
+    try {
+      auto &atlas = assets_.texture(renderer, fontAtlasId_);
+      float w = 0, h = 0;
+      if (SDL_GetTextureSize(&atlas, &w, &h) && font_->fitsAtlas(w, h))
+        return &atlas;
+      font_.reset();
+    } catch (const std::exception &e) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "LucaSystem: dialogue font unavailable: %s", e.what());
+      font_.reset();
+    }
+    return nullptr;
+  }
 
   static CzImage tryReadCz(const Kotonoha::Providers::LucaSystemAssets &assets,
                            const char *name) {
@@ -352,23 +379,38 @@ protected:
   }
 
   void renderSpeaker(Kotonoha::RendererRef renderer) override {
-    if (!speakerName.empty())
-      engine.GetVNUI().text(renderer, speakerName, 210, 494, 850,
-                            SDL_Color{255, 238, 175, 255});
+    if (speakerName.empty())
+      return;
+    const SDL_Color color{255, 238, 175, 255};
+    if (const auto width = bitmapWidth(speakerName); width && *width <= 850) {
+      if (auto *atlas = bitmapTexture(renderer)) {
+        font_->render(renderer, *atlas, speakerName, 210, 494, color);
+        return;
+      }
+    }
+    engine.GetVNUI().text(renderer, speakerName, 210, 494, 850, color);
   }
 
   void renderDialogue(Kotonoha::RendererRef renderer) override {
     SDL_Rect clip{210, 532, 850, 150};
     SDL_SetRenderClipRect(&renderer, &clip);
-    auto measure = [this](const std::string &value) {
+    auto *atlas = bitmapWidth(fullDialogue) ? bitmapTexture(renderer) : nullptr;
+    auto measure = [this, atlas](const std::string &value) {
+      if (atlas) {
+        if (const auto width = bitmapWidth(value))
+          return *width;
+      }
       return engine.GetVNUI().textWidth(value);
     };
     const auto lines = Kotonoha::VNTextBoxUtility::RevealLines(
         fullDialogue, visibleDialogue.size(), measure, 850);
     float y = speakerName.empty() ? 534 : 540;
     for (const auto &line : lines) {
-      engine.GetVNUI().text(renderer, line, 210, y, 850,
-                            SDL_Color{255, 255, 255, 255});
+      const SDL_Color color{255, 255, 255, 255};
+      if (atlas)
+        font_->render(renderer, *atlas, line, 210, y, color);
+      else
+        engine.GetVNUI().text(renderer, line, 210, y, 850, color);
       y += 32;
     }
     SDL_SetRenderClipRect(&renderer, nullptr);
@@ -376,13 +418,22 @@ protected:
 
 public:
   AirTextBox(Kotonoha::Engine &engine,
-             const Kotonoha::Providers::LucaSystemAssets &assets)
-      : VNTextBox(engine, "", "", 30),
+             Kotonoha::Providers::LucaSystemAssets &assets)
+      : VNTextBox(engine, "", "", 30), assets_(assets),
         frames_{{tryReadCz(assets, "MWIN0"), tryReadCz(assets, "MWIN1"),
                  tryReadCz(assets, "MWIN2"), tryReadCz(assets, "MWIN3"),
                  tryReadCz(assets, "MWIN4")}},
         fallbackStrip_(tryReadCz(assets, "MWIN1280_0")),
-        cursor_(tryReadCz(assets, "MWIN_CURSOR")) {}
+        cursor_(tryReadCz(assets, "MWIN_CURSOR")) {
+    try {
+      if (assets.contains("info27") && assets.contains(fontAtlasId_))
+        font_.emplace(assets.read("info27"));
+    } catch (const std::exception &e) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "LucaSystem: dialogue font metrics unavailable: %s",
+                  e.what());
+    }
+  }
 };
 
 // Recursive-descent C-style expression evaluator for IFN / IFY / EQU

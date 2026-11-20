@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.16)
+project(KatawaShoujo VERSION 0.1.0 LANGUAGES CXX)
+
+if(NOT TARGET doki_doki_literature_club)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../doki-doki-literature-club"
+        "${CMAKE_CURRENT_BINARY_DIR}/renpy-shared")
+endif()
+
+kotonoha_add_app(KatawaShoujo src/main.cpp)
+target_link_libraries(KatawaShoujo PRIVATE doki_doki_literature_club)
+set_target_properties(KatawaShoujo PROPERTIES CXX_EXTENSIONS OFF)
+kotonoha_configure_app(KatawaShoujo
+    BUNDLE_ID me.hirameki.kotonoha.katawashoujo GAME katawa-shoujo
+    PYTHON_STDLIB "${Python3_STDLIB}"
+    PYTHON_VERSION "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")

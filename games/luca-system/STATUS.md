@@ -2,13 +2,18 @@
 
 **English (US)** | [Português (Brasil)](STATUS.pt-BR.md)
 
-**Implemented/tested scope:** Full 1:1 retail `AIR` (`AIR.exe` Steam) parity verified against all 31 `.PAK` archives and `files/movie/*.webm`:
+**Implemented/tested scope:** Retail `AIR` (`AIR.exe` Steam), with 31 mounted `.PAK` archives and `files/movie/*.webm`:
 - 140-entry opcode table (`index 135 = NULL`, `137 = SCENARIO`, `138 = HAIKEI_SET`) verified against `AIR.exe` `.rdata`.
 - Canonical chapter entrypoints (`seen170` DREAM New Game, `seen700` SUMMER, `seen163` AIR, `seen800` FIRST SKY) and Title Screen button hitboxes (`EXIT` at button 6, `SELECT STORY`, `MUSIC`).
-- Extended 36-byte CZ4 header (`cropX`, `cropY`, `anchorX`, `anchorY`), CZ1 RGBA palette order, CZ2 support, virtual solid layers (`65000` white / `65001` black), and resource-class disambiguation (`voice:<id>`, `bgm:<id>`, `se:<id>`) eliminating all 1,255 numeric ID collisions.
+- Extended 36-byte CZ4 header (`cropX`, `cropY`, `anchorX`, `anchorY`), CZ1 RGBA palette order, virtual solid layers (`65000` white / `65001` black), and resource-class disambiguation (`voice:<id>`, `bgm:<id>`, `se:<id>`) eliminating all 1,255 numeric ID collisions.
+- CZ2 decoding follows LuckSystem's variable-width LZW and BGRA palette, with block-local padding as in the Yoremi fork. The shared `VNTextBox` uses the original `info27` metrics and `ゴシック27` atlas for dialogue and speaker names. Runs with unsupported characters or an unavailable atlas fall back to the shared UI font.
+- The provider reads both direct Ogg voices and OggPak bundles. `voice:<id>` selects clip zero, and `voice:<id>:<index>` selects a zero-based clip. The native audio loader supports replacements at `voice/<id>/<index>.ogg` in the asset overlay.
 - Recursive-descent C-style expression evaluation (`IFN`, `IFY`, `EQU`), `EQUN` 4-byte immediate assignment, UTF-16LE `$d` `SELECT` choices writing `#6001`, `@Speaker@` / `$n` / `$[base$ruby$]` tag parsing, `MWIN0..4` window switching (`#6002`), persistent `global_system.kns` (`#12000..#19999`), and `SaveCodec` round-trip saves.
 
-**Limits:** Evidence comes from retail `AIR` and does not establish compatibility for uninspected LucaSystem releases.
+- `LucaPak` imports replacement payloads by name or ID and rebuilds named and numeric PAKs without changing the original archive.
+- `LucaPak patch-air` imports variable-length English `MESSAGE` text and relocates known local and cross-scenario jumps. Verified with a patched retail `SCRIPT.PAK` mounted through Kotonoha's asset overlay.
+
+**Limits:** Direct Ogg voices were verified with retail `AIR`; OggPak bundles were verified with synthetic data, not another retail title. Reference features still to port or verify include font patch/editing, script import beyond AIR English dialogue, and title-specific handlers outside `AIR`.
 
 The more detailed [PORT_STATUS.md](PORT_STATUS.md) and [docs/AIR_REA_2026_11_18.md](docs/AIR_REA_2026_11_18.md) contain original-game binary analysis and historical notes.
 

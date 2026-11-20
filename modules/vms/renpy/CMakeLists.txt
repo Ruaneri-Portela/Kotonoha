@@ -1,10 +1,15 @@
-# Ren'Py (DDLC) virtual machine. Reads Ddlc/Python.hpp and Ddlc/Script.hpp
-# from the DDLC format library and embeds Python; cxx_std_20.
+# Ren'Py virtual machine shared by DDLC and Katawa Shoujo.
 if(TARGET kotonoha_vm_renpy)
     return()
 endif()
 
-add_library(kotonoha_vm_renpy STATIC "${CMAKE_CURRENT_LIST_DIR}/src/Vm.cpp")
+if(KOTONOHA_USE_PYTHON_STUBS)
+    set(_renpy_python_source "${CMAKE_CURRENT_LIST_DIR}/src/PythonDummy.cpp")
+else()
+    set(_renpy_python_source "${CMAKE_CURRENT_LIST_DIR}/src/Python.cpp")
+endif()
+add_library(kotonoha_vm_renpy STATIC
+    "${CMAKE_CURRENT_LIST_DIR}/src/Vm.cpp" "${_renpy_python_source}")
 
 target_include_directories(kotonoha_vm_renpy PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 if(EMSCRIPTEN)

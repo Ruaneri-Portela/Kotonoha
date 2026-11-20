@@ -2,13 +2,18 @@
 
 [English (US)](STATUS.md) | **Português (Brasil)**
 
-**Escopo implementado/testado:** Paridade 1:1 completa verificada contra o `AIR` comercial (`AIR.exe` Steam), todos os 31 arquivos `.PAK` e `files/movie/*.webm`:
+**Escopo implementado/testado:** `AIR` comercial (`AIR.exe` Steam), com 31 arquivos `.PAK` montados e `files/movie/*.webm`:
 - Tabela de 140 opcodes (`índice 135 = NULL`, `137 = SCENARIO`, `138 = HAIKEI_SET`) verificada na seção `.rdata` de `AIR.exe`.
 - Pontos de entrada canônicos de capítulos (`seen170` DREAM Novo Jogo, `seen700` SUMMER, `seen163` AIR, `seen800` FIRST SKY) e botões da tela de título (`EXIT` no botão 6, `SELECT STORY`, `MUSIC`).
-- Cabeçalho estendido CZ4 de 36 bytes (`cropX`, `cropY`, `anchorX`, `anchorY`), paleta RGBA de CZ1, suporte a CZ2, camadas sólidas virtuais (`65000` branco / `65001` preto) e desambiguação por classe de recurso (`voice:<id>`, `bgm:<id>`, `se:<id>`), eliminando todas as 1.255 colisões de IDs numéricos.
+- Cabeçalho estendido CZ4 de 36 bytes (`cropX`, `cropY`, `anchorX`, `anchorY`), paleta RGBA de CZ1, camadas sólidas virtuais (`65000` branco / `65001` preto) e desambiguação por classe de recurso (`voice:<id>`, `bgm:<id>`, `se:<id>`), eliminando todas as 1.255 colisões de IDs numéricos.
+- A decodificação de CZ2 segue o LZW de largura variável e a paleta BGRA do LuckSystem, com preenchimento isolado por bloco, como no fork Yoremi. O `VNTextBox` compartilhado usa as métricas originais `info27` e o atlas `ゴシック27` para diálogos e nomes de personagens. Se algum caractere não tiver glifo ou o atlas estiver indisponível, o trecho inteiro usa a fonte da interface compartilhada.
+- O provedor lê vozes Ogg avulsas e pacotes OggPak. `voice:<id>` seleciona o clipe zero e `voice:<id>:<index>` seleciona um clipe por índice, a partir de zero. O carregador de áudio nativo aceita substituições em `voice/<id>/<index>.ogg` no overlay de recursos.
 - Avaliador recursivo de expressões estilo C (`IFN`, `IFY`, `EQU`), atribuição imediata de 4 bytes em `EQUN`, escolhas `SELECT` UTF-16LE separadas por `$d` gravando em `#6001`, sanitização de `@Speaker@` / `$n` / `$[base$ruby$]`, janelas `MWIN0..4` (`#6002`), persistência global em `global_system.kns` (`#12000..#19999`) e saves `SaveCodec`.
 
-**Limitações:** As evidências vêm do `AIR` comercial e não garantem suporte a lançamentos LucaSystem não auditados.
+- `LucaPak` importa substituições por nome ou ID e reempacota PAKs nomeados e numéricos sem alterar o arquivo original.
+- `LucaPak patch-air` importa texto inglês de tamanho variável em `MESSAGE` e ajusta os saltos conhecidos dentro de um cenário e entre cenários. Validado com um `SCRIPT.PAK` comercial modificado e montado pelo overlay de recursos do Kotonoha.
+
+**Limitações:** As vozes Ogg avulsas foram validadas com o `AIR` comercial; os pacotes OggPak foram validados com dados sintéticos, não com outro jogo comercial. Entre os recursos das referências que ainda precisam ser portados ou validados estão a edição e aplicação de patches de fontes, a importação de scripts além dos diálogos em inglês do AIR e os opcodes específicos de outros jogos.
 
 Os relatórios [PORT_STATUS.md](PORT_STATUS.md) e [docs/AIR_REA_2026_11_18.pt-BR.md](docs/AIR_REA_2026_11_18.pt-BR.md) contêm análises binárias detalhadas e notas históricas.
 

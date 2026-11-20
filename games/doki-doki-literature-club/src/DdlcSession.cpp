@@ -2189,6 +2189,10 @@ struct Game {
     phase = Phase::Splash;
     newVm();
     const bool katawa = assets->name().compare(0, 13, "Katawa Shoujo") == 0;
+    if (katawa) {
+      enterMenu();
+      return;
+    }
     replay.label = katawa ? "imachine" : "splashscreen";
     vm->start(replay.label);
     checkSplashTransition();
@@ -2204,6 +2208,8 @@ struct Game {
     host.savePersistent(persistentText);
     vm->scene = Scene{};
     vm->committed = Scene{};
+    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0)
+      return;
     const double pt = vm->py.getAttr(vm->persistent, "playthrough").num();
     std::vector<std::pair<const char *, std::string>> show = {
         {"mm_bg", "menu_bg"},
@@ -2832,6 +2838,22 @@ struct Game {
   }
 
   void drawMainMenu(SDL_Renderer *r) {
+    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0) {
+      drawImage(r, "presplash.png", 0, 0, kW, kH);
+      const bool ptBr = isPtBr();
+      if (subMenu == SubMenu::Load) {
+        drawSaveLoadMenu(r);
+      } else {
+        navigation(r, {{ptBr ? "Novo Jogo" : "New Game",
+                        [this] { startGame(); }},
+                       {ptBr ? "Carregar Jogo" : "Load Game",
+                        [this] { subMenu = SubMenu::Load; }},
+                       {ptBr ? "Opções" : "Settings",
+                        [this] { engine.openSettings(); }},
+                       {ptBr ? "Sair" : "Quit", [this] { quit = true; }}});
+      }
+      return;
+    }
     const double t = now();
     const auto &m = vm->scene.master;
     if (m.empty() && vm->assets.has("presplash.png"))

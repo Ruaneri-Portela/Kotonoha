@@ -18,6 +18,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -30,7 +31,9 @@ void require(bool cond, const std::string &msg) {
 void stepThroughScenario(LucaSystem::LucaSystemRuntime &rt, int maxSteps,
                          int choiceOption, bool &sawSpeaker, bool &sawVoice,
                          bool &sawBgm, bool &sawChoice,
-                         std::string &reachedNextScenario) {
+                         std::string &reachedNextScenario,
+                         std::string_view expectedLine = {},
+                         bool *sawExpectedLine = nullptr) {
   const std::string startScen = rt.currentScenarioName();
   for (int i = 0; i < maxSteps && rt.isRunning(); ++i) {
     if (rt.currentScenarioName() != startScen &&
@@ -57,6 +60,8 @@ void stepThroughScenario(LucaSystem::LucaSystemRuntime &rt, int maxSteps,
       continue;
     }
     if (rt.isDialogueVisible()) {
+      if (sawExpectedLine && rt.dialogueText() == expectedLine)
+        *sawExpectedLine = true;
       if (!rt.dialogueSpeaker().empty())
         sawSpeaker = true;
       if (rt.lastVoiceId() != 0)
@@ -99,8 +104,10 @@ int main(int argc, char **argv) {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
       throw std::runtime_error(SDL_GetError());
 
-    auto assets =
-        std::make_shared<Kotonoha::Providers::LucaSystemAssets>(airPath, "");
+    const std::string overlay = argc > 2 ? argv[2] : "";
+    const std::string_view expectedLine = argc > 3 ? argv[3] : "";
+    auto assets = std::make_shared<Kotonoha::Providers::LucaSystemAssets>(
+        airPath, overlay);
 
     // 1. Verify resource-class asset separation (no VOICE.PAK / BGCG.PAK ID
     // collision!) and virtual 65000/65001 solid fills + loose WebM movies.
@@ -112,6 +119,9 @@ int main(int argc, char **argv) {
       require(voice1.size() > 4 && voice1[0] == 'O' && voice1[1] == 'g' &&
                   voice1[2] == 'g' && voice1[3] == 'S',
               "Voice ID 1 resolves to Ogg Vorbis in VOICE.PAK");
+      const auto decodedVoice = assets->loadAudio("voice:1");
+      require(!decodedVoice.data.empty() && decodedVoice.spec.freq > 0,
+              "Kotonoha decodes original retail AIR voice");
       const auto bgm1 = assets->readBgmAsset(100001);
       require(bgm1.size() > 4 && bgm1[0] == 'O' && bgm1[1] == 'g',
               "BGM 100001 resolves to Ogg Vorbis in MUSIC.PAK");
@@ -186,9 +196,15 @@ int main(int argc, char **argv) {
             "Launch canonical DREAM New Game root seen170");
     bool sawSpeaker = false, sawVoice = false, sawBgm = false,
          sawChoice = false;
+    bool sawExpectedLine = false;
     std::string nextScenario;
     stepThroughScenario(runtime, 20000, 0, sawSpeaker, sawVoice, sawBgm,
-                        sawChoice, nextScenario);
+                        sawChoice, nextScenario, expectedLine,
+                        &sawExpectedLine);
+    if (!expectedLine.empty()) {
+      require(sawExpectedLine, "seen170 displayed the imported MESSAGE");
+      std::cout << "AIR overlay displayed the imported MESSAGE\n";
+    }
     require(sawSpeaker, "seen170 parsed @Speaker@ tags");
     require(sawVoice, "seen170 triggered voice IDs from MESSAGE");
     require(sawBgm, "seen170 triggered 32-bit MUSIC.PAK BGM IDs");

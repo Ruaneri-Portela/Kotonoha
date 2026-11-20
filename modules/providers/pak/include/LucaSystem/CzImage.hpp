@@ -25,4 +25,10 @@ struct CzImage {
 // LucaSystem / AIR.
 CzImage DecodeCzImage(const std::vector<std::uint8_t> &data);
 
+// Replace an alpha rectangle in an 8-bit CZ2 font atlas. Preserve the
+// original palette and block boundaries; only intersecting blocks are coded.
+std::vector<std::uint8_t>
+PatchCz2Alpha(const std::vector<std::uint8_t> &atlas, int x, int y, int width,
+              int height, const std::vector<std::uint8_t> &alpha);
+
 } // namespace LucaSystem

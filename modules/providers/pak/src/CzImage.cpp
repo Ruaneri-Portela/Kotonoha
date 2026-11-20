@@ -4,6 +4,7 @@
 #include <array>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 
 namespace LucaSystem {
 namespace {
@@ -26,29 +27,23 @@ std::uint32_t u32(const std::vector<std::uint8_t> &d, size_t p) {
 }
 
 // CZ2 uses a distinct LSB-first bitstream where each code is preceded by a
-// one-bit width flag (0 = 15 bits, 1 = 18 bits). This decoder follows
-// LuckSystem's czimage/decompressLZW2, including the two-byte zero padding
-// and the "stop after the stream is consumed" rule.
-std::vector<std::uint8_t>
-decodeLzw2(const std::vector<std::uint8_t> &data, size_t offset,
-           std::uint32_t compressedBytes, std::uint32_t expected) {
-  std::vector<std::uint8_t> padded(size_t(compressedBytes) + 2, 0);
-  if (offset + compressedBytes > data.size())
+// one-bit width flag (0 = 15 bits, 1 = 18 bits). Like the Yoremi fork,
+// treat padding as local to each block, never as part of the next block.
+std::vector<std::uint8_t> decodeLzw2(const std::vector<std::uint8_t> &data,
+                                     size_t offset,
+                                     std::uint32_t compressedBytes,
+                                     std::uint32_t expected) {
+  if (offset > data.size() || compressedBytes > data.size() - offset)
     throw std::runtime_error("CZ2: truncated compressed block");
-  std::copy(data.begin() + offset, data.begin() + offset + compressedBytes,
-            padded.begin());
+  const auto bitCount = std::uint64_t(compressedBytes) * 8;
+  std::uint64_t bitOffset = 0;
 
-  size_t byteOffset = 0;
-  int bitOffset = 0;
   const auto readBits = [&](int count) {
     std::uint32_t value = 0;
-    for (int i = 0; i < count; ++i) {
-      const auto bit =
-          std::uint32_t((padded[byteOffset] >> bitOffset) & 1u);
-      value |= bit << i;
-      if (++bitOffset == 8) {
-        bitOffset = 0;
-        ++byteOffset;
+    for (int i = 0; i < count; ++i, ++bitOffset) {
+      if (bitOffset < bitCount) {
+        const auto byte = data[offset + size_t(bitOffset / 8)];
+        value |= std::uint32_t((byte >> (bitOffset % 8)) & 1u) << i;
       }
     }
     return value;
@@ -60,13 +55,15 @@ decodeLzw2(const std::vector<std::uint8_t> &data, size_t offset,
   auto nextCode = std::uint32_t(256);
   auto previous = dictionary[0];
   std::vector<std::uint8_t> out;
-  out.reserve(expected);
 
-  while (true) {
+  while (out.size() < expected && bitOffset < bitCount) {
     const bool wide = readBits(1) != 0;
-    const auto element = readBits(wide ? 18 : 15);
-    if (byteOffset > compressedBytes)
+    const int width = wide ? 18 : 15;
+    // The reference accepts a code ending in the first zero-padding byte,
+    // but stops once the byte cursor passes it.
+    if ((bitOffset + width) / 8 > compressedBytes)
       break;
+    const auto element = readBits(width);
     std::vector<std::uint8_t> entry;
     if (element < dictionary.size() && !dictionary[element].empty()) {
       entry = dictionary[element];
@@ -84,14 +81,51 @@ decodeLzw2(const std::vector<std::uint8_t> &data, size_t offset,
       ++nextCode;
     }
     previous = std::move(entry);
-    if (out.size() >= expected)
-      break;
   }
 
   if (out.size() < expected)
     throw std::runtime_error("CZ2: short LZW block");
   out.resize(expected);
   return out;
+}
+
+std::vector<std::uint8_t> encodeLzw2(const std::vector<std::uint8_t> &pixels) {
+  std::vector<std::uint8_t> bytes;
+  if (pixels.empty())
+    return bytes;
+  std::uint32_t bits = 0;
+  unsigned count = 0;
+  const auto emit = [&](std::uint32_t code) {
+    const bool wide = code >= (1u << 15);
+    bits |= ((code << 1) | std::uint32_t(wide)) << count;
+    count += wide ? 19 : 16;
+    while (count >= 8) {
+      bytes.push_back(static_cast<std::uint8_t>(bits));
+      bits >>= 8;
+      count -= 8;
+    }
+  };
+  std::unordered_map<std::uint32_t, std::uint32_t> dictionary;
+  // The first decoder insertion (code 256, from the initial zero seed) is
+  // reserved. The first real prefix/suffix pair starts at 257.
+  std::uint32_t next = 257;
+  std::uint32_t prefix = pixels.front();
+  for (size_t i = 1; i < pixels.size(); ++i) {
+    const auto suffix = pixels[i];
+    const auto key = (prefix << 8) | suffix;
+    if (const auto it = dictionary.find(key); it != dictionary.end()) {
+      prefix = it->second;
+      continue;
+    }
+    emit(prefix);
+    if (next < (1u << 18))
+      dictionary.emplace(key, next++);
+    prefix = suffix;
+  }
+  emit(prefix);
+  if (count != 0)
+    bytes.push_back(static_cast<std::uint8_t>(bits));
+  return bytes;
 }
 
 std::vector<std::uint8_t> decodeLzw(const std::vector<std::uint8_t> &data,
@@ -137,6 +171,88 @@ std::vector<std::uint8_t> decodeLzw(const std::vector<std::uint8_t> &data,
 
 } // namespace
 
+std::vector<std::uint8_t>
+PatchCz2Alpha(const std::vector<std::uint8_t> &atlas, int x, int y, int width,
+              int height, const std::vector<std::uint8_t> &alpha) {
+  if (atlas.size() < 15 || atlas[0] != 'C' || atlas[1] != 'Z' ||
+      atlas[2] != '2' || u16(atlas, 12) != 8)
+    throw std::runtime_error("Font editing requires an 8-bit CZ2 atlas");
+  const size_t header = u32(atlas, 4);
+  const int atlasWidth = u16(atlas, 8);
+  const int atlasHeight = u16(atlas, 10);
+  if (x < 0 || y < 0 || width <= 0 || height <= 0 || x > atlasWidth - width ||
+      y > atlasHeight - height ||
+      alpha.size() != size_t(width) * size_t(height))
+    throw std::runtime_error("CZ2: invalid alpha patch rectangle");
+  constexpr size_t paletteSize = 256 * 4;
+  if (header < 15 || header > atlas.size() ||
+      atlas.size() - header < paletteSize + 4)
+    throw std::runtime_error("CZ2: truncated alpha atlas header");
+
+  std::array<std::uint8_t, 256> byAlpha{};
+  for (int value = 0; value < 256; ++value) {
+    int best = 256;
+    for (int i = 0; i < 256; ++i) {
+      const int delta = std::abs(int(atlas[header + 4 * i + 3]) - value);
+      if (delta < best) {
+        best = delta;
+        byAlpha[value] = static_cast<std::uint8_t>(i);
+      }
+    }
+  }
+  const auto blocks = u32(atlas, header + paletteSize);
+  const auto table = header + paletteSize + 4;
+  if (blocks > (atlas.size() - table) / 8)
+    throw std::runtime_error("CZ2: truncated alpha atlas block table");
+  size_t compressed = table + size_t(blocks) * 8;
+  size_t rawOffset = 0;
+  const size_t pixelCount = size_t(atlasWidth) * atlasHeight;
+  auto result =
+      std::vector<std::uint8_t>(atlas.begin(), atlas.begin() + compressed);
+  for (size_t i = 0; i < blocks; ++i) {
+    const auto row = table + i * 8;
+    const auto length = u32(atlas, row);
+    const auto raw = u32(atlas, row + 4);
+    if (length > atlas.size() - compressed || raw > pixelCount - rawOffset)
+      throw std::runtime_error("CZ2: alpha block exceeds atlas");
+    const auto end = rawOffset + raw;
+    std::vector<std::uint8_t> pixels;
+    bool changed = false;
+    for (int dy = 0; dy < height; ++dy) {
+      const auto start = size_t(y + dy) * atlasWidth + x;
+      for (size_t p = std::max(start, rawOffset);
+           p < std::min(start + width, end); ++p) {
+        if (pixels.empty())
+          pixels = decodeLzw2(atlas, compressed, length, raw);
+        auto &pixel = pixels[p - rawOffset];
+        const auto replacement = alpha[size_t(dy) * width + p - start];
+        // Keep the original index when its alpha already matches.
+        if (atlas[header + 4 * pixel + 3] != replacement &&
+            pixel != byAlpha[replacement]) {
+          pixel = byAlpha[replacement];
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      const auto block = encodeLzw2(pixels);
+      for (size_t byte = 0; byte < 4; ++byte)
+        result[row + byte] = static_cast<std::uint8_t>(block.size() >>
+                                                       (byte * 8));
+      result.insert(result.end(), block.begin(), block.end());
+    } else {
+      result.insert(result.end(), atlas.begin() + compressed,
+                    atlas.begin() + compressed + length);
+    }
+    compressed += length;
+    rawOffset = end;
+  }
+  if (rawOffset != pixelCount)
+    throw std::runtime_error("CZ2: incomplete alpha atlas");
+  result.insert(result.end(), atlas.begin() + compressed, atlas.end());
+  return result;
+}
+
 CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
   if (data.size() < 15 || data[0] != 'C' || data[1] != 'Z')
     throw std::runtime_error("Not a CZ image");
@@ -171,7 +287,10 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
   if (image.width <= 0 || image.height <= 0 ||
       (bits != 4 && bits != 8 && bits != 24 && bits != 32))
     throw std::runtime_error("CZ: unsupported dimensions or color depth");
-  const auto pixelBytes = size_t(image.width) * size_t(image.height) * 4;
+  const auto pixelCount = size_t(image.width) * size_t(image.height);
+  if (pixelCount > image.rgba.max_size() / 4)
+    throw std::runtime_error("CZ: image size out of range");
+  const auto pixelBytes = pixelCount * 4;
 
   if (kind == '0') {
     if (headerLength + pixelBytes > data.size())
@@ -207,19 +326,24 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
     throw std::runtime_error("CZ: truncated block table");
 
   const auto blockCount = u32(data, blockTable);
-  size_t table = blockTable + 4;
-  size_t compressed = table + size_t(blockCount) * 8;
-  if (compressed > data.size())
+  const size_t table = blockTable + 4;
+  if (blockCount > (data.size() - table) / 8)
     throw std::runtime_error("CZ: invalid block table");
+  size_t compressed = table + size_t(blockCount) * 8;
+  const size_t rawBytes =
+      (kind == '1' || kind == '2')
+          ? (bits == 4 ? (pixelCount + 1) / 2 : pixelCount * (bits / 8))
+          : pixelBytes;
   std::vector<std::uint8_t> pixels;
-  pixels.reserve(pixelBytes);
+  if (kind != '2')
+    pixels.reserve(pixelBytes);
   for (std::uint32_t i = 0; i < blockCount; ++i) {
     const auto codes = u32(data, table + size_t(i) * 8);
     const auto raw = u32(data, table + size_t(i) * 8 + 4);
     std::vector<std::uint8_t> block;
     if (kind == '2') {
-      if (compressed + codes > data.size())
-        throw std::runtime_error("CZ2: compressed block exceeds file");
+      if (raw > rawBytes - pixels.size())
+        throw std::runtime_error("CZ2: block exceeds image size");
       block = decodeLzw2(data, compressed, codes, raw);
       compressed += codes;
     } else {
@@ -227,40 +351,20 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
     }
     pixels.insert(pixels.end(), block.begin(), block.end());
   }
-  const size_t rawBytes =
-      (kind == '1' || kind == '2')
-          ? (bits == 4
-                 ? (size_t(image.width) * size_t(image.height) + 1) / 2
-                 : size_t(image.width) * size_t(image.height) * (bits / 8))
-          : pixelBytes;
   if (pixels.size() < rawBytes)
     throw std::runtime_error("CZ: incomplete image");
   pixels.resize(rawBytes);
 
   if (kind == '2') {
-    const size_t count = size_t(image.width) * size_t(image.height);
+    if (palette.empty())
+      throw std::runtime_error("CZ2: unsupported color depth");
     std::vector<std::uint8_t> rgba(pixelBytes);
-    if (!palette.empty() &&
-        (bits == 8 ? pixels.size() >= count : pixels.size() * 2 >= count)) {
-      for (size_t i = 0; i < count; ++i) {
-        const size_t index =
-            bits == 4 ? ((i & 1) ? (pixels[i / 2] >> 4) : (pixels[i / 2] & 0x0f))
-                      : pixels[i];
-        if (index >= palette.size())
-          throw std::runtime_error("CZ2: palette index out of range");
-        std::copy(palette[index].begin(), palette[index].end(),
-                  rgba.begin() + i * 4);
-      }
-    } else if (bits == 8 && pixels.size() >= count) {
-      // Palette-less CZ2 masks store a single 8-bit alpha plane.
-      for (size_t i = 0; i < count; ++i) {
-        rgba[i * 4] = 255;
-        rgba[i * 4 + 1] = 255;
-        rgba[i * 4 + 2] = 255;
-        rgba[i * 4 + 3] = pixels[i];
-      }
-    } else {
-      throw std::runtime_error("CZ2: incomplete pixels");
+    for (size_t i = 0; i < pixelCount; ++i) {
+      const size_t index =
+          bits == 4 ? ((i & 1) ? (pixels[i / 2] >> 4) : (pixels[i / 2] & 0x0f))
+                    : pixels[i];
+      std::copy(palette[index].begin(), palette[index].end(),
+                rgba.begin() + i * 4);
     }
     image.rgba = std::move(rgba);
     return image;

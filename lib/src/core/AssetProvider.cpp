@@ -13,10 +13,15 @@
 #include <cmath>
 
 #include <algorithm>
+#include <climits>
+#include <cstring>
 #include <limits>
 #include <stdexcept>
 #include <system_error>
 #include <unordered_map>
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
 
 namespace Kotonoha {
 namespace {
@@ -28,6 +33,93 @@ IOStreamPtr memoryStream(const std::vector<Uint8> &bytes) {
     throw std::runtime_error(SDL_GetError());
   return stream;
 }
+
+#ifdef __EMSCRIPTEN__
+// clang-format treats JavaScript operators inside EM_ASYNC_JS as C++ tokens.
+// clang-format off
+EM_ASYNC_JS(int, browserDecodeImage, (const Uint8 *data, int size), {
+  if (typeof KotonohaDecodeImage !== "function") return 0;
+  return await KotonohaDecodeImage(HEAPU8.slice(data, data + size));
+});
+// clang-format on
+
+bool browserImageFormat(const std::vector<Uint8> &bytes) {
+  const auto starts = [&](const char *magic, std::size_t size) {
+    return bytes.size() >= size && std::memcmp(bytes.data(), magic, size) == 0;
+  };
+  return starts("\x89PNG", 4) || starts("\xff\xd8\xff", 3) ||
+         starts("GIF8", 4) || starts("BM", 2) ||
+         (starts("RIFF", 4) && bytes.size() >= 12 &&
+          std::memcmp(bytes.data() + 8, "WEBP", 4) == 0) ||
+         (bytes.size() >= 12 &&
+          (std::memcmp(bytes.data() + 4, "ftypavif", 8) == 0 ||
+           std::memcmp(bytes.data() + 4, "ftypavis", 8) == 0));
+}
+
+SurfacePtr browserPicture(const std::vector<Uint8> &bytes) {
+  if (!browserImageFormat(bytes) || bytes.size() > INT_MAX)
+    return {};
+  const int token = browserDecodeImage(bytes.data(), int(bytes.size()));
+  if (!token)
+    return {};
+  const int width = EM_ASM_INT({ return KotonohaImageWidth($0); }, token);
+  const int height = EM_ASM_INT({ return KotonohaImageHeight($0); }, token);
+  SurfacePtr surface;
+  if (width > 0 && height > 0 && width <= 16384 && height <= 16384)
+    surface.reset(SDL_CreateSurface(width, height, SDL_PIXELFORMAT_RGBA32));
+  if (surface && !EM_ASM_INT(
+                     { return KotonohaCopyImage($0, $1, $2); }, token,
+                     surface->pixels, surface->pitch))
+    surface.reset();
+  EM_ASM({ KotonohaReleaseImage($0); }, token);
+  return surface;
+}
+
+// clang-format off
+EM_ASYNC_JS(int, browserDecodeAudio, (const Uint8 *data, int size), {
+  if (typeof KotonohaDecodeAudio !== "function") return 0;
+  return await KotonohaDecodeAudio(HEAPU8.slice(data, data + size));
+});
+// clang-format on
+
+bool browserAudioFormat(const std::vector<Uint8> &bytes) {
+  if (bytes.size() < 4)
+    return false;
+  const auto starts = [&](const char *magic, std::size_t size) {
+    return std::memcmp(bytes.data(), magic, size) == 0;
+  };
+  return starts("OggS", 4) || starts("fLaC", 4) || starts("ID3", 3) ||
+         starts("\x1a\x45\xdf\xa3", 4) ||
+         (starts("RIFF", 4) && bytes.size() >= 12 &&
+          std::memcmp(bytes.data() + 8, "WAVE", 4) == 0) ||
+         (bytes.size() >= 12 &&
+          std::memcmp(bytes.data() + 4, "ftyp", 4) == 0) ||
+         (bytes[0] == 0xff && (bytes[1] & 0xe0) == 0xe0);
+}
+
+AudioClip browserAudio(const std::vector<Uint8> &bytes) {
+  if (!browserAudioFormat(bytes) || bytes.size() > INT_MAX)
+    return {};
+  const int token = browserDecodeAudio(bytes.data(), int(bytes.size()));
+  if (!token)
+    return {};
+  const int channels = EM_ASM_INT({ return KotonohaAudioChannels($0); }, token);
+  const int rate = EM_ASM_INT({ return KotonohaAudioRate($0); }, token);
+  const int frames = EM_ASM_INT({ return KotonohaAudioFrames($0); }, token);
+  AudioClip clip;
+  if (channels > 0 && channels <= 8 && rate > 0 && frames > 0 &&
+      std::uint64_t(frames) * channels * sizeof(float) <=
+          1024ull * 1024 * 1024) {
+    clip.spec = {SDL_AUDIO_F32, channels, rate};
+    clip.data.resize(std::size_t(frames) * channels * sizeof(float));
+    if (!EM_ASM_INT(
+            { return KotonohaCopyAudio($0, $1); }, token, clip.data.data()))
+      clip = {};
+  }
+  EM_ASM({ KotonohaReleaseAudio($0); }, token);
+  return clip;
+}
+#endif
 
 } // namespace
 
@@ -147,7 +239,12 @@ std::vector<std::string> AssetProvider::list(const std::string &prefix) const {
 SurfacePtr AssetProvider::loadSurface(const std::string &id) const {
   if (!overlayPath(id).empty()) {
     try {
-      return MediaDecoder::decodePicture(read(id));
+      const auto bytes = read(id);
+#ifdef __EMSCRIPTEN__
+      if (auto surface = browserPicture(bytes))
+        return surface;
+#endif
+      return MediaDecoder::decodePicture(bytes);
     } catch (const std::exception
                  &) { /* Native asset formats use the game's decoder below. */
     }
@@ -171,7 +268,12 @@ AudioClip AssetProvider::loadAudio(const std::string &id,
   AudioClip clip;
   if (hasOverlay(id)) {
     try {
-      clip = MediaDecoder::decodeAudio(read(id));
+      const auto bytes = read(id);
+#ifdef __EMSCRIPTEN__
+      clip = browserAudio(bytes);
+      if (clip.data.empty())
+#endif
+        clip = MediaDecoder::decodeAudio(bytes);
       noteAudio(id);
       return clip;
     } catch (const std::exception &) {
@@ -276,6 +378,10 @@ SurfacePtr AssetProvider::loadSurfaceAsset(const std::string &id) const {
                           SDL_MapSurfaceRGB(fallback.get(), 0, 0, 0));
     return fallback;
   }
+#ifdef __EMSCRIPTEN__
+  if (auto surface = browserPicture(bytes))
+    return surface;
+#endif
   if (SurfacePtr surface{
           SDL_LoadSurface_IO(memoryStream(bytes).release(), true)})
     return surface;
@@ -302,6 +408,10 @@ SurfacePtr AssetProvider::loadFrameAsset(const std::string &id,
 
 AudioClip AssetProvider::loadAudioAsset(const std::string &id) const {
   const auto bytes = readAsset(id);
+#ifdef __EMSCRIPTEN__
+  if (auto browser = browserAudio(bytes); !browser.data.empty())
+    return browser;
+#endif
   AudioClip clip;
   Uint8 *data = nullptr;
   Uint32 length = 0;

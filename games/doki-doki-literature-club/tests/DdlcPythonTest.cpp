@@ -60,6 +60,9 @@ int main(int argc, char **argv) {
     require(python.eval("h.hexdigest()").s ==
                 "70350f6027bce3713f6b76473084309b",
             "Python2 hashlib MD5 consumes exact bytes including NUL");
+    python.exec("import copy\n");
+    require(python.eval("copy.copy([1, 2]) == [1, 2]").truthy(),
+            "Katawa initialization can import the copy module");
     auto persistent = Ddlc::Interp::nameSpace("persistent");
     python.set("persistent", persistent);
     python.exec("persistent.points = [1, 2]\npersistent.points.append(3)\n");

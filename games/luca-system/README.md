@@ -18,6 +18,43 @@ cmake --build build --target LucaSystem
 Use original PAK files (including PARAM.PAK and SCRIPT.PAK); AIR is the reference title.
 Use the launcher or pass `--luca-system /path/to/game-data` to the executable. Never commit commercial game files.
 
+## PAK import and repack
+
+On a native build, build the `LucaPak` host tool:
+
+```sh
+cmake --build build --target LucaPak
+build/bin/LucaPak list SCRIPT.PAK
+build/bin/LucaPak repack SCRIPT.PAK SCRIPT-patched.PAK name:seen170 replacement.bin
+build/bin/LucaPak repack VOICE.PAK VOICE-patched.PAK id:1 replacement.ogg
+```
+
+`list` prints ID, byte length, and name. Pass one or more selector/file pairs
+to replace entries, or omit the pairs to rebuild without replacements.
+The tool preserves names, IDs, entry order and block alignment, and writes
+to a new file. It does not add or rename entries or interpret imported
+payloads. Keep commercial inputs and repacked outputs local.
+
+### AIR dialogue import
+
+Use `LucaInspect` with opcode `36` to find the original decimal byte offset of
+the `MESSAGE` to change. Save the replacement English text as UTF-8 without a
+BOM. For example, with an existing `overlay` directory:
+
+```sh
+cmake --build build --target LucaInspect LucaPak
+build/bin/LucaInspect /path/to/AIR/files seen170 36
+build/bin/LucaPak patch-air /path/to/AIR/files/SCRIPT.PAK overlay/SCRIPT.PAK name:seen170 2202 dialogue.txt
+```
+
+Pass `--asset-overlay overlay` when running the port against
+`/path/to/AIR/files`. To import several edits at once, repeat the selector,
+offset, and file arguments using offsets from the input PAK. The tool keeps
+voice IDs and other languages, updates known local and cross-scenario branch
+offsets, and rebuilds a new `SCRIPT.PAK`. This command targets AIR Steam
+dialogue in Kotonoha; it does not edit choices, log text, or the original
+engine's auxiliary tables.
+
 ## Detailed research
 
 [Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.

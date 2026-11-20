@@ -1,5 +1,5 @@
 add_executable(DdlcPythonTest DdlcPythonTest.cpp)
-target_link_libraries(DdlcPythonTest PRIVATE DdlcFormats)
+target_link_libraries(DdlcPythonTest PRIVATE kotonoha_vm_renpy DdlcFormats)
 add_test(NAME DokiDoki.Python COMMAND DdlcPythonTest)
 
 if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
