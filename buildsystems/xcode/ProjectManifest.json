@@ -140,6 +140,10 @@
     "macOS/KotonohaLauncher": {
       "target": "B5B500000000000000000001",
       "sources": 183
+    },
+    "iOS/KotonohaLauncher": {
+      "target": "D7D700000000000000000001",
+      "sources": 184
     }
   },
   "games": {
@@ -187,9 +191,9 @@
       "ponscripter"
     ]
   },
-  "source_files": 295,
+  "source_files": 296,
   "schemes": 30,
-  "note": "The Xcode project compiles sources from their original game/provider/VM locations. Native launcher builds via Xcode Sources and Frameworks phases; no CMake bridge.",
+  "note": "The Xcode project compiles game/provider/VM sources directly. Both macOS and iOS Unified Launcher targets are native Xcode applications; iOS searches its sandbox Documents/games.",
   "bundling": {
     "schema_version": 2,
     "assets_global": "assets/",
@@ -227,7 +231,9 @@
       "games/amagami/src/VitaVmBridge.cpp",
       "games/amagami/src/VitaSpriteRenderer.cpp",
       "games/amagami/src/VitaInput.cpp"
-    ]
+    ],
+    "native_launcher_ios_sources": 184,
+    "ios_launcher_game_library": "Documents/games (Files.app visible; native AppleDocuments.mm)"
   },
   "preparation": {
     "script": "tools/PrepareApple.py",
