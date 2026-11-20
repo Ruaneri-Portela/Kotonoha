@@ -591,7 +591,9 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
   // Pair companion VNX PT-BR patch with base DDLC automatically.
   if (!vnxPatchPath.empty()) {
     for (auto &item : results) {
-      if (item.engine.kind == EngineKind::RenPy && item.path != vnxPatchPath &&
+      if (item.engine.kind == EngineKind::RenPy &&
+          item.engine.slug == "doki-doki-literature-club" &&
+          item.path != vnxPatchPath &&
           item.overlayPath.empty()) {
         item.overlayPath = vnxPatchPath;
       }
