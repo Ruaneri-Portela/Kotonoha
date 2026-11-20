@@ -1010,6 +1010,39 @@
 		B6B6000000000000000000B9 /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B6B6000000000000000000BA /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B6B6000000000000000000BB /* Python-macOS.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7A99BDAEF7E3EDA577E9E91D /* Python-macOS.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		C7C700000000000000000003 /* EmoteRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000002 /* EmoteRenderer.cpp */; };
+		C7C700000000000000000004 /* EmoteRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000002 /* EmoteRenderer.cpp */; };
+		C7C700000000000000000005 /* EmoteRenderer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000002 /* EmoteRenderer.cpp */; };
+		C7C700000000000000000007 /* PsbFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000006 /* PsbFile.cpp */; };
+		C7C700000000000000000008 /* PsbFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000006 /* PsbFile.cpp */; };
+		C7C700000000000000000009 /* PsbFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000006 /* PsbFile.cpp */; };
+		C7C70000000000000000000B /* TlgImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000000A /* TlgImage.cpp */; };
+		C7C70000000000000000000C /* TlgImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000000A /* TlgImage.cpp */; };
+		C7C70000000000000000000D /* TlgImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000000A /* TlgImage.cpp */; };
+		C7C70000000000000000000F /* Tlg6Image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000000E /* Tlg6Image.cpp */; };
+		C7C700000000000000000010 /* Tlg6Image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000000E /* Tlg6Image.cpp */; };
+		C7C700000000000000000011 /* Tlg6Image.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000000E /* Tlg6Image.cpp */; };
+		C7C700000000000000000013 /* TjsBootstrap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000012 /* TjsBootstrap.cpp */; };
+		C7C700000000000000000014 /* TjsBootstrap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000012 /* TjsBootstrap.cpp */; };
+		C7C700000000000000000015 /* TjsBootstrap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000012 /* TjsBootstrap.cpp */; };
+		C7C700000000000000000017 /* ScnRunner.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000016 /* ScnRunner.cpp */; };
+		C7C700000000000000000018 /* ScnRunner.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000016 /* ScnRunner.cpp */; };
+		C7C700000000000000000019 /* ScnRunner.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000016 /* ScnRunner.cpp */; };
+		C7C70000000000000000001B /* TjsStartupVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000001A /* TjsStartupVm.cpp */; };
+		C7C70000000000000000001C /* TjsStartupVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000001A /* TjsStartupVm.cpp */; };
+		C7C70000000000000000001D /* TjsStartupVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000001A /* TjsStartupVm.cpp */; };
+		C7C70000000000000000001F /* VitaCpk.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000001E /* VitaCpk.cpp */; };
+		C7C700000000000000000020 /* VitaCpk.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000001E /* VitaCpk.cpp */; };
+		C7C700000000000000000021 /* VitaCpk.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000001E /* VitaCpk.cpp */; };
+		C7C700000000000000000023 /* VitaGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000022 /* VitaGraphics.cpp */; };
+		C7C700000000000000000024 /* VitaGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000022 /* VitaGraphics.cpp */; };
+		C7C700000000000000000025 /* VitaGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000022 /* VitaGraphics.cpp */; };
+		C7C700000000000000000027 /* VitaGraphicsAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000026 /* VitaGraphicsAssets.cpp */; };
+		C7C700000000000000000028 /* VitaGraphicsAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000026 /* VitaGraphicsAssets.cpp */; };
+		C7C700000000000000000029 /* VitaGraphicsAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000026 /* VitaGraphicsAssets.cpp */; };
+		C7C70000000000000000002B /* VitaSystemGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000002A /* VitaSystemGraphics.cpp */; };
+		C7C70000000000000000002C /* VitaSystemGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000002A /* VitaSystemGraphics.cpp */; };
+		C7C70000000000000000002D /* VitaSystemGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000002A /* VitaSystemGraphics.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -2215,6 +2248,17 @@
 		B6B600000000000000000005 /* KotonohaLauncher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaLauncher.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6B600000000000000000006 /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = ../../launcher/game-assets; sourceTree = SOURCE_ROOT; };
 		B6B600000000000000000007 /* Launcher.macOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Launcher.macOS.xcconfig; path = Config/Launcher.macOS.xcconfig; sourceTree = SOURCE_ROOT; };
+		C7C700000000000000000002 /* EmoteRenderer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = EmoteRenderer.cpp; path = ../../games/kirikiri/src/EmoteRenderer.cpp; sourceTree = SOURCE_ROOT; };
+		C7C700000000000000000006 /* PsbFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PsbFile.cpp; path = ../../modules/providers/xp3/src/PsbFile.cpp; sourceTree = SOURCE_ROOT; };
+		C7C70000000000000000000A /* TlgImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TlgImage.cpp; path = ../../modules/providers/xp3/src/TlgImage.cpp; sourceTree = SOURCE_ROOT; };
+		C7C70000000000000000000E /* Tlg6Image.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Tlg6Image.cpp; path = ../../modules/providers/xp3/src/Tlg6Image.cpp; sourceTree = SOURCE_ROOT; };
+		C7C700000000000000000012 /* TjsBootstrap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TjsBootstrap.cpp; path = ../../modules/providers/xp3/src/TjsBootstrap.cpp; sourceTree = SOURCE_ROOT; };
+		C7C700000000000000000016 /* ScnRunner.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ScnRunner.cpp; path = ../../modules/vms/kag/src/ScnRunner.cpp; sourceTree = SOURCE_ROOT; };
+		C7C70000000000000000001A /* TjsStartupVm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TjsStartupVm.cpp; path = ../../modules/vms/tjs2/src/TjsStartupVm.cpp; sourceTree = SOURCE_ROOT; };
+		C7C70000000000000000001E /* VitaCpk.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaCpk.cpp; path = ../../modules/providers/amagami/src/VitaCpk.cpp; sourceTree = SOURCE_ROOT; };
+		C7C700000000000000000022 /* VitaGraphics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaGraphics.cpp; path = ../../modules/providers/amagami/src/VitaGraphics.cpp; sourceTree = SOURCE_ROOT; };
+		C7C700000000000000000026 /* VitaGraphicsAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaGraphicsAssets.cpp; path = ../../modules/providers/amagami/src/VitaGraphicsAssets.cpp; sourceTree = SOURCE_ROOT; };
+		C7C70000000000000000002A /* VitaSystemGraphics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaSystemGraphics.cpp; path = ../../modules/providers/amagami/src/VitaSystemGraphics.cpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2623,6 +2667,10 @@
 		1CE3DAED6AD19B9CC2F91EE7 /* amagami */ = {
 			isa = PBXGroup;
 			children = (
+				C7C70000000000000000002A /* VitaSystemGraphics.cpp */,
+				C7C700000000000000000026 /* VitaGraphicsAssets.cpp */,
+				C7C700000000000000000022 /* VitaGraphics.cpp */,
+				C7C70000000000000000001E /* VitaCpk.cpp */,
 				288099B0D83BCE4D70C3C9DF /* Assets.cpp */,
 			);
 			name = amagami;
@@ -2648,6 +2696,7 @@
 		23F89609280DBBBCE88D7D90 /* kag */ = {
 			isa = PBXGroup;
 			children = (
+				C7C700000000000000000016 /* ScnRunner.cpp */,
 				514EC6ADE8BF32609E55E456 /* KagScript.cpp */,
 			);
 			name = kag;
@@ -2812,6 +2861,10 @@
 		4F250A16D0AB9EF5B61A8812 /* xp3 */ = {
 			isa = PBXGroup;
 			children = (
+				C7C700000000000000000012 /* TjsBootstrap.cpp */,
+				C7C70000000000000000000E /* Tlg6Image.cpp */,
+				C7C70000000000000000000A /* TlgImage.cpp */,
+				C7C700000000000000000006 /* PsbFile.cpp */,
 				59F397CB2CDBECCF07A600C2 /* KirikiriAssets.cpp */,
 				7372E52FDC89DC2EFB26BE7F /* Xp3Archive.cpp */,
 			);
@@ -3159,6 +3212,7 @@
 		A01C1200C806CF1EA58E1DEE /* VM */ = {
 			isa = PBXGroup;
 			children = (
+				C7C700000000000000000001 /* tjs2 */,
 				315E08176CA54F07EC794AB1 /* amagami */,
 				23F89609280DBBBCE88D7D90 /* kag */,
 				68DBAF202EC3AF9A8E7E423F /* meo */,
@@ -3451,6 +3505,7 @@
 		EA2218DD91679D351989FD0F /* Kirikiri */ = {
 			isa = PBXGroup;
 			children = (
+				C7C700000000000000000002 /* EmoteRenderer.cpp */,
 				21399AF4EDC475966F00B67C /* KirikiriRuntime.cpp */,
 				299F98C3690196D9F3D0DE62 /* main.cpp */,
 			);
@@ -3677,6 +3732,14 @@
 				B5B50000000000000000000A /* UnifiedLauncher.hpp */,
 			);
 			name = Launcher;
+			sourceTree = "<group>";
+		};
+		C7C700000000000000000001 /* tjs2 */ = {
+			isa = PBXGroup;
+			children = (
+				C7C70000000000000000001A /* TjsStartupVm.cpp */,
+			);
+			name = tjs2;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -6544,6 +6607,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C7C70000000000000000001B /* TjsStartupVm.cpp in Sources */,
+				C7C700000000000000000017 /* ScnRunner.cpp in Sources */,
+				C7C700000000000000000013 /* TjsBootstrap.cpp in Sources */,
+				C7C70000000000000000000F /* Tlg6Image.cpp in Sources */,
+				C7C70000000000000000000B /* TlgImage.cpp in Sources */,
+				C7C700000000000000000007 /* PsbFile.cpp in Sources */,
+				C7C700000000000000000003 /* EmoteRenderer.cpp in Sources */,
 				A6DB0E262618E017586C0F97 /* KirikiriRuntime.cpp in Sources */,
 				3457522563253F3EB5D1CAE7 /* main.cpp in Sources */,
 				EA700DE705893B768A5A5231 /* Xp3Archive.cpp in Sources */,
@@ -6706,6 +6776,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C7C70000000000000000002C /* VitaSystemGraphics.cpp in Sources */,
+				C7C700000000000000000028 /* VitaGraphicsAssets.cpp in Sources */,
+				C7C700000000000000000024 /* VitaGraphics.cpp in Sources */,
+				C7C700000000000000000020 /* VitaCpk.cpp in Sources */,
 				5A448DDE740AB10C790B2850 /* Source.cpp in Sources */,
 				2B0C71F50AEA421240AD3A77 /* AmagamiLauncher.cpp in Sources */,
 				69D7975FBD74CFD501FB2F54 /* Formats.cpp in Sources */,
@@ -6723,6 +6797,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C7C70000000000000000002B /* VitaSystemGraphics.cpp in Sources */,
+				C7C700000000000000000027 /* VitaGraphicsAssets.cpp in Sources */,
+				C7C700000000000000000023 /* VitaGraphics.cpp in Sources */,
+				C7C70000000000000000001F /* VitaCpk.cpp in Sources */,
 				A0F5C644421E9C055F519BCD /* Source.cpp in Sources */,
 				D9054514D8BF5A62936CE122 /* AmagamiLauncher.cpp in Sources */,
 				CDDE6EC31A779A77F17D9531 /* Formats.cpp in Sources */,
@@ -6759,6 +6837,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C7C70000000000000000001C /* TjsStartupVm.cpp in Sources */,
+				C7C700000000000000000018 /* ScnRunner.cpp in Sources */,
+				C7C700000000000000000014 /* TjsBootstrap.cpp in Sources */,
+				C7C700000000000000000010 /* Tlg6Image.cpp in Sources */,
+				C7C70000000000000000000C /* TlgImage.cpp in Sources */,
+				C7C700000000000000000008 /* PsbFile.cpp in Sources */,
+				C7C700000000000000000004 /* EmoteRenderer.cpp in Sources */,
 				0AE6884748E34B79FABA3477 /* KirikiriRuntime.cpp in Sources */,
 				349A5A90D77FAB9ACAEF1230 /* main.cpp in Sources */,
 				134B88BE59C9EDE69F74F302 /* Xp3Archive.cpp in Sources */,
@@ -7150,6 +7235,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C7C70000000000000000002D /* VitaSystemGraphics.cpp in Sources */,
+				C7C700000000000000000029 /* VitaGraphicsAssets.cpp in Sources */,
+				C7C700000000000000000025 /* VitaGraphics.cpp in Sources */,
+				C7C700000000000000000021 /* VitaCpk.cpp in Sources */,
+				C7C70000000000000000001D /* TjsStartupVm.cpp in Sources */,
+				C7C700000000000000000019 /* ScnRunner.cpp in Sources */,
+				C7C700000000000000000015 /* TjsBootstrap.cpp in Sources */,
+				C7C700000000000000000011 /* Tlg6Image.cpp in Sources */,
+				C7C70000000000000000000D /* TlgImage.cpp in Sources */,
+				C7C700000000000000000009 /* PsbFile.cpp in Sources */,
+				C7C700000000000000000005 /* EmoteRenderer.cpp in Sources */,
 				B6B600000000000000000008 /* AmagamiLauncher.cpp in Sources */,
 				B6B600000000000000000009 /* AmagamiRuntime.cpp in Sources */,
 				B6B60000000000000000000A /* archive.cc in Sources */,
