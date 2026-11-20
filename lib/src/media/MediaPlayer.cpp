@@ -105,6 +105,7 @@ struct MediaPlayer::State {
   AVFormatContext *format = nullptr;
   AVCodecContext *video = nullptr, *audio = nullptr;
   AVPixelFormat hardwarePixelFormat = AV_PIX_FMT_NONE;
+  AVHWDeviceType hardwareDeviceType = AV_HWDEVICE_TYPE_NONE;
   bool hardwareDecodeLogged = false;
   AVPacket *packet = nullptr;
   Frame frame{av_frame_alloc()};
@@ -655,6 +656,7 @@ struct MediaPlayer::State {
                   av_hwdevice_get_type_name(deviceType), codec->name);
           const int result = avcodec_open2(candidate, codec, nullptr);
           if (result >= 0) {
+            hardwareDeviceType = deviceType;
             SDL_Log("[Kotonoha] Hardware decoder initialized: %s (%s); awaiting decoded frames",
                     av_hwdevice_get_type_name(deviceType), codec->name);
             return candidate;
@@ -676,6 +678,7 @@ struct MediaPlayer::State {
     }
     if (type == AVMEDIA_TYPE_VIDEO) {
       hardwarePixelFormat = AV_PIX_FMT_NONE;
+      hardwareDeviceType = AV_HWDEVICE_TYPE_NONE;
       SDL_Log("[Kotonoha] Video decoder: software (%s); no usable hardware backend",
               codec->name);
     }
@@ -739,11 +742,7 @@ struct MediaPlayer::State {
           decoded = softwareFrame.get();
           if (!hardwareDecodeLogged) {
             SDL_Log("[Kotonoha] Hardware video decoding ACTIVE (%s); transferring decoded surfaces for SDL rendering",
-                    av_hwdevice_get_type_name(
-                        video->hw_device_ctx
-                            ? static_cast<AVHWDeviceContext *>(
-                                  video->hw_device_ctx->data)->type
-                            : AV_HWDEVICE_TYPE_NONE));
+                    av_hwdevice_get_type_name(hardwareDeviceType));
             hardwareDecodeLogged = true;
           }
         }
