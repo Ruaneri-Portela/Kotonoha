@@ -96,15 +96,15 @@ def errors():
                     encoding="utf-8"
                 )
                 if (re.search(
-                    r'runtime\\(assets,\\s*"Miss Each Other",\\s*"' +
-                    re.escape(expected) + r'"\\)', source
+                    r'runtime\(assets,\s*"Miss Each Other",\s*"' +
+                    re.escape(expected) + r'"\)', source
                 ) and 'Runtime(std::move(name), "0.1.0", std::move(appId))' in shared):
                     runtime_ids.append(expected)
             elif slug == "katawa-shoujo":
                 shared = (ROOT / "games/doki-doki-literature-club/src/DdlcRuntime.cpp").read_text(
                     encoding="utf-8"
                 )
-                if (expected in shared and '"Katawa Shoujo"' in shared and                         "Ddlc::GameRuntime game" in source:
+                if (expected in shared and '"Katawa Shoujo"' in shared and "Ddlc::GameRuntime game" in source:
                     runtime_ids.append(expected)
         if not runtime_ids:
             issues.append(f"{slug}: runtime bundle identity was not found")
