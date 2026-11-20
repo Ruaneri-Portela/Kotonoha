@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Only for DokiDoki: package the prepared CPython 3.15 standard library and
+# Shared RenPy runtime: package the prepared CPython 3.15 standard library and
 # extension frameworks, following tools/PrepareApple.py in the repository.
 # The main Python.framework comes from the XCFramework in the Xcode Embed phase.
 set -euo pipefail
@@ -15,7 +15,7 @@ repo="${KOTONOHA_ROOT:-${SRCROOT}/../..}"
 frameworks="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
 platform="${PLATFORM_NAME:-}"
 
-[[ "${TARGET_NAME:-}" == DokiDoki-* ]] || fatal 'Script may only run in DokiDoki application targets'
+[[ "${TARGET_NAME:-}" == DokiDoki-* || "${TARGET_NAME:-}" == KatawaShoujo-* ]] || fatal 'Script may only run in DDLC/Katawa application targets'
 
 install_framework() {
   local source="$1"
