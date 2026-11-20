@@ -5003,6 +5003,14 @@ Translation::SourceTexts RealLiveRuntime::translationSources() const {
     result[route] = translationTexts(route);
   return result;
 }
+std::vector<std::string> RealLiveRuntime::activeTranslationKeys() const {
+  std::vector<std::string> keys;
+  if (!impl->speakerName.empty())
+    keys.push_back(impl->speakerName);
+  if (!impl->dialogue.empty())
+    keys.push_back(impl->dialogue);
+  return keys;
+}
 std::string RealLiveRuntime::debugNode() const {
   return std::to_string(impl->vm.scenario()) + ":" +
          std::to_string(impl->vm.index());
