@@ -11,3 +11,10 @@ target_link_libraries(MEO PRIVATE summer_radish_vacation)
 set_target_properties(MEO PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(MEO
     BUNDLE_ID me.hirameki.kotonoha.meo GAME meo)
+
+set(MEO_DATA_DIR "" CACHE PATH "MISS EACH OTHER retail directory")
+if(BUILD_TESTING AND MEO_DATA_DIR AND NOT ANDROID)
+    add_executable(MeoPresentationTest tests/MeoPresentationTest.cpp)
+    target_link_libraries(MeoPresentationTest PRIVATE summer_radish_vacation)
+    add_test(NAME MEO.Presentation COMMAND MeoPresentationTest "${MEO_DATA_DIR}")
+endif()

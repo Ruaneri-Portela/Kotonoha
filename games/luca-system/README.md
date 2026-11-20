@@ -55,6 +55,50 @@ offsets, and rebuilds a new `SCRIPT.PAK`. This command targets AIR Steam
 dialogue in Kotonoha; it does not edit choices, log text, or the original
 engine's auxiliary tables.
 
+### Bitmap font editing
+
+`LucaPak edit-glyph` replaces the alpha mask and metrics of an existing glyph
+in an 8-bit CZ2 atlas. For the AIR Steam dialogue font, use a 28 × 28 PNG with
+transparency. The output directory must not exist yet:
+
+```sh
+build/bin/LucaPak edit-glyph /path/to/AIR/files/font_win32_1280/FONT_GOTHIC1.PAK name:ゴシック27 /path/to/AIR/files/font_win32_1280/FONT__INFO.PAK name:info27 font-overlay U+0041 glyph-A.png 3 4 24 32
+```
+
+The four numbers set the signed X and Y offsets, draw width, and advance in
+pixels. An advance of zero uses the draw width. The command keeps the
+original palette and re-encodes only changed CZ2 blocks, then repacks the
+archives. Use `--asset-overlay font-overlay` with `/path/to/AIR/files` as
+the port's data directory. The source PAKs remain untouched. The command
+does not add glyph slots; codepoints sharing a cell also share its image
+and draw metrics.
+
+Use `add-glyph` instead to append a cell for an unmapped BMP character.
+For example, to add `U+E000`:
+
+```sh
+build/bin/LucaPak add-glyph /path/to/AIR/files/font_win32_1280/FONT_GOTHIC1.PAK name:ゴシック27 /path/to/AIR/files/font_win32_1280/FONT__INFO.PAK name:info27 font-overlay U+E000 glyph-new.png 3 4 24 32
+```
+
+The command updates the Unicode index and metrics, enlarges the atlas if
+needed, and leaves existing glyph positions and palette indices intact.
+To add another glyph to the same font, use the previous output PAKs as input
+and choose a new output directory.
+
+The AIR dialogue box retains the original bitmap font and window art.
+When enabled, Kotonoha's dialogue and speaker color overrides also apply to
+glyphs from the bitmap atlas and its overlays. The dialogue box uses the
+shared wrapping cache, keeping line breaks stable during typewriter reveal.
+
+## AIR menus
+
+Open the pause menu with Escape or the controller back action. The port uses
+AIR's `systemmenu` icons, `system_menu_bg` and English manual pages. Save,
+Load and Options open Kotonoha's native slot manager and settings; Quick Save
+and Quick Load keep using `quicksave.kns`. History (B or Page Up) uses the
+original `backlog_texture` with Kotonoha's scrolling and voice replay. Open
+menus capture input without advancing dialogue.
+
 ## Detailed research
 
 [Concise support status](STATUS.md) · [Detailed port research](PORT_STATUS.md). Historical results are specific to the reference assets/revision and may contain superseded implementation notes.

@@ -9,6 +9,10 @@
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
 
+#include <Kotonoha/components/InGameMenu.hpp>
+#include <Kotonoha/components/SettingsMenu.hpp>
+#include <Kotonoha/components/VNBacklog.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/SDL.hpp>
@@ -134,12 +138,19 @@ void writeFile(std::filesystem::path p, std::string_view data) {
 }
 
 void writeBytes(const std::filesystem::path &path,
-                 const std::vector<uint8_t> &bytes) {
+                const std::vector<uint8_t> &bytes) {
   writeFile(path, {reinterpret_cast<const char *>(bytes.data()), bytes.size()});
 }
 
 void checkFontOverlay(const std::filesystem::path &base,
-                      const std::filesystem::path &overlay, int advance) {
+                      const std::filesystem::path &overlay, int advance,
+                      bool added = false) {
+  constexpr char32_t extra = U'\uE000';
+  if (added) {
+    const Kotonoha::Providers::LucaSystemAssets original(base, {});
+    const LucaSystem::BitmapFont font(original.read("info27"));
+    check(!font.glyph(extra), "New glyph is absent in the original AIR font");
+  }
   const auto assets =
       std::make_shared<Kotonoha::Providers::LucaSystemAssets>(base, overlay);
   LucaSystem::LucaSystemRuntime runtime(assets);
@@ -147,7 +158,52 @@ void checkFontOverlay(const std::filesystem::path &base,
   options.assets = assets;
   options.launcher = false;
   options.rendererOverride = "software";
+  options.settings.vnTextColorOverride = true;
+  const SDL_Color dialogue{235, 80, 120, 255};
+  const SDL_Color speaker{80, 220, 120, 255};
+  options.settings.vnTextColor = dialogue;
+  options.settings.vnSpeakerColor = speaker;
   Kotonoha::Engine engine(runtime, options);
+  const auto key = [&](SDL_Keycode value) {
+    SDL_Event event{};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = value;
+    return runtime.onEvent(event);
+  };
+  const auto saveSlotsOpen = [&] {
+    for (auto *scene : runtime.GetActiveScenes()) {
+      if (auto *slots = dynamic_cast<Kotonoha::VNSaveMenu *>(scene))
+        return slots->isOpen();
+    }
+    return false;
+  };
+  auto &menu = Kotonoha::GetInGameMenuRuntime(engine);
+  key(SDLK_ESCAPE); // dismiss a retail startup logo, if present
+  for (int i = 0; i < 4; ++i)
+    key(SDLK_RIGHT);
+  key(SDLK_RETURN);
+  check(engine.GetSettingsMenu().isOpen() && !menu.IsOpen(),
+        "AIR title Options opens native Kotonoha settings");
+  engine.GetSettingsMenu().close();
+  key(SDLK_RIGHT);
+  key(SDLK_RETURN);
+  check(menu.IsOpen(), "AIR title Manual opens a modal");
+  if (assets->contains("en_help1") && assets->contains("en_help2")) {
+    const auto cached = assets->cachedTextures();
+    menu.render(engine.GetRenderer(), 1);
+    key(SDLK_RIGHT);
+    menu.render(engine.GetRenderer(), 1);
+    check(assets->cachedTextures() >= cached + 2,
+          "AIR manual renders both original English help pages");
+  }
+  key(SDLK_ESCAPE);
+  check(!menu.IsOpen(), "Closing the AIR manual returns to the title");
+  key(SDLK_LEFT);
+  key(SDLK_LEFT);
+  key(SDLK_RETURN);
+  check(saveSlotsOpen(), "AIR title Load opens native save slots");
+  key(SDLK_ESCAPE);
+  check(!saveSlotsOpen(), "AIR title Load can be cancelled");
   if (!runtime.startScenario("seen170", 0, true))
     throw std::runtime_error("Cannot start font overlay test scenario");
   runtime.SetState(Kotonoha::GameState::Gameplay);
@@ -159,7 +215,53 @@ void checkFontOverlay(const std::filesystem::path &base,
   }
   if (!box)
     throw std::runtime_error("AIR did not register its VNTextBox");
-  box->setDialogue("", "AA");
+  for (int i = 0; i < 1000 && runtime.isRunning() &&
+                  !runtime.isDialogueVisible() && !runtime.isChoiceActive();
+       ++i) {
+    if (runtime.isMoviePlaying())
+      runtime.skipMovie();
+    else
+      runtime.skipWait();
+  }
+  if (!runtime.isDialogueVisible())
+    throw std::runtime_error("AIR did not reach the first dialogue");
+  const auto pc = runtime.instructionPosition();
+  key(SDLK_ESCAPE);
+  check(menu.IsOpen() && runtime.instructionPosition() == pc &&
+            !runtime.handleAdvanceAction(),
+        "Escape opens the AIR pause menu without advancing dialogue");
+  if (assets->contains("systemmenu")) {
+    const auto cached = assets->cachedTextures();
+    menu.render(engine.GetRenderer(), 1);
+    check(assets->cachedTextures() > cached,
+          "AIR pause menu renders the original systemmenu assets");
+  }
+  key(SDLK_RETURN);
+  check(saveSlotsOpen() && !menu.IsOpen() && !runtime.handleAdvanceAction(),
+        "AIR pause Save opens native slots and blocks dialogue advance");
+  key(SDLK_ESCAPE);
+  check(!saveSlotsOpen() && runtime.instructionPosition() == pc,
+        "Cancelling AIR save slots preserves the script position");
+  key(SDLK_B);
+  auto &backlog = Kotonoha::GetVNBacklogRuntime(engine);
+  check(backlog.isVisible() && !runtime.handleAdvanceAction(),
+        "AIR history captures input without advancing dialogue");
+  check(std::count_if(backlog.getEntries().begin(), backlog.getEntries().end(),
+                      [&](const auto &entry) {
+                        return entry.text == runtime.dialogueText();
+                      }) == 1,
+        "AIR history records the current MESSAGE only once");
+  if (assets->contains("backlog_texture")) {
+    const auto cached = assets->cachedTextures();
+    backlog.render(engine.GetRenderer(), 1);
+    check(assets->cachedTextures() > cached,
+          "AIR history renders the original backlog texture");
+  }
+  key(SDLK_ESCAPE);
+  check(!backlog.isVisible() && runtime.instructionPosition() == pc,
+        "Closing AIR history preserves the script position");
+  const std::string text = added ? u8"\uE000" : "A";
+  box->setDialogue(text, text + text);
   box->show();
   box->completeDialogue();
   Kotonoha::SurfacePtr target(
@@ -170,18 +272,28 @@ void checkFontOverlay(const std::filesystem::path &base,
     throw std::runtime_error(SDL_GetError());
   SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 255);
   SDL_RenderClear(renderer.get());
+  const SDL_Rect parentClip{200, 490, 200, 75};
+  SDL_SetRenderClipRect(renderer.get(), &parentClip);
   box->render(*renderer, 1);
+  SDL_Rect clip{};
+  check(SDL_RenderClipEnabled(renderer.get()) &&
+            SDL_GetRenderClipRect(renderer.get(), &clip) &&
+            SDL_RectsEqual(&parentClip, &clip),
+        "AIR VNTextBox preserves the caller's clip rectangle");
   SDL_RenderPresent(renderer.get());
-  const auto white = [&](int x, int y) {
+  const auto matches = [&](int x, int y, SDL_Color color) {
     Uint8 r = 0, g = 0, b = 0;
     return SDL_ReadSurfacePixel(target.get(), x, y, &r, &g, &b, nullptr) &&
-           r == 255 && g == 255 && b == 255;
+           r == color.r && g == color.g && b == color.b;
   };
   // Patch: offset (3,4), with a 2x2 opaque square one pixel into the cell.
   constexpr int x = 210 + 3 + 1;
-  constexpr int y = 534 + 4 + 1;
-  check(white(x, y) && white(x + advance, y) && !white(x + 2, y),
-        "AIR VNTextBox renders patched glyph pixels and advance via overlay");
+  constexpr int y = 540 + 4 + 1;
+  check(matches(x, y, dialogue) && matches(x + advance, y, dialogue) &&
+            !matches(x + 2, y, dialogue) && matches(x, 494 + 4 + 1, speaker),
+        added
+            ? "AIR VNTextBox renders the new glyph, advance and native colors"
+            : "AIR VNTextBox renders patched glyph, advance and native colors");
   runtime.shutdown();
 }
 
@@ -213,20 +325,25 @@ void syntheticFontOverlay() {
   info[10] = 4;
   info[index + 2 * 'A'] = 1;
   const auto source = base / "FONT.PAK";
-  writeBytes(source, buildPak(1, 4, 512,
-                              {{"ゴシック27", atlas}, {"info27", info}}));
-  const std::vector<uint8_t> scenario = {
-      21, 0, 36, 0, 0, 0, 1, 0, 'A', 0, 0,
-      0,  254, 255, 'A', 'A', 0, 0, 0, 0, 0, 0};
+  writeBytes(source,
+             buildPak(1, 4, 512, {{"ゴシック27", atlas}, {"info27", info}}));
+  const std::vector<uint8_t> scenario = {21,  0, 36, 0, 0,   0,   1,   0,
+                                         'A', 0, 0,  0, 254, 255, 'A', 'A',
+                                         0,   0, 0,  0, 0,   0};
   writeBytes(base / "SCRIPT.PAK", buildPak(1, 4, 512, {{"seen170", scenario}}));
   std::vector<uint8_t> alpha(16);
   alpha[5] = alpha[6] = alpha[9] = alpha[10] = 255;
   const auto patched = LucaSystem::PatchCz2Alpha(atlas, 4, 0, 4, 4, alpha);
   LucaSystem::BitmapFont font(info);
   font.setGlyphMetrics('A', 3, 4, 4, 12);
+  const auto glyph = font.appendGlyph(U'\uE000', 3, 4, 4, 18);
+  const auto grown =
+      LucaSystem::GrowCz2Atlas(patched, glyph.x + 4, glyph.y + 4);
+  const auto added =
+      LucaSystem::PatchCz2Alpha(grown, glyph.x, glyph.y, 4, 4, alpha);
   const auto atlasPath = root / "atlas.cz2";
   const auto infoPath = root / "info.bin";
-  writeBytes(atlasPath, patched);
+  writeBytes(atlasPath, added);
   writeBytes(infoPath, font.bytes());
   LucaSystem::PakArchive archive(source);
   std::ostringstream repacked;
@@ -235,6 +352,7 @@ void syntheticFontOverlay() {
   check(archive.read("ゴシック27") == atlas && archive.read("info27") == info,
         "Font repack leaves original atlas and metrics byte-for-byte intact");
   checkFontOverlay(base, overlay, 12);
+  checkFontOverlay(base, overlay, 18, true);
 }
 
 } // namespace
@@ -242,7 +360,9 @@ void syntheticFontOverlay() {
 int main(int argc, char **argv) {
   if (argc > 1 && std::string_view(argv[1]) == "--font-overlay") {
     try {
-      if (argc == 4)
+      if (argc == 5 && std::string_view(argv[4]) == "added")
+        checkFontOverlay(argv[2], argv[3], 32, true);
+      else if (argc == 4)
         checkFontOverlay(argv[2], argv[3], 32);
       else if (argc == 2)
         syntheticFontOverlay();
@@ -462,6 +582,36 @@ int main(int argc, char **argv) {
   }
 
   {
+    constexpr size_t index = 6 + 99 * 3;
+    std::vector<uint8_t> bytes(index + 65536 * 4);
+    bytes[2] = 4;
+    bytes[4] = 99;
+    bytes[index + 2 * 'A'] = 98;
+    bytes[index + 2 * 65536 + 2 * 'A' + 1] = 17;
+    bytes.push_back(0xd3); // preserve data after the tables
+    LucaSystem::BitmapFont font(bytes);
+    const auto newGlyph = font.appendGlyph(U'\uE000', -2, 3, 8, 0);
+    const LucaSystem::BitmapFont restored(font.bytes());
+    const auto prior = restored.glyph('A');
+    check(font.bytes()[4] == 100 && font.bytes()[6] == 100 &&
+              font.bytes().size() == bytes.size() + 5 &&
+              font.bytes().back() == 0xd3 && restored.glyph(U'\uE000') &&
+              newGlyph.x == 396 && newGlyph.y == 0 && newGlyph.offsetX == -2 &&
+              newGlyph.advance == 8 && prior && prior->advance == 17,
+          "Luca font appends through the 100-glyph marker without losing data");
+    const auto next = font.appendGlyph(U'\uE001', 0, 0, 4, 4);
+    check(next.x == 0 && next.y == 4 && font.bytes()[6] == 101,
+          "Luca font adds the next glyph on a new 100-column row");
+    bool duplicate = false;
+    try {
+      (void)font.appendGlyph('A', 0, 0, 4, 4);
+    } catch (const std::runtime_error &) {
+      duplicate = true;
+    }
+    check(duplicate, "Luca font append refuses an existing Unicode mapping");
+  }
+
+  {
     constexpr size_t index = 8 + 2 * 3;
     constexpr size_t metrics = index + 65536 * 2;
     std::vector<std::uint8_t> info(metrics + 65536 * 2);
@@ -524,6 +674,31 @@ int main(int argc, char **argv) {
         30, 20, 10, 40, 30, 20, 10, 40, 30, 20, 10, 40, 0, 0, 0, 100};
     check(decoded.rgba == expected,
           "CZ2 decodes mixed-width blocks and BGRA palette");
+    check(LucaSystem::PatchCz2Alpha(cz2, 3, 0, 1, 1, {100}) == cz2,
+          "CZ2 alpha edit preserves the exact file when pixels match");
+    const auto patch = LucaSystem::PatchCz2Alpha(cz2, 3, 0, 1, 1, {41});
+    auto expectedPatch = expected;
+    std::copy_n(expected.begin(), 4, expectedPatch.begin() + 12);
+    constexpr size_t firstBlockEnd = table + 20 + 4;
+    check(LucaSystem::DecodeCzImage(patch).rgba == expectedPatch &&
+              std::equal(cz2.begin(), cz2.begin() + firstBlockEnd,
+                         patch.begin(), patch.begin() + firstBlockEnd),
+          "CZ2 alpha edit quantizes to the original palette and preserves "
+          "untouched compressed blocks");
+    const auto vertical = LucaSystem::GrowCz2Atlas(cz2, 4, 2);
+    const auto tall = LucaSystem::DecodeCzImage(vertical);
+    check(tall.width == 4 && tall.height == 2 &&
+              std::equal(expected.begin(), expected.end(), tall.rgba.begin()) &&
+              std::equal(cz2.begin() + table + 20, cz2.end(),
+                         vertical.begin() + table + 28) &&
+              tall.rgba[19] == 0 && tall.rgba[31] == 0,
+          "CZ2 adds a transparent row without re-encoding existing blocks");
+    const auto wide =
+        LucaSystem::DecodeCzImage(LucaSystem::GrowCz2Atlas(cz2, 5, 2));
+    check(wide.width == 5 && wide.height == 2 &&
+              std::equal(expected.begin(), expected.end(), wide.rgba.begin()) &&
+              wide.rgba[19] == 0 && wide.rgba[39] == 0,
+          "CZ2 expands the stride without changing existing pixels");
     const auto rejects = [](const auto &bytes) {
       try {
         (void)LucaSystem::DecodeCzImage(bytes);

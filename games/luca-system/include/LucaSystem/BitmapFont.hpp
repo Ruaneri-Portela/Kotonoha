@@ -45,15 +45,45 @@ public:
                        int drawWidth, int advance) {
     if (!glyph(codepoint))
       throw std::runtime_error("Luca font: glyph is not in the atlas");
-    if (offsetX < -128 || offsetX > 127 || offsetY < -128 || offsetY > 127 ||
-        drawWidth < 0 || drawWidth > 255 || advance < 0 || advance > 255)
-      throw std::runtime_error("Luca font: glyph metrics exceed byte range");
+    validateMetrics(offsetX, offsetY, drawWidth, advance);
     const auto id = word(index_ + 2 * codepoint);
     const auto draw = draw_ + 3 * id;
     bytes_[draw] = static_cast<std::uint8_t>(offsetX);
     bytes_[draw + 1] = static_cast<std::uint8_t>(drawWidth);
     bytes_[draw + 2] = static_cast<std::uint8_t>(offsetY);
     bytes_[metrics_ + 2 * codepoint + 1] = static_cast<std::uint8_t>(advance);
+  }
+
+  Glyph appendGlyph(std::uint32_t codepoint, int offsetX, int offsetY,
+                    int drawWidth, int advance) {
+    if (!codepoint || codepoint >= kUnicodeCount || codepoint == ' ' ||
+        codepoint == '\r' || codepoint == '\n' ||
+        (codepoint >= 0xd800 && codepoint <= 0xdfff))
+      throw std::runtime_error("Luca font: invalid new glyph codepoint");
+    if (word(index_ + 2 * codepoint) != 0)
+      throw std::runtime_error("Luca font: codepoint already has a mapping");
+    if (count_ == UINT16_MAX)
+      throw std::runtime_error("Luca font: no more glyph slots");
+    validateMetrics(offsetX, offsetY, drawWidth, advance);
+    const int id = count_;
+    // A count of 100 is also the legacy marker. Introduce the additional
+    // count field when growing a normal header from 99 to 100 glyphs.
+    const bool addLegacyField = draw_ == 6 && count_ == 99;
+    bytes_.insert(bytes_.begin() + index_, 3, 0);
+    if (addLegacyField) {
+      bytes_.insert(bytes_.begin() + draw_, 2, 0);
+      draw_ += 2;
+    }
+    ++count_;
+    index_ = draw_ + size_t(count_) * 3;
+    metrics_ = index_ + 2 * kUnicodeCount;
+    putWord(4, draw_ == 8 ? 100 : count_);
+    if (draw_ == 8)
+      putWord(6, count_);
+    putWord(index_ + 2 * codepoint, id);
+    bytes_[metrics_ + 2 * codepoint] = 0;
+    setGlyphMetrics(codepoint, offsetX, offsetY, drawWidth, advance);
+    return *glyph(codepoint);
   }
 
   bool fitsAtlas(float width, float height) const {
@@ -81,11 +111,13 @@ public:
     const char *next = text.data();
     size_t left = text.size();
     while (left != 0) {
+      const auto before = left;
       const auto codepoint = SDL_StepUTF8(&next, &left);
       if (codepoint == '\n' || codepoint == '\r')
         continue;
       const auto found = glyph(codepoint);
-      if (!found || codepoint == SDL_INVALID_UNICODE_CODEPOINT)
+      if (!found ||
+          (codepoint == SDL_INVALID_UNICODE_CODEPOINT && before - left != 3))
         return false;
       visit(*found);
     }
@@ -95,9 +127,11 @@ public:
   // The caller checks coverage for the complete run before drawing it.
   void render(SDL_Renderer &renderer, SDL_Texture &atlas, std::string_view text,
               float x, float y, SDL_Color color) const {
-    Uint8 r = 255, g = 255, b = 255;
+    Uint8 r = 255, g = 255, b = 255, a = 255;
     SDL_GetTextureColorMod(&atlas, &r, &g, &b);
+    SDL_GetTextureAlphaMod(&atlas, &a);
     SDL_SetTextureColorMod(&atlas, color.r, color.g, color.b);
+    SDL_SetTextureAlphaMod(&atlas, color.a);
     const float size = float(cellSize());
     forEachGlyph(text, [&](const Glyph &glyph) {
       const SDL_FRect src{float(glyph.x), float(glyph.y), size, size};
@@ -106,6 +140,7 @@ public:
       x += glyph.advance;
     });
     SDL_SetTextureColorMod(&atlas, r, g, b);
+    SDL_SetTextureAlphaMod(&atlas, a);
   }
 
 private:
@@ -119,6 +154,17 @@ private:
 
   int word(size_t offset) const {
     return bytes_[offset] | (int(bytes_[offset + 1]) << 8);
+  }
+
+  void putWord(size_t offset, int value) {
+    bytes_[offset] = static_cast<std::uint8_t>(value);
+    bytes_[offset + 1] = static_cast<std::uint8_t>(value >> 8);
+  }
+
+  static void validateMetrics(int x, int y, int width, int advance) {
+    if (x < -128 || x > 127 || y < -128 || y > 127 || width < 0 ||
+        width > 255 || advance < 0 || advance > 255)
+      throw std::runtime_error("Luca font: glyph metrics exceed byte range");
   }
 
   static int signedByte(std::uint8_t value) {

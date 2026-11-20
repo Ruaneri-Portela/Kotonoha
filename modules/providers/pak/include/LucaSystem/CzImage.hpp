@@ -27,8 +27,12 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data);
 
 // Replace an alpha rectangle in an 8-bit CZ2 font atlas. Preserve the
 // original palette and block boundaries; only intersecting blocks are coded.
-std::vector<std::uint8_t>
-PatchCz2Alpha(const std::vector<std::uint8_t> &atlas, int x, int y, int width,
-              int height, const std::vector<std::uint8_t> &alpha);
+std::vector<std::uint8_t> PatchCz2Alpha(const std::vector<std::uint8_t> &atlas,
+                                        int x, int y, int width, int height,
+                                        const std::vector<std::uint8_t> &alpha);
+
+// Grow an indexed font atlas without changing existing palette indices.
+std::vector<std::uint8_t> GrowCz2Atlas(const std::vector<std::uint8_t> &atlas,
+                                       int minWidth, int minHeight);
 
 } // namespace LucaSystem

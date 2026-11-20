@@ -148,7 +148,7 @@ void writePak(const LucaSystem::PakArchive &archive, const fs::path &path,
     throw std::runtime_error("Cannot close staged PAK");
 }
 
-void editGlyph(char **argv) {
+void changeGlyph(char **argv, bool add) {
   const LucaSystem::PakArchive atlas(argv[2]);
   const auto &atlasEntry = select(atlas, argv[3]);
   const LucaSystem::PakArchive metrics(argv[4]);
@@ -166,12 +166,15 @@ void editGlyph(char **argv) {
   if (cp > 0xffff || (cp >= 0xd800 && cp <= 0xdfff))
     throw std::runtime_error("Luca font glyph must be a BMP Unicode scalar");
   LucaSystem::BitmapFont font(metrics.read(metricsEntry));
-  const auto glyph = font.glyph(cp);
-  if (!glyph)
-    throw std::runtime_error("Luca font: glyph is not in the atlas");
-  font.setGlyphMetrics(cp, parseNumber<int>(argv[9]),
-                       parseNumber<int>(argv[10]), parseNumber<int>(argv[11]),
-                       parseNumber<int>(argv[12]));
+  const auto x = parseNumber<int>(argv[9]);
+  const auto y = parseNumber<int>(argv[10]);
+  const auto width = parseNumber<int>(argv[11]);
+  const auto advance = parseNumber<int>(argv[12]);
+  if (add)
+    font.appendGlyph(cp, x, y, width, advance);
+  else
+    font.setGlyphMetrics(cp, x, y, width, advance);
+  const auto glyph = *font.glyph(cp);
   const auto image = Kotonoha::MediaDecoder::decodePicture(
       Kotonoha::Filesystem::readLocalFile(argv[8], 16 * 1024 * 1024));
   const auto size = font.cellSize();
@@ -190,8 +193,12 @@ void editGlyph(char **argv) {
     for (int x = 0; x < size; ++x)
       alpha.push_back(row[x * 4 + 3]);
   }
+  auto atlasBytes = atlas.read(atlasEntry);
+  if (add)
+    atlasBytes =
+        LucaSystem::GrowCz2Atlas(atlasBytes, glyph.x + size, glyph.y + size);
   const auto patchedAtlas = LucaSystem::PatchCz2Alpha(
-      atlas.read(atlasEntry), glyph->x, glyph->y, size, size, alpha);
+      atlasBytes, glyph.x, glyph.y, size, size, alpha);
 
   Staging staging(destination.parent_path());
   const auto overlay = staging.directory / "overlay";
@@ -224,7 +231,8 @@ void usage(std::ostream &output) {
             " [name:NAME|id:ID FILE]...\n"
             "       LucaPak patch-air SCRIPT.PAK OUTPUT.pak"
             " {name:SCENARIO|id:ID OFFSET UTF8_FILE}...\n"
-            "       LucaPak edit-glyph ATLAS.pak SELECTOR INFO.pak SELECTOR"
+            "       LucaPak {edit-glyph|add-glyph} ATLAS.pak SELECTOR"
+            " INFO.pak SELECTOR"
             " OVERLAY_DIR U+XXXX GLYPH.png X Y WIDTH ADVANCE\n";
 }
 
@@ -239,7 +247,8 @@ int main(int argc, char **argv) {
   const bool list = command == "list" && argc == 3;
   const bool repack = command == "repack" && argc >= 4 && (argc - 4) % 2 == 0;
   const bool patch = command == "patch-air" && argc >= 7 && (argc - 4) % 3 == 0;
-  const bool glyph = command == "edit-glyph" && argc == 13;
+  const bool glyph =
+      (command == "edit-glyph" || command == "add-glyph") && argc == 13;
   if (!list && !repack && !patch && !glyph) {
     usage(std::cerr);
     return 2;
@@ -247,7 +256,7 @@ int main(int argc, char **argv) {
 
   try {
     if (glyph) {
-      editGlyph(argv);
+      changeGlyph(argv, command == "add-glyph");
       return 0;
     }
     const LucaSystem::PakArchive archive(argv[2]);

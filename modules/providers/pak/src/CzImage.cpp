@@ -170,26 +170,70 @@ std::vector<std::uint8_t> decodeLzw(const std::vector<std::uint8_t> &data,
   return out;
 }
 
+struct AtlasLayout {
+  size_t header, table, payload;
+  int width, height;
+  std::uint32_t blocks;
+
+  explicit AtlasLayout(const std::vector<std::uint8_t> &atlas) {
+    if (atlas.size() < 15 || atlas[0] != 'C' || atlas[1] != 'Z' ||
+        atlas[2] != '2' || u16(atlas, 12) != 8)
+      throw std::runtime_error("Font editing requires an 8-bit CZ2 atlas");
+    header = u32(atlas, 4);
+    width = u16(atlas, 8);
+    height = u16(atlas, 10);
+    constexpr size_t paletteSize = 256 * 4;
+    if (!width || !height || header < 15 || header > atlas.size() ||
+        atlas.size() - header < paletteSize + 4)
+      throw std::runtime_error("CZ2: invalid alpha atlas header");
+    blocks = u32(atlas, header + paletteSize);
+    table = header + paletteSize + 4;
+    if (blocks > (atlas.size() - table) / 8)
+      throw std::runtime_error("CZ2: truncated alpha atlas block table");
+    payload = table + size_t(blocks) * 8;
+  }
+
+  template <class Visit>
+  size_t visitBlocks(const std::vector<std::uint8_t> &atlas,
+                     Visit visit) const {
+    size_t offset = payload;
+    size_t rawOffset = 0;
+    const size_t pixelCount = size_t(width) * height;
+    for (size_t i = 0; i < blocks; ++i) {
+      const auto row = table + i * 8;
+      const auto size = u32(atlas, row);
+      const auto raw = u32(atlas, row + 4);
+      if (size > atlas.size() - offset || raw > pixelCount - rawOffset)
+        throw std::runtime_error("CZ2: alpha block exceeds atlas");
+      visit(row, offset, size, rawOffset, raw);
+      offset += size;
+      rawOffset += raw;
+    }
+    if (rawOffset != pixelCount)
+      throw std::runtime_error("CZ2: incomplete alpha atlas");
+    return offset;
+  }
+};
+
+void putLE(std::vector<std::uint8_t> &bytes, size_t offset, size_t value,
+           size_t width) {
+  for (size_t i = 0; i < width; ++i)
+    bytes[offset + i] = static_cast<std::uint8_t>(value >> (i * 8));
+}
+
 } // namespace
 
 std::vector<std::uint8_t>
 PatchCz2Alpha(const std::vector<std::uint8_t> &atlas, int x, int y, int width,
               int height, const std::vector<std::uint8_t> &alpha) {
-  if (atlas.size() < 15 || atlas[0] != 'C' || atlas[1] != 'Z' ||
-      atlas[2] != '2' || u16(atlas, 12) != 8)
-    throw std::runtime_error("Font editing requires an 8-bit CZ2 atlas");
-  const size_t header = u32(atlas, 4);
-  const int atlasWidth = u16(atlas, 8);
-  const int atlasHeight = u16(atlas, 10);
+  const AtlasLayout layout(atlas);
+  const auto header = layout.header;
+  const auto atlasWidth = layout.width;
+  const auto atlasHeight = layout.height;
   if (x < 0 || y < 0 || width <= 0 || height <= 0 || x > atlasWidth - width ||
       y > atlasHeight - height ||
       alpha.size() != size_t(width) * size_t(height))
     throw std::runtime_error("CZ2: invalid alpha patch rectangle");
-  constexpr size_t paletteSize = 256 * 4;
-  if (header < 15 || header > atlas.size() ||
-      atlas.size() - header < paletteSize + 4)
-    throw std::runtime_error("CZ2: truncated alpha atlas header");
-
   std::array<std::uint8_t, 256> byAlpha{};
   for (int value = 0; value < 256; ++value) {
     int best = 256;
@@ -201,56 +245,102 @@ PatchCz2Alpha(const std::vector<std::uint8_t> &atlas, int x, int y, int width,
       }
     }
   }
-  const auto blocks = u32(atlas, header + paletteSize);
-  const auto table = header + paletteSize + 4;
-  if (blocks > (atlas.size() - table) / 8)
-    throw std::runtime_error("CZ2: truncated alpha atlas block table");
-  size_t compressed = table + size_t(blocks) * 8;
-  size_t rawOffset = 0;
-  const size_t pixelCount = size_t(atlasWidth) * atlasHeight;
-  auto result =
-      std::vector<std::uint8_t>(atlas.begin(), atlas.begin() + compressed);
-  for (size_t i = 0; i < blocks; ++i) {
-    const auto row = table + i * 8;
-    const auto length = u32(atlas, row);
-    const auto raw = u32(atlas, row + 4);
-    if (length > atlas.size() - compressed || raw > pixelCount - rawOffset)
-      throw std::runtime_error("CZ2: alpha block exceeds atlas");
-    const auto end = rawOffset + raw;
-    std::vector<std::uint8_t> pixels;
-    bool changed = false;
-    for (int dy = 0; dy < height; ++dy) {
-      const auto start = size_t(y + dy) * atlasWidth + x;
-      for (size_t p = std::max(start, rawOffset);
-           p < std::min(start + width, end); ++p) {
-        if (pixels.empty())
-          pixels = decodeLzw2(atlas, compressed, length, raw);
-        auto &pixel = pixels[p - rawOffset];
-        const auto replacement = alpha[size_t(dy) * width + p - start];
-        // Keep the original index when its alpha already matches.
-        if (atlas[header + 4 * pixel + 3] != replacement &&
-            pixel != byAlpha[replacement]) {
-          pixel = byAlpha[replacement];
-          changed = true;
+  std::vector<std::uint8_t> result(atlas.begin(),
+                                   atlas.begin() + layout.payload);
+  const auto tail = layout.visitBlocks(
+      atlas, [&](size_t row, size_t compressed, uint32_t length,
+                 size_t rawOffset, uint32_t raw) {
+        const auto end = rawOffset + raw;
+        std::vector<std::uint8_t> pixels;
+        bool changed = false;
+        for (int dy = 0; dy < height; ++dy) {
+          const auto start = size_t(y + dy) * atlasWidth + x;
+          for (size_t p = std::max(start, rawOffset);
+               p < std::min(start + width, end); ++p) {
+            if (pixels.empty())
+              pixels = decodeLzw2(atlas, compressed, length, raw);
+            auto &pixel = pixels[p - rawOffset];
+            const auto replacement = alpha[size_t(dy) * width + p - start];
+            // Keep the original index when its alpha already matches.
+            if (atlas[header + 4 * pixel + 3] != replacement &&
+                pixel != byAlpha[replacement]) {
+              pixel = byAlpha[replacement];
+              changed = true;
+            }
+          }
         }
-      }
+        if (changed) {
+          const auto block = encodeLzw2(pixels);
+          putLE(result, row, block.size(), 4);
+          result.insert(result.end(), block.begin(), block.end());
+        } else {
+          result.insert(result.end(), atlas.begin() + compressed,
+                        atlas.begin() + compressed + length);
+        }
+      });
+  result.insert(result.end(), atlas.begin() + tail, atlas.end());
+  return result;
+}
+
+std::vector<std::uint8_t> GrowCz2Atlas(const std::vector<std::uint8_t> &atlas,
+                                       int minWidth, int minHeight) {
+  const AtlasLayout layout(atlas);
+  const int width = std::max(layout.width, minWidth);
+  const int height = std::max(layout.height, minHeight);
+  if (width > UINT16_MAX || height > UINT16_MAX)
+    throw std::runtime_error("CZ2: grown atlas exceeds dimension limit");
+  if (width == layout.width && height == layout.height)
+    return atlas;
+
+  int transparent = 0;
+  while (transparent < 256 && atlas[layout.header + 4 * transparent + 3] != 0)
+    ++transparent;
+  if (transparent == 256)
+    throw std::runtime_error(
+        "CZ2: cannot grow atlas without transparent entry");
+  const bool reflow = width != layout.width;
+  const int firstRow = reflow ? 0 : layout.height;
+  const int rowsPerBlock = std::max(1, (128 * 1024) / width);
+  const size_t preserved = reflow ? 0 : layout.blocks;
+  const size_t added = (height - firstRow + rowsPerBlock - 1) / rowsPerBlock;
+  if (added > UINT32_MAX - preserved ||
+      preserved + added > (atlas.max_size() - layout.table) / 8)
+    throw std::runtime_error("CZ2: grown atlas block table exceeds size limit");
+  std::vector<std::uint8_t> result(atlas.begin(), atlas.begin() + layout.table);
+  result.resize(layout.table + (preserved + added) * 8);
+  putLE(result, 8, width, 2);
+  putLE(result, 10, height, 2);
+  putLE(result, layout.table - 4, preserved + added, 4);
+  std::vector<std::uint8_t> oldPixels;
+  const auto tail =
+      layout.visitBlocks(atlas, [&](size_t row, size_t offset, uint32_t length,
+                                    size_t, uint32_t raw) {
+        if (reflow) {
+          const auto pixels = decodeLzw2(atlas, offset, length, raw);
+          oldPixels.insert(oldPixels.end(), pixels.begin(), pixels.end());
+        } else {
+          std::copy_n(atlas.begin() + row, 8, result.begin() + row);
+          result.insert(result.end(), atlas.begin() + offset,
+                        atlas.begin() + offset + length);
+        }
+      });
+  size_t row = layout.table + preserved * 8;
+  for (int y = firstRow; y < height; y += rowsPerBlock) {
+    const int rows = std::min(rowsPerBlock, height - y);
+    std::vector<std::uint8_t> pixels(size_t(rows) * width,
+                                     static_cast<std::uint8_t>(transparent));
+    if (reflow) {
+      for (int i = 0; i < rows && y + i < layout.height; ++i)
+        std::copy_n(oldPixels.begin() + size_t(y + i) * layout.width,
+                    layout.width, pixels.begin() + size_t(i) * width);
     }
-    if (changed) {
-      const auto block = encodeLzw2(pixels);
-      for (size_t byte = 0; byte < 4; ++byte)
-        result[row + byte] = static_cast<std::uint8_t>(block.size() >>
-                                                       (byte * 8));
-      result.insert(result.end(), block.begin(), block.end());
-    } else {
-      result.insert(result.end(), atlas.begin() + compressed,
-                    atlas.begin() + compressed + length);
-    }
-    compressed += length;
-    rawOffset = end;
+    const auto block = encodeLzw2(pixels);
+    putLE(result, row, block.size(), 4);
+    putLE(result, row + 4, pixels.size(), 4);
+    row += 8;
+    result.insert(result.end(), block.begin(), block.end());
   }
-  if (rawOffset != pixelCount)
-    throw std::runtime_error("CZ2: incomplete alpha atlas");
-  result.insert(result.end(), atlas.begin() + compressed, atlas.end());
+  result.insert(result.end(), atlas.begin() + tail, atlas.end());
   return result;
 }
 
