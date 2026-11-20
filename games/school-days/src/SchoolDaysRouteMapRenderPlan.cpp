@@ -289,7 +289,9 @@ SchoolDaysRouteMapRenderPlan::Build(const SchoolDaysRouteMapModel &model) {
   // their objects alive but makes only the hovered episode visible; drawing
   // all six gives every tab a blue border even with the pointer elsewhere.
   for (int record = 0; record <= 10; ++record) {
-    if (record < 6 && model.Selection() != record)
+    // The base image already contains neutral Close Route Map. Record 6 is
+    // its blue CHIP, displayed only while the actual pointer selects it.
+    if (record <= 6 && model.Selection() != record)
       continue;
     out.push_back(FromRecord(Role::CommonControl, record, record,
                              CommonRecord(record), layout));

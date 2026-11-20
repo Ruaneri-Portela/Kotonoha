@@ -144,13 +144,57 @@ int main(int argc, char **argv) {
     openPanel(11);
     const auto loadSprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
         app.runtime.panels().SaveLoad());
-    check(std::any_of(
+    // The base LOAD art contains the neutral label; Role::RouteMap is its
+    // hover CHIP, not an always-on sprite.
+    check(std::none_of(
               loadSprites.begin(), loadSprites.end(),
               [](const auto &sprite) {
                 return sprite.role ==
                        Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
               }),
-          "Retail LOAD must retain Open Route Map");
+          "LOAD blue Route Map CHIP must be absent without pointer hover");
+    const auto hasRouteMapHover = [&] {
+      const auto sprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
+          app.runtime.panels().SaveLoad());
+      return std::any_of(sprites.begin(), sprites.end(), [](const auto &sprite) {
+        return sprite.role ==
+               Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
+      });
+    };
+    // Exercise the real SDL event path over LOAD's retail CMAP button 21.
+    {
+      const auto &model = app.runtime.panels().SaveLoad();
+      const int width = int(model.Cmap().Width());
+      const int height = int(model.Cmap().Height());
+      int hitX = -1, hitY = -1;
+      for (int y = 0; y < height && hitX < 0; y += 2)
+        for (int x = 0; x < width; x += 2)
+          if (model.HitControl(x, y) == 21) {
+            hitX = x;
+            hitY = y;
+            break;
+          }
+      check(hitX >= 0, "LOAD CMAP lacks Open Route Map hitbox");
+      SDL_Event hover{};
+      hover.type = SDL_EVENT_MOUSE_MOTION;
+      hover.motion.x = float(hitX) * 1280.0f / float(width);
+      hover.motion.y = float(hitY) * 720.0f / float(height);
+      app.runtime.onEvent(hover);
+      check(hasRouteMapHover(), "Open Route Map CHIP did not follow hover");
+      SDL_Event leave{};
+      leave.type = SDL_EVENT_WINDOW_MOUSE_LEAVE;
+      app.runtime.onEvent(leave);
+      check(!hasRouteMapHover(), "Open Route Map CHIP survived pointer leave");
+      app.runtime.onEvent(hover);
+      check(hasRouteMapHover(), "Open Route Map CHIP did not recover");
+      SDL_Event focusLost{};
+      focusLost.type = SDL_EVENT_WINDOW_FOCUS_LOST;
+      app.runtime.onEvent(focusLost);
+      check(!hasRouteMapHover(), "Open Route Map CHIP survived focus loss");
+      hover.motion.x = -12.0f;
+      hover.motion.y = -12.0f;
+      app.runtime.onEvent(hover);
+    }
     row();
     // Retail LOAD now dims SaveLoad, presents POPUP_LOAD, fades the card to
     // black, restores the slot behind it, then reveals the new scene. Advance
