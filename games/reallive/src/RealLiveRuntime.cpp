@@ -166,8 +166,14 @@ struct Text : VNTextBox {
     return canvasW;
   }
   int boxHeight() const {
-    if (frame && frame->h > 0)
+    if (frame && frame->h > 0) {
+      // AIR's original G00 frame may be a full-screen 640x480 canvas:
+      // only the lower 122px are the actual dialogue box. Using its
+      // full height as the box turns a window decoration into a scene overlay.
+      if (frame->h >= canvasH / 2)
+        return std::min(122, frame->h);
       return frame->h;
+    }
     return 122;
   }
   int boxX() const {
@@ -442,8 +448,27 @@ struct Text : VNTextBox {
   void renderFrame(RendererRef r) override {
     updateLayout(canvasW, canvasH);
     const float bx = float(boxX()), by = float(boxY());
-    if (frame)
-      image(r, *frame, bx, by, true, frameUsesOpaqueNativeColours);
+    if (frame) {
+      if (frameUsesOpaqueNativeColours && frame->h > boxHeight()) {
+        // The source G00 carries a full-screen transparent canvas. Only
+        // render its authored dialogue strip; never make the transparent
+        // portion opaque, even when the RGB underneath contains blue.
+        auto &texture = imageTextures[frame.get()];
+        if (!texture) {
+          texture.reset(SDL_CreateTextureFromSurface(&r, frame.get()));
+          if (!texture)
+            throw std::runtime_error(SDL_GetError());
+        }
+        if (!SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_NONE))
+          throw std::runtime_error(SDL_GetError());
+        const SDL_FRect src{0, float(frame->h - boxHeight()),
+                            float(frame->w), float(boxHeight())};
+        const SDL_FRect dst{bx, by, float(boxWidth()), float(boxHeight())};
+        RenderUpscaledTexture(&r, texture.get(), &src, &dst);
+      } else {
+        image(r, *frame, bx, by, true, frameUsesOpaqueNativeColours);
+      }
+    }
     if (!buttonSurface)
       return;
     auto &texture = imageTextures[buttonSurface.get()];
