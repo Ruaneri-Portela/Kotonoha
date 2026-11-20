@@ -15,7 +15,8 @@ class Assets final : public Kotonoha::AssetProvider {
   std::string resolveOriginal(const std::string &logical) const;
 
 public:
-  explicit Assets(std::filesystem::path root, const std::string &scripts = {});
+  explicit Assets(std::filesystem::path root, const std::string &scripts = {},
+                  bool allowAutomaticOverlay = true);
   ~Assets() override;
   // Distinguishes authenticated packaged installations from extracted loose
   // developer fixtures. Never selects an LxH ON/OFF policy: packaged installs

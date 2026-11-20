@@ -281,7 +281,11 @@ struct App {
     }
     auto assets = std::make_shared<SchoolDays::Assets>(
         Kotonoha::gameDataDirectory(directory),
-        scripts.empty() ? options.assetOverlayDirectory() : scripts);
+        scripts.empty() ? options.assetOverlayDirectory() : scripts,
+        // --no-asset-overlay is explicit even though it resolves to an empty
+        // path. Do not re-enable the automatic overlay in the asset provider.
+        !scripts.empty() || !options.assetOverlaySpecified ||
+            !options.assetOverlayPath.empty());
 #if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "School Days HQ retail-only: 29 original GPKs, dubbing supported");
