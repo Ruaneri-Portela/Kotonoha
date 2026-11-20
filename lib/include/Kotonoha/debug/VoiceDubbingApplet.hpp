@@ -64,6 +64,8 @@ class VoiceDubbingApplet {
 public:
   explicit VoiceDubbingApplet(Engine &engine);
   ~VoiceDubbingApplet();
+  // Select a logical asset from the shared provider inspector.
+  void openAsset(const std::string &id);
   void draw();
   void suspend();
 };
