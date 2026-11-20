@@ -15,7 +15,7 @@ repo="${KOTONOHA_ROOT:-${SRCROOT}/../..}"
 frameworks="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
 platform="${PLATFORM_NAME:-}"
 
-[[ "${TARGET_NAME:-}" == DokiDoki-* || "${TARGET_NAME:-}" == KatawaShoujo-* ]] || fatal 'Script may only run in DDLC/Katawa application targets'
+[[ "${TARGET_NAME:-}" == DokiDoki-* || "${TARGET_NAME:-}" == KatawaShoujo-* || "${TARGET_NAME:-}" == KotonohaLauncher-* ]] || fatal 'Script may only run in DDLC/Katawa application targets'
 
 install_framework() {
   local source="$1"
