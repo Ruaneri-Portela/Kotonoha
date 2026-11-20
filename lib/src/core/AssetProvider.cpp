@@ -1,3 +1,4 @@
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
@@ -13,6 +14,7 @@
 #include <cmath>
 
 #include <algorithm>
+#include <array>
 #include <climits>
 #include <cstring>
 #include <limits>
@@ -175,6 +177,80 @@ std::vector<Uint8> AssetProvider::read(const std::string &id,
                                        AssetSource source) const {
   return source == AssetSource::Original ? readOriginalAsset(id) : read(id);
 }
+std::uint64_t AssetProvider::dumpAsset(
+    const std::string &id, const std::filesystem::path &destination,
+    AssetSource source) const {
+  if (id.empty() || destination.empty() ||
+      std::filesystem::exists(destination))
+    throw std::invalid_argument(
+        "Select a non-empty asset and a new destination for dumping");
+  if (!contains(id, source))
+    throw std::runtime_error("Cannot dump missing provider asset: " + id);
+
+  // Never use an archive stream for effective bytes when an overlay wins.
+  auto stream = source == AssetSource::Effective && hasOverlay(id)
+                    ? std::unique_ptr<AssetStream>{}
+                    : openStream(id, source);
+  if (stream && stream->size() > maximumAssetSize)
+    throw std::runtime_error("Asset dump exceeds the 1 GiB safety limit");
+
+  if (!destination.parent_path().empty())
+    std::filesystem::create_directories(destination.parent_path());
+  auto temporary = destination;
+  temporary += ".partial";
+  if (std::filesystem::exists(temporary))
+    throw std::runtime_error("An unfinished asset dump already exists: " +
+                             temporary.string());
+
+  std::uint64_t total = 0;
+  try {
+    {
+      Filesystem::OutputFile output(temporary, std::ios::binary);
+      if (!output)
+        throw std::runtime_error("Cannot open asset dump destination");
+      if (stream) {
+        std::array<Uint8, 64 * 1024> buffer{};
+        const auto expected = stream->size();
+        while (total < expected) {
+          const auto request = static_cast<std::size_t>(
+              std::min<std::uint64_t>(buffer.size(), expected - total));
+          const auto count = stream->read(buffer.data(), request);
+          if (!count || count > request)
+            throw std::runtime_error("Asset stream ended early or over-read");
+          output.write(reinterpret_cast<const char *>(buffer.data()),
+                       static_cast<std::streamsize>(count));
+          if (!output)
+            throw std::runtime_error("Cannot write streamed asset bytes");
+          total += count;
+        }
+      } else {
+        // Providers with only readAsset() are supported without a special
+        // debug implementation. The normal provider size cap still applies.
+        const auto bytes = read(id, source);
+        if (bytes.size() > maximumAssetSize)
+          throw std::runtime_error("Asset dump exceeds the 1 GiB safety limit");
+        output.write(reinterpret_cast<const char *>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+        if (!output)
+          throw std::runtime_error("Cannot write asset bytes");
+        total = bytes.size();
+      }
+      output.close();
+      if (!output)
+        throw std::runtime_error("Cannot finalize asset dump");
+    }
+    // Never clobber an earlier dump.
+    if (std::filesystem::exists(destination))
+      throw std::runtime_error("Asset dump destination already exists");
+    std::filesystem::rename(temporary, destination);
+  } catch (...) {
+    std::error_code ignored;
+    std::filesystem::remove(temporary, ignored);
+    throw;
+  }
+  return total;
+}
+
 std::string AssetProvider::localPath(const std::string &id) const {
   auto file = overlayPath(id);
   return file.empty() ? localPathAsset(id) : file;
