@@ -63,6 +63,8 @@ def games = [
   amagami       : ['amagami', 'Amagami', 'me.hirameki.kotonoha.amagami', 'Amagami'],
   zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
   snowRadish    : ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
+  meo           : ['meo', 'MEO', 'me.hirameki.kotonoha.meo', 'Miss Each Other'],
+  katawaShoujo  : ['katawa-shoujo', 'KatawaShoujo', 'me.hirameki.kotonoha.katawashoujo', 'Katawa Shoujo'],
   dokiDoki      : ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
   schoolDays    : ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days'],
   reallive      : ['reallive', 'RealLive', 'me.hirameki.kotonoha.reallive', 'RealLive'],
@@ -119,7 +121,7 @@ android {
           cmake {
             // Must match the variable consumed by the root CMakeLists.txt.
             arguments "-DKOTONOHA_BUILD_GAME=${game[0]}",
-              "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor == 'dokiDoki' ? '-python' : ''}"
+              "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor in ['dokiDoki', 'katawaShoujo'] ? '-python' : ''}"
             targets game[1]
           }
         }
@@ -200,7 +202,7 @@ android.applicationVariants.all { variant ->
       def stagedDir = staged.get().asFile
       new File(stagedDir, 'game-assets').mkdirs()
 
-      if (variant.flavorName == 'dokiDoki') {
+      if (variant.flavorName in ['dokiDoki', 'katawaShoujo']) {
         def foundStdlib = false
 
         abis.each { abi ->
@@ -265,7 +267,7 @@ android.applicationVariants.all { variant ->
   }
   android.sourceSets[variant.name].assets.srcDir staged
 
-  if (variant.flavorName == 'dokiDoki') {
+  if (variant.flavorName in ['dokiDoki', 'katawaShoujo']) {
     assets.configure {
       dependsOn variant.externalNativeBuildProviders
     }
