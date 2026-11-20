@@ -53,8 +53,8 @@ int main() {
   try {
     // 1. The hub links the 12 real game families, never the Example demo.
     const auto &reg = EngineLibraryRegistry::instance();
-    require(reg.all().size() == 12,
-            "Exactly 12 real game runtime libraries must be registered");
+    require(reg.all().size() == 14,
+            "Exactly 14 game identities must be registered (12 shared engine families)");
     require(!reg.find(EngineKind::Unknown),
             "The Example demo must not be registered in the hub");
     require(reg.find(EngineKind::RealLive) &&
@@ -77,6 +77,13 @@ int main() {
                 reg.find(EngineKind::ZeroNoTsukaima)->libraryTarget ==
                     "zero_no_tsukaima",
             "ZeroNoTsukaima maps to zero_no_tsukaima library");
+
+    require(reg.findBySlug("meo") &&
+                reg.findBySlug("meo")->targetBinary == "MEO",
+            "Miss Each Other must select the MEO port");
+    require(reg.findBySlug("katawa-shoujo") &&
+                reg.findBySlug("katawa-shoujo")->targetBinary == "KatawaShoujo",
+            "Katawa Shoujo must select its own port");
 
     // The registry is a link-time contract. No external executable is needed.
 #if defined(KOTONOHA_LAUNCH_AMAGAMI)
