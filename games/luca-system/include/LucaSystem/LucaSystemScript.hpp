@@ -93,5 +93,23 @@ std::vector<std::string> ExtractShiftJisStrings(std::string_view bytes);
 // and UTF-16LE strings from instruction parameter payloads.
 std::string ReadLsUtf8(const std::vector<std::uint8_t> &bytes, size_t &cursor);
 std::string ReadLsUtf16(const std::vector<std::uint8_t> &bytes, size_t &cursor);
+// Decode a NUL-terminated UTF-8 string (Air's `read_str` form), advancing the
+// cursor past the terminator. Used by VARSTR_SET scenario tables.
+std::string ReadLsCString(const std::vector<std::uint8_t> &bytes,
+                          size_t &cursor);
+
+// One decoded AIR VARSTR_SET table row (the contents of `_varstr`).
+struct VarStrSetEntry {
+  std::string scenario; // scenario name the string belongs to
+  std::uint16_t id = 0; // string id referenced by OP_VARSTR
+  std::string text;     // preferred translation: EN, then JP, then ZH
+};
+
+// Decode a VARSTR_SET instruction payload:
+//   uint16 constant, NUL-terminated scenario name, uint16 id,
+//   JP/EN/ZH length-prefixed UTF-16 strings.
+// Returns std::nullopt when the payload is truncated or has no usable text.
+std::optional<VarStrSetEntry>
+ParseVarStrSet(const ScriptInstruction &instruction);
 
 } // namespace LucaSystem

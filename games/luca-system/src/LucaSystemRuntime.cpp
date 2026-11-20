@@ -794,20 +794,9 @@ struct LucaSystemRuntime::Impl {
         Script s("_varstr", assets->read("_varstr"));
         if (s.valid()) {
           for (const auto &ins : s.instructions()) {
-            if (ins.opcode == OP_VARSTR_SET && ins.paramBytes.size() >= 6) {
-              size_t cursor = 0;
-              std::string scen = ReadLsUtf8(ins.paramBytes, cursor);
-              if (cursor + 2 <= ins.paramBytes.size()) {
-                uint16_t strId = paramU16(ins, cursor);
-                cursor += 2;
-                std::string jp = ReadLsUtf16(ins.paramBytes, cursor);
-                std::string en = ReadLsUtf16(ins.paramBytes, cursor);
-                std::string zh = ReadLsUtf16(ins.paramBytes, cursor);
-                const std::string &chosen =
-                    !en.empty() ? en : (!jp.empty() ? jp : zh);
-                if (!scen.empty() && !chosen.empty())
-                  varStrTable[{scen, strId}] = chosen;
-              }
+            if (ins.opcode == OP_VARSTR_SET) {
+              if (auto entry = ParseVarStrSet(ins))
+                varStrTable[{entry->scenario, entry->id}] = entry->text;
             }
           }
         }
@@ -1674,8 +1663,14 @@ struct LucaSystemRuntime::Impl {
         break;
       }
       case OP_VARSTR: {
+        // AIR layout: destination string variable in the fixed parameter,
+        // table id as the final uint16 of the six-byte payload.
         if (ins.paramBytes.size() >= 6) {
-          const uint16_t dstStrVar = paramU16(ins, 0);
+          const uint16_t dstStrVar =
+              ins.fixedParam.size() >= 2
+                  ? static_cast<uint16_t>(ins.fixedParam[0]) |
+                        (static_cast<uint16_t>(ins.fixedParam[1]) << 8)
+                  : paramU16(ins, 0);
           const uint16_t tableId = paramU16(ins, 4);
           auto it = varStrTable.find({currentScenario, tableId});
           if (it != varStrTable.end())
@@ -1683,8 +1678,26 @@ struct LucaSystemRuntime::Impl {
         }
         break;
       }
-      case OP_VARSTR_SET:
+      case OP_VARSTR_SET: {
+        // Same table layout as _varstr: register the entry for later
+        // OP_VARSTR lookups instead of silently ignoring the opcode.
+        if (ins.paramBytes.size() >= 6) {
+          size_t cursor = 2;
+          const std::string scen = ReadLsCString(ins.paramBytes, cursor);
+          if (cursor + 2 <= ins.paramBytes.size()) {
+            const uint16_t strId = paramU16(ins, cursor);
+            cursor += 2;
+            const std::string jp = ReadLsUtf16(ins.paramBytes, cursor);
+            const std::string en = ReadLsUtf16(ins.paramBytes, cursor);
+            const std::string zh = ReadLsUtf16(ins.paramBytes, cursor);
+            const std::string &chosen =
+                !en.empty() ? en : (!jp.empty() ? jp : zh);
+            if (!scen.empty() && !chosen.empty())
+              varStrTable[{scen, strId}] = chosen;
+          }
+        }
         break;
+      }
 
       case OP_SELECT: {
         uint16_t targetVarId = 6001;

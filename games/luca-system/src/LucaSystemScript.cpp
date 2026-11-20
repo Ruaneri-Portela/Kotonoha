@@ -97,6 +97,41 @@ std::string ReadLsUtf8(const std::vector<std::uint8_t> &bytes, size_t &cursor) {
   return text;
 }
 
+std::string ReadLsCString(const std::vector<std::uint8_t> &bytes,
+                          size_t &cursor) {
+  if (cursor >= bytes.size())
+    return {};
+  size_t end = cursor;
+  while (end < bytes.size() && bytes[end] != 0)
+    ++end;
+  std::string text(bytes.begin() + cursor, bytes.begin() + end);
+  cursor = end < bytes.size() ? end + 1 : end;
+  return text;
+}
+
+std::optional<VarStrSetEntry>
+ParseVarStrSet(const ScriptInstruction &instruction) {
+  const auto &bytes = instruction.paramBytes;
+  if (bytes.size() < 6)
+    return std::nullopt;
+  size_t cursor = 2; // skip the leading uint16 constant
+  VarStrSetEntry entry;
+  entry.scenario = ReadLsCString(bytes, cursor);
+  if (cursor + 2 > bytes.size())
+    return std::nullopt;
+  entry.id = static_cast<std::uint16_t>(
+      bytes[cursor] | (static_cast<std::uint16_t>(bytes[cursor + 1]) << 8));
+  cursor += 2;
+
+  const std::string jp = ReadLsUtf16(bytes, cursor);
+  const std::string en = ReadLsUtf16(bytes, cursor);
+  const std::string zh = ReadLsUtf16(bytes, cursor);
+  entry.text = !en.empty() ? en : (!jp.empty() ? jp : zh);
+  if (entry.scenario.empty() || entry.text.empty())
+    return std::nullopt;
+  return entry;
+}
+
 Script::Script(std::string name, std::vector<std::uint8_t> data)
     : name_(std::move(name)), data_(std::move(data)) {
   parse();

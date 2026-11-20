@@ -271,6 +271,87 @@ int main() {
           "AIR MESSAGE uses English even when Japanese is empty");
   }
 
+  // AIR VARSTR_SET (`_varstr`) rows: a leading uint16 constant that is NOT a
+  // length prefix, a NUL-terminated scenario name, the string id, then
+  // JP/EN/ZH length-prefixed UTF-16 strings.
+  {
+    auto makeInstruction = [](std::uint8_t opcode, std::uint8_t fixedFlag,
+                              const std::vector<std::uint8_t> &payload) {
+      std::vector<std::uint8_t> raw = payload;
+      const auto len = std::uint16_t(4 + raw.size());
+      std::vector<std::uint8_t> bytes = u16le(len);
+      bytes.push_back(opcode);
+      bytes.push_back(fixedFlag);
+      bytes.insert(bytes.end(), raw.begin(), raw.end());
+      if (len & 1)
+        bytes.push_back(0); // alignment byte, not part of len
+      return bytes;
+    };
+    auto utf16 = [](std::string_view text) {
+      std::vector<std::uint8_t> out = u16le(std::uint16_t(text.size()));
+      for (char c : text) {
+        out.push_back(std::uint8_t(c));
+        out.push_back(0);
+      }
+      out.push_back(0);
+      out.push_back(0); // terminator
+      return out;
+    };
+
+    std::vector<std::uint8_t> payload = {0x34, 0x12}; // constant != 0xfff9
+    const char scenario[] = "seen999";
+    payload.insert(payload.end(), scenario, scenario + sizeof(scenario));
+    auto id = u16le(202);
+    payload.insert(payload.end(), id.begin(), id.end());
+    for (const std::string_view text : {"JP", "EN", "ZH"}) {
+      auto field = utf16(text);
+      payload.insert(payload.end(), field.begin(), field.end());
+    }
+
+    LucaSystem::Script varstr(
+        "_varstr", makeInstruction(29, 0, payload));
+    check(varstr.valid() && varstr.instructionCount() == 1,
+          "VARSTR_SET synthetic script parses");
+    if (varstr.valid() && !varstr.instructions().empty()) {
+      const auto entry =
+          LucaSystem::ParseVarStrSet(varstr.instructions().front());
+      check(entry.has_value(), "VARSTR_SET payload decodes");
+      if (entry) {
+        check(entry->scenario == "seen999",
+              "VARSTR_SET reads NUL-terminated scenario name");
+        check(entry->id == 202, "VARSTR_SET reads string id");
+        check(entry->text == "EN",
+              "VARSTR_SET prefers English translation");
+      }
+
+      size_t cursor = 2;
+      check(LucaSystem::ReadLsCString(
+                varstr.instructions().front().paramBytes, cursor) == "seen999",
+            "ReadLsCString consumes the NUL terminator");
+      check(cursor == 2 + sizeof(scenario),
+            "ReadLsCString advances past the terminator");
+    }
+
+    // Empty Japanese text must still fall through to English.
+    payload = {0x00, 0x00};
+    payload.insert(payload.end(), scenario, scenario + sizeof(scenario));
+    id = u16le(7);
+    payload.insert(payload.end(), id.begin(), id.end());
+    for (const std::string_view text : {"", "OK", ""}) {
+      auto field = utf16(text);
+      payload.insert(payload.end(), field.begin(), field.end());
+    }
+    LucaSystem::Script fallback("_varstr", makeInstruction(29, 0, payload));
+    if (fallback.valid() && !fallback.instructions().empty()) {
+      const auto entry =
+          LucaSystem::ParseVarStrSet(fallback.instructions().front());
+      check(entry && entry->text == "OK",
+            "VARSTR_SET falls back to English when Japanese is empty");
+    } else {
+      check(false, "VARSTR_SET empty-Japanese script parses");
+    }
+  }
+
   // ---- Offset jumps must target actual instruction starts, never bytes
   // inside a payload. Symbolic labels are restricted to JUMPPOINT markers.
   {
