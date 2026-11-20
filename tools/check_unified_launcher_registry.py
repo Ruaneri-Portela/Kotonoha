@@ -145,5 +145,5 @@ if __name__ == "__main__":
         print(f"[Launcher contracts] {finding}", file=sys.stderr)
     if failures:
         raise SystemExit(1)
-    print("[Launcher contracts] All 12 linked game runtimes match their "
+    print("[Launcher contracts] All registered game runtimes match their "
           "CMake/Android identities; Example excluded; BUILD_ALL required")
