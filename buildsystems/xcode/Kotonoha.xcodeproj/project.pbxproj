@@ -5984,7 +5984,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "\"${SRCROOT}/Scripts/BuildUnifiedLauncher.sh\"";
+			shellScript = "bash \"${SRCROOT}/Scripts/BuildUnifiedLauncher.sh\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
