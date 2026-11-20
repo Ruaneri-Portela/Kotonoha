@@ -89,7 +89,7 @@ def errors():
                 header = (root / "src/SummerRuntime.hpp").read_text(
                     encoding="utf-8"
                 )
-                if (expected in header and "runtime(assets)" in source:
+                if expected in header and "runtime(assets)" in source:
                     runtime_ids.append(expected)
             elif slug == "meo":
                 shared = (ROOT / "games/summer-radish-vacation/src/SummerRuntime.cpp").read_text(
