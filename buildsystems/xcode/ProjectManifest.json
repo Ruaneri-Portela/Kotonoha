@@ -51,7 +51,7 @@
     },
     "macOS/Pmail": {
       "target": "D9B6CD3809CE357BEA918F33",
-      "sources": 16
+      "sources": 18
     },
     "iOS/KotonohaImGui": {
       "target": "602CC6310602184A1C7CAFDB",
@@ -103,7 +103,7 @@
     },
     "iOS/Pmail": {
       "target": "B1583208E1B067219E50E5CD",
-      "sources": 16
+      "sources": 18
     },
     "macOS/KatawaShoujo": {
       "target": "06628F1E7E708814ECF8438D",
@@ -139,7 +139,7 @@
     },
     "macOS/KotonohaLauncher": {
       "target": "B5B500000000000000000001",
-      "sources": 181
+      "sources": 183
     }
   },
   "games": {
@@ -187,7 +187,7 @@
       "ponscripter"
     ]
   },
-  "source_files": 288,
+  "source_files": 295,
   "schemes": 30,
   "note": "The Xcode project compiles sources from their original game/provider/VM locations. Native launcher builds via Xcode Sources and Frameworks phases; no CMake bridge.",
   "bundling": {
@@ -219,7 +219,15 @@
     "ddlc_python": "CPython 3.15 prepared by tools/PrepareApple.py and packaged by DokiDoki and KatawaShoujo targets",
     "ddlc_python_script": "buildsystems/xcode/Scripts/EmbedDokiDokiPython.sh",
     "unified_launcher": "Native macOS PBXNativeTarget compiling game sources directly; does not invoke CMake",
-    "renpy_python": "CPython 3.15 shared by DokiDoki, KatawaShoujo and KotonohaLauncher macOS"
+    "renpy_python": "CPython 3.15 shared by DokiDoki, KatawaShoujo and KotonohaLauncher macOS",
+    "native_launcher_sources": 183,
+    "navigated_optional_sources": [
+      "modules/vms/renpy/src/PythonDummy.cpp",
+      "games/amagami/src/VitaScripts.cpp",
+      "games/amagami/src/VitaVmBridge.cpp",
+      "games/amagami/src/VitaSpriteRenderer.cpp",
+      "games/amagami/src/VitaInput.cpp"
+    ]
   },
   "preparation": {
     "script": "tools/PrepareApple.py",
