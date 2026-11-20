@@ -11,5 +11,5 @@ target_link_libraries(KatawaShoujo PRIVATE doki_doki_literature_club)
 set_target_properties(KatawaShoujo PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(KatawaShoujo
     BUNDLE_ID me.hirameki.kotonoha.katawashoujo GAME katawa-shoujo
-    PYTHON_STDLIB "${Python3_STDLIB}"
-    PYTHON_VERSION "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+    PYTHON_STDLIB "${KOTONOHA_RENPY_PYTHON_STDLIB}"
+    PYTHON_VERSION "${KOTONOHA_RENPY_PYTHON_VERSION}")
