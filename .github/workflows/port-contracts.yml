@@ -6,6 +6,13 @@ on:
       - "games/**"
       - "launcher/**"
       - "tools/check_unified_launcher_registry.py"
+      - "tools/check_debug_bridge.py"
+      - "lib/src/debug/**"
+      - "lib/include/Kotonoha/debug/**"
+      - "lib/src/core/AssetProvider.cpp"
+      - "lib/include/Kotonoha/core/AssetProvider.hpp"
+      - "lib/include/Kotonoha/core/Runtime.hpp"
+      - "lib/tests/AssetProviderTests.cpp"
       - "tools/check_sdl_cpack.py"
       - "tools/check_web_shell.js"
       - "tools/generate_pwa_icons.py"
@@ -52,6 +59,13 @@ on:
       - "games/**"
       - "launcher/**"
       - "tools/check_unified_launcher_registry.py"
+      - "tools/check_debug_bridge.py"
+      - "lib/src/debug/**"
+      - "lib/include/Kotonoha/debug/**"
+      - "lib/src/core/AssetProvider.cpp"
+      - "lib/include/Kotonoha/core/AssetProvider.hpp"
+      - "lib/include/Kotonoha/core/Runtime.hpp"
+      - "lib/tests/AssetProviderTests.cpp"
       - "tools/check_sdl_cpack.py"
       - "tools/check_web_shell.js"
       - "tools/generate_pwa_icons.py"
@@ -113,6 +127,7 @@ jobs:
           python3 tools/ValidateBuildMetadata.py
           python3 tools/check_release_matrix.py
           python3 tools/check_unified_launcher_registry.py
+          python3 tools/check_debug_bridge.py
           python3 tools/check_sdl_cpack.py
       - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
         run: |
