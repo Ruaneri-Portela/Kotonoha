@@ -193,9 +193,22 @@ void VoiceDubbingApplet::refreshSceneAudio() {
   auto active = engine_.GetRuntime().debugNode();
   if (active.empty())
     active = engine_.activeNode();
+  // Some runtimes enumerate an entire archive scenario in debugSceneAudio().
+  // Re-query only when the active text or most recent voice actually changes.
+  std::string audioMarker;
+  const auto recent = engine_.GetAssets().recentAudio();
+  if (!recent.empty())
+    audioMarker = recent.front();
+  for (const auto &original : engine_.GetRuntime().activeTranslationKeys()) {
+    audioMarker.push_back('\n');
+    audioMarker += original;
+  }
   if (active == sceneNode_) {
+    if (audioMarker == sceneAudioMarker_)
+      return;
+    sceneAudioMarker_ = audioMarker;
     // Native interpreters can advance to another voice within the same
-    // script node. Refresh its metadata without resetting an ongoing edit.
+    // script node. Refresh metadata without discarding the current edit.
     for (const auto &line : engine_.GetRuntime().debugSceneAudio()) {
       auto found = std::find_if(sceneAudio_.begin(), sceneAudio_.end(),
                                 [&](const auto &item) {
@@ -211,6 +224,7 @@ void VoiceDubbingApplet::refreshSceneAudio() {
   stopRecording();
   stopPreview();
   sceneNode_ = active;
+  sceneAudioMarker_ = std::move(audioMarker);
   selectedId_.clear();
   manualId_[0] = '\0';
   characterFilter_.clear();
