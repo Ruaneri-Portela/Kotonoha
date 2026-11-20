@@ -256,6 +256,28 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
                      shutdownRuntime<Ponscripter::PonscripterRuntime>());
       });
 #endif
+#if defined(KOTONOHA_LAUNCH_DDLC)
+  if (const auto *base = registry.findBySlug("doki-doki-literature-club")) {
+    auto katawa = *base;
+    katawa.slug = "katawa-shoujo";
+    katawa.displayName = "Katawa Shoujo (Ren'Py)";
+    katawa.targetBinary = "KatawaShoujo";
+    katawa.cliOption = "--katawa";
+    katawa.packageId = "me.hirameki.kotonoha.katawashoujo";
+    registry.registerLibrary(std::move(katawa));
+  }
+#endif
+#if defined(KOTONOHA_LAUNCH_SUMMER)
+  if (const auto *base = registry.findBySlug("summer-radish-vacation")) {
+    auto meo = *base;
+    meo.slug = "meo";
+    meo.displayName = "Miss Each Other (Overflow CMP)";
+    meo.targetBinary = "MEO";
+    meo.cliOption = "--meo";
+    meo.packageId = "me.hirameki.kotonoha.meo";
+    registry.registerLibrary(std::move(meo));
+  }
+#endif
 }
 
 } // namespace KotonohaLauncher
