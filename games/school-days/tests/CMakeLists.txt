@@ -1,5 +1,9 @@
 set(SCHOOL_DAYS_ROUTE "${CMAKE_CURRENT_SOURCE_DIR}/../game-assets/school-days-hq.ktnroute")
 
+# Shared launcher/asset-provider precedence with synthetic PNG/CMAP files.
+add_executable(SchoolDaysOverlaySelectionTest SchoolDaysOverlaySelectionTest.cpp)
+add_test(NAME SchoolDays.OverlaySelection COMMAND SchoolDaysOverlaySelectionTest)
+
 add_executable(SchoolDaysPortTest SchoolDaysPortTest.cpp)
 target_link_libraries(SchoolDaysPortTest PRIVATE school_days)
 add_test(NAME SchoolDaysPortTest COMMAND SchoolDaysPortTest

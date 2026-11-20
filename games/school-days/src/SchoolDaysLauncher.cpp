@@ -1,5 +1,6 @@
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysAssets.hpp"
+#include "SchoolDaysOverlaySelection.hpp"
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -1057,19 +1058,15 @@ void Launcher::setScriptOverlayPath(std::string path) {
 }
 
 std::filesystem::path Launcher::effectiveOverlayRoot() const {
-  if (!scriptOverlayPath.empty()) return scriptOverlayPath;
-  if (!currentSettings().assetOverlayPath.empty())
-    return currentSettings().assetOverlayPath;
+  const fs::path requested = !scriptOverlayPath.empty()
+                                 ? fs::path(scriptOverlayPath)
+                                 : fs::path(currentSettings().assetOverlayPath);
+  fs::path executableRoot;
 #if defined(_WIN32) && !defined(__ANDROID__)
-  if (const char *base = SDL_GetBasePath(); base && *base) {
-    const auto root = fs::path(base) / "display-options";
-    std::error_code ec;
-    if (fs::is_regular_file(root / "System/Option/Option_Display.png", ec) &&
-        fs::is_regular_file(root / "System/Option/Option_Display.cmap", ec))
-      return root;
-  }
+  if (const char *base = SDL_GetBasePath(); base && *base)
+    executableRoot = base;
 #endif
-  return {};
+  return OverlaySelection::Select(executableRoot, requested);
 }
 
 std::string Launcher::findSpanishJson() const {

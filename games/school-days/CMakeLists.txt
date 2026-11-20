@@ -165,26 +165,45 @@ kotonoha_preload_asset(SchoolDays
     "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/school-days-hq.ktnroute"
     "/game-assets/school-days-hq.ktnroute")
 
-# Ship the user's replacement General, Sound and Display Options artwork outside
-# the commercial System.GPK. The School Days-only overlay is mounted by default
-# when no explicit --asset-overlay is selected. Other games are unaffected.
+# Stage user-supplied options into the standard <exe>/overlay directory,
+# independently of the commercial System.GPK. Accept the older private source
+# tree when game-assets/overlay has not been supplied yet.
 if(WIN32 AND NOT ANDROID)
+    set(_school_days_overlay_source
+        "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/overlay")
+    set(_school_days_overlay_legacy
+        "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/display-options")
     set(KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE
-        "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/display-options"
+        "${_school_days_overlay_source}"
         CACHE PATH "Private School Days HQ option artwork source")
     set(SCHOOL_DAYS_DISPLAY_OVERLAY "${KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE}")
-    if(NOT EXISTS "${SCHOOL_DAYS_DISPLAY_OVERLAY}/System/Option/Option_Display.png" OR
-       NOT EXISTS "${SCHOOL_DAYS_DISPLAY_OVERLAY}/System/Option/Option_Display.cmap")
+    # A previous CMake cache may still contain the old default source.
+    # Migrate that known default while preserving other custom source paths.
+    if(SCHOOL_DAYS_DISPLAY_OVERLAY STREQUAL _school_days_overlay_legacy)
+        set(SCHOOL_DAYS_DISPLAY_OVERLAY "${_school_days_overlay_source}")
+    endif()
+    # Check the fallback on every build so newly supplied standard artwork
+    # takes precedence without reconfiguring. Other custom cache paths win.
+    set(_school_days_overlay_fallback "")
+    if(SCHOOL_DAYS_DISPLAY_OVERLAY STREQUAL _school_days_overlay_source)
+        set(_school_days_overlay_fallback "${_school_days_overlay_legacy}")
+    endif()
+    if((NOT EXISTS "${SCHOOL_DAYS_DISPLAY_OVERLAY}/System/Option/Option_Display.png" OR
+        NOT EXISTS "${SCHOOL_DAYS_DISPLAY_OVERLAY}/System/Option/Option_Display.cmap") AND
+       (NOT _school_days_overlay_fallback OR
+        NOT EXISTS "${_school_days_overlay_fallback}/System/Option/Option_Display.png" OR
+        NOT EXISTS "${_school_days_overlay_fallback}/System/Option/Option_Display.cmap"))
         message(WARNING "School Days HQ Display Options PNG/CMAP missing under: ${SCHOOL_DAYS_DISPLAY_OVERLAY}")
     endif()
     # Stage the custom options beside SchoolDays.exe as well, so a clean
     # distribution does not silently lose them when moved from its build tree.
-    set(_school_days_overlay_output "${_school_days_runtime_output}/display-options")
+    set(_school_days_overlay_output "${_school_days_runtime_output}/overlay")
     # Always sync assets, including edits made without recompiling C++.
     add_custom_target(SchoolDaysOptionAssets
         COMMAND "${CMAKE_COMMAND}"
             "-DKOTONOHA_ASSET_KIND=display-options"
             "-DKOTONOHA_ASSET_SOURCE=${SCHOOL_DAYS_DISPLAY_OVERLAY}"
+            "-DKOTONOHA_ASSET_FALLBACK_SOURCE=${_school_days_overlay_fallback}"
             "-DKOTONOHA_ASSET_DESTINATION=${_school_days_overlay_output}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/windows/StageOptionalAssets.cmake"
         COMMENT "Syncing School Days option artwork (retail System.GPK unchanged)"

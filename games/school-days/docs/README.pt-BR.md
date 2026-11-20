@@ -61,10 +61,11 @@ arte privada, GPKs comerciais, saves ou traduções.
 
 As pastas `src/`, `include/`, `game-assets/`, `windows/` e `tests/fixtures/`
 possuem caminhos usados em CMake, runtime e testes. A arte privada fica em
-`game-assets/display-options/` e `game-assets/launcher-art/`, mas os destinos
-*instalados* permanecem `display-options/` e
-`assets/SchoolDaysHQ-Launcher.png` ao lado do executável Windows. Os metadados
-públicos de Display Options ficam em `docs/configuration/display-options/`.
+`game-assets/overlay/` (ou na fonte antiga `game-assets/display-options/`) e
+`game-assets/launcher-art/`. Os destinos *instalados* são `overlay/` e
+`assets/SchoolDaysHQ-Launcher.png` ao lado do executável Windows; a pasta
+`display-options/` instalada permanece fallback. Os metadados públicos
+de Display Options ficam em `docs/configuration/display-options/`.
 Mover essas pastas exige atualizar consumidores, compilar e rodar CTest.
 
 GPKs comerciais, mídia L×H local, saves reais e JSONs privados devem ficar
