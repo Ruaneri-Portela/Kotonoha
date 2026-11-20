@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cstring>
 #include <charconv>
 #include <cmath>
 #include <filesystem>
@@ -644,6 +645,9 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
   }
   if (ImGui::InputText("Asset ID", assetPath, sizeof(assetPath)))
     previewError.clear();
+  if (ImGui::Button("Open as text (read-only)"))
+    openAssetTextViewer(assetPath);
+  ImGui::SameLine();
   ImGui::InputFloat("Frame position (seconds)", &previewSeconds, 1, 10, "%.2f");
   if (ImGui::Button("Preview picture / video frame")) {
     try {
@@ -707,6 +711,127 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
   }
   if (!previewError.empty())
     ImGuiTheme::statusText(previewError.c_str(), true);
+}
+
+
+namespace {
+// The original bytes are retained so changing the encoding never rereads or
+// mutates the AssetProvider. SDL_iconv uses the linked platform's converters.
+constexpr const char *kTextEncodings[] = {
+    "Auto (BOM / UTF-8)", "UTF-8", "Shift-JIS / CP932", "EUC-JP",
+    "ISO-2022-JP", "UTF-16 LE", "UTF-16 BE", "Windows-1252",
+    "ISO-8859-1", "GB18030", "Big5", "EUC-KR", "KOI8-R"};
+constexpr const char *kTextEncodingNames[] = {
+    "", "UTF-8", "CP932", "EUC-JP", "ISO-2022-JP",
+    "UTF-16LE", "UTF-16BE", "WINDOWS-1252", "ISO-8859-1",
+    "GB18030", "BIG5", "EUC-KR", "KOI8-R"};
+constexpr std::size_t kMaxDebugTextBytes = 4u * 1024u * 1024u;
+} // namespace
+
+void DebugOverlay::openAssetTextViewer(const std::string &id) {
+  textAssetId = id;
+  textAssetBytes.clear();
+  textAssetContent.clear();
+  textAssetError.clear();
+  textAssetEncoding = 0;
+  textAssetTruncated = false;
+  showAssetTextViewer = true;
+  try {
+    if (id.empty())
+      throw std::invalid_argument("Select an asset ID before opening text");
+    if (auto stream = engine.GetAssets().openStream(id)) {
+      std::vector<Uint8> chunk(64 * 1024);
+      while (textAssetBytes.size() < kMaxDebugTextBytes) {
+        const auto request = std::min(chunk.size(),
+                                      kMaxDebugTextBytes - textAssetBytes.size());
+        const auto count = stream->read(chunk.data(), request);
+        if (!count)
+          break;
+        if (count > request)
+          throw std::runtime_error("Asset stream returned more data than requested");
+        textAssetBytes.insert(textAssetBytes.end(), chunk.begin(),
+                              chunk.begin() + count);
+      }
+      textAssetTruncated = stream->size() > textAssetBytes.size();
+    } else {
+      const auto bytes = engine.GetAssets().read(id);
+      textAssetTruncated = bytes.size() > kMaxDebugTextBytes;
+      textAssetBytes.assign(bytes.begin(),
+                            bytes.begin() + std::min(bytes.size(), kMaxDebugTextBytes));
+    }
+    decodeAssetText();
+  } catch (const std::exception &error) {
+    textAssetError = error.what();
+    SDL_LogWarn(LogCore, "Text asset viewer: %s", error.what());
+  }
+}
+
+void DebugOverlay::decodeAssetText() {
+  textAssetContent.clear();
+  textAssetError.clear();
+  if (textAssetBytes.empty())
+    return;
+  const char *encoding = kTextEncodingNames[textAssetEncoding];
+  std::size_t skip = 0;
+  if (textAssetEncoding == 0) {
+    encoding = "UTF-8";
+    if (textAssetBytes.size() >= 3 && textAssetBytes[0] == 0xef &&
+        textAssetBytes[1] == 0xbb && textAssetBytes[2] == 0xbf)
+      skip = 3;
+    else if (textAssetBytes.size() >= 2 && textAssetBytes[0] == 0xff &&
+             textAssetBytes[1] == 0xfe) {
+      encoding = "UTF-16LE";
+      skip = 2;
+    } else if (textAssetBytes.size() >= 2 && textAssetBytes[0] == 0xfe &&
+               textAssetBytes[1] == 0xff) {
+      encoding = "UTF-16BE";
+      skip = 2;
+    }
+  }
+  const auto remaining = textAssetBytes.size() - skip;
+  if (remaining == 0)
+    return;
+  const char *data =
+      reinterpret_cast<const char *>(textAssetBytes.data() + skip);
+  char *decoded = SDL_iconv_string("UTF-8", encoding, data, remaining);
+  if (!decoded) {
+    textAssetError = std::string("Cannot decode with ") + encoding +
+                     ": " + SDL_GetError();
+    return;
+  }
+  // ImGui's text editor expects NUL-terminated UTF-8. The raw file remains
+  // untouched; replace embedded NULs only in the displayed representation.
+  textAssetContent.assign(decoded);
+  SDL_free(decoded);
+  std::replace(textAssetContent.begin(), textAssetContent.end(), '\\0', ' ');
+}
+
+void DebugOverlay::drawAssetTextViewer() {
+  if (!showAssetTextViewer)
+    return;
+  const auto display = ImGui::GetIO().DisplaySize;
+  ImGui::SetNextWindowSize(
+      ImVec2(std::min(900.0f * contentScale, display.x),
+             std::min(680.0f * contentScale, display.y)),
+      ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("Asset text viewer (read-only)", &showAssetTextViewer)) {
+    ImGui::TextWrapped("Asset: %s", textAssetId.c_str());
+    ImGui::TextDisabled("%zu bytes loaded%s (limit: 4 MiB)",
+                        textAssetBytes.size(),
+                        textAssetTruncated ? " - truncated preview" : "");
+    ImGui::SetNextItemWidth(260.0f * contentScale);
+    if (ImGui::Combo("Encoding", &textAssetEncoding, kTextEncodings,
+                     IM_ARRAYSIZE(kTextEncodings)))
+      decodeAssetText();
+    if (!textAssetError.empty())
+      ImGuiTheme::statusText(textAssetError.c_str(), true);
+    ImGui::Separator();
+    // std::string overload keeps ImGui's readonly buffer stable.
+    ImGui::InputTextMultiline("##text-asset-ro", &textAssetContent,
+                              ImVec2(-FLT_MIN, -FLT_MIN),
+                              ImGuiInputTextFlags_ReadOnly);
+  }
+  ImGui::End();
 }
 
 void DebugOverlay::refreshTranslationSources() {
@@ -1380,6 +1505,7 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   drawTranslationWindow();
   drawDubbingWindow();
   drawInfoWindow();
+  drawAssetTextViewer();
   if (!isVisible())
     stopPreviewAudio();
   frame.render();
