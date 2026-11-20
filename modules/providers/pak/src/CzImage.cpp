@@ -2,6 +2,7 @@
 // Shared PAK image codec.
 
 #include <array>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
