@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
     if (argc != 2)
       return 77;
     auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(argv[1]);
-    SummerRadish::SummerRuntime game(assets, "MISS EACH OTHER",
+    SummerRadish::SummerRuntime game(assets, "Miss Each Other",
                                     "me.hirameki.kotonoha.meo");
     Kotonoha::EngineOptions options;
     options.assets = assets;
@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     if (game.GetState() != Kotonoha::GameState::Gameplay ||
         game.GetActiveScenes().empty())
       throw std::runtime_error("MEO has no active gameplay scene");
-    if (game.name != "MISS EACH OTHER")
+    if (game.name != "Miss Each Other")
       throw std::runtime_error("MEO window identity is incorrect");
 
     auto &renderer = engine.GetRenderer();
