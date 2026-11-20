@@ -3,6 +3,7 @@
 #include <Kirikiri/TjsBootstrap.hpp>
 
 #include <algorithm>
+#include <cstring>
 #include <cctype>
 #include <string>
 #include <vector>
