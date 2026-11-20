@@ -209,6 +209,22 @@ EngineLibraryRegistry::EngineLibraryRegistry() {
                    "--ddlc",
                    "me.hirameki.kotonoha.dokidokiliteratureclub",
                    {}});
+  registerLibrary({EngineKind::RenPy,
+                   "katawa-shoujo",
+                   "Katawa Shoujo (Ren'Py)",
+                   "doki_doki_literature_club",
+                   "KatawaShoujo",
+                   "--katawa",
+                   "me.hirameki.kotonoha.katawashoujo",
+                   {}});
+  registerLibrary({EngineKind::SummerRadish,
+                   "meo",
+                   "Miss Each Other (Overflow CMP)",
+                   "summer_radish_vacation",
+                   "MEO",
+                   "--meo",
+                   "me.hirameki.kotonoha.meo",
+                   {}});
   registerLibrary({EngineKind::N2System,
                    "n2system",
                    "N2System / Nitroplus",
@@ -313,7 +329,9 @@ bool EngineLibraryRegistry::canInstantiateInProcess(EngineKind kind) const {
 MountedEngineInstance
 EngineLibraryRegistry::instantiate(const DiscoveredGameEntry &entry,
                                    Kotonoha::EngineOptions &options) const {
-  const auto *desc = find(entry.engine.kind);
+  const auto *desc = findBySlug(entry.engine.slug);
+  if (!desc || desc->kind != entry.engine.kind)
+    desc = find(entry.engine.kind);
   if (desc && desc->factory)
     return desc->factory(entry, options);
   return {};
@@ -332,11 +350,20 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
           {"Personal/MISSEACHOTHER/", "Personal/MISSEACHOTHER/DATA/",
            "Personal/MISSEACHOTHER/PACK/", "Personal/MISSEACHOTHER/PACKS/"})) {
     return {EngineKind::SummerRadish,
-            "summer-radish-vacation",
+            "meo",
             "Overflow gEngine / FILMEngine (MEO CMP)",
             "Personal/MISSEACHOTHER/",
             "MISS EACH OTHER (CMP / FILMEngine)",
             true};
+  }
+
+  // Katawa Shoujo is Ren'Py-based but must retain its own application
+  // identity, save directory and standalone executable.
+  if (const auto prefix = findRequiredFilesPrefix(
+          source, {"script-a1-monday.rpyc"}, {"game/", ""})) {
+    return {EngineKind::RenPy, "katawa-shoujo",
+            "Katawa Shoujo (Ren'Py)", *prefix,
+            *prefix + "script-a1-monday.rpyc", true};
   }
 
   // 2. Check Summer Radish Vacation 1 & 2 (SCRIPT.CMP + GRAPHIC.CMP in
@@ -489,8 +516,11 @@ DiscoveredGameEntry buildDiscoveredGameEntry(const std::string &path,
   entry.path = path;
   entry.engine = detected;
 
-  if (const auto *desc =
-          EngineLibraryRegistry::instance().find(detected.kind)) {
+  const auto &registry = EngineLibraryRegistry::instance();
+  const auto *desc = registry.findBySlug(detected.slug);
+  if (!desc || desc->kind != detected.kind)
+    desc = registry.find(detected.kind);
+  if (desc) {
     entry.libraryTarget = desc->libraryTarget;
     entry.targetBinary = desc->targetBinary;
     entry.cliOption = desc->cliOption;
