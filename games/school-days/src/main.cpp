@@ -5,6 +5,7 @@
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
@@ -97,6 +98,7 @@ struct Application {
         throw std::runtime_error(
             "GPK locale conflicts with a stored JSON translation. "
             "Select one language in the launcher.");
+      engine.GetForcedSubtitles().setLocale(nativeGpkLocale);
       runtime.setLxhTranslation({}, nativeGpkLocale, true);
       return;
     }
@@ -169,6 +171,9 @@ struct Application {
                  : ". English fallback is forbidden in non-native language "
                    "even for an extracted developer fixture."));
     }
+    // The engine selects ASS in the same locale as the validated JSON. Native
+    // English without a selected translation retains the original root ASS.
+    engine.GetForcedSubtitles().setLocale(nonNativeSelected ? locale : "");
     runtime.setLxhTranslation(std::move(dlc), locale);
   }
   ~Application() { runtime.shutdown(); }
