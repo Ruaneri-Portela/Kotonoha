@@ -191,6 +191,9 @@ int main() {
     lib.write("MEO/DATA/GRAPHIC.CMP", "PACK");
     lib.write("MEO/gEngine.gesl", "MZ");
 
+    // Katawa shares the Ren'Py VM, but has its own package and executable.
+    lib.write("KatawaShoujo/game/script-a1-monday.rpyc", "RPYC");
+
     // Snow Radish Vacation
     lib.write("SnowRadishVacation/DATA/SCRIPT.PAK", "PACK");
     lib.write("SnowRadishVacation/DATA/GRAPHIC.PAK", "PACK");
@@ -217,6 +220,7 @@ int main() {
     std::set<std::string> uniqueSaveDirs;
     bool foundDdlcOverlayPairing = false;
     bool foundMeo = false;
+    bool foundKatawa = false;
     bool foundPonscripter = false;
 
     for (const auto &entry : catalog) {
@@ -230,9 +234,22 @@ int main() {
       }
       if (entry.title == "MEO") {
         require(entry.engine.kind == EngineKind::SummerRadish &&
-                    entry.libraryTarget == "summer_radish_vacation",
-                "MEO must map to SummerRadish/CMP library");
+                    entry.engine.slug == "meo" &&
+                    entry.libraryTarget == "summer_radish_vacation" &&
+                    entry.targetBinary == "MEO" &&
+                    entry.packageId == "me.hirameki.kotonoha.meo",
+                "MEO must use the MEO identity and shared CMP library");
         foundMeo = true;
+      }
+      if (entry.title == "KatawaShoujo") {
+        require(entry.engine.kind == EngineKind::RenPy &&
+                    entry.engine.slug == "katawa-shoujo" &&
+                    entry.libraryTarget == "doki_doki_literature_club" &&
+                    entry.targetBinary == "KatawaShoujo" &&
+                    entry.packageId == "me.hirameki.kotonoha.katawashoujo" &&
+                    entry.overlayPath.empty(),
+                "Katawa must use its own game identity without DDLC patch overlay");
+        foundKatawa = true;
       }
       if (entry.title == "SayaNoUta_PT-BR") {
         require(entry.engine.kind == EngineKind::ONScripter &&
@@ -247,6 +264,7 @@ int main() {
 
     require(foundDdlcOverlayPairing, "DDLC overlay pairing verified");
     require(foundMeo, "MEO detection verified");
+    require(foundKatawa, "Katawa Shoujo detection verified");
     require(foundPonscripter, "PONScripter detection verified");
 
     // 4. Verify applyPerGameSaveIsolation updates KOTONOHA_USER_DATA_DIR and
