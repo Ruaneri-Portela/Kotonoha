@@ -149,8 +149,7 @@ void processSpeakerAndDialogue(const std::string &rawSpeaker,
 
 struct Text : VNTextBox {
   Kotonoha::Providers::RealLiveAssets &assets;
-  SurfacePtr frame, cursor, buttonSurface;
-  bool frameUsesOpaqueNativeColours = false;
+  SurfacePtr frame, back, cursor, buttonSurface;
   Image buttonImage;
   ImageButtonBar controls;
   bool concealed = false;
@@ -303,10 +302,34 @@ struct Text : VNTextBox {
       auto smw00a = assets.graphic(frameName, false);
       if (!smw00a.empty()) {
         frame = assets.loadSurface(smw00a);
-        // AIR's original smw00a window is an opaque blue raster. Its G00
-        // alpha/mask is not the desired opacity of the completed text frame.
-        // Preserve the actual game RGB, not a synthetic blue replacement.
-        frameUsesOpaqueNativeColours = frame && frameName == "smw00a";
+
+      }
+    }
+    // Before CLANNAD, AIR composed two separate G00s: smw00b provides the
+    // semitransparent blue backing and smw00a provides the window frame.
+    // Keep this AIR-specific backdrop separate from Clannad window artwork.
+    if (frameName == "smw00a") {
+      const auto backgroundName = assets.graphic("smw00b", false);
+      if (!backgroundName.empty()) {
+        back = assets.loadSurface(backgroundName);
+        if (back && back->pixels && back->w > 0 && back->h > 0) {
+          if (back->format != SDL_PIXELFORMAT_RGBA32) {
+            SurfacePtr rgba(SDL_ConvertSurface(back.get(), SDL_PIXELFORMAT_RGBA32));
+            if (rgba)
+              back = std::move(rgba);
+          }
+          if (back->format == SDL_PIXELFORMAT_RGBA32) {
+            for (int y = 0; y < back->h; ++y)
+              for (int x = 0; x < back->w; ++x) {
+                auto *pixel = static_cast<Uint8 *>(back->pixels) +
+                              y * back->pitch + x * 4;
+                pixel[0] = 100;
+                pixel[1] = 100;
+                pixel[2] = 160;
+                pixel[3] = Uint8(int(pixel[3]) * 200 / 255);
+              }
+          }
+        }
       }
     }
     const char *path = "/System/Library/Fonts/Supplemental/Verdana.ttf";
@@ -367,15 +390,13 @@ struct Text : VNTextBox {
   }
   bool designSpace() const override { return false; }
   void image(RendererRef r, SurfaceRef s, float x, float y,
-             bool upscale = true, bool opaque = false) {
+             bool upscale = true) {
     auto &t = imageTextures[&s];
     if (!t) {
       t.reset(SDL_CreateTextureFromSurface(&r, &s));
       if (auto *pipeline = Upscaling::forRenderer(r))
         pipeline->process(*t, 0);
     }
-    if (opaque && !SDL_SetTextureBlendMode(t.get(), SDL_BLENDMODE_NONE))
-      throw std::runtime_error(SDL_GetError());
     SDL_FRect dest{x, y, float(s.w), float(s.h)};
     if (upscale)
       RenderUpscaledTexture(&r, t.get(), nullptr, &dest);
@@ -448,27 +469,12 @@ struct Text : VNTextBox {
   void renderFrame(RendererRef r) override {
     updateLayout(canvasW, canvasH);
     const float bx = float(boxX()), by = float(boxY());
-    if (frame) {
-      if (frameUsesOpaqueNativeColours && frame->h > boxHeight()) {
-        // The source G00 carries a full-screen transparent canvas. Only
-        // render its authored dialogue strip; never make the transparent
-        // portion opaque, even when the RGB underneath contains blue.
-        auto &texture = imageTextures[frame.get()];
-        if (!texture) {
-          texture.reset(SDL_CreateTextureFromSurface(&r, frame.get()));
-          if (!texture)
-            throw std::runtime_error(SDL_GetError());
-        }
-        if (!SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_NONE))
-          throw std::runtime_error(SDL_GetError());
-        const SDL_FRect src{0, float(frame->h - boxHeight()),
-                            float(frame->w), float(boxHeight())};
-        const SDL_FRect dst{bx, by, float(boxWidth()), float(boxHeight())};
-        RenderUpscaledTexture(&r, texture.get(), &src, &dst);
-      } else {
-        image(r, *frame, bx, by, true, frameUsesOpaqueNativeColours);
-      }
-    }
+    // Draw the original translucent AIR backing, then the transparent G00
+    // border. Neither image must be forced opaque or cropped arbitrarily.
+    if (back)
+      image(r, *back, bx, by);
+    if (frame)
+      image(r, *frame, bx, by);
     if (!buttonSurface)
       return;
     auto &texture = imageTextures[buttonSurface.get()];
