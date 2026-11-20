@@ -7,7 +7,10 @@ class SummerRuntime final : public Kotonoha::Runtime {
   std::unique_ptr<Impl> impl;
 
 public:
-  explicit SummerRuntime(std::shared_ptr<Kotonoha::Providers::SummerAssets>);
+  explicit SummerRuntime(std::shared_ptr<Kotonoha::Providers::SummerAssets>,
+                         std::string name = "Summer Radish Vacation!!",
+                         std::string appId =
+                             "me.hirameki.kotonoha.summerradishvacation");
   ~SummerRuntime() override;
   void shutdown();
   void initMenu(Kotonoha::Engine &) override;

@@ -12,8 +12,11 @@
 
 - `LucaPak` importa substituições por nome ou ID e reempacota PAKs nomeados e numéricos sem alterar o arquivo original.
 - `LucaPak patch-air` importa texto inglês de tamanho variável em `MESSAGE` e ajusta os saltos conhecidos dentro de um cenário e entre cenários. Validado com um `SCRIPT.PAK` comercial modificado e montado pelo overlay de recursos do Kotonoha.
+- `LucaPak edit-glyph` modifica glifos existentes em CZ2 de 8 bits e suas métricas em PAKs reempacotados. O `VNTextBox` renderizou o glifo e o avanço editados com o overlay de fontes do AIR comercial.
+- `LucaPak add-glyph` adiciona um caractere BMP ainda não mapeado, ampliando o atlas CZ2 quando necessário. O `VNTextBox` do AIR renderizou um novo `U+E000` com o avanço importado e as cores de diálogo e de personagem configuradas no Kotonoha.
+- O menu de pausa, o manual e o histórico usam arte original do AIR. A lista de saves, as configurações, a captura de entrada e a repetição de voz no histórico usam componentes do Kotonoha.
 
-**Limitações:** As vozes Ogg avulsas foram validadas com o `AIR` comercial; os pacotes OggPak foram validados com dados sintéticos, não com outro jogo comercial. Entre os recursos das referências que ainda precisam ser portados ou validados estão a edição e aplicação de patches de fontes, a importação de scripts além dos diálogos em inglês do AIR e os opcodes específicos de outros jogos.
+**Limitações:** A galeria de CG e os layouts originais das telas de saves e configurações ainda não estão implementados. As vozes Ogg avulsas foram validadas com o `AIR` comercial; os pacotes OggPak foram validados com dados sintéticos, não com outro jogo comercial. Entre os recursos das referências que ainda precisam ser portados ou validados estão a criação de fontes do zero, a importação de scripts além dos diálogos em inglês do AIR e os opcodes específicos de outros jogos.
 
 Os relatórios [PORT_STATUS.md](PORT_STATUS.md) e [docs/AIR_REA_2026_11_18.pt-BR.md](docs/AIR_REA_2026_11_18.pt-BR.md) contêm análises binárias detalhadas e notas históricas.
 

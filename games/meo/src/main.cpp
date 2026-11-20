@@ -23,7 +23,7 @@ struct Game {
   Kotonoha::Engine engine;
   Game(std::shared_ptr<Kotonoha::Providers::SummerAssets> assets,
        Kotonoha::EngineOptions options)
-      : runtime(assets),
+      : runtime(assets, "MISS EACH OTHER", "me.hirameki.kotonoha.meo"),
         engine(runtime, withAssets(std::move(options), assets)) {}
   ~Game() { runtime.shutdown(); }
 };

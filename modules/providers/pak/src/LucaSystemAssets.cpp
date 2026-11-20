@@ -85,20 +85,21 @@ struct VoiceId {
   std::optional<uint32_t> clip;
 };
 
+bool parseAssetNumber(std::string_view text, uint32_t &value) {
+  if (text.empty())
+    return false;
+  const auto end = text.data() + text.size();
+  const auto parsed = std::from_chars(text.data(), end, value);
+  return parsed.ec == std::errc{} && parsed.ptr == end;
+}
+
 std::optional<VoiceId> parseVoiceId(std::string_view suffix) {
-  const auto parseNumber = [](std::string_view text, uint32_t &value) {
-    if (text.empty())
-      return false;
-    const auto end = text.data() + text.size();
-    const auto parsed = std::from_chars(text.data(), end, value);
-    return parsed.ec == std::errc{} && parsed.ptr == end;
-  };
   VoiceId id;
   const auto colon = suffix.find(':');
-  if (!parseNumber(suffix.substr(0, colon), id.entry))
+  if (!parseAssetNumber(suffix.substr(0, colon), id.entry))
     return std::nullopt;
   if (colon != std::string_view::npos &&
-      !parseNumber(suffix.substr(colon + 1), id.clip.emplace()))
+      !parseAssetNumber(suffix.substr(colon + 1), id.clip.emplace()))
     return std::nullopt;
   return id;
 }
@@ -582,6 +583,12 @@ std::string LucaSystemAssets::resolveLooseId(const std::string &id) const {
 }
 
 bool LucaSystemAssets::containsAsset(const std::string &id) const {
+  if (id.rfind("image:", 0) == 0) {
+    uint32_t number = 0;
+    return parseAssetNumber(std::string_view(id).substr(6), number) &&
+           (imageIdToPak_.count(number) != 0 || number == 65000 ||
+            number == 65001);
+  }
   if (id.rfind("voice:", 0) == 0) {
     const auto voice = parseVoiceId(std::string_view(id).substr(6));
     if (!voice || !hasVoiceAsset(voice->entry))
@@ -615,6 +622,11 @@ bool LucaSystemAssets::containsAsset(const std::string &id) const {
 }
 
 std::string LucaSystemAssets::overlayId(const std::string &id) const {
+  if (id.rfind("image:", 0) == 0) {
+    uint32_t number = 0;
+    if (parseAssetNumber(std::string_view(id).substr(6), number))
+      return "image/" + std::to_string(number) + ".cz";
+  }
   if (id.rfind("voice:", 0) == 0) {
     if (const auto voice = parseVoiceId(std::string_view(id).substr(6))) {
       return "voice/" + std::to_string(voice->entry) + "/" +
@@ -626,6 +638,13 @@ std::string LucaSystemAssets::overlayId(const std::string &id) const {
 
 std::vector<std::uint8_t>
 LucaSystemAssets::readAsset(const std::string &id) const {
+  if (id.rfind("image:", 0) == 0) {
+    uint32_t number = 0;
+    if (!parseAssetNumber(std::string_view(id).substr(6), number) ||
+        !containsAsset(id))
+      throw std::runtime_error("LucaSystem: image asset not found: " + id);
+    return readImageAsset(number);
+  }
   if (id.rfind("voice:", 0) == 0) {
     const auto voice = parseVoiceId(std::string_view(id).substr(6));
     if (!voice)

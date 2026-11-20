@@ -196,8 +196,12 @@ void GameRuntime::addGameScenes() {
 }
 void GameRuntime::initMenu(Kotonoha::Engine &) { addGameScenes(); }
 void GameRuntime::initGameplay(Kotonoha::Engine &) {
-  if (session_ && !session_->playing())
-    session_->startGame();
+  if (session_ && !session_->playing()) {
+    if (assets_->name().compare(0, 13, "Katawa Shoujo") == 0)
+      session_->update(false);
+    else
+      session_->startGame();
+  }
   addGameScenes();
 }
 bool GameRuntime::handleBackAction() {

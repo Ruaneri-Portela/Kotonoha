@@ -1011,21 +1011,23 @@ struct SummerRuntime::Impl {
     refreshTitleChips();
   }
   void applyMeoFrame(const Node &frame) {
+    std::string speaker = text->getSpeaker();
+    std::string dialogue;
+    bool hasDialogue = false;
     if (!frame.children.empty()) {
       for (const auto &child : frame.children) {
         if (child.tag == "Text") {
           const auto mess = meoText.find(child.attr("MESS"));
-          if (mess != meoText.end())
-            text->setDialogue(text->getSpeaker(), mess->second);
-          else
-            text->setDialogue("", child.attr("MESS"));
-          text->show();
+          if (hasDialogue)
+            dialogue += '\n';
+          dialogue += mess != meoText.end() ? mess->second : child.attr("MESS");
+          hasDialogue = true;
         } else if (child.tag == "Log") {
           const auto nameNo = child.attr("NAME");
           if (nameNo != "-1") {
             auto it = meoText.find(nameNo);
             if (it != meoText.end())
-              text->setDialogue(it->second, text->getText());
+              speaker = it->second;
           }
         } else if (child.tag == "EraseText") {
           text->hide();
@@ -1048,6 +1050,10 @@ struct SummerRuntime::Impl {
         }
       }
     }
+    if (hasDialogue) {
+      text->setDialogue(speaker, dialogue);
+      text->show();
+    }
   }
   void beginMeo(const std::string &scriptName) {
     if (movie)
@@ -1064,7 +1070,7 @@ struct SummerRuntime::Impl {
       wanted += ".XML";
     Bytes source;
     bool found = false;
-    const std::string directId = "SCRIPT/" + canonical(scriptName) + ".XML";
+    const std::string directId = "SCRIPT/" + wanted;
     if (auto bytes = assets->tryReadAsset(directId)) {
       source = std::move(*bytes);
       found = true;
@@ -1075,7 +1081,9 @@ struct SummerRuntime::Impl {
       }
     }
     if (!found) {
-      const std::string directLowerId = "SCRIPT/" + scriptName + ".XML";
+      const std::string directLowerId =
+          "SCRIPT/" + scriptName +
+          (scriptName.find('.') == std::string::npos ? ".XML" : "");
       try {
         source = assets->read(directLowerId);
         found = true;
@@ -1090,8 +1098,9 @@ struct SummerRuntime::Impl {
         const auto fallbackName =
             slash == std::string::npos ? id : id.substr(slash + 1);
         const auto fallbackStem = stem(fallbackName);
-        if (canonical(stemId) == canonical(scriptName) ||
-            canonical(fallbackStem) == canonical(scriptName)) {
+        const std::string requestedStem = stem(wanted);
+        if (canonical(stemId) == requestedStem ||
+            canonical(fallbackStem) == requestedStem) {
           source = bytes;
           found = true;
           break;
@@ -1214,6 +1223,8 @@ struct SummerRuntime::Impl {
     if (!meoFrames.empty()) {
       meoFrame = 0;
       applyMeoFrame(meoFrames[0]);
+      SDL_Log("MEO: timeline %s (%zu frames)", wanted.c_str(),
+              meoFrames.size());
     } else {
       text->setDialogue("", "MEO timeline loaded, but no Frame nodes found.");
     }
@@ -1333,6 +1344,11 @@ struct SummerRuntime::Impl {
     runtime.AddScene(stage.get());
     runtime.AddScene(text.get());
     runtime.AddScene(choice.get());
+    if (meo) {
+      runtime.AddScene(stage.get(), GameState::Gameplay);
+      runtime.AddScene(text.get(), GameState::Gameplay);
+      runtime.AddScene(choice.get(), GameState::Gameplay);
+    }
     runtime.AddScene(&GetVNBacklogRuntime(e));
     auto &menu = GetInGameMenuRuntime(e);
     menu.close();
@@ -2023,9 +2039,9 @@ struct SummerRuntime::Impl {
   }
 };
 SummerRuntime::SummerRuntime(
-    std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
-    : Runtime("Summer Radish Vacation!!", "0.1.0",
-              "me.hirameki.kotonoha.summerradishvacation"),
+    std::shared_ptr<Kotonoha::Providers::SummerAssets> a, std::string name,
+    std::string appId)
+    : Runtime(std::move(name), "0.1.0", std::move(appId)),
       impl(std::make_unique<Impl>(*this, std::move(a))) {}
 SummerRuntime::~SummerRuntime() = default;
 void SummerRuntime::shutdown() {

@@ -885,6 +885,74 @@ void Vm::init(const std::string &persistentText) {
     }
   }
 
+  // Older Ren'Py games commonly keep backgrounds and effects outside the
+  // configured images directory and refer to them by their filename stem.
+  for (const auto &file : assets.names()) {
+    const bool background = file.rfind("bgs/", 0) == 0;
+    const bool effect = file.rfind("vfx/", 0) == 0;
+    if (!background && !effect)
+      continue;
+    const auto path = std::filesystem::path(file);
+    std::string ext = path.extension().string();
+    for (char &c : ext)
+      c = char(std::tolower(static_cast<unsigned char>(c)));
+    if (ext != ".png" && ext != ".jpg" && ext != ".webp")
+      continue;
+    images.try_emplace((background ? "bg " : "") + path.stem().string(),
+                       Value::str(file));
+  }
+  images.try_emplace("black", Value::str("#000000"));
+
+  // Katawa Shoujo's ui_settings.rpyc creates these names with ks_music().
+  // Keep the archive's logical IDs here until its legacy UI init can run.
+  if (assets.has("ui_settings.rpyc") && assets.has("bgm/Wiosna.ogg")) {
+    static const std::pair<const char *, const char *> tracks[] = {
+        {"tranquil", "Afternoon"},
+        {"nurse", "Ah_Eh_I_Oh_You"},
+        {"soothing", "Air_Guitar"},
+        {"twinkle", "Aria_de_l'Etoile"},
+        {"moonlight", "Breathlessly"},
+        {"rain", "Caged_Heart"},
+        {"tragic", "Cold_Iron"},
+        {"comfort", "Comfort"},
+        {"lilly", "Concord"},
+        {"daily", "Daylight"},
+        {"ease", "Ease"},
+        {"another", "Everyday_Fantasy"},
+        {"friendship", "Friendship"},
+        {"happiness", "Fripperies"},
+        {"comedy", "Generic_Happy_Music"},
+        {"tension", "High_Tension"},
+        {"running", "Hokabi"},
+        {"innocence", "Innocence"},
+        {"heart", "Letting_my_Heart_Speak"},
+        {"serene", "Lullaby_of_Open_Eyes"},
+        {"drama", "Moment_of_Decision"},
+        {"night", "Nocturne"},
+        {"kenji", "Out_of_the_Loop"},
+        {"hanako", "Painful_History"},
+        {"rin", "Parity"},
+        {"timeskip", "Passing_of_Time"},
+        {"dreamy", "Raindrops_and_Puddles"},
+        {"jazz", "Red_Velvet"},
+        {"romance", "Romance_in_Andante_II"},
+        {"credits", "Romance_in_Andante"},
+        {"musicbox", "Sarabande_from_BWV1010"},
+        {"normal", "School_Days"},
+        {"sadness", "Shadow_of_the_Truth"},
+        {"emi", "Standing_Tall"},
+        {"pearly", "Stride"},
+        {"shizune", "The_Student_Council"},
+        {"one", "To_Become_One"},
+        {"menus", "Wiosna"},
+    };
+    for (const auto &[alias, file] : tracks) {
+      std::string path = std::string("bgm/") + file + ".ogg";
+      if (assets.has(path))
+        py.set(std::string("music_") + alias, Value::str(path));
+    }
+  }
+
   // Natives replacing helpers of the init code that need real Ren'Py internals.
   Vm *vm = this;
   py.def("pause", [vm](Interp &, Args &a, Kwargs &kw) {
@@ -2123,6 +2191,10 @@ void Vm::execUser(const std::string &line) {
   if (t.empty())
     return;
   const std::string &verb = t[0];
+  if (verb == "nvl" && t.size() >= 2 && t[1] == "clear") {
+    py.call(py.lookup("nvl_clear"), {});
+    return;
+  }
   if ((verb == "jump_in" || verb == "jump_out") && t.size() >= 2) {
     Value parsed = makeDict();
     const bool expression = t[1] == "expression";

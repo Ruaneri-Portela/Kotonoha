@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     } stop{game};
     SDL_SetRenderVSync(&engine.GetRenderer(), 0);
     auto *session = game.session();
-    check(session && session->playing(), "Native DDLC session starts gameplay");
+    check(session, "Native Ren'Py session exists");
     if (assets->name().compare(0, 13, "Katawa Shoujo") == 0) {
       check(session->inMenu(), "Katawa opens its own main menu");
       session->startGame();
@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
       std::cout << "KatawaPresentationTest: OK\n";
       return 0;
     }
+    check(session->playing(), "Native DDLC session starts gameplay");
     auto started = SDL_GetTicks();
     while ((session->dialogueSourceText().empty() ||
             session->dialogueText().empty()) &&

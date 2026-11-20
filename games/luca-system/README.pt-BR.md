@@ -57,6 +57,53 @@ dos saltos conhecidos dentro de um cenário e entre cenários e gera um novo
 ele não altera escolhas, texto de histórico nem tabelas auxiliares do motor
 original.
 
+### Edição de fontes bitmap
+
+`LucaPak edit-glyph` substitui a máscara alfa e as métricas de um glifo que
+já existe em um atlas CZ2 de 8 bits. Para a fonte de diálogo do AIR da Steam,
+use um PNG de 28 × 28 com transparência. O diretório de saída ainda não deve
+existir:
+
+```sh
+build/bin/LucaPak edit-glyph /path/to/AIR/files/font_win32_1280/FONT_GOTHIC1.PAK name:ゴシック27 /path/to/AIR/files/font_win32_1280/FONT__INFO.PAK name:info27 font-overlay U+0041 glyph-A.png 3 4 24 32
+```
+
+Os quatro números definem os deslocamentos X e Y com sinal, a largura de
+desenho e o avanço, em pixels. Um avanço de zero usa a largura de desenho.
+O comando mantém a paleta original, recodifica apenas os blocos CZ2
+alterados e reempacota os arquivos. Use `--asset-overlay font-overlay` com
+`/path/to/AIR/files` como diretório de dados do port. Os PAKs de origem
+permanecem intactos. O comando não adiciona células; caracteres que
+compartilham uma célula também compartilham sua imagem e métricas de desenho.
+
+Use `add-glyph` para acrescentar uma célula para um caractere BMP ainda não
+mapeado. Por exemplo, para adicionar `U+E000`:
+
+```sh
+build/bin/LucaPak add-glyph /path/to/AIR/files/font_win32_1280/FONT_GOTHIC1.PAK name:ゴシック27 /path/to/AIR/files/font_win32_1280/FONT__INFO.PAK name:info27 font-overlay U+E000 glyph-new.png 3 4 24 32
+```
+
+O comando atualiza o índice Unicode e as métricas, amplia o atlas se
+necessário e preserva as posições dos glifos e os índices de paleta
+existentes. Para adicionar outro glifo à mesma fonte, use os PAKs gerados
+anteriormente como entrada e escolha um novo diretório de saída.
+
+A caixa de diálogo do AIR mantém a fonte bitmap e a arte original da
+janela. Quando ativadas, as cores de diálogo e de personagem do Kotonoha
+também se aplicam aos glifos do atlas bitmap e de seus overlays. A caixa
+usa o cache de quebra de linhas compartilhado para manter as linhas
+estáveis durante o efeito de digitação.
+
+## Menus do AIR
+
+Abra a pausa com Escape ou a ação de voltar do controle. O port usa os
+ícones `systemmenu`, o fundo `system_menu_bg` e as páginas em inglês do
+manual do AIR. Salvar, Carregar e Opções abrem o gerenciador de saves e as
+configurações nativas do Kotonoha; salvar e carregar rapidamente continuam
+usando `quicksave.kns`. O histórico (B ou Page Up) usa o `backlog_texture`
+original com rolagem e repetição de voz do Kotonoha. Menus abertos capturam
+a entrada sem avançar o diálogo.
+
 ## Investigação detalhada
 
 [Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.

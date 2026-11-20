@@ -2,6 +2,7 @@
 // LucaSystem (Visual Art's / Key) runtime — 1:1 VM & presentation recovered via
 // clean-room REA + Rizin analysis of AIR.exe (.rdata opcode/chapter tables) and
 // exhaustive audit of all 31 .PAK archives.
+#include <LucaSystem/AirGallery.hpp>
 #include <LucaSystem/BitmapFont.hpp>
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/DialogueFlow.hpp>
@@ -22,6 +23,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
@@ -31,6 +33,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -40,6 +43,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace LucaSystem {
@@ -289,6 +293,7 @@ class AirTextBox final : public Kotonoha::VNTextBox {
   Kotonoha::TexturePtr fallbackStripTexture_;
   Kotonoha::TexturePtr cursorTexture_;
   int windowType_ = 0;
+  bool layoutBitmap_ = false;
 
   std::optional<float> bitmapWidth(std::string_view text) const {
     float width = 0;
@@ -343,7 +348,29 @@ class AirTextBox final : public Kotonoha::VNTextBox {
 public:
   void setWindowType(int wt) { windowType_ = std::clamp(wt, 0, 4); }
 
+  bool onEvent(Kotonoha::EventRef rawEvent) override {
+    if (!visible)
+      return false;
+    const auto event = Kotonoha::MapControllerEvent(rawEvent);
+    if (!touchActivation.accept(event) || onVisibilityEvent(event))
+      return true;
+    if (Kotonoha::BackAction(engine, event)) {
+      openMenu();
+      return true;
+    }
+    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+        (event.key.key == SDLK_B || event.key.key == SDLK_PAGEUP)) {
+      openBacklog();
+      return true;
+    }
+    return false; // AIR does not draw the generic VNTextBox button strip.
+  }
+
 protected:
+  // The VM records MESSAGE and explicit log opcodes (including voice IDs).
+  // Rendering, loading saves and translations must not insert a second copy.
+  void recordDialogue(const std::string &, const std::string &) override {}
+
   void renderFrame(Kotonoha::RendererRef renderer) override {
     const int idx = std::clamp(windowType_, 0, 4);
     const CzImage &chosen =
@@ -381,7 +408,10 @@ protected:
   void renderSpeaker(Kotonoha::RendererRef renderer) override {
     if (speakerName.empty())
       return;
-    const SDL_Color color{255, 238, 175, 255};
+    const auto &settings = engine.GetSettings();
+    const SDL_Color color = settings.vnTextColorOverride
+                                ? settings.vnSpeakerColor
+                                : SDL_Color{255, 238, 175, 255};
     if (const auto width = bitmapWidth(speakerName); width && *width <= 850) {
       if (auto *atlas = bitmapTexture(renderer)) {
         font_->render(renderer, *atlas, speakerName, 210, 494, color);
@@ -393,27 +423,51 @@ protected:
 
   void renderDialogue(Kotonoha::RendererRef renderer) override {
     SDL_Rect clip{210, 532, 850, 150};
+    SDL_Rect previousClip{};
+    const bool clipped = SDL_RenderClipEnabled(&renderer) &&
+                         SDL_GetRenderClipRect(&renderer, &previousClip);
+    if (clipped) {
+      SDL_Rect intersection{};
+      if (!SDL_GetRectIntersection(&clip, &previousClip, &intersection))
+        return;
+      clip = intersection;
+    }
     SDL_SetRenderClipRect(&renderer, &clip);
     auto *atlas = bitmapWidth(fullDialogue) ? bitmapTexture(renderer) : nullptr;
-    auto measure = [this, atlas](const std::string &value) {
-      if (atlas) {
-        if (const auto width = bitmapWidth(value))
-          return *width;
-      }
-      return engine.GetVNUI().textWidth(value);
-    };
-    const auto lines = Kotonoha::VNTextBoxUtility::RevealLines(
-        fullDialogue, visibleDialogue.size(), measure, 850);
+    auto &ui = engine.GetVNUI();
+    if (!layoutValid_ || layoutSource_ != fullDialogue ||
+        layoutBitmap_ != (atlas != nullptr) ||
+        layoutDensity_ != ui.pixelDensity() || layoutUiId_ != ui.instanceId()) {
+      const auto measure = [this, atlas, &ui](const std::string &value) {
+        if (atlas) {
+          if (const auto width = bitmapWidth(value))
+            return *width;
+        }
+        return ui.textWidth(value);
+      };
+      dialogueLayout_ =
+          Kotonoha::TextWrapping::layout(fullDialogue, measure, 850);
+      layoutSource_ = fullDialogue;
+      layoutBitmap_ = atlas != nullptr;
+      layoutDensity_ = ui.pixelDensity();
+      layoutUiId_ = ui.instanceId();
+      layoutValid_ = true;
+    }
+    const auto lines = Kotonoha::TextWrapping::visibleLines(
+        dialogueLayout_, visibleDialogue.size());
     float y = speakerName.empty() ? 534 : 540;
+    const auto &settings = engine.GetSettings();
+    const SDL_Color color = settings.vnTextColorOverride
+                                ? settings.vnTextColor
+                                : SDL_Color{255, 255, 255, 255};
     for (const auto &line : lines) {
-      const SDL_Color color{255, 255, 255, 255};
       if (atlas)
         font_->render(renderer, *atlas, line, 210, y, color);
       else
         engine.GetVNUI().text(renderer, line, 210, y, 850, color);
       y += 32;
     }
-    SDL_SetRenderClipRect(&renderer, nullptr);
+    SDL_SetRenderClipRect(&renderer, clipped ? &previousClip : nullptr);
   }
 
 public:
@@ -433,6 +487,442 @@ public:
                   "LucaSystem: dialogue font metrics unavailable: %s",
                   e.what());
     }
+  }
+};
+
+class AirBacklog final : public Kotonoha::VNBacklog {
+  Kotonoha::Providers::LucaSystemAssets &assets_;
+
+  void renderFrame(Kotonoha::RendererRef renderer) override {
+    try {
+      if (assets_.contains("backlog_texture")) {
+        const SDL_FRect screen{0, 0, 1280, 720};
+        auto &background = assets_.texture(renderer, "backlog_texture");
+        SDL_RenderTexture(&renderer, &background, nullptr, &screen);
+      }
+    } catch (const std::exception &) {
+    }
+    VNBacklog::renderFrame(renderer);
+  }
+
+public:
+  AirBacklog(Kotonoha::Engine &engine,
+             Kotonoha::Providers::LucaSystemAssets &assets)
+      : VNBacklog(engine), assets_(assets) {}
+};
+
+class AirGallery final : public Kotonoha::Scene {
+  static constexpr int pageSize_ = 12;
+  Kotonoha::Providers::LucaSystemAssets &assets_;
+  const AirGalleryCatalog &catalog_;
+  std::function<bool(uint32_t)> unlocked_;
+  Kotonoha::TouchActivation touch_;
+  bool open_ = false;
+  bool grid_ = false;
+  int category_ = 0;
+  int slot_ = 0;
+  std::vector<uint16_t> viewer_;
+  size_t variant_ = 0;
+
+  static SDL_FRect categoryRect(int i) {
+    return {40.0f + i * 300, 200, 300, 305};
+  }
+  static SDL_FRect slotRect(int i) {
+    const int index = i % pageSize_;
+    return {64.0f + (index % 4) * 288, 106.0f + (index / 4) * 172, 280, 152};
+  }
+  static constexpr SDL_FRect back_{32, 665, 168, 42};
+  static constexpr SDL_FRect previous_{450, 665, 170, 42};
+  static constexpr SDL_FRect next_{660, 665, 170, 42};
+
+  bool draw(Kotonoha::RendererRef renderer, const std::string &id, SDL_FRect dst,
+            const SDL_FRect *source = nullptr, bool fit = false) {
+    try {
+      if (!assets_.contains(id))
+        return false;
+      auto &texture = assets_.texture(renderer, id);
+      if (fit) {
+        float w = 0, h = 0;
+        if (!SDL_GetTextureSize(&texture, &w, &h) || w <= 0 || h <= 0)
+          return false;
+        const float ratio = std::min(dst.w / w, dst.h / h);
+        dst.x += (dst.w - w * ratio) * .5f;
+        dst.y += (dst.h - h * ratio) * .5f;
+        dst.w = w * ratio;
+        dst.h = h * ratio;
+      }
+      return SDL_RenderTexture(&renderer, &texture, source, &dst);
+    } catch (const std::exception &) {
+      return false;
+    }
+  }
+  bool drawImage(Kotonoha::RendererRef renderer, uint16_t id, SDL_FRect dst) {
+    return draw(renderer, "image:" + std::to_string(id), dst, nullptr, true);
+  }
+  const auto &slots() const { return catalog_[category_]; }
+  void moveSelection(int delta) {
+    if (!viewer_.empty())
+      variant_ = size_t(std::clamp(int(variant_) + delta, 0,
+                                   int(viewer_.size()) - 1));
+    else if (grid_)
+      slot_ = std::clamp(slot_ + delta, 0, int(slots().size()) - 1);
+    else
+      category_ = std::clamp(category_ + delta, 0, int(catalog_.size()) - 1);
+  }
+  void activate() {
+    if (!viewer_.empty()) {
+      moveSelection(1);
+    } else if (!grid_) {
+      grid_ = true;
+      slot_ = 0;
+    } else {
+      for (const auto id : slots()[slot_].variants)
+        if (unlocked_(id))
+          viewer_.push_back(id);
+      variant_ = 0;
+    }
+  }
+  void back() {
+    if (!viewer_.empty())
+      viewer_.clear();
+    else if (grid_)
+      grid_ = false;
+    else
+      close();
+  }
+
+public:
+  AirGallery(Kotonoha::Engine &engine,
+              Kotonoha::Providers::LucaSystemAssets &assets,
+              const AirGalleryCatalog &catalog,
+              std::function<bool(uint32_t)> unlocked)
+      : Scene(engine), assets_(assets), catalog_(catalog),
+        unlocked_(std::move(unlocked)) {}
+
+  void open() {
+    touch_.reset();
+    open_ = !catalog_.empty();
+    grid_ = false;
+    category_ = slot_ = 0;
+    viewer_.clear();
+  }
+  void close() { open_ = false; }
+  bool designSpace() const override { return true; }
+  Kotonoha::RenderLayer renderLayer() const override {
+    return Kotonoha::RenderLayer::Overlay;
+  }
+  bool capturesInput() const override { return open_; }
+  bool pausesStory() const override { return open_; }
+  uint16_t viewedImage() const { return viewer_.empty() ? 0 : viewer_[variant_]; }
+
+  bool onEvent(Kotonoha::EventRef raw) override {
+    if (!open_)
+      return false;
+    const auto event = Kotonoha::MapControllerEvent(raw);
+    if (!touch_.accept(event))
+      return true;
+    if (Kotonoha::BackAction(engine, event) ||
+        Kotonoha::UI::clicked(event, back_)) {
+      back();
+      return true;
+    }
+    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+      switch (event.key.key) {
+      case SDLK_LEFT: moveSelection(-1); return true;
+      case SDLK_RIGHT: moveSelection(1); return true;
+      case SDLK_UP: moveSelection(grid_ && viewer_.empty() ? -4 : -1); return true;
+      case SDLK_DOWN: moveSelection(grid_ && viewer_.empty() ? 4 : 1); return true;
+      case SDLK_PAGEUP: moveSelection(-pageSize_); return true;
+      case SDLK_PAGEDOWN: moveSelection(pageSize_); return true;
+      case SDLK_RETURN:
+      case SDLK_SPACE: activate(); return true;
+      }
+    }
+    if (grid_ && Kotonoha::UI::clicked(event, previous_)) {
+      moveSelection(viewer_.empty() ? -pageSize_ : -1);
+    } else if (grid_ && Kotonoha::UI::clicked(event, next_)) {
+      moveSelection(viewer_.empty() ? pageSize_ : 1);
+    } else if (!grid_) {
+      for (int i = 0; i < int(catalog_.size()); ++i) {
+        if (Kotonoha::UI::clicked(event, categoryRect(i))) {
+          category_ = i;
+          activate();
+          break;
+        }
+      }
+    } else if (viewer_.empty()) {
+      const int first = slot_ / pageSize_ * pageSize_;
+      for (int i = first; i < std::min(first + pageSize_, int(slots().size()));
+           ++i) {
+        if (Kotonoha::UI::clicked(event, slotRect(i))) {
+          slot_ = i;
+          activate();
+          break;
+        }
+      }
+    }
+    return true;
+  }
+
+  void render(Kotonoha::RendererRef renderer, float) override {
+    if (!open_)
+      return;
+    auto &ui = engine.GetUI();
+    const SDL_FRect screen{0, 0, 1280, 720};
+    const SDL_Color ink{18, 40, 89, 255};
+    SDL_SetRenderDrawColor(&renderer, 225, 235, 249, 255);
+    SDL_RenderFillRect(&renderer, &screen);
+    if (!viewer_.empty()) {
+      SDL_SetRenderDrawColor(&renderer, 8, 14, 28, 255);
+      SDL_RenderFillRect(&renderer, &screen);
+      drawImage(renderer, viewedImage(), {0, 0, 1280, 655});
+      ui.button(renderer, previous_, "Previous CG");
+      ui.button(renderer, next_, "Next CG");
+    } else {
+      draw(renderer, "CGM_BG" + std::to_string(grid_ ? category_ + 1 : 0),
+           screen);
+      static const char *names[]{"Misuzu Kamio", "Minagi Tohno",
+                                  "Kano Kirishima", "Kanna (Past)"};
+      if (!grid_) {
+        ui.text(renderer, "CG GALLERY", 64, 54, 700, ink);
+        for (int i = 0; i < int(catalog_.size()); ++i) {
+          const SDL_FRect source{i * 300.0f, i == category_ ? 305.0f : 0.0f,
+                                 300, 305};
+          if (!draw(renderer, "CGM_PT0_EN", categoryRect(i), &source))
+            ui.button(renderer, categoryRect(i), names[i], i == category_);
+        }
+      } else {
+        const auto heading = std::string(names[category_]) + "  ·  " +
+                             std::to_string(slot_ / pageSize_ + 1) + " / " +
+                             std::to_string((slots().size() + pageSize_ - 1) /
+                                            pageSize_);
+        ui.text(renderer, heading, 64, 54, 700, ink);
+        const int first = slot_ / pageSize_ * pageSize_;
+        for (int i = first; i < std::min(first + pageSize_, int(slots().size()));
+             ++i) {
+          const auto dst = slotRect(i);
+          const auto &variants = slots()[i].variants;
+          const auto available =
+              std::find_if(variants.begin(), variants.end(), unlocked_);
+          if (available == variants.end()) {
+            ui.panel(renderer, dst);
+            ui.text(renderer, "Locked", dst.x + 20, dst.y + 60, 220,
+                    {225, 230, 245, 255});
+          } else {
+            // Only use the original thumbnail once all its possible imagery
+            // is unlocked. For partial groups, use a known unlocked CG.
+            char name[32];
+            std::snprintf(name, sizeof(name), "CGGALLERY_CH%02d_%03d",
+                          category_ + 1, i + 1);
+            if (!std::all_of(variants.begin(), variants.end(), unlocked_) ||
+                !draw(renderer, name, dst))
+              drawImage(renderer, *available, dst);
+          }
+          draw(renderer, i == slot_ ? "cg_cursor_on" : "cg_cursor",
+               {dst.x - 4, dst.y - 5, 288, 162});
+        }
+        ui.button(renderer, previous_, "Previous Page");
+        ui.button(renderer, next_, "Next Page");
+      }
+    }
+    ui.button(renderer, back_, "Back [ESC]");
+  }
+};
+
+class AirPauseMenu final : public Kotonoha::InGameMenu {
+  Kotonoha::Providers::LucaSystemAssets &assets_;
+  std::function<void(bool)> quick_;
+  int manualPage_ = -1;
+  bool manualFromTitle_ = false;
+  std::vector<std::string> manualPages_;
+
+  SDL_Texture *asset(Kotonoha::RendererRef renderer, const std::string &id) {
+    try {
+      if (assets_.contains(id))
+        return &assets_.texture(renderer, id);
+    } catch (const std::exception &) {
+    }
+    return nullptr;
+  }
+
+  void closeManual() {
+    manualPage_ = -1;
+    if (manualFromTitle_)
+      close();
+    manualFromTitle_ = false;
+  }
+
+protected:
+  int itemCount() const override { return 8; }
+  std::string itemLabel(int index) const override {
+    static const char *labels[]{"Save",       "Load",       "Options", "Title",
+                                "Quick Save", "Quick Load", "Manual",  "Exit"};
+    return labels[index];
+  }
+  SDL_FRect itemRect(int index) const override {
+    return {180.0f + (index % 4) * 230.0f, 160.0f + (index / 4) * 200.0f, 230,
+            200};
+  }
+  void renderPanel(Kotonoha::RendererRef renderer) override {
+    const SDL_FRect screen{0, 0, 1280, 720};
+    if (auto *background = asset(renderer, "system_menu_bg"))
+      SDL_RenderTexture(&renderer, background, nullptr, &screen);
+    else
+      engine.GetUI().backdrop(renderer, {16, 24, 48, 210});
+  }
+  void renderItem(Kotonoha::RendererRef renderer, int index,
+                  bool focused) override {
+    if (auto *atlas = asset(renderer, "systemmenu")) {
+      const SDL_FRect src{index * 230.0f, focused ? 200.0f : 0.0f, 230, 200};
+      const auto dst = itemRect(index);
+      SDL_RenderTexture(&renderer, atlas, &src, &dst);
+    } else {
+      const auto area = itemRect(index);
+      engine.GetUI().button(renderer,
+                            {area.x + 12, area.y + 65, area.w - 24, 60},
+                            itemLabel(index), focused);
+    }
+  }
+  void activate(int index) override {
+    switch (index) {
+    case 0:
+    case 1:
+      InGameMenu::activate(index + 3); // shared save/load callbacks
+      break;
+    case 2:
+      InGameMenu::activate(2); // native Kotonoha settings
+      break;
+    case 3:
+      InGameMenu::activate(5); // title
+      break;
+    case 4:
+    case 5:
+      if (quick_)
+        quick_(index == 5);
+      break;
+    case 6:
+      openManual(false);
+      break;
+    case 7: {
+      SDL_Event quit{};
+      quit.type = SDL_EVENT_QUIT;
+      SDL_PushEvent(&quit);
+      break;
+    }
+    }
+  }
+
+public:
+  AirPauseMenu(Kotonoha::Engine &engine,
+               Kotonoha::Providers::LucaSystemAssets &assets)
+      : InGameMenu(engine), assets_(assets) {}
+
+  void setQuickAction(std::function<void(bool)> quick) {
+    quick_ = std::move(quick);
+  }
+  void open() override {
+    selected = 0;
+    InGameMenu::open();
+  }
+  void close() override {
+    manualPage_ = -1;
+    manualFromTitle_ = false;
+    InGameMenu::close();
+  }
+  void openManual(bool fromTitle) {
+    if (!IsOpen())
+      open();
+    manualPages_ = assets_.list("en_help");
+    std::sort(manualPages_.begin(), manualPages_.end());
+    manualPage_ = 0;
+    manualFromTitle_ = fromTitle;
+  }
+  bool onEvent(Kotonoha::EventRef rawEvent) override {
+    if (!IsOpen())
+      return false;
+    const auto event = Kotonoha::MapControllerEvent(rawEvent);
+    if (!touchActivation.accept(event))
+      return true;
+    if (Kotonoha::BackAction(engine, event)) {
+      if (manualPage_ >= 0)
+        closeManual();
+      else
+        close();
+      return true;
+    }
+    const bool key = event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat;
+    if (manualPage_ >= 0) {
+      if ((key && event.key.key == SDLK_LEFT) ||
+          Kotonoha::UI::clicked(event, {30, 665, 150, 42}))
+        manualPage_ = std::max(0, manualPage_ - 1);
+      if ((key && event.key.key == SDLK_RIGHT) ||
+          Kotonoha::UI::clicked(event, {1100, 665, 150, 42}))
+        manualPage_ = std::min(std::max(0, int(manualPages_.size()) - 1),
+                               manualPage_ + 1);
+      if (Kotonoha::UI::clicked(event, {565, 665, 150, 42}))
+        closeManual();
+      return true;
+    }
+    if (key) {
+      switch (event.key.key) {
+      case SDLK_LEFT:
+        selected = (selected + 7) % 8;
+        return true;
+      case SDLK_RIGHT:
+        selected = (selected + 1) % 8;
+        return true;
+      case SDLK_UP:
+      case SDLK_DOWN:
+        selected = (selected + 4) % 8;
+        return true;
+      case SDLK_RETURN:
+      case SDLK_SPACE:
+        activate(selected);
+        return true;
+      case SDLK_B:
+      case SDLK_PAGEUP:
+        close();
+        openBacklog();
+        return true;
+      }
+    }
+    for (int i = 0; i < itemCount(); ++i) {
+      const auto rect = itemRect(i);
+      if (event.type == SDL_EVENT_MOUSE_MOTION) {
+        const SDL_FPoint cursor{event.motion.x, event.motion.y};
+        if (SDL_PointInRectFloat(&cursor, &rect))
+          selected = i;
+      }
+      if (Kotonoha::UI::clicked(event, rect)) {
+        activate(i);
+        return true;
+      }
+    }
+    return true;
+  }
+  void render(Kotonoha::RendererRef renderer, float scale) override {
+    if (manualPage_ < 0) {
+      InGameMenu::render(renderer, scale);
+      return;
+    }
+    auto &ui = engine.GetUI();
+    ui.backdrop(renderer, {12, 21, 44, 244});
+    if (manualPage_ < int(manualPages_.size())) {
+      if (auto *page = asset(renderer, manualPages_[manualPage_])) {
+        float w = 0, h = 0;
+        if (SDL_GetTextureSize(page, &w, &h) && w > 0 && h > 0) {
+          const float fit = std::min(1200.0f / w, 640.0f / h);
+          const SDL_FRect dst{(1280 - w * fit) * .5f, 10, w * fit, h * fit};
+          SDL_RenderTexture(&renderer, page, nullptr, &dst);
+        }
+      }
+    } else {
+      ui.text(renderer, "Manual pages are unavailable", 445, 315, 400,
+              {255, 255, 255, 255});
+    }
+    ui.button(renderer, {30, 665, 150, 42}, "Previous");
+    ui.button(renderer, {565, 665, 150, 42}, "Close");
+    ui.button(renderer, {1100, 665, 150, 42}, "Next");
   }
 };
 
@@ -659,7 +1149,7 @@ struct LucaSystemRuntime::Impl {
   std::unique_ptr<AirTextBox> textbox;
   Kotonoha::ChoiceQuestionScene *choiceScene = nullptr;
   Kotonoha::VNBacklog *backlog = nullptr;
-  Kotonoha::InGameMenu *menu = nullptr;
+  AirPauseMenu *menu = nullptr;
   std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
 
   bool running = false;
@@ -944,6 +1434,16 @@ struct LucaSystemRuntime::Impl {
       textbox->hide();
     if (choiceScene)
       choiceScene->hide();
+    if (menu)
+      menu->close();
+    if (backlog)
+      backlog->close();
+    if (engine) {
+      runtime.SetState(Kotonoha::GameState::Gameplay);
+      runtime.ClearScenes();
+      runtime.AddScene(choiceScene);
+      runtime.AddScene(menu);
+    }
     stagedSlots.clear();
     visibleSlots.clear();
     outgoingSlots.clear();
@@ -962,6 +1462,15 @@ struct LucaSystemRuntime::Impl {
     // Play AIR Title BGM (trk22 / 100021) when available
     if (assets->hasBgmAsset(100021))
       playBgm(100021, true);
+  }
+
+  void openSaveSlots(bool load) {
+    if (!saveMenu || saveMenu->isOpen())
+      return;
+    if (menu)
+      menu->close();
+    saveMenu->open(Kotonoha::saveDirectory().string(), load, currentScenario);
+    runtime.AddScene(saveMenu.get());
   }
 
   int32_t evaluateExpr(std::string_view expr) const {
@@ -1316,11 +1825,9 @@ struct LucaSystemRuntime::Impl {
 
       switch (ins.opcode) {
       case OP_MESSAGE: {
-        if (ins.paramBytes.size() >= 2) {
-          const uint16_t voiceId = paramU16(ins, 0);
-          if (voiceId != 0)
-            playVoice(voiceId);
-        }
+        const uint16_t voiceId = paramU16(ins, 0);
+        if (voiceId != 0)
+          playVoice(voiceId);
         if (!ins.text.empty()) {
           std::string speaker, text;
           parseSpeakerAndSanitizeText(ins.text, speaker, text);
@@ -1332,8 +1839,11 @@ struct LucaSystemRuntime::Impl {
             textbox->setDialogue(speaker, text);
             textbox->show();
           }
-          if (backlog)
+          if (backlog && !text.empty()) {
             backlog->addEntry(speaker, text);
+            if (voiceId != 0)
+              backlog->setLastVoice("voice:" + std::to_string(voiceId));
+          }
           return;
         }
         break;
@@ -1352,7 +1862,11 @@ struct LucaSystemRuntime::Impl {
           if (!chosen.empty() && backlog) {
             std::string spk, clean;
             parseSpeakerAndSanitizeText(chosen, spk, clean);
-            backlog->addEntry(spk, clean);
+            if (!clean.empty()) {
+              backlog->addEntry(spk, clean);
+              if (voiceId != 0)
+                backlog->setLastVoice("voice:" + std::to_string(voiceId));
+            }
           }
         }
         break;
@@ -2099,17 +2613,22 @@ struct LucaSystemRuntime::Impl {
     }
   }
 
+  void attachGameplayScenes() {
+    runtime.SetState(Kotonoha::GameState::Gameplay);
+    runtime.ClearScenes();
+    runtime.AddScene(textbox.get(), Kotonoha::GameState::Gameplay);
+    runtime.AddScene(choiceScene, Kotonoha::GameState::Gameplay);
+    runtime.AddScene(backlog, Kotonoha::GameState::Gameplay);
+    runtime.AddScene(menu, Kotonoha::GameState::Gameplay);
+  }
+
   void launchChapterFromTitle(const std::string &scenarioName) {
     originalTitle = false;
     titleShown = false;
     titleBackgroundTexture.reset();
     bgm.Stop();
     currentBgmId = 0;
-    runtime.ClearScenes();
-    runtime.AddScene(textbox.get(), Kotonoha::GameState::Gameplay);
-    runtime.AddScene(choiceScene, Kotonoha::GameState::Gameplay);
-    runtime.AddScene(backlog, Kotonoha::GameState::Gameplay);
-    runtime.AddScene(menu, Kotonoha::GameState::Gameplay);
+    attachGameplayScenes();
     runtime.startScenario(scenarioName);
   }
 };
@@ -2152,22 +2671,42 @@ void LucaSystemRuntime::init(Kotonoha::Engine &engine) {
 void LucaSystemRuntime::initGlobal(Kotonoha::Engine &engine) {
   auto &impl = *impl_;
   (void)Kotonoha::GetVNManagerRuntime(engine);
+  impl.backlog = &engine.configureSharedScene<Kotonoha::VNBacklog, AirBacklog>(
+      *impl.assets);
   impl.textbox = std::make_unique<AirTextBox>(engine, *impl.assets);
   impl.choiceScene = &Kotonoha::GetChoiceQuestionRuntime(engine);
-  impl.backlog = &Kotonoha::GetVNBacklogRuntime(engine);
-  impl.menu = &Kotonoha::GetInGameMenuRuntime(engine);
+  impl.backlog->setVoiceReplay([this](const std::string &id) {
+    try {
+      impl_->voice.Stop();
+      impl_->playDecodedAudio(impl_->voice, "Voice", id, 1, 48000, false);
+    } catch (const std::exception &e) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem replay: %s",
+                  e.what());
+    }
+  });
+  impl.menu = &engine.configureSharedScene<Kotonoha::InGameMenu, AirPauseMenu>(
+      *impl.assets);
   impl.saveMenu = std::make_unique<Kotonoha::VNSaveMenu>(engine);
 
   auto &menu = *impl.menu;
   menu.SetOnReturnToMenu([this] { impl_->enterTitleScreen(); });
-  menu.SetOnSave([this] {
-    auto path = Kotonoha::saveDirectory() / "quicksave.kns";
-    saveGame(path.string());
-  });
-  menu.SetOnLoad([this] {
-    auto path = Kotonoha::saveDirectory() / "quicksave.kns";
-    if (std::filesystem::exists(path))
-      loadGame(path.string());
+  menu.SetOnSave([this] { impl_->openSaveSlots(false); });
+  menu.SetOnLoad([this] { impl_->openSaveSlots(true); });
+  menu.setQuickAction([this](bool load) {
+    const auto path = Kotonoha::saveDirectory() / "quicksave.kns";
+    try {
+      if (load) {
+        if (!std::filesystem::exists(path))
+          return;
+        loadGame(path.string());
+      } else {
+        saveGame(path.string());
+      }
+      impl_->menu->close();
+    } catch (const std::exception &e) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "LucaSystem quick save/load: %s", e.what());
+    }
   });
 }
 
@@ -2196,15 +2735,10 @@ void LucaSystemRuntime::initGameplay(Kotonoha::Engine &engine) {
 
   if (impl.originalTitle) {
     impl.enterTitleScreen();
-    AddScene(impl.choiceScene);
     return;
   }
 
-  ClearScenes();
-  AddScene(impl.textbox.get());
-  AddScene(impl.choiceScene);
-  AddScene(impl.backlog);
-  AddScene(impl.menu);
+  impl.attachGameplayScenes();
   if (!impl.currentScenario.empty()) {
     startScenario(impl.currentScenario);
   } else {
@@ -2227,7 +2761,8 @@ void LucaSystemRuntime::update() {
       impl.runUntilPause();
     }
   }
-  if (impl.skipMode && impl.dialogueVisible && !impl.choiceActive) {
+  if (impl.skipMode && impl.dialogueVisible && !impl.choiceActive &&
+      !isStoryPaused()) {
     if (impl.textbox)
       impl.textbox->completeDialogue();
     impl.advanceDialogue();
@@ -2394,8 +2929,12 @@ void LucaSystemRuntime::advanceDialogue() { impl_->advanceDialogue(); }
 
 bool LucaSystemRuntime::handleAdvanceAction() {
   auto &impl = *impl_;
-  if (!impl.dialogueVisible)
+  if (!impl.dialogueVisible || isStoryPaused())
     return false;
+  if (impl.textbox && impl.textbox->isUserHidden()) {
+    impl.textbox->setUserHidden(false);
+    return true;
+  }
   impl.advanceDialogue();
   return true;
 }
@@ -2403,6 +2942,8 @@ bool LucaSystemRuntime::handleAdvanceAction() {
 bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
   auto mapped = Kotonoha::MapControllerEvent(event);
   auto &impl = *impl_;
+  if (mapped.type == SDL_EVENT_KEY_UP && mapped.key.key == SDLK_LCTRL)
+    impl.skipMode = false;
 
   if (impl.showingSplash && (mapped.type == SDL_EVENT_KEY_DOWN ||
                              mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
@@ -2425,8 +2966,9 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     }
   }
 
-  if (impl.choiceActive && impl.choiceScene)
-    return Runtime::onEvent(mapped);
+  for (const auto *scene : GetActiveScenes())
+    if (scene && scene->capturesInput())
+      return Runtime::onEvent(event);
 
   static constexpr int menuGroups[][2] = {
       {15, 222},    {258, 542},   {577, 809},   {842, 950},  {984, 1154},
@@ -2501,20 +3043,16 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     case 2: // START "AIR" -> seen163
       impl.launchChapterFromTitle("seen163");
       return true;
-    case 3: { // LOAD
-      const auto savePath = Kotonoha::saveDirectory() / "quicksave.kns";
-      if (std::filesystem::exists(savePath)) {
-        impl.originalTitle = false;
-        initGameplay(*impl.engine);
-        loadGame(savePath.string());
-      }
+    case 3: // LOAD
+      impl.openSaveSlots(true);
       return true;
-    }
     case 4: // OPTIONS
-      if (impl.menu) {
-        SetState(Kotonoha::GameState::Menu);
-        initMenu(*impl.engine);
-      }
+      if (impl.engine)
+        impl.engine->openSettings();
+      return true;
+    case 5: // MANUAL
+      if (impl.menu)
+        impl.menu->openManual(true);
       return true;
     case 6: { // EXIT (button 6 at [1386..1466] in SYSCG.PAK/title_menu!)
       SDL_Event quit{};
@@ -2548,6 +3086,9 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     }
   }
 
+  if (impl.originalTitle)
+    return false;
+
   if (!impl.originalTitle && mapped.type == SDL_EVENT_KEY_DOWN &&
       !mapped.key.repeat && mapped.key.key == SDLK_F5) {
     auto path = Kotonoha::saveDirectory() / "quicksave.kns";
@@ -2565,20 +3106,18 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
       mapped.key.key == SDLK_LCTRL) {
     impl.skipMode = true;
   }
-  if (!impl.originalTitle && mapped.type == SDL_EVENT_KEY_UP &&
-      mapped.key.key == SDLK_LCTRL) {
-    impl.skipMode = false;
-  }
 
-  if (impl.dialogueVisible && (mapped.type == SDL_EVENT_KEY_DOWN ||
-                               mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-                               mapped.type == SDL_EVENT_FINGER_DOWN)) {
-    if (mapped.type != SDL_EVENT_KEY_DOWN || !mapped.key.repeat) {
-      advanceDialogue();
-      return true;
-    }
+  if (Runtime::onEvent(event))
+    return true;
+  if (impl.menu && impl.engine && Kotonoha::BackAction(*impl.engine, mapped)) {
+    impl.menu->open();
+    return true;
   }
-  return Runtime::onEvent(mapped);
+  const bool advance =
+      (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
+       (mapped.key.key == SDLK_RETURN || mapped.key.key == SDLK_SPACE)) ||
+      Kotonoha::UI::clicked(mapped, {0, 0, 1280, 720});
+  return advance && handleAdvanceAction();
 }
 
 void LucaSystemRuntime::saveGame(const std::string &path) {
@@ -2634,6 +3173,7 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
 
 void LucaSystemRuntime::loadGame(const std::string &path) {
   auto &impl = *impl_;
+  const bool fromTitle = impl.originalTitle;
   std::string payload;
   if (impl.engine) {
     auto saved = Kotonoha::VNSave::read(path);
@@ -2661,6 +3201,10 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
 
   if (!startScenario(state.scenario, state.instructionIndex, true))
     throw std::runtime_error("Cannot resume LucaSystem scenario");
+  if (fromTitle && impl.engine) {
+    impl.stopAudio();
+    impl.attachGameplayScenes();
+  }
   impl.numericVars.clear();
   impl.numericVars.insert(state.numbers.begin(), state.numbers.end());
   impl.syncGlobalVarsIntoSession();
@@ -2746,6 +3290,7 @@ bool LucaSystemRuntime::startScenario(const std::string &name, size_t position,
     return false;
 
   impl.originalTitle = false;
+  impl.showingSplash = false;
   impl.instructionIndex = position;
   impl.callStack.clear();
   impl.stagedSlots.clear();

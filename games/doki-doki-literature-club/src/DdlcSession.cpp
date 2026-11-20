@@ -177,6 +177,8 @@ public:
       data = assets->read(file);
     if (data.empty() && assets->contains("gui/font/Aller_Rg.ttf"))
       data = assets->read("gui/font/Aller_Rg.ttf");
+    if (data.empty() && assets->contains("font/playtime.ttf"))
+      data = assets->read("font/playtime.ttf");
     TTF_Font *f =
         data.empty()
             ? nullptr
@@ -210,7 +212,8 @@ public:
     const uint32_t cp = utf8Code(ch);
     if (f && (cp <= 0x20 || TTF_FontHasGlyph(f, cp)))
       return f;
-    for (const char *fb : {"gui/font/Aller_Rg.ttf", "gui/font/Vera.ttf"}) {
+    for (const char *fb : {"gui/font/Aller_Rg.ttf", "gui/font/Vera.ttf",
+                           "font/playtime.ttf"}) {
       if (file == fb)
         continue;
       if (TTF_Font *alt = font(fb, px, outline, style))
@@ -453,7 +456,8 @@ public:
        TextEngine &text)
       : engine_(engine), assets_(assets), text_(text) {
     directory_ = userDirectory();
-    seedCharacters(directory_, assets.source().dir(), &assets.source());
+    if (assets.name().compare(0, 13, "Katawa Shoujo") != 0)
+      seedCharacters(directory_, assets.source().dir(), &assets.source());
     persistentPath_ = directory_ / "persistent.txt";
   }
 
@@ -1518,9 +1522,16 @@ struct Game {
     const Window &w = displayWindow(native);
     const std::string box =
         w.monika ? "gui/textbox_monika.png" : "gui/textbox.png";
-    if (Tex *tb = image(r, box))
-      drawImage(r, box, (kW - float(tb->logicalW)) / 2,
-                kWinTop + kWinH - float(tb->logicalH));
+    if (vm->assets.has(box)) {
+      if (Tex *tb = image(r, box))
+        drawImage(r, box, (kW - float(tb->logicalW)) / 2,
+                  kWinTop + kWinH - float(tb->logicalH));
+    } else {
+      SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(r, 12, 12, 20, 210);
+      const SDL_FRect backdrop{240, kWinTop, 800, kWinH};
+      SDL_RenderFillRect(r, &backdrop);
+    }
     if (!w.who.empty()) {
       drawImage(r, "gui/namebox.png", 350 - 84, kWinTop - 3);
       TextStyle ls = vm->styleNamed("say_label");
@@ -2247,6 +2258,8 @@ struct Game {
       throw std::runtime_error(SDL_GetError());
     host.stop("music", 1.0);
     newVm();
+    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0)
+      vm->py.set("playthroughflag", Value::integer(1));
     phase = Phase::Play;
     replay.label = "start";
     vm->start("start");
