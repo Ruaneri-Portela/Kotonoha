@@ -55,7 +55,10 @@ class DebugOverlay {
   char assetPath[1024]{};
   std::string previewAsset;
   std::string previewError;
-  float previewSeconds = 0;
+  bool dumpOriginalAsset = false;
+  std::string assetDumpStatus;
+  bool assetDumpError = false;
+   float previewSeconds = 0;
   TexturePtr previewTexture;
   AudioStreamPtr previewAudio;
   std::shared_ptr<AudioChannel> previewChannel;
