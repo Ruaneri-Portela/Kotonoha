@@ -610,6 +610,7 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
     previewTexture.reset();
     previewAsset.clear();
     previewError.clear();
+    assetDumpStatus.clear();
     previewSeconds = 0;
     stopPreviewAudio();
   };
@@ -617,9 +618,21 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
   for (const auto &id : nodeAssets)
     if (ImGui::Selectable(id.c_str(), id == assetPath))
       choose(id);
+  for (const auto &audio : engine.GetRuntime().debugSceneAudio()) {
+    if (std::find(nodeAssets.begin(), nodeAssets.end(), audio.id) ==
+        nodeAssets.end() &&
+        ImGui::Selectable(audio.id.c_str(), audio.id == assetPath))
+      choose(audio.id);
+  }
   if (nodeAssets.empty())
     ImGui::TextDisabled(
         "No asset references on this node. Enter an asset ID below.");
+  if (ImGui::TreeNode("Audio requested this session")) {
+    for (const auto &id : engine.GetAssets().recentAudio())
+      if (ImGui::Selectable(id.c_str(), id == assetPath))
+        choose(id);
+    ImGui::TreePop();
+  }
   if (ImGui::Button("List provider assets")) {
     try {
       browsedAssets = engine.GetAssets().list();
@@ -746,6 +759,17 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
   ImGui::SameLine();
   if (ImGui::Button("Stop audio"))
     stopPreviewAudio();
+  ImGui::SameLine();
+  if (ImGui::Button("Open in Voice Dubbing")) {
+    try {
+      dubbingApplet->openAsset(assetPath);
+      showDubbingWindow = true;
+      previewError.clear();
+    } catch (const std::exception &error) {
+      previewError = error.what();
+      SDL_LogError(LogMedia, "Open asset in dubbing: %s", error.what());
+    }
+  }
   if (previewTexture) {
     float width = 0, height = 0;
     if (SDL_GetTextureSize(previewTexture.get(), &width, &height) &&
