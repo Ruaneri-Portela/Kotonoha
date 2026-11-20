@@ -2532,36 +2532,6 @@
 				CC5E47A9D08DF0537706F71D /* Configurations */,
 				3B37570FB5A54779D136910F /* Products */,
 				4246503E402C6A47F918A467 /* Frameworks */,
-				0D0C1CB68431A438687040FB /* main.cpp */,
-				59CB01200926B11C8BE1B71D /* game-assets */,
-				3D216FD739A4CDADA245F32C /* main.cpp */,
-				933456486A0DCFC48D1015CB /* game-assets */,
-				AFF3E2A6496DED8FA9ACD68D /* PonscripterRuntime.cpp */,
-				B83C082FC0962DAF7B1758AA /* main.cpp */,
-				02244B9FBB75E4DC31E5ECB0 /* PonscripterAssets.cpp */,
-				841482B61A864B4EB85E0977 /* Archive.cpp */,
-				BB015B091994938C4CCCECA9 /* Lexer.cpp */,
-				DD28A9453E7FAAF5E2424C0A /* PonscripterCommands.cpp */,
-				1E68409B2FB7E5B8920D7856 /* PonscripterTypes.cpp */,
-				4DA71E6C6B0DC29DAA0C1AAA /* PonscripterVm.cpp */,
-				18D58932EC2483DD04214A21 /* SaveSerializer.cpp */,
-				5FD846ABD52229FF1A602543 /* ScriptBuffer.cpp */,
-				2546EE42B786DD73AB620B7E /* TextFormatter.cpp */,
-				F7A7B3492CE48639D7D84CBD /* VariableStore.cpp */,
-				E4140295E45357F3C459C8B3 /* game-assets */,
-				EF37725F3CC934BDF93D8B09 /* N2Runtime.cpp */,
-				4579E562C074033828A96F2B /* main.cpp */,
-				3E6AB84CE0219CD8D488E0F1 /* Archive.cpp */,
-				D3683F089CA573ACAEA3AE74 /* N2ArchiveAssets.cpp */,
-				798D22DEAD1C84C7184A5A1B /* AudioSystem.cpp */,
-				8361BEA245B3AD0E420B0FBF /* DialogueSystem.cpp */,
-				C8048E50DB6AEBB3E39E5A74 /* SaveState.cpp */,
-				2A3CD07849C395B9908654AE /* SceneGraph.cpp */,
-				498217BFCCA8F59BCAC414E4 /* ScriptExecutor.cpp */,
-				F7684BA2CC0FEC25FB9CE283 /* ScriptIndex.cpp */,
-				A039740292658EB792C886C9 /* ScriptVm.cpp */,
-				26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */,
-				3C5A9DABEDBC8EBC44761F06 /* game-assets */,
 			);
 			name = KotonohaUnified;
 			sourceTree = "<group>";
@@ -2578,6 +2548,7 @@
 			isa = PBXGroup;
 			children = (
 				E94739250EC5458B6C11E2B1 /* Vm.cpp */,
+				FC2BC0CC5C1C4CDAE4E355A5 /* Python.cpp */,
 			);
 			name = renpy;
 			sourceTree = "<group>";
@@ -2721,6 +2692,8 @@
 				85390CF22608FE7FFFC3AF87 /* rpa */,
 				4F250A16D0AB9EF5B61A8812 /* xp3 */,
 				9B09BD2718ED2583B4251A5B /* zero */,
+				F2F200000000000000000009 /* ponscripter */,
+				F2F20000000000000000000A /* n2 */,
 			);
 			name = Providers;
 			sourceTree = "<group>";
@@ -2964,6 +2937,8 @@
 				49F368BFEE22590B2D3003F0 /* renpy */,
 				20067FCB165DFC23E07997B8 /* snow-radish */,
 				7D77FA2B6C4067ABDD31C069 /* summer-radish */,
+				F2F20000000000000000000B /* ponscripter */,
+				F2F20000000000000000000C /* n2system */,
 			);
 			name = VM;
 			sourceTree = "<group>";
@@ -3043,7 +3018,6 @@
 				0C39091D0D47DD2D9C982286 /* DdlcRuntime.cpp */,
 				AA64C0CEE2E21C91DEF07E99 /* DdlcSession.cpp */,
 				4DA44EA779EF5ED5B0159EB0 /* Display.cpp */,
-				FC2BC0CC5C1C4CDAE4E355A5 /* Python.cpp */,
 				59EDD75E548BEEB417C71E02 /* Replay.cpp */,
 				7EF4F9023D498F09F8041F36 /* Script.cpp */,
 				73AE439517659FF3DAE39A4A /* Value.cpp */,
@@ -3077,6 +3051,10 @@
 				EA2218DD91679D351989FD0F /* Kirikiri */,
 				A4A05ECBC252DB09B058865C /* LucaSystem */,
 				8EE3EB86781B8D1F0DD99260 /* Pmail */,
+				F2F200000000000000000001 /* KatawaShoujo */,
+				F2F200000000000000000002 /* MEO */,
+				F2F200000000000000000003 /* PonscripterGame */,
+				F2F200000000000000000004 /* N2SystemGame */,
 			);
 			name = Games;
 			sourceTree = "<group>";
@@ -3151,6 +3129,10 @@
 				7CE80190DFF70E96FB91E1C4 /* Kirikiri */,
 				EA110AD835EAEB0BC9E89C47 /* LucaSystem */,
 				877E62E76BCBDCE2C0D98D78 /* Pmail */,
+				F2F200000000000000000005 /* KatawaShoujo */,
+				F2F200000000000000000006 /* MEO */,
+				F2F200000000000000000007 /* PonscripterGame */,
+				F2F200000000000000000008 /* N2SystemGame */,
 			);
 			name = Games;
 			sourceTree = "<group>";
@@ -3335,6 +3317,120 @@
 				55DDE3D25C2E19533CB2474A /* main.cpp */,
 			);
 			name = RealLive;
+			sourceTree = "<group>";
+		};
+		F2F200000000000000000001 /* KatawaShoujo */ = {
+			isa = PBXGroup;
+			children = (
+				0D0C1CB68431A438687040FB /* main.cpp */,
+			);
+			name = KatawaShoujo;
+			sourceTree = "<group>";
+		};
+		F2F200000000000000000002 /* MEO */ = {
+			isa = PBXGroup;
+			children = (
+				3D216FD739A4CDADA245F32C /* main.cpp */,
+			);
+			name = MEO;
+			sourceTree = "<group>";
+		};
+		F2F200000000000000000003 /* PonscripterGame */ = {
+			isa = PBXGroup;
+			children = (
+				AFF3E2A6496DED8FA9ACD68D /* PonscripterRuntime.cpp */,
+				B83C082FC0962DAF7B1758AA /* main.cpp */,
+			);
+			name = PonscripterGame;
+			sourceTree = "<group>";
+		};
+		F2F200000000000000000004 /* N2SystemGame */ = {
+			isa = PBXGroup;
+			children = (
+				EF37725F3CC934BDF93D8B09 /* N2Runtime.cpp */,
+				4579E562C074033828A96F2B /* main.cpp */,
+			);
+			name = N2SystemGame;
+			sourceTree = "<group>";
+		};
+		F2F200000000000000000005 /* KatawaShoujo */ = {
+			isa = PBXGroup;
+			children = (
+				59CB01200926B11C8BE1B71D /* game-assets */,
+			);
+			name = KatawaShoujo;
+			sourceTree = "<group>";
+		};
+		F2F200000000000000000006 /* MEO */ = {
+			isa = PBXGroup;
+			children = (
+				933456486A0DCFC48D1015CB /* game-assets */,
+			);
+			name = MEO;
+			sourceTree = "<group>";
+		};
+		F2F200000000000000000007 /* PonscripterGame */ = {
+			isa = PBXGroup;
+			children = (
+				E4140295E45357F3C459C8B3 /* game-assets */,
+			);
+			name = PonscripterGame;
+			sourceTree = "<group>";
+		};
+		F2F200000000000000000008 /* N2SystemGame */ = {
+			isa = PBXGroup;
+			children = (
+				3C5A9DABEDBC8EBC44761F06 /* game-assets */,
+			);
+			name = N2SystemGame;
+			sourceTree = "<group>";
+		};
+		F2F200000000000000000009 /* ponscripter */ = {
+			isa = PBXGroup;
+			children = (
+				02244B9FBB75E4DC31E5ECB0 /* PonscripterAssets.cpp */,
+			);
+			name = ponscripter;
+			sourceTree = "<group>";
+		};
+		F2F20000000000000000000A /* n2 */ = {
+			isa = PBXGroup;
+			children = (
+				3E6AB84CE0219CD8D488E0F1 /* Archive.cpp */,
+				D3683F089CA573ACAEA3AE74 /* N2ArchiveAssets.cpp */,
+			);
+			name = n2;
+			sourceTree = "<group>";
+		};
+		F2F20000000000000000000B /* ponscripter */ = {
+			isa = PBXGroup;
+			children = (
+				841482B61A864B4EB85E0977 /* Archive.cpp */,
+				BB015B091994938C4CCCECA9 /* Lexer.cpp */,
+				DD28A9453E7FAAF5E2424C0A /* PonscripterCommands.cpp */,
+				1E68409B2FB7E5B8920D7856 /* PonscripterTypes.cpp */,
+				4DA71E6C6B0DC29DAA0C1AAA /* PonscripterVm.cpp */,
+				18D58932EC2483DD04214A21 /* SaveSerializer.cpp */,
+				5FD846ABD52229FF1A602543 /* ScriptBuffer.cpp */,
+				2546EE42B786DD73AB620B7E /* TextFormatter.cpp */,
+				F7A7B3492CE48639D7D84CBD /* VariableStore.cpp */,
+			);
+			name = ponscripter;
+			sourceTree = "<group>";
+		};
+		F2F20000000000000000000C /* n2system */ = {
+			isa = PBXGroup;
+			children = (
+				798D22DEAD1C84C7184A5A1B /* AudioSystem.cpp */,
+				8361BEA245B3AD0E420B0FBF /* DialogueSystem.cpp */,
+				C8048E50DB6AEBB3E39E5A74 /* SaveState.cpp */,
+				2A3CD07849C395B9908654AE /* SceneGraph.cpp */,
+				498217BFCCA8F59BCAC414E4 /* ScriptExecutor.cpp */,
+				F7684BA2CC0FEC25FB9CE283 /* ScriptIndex.cpp */,
+				A039740292658EB792C886C9 /* ScriptVm.cpp */,
+				26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */,
+			);
+			name = n2system;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
