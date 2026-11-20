@@ -150,6 +150,7 @@ void processSpeakerAndDialogue(const std::string &rawSpeaker,
 struct Text : VNTextBox {
   Kotonoha::Providers::RealLiveAssets &assets;
   SurfacePtr frame, cursor, buttonSurface;
+  bool frameUsesOpaqueNativeColours = false;
   Image buttonImage;
   ImageButtonBar controls;
   bool concealed = false;
@@ -294,8 +295,13 @@ struct Text : VNTextBox {
         assets.settings().text(wakuBase + ".NAME", "smw00a");
     if (!frameName.empty()) {
       auto smw00a = assets.graphic(frameName, false);
-      if (!smw00a.empty())
+      if (!smw00a.empty()) {
         frame = assets.loadSurface(smw00a);
+        // AIR's original smw00a window is an opaque blue raster. Its G00
+        // alpha/mask is not the desired opacity of the completed text frame.
+        // Preserve the actual game RGB, not a synthetic blue replacement.
+        frameUsesOpaqueNativeColours = frame && frameName == "smw00a";
+      }
     }
     const char *path = "/System/Library/Fonts/Supplemental/Verdana.ttf";
     if (std::filesystem::exists(path)) {
@@ -355,13 +361,15 @@ struct Text : VNTextBox {
   }
   bool designSpace() const override { return false; }
   void image(RendererRef r, SurfaceRef s, float x, float y,
-             bool upscale = true) {
+             bool upscale = true, bool opaque = false) {
     auto &t = imageTextures[&s];
     if (!t) {
       t.reset(SDL_CreateTextureFromSurface(&r, &s));
       if (auto *pipeline = Upscaling::forRenderer(r))
         pipeline->process(*t, 0);
     }
+    if (opaque && !SDL_SetTextureBlendMode(t.get(), SDL_BLENDMODE_NONE))
+      throw std::runtime_error(SDL_GetError());
     SDL_FRect dest{x, y, float(s.w), float(s.h)};
     if (upscale)
       RenderUpscaledTexture(&r, t.get(), nullptr, &dest);
@@ -435,7 +443,7 @@ struct Text : VNTextBox {
     updateLayout(canvasW, canvasH);
     const float bx = float(boxX()), by = float(boxY());
     if (frame)
-      image(r, *frame, bx, by);
+      image(r, *frame, bx, by, true, frameUsesOpaqueNativeColours);
     if (!buttonSurface)
       return;
     auto &texture = imageTextures[buttonSurface.get()];
