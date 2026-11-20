@@ -1043,6 +1043,12 @@
 		C7C70000000000000000002B /* VitaSystemGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000002A /* VitaSystemGraphics.cpp */; };
 		C7C70000000000000000002C /* VitaSystemGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000002A /* VitaSystemGraphics.cpp */; };
 		C7C70000000000000000002D /* VitaSystemGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000002A /* VitaSystemGraphics.cpp */; };
+		C8C800000000000000000002 /* PmailExtrasMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8C800000000000000000001 /* PmailExtrasMenu.cpp */; };
+		C8C800000000000000000003 /* PmailExtrasMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8C800000000000000000001 /* PmailExtrasMenu.cpp */; };
+		C8C800000000000000000004 /* PmailExtrasMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8C800000000000000000001 /* PmailExtrasMenu.cpp */; };
+		C8C800000000000000000006 /* PmailExtrasViewer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8C800000000000000000005 /* PmailExtrasViewer.cpp */; };
+		C8C800000000000000000007 /* PmailExtrasViewer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8C800000000000000000005 /* PmailExtrasViewer.cpp */; };
+		C8C800000000000000000008 /* PmailExtrasViewer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8C800000000000000000005 /* PmailExtrasViewer.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -2258,6 +2264,13 @@
 		C7C700000000000000000022 /* VitaGraphics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaGraphics.cpp; path = ../../modules/providers/amagami/src/VitaGraphics.cpp; sourceTree = SOURCE_ROOT; };
 		C7C700000000000000000026 /* VitaGraphicsAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaGraphicsAssets.cpp; path = ../../modules/providers/amagami/src/VitaGraphicsAssets.cpp; sourceTree = SOURCE_ROOT; };
 		C7C70000000000000000002A /* VitaSystemGraphics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaSystemGraphics.cpp; path = ../../modules/providers/amagami/src/VitaSystemGraphics.cpp; sourceTree = SOURCE_ROOT; };
+		C8C800000000000000000001 /* PmailExtrasMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailExtrasMenu.cpp; path = ../../games/pmail/src/PmailExtrasMenu.cpp; sourceTree = SOURCE_ROOT; };
+		C8C800000000000000000005 /* PmailExtrasViewer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailExtrasViewer.cpp; path = ../../games/pmail/src/PmailExtrasViewer.cpp; sourceTree = SOURCE_ROOT; };
+		C8C800000000000000000009 /* PythonDummy.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PythonDummy.cpp; path = ../../modules/vms/renpy/src/PythonDummy.cpp; sourceTree = SOURCE_ROOT; };
+		C8C80000000000000000000A /* VitaScripts.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaScripts.cpp; path = ../../games/amagami/src/VitaScripts.cpp; sourceTree = SOURCE_ROOT; };
+		C8C80000000000000000000B /* VitaVmBridge.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaVmBridge.cpp; path = ../../games/amagami/src/VitaVmBridge.cpp; sourceTree = SOURCE_ROOT; };
+		C8C80000000000000000000C /* VitaSpriteRenderer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaSpriteRenderer.cpp; path = ../../games/amagami/src/VitaSpriteRenderer.cpp; sourceTree = SOURCE_ROOT; };
+		C8C80000000000000000000D /* VitaInput.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaInput.cpp; path = ../../games/amagami/src/VitaInput.cpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2822,6 +2835,7 @@
 		49F368BFEE22590B2D3003F0 /* renpy */ = {
 			isa = PBXGroup;
 			children = (
+				C8C800000000000000000009 /* PythonDummy.cpp */,
 				E94739250EC5458B6C11E2B1 /* Vm.cpp */,
 				FC2BC0CC5C1C4CDAE4E355A5 /* Python.cpp */,
 			);
@@ -3119,6 +3133,8 @@
 		8EE3EB86781B8D1F0DD99260 /* Pmail */ = {
 			isa = PBXGroup;
 			children = (
+				C8C800000000000000000005 /* PmailExtrasViewer.cpp */,
+				C8C800000000000000000001 /* PmailExtrasMenu.cpp */,
 				A31D21EDCFBFACFB87FBC4B2 /* PmailAudio.cpp */,
 				C691896FFE305192A639A31D /* PmailBacklog.cpp */,
 				10AD1DF9A3EA1A0FF604E678 /* PmailComponents.cpp */,
@@ -3444,6 +3460,10 @@
 		DA08E452F701D352660A3027 /* Amagami */ = {
 			isa = PBXGroup;
 			children = (
+				C8C80000000000000000000D /* VitaInput.cpp */,
+				C8C80000000000000000000C /* VitaSpriteRenderer.cpp */,
+				C8C80000000000000000000B /* VitaVmBridge.cpp */,
+				C8C80000000000000000000A /* VitaScripts.cpp */,
 				EDE9F0307C5FFAF41888D56E /* AmagamiLauncher.cpp */,
 				825899848BE41CBA62F28A87 /* AmagamiRuntime.cpp */,
 				2BC48D9E2880CEA0BF73F649 /* Campaign.cpp */,
@@ -6429,6 +6449,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C8C800000000000000000007 /* PmailExtrasViewer.cpp in Sources */,
+				C8C800000000000000000003 /* PmailExtrasMenu.cpp in Sources */,
 				9C0DC688D0D16379D59A2B9F /* PmailComponents.cpp in Sources */,
 				68087E0C72F7051AB26D0518 /* PmailTitleMenu.cpp in Sources */,
 				2CCFD0B6A4AD7CC5589FFFFB /* PmailGame.cpp in Sources */,
@@ -7139,6 +7161,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C8C800000000000000000006 /* PmailExtrasViewer.cpp in Sources */,
+				C8C800000000000000000002 /* PmailExtrasMenu.cpp in Sources */,
 				2F3FE8E81D863CCCF7457153 /* PmailComponents.cpp in Sources */,
 				1ACFCC34C0A746B346E3C8FA /* PmailTitleMenu.cpp in Sources */,
 				763B445B959F211278855761 /* PmailGame.cpp in Sources */,
@@ -7233,6 +7257,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C8C800000000000000000008 /* PmailExtrasViewer.cpp in Sources */,
+				C8C800000000000000000004 /* PmailExtrasMenu.cpp in Sources */,
 				C7C70000000000000000002D /* VitaSystemGraphics.cpp in Sources */,
 				C7C700000000000000000029 /* VitaGraphicsAssets.cpp in Sources */,
 				C7C700000000000000000025 /* VitaGraphics.cpp in Sources */,
