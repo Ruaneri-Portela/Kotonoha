@@ -22,11 +22,11 @@
 #include "SnowRuntime.hpp"
 #include <SnowRadish/SnowAssets.hpp>
 #endif
-#if defined(KOTONOHA_LAUNCH_SUMMER)
+#if defined(KOTONOHA_LAUNCH_SUMMER) || defined(KOTONOHA_LAUNCH_MEO)
 #include "SummerRuntime.hpp"
 #include <SummerRadish/SummerAssets.hpp>
 #endif
-#if defined(KOTONOHA_LAUNCH_DDLC)
+#if defined(KOTONOHA_LAUNCH_DDLC) || defined(KOTONOHA_LAUNCH_KATAWA)
 #include "DdlcRuntime.hpp"
 #include <Ddlc/DdlcAssets.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -157,7 +157,7 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
         return mount(std::make_unique<SnowRadish::SnowRuntime>(assets), assets);
       });
 #endif
-#if defined(KOTONOHA_LAUNCH_SUMMER)
+#if defined(KOTONOHA_LAUNCH_SUMMER) || defined(KOTONOHA_LAUNCH_MEO)
   bindFactory(
       registry, EngineKind::SummerRadish,
       [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
@@ -175,7 +175,7 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
                      shutdownRuntime<SummerRadish::SummerRuntime>());
       });
 #endif
-#if defined(KOTONOHA_LAUNCH_DDLC)
+#if defined(KOTONOHA_LAUNCH_DDLC) || defined(KOTONOHA_LAUNCH_KATAWA)
   bindFactory(
       registry, EngineKind::RenPy,
       [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
