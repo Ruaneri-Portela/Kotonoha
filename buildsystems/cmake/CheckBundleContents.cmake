@@ -31,6 +31,7 @@ foreach(_version_dir IN LISTS _python_versions)
 endforeach()
 
 if(APP_GAME STREQUAL "doki-doki-literature-club" OR
+   APP_GAME STREQUAL "katawa-shoujo" OR
    (APP_GAME STREQUAL "launcher" AND PYTHON_VERSION))
     if(NOT PYTHON_VERSION)
         message(FATAL_ERROR "DDLC/linked launcher bundle requires a Python version")
@@ -45,6 +46,6 @@ else()
         "${frameworks}/libpython*.so")
     if(EXISTS "${frameworks}/Python.framework" OR
        EXISTS "${frameworks}/python" OR python_libraries)
-        message(FATAL_ERROR "Only DDLC and the linked launcher may include a Python runtime: ${BUNDLE_CONTENTS}")
+        message(FATAL_ERROR "Only RenPy games and the linked launcher may include a Python runtime: ${BUNDLE_CONTENTS}")
     endif()
 endif()
