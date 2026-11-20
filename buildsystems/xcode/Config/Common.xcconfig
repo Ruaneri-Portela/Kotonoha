@@ -62,7 +62,9 @@ KOTONOHA_MODULE_HEADER_ROOTS = \
     "$(KOTONOHA_ROOT)/modules/vms/snow-radish/include" \
     "$(KOTONOHA_ROOT)/modules/vms/snow-radish/src" \
     "$(KOTONOHA_ROOT)/modules/vms/summer-radish/include" \
-    "$(KOTONOHA_ROOT)/modules/vms/summer-radish/src"
+    "$(KOTONOHA_ROOT)/modules/vms/summer-radish/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/tjs2/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/tjs2/src"
 
 KOTONOHA_GAME_HEADER_ROOTS = \
     "$(KOTONOHA_ROOT)/games/amagami/include" \
