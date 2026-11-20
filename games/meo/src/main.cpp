@@ -23,7 +23,7 @@ struct Game {
   Kotonoha::Engine engine;
   Game(std::shared_ptr<Kotonoha::Providers::SummerAssets> assets,
        Kotonoha::EngineOptions options)
-      : runtime(assets, "MISS EACH OTHER", "me.hirameki.kotonoha.meo"),
+      : runtime(assets, "Miss Each Other", "me.hirameki.kotonoha.meo"),
         engine(runtime, withAssets(std::move(options), assets)) {}
   ~Game() { runtime.shutdown(); }
 };
@@ -43,10 +43,10 @@ bool validate(const std::string &path, std::string &info) {
   try {
     auto probe = std::make_shared<Kotonoha::Providers::SummerAssets>(path);
     if (!probe->contains("SCRIPT/A-00.XML")) {
-      info = "MISS EACH OTHER opening script not found";
+      info = "Miss Each Other opening script not found";
       return false;
     }
-    info = "MISS EACH OTHER data found";
+    info = "Miss Each Other data found";
     return true;
   } catch (const std::exception &error) {
     info = error.what();
@@ -63,7 +63,7 @@ struct KotonohaPortCallbacks final {
 
 SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
-  KOTONOHA_SET_APP_METADATA("MISS EACH OTHER",
+  KOTONOHA_SET_APP_METADATA("Miss Each Other",
                             "me.hirameki.kotonoha.meo");
   try {
     auto app = std::make_unique<App>();
@@ -71,7 +71,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     options.persistSettings = true;
     std::string directory;
     Kotonoha::CommandLine cli("MEO", options);
-    cli.option("--meo", "DIRECTORY|ISO", "MISS EACH OTHER data directory",
+    cli.option("--meo", "DIRECTORY|ISO", "Miss Each Other data directory",
                directory);
     cli.parse(argc, argv);
     if (cli.wantsHelp()) {
@@ -100,7 +100,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
 
     if (options.launcher) {
       app->launcher = std::make_unique<Kotonoha::FolderGameLauncher>(
-          "MISS EACH OTHER", settingsPath, directory, validate,
+          "Miss Each Other", settingsPath, directory, validate,
           options.settings);
       app->launcher->setAudioChannels({"BGM", "Voice", "Se"});
       app->launcher->open();
@@ -110,7 +110,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     *state = app.release();
     return SDL_APP_CONTINUE;
   } catch (const std::exception &error) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "MISS EACH OTHER: %s",
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Miss Each Other: %s",
                  error.what());
     return SDL_APP_FAILURE;
   }
