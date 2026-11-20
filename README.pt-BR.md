@@ -31,11 +31,11 @@ Para usar o vcpkg explicitamente, acrescente `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROO
 
 ## Estado atual da integração
 
-O repositório contém **13 aplicativos de jogos no CMake/Android** (incluindo Example, N2System e PONscripter). O launcher compartilhado é o padrão para inicialização interativa; `--no-launcher`, `--frames` e MCP/modo sem interface seguem a política central. N2System e PONscripter **ainda não têm schemes macOS/iOS versionados no Xcode**; consulte [validação de build](docs/BUILD_VALIDATION.pt-BR.md).
+O repositório contém **15 aplicativos de jogos no CMake/Android** (incluindo Example, N2System e PONscripter). O launcher compartilhado é o padrão para inicialização interativa; `--no-launcher`, `--frames` e MCP/modo sem interface seguem a política central. Os 15 aplicativos constam na matriz de alvos Xcode; a compilação real em dispositivos e simuladores ainda precisa ser validada. Consulte [validação de build](docs/BUILD_VALIDATION.pt-BR.md).
 
 Os artefatos Linux e WebAssembly são compilados sequencialmente em **um único job do GitHub Actions**. O cache de builds incrementais do motor/jogos foi desabilitado, mantendo somente o cache binário de dependências do vcpkg. Veja [instruções de CI](docs/CI_VCPKG.md). Testes sintéticos não comprovam paridade com os jogos comerciais.
 
-O [launcher unificado independente](launcher/README.pt-BR.md) funciona no desktop e linka diretamente as bibliotecas dos 12 jogos reais (exceto Example), executando cada jogo no mesmo processo, sem iniciar binários secundários. É gerado apenas com `KOTONOHA_BUILD_ALL=ON` no desktop nativo.
+O [launcher unificado independente](launcher/README.pt-BR.md) funciona no desktop e linka diretamente as bibliotecas dos jogos (exceto Example), executando cada jogo no mesmo processo, sem iniciar binários secundários. É gerado apenas com `KOTONOHA_BUILD_ALL=ON` no desktop nativo.
 
 ## Estrutura
 
