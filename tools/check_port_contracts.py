@@ -104,7 +104,7 @@ def errors():
                 shared = (ROOT / "games/doki-doki-literature-club/src/DdlcRuntime.cpp").read_text(
                     encoding="utf-8"
                 )
-                if (expected in shared and '"Katawa Shoujo"' in shared and "Ddlc::GameRuntime game" in source:
+                if (expected in shared and '"Katawa Shoujo"' in shared and "Ddlc::GameRuntime game" in source):
                     runtime_ids.append(expected)
         if not runtime_ids:
             issues.append(f"{slug}: runtime bundle identity was not found")
