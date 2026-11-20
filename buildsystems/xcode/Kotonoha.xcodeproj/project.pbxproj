@@ -4768,9 +4768,9 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = D7D700000000000000000005 /* Build configuration list for PBXNativeTarget "KotonohaLauncher-iOS" */;
 			buildPhases = (
-				D7D7000000000000000000C0 /* Sources */,
 				D7D7000000000000000000C1 /* Generate Build Version */,
 				D7D7000000000000000000C2 /* Prepare CPython SDK before linking (direct target builds) */,
+				D7D7000000000000000000C0 /* Sources */,
 				D7D7000000000000000000C6 /* Frameworks */,
 				D7D7000000000000000000C9 /* Resources */,
 				D7D7000000000000000000CD /* Embed Frameworks */,
