@@ -20,7 +20,27 @@
 #include <filesystem>
 #include <stdexcept>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 namespace Kotonoha {
+namespace {
+// When HTML5 media is unexpectedly paused by the browser or its controls,
+// freeze the story clock as well. The browser bridge excludes intentional
+// pauses, loading, completed playback and failed media sessions.
+bool browserMediaPlaybackBlocked() {
+#ifdef __EMSCRIPTEN__
+  return EM_ASM_INT(
+             {
+               const callback = globalThis["KotonohaMediaPlaybackBlocked"];
+               return typeof callback == "function" && callback() ? 1 : 0;
+             }) != 0;
+#else
+  return false;
+#endif
+}
+} // namespace
 
 std::vector<DebugNode> Engine::debugNodes() {
   auto custom = runtime.debugNodes();
@@ -507,7 +527,8 @@ void Engine::openSettings() {
 }
 
 bool Engine::isStoryPaused() const {
-  return agentPaused || runtime.hasPausingScene() ||
+  return agentPaused || browserMediaPlaybackBlocked() ||
+         runtime.hasPausingScene() ||
          (settingsMenu && settingsMenu->isOpen()) ||
          (debug && debug->pausesStory());
 }
@@ -904,10 +925,16 @@ SDL_AppResult Engine::Iterate() {
   if (mcp && !mcp->pump())
     return SDL_APP_SUCCESS;
 #endif
-  if (!runtime.devPauseRequested() || runtime.devConsumeStep())
-    runtime.update();
-  else
+  // A browser media-control pause must also stop game logic, not just the
+  // timeline clock. Continue rendering so native browser controls remain
+  // usable; resume automatically as soon as browser playback resumes.
+  if (browserMediaPlaybackBlocked()) {
     runtime.devIdle();
+  } else if (!runtime.devPauseRequested() || runtime.devConsumeStep()) {
+    runtime.update();
+  } else {
+    runtime.devIdle();
+  }
   synchronizeNodeClock(0);
   forcedSubtitles->updateForActiveNode();
   debug->update();
