@@ -65,6 +65,8 @@ public:
   std::string dialogueText() const override { return dialogueText_; }
   std::string dialogueSpeaker() const override { return dialogueSpeaker_; }
   std::string debugNode() const override;
+  int translationRoute() const override { return 0; }
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
   void debugRestartScene() override;
   std::vector<std::string> activeTranslationKeys() const override;
   Kotonoha::Translation::SourceTexts translationSources() const override;
@@ -79,6 +81,7 @@ public:
   std::string dialogueSpeaker_;
   std::vector<std::string> originalActiveKeys_;
   std::vector<std::string> scenarioTexts_;
+  uint32_t currentDialogueVoiceId_ = 0;
 
 private:
   struct Impl;
