@@ -35,6 +35,34 @@ def ids_in(field: str, body: str) -> set[str]:
 def main() -> int:
     errors: list[str] = []
     project = PROJECT.read_text(encoding="utf-8")
+    # Xcode reports an unreadable project if a nested buildSettings dictionary
+    # lacks '};'. Checking only PBX file IDs never catches this regression.
+    if sys.platform == "darwin":
+        lint = subprocess.run(
+            ["plutil", "-lint", "--", str(PROJECT)],
+            capture_output=True, text=True,
+        )
+        if lint.returncode:
+            errors.append("Invalid Xcode project syntax: "
+                          + (lint.stderr.strip() or lint.stdout.strip()))
+    if re.search(r"(?m)^(?:<<<<<<< |=======\s*$|>>>>>>> )", project):
+        errors.append("Unresolved source-control conflict in project.pbxproj")
+    ids = re.findall(rf"(?m)^\s*({ID}) /\* [^*]+ \*/ = \{{", project)
+    if len(ids) != len(set(ids)):
+        errors.append("Duplicate PBX object IDs in project.pbxproj")
+    for name in ("D7D700000000000000000006",
+                 "D7D700000000000000000007"):
+        # The launcher iOS Debug/Release configurations must have their own
+        # closed buildSettings dictionary and a name outside that dictionary.
+        match = re.search(
+            rf"(?ms)^\s*{name} /\* (Debug|Release) \*/ = \{{"
+            rf"(.*?)^\s*\}};", project,
+        )
+        if not match or not re.search(
+            r"buildSettings = \{[\s\S]*?\n\s*\};\n\s*name = (Debug|Release);",
+            match.group(2),
+        ):
+            errors.append(f"Malformed iOS launcher build configuration: {name}")
     groups = objects(project, "PBXGroup")
     file_refs = objects(project, "PBXFileReference")
     build_refs = objects(project, "PBXBuildFile")
