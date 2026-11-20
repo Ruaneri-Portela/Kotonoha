@@ -6,7 +6,21 @@
 	objectVersion = 56;
 	objects = {
 
+/* Begin PBXAggregateTarget section */
+		B5B500000000000000000001 /* KotonohaLauncher-macOS */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = B5B500000000000000000003 /* Build configuration list for PBXAggregateTarget "KotonohaLauncher-macOS" */;
+			buildPhases = (
+				B5B500000000000000000002 /* Build unified launcher (CMake) */,
+			);
+			dependencies = (
+			);
+			name = "KotonohaLauncher-macOS";
+			productName = KotonohaLauncher;
+		};
+/* End PBXAggregateTarget section */
 /* Begin PBXBuildFile section */
+
 		001D06FD0DBB1EFC6A22EB48 /* LucaSystemScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CEE45A84649AE37A49032B7 /* LucaSystemScript.cpp */; };
 		003F4534DA3A1B2D0F0B3F0F /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D9932D19AEFC21BCAB4F7360 /* main.cpp */; };
 		006067031992234D2BCCB4A0 /* GameMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 01543A93C8494078A7ED03BB /* GameMenu.cpp */; };
@@ -2012,6 +2026,11 @@
 		A1A100000000000000000002 /* SurfaceTexture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SurfaceTexture.cpp; path = ../../lib/src/media/SurfaceTexture.cpp; sourceTree = SOURCE_ROOT; };
 		A1A100000000000000000003 /* WebAssetFetch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = WebAssetFetch.cpp; path = ../../lib/src/core/WebAssetFetch.cpp; sourceTree = SOURCE_ROOT; };
 		A1A100000000000000000004 /* MetalFXUpscaler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MetalFXUpscaler.cpp; path = ../../lib/src/media/upscaling/MetalFXUpscaler.cpp; sourceTree = SOURCE_ROOT; };
+		B5B500000000000000000007 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../launcher/src/main.cpp; sourceTree = SOURCE_ROOT; };
+		B5B500000000000000000008 /* GameFactories.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = GameFactories.cpp; path = ../../launcher/src/GameFactories.cpp; sourceTree = SOURCE_ROOT; };
+		B5B500000000000000000009 /* UnifiedLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = UnifiedLauncher.cpp; path = ../../launcher/src/UnifiedLauncher.cpp; sourceTree = SOURCE_ROOT; };
+		B5B50000000000000000000A /* UnifiedLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = UnifiedLauncher.hpp; path = ../../launcher/include/KotonohaLauncher/UnifiedLauncher.hpp; sourceTree = SOURCE_ROOT; };
+		B5B50000000000000000000B /* BuildUnifiedLauncher.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; name = BuildUnifiedLauncher.sh; path = Scripts/BuildUnifiedLauncher.sh; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2538,6 +2557,7 @@
 			children = (
 				AAC2FB1A53CEC3BB26D6F755 /* Core */,
 				BF719613F5C44F5226F8FCF8 /* Games */,
+				B5B500000000000000000006 /* Launcher */,
 				9287D60EE3E38940F4AEC1DA /* Modules */,
 				2599A7040CB692CC41D3CD46 /* Dependencies */,
 				C963BEF393DAC6DDB1DA44B6 /* Resources */,
@@ -3315,6 +3335,7 @@
 			children = (
 				D3DE05974DAEB199FF71D6C5 /* ConfigureMacOSIcon.sh */,
 				3F5B047F1B80A04FBE672AE4 /* EmbedDokiDokiPython.sh */,
+				B5B50000000000000000000B /* BuildUnifiedLauncher.sh */,
 				C327919824D2D650ED44A512 /* EmbedSDLFrameworks.sh */,
 			);
 			name = "Build Scripts";
@@ -3447,6 +3468,17 @@
 				26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */,
 			);
 			name = n2system;
+			sourceTree = "<group>";
+		};
+		B5B500000000000000000006 /* Launcher */ = {
+			isa = PBXGroup;
+			children = (
+				B5B500000000000000000007 /* main.cpp */,
+				B5B500000000000000000008 /* GameFactories.cpp */,
+				B5B500000000000000000009 /* UnifiedLauncher.cpp */,
+				B5B50000000000000000000A /* UnifiedLauncher.hpp */,
+			);
+			name = Launcher;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -4325,6 +4357,7 @@
 				4E4FFDFFD15EB42FD86B23AE /* PonscripterGame-iOS */,
 				F51AE3C0C88CE46B2E55E4AD /* N2SystemGame-macOS */,
 				DD05515AF63B6E92EACE87FF /* N2SystemGame-iOS */,
+				B5B500000000000000000001 /* KotonohaLauncher-macOS */,
 			);
 		};
 /* End PBXProject section */
@@ -5937,6 +5970,21 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform macos";
+		};
+		B5B500000000000000000002 /* Build unified launcher (CMake) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Build unified launcher (CMake)";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "\"\${SRCROOT}/Scripts/BuildUnifiedLauncher.sh\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -8710,6 +8758,20 @@
 			};
 			name = Release;
 		};
+		B5B500000000000000000004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = KotonohaLauncher;
+			};
+			name = Debug;
+		};
+		B5B500000000000000000005 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = KotonohaLauncher;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -9024,6 +9086,15 @@
 			buildConfigurations = (
 				86D87FE2D2FCFEAC17FDDD7B /* Debug */,
 				1968E6D23C4DEDAD33B11E1F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B5B500000000000000000003 /* Build configuration list for PBXAggregateTarget "KotonohaLauncher-macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B5B500000000000000000004 /* Debug */,
+				B5B500000000000000000005 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
