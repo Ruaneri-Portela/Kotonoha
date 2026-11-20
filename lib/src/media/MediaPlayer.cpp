@@ -11,7 +11,9 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/hwcontext.h>
 #include <libavutil/mem.h>
+#include <libavutil/pixdesc.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
 }
@@ -102,6 +104,8 @@ struct MediaPlayer::State {
   AVIOContext *io = nullptr;
   AVFormatContext *format = nullptr;
   AVCodecContext *video = nullptr, *audio = nullptr;
+  AVPixelFormat hardwarePixelFormat = AV_PIX_FMT_NONE;
+  bool hardwareDecodeLogged = false;
   AVPacket *packet = nullptr;
   Frame frame{av_frame_alloc()};
   SwsContext *scaler = nullptr;
@@ -248,6 +252,7 @@ struct MediaPlayer::State {
     }
     webVideoSession = session;
     webVideoStarted = true;
+    SDL_Log("[Kotonoha] HTML5 media backend started; hardware video decoding is browser-controlled");
     webVideoReady =
         webVideoUrlMode; // Blob mode will be set later in serviceWebVideo
     return true;
@@ -563,6 +568,25 @@ struct MediaPlayer::State {
     format->flags |= AVFMT_FLAG_CUSTOM_IO;
   }
 
+  static AVPixelFormat chooseHardwareFormat(AVCodecContext *context,
+                                            const AVPixelFormat *formats) {
+    const auto *self = static_cast<const State *>(context->opaque);
+    for (const AVPixelFormat *format = formats; *format != AV_PIX_FMT_NONE;
+         ++format) {
+      if (self && *format == self->hardwarePixelFormat)
+        return *format;
+    }
+    // A decoder can offer a software output even after hardware negotiation
+    // fails. Never return an incompatible hardware surface format.
+    for (const AVPixelFormat *format = formats; *format != AV_PIX_FMT_NONE;
+         ++format) {
+      const AVPixFmtDescriptor *description = av_pix_fmt_desc_get(*format);
+      if (description && !(description->flags & AV_PIX_FMT_FLAG_HWACCEL))
+        return *format;
+    }
+    return AV_PIX_FMT_NONE;
+  }
+
   AVCodecContext *decoder(int &index, AVMediaType type, bool required) {
     const AVCodec *codec = nullptr;
     index = av_find_best_stream(format, type, -1, -1, &codec, 0);
@@ -573,19 +597,89 @@ struct MediaPlayer::State {
         check(index, "Find media decoder");
       return nullptr;
     }
-    AVCodecContext *context = avcodec_alloc_context3(codec);
-    if (!context)
-      throw std::bad_alloc();
-    try {
-      check(avcodec_parameters_to_context(context,
-                                          format->streams[index]->codecpar),
-            "Read codec parameters");
-      context->pkt_timebase = format->streams[index]->time_base;
-      check(avcodec_open2(context, codec, nullptr), "Open codec");
-    } catch (...) {
-      avcodec_free_context(&context);
-      throw;
+    auto createContext = [&]() -> AVCodecContext * {
+      AVCodecContext *context = avcodec_alloc_context3(codec);
+      if (!context)
+        throw std::bad_alloc();
+      try {
+        check(avcodec_parameters_to_context(
+                  context, format->streams[index]->codecpar),
+              "Read codec parameters");
+        context->pkt_timebase = format->streams[index]->time_base;
+      } catch (...) {
+        avcodec_free_context(&context);
+        throw;
+      }
+      return context;
+    };
+    AVCodecContext *context = createContext();
+#ifndef __EMSCRIPTEN__
+    if (type == AVMEDIA_TYPE_VIDEO) {
+      // Only use hardware devices explicitly supported by this decoder.
+      // Prefer native platform backends; unsupported builds fall back to CPU.
+#if defined(__APPLE__)
+      const AVHWDeviceType preferred[] = {AV_HWDEVICE_TYPE_VIDEOTOOLBOX};
+#elif defined(_WIN32)
+      const AVHWDeviceType preferred[] = {AV_HWDEVICE_TYPE_D3D11VA,
+                                         AV_HWDEVICE_TYPE_DXVA2};
+#elif defined(__linux__)
+      const AVHWDeviceType preferred[] = {AV_HWDEVICE_TYPE_VAAPI};
+#else
+      const AVHWDeviceType preferred[] = {AV_HWDEVICE_TYPE_NONE};
+#endif
+      for (AVHWDeviceType typeToTry : preferred) {
+        if (typeToTry == AV_HWDEVICE_TYPE_NONE)
+          continue;
+        for (int i = 0;; ++i) {
+          const AVCodecHWConfig *config = avcodec_get_hw_config(codec, i);
+          if (!config)
+            break;
+          if (config->device_type != typeToTry ||
+              !(config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX))
+            continue;
+          AVBufferRef *device = nullptr;
+          const int result =
+              av_hwdevice_ctx_create(&device, typeToTry, nullptr, nullptr, 0);
+          if (result < 0) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                        "[Kotonoha] Hardware video device %s unavailable (%d); trying software",
+                        av_hwdevice_get_type_name(typeToTry), result);
+            continue;
+          }
+          context->hw_device_ctx = av_buffer_ref(device);
+          av_buffer_unref(&device);
+          if (!context->hw_device_ctx) {
+            avcodec_free_context(&context);
+            throw std::bad_alloc();
+          }
+          hardwarePixelFormat = config->pix_fmt;
+          context->opaque = this;
+          context->get_format = chooseHardwareFormat;
+          SDL_Log("[Kotonoha] Hardware video decoder requested: %s (%s)",
+                  av_hwdevice_get_type_name(typeToTry), codec->name);
+          break;
+        }
+        if (context->hw_device_ctx)
+          break;
+      }
     }
+#endif
+    int opened = avcodec_open2(context, codec, nullptr);
+    if (opened < 0 && context->hw_device_ctx) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "[Kotonoha] Hardware video decoder failed to open (%d); falling back to software",
+                  opened);
+      avcodec_free_context(&context);
+      hardwarePixelFormat = AV_PIX_FMT_NONE;
+      context = createContext();
+      opened = avcodec_open2(context, codec, nullptr);
+    }
+    if (opened < 0) {
+      avcodec_free_context(&context);
+      check(opened, "Open codec");
+    }
+    if (type == AVMEDIA_TYPE_VIDEO && !context->hw_device_ctx)
+      SDL_Log("[Kotonoha] Video decoder: software (%s)", codec->name);
     return context;
   }
 
@@ -632,7 +726,29 @@ struct MediaPlayer::State {
         const double rate = av_q2d(
             av_guess_frame_rate(format, format->streams[videoIndex], nullptr));
         nextVideoTime = at + (rate > 0 ? 1.0 / rate : 1.0 / 30);
-        Frame copy{av_frame_clone(frame.get())};
+        AVFrame *decoded = frame.get();
+        Frame softwareFrame;
+        if (hardwarePixelFormat != AV_PIX_FMT_NONE &&
+            frame->format == hardwarePixelFormat) {
+          softwareFrame.reset(av_frame_alloc());
+          if (!softwareFrame)
+            throw std::bad_alloc();
+          check(av_hwframe_transfer_data(softwareFrame.get(), frame.get(), 0),
+                "Transfer hardware video frame");
+          check(av_frame_copy_props(softwareFrame.get(), frame.get()),
+                "Copy video frame properties");
+          decoded = softwareFrame.get();
+          if (!hardwareDecodeLogged) {
+            SDL_Log("[Kotonoha] Hardware video decoding ACTIVE (%s); transferring decoded surfaces for SDL rendering",
+                    av_hwdevice_get_type_name(
+                        video->hw_device_ctx
+                            ? static_cast<AVHWDeviceContext *>(
+                                  video->hw_device_ctx->data)->type
+                            : AV_HWDEVICE_TYPE_NONE));
+            hardwareDecodeLogged = true;
+          }
+        }
+        Frame copy{av_frame_clone(decoded)};
         if (!copy)
           throw std::bad_alloc();
         frames.push_back({at, std::move(copy)});
