@@ -15,8 +15,10 @@
 - `LucaPak edit-glyph` patches existing 8-bit CZ2 glyphs and their metrics in repacked PAKs. The `VNTextBox` rendered the edited glyph and advance with the retail AIR font overlay.
 - `LucaPak add-glyph` adds an unmapped BMP character, growing the CZ2 atlas when necessary. The AIR `VNTextBox` rendered a new `U+E000` with the imported advance and Kotonoha's configured dialogue and speaker colors.
 - The pause menu, manual and history use original AIR art. Save slots, settings, input capture and history voice replay use Kotonoha components.
+- Save and Load show the original AIR backgrounds, card frames and paging art. `VNSaveMenu` owns selection and slot actions, and the AIR VM writes its own state in the native `.vn` envelope without requiring a Kotonoha timeline node.
+- The title's **Gallery** opens the 72 slots and grouped variants from `_cggallery` using original AIR backgrounds, category art, thumbnails and cursors. The VM stores each drawn CG unlock in `global_system.kns`; unrevealed variants stay locked across sessions.
 
-**Limits:** The original CG gallery and the original layouts of the save and settings screens are not implemented. Direct Ogg voices were verified with retail `AIR`; OggPak bundles were verified with synthetic data, not another retail title. Reference features still to port or verify include rebuilding fonts from scratch, script import beyond AIR English dialogue, and title-specific handlers outside `AIR`.
+**Limits:** Save cards show slot names instead of saved screenshots. The original settings layout is not implemented. Direct Ogg voices were verified with retail `AIR`; OggPak bundles were verified with synthetic data, not another retail title. Reference features still to port or verify include rebuilding fonts from scratch, script import beyond AIR English dialogue, and title-specific handlers outside `AIR`.
 
 The more detailed [PORT_STATUS.md](PORT_STATUS.md) and [docs/AIR_REA_2026_11_18.md](docs/AIR_REA_2026_11_18.md) contain original-game binary analysis and historical notes.
 

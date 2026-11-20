@@ -61,12 +61,18 @@ if(BUILD_TESTING)
   if(LUCA_SYSTEM_TEST_DATA AND EXISTS "${LUCA_SYSTEM_TEST_DATA}")
     add_test(NAME LucaSystem.RetailAirFlow
         COMMAND LucaSystemRetailAirFlowTests "${LUCA_SYSTEM_TEST_DATA}")
-    set_tests_properties(LucaSystem.RetailAirFlow PROPERTIES
+    add_test(NAME LucaSystem.RetailAirGallery
+        COMMAND LucaSystemRetailAirFlowTests "${LUCA_SYSTEM_TEST_DATA}" --gallery)
+    add_test(NAME LucaSystem.RetailAirSaveGrid
+        COMMAND LucaSystemRetailAirFlowTests "${LUCA_SYSTEM_TEST_DATA}" --save-grid)
+    set_tests_properties(LucaSystem.RetailAirFlow LucaSystem.RetailAirGallery
+        LucaSystem.RetailAirSaveGrid PROPERTIES
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
         TIMEOUT 120)
   endif()
 endif()
 
 if(BUILD_TESTING)
-    kotonoha_label_directory_tests(REAL LucaSystem.RetailAirFlow)
+    kotonoha_label_directory_tests(REAL LucaSystem.RetailAirFlow
+        LucaSystem.RetailAirGallery LucaSystem.RetailAirSaveGrid)
 endif()

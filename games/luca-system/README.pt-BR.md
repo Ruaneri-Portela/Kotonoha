@@ -104,6 +104,20 @@ usando `quicksave.kns`. O histórico (B ou Page Up) usa o `backlog_texture`
 original com rolagem e repetição de voz do Kotonoha. Menus abertos capturam
 a entrada sem avançar o diálogo.
 
+As telas de salvar e carregar do AIR usam os fundos, as molduras, o
+destaque e as setas originais em uma grade de 20 cartões. Use as setas ou
+o direcional do controle para selecionar um cartão; Page Up/Page Down ou
+Z/C trocam de página, e Escape ou X cancelam. O Kotonoha cuida de nomear,
+sobrescrever, renomear e excluir saves `.vn`. Os cartões mostram os nomes
+dos saves em vez das capturas de tela do jogo original.
+
+No título, abra **Gallery** para navegar pelas 72 posições de CG em quatro
+categorias. Use as setas ou o direcional do controle para navegar, Enter
+para abrir uma posição e Escape para voltar. Page Up/Page Down trocam a
+página da grade. Cada variante é desbloqueada quando aparece no roteiro,
+não quando é pré-carregada, e permanece liberada em `global_system.kns`.
+A galeria não exibe a arte de variantes bloqueadas.
+
 ## Investigação detalhada
 
 [Resumo do estado do port](STATUS.pt-BR.md) · [Investigação detalhada](PORT_STATUS.md). Resultados históricos se aplicam aos assets/revisão analisados e podem conter informações substituídas depois.

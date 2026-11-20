@@ -1,16 +1,20 @@
 #include <SummerRuntime.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/components/InGameMenu.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/VNSave.hpp>
 #include <SummerRadish/SummerAssets.hpp>
 
 #include <SDL3/SDL.h>
 #include <cstdint>
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 
 int main(int argc, char **argv) {
   try {
-    if (argc != 2)
+    if (argc < 2 || argc > 3)
       return 77;
     auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(argv[1]);
     SummerRadish::SummerRuntime game(assets, "Miss Each Other",
@@ -24,13 +28,21 @@ int main(int argc, char **argv) {
       ~Stop() { game.shutdown(); }
     } stop{game};
 
-    for (int i = 0; i < 5 && game.GetState() != Kotonoha::GameState::Gameplay;
+    SDL_Event skipSplash{};
+    skipSplash.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    skipSplash.button.button = SDL_BUTTON_LEFT;
+    skipSplash.button.down = true;
+    skipSplash.button.windowID = SDL_GetWindowID(&engine.GetWindow());
+    engine.Event(&skipSplash);
+    for (int i = 0; i < 8 && game.GetState() == Kotonoha::GameState::Splash;
          ++i)
       engine.Iterate();
-    if (game.GetState() != Kotonoha::GameState::Gameplay ||
+    if (game.GetState() != Kotonoha::GameState::Menu ||
         game.GetActiveScenes().empty())
-      throw std::runtime_error("MEO has no active gameplay scene");
-    if (game.name != "Miss Each Other")
+      throw std::runtime_error("MEO main menu did not open");
+    if (game.name != "Miss Each Other" ||
+        std::string(SDL_GetWindowTitle(&engine.GetWindow())) !=
+            "Miss Each Other")
       throw std::runtime_error("MEO window identity is incorrect");
 
     auto &renderer = engine.GetRenderer();
@@ -40,6 +52,48 @@ int main(int argc, char **argv) {
         720));
     if (!target || !SDL_SetRenderTarget(&renderer, target.get()))
       throw std::runtime_error(SDL_GetError());
+    game.render(renderer, 1);
+    Kotonoha::SurfacePtr menu(SDL_RenderReadPixels(&renderer, nullptr));
+    if (!menu)
+      throw std::runtime_error(SDL_GetError());
+    const auto *menuPixel =
+        static_cast<const uint8_t *>(menu->pixels) + 200 * menu->pitch +
+        400 * 4;
+    if (int(menuPixel[0]) + menuPixel[1] + menuPixel[2] < 90)
+      throw std::runtime_error("MEO main menu is black");
+    if (argc == 3 && std::string(argv[2]) == "scene") {
+      SDL_Event navigate{};
+      navigate.type = SDL_EVENT_KEY_DOWN;
+      navigate.key.down = true;
+      navigate.key.windowID = SDL_GetWindowID(&engine.GetWindow());
+      navigate.key.key = SDLK_DOWN;
+      engine.Event(&navigate);
+      engine.Event(&navigate);
+      navigate.key.key = SDLK_RETURN;
+      engine.Event(&navigate);
+      if (game.GetState() != Kotonoha::GameState::Menu)
+        throw std::runtime_error("MEO Scene menu did not open");
+      game.render(renderer, 1);
+    }
+    SDL_Event startGame{};
+    if (argc == 3 && std::string(argv[2]) == "mouse") {
+      startGame.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+      startGame.button.button = SDL_BUTTON_LEFT;
+      startGame.button.down = true;
+      startGame.button.x = 500;
+      startGame.button.y = 145;
+      startGame.button.windowID = SDL_GetWindowID(&engine.GetWindow());
+    } else {
+      startGame.type = SDL_EVENT_KEY_DOWN;
+      startGame.key.key = SDLK_RETURN;
+      startGame.key.down = true;
+      startGame.key.windowID = SDL_GetWindowID(&engine.GetWindow());
+    }
+    engine.Event(&startGame);
+    engine.Iterate();
+    if (game.GetState() != Kotonoha::GameState::Gameplay ||
+        game.GetActiveScenes().empty())
+      throw std::runtime_error("MEO Start did not enter gameplay");
     bool visible = false;
     const Uint64 started = SDL_GetTicks();
     while (!visible && SDL_GetTicks() - started < 5000) {
@@ -61,6 +115,61 @@ int main(int argc, char **argv) {
     SDL_SetRenderTarget(&renderer, previous);
     if (!visible)
       throw std::runtime_error("MEO gameplay remained black");
+    const auto savePath = std::filesystem::temp_directory_path() /
+                          "kotonoha-meo-presentation-test.vn";
+    struct RemoveSave {
+      std::filesystem::path path;
+      ~RemoveSave() {
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+      }
+    } removeSave{savePath};
+    game.saveGame(savePath.string());
+    if (argc == 3 && std::string(argv[2]) == "choice") {
+      auto save = Kotonoha::VNSave::read(savePath.string());
+      save.gameData = "MEO-PRESENTATION-1\nA-01C.XML\n22000\n";
+      save.write(savePath.string());
+    } else if (argc == 3 && std::string(argv[2]) == "transition") {
+      auto save = Kotonoha::VNSave::read(savePath.string());
+      save.gameData = "MEO-PRESENTATION-1\nA-00.XML\n94000\n";
+      save.write(savePath.string());
+    }
+    game.loadGame(savePath.string());
+    if (game.GetState() != Kotonoha::GameState::Gameplay)
+      throw std::runtime_error("MEO load did not restore gameplay");
+    if (argc == 3 && std::string(argv[2]) == "choice") {
+      Kotonoha::ChoiceQuestionScene *choice = nullptr;
+      for (auto *scene : game.GetActiveScenes())
+        if (auto *candidate =
+                dynamic_cast<Kotonoha::ChoiceQuestionScene *>(scene))
+          choice = candidate;
+      if (!choice || !choice->isActive() || choice->getOptions().size() != 1)
+        throw std::runtime_error("MEO timed choice did not open");
+      choice->chooseOption(0);
+      if (game.debugNode().rfind("A-02.XML:", 0) != 0)
+        throw std::runtime_error("MEO choice did not enter A-02.XML");
+    }
+    if (argc == 3 && std::string(argv[2]) == "transition" &&
+        game.debugNode().rfind("A-01A.XML:", 0) != 0)
+      throw std::runtime_error("MEO did not advance to A-01A.XML");
+    if (argc == 3 && std::string(argv[2]) == "transition") {
+      game.saveGame(savePath.string());
+      auto save = Kotonoha::VNSave::read(savePath.string());
+      save.gameData = "MEO-PRESENTATION-1\nA-01A.XML\n10000\n";
+      save.write(savePath.string());
+      game.loadGame(savePath.string());
+      if (game.debugNode().rfind("A-01T.XML:", 0) != 0)
+        throw std::runtime_error("MEO did not advance to A-01T.XML");
+    }
+    SDL_Event pause{};
+    pause.type = SDL_EVENT_KEY_DOWN;
+    pause.key.key = SDLK_ESCAPE;
+    pause.key.down = true;
+    pause.key.windowID = SDL_GetWindowID(&engine.GetWindow());
+    engine.Event(&pause);
+    if (!Kotonoha::GetInGameMenuRuntime(engine).IsOpen())
+      throw std::runtime_error("MEO system menu did not open");
+    Kotonoha::GetInGameMenuRuntime(engine).close();
     std::cout << "MEO rendered its opening scene\n";
     return 0;
   } catch (const std::exception &error) {
