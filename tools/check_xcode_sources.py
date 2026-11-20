@@ -195,7 +195,7 @@ def main() -> int:
         for list_id, body in config_lists.items()
     }
     for target in targets.values():
-        name_match = re.search(r'\\bname = "?([^";]+)"?;', target)
+        name_match = re.search(r'\bname = "?([^";]+)"?;', target)
         list_match = re.search(rf"buildConfigurationList = ({ID})", target)
         if not name_match or not list_match:
             continue
