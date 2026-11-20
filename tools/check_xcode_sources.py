@@ -56,7 +56,7 @@ def main() -> int:
         # closed buildSettings dictionary and a name outside that dictionary.
         match = re.search(
             rf"(?ms)^\s*{name} /\* (Debug|Release) \*/ = \{{"
-            rf"(.*?)^\s*\}};", project,
+            rf"(.*?)^\t\t\}};", project,
         )
         if not match or not re.search(
             r"buildSettings = \{[\s\S]*?\n\s*\};\n\s*name = (Debug|Release);",
