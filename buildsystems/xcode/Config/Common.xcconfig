@@ -13,7 +13,56 @@ KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*] = arm64-ios-simulator
 KOTONOHA_VCPKG_INCLUDE = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/include
 KOTONOHA_VCPKG_LIB = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/lib
 
-HEADER_SEARCH_PATHS = $(inherited) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/include" \
+
+// All Xcode application targets (including the native Unified Launcher) use
+// providers and VMs compiled from their original modules, not copied sources.
+// Keep these header roots shared so a multi-engine target can compile exactly
+// the same source files as the standalone game targets.
+KOTONOHA_MODULE_HEADER_ROOTS = \
+    "$(KOTONOHA_ROOT)/modules/providers/n2/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/ponscripter/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/n2system/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/ponscripter/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/renpy/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/meo/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/pmail/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/n2system/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/ponscripter/src"
+
+KOTONOHA_GAME_HEADER_ROOTS = \
+    "$(KOTONOHA_ROOT)/games/amagami/include" \
+    "$(KOTONOHA_ROOT)/games/amagami/src" \
+    "$(KOTONOHA_ROOT)/games/zero-no-tsukaima/include" \
+    "$(KOTONOHA_ROOT)/games/zero-no-tsukaima/src" \
+    "$(KOTONOHA_ROOT)/games/snow-radish-vacation/include" \
+    "$(KOTONOHA_ROOT)/games/snow-radish-vacation/src" \
+    "$(KOTONOHA_ROOT)/games/summer-radish-vacation/include" \
+    "$(KOTONOHA_ROOT)/games/summer-radish-vacation/src" \
+    "$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include" \
+    "$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src" \
+    "$(KOTONOHA_ROOT)/games/katawa-shoujo/include" \
+    "$(KOTONOHA_ROOT)/games/katawa-shoujo/src" \
+    "$(KOTONOHA_ROOT)/games/school-days/include" \
+    "$(KOTONOHA_ROOT)/games/school-days/src" \
+    "$(KOTONOHA_ROOT)/games/reallive/include" \
+    "$(KOTONOHA_ROOT)/games/reallive/src" \
+    "$(KOTONOHA_ROOT)/games/reallive/vendor" \
+    "$(KOTONOHA_ROOT)/games/kirikiri/include" \
+    "$(KOTONOHA_ROOT)/games/kirikiri/src" \
+    "$(KOTONOHA_ROOT)/games/luca-system/include" \
+    "$(KOTONOHA_ROOT)/games/luca-system/src" \
+    "$(KOTONOHA_ROOT)/games/pmail/include" \
+    "$(KOTONOHA_ROOT)/games/pmail/src" \
+    "$(KOTONOHA_ROOT)/games/meo/include" \
+    "$(KOTONOHA_ROOT)/games/meo/src" \
+    "$(KOTONOHA_ROOT)/games/n2system/include" \
+    "$(KOTONOHA_ROOT)/games/n2system/src" \
+    "$(KOTONOHA_ROOT)/games/ponscripter/include" \
+    "$(KOTONOHA_ROOT)/games/ponscripter/src" \
+    "$(KOTONOHA_ROOT)/launcher/include" \
+    "$(KOTONOHA_ROOT)/launcher/src"
+
+HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/SDL/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/imgui" \
