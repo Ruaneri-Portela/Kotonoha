@@ -110,7 +110,9 @@ class Runtime final : public Kotonoha::Runtime {
     bool transportLocked = false;
     bool actionInhibit = false;
     bool fullBarSuppressed = false;
+    bool meterOnly = false;
     bool replayIndicator = false;
+    bool choiceTailFrozen = false;
   };
   std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> assets;
   Kotonoha::Engine *engine = nullptr;
@@ -145,6 +147,8 @@ class Runtime final : public Kotonoha::Runtime {
   Kotonoha::SchoolDaysFrontendTransition frontendTransition;
   Kotonoha::SchoolDaysLoadTransition loadTransition;
   Kotonoha::SchoolDaysTransportFade transportFade;
+  std::optional<Kotonoha_SceneTick> transportSkipTarget;
+  std::string transportSkipScene;
   Kotonoha::SchoolDaysExitTransition exitTransition;
   Kotonoha::SchoolDaysSystemPanelTransition systemPanelTransition;
   Kotonoha::SchoolDaysRetailConfigPolicy::State config =
@@ -222,6 +226,14 @@ class Runtime final : public Kotonoha::Runtime {
     bool exitActive = false;
     bool finalFrameRendered = false;
   } choicePresentation;
+  // A confirmed prompt restores the hover bar visually but keeps every menu
+  // action inert until a new physical scene and its feeling-meter cue finish.
+  bool choiceMenuFrozen = false;
+  bool choiceMenuNextSceneBound = false;
+  bool choiceFeelEligible = false;
+  bool choiceFeelVisible = false;
+  uint32_t choiceMenuCueStartedMs = 0;
+  uint32_t choiceMenuCueDurationMs = 0;
   Kotonoha::SchoolDaysPromptInteraction choiceInteraction;
   std::string routePath, background, status;
   Kotonoha_SceneTick backgroundStartTick = 0;
@@ -325,10 +337,15 @@ class Runtime final : public Kotonoha::Runtime {
   bool choiceTailActive() const;
   bool choiceNeedsFinalFrame() const;
   bool choicePresentationComplete() const;
+  void noteChoiceMenuCue(int code, uint32_t nowMs);
+  void updateChoiceMenuUnlock(uint32_t nowMs, bool feelingAnimationActive);
   void advance();
   void reset();
   void back();
   void seek(Kotonoha_SceneTick target);
+  bool unresolvedChoice() const;
+  Kotonoha::SchoolDaysOptionalTick protectedSkipToEndTarget() const;
+  void requestSkipToEnd();
   void skipToNextChoice();
   void flushGlobal();
   void armHandoff();
