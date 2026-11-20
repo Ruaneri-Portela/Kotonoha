@@ -17,6 +17,13 @@
 #include <sstream>
 #include <system_error>
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+extern "C" const char *KotonohaIOSDocumentsGamesPath();
+#endif
+#endif
+
 namespace KotonohaLauncher {
 
 namespace {
@@ -645,14 +652,26 @@ UnifiedLauncher::UnifiedLauncher(std::string settingsPath,
     isolateSavesPerGame = false;
   customSaveRootPath = readFirstLineFromFile(rememberSaveRootPath);
 
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+  // On iOS, the hub scans one stable Files-visible sandbox directory.
+  // Saved desktop library paths must never override Documents/games.
+  (void)initialLibraryPath;
+  setLibraryPath(KotonohaIOSDocumentsGamesPath());
+#else
   std::string startPath = std::move(initialLibraryPath);
   if (startPath.empty())
     startPath = readFirstLineFromFile(rememberFilePath);
   setLibraryPath(std::move(startPath));
+#endif
 }
 
 void UnifiedLauncher::setLibraryPath(std::string path) {
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+  (void)path;
+  currentLibraryPath = KotonohaIOSDocumentsGamesPath();
+#else
   currentLibraryPath = std::move(path);
+#endif
   rescan();
 }
 
