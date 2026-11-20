@@ -2,7 +2,7 @@
 #include "Game.macOS.xcconfig"
 
 // Vendor headers use both <libreallive/...> and local quoted include forms.
-HEADER_SEARCH_PATHS = $(inherited) \
+HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) \
     "$(KOTONOHA_ROOT)/games/reallive/vendor" \
     "$(KOTONOHA_ROOT)/games/reallive/vendor/machine" \
     "$(KOTONOHA_ROOT)/games/reallive/vendor/libreallive"
