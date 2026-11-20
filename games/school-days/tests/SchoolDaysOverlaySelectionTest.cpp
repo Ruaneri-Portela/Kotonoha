@@ -50,6 +50,8 @@ int main() {
     MakeDisplayPair(standard);
     Check(SchoolDays::OverlaySelection::Select(fixture) == standard,
           "Standard overlay must beat the legacy directory");
+    Check(SchoolDays::OverlaySelection::Select(fixture, {}, false).empty(),
+          "Explicit --no-asset-overlay must disable automatic selection");
 
     Check(SchoolDays::OverlaySelection::Select(fixture, explicitChoice) ==
               explicitChoice,

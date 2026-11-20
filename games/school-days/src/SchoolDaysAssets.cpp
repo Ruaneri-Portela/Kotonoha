@@ -77,19 +77,23 @@ std::filesystem::path ResolveLooseOriginal(const std::filesystem::path &root,
 
 // Keep the launcher and gameplay on the same external overlay. Never rewrite
 // the retail System.GPK, and always honor an explicitly selected directory.
-std::string SelectDisplayOptionsOverlay(const std::string &requested) {
+std::string SelectDisplayOptionsOverlay(const std::string &requested,
+                                        bool allowAutomaticOverlay) {
   std::filesystem::path executableRoot;
 #if defined(_WIN32) && !defined(__ANDROID__)
   if (const char *base = SDL_GetBasePath(); base && *base)
     executableRoot = base;
 #endif
-  return OverlaySelection::Select(executableRoot, requested).string();
+  return OverlaySelection::Select(executableRoot, requested,
+                                  allowAutomaticOverlay).string();
 }
 }
 
-Assets::Assets(std::filesystem::path root, const std::string &scripts)
+Assets::Assets(std::filesystem::path root, const std::string &scripts,
+               bool allowAutomaticOverlay)
     : directory(std::move(root)) {
-  const std::string effectiveOverlay = SelectDisplayOptionsOverlay(scripts);
+  const std::string effectiveOverlay =
+      SelectDisplayOptionsOverlay(scripts, allowAutomaticOverlay);
   if (!effectiveOverlay.empty() && !std::filesystem::is_directory(effectiveOverlay))
     throw std::runtime_error("School Days script directory does not exist");
   setOverlay(effectiveOverlay);

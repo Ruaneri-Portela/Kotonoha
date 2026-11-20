@@ -17,8 +17,10 @@ inline bool HasDisplayOptions(const std::filesystem::path &root) {
 // Shared by the launcher validation and gameplay asset provider.
 // An explicit --scripts/--asset-overlay/settings path always takes priority.
 inline std::filesystem::path Select(const std::filesystem::path &executableRoot,
-                                    const std::filesystem::path &requested = {}) {
+                                    const std::filesystem::path &requested = {},
+                                    bool allowAutomatic = true) {
   if (!requested.empty()) return requested;
+  if (!allowAutomatic) return {};
   if (executableRoot.empty()) return {};
   for (const char *folder : {"overlay", "display-options"}) {
     const auto candidate = executableRoot / folder;
