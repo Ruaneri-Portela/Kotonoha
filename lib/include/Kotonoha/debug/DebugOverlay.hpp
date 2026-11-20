@@ -60,6 +60,13 @@ class DebugOverlay {
   AudioStreamPtr previewAudio;
   std::shared_ptr<AudioChannel> previewChannel;
   std::vector<std::string> browsedAssets;
+  bool showAssetTextViewer = false;
+  std::string textAssetId;
+  std::vector<Uint8> textAssetBytes;
+  std::string textAssetContent;
+  std::string textAssetError;
+  int textAssetEncoding = 0;
+  bool textAssetTruncated = false;
   bool showTranslationWindow = false;
   bool showOptionsWindow = false;
   bool showDubbingWindow = false;
@@ -81,6 +88,9 @@ class DebugOverlay {
   void drawKtrfTools();
   void drawRuntimeNodes(const std::vector<DebugNode> &nodes);
   void drawAssets(const std::vector<std::string> &assets);
+  void openAssetTextViewer(const std::string &id);
+  void decodeAssetText();
+  void drawAssetTextViewer();
   void stopPreviewAudio();
   void drawInspector();
   void drawTranslationExport();
@@ -114,7 +124,7 @@ public:
   void openOptions() { showOptionsWindow = true; }
   bool isVisible() const {
     return visible || showOptionsWindow || showTranslationWindow ||
-           showDubbingWindow || showInfoWindow;
+           showDubbingWindow || showInfoWindow || showAssetTextViewer;
   }
   bool pausesStory() const { return isVisible() && !settings.ignorePause; }
   void setVisible(bool value);
