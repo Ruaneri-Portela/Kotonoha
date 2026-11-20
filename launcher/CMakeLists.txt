@@ -52,6 +52,10 @@ endforeach()
 unset(_kotonoha_launcher_libraries)
 
 kotonoha_add_app(KotonohaLauncher src/main.cpp)
+if(APPLE AND (IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS"))
+    target_sources(KotonohaLauncher PRIVATE src/AppleDocuments.mm)
+    target_link_libraries(KotonohaLauncher PRIVATE "-framework Foundation")
+endif()
 target_link_libraries(KotonohaLauncher PRIVATE kotonoha_unified_launcher)
 set_target_properties(KotonohaLauncher PROPERTIES CXX_EXTENSIONS OFF)
 # Keep the global engine resources, but do not copy the Example demo data.
