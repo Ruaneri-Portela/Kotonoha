@@ -11,6 +11,8 @@ Kotonoha supports multiple engines and game-specific runtimes. **Support is not 
 | Zero no Tsukaima | `KOTONOHA_BUILD_ZERO` | `ZeroNoTsukaima` | [Readme](zero-no-tsukaima/README.md) |
 | Snow Radish Vacation!! | `KOTONOHA_BUILD_SNOW` | `SnowRadish` | [Readme](snow-radish-vacation/README.md) |
 | Summer Radish Vacation!! | `KOTONOHA_BUILD_SUMMER` | `SummerRadish` | [Readme](summer-radish-vacation/README.md) |
+| Miss Each Other | `KOTONOHA_BUILD_MEO` | `MEO` | [Readme](meo/README.md) |
+| Katawa Shoujo | `KOTONOHA_BUILD_KATAWA` | `KatawaShoujo` | [Readme](katawa-shoujo/README.md) |
 | Doki Doki Literature Club! | `KOTONOHA_BUILD_DDLC` | `DokiDoki` | [Readme](doki-doki-literature-club/README.md) |
 | School Days HQ | `KOTONOHA_BUILD_SCHOOL_DAYS` | `SchoolDays` | [Readme](school-days/README.md) |
 | RealLive | `KOTONOHA_BUILD_REALLIVE` | `RealLive` | [Readme](reallive/README.md) |
