@@ -821,6 +821,14 @@
 		FF3277021C8593C30BE81E3B /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63DE967DF3E0BDBC312F821E /* Cocoa.framework */; };
 		FF89A9E9B1E594E4E5F12062 /* Ps2SoundBank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */; };
 		FFBA4A0F4CBB3C0FF9662E59 /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
+		A1A100000000000000000011 /* AtomicFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000001 /* AtomicFile.cpp */; };
+		A1A100000000000000000012 /* AtomicFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000001 /* AtomicFile.cpp */; };
+		A1A100000000000000000013 /* SurfaceTexture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000002 /* SurfaceTexture.cpp */; };
+		A1A100000000000000000014 /* SurfaceTexture.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000002 /* SurfaceTexture.cpp */; };
+		A1A100000000000000000015 /* WebAssetFetch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000003 /* WebAssetFetch.cpp */; };
+		A1A100000000000000000016 /* WebAssetFetch.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000003 /* WebAssetFetch.cpp */; };
+		A1A100000000000000000017 /* MetalFXUpscaler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000004 /* MetalFXUpscaler.cpp */; };
+		A1A100000000000000000018 /* MetalFXUpscaler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A1A100000000000000000004 /* MetalFXUpscaler.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -2000,6 +2008,10 @@
 		FF242C49F26C09A041D6631C /* Config.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Config.cpp; path = ../../games/reallive/src/Config.cpp; sourceTree = SOURCE_ROOT; };
 		FF43CE57F88486C6645207F5 /* SchoolDaysMenuBarPresenter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysMenuBarPresenter.cpp; path = "../../games/school-days/src/SchoolDaysMenuBarPresenter.cpp"; sourceTree = SOURCE_ROOT; };
 		FFB62FA9D91BB0AE5ADD83BC /* PonscripterGame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PonscripterGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1A100000000000000000001 /* AtomicFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = AtomicFile.cpp; path = ../../lib/src/Filesystem/AtomicFile.cpp; sourceTree = SOURCE_ROOT; };
+		A1A100000000000000000002 /* SurfaceTexture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SurfaceTexture.cpp; path = ../../lib/src/media/SurfaceTexture.cpp; sourceTree = SOURCE_ROOT; };
+		A1A100000000000000000003 /* WebAssetFetch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = WebAssetFetch.cpp; path = ../../lib/src/core/WebAssetFetch.cpp; sourceTree = SOURCE_ROOT; };
+		A1A100000000000000000004 /* MetalFXUpscaler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MetalFXUpscaler.cpp; path = ../../lib/src/media/upscaling/MetalFXUpscaler.cpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2333,6 +2345,7 @@
 		06EEE27E8212D35A205BAC4F /* core */ = {
 			isa = PBXGroup;
 			children = (
+				A1A100000000000000000003 /* WebAssetFetch.cpp */,
 				BA6DF2EA8DCE31D1E6FFCC08 /* AssetOverlay.cpp */,
 				C68346DF0F4C502F914FB431 /* AssetProvider.cpp */,
 				EA012E1118407A93D2729088 /* Clock.cpp */,
@@ -2911,6 +2924,8 @@
 		9D426063D0517617E5A3E6B9 /* media */ = {
 			isa = PBXGroup;
 			children = (
+				A1A100000000000000000002 /* SurfaceTexture.cpp */,
+				A1A100000000000000000004 /* MetalFXUpscaler.cpp */,
 				41942E0E6BF2A4A1B70F7A43 /* AudioMixer.cpp */,
 				591559879EB1EFB7028191A6 /* CriAudio.cpp */,
 				A761AF29AD7872AD741EE3A0 /* MediaDecoder.cpp */,
@@ -3255,6 +3270,7 @@
 		F1F1F1000000000000000010 /* Filesystem */ = {
 			isa = PBXGroup;
 			children = (
+				A1A100000000000000000001 /* AtomicFile.cpp */,
 				F1F1F100000000000000008C /* FallbackMount.cpp */,
 				F1F1F100000000000000008D /* RemoteAssets.cpp */,
 				F1F1F1000000000000000154 /* FallbackMount.hpp */,
@@ -6245,6 +6261,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1A100000000000000000011 /* AtomicFile.cpp in Sources */,
+				A1A100000000000000000013 /* SurfaceTexture.cpp in Sources */,
+				A1A100000000000000000015 /* WebAssetFetch.cpp in Sources */,
+				A1A100000000000000000017 /* MetalFXUpscaler.cpp in Sources */,
 				67C3D386F6E21A2E99F90ED4 /* AssStyle.cpp in Sources */,
 				33ED5DA749D3F1AE1CD4E5D9 /* Ktrf.cpp in Sources */,
 				55FF69BE7537AC8F20E8BA88 /* KtrfTyped.cpp in Sources */,
@@ -6420,6 +6440,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1A100000000000000000012 /* AtomicFile.cpp in Sources */,
+				A1A100000000000000000014 /* SurfaceTexture.cpp in Sources */,
+				A1A100000000000000000016 /* WebAssetFetch.cpp in Sources */,
+				A1A100000000000000000018 /* MetalFXUpscaler.cpp in Sources */,
 				61849C286BA8DDB67DA42635 /* AssStyle.cpp in Sources */,
 				B8F225EF20D6F6B4ED10EE88 /* Ktrf.cpp in Sources */,
 				2A9022C9ADF7853B37FEB222 /* KtrfTyped.cpp in Sources */,
