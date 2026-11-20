@@ -1678,11 +1678,20 @@ struct LucaSystemRuntime::Impl {
     choiceActive = false;
     syncGlobalVarsIntoSession();
     runtime.scenarioTexts_.clear();
-    for (const auto &line : dialogueLines)
-      if (std::find(runtime.scenarioTexts_.begin(),
-                    runtime.scenarioTexts_.end(),
-                    line) == runtime.scenarioTexts_.end())
-        runtime.scenarioTexts_.push_back(line);
+    const auto remember = [&](const std::string &value) {
+      if (!value.empty() &&
+          std::find(runtime.scenarioTexts_.begin(),
+                    runtime.scenarioTexts_.end(), value) ==
+              runtime.scenarioTexts_.end())
+        runtime.scenarioTexts_.push_back(value);
+    };
+    for (const auto &line : dialogueLines) {
+      std::string speaker, dialogue;
+      parseSpeakerAndSanitizeText(line, speaker, dialogue);
+      remember(speaker);
+      remember(dialogue);
+      remember(line); // Preserve legacy script-string translation keys.
+    }
     return true;
   }
 
@@ -2003,15 +2012,25 @@ struct LucaSystemRuntime::Impl {
           std::string speaker, text;
           parseSpeakerAndSanitizeText(ins.text, speaker, text);
           dialogueVisible = true;
-          runtime.dialogueText_ = text;
-          runtime.dialogueSpeaker_ = speaker;
+          runtime.originalActiveKeys_.clear();
+          if (!speaker.empty())
+            runtime.originalActiveKeys_.push_back(speaker);
+          runtime.originalActiveKeys_.push_back(text);
+          runtime.currentDialogueVoiceId_ = voiceId;
+          const auto localize = [&](const std::string &original) {
+            return engine ? engine->GetTranslation().text(0, original)
+                          : original;
+          };
+          runtime.dialogueText_ = localize(text);
+          runtime.dialogueSpeaker_ = localize(speaker);
           if (textbox) {
             textbox->setWindowType(getVar(6002));
-            textbox->setDialogue(speaker, text);
+            textbox->setDialogue(runtime.dialogueSpeaker_,
+                                 runtime.dialogueText_);
             textbox->show();
           }
           if (backlog && !text.empty()) {
-            backlog->addEntry(speaker, text);
+            backlog->addEntry(runtime.dialogueSpeaker_, runtime.dialogueText_);
             if (voiceId != 0)
               backlog->setLastVoice("voice:" + std::to_string(voiceId));
           }
@@ -2034,7 +2053,11 @@ struct LucaSystemRuntime::Impl {
             std::string spk, clean;
             parseSpeakerAndSanitizeText(chosen, spk, clean);
             if (!clean.empty()) {
-              backlog->addEntry(spk, clean);
+              const auto translatedSpeaker =
+                  engine ? engine->GetTranslation().text(0, spk) : spk;
+              const auto translatedLine =
+                  engine ? engine->GetTranslation().text(0, clean) : clean;
+              backlog->addEntry(translatedSpeaker, translatedLine);
               if (voiceId != 0)
                 backlog->setLastVoice("voice:" + std::to_string(voiceId));
             }
@@ -3441,8 +3464,19 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
   std::string spk, cleanText;
   parseSpeakerAndSanitizeText(rawText, spk, cleanText);
   impl.dialogueVisible = state.dialogueVisible && !cleanText.empty();
-  dialogueText_ = impl.dialogueVisible ? cleanText : std::string{};
-  dialogueSpeaker_ = impl.dialogueVisible ? spk : std::string{};
+  originalActiveKeys_.clear();
+  if (impl.dialogueVisible) {
+    if (!spk.empty())
+      originalActiveKeys_.push_back(spk);
+    originalActiveKeys_.push_back(cleanText);
+  }
+  currentDialogueVoiceId_ = 0;
+  dialogueText_ = impl.dialogueVisible
+                      ? impl.engine->GetTranslation().text(0, cleanText)
+                      : std::string{};
+  dialogueSpeaker_ = impl.dialogueVisible
+                         ? impl.engine->GetTranslation().text(0, spk)
+                         : std::string{};
   if (impl.textbox) {
     impl.textbox->setWindowType(impl.getVar(6002));
     if (impl.dialogueVisible) {
@@ -3486,6 +3520,8 @@ bool LucaSystemRuntime::startScenario(const std::string &name, size_t position,
   impl.running = position < impl.instructions.size();
   dialogueText_.clear();
   dialogueSpeaker_.clear();
+  originalActiveKeys_.clear();
+  currentDialogueVoiceId_ = 0;
   if (impl.textbox)
     impl.textbox->hide();
 
@@ -3597,6 +3633,13 @@ void LucaSystemRuntime::debugRestartScene() {
 
 std::vector<std::string> LucaSystemRuntime::activeTranslationKeys() const {
   return originalActiveKeys_;
+}
+
+std::vector<Kotonoha::DebugAudioAsset> LucaSystemRuntime::debugSceneAudio() {
+  if (!currentDialogueVoiceId_)
+    return {};
+  return {{"voice:" + std::to_string(currentDialogueVoiceId_),
+           dialogueSpeaker_, dialogueText_}};
 }
 
 Kotonoha::Translation::SourceTexts
