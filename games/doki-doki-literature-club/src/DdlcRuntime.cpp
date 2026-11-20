@@ -261,6 +261,23 @@ void GameRuntime::render(Kotonoha::RendererRef renderer, float scale) {
 Kotonoha::Translation::SourceTexts GameRuntime::translationSources() const {
   return assets_->script().translationSources();
 }
+std::vector<std::string> GameRuntime::activeTranslationKeys() const {
+  if (!session_)
+    return {};
+  std::vector<std::string> keys;
+  const auto rawLine = session_->dialogueSourceText();
+  if (!rawLine.empty())
+    keys.push_back(rawLine);
+  const auto speaker = session_->dialogueSpeaker();
+  if (!speaker.empty())
+    keys.push_back(speaker);
+  for (const auto &choice : session_->choiceTexts())
+    if (!choice.empty() &&
+        std::find(keys.begin(), keys.end(), choice) == keys.end())
+      keys.push_back(choice);
+  return keys;
+}
+
 std::string GameRuntime::debugNode() const {
   return session_ ? session_->debugNode() : std::string();
 }
