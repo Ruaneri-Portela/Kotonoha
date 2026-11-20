@@ -2243,7 +2243,6 @@
 		B5B500000000000000000008 /* GameFactories.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = GameFactories.cpp; path = ../../launcher/src/GameFactories.cpp; sourceTree = SOURCE_ROOT; };
 		B5B500000000000000000009 /* UnifiedLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = UnifiedLauncher.cpp; path = ../../launcher/src/UnifiedLauncher.cpp; sourceTree = SOURCE_ROOT; };
 		B5B50000000000000000000A /* UnifiedLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = UnifiedLauncher.hpp; path = ../../launcher/include/KotonohaLauncher/UnifiedLauncher.hpp; sourceTree = SOURCE_ROOT; };
-		B5B50000000000000000000B /* BuildUnifiedLauncher.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; name = BuildUnifiedLauncher.sh; path = Scripts/BuildUnifiedLauncher.sh; sourceTree = SOURCE_ROOT; };
 		C0C000000000000000000001 /* SchoolDaysAtomicFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysAtomicFile.cpp; path = ../../games/school-days/src/SchoolDaysAtomicFile.cpp; sourceTree = SOURCE_ROOT; };
 		B6B600000000000000000005 /* KotonohaLauncher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaLauncher.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6B600000000000000000006 /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = ../../launcher/game-assets; sourceTree = SOURCE_ROOT; };
@@ -3588,7 +3587,6 @@
 			children = (
 				D3DE05974DAEB199FF71D6C5 /* ConfigureMacOSIcon.sh */,
 				3F5B047F1B80A04FBE672AE4 /* EmbedDokiDokiPython.sh */,
-				B5B50000000000000000000B /* BuildUnifiedLauncher.sh */,
 				C327919824D2D650ED44A512 /* EmbedSDLFrameworks.sh */,
 			);
 			name = "Build Scripts";
