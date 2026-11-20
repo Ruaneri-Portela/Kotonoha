@@ -11,6 +11,8 @@ Kotonoha oferece múltiplos interpretadores e runtimes específicos. **Suporte n
 | Zero no Tsukaima | `KOTONOHA_BUILD_ZERO` | `ZeroNoTsukaima` | [Guia](zero-no-tsukaima/README.pt-BR.md) |
 | Snow Radish Vacation!! | `KOTONOHA_BUILD_SNOW` | `SnowRadish` | [Guia](snow-radish-vacation/README.pt-BR.md) |
 | Summer Radish Vacation!! | `KOTONOHA_BUILD_SUMMER` | `SummerRadish` | [Guia](summer-radish-vacation/README.pt-BR.md) |
+| Miss Each Other | `KOTONOHA_BUILD_MEO` | `MEO` | [Guia](meo/README.pt-BR.md) |
+| Katawa Shoujo | `KOTONOHA_BUILD_KATAWA` | `KatawaShoujo` | [Guia](katawa-shoujo/README.pt-BR.md) |
 | Doki Doki Literature Club! | `KOTONOHA_BUILD_DDLC` | `DokiDoki` | [Guia](doki-doki-literature-club/README.pt-BR.md) |
 | School Days HQ | `KOTONOHA_BUILD_SCHOOL_DAYS` | `SchoolDays` | [Guia](school-days/README.pt-BR.md) |
 | RealLive | `KOTONOHA_BUILD_REALLIVE` | `RealLive` | [Guia](reallive/README.pt-BR.md) |
