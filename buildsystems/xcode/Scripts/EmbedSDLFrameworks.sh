@@ -19,11 +19,16 @@ resources_destination="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
 platform_suffix="${EFFECTIVE_PLATFORM_NAME:-}"
 
 [[ -d "${repo}/assets" ]] || fatal "Shared resources not found: ${repo}/assets"
-[[ -d "${repo}/games/${KOTONOHA_GAME_DIR}/game-assets" ]] || fatal "Game resources not found: ${repo}/games/${KOTONOHA_GAME_DIR}/game-assets"
+if [[ "${KOTONOHA_GAME_DIR}" != "launcher" ]]; then
+  [[ -d "${repo}/games/${KOTONOHA_GAME_DIR}/game-assets" ]] || fatal "Game resources not found: ${repo}/games/${KOTONOHA_GAME_DIR}/game-assets"
+fi
 [[ -f "${SRCROOT}/Info.plist" ]] || fatal "Shared Info.plist not found: ${SRCROOT}/Info.plist"
 
 # Xcode's Resources build phase copies both folder references, keeping their names.
 for name in assets game-assets; do
+  if [[ "${name}" == "game-assets" && "${KOTONOHA_GAME_DIR}" == "launcher" ]]; then
+    mkdir -p "${resources_destination}/game-assets"
+  fi
   [[ -d "${resources_destination}/${name}" ]] || fatal "Missing ${resources_destination}/${name}. Check Copy Bundle Resources."
   note "Verified ${name}/ in app resources"
 done
