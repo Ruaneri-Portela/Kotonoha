@@ -764,13 +764,13 @@ int main(int argc, char **argv) {
     return false;
   };
   auto HasA03Sp101 = [&]() {
-    return std::any_of(
-        session.Persistence().SaveLogDocument().records.begin(),
-        session.Persistence().SaveLogDocument().records.end(),
-        [](const auto &record) {
-          return record.tag == 3 && record.name == u"00/00-00-A03" &&
-                 record.secondary == u"SP101";
-        });
+    return std::any_of(session.Persistence().SaveLogDocument().records.begin(),
+                       session.Persistence().SaveLogDocument().records.end(),
+                       [](const auto &record) {
+                         return record.tag == 3 &&
+                                record.name == u"00/00-00-A03" &&
+                                record.secondary == u"SP101";
+                       });
   };
   Check(HasA03Tag4(), "A03 choice commit did not create historical tag4");
 
@@ -891,7 +891,8 @@ int main(int argc, char **argv) {
     Kotonoha::SchoolDaysKtrfSession::StepResult repeatedForward;
     if (!session.Advance("ktrf:next", &repeatedForward, &error))
       Fail(std::string("A03 repeat advance failed: ") + error.message);
-    Check(repeatedForward.kind == Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
+    Check(repeatedForward.kind ==
+                  Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
               repeatedForward.scene.sceneKey == "00/00-00-A04" &&
               ReadState("001") == beforeA03Choice001 &&
               ReadState("002") == beforeA03Choice002 + 5,
@@ -900,7 +901,8 @@ int main(int argc, char **argv) {
     if (!session.PlanBack(&repeatedBack, &error) ||
         !session.CommitBack(&repeatedBack, &error))
       Fail(std::string("A04 repeat Back failed: ") + error.message);
-    Check(repeatedBack.kind == Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
+    Check(repeatedBack.kind ==
+                  Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
               repeatedBack.scene.sceneKey == "00/00-00-A03" &&
               ReadState("001") == beforeA03Choice001 &&
               ReadState("002") == beforeA03Choice002,
@@ -913,13 +915,13 @@ int main(int argc, char **argv) {
   // the abandoned +5 for 002. The native Route0 second branch A05 grants
   // +5 to 001, and its own reverse handler removes exactly that value.
   uint32_t alternateChoiceIndex = KOTONOHA_KTRF_NULL_INDEX;
-  if (!Kotonoha_KtrfRouterCurrentChoiceAt(
-          &session.Adapter()->router, 0u, &alternateChoiceIndex, &error))
+  if (!Kotonoha_KtrfRouterCurrentChoiceAt(&session.Adapter()->router, 0u,
+                                          &alternateChoiceIndex, &error))
     Fail(std::string("A03 alternative choice lookup failed: ") + error.message);
   Kotonoha_KtrfChoiceOption alternateOption{};
   if (!Kotonoha_KtrfGetChoiceOption(session.Adapter()->document,
-                                    alternateChoiceIndex, 1u,
-                                    &alternateOption, &error) ||
+                                    alternateChoiceIndex, 1u, &alternateOption,
+                                    &error) ||
       alternateOption.value.kind != KOTONOHA_KTRF_SCALAR_INT64)
     Fail(std::string("A03 second branch is not a valid integer choice: ") +
          error.message);
@@ -931,7 +933,8 @@ int main(int argc, char **argv) {
   Kotonoha::SchoolDaysKtrfSession::StepResult alternateForward;
   if (!session.Advance("ktrf:next", &alternateForward, &error))
     Fail(std::string("A03 -> A05 advance failed: ") + error.message);
-  Check(alternateForward.kind == Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
+  Check(alternateForward.kind ==
+                Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
             alternateForward.scene.sceneKey == "00/00-00-A05" &&
             ReadState("001") == beforeA03Choice001 + 5 &&
             ReadState("002") == beforeA03Choice002,
@@ -940,7 +943,8 @@ int main(int argc, char **argv) {
   if (!session.PlanBack(&alternateBack, &error) ||
       !session.CommitBack(&alternateBack, &error))
     Fail(std::string("A05 -> Back A03 failed: ") + error.message);
-  Check(alternateBack.kind == Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
+  Check(alternateBack.kind ==
+                Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
             alternateBack.scene.sceneKey == "00/00-00-A03" &&
             ReadState("001") == beforeA03Choice001 &&
             ReadState("002") == beforeA03Choice002 && HasA03Sp101(),
