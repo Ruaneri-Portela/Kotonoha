@@ -37,6 +37,14 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/MSVC.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaOptions.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaTestGroups.cmake")
 
+# Player distributions exclude developer CLI controls in every game port.
+# Also disable the MCP backend without changing the cached DEV preference.
+option(KOTONOHA_DISTRIBUTION_BUILD
+    "Build a player distribution without developer command-line controls" OFF)
+if(KOTONOHA_DISTRIBUTION_BUILD)
+    set(KOTONOHA_ENABLE_MCP OFF)
+endif()
+
 add_subdirectory(lib)
 
 # Imported vcpkg targets found inside lib/ are directory-scoped. Game ports

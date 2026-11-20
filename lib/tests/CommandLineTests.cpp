@@ -41,6 +41,45 @@ void expectBadFrames(const std::string &value) {
   }
   check(rejected, "Invalid --frames must be rejected");
 }
+
+void expectUnknownOption(std::vector<std::string> arguments,
+                         const std::string &name) {
+  Kotonoha::EngineOptions options;
+  Kotonoha::CommandLine cli("PortSmoke", options);
+  std::vector<char *> argv;
+  for (auto &arg : arguments)
+    argv.push_back(arg.data());
+
+  bool rejected = false;
+  try {
+    cli.parse(static_cast<int>(argv.size()), argv.data());
+  } catch (const std::invalid_argument &failure) {
+    rejected = std::string(failure.what()).find("Unknown option: " + name) !=
+               std::string::npos;
+  }
+  check(rejected, "Disabled developer option must be rejected as unknown");
+  check(cli.help().find(name) == std::string::npos,
+        "Disabled developer option must not appear in help");
+  check(!options.enableMCP && options.mcpPort == 0 &&
+            options.mcpFileRoot == "." && options.logPath.empty() &&
+            options.launcher,
+        "Rejected developer option must not modify engine state");
+}
+
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+void expectDeveloperLog() {
+  Kotonoha::EngineOptions options;
+  Kotonoha::CommandLine cli("PortSmoke", options);
+  std::vector<std::string> args{"PortSmoke", "--log", "synthetic.log"};
+  std::vector<char *> argv;
+  for (auto &arg : args)
+    argv.push_back(arg.data());
+  cli.parse(static_cast<int>(argv.size()), argv.data());
+  check(options.logPath == "synthetic.log" &&
+            cli.help().find("--log FILE") != std::string::npos,
+        "DEV must retain the engine log command-line option");
+}
+#endif
 } // namespace
 
 int main() {
@@ -55,9 +94,20 @@ int main() {
     caseLauncher({"PortSmoke", "--launcher", "--frames", "4"}, false, 4);
     caseLauncher({"PortSmoke", "--frames", "4", "--launcher"}, false, 4);
     caseLauncher({"PortSmoke", "--dump-translation", "synthetic.json"}, false);
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+    expectUnknownOption({"PortSmoke", "--log", "synthetic.log"}, "--log");
+    expectUnknownOption({"PortSmoke", "--mcp"}, "--mcp");
+    expectUnknownOption({"PortSmoke", "--mcp-root", "synthetic-root"},
+                        "--mcp-root");
+    expectUnknownOption({"PortSmoke", "--mcp-port=49831"}, "--mcp-port");
+#else
+    expectDeveloperLog();
 #if KOTONOHA_ENABLE_MCP
     caseLauncher({"PortSmoke", "--mcp"}, false);
     caseLauncher({"PortSmoke", "--mcp", "--launcher"}, false);
+#else
+    expectUnknownOption({"PortSmoke", "--mcp"}, "--mcp");
+#endif
 #endif
     expectBadFrames("0");
     expectBadFrames("-4");
