@@ -1935,20 +1935,11 @@ struct SummerRuntime::Impl {
       }
       return true;
     }
-    // The opening video plays once before the title. Pressing confirm or
-    // clicking skips it and starts the script, matching the original behavior
-    // where the opening can be bypassed.
+    // A window resize, pointer drag or a single click must not skip media.
+    // Only an intentional primary-button double click skips the opening.
     if (pending == "OPENING") {
-      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
-          (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE)) {
-        movie->stop();
-        pending.clear();
-        vm.start(pendingScript);
-        vm.run();
-        return true;
-      }
-      if (e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
-          e.button.button == SDL_BUTTON_LEFT) {
+      if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+          e.button.button == SDL_BUTTON_LEFT && e.button.clicks >= 2) {
         movie->stop();
         pending.clear();
         vm.start(pendingScript);
