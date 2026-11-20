@@ -57,13 +57,18 @@ int main() {
     CheckLayout(Variant::Wide, 800, 450, 1.0f, 800.0f, 75.0f);
     CheckLayout(Variant::WideFull, 1280, 720, 1.6f, 1280.0f, 120.0f);
     CheckLayout(Variant::WideNote, 1024, 576, 1.28f, 1024.0f, 96.0f);
-// Confirming a choice does NOT reveal a meter on its own. The meter
+    // Confirming a choice does NOT reveal a meter on its own. The meter
     // appears only when the native feeling-change detector emits code3/4.
-    const auto idleTail = Presenter::VisibilityForFrozenChoiceTail(0, false, true);
-    const auto hoveredTail = Presenter::VisibilityForFrozenChoiceTail(200, false, true);
-    const auto hiddenTail = Presenter::VisibilityForFrozenChoiceTail(200, true, true);
-    const auto unchangedTail = Presenter::VisibilityForFrozenChoiceTail(0, false, false);
-    const auto unchangedHover = Presenter::VisibilityForFrozenChoiceTail(200, false, false);
+    const auto idleTail =
+        Presenter::VisibilityForFrozenChoiceTail(0, false, true);
+    const auto hoveredTail =
+        Presenter::VisibilityForFrozenChoiceTail(200, false, true);
+    const auto hiddenTail =
+        Presenter::VisibilityForFrozenChoiceTail(200, true, true);
+    const auto unchangedTail =
+        Presenter::VisibilityForFrozenChoiceTail(0, false, false);
+    const auto unchangedHover =
+        Presenter::VisibilityForFrozenChoiceTail(200, false, false);
     Check(idleTail.meter && !idleTail.chrome && hoveredTail.meter &&
               !hoveredTail.chrome && hiddenTail.meter && !hiddenTail.chrome &&
               !unchangedTail.meter && !unchangedTail.chrome &&
@@ -391,14 +396,14 @@ int main() {
     const auto ordinary = Presenter::VisibilityForState(255, false, false);
     const auto suppressed = Presenter::VisibilityForState(255, true, false);
     const auto meterOnlyHidden = Presenter::VisibilityForState(0, true, true);
-    const auto meterOnlyVisible = Presenter::VisibilityForState(255, false, true);
-    const auto independentlyLatched = Presenter::VisibilityForState(
-        0, false, false, true);
-    const auto handoffLatched = Presenter::VisibilityForState(
-        0, true, false, true);
-    Check(!hidden.meter && !hidden.chrome &&
-              ordinary.meter && ordinary.chrome &&
-              !suppressed.meter && !suppressed.chrome &&
+    const auto meterOnlyVisible =
+        Presenter::VisibilityForState(255, false, true);
+    const auto independentlyLatched =
+        Presenter::VisibilityForState(0, false, false, true);
+    const auto handoffLatched =
+        Presenter::VisibilityForState(0, true, false, true);
+    Check(!hidden.meter && !hidden.chrome && ordinary.meter &&
+              ordinary.chrome && !suppressed.meter && !suppressed.chrome &&
               meterOnlyHidden.meter && !meterOnlyHidden.chrome &&
               meterOnlyVisible.meter && !meterOnlyVisible.chrome &&
               independentlyLatched.meter && !independentlyLatched.chrome &&
@@ -441,16 +446,15 @@ int main() {
     const auto persistentSpeedDisabled = Presenter::PersistentTransportForState(
         true, 2, false, false, false, false);
     Check(!hidden.chrome && persistentAuto.autoOn &&
-              !persistentAuto.selectedSpeed &&
-              persistentSpeed.selectedSpeed && !persistentSpeed.autoOn &&
-              persistentBoth.autoOn && persistentBoth.selectedSpeed &&
-              !persistentOff.autoOn && !persistentOff.selectedSpeed &&
-              persistentLocked.autoOn && !persistentLocked.selectedSpeed &&
+              !persistentAuto.selectedSpeed && persistentSpeed.selectedSpeed &&
+              !persistentSpeed.autoOn && persistentBoth.autoOn &&
+              persistentBoth.selectedSpeed && !persistentOff.autoOn &&
+              !persistentOff.selectedSpeed && persistentLocked.autoOn &&
+              !persistentLocked.selectedSpeed &&
               persistentSpeedDisabled.autoOn &&
               !persistentSpeedDisabled.selectedSpeed &&
               persistentMeter.autoOn && !persistentMeter.selectedSpeed &&
-              persistentHandoff.autoOn &&
-              !persistentHandoff.selectedSpeed,
+              persistentHandoff.autoOn && !persistentHandoff.selectedSpeed,
           "Choice and handoff hid persistent AUTO ON or exposed speed chrome");
 
     // SysMenu 0x100252BA..0x10025323 takes AUTO-on GetTickCount epoch

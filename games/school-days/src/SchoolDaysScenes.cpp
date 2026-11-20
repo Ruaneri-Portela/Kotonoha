@@ -479,8 +479,10 @@ void GameScene::render(Kotonoha::RendererRef renderer, float) {
 bool GameScene::handleMenuBarEvent(Kotonoha::EventRef event) {
   // Decline top-menu input while the choice owns the pointer, allowing the
   // same event to reach the actual choice handler instead of swallowing it.
-  if (runtime.choice != nullptr && runtime.unresolvedChoice()) return false;
-  if (runtime.modal() || !ensureMenuBar()) return false;
+  if (runtime.choice != nullptr && runtime.unresolvedChoice())
+    return false;
+  if (runtime.modal() || !ensureMenuBar())
+    return false;
   Kotonoha::SchoolDaysMenuBarPresenter::Action action;
   const bool consumed =
       menuBar.HandleEvent(&engine.GetRenderer(), &event, &action);

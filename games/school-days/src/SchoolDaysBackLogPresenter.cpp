@@ -39,8 +39,8 @@ TTF_Font *OpenWindowsEmojiFont(float pointSize) {
   if (windowsRoot == nullptr || *windowsRoot == '\0' || pointSize <= 0.0f)
     return nullptr;
 
-  const auto path = std::filesystem::u8path(windowsRoot) / "Fonts" /
-                    "seguiemj.ttf";
+  const auto path =
+      std::filesystem::u8path(windowsRoot) / "Fonts" / "seguiemj.ttf";
   TTF_Font *candidate = TTF_OpenFont(path.u8string().c_str(), pointSize);
   if (candidate == nullptr)
     return nullptr;

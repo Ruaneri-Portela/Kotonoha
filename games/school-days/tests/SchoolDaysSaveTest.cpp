@@ -156,10 +156,11 @@ int main(int argc, char **argv) {
     const auto hasRouteMapHover = [&] {
       const auto sprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
           app.runtime.panels().SaveLoad());
-      return std::any_of(sprites.begin(), sprites.end(), [](const auto &sprite) {
-        return sprite.role ==
-               Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
-      });
+      return std::any_of(
+          sprites.begin(), sprites.end(), [](const auto &sprite) {
+            return sprite.role ==
+                   Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
+          });
     };
     // Exercise the real SDL event path over LOAD's retail CMAP button 21.
     {

@@ -1555,16 +1555,19 @@ void Runtime::beginTransportFade(
   if (currentState != Kotonoha::GameState::Gameplay || panelOpen() ||
       pendingSeek || pendingBackCapture || exitTransition.Active() ||
       systemPanelTransition.Active() || transportFade.Active() ||
-      choiceMenuFrozen) return;
+      choiceMenuFrozen)
+    return;
   // Every route to SkipToEnd uses the same choice-aware target decision.
   // Capture it when the player clicks: a 500 ms fade must not recompute a
   // farther destination after SetSELECT becomes active in the meantime.
-  if (choice != nullptr && unresolvedChoice()) return;
+  if (choice != nullptr && unresolvedChoice())
+    return;
   transportSkipTarget.reset();
   transportSkipScene.clear();
   if (operation == Kotonoha::SchoolDaysTransportFade::Operation::SkipToEnd) {
     const auto target = protectedSkipToEndTarget();
-    if (!target) return;
+    if (!target)
+      return;
     transportSkipTarget = *target;
     transportSkipScene = scene.sceneKey;
   }
@@ -3169,11 +3172,13 @@ bool Runtime::choicePresentationComplete() const {
 }
 
 void Runtime::noteChoiceMenuCue(int code, uint32_t nowMs) {
-  if (!choiceMenuFrozen || (code != 3 && code != 4)) return;
+  if (!choiceMenuFrozen || (code != 3 && code != 4))
+    return;
   // The sole choice-result Feel presentation is activated by an actual
   // changed raw feeling. The SetSELECT opening sound, SeSelect and an omitted
   // or unchanged choice never show the isolated meter by themselves.
-  if (choiceFeelEligible) choiceFeelVisible = true;
+  if (choiceFeelEligible)
+    choiceFeelVisible = true;
   // These durations come from the existing NewSys SeUp/SeDown OGG audit,
   // not from the choice's 48-tick text tail or the 3.5s meter animation.
   choiceMenuCueStartedMs = nowMs;
@@ -3182,11 +3187,12 @@ void Runtime::noteChoiceMenuCue(int code, uint32_t nowMs) {
 
 void Runtime::updateChoiceMenuUnlock(uint32_t nowMs,
                                      bool feelingAnimationActive) {
-  if (!choiceMenuFrozen || !choiceMenuNextSceneBound ||
-      feelingAnimationActive) return;
+  if (!choiceMenuFrozen || !choiceMenuNextSceneBound || feelingAnimationActive)
+    return;
   if (choiceMenuCueDurationMs != 0 &&
       static_cast<uint32_t>(nowMs - choiceMenuCueStartedMs) <
-          choiceMenuCueDurationMs) return;
+          choiceMenuCueDurationMs)
+    return;
   choiceMenuFrozen = false;
   choiceMenuNextSceneBound = false;
   choiceFeelEligible = false;
@@ -3504,22 +3510,28 @@ void Runtime::seek(Kotonoha_SceneTick target) {
 }
 
 bool Runtime::unresolvedChoice() const {
-  if (committed) return false;
+  if (committed)
+    return false;
   // The prompt may not have been dispatched yet. The authored SETSELECT is
   // still an unresolved boundary even before it becomes visible on screen.
-  if (choice != nullptr) return true;
+  if (choice != nullptr)
+    return true;
   for (auto *event = script.data; event != nullptr; event = event->next)
-    if (event->command == SetSELECT) return true;
+    if (event->command == SetSELECT)
+      return true;
   return false;
 }
 
 Kotonoha::SchoolDaysOptionalTick Runtime::protectedSkipToEndTarget() const {
   const auto target = timeline.ComputeSkipToEndTarget(tick);
-  if (!target) return {};
-  if (!unresolvedChoice()) return target;
+  if (!target)
+    return {};
+  if (!unresolvedChoice())
+    return target;
   // Once the prompt is dispatched, SkipToEnd is not a choice input; it cannot
   // start a transport, rewind time or advance to the authored Next marker.
-  if (choice != nullptr || *target <= tick) return {};
+  if (choice != nullptr || *target <= tick)
+    return {};
   for (auto *event = script.data; event != nullptr; event = event->next) {
     if (event->command == SetSELECT && *target >= event->startTick)
       return {};
@@ -3528,15 +3540,19 @@ Kotonoha::SchoolDaysOptionalTick Runtime::protectedSkipToEndTarget() const {
 }
 
 void Runtime::requestSkipToEnd() {
-  if (choiceMenuFrozen) return;
-  if (auto target = protectedSkipToEndTarget()) seek(*target);
+  if (choiceMenuFrozen)
+    return;
+  if (auto target = protectedSkipToEndTarget())
+    seek(*target);
 }
 
 void Runtime::skipToNextChoice() {
-  if (choiceMenuFrozen) return;
+  if (choiceMenuFrozen)
+    return;
   // Mode5 may travel across multiple scripts, but it cannot consume an
   // already visible prompt. The normal pre-choice path remains unchanged.
-  if (choice != nullptr && unresolvedChoice()) return;
+  if (choice != nullptr && unresolvedChoice())
+    return;
   if (temporaryPlaybackActive()) {
     setStatus("Next-choice skip is unavailable during Replay playback");
     return;
@@ -4041,7 +4057,8 @@ void Runtime::renderPanels(Kotonoha::RendererRef renderer) {
   if (backlogFallback->isVisible()) {
     renderScene(*backlogFallback, renderer, 1);
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
-    if (!backlogFallback->isVisible() && !backlogFallback->LastError().empty()) {
+    if (!backlogFallback->isVisible() &&
+        !backlogFallback->LastError().empty()) {
       backlogOwner = BackLogOwner::None;
       setStatus("BackLog unavailable: " + backlogFallback->LastError());
     }
@@ -5585,7 +5602,7 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
       (!systemUi.IsOpen() || !systemUi.IsSaveLoadCommentEditorOpen())) {
     const auto globalAccel =
         (Kotonoha::SchoolDaysInputPolicy::TranslateAccelerator)(event.key.key,
-                                                              event.key.mod);
+                                                                event.key.mod);
     if (globalAccel ==
         Kotonoha::SchoolDaysInputPolicy::Accelerator::ToggleFullscreen) {
       handleConfig(
@@ -5849,8 +5866,9 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
     }
     if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat)
       return true;
-    const auto accel = (Kotonoha::SchoolDaysInputPolicy::TranslateAccelerator)(
-        event.key.key, event.key.mod);
+    const auto accel =
+        (Kotonoha::SchoolDaysInputPolicy::TranslateAccelerator)(event.key.key,
+                                                                event.key.mod);
     if (accel == Kotonoha::SchoolDaysInputPolicy::Accelerator::ExitFullscreen) {
       if (displayBackend.windowMode != 0 ||
           (engine &&
@@ -5941,8 +5959,10 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
         saveGame((documents / "QuickSave").string());
       if (!temporaryPlaybackActive() && event.key.key == SDLK_F6)
         loadGame((documents / "QuickSave").string());
-      if (event.key.key == SDLK_LEFT) back();
-      if (event.key.key == SDLK_RIGHT) requestSkipToEnd();
+      if (event.key.key == SDLK_LEFT)
+        back();
+      if (event.key.key == SDLK_RIGHT)
+        requestSkipToEnd();
     }
   } catch (const std::exception &error) {
     setStatus(error.what());
@@ -5952,13 +5972,16 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
 }
 
 void Runtime::activateControl(int control) {
-  if (choiceMenuFrozen) return;
+  if (choiceMenuFrozen)
+    return;
   const bool replay = replayPlayback && replayPlayback->IsOpen();
   const bool playData = playDataPlayback && playDataPlayback->IsOpen();
   if (replay || playData) {
-    if (control == 1) paused = !paused;
+    if (control == 1)
+      paused = !paused;
     else if (control == 2) {
-      if (!(choice != nullptr && unresolvedChoice())) back();
+      if (!(choice != nullptr && unresolvedChoice()))
+        back();
     } else if (control == 3) {
       requestSkipToEnd();
     } else if (playData && (control == 10 || control == 11)) {
@@ -5974,13 +5997,15 @@ void Runtime::activateControl(int control) {
     }
     return;
   }
-  if (control == 1) paused = !paused;
+  if (control == 1)
+    paused = !paused;
   else if (control == 2) {
-    if (!(choice != nullptr && unresolvedChoice())) back();
-  }
-  else if (control == 3) {
+    if (!(choice != nullptr && unresolvedChoice()))
+      back();
+  } else if (control == 3) {
     requestSkipToEnd();
-  } else if (control == 4) skipToNextChoice();
+  } else if (control == 4)
+    skipToNextChoice();
   else if (control == 10 || control == 11) {
     openSaveLoad(control == 10 &&
                  currentState == Kotonoha::GameState::Gameplay);
@@ -6006,15 +6031,13 @@ Runtime::MenuBarProjection Runtime::menuBarProjection() const {
   // Post-confirmation chrome is likewise held until the frozen choice exit is
   // released; the presenter then requires fresh actual pointer motion to
   // reveal it, rather than inheriting an old pre-choice hover/fade.
-  projection.fullBarSuppressed =
-      (choice != nullptr && unresolvedChoice()) ||
-      (!temporary && bridge.HasPendingHandoff());
+  projection.fullBarSuppressed = (choice != nullptr && unresolvedChoice()) ||
+                                 (!temporary && bridge.HasPendingHandoff());
   // SETSELECT presents choices without the Feel bar or normal chrome;
   // an enabled AUTO status chip is separately persistent. After a real
   // selection, the meter alone appears only if its native delta detector
   // emitted SeUp/SeDown; the normal top chrome remains frozen separately.
-  projection.meterOnly = !temporary && choiceMenuFrozen &&
-                         choiceFeelVisible;
+  projection.meterOnly = !temporary && choiceMenuFrozen && choiceFeelVisible;
   projection.replayIndicator = playData;
   projection.choiceTailFrozen = !temporary && choiceMenuFrozen;
   return projection;
@@ -6028,10 +6051,10 @@ void Runtime::updateMenuBar(Kotonoha::SchoolDaysMenuBarPresenter &presenter,
   // Ordinary HScene replay owns the authenticated action-inhibit path. Replay
   // Data keeps Save/Load/BackLog live and owns the replay-indicator controls.
   // A retained narrative handoff must not suppress a temporary playback owner.
-  presenter.SetRuntimeState(config.autoMode, paused, speedIndex,
-                            config.superSkip, projection.speedControlsEnabled,
-                            projection.transportLocked, projection.actionInhibit,
-                            projection.fullBarSuppressed);
+  presenter.SetRuntimeState(
+      config.autoMode, paused, speedIndex, config.superSkip,
+      projection.speedControlsEnabled, projection.transportLocked,
+      projection.actionInhibit, projection.fullBarSuppressed);
   // Keep choice presentation, meter and input independent. No meter for a
   // pending prompt or a confirmed choice without an actual feeling change.
   presenter.SetMeterOnly(projection.meterOnly);
@@ -6107,7 +6130,8 @@ void Runtime::activateMenuAction(
   // Guard actions synthesized by mouse, touch or future gamepad adapters even
   // when a presenter still carries a hover selection from the prior frame.
   // ESC/keyboard Config does not route through this physical menu.
-  if (choiceMenuFrozen || (choice != nullptr && unresolvedChoice())) return;
+  if (choiceMenuFrozen || (choice != nullptr && unresolvedChoice()))
+    return;
   const bool temporary = temporaryPlaybackActive();
   const bool playData = playDataPlayback && playDataPlayback->IsOpen();
 
