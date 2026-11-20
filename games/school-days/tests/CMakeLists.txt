@@ -205,6 +205,14 @@ add_executable(SchoolDaysUiModelTest SchoolDaysUiModelTest.cpp)
 target_link_libraries(SchoolDaysUiModelTest PRIVATE school_days)
 add_test(NAME SchoolDaysUiModelTest COMMAND SchoolDaysUiModelTest)
 
+# Synthetic only: verifies 16 pages, 161 selectors, four CMAP variants, and
+# that Open/Close Route Map CHIP highlights track pointer selection.
+add_executable(SchoolDaysRouteMapMatrixTest SchoolDaysRouteMapMatrixTest.cpp)
+target_link_libraries(SchoolDaysRouteMapMatrixTest PRIVATE school_days)
+add_test(NAME SchoolDays.RouteMapMatrix
+    COMMAND SchoolDaysRouteMapMatrixTest
+    "${CMAKE_CURRENT_BINARY_DIR}/route-map-synthetic")
+
 add_executable(SchoolDaysSystemUiCommentEditorTest SchoolDaysSystemUiCommentEditorTest.cpp)
 target_link_libraries(SchoolDaysSystemUiCommentEditorTest PRIVATE school_days)
 add_test(NAME SchoolDaysSystemUiCommentEditorTest COMMAND SchoolDaysSystemUiCommentEditorTest)

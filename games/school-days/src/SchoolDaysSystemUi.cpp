@@ -1593,6 +1593,17 @@ bool SchoolDaysSystemUi::HandleEvent(SDL_Renderer *renderer,
     return HandleSaveLoadCommentEditorEvent(event);
   }
 
+  // SDL may not send another MOUSE_MOTION after pointer leave/focus loss.
+  // Clear the old CHIP selection; the base art remains neutral.
+  if (event->type == SDL_EVENT_WINDOW_MOUSE_LEAVE ||
+      event->type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+    if (routeMap_.IsOpen())
+      return routeMap_.SetSelectionFromPointer(-1, -1);
+    if (saveLoad_.IsOpen())
+      return saveLoad_.SetSelectionFromPointer(-1, -1);
+    return false;
+  }
+
   auto emitCancel = [&]() -> bool {
     if (output == nullptr)
       return false;
