@@ -707,6 +707,11 @@ void UnifiedLauncher::drawGameOptions() {
   ImGui::TextUnformatted("Game Library Folder or Individual Game (Folder / ISO "
                          "/ PS2 BIN):");
 
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+  // Files.app exposes Documents/games. The iOS hub must not browse outside
+  // its sandbox or persist an arbitrary desktop path.
+  ImGui::TextWrapped("%s", currentLibraryPath.c_str());
+#else
   if (ImGui::InputText("##libraryPath", &currentLibraryPath,
                        ImGuiInputTextFlags_EnterReturnsTrue)) {
     rescan();
@@ -722,6 +727,7 @@ void UnifiedLauncher::drawGameOptions() {
                currentLibraryPath,
                [this](const std::string &chosen) { setLibraryPath(chosen); });
   }
+#endif
   ImGui::SameLine();
   if (ImGui::Button("Rescan")) {
     rescan();
