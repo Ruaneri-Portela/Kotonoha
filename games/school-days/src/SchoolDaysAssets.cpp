@@ -1,4 +1,5 @@
 #include "SchoolDaysAssets.hpp"
+#include "SchoolDaysOverlaySelection.hpp"
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
@@ -74,24 +75,15 @@ std::filesystem::path ResolveLooseOriginal(const std::filesystem::path &root,
              ? std::filesystem::path{} : canonicalFile;
 }
 
-// The user's new Display Options artwork is a separate remaster overlay.
-// Never rewrite the retail System.GPK. An explicitly configured overlay still
-// takes priority; otherwise an external asset folder bundled beside the game
-// executable supplies only our game-specific replacement resources.
+// Keep the launcher and gameplay on the same external overlay. Never rewrite
+// the retail System.GPK, and always honor an explicitly selected directory.
 std::string SelectDisplayOptionsOverlay(const std::string &requested) {
-  if (!requested.empty()) return requested;
+  std::filesystem::path executableRoot;
 #if defined(_WIN32) && !defined(__ANDROID__)
-  const char *base = SDL_GetBasePath();
-  if (!base || !*base) return {};
-  const auto root = std::filesystem::path(base) / "display-options";
-  std::error_code ec;
-  if (std::filesystem::is_regular_file(
-          root / "System/Option/Option_Display.png", ec) &&
-      std::filesystem::is_regular_file(
-          root / "System/Option/Option_Display.cmap", ec))
-    return root.string();
+  if (const char *base = SDL_GetBasePath(); base && *base)
+    executableRoot = base;
 #endif
-  return {};
+  return OverlaySelection::Select(executableRoot, requested).string();
 }
 }
 

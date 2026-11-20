@@ -3,8 +3,9 @@
 **English (US)** | [Português (Brasil)](README.pt-BR.md)
 
 This directory contains public metadata and instructions only. The actual
-user-supplied artwork remains outside Git under
-`games/school-days/game-assets/display-options/`.
+user-supplied artwork remains outside Git. The preferred private source is
+`games/school-days/game-assets/overlay/`; the previous
+`games/school-days/game-assets/display-options/` source remains supported.
 
 No PNGs from the commercial game or customized derivative artwork are
 distributed in this repository. The new Windows Display Options page needs
@@ -18,10 +19,16 @@ The Display CMAPs belong to the customized third page and must accompany
 are described in `display_options_controls.json` for reproducibility.
 
 After adding the locally authored files to the private `System/Option/` folder,
-run the SchoolDays Windows build again; the CMake `SchoolDaysOptionAssets` target
-copies that private artwork directory next to `SchoolDays.exe` as
-`display-options/`. The game's mount
-uses that overlay unless an explicit `--asset-overlay` is specified. In that
-case, include these files in the explicit overlay instead.
+build SchoolDays for Windows. The CMake `SchoolDaysOptionAssets` target stages
+the files into `<SchoolDays.exe directory>/overlay/System/Option/` in both
+DEV and DIST. It uses the old private `game-assets/display-options/` source
+only when a complete `Option_Display.png` / `Option_Display.cmap` pair is
+absent from `game-assets/overlay/`.
+
+At runtime, both the launcher and gameplay prefer `<exe>/overlay/`, then the
+legacy installed `<exe>/display-options/` when the new PNG/CMAP pair is
+missing. An explicitly selected `--scripts`, `--asset-overlay` or saved
+asset overlay path wins over both automatic choices; supply these resources
+within that explicit overlay if needed.
 
 Never patch, repack or replace the commercial `Packs/System.GPK` for this UI.

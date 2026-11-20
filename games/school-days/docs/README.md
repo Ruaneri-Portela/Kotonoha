@@ -61,10 +61,11 @@ permission to publish private art, retail packs, saves or translations.
 
 The `src/`, `include/`, `game-assets/`, `windows/` and `tests/fixtures/` folders
 have paths referenced in CMake, runtime code and test harnesses. The private
-artwork lives under `game-assets/display-options/` and
-`game-assets/launcher-art/`, but its *installed* locations are still
-`display-options/` and `assets/SchoolDaysHQ-Launcher.png` beside the Windows
-executable. Public Display Options metadata is in
+artwork lives under `game-assets/overlay/` (or the legacy source
+`game-assets/display-options/`) and `game-assets/launcher-art/`. Its installed
+locations are `overlay/` and `assets/SchoolDaysHQ-Launcher.png` beside the
+Windows executable; installed `display-options/` remains a runtime fallback.
+Public Display Options metadata is in
 `docs/configuration/display-options/`. Moving these directories requires
 updating consumers, building and running CTest.
 

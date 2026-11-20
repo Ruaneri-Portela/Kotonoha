@@ -19,13 +19,19 @@ if(KOTONOHA_ASSET_KIND STREQUAL "launcher")
         "${KOTONOHA_ASSET_SOURCE}" "${KOTONOHA_ASSET_DESTINATION}"
         RESULT_VARIABLE _result)
 elseif(KOTONOHA_ASSET_KIND STREQUAL "display-options")
-    if(NOT EXISTS "${KOTONOHA_ASSET_SOURCE}/System/Option/Option_Display.png" OR
-       NOT EXISTS "${KOTONOHA_ASSET_SOURCE}/System/Option/Option_Display.cmap")
-        message(WARNING "School Days Display Options PNG/CMAP missing under: ${KOTONOHA_ASSET_SOURCE}; output may be stale")
-        return()
+    set(_selected_source "${KOTONOHA_ASSET_SOURCE}")
+    if(NOT EXISTS "${_selected_source}/System/Option/Option_Display.png" OR
+       NOT EXISTS "${_selected_source}/System/Option/Option_Display.cmap")
+        set(_selected_source "${KOTONOHA_ASSET_FALLBACK_SOURCE}")
+        if(NOT _selected_source OR
+           NOT EXISTS "${_selected_source}/System/Option/Option_Display.png" OR
+           NOT EXISTS "${_selected_source}/System/Option/Option_Display.cmap")
+            message(WARNING "School Days Display Options PNG/CMAP missing under: ${KOTONOHA_ASSET_SOURCE}; output may be stale")
+            return()
+        endif()
     endif()
     execute_process(COMMAND "${CMAKE_COMMAND}" -E copy_directory
-        "${KOTONOHA_ASSET_SOURCE}" "${KOTONOHA_ASSET_DESTINATION}"
+        "${_selected_source}" "${KOTONOHA_ASSET_DESTINATION}"
         RESULT_VARIABLE _result)
 else()
     message(FATAL_ERROR "Unknown School Days artwork kind: ${KOTONOHA_ASSET_KIND}")
