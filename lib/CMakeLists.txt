@@ -317,9 +317,33 @@ if(_kotonoha_imgui_request MATCHES "^(AUTO|SYSTEM)$")
                       /usr/local/share/doc/libimgui-dev/examples/backends)
             if(_kotonoha_imgui_backend_headers AND _kotonoha_imgui_sdl3_cpp
                AND _kotonoha_imgui_renderer_cpp)
-                add_library(kotonoha_imgui_system_backends STATIC
+                # Debian 13's bundled backend code predates SDL3's final
+                # key, cursor, IME and renderer APIs. Generate compatible
+                # copies in the build tree without modifying /usr sources.
+                find_package(Python3 COMPONENTS Interpreter REQUIRED)
+                set(_kotonoha_imgui_generated_dir
+                    "${CMAKE_CURRENT_BINARY_DIR}/generated-system-imgui")
+                set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
                     "${_kotonoha_imgui_sdl3_cpp}"
-                    "${_kotonoha_imgui_renderer_cpp}")
+                    "${_kotonoha_imgui_renderer_cpp}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/prepare_system_imgui_sdl3.py")
+                execute_process(
+                    COMMAND "${Python3_EXECUTABLE}"
+                        "${CMAKE_CURRENT_SOURCE_DIR}/../tools/prepare_system_imgui_sdl3.py"
+                        --platform "${_kotonoha_imgui_sdl3_cpp}"
+                        --renderer "${_kotonoha_imgui_renderer_cpp}"
+                        --outdir "${_kotonoha_imgui_generated_dir}"
+                    RESULT_VARIABLE _kotonoha_imgui_prepare_result
+                    OUTPUT_VARIABLE _kotonoha_imgui_prepare_out
+                    ERROR_VARIABLE _kotonoha_imgui_prepare_err)
+                if(NOT _kotonoha_imgui_prepare_result EQUAL 0)
+                    message(FATAL_ERROR
+                        "Cannot prepare system ImGui SDL3 backends: "
+                        "${_kotonoha_imgui_prepare_err}")
+                endif()
+                add_library(kotonoha_imgui_system_backends STATIC
+                    "${_kotonoha_imgui_generated_dir}/imgui_impl_sdl3.cpp"
+                    "${_kotonoha_imgui_generated_dir}/imgui_impl_sdlrenderer3.cpp")
                 target_include_directories(kotonoha_imgui_system_backends PUBLIC
                     ${KOTONOHA_SYSTEM_IMGUI_INCLUDE_DIRS}
                     "${_kotonoha_imgui_backend_headers}")
