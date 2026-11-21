@@ -153,6 +153,10 @@ public:
     return std::nullopt;
   }
   virtual std::vector<DebugNode> debugNodes() const { return {}; }
+  // When native scripts expose a scenario-specific node catalog, this key
+  // changes as the active scenario changes. Empty means static/no automatic
+  // refresh, keeping expensive catalogs lazy for other ports.
+  virtual std::string debugNodeCatalogKey() const { return {}; }
   // Logical audio IDs belonging to the active scene. Archive runtimes can
   // expose virtual IDs that do not exist as loose files.
   virtual std::vector<DebugAudioAsset> debugSceneAudio() { return {}; }
