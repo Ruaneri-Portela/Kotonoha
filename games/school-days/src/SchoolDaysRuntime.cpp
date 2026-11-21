@@ -1660,22 +1660,61 @@ void Runtime::updateSystemPanelTransition(uint64_t nowMs) {
 
 void Runtime::renderSystemPanelTransition(Kotonoha::RendererRef renderer,
                                           uint64_t nowMs) {
-  using Phase = Kotonoha::SchoolDaysSystemPanelTransition::Phase;
+  using Transition = Kotonoha::SchoolDaysSystemPanelTransition;
+  using Phase = Transition::Phase;
   const auto phase = systemPanelTransition.CurrentPhase();
   if (phase != Phase::Opening && phase != Phase::Closing &&
       phase != Phase::Revealing) return;
+
+  const SDL_FPoint screen = engine ? engine->screenSize() : SDL_FPoint{0.0f, 0.0f};
+  const float heightScale = narrativePresentationHeightScale();
+  int virtualWidth = 1280;
+  int virtualHeight = 720;
+  float viewportHeightScale = 1.0f;
+  bool stretchFullscreen = false;
+
+  if (phase == Phase::Revealing) {
+    // Gameplay is visible underneath during Revealing: match presentedNovel.
+    virtualWidth = 1280;
+    virtualHeight = 720;
+    viewportHeightScale = heightScale;
+  } else {
+    switch (uiVariant) {
+    case DisplayPolicy::Variant::Standard: virtualWidth = 800; virtualHeight = 600; break;
+    case DisplayPolicy::Variant::Wide: virtualWidth = 800; virtualHeight = 450; break;
+    case DisplayPolicy::Variant::WideFull: virtualWidth = 1280; virtualHeight = 720; break;
+    case DisplayPolicy::Variant::WideNote: virtualWidth = 1024; virtualHeight = 576; break;
+    }
+    const auto target = systemPanelTransition.CurrentTarget();
+    if (uiVariant == DisplayPolicy::Variant::Standard && heightScale < 0.999f) {
+      if (target == Transition::Target::Config) {
+        stretchFullscreen = true;
+      } else if (target == Transition::Target::BackLog) {
+        viewportHeightScale = heightScale;
+      }
+    }
+  }
+
+  const auto viewport = Transition::ComputeFittedViewport(
+      screen.x, screen.y, virtualWidth, virtualHeight,
+      viewportHeightScale, stretchFullscreen);
+  if (!viewport.Valid()) return;
+  const SDL_FRect area{viewport.x, viewport.y, viewport.w, viewport.h};
+
   SDL_BlendMode previousBlend = SDL_BLENDMODE_NONE;
   Uint8 r = 0, g = 0, b = 0, a = 0;
   (void)SDL_GetRenderDrawBlendMode(&renderer, &previousBlend);
   (void)SDL_GetRenderDrawColor(&renderer, &r, &g, &b, &a);
   (void)SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
   if (systemPanelTransition.OpeningFromBlack()) {
+    // Keep the entire screen (including letterbox/pillarbox margins and any
+    // 16:9 gameplay edges outside a 4:3 panel) pure black before white rises.
     (void)SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
     (void)SDL_RenderFillRect(&renderer, nullptr);
   }
   (void)SDL_SetRenderDrawColor(&renderer, 255, 255, 255,
                                systemPanelTransition.WhiteAlpha(nowMs));
-  (void)SDL_RenderFillRect(&renderer, nullptr);
+  (void)SDL_RenderFillRect(&renderer, &area);
   (void)SDL_SetRenderDrawColor(&renderer, r, g, b, a);
   (void)SDL_SetRenderDrawBlendMode(&renderer, previousBlend);
 }
