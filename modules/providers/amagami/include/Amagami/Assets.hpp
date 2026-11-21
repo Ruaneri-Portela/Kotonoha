@@ -7,6 +7,8 @@ class AmagamiAssets : public Kotonoha::DiscImageAssetProvider {
 public:
   explicit AmagamiAssets(std::shared_ptr<Amagami::Source> source);
   std::string name() const override { return "amagami-disc"; }
+  std::vector<std::string>
+  listAsset(const std::string &prefix = {}) const override;
   std::shared_ptr<Amagami::Source> source() const { return source_; }
   struct Fragment {
     SDL_FRect destination, source;
