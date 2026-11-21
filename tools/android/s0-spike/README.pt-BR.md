@@ -23,7 +23,7 @@ Na pasta `tools/android/s0-spike/`, com Gradle e Android SDK disponíveis:
 gradle :app:assembleDebug --no-daemon
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n org.kotonoha.schooldays.safspike/.S0StorageReadProbeActivity
-adb logcat -s KotonohaS0:I '*:S'
+adb logcat -s KTN_S0:I '*:S'
 ```
 
 O APK isolado possui entrada própria no launcher, mas não adiciona nenhuma
@@ -36,7 +36,9 @@ criados na variante do jogo foram retirados antes desta entrega.
    `ACTION_CREATE_DOCUMENT` e deixe criar 1 GiB sintético no provedor e uma
    referência privada idêntica de 1 GiB. Quando abrir `ACTION_OPEN_DOCUMENT`,
    escolha **somente o documento recém-criado**. Outro `content://` document
-   ID é rejeitado antes da abertura.
+   ID é rejeitado antes da abertura. O seletor do sistema escolhe **arquivo,
+   não pasta/árvore**: não selecione pasta do jogo, GPK nem documento pessoal.
+   Não é necessário autorizar acesso a pastas inteiras.
 2. O caminho SAF solicita e confirma a concessão de leitura persistente com
    `takePersistableUriPermission`, abre `ContentResolver.openFileDescriptor`,
    mede `Os.lseek` / `Os.pread`, tenta reabrir o FD por
@@ -50,14 +52,21 @@ criados na variante do jogo foram retirados antes desta entrega.
    permissão persistente do SAF.
 4. Cada modalidade faz **três comparações de arquivo inteiro**: blocos de
    1 MiB sequenciais, em ordem inversa e em saltos coprimos (todos os 1024
-   offsets exatamente uma vez). As métricas incluem 1 GiB comparado por
-   rodada, igualdade, latência de leitura e MiB/s para provedor e arquivo
-   privado, concessão SAF e suporte a `/proc/self/fd`.
+   offsets exatamente uma vez). A **tag única `KTN_S0`** registra uma medição
+   do provedor (`mode=saf` ou `mode=mediastore`) e outra do arquivo privado
+   (`mode=private`) por repetição. Campos: `test`, `mode`,
+   `access=sequential|random`, `pattern=forward|reverse|strided`,
+   `repetition=1|2|3`, `block_bytes`, `blocks`, `bytes`, `equal`, `read_ms`,
+   `throughput_mib_s`, `lat_p50_ms`, `lat_p95_ms`. Os percentis usam posição
+   mais próxima na distribuição das 1024 leituras individuais de blocos de
+   1 MiB por modo/repetição. A tag também registra concessão SAF, suporte a
+   `/proc/self/fd` e códigos de resultado.
 5. Depois das três rodadas, **não toque Delete**. Feche e reabra o app e use
    **Retest saved synthetic document (after app/reboot)**: repete três rodadas
    nos mesmos arquivos, sem regeneração/cópia. Reinicie o celular, reabra o
    app e repita **Retest**. No SAF, o botão verifica se a permissão persistiu
-   após o reboot; se não persistiu, exige escolher novamente *somente* o
+   após o reboot; se não persistiu, registra
+   `persisted_read_grant_on_retest=false` na tag `KTN_S0` e exige escolher *somente* o
    documento sintético original. Execute SAF e MediaStore separadamente: o
    projeto mantém uma sessão sintética por vez.
 

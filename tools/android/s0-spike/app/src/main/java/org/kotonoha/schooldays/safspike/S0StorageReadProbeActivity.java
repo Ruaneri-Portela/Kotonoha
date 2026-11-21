@@ -34,7 +34,8 @@ import java.util.Random;
  * SAF selection accepts ONLY the synthetic document just created by this probe.
  */
 public final class S0StorageReadProbeActivity extends Activity {
-    private static final String TAG = "KotonohaS0";
+    private static final String TAG = "KTN_S0";
+    private static final String TEST = "synthetic_fd_1gib";
     private static final int REQUEST_CREATE = 6010;
     private static final int REQUEST_OPEN = 6011;
     private static final int BLOCK_BYTES = 1024 * 1024;
@@ -78,6 +79,8 @@ public final class S0StorageReadProbeActivity extends Activity {
                 + "Both modes compare every byte against a private synthetic file "
                 + "in 3 complete passes (sequential, reverse, strided) and probe "
                 + "/proc/self/fd reopening.\n"
+                + "SAF uses the system FILE picker: choose only this test's "
+                + "synthetic document, never a folder or game file.\n"
                 + "Requires at least 2.5 GiB available internally; the provider may need "
                 + "another 1 GiB. After PASS, the files and SAF read grant are KEPT "
                 + "for repeat tests after app exit or phone reboot. Only the explicit "
@@ -398,6 +401,8 @@ public final class S0StorageReadProbeActivity extends Activity {
                 for (int round = 0; round < 3; ++round) {
                     long remoteNanos = 0;
                     long localNanos = 0;
+                    long[] remoteLatencies = new long[BLOCKS];
+                    long[] localLatencies = new long[BLOCKS];
                     for (int step = 0; step < BLOCKS; ++step) {
                         if (Thread.currentThread().isInterrupted())
                             throw new ProbeFailure("interrupted");
@@ -406,27 +411,28 @@ public final class S0StorageReadProbeActivity extends Activity {
 
                         long started = System.nanoTime();
                         preadFully(remoteFd, remoteBytes, offset);
-                        remoteNanos += System.nanoTime() - started;
+                        remoteLatencies[step] = System.nanoTime() - started;
+                        remoteNanos += remoteLatencies[step];
 
                         started = System.nanoTime();
                         preadFully(localFd, localBytes, offset);
-                        localNanos += System.nanoTime() - started;
+                        localLatencies[step] = System.nanoTime() - started;
+                        localNanos += localLatencies[step];
 
                         if (!Arrays.equals(remoteBytes, localBytes))
                             throw new ProbeFailure("content_mismatch_round_" + (round + 1));
                     }
 
-                    String mode = round == 0 ? "sequential" :
+                    String access = round == 0 ? "sequential" : "random";
+                    String pattern = round == 0 ? "forward" :
                             round == 1 ? "reverse" : "strided";
-                    String metric = String.format(Locale.US,
-                            "backend=%s round=%d mode=%s compared_mib=1024 equal=true "
-                                    + "provider_read_ms=%.1f private_read_ms=%.1f "
-                                    + "provider_mib_s=%.1f private_mib_s=%.1f",
-                            mediaStoreMode ? "mediastore" : "saf", round + 1, mode,
-                            remoteNanos / 1e6, localNanos / 1e6,
-                            throughput(remoteNanos), throughput(localNanos));
-                    Log.i(TAG, metric); // Fixed metrics only: no URI, filename or payload.
-                    measurements.append(metric).append('\n');
+                    String provider = telemetryLine(mediaStoreMode ? "mediastore" : "saf",
+                            access, pattern, round + 1, remoteNanos, remoteLatencies);
+                    String baseline = telemetryLine("private", access, pattern,
+                            round + 1, localNanos, localLatencies);
+                    Log.i(TAG, provider); // Fixed metrics only, no URI/path/payload.
+                    Log.i(TAG, baseline);
+                    measurements.append(provider).append('\n').append(baseline).append('\n');
                     showStatus(measurements.toString());
                 }
             }
@@ -492,6 +498,27 @@ public final class S0StorageReadProbeActivity extends Activity {
 
     private static double throughput(long nanos) {
         return nanos <= 0 ? 0 : 1024.0e9 / nanos;
+    }
+
+    private static double latencyPercentileMillis(long[] samplesNanos, double quantile) {
+        long[] sorted = Arrays.copyOf(samplesNanos, samplesNanos.length);
+        Arrays.sort(sorted);
+        // Nearest-rank percentile; zero-based index, clamped to available samples.
+        int index = Math.max(0,
+                Math.min(sorted.length - 1, (int) Math.ceil(quantile * sorted.length) - 1));
+        return sorted[index] / 1e6;
+    }
+
+    private static String telemetryLine(String mode, String access, String pattern,
+                                        int repetition, long nanos, long[] latencies) {
+        return String.format(Locale.US,
+                "test=%s mode=%s access=%s pattern=%s repetition=%d "
+                        + "block_bytes=%d blocks=%d bytes=%d equal=true "
+                        + "read_ms=%.3f throughput_mib_s=%.3f lat_p50_ms=%.3f lat_p95_ms=%.3f",
+                TEST, mode, access, pattern, repetition, BLOCK_BYTES, BLOCKS,
+                SIZE_BYTES, nanos / 1e6, throughput(nanos),
+                latencyPercentileMillis(latencies, 0.50),
+                latencyPercentileMillis(latencies, 0.95));
     }
 
     private boolean sameDocument(Uri expected, Uri selected) {
