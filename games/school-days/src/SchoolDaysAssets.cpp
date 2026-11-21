@@ -5,10 +5,8 @@
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysLxhContent.hpp>
-#ifdef __EMSCRIPTEN__
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
-#endif
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <algorithm>
@@ -412,7 +410,6 @@ bool Assets::checkDirectory(const std::filesystem::path &root, std::string &info
     info = "Extracted School Days Script/English directory found";
     return true;
   }
-#ifdef __EMSCRIPTEN__
   if (Kotonoha::Filesystem::remoteGameAssets()) {
     auto vfs = Kotonoha::Filesystem::mountGameAssets("/game-assets");
     for (const char *prefix : {"", "Packs/"}) {
@@ -424,7 +421,6 @@ bool Assets::checkDirectory(const std::filesystem::path &root, std::string &info
       }
     }
   }
-#endif
   for (const auto &candidate : {root, root / "Packs"}) {
     if (Kotonoha::ResolveSchoolDaysAssetPath(candidate.string().c_str(),
                                              "BGM.GPK")
