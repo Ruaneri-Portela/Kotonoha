@@ -1093,7 +1093,7 @@
             // so the browser can reuse one HTTP cache entry across PWAs.
             // Static builds still resolve all their resources normally.
             locateFile: function(path, prefix) {
-                if (@WASM_SHARED_ENGINE@ &&
+                if ("@WASM_SHARED_ENGINE@" === "true" &&
                     String(path).split(/[\\/]/).pop() ===
                         "@KOTONOHA_WASM_SHARED_FILENAME@") {
                     return new URL("../libs/@KOTONOHA_WASM_SHARED_FILENAME@",
