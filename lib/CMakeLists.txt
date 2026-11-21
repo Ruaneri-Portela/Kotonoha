@@ -278,8 +278,10 @@ if(DEFINED KOTONOHA_ENABLE_UPSCALER AND NOT KOTONOHA_ENABLE_UPSCALER)
     list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/media/upscaling/(MPVCompatibleUpscaler|MetalFXUpscaler)\\.(cpp|mm)$")
 endif()
 
-# Keep the Emscripten JS-facing exports in each application's main module:
-# EM_ASM/EM_JS code inside an engine side module is not a Module.ccall export.
+# The separate WebMainExports.cpp translation unit is main-module-only,
+# never part of the engine's recursive source glob (static or dynamic).
+list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/core/WebMainExports\\.cpp$")
+# Keep the Emscripten JS-facing bootstrap in each application's main module.
 # The native runtime/translation/player implementation remains shared.
 if(EMSCRIPTEN AND KOTONOHA_WASM_SHARED_ENGINE)
     list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/core/WebAssetFetch\\.cpp$")
