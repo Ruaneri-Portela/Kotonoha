@@ -50,7 +50,7 @@ jobs:
         run: |
           mkdir -p vcpkg-binary-cache/linux
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache/linux,readwrite"
-          "$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-dynamic --x-feature=sdl-vcpkg --x-feature=imgui-vcpkg \
+          "$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-dynamic --x-feature=sdl-vcpkg \
             "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
 
       - name: Save Linux vcpkg dependency archives
@@ -73,8 +73,8 @@ jobs:
           cmake -S . -B build-linux -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic \
-            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
-            -DKOTONOHA_SDL_FROM_VCPKG=ON -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
+            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" \
+            -DKOTONOHA_SDL_PROVIDER=VCPKG  \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON
       - name: Compile all game ports
@@ -268,7 +268,7 @@ jobs:
         run: |
           mkdir -p vcpkg-binary-cache/wasm
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache/wasm,readwrite"
-          "$VCPKG_ROOT/vcpkg" install --triplet=wasm32-emscripten --x-feature=sdl-vcpkg --x-feature=imgui-vcpkg \
+          "$VCPKG_ROOT/vcpkg" install --triplet=wasm32-emscripten --x-feature=sdl-vcpkg \
             "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
 
       - name: Save WASM vcpkg dependency archives
@@ -291,8 +291,8 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
             -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
-            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
-            -DKOTONOHA_SDL_FROM_VCPKG=ON -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
+            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" \
+            -DKOTONOHA_SDL_PROVIDER=VCPKG  \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_WEB_SELFTEST=ON \
             -DKOTONOHA_BUILD_ALL=ON \

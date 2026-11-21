@@ -77,7 +77,7 @@ jobs:
         run: |
           mkdir -p vcpkg-binary-cache
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
-          "$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}" --x-feature=sdl-vcpkg --x-feature=imgui-vcpkg \
+          "$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}" --x-feature=sdl-vcpkg \
             "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
       - name: Save finished vcpkg dependency archives
         if: steps.deps-cache.outputs.cache-hit != 'true'
@@ -179,9 +179,9 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
             -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
-            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
-            -DKOTONOHA_SDL_FROM_VCPKG=ON \
-            -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
+            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" \
+            -DKOTONOHA_SDL_PROVIDER=VCPKG \
+             \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON \
             -DKOTONOHA_BUILD_MACOS_BUNDLES=${{ matrix.bundles }} \
