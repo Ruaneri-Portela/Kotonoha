@@ -3,6 +3,7 @@
 
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysLauncher.hpp"
+#include "SchoolDaysMobileProfile.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
@@ -358,17 +359,9 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     app->options.settings.upscaling.preset = Kotonoha::UpscalePreset::ArtCNN;
     app->options.settings.upscaling.factor = 1.5f;
 #elif defined(__ANDROID__) || defined(ANDROID)
-    // Match the commercial mobile-low profile: keep the physical Surface at
-    // native resolution, render the Novel layer at 75%, then apply the light
-    // ArtCNN preset. Frame-rate selection itself is device/mode dependent and
-    // is exposed by the School Days Android Display panel.
+    // The physical display mode is selected separately by the Display panel.
     app->options.rendererOverride = "opengles2";
-    app->options.settings.mode = Kotonoha::WindowMode::Borderless;
-    app->options.settings.vsync = true;
-    app->options.settings.renderScale = 0.75f;
-    app->options.settings.upscaling.backend = Kotonoha::UpscaleBackend::Auto;
-    app->options.settings.upscaling.preset = Kotonoha::UpscalePreset::ArtCNN;
-    app->options.settings.upscaling.factor = 2.0f;
+    SchoolDays::applyMobileDisplayDefaults(app->options.settings);
 #endif
     Kotonoha::CommandLine arguments("SchoolDays", app->options);
     arguments.option("--school-days", "DIRECTORY|ISO",
