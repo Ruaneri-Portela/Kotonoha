@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/N2Runtime.hpp>
+#include <N2System/ScriptIndex.hpp>
 
 #include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -13,6 +14,9 @@
 #include <Kotonoha/events/ControllerEvent.hpp>
 
 #include <algorithm>
+#include <cctype>
+#include <stdexcept>
+#include <string_view>
 #include <filesystem>
 #include <string>
 
@@ -44,6 +48,9 @@ struct N2Runtime::Impl {
   bool choiceActive = false;
   bool restartRequested = false;
   std::string currentBgm;
+  std::string nativeScript;
+  std::string nativeScriptId;
+  ScriptIndex nativeIndex;
   std::unique_ptr<Ponscripter::PonscripterRuntime> ponscripter;
 };
 
@@ -143,11 +150,14 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
 
   std::string scriptSource;
   std::string initialChapter = "main";
+  impl_->nativeScriptId.clear();
+  impl_->nativeScript.clear();
 
   for (const char *path : {"scenario.nss", "n2system.nss", "start.nss",
                            "nss/0_boot.nss", "nss/main.nss"}) {
     if (assets_ && assets_->contains(path)) {
       scriptSource = assets_->loadTextUtf8(path, "CP932");
+      impl_->nativeScriptId = path;
       break;
     }
   }
@@ -159,8 +169,10 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
         initialChapter = "main";
       else if (!index.chapters().empty())
         initialChapter = index.chapters().front().name;
+      impl_->nativeIndex = std::move(index);
     } catch (...) {
       scriptSource.clear();
+      impl_->nativeScriptId.clear();
     }
   }
 
@@ -179,6 +191,8 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
     initialChapter = "main";
   }
 
+  impl_->nativeScript = scriptSource;
+  impl_->nativeIndex = ScriptIndex::Parse(impl_->nativeScript);
   vm_.loadScript(scriptSource, initialChapter);
   SetState(Kotonoha::GameState::Gameplay);
 }
@@ -380,7 +394,9 @@ void N2Runtime::loadGame(const std::string &path) {
 std::string N2Runtime::debugNode() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->debugNode();
-  return {};
+  const auto chapter = vm_.currentChapter();
+  return chapter.empty() ? std::string{}
+                         : "n2 | chapter " + std::string(chapter);
 }
 
 std::string N2Runtime::dialogueText() const {
@@ -398,47 +414,162 @@ std::string N2Runtime::dialogueSpeaker() const {
 std::vector<Kotonoha::DebugNode> N2Runtime::debugNodes() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->debugNodes();
-  return {};
+  std::vector<Kotonoha::DebugNode> nodes;
+  for (const auto &chapter : impl_->nativeIndex.chapters()) {
+    Kotonoha::DebugNode node{"n2 | chapter " + chapter.name,
+                             "Chapter " + chapter.name, {}};
+    if (!impl_->nativeScriptId.empty())
+      node.assets.push_back(impl_->nativeScriptId);
+    if (vm_.currentChapter() == chapter.name) {
+      for (const auto &name : vm_.sceneGraph().renderOrder()) {
+        const auto *entity = vm_.sceneGraph().findEntity(name);
+        if (entity && !entity->imagePath.empty() &&
+            assets_ && assets_->contains(entity->imagePath))
+          node.assets.push_back(entity->imagePath);
+      }
+      const auto voice = std::string(vm_.dialogueSystem().voicePath());
+      if (!voice.empty() && assets_ && assets_->contains(voice))
+        node.assets.push_back(voice);
+    }
+    nodes.push_back(std::move(node));
+  }
+  return nodes;
 }
 
 void N2Runtime::debugJumpToNode(const std::string &id) {
-  if (impl_->ponscripter)
+  if (impl_->ponscripter) {
     impl_->ponscripter->debugJumpToNode(id);
+    return;
+  }
+  constexpr std::string_view prefix = "n2 | chapter ";
+  if (id.compare(0, prefix.size(), prefix) != 0 ||
+      !impl_->nativeIndex.findChapter(id.substr(prefix.size())))
+    throw std::invalid_argument("Unknown N2System chapter: " + id);
+  // Re-entering a chapter resets native VM state, as a Debug UI jump must.
+  vm_.loadScript(impl_->nativeScript, id.substr(prefix.size()));
+  impl_->choiceActive = false;
+  SetState(Kotonoha::GameState::Gameplay);
 }
 
 void N2Runtime::debugRestartScene() {
-  if (impl_->ponscripter)
+  if (impl_->ponscripter) {
     impl_->ponscripter->debugRestartScene();
+    return;
+  }
+  debugJumpToNode(debugNode());
 }
 
 int N2Runtime::translationRoute() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->translationRoute();
+  const auto current = vm_.currentChapter();
+  const auto &chapters = impl_->nativeIndex.chapters();
+  for (std::size_t i = 0; i < chapters.size(); ++i)
+    if (chapters[i].name == current)
+      return static_cast<int>(i);
   return -1;
 }
 
 std::vector<int> N2Runtime::translationRoutes() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->translationRoutes();
-  return {};
+  std::vector<int> result;
+  for (std::size_t i = 0; i < impl_->nativeIndex.chapters().size(); ++i)
+    result.push_back(static_cast<int>(i));
+  return result;
 }
 
 Kotonoha::Translation::SourceTexts N2Runtime::translationSources() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->translationSources();
-  return {};
+  Kotonoha::Translation::SourceTexts result;
+  // ScriptIndex already ignores comments and strings while locating calls.
+  // Only gather literals from dialogue/choice invocations, not file paths
+  // from graphics/audio instructions. This never executes the script.
+  const auto &source = impl_->nativeScript;
+  for (std::size_t route = 0;
+       route < impl_->nativeIndex.chapters().size(); ++route) {
+    const auto &chapter = impl_->nativeIndex.chapters()[route];
+    auto &texts = result[static_cast<int>(route)];
+    for (const auto &call : chapter.invocations) {
+      const bool dialogue =
+          call.function == "SetDialogue" || call.function == "Dialogue" ||
+          call.function == "Talk" || call.function == "Message";
+      const bool choice =
+          call.function == "CreateChoice" ||
+          call.function == "SelectChoice" || call.function == "Choice";
+      if (!dialogue && !choice)
+        continue;
+      const auto open = source.find('(', call.offset);
+      if (open == std::string::npos || open >= chapter.end)
+        continue;
+      std::vector<std::string> literals;
+      std::string literal;
+      bool inString = false, escape = false;
+      int depth = 1;
+      for (std::size_t i = open + 1; i < chapter.end && depth > 0; ++i) {
+        const char ch = source[i];
+        if (inString) {
+          if (escape) {
+            literal.push_back(ch == 'n' ? '\n' : ch);
+            escape = false;
+          } else if (ch == '\\') {
+            escape = true;
+          } else if (ch == '"') {
+            literals.push_back(std::move(literal));
+            literal.clear();
+            inString = false;
+          } else {
+            literal.push_back(ch);
+          }
+        } else if (ch == '"') {
+          inString = true;
+        } else if (ch == '(') {
+          ++depth;
+        } else if (ch == ')') {
+          --depth;
+        }
+      }
+      for (std::size_t i = 0; i < literals.size(); ++i) {
+        // A dialogue's third argument is a voice asset path; the first
+        // choice argument is the internal control/entity name.
+        if ((dialogue && i >= 2) || (choice && i == 0))
+          continue;
+        if (!literals[i].empty() &&
+            std::find(texts.begin(), texts.end(), literals[i]) == texts.end())
+          texts.push_back(literals[i]);
+      }
+    }
+  }
+  return result;
 }
 
 std::vector<std::string> N2Runtime::activeTranslationKeys() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->activeTranslationKeys();
-  return {};
+  std::vector<std::string> keys;
+  const auto append = [&](const std::string &value) {
+    if (!value.empty() &&
+        std::find(keys.begin(), keys.end(), value) == keys.end())
+      keys.push_back(value);
+  };
+  append(std::string(vm_.dialogueSystem().speaker()));
+  append(std::string(vm_.dialogueSystem().fullText()));
+  if (vm_.hasPendingChoice())
+    for (const auto &value : vm_.pendingChoiceOptions())
+      append(value);
+  return keys;
 }
 
 std::vector<Kotonoha::DebugAudioAsset> N2Runtime::debugSceneAudio() {
   if (impl_->ponscripter)
     return impl_->ponscripter->debugSceneAudio();
-  return {};
+  const auto &dialogue = vm_.dialogueSystem();
+  if (dialogue.voicePath().empty())
+    return {};
+  return {{std::string(dialogue.voicePath()),
+           std::string(dialogue.speaker()),
+           std::string(dialogue.fullText())}};
 }
 
 std::optional<Kotonoha::AudioClip>
@@ -451,6 +582,8 @@ N2Runtime::debugOriginalAudio(const std::string &id) {
 void N2Runtime::debugOverlayAssetChanged(const std::string &id) {
   if (impl_->ponscripter)
     impl_->ponscripter->debugOverlayAssetChanged(id);
+  else if (assets_)
+    assets_->clearCache();
 }
 
 } // namespace N2System
