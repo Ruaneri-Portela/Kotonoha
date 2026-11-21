@@ -285,8 +285,35 @@ std::string GameRuntime::nodeClockKey() const {
   return session_ ? session_->nodeClockKey() : std::string();
 }
 
+std::vector<Kotonoha::DebugAudioAsset> GameRuntime::debugSceneAudio() {
+  if (!session_ || !assets_)
+    return {};
+  std::vector<Kotonoha::DebugAudioAsset> result;
+  for (const auto &[channel, id] : session_->activeAudioAssets()) {
+    if (!assets_->contains(id))
+      continue;
+    if (channel == "voice")
+      result.push_back({id, session_->dialogueSpeaker(),
+                        session_->dialogueSourceText()});
+    else
+      result.push_back({id, {}, {}});
+  }
+  return result;
+}
+
+void GameRuntime::debugOverlayAssetChanged(const std::string &) {
+  if (assets_)
+    assets_->clearCache();
+}
+
 std::vector<Kotonoha::DebugNode> GameRuntime::debugNodes() const {
   std::vector<Kotonoha::DebugNode> result;
+  // Add current Ren'Py audio only once for the file that is actually active,
+  // instead of misattributing playback to every label in that file.
+  const auto activeFile = session_ ? session_->nodeClockKey() : std::string{};
+  const auto audio = session_ ? session_->activeAudioAssets()
+                              : std::vector<std::pair<std::string, std::string>>{};
+  bool linkedAudio = false;
   for (const auto &label : assets_->script().labelNames()) {
     const auto *node = assets_->script().label(label);
     Kotonoha::DebugNode entry{
@@ -296,6 +323,12 @@ std::vector<Kotonoha::DebugNode> GameRuntime::debugNodes() const {
                               .generic_string();
     if (assets_->contains(compiled))
       entry.assets.push_back(compiled);
+    if (!linkedAudio && node->file == activeFile) {
+      for (const auto &[channel, id] : audio)
+        if (assets_->contains(id))
+          entry.assets.push_back(id);
+      linkedAudio = true;
+    }
     result.push_back(std::move(entry));
   }
   return result;
