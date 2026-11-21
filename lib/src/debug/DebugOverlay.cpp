@@ -1050,10 +1050,16 @@ void DebugOverlay::drawTranslationWindow() {
 
   std::string activeNodeKey;
   const int mgrActiveId = manager.getCurrentNodeId();
-  if (mgrActiveId >= 0) {
+  const int nativeRoute = engine.GetRuntime().translationRoute();
+  // A native VM's translation route wins over VNManager's incidental
+  // default node. Shared VNManager games still use their script-node IDs.
+  if (nativeRoute >= 0 &&
+      !engine.GetRuntime().debugNode().empty()) {
+    activeNodeKey = std::to_string(nativeRoute);
+  } else if (mgrActiveId >= 0) {
     activeNodeKey = std::to_string(mgrActiveId);
-  } else if (engine.GetRuntime().translationRoute() >= 0) {
-    activeNodeKey = std::to_string(engine.GetRuntime().translationRoute());
+  } else if (nativeRoute >= 0) {
+    activeNodeKey = std::to_string(nativeRoute);
   } else {
     std::string rtDebug = engine.GetRuntime().debugNode();
     if (!rtDebug.empty()) {
