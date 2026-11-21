@@ -48,6 +48,33 @@ SDL_Rect AmagamiAssets::bodyBounds(const std::string &file) const {
           int(std::ceil(right) - std::floor(x)),
           int(std::ceil(bottom) - std::floor(y))};
 }
+std::vector<std::string>
+AmagamiAssets::listAsset(const std::string &prefix) const {
+  // The ISO directory only lists archive containers. Expose virtual asset
+  // paths that the Amagami VM actually uses, without reading audio payloads.
+  auto result = DiscImageAssetProvider::listAsset(prefix);
+  const auto append = [&](const std::string &id) {
+    if (prefix.empty() || id.rfind(prefix, 0) == 0)
+      result.push_back(id);
+  };
+  for (const auto &id : source_->voiceAssetIds())
+    append(id);
+  for (unsigned number = 0; number <= 80; ++number) {
+    if (source_->musicIndex(number) >= 0)
+      append("music/" + std::to_string(number));
+    if (source_->musicIndex(number, true) >= 0)
+      append("music/classic/" + std::to_string(number));
+  }
+  for (std::size_t i = 0; i < source_->soundEffectCount(); ++i)
+    append("se/" + std::to_string(i));
+  const auto &ambience = source_->archive("SOUND/SOUND.AFS");
+  for (std::size_t i = 0; i < ambience.entries.size(); ++i)
+    append("sound/" + std::to_string(i));
+  std::sort(result.begin(), result.end());
+  result.erase(std::unique(result.begin(), result.end()), result.end());
+  return result;
+}
+
 bool AmagamiAssets::containsAsset(const std::string &id) const {
   if (id.rfind("actor-body/", 0) == 0)
     return contains(id.substr(11));
