@@ -203,6 +203,8 @@ int main(int argc, char **argv) {
               state.mute && state.skip && !state.autoDraw && state.autoMode &&
               !state.superSkip,
           "Runtime did not project Config.DAT retail state");
+    Check(app.runtime.allowForcedSubtitles(),
+          "Retail TextView ON should allow forced subtitles at startup");
     Check(state.masterVolume == -1.0f,
           "Runtime loaded opaque persisted MasterVolume");
     Check(app.engine.GetSettings().masterMuted,
@@ -384,6 +386,16 @@ int main(int argc, char **argv) {
                                                       Kind::SetSuperSkip, 1);
     SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
                                                       Kind::SetDrawMessage, 0);
+    Check(!app.runtime.allowForcedSubtitles() &&
+              app.engine.GetSettings().enableForcedSubtitles,
+          "Retail OFF must not modify the independent launcher option");
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetDrawMessage, 1);
+    Check(app.runtime.allowForcedSubtitles() &&
+              app.engine.GetSettings().enableForcedSubtitles,
+          "Retail ON should immediately permit forced subtitles again");
+    SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
+                                                      Kind::SetDrawMessage, 0);
     SchoolDays::RuntimeConfigStorageTestAccess::Apply(app.runtime,
                                                       Kind::RequestWide, 0);
     Check(SchoolDays::RuntimeConfigStorageTestAccess::UiVariant(app.runtime) ==
@@ -431,6 +443,9 @@ int main(int argc, char **argv) {
               state.voiceVolume == 2 && state.menVoice && !state.mute &&
               !state.skip && state.superSkip && !state.textView,
           "General/Sound values did not survive Config.DAT reload");
+    Check(!app.runtime.allowForcedSubtitles() &&
+              app.engine.GetSettings().enableForcedSubtitles,
+          "Config.DAT TextView OFF must gate forced subtitles after restart");
     const auto visuals =
         SchoolDays::RuntimeConfigStorageTestAccess::VisualState(app.runtime);
     Check(visuals.defFullCurrent == 7 && visuals.soundLevels[0] == 0 &&
