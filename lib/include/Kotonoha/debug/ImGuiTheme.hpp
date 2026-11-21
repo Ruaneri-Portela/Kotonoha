@@ -1,9 +1,10 @@
-﻿#pragma once
+#pragma once
 
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <SDL3/SDL.h>
 #include <imgui.h>
 
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
@@ -11,6 +12,8 @@
 namespace Kotonoha::ImGuiTheme {
 
 void loadFonts(const std::string &fontPath = {});
+bool loadFontsFromPaths(const std::filesystem::path &customPath,
+                        const std::filesystem::path &defaultPath);
 void apply(float scale = 1.0f);
 ImVec4 accent();
 ImVec4 success();
