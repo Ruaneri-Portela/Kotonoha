@@ -114,6 +114,20 @@ public:
   ~PmailGame() override;
 
   bool init();
+  // Read-only PAK index for the shared Kotonoha Debug UI. Returns logical
+  // script names without decoding every VM object.
+  std::vector<std::string> debugScripts() const {
+    std::lock_guard lock(mutex_);
+    std::vector<std::string> names;
+    names.reserve(entries_.size());
+    for (const auto &entry : entries_)
+      if (!entry.name.empty())
+        names.push_back(entry.name);
+    return names;
+  }
+  std::string scriptPackId() const { return packPath_; }
+  // Debug-only jump to a native Pmail script entry (not to library routines).
+  bool debugJumpScript(const std::string &name);
   std::string serialize() const;
   void deserialize(const std::string &data);
   void returnToTitle();
