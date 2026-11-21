@@ -12,6 +12,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/pak"
     "${CMAKE_CURRENT_BINARY_DIR}/providers/pak")
 add_library(luca_system_formats STATIC
   src/LucaSystemScript.cpp
+  src/DebugCatalog.cpp
   src/LucaSystemRuntime.cpp
 )
 target_include_directories(luca_system_formats PUBLIC src include)
