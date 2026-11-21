@@ -38,7 +38,7 @@ assert.equal(expression.runInNewContext({
 assert.equal(expression.runInNewContext({
     window: {KotonohaAssetCache: {fetchJob: 123}}
 }), 0, "non-function cache must be rejected");
-assert.equal(expression.runInNewContext({window: {}}), undefined,
+assert.equal(expression.runInNewContext({window: {}}), 0,
     "missing browser cache must fall back to emscripten_fetch");
 assert(!generated.includes("== ="), "Unexpected split equality token");
 
