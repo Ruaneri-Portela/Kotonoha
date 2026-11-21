@@ -95,6 +95,14 @@ function(kotonoha_copy_runtime_libraries target dependency_dirs)
                 set(_real "${_lib}")
             endif()
             get_target_property(_type ${_real} TYPE)
+            get_target_property(_imported ${_real} IMPORTED)
+            # Native system libraries remain provided by the OS. Do not
+            # duplicate /usr/lib SDL dependencies into every game bundle.
+            if(_imported AND
+               ((_lib MATCHES "^SDL3" AND KOTONOHA_SDL_PROVIDER_RESOLVED STREQUAL "SYSTEM") OR
+                (_lib MATCHES "imgui" AND KOTONOHA_IMGUI_PROVIDER_RESOLVED STREQUAL "SYSTEM")))
+                continue()
+            endif()
             if(_type STREQUAL "SHARED_LIBRARY" OR
                _type STREQUAL "MODULE_LIBRARY" OR
                _type STREQUAL "UNKNOWN_LIBRARY")
@@ -139,10 +147,24 @@ function(kotonoha_get_default_dependency_dirs _out_dirs)
     endif()
 
     set(_dirs)
+    list(APPEND _dirs "$<TARGET_FILE_DIR:KotonohaEngine>")
+    # Pkg-config backed SDL3 targets are INTERFACE libraries; TARGET_FILE_DIR
+    # is invalid for them. System runtime libraries are discovered by ld.so.
+    foreach(_kotonoha_sdl_target IN ITEMS SDL3::SDL3 SDL3_ttf::SDL3_ttf)
+        if(TARGET ${_kotonoha_sdl_target})
+            get_target_property(_kotonoha_alias ${_kotonoha_sdl_target} ALIASED_TARGET)
+            if(_kotonoha_alias)
+                set(_kotonoha_real_target "${_kotonoha_alias}")
+            else()
+                set(_kotonoha_real_target "${_kotonoha_sdl_target}")
+            endif()
+            get_target_property(_kotonoha_type ${_kotonoha_real_target} TYPE)
+            if(NOT _kotonoha_type STREQUAL "INTERFACE_LIBRARY")
+                list(APPEND _dirs "$<TARGET_FILE_DIR:${_kotonoha_sdl_target}>")
+            endif()
+        endif()
+    endforeach()
     list(APPEND _dirs
-        "$<TARGET_FILE_DIR:KotonohaEngine>"
-        "$<TARGET_FILE_DIR:SDL3::SDL3>"
-        "$<TARGET_FILE_DIR:SDL3_ttf::SDL3_ttf>"
         ${LIBASS_LIBRARY_DIRS}
         ${FFMPEG_LIBRARY_DIRS}
         ${FFMPEG_STATIC_LIBRARY_DIRS}
