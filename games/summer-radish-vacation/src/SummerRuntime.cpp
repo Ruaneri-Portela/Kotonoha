@@ -36,13 +36,41 @@ namespace {
 class SummerText final : public VNTextBox {
   Kotonoha::Providers::SummerAssets &assets;
   std::unique_ptr<ClickMap> controlMap;
-  // SRV1 uses GRAPHIC/FRAME/MESSFRAME, SRV2 uses GRAPHIC/MESFRAME/MESFRAME.
-  std::string frameTexb, frameCmap, selectTexb;
+  // SRV1 uses GRAPHIC/FRAME/MESSFRAME, SRV2/LostM use GRAPHIC/MESFRAME/MESFRAME.
+  std::string frameTexb, frameCmap, selectTexb, nameTexb;
+  bool lostM = false;
+  bool srv2 = false;
+  int nameId = -1;
+  bool useCustomPlayerName = false;
+  SDL_Color actorColor{240, 240, 245, 255};
   void renderFrame(RendererRef r) override {
     // The normal frame is already composited by the stage. Overlay the
     // original atlas states without rebuilding/upscaling the whole canvas.
     if (assets.contains(frameTexb)) {
       auto &atlas = assets.texture(r, frameTexb);
+      if (lostM || srv2) {
+        static constexpr SDL_FRect lostMBases[7] = {
+            {0, 248, 97, 13}, {0, 334, 92, 13}, {0, 200, 92, 13},
+            {0, 308, 97, 13}, {0, 321, 97, 13}, {0, 235, 92, 13},
+            {394, 248, 16, 20}};
+        static constexpr SDL_FRect srv2Bases[7] = {
+            {0, 288, 81, 20},  {0, 348, 106, 20}, {0, 211, 95, 20},
+            {0, 308, 87, 20},  {0, 328, 79, 20},  {0, 232, 46, 54},
+            {379, 288, 31, 10}};
+        const auto *bases = lostM ? lostMBases : srv2Bases;
+        for (int i = 0; i < 7 && i < int(controls.buttons.size()); ++i) {
+          const int state = controls.state(i);
+          const bool active = (i == 0 && skipActive && skipActive()) ||
+                              (i == 5 && autoActive && autoActive());
+          if (!state && !active)
+            continue;
+          const int col = active ? (state ? 3 : 2) : state;
+          SDL_FRect source{bases[i].x + float(col) * bases[i].w, bases[i].y,
+                           bases[i].w, bases[i].h};
+          RenderUpscaledTexture(&r, &atlas, &source, &controls.buttons[i].area);
+        }
+        return;
+      }
       for (int i = 0; i < 6; ++i) {
         const int state = controls.state(i);
         const bool active = (i == 0 && skipActive && skipActive()) ||
@@ -64,6 +92,33 @@ class SummerText final : public VNTextBox {
     }
   }
   void renderSpeaker(RendererRef r) override {
+    if (lostM) {
+      if (nameId < 0)
+        return;
+      if (assets.contains(frameTexb)) {
+        auto &atlas = assets.texture(r, frameTexb);
+        SDL_FRect baseSrc{440, 200, 218, 35};
+        SDL_FRect baseDst{25, 391, 218, 35};
+        RenderUpscaledTexture(&r, &atlas, &baseSrc, &baseDst);
+      }
+      if (nameId == 0 && useCustomPlayerName) {
+        engine.GetVNUI().text(r, speakerName, 40, 396, 188,
+                              engine.GetSettings().vnTextColorOverride
+                                  ? engine.GetSettings().vnSpeakerColor
+                                  : SDL_Color{240, 240, 240, 255});
+      } else if (assets.contains(nameTexb)) {
+        auto &nameAtlas = assets.texture(r, nameTexb);
+        float nw = 0, nh = 0;
+        SDL_GetTextureSize(&nameAtlas, &nw, &nh);
+        const float srcY = float(nameId * 34);
+        if (srcY + 34.0f <= nh) {
+          SDL_FRect src{0, srcY, std::min(188.0f, nw), 34.0f};
+          SDL_FRect dst{40, 391, src.w, 34.0f};
+          RenderUpscaledTexture(&r, &nameAtlas, &src, &dst);
+        }
+      }
+      return;
+    }
     engine.GetVNUI().text(r, speakerName, 24, 400, 650,
                           engine.GetSettings().vnTextColorOverride
                               ? engine.GetSettings().vnSpeakerColor
@@ -73,17 +128,30 @@ class SummerText final : public VNTextBox {
     auto measure = [&](const std::string &value) {
       return engine.GetVNUI().textWidth(value);
     };
-    const auto lines = VNTextBoxUtility::RevealLines(
-        fullDialogue, visibleDialogue.size(), measure, 710);
-    for (std::size_t i = 0; i < lines.size(); ++i)
-      engine.GetVNUI().text(r, lines[i], 20, 444 + i * 28, 710,
-                            engine.GetSettings().vnTextColorOverride
+    const float boxX = lostM ? 80.0f : 20.0f;
+    const float boxY = lostM ? 434.0f : 444.0f;
+    const float boxW = lostM ? 644.0f : 710.0f;
+    const SDL_Color color = engine.GetSettings().vnTextColorOverride
                                 ? engine.GetSettings().vnTextColor
-                                : SDL_Color{240, 240, 245, 255});
+                                : actorColor;
+    const auto lines = VNTextBoxUtility::RevealLines(
+        fullDialogue, visibleDialogue.size(), measure, boxW);
+    for (std::size_t i = 0; i < lines.size(); ++i)
+      engine.GetVNUI().text(r, lines[i], boxX, boxY + i * 28, boxW, color);
   }
   void renderIndicator(RendererRef r) override {
     if (assets.contains(frameTexb)) {
       auto &atlas = assets.texture(r, frameTexb);
+      if (lostM) {
+        const bool isAuto = autoActive && autoActive();
+        const float frameX = isAuto
+                                 ? float(70 + ((SDL_GetTicks() / 200) % 4) * 7)
+                                 : float(((SDL_GetTicks() / 120) % 7) * 7);
+        SDL_FRect source{frameX, 347, 7, 87};
+        SDL_FRect target{740, 473, 7, 87};
+        RenderUpscaledTexture(&r, &atlas, &source, &target);
+        return;
+      }
       SDL_FRect source{float(256 + ((SDL_GetTicks() / 200) % 4) * 16), 210, 16,
                        40};
       SDL_FRect target{719, 526, 16, 40};
@@ -95,6 +163,11 @@ public:
   ImageButtonBar controls;
   bool concealed = false;
   std::function<bool()> autoActive, skipActive;
+  void setLostMMetadata(int id, bool customName, SDL_Color color) {
+    nameId = id;
+    useCustomPlayerName = customName;
+    actorColor = color;
+  }
   void update() override {
     if (concealed)
       clock.reset();
@@ -106,24 +179,49 @@ public:
       VNTextBox::render(r, scale);
   }
   SummerText(Engine &e, Kotonoha::Providers::SummerAssets &a)
-      : VNTextBox(e, "", "", 40), assets(a) {
-    // SRV2 uses GRAPHIC/MESFRAME/*; SRV1 uses GRAPHIC/FRAME/*.
-    const bool srv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
-    const std::string prefix = srv2 ? "GRAPHIC/MESFRAME/" : "GRAPHIC/FRAME/";
-    frameTexb = prefix + (srv2 ? "MESFRAME.TEXB" : "MESSFRAME.TEXB");
-    frameCmap = prefix + (srv2 ? "MESFRAME.CMAP" : "MESSFRAME.CMAP");
+      : VNTextBox(e, "", "", 40), assets(a), lostM(a.isLostM()),
+        srv2(!a.isLostM() && a.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB")) {
+    // SRV2/LostM use GRAPHIC/MESFRAME/*; SRV1 uses GRAPHIC/FRAME/*.
+    const bool useMesframe = lostM || srv2;
+    const std::string prefix =
+        useMesframe ? "GRAPHIC/MESFRAME/" : "GRAPHIC/FRAME/";
+    frameTexb = prefix + (useMesframe ? "MESFRAME.TEXB" : "MESSFRAME.TEXB");
+    frameCmap = prefix + (useMesframe ? "MESFRAME.CMAP" : "MESSFRAME.CMAP");
     selectTexb = prefix + "SELECT.TEXB";
+    nameTexb = prefix + "NAME.TEXB";
     hide();
     if (auto cmap = assets.tryReadAsset(frameCmap))
       controlMap = std::make_unique<ClickMap>(std::move(*cmap));
-    controls.hitTest = [this](SDL_FPoint p) {
-      const int id =
-          controlMap ? controlMap->value(int(p.x), int(p.y) - 391) : -1;
-      return id >= 1 && id <= 6 ? id - 1 : -1;
-    };
-    controls.buttons = {{{417, 576, 96, 18}, {}}, {{507, 576, 96, 18}, {}},
-                        {{597, 576, 96, 18}, {}}, {{687, 576, 96, 18}, {}},
-                        {{778, 577, 18, 18}, {}}, {{750, 515, 46, 62}, {}}};
+    if (lostM) {
+      controls.hitTest = [this](SDL_FPoint p) {
+        const int id =
+            controlMap ? controlMap->value(int(p.x) - 64, int(p.y) - 426) : -1;
+        return id >= 1 && id <= 7 ? id - 1 : -1;
+      };
+      controls.buttons = {{{443, 563, 97, 13}, {}}, {{612, 580, 92, 13}, {}},
+                          {{502, 580, 92, 13}, {}}, {{557, 563, 97, 13}, {}},
+                          {{669, 563, 97, 13}, {}}, {{392, 580, 92, 13}, {}},
+                          {{733, 432, 16, 20}, {}}};
+    } else if (srv2) {
+      controls.hitTest = [this](SDL_FPoint p) {
+        const int id =
+            controlMap ? controlMap->value(int(p.x), int(p.y) - 390) : -1;
+        return id >= 1 && id <= 7 ? id - 1 : -1;
+      };
+      controls.buttons = {{{396, 576, 81, 20}, {}}, {{465, 576, 106, 20}, {}},
+                          {{559, 576, 95, 20}, {}}, {{642, 576, 87, 20}, {}},
+                          {{717, 576, 79, 20}, {}}, {{750, 522, 46, 54}, {}},
+                          {{765, 512, 31, 10}, {}}};
+    } else {
+      controls.hitTest = [this](SDL_FPoint p) {
+        const int id =
+            controlMap ? controlMap->value(int(p.x), int(p.y) - 391) : -1;
+        return id >= 1 && id <= 6 ? id - 1 : -1;
+      };
+      controls.buttons = {{{417, 576, 96, 18}, {}}, {{507, 576, 96, 18}, {}},
+                          {{597, 576, 96, 18}, {}}, {{687, 576, 96, 18}, {}},
+                          {{778, 577, 18, 18}, {}}, {{750, 515, 46, 62}, {}}};
+    }
   }
   bool designSpace() const override { return false; }
   bool handleEvent(EventRef e) override {
@@ -156,16 +254,21 @@ class SummerChoice final : public ChoiceQuestionScene {
     focused = focused && (pointerFocus || keyboardFocus);
     const auto &rect = options[index].hitBox;
     const bool read = index < readStates.size() && readStates[index];
-    const float start = (read ? 160 : 0) + (focused ? 80 : 0);
+    const float capL = assets.isLostM() ? 20.0f : 32.0f;
+    const float midW = assets.isLostM() ? 18.0f : 16.0f;
+    const float capR = assets.isLostM() ? 20.0f : 32.0f;
+    const float stride = capL + midW + capR;
+    const float secondOffset = assets.isLostM() ? 116.0f : 160.0f;
+    const float start = (read ? secondOffset : 0.0f) + (focused ? stride : 0.0f);
     if (assets.contains(selectTexb)) {
       auto &atlas = assets.texture(r, selectTexb);
-      SDL_FRect source{start, 0, 32, 42}, target{rect.x, rect.y, 32, 42};
+      SDL_FRect source{start, 0, capL, 42}, target{rect.x, rect.y, capL, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
-      source = {start + 32, 0, 16, 42};
-      target = {rect.x + 32, rect.y, rect.w - 64, 42};
+      source = {start + capL, 0, midW, 42};
+      target = {rect.x + capL, rect.y, rect.w - capL - capR, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
-      source = {start + 48, 0, 32, 42};
-      target = {rect.x + rect.w - 32, rect.y, 32, 42};
+      source = {start + capL + midW, 0, capR, 42};
+      target = {rect.x + rect.w - capR, rect.y, capR, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
     }
     const auto size =
@@ -516,8 +619,13 @@ struct SummerRuntime::Impl {
   std::string canvasKey;
   std::map<std::string, std::pair<int, int>> origins;
   std::vector<std::string> speakers;
-  // SRV1: {0, -200, 200}; SRV2: parsed from GRAPHIC.INI Position line.
+  std::vector<SDL_Color> speakerColors;
+  // SRV1: {0, -200, 200}; SRV2/LostM: parsed from GRAPHIC.INI Position line.
   std::vector<int> positionOffsets = {0, -200, 200};
+  int quakeAxis = 0; // 1 = X, 2 = Y
+  int quakeAmp = 0, quakeCycles = 0, quakeStepMs = 16;
+  uint64_t quakeStart = 0;
+  int quakeOffsetX = 0, quakeOffsetY = 0;
   std::array<std::string, 4> defaultNames{};
   TextInputForm *nameForm = nullptr;
   static std::string nameKey(const char *prefix, size_t index) {
@@ -590,18 +698,27 @@ struct SummerRuntime::Impl {
   uint64_t deadline = 0, lastUpdate = 0, lastSystemWrite = 0;
   bool title = false, autoMode = false, loaded = false, skipHeld = false,
        currentRead = false, openingPlayed = false;
+  struct MeoFadeState {
+    int alpha = 0;
+    uint8_t r = 0, g = 0, b = 0;
+  };
   bool meo = false, meoMenu = false, meoSceneMenu = false;
   std::map<std::string, Bytes> meoScripts;
   std::vector<std::string> meoScenes;
   size_t meoSceneFocus = 0;
   std::map<std::string, std::string> meoText;
   std::string meoRawSpeaker;
+  std::string meoVoiceTrack;
   std::vector<std::string> activeOriginalKeys;
   std::string currentRawSpeaker, currentRawDialogue, currentVoiceId;
   std::vector<Node> meoFrames;
   std::string meoCurrentScript;
   std::string meoNextScript;
   std::vector<std::pair<std::string, std::string>> meoChoices;
+  std::map<std::string, int64_t> meoGlobals;
+  std::map<std::string, int64_t> meoLocals;
+  std::map<std::string, MeoFadeState> meoFades;
+  uint64_t meoLoveViewUntil = 0;
   size_t meoFrame = 0;
   uint64_t meoFrameStart = 0;
   uint64_t meoElapsedOffset = 0;
@@ -615,10 +732,13 @@ struct SummerRuntime::Impl {
     std::string name;
     std::string flag;
     int atlasX = 0, atlasY = 0, atlasW = 0, atlasH = 0; // Source rect in atlas
+    int drawX = 0, drawY = 0, drawW = 0, drawH = 0;     // Screen destination
+    bool hasDrawArea = false;
   };
   int titleBaseX = 0, titleBaseY = 0; // Screen base position from [TITLE000]
   int titleChipSpacing = 40;          // Vertical spacing between chips
-  std::string titleChipTexture;       // TEMPLATENAME or fallback
+  bool titleAbsoluteAlign = false;    // ALIGN-X/Y = ABSOLUTE (Lost M)
+  std::string titleChipTexture;       // TEXNAME / TEMPLATENAME or fallback
   std::vector<TitleChip> allTitleChips;
   std::vector<TitleChip> titleChips;
   void refreshTitleChips() {
@@ -663,6 +783,8 @@ struct SummerRuntime::Impl {
           assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
       std::string line;
       speakers.resize(64);
+      speakerColors.assign(64, SDL_Color{240, 240, 245, 255});
+      std::vector<int> cgFlags(64, 0);
       while (std::getline(stream, line)) {
         if (line.rfind("PlayerName0", 0) == 0 && line.size() > 12 &&
             line[11] >= '0' && line[11] <= '3') {
@@ -673,7 +795,7 @@ struct SummerRuntime::Impl {
             val.erase(val.find_last_not_of(" \t\r") + 1);
             auto &name = defaultNames[size_t(line[11] - '0')];
             if (!val.empty() && val[0] == '@') {
-              // SRV2: @-prefixed literal UTF-8 string (after UTF-16LE decode).
+              // SRV2/LostM: @-prefixed literal UTF-8 string (after UTF-16LE decode).
               name = val.substr(1);
             } else if (val.size() % 2 == 0 &&
                        val.find_first_not_of("0123456789abcdefABCDEF") ==
@@ -694,7 +816,7 @@ struct SummerRuntime::Impl {
           val.erase(0, val.find_first_not_of(" \t"));
           val.erase(val.find_last_not_of(" \t\r") + 1);
           if (!val.empty() && val[0] == '@') {
-            // SRV2: @-prefixed literal UTF-8 string.
+            // SRV2/LostM: @-prefixed literal UTF-8 string.
             speakers[i] = val.substr(1);
           } else if (val.size() % 2 == 0 &&
                      val.find_first_not_of("0123456789ABCDEFabcdef") ==
@@ -705,6 +827,41 @@ struct SummerRuntime::Impl {
               name += char(std::stoi(val.substr(p, 2), nullptr, 16));
             speakers[i] = name;
           }
+        } else if (line.size() > 15 && line.substr(0, 3) == "CHR" &&
+                   line.substr(6, 9) == "FontColor") {
+          int i = std::stoi(line.substr(3, 3));
+          auto eq = line.find('=');
+          if (i >= 0 && i < int(speakerColors.size()) && eq != line.npos) {
+            std::string val = line.substr(eq + 1);
+            val.erase(0, val.find_first_not_of(" \t"));
+            val.erase(val.find_last_not_of(" \t\r") + 1);
+            try {
+              unsigned long rgb = std::stoul(val, nullptr, 16);
+              speakerColors[size_t(i)] = SDL_Color{
+                  Uint8((rgb >> 16) & 0xff), Uint8((rgb >> 8) & 0xff),
+                  Uint8(rgb & 0xff), 255};
+            } catch (...) {
+            }
+          }
+        } else if (line.size() > 12 && line.substr(0, 3) == "CHR" &&
+                   line.substr(6, 6) == "CgFlag") {
+          int i = std::stoi(line.substr(3, 3));
+          auto eq = line.find('=');
+          if (i >= 0 && i < int(cgFlags.size()) && eq != line.npos) {
+            std::string val = line.substr(eq + 1);
+            val.erase(0, val.find_first_not_of(" \t"));
+            val.erase(val.find_last_not_of(" \t\r") + 1);
+            try {
+              cgFlags[size_t(i)] = std::stoi(val);
+            } catch (...) {
+            }
+          }
+        }
+      }
+      for (size_t i = 0; i < speakers.size(); ++i) {
+        if (!speakers[i].empty() && (cgFlags[i] & 0x8000) != 0) {
+          vm.variables["$HAIR" + speakers[i]] =
+              int64_t((cgFlags[i] & 1) ? 0x10000 : 0);
         }
       }
       // Parse character position offsets from GRAPHIC.INI (SRV2 has 7 slots).
@@ -777,6 +934,8 @@ struct SummerRuntime::Impl {
           continue;
         }
         variables[key] = number;
+        if (meo && key.size() > 1)
+          meoGlobals[key.substr(1)] = number;
       }
     }
     input >> std::ws;
@@ -788,6 +947,10 @@ struct SummerRuntime::Impl {
   void saveSystem() {
     if (!loaded)
       return;
+    if (meo) {
+      for (const auto &[k, v] : meoGlobals)
+        vm.variables["$" + k] = v;
+    }
     size_t count = 0;
     for (auto &[key, value] : vm.variables)
       if (!key.empty() && key[0] == '$')
@@ -835,7 +998,8 @@ struct SummerRuntime::Impl {
     runtime.AddScene(saves.get());
   }
   void audio(PcmPlayer &player, const std::string &id,
-             const std::string &channel, bool loop = false) {
+             const std::string &channel, bool loop = false,
+             std::size_t startFrame = 0) {
     player.Stop();
     if (!assets->contains(id)) {
       warn("Missing audio: " + id);
@@ -855,6 +1019,7 @@ struct SummerRuntime::Impl {
     clip.channels = target.channels;
     clip.rate = target.freq;
     clip.loop = loop;
+    clip.startFrame = startFrame;
     clip.samples.resize(size / 2);
     std::memcpy(clip.samples.data(), converted, size);
 
@@ -919,6 +1084,7 @@ struct SummerRuntime::Impl {
     titleBaseX = 0;
     titleBaseY = 0;
     titleChipSpacing = 40;
+    titleAbsoluteAlign = false;
     auto inipath = iniPath;
     if (!inipath.empty() && inipath[0] == '@')
       inipath.erase(0, 1);
@@ -978,18 +1144,28 @@ struct SummerRuntime::Impl {
       val.erase(0, val.find_first_not_of(" \t"));
       val.erase(val.find_last_not_of(" \t\r") + 1);
       if (section == "TOTAL") {
-        if (key == "TEMPLATENAME")
+        if (key == "TEMPLATENAME" || key == "TEXNAME")
           titleChipTexture = val;
-      } else if (section.rfind("TITLE", 0) == 0) {
-        if (key == "DRAWAREA") {
+      } else if (section == "TITLE000") {
+        if (key == "BASE" && !val.empty()) {
+          background = val;
+        } else if (key == "ALIGN-X" || key == "ALIGN-Y") {
+          if (canonical(val) == "ABSOLUTE")
+            titleAbsoluteAlign = true;
+        } else if (key == "DRAWAREA") {
           for (char &ch : val)
             if (ch == ',')
               ch = ' ';
           std::istringstream v(val);
           int a, b, c, d, e;
           if (v >> a >> b >> c >> d >> e) {
-            titleBaseX = b;
-            titleBaseY = a;
+            if (assets->isLostM()) {
+              titleBaseX = a;
+              titleBaseY = b;
+            } else {
+              titleBaseX = a;
+              titleBaseY = b;
+            }
           }
         }
       } else if (section.rfind("CHIP", 0) == 0 && chipIndex >= 0 &&
@@ -1001,17 +1177,30 @@ struct SummerRuntime::Impl {
           chip.flag = val;
         else if (key == "SIZE") {
           titleChipSpacing = std::stoi(val);
-        } else if (key == "AREA" || key == "DRAWAREA") {
+        } else if (key == "AREA") {
           for (char &ch : val)
             if (ch == ',')
               ch = ' ';
           std::istringstream v(val);
           int a, b, c, d, e;
           if (v >> a >> b >> c >> d >> e) {
-            chip.atlasX = b;
-            chip.atlasY = a;
+            chip.atlasX = a;
+            chip.atlasY = b;
             chip.atlasW = c;
             chip.atlasH = d;
+          }
+        } else if (key == "DRAWAREA") {
+          for (char &ch : val)
+            if (ch == ',')
+              ch = ' ';
+          std::istringstream v(val);
+          int a, b, c, d, e;
+          if (v >> a >> b >> c >> d >> e) {
+            chip.drawX = a;
+            chip.drawY = b;
+            chip.drawW = c;
+            chip.drawH = d;
+            chip.hasDrawArea = true;
           }
         }
       }
@@ -1076,6 +1265,28 @@ struct SummerRuntime::Impl {
         } else if (child.tag == "BgmStop") {
           bgm.Stop();
           music.clear();
+        } else if (child.tag == "Fade") {
+          const std::string name = child.attr("NAME");
+          if (child.attr("ERASE") == "TRUE") {
+            meoFades.erase(name);
+          } else {
+            auto &st = meoFades[name];
+            if (name.find("_WH") != std::string::npos) {
+              st.r = st.g = st.b = 255;
+            }
+            const std::string diff = child.attr("DIFF");
+            if (!diff.empty()) {
+              int a = 0, r = 0, g = 0, b = 0;
+              char c1 = 0, c2 = 0, c3 = 0;
+              std::istringstream ss(diff);
+              if (ss >> a >> c1 >> r >> c2 >> g >> c3 >> b) {
+                st.alpha = std::clamp(a, 0, 255);
+                st.r = uint8_t(std::clamp(r, 0, 255));
+                st.g = uint8_t(std::clamp(g, 0, 255));
+                st.b = uint8_t(std::clamp(b, 0, 255));
+              }
+            }
+          }
         } else if (child.tag == "Objects") {
           for (const auto &object : child.children) {
             if (object.attr("CREATE") != "Movie")
@@ -1110,14 +1321,99 @@ struct SummerRuntime::Impl {
       text->show();
     }
   }
+  int64_t evalMeoExpr(const Node &n) {
+    if (n.tag == "INT") {
+      try {
+        return std::stoll(n.text);
+      } catch (...) {
+        return 0;
+      }
+    }
+    if (n.tag == "GLOBAL") {
+      auto it = meoGlobals.find(n.text);
+      return it != meoGlobals.end() ? it->second : 0;
+    }
+    if (n.tag == "LOCAL") {
+      auto it = meoLocals.find(n.text);
+      return it != meoLocals.end() ? it->second : 0;
+    }
+    if (n.tag == "ADD" && n.children.size() >= 2)
+      return evalMeoExpr(n.children[0]) + evalMeoExpr(n.children[1]);
+    if (n.tag == "SUB" && n.children.size() >= 2)
+      return evalMeoExpr(n.children[0]) - evalMeoExpr(n.children[1]);
+    if (n.tag == "OPE" && n.children.size() >= 2)
+      return evalMeoExpr(n.children[0]) == evalMeoExpr(n.children[1]) ? 1 : 0;
+    if (n.tag == "OPGE" && n.children.size() >= 2)
+      return evalMeoExpr(n.children[0]) >= evalMeoExpr(n.children[1]) ? 1 : 0;
+    if (n.tag == "SET" && n.children.size() >= 2) {
+      const int64_t val = evalMeoExpr(n.children[1]);
+      if (n.children[0].tag == "GLOBAL") {
+        meoGlobals[n.children[0].text] = val;
+        vm.variables["$" + n.children[0].text] = val;
+      } else if (n.children[0].tag == "LOCAL") {
+        meoLocals[n.children[0].text] = val;
+      }
+      return val;
+    }
+    if (n.tag == "CALC") {
+      int64_t last = 0;
+      for (const auto &c : n.children)
+        last = evalMeoExpr(c);
+      return last;
+    }
+    return 0;
+  }
+  void execMeoCode(const Node &node) {
+    if (node.tag == "Code" || node.tag == "BLOCK") {
+      for (const auto &c : node.children)
+        execMeoCode(c);
+      return;
+    }
+    if (node.tag == "CALC") {
+      evalMeoExpr(node);
+      return;
+    }
+    if (node.tag == "IFBLOCK") {
+      for (size_t i = 0; i + 1 < node.children.size(); i += 2) {
+        if (evalMeoExpr(node.children[i]) != 0) {
+          execMeoCode(node.children[i + 1]);
+          break;
+        }
+      }
+      return;
+    }
+    if (node.tag == "FUNC") {
+      const std::string fn = node.attr("NAME");
+      std::vector<std::string> refs;
+      for (const auto &c : node.children)
+        if (c.tag == "STRRES")
+          refs.push_back(c.text);
+      if (fn == "SetSelectScript" && refs.size() >= 2) {
+        const auto target = meoText.find(refs[0]);
+        const auto label = meoText.find(refs[1]);
+        if (target != meoText.end() && label != meoText.end())
+          meoChoices.emplace_back(label->second, target->second);
+      } else if (fn == "SetTimeoutScript" && !refs.empty()) {
+        const auto found = meoText.find(refs[0]);
+        if (found != meoText.end())
+          meoNextScript = found->second;
+      } else if (fn == "ViewMisaoLove") {
+        meoLoveViewUntil = SDL_GetTicks() + 3000;
+      }
+    }
+  }
   void beginMeo(const std::string &scriptName) {
     SDL_Log("MEO: begin script %s", scriptName.c_str());
+    if (canonical(stem(scriptName)) == "A-00")
+      meoLocals.clear();
     meoMenu = false;
     if (movie)
       movie->stop();
+    voice.Stop();
     text->hide();
     meoText.clear();
     meoRawSpeaker.clear();
+    meoVoiceTrack.clear();
     activeOriginalKeys.clear();
     currentRawSpeaker.clear();
     currentRawDialogue.clear();
@@ -1125,6 +1421,7 @@ struct SummerRuntime::Impl {
     meoFrames.clear();
     meoNextScript.clear();
     meoChoices.clear();
+    meoFades.clear();
     meoFrame = 0;
     meoFrameLength = 0;
     meoElapsedOffset = 0;
@@ -1185,6 +1482,18 @@ struct SummerRuntime::Impl {
     meoCurrentScript = wanted;
 
     const std::string xml(source.begin(), source.end());
+    const auto voiceStart = xml.find("<VoiceFile>");
+    if (voiceStart != std::string::npos) {
+      const auto valueStart = voiceStart + sizeof("<VoiceFile>") - 1;
+      const auto valueEnd = xml.find("</VoiceFile>", valueStart);
+      if (valueEnd != std::string::npos) {
+        meoVoiceTrack = canonical(xml.substr(valueStart,
+                                            valueEnd - valueStart));
+        if (meoVoiceTrack.rfind("SOUND/", 0) != 0)
+          meoVoiceTrack = "SOUND/" + meoVoiceTrack;
+        audio(voice, meoVoiceTrack, "Voice");
+      }
+    }
     auto attrValue = [](const std::string &tag, const std::string &name) {
       const std::string needle = name + "=\"";
       auto start = tag.find(needle);
@@ -1235,47 +1544,17 @@ struct SummerRuntime::Impl {
     };
     meoSelectStart = integerTag("SelectStartTime");
     meoSelectEnd = integerTag("SelectEndTime");
-    const std::string selectMarker = "<FUNC NAME=\"SetSelectScript\">";
-    size_t selectPos = 0;
-    while ((selectPos = xml.find(selectMarker, selectPos)) != std::string::npos) {
-      const auto end = xml.find("</FUNC>", selectPos);
-      if (end == std::string::npos)
-        break;
-      std::vector<std::string> refs;
-      auto pos = selectPos + selectMarker.size();
-      while ((pos = xml.find("<STRRES>", pos)) != std::string::npos &&
-             pos < end) {
-        pos += 8;
-        const auto close = xml.find("</STRRES>", pos);
-        if (close == std::string::npos || close > end)
-          break;
-        refs.push_back(xml.substr(pos, close - pos));
-        pos = close + 9;
-      }
-      if (refs.size() >= 2) {
-        const auto target = meoText.find(refs[0]);
-        const auto label = meoText.find(refs[1]);
-        if (target != meoText.end() && label != meoText.end())
-          meoChoices.emplace_back(label->second, target->second);
-      }
-      selectPos = end + 7;
-    }
-
-    const std::string timeoutMarker = "<FUNC NAME=\"SetTimeoutScript\">";
-    auto timeoutPos = xml.find(timeoutMarker);
-    if (timeoutPos != std::string::npos) {
-      const auto strStart = xml.find("<STRRES>", timeoutPos);
-      if (strStart != std::string::npos) {
-        const auto valueStart = strStart + 8;
-        const auto strEnd = xml.find("</STRRES>", valueStart);
-        if (strEnd != std::string::npos) {
-          const auto found =
-              meoText.find(xml.substr(valueStart, strEnd - valueStart));
-          if (found != meoText.end())
-            meoNextScript = found->second;
-        }
+    const auto codeStart = xml.find("<Code>");
+    const auto codeEnd = xml.find("</Code>", codeStart);
+    if (codeStart != std::string::npos && codeEnd != std::string::npos) {
+      try {
+        execMeoCode(parseXml(xml.substr(codeStart, codeEnd + 7 - codeStart)));
+      } catch (const std::exception &e) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "MEO Code parse warning: %s",
+                    e.what());
       }
     }
+    saveSystem();
 
     size_t framePos = 0;
     while ((framePos = xml.find("<Frame ", framePos)) != std::string::npos) {
@@ -1316,6 +1595,14 @@ struct SummerRuntime::Impl {
             child.tag = "Bgm";
             child.text = body.substr(end + 1, close - end - 1);
           }
+        } else if (tag.compare(0, 8, "<FDIN_BL") == 0 ||
+                   tag.compare(0, 8, "<FDIN_WH") == 0 ||
+                   tag.compare(0, 8, "<FDOT_BL") == 0 ||
+                   tag.compare(0, 8, "<FDOT_WH") == 0) {
+          child.tag = "Fade";
+          child.attrs["NAME"] = tag.substr(1, 7);
+          child.attrs["DIFF"] = attrValue(tag, "DIFF");
+          child.attrs["ERASE"] = attrValue(tag, "ERASE");
         } else if (tag.find("CREATE=\"Movie\"") != std::string::npos) {
           child.tag = "Objects";
           Node object;
@@ -1349,6 +1636,7 @@ struct SummerRuntime::Impl {
     if (movie)
       movie->stop();
     bgm.Stop();
+    voice.Stop();
     music.clear();
     meoMenu = true;
     meoSceneMenu = false;
@@ -1363,7 +1651,8 @@ struct SummerRuntime::Impl {
         double(meoElapsedOffset +
                (now >= meoFrameStart ? now - meoFrameStart : 0)) /
         1000.0;
-    const int frameTime = int(seconds * 60.0);
+    // FILMEngine advances the SND track in groups of 24 script frames.
+    const int frameTime = int(seconds * 24.0);
     if (!meoChoices.empty() && meoSelectEnd > meoSelectStart &&
         frameTime >= meoSelectStart && frameTime < meoSelectEnd &&
         !meoChoiceShown) {
@@ -1420,29 +1709,7 @@ struct SummerRuntime::Impl {
     GetVNBacklogRuntime(*engine).clear();
     saveSystem();
     pendingScript = script;
-    // Reproduz o vídeo de abertura (se existir) apenas na primeira
-    // inicialização, antes do título, igual ao jogo original. Tenta nomes
-    // conhecidos em cada instalação. Não inicia o script enquanto o filme
-    // estiver tocando; ele começa quando o filme termina (tratado em
-    // update()).
-    if (!openingPlayed) {
-      std::vector<std::string> openingCandidates{
-          "DISC1/opening.mpg", "DISC1/summer_op.mpg", "opening.mpg",
-          "summer_op.mpg"};
-      for (const auto &candidate : openingCandidates) {
-        try {
-          movie->open(assets->movieHandle(candidate), candidate, false, "BGM");
-          text->hide();
-          vm.waiting = true;
-          pending = "OPENING";
-          openingPlayed = true;
-          return; // Não inicia o script ainda; espera o filme terminar.
-        } catch (const std::exception &) {
-          // Candidate não existe nesta instalação; tenta o próximo.
-        }
-      }
-      openingPlayed = true; // Não há vídeo; não tentará novamente.
-    }
+    openingPlayed = true;
     vm.start(script);
     // Keep the original boot warnings/logos; globals absent on first boot are
     // zero.
@@ -1459,27 +1726,56 @@ struct SummerRuntime::Impl {
       text = std::make_unique<SummerText>(e, *assets);
       text->autoActive = [this] { return autoMode; };
       text->skipActive = [this] { return skipMode || skipHeld; };
-      text->controls.buttons[0].action = [this] {
-        skipMode = !skipMode;
-        if (skipMode)
-          autoMode = false;
-      };
-      text->controls.buttons[1].action = [this] {
-        GetVNBacklogRuntime(*engine).open();
-      };
-      text->controls.buttons[2].action = [this] {
-        autoMode = !autoMode;
-        if (autoMode)
-          skipMode = false;
-        deadline = 0;
-      };
-      text->controls.buttons[3].action = [this] {
-        GetInGameMenuRuntime(*engine).open();
-      };
-      text->controls.buttons[4].action = [this] { text->concealed = true; };
-      text->controls.buttons[5].action = [this] {
-        runtime.saveGame((saveDirectory() / "quicksave.vn").string());
-      };
+      if (assets->isLostM()) {
+        text->controls.buttons[0].action = [this] {
+          skipMode = !skipMode;
+          if (skipMode)
+            autoMode = false;
+        };
+        text->controls.buttons[1].action = [this] {
+          GetVNBacklogRuntime(*engine).open();
+        };
+        text->controls.buttons[2].action = [this] {
+          GetInGameMenuRuntime(*engine).open();
+        };
+        text->controls.buttons[3].action = [this] {
+          const auto qs = saveDirectory() / "quicksave.vn";
+          if (std::filesystem::exists(qs))
+            runtime.loadGame(qs.string());
+        };
+        text->controls.buttons[4].action = [this] {
+          runtime.saveGame((saveDirectory() / "quicksave.vn").string());
+        };
+        text->controls.buttons[5].action = [this] {
+          autoMode = !autoMode;
+          if (autoMode)
+            skipMode = false;
+          deadline = 0;
+        };
+        text->controls.buttons[6].action = [this] { text->concealed = true; };
+      } else {
+        text->controls.buttons[0].action = [this] {
+          skipMode = !skipMode;
+          if (skipMode)
+            autoMode = false;
+        };
+        text->controls.buttons[1].action = [this] {
+          GetVNBacklogRuntime(*engine).open();
+        };
+        text->controls.buttons[2].action = [this] {
+          autoMode = !autoMode;
+          if (autoMode)
+            skipMode = false;
+          deadline = 0;
+        };
+        text->controls.buttons[3].action = [this] {
+          GetInGameMenuRuntime(*engine).open();
+        };
+        text->controls.buttons[4].action = [this] { text->concealed = true; };
+        text->controls.buttons[5].action = [this] {
+          runtime.saveGame((saveDirectory() / "quicksave.vn").string());
+        };
+      }
       choice = std::make_unique<SummerChoice>(e, *assets);
       movie = std::make_unique<MediaPlayer>(e.GetAudio());
       choice->nativeSound = [this](const std::string &id) {
@@ -1502,6 +1798,41 @@ struct SummerRuntime::Impl {
       runtime.AddScene(&backlog, GameState::Gameplay);
     auto &menu = GetInGameMenuRuntime(e);
     menu.close();
+    if (meo) {
+      menu.SetPresentation(
+          [this](RendererRef renderer) {
+            SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 185);
+            SDL_FRect dim{0, 0, 1280, 720};
+            SDL_RenderFillRect(&renderer, &dim);
+            auto &atlas = assets->texture(renderer, "GRAPHIC/SYSTEM.TEX");
+            SDL_FRect source{0, 0, 640, 60};
+            SDL_FRect target{80, 60, 1120, 105};
+            SDL_RenderTexture(&renderer, &atlas, &source, &target);
+          },
+          [this](RendererRef renderer, int index, bool focused) {
+            static constexpr float rows[] = {328, 240, 284, 196, 196, 328};
+            static constexpr const char *labels[] = {
+                "CONTINUE", "BACK LOG", "SYSTEM", "SAVE", "LOAD",
+                "TITLE"};
+            auto &atlas = assets->texture(renderer, "GRAPHIC/SYSTEM.TEX");
+            SDL_FRect source{0, rows[index], 640, 42};
+            SDL_FRect target{120, float(180 + index * 74), 1040, 62};
+            SDL_RenderTexture(&renderer, &atlas, &source, &target);
+            if (focused) {
+              SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+              SDL_SetRenderDrawColor(&renderer, 255, 220, 130, 70);
+              SDL_RenderFillRect(&renderer, &target);
+            }
+            engine->GetUI().text(renderer, labels[index], 900, target.y + 15,
+                                 230, {255, 255, 255, 255});
+          },
+          [](int index) {
+            return SDL_FRect{120, float(180 + index * 74), 1040, 62};
+          });
+    } else {
+      menu.SetPresentation({}, {}, {});
+    }
     menu.SetOnSave([this] { openSaves(false); });
     menu.SetOnLoad([this] { openSaves(true); });
     menu.SetOnReturnToMenu([this] {
@@ -1552,15 +1883,24 @@ struct SummerRuntime::Impl {
     auto &r = vm.resource.children;
     if (r.size() < 5)
       throw std::runtime_error("Invalid MESSAGE resource");
+    int msgNameId = int(number(vm.evaluate(r[3])));
     int actor = int(number(vm.evaluate(r[4])));
     currentMessageActor = actor;
     std::string speaker =
         actor > 0 && actor < int(speakers.size()) ? speakers[actor] : "";
+    if (assets->isLostM() && msgNameId < 0)
+      speaker.clear();
 
     currentRead = vm.hasRead(r[1]);
     const auto names = playerNames();
     if (actor == 1 && !names[1].empty())
       speaker = names[1];
+    const int64_t changeMask = number(vm.variables["$ChangePlayerName"]);
+    const SDL_Color actorCol =
+        (actor >= 0 && actor < int(speakerColors.size()))
+            ? speakerColors[size_t(actor)]
+            : SDL_Color{240, 240, 245, 255};
+    text->setLostMMetadata(msgNameId, (changeMask & 1) != 0, actorCol);
     currentRawSpeaker = speaker;
     currentRawDialogue =
         substitutePlayerNames(string(vm.evaluate(r[2])), names);
@@ -1577,7 +1917,11 @@ struct SummerRuntime::Impl {
       skipMode = false;
     voice.Stop();
     if (r.size() > 5) {
-      const auto stemStr = string(vm.evaluate(r[5]));
+      std::string stemStr;
+      if ((changeMask & 2) != 0 && r.size() > 6)
+        stemStr = string(vm.evaluate(r[6]));
+      if (stemStr.empty())
+        stemStr = string(vm.evaluate(r[5]));
       auto id = "VOICE/" + stemStr + ".ogg";
       if (!assets->contains(id) &&
           assets->contains("VOICE/" + stemStr + ".wav"))
@@ -1852,6 +2196,25 @@ struct SummerRuntime::Impl {
       pending = "MOVIE";
       return;
     }
+    if (name == "QUAKEX" || name == "QUAKEY") {
+      const int amp = int(number(arg(0)));
+      const int cycles = int(number(arg(1)));
+      const int stepScale = int(number(arg(2)));
+      const int stepMs = std::max(16, (500 * std::max(1, stepScale)) / 500);
+      if (amp == 0 || cycles <= 0)
+        return;
+      quakeAxis = (name == "QUAKEX") ? 1 : 2;
+      quakeAmp = amp;
+      quakeCycles = cycles;
+      quakeStepMs = stepMs;
+      quakeStart = SDL_GetTicks();
+      quakeOffsetX = (quakeAxis == 1) ? -amp : 0;
+      quakeOffsetY = (quakeAxis == 2) ? -amp : 0;
+      deadline = quakeStart + uint64_t(cycles) * 4u * uint64_t(stepMs);
+      pending = "QUAKE";
+      vm.waiting = true;
+      return;
+    }
     throw std::runtime_error("Unimplemented native function: " + name);
   }
   void picture(RendererRef r, const std::string &id, SDL_FRect target,
@@ -1980,6 +2343,36 @@ struct SummerRuntime::Impl {
         SDL_SetRenderDrawColor(&r, 16, 18, 28, 255);
         SDL_RenderClear(&r);
       }
+      for (const auto &[name, fade] : meoFades) {
+        if (fade.alpha > 0) {
+          SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawColor(&r, fade.r, fade.g, fade.b,
+                                 Uint8(std::clamp(fade.alpha, 0, 255)));
+          const SDL_FRect full{0, 0, 800, 600};
+          SDL_RenderFillRect(&r, &full);
+        }
+      }
+      if (meoLoveViewUntil > SDL_GetTicks()) {
+        const int64_t love =
+            meoLocals.count("L_MISAO") ? meoLocals.at("L_MISAO") : 0;
+        const int64_t maxLove =
+            meoLocals.count("L_MISAO_MAX")
+                ? std::max<int64_t>(1, meoLocals.at("L_MISAO_MAX"))
+                : 17;
+        SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(&r, 20, 12, 28, 200);
+        const SDL_FRect box{560, 24, 216, 36};
+        SDL_RenderFillRect(&r, &box);
+        SDL_SetRenderDrawColor(&r, 255, 120, 175, 230);
+        const float ratio =
+            std::clamp(float(love) / float(maxLove), 0.0f, 1.0f);
+        const SDL_FRect bar{568, 44, 200.0f * ratio, 10};
+        SDL_RenderFillRect(&r, &bar);
+        SDL_SetRenderDrawColor(&r, 255, 225, 240, 255);
+        const std::string label =
+            "MISAO LOVE " + std::to_string(love) + "/" + std::to_string(maxLove);
+        SDL_RenderDebugText(&r, 570, 29, label.c_str());
+      }
       return;
     }
     std::string base =
@@ -2023,9 +2416,14 @@ struct SummerRuntime::Impl {
             assets->contains("GRAPHIC/MESFRAME/MESFRAME.TEXB")
                 ? "GRAPHIC/MESFRAME/MESFRAME.TEXB"
                 : "GRAPHIC/FRAME/MESSFRAME.TEXB";
-        if (assets->contains(framePath))
-          compositeImageRegion(canvas, image(framePath), 0, 391, 0, 0, 800,
-                               209);
+        if (assets->contains(framePath)) {
+          if (assets->isLostM())
+            compositeImageRegion(canvas, image(framePath), 64, 426, 0, 0, 707,
+                                 171);
+          else
+            compositeImageRegion(canvas, image(framePath), 0, 391, 0, 0, 800,
+                                 209);
+        }
       }
       choice->compose(
           canvas, [this](const auto &id) -> const Image & { return image(id); },
@@ -2035,10 +2433,15 @@ struct SummerRuntime::Impl {
           for (size_t i = 0; i < titleChips.size(); ++i) {
             const auto &chip = titleChips[i];
             const bool focused = i == size_t(titleFocus);
-            compositeImageRegion(canvas, image(titleChipTexture), titleBaseX,
-                                 titleBaseY + int(i) * titleChipSpacing,
-                                 focused ? chip.atlasW : 0, chip.atlasY,
-                                 chip.atlasW, chip.atlasH);
+            const int dstX =
+                (titleAbsoluteAlign && chip.hasDrawArea) ? chip.drawX : titleBaseX;
+            const int dstY =
+                (titleAbsoluteAlign && chip.hasDrawArea)
+                    ? chip.drawY
+                    : (titleBaseY + int(i) * titleChipSpacing);
+            compositeImageRegion(canvas, image(titleChipTexture), dstX, dstY,
+                                 chip.atlasX + (focused ? chip.atlasW : 0),
+                                 chip.atlasY, chip.atlasW, chip.atlasH);
           }
       }
       if (!canvasTexture)
@@ -2051,7 +2454,7 @@ struct SummerRuntime::Impl {
       lastCanvas = std::move(canvas);
       canvasKey = state.str();
     }
-    SDL_FRect target{0, 0, 800, 600};
+    SDL_FRect target{float(quakeOffsetX), float(quakeOffsetY), 800, 600};
     RenderUpscaledTexture(&r, canvasTexture.get(), nullptr, &target,
                           canvasContentSerial);
     if (pending == "MOVIE" && movie && movie->isOpen()) {
@@ -2080,10 +2483,7 @@ struct SummerRuntime::Impl {
       SDL_Event e{};
       e.type = SDL_EVENT_QUIT;
       SDL_PushEvent(&e);
-    } else if (chipName == "CG" || chipName == "_CG" || chipName == "SOUND" ||
-               chipName == "_SOUND" || chipName == "REPLAY" ||
-               chipName == "_REPLAY" || chipName == "OMAKE" ||
-               chipName == "BACK") {
+    } else {
       title = false;
       pending.clear();
       vm.variables["@RESULT"] = titleChips[size_t(index)].name;
@@ -2199,18 +2599,24 @@ struct SummerRuntime::Impl {
       if (e.type == SDL_EVENT_MOUSE_MOTION)
         for (size_t i = 0; i < titleChips.size(); ++i) {
           const auto &chip = titleChips[i];
-          SDL_FRect rect{float(titleBaseX),
-                         float(titleBaseY + int(i) * titleChipSpacing),
-                         float(chip.atlasW), float(chip.atlasH)};
+          const float rx = float(
+              (titleAbsoluteAlign && chip.hasDrawArea) ? chip.drawX : titleBaseX);
+          const float ry = float((titleAbsoluteAlign && chip.hasDrawArea)
+                                     ? chip.drawY
+                                     : (titleBaseY + int(i) * titleChipSpacing));
+          SDL_FRect rect{rx, ry, float(chip.atlasW), float(chip.atlasH)};
           SDL_FPoint point{e.motion.x, e.motion.y};
           if (SDL_PointInRectFloat(&point, &rect))
             titleFocus = int(i);
         }
       for (size_t i = 0; i < titleChips.size(); ++i) {
         const auto &chip = titleChips[i];
-        if (UI::clicked(e, {float(titleBaseX),
-                            float(titleBaseY + int(i) * titleChipSpacing),
-                            float(chip.atlasW), float(chip.atlasH)})) {
+        const float rx = float(
+            (titleAbsoluteAlign && chip.hasDrawArea) ? chip.drawX : titleBaseX);
+        const float ry = float((titleAbsoluteAlign && chip.hasDrawArea)
+                                   ? chip.drawY
+                                   : (titleBaseY + int(i) * titleChipSpacing));
+        if (UI::clicked(e, {rx, ry, float(chip.atlasW), float(chip.atlasH)})) {
           titleAction(int(i));
           break;
         }
@@ -2278,7 +2684,7 @@ struct SummerRuntime::Impl {
                     (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE));
     if (advance && vm.waiting &&
         (pending == "MESSAGE" || pending == "WAIT" || pending == "BYTEVIEW" ||
-         pending == "WIPE" || pending == "SCROLLCG")) {
+         pending == "WIPE" || pending == "SCROLLCG" || pending == "QUAKE")) {
       if (pending == "MESSAGE" && !text->isDialogueComplete())
         text->completeDialogue();
       else {
@@ -2292,6 +2698,10 @@ struct SummerRuntime::Impl {
             bgOffsetY = scrollTargetY;
             scrollDuration = 0;
             presented = composeScene();
+          }
+          if (pending == "QUAKE") {
+            quakeAxis = 0;
+            quakeOffsetX = quakeOffsetY = 0;
           }
           transitionDuration = 0;
           byteOverlay.clear();
@@ -2312,6 +2722,14 @@ SummerRuntime::SummerRuntime(
 SummerRuntime::~SummerRuntime() = default;
 void SummerRuntime::shutdown() {
   if (impl) {
+    if (impl->engine) {
+      auto &menu = GetInGameMenuRuntime(*impl->engine);
+      menu.close();
+      menu.SetPresentation({}, {}, {});
+      menu.SetOnSave({});
+      menu.SetOnLoad({});
+      menu.SetOnReturnToMenu({});
+    }
     try {
       impl->saveSystem();
     } catch (const std::exception &e) {
@@ -2347,7 +2765,21 @@ void SummerRuntime::update() {
     return;
   auto &i = *impl;
   if (i.meo) {
-    i.updateMeo(SDL_GetTicks());
+    const auto now = SDL_GetTicks();
+    const bool paused = i.engine->isStoryPaused();
+    i.bgm.SetPaused(paused);
+    i.se.SetPaused(paused);
+    i.voice.SetPaused(paused);
+    if (i.movie)
+      i.movie->setPaused(paused);
+    if (paused) {
+      if (i.lastUpdate && now >= i.lastUpdate)
+        i.meoFrameStart += now - i.lastUpdate;
+      i.lastUpdate = now;
+      return;
+    }
+    i.lastUpdate = now;
+    i.updateMeo(now);
     if (i.movie)
       i.movie->update(i.engine->GetRenderer());
     return;
@@ -2430,6 +2862,22 @@ void SummerRuntime::update() {
     i.pending.clear();
     i.vm.resume();
   }
+  if (i.pending == "QUAKE" && i.quakeAxis != 0) {
+    if (now >= i.deadline) {
+      i.quakeAxis = 0;
+      i.quakeOffsetX = i.quakeOffsetY = 0;
+      i.pending.clear();
+      i.vm.resume();
+    } else {
+      const uint64_t stepIdx =
+          (now >= i.quakeStart ? (now - i.quakeStart) : 0) /
+          uint64_t(std::max(1, i.quakeStepMs));
+      static constexpr int phaseSign[4] = {-1, 0, 1, 0};
+      const int offset = i.quakeAmp * phaseSign[stepIdx & 3u];
+      i.quakeOffsetX = (i.quakeAxis == 1) ? offset : 0;
+      i.quakeOffsetY = (i.quakeAxis == 2) ? offset : 0;
+    }
+  }
   if (now - i.lastSystemWrite >= 5000) {
     i.saveSystem();
     i.lastSystemWrite = now;
@@ -2484,8 +2932,18 @@ void SummerRuntime::saveGame(const std::string &path) {
     const Uint64 elapsed =
         i.meoElapsedOffset +
         (now >= i.meoFrameStart ? now - i.meoFrameStart : 0);
-    save.gameData = "MEO-PRESENTATION-1\n" + i.meoCurrentScript + "\n" +
-                    std::to_string(elapsed) + "\n";
+    std::ostringstream s;
+    s << "MEO-PRESENTATION-1\n"
+      << i.meoCurrentScript << "\n"
+      << elapsed << "\n"
+      << i.meoLocals.size() << "\n";
+    for (const auto &[k, v] : i.meoLocals)
+      s << std::quoted(k) << ' ' << v << '\n';
+    s << i.meoGlobals.size() << "\n";
+    for (const auto &[k, v] : i.meoGlobals)
+      s << std::quoted(k) << ' ' << v << '\n';
+    save.gameData = s.str();
+    i.saveSystem();
     std::filesystem::create_directories(
         std::filesystem::path(path).parent_path().empty()
             ? "."
@@ -2528,10 +2986,66 @@ void SummerRuntime::loadGame(const std::string &path) {
         !std::getline(input, script) || !(input >> elapsed) ||
         elapsed > 24ull * 60 * 60 * 1000)
       throw std::runtime_error("Invalid MEO save");
+    std::map<std::string, int64_t> savedLocals;
+    std::map<std::string, int64_t> savedGlobals;
+    size_t localCount = 0;
+    bool hasSavedVars = false;
+    if (input >> localCount && localCount <= 4096) {
+      hasSavedVars = true;
+      for (size_t idx = 0; idx < localCount; ++idx) {
+        std::string k;
+        int64_t v = 0;
+        if (input >> std::quoted(k) >> v)
+          savedLocals[k] = v;
+      }
+      size_t globalCount = 0;
+      if (input >> globalCount && globalCount <= 4096) {
+        for (size_t idx = 0; idx < globalCount; ++idx) {
+          std::string k;
+          int64_t v = 0;
+          if (input >> std::quoted(k) >> v)
+            savedGlobals[k] = v;
+        }
+      }
+    }
+    if (hasSavedVars) {
+      i.meoLocals = savedLocals;
+      for (const auto &[k, v] : savedGlobals) {
+        i.meoGlobals[k] = v;
+        i.vm.variables["$" + k] = v;
+      }
+    }
+    const auto prevLocals = i.meoLocals;
+    const auto prevGlobals = i.meoGlobals;
     i.beginMeo(script);
+    if (hasSavedVars) {
+      i.meoLocals = prevLocals;
+      for (const auto &[k, v] : prevGlobals) {
+        i.meoGlobals[k] = v;
+        i.vm.variables["$" + k] = v;
+      }
+      i.meoNextScript.clear();
+      i.meoChoices.clear();
+      auto it = i.meoScripts.find("SCRIPT/" + i.meoCurrentScript);
+      if (it != i.meoScripts.end()) {
+        const std::string xml(it->second.begin(), it->second.end());
+        const auto codeStart = xml.find("<Code>");
+        const auto codeEnd = xml.find("</Code>", codeStart);
+        if (codeStart != std::string::npos && codeEnd != std::string::npos) {
+          try {
+            i.execMeoCode(parseXml(xml.substr(codeStart, codeEnd + 7 - codeStart)));
+          } catch (...) {
+          }
+        }
+      }
+      i.meoLocals = prevLocals;
+    }
     const Uint64 now = SDL_GetTicks();
     i.meoFrameStart = now;
     i.meoElapsedOffset = elapsed;
+    if (!i.meoVoiceTrack.empty())
+      i.audio(i.voice, i.meoVoiceTrack, "Voice", false,
+              std::size_t(elapsed * 44100 / 1000));
     SDL_Log("MEO: restored %s at %llu ms", script.c_str(),
             static_cast<unsigned long long>(elapsed));
     i.updateMeo(now);

@@ -89,8 +89,24 @@ The AIR dialogue box retains the original bitmap font and window art.
 When enabled, Kotonoha's dialogue and speaker color overrides also apply to
 glyphs from the bitmap atlas and its overlays. The dialogue box uses the
 shared wrapping cache, keeping line breaks stable during typewriter reveal.
+The side buttons open **Menu**, toggle **Skip** or **Auto**, and replay the
+current line with **Voice** when it has a recording.
+Story choices use the original centered `SELWIN_s` and `SELWIN` art with
+Kotonoha's choice input. The date badge in the upper-left corner uses the
+story date from `#6003` and the original `jul_` and `aug_` art.
 
 ## AIR menus
+
+Startup displays the copyright notice first, then the Visual Arts, Key and
+Prototype/LUCA logos. The logos are silent. At the title, ocean waves
+(`nami`, `200014`) loop on Kotonoha's `Se` channel; **Reminiscences**
+(`trk22`, `100021`) starts in the DREAM prologue, not at the title. Use
+Enter, Space or a click to advance the startup sequence, or Escape to
+skip to the title.
+
+**NEW GAME** opens the original story selector before starting a chapter.
+On a fresh profile, only **DREAM** is available. Use the title arrow to
+slide to the second page, which has **GALLERY** and **MUSIC**.
 
 Open the pause menu with Escape or the controller back action. The port uses
 AIR's `systemmenu` icons, `system_menu_bg` and English manual pages. Save,
@@ -98,13 +114,17 @@ Load and Options open Kotonoha's native slot manager and settings; Quick Save
 and Quick Load keep using `quicksave.kns`. History (B or Page Up) uses the
 original `backlog_texture` with Kotonoha's scrolling and voice replay. Open
 menus capture input without advancing dialogue.
+Pausing also freezes scripted waits and the opening movie. The opening
+uses the soundtrack embedded in the original WebM; script sound effects
+on separate channels no longer interrupt each other.
 
 The AIR Save and Load screens use the original backgrounds, card frames,
 focus art and page arrows in a 20-card grid. Use the arrow keys or
 controller D-pad to select a card; use Page Up/Page Down or Z/C to change
 pages, and Escape or X to cancel. Kotonoha handles naming, overwriting,
-renaming and deleting `.vn` saves. Save cards show slot names rather than
-the original game's screenshots.
+renaming and deleting `.vn` saves. Each new save embeds a screenshot of
+the story without menus, shown on its Save and Load cards. Older saves
+without a screenshot still show their slot names.
 
 **Options** uses AIR's original background, nine English tabs, dialogue
 preview frame and slider art. Kotonoha handles the display, text, audio and

@@ -25,6 +25,12 @@ std::uint32_t word(const std::vector<Uint8> &bytes, std::size_t offset) {
          std::uint32_t(bytes[offset + 3]) << 24;
 }
 
+int16_t signedWord(const std::vector<Uint8> &bytes, std::size_t offset) {
+  const std::uint16_t value = std::uint16_t(bytes[offset]) |
+                              std::uint16_t(bytes[offset + 1]) << 8;
+  return static_cast<int16_t>(value);
+}
+
 int16_t sample(int nibble, int &index, int &predictor) {
   // The original MEO module uses a precomputed IMA table. Its positive
   // entries are floor(step * (2*n + 1) / 8); negative entries are -value - 1.
@@ -65,5 +71,49 @@ Bgm decodeBgm(const std::vector<Uint8> &bytes) {
     std::memcpy(result.clip.data.data() + offset + 2, &right, sizeof(right));
   }
   return result;
+}
+
+AudioClip decodeSnd(const std::vector<Uint8> &bytes) {
+  if (bytes.size() < 8)
+    throw std::runtime_error("MEO SND header is truncated");
+  const std::size_t auxiliaryWords = word(bytes, 0);
+  if (auxiliaryWords > 16)
+    throw std::runtime_error("Invalid MEO SND block header");
+  constexpr std::size_t framesPerBlock = 44100;
+  const std::size_t payloadSize = auxiliaryWords * 2 + 8 + framesPerBlock;
+  const std::size_t recordSize = 4 + payloadSize;
+  if (bytes.size() < recordSize + 8 ||
+      (bytes.size() - 8) % recordSize != 0 ||
+      word(bytes, bytes.size() - 4) != 0)
+    throw std::runtime_error("Invalid MEO SND block count");
+  const std::size_t blocks = (bytes.size() - 8) / recordSize;
+  if (blocks > std::numeric_limits<int>::max() / (framesPerBlock * 4))
+    throw std::runtime_error("MEO SND is too large");
+
+  AudioClip clip;
+  clip.spec = {SDL_AUDIO_S16, 2, 44100};
+  clip.data.resize(blocks * framesPerBlock * 4);
+  for (std::size_t block = 0; block < blocks; ++block) {
+    const std::size_t offset = 4 + block * recordSize;
+    if (word(bytes, offset) != payloadSize)
+      throw std::runtime_error("Invalid MEO SND block length");
+    const std::size_t stateOffset = offset + 4 + auxiliaryWords * 2;
+    int index[2] = {signedWord(bytes, stateOffset),
+                    signedWord(bytes, stateOffset + 4)};
+    int predictor[2] = {signedWord(bytes, stateOffset + 2),
+                        signedWord(bytes, stateOffset + 6)};
+    if (index[0] < 0 || index[0] > 88 || index[1] < 0 || index[1] > 88)
+      throw std::runtime_error("Invalid MEO SND ADPCM state");
+    const std::size_t encodedOffset = stateOffset + 8;
+    for (std::size_t frame = 0; frame < framesPerBlock; ++frame) {
+      const Uint8 encoded = bytes[encodedOffset + frame];
+      const int16_t left = sample(encoded & 15, index[0], predictor[0]);
+      const int16_t right = sample(encoded >> 4, index[1], predictor[1]);
+      const std::size_t output = (block * framesPerBlock + frame) * 4;
+      std::memcpy(clip.data.data() + output, &left, sizeof(left));
+      std::memcpy(clip.data.data() + output + 2, &right, sizeof(right));
+    }
+  }
+  return clip;
 }
 } // namespace Kotonoha::Providers::MeoAudio

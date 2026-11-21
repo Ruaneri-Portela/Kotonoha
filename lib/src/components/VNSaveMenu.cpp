@@ -27,6 +27,12 @@ std::string VNSaveMenu::slotLabel(std::size_t index) const {
   return slots.at(index - (loading ? 0 : 1)).name;
 }
 
+std::string VNSaveMenu::slotPath(std::size_t index) const {
+  if ((!loading && index == 0) || index >= count())
+    return {};
+  return slots.at(index - (loading ? 0 : 1)).path;
+}
+
 std::string VNSaveMenu::confirmationPrompt() const {
   if (confirmation == Confirmation::None || !hasSelectedSave())
     return {};

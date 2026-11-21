@@ -408,6 +408,9 @@ private:
 
 public:
   void setWindowType(int wt) { windowType_ = std::clamp(wt, 0, 4); }
+  void renderChoiceControls(Kotonoha::RendererRef renderer) {
+    renderControls(renderer);
+  }
   void setControlAction(std::function<void(Control)> action) {
     onControl_ = std::move(action);
   }
@@ -415,6 +418,17 @@ public:
     skipOn_ = skip;
     autoOn_ = automatic;
     voiceAvailable_ = voice;
+  }
+
+  bool handleControlClick(Kotonoha::EventRef event, bool allowVoice = true) {
+    for (int i = 0; i < 4; ++i) {
+      if (Kotonoha::UI::clicked(event, controlRect(i))) {
+        if (onControl_ && (allowVoice || i != int(Control::Voice)))
+          onControl_(static_cast<Control>(i));
+        return true;
+      }
+    }
+    return false;
   }
 
   bool onEvent(Kotonoha::EventRef rawEvent) override {
@@ -441,14 +455,7 @@ public:
           hoverControl_ = i;
       }
     }
-    for (int i = 0; i < 4; ++i) {
-      if (Kotonoha::UI::clicked(event, controlRect(i))) {
-        if (onControl_)
-          onControl_(static_cast<Control>(i));
-        return true;
-      }
-    }
-    return false;
+    return handleControlClick(event);
   }
 
 protected:
@@ -726,8 +733,104 @@ public:
   }
 };
 
+class AirChoiceScene final : public Kotonoha::ChoiceQuestionScene {
+  Kotonoha::Providers::LucaSystemAssets &assets_;
+  bool highlighted_ = false;
+  static constexpr float rowHeight = 74;
+  static constexpr float rowStep = 100;
+
+  bool storyChoice() const { return questionText.empty(); }
+
+  SDL_FRect listArea() const override {
+    return storyChoice() ? SDL_FRect{0, 0, 1280, 720}
+                         : ChoiceQuestionScene::listArea();
+  }
+
+  void layout() override {
+    if (!storyChoice()) {
+      ChoiceQuestionScene::layout();
+      return;
+    }
+    auto &ui = engine.GetVNUI();
+    const float height = (options.size() - 1) * rowStep + rowHeight;
+    float y = std::max(0.f, (720 - height) * .5f) - scroll;
+    for (auto &option : options) {
+      const float width = ui.textWidth(option.label, 26) <= 600 ? 652 : 1280;
+      option.hitBox = {(1280 - width) * .5f, y, width, rowHeight};
+      y += rowStep;
+    }
+  }
+
+  void renderPanel(Kotonoha::RendererRef renderer) override {
+    if (!storyChoice())
+      ChoiceQuestionScene::renderPanel(renderer);
+  }
+
+  void renderOption(Kotonoha::RendererRef renderer, std::size_t index,
+                    bool focused) override {
+    if (!storyChoice()) {
+      ChoiceQuestionScene::renderOption(renderer, index, focused);
+      return;
+    }
+    const auto &option = options[index];
+    const auto &rect = option.hitBox;
+    const bool compact = rect.w < 1280;
+    const SDL_FRect src{compact ? 314.f : 0.f,
+                        focused && highlighted_ ? 148.f : 0.f, rect.w,
+                        rowHeight};
+    if (!drawAirArt(assets_, renderer, compact ? "SELWIN_s" : "SELWIN", rect,
+                    &src)) {
+      ChoiceQuestionScene::renderOption(renderer, index, focused);
+      return;
+    }
+    auto &ui = engine.GetVNUI();
+    const float width = std::min(rect.w - 48, ui.textWidth(option.label, 26));
+    const float x = rect.x + (rect.w - width) * .5f;
+    const float y = rect.y + 22;
+    ui.textSized(renderer, option.label, x + 1, y + 2, rect.w - 48, 26,
+                 {12, 20, 39, 255});
+    ui.textSized(renderer, option.label, x, y, rect.w - 48, 26,
+                 {220, 234, 250, 255});
+  }
+
+public:
+  AirChoiceScene(Kotonoha::Engine &engine,
+                 Kotonoha::Providers::LucaSystemAssets &assets)
+      : ChoiceQuestionScene(engine, {}, {}, nullptr), assets_(assets) {}
+
+  void setQuestion(
+      const std::string &question,
+      const std::vector<Kotonoha::ChoiceOption> &choices,
+      std::function<void(int, const std::string &)> callback) override {
+    highlighted_ = false;
+    ChoiceQuestionScene::setQuestion(question, choices, std::move(callback));
+  }
+
+  bool onEvent(Kotonoha::EventRef raw) override {
+    if (active && storyChoice()) {
+      const auto event = Kotonoha::MapControllerEvent(raw);
+      if (event.type == SDL_EVENT_MOUSE_MOTION) {
+        layout();
+        highlighted_ = false;
+        const SDL_FPoint point{event.motion.x, event.motion.y};
+        for (std::size_t i = 0; i < options.size(); ++i)
+          if (SDL_PointInRectFloat(&point, &options[i].hitBox)) {
+            selected = i;
+            highlighted_ = true;
+            break;
+          }
+      } else if (event.type == SDL_EVENT_KEY_DOWN &&
+                 (event.key.key == SDLK_UP || event.key.key == SDLK_DOWN)) {
+        highlighted_ = true;
+      }
+    }
+    return ChoiceQuestionScene::onEvent(raw);
+  }
+};
+
 class AirSaveMenu final : public Kotonoha::VNSaveMenu {
   Kotonoha::Providers::LucaSystemAssets &assets_;
+  std::map<std::string, Kotonoha::TexturePtr> thumbnails_;
 
   const SlotGrid *slotGrid() const override {
     static constexpr SlotGrid grid{5,
@@ -755,10 +858,44 @@ class AirSaveMenu final : public Kotonoha::VNSaveMenu {
     return false;
   }
 
+  bool drawThumbnail(Kotonoha::RendererRef renderer, std::size_t index,
+                     const SDL_FRect &rect) {
+    const auto path = slotPath(index);
+    if (path.empty())
+      return false;
+    using Kotonoha::VNSave;
+    const auto [it, inserted] = thumbnails_.try_emplace(path);
+    if (inserted) {
+      try {
+        auto save = VNSave::read(path);
+        if (!save.thumbnailRgb.empty()) {
+          Kotonoha::SurfacePtr image{SDL_CreateSurfaceFrom(
+              VNSave::thumbnailWidth, VNSave::thumbnailHeight,
+              SDL_PIXELFORMAT_RGB24, save.thumbnailRgb.data(),
+              VNSave::thumbnailWidth * 3)};
+          if (image)
+            it->second.reset(SDL_CreateTextureFromSurface(&renderer,
+                                                          image.get()));
+        }
+      } catch (const std::exception &) {
+        // Older or unreadable saves retain the text-only card.
+      }
+    }
+    const SDL_FRect preview{rect.x + 32, rect.y + 7, 160, 90};
+    return it->second &&
+           SDL_RenderTexture(&renderer, it->second.get(), nullptr, &preview);
+  }
+
 public:
   AirSaveMenu(Kotonoha::Engine &engine,
               Kotonoha::Providers::LucaSystemAssets &assets)
       : VNSaveMenu(engine), assets_(assets) {}
+
+  void open(const std::string &path, bool load,
+            const std::string &suggestedName) {
+    thumbnails_.clear();
+    VNSaveMenu::open(path, load, suggestedName);
+  }
 
   void render(Kotonoha::RendererRef renderer, float) override {
     if (!isOpen())
@@ -804,11 +941,12 @@ public:
       SDL_SetRenderClipRect(&renderer, &clip);
       const bool newSave = !load && index == 0;
       const auto number = load ? index + 1 : index;
+      const bool preview = drawThumbnail(renderer, index, rect);
       if (!newSave)
         ui.text(renderer, std::to_string(number), rect.x + 12, rect.y + 10,
                 rect.w - 24, ink);
       ui.text(renderer, newSave ? "New save" : slotLabel(index), rect.x + 12,
-              rect.y + 50, rect.w - 24, ink);
+              rect.y + (preview ? 98 : 50), rect.w - 24, ink);
       SDL_SetRenderClipRect(&renderer, hadClip ? &previous : nullptr);
     }
 
@@ -1503,7 +1641,7 @@ struct LucaSystemRuntime::Impl {
   Kotonoha::ChoiceQuestionScene *choiceScene = nullptr;
   Kotonoha::VNBacklog *backlog = nullptr;
   AirPauseMenu *menu = nullptr;
-  std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
+  std::unique_ptr<AirSaveMenu> saveMenu;
   AirGalleryCatalog galleryCatalog;
   std::unordered_set<uint32_t> galleryIds;
   std::unique_ptr<AirGallery> gallery;
@@ -1579,6 +1717,8 @@ struct LucaSystemRuntime::Impl {
 
   std::vector<CallStackFrame> callStack;
   std::uint64_t waitDeadline = 0;
+  std::optional<std::uint64_t> storyPausedAt;
+  std::uint64_t storyPausedTotal = 0;
   std::uint64_t lastDrawDeadline = 0;
   bool waiting = false;
   bool skipMode = false;
@@ -1642,6 +1782,7 @@ struct LucaSystemRuntime::Impl {
   Kotonoha::PcmPlayer bgm;
   Kotonoha::PcmPlayer voice;
   Kotonoha::PcmPlayer se;
+  std::map<std::uint8_t, Kotonoha::PcmPlayer> scriptSe;
   uint32_t currentBgmId = 0;
   uint32_t lastPlayedVoiceId = 0;
 
@@ -1864,16 +2005,18 @@ struct LucaSystemRuntime::Impl {
     return "title1a";
   }
 
-  void playTitleMusic() {
-    constexpr uint32_t track = 100021;
-    if (assets->hasBgmAsset(track))
-      playBgm(track, true);
+  void playTitleAmbience() {
+    // AIR Steam loops nami from SE.PAK at the title. Reminiscences (trk22)
+    // starts in DREAM's script, after the player leaves the story selector.
+    constexpr uint32_t waves = 200014;
+    if (assets->contains("se:" + std::to_string(waves)))
+      playSe(waves, true);
   }
 
   void finishSplash() {
     showingSplash = false;
     if (originalTitle)
-      playTitleMusic();
+      playTitleAmbience();
   }
 
   void advanceSplash() {
@@ -1929,7 +2072,7 @@ struct LucaSystemRuntime::Impl {
     } catch (...) {
     }
     if (!showingSplash)
-      playTitleMusic();
+      playTitleAmbience();
   }
 
   void openSaveSlots(bool load) {
@@ -2006,6 +2149,7 @@ struct LucaSystemRuntime::Impl {
     bgm.Stop();
     voice.Stop();
     se.Stop();
+    scriptSe.clear();
     syssePlayer.Stop();
     currentBgmId = 0;
   }
@@ -2078,19 +2222,43 @@ struct LucaSystemRuntime::Impl {
     }
   }
 
-  void playSe(uint32_t id, bool loop = false) {
+  void playSe(Kotonoha::PcmPlayer &player, uint32_t id, bool loop) {
     if (id == 0) {
-      se.Stop();
+      player.Stop();
       return;
     }
     if (!engine || !assets)
       return;
     try {
-      playDecodedAudio(se, "Se", "se:" + std::to_string(id), 2, 48000, loop);
+      playDecodedAudio(player, "Se", "se:" + std::to_string(id), 2, 48000,
+                       loop);
     } catch (const std::exception &e) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: se %u: %s", id,
                   e.what());
     }
+  }
+
+  void playSe(uint32_t id, bool loop) { playSe(se, id, loop); }
+
+  std::uint64_t storyNow() const {
+    return storyPausedAt.value_or(SDL_GetTicks()) - storyPausedTotal;
+  }
+
+  void syncStoryPause(bool paused) {
+    if (paused == storyPausedAt.has_value())
+      return;
+    const auto now = SDL_GetTicks();
+    if (paused) {
+      storyPausedAt = now;
+    } else {
+      storyPausedTotal += now - *storyPausedAt;
+      storyPausedAt.reset();
+    }
+    if (moviePlayer)
+      moviePlayer->setPaused(paused);
+    voice.SetPaused(paused);
+    for (auto &[channel, player] : scriptSe)
+      player.SetPaused(paused);
   }
 
   void playMovie(const std::string &name) {
@@ -2117,6 +2285,11 @@ struct LucaSystemRuntime::Impl {
               std::make_unique<Kotonoha::MediaPlayer>(engine->GetAudio());
           moviePlayer->open(*assets, cand, false, "BGM");
           if (moviePlayer->isOpen()) {
+            // The retail WebM supplies the opening soundtrack. Don't mix
+            // queued dialogue, ambience or script BGM into the movie.
+            playBgm(0, false);
+            voice.Stop();
+            scriptSe.clear();
             movieFinished = false;
             waiting = true;
             SDL_Log("LucaSystem: playing movie %s", cand.c_str());
@@ -2399,13 +2572,13 @@ struct LucaSystemRuntime::Impl {
       }
       case OP_MESSAGE_WAIT: {
         waiting = true;
-        waitDeadline = SDL_GetTicks() + 250;
+        waitDeadline = storyNow() + 250;
         return;
       }
 
       case OP_WAIT:
       case OP_WAIT_BSKIP: {
-        const uint64_t now = SDL_GetTicks();
+        const uint64_t now = storyNow();
         if (ins.paramBytes.empty()) {
           if (now < lastDrawDeadline && !skipMode) {
             waiting = true;
@@ -2431,7 +2604,7 @@ struct LucaSystemRuntime::Impl {
         const uint64_t ms = skipMode ? 0 : framesToMs(frames);
         if (ms > 0) {
           waiting = true;
-          waitDeadline = SDL_GetTicks() + ms;
+          waitDeadline = storyNow() + ms;
           return;
         }
         break;
@@ -2542,7 +2715,7 @@ struct LucaSystemRuntime::Impl {
           frames = int(paramU16(ins, 0));
         if (ins.paramBytes.size() >= 4)
           mode = paramU16(ins, 2);
-        const uint64_t now = SDL_GetTicks();
+        const uint64_t now = storyNow();
         const uint64_t duration = skipMode ? 0 : framesToMs(frames);
         commitStagedSlots(now, duration, mode == 3);
         lastDrawDeadline = now + duration;
@@ -2557,7 +2730,7 @@ struct LucaSystemRuntime::Impl {
       case OP_WIPE: {
         const int frames =
             ins.paramBytes.size() >= 2 ? int(paramU16(ins, 0)) : 18;
-        const uint64_t now = SDL_GetTicks();
+        const uint64_t now = storyNow();
         const uint64_t ms = skipMode ? 0 : framesToMs(frames);
         commitStagedSlots(now, ms, true);
         lastDrawDeadline = now + ms;
@@ -2576,7 +2749,7 @@ struct LucaSystemRuntime::Impl {
           const int frames = int(paramU16(ins, 4));
           const float dx = paramFloat(ins, 6);
           const float dy = paramFloat(ins, 10);
-          const uint64_t now = SDL_GetTicks();
+          const uint64_t now = storyNow();
           const uint64_t dur = skipMode ? 0 : framesToMs(frames);
           const auto applyMove = [&](SlottedLayer &l) {
             l.startOffsetX = l.targetOffsetX;
@@ -2604,7 +2777,7 @@ struct LucaSystemRuntime::Impl {
         if (ins.paramBytes.size() >= 6) {
           activeShakeTarget = ins.paramBytes[1];
           activeShakeId = paramU16(ins, 4);
-          shakeStartTick = SDL_GetTicks();
+          shakeStartTick = storyNow();
         }
         break;
       }
@@ -2861,11 +3034,13 @@ struct LucaSystemRuntime::Impl {
           const uint32_t seId = paramU32(ins, 1);
           const bool loop =
               (ins.paramBytes.size() >= 6 && ins.paramBytes[5] == 2);
-          playSe(seId, loop);
+          // Byte zero selects the script mixer channel. Ambient loops on
+          // channel zero and transient effects on other slots can coexist.
+          playSe(scriptSe[ins.paramBytes[0]], seId, loop);
         } else if (ins.paramBytes.size() >= 2) {
-          playSe(paramU16(ins, 0), false);
+          playSe(scriptSe[0], paramU16(ins, 0), false);
         } else {
-          se.Stop();
+          scriptSe.clear();
         }
         break;
       }
@@ -2874,7 +3049,7 @@ struct LucaSystemRuntime::Impl {
       case OP_SE_WAIT_COUNT:
       case OP_SE_WAIT_FADE:
         if (ins.opcode == OP_SE_STOP)
-          se.Stop();
+          scriptSe.clear();
         break;
 
       case OP_SETBGMFLAG: {
@@ -2901,14 +3076,14 @@ struct LucaSystemRuntime::Impl {
                                         : 12;
             flashColor = (colorName == "aka") ? SDL_Color{255, 32, 32, 255}
                                               : SDL_Color{255, 255, 255, 255};
-            flashStartTick = SDL_GetTicks();
+            flashStartTick = storyNow();
             flashDurationMs = std::max<uint64_t>(120, framesToMs(frames));
           } else if (taskId == 3 || taskId == 4) {
             // task::EndRoll995 / task::EndRoll900 ending staff roll
             skipMode = false;
             if (!skipMode) {
               waiting = true;
-              waitDeadline = SDL_GetTicks() + 1500;
+              waitDeadline = storyNow() + 1500;
               return;
             }
           }
@@ -3035,7 +3210,7 @@ struct LucaSystemRuntime::Impl {
         break;
 
       case OP_END: {
-        commitStagedSlots(SDL_GetTicks(), 0, false);
+        commitStagedSlots(storyNow(), 0, false);
         saveGlobalState();
         if (!callStack.empty()) {
           auto frame = callStack.back();
@@ -3057,7 +3232,7 @@ struct LucaSystemRuntime::Impl {
       }
     }
     if (instructionIndex >= instructions.size()) {
-      commitStagedSlots(SDL_GetTicks(), 0, false);
+      commitStagedSlots(storyNow(), 0, false);
       saveGlobalState();
       running = false;
     }
@@ -3123,6 +3298,59 @@ struct LucaSystemRuntime::Impl {
     runtime.AddScene(menu, Kotonoha::GameState::Gameplay);
   }
 
+  std::vector<std::uint8_t> captureSaveThumbnail() {
+    using Kotonoha::VNSave;
+    if (!engine || originalTitle)
+      return {};
+    auto &renderer = engine->GetRenderer();
+    Kotonoha::TexturePtr canvas{SDL_CreateTexture(
+        &renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+        VNSave::thumbnailWidth, VNSave::thumbnailHeight)};
+    if (!canvas)
+      return {};
+    auto *previous = SDL_GetRenderTarget(&renderer);
+    if (!SDL_SetRenderTarget(&renderer, canvas.get()))
+      return {};
+    struct RestoreTarget {
+      SDL_Renderer *renderer;
+      SDL_Texture *previous;
+      SDL_Color color{};
+      SDL_BlendMode blend = SDL_BLENDMODE_NONE;
+      RestoreTarget(SDL_Renderer *renderer, SDL_Texture *previous)
+          : renderer(renderer), previous(previous) {
+        SDL_GetRenderDrawColor(renderer, &color.r, &color.g, &color.b, &color.a);
+        SDL_GetRenderDrawBlendMode(renderer, &blend);
+      }
+      ~RestoreTarget() {
+        SDL_SetRenderTarget(renderer, previous);
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+        SDL_SetRenderDrawBlendMode(renderer, blend);
+      }
+    } restore(&renderer, previous);
+    if (!SDL_SetRenderLogicalPresentation(
+            &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_LETTERBOX))
+      return {};
+    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+    SDL_RenderClear(&renderer);
+    // Draw only the story, not the Save, pause or name-entry overlays.
+    runtime.renderGameplay(renderer, 1);
+    Kotonoha::SurfacePtr pixels{SDL_RenderReadPixels(&renderer, nullptr)};
+    Kotonoha::SurfacePtr image{
+        pixels ? SDL_ConvertSurface(pixels.get(), SDL_PIXELFORMAT_RGB24)
+               : nullptr};
+    if (!image || image->w != VNSave::thumbnailWidth ||
+        image->h != VNSave::thumbnailHeight)
+      return {};
+    std::vector<std::uint8_t> rgb(VNSave::thumbnailBytes);
+    constexpr int rowBytes = VNSave::thumbnailWidth * 3;
+    for (int row = 0; row < image->h; ++row)
+      std::memcpy(rgb.data() + row * rowBytes,
+                  static_cast<const std::uint8_t *>(image->pixels) +
+                      row * image->pitch,
+                  rowBytes);
+    return rgb;
+  }
+
   void launchChapterFromTitle(const std::string &scenarioName) {
     if (scenarioName.empty())
       return;
@@ -3131,6 +3359,7 @@ struct LucaSystemRuntime::Impl {
     titleShown = false;
     titleBackgroundTexture.reset();
     bgm.Stop();
+    se.Stop();
     currentBgmId = 0;
     attachGameplayScenes();
     runtime.startScenario(scenarioName);
@@ -3181,7 +3410,9 @@ void LucaSystemRuntime::initGlobal(Kotonoha::Engine &engine) {
   impl.textbox = std::make_unique<AirTextBox>(engine, *impl.assets);
   impl.textbox->setControlAction(
       [this](AirTextBox::Control control) { impl_->dialogueControl(control); });
-  impl.choiceScene = &Kotonoha::GetChoiceQuestionRuntime(engine);
+  impl.choiceScene =
+      &engine.configureSharedScene<Kotonoha::ChoiceQuestionScene,
+                                   AirChoiceScene>(*impl.assets);
   impl.backlog->setVoiceReplay([this](const std::string &id) {
     try {
       impl_->voice.Stop();
@@ -3261,11 +3492,15 @@ void LucaSystemRuntime::initGameplay(Kotonoha::Engine &engine) {
 void LucaSystemRuntime::update() {
   Runtime::update();
   auto &impl = *impl_;
+  const bool paused = isStoryPaused();
+  impl.syncStoryPause(paused);
+  const auto splashDuration =
+      impl.currentSplashIndex == 0 ? Impl::noticeDuration : Impl::logoDuration;
   if (impl.showingSplash &&
-      SDL_GetTicks() - impl.splashStartTime >=
-          (impl.currentSplashIndex == 0 ? Impl::noticeDuration
-                                        : Impl::logoDuration))
+      SDL_GetTicks() - impl.splashStartTime >= splashDuration)
     impl.advanceSplash();
+  if (paused)
+    return;
   if (impl.moviePlayer && !impl.movieFinished) {
     if (impl.engine)
       impl.moviePlayer->update(impl.engine->GetRenderer());
@@ -3276,16 +3511,15 @@ void LucaSystemRuntime::update() {
       impl.runUntilPause();
     }
   }
-  if (impl.skipMode && impl.dialogueVisible && !impl.choiceActive &&
-      !isStoryPaused()) {
+  if (impl.skipMode && impl.dialogueVisible && !impl.choiceActive) {
     if (impl.textbox)
       impl.textbox->completeDialogue();
     impl.advanceDialogue();
   }
   if (impl.autoMode && impl.dialogueVisible && !impl.choiceActive &&
-      !isStoryPaused() && impl.textbox && impl.textbox->isVisible() &&
+      impl.textbox && impl.textbox->isVisible() &&
       impl.textbox->isDialogueComplete() && !impl.voice.Playing()) {
-    const auto now = SDL_GetTicks();
+    const auto now = impl.storyNow();
     if (!impl.autoAdvanceAt)
       impl.autoAdvanceAt = now + 1000;
     else if (now >= impl.autoAdvanceAt) {
@@ -3296,12 +3530,11 @@ void LucaSystemRuntime::update() {
     impl.autoAdvanceAt = 0;
   }
   if (impl.engine && impl.running && !impl.dialogueVisible &&
-      !impl.choiceActive && !impl.engine->isStoryPaused() && !impl.waiting) {
+      !impl.choiceActive && !impl.waiting) {
     impl.runUntilPause();
   }
-  if (impl.waiting && (!impl.engine || !impl.engine->isStoryPaused()) &&
-      !impl.moviePlayer) {
-    if (SDL_GetTicks() >= impl.waitDeadline) {
+  if (impl.waiting && !impl.moviePlayer) {
+    if (impl.storyNow() >= impl.waitDeadline) {
       impl.waiting = false;
       impl.runUntilPause();
     }
@@ -3311,10 +3544,10 @@ void LucaSystemRuntime::update() {
 void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                                        float scale) {
   auto &impl = *impl_;
-  const uint64_t now = SDL_GetTicks();
+  const uint64_t now = impl.storyNow();
 
   if (impl.showingSplash) {
-    const uint64_t elapsed = now - impl.splashStartTime;
+    const uint64_t elapsed = SDL_GetTicks() - impl.splashStartTime;
     const SDL_FRect screen{0, 0, 1280, 720};
     SDL_SetRenderDrawColor(&renderer, 255, 255, 255, 255);
     SDL_RenderFillRect(&renderer, &screen);
@@ -3325,17 +3558,15 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       const SDL_Color ink{12, 12, 12, 255};
       static constexpr const char *paragraphs[] = {
           "This is a work of fiction.\n"
-          "The characters, locations, and names of organizations that appear "
-          "are all fictitious.",
+          "The characters, locations and organizations in this story are "
+          "fictional.",
           "This product is owned by VISUAL ARTS Co., Ltd.\n"
-          "Unauthorized lending, reproducing, modifying, duplication, "
-          "modification,\nor redistribution over the Internet and using P2P "
-          "software to share and distribute without the express written "
-          "consent of VISUAL ARTS Co., Ltd. is prohibited by law.",
-          "This illegal uploading of videos to the internet is steadily "
-          "rising.\nThe unauthorized uploading of in-game music, video "
-          "records, etc., except for demos, is strictly forbidden and can be "
-          "judged according to your countries law.",
+          "Unauthorized lending, copying, modification and distribution, "
+          "including via the Internet or peer-to-peer software, are "
+          "prohibited without written permission.",
+          "Do not upload music, images or recordings from this game without "
+          "permission, except for authorized demos. Unauthorized uploads "
+          "may be subject to local law.",
       };
       float y = 78;
       for (const char *paragraph : paragraphs) {
@@ -3495,9 +3726,22 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     SDL_RenderFillRect(&renderer, &screen);
   }
 
-  if (impl.textbox)
+  if (impl.textbox) {
     impl.textbox->setControls(impl.skipMode, impl.autoMode,
-                              currentDialogueVoiceId_ != 0);
+                              !impl.choiceActive &&
+                                  currentDialogueVoiceId_ != 0);
+    if (impl.choiceActive)
+      impl.textbox->renderChoiceControls(renderer);
+  }
+  // AIR's #6003 is the story day. Use its original badge at the upper-left
+  // position shown in the English retail manual.
+  if (const int day = impl.getVar(6003); day >= 1 && day <= 31) {
+    std::string badge = day >= 16 ? "jul_" : "aug_";
+    if (day < 10)
+      badge += '0';
+    badge += std::to_string(day);
+    drawAirArt(*impl.assets, renderer, badge.c_str(), {0, 0, 128, 133.33f});
+  }
   Runtime::renderGameplay(renderer, scale);
 }
 
@@ -3514,6 +3758,7 @@ bool LucaSystemRuntime::handleBackAction() {
   if (impl.storyOpen) {
     impl.storyOpen = false;
     impl.playSysSe("CANCEL");
+    impl.playTitleAmbience();
   } else if (impl.titlePage) {
     impl.selectTitle(0);
   }
@@ -3566,20 +3811,22 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     return true;
   }
 
-  if (impl.moviePlayer && !impl.movieFinished &&
-      (mapped.type == SDL_EVENT_KEY_DOWN ||
-       mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-       mapped.type == SDL_EVENT_FINGER_DOWN ||
-       mapped.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)) {
-    if (mapped.type != SDL_EVENT_KEY_DOWN || !mapped.key.repeat) {
-      skipMovie();
-      return true;
-    }
+  if (impl.moviePlayer && !impl.movieFinished && !isStoryPaused() &&
+      ((mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
+        (mapped.key.key == SDLK_RETURN || mapped.key.key == SDLK_SPACE)) ||
+       Kotonoha::UI::clicked(mapped, {0, 0, 1280, 720}))) {
+    skipMovie();
+    return true;
   }
 
-  for (const auto *scene : GetActiveScenes())
-    if (scene && scene->capturesInput())
+  for (const auto *scene : GetActiveScenes()) {
+    if (scene && scene->capturesInput()) {
+      if (!impl.originalTitle && scene == impl.choiceScene && impl.textbox &&
+          !isStoryPaused() && impl.textbox->handleControlClick(mapped, false))
+        return true;
       return Runtime::onEvent(event);
+    }
+  }
 
   if (impl.originalTitle) {
     if (!impl.titleTouch.accept(mapped))
@@ -3684,6 +3931,8 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     impl.playSysSe("ENTER");
     switch (impl.titleSelection) {
     case 0: // NEW GAME opens the retail story selector, even with only DREAM.
+      impl.playBgm(0, false);
+      impl.se.Stop();
       impl.storyOpen = true;
       impl.storySelection = 0;
       impl.storyHighlight = false;
@@ -3724,8 +3973,10 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
               impl_->choiceActive = false;
               if (impl_->choiceScene)
                 impl_->choiceScene->hide();
-              if (tid > 0)
+              if (tid > 0) {
+                impl_->se.Stop();
                 impl_->playBgm(static_cast<uint32_t>(tid), true);
+              }
             });
       }
       return true;
@@ -3778,7 +4029,7 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
 }
 
 void LucaSystemRuntime::saveGame(const std::string &path) {
-  const auto &impl = *impl_;
+  auto &impl = *impl_;
   SaveState state;
   state.scenario = impl.currentScenario;
   state.instructionIndex = (impl.choiceActive && impl.instructionIndex > 0)
@@ -3791,7 +4042,7 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
                            : ("@" + dialogueSpeaker_ + "@" + dialogueText_);
   state.waiting = impl.waiting;
   if (impl.waiting) {
-    const auto now = SDL_GetTicks();
+    const auto now = impl.storyNow();
     const auto remaining =
         impl.waitDeadline > now ? impl.waitDeadline - now : 0;
     state.waitRemainingMs = static_cast<std::uint32_t>(
@@ -3822,6 +4073,12 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
     Kotonoha::VNSave save;
     save.nodeId = 0;
     save.gameData = encodeSaveState(state);
+    try {
+      save.thumbnailRgb = impl.captureSaveThumbnail();
+    } catch (const std::exception &error) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem save preview: %s",
+                  error.what());
+    }
     save.write(path);
   } else {
     const auto payload = encodeSaveState(state);
@@ -3905,7 +4162,7 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
 
   impl.dialogueIndex = state.dialogueIndex;
   impl.waiting = state.waiting;
-  impl.waitDeadline = SDL_GetTicks() + state.waitRemainingMs;
+  impl.waitDeadline = impl.storyNow() + state.waitRemainingMs;
 
   std::string rawText = state.dialogueText;
   if (state.dialogueVisible && rawText.empty()) {

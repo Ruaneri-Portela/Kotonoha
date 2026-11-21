@@ -27,6 +27,9 @@ protected:
   std::function<void()> onSettingsCb;
   std::function<void()> onSaveCb, onLoadCb;
   std::function<void()> onCloseCb;
+  std::function<void(RendererRef)> drawPanelCb;
+  std::function<void(RendererRef, int, bool)> drawItemCb;
+  std::function<SDL_FRect(int)> itemRectCb;
 
 public:
   bool designSpace() const override { return true; }
@@ -57,6 +60,13 @@ public:
   void SetOnSave(std::function<void()> cb) { onSaveCb = std::move(cb); }
   void SetOnLoad(std::function<void()> cb) { onLoadCb = std::move(cb); }
   void SetOnClose(std::function<void()> cb) { onCloseCb = std::move(cb); }
+  void SetPresentation(std::function<void(RendererRef)> panel,
+                       std::function<void(RendererRef, int, bool)> item,
+                       std::function<SDL_FRect(int)> rect) {
+    drawPanelCb = std::move(panel);
+    drawItemCb = std::move(item);
+    itemRectCb = std::move(rect);
+  }
 
   bool onEvent(EventRef event) override;
   void update() override;

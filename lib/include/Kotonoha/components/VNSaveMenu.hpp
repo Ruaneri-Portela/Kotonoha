@@ -34,6 +34,7 @@ protected:
   bool loadingSlots() const { return loading; }
   bool hasSelectedSave() const;
   std::string slotLabel(std::size_t index) const;
+  std::string slotPath(std::size_t index) const;
   std::string confirmationPrompt() const;
   Confirmation currentConfirmation() const { return confirmation; }
   const std::string &errorMessage() const { return error; }

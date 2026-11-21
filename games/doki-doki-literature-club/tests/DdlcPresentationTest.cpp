@@ -112,6 +112,15 @@ int main(int argc, char **argv) {
       }
       check(!session->dialogueSourceText().empty(),
             "Katawa reaches story dialogue");
+      session->setPaused(true);
+      engine.Iterate();
+      const auto pausedText = session->visibleDialogueText();
+      SDL_Delay(120);
+      engine.Iterate();
+      check(session->paused() &&
+                session->visibleDialogueText() == pausedText,
+            "Katawa dialogue remains frozen while paused");
+      session->setPaused(false);
       std::cout << "KatawaPresentationTest: OK\n";
       return 0;
     }

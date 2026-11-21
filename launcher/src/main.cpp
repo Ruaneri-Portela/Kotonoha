@@ -91,20 +91,36 @@ struct Application {
 
     gameOptions = options;
     gameOptions.launcher = false;
-    if (!entry.overlayPath.empty() && !gameOptions.assetOverlaySpecified) {
+    if (!entry.params.assetOverlayPath.empty()) {
+      gameOptions.assetOverlayPath = entry.params.assetOverlayPath;
+      gameOptions.assetOverlaySpecified = true;
+    } else if (!entry.overlayPath.empty() &&
+               !gameOptions.assetOverlaySpecified) {
       gameOptions.assetOverlayPath = entry.overlayPath;
       gameOptions.assetOverlaySpecified = true;
     }
+    if (!entry.params.translationPath.empty() &&
+        gameOptions.translationPath.empty()) {
+      gameOptions.translationPath = entry.params.translationPath;
+    }
+    if (!entry.params.subtitleStylePath.empty() &&
+        gameOptions.subtitleStylePath.empty()) {
+      gameOptions.subtitleStylePath = entry.params.subtitleStylePath;
+    }
 
     gameEnvironment = std::make_unique<ScopedGameUserData>();
+    const std::string effectiveSaveRoot =
+        !entry.params.customDocumentsDir.empty()
+            ? entry.params.customDocumentsDir
+            : customSaveRoot;
     KotonohaLauncher::applyPerGameSaveIsolation(
-        entry, gameOptions, splitSavesByGame, customSaveRoot);
+        entry, gameOptions, splitSavesByGame, effectiveSaveRoot);
 #if defined(_WIN32)
     // The CRT and SDL have separate environment storage on Windows.
     // Preserve Unicode profile paths for runtimes using std::filesystem.
     const std::wstring nativeRoot =
         std::filesystem::u8path(KotonohaLauncher::resolveIsolatedUserDataRoot(
-                                    entry, splitSavesByGame, customSaveRoot))
+                                    entry, splitSavesByGame, effectiveSaveRoot))
             .wstring();
     if (_wputenv_s(L"KOTONOHA_USER_DATA_DIR", nativeRoot.c_str()) != 0)
       throw std::runtime_error("Unable to set the game save environment");
@@ -121,6 +137,16 @@ struct Application {
     if (assets)
       gameOptions.assets = assets;
     engine = std::make_unique<Kotonoha::Engine>(*runtime, gameOptions);
+    if (!entry.params.startScenario.empty()) {
+      try {
+        runtime->SetState(Kotonoha::GameState::Gameplay);
+        engine->debugJumpToNode(entry.params.startScenario);
+      } catch (const std::exception &e) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "Failed to jump to startScenario '%s': %s",
+                    entry.params.startScenario.c_str(), e.what());
+      }
+    }
     returnToHub = false;
     return true;
   }
@@ -178,6 +204,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
 
     std::string scanLibraryDir;
     std::string detectPath;
+    KotonohaLauncher::GameLaunchParameters cliParams;
     bool sharedSaves = false;
     Kotonoha::CommandLine args("KotonohaLauncher", app->options);
     args.option("--library", "DIRECTORY|ISO",
@@ -189,6 +216,19 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
                 "Detect a game engine from a folder or disc image", detectPath);
     args.option("--save-root", "DIRECTORY",
                 "Root directory for isolated game saves", app->customSaveRoot);
+    args.option("--ktrf", "FILE",
+                "Optional School Days routing graph (.ktnroute / .ktrf)",
+                cliParams.ktrfPath);
+    args.option("--scripts", "DIRECTORY",
+                "Optional School Days translated ORS script directory",
+                cliParams.scriptsDir);
+    args.option("--documents", "DIRECTORY",
+                "Optional custom save/documents directory",
+                cliParams.customDocumentsDir);
+    args.option("--start", "ID",
+                "Optional initial scenario or node ID override",
+                cliParams.startScenario);
+    args.alias("--start", "--node");
     args.flag("--split-saves", "Isolate saves by game title (default)",
               app->splitSavesByGame);
     args.flag("--shared-engine-saves", "Share saves across the same engine",
@@ -242,7 +282,16 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
       if (games.empty())
         throw std::runtime_error("No supported game found in: " +
                                  app->libraryPath);
-      if (!app->startInProcess(games.front()))
+      auto targetEntry = games.front();
+      if (!cliParams.ktrfPath.empty())
+        targetEntry.params.ktrfPath = cliParams.ktrfPath;
+      if (!cliParams.scriptsDir.empty())
+        targetEntry.params.scriptsDir = cliParams.scriptsDir;
+      if (!cliParams.customDocumentsDir.empty())
+        targetEntry.params.customDocumentsDir = cliParams.customDocumentsDir;
+      if (!cliParams.startScenario.empty())
+        targetEntry.params.startScenario = cliParams.startScenario;
+      if (!app->startInProcess(targetEntry))
         throw std::runtime_error(
             "The selected game is not linked into this launcher; enable "
             "its KOTONOHA_BUILD_<PORT> option or KOTONOHA_BUILD_ALL");

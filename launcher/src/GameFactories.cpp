@@ -74,11 +74,14 @@ std::string selectedSourcePath(const DiscoveredGameEntry &entry) {
   std::error_code error;
   if (!std::filesystem::is_directory(original, error))
     return entry.path;
-  // Ren'Py providers resolve their own game/ directory, and CMP providers
-  // recognize the retail disc layout from its root. Do not strip their
+  // Ren'Py providers resolve their own game/ directory, CMP providers
+  // recognize the retail disc layout from its root, and SchoolDaysAssets
+  // requires the root containing both Packs/ and Game00.ini. Do not strip their
   // game roots when the launcher selects a subfolder.
   if (entry.engine.kind == EngineKind::RenPy ||
-      entry.engine.kind == EngineKind::SummerRadish)
+      entry.engine.kind == EngineKind::SummerRadish ||
+      entry.engine.kind == EngineKind::SchoolDays ||
+      entry.engine.kind == EngineKind::PureMail)
     return entry.path;
   const auto nested = original / entry.engine.dataPrefix;
   if (std::filesystem::is_directory(nested, error))
@@ -154,7 +157,11 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
         auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(
             selectedSourcePath(entry));
         assets->setOverlay(opts.assetOverlayDirectory());
-        return mount(std::make_unique<SnowRadish::SnowRuntime>(assets), assets);
+        return mount(
+            std::make_unique<SnowRadish::SnowRuntime>(assets), assets,
+            [](Kotonoha::Runtime &runtime) {
+              static_cast<SnowRadish::SnowRuntime &>(runtime).Shutdown();
+            });
       });
 #endif
 #if defined(KOTONOHA_LAUNCH_SUMMER) || defined(KOTONOHA_LAUNCH_MEO)
@@ -166,11 +173,17 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
         assets->setOverlay(opts.assetOverlayDirectory());
         // Shared CMP engine, but each port keeps its own window and save identity.
         const bool isMeo = entry.engine.slug == "meo";
+        const bool isLostM = assets->isLostM();
         auto runtime = isMeo
                            ? std::make_unique<SummerRadish::SummerRuntime>(
                                  assets, "Miss Each Other",
                                  "me.hirameki.kotonoha.meo")
-                           : std::make_unique<SummerRadish::SummerRuntime>(assets);
+                           : (isLostM
+                                  ? std::make_unique<SummerRadish::SummerRuntime>(
+                                        assets, "Lost M",
+                                        "me.hirameki.kotonoha.lostm")
+                                  : std::make_unique<SummerRadish::SummerRuntime>(
+                                        assets));
         return mount(std::move(runtime), assets,
                      shutdownRuntime<SummerRadish::SummerRuntime>());
       });
@@ -200,12 +213,31 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
   bindFactory(
       registry, EngineKind::SchoolDays,
       [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        const std::string overlayOrScripts =
+            !entry.params.scriptsDir.empty()
+                ? entry.params.scriptsDir
+                : opts.assetOverlayDirectory();
         auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(
             Kotonoha::gameDataDirectory(selectedSourcePath(entry)),
-            opts.assetOverlayDirectory());
-        return mount(std::make_unique<SchoolDays::Runtime>(
-                         assets, std::string{}, std::filesystem::path{}),
-                     assets, shutdownRuntime<SchoolDays::Runtime>());
+            overlayOrScripts);
+        std::string route = entry.params.ktrfPath;
+        if (route.empty()) {
+          route =
+              Kotonoha::Providers::SchoolDaysAssets::defaultRoute().string();
+        }
+        std::filesystem::path docs =
+            entry.params.customDocumentsDir.empty()
+                ? std::filesystem::path{}
+                : std::filesystem::path(entry.params.customDocumentsDir);
+        if (opts.subtitleStylePath.empty()) {
+          if (const auto styles = Kotonoha::FileResolver::findGameAsset(
+                  "school-days", "styles.ass")) {
+            opts.subtitleStylePath = styles->string();
+          }
+        }
+        return mount(
+            std::make_unique<SchoolDays::Runtime>(assets, route, docs), assets,
+            shutdownRuntime<SchoolDays::Runtime>());
       });
 #endif
 #if defined(KOTONOHA_LAUNCH_REALLIVE)

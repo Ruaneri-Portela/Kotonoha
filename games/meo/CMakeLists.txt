@@ -13,16 +13,18 @@ kotonoha_configure_app(MEO
     BUNDLE_ID me.hirameki.kotonoha.meo GAME meo)
 
 set(MEO_DATA_DIR "" CACHE PATH "MISS EACH OTHER retail directory")
-if(BUILD_TESTING AND MEO_DATA_DIR AND NOT ANDROID)
+if(BUILD_TESTING AND NOT ANDROID)
     add_executable(MeoPresentationTest tests/MeoPresentationTest.cpp)
     target_link_libraries(MeoPresentationTest PRIVATE summer_radish_vacation)
-    add_test(NAME MEO.Presentation COMMAND MeoPresentationTest "${MEO_DATA_DIR}")
-    add_test(NAME MEO.SceneMenu COMMAND MeoPresentationTest "${MEO_DATA_DIR}" scene)
-    add_test(NAME MEO.MouseMenu COMMAND MeoPresentationTest "${MEO_DATA_DIR}" mouse)
-    add_test(NAME MEO.NextScene COMMAND MeoPresentationTest "${MEO_DATA_DIR}" transition)
-    add_test(NAME MEO.Choice COMMAND MeoPresentationTest "${MEO_DATA_DIR}" choice)
-    add_test(NAME MEO.Audio COMMAND MeoPresentationTest "${MEO_DATA_DIR}" audio)
-    set_tests_properties(MEO.Presentation MEO.SceneMenu MEO.MouseMenu
-        MEO.NextScene MEO.Choice MEO.Audio PROPERTIES
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+    if(MEO_DATA_DIR)
+        add_test(NAME MEO.Presentation COMMAND MeoPresentationTest "${MEO_DATA_DIR}")
+        add_test(NAME MEO.SceneMenu COMMAND MeoPresentationTest "${MEO_DATA_DIR}" scene)
+        add_test(NAME MEO.MouseMenu COMMAND MeoPresentationTest "${MEO_DATA_DIR}" mouse)
+        add_test(NAME MEO.NextScene COMMAND MeoPresentationTest "${MEO_DATA_DIR}" transition)
+        add_test(NAME MEO.Choice COMMAND MeoPresentationTest "${MEO_DATA_DIR}" choice)
+        add_test(NAME MEO.Audio COMMAND MeoPresentationTest "${MEO_DATA_DIR}" audio)
+        set_tests_properties(MEO.Presentation MEO.SceneMenu MEO.MouseMenu
+            MEO.NextScene MEO.Choice MEO.Audio PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+    endif()
 endif()

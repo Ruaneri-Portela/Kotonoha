@@ -619,7 +619,7 @@ public:
         channel.queue.clear();
         if (channel.player && command.fadeout > 0 && channel.player->Playing())
           fading_.push_back({std::move(channel.player), currentGain(channel),
-                             realNow(), command.fadeout});
+                             audioNow(), command.fadeout});
         else if (channel.player)
           channel.player->Stop();
         start(command.channel, channel, command.spec, command.fade,
@@ -636,12 +636,12 @@ public:
         channel.spec.clear();
         if (channel.player && command.fade > 0 && channel.player->Playing())
           fading_.push_back({std::move(channel.player), currentGain(channel),
-                             realNow(), command.fade});
+                             audioNow(), command.fade});
         else if (channel.player)
           channel.player->Stop();
       }
     }
-    const double now = realNow();
+    const double now = audioNow();
     for (auto &[name, channel] : channels_) {
       if (!channel.player) {
         std::lock_guard<std::mutex> lock(commandsMutex_);
@@ -686,6 +686,22 @@ public:
         ++it;
       }
     }
+  }
+
+  void setPaused(bool paused) {
+    if (paused == (audioPausedAt_ >= 0))
+      return;
+    if (paused)
+      audioPausedAt_ = realNow();
+    else {
+      audioPausedTotal_ += realNow() - audioPausedAt_;
+      audioPausedAt_ = -1;
+    }
+    for (auto &[_, channel] : channels_)
+      if (channel.player)
+        channel.player->SetPaused(paused);
+    for (auto &fading : fading_)
+      fading.player->SetPaused(paused);
   }
 
   void stopAll() {
@@ -792,11 +808,15 @@ private:
     double fadeout = 0;
   };
 
-  static double currentGain(const Channel &channel) {
+  double audioNow() const {
+    return (audioPausedAt_ >= 0 ? audioPausedAt_ : realNow()) -
+           audioPausedTotal_;
+  }
+  double currentGain(const Channel &channel) const {
     if (channel.fadeLen <= 0)
       return channel.fadeTo;
     const double progress =
-        std::clamp((realNow() - channel.fadeStart) / channel.fadeLen, 0.0, 1.0);
+        std::clamp((audioNow() - channel.fadeStart) / channel.fadeLen, 0.0, 1.0);
     return channel.fadeFrom + (channel.fadeTo - channel.fadeFrom) * progress;
   }
   void start(const std::string &name, Channel &channel, const std::string &spec,
@@ -833,6 +853,7 @@ private:
                    "DDLC: cannot start audio channel %s", name.c_str());
       return;
     }
+    channel.player->SetPaused(audioPausedAt_ >= 0);
     channel.spec = spec;
     channel.parsed = parsed;
     channel.loop = loop;
@@ -840,7 +861,7 @@ private:
         data->rate ? double(clip.samples.size() / 2) / data->rate : 0;
     channel.fadeFrom = fade > 0 ? 0 : 1;
     channel.fadeTo = 1;
-    channel.fadeStart = realNow();
+    channel.fadeStart = audioNow();
     channel.fadeLen = fade;
     channel.player->SetGain(float(channel.fadeFrom));
   }
@@ -853,6 +874,7 @@ private:
   std::map<std::string, std::shared_ptr<Pcm>> pcm_;
   std::map<std::string, Channel> channels_;
   std::vector<Fading> fading_;
+  double audioPausedAt_ = -1, audioPausedTotal_ = 0;
   std::mutex commandsMutex_;
   std::vector<Command> commands_;
   std::map<std::string, std::string> requested_;
@@ -1665,15 +1687,20 @@ struct Game {
   // A navigation-style text button (main menu, pause menu, dialogs).
   void navButton(SDL_Renderer *r, const std::string &label, float x, float y,
                  float w, std::function<void()> act) {
+    const bool katawa = assets->name().compare(0, 13, "Katawa Shoujo") == 0;
     const SDL_FRect b{x, y, w, 36};
     const bool hov = button(
         b,
         [this, act] {
-          sfx("gui/sfx/select.ogg");
+          if (assets->name().compare(0, 13, "Katawa Shoujo") != 0)
+            sfx("gui/sfx/select.ogg");
           act();
         },
-        "nav" + label, true);
-    const TextStyle s = navStyle(hov, false);
+        "nav" + label, !katawa);
+    const TextStyle s = katawa
+                            ? uiStyle("font/playtime.ttf", 30,
+                                      hov ? 0x9a402fff : 0x604b3bff)
+                            : navStyle(hov, false);
     const SDL_FPoint sz = textSize(label, s);
     drawText(r, label, s, x + 4, y + (36 - sz.y) / 2);
   }
@@ -1681,13 +1708,17 @@ struct Game {
   void navigation(
       SDL_Renderer *r,
       const std::vector<std::pair<std::string, std::function<void()>>> &items) {
+    const bool katawa = assets->name().compare(0, 13, "Katawa Shoujo") == 0;
     float w = 0;
     for (auto &[l, _] : items)
-      w = std::max(w, textSize(l, navStyle(false, false)).x + 8);
+      w = std::max(w, textSize(l, katawa
+                                    ? uiStyle("font/playtime.ttf", 30,
+                                              0x604b3bff)
+                                    : navStyle(false, false)).x + 8);
     const float h = float(items.size()) * 36 + float(items.size() - 1) * 6;
-    float y = (kH - h) * .8f;
+    float y = katawa ? (kH - h) / 2 : (kH - h) * .8f;
     for (auto &[l, a] : items) {
-      navButton(r, l, 80, y, w, a);
+      navButton(r, l, katawa ? (pauseMenu ? 922 : 680) : 80, y, w, a);
       y += 42;
     }
   }
@@ -2634,6 +2665,7 @@ struct Game {
     if (!on)
       subMenu = SubMenu::None;
     freeze(on);
+    host.setPaused(on);
   }
 
   void resume(Value v = {}) {
@@ -2796,7 +2828,16 @@ struct Game {
 
   void drawSaveLoadMenu(SDL_Renderer *r) {
     drawn.clear();
-    drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0) {
+      if (pauseMenu) {
+        drawBase(r, vm->scene, now());
+        drawImage(r, "ui/bg-gm.png", 870, 125, 240, 456);
+      } else {
+        drawImage(r, "ui/main/bg-main.png", 160, 0, 960, 720);
+      }
+    } else {
+      drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    }
     const bool ptBr = isPtBr();
     std::vector<std::pair<std::string, std::function<void()>>> slotButtons;
     for (int i = 1; i <= 6; ++i) {
@@ -2807,7 +2848,9 @@ struct Game {
                  vm ? int(vm->py.getAttr(vm->persistent, "playthrough")
                               .integer())
                     : 0;
-             if (subMenu == SubMenu::Save && pt == 3) {
+             const bool katawa =
+                 assets->name().compare(0, 13, "Katawa Shoujo") == 0;
+             if (!katawa && subMenu == SubMenu::Save && pt == 3) {
                notice = ptBr ? "N\xC3\xA3o h\xC3\xA1 sentido em salvar agora.\n"
                                "N\xC3\xA3o se preocupe, eu n\xC3\xA3o vou a "
                                "lugar algum."
@@ -2816,7 +2859,7 @@ struct Game {
                subMenu = SubMenu::None;
                return;
              }
-             if (subMenu == SubMenu::Load && pt == 2 &&
+             if (!katawa && subMenu == SubMenu::Load && pt == 2 &&
                  !std::filesystem::is_regular_file(
                      charactersDirectory(host.directory()) / "sayori.chr")) {
                corruptLoadPending = true;
@@ -2828,7 +2871,8 @@ struct Game {
              }
              std::filesystem::path path =
                  Kotonoha::saveDirectory() /
-                 ("ddlc_slot" + std::to_string(i) + ".vn");
+                 ((katawa ? "katawa_slot" : "ddlc_slot") +
+                  std::to_string(i) + ".vn");
              if (subMenu == SubMenu::Save) {
                saveGame(path.string());
                notice = (ptBr ? "Jogo salvo no Slot " : "Game saved to Slot ") +
@@ -2852,7 +2896,8 @@ struct Game {
 
   void drawMainMenu(SDL_Renderer *r) {
     if (assets->name().compare(0, 13, "Katawa Shoujo") == 0) {
-      drawImage(r, "presplash.png", 0, 0, kW, kH);
+      drawImage(r, "ui/main/bg-main.png", 160, 0, 960, 720);
+      drawImage(r, "ui/main/00_tc1-hisao.png", 360, 320, 134, 152);
       const bool ptBr = isPtBr();
       if (subMenu == SubMenu::Load) {
         drawSaveLoadMenu(r);
@@ -2949,7 +2994,12 @@ struct Game {
       return;
     }
     drawn.clear();
-    drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0) {
+      drawBase(r, vm->scene, now());
+      drawImage(r, "ui/bg-gm.png", 870, 125, 240, 456);
+    } else {
+      drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    }
     if (!notice.empty()) {
       drawConfirm(r, notice, {{"OK", [this] { dismissNotice(); }}}, nullptr);
       return;
@@ -3308,6 +3358,7 @@ int GameSession::translationRoute() const {
 void GameSession::update(bool suspended) {
   auto &game = impl_->game;
   game.freeze(suspended || (game.pauseMenu));
+  game.host.setPaused(suspended || game.pauseMenu);
   if (suspended && (!game.pauseMenu))
     game.host.tick();
   else

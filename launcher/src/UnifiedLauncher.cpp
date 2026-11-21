@@ -170,7 +170,7 @@ void applyPerGameSaveIsolation(const DiscoveredGameEntry &entry,
   setenv("KOTONOHA_USER_DATA_DIR", isolatedRoot.c_str(), 1);
 #endif
 
-  if (splitSavesByGame) {
+  if (splitSavesByGame && options.persistSettings) {
     const fs::path docDir = saveDir.parent_path();
     fs::create_directories(docDir, ec);
     options.settingsPath = (docDir / "settings.json").string();
@@ -373,8 +373,36 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
             *prefix + "script-a1-monday.rpyc", true};
   }
 
-  // 2. Check Summer Radish Vacation 1 & 2 (SCRIPT.CMP + GRAPHIC.CMP in
+  // 2. Check Summer Radish Vacation 1 & 2, Lost M, and Imouto de Ikou!
+  //    (SCRIPT.CMP + GRAPHIC.CMP / GRAPHIC000.CMP / BGDATA.CMP in
   //    DISC1/PACK/, PACK/, DATA/, or root; or INSTALL.cmp + Info.DISC).
+  if (findRequiredFilesPrefix(source, {"Lost-M.conf"}, {"", "DISC1/"}) ||
+      findRequiredFilesPrefix(source, {"SCRIPT.CMP", "GRAPHIC000.CMP"},
+                              {"", "PACK/", "DISC1/PACK/"})) {
+    const auto cmpPrefix =
+        findRequiredFilesPrefix(source, {"SCRIPT.CMP"},
+                                {"", "PACK/", "DISC1/PACK/", "DATA/"})
+            .value_or("DISC1/PACK/");
+    return {EngineKind::SummerRadish,
+            "summer-radish-vacation",
+            "Overflow CMP (Lost M)",
+            cmpPrefix,
+            cmpPrefix + "SCRIPT.CMP + GRAPHIC000.CMP",
+            true};
+  }
+  if (findRequiredFilesPrefix(source, {"SCRIPT.CMP", "BGDATA.CMP"},
+                              {"", "PACK/", "DISC1/PACK/", "DATA/"})) {
+    const auto cmpPrefix =
+        findRequiredFilesPrefix(source, {"SCRIPT.CMP", "BGDATA.CMP"},
+                                {"", "PACK/", "DISC1/PACK/", "DATA/"})
+            .value_or("DISC1/PACK/");
+    return {EngineKind::SummerRadish,
+            "summer-radish-vacation",
+            "Overflow CMP (Imouto de Ikou!)",
+            cmpPrefix,
+            cmpPrefix + "SCRIPT.CMP + BGDATA.CMP",
+            true};
+  }
   if (const auto cmpPrefix = findRequiredFilesPrefix(
           source, {"SCRIPT.CMP", "GRAPHIC.CMP"},
           {"", "DATA/", "PACK/", "DISC1/PACK/", "DISC1/DATA/"})) {
@@ -387,6 +415,18 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
     return {EngineKind::SummerRadish,  "summer-radish-vacation",
             "Summer Radish CMP",       "DISC1/",
             "INSTALL.cmp + Info.DISC", true};
+  }
+
+  // 2b. Check Large PonPon (MAINSYS.INI + PACK/script.dat + PACK/GRAPHIC.DAT)
+  if (hasFileCaseInsensitive(source, "MAINSYS.INI") &&
+      findRequiredFilesPrefix(source, {"SCRIPT.DAT", "GRAPHIC.DAT"},
+                              {"", "PACK/", "pack/"})) {
+    return {EngineKind::PureMail,
+            "pmail",
+            "Overflow GC Engine (Large PonPon)",
+            "PACK/",
+            "MAINSYS.INI + PACK/SCRIPT.DAT",
+            true};
   }
 
   // 3. Check Snow Radish Vacation before generic PureMail rule:
@@ -584,6 +624,7 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
         continue;
       if (isVnxOverlayPatch(*mounted)) {
         vnxPatchPath = candidate.string();
+        continue;
       }
       const auto detected = detectKotonohaEngine(*mounted, candidate.string());
       if (detected.kind != EngineKind::Unknown) {
@@ -646,11 +687,13 @@ UnifiedLauncher::UnifiedLauncher(std::string settingsPath,
     rememberFilePath = (parent / "library.txt").string();
     rememberSaveSplitPath = (parent / "save-isolation.txt").string();
     rememberSaveRootPath = (parent / "save-root.txt").string();
+    rememberGameParamsPath = (parent / "game-params.txt").string();
   }
   const std::string savedSplit = readFirstLineFromFile(rememberSaveSplitPath);
   if (savedSplit == "0" || savedSplit == "false")
     isolateSavesPerGame = false;
   customSaveRootPath = readFirstLineFromFile(rememberSaveRootPath);
+  loadSavedGameParams();
 
 #if defined(__APPLE__) && TARGET_OS_IPHONE
   // On iOS, the hub scans one stable Files-visible sandbox directory.
@@ -676,9 +719,59 @@ void UnifiedLauncher::setLibraryPath(std::string path) {
 }
 
 void UnifiedLauncher::rescan() {
+  for (const auto &entry : catalog) {
+    if (!entry.saveProfileId.empty())
+      savedGameParams[entry.saveProfileId] = entry.params;
+  }
   catalog = scanGameLibrary(currentLibraryPath);
+  for (auto &entry : catalog) {
+    auto it = savedGameParams.find(entry.saveProfileId);
+    if (it != savedGameParams.end())
+      entry.params = it->second;
+  }
   if (selected < 0 || selected >= static_cast<int>(catalog.size()))
     selected = 0;
+}
+
+void UnifiedLauncher::loadSavedGameParams() {
+  if (rememberGameParamsPath.empty())
+    return;
+  Kotonoha::Filesystem::InputFile input(rememberGameParamsPath);
+  if (!input.is_open())
+    return;
+  std::string line;
+  while (std::getline(input, line)) {
+    std::istringstream ss(line);
+    std::string profileId;
+    GameLaunchParameters p;
+    if (ss >> std::quoted(profileId) >> std::quoted(p.assetOverlayPath) >>
+        std::quoted(p.translationPath) >> std::quoted(p.subtitleStylePath) >>
+        std::quoted(p.customDocumentsDir) >> std::quoted(p.ktrfPath) >>
+        std::quoted(p.scriptsDir) >> std::quoted(p.startScenario)) {
+      if (!profileId.empty())
+        savedGameParams[profileId] = std::move(p);
+    }
+  }
+}
+
+void UnifiedLauncher::saveGameParams() const {
+  if (rememberGameParamsPath.empty())
+    return;
+  std::map<std::string, GameLaunchParameters> merged = savedGameParams;
+  for (const auto &entry : catalog) {
+    if (!entry.saveProfileId.empty())
+      merged[entry.saveProfileId] = entry.params;
+  }
+  std::ostringstream out;
+  for (const auto &[profileId, p] : merged) {
+    out << std::quoted(profileId) << ' ' << std::quoted(p.assetOverlayPath)
+        << ' ' << std::quoted(p.translationPath) << ' '
+        << std::quoted(p.subtitleStylePath) << ' '
+        << std::quoted(p.customDocumentsDir) << ' ' << std::quoted(p.ktrfPath)
+        << ' ' << std::quoted(p.scriptsDir) << ' '
+        << std::quoted(p.startScenario) << '\n';
+  }
+  Kotonoha::writeTextFileAtomically(rememberGameParamsPath, out.str());
 }
 
 void UnifiedLauncher::setSelectedIndex(int index) {
@@ -821,7 +914,7 @@ void UnifiedLauncher::drawGameOptions() {
   }
 
   if (hasValidSelection()) {
-    const auto current = selectedEntry();
+    auto &current = catalog[static_cast<std::size_t>(selected)];
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Text("Selected: %s  |  Engine: %s  |  Library: %s",
@@ -833,6 +926,107 @@ void UnifiedLauncher::drawGameOptions() {
     if (!current.overlayPath.empty()) {
       ImGui::TextWrapped("Auto-Paired Overlay Patch: %s",
                          current.overlayPath.c_str());
+    }
+
+    ImGui::Spacing();
+    const bool expandByDefault =
+        current.engine.kind == EngineKind::SchoolDays;
+    if (ImGui::CollapsingHeader(
+            "Optional Game Launch Parameters (Routes, Patches, Translations)",
+            expandByDefault ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
+      if (current.engine.kind == EngineKind::SchoolDays) {
+        ImGui::InputTextWithHint(
+            "##ktrfPath",
+            "Route file (.ktnroute / .ktrf) — leave empty for bundled default",
+            &current.params.ktrfPath);
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+        ImGui::SameLine();
+        if (ImGui::Button("Route (.ktnroute)...")) {
+          const int idx = selected;
+          browseFile({{"School Days route (.ktnroute, .ktrf)", "ktnroute;ktrf"},
+                      {"All files", "*"}},
+                     current.params.ktrfPath.empty() ? current.path
+                                                     : current.params.ktrfPath,
+                     [this, idx](const std::string &chosen) {
+                       if (idx >= 0 &&
+                           idx < static_cast<int>(catalog.size())) {
+                         catalog[static_cast<std::size_t>(idx)]
+                             .params.ktrfPath = chosen;
+                       }
+                     });
+        }
+#endif
+        ImGui::InputTextWithHint("##scriptsDir",
+                                 "Translated ORS scripts directory (--scripts)",
+                                 &current.params.scriptsDir);
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+        ImGui::SameLine();
+        if (ImGui::Button("Scripts Folder...")) {
+          const int idx = selected;
+          browseFolder(
+              current.params.scriptsDir.empty() ? current.path
+                                                : current.params.scriptsDir,
+              [this, idx](const std::string &chosen) {
+                if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
+                  catalog[static_cast<std::size_t>(idx)].params.scriptsDir =
+                      chosen;
+                }
+              });
+        }
+#endif
+      }
+
+      ImGui::InputTextWithHint(
+          "##assetOverlayPath",
+          "Asset overlay directory or patch (--asset-overlay)",
+          &current.params.assetOverlayPath);
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+      ImGui::SameLine();
+      if (ImGui::Button("Overlay Folder...")) {
+        const int idx = selected;
+        browseFolder(current.params.assetOverlayPath.empty()
+                         ? current.path
+                         : current.params.assetOverlayPath,
+                     [this, idx](const std::string &chosen) {
+                       if (idx >= 0 &&
+                           idx < static_cast<int>(catalog.size())) {
+                         catalog[static_cast<std::size_t>(idx)]
+                             .params.assetOverlayPath = chosen;
+                       }
+                     });
+      }
+#endif
+
+      ImGui::InputTextWithHint("##translationPath",
+                               "Translation catalog file (.ktr) (--translation)",
+                               &current.params.translationPath);
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+      ImGui::SameLine();
+      if (ImGui::Button("Translation (.ktr)...")) {
+        const int idx = selected;
+        browseFile({{"Kotonoha Translation (.ktr)", "ktr"}, {"All files", "*"}},
+                   current.params.translationPath.empty()
+                       ? current.path
+                       : current.params.translationPath,
+                   [this, idx](const std::string &chosen) {
+                     if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
+                       catalog[static_cast<std::size_t>(idx)]
+                           .params.translationPath = chosen;
+                     }
+                   });
+      }
+#endif
+
+      ImGui::InputTextWithHint(
+          "##subtitleStylePath",
+          "ASS subtitle stylesheet (.ass) (--subtitle-style)",
+          &current.params.subtitleStylePath);
+      ImGui::InputTextWithHint("##customDocumentsDir",
+                               "Custom save/documents directory (--documents)",
+                               &current.params.customDocumentsDir);
+      ImGui::InputTextWithHint("##startScenario",
+                               "Initial scenario / node override (--start / --node)",
+                               &current.params.startScenario);
     }
   }
 }
@@ -870,6 +1064,7 @@ void UnifiedLauncher::save() {
     Kotonoha::writeTextFileAtomically(rememberSaveRootPath,
                                       customSaveRootPath + "\n");
   }
+  saveGameParams();
 }
 
 } // namespace KotonohaLauncher
