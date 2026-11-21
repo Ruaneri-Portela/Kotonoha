@@ -847,6 +847,18 @@
 		CD6DD0B1E66DB4110AC6B753 /* SchoolDaysTopMeterModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C2C54C4DDDC0D8F489C35C0 /* SchoolDaysTopMeterModel.cpp */; };
 		CDDE6EC31A779A77F17D9531 /* Formats.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0EA031C961EEEB6D67C21FFF /* Formats.cpp */; };
 		CDE6CB5AA56C06E930A0C42F /* DdlcAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DC4ED3DFF3AB6D211D5F95B6 /* DdlcAssets.cpp */; };
+		CE0187A730B160B400A74244 /* MeoAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187A630B160B400A74244 /* MeoAudio.cpp */; };
+		CE0187A830B160B400A74244 /* MeoAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187A630B160B400A74244 /* MeoAudio.cpp */; };
+		CE0187A930B160B400A74244 /* MeoAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187A630B160B400A74244 /* MeoAudio.cpp */; };
+		CE0187AA30B160B400A74244 /* MeoAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187A630B160B400A74244 /* MeoAudio.cpp */; };
+		CE0187B130B160ED00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B030B160ED00A74244 /* DebugCatalog.cpp */; };
+		CE0187B230B160ED00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B030B160ED00A74244 /* DebugCatalog.cpp */; };
+		CE0187B330B160ED00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B030B160ED00A74244 /* DebugCatalog.cpp */; };
+		CE0187B430B160ED00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B030B160ED00A74244 /* DebugCatalog.cpp */; };
+		CE0187B630B1613A00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B530B1613A00A74244 /* DebugCatalog.cpp */; };
+		CE0187B730B1613A00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B530B1613A00A74244 /* DebugCatalog.cpp */; };
+		CE0187B830B1613A00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B530B1613A00A74244 /* DebugCatalog.cpp */; };
+		CE0187B930B1613A00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B530B1613A00A74244 /* DebugCatalog.cpp */; };
 		CEDC36241EF2901401305854 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; };
 		CEE219CCB0C0DC0A84FAADE2 /* ScriptBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FD846ABD52229FF1A602543 /* ScriptBuffer.cpp */; };
 		CF178F71E2941127FFF00A21 /* TextFormatter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2546EE42B786DD73AB620B7E /* TextFormatter.cpp */; };
@@ -2363,6 +2375,9 @@
 		CCFBCB04C6B7A6FDE92053A2 /* PmailGame.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailGame.cpp; path = ../../games/pmail/src/PmailGame.cpp; sourceTree = SOURCE_ROOT; };
 		CD147B8DCD5C1DB9C4C6545E /* imgui_draw.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_draw.cpp; path = ../../lib/submodules/imgui/imgui_draw.cpp; sourceTree = SOURCE_ROOT; };
 		CDA95F2216A98537A0054444 /* SnowLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SnowLauncher.cpp; path = "../../games/snow-radish-vacation/src/SnowLauncher.cpp"; sourceTree = SOURCE_ROOT; };
+		CE0187A630B160B400A74244 /* MeoAudio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MeoAudio.cpp; path = /Users/nero/Codes/Kotonoha/modules/providers/cmp/src/MeoAudio.cpp; sourceTree = "<absolute>"; };
+		CE0187B030B160ED00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = "/Users/nero/Codes/Kotonoha/games/luca-system/src/DebugCatalog.cpp"; sourceTree = "<absolute>"; };
+		CE0187B530B1613A00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = /Users/nero/Codes/Kotonoha/modules/vms/n2system/src/DebugCatalog.cpp; sourceTree = "<absolute>"; };
 		CF96F1307DEFE04F63539C65 /* ZeroComponents.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ZeroComponents.cpp; path = "../../games/zero-no-tsukaima/src/ZeroComponents.cpp"; sourceTree = SOURCE_ROOT; };
 		D31A702A792A5505E0A79948 /* DebugOverlay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugOverlay.cpp; path = ../../lib/src/debug/DebugOverlay.cpp; sourceTree = SOURCE_ROOT; };
 		D33B078112567AB0EF8AD765 /* MEO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MEO.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -3473,6 +3488,7 @@
 				A387D57559A39733FBA21A24 /* LucaSystemRuntime.cpp */,
 				6CEE45A84649AE37A49032B7 /* LucaSystemScript.cpp */,
 				D9932D19AEFC21BCAB4F7360 /* main.cpp */,
+				CE0187B030B160ED00A74244 /* DebugCatalog.cpp */,
 			);
 			name = LucaSystem;
 			sourceTree = "<group>";
@@ -3934,6 +3950,7 @@
 				F7684BA2CC0FEC25FB9CE283 /* ScriptIndex.cpp */,
 				A039740292658EB792C886C9 /* ScriptVm.cpp */,
 				26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */,
+				CE0187B530B1613A00A74244 /* DebugCatalog.cpp */,
 			);
 			name = n2system;
 			sourceTree = "<group>";
@@ -3943,6 +3960,7 @@
 			children = (
 				FD5E8A6845109ED1B21087E1 /* Pack.cpp */,
 				AC4B76E74D4407182235347D /* SummerAssets.cpp */,
+				CE0187A630B160B400A74244 /* MeoAudio.cpp */,
 			);
 			name = cmp;
 			sourceTree = "<group>";
@@ -6693,6 +6711,7 @@
 				554E67139F266B0EAA30ED85 /* PonscripterCommands.cpp in Sources */,
 				0E56E9F325BB0880BB243580 /* PonscripterTypes.cpp in Sources */,
 				9A152B3208BB0CB66EF9D005 /* PonscripterVm.cpp in Sources */,
+				CE0187B630B1613A00A74244 /* DebugCatalog.cpp in Sources */,
 				6EBA556BE499B1222BB7CB80 /* SaveSerializer.cpp in Sources */,
 				1DD373924088BB84D6E3B033 /* ScriptBuffer.cpp in Sources */,
 				CF178F71E2941127FFF00A21 /* TextFormatter.cpp in Sources */,
@@ -6746,6 +6765,7 @@
 				92664C9232CB4E6E815262CD /* LucaSystemScript.cpp in Sources */,
 				1885BFA8ACB3762FAF00BFF3 /* LucaSystemRuntime.cpp in Sources */,
 				003F4534DA3A1B2D0F0B3F0F /* main.cpp in Sources */,
+				CE0187B130B160ED00A74244 /* DebugCatalog.cpp in Sources */,
 				A96E8B610AE61A3AA66EA615 /* SnowAssets.cpp in Sources */,
 				DDC5BB18E41364E79D264758 /* Pack.cpp in Sources */,
 				545930E621DA841013AF8075 /* TimelineParser.cpp in Sources */,
@@ -6790,6 +6810,7 @@
 				94059E262ACD6778ACEA579F /* Pack.cpp in Sources */,
 				E98EBCDC14C3E918621A5C59 /* Script.cpp in Sources */,
 				A3AB5D73C2B7879DE055346F /* Pack.cpp in Sources */,
+				CE0187A730B160B400A74244 /* MeoAudio.cpp in Sources */,
 				73544F3DD0DB5CFFF630FD40 /* SummerAssets.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -6836,6 +6857,7 @@
 				B5987908D3B730059EBDAFFC /* PonscripterCommands.cpp in Sources */,
 				B2B2329547502B598ADC1561 /* PonscripterTypes.cpp in Sources */,
 				2436BDC872BBDD8107F3B571 /* PonscripterVm.cpp in Sources */,
+				CE0187B830B1613A00A74244 /* DebugCatalog.cpp in Sources */,
 				AC74D419239DE9FC20E4B487 /* SaveSerializer.cpp in Sources */,
 				CEE219CCB0C0DC0A84FAADE2 /* ScriptBuffer.cpp in Sources */,
 				4C87BAA57C5291CB67A794F5 /* TextFormatter.cpp in Sources */,
@@ -7383,6 +7405,7 @@
 				B6B600000000000000000017 /* CzImage.cpp in Sources */,
 				B6B600000000000000000018 /* DdlcAssets.cpp in Sources */,
 				B6B600000000000000000019 /* DdlcLauncher.cpp in Sources */,
+				CE0187B930B1613A00A74244 /* DebugCatalog.cpp in Sources */,
 				B6B60000000000000000001A /* DdlcRuntime.cpp in Sources */,
 				B6B60000000000000000001B /* DdlcSession.cpp in Sources */,
 				B6B60000000000000000001C /* DialogueSystem.cpp in Sources */,
@@ -7438,6 +7461,7 @@
 				B6B60000000000000000004E /* RealLiveRuntime.cpp in Sources */,
 				B6B60000000000000000004F /* Replay.cpp in Sources */,
 				B6B600000000000000000050 /* SaveSerializer.cpp in Sources */,
+				CE0187B230B160ED00A74244 /* DebugCatalog.cpp in Sources */,
 				B6B600000000000000000051 /* SaveState.cpp in Sources */,
 				B6B600000000000000000052 /* scenario.cc in Sources */,
 				B6B600000000000000000053 /* Scene.cpp in Sources */,
@@ -7512,6 +7536,7 @@
 				B6B600000000000000000098 /* SnowLauncher.cpp in Sources */,
 				B6B600000000000000000099 /* SnowRuntime.cpp in Sources */,
 				B6B60000000000000000009A /* SnowSession.cpp in Sources */,
+				CE0187A830B160B400A74244 /* MeoAudio.cpp in Sources */,
 				B6B60000000000000000009B /* Source.cpp in Sources */,
 				B6B60000000000000000009C /* Source.cpp in Sources */,
 				B6B60000000000000000009D /* SummerAssets.cpp in Sources */,
@@ -7637,6 +7662,7 @@
 				D7D700000000000000000024 /* CzImage.cpp in Sources */,
 				D7D700000000000000000025 /* DdlcAssets.cpp in Sources */,
 				D7D700000000000000000026 /* DdlcLauncher.cpp in Sources */,
+				CE0187B430B160ED00A74244 /* DebugCatalog.cpp in Sources */,
 				D7D700000000000000000027 /* DdlcRuntime.cpp in Sources */,
 				D7D700000000000000000028 /* DdlcSession.cpp in Sources */,
 				D7D700000000000000000029 /* DialogueSystem.cpp in Sources */,
@@ -7656,6 +7682,8 @@
 				D7D700000000000000000037 /* KtrfAssetResolver.cpp in Sources */,
 				D7D700000000000000000038 /* KtrfStateStore.cpp in Sources */,
 				D7D700000000000000000039 /* Lexer.cpp in Sources */,
+				CE0187A930B160B400A74244 /* MeoAudio.cpp in Sources */,
+				CE0187B730B1613A00A74244 /* DebugCatalog.cpp in Sources */,
 				D7D70000000000000000003A /* LucaSystemAssets.cpp in Sources */,
 				D7D70000000000000000003B /* LucaSystemRuntime.cpp in Sources */,
 				D7D70000000000000000003C /* LucaSystemScript.cpp in Sources */,
@@ -7800,6 +7828,7 @@
 				001D06FD0DBB1EFC6A22EB48 /* LucaSystemScript.cpp in Sources */,
 				0BEADAEC1DCC522788661604 /* LucaSystemRuntime.cpp in Sources */,
 				9174735963F63315B8FB0B67 /* main.cpp in Sources */,
+				CE0187B330B160ED00A74244 /* DebugCatalog.cpp in Sources */,
 				7B5A47D5D9652FC332D4A968 /* SnowAssets.cpp in Sources */,
 				9E7E6C96AADFBFBC11C8291A /* Pack.cpp in Sources */,
 				690738957BDA60607F930CC4 /* TimelineParser.cpp in Sources */,
@@ -7841,6 +7870,7 @@
 				7B17B63ED9B912AF7A181C1F /* Pack.cpp in Sources */,
 				51EAEF0C6A8D2B1CB3330A01 /* Script.cpp in Sources */,
 				F98612F8622E62BCCC080F51 /* Pack.cpp in Sources */,
+				CE0187AA30B160B400A74244 /* MeoAudio.cpp in Sources */,
 				32AC806A811B6ACAA0C8396D /* SummerAssets.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
