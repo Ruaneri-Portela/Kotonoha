@@ -1,5 +1,6 @@
 #include "SchoolDaysRuntime.hpp"
 #include "SchoolDaysLauncher.hpp"
+#include "SchoolDaysMobileProfile.hpp"
 #include <Kotonoha/routing/SchoolDaysDisplayNarrativeMarkup.hpp>
 #include <Kotonoha/routing/SchoolDaysLxhContent.hpp>
 #include <Kotonoha/routing/SchoolDaysMediaCancellationPool.hpp>
@@ -1109,12 +1110,7 @@ void Runtime::init(Kotonoha::Engine &owner) {
         !engine->HasStoredSettings()) {
       try {
         auto settings = engine->GetSettings();
-        settings.mode = Kotonoha::WindowMode::Borderless;
-        settings.vsync = true;
-        settings.renderScale = 0.75f;
-        settings.upscaling.backend = Kotonoha::UpscaleBackend::Auto;
-        settings.upscaling.preset = Kotonoha::UpscalePreset::ArtCNN;
-        settings.upscaling.factor = 2.0f;
+        SchoolDays::applyMobileDisplayDefaults(settings);
         const auto modes = AndroidDisplayModesUnique();
         if (!modes.empty()) {
           const auto selected = std::min_element(

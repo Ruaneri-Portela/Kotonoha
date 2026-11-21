@@ -1,4 +1,5 @@
 #include "SchoolDaysLauncher.hpp"
+#include "SchoolDaysMobileProfile.hpp"
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysOverlaySelection.hpp"
 
@@ -54,12 +55,7 @@ Kotonoha::EngineSettings defaultSchoolDaysLauncherSettings() {
   // Use the same mobile-low first-run profile as SDL_AppInit. Opening the
   // launcher must not save generic desktop defaults before the game starts.
   defaults.renderer = "opengles2";
-  defaults.mode = Kotonoha::WindowMode::Borderless;
-  defaults.vsync = true;
-  defaults.renderScale = 0.75f;
-  defaults.upscaling.backend = Kotonoha::UpscaleBackend::Auto;
-  defaults.upscaling.preset = Kotonoha::UpscalePreset::ArtCNN;
-  defaults.upscaling.factor = 2.0f;
+  applyMobileDisplayDefaults(defaults);
 #endif
   return defaults;
 }
