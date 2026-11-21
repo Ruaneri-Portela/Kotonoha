@@ -3254,6 +3254,18 @@ std::string GameSession::dialogueSpeaker() const {
   auto &g = impl_->game;
   return g.vm ? g.displayWindow(g.vm->scene.window).who : std::string();
 }
+std::vector<std::pair<std::string, std::string>>
+GameSession::activeAudioAssets() const {
+  auto &game = impl_->game;
+  std::vector<std::pair<std::string, std::string>> result;
+  for (const char *channel : {"voice", "music", "sound", "ambience"}) {
+    const auto id = game.host.playing(channel);
+    if (!id.empty())
+      result.emplace_back(channel, id);
+  }
+  return result;
+}
+
 std::string GameSession::visibleDialogueText() const {
   auto &g = impl_->game;
   std::string result;
