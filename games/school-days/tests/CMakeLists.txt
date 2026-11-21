@@ -102,6 +102,7 @@ foreach(_school_days_policy_test IN ITEMS
         SchoolDaysInputPolicyTest
         SchoolDaysMenuBarLayoutTest
         SchoolDaysPromptPolicyTest
+        SchoolDaysSystemPanelTransitionTest
         SchoolDaysTopMeterModelTest)
     add_executable(${_school_days_policy_test} ${_school_days_policy_test}.cpp)
     target_link_libraries(${_school_days_policy_test} PRIVATE school_days)
