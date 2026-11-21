@@ -344,6 +344,9 @@ void DebugOverlay::drawInspector() {
   ImGui::SeparatorText("Script nodes");
   if (ids.empty()) {
     ImGui::TextUnformatted("No engine script nodes loaded.");
+    // Native title menus and engines without VNManager scripts must still be
+    // able to browse, export and preview the mounted AssetProvider.
+    drawAssets({});
     drawTranslationExport();
     return;
   }
