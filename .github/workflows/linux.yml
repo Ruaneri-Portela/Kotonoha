@@ -74,7 +74,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic \
             "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" \
-            -DKOTONOHA_SDL_PROVIDER=VCPKG  \
+            -DKOTONOHA_SDL_PROVIDER=VCPKG \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON
       - name: Compile all game ports
@@ -292,7 +292,7 @@ jobs:
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
             -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
             "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" \
-            -DKOTONOHA_SDL_PROVIDER=VCPKG  \
+            -DKOTONOHA_SDL_PROVIDER=VCPKG \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_WEB_SELFTEST=ON \
             -DKOTONOHA_BUILD_ALL=ON \
