@@ -299,6 +299,24 @@ Bytes Source::ambience(unsigned index) const {
     throw std::out_of_range("Ambient sound index outside SOUND.AFS");
   return read("SOUND/SOUND.AFS", index);
 }
+std::vector<std::string> Source::voiceAssetIds() const {
+  std::vector<std::string> result;
+  result.reserve(voices_.size());
+  for (const auto &[key, entry] : voices_) {
+    // Source::voice() resolves "<speaker-code><four-digit-number>".
+    // Only expose keys that have that canonical shape.
+    if (key.size() <= 4)
+      continue;
+    const auto number = key.substr(key.size() - 4);
+    if (!std::all_of(number.begin(), number.end(),
+                     [](unsigned char ch) { return ch >= '0' && ch <= '9'; }))
+      continue;
+    result.push_back("voice/" + key.substr(0, key.size() - 4) + "/" +
+                     std::to_string(std::stoul(number)));
+  }
+  return result;
+}
+
 Bytes Source::voice(const std::string &code, unsigned number) const {
   char id[16];
   std::snprintf(id, sizeof(id), "%s%04u", code.c_str(), number);
