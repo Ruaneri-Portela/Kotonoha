@@ -13,7 +13,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".GameActivity" android:screenOrientation="user"
-            tools:replace="android:screenOrientation" />
+        <activity android:name=".GameActivity" android:screenOrientation="sensorLandscape"
+            tools:replace="android:screenOrientation">
+            <meta-data android:name="SDL_ENV.SDL_ORIENTATIONS"
+                android:value="LandscapeLeft LandscapeRight" />
+        </activity>
     </application>
 </manifest>
