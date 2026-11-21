@@ -128,9 +128,9 @@ cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
   cmake -S . -B build \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
     -DVCPKG_TARGET_TRIPLET=<triplet> \
-    '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg' \
-    -DKOTONOHA_SDL_FROM_VCPKG=ON \
-    -DKOTONOHA_IMGUI_FROM_VCPKG=ON
+    '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg' \
+    -DKOTONOHA_SDL_PROVIDER=VCPKG \
+    
   ```
 
 ### Apple Platforms (macOS & iOS)
