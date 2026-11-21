@@ -1,0 +1,23 @@
+<resources>
+    <string name="sd_play">Play</string>
+    <string name="sd_options">Options</string>
+    <string name="sd_quit">Quit</string>
+    <string name="sd_files">Game Files</string>
+    <string name="sd_language">Language</string>
+    <string name="sd_pick">Select SchoolDaysHQ folder</string>
+    <string name="sd_retry">Check again</string>
+    <string name="sd_back">Back</string>
+    <string name="sd_missing">School Days HQ could not start. Select the SchoolDaysHQ folder containing your game files, translations and additional resources.</string>
+    <string name="sd_checking">Checking folder…</string>
+    <string name="sd_denied">Folder access is unavailable. Select the folder again.</string>
+    <string name="sd_unreadable">Could not check the folder. Try again or select another folder.</string>
+    <string name="sd_pending">Folder authorized. Starting the game from this folder requires native SAF support.</string>
+    <string name="sd_absent">Folder authorized. Missing or empty: %1$s</string>
+    <string name="sd_no_translations">No complete HQ and L×H JSON pairs found.</string>
+    <string name="sd_detected">Available JSON pairs: %1$s</string>
+    <string name="sd_info">Kotonoha · %1$s</string>
+    <string name="sd_picker_error">The Android folder picker is unavailable.</string>
+    <string name="sd_private_ready">Existing app-private installation found.</string>
+    <string name="sd_forget">Disconnect folder</string>
+    <string name="sd_game_failed">School Days HQ could not finish starting or running. Check the game files and try again.</string>
+</resources>
