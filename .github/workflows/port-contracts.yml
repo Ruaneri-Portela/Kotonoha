@@ -129,6 +129,12 @@ jobs:
           python3 tools/check_unified_launcher_registry.py
           python3 tools/check_debug_bridge.py
           python3 tools/check_sdl_cpack.py
+      - name: Test common Kotonoha debug asset conventions (C++17)
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Ilib/include lib/tests/DebugAssetCatalogTests.cpp \
+            -o /tmp/kotonoha-debug-assets
+          /tmp/kotonoha-debug-assets
       - name: Compile and run native LucaSystem Debug Catalog regression
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
