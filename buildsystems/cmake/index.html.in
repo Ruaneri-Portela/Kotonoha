@@ -1085,27 +1085,8 @@
             };
         })();
 
-        window.KotonohaSharedWasmURL =
-            "@WASM_SHARED_ENGINE@" === "true" ?
-                new URL("../libs/@KOTONOHA_WASM_SHARED_FILENAME@",
-                        window.location.href).href : null;
-
         var Module = {
             canvas: document.getElementById("canvas"),
-
-            // Only in dynamic mode does a game request the versioned shared
-            // libKotonoha binary. Its URL is common to every game directory,
-            // so the browser can reuse one HTTP cache entry across PWAs.
-            // Static builds still resolve all their resources normally.
-            locateFile: function(path, prefix) {
-                if ("@WASM_SHARED_ENGINE@" === "true" &&
-                    String(path).split(/[\\/]/).pop() ===
-                        "@KOTONOHA_WASM_SHARED_FILENAME@") {
-                    return new URL("../libs/@KOTONOHA_WASM_SHARED_FILENAME@",
-                                   window.location.href).href;
-                }
-                return (prefix || "") + path;
-            },
 
             preRun: [
                 function() {
@@ -1633,7 +1614,6 @@
         }
     </script>
     <script src="KotonohaPreloadCache.js"></script>
-    <script src="KotonohaSharedWasmCache.js"></script>
     <script src="@TARGET_NAME@.js"></script>
 </body>
 </html>
