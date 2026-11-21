@@ -103,7 +103,7 @@ def audit() -> list[str]:
         issues.append("Game factories are not statically linked into the hub")
     for option, slug, _ in re.findall(
         r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"',
-        (ROOT / "buildsystems/cmake/KotonohaGames.cmake").read_text(
+        (ROOT / "buildsystems/cmake/games/KotonohaGames.cmake").read_text(
             encoding="utf-8")):
         if option == "EXAMPLE":
             continue
@@ -129,7 +129,11 @@ def audit() -> list[str]:
         issues.append("N2System must reuse only the Ponscripter library")
 
     root_cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-    if 'KOTONOHA_BUILD_ALL AND NOT ANDROID AND NOT EMSCRIPTEN' not in root_cmake:
+    games_cmake = (ROOT / "buildsystems/cmake/games/KotonohaBuild.cmake").read_text(
+        encoding="utf-8")
+    if "games/KotonohaBuild.cmake" not in root_cmake or (
+        "KOTONOHA_BUILD_ALL AND NOT ANDROID AND NOT EMSCRIPTEN" not in games_cmake
+    ):
         issues.append("Native-only standalone launcher guard is missing")
     return issues
 
