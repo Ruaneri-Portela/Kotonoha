@@ -452,6 +452,16 @@ std::vector<Kotonoha::DebugNode> N2Runtime::debugNodes() const {
         node.assets.push_back(voice);
     }
     nodes.push_back(std::move(node));
+    for (const auto &label : chapter.labels) {
+      Kotonoha::DebugNode entry{
+          "n2 | chapter " + chapter.name + " | label " + label.name,
+          "Label " + label.name + " (line " +
+              std::to_string(label.line) + ")",
+          {}};
+      if (!impl_->nativeScriptId.empty())
+        entry.assets.push_back(impl_->nativeScriptId);
+      nodes.push_back(std::move(entry));
+    }
   }
   return nodes;
 }
@@ -462,11 +472,27 @@ void N2Runtime::debugJumpToNode(const std::string &id) {
     return;
   }
   constexpr std::string_view prefix = "n2 | chapter ";
-  if (id.compare(0, prefix.size(), prefix) != 0 ||
-      !impl_->nativeIndex.findChapter(id.substr(prefix.size())))
+  constexpr std::string_view labelSep = " | label ";
+  if (id.compare(0, prefix.size(), prefix) != 0)
+    throw std::invalid_argument("Unknown N2System debug node: " + id);
+  const std::string_view body(id.data() + prefix.size(),
+                              id.size() - prefix.size());
+  const auto labelAt = body.find(labelSep);
+  const auto chapterName = body.substr(0, labelAt);
+  const auto *chapter = impl_->nativeIndex.findChapter(chapterName);
+  if (!chapter)
     throw std::invalid_argument("Unknown N2System chapter: " + id);
-  // Re-entering a chapter resets native VM state, as a Debug UI jump must.
-  vm_.loadScript(impl_->nativeScript, id.substr(prefix.size()));
+  const auto label = labelAt == std::string_view::npos
+                         ? std::string_view{} :
+                         body.substr(labelAt + labelSep.size());
+  // Reject all unknown targets *before* resetting the VM state.
+  if (labelAt != std::string_view::npos &&
+      (label.empty() || !chapter->findLabel(label)))
+    throw std::invalid_argument("Unknown N2System label: " + id);
+  if (vm_.currentChapter() != chapterName || label.empty())
+    vm_.loadScript(impl_->nativeScript, chapterName);
+  if (!label.empty() && !vm_.debugJumpToLabel(label))
+    throw std::logic_error("N2System validated label jump failed");
   impl_->choiceActive = false;
   SetState(Kotonoha::GameState::Gameplay);
 }
