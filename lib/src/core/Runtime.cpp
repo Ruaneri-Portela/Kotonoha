@@ -184,7 +184,9 @@ void Runtime::update() {
       lastPredictiveNode_ = node;
       EM_ASM(
           {
-            if (typeof window.KotonohaSceneEntered == = "function")
+            // 'typeof' returns a string; use JS '==' because '===' is
+            // broken into '== =' by C++ macro tokenization in EM_ASM.
+            if (typeof window.KotonohaSceneEntered == "function")
               window.KotonohaSceneEntered(UTF8ToString($0));
           },
           node.c_str());
