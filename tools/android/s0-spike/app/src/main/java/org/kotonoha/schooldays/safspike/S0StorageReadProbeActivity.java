@@ -25,9 +25,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.FileDescriptor;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Random;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Standalone S0-only test APK. No native engine/GPK/save dependencies or access.
@@ -48,10 +51,25 @@ public final class S0StorageReadProbeActivity extends Activity {
     private static final String PREF_MEDIA = "mediastore_mode";
     private static final String PREF_STAGE = "stage";
     private static final String PRIVATE_NAME = "s0-synthetic-reference.bin";
+    private static final String METRIC_PREFS = "s0_metrics_only";
+    private static final String METRIC_HISTORY = "bounded_metric_lines";
+    private static final int MAX_METRIC_LINES = 96;
+    private static final int MAX_METRIC_CHARS = 32768;
+    private static final int MAX_METRIC_LINE_CHARS = 384;
+    // Strictly metrics-only: no persisted URI, path, filename or payload.
+    private static final Pattern METRIC_ENTRY = Pattern.compile(
+            "metric_id=[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12} "
+                    + "test=synthetic_fd_1gib mode=(?:saf|mediastore|private) "
+                    + "access=(?:sequential|random) pattern=(?:forward|reverse|strided) "
+                    + "repetition=[123] block_bytes=1048576 blocks=1024 "
+                    + "bytes=1073741824 equal=true read_ms=[0-9]+\\.[0-9]{3} "
+                    + "throughput_mib_s=[0-9]+\\.[0-9]{3} "
+                    + "lat_p50_ms=[0-9]+\\.[0-9]{3} lat_p95_ms=[0-9]+\\.[0-9]{3}");
 
     private Button startButton;
     private Button mediaStoreButton;
     private Button retestButton;
+    private Button replayButton;
     private Button cleanupButton;
     private TextView resultView;
     private File privateSample;
@@ -84,7 +102,9 @@ public final class S0StorageReadProbeActivity extends Activity {
                 + "Requires at least 2.5 GiB available internally; the provider may need "
                 + "another 1 GiB. After PASS, the files and SAF read grant are KEPT "
                 + "for repeat tests after app exit or phone reboot. Only the explicit "
-                + "Delete button attempts to remove this app's own test files. "
+                + "Delete button attempts to remove this app's own test files and metric "
+                + "history. Metrics replay with historic=true after app/reboot; "
+                + "use Replay if logcat missed startup. "
                 + "Never select a real game file or personal document.");
         body.addView(explanation);
 
@@ -103,6 +123,15 @@ public final class S0StorageReadProbeActivity extends Activity {
         retestButton.setOnClickListener(view -> retestSavedDocument());
         body.addView(retestButton);
 
+        replayButton = new Button(this);
+        replayButton.setText("Replay saved metrics to KTN_S0 logcat");
+        replayButton.setOnClickListener(view -> {
+            int count = replayMetricHistory("manual");
+            resultView.setText("Replayed " + count + " safe S0 metric records with "
+                    + "historic=true; de-duplicate by metric_id when collecting logs.");
+        });
+        body.addView(replayButton);
+
         cleanupButton = new Button(this);
         cleanupButton.setText("Delete MY synthetic test files (manual)");
         cleanupButton.setOnClickListener(view -> deleteSavedSyntheticFiles());
@@ -117,6 +146,7 @@ public final class S0StorageReadProbeActivity extends Activity {
         setContentView(scroll);
         restoreSavedSession();
         refreshButtons();
+        replayMetricHistory("on_open");
         if (createdDocument != null) {
             resultView.setText("Saved " + (mediaStoreMode ? "MediaStore" : "SAF")
                     + " synthetic session (stage=" + preferences().getString(PREF_STAGE, "unknown")
@@ -127,6 +157,53 @@ public final class S0StorageReadProbeActivity extends Activity {
 
     private SharedPreferences preferences() {
         return getSharedPreferences(PREFS, MODE_PRIVATE);
+    }
+
+    private SharedPreferences metricPreferences() {
+        return getSharedPreferences(METRIC_PREFS, MODE_PRIVATE);
+    }
+
+    private static boolean safeMetricEntry(String entry) {
+        return entry != null && entry.length() <= MAX_METRIC_LINE_CHARS
+                && METRIC_ENTRY.matcher(entry).matches();
+    }
+
+    private synchronized ArrayList<String> savedMetricHistory() {
+        ArrayList<String> result = new ArrayList<>();
+        String stored = metricPreferences().getString(METRIC_HISTORY, "");
+        if (stored == null || stored.length() > MAX_METRIC_CHARS) return result;
+        for (String entry : stored.split("\\n")) {
+            if (safeMetricEntry(entry) && !result.contains(entry)
+                    && result.size() < MAX_METRIC_LINES) result.add(entry);
+        }
+        return result;
+    }
+
+    private synchronized void persistAndLogMetric(String metric) {
+        String entry = "metric_id=" + UUID.randomUUID() + " " + metric;
+        if (!safeMetricEntry(entry)) {
+            Log.e(TAG, "metric_rejected_invalid_schema");
+            return;
+        }
+        ArrayList<String> entries = savedMetricHistory();
+        entries.add(entry);
+        String bounded = String.join("\n", entries);
+        while (entries.size() > MAX_METRIC_LINES || bounded.length() > MAX_METRIC_CHARS) {
+            entries.remove(0);
+            bounded = String.join("\n", entries);
+        }
+        // Commit synchronously before logcat: a reboot may happen after a read.
+        if (!metricPreferences().edit().putString(METRIC_HISTORY, bounded).commit())
+            Log.e(TAG, "metric_history_commit_failed");
+        Log.i(TAG, "historic=false replay=none " + entry);
+    }
+
+    private synchronized int replayMetricHistory(String source) {
+        ArrayList<String> entries = savedMetricHistory();
+        for (String entry : entries)
+            Log.i(TAG, "historic=true replay=" + source + " " + entry);
+        Log.i(TAG, "metric_history_replay=" + source + " count=" + entries.size());
+        return entries.size();
     }
 
     private void restoreSavedSession() {
@@ -159,6 +236,7 @@ public final class S0StorageReadProbeActivity extends Activity {
         startButton.setEnabled(!busy && !hasSession);
         mediaStoreButton.setEnabled(!busy && !hasSession);
         retestButton.setEnabled(!busy && hasSession);
+        replayButton.setEnabled(!busy && !savedMetricHistory().isEmpty());
         cleanupButton.setEnabled(!busy && hasSession);
     }
 
@@ -430,8 +508,8 @@ public final class S0StorageReadProbeActivity extends Activity {
                             access, pattern, round + 1, remoteNanos, remoteLatencies);
                     String baseline = telemetryLine("private", access, pattern,
                             round + 1, localNanos, localLatencies);
-                    Log.i(TAG, provider); // Fixed metrics only, no URI/path/payload.
-                    Log.i(TAG, baseline);
+                    persistAndLogMetric(provider);
+                    persistAndLogMetric(baseline);
                     measurements.append(provider).append('\n').append(baseline).append('\n');
                     showStatus(measurements.toString());
                 }
@@ -552,6 +630,10 @@ public final class S0StorageReadProbeActivity extends Activity {
         refreshButtons();
         resultView.setText("Deleting only the synthetic files created by S0...");
         launchWorker(() -> {
+            // Explicit Delete always purges metric history, even when the
+            // document provider refuses deletion; SAF grants are untouched then.
+            boolean metricsCleared = metricPreferences().edit().clear().commit();
+            Log.i(TAG, "manual_cleanup_metric_history_cleared=" + metricsCleared);
             boolean providerDeleted;
             try {
                 if (mediaStoreMode) {

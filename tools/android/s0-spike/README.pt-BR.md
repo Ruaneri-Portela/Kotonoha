@@ -60,7 +60,8 @@ criados na variante do jogo foram retirados antes desta entrega.
    `throughput_mib_s`, `lat_p50_ms`, `lat_p95_ms`. Os percentis usam posição
    mais próxima na distribuição das 1024 leituras individuais de blocos de
    1 MiB por modo/repetição. A tag também registra concessão SAF, suporte a
-   `/proc/self/fd` e códigos de resultado.
+   `/proc/self/fd` e códigos de resultado. Cada medição original recebe um
+   `metric_id` aleatório e `historic=false` (sem dados de usuário/aparelho).
 5. Depois das três rodadas, **não toque Delete**. Feche e reabra o app e use
    **Retest saved synthetic document (after app/reboot)**: repete três rodadas
    nos mesmos arquivos, sem regeneração/cópia. Reinicie o celular, reabra o
@@ -69,6 +70,14 @@ criados na variante do jogo foram retirados antes desta entrega.
    `persisted_read_grant_on_retest=false` na tag `KTN_S0` e exige escolher *somente* o
    documento sintético original. Execute SAF e MediaStore separadamente: o
    projeto mantém uma sessão sintética por vez.
+6. **Reiniciar o POCO apaga logcat, mas não o histórico S0.** Ao abrir o app,
+   as medições salvas reaparecem na tag `KTN_S0` com
+   `historic=true replay=on_open` e o **mesmo `metric_id`** da linha original
+   (`historic=false replay=none`). Se o logcat não estava sendo coletado ao
+   abrir o app, toque **Replay saved metrics to KTN_S0 logcat** para emitir
+   `historic=true replay=manual`. **Ao consolidar os três ciclos, mantenha
+   apenas um registro por `metric_id`**, não conte original + replay como
+   medições diferentes. O replay não executa benchmark nem acessa GPKs.
 
 Logs contêm apenas métricas e códigos fixos de falha, nunca URI, caminhos,
 nomes de documentos, bytes ou dados pessoais. Nenhum GPK/save é aberto,
@@ -84,11 +93,19 @@ copiado ou modificado. **Não selecione arquivos reais.**
 - Geração em blocos de 1 MiB, comparação com dois buffers de 1 MiB, sem
   carregar 1 GiB inteiro em RAM. Espaço insuficiente interrompe o teste sem
   reduzir silenciosamente seu tamanho.
+- Histórico de **somente métricas** em SharedPreferences privado, gravado
+  sincronamente antes de cada linha ao vivo. Limites: **96 registros,
+  32.768 caracteres totais e 384 caracteres por linha**. Descarta primeiro
+  os registros mais antigos. Validação de formato fixo rejeita URI, caminhos,
+  nomes, conteúdo de arquivo e outros logs. Três ciclos completos de um modo
+  normalmente produzem 18 linhas (2 origens × 3 padrões × 3 ciclos).
 - **O sucesso não apaga arquivos nem libera a permissão SAF persistente.**
   Somente o botão **Delete MY synthetic test files** tenta apagar o documento
   criado pelo teste com `DocumentsContract.deleteDocument` (SAF) ou
   `ContentResolver.delete` (MediaStore), depois a referência privada e a
-  permissão guardada. Alguns provedores SAF negam a exclusão após reboot,
+  permissão guardada. **Delete também apaga o histórico de métricas**, mesmo
+  se o provedor recusar a remoção. Colete os três ciclos e replay antes de
+  usar Delete. Alguns provedores SAF negam a exclusão após reboot,
   porque a permissão persistida é só de leitura; nesse caso apague o arquivo
   sintético pelo gerenciador Arquivos e tente novamente ou limpe os dados do
   aplicativo de teste. Um documento selecionado separadamente nunca é apagado.
