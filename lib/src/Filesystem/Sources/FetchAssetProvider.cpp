@@ -983,6 +983,10 @@ void FetchAssetProvider::completeBrowserJob(
   }
 }
 
+// A statically linked game exports this callback directly. When the engine
+// is a WASM side module it is exported instead by WebMainExports.cpp in the
+// application's main module, so Module.ccall can always reach it.
+#ifndef KOTONOHA_WASM_SHARED_ENGINE
 extern "C" EMSCRIPTEN_KEEPALIVE void
 KotonohaCompleteBrowserFetch(std::uintptr_t context, int status,
                              const char *bytes, int count,
@@ -993,6 +997,7 @@ KotonohaCompleteBrowserFetch(std::uintptr_t context, int status,
       count >= 0 ? static_cast<std::uint64_t>(count) : 0u,
       headers ? std::string(headers) : std::string{});
 }
+#endif
 #endif
 
 } // namespace Kotonoha::Filesystem
