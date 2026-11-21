@@ -21,11 +21,11 @@
     },
     {
       "name": "fontconfig",
-      "platform": "ios"
+      "platform": "ios | android"
     },
     {
       "name": "libunibreak",
-      "platform": "ios"
+      "platform": "ios | android"
     },
     {
       "name": "plutosvg",

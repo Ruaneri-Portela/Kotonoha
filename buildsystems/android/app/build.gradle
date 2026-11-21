@@ -80,7 +80,7 @@ android {
   ndkVersion '28.2.13676358'
 
   defaultConfig {
-    minSdk 28
+    minSdk 30
     targetSdk 34
     versionCode 1
     versionName '0.1.0'
@@ -99,7 +99,7 @@ android {
           // Keep SDL3, SDL3_ttf and ImGui from their checked-out submodules.
           '-DKOTONOHA_SDL_FROM_VCPKG=OFF',
           '-DKOTONOHA_IMGUI_FROM_VCPKG=OFF',
-          '-DANDROID_PLATFORM=android-28',
+          '-DANDROID_PLATFORM=android-30',
           '-DANDROID_STL=c++_shared'
       }
     }
