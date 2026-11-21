@@ -246,6 +246,8 @@ bool PmailGame::loadScript(const std::string &name, bool asMain) {
 std::map<int, std::vector<std::string>>
 PmailGame::translationInventory() {
   std::lock_guard lock(mutex_);
+  if (translationCatalogReady_)
+    return translationCatalog_;
   std::map<int, std::vector<std::string>> result;
   std::map<int, std::set<std::string>> seen;
   // Read-only indexing: DO NOT call loadByName() here. It registers objects
@@ -280,6 +282,8 @@ PmailGame::translationInventory() {
       continue;
     }
   }
+  translationCatalog_ = result;
+  translationCatalogReady_ = true;
   return result;
 }
 
