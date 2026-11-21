@@ -515,6 +515,8 @@ public:
   bool backlogOpen() const { return backlogModel.IsOpen(); }
   bool anyPanelOpen() const { return panelOpen(); }
   const Kotonoha::SchoolDaysRetailConfigPolicy::State &retailConfig() const { return config; }
+  // General > Display Subtitle is the retail TextView field in Config.DAT.
+  bool allowForcedSubtitles() const override { return config.textView; }
   void openPanel(int control) { activateControl(control); }
   SDL_Point viewport() const override { return {1280, 720}; }
   int translationRoute() const override;

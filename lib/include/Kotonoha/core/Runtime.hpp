@@ -109,6 +109,9 @@ public:
   virtual void devIdle() {}
   virtual void devControlPump(RendererRef) {}
   virtual void devInputProcessed(EventRef) {}
+  // Native game options can hide forced subtitles independently of the
+  // engine-wide setting. Other games allow them by default.
+  virtual bool allowForcedSubtitles() const { return true; }
   // Novel-space UI, drawn after story content and forced subtitles.
   virtual void renderOverlay(RendererRef renderer, float scale);
   virtual void saveGame(const std::string &path);
