@@ -153,6 +153,21 @@ jobs:
             modules/vms/n2system/tests/DebugCatalogTest.cpp \
             -o /tmp/kotonoha-n2-debug-catalog
           /tmp/kotonoha-n2-debug-catalog
+      - name: Compile and run standalone N2System VM label regressions
+        run: |
+          g++ -std=c++17 -Wall -Wextra -pthread \
+            -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/ScriptIndex.cpp \
+            modules/vms/n2system/src/ScriptExecutor.cpp \
+            modules/vms/n2system/src/VariableStore.cpp \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            modules/vms/n2system/src/AudioSystem.cpp \
+            modules/vms/n2system/src/DialogueSystem.cpp \
+            modules/vms/n2system/src/SaveState.cpp \
+            modules/vms/n2system/src/ScriptVm.cpp \
+            modules/vms/n2system/tests/ScriptVmTest.cpp \
+            -o /tmp/kotonoha-n2-vm
+          /tmp/kotonoha-n2-vm
       - name: Compile and run native LucaSystem Debug Catalog regression
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
