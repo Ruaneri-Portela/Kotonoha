@@ -35,6 +35,11 @@ endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/MSVC.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaOptions.cmake")
+# Side modules require position-independent code in engine and project-owned
+# archives. This must precede add_subdirectory(lib) and every game module.
+if(EMSCRIPTEN AND KOTONOHA_WASM_SHARED_ENGINE)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaTestGroups.cmake")
 
 # Player distributions exclude developer CLI controls in every game port.
