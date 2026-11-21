@@ -59,7 +59,7 @@ class DebugOverlay {
   bool dumpOriginalAsset = false;
   std::string assetDumpStatus;
   bool assetDumpError = false;
-   float previewSeconds = 0;
+  float previewSeconds = 0;
   TexturePtr previewTexture;
   AudioStreamPtr previewAudio;
   std::shared_ptr<AudioChannel> previewChannel;
@@ -88,6 +88,7 @@ class DebugOverlay {
   Translation::SourceTexts cachedRuntimeSources;
   std::vector<std::string> cachedAllNodeKeys;
   bool transSourcesStale = true;
+  std::string lastTranslationCatalogKey;
   void refreshTranslationSources();
   void drawKtrfTools();
   void drawRuntimeNodes(const std::vector<DebugNode> &nodes);
