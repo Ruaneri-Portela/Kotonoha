@@ -63,6 +63,8 @@ source set under the game app was discarded before this standalone handoff.
    nearest-rank method across 1024 individual 1 MiB read operations per mode
    and repetition. The same tag records persisted-grant availability (SAF),
    `/proc/self/fd` reopening status, and result codes.
+   Each measurement also has a random `metric_id` and `historic=false` when
+   first recorded. The ID contains no device/user information.
 5. Once all three rounds finish, **do not press Delete**. Close/reopen the app,
    then press **Retest saved synthetic document (after app/reboot)**. It reads
    the *same* two files in three full rounds, without regenerating or copying
@@ -71,6 +73,14 @@ source set under the game app was discarded before this standalone handoff.
    `persisted_read_grant_on_retest=false` appears under `KTN_S0` and the
    system picker requests **only the same synthetic file** again. Run SAF and
    MediaStore separately; the project keeps one synthetic session at a time.
+6. **The phone reboot clears logcat, not S0 history.** On the next app launch,
+   previously saved measurements are re-emitted under `KTN_S0` with
+   `historic=true replay=on_open` and the **same `metric_id`** as their original
+   `historic=false replay=none` line. If logcat was not connected at launch,
+   press **Replay saved metrics to KTN_S0 logcat** to emit
+   `historic=true replay=manual`. **When consolidating across cycles, keep
+   only one record per `metric_id`**; never add original and replayed rows
+   as separate measurements. Replaying does not run a benchmark or access GPKs.
 
 All output is fixed metrics or predefined failure codes. No selected URIs,
 pathnames, payload bytes, document names, or user data are logged. No GPKs or
@@ -86,11 +96,20 @@ game saves are opened, copied, or changed. **Do not select a real file.**
 - The test uses bounded 1 MiB generation blocks and two 1 MiB comparison
   buffers, not an in-memory 1 GiB archive. It refuses insufficient internal
   space instead of downscaling the requested test silently.
+- Measurement-only history is saved separately in private SharedPreferences,
+  synchronously before each live log line. **Maximum 96 entries, 32,768
+  characters overall, and 384 characters per entry**; oldest entries are
+  evicted first. A fixed-format validation accepts only synthetic test metrics
+  and rejects URI, paths, document names, payload, or arbitrary log messages.
+  Three complete read cycles for one mode normally produce 18 entries
+  (2 origins × 3 patterns × 3 cycles), well below this bound.
 - A successful run **does not delete either file or release the persisted SAF
   grant**. The user explicitly presses **Delete MY synthetic test files** when
   finished, which attempts to remove **only the test-created document** via
   `DocumentsContract.deleteDocument` (SAF) or `ContentResolver.delete`
-  (MediaStore), then the private baseline and saved grant. Some SAF providers
+  (MediaStore), then the private baseline and saved grant. **Delete also clears
+  metric history**, even if a provider refuses to remove the document. Collect
+  the three cycles and their replay before pressing Delete. Some SAF providers
   may deny deletion after reboot because the persisted grant is read-only; in
   that case delete the synthetic document in the system Files app and retry or
   clear the test app data. No independently selected document is deleted.
