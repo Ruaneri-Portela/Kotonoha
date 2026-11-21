@@ -4,9 +4,19 @@
 
 A opção `KOTONOHA_SDL_PROVIDER` admite `AUTO` (padrão),
 `SYSTEM`, `VCPKG` ou `SUBMODULES`.
-Em `AUTO`, busca pacotes do sistema, em seguida vcpkg (se configurado),
-e por último os submódulos. Android sempre exige fontes SDL locais
-para a integração Java.
+A ordem de `AUTO` depende do compilador:
+
+- **Linux e macOS:** pacotes do sistema → vcpkg configurado → submódulos.
+- **Windows com MinGW:** sistema compatível com MinGW → vcpkg do triplet MinGW → submódulos.
+- **Windows com MSVC:** **vcpkg nativo → submódulos**. `SYSTEM` é proibido.
+  O CMake não aceita headers do MSYS2/UCRT64 nem bibliotecas de triplets
+  `*-mingw-*` quando o compilador é `cl.exe`.
+- **Android:** submódulos SDL para integração Java.
+
+No MSVC, as bibliotecas sem fonte própria no projeto (FFmpeg, libass e json-c)
+precisam estar instaladas com o **vcpkg e um triplet MSVC**, como
+`x64-windows`. O CMake não usa o `pkg-config` do MSYS2 nesse ambiente e
+interrompe a configuração se as dependências não forem compatíveis.
 
 ## ImGui: sempre o submódulo
 
@@ -45,6 +55,30 @@ cmake -S . -B build -G Ninja \
 cmake --build build --parallel 4
 ```
 
+## Windows com MSVC (Visual Studio)
+
+Use o terminal do Visual Studio com as ferramentas MSVC configuradas.
+No PowerShell, configure um diretório de build **novo** para não reutilizar
+os caminhos do MinGW do cache anterior:
+
+```powershell
+$toolchain = Join-Path $env:VCPKG_ROOT "scripts/buildsystems/vcpkg.cmake"
+
+cmake -S . -B out/build/msvc-x64-debug-clean -G Ninja `
+  -DCMAKE_BUILD_TYPE=Debug `
+  "-DCMAKE_TOOLCHAIN_FILE=$toolchain" `
+  -DVCPKG_TARGET_TRIPLET=x64-windows `
+  "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" `
+  -DKOTONOHA_BUILD_ALL=ON
+
+cmake --build out/build/msvc-x64-debug-clean --parallel 4
+```
+
+Sem a feature `sdl-vcpkg`, o SDL3 pode ser compilado a partir dos
+submódulos. O ImGui permanece sempre no submódulo, independentemente
+do compilador. Não reutilize `out/build/mingw-x64-debug` para MSVC,
+nem misture os arquivos `.lib` do MSVC com os `.dll.a` do MinGW.
+
 ## vcpkg para SDL3
 
 ```bash
@@ -65,6 +99,7 @@ caminhos originais do repositório.
 ## Organização
 
 `lib/CMakeLists.txt` define os targets da engine;
+`buildsystems/cmake/dependencies/KotonohaMedia.cmake` resolve os pacotes de mídia;
 `buildsystems/cmake/KotonohaSDL.cmake` escolhe o SDL;
 `buildsystems/cmake/KotonohaImGui.cmake` compila ImGui;
 `buildsystems/cmake/KotonohaGitSubmodules.cmake` inicializa
