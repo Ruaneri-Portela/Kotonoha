@@ -88,7 +88,8 @@ std::string SelectDisplayOptionsOverlay(const std::string &requested,
 }
 
 Assets::Assets(std::filesystem::path root, const std::string &scripts,
-               bool allowAutomaticOverlay)
+               bool allowAutomaticOverlay,
+               std::shared_ptr<const Kotonoha::Filesystem::IMount> packs)
     : directory(std::move(root)) {
   const std::string effectiveOverlay =
       SelectDisplayOptionsOverlay(scripts, allowAutomaticOverlay);
@@ -96,10 +97,11 @@ Assets::Assets(std::filesystem::path root, const std::string &scripts,
     throw std::runtime_error("School Days script directory does not exist");
   setOverlay(effectiveOverlay);
   std::string info;
-  if (!checkDirectory(directory, info))
+  if (!packs && !checkDirectory(directory, info))
     throw std::runtime_error(info);
-  if (ScriptRoot(directory).empty()) {
-    if (!Kotonoha::MountSchoolDaysRetailGpks(directory, &info))
+  if (packs || ScriptRoot(directory).empty()) {
+    if (!Kotonoha::MountSchoolDaysRetailGpks(directory, &info,
+                                             std::move(packs)))
       throw std::runtime_error(info);
     mounted = true;
     Kotonoha::InstallMountedSchoolDaysAssetResolver();

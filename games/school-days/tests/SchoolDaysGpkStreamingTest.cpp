@@ -1,5 +1,6 @@
 #include "SchoolDaysAssets.hpp"
 
+#include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysGpkArchive.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
@@ -264,7 +265,22 @@ void CheckIntegratedReadAndSeek(SchoolDays::Assets& assets,
 
 } // namespace
 
-int main() {
+int main(int argc, char **argv) {
+  if (argc > 1) {
+    if (argc != 3 || std::string_view(argv[1]) != "--write-synthetic-packs")
+      return 2;
+    try {
+      const fs::path output = argv[2];
+      Require(fs::create_directory(output),
+              "Synthetic pack destination must be new");
+      BuildRetailSet(output);
+      Write(output / "LxH.GPK", BuildMultiPack(IntegratedEntries()));
+      return 0;
+    } catch (const std::exception &error) {
+      std::cerr << error.what() << '\n';
+      return 1;
+    }
+  }
   const fs::path root = fs::temp_directory_path() /
                         ("kotonoha-sd-gpk-stream-" +
                          std::to_string(SDL_GetPerformanceCounter()));
@@ -312,6 +328,17 @@ int main() {
     ExpectMountRejected(root, "raw LxH entry length does not match stored");
 
     Write(packs / "LxH.GPK", BuildMultiPack(IntegratedEntries()));
+    {
+      // The physical root has no archives. Every open and reopen must use the
+      // mount.
+      const auto rootWithoutPacks = root / "virtual-game";
+      fs::create_directory(rootWithoutPacks);
+      auto source =
+          std::make_shared<Kotonoha::Filesystem::DirectoryMount>(packs);
+      SchoolDays::Assets virtualAssets(rootWithoutPacks, {}, false, source);
+      for (const auto &logical : Kotonoha::SchoolDaysLxhContent::PackEntries())
+        CheckIntegratedReadAndSeek(virtualAssets, logical);
+    }
     Kotonoha::SchoolDaysGpkArchive integratedArchive;
     std::string archiveError;
     Require(integratedArchive.Open(packs / "LxH.GPK", &archiveError) &&
