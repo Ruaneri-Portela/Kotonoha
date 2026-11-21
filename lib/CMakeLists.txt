@@ -363,8 +363,13 @@ target_include_directories(KotonohaEngine PUBLIC
 )
 
 if(EMSCRIPTEN AND KOTONOHA_WASM_SHARED_ENGINE)
-    # ImGui belongs to the side module only. SDL/FFmpeg are also visible to
-    # the MAIN_MODULE link, where Emscripten supplies its system libraries.
+    # ImGui code belongs to the side module only, but public game/runtime
+    # sources that include ImGui headers must keep the old include contract.
+    # Expose its include directories without linking another ImGui archive
+    # into each game's MAIN_MODULE.
+    target_include_directories(KotonohaEngine PUBLIC
+        "$<TARGET_PROPERTY:${KOTONOHA_IMGUI_TARGET},INTERFACE_INCLUDE_DIRECTORIES>")
+    # SDL/FFmpeg are visible to the MAIN_MODULE's system library linker.
     target_link_libraries(KotonohaEngine PUBLIC
         SDL3::SDL3 SDL3_ttf::SDL3_ttf ${kotonoha_ffmpeg_target})
     target_link_libraries(KotonohaEngine PRIVATE
