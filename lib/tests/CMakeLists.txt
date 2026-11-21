@@ -247,6 +247,10 @@ add_test(NAME Kotonoha.NativeInput COMMAND KotonohaNativeInputTests)
 set_tests_properties(Kotonoha.NativeInput PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
+add_executable(KotonohaEncodingUtfTests EncodingUtfTests.cpp)
+target_link_libraries(KotonohaEncodingUtfTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.EncodingUtf COMMAND KotonohaEncodingUtfTests)
+
 # The Windows loader does not search the engine DLL output directory when CTest
 # launches test executables from lib/tests/Release. Apply the same runtime path
 # to every executable test; the CMake script fixtures do not load the engine.

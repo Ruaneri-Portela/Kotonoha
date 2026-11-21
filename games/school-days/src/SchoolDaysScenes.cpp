@@ -6,6 +6,7 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/routing/SchoolDaysChoiceTextPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 #include <algorithm>
@@ -15,24 +16,11 @@
 namespace SchoolDays {
 namespace {
 std::u16string Utf8ToUtf16(const std::string &text) {
-  if (text.empty()) return {};
-  char *converted = SDL_iconv_string("UTF-16LE", "UTF-8", text.c_str(),
-                                    text.size() + 1u);
-  if (!converted) return {};
-  std::u16string result(reinterpret_cast<const char16_t *>(converted));
-  SDL_free(converted);
-  return result;
+  return Kotonoha::Utf8ToUtf16(text);
 }
 
 std::string Utf16ToUtf8(const std::u16string &text) {
-  if (text.empty()) return {};
-  char *converted = SDL_iconv_string(
-      "UTF-8", "UTF-16LE", reinterpret_cast<const char *>(text.c_str()),
-      (text.size() + 1u) * sizeof(char16_t));
-  if (!converted) return {};
-  std::string result(converted);
-  SDL_free(converted);
-  return result;
+  return Kotonoha::Utf16ToUtf8(text);
 }
 } // namespace
 

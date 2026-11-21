@@ -58,11 +58,75 @@ SchoolDaysHQ/
 - **Segurança de fontes no ImGui**: `ImGuiTheme::loadFonts` valida limites SFNT/TTC e compatibilidade com o carregador ativo do ImGui, usando `AddFontDefaultVector()` como fallback explícito quando coleções CJK do sistema (como `/system/fonts/NotoSansCJK-Regular.ttc`) são incompatíveis com `stb_truetype` ou em telas de alto DPI.
 - **Empacotamento do APK**: Nenhum GPK comercial, rota KTRF, tradução ou arte comercial entra no APK (`-PbundleGameAssets=false`). Todas as bibliotecas ARM64 `.so` usam alinhamento ELF de 16 KiB (`-Wl,-z,max-page-size=16384`).
 
-## Resumo de Verificação (POCO X7 Pro, Android 16 / API 36)
+## Estado Atual de Verificação (POCO X7 Pro, Android 16 / API 36)
 
-Verificado em hardware real **POCO X7 Pro (ARM64, Android 16)** com acesso SAF somente leitura à pasta `SchoolDaysHQ/` do usuário:
-- Launcher em retrato, validação da pasta (`30/30` pacotes, KTRF, `styles.ass`, `overlay/`, detecção GPK e JSON), todas as 6 abas de Opções, `Aplicar`/`Cancelar`/`Restaurar padrões`, persistência em `settings.json` / `Config.DAT` / `Kotonoha.ini` e reprodução real de `TitleBGM` a partir de `Ini.GPK` + `BGM.GPK`.
-- Inicialização rápida em paisagem (`sensorLandscape`, `opengles2`, áudio de baixa latência) nos modos **JSON (`pt-BR`)** e **GPK nativo (`pt-BR`)**, sem SIGABRT nem fallback silencioso.
-- Tela de título, menu `OPTION` nativo (com overlay `Display Options`), vídeo HD `YUV420P` + áudio do Episódio 1, legendas, botão tátil `MENU` e ciclo Home/Retomada (`!isTaskRoot()`).
-- Uso de memória durante gameplay: ~517 MB TOTAL PSS (Gráficos ~78 MB).
-- Builds Windows DEV Release e Windows DIST Release e suítes CTest aprovadas sem regressões.
+> **Atenção:** Esta tabela distingue explicitamente o que está **implementado**, **compilado**, **funcionando parcialmente**, **validado em hardware real** e **pendente**. Apenas itens com evidência direta no POCO X7 Pro (`QO5XJZFYDMRWDU6T`) estão marcados como validados em hardware real.
+
+| Área | Estado Atual | Evidência / Observação |
+|---|---|---|
+| Launcher retrato + SAF (`30/30` GPK, KTRF, `styles.ass`, `overlay/`) | Validado em hardware real | Abre em retrato no POCO X7 Pro, lê `SchoolDaysHQ/` via SAF sem copiar GPKs. |
+| **P0 — Primeira legenda, avanço de gameplay e BackLog** | **Validado em hardware real (corrigido)** | Causa raiz confirmada via LLDB (`SDL_iconv_string` → Bionic `iconv` `E2BIG` em loop infinito). Substituído por `Kotonoha::Utf8ToUtf16`/`Utf16ToUtf8` em C++17 puro. Validado 3× consecutivas no Episódio 1 além de múltiplas legendas, transição para sala de aula, MenuBar superior, `MENU` e `BACKLOG`, mantendo RSS estável (~645–664 MB). |
+| **P1 — Overlay customizado Display Options (`Option_Display*.png/.cmap`)** | **Validado em hardware real (corrigido)** | Guardas `#if defined(__ANDROID__)` removidas em `SchoolDaysRuntime.hpp/.cpp`; retângulo branco artificial eliminado das abas General/Sound; `Option_Display` nativo carrega modos reais (`2712x1220 @ 30/60/90/120 Hz`), VSync, Upscaler, Shader preset, Custom GLSL, Upscale factor (`1x`–`4x`), `DEFAULT` e `APPLY` com toque funcional. |
+| **P1 — Volume de áudio (dupla atenuação)** | **Corrigido e validado em testes + hardware (aguarda QA auditivo do usuário)** | `SchoolDaysRuntime::applyConfig()` reseta `userVolume = 1.0f` nos bancos retail `BGM`/`SE`/`Voice` (e reaplica após `applySettings`), eliminando a dupla multiplicação (`0.2985 × 0.2985 = 0.089` / -21 dB) e o teto travado em 29,8% no nível 10/10. Ganho do `TitleBGM` do launcher ajustado de `0.35f` para `0.60f`. Asserção unitária adicionada em `SchoolDaysRuntimeConfigStorageTest`. |
+| **P1 — Persistência bidirecional Launcher ↔ Jogo** | **Validado em hardware real (corrigido)** | `Config.DAT` agora faz flush imediato no Android ao alterar opções e em `SDL_EVENT_WILL_ENTER_BACKGROUND`; `SchoolDaysSetup.onResume()` recarrega e ressincroniza toda a UI; modos de tela normalizados para paisagem (`2712x1220 @ 90 Hz` bate nos dois sentidos). Validado ida e volta incluindo `force-stop` (`BGM 7/10`, `2.00x`, `90 Hz`, `4:3`, `Restaurar padrões`). |
+| **P1 — Idiomas GPK Russo e Chinês** | **Diagnosticado e UX corrigida em hardware real** | Confirmado na pasta real `/storage/emulated/0/Download/SchoolDaysHQ/translations/scripts/` que existem apenas `Script - Brazilian.GPK`, `Script - Spanish.GPK`, `en-lxh.GPK`, `es-lxh.GPK`, `pt-BR-lxh.GPK` (não há GPKs `ru` nem `zh-CN`; ambos existem apenas em `translations/jsons/`). A aba Idioma agora lista exatamente os arquivos GPK ausentes sob cada opção desabilitada e informa que o par JSON está disponível abaixo. |
+| **P1 — Resolução, proporção (`4:3`/`16:9`) e toque (2712×1220)** | **Validado parcialmente em hardware real** | Paisagem 2712×1220, troca 16:9 ↔ 4:3 via launcher (`Kotonoha.ini`), toques em Título, `OPTION`, `Option_Display`, popups, `Sound Options`, MenuBar superior, `MENU` e `BACKLOG` validados no POCO. |
+| **P2 — Gameplay estendido (escolhas, Save/Load, Route Map, Replay, CJK/cirílico, 7 finais L×H)** | **Pendente QA estendido em hardware real** | Desbloqueado após correção do P0 (`Utf8ToUtf16`/`Utf16ToUtf8` também protege escolhas `SETSELECT` e `BACKLOG`); validação interativa longa de escolhas, Save/Load, Route Map, Replay, legendas forçadas, fontes CJK/cirílico e sequência completa dos 7 finais L×H ainda pendente. |
+| Builds Windows DEV Release / DIST Release + CTests | Compilado e testado | `SchoolDays` e todos os 57/57 testes `SchoolDays*` + `Kotonoha.EncodingUtf` + `Kotonoha.AudioChannels` aprovados no Windows DEV Release; Windows DIST Release verificado em seguida. |
+
+## Regressões e problemas funcionais observados no POCO X7 Pro — 21/11/2026
+
+Registro contínuo dos defeitos observados em hardware real (POCO X7 Pro, Android 16 / API 36, APK DEV `me.hirameki.kotonoha.schooldays`) a partir do HEAD `0e7dc7cf`:
+
+### 1. [P0] Congelamento completo ao exibir a primeira legenda (`......`)
+- **Sintoma**: Ao iniciar um novo jogo (Episódio 1, modo GPK `pt-BR`), o vídeo da abertura no trem reproduzia até ~32s e congelava completamente no exato instante da primeira legenda (`......`), com `SDLThread` travado em 100% de CPU e RSS escalando até `3,8 GiB` até LMKD encerrar o processo.
+- **Reprodução**: POCO X7 Pro (`QO5XJZFYDMRWDU6T`), `Iniciar jogo` → `START` → aguardar ~32s no Episódio 1.
+- **Causa raiz confirmada (via LLDB + `llvm-addr2line` acoplados ao `SDLThread` congelado)**:
+  ```text
+  SDL_iconv (SDL_iconv.c:57) ← SDL_iconv_string (SDL_iconv.c:822)
+    ← SchoolDays::Utf16 (SchoolDaysRuntime.cpp:645)
+    ← SchoolDays::Runtime::dispatch PRINT_TEXT (SchoolDaysRuntime.cpp:2998)
+    ← SchoolDays::Runtime::update (SchoolDaysRuntime.cpp:3708)
+  ```
+  No Android API 28+, o SDL3 compila com `HAVE_ICONV=1` chamando o `iconv()` da Bionic (`libc.so`). Ao converter `"......"` + NUL de `UTF-8` para `UTF-16LE` em `SDL_iconv_string`, a Bionic retorna `E2BIG` repetidamente, e o ramo `case SDL_ICONV_E2BIG:` de `SDL_iconv.c:824-839` dobra `stringsize *= 2` com `SDL_realloc` indefinidamente (sem checar progresso) até esgotar gigabytes de RAM. O mesmo padrão existia em `SchoolDaysScenes.cpp` (escolhas) e `SchoolDaysBackLogPresenter.cpp` (BackLog).
+- **Arquivos alterados**:
+  - `lib/src/localization/Encoding.cpp` (`Kotonoha::Utf8ToUtf16` e `Kotonoha::Utf16ToUtf8` reescritos em C++17 puro conforme RFC 3629, sem `SDL_iconv` nem overhead JNI, com tratamento seguro de pares substitutos e sequências inválidas → `U+FFFD`)
+  - `games/school-days/src/SchoolDaysRuntime.cpp` (`Utf16` delega a `Kotonoha::Utf8ToUtf16`)
+  - `games/school-days/src/SchoolDaysScenes.cpp` (`Utf8ToUtf16`/`Utf16ToUtf8` delegam a `Kotonoha::*`)
+  - `games/school-days/src/SchoolDaysBackLogPresenter.cpp` (`Utf16ToUtf8BackLog` delega a `Kotonoha::Utf16ToUtf8`)
+  - `lib/tests/EncodingUtfTests.cpp` + `lib/tests/CMakeLists.txt` (novo teste unitário `Kotonoha.EncodingUtf`)
+- **Testes executados**: `Kotonoha.EncodingUtf` aprovado (Windows DEV/DIST); 3 execuções completas no POCO X7 Pro no Episódio 1 avançando por múltiplas legendas acentuadas em `pt-BR`, transição do trem para a sala de aula, abertura do MenuBar superior, `MENU` e `BACKLOG` com RSS estável (~645–664 MB).
+- **Estado**: **Corrigido e validado em hardware real**.
+
+### 2. [P1] Idiomas Russo e Chinês indisponíveis em modo GPK
+- **Sintoma**: Na aba Idioma do launcher Android, `Russian (GPK)` e `Chinese - Simplified (GPK)` apareciam desabilitados sem explicar o motivo.
+- **Inspeção real na pasta do usuário**: `/storage/emulated/0/Download/SchoolDaysHQ/translations/jsons/` possui os 5 pares completos (`en`, `pt-BR`, `es`, `ru`, `zh-CN`), mas `translations/scripts/` contém apenas `Script - Brazilian.GPK`, `Script - Spanish.GPK`, `en-lxh.GPK`, `es-lxh.GPK` e `pt-BR-lxh.GPK`. Não existem `Script - Russian.GPK`/`ru-lxh.GPK` nem `Script - chinese-compatible.GPK`/`zh-CN-lxh.GPK` no aparelho (mesma exigência de `SchoolDaysGpkLanguageProfile.hpp` e `SchoolDaysLauncher.cpp` no Windows).
+- **Correção aplicada**: `SchoolDaysFolder.java` expõe `missingGpkFiles(locale)` e `hasLegacyIncompatibleChineseGpk()`; `SchoolDaysSetup.java` + `strings.xml` (EN e PT-BR) exibem sob cada botão GPK desabilitado exatamente quais arquivos faltam em `translations/scripts/` e indicam quando o par JSON está disponível abaixo.
+- **Estado**: **Diagnosticado e UX validada em hardware real** (não habilita falsamente pacotes inexistentes/incompatíveis).
+
+### 3. [P1] Persistência bidirecional entre Launcher e Gameplay
+- **Sintoma**: Alterações feitas dentro do jogo ou no launcher não refletiam de forma consistente nos dois sentidos após fechar/reabrir; além disso, a resolução escolhida no jogo (`2712x1220 @ 90 Hz` em paisagem) não casava com o spinner do launcher retrato (`1220x2712 @ 90 Hz`).
+- **Causas raiz confirmadas**:
+  1. `SchoolDaysRuntime.cpp` só gravava `Config.DAT` em `shutdown()`, perdendo alterações se a tarefa fosse encerrada no Android.
+  2. `SchoolDaysSetup.onResume()` não chamava `syncUiFromDraft()` após recarregar o disco.
+  3. `SchoolDaysSetup` comparava `Display.Mode` em retrato (`1220x2712`) contra `fullscreenWidth x fullscreenHeight` gravado em paisagem (`2712x1220`).
+- **Arquivos alterados**: `games/school-days/src/SchoolDaysRuntime.cpp` (flush imediato de `Config.DAT` no Android em `cacheConfigState`, `CacheWindowMode` e `SDL_EVENT_WILL_ENTER_BACKGROUND`, mantendo deferred flush do Windows inalterado; matching independente de orientação em `SelectedAndroidMode`), `buildsystems/android/app/src/schoolDays/java/org/kotonoha/android/SchoolDaysSetup.java` (normalização paisagem dos modos de tela e `syncUiFromDraft()` em `onResume()`).
+- **Testes executados**: Ciclo completo no POCO X7 Pro: Display in-game (`2712x1220 @ 90 Hz`, `2x`) + Sound in-game (`BGM 7/10` → `save/Config.DAT` criado imediatamente) → `force-stop` → Launcher exibiu `2712 x 1220 @ 90 Hz`, `2.00x` e `BGM: 7 / 10`; depois Launcher `4:3` → `Aplicar` → jogo abriu em 4:3 Standard; depois `Restaurar padrões` → `Aplicar` restaurou `ContentAspectPreference=0`.
+- **Estado**: **Corrigido e validado em hardware real**.
+
+### 4. [P1] Overlay customizado Display Options não utilizado no Android
+- **Sintoma**: As abas General/Sound mostravam um retângulo branco artificial `"DISPLAY OPTIONS"` sobre a 3ª aba, e a aba Display abria um painel escuro textual legado (`"DISPLAY / ANDROID"`) em vez de `overlay/System/Option/Option_Display.png`, `Option_Display_Chip.png` e `Option_Display*.cmap`.
+- **Causa raiz confirmada**: Guardas `#if defined(__ANDROID__)` / `#if !defined(__ANDROID__)` em `SchoolDaysRuntime.hpp` e `SchoolDaysRuntime.cpp` desativavam o fluxo compartilhado de Display Options no Android.
+- **Arquivos alterados**: `games/school-days/src/SchoolDaysRuntime.hpp` e `games/school-days/src/SchoolDaysRuntime.cpp` (unificação do fluxo `renderDesktopDisplayPanel` / `handleDesktopDisplayPanel` / `activateDesktopDisplayControl` no Android usando `AndroidDisplayModesUnique()` + `AndroidRequestDisplayMode()`, preservando `renderer = "opengles2"` e mantendo Windows 100% intacto).
+- **Testes executados**: Validado visualmente e por toque no POCO X7 Pro (abas General/Sound limpas sem retângulo branco; aba Display usando `Option_Display.png`/`Chip`/`CMAP`, popup de resolução listando `30/60/90/120 Hz`, seleção de `90 Hz` e `2x` persistindo imediatamente).
+- **Estado**: **Corrigido e validado em hardware real**.
+
+### 5. [P1] Áudio extremamente baixo nos menus e gameplay
+- **Sintoma**: Som anormalmente baixo em menus/gameplay e teto baixo mesmo no volume máximo.
+- **Causa raiz confirmada**: Dupla atenuação em `lib/src/media/AudioMixer.cpp` (`master * userVolume * volume * entry.gain`): `settings.json` carregava `channelVolumes["BGM"|"SE"|"Voice"] = 0.2985` em `userVolume` e `SchoolDaysRuntime::applyConfig()` aplicava novamente `Policy::LinearGain` em `channel->setVolume()`, resultando em `0.2985 × 0.2985 = 0.089` (-21 dB) e travando o nível 10/10 em 29,8%.
+- **Arquivos alterados**: `games/school-days/src/SchoolDaysRuntime.cpp` (`applyConfig()` força `userVolume = 1.0f` em `BGM`, `SE`, `Voice` e é reaplicado após `engine->applySettings()`), `games/school-days/android/java/org/kotonoha/android/SchoolDaysTitleBgmPlayer.java` (`LAUNCHER_MUSIC_GAIN` `0.35f` → `0.60f`), `games/school-days/tests/SchoolDaysRuntimeConfigStorageTest.cpp` (asserção garantindo `getUserVolume() == 1.0f` e aplicação única da curva retail).
+- **Testes executados**: `SchoolDaysRuntimeConfigStorageTest`, `Kotonoha.AudioChannels` e `SchoolDaysLauncherTest` aprovados; controle de BGM/Config.DAT validado no POCO (confirmação subjetiva final de loudness físico recomendada pelo usuário nos alto-falantes do aparelho).
+- **Estado**: **Causa raiz corrigida e testada; validação auditiva final pelo usuário pendente**.
+
+### 6. [P1] Adaptação de tela (2712×1220), proporção e toque
+- **Estado**: Paisagem 2712×1220, troca 16:9 ↔ 4:3, e áreas de toque em Título, `OPTION` (3 abas + popups), MenuBar superior, `MENU` e `BACKLOG` validados no POCO X7 Pro. Itens P2 estendidos (escolhas, Save/Load completo, Route Map, Replay, CJK/cirílico em cena, 7 finais L×H) permanecem pendentes de QA longo.

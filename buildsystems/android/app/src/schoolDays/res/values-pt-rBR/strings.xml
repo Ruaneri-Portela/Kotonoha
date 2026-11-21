@@ -27,6 +27,9 @@
     <string name="sd_absent">Pasta autorizada. Ausentes, vazios ou ambíguos: %1$s</string>
     <string name="sd_no_translations">Nenhuma tradução completa (GPK ou JSON) encontrada.</string>
     <string name="sd_incomplete_json">Pares JSON incompletos (exigem HQ e L×H): %1$s</string>
+    <string name="sd_missing_gpk_files">Indisponível — ausente em translations/scripts/: %1$s</string>
+    <string name="sd_missing_gpk_json_hint">Indisponível — ausente em translations/scripts/: %1$s (par JSON disponível abaixo)</string>
+    <string name="sd_chinese_legacy_gpk">Encontrado Script - chinese.GPK legado incompatível; requer Script - chinese-compatible.GPK e zh-CN-lxh.GPK certificados</string>
     <string name="sd_detected_gpk">Pacotes GPK detectados: %1$s</string>
     <string name="sd_detected_json">Pares JSON detectados: %1$s</string>
     <string name="sd_none">Nenhum</string>
