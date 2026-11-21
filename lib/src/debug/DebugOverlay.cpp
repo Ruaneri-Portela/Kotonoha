@@ -675,7 +675,16 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
   if (ImGui::Button("Dump raw asset to Documents")) {
     try {
       const std::string requested = assetPath;
-      const auto safeId = AssetOverlay::key(requested);
+      // Archive providers expose logical IDs such as image:1127, voice:100,
+      // bgm:123 and se:42. These are not filesystem paths. Prefer the
+      // provider's normalized overlay ID, then encode a remaining ':'
+      // without weakening AssetOverlay's traversal/absolute-path checks.
+      std::string safeId = engine.GetAssets().overlayWriteId(requested);
+      if (safeId.empty()) {
+        std::string filename = requested;
+        std::replace(filename.begin(), filename.end(), ':', '_');
+        safeId = AssetOverlay::key(filename);
+      }
       if (safeId.empty() || safeId.back() == '/')
         throw std::invalid_argument("Choose a valid relative asset ID");
 
