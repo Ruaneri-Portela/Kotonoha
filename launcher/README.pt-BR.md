@@ -45,4 +45,4 @@ KotonohaLauncher --detect "/caminho/para/biblioteca-de-jogos/SayaNoUta_PT-BR"
 KotonohaLauncher --library "/caminho/para/biblioteca-de-jogos"
 ```
 
-O launcher independente é compilado no desktop (Linux, macOS e Windows), mas não no Android nem no WebAssembly. Detecção de fontes e testes sintéticos não comprovam compatibilidade integral com os jogos originais.
+O launcher unificado é compilado em plataformas desktop (Linux, macOS, Windows) e mobile (Android, iOS), mas não no WebAssembly. Detecção de fontes e testes sintéticos não comprovam compatibilidade integral com os jogos originais.

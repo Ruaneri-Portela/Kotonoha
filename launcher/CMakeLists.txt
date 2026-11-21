@@ -6,9 +6,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
-if(NOT KOTONOHA_BUILD_ALL)
+if(NOT KOTONOHA_BUILD_ALL AND NOT KOTONOHA_BUILD_LAUNCHER)
     message(FATAL_ERROR
-        "[KotonohaLauncher] Enable KOTONOHA_BUILD_ALL=ON to build the unified launcher")
+        "[KotonohaLauncher] Enable KOTONOHA_BUILD_ALL=ON or KOTONOHA_BUILD_LAUNCHER=ON to build the unified launcher")
 endif()
 
 add_library(kotonoha_unified_launcher STATIC
