@@ -63,6 +63,9 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
          "Use ASS script info/styles only; discard its dialogue events",
          engine.subtitleStylePath);
   alias("--subtitle-style", "--ass-style");
+  option("--forced-subtitles", "DIRECTORY",
+         "Use an explicit forced subtitles directory",
+         engine.forcedSubtitlesPath);
   option("--frames", "N", "Exit after N rendered frames (positive integer)",
          [this](const std::string &value) {
            long count = 0;

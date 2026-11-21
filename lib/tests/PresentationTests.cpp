@@ -464,6 +464,18 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   ForcedSubtitleRenderer missingSource(engine);
   require(missingSource.sourceDirectory().empty(),
           "Startup without a subtitle directory records no automatic source");
+  const auto explicitDir = directory.path / "explicit-forced-subtitles";
+  std::filesystem::create_directories(explicitDir / "pt-BR");
+  writeTextFileAtomically((explicitDir / "pt-BR/80005.ass").string(), script);
+  ForcedSubtitleRenderer explicitSource(engine, explicitDir);
+  require(std::filesystem::equivalent(explicitSource.sourceDirectory(),
+                                      explicitDir),
+          "Explicit forced subtitle directory overrides automatic discovery");
+  explicitSource.setLocale("pt-BR");
+  explicitSource.loadForNode("80005");
+  require(explicitSource.activePath() ==
+              std::filesystem::canonical(explicitDir / "pt-BR/80005.ass"),
+          "Explicit forced subtitle directory loads locale-scoped ASS");
   std::filesystem::create_directories(unrelatedDump.parent_path());
   writeTextFileAtomically(unrelatedDump.string(), header);
   missingSource.reload();

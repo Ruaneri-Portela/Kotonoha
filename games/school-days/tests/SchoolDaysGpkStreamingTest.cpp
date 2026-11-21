@@ -1,5 +1,6 @@
 #include "SchoolDaysAssets.hpp"
 
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysGpkArchive.hpp>
@@ -330,12 +331,64 @@ int main(int argc, char **argv) {
     Write(packs / "LxH.GPK", BuildMultiPack(IntegratedEntries()));
     {
       // The physical root has no archives. Every open and reopen must use the
-      // mount.
+      // mount, and repeated ReadEntry calls on an IMount-backed archive must
+      // reuse a cached handle rather than reopening on every entry.
+      class CountingMount final : public Kotonoha::Filesystem::IMount {
+      public:
+        explicit CountingMount(
+            std::shared_ptr<const Kotonoha::Filesystem::IMount> inner)
+            : inner_(std::move(inner)) {}
+        bool exists(std::string_view path) const override {
+          return inner_->exists(path);
+        }
+        Kotonoha::Filesystem::FileInfo stat(std::string_view path) const override {
+          return inner_->stat(path);
+        }
+        std::vector<Kotonoha::Filesystem::FileInfo>
+        list(std::string_view path) const override {
+          return inner_->list(path);
+        }
+        std::unique_ptr<Kotonoha::Filesystem::FileHandle>
+        open(std::string_view path) const override {
+          ++openCount;
+          if (failOpens)
+            throw Kotonoha::Filesystem::FilesystemError(
+                Kotonoha::Filesystem::ErrorCode::IOError, "Simulated revoke");
+          return inner_->open(path);
+        }
+        mutable size_t openCount = 0u;
+        mutable bool failOpens = false;
+      private:
+        std::shared_ptr<const Kotonoha::Filesystem::IMount> inner_;
+      };
+
       const auto rootWithoutPacks = root / "virtual-game";
       fs::create_directory(rootWithoutPacks);
-      auto source =
+      auto inner =
           std::make_shared<Kotonoha::Filesystem::DirectoryMount>(packs);
-      SchoolDays::Assets virtualAssets(rootWithoutPacks, {}, false, source);
+      auto counting = std::make_shared<CountingMount>(inner);
+      {
+        Kotonoha::SchoolDaysGpkArchive cachedArchive;
+        std::string cachedError;
+        Require(cachedArchive.Open("LxH.GPK", &cachedError, counting),
+                "CountingMount failed to open LxH.GPK: " + cachedError);
+        Require(counting->openCount == 1u,
+                "Expected exactly 1 open during GPK Open()");
+        for (const auto &logical : Kotonoha::SchoolDaysLxhContent::PackEntries()) {
+          std::vector<uint8_t> bytes;
+          Require(cachedArchive.Read(logical, &bytes, &cachedError) &&
+                      bytes == IntegratedPayload(logical),
+                  "Cached virtual GPK read mismatch: " + logical);
+        }
+        Require(counting->openCount == 2u,
+                "Expected 28 virtual ReadEntry calls to reuse 1 cached stream");
+        counting->failOpens = true;
+        Require(!cachedArchive.OpenStream(),
+                "OpenStream must still fail closed when mount revokes opens");
+        counting->failOpens = false;
+      }
+
+      SchoolDays::Assets virtualAssets(rootWithoutPacks, {}, false, inner);
       for (const auto &logical : Kotonoha::SchoolDaysLxhContent::PackEntries())
         CheckIntegratedReadAndSeek(virtualAssets, logical);
     }
