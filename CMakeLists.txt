@@ -48,11 +48,26 @@ add_subdirectory(lib)
 
 # CMake CONFIG imported targets are directory-scoped. Make them available
 # to sibling game ports too. PkgConfig fallback targets are explicitly GLOBAL.
-if(KOTONOHA_SDL_CONFIG_SDL3)
-    find_package(SDL3 CONFIG REQUIRED)
-endif()
-if(KOTONOHA_SDL_CONFIG_TTF)
-    find_package(SDL3_ttf CONFIG REQUIRED)
+if(MSVC AND (KOTONOHA_SDL_CONFIG_SDL3 OR KOTONOHA_SDL_CONFIG_TTF))
+    # Imported package targets are directory-scoped. Re-discover the SAME
+    # vcpkg triplet selected in lib/, never a MinGW/system installation.
+    set(_kotonoha_root_vcpkg_prefix
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+    if(KOTONOHA_SDL_CONFIG_SDL3)
+        find_package(SDL3 CONFIG REQUIRED
+            PATHS "${_kotonoha_root_vcpkg_prefix}" NO_DEFAULT_PATH)
+    endif()
+    if(KOTONOHA_SDL_CONFIG_TTF)
+        find_package(SDL3_ttf CONFIG REQUIRED
+            PATHS "${_kotonoha_root_vcpkg_prefix}" NO_DEFAULT_PATH)
+    endif()
+else()
+    if(KOTONOHA_SDL_CONFIG_SDL3)
+        find_package(SDL3 CONFIG REQUIRED)
+    endif()
+    if(KOTONOHA_SDL_CONFIG_TTF)
+        find_package(SDL3_ttf CONFIG REQUIRED)
+    endif()
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/games/KotonohaBuild.cmake")
