@@ -51,6 +51,7 @@ class DebugOverlay {
   // Node lists are expensive (whole KTRF graphs); refreshed on demand only.
   std::vector<DebugNode> cachedRuntimeNodes, cachedEngineNodes;
   bool nodesStale = true;
+  std::string lastNodeCatalogKey;
   void refreshNodes();
   char assetPath[1024]{};
   std::string previewAsset;
