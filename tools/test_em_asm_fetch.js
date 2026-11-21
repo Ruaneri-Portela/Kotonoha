@@ -55,7 +55,7 @@ assert.throws(() => new vm.Script("(() => " + invalid + ")()"),
 const runtime = fs.readFileSync(path.join(__dirname, "..", "lib",
     "src", "core", "Runtime.cpp"), "utf8");
 const scene = runtime.match(
-    /EM_ASM\\s*\\(\\s*(\\{[\\s\\S]*?KotonohaSceneEntered[\\s\\S]*?\\})\\s*,\\s*node\\.c_str\\(\\)\\s*\\)/);
+    /EM_ASM\s*\(\s*(\{[\s\S]*?KotonohaSceneEntered[\s\S]*?\})\s*,\s*node\.c_str\(\)\s*\)/);
 assert(scene, "Missing native Runtime scene notification EM_ASM bridge");
 const sceneJs = preprocess(scene[1]);
 assert(!sceneJs.includes("== ="),
