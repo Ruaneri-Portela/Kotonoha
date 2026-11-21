@@ -116,6 +116,7 @@ public:
   bool init();
   // Read-only PAK index for the shared Kotonoha Debug UI. Returns logical
   // script names without decoding every VM object.
+  std::map<int, std::vector<std::string>> translationInventory();
   std::vector<std::string> debugScripts() const {
     std::lock_guard lock(mutex_);
     std::vector<std::string> names;
