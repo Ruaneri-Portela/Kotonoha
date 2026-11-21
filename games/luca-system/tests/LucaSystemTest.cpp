@@ -766,6 +766,56 @@ int main(int argc, char **argv) {
     check(archive.findByName("missing") == nullptr, "PAK missing entry null");
   }
 
+  // ---- Native Debug UI scenario and resource integration (synthetic PAK) ----
+  {
+    const auto root = tempDir() / "debug-catalog";
+    std::filesystem::create_directories(root / "image");
+    // IMAGELOAD group=2, slot=0, image ID=1127, followed by END.
+    const std::vector<uint8_t> seen170 = {
+        8, 0, 55, 0, 2, 0, 103, 4,
+        4, 0, 25, 0};
+    const std::vector<uint8_t> seen190 = {4, 0, 25, 0};
+    writeBytes(root / "SCRIPT.PAK",
+               buildPak(0, 4, 512,
+                        {{"seen170", seen170}, {"seen190", seen190}}));
+    writeBytes(root / "image" / "BGCG.PAK",
+               buildPak(1127, 4, 0, {{"", {1, 2, 3}}}));
+    auto provider =
+        std::make_shared<Kotonoha::Providers::LucaSystemAssets>(root,
+                                                                 std::filesystem::path{});
+    LucaSystem::LucaSystemRuntime runtime(provider);
+    const auto before = runtime.debugNodes();
+    const auto containsNode = [](const auto &nodes, const std::string &id) {
+      return std::find_if(nodes.begin(), nodes.end(),
+                          [&](const auto &node) { return node.id == id; });
+    };
+    check(containsNode(before, "luca_system | scenario seen170") !=
+                  before.end() &&
+              containsNode(before, "luca_system | scenario seen190") !=
+                  before.end(),
+          "Luca debug lists native SCRIPT.PAK scenarios before game startup");
+    check(runtime.startScenario("seen170", 0, true),
+          "Luca test scenario loads without executing its bytecode");
+    const auto nodes = runtime.debugNodes();
+    const auto active =
+        containsNode(nodes, "luca_system | scenario seen170 @0");
+    const auto scenario =
+        containsNode(nodes, "luca_system | scenario seen170");
+    const auto hasResource = [](const auto &node, const std::string &id) {
+      return std::find(node.assets.begin(), node.assets.end(), id) !=
+             node.assets.end();
+    };
+    check(active != nodes.end() && scenario != nodes.end() &&
+              hasResource(*active, "image:1127") &&
+              hasResource(*scenario, "image:1127") &&
+              hasResource(*scenario, "seen170") &&
+              runtime.debugNodeCatalogKey() == "seen170",
+          "Luca native debug node and scenario show resolved archive assets");
+    runtime.debugJumpToNode("luca_system | scenario seen190");
+    check(runtime.debugNodeCatalogKey() == "seen190",
+          "Luca debug jump switches scenario and invalidates node catalog");
+  }
+
   // ---- Synthetic script parse ----
   {
     // One instruction: opcode 1, fixedFlag 1 (one fixed uint16 = 42),
