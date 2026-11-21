@@ -233,7 +233,12 @@ void N2Runtime::update() {
     auto options = vm_.pendingChoiceOptions();
     std::vector<Kotonoha::ChoiceOption> choiceItems;
     for (size_t i = 0; i < options.size(); ++i) {
-      choiceItems.push_back({options[i], static_cast<int>(i)});
+      choiceItems.push_back(
+          {impl_->engine
+               ? impl_->engine->GetTranslation().text(translationRoute(),
+                                                       options[i])
+               : options[i],
+           static_cast<int>(i)});
     }
     impl_->choiceActive = true;
     impl_->choiceScene->setQuestion(
@@ -250,8 +255,22 @@ void N2Runtime::update() {
   }
 
   if (impl_->textBox) {
-    impl_->textBox->setDialogue(std::string(vm_.dialogueSystem().speaker()),
-                                vm_.dialogueSystem().visibleText());
+    const auto &dialogue = vm_.dialogueSystem();
+    const auto rawSpeaker = std::string(dialogue.speaker());
+    const auto rawText = std::string(dialogue.fullText());
+    const auto route = translationRoute();
+    const auto speaker = impl_->engine
+                             ? impl_->engine->GetTranslation().text(
+                                   route, rawSpeaker)
+                             : rawSpeaker;
+    const auto line = impl_->engine
+                          ? impl_->engine->GetTranslation().text(route, rawText)
+                          : rawText;
+    // Preserve the native VM's reveal cadence for untranslated text.
+    // Translations have a different glyph count and are displayed as a
+    // complete line instead of slicing a multibyte UTF-8 character.
+    impl_->textBox->setDialogue(
+        speaker, line == rawText ? dialogue.visibleText() : line);
     impl_->textBox->update();
   }
 
