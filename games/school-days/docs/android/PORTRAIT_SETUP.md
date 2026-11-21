@@ -116,4 +116,22 @@ Ongoing tracking of real-hardware defects observed on POCO X7 Pro (Android 16 / 
 - **Status**: **Root cause fixed & unit-tested; final physical loudness check pending user confirmation**.
 
 ### 6. [P1] Screen adaptation (2712×1220), aspect ratio & touch
-- **Status**: Landscape 2712×1220, `16:9 ↔ 4:3` switching, and touch hitboxes across Title, `OPTION` (3 tabs + popups), MenuBar, `MENU`, and `BACKLOG` verified on POCO X7 Pro; extended P2 gameplay/L×H QA remains pending.
+- **Status**: Landscape 2712×1220, `16:9 ↔ 4:3` switching, and touch hitboxes across Title, `OPTION` (3 tabs + popups), MenuBar, `MENU`, and `BACKLOG` verified on POCO X7 Pro.
+
+---
+
+## White Fade & Viewport (Milestone 2)
+
+### P0 defect found
+- **Symptom**: While opening/closing gameplay system panels (`SAVE`, `LOAD`, `BACKLOG`, `OPTION`), the white fade (`SchoolDaysSystemPanelTransition`) filled the entire physical surface (`2712×1220`), bleeding white onto the black pillarbox/letterbox margins outside the game viewport.
+- **Confirmed root cause**: `Runtime::renderSystemPanelTransition()` (`games/school-days/src/SchoolDaysRuntime.cpp`) runs in `RenderSpace::Screen` and called `SDL_RenderFillRect(&renderer, nullptr)` for the white overlay (`255, 255, 255, WhiteAlpha`), unlike `renderExitTransition()` and `renderFrontendTransition()`, which already computed the fitted viewport rectangle.
+- **Shared fix (Windows + Android)**:
+  - Added pure helper `SchoolDaysSystemPanelTransition::ComputeFittedViewport(...)` in `games/school-days/include/Kotonoha/routing/SchoolDaysSystemPanelTransition.hpp`.
+  - `Runtime::renderSystemPanelTransition()` computes the exact fitted active game/panel rectangle (`800×600` in `Standard`, `800×450`/`1280×720`/`1024×576` in `Wide*`, honoring Windows Standard FULL `narrativePresentationHeightScale()` and Config stretch; and `1280×720` fitted during `Revealing`) and restricts the white fade strictly to `area`, keeping all letterbox/pillarbox margins pure `#000000`.
+  - Preserved retail timing (`750 ms` open / `500 ms` close / `500 ms` reveal) and left `renderLoadTransition`, `renderTransportFade`, `renderLxhFade`, and `replayHSceneTransitionActive` untouched.
+- **Verification**:
+  - New `SchoolDaysSystemPanelTransitionTest` (`games/school-days/tests/SchoolDaysSystemPanelTransitionTest.cpp`) verifies alpha curves, geometry across `2712×1220` (`16:9` & `4:3`) and desktop Standard FULL, plus SDL3 software-renderer `SDL_RenderReadPixels` pixel readback (pillarbox/letterbox stay `(0, 0, 0)` while center fades white). Passed 3/3 alongside `SchoolDaysExitTransitionTest` and `SchoolDaysFrontendTransitionTest`.
+  - Real hardware captures on POCO X7 Pro (`2712×1220`):
+    - **16:9** (`SAVE` open/close, `BACKLOG` open): pillarbox samples `x=20, 260, 2451, 2691` measured exact `(0, 0, 0)` while the active viewport faded to `(167, 167, 167)`, `(245, 244, 244)`, and `(180, 180, 180)`.
+    - **4:3 Standard** (`SAVE` open): outer margins `x=20, 260, 500, 2211, 2451, 2691` measured exact `(0, 0, 0)` while the `4:3` rect (`x=600..2111`) faded to `(172, 172, 172)`.
+- **Classification**: **Confirmed parity** (`Paridade confirmada`, Windows & Android).

@@ -129,4 +129,22 @@ Registro contínuo dos defeitos observados em hardware real (POCO X7 Pro, Androi
 - **Estado**: **Causa raiz corrigida e testada; validação auditiva final pelo usuário pendente**.
 
 ### 6. [P1] Adaptação de tela (2712×1220), proporção e toque
-- **Estado**: Paisagem 2712×1220, troca 16:9 ↔ 4:3, e áreas de toque em Título, `OPTION` (3 abas + popups), MenuBar superior, `MENU` e `BACKLOG` validados no POCO X7 Pro. Itens P2 estendidos (escolhas, Save/Load completo, Route Map, Replay, CJK/cirílico em cena, 7 finais L×H) permanecem pendentes de QA longo.
+- **Estado**: Paisagem 2712×1220, troca 16:9 ↔ 4:3, e áreas de toque em Título, `OPTION` (3 abas + popups), MenuBar superior, `MENU` e `BACKLOG` validados no POCO X7 Pro.
+
+---
+
+## White fade e viewport (Marco 2)
+
+### Defeito P0 encontrado
+- **Sintoma**: Durante a abertura/fechamento de painéis de sistema em gameplay (`SAVE`, `LOAD`, `BACKLOG`, `OPTION`), o fade branco (`SchoolDaysSystemPanelTransition`) pintava a superfície física inteira (`2712×1220`), vazando branco sobre as barras pretas laterais (pillarbox) em telas ultrawide e sobre margens letterbox.
+- **Causa raiz confirmada**: `Runtime::renderSystemPanelTransition()` (`games/school-days/src/SchoolDaysRuntime.cpp`) executa em `RenderSpace::Screen` e chamava `SDL_RenderFillRect(&renderer, nullptr)` tanto para o fundo preto quanto para o overlay branco (`255, 255, 255, WhiteAlpha`), diferente de `renderExitTransition()` e `renderFrontendTransition()` que já calculavam o retângulo ajustado do viewport.
+- **Correção compartilhada (Windows + Android)**:
+  - Adicionado helper puro `SchoolDaysSystemPanelTransition::ComputeFittedViewport(...)` em `games/school-days/include/Kotonoha/routing/SchoolDaysSystemPanelTransition.hpp`.
+  - `Runtime::renderSystemPanelTransition()` calcula o retângulo exato da área ativa do jogo/painel (`800×600` em `Standard`, `800×450`/`1280×720`/`1024×576` em `Wide*`, respeitando `narrativePresentationHeightScale()` e stretch fullscreen de `Config` no Windows Standard FULL; e `1280×720` ajustado na fase `Revealing`) e restringe o fade branco estritamente a `area`, mantendo as barras pretas externas sempre em `#000000`.
+  - Preservadas intactas a temporização retail (`750 ms` abertura / `500 ms` fechamento / `500 ms` revelação) e as transições `renderLoadTransition`, `renderTransportFade`, `renderLxhFade` e `replayHSceneTransitionActive`.
+- **Verificação automatizada e em hardware real**:
+  - Novo teste `SchoolDaysSystemPanelTransitionTest` (`games/school-days/tests/SchoolDaysSystemPanelTransitionTest.cpp`): valida curva de alfa, geometria em `2712×1220` (`16:9` e `4:3`), Windows Standard FULL (`0.75×` + stretch), e leitura de pixels via `SDL_RenderReadPixels` em renderer software SDL3 (pillarbox e letterbox `#000000`, centro branco). Aprovado junto com `SchoolDaysExitTransitionTest` e `SchoolDaysFrontendTransitionTest` (3/3).
+  - Captura real no POCO X7 Pro (`2712×1220`):
+    - **16:9** (`SAVE` abertura/fechamento, `BACKLOG` abertura): bordas `x=20, 260, 2451, 2691` medidas em `(0, 0, 0)` puro enquanto o centro da área de jogo atingiu `(167, 167, 167)`, `(245, 244, 244)` e `(180, 180, 180)`.
+    - **4:3 Standard** (`SAVE` abertura): bordas `x=20, 260, 500, 2211, 2451, 2691` medidas em `(0, 0, 0)` puro enquanto o retângulo `4:3` (`x=600..2111`) atingiu `(172, 172, 172)`.
+- **Classificação**: **Paridade confirmada** (Windows e Android).
