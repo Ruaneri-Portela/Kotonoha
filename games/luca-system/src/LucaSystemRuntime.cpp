@@ -4106,7 +4106,10 @@ std::vector<Kotonoha::DebugNode> LucaSystemRuntime::debugNodes() const {
       if (entry.name.empty() || !knownScripts.insert(entry.name).second)
         continue;
       nodes.push_back(
-          {nodeId(entry.name), "Scenario " + entry.name, {entry.name}});
+          {nodeId(entry.name),
+           std::string(isSystemScript(entry.name) ? "System table " : "Scenario ") +
+               entry.name,
+           {entry.name}});
     }
   }
   if (!script.empty() && knownScripts.insert(script).second)
@@ -4183,6 +4186,9 @@ void LucaSystemRuntime::debugJumpToNode(const std::string &id) {
   if (script.empty() || !assets_ || !assets_->scriptPak() ||
       !assets_->scriptPak()->findByName(script))
     throw std::invalid_argument("Unknown LucaSystem scenario: " + script);
+  if (isSystemScript(script))
+    throw std::invalid_argument(
+        "LucaSystem system tables are viewable assets, not executable scenes");
 
   std::size_t pc = 0;
   if (pos != std::string::npos) {
