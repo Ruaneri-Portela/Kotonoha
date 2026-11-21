@@ -19,6 +19,8 @@
 #include <iostream>
 #include <sstream>
 #include <utility>
+#include <string_view>
+#include <stdexcept>
 
 namespace Kotonoha::PmailPort {
 
@@ -477,11 +479,44 @@ void PmailRuntime::returnToTitle() {
   SetState(Kotonoha::GameState::Menu);
 }
 
+std::string PmailRuntime::debugNodeCatalogKey() const {
+  return game_ ? game_->currentScript() : std::string{};
+}
+
+void PmailRuntime::debugJumpToNode(const std::string &id) {
+  constexpr std::string_view prefix = "pmail | script ";
+  if (!game_ || id.compare(0, prefix.size(), prefix) != 0 ||
+      !game_->debugJumpScript(id.substr(prefix.size())))
+    throw std::invalid_argument("Unknown Pmail script debug node: " + id);
+  SetState(Kotonoha::GameState::Gameplay);
+}
+
+Kotonoha::Translation::SourceTexts PmailRuntime::translationSources() const {
+  if (!game_)
+    return {};
+  const auto object = game_->vm().current();
+  if (!object)
+    return {};
+  return {{static_cast<int>(object->id & 0xfff), object->strings}};
+}
+
+void PmailRuntime::debugOverlayAssetChanged(const std::string &) {
+  if (assets_)
+    assets_->clearCache();
+}
+
 std::vector<Kotonoha::DebugNode> PmailRuntime::debugNodes() const {
   if (!game_)
     return {};
+  std::vector<Kotonoha::DebugNode> all;
+  for (const auto &name : game_->debugScripts()) {
+    Kotonoha::DebugNode entry{"pmail | script " + name, name, {}};
+    if (assets_ && assets_->contains(game_->scriptPackId()))
+      entry.assets.push_back(game_->scriptPackId());
+    all.push_back(std::move(entry));
+  }
   Kotonoha::DebugNode node;
-  node.id = debugNode();
+  node.id = "pmail | script " + game_->currentScript();
   node.label = game_->currentScript();
   const auto background = game_->background();
   if (!background.empty())
@@ -499,7 +534,16 @@ std::vector<Kotonoha::DebugNode> PmailRuntime::debugNodes() const {
     node.assets.push_back(currentSe_);
   if (!currentVoice_.empty())
     node.assets.push_back(currentVoice_);
-  return {std::move(node)};
+  auto found = std::find_if(all.begin(), all.end(),
+                            [&](const auto &entry) {
+                              return entry.id == node.id;
+                            });
+  if (found != all.end())
+    found->assets.insert(found->assets.end(), node.assets.begin(),
+                         node.assets.end());
+  else
+    all.push_back(std::move(node));
+  return all;
 }
 
 std::string PmailRuntime::dialogueText() const {
