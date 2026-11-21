@@ -45,6 +45,14 @@ if(BUILD_TESTING)
         ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
   endif()
 
+  # Debug scenario/instruction catalog is independently testable without
+  # SDL, vcpkg or commercial PAK files.
+  add_executable(LucaSystemDebugCatalogTests
+      tests/DebugCatalogTest.cpp src/DebugCatalog.cpp)
+  target_include_directories(LucaSystemDebugCatalogTests PRIVATE include)
+  target_compile_features(LucaSystemDebugCatalogTests PRIVATE cxx_std_17)
+  add_test(NAME LucaSystem.DebugCatalog COMMAND LucaSystemDebugCatalogTests)
+
   # Dependency-free C++17 test: no SDL, vcpkg, or retail AIR data required.
   add_executable(LucaSystemSaveCodecTests tests/SaveStateTest.cpp)
   target_include_directories(LucaSystemSaveCodecTests PRIVATE include)
