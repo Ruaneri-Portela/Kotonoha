@@ -5,6 +5,7 @@
 #include <LucaSystem/AirGallery.hpp>
 #include <LucaSystem/BitmapFont.hpp>
 #include <LucaSystem/CzImage.hpp>
+#include <LucaSystem/DebugCatalog.hpp>
 #include <LucaSystem/DialogueFlow.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
@@ -30,6 +31,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <charconv>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
@@ -40,6 +42,7 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -4079,6 +4082,128 @@ std::string LucaSystemRuntime::debugNode() const {
              ? std::string()
              : ("luca_system | scenario " + impl.currentScenario + " @" +
                 std::to_string(impl.instructionIndex));
+}
+
+std::string LucaSystemRuntime::debugNodeCatalogKey() const {
+  return impl_->currentScenario;
+}
+
+std::vector<Kotonoha::DebugNode> LucaSystemRuntime::debugNodes() const {
+  // Enumerating PAK metadata is cheap: only inspect decoded opcodes for the
+  // currently loaded script, never decode all AIR scenarios in a UI frame.
+  std::vector<Kotonoha::DebugNode> nodes;
+  if (!assets_)
+    return nodes;
+
+  constexpr std::string_view prefix = "luca_system | scenario ";
+  const auto nodeId = [&](const std::string &script) {
+    return std::string(prefix) + script;
+  };
+  const auto &script = impl_->currentScenario;
+  std::set<std::string> knownScripts;
+  if (const auto *pak = assets_->scriptPak()) {
+    for (const auto &entry : pak->entries()) {
+      if (entry.name.empty() || !knownScripts.insert(entry.name).second)
+        continue;
+      nodes.push_back(
+          {nodeId(entry.name), "Scenario " + entry.name, {entry.name}});
+    }
+  }
+  if (!script.empty() && knownScripts.insert(script).second)
+    nodes.push_back({nodeId(script), "Scenario " + script, {script}});
+  if (script.empty())
+    return nodes;
+
+  const auto events =
+      buildDebugInstructions(script, impl_->instructions,
+                             impl_->instructionIndex);
+  std::set<std::string> sceneAssets;
+  sceneAssets.insert(script);
+  const auto include = [&](std::vector<std::string> &target,
+                           const std::string &id) {
+    // Logical image:/voice:/bgm:/se: IDs and named PAK entries are all
+    // resolved by the active provider, never by a raw filesystem lookup.
+    if (!id.empty() && assets_->contains(id) &&
+        std::find(target.begin(), target.end(), id) == target.end())
+      target.push_back(id);
+  };
+
+  // The last executed MESSAGE/IMAGELOAD may already be past the interpreter's
+  // next instruction PC. Show currently visible scene resources too.
+  std::vector<std::string> liveAssets;
+  include(liveAssets, script);
+  const auto layers = [&](const auto &slots) {
+    for (const auto &[key, layer] : slots)
+      if (layer.visible && layer.assetId)
+        include(liveAssets, "image:" + std::to_string(layer.assetId));
+  };
+  layers(impl_->visibleSlots);
+  layers(impl_->stagedSlots);
+  layers(impl_->outgoingSlots);
+  if (impl_->currentBgmId)
+    include(liveAssets, "bgm:" + std::to_string(impl_->currentBgmId));
+  if (currentDialogueVoiceId_)
+    include(liveAssets,
+            "voice:" + std::to_string(currentDialogueVoiceId_));
+
+  for (const auto &event : events) {
+    std::vector<std::string> references;
+    for (const auto &id : event.assets)
+      include(references, id);
+    for (const auto &id : references)
+      sceneAssets.insert(id);
+    if (event.pc == impl_->instructionIndex)
+      for (const auto &id : liveAssets)
+        include(references, id);
+    nodes.push_back({nodeId(script) + " @" + std::to_string(event.pc),
+                     event.label, std::move(references)});
+  }
+  // A scenario node gives the Asset Provider Viewer a complete index of
+  // the current script's known resources, not just the current instruction.
+  for (auto &node : nodes)
+    if (node.id == nodeId(script)) {
+      node.assets.assign(sceneAssets.begin(), sceneAssets.end());
+      for (const auto &id : liveAssets)
+        include(node.assets, id);
+      break;
+    }
+  return nodes;
+}
+
+void LucaSystemRuntime::debugJumpToNode(const std::string &id) {
+  constexpr std::string_view prefix = "luca_system | scenario ";
+  if (id.compare(0, prefix.size(), prefix) != 0)
+    throw std::invalid_argument("Invalid LucaSystem debug node ID");
+
+  const auto pos = id.rfind(" @");
+  const std::string script =
+      id.substr(prefix.size(),
+                pos == std::string::npos ? std::string::npos
+                                         : pos - prefix.size());
+  if (script.empty() || !assets_ || !assets_->scriptPak() ||
+      !assets_->scriptPak()->findByName(script))
+    throw std::invalid_argument("Unknown LucaSystem scenario: " + script);
+
+  std::size_t pc = 0;
+  if (pos != std::string::npos) {
+    const char *start = id.data() + pos + 2;
+    const char *end = id.data() + id.size();
+    const auto parsed = std::from_chars(start, end, pc);
+    if (parsed.ec != std::errc{} || parsed.ptr != end)
+      throw std::invalid_argument("Invalid LucaSystem instruction index");
+  }
+
+  // This is a native interpreter jump, not a VNManager timeline jump.
+  // Starting at an arbitrary instruction cannot reconstruct earlier VM
+  // variables/layers, matching the Debug UI's existing warning.
+  if (script == impl_->currentScenario && pc >= impl_->instructions.size())
+    throw std::out_of_range("Cannot jump beyond the LucaSystem script");
+  if (!startScenario(script, pc, true))
+    throw std::out_of_range("LucaSystem scenario or instruction not found");
+  if (pc >= impl_->instructions.size())
+    throw std::out_of_range("Cannot jump to the end of a LucaSystem script");
+  SetState(Kotonoha::GameState::Gameplay);
+  impl_->runUntilPause();
 }
 
 void LucaSystemRuntime::debugRestartScene() {
