@@ -19,6 +19,7 @@ on:
       - "lib/tests/AssetProviderTests.cpp"
       - "tools/check_sdl_cpack.py"
       - "tools/check_web_shell.js"
+      - "tools/test_em_asm_fetch.js"
       - "tools/generate_pwa_icons.py"
       - "tools/test_pwa_worker.js"
       - "tools/test_preload_cache.js"
@@ -76,6 +77,7 @@ on:
       - "lib/tests/AssetProviderTests.cpp"
       - "tools/check_sdl_cpack.py"
       - "tools/check_web_shell.js"
+      - "tools/test_em_asm_fetch.js"
       - "tools/generate_pwa_icons.py"
       - "tools/test_pwa_worker.js"
       - "tools/test_preload_cache.js"
@@ -179,6 +181,7 @@ jobs:
       - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
         run: |
           node tools/check_web_shell.js
+          node tools/test_em_asm_fetch.js
           node tools/test_pwa_worker.js
           node tools/test_preload_cache.js
           node tools/test_web_locales.js
