@@ -483,6 +483,8 @@ public:
   const Kotonoha::SchoolDaysRetailConfigPolicy::State &retailConfig() const {
     return config;
   }
+  // General > Display Subtitle is the retail TextView field in Config.DAT.
+  bool allowForcedSubtitles() const override { return config.textView; }
   void openPanel(int control) { activateControl(control); }
   SDL_Point viewport() const override { return {1280, 720}; }
   bool continuousTouch() const override { return true; }
