@@ -11,6 +11,9 @@ import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
 
 import java.io.IOException;
+import java.io.File;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -73,11 +76,21 @@ public final class DocumentTree {
         public final Uri uri;
         public final boolean directory;
         public final boolean empty;
+        public final long size;
 
-        Entry(Uri uri, boolean directory, boolean empty) {
+        Entry(Uri uri, boolean directory, long size) {
             this.uri = uri;
             this.directory = directory;
-            this.empty = empty;
+            this.empty = size == 0;
+            this.size = size;
+        }
+    }
+
+    public void copy(Entry entry, File destination) throws IOException {
+        try (InputStream input = resolver.openInputStream(entry.uri)) {
+            if (input == null) throw new IOException();
+            long copied = Files.copy(input, destination.toPath());
+            if (entry.size >= 0 && copied != entry.size) throw new IOException();
         }
     }
 
@@ -94,9 +107,10 @@ public final class DocumentTree {
             while (rows.moveToNext()) {
                 if (Thread.currentThread().isInterrupted()) throw new IOException();
                 Uri child = DocumentsContract.buildDocumentUriUsingTree(tree, rows.getString(1));
-                entries.put(rows.getString(0), new Entry(child,
+                String name = rows.getString(0);
+                if (name == null || entries.put(name, new Entry(child,
                         Document.MIME_TYPE_DIR.equals(rows.getString(2)),
-                        !rows.isNull(3) && rows.getLong(3) == 0));
+                        rows.isNull(3) ? -1 : rows.getLong(3))) != null) throw new IOException();
             }
         }
         return entries;

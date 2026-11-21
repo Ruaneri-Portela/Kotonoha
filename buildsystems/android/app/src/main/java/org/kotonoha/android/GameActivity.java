@@ -1,6 +1,7 @@
 package org.kotonoha.android;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Build;
 import android.view.Display;
 import android.view.Surface;
@@ -13,6 +14,21 @@ import org.libsdl.app.SDLSurface;
 import java.io.File;
 
 public final class GameActivity extends SDLActivity {
+    static final String LAUNCH_ARGUMENTS = "org.kotonoha.android.LAUNCH_ARGUMENTS";
+
+    @Override
+    protected String[] getArguments() {
+        String[] args = getIntent().getStringArrayExtra(LAUNCH_ARGUMENTS);
+        return args == null ? super.getArguments() : args;
+    }
+
+    static final String STARTUP_STAGE = "org.kotonoha.android.STARTUP_STAGE";
+    private volatile int startupStage;
+
+    public void setKotonohaStartupStage(int stage) {
+        startupStage = stage;
+    }
+
     private int kotonohaPreferredModeId;
     private float kotonohaPreferredRefreshRate;
 
@@ -25,7 +41,9 @@ public final class GameActivity extends SDLActivity {
         // SDL calls this entry point on SDLThread and finishes the Activity
         // after it returns. Preserve the native callback result for setup.
         int result = nativeRunMain(getMainSharedObject(), getMainFunction(), getArguments());
-        setResult(result == 0 ? RESULT_OK : RESULT_CANCELED);
+        if (result != 0 && getIntent().hasExtra(LAUNCH_ARGUMENTS))
+            setResult(RESULT_CANCELED, new Intent().putExtra(STARTUP_STAGE, startupStage));
+        else setResult(result == 0 ? RESULT_OK : RESULT_CANCELED);
     }
 
     @Override
