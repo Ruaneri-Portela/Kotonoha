@@ -2,6 +2,16 @@
 include_guard(GLOBAL)
 
 option(KOTONOHA_BUILD_WASM "Build for WebAssembly" OFF)
+# Opt-in WebAssembly dynamic linking: one versioned libkotonoha-*.wasm
+# shared by all game PWAs in a single output root. Traditional single-module
+# linking remains the default until the target toolchain passes full E2E tests.
+option(KOTONOHA_WASM_SHARED_ENGINE
+    "Build the Kotonoha runtime as an Emscripten side module shared across game PWAs"
+    OFF)
+if(KOTONOHA_WASM_SHARED_ENGINE AND NOT EMSCRIPTEN)
+    message(FATAL_ERROR
+        "KOTONOHA_WASM_SHARED_ENGINE requires the Emscripten toolchain (emcmake)")
+endif()
 option(KOTONOHA_WEB_SELFTEST "Build optional WebAssembly integration self-test hooks" OFF)
 option(KOTONOHA_VERBOSE_BUILD "Print full compiler and linker commands" OFF)
 option(KOTONOHA_BUILD_MACOS_BUNDLES "Build macOS application bundles" OFF)
