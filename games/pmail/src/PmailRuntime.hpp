@@ -45,6 +45,10 @@ public:
 
   std::string debugNode() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
+  std::string debugNodeCatalogKey() const override;
+  void debugJumpToNode(const std::string &id) override;
+  Kotonoha::Translation::SourceTexts translationSources() const override;
+  void debugOverlayAssetChanged(const std::string &id) override;
   std::string dialogueText() const override;
   std::string dialogueSpeaker() const override;
   int translationRoute() const override;
