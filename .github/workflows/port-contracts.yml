@@ -144,6 +144,15 @@ jobs:
             -Ilib/include lib/tests/DebugAssetCatalogTests.cpp \
             -o /tmp/kotonoha-debug-assets
           /tmp/kotonoha-debug-assets
+      - name: Compile and run N2System script translation catalog regression
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/ScriptIndex.cpp \
+            modules/vms/n2system/src/DebugCatalog.cpp \
+            modules/vms/n2system/tests/DebugCatalogTest.cpp \
+            -o /tmp/kotonoha-n2-debug-catalog
+          /tmp/kotonoha-n2-debug-catalog
       - name: Compile and run native LucaSystem Debug Catalog regression
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
