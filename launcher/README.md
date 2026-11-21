@@ -45,4 +45,4 @@ KotonohaLauncher --detect "/path/to/game-library/SayaNoUta_PT-BR"
 KotonohaLauncher --library "/path/to/game-library"
 ```
 
-The standalone hub is built on desktop (Linux, macOS and Windows), not Android or WebAssembly. Source detection and synthetic tests do not certify complete original-game compatibility.
+The standalone hub is built on desktop (Linux, macOS, Windows) and mobile (Android, iOS), but not WebAssembly. Source detection and synthetic tests do not certify complete original-game compatibility.

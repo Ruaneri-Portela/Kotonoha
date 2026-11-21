@@ -13,6 +13,6 @@ cd buildsystems/android
 
 No Windows, use `gradlew.bat` e defina `VCPKG_ROOT` no ambiente. O Gradle obtém o SDK pelo Android Studio/`local.properties`. As ABIs padrão são `arm64-v8a,x86_64`; restrinja com `-Pabis=arm64-v8a`.
 
-Exemplos de flavors: `Example`, `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `DokiDoki`, `SchoolDays`, `RealLive`, `Kirikiri`, `LucaSystem` e `Pmail`. Instale com `:app:install<Flavor>Debug`.
+Exemplos de flavors: `Launcher` (Hub Unificado), `Example`, `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `DokiDoki`, `SchoolDays`, `RealLive`, `Kirikiri`, `LucaSystem`, `Pmail`, `Ponscripter` e `N2System`. Instale com `:app:install<Flavor>Debug`.
 
 Por padrão, o Gradle inclui `game-assets` da variante. Use `-PbundleGameAssets=false` para dados externos (o exemplo continua incluído). Não versionar assets licenciados. Consulte os [detalhes do projeto Android](../buildsystems/android/README.pt-BR.md).

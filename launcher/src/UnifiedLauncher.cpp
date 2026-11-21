@@ -706,6 +706,16 @@ UnifiedLauncher::UnifiedLauncher(std::string settingsPath,
   std::string startPath = std::move(initialLibraryPath);
   if (startPath.empty())
     startPath = readFirstLineFromFile(rememberFilePath);
+  if (startPath.empty()) {
+#if defined(__ANDROID__)
+    try {
+      const auto docs = Kotonoha::applicationStorageLocations().userData;
+      if (!docs.empty())
+        startPath = (docs / "games").string();
+    } catch (const std::exception &) {
+    }
+#endif
+  }
   setLibraryPath(std::move(startPath));
 #endif
 }
