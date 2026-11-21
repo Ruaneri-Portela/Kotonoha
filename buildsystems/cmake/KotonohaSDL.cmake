@@ -136,6 +136,10 @@ if(NOT _kotonoha_sdl_resolved AND
                 "(for example x64-windows). Set CMAKE_TOOLCHAIN_FILE to "
                 "vcpkg.cmake before the first project() call.")
         endif()
+        # Cached *-DIR entries can preempt NO_DEFAULT_PATH. Drop them
+        # when switching an old MinGW/system build tree over to MSVC.
+        unset(SDL3_DIR CACHE)
+        unset(SDL3_ttf_DIR CACHE)
         find_package(SDL3 CONFIG QUIET
             PATHS "${_kotonoha_vcpkg_prefix}" NO_DEFAULT_PATH)
         find_package(SDL3_ttf CONFIG QUIET
