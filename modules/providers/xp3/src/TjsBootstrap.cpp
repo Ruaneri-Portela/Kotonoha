@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <cstring>
 #include <vector>
 
 namespace Kotonoha::Providers {
