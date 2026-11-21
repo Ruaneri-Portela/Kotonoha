@@ -55,9 +55,6 @@ endif()
 if(KOTONOHA_SDL_CONFIG_TTF)
     find_package(SDL3_ttf CONFIG REQUIRED)
 endif()
-if(KOTONOHA_IMGUI_CONFIG)
-    find_package(imgui CONFIG REQUIRED)
-endif()
 
 # Each port is configured only when explicitly selected (or BUILD_ALL).
 set(_KOTONOHA_ENABLED_GAME_DETAILS "")
