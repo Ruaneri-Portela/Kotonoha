@@ -312,6 +312,9 @@ std::vector<std::string> AssetProvider::list(const std::string &prefix) const {
   result.reserve(unique.size());
   for (const auto &[key, id] : unique)
     result.push_back(id);
+  // Stable ordering is important for huge asset catalogs in the shared Debug
+  // Inspector and Voice Dubbing applet, regardless of provider map type.
+  std::sort(result.begin(), result.end());
   return result;
 }
 SurfacePtr AssetProvider::loadSurface(const std::string &id) const {
