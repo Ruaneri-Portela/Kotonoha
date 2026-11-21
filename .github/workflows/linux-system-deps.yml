@@ -1,4 +1,4 @@
-name: Linux system dependency packages
+name: Linux system SDL3 with pinned ImGui
 
 on:
   push:
@@ -6,41 +6,48 @@ on:
     paths:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
-      - "buildsystems/cmake/KotonohaApp.cmake"
+      - "buildsystems/cmake/KotonohaSDL.cmake"
+      - "buildsystems/cmake/KotonohaImGui.cmake"
+      - "buildsystems/cmake/KotonohaGitSubmodules.cmake"
       - ".github/workflows/linux-system-deps.yml"
   pull_request:
     paths:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
-      - "buildsystems/cmake/KotonohaApp.cmake"
+      - "buildsystems/cmake/KotonohaSDL.cmake"
+      - "buildsystems/cmake/KotonohaImGui.cmake"
+      - "buildsystems/cmake/KotonohaGitSubmodules.cmake"
       - ".github/workflows/linux-system-deps.yml"
 
 jobs:
-  debian-trixie-system-packages:
+  system-sdl:
     runs-on: ubuntu-latest
     container: debian:trixie
     steps:
-      - name: Install system libraries (no SDL/ImGui submodules or vcpkg)
+      - name: Install system packages (no libimgui-dev)
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             ca-certificates git cmake ninja-build g++ pkg-config python3 python3-dev \
-            libsdl3-dev libsdl3-ttf-dev libimgui-dev \
+            libsdl3-dev libsdl3-ttf-dev \
             libass-dev libavformat-dev libavcodec-dev libavutil-dev \
             libswscale-dev libswresample-dev libjson-c-dev \
             libgl-dev libfreetype-dev libharfbuzz-dev zlib1g-dev
       - uses: actions/checkout@v4
         with:
           submodules: false
-      - name: Configure Kotonoha using only Debian system packages
+      - name: Configure without pre-downloaded submodules
         run: |
+          test ! -f lib/submodules/imgui/imgui.cpp
           cmake -S . -B build-system -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DKOTONOHA_SDL_PROVIDER=SYSTEM \
-            -DKOTONOHA_IMGUI_PROVIDER=SYSTEM \
+            -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON \
             -DKOTONOHA_BUILD_EXAMPLE=ON \
             -DKOTONOHA_BUILD_ALL=OFF
+          test -f lib/submodules/imgui/backends/imgui_impl_sdl3.cpp
+          test -f lib/submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp
           grep -q '^KOTONOHA_SDL_PROVIDER_RESOLVED:INTERNAL=SYSTEM' build-system/CMakeCache.txt
-          grep -q '^KOTONOHA_IMGUI_PROVIDER_RESOLVED:INTERNAL=SYSTEM' build-system/CMakeCache.txt
-      - name: Build native Example using system libraries
+          grep -q '^KOTONOHA_IMGUI_PROVIDER_RESOLVED:INTERNAL=SUBMODULES' build-system/CMakeCache.txt
+      - name: Compile Example using system SDL and pinned ImGui
         run: cmake --build build-system --target Kotonoha --parallel 2
