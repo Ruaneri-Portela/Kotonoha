@@ -4196,12 +4196,19 @@ void LucaSystemRuntime::debugJumpToNode(const std::string &id) {
   // This is a native interpreter jump, not a VNManager timeline jump.
   // Starting at an arbitrary instruction cannot reconstruct earlier VM
   // variables/layers, matching the Debug UI's existing warning.
-  if (script == impl_->currentScenario && pc >= impl_->instructions.size())
-    throw std::out_of_range("Cannot jump beyond the LucaSystem script");
+  // Validate the target before mutating the VM. An invalid PC must never
+  // discard the active dialogue, staged layers, save state or call stack.
+  if (script == impl_->currentScenario) {
+    if (pc >= impl_->instructions.size())
+      throw std::out_of_range("Cannot jump beyond the LucaSystem script");
+  } else {
+    const auto bytes = assets_->read(script);
+    const Script target(script, {bytes.begin(), bytes.end()});
+    if (!target.valid() || pc >= target.instructionCount())
+      throw std::out_of_range("Cannot jump to an invalid LucaSystem PC");
+  }
   if (!startScenario(script, pc, true))
     throw std::out_of_range("LucaSystem scenario or instruction not found");
-  if (pc >= impl_->instructions.size())
-    throw std::out_of_range("Cannot jump to the end of a LucaSystem script");
   SetState(Kotonoha::GameState::Gameplay);
   impl_->runUntilPause();
 }
