@@ -209,3 +209,26 @@ Once the transition completes, the visible composition is rendered once.
 
 Original AIR transition masks, object ordering and timing still require
 retail-data validation.
+
+
+## Native script nodes and assets in the Debug UI
+
+Press **F10** and open the script inspector. The list now enumerates the
+scenarios in `SCRIPT.PAK`; for the active scenario it also shows decoded
+MESSAGE, SELECT, IMAGELOAD, BGM, VOICE, SE, MOVIE and other significant
+instruction nodes. Selecting a node exposes its original script bytes and
+logical provider asset IDs, such as `image:1127`, `voice:73` and
+`bgm:100001`. The current instruction also includes visible images and the
+active voice/BGM. The list refreshes when the active scenario changes.
+
+Use **List provider assets** to browse named PAK assets and numeric image,
+voice, music and SE IDs. **Dump raw asset to Documents** saves unchanged
+bytes into per-game `Documents/asset-dumps`; it accepts both original
+and effective (overlay) sources. **Open in Voice Dubbing** sends the
+selected audio ID to the shared dubbing applet.
+
+Jumping into an instruction starts a script from that position and **does
+not reconstruct earlier VM variables, call frames or rendered layers**.
+The currently loaded script is inspected without decoding every retail
+script at once. `LucaSystem.DebugCatalog` is a synthetic C++17 regression
+test; retail scene navigation still requires the optional retail-data suite.
