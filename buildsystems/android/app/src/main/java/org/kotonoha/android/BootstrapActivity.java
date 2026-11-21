@@ -55,12 +55,23 @@ public final class BootstrapActivity extends Activity {
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     Intent game = new Intent(this, GameActivity.class);
+                    if (getCallingActivity() != null) {
+                        game.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
+                    }
                     startActivity(game);
                     finish();
                 });
             } catch (IOException error) {
                 Log.e("Kotonoha", "Cannot prepare packaged assets", error);
-                runOnUiThread(() -> status.setText("Cannot prepare game assets:\n" + error.getMessage()));
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (getCallingActivity() != null) {
+                        setResult(RESULT_CANCELED);
+                        finish();
+                    } else {
+                        status.setText("Cannot prepare game assets:\n" + error.getMessage());
+                    }
+                });
             }
         }, "Kotonoha-assets").start();
     }

@@ -80,7 +80,7 @@ android {
   ndkVersion '28.2.13676358'
 
   defaultConfig {
-    minSdk 30
+    minSdk 28
     targetSdk 34
     versionCode 1
     versionName '0.1.0'
@@ -99,7 +99,6 @@ android {
           // Keep SDL3, SDL3_ttf and ImGui from their checked-out submodules.
           '-DKOTONOHA_SDL_FROM_VCPKG=OFF',
           '-DKOTONOHA_IMGUI_FROM_VCPKG=OFF',
-          '-DANDROID_PLATFORM=android-30',
           '-DANDROID_STL=c++_shared'
       }
     }
@@ -111,6 +110,7 @@ android {
     games.each { flavor, game ->
       create(flavor) {
         dimension 'game'
+        if (flavor == 'schoolDays') minSdk 30
         applicationId game[2]
         manifestPlaceholders.appName = game[3]
         buildConfigField 'String', 'NATIVE_TARGET', "\"${game[1]}\""
@@ -118,7 +118,8 @@ android {
         externalNativeBuild {
           cmake {
             // Must match the variable consumed by the root CMakeLists.txt.
-            arguments "-DKOTONOHA_BUILD_GAME=${game[0]}",
+            arguments "-DANDROID_PLATFORM=android-${flavor == 'schoolDays' ? 30 : 28}",
+              "-DKOTONOHA_BUILD_GAME=${game[0]}",
               "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor == 'dokiDoki' ? '-python' : ''}"
             targets game[1]
           }
@@ -154,6 +155,7 @@ android {
   }
 
   sourceSets {
+    schoolDays.java.srcDir new File(engineRoot, 'games/school-days/android/java')
     main {
       java.srcDirs += sdlJavaRoot
     }
@@ -175,10 +177,14 @@ android.applicationVariants.all { variant ->
   def taskSuffix = variant.name.capitalize()
   def staged = layout.buildDirectory.dir("generated/assets/${variant.name}")
   def gameAssets = new File(engineRoot, "games/${game[0]}/game-assets")
-  def includeThisGame = includeGameAssets || variant.flavorName == 'example'
+  def includeThisGame = variant.flavorName != 'schoolDays' &&
+    (includeGameAssets || variant.flavorName == 'example')
 
   def assets = tasks.register("stage${taskSuffix}Assets", Sync) {
     from(new File(engineRoot, 'assets')) {
+      if (variant.flavorName == 'schoolDays') {
+        include 'Anime4K/*.glsl', 'Anime4K/*.txt', 'ArtCNN/*.glsl', 'ArtCNN/*.txt'
+      }
       into 'assets'
     }
 

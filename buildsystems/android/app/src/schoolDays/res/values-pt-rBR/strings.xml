@@ -1,0 +1,23 @@
+<resources>
+    <string name="sd_play">Iniciar jogo</string>
+    <string name="sd_options">Opções</string>
+    <string name="sd_quit">Sair</string>
+    <string name="sd_files">Arquivos do jogo</string>
+    <string name="sd_language">Idiomas</string>
+    <string name="sd_pick">Selecionar pasta SchoolDaysHQ</string>
+    <string name="sd_retry">Verificar novamente</string>
+    <string name="sd_back">Voltar</string>
+    <string name="sd_missing">Não foi possível iniciar o School Days HQ. Selecione a pasta SchoolDaysHQ que contém os arquivos do jogo, traduções e recursos adicionais.</string>
+    <string name="sd_checking">Verificando pasta…</string>
+    <string name="sd_denied">O acesso à pasta está indisponível. Selecione a pasta novamente.</string>
+    <string name="sd_unreadable">Não foi possível verificar a pasta. Tente novamente ou selecione outra pasta.</string>
+    <string name="sd_pending">Pasta autorizada. Iniciar o jogo a partir desta pasta requer integração SAF com o motor.</string>
+    <string name="sd_absent">Pasta autorizada. Ausentes ou vazios: %1$s</string>
+    <string name="sd_no_translations">Nenhum par de JSONs HQ e L×H encontrado.</string>
+    <string name="sd_detected">Pares de JSONs disponíveis: %1$s</string>
+    <string name="sd_info">Kotonoha · %1$s</string>
+    <string name="sd_picker_error">O seletor de pastas do Android está indisponível.</string>
+    <string name="sd_private_ready">Instalação encontrada no armazenamento privativo do aplicativo.</string>
+    <string name="sd_forget">Desconectar pasta</string>
+    <string name="sd_game_failed">O School Days HQ não conseguiu iniciar ou continuar o jogo. Verifique os arquivos e tente novamente.</string>
+</resources>

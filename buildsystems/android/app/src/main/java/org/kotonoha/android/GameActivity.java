@@ -17,6 +17,18 @@ public final class GameActivity extends SDLActivity {
     private float kotonohaPreferredRefreshRate;
 
     @Override
+    protected void main() {
+        if (getCallingActivity() == null) {
+            super.main();
+            return;
+        }
+        // SDL calls this entry point on SDLThread and finishes the Activity
+        // after it returns. Preserve the native callback result for setup.
+        int result = nativeRunMain(getMainSharedObject(), getMainFunction(), getArguments());
+        setResult(result == 0 ? RESULT_OK : RESULT_CANCELED);
+    }
+
+    @Override
     protected SDLSurface createSDLSurface(Context context) {
         return new SDLSurface(context) {
             @Override
@@ -123,6 +135,10 @@ public final class GameActivity extends SDLActivity {
 
     public String getKotonohaPackageIdentifier() {
         return getPackageName();
+    }
+
+    public String getKotonohaSystemFontFile() {
+        return SystemFontFile.japaneseSans();
     }
 
     public String getKotonohaGameAssetDirectory() {
