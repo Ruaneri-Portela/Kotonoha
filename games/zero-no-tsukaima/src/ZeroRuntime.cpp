@@ -167,6 +167,46 @@ Kotonoha::Translation::SourceTexts ZeroRuntime::translationSources() const {
   return texts;
 }
 
+int ZeroRuntime::translationRoute() const {
+  return session_ && session_->Playing() && session_->Story()
+             ? static_cast<int>(session_->Story()->SceneIndex())
+             : -1;
+}
+
+std::vector<std::string> ZeroRuntime::activeTranslationKeys() const {
+  if (!session_ || !session_->Playing() || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  std::vector<std::string> result;
+  const auto append = [&](const std::string &key) {
+    if (!key.empty() &&
+        std::find(result.begin(), result.end(), key) == result.end())
+      result.push_back(key);
+  };
+  append(story.Speaker());
+  append(story.Text());
+  for (const auto &choice : story.Choices())
+    append(choice);
+  return result;
+}
+
+std::vector<Kotonoha::DebugAudioAsset> ZeroRuntime::debugSceneAudio() {
+  if (!session_ || !session_->Playing() || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  if (story.Voice() <= 0)
+    return {};
+  const auto id = "voice/" + std::to_string(story.Voice());
+  return {{id, story.Speaker(), story.Text()}};
+}
+
+std::string ZeroRuntime::debugNodeCatalogKey() const {
+  if (!session_ || !session_->Playing() || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  return story.ScriptName() + ":" + std::to_string(story.SceneIndex());
+}
+
 // "SCRIPT.KS *label | scene N | tag M": scene N is the translation route.
 std::string ZeroRuntime::debugNode() const {
   if (!session_ || !session_->Playing())
