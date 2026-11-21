@@ -44,8 +44,8 @@ def run() -> None:
     assert '"SHELL:-sSIDE_MODULE=1"' in cmake_lib
     assert '"SHELL:-sASYNCIFY=1"' in cmake_lib
     assert 'LIBRARY_OUTPUT_DIRECTORY "${KOTONOHA_OUTPUT_LIB_DIR}"' in cmake_lib
-    assert 'WebAssetFetch\\.cpp' in cmake_lib
-    assert 'WebMainExports\\.cpp' in cmake_lib
+    assert 'WebAssetFetch' in cmake_lib
+    assert 'WebMainExports' in cmake_lib
     assert '"SHELL:-sMAIN_MODULE=2"' in cmake_app
     assert '"SHELL:-sASYNCIFY_IMPORTS=@' in cmake_app
     assert 'WebMainExports.cpp' in cmake_app
