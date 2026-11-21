@@ -117,8 +117,7 @@ int main(int argc, char **argv) {
       const auto pausedText = session->visibleDialogueText();
       SDL_Delay(120);
       engine.Iterate();
-      check(session->paused() &&
-                session->visibleDialogueText() == pausedText,
+      check(session->paused() && session->visibleDialogueText() == pausedText,
             "Katawa dialogue remains frozen while paused");
       session->setPaused(false);
       std::cout << "KatawaPresentationTest: OK\n";

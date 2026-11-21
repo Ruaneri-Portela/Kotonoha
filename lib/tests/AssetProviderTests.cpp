@@ -462,9 +462,11 @@ void dumpProviderAssets() {
   const auto original = temp.root / "dump-original.bin";
   require(archive.dumpAsset("dialogue.txt", effective) == 10 &&
               fileBytes(effective) ==
-                  std::vector<Uint8>({'t', 'r', 'a', 'n', 's', 'l', 'a', 't', 'e', 'd'}),
+                  std::vector<Uint8>(
+                      {'t', 'r', 'a', 'n', 's', 'l', 'a', 't', 'e', 'd'}),
           "Effective dump contains overlay bytes");
-  require(archive.dumpAsset("dialogue.txt", original, AssetSource::Original) == 5 &&
+  require(archive.dumpAsset("dialogue.txt", original, AssetSource::Original) ==
+                  5 &&
               fileBytes(original) == archive.files["dialogue.txt"],
           "Original dump bypasses overlay bytes");
 
@@ -473,10 +475,11 @@ void dumpProviderAssets() {
   for (std::size_t i = 0; i < streaming.bytes.size(); ++i)
     streaming.bytes[i] = static_cast<Uint8>(i % 251);
   const auto streamed = temp.root / "streamed.bin";
-  require(streaming.dumpAsset("image.bmp", streamed) == streaming.bytes.size() &&
-              streaming.streams == 1 && streaming.reads == 0 &&
-              fileBytes(streamed) == streaming.bytes,
-          "Streamed archive export preserves bytes without materializing read()");
+  require(
+      streaming.dumpAsset("image.bmp", streamed) == streaming.bytes.size() &&
+          streaming.streams == 1 && streaming.reads == 0 &&
+          fileBytes(streamed) == streaming.bytes,
+      "Streamed archive export preserves bytes without materializing read()");
 }
 
 void textApi() {

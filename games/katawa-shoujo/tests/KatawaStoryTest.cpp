@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
     Kotonoha::Providers::DdlcAssets game(argv[1]);
     HeadlessBackend backend;
     Ddlc::Vm vm(game.source(), game.script(), backend);
-    const auto user = std::filesystem::temp_directory_path() /
-                      ("katawa-story-" +
-                       std::to_string(SDL_GetPerformanceCounter()));
+    const auto user =
+        std::filesystem::temp_directory_path() /
+        ("katawa-story-" + std::to_string(SDL_GetPerformanceCounter()));
     struct Cleanup {
       std::filesystem::path path;
       ~Cleanup() {
@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
         throw std::runtime_error(vm.errors.front());
     }
     std::printf("Katawa story: %d dialogue, %d choices, file %s\n", dialogue,
-                choices, vm.currentNode() ? vm.currentNode()->file.c_str() :
-                                            "end");
+                choices,
+                vm.currentNode() ? vm.currentNode()->file.c_str() : "end");
     if (dialogue < 100 || choices < 1)
       throw std::runtime_error("Katawa story did not reach a playable route");
   } catch (const std::exception &error) {

@@ -1825,9 +1825,9 @@ bool KirikiriRuntime::startScenario(
         throw std::runtime_error(SDL_GetError());
       if (channel == "VOICE")
         impl_->lastVoiceAssetId = resolved;
-      const auto found = std::find_if(
-          impl_->sceneAudio.begin(), impl_->sceneAudio.end(),
-          [&](const auto &item) { return item.id == resolved; });
+      const auto found =
+          std::find_if(impl_->sceneAudio.begin(), impl_->sceneAudio.end(),
+                       [&](const auto &item) { return item.id == resolved; });
       if (found == impl_->sceneAudio.end()) {
         impl_->sceneAudio.push_back({resolved, {}, {}});
         if (impl_->sceneAudio.size() > 256)
@@ -1851,13 +1851,11 @@ bool KirikiriRuntime::startScenario(
       originalActiveKeys_.push_back(speaker);
     if (!text.empty())
       originalActiveKeys_.push_back(text);
-    dialogueSpeaker_ =
-        impl_->engine
-            ? impl_->engine->GetTranslation().text(0, speaker)
-            : speaker;
+    dialogueSpeaker_ = impl_->engine
+                           ? impl_->engine->GetTranslation().text(0, speaker)
+                           : speaker;
     dialogueText_ =
-        impl_->engine ? impl_->engine->GetTranslation().text(0, text)
-                      : text;
+        impl_->engine ? impl_->engine->GetTranslation().text(0, text) : text;
     auto &impl = *impl_;
     impl.dialogueVisible = true;
     impl.messageHiddenByUser = false;
@@ -1892,9 +1890,7 @@ bool KirikiriRuntime::startScenario(
           std::find(scenarioTexts_.begin(), scenarioTexts_.end(), value) ==
               scenarioTexts_.end())
         scenarioTexts_.push_back(value);
-      return impl.engine
-                 ? impl.engine->GetTranslation().text(0, value)
-                 : value;
+      return impl.engine ? impl.engine->GetTranslation().text(0, value) : value;
     };
     std::vector<Kotonoha::ChoiceOption> choiceOptions;
     int id = 0;
@@ -2213,8 +2209,7 @@ std::vector<Kotonoha::DebugAudioAsset> KirikiriRuntime::debugSceneAudio() {
   auto rows = impl_->sceneAudio;
   // Annotate only the most recently played native VOICE clip with its active
   // dialogue; BGM and sound effects must never be attributed to a character.
-  if (!originalDialogueText_.empty() &&
-      !impl_->lastVoiceAssetId.empty())
+  if (!originalDialogueText_.empty() && !impl_->lastVoiceAssetId.empty())
     for (auto it = rows.rbegin(); it != rows.rend(); ++it)
       if (it->id == impl_->lastVoiceAssetId) {
         it->character = originalDialogueSpeaker_;

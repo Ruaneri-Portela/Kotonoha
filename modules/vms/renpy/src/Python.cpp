@@ -182,8 +182,8 @@ std::string pythonError() {
       Ref code(reinterpret_cast<PyObject *>(PyFrame_GetCode(trace->tb_frame)));
       Ref name(code ? PyObject_GetAttrString(code.get(), "co_name") : nullptr);
       if (name)
-        result += " <- " + utf8(name.get()) + ":" +
-                  std::to_string(trace->tb_lineno);
+        result +=
+            " <- " + utf8(name.get()) + ":" + std::to_string(trace->tb_lineno);
       trace = trace->tb_next;
     }
   }

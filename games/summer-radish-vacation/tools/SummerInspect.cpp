@@ -110,10 +110,9 @@ int main(int argc, char **argv) {
                                .at(vm.position.script)
                                .code.at(vm.position.pc - 1)
                                .node;
-        const std::string target =
-            node.children.empty()
-                ? "@RESULT"
-                : vm.referenceKey(node.children.front());
+        const std::string target = node.children.empty()
+                                       ? "@RESULT"
+                                       : vm.referenceKey(node.children.front());
         vm.variables[target] = int64_t(0);
       }
       if (name == "UNISELECT") {
@@ -130,10 +129,9 @@ int main(int argc, char **argv) {
           auto key = mapCharacterVariable(location.result, isSrv2);
           key.replace(0, 5, "FILE_");
           auto it = vm.variables.find("@" + key);
-          if (mode == 2 ||
-              (it != vm.variables.end() &&
-               std::holds_alternative<std::string>(it->second) &&
-               !string(it->second).empty())) {
+          if (mode == 2 || (it != vm.variables.end() &&
+                            std::holds_alternative<std::string>(it->second) &&
+                            !string(it->second).empty())) {
             chosen = location.result;
             break;
           }

@@ -196,8 +196,7 @@ std::vector<std::string> SnowRuntime::activeTranslationKeys() const {
   const auto &story = *session_->Story();
   std::vector<std::string> keys;
   const auto append = [&](const std::string &key) {
-    if (!key.empty() &&
-        std::find(keys.begin(), keys.end(), key) == keys.end())
+    if (!key.empty() && std::find(keys.begin(), keys.end(), key) == keys.end())
       keys.push_back(key);
   };
   if (story.hasMessage()) {
@@ -216,16 +215,15 @@ std::vector<Kotonoha::DebugAudioAsset> SnowRuntime::debugSceneAudio() {
   const auto &story = *session_->Story();
   const auto &message = story.message();
   const std::string id = "voice/" + message.voice;
-  if (!story.hasMessage() || message.voice.empty() ||
-      !assets_ || !assets_->contains(id))
+  if (!story.hasMessage() || message.voice.empty() || !assets_ ||
+      !assets_->contains(id))
     return {};
   return {{id, message.name, message.text}};
 }
 
 std::string SnowRuntime::debugNodeCatalogKey() const {
-  return session_ && session_->Story()
-             ? session_->Story()->currentScript()
-             : std::string{};
+  return session_ && session_->Story() ? session_->Story()->currentScript()
+                                       : std::string{};
 }
 
 // "start.obj | route N | pc 0x..": route N is the script id used by the

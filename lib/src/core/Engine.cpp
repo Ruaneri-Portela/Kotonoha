@@ -31,11 +31,10 @@ namespace {
 // pauses, loading, completed playback and failed media sessions.
 bool browserMediaPlaybackBlocked() {
 #ifdef __EMSCRIPTEN__
-  return EM_ASM_INT(
-             {
-               const callback = globalThis["KotonohaMediaPlaybackBlocked"];
-               return typeof callback == "function" && callback() ? 1 : 0;
-             }) != 0;
+  return EM_ASM_INT({
+           const callback = globalThis["KotonohaMediaPlaybackBlocked"];
+           return typeof callback == "function" && callback() ? 1 : 0;
+         }) != 0;
 #else
   return false;
 #endif

@@ -368,9 +368,12 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
   // identity, save directory and standalone executable.
   if (const auto prefix = findRequiredFilesPrefix(
           source, {"script-a1-monday.rpyc"}, {"game/", ""})) {
-    return {EngineKind::RenPy, "katawa-shoujo",
-            "Katawa Shoujo (Ren'Py)", *prefix,
-            *prefix + "script-a1-monday.rpyc", true};
+    return {EngineKind::RenPy,
+            "katawa-shoujo",
+            "Katawa Shoujo (Ren'Py)",
+            *prefix,
+            *prefix + "script-a1-monday.rpyc",
+            true};
   }
 
   // 2. Check Summer Radish Vacation 1 & 2, Lost M, and Imouto de Ikou!
@@ -641,8 +644,7 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
     for (auto &item : results) {
       if (item.engine.kind == EngineKind::RenPy &&
           item.engine.slug == "doki-doki-literature-club" &&
-          item.path != vnxPatchPath &&
-          item.overlayPath.empty()) {
+          item.path != vnxPatchPath && item.overlayPath.empty()) {
         item.overlayPath = vnxPatchPath;
       }
     }
@@ -929,8 +931,7 @@ void UnifiedLauncher::drawGameOptions() {
     }
 
     ImGui::Spacing();
-    const bool expandByDefault =
-        current.engine.kind == EngineKind::SchoolDays;
+    const bool expandByDefault = current.engine.kind == EngineKind::SchoolDays;
     if (ImGui::CollapsingHeader(
             "Optional Game Launch Parameters (Routes, Patches, Translations)",
             expandByDefault ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
@@ -943,17 +944,17 @@ void UnifiedLauncher::drawGameOptions() {
         ImGui::SameLine();
         if (ImGui::Button("Route (.ktnroute)...")) {
           const int idx = selected;
-          browseFile({{"School Days route (.ktnroute, .ktrf)", "ktnroute;ktrf"},
-                      {"All files", "*"}},
-                     current.params.ktrfPath.empty() ? current.path
-                                                     : current.params.ktrfPath,
-                     [this, idx](const std::string &chosen) {
-                       if (idx >= 0 &&
-                           idx < static_cast<int>(catalog.size())) {
-                         catalog[static_cast<std::size_t>(idx)]
-                             .params.ktrfPath = chosen;
-                       }
-                     });
+          browseFile(
+              {{"School Days route (.ktnroute, .ktrf)", "ktnroute;ktrf"},
+               {"All files", "*"}},
+              current.params.ktrfPath.empty() ? current.path
+                                              : current.params.ktrfPath,
+              [this, idx](const std::string &chosen) {
+                if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
+                  catalog[static_cast<std::size_t>(idx)].params.ktrfPath =
+                      chosen;
+                }
+              });
         }
 #endif
         ImGui::InputTextWithHint("##scriptsDir",
@@ -984,36 +985,38 @@ void UnifiedLauncher::drawGameOptions() {
       ImGui::SameLine();
       if (ImGui::Button("Overlay Folder...")) {
         const int idx = selected;
-        browseFolder(current.params.assetOverlayPath.empty()
-                         ? current.path
-                         : current.params.assetOverlayPath,
-                     [this, idx](const std::string &chosen) {
-                       if (idx >= 0 &&
-                           idx < static_cast<int>(catalog.size())) {
-                         catalog[static_cast<std::size_t>(idx)]
-                             .params.assetOverlayPath = chosen;
-                       }
-                     });
+        browseFolder(
+            current.params.assetOverlayPath.empty()
+                ? current.path
+                : current.params.assetOverlayPath,
+            [this, idx](const std::string &chosen) {
+              if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
+                catalog[static_cast<std::size_t>(idx)].params.assetOverlayPath =
+                    chosen;
+              }
+            });
       }
 #endif
 
-      ImGui::InputTextWithHint("##translationPath",
-                               "Translation catalog file (.ktr) (--translation)",
-                               &current.params.translationPath);
+      ImGui::InputTextWithHint(
+          "##translationPath",
+          "Translation catalog file (.ktr) (--translation)",
+          &current.params.translationPath);
 #if !(defined(__APPLE__) && TARGET_OS_IPHONE)
       ImGui::SameLine();
       if (ImGui::Button("Translation (.ktr)...")) {
         const int idx = selected;
-        browseFile({{"Kotonoha Translation (.ktr)", "ktr"}, {"All files", "*"}},
-                   current.params.translationPath.empty()
-                       ? current.path
-                       : current.params.translationPath,
-                   [this, idx](const std::string &chosen) {
-                     if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
-                       catalog[static_cast<std::size_t>(idx)]
-                           .params.translationPath = chosen;
-                     }
-                   });
+        browseFile(
+            {{"Kotonoha Translation (.ktr)", "ktr"}, {"All files", "*"}},
+            current.params.translationPath.empty()
+                ? current.path
+                : current.params.translationPath,
+            [this, idx](const std::string &chosen) {
+              if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
+                catalog[static_cast<std::size_t>(idx)].params.translationPath =
+                    chosen;
+              }
+            });
       }
 #endif
 
@@ -1024,9 +1027,10 @@ void UnifiedLauncher::drawGameOptions() {
       ImGui::InputTextWithHint("##customDocumentsDir",
                                "Custom save/documents directory (--documents)",
                                &current.params.customDocumentsDir);
-      ImGui::InputTextWithHint("##startScenario",
-                               "Initial scenario / node override (--start / --node)",
-                               &current.params.startScenario);
+      ImGui::InputTextWithHint(
+          "##startScenario",
+          "Initial scenario / node override (--start / --node)",
+          &current.params.startScenario);
     }
   }
 }

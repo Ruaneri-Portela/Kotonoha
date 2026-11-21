@@ -49,9 +49,7 @@ struct ImGuiIdScope {
   ~ImGuiIdScope() { ImGui::PopID(); }
 };
 
-bool audioName(const std::string &id) {
-  return DebugAssetCatalog::isAudio(id);
-}
+bool audioName(const std::string &id) { return DebugAssetCatalog::isAudio(id); }
 
 double duration(const AudioClip &clip) {
   const int frame = SDL_AUDIO_BYTESIZE(clip.spec.format) * clip.spec.channels;
@@ -201,10 +199,9 @@ void VoiceDubbingApplet::refreshSceneAudio() {
     // Native interpreters can advance to another voice within the same
     // script node. Refresh metadata without discarding the current edit.
     for (const auto &line : engine_.GetRuntime().debugSceneAudio()) {
-      auto found = std::find_if(sceneAudio_.begin(), sceneAudio_.end(),
-                                [&](const auto &item) {
-                                  return item.id == line.id;
-                                });
+      auto found =
+          std::find_if(sceneAudio_.begin(), sceneAudio_.end(),
+                       [&](const auto &item) { return item.id == line.id; });
       if (found == sceneAudio_.end())
         sceneAudio_.push_back(line);
       else

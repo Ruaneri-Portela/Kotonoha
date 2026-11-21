@@ -18,9 +18,9 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <utility>
-#include <string_view>
 #include <stdexcept>
+#include <string_view>
+#include <utility>
 
 namespace Kotonoha::PmailPort {
 
@@ -530,10 +530,9 @@ std::vector<Kotonoha::DebugNode> PmailRuntime::debugNodes() const {
     node.assets.push_back(currentSe_);
   if (!currentVoice_.empty())
     node.assets.push_back(currentVoice_);
-  auto found = std::find_if(all.begin(), all.end(),
-                            [&](const auto &entry) {
-                              return entry.id == node.id;
-                            });
+  auto found = std::find_if(all.begin(), all.end(), [&](const auto &entry) {
+    return entry.id == node.id;
+  });
   if (found != all.end())
     found->assets.insert(found->assets.end(), node.assets.begin(),
                          node.assets.end());

@@ -293,8 +293,8 @@ std::vector<Kotonoha::DebugAudioAsset> GameRuntime::debugSceneAudio() {
     if (!assets_->contains(id))
       continue;
     if (channel == "voice")
-      result.push_back({id, session_->dialogueSpeaker(),
-                        session_->dialogueSourceText()});
+      result.push_back(
+          {id, session_->dialogueSpeaker(), session_->dialogueSourceText()});
     else
       result.push_back({id, {}, {}});
   }
@@ -311,8 +311,9 @@ std::vector<Kotonoha::DebugNode> GameRuntime::debugNodes() const {
   // Add current Ren'Py audio only once for the file that is actually active,
   // instead of misattributing playback to every label in that file.
   const auto activeFile = session_ ? session_->nodeClockKey() : std::string{};
-  const auto audio = session_ ? session_->activeAudioAssets()
-                              : std::vector<std::pair<std::string, std::string>>{};
+  const auto audio = session_
+                         ? session_->activeAudioAssets()
+                         : std::vector<std::pair<std::string, std::string>>{};
   bool linkedAudio = false;
   for (const auto &label : assets_->script().labelNames()) {
     const auto *node = assets_->script().label(label);

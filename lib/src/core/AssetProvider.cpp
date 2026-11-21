@@ -177,11 +177,10 @@ std::vector<Uint8> AssetProvider::read(const std::string &id,
                                        AssetSource source) const {
   return source == AssetSource::Original ? readOriginalAsset(id) : read(id);
 }
-std::uint64_t AssetProvider::dumpAsset(
-    const std::string &id, const std::filesystem::path &destination,
-    AssetSource source) const {
-  if (id.empty() || destination.empty() ||
-      std::filesystem::exists(destination))
+std::uint64_t AssetProvider::dumpAsset(const std::string &id,
+                                       const std::filesystem::path &destination,
+                                       AssetSource source) const {
+  if (id.empty() || destination.empty() || std::filesystem::exists(destination))
     throw std::invalid_argument(
         "Select a non-empty asset and a new destination for dumping");
   if (!contains(id, source))

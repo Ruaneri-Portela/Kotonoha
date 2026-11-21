@@ -31,8 +31,8 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
-#include <charconv>
 #include <cctype>
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -41,8 +41,8 @@
 #include <filesystem>
 #include <map>
 #include <memory>
-#include <sstream>
 #include <set>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -63,7 +63,7 @@ struct AirTitleItem {
 // Native-size English labels, laid out separately rather than squeezing the
 // entire atlas into the viewport. Page two slides into the same strip.
 constexpr AirTitleItem titleItems[] = {
-    {13, 212, 271},  {840, 114, 482}, {981, 177, 676}, {1185, 172, 896},
+    {13, 212, 271},   {840, 114, 482},  {981, 177, 676}, {1185, 172, 896},
     {1383, 87, 1072}, {1497, 186, 509}, {1710, 146, 771}};
 constexpr int titlePages[]{0, 0, 0, 0, 0, 1, 1};
 constexpr AirTitleItem storyItems[] = {
@@ -344,12 +344,11 @@ private:
     auto &ui = engine.GetVNUI();
     for (int i = 0; i < 4; ++i) {
       const auto box = controlRect(i);
-      const SDL_Color ink = i == 3 && !voiceAvailable_
-                                ? SDL_Color{133, 143, 150, 155}
-                            : i == hoverControl_ || (i == 1 && skipOn_) ||
-                                      (i == 2 && autoOn_)
-                                ? SDL_Color{48, 76, 159, 255}
-                                : SDL_Color{111, 128, 142, 255};
+      const SDL_Color ink =
+          i == 3 && !voiceAvailable_ ? SDL_Color{133, 143, 150, 155}
+          : i == hoverControl_ || (i == 1 && skipOn_) || (i == 2 && autoOn_)
+              ? SDL_Color{48, 76, 159, 255}
+              : SDL_Color{111, 128, 142, 255};
       ui.text(renderer, icons[i], box.x + 3, box.y + 3, 28, ink);
       ui.text(renderer, labels[i], box.x + 33, box.y + 4, box.w - 33, ink);
     }
@@ -798,10 +797,10 @@ public:
                  Kotonoha::Providers::LucaSystemAssets &assets)
       : ChoiceQuestionScene(engine, {}, {}, nullptr), assets_(assets) {}
 
-  void setQuestion(
-      const std::string &question,
-      const std::vector<Kotonoha::ChoiceOption> &choices,
-      std::function<void(int, const std::string &)> callback) override {
+  void
+  setQuestion(const std::string &question,
+              const std::vector<Kotonoha::ChoiceOption> &choices,
+              std::function<void(int, const std::string &)> callback) override {
     highlighted_ = false;
     ChoiceQuestionScene::setQuestion(question, choices, std::move(callback));
   }
@@ -874,8 +873,8 @@ class AirSaveMenu final : public Kotonoha::VNSaveMenu {
               SDL_PIXELFORMAT_RGB24, save.thumbnailRgb.data(),
               VNSave::thumbnailWidth * 3)};
           if (image)
-            it->second.reset(SDL_CreateTextureFromSurface(&renderer,
-                                                          image.get()));
+            it->second.reset(
+                SDL_CreateTextureFromSurface(&renderer, image.get()));
         }
       } catch (const std::exception &) {
         // Older or unreadable saves retain the text-only card.
@@ -2129,10 +2128,9 @@ struct LucaSystemRuntime::Impl {
     syncGlobalVarsIntoSession();
     runtime.scenarioTexts_.clear();
     const auto remember = [&](const std::string &value) {
-      if (!value.empty() &&
-          std::find(runtime.scenarioTexts_.begin(),
-                    runtime.scenarioTexts_.end(), value) ==
-              runtime.scenarioTexts_.end())
+      if (!value.empty() && std::find(runtime.scenarioTexts_.begin(),
+                                      runtime.scenarioTexts_.end(),
+                                      value) == runtime.scenarioTexts_.end())
         runtime.scenarioTexts_.push_back(value);
     };
     for (const auto &line : dialogueLines) {
@@ -3318,7 +3316,8 @@ struct LucaSystemRuntime::Impl {
       SDL_BlendMode blend = SDL_BLENDMODE_NONE;
       RestoreTarget(SDL_Renderer *renderer, SDL_Texture *previous)
           : renderer(renderer), previous(previous) {
-        SDL_GetRenderDrawColor(renderer, &color.r, &color.g, &color.b, &color.a);
+        SDL_GetRenderDrawColor(renderer, &color.r, &color.g, &color.b,
+                               &color.a);
         SDL_GetRenderDrawBlendMode(renderer, &blend);
       }
       ~RestoreTarget() {
@@ -3327,8 +3326,8 @@ struct LucaSystemRuntime::Impl {
         SDL_SetRenderDrawBlendMode(renderer, blend);
       }
     } restore(&renderer, previous);
-    if (!SDL_SetRenderLogicalPresentation(
-            &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_LETTERBOX))
+    if (!SDL_SetRenderLogicalPresentation(&renderer, 1280, 720,
+                                          SDL_LOGICAL_PRESENTATION_LETTERBOX))
       return {};
     SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
     SDL_RenderClear(&renderer);
@@ -3410,9 +3409,8 @@ void LucaSystemRuntime::initGlobal(Kotonoha::Engine &engine) {
   impl.textbox = std::make_unique<AirTextBox>(engine, *impl.assets);
   impl.textbox->setControlAction(
       [this](AirTextBox::Control control) { impl_->dialogueControl(control); });
-  impl.choiceScene =
-      &engine.configureSharedScene<Kotonoha::ChoiceQuestionScene,
-                                   AirChoiceScene>(*impl.assets);
+  impl.choiceScene = &engine.configureSharedScene<Kotonoha::ChoiceQuestionScene,
+                                                  AirChoiceScene>(*impl.assets);
   impl.backlog->setVoiceReplay([this](const std::string &id) {
     try {
       impl_->voice.Stop();
@@ -3620,11 +3618,10 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       drawAirArt(assets, renderer, "scenario_bg_hat", {452, 473, 376, 216});
       for (int i = 0; i < impl.storyCount(); ++i) {
         const auto &item = storyItems[i];
-        const SDL_FRect src{float(item.atlasX),
-                            impl.storyHighlight && i == impl.storySelection
-                                ? 72.0f
-                                : 0.0f,
-                            float(item.width), 72};
+        const SDL_FRect src{
+            float(item.atlasX),
+            impl.storyHighlight && i == impl.storySelection ? 72.0f : 0.0f,
+            float(item.width), 72};
         drawAirArt(assets, renderer, "scenario_menu_en", impl.storyRect(i),
                    &src);
       }
@@ -3660,11 +3657,10 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       const auto dst = impl.titleRect(i, offset);
       if (dst.x + dst.w < 0 || dst.x >= 1280)
         continue;
-      const SDL_FRect src{float(item.atlasX),
-                          impl.titleHighlight && i == impl.titleSelection
-                              ? 70.0f
-                              : 0.0f,
-                          float(item.width), 70};
+      const SDL_FRect src{
+          float(item.atlasX),
+          impl.titleHighlight && i == impl.titleSelection ? 70.0f : 0.0f,
+          float(item.width), 70};
       drawAirArt(assets, renderer, "title_menu", dst, &src);
     }
     const SDL_FRect arrowSrc{impl.titlePage ? 0.0f : 60.0f, 0, 60, 54};
@@ -3839,10 +3835,11 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
       return handleBackAction();
   }
   const bool hover = mapped.type == SDL_EVENT_MOUSE_MOTION;
-  const SDL_FPoint pointer = hover ? SDL_FPoint{mapped.motion.x, mapped.motion.y}
-                                  : SDL_FPoint{};
-  bool confirm = mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
-                 (mapped.key.key == SDLK_RETURN || mapped.key.key == SDLK_SPACE);
+  const SDL_FPoint pointer =
+      hover ? SDL_FPoint{mapped.motion.x, mapped.motion.y} : SDL_FPoint{};
+  bool confirm =
+      mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
+      (mapped.key.key == SDLK_RETURN || mapped.key.key == SDLK_SPACE);
   if (impl.originalTitle && impl.storyOpen) {
     if (Kotonoha::UI::clicked(mapped, storyClose))
       return handleBackAction();
@@ -3852,7 +3849,7 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
         impl.storySelection = i;
         impl.playSysSe("ENTER");
         impl.launchChapterFromTitle(i == 0 ? impl.startupScenario()
-                                          : storyRoots[i]);
+                                           : storyRoots[i]);
         return true;
       }
       if (hover && SDL_PointInRectFloat(&pointer, &rect)) {
@@ -3867,10 +3864,9 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
       if (key == SDLK_UP || key == SDLK_LEFT || key == SDLK_DOWN ||
           key == SDLK_RIGHT) {
         const int count = impl.storyCount();
-        impl.storySelection =
-            (impl.storySelection + count +
-             (key == SDLK_UP || key == SDLK_LEFT ? -1 : 1)) %
-            count;
+        impl.storySelection = (impl.storySelection + count +
+                               (key == SDLK_UP || key == SDLK_LEFT ? -1 : 1)) %
+                              count;
         impl.storyHighlight = true;
         impl.playSysSe("CURSOR");
       }
@@ -3904,8 +3900,7 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     }
     return hit >= 0;
   }
-  if (impl.originalTitle &&
-      Kotonoha::UI::clicked(mapped, {0, 540, 1280, 70})) {
+  if (impl.originalTitle && Kotonoha::UI::clicked(mapped, {0, 540, 1280, 70})) {
     if (Kotonoha::UI::clicked(
             mapped, {impl.titlePage ? 66.0f : 1150.0f, 540, 60, 70})) {
       impl.selectTitle(impl.titlePage ? 0 : 5);
@@ -3922,9 +3917,9 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
       !mapped.key.repeat &&
       (mapped.key.key == SDLK_LEFT || mapped.key.key == SDLK_RIGHT)) {
     constexpr int count = int(std::size(titleItems));
-    impl.selectTitle((impl.titleSelection +
-                      (mapped.key.key == SDLK_RIGHT ? 1 : count - 1)) %
-                     count);
+    impl.selectTitle(
+        (impl.titleSelection + (mapped.key.key == SDLK_RIGHT ? 1 : count - 1)) %
+        count);
     return true;
   }
   if (impl.originalTitle && confirm) {
@@ -4011,7 +4006,7 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
       !mapped.key.repeat &&
       (mapped.key.key == SDLK_A || mapped.key.key == SDLK_S)) {
     impl.dialogueControl(mapped.key.key == SDLK_A ? AirTextBox::Control::Auto
-                                                 : AirTextBox::Control::Skip);
+                                                  : AirTextBox::Control::Skip);
     return true;
   }
 
@@ -4188,9 +4183,7 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
     return impl.engine ? impl.engine->GetTranslation().text(0, original)
                        : original;
   };
-  dialogueText_ = impl.dialogueVisible
-                      ? translate(cleanText)
-                      : std::string{};
+  dialogueText_ = impl.dialogueVisible ? translate(cleanText) : std::string{};
   dialogueSpeaker_ = impl.dialogueVisible ? translate(spk) : std::string{};
   if (impl.textbox) {
     impl.textbox->setWindowType(impl.getVar(6002));
@@ -4362,11 +4355,11 @@ std::vector<Kotonoha::DebugNode> LucaSystemRuntime::debugNodes() const {
     for (const auto &entry : pak->entries()) {
       if (entry.name.empty() || !knownScripts.insert(entry.name).second)
         continue;
-      nodes.push_back(
-          {nodeId(entry.name),
-           std::string(isSystemScript(entry.name) ? "System table " : "Scenario ") +
-               entry.name,
-           {entry.name}});
+      nodes.push_back({nodeId(entry.name),
+                       std::string(isSystemScript(entry.name) ? "System table "
+                                                              : "Scenario ") +
+                           entry.name,
+                       {entry.name}});
     }
   }
   if (!script.empty() && knownScripts.insert(script).second)
@@ -4374,9 +4367,8 @@ std::vector<Kotonoha::DebugNode> LucaSystemRuntime::debugNodes() const {
   if (script.empty())
     return nodes;
 
-  const auto events =
-      buildDebugInstructions(script, impl_->instructions,
-                             impl_->instructionIndex);
+  const auto events = buildDebugInstructions(script, impl_->instructions,
+                                             impl_->instructionIndex);
   std::set<std::string> sceneAssets;
   sceneAssets.insert(script);
   const auto include = [&](std::vector<std::string> &target,
@@ -4403,8 +4395,7 @@ std::vector<Kotonoha::DebugNode> LucaSystemRuntime::debugNodes() const {
   if (impl_->currentBgmId)
     include(liveAssets, "bgm:" + std::to_string(impl_->currentBgmId));
   if (currentDialogueVoiceId_)
-    include(liveAssets,
-            "voice:" + std::to_string(currentDialogueVoiceId_));
+    include(liveAssets, "voice:" + std::to_string(currentDialogueVoiceId_));
 
   for (const auto &event : events) {
     std::vector<std::string> references;
@@ -4437,9 +4428,8 @@ void LucaSystemRuntime::debugJumpToNode(const std::string &id) {
 
   const auto pos = id.rfind(" @");
   const std::string script =
-      id.substr(prefix.size(),
-                pos == std::string::npos ? std::string::npos
-                                         : pos - prefix.size());
+      id.substr(prefix.size(), pos == std::string::npos ? std::string::npos
+                                                        : pos - prefix.size());
   if (script.empty() || !assets_ || !assets_->scriptPak() ||
       !assets_->scriptPak()->findByName(script))
     throw std::invalid_argument("Unknown LucaSystem scenario: " + script);
@@ -4488,8 +4478,8 @@ std::vector<std::string> LucaSystemRuntime::activeTranslationKeys() const {
 std::vector<Kotonoha::DebugAudioAsset> LucaSystemRuntime::debugSceneAudio() {
   if (!currentDialogueVoiceId_)
     return {};
-  return {{"voice:" + std::to_string(currentDialogueVoiceId_),
-           dialogueSpeaker_, dialogueText_}};
+  return {{"voice:" + std::to_string(currentDialogueVoiceId_), dialogueSpeaker_,
+           dialogueText_}};
 }
 
 Kotonoha::Translation::SourceTexts

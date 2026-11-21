@@ -1,7 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
+#include <N2System/DebugCatalog.hpp>
 #include <N2System/N2Runtime.hpp>
 #include <N2System/ScriptIndex.hpp>
-#include <N2System/DebugCatalog.hpp>
 
 #include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -16,10 +16,10 @@
 
 #include <algorithm>
 #include <cctype>
-#include <stdexcept>
-#include <string_view>
 #include <filesystem>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace N2System {
 
@@ -234,12 +234,11 @@ void N2Runtime::update() {
     auto options = vm_.pendingChoiceOptions();
     std::vector<Kotonoha::ChoiceOption> choiceItems;
     for (size_t i = 0; i < options.size(); ++i) {
-      choiceItems.push_back(
-          {impl_->engine
-               ? impl_->engine->GetTranslation().text(translationRoute(),
-                                                       options[i])
-               : options[i],
-           static_cast<int>(i)});
+      choiceItems.push_back({impl_->engine
+                                 ? impl_->engine->GetTranslation().text(
+                                       translationRoute(), options[i])
+                                 : options[i],
+                             static_cast<int>(i)});
     }
     impl_->choiceActive = true;
     impl_->choiceScene->setQuestion(
@@ -260,10 +259,9 @@ void N2Runtime::update() {
     const auto rawSpeaker = std::string(dialogue.speaker());
     const auto rawText = std::string(dialogue.fullText());
     const auto route = translationRoute();
-    const auto speaker = impl_->engine
-                             ? impl_->engine->GetTranslation().text(
-                                   route, rawSpeaker)
-                             : rawSpeaker;
+    const auto speaker =
+        impl_->engine ? impl_->engine->GetTranslation().text(route, rawSpeaker)
+                      : rawSpeaker;
     const auto line = impl_->engine
                           ? impl_->engine->GetTranslation().text(route, rawText)
                           : rawText;
@@ -436,15 +434,15 @@ std::vector<Kotonoha::DebugNode> N2Runtime::debugNodes() const {
     return impl_->ponscripter->debugNodes();
   std::vector<Kotonoha::DebugNode> nodes;
   for (const auto &chapter : impl_->nativeIndex.chapters()) {
-    Kotonoha::DebugNode node{"n2 | chapter " + chapter.name,
-                             "Chapter " + chapter.name, {}};
+    Kotonoha::DebugNode node{
+        "n2 | chapter " + chapter.name, "Chapter " + chapter.name, {}};
     if (!impl_->nativeScriptId.empty())
       node.assets.push_back(impl_->nativeScriptId);
     if (vm_.currentChapter() == chapter.name) {
       for (const auto &name : vm_.sceneGraph().renderOrder()) {
         const auto *entity = vm_.sceneGraph().findEntity(name);
-        if (entity && !entity->imagePath.empty() &&
-            assets_ && assets_->contains(entity->imagePath))
+        if (entity && !entity->imagePath.empty() && assets_ &&
+            assets_->contains(entity->imagePath))
           node.assets.push_back(entity->imagePath);
       }
       const auto voice = std::string(vm_.dialogueSystem().voicePath());
@@ -455,8 +453,7 @@ std::vector<Kotonoha::DebugNode> N2Runtime::debugNodes() const {
     for (const auto &label : chapter.labels) {
       Kotonoha::DebugNode entry{
           "n2 | chapter " + chapter.name + " | label " + label.name,
-          "Label " + label.name + " (line " +
-              std::to_string(label.line) + ")",
+          "Label " + label.name + " (line " + std::to_string(label.line) + ")",
           {}};
       if (!impl_->nativeScriptId.empty())
         entry.assets.push_back(impl_->nativeScriptId);
@@ -483,8 +480,8 @@ void N2Runtime::debugJumpToNode(const std::string &id) {
   if (!chapter)
     throw std::invalid_argument("Unknown N2System chapter: " + id);
   const auto label = labelAt == std::string_view::npos
-                         ? std::string_view{} :
-                         body.substr(labelAt + labelSep.size());
+                         ? std::string_view{}
+                         : body.substr(labelAt + labelSep.size());
   // Reject all unknown targets *before* resetting the VM state.
   if (labelAt != std::string_view::npos &&
       (label.empty() || !chapter->findLabel(label)))
@@ -556,8 +553,7 @@ std::vector<Kotonoha::DebugAudioAsset> N2Runtime::debugSceneAudio() {
   const auto &dialogue = vm_.dialogueSystem();
   if (dialogue.voicePath().empty())
     return {};
-  return {{std::string(dialogue.voicePath()),
-           std::string(dialogue.speaker()),
+  return {{std::string(dialogue.voicePath()), std::string(dialogue.speaker()),
            std::string(dialogue.fullText())}};
 }
 

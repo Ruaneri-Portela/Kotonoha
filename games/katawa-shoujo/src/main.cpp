@@ -1,8 +1,8 @@
 #include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 
-#include <DdlcRuntime.hpp>
 #include <Ddlc/DdlcAssets.hpp>
+#include <DdlcRuntime.hpp>
 
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
@@ -63,10 +63,10 @@ struct App {
 
 bool validateKatawa(const std::string &path, std::string &info) {
   const auto root = std::filesystem::path(path);
-  const auto game = std::filesystem::is_regular_file(
-                        root / "script-a1-monday.rpyc")
-                        ? root
-                        : root / "game";
+  const auto game =
+      std::filesystem::is_regular_file(root / "script-a1-monday.rpyc")
+          ? root
+          : root / "game";
   if (!std::filesystem::is_regular_file(game / "script-a1-monday.rpyc")) {
     info = "Katawa Shoujo script-a1-monday.rpyc not found";
     return false;
@@ -82,8 +82,7 @@ std::string defaultDirectory() {
   if (auto found = Kotonoha::FileResolver::findGameAsset("katawa-shoujo",
                                                          "game/data.rpa"))
     return found->parent_path().string();
-  return (Kotonoha::gameAssetDirectory("katawa-shoujo") / "game")
-      .string();
+  return (Kotonoha::gameAssetDirectory("katawa-shoujo") / "game").string();
 }
 
 } // namespace

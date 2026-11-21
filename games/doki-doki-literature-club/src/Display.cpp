@@ -106,15 +106,15 @@ struct SnowDisp : Disp {
     if (!vm.backend.imageSize(image, width, height))
       return r;
     for (int i = 0; i < 80; ++i) {
-      const double seed = double((i * 1103515245u + 12345u) & 0xffffu) /
-                          65536.0;
+      const double seed =
+          double((i * 1103515245u + 12345u) & 0xffffu) / 65536.0;
       const double speed = 25.0 + double(i % 7) * 8.0;
       const double scale = 0.45 + double(i % 5) * 0.14;
-      const double x = std::fmod(seed * kScreenW +
-                                     18.0 * std::sin(st * 0.8 + i),
-                                 double(kScreenW));
-      const double y = std::fmod(seed * kScreenH + st * speed,
-                                 double(kScreenH + height)) - height;
+      const double x = std::fmod(
+          seed * kScreenW + 18.0 * std::sin(st * 0.8 + i), double(kScreenW));
+      const double y =
+          std::fmod(seed * kScreenH + st * speed, double(kScreenH + height)) -
+          height;
       DrawOp op;
       op.image = image;
       op.w = float(width);

@@ -31,21 +31,20 @@ bool has(const std::vector<std::string> &items, const std::string &id) {
 int main() {
   try {
     std::vector<ScriptInstruction> script{
-        instruction(36, {73, 0}, "@Misuzu@Hello"),          // voice:73
-        instruction(55, {2, 1, 103, 4}),                   // image:1127
-        instruction(107, {0xa1, 0x86, 0x01, 0}),          // bgm:100001
-        instruction(113, {0, 42, 0, 0, 0}),               // se:42
-        instruction(46, {74, 0}),                         // voice:74
-        instruction(138, {104, 4}),                       // image:1128
-        instruction(119, {}, "AIR_OP_A"),                  // loose video
-        instruction(40),                                  // choice
-        instruction(99),                                  // irrelevant
+        instruction(36, {73, 0}, "@Misuzu@Hello"), // voice:73
+        instruction(55, {2, 1, 103, 4}),           // image:1127
+        instruction(107, {0xa1, 0x86, 0x01, 0}),   // bgm:100001
+        instruction(113, {0, 42, 0, 0, 0}),        // se:42
+        instruction(46, {74, 0}),                  // voice:74
+        instruction(138, {104, 4}),                // image:1128
+        instruction(119, {}, "AIR_OP_A"),          // loose video
+        instruction(40),                           // choice
+        instruction(99),                           // irrelevant
     };
     for (std::size_t i = 0; i < script.size(); ++i)
       script[i].pos = 100 + i * 8;
 
-    const auto nodes =
-        LucaSystem::buildDebugInstructions("seen170", script, 8);
+    const auto nodes = LucaSystem::buildDebugInstructions("seen170", script, 8);
     require(nodes.size() == script.size(), "all events plus current PC");
     require(nodes.front().pc == 0 && has(nodes[0].assets, "seen170") &&
                 has(nodes[0].assets, "voice:73") &&
@@ -65,19 +64,16 @@ int main() {
 
     const auto selective =
         LucaSystem::buildDebugInstructions("seen170", script, 1);
-    require(selective.size() == script.size() - 1 &&
-                selective.back().pc == 7,
+    require(selective.size() == script.size() - 1 && selective.back().pc == 7,
             "irrelevant opcodes are not indexed off current position");
 
     const auto after =
         LucaSystem::buildDebugInstructions("seen170", script, script.size());
     require(after.back().pc == script.size() &&
-                after.back().label.find("End of scenario") !=
-                    std::string::npos,
+                after.back().label.find("End of scenario") != std::string::npos,
             "end-of-script debug position remains visible");
 
-    const auto empty =
-        LucaSystem::buildDebugInstructions("seen170", {}, 0);
+    const auto empty = LucaSystem::buildDebugInstructions("seen170", {}, 0);
     require(empty.empty(), "empty script is harmless");
 
     std::cout << "LucaSystem debug catalog passed\n";

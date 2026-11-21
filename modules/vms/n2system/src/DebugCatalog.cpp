@@ -19,8 +19,8 @@ bool isChoice(std::string_view function) {
 // of the index of only quoted literals, so a variable speaker argument never
 // promotes the subsequent voice filename into a translatable dialogue key.
 template <typename Append>
-void scanArguments(std::string_view source, std::size_t start,
-                   std::size_t stop, Append append) {
+void scanArguments(std::string_view source, std::size_t start, std::size_t stop,
+                   Append append) {
   if (start >= source.size() || stop > source.size() || start >= stop)
     return;
   std::size_t pos = start;
@@ -35,8 +35,7 @@ void scanArguments(std::string_view source, std::size_t start,
     }
     if (ch == '/' && pos < stop && source[pos] == '*') {
       ++pos;
-      while (pos + 1 < stop &&
-             !(source[pos] == '*' && source[pos + 1] == '/'))
+      while (pos + 1 < stop && !(source[pos] == '*' && source[pos + 1] == '/'))
         ++pos;
       if (pos + 1 < stop)
         pos += 2;
@@ -92,13 +91,14 @@ ExtractTranslationTexts(const ScriptIndex &index, std::string_view source) {
         continue;
       scanArguments(source, opening + 1, chapter.end,
                     [&](std::size_t arg, std::string literal) {
-        // Third dialogue argument is voice audio; first choice argument is
-        // the control/entity name. They are not visible text.
-        if ((dialogue && arg >= 2) || (choice && arg == 0))
-          return;
-        if (seen.insert(literal).second)
-          texts.push_back(std::move(literal));
-      });
+                      // Third dialogue argument is voice audio; first choice
+                      // argument is the control/entity name. They are not
+                      // visible text.
+                      if ((dialogue && arg >= 2) || (choice && arg == 0))
+                        return;
+                      if (seen.insert(literal).second)
+                        texts.push_back(std::move(literal));
+                    });
     }
   }
   return result;

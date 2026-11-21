@@ -171,19 +171,18 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
         auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(
             selectedSourcePath(entry), opts.assetOverlayDirectory());
         assets->setOverlay(opts.assetOverlayDirectory());
-        // Shared CMP engine, but each port keeps its own window and save identity.
+        // Shared CMP engine, but each port keeps its own window and save
+        // identity.
         const bool isMeo = entry.engine.slug == "meo";
         const bool isLostM = assets->isLostM();
-        auto runtime = isMeo
-                           ? std::make_unique<SummerRadish::SummerRuntime>(
-                                 assets, "Miss Each Other",
-                                 "me.hirameki.kotonoha.meo")
-                           : (isLostM
-                                  ? std::make_unique<SummerRadish::SummerRuntime>(
-                                        assets, "Lost M",
-                                        "me.hirameki.kotonoha.lostm")
-                                  : std::make_unique<SummerRadish::SummerRuntime>(
-                                        assets));
+        auto runtime =
+            isMeo
+                ? std::make_unique<SummerRadish::SummerRuntime>(
+                      assets, "Miss Each Other", "me.hirameki.kotonoha.meo")
+                : (isLostM
+                       ? std::make_unique<SummerRadish::SummerRuntime>(
+                             assets, "Lost M", "me.hirameki.kotonoha.lostm")
+                       : std::make_unique<SummerRadish::SummerRuntime>(assets));
         return mount(std::move(runtime), assets,
                      shutdownRuntime<SummerRadish::SummerRuntime>());
       });
@@ -213,10 +212,9 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
   bindFactory(
       registry, EngineKind::SchoolDays,
       [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
-        const std::string overlayOrScripts =
-            !entry.params.scriptsDir.empty()
-                ? entry.params.scriptsDir
-                : opts.assetOverlayDirectory();
+        const std::string overlayOrScripts = !entry.params.scriptsDir.empty()
+                                                 ? entry.params.scriptsDir
+                                                 : opts.assetOverlayDirectory();
         auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(
             Kotonoha::gameDataDirectory(selectedSourcePath(entry)),
             overlayOrScripts);
@@ -235,9 +233,8 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
             opts.subtitleStylePath = styles->string();
           }
         }
-        return mount(
-            std::make_unique<SchoolDays::Runtime>(assets, route, docs), assets,
-            shutdownRuntime<SchoolDays::Runtime>());
+        return mount(std::make_unique<SchoolDays::Runtime>(assets, route, docs),
+                     assets, shutdownRuntime<SchoolDays::Runtime>());
       });
 #endif
 #if defined(KOTONOHA_LAUNCH_REALLIVE)
@@ -305,7 +302,7 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
                      shutdownRuntime<Ponscripter::PonscripterRuntime>());
       });
 #endif
-// All variants were bound above by engine kind; no post-registration
+  // All variants were bound above by engine kind; no post-registration
   // descriptor copies or dependence on registry insertion order.
 }
 

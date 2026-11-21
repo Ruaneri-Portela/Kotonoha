@@ -2,8 +2,8 @@
 #include <Kotonoha/Filesystem/Path.hpp>
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
-#include <SummerRadish/SummerAssets.hpp>
 #include <SummerRadish/MeoAudio.hpp>
+#include <SummerRadish/SummerAssets.hpp>
 #include <algorithm>
 #include <cstring>
 #include <optional>
