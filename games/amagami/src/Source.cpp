@@ -1,5 +1,6 @@
 #include <Amagami/Source.hpp>
 #include <Kotonoha/core/Config.hpp>
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
