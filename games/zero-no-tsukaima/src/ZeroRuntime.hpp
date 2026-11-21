@@ -36,6 +36,10 @@ public:
 
   // Route = SCENE_ID index of each KS script.
   Kotonoha::Translation::SourceTexts translationSources() const override;
+  int translationRoute() const override;
+  std::vector<std::string> activeTranslationKeys() const override;
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
+  std::string debugNodeCatalogKey() const override;
   std::vector<int> translationRoutes() const override;
   std::vector<std::string> translationTexts(int route) const override;
   std::string debugNode() const override;
