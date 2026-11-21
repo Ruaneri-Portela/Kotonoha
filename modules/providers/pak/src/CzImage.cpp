@@ -1,6 +1,7 @@
 #include <LucaSystem/CzImage.hpp>
 // Shared PAK image codec.
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <stdexcept>
