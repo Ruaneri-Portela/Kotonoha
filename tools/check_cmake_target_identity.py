@@ -141,10 +141,11 @@ def audit(sources: dict[str, str]) -> list[str]:
     # Versioned shared library output expands a single compiled target to
     # extra symlink names, breaking the requested one-file-per-target layout.
     core = sources.get("lib/CMakeLists.txt", "")
-    if re.search(r"(?m)^[ \t]*(?:VERSION|SOVERSION)[ \t]+\$\{PROJECT_VERSION", core):
-        errors.append("lib/CMakeLists.txt: do not set versioned shared-library filenames")
-    if "PROPERTY VERSION)" not in core or "PROPERTY SOVERSION)" not in core:
-        errors.append("lib/CMakeLists.txt: vendored SDL shared libraries must clear version properties")
+    sdl = sources.get("buildsystems/cmake/KotonohaSDL.cmake", core)
+    if re.search(r"(?m)^[ \t]*(?:VERSION|SOVERSION)[ \t]+\$\{PROJECT_VERSION", core + "\n" + sdl):
+        errors.append("shared libraries must not use project-versioned filenames")
+    if "PROPERTY VERSION)" not in sdl or "PROPERTY SOVERSION)" not in sdl:
+        errors.append("KotonohaSDL.cmake: vendored SDL must clear version properties")
 
     return errors
 
@@ -182,6 +183,12 @@ def main() -> int:
         and "out" not in file.parts
         and "build" not in file.parts
     }
+    for helper in ("KotonohaSDL.cmake", "KotonohaImGui.cmake"):
+        helper_path = ROOT / "buildsystems" / "cmake" / helper
+        if not helper_path.is_file():
+            print(f"[CMake targets] missing dependency helper: {helper}", file=sys.stderr)
+            return 1
+        files[str(helper_path.relative_to(ROOT))] = helper_path.read_text(encoding="utf-8")
     core_path = ROOT / "lib/CMakeLists.txt"
     if not core_path.exists():
         print("[CMake targets] expected lib/CMakeLists.txt is missing", file=sys.stderr)
