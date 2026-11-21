@@ -1085,6 +1085,11 @@
             };
         })();
 
+        window.KotonohaSharedWasmURL =
+            "@WASM_SHARED_ENGINE@" === "true" ?
+                new URL("../libs/@KOTONOHA_WASM_SHARED_FILENAME@",
+                        window.location.href).href : null;
+
         var Module = {
             canvas: document.getElementById("canvas"),
 
@@ -1628,6 +1633,7 @@
         }
     </script>
     <script src="KotonohaPreloadCache.js"></script>
+    <script src="KotonohaSharedWasmCache.js"></script>
     <script src="@TARGET_NAME@.js"></script>
 </body>
 </html>
