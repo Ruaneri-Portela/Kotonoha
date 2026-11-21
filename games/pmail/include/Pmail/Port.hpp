@@ -467,6 +467,10 @@ private:
 
   std::vector<uint8_t> pack_;
   std::string packPath_;
+  // Read-only cache; script pack does not change during a game session.
+  // Avoid unpacking all scripts again when F7 follows a new native scene.
+  std::map<int, std::vector<std::string>> translationCatalog_;
+  bool translationCatalogReady_ = false;
   std::unique_ptr<PmailPack> packReader_;
   std::vector<Entry> entries_;
   std::map<std::string, ::Pmail::ObjectPtr> byName_;
