@@ -1,3 +1,4 @@
+#include <Kotonoha/media/SavePng.hpp>
 // SnowExtract <PACK.DAT> <outdir> [--png]
 // Lists a Snow Radish pack and writes each (decompressed) entry; supported
 // pictures, animation frames, and alpha masks can also be written as PNG.
@@ -47,7 +48,7 @@ int main(int argc, char **argv) {
           SDL_PIXELFORMAT_RGB24, img.rgb.data(),
           static_cast<int>(img.width * 3));
       if (s) {
-        SDL_SavePNG(s,
+        Kotonoha::SavePng(s,
                     (fs::path(argv[2]) / (e.name + ".png")).string().c_str());
         SDL_DestroySurface(s);
         ++images;
@@ -63,7 +64,7 @@ int main(int argc, char **argv) {
             SDL_PIXELFORMAT_RGBA32, sp.rgba.data(),
             static_cast<int>(sp.width * 4));
         if (s) {
-          SDL_SavePNG(s,
+          Kotonoha::SavePng(s,
                       (fs::path(argv[2]) / (e.name + ".png")).string().c_str());
           SDL_DestroySurface(s);
           ++images;
@@ -86,7 +87,7 @@ int main(int argc, char **argv) {
           const std::string name = e.name + ".frame" + (i < 10 ? "0" : "") +
                                    std::to_string(i) + ".png";
           const bool ok =
-              SDL_SavePNG(s, (fs::path(argv[2]) / name).string().c_str());
+              Kotonoha::SavePng(s, (fs::path(argv[2]) / name).string().c_str());
           SDL_DestroySurface(s);
           if (!ok) {
             saved = false;
@@ -107,7 +108,7 @@ int main(int argc, char **argv) {
             SDL_PIXELFORMAT_RGB24, rgb.data(),
             static_cast<int>(mask.width * 3));
         if (s) {
-          SDL_SavePNG(s,
+          Kotonoha::SavePng(s,
                       (fs::path(argv[2]) / (e.name + ".png")).string().c_str());
           SDL_DestroySurface(s);
           ++images;

@@ -1,3 +1,4 @@
+#include <Kotonoha/media/SavePng.hpp>
 #include "AmagamiRuntime.hpp"
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/TextInputDialog.hpp>
@@ -58,7 +59,7 @@ void capture(Kotonoha::Engine &e, Amagami::AmagamiRuntime &game,
   }
   if (dir) {
     auto path = (std::filesystem::path(dir) / (name + ".png")).string();
-    require(SDL_SavePNG(pixels, path.c_str()), SDL_GetError());
+    require(Kotonoha::SavePng(pixels, path.c_str()), SDL_GetError());
   }
   SDL_DestroySurface(pixels);
   SDL_SetRenderTarget(r, previous);

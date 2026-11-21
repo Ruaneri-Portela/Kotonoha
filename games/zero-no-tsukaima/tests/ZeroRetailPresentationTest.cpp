@@ -1,3 +1,4 @@
+#include <Kotonoha/media/SavePng.hpp>
 #include "ZeroRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <filesystem>
@@ -64,7 +65,7 @@ int main(int argc, char **argv) {
               std::string(name) + " renders a nonblank image area");
       if (const char *dir = SDL_getenv("ZERO_CAPTURE_DIR")) {
         std::filesystem::create_directories(dir);
-        Require(SDL_SavePNG(pixels.get(), (std::filesystem::path(dir) /
+        Require(Kotonoha::SavePng(pixels.get(), (std::filesystem::path(dir) /
                                            (edition + "-" + name + ".png"))
                                               .string()
                                               .c_str()),
