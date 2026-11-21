@@ -182,7 +182,7 @@ Kotonoha::Translation::SourceTexts SnowRuntime::translationSources() const {
 int SnowRuntime::translationRoute() const {
   if (!session_ || !session_->Story())
     return kNoRoute;
-  const auto &story = *session_->Story();
+  auto &story = *session_->Story();
   if (story.hasMessage() && story.message().route != kNoRoute)
     return story.message().route;
   if (const auto object = story.vm().current())
