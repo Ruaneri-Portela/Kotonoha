@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # Kotonoha: select target platforms and game ports in the project root.
 # Platform/toolchain setup must run before project() for Android/vcpkg.
-include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaGames.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/games/KotonohaGames.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaAndroid.cmake")
 
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
@@ -33,7 +33,6 @@ if(EMSCRIPTEN)
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-fexceptions>")
 endif()
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/MSVC.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaOptions.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaTestGroups.cmake")
 
@@ -56,27 +55,7 @@ if(KOTONOHA_SDL_CONFIG_TTF)
     find_package(SDL3_ttf CONFIG REQUIRED)
 endif()
 
-# Each port is configured only when explicitly selected (or BUILD_ALL).
-set(_KOTONOHA_ENABLED_GAME_DETAILS "")
-foreach(game IN LISTS KOTONOHA_GAMES)
-    string(REPLACE "|" ";" fields "${game}")
-    list(GET fields 0 game_option)
-    list(GET fields 1 game_id)
-    list(GET fields 2 game_directory)
-
-    if(KOTONOHA_BUILD_${game_option} AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${game_directory}/CMakeLists.txt")
-        list(APPEND _KOTONOHA_ENABLED_GAME_DETAILS "${game_id}|${game_directory}")
-        add_subdirectory("${game_directory}")
-    endif()
-endforeach()
-
-# The unified hub exists only for a full native desktop build.
-# Individual port builds, including the Example demo, do not build a launcher.
-if(KOTONOHA_BUILD_ALL AND NOT ANDROID AND NOT EMSCRIPTEN AND
-   NOT (APPLE AND CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS|watchOS") AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launcher/CMakeLists.txt")
-    add_subdirectory(launcher)
-endif()
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/games/KotonohaBuild.cmake")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaReport.cmake")
-include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaCPack.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/packaging/KotonohaCPack.cmake")

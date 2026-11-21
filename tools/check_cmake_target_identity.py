@@ -141,7 +141,7 @@ def audit(sources: dict[str, str]) -> list[str]:
     # Versioned shared library output expands a single compiled target to
     # extra symlink names, breaking the requested one-file-per-target layout.
     core = sources.get("lib/CMakeLists.txt", "")
-    sdl = sources.get("buildsystems/cmake/KotonohaSDL.cmake", core)
+    sdl = sources.get("buildsystems/cmake/dependencies/KotonohaSDL.cmake", core)
     if re.search(r"(?m)^[ \t]*(?:VERSION|SOVERSION)[ \t]+\$\{PROJECT_VERSION", core + "\n" + sdl):
         errors.append("shared libraries must not use project-versioned filenames")
     if "PROPERTY VERSION)" not in sdl or "PROPERTY SOVERSION)" not in sdl:
@@ -184,7 +184,7 @@ def main() -> int:
         and "build" not in file.parts
     }
     for helper in ("KotonohaSDL.cmake", "KotonohaImGui.cmake"):
-        helper_path = ROOT / "buildsystems" / "cmake" / helper
+        helper_path = ROOT / "buildsystems" / "cmake" / "dependencies" / helper
         if not helper_path.is_file():
             print(f"[CMake targets] missing dependency helper: {helper}", file=sys.stderr)
             return 1

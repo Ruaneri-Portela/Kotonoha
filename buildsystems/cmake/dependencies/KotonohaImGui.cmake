@@ -1,9 +1,5 @@
 # Build Dear ImGui core and SDL3 backends from the same pinned Git submodule.
 include("${CMAKE_CURRENT_LIST_DIR}/KotonohaGitSubmodules.cmake")
-if(KOTONOHA_IMGUI_FROM_VCPKG)
-  message(STATUS "[Kotonoha] Ignoring obsolete KOTONOHA_IMGUI_FROM_VCPKG=ON")
-endif()
-set(KOTONOHA_IMGUI_FROM_VCPKG OFF CACHE BOOL "Deprecated; use the pinned ImGui submodule" FORCE)
 set(KOTONOHA_IMGUI_PROVIDER SUBMODULES CACHE STRING "Pinned ImGui submodule" FORCE)
 set_property(CACHE KOTONOHA_IMGUI_PROVIDER PROPERTY STRINGS SUBMODULES)
 kotonoha_require_submodule("lib/submodules/imgui" "backends/imgui_impl_sdl3.cpp")

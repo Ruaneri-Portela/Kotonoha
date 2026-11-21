@@ -20,7 +20,7 @@ def audit() -> list[str]:
         (ROOT / "buildsystems/xcode/ProjectManifest.json").read_text(
             encoding="utf-8"))
     canonical = manifest["games"]
-    cmake = (ROOT / "buildsystems/cmake/KotonohaGames.cmake").read_text()
+    cmake = (ROOT / "buildsystems/cmake/games/KotonohaGames.cmake").read_text()
     cmake_rows = re.findall(
         r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"', cmake)
     cmake_slugs = {slug for _, slug, _ in cmake_rows}

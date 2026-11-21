@@ -2,7 +2,7 @@
 include_guard(GLOBAL)
 option(KOTONOHA_AUTO_FETCH_SUBMODULES
   "Initialize missing Git submodules during configuration" ON)
-get_filename_component(_KOTONOHA_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+get_filename_component(_KOTONOHA_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 
 function(kotonoha_require_submodule path file)
   if(EXISTS "${_KOTONOHA_REPO_ROOT}/${path}/${file}")

@@ -210,8 +210,8 @@ jobs:
           assert caches, "No Android CMake cache generated"
           for cache in caches:
               settings = cache.read_text(encoding="utf-8")
-              for option in ("KOTONOHA_SDL_FROM_VCPKG", "KOTONOHA_IMGUI_FROM_VCPKG"):
-                  assert re.search(rf"^{option}:[^=]+=(OFF|FALSE|0)$", settings, re.M), (cache, option)
+              for option in ("KOTONOHA_SDL_PROVIDER", "KOTONOHA_IMGUI_PROVIDER"):
+                  assert re.search(rf"^{option}:[^=]+=SUBMODULES$", settings, re.M), (cache, option)
           # Derive APK variants from the real Gradle flavor matrix.
           # Cross-check their CMake slugs against ProjectManifest so newly
           # added game apps cannot silently disappear from release checks.

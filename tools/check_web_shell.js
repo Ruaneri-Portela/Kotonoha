@@ -10,10 +10,10 @@ const assert = require('node:assert/strict');
 const os = require('node:os');
 const {spawnSync} = require('node:child_process');
 
-const htmlPath = path.join(__dirname, '..', 'buildsystems', 'cmake', 'index.html.in');
+const htmlPath = path.join(__dirname, '..', 'buildsystems', 'cmake', 'packaging', 'index.html.in');
 const html = fs.readFileSync(htmlPath, 'utf8');
 const wasmBuild = fs.readFileSync(path.join(__dirname, '..',
-  'buildsystems', 'cmake', 'KotonohaApp.cmake'), 'utf8');
+  'buildsystems', 'cmake', 'games', 'KotonohaApp.cmake'), 'utf8');
 const webBridge = fs.readFileSync(path.join(__dirname, '..',
   'lib', 'src', 'core', 'WebAssetFetch.cpp'), 'utf8');
 const browserTransport = fs.readFileSync(path.join(__dirname, '..',
@@ -24,9 +24,9 @@ new vm.Script(persistentCache, {filename: 'KotonohaPreloadCache.js'});
 // Each Emscripten game must package a valid standalone PWA, with a scoped
 // Service Worker which leaves HTTP Range/game-assets to IndexedDB.
 const pwaTemplate = fs.readFileSync(path.join(__dirname, '..',
-  'buildsystems', 'cmake', 'pwa.webmanifest.in'), 'utf8');
+  'buildsystems', 'cmake', 'packaging', 'pwa.webmanifest.in'), 'utf8');
 const serviceWorker = fs.readFileSync(path.join(__dirname, '..',
-  'buildsystems', 'cmake', 'service-worker.js.in'), 'utf8');
+  'buildsystems', 'cmake', 'packaging', 'service-worker.js.in'), 'utf8');
 new vm.Script(serviceWorker, {filename: 'service-worker.js.in'});
 const pwa = JSON.parse(pwaTemplate.replaceAll('@APP_TITLE@', 'RealLive'));
 assert(pwa.id === './' && pwa.scope === './' &&

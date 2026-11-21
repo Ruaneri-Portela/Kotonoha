@@ -16,7 +16,6 @@ set(SDLTTF_VENDORED OFF CACHE BOOL "Use system FreeType/HarfBuzz/PlutoSVG")
 set(SDLTTF_STRICT ON CACHE BOOL "Require enabled SDL_ttf dependencies")
 set(SDLTTF_PLUTOSVG ON CACHE BOOL "Optional SVG emoji support")
 
-option(KOTONOHA_SDL_FROM_VCPKG "Legacy alias for KOTONOHA_SDL_PROVIDER=VCPKG" OFF)
 set(KOTONOHA_SDL_PROVIDER "AUTO" CACHE STRING
     "SDL3 provider: AUTO (system, vcpkg, submodules), SYSTEM, VCPKG, SUBMODULES")
 set_property(CACHE KOTONOHA_SDL_PROVIDER PROPERTY STRINGS AUTO SYSTEM VCPKG SUBMODULES)
@@ -64,9 +63,6 @@ endif ()
 string(TOUPPER "${KOTONOHA_SDL_PROVIDER}" _kotonoha_sdl_request)
 if(NOT _kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM|VCPKG|SUBMODULES)$")
     message(FATAL_ERROR "Invalid KOTONOHA_SDL_PROVIDER=${KOTONOHA_SDL_PROVIDER}")
-endif()
-if(KOTONOHA_SDL_FROM_VCPKG AND _kotonoha_sdl_request STREQUAL "AUTO")
-    set(_kotonoha_sdl_request VCPKG)
 endif()
 if(ANDROID)
     if(_kotonoha_sdl_request STREQUAL "SYSTEM" OR
