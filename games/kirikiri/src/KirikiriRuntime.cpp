@@ -29,6 +29,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
 
 namespace Kirikiri {
 
@@ -252,6 +253,7 @@ struct KirikiriRuntime::Impl {
   // Provider IDs played by the native audio callbacks; no decoded samples or
   // provider-specific archive pointers are retained by the Debug UI.
   std::vector<Kotonoha::DebugAudioAsset> sceneAudio;
+  std::string lastVoiceAssetId;
 
   Impl(KirikiriRuntime &r,
        std::shared_ptr<Kotonoha::Providers::KirikiriAssets> a)
@@ -1775,6 +1777,7 @@ bool KirikiriRuntime::startScenario(
 
   impl.currentScenario = target;
   impl.sceneAudio.clear();
+  impl.lastVoiceAssetId.clear();
   impl.screenMode = Impl::ScreenMode::None;
   impl.messageHiddenByUser = false;
   impl.waitingWait = false;
@@ -1820,6 +1823,8 @@ bool KirikiriRuntime::startScenario(
       if (!player.Play(impl_->engine->GetAudio().channel(channel),
                        std::move(clip)))
         throw std::runtime_error(SDL_GetError());
+      if (channel == "VOICE")
+        impl_->lastVoiceAssetId = resolved;
       const auto found = std::find_if(
           impl_->sceneAudio.begin(), impl_->sceneAudio.end(),
           [&](const auto &item) { return item.id == resolved; });
@@ -2208,11 +2213,10 @@ std::vector<Kotonoha::DebugAudioAsset> KirikiriRuntime::debugSceneAudio() {
   auto rows = impl_->sceneAudio;
   // Annotate only the most recently played native VOICE clip with its active
   // dialogue; BGM and sound effects must never be attributed to a character.
-  if (!originalDialogueText_.empty() && !rows.empty())
+  if (!originalDialogueText_.empty() &&
+      !impl_->lastVoiceAssetId.empty())
     for (auto it = rows.rbegin(); it != rows.rend(); ++it)
-      if (!it->id.empty() &&
-          (it->id.find("voice") != std::string::npos ||
-           it->id.find("VOICE") != std::string::npos)) {
+      if (it->id == impl_->lastVoiceAssetId) {
         it->character = originalDialogueSpeaker_;
         it->text = originalDialogueText_;
         break;
