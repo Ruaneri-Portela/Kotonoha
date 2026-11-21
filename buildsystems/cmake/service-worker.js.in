@@ -8,6 +8,7 @@ const CACHE_NAME = NAMESPACE + "@PWA_CACHE_KEY@";
 const SHELL = [
   "index.html",
   "KotonohaPreloadCache.js",
+  "KotonohaSharedWasmCache.js",
   "manifest.webmanifest",
   "pwa-icon-192.png",
   "pwa-icon-512.png",
