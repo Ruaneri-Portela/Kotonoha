@@ -48,6 +48,7 @@ struct EngineOptions {
   std::string logPath;
   std::string rendererOverride;
   std::string subtitleStylePath;
+  std::string forcedSubtitlesPath;
   bool launcher = defaultLauncherEnabled();
   std::string dumpTranslationPath;
   // Asset source; defaults to plain files relative to the working directory.

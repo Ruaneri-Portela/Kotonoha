@@ -26,7 +26,9 @@ class ForcedSubtitleRenderer final : public SubtitleScene {
   static std::string fileName(const std::string &nodeId);
 
 public:
-  explicit ForcedSubtitleRenderer(Engine &engine);
+  explicit ForcedSubtitleRenderer(
+      Engine &engine,
+      const std::filesystem::path &explicitDirectory = {});
   ~ForcedSubtitleRenderer() override;
   // BCP-47 language/region identifier, e.g. pt-BR, ru or zh-CN. An empty
   // selection uses the original English root directory. Explicit "en" prefers

@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <filesystem>
 #include <istream>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -34,6 +36,11 @@ const std::array<SchoolDaysRetailGpkSpec, 29>& SchoolDaysRetailGpkSpecs();
 
 class SchoolDaysGpkArchive final {
 public:
+  SchoolDaysGpkArchive() = default;
+  SchoolDaysGpkArchive(SchoolDaysGpkArchive &&) noexcept = default;
+  SchoolDaysGpkArchive &operator=(SchoolDaysGpkArchive &&) noexcept = default;
+  ~SchoolDaysGpkArchive() = default;
+
   bool Open(const std::filesystem::path &path, std::string *error = nullptr,
             std::shared_ptr<const Filesystem::IMount> source = {});
   std::unique_ptr<std::istream> OpenStream() const;
@@ -61,6 +68,8 @@ public:
 private:
     std::filesystem::path path_;
     std::shared_ptr<const Filesystem::IMount> source_;
+    mutable std::unique_ptr<std::mutex> streamMutex_;
+    mutable std::unique_ptr<std::istream> cachedStream_;
     uint64_t pidxOffset_ = 0;
     SchoolDaysGpkIndex index_;
     std::vector<std::string> canonicalEntries_;

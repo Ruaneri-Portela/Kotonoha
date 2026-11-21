@@ -89,7 +89,8 @@ struct Application {
   Application(std::shared_ptr<SchoolDays::Assets> assets, const std::string &route,
               Kotonoha::EngineOptions options, const std::string &documents,
               const std::string &lxhJsonOverride = {},
-              const std::string &nativeGpkLocale = {})
+              const std::string &nativeGpkLocale = {},
+              const std::string &installedTranslationRoot = {})
       : requestedTranslation(options.translationPath),
         translationSettingsPath(options.settingsPath),
         runtime(assets, route, documents, options.settingsPath),
@@ -153,11 +154,18 @@ struct Application {
           ? Kotonoha::SchoolDaysTranslationGate::LoadReviewedIdentities(
                 translationFile)
           : Kotonoha::Translation{};
+      const bool installedLocaleJson =
+          Kotonoha::SchoolDaysGpkLanguageProfile::IsInstalledLocaleJson(
+              translationSettingsPath, translationFile) ||
+          (!installedTranslationRoot.empty() &&
+           Kotonoha::SchoolDaysGpkLanguageProfile::IsInstalledLocaleJson(
+               (std::filesystem::path(installedTranslationRoot) /
+                "settings.json")
+                   .string(),
+               translationFile));
       const auto audit = Kotonoha::SchoolDaysTranslationGate::CheckLayered(
           sources, dictionary, reviewed, dlc, reviewedDlc, !nonNativeSelected,
-          nonNativeSelected && (locale == "en" ||
-              Kotonoha::SchoolDaysGpkLanguageProfile::IsInstalledLocaleJson(
-                  translationSettingsPath, translationFile)));
+          nonNativeSelected && (locale == "en" || installedLocaleJson));
       // The installed V4b Spanish dictionary already has all 273 LxH slots,
       // including nine independently corrected translations. A sidecar may
       // supply new missing slots, but must never silently replace these.
@@ -189,7 +197,7 @@ struct App {
   std::unique_ptr<SchoolDays::Launcher> launcher;
   std::unique_ptr<Application> application;
   Kotonoha::EngineOptions options;
-  std::string scripts, route, startNode, dump, documents, lxhJsonOverride;
+  std::string scripts, route, startNode, dump, documents, lxhJsonOverride, cliGpkLocale;
   std::shared_ptr<const Kotonoha::Filesystem::IMount> documentPacks;
   long frames = -1;
 #if defined(__ANDROID__) || defined(ANDROID)
@@ -214,20 +222,33 @@ struct App {
     // optional custom display artwork. Restore those paths on
     // ordinary no-launcher restarts too, without touching generic engine code.
     // Explicit --translation, --asset-overlay and --no-asset-overlay win.
-    std::string gpkLocale;
-    if (!explicitlySelectedJson && options.persistSettings &&
-        !options.settingsPath.empty())
+    std::string gpkLocale = cliGpkLocale;
+    if (!gpkLocale.empty()) {
+      if (!Kotonoha::SchoolDaysGpkLanguageProfile::Supported(gpkLocale))
+        throw std::runtime_error("Unsupported School Days GPK locale: " +
+                                 gpkLocale);
+      options.translationPath.clear();
+    } else if (!explicitlySelectedJson && options.persistSettings &&
+               !options.settingsPath.empty()) {
       gpkLocale = SchoolDays::Launcher::rememberedGpkLocale(
           options.settingsPath);
+    }
     if (options.persistSettings && !options.settingsPath.empty() &&
         std::filesystem::is_regular_file(options.settingsPath)) {
       try {
-        const auto saved = Kotonoha::EngineSettings::load(options.settingsPath);
+        auto saved = Kotonoha::EngineSettings::load(options.settingsPath);
         resolvedShaderPaths = SchoolDays::Launcher::resolveStoredShaderPaths(
             options.settingsPath, saved.upscaling.shaderFiles);
-        if (options.translationPath.empty() && !saved.translationPath.empty())
+        if (!cliGpkLocale.empty() && !saved.translationPath.empty()) {
+          // A fresh GPK launch from the Android launcher must not inherit a
+          // stale JSON translationPath persisted by an earlier session.
+          saved.translationPath.clear();
+          saved.save(options.settingsPath);
+        } else if (gpkLocale.empty() && options.translationPath.empty() &&
+                   !saved.translationPath.empty()) {
           options.translationPath = SchoolDays::Launcher::resolveStoredTranslation(
               options.settingsPath, saved.translationPath);
+        }
         if (!options.assetOverlaySpecified && options.assetOverlayPath.empty() &&
             !saved.assetOverlayPath.empty()) {
           options.assetOverlayPath = saved.assetOverlayPath;
@@ -264,13 +285,17 @@ struct App {
         throw std::runtime_error(
             "Native Script.GPK locale conflicts with stored JSON settings. "
             "Re-select the language in the launcher.");
+      const std::string gpkProfileSettings =
+          documentPacks
+              ? (std::filesystem::path(directory) / "settings.json").string()
+              : options.settingsPath;
       const auto script = Kotonoha::SchoolDaysGpkLanguageProfile::ScriptPath(
-          options.settingsPath, gpkLocale);
+          gpkProfileSettings, gpkLocale);
 #if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
       const std::filesystem::path lxh;
 #else
       const auto lxh = Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(
-          options.settingsPath, gpkLocale);
+          gpkProfileSettings, gpkLocale);
 #endif
       const Kotonoha::SchoolDaysTranslatedGpkSelection selection{
           gpkLocale, script, lxh};
@@ -302,9 +327,9 @@ struct App {
                 "School Days LxH integrated: mandatory Packs/LxH.GPK (7 original endings)");
 #endif
     DevStartupLog("assets-ready");
-    application = std::make_unique<Application>(std::move(assets), route, options,
-                                                documents, lxhJsonOverride,
-                                                gpkLocale);
+    application = std::make_unique<Application>(
+        std::move(assets), route, options, documents, lxhJsonOverride,
+        gpkLocale, documentPacks ? directory : std::string{});
     if (!resolvedShaderPaths.empty() &&
         application->engine.GetSettings().upscaling.shaderFiles != resolvedShaderPaths) {
       auto live = application->engine.GetSettings();
@@ -393,6 +418,9 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     std::string catalog;
     arguments.option("--document-catalog", "FILE", "Private SAF launch catalog",
                      catalog);
+    arguments.option("--gpk-locale", "LOCALE",
+                     "Use native translated Script/LxH GPK locale",
+                     app->cliGpkLocale);
 #endif
     arguments.parse(argc, argv);
     // Android's SAF/language/options Activity owns the launch flow. Apply

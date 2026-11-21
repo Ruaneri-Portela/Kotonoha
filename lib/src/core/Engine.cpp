@@ -283,7 +283,8 @@ Engine::Engine(Runtime &run, EngineOptions options)
       settings.vnFontPath.empty() ? settings.fontPath : settings.vnFontPath);
   audio.setUserVolumes(settings.channelVolumes);
   timeline = std::make_unique<TimelinePlayer>(*this);
-  forcedSubtitles = std::make_unique<ForcedSubtitleRenderer>(*this);
+  forcedSubtitles =
+      std::make_unique<ForcedSubtitleRenderer>(*this, options.forcedSubtitlesPath);
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   debug = std::make_unique<DebugOverlay>(*this);
 #endif

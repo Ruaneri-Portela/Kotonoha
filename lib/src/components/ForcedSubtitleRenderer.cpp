@@ -140,13 +140,24 @@ bool safeRegularFile(const std::filesystem::path &path,
 
 } // namespace
 
-ForcedSubtitleRenderer::ForcedSubtitleRenderer(Engine &engine)
+ForcedSubtitleRenderer::ForcedSubtitleRenderer(
+    Engine &engine, const std::filesystem::path &explicitDirectory)
     : SubtitleScene(engine) {
-  for (const auto &candidate : FileResolver::candidates("forced_subtitles")) {
-    if (std::filesystem::is_directory(candidate) &&
-        !std::filesystem::is_symlink(candidate)) {
-      sourceDirectory_ = std::filesystem::canonical(candidate);
-      break;
+  std::error_code error;
+  if (!explicitDirectory.empty()) {
+    if (std::filesystem::is_directory(explicitDirectory, error) && !error &&
+        !std::filesystem::is_symlink(explicitDirectory, error) && !error) {
+      sourceDirectory_ = std::filesystem::canonical(explicitDirectory, error);
+      if (error)
+        sourceDirectory_.clear();
+    }
+  } else {
+    for (const auto &candidate : FileResolver::candidates("forced_subtitles")) {
+      if (std::filesystem::is_directory(candidate) &&
+          !std::filesystem::is_symlink(candidate)) {
+        sourceDirectory_ = std::filesystem::canonical(candidate);
+        break;
+      }
     }
   }
   const auto size = engine.GetRuntime().sceneSize(*this);

@@ -254,6 +254,8 @@ const std::array<SchoolDaysRetailGpkSpec, 29> &SchoolDaysRetailGpkSpecs() {
 
 void SchoolDaysGpkArchive::Close() {
   path_.clear();
+  cachedStream_.reset();
+  streamMutex_.reset();
   source_.reset();
   pidxOffset_ = 0u;
   index_.Clear();
@@ -352,6 +354,8 @@ bool SchoolDaysGpkArchive::Open(
 
   path_ = path;
   source_ = std::move(source);
+  streamMutex_ = source_ ? std::make_unique<std::mutex>() : nullptr;
+  cachedStream_.reset();
   pidxOffset_ = pidxOffset;
   index_ = std::move(parsed);
   canonicalEntries_ = std::move(canonicalEntries);
@@ -497,12 +501,32 @@ bool SchoolDaysGpkArchive::ReadEntry(size_t entryIndex,
   if (physicalEnd < entry.offset || physicalEnd > pidxOffset_)
     return Fail(error, "School Days GPK entry body is outside the data region");
 
-  auto file = ArchiveInput(path_, source_);
-  if (!file || !*file)
-    return Fail(error, "School Days GPK could not be reopened for reading");
   std::vector<uint8_t> body;
-  if (!ReadRange(file.get(), entry.offset, bodySize, &body))
-    return Fail(error, "School Days GPK entry body could not be read");
+  if (source_) {
+    if (!streamMutex_)
+      return Fail(error, "School Days GPK stream state is invalid");
+    std::lock_guard<std::mutex> lock(*streamMutex_);
+    auto readCached = [&]() -> bool {
+      if (!cachedStream_ || !*cachedStream_)
+        cachedStream_ = ArchiveInput(path_, source_);
+      if (!cachedStream_ || !*cachedStream_)
+        return false;
+      return ReadRange(cachedStream_.get(), entry.offset, bodySize, &body);
+    };
+    if (!readCached()) {
+      cachedStream_.reset();
+      if (!readCached()) {
+        cachedStream_.reset();
+        return Fail(error, "School Days GPK entry body could not be read");
+      }
+    }
+  } else {
+    auto file = ArchiveInput(path_, source_);
+    if (!file || !*file)
+      return Fail(error, "School Days GPK could not be reopened for reading");
+    if (!ReadRange(file.get(), entry.offset, bodySize, &body))
+      return Fail(error, "School Days GPK entry body could not be read");
+  }
 
   std::vector<uint8_t> stored;
   try {
