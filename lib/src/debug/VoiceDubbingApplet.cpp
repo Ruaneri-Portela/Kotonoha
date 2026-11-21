@@ -5,6 +5,7 @@
 #include <Kotonoha/media/AudioMixer.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 
+#include <Kotonoha/debug/DebugAssetCatalog.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 
@@ -48,18 +49,8 @@ struct ImGuiIdScope {
   ~ImGuiIdScope() { ImGui::PopID(); }
 };
 
-bool audioName(std::string id) {
-  std::transform(id.begin(), id.end(), id.begin(),
-                 [](unsigned char c) { return char(std::tolower(c)); });
-  static const char *extensions[] = {".wav", ".ogg", ".opus", ".mp3", ".flac",
-                                     ".m4a", ".aac", ".aiff", ".nwa", ".adx",
-                                     ".hca", ".at3", ".vag",  ".wma"};
-  return std::any_of(
-      std::begin(extensions), std::end(extensions), [&](const char *extension) {
-        return id.size() >= std::strlen(extension) &&
-               id.compare(id.size() - std::strlen(extension),
-                          std::strlen(extension), extension) == 0;
-      });
+bool audioName(const std::string &id) {
+  return DebugAssetCatalog::isAudio(id);
 }
 
 double duration(const AudioClip &clip) {
@@ -856,6 +847,54 @@ void VoiceDubbingApplet::draw() {
       else if (rowAction == RowAction::DiscardOverlay)
         discardOverlay();
     }
+    ImGui::SeparatorText("Browse provider audio assets");
+    // Every engine participates through its existing AssetProvider::list().
+    // Loading is deliberately opt-in; archive catalogs can contain 100k+
+    // entries and should never be rescanned every rendered frame.
+    auto rebuildAudioFilter = [&] {
+      filteredAudioAssets_.clear();
+      std::string needle = providerAudioFilter_;
+      std::transform(needle.begin(), needle.end(), needle.begin(),
+                     [](unsigned char ch) { return char(std::tolower(ch)); });
+      for (const auto &id : providerAudioAssets_) {
+        std::string lower = id;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+                       [](unsigned char ch) { return char(std::tolower(ch)); });
+        if (needle.empty() || lower.find(needle) != std::string::npos)
+          filteredAudioAssets_.push_back(id);
+      }
+    };
+    if (ImGui::Button("List provider audio")) {
+      providerAudioAssets_.clear();
+      for (const auto &id : engine_.GetAssets().list())
+        if (audioName(id))
+          providerAudioAssets_.push_back(id);
+      providerAudioLoaded_ = true;
+      rebuildAudioFilter();
+    }
+    if (providerAudioLoaded_) {
+      ImGui::TextDisabled("%zu audio assets (%zu matching)",
+                          providerAudioAssets_.size(),
+                          filteredAudioAssets_.size());
+      if (ImGui::InputText("Search audio", providerAudioFilter_,
+                           sizeof(providerAudioFilter_)))
+        rebuildAudioFilter();
+      std::string openProviderAsset;
+      ImGui::BeginChild("All provider audio", ImVec2(0, 145),
+                        ImGuiChildFlags_Borders);
+      ImGuiListClipper clipper;
+      clipper.Begin(static_cast<int>(filteredAudioAssets_.size()));
+      while (clipper.Step())
+        for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+          const auto &id = filteredAudioAssets_[static_cast<std::size_t>(i)];
+          if (ImGui::Selectable(id.c_str(), id == selectedId_))
+            openProviderAsset = id;
+        }
+      ImGui::EndChild();
+      if (!openProviderAsset.empty())
+        select(openProviderAsset);
+    }
+
     ImGui::SetNextItemWidth(
         std::max(110.0f, ImGui::GetContentRegionAvail().x - 180.0f));
     ImGui::InputText("Logical asset ID", manualId_, sizeof(manualId_));
