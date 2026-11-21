@@ -278,7 +278,8 @@ void DebugOverlay::drawInspector() {
   ImGuiTheme::sectionHeader("KTRF / custom nodes");
   drawKtrfTools();
   drawForcedSubtitlesGenerator();
-  if (nodesStale)
+  if (nodesStale ||
+      engine.GetRuntime().debugNodeCatalogKey() != lastNodeCatalogKey)
     refreshNodes();
   if (ImGui::SmallButton("Refresh node list"))
     refreshNodes();
@@ -421,6 +422,7 @@ void DebugOverlay::refreshNodes() {
   try {
     cachedRuntimeNodes = engine.GetRuntime().debugNodes();
     cachedEngineNodes = engine.debugNodes();
+    lastNodeCatalogKey = engine.GetRuntime().debugNodeCatalogKey();
   } catch (const std::exception &error) {
     cachedRuntimeNodes.clear();
     cachedEngineNodes.clear();
@@ -570,8 +572,15 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
       "restart/load.");
   if (std::none_of(nodes.begin(), nodes.end(), [&](const auto &node) {
         return node.id == selectedRuntimeNode;
-      }))
-    selectedRuntimeNode = nodes.front().id;
+      })) {
+    const auto current = engine.GetRuntime().debugNode();
+    auto active = std::find_if(nodes.begin(), nodes.end(),
+                               [&](const auto &node) {
+                                 return node.id == current;
+                               });
+    selectedRuntimeNode =
+        active == nodes.end() ? nodes.front().id : active->id;
+  }
   ImGui::BeginChild("Runtime nodes", ImVec2(0, 210), ImGuiChildFlags_Borders);
   ImGuiListClipper clipper;
   clipper.Begin(static_cast<int>(nodes.size()));
@@ -603,7 +612,8 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
 }
 
 void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
-  if (!ImGui::CollapsingHeader("Scene / node assets"))
+  if (!ImGui::CollapsingHeader("Scene / node assets",
+                               ImGuiTreeNodeFlags_DefaultOpen))
     return;
   auto choose = [&](const std::string &id) {
     SDL_strlcpy(assetPath, id.c_str(), sizeof(assetPath));
