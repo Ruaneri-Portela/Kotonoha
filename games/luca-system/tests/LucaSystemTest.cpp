@@ -17,6 +17,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/SDL.hpp>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -562,6 +563,23 @@ int main(int argc, char **argv) {
           "OggPak rejects invalid IDs and missing clip indices");
     check(assets.read("voice:101") == tone && !assets.contains("voice:101:1"),
           "Direct Ogg voice entries remain unchanged");
+    const auto virtualVoiceIds = assets.list("voice:");
+    check(std::find(virtualVoiceIds.begin(), virtualVoiceIds.end(),
+                    "voice:100") != virtualVoiceIds.end() &&
+              std::find(virtualVoiceIds.begin(), virtualVoiceIds.end(),
+                        "voice:101") != virtualVoiceIds.end(),
+          "Asset Provider Viewer lists numeric archive voice IDs");
+    const auto virtualFillIds = assets.list("image:");
+    check(std::find(virtualFillIds.begin(), virtualFillIds.end(),
+                    "image:65000") != virtualFillIds.end() &&
+              assets.contains("image:65000"),
+          "Asset Provider Viewer lists synthetic image IDs");
+    const auto exportedVoice = dir / "voice-original-dump.ogg";
+    check(assets.dumpAsset("voice:100:1", exportedVoice,
+                           Kotonoha::AssetSource::Original) == tone.size() &&
+              Kotonoha::Filesystem::readLocalFile(exportedVoice) == tone,
+          "Debug asset dump preserves original archive voice bytes");
+
     const auto rejects = [&assets](const char *id, std::string_view error) {
       try {
         (void)assets.read(id);
