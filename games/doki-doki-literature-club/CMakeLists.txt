@@ -34,6 +34,11 @@ target_include_directories(DdlcFormats PUBLIC include)
 target_include_directories(DdlcFormats PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/renpy/src")
 target_compile_features(DdlcFormats PUBLIC cxx_std_20)
+# Archive.cpp uses Kotonoha::Filesystem (including SDLFileSource/readAll).
+# This must be a direct dependency of DdlcFormats, rather than inherited
+# only from its consumer: GNU ld (MinGW and ELF) scans link archives in
+# order, and otherwise places the Kotonoha DLL import library too early.
+target_link_libraries(DdlcFormats PUBLIC KotonohaEngine)
 
 target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB)
 
