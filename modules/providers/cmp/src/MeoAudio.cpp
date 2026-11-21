@@ -26,8 +26,8 @@ std::uint32_t word(const std::vector<Uint8> &bytes, std::size_t offset) {
 }
 
 int16_t signedWord(const std::vector<Uint8> &bytes, std::size_t offset) {
-  const std::uint16_t value = std::uint16_t(bytes[offset]) |
-                              std::uint16_t(bytes[offset + 1]) << 8;
+  const std::uint16_t value =
+      std::uint16_t(bytes[offset]) | std::uint16_t(bytes[offset + 1]) << 8;
   return static_cast<int16_t>(value);
 }
 
@@ -82,8 +82,7 @@ AudioClip decodeSnd(const std::vector<Uint8> &bytes) {
   constexpr std::size_t framesPerBlock = 44100;
   const std::size_t payloadSize = auxiliaryWords * 2 + 8 + framesPerBlock;
   const std::size_t recordSize = 4 + payloadSize;
-  if (bytes.size() < recordSize + 8 ||
-      (bytes.size() - 8) % recordSize != 0 ||
+  if (bytes.size() < recordSize + 8 || (bytes.size() - 8) % recordSize != 0 ||
       word(bytes, bytes.size() - 4) != 0)
     throw std::runtime_error("Invalid MEO SND block count");
   const std::size_t blocks = (bytes.size() - 8) / recordSize;

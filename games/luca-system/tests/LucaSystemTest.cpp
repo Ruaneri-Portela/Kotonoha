@@ -783,18 +783,16 @@ int main(int argc, char **argv) {
     const auto root = tempDir() / "debug-catalog";
     std::filesystem::create_directories(root / "image");
     // IMAGELOAD group=2, slot=0, image ID=1127, followed by END.
-    const std::vector<uint8_t> seen170 = {
-        8, 0, 55, 0, 2, 0, 103, 4,
-        4, 0, 25, 0};
+    const std::vector<uint8_t> seen170 = {8,   0, 55, 0, 2,  0,
+                                          103, 4, 4,  0, 25, 0};
     const std::vector<uint8_t> seen190 = {4, 0, 40, 0}; // SELECT blocks
-    writeBytes(root / "SCRIPT.PAK",
-               buildPak(0, 4, 512,
-                        {{"seen170", seen170}, {"seen190", seen190}}));
+    writeBytes(
+        root / "SCRIPT.PAK",
+        buildPak(0, 4, 512, {{"seen170", seen170}, {"seen190", seen190}}));
     writeBytes(root / "image" / "BGCG.PAK",
                buildPak(1127, 4, 0, {{"", {1, 2, 3}}}));
-    auto provider =
-        std::make_shared<Kotonoha::Providers::LucaSystemAssets>(root,
-                                                                 std::filesystem::path{});
+    auto provider = std::make_shared<Kotonoha::Providers::LucaSystemAssets>(
+        root, std::filesystem::path{});
     LucaSystem::LucaSystemRuntime runtime(provider);
     const auto before = runtime.debugNodes();
     const auto containsNode = [](const auto &nodes, const std::string &id) {
@@ -811,8 +809,7 @@ int main(int argc, char **argv) {
     const auto nodes = runtime.debugNodes();
     const auto active =
         containsNode(nodes, "luca_system | scenario seen170 @0");
-    const auto scenario =
-        containsNode(nodes, "luca_system | scenario seen170");
+    const auto scenario = containsNode(nodes, "luca_system | scenario seen170");
     const auto hasResource = [](const auto &node, const std::string &id) {
       return std::find(node.assets.begin(), node.assets.end(), id) !=
              node.assets.end();

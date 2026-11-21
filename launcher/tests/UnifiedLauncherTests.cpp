@@ -53,8 +53,8 @@ int main() {
   try {
     // 1. The hub links the 12 real game families, never the Example demo.
     const auto &reg = EngineLibraryRegistry::instance();
-    require(reg.all().size() == 14,
-            "Exactly 14 game identities must be registered (12 shared engine families)");
+    require(reg.all().size() == 14, "Exactly 14 game identities must be "
+                                    "registered (12 shared engine families)");
     require(!reg.find(EngineKind::Unknown),
             "The Example demo must not be registered in the hub");
     require(reg.find(EngineKind::RealLive) &&
@@ -242,13 +242,14 @@ int main() {
         foundMeo = true;
       }
       if (entry.title == "KatawaShoujo") {
-        require(entry.engine.kind == EngineKind::RenPy &&
-                    entry.engine.slug == "katawa-shoujo" &&
-                    entry.libraryTarget == "doki_doki_literature_club" &&
-                    entry.targetBinary == "KatawaShoujo" &&
-                    entry.packageId == "me.hirameki.kotonoha.katawashoujo" &&
-                    entry.overlayPath.empty(),
-                "Katawa must use its own game identity without DDLC patch overlay");
+        require(
+            entry.engine.kind == EngineKind::RenPy &&
+                entry.engine.slug == "katawa-shoujo" &&
+                entry.libraryTarget == "doki_doki_literature_club" &&
+                entry.targetBinary == "KatawaShoujo" &&
+                entry.packageId == "me.hirameki.kotonoha.katawashoujo" &&
+                entry.overlayPath.empty(),
+            "Katawa must use its own game identity without DDLC patch overlay");
         foundKatawa = true;
       }
       if (entry.title == "SayaNoUta_PT-BR") {

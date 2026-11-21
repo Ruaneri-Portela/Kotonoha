@@ -243,8 +243,7 @@ bool PmailGame::loadScript(const std::string &name, bool asMain) {
   return true;
 }
 
-std::map<int, std::vector<std::string>>
-PmailGame::translationInventory() {
+std::map<int, std::vector<std::string>> PmailGame::translationInventory() {
   std::lock_guard lock(mutex_);
   if (translationCatalogReady_)
     return translationCatalog_;
@@ -260,8 +259,7 @@ PmailGame::translationInventory() {
     try {
       if (packReader_)
         bytes = packReader_->read(lower(entry.name));
-      if (bytes.empty() && entry.size > 0 &&
-          entry.offset <= pack_.size() &&
+      if (bytes.empty() && entry.size > 0 && entry.offset <= pack_.size() &&
           entry.size <= pack_.size() - entry.offset)
         bytes.assign(pack_.begin() + entry.offset,
                      pack_.begin() + entry.offset + entry.size);

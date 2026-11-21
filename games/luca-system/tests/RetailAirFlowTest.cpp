@@ -318,10 +318,9 @@ void checkSaveGrid(
           "naming editor saves a .vn without advancing the story");
   const auto saved = Kotonoha::VNSave::read(named.string());
   require(saved.thumbnailRgb.size() == Kotonoha::VNSave::thumbnailBytes &&
-              std::adjacent_find(saved.thumbnailRgb.begin(),
-                                 saved.thumbnailRgb.end(),
-                                 std::not_equal_to<>()) !=
-                  saved.thumbnailRgb.end(),
+              std::adjacent_find(
+                  saved.thumbnailRgb.begin(), saved.thumbnailRgb.end(),
+                  std::not_equal_to<>()) != saved.thumbnailRgb.end(),
           "native .vn contains a non-uniform screenshot of the story");
 
   // Populate a second page with real native saves carrying a different
@@ -367,8 +366,9 @@ void checkSaveGrid(
   Kotonoha::SurfacePtr preview{SDL_RenderReadPixels(&renderer, &center)};
   SDL_Color card{};
   constexpr int centerRgb = (54 * Kotonoha::VNSave::thumbnailWidth + 96) * 3;
-  require(preview && SDL_ReadSurfacePixel(preview.get(), 0, 0, &card.r,
-                                         &card.g, &card.b, &card.a) &&
+  require(preview &&
+              SDL_ReadSurfacePixel(preview.get(), 0, 0, &card.r, &card.g,
+                                   &card.b, &card.a) &&
               std::abs(int(card.r) - saved.thumbnailRgb[centerRgb]) < 12 &&
               std::abs(int(card.g) - saved.thumbnailRgb[centerRgb + 1]) < 12 &&
               std::abs(int(card.b) - saved.thumbnailRgb[centerRgb + 2]) < 12,
@@ -429,7 +429,7 @@ void checkSaveGrid(
   require(!runtime.isStoryPaused() && runtime.isMoviePlaying(),
           "closing pause resumes the same opening");
   std::cout << "AIR save grid: original Save/Load art, title, pause, paging, "
-                "native .vn previews, write/load and cancellation verified\n";
+               "native .vn previews, write/load and cancellation verified\n";
 }
 
 void checkSettings(

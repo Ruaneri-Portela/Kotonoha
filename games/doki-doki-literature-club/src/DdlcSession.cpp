@@ -212,8 +212,8 @@ public:
     const uint32_t cp = utf8Code(ch);
     if (f && (cp <= 0x20 || TTF_FontHasGlyph(f, cp)))
       return f;
-    for (const char *fb : {"gui/font/Aller_Rg.ttf", "gui/font/Vera.ttf",
-                           "font/playtime.ttf"}) {
+    for (const char *fb :
+         {"gui/font/Aller_Rg.ttf", "gui/font/Vera.ttf", "font/playtime.ttf"}) {
       if (file == fb)
         continue;
       if (TTF_Font *alt = font(fb, px, outline, style))
@@ -815,8 +815,8 @@ private:
   double currentGain(const Channel &channel) const {
     if (channel.fadeLen <= 0)
       return channel.fadeTo;
-    const double progress =
-        std::clamp((audioNow() - channel.fadeStart) / channel.fadeLen, 0.0, 1.0);
+    const double progress = std::clamp(
+        (audioNow() - channel.fadeStart) / channel.fadeLen, 0.0, 1.0);
     return channel.fadeFrom + (channel.fadeTo - channel.fadeFrom) * progress;
   }
   void start(const std::string &name, Channel &channel, const std::string &spec,
@@ -1697,10 +1697,9 @@ struct Game {
           act();
         },
         "nav" + label, !katawa);
-    const TextStyle s = katawa
-                            ? uiStyle("font/playtime.ttf", 30,
-                                      hov ? 0x9a402fff : 0x604b3bff)
-                            : navStyle(hov, false);
+    const TextStyle s =
+        katawa ? uiStyle("font/playtime.ttf", 30, hov ? 0x9a402fff : 0x604b3bff)
+               : navStyle(hov, false);
     const SDL_FPoint sz = textSize(label, s);
     drawText(r, label, s, x + 4, y + (36 - sz.y) / 2);
   }
@@ -1711,10 +1710,11 @@ struct Game {
     const bool katawa = assets->name().compare(0, 13, "Katawa Shoujo") == 0;
     float w = 0;
     for (auto &[l, _] : items)
-      w = std::max(w, textSize(l, katawa
-                                    ? uiStyle("font/playtime.ttf", 30,
-                                              0x604b3bff)
-                                    : navStyle(false, false)).x + 8);
+      w = std::max(
+          w, textSize(l, katawa ? uiStyle("font/playtime.ttf", 30, 0x604b3bff)
+                                : navStyle(false, false))
+                     .x +
+                 8);
     const float h = float(items.size()) * 36 + float(items.size() - 1) * 6;
     float y = katawa ? (kH - h) / 2 : (kH - h) * .8f;
     for (auto &[l, a] : items) {
@@ -2871,8 +2871,8 @@ struct Game {
              }
              std::filesystem::path path =
                  Kotonoha::saveDirectory() /
-                 ((katawa ? "katawa_slot" : "ddlc_slot") +
-                  std::to_string(i) + ".vn");
+                 ((katawa ? "katawa_slot" : "ddlc_slot") + std::to_string(i) +
+                  ".vn");
              if (subMenu == SubMenu::Save) {
                saveGame(path.string());
                notice = (ptBr ? "Jogo salvo no Slot " : "Game saved to Slot ") +
@@ -2902,13 +2902,13 @@ struct Game {
       if (subMenu == SubMenu::Load) {
         drawSaveLoadMenu(r);
       } else {
-        navigation(r, {{ptBr ? "Novo Jogo" : "New Game",
-                        [this] { startGame(); }},
-                       {ptBr ? "Carregar Jogo" : "Load Game",
-                        [this] { subMenu = SubMenu::Load; }},
-                       {ptBr ? "Opções" : "Settings",
-                        [this] { engine.openSettings(); }},
-                       {ptBr ? "Sair" : "Quit", [this] { quit = true; }}});
+        navigation(
+            r,
+            {{ptBr ? "Novo Jogo" : "New Game", [this] { startGame(); }},
+             {ptBr ? "Carregar Jogo" : "Load Game",
+              [this] { subMenu = SubMenu::Load; }},
+             {ptBr ? "Opções" : "Settings", [this] { engine.openSettings(); }},
+             {ptBr ? "Sair" : "Quit", [this] { quit = true; }}});
       }
       return;
     }

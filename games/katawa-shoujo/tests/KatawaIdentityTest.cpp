@@ -1,5 +1,5 @@
-#include <DdlcRuntime.hpp>
 #include <Ddlc/DdlcAssets.hpp>
+#include <DdlcRuntime.hpp>
 
 #include <iostream>
 #include <memory>

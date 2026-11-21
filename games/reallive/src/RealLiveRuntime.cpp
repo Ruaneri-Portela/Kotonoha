@@ -302,7 +302,6 @@ struct Text : VNTextBox {
       auto smw00a = assets.graphic(frameName, false);
       if (!smw00a.empty()) {
         frame = assets.loadSurface(smw00a);
-
       }
     }
     // Before CLANNAD, AIR composed two separate G00s: smw00b provides the
@@ -314,7 +313,8 @@ struct Text : VNTextBox {
         back = assets.loadSurface(backgroundName);
         if (back && back->pixels && back->w > 0 && back->h > 0) {
           if (back->format != SDL_PIXELFORMAT_RGBA32) {
-            SurfacePtr rgba(SDL_ConvertSurface(back.get(), SDL_PIXELFORMAT_RGBA32));
+            SurfacePtr rgba(
+                SDL_ConvertSurface(back.get(), SDL_PIXELFORMAT_RGBA32));
             if (rgba)
               back = std::move(rgba);
           }

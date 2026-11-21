@@ -27,22 +27,38 @@ void add(std::vector<std::string> &assets, std::string id) {
 }
 const char *kind(std::uint8_t opcode) {
   switch (opcode) {
-  case 21: return "JUMP";
-  case 22: return "FARCALL";
-  case 24: return "JUMPPOINT";
-  case 25: return "END";
-  case 36: return "MESSAGE";
-  case 40: return "SELECT";
-  case 43: return "LOG_BEGIN";
-  case 46: return "VOICE";
-  case 55: return "IMAGELOAD";
-  case 74: return "DRAW";
-  case 75: return "WIPE";
-  case 107: return "BGM";
-  case 113: return "SE";
-  case 119: return "MOVIE";
-  case 138: return "HAIKEI_SET";
-  default: return nullptr;
+  case 21:
+    return "JUMP";
+  case 22:
+    return "FARCALL";
+  case 24:
+    return "JUMPPOINT";
+  case 25:
+    return "END";
+  case 36:
+    return "MESSAGE";
+  case 40:
+    return "SELECT";
+  case 43:
+    return "LOG_BEGIN";
+  case 46:
+    return "VOICE";
+  case 55:
+    return "IMAGELOAD";
+  case 74:
+    return "DRAW";
+  case 75:
+    return "WIPE";
+  case 107:
+    return "BGM";
+  case 113:
+    return "SE";
+  case 119:
+    return "MOVIE";
+  case 138:
+    return "HAIKEI_SET";
+  default:
+    return nullptr;
   }
 }
 void referencedAssets(const ScriptInstruction &ins,
@@ -91,11 +107,11 @@ void referencedAssets(const ScriptInstruction &ins,
     if (!ins.text.empty())
       add(assets, ins.text);
     const auto name = ins.text.empty() ? "AIR_OP_A" : ins.text;
-    for (const auto &candidate : {
-             "movie/" + name + "_EN.webm", "movie/" + name + ".webm",
-             name + "_EN.webm", name + ".webm", "movie/" + name + ".mp4",
-             "movie/" + name + ".ogv", "movie/" + name + ".wmv",
-             name + ".mp4", name + ".ogv", name + ".wmv"})
+    for (const auto &candidate :
+         {"movie/" + name + "_EN.webm", "movie/" + name + ".webm",
+          name + "_EN.webm", name + ".webm", "movie/" + name + ".mp4",
+          "movie/" + name + ".ogv", "movie/" + name + ".wmv", name + ".mp4",
+          name + ".ogv", name + ".wmv"})
       add(assets, candidate);
     break;
   }
@@ -118,8 +134,8 @@ buildDebugInstructions(const std::string &script,
     DebugInstruction item;
     item.pc = pc;
     std::ostringstream label;
-    label << (type ? type : "CURRENT") << " | PC " << pc << " | @0x"
-          << std::hex << ins.pos;
+    label << (type ? type : "CURRENT") << " | PC " << pc << " | @0x" << std::hex
+          << ins.pos;
     if (!ins.text.empty()) {
       auto summary = ins.text.substr(0, 70);
       std::replace(summary.begin(), summary.end(), '\n', ' ');

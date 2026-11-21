@@ -1,11 +1,11 @@
 #include <SummerRuntime.hpp>
 
-#include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNSave.hpp>
-#include <SummerRadish/SummerAssets.hpp>
+#include <Kotonoha/core/Engine.hpp>
 #include <SummerRadish/MeoAudio.hpp>
+#include <SummerRadish/SummerAssets.hpp>
 
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
       return 0;
     }
     SummerRadish::SummerRuntime game(assets, "Miss Each Other",
-                                    "me.hirameki.kotonoha.meo");
+                                     "me.hirameki.kotonoha.meo");
     Kotonoha::EngineOptions options;
     options.assets = assets;
     options.persistSettings = false;
@@ -92,17 +92,15 @@ int main(int argc, char **argv) {
     auto &renderer = engine.GetRenderer();
     auto *previous = SDL_GetRenderTarget(&renderer);
     Kotonoha::TexturePtr target(SDL_CreateTexture(
-        &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 960,
-        720));
+        &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 960, 720));
     if (!target || !SDL_SetRenderTarget(&renderer, target.get()))
       throw std::runtime_error(SDL_GetError());
     game.render(renderer, 1);
     Kotonoha::SurfacePtr menu(SDL_RenderReadPixels(&renderer, nullptr));
     if (!menu)
       throw std::runtime_error(SDL_GetError());
-    const auto *menuPixel =
-        static_cast<const uint8_t *>(menu->pixels) + 200 * menu->pitch +
-        400 * 4;
+    const auto *menuPixel = static_cast<const uint8_t *>(menu->pixels) +
+                            200 * menu->pitch + 400 * 4;
     if (int(menuPixel[0]) + menuPixel[1] + menuPixel[2] < 90)
       throw std::runtime_error("MEO main menu is black");
     if (argc == 3 && std::string(argv[2]) == "scene") {

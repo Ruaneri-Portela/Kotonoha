@@ -256,7 +256,8 @@ struct MediaPlayer::State {
     }
     webVideoSession = session;
     webVideoStarted = true;
-    SDL_Log("[Kotonoha] Browser-native %s playback selected (%s); decoding acceleration is browser-controlled",
+    SDL_Log("[Kotonoha] Browser-native %s playback selected (%s); decoding "
+            "acceleration is browser-controlled",
             webAudioOnly ? "audio" : "video", webVideoMime.c_str());
     webVideoReady =
         webVideoUrlMode; // Blob mode will be set later in serviceWebVideo
@@ -607,8 +608,8 @@ struct MediaPlayer::State {
       if (!context)
         throw std::bad_alloc();
       try {
-        check(avcodec_parameters_to_context(
-                  context, format->streams[index]->codecpar),
+        check(avcodec_parameters_to_context(context,
+                                            format->streams[index]->codecpar),
               "Read codec parameters");
         context->pkt_timebase = format->streams[index]->time_base;
       } catch (...) {
@@ -622,7 +623,8 @@ struct MediaPlayer::State {
     // devices are attempted. A failed device never prevents trying the next.
 #ifndef __EMSCRIPTEN__
     if (type == AVMEDIA_TYPE_VIDEO) {
-      for (AVHWDeviceType deviceType = av_hwdevice_iterate_types(AV_HWDEVICE_TYPE_NONE);
+      for (AVHWDeviceType deviceType =
+               av_hwdevice_iterate_types(AV_HWDEVICE_TYPE_NONE);
            deviceType != AV_HWDEVICE_TYPE_NONE;
            deviceType = av_hwdevice_iterate_types(deviceType)) {
         for (int i = 0;; ++i) {
@@ -637,9 +639,10 @@ struct MediaPlayer::State {
           const int deviceResult =
               av_hwdevice_ctx_create(&device, deviceType, nullptr, nullptr, 0);
           if (deviceResult < 0) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
-                         "[Kotonoha] Video acceleration backend %s unavailable (%d)",
-                         av_hwdevice_get_type_name(deviceType), deviceResult);
+            SDL_LogDebug(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Video acceleration backend %s unavailable (%d)",
+                av_hwdevice_get_type_name(deviceType), deviceResult);
             continue;
           }
           AVCodecContext *candidate = createContext();
@@ -657,12 +660,14 @@ struct MediaPlayer::State {
           const int result = avcodec_open2(candidate, codec, nullptr);
           if (result >= 0) {
             hardwareDeviceType = deviceType;
-            SDL_Log("[Kotonoha] Hardware decoder initialized: %s (%s); awaiting decoded frames",
+            SDL_Log("[Kotonoha] Hardware decoder initialized: %s (%s); "
+                    "awaiting decoded frames",
                     av_hwdevice_get_type_name(deviceType), codec->name);
             return candidate;
           }
           SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "[Kotonoha] Hardware decoder %s failed (%d); trying another backend",
+                      "[Kotonoha] Hardware decoder %s failed (%d); trying "
+                      "another backend",
                       av_hwdevice_get_type_name(deviceType), result);
           avcodec_free_context(&candidate);
           hardwarePixelFormat = AV_PIX_FMT_NONE;
@@ -679,8 +684,9 @@ struct MediaPlayer::State {
     if (type == AVMEDIA_TYPE_VIDEO) {
       hardwarePixelFormat = AV_PIX_FMT_NONE;
       hardwareDeviceType = AV_HWDEVICE_TYPE_NONE;
-      SDL_Log("[Kotonoha] Video decoder: software (%s); no usable hardware backend",
-              codec->name);
+      SDL_Log(
+          "[Kotonoha] Video decoder: software (%s); no usable hardware backend",
+          codec->name);
     }
     return context;
   }
@@ -741,7 +747,8 @@ struct MediaPlayer::State {
                 "Copy video frame properties");
           decoded = softwareFrame.get();
           if (!hardwareDecodeLogged) {
-            SDL_Log("[Kotonoha] Hardware video decoding ACTIVE (%s); transferring decoded surfaces for SDL rendering",
+            SDL_Log("[Kotonoha] Hardware video decoding ACTIVE (%s); "
+                    "transferring decoded surfaces for SDL rendering",
                     av_hwdevice_get_type_name(hardwareDeviceType));
             hardwareDecodeLogged = true;
           }
@@ -1565,7 +1572,8 @@ void MediaPlayer::updateDecoder(RendererRef renderer, double position) {
       clockOffset = position;
       if (!wasPaused)
         setPaused(false);
-      SDL_Log("[Kotonoha] Browser-native %s playback unavailable; falling back to FFmpeg",
+      SDL_Log("[Kotonoha] Browser-native %s playback unavailable; falling back "
+              "to FFmpeg",
               wasAudioOnly ? "audio" : "video");
       update(renderer, position);
       return;

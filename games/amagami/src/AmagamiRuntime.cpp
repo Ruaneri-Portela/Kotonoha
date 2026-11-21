@@ -1684,16 +1684,18 @@ std::vector<Kotonoha::DebugAudioAsset> AmagamiRuntime::debugSceneAudio() {
   const auto &line = session_->dialogue();
   if (session_->messageVisible() && !session_->messageCleared() &&
       line.voice >= 0 && !line.voiceCode.empty())
-    audio.push_back({"voice/" + line.voiceCode + "/" +
-                         std::to_string(line.voice),
-                     line.speaker, line.original});
+    audio.push_back(
+        {"voice/" + line.voiceCode + "/" + std::to_string(line.voice),
+         line.speaker, line.original});
   if (session_->musicTrack() >= 0)
-    audio.push_back({std::string(session_->classicMusic()
-                                     ? "music/classic/" : "music/") +
-                         std::to_string(session_->musicTrack()), {}, {}});
+    audio.push_back(
+        {std::string(session_->classicMusic() ? "music/classic/" : "music/") +
+             std::to_string(session_->musicTrack()),
+         {},
+         {}});
   if (session_->ambienceTrack() >= 0)
-    audio.push_back({"sound/" +
-                         std::to_string(session_->ambienceTrack()), {}, {}});
+    audio.push_back(
+        {"sound/" + std::to_string(session_->ambienceTrack()), {}, {}});
   return audio;
 }
 
@@ -1726,8 +1728,7 @@ std::vector<Kotonoha::DebugNode> AmagamiRuntime::debugNodes() const {
           add(sprite.asset);
       const auto &line = session_->dialogue();
       if (line.voice >= 0 && !line.voiceCode.empty())
-        add("voice/" + line.voiceCode + "/" +
-            std::to_string(line.voice));
+        add("voice/" + line.voiceCode + "/" + std::to_string(line.voice));
       if (session_->musicTrack() >= 0)
         add(std::string(session_->classicMusic() ? "music/classic/"
                                                  : "music/") +

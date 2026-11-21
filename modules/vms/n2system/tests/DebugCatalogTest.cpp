@@ -45,8 +45,8 @@ chapter later {
     require(std::count(first.begin(), first.end(), "Hello") == 1,
             "deduplicate source keys");
     require(!has(first, "menu") && !has(first, "voice/100.ogg") &&
-                !has(first, "voice/101.ogg") &&
-                !has(first, "Fake") && !has(first, "fake answer"),
+                !has(first, "voice/101.ogg") && !has(first, "Fake") &&
+                !has(first, "fake answer"),
             "do not translate control IDs, audio IDs or comments");
     require(has(keys.at(1), "Another chapter") &&
                 has(keys.at(1), "Single quotes"),

@@ -1,4 +1,3 @@
-#include <SummerRuntime.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
@@ -7,6 +6,7 @@
 #include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 #include <SummerRadish/SummerAssets.hpp>
+#include <SummerRuntime.hpp>
 #include <cstdio>
 #include <filesystem>
 #include <memory>
@@ -63,8 +63,7 @@ struct KotonohaPortCallbacks final {
 
 SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
   *state = nullptr;
-  KOTONOHA_SET_APP_METADATA("Miss Each Other",
-                            "me.hirameki.kotonoha.meo");
+  KOTONOHA_SET_APP_METADATA("Miss Each Other", "me.hirameki.kotonoha.meo");
   try {
     auto app = std::make_unique<App>();
     auto &options = app->options;

@@ -19,10 +19,11 @@ extern "C" const char *KotonohaIOSDocumentsGamesPath() {
                                                 isDirectory:YES];
       NSError *error = nil;
       if (![[NSFileManager defaultManager] createDirectoryAtURL:games
-                                   withIntermediateDirectories:YES
-                                                    attributes:nil
-                                                         error:&error]) {
-        NSLog(@"[KotonohaLauncher] Failed to create Documents/games: %@", error);
+                                    withIntermediateDirectories:YES
+                                                     attributes:nil
+                                                          error:&error]) {
+        NSLog(@"[KotonohaLauncher] Failed to create Documents/games: %@",
+              error);
       }
       return std::string(games.fileSystemRepresentation ?: "");
     }

@@ -904,8 +904,7 @@ void Vm::init(const std::string &persistentText) {
   images.try_emplace("black", Value::str("#000000"));
 
   if (assets.has("ui_settings.rpyc") && assets.has("vfx/snowflake.png"))
-    images.try_emplace("snow",
-                       dispValue(makeSnowDisp("vfx/snowflake.png")));
+    images.try_emplace("snow", dispValue(makeSnowDisp("vfx/snowflake.png")));
 
   // Katawa Shoujo's ui_settings.rpyc creates these names with ks_music().
   // Keep the archive's logical IDs here until its legacy UI init can run.
@@ -1544,12 +1543,10 @@ void VmNatives::install(Vm &vm) {
   def(renpy, "context",
       [context](Interp &, Args &, Kwargs &) { return context; });
   Value statements = sub(renpy, "statements");
-  def(statements, "register", [](Interp &, Args &, Kwargs &) {
-    return Value();
-  });
-  def(renpy, "atl_warper", [](Interp &, Args &a, Kwargs &) {
-    return a.empty() ? Value() : a[0];
-  });
+  def(statements, "register",
+      [](Interp &, Args &, Kwargs &) { return Value(); });
+  def(renpy, "atl_warper",
+      [](Interp &, Args &a, Kwargs &) { return a.empty() ? Value() : a[0]; });
 
   auto audioSpecs = [](const Value &f) -> std::vector<std::string> {
     std::vector<std::string> out;
@@ -2225,9 +2222,9 @@ void Vm::execUser(const std::string &line) {
     const std::string label = expression && t.size() >= 3 ? t[2] : t[1];
     py.setItem(parsed, Value::str("label"), Value::str(label));
     py.setItem(parsed, Value::str("is_expr"), Value::boolean(expression));
-    py.call(py.lookup(verb == "jump_in" ? "execute_jump_in"
-                                         : "execute_jump_out"),
-            {parsed});
+    py.call(
+        py.lookup(verb == "jump_in" ? "execute_jump_in" : "execute_jump_out"),
+        {parsed});
     return;
   }
   auto audioNames = [&](const std::string &tok) -> std::vector<std::string> {

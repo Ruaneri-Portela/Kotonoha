@@ -111,11 +111,11 @@ int main(int argc, char **argv) {
     const bool isLostM = assets->isLostM();
     const bool isSrv2 =
         !isLostM && assets->contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
-    // Skip warning and logo waits, then press Start (and accept uniform A when present).
+    // Skip warning and logo waits, then press Start (and accept uniform A when
+    // present).
     bool renamed = false;
-    for (int i = 0;
-         i < 12 && !find<ChoiceQuestionScene>(game)->isActive() &&
-         !(isLostM && find<VNTextBox>(game)->isVisible());
+    for (int i = 0; i < 12 && !find<ChoiceQuestionScene>(game)->isActive() &&
+                    !(isLostM && find<VNTextBox>(game)->isVisible());
          ++i) {
       if (auto *form = find<TextInputForm>(game)) {
         const auto inState = [&](GameState state) {

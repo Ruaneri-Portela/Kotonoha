@@ -26,9 +26,9 @@
 
 #include <algorithm>
 #include <cfloat>
-#include <cstring>
 #include <charconv>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -427,9 +427,8 @@ void DebugOverlay::refreshNodes() {
     // Engine::debugNodes() delegates to Runtime::debugNodes() when native
     // nodes exist. Reuse that result instead of enumerating/decoding a large
     // script twice on every scenario refresh.
-    cachedEngineNodes = cachedRuntimeNodes.empty()
-                            ? engine.debugNodes()
-                            : cachedRuntimeNodes;
+    cachedEngineNodes =
+        cachedRuntimeNodes.empty() ? engine.debugNodes() : cachedRuntimeNodes;
     lastNodeCatalogKey = engine.GetRuntime().debugNodeCatalogKey();
   } catch (const std::exception &error) {
     cachedRuntimeNodes.clear();
@@ -585,21 +584,20 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
     const auto current = runtime.debugNode();
     const auto catalog = runtime.debugNodeCatalogKey();
     const auto clockKey = runtime.nodeClockKey();
-    auto active = std::find_if(nodes.begin(), nodes.end(),
-                               [&](const auto &node) {
-      const auto prefix = [&](const std::string &value) {
-        return !value.empty() && value.size() >= node.id.size() &&
-               value.compare(0, node.id.size(), node.id) == 0;
-      };
-      const auto catalogSuffix = !catalog.empty() &&
-          node.id.size() >= catalog.size() &&
-          node.id.compare(node.id.size() - catalog.size(), catalog.size(),
-                          catalog) == 0;
-      return node.id == current || prefix(current) ||
-             node.id == clockKey || node.id == catalog || catalogSuffix;
-    });
-    selectedRuntimeNode =
-        active == nodes.end() ? nodes.front().id : active->id;
+    auto active =
+        std::find_if(nodes.begin(), nodes.end(), [&](const auto &node) {
+          const auto prefix = [&](const std::string &value) {
+            return !value.empty() && value.size() >= node.id.size() &&
+                   value.compare(0, node.id.size(), node.id) == 0;
+          };
+          const auto catalogSuffix =
+              !catalog.empty() && node.id.size() >= catalog.size() &&
+              node.id.compare(node.id.size() - catalog.size(), catalog.size(),
+                              catalog) == 0;
+          return node.id == current || prefix(current) || node.id == clockKey ||
+                 node.id == catalog || catalogSuffix;
+        });
+    selectedRuntimeNode = active == nodes.end() ? nodes.front().id : active->id;
   }
   ImGui::BeginChild("Runtime nodes", ImVec2(0, 210), ImGuiChildFlags_Borders);
   ImGuiListClipper clipper;
@@ -650,7 +648,7 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
       choose(id);
   for (const auto &audio : engine.GetRuntime().debugSceneAudio()) {
     if (std::find(nodeAssets.begin(), nodeAssets.end(), audio.id) ==
-        nodeAssets.end() &&
+            nodeAssets.end() &&
         ImGui::Selectable(audio.id.c_str(), audio.id == assetPath))
       choose(audio.id);
   }
@@ -712,17 +710,17 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
       // archive ID select an arbitrary filesystem destination.
       const auto dumpRoot =
           documentsDirectory(engine.GetRuntime().identify) / "asset-dumps";
-      const auto destinationRoot = dumpRoot /
-          (dumpOriginalAsset ? "original" : "effective");
-      const auto requestedPath = destinationRoot / std::filesystem::path(safeId);
+      const auto destinationRoot =
+          dumpRoot / (dumpOriginalAsset ? "original" : "effective");
+      const auto requestedPath =
+          destinationRoot / std::filesystem::path(safeId);
       std::filesystem::create_directories(requestedPath.parent_path());
       const auto canonicalRoot = std::filesystem::canonical(destinationRoot);
       const auto canonicalParent =
           std::filesystem::canonical(requestedPath.parent_path());
       const auto relativeParent =
           canonicalParent.lexically_relative(canonicalRoot);
-      if (relativeParent.empty() ||
-          *relativeParent.begin() == "..")
+      if (relativeParent.empty() || *relativeParent.begin() == "..")
         throw std::runtime_error("Asset dump destination escapes Documents");
 
       auto output = requestedPath;
@@ -730,14 +728,14 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
         if (copy > 9999)
           throw std::runtime_error("Too many dumps of this asset");
         output = requestedPath.parent_path() /
-                 (requestedPath.stem().string() + "-" +
-                  std::to_string(copy) + requestedPath.extension().string());
+                 (requestedPath.stem().string() + "-" + std::to_string(copy) +
+                  requestedPath.extension().string());
       }
       const auto bytes = engine.GetAssets().dumpAsset(
           requested, output,
           dumpOriginalAsset ? AssetSource::Original : AssetSource::Effective);
-      assetDumpStatus = "Dumped " + std::to_string(bytes) + " raw bytes: " +
-                        output.string();
+      assetDumpStatus =
+          "Dumped " + std::to_string(bytes) + " raw bytes: " + output.string();
       assetDumpError = false;
     } catch (const std::exception &error) {
       assetDumpStatus = error.what();
@@ -745,7 +743,8 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
       SDL_LogError(LogCore, "Asset dump: %s", error.what());
     }
   }
-  ImGui::TextDisabled("Raw bytes; no decoding or transcode. Existing dumps are preserved.");
+  ImGui::TextDisabled(
+      "Raw bytes; no decoding or transcode. Existing dumps are preserved.");
   if (!assetDumpStatus.empty())
     ImGuiTheme::statusText(assetDumpStatus.c_str(), assetDumpError);
   ImGui::SameLine();
@@ -825,18 +824,26 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
     ImGuiTheme::statusText(previewError.c_str(), true);
 }
 
-
 namespace {
 // The original bytes are retained so changing the encoding never rereads or
 // mutates the AssetProvider. SDL_iconv uses the linked platform's converters.
-constexpr const char *kTextEncodings[] = {
-    "Auto (BOM / UTF-8)", "UTF-8", "Shift-JIS / CP932", "EUC-JP",
-    "ISO-2022-JP", "UTF-16 LE", "UTF-16 BE", "Windows-1252",
-    "ISO-8859-1", "GB18030", "Big5", "EUC-KR", "KOI8-R"};
+constexpr const char *kTextEncodings[] = {"Auto (BOM / UTF-8)",
+                                          "UTF-8",
+                                          "Shift-JIS / CP932",
+                                          "EUC-JP",
+                                          "ISO-2022-JP",
+                                          "UTF-16 LE",
+                                          "UTF-16 BE",
+                                          "Windows-1252",
+                                          "ISO-8859-1",
+                                          "GB18030",
+                                          "Big5",
+                                          "EUC-KR",
+                                          "KOI8-R"};
 constexpr const char *kTextEncodingNames[] = {
-    "", "UTF-8", "CP932", "EUC-JP", "ISO-2022-JP",
-    "UTF-16LE", "UTF-16BE", "WINDOWS-1252", "ISO-8859-1",
-    "GB18030", "BIG5", "EUC-KR", "KOI8-R"};
+    "",         "UTF-8",    "CP932",        "EUC-JP",     "ISO-2022-JP",
+    "UTF-16LE", "UTF-16BE", "WINDOWS-1252", "ISO-8859-1", "GB18030",
+    "BIG5",     "EUC-KR",   "KOI8-R"};
 constexpr std::size_t kMaxDebugTextBytes = 4u * 1024u * 1024u;
 } // namespace
 
@@ -854,13 +861,14 @@ void DebugOverlay::openAssetTextViewer(const std::string &id) {
     if (auto stream = engine.GetAssets().openStream(id)) {
       std::vector<Uint8> chunk(64 * 1024);
       while (textAssetBytes.size() < kMaxDebugTextBytes) {
-        const auto request = std::min(chunk.size(),
-                                      kMaxDebugTextBytes - textAssetBytes.size());
+        const auto request =
+            std::min(chunk.size(), kMaxDebugTextBytes - textAssetBytes.size());
         const auto count = stream->read(chunk.data(), request);
         if (!count)
           break;
         if (count > request)
-          throw std::runtime_error("Asset stream returned more data than requested");
+          throw std::runtime_error(
+              "Asset stream returned more data than requested");
         textAssetBytes.insert(textAssetBytes.end(), chunk.begin(),
                               chunk.begin() + count);
       }
@@ -869,7 +877,8 @@ void DebugOverlay::openAssetTextViewer(const std::string &id) {
       const auto bytes = engine.GetAssets().read(id);
       textAssetTruncated = bytes.size() > kMaxDebugTextBytes;
       textAssetBytes.assign(bytes.begin(),
-                            bytes.begin() + std::min(bytes.size(), kMaxDebugTextBytes));
+                            bytes.begin() +
+                                std::min(bytes.size(), kMaxDebugTextBytes));
     }
     decodeAssetText();
   } catch (const std::exception &error) {
@@ -907,8 +916,8 @@ void DebugOverlay::decodeAssetText() {
       reinterpret_cast<const char *>(textAssetBytes.data() + skip);
   char *decoded = SDL_iconv_string("UTF-8", encoding, data, remaining);
   if (!decoded) {
-    textAssetError = std::string("Cannot decode with ") + encoding +
-                     ": " + SDL_GetError();
+    textAssetError =
+        std::string("Cannot decode with ") + encoding + ": " + SDL_GetError();
     return;
   }
   // ImGui's text editor expects NUL-terminated UTF-8. The raw file remains
@@ -922,10 +931,9 @@ void DebugOverlay::drawAssetTextViewer() {
   if (!showAssetTextViewer)
     return;
   const auto display = ImGui::GetIO().DisplaySize;
-  ImGui::SetNextWindowSize(
-      ImVec2(std::min(900.0f * contentScale, display.x),
-             std::min(680.0f * contentScale, display.y)),
-      ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowSize(ImVec2(std::min(900.0f * contentScale, display.x),
+                                  std::min(680.0f * contentScale, display.y)),
+                           ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Asset text viewer (read-only)", &showAssetTextViewer)) {
     ImGui::TextWrapped("Asset: %s", textAssetId.c_str());
     ImGui::TextDisabled("%zu bytes loaded%s (limit: 4 MiB)",
@@ -999,8 +1007,9 @@ void DebugOverlay::refreshTranslationSources() {
                   return idA < idB;
                 return a < b;
               });
-    lastTranslationCatalogKey = engine.GetRuntime().debugNodeCatalogKey() +
-        "|" + std::to_string(engine.GetRuntime().translationRoute());
+    lastTranslationCatalogKey =
+        engine.GetRuntime().debugNodeCatalogKey() + "|" +
+        std::to_string(engine.GetRuntime().translationRoute());
   } catch (const std::exception &error) {
     transSourcesStale = true;
     status = std::string("Translation catalog: ") + error.what();
@@ -1020,8 +1029,9 @@ void DebugOverlay::drawTranslationWindow() {
   if (!showTranslationWindow)
     return;
 
-  const auto translationKey = engine.GetRuntime().debugNodeCatalogKey() +
-      "|" + std::to_string(engine.GetRuntime().translationRoute());
+  const auto translationKey =
+      engine.GetRuntime().debugNodeCatalogKey() + "|" +
+      std::to_string(engine.GetRuntime().translationRoute());
   if (transSourcesStale || translationKey != lastTranslationCatalogKey)
     refreshTranslationSources();
 
@@ -1053,8 +1063,7 @@ void DebugOverlay::drawTranslationWindow() {
   const int nativeRoute = engine.GetRuntime().translationRoute();
   // A native VM's translation route wins over VNManager's incidental
   // default node. Shared VNManager games still use their script-node IDs.
-  if (nativeRoute >= 0 &&
-      !engine.GetRuntime().debugNode().empty()) {
+  if (nativeRoute >= 0 && !engine.GetRuntime().debugNode().empty()) {
     activeNodeKey = std::to_string(nativeRoute);
   } else if (mgrActiveId >= 0) {
     activeNodeKey = std::to_string(mgrActiveId);
