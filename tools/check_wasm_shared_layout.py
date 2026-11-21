@@ -55,11 +55,15 @@ def validate(js_file: pathlib.Path, side_file: pathlib.Path) -> None:
         raise WasmValidationError("libkotonoha.wasm exports no engine functions")
 
     js = js_file.read_text(encoding="utf-8")
-    if side_file.name not in js:
-        raise WasmValidationError(
-            "Game JavaScript does not declare the shared engine dependency")
-    if not main_wasm.read_bytes().startswith(b"\0asm\x01\0\0\0"):
+    binary = main_wasm.read_bytes()
+    if not binary.startswith(b"\0asm\x01\0\0\0"):
         raise WasmValidationError("Invalid game main WASM binary")
+    # Depending on the Emscripten version, MAIN_MODULE encodes its
+    # DT_NEEDED / dylink information in the main wasm custom section rather
+    # than a literal JavaScript dynamicLibraries array.
+    if side_file.name not in js and side_file.name.encode("utf-8") not in binary:
+        raise WasmValidationError(
+            "The game main module has no dependency on the shared engine")
     print(f"[Kotonoha] Dynamic WASM layout OK: "
           f"{main_wasm.name} + ../libs/{side_file.name}")
 
