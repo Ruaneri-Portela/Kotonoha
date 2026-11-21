@@ -7,6 +7,10 @@ on:
       - "launcher/**"
       - "tools/check_unified_launcher_registry.py"
       - "tools/check_debug_bridge.py"
+      - "tools/check_port_debug_contracts.py"
+      - "lib/tests/DebugAssetCatalogTests.cpp"
+      - "modules/providers/**"
+      - "modules/vms/**"
       - "lib/src/debug/**"
       - "lib/include/Kotonoha/debug/**"
       - "lib/src/core/AssetProvider.cpp"
@@ -60,6 +64,10 @@ on:
       - "launcher/**"
       - "tools/check_unified_launcher_registry.py"
       - "tools/check_debug_bridge.py"
+      - "tools/check_port_debug_contracts.py"
+      - "lib/tests/DebugAssetCatalogTests.cpp"
+      - "modules/providers/**"
+      - "modules/vms/**"
       - "lib/src/debug/**"
       - "lib/include/Kotonoha/debug/**"
       - "lib/src/core/AssetProvider.cpp"
@@ -128,6 +136,7 @@ jobs:
           python3 tools/check_release_matrix.py
           python3 tools/check_unified_launcher_registry.py
           python3 tools/check_debug_bridge.py
+          python3 tools/check_port_debug_contracts.py
           python3 tools/check_sdl_cpack.py
       - name: Test common Kotonoha debug asset conventions (C++17)
         run: |
