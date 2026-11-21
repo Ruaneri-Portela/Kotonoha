@@ -23,9 +23,9 @@ target_include_directories(RealLiveFormats PUBLIC include vendor)
 target_compile_features(RealLiveFormats PUBLIC cxx_std_17)
 set_target_properties(RealLiveFormats PROPERTIES CXX_EXTENSIONS OFF)
 
-if(MSVC)
-    target_compile_options(RealLiveFormats PUBLIC /J)
-else()
+# The original game format uses unsigned 8-bit bytes. Avoid MSVC-specific
+# compiler switches; GCC/Clang retain the existing parsing behavior.
+if(CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang|AppleClang)$")
     target_compile_options(RealLiveFormats PUBLIC -funsigned-char)
 endif()
 

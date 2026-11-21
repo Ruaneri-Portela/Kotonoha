@@ -7,18 +7,14 @@ on:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
       - "lib/src/core/AssetProvider.cpp"
-      - "buildsystems/cmake/KotonohaSDL.cmake"
-      - "buildsystems/cmake/KotonohaImGui.cmake"
-      - "buildsystems/cmake/KotonohaGitSubmodules.cmake"
+      - "buildsystems/cmake/dependencies/**"
       - ".github/workflows/linux-system-deps.yml"
   pull_request:
     paths:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
       - "lib/src/core/AssetProvider.cpp"
-      - "buildsystems/cmake/KotonohaSDL.cmake"
-      - "buildsystems/cmake/KotonohaImGui.cmake"
-      - "buildsystems/cmake/KotonohaGitSubmodules.cmake"
+      - "buildsystems/cmake/dependencies/**"
       - ".github/workflows/linux-system-deps.yml"
 
 jobs:

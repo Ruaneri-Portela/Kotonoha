@@ -60,12 +60,12 @@ add_test(NAME Kotonoha.KtrfScript COMMAND KotonohaKtrfScriptTests)
 
 add_test(NAME Kotonoha.PackageAssets COMMAND "${CMAKE_COMMAND}"
     "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}"
-    "-DPACKAGE_SCRIPT=${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/PackageAssets.cmake"
+    "-DPACKAGE_SCRIPT=${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/PackageAssets.cmake"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/PackageAssetsTest.cmake")
 add_test(NAME Kotonoha.BundleContents COMMAND "${CMAKE_COMMAND}"
     "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}"
-    "-DCHECK_SCRIPT=${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/CheckBundleContents.cmake"
-    "-DBUNDLE_SCRIPT=${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/BundleApp.cmake"
+    "-DCHECK_SCRIPT=${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/CheckBundleContents.cmake"
+    "-DBUNDLE_SCRIPT=${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/BundleApp.cmake"
     -P "${CMAKE_CURRENT_SOURCE_DIR}/BundleContentsTest.cmake")
 
 if(SDLTTF_PLUTOSVG)

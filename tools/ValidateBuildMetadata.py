@@ -24,7 +24,7 @@ def validate():
     require(positions == sorted(positions), "CMake includes must remain ordered")
     require(root.index("KotonohaAndroid.cmake") < root.index("project(Kotonoha"),
             "Android toolchain selection must precede project()")
-    matrix = (ROOT / "buildsystems/cmake/KotonohaGames.cmake").read_text(encoding="utf-8")
+    matrix = (ROOT / "buildsystems/cmake/games/KotonohaGames.cmake").read_text(encoding="utf-8")
     rows = re.findall(r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"', matrix)
     require(len(rows) == len(manifest["games"]), "Incorrect number of CMake games")
     require({path: slug for _, slug, path in rows} ==

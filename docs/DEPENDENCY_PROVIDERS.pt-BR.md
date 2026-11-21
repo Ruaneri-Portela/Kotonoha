@@ -65,7 +65,7 @@ caminhos originais do repositório.
 ## Organização
 
 `lib/CMakeLists.txt` define os targets da engine;
-`buildsystems/cmake/KotonohaSDL.cmake` escolhe o SDL;
-`buildsystems/cmake/KotonohaImGui.cmake` compila ImGui;
-`buildsystems/cmake/KotonohaGitSubmodules.cmake` inicializa
-submódulos ausentes; e `KotonohaApp.cmake` cuida dos executáveis.
+`buildsystems/cmake/dependencies/KotonohaSDL.cmake` escolhe o SDL;
+`buildsystems/cmake/dependencies/KotonohaImGui.cmake` compila ImGui;
+`buildsystems/cmake/dependencies/KotonohaGitSubmodules.cmake` inicializa
+submódulos ausentes; e `buildsystems/cmake/games/KotonohaApp.cmake` cuida dos executáveis.

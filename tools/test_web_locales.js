@@ -7,7 +7,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const html = fs.readFileSync(path.join(__dirname, "..",
-    "buildsystems", "cmake", "index.html.in"), "utf8");
+    "buildsystems", "cmake", "packaging", "index.html.in"), "utf8");
 const marker = "// All browser startup UI text is localized";
 const anchor = html.indexOf(marker);
 assert(anchor >= 0, "startup language initializer must be present");

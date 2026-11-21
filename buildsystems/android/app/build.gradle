@@ -99,8 +99,7 @@ android {
           "-DKOTONOHA_SDL_SOURCE_DIR=${sdlRoot}",
           // Android requires SDL's Java bindings and matching native sources.
           // Keep SDL3, SDL3_ttf and ImGui from their checked-out submodules.
-          '-DKOTONOHA_SDL_FROM_VCPKG=OFF',
-          '-DKOTONOHA_IMGUI_FROM_VCPKG=OFF',
+          '-DKOTONOHA_SDL_PROVIDER=SUBMODULES',
           '-DANDROID_PLATFORM=android-28',
           '-DANDROID_STL=c++_shared'
       }
