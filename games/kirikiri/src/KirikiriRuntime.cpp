@@ -249,6 +249,9 @@ struct KirikiriRuntime::Impl {
   Kotonoha::PcmPlayer bgm;
   Kotonoha::PcmPlayer sound;
   std::array<Kotonoha::PcmPlayer, 4> voices;
+  // Provider IDs played by the native audio callbacks; no decoded samples or
+  // provider-specific archive pointers are retained by the Debug UI.
+  std::vector<Kotonoha::DebugAudioAsset> sceneAudio;
 
   Impl(KirikiriRuntime &r,
        std::shared_ptr<Kotonoha::Providers::KirikiriAssets> a)
@@ -1771,6 +1774,7 @@ bool KirikiriRuntime::startScenario(
     return false;
 
   impl.currentScenario = target;
+  impl.sceneAudio.clear();
   impl.screenMode = Impl::ScreenMode::None;
   impl.messageHiddenByUser = false;
   impl.waitingWait = false;
@@ -1816,6 +1820,14 @@ bool KirikiriRuntime::startScenario(
       if (!player.Play(impl_->engine->GetAudio().channel(channel),
                        std::move(clip)))
         throw std::runtime_error(SDL_GetError());
+      const auto found = std::find_if(
+          impl_->sceneAudio.begin(), impl_->sceneAudio.end(),
+          [&](const auto &item) { return item.id == resolved; });
+      if (found == impl_->sceneAudio.end()) {
+        impl_->sceneAudio.push_back({resolved, {}, {}});
+        if (impl_->sceneAudio.size() > 256)
+          impl_->sceneAudio.erase(impl_->sceneAudio.begin());
+      }
     } catch (const std::exception &error) {
       if (impl_->warnedMissingAssets.insert("audio:" + resolved).second)
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -1836,10 +1848,10 @@ bool KirikiriRuntime::startScenario(
       originalActiveKeys_.push_back(text);
     dialogueSpeaker_ =
         impl_->engine
-            ? impl_->engine->GetTranslation().text(debugNode(), speaker)
+            ? impl_->engine->GetTranslation().text(0, speaker)
             : speaker;
     dialogueText_ =
-        impl_->engine ? impl_->engine->GetTranslation().text(debugNode(), text)
+        impl_->engine ? impl_->engine->GetTranslation().text(0, text)
                       : text;
     auto &impl = *impl_;
     impl.dialogueVisible = true;
@@ -1876,7 +1888,7 @@ bool KirikiriRuntime::startScenario(
               scenarioTexts_.end())
         scenarioTexts_.push_back(value);
       return impl.engine
-                 ? impl.engine->GetTranslation().text(debugNode(), value)
+                 ? impl.engine->GetTranslation().text(0, value)
                  : value;
     };
     std::vector<Kotonoha::ChoiceOption> choiceOptions;
@@ -2151,6 +2163,61 @@ std::string KirikiriRuntime::debugNode() const {
   return impl.currentScenario.empty()
              ? std::string()
              : ("kirikiri | scenario " + impl.currentScenario);
+}
+
+std::string KirikiriRuntime::debugNodeCatalogKey() const {
+  return impl_->currentScenario;
+}
+
+std::vector<Kotonoha::DebugNode> KirikiriRuntime::debugNodes() const {
+  std::vector<Kotonoha::DebugNode> nodes;
+  const auto &impl = *impl_;
+  if (!impl.assets)
+    return nodes;
+  for (const auto &script : impl.assets->scenarioFiles()) {
+    Kotonoha::DebugNode node{
+        "kirikiri | scenario " + script, scenarioTitle(script), {script}};
+    if (script == impl.currentScenario) {
+      const auto add = [&](const std::string &id) {
+        if (!id.empty() && impl.assets->contains(id) &&
+            std::find(node.assets.begin(), node.assets.end(), id) ==
+                node.assets.end())
+          node.assets.push_back(id);
+      };
+      add(impl.background.id);
+      add(impl.nameplateVisual.id);
+      for (const auto &[slot, visual] : impl.characters)
+        add(visual.id);
+      for (const auto &voice : impl.sceneAudio)
+        add(voice.id);
+    }
+    nodes.push_back(std::move(node));
+  }
+  return nodes;
+}
+
+void KirikiriRuntime::debugJumpToNode(const std::string &id) {
+  constexpr std::string_view prefix = "kirikiri | scenario ";
+  if (id.compare(0, prefix.size(), prefix) != 0 ||
+      !startScenario(id.substr(prefix.size())))
+    throw std::invalid_argument("Unknown Kirikiri debug scenario: " + id);
+  SetState(Kotonoha::GameState::Gameplay);
+}
+
+std::vector<Kotonoha::DebugAudioAsset> KirikiriRuntime::debugSceneAudio() {
+  auto rows = impl_->sceneAudio;
+  // Annotate only the most recently played native VOICE clip with its active
+  // dialogue; BGM and sound effects must never be attributed to a character.
+  if (!originalDialogueText_.empty() && !rows.empty())
+    for (auto it = rows.rbegin(); it != rows.rend(); ++it)
+      if (!it->id.empty() &&
+          (it->id.find("voice") != std::string::npos ||
+           it->id.find("VOICE") != std::string::npos)) {
+        it->character = originalDialogueSpeaker_;
+        it->text = originalDialogueText_;
+        break;
+      }
+  return rows;
 }
 
 void KirikiriRuntime::debugRestartScene() {
