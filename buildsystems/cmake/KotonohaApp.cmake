@@ -372,6 +372,14 @@ function(kotonoha_configure_app target)
                 COPYONLY
             )
 
+            # Shared WASM is cached by this tiny browser shim, which is safe
+            # to include for static builds (no shared URL => no interception).
+            configure_file(
+                "${KOTONOHA_PROJECT_ROOT}/lib/web/KotonohaSharedWasmCache.js"
+                "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/KotonohaSharedWasmCache.js"
+                COPYONLY
+            )
+
             # Detect a mismatched/broken JS + WASM Asyncify pair at build
             # time, before browsers can abort with _asyncify_start_unwind.
             add_custom_command(TARGET ${target} POST_BUILD
