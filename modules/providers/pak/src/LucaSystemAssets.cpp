@@ -787,11 +787,27 @@ LucaSystemAssets::openStream(const std::string &id) const {
 std::vector<std::string>
 LucaSystemAssets::listAsset(const std::string &prefix) const {
   std::vector<std::string> result;
-  for (const auto &[name, _] : idToPak_) {
-    if (prefix.empty() || name.rfind(prefix, 0) == 0)
-      result.push_back(name);
-  }
+  // Expose the exact logical resource IDs supported by read()/loadSurface()
+  // and by the native VM, rather than only named archive entries. Image,
+  // voice, BGM and SE archives often contain numeric-only entries.
+  const auto append = [&](const std::string &id) {
+    if (prefix.empty() || id.rfind(prefix, 0) == 0)
+      result.push_back(id);
+  };
+  for (const auto &[name, _] : idToPak_)
+    append(name);
+  const auto numeric = [&](const auto &entries, const char *kind) {
+    for (const auto &[id, pak] : entries)
+      append(std::string(kind) + ":" + std::to_string(id));
+  };
+  numeric(imageIdToPak_, "image");
+  numeric(voiceIdToPak_, "voice");
+  numeric(bgmIdToPak_, "bgm");
+  numeric(seIdToPak_, "se");
+  append("image:65000"); // VM synthetic white fill
+  append("image:65001"); // VM synthetic black fill
   std::sort(result.begin(), result.end());
+  result.erase(std::unique(result.begin(), result.end()), result.end());
   return result;
 }
 
