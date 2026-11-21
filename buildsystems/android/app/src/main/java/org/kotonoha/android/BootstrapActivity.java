@@ -55,6 +55,12 @@ public final class BootstrapActivity extends Activity {
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     Intent game = new Intent(this, GameActivity.class);
+                    if (getCallingActivity() != null &&
+                            getPackageName().equals(getCallingActivity().getPackageName()) &&
+                            getIntent().hasExtra(GameActivity.LAUNCH_ARGUMENTS)) {
+                        game.putExtra(GameActivity.LAUNCH_ARGUMENTS,
+                                getIntent().getStringArrayExtra(GameActivity.LAUNCH_ARGUMENTS));
+                    }
                     if (getCallingActivity() != null) {
                         game.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
                     }

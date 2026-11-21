@@ -1,19 +1,20 @@
 #include "SchoolDaysRuntime.hpp"
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysMobileProfile.hpp"
-#include <Kotonoha/routing/SchoolDaysDisplayNarrativeMarkup.hpp>
-#include <Kotonoha/routing/SchoolDaysLxhContent.hpp>
-#include <Kotonoha/routing/SchoolDaysMediaCancellationPool.hpp>
-#include <Kotonoha/routing/SchoolDaysTranslationCoverage.hpp>
-#include <Kotonoha/routing/SchoolDaysUpscalingPolicy.hpp>
-#include <Kotonoha/routing/SchoolDaysShaderPresetCatalog.hpp>
-#include <Kotonoha/routing/SchoolDaysCustomShaderFolder.hpp>
-#include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
+#include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <Kotonoha/mobile/StartupStage.hpp>
+#include <Kotonoha/routing/SchoolDaysCustomShaderFolder.hpp>
+#include <Kotonoha/routing/SchoolDaysDisplayNarrativeMarkup.hpp>
+#include <Kotonoha/routing/SchoolDaysLxhContent.hpp>
+#include <Kotonoha/routing/SchoolDaysMediaCancellationPool.hpp>
+#include <Kotonoha/routing/SchoolDaysShaderPresetCatalog.hpp>
+#include <Kotonoha/routing/SchoolDaysTranslationCoverage.hpp>
+#include <Kotonoha/routing/SchoolDaysUpscalingPolicy.hpp>
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
@@ -914,8 +915,10 @@ Runtime::Runtime(std::shared_ptr<Assets> source, std::string route,
       routePath(std::move(route)), documents(std::move(saveDirectory)),
       physicalSettingsPath(std::move(settingsFile)) {
   Kotonoha_KtrfError error{};
+  Kotonoha::Mobile::setStartupStage(Kotonoha::Mobile::StartupStage::Script);
   Check(bridge.Open(routePath.c_str(), assets->orsRoot().string().c_str(), nullptr,
                     {createPresentation, destroyPresentation, this}, &error), error);
+  Kotonoha::Mobile::setStartupStage(Kotonoha::Mobile::StartupStage::Runtime);
 }
 
 Runtime::~Runtime() { shutdown(); }

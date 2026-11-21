@@ -4,9 +4,9 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class PackCaseRegression {
-    private static final DocumentTree.Entry FILE = new DocumentTree.Entry(null, false, false);
-    private static final DocumentTree.Entry EMPTY = new DocumentTree.Entry(null, false, true);
-    private static final DocumentTree.Entry DIRECTORY = new DocumentTree.Entry(null, true, false);
+    private static final DocumentTree.Entry FILE = new DocumentTree.Entry(null, false, 1);
+    private static final DocumentTree.Entry EMPTY = new DocumentTree.Entry(null, false, 0);
+    private static final DocumentTree.Entry DIRECTORY = new DocumentTree.Entry(null, true, -1);
 
     private static void check(String name, DocumentTree.Entry entry, boolean expected) {
         boolean found = !SchoolDaysFolder.missingPacks(Map.of(name, entry)).contains("System.GPK");
@@ -27,6 +27,8 @@ public final class PackCaseRegression {
         if (SchoolDaysFolder.missingPacks(Map.of("ini.gpk", FILE)).contains("Ini.GPK")) {
             throw new AssertionError("Pack matching must be independent of the device language");
         }
-        System.out.println("PASS 8 synthetic pack metadata cases");
+        if (!SchoolDaysFolder.missingPacks(Map.of("System.gpk", FILE, "SYSTEM.GPK", FILE))
+                .contains("System.GPK")) throw new AssertionError("Ambiguous pack names");
+        System.out.println("PASS 9 synthetic pack metadata cases");
     }
 }

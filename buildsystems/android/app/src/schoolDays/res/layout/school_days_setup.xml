@@ -30,6 +30,8 @@
                 <Button android:id="@+id/forget" style="@style/SdButton" android:text="@string/sd_forget" />
                 <TextView style="@style/SdHeading" android:text="@string/sd_language" android:accessibilityHeading="true" />
                 <TextView android:id="@+id/languages" style="@style/SdText" />
+                <Button android:id="@+id/choose_language" style="@style/SdButton" android:text="@string/sd_choose"
+                    android:visibility="gone" />
                 <TextView android:id="@+id/version" style="@style/SdText" android:layout_marginVertical="20dp" />
                 <Button android:id="@+id/back" style="@style/SdButton" android:text="@string/sd_back" />
             </LinearLayout>

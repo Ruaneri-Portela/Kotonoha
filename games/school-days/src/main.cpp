@@ -6,13 +6,17 @@
 #include "SchoolDaysMobileProfile.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/components/ForcedSubtitleRenderer.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/routing/SchoolDaysTranslationCoverage.hpp>
+#include <Kotonoha/mobile/StartupStage.hpp>
 #include <Kotonoha/routing/SchoolDaysGpkLanguageProfile.hpp>
-#include <Kotonoha/SchoolDaysAssetMount.hpp>
+#include <Kotonoha/routing/SchoolDaysTranslationCoverage.hpp>
+#ifdef __ANDROID__
+#include <Kotonoha/mobile/DocumentMount.hpp>
+#endif
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -90,6 +94,7 @@ struct Application {
         translationSettingsPath(options.settingsPath),
         runtime(assets, route, documents, options.settingsPath),
         engine(runtime, WithAssets(std::move(options), assets)) {
+    Kotonoha::Mobile::setStartupStage(Kotonoha::Mobile::StartupStage::Language);
     if (!nativeGpkLocale.empty()) {
       // The native translation already lives in the mounted Script.GPK and
       // seven LxH ORS. Never translate those strings again through JSON, and
@@ -185,6 +190,7 @@ struct App {
   std::unique_ptr<Application> application;
   Kotonoha::EngineOptions options;
   std::string scripts, route, startNode, dump, documents, lxhJsonOverride;
+  std::shared_ptr<const Kotonoha::Filesystem::IMount> documentPacks;
   long frames = -1;
 #if defined(__ANDROID__) || defined(ANDROID)
   int frameLimit = 0;
@@ -286,7 +292,8 @@ struct App {
         // --no-asset-overlay is explicit even though it resolves to an empty
         // path. Do not re-enable the automatic overlay in the asset provider.
         !scripts.empty() || !options.assetOverlaySpecified ||
-            !options.assetOverlayPath.empty());
+            !options.assetOverlayPath.empty(),
+        documentPacks);
 #if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "School Days HQ retail-only: 29 original GPKs, dubbing supported");
@@ -307,6 +314,7 @@ struct App {
       // the portable basename with an unusable absolute-only reference.
       application->engine.applySettings(live, false);
     }
+    Kotonoha::Mobile::setStartupStage(Kotonoha::Mobile::StartupStage::Ready);
     DevStartupLog("engine-ready");
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     if (!startNode.empty()) {
@@ -381,12 +389,25 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     arguments.option("--dump-ktrf", "FILE", "Export the active routing graph",
                      app->dump);
 #endif
+#ifdef __ANDROID__
+    std::string catalog;
+    arguments.option("--document-catalog", "FILE", "Private SAF launch catalog",
+                     catalog);
+#endif
     arguments.parse(argc, argv);
     // Android's SAF/language/options Activity owns the launch flow. Apply
     // this policy only after parsing so command-line handling remains shared
     // and desktop startup never inherits a premature launcher-disable state.
 #if defined(__ANDROID__) || defined(ANDROID)
     app->options.launcher = false;
+    if (!catalog.empty()) {
+      Kotonoha::Mobile::setStartupStage(Kotonoha::Mobile::StartupStage::Files);
+      app->documentPacks = Kotonoha::Filesystem::openDocumentDirectory(catalog);
+      app->route =
+          Kotonoha::FileResolver::resolve(std::filesystem::path(directory) /
+                                          "school-days-hq.ktnroute")
+              .string();
+    }
 #endif
     // Bounded headless QA must reach the game loop rather than the launcher.
     // DIST must not expose route-jump, KTRF export or developer controls.
@@ -466,7 +487,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
     // A new distribution must not inherit a custom route from AppData or
     // expose a writable KTRF route override to the player.
-    app->route = SchoolDays::Assets::defaultRoute().string();
+    if (!app->documentPacks)
+      app->route = SchoolDays::Assets::defaultRoute().string();
 #endif
     if (app->route.empty() && !legacySettings.empty() &&
         legacySettings != settings)
@@ -507,8 +529,8 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
         legacySettings != settings)
       directory = rememberedValidDirectory(legacySettings);
 #if defined(__ANDROID__) || defined(ANDROID)
-    // Bootstrap has already copied validated user-owned Packs to app-private
-    // storage. Never launch Android with an empty desktop-style folder field.
+    // A document launch supplies its own root. Legacy private installs use
+    // discovery.
     if (directory.empty()) directory = SchoolDays::Assets::defaultDirectory().string();
 #endif
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
