@@ -1,3 +1,9 @@
+# CMake 4.2+ normalizes Windows paths before matching runtime DLL filters.
+# Opt in explicitly; older CMake versions do not have CMP0207.
+if(POLICY CMP0207)
+    cmake_policy(SET CMP0207 NEW)
+endif()
+
 # Copies the shared libraries required by a desktop executable into its
 # adjacent "libs" directory. Linux keeps the ELF SONAME, so an $ORIGIN/libs
 # runtime path resolves both direct and transitive dependencies. macOS install
