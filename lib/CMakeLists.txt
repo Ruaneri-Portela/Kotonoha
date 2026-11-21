@@ -205,15 +205,9 @@ endif ()
 # Target: imgui
 # ==============================================================================
 set(KOTONOHA_LIB_TYPE SHARED)
-if(EMSCRIPTEN AND NOT KOTONOHA_WASM_SHARED_ENGINE)
+if (EMSCRIPTEN)
     set(KOTONOHA_LIB_TYPE STATIC)
-endif()
-# Keep ImGui as an engine-private archive in the shared WASM mode. A second
-# libimgui.wasm would add another async dynamic dependency to every PWA.
-set(KOTONOHA_IMGUI_LIB_TYPE ${KOTONOHA_LIB_TYPE})
-if(EMSCRIPTEN AND KOTONOHA_WASM_SHARED_ENGINE)
-    set(KOTONOHA_IMGUI_LIB_TYPE STATIC)
-endif()
+endif ()
 
 option(KOTONOHA_IMGUI_FROM_VCPKG
         "Import ImGui with SDL3/SDL3 Renderer backends from vcpkg" OFF)
@@ -233,7 +227,7 @@ if(KOTONOHA_IMGUI_FROM_VCPKG)
     # Directly consume the external target: no project-owned wrapper target.
     set(KOTONOHA_IMGUI_TARGET imgui::imgui)
 else()
-    add_library(imgui ${KOTONOHA_IMGUI_LIB_TYPE}
+    add_library(imgui ${KOTONOHA_LIB_TYPE}
             submodules/imgui/imgui.cpp
             submodules/imgui/imgui_draw.cpp
             submodules/imgui/imgui_tables.cpp
@@ -278,47 +272,7 @@ if(DEFINED KOTONOHA_ENABLE_UPSCALER AND NOT KOTONOHA_ENABLE_UPSCALER)
     list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/media/upscaling/(MPVCompatibleUpscaler|MetalFXUpscaler)\\.(cpp|mm)$")
 endif()
 
-# The separate WebMainExports.cpp translation unit is main-module-only,
-# never part of the engine's recursive source glob (static or dynamic).
-list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/core/WebMainExports\\.cpp$")
-# Keep the Emscripten JS-facing bootstrap in each application's main module.
-# The native runtime/translation/player implementation remains shared.
-if(EMSCRIPTEN AND KOTONOHA_WASM_SHARED_ENGINE)
-    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/core/WebAssetFetch\\.cpp$")
-endif()
-
 add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
-
-if(EMSCRIPTEN AND KOTONOHA_WASM_SHARED_ENGINE)
-    # Versioned filename prevents two games built against different revisions
-    # from silently loading an ABI-incompatible shared engine.
-    string(REGEX REPLACE "[^A-Za-z0-9._-]" "-"
-        _kotonoha_wasm_engine_version "${KOTONOHA_VERSION_FULL}")
-    set(_kotonoha_wasm_engine_basename
-        "kotonoha-${_kotonoha_wasm_engine_version}")
-    set(KOTONOHA_WASM_SHARED_FILENAME
-        "lib${_kotonoha_wasm_engine_basename}.wasm" CACHE INTERNAL
-        "Versioned single engine WASM shared by all browser ports" FORCE)
-    set_target_properties(KotonohaEngine PROPERTIES
-        OUTPUT_NAME "${_kotonoha_wasm_engine_basename}"
-        PREFIX "lib"
-        SUFFIX ".wasm"
-        LIBRARY_OUTPUT_DIRECTORY "${KOTONOHA_OUTPUT_LIB_DIR}"
-        POSITION_INDEPENDENT_CODE ON
-        CXX_VISIBILITY_PRESET default
-        VISIBILITY_INLINES_HIDDEN OFF)
-    target_compile_definitions(KotonohaEngine PRIVATE
-        KOTONOHA_WASM_SHARED_ENGINE=1)
-    # This is a real Emscripten side module, never a fake dylib or static
-    # archive. Instrument it separately: the final main link's Asyncify pass
-    # cannot rewrite already-linked shared WASM code.
-    target_link_options(KotonohaEngine PRIVATE
-        "SHELL:-sSIDE_MODULE=1"
-        "SHELL:-sASYNCIFY=1"
-        "SHELL:-O2"
-        "-fexceptions")
-    message(STATUS "[Kotonoha] Shared WASM engine: ${KOTONOHA_WASM_SHARED_FILENAME}")
-endif()
 if(KOTONOHA_DISTRIBUTION_BUILD)
     # PUBLIC reaches CLI consumers, game ports and their tests as well.
     target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_DISTRIBUTION_BUILD=1)
@@ -349,34 +303,18 @@ if(NOT KOTONOHA_IMGUI_FROM_VCPKG)
             WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
-if(ANDROID)
+if (ANDROID)
     set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha_engine)
-elseif(NOT (EMSCRIPTEN AND KOTONOHA_WASM_SHARED_ENGINE))
-    # The side module already received the versioned OUTPUT_NAME above.
-    # Never reset it to libkotonoha.wasm after computing the HTML loader URL.
+else ()
     set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha)
-endif()
+endif ()
 
 target_include_directories(KotonohaEngine PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${KOTONOHA_BUILD_VERSION_INCLUDE_DIR}>
 )
 
-if(EMSCRIPTEN AND KOTONOHA_WASM_SHARED_ENGINE)
-    # ImGui code belongs to the side module only, but public game/runtime
-    # sources that include ImGui headers must keep the old include contract.
-    # Expose its include directories without linking another ImGui archive
-    # into each game's MAIN_MODULE.
-    target_include_directories(KotonohaEngine PUBLIC
-        "$<TARGET_PROPERTY:${KOTONOHA_IMGUI_TARGET},INTERFACE_INCLUDE_DIRECTORIES>")
-    # SDL/FFmpeg are visible to the MAIN_MODULE's system library linker.
-    target_link_libraries(KotonohaEngine PUBLIC
-        SDL3::SDL3 SDL3_ttf::SDL3_ttf ${kotonoha_ffmpeg_target})
-    target_link_libraries(KotonohaEngine PRIVATE
-        ${KOTONOHA_IMGUI_TARGET} ${kotonoha_json_target}
-        ${kotonoha_ass_target})
-else()
-    target_link_libraries(KotonohaEngine
+target_link_libraries(KotonohaEngine
         PUBLIC
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
@@ -385,8 +323,7 @@ else()
         PRIVATE
         ${kotonoha_json_target}
         ${kotonoha_ass_target}
-    )
-endif()
+)
 
 if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
     # SDL_ttf's pkg-config find modules emit -l flags for static dependencies.

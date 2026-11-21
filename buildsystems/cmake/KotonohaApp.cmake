@@ -269,39 +269,6 @@ function(kotonoha_configure_app target)
             target_compile_options(${target} PRIVATE
                 -fexceptions
             )
-            if(KOTONOHA_WASM_SHARED_ENGINE)
-                # Only the browser-facing C ABI stays in <Game>.wasm. All
-                # rendering, asset, translation and audio implementation
-                # remains in the one libkotonoha-<version>.wasm side module.
-                target_sources(${target} PRIVATE
-                    "${KOTONOHA_PROJECT_ROOT}/lib/src/core/WebAssetFetch.cpp"
-                    "${KOTONOHA_PROJECT_ROOT}/lib/src/core/WebMainExports.cpp")
-                if(NOT TARGET KotonohaWasmAsyncifyImports)
-                    set(_asyncify_file
-                        "${CMAKE_BINARY_DIR}/kotonoha-wasm/engine-asyncify-imports.json")
-                    add_custom_command(
-                        OUTPUT "${_asyncify_file}"
-                        COMMAND python3
-                            "${KOTONOHA_PROJECT_ROOT}/tools/generate_wasm_side_asyncify_imports.py"
-                            "$<TARGET_FILE:KotonohaEngine>"
-                            "${_asyncify_file}"
-                        DEPENDS KotonohaEngine
-                            "${KOTONOHA_PROJECT_ROOT}/tools/generate_wasm_side_asyncify_imports.py"
-                            "${KOTONOHA_PROJECT_ROOT}/tools/check_wasm_asyncify.py"
-                        VERBATIM)
-                    add_custom_target(KotonohaWasmAsyncifyImports
-                        DEPENDS "${_asyncify_file}")
-                    set(KOTONOHA_WASM_ASYNCIFY_FILE "${_asyncify_file}"
-                        CACHE INTERNAL "Generated dynamic Asyncify import list" FORCE)
-                endif()
-                add_dependencies(${target} KotonohaWasmAsyncifyImports)
-                # Passing the side-module file through target_link_libraries
-                # (KotonohaEngine), not only -l flags, tells MAIN_MODULE=2
-                # which engine symbols must stay live and load at startup.
-                target_link_options(${target} PRIVATE
-                    "SHELL:-sMAIN_MODULE=2"
-                    "SHELL:-sASYNCIFY_IMPORTS=@${KOTONOHA_WASM_ASYNCIFY_FILE}")
-            endif()
             target_link_options(${target} PRIVATE
                 -fexceptions
                 "SHELL:-sDISABLE_EXCEPTION_CATCHING=0"
@@ -328,11 +295,6 @@ function(kotonoha_configure_app target)
 
             set(APP_TITLE "${target}")
             set(TARGET_NAME "${target}")
-            if(KOTONOHA_WASM_SHARED_ENGINE)
-                set(WASM_SHARED_ENGINE "true")
-            else()
-                set(WASM_SHARED_ENGINE "false")
-            endif()
             # Every output directory is a standalone PWA with its own
             # start URL, installation identity and Service Worker scope.
             # A stable cache key keeps installations isolated by release.
@@ -372,14 +334,6 @@ function(kotonoha_configure_app target)
                 COPYONLY
             )
 
-            # Shared WASM is cached by this tiny browser shim, which is safe
-            # to include for static builds (no shared URL => no interception).
-            configure_file(
-                "${KOTONOHA_PROJECT_ROOT}/lib/web/KotonohaSharedWasmCache.js"
-                "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/KotonohaSharedWasmCache.js"
-                COPYONLY
-            )
-
             # Detect a mismatched/broken JS + WASM Asyncify pair at build
             # time, before browsers can abort with _asyncify_start_unwind.
             add_custom_command(TARGET ${target} POST_BUILD
@@ -388,15 +342,6 @@ function(kotonoha_configure_app target)
                 COMMENT "Checking required Asyncify exports in WASM binary"
                 VERBATIM
             )
-            if(KOTONOHA_WASM_SHARED_ENGINE)
-                add_custom_command(TARGET ${target} POST_BUILD
-                    COMMAND python3
-                        "${KOTONOHA_PROJECT_ROOT}/tools/check_wasm_shared_layout.py"
-                        "$<TARGET_FILE:${target}>"
-                        "$<TARGET_FILE:KotonohaEngine>"
-                    COMMENT "Validating separate main/side WASM dependency"
-                    VERBATIM)
-            endif()
 
             add_custom_command(TARGET ${target} POST_BUILD
                 COMMAND python3 "${KOTONOHA_PROJECT_ROOT}/tools/generate_manifest.py"
