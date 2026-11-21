@@ -231,7 +231,7 @@ bool loadFontsFromPaths(const std::filesystem::path &customPath,
     font = tryLoadFontFile(io, defaultPath);
   const bool loadedFromFile = (font != nullptr);
   if (!font)
-    font = io.Fonts->AddFontDefault();
+    font = io.Fonts->AddFontDefaultVector();
   io.FontDefault = font;
   return loadedFromFile;
 }

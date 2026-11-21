@@ -166,11 +166,6 @@ void runFontTests(const fs::path &root, const fs::path &validTtf) {
     DummyRuntime() : Runtime("ImGuiThemeTest", "1", "imgui-theme-test") {}
   };
 
-  DummyRuntime runtime;
-  EngineOptions options;
-  options.persistSettings = false;
-  Engine engine(runtime, options);
-
   const fs::path emptyFile = root / "empty.ttf";
   const fs::path tinyFile = root / "tiny.ttf";
   const fs::path garbageFile = root / "garbage.ttf";
@@ -187,46 +182,69 @@ void runFontTests(const fs::path &root, const fs::path &validTtf) {
   writeBytes(incompatibleOtf, makeIncompatibleSfnt(false));
   writeBytes(incompatibleTtc, makeIncompatibleSfnt(true));
 
-  // Case 1: Both custom and default fonts are incompatible (Android scenario).
-  // Must fall back to AddFontDefault() without asserting or crashing on render.
-  for (const auto &bad : {emptyFile, tinyFile, garbageFile, truncatedFile,
-                          badTtcFile, incompatibleOtf, incompatibleTtc,
-                          root / "does-not-exist.ttf"}) {
-    require(!ImGuiTheme::loadFontsFromPaths(bad, incompatibleTtc),
-            "Invalid/incompatible font pair must fall back to AddFontDefault");
+  {
+    DummyRuntime runtime;
+    EngineOptions options;
+    options.persistSettings = false;
+    Engine engine(runtime, options);
+
+    // Case 1: Both custom and default fonts are incompatible (Android scenario).
+    // Must fall back to AddFontDefaultVector() without asserting or crashing.
+    for (const auto &bad : {emptyFile, tinyFile, garbageFile, truncatedFile,
+                            badTtcFile, incompatibleOtf, incompatibleTtc,
+                            root / "does-not-exist.ttf"}) {
+      require(!ImGuiTheme::loadFontsFromPaths(bad, incompatibleTtc),
+              "Invalid/incompatible font pair must fall back to built-in font");
+      engine.Iterate();
+    }
+
+    // Case 2: Empty custom path with incompatible default font.
+    require(!ImGuiTheme::loadFontsFromPaths({}, incompatibleTtc),
+            "Empty custom path with incompatible default must fall back safely");
     engine.Iterate();
+
+    // Case 3: Valid TTF must still load as the active ImGui font.
+    require(ImGuiTheme::loadFontsFromPaths(validTtf, incompatibleTtc),
+            "Valid TTF font must load instead of built-in fallback");
+    engine.Iterate();
+
+    // Case 4: Invalid custom font with valid default font falls back to default.
+    require(ImGuiTheme::loadFontsFromPaths(incompatibleTtc, validTtf),
+            "Invalid custom font must fall back to valid default TTF");
+    engine.Iterate();
+
+    // Case 5: Public DebugOverlay::reloadFonts() and loadFonts() paths.
+    engine.GetDebug().reloadFonts(incompatibleTtc.string());
+    engine.Iterate();
+    engine.GetDebug().reloadFonts(validTtf.string());
+    engine.Iterate();
+    ImGuiTheme::loadFonts();
+    engine.Iterate();
+
+    // Case 6: Repeated alternating reloads must not leak or corrupt atlas state.
+    for (int i = 0; i < 12; ++i) {
+      const bool expectFile = (i % 2 != 0);
+      const bool loaded = ImGuiTheme::loadFontsFromPaths(
+          expectFile ? validTtf : incompatibleOtf, incompatibleTtc);
+      require(loaded == expectFile, "Repeated font reloads must be consistent");
+      engine.Iterate();
+    }
   }
 
-  // Case 2: Empty custom path with incompatible default font.
-  require(!ImGuiTheme::loadFontsFromPaths({}, incompatibleTtc),
-          "Empty custom path with incompatible default must fall back safely");
-  engine.Iterate();
-
-  // Case 3: Valid TTF must still load as the active ImGui font.
-  require(ImGuiTheme::loadFontsFromPaths(validTtf, incompatibleTtc),
-          "Valid TTF font must load instead of built-in fallback");
-  engine.Iterate();
-
-  // Case 4: Invalid custom font with valid default font falls back to default.
-  require(ImGuiTheme::loadFontsFromPaths(incompatibleTtc, validTtf),
-          "Invalid custom font must fall back to valid default TTF");
-  engine.Iterate();
-
-  // Case 5: Public DebugOverlay::reloadFonts() and loadFonts() paths.
-  engine.GetDebug().reloadFonts(incompatibleTtc.string());
-  engine.Iterate();
-  engine.GetDebug().reloadFonts(validTtf.string());
-  engine.Iterate();
-  ImGuiTheme::loadFonts();
-  engine.Iterate();
-
-  // Case 6: Repeated alternating reloads must not leak or corrupt atlas state.
-  for (int i = 0; i < 12; ++i) {
-    const bool expectFile = (i % 2 != 0);
-    const bool loaded = ImGuiTheme::loadFontsFromPaths(
-        expectFile ? validTtf : incompatibleOtf, incompatibleTtc);
-    require(loaded == expectFile, "Repeated font reloads must be consistent");
-    engine.Iterate();
+  // Case 7: High-DPI / scaled Debug UI fallback across FrameCount == 2.
+  // ImGui 1.92+ asserts in ErrorCheckNewFrameSanityChecks() if AddFontDefault()
+  // heuristic parameters change between init and frame 2; explicit vector
+  // fallback must survive multiple frames at scaled DPI.
+  {
+    DummyRuntime scaledRuntime;
+    EngineOptions scaledOptions;
+    scaledOptions.persistSettings = false;
+    scaledOptions.settings.debugUIScale = 2.0f;
+    Engine scaledEngine(scaledRuntime, scaledOptions);
+    require(!ImGuiTheme::loadFontsFromPaths(incompatibleOtf, incompatibleTtc),
+            "High-DPI fallback must load built-in default font");
+    for (int frame = 0; frame < 4; ++frame)
+      scaledEngine.Iterate();
   }
 }
 } // namespace
