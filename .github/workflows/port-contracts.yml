@@ -28,6 +28,15 @@ on:
       - "buildsystems/cmake/pwa.webmanifest.in"
       - "buildsystems/cmake/service-worker.js.in"
       - "buildsystems/cmake/KotonohaApp.cmake"
+      - "buildsystems/cmake/KotonohaOptions.cmake"
+      - "lib/CMakeLists.txt"
+      - "lib/src/core/WebMainExports.cpp"
+      - "lib/src/core/WebAssetFetch.cpp"
+      - "lib/src/Filesystem/Sources/FetchAssetProvider.cpp"
+      - "tools/check_wasm_shared_layout.py"
+      - "tools/generate_wasm_side_asyncify_imports.py"
+      - "tools/test_wasm_shared_engine.py"
+      - "tools/test_wasm_shared_cache.js"
       - "tools/web_selftest.js"
       - "buildsystems/cmake/index.html.in"
       - "lib/src/core/WebAssetFetch.cpp"
@@ -85,6 +94,15 @@ on:
       - "buildsystems/cmake/pwa.webmanifest.in"
       - "buildsystems/cmake/service-worker.js.in"
       - "buildsystems/cmake/KotonohaApp.cmake"
+      - "buildsystems/cmake/KotonohaOptions.cmake"
+      - "lib/CMakeLists.txt"
+      - "lib/src/core/WebMainExports.cpp"
+      - "lib/src/core/WebAssetFetch.cpp"
+      - "lib/src/Filesystem/Sources/FetchAssetProvider.cpp"
+      - "tools/check_wasm_shared_layout.py"
+      - "tools/generate_wasm_side_asyncify_imports.py"
+      - "tools/test_wasm_shared_engine.py"
+      - "tools/test_wasm_shared_cache.js"
       - "tools/web_selftest.js"
       - "buildsystems/cmake/index.html.in"
       - "lib/src/core/WebAssetFetch.cpp"
@@ -138,6 +156,8 @@ jobs:
           python3 tools/check_debug_bridge.py
           python3 tools/check_port_debug_contracts.py
           python3 tools/check_sdl_cpack.py
+          python3 tools/test_wasm_shared_engine.py
+          python3 tools/check_wasm_asyncify.py --self-test
       - name: Test common Kotonoha debug asset conventions (C++17)
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
@@ -180,6 +200,7 @@ jobs:
         run: |
           node tools/check_web_shell.js
           node tools/test_pwa_worker.js
+          node tools/test_wasm_shared_cache.js
           node tools/test_preload_cache.js
           node tools/test_web_locales.js
           node --check tools/web_selftest.js
