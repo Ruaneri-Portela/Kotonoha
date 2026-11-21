@@ -9,10 +9,9 @@ project(KotonohaEngine VERSION 0.1.0 LANGUAGES CXX)
 if(NOT KOTONOHA_BUILD_VERSION_INCLUDE_DIR)
     include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/BuildVersion.cmake")
 endif()
-enable_language(C)
 
 if (APPLE AND NOT EMSCRIPTEN)
-    enable_language(OBJC OBJCXX)
+    enable_language(OBJCXX)
 endif ()
 
 # Inclusao de rotinas especificas de plataforma
