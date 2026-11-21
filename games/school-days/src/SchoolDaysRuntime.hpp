@@ -301,9 +301,8 @@ class Runtime final : public Kotonoha::Runtime {
   bool displayPanelResolutionOpen = false;
   bool displayPanelRenderScaleOpen = false;
   bool displayPanelPresetOpen = false;
-#if !defined(__ANDROID__) && !defined(ANDROID)
-  // Desktop Display Options is transactional: other tabs and Close discard
-  // these fields. The Android panel above intentionally keeps its own flow.
+  // Display Options is transactional: other tabs and Close discard
+  // uncommitted edits; live controls persist immediately.
   Kotonoha::EngineSettings desktopDisplayDraft;
   bool desktopDisplayDraftActive = false;
   // Renderer changes selected while running Direct3D are persisted for restart.
@@ -322,7 +321,6 @@ class Runtime final : public Kotonoha::Runtime {
   bool desktopCustomShaderExpanded = false;
   std::string desktopDisplayPathEdit;
   std::vector<Kotonoha::DisplayModeChoice> desktopDisplayModes;
-#endif
   bool framePrimaryReady = false;
   bool frameBoundary = false;
   bool pendingSceneAdvance = false;

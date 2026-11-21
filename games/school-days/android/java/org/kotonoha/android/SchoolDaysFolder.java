@@ -62,6 +62,26 @@ final class SchoolDaysFolder {
         return locale + "-lxh.GPK";
     }
 
+    List<String> missingGpkFiles(String locale) {
+        List<String> absent = new ArrayList<>();
+        String scriptName = gpkScriptFilename(locale);
+        if (scriptName == null) {
+            if (!archives.containsKey("script.gpk")) absent.add("Packs/Script.GPK");
+        } else if (!file(scripts, scriptName)) {
+            absent.add(scriptName);
+        }
+        String lxhName = gpkLxhFilename(locale);
+        if (!file(scripts, lxhName)) {
+            absent.add(lxhName);
+        }
+        return absent;
+    }
+
+    boolean hasLegacyIncompatibleChineseGpk() {
+        return file(scripts, "Script - chinese.GPK")
+                && !file(scripts, "Script - chinese-compatible.GPK");
+    }
+
     static String formatLanguageSelection(String backend, String locale) {
         return backend + ":" + locale;
     }

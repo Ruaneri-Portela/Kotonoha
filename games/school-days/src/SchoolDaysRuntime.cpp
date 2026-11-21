@@ -476,11 +476,15 @@ int SelectedAndroidMode(const std::vector<Kotonoha::AndroidDisplayMode> &modes,
   if (modes.empty()) return -1;
   if (settings.fullscreenWidth > 0 && settings.fullscreenHeight > 0 &&
       settings.refreshRate > 0.0f) {
-    for (size_t i = 0; i < modes.size(); ++i)
-      if (modes[i].width == settings.fullscreenWidth &&
-          modes[i].height == settings.fullscreenHeight &&
-          std::abs(modes[i].refreshRate - settings.refreshRate) < 0.05f)
+    const int targetW = std::max(settings.fullscreenWidth, settings.fullscreenHeight);
+    const int targetH = std::min(settings.fullscreenWidth, settings.fullscreenHeight);
+    for (size_t i = 0; i < modes.size(); ++i) {
+      const int modeW = std::max(modes[i].width, modes[i].height);
+      const int modeH = std::min(modes[i].width, modes[i].height);
+      if (modeW == targetW && modeH == targetH &&
+          std::abs(modes[i].refreshRate - settings.refreshRate) < 0.5f)
         return static_cast<int>(i);
+    }
   }
   const int current = Kotonoha::AndroidCurrentDisplayModeId();
   for (size_t i = 0; i < modes.size(); ++i)
@@ -641,12 +645,7 @@ struct Presentation final : Kotonoha::SchoolDaysScenePresentation {
 const char *Text(const char *text) { return text ? text : ""; }
 
 std::u16string Utf16(const std::string &text) {
-  if (text.empty()) return {};
-  char *converted = SDL_iconv_string("UTF-16LE", "UTF-8", text.c_str(), text.size() + 1);
-  if (!converted) return {};
-  std::u16string result(reinterpret_cast<const char16_t *>(converted));
-  SDL_free(converted);
-  return result;
+  return Kotonoha::Utf8ToUtf16(text);
 }
 
 struct TtfFont {
@@ -4037,14 +4036,9 @@ void Runtime::renderScreen(Kotonoha::RendererRef renderer, float scale) {
       setStatus("School Days panel failed: " + failure);
       return;
     }
-    // The desktop Display base+CHIP are rendered by the native CMAP presenter:
-    // only dynamic values and modal selectors belong to this overlay. Android
-    // deliberately retains its historical overlay on all Config pages.
-#if defined(__ANDROID__) || defined(ANDROID)
-    if (systemUi.IsConfigOpen()) renderDisplayPanel(renderer);
-#else
+    // The Display base+CHIP are rendered by the native CMAP presenter:
+    // only dynamic values and modal selectors belong to this overlay.
     if (displayPanelOpen()) renderDisplayPanel(renderer);
-#endif
   }
   // The H-scene handoff covers the physical Replay gallery on the outgoing
   // phase and the entire presentation on the incoming phase. A fade drawn
@@ -4084,7 +4078,6 @@ void Runtime::renderLxhFade(Kotonoha::RendererRef renderer, uint64_t nowMs) {
   (void)SDL_SetRenderDrawBlendMode(&renderer, blend);
 }
 
-#if !defined(__ANDROID__) && !defined(ANDROID)
 void Runtime::discardDesktopDisplayDraft() {
   if (desktopDisplayPopup == DesktopDisplayPopup::GlslPath && engine)
     SDL_StopTextInput(&engine->GetWindow());
@@ -4124,6 +4117,19 @@ void Runtime::activateDesktopDisplayControl(int control) {
   };
   switch (control) {
   case 4: {
+#if defined(__ANDROID__) || defined(ANDROID)
+    const auto modes = AndroidDisplayModesUnique();
+    desktopDisplayModes.clear();
+    desktopDisplayModes.reserve(modes.size());
+    for (const auto &mode : modes)
+      desktopDisplayModes.push_back({mode.width, mode.height, mode.refreshRate});
+    if (desktopDisplayModes.empty()) {
+      setStatus("No supported display modes on this device");
+      return;
+    }
+    const int selected = std::max(0, SelectedAndroidMode(modes, draft));
+    openPopup(DesktopDisplayPopup::Resolution, selected);
+#else
     const SDL_DisplayID display = DisplayIdForIndex(draft.display);
     desktopDisplayModes = Kotonoha::DisplayModeCatalog::Enumerate(display);
     if (desktopDisplayModes.empty()) {
@@ -4146,6 +4152,7 @@ void Runtime::activateDesktopDisplayControl(int control) {
     openPopup(DesktopDisplayPopup::Resolution,
               Kotonoha::DisplayModeCatalog::FindSelected(
                   desktopDisplayModes, width, height, refresh));
+#endif
     break;
   }
   case 5: draft.resizable = true; break;
@@ -4214,6 +4221,21 @@ void Runtime::activateDesktopDisplayControl(int control) {
   case 20:
     // Defaults affect only this page. Never reset the player's General
     // WINDOW/FULL state, aspect policy, monitor, audio or save preferences.
+#if defined(__ANDROID__) || defined(ANDROID)
+    {
+      const auto modes = AndroidDisplayModesUnique();
+      if (!modes.empty()) {
+        const auto selected = std::min_element(
+            modes.begin(), modes.end(), [](const auto &left, const auto &right) {
+              return std::abs(left.refreshRate - 60.0f) <
+                     std::abs(right.refreshRate - 60.0f);
+            });
+        draft.fullscreenWidth = selected->width;
+        draft.fullscreenHeight = selected->height;
+        draft.refreshRate = selected->refreshRate;
+      }
+    }
+#else
     if (const SDL_DisplayID display = DisplayIdForIndex(draft.display)) {
       if (const SDL_DisplayMode *native = SDL_GetDesktopDisplayMode(display)) {
         // Native monitor resolution is the safe fallback in both modes.
@@ -4225,6 +4247,7 @@ void Runtime::activateDesktopDisplayControl(int control) {
         draft.refreshRate = native->refresh_rate;
       }
     }
+#endif
     draft.resizable = true;
     draft.vsync = true;
     draft.upscaling.backend =
@@ -4237,6 +4260,7 @@ void Runtime::activateDesktopDisplayControl(int control) {
     break;
   case 21:
     try {
+#if !defined(__ANDROID__) && !defined(ANDROID)
       if (draft.renderer != engine->GetSettings().renderer &&
           Kotonoha::SchoolDaysUpscalingPolicy::IsOpenGLRenderer(draft.renderer)) {
         // SDL renderers cannot be changed while the game is running. Save the
@@ -4254,6 +4278,11 @@ void Runtime::activateDesktopDisplayControl(int control) {
         setStatus("Shader saved for OpenGL/MPV. Restart game to activate.");
         break;
       }
+#else
+      // Android always runs on its native OpenGL ES 2 renderer.
+      draft.renderer = engine->GetSettings().renderer;
+      draft.mode = Kotonoha::WindowMode::Borderless;
+#endif
       // An explicit non-desktop resolution while Borderless is selected must
       // become Exclusive: Borderless cannot change the monitor's desktop
       // mode. Both are FULL in the native General page, so this preserves its
@@ -4282,6 +4311,18 @@ void Runtime::activateDesktopDisplayControl(int control) {
 #endif
         throw;
       }
+      // Engine::applySettings reloads settings.channelVolumes into AudioMixer.
+      // Re-assert retail Config.DAT authority so BGM/SE/Voice are not squared.
+      applyConfig();
+#if defined(__ANDROID__) || defined(ANDROID)
+      {
+        const auto modes = AndroidDisplayModesUnique();
+        const int chosenIdx = SelectedAndroidMode(modes, engine->GetSettings());
+        if (chosenIdx >= 0 && chosenIdx < static_cast<int>(modes.size()))
+          (void)Kotonoha::AndroidRequestDisplayMode(
+              modes[static_cast<size_t>(chosenIdx)].modeId);
+      }
+#endif
       const int actualWindowMode =
           engine->GetSettings().mode == Kotonoha::WindowMode::Windowed ? 0 : 1;
       if (displayBackend.windowMode != actualWindowMode) {
@@ -4343,6 +4384,24 @@ void Runtime::renderDesktopDisplayPanel(Kotonoha::RendererRef renderer) {
     ui.text(renderer, value, left, rect.y, rect.w, ink);
   };
   const auto &draft = desktopDisplayDraft;
+#if defined(__ANDROID__) || defined(ANDROID)
+  {
+    const auto modes = AndroidDisplayModesUnique();
+    const int selected = SelectedAndroidMode(modes, draft);
+    if (selected >= 0 && selected < static_cast<int>(modes.size())) {
+      const auto &m = modes[static_cast<size_t>(selected)];
+      draw(Kotonoha::DisplayModeCatalog::Label({m.width, m.height, m.refreshRate}),
+           254.0f, 113.0f, 488.0f);
+    } else {
+      const SDL_FPoint screen = engine->screenSize();
+      draw(Kotonoha::DisplayModeCatalog::Label(
+               {std::max(1, static_cast<int>(std::lround(screen.x))),
+                std::max(1, static_cast<int>(std::lround(screen.y))),
+                draft.refreshRate > 0.0f ? draft.refreshRate : 60.0f}),
+           254.0f, 113.0f, 488.0f);
+    }
+  }
+#else
   const SDL_DisplayID display = DisplayIdForIndex(draft.display);
   const auto *native = display ? SDL_GetDesktopDisplayMode(display) : nullptr;
   if (draft.mode == Kotonoha::WindowMode::Borderless && native) {
@@ -4365,6 +4424,7 @@ void Runtime::renderDesktopDisplayPanel(Kotonoha::RendererRef renderer) {
              (draft.mode == Kotonoha::WindowMode::Windowed ? " (window)" : ""),
          254.0f, 113.0f, 488.0f);
   }
+#endif
   std::string backendLabel =
       Kotonoha::UpscaleBackendName(draft.upscaling.backend);
   if (draft.upscaling.backend == Kotonoha::UpscaleBackend::Auto) {
@@ -4380,7 +4440,11 @@ void Runtime::renderDesktopDisplayPanel(Kotonoha::RendererRef renderer) {
   // y=317..344 contains the seven scale chips. Keep diagnostics in the free
   // 345..379 band, never draw text over the player's buttons.
   if (!engine->GetUpscaler().supports(Kotonoha::UpscaleBackend::MPV))
+#if defined(__ANDROID__) || defined(ANDROID)
+    draw("GLSL shaders require MPV/GLES support", 254.0f, 350.0f, 488.0f);
+#else
     draw("GLSL inactive: use OpenGL in launcher", 254.0f, 350.0f, 488.0f);
+#endif
   else if (draft.upscaling.factor <= 1.0f)
     draw("Upscaling OFF at 1.0x", 254.0f, 350.0f, 488.0f);
   else if (engine->GetUpscaler().resolve(draft.upscaling.backend) !=
@@ -4582,8 +4646,10 @@ bool Runtime::handleDesktopDisplayPanel(Kotonoha::EventRef event) {
       desktopDisplayDraft.upscaling.shaderFiles = chosenFile.empty()
           ? std::string{} : chosenFile.u8string();
       if (!desktopDisplayPathEdit.empty()) {
+#if !defined(__ANDROID__) && !defined(ANDROID)
         if (!engine->GetUpscaler().supports(Kotonoha::UpscaleBackend::MPV))
           desktopDisplayDraft.renderer = "opengl";
+#endif
         desktopDisplayDraft.upscaling.backend = Kotonoha::UpscaleBackend::MPV;
         desktopDisplayDraft.upscaling.factor =
             Custom::RecommendedFactor(chosenFile,
@@ -4600,6 +4666,12 @@ bool Runtime::handleDesktopDisplayPanel(Kotonoha::EventRef event) {
     if (choice < 0 || choice >= count) return;
     if (popup == DesktopDisplayPopup::Resolution) {
       const auto &chosen = desktopDisplayModes[static_cast<size_t>(choice)];
+#if defined(__ANDROID__) || defined(ANDROID)
+      desktopDisplayDraft.mode = Kotonoha::WindowMode::Borderless;
+      desktopDisplayDraft.fullscreenWidth = chosen.width;
+      desktopDisplayDraft.fullscreenHeight = chosen.height;
+      desktopDisplayDraft.refreshRate = chosen.refreshRate;
+#else
       const SDL_DisplayID display = DisplayIdForIndex(desktopDisplayDraft.display);
       const auto *native = display ? SDL_GetDesktopDisplayMode(display) : nullptr;
       if (!Kotonoha::SchoolDaysDesktopStartupProfile::SelectResolution(
@@ -4615,6 +4687,7 @@ bool Runtime::handleDesktopDisplayPanel(Kotonoha::EventRef event) {
         // monitor refresh rate. Never persist a fictitious 144/240 Hz switch.
         desktopDisplayDraft.refreshRate = native->refresh_rate;
       }
+#endif
     } else if (popup == DesktopDisplayPopup::Upscaler) {
       constexpr std::array<Kotonoha::UpscaleBackend, 5> backends{
           Kotonoha::UpscaleBackend::None, Kotonoha::UpscaleBackend::Linear,
@@ -4646,8 +4719,10 @@ bool Runtime::handleDesktopDisplayPanel(Kotonoha::EventRef event) {
         playSound(Ui::UiSfxCue::Click);
         return;
       }
+#if !defined(__ANDROID__) && !defined(ANDROID)
       if (!engine->GetUpscaler().supports(Kotonoha::UpscaleBackend::MPV))
         desktopDisplayDraft.renderer = "opengl";
+#endif
       desktopDisplayDraft.upscaling.backend = Kotonoha::UpscaleBackend::MPV;
       if (row.type == Custom::Row::Type::CustomFile) {
         std::error_code ec;
@@ -4785,13 +4860,6 @@ bool Runtime::handleDesktopDisplayPanel(Kotonoha::EventRef event) {
   // Popup is modal: no underlying tab/close or system controls can activate.
   return true;
 }
-#else
-void Runtime::discardDesktopDisplayDraft() {}
-void Runtime::resetDesktopDisplayDraft() {}
-void Runtime::activateDesktopDisplayControl(int) {}
-void Runtime::renderDesktopDisplayPanel(Kotonoha::RendererRef) {}
-bool Runtime::handleDesktopDisplayPanel(Kotonoha::EventRef) { return false; }
-#endif
 
 bool Runtime::displayPanelOpen() const {
   return engine && systemUi.IsConfigOpen() &&
@@ -4826,10 +4894,8 @@ bool Runtime::applyDisplayAspectPreference() {
 
 void Runtime::renderDisplayPanel(Kotonoha::RendererRef renderer) {
   if (!engine || !systemUi.IsConfigOpen()) return;
-#if !defined(__ANDROID__) && !defined(ANDROID)
   renderDesktopDisplayPanel(renderer);
   return;
-#endif
   const SDL_FPoint screen = engine->screenSize();
   const auto geometry = DisplayGeometry(systemUi.ConfigMenu().CurrentVariant(),
                                         screen.x, screen.y);
@@ -5055,9 +5121,7 @@ void Runtime::renderDisplayPanel(Kotonoha::RendererRef renderer) {
 
 bool Runtime::handleDisplayPanel(Kotonoha::EventRef event) {
   if (!displayPanelOpen()) return false;
-#if !defined(__ANDROID__) && !defined(ANDROID)
   return handleDesktopDisplayPanel(event);
-#endif
 #if defined(__ANDROID__) || defined(ANDROID)
   const auto modes = AndroidDisplayModesUnique();
   if (event.type == SDL_EVENT_MOUSE_WHEEL) {
@@ -5468,11 +5532,9 @@ bool Runtime::onScreenEvent(Kotonoha::EventRef event) {
   // Both desktop pointer and mobile events pass through onScreenEvent.
   // LOAD owns input until its restore transition is complete.
   if (loadTransition.InputLocked() && FrontendInputEvent(event.type)) return true;
-#if !defined(__ANDROID__) && !defined(ANDROID)
   if (displayPanelOpen() && desktopDisplayPopup != DesktopDisplayPopup::None &&
       handleDesktopDisplayPanel(event))
     return true;
-#endif
   if (transportFade.InputLocked()) return true;
   if (exitTransition.InputLocked()) return true;
   if (systemPanelTransition.InputLocked()) return true;
@@ -5571,6 +5633,14 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
       backlogModel.IsOpen());
 #endif
 #if defined(__ANDROID__) || defined(ANDROID)
+  if (event.type == SDL_EVENT_WILL_ENTER_BACKGROUND &&
+      configStorage.IsLoaded() && configStorage.IsDirty()) {
+    std::string configError;
+    if (!configStorage.Flush(&configError))
+      SDL_LogWarn(Kotonoha::LogUI,
+                  "School Days Android background Config.DAT flush: %s",
+                  configError.c_str());
+  }
   // SDL maps Android's physical/gesture Back key to AC_BACK. Reuse all the
   // existing ESC close/cancel routes (Save, BackLog, Config, Replay, Title)
   // rather than leaving touch-only players trapped inside modal screens.
@@ -5605,13 +5675,11 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
   if (systemPanelTransition.InputLocked() && FrontendInputEvent(event.type)) return true;
   if (frontendTransition.Active(SDL_GetTicks()) && FrontendInputEvent(event.type))
     return true;
-#if !defined(__ANDROID__) && !defined(ANDROID)
   // Screen events route pointer clicks separately. Key/text input for a modal
   // resolution/shader/GLSL editor must be consumed before the retail ESC close.
   if (displayPanelOpen() && desktopDisplayPopup != DesktopDisplayPopup::None &&
       handleDesktopDisplayPanel(event))
     return true;
-#endif
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
       (!systemUi.IsOpen() || !systemUi.IsSaveLoadCommentEditorOpen())) {
     const auto globalAccel =
@@ -6408,7 +6476,6 @@ Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState Runtime::configVisualState
   state.soundLevels = {Policy::Level(config, Policy::NativeAudioBank::Bgm),
                        Policy::Level(config, Policy::NativeAudioBank::Se),
                        Policy::Level(config, Policy::NativeAudioBank::Voice)};
-#if !defined(__ANDROID__) && !defined(ANDROID)
   if (engine) {
     const auto &display = desktopDisplayDraftActive
                               ? desktopDisplayDraft : engine->GetSettings();
@@ -6418,7 +6485,6 @@ Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState Runtime::configVisualState
         static_cast<int>(std::lround((display.upscaling.factor - 1.0f) * 2.0f)),
         0, 6);
   }
-#endif
   return state;
 }
 
@@ -6440,12 +6506,10 @@ void Runtime::openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page page, bool pl
   if (systemUi.OpenConfig(&engine->GetRenderer(), assets->root().string(),
                           ConfigVariant(uiVariant), page,
                           configVisualState(), &failure)) {
-#if !defined(__ANDROID__) && !defined(ANDROID)
     if (page == Kotonoha::SchoolDaysConfigMenuModel::Page::Display) {
       resetDesktopDisplayDraft();
       systemUi.SetConfigVisualState(configVisualState());
     }
-#endif
     if (playView) playSound(Ui::UiSfxCue::View);
     return;
   }
@@ -6473,15 +6537,9 @@ void Runtime::handleConfig(const Kotonoha::SchoolDaysConfigMenuModel::Action &ac
     return;
   case Kind::SelectPage:
     if (action.page == Kotonoha::SchoolDaysConfigMenuModel::Page::Display) {
-#if defined(__ANDROID__) || defined(ANDROID)
-      // The mobile-specific render-scale/frame-rate panel remains available;
-      // mobile modes have a different platform presentation contract.
+      // User-selected third tab owns its retail-style Display base/CHIP on
+      // both desktop and Android. Its draft copies persisted engine settings.
       openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page::Display, false);
-#else
-      // User-selected third tab now owns its retail-style Display base/CHIP.
-      // Its initial draft is a copy of the engine's persisted settings.
-      openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page::Display, false);
-#endif
       displayPanelResolutionOpen = false;
       displayPanelPresetOpen = false;
       displayPanelHoverRow = -1;
@@ -6496,12 +6554,10 @@ void Runtime::handleConfig(const Kotonoha::SchoolDaysConfigMenuModel::Action &ac
     displayPanelHoverResolution = -1;
     displayPanelHoverPreset = -1;
     return;
-#if !defined(__ANDROID__) && !defined(ANDROID)
   case Kind::DisplayControl:
     if (currentPage == Kotonoha::SchoolDaysConfigMenuModel::Page::Display)
       activateDesktopDisplayControl(action.value);
     return;
-#endif
   case Kind::SetMenVoice: config.menVoice = action.value != 0; break;
   case Kind::SetSkip: {
     const bool requestedSkip = action.value != 0;
@@ -6595,6 +6651,11 @@ void Runtime::handleConfig(const Kotonoha::SchoolDaysConfigMenuModel::Action &ac
     std::string failure;
     Check(configStorage.CacheWindowMode(displayBackend.windowMode, &failure),
           failure, "School Days WindowMode cache update failed");
+#if defined(__ANDROID__) || defined(ANDROID)
+    if (!configStorage.Flush(&failure))
+      SDL_LogWarn(Kotonoha::LogUI, "School Days Android Config.DAT flush: %s",
+                  failure.c_str());
+#endif
     break;
   }
   default:
@@ -6625,6 +6686,11 @@ void Runtime::applyConfig() {
     engine->applySettings(settings);
   }
   auto &audio = engine->GetAudio();
+  // School Days owns BGM/SE/Voice through Config.DAT's retail dB curve.
+  // Keep userVolume at unity so settings.json channelVolumes never square
+  // the attenuation (e.g. 0.2985 * 0.2985 = 0.089 / -21 dB) or cap 10/10.
+  for (const char *bank : {"BGM", "SE", "Voice"})
+    audio.channel(bank)->setUserVolume(1.0f);
   audio.channel("BGM")->setVolume(Policy::LinearGain(config, Policy::NativeAudioBank::Bgm));
   audio.channel("SE")->setVolume(Policy::LinearGain(config, Policy::NativeAudioBank::Se));
   audio.channel("Voice")->setVolume(Policy::LinearGain(config, Policy::NativeAudioBank::Voice));
@@ -6710,6 +6776,11 @@ void Runtime::cacheConfigState() {
   std::string failure;
   Check(configStorage.CacheState(config, &failure), failure,
         "School Days Config.DAT cache update failed");
+#if defined(__ANDROID__) || defined(ANDROID)
+  if (!configStorage.Flush(&failure))
+    SDL_LogWarn(Kotonoha::LogUI, "School Days Android Config.DAT flush: %s",
+                failure.c_str());
+#endif
 }
 
 void Runtime::openRouteMap(bool playView) {

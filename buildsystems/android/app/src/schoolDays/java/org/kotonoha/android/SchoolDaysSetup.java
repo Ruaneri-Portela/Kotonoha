@@ -250,8 +250,12 @@ public final class SchoolDaysSetup extends Activity {
             if (display != null) {
                 Map<String, DisplayModeItem> unique = new LinkedHashMap<>();
                 for (Display.Mode m : display.getSupportedModes()) {
-                    int w = m.getPhysicalWidth();
-                    int h = m.getPhysicalHeight();
+                    // Normalize to landscape dimensions so portrait launcher and
+                    // landscape GameActivity match the same fullscreenWidth x fullscreenHeight.
+                    int rawW = m.getPhysicalWidth();
+                    int rawH = m.getPhysicalHeight();
+                    int w = Math.max(rawW, rawH);
+                    int h = Math.min(rawW, rawH);
                     float hz = m.getRefreshRate();
                     int roundedHz = Math.round(hz);
                     String key = w + "x" + h + "@" + roundedHz;
@@ -482,10 +486,12 @@ public final class SchoolDaysSetup extends Activity {
         try {
             int modeIdx = 0;
             if (draftConfig.fullscreenWidth > 0 && draftConfig.fullscreenHeight > 0) {
+                int targetW = Math.max(draftConfig.fullscreenWidth, draftConfig.fullscreenHeight);
+                int targetH = Math.min(draftConfig.fullscreenWidth, draftConfig.fullscreenHeight);
                 for (int i = 1; i < displayModes.size(); i++) {
                     DisplayModeItem item = displayModes.get(i);
-                    if (item.width == draftConfig.fullscreenWidth
-                            && item.height == draftConfig.fullscreenHeight
+                    if (item.width == targetW
+                            && item.height == targetH
                             && Math.abs(item.hz - draftConfig.refreshRate) < 0.5f) {
                         modeIdx = i;
                         break;
@@ -692,6 +698,7 @@ public final class SchoolDaysSetup extends Activity {
 
         for (String loc : SchoolDaysFolder.SUPPORTED_LOCALES) {
             boolean gpkReady = folder.gpkLanguages.contains(loc);
+            boolean jsonReady = folder.languages.contains(loc);
             String gpkKey = SchoolDaysFolder.formatLanguageSelection("gpk", loc);
             Button gpkBtn = new Button(this, null, 0, R.style.SdButton);
             boolean gpkSelected = gpkKey.equals(draftLanguageSelection);
@@ -706,7 +713,23 @@ public final class SchoolDaysSetup extends Activity {
             });
             gpkList.addView(gpkBtn);
 
-            boolean jsonReady = folder.languages.contains(loc);
+            if (!gpkReady) {
+                TextView reason = new TextView(this);
+                reason.setTextSize(12f);
+                reason.setTextColor(0xFF566B7A);
+                reason.setPadding(8, 0, 8, 12);
+                if ("zh-CN".equals(loc) && folder.hasLegacyIncompatibleChineseGpk()) {
+                    reason.setText(R.string.sd_chinese_legacy_gpk);
+                } else {
+                    List<String> absent = folder.missingGpkFiles(loc);
+                    String joined = String.join(", ", absent);
+                    reason.setText(getString(jsonReady
+                            ? R.string.sd_missing_gpk_json_hint
+                            : R.string.sd_missing_gpk_files, joined));
+                }
+                gpkList.addView(reason);
+            }
+
             String jsonKey = SchoolDaysFolder.formatLanguageSelection("json", loc);
             Button jsonBtn = new Button(this, null, 0, R.style.SdButton);
             boolean jsonSelected = jsonKey.equals(draftLanguageSelection);
@@ -776,7 +799,7 @@ public final class SchoolDaysSetup extends Activity {
         if (!optionsOpen) {
             savedConfig = configStore.load(getPreferences(MODE_PRIVATE).getBoolean("launcherMusic", true));
             draftConfig = savedConfig.copy();
-            updateHomeMusicButton();
+            syncUiFromDraft();
         }
         refresh();
     }

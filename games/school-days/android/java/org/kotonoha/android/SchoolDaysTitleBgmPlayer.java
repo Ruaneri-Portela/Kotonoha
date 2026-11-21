@@ -24,7 +24,7 @@ import java.util.zip.Inflater;
  * launcher (read-only from SAF Ini.GPK + BGM.GPK), isolated from Config.DAT.
  */
 final class SchoolDaysTitleBgmPlayer {
-    private static final float LAUNCHER_MUSIC_GAIN = 0.35f;
+    private static final float LAUNCHER_MUSIC_GAIN = 0.60f;
     private static final byte[] PIDX_XOR_KEY = {
             (byte) 0x82, (byte) 0xEE, (byte) 0x1D, (byte) 0xB3,
             (byte) 0x57, (byte) 0xE9, (byte) 0x2C, (byte) 0xC2,
