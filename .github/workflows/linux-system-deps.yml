@@ -38,6 +38,9 @@ jobs:
           submodules: false
       - name: Configure without pre-downloaded submodules
         run: |
+          # The checkout is owned by the runner, while the Debian container is root.
+          # Trust only this CI workspace before CMake invokes git submodule update.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           test ! -f lib/submodules/imgui/imgui.cpp
           cmake -S . -B build-system -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
