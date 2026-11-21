@@ -9,8 +9,11 @@ import java.io.IOException;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /** Checks display names only. Native route and archive validation happens at launch. */
 final class SchoolDaysFolder {
@@ -39,6 +42,16 @@ final class SchoolDaysFolder {
         return names;
     }
 
+    static List<String> missingPacks(Map<String, DocumentTree.Entry> entries) {
+        Set<String> present = new HashSet<>();
+        entries.forEach((name, entry) -> {
+            if (!entry.directory && !entry.empty) present.add(name.toLowerCase(Locale.ROOT));
+        });
+        List<String> missing = packNames();
+        missing.removeIf(name -> present.contains(name.toLowerCase(Locale.ROOT)));
+        return missing;
+    }
+
     // Compatibility with earlier app-private installations. Never import from SAF.
     static boolean hasPrivateInstallation(File dataDir) {
         File assets = new File(dataDir, "game_assets");
@@ -62,9 +75,7 @@ final class SchoolDaysFolder {
         if (packs.isEmpty()) {
             missing.add("Packs/");
         } else {
-            for (String name : packNames()) {
-                if (!file(packs, name)) missing.add(name);
-            }
+            missing.addAll(missingPacks(packs));
         }
         Map<String, DocumentTree.Entry> translations = directory(source, tree, root, "translations");
         Map<String, DocumentTree.Entry> jsons = directory(source, tree, translations, "jsons");
