@@ -421,7 +421,12 @@ void DebugOverlay::refreshNodes() {
   nodesStale = false;
   try {
     cachedRuntimeNodes = engine.GetRuntime().debugNodes();
-    cachedEngineNodes = engine.debugNodes();
+    // Engine::debugNodes() delegates to Runtime::debugNodes() when native
+    // nodes exist. Reuse that result instead of enumerating/decoding a large
+    // script twice on every scenario refresh.
+    cachedEngineNodes = cachedRuntimeNodes.empty()
+                            ? engine.debugNodes()
+                            : cachedRuntimeNodes;
     lastNodeCatalogKey = engine.GetRuntime().debugNodeCatalogKey();
   } catch (const std::exception &error) {
     cachedRuntimeNodes.clear();
