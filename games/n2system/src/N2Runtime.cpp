@@ -1,6 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/N2Runtime.hpp>
 #include <N2System/ScriptIndex.hpp>
+#include <N2System/DebugCatalog.hpp>
 
 #include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -501,66 +502,9 @@ std::vector<int> N2Runtime::translationRoutes() const {
 Kotonoha::Translation::SourceTexts N2Runtime::translationSources() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->translationSources();
-  Kotonoha::Translation::SourceTexts result;
-  // ScriptIndex already ignores comments and strings while locating calls.
-  // Only gather literals from dialogue/choice invocations, not file paths
-  // from graphics/audio instructions. This never executes the script.
-  const auto &source = impl_->nativeScript;
-  for (std::size_t route = 0;
-       route < impl_->nativeIndex.chapters().size(); ++route) {
-    const auto &chapter = impl_->nativeIndex.chapters()[route];
-    auto &texts = result[static_cast<int>(route)];
-    for (const auto &call : chapter.invocations) {
-      const bool dialogue =
-          call.function == "SetDialogue" || call.function == "Dialogue" ||
-          call.function == "Talk" || call.function == "Message";
-      const bool choice =
-          call.function == "CreateChoice" ||
-          call.function == "SelectChoice" || call.function == "Choice";
-      if (!dialogue && !choice)
-        continue;
-      const auto open = source.find('(', call.offset);
-      if (open == std::string::npos || open >= chapter.end)
-        continue;
-      std::vector<std::string> literals;
-      std::string literal;
-      bool inString = false, escape = false;
-      int depth = 1;
-      for (std::size_t i = open + 1; i < chapter.end && depth > 0; ++i) {
-        const char ch = source[i];
-        if (inString) {
-          if (escape) {
-            literal.push_back(ch == 'n' ? '\n' : ch);
-            escape = false;
-          } else if (ch == '\\') {
-            escape = true;
-          } else if (ch == '"') {
-            literals.push_back(std::move(literal));
-            literal.clear();
-            inString = false;
-          } else {
-            literal.push_back(ch);
-          }
-        } else if (ch == '"') {
-          inString = true;
-        } else if (ch == '(') {
-          ++depth;
-        } else if (ch == ')') {
-          --depth;
-        }
-      }
-      for (std::size_t i = 0; i < literals.size(); ++i) {
-        // A dialogue's third argument is a voice asset path; the first
-        // choice argument is the internal control/entity name.
-        if ((dialogue && i >= 2) || (choice && i == 0))
-          continue;
-        if (!literals[i].empty() &&
-            std::find(texts.begin(), texts.end(), literals[i]) == texts.end())
-          texts.push_back(literals[i]);
-      }
-    }
-  }
-  return result;
+  // The standalone NsScript catalog uses real argument positions and ignores
+  // audio filenames, control IDs and comments without executing the VM.
+  return ExtractTranslationTexts(impl_->nativeIndex, impl_->nativeScript);
 }
 
 std::vector<std::string> N2Runtime::activeTranslationKeys() const {
