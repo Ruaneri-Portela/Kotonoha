@@ -111,6 +111,15 @@ Z/C trocam de página, e Escape ou X cancelam. O Kotonoha cuida de nomear,
 sobrescrever, renomear e excluir saves `.vn`. Os cartões mostram os nomes
 dos saves em vez das capturas de tela do jogo original.
 
+**Options** usa o fundo, as nove abas em inglês, a moldura de prévia de
+diálogo e a arte dos controles deslizantes originais do AIR. O Kotonoha
+controla as opções de vídeo, texto, áudio e sistema. Use Tab ou clique em
+uma aba e depois em **Apply and save** para gravar as mudanças pendentes.
+Escape ou X descarta o que ainda estiver pendente e retorna ao título ou à
+pausa; volume e velocidade de texto são aplicados na hora. As abas Keyboard,
+Mouse e Touch listam os comandos do port, sem os editores de remapeamento
+do jogo original.
+
 No título, abra **Gallery** para navegar pelas 72 posições de CG em quatro
 categorias. Use as setas ou o direcional do controle para navegar, Enter
 para abrir uma posição e Escape para voltar. Page Up/Page Down trocam a

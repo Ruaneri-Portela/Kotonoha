@@ -132,17 +132,9 @@ set_tests_properties(Kotonoha.BuildVersion PROPERTIES
 
 add_executable(KotonohaLauncherTests LauncherTests.cpp)
 target_link_libraries(KotonohaLauncherTests PRIVATE KotonohaEngine)
-# SDL_GetBasePath() points to the *executable* directory, not
-# CMAKE_CURRENT_BINARY_DIR (lib/tests). Stage the harmless TTF test fixture
-# beside the test executable for Ninja, Visual Studio and multi-config builds.
-add_custom_command(TARGET KotonohaLauncherTests POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E make_directory
-        "$<TARGET_FILE_DIR:KotonohaLauncherTests>/assets/fonts"
-    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/SvgTestFont.ttf"
-        "$<TARGET_FILE_DIR:KotonohaLauncherTests>/assets/fonts/NotoSansJP-Regular.ttf"
-    VERBATIM)
-
+# The test stages KOTONOHA_TEST_FONT in its own temporary assets directory.
+# Never overwrite the shared default font beside the test binaries: other
+# suites load that font from SDL_GetBasePath()/assets/fonts.
 target_compile_definitions(KotonohaLauncherTests PRIVATE
     KOTONOHA_TEST_FONT="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/SvgTestFont.ttf")
 add_test(NAME Kotonoha.Launcher COMMAND KotonohaLauncherTests)

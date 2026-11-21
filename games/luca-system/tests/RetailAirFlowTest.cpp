@@ -5,6 +5,7 @@
 // + IFN branch + cross-scenario JUMP (seen170 -> seen190 -> seen230) +
 // Save/Load roundtrip + SUMMER (seen700), AIR (seen163), FIRST SKY (seen800).
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
@@ -176,22 +177,77 @@ void checkSaveGrid(
         return menu->isOpen() ? menu : nullptr;
     return nullptr;
   };
-  const auto openTitleLoad = [&] { click(621, 642); };
+  const auto openTitleLoad = [&] { click(482, 574); };
   const auto openPauseLoad = [&] {
     key(SDLK_ESCAPE);
     key(SDLK_RIGHT);
     key(SDLK_RETURN);
   };
-  key(SDLK_ESCAPE); // skip retail startup logos
+  require(runtime.activeBgmId() == 0, "startup notice is silent");
+  auto &renderer = engine.GetRenderer();
+  runtime.renderGameplay(renderer, 1);
+  Kotonoha::SurfacePtr notice(SDL_RenderReadPixels(&renderer, nullptr));
+  SDL_Color corner{};
+  require(notice && SDL_ReadSurfacePixel(notice.get(), 3, 3, &corner.r,
+                                        &corner.g, &corner.b, &corner.a) &&
+              corner.r > 240 && corner.g > 240 && corner.b > 240,
+          "first splash uses the white copyright notice background");
+  int inkPixels = 0;
+  for (int y = notice->h * 12 / 100; y < notice->h * 2 / 3; y += 2)
+    for (int x = notice->w / 20; x < notice->w * 19 / 20; x += 2) {
+      SDL_Color pixel{};
+      if (SDL_ReadSurfacePixel(notice.get(), x, y, &pixel.r, &pixel.g,
+                               &pixel.b, &pixel.a) &&
+          pixel.r < 120 && pixel.g < 120 && pixel.b < 120)
+        ++inkPixels;
+    }
+  require(inkPixels > 200, "the first splash renders the notice text");
+  for (int i = 0; i < 3; ++i) {
+    key(SDLK_RETURN);
+    require(runtime.activeBgmId() == 0,
+            "title theme does not play over the three logos");
+  }
+  key(SDLK_RETURN);
+  require(runtime.activeBgmId() == 100021,
+          "title music starts after the last logo with Reminiscences (trk22)");
+  auto cached = assets->cachedTextures();
+  runtime.renderGameplay(engine.GetRenderer(), 1);
+  require(assets->cachedTextures() >= cached + 2,
+          "title renders the original English label and arrow atlases");
+  click(1180, 574); // slide to Gallery/Music
+  SDL_Delay(250);
+  click(508, 574);
+  require(runtime.isGalleryOpen(), "right arrow slides to the Gallery page");
+  key(SDLK_ESCAPE);
+  click(94, 574); // slide back
+  SDL_Delay(250);
   openTitleLoad();
   require(slots() && runtime.isStoryPaused(), "title opens native load grid");
-  auto cached = assets->cachedTextures();
+  cached = assets->cachedTextures();
   runtime.renderOverlay(engine.GetRenderer(), 1);
   require(assets->cachedTextures() >= cached + 4,
           "retail Load renders the original background, cards and arrows");
   key(SDLK_X);
   require(!slots() && !runtime.isStoryPaused(), "cancel Load returns to title");
-  click(70, 642); // NEW GAME
+  click(271, 574); // NEW GAME opens the story selector instead of starting it
+  require(runtime.currentScenarioName().empty() &&
+              !runtime.isDialogueVisible(),
+          "NEW GAME does not start a scenario until a story is selected");
+  cached = assets->cachedTextures();
+  runtime.renderGameplay(engine.GetRenderer(), 1);
+  require(assets->cachedTextures() >= cached + 3,
+          "story selector renders retail paper, hat and chapter labels");
+  click(640, 314); // position reserved for SUMMER on a fresh profile
+  require(runtime.currentScenarioName().empty(),
+          "locked stories cannot start from a fresh profile");
+  click(1211, 700); // Close, then reopen via controller Start
+  SDL_Event start{};
+  start.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+  start.gbutton.button = SDL_GAMEPAD_BUTTON_START;
+  require(engine.Event(&start) == SDL_APP_CONTINUE &&
+              runtime.currentScenarioName().empty(),
+          "controller Start opens the selector without starting the story");
+  click(640, 245); // DREAM
   for (int i = 0; i < 1000 && !runtime.isDialogueVisible(); ++i) {
     if (runtime.isMoviePlaying())
       runtime.skipMovie();
@@ -203,9 +259,12 @@ void checkSaveGrid(
           "AIR title starts retail dialogue");
   const auto pc = runtime.instructionPosition();
   const auto line = runtime.dialogueText();
+  click(1176, 683); // Voice is disabled on the first, unvoiced line
+  require(runtime.instructionPosition() == pc && runtime.dialogueText() == line,
+          "dialogue side controls consume clicks without advancing the VM");
   constexpr uint32_t marker = 6100;
   runtime.setVariable(marker, 42);
-  key(SDLK_ESCAPE);
+  click(1176, 563); // dialogue Menu control
   key(SDLK_RETURN); // Save
   require(slots() && runtime.isStoryPaused(), "pause opens native save grid");
   cached = assets->cachedTextures();
@@ -272,6 +331,116 @@ void checkSaveGrid(
           "title Load restores dialogue and reattaches gameplay scenes");
   std::cout << "AIR save grid: original Save/Load art, title, pause, paging, "
                "native .vn write/load and cancellation verified\n";
+}
+
+void checkSettings(
+    const std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> &assets) {
+  const TestStorage storage;
+  const auto path = (storage.root / "air-settings.json").string();
+  LucaSystem::LucaSystemRuntime runtime(assets);
+  Kotonoha::EngineOptions options;
+  options.assets = assets;
+  options.launcher = false;
+  options.settingsPath = path;
+  options.rendererOverride = "software";
+  Kotonoha::Engine engine(runtime, options);
+  struct RuntimeCleanup {
+    LucaSystem::LucaSystemRuntime &runtime;
+    ~RuntimeCleanup() { runtime.shutdown(); }
+  } cleanup{runtime};
+  auto &settings = engine.GetSettingsMenu();
+  const auto key = [&](SDL_Keycode value, bool throughEngine = false) {
+    SDL_Event event{};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = value;
+    if (throughEngine)
+      require(engine.Event(&event) == SDL_APP_CONTINUE,
+              "settings event keeps the application running");
+    else
+      require(runtime.onEvent(event), "AIR menu handles key");
+  };
+  const auto tab = [&](int count) {
+    for (int i = 0; i < count; ++i)
+      key(SDLK_TAB, true);
+  };
+  key(SDLK_ESCAPE); // retail logos
+  for (int i = 0; i < 2; ++i)
+    key(SDLK_RIGHT);
+  key(SDLK_RETURN);
+  require(settings.isOpen() && runtime.isStoryPaused(),
+          "title Options opens the shared settings modal");
+  auto cached = assets->cachedTextures();
+  settings.render(engine.GetRenderer());
+  require(assets->cachedTextures() >= cached + 3,
+          "Options renders the retail background and both tab atlases");
+  tab(2); // Text2
+  cached = assets->cachedTextures();
+  settings.render(engine.GetRenderer());
+  require(assets->cachedTextures() >= cached + 2,
+          "Text2 renders the retail dialogue preview");
+  key(SDLK_RETURN, true);
+  require(!engine.GetSettings().vnTextColorOverride,
+          "Text2 color override remains a draft before Apply");
+  key(SDLK_END, true);
+  key(SDLK_RETURN, true);
+  require(!settings.isOpen() && engine.GetSettings().vnTextColorOverride &&
+              Kotonoha::EngineSettings::load(path).vnTextColorOverride,
+          "Apply changes native text settings and persists them");
+
+  key(SDLK_RETURN); // reopen title Options, then click Voice in the AIR atlas
+  SDL_Event pointer{};
+  pointer.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+  pointer.button.button = SDL_BUTTON_LEFT;
+  require(SDL_RenderCoordinatesToWindow(&engine.GetRenderer(), 710, 32,
+                                        &pointer.button.x, &pointer.button.y) &&
+              engine.Event(&pointer) == SDL_APP_CONTINUE,
+          "Voice tab accepts pointer input at its original position");
+  cached = assets->cachedTextures();
+  settings.render(engine.GetRenderer());
+  require(assets->cachedTextures() > cached,
+          "Voice renders the original options slider artwork");
+  key(SDLK_LEFT, true);
+  require(engine.GetSettings().channelVolumes.at("Voice") < 1,
+          "Voice volume applies before the first spoken line");
+  key(SDLK_ESCAPE, true);
+  const auto saved = Kotonoha::EngineSettings::load(path);
+  require(!settings.isOpen() && saved.vnTextColorOverride &&
+              saved.channelVolumes.at("Voice") ==
+                  engine.GetSettings().channelVolumes.at("Voice"),
+          "closing Options persists live audio preferences");
+
+  for (int i = 0; i < 2; ++i)
+    key(SDLK_LEFT);
+  key(SDLK_RETURN); // New Game opens the selector
+  key(SDLK_RETURN); // DREAM
+  for (int i = 0; i < 1000 && !runtime.isDialogueVisible(); ++i) {
+    if (runtime.isMoviePlaying())
+      runtime.skipMovie();
+    else
+      runtime.skipWait();
+  }
+  require(runtime.isDialogueVisible(), "reach retail dialogue before pause");
+  const auto pc = runtime.instructionPosition();
+  const auto dialogue = runtime.dialogueText();
+  key(SDLK_ESCAPE);
+  key(SDLK_RIGHT);
+  key(SDLK_RIGHT);
+  key(SDLK_RETURN);
+  require(settings.isOpen() && runtime.isStoryPaused(),
+          "pause Options opens the same native modal");
+  tab(2);
+  key(SDLK_RETURN, true); // stage another color toggle
+  key(SDLK_X, true);      // cancel draft (underlying pause menu stays open)
+  require(!settings.isOpen() && runtime.isStoryPaused() &&
+              engine.GetSettings().vnTextColorOverride &&
+              Kotonoha::EngineSettings::load(path).vnTextColorOverride,
+          "Cancel discards staged settings and returns to pause");
+  key(SDLK_ESCAPE, true);
+  require(!runtime.isStoryPaused() && runtime.instructionPosition() == pc &&
+              runtime.dialogueText() == dialogue,
+          "Options and pause cancellation do not advance the script");
+  std::cout << "AIR Options: original tabs, preview and slider art; title, "
+               "pause, apply, persistence and cancel verified\n";
 }
 
 void stepThroughScenario(LucaSystem::LucaSystemRuntime &rt, int maxSteps,
@@ -349,21 +518,27 @@ int main(int argc, char **argv) {
                        "me.hirameki.kotonoha.lucasystem.test");
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
       throw std::runtime_error(SDL_GetError());
+    struct SDLSession {
+      ~SDLSession() { SDL_Quit(); }
+    } session;
 
     const std::string_view mode = argc > 2 ? argv[2] : "";
     const bool gallery = mode == "--gallery";
     const bool saveGrid = mode == "--save-grid";
-    const std::string overlay = !gallery && !saveGrid ? std::string(mode) : "";
+    const bool settings = mode == "--settings";
+    const std::string overlay =
+        !gallery && !saveGrid && !settings ? std::string(mode) : "";
     const std::string_view expectedLine = argc > 3 ? argv[3] : "";
     auto assets = std::make_shared<Kotonoha::Providers::LucaSystemAssets>(
         airPath, overlay);
-    if (gallery || saveGrid) {
+    if (gallery || saveGrid || settings) {
       // This mode has no overlay and does not access the user's save slots.
       if (gallery)
         checkGallery(assets);
-      else
+      else if (saveGrid)
         checkSaveGrid(assets);
-      SDL_Quit();
+      else
+        checkSettings(assets);
       return 0;
     }
 
@@ -449,6 +624,7 @@ int main(int argc, char **argv) {
 
     // 3. Drive DREAM New Game (seen170) -> choices -> BGM/Voice/Sprites ->
     // cross-scenario JUMP to seen190, plus Save/Load roundtrip!
+    const TestStorage storage;
     LucaSystem::LucaSystemRuntime runtime(assets);
     require(runtime.startScenario("seen170"),
             "Launch canonical DREAM New Game root seen170");
@@ -506,13 +682,10 @@ int main(int argc, char **argv) {
               std::string("Chapter root advances cleanly: ") + root);
     }
 
-    std::filesystem::remove(saveFile);
-    SDL_Quit();
     std::cout << "LucaSystem Retail AIR 1:1 flow verification passed!\n";
     return 0;
   } catch (const std::exception &e) {
     std::cerr << e.what() << '\n';
-    SDL_Quit();
     return 1;
   }
 }
