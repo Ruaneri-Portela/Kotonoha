@@ -221,6 +221,16 @@ target_link_libraries(KotonohaImGuiFrameScopeTests PRIVATE
 add_test(NAME Kotonoha.ImGuiFrameScope COMMAND KotonohaImGuiFrameScopeTests)
 
 if(NOT KOTONOHA_DISTRIBUTION_BUILD)
+add_executable(KotonohaImGuiThemeTests ImGuiThemeTests.cpp)
+target_link_libraries(KotonohaImGuiThemeTests PRIVATE KotonohaEngine)
+target_compile_definitions(KotonohaImGuiThemeTests PRIVATE
+    KOTONOHA_TEST_FONT="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/SvgTestFont.ttf")
+add_test(NAME Kotonoha.ImGuiTheme COMMAND KotonohaImGuiThemeTests)
+set_tests_properties(Kotonoha.ImGuiTheme PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+endif()
+
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaDebugTranslationTests DebugTranslationTests.cpp)
 target_link_libraries(KotonohaDebugTranslationTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.DebugTranslation COMMAND KotonohaDebugTranslationTests)
