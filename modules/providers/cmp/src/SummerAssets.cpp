@@ -3,6 +3,7 @@
 #include <Kotonoha/Filesystem/RemoteAssets.hpp>
 #include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
 #include <SummerRadish/SummerAssets.hpp>
+#include <SummerRadish/MeoAudio.hpp>
 #include <algorithm>
 #include <cstring>
 #include <optional>
@@ -260,6 +261,12 @@ SummerAssets::listAsset(const std::string &prefix) const {
 }
 Image SummerAssets::picture(const std::string &id) const {
   return decodeImage(read(id), id.substr(id.find_last_of('.') + 1));
+}
+Kotonoha::AudioClip SummerAssets::loadAudioAsset(const std::string &id) const {
+  const auto name = canonical(id);
+  if (name.size() >= 4 && name.compare(name.size() - 4, 4, ".BGM") == 0)
+    return MeoAudio::decodeBgm(readAsset(id)).clip;
+  return AssetProvider::loadAudioAsset(id);
 }
 Kotonoha::SurfacePtr
 SummerAssets::loadSurfaceAsset(const std::string &id) const {

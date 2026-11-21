@@ -2,7 +2,8 @@ if(TARGET kotonoha_provider_cmp)
     return()
 endif()
 
-add_library(kotonoha_provider_cmp STATIC src/Pack.cpp src/SummerAssets.cpp)
+add_library(kotonoha_provider_cmp STATIC src/Pack.cpp src/SummerAssets.cpp
+    src/MeoAudio.cpp)
 
 target_include_directories(kotonoha_provider_cmp PUBLIC include)
 target_link_libraries(kotonoha_provider_cmp PUBLIC KotonohaEngine)

@@ -16,6 +16,7 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
+#include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
@@ -50,6 +51,35 @@ namespace LucaSystem {
 namespace {
 
 bool isSystemScript(std::string_view name) { return name.rfind("_", 0) == 0; }
+
+struct AirTitleItem {
+  int atlasX, width;
+  float center;
+};
+
+// Native-size English labels, laid out separately rather than squeezing the
+// entire atlas into the viewport. Page two slides into the same strip.
+constexpr AirTitleItem titleItems[] = {
+    {13, 212, 271},  {840, 114, 482}, {981, 177, 676}, {1185, 172, 896},
+    {1383, 87, 1072}, {1497, 186, 509}, {1710, 146, 771}};
+constexpr int titlePages[]{0, 0, 0, 0, 0, 1, 1};
+constexpr AirTitleItem storyItems[] = {
+    {60, 161, 640}, {325, 195, 640}, {662, 84, 640}, {858, 372, 640}};
+constexpr const char *storyRoots[]{"seen170", "seen700", "seen163", "seen800"};
+constexpr SDL_FRect storyClose{1140, 680, 134, 40};
+
+bool drawAirArt(Kotonoha::Providers::LucaSystemAssets &assets,
+                Kotonoha::RendererRef renderer, const char *id, SDL_FRect dst,
+                const SDL_FRect *src = nullptr) {
+  try {
+    if (assets.contains(id)) {
+      auto &texture = assets.texture(renderer, id);
+      return SDL_RenderTexture(&renderer, &texture, src, &dst);
+    }
+  } catch (const std::exception &) {
+  }
+  return false;
+}
 
 uint16_t paramU16(const ScriptInstruction &ins, size_t offset) {
   if (offset + 2 > ins.paramBytes.size())
@@ -282,6 +312,10 @@ void parseSpeakerAndSanitizeText(const std::string &rawText,
 }
 
 class AirTextBox final : public Kotonoha::VNTextBox {
+public:
+  enum class Control { Menu, Skip, Auto, Voice };
+
+private:
   static constexpr const char *fontAtlasId_ = "ゴシック27";
   Kotonoha::Providers::LucaSystemAssets &assets_;
   std::optional<BitmapFont> font_;
@@ -293,11 +327,36 @@ class AirTextBox final : public Kotonoha::VNTextBox {
   Kotonoha::TexturePtr cursorTexture_;
   int windowType_ = 0;
   bool layoutBitmap_ = false;
+  std::function<void(Control)> onControl_;
+  bool skipOn_ = false, autoOn_ = false, voiceAvailable_ = false;
+  int hoverControl_ = -1;
+
+  static SDL_FRect controlRect(int i) {
+    return {1130, 545.0f + i * 40, 130, 38};
+  }
+
+  void renderControls(Kotonoha::RendererRef renderer) {
+    static constexpr const char *labels[]{"Menu", "Skip", "Auto", "Voice"};
+    static constexpr const char *icons[]{"⚙", "⏩", "⇄", "♪"};
+    auto &ui = engine.GetVNUI();
+    for (int i = 0; i < 4; ++i) {
+      const auto box = controlRect(i);
+      const SDL_Color ink = i == 3 && !voiceAvailable_
+                                ? SDL_Color{133, 143, 150, 155}
+                            : i == hoverControl_ || (i == 1 && skipOn_) ||
+                                      (i == 2 && autoOn_)
+                                ? SDL_Color{48, 76, 159, 255}
+                                : SDL_Color{111, 128, 142, 255};
+      ui.text(renderer, icons[i], box.x + 3, box.y + 3, 28, ink);
+      ui.text(renderer, labels[i], box.x + 33, box.y + 4, box.w - 33, ink);
+    }
+  }
 
   std::optional<float> bitmapWidth(std::string_view text) const {
     float width = 0;
-    if (font_ && font_->forEachGlyph(
-                     text, [&](const auto &glyph) { width += glyph.advance; }))
+    if (font_ && engine.GetSettings().vnFontPath.empty() &&
+        font_->forEachGlyph(text,
+                            [&](const auto &glyph) { width += glyph.advance; }))
       return width;
     return std::nullopt;
   }
@@ -346,6 +405,14 @@ class AirTextBox final : public Kotonoha::VNTextBox {
 
 public:
   void setWindowType(int wt) { windowType_ = std::clamp(wt, 0, 4); }
+  void setControlAction(std::function<void(Control)> action) {
+    onControl_ = std::move(action);
+  }
+  void setControls(bool skip, bool automatic, bool voice) {
+    skipOn_ = skip;
+    autoOn_ = automatic;
+    voiceAvailable_ = voice;
+  }
 
   bool onEvent(Kotonoha::EventRef rawEvent) override {
     if (!visible)
@@ -362,7 +429,23 @@ public:
       openBacklog();
       return true;
     }
-    return false; // AIR does not draw the generic VNTextBox button strip.
+    if (event.type == SDL_EVENT_MOUSE_MOTION) {
+      hoverControl_ = -1;
+      const SDL_FPoint point{event.motion.x, event.motion.y};
+      for (int i = 0; i < 4; ++i) {
+        const auto box = controlRect(i);
+        if (SDL_PointInRectFloat(&point, &box))
+          hoverControl_ = i;
+      }
+    }
+    for (int i = 0; i < 4; ++i) {
+      if (Kotonoha::UI::clicked(event, controlRect(i))) {
+        if (onControl_)
+          onControl_(static_cast<Control>(i));
+        return true;
+      }
+    }
+    return false;
   }
 
 protected:
@@ -379,19 +462,22 @@ protected:
     auto *tex = texture(renderer, chosenTex, chosen);
     if (tex) {
       SDL_FRect destination{0, 480, 1280, 240};
+      SDL_SetTextureAlphaMod(tex, 175);
       SDL_RenderTexture(&renderer, tex, nullptr, &destination);
+      SDL_SetTextureAlphaMod(tex, 255);
     } else if (auto *strip =
                    texture(renderer, fallbackStripTexture_, fallbackStrip_)) {
-      SDL_FRect destination{160, 500, 950, 160};
+      SDL_FRect destination{165, 543, 950, 162};
       SDL_RenderTexture(&renderer, strip, nullptr, &destination);
     } else {
       SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
       SDL_SetRenderDrawColor(&renderer, 40, 48, 72, 210);
-      SDL_FRect box{160, 500, 950, 160};
+      SDL_FRect box{165, 543, 950, 162};
       SDL_RenderFillRect(&renderer, &box);
       SDL_SetRenderDrawColor(&renderer, 100, 115, 150, 120);
       SDL_RenderRect(&renderer, &box);
     }
+    renderControls(renderer);
   }
 
   void renderIndicator(Kotonoha::RendererRef renderer) override {
@@ -399,7 +485,7 @@ protected:
     if (tex) {
       const int frame = int((SDL_GetTicks() / 120) % 4);
       SDL_FRect source{0, float(frame * 38), 48, 38};
-      SDL_FRect destination{1060, 640, 48, 38};
+      SDL_FRect destination{1056, 660, 48, 38};
       SDL_RenderTexture(&renderer, tex, &source, &destination);
     }
   }
@@ -413,15 +499,15 @@ protected:
                                 : SDL_Color{255, 238, 175, 255};
     if (const auto width = bitmapWidth(speakerName); width && *width <= 850) {
       if (auto *atlas = bitmapTexture(renderer)) {
-        font_->render(renderer, *atlas, speakerName, 210, 494, color);
+        font_->render(renderer, *atlas, speakerName, 188, 516, color);
         return;
       }
     }
-    engine.GetVNUI().text(renderer, speakerName, 210, 494, 850, color);
+    engine.GetVNUI().text(renderer, speakerName, 188, 516, 900, color);
   }
 
   void renderDialogue(Kotonoha::RendererRef renderer) override {
-    SDL_Rect clip{210, 532, 850, 150};
+    SDL_Rect clip{182, 548, 904, 148};
     SDL_Rect previousClip{};
     const bool clipped = SDL_RenderClipEnabled(&renderer) &&
                          SDL_GetRenderClipRect(&renderer, &previousClip);
@@ -445,7 +531,7 @@ protected:
         return ui.textWidth(value);
       };
       dialogueLayout_ =
-          Kotonoha::TextWrapping::layout(fullDialogue, measure, 850);
+          Kotonoha::TextWrapping::layout(fullDialogue, measure, 898);
       layoutSource_ = fullDialogue;
       layoutBitmap_ = atlas != nullptr;
       layoutDensity_ = ui.pixelDensity();
@@ -454,16 +540,20 @@ protected:
     }
     const auto lines = Kotonoha::TextWrapping::visibleLines(
         dialogueLayout_, visibleDialogue.size());
-    float y = speakerName.empty() ? 534 : 540;
+    float y = 564;
     const auto &settings = engine.GetSettings();
     const SDL_Color color = settings.vnTextColorOverride
                                 ? settings.vnTextColor
                                 : SDL_Color{255, 255, 255, 255};
     for (const auto &line : lines) {
-      if (atlas)
-        font_->render(renderer, *atlas, line, 210, y, color);
-      else
-        engine.GetVNUI().text(renderer, line, 210, y, 850, color);
+      const SDL_Color shadow{15, 21, 32, 220};
+      if (atlas) {
+        font_->render(renderer, *atlas, line, 190, y + 2, shadow);
+        font_->render(renderer, *atlas, line, 188, y, color);
+      } else {
+        ui.text(renderer, line, 190, y + 2, 898, shadow);
+        ui.text(renderer, line, 188, y, 898, color);
+      }
       y += 32;
     }
     SDL_SetRenderClipRect(&renderer, clipped ? &previousClip : nullptr);
@@ -508,6 +598,129 @@ public:
   AirBacklog(Kotonoha::Engine &engine,
              Kotonoha::Providers::LucaSystemAssets &assets)
       : VNBacklog(engine), assets_(assets) {}
+};
+
+class AirSettingsSkin final : public Kotonoha::SettingsMenu::Skin {
+  using Page = Kotonoha::SettingsMenu::Page;
+  std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets_;
+  static constexpr SDL_Color ink_{22, 53, 108, 255};
+
+  bool draw(Kotonoha::RendererRef renderer, const char *id, SDL_FRect dst,
+            const SDL_FRect *source = nullptr) {
+    try {
+      if (assets_->contains(id)) {
+        auto &texture = assets_->texture(renderer, id);
+        return SDL_RenderTexture(&renderer, &texture, source, &dst);
+      }
+    } catch (const std::exception &) {
+    }
+    return false;
+  }
+
+public:
+  explicit AirSettingsSkin(
+      std::shared_ptr<Kotonoha::Providers::LucaSystemAssets> assets)
+      : assets_(std::move(assets)) {}
+
+  const std::vector<Page> &pages() const override {
+    static const std::vector<Page> result{
+        Page::Basic, Page::TextPacing, Page::TextColors,
+        Page::Sound, Page::Voice,      Page::Keyboard,
+        Page::Mouse, Page::Touch,      Page::System};
+    return result;
+  }
+
+  std::vector<std::string> audioChannels() const override {
+    return {"BGM", "Se", "Voice"};
+  }
+
+  SDL_FRect tabArea(int index) const override {
+    // Boundaries between the English Steam atlas labels.
+    static constexpr float edges[]{251, 356, 445,  550,  663,
+                                   766, 917, 1032, 1145, 1280};
+    return {edges[index], 0, edges[index + 1] - edges[index], 60};
+  }
+
+  void renderFrame(Kotonoha::RendererRef renderer, Kotonoha::Engine &engine,
+                   int tab, const Kotonoha::EngineSettings &draft) override {
+    const SDL_FRect screen{0, 0, 1280, 720};
+    auto &ui = engine.GetUI();
+    if (!draw(renderer, "options_bg", screen)) {
+      SDL_SetRenderDrawColor(&renderer, 246, 249, 253, 255);
+      SDL_RenderFillRect(&renderer, &screen);
+    }
+    if (draw(renderer, "options_tab_en", {0, 0, 1280, 60})) {
+      const auto active = tabArea(tab);
+      if (!draw(renderer, "options_tab2_en", active, &active)) {
+        const SDL_FRect underline{active.x + 8, 56, active.w - 16, 3};
+        ui.panel(renderer, underline, ink_);
+      }
+    } else {
+      static constexpr const char *names[]{"Basic", "Text1", "Text2",
+                                           "Sound", "Voice", "Keyboard",
+                                           "Mouse", "Touch", "System"};
+      ui.text(renderer, "OPTIONS", 38, 10, 195, ink_);
+      for (int i = 0; i < int(pages().size()); ++i) {
+        auto rect = tabArea(i);
+        rect.y = 4;
+        rect.h = 50;
+        ui.panel(renderer, rect,
+                 i == tab ? SDL_Color{192, 222, 249, 255}
+                          : SDL_Color{230, 240, 249, 255});
+        ui.text(renderer, names[i], rect.x + 4, 18, rect.w - 8, ink_);
+      }
+    }
+    const auto help = [&](std::initializer_list<const char *> lines) {
+      float y = 105;
+      for (auto *line : lines) {
+        ui.text(renderer, line, 108, y, 1060, ink_);
+        y += 52;
+      }
+    };
+    const auto kind = pages()[tab];
+    if (kind == Page::TextPacing || kind == Page::TextColors) {
+      draw(renderer, "OPTIONS_PV_BG_win32_1280", {96, 505, 1088, 93});
+      draw(renderer, "options_pv_win", {72, 490, 1136, 120});
+      ui.text(renderer, "Dialogue preview", 146, 526, 985,
+              draft.vnTextColorOverride ? draft.vnSpeakerColor
+                                        : SDL_Color{255, 238, 175, 255});
+      ui.text(renderer, "The breeze carries the sound of summer.", 146, 558,
+              985,
+              draft.vnTextColorOverride ? draft.vnTextColor
+                                        : SDL_Color{255, 255, 255, 255});
+    } else if (kind == Page::Keyboard) {
+      help({"Enter / Space — reveal or advance dialogue",
+            "Escape — open the system menu or go back",
+            "B / Page Up — dialogue history",
+            "F5 / F6 — quick save / quick load", "H — hide the dialogue box"});
+    } else if (kind == Page::Mouse) {
+      help({"Left click — select an option or advance dialogue",
+            "Right click — open the system menu or go back",
+            "Middle click — hide the dialogue box"});
+    } else if (kind == Page::Touch) {
+      help({"Tap to select or advance dialogue",
+            "Use the on-screen menu button to open the system menu"});
+    } else if (kind == Page::Sound || kind == Page::Voice) {
+      ui.text(renderer, "Volume changes apply immediately", 104, 573, 1000,
+              ink_);
+    }
+  }
+
+  bool renderSlider(Kotonoha::RendererRef renderer, SDL_FRect bar,
+                    float value) override {
+    SDL_SetRenderDrawColor(&renderer, 197, 218, 237, 255);
+    SDL_RenderFillRect(&renderer, &bar);
+    const SDL_FRect fill{bar.x, bar.y, bar.w * value, bar.h};
+    SDL_SetRenderDrawColor(&renderer, 95, 151, 211, 255);
+    SDL_RenderFillRect(&renderer, &fill);
+    const SDL_FRect source{78, 2, 72, 72};
+    const SDL_FRect knob{bar.x + bar.w * value - 15, bar.y - 7, 30, 30};
+    if (!draw(renderer, "options_parts", knob, &source)) {
+      SDL_SetRenderDrawColor(&renderer, 52, 112, 187, 255);
+      SDL_RenderFillRect(&renderer, &knob);
+    }
+    return true;
+  }
 };
 
 class AirSaveMenu final : public Kotonoha::VNSaveMenu {
@@ -1296,10 +1509,55 @@ struct LucaSystemRuntime::Impl {
   bool titleShown = false;
   bool originalTitle = true;
   CzImage titleBackground;
-  CzImage titleMenu;
   Kotonoha::TexturePtr titleBackgroundTexture;
-  Kotonoha::TexturePtr titleMenuTexture;
   int titleSelection = 0;
+  int titlePage = 0;
+  float titleSlideFrom = 0;
+  std::uint64_t titleSlideStart = 0;
+  bool titleHighlight = false;
+  bool storyOpen = false;
+  bool storyHighlight = false;
+  int storySelection = 0;
+  Kotonoha::TouchActivation titleTouch;
+
+  float titleOffset() const {
+    const float target = titlePage * 1280.0f;
+    const float t = std::clamp(float(SDL_GetTicks() - titleSlideStart) / 240.0f,
+                               0.0f, 1.0f);
+    const float rest = 1.0f - t;
+    return target + (titleSlideFrom - target) * rest * rest * rest;
+  }
+
+  void selectTitle(int index) {
+    if (titlePages[index] != titlePage) {
+      titleSlideFrom = titleOffset();
+      titleSlideStart = SDL_GetTicks();
+      titlePage = titlePages[index];
+    }
+    titleSelection = index;
+    titleHighlight = true;
+    playSysSe("CURSOR");
+  }
+
+  SDL_FRect titleRect(int index, float offset) const {
+    const auto &item = titleItems[index];
+    return {item.center - item.width * .5f + titlePages[index] * 1280 - offset,
+            540, float(item.width), 70};
+  }
+
+  int storyCount() const {
+    if (getVar(12072))
+      return 4;
+    if (getVar(12071))
+      return 3;
+    return getVar(12070) ? 2 : 1;
+  }
+
+  SDL_FRect storyRect(int index) const {
+    const auto &item = storyItems[index];
+    return {item.center - item.width * .5f, 210.0f + index * 69,
+            float(item.width), 72};
+  }
 
   // VM state
   std::vector<ScriptInstruction> instructions;
@@ -1322,6 +1580,29 @@ struct LucaSystemRuntime::Impl {
   bool waiting = false;
   bool skipMode = false;
   bool autoMode = false;
+  std::uint64_t autoAdvanceAt = 0;
+
+  void dialogueControl(AirTextBox::Control control) {
+    switch (control) {
+    case AirTextBox::Control::Menu:
+      if (menu)
+        menu->open();
+      break;
+    case AirTextBox::Control::Skip:
+      skipMode = !skipMode;
+      autoMode = false;
+      break;
+    case AirTextBox::Control::Auto:
+      autoMode = !autoMode;
+      skipMode = false;
+      break;
+    case AirTextBox::Control::Voice:
+      if (runtime.currentDialogueVoiceId_)
+        playVoice(runtime.currentDialogueVoiceId_);
+      break;
+    }
+    autoAdvanceAt = 0;
+  }
 
   // Active choice state
   bool choiceActive = false;
@@ -1373,6 +1654,8 @@ struct LucaSystemRuntime::Impl {
   size_t currentSplashIndex = 0;
   uint64_t splashStartTime = 0;
   bool showingSplash = false;
+  static constexpr uint64_t noticeDuration = 7500;
+  static constexpr uint64_t logoDuration = 1800;
 
   SceneLayers sceneLayers;
 
@@ -1528,8 +1811,8 @@ struct LucaSystemRuntime::Impl {
   }
 
   void setupSplashSequence() {
-    static const char *names[] = {"logo0",    "logo1",   "logo2",
-                                  "logo_key", "logo_va", "logo_prototype"};
+    // Steam boot order: white notice, Visual Arts, Key, then Prototype/LUCA.
+    static const char *names[] = {"logo1", "logo2", "logo0"};
     splashLogos.clear();
     for (const char *n : names) {
       if (assets->contains(n)) {
@@ -1540,11 +1823,9 @@ struct LucaSystemRuntime::Impl {
         }
       }
     }
-    if (!splashLogos.empty()) {
-      showingSplash = true;
-      currentSplashIndex = 0;
-      splashStartTime = SDL_GetTicks();
-    }
+    showingSplash = !splashLogos.empty();
+    currentSplashIndex = 0;
+    splashStartTime = SDL_GetTicks();
   }
 
   std::vector<std::string> scenarioFiles() const {
@@ -1580,12 +1861,33 @@ struct LucaSystemRuntime::Impl {
     return "title1a";
   }
 
+  void playTitleMusic() {
+    constexpr uint32_t track = 100021;
+    if (assets->hasBgmAsset(track))
+      playBgm(track, true);
+  }
+
+  void finishSplash() {
+    showingSplash = false;
+    if (originalTitle)
+      playTitleMusic();
+  }
+
+  void advanceSplash() {
+    if (++currentSplashIndex > splashLogos.size())
+      finishSplash();
+    else
+      splashStartTime = SDL_GetTicks();
+  }
+
   void enterTitleScreen() {
     stopAudio();
     moviePlayer.reset();
     movieFinished = true;
     running = false;
     waiting = false;
+    skipMode = autoMode = false;
+    autoAdvanceAt = 0;
     choiceActive = false;
     dialogueVisible = false;
     if (textbox)
@@ -1611,18 +1913,20 @@ struct LucaSystemRuntime::Impl {
     sceneLayers.reset();
     originalTitle = true;
     titleShown = true;
+    titlePage = titleSelection = 0;
+    titleSlideFrom = 0;
+    titleSlideStart = 0;
+    titleHighlight = storyOpen = false;
+    titleTouch.reset();
     titleBackgroundTexture.reset();
     try {
       const auto bgName = titleBackgroundName();
       if (assets->contains(bgName))
         titleBackground = DecodeCzImage(assets->read(bgName));
-      if (titleMenu.rgba.empty() && assets->contains("title_menu"))
-        titleMenu = DecodeCzImage(assets->read("title_menu"));
     } catch (...) {
     }
-    // Play AIR Title BGM (trk22 / 100021) when available
-    if (assets->hasBgmAsset(100021))
-      playBgm(100021, true);
+    if (!showingSplash)
+      playTitleMusic();
   }
 
   void openSaveSlots(bool load) {
@@ -2817,6 +3121,9 @@ struct LucaSystemRuntime::Impl {
   }
 
   void launchChapterFromTitle(const std::string &scenarioName) {
+    if (scenarioName.empty())
+      return;
+    storyOpen = false;
     originalTitle = false;
     titleShown = false;
     titleBackgroundTexture.reset();
@@ -2849,7 +3156,6 @@ void LucaSystemRuntime::shutdown() {
   impl.backlog = nullptr;
   impl.menu = nullptr;
   impl.titleBackgroundTexture.reset();
-  impl.titleMenuTexture.reset();
   impl.objectTextures.clear();
   impl.backgroundTexture.reset();
   impl.splashLogos.clear();
@@ -2865,9 +3171,13 @@ void LucaSystemRuntime::init(Kotonoha::Engine &engine) {
 
 void LucaSystemRuntime::initGlobal(Kotonoha::Engine &engine) {
   auto &impl = *impl_;
+  engine.GetSettingsMenu().setSkin(
+      std::make_unique<AirSettingsSkin>(impl.assets));
   impl.backlog = &engine.configureSharedScene<Kotonoha::VNBacklog, AirBacklog>(
       *impl.assets);
   impl.textbox = std::make_unique<AirTextBox>(engine, *impl.assets);
+  impl.textbox->setControlAction(
+      [this](AirTextBox::Control control) { impl_->dialogueControl(control); });
   impl.choiceScene = &Kotonoha::GetChoiceQuestionRuntime(engine);
   impl.backlog->setVoiceReplay([this](const std::string &id) {
     try {
@@ -2948,6 +3258,11 @@ void LucaSystemRuntime::initGameplay(Kotonoha::Engine &engine) {
 void LucaSystemRuntime::update() {
   Runtime::update();
   auto &impl = *impl_;
+  if (impl.showingSplash &&
+      SDL_GetTicks() - impl.splashStartTime >=
+          (impl.currentSplashIndex == 0 ? Impl::noticeDuration
+                                        : Impl::logoDuration))
+    impl.advanceSplash();
   if (impl.moviePlayer && !impl.movieFinished) {
     if (impl.engine)
       impl.moviePlayer->update(impl.engine->GetRenderer());
@@ -2963,6 +3278,19 @@ void LucaSystemRuntime::update() {
     if (impl.textbox)
       impl.textbox->completeDialogue();
     impl.advanceDialogue();
+  }
+  if (impl.autoMode && impl.dialogueVisible && !impl.choiceActive &&
+      !isStoryPaused() && impl.textbox && impl.textbox->isVisible() &&
+      impl.textbox->isDialogueComplete() && !impl.voice.Playing()) {
+    const auto now = SDL_GetTicks();
+    if (!impl.autoAdvanceAt)
+      impl.autoAdvanceAt = now + 1000;
+    else if (now >= impl.autoAdvanceAt) {
+      impl.autoAdvanceAt = 0;
+      impl.advanceDialogue();
+    }
+  } else {
+    impl.autoAdvanceAt = 0;
   }
   if (impl.engine && impl.running && !impl.dialogueVisible &&
       !impl.choiceActive && !impl.engine->isStoryPaused() && !impl.waiting) {
@@ -2982,14 +3310,38 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
   auto &impl = *impl_;
   const uint64_t now = SDL_GetTicks();
 
-  if (impl.showingSplash && !impl.splashLogos.empty()) {
+  if (impl.showingSplash) {
     const uint64_t elapsed = now - impl.splashStartTime;
-    constexpr uint64_t logoDuration = 1800;
-    const size_t index = static_cast<size_t>(elapsed / logoDuration);
-    if (index >= impl.splashLogos.size()) {
-      impl.showingSplash = false;
+    const SDL_FRect screen{0, 0, 1280, 720};
+    SDL_SetRenderDrawColor(&renderer, 255, 255, 255, 255);
+    SDL_RenderFillRect(&renderer, &screen);
+    if (impl.currentSplashIndex == 0) {
+      // The Windows release draws text here, not an image from SYSCG.PAK.
+      // Recreate the notice in native UI without bundling its executable.
+      auto &ui = impl.engine->GetUI();
+      const SDL_Color ink{12, 12, 12, 255};
+      static constexpr const char *paragraphs[] = {
+          "This is a work of fiction.\n"
+          "The characters, locations, and names of organizations that appear "
+          "are all fictitious.",
+          "This product is owned by VISUAL ARTS Co., Ltd.\n"
+          "Unauthorized lending, reproducing, modifying, duplication, "
+          "modification,\nor redistribution over the Internet and using P2P "
+          "software to share and distribute without the express written "
+          "consent of VISUAL ARTS Co., Ltd. is prohibited by law.",
+          "This illegal uploading of videos to the internet is steadily "
+          "rising.\nThe unauthorized uploading of in-game music, video "
+          "records, etc., except for demos, is strictly forbidden and can be "
+          "judged according to your countries law.",
+      };
+      float y = 78;
+      for (const char *paragraph : paragraphs) {
+        const float height =
+            ui.textSized(renderer, paragraph, 62, y, 1156, 26, ink);
+        y += height + 26;
+      }
     } else {
-      auto &logo = impl.splashLogos[index];
+      auto &logo = impl.splashLogos[impl.currentSplashIndex - 1];
       if (!logo.texture && !logo.image.rgba.empty()) {
         logo.texture.reset(SDL_CreateTexture(
             &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC,
@@ -3000,24 +3352,21 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           SDL_SetTextureBlendMode(logo.texture.get(), SDL_BLENDMODE_BLEND);
         }
       }
-      const uint64_t logoElapsed = elapsed % logoDuration;
+      const auto logoElapsed = std::min(elapsed, Impl::logoDuration);
       float alpha = 1.0f;
       if (logoElapsed < 350)
         alpha = float(logoElapsed) / 350.0f;
-      else if (logoElapsed > logoDuration - 350)
-        alpha = float(logoDuration - logoElapsed) / 350.0f;
+      else if (logoElapsed > Impl::logoDuration - 350)
+        alpha = float(Impl::logoDuration - logoElapsed) / 350.0f;
       alpha = std::clamp(alpha, 0.0f, 1.0f);
 
-      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
-      SDL_FRect screen{0, 0, 1280, 720};
-      SDL_RenderFillRect(&renderer, &screen);
       if (logo.texture) {
         SDL_SetTextureAlphaMod(logo.texture.get(),
                                static_cast<Uint8>(std::lround(alpha * 255.0f)));
         SDL_RenderTexture(&renderer, logo.texture.get(), nullptr, &screen);
       }
-      return;
     }
+    return;
   }
 
   if (impl.moviePlayer && !impl.movieFinished && impl.moviePlayer->isOpen()) {
@@ -3027,6 +3376,30 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
   }
 
   if (impl.originalTitle) {
+    auto &assets = *impl.assets;
+    const SDL_FRect screen{0, 0, 1280, 720};
+    if (impl.storyOpen) {
+      if (!drawAirArt(assets, renderer, "scenario_bg", screen)) {
+        SDL_SetRenderDrawColor(&renderer, 248, 249, 252, 255);
+        SDL_RenderFillRect(&renderer, &screen);
+      }
+      drawAirArt(assets, renderer, "scenario_bg_hat", {452, 473, 376, 216});
+      for (int i = 0; i < impl.storyCount(); ++i) {
+        const auto &item = storyItems[i];
+        const SDL_FRect src{float(item.atlasX),
+                            impl.storyHighlight && i == impl.storySelection
+                                ? 72.0f
+                                : 0.0f,
+                            float(item.width), 72};
+        drawAirArt(assets, renderer, "scenario_menu_en", impl.storyRect(i),
+                   &src);
+      }
+      auto &ui = impl.engine->GetUI();
+      ui.panel(renderer, storyClose, {82, 105, 178, 255});
+      ui.text(renderer, "[X] Close", storyClose.x + 10, storyClose.y + 5,
+              storyClose.w - 20);
+      return;
+    }
     auto texture = [&renderer](Kotonoha::TexturePtr &target,
                                const CzImage &image) -> SDL_Texture * {
       if (image.rgba.empty())
@@ -3043,26 +3416,26 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
       return target.get();
     };
-    SDL_FRect screen{0, 0, 1280, 720};
     if (auto *bgTex =
             texture(impl.titleBackgroundTexture, impl.titleBackground)) {
       SDL_RenderTexture(&renderer, bgTex, nullptr, &screen);
     }
-    if (auto *menuTex = texture(impl.titleMenuTexture, impl.titleMenu)) {
-      SDL_FRect source{0, 0, 1856, 70};
-      SDL_FRect destination{0, 620, 1280, 48.2759f};
-      SDL_RenderTexture(&renderer, menuTex, &source, &destination);
-      static constexpr int groups[][2] = {
-          {15, 222},    {258, 542},   {577, 809},   {842, 950},  {984, 1154},
-          {1188, 1352}, {1386, 1466}, {1500, 1679}, {1714, 1855}};
-      const auto &group = groups[std::clamp(impl.titleSelection, 0, 8)];
-      const float menuScale = 1280.0f / 1856.0f;
-      SDL_FRect activeSource{float(group[0]), 70,
-                             float(group[1] - group[0] + 1), 70};
-      SDL_FRect activeDestination{group[0] * menuScale, 620,
-                                  activeSource.w * menuScale, 48.2759f};
-      SDL_RenderTexture(&renderer, menuTex, &activeSource, &activeDestination);
+    const float offset = impl.titleOffset();
+    for (int i = 0; i < int(std::size(titleItems)); ++i) {
+      const auto &item = titleItems[i];
+      const auto dst = impl.titleRect(i, offset);
+      if (dst.x + dst.w < 0 || dst.x >= 1280)
+        continue;
+      const SDL_FRect src{float(item.atlasX),
+                          impl.titleHighlight && i == impl.titleSelection
+                              ? 70.0f
+                              : 0.0f,
+                          float(item.width), 70};
+      drawAirArt(assets, renderer, "title_menu", dst, &src);
     }
+    const SDL_FRect arrowSrc{impl.titlePage ? 0.0f : 60.0f, 0, 60, 54};
+    drawAirArt(assets, renderer, "title_arrow",
+               {impl.titlePage ? 66.0f : 1150.0f, 548, 60, 54}, &arrowSrc);
     Runtime::renderGameplay(renderer, scale);
     return;
   }
@@ -3119,15 +3492,50 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     SDL_RenderFillRect(&renderer, &screen);
   }
 
+  if (impl.textbox)
+    impl.textbox->setControls(impl.skipMode, impl.autoMode,
+                              currentDialogueVoiceId_ != 0);
   Runtime::renderGameplay(renderer, scale);
 }
 
 void LucaSystemRuntime::advanceDialogue() { impl_->advanceDialogue(); }
 
+bool LucaSystemRuntime::handleBackAction() {
+  auto &impl = *impl_;
+  if (impl.showingSplash) {
+    impl.finishSplash();
+    return true;
+  }
+  if (!impl.originalTitle)
+    return false;
+  if (impl.storyOpen) {
+    impl.storyOpen = false;
+    impl.playSysSe("CANCEL");
+  } else if (impl.titlePage) {
+    impl.selectTitle(0);
+  }
+  return true;
+}
+
+bool LucaSystemRuntime::onScreenEvent(Kotonoha::EventRef event) {
+  if (impl_->originalTitle && event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+      event.gbutton.button == SDL_GAMEPAD_BUTTON_START) {
+    for (const auto *scene : GetActiveScenes())
+      if (scene && scene->capturesInput())
+        return false;
+    SDL_Event confirm{};
+    confirm.type = SDL_EVENT_KEY_DOWN;
+    confirm.key.key = SDLK_RETURN;
+    return onEvent(confirm);
+  }
+  return Runtime::onScreenEvent(event);
+}
+
 bool LucaSystemRuntime::handleAdvanceAction() {
   auto &impl = *impl_;
   if (!impl.dialogueVisible || isStoryPaused())
     return false;
+  impl.autoAdvanceAt = 0;
   if (impl.textbox && impl.textbox->isUserHidden()) {
     impl.textbox->setUserHidden(false);
     return true;
@@ -3142,14 +3550,17 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
   if (mapped.type == SDL_EVENT_KEY_UP && mapped.key.key == SDLK_LCTRL)
     impl.skipMode = false;
 
-  if (impl.showingSplash && (mapped.type == SDL_EVENT_KEY_DOWN ||
-                             mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
-                             mapped.type == SDL_EVENT_FINGER_DOWN ||
-                             mapped.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)) {
-    if (mapped.type != SDL_EVENT_KEY_DOWN || !mapped.key.repeat) {
-      impl.showingSplash = false;
-      return true;
+  if (impl.showingSplash) {
+    if (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat) {
+      if (mapped.key.key == SDLK_ESCAPE || mapped.key.key == SDLK_AC_BACK ||
+          mapped.key.key == SDLK_X)
+        impl.finishSplash();
+      else if (mapped.key.key == SDLK_RETURN || mapped.key.key == SDLK_SPACE)
+        impl.advanceSplash();
+    } else if (Kotonoha::UI::clicked(mapped, {0, 0, 1280, 720})) {
+      impl.advanceSplash();
     }
+    return true;
   }
 
   if (impl.moviePlayer && !impl.movieFinished &&
@@ -3167,101 +3578,135 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     if (scene && scene->capturesInput())
       return Runtime::onEvent(event);
 
-  static constexpr int menuGroups[][2] = {
-      {15, 222},    {258, 542},   {577, 809},   {842, 950},  {984, 1154},
-      {1188, 1352}, {1386, 1466}, {1500, 1679}, {1714, 1855}};
+  if (impl.originalTitle) {
+    if (!impl.titleTouch.accept(mapped))
+      return true;
+    const bool back =
+        (impl.engine && Kotonoha::BackAction(*impl.engine, mapped)) ||
+        (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
+         mapped.key.key == SDLK_X);
+    if (back)
+      return handleBackAction();
+  }
+  const bool hover = mapped.type == SDL_EVENT_MOUSE_MOTION;
+  const SDL_FPoint pointer = hover ? SDL_FPoint{mapped.motion.x, mapped.motion.y}
+                                  : SDL_FPoint{};
+  bool confirm = mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
+                 (mapped.key.key == SDLK_RETURN || mapped.key.key == SDLK_SPACE);
+  if (impl.originalTitle && impl.storyOpen) {
+    if (Kotonoha::UI::clicked(mapped, storyClose))
+      return handleBackAction();
+    for (int i = 0; i < impl.storyCount(); ++i) {
+      const auto rect = impl.storyRect(i);
+      if (Kotonoha::UI::clicked(mapped, rect)) {
+        impl.storySelection = i;
+        impl.playSysSe("ENTER");
+        impl.launchChapterFromTitle(i == 0 ? impl.startupScenario()
+                                          : storyRoots[i]);
+        return true;
+      }
+      if (hover && SDL_PointInRectFloat(&pointer, &rect)) {
+        if (!impl.storyHighlight || impl.storySelection != i)
+          impl.playSysSe("CURSOR");
+        impl.storySelection = i;
+        impl.storyHighlight = true;
+      }
+    }
+    if (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat) {
+      const auto key = mapped.key.key;
+      if (key == SDLK_UP || key == SDLK_LEFT || key == SDLK_DOWN ||
+          key == SDLK_RIGHT) {
+        const int count = impl.storyCount();
+        impl.storySelection =
+            (impl.storySelection + count +
+             (key == SDLK_UP || key == SDLK_LEFT ? -1 : 1)) %
+            count;
+        impl.storyHighlight = true;
+        impl.playSysSe("CURSOR");
+      }
+    }
+    if (confirm) {
+      impl.playSysSe("ENTER");
+      impl.launchChapterFromTitle(impl.storySelection == 0
+                                      ? impl.startupScenario()
+                                      : storyRoots[impl.storySelection]);
+    }
+    return true;
+  }
+
   const auto titleHit = [&](float x, float y) {
-    if (y < 610 || y > 690)
-      return -1;
-    const float atlasX = x * 1856.0f / 1280.0f;
-    for (int i = 0; i < 9; ++i)
-      if (atlasX >= menuGroups[i][0] && atlasX <= menuGroups[i][1])
+    const SDL_FPoint point{x, y};
+    const float offset = impl.titleOffset();
+    for (int i = 0; i < int(std::size(titleItems)); ++i) {
+      const auto rect = impl.titleRect(i, offset);
+      if (SDL_PointInRectFloat(&point, &rect))
         return i;
+    }
     return -1;
   };
-  if (impl.originalTitle && mapped.type == SDL_EVENT_MOUSE_MOTION) {
+  if (impl.originalTitle && hover) {
     const int hit = titleHit(mapped.motion.x, mapped.motion.y);
-    if (hit >= 0 && hit != impl.titleSelection) {
+    if (hit >= 0 && titlePages[hit] == impl.titlePage &&
+        (!impl.titleHighlight || hit != impl.titleSelection)) {
       impl.titleSelection = hit;
+      impl.titleHighlight = true;
       impl.playSysSe("CURSOR");
     }
     return hit >= 0;
   }
-  if (impl.originalTitle && mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-      mapped.button.button == SDL_BUTTON_LEFT) {
+  if (impl.originalTitle &&
+      Kotonoha::UI::clicked(mapped, {0, 540, 1280, 70})) {
+    if (Kotonoha::UI::clicked(
+            mapped, {impl.titlePage ? 66.0f : 1150.0f, 540, 60, 70})) {
+      impl.selectTitle(impl.titlePage ? 0 : 5);
+      return true;
+    }
     const int hit = titleHit(mapped.button.x, mapped.button.y);
-    if (hit < 0)
-      return false;
+    if (hit < 0 || titlePages[hit] != impl.titlePage)
+      return true;
     impl.titleSelection = hit;
-    SDL_Event activate{};
-    activate.type = SDL_EVENT_KEY_DOWN;
-    activate.key.key = SDLK_RETURN;
-    activate.key.repeat = false;
-    return onEvent(activate);
+    impl.titleHighlight = true;
+    confirm = true;
   }
   if (impl.originalTitle && mapped.type == SDL_EVENT_KEY_DOWN &&
       !mapped.key.repeat &&
       (mapped.key.key == SDLK_LEFT || mapped.key.key == SDLK_RIGHT)) {
-    impl.titleSelection =
-        (impl.titleSelection + (mapped.key.key == SDLK_RIGHT ? 1 : 8)) % 9;
-    impl.playSysSe("CURSOR");
+    constexpr int count = int(std::size(titleItems));
+    impl.selectTitle((impl.titleSelection +
+                      (mapped.key.key == SDLK_RIGHT ? 1 : count - 1)) %
+                     count);
     return true;
   }
-  if (impl.originalTitle && mapped.type == SDL_EVENT_KEY_DOWN &&
-      !mapped.key.repeat &&
-      (mapped.key.key == SDLK_RETURN || mapped.key.key == SDLK_SPACE)) {
+  if (impl.originalTitle && confirm) {
     impl.playSysSe("ENTER");
     switch (impl.titleSelection) {
-    case 0: // NEW GAME -> DREAM ("seen170")
-      impl.launchChapterFromTitle(impl.startupScenario());
+    case 0: // NEW GAME opens the retail story selector, even with only DREAM.
+      impl.storyOpen = true;
+      impl.storySelection = 0;
+      impl.storyHighlight = false;
       return true;
-    case 1: { // SELECT STORY -> Chapter Selector
-      if (impl.choiceScene) {
-        impl.choiceActive = true;
-        std::vector<Kotonoha::ChoiceOption> chapters = {
-            {"DREAM", 0},
-            {"SUMMER", 1},
-            {"AIR", 2},
-            {"FIRST SKY (Hatsuzora)", 3},
-            {"Cancel", 4}};
-        impl.choiceScene->setQuestion(
-            "SELECT STORY", chapters, [this](int chId, const std::string &) {
-              impl_->choiceActive = false;
-              if (impl_->choiceScene)
-                impl_->choiceScene->hide();
-              static const char *roots[] = {"seen170", "seen700", "seen163",
-                                            "seen800"};
-              if (chId >= 0 && chId < 4)
-                impl_->launchChapterFromTitle(roots[chId]);
-            });
-      }
-      return true;
-    }
-    case 2: // START "AIR" -> seen163
-      impl.launchChapterFromTitle("seen163");
-      return true;
-    case 3: // LOAD
+    case 1: // LOAD
       impl.openSaveSlots(true);
       return true;
-    case 4: // OPTIONS
+    case 2: // OPTIONS
       if (impl.engine)
         impl.engine->openSettings();
       return true;
-    case 5: // MANUAL
+    case 3: // MANUAL
       if (impl.menu)
         impl.menu->openManual(true);
       return true;
-    case 6: { // EXIT (button 6 at [1386..1466] in SYSCG.PAK/title_menu!)
+    case 4: { // EXIT
       SDL_Event quit{};
       quit.type = SDL_EVENT_QUIT;
       SDL_PushEvent(&quit);
       return true;
     }
-    case 7: // GALLERY
+    case 5: // GALLERY
       if (impl.gallery)
         impl.gallery->open();
       return true;
-    case 8: { // MUSIC -> cycle/listen to MUSIC.PAK BGM tracks
+    case 6: { // MUSIC -> cycle/listen to MUSIC.PAK BGM tracks
       if (impl.choiceScene) {
         impl.choiceActive = true;
         std::vector<Kotonoha::ChoiceOption> tracks;
@@ -3306,6 +3751,14 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
   if (!impl.originalTitle && mapped.type == SDL_EVENT_KEY_DOWN &&
       mapped.key.key == SDLK_LCTRL) {
     impl.skipMode = true;
+    impl.autoMode = false;
+  }
+  if (impl.dialogueVisible && mapped.type == SDL_EVENT_KEY_DOWN &&
+      !mapped.key.repeat &&
+      (mapped.key.key == SDLK_A || mapped.key.key == SDLK_S)) {
+    impl.dialogueControl(mapped.key.key == SDLK_A ? AirTextBox::Control::Auto
+                                                 : AirTextBox::Control::Skip);
+    return true;
   }
 
   if (Runtime::onEvent(event))
@@ -3471,12 +3924,14 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
     originalActiveKeys_.push_back(cleanText);
   }
   currentDialogueVoiceId_ = 0;
+  const auto translate = [&](const std::string &original) {
+    return impl.engine ? impl.engine->GetTranslation().text(0, original)
+                       : original;
+  };
   dialogueText_ = impl.dialogueVisible
-                      ? impl.engine->GetTranslation().text(0, cleanText)
+                      ? translate(cleanText)
                       : std::string{};
-  dialogueSpeaker_ = impl.dialogueVisible
-                         ? impl.engine->GetTranslation().text(0, spk)
-                         : std::string{};
+  dialogueSpeaker_ = impl.dialogueVisible ? translate(spk) : std::string{};
   if (impl.textbox) {
     impl.textbox->setWindowType(impl.getVar(6002));
     if (impl.dialogueVisible) {

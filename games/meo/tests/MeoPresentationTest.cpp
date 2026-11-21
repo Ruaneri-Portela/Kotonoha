@@ -5,9 +5,12 @@
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/VNSave.hpp>
 #include <SummerRadish/SummerAssets.hpp>
+#include <SummerRadish/MeoAudio.hpp>
 
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -17,6 +20,28 @@ int main(int argc, char **argv) {
     if (argc < 2 || argc > 3)
       return 77;
     auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(argv[1]);
+    if (argc == 3 && std::string(argv[2]) == "audio") {
+      const auto bytes = assets->read("SOUND/MEO02.BGM");
+      const auto bgm = assets->loadAudio("SOUND/MEO02.BGM");
+      const auto decoded = Kotonoha::Providers::MeoAudio::decodeBgm(bytes);
+      if (bgm.spec.format != SDL_AUDIO_S16 || bgm.spec.channels != 2 ||
+          bgm.spec.freq != 44100 ||
+          bgm.data.size() != (bytes.size() - 16) * 4 ||
+          decoded.loopStart == 0 || decoded.loopStart >= bytes.size() - 16)
+        throw std::runtime_error("MEO BGM PCM format or loop is invalid");
+      bool audible = false;
+      for (std::size_t i = 0; i + 2 <= bgm.data.size(); i += 2) {
+        int16_t sample;
+        std::memcpy(&sample, bgm.data.data() + i, sizeof(sample));
+        if (sample > 1000 || sample < -1000) {
+          audible = true;
+          break;
+        }
+      }
+      if (!audible)
+        throw std::runtime_error("MEO BGM decoded to silence");
+      return 0;
+    }
     SummerRadish::SummerRuntime game(assets, "Miss Each Other",
                                     "me.hirameki.kotonoha.meo");
     Kotonoha::EngineOptions options;
@@ -94,6 +119,10 @@ int main(int argc, char **argv) {
     if (game.GetState() != Kotonoha::GameState::Gameplay ||
         game.GetActiveScenes().empty())
       throw std::runtime_error("MEO Start did not enter gameplay");
+    const auto audioRequests = assets->recentAudio();
+    if (std::find(audioRequests.begin(), audioRequests.end(),
+                  "SOUND/MEO02.BGM") == audioRequests.end())
+      throw std::runtime_error("MEO opening BGM was not requested");
     bool visible = false;
     const Uint64 started = SDL_GetTicks();
     while (!visible && SDL_GetTicks() - started < 5000) {

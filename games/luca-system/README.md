@@ -106,6 +106,14 @@ pages, and Escape or X to cancel. Kotonoha handles naming, overwriting,
 renaming and deleting `.vn` saves. Save cards show slot names rather than
 the original game's screenshots.
 
+**Options** uses AIR's original background, nine English tabs, dialogue
+preview frame and slider art. Kotonoha handles the display, text, audio and
+system options. Use Tab or click a tab, then **Apply and save** to commit
+staged changes. Escape or X discards changes still in the draft and
+returns to the title or pause menu; volume and text speed apply live.
+Keyboard, Mouse and Touch list the bindings supported by the port rather
+than providing the original game's remapping editors.
+
 From the title, open **Gallery** to browse the 72 CG slots in four
 categories. Use the arrows or controller direction buttons to navigate,
 Enter to open a slot, and Escape to go back. Page Up/Page Down switch pages

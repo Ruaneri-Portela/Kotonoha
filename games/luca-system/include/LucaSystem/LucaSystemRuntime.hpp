@@ -27,8 +27,10 @@ public:
   void update() override;
   void renderGameplay(Kotonoha::RendererRef renderer, float scale) override;
   bool onEvent(Kotonoha::EventRef event) override;
+  bool onScreenEvent(Kotonoha::EventRef event) override;
 
   bool handleAdvanceAction() override;
+  bool handleBackAction() override;
 
   void saveGame(const std::string &path) override;
   void loadGame(const std::string &path) override;

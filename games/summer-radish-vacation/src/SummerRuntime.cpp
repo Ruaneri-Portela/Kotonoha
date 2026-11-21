@@ -858,6 +858,17 @@ struct SummerRuntime::Impl {
     clip.samples.resize(size / 2);
     std::memcpy(clip.samples.data(), converted, size);
 
+    if (loop && meo && canonical(id).size() >= 4 &&
+        canonical(id).compare(canonical(id).size() - 4, 4, ".BGM") == 0) {
+      const auto bytes = assets->read(id);
+      if (bytes.size() >= 16) {
+        clip.loopStart = std::size_t(bytes[0]) |
+                         std::size_t(bytes[1]) << 8 |
+                         std::size_t(bytes[2]) << 16 |
+                         std::size_t(bytes[3]) << 24;
+      }
+    }
+
     if (loop && channel == "BGM") {
       const auto introId = std::string("SOUND/BGM/INTORO/") +
                            id.substr(id.find_last_of('/') + 1);
@@ -1054,6 +1065,17 @@ struct SummerRuntime::Impl {
           }
         } else if (child.tag == "EraseText") {
           text->hide();
+        } else if (child.tag == "Bgm") {
+          auto name = canonical(child.text);
+          if (name.rfind("SOUND/", 0) != 0)
+            name = "SOUND/" + name;
+          if (music != name) {
+            music = name;
+            audio(bgm, music, "BGM", true);
+          }
+        } else if (child.tag == "BgmStop") {
+          bgm.Stop();
+          music.clear();
         } else if (child.tag == "Objects") {
           for (const auto &object : child.children) {
             if (object.attr("CREATE") != "Movie")
@@ -1286,6 +1308,14 @@ struct SummerRuntime::Impl {
           child.attrs["MESS"] = attrValue(tag, "MESS");
         } else if (tag.compare(0, 10, "<EraseText") == 0) {
           child.tag = "EraseText";
+        } else if (tag.compare(0, 9, "<BgmStop") == 0) {
+          child.tag = "BgmStop";
+        } else if (tag.compare(0, 4, "<Bgm") == 0) {
+          const auto close = body.find("</Bgm>", end + 1);
+          if (close != std::string::npos) {
+            child.tag = "Bgm";
+            child.text = body.substr(end + 1, close - end - 1);
+          }
         } else if (tag.find("CREATE=\"Movie\"") != std::string::npos) {
           child.tag = "Objects";
           Node object;
@@ -1318,6 +1348,8 @@ struct SummerRuntime::Impl {
   void openMeoMenu() {
     if (movie)
       movie->stop();
+    bgm.Stop();
+    music.clear();
     meoMenu = true;
     meoSceneMenu = false;
     titleFocus = 0;

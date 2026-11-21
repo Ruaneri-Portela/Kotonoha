@@ -27,6 +27,7 @@ public:
   std::vector<std::string>
   listAsset(const std::string &prefix = {}) const override;
   Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &) const override;
+  Kotonoha::AudioClip loadAudioAsset(const std::string &) const override;
   SummerRadish::Image picture(const std::string &) const;
   // Native movie files are loose on DISC1 rather than inside a CMP archive.
   std::filesystem::path moviePath(const std::string &filename) const;
