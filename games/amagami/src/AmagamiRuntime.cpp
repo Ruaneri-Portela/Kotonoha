@@ -1673,10 +1673,70 @@ std::string AmagamiRuntime::nodeClockKey() const {
   // event clock resets between blocks/events of a scenario.
   return session_ ? session_->name() : "title";
 }
+std::string AmagamiRuntime::debugNodeCatalogKey() const {
+  return session_ ? session_->name() : std::string{};
+}
+
+std::vector<Kotonoha::DebugAudioAsset> AmagamiRuntime::debugSceneAudio() {
+  if (!session_)
+    return {};
+  std::vector<Kotonoha::DebugAudioAsset> audio;
+  const auto &line = session_->dialogue();
+  if (session_->messageVisible() && !session_->messageCleared() &&
+      line.voice >= 0 && !line.voiceCode.empty())
+    audio.push_back({"voice/" + line.voiceCode + "/" +
+                         std::to_string(line.voice),
+                     line.speaker, line.original});
+  if (session_->musicTrack() >= 0)
+    audio.push_back({std::string(session_->classicMusic()
+                                     ? "music/classic/" : "music/") +
+                         std::to_string(session_->musicTrack()), {}, {}});
+  if (session_->ambienceTrack() >= 0)
+    audio.push_back({"sound/" +
+                         std::to_string(session_->ambienceTrack()), {}, {}});
+  return audio;
+}
+
+void AmagamiRuntime::debugOverlayAssetChanged(const std::string &) {
+  if (assets_)
+    assets_->clearCache();
+  voiceEnvelope_.clear();
+}
+
 std::vector<Kotonoha::DebugNode> AmagamiRuntime::debugNodes() const {
   std::vector<Kotonoha::DebugNode> out;
-  for (const auto &name : assets_->source()->scenarios())
-    out.push_back({name, name, {}});
+  const auto active = session_ ? session_->name() : std::string{};
+  for (const auto &name : assets_->source()->scenarios()) {
+    Kotonoha::DebugNode node{name, name, {}};
+    if (name == active) {
+      const auto add = [&](const std::string &id) {
+        if (!id.empty() && assets_->contains(id) &&
+            std::find(node.assets.begin(), node.assets.end(), id) ==
+                node.assets.end())
+          node.assets.push_back(id);
+      };
+      for (const auto &[actor, visual] : session_->visuals()) {
+        if (!visual.visible)
+          continue;
+        add("actor-body/" + visual.file);
+        add(visual.face);
+      }
+      for (const auto &[object, sprite] : session_->sceneSprites())
+        if (sprite.visible)
+          add(sprite.asset);
+      const auto &line = session_->dialogue();
+      if (line.voice >= 0 && !line.voiceCode.empty())
+        add("voice/" + line.voiceCode + "/" +
+            std::to_string(line.voice));
+      if (session_->musicTrack() >= 0)
+        add(std::string(session_->classicMusic() ? "music/classic/"
+                                                 : "music/") +
+            std::to_string(session_->musicTrack()));
+      if (session_->ambienceTrack() >= 0)
+        add("sound/" + std::to_string(session_->ambienceTrack()));
+    }
+    out.push_back(std::move(node));
+  }
   return out;
 }
 void AmagamiRuntime::debugJumpToNode(const std::string &id) { start(id); }
