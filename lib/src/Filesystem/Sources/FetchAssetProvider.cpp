@@ -720,9 +720,11 @@ void FetchAssetProvider::pump() {
   // Prefer JavaScript Fetch + IndexedDB when the HTTP source is configured.
   // Retain emscripten_fetch below as a compatibility fallback for old shells.
   if (EM_ASM_INT({
+        // Emscripten stringizes this through the C preprocessor. JavaScript
+        // '===' becomes two C tokens ('==' and '='), producing invalid '== ='
+        // in the emitted JS. 'typeof' returns a string, so '==' is safe here.
         return window.KotonohaAssetCache &&
-                   typeof window.KotonohaAssetCache.fetchJob ==
-               = "function" ? 1 : 0;
+               typeof window.KotonohaAssetCache.fetchJob == "function" ? 1 : 0;
       })) {
     while (active_ < 4 && !queued_.empty()) {
       auto job = std::move(queued_.front());
