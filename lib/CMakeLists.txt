@@ -349,11 +349,13 @@ if(NOT KOTONOHA_IMGUI_FROM_VCPKG)
             WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
-if (ANDROID)
+if(ANDROID)
     set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha_engine)
-else ()
+elseif(NOT (EMSCRIPTEN AND KOTONOHA_WASM_SHARED_ENGINE))
+    # The side module already received the versioned OUTPUT_NAME above.
+    # Never reset it to libkotonoha.wasm after computing the HTML loader URL.
     set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha)
-endif ()
+endif()
 
 target_include_directories(KotonohaEngine PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
