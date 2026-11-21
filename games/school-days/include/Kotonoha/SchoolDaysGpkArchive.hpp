@@ -2,10 +2,12 @@
 
 #include <Kotonoha/SchoolDaysGpkIndex.hpp>
 
+#include <Kotonoha/Filesystem/IMount.hpp>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <istream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -32,30 +34,33 @@ const std::array<SchoolDaysRetailGpkSpec, 29>& SchoolDaysRetailGpkSpecs();
 
 class SchoolDaysGpkArchive final {
 public:
-    bool Open(const std::filesystem::path& path, std::string* error = nullptr);
-    void Close();
+  bool Open(const std::filesystem::path &path, std::string *error = nullptr,
+            std::shared_ptr<const Filesystem::IMount> source = {});
+  std::unique_ptr<std::istream> OpenStream() const;
+  void Close();
 
-    bool IsOpen() const { return !path_.empty(); }
-    const std::filesystem::path& Path() const { return path_; }
-    size_t EntryCount() const { return index_.Entries().size(); }
-    uint64_t PidxOffset() const { return pidxOffset_; }
-    const SchoolDaysGpkIndex& Index() const { return index_; }
+  bool IsOpen() const { return !path_.empty(); }
+  const std::filesystem::path &Path() const { return path_; }
+  size_t EntryCount() const { return index_.Entries().size(); }
+  uint64_t PidxOffset() const { return pidxOffset_; }
+  const SchoolDaysGpkIndex &Index() const { return index_; }
 
-    SchoolDaysGpkLookupStatus Lookup(std::string_view archiveRelativePath,
-                                    size_t* entryIndex = nullptr) const;
-    // Lists direct children using canonical PIDX spelling.  An empty relative
-    // directory lists the archive root.  Ambiguous folded child names fail closed.
-    SchoolDaysGpkLookupStatus ListDirectory(
-        std::string_view archiveRelativeDirectory,
-        std::vector<std::string>* relativeChildren) const;
-    bool Read(std::string_view archiveRelativePath,
-              std::vector<uint8_t>* out,
-              std::string* error = nullptr) const;
-    bool ReadEntry(size_t entryIndex, std::vector<uint8_t>* out,
-                   std::string* error = nullptr) const;
+  SchoolDaysGpkLookupStatus Lookup(std::string_view archiveRelativePath,
+                                   size_t *entryIndex = nullptr) const;
+  // Lists direct children using canonical PIDX spelling.  An empty relative
+  // directory lists the archive root.  Ambiguous folded child names fail
+  // closed.
+  SchoolDaysGpkLookupStatus
+  ListDirectory(std::string_view archiveRelativeDirectory,
+                std::vector<std::string> *relativeChildren) const;
+  bool Read(std::string_view archiveRelativePath, std::vector<uint8_t> *out,
+            std::string *error = nullptr) const;
+  bool ReadEntry(size_t entryIndex, std::vector<uint8_t> *out,
+                 std::string *error = nullptr) const;
 
 private:
     std::filesystem::path path_;
+    std::shared_ptr<const Filesystem::IMount> source_;
     uint64_t pidxOffset_ = 0;
     SchoolDaysGpkIndex index_;
     std::vector<std::string> canonicalEntries_;
@@ -67,11 +72,15 @@ class SchoolDaysGpkAssetStore final {
 public:
     // Opens the authenticated 29-pack v1.02 set from the supplied Packs folder.
     // The operation is atomic: on any missing/invalid pack the store stays closed.
-    bool OpenRetailDirectory(const std::filesystem::path& packDirectory,
-                             std::string* error = nullptr);
-    void Close();
+  bool
+  OpenRetailDirectory(const std::filesystem::path &packDirectory,
+                      std::string *error = nullptr,
+                      std::shared_ptr<const Filesystem::IMount> source = {});
+  void Close();
 
-    bool IsOpen() const { return archives_.size() == SchoolDaysRetailGpkSpecs().size(); }
+  bool IsOpen() const {
+    return archives_.size() == SchoolDaysRetailGpkSpecs().size();
+  }
     size_t ArchiveCount() const { return archives_.size(); }
     size_t EntryCount() const { return entryCount_; }
 

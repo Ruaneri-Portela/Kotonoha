@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Kotonoha/Filesystem/IMount.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <filesystem>
 
@@ -15,8 +16,10 @@ class Assets final : public Kotonoha::AssetProvider {
   std::string resolveOriginal(const std::string &logical) const;
 
 public:
-  explicit Assets(std::filesystem::path root, const std::string &scripts = {},
-                  bool allowAutomaticOverlay = true);
+  explicit Assets(
+      std::filesystem::path root, const std::string &scripts = {},
+      bool allowAutomaticOverlay = true,
+      std::shared_ptr<const Kotonoha::Filesystem::IMount> packs = {});
   ~Assets() override;
   // Distinguishes authenticated packaged installations from extracted loose
   // developer fixtures. Never selects an LxH ON/OFF policy: packaged installs

@@ -342,22 +342,24 @@ std::shared_ptr<const SchoolDaysGpkArchive> CurrentIntegratedLxh() {
 
 class MountedRawAssetStream final : public AssetStream {
     std::shared_ptr<const void> mount_;
-    std::ifstream file_;
+    std::unique_ptr<std::istream> file_;
     std::vector<uint8_t> prefix_;
     uint64_t bodyOffset_ = 0u;
     uint64_t logicalSize_ = 0u;
     uint64_t position_ = 0u;
 
 public:
-    MountedRawAssetStream(std::shared_ptr<const void> mount,
-                          const std::filesystem::path& path,
-                          std::vector<uint8_t> prefix, uint64_t bodyOffset,
-                          uint64_t logicalSize)
-        : mount_(std::move(mount)), file_(path, std::ios::binary),
-          prefix_(std::move(prefix)), bodyOffset_(bodyOffset),
-          logicalSize_(logicalSize) {
-        if (!file_) throw std::runtime_error("School Days GPK raw stream could not open archive");
-    }
+  MountedRawAssetStream(std::shared_ptr<const void> mount,
+                        std::unique_ptr<std::istream> file,
+                        std::vector<uint8_t> prefix, uint64_t bodyOffset,
+                        uint64_t logicalSize)
+      : mount_(std::move(mount)), file_(std::move(file)),
+        prefix_(std::move(prefix)), bodyOffset_(bodyOffset),
+        logicalSize_(logicalSize) {
+    if (!file_ || !*file_)
+      throw std::runtime_error(
+          "School Days GPK raw stream could not open archive");
+  }
 
     uint64_t size() const override { return logicalSize_; }
     uint64_t tell() const override { return position_; }
@@ -384,12 +386,13 @@ public:
             remaining > static_cast<uint64_t>(std::numeric_limits<std::streamsize>::max())) {
             throw std::runtime_error("School Days GPK raw stream range exceeds host I/O limits");
         }
-        file_.clear();
-        file_.seekg(static_cast<std::streamoff>(physical), std::ios::beg);
-        if (!file_) throw std::runtime_error("School Days GPK raw stream seek failed");
-        file_.read(reinterpret_cast<char*>(buffer + done),
-                   static_cast<std::streamsize>(remaining));
-        const std::streamsize got = file_.gcount();
+        file_->clear();
+        file_->seekg(static_cast<std::streamoff>(physical), std::ios::beg);
+        if (!*file_)
+          throw std::runtime_error("School Days GPK raw stream seek failed");
+        file_->read(reinterpret_cast<char *>(buffer + done),
+                    static_cast<std::streamsize>(remaining));
+        const std::streamsize got = file_->gcount();
         if (got <= 0) throw std::runtime_error("School Days GPK raw stream read failed");
         position_ += static_cast<uint64_t>(got);
         done += static_cast<uint64_t>(got);
@@ -721,13 +724,14 @@ bool ClearSchoolDaysTranslatedGpks(std::string *error) {
   return true;
 }
 
-bool MountSchoolDaysRetailGpks(const std::filesystem::path &gameOrPacksRoot,
-                               std::string *error) {
+bool MountSchoolDaysRetailGpks(
+    const std::filesystem::path &gameOrPacksRoot, std::string *error,
+    std::shared_ptr<const Filesystem::IMount> source) {
   if (error != nullptr)
     error->clear();
   std::filesystem::path packs = gameOrPacksRoot;
   std::error_code ec;
-  if (!std::filesystem::is_regular_file(packs / "BGM.GPK", ec)) {
+  if (!source && !std::filesystem::is_regular_file(packs / "BGM.GPK", ec)) {
     ec.clear();
     packs /= "Packs";
   }
@@ -744,14 +748,16 @@ bool MountSchoolDaysRetailGpks(const std::filesystem::path &gameOrPacksRoot,
   }
 
   auto candidate = std::make_shared<SchoolDaysGpkAssetStore>();
-  if (!candidate->OpenRetailDirectory(packs, error))
+  if (!candidate->OpenRetailDirectory(packs, error, source))
     return false;
 #if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
   std::shared_ptr<SchoolDaysGpkArchive> integrated;
 #else
   auto integrated = std::make_shared<SchoolDaysGpkArchive>();
   std::string integratedError;
-  if (!integrated->Open(packs / "LxH.GPK", &integratedError))
+  if (!integrated->Open(source ? std::filesystem::path("LxH.GPK")
+                               : packs / "LxH.GPK",
+                        &integratedError, source))
     return Fail(error, std::string("Mandatory integrated LxH.GPK missing or invalid: ") +
                            integratedError);
   const auto expected = SchoolDaysLxhContent::PackEntries();
@@ -1002,7 +1008,7 @@ std::unique_ptr<AssetStream> OpenMountedSchoolDaysAssetStream(
           entry.inlinePrefix.size() > entry.storedLength) return {};
       try {
         return std::make_unique<MountedRawAssetStream>(
-            archive, archive->Path(), entry.inlinePrefix, entry.offset,
+            archive, archive->OpenStream(), entry.inlinePrefix, entry.offset,
             static_cast<uint64_t>(entry.storedLength));
       } catch (...) { return {}; }
     };
@@ -1037,9 +1043,9 @@ std::unique_ptr<AssetStream> OpenMountedSchoolDaysAssetStream(
         return {};
     }
     try {
-        return std::make_unique<MountedRawAssetStream>(
-            mount, archive->Path(), entry.inlinePrefix, entry.offset,
-            static_cast<uint64_t>(entry.storedLength));
+      return std::make_unique<MountedRawAssetStream>(
+          mount, archive->OpenStream(), entry.inlinePrefix, entry.offset,
+          static_cast<uint64_t>(entry.storedLength));
     } catch (...) {
         return {};
     }

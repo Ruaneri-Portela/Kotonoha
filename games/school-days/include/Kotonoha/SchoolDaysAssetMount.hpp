@@ -40,8 +40,9 @@ bool ClearSchoolDaysTranslatedGpks(std::string *error = nullptr);
 // session at a time, while media decoders may read concurrently; the
 // implementation publishes immutable stores only after all 29 retail packs
 // AND the mandatory integrated LxH.GPK have validated successfully.
-bool MountSchoolDaysRetailGpks(const std::filesystem::path& gameOrPacksRoot,
-                              std::string* error = nullptr);
+bool MountSchoolDaysRetailGpks(
+    const std::filesystem::path &gameOrPacksRoot, std::string *error = nullptr,
+    std::shared_ptr<const Filesystem::IMount> source = {});
 // Shared engine overlay; IDs use their complete logical path for every pack.
 bool SetSchoolDaysAssetOverlay(const std::filesystem::path& directory,
                                  std::string* error = nullptr);
