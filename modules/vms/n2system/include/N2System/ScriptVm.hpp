@@ -50,6 +50,8 @@ public:
   bool loadState(const SaveData &data);
 
   std::string_view currentChapter() const;
+  // Debug-only validated label navigation within the current NsScript chapter.
+  bool debugJumpToLabel(std::string_view label);
 
 private:
   VmAction handleInvocation(const Invocation &inv, const std::vector<std::string> &args);
