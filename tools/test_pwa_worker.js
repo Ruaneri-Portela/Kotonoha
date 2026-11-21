@@ -8,7 +8,7 @@ const vm = require("node:vm");
 const assert = require("node:assert/strict");
 
 const source = fs.readFileSync(path.join(__dirname, "..",
-    "buildsystems", "cmake", "service-worker.js.in"), "utf8");
+    "buildsystems", "cmake", "packaging", "service-worker.js.in"), "utf8");
 const bucket = new Map();
 let online = true;
 const networkCalls = [];
