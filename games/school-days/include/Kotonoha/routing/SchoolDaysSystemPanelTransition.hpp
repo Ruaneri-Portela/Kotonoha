@@ -13,6 +13,41 @@ public:
   enum class Phase : uint8_t { Idle, Opening, Open, Closing, Revealing };
   enum class Event : uint8_t { None, OpenPanel, ClosePanel };
 
+  struct ViewportRect {
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+
+    bool Valid() const { return w > 0.0f && h > 0.0f; }
+  };
+
+  // Fits a logical game/panel canvas inside physical screen dimensions while
+  // preserving aspect ratio so white fades stay strictly inside the active
+  // game/panel viewport and never bleed onto black letterbox/pillarbox bars.
+  static ViewportRect ComputeFittedViewport(float screenWidth,
+                                            float screenHeight,
+                                            int virtualWidth, int virtualHeight,
+                                            float heightScale = 1.0f,
+                                            bool stretchFullscreen = false) {
+    if (screenWidth <= 0.0f || screenHeight <= 0.0f || virtualWidth <= 0 ||
+        virtualHeight <= 0) {
+      return {};
+    }
+    if (stretchFullscreen) {
+      return {0.0f, 0.0f, screenWidth, screenHeight};
+    }
+    const float clampedHeightScale = std::clamp(heightScale, 0.01f, 1.0f);
+    const float scale = std::min(
+        screenWidth / static_cast<float>(virtualWidth),
+        screenHeight / static_cast<float>(virtualHeight));
+    const float width = static_cast<float>(virtualWidth) * scale;
+    const float height =
+        static_cast<float>(virtualHeight) * scale * clampedHeightScale;
+    return {(screenWidth - width) * 0.5f, (screenHeight - height) * 0.5f, width,
+            height};
+  }
+
   void Begin(Target target, uint64_t nowMs) {
     target_ = target;
     phase_ = Phase::Opening;
