@@ -7,6 +7,26 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaAndroid.cmake")
 
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 
+# MSVC cannot link or compile packages built against the MinGW/UCRT ABI.
+# The engine's native media dependencies require vcpkg; only SDL/ImGui may
+# build from their pinned submodules. Enforce this before any find_package().
+if(MSVC)
+    if(NOT VCPKG_INSTALLED_DIR OR NOT VCPKG_TARGET_TRIPLET)
+        message(FATAL_ERROR
+            "[Kotonoha] MSVC requires the vcpkg toolchain for native "
+            "FFmpeg, libass and json-c dependencies. Pass "
+            "-DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake "
+            "on the FIRST configuration. SDL3 can use vcpkg or submodules; "
+            "MSYS2/MinGW system packages are never accepted.")
+    endif()
+    if(VCPKG_TARGET_TRIPLET MATCHES "[Mm][Ii][Nn][Gg][Ww]")
+        message(FATAL_ERROR
+            "[Kotonoha] The MSVC compiler cannot use the vcpkg triplet "
+            "${VCPKG_TARGET_TRIPLET}. Select x64-windows, x86-windows, "
+            "arm64-windows or their MSVC static variants.")
+    endif()
+endif()
+
 # CMake 3.29+ deduplicates repeated static archives where the linker
 # supports it (notably Apple's ld64). Earlier versions retain compatibility.
 if(POLICY CMP0156)
