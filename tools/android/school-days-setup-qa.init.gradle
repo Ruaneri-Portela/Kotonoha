@@ -1,0 +1,8 @@
+// Apply with gradle -I only for device QA. Keep the normal game profile intact.
+beforeProject { project ->
+    project.pluginManager.withPlugin('com.android.application') {
+        project.androidComponents.finalizeDsl { android ->
+            android.productFlavors.getByName('schoolDays').applicationIdSuffix = '.setupqa'
+        }
+    }
+}
