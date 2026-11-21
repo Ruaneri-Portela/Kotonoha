@@ -158,6 +158,7 @@ struct TestRuntime : Runtime {
   std::optional<double> seconds = 12.375;
   bool timedClock = true;
   bool opaqueGameplay = false;
+  bool nativeSubtitleDisplay = true;
   int unpausedUpdates = 0;
   std::function<void(RendererRef)> inspectScreen;
   std::function<void(RendererRef)> inspectBeforeOverlay;
@@ -167,6 +168,7 @@ struct TestRuntime : Runtime {
                     std::to_string(SDL_GetPerformanceCounter())) {}
   std::string debugNode() const override { return node; }
   std::string nodeClockKey() const override { return clockKey; }
+  bool allowForcedSubtitles() const override { return nativeSubtitleDisplay; }
   bool usesTimedNodeClock() const override { return timedClock; }
   std::optional<double> debugNodeSeconds() const override { return seconds; }
   void update() override {
@@ -554,6 +556,20 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   menu.close();
   runtime.RemoveScene(&menu);
   require(frame() > 100, "Closing a native menu restores forced subtitles");
+  // The native game option controls the ASS independently from the launcher.
+  require(engine.GetSettings().enableForcedSubtitles,
+          "Engine-wide forced subtitles are enabled for the native gate test");
+  runtime.nativeSubtitleDisplay = false;
+  require(frame() == 0 && forced.activePath().empty(),
+          "Native Display Subtitle OFF clears current forced ASS");
+  runtime.seconds = 1.75;
+  require(frame() == 0 && forced.activePath().empty(),
+          "Native OFF remains hidden while the script clock advances");
+  runtime.nativeSubtitleDisplay = true;
+  require(frame() > 100 && forced.getPosition() == 1.75 &&
+              engine.GetSettings().enableForcedSubtitles,
+          "Native Display Subtitle ON restores the current-time ASS cue");
+  runtime.seconds = 1.5;
   auto &backlog = GetVNBacklogRuntime(engine);
   runtime.AddScene(&backlog, GameState::Gameplay);
   backlog.open();
@@ -576,7 +592,11 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
       "Disabling forced subtitles removes them and clears the active ASS path");
   settings.enableForcedSubtitles = true;
   engine.applySettings(settings, false);
-  require(frame() > 100, "Enabling forced subtitles reloads the current node");
+  runtime.nativeSubtitleDisplay = false;
+  require(frame() == 0 && forced.activePath().empty(),
+          "Engine ON must not override native TextView OFF");
+  runtime.nativeSubtitleDisplay = true;
+  require(frame() > 100, "Both subtitle settings ON reload the current node");
   runtime.SetState(GameState::Menu);
   require(frame() == 0, "Forced subtitles are cleared outside gameplay");
   runtime.SetState(GameState::Gameplay);

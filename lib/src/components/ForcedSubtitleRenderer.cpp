@@ -229,7 +229,10 @@ void ForcedSubtitleRenderer::buildSubtitleCache() {
 }
 
 void ForcedSubtitleRenderer::updateForActiveNode() {
-  const auto node = engine.GetSettings().enableForcedSubtitles
+  // Both the engine-wide option and native game settings must allow ASS.
+  // Toggling off clears stale cues; toggling on reloads the current node.
+  const auto node = engine.GetSettings().enableForcedSubtitles &&
+                            engine.GetRuntime().allowForcedSubtitles()
                         ? engine.activeNode()
                         : std::string();
   loadForNode(node);
