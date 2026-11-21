@@ -179,6 +179,55 @@ Kotonoha::Translation::SourceTexts SnowRuntime::translationSources() const {
                   : Kotonoha::Translation::SourceTexts{};
 }
 
+int SnowRuntime::translationRoute() const {
+  if (!session_ || !session_->Story())
+    return kNoRoute;
+  const auto &story = *session_->Story();
+  if (story.hasMessage() && story.message().route != kNoRoute)
+    return story.message().route;
+  if (const auto object = story.vm().current())
+    return static_cast<int>(object->id & 0xfff);
+  return kNoRoute;
+}
+
+std::vector<std::string> SnowRuntime::activeTranslationKeys() const {
+  if (!session_ || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  std::vector<std::string> keys;
+  const auto append = [&](const std::string &key) {
+    if (!key.empty() &&
+        std::find(keys.begin(), keys.end(), key) == keys.end())
+      keys.push_back(key);
+  };
+  if (story.hasMessage()) {
+    append(story.message().name);
+    append(story.message().text);
+  }
+  if (story.choosing())
+    for (const auto &choice : story.choices())
+      append(choice);
+  return keys;
+}
+
+std::vector<Kotonoha::DebugAudioAsset> SnowRuntime::debugSceneAudio() {
+  if (!session_ || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  const auto &message = story.message();
+  const std::string id = "voice/" + message.voice;
+  if (!story.hasMessage() || message.voice.empty() ||
+      !assets_ || !assets_->contains(id))
+    return {};
+  return {{id, message.name, message.text}};
+}
+
+std::string SnowRuntime::debugNodeCatalogKey() const {
+  return session_ && session_->Story()
+             ? session_->Story()->currentScript()
+             : std::string{};
+}
+
 // "start.obj | route N | pc 0x..": route N is the script id used by the
 // translations.
 std::string SnowRuntime::debugNode() const {
