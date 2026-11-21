@@ -581,11 +581,23 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
   if (std::none_of(nodes.begin(), nodes.end(), [&](const auto &node) {
         return node.id == selectedRuntimeNode;
       })) {
-    const auto current = engine.GetRuntime().debugNode();
+    const auto &runtime = engine.GetRuntime();
+    const auto current = runtime.debugNode();
+    const auto catalog = runtime.debugNodeCatalogKey();
+    const auto clockKey = runtime.nodeClockKey();
     auto active = std::find_if(nodes.begin(), nodes.end(),
                                [&](const auto &node) {
-                                 return node.id == current;
-                               });
+      const auto prefix = [&](const std::string &value) {
+        return !value.empty() && value.size() >= node.id.size() &&
+               value.compare(0, node.id.size(), node.id) == 0;
+      };
+      const auto catalogSuffix = !catalog.empty() &&
+          node.id.size() >= catalog.size() &&
+          node.id.compare(node.id.size() - catalog.size(), catalog.size(),
+                          catalog) == 0;
+      return node.id == current || prefix(current) ||
+             node.id == clockKey || node.id == catalog || catalogSuffix;
+    });
     selectedRuntimeNode =
         active == nodes.end() ? nodes.front().id : active->id;
   }
@@ -938,7 +950,8 @@ void DebugOverlay::refreshTranslationSources() {
   transSourcesStale = false;
   // Garante que os nodos de runtime (ex: School Days KTRF) estejam carregados
   // antes de listar as chaves de tradução.
-  if (nodesStale)
+  if (nodesStale ||
+      engine.GetRuntime().debugNodeCatalogKey() != lastNodeCatalogKey)
     refreshNodes();
   try {
     cachedManagerSources = GetVNManagerRuntime(engine).translationSources();
@@ -986,7 +999,12 @@ void DebugOverlay::refreshTranslationSources() {
                   return idA < idB;
                 return a < b;
               });
-  } catch (...) {
+    lastTranslationCatalogKey = engine.GetRuntime().debugNodeCatalogKey() +
+        "|" + std::to_string(engine.GetRuntime().translationRoute());
+  } catch (const std::exception &error) {
+    transSourcesStale = true;
+    status = std::string("Translation catalog: ") + error.what();
+    statusError = true;
   }
 }
 
@@ -1002,7 +1020,9 @@ void DebugOverlay::drawTranslationWindow() {
   if (!showTranslationWindow)
     return;
 
-  if (transSourcesStale)
+  const auto translationKey = engine.GetRuntime().debugNodeCatalogKey() +
+      "|" + std::to_string(engine.GetRuntime().translationRoute());
+  if (transSourcesStale || translationKey != lastTranslationCatalogKey)
     refreshTranslationSources();
 
   auto &io = ImGui::GetIO();
