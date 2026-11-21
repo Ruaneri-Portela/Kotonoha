@@ -11,6 +11,7 @@ project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 # The engine's native media dependencies require vcpkg; only SDL/ImGui may
 # build from their pinned submodules. Enforce this before any find_package().
 if(MSVC)
+    add_compile_options(/utf-8)
     if(NOT VCPKG_INSTALLED_DIR OR NOT VCPKG_TARGET_TRIPLET)
         message(FATAL_ERROR
             "[Kotonoha] MSVC requires the vcpkg toolchain for native "
@@ -27,18 +28,6 @@ if(MSVC)
     endif()
 endif()
 
-# CMake 3.29+ deduplicates repeated static archives where the linker
-# supports it (notably Apple's ld64). Earlier versions retain compatibility.
-if(POLICY CMP0156)
-    # Each game/module invokes cmake_minimum_required(VERSION 3.16), which
-    # resets newer policies unless their default is inherited explicitly.
-    set(CMAKE_POLICY_DEFAULT_CMP0156 NEW)
-    cmake_policy(SET CMP0156 NEW)
-endif()
-if(POLICY CMP0179)
-    set(CMAKE_POLICY_DEFAULT_CMP0179 NEW)
-    cmake_policy(SET CMP0179 NEW)
-endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/BuildVersion.cmake")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
