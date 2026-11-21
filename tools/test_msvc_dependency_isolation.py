@@ -9,9 +9,12 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-DEPS = ROOT / "buildsystems/cmake/dependencies"
-if not DEPS.is_dir():
-    DEPS = ROOT / "buildsystems/cmake"
+def dependency_file(name: str) -> Path:
+    for folder in ("buildsystems/cmake/dependencies", "buildsystems/cmake"):
+        candidate = ROOT / folder / name
+        if candidate.is_file():
+            return candidate
+    raise FileNotFoundError("Missing Kotonoha dependency module: " + name)
 
 
 def put(path: Path, content: str = "") -> None:
@@ -51,7 +54,7 @@ def test_sdl(work: Path) -> None:
         for name in ("SDL3", "SDL3_ttf"):
             make_sdl_config(prefix, name)
     project = work / "src"
-    module = (DEPS / "KotonohaSDL.cmake").as_posix()
+    module = dependency_file("KotonohaSDL.cmake").as_posix()
     cmake = (
         "cmake_minimum_required(VERSION 3.16)\n"
         "project(TestMSVCSDL LANGUAGES NONE)\n"
@@ -82,7 +85,7 @@ def test_sdl(work: Path) -> None:
 
 
 def test_media(work: Path) -> None:
-    module = DEPS / "KotonohaMedia.cmake"
+    module = dependency_file("KotonohaMedia.cmake")
     if not module.is_file():
         print("[MSVC provider] No standalone media module on this branch")
         return
