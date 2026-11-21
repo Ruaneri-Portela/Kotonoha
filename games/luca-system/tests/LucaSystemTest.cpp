@@ -774,7 +774,7 @@ int main(int argc, char **argv) {
     const std::vector<uint8_t> seen170 = {
         8, 0, 55, 0, 2, 0, 103, 4,
         4, 0, 25, 0};
-    const std::vector<uint8_t> seen190 = {4, 0, 25, 0};
+    const std::vector<uint8_t> seen190 = {4, 0, 40, 0}; // SELECT blocks
     writeBytes(root / "SCRIPT.PAK",
                buildPak(0, 4, 512,
                         {{"seen170", seen170}, {"seen190", seen190}}));
