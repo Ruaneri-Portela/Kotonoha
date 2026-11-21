@@ -34,6 +34,11 @@ endif()
 add_library(DdlcFormats STATIC ${DDLC_SOURCES})
 target_include_directories(DdlcFormats PUBLIC include)
 target_compile_features(DdlcFormats PUBLIC cxx_std_20)
+# Archive.cpp uses Kotonoha::Filesystem (including SDLFileSource/readAll).
+# This must be a direct dependency of DdlcFormats, rather than inherited
+# only from its consumer: GNU ld (MinGW and ELF) scans link archives in
+# order, and otherwise places the Kotonoha DLL import library too early.
+target_link_libraries(DdlcFormats PUBLIC KotonohaEngine)
 
 if(KOTONOHA_USE_PYTHON_STUBS)
     target_link_libraries(DdlcFormats PUBLIC SDL3::SDL3 ZLIB::ZLIB)
