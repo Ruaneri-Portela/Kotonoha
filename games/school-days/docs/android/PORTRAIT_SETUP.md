@@ -32,19 +32,19 @@ For native failure QA, add `-I ../../tools/android/school-days-setup-qa.init.gra
 
 ## POCO X7 Pro — synthetic S0
 
-Two fresh 1 GiB cycles passed on API 36 using the local storage provider, including a force-stop and reopen. Each row below gives the 95th percentile in milliseconds for individual 1 MiB reads. All three access patterns compared equal across all 1024 blocks per cycle. The persisted history replayed 12 unique records after reopening.
+Three cycles passed on API 36 with the local storage provider. After the phone rebooted, the S0 app reopened the same synthetic 1 GiB document with its existing read grant. All 1024 blocks matched the private reference in each pass. The post-reboot history contained the original 12 measurements on opening and replayed all 18 after the retest. The table gives the 95th percentile per 1 MiB read in milliseconds. [All measurements by cycle](s0-poco-api36.csv)
 
-| Read order | SAF first / reopened | Private first / reopened |
+| Read order | SAF first / app reopened / phone rebooted | Private first / app reopened / phone rebooted |
 |---|---:|---:|
-| Forward | 1.125 / 0.469 | 1.337 / 0.473 |
-| Reverse | 0.795 / 0.500 | 0.806 / 0.539 |
-| Strided | 0.540 / 0.508 | 0.589 / 0.506 |
+| Forward | 1.125 / 0.469 / 2.479 | 1.337 / 0.473 / 2.062 |
+| Reverse | 0.795 / 0.500 / 2.063 | 0.806 / 0.539 / 1.987 |
+| Strided | 0.540 / 0.508 / 0.630 | 0.589 / 0.506 / 0.673 |
 
-The earlier attempt through Downloads returned `different_document_refused`. The successful cycles used the device storage root in both pickers. Direct FD reads succeeded, while reopening through `/proc/self/fd` returned errno 13. The separate S0 app retains the synthetic document, private reference and measurements for the outstanding post-reboot cycle. The two files occupy about 2 GiB. The storage strategy and access to real GPKs remain gated.
+The earlier attempt through Downloads returned `different_document_refused`. The successful cycles used the device storage root in both pickers. The provider supported direct reads on its seekable descriptor across all three cycles. Reopening through `/proc/self/fd` returned errno 13. The S0 app retains its two synthetic files (about 2 GiB total). These results support testing in-place reads from this provider through the engine mount. Other providers and native gameplay still require testing.
 
 ## Remaining acceptance work
 
-1. Finish the post-reboot S0 evidence and review it before choosing a storage strategy.
+1. Obtain approval for the native SAF integration with synthetic fixtures. Access to commercial GPKs requires separate authorization.
 2. Integrate the authorized read source with the existing mount, route validator, overlay precedence and translation profiles. Preserve DEV/DIST routing and distinguish native validation failures for each resource.
 3. Bind the remaining Windows options and language selection to their existing settings models. Verify contextual touch through the existing `MobileTouchAdapter`, `TouchPointer` and hotspot coordinates.
 4. Exercise Route Map, BackLog, Save/Load, MenuBar, choices, media, pause/resume and GPU resets with isolated profiles. Measure FPS, memory and subtitle readability on representative hardware.

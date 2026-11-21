@@ -32,19 +32,19 @@ Para testar a falha nativa, acrescente `-I ../../tools/android/school-days-setup
 
 ## POCO X7 Pro — S0 sintético
 
-Dois novos ciclos de 1 GiB passaram na API 36 com o provedor de armazenamento local, incluindo encerramento do processo e reabertura. Cada linha abaixo mostra o percentil 95 em milissegundos para leituras individuais de 1 MiB. Os três padrões compararam iguais nos 1024 blocos de cada ciclo. O histórico persistido reproduziu 12 registros únicos após reabrir.
+Os três ciclos passaram na API 36 com o provedor de armazenamento local. Após o reinício do aparelho, o aplicativo S0 reabriu o mesmo documento sintético de 1 GiB com a permissão de leitura existente. Os 1024 blocos coincidiram com a referência privativa em cada passagem. O histórico pós-reinício continha as 12 medições anteriores na abertura e reproduziu as 18 após o reteste. A tabela mostra o percentil 95 por leitura de 1 MiB, em milissegundos. [Medições por ciclo](s0-poco-api36.csv)
 
-| Ordem de leitura | SAF inicial / reaberto | Privativo inicial / reaberto |
+| Ordem de leitura | SAF inicial / app reaberto / aparelho reiniciado | Privativo inicial / app reaberto / aparelho reiniciado |
 |---|---:|---:|
-| Sequencial | 1,125 / 0,469 | 1,337 / 0,473 |
-| Reversa | 0,795 / 0,500 | 0,806 / 0,539 |
-| Saltos | 0,540 / 0,508 | 0,589 / 0,506 |
+| Sequencial | 1,125 / 0,469 / 2,479 | 1,337 / 0,473 / 2,062 |
+| Reversa | 0,795 / 0,500 / 2,063 | 0,806 / 0,539 / 1,987 |
+| Saltos | 0,540 / 0,508 / 0,630 | 0,589 / 0,506 / 0,673 |
 
-A tentativa anterior pelo provedor Downloads retornou `different_document_refused`. Nos ciclos aprovados foi usada a raiz do armazenamento do aparelho nos dois seletores. A leitura direta do descritor funcionou. A reabertura por `/proc/self/fd` retornou errno 13. O aplicativo S0 separado mantém o documento sintético, a referência privativa e as medições para o ciclo pendente após reiniciar o aparelho. Os dois arquivos ocupam cerca de 2 GiB. A decisão de armazenamento e o acesso a GPKs reais continuam bloqueados.
+A tentativa anterior pelo provedor Downloads retornou `different_document_refused`. Nos ciclos aprovados foi usada a raiz do armazenamento do aparelho nos dois seletores. O provedor permitiu leitura direta pelo descritor com acesso aleatório nos três ciclos. A reabertura por `/proc/self/fd` retornou errno 13. O aplicativo S0 mantém os dois arquivos sintéticos (cerca de 2 GiB no total). Esses resultados justificam testar a leitura no lugar pelo sistema de montagem do motor com esse provedor. Outros provedores e a execução nativa do jogo ainda precisam de testes.
 
 ## Critérios de aceite pendentes
 
-1. Completar a evidência S0 após reiniciar o aparelho e revisá-la antes de escolher a estratégia de armazenamento.
+1. Obter autorização para integrar o SAF ao motor com arquivos sintéticos. O acesso aos GPKs comerciais exige autorização separada.
 2. Integrar a origem de leitura autorizada à montagem existente, ao validador da rota, à precedência de overlay e aos perfis de tradução. Preservar o comportamento de rota DEV/DIST e distinguir as falhas de validação nativa de cada recurso.
 3. Vincular as demais opções Windows e a seleção de idioma aos modelos existentes. Verificar toque contextual com `MobileTouchAdapter`, `TouchPointer` e as coordenadas originais dos hotspots.
 4. Exercitar Route Map, BackLog, Save/Load, MenuBar, escolhas, mídia, pausa/retomada e recriação da GPU em perfis isolados. Medir FPS, memória e legibilidade de legendas em hardware representativo.
