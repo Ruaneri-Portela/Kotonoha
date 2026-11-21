@@ -129,6 +129,14 @@ jobs:
           python3 tools/check_unified_launcher_registry.py
           python3 tools/check_debug_bridge.py
           python3 tools/check_sdl_cpack.py
+      - name: Compile and run native LucaSystem Debug Catalog regression
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Igames/luca-system/include \
+            games/luca-system/src/DebugCatalog.cpp \
+            games/luca-system/tests/DebugCatalogTest.cpp \
+            -o /tmp/kotonoha-luca-debug-catalog
+          /tmp/kotonoha-luca-debug-catalog
       - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
         run: |
           node tools/check_web_shell.js
