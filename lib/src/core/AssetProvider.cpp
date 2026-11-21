@@ -276,8 +276,15 @@ SurfacePtr AssetProvider::loadSurfaceAsset(const std::string &id) const {
                           SDL_MapSurfaceRGB(fallback.get(), 0, 0, 0));
     return fallback;
   }
-  if (SurfacePtr surface{
-          SDL_LoadSurface_IO(memoryStream(bytes).release(), true)})
+  // SDL_LoadSurface_IO requires a newer SDL3 than Debian 13's SDL 3.2.
+  // SDL_LoadBMP_IO handles BMP on older systems; MediaDecoder handles other
+  // image formats below, so this keeps the same FFmpeg fallback.
+#if SDL_VERSION_ATLEAST(3, 4, 0)
+  SurfacePtr surface(SDL_LoadSurface_IO(memoryStream(bytes).release(), true));
+#else
+  SurfacePtr surface(SDL_LoadBMP_IO(memoryStream(bytes).release(), true));
+#endif
+  if (surface)
     return surface;
   const std::string sdlError = SDL_GetError();
   try {
