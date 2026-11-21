@@ -243,6 +243,20 @@ bool PmailGame::loadScript(const std::string &name, bool asMain) {
   return true;
 }
 
+bool PmailGame::debugJumpScript(const std::string &name) {
+  if (name.empty() || name == "pmail.obj")
+    return false; // The native library is never a playable story root.
+  if (!loadScript(name, true))
+    return false;
+  std::lock_guard lock(mutex_);
+  waiting_ = false;
+  choosing_ = false;
+  message_.clear();
+  speakerName_.clear();
+  messageQueue_.clear();
+  return true;
+}
+
 bool PmailGame::init() {
   std::lock_guard lock(mutex_);
   // pmail.exe:0x422357-0x4223df loads pmail.obj (the user-function library
