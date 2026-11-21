@@ -2,6 +2,7 @@ package org.kotonoha.android;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.os.Build;
 import android.view.Display;
 import android.view.Surface;
@@ -20,6 +21,15 @@ public final class GameActivity extends SDLActivity {
     protected String[] getArguments() {
         String[] args = getIntent().getStringArrayExtra(LAUNCH_ARGUMENTS);
         return args == null ? super.getArguments() : args;
+    }
+
+    @Override
+    public void setOrientationBis(int w, int h, boolean resizable, String hint) {
+        if ("SchoolDays".equals(BuildConfig.NATIVE_TARGET)) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            return;
+        }
+        super.setOrientationBis(w, h, resizable, hint);
     }
 
     static final String STARTUP_STAGE = "org.kotonoha.android.STARTUP_STAGE";

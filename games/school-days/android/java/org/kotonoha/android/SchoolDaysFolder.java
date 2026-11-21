@@ -5,29 +5,94 @@ import android.graphics.Bitmap;
 import android.graphics.ImageDecoder;
 import android.net.Uri;
 
-import java.io.IOException;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.nio.file.Files;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import org.json.JSONObject;
-import org.json.JSONException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-
-/** Checks display names only. Native route and archive validation happens at launch. */
+/** Checks display names and stages small SAF resources. Native route/GPK validation runs at launch. */
 final class SchoolDaysFolder {
+    static final String[] SUPPORTED_LOCALES = {"en", "pt-BR", "es", "ru", "zh-CN"};
+    private static final long MAX_STAGED_OVERLAY_BYTES = 64L * 1024L * 1024L;
+    private static final long MAX_STAGED_SUBTITLE_BYTES = 16L * 1024L * 1024L;
+
     final List<String> missing = new ArrayList<>();
+    /** Complete JSON pairs (HQ + LxH). */
     final List<String> languages = new ArrayList<>();
+    /** Incomplete JSON entries (missing HQ or LxH pair). */
+    final List<String> incompleteJsonLanguages = new ArrayList<>();
+    /** Complete native GPK translation packs (Script + LxH). */
+    final List<String> gpkLanguages = new ArrayList<>();
+    final boolean selectedPacksDirectly;
+    final boolean hasStylesAss;
+    final boolean hasForcedSubtitles;
+    final boolean hasOverlay;
+    final int packCount;
+    final boolean hasLxhPack;
+
+    private final Uri treeUri;
     private final Map<String, DocumentTree.Entry> archives;
     private final Map<String, DocumentTree.Entry> jsons;
+    private final Map<String, DocumentTree.Entry> scripts;
     private final DocumentTree.Entry route;
-    private final Map<String, DocumentTree.Entry> displayOverlay;
+    private final DocumentTree.Entry stylesAss;
+    private final DocumentTree.Entry forcedSubtitlesDir;
+    private final DocumentTree.Entry overlayDir;
     Bitmap artwork;
+
+    static String gpkScriptFilename(String locale) {
+        if ("en".equals(locale)) return null; // English HQ always uses Packs/Script.GPK
+        if ("pt-BR".equals(locale)) return "Script - Brazilian.GPK";
+        if ("es".equals(locale)) return "Script - Spanish.GPK";
+        if ("ru".equals(locale)) return "Script - Russian.GPK";
+        if ("zh-CN".equals(locale)) return "Script - chinese-compatible.GPK";
+        return null;
+    }
+
+    static String gpkLxhFilename(String locale) {
+        return locale + "-lxh.GPK";
+    }
+
+    static String formatLanguageSelection(String backend, String locale) {
+        return backend + ":" + locale;
+    }
+
+    static boolean isGpkSelection(String selection) {
+        return selection != null && selection.startsWith("gpk:");
+    }
+
+    static String selectionLocale(String selection) {
+        if (selection == null) return "en";
+        int sep = selection.indexOf(':');
+        return sep >= 0 ? selection.substring(sep + 1) : selection;
+    }
+
+    boolean supportsSelection(String selection) {
+        if (selection == null || selection.isEmpty()) return false;
+        String loc = selectionLocale(selection);
+        return isGpkSelection(selection) ? gpkLanguages.contains(loc) : languages.contains(loc);
+    }
+
+    String defaultSelection() {
+        if (gpkLanguages.contains("pt-BR")) return formatLanguageSelection("gpk", "pt-BR");
+        if (!gpkLanguages.isEmpty()) return formatLanguageSelection("gpk", gpkLanguages.get(0));
+        if (languages.contains("pt-BR")) return formatLanguageSelection("json", "pt-BR");
+        if (!languages.isEmpty()) return formatLanguageSelection("json", languages.get(0));
+        return null;
+    }
+
+    DocumentTree.Entry archiveEntry(String canonicalName) {
+        return archives.get(canonicalName.toLowerCase(Locale.ROOT));
+    }
 
     private static Map<String, DocumentTree.Entry> directory(DocumentTree source, Uri tree,
             Map<String, DocumentTree.Entry> entries, String name) throws IOException {
@@ -36,9 +101,19 @@ final class SchoolDaysFolder {
                 : Collections.emptyMap();
     }
 
+    private static DocumentTree.Entry directoryEntry(Map<String, DocumentTree.Entry> entries, String name) {
+        DocumentTree.Entry entry = entries.get(name);
+        return entry != null && entry.directory ? entry : null;
+    }
+
     private static boolean file(Map<String, DocumentTree.Entry> entries, String name) {
         DocumentTree.Entry entry = entries.get(name);
         return entry != null && !entry.directory && !entry.empty;
+    }
+
+    private static boolean safeSegment(String name) {
+        return name != null && !name.isEmpty() && !".".equals(name) && !"..".equals(name)
+                && name.indexOf('/') < 0 && name.indexOf('\\') < 0 && name.indexOf('\0') < 0;
     }
 
     private static List<String> packNames() {
@@ -68,10 +143,53 @@ final class SchoolDaysFolder {
         return files;
     }
 
+    private static void copyTree(DocumentTree source, Uri tree, DocumentTree.Entry dir,
+            File destination, long maxFileBytes, int depth) throws IOException {
+        if (dir == null || depth > 8) return;
+        Map<String, DocumentTree.Entry> children = source.children(tree, dir.uri);
+        for (Map.Entry<String, DocumentTree.Entry> item : children.entrySet()) {
+            String name = item.getKey();
+            DocumentTree.Entry entry = item.getValue();
+            if (!safeSegment(name)) continue;
+            File target = new File(destination, name);
+            if (entry.directory) {
+                copyTree(source, tree, entry, target, maxFileBytes, depth + 1);
+            } else if (!entry.empty && (entry.size < 0 || entry.size <= maxFileBytes)) {
+                Files.createDirectories(destination.toPath());
+                source.copy(entry, target);
+            }
+        }
+    }
+
+    private static void copyForcedSubtitlesForLocale(DocumentTree source, Uri tree,
+            DocumentTree.Entry rootDir, File destination, String locale) throws IOException {
+        if (rootDir == null) return;
+        Map<String, DocumentTree.Entry> children = source.children(tree, rootDir.uri);
+        String wantedLower = locale.toLowerCase(Locale.ROOT);
+        for (Map.Entry<String, DocumentTree.Entry> item : children.entrySet()) {
+            String name = item.getKey();
+            DocumentTree.Entry entry = item.getValue();
+            if (!safeSegment(name)) continue;
+            if (entry.directory) {
+                if (name.toLowerCase(Locale.ROOT).equals(wantedLower)) {
+                    copyTree(source, tree, entry, new File(destination, name),
+                            MAX_STAGED_SUBTITLE_BYTES, 1);
+                }
+            } else if ("en".equals(locale) && !entry.empty
+                    && name.toLowerCase(Locale.ROOT).endsWith(".ass")
+                    && (entry.size < 0 || entry.size <= MAX_STAGED_SUBTITLE_BYTES)) {
+                Files.createDirectories(destination.toPath());
+                source.copy(entry, new File(destination, name));
+            }
+        }
+    }
+
     // Only the small resources whose consumers require physical files go in cache.
-    // The native mount opens each archive on demand using its provider-issued URI.
-    File prepare(Context context, DocumentTree source, String locale) throws IOException {
-        if (!missing.isEmpty() || !languages.contains(locale)) throw new IOException();
+    // The native mount opens each retail/LxH archive on demand via provider-issued URIs.
+    File prepare(Context context, DocumentTree source, String selection) throws IOException {
+        if (!missing.isEmpty() || !supportsSelection(selection)) throw new IOException();
+        boolean useGpk = isGpkSelection(selection);
+        String locale = selectionLocale(selection);
         File session = Files.createTempDirectory(context.getCacheDir().toPath(), "sd-saf-").toFile();
         try {
             JSONObject catalog = new JSONObject();
@@ -82,18 +200,47 @@ final class SchoolDaysFolder {
             Files.write(new File(session, "documents.json").toPath(),
                     catalog.toString().getBytes(StandardCharsets.UTF_8));
             source.copy(route, new File(session, "school-days-hq.ktnroute"));
-            File dictionaries = new File(session, "translations/jsons");
-            Files.createDirectories(dictionaries.toPath());
-            for (String name : new String[]{locale + ".json", locale + "-lxh.json"})
-                source.copy(jsons.get(name), new File(dictionaries, name));
-            for (String name : new String[]{"Option_Display.png", "Option_Display.cmap",
-                    "Option_Display_Chip.png", "Option_Display_Wide.cmap",
-                    "Option_Display_Wide_Full.cmap", "Option_Display_Wide_Note.cmap"}) {
-                if (!file(displayOverlay, name)) continue;
-                File folder = new File(session, "overlay/System/Option");
-                Files.createDirectories(folder.toPath());
-                source.copy(displayOverlay.get(name), new File(folder, name));
+
+            if (stylesAss != null) {
+                File gameAssetsDir = new File(session, "game-assets");
+                Files.createDirectories(gameAssetsDir.toPath());
+                source.copy(stylesAss, new File(gameAssetsDir, "styles.ass"));
             }
+
+            if (useGpk) {
+                File scriptsDir = new File(session, "translations/scripts");
+                Files.createDirectories(scriptsDir.toPath());
+                String scriptName = gpkScriptFilename(locale);
+                if (scriptName != null) {
+                    source.copy(scripts.get(scriptName), new File(scriptsDir, scriptName));
+                }
+                String lxhName = gpkLxhFilename(locale);
+                source.copy(scripts.get(lxhName), new File(scriptsDir, lxhName));
+            } else {
+                File dictionaries = new File(session, "translations/jsons");
+                Files.createDirectories(dictionaries.toPath());
+                for (String name : new String[]{locale + ".json", locale + "-lxh.json"}) {
+                    source.copy(jsons.get(name), new File(dictionaries, name));
+                }
+                for (String sidecar : new String[]{
+                        locale + "-reviewed-identities.json",
+                        locale + "-lxh-reviewed-identities.json"}) {
+                    if (file(jsons, sidecar)) {
+                        source.copy(jsons.get(sidecar), new File(dictionaries, sidecar));
+                    }
+                }
+            }
+
+            if (forcedSubtitlesDir != null) {
+                File stagedForced = new File(session, "game-assets/forced_subtitles");
+                copyForcedSubtitlesForLocale(source, treeUri, forcedSubtitlesDir, stagedForced, locale);
+            }
+
+            if (overlayDir != null) {
+                File stagedOverlay = new File(session, "overlay");
+                copyTree(source, treeUri, overlayDir, stagedOverlay, MAX_STAGED_OVERLAY_BYTES, 0);
+            }
+
             return session;
         } catch (IOException | RuntimeException | JSONException failure) {
             discard(session);
@@ -108,11 +255,25 @@ final class SchoolDaysFolder {
         session.delete();
     }
 
-    static String[] launchArguments(File session, String locale) {
+    static String[] launchArguments(File session, String selection) {
         List<String> args = new ArrayList<>();
+        String locale = selectionLocale(selection);
         Collections.addAll(args, "--school-days", session.getPath(), "--document-catalog",
-                new File(session, "documents.json").getPath(), "--translation",
-                new File(session, "translations/jsons/" + locale + ".json").getPath());
+                new File(session, "documents.json").getPath());
+        if (isGpkSelection(selection)) {
+            Collections.addAll(args, "--gpk-locale", locale);
+        } else {
+            Collections.addAll(args, "--translation",
+                    new File(session, "translations/jsons/" + locale + ".json").getPath());
+        }
+        File styles = new File(session, "game-assets/styles.ass");
+        if (styles.isFile()) {
+            Collections.addAll(args, "--subtitle-style", styles.getPath());
+        }
+        File forced = new File(session, "game-assets/forced_subtitles");
+        if (forced.isDirectory()) {
+            Collections.addAll(args, "--forced-subtitles", forced.getPath());
+        }
         File overlay = new File(session, "overlay");
         if (overlay.isDirectory()) Collections.addAll(args, "--asset-overlay", overlay.getPath());
         else args.add("--no-asset-overlay");
@@ -135,10 +296,24 @@ final class SchoolDaysFolder {
     }
 
     SchoolDaysFolder(Context context, DocumentTree source, Uri tree) throws IOException {
+        this.treeUri = tree;
         Map<String, DocumentTree.Entry> root = source.children(tree, null);
         Map<String, DocumentTree.Entry> packs = directory(source, tree, root, "Packs");
         Map<String, DocumentTree.Entry> assets = directory(source, tree, root, "game-assets");
+
+        Map<String, DocumentTree.Entry> rootPacks = indexPacks(root);
+        selectedPacksDirectly = packs.isEmpty()
+                && (rootPacks.containsKey("script.gpk") || rootPacks.containsKey("system.gpk")
+                || rootPacks.containsKey("lxh.gpk"));
+
         archives = indexPacks(packs);
+        int foundPacks = 0;
+        for (String name : packNames()) {
+            if (archives.containsKey(name.toLowerCase(Locale.ROOT))) foundPacks++;
+        }
+        packCount = foundPacks;
+        hasLxhPack = archives.containsKey("lxh.gpk");
+
         route = assets.get("school-days-hq.ktnroute");
         if (!file(assets, "school-days-hq.ktnroute")) missing.add("game-assets/school-days-hq.ktnroute");
         if (packs.isEmpty()) {
@@ -146,14 +321,48 @@ final class SchoolDaysFolder {
         } else {
             missing.addAll(missingPacks(packs));
         }
+
+        stylesAss = file(assets, "styles.ass") ? assets.get("styles.ass") : null;
+        hasStylesAss = stylesAss != null;
+
+        DocumentTree.Entry gameAssetsForced = directoryEntry(assets, "forced_subtitles");
+        DocumentTree.Entry legacyRootForced = directoryEntry(root, "forced_subtitles");
+        forcedSubtitlesDir = gameAssetsForced != null ? gameAssetsForced : legacyRootForced;
+        hasForcedSubtitles = forcedSubtitlesDir != null;
+
+        overlayDir = directoryEntry(root, "overlay");
+        hasOverlay = overlayDir != null;
+
         Map<String, DocumentTree.Entry> translations = directory(source, tree, root, "translations");
-        jsons = directory(source, tree, translations, "jsons");
-        for (String locale : new String[]{"en", "es", "pt-BR", "ru", "zh-CN"}) {
-            if (file(jsons, locale + ".json") && file(jsons, locale + "-lxh.json")) languages.add(locale);
+        Map<String, DocumentTree.Entry> organizedJsons = directory(source, tree, translations, "jsons");
+        Map<String, DocumentTree.Entry> mergedJsons = new HashMap<>(translations);
+        mergedJsons.putAll(organizedJsons);
+        jsons = mergedJsons;
+
+        Map<String, DocumentTree.Entry> organizedScripts = directory(source, tree, translations, "scripts");
+        Map<String, DocumentTree.Entry> mergedScripts = new HashMap<>(translations);
+        mergedScripts.putAll(organizedScripts);
+        scripts = mergedScripts;
+
+        for (String locale : SUPPORTED_LOCALES) {
+            boolean hasBaseJson = file(jsons, locale + ".json");
+            boolean hasLxhJson = file(jsons, locale + "-lxh.json");
+            if (hasBaseJson && hasLxhJson) {
+                languages.add(locale);
+            } else if (hasBaseJson || hasLxhJson) {
+                incompleteJsonLanguages.add(locale);
+            }
+
+            String scriptName = gpkScriptFilename(locale);
+            boolean hasBaseGpk = (scriptName == null)
+                    ? archives.containsKey("script.gpk")
+                    : file(scripts, scriptName);
+            boolean hasLxhGpk = file(scripts, gpkLxhFilename(locale));
+            if (hasBaseGpk && hasLxhGpk) {
+                gpkLanguages.add(locale);
+            }
         }
-        Map<String, DocumentTree.Entry> overlay = directory(source, tree, root, "overlay");
-        Map<String, DocumentTree.Entry> system = directory(source, tree, overlay, "System");
-        displayOverlay = directory(source, tree, system, "Option");
+
         try {
             Map<String, DocumentTree.Entry> art = directory(source, tree, assets, "launcher-art");
             String name = "SchoolDaysHQ-Launcher.png";
@@ -164,7 +373,7 @@ final class SchoolDaysFolder {
                 artwork = ImageDecoder.decodeBitmap(image, (decoder, info, src) -> {
                     int longest = Math.max(info.getSize().getWidth(), info.getSize().getHeight());
                     int limit = Math.max(1, context.getResources().getDisplayMetrics().widthPixels);
-                    decoder.setTargetSampleSize((int)Math.max(1L, (longest + (long)limit - 1) / limit));
+                    decoder.setTargetSampleSize((int) Math.max(1L, (longest + (long) limit - 1) / limit));
                 });
             }
         } catch (IOException | RuntimeException ignored) {
