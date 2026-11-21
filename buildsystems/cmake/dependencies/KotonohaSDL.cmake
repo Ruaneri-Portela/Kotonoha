@@ -64,6 +64,20 @@ string(TOUPPER "${KOTONOHA_SDL_PROVIDER}" _kotonoha_sdl_request)
 if(NOT _kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM|VCPKG|SUBMODULES)$")
     message(FATAL_ERROR "Invalid KOTONOHA_SDL_PROVIDER=${KOTONOHA_SDL_PROVIDER}")
 endif()
+# MSVC uses Microsoft's C runtime and ABI. Never import SDL headers, libs
+# or pkg-config metadata from MSYS2/MinGW, even when AUTO is requested.
+if(MSVC)
+    if(_kotonoha_sdl_request STREQUAL "SYSTEM")
+        message(FATAL_ERROR
+            "[Kotonoha] KOTONOHA_SDL_PROVIDER=SYSTEM is not supported with MSVC. "
+            "Use AUTO (vcpkg -> submodules), VCPKG or SUBMODULES.")
+    endif()
+    if(VCPKG_TARGET_TRIPLET MATCHES "[Mm][Ii][Nn][Gg][Ww]")
+        message(FATAL_ERROR
+            "[Kotonoha] MSVC cannot use a MinGW vcpkg triplet: "
+            "${VCPKG_TARGET_TRIPLET}. Select x64-windows or another MSVC triplet.")
+    endif()
+endif()
 if(ANDROID)
     if(_kotonoha_sdl_request STREQUAL "SYSTEM" OR
        _kotonoha_sdl_request STREQUAL "VCPKG")
@@ -74,7 +88,7 @@ endif()
 set(_kotonoha_sdl_resolved "")
 set(_kotonoha_sdl_config_sdl3 OFF)
 set(_kotonoha_sdl_config_ttf OFF)
-if(_kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
+if(NOT MSVC AND _kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
     find_package(SDL3 CONFIG QUIET)
     find_package(SDL3_ttf CONFIG QUIET)
     if(TARGET SDL3::SDL3)
@@ -106,8 +120,26 @@ if(_kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
 endif()
 if(NOT _kotonoha_sdl_resolved AND
    _kotonoha_sdl_request MATCHES "^(AUTO|VCPKG)$" AND VCPKG_INSTALLED_DIR)
-    find_package(SDL3 CONFIG QUIET)
-    find_package(SDL3_ttf CONFIG QUIET)
+    if(MSVC)
+        # Only accept packages from the vcpkg target triplet. Unqualified
+        # find_package may silently discover C:/msys64/ucrt64.
+        set(_kotonoha_vcpkg_prefix
+            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+        if(NOT VCPKG_TARGET_TRIPLET OR
+           NOT EXISTS "${_kotonoha_vcpkg_prefix}")
+            message(FATAL_ERROR
+                "[Kotonoha] MSVC requires an installed native vcpkg triplet "
+                "(for example x64-windows). Set CMAKE_TOOLCHAIN_FILE to "
+                "vcpkg.cmake before the first project() call.")
+        endif()
+        find_package(SDL3 CONFIG QUIET
+            PATHS "${_kotonoha_vcpkg_prefix}" NO_DEFAULT_PATH)
+        find_package(SDL3_ttf CONFIG QUIET
+            PATHS "${_kotonoha_vcpkg_prefix}" NO_DEFAULT_PATH)
+    else()
+        find_package(SDL3 CONFIG QUIET)
+        find_package(SDL3_ttf CONFIG QUIET)
+    endif()
     if(TARGET SDL3::SDL3 AND TARGET SDL3_ttf::SDL3_ttf)
         set(_kotonoha_sdl_resolved VCPKG)
         set(_kotonoha_sdl_config_sdl3 ON)
@@ -128,6 +160,13 @@ if(NOT _kotonoha_sdl_resolved)
       kotonoha_require_submodule("lib/submodules/SDL" "CMakeLists.txt")
     endif()
     kotonoha_require_submodule("lib/submodules/SDL_ttf" "CMakeLists.txt")
+    if(MSVC AND
+       (TARGET SDL3::SDL3 OR TARGET SDL3_ttf::SDL3_ttf))
+        message(FATAL_ERROR
+            "[Kotonoha] Only part of SDL3 was resolved from the vcpkg triplet. "
+            "Install both SDL3 and SDL3_ttf using sdl-vcpkg, or select "
+            "SUBMODULES in a clean build directory.")
+    endif()
     if(NOT EXISTS "${KOTONOHA_SDL_SOURCE_DIR}/CMakeLists.txt" OR
        NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL_ttf/CMakeLists.txt")
         message(FATAL_ERROR "No SDL3/SDL3_ttf provider available. On Debian: "
