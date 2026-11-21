@@ -168,6 +168,9 @@ public:
   std::string debugNode() const override;
   std::string nodeClockKey() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
+  std::string debugNodeCatalogKey() const override;
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
+  void debugOverlayAssetChanged(const std::string &id) override;
   void debugJumpToNode(const std::string &) override;
   int translationRoute() const override;
   std::vector<std::string> activeTranslationKeys() const override;
