@@ -243,6 +243,26 @@ bool PmailGame::loadScript(const std::string &name, bool asMain) {
   return true;
 }
 
+std::map<int, std::vector<std::string>>
+PmailGame::translationInventory() {
+  std::map<int, std::vector<std::string>> result;
+  std::map<int, std::set<std::string>> seen;
+  // Build only on an explicit translation-catalog request. Parsing PAK
+  // entries must not occur in the gameplay or rendering loops.
+  for (const auto &name : debugScripts()) {
+    auto object = loadByName(name);
+    if (!object)
+      continue;
+    const int route = static_cast<int>(object->id & 0xfff);
+    auto &keys = result[route];
+    auto &unique = seen[route];
+    for (const auto &line : object->strings)
+      if (!line.empty() && unique.insert(line).second)
+        keys.push_back(line);
+  }
+  return result;
+}
+
 bool PmailGame::debugJumpScript(const std::string &name) {
   if (name.empty() || name == "pmail.obj")
     return false; // The native library is never a playable story root.
