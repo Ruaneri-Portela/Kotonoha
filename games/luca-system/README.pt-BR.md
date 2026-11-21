@@ -222,3 +222,28 @@ fronteira entre objetos antigos e novos.
 
 Ainda não há garantia de correspondência exata às máscaras, camadas,
 ordens e curvas do AIR original.
+
+
+## Nodos nativos e assets no Debug UI
+
+Pressione **F10** e abra o inspetor de scripts. A lista agora apresenta os
+cenários do `SCRIPT.PAK`; para o cenário ativo, também mostra nodos de
+instruções relevantes, como MESSAGE, SELECT, IMAGELOAD, BGM, VOICE, SE
+e MOVIE. Ao selecionar um nodo, aparecem o script original e os IDs
+lógicos do provider, como `image:1127`, `voice:73` e `bgm:100001`.
+A instrução atual também mostra as imagens visíveis e a voz/BGM ativos.
+A lista é atualizada quando o cenário muda.
+
+Use **List provider assets** para navegar pelos assets nomeados dos PAKs
+e pelos IDs numéricos de imagens, vozes, músicas e efeitos. A opção
+**Dump raw asset to Documents** salva os bytes sem conversão em
+`Documents/asset-dumps`, podendo escolher a origem original ou efetiva
+(com overlay). **Open in Voice Dubbing** envia o áudio selecionado ao
+applet de dublagem compartilhado.
+
+Pular diretamente para uma instrução reinicia o script naquela posição e
+**não reconstrói variáveis anteriores, pilha de chamadas ou camadas já
+desenhadas**. O catálogo inspeciona somente o script ativo, evitando
+decodificar todos os scripts comerciais de uma só vez. O teste sintético
+C++17 é `LucaSystem.DebugCatalog`; a navegação real ainda requer os
+testes opcionais com os dados originais.
