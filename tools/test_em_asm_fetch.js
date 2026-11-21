@@ -50,4 +50,28 @@ const invalid = preprocess(broken);
 assert.match(invalid, /==\s+=/);
 assert.throws(() => new vm.Script("(() => " + invalid + ")()"),
     SyntaxError, "the original Emscripten regression must be detected");
-console.log("Kotonoha EM_ASM Fetch/IndexedDB C-preprocessor regression passed");
+// Second regression: the shared native Runtime scene-transition callback
+// also lives in EM_ASM, and must survive C++ macro stringization.
+const runtime = fs.readFileSync(path.join(__dirname, "..", "lib",
+    "src", "core", "Runtime.cpp"), "utf8");
+const scene = runtime.match(
+    /EM_ASM\\s*\\(\\s*(\\{[\\s\\S]*?KotonohaSceneEntered[\\s\\S]*?\\})\\s*,\\s*node\\.c_str\\(\\)\\s*\\)/);
+assert(scene, "Missing native Runtime scene notification EM_ASM bridge");
+const sceneJs = preprocess(scene[1]);
+assert(!sceneJs.includes("== ="),
+    "Scene notifications must not contain macro-split equality");
+const notify = new vm.Script("(function($0) " + sceneJs + ")");
+let received = null;
+const callback = notify.runInNewContext({
+    window: {KotonohaSceneEntered(node) { received = node; }},
+    UTF8ToString: pointer => "node:" + String(pointer)
+});
+callback(12);
+assert.equal(received, "node:12",
+    "Native scene notifications must reach the browser asset cache");
+const missingCallback = notify.runInNewContext({
+    window: {}, UTF8ToString: pointer => String(pointer)
+});
+assert.doesNotThrow(() => missingCallback(12),
+    "Scene callback remains optional for older web shells");
+console.log("Kotonoha EM_ASM Fetch/IndexedDB and scene notification regressions passed");
