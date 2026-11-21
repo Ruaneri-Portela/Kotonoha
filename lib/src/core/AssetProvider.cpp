@@ -306,8 +306,12 @@ std::vector<std::string> AssetProvider::list(const std::string &prefix) const {
   result.insert(result.end(), overrides.begin(), overrides.end());
   std::unordered_map<std::string, std::string> unique;
   unique.reserve(result.size());
-  for (const auto &id : result)
-    unique[AssetOverlay::key(id)] = id;
+  for (const auto &id : result) {
+    const auto key = AssetOverlay::key(id);
+    // Provider IDs like "voice:100" are valid logical IDs but not overlay
+    // paths. Preserve each such ID instead of grouping them under an empty key.
+    unique[key.empty() ? id : key] = id;
+  }
   result.clear();
   result.reserve(unique.size());
   for (const auto &[key, id] : unique)

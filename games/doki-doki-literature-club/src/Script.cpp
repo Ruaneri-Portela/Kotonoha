@@ -158,12 +158,9 @@ bool Script::load(const Assets &assets, std::string *error) {
       }
       const std::string base = std::filesystem::path(name).filename().string();
       const bool translation =
-          base.find('_') != std::string::npos && base.find("script-") == 0;
-      const bool baseScript =
-          base == "script_version.rpyc" || base == "imachine.rpyc" ||
-          base == "_ui_early.rpyc" || base == "ui_labels.rpyc" ||
-          (base.compare(0, 7, "script-") == 0 && !translation);
-      if (baseScript)
+          base.find('_') != std::string::npos &&
+          (base.rfind("script-", 0) == 0 || base.rfind("ui-", 0) == 0);
+      if (!translation)
         files.push_back(name);
     }
   std::sort(files.begin(), files.end());

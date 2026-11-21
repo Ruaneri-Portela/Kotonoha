@@ -10,4 +10,4 @@ Configure with `-DKOTONOHA_BUILD_MEO=ON`, then build target `MEO`. Provide legal
 
 ## Checks and limitations
 
-The optional `MEO.Presentation` and `MEO.Audio` CTests require `-DMEO_DATA_DIR=/path/to/data`. They check visible startup, BGM decoding, and an opening music request, but do not prove full story, route, voice, or platform parity. The game shares the CMP archive provider with Summer Radish while retaining its own title and save/package identity. MEO `.BGM` music plays through its own ADPCM decoder; `.SND` voice playback still needs implementation.
+The optional `MEO.Presentation` and `MEO.Audio` CTests require `-DMEO_DATA_DIR=/path/to/data`. They check visible startup, BGM and SND decoding, and opening music and voice requests, but do not prove full story, route, or platform parity. The game shares the CMP archive provider with Summer Radish while retaining its own title and save/package identity. MEO `.BGM` music and `.SND` voice tracks play through its own ADPCM decoder at the original 24 script frames per second.

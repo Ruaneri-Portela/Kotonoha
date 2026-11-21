@@ -93,8 +93,24 @@ janela. Quando ativadas, as cores de diálogo e de personagem do Kotonoha
 também se aplicam aos glifos do atlas bitmap e de seus overlays. A caixa
 usa o cache de quebra de linhas compartilhado para manter as linhas
 estáveis durante o efeito de digitação.
+Os botões laterais abrem **Menu**, alternam **Skip** ou **Auto** e repetem
+a fala atual com **Voice** quando há uma gravação.
+As escolhas da história usam a arte original centralizada de `SELWIN_s` e
+`SELWIN` com os comandos de escolha do Kotonoha. O indicador no canto
+superior esquerdo usa a data de `#6003` e a arte original `jul_` e `aug_`.
 
 ## Menus do AIR
+
+A abertura mostra primeiro o aviso de direitos autorais e depois os logos
+da Visual Arts, Key e Prototype/LUCA. Os logos são silenciosos. No título,
+as ondas do mar (`nami`, `200014`) tocam em loop no canal `Se` do Kotonoha;
+**Reminiscences** (`trk22`, `100021`) começa no prólogo de DREAM, não no
+título. Use Enter, Espaço ou um clique para avançar na abertura, ou Escape
+para ir direto ao título.
+
+**NEW GAME** abre o seletor de histórias original antes de iniciar um
+capítulo. Em um perfil novo, só **DREAM** está disponível. Use a seta do
+título para deslizar até a segunda página, que contém **GALLERY** e **MUSIC**.
 
 Abra a pausa com Escape ou a ação de voltar do controle. O port usa os
 ícones `systemmenu`, o fundo `system_menu_bg` e as páginas em inglês do
@@ -103,13 +119,17 @@ configurações nativas do Kotonoha; salvar e carregar rapidamente continuam
 usando `quicksave.kns`. O histórico (B ou Page Up) usa o `backlog_texture`
 original com rolagem e repetição de voz do Kotonoha. Menus abertos capturam
 a entrada sem avançar o diálogo.
+A pausa também congela as esperas do roteiro e o vídeo de abertura. A
+abertura usa a trilha embutida no WebM original; efeitos do roteiro em
+canais separados não interrompem mais um ao outro.
 
 As telas de salvar e carregar do AIR usam os fundos, as molduras, o
 destaque e as setas originais em uma grade de 20 cartões. Use as setas ou
 o direcional do controle para selecionar um cartão; Page Up/Page Down ou
 Z/C trocam de página, e Escape ou X cancelam. O Kotonoha cuida de nomear,
-sobrescrever, renomear e excluir saves `.vn`. Os cartões mostram os nomes
-dos saves em vez das capturas de tela do jogo original.
+sobrescrever, renomear e excluir saves `.vn`. Cada novo save inclui uma
+captura da cena sem os menus, exibida nos cartões de salvar e carregar.
+Saves antigos sem captura continuam mostrando o nome do slot.
 
 **Options** usa o fundo, as nove abas em inglês, a moldura de prévia de
 diálogo e a arte dos controles deslizantes originais do AIR. O Kotonoha

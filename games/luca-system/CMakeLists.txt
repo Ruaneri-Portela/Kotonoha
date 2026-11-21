@@ -79,6 +79,7 @@ if(BUILD_TESTING)
     set_tests_properties(LucaSystem.RetailAirFlow LucaSystem.RetailAirGallery
         LucaSystem.RetailAirSaveGrid LucaSystem.RetailAirSettings PROPERTIES
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+        WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}"
         TIMEOUT 120)
   endif()
 endif()

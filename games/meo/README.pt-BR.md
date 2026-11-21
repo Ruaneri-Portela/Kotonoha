@@ -10,4 +10,4 @@ Configure o CMake com `-DKOTONOHA_BUILD_MEO=ON` e compile o alvo `MEO`. Informe 
 
 ## Testes e limitações
 
-Os CTests opcionais `MEO.Presentation` e `MEO.Audio` exigem `-DMEO_DATA_DIR=/caminho/para/dados`. Eles verificam inicialização visível, decodificação de BGM e solicitação da música de abertura, mas não comprovam fidelidade integral da história, rotas, vozes ou plataformas. O provedor de arquivos CMP é compartilhado com Summer Radish, mas o jogo mantém identidade própria. A música `.BGM` do MEO toca por seu decoder ADPCM; a reprodução das vozes `.SND` ainda precisa ser implementada.
+Os CTests opcionais `MEO.Presentation` e `MEO.Audio` exigem `-DMEO_DATA_DIR=/caminho/para/dados`. Eles verificam inicialização visível, decodificação de BGM e SND e solicitação de música e voz na abertura, mas não comprovam fidelidade integral da história, rotas ou plataformas. O provedor de arquivos CMP é compartilhado com Summer Radish, mas o jogo mantém identidade própria. A música `.BGM` e as vozes `.SND` do MEO tocam pelo decoder ADPCM próprio, com os 24 frames de script por segundo do jogo original.

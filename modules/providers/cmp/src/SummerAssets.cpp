@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstring>
 #include <optional>
+#include <set>
 #include <stdexcept>
 #include <utility>
 namespace Kotonoha::Providers {
@@ -103,21 +104,93 @@ SummerAssets::SummerAssets(
   const bool meoLayout = packRoot.find("Personal/MISSEACHOTHER") == 0 ||
                          packRoot == "PACKS" || source_->exists("MEO.exe") ||
                          source_->exists("gEngine.gesl");
-  const auto files = source_->list(packRoot);
+  meoLayout_ = meoLayout;
+
+  std::vector<std::string> packRoots;
+  packRoots.push_back(packRoot);
+  if (packRoot == "DISC1/PACK" && source_->exists("DISC2/PACK") &&
+      source_->stat("DISC2/PACK").type ==
+          Kotonoha::Filesystem::FileType::Directory) {
+    packRoots.push_back("DISC2/PACK");
+  }
+
+  std::vector<Kotonoha::Filesystem::FileInfo> files;
+  for (const auto &dir : packRoots) {
+    auto listed = source_->list(dir);
+    files.insert(files.end(), listed.begin(), listed.end());
+  }
+
+  // Match FileSystem.mod @ 0x10003801: probe numbered patch packs
+  // TYPE099.CMP .. TYPE000.CMP before the base TYPE.CMP, silently skipping
+  // invalid non-CMP patch files (e.g. Lost M's 25 KB UPX PE VOICE000.cmp).
+  auto parsePatchIndex = [](const std::string &upperFile,
+                            const std::string &type) -> int {
+    const std::string ext = ".CMP";
+    if (upperFile.size() != type.size() + 3 + ext.size())
+      return -1;
+    if (upperFile.compare(0, type.size(), type) != 0)
+      return -1;
+    if (upperFile.compare(upperFile.size() - ext.size(), ext.size(), ext) != 0)
+      return -1;
+    int idx = 0;
+    for (size_t i = 0; i < 3; ++i) {
+      char ch = upperFile[type.size() + i];
+      if (ch < '0' || ch > '9')
+        return -1;
+      idx = idx * 10 + (ch - '0');
+    }
+    return idx;
+  };
+
   for (const auto *type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
-    const auto desired = std::string(type) + ".CMP";
-    auto entry =
-        std::find_if(files.begin(), files.end(), [&](const auto &file) {
-          return file.type == Kotonoha::Filesystem::FileType::Regular &&
-                 canonical(
-                     std::filesystem::path(file.path).filename().string()) ==
-                     desired;
-        });
-    if (entry == files.end() && std::string(type) == "VOICE" && meoLayout)
-      continue;
-    if (entry == files.end())
+    const std::string typeStr(type);
+    const std::string desired = typeStr + ".CMP";
+    std::vector<std::pair<int, std::string>> patches;
+    std::string basePath;
+
+    for (const auto &file : files) {
+      if (file.type != Kotonoha::Filesystem::FileType::Regular)
+        continue;
+      const std::string upperName =
+          canonical(std::filesystem::path(file.path).filename().string());
+      if (upperName == desired) {
+        if (basePath.empty())
+          basePath = file.path;
+      } else if (int patchIdx = parsePatchIndex(upperName, typeStr);
+                 patchIdx >= 0) {
+        patches.emplace_back(patchIdx, file.path);
+      }
+    }
+
+    std::sort(patches.begin(), patches.end(),
+              [](const auto &a, const auto &b) { return a.first > b.first; });
+
+    std::vector<std::unique_ptr<Pack>> stack;
+    for (const auto &[patchIdx, patchPath] : patches) {
+      (void)patchIdx;
+      try {
+        auto pack = std::make_unique<Pack>(source_, patchPath);
+        if (pack->keyProfile() == CmpKeyProfile::LostM)
+          lostMLayout_ = true;
+        stack.push_back(std::move(pack));
+      } catch (...) {
+        // Native FileSystem.mod silently ignores non-CMP patch files.
+      }
+    }
+
+    if (!basePath.empty()) {
+      auto pack = std::make_unique<Pack>(source_, basePath);
+      if (pack->keyProfile() == CmpKeyProfile::LostM)
+        lostMLayout_ = true;
+      stack.push_back(std::move(pack));
+    }
+
+    if (stack.empty()) {
+      if (typeStr == "VOICE" && meoLayout)
+        continue;
       throw std::runtime_error("Missing " + desired + " in virtual source");
-    packs.emplace(type, std::make_unique<Pack>(source_, entry->path));
+    }
+    packs.emplace(typeStr, std::move(stack));
   }
 }
 std::filesystem::path
@@ -204,40 +277,42 @@ bool SummerAssets::containsAsset(const std::string &id) const {
   auto slash = s.find('/');
   if (slash == s.npos)
     return false;
-  auto pack = packs.find(s.substr(0, slash));
-  if (pack == packs.end())
+  auto packIt = packs.find(s.substr(0, slash));
+  if (packIt == packs.end())
     return false;
   const auto name = s.substr(slash + 1);
-  if (pack->second->contains(name))
-    return true;
-  for (const auto &[entryName, entry] : pack->second->entries()) {
-    (void)entry;
-    auto stemName = entryName;
-    const auto dot = stemName.find_last_of('.');
-    if (dot != std::string::npos)
-      stemName.resize(dot);
-    if (canonical(stemName) == canonical(name))
+  for (const auto &pack : packIt->second) {
+    if (pack->contains(name))
       return true;
+    for (const auto &[entryName, entry] : pack->entries()) {
+      (void)entry;
+      auto stemName = entryName;
+      const auto dot = stemName.find_last_of('.');
+      if (dot != std::string::npos)
+        stemName.resize(dot);
+      if (canonical(stemName) == canonical(name))
+        return true;
+    }
   }
   return false;
 }
 Bytes SummerAssets::readAsset(const std::string &id) const {
   auto s = canonical(id);
   auto slash = s.find('/');
-  auto pack = packs.find(s.substr(0, slash));
-  if (slash == s.npos || pack == packs.end())
+  auto packIt = packs.find(s.substr(0, slash));
+  if (slash == s.npos || packIt == packs.end())
     throw std::runtime_error("Unknown Summer asset: " + id);
-  auto name = s.substr(slash + 1);
-  if (!pack->second->contains(name)) {
-    for (const auto &[entryName, entry] : pack->second->entries()) {
+  const auto requested = s.substr(slash + 1);
+  for (const auto &pack : packIt->second) {
+    if (pack->contains(requested))
+      return pack->read(requested);
+    for (const auto &[entryName, entry] : pack->entries()) {
       (void)entry;
-      if (canonical(entryName) == canonical(name)) {
-        name = entryName;
-        break;
-      }
+      if (canonical(entryName) == canonical(requested))
+        return pack->read(entryName);
     }
   }
-  return pack->second->read(name);
+  throw std::runtime_error("Unknown Summer asset: " + id);
 }
 
 std::optional<Bytes> SummerAssets::tryReadAsset(const std::string &id) const {
@@ -250,13 +325,16 @@ std::optional<Bytes> SummerAssets::tryReadAsset(const std::string &id) const {
 std::vector<std::string>
 SummerAssets::listAsset(const std::string &prefix) const {
   std::vector<std::string> result;
+  std::set<std::string> seen;
   auto search = canonical(prefix);
-  for (auto &[type, pack] : packs)
-    for (auto &[n, e] : pack->entries()) {
-      auto id = type + "/" + n;
-      if (id.compare(0, search.size(), search) == 0)
-        result.push_back(id);
-    }
+  for (auto &[type, stack] : packs)
+    for (const auto &pack : stack)
+      for (auto &[n, e] : pack->entries()) {
+        (void)e;
+        auto id = type + "/" + n;
+        if (id.compare(0, search.size(), search) == 0 && seen.insert(id).second)
+          result.push_back(id);
+      }
   return result;
 }
 Image SummerAssets::picture(const std::string &id) const {
@@ -264,8 +342,12 @@ Image SummerAssets::picture(const std::string &id) const {
 }
 Kotonoha::AudioClip SummerAssets::loadAudioAsset(const std::string &id) const {
   const auto name = canonical(id);
-  if (name.size() >= 4 && name.compare(name.size() - 4, 4, ".BGM") == 0)
+  if (meoLayout_ && name.size() >= 4 &&
+      name.compare(name.size() - 4, 4, ".BGM") == 0)
     return MeoAudio::decodeBgm(readAsset(id)).clip;
+  if (meoLayout_ && name.size() >= 4 &&
+      name.compare(name.size() - 4, 4, ".SND") == 0)
+    return MeoAudio::decodeSnd(readAsset(id));
   return AssetProvider::loadAudioAsset(id);
 }
 Kotonoha::SurfacePtr

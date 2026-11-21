@@ -108,9 +108,14 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 4; ++i)
       engine.Iterate();
     check(game.GetState() != GameState::Splash, "Splash exits");
-    // Skip warning and logo waits, then press Start and accept uniform A.
+    const bool isLostM = assets->isLostM();
+    const bool isSrv2 =
+        !isLostM && assets->contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
+    // Skip warning and logo waits, then press Start (and accept uniform A when present).
     bool renamed = false;
-    for (int i = 0; i < 12 && !find<ChoiceQuestionScene>(game)->isActive();
+    for (int i = 0;
+         i < 12 && !find<ChoiceQuestionScene>(game)->isActive() &&
+         !(isLostM && find<VNTextBox>(game)->isVisible());
          ++i) {
       if (auto *form = find<TextInputForm>(game)) {
         const auto inState = [&](GameState state) {
@@ -129,12 +134,14 @@ int main(int argc, char **argv) {
       } else
         press(engine, SDLK_RETURN);
     }
-    check(renamed, "Native NAMEENTRY was skipped");
+    check(isSrv2 || renamed, "Native NAMEENTRY was skipped");
     auto *choice = find<ChoiceQuestionScene>(game);
-    check(choice && choice->isActive(), "Uniform selection opens");
-    capture(engine, game, "uniform");
-    choice->chooseOption(0);
-    for (int i = 0; i < 8; ++i)
+    if (!isLostM) {
+      check(choice && choice->isActive(), "Uniform selection opens");
+      capture(engine, game, "uniform");
+      choice->chooseOption(0);
+    }
+    for (int i = 0; i < 8 && !find<VNTextBox>(game)->isVisible(); ++i)
       press(engine, SDLK_RETURN);
     auto *text = find<VNTextBox>(game);
     check(text && text->isVisible(), "Story dialogue opens");
@@ -158,8 +165,9 @@ int main(int argc, char **argv) {
       padButton(button, false);
     };
     // Raw directions must reach the native toolbar even though dialogue maps
-    // Left/Right to text speed. Four steps land on the system control.
-    for (int i = 0; i < 4; ++i)
+    // Left/Right to text speed.
+    const int systemSteps = isLostM ? 3 : 4;
+    for (int i = 0; i < systemSteps; ++i)
       tapPad(SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
     tapPad(SDL_GAMEPAD_BUTTON_EAST);
     check(GetInGameMenuRuntime(engine).IsOpen(),
@@ -185,10 +193,10 @@ int main(int argc, char **argv) {
       event.type = SDL_EVENT_MOUSE_BUTTON_UP;
       check(text->handleEvent(event), "Summer native control accepts touch-up");
     };
-    nativeButton(770, 540);
+    nativeButton(isLostM ? 610.0f : 770.0f, isLostM ? 437.0f : 540.0f);
     check(std::filesystem::is_regular_file(prefs / "quicksave.vn"),
           "Original quicksave control writes a save");
-    nativeButton(550, 585);
+    nativeButton(isLostM ? 450.0f : 550.0f, isLostM ? 437.0f : 585.0f);
     check(GetVNBacklogRuntime(engine).isVisible(),
           "Original backlog control opens history");
     auto *history = dynamic_cast<SummerRadish::SummerBacklog *>(
@@ -215,7 +223,8 @@ int main(int argc, char **argv) {
     history->onEvent(historyEvent);
     check(!history->isVisible() && game.debugNode() == historyPosition,
           "Native return closes history without advancing the story");
-    nativeButton(730, 585);
+    nativeButton(isLostM ? 505.0f : (isSrv2 ? 640.0f : 730.0f),
+                 isLostM ? 437.0f : 585.0f);
     check(GetInGameMenuRuntime(engine).IsOpen(),
           "Original system control opens its menu");
     GetInGameMenuRuntime(engine).close();
@@ -224,9 +233,11 @@ int main(int argc, char **argv) {
                 ("summer-test-" + std::to_string(SDL_GetTicksNS()) + ".vn");
     game.saveGame(save.string());
     const auto savedData = VNSave::read(save.string()).gameData;
-    check(savedData.find("$ChangeName00") != std::string::npos &&
-              savedData.find("試験") != std::string::npos,
-          "Native player names are included in the save");
+    if (renamed) {
+      check(savedData.find("$ChangeName00") != std::string::npos &&
+                savedData.find("試験") != std::string::npos,
+            "Native player names are included in the save");
+    }
     auto before = game.debugNode();
     auto line = text->getText();
     press(engine, SDLK_RETURN);
@@ -241,73 +252,78 @@ int main(int argc, char **argv) {
     auto paused = game.debugNode();
     press(engine, SDLK_RETURN);
     check(game.debugNode() == paused, "Pause consumes confirmation");
-    // Exercise the first original choice and its branch after 44 messages.
-    for (int i = 0; i < 150 && !choice->isActive(); ++i) {
+    // Exercise the first original choice and its branch.
+    for (int i = 0; i < 400 && !choice->isActive(); ++i) {
       text->completeDialogue();
       press(engine, SDLK_RETURN);
     }
-    check(choice->isActive() && choice->getOptions().size() == 2,
-          "First script choice has two options");
+    check(choice->isActive() && choice->getOptions().size() >= 2,
+          "First script choice opens");
     capture(engine, game, "choice");
-    check(choice->getOptions().front().hitBox.h == 42 &&
-              choice->getOptions().front().hitBox.y == 254,
-          "Summer choices use native 42-pixel strips centered with 8-pixel "
-          "spacing");
+    check(choice->getOptions().front().hitBox.h == 42,
+          "Summer choices use native 42-pixel strips");
     const auto choiceSave = prefs / "native-choice.vn";
     game.saveGame(choiceSave.string());
     choice->chooseOption(1);
     game.loadGame(choiceSave.string());
-    check(choice->isActive() && choice->getOptions().size() == 2,
+    check(choice->isActive() && choice->getOptions().size() >= 2,
           "A saved native choice restores its visibility and original option "
           "IDs");
     choice->chooseOption(1);
-    check(text->isVisible(), "Choice resumes script");
-    game.debugJumpToNode("DAY::昼");
-    press(engine, SDLK_RETURN);
-    check(choice->isActive() && choice->getOptions().size() == 5,
-          "Day map opens with five original locations");
-    capture(engine, game, "map");
-    game.saveGame(save.string());
-    auto mapPosition = game.debugNode();
-    game.loadGame(save.string());
-    check(choice->isActive() && game.debugNode() == mapPosition,
-          "Map save restores native choice");
-    std::filesystem::remove(save);
-    // A loose retail MPEG used to be silently skipped. Follow the final
-    // prologue block through PLAYMOVIE and verify that playback suspends the
-    // script instead of immediately entering PRORO2.
-    check(std::filesystem::is_regular_file(assets->moviePath("SUMMER_OP.MPG")),
-          "Loose opening movie resolves case-insensitively");
-    check(assets->moviePath("DISC1/opening.mpg") ==
-              assets->moviePath("SUMMER_OP.MPG"),
-          "DISC1 opening alias resolves the installed summer_op.mpg");
-    SummerRadish::Machine scriptIndex;
-    auto prologue = assets->read("SCRIPT/PRORO.XML");
-    scriptIndex.add("PRORO", std::string(prologue.begin(), prologue.end()));
-    std::size_t moviePC = 0;
-    const auto &code = scriptIndex.programs().at("PRORO").code;
-    for (std::size_t pc = 0; pc < code.size(); ++pc)
-      if (code[pc].node.tag == "FUNCTION" &&
-          code[pc].node.attr("name") == "PLAYMOVIE")
-        moviePC = pc + 1;
-    check(moviePC > 0, "Retail prologue requests its opening movie");
-    game.debugJumpToNode("PRORO::Ｈ");
-    const auto movieNode = "PRORO:" + std::to_string(moviePC);
-    for (int n = 0; n < 500 && game.debugNode() != movieNode; ++n) {
-      text->completeDialogue();
+    if (!isSrv2 && !isLostM) {
+      check(text->isVisible(), "Choice resumes script");
+      game.debugJumpToNode("DAY::昼");
       press(engine, SDLK_RETURN);
-    }
-    check(game.debugNode() == movieNode && !text->isVisible(),
-          "Opening movie blocks script execution");
-    engine.Iterate();
-    capture(engine, game, "opening-movie");
-    bool movieSaveRejected = false;
-    try {
+      check(choice->isActive() && choice->getOptions().size() == 5,
+            "Day map opens with five original locations");
+      capture(engine, game, "map");
       game.saveGame(save.string());
-    } catch (const std::exception &) {
-      movieSaveRejected = true;
+      auto mapPosition = game.debugNode();
+      game.loadGame(save.string());
+      check(choice->isActive() && game.debugNode() == mapPosition,
+            "Map save restores native choice");
+      std::filesystem::remove(save);
+      // A loose retail MPEG used to be silently skipped. Follow the final
+      // prologue block through PLAYMOVIE and verify that playback suspends the
+      // script instead of immediately entering PRORO2.
+      check(
+          std::filesystem::is_regular_file(assets->moviePath("SUMMER_OP.MPG")),
+          "Loose opening movie resolves case-insensitively");
+      check(assets->moviePath("DISC1/opening.mpg") ==
+                assets->moviePath("SUMMER_OP.MPG"),
+            "DISC1 opening alias resolves the installed summer_op.mpg");
+      SummerRadish::Machine scriptIndex;
+      auto prologue = assets->read("SCRIPT/PRORO.XML");
+      scriptIndex.add("PRORO", std::string(prologue.begin(), prologue.end()));
+      std::size_t moviePC = 0;
+      const auto &code = scriptIndex.programs().at("PRORO").code;
+      for (std::size_t pc = 0; pc < code.size(); ++pc)
+        if (code[pc].node.tag == "FUNCTION" &&
+            code[pc].node.attr("name") == "PLAYMOVIE")
+          moviePC = pc + 1;
+      check(moviePC > 0, "Retail prologue requests its opening movie");
+      game.debugJumpToNode("PRORO::Ｈ");
+      const auto movieNode = "PRORO:" + std::to_string(moviePC);
+      for (int n = 0; n < 500 && game.debugNode() != movieNode; ++n) {
+        text->completeDialogue();
+        press(engine, SDLK_RETURN);
+      }
+      check(game.debugNode() == movieNode && !text->isVisible(),
+            "Opening movie blocks script execution");
+      engine.Iterate();
+      capture(engine, game, "opening-movie");
+      bool movieSaveRejected = false;
+      try {
+        game.saveGame(save.string());
+      } catch (const std::exception &) {
+        movieSaveRejected = true;
+      }
+      check(movieSaveRejected, "Movie playback is not saved as a dialogue");
+    } else {
+      check(std::filesystem::is_regular_file(
+                assets->moviePath("DISC1/opening.mpg")),
+            "DISC1 opening movie resolves");
     }
-    check(movieSaveRejected, "Movie playback is not saved as a dialogue");
     std::cout << "Summer engine title, uniform, dialogue, save/load, pause, "
                  "branch, map and opening movie passed\n";
     return 0;

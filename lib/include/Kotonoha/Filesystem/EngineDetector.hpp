@@ -264,8 +264,8 @@ inline DetectedEngine detectEngine(const Filesystem &source) {
        {"nscript.dat", "nscript.___", "0.txt", "00.txt", "0.utf", "00.utf",
         "pscript.dat", "arc.nsa", "arc.sar"}) {
     if (hasRegularFile(source, marker)) {
-      return {EngineKind::ONScripter, "onscripter", "ONScripter / NScripter",
-              "", std::string(marker), false};
+      return {EngineKind::ONScripter, "ponscripter", "PONScripter / ONScripter",
+              "", std::string(marker), true};
     }
   }
 
@@ -365,13 +365,13 @@ inline DetectedEngine detectEngine(const Filesystem &source) {
       }
 
       // PS2 / Vita disc identifiers (Amagami & Zero no Tsukaima)
-      if (fname.rfind("slpm_551", 0) == 0 || fname.rfind("uljs_003", 0) == 0 ||
-          fname == "amagami.scf") {
+      if (fname.rfind("slpm_551", 0) == 0 || fname.rfind("slps_259", 0) == 0 ||
+          fname.rfind("uljs_003", 0) == 0 || fname == "amagami.scf") {
         return {EngineKind::Amagami, "amagami", "Amagami (SCF)", prefix,
                 entry.path, true};
       }
-      if (fname.rfind("slps_257", 0) == 0 || fname.rfind("slpm_666", 0) == 0 ||
-          fname.rfind("slpm_550", 0) == 0) {
+      if (fname.rfind("slps_257", 0) == 0 || fname.rfind("slps_258", 0) == 0 ||
+          fname.rfind("slpm_666", 0) == 0 || fname.rfind("slpm_550", 0) == 0) {
         return {EngineKind::ZeroNoTsukaima, "zero-no-tsukaima",
                 "Zero no Tsukaima", prefix, entry.path, true};
       }

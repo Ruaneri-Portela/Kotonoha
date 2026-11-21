@@ -52,7 +52,12 @@ struct TextStyle {
   float maxWidth = 0;                               // wrapping width, 0 = none
   float align = 0;                                  // text_align
   float lineSpacing = 0;
-  bool operator==(const TextStyle &) const = default;
+  bool operator==(const TextStyle &other) const {
+    return font == other.font && size == other.size && color == other.color &&
+           outlines == other.outlines && maxWidth == other.maxWidth &&
+           align == other.align && lineSpacing == other.lineSpacing;
+  }
+  bool operator!=(const TextStyle &other) const { return !(*this == other); }
 };
 
 struct DrawOp {
@@ -206,6 +211,7 @@ DispP makeGrayscaleDisp(const DispP &child);
 DispP makeAnimatedMaskDisp(const DispP &child, bool moving, double speed,
                            double frequency, double amount, double oc);
 DispP makeSpriteManagerDisp(const Value &sm);
+DispP makeSnowDisp(const std::string &flakeImage);
 
 struct Shown {
   std::string tag;

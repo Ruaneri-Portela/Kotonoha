@@ -237,22 +237,26 @@ Pack::Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
   auto footer =
       readSlice(*filesystem, sourceId, static_cast<size_t>(length - 8), 8);
 
-  // Summer Radish Vacation 1 & 2 use two distinct 16-byte XOR keys, while
-  // Miss Each Other (MEO) and INSTALL.cmp use an all-zero 16-byte XOR key.
+  // Summer Radish Vacation 1 & 2, Lost M, and MEO/INSTALL.cmp each use a
+  // distinct 16-byte XOR key.
   constexpr std::array<uint8_t, 16> key1{0x0f, 0x25, 0x3e, 0x5c, 0x2a, 0x4b,
                                          0x77, 0x90, 0x05, 0x8a, 0x8e, 0x46,
                                          0xeb, 0x3d, 0x11, 0x43};
   constexpr std::array<uint8_t, 16> key2{0x6c, 0x14, 0xf2, 0x03, 0xe3, 0x62,
                                          0x32, 0xac, 0x03, 0x04, 0xac, 0xf2,
                                          0xd3, 0x84, 0xf8, 0xca};
+  constexpr std::array<uint8_t, 16> keyLostM{0x67, 0xd8, 0x16, 0x28, 0x21, 0x05,
+                                             0x50, 0x0a, 0x6c, 0xc3, 0x89, 0x71,
+                                             0xdb, 0x5c, 0x03, 0xce};
   constexpr std::array<uint8_t, 16> key0{};
   struct CandidateKey {
     CmpKeyProfile profile;
     const std::array<uint8_t, 16> *key;
   };
-  const std::array<CandidateKey, 3> allKeys = {{
+  const std::array<CandidateKey, 4> allKeys = {{
       {CmpKeyProfile::SummerRadish1, &key1},
       {CmpKeyProfile::SummerRadish2, &key2},
+      {CmpKeyProfile::LostM, &keyLostM},
       {CmpKeyProfile::MeoZeroKey, &key0},
   }};
 

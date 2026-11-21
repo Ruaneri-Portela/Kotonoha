@@ -20,6 +20,8 @@ int main(int argc, char **argv) {
     if (argc < 2 || argc > 3)
       return 77;
     auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(argv[1]);
+    if (assets->name() != "MEO CMP")
+      throw std::runtime_error("MEO provider identity is incorrect");
     if (argc == 3 && std::string(argv[2]) == "audio") {
       const auto bytes = assets->read("SOUND/MEO02.BGM");
       const auto bgm = assets->loadAudio("SOUND/MEO02.BGM");
@@ -40,6 +42,23 @@ int main(int argc, char **argv) {
       }
       if (!audible)
         throw std::runtime_error("MEO BGM decoded to silence");
+      const auto sndBytes = assets->read("SOUND/A-01A.SND");
+      const auto snd = assets->loadAudio("SOUND/A-01A.SND");
+      if (snd.spec.format != SDL_AUDIO_S16 || snd.spec.channels != 2 ||
+          snd.spec.freq != 44100 || sndBytes.size() < 8 ||
+          snd.data.size() != 29u * 44100u * 4u)
+        throw std::runtime_error("MEO SND PCM format is invalid");
+      audible = false;
+      for (std::size_t i = 0; i + 2 <= snd.data.size(); i += 2) {
+        int16_t sample;
+        std::memcpy(&sample, snd.data.data() + i, sizeof(sample));
+        if (sample > 1000 || sample < -1000) {
+          audible = true;
+          break;
+        }
+      }
+      if (!audible)
+        throw std::runtime_error("MEO SND decoded to silence");
       return 0;
     }
     SummerRadish::SummerRuntime game(assets, "Miss Each Other",
@@ -123,6 +142,9 @@ int main(int argc, char **argv) {
     if (std::find(audioRequests.begin(), audioRequests.end(),
                   "SOUND/MEO02.BGM") == audioRequests.end())
       throw std::runtime_error("MEO opening BGM was not requested");
+    if (std::find(audioRequests.begin(), audioRequests.end(),
+                  "SOUND/A-00.SND") == audioRequests.end())
+      throw std::runtime_error("MEO opening voice was not requested");
     bool visible = false;
     const Uint64 started = SDL_GetTicks();
     while (!visible && SDL_GetTicks() - started < 5000) {
@@ -156,11 +178,11 @@ int main(int argc, char **argv) {
     game.saveGame(savePath.string());
     if (argc == 3 && std::string(argv[2]) == "choice") {
       auto save = Kotonoha::VNSave::read(savePath.string());
-      save.gameData = "MEO-PRESENTATION-1\nA-01C.XML\n22000\n";
+      save.gameData = "MEO-PRESENTATION-1\nA-01C.XML\n55000\n";
       save.write(savePath.string());
     } else if (argc == 3 && std::string(argv[2]) == "transition") {
       auto save = Kotonoha::VNSave::read(savePath.string());
-      save.gameData = "MEO-PRESENTATION-1\nA-00.XML\n94000\n";
+      save.gameData = "MEO-PRESENTATION-1\nA-00.XML\n235000\n";
       save.write(savePath.string());
     }
     game.loadGame(savePath.string());
@@ -184,7 +206,7 @@ int main(int argc, char **argv) {
     if (argc == 3 && std::string(argv[2]) == "transition") {
       game.saveGame(savePath.string());
       auto save = Kotonoha::VNSave::read(savePath.string());
-      save.gameData = "MEO-PRESENTATION-1\nA-01A.XML\n10000\n";
+      save.gameData = "MEO-PRESENTATION-1\nA-01A.XML\n24000\n";
       save.write(savePath.string());
       game.loadGame(savePath.string());
       if (game.debugNode().rfind("A-01T.XML:", 0) != 0)
@@ -198,6 +220,12 @@ int main(int argc, char **argv) {
     engine.Event(&pause);
     if (!Kotonoha::GetInGameMenuRuntime(engine).IsOpen())
       throw std::runtime_error("MEO system menu did not open");
+    engine.Iterate();
+    const auto pausedNode = game.debugNode();
+    SDL_Delay(120);
+    engine.Iterate();
+    if (game.debugNode() != pausedNode)
+      throw std::runtime_error("MEO timeline advanced while paused");
     Kotonoha::GetInGameMenuRuntime(engine).close();
     std::cout << "MEO rendered its opening scene\n";
     return 0;

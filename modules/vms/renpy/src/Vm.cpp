@@ -903,6 +903,10 @@ void Vm::init(const std::string &persistentText) {
   }
   images.try_emplace("black", Value::str("#000000"));
 
+  if (assets.has("ui_settings.rpyc") && assets.has("vfx/snowflake.png"))
+    images.try_emplace("snow",
+                       dispValue(makeSnowDisp("vfx/snowflake.png")));
+
   // Katawa Shoujo's ui_settings.rpyc creates these names with ks_music().
   // Keep the archive's logical IDs here until its legacy UI init can run.
   if (assets.has("ui_settings.rpyc") && assets.has("bgm/Wiosna.ogg")) {
@@ -1073,6 +1077,26 @@ void VmNatives::install(Vm &vm) {
   });
   py.def("seen_scene",
          [](Interp &, Args &, Kwargs &) { return Value::boolean(false); });
+  if (v->assets.has("ui_settings.rpyc")) {
+    py.def("ksgallery_unlock", [v](Interp &interp, Args &args, Kwargs &) {
+      Value unlocked = interp.getAttr(v->persistent, "ksgallery_unlocked");
+      if (!unlocked.isObj() || unlocked.o->k != Object::K::List) {
+        unlocked = makeList();
+        interp.setAttr(v->persistent, "ksgallery_unlocked", unlocked);
+      }
+      for (const auto &item : args) {
+        bool found = false;
+        for (const auto &saved : unlocked.o->items)
+          if (saved.text() == item.text()) {
+            found = true;
+            break;
+          }
+        if (!found)
+          unlocked.o->items.push_back(Value::str(item.text()));
+      }
+      return Value();
+    });
+  }
   py.def("notextmode", [](Interp &, Args &, Kwargs &) { return Value(); });
   py.def("nvl_clear", [v](Interp &, Args &, Kwargs &) {
     v->scene.window.what.clear();

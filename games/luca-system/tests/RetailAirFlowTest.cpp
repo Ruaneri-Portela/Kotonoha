@@ -5,6 +5,7 @@
 // + IFN branch + cross-scenario JUMP (seen170 -> seen190 -> seen230) +
 // Save/Load roundtrip + SUMMER (seen700), AIR (seen163), FIRST SKY (seen800).
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
 #include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/components/VNSaveMenu.hpp>
@@ -14,12 +15,15 @@
 #include <LucaSystem/LucaSystemAssets.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
+#include <LucaSystem/SaveState.hpp>
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -183,33 +187,36 @@ void checkSaveGrid(
     key(SDLK_RIGHT);
     key(SDLK_RETURN);
   };
-  require(runtime.activeBgmId() == 0, "startup notice is silent");
+  const auto seChannel = engine.GetAudio().channel("Se");
+  require(runtime.activeBgmId() == 0 && seChannel->activeStreams() == 0,
+          "startup notice is silent");
   auto &renderer = engine.GetRenderer();
   runtime.renderGameplay(renderer, 1);
   Kotonoha::SurfacePtr notice(SDL_RenderReadPixels(&renderer, nullptr));
   SDL_Color corner{};
-  require(notice && SDL_ReadSurfacePixel(notice.get(), 3, 3, &corner.r,
-                                        &corner.g, &corner.b, &corner.a) &&
+  require(notice &&
+              SDL_ReadSurfacePixel(notice.get(), 3, 3, &corner.r, &corner.g,
+                                   &corner.b, &corner.a) &&
               corner.r > 240 && corner.g > 240 && corner.b > 240,
           "first splash uses the white copyright notice background");
   int inkPixels = 0;
   for (int y = notice->h * 12 / 100; y < notice->h * 2 / 3; y += 2)
     for (int x = notice->w / 20; x < notice->w * 19 / 20; x += 2) {
       SDL_Color pixel{};
-      if (SDL_ReadSurfacePixel(notice.get(), x, y, &pixel.r, &pixel.g,
-                               &pixel.b, &pixel.a) &&
+      if (SDL_ReadSurfacePixel(notice.get(), x, y, &pixel.r, &pixel.g, &pixel.b,
+                               &pixel.a) &&
           pixel.r < 120 && pixel.g < 120 && pixel.b < 120)
         ++inkPixels;
     }
   require(inkPixels > 200, "the first splash renders the notice text");
   for (int i = 0; i < 3; ++i) {
     key(SDLK_RETURN);
-    require(runtime.activeBgmId() == 0,
-            "title theme does not play over the three logos");
+    require(runtime.activeBgmId() == 0 && seChannel->activeStreams() == 0,
+            "title audio does not play over the three logos");
   }
   key(SDLK_RETURN);
-  require(runtime.activeBgmId() == 100021,
-          "title music starts after the last logo with Reminiscences (trk22)");
+  require(runtime.activeBgmId() == 0 && seChannel->activeStreams() == 1,
+          "title starts wave ambience, not BGM, after the last logo");
   auto cached = assets->cachedTextures();
   runtime.renderGameplay(engine.GetRenderer(), 1);
   require(assets->cachedTextures() >= cached + 2,
@@ -230,8 +237,9 @@ void checkSaveGrid(
   key(SDLK_X);
   require(!slots() && !runtime.isStoryPaused(), "cancel Load returns to title");
   click(271, 574); // NEW GAME opens the story selector instead of starting it
-  require(runtime.currentScenarioName().empty() &&
-              !runtime.isDialogueVisible(),
+  require(runtime.activeBgmId() == 0 && seChannel->activeStreams() == 1,
+          "story selector leaves only the UI sound on the Se channel");
+  require(runtime.currentScenarioName().empty() && !runtime.isDialogueVisible(),
           "NEW GAME does not start a scenario until a story is selected");
   cached = assets->cachedTextures();
   runtime.renderGameplay(engine.GetRenderer(), 1);
@@ -241,6 +249,8 @@ void checkSaveGrid(
   require(runtime.currentScenarioName().empty(),
           "locked stories cannot start from a fresh profile");
   click(1211, 700); // Close, then reopen via controller Start
+  require(seChannel->activeStreams() == 2,
+          "returning from the story selector restores the title ambience");
   SDL_Event start{};
   start.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
   start.gbutton.button = SDL_GAMEPAD_BUTTON_START;
@@ -248,12 +258,34 @@ void checkSaveGrid(
               runtime.currentScenarioName().empty(),
           "controller Start opens the selector without starting the story");
   click(640, 245); // DREAM
+  engine.setAgentPaused(true);
+  runtime.update();
+  const auto probe = (storage.root / "pause-probe.vn").string();
+  const auto remaining = [&] {
+    runtime.saveGame(probe);
+    return LucaSystem::decodeSaveState(Kotonoha::VNSave::read(probe).gameData);
+  };
+  const auto beforePause = remaining();
+  SDL_Delay(100);
+  runtime.update();
+  const auto afterPause = remaining();
+  require(beforePause.waiting && beforePause.waitRemainingMs > 0 &&
+              beforePause.waitRemainingMs == afterPause.waitRemainingMs &&
+              beforePause.instructionIndex == afterPause.instructionIndex,
+          "pausing freezes the script wait instead of using wall-clock time");
+  engine.setAgentPaused(false);
+  runtime.update();
+  bool heardPrologue = false;
   for (int i = 0; i < 1000 && !runtime.isDialogueVisible(); ++i) {
+    if (runtime.activeBgmId() == 100021 &&
+        engine.GetAudio().channel("BGM")->activeStreams() == 1)
+      heardPrologue = true;
     if (runtime.isMoviePlaying())
       runtime.skipMovie();
     else
       runtime.skipWait();
   }
+  require(heardPrologue, "DREAM's script plays Reminiscences (trk22)");
   require(runtime.currentScenarioName() == "seen170" &&
               runtime.isDialogueVisible(),
           "AIR title starts retail dialogue");
@@ -284,6 +316,13 @@ void checkSaveGrid(
   require(!slots() && std::filesystem::is_regular_file(named) &&
               runtime.instructionPosition() == pc,
           "naming editor saves a .vn without advancing the story");
+  const auto saved = Kotonoha::VNSave::read(named.string());
+  require(saved.thumbnailRgb.size() == Kotonoha::VNSave::thumbnailBytes &&
+              std::adjacent_find(saved.thumbnailRgb.begin(),
+                                 saved.thumbnailRgb.end(),
+                                 std::not_equal_to<>()) !=
+                  saved.thumbnailRgb.end(),
+          "native .vn contains a non-uniform screenshot of the story");
 
   // Populate a second page with real native saves carrying a different
   // marker, so page navigation cannot pass by loading the initial card.
@@ -323,14 +362,74 @@ void checkSaveGrid(
   runtime.setVariable(marker, 77);
   openTitleLoad();
   click(778, 675); // next page (original arrow)
+  runtime.renderOverlay(renderer, 1);
+  const SDL_Rect center{176, 134, 1, 1};
+  Kotonoha::SurfacePtr preview{SDL_RenderReadPixels(&renderer, &center)};
+  SDL_Color card{};
+  constexpr int centerRgb = (54 * Kotonoha::VNSave::thumbnailWidth + 96) * 3;
+  require(preview && SDL_ReadSurfacePixel(preview.get(), 0, 0, &card.r,
+                                         &card.g, &card.b, &card.a) &&
+              std::abs(int(card.r) - saved.thumbnailRgb[centerRgb]) < 12 &&
+              std::abs(int(card.g) - saved.thumbnailRgb[centerRgb + 1]) < 12 &&
+              std::abs(int(card.b) - saved.thumbnailRgb[centerRgb + 2]) < 12,
+          "Load card draws the saved screenshot");
   click(171, 147); // first slot of second page
   require(!slots() && !runtime.isStoryPaused() &&
               runtime.instructionPosition() == pc &&
               runtime.dialogueText() == line &&
               runtime.getVariable(marker) == 42,
           "title Load restores dialogue and reattaches gameplay scenes");
+
+  runtime.setVariable(6003, 18);
+  cached = assets->cachedTextures();
+  runtime.renderGameplay(renderer, 1);
+  require(assets->cachedTextures() > cached && assets->contains("jul_18"),
+          "the script date draws the original July 18 weekday badge");
+
+  auto &choices = Kotonoha::GetChoiceQuestionRuntime(engine);
+  int selected = -1;
+  choices.setQuestion("", {{"Start walking", 0}, {"Start running", 1}},
+                      [&](int id, const std::string &) { selected = id; });
+  cached = assets->cachedTextures();
+  choices.render(renderer, 1);
+  const auto &rows = choices.getOptions();
+  require(assets->cachedTextures() > cached && rows[0].hitBox.x == 314 &&
+              rows[0].hitBox.y == 273 && rows[1].hitBox.y == 373,
+          "story choices render the original art in centered AIR rows");
+  key(SDLK_DOWN);
+  key(SDLK_RETURN);
+  require(selected == 1 && !choices.isActive(),
+          "AIR choice skin keeps native keyboard selection and callbacks");
+
+  const LucaSystem::Script dream("seen170", assets->read("seen170"));
+  const auto runAt = [&](std::size_t byteOffset) {
+    const auto index =
+        LucaSystem::FindInstructionAtOffset(dream.instructions(), byteOffset);
+    require(index && runtime.startScenario("seen170", *index),
+            "start at a known instruction in the retail script");
+  };
+  runAt(3668); // Start the script's channel 0 ambience.
+  const auto ambientStreams = seChannel->activeStreams();
+  runAt(10604); // Add the channel FF transient.
+  require(ambientStreams > 0 &&
+              seChannel->activeStreams() == ambientStreams + 1,
+          "the transient does not replace the ongoing ambience stream");
+
+  runAt(15604); // AIR_OP_A: the opening with its own soundtrack.
+  require(runtime.isMoviePlaying() && runtime.activeBgmId() == 0 &&
+              engine.GetAudio().channel("BGM")->activeStreams() == 1 &&
+              seChannel->activeStreams() < ambientStreams,
+          "opening movie uses its embedded audio without script tracks");
+  key(SDLK_ESCAPE);
+  runtime.update();
+  require(runtime.isStoryPaused() && runtime.isMoviePlaying(),
+          "pause opens over the opening without cutting its audio");
+  key(SDLK_ESCAPE);
+  runtime.update();
+  require(!runtime.isStoryPaused() && runtime.isMoviePlaying(),
+          "closing pause resumes the same opening");
   std::cout << "AIR save grid: original Save/Load art, title, pause, paging, "
-               "native .vn write/load and cancellation verified\n";
+                "native .vn previews, write/load and cancellation verified\n";
 }
 
 void checkSettings(

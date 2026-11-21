@@ -42,9 +42,21 @@ void check(bool ok, const std::string &what) {
 }
 
 std::filesystem::path tempDir() {
-  auto p = std::filesystem::temp_directory_path() / "luca_system_test";
-  std::filesystem::create_directories(p);
-  return p;
+  struct Scratch {
+    const std::filesystem::path path =
+        std::filesystem::temp_directory_path() /
+        ("luca-system-test-" + std::to_string(SDL_GetPerformanceCounter()));
+    Scratch() {
+      if (!std::filesystem::create_directory(path))
+        throw std::runtime_error("Cannot create LucaSystem test directory");
+    }
+    ~Scratch() {
+      std::error_code ignored;
+      std::filesystem::remove_all(path, ignored);
+    }
+  };
+  static const Scratch scratch;
+  return scratch.path;
 }
 
 std::vector<std::uint8_t> u32le(uint32_t v) {
@@ -180,7 +192,7 @@ void checkFontOverlay(const std::filesystem::path &base,
   };
   auto &menu = Kotonoha::GetInGameMenuRuntime(engine);
   key(SDLK_ESCAPE); // dismiss a retail startup logo, if present
-  for (int i = 0; i < 4; ++i)
+  for (int i = 0; i < 2; ++i)
     key(SDLK_RIGHT);
   key(SDLK_RETURN);
   check(engine.GetSettingsMenu().isOpen() && !menu.IsOpen(),
@@ -273,7 +285,7 @@ void checkFontOverlay(const std::filesystem::path &base,
     throw std::runtime_error(SDL_GetError());
   SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 255);
   SDL_RenderClear(renderer.get());
-  const SDL_Rect parentClip{200, 490, 200, 75};
+  const SDL_Rect parentClip{184, 510, 200, 90};
   SDL_SetRenderClipRect(renderer.get(), &parentClip);
   box->render(*renderer, 1);
   SDL_Rect clip{};
@@ -288,10 +300,10 @@ void checkFontOverlay(const std::filesystem::path &base,
            r == color.r && g == color.g && b == color.b;
   };
   // Patch: offset (3,4), with a 2x2 opaque square one pixel into the cell.
-  constexpr int x = 210 + 3 + 1;
-  constexpr int y = 540 + 4 + 1;
+  constexpr int x = 188 + 3 + 1;
+  constexpr int y = 564 + 4 + 1;
   check(matches(x, y, dialogue) && matches(x + advance, y, dialogue) &&
-            !matches(x + 2, y, dialogue) && matches(x, 494 + 4 + 1, speaker),
+            !matches(x + 2, y, dialogue) && matches(x, 516 + 4 + 1, speaker),
         added
             ? "AIR VNTextBox renders the new glyph, advance and native colors"
             : "AIR VNTextBox renders patched glyph, advance and native colors");

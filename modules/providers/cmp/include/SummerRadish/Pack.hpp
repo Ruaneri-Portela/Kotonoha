@@ -17,6 +17,7 @@ enum class CmpKeyProfile {
   SummerRadish1,
   SummerRadish2,
   MeoZeroKey,
+  LostM,
 };
 uint32_t word(const Bytes &, size_t);
 Bytes decompress(const Bytes &, size_t size, size_t offset = 0);

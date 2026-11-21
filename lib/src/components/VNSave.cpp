@@ -136,6 +136,9 @@ void VNSaveSlots::remove(const std::string &name) const {
 
 namespace {
 void validate(const VNSave &save) {
+  if (!save.thumbnailRgb.empty() &&
+      save.thumbnailRgb.size() != VNSave::thumbnailBytes)
+    throw std::invalid_argument("Invalid VN save thumbnail");
   if (save.nodeId < 0 ||
       (save.mode != ScriptMode::Standard && save.mode != ScriptMode::Timed) ||
       !std::isfinite(save.timelinePosition) || save.timelinePosition < 0 ||
@@ -155,7 +158,7 @@ void validate(const VNSave &save) {
 void VNSave::write(const std::string &path) const {
   validate(*this);
   std::ostringstream output;
-  output << "KOTONOHA_SAVE 1\n"
+  output << "KOTONOHA_SAVE " << (thumbnailRgb.empty() ? 1 : 2) << '\n'
          << nodeId << ' ' << static_cast<int>(mode) << ' '
          << std::setprecision(17) << timelinePosition << '\n'
          << resolvedChoices.size();
@@ -164,6 +167,9 @@ void VNSave::write(const std::string &path) const {
   output << '\n'
          << (pendingBranch ? 1 : 0) << ' ' << pendingBranch.value_or(-1) << '\n'
          << std::quoted(gameData) << '\n';
+  if (!thumbnailRgb.empty())
+    output.write(reinterpret_cast<const char *>(thumbnailRgb.data()),
+                 thumbnailRgb.size());
   writeTextFileAtomically(path, output.str());
   persistSaveStorage();
 }
@@ -181,7 +187,7 @@ VNSave VNSave::read(const std::string &path) {
     throw std::runtime_error("Invalid or incompatible save: " + path);
   };
   if (!(input >> magic >> version) || magic != "KOTONOHA_SAVE" ||
-      version != 1 ||
+      (version != 1 && version != 2) ||
       !(input >> save.nodeId >> mode >> save.timelinePosition >> count) ||
       mode < 0 || mode > 1 || count > 10000)
     fail();
@@ -199,9 +205,19 @@ VNSave VNSave::read(const std::string &path) {
   input >> std::ws;
   if (input.peek() != '"' || !(input >> std::quoted(save.gameData)))
     fail();
-  input >> std::ws;
-  if (!input.eof() || input.bad())
-    fail();
+  if (version == 2) {
+    if (input.get() != '\n')
+      fail();
+    save.thumbnailRgb.resize(thumbnailBytes);
+    if (!input.read(reinterpret_cast<char *>(save.thumbnailRgb.data()),
+                    thumbnailBytes) ||
+        input.peek() != std::char_traits<char>::eof() || input.bad())
+      fail();
+  } else {
+    input >> std::ws;
+    if (!input.eof() || input.bad())
+      fail();
+  }
   validate(save);
   // Startup already populated the IDBFS tree. Keep any concurrent tab's
   // changes durable as well; a failed sync must not invalidate a good load.

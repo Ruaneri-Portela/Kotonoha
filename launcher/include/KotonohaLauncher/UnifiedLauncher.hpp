@@ -9,12 +9,28 @@
 #include <Kotonoha/core/Runtime.hpp>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace KotonohaLauncher {
+
+struct GameLaunchParameters {
+  // Common optional parameters across all ports
+  std::string assetOverlayPath;    // --asset-overlay <path>
+  std::string translationPath;     // --translation <file.ktr>
+  std::string subtitleStylePath;   // --subtitle-style <file.ass>
+  std::string customDocumentsDir;  // --documents <dir>
+
+  // School Days specific
+  std::string ktrfPath;            // --ktrf <file.ktnroute>
+  std::string scriptsDir;          // --scripts <dir>
+
+  // RealLive / Amagami / Ponscripter / N2System / SchoolDays start override
+  std::string startScenario;       // --start / --node <id>
+};
 
 struct DiscoveredGameEntry {
   std::string title;
@@ -26,6 +42,7 @@ struct DiscoveredGameEntry {
   std::string targetBinary;  // Modular port executable, e.g. "RealLive"
   std::string cliOption;     // Port CLI option, e.g. "--reallive"
   std::string packageId;     // Bundle/package ID, e.g. "me.hirameki.kotonoha.reallive"
+  GameLaunchParameters params;
 };
 
 // Swappable in-process engine instance produced by an engine library factory.
@@ -169,12 +186,16 @@ private:
   std::string rememberFilePath;
   std::string rememberSaveSplitPath;
   std::string rememberSaveRootPath;
+  std::string rememberGameParamsPath;
   std::string filterText;
   std::vector<DiscoveredGameEntry> catalog;
+  std::map<std::string, GameLaunchParameters> savedGameParams;
   int selected = 0;
   bool isolateSavesPerGame = true;
 
   void rescan();
+  void loadSavedGameParams();
+  void saveGameParams() const;
 };
 
 } // namespace KotonohaLauncher
