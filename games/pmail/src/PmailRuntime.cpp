@@ -492,12 +492,8 @@ void PmailRuntime::debugJumpToNode(const std::string &id) {
 }
 
 Kotonoha::Translation::SourceTexts PmailRuntime::translationSources() const {
-  if (!game_)
-    return {};
-  const auto object = game_->vm().current();
-  if (!object)
-    return {};
-  return {{static_cast<int>(object->id & 0xfff), object->strings}};
+  return game_ ? game_->translationInventory()
+               : Kotonoha::Translation::SourceTexts{};
 }
 
 void PmailRuntime::debugOverlayAssetChanged(const std::string &) {
