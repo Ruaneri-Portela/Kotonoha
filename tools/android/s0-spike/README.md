@@ -23,7 +23,7 @@ From `tools/android/s0-spike/` on a machine with Gradle and the Android SDK:
 gradle :app:assembleDebug --no-daemon
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n org.kotonoha.schooldays.safspike/.S0StorageReadProbeActivity
-adb logcat -s KotonohaS0:I '*:S'
+adb logcat -s KTN_S0:I '*:S'
 ```
 
 The standalone APK has its own launcher icon; unlike the initial variant-only
@@ -36,7 +36,10 @@ source set under the game app was discarded before this standalone handoff.
    `ACTION_CREATE_DOCUMENT`, and let the app write its own 1 GiB synthetic
    document plus an identical 1 GiB app-private baseline. The app then opens
    `ACTION_OPEN_DOCUMENT`. Select **only the document just created**. It
-   rejects a different `content://` document ID *before opening it*.
+   rejects a different `content://` document ID *before opening it*. This
+   system picker selects a **file, not a directory/tree**; never select a game
+   folder, a GPK or an unrelated personal file. No manual folder access is
+   required.
 2. The SAF path requests and checks a persisted **read** grant via
    `takePersistableUriPermission`, uses `ContentResolver.openFileDescriptor`,
    measures `Os.lseek` / `Os.pread` access, attempts to reopen the provider FD
@@ -51,15 +54,22 @@ source set under the game app was discarded before this standalone handoff.
    This mode **does not** test persisted SAF grants.
 4. In each mode, the test performs **three whole-file byte comparisons**:
    forward sequential, reverse 1 MiB blocks, and strided blocks (all 1024
-   offsets exactly once). It reports 1 GiB compared per round, equality,
-   provider/private read milliseconds and MiB/s, persisted-grant availability
-   (SAF), and `/proc/self/fd` reopening success/match/errno.
+   offsets exactly once). The **single `KTN_S0` log tag** emits one measurement
+   for the provider (`mode=saf` or `mode=mediastore`) and one for
+   `mode=private` per repetition. The fields are `test`, `mode`,
+   `access=sequential|random`, `pattern=forward|reverse|strided`,
+   `repetition=1|2|3`, `block_bytes`, `blocks`, `bytes`, `equal`, `read_ms`,
+   `throughput_mib_s`, `lat_p50_ms`, and `lat_p95_ms`. The percentiles use the
+   nearest-rank method across 1024 individual 1 MiB read operations per mode
+   and repetition. The same tag records persisted-grant availability (SAF),
+   `/proc/self/fd` reopening status, and result codes.
 5. Once all three rounds finish, **do not press Delete**. Close/reopen the app,
    then press **Retest saved synthetic document (after app/reboot)**. It reads
    the *same* two files in three full rounds, without regenerating or copying
    them. Reboot the phone, reopen the app, and press **Retest** again. For SAF,
    the button verifies that the persisted read grant survived reboot; if not,
-   it asks you to pick only the same synthetic document again. Run SAF and
+   `persisted_read_grant_on_retest=false` appears under `KTN_S0` and the
+   system picker requests **only the same synthetic file** again. Run SAF and
    MediaStore separately; the project keeps one synthetic session at a time.
 
 All output is fixed metrics or predefined failure codes. No selected URIs,
