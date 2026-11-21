@@ -55,12 +55,12 @@ set(SDLTTF_VENDORED OFF CACHE BOOL "Use system FreeType/HarfBuzz/PlutoSVG")
 set(SDLTTF_STRICT ON CACHE BOOL "Require enabled SDL_ttf dependencies")
 set(SDLTTF_PLUTOSVG ON CACHE BOOL "Optional SVG emoji support")
 
-option(KOTONOHA_SDL_FROM_VCPKG "Import SDL3/SDL3_ttf from vcpkg instead of building submodules" OFF)
-if(ANDROID AND KOTONOHA_SDL_FROM_VCPKG)
-    message(FATAL_ERROR "Android must build SDL3 and SDL3_ttf from the SDL submodules (including SDL Java integration); set KOTONOHA_SDL_FROM_VCPKG=OFF")
-endif()
+option(KOTONOHA_SDL_FROM_VCPKG "Legacy alias for KOTONOHA_SDL_PROVIDER=VCPKG" OFF)
+set(KOTONOHA_SDL_PROVIDER "AUTO" CACHE STRING
+    "SDL3 provider: AUTO (system, vcpkg, submodules), SYSTEM, VCPKG, SUBMODULES")
+set_property(CACHE KOTONOHA_SDL_PROVIDER PROPERTY STRINGS AUTO SYSTEM VCPKG SUBMODULES)
 set(KOTONOHA_SDL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL"
-        CACHE PATH "SDL3 sources (Android uses a pinned remote Git checkout)")
+    CACHE PATH "SDL3 source checkout (mandatory on Android)")
 
 option(KOTONOHA_BUNDLE_LOCAL_GAME_ASSETS
         "Include locally supplied game assets in application bundles" ON)
@@ -101,34 +101,102 @@ if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
         endif ()
     endforeach ()
 endif ()
-if(KOTONOHA_SDL_FROM_VCPKG)
-    if(NOT VCPKG_INSTALLED_DIR)
-        message(FATAL_ERROR "KOTONOHA_SDL_FROM_VCPKG requires the vcpkg toolchain and manifest feature sdl-vcpkg")
+# Resolve SDL3 and SDL3_ttf from the host first, then vcpkg or submodules.
+string(TOUPPER "${KOTONOHA_SDL_PROVIDER}" _kotonoha_sdl_request)
+if(NOT _kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM|VCPKG|SUBMODULES)$")
+    message(FATAL_ERROR "Invalid KOTONOHA_SDL_PROVIDER=${KOTONOHA_SDL_PROVIDER}")
+endif()
+if(KOTONOHA_SDL_FROM_VCPKG AND _kotonoha_sdl_request STREQUAL "AUTO")
+    set(_kotonoha_sdl_request VCPKG)
+endif()
+if(ANDROID)
+    if(_kotonoha_sdl_request STREQUAL "SYSTEM" OR
+       _kotonoha_sdl_request STREQUAL "VCPKG")
+        message(FATAL_ERROR "Android SDL3 requires submodules for its Java integration")
     endif()
-    find_package(SDL3 CONFIG REQUIRED)
-    find_package(SDL3_ttf CONFIG REQUIRED)
-    if(NOT TARGET SDL3::SDL3 OR NOT TARGET SDL3_ttf::SDL3_ttf)
-        message(FATAL_ERROR "SDL3/SDL3_ttf vcpkg imported targets not found")
+    set(_kotonoha_sdl_request SUBMODULES)
+endif()
+set(_kotonoha_sdl_resolved "")
+set(_kotonoha_sdl_config_sdl3 OFF)
+set(_kotonoha_sdl_config_ttf OFF)
+if(_kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
+    find_package(SDL3 CONFIG QUIET)
+    find_package(SDL3_ttf CONFIG QUIET)
+    if(TARGET SDL3::SDL3)
+        set(_kotonoha_sdl_config_sdl3 ON)
     endif()
-else()
+    if(TARGET SDL3_ttf::SDL3_ttf)
+        set(_kotonoha_sdl_config_ttf ON)
+    endif()
+    if(_kotonoha_sdl_config_sdl3 AND _kotonoha_sdl_config_ttf)
+        set(_kotonoha_sdl_resolved SYSTEM)
+    else()
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(KOTONOHA_SYSTEM_SDL3 QUIET IMPORTED_TARGET GLOBAL sdl3)
+            pkg_check_modules(KOTONOHA_SYSTEM_SDL3_TTF QUIET IMPORTED_TARGET GLOBAL SDL3_ttf)
+            if(KOTONOHA_SYSTEM_SDL3_FOUND AND KOTONOHA_SYSTEM_SDL3_TTF_FOUND)
+                if(NOT TARGET SDL3::SDL3)
+                    add_library(SDL3::SDL3 INTERFACE IMPORTED GLOBAL)
+                    target_link_libraries(SDL3::SDL3 INTERFACE PkgConfig::KOTONOHA_SYSTEM_SDL3)
+                endif()
+                if(NOT TARGET SDL3_ttf::SDL3_ttf)
+                    add_library(SDL3_ttf::SDL3_ttf INTERFACE IMPORTED GLOBAL)
+                    target_link_libraries(SDL3_ttf::SDL3_ttf INTERFACE PkgConfig::KOTONOHA_SYSTEM_SDL3_TTF)
+                endif()
+                set(_kotonoha_sdl_resolved SYSTEM)
+            endif()
+        endif()
+    endif()
+endif()
+if(NOT _kotonoha_sdl_resolved AND
+   _kotonoha_sdl_request MATCHES "^(AUTO|VCPKG)$" AND VCPKG_INSTALLED_DIR)
+    find_package(SDL3 CONFIG QUIET)
+    find_package(SDL3_ttf CONFIG QUIET)
+    if(TARGET SDL3::SDL3 AND TARGET SDL3_ttf::SDL3_ttf)
+        set(_kotonoha_sdl_resolved VCPKG)
+        set(_kotonoha_sdl_config_sdl3 ON)
+        set(_kotonoha_sdl_config_ttf ON)
+    endif()
+endif()
+if(NOT _kotonoha_sdl_resolved)
+    if(_kotonoha_sdl_request STREQUAL "SYSTEM")
+        message(FATAL_ERROR "System SDL3/SDL3_ttf unavailable. On Debian: "
+            "sudo apt install libsdl3-dev libsdl3-ttf-dev. "
+            "Or set KOTONOHA_SDL_PROVIDER=VCPKG/SUBMODULES.")
+    elseif(_kotonoha_sdl_request STREQUAL "VCPKG")
+        message(FATAL_ERROR "vcpkg SDL3/SDL3_ttf unavailable. Configure the "
+            "vcpkg toolchain with feature sdl-vcpkg.")
+    endif()
+    if(NOT EXISTS "${KOTONOHA_SDL_SOURCE_DIR}/CMakeLists.txt" OR
+       NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL_ttf/CMakeLists.txt")
+        message(FATAL_ERROR "No SDL3/SDL3_ttf provider available. On Debian: "
+            "sudo apt install libsdl3-dev libsdl3-ttf-dev; alternatively "
+            "git submodule update --init --recursive or use vcpkg.")
+    endif()
+    if(TARGET SDL3::SDL3 OR TARGET SDL3_ttf::SDL3_ttf)
+        message(FATAL_ERROR "Partial installed SDL3 targets. Install both "
+            "SDL3 development packages, or explicitly select SUBMODULES.")
+    endif()
     add_subdirectory("${KOTONOHA_SDL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/SDL" EXCLUDE_FROM_ALL)
     add_subdirectory(submodules/SDL_ttf EXCLUDE_FROM_ALL)
     if(ANDROID)
         get_target_property(_ttf_target SDL3_ttf::SDL3_ttf ALIASED_TARGET)
         set_property(TARGET ${_ttf_target} PROPERTY LINKER_LANGUAGE CXX)
     endif()
-    # SDL is built once from its vendored sources. Disabling the versioned
-    # filename prevents extra libSDL3.{major}.dylib / symlink outputs while
-    # preserving the canonical target's SONAME/install-name pairing.
     foreach(_kotonoha_sdl_shared IN ITEMS SDL3-shared SDL3_ttf-shared)
         if(TARGET ${_kotonoha_sdl_shared})
-            # Clearing these properties is required: empty strings still
-            # produce versioned names and sometimes self-referential links.
             set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY VERSION)
             set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY SOVERSION)
         endif()
     endforeach()
+    set(_kotonoha_sdl_resolved SUBMODULES)
 endif()
+set(KOTONOHA_SDL_PROVIDER_RESOLVED "${_kotonoha_sdl_resolved}" CACHE INTERNAL
+    "Resolved SDL provider" FORCE)
+set(KOTONOHA_SDL_CONFIG_SDL3 "${_kotonoha_sdl_config_sdl3}" CACHE INTERNAL "" FORCE)
+set(KOTONOHA_SDL_CONFIG_TTF "${_kotonoha_sdl_config_ttf}" CACHE INTERNAL "" FORCE)
+message(STATUS "[Kotonoha] SDL3/SDL3_ttf provider: ${_kotonoha_sdl_resolved}")
 
 # --- Bibliotecas Externas (Ass, FFmpeg, JSON-C) ---
 find_package(PkgConfig REQUIRED)
@@ -209,41 +277,109 @@ if (EMSCRIPTEN)
     set(KOTONOHA_LIB_TYPE STATIC)
 endif ()
 
-option(KOTONOHA_IMGUI_FROM_VCPKG
-        "Import ImGui with SDL3/SDL3 Renderer backends from vcpkg" OFF)
-if(ANDROID AND KOTONOHA_IMGUI_FROM_VCPKG)
-    message(FATAL_ERROR "Android must build ImGui and its SDL3 backends from the imgui submodule; set KOTONOHA_IMGUI_FROM_VCPKG=OFF")
+option(KOTONOHA_IMGUI_FROM_VCPKG "Legacy alias for KOTONOHA_IMGUI_PROVIDER=VCPKG" OFF)
+set(KOTONOHA_IMGUI_PROVIDER "AUTO" CACHE STRING
+    "ImGui provider: AUTO (system, vcpkg, submodule), SYSTEM, VCPKG, SUBMODULES")
+set_property(CACHE KOTONOHA_IMGUI_PROVIDER PROPERTY STRINGS AUTO SYSTEM VCPKG SUBMODULES)
+set(KOTONOHA_IMGUI_SYSTEM_BACKENDS_DIR "" CACHE PATH
+    "Optional directory containing system ImGui SDL3 backend .cpp sources")
+string(TOUPPER "${KOTONOHA_IMGUI_PROVIDER}" _kotonoha_imgui_request)
+if(NOT _kotonoha_imgui_request MATCHES "^(AUTO|SYSTEM|VCPKG|SUBMODULES)$")
+    message(FATAL_ERROR "Invalid KOTONOHA_IMGUI_PROVIDER=${KOTONOHA_IMGUI_PROVIDER}")
 endif()
-
-if(KOTONOHA_IMGUI_FROM_VCPKG)
-    if(NOT VCPKG_INSTALLED_DIR)
-        message(FATAL_ERROR
-            "KOTONOHA_IMGUI_FROM_VCPKG requires the vcpkg toolchain and manifest feature imgui-vcpkg")
+if(KOTONOHA_IMGUI_FROM_VCPKG AND _kotonoha_imgui_request STREQUAL "AUTO")
+    set(_kotonoha_imgui_request VCPKG)
+endif()
+if(ANDROID)
+    if(_kotonoha_imgui_request MATCHES "^(SYSTEM|VCPKG)$")
+        message(FATAL_ERROR "Android ImGui requires its bundled SDL3 backends")
     endif()
-    find_package(imgui CONFIG REQUIRED)
-    if(NOT TARGET imgui::imgui)
-        message(FATAL_ERROR "The vcpkg ImGui target imgui::imgui is missing")
+    set(_kotonoha_imgui_request SUBMODULES)
+endif()
+set(_kotonoha_imgui_resolved "")
+set(_kotonoha_imgui_config OFF)
+if(_kotonoha_imgui_request MATCHES "^(AUTO|SYSTEM)$")
+    # Debian packages the core ImGui library and SDL3 backend implementations
+    # separately; compile only those two backend source files.
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(KOTONOHA_SYSTEM_IMGUI QUIET IMPORTED_TARGET GLOBAL imgui)
+        if(KOTONOHA_SYSTEM_IMGUI_FOUND)
+            find_path(_kotonoha_imgui_backend_headers NAMES imgui_impl_sdl3.h
+                HINTS ${KOTONOHA_SYSTEM_IMGUI_INCLUDE_DIRS} PATH_SUFFIXES backends)
+            find_file(_kotonoha_imgui_sdl3_cpp NAMES imgui_impl_sdl3.cpp
+                HINTS "${KOTONOHA_IMGUI_SYSTEM_BACKENDS_DIR}"
+                PATHS /usr/share/doc/libimgui-dev/examples/backends
+                      /usr/local/share/doc/libimgui-dev/examples/backends)
+            find_file(_kotonoha_imgui_renderer_cpp NAMES imgui_impl_sdlrenderer3.cpp
+                HINTS "${KOTONOHA_IMGUI_SYSTEM_BACKENDS_DIR}"
+                PATHS /usr/share/doc/libimgui-dev/examples/backends
+                      /usr/local/share/doc/libimgui-dev/examples/backends)
+            if(_kotonoha_imgui_backend_headers AND _kotonoha_imgui_sdl3_cpp
+               AND _kotonoha_imgui_renderer_cpp)
+                add_library(kotonoha_imgui_system_backends STATIC
+                    "${_kotonoha_imgui_sdl3_cpp}"
+                    "${_kotonoha_imgui_renderer_cpp}")
+                target_include_directories(kotonoha_imgui_system_backends PUBLIC
+                    ${KOTONOHA_SYSTEM_IMGUI_INCLUDE_DIRS}
+                    "${_kotonoha_imgui_backend_headers}")
+                target_link_libraries(kotonoha_imgui_system_backends PUBLIC
+                    PkgConfig::KOTONOHA_SYSTEM_IMGUI SDL3::SDL3)
+                set(KOTONOHA_IMGUI_TARGET kotonoha_imgui_system_backends)
+                set(_kotonoha_imgui_resolved SYSTEM)
+            endif()
+        endif()
     endif()
-    # Directly consume the external target: no project-owned wrapper target.
-    set(KOTONOHA_IMGUI_TARGET imgui::imgui)
-else()
+    if(NOT _kotonoha_imgui_resolved)
+        find_package(imgui CONFIG QUIET)
+        if(TARGET imgui::imgui)
+            set(KOTONOHA_IMGUI_TARGET imgui::imgui)
+            set(_kotonoha_imgui_resolved SYSTEM)
+            set(_kotonoha_imgui_config ON)
+        endif()
+    endif()
+endif()
+if(NOT _kotonoha_imgui_resolved AND
+   _kotonoha_imgui_request MATCHES "^(AUTO|VCPKG)$" AND VCPKG_INSTALLED_DIR)
+    find_package(imgui CONFIG QUIET)
+    if(TARGET imgui::imgui)
+        set(KOTONOHA_IMGUI_TARGET imgui::imgui)
+        set(_kotonoha_imgui_resolved VCPKG)
+        set(_kotonoha_imgui_config ON)
+    endif()
+endif()
+if(NOT _kotonoha_imgui_resolved)
+    if(_kotonoha_imgui_request STREQUAL "SYSTEM")
+        message(FATAL_ERROR "System ImGui with SDL3 backends unavailable. "
+            "On Debian: sudo apt install libimgui-dev. Otherwise select VCPKG/SUBMODULES.")
+    elseif(_kotonoha_imgui_request STREQUAL "VCPKG")
+        message(FATAL_ERROR "vcpkg ImGui unavailable: configure the vcpkg toolchain "
+            "with feature imgui-vcpkg.")
+    endif()
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/submodules/imgui/imgui.cpp" OR
+       NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/submodules/imgui/backends/imgui_impl_sdl3.cpp")
+        message(FATAL_ERROR "No ImGui provider available. On Debian: "
+            "sudo apt install libimgui-dev; alternatively "
+            "git submodule update --init --recursive or use vcpkg.")
+    endif()
     add_library(imgui ${KOTONOHA_LIB_TYPE}
-            submodules/imgui/imgui.cpp
-            submodules/imgui/imgui_draw.cpp
-            submodules/imgui/imgui_tables.cpp
-            submodules/imgui/imgui_widgets.cpp
-            submodules/imgui/backends/imgui_impl_sdl3.cpp
-            submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp
-            submodules/imgui/misc/cpp/imgui_stdlib.cpp
-    )
+        submodules/imgui/imgui.cpp
+        submodules/imgui/imgui_draw.cpp
+        submodules/imgui/imgui_tables.cpp
+        submodules/imgui/imgui_widgets.cpp
+        submodules/imgui/backends/imgui_impl_sdl3.cpp
+        submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp
+        submodules/imgui/misc/cpp/imgui_stdlib.cpp)
     target_include_directories(imgui PUBLIC
-            submodules/imgui
-            submodules/imgui/backends
-            submodules/imgui/misc/cpp
-    )
+        submodules/imgui submodules/imgui/backends submodules/imgui/misc/cpp)
     target_link_libraries(imgui PUBLIC SDL3::SDL3)
     set(KOTONOHA_IMGUI_TARGET imgui)
+    set(_kotonoha_imgui_resolved SUBMODULES)
 endif()
+set(KOTONOHA_IMGUI_PROVIDER_RESOLVED "${_kotonoha_imgui_resolved}" CACHE INTERNAL
+    "Resolved ImGui provider" FORCE)
+set(KOTONOHA_IMGUI_CONFIG "${_kotonoha_imgui_config}" CACHE INTERNAL "" FORCE)
+message(STATUS "[Kotonoha] ImGui provider: ${_kotonoha_imgui_resolved}")
 # Also visible to sibling game CMakeLists and deployment helpers.
 set(KOTONOHA_IMGUI_TARGET "${KOTONOHA_IMGUI_TARGET}" CACHE INTERNAL
     "Single ImGui link target for the active toolchain" FORCE)
@@ -297,7 +433,7 @@ set_target_properties(KotonohaEngine PROPERTIES
         CXX_EXTENSIONS OFF
         WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
-if(NOT KOTONOHA_IMGUI_FROM_VCPKG)
+if(_kotonoha_imgui_resolved STREQUAL "SUBMODULES")
     set_target_properties(imgui PROPERTIES
             CXX_EXTENSIONS OFF
             WINDOWS_EXPORT_ALL_SYMBOLS ON)
