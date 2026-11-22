@@ -135,6 +135,53 @@ int main() {
     require(vm.dialogueSystem().fullText() == "Hello!", "dialogue text failed");
     require(vm.waitingForKey(), "WaitKey did not pause");
 
+    const auto beforeSave = vm.saveState();
+    require(!beforeSave.runtimeBlob.empty(), "Runtime snapshot must be present");
+    const auto saveBytes = N2System::SaveStateCodec::serializeBinary(beforeSave);
+    N2System::SaveData parsed;
+    require(N2System::SaveStateCodec::deserializeBinary(saveBytes, parsed),
+            "Versioned N2SV must deserialize");
+    require(parsed.runtimeBlob == beforeSave.runtimeBlob,
+            "Runtime snapshot must round-trip without mutation");
+
+    N2System::NsbVm loadedVm;
+    loadedVm.setLoader([&](std::string_view, Bytes &nsbOut, Bytes &mapOut) {
+      nsbOut = nsb;
+      mapOut = map;
+      return true;
+    });
+    require(loadedVm.boot("nss/0_boot.nss"), "restore VM boot failed");
+    require(loadedVm.loadState(parsed), "VM restore failed");
+    require(loadedVm.findVar("$answer") &&
+                loadedVm.findVar("$answer")->asInt() == 42,
+            "Runtime restore must preserve variables");
+    require(loadedVm.phoneState().addressBook.count("PhID_MAY") == 1,
+            "Runtime restore must preserve phone state");
+    const auto *restoredBg = loadedVm.sceneGraph().findEntity("bg");
+    require(restoredBg && restoredBg->imagePath == "cg/bg/bg01a.jpg",
+            "Runtime restore must preserve image path and entity type");
+    require(loadedVm.waitingForKey() &&
+                loadedVm.dialogueSystem().fullText() == "Hello!" &&
+                loadedVm.dialogueSystem().backlog().size() ==
+                    vm.dialogueSystem().backlog().size(),
+            "Runtime restore must preserve wait and dialogue/backlog state");
+
+    auto truncated = saveBytes;
+    truncated.pop_back();
+    N2System::SaveData untouched;
+    untouched.chapterName = "must-remain-unchanged";
+    require(!N2System::SaveStateCodec::deserializeBinary(truncated, untouched) &&
+                untouched.chapterName == "must-remain-unchanged",
+            "Truncated save must fail atomically");
+    auto corrupt = parsed;
+    corrupt.runtimeBlob[0] ^= 0xff;
+    require(!loadedVm.loadState(corrupt), "Invalid snapshot header rejected");
+
+    loadedVm.advance();
+    loadedVm.advance();
+    loadedVm.step();
+    require(loadedVm.finished(), "Restored VM must resume at original PC");
+
     vm.advance(); // finish typing
     vm.advance(); // clear WaitKey
     vm.step();
