@@ -195,6 +195,7 @@ private:
   void executeTextLine(std::string_view rawLine, std::size_t stmtIndex);
   void captureCallArguments(LineLexer &lexer, CallStackEntry &frame,
                             bool requireLeadingComma);
+  bool isSubroutineActive(const std::string &label) const;
 
   void enterTextDisplayMode();
   void leaveTextDisplayMode(bool forceHide = false);
