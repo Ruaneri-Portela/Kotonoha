@@ -64,17 +64,21 @@ void test() {
           10,20,30,255, 15,26,37,255,
           1,2,3,255, 3,5,7,255}),
         "CZ3 24-bit RGB delta rows expand to opaque RGBA like LuckSystem");
-  const auto cz3Rgba = sampleCz('3', 32, 1, 2,
-                                {20,40,60,220, 10,20,30,125});
+  const auto cz3Rgba = sampleCz('3', 32, 1, 4,
+                                {20,40,60,220, 10,20,30,125,
+                                 1,2,3,4, 2,3,4,5});
   const auto image32 = LucaSystem::DecodeCzImage(cz3Rgba);
   check(image32.rgba == std::vector<std::uint8_t>({
-            20,40,60,220, 30,60,90,89}),
+            20,40,60,220, 30,60,90,89,
+            1,2,3,4, 3,5,7,9}),
         "CZ3 32-bit retains four independent delta channels");
-  const auto cz4 = sampleCz('4', 32, 1, 2,
-                             {10,20,30, 7,8,9, 200,10});
+  const auto cz4 = sampleCz('4', 32, 1, 4,
+                             {10,20,30, 7,8,9, 1,2,3, 5,6,7,
+                              200,10,100,20});
   const auto image4 = LucaSystem::DecodeCzImage(cz4);
   check(image4.rgba == std::vector<std::uint8_t>({
-            10,20,30,200, 17,28,39,210}),
+            10,20,30,200, 17,28,39,210,
+            1,2,3,100, 6,8,10,120}),
         "CZ4 separate RGB and alpha planes match LuckSystem LineDiff4");
   auto truncated = cz3;
   truncated.pop_back();
