@@ -13,6 +13,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/mobile/StartupStage.hpp>
 #include <Kotonoha/routing/SchoolDaysGpkLanguageProfile.hpp>
+#include <Kotonoha/routing/SchoolDaysLxhPreference.hpp>
 #include <Kotonoha/routing/SchoolDaysTranslationCoverage.hpp>
 #ifdef __ANDROID__
 #include <Kotonoha/mobile/DocumentMount.hpp>
@@ -25,6 +26,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 
 namespace {
@@ -134,9 +136,11 @@ struct Application {
 #if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
     const bool integratedContent = false;
 #else
-    const bool integratedContent = assets->usesPackedResources() ||
-        std::any_of(sources.begin(), sources.end(),
-                    [](const auto &slot) { return slot.lxh; });
+    const bool integratedContent =
+        assets->usesPackedResources()
+            ? assets->lxhMounted()
+            : std::any_of(sources.begin(), sources.end(),
+                          [](const auto &slot) { return slot.lxh; });
 #endif
     if (integratedContent) {
       dlcFile = lxhJsonOverride.empty()
@@ -199,6 +203,8 @@ struct App {
   Kotonoha::EngineOptions options;
   std::string scripts, route, startNode, dump, documents, lxhJsonOverride, cliGpkLocale;
   std::shared_ptr<const Kotonoha::Filesystem::IMount> documentPacks;
+  std::optional<bool> cliLxhOverride;
+  std::optional<bool> launcherEffectiveLxh;
   long frames = -1;
 #if defined(__ANDROID__) || defined(ANDROID)
   int frameLimit = 0;
@@ -280,6 +286,70 @@ struct App {
       lxhJsonOverride = SchoolDays::Launcher::rememberedLxhJsonPath(
           options.settingsPath, options.translationPath);
 #endif
+    const std::filesystem::path lxhPrefRoot =
+        documents.empty()
+#if defined(__ANDROID__) || defined(ANDROID)
+            ? Kotonoha::preferredDocumentsDirectory("school-days")
+#else
+            ? (!options.settingsPath.empty()
+                   ? std::filesystem::path(options.settingsPath).parent_path()
+                   : Kotonoha::resourceDirectory())
+#endif
+            : std::filesystem::path(documents);
+    const auto gameDataDir = Kotonoha::gameDataDirectory(directory);
+    const auto lxhPackAvail =
+        Kotonoha::SchoolDaysLxhPreference::ProbePack(gameDataDir, documentPacks);
+    const std::optional<bool> persistedLxhPref =
+        cliLxhOverride.has_value()
+            ? cliLxhOverride
+            : (launcherEffectiveLxh.has_value()
+                   ? launcherEffectiveLxh
+                   : Kotonoha::SchoolDaysLxhPreference::Read(lxhPrefRoot));
+    bool lxhEffective = false;
+    std::string lxhStatusNote;
+#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+    lxhEffective = false;
+    lxhStatusNote = "Retail-only edition: 29 original GPKs, no LxH";
+#else
+    if (launcherEffectiveLxh.has_value() && !cliLxhOverride.has_value()) {
+      lxhEffective = *launcherEffectiveLxh && lxhPackAvail.packValid;
+      lxhStatusNote = lxhEffective
+                          ? "LxH endings enabled (7 epilogues active)"
+                          : "LxH endings disabled or unavailable; running base School Days HQ";
+    } else {
+      bool transReady = true;
+      std::string transReason;
+      if (!gpkLocale.empty()) {
+        const std::string gpkProfileSettings =
+            documentPacks
+                ? (std::filesystem::path(directory) / "settings.json").string()
+                : options.settingsPath;
+        const auto lxhGpkPath = Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(
+            gpkProfileSettings, gpkLocale);
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(lxhGpkPath, ec) || ec) {
+          transReady = false;
+          transReason = "missing " + lxhGpkPath.filename().string();
+        }
+      } else {
+        const auto locale = Kotonoha::SchoolDaysTranslationGate::LocaleId(
+            options.translationPath);
+        const std::string dlcPath =
+            lxhJsonOverride.empty()
+                ? Kotonoha::SchoolDaysTranslationGate::DlcJsonPath(
+                      locale, options.translationPath)
+                : lxhJsonOverride;
+        if (dlcPath.empty() && locale != "es") {
+          transReady = false;
+          transReason = "missing " + locale + "-lxh.json";
+        }
+      }
+      const auto resolved = Kotonoha::SchoolDaysLxhPreference::Resolve(
+          persistedLxhPref, lxhPackAvail, transReady, transReason);
+      lxhEffective = resolved.effectiveEnabled;
+      lxhStatusNote = resolved.statusReason;
+    }
+#endif
     if (!gpkLocale.empty()) {
       if (!options.translationPath.empty())
         throw std::runtime_error(
@@ -291,41 +361,38 @@ struct App {
               : options.settingsPath;
       const auto script = Kotonoha::SchoolDaysGpkLanguageProfile::ScriptPath(
           gpkProfileSettings, gpkLocale);
-#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-      const std::filesystem::path lxh;
-#else
-      const auto lxh = Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(
-          gpkProfileSettings, gpkLocale);
-#endif
+      const std::filesystem::path lxh =
+          lxhEffective ? Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(
+                             gpkProfileSettings, gpkLocale)
+                       : std::filesystem::path{};
       const Kotonoha::SchoolDaysTranslatedGpkSelection selection{
-          gpkLocale, script, lxh};
+          gpkLocale, script, lxh, lxhEffective};
       std::string error;
       if (!Kotonoha::ConfigureSchoolDaysTranslatedGpks(selection, &error))
         throw std::runtime_error("Cannot select " + gpkLocale +
                                  " Script.GPK: " + error);
       SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                  "School Days native GPK language selected: %s",
-                  gpkLocale.c_str());
+                  "School Days native GPK language selected: %s (LxH=%s)",
+                  gpkLocale.c_str(), lxhEffective ? "ON" : "OFF");
     } else {
       std::string error;
       if (!Kotonoha::ClearSchoolDaysTranslatedGpks(&error))
         throw std::runtime_error("Cannot reset native GPK locale: " + error);
     }
+    const auto lxhMountMode =
+        lxhEffective ? Kotonoha::SchoolDaysLxhMountMode::Required
+                     : Kotonoha::SchoolDaysLxhMountMode::Disabled;
     auto assets = std::make_shared<SchoolDays::Assets>(
-        Kotonoha::gameDataDirectory(directory),
+        gameDataDir,
         scripts.empty() ? options.assetOverlayDirectory() : scripts,
         // --no-asset-overlay is explicit even though it resolves to an empty
         // path. Do not re-enable the automatic overlay in the asset provider.
         !scripts.empty() || !options.assetOverlaySpecified ||
             !options.assetOverlayPath.empty(),
-        documentPacks);
-#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+        documentPacks, lxhMountMode);
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "School Days HQ retail-only: 29 original GPKs, dubbing supported");
-#else
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "School Days LxH integrated: mandatory Packs/LxH.GPK (7 original endings)");
-#endif
+                "School Days HQ startup: LxH=%s (%s)",
+                assets->lxhMounted() ? "ON" : "OFF", lxhStatusNote.c_str());
     DevStartupLog("assets-ready");
     application = std::make_unique<Application>(
         std::move(assets), route, options, documents, lxhJsonOverride,
@@ -408,6 +475,12 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
                      "Translated ORS script directory", app->scripts);
     arguments.option("--documents", "DIRECTORY",
                      "Save-game and GlobalFlag directory", app->documents);
+    bool cliEnableLxh = false;
+    bool cliDisableLxh = false;
+    arguments.flag("--lxh", "Enable optional LxH endings when available",
+                   cliEnableLxh);
+    arguments.flag("--no-lxh", "Disable optional LxH endings (base HQ only)",
+                   cliDisableLxh);
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     arguments.option("--node", "ID", "Start at an index or scene key",
                      app->startNode);
@@ -423,6 +496,12 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
                      app->cliGpkLocale);
 #endif
     arguments.parse(argc, argv);
+    if (cliEnableLxh && cliDisableLxh)
+      throw std::runtime_error("Cannot specify both --lxh and --no-lxh");
+    if (cliEnableLxh)
+      app->cliLxhOverride = true;
+    else if (cliDisableLxh)
+      app->cliLxhOverride = false;
     // Android's SAF/language/options Activity owns the launch flow. Apply
     // this policy only after parsing so command-line handling remains shared
     // and desktop startup never inherits a premature launcher-disable state.
@@ -648,6 +727,7 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
         // previously supplied JSON rather than loading it silently anyway.
         app->options.translationPath = app->launcher->translationPath();
         app->lxhJsonOverride = app->launcher->manualLxhJsonPath();
+        app->launcherEffectiveLxh = app->launcher->effectiveLxhEnabled();
         app->launcher.reset();
         app->start(directory);
       }

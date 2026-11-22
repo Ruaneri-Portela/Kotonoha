@@ -15,16 +15,29 @@ class AssetStream;
 
 // Configure language-specific script archives before opening the retail pack
 // mount. Locale "en" MUST leave scriptGpk empty: its HQ scripts always come
-// from the original Packs/Script.GPK; an optional en-lxh.GPK changes only the
-// seven epilogue ORS. Locale "pt-BR" requires Script - Brazilian.GPK and
-// pt-BR-lxh.GPK. Other non-English locales also require both GPKs.
-// Raw zh-CN is incompatible and rejected pending a separately certified
-// conversion of its scene names, encoding and event structure. No GPK is
-// modified: the 29 retail archives and Packs/LxH.GPK remain authoritative.
+// from the original Packs/Script.GPK; when enableLxh is true, an optional
+// en-lxh.GPK changes only the seven epilogue ORS. Non-English locales always
+// require their certified base Script.GPK, and require their matching LxH GPK
+// only when enableLxh is true. Raw zh-CN is incompatible and rejected pending
+// a separately certified conversion. No GPK is modified: the 29 retail
+// archives and optional Packs/LxH.GPK remain authoritative.
 struct SchoolDaysTranslatedGpkSelection {
   std::string locale = "en";
   std::filesystem::path scriptGpk;
   std::filesystem::path lxhGpk;
+  bool enableLxh = true;
+};
+
+enum class SchoolDaysLxhMountMode {
+  Required, // Strict mode: fail mount if Packs/LxH.GPK is missing or invalid.
+  Optional, // Mount Packs/LxH.GPK if valid; otherwise mount 29 retail packs only.
+  Disabled  // Never mount Packs/LxH.GPK; pure 29 original retail GPKs.
+};
+
+struct SchoolDaysLxhMountStatus {
+  bool requested = false;
+  bool mounted = false;
+  std::string notice;
 };
 
 // Rejects changes while mounted; call before MountSchoolDaysRetailGpks.
@@ -39,10 +52,12 @@ bool ClearSchoolDaysTranslatedGpks(std::string *error = nullptr);
 // Process-wide School Days retail resource mount.  KTRF has one outer game
 // session at a time, while media decoders may read concurrently; the
 // implementation publishes immutable stores only after all 29 retail packs
-// AND the mandatory integrated LxH.GPK have validated successfully.
+// (and Packs/LxH.GPK when enabled/valid) have validated successfully.
 bool MountSchoolDaysRetailGpks(
     const std::filesystem::path &gameOrPacksRoot, std::string *error = nullptr,
-    std::shared_ptr<const Filesystem::IMount> source = {});
+    std::shared_ptr<const Filesystem::IMount> source = {},
+    SchoolDaysLxhMountMode lxhMode = SchoolDaysLxhMountMode::Optional,
+    SchoolDaysLxhMountStatus *lxhStatus = nullptr);
 // Shared engine overlay; IDs use their complete logical path for every pack.
 bool SetSchoolDaysAssetOverlay(const std::filesystem::path& directory,
                                  std::string* error = nullptr);
@@ -53,6 +68,7 @@ void UnmountSchoolDaysRetailGpks();
 void InstallMountedSchoolDaysAssetResolver();
 void UninstallMountedSchoolDaysAssetResolver();
 bool SchoolDaysRetailGpksMounted();
+bool SchoolDaysLxhMounted();
 size_t MountedSchoolDaysGpkEntryCount();
 
 SchoolDaysGpkLookupStatus LookupMountedSchoolDaysAsset(

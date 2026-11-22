@@ -158,6 +158,13 @@ add_executable(SchoolDaysLxhContentTest SchoolDaysLxhContentTest.cpp)
 target_link_libraries(SchoolDaysLxhContentTest PRIVATE school_days)
 add_test(NAME SchoolDaysLxhContentTest COMMAND SchoolDaysLxhContentTest)
 
+add_executable(SchoolDaysOptionalLxhTest SchoolDaysOptionalLxhTest.cpp)
+target_link_libraries(SchoolDaysOptionalLxhTest PRIVATE school_days ZLIB::ZLIB)
+add_test(NAME SchoolDays.OptionalLxh COMMAND SchoolDaysOptionalLxhTest
+    "${SCHOOL_DAYS_ROUTE}")
+set_tests_properties(SchoolDays.OptionalLxh PROPERTIES
+    ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
+
 add_executable(SchoolDaysLxhFadeTest SchoolDaysLxhFadeTest.cpp)
 target_link_libraries(SchoolDaysLxhFadeTest PRIVATE school_days)
 add_test(NAME SchoolDaysLxhFadeTest COMMAND SchoolDaysLxhFadeTest)

@@ -140,6 +140,8 @@ public final class SchoolDaysSetup extends Activity {
     private Switch swAutoMode;
     private Switch swSwapAb;
     private Switch swForcedSubs;
+    private Switch swEnableLxh;
+    private TextView lblLxhStatus;
 
     private Button homeMusicToggle;
 
@@ -244,6 +246,8 @@ public final class SchoolDaysSetup extends Activity {
         swAutoMode = findViewById(R.id.sw_auto_mode);
         swSwapAb = findViewById(R.id.sw_swap_ab);
         swForcedSubs = findViewById(R.id.sw_forced_subs);
+        swEnableLxh = findViewById(R.id.sw_enable_lxh);
+        lblLxhStatus = findViewById(R.id.lbl_lxh_status);
 
         homeMusicToggle = findViewById(R.id.home_music_toggle);
     }
@@ -451,6 +455,43 @@ public final class SchoolDaysSetup extends Activity {
         swForcedSubs.setOnCheckedChangeListener((b, c) -> {
             if (!bindingUi) draftConfig.enableForcedSubtitles = c;
         });
+        swEnableLxh.setOnCheckedChangeListener((b, c) -> {
+            if (!bindingUi) {
+                draftConfig.enableLxh = c;
+                updateLxhStatusLabel();
+                rebuildLanguageChoices();
+            }
+        });
+    }
+
+    private boolean wantsLxh(SchoolDaysConfigStore.Snapshot cfg) {
+        if (cfg != null && cfg.enableLxh != null) {
+            return cfg.enableLxh;
+        }
+        return folder != null && folder.hasLxhPack;
+    }
+
+    private boolean effectiveLxh(SchoolDaysConfigStore.Snapshot cfg, String selection) {
+        return wantsLxh(cfg) && folder != null && folder.supportsLxhForSelection(selection);
+    }
+
+    private String lxhStateLabel(SchoolDaysConfigStore.Snapshot cfg, String selection) {
+        if (!wantsLxh(cfg)) {
+            return getString(R.string.sd_lxh_state_off);
+        }
+        if (folder == null || !folder.hasLxhPack) {
+            return getString(R.string.sd_lxh_state_missing_pack);
+        }
+        if (!folder.supportsLxhForSelection(selection)) {
+            return getString(R.string.sd_lxh_state_missing_lang);
+        }
+        return getString(R.string.sd_lxh_state_active);
+    }
+
+    private void updateLxhStatusLabel() {
+        if (lblLxhStatus != null) {
+            lblLxhStatus.setText(lxhStateLabel(draftConfig, draftLanguageSelection));
+        }
     }
 
     private interface IntConsumer {
@@ -563,6 +604,8 @@ public final class SchoolDaysSetup extends Activity {
             swAutoMode.setChecked(draftConfig.autoMode);
             swSwapAb.setChecked(draftConfig.swapControllerAB);
             swForcedSubs.setChecked(draftConfig.enableForcedSubtitles);
+            swEnableLxh.setChecked(wantsLxh(draftConfig));
+            updateLxhStatusLabel();
 
             updateHomeMusicButton();
             rebuildLanguageChoices();
@@ -703,8 +746,8 @@ public final class SchoolDaysSetup extends Activity {
         if (folder == null) return;
 
         for (String loc : SchoolDaysFolder.SUPPORTED_LOCALES) {
-            boolean gpkReady = folder.gpkLanguages.contains(loc);
-            boolean jsonReady = folder.languages.contains(loc);
+            boolean gpkReady = folder.baseGpkLanguages.contains(loc);
+            boolean jsonReady = folder.baseJsonLanguages.contains(loc);
             String gpkKey = SchoolDaysFolder.formatLanguageSelection("gpk", loc);
             Button gpkBtn = new Button(this, null, 0, R.style.SdButton);
             boolean gpkSelected = gpkKey.equals(draftLanguageSelection);
@@ -715,6 +758,7 @@ public final class SchoolDaysSetup extends Activity {
             gpkBtn.setTextColor(gpkSelected ? 0xFFFFFFFF : 0xFF123454);
             gpkBtn.setOnClickListener(v -> {
                 draftLanguageSelection = gpkKey;
+                updateLxhStatusLabel();
                 rebuildLanguageChoices();
             });
             gpkList.addView(gpkBtn);
@@ -727,7 +771,7 @@ public final class SchoolDaysSetup extends Activity {
                 if ("zh-CN".equals(loc) && folder.hasLegacyIncompatibleChineseGpk()) {
                     reason.setText(R.string.sd_chinese_legacy_gpk);
                 } else {
-                    List<String> absent = folder.missingGpkFiles(loc);
+                    List<String> absent = folder.missingGpkFiles(loc, false);
                     String joined = String.join(", ", absent);
                     reason.setText(getString(jsonReady
                             ? R.string.sd_missing_gpk_json_hint
@@ -746,6 +790,7 @@ public final class SchoolDaysSetup extends Activity {
             jsonBtn.setTextColor(jsonSelected ? 0xFFFFFFFF : 0xFF123454);
             jsonBtn.setOnClickListener(v -> {
                 draftLanguageSelection = jsonKey;
+                updateLxhStatusLabel();
                 rebuildLanguageChoices();
             });
             jsonList.addView(jsonBtn);
@@ -756,6 +801,7 @@ public final class SchoolDaysSetup extends Activity {
         final SchoolDaysFolder selected = folder;
         final Uri tree = source.selected();
         final String selection = savedLanguageSelection;
+        final boolean launchLxh = effectiveLxh(savedConfig, selection);
         final int token = generation;
         preparing = true;
         gameFailed = false;
@@ -767,7 +813,7 @@ public final class SchoolDaysSetup extends Activity {
                 if (SchoolDaysFolder.isGpkSelection(selection)) {
                     configStore.clearStoredTranslationPath();
                 }
-                File ready = selected.prepare(this, source, selection);
+                File ready = selected.prepare(this, source, selection, launchLxh);
                 runOnUiThread(() -> {
                     preparing = false;
                     if (isFinishing() || isDestroyed() || generation != token) {
@@ -777,7 +823,7 @@ public final class SchoolDaysSetup extends Activity {
                     session = ready;
                     Intent start = new Intent(this, BootstrapActivity.class);
                     start.putExtra(GameActivity.LAUNCH_ARGUMENTS,
-                            SchoolDaysFolder.launchArguments(session, selection));
+                            SchoolDaysFolder.launchArguments(session, selection, launchLxh));
                     startActivityForResult(start, PLAY);
                 });
             } catch (IOException | RuntimeException error) {
@@ -855,14 +901,15 @@ public final class SchoolDaysSetup extends Activity {
             notice.show(getString(R.string.sd_absent, String.join(", ", folder.missing)));
         } else if (gameFailed) {
             notice.show(getText(failureMessage()));
-        } else if (folder.gpkLanguages.isEmpty() && folder.languages.isEmpty()) {
+        } else if (folder.baseGpkLanguages.isEmpty() && folder.baseJsonLanguages.isEmpty()) {
             notice.show(getText(R.string.sd_no_translations));
         } else if (!folder.supportsSelection(savedLanguageSelection)) {
             notice.show(getText(R.string.sd_choose));
         } else {
             String loc = SchoolDaysFolder.selectionLocale(savedLanguageSelection);
             String backend = SchoolDaysFolder.isGpkSelection(savedLanguageSelection) ? "GPK" : "JSON";
-            notice.show(getString(R.string.sd_ready, localeDisplayName(loc), backend));
+            notice.show(getString(R.string.sd_ready, localeDisplayName(loc), backend,
+                    lxhStateLabel(savedConfig, savedLanguageSelection)));
         }
     }
 
@@ -915,21 +962,22 @@ public final class SchoolDaysSetup extends Activity {
                     String opt = getString(R.string.sd_status_optional);
                     filesSummary.setText(getString(
                             R.string.sd_files_summary,
-                            found.packCount,
-                            found.hasLxhPack ? ok : miss,
+                            found.retailPackCount,
+                            found.hasLxhPack ? ok : opt,
                             found.missing.contains("game-assets/school-days-hq.ktnroute") ? miss : ok,
                             found.hasStylesAss ? ok : opt,
                             found.hasForcedSubtitles ? ok : opt,
                             found.hasOverlay ? ok : opt));
 
-                    String gpkText = found.gpkLanguages.isEmpty()
-                            ? getString(R.string.sd_none) : String.join(", ", found.gpkLanguages);
-                    String jsonText = found.languages.isEmpty()
-                            ? getString(R.string.sd_none) : String.join(", ", found.languages);
+                    String gpkText = found.baseGpkLanguages.isEmpty()
+                            ? getString(R.string.sd_none) : String.join(", ", found.baseGpkLanguages);
+                    String jsonText = found.baseJsonLanguages.isEmpty()
+                            ? getString(R.string.sd_none) : String.join(", ", found.baseJsonLanguages);
                     languagesView.setText(
                             getString(R.string.sd_detected_gpk, gpkText) + "\n"
                                     + getString(R.string.sd_detected_json, jsonText));
 
+                    syncUiFromDraft();
                     updateStatusBanner();
                     rebuildLanguageChoices();
                     showArt(found);

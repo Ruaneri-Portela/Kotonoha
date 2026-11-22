@@ -2139,9 +2139,11 @@ void Runtime::bindScene(const Kotonoha::SchoolDaysKtrfScene &next,
 
 void Runtime::configureLxhFade() {
   lxhFade.Reset();
-  // LxH is part of the installed School Days game, not a selectable DLC.
-  // Replay sessions still use their own timeline and must not own these fades.
-  if (!assets || temporaryPlaybackActive()) return;
+  // Replay sessions use their own timeline and must not own LxH fades.
+  // Packed sessions with LxH disabled use original retail HQ scripts only.
+  if (!assets || temporaryPlaybackActive() ||
+      (assets->usesPackedResources() && !assets->lxhMounted()))
+    return;
   std::string expectedMovie;
   for (const auto ending : Kotonoha::SchoolDaysLxhContent::Endings) {
     if (scene.sceneKey == "05/" + std::string(ending)) {
@@ -6471,10 +6473,49 @@ void Runtime::saveSlot(int slot, const std::u16string &comment) {
         failure, "School Days save sidecar publish failed");
 }
 
+bool Runtime::lxhEpilogueAvailableForScene(const std::string &sceneKey) const {
+  if (!assets)
+    return false;
+  if (assets->usesPackedResources())
+    return assets->lxhMounted();
+  std::string key = sceneKey;
+  std::transform(key.begin(), key.end(), key.begin(), [](unsigned char ch) {
+    return ch == '\\' ? '/' : static_cast<char>(std::tolower(ch));
+  });
+  for (const auto ending : Kotonoha::SchoolDaysLxhContent::Endings) {
+    std::string lower(ending);
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char ch) {
+                     return static_cast<char>(std::tolower(ch));
+                   });
+    if (key == "05/" + lower) {
+      try {
+        (void)assets->resolve("LxH/Media/" + std::string(ending) + "-LXH.wmv");
+        return true;
+      } catch (const std::exception &) {
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
 void Runtime::loadSlot(int slot) {
   std::vector<uint8_t> bytes;
   std::string failure;
+  std::filesystem::path slotPath;
+  Check(storage.SaveFilePath(slot, &slotPath, &failure), failure,
+        "School Days save slot path failed");
   Check(storage.ReadSaveFile(slot, &bytes, &failure), failure, "School Days save read failed");
+  if (Kotonoha::SchoolDaysSaveProvenance::Check(slotPath, slot, bytes) ==
+          Kotonoha::SchoolDaysSaveProvenance::Verdict::LxhEpilogue &&
+      !lxhEpilogueAvailableForScene(
+          Kotonoha::SchoolDaysSaveProvenance::SaveSceneKey(bytes))) {
+    throw std::runtime_error(
+        "Cannot load this LxH epilogue save while LxH endings are disabled or "
+        "Packs/LxH.GPK is unavailable. Enable LxH endings with a valid "
+        "Packs/LxH.GPK to load this save.");
+  }
   if (saveLoadOwner == SaveLoadOwner::PlayData) {
     if (!playDataPlayback || !playDataPlayback->IsOpen() || saveLoadSaving)
       throw std::runtime_error("Replay Data LOAD owner is unavailable");
@@ -7232,6 +7273,16 @@ void Runtime::loadGame(const std::string &path) {
   if (temporaryPlaybackActive())
     throw std::runtime_error("School Days load is unavailable during Replay playback");
   const auto saveBytes = assets->read(path);
+  if (Kotonoha::SchoolDaysSaveProvenance::Check(
+          std::filesystem::path(path), -1, saveBytes) ==
+          Kotonoha::SchoolDaysSaveProvenance::Verdict::LxhEpilogue &&
+      !lxhEpilogueAvailableForScene(
+          Kotonoha::SchoolDaysSaveProvenance::SaveSceneKey(saveBytes))) {
+    throw std::runtime_error(
+        "Cannot load this LxH epilogue save while LxH endings are disabled or "
+        "Packs/LxH.GPK is unavailable. Enable LxH endings with a valid "
+        "Packs/LxH.GPK to load this save.");
+  }
   prepareCarryFrame();
   playing.clear();
   Kotonoha_KtrfError error{};

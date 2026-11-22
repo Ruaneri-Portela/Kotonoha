@@ -95,6 +95,9 @@ final class SchoolDaysConfigStore {
         boolean autoMode = false;
         boolean swapControllerAB = false;
         boolean enableForcedSubtitles = true;
+        // Tri-state EnableLxh preference stored in save/Kotonoha.ini:
+        // null = never explicitly chosen (default follows LxH.GPK availability).
+        Boolean enableLxh = null;
 
         // Launcher-only (SharedPreferences, never written to Config.DAT/settings.json)
         boolean launcherMusic = true;
@@ -125,6 +128,7 @@ final class SchoolDaysConfigStore {
             c.autoMode = autoMode;
             c.swapControllerAB = swapControllerAB;
             c.enableForcedSubtitles = enableForcedSubtitles;
+            c.enableLxh = enableLxh;
             c.launcherMusic = launcherMusic;
             return c;
         }
@@ -411,6 +415,13 @@ final class SchoolDaysConfigStore {
                         s.androidFrameLimit = (v == 30 || v == 60) ? v : 0;
                     } catch (NumberFormatException ignored) {
                     }
+                } else if (line.startsWith("EnableLxh=")) {
+                    String v = line.substring("EnableLxh=".length()).trim();
+                    if ("1".equals(v) || "true".equalsIgnoreCase(v)) {
+                        s.enableLxh = Boolean.TRUE;
+                    } else if ("0".equals(v) || "false".equalsIgnoreCase(v)) {
+                        s.enableLxh = Boolean.FALSE;
+                    }
                 }
             }
         } catch (IOException ignored) {
@@ -429,6 +440,9 @@ final class SchoolDaysConfigStore {
         setIniKey(lines, "ContentAspectPreference", String.valueOf(clampInt(s.contentAspectPreference, 0, 2)));
         setIniKey(lines, "AndroidFrameLimit",
                 String.valueOf(s.androidFrameLimit == 30 || s.androidFrameLimit == 60 ? s.androidFrameLimit : 0));
+        if (s.enableLxh != null) {
+            setIniKey(lines, "EnableLxh", s.enableLxh ? "1" : "0");
+        }
         StringBuilder sb = new StringBuilder();
         for (String line : lines) {
             sb.append(line).append('\n');

@@ -227,7 +227,8 @@ void ExpectMountRejected(const fs::path& root, const std::string& why) {
   std::string reason;
   bool rejected = false;
   try {
-    SchoolDays::Assets assets(root);
+    SchoolDays::Assets assets(root, "", true, nullptr,
+                              Kotonoha::SchoolDaysLxhMountMode::Required);
   } catch (const std::exception& error) {
     rejected = true;
     reason = error.what();

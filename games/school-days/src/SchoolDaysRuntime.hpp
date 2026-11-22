@@ -377,6 +377,7 @@ class Runtime final : public Kotonoha::Runtime {
   void advance();
   void configureLxhFade();
   void renderLxhFade(Kotonoha::RendererRef renderer, uint64_t nowMs);
+  bool lxhEpilogueAvailableForScene(const std::string &sceneKey) const;
   void reset();
   void back();
   void seek(Kotonoha_SceneTick target);

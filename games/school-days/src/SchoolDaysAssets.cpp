@@ -89,7 +89,8 @@ std::string SelectDisplayOptionsOverlay(const std::string &requested,
 
 Assets::Assets(std::filesystem::path root, const std::string &scripts,
                bool allowAutomaticOverlay,
-               std::shared_ptr<const Kotonoha::Filesystem::IMount> packs)
+               std::shared_ptr<const Kotonoha::Filesystem::IMount> packs,
+               Kotonoha::SchoolDaysLxhMountMode lxhMode)
     : directory(std::move(root)) {
   const std::string effectiveOverlay =
       SelectDisplayOptionsOverlay(scripts, allowAutomaticOverlay);
@@ -100,10 +101,13 @@ Assets::Assets(std::filesystem::path root, const std::string &scripts,
   if (!packs && !checkDirectory(directory, info))
     throw std::runtime_error(info);
   if (packs || ScriptRoot(directory).empty()) {
+    Kotonoha::SchoolDaysLxhMountStatus status;
     if (!Kotonoha::MountSchoolDaysRetailGpks(directory, &info,
-                                             std::move(packs)))
+                                             std::move(packs), lxhMode, &status))
       throw std::runtime_error(info);
     mounted = true;
+    lxhActive = status.mounted;
+    lxhNotice = std::move(status.notice);
     Kotonoha::InstallMountedSchoolDaysAssetResolver();
   }
   if (!effectiveOverlay.empty() &&
@@ -226,14 +230,20 @@ std::vector<Uint8> Assets::readOriginalAsset(const std::string &id) const {
 
 std::string Assets::overlayId(const std::string &id) const {
   std::string logical;
-  if (Kotonoha::SchoolDaysLogicalFromGpkUri(id, &logical))
+  if (Kotonoha::SchoolDaysLogicalFromGpkUri(id, &logical)) {
     // AssetProvider::read() checks its own overlay BEFORE readAsset().
-    // The integrated pack must win even if an old loose ORS/WMV/PNG still
-    // exists in a custom overlay. Returning an empty overlay key ensures
-    // the selected sdgpk:// resource actually reaches the GPK reader.
-    return Kotonoha::SchoolDaysLxhContent::IsPackResource(logical)
-               ? std::string() : logical;
-  if (mounted && Kotonoha::SchoolDaysLxhContent::IsPackResource(id))
+    // When LxH is mounted, the mounted pack wins even if an old loose file
+    // exists in a custom overlay. When LxH is disabled, never let a loose
+    // overlay re-inject LxH media or epilogue ORS.
+    if (lxhActive && Kotonoha::SchoolDaysLxhContent::IsPackResource(logical))
+      return {};
+    if (!lxhActive && HasAsciiCaseInsensitivePrefix(logical, "LxH/"))
+      return {};
+    return logical;
+  }
+  if (mounted &&
+      ((lxhActive && Kotonoha::SchoolDaysLxhContent::IsPackResource(id)) ||
+       (!lxhActive && HasAsciiCaseInsensitivePrefix(id, "LxH/"))))
     return {};
   std::filesystem::path file(id);
   if (file.is_absolute()) {
@@ -331,7 +341,8 @@ std::vector<std::string> Assets::listAsset(const std::string &prefix) const {
       for (const auto &spec : Kotonoha::SchoolDaysRetailGpkSpecs())
         appendVirtualTree(Kotonoha::MakeSchoolDaysGpkUri(spec.logicalPrefix), normalized);
 #if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-      appendVirtualTree(Kotonoha::MakeSchoolDaysGpkUri("LxH"), normalized);
+      if (lxhActive)
+        appendVirtualTree(Kotonoha::MakeSchoolDaysGpkUri("LxH"), normalized);
 #endif
     }
   }
@@ -436,12 +447,12 @@ bool Assets::checkDirectory(const std::filesystem::path &root, std::string &info
           return false;
         }
 #if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-      if (!Kotonoha::ResolveSchoolDaysAssetPath(candidate.string().c_str(),
-                                               "LxH.GPK").present) {
-        info = "Incomplete integrated School Days pack set: missing LxH.GPK";
-        return false;
-      }
-      info = "School Days HQ 29 retail GPK + mandatory LxH.GPK found";
+      if (Kotonoha::ResolveSchoolDaysAssetPath(candidate.string().c_str(),
+                                               "LxH.GPK")
+              .present)
+        info = "School Days HQ 29 original retail GPKs + optional LxH.GPK found";
+      else
+        info = "School Days HQ 29 original retail GPKs found (optional LxH.GPK not installed)";
 #else
       info = "School Days HQ 29 original retail GPKs found (no LxH)";
 #endif

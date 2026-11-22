@@ -3,6 +3,7 @@
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
+#include <Kotonoha/routing/SchoolDaysLxhPreference.hpp>
 
 #include <filesystem>
 #include <cstdint>
@@ -73,6 +74,14 @@ public:
   void setRetailSettings(const Kotonoha::SchoolDaysRetailConfigPolicy::State &value);
   int contentAspectPreference() const { return aspectPreference; }
   void setContentAspectPreference(int value);
+  std::optional<bool> savedLxhPreference() const { return savedEnableLxh; }
+  bool enableLxhPreference() const;
+  void setEnableLxhPreference(bool enabled);
+  bool effectiveLxhEnabled() const { return effectiveLxh; }
+  const std::string &lxhStatusNotice() const { return lxhNotice; }
+  const Kotonoha::SchoolDaysLxhPreference::Availability &lxhAvailability() const {
+    return lxhPackAvailability;
+  }
 
   // Testable physical display contract shared with Display Options. Only a
   // fresh profile receives the desktop tuple; a persisted/manual tuple wins.
@@ -121,6 +130,9 @@ private:
     Language language = Language::English;
     std::string baseJson, manualLxhJson, manualLxhBase;
     int aspect = 0;
+    std::optional<bool> savedEnableLxh;
+    bool enableLxhDraft = false;
+    bool enableLxhModified = false;
   };
   Screen screen = Screen::Main;
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
@@ -160,7 +172,21 @@ private:
   std::optional<std::uintmax_t> retailFileSize;
   int aspectPreference = 0;
   int loadedAspectPreference = 0;
+  std::optional<bool> savedEnableLxh;
+  bool enableLxhDraft = false;
+  bool enableLxhModified = false;
+  bool effectiveLxh = false;
+  std::string lxhNotice;
+  std::string probedLxhPath;
+  Kotonoha::SchoolDaysLxhPreference::Availability lxhPackAvailability;
 
+  std::filesystem::path lxhPreferenceRoot() const;
+  void loadLxhPreference();
+  void refreshLxhAvailability();
+  void saveLxhPreference();
+  Kotonoha::SchoolDaysLxhPreference::Resolution resolveCurrentLxhState(
+      bool *outTranslationReady = nullptr,
+      std::string *outTranslationReason = nullptr) const;
   std::filesystem::path effectiveOverlayRoot() const;
   std::string findSpanishJson() const;
   std::string findChineseJson() const;
