@@ -251,6 +251,115 @@ int main() {
             "tablegoto indexing and unmatched fall-through must work");
     }
 
+    {
+      Ponscripter::PonscripterVm numeric;
+      const std::string script =
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "selnum %9,\"Zero\",\"Um\",\"Dois\"\n"
+          "mov %10,100\n"
+          "end\n";
+      numeric.appendScriptFile("0.utf", script);
+      check(numeric.start(), "selnum fixture must start");
+      numeric.tick(0.0);
+      check(numeric.waitState() == Ponscripter::WaitState::WaitSelect &&
+                numeric.selectOptions().size() == 3,
+            "selnum must expose all text-only choices");
+      check(!numeric.selectChoice(-1) && !numeric.selectChoice(3),
+            "out-of-range choices must be rejected without advancing");
+      const auto snapshot = numeric.exportSlotSave();
+      check(snapshot.selectionMode == 2 &&
+                snapshot.selectionNumberVariable == 9,
+            "slot must retain numeric choice destination");
+
+      Ponscripter::SlotSaveData decoded;
+      const std::string serialized =
+          Ponscripter::SaveSerializer::serializeSlot(snapshot);
+      check(Ponscripter::SaveSerializer::deserializeSlot(serialized, decoded),
+            "numeric choice slot must deserialize");
+      check(decoded.selectionMode == 2 &&
+                decoded.selectionNumberVariable == 9,
+            "numeric choice mode must survive save serialization");
+
+      Ponscripter::PonscripterVm resumedChoice;
+      resumedChoice.appendScriptFile("0.utf", script);
+      check(resumedChoice.start(), "resume choice script must start");
+      resumedChoice.importSlotSave(decoded);
+      check(resumedChoice.waitState() == Ponscripter::WaitState::WaitSelect,
+            "restored choice must still wait for input");
+      check(resumedChoice.selectChoice(2), "numeric choice must be accepted");
+      resumedChoice.tick(0.0);
+      check(resumedChoice.isHalted() &&
+                resumedChoice.variables().getNum(9) == 2 &&
+                resumedChoice.variables().getNum(10) == 100,
+            "selnum must write zero-based index then continue without jumping");
+
+      // Existing V1 saves without the optional SELMODE record remain readable.
+      std::string legacy = serialized;
+      const std::size_t record = legacy.find("SELMODE\t");
+      check(record != std::string::npos, "new saves must contain SELMODE");
+      const std::size_t recordEnd = legacy.find('\n', record);
+      legacy.erase(record, recordEnd - record + 1);
+      Ponscripter::SlotSaveData oldSlot;
+      check(Ponscripter::SaveSerializer::deserializeSlot(legacy, oldSlot) &&
+                oldSlot.selectionMode == 0 &&
+                oldSlot.selectionNumberVariable == -1,
+            "old V1 slots must default to jump selection");
+    }
+
+    {
+      Ponscripter::PonscripterVm choice;
+      choice.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "mov %1,5\n"
+          "selgosub \"Primeira\",*one,\"Segunda\",*two\n"
+          "add %1,100\n"
+          "end\n"
+          "*one\n"
+          "add %1,1\n"
+          "return\n"
+          "*two\n"
+          "add %1,2\n"
+          "return\n");
+      check(choice.start(), "selgosub fixture must start");
+      choice.tick(0.0);
+      check(choice.waitState() == Ponscripter::WaitState::WaitSelect &&
+                choice.selectOptions().size() == 2,
+            "selgosub must wait for its text/label options");
+      check(choice.selectChoice(1), "selgosub choice must be accepted");
+      choice.tick(0.0);
+      check(choice.isHalted() && choice.variables().getNum(1) == 107,
+            "selgosub must return to the instruction after the choice");
+    }
+
+    {
+      Ponscripter::PonscripterVm normal;
+      normal.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "select \"Primeira\",*missing,\"Segunda\",*valid\n"
+          "mov %1,999\n"
+          "end\n"
+          "*valid\n"
+          "mov %1,2\n"
+          "end\n");
+      check(normal.start(), "select fixture must start");
+      normal.tick(0.0);
+      check(!normal.selectChoice(0) &&
+                normal.waitState() == Ponscripter::WaitState::WaitSelect,
+            "missing choice target must not corrupt wait state");
+      check(normal.selectChoice(1), "valid choice target must work");
+      normal.tick(0.0);
+      check(normal.isHalted() && normal.variables().getNum(1) == 2,
+            "normal select must jump rather than return to the same line");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
