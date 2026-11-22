@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <Ponscripter/PonscripterRuntime.hpp>
+#include <Ponscripter/PixelEffects.hpp>
 
 #include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -1720,39 +1721,10 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           SDL_ConvertSurface(readback.get(), SDL_PIXELFORMAT_RGBA32));
       if (rgba && rgba->w > 0 && rgba->h > 0 &&
           SDL_LockSurface(rgba.get())) {
-        const bool monochrome = vm_.isMonochromeEnabled();
-        const int negative = vm_.negativeMode();
-        const std::uint32_t tint = vm_.monochromeColor();
-        const int tintR = static_cast<int>((tint >> 16) & 0xFFu);
-        const int tintG = static_cast<int>((tint >> 8) & 0xFFu);
-        const int tintB = static_cast<int>(tint & 0xFFu);
-        for (int y = 0; y < rgba->h; ++y) {
-          auto *row = static_cast<std::uint8_t *>(rgba->pixels) +
-                      static_cast<std::size_t>(y) * rgba->pitch;
-          for (int x = 0; x < rgba->w; ++x) {
-            std::uint8_t *pixel = row + static_cast<std::size_t>(x) * 4;
-            int red = pixel[0], green = pixel[1], blue = pixel[2];
-            if (negative == 1) {
-              red = 255 - red;
-              green = 255 - green;
-              blue = 255 - blue;
-            }
-            if (monochrome) {
-              const int luma = (77 * red + 150 * green + 29 * blue + 128) >> 8;
-              red = (luma * tintR + 127) / 255;
-              green = (luma * tintG + 127) / 255;
-              blue = (luma * tintB + 127) / 255;
-            }
-            if (negative == 2) {
-              red = 255 - red;
-              green = 255 - green;
-              blue = 255 - blue;
-            }
-            pixel[0] = static_cast<std::uint8_t>(red);
-            pixel[1] = static_cast<std::uint8_t>(green);
-            pixel[2] = static_cast<std::uint8_t>(blue);
-          }
-        }
+        applyScenePixelEffects(
+            static_cast<std::uint8_t *>(rgba->pixels), rgba->w, rgba->h,
+            rgba->pitch, vm_.isMonochromeEnabled(), vm_.monochromeColor(),
+            vm_.negativeMode());
         SDL_UnlockSurface(rgba.get());
         if (!impl_->postProcessTexture ||
             impl_->postProcessWidth != rgba->w ||
