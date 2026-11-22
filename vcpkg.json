@@ -20,7 +20,10 @@
         "zlib"
       ]
     },
-    "libiconv",
+    {
+      "name": "libiconv",
+      "platform": "!osx & !ios"
+    },
     {
       "name": "python3",
       "platform": "windows & !mingw"
@@ -32,10 +35,6 @@
     {
       "name": "libunibreak",
       "platform": "android | ios | osx"
-    },
-    {
-      "name": "libiconv",
-      "platform": "android"
     },
     {
       "name": "plutosvg",
