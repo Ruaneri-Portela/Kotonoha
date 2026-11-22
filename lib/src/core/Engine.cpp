@@ -344,6 +344,11 @@ Engine::Engine(Runtime &run, EngineOptions options)
 }
 
 Engine::~Engine() {
+  // The runtime or launcher may retain a shared_ptr to this asset provider.
+  // Drop its renderer-owned textures while SDL_Renderer is still live; member
+  // destruction alone cannot guarantee this with shared ownership.
+  if (assets)
+    assets->clearCache();
   if (!settingsPath.empty()) {
     try {
       saveSettings();
