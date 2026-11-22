@@ -245,14 +245,26 @@ The exact command signatures vary between RealLive generations; audio routing
 and channel fades still need comparison with specific games. Voice/PCM gain is
 currently session state, not serialized in the presentation save.
 
-## Cross-edition BGM command variants
+## Cross-edition BGM command variants and silence regression
 
-The BGM dispatcher now recognizes additional `bgmPlaying`, `bgmStatus`,
-`bgmStop2`, `bgmSetVolume`, `bgmMute` and `bgmUnMute` forms as well as
-previous Kotonoha aliases. Several commands are distinguished by their number
-of parameters: no-argument pause/resume/stop aliases do not consume the
-volume/fade operands of other editions. Muting changes the gain without
-stopping the currently looping music, and timed volume changes continue to
-use the existing normalized PCM fade pipeline. Some older opcode numbers
-remain inherently ambiguous without detecting the game's RealLive version;
-those cannot be claimed to work universally yet.
+**The previously working Kotonoha BGM opcode mapping is the default.**
+In this dialect, opcodes 12/13/14 pause/resume/stop even when the bytecode
+includes extra operands, and opcode 11 with zero operands returns whether a
+track is selected (0/1). A previous attempt to choose native/rlvm meanings
+from operand count instead could accidentally set BGM gain to zero or leave
+later tracks muted. This is covered by `RealLive.BgmCompat`.
+
+RealLive generations can use incompatible opcode tables. When a title has been
+verified against the rlvm BGM module, it can explicitly opt in with a
+Gameexe.ini entry:
+
+```ini
+#KOTONOHA_BGM_OPCODE_DIALECT=1
+```
+
+This opts into the rlvm-style BGM pause/unpause (9/10), volume query/set
+(11/12), and mute/unmute (14/13) operations. Absent or zero selects the
+previous Kotonoha mapping. The port will **not infer a dialect from argument
+count**, because those ambiguous signatures were the cause of silent music.
+Use the override only after validating that specific edition's scripts.
+
