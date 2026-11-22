@@ -158,6 +158,7 @@ void writeBytes(const std::filesystem::path &path,
 void checkFontOverlay(const std::filesystem::path &base,
                       const std::filesystem::path &overlay, int advance,
                       bool added = false) {
+  (void)advance; // PAK bitmap metrics no longer control VN's SDL_ttf layout.
   constexpr char32_t extra = U'\uE000';
   if (added) {
     const Kotonoha::Providers::LucaSystemAssets original(base, {});
@@ -273,7 +274,8 @@ void checkFontOverlay(const std::filesystem::path &base,
   key(SDLK_ESCAPE);
   check(!backlog.isVisible() && runtime.instructionPosition() == pc,
         "Closing AIR history preserves the script position");
-  const std::string text = added ? u8"\uE000" : "A";
+  // Bitmap patches remain importable, but VN glyphs come from TTF.
+  const std::string text = "A";
   box->setDialogue(text, text + text);
   box->show();
   box->completeDialogue();
@@ -294,19 +296,22 @@ void checkFontOverlay(const std::filesystem::path &base,
             SDL_RectsEqual(&parentClip, &clip),
         "AIR VNTextBox preserves the caller's clip rectangle");
   SDL_RenderPresent(renderer.get());
-  const auto matches = [&](int x, int y, SDL_Color color) {
-    Uint8 r = 0, g = 0, b = 0;
-    return SDL_ReadSurfacePixel(target.get(), x, y, &r, &g, &b, nullptr) &&
-           r == color.r && g == color.g && b == color.b;
+  const auto containsColor = [&](SDL_Rect area, bool isSpeaker) {
+    for (int y = area.y; y < area.y + area.h; ++y) {
+      for (int x = area.x; x < area.x + area.w; ++x) {
+        Uint8 r = 0, g = 0, b = 0;
+        if (!SDL_ReadSurfacePixel(target.get(), x, y, &r, &g, &b, nullptr))
+          continue;
+        if (isSpeaker ? (g > r + 35 && g > b + 20)
+                      : (r > g + 45 && r > b + 40))
+          return true;
+      }
+    }
+    return false;
   };
-  // Patch: offset (3,4), with a 2x2 opaque square one pixel into the cell.
-  constexpr int x = 188 + 3 + 1;
-  constexpr int y = 564 + 4 + 1;
-  check(matches(x, y, dialogue) && matches(x + advance, y, dialogue) &&
-            !matches(x + 2, y, dialogue) && matches(x, 516 + 4 + 1, speaker),
-        added
-            ? "AIR VNTextBox renders the new glyph, advance and native colors"
-            : "AIR VNTextBox renders patched glyph, advance and native colors");
+  check(containsColor({188, 516, 95, 28}, true) &&
+            containsColor({188, 564, 95, 34}, false),
+        "AIR VNTextBox rasterizes speaker/dialogue TTF at native colors");
   runtime.shutdown();
 }
 
