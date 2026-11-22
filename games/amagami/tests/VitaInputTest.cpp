@@ -34,6 +34,24 @@ SDL_Event axis(SDL_JoystickID device, uint8_t name, Sint16 value) {
 int main() {
   try {
     Amagami::Vita::VitaInput input;
+    using Amagami::Vita::VitaInput;
+    expect(VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_SOUTH,
+                                       SDL_GAMEPAD_TYPE_XBOXONE) == 32u &&
+               VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_EAST,
+                                           SDL_GAMEPAD_TYPE_XBOXONE) == 64u,
+           "Xbox A confirms and B cancels");
+    expect(VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_SOUTH,
+                                       SDL_GAMEPAD_TYPE_XBOX360) == 32u &&
+               VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_EAST,
+                                           SDL_GAMEPAD_TYPE_PS5) == 32u &&
+               VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_SOUTH,
+                                           SDL_GAMEPAD_TYPE_PS5) == 64u,
+           "Xbox 360 and PlayStation button layouts are distinct");
+    expect(VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_EAST,
+                                       SDL_GAMEPAD_TYPE_UNKNOWN) == 32u &&
+               VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_NORTH,
+                                           SDL_GAMEPAD_TYPE_XBOXONE) == 16u,
+           "Fallback controller layout leaves other buttons unchanged");
     Amagami::Vita::VitaVmBridge bridge;
     input.handle(key(SDL_EVENT_KEY_DOWN, SDLK_Z));
     input.handle(key(SDL_EVENT_KEY_DOWN, SDLK_UP));
