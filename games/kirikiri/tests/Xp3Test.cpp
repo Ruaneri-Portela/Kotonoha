@@ -433,6 +433,55 @@ int main() {
     }
   }
 
+  // The original Kirikiri KAG parser skips leading tabs and aliases
+  // repeated labels. Edited scripts can also indent these with spaces.
+  {
+    const auto parsed = Kirikiri::KagScript::parse(
+        "\t; ignored comment\r\n"
+        "\t@wait time=12\r\n"
+        "  *intro|First page\r\n"
+        "\t*intro|Second page\r\n"
+        "\t*|Third page\r\n"
+        "[cm text='ready ] now'][end]",
+        "indented-labels.ks");
+    const bool valid =
+        parsed.tags.size() == 6 && parsed.tags[0].name == "wait" &&
+        parsed.tags[0].line == 2 && parsed.tags[0].column == 2 &&
+        parsed.labels.count("intro") == 1 &&
+        parsed.labels.count("intro:2") == 1 &&
+        parsed.labels.count("intro:3") == 1 &&
+        parsed.labels.at("intro") == 1 &&
+        parsed.labels.at("intro:2") == 2 &&
+        parsed.labels.at("intro:3") == 3 &&
+        parsed.tags[1].line == 3 && parsed.tags[1].column == 3 &&
+        parsed.tags[4].attrs.at("text") == "ready ] now";
+    Kirikiri::KagScript::Callbacks cb;
+    Kirikiri::KagScript::Runner runner(parsed, cb);
+    if (!valid || !runner.jumpToLabel("*intro:3") ||
+        runner.position() != parsed.labels.at("intro:3")) {
+      std::printf("FAIL: KAG indentation, duplicate labels or quoted ]\n");
+      ++failures;
+    }
+  }
+  // Malformed scripts must produce a finite, actionable parser error.
+  {
+    const std::vector<std::string> invalid = {
+        "*|Unnamed first label\n[end]", "[cm text='unclosed]",
+        "[cm text=missing"};
+    for (const auto &source : invalid) {
+      bool rejected = false;
+      try {
+        (void)Kirikiri::KagScript::parse(source, "malformed.ks");
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: malformed KAG scenario was accepted\n");
+        ++failures;
+      }
+    }
+  }
+
   // In-script [call target=*label] and [return] must preserve continuation
   // after a blocked text command. A saved PC cannot inherit stale frames.
   {

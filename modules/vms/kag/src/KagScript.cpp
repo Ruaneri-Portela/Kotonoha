@@ -30,6 +30,8 @@ KagScript::Script KagScript::parse(const std::string &text,
   Script script;
   int line = 1, column = 1;
   std::size_t i = 0, n = text.size();
+  std::string previousLabel;
+  std::map<std::string, std::size_t> labelCounts;
 
   auto nextLine = [&]() {
     ++line;
@@ -38,10 +40,29 @@ KagScript::Script KagScript::parse(const std::string &text,
 
   while (i < n) {
     char c = text[i];
-    if (c == '*' && column == 1) {
-      // KAG labels are normally bare lines (`*label|caption`), not bracketed
-      // command tags.  Keep the label as a no-op tag so saved PCs stay stable.
-      const auto labelLine = line;
+    // KAG treats line-leading tabs as indentation, not dialogue. Also allow
+    // spaces before a line-control marker to accommodate edited scenarios.
+    bool lineControl = column == 1;
+    if (lineControl && (c == ' ' || c == '\t')) {
+      auto first = i;
+      while (first < n && (text[first] == ' ' || text[first] == '\t'))
+        ++first;
+      if (first < n &&
+          (text[first] == '*' || text[first] == ';' || text[first] == '@')) {
+        column += static_cast<int>(first - i);
+        i = first;
+        c = text[i];
+      } else {
+        lineControl = false;
+      }
+    }
+
+    if (c == '*' && lineControl) {
+      // Bare KAG labels may be followed by a page title separated by '|'.
+      // Repeated names receive a stable :2, :3 ... alias just as the
+      // original KAG scenario label cache does.
+      const int labelLine = line;
+      const int labelColumn = column;
       ++i;
       ++column;
       std::string label;
@@ -53,23 +74,38 @@ KagScript::Script KagScript::parse(const std::string &text,
         ++i;
         ++column;
       }
+      const std::string base = trim(label);
+      if (base.empty() && previousLabel.empty())
+        throw std::runtime_error("KAG: unnamed first label in " + sourceName +
+                                 " at line " + std::to_string(labelLine));
+      const std::string resolved = base.empty() ? previousLabel : base;
+      previousLabel = resolved;
+      auto &occurrence = labelCounts[resolved];
+      std::string alias = resolved;
+      ++occurrence;
+      if (occurrence > 1) {
+        alias += ":" + std::to_string(occurrence);
+        while (script.labels.count(alias))
+          alias = resolved + ":" + std::to_string(++occurrence);
+      }
       Tag tag;
       tag.type = TagType::Command;
-      tag.name = "*" + label;
+      tag.name = "*" + alias;
       tag.line = labelLine;
-      tag.column = 1;
-      script.labels.emplace(label, script.tags.size());
+      tag.column = labelColumn;
+      script.labels.emplace(alias, script.tags.size());
       script.tags.push_back(std::move(tag));
-    } else if (c == ';' && column == 1) {
+    } else if (c == ';' && lineControl) {
       // KAG line comments must not become dialogue text.
       while (i < n && text[i] != '\r' && text[i] != '\n') {
         ++i;
         ++column;
       }
-    } else if (c == '@' && column == 1) {
+    } else if (c == '@' && lineControl) {
       // A command at the start of a line is equivalent to a bracketed tag.
       // Parse with the same attribute grammar to avoid diverging semantics.
       const int commandLineNumber = line;
+      const int commandColumn = column;
       ++i;
       ++column;
       std::string commandLine;
@@ -83,12 +119,14 @@ KagScript::Script KagScript::parse(const std::string &text,
           script.labels.emplace(entry.first, script.tags.size() + entry.second);
         for (auto &tag : parsed.tags) {
           tag.line = commandLineNumber;
-          tag.column = 1;
+          tag.column = commandColumn;
           script.tags.push_back(std::move(tag));
         }
       }
     } else if (c == '[' && !(i + 1 < n && text[i + 1] == '[')) {
       // Command tag
+      const int tagStartLine = line;
+      const int tagStartColumn = column;
       ++i;
       ++column;
       std::string tagName;
@@ -101,8 +139,8 @@ KagScript::Script KagScript::parse(const std::string &text,
       Tag tag;
       tag.type = TagType::Command;
       tag.name = tagName;
-      tag.line = line;
-      tag.column = column;
+      tag.line = tagStartLine;
+      tag.column = tagStartColumn;
 
       // Parse attributes: name="value" or name=value
       while (i < n && text[i] != ']') {
@@ -138,10 +176,12 @@ KagScript::Script KagScript::parse(const std::string &text,
               ++i;
               ++column;
             }
-            if (i < n) {
-              ++i;
-              ++column; // skip closing quote
-            }
+            if (i == n)
+              throw std::runtime_error("KAG: unterminated quoted attribute in " +
+                                       sourceName + " at line " +
+                                       std::to_string(tagStartLine));
+            ++i;
+            ++column; // skip closing quote
           } else {
             while (i < n && text[i] != ' ' && text[i] != '\t' &&
                    text[i] != '\r' && text[i] != '\n' && text[i] != ']') {
@@ -154,10 +194,11 @@ KagScript::Script KagScript::parse(const std::string &text,
         if (!attrName.empty())
           tag.attrs.emplace(std::move(attrName), std::move(attrValue));
       }
-      if (i < n && text[i] == ']') {
-        ++i;
-        ++column;
-      }
+      if (i == n)
+        throw std::runtime_error("KAG: unclosed tag in " + sourceName +
+                                 " at line " + std::to_string(tagStartLine));
+      ++i;
+      ++column; // closing bracket
       // Register label if this tag is a label (name "l" or "*labelname")
       if (tag.name == "l" || tag.name == "*") {
         if (auto it = tag.attrs.find("name");
