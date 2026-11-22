@@ -385,7 +385,7 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
          >> op.transformC >> op.transformD >> affine >> trans
          >> op.spec.fontWidth >> op.spec.fontHeight >> op.spec.color;
       if (!ls || kindValue < 0 ||
-          kindValue > static_cast<int>(ManualDrawOp::Kind::Blit))
+          kindValue > static_cast<int>(ManualDrawOp::Kind::Window))
         continue;
       op.kind = static_cast<ManualDrawOp::Kind>(kindValue);
       op.affine = affine != 0;
