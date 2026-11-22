@@ -31,9 +31,12 @@ inline float sampleBgmFade(float from, float to, int elapsed, int duration) {
 inline int advanceBgmFade(int elapsed, int duration, std::uint64_t deltaMs) {
   if (duration <= 0)
     return 0;
-  return static_cast<int>(std::min<std::uint64_t>(
-      static_cast<std::uint64_t>(duration),
-      static_cast<std::uint64_t>(std::max(0, elapsed)) + deltaMs));
+  const auto prior = std::clamp(elapsed, 0, duration);
+  const auto remaining = static_cast<std::uint64_t>(duration - prior);
+  // Avoid uint64 wrap when an external clock jumps by a huge amount.
+  if (deltaMs >= remaining)
+    return duration;
+  return prior + static_cast<int>(deltaMs);
 }
 
 }  // namespace RealLive
