@@ -55,9 +55,11 @@ terceirizadas ainda podem referenciar `_iconv_open`, `_iconv` e
 `_iconv_close`. A conversão de textos da engine continua independente
 de iconv, via `Encoding.mm` / CoreFoundation.
 
-Os `xcconfig` macOS e iOS também adicionam `-framework CoreFoundation`,
-e o CMake linka esse framework em `KotonohaEngine`. A biblioteca `libiconv`
-do SDK Apple pode ser usada pelo linker sem adicioná-la como pacote vcpkg.
+Os `xcconfig` macOS e iOS também adicionam `-framework CoreFoundation`.
+O CMake vincula explicitamente tanto `CoreFoundation` quanto a `libiconv`
+fornecida pelo SDK Apple à `KotonohaEngine`, e mantém a dependência
+transitiva de `libiconv` para os aplicativos consumidores. Não é necessário
+adicionar um pacote `libiconv` separado ao vcpkg para macOS/iOS.
 A ausência de `libiconv` no manifesto Apple **não** significa que os
 aplicativos completos sejam independentes de iconv.
 
