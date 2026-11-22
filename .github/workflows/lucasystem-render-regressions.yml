@@ -5,6 +5,8 @@ on:
     paths:
       - 'games/luca-system/src/LucaSystemRuntime.cpp'
       - 'games/luca-system/include/LucaSystem/GpuSceneComposition.hpp'
+      - 'games/luca-system/include/LucaSystem/SceneLayers.hpp'
+      - 'games/luca-system/tests/SceneLayersTest.cpp'
       - 'games/luca-system/tests/GpuSceneTest.cpp'
       - 'games/luca-system/CMakeLists.txt'
       - '.github/workflows/lucasystem-render-regressions.yml'
@@ -13,6 +15,8 @@ on:
     paths:
       - 'games/luca-system/src/LucaSystemRuntime.cpp'
       - 'games/luca-system/include/LucaSystem/GpuSceneComposition.hpp'
+      - 'games/luca-system/include/LucaSystem/SceneLayers.hpp'
+      - 'games/luca-system/tests/SceneLayersTest.cpp'
       - 'games/luca-system/tests/GpuSceneTest.cpp'
       - 'games/luca-system/CMakeLists.txt'
       - '.github/workflows/lucasystem-render-regressions.yml'
@@ -37,3 +41,11 @@ jobs:
             -o /tmp/kotonoha-luca-gpu-scene
       - name: Check blended pixels and restored clip state
         run: SDL_VIDEODRIVER=dummy /tmp/kotonoha-luca-gpu-scene
+      - name: Compile LucaSystem scene-state and CZ4 face geometry tests
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -pedantic \
+            -Igames/luca-system/include \
+            games/luca-system/tests/SceneLayersTest.cpp \
+            -o /tmp/kotonoha-luca-scene-layers
+      - name: Verify persistent background and portrait anchor regressions
+        run: /tmp/kotonoha-luca-scene-layers
