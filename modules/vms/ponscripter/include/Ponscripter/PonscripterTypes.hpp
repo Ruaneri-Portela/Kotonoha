@@ -83,6 +83,29 @@ struct SpriteSlot {
   double animAccumMs = 0.0;
 };
 
+// Retained manual drawing stream for drawclear/drawfill/drawbg/drawsp/
+// drawtext and draw. The VM captures immutable draw inputs so render frames
+// never execute script commands or mutate the layer stack.
+struct ManualDrawOp {
+  enum class Kind : std::uint8_t {
+    Clear, Fill, Background, Sprite, Text, Blit
+  };
+  Kind kind = Kind::Clear;
+  std::uint32_t colorRgb = 0;
+  TaggedImageSpec spec;
+  std::string text;
+  int x = 0, y = 0;
+  int width = 0, height = 0;
+  int srcX = 0, srcY = 0, srcW = 0, srcH = 0;
+  int cell = 0;
+  int alpha = 255;
+  int scaleX = 100, scaleY = 100;
+  int rotation = 0;
+  int transformA = 1000, transformB = 0;
+  int transformC = 0, transformD = 1000;
+  bool affine = false;
+};
+
 struct StandingSlot {
   bool loaded = false;
   TaggedImageSpec spec;
