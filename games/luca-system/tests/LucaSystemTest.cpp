@@ -414,6 +414,12 @@ int main(int argc, char **argv) {
     // A cropped or transparent CZ4 background must not count as backing art
     // for an attached calendar badge (the black-screen seen170 regression).
     std::vector<std::uint8_t> pixels(4 * 4 * 4, 255);
+    check(!LucaSystem::hasNonOpaquePixels(pixels),
+          "Opaque CZ art does not need transparency bypass");
+    pixels[3] = 0;
+    check(LucaSystem::hasNonOpaquePixels(pixels),
+          "Alpha CZ art must bypass upscaler");
+    pixels[3] = 255;
     check(LucaSystem::rasterCoversPointWithOpacity(
               pixels, 4, 4, 0, 0, 1, 1, 2, 2, 1),
           "Opaque background covers calendar position");
