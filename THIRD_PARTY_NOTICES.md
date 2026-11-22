@@ -16,6 +16,7 @@ header on a file must not be used to relicense code taken from elsewhere.
 | Anime4K shaders under `assets/Anime4K/` | https://github.com/bloc97/Anime4K | [MIT text](assets/Anime4K/LICENSE-Anime4K.txt), [source record](assets/Anime4K/SOURCE.txt) |
 | ArtCNN shaders under `assets/ArtCNN/` | https://github.com/Artoriuz/ArtCNN | [MIT text](assets/ArtCNN/LICENSE-ArtCNN.txt), [source record](assets/ArtCNN/SOURCE.txt) |
 | open-amagami-derived provider portions | https://github.com/hokagocafe/open-amagami | [MIT text](modules/providers/amagami/third_party/open-amagami-LICENSE.txt) |
+| MIT-licensed libreallive parser subset in `games/reallive/vendor/libreallive/` | https://github.com/eglaysher/rlvm | [MIT copyright notice](games/reallive/vendor/libreallive/LICENSE), [source provenance](games/reallive/vendor/libreallive/ORIGIN.md); preserve individual headers |
 
 Keep original notices and attribution when modifying or redistributing these
 files. The Anime4K source record names only a subset of the shaders at the
@@ -36,6 +37,27 @@ notices, and any additional attribution or source offers required by the
 chosen third-party licenses. The notices included in Kotonoha ZIP components
 are a **baseline**, not proof that all dynamically bundled dependencies have
 been cleared.
+
+## References that require additional license caution
+
+Some original engine implementations are **references**, not vendored
+dependencies. GitHub repository metadata reports
+[rlvm](https://github.com/eglaysher/rlvm) as **GPL-3.0** and
+[ponscripter-fork](https://github.com/sekaiproject/ponscripter-fork) as
+**GPL-2.0**. Do **not** import implementation files from these projects into
+MIT-only Kotonoha modules without a compatible license decision and compliance
+plan. The separately identified `libreallive` parser subset contains its own
+MIT notices; the broader rlvm repository's GPL does not disappear.
+
+[NitroSharp](https://github.com/CommitteeOfZero/nitrosharp) and
+[LuckSystem](https://github.com/wetor/LuckSystem) are identified as MIT
+upstreams; retain their notices if any code is copied.
+[Kirikiroid2Yuri](https://github.com/YuriSizuku/Kirikiroid2Yuri) reports
+an unclassified/mixed repository license in GitHub metadata: determine the
+license of **each source file and dependency** before copying anything.
+The presence of an external link alone is not a license violation and must
+not be used to remove required attribution. The source-level provenance of
+every Kotonoha implementation was **not fully established** by this audit.
 
 ## Material requiring provenance confirmation
 
