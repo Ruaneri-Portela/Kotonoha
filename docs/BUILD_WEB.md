@@ -105,7 +105,7 @@ remain cached.
 ## Browser storage and assets
 
 - **Saves:** an IDBFS mount at `/save` synchronizes with IndexedDB; writes are flushed through the web storage adapter.
-- **Server assets:** HTTP(S) requires a non-empty `manifest.json` beside `index.html`. Build it with `python3 tools/generate_manifest.py build-web/outputs/<target>`. Paths are relative to `game-assets/`; remote data remains lazy and is never copied into MEMFS.
+- **Server assets:** HTTP(S) requires a non-empty `manifest.json` beside `index.html`. Build it with `python3 tools/generate_manifest.py build-web/outputs/<target>/game-assets build-web/outputs/<target>/manifest.json`. Paths are relative to `game-assets/`; remote data remains lazy and is never copied into MEMFS.
 - **Local folder:** the page's folder picker imports chosen game files into the virtual filesystem. Browser audio/video may use `File` object URLs where supported.
 - **Media:** the shared player prefers browser decoding for supported formats, then uses the WebAssembly FFmpeg fallback. Optional `.webm` sidecars can help with legacy codecs; make them only from material you may legally use.
 
@@ -123,20 +123,23 @@ manifest is missing, empty, invalid or rejected by the C++ provider, the game
 does not boot. Only a previously validated cached manifest may be reused
 when the network itself is unavailable.
 
-The Python tool accepts **one argument: any existing directory path**:
+The Python tool accepts **two positional arguments**:
+`[pasta] [arquivo]` (source asset directory and exact output filename):
 
 ```sh
-python3 tools/generate_manifest.py build-web/outputs/N2SystemGame
-python3 tools/generate_manifest.py /Volumes/Server/data2/Games/SteinsGate/
+python3 tools/generate_manifest.py build-web/outputs/N2SystemGame/game-assets build-web/outputs/N2SystemGame/manifest.json
+python3 tools/generate_manifest.py /Volumes/Server/data2/Games/SteinsGate /Volumes/Server/data2/Games/manifest.json
 ```
 
-If `game-assets/` exists inside the supplied directory, that subdirectory
-is indexed. Otherwise the supplied directory itself is indexed (including
-retail `.npa` archives and nested paths such as `dx/`). In both cases
-`manifest.json` is written at the path supplied, and is not indexed as an
-asset. For WASM serve the manifest beside `index.html`, and make its file
-paths available under `game-assets/` (or map URLs via the CDN/server). CMake
-invokes the generator after copying game assets for each app.
+`[pasta]` is indexed **directly and recursively**, including retail `.npa`
+archives and nested paths such as `dx/`; the tool does not silently switch to
+a `game-assets/` child. `[arquivo]` determines the exact JSON output location
+(absolute or relative to the current working directory), including a file
+one directory above the indexed assets. The selected output file is never
+included in its own index. For WASM, publish the manifest beside `index.html`
+and expose the indexed paths under `game-assets/` (or map URLs via the
+CDN/server). CMake calls the generator with both paths after copying the
+assets for each app.
 
 **The manifest is an allow-list.** Unindexed files return not found
 immediately; there is **no HEAD/GET discovery**, even for explicitly requested

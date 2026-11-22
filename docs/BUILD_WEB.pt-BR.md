@@ -121,20 +121,22 @@ e tamanhos. Sem manifesto, ou com índice vazio ou inválido, o jogo não
 inicia. Se houver falha de rede, um manifesto válido já salvo no
 IndexedDB pode ser reutilizado.
 
-A ferramenta Python recebe **qualquer caminho de diretório existente**:
+A ferramenta Python recebe **dois argumentos posicionais**:
+`[pasta] [arquivo]` (diretório a indexar e arquivo de saída):
 
 ```sh
-python3 tools/generate_manifest.py build-web/outputs/N2SystemGame
-python3 tools/generate_manifest.py /Volumes/Server/data2/Games/SteinsGate/
+python3 tools/generate_manifest.py build-web/outputs/N2SystemGame/game-assets build-web/outputs/N2SystemGame/manifest.json
+python3 tools/generate_manifest.py /Volumes/Server/data2/Games/SteinsGate /Volumes/Server/data2/Games/manifest.json
 ```
 
-Se existir `game-assets/` dentro do diretório, ela indexa essa subpasta.
-Caso contrário, indexa **os arquivos diretamente no diretório informado**
-(incluindo `.npa` e subpastas como `dx/`). Em ambos os modos, grava
-`manifest.json` no diretório passado como argumento, sem incluir o próprio
-manifesto no índice. Para o WASM, disponibilize esse arquivo ao lado de
-`index.html` e sirva os bytes em `game-assets/`, ou configure o servidor/CDN
-para mapear as URLs à pasta indexada. O CMake gera o índice após copiar
+`[pasta]` é indexada **diretamente e de forma recursiva**, incluindo arquivos
+`.npa` e subpastas como `dx/`. Não há mais detecção automática de uma
+subpasta `game-assets/`. `[arquivo]` define exatamente onde gravar o JSON
+(caminho absoluto ou relativo ao diretório atual), podendo ficar uma pasta
+acima dos arquivos indexados. O próprio arquivo de saída não entra no índice.
+No WASM, publique o manifesto ao lado de `index.html` e disponibilize os
+arquivos em `game-assets/`, ou configure um mapeamento de URLs no
+servidor/CDN. O CMake passa explicitamente os dois caminhos após copiar
 os assets.
 
 **O manifesto é uma lista de permissão:** caminho ausente de `entries`
