@@ -192,7 +192,7 @@ void DirectoryMount::indexDirectory(std::string_view directory) const {
       continue;
     const auto rel = it->path().lexically_relative(root_).generic_string();
     if (rel.find(':') != std::string::npos ||
-        rel.find('\\0') != std::string::npos)
+        rel.find(static_cast<char>(0)) != std::string::npos)
       continue;
 
     std::error_code statusError;
