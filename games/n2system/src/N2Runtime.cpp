@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/DebugCatalog.hpp>
+#include <N2System/DialoguePresentation.hpp>
 #include <N2System/ImageEffects.hpp>
 #include <N2System/N2Runtime.hpp>
 #include <N2System/ScriptIndex.hpp>
@@ -1181,14 +1182,28 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
       const auto &dialogue = impl_->nsbVm->dialogueSystem();
       const std::string speaker(dialogue.speaker());
       const std::string visibleText(dialogue.visibleText());
+      const auto nativeDialogue = inspectDialoguePresentation(
+          graph, vpW, vpH, visibleText, dialogue.fullText(),
+          [&](const Entity &sprite, float &w, float &h) {
+            int width = 0, height = 0;
+            if (!impl_->queryImageSize(assets_.get(), graph, sprite.imagePath,
+                                       width, height))
+              return false;
+            w = static_cast<float>(width);
+            h = static_cast<float>(height);
+            return true;
+          });
+      // Only draw the fallback textbox when the NSB scene does not already
+      // provide a visible native window or render its own dialogue text.
       // Authentic Steins;Gate dark-translucent dialogue bar in native 1024x576
       // viewport (replacing Kotonoha's generic VNTextBox theme).
       const float marginX = vpW * 0.045f;
       const float boxW = vpW - marginX * 2.0f;
       const float boxH = vpH * 0.23f;
       const float boxY = vpH - boxH - vpH * 0.025f;
-      SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
-      SDL_FRect boxRect{marginX, boxY, boxW, boxH};
+      if (!nativeDialogue.nativeFrame && !nativeDialogue.nativeText) {
+        SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+        SDL_FRect boxRect{marginX, boxY, boxW, boxH};
       SDL_SetRenderDrawColor(&renderer, 10, 14, 22, 204);
       SDL_RenderFillRect(&renderer, &boxRect);
       // Subtle Steins;Gate warm-amber accent line along top of dialogue bar
@@ -1196,19 +1211,24 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
       SDL_SetRenderDrawColor(&renderer, 212, 168, 75, 220);
       SDL_RenderFillRect(&renderer, &topLine);
       SDL_SetRenderDrawColor(&renderer, 80, 96, 118, 160);
-      SDL_RenderRect(&renderer, &boxRect);
+        SDL_RenderRect(&renderer, &boxRect);
+      }
 
       const float textX = marginX + 40.0f;
       const float textWrap = boxW - 80.0f;
-      if (!speaker.empty()) {
-        impl_->drawSgText(renderer, speaker, textX, boxY + 10.0f, textWrap,
-                          20.0f, {242, 210, 139, 255});
+      if (!nativeDialogue.nativeText) {
+        if (!speaker.empty()) {
+          impl_->drawSgText(renderer, speaker, textX, boxY + 10.0f, textWrap,
+                            20.0f, {242, 210, 139, 255});
+        }
+        const float bodyY = boxY + (speaker.empty() ? 18.0f : 40.0f);
+        impl_->drawSgText(renderer, visibleText, textX, bodyY, textWrap, 21.0f,
+                          {244, 246, 250, 255});
       }
-      const float bodyY = boxY + (speaker.empty() ? 18.0f : 40.0f);
-      impl_->drawSgText(renderer, visibleText, textX, bodyY, textWrap, 21.0f,
-                        {244, 246, 250, 255});
-      // Subtle animated wait indicator when line reveal completes
-      if (visibleText.size() >= dialogue.fullText().size()) {
+      // A native NSB window owns its own wait indicator; do not paint a
+      // second one on top of the original textbox artwork.
+      if (!nativeDialogue.nativeFrame && !nativeDialogue.nativeText &&
+          visibleText.size() >= dialogue.fullText().size()) {
         const float pulse =
             0.5f + 0.5f * std::sin(static_cast<float>(SDL_GetTicks()) * 0.006f);
         SDL_FRect indicator{marginX + boxW - 28.0f, boxY + boxH - 22.0f, 12.0f,
