@@ -1864,6 +1864,31 @@ int main() {
     }
   }
 
+  // Original TJS2 menu scripts frequently compute slot indices with %
+  // and choose button state with ?:; inactive arms must not call natives.
+  {
+    Kotonoha::Providers::KirikiriAssets assetsForVm(tempDir);
+    Kotonoha::Providers::TjsStartupResult result;
+    const std::string script =
+        "var even = (14 % 4 == 2);"
+        "var text = even ? \"Valid\" : new UnsupportedNative();"
+        "var ignored = 0 ? new UnsupportedNative() : (6 % 4);"
+        "System.title = text + ignored;";
+    if (!Kotonoha::Providers::executeTjsInlineSubset(
+            result, assetsForVm, script, "ternary-menu.tjs") ||
+        !result.error.empty() || result.title != "Valid2") {
+      std::printf("FAIL: TJS2 ternary/modulo or inactive arm isolation\n");
+      ++failures;
+    }
+    const bool accepted = Kotonoha::Providers::executeTjsInlineSubset(
+        result, assetsForVm, "var invalid = 5 % 0;",
+        "zero-modulus.tjs");
+    if (accepted || result.error.find("division by zero") == std::string::npos) {
+      std::printf("FAIL: TJS2 modulo by zero accepted\n");
+      ++failures;
+    }
+  }
+
   // A synthetic Window and clickable Layer use the same TLG image provider
   // as the KAG renderer. The VM retains function state for click dispatch
   // without calling any platform-native Window/Layer constructor.
