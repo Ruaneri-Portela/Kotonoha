@@ -1008,6 +1008,101 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
     if (manualDraftOps_.size() < kMaxDrawOps)
       manualDraftOps_.push_back(std::move(op));
   };
+  if (cmd == "spstr") {
+    const std::string controls = lexer.parseStringExpr();
+    std::size_t pos = 0;
+    bool dirty = false;
+    auto readNumber = [&](int &value) {
+      const std::size_t start = pos;
+      if (pos < controls.size() && controls[pos] == '-')
+        ++pos;
+      const std::size_t firstDigit = pos;
+      while (pos < controls.size() &&
+             std::isdigit(static_cast<unsigned char>(controls[pos])))
+        ++pos;
+      if (pos == firstDigit) {
+        pos = start;
+        return false;
+      }
+      const auto result = std::from_chars(
+          controls.data() + start, controls.data() + pos, value);
+      return result.ec == std::errc{} &&
+             result.ptr == controls.data() + pos;
+    };
+    auto consume = [&](char delimiter) {
+      if (pos < controls.size() && controls[pos] == delimiter) {
+        ++pos;
+        return true;
+      }
+      return false;
+    };
+
+    // Cn[-m] hides a range, Pn[,cell] shows a cell, Mn,x,y moves a
+    // sprite, and Sn,(file) plays a sample through channel n.
+    while (pos < controls.size()) {
+      const char command = static_cast<char>(std::tolower(
+          static_cast<unsigned char>(controls[pos++])));
+      int slot = 0;
+      if (command == 'c') {
+        if (!readNumber(slot))
+          continue;
+        int end = slot;
+        if (consume('-') && !readNumber(end))
+          continue;
+        const int begin = std::max(0, slot);
+        end = std::min(end, kMaxExtendedSprites - 1);
+        if (begin > end)
+          continue;
+        for (int index = begin; index <= end; ++index) {
+          sprites_[index].visible = false;
+          dirty = true;
+        }
+      } else if (command == 'p') {
+        if (!readNumber(slot))
+          continue;
+        int cell = 0;
+        if (consume(',') && !readNumber(cell))
+          continue;
+        if (slot >= 0 && slot < kMaxExtendedSprites &&
+            sprites_[slot].loaded) {
+          auto &sprite = sprites_[slot];
+          sprite.visible = true;
+          sprite.currentCell = std::clamp(
+              cell, 0, std::max(0, sprite.spec.numCells - 1));
+          dirty = true;
+        }
+      } else if (command == 'm') {
+        int x = 0, y = 0;
+        if (!readNumber(slot) || !consume(',') || !readNumber(x) ||
+            !consume(',') || !readNumber(y))
+          continue;
+        if (slot >= 0 && slot < kMaxExtendedSprites &&
+            sprites_[slot].loaded) {
+          sprites_[slot].x = x;
+          sprites_[slot].y = y;
+          dirty = true;
+        }
+      } else if (command == 's') {
+        if (!readNumber(slot) || !consume(',') || !consume('('))
+          continue;
+        const std::size_t end = controls.find(')', pos);
+        if (end == std::string::npos)
+          break;
+        std::string path = normalizeAssetPath(
+            std::string_view(controls).substr(pos, end - pos));
+        pos = end + 1;
+        if (!path.empty()) {
+          slot = std::clamp(slot, 0, 49);
+          lastSePath_ = path;
+          if (callbacks_)
+            callbacks_->onPlayWave(slot, path, false);
+        }
+      }
+    }
+    if (dirty && callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
   if (cmd == "bgcopy" || cmd == "bgcpy") {
     // Snapshot a scene description rather than reading back pixels every
     // frame. These immutable layers remain valid when the live sprites move.
