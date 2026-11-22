@@ -19,7 +19,9 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#endif
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/mobile/AndroidDisplay.hpp>
@@ -1110,8 +1112,10 @@ void Runtime::traceDev(const char *event) { (void)event; }
 void Runtime::init(Kotonoha::Engine &owner) {
   if (engine != &owner) {
     engine = &owner;
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     engine->GetDebug().getSettings().showFPS = false;
     engine->GetDebug().getSettings().showNodeClock = false;
+#endif
 #if defined(_WIN32) && !defined(__ANDROID__)
     // Only a fresh profile tracks the monitor's desktop resolution. A chosen
     // size is persisted in settings.json and must survive subsequent launches
