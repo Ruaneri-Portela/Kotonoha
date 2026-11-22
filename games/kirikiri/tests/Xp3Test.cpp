@@ -631,6 +631,56 @@ int main() {
     }
   }
 
+  // KAG macros are declarations, not dialogue. Expand parameters and
+  // preserve the target labels after macro definitions are removed.
+  {
+    const auto script = Kirikiri::KagScript::parse(
+        "[macro name=message]"
+        "[cm text=%caption|Default]"
+        "[endmacro]"
+        "*begin"
+        "[message caption=First]"
+        "[message]"
+        "[end]",
+        "macros.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string text) {
+      shown.push_back(std::move(text));
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    if (!runner.jumpToLabel("*begin") ||
+        script.labels.at("begin") != 0 || script.tags.size() != 4) {
+      std::printf("FAIL: macro expansion shifted KAG labels incorrectly\n");
+      ++failures;
+    } else {
+      runner.run();
+      runner.resumeWait();
+      runner.resumeWait();
+      if (shown != std::vector<std::string>({"First", "Default"}) ||
+          !runner.isFinished()) {
+        std::printf("FAIL: macro arguments/defaults or runner resume\n");
+        ++failures;
+      }
+    }
+    for (const auto &bad : {
+             "[macro name=x][x][endmacro][x]",
+             "[macro name=x][cm text=bad]",
+             "[endmacro]",
+             "[macro name=x]\n*invalid\n[endmacro][x]"}) {
+      bool rejected = false;
+      try {
+        (void)Kirikiri::KagScript::parse(bad, "invalid-macros.ks");
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: malformed KAG macro accepted\n");
+        ++failures;
+      }
+    }
+  }
+
   // In-script [call target=*label] and [return] must preserve continuation
   // after a blocked text command. A saved PC cannot inherit stale frames.
   {

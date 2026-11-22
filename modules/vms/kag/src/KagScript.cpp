@@ -324,6 +324,113 @@ KagScript::Script KagScript::parse(const std::string &text,
   if (inInlineScript)
     throw std::runtime_error("KAG: unterminated [iscript] in " + sourceName +
                              " at line " + std::to_string(line));
+
+  // Bounded static KAG macro expansion. Parse all definitions before
+  // expanding commands so a game's common.ks macros can be referenced
+  // later in this file without executing the macro body at declaration.
+  // No native TJS2 eval is performed during this pass.
+  using MacroBody = std::vector<Tag>;
+  std::map<std::string, MacroBody> macros;
+  std::vector<Tag> executable;
+  for (std::size_t index = 0; index < script.tags.size(); ++index) {
+    const auto &tag = script.tags[index];
+    if (tag.type == TagType::Command && tag.name == "endmacro")
+      throw std::runtime_error("KAG: unmatched [endmacro] in " + sourceName);
+    if (tag.type != TagType::Command || tag.name != "macro") {
+      executable.push_back(tag);
+      continue;
+    }
+    const auto it = tag.attrs.find("name");
+    if (it == tag.attrs.end() || it->second.empty())
+      throw std::runtime_error("KAG: macro requires a name in " + sourceName);
+    std::string macroName = it->second;
+    std::transform(macroName.begin(), macroName.end(), macroName.begin(),
+                   [](unsigned char ch) { return std::tolower(ch); });
+    if (macroName.size() > 64 || macros.count(macroName) != 0 ||
+        macroName == "macro" || macroName == "endmacro")
+      throw std::runtime_error("KAG: duplicate or invalid macro " + macroName);
+    MacroBody body;
+    bool closed = false;
+    for (++index; index < script.tags.size(); ++index) {
+      const auto &inside = script.tags[index];
+      if (inside.type == TagType::Command && inside.name == "endmacro") {
+        closed = true;
+        break;
+      }
+      if (inside.type == TagType::Command &&
+          (inside.name == "macro" ||
+           (!inside.name.empty() && inside.name.front() == '*') ||
+           (inside.name == "l" && inside.attrs.count("name"))))
+        throw std::runtime_error(
+            "KAG: labels/nested declarations not allowed in macro");
+      if (body.size() >= 4096)
+        throw std::runtime_error("KAG: macro definition too large");
+      body.push_back(inside);
+    }
+    if (!closed)
+      throw std::runtime_error("KAG: unterminated [macro] " + macroName);
+    if (macros.size() >= 128)
+      throw std::runtime_error("KAG: macro count limit exceeded");
+    macros.emplace(std::move(macroName), std::move(body));
+  }
+
+  // Parameter references are whole attribute values of the form %name or
+  // %name|fallback. A missing argument defaults to the empty string.
+  const auto substitute = [](std::string value,
+                             const std::map<std::string, std::string> &args) {
+    if (value.size() <= 1 || value.front() != '%')
+      return value;
+    const auto bar = value.find('|');
+    const auto key = value.substr(1, bar == std::string::npos
+                                       ? std::string::npos
+                                       : bar - 1);
+    if (const auto it = args.find(key); it != args.end())
+      return it->second;
+    return bar == std::string::npos ? std::string() : value.substr(bar + 1);
+  };
+  std::vector<Tag> expanded;
+  std::vector<std::string> activeMacros;
+  std::function<void(Tag, const std::map<std::string, std::string> &)>
+      appendExpanded;
+  appendExpanded = [&](Tag tag, const auto &arguments) {
+    for (auto &attr : tag.attrs)
+      attr.second = substitute(std::move(attr.second), arguments);
+    if (tag.type == TagType::Command) {
+      if (const auto found = macros.find(tag.name); found != macros.end()) {
+        if (activeMacros.size() >= 16 ||
+            std::find(activeMacros.begin(), activeMacros.end(), tag.name) !=
+                activeMacros.end())
+          throw std::runtime_error("KAG: recursive macro " + tag.name);
+        activeMacros.push_back(tag.name);
+        for (const auto &item : found->second)
+          appendExpanded(item, tag.attrs);
+        activeMacros.pop_back();
+        return;
+      }
+    }
+    if (expanded.size() >= 65536)
+      throw std::runtime_error("KAG: expanded tag limit exceeded");
+    expanded.push_back(std::move(tag));
+  };
+  for (const auto &tag : executable)
+    appendExpanded(tag, {});
+
+  // Macro definition removal/expansion shifts indices. Rebuild labels
+  // against executable tag positions to keep jump/call and saves consistent.
+  script.tags = std::move(expanded);
+  script.labels.clear();
+  for (std::size_t index = 0; index < script.tags.size(); ++index) {
+    const auto &tag = script.tags[index];
+    if (tag.type != TagType::Command)
+      continue;
+    if (!tag.name.empty() && tag.name.front() == '*') {
+      script.labels.emplace(tag.name.substr(1), index);
+    } else if (tag.name == "l") {
+      if (const auto found = tag.attrs.find("name");
+          found != tag.attrs.end() && !found->second.empty())
+        script.labels.emplace(found->second, index);
+    }
+  }
   return script;
 }
 
