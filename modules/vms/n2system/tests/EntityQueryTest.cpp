@@ -84,6 +84,8 @@ int main() {
           "Wildcard must traverse one child level");
   matches(scene, "@*", {"foo1", "foo2/bar"},
           "Aliases must resolve globally within current process");
+  matches(scene, "cat1", {"foo1"},
+          "Legacy bare aliases remain supported in native NSB scripts");
   matches(scene, "foo1/@*", {"foo1", "foo2/bar"},
           "Current aliases reset the query scope as in NitroSharp");
   matches(scene, "<@cat1/bar", {"foo1/bar"},
