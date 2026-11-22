@@ -226,3 +226,29 @@ All **7 integrated *School Days L×H* endings** from `LxH.GPK` were executed and
 - Verified `REPLAY` menu unlock and rendering (`H-scene` / `Replay Data`, pages `1–4`, `CLOSE`) on `TITLE`, `GlobalFlag.DAT` update, and zero modification to the user's personal `SaveFile000.DAT` (`1210 bytes`).
 - Zero crashes, zero hangs, and zero missing L×H assets across all 7 endings back-to-back.
 - DEV-only convenience: added `Filter nodes` input to `DebugOverlay::drawRuntimeNodes()` (`lib/include/Kotonoha/debug/DebugOverlay.hpp`, `lib/src/debug/DebugOverlay.cpp`; absent in DIST).
+
+---
+
+## Android Benchmark & Optimizations (Milestone 7)
+
+### Real Bottlenecks Identified by Profiling on POCO X7 Pro (`2712×1220`, `120 Hz` SurfaceFlinger)
+1. **Per-frame JNI + Binder IPC in `Display Options` (`games/school-days/src/SchoolDaysRuntime.cpp`)**: `renderDesktopDisplayPanel()` called `AndroidDisplayModesUnique()` (2 JNI calls + `WindowManager.getDefaultDisplay().getSupportedModes()`) on every frame (~120×/s), spiking `SDLThread` from `42.0%` (`General Options`) to `52.3%` (`Display Options`).
+   - **Optimization**: Added session-scoped `androidDisplayModesCache` (`SchoolDaysRuntime.hpp`), populated once in `resetDesktopDisplayDraft()` and cleared in `discardDesktopDisplayDraft()`.
+2. **Orphaned SAF staging directories (`games/school-days/android/java/org/kotonoha/android/SchoolDaysFolder.java`)**: Force-stops/crashes left `cache/sd-saf-*` staging folders behind indefinitely (**19 accumulated directories** observed on device).
+   - **Optimization**: Added `pruneStaleSessions(context.getCacheDir(), session)` at the end of `prepare()` to remove old `sd-saf-*` directories automatically.
+3. **Retained gameplay textures upon returning to `TITLE` (`games/school-days/src/SchoolDaysRuntime.cpp`)**: `openTitle()` cleared `abcTextures` but left `backgroundComposite` and `AssetProvider`'s texture cache alive.
+   - **Optimization**: `openTitle()` now resets `backgroundComposite` and invokes `assets->clearCache()`.
+4. **Redundant FreeType/SDL3_ttf `TTF_SetFontSize()` calls (`lib/src/core/UI.cpp`)**: `UI::textSized()`, `textHeight()`, `textWidth()`, and `measureSized()` unconditionally called and restored `TTF_SetFontSize()` even when the target size already matched the active font size.
+   - **Optimization**: Guarded `TTF_SetFontSize()` and its RAII restore with `std::abs(targetSize - oldSize) > 0.01f`.
+
+### BEFORE vs AFTER Measurements (POCO X7 Pro, Android DEV, PT-BR GPK)
+| Metric | BEFORE | AFTER | Delta / Notes |
+|---|---|---|---|
+| `cache/sd-saf-*` directories on device | `19` | **`1`** | **-18 orphaned sessions (-94.7%)**, pruned automatically on launch |
+| `AndroidDisplayModesUnique()` JNI/Binder calls in `Display Options` | ~120×/s (every frame) | **1× per tab open** | **-100% per-frame IPC** |
+| Steady-state `SDLThread` CPU in `Display Options` (`120 Hz`, `top -H`) | `52.3%` (`51.8 / 52.0 / 53.0%`) | **`46.1%`** (`44.4 / 45.0 / 45.0 / 50.0%`) | **-6.2 pp (-11.9% relative)**, pixel-identical output (`1,341,866 B`) |
+| Active gameplay memory (`dumpsys meminfo`) | `TOTAL PSS 692,951 KB` / `GL mtrack 187,008 KB` | `TOTAL PSS 718,461 KB` / `GL mtrack 189,648 KB` | Stable (no regression) |
+| `TITLE` memory after returning from gameplay | `GL mtrack 371,888 KB` / `TOTAL PSS 1,017,758 KB` (accumulated post-7 endings) | `GL mtrack 207,904 KB` / `TOTAL PSS 726,585 KB` (post-gameplay return) | Scene cache released on `openTitle()` |
+| Background lifecycle (suspend / screen off) | SDL3 pauses `SDLThread` & audio via `SDL_HINT_ANDROID_BLOCK_ON_PAUSE` | Preserved + atomic `Config.DAT` flush on `SDL_EVENT_WILL_ENTER_BACKGROUND` | Zero narrative clock drift (`93.46s → 93.65s` across 25 s sleep) |
+
+> **Honest engineering note**: The ~40–45% baseline on static menus occurs when the launcher FPS cap is set to `Unlimited (screen Hz)`, because the POCO X7 Pro's SurfaceFlinger drives `GameActivity` at `120 Hz` (`8.33 ms/frame`). Selecting `60 FPS` or `30 FPS` in Launcher Options reduces GPU/CPU frame cadence while preserving the `24 fps` story and video clock.

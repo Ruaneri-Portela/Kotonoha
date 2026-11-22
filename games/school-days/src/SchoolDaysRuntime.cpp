@@ -1748,6 +1748,11 @@ void Runtime::openTitle(bool startBgm) {
   abcGroups.clear();
   abcTextures.clear();
   abcDecodedSurfaces.clear();
+  backgroundComposite.reset();
+  backgroundCompositeWidth = 0;
+  backgroundCompositeHeight = 0;
+  backgroundCompositeKey.clear();
+  if (assets) assets->clearCache();
   const bool preserveTitleBgm =
       startBgm && titleBgm &&
       (frontendBgmOwner == FrontendBgmOwner::Title ||
@@ -4125,6 +4130,9 @@ void Runtime::discardDesktopDisplayDraft() {
   desktopDisplayPopupScroll = 0;
   desktopDisplayPathEdit.clear();
   desktopDisplayModes.clear();
+#if defined(__ANDROID__) || defined(ANDROID)
+  androidDisplayModesCache.clear();
+#endif
   desktopDisplayDraftActive = false;
 }
 
@@ -4134,6 +4142,9 @@ void Runtime::resetDesktopDisplayDraft() {
   desktopDisplayDraft = desktopPendingRendererRestart
                             ? *desktopPendingRendererRestart
                             : engine->GetSettings();
+#if defined(__ANDROID__) || defined(ANDROID)
+  androidDisplayModesCache = AndroidDisplayModesUnique();
+#endif
   desktopShaderDirectory.clear();
   desktopShaderFiles.clear();
   if (const auto saved = Kotonoha::SchoolDaysCustomShaderFolder::ReadSidecar(
@@ -4157,7 +4168,9 @@ void Runtime::activateDesktopDisplayControl(int control) {
   switch (control) {
   case 4: {
 #if defined(__ANDROID__) || defined(ANDROID)
-    const auto modes = AndroidDisplayModesUnique();
+    if (androidDisplayModesCache.empty())
+      androidDisplayModesCache = AndroidDisplayModesUnique();
+    const auto &modes = androidDisplayModesCache;
     desktopDisplayModes.clear();
     desktopDisplayModes.reserve(modes.size());
     for (const auto &mode : modes)
@@ -4262,7 +4275,9 @@ void Runtime::activateDesktopDisplayControl(int control) {
     // WINDOW/FULL state, aspect policy, monitor, audio or save preferences.
 #if defined(__ANDROID__) || defined(ANDROID)
     {
-      const auto modes = AndroidDisplayModesUnique();
+      if (androidDisplayModesCache.empty())
+        androidDisplayModesCache = AndroidDisplayModesUnique();
+      const auto &modes = androidDisplayModesCache;
       if (!modes.empty()) {
         const auto selected = std::min_element(
             modes.begin(), modes.end(), [](const auto &left, const auto &right) {
@@ -4425,7 +4440,7 @@ void Runtime::renderDesktopDisplayPanel(Kotonoha::RendererRef renderer) {
   const auto &draft = desktopDisplayDraft;
 #if defined(__ANDROID__) || defined(ANDROID)
   {
-    const auto modes = AndroidDisplayModesUnique();
+    const auto &modes = androidDisplayModesCache;
     const int selected = SelectedAndroidMode(modes, draft);
     if (selected >= 0 && selected < static_cast<int>(modes.size())) {
       const auto &m = modes[static_cast<size_t>(selected)];

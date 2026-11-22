@@ -8,6 +8,7 @@
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
+#include <Kotonoha/mobile/AndroidDisplay.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/routing/SchoolDaysAbcAnimation.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
@@ -321,6 +322,9 @@ class Runtime final : public Kotonoha::Runtime {
   bool desktopCustomShaderExpanded = false;
   std::string desktopDisplayPathEdit;
   std::vector<Kotonoha::DisplayModeChoice> desktopDisplayModes;
+#if defined(__ANDROID__) || defined(ANDROID)
+  std::vector<Kotonoha::AndroidDisplayMode> androidDisplayModesCache;
+#endif
   bool framePrimaryReady = false;
   bool frameBoundary = false;
   bool pendingSceneAdvance = false;
