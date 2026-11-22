@@ -1087,6 +1087,19 @@ Value Interpreter::construct(const std::string &type,
 
 void Interpreter::snapshotLayers() {
   result.layers.clear();
+  result.onKeyDown.clear();
+  for (const auto &window : windows) {
+    const auto callback = window->members.find("onKeyDown");
+    if (callback == window->members.end())
+      continue;
+    const auto name = callback->second.string();
+    if (name.empty())
+      continue;
+    if (name.size() > 128 || !hasCallable(name))
+      throw std::runtime_error(
+          "TJS2 UI: Window.onKeyDown must name a declared script function");
+    result.onKeyDown = name;
+  }
   const auto member = [](const ObjectPtr &object, const char *name) -> Value {
     const auto found = object->members.find(name);
     return found == object->members.end() ? Value() : found->second;
@@ -1492,6 +1505,32 @@ bool dispatchTjsUiMouseUp(TjsStartupResult &result, float x, float y) {
     return true;
   }
   return false;
+}
+
+bool dispatchTjsUiKeyDown(TjsStartupResult &result, int virtualKey) {
+  auto session = result.uiSession;
+  if (!session || !result.subsetCompleted || result.onKeyDown.empty() ||
+      virtualKey < 1 || virtualKey > 255)
+    return false;
+  auto &vm = session->vm;
+  vm.result.kagEntry.clear();
+  try {
+    const auto arity = vm.callableArity(result.onKeyDown);
+    if (arity > 2)
+      throw std::runtime_error("TJS2 UI: excessive key event parameters");
+    std::vector<Value> args;
+    if (arity >= 1)
+      args.emplace_back(double(virtualKey));
+    if (arity >= 2)
+      args.emplace_back(0.0); // keyboard modifiers
+    vm.call(result.onKeyDown, args, {}, true);
+    vm.snapshotLayers();
+  } catch (const std::exception &error) {
+    vm.result.error = std::string("TJS2 UI key-down: ") + error.what();
+  }
+  result = vm.result;
+  result.uiSession = std::move(session);
+  return true;
 }
 
 bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {

@@ -1554,6 +1554,34 @@ int main() {
     }
   }
 
+  // A native Window.onKeyDown can control an original text-layer title
+  // menu with KiriKiri virtual key codes (Enter=13, Escape=27).
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const std::string source =
+        "var win = new Window();"
+        "var button = new Layer(win, win.primaryLayer);"
+        "button.setPos(50, 50); button.setSize(120, 40);"
+        "button.drawText(0, 0, \"Start\");"
+        "function selectKey(code, modifiers) {"
+        "  if (code == 13) { System.title = \"Keyboard\"; }"
+        "}"
+        "win.onKeyDown = selectKey;";
+    const bool parsed = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input, source, "menu-keyboard.tjs");
+    if (!parsed || !menu.error.empty() ||
+        menu.onKeyDown != "selectKey" ||
+        Kotonoha::Providers::dispatchTjsUiKeyDown(menu, 999) ||
+        !Kotonoha::Providers::dispatchTjsUiKeyDown(menu, 27) ||
+        menu.title == "Keyboard" ||
+        !Kotonoha::Providers::dispatchTjsUiKeyDown(menu, 13) ||
+        menu.title != "Keyboard") {
+      std::printf("FAIL: TJS2 Window.onKeyDown title navigation\n");
+      ++failures;
+    }
+  }
+
   // A menu that activates on release instead of mouse-down must be
   // selectable, as used by KiriKiri's onMouseUp Layer events.
   {

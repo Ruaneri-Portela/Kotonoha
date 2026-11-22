@@ -173,3 +173,12 @@ executed on left-button release, and can select a KAG scenario just like
 existing `onClick`/mouse-down handlers. The top-level runtime routes these
 through the same fallback and diagnostic logic as press events. Synthetic
 coverage checks release-only menu buttons and hit testing.
+
+## Original menu keyboard events
+
+Source-created `Window.onKeyDown` handlers now receive bounded virtual-key
+values for Enter, Escape, Space, and directional arrows. UI state and KAG
+scene requests are refreshed after each callback; unsupported arities are
+reported. Source-only menu tests check both ignored and recognized keys.
+Keyboard routing is a subset of the KiriKiri Windows-key event model and
+is not intended to imply full native platform input parity.

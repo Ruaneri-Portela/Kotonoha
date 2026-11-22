@@ -53,6 +53,7 @@ struct TjsStartupResult {
   std::vector<std::string> missing;
   std::string kagEntry; // A KAG target referenced by an executed TJS call.
   std::string title;    // Optional System.title assignment.
+  std::string onKeyDown; // Source-created Window keyboard callback.
   std::string error;
   // A scripted title can present its own drawable layers and named click
   // handlers without running native DLLs or platform Window objects.
@@ -78,6 +79,10 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y);
 // Dispatch Layer.onMouseUp from SDL left-button release, independently from
 // onMouseDown/onClick callbacks fired by the press event.
 bool dispatchTjsUiMouseUp(TjsStartupResult &result, float x, float y);
+
+// Dispatch KiriKiri virtual-key events to a source-created Window.onKeyDown.
+// Supported native mapping is supplied by the runtime (Enter/Space/Esc/arrows).
+bool dispatchTjsUiKeyDown(TjsStartupResult &result, int virtualKey);
 
 // Dispatch pointer enter/leave changes to retained script event handlers.
 // Returns true only if a source handler was invoked.
