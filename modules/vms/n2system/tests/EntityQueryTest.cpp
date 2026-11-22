@@ -52,6 +52,16 @@ int main() {
               parsed->parts()[1].scope == EntityQueryScope::Current &&
               parsed->parts()[1].forceEnd,
           "Query scopes and terminal markers do not match NitroSharp");
+  for (const char *validPath : {"foo", "foo/bar", "@foo/bar",
+                                 "foo/@bar", "foo>"}) {
+    require(N2System::EntityPath::tryParse(validPath).has_value(),
+            "NitroSharp valid EntityPath rejected");
+  }
+  for (const char *invalidPath : {"*", "foo/*", "<foo", "<@foo",
+                                   "foo/<bar", "foo/@b*r", "foo/"}) {
+    require(!N2System::EntityPath::tryParse(invalidPath),
+            "Wildcard/scoped query was accepted as an EntityPath");
+  }
   require(EntityQuery::matchPattern("", "*") &&
               EntityQuery::matchPattern("foobar", "f*r") &&
               EntityQuery::matchPattern("bar", "b**") &&
@@ -78,6 +88,14 @@ int main() {
           "Current aliases reset the query scope as in NitroSharp");
   matches(scene, "<@cat1/bar", {"foo1/bar"},
           "Global alias followed by child lookup");
+  require(scene.findEntity("@cat1/bar") &&
+              scene.findEntity("@cat1/bar")->name == "foo1/bar",
+          "Exact alias + child path must resolve like NitroSharp.World.Get");
+  require(scene.findEntity("foo1/@cat2") &&
+              scene.findEntity("foo1/@cat2")->name == "foo2/bar",
+          "Alias path components switch to process alias scope");
+  require(!scene.findEntity("@cat1/noSuchChild"),
+          "Missing aliases or child paths must not resolve");
   matches(scene, "foo1/b*", {"foo1/bar"},
           "Component wildcard lookup");
   matches(scene, "foo1/b*/missing", {}, "No implicit missing descendants");
