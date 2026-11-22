@@ -7,6 +7,9 @@ on:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
       - "lib/src/core/AssetProvider.cpp"
+      - "lib/src/Filesystem/**"
+      - "lib/include/Kotonoha/Filesystem/**"
+      - "launcher/**"
       - "buildsystems/cmake/dependencies/**"
       - ".github/workflows/linux-system-deps.yml"
   pull_request:
@@ -14,6 +17,9 @@ on:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
       - "lib/src/core/AssetProvider.cpp"
+      - "lib/src/Filesystem/**"
+      - "lib/include/Kotonoha/Filesystem/**"
+      - "launcher/**"
       - "buildsystems/cmake/dependencies/**"
       - ".github/workflows/linux-system-deps.yml"
 
