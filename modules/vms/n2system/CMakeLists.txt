@@ -11,6 +11,7 @@ add_library(kotonoha_vm_n2system STATIC
     src/AudioSystem.cpp
     src/DialogueSystem.cpp
     src/SaveState.cpp
+    src/SaveStateJson.cpp
     src/ScriptVm.cpp
     src/NsbScript.cpp
     src/NsbVm.cpp
