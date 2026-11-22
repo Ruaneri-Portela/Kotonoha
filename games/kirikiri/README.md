@@ -155,3 +155,13 @@ and recomputes label PCs after expansion. Recursion, nested declarations,
 malformed/missing end tags and expansion beyond explicit budgets fail with a
 clear error. These cover common macro-driven KAG menu/action snippets but do
 not reproduce every dynamic KiriKiri macro and TJS2 binding behavior.
+
+## TJS2 text-only menu Layers
+
+Script-created `Layer.drawText(x, y, text[, color[, opacity]])` commands
+are now captured as bounded text runs, projected through the Layer hierarchy,
+and rendered with Kotonoha's GPU-backed VN UI text path. `Layer.font.height`
+and `Layer.clearText()` are supported. A title with text-only interactive
+layers is eligible for the scripted menu instead of needing image textures.
+These changes cover a source-level subset, not every KiriKiri native font or
+canvas drawing operation. The menu test is synthetic.

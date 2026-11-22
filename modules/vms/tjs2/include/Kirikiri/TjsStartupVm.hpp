@@ -2,6 +2,7 @@
 // An intentionally bounded, non-native TJS2 source bootstrap interpreter.
 // This is an initial execution subset, not the full Kirikiri TJS2 VM.
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -13,9 +14,20 @@ class TjsUiSession;
 // A bounded projection of script-created Window/Layer objects. These are
 // not actual platform windows: the Kotonoha runtime renders the layers in
 // its novel viewport. Values use native 1280x720 scene coordinates.
+// Text laid out by a source-created Layer. Render with Kotonoha's GPU-backed
+// UI text implementation rather than software SDL_ttf textures.
+struct TjsUiText {
+  std::string text;
+  int left = 0, top = 0;
+  int size = 24;
+  int opacity = 255;
+  std::uint32_t rgb = 0xffffff;
+};
+
 struct TjsUiLayer {
   std::size_t id = 0;
   std::string storage;
+  std::vector<TjsUiText> texts;
   std::string onClick;
   std::string onMouseEnter;
   std::string onMouseLeave;

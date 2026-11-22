@@ -1554,6 +1554,38 @@ int main() {
     }
   }
 
+  // Script-created text-only title menus now project Layer.drawText onto
+  // Kotonoha's native UI renderer, with font.height and click callbacks.
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const std::string source =
+        "var win = new Window();"
+        "var button = new Layer(win, win.primaryLayer);"
+        "button.setPos(40, 80); button.setSize(160, 60);"
+        "button.font.height = 32;"
+        "button.drawText(8, 5, \"Start\", 16711680, 220, true);"
+        "function pressed() { System.title = \"Clicked\"; }"
+        "button.onClick = pressed;";
+    const bool ok = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input, source, "title-menu.tjs");
+    const auto it = std::find_if(
+        menu.layers.begin(), menu.layers.end(),
+        [](const Kotonoha::Providers::TjsUiLayer &layer) {
+          return !layer.texts.empty();
+        });
+    if (!ok || !menu.error.empty() || it == menu.layers.end() ||
+        it->texts.size() != 1 || it->texts[0].text != "Start" ||
+        it->texts[0].left != 8 || it->texts[0].top != 5 ||
+        it->texts[0].size != 32 || it->texts[0].opacity != 220 ||
+        it->texts[0].rgb != 16711680 ||
+        !Kotonoha::Providers::dispatchTjsUiClick(menu, 60.0f, 100.0f) ||
+        menu.title != "Clicked") {
+      std::printf("FAIL: TJS2 text-only title menu drawing and click\n");
+      ++failures;
+    }
+  }
+
   // A synthetic Window and clickable Layer use the same TLG image provider
   // as the KAG renderer. The VM retains function state for click dispatch
   // without calling any platform-native Window/Layer constructor.
