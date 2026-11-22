@@ -72,6 +72,17 @@ jobs:
           grep -q '^KOTONOHA_IMGUI_PROVIDER_RESOLVED:INTERNAL=SUBMODULES' build-system/CMakeCache.txt
       - name: Compile Example using system SDL and pinned ImGui
         run: cmake --build build-system --target Kotonoha --parallel 2
+      - name: Compile N2System runtime in C++17 against system SDL3
+        run: |
+          c++ -std=c++17 -Wall -Wextra -fsyntax-only \
+            -Ilib/include -Igames/n2system/include \
+            -Igames/ponscripter/include \
+            -Imodules/vms/n2system/include \
+            -Imodules/providers/n2/include \
+            -Imodules/vms/ponscripter/include \
+            -Imodules/providers/ponscripter/include \
+            -Ilib/submodules/imgui -Ilib/submodules/imgui/misc/cpp \
+            games/n2system/src/N2Runtime.cpp
       - name: Compile the shared launcher scanner in C++17
         run: |
           c++ -std=c++17 -fsyntax-only \
