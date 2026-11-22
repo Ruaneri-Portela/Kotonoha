@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <iostream>
+#include <limits>
+#include <cmath>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -171,6 +173,48 @@ int main() {
   scene.createEntity("first");
   matches(scene, "*", {"second", "first"},
           "Replacing an entity moves the new instance to the end");
+  // SetPrio/rebuildRenderOrder must obey strict weak ordering even after
+  // malformed, overflowing or legacy non-finite layer priorities.
+  scene.clear();
+  scene.createEntity("background");
+  scene.createEntity("dialogue");
+  scene.createEntity("foreground");
+  require(scene.setPriority("background", -100.0f) &&
+              scene.setPriority("foreground", 100.0f),
+          "Finite layer priorities should be accepted");
+  const auto normalOrder = scene.renderOrder();
+  require(normalOrder == std::vector<std::string>{
+                             "background", "dialogue", "foreground"},
+          "Layer priority and creation order must remain stable");
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  const float inf = std::numeric_limits<float>::infinity();
+  require(!scene.setPriority("dialogue", nan) &&
+              !scene.setPriority("foreground", inf),
+          "Non-finite script priorities must be rejected");
+  require(scene.renderOrder() == normalOrder,
+          "Rejected layer changes must not reorder the scene");
+
+  // Old saves and scripts may have mutated Entity::z before calling setPrio.
+  // Force a non-finite legacy value to exercise the sort comparator directly.
+  scene.findEntity("dialogue")->z = nan;
+  scene.createEntity("newLayer");
+  require(scene.renderOrder() == std::vector<std::string>{
+                                     "background", "dialogue", "newLayer",
+                                     "foreground"},
+          "Legacy NaN layers must be sorted deterministically");
+  for (int i = 0; i < 200; ++i) {
+    const std::string name = "layer" + std::to_string(i);
+    scene.createEntity(name);
+    require(scene.setPriority(name, static_cast<float>(i % 5)),
+            "Finite priorities must remain sortable");
+  }
+  const auto stableOrder = scene.renderOrder();
+  for (int i = 0; i < 200; ++i)
+    require(scene.setPriority("foreground", 100.0f),
+            "Repeated layer sort should succeed");
+  require(scene.renderOrder() == stableOrder,
+          "Repeated layer reorder must be stable without invalid comparisons");
+
   std::cout << "NitroSharp entity-query parity regressions passed\n";
   return 0;
 }
