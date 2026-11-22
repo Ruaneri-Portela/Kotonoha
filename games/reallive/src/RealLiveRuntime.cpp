@@ -5,6 +5,7 @@
 #include "RealLiveSelectRules.hpp"
 #include "RealLiveAudioWait.hpp"
 #include "RealLiveNumeric.hpp"
+#include "RealLiveChannelLevels.hpp"
 #include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -762,6 +763,7 @@ struct RealLiveRuntime::Impl {
   bool fadeStops = false;
   bool bgmScriptPaused = false; // independent of gameplay/menu suspension
   AudioWait audioWait;
+  ChannelLevels soundLevels, voiceLevels;
   Uint64 audioTick = 0;
   std::map<int, std::unique_ptr<PcmPlayer>> sounds;
   std::map<std::string, Graphic> graphics;
@@ -2259,12 +2261,30 @@ struct RealLiveRuntime::Impl {
       throw std::runtime_error(SDL_GetError());
     if (&p == &bgm)
       p.SetGain(bgmGain);
+    else if (&p == &voice)
+      p.SetGain(voiceLevels.gain(0));
   }
   void play(PcmPlayer &p, const std::string &id, const std::string &channel,
             bool loop = false, int64_t start = 0, int64_t end = 0,
             int64_t loopStart = 0, int64_t offsetMilliseconds = 0) {
     playClip(p, assets->loadAudio(id), id, channel, loop, start, end, loopStart,
              offsetMilliseconds);
+  }
+  void setSoundVolume(int channel, int nativeVolume, int duration = 0,
+                      bool stopAtEnd = false) {
+    soundLevels.set(channel, nativeVolume, duration, stopAtEnd);
+    auto found = sounds.find(channel);
+    if (duration <= 0 && found != sounds.end() && found->second) {
+      if (stopAtEnd)
+        found->second->Stop();
+      else
+        found->second->SetGain(soundLevels.gain(channel));
+    }
+  }
+  void setVoiceVolume(int nativeVolume, int duration = 0) {
+    voiceLevels.set(0, nativeVolume, duration);
+    if (duration <= 0)
+      voice.SetGain(voiceLevels.gain(0));
   }
   int value(const libreallive::CommandElement &c, int n, int fallback = 0) {
     return n < c.GetParamCount() ? IntegerParameter(vm.machine(), c, n)
@@ -2461,6 +2481,8 @@ struct RealLiveRuntime::Impl {
       fadeDuration = fadeElapsed = 0;
       bgmGain = 1;
       bgmScriptPaused = false;
+      soundLevels.clear();
+      voiceLevels.clear();
       sounds.clear();
       runtime.SetState(GameState::Menu);
       titleInput.reset();
@@ -3630,17 +3652,24 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       voice.Stop();
       return true;
     }
-    if (op == 8 || op == 11) {
+    if (op == 8) {
       machine.set_store_register(voice.Playing() ? 1 : 0);
       return true;
     }
-    if (op == 9) {
-      machine.set_store_register(255);
+    if (op == 9 || op == 11) {
+      machine.set_store_register(voiceLevels.volume(0));
       return true;
     }
-    if (op == 10) {
+    if ((op == 10 || op == 12) && c.GetParamCount() > 0) {
+      setVoiceVolume(value(c, 0), value(c, 1, 0));
       return true;
     }
+    if (op == 13 || op == 14) {
+      setVoiceVolume(op == 13 ? 255 : 0, value(c, 0, 0));
+      return true;
+    }
+    if (op == 10)
+      return true;
     if (op == 3 || op == 6 || op == 101) {
       // A voice wait must preserve the current script PC progression until
       // the decoder's PCM stream has actually drained. Unlike wait(ms), this
@@ -3664,6 +3693,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
           return true; // Skip missing sound effect
         }
         play(*sound, id, "Se", op == 2);
+        sound->SetGain(soundLevels.gain(mapping->second.channel));
       }
       return true;
     }
@@ -3684,7 +3714,22 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       machine.set_store_register(playing ? 1 : 0);
       return true;
     }
-    if (op == 9 || op == 10)
+    if (op == 9) {
+      auto mapping = audio.soundEffects.find(value(c, 0));
+      machine.set_store_register(
+          mapping == audio.soundEffects.end()
+              ? 255
+              : soundLevels.volume(mapping->second.channel));
+      return true;
+    }
+    if (op == 10 && c.GetParamCount() >= 2) {
+      auto mapping = audio.soundEffects.find(value(c, 0));
+      if (mapping != audio.soundEffects.end())
+        setSoundVolume(mapping->second.channel, value(c, 1),
+                       value(c, 2, 0));
+      return true;
+    }
+    if (op == 10)
       return true;
   }
   if (type == 1 && m == 21) {
@@ -3716,6 +3761,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         return true; // Skip missing PCM
       }
       play(*p, id, "PCM", op == 2);
+      p->SetGain(soundLevels.gain(channel));
       return true;
     }
     if (op == 1) {
@@ -3730,6 +3776,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         const auto id = audioAsset("WAV/" + str(c, 0));
         if (!id.empty()) {
           play(*player, id, "PCM", false);
+          player->SetGain(soundLevels.gain(channel));
           audioWait.forPcm(channel, player->Playing());
         } else {
           SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -3742,25 +3789,46 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       sounds.erase(channel);
       return true;
     }
-    if (op == 8 || op == 11) {
+    if (op == 8 || op == 4) {
       int channel = value(c, 0);
       auto it = sounds.find(channel);
       machine.set_store_register(
           (it != sounds.end() && it->second && it->second->Playing()) ? 1 : 0);
       return true;
     }
-    if (op == 9) {
-      machine.set_store_register(255);
+    if (op == 9 || op == 11) {
+      machine.set_store_register(soundLevels.volume(value(c, 0)));
       return true;
     }
-    if (op == 10) {
+    if (op == 10 && c.GetParamCount() >= 2) {
+      setSoundVolume(value(c, 0), value(c, 1),
+                     value(c, 2, 0));
       return true;
     }
-    if (op == 5 || op == 12 || op == 20 || op == 105) {
-      sounds.clear();
+    if (op == 12 && c.GetParamCount() >= 2) {
+      setSoundVolume(value(c, 0), value(c, 1),
+                     value(c, 2, 0));
+      return true;
+    }
+    if (op == 13 || op == 14) {
+      setSoundVolume(value(c, 0), op == 13 ? 255 : 0,
+                     value(c, 1, 0));
+      return true;
+    }
+    if (op == 105) {
+      setSoundVolume(value(c, 0), 0, value(c, 1, 1000), true);
+      return true;
+    }
+    if (op == 5 || op == 20 || (op == 12 && c.GetParamCount() < 2)) {
+      if (op == 5 && over == 0 && c.GetParamCount() > 0)
+        sounds.erase(value(c, 0));
+      else
+        sounds.clear();
       machine.set_store_register(1);
       return true;
     }
+    if (op == 10)
+      return true;
   }
   if (type == 1 && m == 26) {
     if (op == 1 || op == 20)
@@ -4826,6 +4894,8 @@ void RealLiveRuntime::shutdown() {
   impl->voice.Stop();
   impl->sounds.clear();
   impl->audioWait.clear();
+  impl->soundLevels.clear();
+  impl->voiceLevels.clear();
   if (impl->movie)
     impl->movie->stop();
   impl->graphics.clear();
@@ -4914,6 +4984,20 @@ void RealLiveRuntime::update() {
   }
   if (paused && i.autoDeadline)
     i.autoDeadline += delta;
+  if (!paused) {
+    i.voiceLevels.advance(delta, [&](int, float gain, bool) {
+      i.voice.SetGain(gain);
+    });
+    i.soundLevels.advance(delta, [&](int channel, float gain, bool stop) {
+      const auto found = i.sounds.find(channel);
+      if (found != i.sounds.end() && found->second) {
+        if (stop)
+          found->second->Stop();
+        else
+          found->second->SetGain(gain);
+      }
+    });
+  }
   if (!paused && i.fadeDuration > 0) {
     i.fadeElapsed = advanceBgmFade(i.fadeElapsed, i.fadeDuration, delta);
     i.bgmGain =
@@ -5348,6 +5432,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.audioWait.clear();
   i.voice.Stop();
   i.sounds.clear();
+  i.soundLevels.clear();
+  i.voiceLevels.clear();
   i.bgm.Stop();
   i.musicID.clear();
   auto translatedSpeaker =
