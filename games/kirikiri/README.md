@@ -263,3 +263,11 @@ KAG `[button graphic=... target=*label]` is now recognized alongside
 KiriKiri button image/layer behavior is ported, this intentionally presents
 the graphic identifier as a text choice in Kotonoha UI; the target remains
 functional. Tests cover local target selection for all three command forms.
+
+## Bounded TJS2 arrays for scripted menus
+
+TJS2 source now supports array literals, `new Array(length)`, indexed reads
+and assignments, and `Array.push`/`pop`/`length` for menus that construct
+button lists in script. Arrays are capped at 4096 entries, indexes are
+validated, and inactive branches do not mutate their contents. This is a
+restricted source subset (not TJS2 bytecode or a complete Array class).

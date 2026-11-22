@@ -1894,6 +1894,36 @@ int main() {
     }
   }
 
+  // Source-created menus store button captions and objects in arrays.
+  // Literals, indexed assignment, length, push and pop share VM state.
+  {
+    Kotonoha::Providers::KirikiriAssets provider(tempDir);
+    Kotonoha::Providers::TjsStartupResult output;
+    const std::string source =
+        "var captions = [\"Start\", \"Load\"];"
+        "captions[1] = \"Settings\";"
+        "captions.push(\"Extra\");"
+        "var last = captions.pop();"
+        "var second = new Array(2);"
+        "second[0] = last;"
+        "System.title = captions[0] + \":\" + captions[1] + \":\""
+        " + second[0] + \":\" + captions.length;";
+    const bool success = Kotonoha::Providers::executeTjsInlineSubset(
+        output, provider, source, "arrays-menu.tjs");
+    if (!success || !output.error.empty() ||
+        output.title != "Start:Settings:Extra:2") {
+      std::printf("FAIL: TJS2 Array indexed menu state\n");
+      ++failures;
+    }
+    const bool overflow = Kotonoha::Providers::executeTjsInlineSubset(
+        output, provider, "var a = []; a[4096] = 1;", "array-bounds.tjs");
+    if (overflow ||
+        output.error.find("Array index") == std::string::npos) {
+      std::printf("FAIL: TJS2 Array out-of-bounds access accepted\n");
+      ++failures;
+    }
+  }
+
   // A synthetic Window and clickable Layer use the same TLG image provider
   // as the KAG renderer. The VM retains function state for click dispatch
   // without calling any platform-native Window/Layer constructor.
