@@ -215,6 +215,25 @@ void pickleCompatibilityTests() {
   rpc2.resize(14);
   require(!Ddlc::loadRpyc(rpc2, decoded),
           "Truncated RPYC2 directory is rejected");
+
+  // Both slots valid: Ren'Py executes slot 2's statically transformed AST.
+  const auto before = compressFixture({0x80, 2, 'K', 1, '.'});
+  const auto after = compressFixture({0x80, 2, 'K', 2, '.'});
+  std::vector<uint8_t> transformed{'R', 'E', 'N', 'P', 'Y', ' ', 'R', 'P', 'C', '2'};
+  number(transformed, 1);
+  number(transformed, 46);
+  number(transformed, uint32_t(before.size()));
+  number(transformed, 2);
+  number(transformed, uint32_t(46 + before.size()));
+  number(transformed, uint32_t(after.size()));
+  number(transformed, 0);
+  number(transformed, 0);
+  number(transformed, 0);
+  transformed.insert(transformed.end(), before.begin(), before.end());
+  transformed.insert(transformed.end(), after.begin(), after.end());
+  decoded = {};
+  require(Ddlc::loadRpyc(transformed, decoded) && decoded.integer() == 2,
+          "Prefer transformed RPYC2 slot 2 over untransformed slot 1");
 }
 
 struct HeadlessBackend : Ddlc::Backend {
