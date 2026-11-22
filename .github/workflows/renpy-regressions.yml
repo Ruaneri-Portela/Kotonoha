@@ -60,6 +60,5 @@ jobs:
       - name: Exercise synthetic scripts and Python bridge
         run: |
           ctest --test-dir build-renpy \
-            -R '^(DokiDoki\.(Assets|Python|SyntheticFlow)|Kotonoha\.(EngineDetector|UnifiedLauncher))
- \
+            -R 'DokiDoki\.(Assets|Python|SyntheticFlow)|Kotonoha\.(EngineDetector|UnifiedLauncher)' \
             --output-on-failure --timeout 45
