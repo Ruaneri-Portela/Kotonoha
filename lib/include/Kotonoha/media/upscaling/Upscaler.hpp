@@ -8,6 +8,29 @@
 
 namespace Kotonoha {
 
+// TTF glyphs are rasterized at the output DPI; image enhancement filters
+// must never resample glyph textures or text surfaces.
+inline constexpr char kTTFTextRasterProperty[] = "kotonoha.ttf.raster";
+
+inline bool MarkTTFTextRaster(SDL_Surface &surface) {
+  return SDL_SetBooleanProperty(SDL_GetSurfaceProperties(&surface),
+                                kTTFTextRasterProperty, true);
+}
+inline bool MarkTTFTextRaster(SDL_Texture &texture) {
+  return SDL_SetBooleanProperty(SDL_GetTextureProperties(&texture),
+                                kTTFTextRasterProperty, true);
+}
+inline bool IsTTFTextRaster(const SDL_Surface &surface) {
+  return SDL_GetBooleanProperty(
+      SDL_GetSurfaceProperties(const_cast<SDL_Surface *>(&surface)),
+      kTTFTextRasterProperty, false);
+}
+inline bool IsTTFTextRaster(const SDL_Texture &texture) {
+  return SDL_GetBooleanProperty(
+      SDL_GetTextureProperties(const_cast<SDL_Texture *>(&texture)),
+      kTTFTextRasterProperty, false);
+}
+
 // Auto picks MetalFX on Metal, MPV on OpenGL and Linear otherwise.
 enum class UpscaleBackend { None, Linear, MPV, MetalFX, Auto };
 enum class UpscalePreset {
