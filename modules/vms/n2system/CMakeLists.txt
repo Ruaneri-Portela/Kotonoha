@@ -14,6 +14,7 @@ add_library(kotonoha_vm_n2system STATIC
     src/ScriptVm.cpp
     src/NsbScript.cpp
     src/NsbVm.cpp
+    src/NsbSnapshot.cpp
 )
 target_include_directories(kotonoha_vm_n2system PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 target_compile_features(kotonoha_vm_n2system PUBLIC cxx_std_17)
