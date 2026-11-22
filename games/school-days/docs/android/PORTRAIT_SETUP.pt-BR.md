@@ -396,3 +396,41 @@ Com base na política de distribuição oficial da versão **Windows DIST** (`KO
 - **Tela splash do motor (`assets/SPLASH.PNG`)**: incluída em `stageSchoolDays*Assets` no `build.gradle`, usando a mesma animação `Kotonoha::SplashScreen` do Windows (fade-in `0,8 s`, exibição, fade-out `0,8 s`, total `3,0 s`) antes do logo `Overflow`.
 - **Ícone do APK (`assets/SchoolDays.ico`)**: gerado automaticamente pela task Gradle `generateSchoolDaysLauncherIcons` (`mipmap-mdpi` a `xxxhdpi` + adaptativo `mipmap-anydpi-v26`), compartilhando a mesma fonte de ícone do executável Windows (`CMakeLists.txt` atualizado com fallback para `assets/SchoolDays.ico`).
 - **Banner superior da launcher (`SchoolDaysBannerView.java`)**: recorte superior de `SchoolDaysHQ-Launcher.png` focado nos rostos de Kotonoha e Sekai à esquerda com degradê suave à direita para `School Days HQ` + subtítulo (`LAUNCHER` / `SETUP / OPTIONS`), priorizando a pasta SAF e aceitando cópia local em tempo de compilação (`-PincludeLauncherArt=false` para CI).
+
+---
+
+## L×H opcional, paridade física DIST e correção de Restaurar padrões (2026-11-22)
+
+A verificação física em hardware real no **POCO X7 Pro** (Android 16 / API 36, `arm64-v8a`, `1220×2712` @ `120 Hz`, `MT6899`, ~11 GiB RAM) validou lado a lado **Android DEV** (`me.hirameki.kotonoha.schooldays`) e **Android DIST** (`me.hirameki.kotonoha.schooldays.dist`) após a integração do L×H opcional (`EnableLxh=0|1`) e das otimizações compartilhadas de desempenho.
+
+### Resultados confirmados em hardware real (POCO X7 Pro)
+- **L×H opcional (`Geral → Ativar finais L×H`)**:
+  - Padrão ligado quando `LxH.GPK` está presente (`Pronto · Português (Brasil) (GPK) · L×H ativo (7 epílogos)`). Desativar grava `EnableLxh=0` em `Kotonoha.ini` preservando `ContentAspectPreference` e `AndroidFrameLimit`, persiste após `am force-stop` e exclui `LxH.GPK` do `documents.json` (`0` montagens L×H; `School Days HQ startup: LxH=OFF`). Reativar monta `LxH.GPK` (`School Days HQ startup: LxH=ON (LxH endings enabled (7 epilogues ready).)`).
+  - `Cancelar` reverte alterações não aplicadas sem modificar `Kotonoha.ini`.
+- **Defeito identificado e corrigido (`SchoolDaysConfigStore.saveKotonohaIni`)**:
+  - **Causa-raiz**: Tocar em **Restaurar padrões** define `Snapshot.enableLxh = null`, e `saveKotonohaIni()` anteriormente ignorava a chave `EnableLxh` quando nula, mantendo um `EnableLxh=0` obsoleto em `Kotonoha.ini` que revertia o L×H para desligado ao reabrir a launcher.
+  - **Correção (`538e3022`)**: Adicionado `removeIniKey(lines, "EnableLxh")` em `SchoolDaysConfigStore.saveKotonohaIni()` quando `s.enableLxh == null`, adicionada cobertura automatizada na JVM em `games/school-days/android/tests/PackCaseRegression.java` (`PASS 14 synthetic pack & Kotonoha.ini EnableLxh cases`) e revalidado ao vivo em Android DIST e DEV no POCO X7 Pro (`EnableLxh=` removido de `Kotonoha.ini`, mantendo `L×H ativo (7 epílogos)` após reinício a frio).
+- **Gameplay DIST, backends multilíngues, saves e suspensão/retomada**:
+  - Cold start da launcher: `383 ms` (DIST), `548 ms` (DEV); `Iniciar jogo → GameActivity`: `0,78–1,26 s` (paisagem `2712×1220`, barras `#000000`, ausência do botão `MENU`, `KEYCODE_F10` confirmado sem efeito por PNG byte-idêntico).
+  - Validada reprodução ao vivo do Episódio 1 (WMV+OGG) nos backends PT-BR GPK e PT-BR JSON, além de abertura limpa em `Chinese - Simplified (GPK)` e `Russian (GPK)` na DIST.
+  - Validados `MenuBar` retail (`▶×1`–`▶×32`, `SAVE`, `LOAD`, `BACKLOG`, `OPTION` com `General`/`Display Options`, `TOPMENU`), fechamento via Voltar do Android e ciclo real de suspensão (`HOME` por `5 s`) e retomada sem crashes ou perda de quadro.
+  - Validado `SAVE`/`LOAD` isolado na Página 10 / Slot 100 (`SaveFile0099.DAT` + `SaveFile0099.DAT.kotonoha-lxh.v1` com vínculo SHA-256 `KOTONOHA_SCHOOL_DAYS_LXH_SAVE_V1`) mantendo intactos e byte-idênticos os saves pessoais (`SaveFile000.DAT`, `SaveFile001.DAT`, `GlobalFlag.DAT`).
+  - Confirmada poda automática de `cache/sd-saf-*` (apenas `1` diretório ativo) e replay completo do `KTN_S0` (`18/18` métricas persistidas, `leaks_private_paths=False`).
+
+### Baseline real de desempenho (POCO X7 Pro, `Thermal Status: 0`)
+| Perfil e cena | Modo / Upscaler | CPU `SDLThread` | `TOTAL PSS` | `GL mtrack` | Temperatura (CPU / SKIN) |
+|---|---|---:|---:|---:|---|
+| Android DIST `TITLE` | `120 Hz`, `ArtCNN C4F16 DS 2.00x` | `~22,2%` | `610 MB` | `134 MB` | SKIN `36,4°C` (`gfxinfo` P50 `5 ms`, P90 `6 ms`, jank `1,53%`) |
+| Android DIST Episódio 1 Vídeo + Legendas | `120 Hz`, `ArtCNN C4F16 DS 2.00x` | `28,5%` | `685 MB` | `197 MB` | SKIN `36,7°C` |
+| Android DIST Episódio 1 Vídeo + Legendas | `60 FPS`, `ArtCNN C4F16 DS 2.00x` | `25,0%` | `670 MB` | `197 MB` | CPU `55,5°C` / SKIN `37,9°C` |
+| Android DIST Episódio 1 Vídeo + Legendas | `60 FPS`, `Linear 1.00x` | `25,9%` | **`529 MB` (-21%)** | **`55 MB` (-72%)** | CPU **`51,4°C` (-4,1°C)** |
+| Android DEV `TITLE` (Debug `-O0`) | `120 Hz` / `60 FPS` / `30 FPS` | `120 / 59 / 29 FPS` | — | — | CPU `48,2°C` (`30 FPS`) |
+| Android DEV Ep 1 Vídeo (Debug `-O0`) | `120 Hz` / `60 FPS` / `30 FPS` | `48,1%` / `44,4%` / `40,7%` | `791 / 777 / 745 MB` | — | CPU `65,6°C / 59,2°C / 55,4°C` |
+
+> **Conclusão técnica**: Com as otimizações C++ compartilhadas e as correções Android do Marco 7 já ativas, a **Android DIST** (compilada em Release) sustenta vídeo WMV+OGG+legendas+ArtCNN 2× em `2712×1220` com apenas `28,5%` de `SDLThread` em `120 Hz` (`25,0%` em `60 FPS`) e `Thermal Status: 0`. O modo `Linear 1.00x` economiza `141 MB` de `GL mtrack` (`-72%`) e reduz a temperatura de CPU em `4,1°C`. Nenhuma reescrita especulativa em C++ foi introduzida.
+
+### Artefatos finais Android ARM64 (`538e3022`, 2026-11-22)
+| Artefato | Package ID | Tamanho | SHA-256 | Verificações |
+|---|---|---|---|---|
+| `SchoolDaysHQ-Android-DEV-538e3022.apk` | `me.hirameki.kotonoha.schooldays` | `33.787.815 B` | `f0f41f59c622bc29f7c85d325368fca4da64299aca7f20930667fa72e043676c` | `check_school_days_apk.py --allow-local-launcher-art` PASS (6 libs ARM64, alinhamento 16 KiB LOAD, 49 assets), `zipalign -c -P 16 4` OK, `apksigner` v2 OK, validado ao vivo no POCO X7 Pro |
+| `SchoolDaysHQ-Android-DIST-538e3022.apk` | `me.hirameki.kotonoha.schooldays.dist` | `16.687.007 B` | `840fcefc63543dad17d452ace4bf495993860c0b15a4e13d47da119c2bd9f18a` | `check_school_days_apk.py --allow-local-launcher-art` PASS (6 libs ARM64, alinhamento 16 KiB LOAD, 49 assets), `zipalign -c -P 16 4` OK, `apksigner` v2 OK, `DebugOverlay=False`, validado ao vivo no POCO X7 Pro |
