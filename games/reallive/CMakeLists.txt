@@ -170,6 +170,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.AudioWait COMMAND RealLiveAudioWaitTests)
     set_tests_properties(RealLive.AudioWait PROPERTIES LABELS synthetic)
 
+    # Full-domain RealLive 32-bit math and unbiased random selection.
+    add_executable(RealLiveNumericCompatTests tests/NumericCompatTest.cpp)
+    target_include_directories(RealLiveNumericCompatTests PRIVATE src)
+    target_compile_features(RealLiveNumericCompatTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.NumericCompat COMMAND RealLiveNumericCompatTests)
+    set_tests_properties(RealLive.NumericCompat PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)

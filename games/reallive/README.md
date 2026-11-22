@@ -220,3 +220,13 @@ the authored channel ID, and the newer `wavPlayEx` signature can start
 playback and wait in one opcode. These barriers cooperate with story pause,
 ending naturally when sound playback stops; save-load, title reset and shutdown
 clear pending waits. Data-free regression: `RealLive.AudioWait`.
+
+## Portable 32-bit RealLive arithmetic
+
+Native script random-range operations now accept inclusive bounds as wide as
+INT_MIN..INT_MAX, without signed overflow or the bias of rand() % width.
+Other 32-bit arithmetic (negate, modulo and percentage) follows defined
+VM integer semantics even at extremal operands, including INT_MIN % -1.
+These behaviors are covered by the data-free RealLive.NumericCompat test
+on both GCC and Clang. Deterministic native-random compatibility with any
+specific Windows RealLive release has **not** yet been established.
