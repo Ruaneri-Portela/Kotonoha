@@ -132,6 +132,88 @@ int main() {
           "Loading slot from load menu must restore parting_end and "
           "WaitClickPage");
 
+    {
+      Ponscripter::PonscripterVm sub;
+      const std::string subScript =
+          "*define\n"
+          "defsub greet\n"
+          "game\n"
+          "*start\n"
+          "gosub *math,2,\"Alpha\",5\n"
+          "greet 7,\"Texto\"\n"
+          "for %10=4 to 1\n"
+          "mov %99,999\n"
+          "for %12=1 to 2\n"
+          "mov %99,888\n"
+          "next\n"
+          "next\n"
+          "for %11=1 to 3 step -1\n"
+          "mov %99,777\n"
+          "next\n"
+          "end\n"
+          "*math ; inline comment\n"
+          "getparam %1,$1\n"
+          "wait 15\n"
+          "getparam %2\n"
+          "mov %20,%1+%2\n"
+          "return\n"
+          "*greet\n"
+          "getparam %3,$3\n"
+          "return\n";
+      sub.appendScriptFile("0.utf", subScript);
+      check(sub.start(), "Subroutine fixture must start");
+      sub.tick(0.0);
+      check(sub.waitState() == Ponscripter::WaitState::WaitTimer,
+            "gosub must enter parameterized subroutine");
+      check(sub.variables().getNum(1) == 2 &&
+                sub.variables().getStr(1) == "Alpha",
+            "getparam must resolve typed numeric and string parameters");
+      const auto saved = sub.exportSlotSave();
+      check(saved.callStack.size() == 1 &&
+                saved.callStack[0].arguments.size() == 3 &&
+                saved.callStack[0].nextArgument == 2,
+            "Subroutine call frame must preserve remaining parameters");
+      Ponscripter::SlotSaveData decoded;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(saved), decoded),
+            "Serialized call frame with parameters must be readable");
+      Ponscripter::PonscripterVm resumed;
+      resumed.appendScriptFile("0.utf", subScript);
+      check(resumed.start(), "Resumed script must start");
+      resumed.importSlotSave(decoded);
+      resumed.tick(20.0);
+      check(resumed.isHalted(), "Restored program must reach end");
+      check(resumed.variables().getNum(2) == 5 &&
+                resumed.variables().getNum(20) == 7 &&
+                resumed.variables().getNum(3) == 7 &&
+                resumed.variables().getStr(3) == "Texto",
+            "getparam and defsub must resume correctly across save/load");
+      check(resumed.variables().getNum(99) == 0 &&
+                resumed.variables().getNum(10) == 4 &&
+                resumed.variables().getNum(11) == 1,
+            "Initially out-of-range loops must skip their nested bodies");
+    }
+
+    {
+      Ponscripter::PonscripterVm textVm;
+      textVm.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "mov %5,42\n"
+          "mov $6,\"A@#~!\"\n"
+          "^Score {%5}, {$6}, {|raw@\n"
+          "end\n");
+      check(textVm.start(), "Interpolation script must start");
+      textVm.tick(0.0);
+      check(textVm.waitState() == Ponscripter::WaitState::WaitClickInline,
+            "Interpolated text must retain its click terminator");
+      check(textVm.currentPagePlainText() ==
+                "Score 42, A@#~!, {raw",
+            "Interpolated values must remain literal text");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
