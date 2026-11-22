@@ -260,6 +260,19 @@ cmake --build build --target LucaSystemSceneLayersTests
 ctest --test-dir build -R LucaSystem.SceneLayers --output-on-failure
 ```
 
+## Position-preserving sprite replacements and MOVE interruptions
+
+Implicit-position IMAGELOAD commands now retain the previous portrait's
+on-screen placement and visual transform instead of resetting it to (0,0).
+Small CZ4 facial expression crops also inherit the body's animation,
+tint, alpha, scale and rotation while remaining above that body. An explicit
+expression position is honored.
+
+MOVE samples its current interpolated offset before accepting another MOVE,
+preventing an immediate jump to the old animation's endpoint. Save V6 uses
+the exact same interpolation when snapshotting an in-progress movement.
+Standalone SceneLayers regressions cover all these cases.
+
 ## GPU scene composition and transition correctness
 
 Gameplay DRAW now composes the incoming scene into a native 1280x720 SDL

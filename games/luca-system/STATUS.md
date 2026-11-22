@@ -26,6 +26,8 @@ The LucaInspect tool additionally supports external LuckSystem OPCODE.txt name c
 
 Save V6 preserves group/slot z-order, tint, transparency, scale, rotation and resumable MOVE offsets for each visual layer, with compatibility fallback for V2–V5 and synthetic malformed-state tests. This fixes a load-time visual discrepancy previously caused by reconstructing groups from asset ID ranges.
 
+Implicit-position portrait replacements inherit the existing character transform; CZ4 expressions inherit body alpha/rotation/scale and active MOVE. Interrupted MOVE commands now start from the displayed position instead of snapping to their previous target. Synthetic C++17 tests cover these cases.
+
 The renderer composes each expression fragment immediately after its matching portrait. DRAW now crossfades complete GPU scene frames (rather than per-sprite alpha) and WIPE uses disjoint scissor regions to prevent overlapping transparent layers, with SDL-free z-order/clip regression tests. Native gameplay text stays on the shared UI renderer.
 
 **Limits:** Options uses Kotonoha's settings and input help rather than all the original per-device editors. Direct Ogg voices were verified with retail `AIR`; OggPak bundles were verified with synthetic data, not another retail title. Reference features still to port or verify include rebuilding fonts from scratch, script import beyond AIR English dialogue, and title-specific handlers outside `AIR`.
