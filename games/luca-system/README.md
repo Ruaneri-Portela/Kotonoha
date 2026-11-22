@@ -260,6 +260,17 @@ cmake --build build --target LucaSystemSceneLayersTests
 ctest --test-dir build -R LucaSystem.SceneLayers --output-on-failure
 ```
 
+## CZ4 facial expressions: shared pose origin and rotation pivot
+
+Partial facial CZ4 crops can carry a different per-file anchor from the
+body sprite even when both share the same original canvas. The expression
+is now placed using its matching group's full portrait position and
+anchor, with the same movement offset, scale and rotation center. Rendering
+a rotated face around its own cropped rectangle formerly shifted it away
+from the original pose. Explicit expression positions are normalized to
+their parent canvas because the crop already encodes its face location.
+C++17 geometry regression checks both rectangles and their common pivot.
+
 ## Position-preserving sprite replacements and MOVE interruptions
 
 Implicit-position IMAGELOAD commands now retain the previous portrait's
