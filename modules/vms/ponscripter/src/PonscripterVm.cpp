@@ -27,6 +27,10 @@ void PonscripterVm::clear() {
     s = StandingSlot{};
   for (auto &sp : sprites_)
     sp = SpriteSlot{};
+  allSpritesHidden_ = false;
+  allSprites2Hidden_ = false;
+  allSpritesHidden_ = false;
+  allSprites2Hidden_ = false;
   for (auto &b : bars_)
     b = BarGauge{};
   for (auto &p : prnums_)
@@ -564,7 +568,8 @@ void PonscripterVm::updateButtonHover() {
       if (btn.spriteNo < 0 || btn.spriteNo >= kMaxExtendedSprites)
         continue;
       const auto &sp = sprites_[btn.spriteNo];
-      if (!sp.loaded || !sp.visible)
+      if (!sp.loaded || !sp.visible ||
+          areSpritesHidden(sp.secondaryLayer))
         continue;
       bx = sp.x;
       by = sp.y;
