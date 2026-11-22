@@ -3,6 +3,7 @@
 // clean-room REA + Rizin analysis of AIR.exe (.rdata opcode/chapter tables) and
 // exhaustive audit of all 31 .PAK archives.
 #include <LucaSystem/AirGallery.hpp>
+#include <LucaSystem/BitmapFont.hpp>
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/DebugCatalog.hpp>
 #include <LucaSystem/DialogueFlow.hpp>
@@ -321,6 +322,11 @@ public:
 
 private:
   Kotonoha::Providers::LucaSystemAssets &assets_;
+  // AIR's PUA and decorative symbols are present in the retail bitmap
+  // atlas, but are not guaranteed to exist in any system TTF.
+  std::optional<BitmapFont> originalGlyphs_;
+  bool originalAtlasAvailable_ = false;
+  static constexpr const char *originalAtlasId_ = "ゴシック27";
   std::array<CzImage, 5> frames_;
   CzImage fallbackStrip_;
   CzImage cursor_;
@@ -350,6 +356,82 @@ private:
       ui.text(renderer, icons[i], box.x + 3, box.y + 3, 28, ink);
       ui.text(renderer, labels[i], box.x + 33, box.y + 4, box.w - 33, ink);
     }
+  }
+
+  bool isBitmapOnlyGlyph(std::uint32_t cp, const Kotonoha::UI &ui) const {
+    return originalGlyphs_ && originalAtlasAvailable_ &&
+           !ui.hasGlyph(cp) && originalGlyphs_->glyph(cp).has_value();
+  }
+
+  template <class Visit>
+  void forEachFontRun(std::string_view text, Kotonoha::UI &ui,
+                      Visit &&visit) const {
+    const char *cursor = text.data();
+    std::size_t remaining = text.size();
+    std::string ttfRun;
+    const auto flushTtf = [&]() {
+      if (!ttfRun.empty()) {
+        visit(std::string_view(ttfRun), false);
+        ttfRun.clear();
+      }
+    };
+    while (remaining > 0) {
+      const char *start = cursor;
+      const std::uint32_t cp = SDL_StepUTF8(&cursor, &remaining);
+      const std::string_view glyphBytes(start,
+                                        static_cast<std::size_t>(cursor - start));
+      if (isBitmapOnlyGlyph(cp, ui)) {
+        flushTtf();
+        visit(glyphBytes, true);
+      } else {
+        ttfRun.append(glyphBytes.data(), glyphBytes.size());
+      }
+    }
+    flushTtf();
+  }
+
+  float mixedTextWidth(std::string_view text, Kotonoha::UI &ui) const {
+    float width = 0.0f;
+    forEachFontRun(text, ui, [&](std::string_view run, bool bitmap) {
+      if (bitmap) {
+        const char *cursor = run.data();
+        std::size_t count = run.size();
+        const auto cp = SDL_StepUTF8(&cursor, &count);
+        width += originalGlyphs_->glyph(cp)->advance;
+      } else {
+        width += ui.textWidth(std::string(run));
+      }
+    });
+    return width;
+  }
+
+  void drawMixedText(Kotonoha::RendererRef renderer, std::string_view text,
+                     float x, float y, SDL_Color color) {
+    auto &ui = engine.GetVNUI();
+    SDL_Texture *atlas = nullptr;
+    if (originalGlyphs_ && originalAtlasAvailable_) {
+      try {
+        atlas = &assets_.texture(renderer, originalAtlasId_);
+        if (!originalGlyphs_->fitsAtlas(float(atlas->w), float(atlas->h)))
+          atlas = nullptr;
+      } catch (const std::exception &) {
+        atlas = nullptr;
+      }
+    }
+    forEachFontRun(text, ui, [&](std::string_view run, bool bitmap) {
+      if (bitmap && atlas) {
+        // The bitmap glyph is copied at its native cell size, never enhanced
+        // or upscaled. All glyphs covered by TTF stay HiDPI vector text.
+        originalGlyphs_->render(renderer, *atlas, run, x, y, color);
+        const char *cursor = run.data();
+        std::size_t count = run.size();
+        x += originalGlyphs_->glyph(SDL_StepUTF8(&cursor, &count))->advance;
+      } else {
+        const std::string ttf(run);
+        ui.text(renderer, ttf, x, y, 4096.0f, color);
+        x += ui.textWidth(ttf);
+      }
+    });
   }
 
   static CzImage tryReadCz(const Kotonoha::Providers::LucaSystemAssets &assets,
@@ -482,7 +564,7 @@ protected:
                                 : SDL_Color{255, 238, 175, 255};
     // SDL_ttf draws directly at the active pixel density, not through the
     // image upscaler or the original 27px bitmap atlas.
-    engine.GetVNUI().text(renderer, speakerName, 188, 516, 900, color);
+    drawMixedText(renderer, speakerName, 188, 516, color);
   }
 
   void renderDialogue(Kotonoha::RendererRef renderer) override {
@@ -500,8 +582,8 @@ protected:
     auto &ui = engine.GetVNUI();
     if (!layoutValid_ || layoutSource_ != fullDialogue ||
         layoutDensity_ != ui.pixelDensity() || layoutUiId_ != ui.instanceId()) {
-      const auto measure = [&ui](const std::string &value) {
-        return ui.textWidth(value);
+      const auto measure = [this, &ui](const std::string &value) {
+        return mixedTextWidth(value, ui);
       };
       dialogueLayout_ =
           Kotonoha::TextWrapping::layout(fullDialogue, measure, 898);
@@ -519,8 +601,8 @@ protected:
                                 : SDL_Color{255, 255, 255, 255};
     for (const auto &line : lines) {
       const SDL_Color shadow{15, 21, 32, 220};
-      ui.text(renderer, line, 190, y + 2, 898, shadow);
-      ui.text(renderer, line, 188, y, 898, color);
+      drawMixedText(renderer, line, 190, y + 2, shadow);
+      drawMixedText(renderer, line, 188, y, color);
       y += 32;
     }
     SDL_SetRenderClipRect(&renderer, clipped ? &previousClip : nullptr);
@@ -534,7 +616,17 @@ public:
                  tryReadCz(assets, "MWIN2"), tryReadCz(assets, "MWIN3"),
                  tryReadCz(assets, "MWIN4")}},
         fallbackStrip_(tryReadCz(assets, "MWIN1280_0")),
-        cursor_(tryReadCz(assets, "MWIN_CURSOR")) {}
+        cursor_(tryReadCz(assets, "MWIN_CURSOR")) {
+    try {
+      originalAtlasAvailable_ = assets.contains(originalAtlasId_);
+      if (originalAtlasAvailable_ && assets.contains("info27"))
+        originalGlyphs_.emplace(assets.read("info27"));
+    } catch (const std::exception &error) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "LucaSystem: original glyph fallback unavailable: %s",
+                  error.what());
+    }
+  }
 };
 
 class AirBacklog final : public Kotonoha::VNBacklog {
