@@ -475,6 +475,49 @@ int main() {
             "custom button must branch through script-controlled cselgoto");
     }
 
+    {
+      Ponscripter::PonscripterVm refs;
+      const std::string script =
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "mov %5,91\n"
+          "mov $6,\"Referência\"\n"
+          "gosub *indirect,%5,$6\n"
+          "end\n"
+          "*indirect\n"
+          "wait 10\n"
+          "getparam i%1,s%2\n"
+          "return\n";
+      refs.appendScriptFile("0.utf", script);
+      check(refs.start(), "indirect getparam fixture must start");
+      refs.tick(0);
+      check(refs.waitState() == Ponscripter::WaitState::WaitTimer,
+            "indirect subroutine must reach wait before getparam");
+      const auto save = refs.exportSlotSave();
+      check(save.callStack.size() == 1 &&
+                save.callStack[0].arguments.size() == 2 &&
+                save.callStack[0].arguments[0].sourceVariable == 5 &&
+                save.callStack[0].arguments[1].sourceVariable == 6,
+            "gosub must retain source variable IDs, not just evaluated values");
+      Ponscripter::SlotSaveData restored;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(save), restored),
+            "indirect parameter save must deserialize");
+      check(restored.callStack[0].arguments[0].sourceVariable == 5 &&
+                restored.callStack[0].arguments[1].sourceIsString,
+            "source-reference metadata must survive save/load");
+      Ponscripter::PonscripterVm resumed;
+      resumed.appendScriptFile("0.utf", script);
+      check(resumed.start(), "indirect getparam resume script must start");
+      resumed.importSlotSave(restored);
+      resumed.tick(20);
+      check(resumed.isHalted() &&
+                resumed.variables().getNum(1) == 5 &&
+                resumed.variables().getNum(2) == 6,
+            "getparam i/s must return original numeric/string variable IDs");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
