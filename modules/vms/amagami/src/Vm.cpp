@@ -117,6 +117,20 @@ void Vm::add(Script s) {
   const auto key = s.name;
   scripts_.insert_or_assign(key, std::move(s));
 }
+bool Vm::loadClass(const std::string &name) {
+  if (hasClass(name))
+    return true;
+  if (!resolveClass || name.empty() || name.size() > 256)
+    return false;
+  auto script = resolveClass(name);
+  if (!script)
+    return false;
+  if (script->name != name)
+    throw std::runtime_error("Amagami SCF class resolver returned " +
+                             script->name + " for " + name);
+  add(std::move(*script));
+  return true;
+}
 Vm Vm::fork(const VmValue &receiver, const std::string &method) const {
   Vm child = *this;
   child.frames_.clear();
@@ -212,6 +226,9 @@ VmValue Vm::constant(const Value &c) {
   case Value::Symbol:
     return VmValue::str(c.text, VmValue::Symbol);
   case Value::Class:
+    // The original engine loads explicit class constants on first access,
+    // unlike Class.findClass, which must only report classes already loaded.
+    loadClass(c.text);
     return VmValue::str(c.text, VmValue::Class);
   case Value::Array: {
     auto o = std::make_shared<VmObject>();
