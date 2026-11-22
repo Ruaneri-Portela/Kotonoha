@@ -41,6 +41,8 @@ struct Entity {
   bool visible = true;
   bool locked = false;
   bool smoothing = false;
+  bool monochrome = false;
+  uint8_t boxBlurPasses = 0; // 0, 8 or 16; prepared once per GPU texture.
   float scrollValue = 50.0f; // 0..100 for ScrollBar entities
   bool scrollHorizontal = true;
 
@@ -131,6 +133,8 @@ public:
   bool setParent(std::string_view childName, std::string_view parentName);
   bool setAlias(std::string_view entityName, std::string_view alias);
   bool setPriority(std::string_view entityName, float z);
+  void setMonochrome(std::string_view query, bool enabled);
+  void setBoxBlur(std::string_view query, unsigned passes);
 
   void moveEntity(std::string_view name, float targetX, float targetY,
                   float durationMs = 0.0f,
