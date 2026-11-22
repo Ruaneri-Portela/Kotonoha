@@ -637,8 +637,8 @@ int main() {
     const auto script = Kirikiri::KagScript::parse(
         "[macro name=message]"
         "[cm text=%caption|Default]"
-        "[endmacro]"
-        "*begin"
+        "[endmacro]\n"
+        "*begin\n"
         "[message caption=First]"
         "[message]"
         "[end]",
