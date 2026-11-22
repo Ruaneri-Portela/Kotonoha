@@ -2667,7 +2667,23 @@ struct LucaSystemRuntime::Impl {
           (slot.assetId == 65000 || slot.assetId == 65001))
         return false;
     }
-    return true;
+    // Scene slot (0,0) may be only a cropped/transparent fragment. Do not
+    // float the calendar over empty black pixels as in seen170 transitions.
+    const auto image = objectImages.find(background->second.assetId);
+    if (image == objectImages.end() || image->second.rgba.empty())
+      return false;
+    const auto &slot = background->second;
+    const auto &art = image->second;
+    const float x = croppedSpriteOrigin(
+        slot.posX, float(art.anchorX), float(art.cropX),
+        slot.scaleX, slot.targetOffsetX, 0.0f);
+    const float y = croppedSpriteOrigin(
+        slot.posY, float(art.anchorY), float(art.cropY),
+        slot.scaleY, slot.targetOffsetY, 0.0f);
+    // Centre of the native 128x133 calendar badge, not window pixels.
+    return rasterCoversPointWithOpacity(
+        art.rgba, art.width, art.height, x, y, slot.scaleX, slot.scaleY,
+        69.33f, 66.67f, slot.alpha);
   }
 
   void renderCalendarBadge(Kotonoha::RendererRef renderer, uint64_t now,
