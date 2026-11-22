@@ -49,6 +49,13 @@ public:
       const std::string &owner, const std::string &method, bool classMethod,
       const VmValue &, unsigned, const std::vector<VmValue> &)>;
   void add(Script script);
+  // On-demand SCF classes (notably Vita scenarios in SCENARIO.CPK) are
+  // resolved only for explicit loadClass calls and class literals. The
+  // Class.findClass query deliberately never requests a load.
+  using ClassResolver =
+      std::function<std::optional<Script>(const std::string &name)>;
+  ClassResolver resolveClass;
+  bool loadClass(const std::string &name);
   void reset();
   // Begin another script entry while preserving campaign globals and objects.
   void resetExecution();
