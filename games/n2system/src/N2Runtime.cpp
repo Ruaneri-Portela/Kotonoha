@@ -1459,11 +1459,21 @@ void N2Runtime::saveGame(const std::string &path) {
     impl_->ponscripter->saveGame(path);
     return;
   }
-  auto saveData = isNsbActive() ? impl_->nsbVm->saveState() : vm_.saveState();
-  auto bytes = SaveStateCodec::serializeBinary(saveData);
-  std::string err;
-  (void)Kotonoha::Filesystem::writeBinaryFileAtomically(
-      std::filesystem::path(path), bytes, &err);
+  try {
+    const auto saveData =
+        isNsbActive() ? impl_->nsbVm->saveState() : vm_.saveState();
+    const auto bytes = SaveStateCodec::serializeBinary(saveData);
+    std::string error;
+    if (!Kotonoha::Filesystem::writeBinaryFileAtomically(
+            std::filesystem::path(path), bytes, &error))
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "N2System: save %s failed: %s",
+                  path.c_str(), error.c_str());
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "N2System: cannot serialize save %s: %s",
+                path.c_str(), error.what());
+  }
 }
 
 void N2Runtime::loadGame(const std::string &path) {
@@ -1474,13 +1484,23 @@ void N2Runtime::loadGame(const std::string &path) {
   try {
     auto bytes = Kotonoha::Filesystem::readLocalFile(path);
     SaveData loaded;
-    if (SaveStateCodec::deserializeBinary(bytes, loaded)) {
-      if (isNsbActive())
-        impl_->nsbVm->loadState(loaded);
-      else
-        vm_.loadState(loaded);
+    if (!SaveStateCodec::deserializeBinary(bytes, loaded)) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "N2System: rejected truncated/corrupted save %s",
+                  path.c_str());
+      return;
     }
-  } catch (...) {
+    const bool restored = isNsbActive()
+                              ? impl_->nsbVm->loadState(loaded)
+                              : vm_.loadState(loaded);
+    if (!restored)
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "N2System: save %s references missing or invalid script state",
+                  path.c_str());
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "N2System: cannot load save %s: %s",
+                path.c_str(), error.what());
   }
 }
 
