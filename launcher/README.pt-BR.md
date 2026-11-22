@@ -17,7 +17,7 @@ A pasta `launcher/` fornece o launcher unificado multi-motor e o registro modula
    - O Example permanece como aplicativo independente e nunca é registrado nem linkado no hub. O launcher não é criado quando se compila um único port.
 
 3. **Divisão da Pasta de Save e Config por Jogo (`splitSavesByGame`)**:
-   - Isola `KOTONOHA_USER_DATA_DIR` e `settings.json` em `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/Kotonoha/<packageId>/save` para que múltiplos títulos do mesmo motor (ex.: `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` no RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` no CMP; `ZeroNoTsukaima0..2` no Zero) nunca entrem em conflito.
+   - Isola `KOTONOHA_USER_DATA_DIR` e `settings.json` em `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/save` (omitindo o nome do pacote no modo unificado e em mobile/WASM) para que múltiplos títulos do mesmo motor (ex.: `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` no RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` no CMP; `ZeroNoTsukaima0..2` no Zero) nunca entrem em conflito.
 
 ## Compilar com as bibliotecas dos jogos
 

@@ -52,9 +52,6 @@ void addDirectory(std::vector<std::filesystem::path> &paths,
 #ifdef __EMSCRIPTEN__
 extern "C" void KotonohaMountSaveStorage();
 
-// index.html mounts IDBFS here before SDL_AppInit runs. Calling the web runtime
-// export here also keeps its translation unit in the static link: the HTML
-// preRun hook reaches it through ccall, which the native linker cannot see.
 std::filesystem::path webSaveDirectory() {
   KotonohaMountSaveStorage();
   const std::filesystem::path directory = "/save";
@@ -219,8 +216,6 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     addDirectory(result.gameAssets, locations.privateGameAssets);
     addGame(locations.resources, false);
 
-    // Don't change this, on android Android/data/<package> is used for user
-    // data.
     result.documents = locations.userData;
     break;
   }
@@ -235,8 +230,6 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addDirectory(result.engineAssets, locations.userData / "fonts");
     }
 
-    // Don't change this, on iOS the Documents directory is the userData path.
-    // Allow to show on Files.app
     result.documents = locations.userData;
     break;
   }
@@ -248,11 +241,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addGame(locations.workingDirectory, true);
     }
 
-    // Don't change this, on Desktop, the Documents directory is the userData
-    // path with Kotonoha subdirectory. Documents directory for Desktop is the
-    // userData with Kotonoha subdirectory.
-    result.documents =
-        locations.userData / "Kotonoha" / locations.packageIdentifier;
+    auto pkg = game.empty() ? locations.packageIdentifier : game;
+    result.documents = locations.userData / "Kotonoha" / pkg;
     break;
   }
   }
@@ -506,7 +496,7 @@ std::filesystem::path documentsDirectory(const std::string &game) {
   if (!game.empty())
     validateGame(game);
 #ifdef __EMSCRIPTEN__
-  return webSaveDirectory();
+  return webSaveDirectory(game);
 #endif
   auto locations = storageLocations();
 #ifndef __ANDROID__
@@ -525,7 +515,7 @@ std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
   if (!game.empty())
     validateGame(game);
 #ifdef __EMSCRIPTEN__
-  return webSaveDirectory();
+  return webSaveDirectory(game);
 #endif
   auto locations = storageLocations();
   // Old callers may pass a source-tree slug. Only metadata or an explicit

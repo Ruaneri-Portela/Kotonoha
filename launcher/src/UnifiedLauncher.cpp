@@ -296,10 +296,7 @@ std::string resolveGameSaveDirectory(const DiscoveredGameEntry &entry,
                                      std::string_view customSaveRoot) {
   const fs::path userRoot =
       resolveIsolatedUserDataRoot(entry, splitSavesByGame, customSaveRoot);
-  const std::string pkg = entry.packageId.empty()
-                              ? "me.hirameki.kotonoha.launcher"
-                              : entry.packageId;
-  return (userRoot / "Kotonoha" / pkg / "save").lexically_normal().string();
+  return (userRoot / "save").lexically_normal().string();
 }
 
 void applyPerGameSaveIsolation(const DiscoveredGameEntry &entry,
