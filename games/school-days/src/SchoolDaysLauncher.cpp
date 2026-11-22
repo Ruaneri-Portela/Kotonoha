@@ -2401,7 +2401,21 @@ bool Launcher::validate(std::string &error) {
          Kotonoha::SchoolDaysGpkLanguageProfile::IsInstalledLocaleJson(
              getSettingsPath(), translationFile));
 
+    // Probe whether this installation uses packed retail GPKs (where LxH.GPK
+    // is independently toggleable) or an extracted loose developer directory.
+    // Keep sourceAssets in an optional so validateBaseOnly() can unmount it
+    // cleanly before remounting base-only retail GPKs (SchoolDays::Assets owns
+    // the process-wide GPK mount and asset resolver).
+    std::optional<SchoolDays::Assets> sourceAssets;
+    sourceAssets.emplace(
+        Kotonoha::gameDataDirectory(path()), effectiveOverlayRoot().string(),
+        true, nullptr,
+        wantLxh ? Kotonoha::SchoolDaysLxhMountMode::Optional
+                : Kotonoha::SchoolDaysLxhMountMode::Disabled);
+    const bool packedInstall = sourceAssets->usesPackedResources();
+
     const auto validateBaseOnly = [&]() -> bool {
+      sourceAssets.reset();
       SchoolDays::Assets baseAssets(
           Kotonoha::gameDataDirectory(path()), effectiveOverlayRoot().string(),
           true, {}, Kotonoha::SchoolDaysLxhMountMode::Disabled);
@@ -2422,19 +2436,10 @@ bool Launcher::validate(std::string &error) {
       return true;
     };
 
-    // Probe whether this installation uses packed retail GPKs (where LxH.GPK
-    // is independently toggleable) or an extracted loose developer directory.
-    SchoolDays::Assets sourceAssets(
-        Kotonoha::gameDataDirectory(path()), effectiveOverlayRoot().string(),
-        true, {},
-        wantLxh ? Kotonoha::SchoolDaysLxhMountMode::Optional
-                : Kotonoha::SchoolDaysLxhMountMode::Disabled);
-    const bool packedInstall = sourceAssets.usesPackedResources();
-
     if (packedInstall && !wantLxh) {
       if (!nativeHq) {
         const auto baseSources =
-            Kotonoha::SchoolDaysTranslationGate::CollectDetailed(sourceAssets,
+            Kotonoha::SchoolDaysTranslationGate::CollectDetailed(*sourceAssets,
                                                                  routePath());
         const auto baseAudit = Kotonoha::SchoolDaysTranslationGate::CheckLayered(
             baseSources, dictionary, reviewed, {}, {}, false, installedBaseJson);
@@ -2453,8 +2458,8 @@ bool Launcher::validate(std::string &error) {
 
     bool epiloguesPresent = false;
     std::string lxhMediaError;
-    const bool mediaOk =
-        checkIntegratedLxhContent(sourceAssets, &epiloguesPresent, lxhMediaError);
+    const bool mediaOk = checkIntegratedLxhContent(
+        *sourceAssets, &epiloguesPresent, lxhMediaError);
     if (!mediaOk) {
       if (!packedInstall) {
         error = lxhMediaError;
@@ -2504,7 +2509,7 @@ bool Launcher::validate(std::string &error) {
           Kotonoha::SchoolDaysTranslationGate::LoadReviewedIdentities(dlcFile);
     }
     const auto sources = Kotonoha::SchoolDaysTranslationGate::CollectDetailed(
-        sourceAssets, routePath());
+        *sourceAssets, routePath());
     const auto audit = Kotonoha::SchoolDaysTranslationGate::CheckLayered(
         sources, dictionary, reviewed, dlc, reviewedDlc, nativeHq,
         installedBaseJson);

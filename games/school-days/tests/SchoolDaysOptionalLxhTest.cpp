@@ -529,6 +529,36 @@ void TestLauncherCheckboxAndPersistence(const fs::path &root,
                 l.getStatus());
   }
 
+  // 5. Regression: packed 30-GPK install + EnableLxh=1 + JSON mode with missing
+  //    or incomplete en-lxh.json must unmount sourceAssets before validateBaseOnly()
+  //    and launch base HQ cleanly (preserving EnableLxh=1).
+  {
+    SchoolDays::Launcher l(settings.string(), gameDir.string(), routePath);
+    l.setRetailConfigRoot(docs);
+    l.setEnableLxhPreference(true);
+    l.setLanguage(SchoolDays::Launcher::Language::English);
+    Require(l.launch() && !l.effectiveLxhEnabled() &&
+                !l.lxhStatusNotice().empty(),
+            "Packed JSON mode with missing en-lxh.json must launch base HQ: " +
+                l.getStatus());
+  }
+  const fs::path badEnLxh =
+      settings.parent_path() / "translations" / "jsons" / "en-lxh.json";
+  WriteText(badEnLxh, "{\"1398\":{\"@ors:0:0\":\"incomplete\"}}");
+  {
+    SchoolDays::Launcher l(settings.string(), gameDir.string(), routePath);
+    l.setRetailConfigRoot(docs);
+    l.setEnableLxhPreference(true);
+    l.setLanguage(SchoolDays::Launcher::Language::English);
+    Require(l.launch() && !l.effectiveLxhEnabled() &&
+                !l.lxhStatusNotice().empty(),
+            "Packed JSON mode with incomplete en-lxh.json must launch base HQ: " +
+                l.getStatus());
+  }
+  saved = Kotonoha::SchoolDaysLxhPreference::Read(docs);
+  Require(saved.has_value() && *saved,
+          "EnableLxh=1 must survive JSON LxH fallback");
+
   // 4. User toggles OFF -> persists EnableLxh=0 -> effective OFF even with LxH.GPK present!
   {
     SchoolDays::Launcher l(settings.string(), gameDir.string(), routePath);
