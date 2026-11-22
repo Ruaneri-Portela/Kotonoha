@@ -2,10 +2,38 @@
 #pragma once
 #include <SDL3/SDL.h>
 #include <algorithm>
+#include <cstdint>
 #include <cmath>
 #include <utility>
 
 namespace LucaSystem {
+
+
+// Upload the image completely before it enters any shared texture cache.
+// On an SDL/GPU upload or sampler-state failure, destroy the incomplete
+// texture immediately; otherwise subsequent frames may display random
+// uninitialized VRAM from a partially constructed SDL_Texture.
+inline SDL_Texture *uploadAirStaticRgba(SDL_Renderer &renderer, int width,
+                                        int height, const void *rgba, int pitch,
+                                        SDL_ScaleMode scale) {
+  if (!rgba || width < 1 || height < 1 ||
+      width > 16384 || height > 16384 || pitch < width * 4) {
+    SDL_SetError("Invalid LucaSystem RGBA texture dimensions or stride");
+    return nullptr;
+  }
+  SDL_Texture *candidate = SDL_CreateTexture(
+      &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC,
+      width, height);
+  if (!candidate)
+    return nullptr;
+  if (!SDL_UpdateTexture(candidate, nullptr, rgba, pitch) ||
+      !SDL_SetTextureScaleMode(candidate, scale) ||
+      !SDL_SetTextureBlendMode(candidate, SDL_BLENDMODE_BLEND)) {
+    SDL_DestroyTexture(candidate);
+    return nullptr;
+  }
+  return candidate; // caller owns via Kotonoha::TexturePtr (SDL_DestroyTexture)
+}
 
 // Render an *entire* scene to an SDL3 GPU/SDL render target while preserving
 // the caller's texture target, draw color and draw blend mode. SDL retains
