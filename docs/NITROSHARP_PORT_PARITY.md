@@ -47,5 +47,12 @@ branch `rebuild`. Additional opcode evidence:
 5. Confirm compatibility with existing saves and exercise parser corruption,
    low-memory, missing assets and failed storage operations.
 
-Keep the integration PR **open** until the outstanding equivalence items and
-retail tests are actually completed.
+PR [#76](https://github.com/Ruaneri-Portela/Kotonoha/pull/76) was merged into
+`dev` on 2026-11-22 as an **incremental implementation**, not as a claim of
+complete 1:1 compatibility. PR
+[#71](https://github.com/Ruaneri-Portela/Kotonoha/pull/71) subsequently
+integrated video/menu input and LucaSystem composition regressions.
+
+Keep tracking the outstanding equivalence items and retail/platform tests in
+[issue #83](https://github.com/Ruaneri-Portela/Kotonoha/issues/83). This
+issue must remain open until those criteria have reproducible evidence.
