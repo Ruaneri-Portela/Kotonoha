@@ -104,14 +104,15 @@ struct CachedProbe {
 };
 
 std::uint64_t sourceFingerprint(const std::string &path) {
-  // SAF providers do not expose a cheap portable modification time. Refresh
-  // their entries hourly and whenever the persisted cache is removed.
-  if (path.find("://") != std::string::npos) {
-    const auto hour = std::chrono::duration_cast<std::chrono::hours>(
-                          std::chrono::system_clock::now().time_since_epoch())
-                          .count();
+  // Native discovery must not stat every file in a game's asset tree merely
+  // to reuse a cached engine identity. Inspect the root and known metadata
+  // directories; refresh periodically for changes deeper in the tree.
+  const auto hour = std::chrono::duration_cast<std::chrono::hours>(
+                        std::chrono::system_clock::now().time_since_epoch())
+                        .count();
+  if (path.find("://") != std::string::npos)
     return std::hash<std::string>{}(path) ^ std::uint64_t(hour);
-  }
+
   std::error_code error;
   const fs::path root(path);
   if (!fs::exists(root, error))
@@ -120,38 +121,33 @@ std::uint64_t sourceFingerprint(const std::string &path) {
   auto mix = [&hash](std::uint64_t value) {
     hash = (hash ^ value) * 1099511628211ull;
   };
+  mix(static_cast<std::uint64_t>(hour));
   auto sample = [&](const fs::path &file) {
     mix(std::hash<std::string>{}(file.lexically_relative(root).string()));
+    error.clear();
     const auto modified = fs::last_write_time(file, error);
     if (!error)
       mix(std::uint64_t(modified.time_since_epoch().count()));
     error.clear();
     if (fs::is_regular_file(file, error)) {
+      error.clear();
       const auto size = fs::file_size(file, error);
       if (!error)
         mix(size);
     }
-    error.clear();
   };
   sample(root);
   if (fs::is_directory(root, error)) {
-    std::vector<fs::path> samples;
-    for (fs::directory_iterator it(root, fs::directory_options::skip_permission_denied,
-                                   error), end;
-         !error && it != end; it.increment(error)) {
-      samples.push_back(it->path());
-      if (it->is_directory(error)) {
-        for (fs::directory_iterator child(
-                 it->path(), fs::directory_options::skip_permission_denied,
-                 error), childEnd;
-             !error && child != childEnd; child.increment(error))
-          samples.push_back(child->path());
-      }
-      error.clear();
+    for (const char *name : {"files", "game", "data", "archive", "Packs",
+                             "USRDIR", "kineticdata", "Data", "script",
+                             "scripts", "scenario", "game-assets"}) {
+      sample(root / name);
     }
-    std::sort(samples.begin(), samples.end());
-    for (const auto &path : samples)
-      sample(path);
+    for (const char *name : {"Seen.txt", "Gameexe.ini", "PARAM.PAK",
+                             "SCRIPT.PAK", "SYSSE.PAK", "data.xp3",
+                             "startup.tjs", "0.txt", "nscript.dat"}) {
+      sample(root / name);
+    }
   }
   return hash;
 }
@@ -187,6 +183,11 @@ std::map<std::string, CachedProbe> &scanCache() {
   return cache;
 }
 
+bool &scanCacheDirty() {
+  static bool dirty = false;
+  return dirty;
+}
+
 void persistScanCache(const std::map<std::string, CachedProbe> &cache) {
   try {
     std::ostringstream data;
@@ -217,7 +218,7 @@ CachedProbe probeCached(const std::string &path) {
   CachedProbe result;
   result.fingerprint = fingerprint;
   try {
-    auto mounted = Filesystem::mount(path);
+    auto mounted = Filesystem::mountForDetection(path);
     if (mounted) {
       result.vnxPatch = isVnxOverlayPatch(*mounted);
       result.engine = detectKotonohaEngine(*mounted, path);
@@ -226,9 +227,22 @@ CachedProbe probeCached(const std::string &path) {
   }
   if (result.engine.kind != EngineKind::Unknown || result.vnxPatch) {
     cache[path] = result;
-    persistScanCache(cache);
+    scanCacheDirty() = true;
+  } else {
+    // Cache negative probes too; a changed root/hour still invalidates them.
+    cache[path] = result;
+    scanCacheDirty() = true;
   }
   return result;
+}
+
+void flushScanCache() {
+  static std::mutex mutex;
+  std::lock_guard<std::mutex> lock(mutex);
+  if (scanCacheDirty()) {
+    persistScanCache(scanCache());
+    scanCacheDirty() = false;
+  }
 }
 
 } // namespace
@@ -728,12 +742,15 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
     const auto direct = detectKotonohaEngineFromPath(rootPath.string());
     if (direct.kind != EngineKind::Unknown) {
       results.push_back(buildDiscoveredGameEntry(rootPath.string(), direct));
+      flushScanCache();
       return results;
     }
   }
 
-  if (!fs::is_directory(rootPath, ec))
+  if (!fs::is_directory(rootPath, ec)) {
+    flushScanCache();
     return results;
+  }
 
   std::string vnxPatchPath;
   std::vector<fs::path> candidates;
@@ -772,6 +789,9 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
     }
   }
 
+  // Persist once per directory scan, not after every candidate. On libraries
+  // with many titles, repeated atomic full-cache rewrites dominated IO.
+  flushScanCache();
   return results;
 }
 
