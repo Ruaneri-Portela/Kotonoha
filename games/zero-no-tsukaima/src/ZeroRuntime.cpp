@@ -95,6 +95,12 @@ void ZeroRuntime::update() {
 bool ZeroRuntime::onEvent(Kotonoha::EventRef event) {
   if (!session_)
     return false;
+  if (session_->MoviePlaying()) {
+    if (videoSkip_.accept(event))
+      session_->SkipMovie();
+    return true;
+  }
+  videoSkip_.reset();
   // Menu, map choices and roulette keep navigation controls; dialogue-only
   // shortcuts must never turn Cancel into a held skip inside those screens.
   if (textBox_ && (event.type == SDL_EVENT_WINDOW_FOCUS_LOST ||

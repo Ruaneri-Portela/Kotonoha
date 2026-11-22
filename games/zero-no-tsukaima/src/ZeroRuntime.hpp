@@ -3,6 +3,7 @@
 #include "ZeroComponents.hpp"
 
 #include <Kotonoha/core/Runtime.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 
 #include <memory>
 
@@ -54,6 +55,7 @@ public:
                        kViewHeight = kGameHeight * 3 / 2;
 
 private:
+  Kotonoha::VideoSkipGesture videoSkip_;
   std::shared_ptr<Kotonoha::Providers::ZeroDiscAssets> disc_;
   Kotonoha::Engine *engine_ = nullptr;
   std::unique_ptr<ZeroSession> session_;

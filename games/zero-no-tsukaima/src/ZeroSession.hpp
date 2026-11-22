@@ -76,6 +76,8 @@ public:
     return Playing() && game_->WaitingForClick() && !frontend_.InGame();
   }
   bool MovieFinished() const { return !movie_ || movie_->finished(); }
+  bool MoviePlaying() const { return movie_ && movie_->isOpen() && !movie_->finished(); }
+  void SkipMovie() { if (movie_) { movie_->stop(); movie_.reset(); } }
   int TextDelayMs() const;
   int AutoDelayMs() const;
   bool VoiceActive() const { return voice_.Playing(); }
