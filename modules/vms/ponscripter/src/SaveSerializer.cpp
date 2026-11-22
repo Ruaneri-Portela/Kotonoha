@@ -119,6 +119,8 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
   for (const auto &frame : data.callStack) {
     out << "CALL\t" << frame.returnStatementIndex << '\t'
         << escapeLine(frame.targetLabel) << '\n';
+    if (!frame.callerLabel.empty())
+      out << "CALLFROM\t" << escapeLine(frame.callerLabel) << '\n';
     out << "CALLCURSOR\t" << frame.nextArgument << '\n';
     for (const auto &arg : frame.arguments) {
       out << "CALLARG\t" << (arg.isString ? 1 : 0) << '\t'
@@ -278,6 +280,12 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       std::getline(ls, lbl);
       frame.targetLabel = unescapeLine(lbl);
       outData.callStack.push_back(std::move(frame));
+    } else if (kind == "CALLFROM") {
+      if (!outData.callStack.empty()) {
+        std::string source;
+        std::getline(ls, source);
+        outData.callStack.back().callerLabel = unescapeLine(source);
+      }
     } else if (kind == "CALLCURSOR") {
       if (!outData.callStack.empty())
         ls >> outData.callStack.back().nextArgument;
