@@ -247,3 +247,11 @@ Choosing one resolves a local label or defers an external storage jump through
 the existing callback. This provides a functional UI fallback for text-based
 KAG menus and does **not** reproduce their original button skins, effects,
 or every graphical `[button]` command.
+
+## Additional TJS2 expression operators
+
+The bounded TJS2 source interpreter now handles remainder `%` and ternary
+`condition ? a : b`, with inactive arms parsed but never executed. This
+allows common menu-slot arithmetic and selected/hover button expressions.
+Division or remainder by zero still fails explicitly. These operators are
+not a substitute for full TJS2 language and bytecode support.
