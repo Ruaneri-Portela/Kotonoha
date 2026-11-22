@@ -5,6 +5,8 @@ on:
     branches: [dev]
     paths:
       - 'games/reallive/src/RealLiveAudioWait.hpp'
+      - 'games/reallive/src/RealLiveChannelLevels.hpp'
+      - 'games/reallive/tests/ChannelLevelsTest.cpp'
       - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
       - 'games/reallive/src/RealLiveNumeric.hpp'

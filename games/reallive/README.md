@@ -230,3 +230,17 @@ VM integer semantics even at extremal operands, including INT_MIN % -1.
 These behaviors are covered by the data-free RealLive.NumericCompat test
 on both GCC and Clang. Deterministic native-random compatibility with any
 specific Windows RealLive release has **not** yet been established.
+
+## Script-controlled voice and PCM channels
+
+Voice and PCM playback now apply per-script gain controls normalized from the
+native 0..255 volume range. Newly played sounds inherit their channel's volume,
+and fades advance only while gameplay is active. Native PCM volume/set/mute
+variants (11–14), voice volume/set/mute variants (11–14), and mapped sound effect
+channels use the same controller. A fade-out can stop its PCM channel after
+reaching silence. `RealLive.ChannelLevels` provides synthetic tests for per-channel
+isolation, mute, exact fade endpoints and very large frame-time jumps.
+
+The exact command signatures vary between RealLive generations; audio routing
+and channel fades still need comparison with specific games. Voice/PCM gain is
+currently session state, not serialized in the presentation save.

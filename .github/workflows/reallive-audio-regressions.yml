@@ -6,6 +6,8 @@ on:
     paths:
       - 'games/reallive/src/RealLiveAudioFade.hpp'
       - 'games/reallive/src/RealLiveAudioWait.hpp'
+      - 'games/reallive/src/RealLiveChannelLevels.hpp'
+      - 'games/reallive/tests/ChannelLevelsTest.cpp'
       - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
       - 'games/reallive/tests/AudioFadeTest.cpp'
@@ -15,6 +17,8 @@ on:
     paths:
       - 'games/reallive/src/RealLiveAudioFade.hpp'
       - 'games/reallive/src/RealLiveAudioWait.hpp'
+      - 'games/reallive/src/RealLiveChannelLevels.hpp'
+      - 'games/reallive/tests/ChannelLevelsTest.cpp'
       - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
       - 'games/reallive/tests/AudioFadeTest.cpp'
@@ -43,5 +47,12 @@ jobs:
             -o /tmp/reallive-audio-wait-test
       - name: Run voice and PCM wait fixtures
         run: /tmp/reallive-audio-wait-test
+      - name: Compile C++17 script PCM/voice channel volume regression
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/ChannelLevelsTest.cpp \
+            -o /tmp/reallive-channel-levels-test
+      - name: Test fades and independent PCM channel levels
+        run: /tmp/reallive-channel-levels-test
       - name: Run volume and fade fixtures
         run: /tmp/reallive-audio-fade-test

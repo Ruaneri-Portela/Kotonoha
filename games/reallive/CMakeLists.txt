@@ -177,6 +177,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.NumericCompat COMMAND RealLiveNumericCompatTests)
     set_tests_properties(RealLive.NumericCompat PROPERTIES LABELS synthetic)
 
+    # Native PCM/voice channel volume, mute, and active-time fades.
+    add_executable(RealLiveChannelLevelsTests tests/ChannelLevelsTest.cpp)
+    target_include_directories(RealLiveChannelLevelsTests PRIVATE src)
+    target_compile_features(RealLiveChannelLevelsTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.ChannelLevels COMMAND RealLiveChannelLevelsTests)
+    set_tests_properties(RealLive.ChannelLevels PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)
