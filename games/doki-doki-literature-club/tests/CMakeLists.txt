@@ -38,6 +38,13 @@ add_executable(DdlcAssetsTest DdlcAssetsTest.cpp)
 target_link_libraries(DdlcAssetsTest PRIVATE doki_doki_literature_club)
 add_test(NAME DokiDoki.Assets COMMAND DdlcAssetsTest)
 
+# Generated compiled-script fixtures exercise real VM flow without proprietary
+# DDLC/Katawa data, so CI catches regressions in both games.
+add_executable(DdlcSyntheticFlowTest DdlcSyntheticFlowTest.cpp)
+target_link_libraries(DdlcSyntheticFlowTest PRIVATE doki_doki_literature_club)
+add_test(NAME DokiDoki.SyntheticFlow COMMAND DdlcSyntheticFlowTest)
+set_tests_properties(DokiDoki.SyntheticFlow PROPERTIES TIMEOUT 45)
+
 set(DDLC_DATA_DIR "" CACHE PATH
     "Doki Doki Literature Club game directory for the retail-data tests")
 if(DDLC_DATA_DIR)
