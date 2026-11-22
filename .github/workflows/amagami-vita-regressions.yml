@@ -62,7 +62,7 @@ jobs:
           SDL_AUDIO_DRIVER: dummy
         run: |
           ctest --test-dir build-amagami-vita \
-            -R '^Amagami\.(Vm|VitaInput|VitaControlPad|VitaVibration) \
+            -R '^Amagami\.(Vm|VitaInput|VitaControlPad|VitaVibration)$' \
             --output-on-failure --no-tests=error
  \
             --output-on-failure --no-tests=error
