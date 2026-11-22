@@ -733,6 +733,44 @@ void N2Runtime::update() {
     if (!nvm.finished() && !impl_->choiceActive) {
       nvm.step(4096);
     }
+    // Native persistence opcodes are deferred until AFTER stepThread
+    // releases references to the current call stack and process. Loading a
+    // checkpoint from within an instruction would invalidate them.
+    if (const auto pending = nvm.takePendingSaveAction()) {
+      const auto filename = pending->slot == 0
+          ? std::string("n2system_quick.n2sv")
+          : "n2system_slot_" + std::to_string(pending->slot) + ".n2sv";
+      const auto path = Kotonoha::saveDirectory() / filename;
+      switch (pending->kind) {
+      case SaveActionKind::Save:
+        saveGame(path.string());
+        break;
+      case SaveActionKind::Delete: {
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+        if (ec)
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "N2System: cannot delete save slot %u: %s",
+                      pending->slot, ec.message().c_str());
+        break;
+      }
+      case SaveActionKind::Load:
+        loadGame(path.string());
+        impl_->lastChoices.clear();
+        impl_->focusedChoiceIndex = 0;
+        impl_->choiceActive = false;
+        // Resynchronize players with restored audio and movie channels.
+        if (impl_->moviePlayer) impl_->moviePlayer->stop();
+        if (impl_->bgmPlayer) impl_->bgmPlayer->stop();
+        if (impl_->voicePlayer) impl_->voicePlayer->stop();
+        if (impl_->sePlayer) impl_->sePlayer->stop();
+        impl_->currentMovie.clear();
+        impl_->currentBgm.clear();
+        impl_->currentVoice.clear();
+        impl_->currentSe.clear();
+        return; // Rebuild UI and media from restored state next frame.
+      }
+    }
 
     if (nvm.finished() && impl_->engine && !impl_->quitRequested) {
       impl_->quitRequested = true;
