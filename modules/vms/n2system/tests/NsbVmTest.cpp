@@ -188,6 +188,50 @@ int main() {
     require(vm.finished(), "VM should finish cleanly");
   }
 
+  // The worker can spawn another process while the VM still holds a
+  // reference to that worker. A std::vector<Thread> invalidated the reference.
+  {
+    Bytes nsb, map;
+    addMap(map, 0, "chapter.main");
+    auto ins = [&](uint16_t opcode, std::vector<std::string> args) {
+      addInsn(nsb, static_cast<uint32_t>(nsb.size()+1), opcode, args);
+    };
+    ins(0x094, {"chapter.main"});
+    const auto literal = [&](std::string v) { ins(0x0d0, {"STRING", v}); };
+    literal("workerA"); literal("0"); literal("0"); literal("0"); literal("fnA");
+    ins(0x009, {"workerA", "0", "0", "0", "fnA"});
+    literal("workerA"); literal("start");
+    ins(0x023, {"workerA", "start"});
+    ins(0x03a, {});
+    ins(0x097, {"fnA"});
+    literal("workerB"); literal("0"); literal("0"); literal("0"); literal("fnB");
+    ins(0x009, {"workerB", "0", "0", "0", "fnB"});
+    literal("workerB"); literal("start");
+    ins(0x023, {"workerB", "start"});
+    ins(0x0d7, {});
+    ins(0x097, {"fnB"});
+    ins(0x0d0, {"INT", "77"});
+    ins(0x0b0, {"$workerValue"});
+    ins(0x0d7, {});
+
+    N2System::NsbVm scheduler;
+    scheduler.setLoader([&](std::string_view, Bytes &nsbOut, Bytes &mapOut) {
+      nsbOut = nsb;
+      mapOut = map;
+      return true;
+    });
+    require(scheduler.boot("nss/0_boot.nss"), "scheduler boot");
+    scheduler.step(4096);
+    require(scheduler.threadCount() == 3,
+            "Nested CreateProcess should retain all thread instances");
+    require(!scheduler.findVar("$workerValue"),
+            "New process must not execute in its creator's scheduler tick");
+    scheduler.step(4096);
+    require(scheduler.findVar("$workerValue") &&
+                scheduler.findVar("$workerValue")->asInt() == 77,
+            "Independently scheduled worker runs in next VM frame");
+  }
+
   std::cout << "N2System NsbVm tests passed\n";
   return 0;
 }
