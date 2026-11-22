@@ -90,6 +90,7 @@ struct Object {
   std::weak_ptr<Object> parent;
   std::size_t layerId = 0;
   std::vector<TjsUiText> texts;
+  std::vector<TjsUiRect> rectangles;
 };
 
 struct Token {
@@ -1124,6 +1125,7 @@ void Interpreter::snapshotLayers() {
     frame.visible = member(layer, "visible").truthy();
     frame.enabled = member(layer, "enabled").truthy();
     frame.texts = layer->texts;
+    frame.rectangles = layer->rectangles;
     frame.storage = member(layer, "storage").string();
     if (!frame.storage.empty())
       frame.storage = safeName(frame.storage);
@@ -1212,7 +1214,8 @@ Value Interpreter::call(const std::string &name,
     const auto method = name.substr(dot + 1);
     if (method == "loadImages" || method == "setImage" || method == "setPos" ||
         method == "setSize" || method == "show" || method == "hide" ||
-        method == "drawText" || method == "clearText") {
+        method == "drawText" || method == "clearText" ||
+        method == "fillRect") {
       const auto receiver = get(name.substr(0, dot));
       const auto ptr = std::get_if<ObjectPtr>(&receiver.data);
       if (!ptr || !*ptr ||
@@ -1246,6 +1249,31 @@ Value Interpreter::call(const std::string &name,
         if (!params.empty())
           throw std::runtime_error("TJS2 UI: clearText takes no arguments");
         obj->texts.clear();
+        return {};
+      }
+      if (method == "fillRect") {
+        if (params.size() < 5 || params.size() > 6)
+          throw std::runtime_error("TJS2 UI: fillRect needs 5-6 arguments");
+        if (obj->rectangles.size() >= 256)
+          throw std::runtime_error("TJS2 UI: rectangle count limit exceeded");
+        TjsUiRect rect;
+        rect.left = static_cast<int>(integer(0).number());
+        rect.top = static_cast<int>(integer(1).number());
+        rect.width = static_cast<int>(integer(2).number());
+        rect.height = static_cast<int>(integer(3).number());
+        if (rect.width <= 0 || rect.height <= 0)
+          throw std::runtime_error("TJS2 UI: fillRect dimensions invalid");
+        const auto color = params.at(4).number();
+        if (!std::isfinite(color) || color < 0 || color > 4294967295.0)
+          throw std::runtime_error("TJS2 UI: fillRect color invalid");
+        rect.rgb = static_cast<std::uint32_t>(color) & 0xffffffu;
+        if (params.size() == 6) {
+          const auto opacity = params.at(5).number();
+          if (!std::isfinite(opacity) || opacity < 0 || opacity > 255)
+            throw std::runtime_error("TJS2 UI: fillRect opacity invalid");
+          rect.opacity = static_cast<int>(opacity);
+        }
+        obj->rectangles.push_back(rect);
         return {};
       }
       if (method == "drawText") {
