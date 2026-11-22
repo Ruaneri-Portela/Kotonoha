@@ -52,7 +52,8 @@ void PonscripterVm::registerCommands() {
         "nsa",        "ns2",       "ns3",           "arc",         "nsaoffset",
         "caption",    "apptitle",  "versionstr",    "humanz",      "underline",
         "windowback", "filelog",   "labellog",      "kidokuskip",  "kidokumode",
-        "mode_ext",   "mode_saya", "mode_wave_demo"}) {
+        "mode_ext",   "mode_saya", "mode_wave_demo",
+        "textgosub", "pretextgosub"}) {
     registerCommand(c, &PonscripterVm::cmdLifecycle);
   }
 
@@ -116,7 +117,7 @@ void PonscripterVm::registerCommands() {
                         "erasetextwindow", "textspeed",    "defaultspeed",
                         "defaultfont",     "automode",     "automode_time",
                         "autoclick",       "skipoff",      "locate",
-                        "puttext",         "clickstr",     "linepage",
+                        "puttext",         "texec",        "clickstr",     "linepage",
                         "linepage2",       "shadedistance"}) {
     registerCommand(c, &PonscripterVm::cmdTextAndWindow);
   }
@@ -238,6 +239,14 @@ void PonscripterVm::cmdLifecycle(LineLexer &lexer, const std::string &cmd) {
   }
   if (cmd == "windowback") {
     windowback_ = true;
+    return;
+  }
+  if (cmd == "pretextgosub") {
+    pretextGosubLabel_ = lexer.parseLabelTarget();
+    return;
+  }
+  if (cmd == "textgosub") {
+    textGosubLabel_ = lexer.parseLabelTarget();
     return;
   }
 }
@@ -1414,6 +1423,16 @@ void PonscripterVm::cmdTextAndWindow(LineLexer &lexer, const std::string &cmd) {
 
   if (cmd == "skipoff") {
     skipMode_ = false;
+    return;
+  }
+
+  if (cmd == "texec") {
+    if (textGosubPagePending_) {
+      clearCurrentPage(true);
+      textGosubPagePending_ = false;
+      if (callbacks_)
+        callbacks_->onSceneDirty();
+    }
     return;
   }
 
