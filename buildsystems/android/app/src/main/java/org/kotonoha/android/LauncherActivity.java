@@ -18,6 +18,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.documentfile.provider.DocumentFile;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -106,7 +107,7 @@ public final class LauncherActivity extends AppCompatActivity {
             registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(), uri -> {
                 if (uri != null) {
                     SafBridge.persistUriPermission(this, uri);
-                    rescanLibrary();
+                    importFolder(uri);
                 }
             });
 
@@ -120,7 +121,10 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private final ActivityResultLauncher<String[]> addZipPicker =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
-                if (uri != null) importZip(uri);
+                if (uri != null) {
+                    SafBridge.persistUriPermission(this, uri);
+                    importZip(uri);
+                }
             });
 
     private final ActivityResultLauncher<Uri> paramFolderPicker =
@@ -141,10 +145,35 @@ public final class LauncherActivity extends AppCompatActivity {
                 pendingPickerTarget = null;
             });
 
+    private static final int STORAGE_PERMISSION_REQUEST_CODE = 1001;
+
+    private void checkAndRequestStoragePermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                try {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    startActivity(intent);
+                }
+            }
+        } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                }, STORAGE_PERMISSION_REQUEST_CODE);
+            }
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
+        checkAndRequestStoragePermission();
         setContentView(R.layout.activity_launcher);
 
         statusText = findViewById(R.id.launcher_status_text);
@@ -271,8 +300,13 @@ public final class LauncherActivity extends AppCompatActivity {
                     File[] topLevel = staging.listFiles();
                     if (topLevel != null && topLevel.length == 1 && topLevel[0].isDirectory())
                         sourceDirectory = topLevel[0];
-                    if (!sourceDirectory.renameTo(destination))
-                        throw new IOException("Cannot finalize ZIP import");
+                    try {
+                        java.nio.file.Files.move(sourceDirectory.toPath(), destination.toPath(),
+                                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    } catch (IOException moveError) {
+                        copyDirectory(sourceDirectory, destination);
+                        deleteTree(sourceDirectory);
+                    }
                 } finally {
                     deleteTree(staging);
                 }
@@ -290,6 +324,89 @@ public final class LauncherActivity extends AppCompatActivity {
         File[] children = file.listFiles();
         if (children != null) for (File child : children) deleteTree(child);
         file.delete();
+    }
+
+    private static void copyDirectory(File source, File target) throws IOException {
+        if (source.isDirectory()) {
+            if (!target.exists() && !target.mkdirs()) {
+                throw new IOException("Cannot create directory: " + target);
+            }
+            String[] children = source.list();
+            if (children != null) {
+                for (String child : children) {
+                    copyDirectory(new File(source, child), new File(target, child));
+                }
+            }
+        } else {
+            java.nio.file.Files.copy(source.toPath(), target.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private void importFolder(Uri uri) {
+        progressIndicator.setVisibility(View.VISIBLE);
+        statusText.setText("Importing Folder...");
+        executor.execute(() -> {
+            try {
+                File root = new File(getExternalFilesDir(null) != null
+                        ? getExternalFilesDir(null) : getFilesDir(), "games");
+                if (!root.isDirectory() && !root.mkdirs())
+                    throw new IOException("Cannot create games directory");
+
+                DocumentFile sourceTree = DocumentFile.fromTreeUri(this, uri);
+                if (sourceTree == null || !sourceTree.isDirectory())
+                    throw new IOException("Cannot open selected folder");
+
+                String folderName = sourceTree.getName();
+                if (folderName == null || folderName.isEmpty()) folderName = "Imported Game";
+                folderName = folderName.replaceAll("[^A-Za-z0-9._ -]", "_");
+                if (folderName.isEmpty() || folderName.equals(".") || folderName.equals(".."))
+                    folderName = "Imported Game";
+
+                File destination = new File(root, folderName);
+                int suffix = 2;
+                while (destination.exists()) destination = new File(root, folderName + "-" + suffix++);
+                if (!destination.mkdirs())
+                    throw new IOException("Cannot create game destination directory");
+
+                copyDocumentTree(sourceTree, destination);
+
+                runOnUiThread(this::rescanLibrary);
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    progressIndicator.setVisibility(View.GONE);
+                    statusText.setText("Folder import failed: " + error.getMessage());
+                });
+            }
+        });
+    }
+
+    private void copyDocumentTree(DocumentFile source, File targetDir) throws IOException {
+        DocumentFile[] children = source.listFiles();
+        if (children != null) {
+            for (DocumentFile child : children) {
+                String name = child.getName();
+                if (name == null) continue;
+                File targetFile = new File(targetDir, name);
+                if (child.isDirectory()) {
+                    if (!targetFile.isDirectory() && !targetFile.mkdirs()) {
+                        throw new IOException("Cannot create directory: " + targetFile);
+                    }
+                    copyDocumentTree(child, targetFile);
+                } else {
+                    try (InputStream in = getContentResolver().openInputStream(child.getUri());
+                         FileOutputStream out = new FileOutputStream(targetFile)) {
+                        if (in != null) {
+                            byte[] buffer = new byte[65536];
+                            int count;
+                            while ((count = in.read(buffer)) != -1) {
+                                out.write(buffer, 0, count);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Override

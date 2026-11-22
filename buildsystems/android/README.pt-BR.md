@@ -17,6 +17,7 @@ Execute dentro de `buildsystems/android/` (PowerShell: defina `$env:VCPKG_ROOT` 
 - Cada flavor tem seu ID próprio e o CMake compila apenas o alvo nativo correspondente.
 - O Gradle usa o submódulo SDL e dependências do vcpkg. DDLC usa CPython por ABI; prefira uma ABI por build.
 - Gradle inclui `assets/` do motor e `game-assets/` do jogo; `-PbundleGameAssets=false` exclui os dados comerciais. Resources empacotados são extraídos no início; saves ficam separados.
-- Não execute dois Gradles simultaneamente no mesmo diretório nativo `.cxx`.
+- No Android, iOS e WebAssembly (WASM), dados de usuário e saves são armazenados diretamente em `pacote/**` (ignorando o nome do pacote/bundle), enquanto builds desktop standalone usam `Kotonoha/pacote/**`. No modo unificado (`UnifiedLauncher`), o nome do pacote é omitido para os saves.
+- Importações de pastas e ZIP no Android utilizam cópia robusta de diretórios e persistência de permissão SAF.
 
 Para dados externos, overlays, OBB e saves, consulte a [política de diretórios](../../docs/DIRECTORY_POLICY.pt-BR.md) e o [guia Android](../../docs/BUILD_ANDROID.pt-BR.md).
