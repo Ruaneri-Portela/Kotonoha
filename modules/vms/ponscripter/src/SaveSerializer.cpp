@@ -170,10 +170,15 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
   for (const auto &btn : data.buttons) {
     out << "BTN\t" << static_cast<int>(btn.kind) << '\t' << btn.id << '\t'
         << btn.spriteNo << '\t' << btn.x << '\t' << btn.y << '\t' << btn.w
-        << '\t' << btn.h << '\t' << btn.srcX << '\t' << btn.srcY << '\n';
+        << '\t' << btn.h << '\t' << btn.srcX << '\t' << btn.srcY
+        << '\t' << escapeLine(btn.text) << '\n';
   }
   for (const auto &opt : data.selectOptions) {
     out << "SEL\t" << escapeLine(opt.text) << '\t'
+        << escapeLine(opt.targetLabel) << '\n';
+  }
+  for (const auto &opt : data.cselOptions) {
+    out << "CSEL\t" << escapeLine(opt.text) << '\t'
         << escapeLine(opt.targetLabel) << '\n';
   }
   out << "BGM\t" << (data.activeBgmLoop ? 1 : 0) << '\t'
@@ -367,12 +372,22 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       ls >> k >> btn.id >> btn.spriteNo >> btn.x >> btn.y >> btn.w >> btn.h >>
           btn.srcX >> btn.srcY;
       btn.kind = static_cast<ButtonDef::Kind>(k);
-      outData.buttons.push_back(btn);
+      if (ls.peek() == '\t')
+        ls.get();
+      std::string label;
+      std::getline(ls, label);
+      btn.text = unescapeLine(label);
+      outData.buttons.push_back(std::move(btn));
     } else if (kind == "SEL") {
       std::string t, lbl;
       std::getline(ls, t, '\t');
       std::getline(ls, lbl);
       outData.selectOptions.push_back({unescapeLine(t), unescapeLine(lbl)});
+    } else if (kind == "CSEL") {
+      std::string t, lbl;
+      std::getline(ls, t, '\t');
+      std::getline(ls, lbl);
+      outData.cselOptions.push_back({unescapeLine(t), unescapeLine(lbl)});
     } else if (kind == "BGM") {
       int loop = 0;
       ls >> loop;
