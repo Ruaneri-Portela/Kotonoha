@@ -10,6 +10,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <set>
@@ -138,6 +139,7 @@ public:
   std::string currentScriptPath() const;
   std::uint32_t currentLine() const;
   std::uint64_t totalExecuted() const { return totalExecuted_; }
+  std::size_t threadCount() const { return threads_.size(); }
 
   SceneGraph &sceneGraph() { return sceneGraph_; }
   const SceneGraph &sceneGraph() const { return sceneGraph_; }
@@ -181,6 +183,7 @@ private:
     std::vector<std::string> whileEndStack;
     bool running = true;
     bool locked = false;
+    bool deleted = false; // Deferred reclamation; never erase a running thread.
     bool waitingKey = false;
     bool waitingText = false;
     bool waitingChoice = false;
@@ -221,7 +224,9 @@ private:
   std::unordered_map<std::string, std::string> soundEntities_;
   std::unordered_map<std::string, std::string> soundTypes_;
 
-  std::vector<Thread> threads_;
+  // Deque keeps Thread references stable when CreateProcess spawns during an
+  // NSB instruction. Deletion is deferred until after the scheduler tick.
+  std::deque<Thread> threads_;
   std::vector<std::string> activeChoices_;
   std::string triggeredChoice_;
   ActiveMovieRequest activeMovie_;
