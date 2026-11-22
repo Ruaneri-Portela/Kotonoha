@@ -1161,7 +1161,9 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
     return;
   }
 
-  if (cmd == "lsp" || cmd == "lsph" || cmd == "lsp2" || cmd == "lsph2") {
+  if (cmd == "lsp" || cmd == "lsph" || cmd == "lsp2" || cmd == "lsph2" ||
+      cmd == "lsp2add" || cmd == "lsp2sub" ||
+      cmd == "lsph2add" || cmd == "lsph2sub") {
     const int id = lexer.parseIntExpr();
     lexer.consumeComma();
     const std::string tagStr = lexer.parseStringExpr();
@@ -1176,8 +1178,10 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
     if (id >= 0 && id < kMaxExtendedSprites) {
       auto &sp = sprites_[id];
       sp.loaded = true;
-      sp.visible = (cmd == "lsp" || cmd == "lsp2");
-      sp.secondaryLayer = (cmd == "lsp2" || cmd == "lsph2");
+      sp.visible = (cmd.rfind("lsph", 0) != 0);
+      sp.secondaryLayer = (cmd.find('2') != std::string::npos);
+      sp.blendMode = cmd.find("add") != std::string::npos ? 1 :
+                     cmd.find("sub") != std::string::npos ? 2 : 0;
       sp.spec = parseTaggedString(tagStr, TransMode::Alpha);
       sp.x = x;
       sp.y = y;
