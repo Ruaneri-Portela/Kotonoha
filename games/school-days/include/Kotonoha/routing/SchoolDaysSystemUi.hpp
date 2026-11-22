@@ -230,6 +230,8 @@ private:
   Layout layout_{};
   SDL_Texture *baseTexture_ = nullptr;
   SDL_Texture *chipTexture_ = nullptr;
+  SDL_Texture *configDisplayTabBaseTexture_ = nullptr;
+  SDL_Texture *configDisplayTabChipTexture_ = nullptr;
   const AssetProvider *assets_ = nullptr;
   SDL_Point area_{1280, 720};
   bool configStandardFullscreenStretch_ = false;
