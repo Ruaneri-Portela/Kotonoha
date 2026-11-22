@@ -11,6 +11,26 @@ PonscripterVm::PonscripterVm(HostCallbacks *callbacks) : callbacks_(callbacks) {
   registerCommands();
 }
 
+std::pair<int, int> PonscripterVm::quakeOffset() const {
+  if (!activeEffect_.active || quakeAmplitude_ <= 0 ||
+      activeEffect_.builtinEffect < 10001 ||
+      activeEffect_.builtinEffect > 10003 ||
+      activeEffect_.durationMs <= 0)
+    return {0, 0};
+  const double progress = std::clamp(
+      activeEffect_.elapsedMs / activeEffect_.durationMs, 0.0, 1.0);
+  const double amplitude = quakeAmplitude_ * (1.0 - progress);
+  const int x = static_cast<int>(std::lround(
+      amplitude * std::sin(activeEffect_.elapsedMs * 0.085)));
+  const int y = static_cast<int>(std::lround(
+      amplitude * std::cos(activeEffect_.elapsedMs * 0.077)));
+  if (activeEffect_.builtinEffect == 10001)
+    return {0, y};
+  if (activeEffect_.builtinEffect == 10002)
+    return {x, 0};
+  return {x, y};
+}
+
 void PonscripterVm::clear() {
   script_.clear();
   vars_.resetAll();
@@ -128,6 +148,7 @@ void PonscripterVm::resetToStart() {
   skipMode_ = false;
   autoMode_ = false;
   activeEffect_ = ActiveEffect{};
+  quakeAmplitude_ = 0;
   waitState_ = WaitState::Running;
   inDefineBlock_ = false;
   jumpToLabel("start");
@@ -934,6 +955,8 @@ SlotSaveData PonscripterVm::exportSlotSave() const {
   data.standing = standing_;
   data.allSpritesHidden = allSpritesHidden_;
   data.allSprites2Hidden = allSprites2Hidden_;
+  data.activeEffect = activeEffect_;
+  data.quakeAmplitude = quakeAmplitude_;
   data.manualFrameVisible = manualFrameVisible_;
   data.manualDraftOps = manualDraftOps_;
   data.manualDisplayOps = manualDisplayOps_;
@@ -973,6 +996,8 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   standing_ = data.standing;
   allSpritesHidden_ = data.allSpritesHidden;
   allSprites2Hidden_ = data.allSprites2Hidden;
+  activeEffect_ = data.activeEffect;
+  quakeAmplitude_ = data.quakeAmplitude;
   manualFrameVisible_ = data.manualFrameVisible;
   manualDraftOps_ = data.manualDraftOps;
   manualDisplayOps_ = data.manualDisplayOps;
