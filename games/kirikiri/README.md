@@ -146,3 +146,12 @@ KAG queue. Unsupported TJS features are reported without executing native
 plugins; the script parser still recognizes exact standalone end markers.
 Synthetic tests verify consecutive blocks, shared values and diagnostics.
 This does not imply parity with full Kirikiri2/KirikiriZ TJS2 bytecode.
+
+## Bounded KAG macro support
+
+The parser now processes static `[macro name=...]`/`[endmacro]` declarations,
+expands macro calls with `%parameter` and `%parameter|default` arguments,
+and recomputes label PCs after expansion. Recursion, nested declarations,
+malformed/missing end tags and expansion beyond explicit budgets fail with a
+clear error. These cover common macro-driven KAG menu/action snippets but do
+not reproduce every dynamic KiriKiri macro and TJS2 binding behavior.
