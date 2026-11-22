@@ -21,6 +21,7 @@ jobs:
           mkdir -p "$out"
           root=modules/vms/ponscripter
           sources=(
+            "$root/src/Archive.cpp"
             "$root/src/PonscripterTypes.cpp"
             "$root/src/ScriptBuffer.cpp"
             "$root/src/VariableStore.cpp"
