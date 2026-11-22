@@ -13,6 +13,26 @@ cmake -S . -B build -DKOTONOHA_BUILD_LUCA_SYSTEM=ON
 cmake --build build --target LucaSystem
 ```
 
+## Per-title opcode catalogs (LuckSystem)
+
+The inspector accepts original LuckSystem text opcode catalogs, including
+UTF-8 BOM and Windows CRLF. Names are resolved by index so a game-specific
+OPCODE.txt cannot be mistaken for AIR's built-in opcode mapping:
+
+    build/bin/LucaInspect /path/to/AIR/files seen170 36 --opcode-table data/AIR.txt
+    build/bin/LucaInspect /path/to/other-game/files scenario --opcode-table data/SP/OPCODE.txt
+
+Without the --opcode-table option, AIR's opcode names remain the default.
+The numeric filter is optional and must be within 0..255. Truncated scripts
+and malformed tables now fail instead of silently emitting partial output.
+
+This improves inspection, not runtime compatibility for non-AIR games.
+Opcode payload formats, script relocations, rendering and VM handlers remain
+title-specific and require game-data regression tests.
+
+    cmake --build build --target LucaSystemOpcodeTableTests
+    ctest --test-dir build -R LucaSystem.OpcodeTable --output-on-failure
+
 ## Game data
 
 Use original PAK files (including PARAM.PAK and SCRIPT.PAK); AIR is the reference title.
