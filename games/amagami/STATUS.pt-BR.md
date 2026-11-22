@@ -20,3 +20,12 @@
 O relatório [PORT_STATUS.md](PORT_STATUS.md) contém análises técnicas do jogo original, observações antigas e testes associados a revisões e assets locais específicos. É evidência histórica, não garantia de funcionamento em todas as plataformas.
 
 [README do port](README.pt-BR.md) · [Todos os ports](../README.pt-BR.md)
+
+
+## Melhorias de compatibilidade Vita (open-amagami)
+
+O diagnóstico Vita reconhece os controles Xbox (A para confirmar, B para cancelar)
+e preserva o esquema PlayStation (Circle/Cross). Alterações de mapeamento SDL
+recalculam os botões segurados. As chamadas ControlPad originadas em cenários
+SCF retornam os bits originais do PS2, e as classes do sistema Vita continuam
+a receber os bits SceCtrl. Testes sintéticos cobrem as duas disposições.
