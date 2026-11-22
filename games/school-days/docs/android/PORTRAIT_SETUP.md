@@ -182,3 +182,25 @@ Ongoing tracking of real-hardware defects observed on POCO X7 Pro (Android 16 / 
 | `Kotonoha Debug Applets` (`DebugOverlay`) | Present (`True`) | **Absent (`False`)** |
 | `BackLog unavailable:` (DIST path, no `VNBacklog` fallback) | Absent (`False`) | **Present (`True`)** |
 | Live POCO X7 Pro runtime check | Executed & validated | **Not tested on device** — `adb install` of the new package ID `me.hirameki.kotonoha.schooldays.dist` returned `INSTALL_FAILED_USER_RESTRICTED` (Xiaomi HyperOS "Install via USB" requires manual user approval on-screen for new package IDs) |
+
+---
+
+## Comprehensive Gameplay QA & Fixes (Milestone 5)
+
+### Two Real Defects Found & Fixed During Hardware QA
+1. **[P1 — Windows & Android] `BACKLOG` shrunk to ~78% in top-left corner when `renderScale < 1.0` or target ≠ 1280×720**:
+   - **Root cause**: `VisualTransition::copy()` and `VisualTransition::compose()` (`lib/src/core/VisualTransition.cpp`) disabled logical presentation (`SDL_LOGICAL_PRESENTATION_DISABLED`) for 1:1 snapshots, and `Engine.cpp` invoked `runtime.renderNarrativeOverlay()` immediately afterward without restoring `1280×720` logical presentation on `novelTarget`. At Android's default `renderScale = 0.75` (`1627×915`), BackLog rendered in raw `1280×720` pixels at top-left, leaving a white L-shaped border and misaligned touch hitboxes.
+   - **Fix**: `lib/src/core/Engine.cpp` restores `SDL_SetRenderTarget` + `SDL_SetRenderLogicalPresentation(..., novelView.x, novelView.y, SDL_LOGICAL_PRESENTATION_STRETCH)` right after `visualTransition.compose(...)` and before `runtime.renderNarrativeOverlay(...)`.
+   - **Regression test**: Added `renderNarrativeOverlay` logical-presentation assertion to `lib/tests/PresentationTests.cpp` (`Kotonoha.Presentation`, passed). Verified full 16:9 viewport BackLog & exact `CLOSE` touch hitbox on POCO X7 Pro.
+2. **[P1 — Android] `SAVE` comment editor hidden behind landscape IME keyboard**:
+   - **Root cause**: `BuildCommentEditorLayout()` (`games/school-days/src/SchoolDaysSystemUi.cpp`) vertically centered the `900×170` dialog (`y ≈ 525..695` on `2712×1220`), completely covered by Gboard (`y ≈ 400..1220`).
+   - **Fix**: Top-anchored on `#if defined(__ANDROID__)` (`y ≈ 8%` of height; Windows remains centered), keeping the input box, `OK`, and `Cancel` 100% visible above Gboard.
+   - **Verification**: Visually verified above Gboard on POCO X7 Pro; isolated Page 10 / Slot 99 `SAVE` (`SaveFile0099.DAT` + `.kotonoha-lxh.v1`) with typed comment + `LOAD` restore + cleanup confirmed.
+
+### Hardware QA Summary (POCO X7 Pro, Android DEV)
+- **A. Launcher**: Portrait UI, `TitleBGM`, `30/30` (`LxH.GPK: OK`), `ktnroute: OK`, `styles.ass: OK`, `forced_subtitles/: OK`, `overlay/: OK`, GPK (`pt-BR`) ↔ JSON (`ru`, `zh-CN`), `Apply`/`Reset defaults`, exact missing GPK diagnostics — **Adapted & validated**.
+- **B. Display & Graphics**: `2712×1220 @ 30/60/90/120 Hz`, VSync, `16:9`/`4:3`, `renderScale`, `Option_Display` overlay, bidirectional persistence — **Confirmed parity** (MPV/GLSL on GLES2 falls back safely to linear copy when unsupported — **Partial**).
+- **C. Gameplay**: `TITLE`, `START`, `MENU`, `MenuBar` (`×1`–`×32`, `◀|`, `▶|`), isolated `SAVE`/`LOAD` slot 99, full-viewport `BACKLOG`, `OPTION` (3 tabs), `SaveFeel` (30 s countdown + feeling meters), `TOPMENU` (`SYSBASE` + `Return to Title Screen?` → `YES` → `TITLE`) — **Confirmed parity** (timed `SETSELECT`, `ROUTE MAP`, `REPLAY` covered by 15/15 automated CTests on Windows; live touch QA on device remains **Partial** for unexercised menus).
+- **D. Audio & Video**: Fixed single-gain `BGM`/`SE`/`Voice`, multi-minute Episode 1 WMV+OGG playback including `01/01-00-OP1`, `HOME` background suspend → clean resume — **Confirmed parity** (subjective physical speaker loudness check recommended by user).
+- **E. Subtitles & Translations**: `pt-BR` GPK (accents + speaker colors + OP forced karaoke), `zh-CN` JSON (Simplified Chinese Hanzi in BackLog, zero tofu), `ru` JSON (clean launch & playback) — **Confirmed parity**.
+- **F. Saves & State**: Atomic `SaveFile0099.DAT` + `.kotonoha-lxh.v1` + `GlobalFlag.DAT` + `Config.DAT` + `settings.json`, `force-stop` persistence, suspend/resume — **Confirmed parity**.
