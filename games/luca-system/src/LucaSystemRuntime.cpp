@@ -1843,6 +1843,9 @@ struct LucaSystemRuntime::Impl {
   std::map<std::uint8_t, Kotonoha::PcmPlayer> scriptSe;
   uint32_t currentBgmId = 0;
   uint32_t lastPlayedVoiceId = 0;
+  bool bgmFadingOut = false;
+  uint64_t bgmFadeStart = 0;
+  uint64_t bgmFadeDurationMs = 0;
 
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
   bool movieFinished = false;
@@ -2205,11 +2208,42 @@ struct LucaSystemRuntime::Impl {
 
   void stopAudio() {
     bgm.Stop();
+    bgm.SetGain(1.0f);
+    bgmFadingOut = false;
+    bgmFadeStart = 0;
+    bgmFadeDurationMs = 0;
     voice.Stop();
     se.Stop();
     scriptSe.clear();
     syssePlayer.Stop();
     currentBgmId = 0;
+    lastPlayedVoiceId = 0;
+  }
+
+  void startBgmFadeOut(uint64_t durationMs) {
+    if (currentBgmId == 0 || !bgm.Playing()) {
+      playBgm(0, false);
+      return;
+    }
+    if (durationMs == 0)
+      durationMs = 2000;
+    bgmFadingOut = true;
+    bgmFadeStart = storyNow();
+    bgmFadeDurationMs = durationMs;
+  }
+
+  void tickBgmFade() {
+    if (!bgmFadingOut)
+      return;
+    const uint64_t now = storyNow();
+    const uint64_t elapsed = now > bgmFadeStart ? (now - bgmFadeStart) : 0;
+    if (bgmFadeDurationMs == 0 || elapsed >= bgmFadeDurationMs) {
+      playBgm(0, false);
+      return;
+    }
+    const float gain =
+        1.0f - std::clamp(float(elapsed) / float(bgmFadeDurationMs), 0.0f, 1.0f);
+    bgm.SetGain(gain);
   }
 
   void playDecodedAudio(Kotonoha::PcmPlayer &player, const char *channelName,
@@ -2248,6 +2282,8 @@ struct LucaSystemRuntime::Impl {
   void playVoice(uint32_t id) {
     if (id == 0)
       return;
+    if (id == lastPlayedVoiceId && voice.Playing())
+      return;
     lastPlayedVoiceId = id;
     if (!engine || !assets)
       return;
@@ -2262,12 +2298,16 @@ struct LucaSystemRuntime::Impl {
   }
 
   void playBgm(uint32_t id, bool loop) {
+    bgmFadingOut = false;
+    bgmFadeStart = 0;
+    bgmFadeDurationMs = 0;
+    bgm.SetGain(1.0f);
     if (id == 0) {
       bgm.Stop();
       currentBgmId = 0;
       return;
     }
-    if (currentBgmId == id)
+    if (currentBgmId == id && bgm.Playing())
       return;
     currentBgmId = id;
     if (!engine || !assets)
@@ -2388,9 +2428,10 @@ struct LucaSystemRuntime::Impl {
 
   // Script slot (2, n) holds a complete portrait. Small CZ4 expression
   // fragments replace one another above it in the private (3, n) layer.
-  // INIT may have cleared the staged portrait, so inspect the visible one.
+  // Check stagedSlots first (body + expression staged before DRAW), then
+  // fall back to visibleSlots (INIT may have cleared the staged portrait).
   void stageImage(uint8_t group, uint8_t slot, uint32_t assetId, float x,
-                  float y) {
+                  float y, bool hasExplicitPos = true) {
     loadObjectImage(assetId);
     SlottedLayer layer;
     layer.group = group;
@@ -2400,17 +2441,27 @@ struct LucaSystemRuntime::Impl {
     layer.posY = y;
     if (group == 2) {
       const auto key = makeKey(group, slot);
-      const auto shown = visibleSlots.find(key);
+      const SlottedLayer *baseLayer = nullptr;
+      if (auto stagedIt = stagedSlots.find(key); stagedIt != stagedSlots.end())
+        baseLayer = &stagedIt->second;
+      else if (auto shownIt = visibleSlots.find(key);
+               shownIt != visibleSlots.end())
+        baseLayer = &shownIt->second;
       const auto nextImage = objectImages.find(assetId);
-      if (shown != visibleSlots.end() && nextImage != objectImages.end()) {
-        const auto baseImage = objectImages.find(shown->second.assetId);
+      if (baseLayer && nextImage != objectImages.end()) {
+        const auto baseImage = objectImages.find(baseLayer->assetId);
         if (baseImage != objectImages.end() &&
             isCharacterFragment(
                 baseImage->second.width, baseImage->second.height,
                 baseImage->second.canvasWidth, baseImage->second.canvasHeight,
                 nextImage->second.width, nextImage->second.height,
                 nextImage->second.canvasWidth, nextImage->second.canvasHeight)) {
-          stagedSlots[key] = shown->second;
+          const SlottedLayer preservedBase = *baseLayer;
+          stagedSlots[key] = preservedBase;
+          if (!hasExplicitPos) {
+            layer.posX = preservedBase.posX;
+            layer.posY = preservedBase.posY;
+          }
           layer.group = 3;
           stagedSlots[makeKey(3, slot)] = layer;
           return;
@@ -2601,23 +2652,68 @@ struct LucaSystemRuntime::Impl {
 
   }
 
-  void renderCalendarBadge(Kotonoha::RendererRef renderer) {
+  bool hasCalendarBackground(const std::map<uint16_t, SlottedLayer> &slots) const {
+    const auto background = slots.find(makeKey(0, 0));
+    if (background == slots.end())
+      return false;
+    if (!background->second.visible || background->second.alpha <= 0.0f)
+      return false;
+    if (background->second.assetId == 0 ||
+        background->second.assetId == 65000 ||
+        background->second.assetId == 65001)
+      return false;
+    for (const auto &[key, slot] : slots) {
+      if (slot.visible && slot.alpha >= 0.99f &&
+          (slot.assetId == 65000 || slot.assetId == 65001))
+        return false;
+    }
+    return true;
+  }
+
+  void renderCalendarBadge(Kotonoha::RendererRef renderer, uint64_t now,
+                           bool inTransition) {
     const std::string badge = airCalendarBadgeName(getVar(6003));
     if (badge.empty())
       return;
-    const auto background = visibleSlots.find(makeKey(0, 0));
-    if (background != visibleSlots.end() &&
-        (background->second.assetId == 65000 ||
-         background->second.assetId == 65001))
+    if (!dialogueVisible && !choiceActive)
+      return;
+    if (textbox && textbox->isUserHidden())
+      return;
+    if (getVar(6002) == 2)
+      return;
+    const bool visOk = hasCalendarBackground(visibleSlots);
+    const bool outOk = inTransition && hasCalendarBackground(outgoingSlots);
+    if (!visOk && !outOk)
+      return;
+    float badgeAlpha = 1.0f;
+    if (inTransition) {
+      const float t = std::clamp(
+          float(now > drawStartTick ? (now - drawStartTick) : 0) /
+              float(drawDurationMs),
+          0.0f, 1.0f);
+      if (visOk && outOk)
+        badgeAlpha = 1.0f;
+      else if (visOk)
+        badgeAlpha = t;
+      else
+        badgeAlpha = 1.0f - t;
+    }
+    if (badgeAlpha <= 0.001f)
       return;
     try {
       if (!assets->contains(badge))
         return;
       auto &calendar = assets->texture(renderer, badge);
+      Uint8 originalAlpha = 255;
+      SDL_GetTextureAlphaMod(&calendar, &originalAlpha);
+      SDL_SetTextureAlphaMod(
+          &calendar,
+          static_cast<Uint8>(std::lround(badgeAlpha * float(originalAlpha))));
       // CZ4 stores a 192x200 crop at x=8 in its 200x200 canvas.
       const SDL_FRect position{5.33f, 0.0f, 128.0f, 133.33f};
       Kotonoha::RenderUpscaledTexture(&renderer, &calendar, nullptr,
                                        &position);
+      SDL_SetTextureAlphaMod(&calendar, originalAlpha);
     } catch (const std::exception &error) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                   "LucaSystem: calendar composition: %s", error.what());
@@ -2800,7 +2896,7 @@ struct LucaSystemRuntime::Impl {
           const uint8_t group = ins.paramBytes[0];
           const uint8_t slot = ins.paramBytes[1];
           const uint16_t assetId = paramU16(ins, 2);
-          stageImage(group, slot, assetId, 0.0f, 0.0f);
+          stageImage(group, slot, assetId, 0.0f, 0.0f, false);
         } else if (ins.paramBytes.size() >= 14) {
           const uint8_t group = ins.paramBytes[0];
           const uint8_t slot = ins.paramBytes[1];
@@ -3161,9 +3257,13 @@ struct LucaSystemRuntime::Impl {
         }
         break;
       }
-      case OP_BGM_ASYNC_FADE_STOP:
-        playBgm(0, false);
+      case OP_BGM_ASYNC_FADE_STOP: {
+        const uint64_t fadeMs = ins.paramBytes.size() >= 2
+                                    ? framesToMs(int(paramU16(ins, 0)))
+                                    : 2000;
+        startBgmFadeOut(fadeMs);
         break;
+      }
       case OP_BGM_WAIT_START:
       case OP_BGM_WAIT_FADE:
       case OP_BGM_PUSH:
@@ -3198,8 +3298,12 @@ struct LucaSystemRuntime::Impl {
       case OP_SE_WAIT:
       case OP_SE_WAIT_COUNT:
       case OP_SE_WAIT_FADE:
-        if (ins.opcode == OP_SE_STOP)
-          scriptSe.clear();
+        if (ins.opcode == OP_SE_STOP) {
+          if (ins.paramBytes.size() >= 1 && ins.paramBytes[0] != 0xFF)
+            scriptSe.erase(ins.paramBytes[0]);
+          else
+            scriptSe.clear();
+        }
         break;
 
       case OP_SETBGMFLAG: {
@@ -3651,6 +3755,7 @@ void LucaSystemRuntime::update() {
     impl.advanceSplash();
   if (paused)
     return;
+  impl.tickBgmFade();
   if (impl.moviePlayer && !impl.movieFinished) {
     if (impl.engine)
       impl.moviePlayer->update(impl.engine->GetRenderer());
@@ -3864,7 +3969,7 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       impl.renderSlottedLayer(renderer, slot, now, 1.0f);
   }
 
-  impl.renderCalendarBadge(renderer);
+  impl.renderCalendarBadge(renderer, now, inTransition);
 
   if (impl.flashDurationMs > 0 &&
       now < impl.flashStartTick + impl.flashDurationMs) {
@@ -3953,12 +4058,6 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     return true;
   }
 
-  if (impl.moviePlayer && !impl.movieFinished) {
-    if (!isStoryPaused() && impl.videoSkip.accept(event))
-      skipMovie();
-    return true;
-  }
-
   for (const auto *scene : GetActiveScenes()) {
     if (scene && scene->capturesInput()) {
       if (!impl.originalTitle && scene == impl.choiceScene && impl.textbox &&
@@ -3966,6 +4065,21 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
         return true;
       return Runtime::onEvent(event);
     }
+  }
+
+  if (impl.moviePlayer && !impl.movieFinished) {
+    const bool menuKey =
+        (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
+         mapped.key.key == SDLK_ESCAPE) ||
+        (mapped.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+         mapped.gbutton.button == SDL_GAMEPAD_BUTTON_START);
+    if (menuKey && impl.menu) {
+      impl.menu->open();
+      return true;
+    }
+    if (!isStoryPaused() && impl.videoSkip.accept(event))
+      skipMovie();
+    return true;
   }
 
   if (impl.originalTitle) {

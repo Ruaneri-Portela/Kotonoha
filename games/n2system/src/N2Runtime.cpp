@@ -7,14 +7,19 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/InputMapper.hpp>
+#include <Kotonoha/core/SDL.hpp>
+#include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+
+#include <SDL3_ttf/SDL_ttf.h>
 
 #include <algorithm>
 #include <cctype>
@@ -31,6 +36,11 @@ namespace N2System {
 struct N2Runtime::Impl {
   std::shared_ptr<Kotonoha::VNTextBox> textBox;
   std::shared_ptr<Kotonoha::VNBacklog> backlog;
+  std::shared_ptr<Kotonoha::InGameMenu> pauseMenu;
+  std::vector<uint8_t> sgFontBytes;
+  Kotonoha::FontPtr sgFont;
+  bool dialogueHidden = false;
+  std::string activeScrollBarDrag;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
   Kotonoha::VideoSkipGesture videoSkip;
   std::unique_ptr<Kotonoha::MediaPlayer> bgmPlayer;
@@ -60,6 +70,51 @@ struct N2Runtime::Impl {
   static bool startsWith(std::string_view text, std::string_view prefix) {
     return text.size() >= prefix.size() &&
            text.compare(0, prefix.size(), prefix) == 0;
+  }
+
+  static bool isChoiceOverlayState(std::string_view name) {
+    std::string lower(name);
+    for (char &ch : lower)
+      ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    return lower.find("/mouseover/") != std::string::npos ||
+           lower.find("/mouseclick/") != std::string::npos ||
+           lower.find("/mouseleave/") != std::string::npos;
+  }
+
+  void drawSgText(Kotonoha::RendererRef renderer, const std::string &text,
+                  float x, float y, float wrapW, float fontSize,
+                  SDL_Color color) {
+    if (text.empty())
+      return;
+    if (sgFont) {
+      const float density = Kotonoha::UI::rasterDensity(renderer);
+      TTF_SetFontSize(sgFont.get(), fontSize * density);
+      const int wrapPx =
+          std::max(32, static_cast<int>(std::ceil(wrapW * density)));
+      Kotonoha::SurfacePtr shadow(TTF_RenderText_Blended_Wrapped(
+          sgFont.get(), text.data(), text.size(), {0, 0, 0, 210}, wrapPx));
+      Kotonoha::SurfacePtr fg(TTF_RenderText_Blended_Wrapped(
+          sgFont.get(), text.data(), text.size(), color, wrapPx));
+      auto blitText = [&](SDL_Surface *surf, float dx, float dy) {
+        if (!surf)
+          return;
+        Kotonoha::TexturePtr tex(SDL_CreateTextureFromSurface(&renderer, surf));
+        if (!tex)
+          return;
+        SDL_SetTextureScaleMode(tex.get(), SDL_SCALEMODE_LINEAR);
+        SDL_FRect dst{dx, dy, float(surf->w) / density,
+                      float(surf->h) / density};
+        SDL_RenderTexture(&renderer, tex.get(), nullptr, &dst);
+      };
+      blitText(shadow.get(), x + 1.5f, y + 1.5f);
+      blitText(fg.get(), x, y);
+      return;
+    }
+    if (engine) {
+      engine->GetVNUI().textSized(renderer, text, x + 1.5f, y + 1.5f, wrapW,
+                                  fontSize, {0, 0, 0, 210});
+      engine->GetVNUI().textSized(renderer, text, x, y, wrapW, fontSize, color);
+    }
   }
 
   std::string resolveImagePath(const SceneGraph &graph,
@@ -203,7 +258,8 @@ struct N2Runtime::Impl {
       focusedChoiceIndex = 0;
 
     const auto &graph = nsbVm->sceneGraph();
-    const std::string &cur = choices[static_cast<std::size_t>(focusedChoiceIndex)];
+    const std::string &cur =
+        choices[static_cast<std::size_t>(focusedChoiceIndex)];
     const Entity *focusEnt = findChoiceHitEntity(graph, cur);
     if (!focusEnt)
       focusEnt = graph.findEntity(cur);
@@ -355,9 +411,37 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
 
   impl_->textBox = std::make_shared<Kotonoha::VNTextBox>(engine, "", "", 30.0);
   impl_->backlog = std::make_shared<Kotonoha::VNBacklog>(engine);
+  impl_->pauseMenu = std::make_shared<Kotonoha::InGameMenu>(engine);
+  impl_->pauseMenu->SetOnResume([this] {
+    if (impl_->pauseMenu)
+      impl_->pauseMenu->close();
+  });
+  impl_->pauseMenu->SetOnSave([this] {
+    saveGame((Kotonoha::saveDirectory() / "n2system_quick.n2sv").string());
+    if (impl_->pauseMenu)
+      impl_->pauseMenu->close();
+  });
+  impl_->pauseMenu->SetOnLoad([this] {
+    loadGame((Kotonoha::saveDirectory() / "n2system_quick.n2sv").string());
+    if (impl_->pauseMenu)
+      impl_->pauseMenu->close();
+  });
+  impl_->pauseMenu->SetOnSettings([this] {
+    if (impl_->pauseMenu)
+      impl_->pauseMenu->close();
+    if (impl_->engine)
+      impl_->engine->openSettings();
+  });
+  impl_->pauseMenu->SetOnReturnToMenu([this] {
+    SDL_Event quit{};
+    quit.type = SDL_EVENT_QUIT;
+    SDL_PushEvent(&quit);
+  });
   impl_->choiceScene = std::make_unique<Kotonoha::ChoiceQuestionScene>(
       engine, "", std::vector<Kotonoha::ChoiceOption>{{"", 0}}, nullptr);
   impl_->choiceActive = false;
+  impl_->dialogueHidden = false;
+  impl_->activeScrollBarDrag.clear();
   impl_->quitRequested = false;
   impl_->focusedChoiceIndex = 0;
   impl_->lastChoices.clear();
@@ -368,7 +452,36 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
       std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
   impl_->sePlayer = std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
 
+  // Load Steins;Gate's bundled font if present so native Text entities and
+  // Steins;Gate dialogue render with authentic typography.
+  impl_->sgFont.reset();
+  impl_->sgFontBytes.clear();
+  if (assets_) {
+    static const char *kFontCandidates[] = {
+        "Droid Sans Fallback.ttf",
+        "font/Droid Sans Fallback.ttf",
+        "system/Droid Sans Fallback.ttf",
+    };
+    for (const char *cand : kFontCandidates) {
+      if (assets_->contains(cand)) {
+        try {
+          impl_->sgFontBytes = assets_->read(cand);
+          if (!impl_->sgFontBytes.empty()) {
+            SDL_IOStream *io = SDL_IOFromConstMem(impl_->sgFontBytes.data(),
+                                                  impl_->sgFontBytes.size());
+            if (io)
+              impl_->sgFont.reset(TTF_OpenFontIO(io, true, 22.0f));
+          }
+        } catch (...) {
+        }
+        if (impl_->sgFont)
+          break;
+      }
+    }
+  }
+
   AddScene(impl_->backlog.get(), Kotonoha::GameState::Gameplay);
+  AddScene(impl_->pauseMenu.get(), Kotonoha::GameState::Gameplay);
 
   // Check for Steins;Gate / compiled .nsb bytecode layout first.
   impl_->nsbMode = false;
@@ -385,14 +498,13 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
     impl_->viewportSize = SDL_Point{cfg.width, cfg.height};
     impl_->nsbVm = std::make_unique<NsbVm>();
     impl_->nsbVm->setConfig(cfg);
-    impl_->nsbVm->setImageSizeQuery(
-        [this](std::string_view path, int &w, int &h) -> bool {
-          if (!impl_->nsbVm)
-            return false;
-          return impl_->queryImageSize(assets_.get(),
-                                       impl_->nsbVm->sceneGraph(),
-                                       std::string(path), w, h);
-        });
+    impl_->nsbVm->setImageSizeQuery([this](std::string_view path, int &w,
+                                           int &h) -> bool {
+      if (!impl_->nsbVm)
+        return false;
+      return impl_->queryImageSize(assets_.get(), impl_->nsbVm->sceneGraph(),
+                                   std::string(path), w, h);
+    });
     impl_->nsbVm->setLoader(
         [assets = assets_](std::string_view nsbPath,
                            std::vector<std::uint8_t> &nsbOut,
@@ -594,6 +706,25 @@ void N2Runtime::update() {
         }
       }
     }
+    if (impl_->sePlayer && assets_) {
+      std::string latestSe;
+      for (const auto &[seId, ch] : audio.seChannels()) {
+        (void)seId;
+        if (ch.isPlaying && !ch.assetPath.empty())
+          latestSe = ch.assetPath;
+      }
+      if (!latestSe.empty() && latestSe != impl_->currentSe &&
+          assets_->contains(latestSe)) {
+        impl_->currentSe = latestSe;
+        try {
+          impl_->sePlayer->open(*assets_, impl_->currentSe, true, "se");
+        } catch (...) {
+        }
+      } else if (latestSe.empty() && !impl_->currentSe.empty()) {
+        impl_->sePlayer->stop();
+        impl_->currentSe.clear();
+      }
+    }
 
     // Sync active .ngs movie streaming
     const auto &mov = nvm.activeMovie();
@@ -632,7 +763,8 @@ void N2Runtime::update() {
       }
     }
 
-    // Sync dialogue & backlog
+    // Sync dialogue & backlog (NSB mode renders Steins;Gate's native dialogue
+    // HUD directly rather than Kotonoha's generic VNTextBox theme).
     const auto &dialogue = nvm.dialogueSystem();
     const auto rawSpeaker = std::string(dialogue.speaker());
     const auto rawText = std::string(dialogue.fullText());
@@ -640,10 +772,6 @@ void N2Runtime::update() {
         impl_->backlog) {
       impl_->lastBacklogText = rawText;
       impl_->backlog->addEntry(rawSpeaker, rawText);
-    }
-    if (impl_->textBox) {
-      impl_->textBox->setDialogue(rawSpeaker, dialogue.visibleText());
-      impl_->textBox->update();
     }
     if (impl_->choiceActive && impl_->choiceScene) {
       impl_->choiceScene->update();
@@ -716,7 +844,7 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
   if (impl_->moviePlayer && impl_->moviePlayer->isOpen())
     impl_->moviePlayer->update(renderer);
 
-  SDL_SetRenderDrawColor(&renderer, 12, 14, 20, 255);
+  SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 0);
   SDL_RenderClear(&renderer);
 
   const SceneGraph &graph =
@@ -753,6 +881,10 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
         Impl::startsWith(entity->name, focusedUsualPrefix);
     if (isFocusedUsual)
       continue;
+    // Hide all hover/click/leave choice overlays unless they belong to the
+    // currently focused choice so config/menu buttons never stack states.
+    if (!isFocusedOver && Impl::isChoiceOverlayState(entity->name))
+      continue;
 
     const float effectiveOpacity = isFocusedOver ? 1.0f : entity->opacity;
     const bool effectiveVisible = isFocusedOver ? true : entity->visible;
@@ -761,12 +893,23 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 
     const Uint8 alpha =
         static_cast<Uint8>(std::clamp(effectiveOpacity, 0.0f, 1.0f) * 255.0f);
-    const float drawX = entity->x + entity->shakeOffsetX;
-    const float drawY = entity->y + entity->shakeOffsetY;
+    float drawX = entity->x + entity->shakeOffsetX;
+    float drawY = entity->y + entity->shakeOffsetY;
+    auto applyAlign = [&](float w, float h) {
+      if (entity->alignCenterX)
+        drawX -= w * 0.5f;
+      else if (entity->alignRightX)
+        drawX -= w;
+      if (entity->alignCenterY)
+        drawY -= h * 0.5f;
+      else if (entity->alignBottomY)
+        drawY -= h;
+    };
 
     if (entity->type == EntityType::Color) {
       const float w = entity->width > 0.0f ? entity->width : vpW;
       const float h = entity->height > 0.0f ? entity->height : vpH;
+      applyAlign(w, h);
       const Uint8 r = static_cast<Uint8>((entity->solidColor >> 16) & 0xFFu);
       const Uint8 g = static_cast<Uint8>((entity->solidColor >> 8) & 0xFFu);
       const Uint8 b = static_cast<Uint8>(entity->solidColor & 0xFFu);
@@ -777,8 +920,53 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
     } else if (entity->type == EntityType::Movie) {
       if (impl_->moviePlayer && impl_->moviePlayer->isOpen() &&
           impl_->moviePlayer->hasVideoFrame()) {
-        SDL_FRect area{drawX, drawY, vpW, vpH};
+        SDL_FRect area{
+            drawX, drawY,
+            (entity->hasClipRect && entity->clipW > 0.0f) ? entity->clipW : vpW,
+            (entity->hasClipRect && entity->clipH > 0.0f) ? entity->clipH
+                                                          : vpH};
         impl_->moviePlayer->render(renderer, area);
+      }
+    } else if (entity->type == EntityType::ScrollBar) {
+      const float w = entity->width > 0.0f ? entity->width : 180.0f;
+      const float h = entity->height > 0.0f ? entity->height : 18.0f;
+      const float frac = std::clamp(entity->scrollValue / 100.0f, 0.0f, 1.0f);
+      SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+      // Track
+      SDL_SetRenderDrawColor(&renderer, 28, 34, 44, alpha);
+      SDL_FRect track{drawX, drawY, w, h};
+      SDL_RenderFillRect(&renderer, &track);
+      // Filled bar (Future Gadget Lab amber/gold accent)
+      SDL_SetRenderDrawColor(&renderer, 212, 168, 75, alpha);
+      SDL_FRect fill =
+          entity->scrollHorizontal
+              ? SDL_FRect{drawX, drawY, w * frac, h}
+              : SDL_FRect{drawX, drawY + h * (1.0f - frac), w, h * frac};
+      SDL_RenderFillRect(&renderer, &fill);
+      // Border & knob
+      SDL_SetRenderDrawColor(&renderer, 180, 196, 214, alpha);
+      SDL_RenderRect(&renderer, &track);
+      SDL_FRect knob =
+          entity->scrollHorizontal
+              ? SDL_FRect{drawX + w * frac - 5.0f, drawY - 2.0f, 10.0f,
+                          h + 4.0f}
+              : SDL_FRect{drawX - 2.0f, drawY + h * (1.0f - frac) - 5.0f,
+                          w + 4.0f, 10.0f};
+      SDL_SetRenderDrawColor(&renderer, 244, 240, 224, alpha);
+      SDL_RenderFillRect(&renderer, &knob);
+    } else if (entity->type == EntityType::Text) {
+      if (!entity->text.empty()) {
+        const float wrapW =
+            entity->width > 0.0f ? entity->width : (vpW - drawX);
+        const float fontSize =
+            entity->fontSize > 0 ? static_cast<float>(entity->fontSize) : 20.0f;
+        const SDL_Color col{
+            static_cast<Uint8>(std::clamp(entity->colorR, 0.0f, 1.0f) * 255.0f),
+            static_cast<Uint8>(std::clamp(entity->colorG, 0.0f, 1.0f) * 255.0f),
+            static_cast<Uint8>(std::clamp(entity->colorB, 0.0f, 1.0f) * 255.0f),
+            alpha};
+        impl_->drawSgText(renderer, entity->text, drawX, drawY, wrapW, fontSize,
+                          col);
       }
     } else if (entity->type == EntityType::Sprite) {
       SDL_Texture *tex = nullptr;
@@ -796,6 +984,13 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
         SDL_GetTextureSize(tex, &tw, &th);
         SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
         SDL_SetTextureAlphaMod(tex, alpha);
+        const Uint8 cr =
+            static_cast<Uint8>(std::clamp(entity->colorR, 0.0f, 1.0f) * 255.0f);
+        const Uint8 cg =
+            static_cast<Uint8>(std::clamp(entity->colorG, 0.0f, 1.0f) * 255.0f);
+        const Uint8 cb =
+            static_cast<Uint8>(std::clamp(entity->colorB, 0.0f, 1.0f) * 255.0f);
+        SDL_SetTextureColorMod(tex, cr, cg, cb);
         const SDL_FRect *srcPtr = nullptr;
         SDL_FRect src{};
         if (entity->hasClipRect && entity->clipW > 0.0f &&
@@ -806,8 +1001,10 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
           tw = entity->clipW;
           th = entity->clipH;
         }
-        SDL_FRect dst{drawX, drawY, tw * entity->scaleX,
-                      th * entity->scaleY};
+        const float dstW = tw * entity->scaleX;
+        const float dstH = th * entity->scaleY;
+        applyAlign(dstW, dstH);
+        SDL_FRect dst{drawX, drawY, dstW, dstH};
         if (std::abs(entity->angle) > 0.01f) {
           Kotonoha::RenderUpscaledTextureRotated(&renderer, tex, srcPtr, &dst,
                                                  entity->angle, nullptr,
@@ -815,6 +1012,7 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
         } else {
           Kotonoha::RenderUpscaledTexture(&renderer, tex, srcPtr, &dst);
         }
+        SDL_SetTextureColorMod(tex, 255, 255, 255);
       } else if (!isNsbActive()) {
         SDL_FRect rect{drawX, drawY, vpW, vpH};
         SDL_SetRenderDrawColor(&renderer, 30, 36, 48, alpha);
@@ -839,8 +1037,7 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
           assets_->texture(renderer, impl_->nsbVm->phoneState().attachedCg);
       float cw = 0, ch = 0;
       SDL_GetTextureSize(&cg, &cw, &ch);
-      SDL_FRect dst{(vpW - cw) * 0.5f, (vpH - ch) * 0.5f,
-                    cw, ch};
+      SDL_FRect dst{(vpW - cw) * 0.5f, (vpH - ch) * 0.5f, cw, ch};
       Kotonoha::RenderUpscaledTexture(&renderer, &cg, nullptr, &dst);
     } catch (...) {
     }
@@ -848,11 +1045,50 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 
   const bool hasDialogue =
       isNsbActive() ? !impl_->nsbVm->dialogueSystem().fullText().empty() : true;
-  // Engine UI components are authored in the 1280x720 design space. Steins;Gate
-  // renders at 1024x576, so they must go through the design-space frame instead
-  // of being drawn directly in native canvas coordinates (which overflows the
-  // right/bottom edges on non-1280x720 viewports).
-  if (impl_->textBox && !impl_->choiceActive && hasDialogue) {
+  if (isNsbActive()) {
+    if (hasDialogue && !impl_->choiceActive && !impl_->dialogueHidden) {
+      const auto &dialogue = impl_->nsbVm->dialogueSystem();
+      const std::string speaker(dialogue.speaker());
+      const std::string visibleText(dialogue.visibleText());
+      // Authentic Steins;Gate dark-translucent dialogue bar in native 1024x576
+      // viewport (replacing Kotonoha's generic VNTextBox theme).
+      const float marginX = vpW * 0.045f;
+      const float boxW = vpW - marginX * 2.0f;
+      const float boxH = vpH * 0.23f;
+      const float boxY = vpH - boxH - vpH * 0.025f;
+      SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+      SDL_FRect boxRect{marginX, boxY, boxW, boxH};
+      SDL_SetRenderDrawColor(&renderer, 10, 14, 22, 204);
+      SDL_RenderFillRect(&renderer, &boxRect);
+      // Subtle Steins;Gate warm-amber accent line along top of dialogue bar
+      SDL_FRect topLine{marginX, boxY, boxW, 2.0f};
+      SDL_SetRenderDrawColor(&renderer, 212, 168, 75, 220);
+      SDL_RenderFillRect(&renderer, &topLine);
+      SDL_SetRenderDrawColor(&renderer, 80, 96, 118, 160);
+      SDL_RenderRect(&renderer, &boxRect);
+
+      const float textX = marginX + 40.0f;
+      const float textWrap = boxW - 80.0f;
+      if (!speaker.empty()) {
+        impl_->drawSgText(renderer, speaker, textX, boxY + 10.0f, textWrap,
+                          20.0f, {242, 210, 139, 255});
+      }
+      const float bodyY = boxY + (speaker.empty() ? 18.0f : 40.0f);
+      impl_->drawSgText(renderer, visibleText, textX, bodyY, textWrap, 21.0f,
+                        {244, 246, 250, 255});
+      // Subtle animated wait indicator when line reveal completes
+      if (visibleText.size() >= dialogue.fullText().size()) {
+        const float pulse =
+            0.5f + 0.5f * std::sin(static_cast<float>(SDL_GetTicks()) * 0.006f);
+        SDL_FRect indicator{marginX + boxW - 28.0f, boxY + boxH - 22.0f, 12.0f,
+                            8.0f};
+        SDL_SetRenderDrawColor(
+            &renderer, 212, 168, 75,
+            static_cast<Uint8>(std::lround((0.35f + 0.65f * pulse) * 255.0f)));
+        SDL_RenderFillRect(&renderer, &indicator);
+      }
+    }
+  } else if (impl_->textBox && !impl_->choiceActive && hasDialogue) {
     renderScene(*impl_->textBox, renderer, scale);
   }
 
@@ -864,6 +1100,14 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
   if (impl_->ponscripter)
     return impl_->ponscripter->onEvent(rawEvent);
+
+  for (auto *scene : GetActiveScenes()) {
+    if (scene && scene->capturesInput())
+      return Runtime::onEvent(rawEvent);
+  }
+  if (impl_->backlog && impl_->backlog->isVisible())
+    return Runtime::onEvent(rawEvent);
+
   if (isNsbActive() && impl_->nsbVm->activeMovie().active) {
     // Guard the movie wait even before the decoder opens. Otherwise an early
     // single click can advance the NSB VM while the first frame is loading.
@@ -877,13 +1121,6 @@ bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
     return true;
   }
 
-  for (auto *scene : GetActiveScenes()) {
-    if (scene && scene->capturesInput())
-      return Runtime::onEvent(rawEvent);
-  }
-  if (impl_->backlog && impl_->backlog->isVisible())
-    return Runtime::onEvent(rawEvent);
-
   if (impl_->choiceActive && impl_->choiceScene) {
     // ChoiceQuestionScene draws in design space; map pointer coordinates the
     // same way renderScene() maps its pixels.
@@ -895,6 +1132,54 @@ bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
   const SDL_Event event = Kotonoha::InputMapper::toKeyEvent(
       rawEvent, nativeChoices ? Kotonoha::InputContext::Menu
                               : Kotonoha::InputContext::Dialogue);
+
+  if (isNsbActive()) {
+    auto updateScrollBarAt = [&](const std::string &sbName, float mx,
+                                 float my) -> bool {
+      auto *e = impl_->nsbVm->sceneGraph().findEntity(sbName);
+      if (!e || e->type != EntityType::ScrollBar || !e->visible)
+        return false;
+      const float w = e->width > 0.0f ? e->width : 180.0f;
+      const float h = e->height > 0.0f ? e->height : 18.0f;
+      const float frac =
+          e->scrollHorizontal
+              ? std::clamp((mx - e->x) / std::max(1.0f, w), 0.0f, 1.0f)
+              : std::clamp(1.0f - (my - e->y) / std::max(1.0f, h), 0.0f, 1.0f);
+      e->scrollValue = frac * 100.0f;
+      return true;
+    };
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+        event.button.button == SDL_BUTTON_LEFT &&
+        !impl_->activeScrollBarDrag.empty()) {
+      impl_->activeScrollBarDrag.clear();
+      return true;
+    }
+    if (event.type == SDL_EVENT_MOUSE_MOTION &&
+        !impl_->activeScrollBarDrag.empty()) {
+      updateScrollBarAt(impl_->activeScrollBarDrag, event.motion.x,
+                        event.motion.y);
+      return true;
+    }
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        event.button.button == SDL_BUTTON_LEFT) {
+      const float mx = event.button.x;
+      const float my = event.button.y;
+      for (const auto &name : impl_->nsbVm->sceneGraph().renderOrder()) {
+        const auto *e = impl_->nsbVm->sceneGraph().findEntity(name);
+        if (!e || e->type != EntityType::ScrollBar || !e->visible ||
+            e->opacity <= 0.01f)
+          continue;
+        const float w = e->width > 0.0f ? e->width : 180.0f;
+        const float h = e->height > 0.0f ? e->height : 18.0f;
+        if (mx >= e->x - 6.0f && mx <= e->x + w + 6.0f && my >= e->y - 6.0f &&
+            my <= e->y + h + 6.0f) {
+          impl_->activeScrollBarDrag = e->name;
+          updateScrollBarAt(e->name, mx, my);
+          return true;
+        }
+      }
+    }
+  }
 
   if (event.type == SDL_EVENT_MOUSE_MOTION && isNsbActive()) {
     impl_->nsbVm->setMousePosition(
@@ -979,15 +1264,27 @@ bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
 
   if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
       event.button.button == SDL_BUTTON_RIGHT) {
+    if (impl_->pauseMenu) {
+      impl_->pauseMenu->open();
+      return true;
+    }
     return handleBackAction();
   }
 
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+    if (event.key.key == SDLK_H && isNsbActive()) {
+      impl_->dialogueHidden = !impl_->dialogueHidden;
+      return true;
+    }
     if (Kotonoha::InputMapper::isBacklogKey(event.key.key) && impl_->backlog) {
       impl_->backlog->toggle();
       return true;
     }
     if (Kotonoha::InputMapper::isBackKey(event.key.key)) {
+      if (impl_->pauseMenu) {
+        impl_->pauseMenu->open();
+        return true;
+      }
       return handleBackAction();
     }
     if (event.key.key == SDLK_F5) {

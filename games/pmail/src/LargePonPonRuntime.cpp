@@ -255,7 +255,7 @@ void LargePonPonRuntime::drawCanmToBuffer(std::vector<uint8_t> &dst, int slot,
       ox += charPos_[static_cast<size_t>(slot - 1)].x;
       oy += charPos_[static_cast<size_t>(slot - 1)].y;
     }
-    blitSurfaceToBuffer(dst, ch.frames[fi].get(), ox, oy, false);
+    blitSurfaceToBuffer(dst, ch.frames[fi].get(), ox, oy, true);
   }
 }
 

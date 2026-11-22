@@ -19,9 +19,15 @@ uint32_t readU32LE(const uint8_t *p) {
          (static_cast<uint32_t>(p[3]) << 24);
 }
 
-const std::array<int32_t, 32768> &crgbDeltaTable() {
+struct CrgbDelta {
+  int8_t dR = 0;
+  int8_t dG = 0;
+  int8_t dB = 0;
+};
+
+const std::array<CrgbDelta, 32768> &crgbDeltaTable() {
   static const auto table = [] {
-    std::array<int32_t, 32768> t{};
+    std::array<CrgbDelta, 32768> t{};
     for (int u = 0; u < 32768; ++u) {
       int dR = (u >> 10) & 0x1F;
       if (dR > 15)
@@ -32,7 +38,9 @@ const std::array<int32_t, 32768> &crgbDeltaTable() {
       int dB = u & 0x1F;
       if (dB > 15)
         dB -= 32;
-      t[static_cast<size_t>(u)] = (dR * 256 + dG) * 256 + dB;
+      t[static_cast<size_t>(u)] = {static_cast<int8_t>(dR),
+                                   static_cast<int8_t>(dG),
+                                   static_cast<int8_t>(dB)};
     }
     return t;
   }();
@@ -190,7 +198,12 @@ SurfacePtr decodeCrgbOrBgd(const uint8_t *data, size_t size) {
         break;
       const uint16_t idx =
           static_cast<uint16_t>((static_cast<uint16_t>(b) << 8) | data[pos++]);
-      cur += delta[idx];
+      const auto &d = delta[idx];
+      const uint8_t r = static_cast<uint8_t>(((cur >> 16) & 0xFF) + d.dR);
+      const uint8_t g = static_cast<uint8_t>(((cur >> 8) & 0xFF) + d.dG);
+      const uint8_t bl = static_cast<uint8_t>((cur & 0xFF) + d.dB);
+      cur = (static_cast<int32_t>(r) << 16) | (static_cast<int32_t>(g) << 8) |
+            static_cast<int32_t>(bl);
       emitPixel(px++, cur);
     } else if (b < 0xC0) {
       const int count = (b - 0x80) + 1;
@@ -248,7 +261,8 @@ SurfacePtr decodeCharStream(const uint8_t *data, size_t size, int width,
           p[0] = r;
           p[1] = g;
           p[2] = b;
-          p[3] = static_cast<uint8_t>(std::min(255, static_cast<int>(cmd) * 2));
+          p[3] = static_cast<uint8_t>(
+              std::min(255, ((static_cast<int>(cmd) + 1) * 255) / 128));
         }
         ++x;
       } else if (cmd <= 0x9E) {
@@ -422,12 +436,11 @@ CanmData decodeCanm(const uint8_t *data, size_t size) {
 
     const size_t frameStride =
         static_cast<size_t>(slot.width) * slot.height * 4;
-    const size_t rgbBytes = static_cast<size_t>(slot.width) * slot.height * 3;
     slot.frames.reserve(slot.frameCount);
 
     for (uint8_t f = 0; f < slot.frameCount; ++f) {
       const size_t off = static_cast<size_t>(dataOffset) + f * frameStride;
-      if (off + rgbBytes > size)
+      if (off + frameStride > size)
         break;
       SurfacePtr s(
           SDL_CreateSurface(slot.width, slot.height, SDL_PIXELFORMAT_RGBA32));
@@ -435,16 +448,27 @@ CanmData decodeCanm(const uint8_t *data, size_t size) {
         break;
       const uint8_t *src = data + off;
       auto *dst = static_cast<uint8_t *>(s->pixels);
-      // Bottom-up 24-bit BGR -> top-down RGBA32
+      uint8_t maxAlpha = 0;
+      const size_t pixelCount = static_cast<size_t>(slot.width) * slot.height;
+      for (size_t p = 0; p < pixelCount; ++p)
+        maxAlpha = std::max(maxAlpha, src[p * 4 + 3]);
+      // Bottom-up 32-bit BGRA -> top-down RGBA32
       for (int srcY = 0; srcY < slot.height; ++srcY) {
         const int dstY = (slot.height - 1) - srcY;
         uint8_t *row = dst + dstY * s->pitch;
-        const uint8_t *srcRow = src + srcY * slot.width * 3;
+        const uint8_t *srcRow = src + srcY * slot.width * 4;
         for (int x = 0; x < slot.width; ++x) {
-          row[x * 4 + 0] = srcRow[x * 3 + 2]; // R
-          row[x * 4 + 1] = srcRow[x * 3 + 1]; // G
-          row[x * 4 + 2] = srcRow[x * 3 + 0]; // B
-          row[x * 4 + 3] = 0xFF;
+          row[x * 4 + 0] = srcRow[x * 4 + 2]; // R
+          row[x * 4 + 1] = srcRow[x * 4 + 1]; // G
+          row[x * 4 + 2] = srcRow[x * 4 + 0]; // B
+          const uint8_t rawA = srcRow[x * 4 + 3];
+          if (maxAlpha == 0)
+            row[x * 4 + 3] = 0xFF;
+          else if (maxAlpha <= 128)
+            row[x * 4 + 3] =
+                static_cast<uint8_t>(std::min(255, (int(rawA) * 255) / 128));
+          else
+            row[x * 4 + 3] = rawA;
         }
       }
       slot.frames.push_back(std::move(s));

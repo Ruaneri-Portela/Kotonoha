@@ -448,10 +448,15 @@ public:
         }
       }
     } else if (uniformPhase == 0) {
-      if (focus >= 0) {
+      if (focus >= 0 && focus < 3) {
         static const int x[3] = {220, 20, 420};
-        compositeImageRegion(canvas, image("GRAPHIC/UNIFORM/UNICHOICE.TEXB"),
-                             x[focus], 52, focus * 362, 0, 361, 547);
+        const auto &tex = image("GRAPHIC/UNIFORM/UNICHOICE.TEXB");
+        const int dstY = (isSrv2 || tex.height >= 600) ? 0 : 52;
+        const int srcH = std::min(tex.height, 600 - dstY);
+        const int colW = (tex.width >= 3 * 362) ? 361 : (tex.width / 3);
+        const int stride = (tex.width >= 3 * 362) ? 362 : colW;
+        compositeImageRegion(canvas, tex, x[focus], dstY, focus * stride, 0,
+                             colW, srcH);
       }
     } else if (uniformPhase == 2) {
       const std::string kakuninTex = "GRAPHIC/UNIFORM/KAKUNIN.TEXB";
@@ -1247,7 +1252,8 @@ struct SummerRuntime::Impl {
       size_t start = line.find_first_not_of(" \t\r\n");
       if (start == std::string::npos)
         continue;
-      line = line.substr(start);
+      size_t end = line.find_last_not_of(" \t\r\n");
+      line = line.substr(start, end - start + 1);
       if (line.empty() || line[0] == '#' || line[0] == ';')
         continue;
       if (line.front() == '[' && line.back() == ']') {
@@ -1266,15 +1272,22 @@ struct SummerRuntime::Impl {
       auto key = line.substr(0, eq);
       auto val = line.substr(eq + 1);
       key.erase(0, key.find_first_not_of(" \t"));
-      key.erase(key.find_last_not_of(" \t") + 1);
+      if (!key.empty())
+        key.erase(key.find_last_not_of(" \t") + 1);
       val.erase(0, val.find_first_not_of(" \t"));
-      val.erase(val.find_last_not_of(" \t\r") + 1);
+      if (!val.empty())
+        val.erase(val.find_last_not_of(" \t\r\n") + 1);
+      auto stripAt = [](std::string s) {
+        if (!s.empty() && s[0] == '@')
+          s.erase(0, 1);
+        return s;
+      };
       if (section == "TOTAL") {
         if (key == "TEMPLATENAME" || key == "TEXNAME")
-          titleChipTexture = val;
+          titleChipTexture = stripAt(val);
       } else if (section == "TITLE000") {
         if (key == "BASE" && !val.empty()) {
-          background = val;
+          background = stripAt(val);
         } else if (key == "ALIGN-X" || key == "ALIGN-Y") {
           if (canonical(val) == "ABSOLUTE")
             titleAbsoluteAlign = true;
@@ -1283,15 +1296,10 @@ struct SummerRuntime::Impl {
             if (ch == ',')
               ch = ' ';
           std::istringstream v(val);
-          int a, b, c, d, e;
-          if (v >> a >> b >> c >> d >> e) {
-            if (assets->isLostM()) {
-              titleBaseX = a;
-              titleBaseY = b;
-            } else {
-              titleBaseX = a;
-              titleBaseY = b;
-            }
+          int a, b, c, d;
+          if (v >> a >> b >> c >> d) {
+            titleBaseX = a;
+            titleBaseY = b;
           }
         }
       } else if (section.rfind("CHIP", 0) == 0 && chipIndex >= 0 &&
@@ -1308,8 +1316,8 @@ struct SummerRuntime::Impl {
             if (ch == ',')
               ch = ' ';
           std::istringstream v(val);
-          int a, b, c, d, e;
-          if (v >> a >> b >> c >> d >> e) {
+          int a, b, c, d;
+          if (v >> a >> b >> c >> d) {
             chip.atlasX = a;
             chip.atlasY = b;
             chip.atlasW = c;
@@ -1320,8 +1328,8 @@ struct SummerRuntime::Impl {
             if (ch == ',')
               ch = ' ';
           std::istringstream v(val);
-          int a, b, c, d, e;
-          if (v >> a >> b >> c >> d >> e) {
+          int a, b, c, d;
+          if (v >> a >> b >> c >> d) {
             chip.drawX = a;
             chip.drawY = b;
             chip.drawW = c;
@@ -1858,8 +1866,8 @@ struct SummerRuntime::Impl {
       if (layer.path.empty() || !assets->contains(layer.path))
         continue;
       const auto &img = image(layer.path);
-      const int drawX = (slot == 0) ? (layer.x - bgOffsetX) : layer.x;
-      const int drawY = (slot == 0) ? (layer.y - bgOffsetY) : layer.y;
+      const int drawX = img.x + layer.x - bgOffsetX;
+      const int drawY = img.y + layer.y - bgOffsetY;
       compositeImage(canvas, img, drawX, drawY);
     }
     for (const auto &sp : imoutoSprites) {
@@ -2150,16 +2158,16 @@ struct SummerRuntime::Impl {
         y = argInt(3, 0);
         const int keep = argInt(4, 0);
         if (keep != 1)
-          eraseAtX(0);
+          eraseAtX(x);
       } else if (key == "RLDCHR") {
         for (auto &s : imoutoSprites)
-          if (s.x == 0)
+          if (s.x == 0 && s.charId > 0)
             s.x = -200;
         eraseAtX(200);
         x = 200;
       } else if (key == "LLDCHR") {
         for (auto &s : imoutoSprites)
-          if (s.x == 0)
+          if (s.x == 0 && s.charId > 0)
             s.x = 200;
         eraseAtX(-200);
         x = -200;
