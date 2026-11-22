@@ -1,7 +1,9 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/SceneGraph.hpp>
+#include <N2System/EntityQuery.hpp>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace N2System {
 
@@ -166,34 +168,89 @@ const Entity *SceneGraph::findEntity(std::string_view name) const {
   return nullptr;
 }
 
-std::vector<Entity *> SceneGraph::queryEntities(std::string_view pattern) {
-  std::vector<Entity *> matches;
-  if (pattern.empty())
-    return matches;
+std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
+  const auto parsed = EntityQuery::tryParse(expression);
+  if (!parsed)
+    return {};
 
-  const bool aliasMode = pattern.front() == '@';
-  const std::string_view body = aliasMode ? pattern.substr(1) : pattern;
-  const bool hasWildcard = body.find('*') != std::string_view::npos ||
-                           body.find('?') != std::string_view::npos;
-
-  if (!hasWildcard) {
-    if (auto *e = findEntity(pattern))
-      matches.push_back(e);
-    return matches;
+  // Preserve direct absolute entity identifiers used by existing NSB ports
+  // (some assets create "parent/child" before creating the parent entity).
+  // Scoped queries and wildcard queries still obey NitroSharp's grammar.
+  bool plainPath = true;
+  for (const auto &part : parsed->parts()) {
+    if (part.scope != EntityQueryScope::Current || part.hasWildcard())
+      plainPath = false;
+  }
+  if (plainPath) {
+    auto exact = entities_.find(std::string(expression));
+    if (exact != entities_.end())
+      return {&exact->second};
   }
 
-  for (auto &[k, e] : entities_) {
-    if (aliasMode) {
-      if (!e.alias.empty() && wildcardMatch(e.alias, body))
-        matches.push_back(&e);
+  // Keep query order deterministic: entity creation order, not hash-map order.
+  // NitroSharp's World.Query enumerates children in their insertion order.
+  std::vector<Entity *> ordered;
+  ordered.reserve(entities_.size());
+  for (auto &[name, entity] : entities_)
+    ordered.push_back(&entity);
+  std::sort(ordered.begin(), ordered.end(), [](const Entity *a,
+                                               const Entity *b) {
+    return a->creationOrder < b->creationOrder;
+  });
+
+  // Support both explicit parent links and legacy absolute slash-delimited
+  // names. A wildcard matches one component; it never consumes a slash.
+  const auto parentName = [](const Entity &entity) -> std::string_view {
+    if (!entity.parent.empty())
+      return entity.parent;
+    const auto slash = entity.name.rfind('/');
+    if (slash != std::string::npos)
+      return std::string_view(entity.name).substr(0, slash);
+    return {};
+  };
+  const auto localName = [](const Entity &entity) -> std::string_view {
+    const auto slash = entity.name.rfind('/');
+    if (slash == std::string::npos)
+      return entity.name;
+    return std::string_view(entity.name).substr(slash + 1);
+  };
+  std::vector<Entity *> current;
+  for (const auto &part : parsed->parts()) {
+    std::vector<Entity *> next;
+    const bool aliasScope = part.scope == EntityQueryScope::CurrentAliases ||
+                            part.scope == EntityQueryScope::AllAliases;
+    const bool rootScope = current.empty() ||
+                           part.scope == EntityQueryScope::MainThread;
+    // Querying a nested current scope after a failed match must stay empty.
+    if (!aliasScope && !rootScope && current.empty())
+      break;
+    const auto add = [&next](Entity *candidate) {
+      if (std::find(next.begin(), next.end(), candidate) == next.end())
+        next.push_back(candidate);
+    };
+    if (aliasScope) {
+      for (auto *candidate : ordered)
+        if (!candidate->alias.empty() &&
+            EntityQuery::matchPattern(candidate->alias, part.pattern))
+          add(candidate);
+    } else if (rootScope) {
+      for (auto *candidate : ordered)
+        if (parentName(*candidate).empty() &&
+            EntityQuery::matchPattern(localName(*candidate), part.pattern))
+          add(candidate);
     } else {
-      if (wildcardMatch(e.name, body) ||
-          (!e.alias.empty() && wildcardMatch(e.alias, body))) {
-        matches.push_back(&e);
+      for (auto *parent : current) {
+        for (auto *candidate : ordered)
+          if (parentName(*candidate) == parent->name &&
+              EntityQuery::matchPattern(localName(*candidate), part.pattern))
+            add(candidate);
       }
     }
+    current = std::move(next);
+    if (current.empty())
+      return {};
   }
-  return matches;
+  return current;
 }
 
 bool SceneGraph::destroyEntity(std::string_view name) {
