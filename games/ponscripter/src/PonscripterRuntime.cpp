@@ -1221,6 +1221,15 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         SDL_RenderClear(&renderer);
         continue;
       }
+      if (op.kind == ManualDrawOp::Kind::Rect) {
+        const SDL_Color color = rgb24ToSdl(op.colorRgb);
+        SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, 255);
+        SDL_FRect area{static_cast<float>(op.x), static_cast<float>(op.y),
+                       static_cast<float>(std::max(0, op.width)),
+                       static_cast<float>(std::max(0, op.height))};
+        SDL_RenderFillRect(&renderer, &area);
+        continue;
+      }
       if (op.kind == ManualDrawOp::Kind::Text) {
         if (op.text.empty())
           continue;
@@ -1282,7 +1291,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
       float width = background ? viewW : logicalCellW;
       float height = background ? viewH : logicalH;
-      if (op.kind == ManualDrawOp::Kind::Blit) {
+      if (op.kind == ManualDrawOp::Kind::Blit ||
+          op.kind == ManualDrawOp::Kind::Window) {
         width = static_cast<float>(op.width);
         height = static_cast<float>(op.height);
       }
