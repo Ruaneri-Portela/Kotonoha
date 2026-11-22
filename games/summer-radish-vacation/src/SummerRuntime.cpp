@@ -16,6 +16,7 @@
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -661,6 +662,7 @@ struct SummerRuntime::Impl {
   std::unique_ptr<VNSaveMenu> saves;
   PcmPlayer bgm, se, voice;
   std::unique_ptr<MediaPlayer> movie;
+  VideoSkipGesture videoSkip;
   std::string background = "GRAPHIC/黒.BGD", music, pending, byteOverlay,
               lastVoice;
   bool skipMode = false;
@@ -2074,6 +2076,7 @@ struct SummerRuntime::Impl {
         try {
           movie->open(assets->movieHandle(file), false, "Movie");
           pending = "MOVIE";
+          videoSkip.reset();
           imoutoVm.waiting = true;
           if (text)
             text->hide();
@@ -2864,6 +2867,7 @@ struct SummerRuntime::Impl {
       text->hide();
       vm.waiting = true;
       pending = "MOVIE";
+      videoSkip.reset();
       return;
     }
     if (name == "QUAKEX" || name == "QUAKEY") {
@@ -3656,19 +3660,10 @@ struct SummerRuntime::Impl {
       }
       return true;
     }
-    // A window resize, pointer drag or a single click must not skip media.
-    // Only an intentional primary-button double click skips the opening.
-    if (pending == "OPENING") {
-      if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-          e.button.button == SDL_BUTTON_LEFT && e.button.clicks >= 2) {
-        movie->stop();
-        pending.clear();
-        vm.start(pendingScript);
-        vm.run();
-        return true;
-      }
+    // Movie input is handled by the outer runtime before stage/UI dispatch.
+    // Never let a single click or unrelated event resume either VM.
+    if (pending == "OPENING" || pending == "MOVIE")
       return true;
-    }
     if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
       if (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL) {
         skipHeld = true;
@@ -3973,6 +3968,23 @@ void SummerRuntime::update() {
 }
 bool SummerRuntime::onEvent(EventRef e) {
   auto &i = *impl;
+  if ((i.pending == "OPENING" || i.pending == "MOVIE") &&
+      i.movie && i.movie->isOpen()) {
+    if (i.videoSkip.accept(e)) {
+      const bool opening = i.pending == "OPENING";
+      i.movie->stop();
+      i.pending.clear();
+      if (opening) {
+        i.vm.start(i.pendingScript);
+        i.vm.run();
+      } else if (i.imouto) {
+        i.imoutoVm.resume();
+      } else {
+        i.vm.resume();
+      }
+    }
+    return true;
+  }
   if (i.meo) {
     for (auto *scene : GetActiveScenes())
       if (scene && scene->capturesInput())
