@@ -92,7 +92,8 @@ void PonscripterVm::registerCommands() {
         "strsph",      "bar",        "barclear",     "prnum",     "prnumclear",
         "blt",         "draw",       "drawbg",       "drawbg2",   "drawsp",
         "drawsp2",     "drawsp3",    "drawfill",     "drawclear", "drawtext",
-        "monocro",     "nega",       "quake",        "quakex",    "quakey"}) {
+        "monocro",     "nega",       "quake",        "quakex",    "quakey",
+        "tal"}) {
     registerCommand(c, &PonscripterVm::cmdGraphics);
   }
 
@@ -995,6 +996,94 @@ void PonscripterVm::cmdVars(LineLexer &lexer, const std::string &cmd) {
 }
 
 void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
+  if (cmd == "allsphide" || cmd == "allspresume" ||
+      cmd == "allsp2hide" || cmd == "allsp2resume") {
+    const bool hide = (cmd == "allsphide" || cmd == "allsp2hide");
+    if (cmd == "allsp2hide" || cmd == "allsp2resume")
+      allSprites2Hidden_ = hide;
+    else
+      allSpritesHidden_ = hide;
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+
+  if (cmd == "tal") {
+    const std::string position = lexer.parseIdentifier();
+    const int slot = position == "l" ? 0 : position == "c" ? 1 :
+                     position == "r" ? 2 : -1;
+    if (!lexer.consumeComma())
+      return;
+    const int opacity = std::clamp(lexer.parseIntExpr(), 0, 256);
+    if (slot >= 0) {
+      standing_[slot].alpha = (opacity * 255) / 256;
+      if (lexer.consumeComma()) {
+        const EffectDef effect = resolveEffectSpec(lexer, false);
+        triggerEffect(effect);
+      } else if (callbacks_) {
+        callbacks_->onSceneDirty();
+      }
+    }
+    return;
+  }
+
+  if (cmd == "strsp" || cmd == "strsph") {
+    const int id = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const std::string text = lexer.parseStringExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int x = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int y = lexer.parseIntExpr();
+
+    // Size/spacing fields match strsp's dialogue font configuration.
+    int cols = 1, rows = 1;
+    int fontW = window_.fontW, fontH = window_.fontH;
+    int spacingX = window_.pitchX, spacingY = window_.pitchY;
+    if (lexer.consumeComma())
+      cols = std::max(1, lexer.parseIntExpr());
+    if (lexer.consumeComma())
+      rows = std::max(1, lexer.parseIntExpr());
+    if (lexer.consumeComma())
+      fontW = std::max(1, lexer.parseIntExpr());
+    if (lexer.consumeComma())
+      fontH = std::max(1, lexer.parseIntExpr());
+    if (lexer.consumeComma())
+      spacingX = lexer.parseIntExpr();
+    if (lexer.consumeComma())
+      spacingY = lexer.parseIntExpr();
+    if (lexer.consumeComma())
+      lexer.parseIntExpr(); // bold
+    if (lexer.consumeComma())
+      lexer.parseIntExpr(); // shadow
+
+    std::uint32_t color = 0xFFFFFFu;
+    if (lexer.consumeComma())
+      parseHexColor24(lexer.parseRawArg(), color);
+    if (id >= 0 && id < kMaxExtendedSprites) {
+      auto &slot = sprites_[id];
+      slot = SpriteSlot{};
+      slot.loaded = true;
+      slot.visible = cmd == "strsp";
+      slot.spec.trans = TransMode::String;
+      slot.spec.text = TextFormatter::formatUiLabel(text, true);
+      slot.spec.color = color;
+      slot.spec.fontWidth = fontW;
+      slot.spec.fontHeight = fontH;
+      slot.spec.fontSpacing = spacingX;
+      slot.x = x;
+      slot.y = y;
+      slot.cellWidth = std::max(1, cols * (fontW + spacingX));
+      slot.cellHeight = std::max(1, rows * (fontH + spacingY));
+      if (callbacks_)
+        callbacks_->onSceneDirty();
+    }
+    return;
+  }
+
   if (cmd == "bg") {
     leaveTextDisplayMode(false);
     const std::string rawArg = lexer.parseRawArg();
@@ -1088,6 +1177,7 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
       auto &sp = sprites_[id];
       sp.loaded = true;
       sp.visible = (cmd == "lsp" || cmd == "lsp2");
+      sp.secondaryLayer = (cmd == "lsp2" || cmd == "lsph2");
       sp.spec = parseTaggedString(tagStr, TransMode::Alpha);
       sp.x = x;
       sp.y = y;
