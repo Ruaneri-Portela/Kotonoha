@@ -163,6 +163,30 @@ int main() {
   progression.Pump();
   CHECK(progression.ScriptName() == "0001.KS" && progression.Text() == "moved");
 
+  Game battle({"0000.KS"}, [&](size_t, std::vector<uint8_t> *out) {
+    *out = Bytes(R"(
+      battleInit((0x02000000+85));
+      battleAdd("ルイズ");
+      battleAdd("才人");
+      battleEnemy("center", "ゴーレム", (0x02000000+303));
+      battle();
+      talk("n", null, "won", null);
+    )");
+    return true;
+  });
+  CHECK(battle.Start("0000.KS"));
+  battle.Pump();
+  CHECK(battle.Battling() && battle.Choosing() && battle.Choices().size() == 4);
+  CHECK(battle.Battle().party.size() == 2 &&
+        battle.Battle().enemies.size() == 1);
+  CHECK(battle.Choose(2)); // Defend
+  CHECK(battle.Battling() && battle.Battle().turn == 2);
+  CHECK(battle.Choose(0)); // Attack
+  CHECK(battle.Battling() && battle.Battle().enemies[0].hp < 100);
+  CHECK(battle.Choose(3)); // Auto-Win
+  CHECK(!battle.Battling() && battle.WaitingForClick() &&
+        battle.Text() == "won");
+
   for (const char *bad : {"talk(\"broken", "/* missing", "if (true) {",
                           "while(true) {talk(\"n\",null,\"x\",null);}",
                           "if (unknown()) { msgon(); }",

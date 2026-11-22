@@ -132,9 +132,10 @@ def audit() -> list[str]:
     games_cmake = (ROOT / "buildsystems/cmake/games/KotonohaBuild.cmake").read_text(
         encoding="utf-8")
     if "games/KotonohaBuild.cmake" not in root_cmake or (
-        "KOTONOHA_BUILD_ALL AND NOT ANDROID AND NOT EMSCRIPTEN" not in games_cmake
+        "(KOTONOHA_BUILD_ALL OR KOTONOHA_BUILD_LAUNCHER) AND NOT EMSCRIPTEN"
+        not in games_cmake
     ):
-        issues.append("Native-only standalone launcher guard is missing")
+        issues.append("Native/Android-only standalone launcher guard is missing")
     return issues
 
 

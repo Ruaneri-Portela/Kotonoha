@@ -3,12 +3,12 @@
 #include "DokiDoki.iOS.xcconfig"
 
 KOTONOHA_GAME_DIR = launcher
-HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) \
+SWIFT_VERSION = 5.0
+SWIFT_OBJC_BRIDGING_HEADER = $(KOTONOHA_ROOT)/launcher/src/ios/KotonohaLauncher-Bridging-Header.h
+HEADER_SEARCH_PATHS = $(inherited) \
     "$(KOTONOHA_ROOT)/launcher/include" \
     "$(KOTONOHA_ROOT)/launcher/src" \
-    "$(KOTONOHA_ROOT)/lib/include" \
-    "$(KOTONOHA_PYTHON_IOS_SLICE)/Headers" \
-    "$(KOTONOHA_PYTHON_IOS_SLICE)/include/python3.15"
+    "$(KOTONOHA_ROOT)/lib/include"
 
 // The project compiles and links the real game implementations in-process.
 // Individual main.cpp entrypoints are excluded from this single application.

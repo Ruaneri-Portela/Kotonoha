@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -23,10 +24,18 @@ struct ArchiveEntry {
 
 class ArchiveReader {
 public:
+  using ReadRangeFn =
+      std::function<bool(std::uint64_t offset, std::uint8_t *dst,
+                         std::size_t size)>;
+
   ArchiveReader() = default;
 
   bool loadFromMemory(std::vector<std::uint8_t> data, ArchiveFormat format,
                       std::size_t nsaOffset = 0);
+  // Indexes only the SAR/NSA table of contents and streams entries on demand
+  // through `reader`, avoiding loading multi-hundred-MB archives into RAM.
+  bool loadFromReader(std::uint64_t totalSize, ReadRangeFn reader,
+                      ArchiveFormat format, std::size_t nsaOffset = 0);
 
   bool contains(std::string_view virtualPath) const;
   const ArchiveEntry *find(std::string_view virtualPath) const;
@@ -43,7 +52,16 @@ public:
   buildSyntheticNsa(const std::vector<std::pair<std::string, std::vector<std::uint8_t>>> &files);
 
 private:
+  bool parseToc(const std::uint8_t *toc, std::size_t tocSize,
+                std::uint64_t totalSize, ArchiveFormat format,
+                std::size_t nsaOffset);
+  std::vector<std::uint8_t> extractRaw(const ArchiveEntry &entry,
+                                       const std::uint8_t *src,
+                                       std::size_t srcLen) const;
+
   std::vector<std::uint8_t> data_;
+  ReadRangeFn reader_;
+  std::uint64_t totalSize_ = 0;
   std::vector<ArchiveEntry> entries_;
   std::unordered_map<std::string, std::size_t> index_;
 };

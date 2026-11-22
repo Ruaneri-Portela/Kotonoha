@@ -32,11 +32,12 @@ int16_t signedWord(const std::vector<Uint8> &bytes, std::size_t offset) {
 }
 
 int16_t sample(int nibble, int &index, int &predictor) {
-  // The original MEO module uses a precomputed IMA table. Its positive
-  // entries are floor(step * (2*n + 1) / 8); negative entries are -value - 1.
-  const int magnitude = steps[index] * (2 * (nibble & 7) + 1) / 8;
-  predictor += nibble & 8 ? -magnitude - 1 : magnitude;
-  predictor = std::clamp(predictor, -32767, 32767);
+  // The original MEO module uses a precomputed 89x16 IMA delta table where
+  // positive entries are floor(step * (2*n + 1) / 8) and negative entries are
+  // floor(-step * (2*n + 1) / 8) = -ceil(step * (2*n + 1) / 8).
+  const int numerator = steps[index] * (2 * (nibble & 7) + 1);
+  const int delta = (nibble & 8) ? -((numerator + 7) / 8) : (numerator / 8);
+  predictor = std::clamp(predictor + delta, -32767, 32767);
   index = std::clamp(index + indexChange[nibble & 7], 0, 88);
   return static_cast<int16_t>(predictor);
 }

@@ -48,8 +48,8 @@ int main(int argc, char **argv) {
           SDL_PIXELFORMAT_RGB24, img.rgb.data(),
           static_cast<int>(img.width * 3));
       if (s) {
-        Kotonoha::SavePng(s,
-                    (fs::path(argv[2]) / (e.name + ".png")).string().c_str());
+        Kotonoha::SavePng(
+            s, (fs::path(argv[2]) / (e.name + ".png")).string().c_str());
         SDL_DestroySurface(s);
         ++images;
       }
@@ -64,8 +64,8 @@ int main(int argc, char **argv) {
             SDL_PIXELFORMAT_RGBA32, sp.rgba.data(),
             static_cast<int>(sp.width * 4));
         if (s) {
-          Kotonoha::SavePng(s,
-                      (fs::path(argv[2]) / (e.name + ".png")).string().c_str());
+          Kotonoha::SavePng(
+              s, (fs::path(argv[2]) / (e.name + ".png")).string().c_str());
           SDL_DestroySurface(s);
           ++images;
         }
@@ -108,8 +108,8 @@ int main(int argc, char **argv) {
             SDL_PIXELFORMAT_RGB24, rgb.data(),
             static_cast<int>(mask.width * 3));
         if (s) {
-          Kotonoha::SavePng(s,
-                      (fs::path(argv[2]) / (e.name + ".png")).string().c_str());
+          Kotonoha::SavePng(
+              s, (fs::path(argv[2]) / (e.name + ".png")).string().c_str());
           SDL_DestroySurface(s);
           ++images;
         }

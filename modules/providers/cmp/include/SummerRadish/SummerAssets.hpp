@@ -11,6 +11,7 @@ class SummerAssets final : public Kotonoha::AssetProvider {
   std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
   bool meoLayout_ = false;
   bool lostMLayout_ = false;
+  bool imoutoLayout_ = false;
 
 public:
   explicit SummerAssets(std::filesystem::path root,
@@ -21,11 +22,14 @@ public:
     return source_;
   }
   bool isLostM() const { return lostMLayout_; }
+  bool isImoutoDeIkou() const { return imoutoLayout_; }
   std::string name() const override {
     if (meoLayout_)
       return "MEO CMP";
     if (lostMLayout_)
       return "Lost M CMP";
+    if (imoutoLayout_)
+      return "Imouto de Ikou! CMP";
     return "Summer Radish CMP";
   }
   bool containsAsset(const std::string &) const override;

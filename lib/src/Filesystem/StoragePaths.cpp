@@ -1,3 +1,4 @@
+#include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Config.hpp>
@@ -9,6 +10,8 @@
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
@@ -75,6 +78,21 @@ findInDirectories(const std::vector<std::filesystem::path> &directories,
 
 #ifdef __ANDROID__
 std::filesystem::path androidDirectory(const char *method) {
+  const char *overrideName = nullptr;
+  if (std::strcmp(method, "getKotonohaResourceDirectory") == 0)
+    overrideName = "KOTONOHA_ANDROID_RESOURCE_DIR";
+  else if (std::strcmp(method, "getKotonohaDocumentsDirectory") == 0)
+    overrideName = "KOTONOHA_ANDROID_DOCUMENTS_DIR";
+  else if (std::strcmp(method, "getKotonohaGameAssetDirectory") == 0)
+    overrideName = "KOTONOHA_ANDROID_GAME_ASSET_DIR";
+  else if (std::strcmp(method, "getKotonohaDataDirectory") == 0)
+    overrideName = "KOTONOHA_ANDROID_DATA_DIR";
+  else if (std::strcmp(method, "getKotonohaPackageIdentifier") == 0)
+    overrideName = "KOTONOHA_ANDROID_PACKAGE_ID";
+  if (overrideName) {
+    if (const char *path = std::getenv(overrideName); path && *path)
+      return path;
+  }
   auto *env = static_cast<JNIEnv *>(SDL_GetAndroidJNIEnv());
   auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
   if (!env || !activity)
@@ -352,12 +370,19 @@ static StorageLocations storageLocations() {
   StorageLocations locations;
   locations.resources = resourceDirectory();
   locations.packageIdentifier = preferredGameIdentifier();
+  if (const char *overrideDir = SDL_getenv("KOTONOHA_USER_DATA_DIR");
+      overrideDir && *overrideDir) {
+    locations.userData = normalizeDirectory(overrideDir);
+  }
 #ifdef __ANDROID__
   locations.platform = StoragePlatform::Android;
-  try {
-    locations.userData = androidDirectory("getKotonohaDocumentsDirectory");
-  } catch (const std::exception &) {
-    // Read-only resource lookup must also work when external storage is absent.
+  if (locations.userData.empty()) {
+    try {
+      locations.userData = androidDirectory("getKotonohaDocumentsDirectory");
+    } catch (const std::exception &) {
+      // Read-only resource lookup must also work when external storage is
+      // absent.
+    }
   }
   locations.privateGameAssets =
       androidDirectory("getKotonohaGameAssetDirectory");
@@ -367,17 +392,18 @@ static StorageLocations storageLocations() {
   }
 #elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
   locations.platform = StoragePlatform::IOS;
-  if (const char *documents = SDL_GetUserFolder(SDL_FOLDER_DOCUMENTS))
-    locations.userData = documents;
+  if (locations.userData.empty()) {
+    if (const char *documents = SDL_GetUserFolder(SDL_FOLDER_DOCUMENTS))
+      locations.userData = documents;
+  }
 #else
   // Ask SDL for the organization root, not for the game name. This also
   // preserves Kotonoha on platforms that ignore SDL_GetPrefPath's org field.
-  if (const char *overrideDir = SDL_getenv("KOTONOHA_USER_DATA_DIR");
-      overrideDir && *overrideDir) {
-    locations.userData = normalizeDirectory(overrideDir);
-  } else if (char *path = SDL_GetPrefPath(nullptr, "Kotonoha")) {
-    locations.userData = normalizeDirectory(path).parent_path();
-    SDL_free(path);
+  if (locations.userData.empty()) {
+    if (char *path = SDL_GetPrefPath(nullptr, "Kotonoha")) {
+      locations.userData = normalizeDirectory(path).parent_path();
+      SDL_free(path);
+    }
   }
   std::error_code error;
   locations.workingDirectory = std::filesystem::current_path(error);
@@ -774,25 +800,14 @@ std::vector<uint8_t> FileResolver::loadFontMemory(const std::string &file) {
 
 void writeTextFileAtomically(const std::string &path,
                              const std::string &contents) {
-  const std::string temporary = path + ".tmp";
-  if (path.empty() || std::filesystem::exists(std::filesystem::path(temporary)))
-    throw std::runtime_error(
-        "Invalid output path or existing temporary file: " + temporary);
-  SDL_IOStream *output = SDL_IOFromFile(temporary.c_str(), "wb");
-  if (!output)
-    throw std::runtime_error("Cannot create file: " + temporary);
-  const bool written =
-      contents.empty() ||
-      SDL_WriteIO(output, contents.data(), contents.size()) == contents.size();
-  const bool closed = SDL_CloseIO(output);
-  if (!written || !closed) {
-    std::filesystem::remove(std::filesystem::path(temporary));
-    throw std::runtime_error("Cannot write file: " + path);
-  }
-  if (!SDL_RenamePath(temporary.c_str(), path.c_str())) {
-    const std::string error = SDL_GetError();
-    std::filesystem::remove(std::filesystem::path(temporary));
-    throw std::runtime_error("Cannot replace file: " + path + ": " + error);
+  if (path.empty())
+    throw std::runtime_error("Invalid output path");
+  const std::vector<std::uint8_t> bytes(contents.begin(), contents.end());
+  std::string error;
+  if (!Kotonoha::Filesystem::writeBinaryFileAtomically(
+          std::filesystem::path(path), bytes, &error)) {
+    throw std::runtime_error("Cannot write file: " + path +
+                             (error.empty() ? std::string() : ": " + error));
   }
 }
 

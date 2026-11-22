@@ -824,6 +824,13 @@ void Vm::init(const std::string &persistentText) {
   c["skipping"] = Value::boolean(false);
   c["window_show_transition"] = transitionValue(dissolve(.2));
   c["window_hide_transition"] = transitionValue(dissolve(.2));
+  c["translations"] = makeDict();
+  c["font_replacement_map"] = makeDict();
+  c["layers"] = makeList({Value::str("master"), Value::str("transient"),
+                          Value::str("screens"), Value::str("overlay")});
+  c["underlay"] = makeList();
+  c["searchpath"] = makeList();
+  c["window_title"] = Value::str("");
   Value keymap = makeDict();
   for (const char *k :
        {"game_menu", "hide_windows", "self_voicing", "clipboard_voicing",
@@ -832,8 +839,30 @@ void Vm::init(const std::string &persistentText) {
     py.setItem(keymap, Value::str(k), makeList());
   py.getItem(keymap, Value::str("game_menu"))
       .o->items.push_back(Value::str("mouseup_3"));
+  auto &dismissKeys = py.getItem(keymap, Value::str("dismiss")).o->items;
+  dismissKeys.push_back(Value::str("K_RETURN"));
+  dismissKeys.push_back(Value::str("K_KP_ENTER"));
+  dismissKeys.push_back(Value::str("K_SPACE"));
   c["keymap"] = keymap;
+  if (!persistent.attr("_seen_images") ||
+      persistent.get("_seen_images").isNone())
+    persistent.o->attrs["_seen_images"] = makeDict();
 
+  for (const char *st : {"default",        "say_dialogue",
+                         "say_label",      "say_thought",
+                         "nvl_dialogue",   "nvl_label",
+                         "nvl_thought",    "nvl_window",
+                         "menu_choice",    "menu_choice_button",
+                         "button_text",    "text",
+                         "window",         "frame",
+                         "centered_text",  "centered_window",
+                         "alive_text",     "b_nvl_window",
+                         "credits_text",   "say_window",
+                         "say_who_window", "say_two_window_vbox",
+                         "mm_button_text", "gm_button_text",
+                         "prefs_label",    "prefs_button_text"})
+    if (!styleNs.attr(st))
+      styleNs.o->attrs[st] = Interp::nameSpace(st);
   py.set("_dismiss_pause", Value::boolean(true));
   py.set("quick_menu", Value::boolean(true));
   py.set("main_menu", Value::boolean(false));
@@ -1305,6 +1334,117 @@ void VmNatives::install(Vm &vm) {
     t->props.emplace_back("yzoom", Value::real(sy));
     return atlValue(t, v);
   });
+  def(im, "Alpha", [v, disp](Interp &, Args &a, Kwargs &kw) {
+    if (a.empty())
+      return Value();
+    auto t = std::make_shared<AtlTemplate>();
+    t->name = "Alpha";
+    t->child = disp(a[0]);
+    const double alpha = argOr(a, 1, kw, "alpha", Value::real(1.0)).num();
+    t->props.emplace_back("alpha", Value::real(alpha));
+    return atlValue(t, v);
+  });
+  auto passthroughIm = [v, disp](Interp &, Args &a, Kwargs &) {
+    return a.empty() ? Value() : v->dispValue(disp(a[0]));
+  };
+  def(im, "MatrixColor", passthroughIm);
+  def(im, "Tile", passthroughIm);
+  def(im, "Scale", passthroughIm);
+  def(im, "Rotozoom", passthroughIm);
+  def(im, "Recolor", passthroughIm);
+  def(im, "Sepia", passthroughIm);
+  def(im, "Twocolor", passthroughIm);
+  def(im, "Map", passthroughIm);
+  def(im, "AlphaMask", passthroughIm);
+  def(im, "Blur", passthroughIm);
+  def(im, "Cache", passthroughIm);
+  def(im, "ramp", [](Interp &, Args &, Kwargs &) { return Value(); });
+  py.exec(
+      "class _KtImMatrix(object):\n"
+      "    def __mul__(self, other): return self\n"
+      "    def __rmul__(self, other): return self\n"
+      "class _KtImMatrixNs(object):\n"
+      "    def __call__(self, *a, **kw): return _KtImMatrix()\n"
+      "    def identity(self, *a, **kw): return _KtImMatrix()\n"
+      "    def saturation(self, *a, **kw): return _KtImMatrix()\n"
+      "    def desaturate(self, *a, **kw): return _KtImMatrix()\n"
+      "    def tint(self, *a, **kw): return _KtImMatrix()\n"
+      "    def colorize(self, *a, **kw): return _KtImMatrix()\n"
+      "    def invert(self, *a, **kw): return _KtImMatrix()\n"
+      "    def brightness(self, *a, **kw): return _KtImMatrix()\n"
+      "    def contrast(self, *a, **kw): return _KtImMatrix()\n"
+      "    def opacity(self, *a, **kw): return _KtImMatrix()\n"
+      "    def hue(self, *a, **kw): return _KtImMatrix()\n"
+      "im.matrix = _KtImMatrixNs()\n"
+      "class _KtLayout(object):\n"
+      "    def provides(self, *a, **kw): pass\n"
+      "    def button(self, *a, **kw): return None\n"
+      "    def label(self, *a, **kw): return None\n"
+      "    def prompt(self, *a, **kw): return None\n"
+      "    def yesno_screen(self, *a, **kw): return False\n"
+      "    def invoke_yesno_prompt(self, *a, **kw): return False\n"
+      "    def are_you_sure(self, *a, **kw): return True\n"
+      "    def navigation(self, *a, **kw): pass\n"
+      "    def __getattr__(self, k): return lambda *a, **kw: None\n"
+      "layout = _KtLayout()\n"
+      "theme = _KtLayout()\n"
+      "anim = _KtLayout()\n"
+      "last_scene_label = ''\n"
+      "last_visited_label = ''\n"
+      "def SnowBlossom(d, *a, **kw): return d\n"
+      "def SplineMotion(*a, **kw): return lambda d=None, *a2, **kw2: d\n"
+      "def Motion(*a, **kw): return lambda d=None, *a2, **kw2: d\n"
+      "def Pan(*a, **kw): return lambda d=None, *a2, **kw2: d\n"
+      "def MoveFactory(*a, **kw): return lambda *a2, **kw2: None\n"
+      "def MoveIn(*a, **kw): return lambda *a2, **kw2: None\n"
+      "def MoveOut(*a, **kw): return lambda *a2, **kw2: None\n"
+      "def ZoomInOut(*a, **kw): return lambda *a2, **kw2: None\n"
+      "def RevolveInOut(*a, **kw): return lambda *a2, **kw2: None\n"
+      "def ComposeTransition(t=None, *a, **kw): return t\n"
+      "def DynamicDisplayable(fn, *a, **kw): return None\n"
+      "class _KtStyle(object):\n"
+      "    def __call__(self, *a, **kw): return None\n"
+      "    def __getitem__(self, k): return self\n"
+      "    def __setitem__(self, k, v): pass\n"
+      "class _KtStyleNs(object):\n"
+      "    def __init__(self, b): self.__dict__['_b'] = b\n"
+      "    def __getattr__(self, k):\n"
+      "        b = self.__dict__['_b']\n"
+      "        v = getattr(b, k, None)\n"
+      "        if v is None:\n"
+      "            v = _KtStyle()\n"
+      "            setattr(b, k, v)\n"
+      "        return v\n"
+      "    def __setattr__(self, k, v): setattr(self.__dict__['_b'], k, v)\n"
+      "style = _KtStyleNs(style)\n"
+      "def _ease_time_warp(x): return x\n"
+      "def _ease_in_time_warp(x): return x\n"
+      "def _ease_out_time_warp(x): return x\n"
+      "def _easein_time_warp(x): return x\n"
+      "def _easeout_time_warp(x): return x\n"
+      "NARRATOR_NAME = None\n"
+      "def _kt_move_transitions(prefix, delay=0.5, *a, **kw):\n"
+      "    g = globals()\n"
+      "    tr = Dissolve(delay)\n"
+      "    for suf in ('', 'in', 'out', 'enter', 'leave',\n"
+      "                'inright', 'inleft', 'intop', 'inbottom',\n"
+      "                'outright', 'outleft', 'outtop', 'outbottom'):\n"
+      "        g[prefix + suf] = tr\n"
+      "define.move_transitions = _kt_move_transitions\n"
+      "class _KtStore(object):\n"
+      "    def __getattr__(self, k):\n"
+      "        g = globals()\n"
+      "        if k in g: return g[k]\n"
+      "        return None\n"
+      "    def __setattr__(self, k, v): globals()[k] = v\n"
+      "store = _KtStore()\n"
+      "class _KtObject(object):\n"
+      "    pass\n"
+      "object = _KtObject\n"
+      "class MultiPersistent(object):\n"
+      "    def __init__(self, name=''): self._name = name\n"
+      "    def save(self): pass\n"
+      "    def __getattr__(self, k): return None\n");
   py.def("Image", [v, disp](Interp &, Args &a, Kwargs &) {
     return v->dispValue(disp(a.at(0)));
   });
@@ -1464,6 +1604,14 @@ void VmNatives::install(Vm &vm) {
     return transitionValue(
         multiple(a.empty() ? std::vector<Value>{} : a[0].items()));
   });
+  py.def("CropMove", [](Interp &, Args &a, Kwargs &kw) {
+    return transitionValue(
+        dissolve(argOr(a, 0, kw, "time", Value::real(0.5)).num()));
+  });
+  py.def("MoveTransition", [](Interp &, Args &a, Kwargs &kw) {
+    return transitionValue(
+        dissolve(argOr(a, 0, kw, "delay", Value::real(0.5)).num()));
+  });
   py.def("Fade", [v, multiple](Interp &, Args &a, Kwargs &kw) {
     const double out = argOr(a, 0, kw, "out_time").num(),
                  hold = argOr(a, 1, kw, "hold_time").num(),
@@ -1517,8 +1665,66 @@ void VmNatives::install(Vm &vm) {
   renpy.o->attrs["android"] = Value::boolean(false);
   renpy.o->attrs["ios"] = Value::boolean(false);
   renpy.o->attrs["mobile"] = Value::boolean(false);
-  renpy.o->attrs["Displayable"] =
-      Value::object(makeObj(Object::K::Class, "Displayable"));
+  py.exec("class _KtDisplayable(object):\n"
+          "    def __init__(self, *a, **kw): pass\n"
+          "    def render(self, w, h, st, at): return None\n"
+          "    def event(self, ev, x, y, st): return None\n"
+          "    def visit(self): return []\n"
+          "class _KtTransition(_KtDisplayable):\n"
+          "    def __init__(self, delay=0.0, **kw): self.delay = delay\n"
+          "def _kt_curry(fn):\n"
+          "    def _curried(*a, **kw):\n"
+          "        return lambda *a2, **kw2: fn(*(a + a2), **{**kw, **kw2})\n"
+          "    return _curried\n"
+          "class ADVCharacter(object):\n"
+          "    def __init__(self, name=None, kind=None, **kw):\n"
+          "        self.name = name\n"
+          "        self.kind = kind\n"
+          "        self.who_args = {}\n"
+          "        self.what_args = {}\n"
+          "        self.window_args = {}\n"
+          "        self.show_args = {}\n"
+          "        self.display_args = {}\n"
+          "        self.show_function = kw.get('show_function', None)\n"
+          "        for k, val in kw.items(): setattr(self, k, val)\n"
+          "    def __call__(self, what, **kw):\n"
+          "        return renpy.say(self, what, **kw)\n"
+          "class NVLCharacter(ADVCharacter):\n"
+          "    pass\n"
+          "nvl = NVLCharacter(None)\n");
+  renpy.o->attrs["Displayable"] = py.lookup("_KtDisplayable");
+  renpy.o->attrs["curry"] = py.lookup("_kt_curry");
+  def(renpy, "version", [](Interp &, Args &a, Kwargs &kw) {
+    if (argOr(a, 0, kw, "tuple").truthy())
+      return makeTuple({Value::integer(6), Value::integer(13),
+                        Value::integer(12), Value::integer(0)});
+    return Value::str("Ren'Py 6.13.12");
+  });
+  def(renpy, "image", [v](Interp &, Args &a, Kwargs &) {
+    if (a.size() < 2)
+      return Value();
+    std::string key;
+    if (a[0].isObj() && !a[0].items().empty()) {
+      for (const auto &part : a[0].items())
+        key += (key.empty() ? "" : " ") + part.text();
+    } else {
+      key = a[0].text();
+    }
+    if (!key.empty())
+      v->images[key] = a[1];
+    return Value();
+  });
+  def(renpy, "loadable", [v](Interp &, Args &a, Kwargs &) {
+    return Value::boolean(!a.empty() && v->assets.has(a[0].text()));
+  });
+  def(renpy, "has_label", [v](Interp &, Args &a, Kwargs &) {
+    return Value::boolean(!a.empty() &&
+                          v->script.label(a[0].text()) != nullptr);
+  });
+  def(renpy, "Keymap", [](Interp &, Args &, Kwargs &) { return Value(); });
+  def(renpy, "current_interact_type",
+      [](Interp &, Args &, Kwargs &) { return Value::str("say"); });
+  def(renpy, "game_menu", [](Interp &, Args &, Kwargs &) { return Value(); });
   if (py.has("ParameterizedText"))
     renpy.o->attrs["ParameterizedText"] = py.lookup("ParameterizedText");
   if (py.has("At"))
@@ -1529,6 +1735,7 @@ void VmNatives::install(Vm &vm) {
   Value prefs = sub(game, "preferences");
   prefs.o->attrs["fullscreen"] = Value::boolean(false);
   prefs.o->attrs["afm_enable"] = Value::boolean(false);
+  py.set("_preferences", prefs);
   game.o->attrs["persistent"] = vm.persistent;
   Value loadsave = sub(renpy, "loadsave");
   Value location = sub(loadsave, "location");
@@ -1782,6 +1989,8 @@ void VmNatives::install(Vm &vm) {
   // Screen effects (tear, invert) are drawn by the host from a frame capture;
   // the screenshot the script passes along is only a placeholder.
   Value display = sub(renpy, "display");
+  Value rtransition = sub(display, "transition");
+  rtransition.o->attrs["Transition"] = py.lookup("_KtTransition");
   Value draw = sub(display, "draw");
   def(draw, "screenshot", [](Interp &, Args &, Kwargs &) {
     Value shot = makeInstance("Screenshot");
@@ -1932,7 +2141,10 @@ void VmNatives::install(Vm &vm) {
   def(ui, "returns",
       [](Interp &, Args &a, Kwargs &) { return a.empty() ? Value() : a[0]; });
   for (const char *noop :
-       {"vbox", "hbox", "close", "fixed", "saybehavior", "add", "null"})
+       {"vbox",  "hbox",  "close",    "fixed", "saybehavior", "add",
+        "null",  "jumps", "calls",    "image", "imagebutton", "window",
+        "frame", "bar",   "button",   "timer", "layer",       "keymap",
+        "clear", "grid",  "viewport", "side"})
     def(ui, noop, [](Interp &, Args &, Kwargs &) { return Value(); });
   def(ui, "interact", [v](Interp &, Args &, Kwargs &kw) {
     if (v->uiButtons_.empty() && v->uiTexts_.empty()) {
@@ -2212,9 +2424,33 @@ void Vm::execUser(const std::string &line) {
   if (t.empty())
     return;
   const std::string &verb = t[0];
-  if (verb == "nvl" && t.size() >= 2 && t[1] == "clear") {
-    py.call(py.lookup("nvl_clear"), {});
-    return;
+  if (verb == "nvl" && t.size() >= 2) {
+    if (t[1] == "clear") {
+      py.call(py.lookup("nvl_clear"), {});
+      return;
+    }
+    if (t[1] == "show") {
+      py.set("_nvl_shown", Value::boolean(true));
+      if (t.size() >= 3) {
+        try {
+          if (auto tr = toTransition(py.eval(t[2])))
+            transition(tr);
+        } catch (const PyError &) {
+        }
+      }
+      return;
+    }
+    if (t[1] == "hide") {
+      py.set("_nvl_shown", Value::boolean(false));
+      if (t.size() >= 3) {
+        try {
+          if (auto tr = toTransition(py.eval(t[2])))
+            transition(tr);
+        } catch (const PyError &) {
+        }
+      }
+      return;
+    }
   }
   if ((verb == "jump_in" || verb == "jump_out") && t.size() >= 2) {
     Value parsed = makeDict();

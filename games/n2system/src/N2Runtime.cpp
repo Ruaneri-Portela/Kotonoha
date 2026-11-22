@@ -13,6 +13,7 @@
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/media/MediaPlayer.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -45,13 +46,24 @@ struct N2Runtime::Impl {
   std::shared_ptr<Kotonoha::InGameMenu> menu;
   std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
   std::shared_ptr<Kotonoha::ChoiceQuestionScene> choiceScene;
+  std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
+  std::unique_ptr<Kotonoha::MediaPlayer> bgmPlayer;
+  std::unique_ptr<Kotonoha::MediaPlayer> voicePlayer;
+  std::unique_ptr<Kotonoha::MediaPlayer> sePlayer;
   Kotonoha::Engine *engine = nullptr;
   bool choiceActive = false;
   bool restartRequested = false;
   std::string currentBgm;
+  std::string currentVoice;
+  std::string currentSe;
+  std::string currentMovie;
+  std::string lastBacklogText;
   std::string nativeScript;
   std::string nativeScriptId;
   ScriptIndex nativeIndex;
+  bool nsbMode = false;
+  SDL_Point viewportSize{1280, 720};
+  std::unique_ptr<NsbVm> nsbVm;
   std::unique_ptr<Ponscripter::PonscripterRuntime> ponscripter;
 };
 
@@ -60,6 +72,12 @@ N2Runtime::N2Runtime(std::shared_ptr<N2ArchiveAssets> assets)
       impl_(std::make_unique<Impl>()), assets_(std::move(assets)) {
   if (!assets_) {
     assets_ = std::make_shared<N2ArchiveAssets>();
+  }
+  // Pre-detect Steins;Gate / compiled .nsb layout so viewport() reports
+  // 1024x576 even before init() creates the render target.
+  if (assets_ && (assets_->contains("system/system.ini") ||
+                  assets_->contains("nss/0_boot.nsb"))) {
+    impl_->viewportSize = SDL_Point{1024, 576};
   }
 }
 
@@ -72,6 +90,24 @@ void N2Runtime::shutdown() {
     impl_->ponscripter->shutdown();
     impl_->ponscripter.reset();
   }
+  if (impl_->moviePlayer) {
+    impl_->moviePlayer->stop();
+    impl_->moviePlayer.reset();
+  }
+  if (impl_->bgmPlayer) {
+    impl_->bgmPlayer->stop();
+    impl_->bgmPlayer.reset();
+  }
+  if (impl_->voicePlayer) {
+    impl_->voicePlayer->stop();
+    impl_->voicePlayer.reset();
+  }
+  if (impl_->sePlayer) {
+    impl_->sePlayer->stop();
+    impl_->sePlayer.reset();
+  }
+  impl_->nsbVm.reset();
+  impl_->nsbMode = false;
   impl_->choiceScene.reset();
   impl_->saveMenu.reset();
   impl_->menu.reset();
@@ -83,8 +119,16 @@ void N2Runtime::shutdown() {
 SDL_Point N2Runtime::viewport() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->viewport();
-  return SDL_Point{1280, 720};
+  return impl_->viewportSize;
 }
+
+bool N2Runtime::isNsbActive() const {
+  return impl_->nsbMode && impl_->nsbVm != nullptr;
+}
+
+NsbVm *N2Runtime::nsbVm() { return impl_->nsbVm.get(); }
+
+const NsbVm *N2Runtime::nsbVm() const { return impl_->nsbVm.get(); }
 
 bool N2Runtime::isPonscripterActive() const {
   return impl_->ponscripter != nullptr;
@@ -122,6 +166,12 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
   impl_->saveMenu = std::make_unique<Kotonoha::VNSaveMenu>(engine);
   impl_->choiceScene = std::make_shared<Kotonoha::ChoiceQuestionScene>(
       engine, "", std::vector<Kotonoha::ChoiceOption>{{"", 0}}, nullptr);
+  impl_->moviePlayer =
+      std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
+  impl_->bgmPlayer = std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
+  impl_->voicePlayer =
+      std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
+  impl_->sePlayer = std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
 
   AddScene(impl_->backlog.get(), Kotonoha::GameState::Gameplay);
   AddScene(impl_->menu.get(), Kotonoha::GameState::Gameplay);
@@ -132,8 +182,9 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
     const auto dir = Kotonoha::saveDirectory() / "n2system";
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
-    impl_->saveMenu->open(dir.string(), load,
-                          std::string(vm_.currentChapter()));
+    const std::string label = isNsbActive() ? impl_->nsbVm->currentScriptPath()
+                                            : std::string(vm_.currentChapter());
+    impl_->saveMenu->open(dir.string(), load, label);
     const auto &scenes = GetActiveScenes();
     if (std::find(scenes.begin(), scenes.end(), impl_->saveMenu.get()) ==
         scenes.end())
@@ -148,6 +199,50 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
     openSaves(true);
   });
   impl_->menu->SetOnReturnToMenu([this] { impl_->restartRequested = true; });
+
+  // Check for Steins;Gate / compiled .nsb bytecode layout first.
+  impl_->nsbMode = false;
+  impl_->nsbVm.reset();
+  if (assets_ && (assets_->contains("system/system.ini") ||
+                  assets_->contains("nss/0_boot.nsb"))) {
+    SystemIniConfig cfg;
+    if (assets_->contains("system/system.ini")) {
+      try {
+        cfg = SystemIniConfig::parseUtf16Le(assets_->read("system/system.ini"));
+      } catch (...) {
+      }
+    }
+    impl_->viewportSize = SDL_Point{cfg.width, cfg.height};
+    impl_->nsbVm = std::make_unique<NsbVm>();
+    impl_->nsbVm->setConfig(cfg);
+    impl_->nsbVm->setLoader(
+        [assets = assets_](std::string_view nsbPath,
+                           std::vector<std::uint8_t> &nsbOut,
+                           std::vector<std::uint8_t> &mapOut) -> bool {
+          const std::string nsb = NsbScript::nssToNsbPath(nsbPath);
+          const std::string map = NsbScript::nssToMapPath(nsbPath);
+          if (!assets || !assets->contains(nsb))
+            return false;
+          try {
+            nsbOut = assets->read(nsb);
+            if (assets->contains(map))
+              mapOut = assets->read(map);
+            else
+              mapOut.clear();
+            return true;
+          } catch (...) {
+            return false;
+          }
+        });
+    if (impl_->nsbVm->boot(cfg.startScript, "chapter.main")) {
+      impl_->nsbMode = true;
+      SetState(Kotonoha::GameState::Gameplay);
+      return;
+    }
+    impl_->nsbVm.reset();
+  }
+
+  impl_->viewportSize = SDL_Point{1280, 720};
 
   std::string scriptSource;
   std::string initialChapter = "main";
@@ -228,6 +323,119 @@ void N2Runtime::update() {
     return;
 
   constexpr float dt = 1.0f / 60.0f;
+
+  if (isNsbActive()) {
+    auto &nvm = *impl_->nsbVm;
+    nvm.update(dt);
+
+    // Sync choices from Select/Case
+    if (nvm.waitingForChoice() && !impl_->choiceActive && impl_->choiceScene) {
+      const auto &choices = nvm.activeChoices();
+      std::vector<Kotonoha::ChoiceOption> items;
+      for (std::size_t i = 0; i < choices.size(); ++i) {
+        items.push_back({choices[i], static_cast<int>(i)});
+      }
+      impl_->choiceActive = true;
+      impl_->choiceScene->setQuestion(
+          "", items, [this](int optionId, const std::string &label) {
+            (void)label;
+            impl_->choiceActive = false;
+            if (impl_->nsbVm)
+              impl_->nsbVm->triggerChoiceIndex(optionId);
+          });
+    }
+
+    if (!nvm.finished() && !impl_->choiceActive) {
+      nvm.step(4096);
+    }
+
+    // Sync BGM / Voice / SE via streaming MediaPlayer
+    const auto &audio = nvm.audioSystem();
+    if (impl_->bgmPlayer && assets_) {
+      if (audio.bgmChannel().isPlaying &&
+          !audio.bgmChannel().assetPath.empty()) {
+        if (impl_->currentBgm != audio.bgmChannel().assetPath &&
+            assets_->contains(audio.bgmChannel().assetPath)) {
+          impl_->currentBgm = audio.bgmChannel().assetPath;
+          try {
+            impl_->bgmPlayer->open(*assets_, impl_->currentBgm, true, "bgm");
+          } catch (...) {
+          }
+        }
+      } else if (!impl_->currentBgm.empty()) {
+        impl_->bgmPlayer->stop();
+        impl_->currentBgm.clear();
+      }
+    }
+    if (impl_->voicePlayer && assets_) {
+      if (audio.voiceChannel().isPlaying &&
+          !audio.voiceChannel().assetPath.empty()) {
+        if (impl_->currentVoice != audio.voiceChannel().assetPath &&
+            assets_->contains(audio.voiceChannel().assetPath)) {
+          impl_->currentVoice = audio.voiceChannel().assetPath;
+          try {
+            impl_->voicePlayer->open(*assets_, impl_->currentVoice, true,
+                                     "voice");
+          } catch (...) {
+          }
+        }
+      }
+    }
+
+    // Sync active .ngs movie streaming
+    const auto &mov = nvm.activeMovie();
+    if (impl_->moviePlayer && assets_) {
+      if (mov.active && !mov.path.empty()) {
+        if (impl_->currentMovie != mov.path) {
+          impl_->currentMovie = mov.path;
+          if (assets_->contains(mov.path)) {
+            try {
+              impl_->moviePlayer->open(*assets_, mov.path, false, "movie");
+            } catch (...) {
+              nvm.notifyMovieFinished(mov.entityName);
+            }
+          } else {
+            nvm.notifyMovieFinished(mov.entityName);
+          }
+        } else if (impl_->moviePlayer->isOpen() &&
+                   impl_->moviePlayer->finished()) {
+          if (mov.loop) {
+            try {
+              impl_->moviePlayer->open(*assets_, mov.path, false, "movie");
+            } catch (...) {
+              nvm.notifyMovieFinished(mov.entityName);
+            }
+          } else {
+            impl_->moviePlayer->stop();
+            impl_->currentMovie.clear();
+            nvm.notifyMovieFinished(mov.entityName);
+          }
+        }
+      } else if (!impl_->currentMovie.empty()) {
+        impl_->moviePlayer->stop();
+        impl_->currentMovie.clear();
+      }
+    }
+
+    // Sync dialogue & backlog
+    const auto &dialogue = nvm.dialogueSystem();
+    const auto rawSpeaker = std::string(dialogue.speaker());
+    const auto rawText = std::string(dialogue.fullText());
+    if (!rawText.empty() && rawText != impl_->lastBacklogText &&
+        impl_->backlog) {
+      impl_->lastBacklogText = rawText;
+      impl_->backlog->addEntry(rawSpeaker, rawText);
+    }
+    if (impl_->textBox) {
+      impl_->textBox->setDialogue(rawSpeaker, dialogue.visibleText());
+      impl_->textBox->update();
+    }
+    if (impl_->choiceActive && impl_->choiceScene) {
+      impl_->choiceScene->update();
+    }
+    return;
+  }
+
   vm_.update(dt);
 
   if (vm_.hasPendingChoice() && !impl_->choiceActive && impl_->choiceScene) {
@@ -284,15 +492,50 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
     return;
   }
 
-  SDL_SetRenderDrawColor(&renderer, 20, 24, 32, 255);
+  if (impl_->bgmPlayer && impl_->bgmPlayer->isOpen())
+    impl_->bgmPlayer->update(renderer);
+  if (impl_->voicePlayer && impl_->voicePlayer->isOpen())
+    impl_->voicePlayer->update(renderer);
+  if (impl_->sePlayer && impl_->sePlayer->isOpen())
+    impl_->sePlayer->update(renderer);
+  if (impl_->moviePlayer && impl_->moviePlayer->isOpen())
+    impl_->moviePlayer->update(renderer);
+
+  SDL_SetRenderDrawColor(&renderer, 12, 14, 20, 255);
   SDL_RenderClear(&renderer);
 
-  for (const auto &name : vm_.sceneGraph().renderOrder()) {
-    const auto *entity = vm_.sceneGraph().findEntity(name);
+  const SceneGraph &graph =
+      isNsbActive() ? impl_->nsbVm->sceneGraph() : vm_.sceneGraph();
+  const float vpW = static_cast<float>(impl_->viewportSize.x);
+  const float vpH = static_cast<float>(impl_->viewportSize.y);
+
+  for (const auto &name : graph.renderOrder()) {
+    const auto *entity = graph.findEntity(name);
     if (!entity || !entity->visible || entity->opacity <= 0.01f)
       continue;
 
-    if (entity->type == EntityType::Sprite) {
+    const Uint8 alpha =
+        static_cast<Uint8>(std::clamp(entity->opacity, 0.0f, 1.0f) * 255.0f);
+    const float drawX = (entity->x + entity->shakeOffsetX) * scale;
+    const float drawY = (entity->y + entity->shakeOffsetY) * scale;
+
+    if (entity->type == EntityType::Color) {
+      const float w = (entity->width > 0.0f ? entity->width : vpW) * scale;
+      const float h = (entity->height > 0.0f ? entity->height : vpH) * scale;
+      const Uint8 r = static_cast<Uint8>((entity->solidColor >> 16) & 0xFFu);
+      const Uint8 g = static_cast<Uint8>((entity->solidColor >> 8) & 0xFFu);
+      const Uint8 b = static_cast<Uint8>(entity->solidColor & 0xFFu);
+      SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(&renderer, r, g, b, alpha);
+      SDL_FRect rect{drawX, drawY, w, h};
+      SDL_RenderFillRect(&renderer, &rect);
+    } else if (entity->type == EntityType::Movie) {
+      if (impl_->moviePlayer && impl_->moviePlayer->isOpen() &&
+          impl_->moviePlayer->hasVideoFrame()) {
+        SDL_FRect area{drawX, drawY, vpW * scale, vpH * scale};
+        impl_->moviePlayer->render(renderer, area);
+      }
+    } else if (entity->type == EntityType::Sprite) {
       SDL_Texture *tex = nullptr;
       if (assets_ && !entity->imagePath.empty() &&
           assets_->contains(entity->imagePath)) {
@@ -303,24 +546,62 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
         }
       }
       if (tex) {
-        float tw = 1280.0f, th = 720.0f;
+        float tw = vpW, th = vpH;
         SDL_GetTextureSize(tex, &tw, &th);
-        SDL_SetTextureAlphaMod(tex,
-                               static_cast<Uint8>(entity->opacity * 255.0f));
-        SDL_FRect dst{entity->x * scale, entity->y * scale, tw * scale,
-                      th * scale};
-        SDL_RenderTexture(&renderer, tex, nullptr, &dst);
-      } else {
-        SDL_FRect rect{entity->x * scale, entity->y * scale, 1280.0f * scale,
-                       720.0f * scale};
-        SDL_SetRenderDrawColor(&renderer, 30, 36, 48,
-                               static_cast<Uint8>(entity->opacity * 255.0f));
+        SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureAlphaMod(tex, alpha);
+        const SDL_FRect *srcPtr = nullptr;
+        SDL_FRect src{};
+        if (entity->hasClipRect && entity->clipW > 0.0f &&
+            entity->clipH > 0.0f) {
+          src = SDL_FRect{entity->clipX, entity->clipY, entity->clipW,
+                          entity->clipH};
+          srcPtr = &src;
+          tw = entity->clipW;
+          th = entity->clipH;
+        }
+        SDL_FRect dst{drawX, drawY, tw * entity->scaleX * scale,
+                      th * entity->scaleY * scale};
+        if (std::abs(entity->angle) > 0.01f) {
+          SDL_RenderTextureRotated(&renderer, tex, srcPtr, &dst, entity->angle,
+                                   nullptr, SDL_FLIP_NONE);
+        } else {
+          SDL_RenderTexture(&renderer, tex, srcPtr, &dst);
+        }
+      } else if (!isNsbActive()) {
+        SDL_FRect rect{drawX, drawY, vpW * scale, vpH * scale};
+        SDL_SetRenderDrawColor(&renderer, 30, 36, 48, alpha);
         SDL_RenderFillRect(&renderer, &rect);
       }
     }
   }
 
-  if (impl_->textBox && !impl_->choiceActive) {
+  // Render fullscreen .ngs movie if active
+  if (isNsbActive() && impl_->nsbVm->activeMovie().active &&
+      impl_->nsbVm->activeMovie().fullscreen && impl_->moviePlayer &&
+      impl_->moviePlayer->isOpen() && impl_->moviePlayer->hasVideoFrame()) {
+    SDL_FRect full{0.0f, 0.0f, vpW * scale, vpH * scale};
+    impl_->moviePlayer->render(renderer, full);
+  }
+
+  // Render attached phone CG if active
+  if (isNsbActive() && !impl_->nsbVm->phoneState().attachedCg.empty() &&
+      assets_ && assets_->contains(impl_->nsbVm->phoneState().attachedCg)) {
+    try {
+      auto &cg =
+          assets_->texture(renderer, impl_->nsbVm->phoneState().attachedCg);
+      float cw = 0, ch = 0;
+      SDL_GetTextureSize(&cg, &cw, &ch);
+      SDL_FRect dst{(vpW - cw) * 0.5f * scale, (vpH - ch) * 0.5f * scale,
+                    cw * scale, ch * scale};
+      SDL_RenderTexture(&renderer, &cg, nullptr, &dst);
+    } catch (...) {
+    }
+  }
+
+  const bool hasDialogue =
+      isNsbActive() ? !impl_->nsbVm->dialogueSystem().fullText().empty() : true;
+  if (impl_->textBox && !impl_->choiceActive && hasDialogue) {
     impl_->textBox->render(renderer, scale);
   }
 
@@ -341,6 +622,11 @@ bool N2Runtime::onEvent(Kotonoha::EventRef event) {
   if (impl_->choiceActive && impl_->choiceScene) {
     if (impl_->choiceScene->onEvent(event))
       return true;
+  }
+
+  if (event.type == SDL_EVENT_MOUSE_MOTION && isNsbActive()) {
+    impl_->nsbVm->setMousePosition(static_cast<int>(event.motion.x),
+                                   static_cast<int>(event.motion.y));
   }
 
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
@@ -372,12 +658,18 @@ bool N2Runtime::onEvent(Kotonoha::EventRef event) {
 bool N2Runtime::handleAdvanceAction() {
   if (impl_->ponscripter)
     return impl_->ponscripter->handleAdvanceAction();
+  if (isNsbActive())
+    return impl_->nsbVm->advance();
   return vm_.advance();
 }
 
 bool N2Runtime::advanceStoryTime(double seconds) {
   if (impl_->ponscripter)
     return impl_->ponscripter->advanceStoryTime(seconds);
+  if (isNsbActive()) {
+    impl_->nsbVm->update(static_cast<float>(seconds));
+    return true;
+  }
   vm_.update(static_cast<float>(seconds));
   return true;
 }
@@ -387,7 +679,7 @@ void N2Runtime::saveGame(const std::string &path) {
     impl_->ponscripter->saveGame(path);
     return;
   }
-  auto saveData = vm_.saveState();
+  auto saveData = isNsbActive() ? impl_->nsbVm->saveState() : vm_.saveState();
   auto bytes = SaveStateCodec::serializeBinary(saveData);
   std::string err;
   (void)Kotonoha::Filesystem::writeBinaryFileAtomically(
@@ -403,7 +695,10 @@ void N2Runtime::loadGame(const std::string &path) {
     auto bytes = Kotonoha::Filesystem::readLocalFile(path);
     SaveData loaded;
     if (SaveStateCodec::deserializeBinary(bytes, loaded)) {
-      vm_.loadState(loaded);
+      if (isNsbActive())
+        impl_->nsbVm->loadState(loaded);
+      else
+        vm_.loadState(loaded);
     }
   } catch (...) {
   }
@@ -412,6 +707,10 @@ void N2Runtime::loadGame(const std::string &path) {
 std::string N2Runtime::debugNode() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->debugNode();
+  if (isNsbActive()) {
+    const auto p = impl_->nsbVm->currentScriptPath();
+    return p.empty() ? std::string{} : "n2 | nsb " + p;
+  }
   const auto chapter = vm_.currentChapter();
   return chapter.empty() ? std::string{}
                          : "n2 | chapter " + std::string(chapter);
@@ -420,18 +719,31 @@ std::string N2Runtime::debugNode() const {
 std::string N2Runtime::dialogueText() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->dialogueText();
+  if (isNsbActive())
+    return std::string(impl_->nsbVm->dialogueSystem().fullText());
   return std::string(vm_.dialogueSystem().fullText());
 }
 
 std::string N2Runtime::dialogueSpeaker() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->dialogueSpeaker();
+  if (isNsbActive())
+    return std::string(impl_->nsbVm->dialogueSystem().speaker());
   return std::string(vm_.dialogueSystem().speaker());
 }
 
 std::vector<Kotonoha::DebugNode> N2Runtime::debugNodes() const {
   if (impl_->ponscripter)
     return impl_->ponscripter->debugNodes();
+  if (isNsbActive() && assets_) {
+    std::vector<Kotonoha::DebugNode> nodes;
+    for (const auto &asset : assets_->listAsset("nss/")) {
+      if (asset.size() > 4 && asset.compare(asset.size() - 4, 4, ".nsb") == 0) {
+        nodes.push_back({"n2 | nsb " + asset, asset, {asset}});
+      }
+    }
+    return nodes;
+  }
   std::vector<Kotonoha::DebugNode> nodes;
   for (const auto &chapter : impl_->nativeIndex.chapters()) {
     Kotonoha::DebugNode node{
@@ -467,6 +779,18 @@ void N2Runtime::debugJumpToNode(const std::string &id) {
   if (impl_->ponscripter) {
     impl_->ponscripter->debugJumpToNode(id);
     return;
+  }
+  if (isNsbActive()) {
+    constexpr std::string_view nsbPrefix = "n2 | nsb ";
+    if (id.compare(0, nsbPrefix.size(), nsbPrefix) == 0) {
+      const auto scriptPath = id.substr(nsbPrefix.size());
+      if (impl_->nsbVm->jumpToScript(scriptPath, "chapter.main")) {
+        impl_->choiceActive = false;
+        SetState(Kotonoha::GameState::Gameplay);
+        return;
+      }
+    }
+    throw std::invalid_argument("Unknown N2System NSB debug node: " + id);
   }
   constexpr std::string_view prefix = "n2 | chapter ";
   constexpr std::string_view labelSep = " | label ";
@@ -539,9 +863,11 @@ std::vector<std::string> N2Runtime::activeTranslationKeys() const {
         std::find(keys.begin(), keys.end(), value) == keys.end())
       keys.push_back(value);
   };
-  append(std::string(vm_.dialogueSystem().speaker()));
-  append(std::string(vm_.dialogueSystem().fullText()));
-  if (vm_.hasPendingChoice())
+  const auto &dlg =
+      isNsbActive() ? impl_->nsbVm->dialogueSystem() : vm_.dialogueSystem();
+  append(std::string(dlg.speaker()));
+  append(std::string(dlg.fullText()));
+  if (!isNsbActive() && vm_.hasPendingChoice())
     for (const auto &value : vm_.pendingChoiceOptions())
       append(value);
   return keys;
@@ -550,7 +876,8 @@ std::vector<std::string> N2Runtime::activeTranslationKeys() const {
 std::vector<Kotonoha::DebugAudioAsset> N2Runtime::debugSceneAudio() {
   if (impl_->ponscripter)
     return impl_->ponscripter->debugSceneAudio();
-  const auto &dialogue = vm_.dialogueSystem();
+  const auto &dialogue =
+      isNsbActive() ? impl_->nsbVm->dialogueSystem() : vm_.dialogueSystem();
   if (dialogue.voicePath().empty())
     return {};
   return {{std::string(dialogue.voicePath()), std::string(dialogue.speaker()),

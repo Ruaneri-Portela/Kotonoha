@@ -29,6 +29,8 @@ public:
 
   void mountArchive(std::vector<std::uint8_t> data, ArchiveFormat format,
                     std::size_t nsaOffset = 0);
+  void mountArchiveFromVfs(const std::string &vfsPath, ArchiveFormat format,
+                           std::size_t nsaOffset = 0);
 
   // Concatenates 0.utf or 00.utf..99.utf (or 0.txt..99.txt) in numeric order.
   std::vector<std::pair<std::string, std::string>> discoverScripts() const;

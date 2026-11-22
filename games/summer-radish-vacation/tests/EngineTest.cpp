@@ -79,6 +79,56 @@ int main(int argc, char **argv) {
                "\"$Invalid\" 0 \"not a number\"\n";
     }
     auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(argv[1]);
+    if (assets->isImoutoDeIkou()) {
+      check(assets->name() == "Imouto de Ikou! CMP",
+            "Imouto de Ikou! provider identity is incorrect");
+      check(assets->contains("SCRIPT/INIT.SCR"),
+            "Imouto de Ikou! entry script SCRIPT/INIT.SCR missing");
+      check(assets->contains("SYSDAT/KAISOUMAP.CMAP"),
+            "Imouto de Ikou! KaisouMap.CMAP missing");
+      const auto cmap = SummerRadish::decodeClickableMap(
+          assets->read("SYSDAT/KAISOUMAP.CMAP"));
+      check(cmap.width == 800 && cmap.height == 114,
+            "Imouto de Ikou! CMAP dimensions mismatch");
+      check(assets->contains("SYSDAT/OP01.MANP"),
+            "Imouto de Ikou! op01.MANP missing");
+      const auto manpu =
+          SummerRadish::decodeManpu(assets->read("SYSDAT/OP01.MANP"));
+      check(!manpu.frames.empty() && !manpu.sequences.empty(),
+            "Imouto de Ikou! MANP decode returned empty frames/sequences");
+      SummerRadish::SummerRuntime game(assets, "Imouto de Ikou!",
+                                       "me.hirameki.kotonoha.imouto");
+      EngineOptions options;
+      options.assets = assets;
+      options.persistSettings = false;
+      Engine engine(game, options);
+      struct Guard {
+        SummerRadish::SummerRuntime &game;
+        ~Guard() { game.shutdown(); }
+      } guard{game};
+      click(engine);
+      for (int i = 0; i < 4; ++i)
+        engine.Iterate();
+      check(game.GetState() == GameState::Menu,
+            "Imouto de Ikou! title menu did not open");
+      // Press Enter on START to execute SCRIPT/init.scr
+      press(engine, SDLK_RETURN);
+      check(game.GetState() == GameState::Gameplay,
+            "Imouto de Ikou! did not enter gameplay");
+      for (int i = 0; i < 30 && !find<VNTextBox>(game)->isVisible(); ++i)
+        press(engine, SDLK_RETURN);
+      auto *text = find<VNTextBox>(game);
+      check(text && text->isVisible() && !text->getText().empty(),
+            "Imouto de Ikou! dialogue did not appear");
+      const auto firstNode = game.debugNode();
+      text->completeDialogue();
+      press(engine, SDLK_RETURN);
+      check(game.debugNode() != firstNode,
+            "Imouto de Ikou! failed to advance dialogue");
+      std::cout << "Imouto de Ikou! provider, MANP, CMAP, VM, title and "
+                   "dialogue passed\n";
+      return 0;
+    }
     SummerRadish::SummerRuntime game(assets);
     EngineOptions options;
     options.assets = assets;
@@ -193,10 +243,10 @@ int main(int argc, char **argv) {
       event.type = SDL_EVENT_MOUSE_BUTTON_UP;
       check(text->handleEvent(event), "Summer native control accepts touch-up");
     };
-    nativeButton(isLostM ? 610.0f : 770.0f, isLostM ? 437.0f : 540.0f);
+    nativeButton(isLostM ? 717.0f : 770.0f, isLostM ? 569.0f : 540.0f);
     check(std::filesystem::is_regular_file(prefs / "quicksave.vn"),
           "Original quicksave control writes a save");
-    nativeButton(isLostM ? 450.0f : 550.0f, isLostM ? 437.0f : 585.0f);
+    nativeButton(isLostM ? 658.0f : 550.0f, isLostM ? 586.0f : 585.0f);
     check(GetVNBacklogRuntime(engine).isVisible(),
           "Original backlog control opens history");
     auto *history = dynamic_cast<SummerRadish::SummerBacklog *>(
@@ -223,8 +273,8 @@ int main(int argc, char **argv) {
     history->onEvent(historyEvent);
     check(!history->isVisible() && game.debugNode() == historyPosition,
           "Native return closes history without advancing the story");
-    nativeButton(isLostM ? 505.0f : (isSrv2 ? 640.0f : 730.0f),
-                 isLostM ? 437.0f : 585.0f);
+    nativeButton(isLostM ? 548.0f : (isSrv2 ? 685.0f : 730.0f),
+                 isLostM ? 586.0f : 585.0f);
     check(GetInGameMenuRuntime(engine).IsOpen(),
           "Original system control opens its menu");
     GetInGameMenuRuntime(engine).close();

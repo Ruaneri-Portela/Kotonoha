@@ -726,7 +726,8 @@ struct RealLiveRuntime::Impl {
         voices(
             assets->list("KOE/"),
             [this](const std::string &id) { return assets->read(id); },
-            [this](const std::string &id) { return assets->localPath(id); }),
+            [this](const std::string &id) { return assets->localPath(id); },
+            [this](const std::string &id) { return assets->openStream(id); }),
         audio(parseAudioConfig(assets->settingsSource())) {
     syscomEntries.fill(1);
     mouseCursorNumber = assets->settings().integer("MOUSE_CURSOR", -1);
@@ -2496,7 +2497,6 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (!currentRead)
         skipMode = false;
       autoDeadline = 0;
-      textbox->concealed = op == 205;
       pause = true;
       auto translatedSpeaker =
           engine->GetTranslation().text(vm.scenario(), speakerName);
@@ -2510,6 +2510,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       std::string finalSpeaker, finalDialogue;
       processSpeakerAndDialogue(translatedSpeaker, translatedDialogue,
                                 finalSpeaker, finalDialogue);
+      textbox->concealed =
+          (op == 205 && finalDialogue.empty() && finalSpeaker.empty());
       textbox->setDialogue(finalSpeaker, finalDialogue);
       textbox->show();
       return true;

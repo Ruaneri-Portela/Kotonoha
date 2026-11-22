@@ -2,7 +2,8 @@
 #include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 #include <stdexcept>
 
-#if !defined(__APPLE__) && KOTONOHA_ENABLE_UPSCALER
+#if (!defined(__APPLE__) || !defined(KOTONOHA_HAS_METALFX)) &&                 \
+    KOTONOHA_ENABLE_UPSCALER
 
 namespace Kotonoha {
 

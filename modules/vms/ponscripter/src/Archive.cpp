@@ -217,40 +217,44 @@ std::string ArchiveReader::normalizePath(std::string_view raw) {
   return res;
 }
 
-bool ArchiveReader::loadFromMemory(std::vector<std::uint8_t> data,
-                                   ArchiveFormat format,
-                                   std::size_t nsaOffset) {
+bool ArchiveReader::parseToc(const std::uint8_t *toc, std::size_t tocSize,
+                             std::uint64_t totalSize, ArchiveFormat format,
+                             std::size_t nsaOffset) {
   entries_.clear();
   index_.clear();
-  if (data.size() < nsaOffset + 6)
+  if (tocSize < 6)
     return false;
 
-  std::size_t cursor = nsaOffset;
-  std::uint32_t count = readBE16(data.data() + cursor);
+  std::size_t cursor = 0;
+  std::uint32_t count = readBE16(toc + cursor);
   cursor += 2;
   // NSA v2 header has 0x0000 magic before 16-bit count if count == 0 && size >=
   // 8
-  if (count == 0 && format == ArchiveFormat::NSA &&
-      data.size() >= nsaOffset + 8) {
-    count = readBE16(data.data() + cursor);
+  if (count == 0 && format == ArchiveFormat::NSA && tocSize >= 8) {
+    count = readBE16(toc + cursor);
     cursor += 2;
   }
-  const std::uint32_t baseOffset =
-      readBE32(data.data() + cursor) + static_cast<std::uint32_t>(nsaOffset);
+  const std::uint64_t baseOffset =
+      static_cast<std::uint64_t>(readBE32(toc + cursor)) +
+      static_cast<std::uint64_t>(nsaOffset);
   cursor += 4;
-  if (baseOffset > data.size())
+  if (baseOffset > totalSize)
+    return false;
+  const std::size_t tocLimit = static_cast<std::size_t>(
+      baseOffset - static_cast<std::uint64_t>(nsaOffset));
+  if (tocLimit > tocSize)
     return false;
 
   entries_.reserve(count);
   for (std::uint32_t i = 0; i < count; ++i) {
-    if (cursor >= baseOffset)
+    if (cursor >= tocLimit)
       return false;
     const std::size_t nameStart = cursor;
-    while (cursor < baseOffset && data[cursor] != 0)
+    while (cursor < tocLimit && toc[cursor] != 0)
       ++cursor;
-    if (cursor >= baseOffset)
+    if (cursor >= tocLimit)
       return false;
-    std::string rawName(reinterpret_cast<const char *>(data.data() + nameStart),
+    std::string rawName(reinterpret_cast<const char *>(toc + nameStart),
                         cursor - nameStart);
     ++cursor; // skip NUL
 
@@ -259,33 +263,95 @@ bool ArchiveReader::loadFromMemory(std::vector<std::uint8_t> data,
     entry.normalizedPath = normalizePath(entry.originalName);
 
     if (format == ArchiveFormat::SAR) {
-      if (cursor + 8 > baseOffset)
+      if (cursor + 8 > tocLimit)
         return false;
       entry.compression = 0;
-      entry.offset = static_cast<std::uint64_t>(baseOffset) +
-                     readBE32(data.data() + cursor);
-      entry.compressedSize = readBE32(data.data() + cursor + 4);
+      entry.offset = baseOffset + readBE32(toc + cursor);
+      entry.compressedSize = readBE32(toc + cursor + 4);
       entry.uncompressedSize = entry.compressedSize;
       cursor += 8;
     } else {
-      if (cursor + 13 > baseOffset)
+      if (cursor + 13 > tocLimit)
         return false;
-      entry.compression = data[cursor];
-      entry.offset = static_cast<std::uint64_t>(baseOffset) +
-                     readBE32(data.data() + cursor + 1);
-      entry.compressedSize = readBE32(data.data() + cursor + 5);
-      entry.uncompressedSize = readBE32(data.data() + cursor + 9);
+      entry.compression = toc[cursor];
+      entry.offset = baseOffset + readBE32(toc + cursor + 1);
+      entry.compressedSize = readBE32(toc + cursor + 5);
+      entry.uncompressedSize = readBE32(toc + cursor + 9);
       cursor += 13;
     }
 
-    if (entry.offset + entry.compressedSize > data.size())
+    if (entry.offset + entry.compressedSize > totalSize)
       continue;
     const std::size_t idx = entries_.size();
     index_[entry.normalizedPath] = idx;
     entries_.push_back(std::move(entry));
   }
+  return true;
+}
 
+bool ArchiveReader::loadFromMemory(std::vector<std::uint8_t> data,
+                                   ArchiveFormat format,
+                                   std::size_t nsaOffset) {
+  reader_ = nullptr;
+  totalSize_ = 0;
+  if (data.size() < nsaOffset + 6) {
+    entries_.clear();
+    index_.clear();
+    data_.clear();
+    return false;
+  }
+  if (!parseToc(data.data() + nsaOffset, data.size() - nsaOffset, data.size(),
+                format, nsaOffset)) {
+    entries_.clear();
+    index_.clear();
+    data_.clear();
+    return false;
+  }
+  totalSize_ = data.size();
   data_ = std::move(data);
+  return true;
+}
+
+bool ArchiveReader::loadFromReader(std::uint64_t totalSize, ReadRangeFn reader,
+                                   ArchiveFormat format,
+                                   std::size_t nsaOffset) {
+  entries_.clear();
+  index_.clear();
+  data_.clear();
+  reader_ = nullptr;
+  totalSize_ = 0;
+  if (!reader || totalSize < static_cast<std::uint64_t>(nsaOffset) + 6u)
+    return false;
+
+  std::uint8_t preamble[8]{};
+  const std::size_t preambleLen =
+      (totalSize >= static_cast<std::uint64_t>(nsaOffset) + 8u) ? 8u : 6u;
+  if (!reader(nsaOffset, preamble, preambleLen))
+    return false;
+
+  std::size_t cursor = 0;
+  std::uint32_t count = readBE16(preamble + cursor);
+  cursor += 2;
+  if (count == 0 && format == ArchiveFormat::NSA && preambleLen >= 8u) {
+    cursor += 2;
+  }
+  const std::uint32_t relBaseOffset = readBE32(preamble + cursor);
+  constexpr std::uint32_t kMaxTocBytes = 64u * 1024u * 1024u;
+  if (relBaseOffset < cursor + 4u || relBaseOffset > kMaxTocBytes ||
+      static_cast<std::uint64_t>(nsaOffset) + relBaseOffset > totalSize)
+    return false;
+
+  std::vector<std::uint8_t> toc(relBaseOffset);
+  if (!reader(nsaOffset, toc.data(), toc.size()))
+    return false;
+
+  if (!parseToc(toc.data(), toc.size(), totalSize, format, nsaOffset)) {
+    entries_.clear();
+    index_.clear();
+    return false;
+  }
+  reader_ = std::move(reader);
+  totalSize_ = totalSize;
   return true;
 }
 
@@ -310,32 +376,49 @@ ArchiveReader::extract(std::string_view virtualPath) const {
   return extract(*entry);
 }
 
-std::vector<std::uint8_t>
-ArchiveReader::extract(const ArchiveEntry &entry) const {
-  if (entry.offset + entry.compressedSize > data_.size())
-    throw std::runtime_error("Ponscripter archive truncated entry: " +
-                             entry.originalName);
-  const std::uint8_t *src = data_.data() + entry.offset;
+std::vector<std::uint8_t> ArchiveReader::extractRaw(const ArchiveEntry &entry,
+                                                    const std::uint8_t *src,
+                                                    std::size_t srcLen) const {
   if (entry.compression == 0) {
-    return std::vector<std::uint8_t>(src, src + entry.compressedSize);
+    return std::vector<std::uint8_t>(src, src + srcLen);
   }
   if (entry.compression == 1) {
-    return decompressSpb(src, entry.compressedSize, entry.uncompressedSize);
+    return decompressSpb(src, srcLen, entry.uncompressedSize);
   }
   if (entry.compression == 2) {
-    return decompressLzss(src, entry.compressedSize, entry.uncompressedSize);
+    return decompressLzss(src, srcLen, entry.uncompressedSize);
   }
   if (entry.compression == 4) {
     // NBZ: 4-byte BE uncompressed size followed by bzip2 stream (or raw payload
     // in synthetic tests)
-    if (entry.compressedSize >= 4) {
+    if (srcLen >= 4) {
       const std::uint32_t nbzLen = readBE32(src);
-      if (nbzLen + 4 == entry.compressedSize) {
+      if (nbzLen + 4 == srcLen) {
         return std::vector<std::uint8_t>(src + 4, src + 4 + nbzLen);
       }
     }
   }
-  return std::vector<std::uint8_t>(src, src + entry.compressedSize);
+  return std::vector<std::uint8_t>(src, src + srcLen);
+}
+
+std::vector<std::uint8_t>
+ArchiveReader::extract(const ArchiveEntry &entry) const {
+  if (reader_) {
+    if (entry.offset + entry.compressedSize > totalSize_)
+      throw std::runtime_error("Ponscripter archive truncated entry: " +
+                               entry.originalName);
+    std::vector<std::uint8_t> raw(entry.compressedSize);
+    if (!raw.empty() && !reader_(entry.offset, raw.data(), raw.size()))
+      throw std::runtime_error("Ponscripter archive read failed: " +
+                               entry.originalName);
+    if (entry.compression == 0)
+      return raw;
+    return extractRaw(entry, raw.data(), raw.size());
+  }
+  if (entry.offset + entry.compressedSize > data_.size())
+    throw std::runtime_error("Ponscripter archive truncated entry: " +
+                             entry.originalName);
+  return extractRaw(entry, data_.data() + entry.offset, entry.compressedSize);
 }
 
 std::vector<std::string> ArchiveReader::listEntries() const {

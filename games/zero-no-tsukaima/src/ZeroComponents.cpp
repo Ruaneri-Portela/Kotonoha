@@ -372,7 +372,8 @@ bool ZeroChoice::onEvent(Kotonoha::EventRef event) {
 // SelectWindow (ENVINIT selectopt): main_select-off / -on, 400x50, centred;
 // button i at top = area.h / (n + 1) * (i + 1) - 25 inside the selopt area.
 bool ZeroSelectChoice::Wanted() const {
-  return !session_.Story()->Moving() && !session_.Story()->Roulette();
+  return !session_.Story()->Moving() && !session_.Story()->Roulette() &&
+         !session_.Story()->Battling();
 }
 
 std::vector<std::string> ZeroSelectChoice::Labels() const {
@@ -455,6 +456,111 @@ void ZeroMoveChoice::renderOption(Kotonoha::RendererRef renderer,
   SDL_snprintf(name, sizeof name, "MOVETEXT_POINT%02d_%s",
                ZeroSession::MovePosition(option.label), on ? "ON" : "OFF");
   DrawCentered(&renderer, session_.NormalPicture(name), option.hitBox, -2);
+}
+
+// ---------------------------------------------------------------- battle
+bool ZeroBattleChoice::Wanted() const { return session_.Story()->Battling(); }
+
+std::vector<std::string> ZeroBattleChoice::Labels() const {
+  return session_.Story()->Choices();
+}
+
+void ZeroBattleChoice::layout() {
+  for (std::size_t i = 0; i < options.size(); ++i) {
+    const int col = int(i % 2);
+    const int row = int(i / 2);
+    options[i].hitBox = {340.0f + float(col) * 140.0f,
+                         330.0f + float(row) * 48.0f, 130.0f, 40.0f};
+  }
+}
+
+void ZeroBattleChoice::renderPanel(Kotonoha::RendererRef renderer) {
+  const auto &b = session_.Story()->Battle();
+  if (!b.back.empty()) {
+    if (Picture *p = session_.NamedScene(b.back)) {
+      const SDL_FRect dst{0, 0, float(kGameWidth), float(kGameHeight)};
+      p->Draw(&renderer, nullptr, &dst);
+    }
+  }
+  SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(&renderer, 12, 16, 28, 165);
+  const SDL_FRect shade{0, 0, float(kGameWidth), float(kGameHeight)};
+  SDL_RenderFillRect(&renderer, &shade);
+
+  // Enemy sprites
+  for (std::size_t i = 0; i < b.enemies.size(); ++i) {
+    const auto &e = b.enemies[i];
+    if (e.hp <= 0 || e.pose.empty())
+      continue;
+    if (Picture *p = session_.NamedScene(e.pose)) {
+      const float cx =
+          float(kGameWidth) * (float(i) + 1.0f) / float(b.enemies.size() + 1);
+      const SDL_FRect dst{cx - p->Width() * 0.5f, 40.0f, p->Width(),
+                          p->Height()};
+      p->Draw(&renderer, nullptr, &dst);
+    }
+  }
+
+  auto drawBar = [&](float x, float y, float w, const std::string &label,
+                     int hp, int maxHp, SDL_Color fill) {
+    const SDL_FRect bg{x, y, w, 18.0f};
+    SDL_SetRenderDrawColor(&renderer, 25, 25, 35, 220);
+    SDL_RenderFillRect(&renderer, &bg);
+    const float ratio =
+        maxHp > 0 ? std::clamp(float(hp) / float(maxHp), 0.0f, 1.0f) : 0.0f;
+    const SDL_FRect fg{x + 2.0f, y + 2.0f, (w - 4.0f) * ratio, 14.0f};
+    SDL_SetRenderDrawColor(&renderer, fill.r, fill.g, fill.b, 255);
+    SDL_RenderFillRect(&renderer, &fg);
+    SDL_SetRenderDrawColor(&renderer, 220, 220, 235, 255);
+    SDL_RenderRect(&renderer, &bg);
+    const std::string txt =
+        label + "  " + std::to_string(hp) + "/" + std::to_string(maxHp);
+    session_.DrawText(&renderer, txt, x + 6.0f, y - 18.0f, 16,
+                      {255, 255, 255, 255});
+  };
+
+  // Enemy HP bars at top
+  for (std::size_t i = 0; i < b.enemies.size(); ++i) {
+    const auto &e = b.enemies[i];
+    drawBar(24.0f + float(i) * 200.0f, 28.0f, 184.0f, e.name, e.hp, e.maxHp,
+            {210, 60, 70, 255});
+  }
+
+  // Bottom HUD panel
+  const SDL_FRect hud{16.0f, 294.0f, float(kGameWidth - 32), 140.0f};
+  SDL_SetRenderDrawColor(&renderer, 18, 24, 42, 225);
+  SDL_RenderFillRect(&renderer, &hud);
+  SDL_SetRenderDrawColor(&renderer, 140, 175, 230, 255);
+  SDL_RenderRect(&renderer, &hud);
+
+  const std::string header = "Turn " + std::to_string(b.turn) + " - " + b.log;
+  session_.DrawText(&renderer, header, 28.0f, 302.0f, 16, {255, 235, 160, 255});
+
+  // Party HP bars on bottom-left
+  for (std::size_t i = 0; i < b.party.size() && i < 3; ++i) {
+    const auto &p = b.party[i];
+    drawBar(28.0f, 344.0f + float(i) * 34.0f, 280.0f, p.name, p.hp, p.maxHp,
+            {70, 195, 110, 255});
+  }
+}
+
+void ZeroBattleChoice::renderOption(Kotonoha::RendererRef renderer,
+                                    std::size_t index, bool focused) {
+  const auto &option = options[index];
+  const SDL_FRect &b = option.hitBox;
+  const bool on = focused && focus_ >= 0;
+  SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(&renderer, on ? 70 : 32, on ? 115 : 44, on ? 195 : 74,
+                         240);
+  SDL_RenderFillRect(&renderer, &b);
+  SDL_SetRenderDrawColor(&renderer, on ? 255 : 140, on ? 235 : 165,
+                         on ? 140 : 210, 255);
+  SDL_RenderRect(&renderer, &b);
+  const SDL_Color white{255, 255, 255, 255};
+  const SDL_FPoint size =
+      session_.DrawText(&renderer, option.label, 0, 0, 18, white, true);
+  session_.DrawText(&renderer, option.label, b.x + (b.w - size.x) * 0.5f,
+                    b.y + (b.h - size.y) * 0.5f, 18, white);
 }
 
 // ---------------------------------------------------------------- roulette

@@ -2,7 +2,12 @@ if(TARGET kotonoha_provider_pmail)
     return()
 endif()
 
-add_library(kotonoha_provider_pmail STATIC "${CMAKE_CURRENT_LIST_DIR}/src/PmailAssets.cpp")
+add_library(kotonoha_provider_pmail STATIC
+    "${CMAKE_CURRENT_LIST_DIR}/src/PmailAssets.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/GcPack.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/LargePonPonCodecs.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/LargePonPonAssets.cpp"
+)
 
 target_include_directories(kotonoha_provider_pmail PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 target_link_libraries(kotonoha_provider_pmail PUBLIC KotonohaEngine)

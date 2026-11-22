@@ -24,6 +24,7 @@ void ZeroRuntime::Shutdown() {
   backlog_.reset();
   command_.reset();
   roulette_.reset();
+  battle_.reset();
   move_.reset();
   select_.reset();
   textBox_.reset();
@@ -48,6 +49,7 @@ void ZeroRuntime::initGlobal(Kotonoha::Engine &engine) {
   textBox_ = std::make_unique<ZeroTextBox>(engine, *session_);
   select_ = std::make_unique<ZeroSelectChoice>(engine, *session_);
   move_ = std::make_unique<ZeroMoveChoice>(engine, *session_);
+  battle_ = std::make_unique<ZeroBattleChoice>(engine, *session_);
   roulette_ = std::make_unique<ZeroRoulette>(engine, *session_);
   command_ = std::make_unique<ZeroCommandMenu>(engine, *session_);
   backlog_ = std::make_unique<ZeroBacklog>(engine, *session_);
@@ -62,7 +64,7 @@ void ZeroRuntime::initMenu(Kotonoha::Engine &) {
 void ZeroRuntime::initGameplay(Kotonoha::Engine &) {
   for (Kotonoha::Scene *scene : std::initializer_list<Kotonoha::Scene *>{
            stage_.get(), textBox_.get(), select_.get(), move_.get(),
-           roulette_.get(), command_.get(), backlog_.get()})
+           battle_.get(), roulette_.get(), command_.get(), backlog_.get()})
     AddScene(scene);
 }
 
@@ -104,8 +106,9 @@ bool ZeroRuntime::onEvent(Kotonoha::EventRef event) {
   // rename/delete shortcuts); only this game's retail scenes use its mapping.
   for (auto *scene : GetActiveScenes())
     if (scene && scene->capturesInput() && scene != select_.get() &&
-        scene != move_.get() && scene != roulette_.get() &&
-        scene != command_.get() && scene != backlog_.get()) {
+        scene != move_.get() && scene != battle_.get() &&
+        scene != roulette_.get() && scene != command_.get() &&
+        scene != backlog_.get()) {
       if (textBox_)
         textBox_->cancelHeldSkip();
       return Runtime::onEvent(event);

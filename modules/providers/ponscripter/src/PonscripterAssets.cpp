@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <mutex>
 #include <set>
 #include <stdexcept>
 #include <utility>
@@ -101,15 +102,19 @@ void PonscripterAssets::setRootDirectory(std::string_view rootDir) {
       caseIndex_[norm] = info.path;
 
       // Auto-mount arc.nsa, arc1.nsa..arc9.nsa, or arc.sar if present
-      if (norm == "arc.nsa" || norm == "arc1.nsa" || norm == "arc2.nsa" ||
-          norm == "arc.sar") {
+      const bool isKnownArchive =
+          norm == "arc.nsa" || norm == "arc.sar" ||
+          (norm.size() == 8 && norm.rfind("arc", 0) == 0 && norm[3] >= '1' &&
+           norm[3] <= '9' && norm.substr(4) == ".nsa");
+      if (isKnownArchive) {
         try {
-          auto handle = vfs_->open(info.path);
-          if (handle) {
-            const ArchiveFormat fmt =
-                (norm == "arc.sar") ? ArchiveFormat::SAR : ArchiveFormat::NSA;
-            mountArchive(Kotonoha::Filesystem::readAll(*handle), fmt, 0);
-          }
+          const ArchiveFormat fmt =
+              (norm == "arc.sar") ? ArchiveFormat::SAR : ArchiveFormat::NSA;
+          mountArchiveFromVfs(info.path, fmt, 0);
+        } catch (const std::exception &error) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "PONscripter archive %s unavailable: %s",
+                      info.path.c_str(), error.what());
         } catch (...) {
         }
       }
@@ -130,13 +135,11 @@ void PonscripterAssets::setRootDirectory(std::string_view rootDir) {
                               name.substr(name.size() - 4) != ".sar"))
         continue;
       try {
-        auto handle = vfs_->open(known);
-        if (handle)
-          mountArchive(Kotonoha::Filesystem::readAll(*handle),
-                       name.substr(name.size() - 4) == ".sar"
-                           ? ArchiveFormat::SAR
-                           : ArchiveFormat::NSA,
-                       0);
+        mountArchiveFromVfs(known,
+                            name.substr(name.size() - 4) == ".sar"
+                                ? ArchiveFormat::SAR
+                                : ArchiveFormat::NSA,
+                            0);
       } catch (const std::exception &error) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "PONscripter HTTP archive %s unavailable: %s", known,
@@ -155,6 +158,44 @@ void PonscripterAssets::mountArchive(std::vector<std::uint8_t> data,
                                      std::size_t nsaOffset) {
   auto reader = std::make_shared<ArchiveReader>();
   if (reader->loadFromMemory(std::move(data), format, nsaOffset)) {
+    archives_.push_back(std::move(reader));
+  }
+}
+
+void PonscripterAssets::mountArchiveFromVfs(const std::string &vfsPath,
+                                            ArchiveFormat format,
+                                            std::size_t nsaOffset) {
+  if (!vfs_)
+    return;
+  auto handle = std::shared_ptr<Kotonoha::Filesystem::FileHandle>(
+      vfs_->open(vfsPath).release());
+  if (!handle)
+    return;
+  const std::int64_t totalSize = handle->size();
+  if (totalSize < 0)
+    return;
+  auto ioMutex = std::make_shared<std::mutex>();
+  ArchiveReader::ReadRangeFn readRange =
+      [handle = std::move(handle), ioMutex = std::move(ioMutex)](
+          std::uint64_t offset, std::uint8_t *dst, std::size_t size) -> bool {
+    if (size == 0)
+      return true;
+    std::lock_guard<std::mutex> lock(*ioMutex);
+    if (handle->seek(static_cast<std::int64_t>(offset),
+                     Kotonoha::Filesystem::SeekOrigin::Begin) < 0)
+      return false;
+    std::size_t cursor = 0;
+    while (cursor < size) {
+      const auto got = handle->read(dst + cursor, size - cursor);
+      if (got <= 0)
+        return false;
+      cursor += static_cast<std::size_t>(got);
+    }
+    return true;
+  };
+  auto reader = std::make_shared<ArchiveReader>();
+  if (reader->loadFromReader(static_cast<std::uint64_t>(totalSize),
+                             std::move(readRange), format, nsaOffset)) {
     archives_.push_back(std::move(reader));
   }
 }

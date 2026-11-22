@@ -4,7 +4,10 @@ if(TARGET kotonoha_vm_summer-radish)
     return()
 endif()
 
-add_library(kotonoha_vm_summer-radish STATIC "${CMAKE_CURRENT_LIST_DIR}/src/Script.cpp")
+add_library(kotonoha_vm_summer-radish STATIC
+    "${CMAKE_CURRENT_LIST_DIR}/src/Script.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/ImoutoScript.cpp"
+)
 
 target_include_directories(kotonoha_vm_summer-radish PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 target_link_libraries(kotonoha_vm_summer-radish PUBLIC KotonohaEngine PRIVATE kotonoha_provider_cmp)

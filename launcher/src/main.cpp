@@ -8,7 +8,12 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/SDL.hpp>
+#include <KotonohaLauncher/LauncherBridge.h>
 #include <KotonohaLauncher/UnifiedLauncher.hpp>
+#if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
+#include "macos/KotonohaMacLauncherBridge.h"
+#endif
 
 #include <cstdio>
 #include <cstdlib>
@@ -16,6 +21,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -66,6 +72,15 @@ struct ScopedGameUserData {
   }
 };
 
+struct PendingIOSLaunch {
+  std::string gamePath;
+  std::string engineSlug;
+  std::string saveProfileId;
+  bool splitSavesByGame = true;
+  std::string customSaveRoot;
+  KotonohaLauncher::GameLaunchParameters params;
+};
+
 struct Application {
   Kotonoha::EngineOptions options;
   Kotonoha::EngineOptions gameOptions;
@@ -74,20 +89,54 @@ struct Application {
   bool splitSavesByGame = true;
   long frames = -1;
   bool returnToHub = false;
+  bool launchedFromNativeAndroidHub = false;
 
   std::unique_ptr<KotonohaLauncher::UnifiedLauncher> launcher;
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+  Kotonoha::WindowPtr iosHubWindow;
+  bool iosNativeHubActive = false;
+  std::mutex iosLaunchMutex;
+  std::optional<PendingIOSLaunch> pendingIOSLaunch;
+  bool pendingIOSQuit = false;
+#endif
+#if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
+  Kotonoha::WindowPtr macHubWindow;
+  bool macNativeHubActive = false;
+  std::mutex macLaunchMutex;
+  std::optional<std::string> pendingMacLaunch;
+  bool pendingMacQuit = false;
+#endif
   std::unique_ptr<ScopedGameUserData> gameEnvironment;
   std::unique_ptr<Kotonoha::Runtime> runtime;
+  std::string activeGame;
   std::shared_ptr<Kotonoha::AssetProvider> assets;
   std::function<void(Kotonoha::Runtime &)> shutdownRuntime;
   std::unique_ptr<Kotonoha::Engine> engine;
 
-  ~Application() { stopGame(); }
+  ~Application() {
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    if (iosNativeHubActive) {
+      KotonohaIOSDismissNativeLauncher();
+      iosNativeHubActive = false;
+    }
+    iosHubWindow.reset();
+#endif
+#if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
+    if (macNativeHubActive)
+      KotonohaMacDismissNativeLauncher();
+    macHubWindow.reset();
+#endif
+    stopGame();
+  }
 
   bool startInProcess(const KotonohaLauncher::DiscoveredGameEntry &entry) {
+    const char *phase = "registry lookup";
+    try {
     auto &registry = KotonohaLauncher::EngineLibraryRegistry::instance();
     if (!registry.canInstantiateInProcess(entry.engine.kind))
       return false;
+
+    activeGame = entry.engine.slug + " (" + entry.path + ")";
 
     gameOptions = options;
     gameOptions.launcher = false;
@@ -126,6 +175,7 @@ struct Application {
       throw std::runtime_error("Unable to set the game save environment");
 #endif
 
+    phase = "game assets and runtime construction";
     auto mounted = registry.instantiate(entry, gameOptions);
     if (!mounted.runtime) {
       gameEnvironment.reset();
@@ -136,6 +186,7 @@ struct Application {
     shutdownRuntime = std::move(mounted.shutdown);
     if (assets)
       gameOptions.assets = assets;
+    phase = "engine construction";
     engine = std::make_unique<Kotonoha::Engine>(*runtime, gameOptions);
     if (!entry.params.startScenario.empty()) {
       try {
@@ -149,6 +200,10 @@ struct Application {
     }
     returnToHub = false;
     return true;
+    } catch (const std::bad_alloc &) {
+      throw std::runtime_error(std::string("Memory allocation failed during ") +
+                               phase + " for " + entry.path);
+    }
   }
 
   void stopGame() {
@@ -171,17 +226,95 @@ struct Application {
     returnToHub = false;
   }
 
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+  static void onIOSNativeLaunch(const KotonohaGameLaunchRequest *req,
+                                void *userData) {
+    if (!req || !userData)
+      return;
+    auto *self = static_cast<Application *>(userData);
+    PendingIOSLaunch launch;
+    launch.gamePath = req->gamePath ? req->gamePath : "";
+    launch.engineSlug = req->engineSlug ? req->engineSlug : "";
+    launch.saveProfileId = req->saveProfileId ? req->saveProfileId : "";
+    launch.splitSavesByGame = req->splitSavesByGame != 0;
+    launch.customSaveRoot = req->customSaveRoot ? req->customSaveRoot : "";
+    launch.params.assetOverlayPath =
+        req->assetOverlayPath ? req->assetOverlayPath : "";
+    launch.params.translationPath =
+        req->translationPath ? req->translationPath : "";
+    launch.params.subtitleStylePath =
+        req->subtitleStylePath ? req->subtitleStylePath : "";
+    launch.params.customDocumentsDir =
+        req->customDocumentsDir ? req->customDocumentsDir : "";
+    launch.params.ktrfPath = req->ktrfPath ? req->ktrfPath : "";
+    launch.params.scriptsDir = req->scriptsDir ? req->scriptsDir : "";
+    launch.params.startScenario = req->startScenario ? req->startScenario : "";
+    std::lock_guard<std::mutex> lock(self->iosLaunchMutex);
+    self->pendingIOSLaunch = std::move(launch);
+  }
+
+  static void onIOSNativeQuit(void *userData) {
+    if (!userData)
+      return;
+    auto *self = static_cast<Application *>(userData);
+    std::lock_guard<std::mutex> lock(self->iosLaunchMutex);
+    self->pendingIOSQuit = true;
+  }
+#endif
+
+#if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
+  static void onMacNativeLaunch(const char *path, void *userData) {
+    auto *self = static_cast<Application *>(userData);
+    if (!self || !path)
+      return;
+    std::lock_guard<std::mutex> lock(self->macLaunchMutex);
+    self->pendingMacLaunch = path;
+  }
+
+  static void onMacNativeQuit(void *userData) {
+    auto *self = static_cast<Application *>(userData);
+    if (!self)
+      return;
+    std::lock_guard<std::mutex> lock(self->macLaunchMutex);
+    self->pendingMacQuit = true;
+  }
+#endif
+
   void openHub() {
     // Engine initialization may set game-specific SDL application metadata.
     // Restore the hub identity before reopening its settings/UI.
     KOTONOHA_SET_APP_METADATA("KotonohaLauncher",
                               "me.hirameki.kotonoha.launcher");
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    if (!iosHubWindow) {
+      if (!SDL_WasInit(SDL_INIT_VIDEO))
+        SDL_InitSubSystem(SDL_INIT_VIDEO);
+      iosHubWindow.reset(SDL_CreateWindow("KotonohaLauncher", 1280, 720,
+                                          SDL_WINDOW_FULLSCREEN |
+                                              SDL_WINDOW_RESIZABLE |
+                                              SDL_WINDOW_HIGH_PIXEL_DENSITY));
+    }
+    iosNativeHubActive = true;
+    KotonohaIOSPresentNativeLauncher(&Application::onIOSNativeLaunch,
+                                     &Application::onIOSNativeQuit, this);
+#elif defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
+    if (!macHubWindow) {
+      if (!SDL_WasInit(SDL_INIT_VIDEO))
+        SDL_InitSubSystem(SDL_INIT_VIDEO);
+      macHubWindow.reset(SDL_CreateWindow("KotonohaLauncher", 1, 1,
+                                           SDL_WINDOW_HIDDEN));
+    }
+    macNativeHubActive = true;
+    KotonohaMacPresentNativeLauncher(&Application::onMacNativeLaunch,
+                                     &Application::onMacNativeQuit, this);
+#else
     launcher = std::make_unique<KotonohaLauncher::UnifiedLauncher>(
         options.persistSettings ? options.settingsPath : std::string{},
         libraryPath, options.settings);
     launcher->setSplitSavesByGame(splitSavesByGame);
     launcher->setCustomSaveRoot(customSaveRoot);
     launcher->open();
+#endif
   }
 };
 } // namespace
@@ -234,6 +367,14 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     args.flag("--shared-engine-saves", "Share saves across the same engine",
               sharedSaves);
     args.parse(argc, argv);
+    if (app->libraryPath.rfind("documents:", 0) == 0) {
+      const auto relative = app->libraryPath.substr(10);
+      if (relative.empty() || relative.front() == '/' ||
+          relative.find("..") != std::string::npos)
+        throw std::invalid_argument("Invalid documents: game path");
+      app->libraryPath =
+          (Kotonoha::documentsDirectory() / relative).string();
+    }
     if (sharedSaves)
       app->splitSavesByGame = false;
     if (args.wantsHelp()) {
@@ -269,10 +410,23 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     if (app->options.persistSettings && app->options.settingsPath.empty())
       app->options.settingsPath = Kotonoha::EngineSettings::defaultPath();
 
-#if (defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) || defined(__ANDROID__)
-    // Mobile always starts in its hub, never via a stale
-    // desktop --library path or a noninteractive direct-game invocation.
-    app->options.launcher = true;
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    // Direct --library launches are useful for device diagnostics; normal
+    // launches still start in the native SwiftUI hub.
+    if (app->libraryPath.empty())
+      app->options.launcher = true;
+#elif defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
+    // The Xcode macOS launcher uses the native SwiftUI hub.
+    if (app->libraryPath.empty())
+      app->options.launcher = true;
+#elif defined(__ANDROID__)
+    // Android starts in GameActivity only when launched with --no-launcher
+    // --library <path> from the native Material 3 LauncherActivity.
+    if (app->libraryPath.empty()) {
+      app->options.launcher = true;
+    } else if (!app->options.launcher) {
+      app->launchedFromNativeAndroidHub = true;
+    }
 #endif
     if (!app->options.launcher) {
       if (app->libraryPath.empty())
@@ -317,12 +471,26 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
 SDL_AppResult KotonohaPortCallbacks::event(void *state, SDL_Event *event) {
   try {
     auto &app = *static_cast<Application *>(state);
+#if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
+    if (app.macNativeHubActive)
+      return SDL_APP_CONTINUE;
+#endif
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    if (app.iosNativeHubActive) {
+      if (event && event->type == SDL_EVENT_DROP_FILE && event->drop.data) {
+        KotonohaIOSNotifyOpenedURL(event->drop.data);
+      }
+      return SDL_APP_CONTINUE;
+    }
+#endif
     if (app.launcher)
       return app.launcher->event(*event);
     if (!app.engine)
       return SDL_APP_CONTINUE;
     const auto result = app.engine->Event(event);
     if (result == SDL_APP_SUCCESS && app.frames <= 0) {
+      if (app.launchedFromNativeAndroidHub)
+        return SDL_APP_SUCCESS;
       app.returnToHub = true;
       return SDL_APP_CONTINUE;
     }
@@ -337,6 +505,93 @@ SDL_AppResult KotonohaPortCallbacks::event(void *state, SDL_Event *event) {
 SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
   try {
     auto &app = *static_cast<Application *>(state);
+#if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
+    if (app.macNativeHubActive) {
+      std::optional<std::string> pending;
+      bool shouldQuit = false;
+      {
+        std::lock_guard<std::mutex> lock(app.macLaunchMutex);
+        pending = std::move(app.pendingMacLaunch);
+        app.pendingMacLaunch.reset();
+        shouldQuit = app.pendingMacQuit;
+        app.pendingMacQuit = false;
+      }
+      if (shouldQuit) {
+        KotonohaMacDismissNativeLauncher();
+        app.macNativeHubActive = false;
+        app.macHubWindow.reset();
+        return SDL_APP_SUCCESS;
+      }
+      if (pending) {
+        const auto detected =
+            KotonohaLauncher::detectKotonohaEngineFromPath(*pending);
+        if (detected.kind == Kotonoha::Filesystem::EngineKind::Unknown) {
+          SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                       "Could not detect engine for: %s", pending->c_str());
+          return SDL_APP_CONTINUE;
+        }
+        const auto entry = KotonohaLauncher::buildDiscoveredGameEntry(
+            *pending, detected);
+        KotonohaMacDismissNativeLauncher();
+        app.macNativeHubActive = false;
+        app.macHubWindow.reset();
+        if (!app.startInProcess(entry))
+          throw std::runtime_error("Selected game runtime is not linked");
+        return SDL_APP_CONTINUE;
+      }
+      SDL_Delay(8);
+      return SDL_APP_CONTINUE;
+    }
+#endif
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    if (app.iosNativeHubActive) {
+      std::optional<PendingIOSLaunch> pending;
+      bool shouldQuit = false;
+      {
+        std::lock_guard<std::mutex> lock(app.iosLaunchMutex);
+        pending = std::move(app.pendingIOSLaunch);
+        app.pendingIOSLaunch.reset();
+        shouldQuit = app.pendingIOSQuit;
+      }
+      if (shouldQuit) {
+        KotonohaIOSDismissNativeLauncher();
+        app.iosNativeHubActive = false;
+        app.iosHubWindow.reset();
+        return SDL_APP_SUCCESS;
+      }
+      if (pending) {
+        KotonohaIOSDismissNativeLauncher();
+        app.iosNativeHubActive = false;
+        app.iosHubWindow.reset();
+
+        const auto detected =
+            KotonohaLauncher::detectKotonohaEngineFromPath(pending->gamePath);
+        if (detected.kind == Kotonoha::Filesystem::EngineKind::Unknown) {
+          SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                       "Could not detect engine for: %s",
+                       pending->gamePath.c_str());
+          app.openHub();
+          return SDL_APP_CONTINUE;
+        }
+        auto entry = KotonohaLauncher::buildDiscoveredGameEntry(
+            pending->gamePath, detected);
+        if (!pending->saveProfileId.empty())
+          entry.saveProfileId = pending->saveProfileId;
+        entry.params = pending->params;
+        app.splitSavesByGame = pending->splitSavesByGame;
+        app.customSaveRoot = pending->customSaveRoot;
+        if (!app.startInProcess(entry)) {
+          SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                       "Selected game runtime is not linked: %s",
+                       entry.engine.slug.c_str());
+          app.openHub();
+        }
+        return SDL_APP_CONTINUE;
+      }
+      SDL_Delay(16);
+      return SDL_APP_CONTINUE;
+    }
+#endif
     if (app.launcher) {
       const auto result = app.launcher->iterate();
       if (app.launcher->state() == Kotonoha::Launcher::State::Quit)
@@ -369,12 +624,16 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
       return SDL_APP_SUCCESS;
     if (result == SDL_APP_SUCCESS) {
       app.stopGame();
+      if (app.launchedFromNativeAndroidHub)
+        return SDL_APP_SUCCESS;
       app.openHub();
       return SDL_APP_CONTINUE;
     }
     return result;
   } catch (const std::exception &error) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Game frame failed: %s",
+    const auto &app = *static_cast<Application *>(state);
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Game frame failed [%s]: %s",
+                 app.activeGame.empty() ? "launcher" : app.activeGame.c_str(),
                  error.what());
     return SDL_APP_FAILURE;
   }

@@ -15,9 +15,10 @@ foreach(game IN LISTS KOTONOHA_GAMES)
     endif()
 endforeach()
 
-# The unified hub exists only for a full native desktop build.
-# Individual port builds, including the Example demo, do not build a launcher.
-if(KOTONOHA_BUILD_ALL AND NOT ANDROID AND NOT EMSCRIPTEN AND
+# The unified hub exists for full native desktop builds and the Android
+# launcher flavor (`KOTONOHA_BUILD_GAME=all`). Individual port builds,
+# including the Example demo, do not build a launcher.
+if((KOTONOHA_BUILD_ALL OR KOTONOHA_BUILD_LAUNCHER) AND NOT EMSCRIPTEN AND
    NOT (APPLE AND CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS|watchOS") AND
    EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launcher/CMakeLists.txt")
     add_subdirectory(launcher)

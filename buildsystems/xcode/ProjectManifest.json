@@ -7,7 +7,7 @@
     },
     "macOS/KotonohaEngine": {
       "target": "E17D1F83ED8A3B29572860F9",
-      "sources": 82
+      "sources": 83
     },
     "macOS/KotonohaExample": {
       "target": "042046F061537917D55247C8",
@@ -59,7 +59,7 @@
     },
     "iOS/KotonohaEngine": {
       "target": "F20A323ED8754B150319722C",
-      "sources": 82
+      "sources": 83
     },
     "iOS/KotonohaExample": {
       "target": "5A342ED04FE0E9E62B03B67B",
@@ -139,11 +139,11 @@
     },
     "macOS/KotonohaLauncher": {
       "target": "B5B500000000000000000001",
-      "sources": 183
+      "sources": 187
     },
     "iOS/KotonohaLauncher": {
       "target": "D7D700000000000000000001",
-      "sources": 184
+      "sources": 191
     }
   },
   "games": {
@@ -224,7 +224,7 @@
     "ddlc_python_script": "buildsystems/xcode/Scripts/EmbedDokiDokiPython.sh",
     "unified_launcher": "Native macOS PBXNativeTarget compiling game sources directly; does not invoke CMake",
     "renpy_python": "CPython 3.15 shared by DokiDoki, KatawaShoujo and KotonohaLauncher macOS",
-    "native_launcher_sources": 183,
+    "native_launcher_sources": 187,
     "navigated_optional_sources": [
       "modules/vms/renpy/src/PythonDummy.cpp",
       "games/amagami/src/VitaScripts.cpp",
@@ -232,8 +232,8 @@
       "games/amagami/src/VitaSpriteRenderer.cpp",
       "games/amagami/src/VitaInput.cpp"
     ],
-    "native_launcher_ios_sources": 184,
-    "ios_launcher_game_library": "Documents/games (Files.app visible; native AppleDocuments.mm)"
+    "native_launcher_ios_sources": 191,
+    "ios_launcher_game_library": "Documents/games + Documents + security-scoped UIDocumentPicker bookmarks (Liquid Glass SwiftUI hub)"
   },
   "preparation": {
     "script": "tools/PrepareApple.py",

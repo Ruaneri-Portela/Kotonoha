@@ -1,8 +1,8 @@
-#include <Kotonoha/media/SavePng.hpp>
 #include "AmagamiRuntime.hpp"
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/TextInputDialog.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/media/SavePng.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <cmath>
 #include <cstring>

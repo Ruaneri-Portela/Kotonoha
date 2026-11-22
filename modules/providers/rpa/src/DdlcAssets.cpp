@@ -13,21 +13,89 @@ using namespace Ddlc;
 } // namespace Kotonoha::Providers
 
 namespace Ddlc {
+namespace {
+
+bool equalsIgnoreCase(std::string_view a, std::string_view b) {
+  if (a.size() != b.size())
+    return false;
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    char ca = a[i];
+    char cb = b[i];
+    if (ca >= 'A' && ca <= 'Z')
+      ca = static_cast<char>(ca - 'A' + 'a');
+    if (cb >= 'A' && cb <= 'Z')
+      cb = static_cast<char>(cb - 'A' + 'a');
+    if (ca != cb)
+      return false;
+  }
+  return true;
+}
+
+std::filesystem::path findChildCaseInsensitive(const std::filesystem::path &dir,
+                                               std::string_view name) {
+  std::error_code ec;
+  const auto direct = dir / name;
+  if (std::filesystem::exists(direct, ec) && !ec)
+    return direct;
+  if (!std::filesystem::is_directory(dir, ec) || ec)
+    return {};
+  for (std::filesystem::directory_iterator it(
+           dir, std::filesystem::directory_options::skip_permission_denied, ec),
+       end;
+       it != end && !ec; it.increment(ec)) {
+    if (equalsIgnoreCase(it->path().filename().string(), name))
+      return it->path();
+  }
+  return {};
+}
+
+std::filesystem::path
+findPathCaseInsensitive(const std::filesystem::path &base,
+                        std::initializer_list<std::string_view> components) {
+  std::filesystem::path current = base;
+  for (std::string_view part : components) {
+    current = findChildCaseInsensitive(current, part);
+    if (current.empty())
+      return {};
+  }
+  return current;
+}
+
+bool isRegularFileCI(const std::filesystem::path &base,
+                     std::initializer_list<std::string_view> components) {
+  const auto found = findPathCaseInsensitive(base, components);
+  if (found.empty())
+    return false;
+  std::error_code ec;
+  return std::filesystem::is_regular_file(found, ec) && !ec;
+}
+
+bool isDirectoryCI(const std::filesystem::path &base,
+                   std::initializer_list<std::string_view> components,
+                   std::filesystem::path *resolved = nullptr) {
+  const auto found = findPathCaseInsensitive(base, components);
+  if (found.empty())
+    return false;
+  std::error_code ec;
+  if (!std::filesystem::is_directory(found, ec) || ec)
+    return false;
+  if (resolved)
+    *resolved = found;
+  return true;
+}
+
+} // namespace
 
 bool hasOriginalCharacters(const std::filesystem::path &gameDirectory,
                            std::error_code &error) {
   const auto game = std::filesystem::absolute(gameDirectory, error);
   if (error)
     return false;
+  std::filesystem::path charsDir;
+  if (!isDirectoryCI(game.parent_path(), {"characters"}, &charsDir))
+    return false;
   for (const char *name : kCharacterFiles) {
-    const auto status = std::filesystem::status(
-        game.parent_path() / "characters" / name, error);
-    if (error == std::errc::no_such_file_or_directory ||
-        error == std::errc::not_a_directory) {
-      error.clear();
-      return false;
-    }
-    if (error || !std::filesystem::is_regular_file(status))
+    if (!isRegularFileCI(charsDir, {name}))
       return false;
   }
   return true;
@@ -63,12 +131,16 @@ bool seedCharacters(const std::filesystem::path &user,
   if (error)
     throw std::runtime_error("Cannot create " + staging.string() + ": " +
                              error.message());
-  const auto originals =
-      std::filesystem::absolute(gameDirectory, error).parent_path() /
-      "characters";
+  std::filesystem::path originals;
+  if (!isDirectoryCI(
+          std::filesystem::absolute(gameDirectory, error).parent_path(),
+          {"characters"}, &originals)) {
+    originals = std::filesystem::absolute(gameDirectory, error).parent_path() /
+                "characters";
+  }
   for (const char *name : kCharacterFiles) {
-    const auto source = originals / name;
-    if (std::filesystem::is_regular_file(source, error)) {
+    const auto source = findChildCaseInsensitive(originals, name);
+    if (!source.empty() && std::filesystem::is_regular_file(source, error)) {
       std::filesystem::copy_file(source, staging / name, error);
       if (error)
         throw std::runtime_error("Cannot copy " + source.string() + ": " +
@@ -103,18 +175,20 @@ using namespace Ddlc;
 DdlcAssets::DdlcAssets(const std::filesystem::path &directory,
                        const std::filesystem::path &overlayDirectory) {
   auto gameDirectory = directory;
-  if (std::filesystem::is_regular_file(directory / "game" / "scripts.rpa"))
-    gameDirectory /= "game";
-  else if (std::filesystem::is_regular_file(directory / "game" / "data.rpa"))
-    gameDirectory /= "game";
-  else if (std::filesystem::is_regular_file(directory / "game" /
-                                            "script-a1-monday.rpyc"))
-    gameDirectory /= "game";
-  else if (std::filesystem::is_regular_file(directory / "vnx" / "game" /
-                                            "scripts.rpa"))
-    gameDirectory /= "vnx/game";
-  if (!assets_.open(
-          std::filesystem::absolute(gameDirectory).lexically_normal().string()))
+  std::filesystem::path subDir;
+  if (isDirectoryCI(directory, {"game"}, &subDir) &&
+      (isRegularFileCI(subDir, {"scripts.rpa"}) ||
+       isRegularFileCI(subDir, {"data.rpa"}) ||
+       isRegularFileCI(subDir, {"script-a1-monday.rpyc"}))) {
+    gameDirectory = subDir;
+  } else if (isDirectoryCI(directory, {"vnx", "game"}, &subDir) &&
+             isRegularFileCI(subDir, {"scripts.rpa"})) {
+    gameDirectory = subDir;
+  }
+  std::error_code ec;
+  const auto absGame =
+      std::filesystem::absolute(gameDirectory, ec).lexically_normal();
+  if (ec || !assets_.open(absGame.string()))
     throw std::runtime_error("Cannot open Ren'Py archives in " +
                              directory.string());
   configureOverlaysAndScripts(overlayDirectory, true);
@@ -133,18 +207,18 @@ void DdlcAssets::configureOverlaysAndScripts(
   bool autoSiblingVnx = false;
   if (effectiveOverlay.empty() && inspectCharacterPaths) {
     const auto parent = std::filesystem::path(assets_.dir()).parent_path();
-    if (std::filesystem::is_directory(parent / "vnx" / "game")) {
+    if (isDirectoryCI(parent, {"vnx", "game"})) {
       effectiveOverlay = parent;
       autoSiblingVnx = true;
     }
   }
   if (!effectiveOverlay.empty()) {
     std::vector<std::filesystem::path> roots;
-    if (std::filesystem::is_directory(effectiveOverlay / "vnx" / "game"))
-      roots.push_back(effectiveOverlay / "vnx" / "game");
-    if (!autoSiblingVnx &&
-        std::filesystem::is_directory(effectiveOverlay / "game"))
-      roots.push_back(effectiveOverlay / "game");
+    std::filesystem::path subRoot;
+    if (isDirectoryCI(effectiveOverlay, {"vnx", "game"}, &subRoot))
+      roots.push_back(subRoot);
+    if (!autoSiblingVnx && isDirectoryCI(effectiveOverlay, {"game"}, &subRoot))
+      roots.push_back(subRoot);
     if (roots.empty())
       roots.push_back(effectiveOverlay);
     auto rootOverlay =
@@ -154,12 +228,18 @@ void DdlcAssets::configureOverlaysAndScripts(
     for (const auto &root : roots) {
       overlays->emplace_back(root);
       std::vector<std::filesystem::path> archives;
-      for (const auto &file : std::filesystem::directory_iterator(root)) {
+      std::error_code dirEc;
+      for (std::filesystem::directory_iterator it(
+               root, std::filesystem::directory_options::skip_permission_denied,
+               dirEc),
+           end;
+           it != end && !dirEc; it.increment(dirEc)) {
+        std::error_code fileEc;
         const auto extension =
-            Kotonoha::AssetOverlay::key(file.path().extension().string());
-        if (file.is_regular_file() &&
+            Kotonoha::AssetOverlay::key(it->path().extension().string());
+        if (it->is_regular_file(fileEc) && !fileEc &&
             (extension == ".rpa" || extension == ".rpx"))
-          archives.push_back(file.path());
+          archives.push_back(it->path());
       }
       std::sort(archives.rbegin(), archives.rend());
       for (const auto &path : archives)
@@ -205,8 +285,9 @@ void DdlcAssets::configureOverlaysAndScripts(
   if (!script_.load(assets_, &error))
     throw std::runtime_error("Cannot load DDLC scripts" +
                              (error.empty() ? std::string() : ": " + error));
-  const bool katawa = std::filesystem::is_regular_file(
-      std::filesystem::path(assets_.dir()) / "script-a1-monday.rpyc");
+  const bool katawa = assets_.has("script-a1-monday.rpyc") ||
+                      isRegularFileCI(std::filesystem::path(assets_.dir()),
+                                      {"script-a1-monday.rpyc"});
   if (!script_.hasLabel("start") && !script_.hasLabel("imachine"))
     throw std::runtime_error(
         "The game directory does not contain a start or imachine label");
@@ -226,7 +307,8 @@ void DdlcAssets::configureOverlaysAndScripts(
 
 std::string DdlcAssets::name() const {
   const std::filesystem::path game(assets_.dir());
-  if (std::filesystem::is_regular_file(game / "script-a1-monday.rpyc"))
+  if (assets_.has("script-a1-monday.rpyc") ||
+      isRegularFileCI(game, {"script-a1-monday.rpyc"}))
     return "Katawa Shoujo (" + assets_.dir() + ")";
   return "Doki Doki Literature Club! (" + assets_.dir() + ")";
 }

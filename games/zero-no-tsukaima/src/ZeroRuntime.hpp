@@ -62,6 +62,7 @@ private:
   std::unique_ptr<ZeroTextBox> textBox_;
   std::unique_ptr<ZeroSelectChoice> select_;
   std::unique_ptr<ZeroMoveChoice> move_;
+  std::unique_ptr<ZeroBattleChoice> battle_;
   std::unique_ptr<ZeroRoulette> roulette_;
   std::unique_ptr<ZeroCommandMenu> command_;
   std::unique_ptr<ZeroBacklog> backlog_;
