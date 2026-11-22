@@ -89,6 +89,7 @@ foreach(_target IN LISTS _kotonoha_zip_targets)
         "${PROJECT_SOURCE_DIR}/assets/Anime4K/LICENSE-Anime4K.txt"
         "${PROJECT_SOURCE_DIR}/assets/ArtCNN/LICENSE-ArtCNN.txt"
         "${PROJECT_SOURCE_DIR}/modules/providers/amagami/third_party/open-amagami-LICENSE.txt"
+        "${PROJECT_SOURCE_DIR}/games/reallive/vendor/libreallive/LICENSE"
         DESTINATION "${_kotonoha_legal_dir}/third-party"
         COMPONENT "${_target}")
     # Fail loudly instead of silently producing an empty archive when
