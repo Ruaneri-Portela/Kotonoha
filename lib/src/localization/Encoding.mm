@@ -239,6 +239,28 @@ std::string ConvertEncoding(std::string_view text, const char *from,
         c = '?';
     text = cleaned;
   }
+  if (isWindowsJapanese(sourceKey)) {
+    // Apple's DOSJapanese decoder accepts several reserved lead-byte rows
+    // using private mappings. Windows CP932 (and the existing engine tests)
+    // mark these rows as undefined. Reject the structurally valid pair as
+    // one replacement instead of emitting a platform-specific glyph.
+    std::string filtered;
+    filtered.reserve(text.size());
+    for (size_t i = 0; i < text.size();) {
+      const auto b = uint8_t(text[i]);
+      if (b == 0x85 || b == 0x86 || b == 0xeb || b == 0xec) {
+        const size_t skip = i + 1 < text.size() &&
+                                    isTrail932(uint8_t(text[i + 1])) ? 2 : 1;
+        filtered.push_back('?');
+        i += skip;
+      } else {
+        filtered.push_back(text[i]);
+        ++i;
+      }
+    }
+    cleaned = std::move(filtered);
+    text = cleaned;
+  }
   OwnedString decoded(createString(text, sourceEncoding));
   if (decoded.get()) {
     if (isWindowsJapanese(sourceKey)) {
