@@ -26,6 +26,7 @@ execução de todos os jogos em todas as plataformas.
 | --- | --- | --- |
 | Alta | Faltava licença na raiz, embora `lib/LICENSE` contivesse MIT | Adicionar `LICENSE` para o código original do Kotonoha; distinguir terceiros em `THIRD_PARTY_NOTICES.md` |
 | Alta | O CPack de `.app` macOS copiava bundles inteiros, podendo incluir `game-assets` locais | Excluir `game-assets` por padrão nos dois formatos; opção explícita só para arquivos cuja distribuição seja autorizada |
+| Alta | O Gradle Android incluía arquivos `game-assets` comerciais automaticamente | Alterar o padrão para `-PbundleGameAssets=false`, não incluir esses dados em `dist` e empacotar avisos básicos de licença |
 | Alta | Os ZIPs não instalavam explicitamente avisos de licença | Incluir avisos básicos em todos os componentes, inclusive em `.app/Contents/Resources/Legal`. **Antes de distribuir**, reunir licenças de todas as bibliotecas de terceiros realmente empacotadas |
 | Média | A `.gitignore` tinha padrões de debug concatenados | Separar os padrões; verificar segredos e archives comerciais no Git |
 | Média | Contagens de aplicações estavam desatualizadas em README/AGENTS/guias | Alinhar os documentos ao manifesto de 16 aplicações |
