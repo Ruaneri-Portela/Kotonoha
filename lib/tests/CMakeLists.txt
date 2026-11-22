@@ -13,6 +13,10 @@ endif()
 add_executable(KotonohaCommandLineTests CommandLineTests.cpp)
 target_link_libraries(KotonohaCommandLineTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.CommandLine COMMAND KotonohaCommandLineTests)
+
+add_executable(KotonohaVideoSkipGestureTests VideoSkipGestureTests.cpp)
+target_link_libraries(KotonohaVideoSkipGestureTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.VideoSkipGesture COMMAND KotonohaVideoSkipGestureTests)
 if(WIN32)
     set_tests_properties(Kotonoha.CommandLine PROPERTIES
         ENVIRONMENT_MODIFICATION
