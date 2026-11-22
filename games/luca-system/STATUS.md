@@ -26,6 +26,8 @@ The LucaInspect tool additionally supports external LuckSystem OPCODE.txt name c
 
 Save V6 preserves group/slot z-order, tint, transparency, scale, rotation and resumable MOVE offsets for each visual layer, with compatibility fallback for V2–V5 and synthetic malformed-state tests. This fixes a load-time visual discrepancy previously caused by reconstructing groups from asset ID ranges.
 
+CZ4 facial overlays now use the parent portrait's canvas anchor and shared rotation pivot for a consistent pose even when the face asset has a different local anchor. Synthetic geometry tests verify expressions remain aligned during movement and scaling.
+
 Implicit-position portrait replacements inherit the existing character transform; CZ4 expressions inherit body alpha/rotation/scale and active MOVE. Interrupted MOVE commands now start from the displayed position instead of snapping to their previous target. Synthetic C++17 tests cover these cases.
 
 Obsolete scene images and GPU textures are now pruned after scene commits and completed transitions while keeping staged, visible and outgoing image sets alive. Title/Load resets drop stale transition state, with SDL-free cache lifetime regressions.

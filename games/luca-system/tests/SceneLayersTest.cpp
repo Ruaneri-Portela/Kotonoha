@@ -200,6 +200,38 @@ int main() {
     backgroundPixels.rgba[3] = 255;
     check(!LucaSystem::isFullAirBackdrop(bgPosition, backgroundPixels, 4, 2),
           "offscreen sprites do not qualify as scene backdrops");
+    // A CZ4 face can have a different local anchor from its full-body
+    // portrait. Both must nevertheless share the full canvas origin and
+    // rotation pivot, including during MOVE and at non-unit scales.
+    struct VisualPose {
+      float posX = 640, posY = 360;
+      float scaleX = 0.5f, scaleY = 0.5f;
+    };
+    struct CropInfo {
+      int width = 0, height = 0;
+      int cropX = 0, cropY = 0;
+      int anchorX = 0, anchorY = 0;
+    };
+    const VisualPose pose{};
+    const CropInfo fullPortrait{384, 640, 200, 40, 640, 360};
+    const CropInfo faceOnly{200, 144, 290, 80, 10, 20};
+    const auto bodyRect = LucaSystem::airCharacterCropPlacement(
+        pose, fullPortrait, fullPortrait, 12, -8, 0, 0);
+    const auto faceRect = LucaSystem::airCharacterCropPlacement(
+        pose, fullPortrait, faceOnly, 12, -8, 0, 0);
+    check(close(bodyRect.x, 432) && close(bodyRect.y, 192) &&
+              close(faceRect.x, 477) && close(faceRect.y, 212) &&
+              close(bodyRect.pivotX, 220) && close(faceRect.pivotX, 175) &&
+              close(bodyRect.x + bodyRect.pivotX,
+                    faceRect.x + faceRect.pivotX) &&
+              close(bodyRect.y + bodyRect.pivotY,
+                    faceRect.y + faceRect.pivotY) &&
+              close(faceRect.w, 100) && close(faceRect.h, 72),
+          "face crop uses portrait anchor/pivot rather than local face anchor");
+    const auto wrongFaceRect = LucaSystem::airCharacterCropPlacement(
+        pose, faceOnly, faceOnly, 12, -8, 0, 0);
+    check(!close(wrongFaceRect.x, faceRect.x),
+          "using a face's local header anchor causes visible misalignment");
     // Draw a face fragment directly above its corresponding body instead of
     // above all portraits. An orphan fragment is intentionally not visible.
     std::map<std::uint16_t, int> layered = {
