@@ -36,6 +36,41 @@ class ManifestGeneratorTests(unittest.TestCase):
             ])
             self.assertEqual(result["files"], ["nss.npa", "nss/0_boot.nsb"])
 
+    def test_standalone_game_folder_indexes_archives_in_its_own_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            game = Path(directory)
+            (game / "dx").mkdir()
+            (game / "cg.npa").write_bytes(b"NPA!")
+            (game / "nss.npa").write_bytes(b"nss")
+            (game / "dx" / "config.bin").write_bytes(b"xy")
+            (game / "Droid Sans Fallback.ttf").write_bytes(b"font")
+            (game / "preload.json").write_text("not an asset")
+            (game / "manifest.json").write_text('{"entries": []}')
+            for _ in range(2):
+                result = subprocess.run([sys.executable, str(SCRIPT), str(game)],
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("with 4 assets", result.stdout)
+                manifest = json.loads((game / "manifest.json").read_text())
+                self.assertEqual(manifest["entries"], [
+                    {"path": "Droid Sans Fallback.ttf", "size": 4},
+                    {"path": "cg.npa", "size": 4},
+                    {"path": "dx/config.bin", "size": 2},
+                    {"path": "nss.npa", "size": 3},
+                ])
+                self.assertEqual(manifest["files"],
+                                 [entry["path"] for entry in manifest["entries"]])
+                self.assertFalse((game / "manifest.json.tmp").exists())
+
+    def test_symlinks_are_not_indexed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            game = Path(directory)
+            (game / "voice.npa").write_bytes(b"voice")
+            (game / "link.npa").symlink_to(game / "voice.npa")
+            (game / "loop").symlink_to(game, target_is_directory=True)
+            manifest = json.loads(module.generate_manifest(game).read_text())
+            self.assertEqual(manifest["files"], ["voice.npa"])
+
     def test_empty_directory_produces_diagnostic_empty_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             output = module.generate_manifest(Path(directory))
