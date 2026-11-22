@@ -31,7 +31,7 @@ Para usar o vcpkg explicitamente, acrescente `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROO
 
 ## Estado atual da integração
 
-O repositório contém **15 aplicativos de jogos no CMake/Android** (incluindo Example, N2System e PONscripter). O launcher compartilhado é o padrão para inicialização interativa; `--no-launcher`, `--frames` e MCP/modo sem interface seguem a política central. Os 15 aplicativos constam na matriz de alvos Xcode; a compilação real em dispositivos e simuladores ainda precisa ser validada. Consulte [validação de build](docs/BUILD_VALIDATION.pt-BR.md).
+O repositório contém **16 aplicativos de jogos no CMake/Android (15 ports + Example)** (incluindo Example, N2System e PONscripter). O launcher compartilhado é o padrão para inicialização interativa; `--no-launcher`, `--frames` e MCP/modo sem interface seguem a política central. Os 16 aplicativos constam na matriz de alvos Xcode; a compilação real em dispositivos e simuladores ainda precisa ser validada. Consulte [validação de build](docs/BUILD_VALIDATION.pt-BR.md).
 
 Os artefatos Linux e WebAssembly são compilados sequencialmente em **um único job do GitHub Actions**. O cache de builds incrementais do motor/jogos foi desabilitado, mantendo somente o cache binário de dependências do vcpkg. Veja [instruções de CI](docs/CI_VCPKG.md). Testes sintéticos não comprovam paridade com os jogos comerciais.
 
@@ -50,6 +50,8 @@ O [launcher unificado independente](launcher/README.pt-BR.md) funciona no deskto
 | `buildsystems/` | CMake, projeto Gradle Android e projeto Xcode nativo |
 | `docs/` | Documentação multiplataforma |
 | `tools/` | Utilitários de build e assets |
+
+Antes de distribuir binários, consulte a [licença](LICENSE), os [avisos de terceiros](THIRD_PARTY_NOTICES.md) e a [auditoria de licenciamento](docs/LICENSING.pt-BR.md).
 
 ## Dados de jogos e licenças
 
