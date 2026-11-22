@@ -539,7 +539,7 @@ int main() {
       hooked.appendScriptFile("0.utf", script);
       check(hooked.start(), "text hook fixture must start");
       hooked.tick(0);
-      check(hooked.isHalted() &&
+      check(hooked.isHalted() && hooked.currentLabel() == "start" &&
                 hooked.variables().getNum(1) == 2 &&
                 hooked.variables().getNum(2) == 2,
             "pretext and click text hooks must be called exactly once per line");
@@ -584,7 +584,7 @@ int main() {
       check(restored.start(), "restored text-hook script must start");
       restored.importSlotSave(decoded);
       restored.tick(20);
-      check(restored.isHalted() &&
+      check(restored.isHalted() && restored.currentLabel() == "start" &&
                 restored.variables().getNum(1) == 1 &&
                 restored.variables().getNum(2) == 1 &&
                 restored.currentPagePlainText().empty(),
