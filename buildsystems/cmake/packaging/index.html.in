@@ -253,12 +253,13 @@
                     useHttp: "Use HTTP(S)",
                     addFolder: "+ Add folder",
                     mountFolder: "Mount a local folder in the filesystem",
-                    searchingIndex: "Looking for an optional HTTP(S) index...",
+                    searchingIndex: "Loading required HTTP(S) manifest...",
                     checkingPreload: "Checking for optional preload.json...",
                     preloadProgress: "Required preload: {done}/{total} chunks — {path}",
                     preloadDone: "Preload complete. Starting engine...",
                     indexedReady: "HTTP index loaded. Starting engine...",
-                    directReady: "HTTP(S) without an index. Starting engine...",
+                    manifestRequired: "HTTP(S) requires a non-empty manifest.json beside index.html",
+                    manifestInvalid: "Invalid manifest.json: expected non-empty entries with paths and sizes",
                     memoryFatal: "Fatal WebAssembly memory error. Reload after deploying the corrected build.",
                     fetchFailed: "Could not configure HTTP Fetch: {error}",
                     retry: "{message} — try again or choose HTTP(S).",
@@ -297,12 +298,13 @@
                     useHttp: "Usar HTTP(S)",
                     addFolder: "+ Adicionar pasta",
                     mountFolder: "Montar uma pasta local no filesystem",
-                    searchingIndex: "Procurando índice HTTP(S) opcional...",
+                    searchingIndex: "Carregando manifesto HTTP(S) obrigatório...",
                     checkingPreload: "Verificando preload.json opcional...",
                     preloadProgress: "Preload obrigatório: {done}/{total} blocos — {path}",
                     preloadDone: "Preload completo. Iniciando engine...",
                     indexedReady: "Índice HTTP carregado. Iniciando engine...",
-                    directReady: "Fetch HTTP(S) sem índice. Iniciando engine...",
+                    manifestRequired: "HTTP(S) exige manifest.json não vazio ao lado do index.html",
+                    manifestInvalid: "manifest.json inválido: entradas com caminhos e tamanhos são obrigatórias",
                     memoryFatal: "Falha fatal de memória no WebAssembly. Atualize a página após instalar o build corrigido.",
                     fetchFailed: "Falha ao configurar Fetch: {error}",
                     retry: "{message} — tente novamente ou escolha HTTP(S).",
@@ -1176,11 +1178,8 @@
                         if (!origin.pathname.endsWith("/")) origin.pathname += "/";
                         return origin;
                     };
-                    // The HTTP manifest is OPTIONAL. When present, it indexes
-                    // directory contents so archive-heavy ports can enumerate
-                    // files immediately. Unknown or stale entries remain
-                    // resolvable with direct HEAD/Range instead of becoming
-                    // an allow-list. Local-folder mode never fetches this.
+                    // Every HTTP source requires a non-empty page-root manifest.
+                    // Unknown assets are never probed with HEAD/GET.
                     const loadServerAssets = async function() {
                         if (finished || busy) return;
                         busy = true;
@@ -1189,110 +1188,87 @@
                         setStatus("searchingIndex");
                         try {
                             const origin = httpRoot();
+                            if (!window.KotonohaAssetCache)
+                                throw new Error("KotonohaPreloadCache.js is missing");
+                            const manifestUrl = new URL("manifest.json", document.baseURI);
+                            let response = null;
                             let manifest = null;
-                            let networkManifestError = false;
                             const timeout = new AbortController();
                             const deadline = setTimeout(() => timeout.abort(), 5000);
                             try {
-                                const response = await fetch(
-                                    new URL("manifest.json", origin), {
-                                        signal: timeout.signal,
-                                        cache: "no-store"
-                                    });
-                                if (response.ok) {
-                                    const declaredSize = Number(
-                                        response.headers.get("content-length") || 0);
-                                    if (declaredSize <= 4 * 1024 * 1024) {
-                                        const payload = await response.text();
-                                        if (payload.length <= 4 * 1024 * 1024) {
-                                            const parsed = JSON.parse(payload);
-                                            if (parsed && Array.isArray(parsed.entries) &&
-                                                parsed.entries.length > 0)
-                                                manifest = payload;
-                                        } else {
-                                            console.warn("[Kotonoha] Índice HTTP excede 4 MiB");
-                                        }
-                                    }
-                                }
-                            } catch (error) {
-                                // Network outages may still use the last indexed
-                                // manifest stored in IndexedDB for this game.
-                                networkManifestError = true;
-                                console.warn("[Kotonoha] Índice HTTP opcional indisponível:",
-                                    error);
+                                response = await fetch(manifestUrl, {
+                                    signal: timeout.signal, cache: "no-store"
+                                });
+                            } catch (networkError) {
+                                // Offline startup may reuse a previously validated
+                                // index for this HTTP asset origin.
+                                manifest = await window.KotonohaAssetCache
+                                    .cachedManifest(origin.href);
+                                if (!manifest)
+                                    throw new Error(window.KotonohaText("manifestRequired") +
+                                        ": " + String(networkError.message || networkError));
                             } finally {
                                 clearTimeout(deadline);
                             }
-                            if (!manifest && networkManifestError &&
-                                window.KotonohaAssetCache) {
-                                const cached = await window.KotonohaAssetCache
-                                    .cachedManifest(origin.href);
-                                if (cached) {
-                                    try {
-                                        const parsed = JSON.parse(cached);
-                                        if (parsed && Array.isArray(parsed.entries) &&
-                                            parsed.entries.length > 0) {
-                                            manifest = cached;
-                                            console.info("[Kotonoha] Índice restaurado do IndexedDB");
-                                        }
-                                    } catch (error) {
-                                        console.warn("[Kotonoha] Índice local inválido:", error);
-                                    }
-                                }
+                            if (response) {
+                                if (!response.ok)
+                                    throw new Error(window.KotonohaText("manifestRequired") +
+                                        " (HTTP " + response.status + ")");
+                                if (Number(response.headers.get("content-length") || 0) >
+                                    4 * 1024 * 1024)
+                                    throw new Error(window.KotonohaText("manifestTooLarge"));
+                                manifest = await response.text();
                             }
-                            if (manifest && !networkManifestError &&
-                                window.KotonohaAssetCache) {
+                            let parsed;
+                            try {
+                                parsed = JSON.parse(manifest);
+                            } catch (error) {
+                                throw new Error(window.KotonohaText("manifestInvalid"));
+                            }
+                            if (!parsed || !Array.isArray(parsed.entries) ||
+                                parsed.entries.length === 0)
+                                throw new Error(window.KotonohaText("manifestInvalid"));
+                            const bytes = new TextEncoder().encode(manifest);
+                            if (bytes.length > 4 * 1024 * 1024)
+                                throw new Error(window.KotonohaText("manifestTooLarge"));
+                            // Avoid overflowing the WebAssembly stack with JSON.
+                            const pointer = Module.ccall(
+                                "KotonohaAllocateRemoteManifest", "number",
+                                ["number"], [bytes.length + 1]);
+                            if (!pointer)
+                                throw new Error(window.KotonohaText("manifestAllocation"));
+                            let indexed = false;
+                            try {
+                                const heap = Module.HEAPU8;
+                                if (!heap || pointer + bytes.length + 1 > heap.length)
+                                    throw new Error(window.KotonohaText("manifestHeap"));
+                                heap.set(bytes, pointer);
+                                heap[pointer + bytes.length] = 0;
+                                indexed = Module.ccall(
+                                    "KotonohaConfigureRemoteAssetIndexedManifest",
+                                    "number", ["string", "number"],
+                                    [origin.href, pointer]) === 1;
+                            } finally {
+                                Module.ccall("KotonohaFreeRemoteManifest",
+                                    null, ["number"], [pointer]);
+                            }
+                            if (!indexed)
+                                throw new Error(window.KotonohaText("manifestInvalid"));
+                            window.KotonohaAssetCache.configure(origin.href, manifest);
+                            if (response) {
                                 try {
                                     await window.KotonohaAssetCache.storeManifest(
                                         origin.href, manifest);
                                 } catch (error) {
-                                    // Online gameplay is still supported without
-                                    // persistent metadata storage.
-                                    console.warn("[Kotonoha] Índice não persistido:", error);
+                                    console.warn("[Kotonoha] Cannot persist manifest:", error);
                                 }
                             }
-                            let indexed = false;
-                            if (manifest) {
-                                // Emscripten ccall("string") places the entire
-                                // UTF-8 JSON on the WASM stack. Large indexes
-                                // overflow that stack and permanently abort the
-                                // module. Allocate only this argument on the
-                                // bounded WASM heap; the URL stays a short
-                                // ccall string. Fetch requests remain lazy.
-                                const bytes = new TextEncoder().encode(manifest);
-                                if (bytes.length > 4 * 1024 * 1024)
-                                    throw new Error(window.KotonohaText("manifestTooLarge"));
-                                const pointer = Module.ccall(
-                                    "KotonohaAllocateRemoteManifest", "number",
-                                    ["number"], [bytes.length + 1]);
-                                if (!pointer)
-                                    throw new Error(window.KotonohaText("manifestAllocation"));
-                                try {
-                                    // Acquire HEAPU8 AFTER allocation, since
-                                    // ALLOW_MEMORY_GROWTH may replace its buffer.
-                                    const heap = Module.HEAPU8;
-                                    if (!heap || pointer + bytes.length + 1 > heap.length)
-                                        throw new Error(window.KotonohaText("manifestHeap"));
-                                    heap.set(bytes, pointer);
-                                    heap[pointer + bytes.length] = 0;
-                                    indexed = Module.ccall(
-                                        "KotonohaConfigureRemoteAssetIndexedManifest",
-                                        "number", ["string", "number"],
-                                        [origin.href, pointer]) === 1;
-                                } finally {
-                                    Module.ccall("KotonohaFreeRemoteManifest",
-                                        null, ["number"], [pointer]);
-                                }
-                                if (!indexed)
-                                    console.warn("[Kotonoha] Índice HTTP rejeitado; usando Fetch direto");
-                            }
-                            if (!indexed) {
-                                const started = Module.ccall(
-                                    "KotonohaConfigureRemoteAssetUrl", "number",
-                                    ["string"], [origin.href]);
-                                if (started !== 1)
-                                    throw new Error(window.KotonohaText("remoteUnavailable"));
-                            }
+                            window.KotonohaRemoteManifestIndexed = true;
+                            window.KotonohaFetchAsset = function(path) {
+                                return Module.ccall("KotonohaRequestRemoteAsset",
+                                    "number", ["string"], [path],
+                                    { async: true });
+                            };
                             // A mandatory preload, if present, is a snapshot
                             // of downloaded byte ranges created by the console
                             // command KotonohaDumpPreload(). Do not release the
@@ -1317,8 +1293,7 @@
                                         Math.round(completed / total * 100) + "%";
                                 });
                             window.KotonohaInitialPreloadReady = preloaded;
-                            setStatus(preloaded ? "preloadDone" :
-                                indexed ? "indexedReady" : "directReady");
+                            setStatus(preloaded ? "preloadDone" : "indexedReady");
                             finish();
                         } catch (error) {
                             console.error("[Kotonoha] Fetch HTTP(S):", error);
