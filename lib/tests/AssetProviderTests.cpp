@@ -388,6 +388,28 @@ void engineProvider() {
   require(engine.GetAssets().name() == "Files", "Keep provider on failure");
 }
 
+void retainedAssetProviderLifetime() {
+  // The runtime/launcher can retain its shared provider after Engine dies.
+  // GPU textures must not outlive the SDL_Renderer that created them.
+  auto provider = std::make_shared<SolidColorProvider>();
+  const int initialTtfRefs = TTF_WasInit();
+  {
+    TestRuntime runtime;
+    EngineOptions options;
+    options.assets = provider;
+    Engine engine(runtime, options);
+    provider->texture(engine.GetRenderer(), "solid:ff00ff");
+    require(provider->cachedTextures() == 1,
+            "Provider has a renderer-owned texture during gameplay");
+    require(TTF_WasInit() > initialTtfRefs,
+            "Engine UI fonts must hold SDL_ttf initialization");
+  }
+  require(provider->cachedTextures() == 0,
+          "Engine destruction must clear textures of retained providers");
+  require(TTF_WasInit() == initialTtfRefs,
+          "Engine shutdown must release all SDL_ttf UI sessions");
+}
+
 void seekableMediaProvider() {
   StreamingAssetProvider assets;
   assets.bytes = bitmap();
@@ -553,6 +575,7 @@ int main(int argc, char **argv) {
     dumpProviderAssets();
     // Engines own the SDL session and quit SDL when destroyed.
     engineProvider();
+    retainedAssetProviderLifetime();
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';
     return 1;

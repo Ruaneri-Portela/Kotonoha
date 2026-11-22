@@ -183,6 +183,15 @@ jobs:
             modules/vms/n2system/tests/EntityQueryTest.cpp \
             -o /tmp/kotonoha-nitrosharp-query
           /tmp/kotonoha-nitrosharp-query
+      - name: Validate native N2System dialogue texture ownership
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Imodules/vms/n2system/include \
+            -Igames/n2system/include \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            games/n2system/tests/DialoguePresentationTest.cpp \
+            -o /tmp/kotonoha-n2-dialogue-presentation
+          /tmp/kotonoha-n2-dialogue-presentation
       - name: Compile and run native compiled NSB VM regressions
         run: |
           g++ -std=c++17 -O0 -Wall -Wextra -pthread \
