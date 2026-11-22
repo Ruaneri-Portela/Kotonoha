@@ -12,6 +12,10 @@
 
 namespace LucaSystem {
 
+// Private bottommost layer retained across INIT/DRAW (V6 serializes it).
+inline constexpr std::uint16_t AirPersistentBackdropKey = 0xfe00;
+
+
 // AIR stores expression CZ4 fragments in (group=3, slot=N), while the
 // matching portrait resides in (group=2, slot=N). Drawing all group-3
 // slots after group-2 places a rear character's face over front characters.
@@ -22,10 +26,12 @@ std::vector<std::uint16_t>
 orderedAirLayerKeys(const std::map<std::uint16_t, Layer> &slots) {
   std::vector<std::uint16_t> result;
   result.reserve(slots.size());
+  if (slots.find(AirPersistentBackdropKey) != slots.end())
+    result.push_back(AirPersistentBackdropKey);
   for (const auto &[key, layer] : slots) {
     (void)layer;
     const unsigned group = unsigned(key) >> 8;
-    if (group == 3)
+    if (group == 3 || key == AirPersistentBackdropKey)
       continue;
     result.push_back(key);
     if (group == 2) {
@@ -37,6 +43,68 @@ orderedAirLayerKeys(const std::map<std::uint16_t, Layer> &slots) {
   return result;
 }
 
+
+// INIT clears staged images, not necessarily the displayed background.
+// Preserve the last opaque full-frame group(0,0) below foreground cutouts.
+template <class Slots, class IsOpaqueBackdrop>
+bool retainAirBackdrop(Slots &staged, const Slots &visible,
+                       IsOpaqueBackdrop &&opaque) {
+  constexpr std::uint16_t nativeBackgroundKey = 0;
+  const auto next = staged.find(nativeBackgroundKey);
+  if (next != staged.end() && opaque(next->second)) {
+    staged.erase(AirPersistentBackdropKey);
+    return false;
+  }
+  const auto previousBacking = visible.find(AirPersistentBackdropKey);
+  const auto previousNative = visible.find(nativeBackgroundKey);
+  const auto *source =
+      previousBacking != visible.end() ? &previousBacking->second
+      : previousNative != visible.end() && opaque(previousNative->second)
+            ? &previousNative->second
+            : nullptr;
+  if (!source)
+    return false;
+  auto backing = *source;
+  backing.group = 0xfe;
+  backing.slot = 0;
+  staged[AirPersistentBackdropKey] = backing;
+  return true;
+}
+
+// An opaque background must cover the framebuffer, unlike cropped CZ art.
+// Checking alpha avoids treating a full-canvas window/face overlay as a BG.
+template <class Layer, class Image>
+bool isFullAirBackdrop(const Layer &layer, const Image &img,
+                       int viewportWidth = 1280, int viewportHeight = 720) {
+  if (layer.group != 0 || layer.slot != 0 || !layer.visible ||
+      !std::isfinite(layer.alpha) || layer.alpha < 0.99f ||
+      !std::isfinite(layer.scaleX) || !std::isfinite(layer.scaleY) ||
+      layer.scaleX <= 0 || layer.scaleY <= 0 ||
+      std::fabs(layer.rotation) > 0.001f ||
+      viewportWidth <= 0 || viewportHeight <= 0 ||
+      img.width <= 0 || img.height <= 0)
+    return false;
+  const float left = layer.posX +
+      (float(img.cropX) - float(img.anchorX)) * layer.scaleX +
+      layer.targetOffsetX;
+  const float top = layer.posY +
+      (float(img.cropY) - float(img.anchorY)) * layer.scaleY +
+      layer.targetOffsetY;
+  if (!std::isfinite(left) || !std::isfinite(top) ||
+      left > 1 || top > 1 ||
+      left + img.width * layer.scaleX < viewportWidth - 1 ||
+      top + img.height * layer.scaleY < viewportHeight - 1)
+    return false;
+  const auto count = std::size_t(img.width) * std::size_t(img.height);
+  if (!count || img.rgba.size() < count * 4)
+    return false;
+  std::size_t transparent = 0;
+  const auto maximum = count / 100;
+  for (std::size_t i = 0; i < count; ++i)
+    if (img.rgba[4 * i + 3] < 250 && ++transparent > maximum)
+      return false;
+  return true;
+}
 
 // Evaluate motion at a monotonic story-clock instant. Sampling the current
 // position before a second MOVE prevents a visible jump to the old endpoint.

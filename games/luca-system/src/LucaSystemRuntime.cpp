@@ -2511,7 +2511,9 @@ struct LucaSystemRuntime::Impl {
       obj.scaleX = slot.scaleX;
       obj.scaleY = slot.scaleY;
       obj.rotation = slot.rotation;
-      obj.priority = int(slot.group) * 100 + int(slot.slot);
+      obj.priority = key == AirPersistentBackdropKey
+                         ? -100
+                         : int(slot.group) * 100 + int(slot.slot);
       obj.visible = slot.visible;
       obj.r = slot.r;
       obj.g = slot.g;
@@ -2522,6 +2524,16 @@ struct LucaSystemRuntime::Impl {
   }
 
   void commitStagedSlots(uint64_t now, uint64_t durationMs, bool wipe) {
+    // A CZ overlay in slot (0,0) does not erase the last opaque outdoor
+    // background. A full opaque scene image replaces it as usual.
+    retainAirBackdrop(stagedSlots, visibleSlots, [&](const SlottedLayer &layer) {
+      if (layer.assetId == 65000 || layer.assetId == 65001)
+        return layer.group == 0 && layer.slot == 0 &&
+               layer.alpha >= 0.99f && layer.visible;
+      const auto found = objectImages.find(layer.assetId);
+      return found != objectImages.end() &&
+             isFullAirBackdrop(layer, found->second);
+    });
     // A cleared portrait also clears its private expression fragment.
     for (auto it = stagedSlots.begin(); it != stagedSlots.end();) {
       if (it->second.group == 3 &&

@@ -149,6 +149,57 @@ int main() {
               close(explicitlyPlaced.posY, 20) &&
               close(explicitlyPlaced.scaleX, 0.5f),
           "explicit expression positions remain authored by the script");
+    // seen170 regression: the exterior is visible before choices. After
+    // INIT, a transparent foreground in native group(0,0) must not
+    // reveal the black framebuffer through its holes.
+    struct AirSlot {
+      std::uint8_t group = 0, slot = 0;
+      std::uint32_t assetId = 0;
+    };
+    std::map<std::uint16_t, AirSlot> original{{0, {0, 0, 100}}};
+    std::map<std::uint16_t, AirSlot> cutout{{0, {0, 0, 200}}};
+    const auto isBackdrop = [](const AirSlot &obj) {
+      return obj.assetId == 100 || obj.assetId == 300;
+    };
+    check(LucaSystem::retainAirBackdrop(cutout, original, isBackdrop) &&
+          cutout.at(LucaSystem::AirPersistentBackdropKey).assetId == 100 &&
+          LucaSystem::orderedAirLayerKeys(cutout) ==
+              std::vector<std::uint16_t>({
+                  LucaSystem::AirPersistentBackdropKey, 0}),
+          "seen170 transparent foreground retains old outdoor background");
+    std::map<std::uint16_t, AirSlot> foregroundOnly{{0x0201, {2, 1, 210}}};
+    check(LucaSystem::retainAirBackdrop(foregroundOnly, cutout, isBackdrop) &&
+          foregroundOnly.count(LucaSystem::AirPersistentBackdropKey) == 1,
+          "background persists even when INIT clears group-0 staging");
+    std::map<std::uint16_t, AirSlot> newBackground{{0, {0, 0, 300}}};
+    newBackground[LucaSystem::AirPersistentBackdropKey] = {0xfe, 0, 100};
+    check(!LucaSystem::retainAirBackdrop(newBackground, foregroundOnly,
+                                         isBackdrop) &&
+          !newBackground.count(LucaSystem::AirPersistentBackdropKey),
+          "a full-screen opaque background replaces old backdrop");
+    struct PixelImage {
+      int width = 4, height = 2;
+      int cropX = 0, cropY = 0, anchorX = 0, anchorY = 0;
+      std::vector<std::uint8_t> rgba = std::vector<std::uint8_t>(32, 255);
+    };
+    struct PixelLayer {
+      std::uint8_t group = 0, slot = 0;
+      bool visible = true;
+      float alpha = 1, posX = 0, posY = 0;
+      float scaleX = 1, scaleY = 1, rotation = 0;
+      float targetOffsetX = 0, targetOffsetY = 0;
+    };
+    PixelLayer bgPosition;
+    PixelImage backgroundPixels;
+    check(LucaSystem::isFullAirBackdrop(bgPosition, backgroundPixels, 4, 2),
+          "full opaque authored scene qualifies as background");
+    backgroundPixels.rgba[3] = 0;
+    check(!LucaSystem::isFullAirBackdrop(bgPosition, backgroundPixels, 4, 2),
+          "alpha-cutout image cannot overwrite persistent background");
+    bgPosition.posX = 10;
+    backgroundPixels.rgba[3] = 255;
+    check(!LucaSystem::isFullAirBackdrop(bgPosition, backgroundPixels, 4, 2),
+          "offscreen sprites do not qualify as scene backdrops");
     // Draw a face fragment directly above its corresponding body instead of
     // above all portraits. An orphan fragment is intentionally not visible.
     std::map<std::uint16_t, int> layered = {
