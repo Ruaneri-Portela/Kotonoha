@@ -1401,8 +1401,9 @@ void Interpreter::runFile(std::string id, std::size_t depth) {
 class TjsUiSession {
 public:
   explicit TjsUiSession(const KirikiriAssets &assets, std::size_t budget)
-      : vm(assets, budget) {}
+      : vm(assets, budget), eventBudget(std::min<std::size_t>(budget, 4096)) {}
   Interpreter vm;
+  std::size_t eventBudget = 4096;
   std::size_t hoveredLayer = 0;
 };
 
@@ -1469,6 +1470,7 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
         y >= double(layer.top) + layer.height)
       continue;
     auto &vm = session->vm;
+    vm.remaining = session->eventBudget;
     vm.result.kagEntry.clear();
     try {
       std::vector<Value> arguments;
@@ -1510,6 +1512,7 @@ bool dispatchTjsUiMouseUp(TjsStartupResult &result, float x, float y) {
         y >= double(layer.top) + layer.height)
       continue;
     auto &vm = session->vm;
+    vm.remaining = session->eventBudget;
     vm.result.kagEntry.clear();
     try {
       const auto arity = vm.callableArity(layer.onMouseUp);
@@ -1551,6 +1554,7 @@ bool dispatchTjsUiMouseMove(TjsStartupResult &result, float x, float y) {
         y >= double(layer.top) + layer.height)
       continue;
     auto &vm = session->vm;
+    vm.remaining = session->eventBudget;
     vm.result.kagEntry.clear();
     try {
       const auto arity = vm.callableArity(layer.onMouseMove);
@@ -1583,6 +1587,7 @@ bool dispatchTjsUiKeyDown(TjsStartupResult &result, int virtualKey) {
       virtualKey < 1 || virtualKey > 255)
     return false;
   auto &vm = session->vm;
+  vm.remaining = session->eventBudget;
   vm.result.kagEntry.clear();
   try {
     const auto arity = vm.callableArity(result.onKeyDown);
@@ -1636,6 +1641,7 @@ bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
   }
   session->hoveredLayer = next;
   auto &vm = session->vm;
+  vm.remaining = session->eventBudget;
   bool called = false;
   try {
     const auto invoke = [&](const std::string &name) {

@@ -209,3 +209,12 @@ coordinates via hit testing against the topmost active layer. The retained
 TJS2 VM can update its scene graph during rollover, with the same runtime
 fallback/error checks used for click and keyboard handlers. A synthetic test
 checks that movement outside a button does not invoke it.
+
+## Bounded TJS2 menu event budgets
+
+Mouse click, mouse release, mouse movement, hover transitions and key-down
+handlers now receive a fresh per-event bounded instruction allowance instead
+of consuming the single startup budget forever. This prevents ordinary title
+interaction from slowly exhausting the VM while still terminating one event
+handler that loops excessively. Synthetic coverage exercises 100 consecutive
+movement events with a deliberately small 24-instruction budget.
