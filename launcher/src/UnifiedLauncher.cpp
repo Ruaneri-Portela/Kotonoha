@@ -188,6 +188,11 @@ bool &scanCacheDirty() {
   return dirty;
 }
 
+std::mutex &scanCacheMutex() {
+  static std::mutex mutex;
+  return mutex;
+}
+
 void persistScanCache(const std::map<std::string, CachedProbe> &cache) {
   try {
     std::ostringstream data;
@@ -208,8 +213,7 @@ void persistScanCache(const std::map<std::string, CachedProbe> &cache) {
 }
 
 CachedProbe probeCached(const std::string &path) {
-  static std::mutex mutex;
-  std::lock_guard<std::mutex> lock(mutex);
+  std::lock_guard<std::mutex> lock(scanCacheMutex());
   const auto fingerprint = sourceFingerprint(path);
   auto &cache = scanCache();
   if (const auto found = cache.find(path);
@@ -237,8 +241,7 @@ CachedProbe probeCached(const std::string &path) {
 }
 
 void flushScanCache() {
-  static std::mutex mutex;
-  std::lock_guard<std::mutex> lock(mutex);
+  std::lock_guard<std::mutex> lock(scanCacheMutex());
   if (scanCacheDirty()) {
     persistScanCache(scanCache());
     scanCacheDirty() = false;
