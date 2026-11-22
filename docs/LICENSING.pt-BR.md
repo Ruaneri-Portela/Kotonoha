@@ -32,6 +32,7 @@ execução de todos os jogos em todas as plataformas.
 | Média | Contagens de aplicações estavam desatualizadas em README/AGENTS/guias | Alinhar os documentos ao manifesto de 16 aplicações |
 | Média | `assets/Anime4K/SOURCE.txt` documentava apenas três shaders, apesar de haver muito mais | Tornar a lacuna explícita; comparar a revisão de cada variante com a origem antes de redistribuí-la |
 | Depende do titular | `assets/SPLASH.PNG`, dois ícones e `lib/tests/fixtures/SvgTestFont.ttf` não apresentam documentação clara de origem no material auditado | Confirmar autoria, condições da fonte e direitos de distribuição; não pressupor aprovação |
+| Alta | As referências [rlvm](https://github.com/eglaysher/rlvm) e [ponscripter-fork](https://github.com/sekaiproject/ponscripter-fork) estão identificadas como GPL-3.0 e GPL-2.0 | Não incorporar arquivos desses motores ao código MIT sem avaliação de compatibilidade e cumprimento da licença; o subconjunto `libreallive` tem cabeçalhos MIT próprios e aviso separado. A origem de todos os ports exige análise arquivo a arquivo |
 | Contínua | Ainda não foi demonstrada compatibilidade total de N2System/LucaSystem com todos os jogos, saves e plataformas | Manter os checklists nas issues #83 e #75 até existirem provas verificáveis |
 
 ## Checklist de distribuição
