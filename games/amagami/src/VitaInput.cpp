@@ -38,7 +38,9 @@ uint32_t keyboardButton(SDL_Keycode key) {
     return 0;
   }
 }
-uint32_t controllerButton(uint8_t button) {
+uint32_t controllerButton(uint8_t button, SDL_GamepadType type) {
+  const bool xbox = type == SDL_GAMEPAD_TYPE_XBOX360 ||
+                    type == SDL_GAMEPAD_TYPE_XBOXONE;
   switch (button) {
   case SDL_GAMEPAD_BUTTON_DPAD_UP:
     return 4096;
@@ -49,9 +51,9 @@ uint32_t controllerButton(uint8_t button) {
   case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
     return 8192;
   case SDL_GAMEPAD_BUTTON_EAST:
-    return 32;
+    return xbox ? 64u : 32u;
   case SDL_GAMEPAD_BUTTON_SOUTH:
-    return 64;
+    return xbox ? 32u : 64u;
   case SDL_GAMEPAD_BUTTON_WEST:
     return 128;
   case SDL_GAMEPAD_BUTTON_NORTH:
@@ -84,6 +86,18 @@ int axisIndex(uint8_t axis) {
 }
 } // namespace
 
+uint32_t VitaInput::mapGamepadButton(uint8_t button, SDL_GamepadType type) {
+  return controllerButton(button, type);
+}
+void VitaInput::updateGamepadButtons() {
+  static_assert(SDL_GAMEPAD_BUTTON_COUNT <= 32,
+                "Vita gamepad needs larger physical button storage");
+  gamepad_ = 0;
+  for (unsigned i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; ++i)
+    if (gamepadPhysical_ & (uint32_t{1} << i))
+      gamepad_ |= mapGamepadButton(uint8_t(i), gamepadType_);
+}
+
 void VitaInput::handle(const SDL_Event &e) {
   if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
     heldKeys_.clear();
@@ -103,9 +117,17 @@ void VitaInput::handle(const SDL_Event &e) {
     }
     return;
   }
+  if (e.type == SDL_EVENT_GAMEPAD_REMAPPED &&
+      e.gdevice.which == activeGamepad_) {
+    gamepadType_ = SDL_GetGamepadTypeForID(activeGamepad_);
+    updateGamepadButtons();
+    return;
+  }
   if (e.type == SDL_EVENT_GAMEPAD_REMOVED) {
     if (e.gdevice.which == activeGamepad_) {
       activeGamepad_ = 0;
+      gamepadPhysical_ = 0;
+      gamepadType_ = SDL_GAMEPAD_TYPE_UNKNOWN;
       gamepad_ = 0;
       stick_ = triggers_ = 0;
       analog_ = {{0, 0, 0, 0}};
@@ -114,20 +136,26 @@ void VitaInput::handle(const SDL_Event &e) {
   }
   if (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ||
       e.type == SDL_EVENT_GAMEPAD_BUTTON_UP) {
-    if (!activeGamepad_ && e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
+    if (!activeGamepad_ && e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN) {
       activeGamepad_ = e.gbutton.which;
-    if (activeGamepad_ != e.gbutton.which)
+      gamepadType_ = SDL_GetGamepadTypeForID(activeGamepad_);
+    }
+    if (activeGamepad_ != e.gbutton.which ||
+        e.gbutton.button >= SDL_GAMEPAD_BUTTON_COUNT)
       return;
-    const uint32_t bit = controllerButton(e.gbutton.button);
+    const uint32_t bit = uint32_t{1} << e.gbutton.button;
     if (e.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
-      gamepad_ |= bit;
+      gamepadPhysical_ |= bit;
     else
-      gamepad_ &= ~bit;
+      gamepadPhysical_ &= ~bit;
+    updateGamepadButtons();
     return;
   }
   if (e.type == SDL_EVENT_GAMEPAD_AXIS_MOTION) {
-    if (!activeGamepad_)
+    if (!activeGamepad_) {
       activeGamepad_ = e.gaxis.which;
+      gamepadType_ = SDL_GetGamepadTypeForID(activeGamepad_);
+    }
     if (activeGamepad_ != e.gaxis.which)
       return;
     const int axis = axisIndex(e.gaxis.axis);
