@@ -281,16 +281,19 @@ bool ValidateTranslatedScript(const SchoolDaysGpkArchive &selected,
   bool foundOrs = false;
   for (size_t i = 0u; i < selected.EntryCount(); ++i) {
     const auto &entry = selected.Index().Entries()[i];
-    if (IsOrsName(entry.filename)) foundOrs = true;
-    if (!InspectTranslatedEntry(selected, i, error)) return false;
     if (!IsOrsName(entry.filename)) continue;
+    foundOrs = true;
+    if (entry.storedLength == 0u ||
+        (!entry.IsRaw() && !entry.IsDeflate()))
+      return Fail(error, "Translated GPK contains an empty or unsupported ORS");
     const auto it = retailIndex.find(entry.filename);
     if (it == retailIndex.end())
       return Fail(error, "Translated ORS is absent from retail index");
     std::vector<uint8_t> base, translated;
     std::string failure;
-    if (!retail.ReadEntry(it->second, &base, &failure) ||
-        !selected.ReadEntry(i, &translated, &failure))
+    if (!selected.ReadEntry(i, &translated, &failure) || translated.empty())
+      return Fail(error, "Translated GPK contains unreadable/empty ORS: " + failure);
+    if (!retail.ReadEntry(it->second, &base, &failure))
       return Fail(error, "Cannot inspect corresponding ORS files: " + failure);
     const bool knownRussianSubtitle = locale == "ru" &&
         entry.filename == u"ENGLISH/03/03-KB-D10.ENG.ORS";

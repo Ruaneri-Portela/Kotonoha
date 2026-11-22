@@ -197,7 +197,7 @@ bool ReadRange(std::istream *file, uint64_t offset, size_t size,
     return false;
   }
   try {
-    out->assign(size, 0u);
+    out->resize(size);
   } catch (...) {
     out->clear();
     return false;
@@ -257,6 +257,8 @@ void SchoolDaysGpkArchive::Close() {
   cachedStream_.reset();
   streamMutex_.reset();
   source_.reset();
+  directoryIndexBuilt_ = false;
+  directoryIndex_.clear();
   pidxOffset_ = 0u;
   index_.Clear();
   canonicalEntries_.clear();
@@ -324,6 +326,12 @@ bool SchoolDaysGpkArchive::Open(
   foldedEntries.reserve(parsed.Entries().size());
   canonicalEntries.reserve(parsed.Entries().size());
   uint64_t lastPhysicalEnd = 0u;
+  std::string utf8;
+  std::string canonical;
+  std::string folded;
+  utf8.reserve(96u);
+  canonical.reserve(96u);
+  folded.reserve(96u);
   for (size_t i = 0u; i < parsed.Entries().size(); ++i) {
     const auto &entry = parsed.Entries()[i];
     if (entry.zero != 0u)
@@ -336,16 +344,13 @@ bool SchoolDaysGpkArchive::Open(
           error, "School Days GPK entry body exceeds the physical data region");
     lastPhysicalEnd = physicalEnd;
 
-    std::string utf8;
-    std::string canonical;
-    std::string folded;
     if (!Utf16ToUtf8(entry.filename, &utf8) ||
         !NormalizeLogicalPath(utf8, &canonical, &folded))
       return Fail(error, "School Days GPK PIDX contains an invalid asset path");
     const auto inserted = foldedEntries.emplace(folded, i);
     if (!inserted.second)
-      foldedCollisions.insert(std::move(folded));
-    canonicalEntries.push_back(std::move(canonical));
+      foldedCollisions.insert(folded);
+    canonicalEntries.push_back(canonical);
   }
   // Index data may be aligned after the final entry. All entry ranges
   // have already been checked against pidxOffset above; a gap is harmless.
@@ -354,8 +359,10 @@ bool SchoolDaysGpkArchive::Open(
 
   path_ = path;
   source_ = std::move(source);
-  streamMutex_ = source_ ? std::make_unique<std::mutex>() : nullptr;
+  streamMutex_ = std::make_unique<std::mutex>();
   cachedStream_.reset();
+  directoryIndexBuilt_ = false;
+  directoryIndex_.clear();
   pidxOffset_ = pidxOffset;
   index_ = std::move(parsed);
   canonicalEntries_ = std::move(canonicalEntries);
@@ -384,13 +391,87 @@ SchoolDaysGpkArchive::Lookup(std::string_view archiveRelativePath,
   return SchoolDaysGpkLookupStatus::Present;
 }
 
+bool SchoolDaysGpkArchive::EnsureDirectoryIndexLocked() const {
+  if (directoryIndexBuilt_)
+    return true;
+  struct BuildEntry {
+    bool collision = false;
+    std::string canonicalDirectory;
+    std::unordered_map<std::string, std::string> children;
+  };
+  std::unordered_map<std::string, BuildEntry> built;
+  std::string foldedEntry;
+  foldedEntry.reserve(96u);
+  for (const std::string &canonicalEntry : canonicalEntries_) {
+    if (!FoldLogicalPath(canonicalEntry, &foldedEntry) ||
+        foldedEntry.size() != canonicalEntry.size()) {
+      return false;
+    }
+    // Root listing (foldedDir == "")
+    {
+      const size_t slash = canonicalEntry.find('/');
+      const std::string foldedChild = foldedEntry.substr(0u, slash);
+      const std::string canonicalChild = canonicalEntry.substr(0u, slash);
+      auto &root = built[std::string()];
+      if (!root.collision) {
+        const auto ins = root.children.emplace(foldedChild, canonicalChild);
+        if (!ins.second && ins.first->second != canonicalChild)
+          root.collision = true;
+      }
+    }
+    // Every parent directory prefix along canonicalEntry
+    size_t slash = canonicalEntry.find('/');
+    while (slash != std::string::npos) {
+      const size_t childStart = slash + 1u;
+      if (childStart >= canonicalEntry.size())
+        break;
+      const size_t nextSlash = canonicalEntry.find('/', childStart);
+      const std::string foldedDir = foldedEntry.substr(0u, slash);
+      const std::string canonicalDir = canonicalEntry.substr(0u, slash);
+      const std::string foldedChild =
+          foldedEntry.substr(childStart, nextSlash == std::string::npos
+                                             ? std::string::npos
+                                             : nextSlash - childStart);
+      const std::string canonicalPath = canonicalEntry.substr(0u, nextSlash);
+      auto &dir = built[foldedDir];
+      if (!dir.collision) {
+        if (dir.canonicalDirectory.empty())
+          dir.canonicalDirectory = canonicalDir;
+        else if (dir.canonicalDirectory != canonicalDir)
+          dir.collision = true;
+      }
+      if (!dir.collision) {
+        const auto ins = dir.children.emplace(foldedChild, canonicalPath);
+        if (!ins.second && ins.first->second != canonicalPath)
+          dir.collision = true;
+      }
+      slash = nextSlash;
+    }
+  }
+  directoryIndex_.clear();
+  directoryIndex_.reserve(built.size());
+  for (auto &[foldedDir, buildEntry] : built) {
+    DirectoryIndexEntry finalEntry;
+    finalEntry.collision = buildEntry.collision;
+    if (!finalEntry.collision) {
+      finalEntry.children.reserve(buildEntry.children.size());
+      for (auto &item : buildEntry.children)
+        finalEntry.children.push_back(std::move(item.second));
+      std::sort(finalEntry.children.begin(), finalEntry.children.end());
+    }
+    directoryIndex_.emplace(foldedDir, std::move(finalEntry));
+  }
+  directoryIndexBuilt_ = true;
+  return true;
+}
+
 SchoolDaysGpkLookupStatus SchoolDaysGpkArchive::ListDirectory(
     std::string_view archiveRelativeDirectory,
     std::vector<std::string> *relativeChildren) const {
   if (relativeChildren == nullptr)
     return SchoolDaysGpkLookupStatus::Invalid;
   relativeChildren->clear();
-  if (!IsOpen())
+  if (!IsOpen() || !streamMutex_)
     return SchoolDaysGpkLookupStatus::Invalid;
 
   std::string requestedFolded;
@@ -398,79 +479,18 @@ SchoolDaysGpkLookupStatus SchoolDaysGpkArchive::ListDirectory(
       !FoldLogicalPath(archiveRelativeDirectory, &requestedFolded)) {
     return SchoolDaysGpkLookupStatus::Invalid;
   }
-  const std::string foldedPrefix =
-      requestedFolded.empty() ? std::string() : requestedFolded + '/';
 
-  std::string canonicalDirectory;
-  std::unordered_map<std::string, std::string> children;
-  for (size_t i = 0u; i < canonicalEntries_.size(); ++i) {
-    std::string foldedEntry;
-    if (!FoldLogicalPath(canonicalEntries_[i], &foldedEntry))
-      return SchoolDaysGpkLookupStatus::Invalid;
-    if (!foldedPrefix.empty() &&
-        (foldedEntry.size() <= foldedPrefix.size() ||
-         foldedEntry.compare(0u, foldedPrefix.size(), foldedPrefix) != 0)) {
-      continue;
-    }
-
-    const size_t relativeOffset = foldedPrefix.size();
-    const std::string_view foldedRemainder(foldedEntry.data() + relativeOffset,
-                                           foldedEntry.size() - relativeOffset);
-    const size_t childSlash = foldedRemainder.find('/');
-    const std::string foldedChild(foldedRemainder.substr(0u, childSlash));
-
-    const std::string &canonicalEntry = canonicalEntries_[i];
-    size_t canonicalRelativeOffset = 0u;
-    if (!requestedFolded.empty()) {
-      size_t componentCount = 1u;
-      componentCount += static_cast<size_t>(
-          std::count(requestedFolded.begin(), requestedFolded.end(), '/'));
-      size_t cursor = 0u;
-      for (size_t component = 0u; component < componentCount; ++component) {
-        const size_t slash = canonicalEntry.find('/', cursor);
-        if (slash == std::string::npos) {
-          canonicalRelativeOffset = canonicalEntry.size();
-          break;
-        }
-        canonicalRelativeOffset = slash + 1u;
-        cursor = slash + 1u;
-      }
-      if (canonicalRelativeOffset == 0u ||
-          canonicalRelativeOffset > canonicalEntry.size()) {
-        continue;
-      }
-      const std::string currentDirectory =
-          canonicalEntry.substr(0u, canonicalRelativeOffset - 1u);
-      if (canonicalDirectory.empty())
-        canonicalDirectory = currentDirectory;
-      else if (canonicalDirectory != currentDirectory) {
-        relativeChildren->clear();
-        return SchoolDaysGpkLookupStatus::Collision;
-      }
-    }
-
-    const std::string canonicalRemainder =
-        canonicalEntry.substr(canonicalRelativeOffset);
-    const size_t canonicalSlash = canonicalRemainder.find('/');
-    const std::string canonicalChild =
-        canonicalSlash == std::string::npos
-            ? canonicalRemainder
-            : canonicalRemainder.substr(0u, canonicalSlash);
-    const std::string canonicalPath =
-        canonicalDirectory.empty() ? canonicalChild
-                                   : canonicalDirectory + '/' + canonicalChild;
-    const auto inserted = children.emplace(foldedChild, canonicalPath);
-    if (!inserted.second && inserted.first->second != canonicalPath) {
-      relativeChildren->clear();
-      return SchoolDaysGpkLookupStatus::Collision;
-    }
-  }
-  if (children.empty())
+  std::lock_guard<std::mutex> lock(*streamMutex_);
+  if (!EnsureDirectoryIndexLocked())
+    return SchoolDaysGpkLookupStatus::Invalid;
+  const auto it = directoryIndex_.find(requestedFolded);
+  if (it == directoryIndex_.end())
     return SchoolDaysGpkLookupStatus::Missing;
-  relativeChildren->reserve(children.size());
-  for (const auto &item : children)
-    relativeChildren->push_back(item.second);
-  std::sort(relativeChildren->begin(), relativeChildren->end());
+  if (it->second.collision)
+    return SchoolDaysGpkLookupStatus::Collision;
+  if (it->second.children.empty())
+    return SchoolDaysGpkLookupStatus::Missing;
+  *relativeChildren = it->second.children;
   return SchoolDaysGpkLookupStatus::Present;
 }
 
@@ -501,17 +521,20 @@ bool SchoolDaysGpkArchive::ReadEntry(size_t entryIndex,
   if (physicalEnd < entry.offset || physicalEnd > pidxOffset_)
     return Fail(error, "School Days GPK entry body is outside the data region");
 
+  if (!streamMutex_)
+    return Fail(error, "School Days GPK stream state is invalid");
+
+  const bool directRaw = entry.IsRaw() && entry.inlinePrefix.empty();
   std::vector<uint8_t> body;
-  if (source_) {
-    if (!streamMutex_)
-      return Fail(error, "School Days GPK stream state is invalid");
+  std::vector<uint8_t> *target = directRaw ? out : &body;
+  {
     std::lock_guard<std::mutex> lock(*streamMutex_);
     auto readCached = [&]() -> bool {
       if (!cachedStream_ || !*cachedStream_)
         cachedStream_ = ArchiveInput(path_, source_);
       if (!cachedStream_ || !*cachedStream_)
         return false;
-      return ReadRange(cachedStream_.get(), entry.offset, bodySize, &body);
+      return ReadRange(cachedStream_.get(), entry.offset, bodySize, target);
     };
     if (!readCached()) {
       cachedStream_.reset();
@@ -520,13 +543,10 @@ bool SchoolDaysGpkArchive::ReadEntry(size_t entryIndex,
         return Fail(error, "School Days GPK entry body could not be read");
       }
     }
-  } else {
-    auto file = ArchiveInput(path_, source_);
-    if (!file || !*file)
-      return Fail(error, "School Days GPK could not be reopened for reading");
-    if (!ReadRange(file.get(), entry.offset, bodySize, &body))
-      return Fail(error, "School Days GPK entry body could not be read");
   }
+
+  if (directRaw)
+    return true;
 
   std::vector<uint8_t> stored;
   try {

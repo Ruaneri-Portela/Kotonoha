@@ -332,6 +332,7 @@ bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
   choiceScratchEvent = nullptr;
   choiceScratchSlots.clear();
   choiceScratchTexts.clear();
+  choiceScratchLines.clear();
   if (!choiceFont || runtime.choice == nullptr || visible.empty() ||
       visible.size() > 2u)
     return false;
@@ -341,8 +342,10 @@ bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
   if (!scratch || !SDL_FillSurfaceRect(scratch.get(), nullptr, 0u)) return false;
 
   using Plan = Kotonoha::SchoolDaysChoiceTextPlan;
+  std::vector<std::vector<Plan::Line>> wrappedLines;
+  wrappedLines.reserve(visible.size());
   for (std::size_t slot = 0; slot < visible.size(); ++slot) {
-    const auto lines = Plan::WrapRetailEnglish(Utf8ToUtf16(localizedTexts[slot]));
+    auto lines = Plan::WrapRetailEnglish(Utf8ToUtf16(localizedTexts[slot]));
     if (lines.size() > 5u) return false;
     for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
       const std::string utf8 = Utf16ToUtf8(lines[lineIndex].text);
@@ -360,6 +363,7 @@ bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
                                  &destination, SDL_SCALEMODE_LINEAR))
         return false;
     }
+    wrappedLines.push_back(std::move(lines));
   }
 
   choiceScratch.reset(SDL_CreateTextureFromSurface(&renderer, scratch.get()));
@@ -371,6 +375,7 @@ bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
   choiceScratchEvent = runtime.choice;
   choiceScratchSlots = visible;
   choiceScratchTexts = std::move(localizedTexts);
+  choiceScratchLines = std::move(wrappedLines);
   return true;
 }
 
@@ -443,7 +448,7 @@ void GameScene::renderChoices(Kotonoha::RendererRef renderer) {
                            static_cast<Uint8>(argb & 0xffu));
     SDL_SetTextureAlphaMod(choiceScratch.get(), alpha);
 
-    const auto lines = Plan::WrapRetailEnglish(Utf8ToUtf16(choiceScratchTexts[slot]));
+    const auto &lines = choiceScratchLines[slot];
     for (std::size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex) {
       const auto source = Plan::SourceForLine(static_cast<int>(slot),
                                               static_cast<int>(lineIndex));
