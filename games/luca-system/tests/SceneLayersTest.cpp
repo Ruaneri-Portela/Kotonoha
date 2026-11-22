@@ -4,6 +4,7 @@
 #include <iostream>
 #include <limits>
 #include <map>
+#include <unordered_map>
 #include <stdexcept>
 #include <vector>
 
@@ -62,6 +63,34 @@ int main() {
               LucaSystem::airCalendarBadgeName(15) == "aug_15" &&
               LucaSystem::airCalendarBadgeName(0).empty(),
           "AIR calendar follows the July-to-August script day cycle");
+    // An outgoing scene must remain cached while crossfading or wiping;
+    // release it only after the transition completes.
+    struct SlotId { std::uint32_t assetId = 0; };
+    std::map<std::uint16_t, SlotId> staged{{1, {10}}, {2, {12}}};
+    std::map<std::uint16_t, SlotId> visible{{1, {10}}, {3, {13}}};
+    std::map<std::uint16_t, SlotId> outgoing{{1, {10}}, {4, {14}}};
+    std::unordered_map<std::uint32_t, int> imageCache{
+        {10, 1}, {12, 1}, {13, 1}, {14, 1}, {99, 1}};
+    std::unordered_map<std::uint32_t, int> textureCache{
+        {10, 1}, {12, 1}, {13, 1}, {14, 1}, {99, 1}};
+    const auto evicted = LucaSystem::pruneAirObjectCaches(
+        staged, visible, outgoing, imageCache, textureCache);
+    check(evicted == 2 && !imageCache.count(99) &&
+              !textureCache.count(99) && imageCache.count(14),
+          "active and outgoing scene assets survive GPU cache pruning");
+    outgoing.clear();
+    const auto discarded = LucaSystem::pruneAirObjectCaches(
+        staged, visible, outgoing, imageCache, textureCache);
+    check(discarded == 2 && !imageCache.count(14) &&
+              !textureCache.count(14) && imageCache.count(13) &&
+              textureCache.count(12),
+          "finished transition releases obsolete CPU and GPU images");
+    staged.clear();
+    visible.clear();
+    LucaSystem::pruneAirObjectCaches(staged, visible, outgoing,
+                                     imageCache, textureCache);
+    check(imageCache.empty() && textureCache.empty(),
+          "returning to title releases retained gameplay images");
     // Repeated MOVE commands must not teleport between keyframes.
     check(close(LucaSystem::airMoveOffset(0, 100, 1000, 1000, 1000), 0) &&
               close(LucaSystem::airMoveOffset(0, 100, 1000, 1000, 1500), 50) &&

@@ -273,6 +273,17 @@ preventing an immediate jump to the old animation's endpoint. Save V6 uses
 the exact same interpolation when snapshotting an in-progress movement.
 Standalone SceneLayers regressions cover all these cases.
 
+## Bounded gameplay image lifetime
+
+The LucaSystem runtime now prunes decoded CPU CZ images and matching SDL GPU
+textures after each committed scene, retaining precisely the assets referenced
+by the staged, visible and outgoing transition layers. A still-running DRAW or
+WIPE retains both scenes; the outgoing assets are released only after the
+transition deadline. Returning to title and loading a save also drop obsolete
+gameplay images and reset stale transition clocks. This avoids growing CPU/GPU
+image caches across chapter changes without disturbing expression overlays.
+Standalone C++17 tests cover live, outgoing and discarded asset lifetimes.
+
 ## Robust RGBA uploads and missing-image retry
 
 The renderer now constructs and uploads CZ image textures fully before

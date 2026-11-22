@@ -28,6 +28,8 @@ Save V6 preserves group/slot z-order, tint, transparency, scale, rotation and re
 
 Implicit-position portrait replacements inherit the existing character transform; CZ4 expressions inherit body alpha/rotation/scale and active MOVE. Interrupted MOVE commands now start from the displayed position instead of snapping to their previous target. Synthetic C++17 tests cover these cases.
 
+Obsolete scene images and GPU textures are now pruned after scene commits and completed transitions while keeping staged, visible and outgoing image sets alive. Title/Load resets drop stale transition state, with SDL-free cache lifetime regressions.
+
 The renderer also uses atomic SDL3 RGBA texture uploads for sprites, dialogue assets, title art and splash logos, skips invalid sprite geometry and throttles repeated missing-image decodes. The upload path is covered by SDL3 software pixel tests.
 
 The actual GPU compositor now has an SDL3 software-rendered pixel regression for DRAW/WIPE, validating midpoint colors, clip restoration and texture-alpha restoration. This is in addition to standalone scene geometry tests.
