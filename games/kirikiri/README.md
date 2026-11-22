@@ -218,3 +218,14 @@ of consuming the single startup budget forever. This prevents ordinary title
 interaction from slowly exhausting the VM while still terminating one event
 handler that loops excessively. Synthetic coverage exercises 100 consecutive
 movement events with a deliberately small 24-instruction budget.
+
+## KAG visual layer persistence and ordering
+
+KAG `[layopt]` now changes the existing layer's visibility, coordinates,
+opacity and optional draw order without destroying its image. Explicit
+`[freeimage]` remains destructive. Foreground sprites are drawn in numeric
+layer/order sequence, fixing the previous `1,10,2` lexical ordering, and
+SDL texture alpha modulation is restored after each frame. Synthetic tests
+cover retained layer state, visibility restoration and invalid properties.
+This remains a front-page subset; backlay/forelay transitions and blend modes
+still need dedicated compatibility work.

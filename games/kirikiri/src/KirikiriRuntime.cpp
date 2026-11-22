@@ -22,6 +22,7 @@
 #include <array>
 #include <cctype>
 #include <cstring>
+#include <cstdlib>
 #include <filesystem>
 #include <functional>
 #include <iomanip>
@@ -219,6 +220,9 @@ struct KirikiriRuntime::Impl {
     std::string id;
     int x = 0, y = 0;
     bool decodeFailed = false;
+    bool visible = true;
+    int opacity = 255;
+    int order = 0;
   };
   Visual titlePicture, background, nameplateVisual;
   std::map<std::string, Visual> characters;
@@ -736,7 +740,8 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                                      float scale) {
   auto &impl = *impl_;
   const auto draw = [&](Impl::Visual &visual, bool fullScreen) {
-    if (visual.id.empty() || visual.decodeFailed)
+    if (visual.id.empty() || visual.decodeFailed ||
+        !visual.visible || visual.opacity == 0)
       return;
     try {
       auto &texture = impl.assets->texture(renderer, visual.id);
@@ -744,8 +749,15 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           fullScreen ? SDL_FRect{0, 0, 1280, 720}
                      : SDL_FRect{float(visual.x), float(visual.y),
                                  float(texture.w), float(texture.h)};
-      if (!Kotonoha::RenderUpscaledTexture(&renderer, &texture, nullptr,
-                                           &destination))
+      Uint8 previousAlpha = 255;
+      if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
+          !SDL_SetTextureAlphaMod(
+              &texture, static_cast<Uint8>(visual.opacity)))
+        throw std::runtime_error(SDL_GetError());
+      const bool rendered = Kotonoha::RenderUpscaledTexture(
+          &renderer, &texture, nullptr, &destination);
+      SDL_SetTextureAlphaMod(&texture, previousAlpha);
+      if (!rendered)
         throw std::runtime_error(SDL_GetError());
     } catch (const std::exception &error) {
       visual.decodeFailed = true;
@@ -771,8 +783,18 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
     } else {
       draw(impl.background, true);
+      // Foreground KAG layer indices are numeric. Iterating the map
+      // lexically used to draw "10" before "2", breaking foreground order.
+      std::vector<Impl::Visual *> ordered;
+      ordered.reserve(impl.characters.size());
       for (auto &[layer, visual] : impl.characters)
-        draw(visual, false);
+        ordered.push_back(&visual);
+      std::stable_sort(ordered.begin(), ordered.end(),
+                       [](const Impl::Visual *a, const Impl::Visual *b) {
+                         return a->order < b->order;
+                       });
+      for (auto *visual : ordered)
+        draw(*visual, false);
     }
 
     // Native VNX+ In-Game Message Box & Toolbar
@@ -2144,7 +2166,18 @@ bool KirikiriRuntime::startScenario(
                     "KiriKiri: foreground image not found: %s", file.c_str());
       return;
     }
-    state.characters[layer] = {id, x, y, false};
+    auto &visual = state.characters[layer];
+    visual.id = id;
+    visual.x = x;
+    visual.y = y;
+    visual.decodeFailed = false;
+    visual.visible = true;
+    // Layers 0,1,2,... are ordered numerically, not lexically.
+    char *end = nullptr;
+    const long numeric = std::strtol(layer.c_str(), &end, 10);
+    if (end != layer.c_str() && end && *end == '\0' &&
+        numeric >= -10000 && numeric <= 10000)
+      visual.order = static_cast<int>(numeric);
     if (transitionMs > 0)
       SDL_LogDebug(
           SDL_LOG_CATEGORY_APPLICATION,
@@ -2154,6 +2187,31 @@ bool KirikiriRuntime::startScenario(
 
   callbacks.hideChar = [this](std::string layer, int) {
     impl_->characters.erase(layer);
+  };
+
+  callbacks.updateLayer = [this](KagScript::LayerOptions options) {
+    auto &state = *impl_;
+    Impl::Visual *visual = nullptr;
+    if (options.layer == "base") {
+      visual = &state.background;
+    } else {
+      const auto it = state.characters.find(options.layer);
+      if (it != state.characters.end())
+        visual = &it->second;
+    }
+    // [layopt] before [image] should not create an empty drawable.
+    if (!visual)
+      return;
+    if (options.left)
+      visual->x = *options.left;
+    if (options.top)
+      visual->y = *options.top;
+    if (options.visible)
+      visual->visible = *options.visible;
+    if (options.opacity)
+      visual->opacity = std::clamp(*options.opacity, 0, 255);
+    if (options.order)
+      visual->order = *options.order;
   };
 
   callbacks.playBgm = [this, playAudio](std::string file, bool loop) {

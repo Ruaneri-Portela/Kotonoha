@@ -342,6 +342,65 @@ int main() {
     }
   }
 
+  // Layer options must mutate an existing image rather than calling
+  // hideChar (which permanently destroys the retained texture).
+  {
+    const auto script = Kirikiri::KagScript::parse(
+        "[image layer=2 storage=hero.png left=20 top=30]"
+        "[layopt layer=2 visible=false opacity=90 left=42 top=21 order=10]"
+        "[layopt layer=2 visible=true]"
+        "[freeimage layer=2][end]",
+        "layopt-persistence.ks");
+    std::vector<std::string> emitted;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showChar = [&](std::string layer, std::string file, int x, int y, int) {
+      emitted.push_back("show:" + layer + ":" + file + ":" +
+                        std::to_string(x) + ":" + std::to_string(y));
+    };
+    cb.hideChar = [&](std::string layer, int) {
+      emitted.push_back("free:" + layer);
+    };
+    cb.updateLayer = [&](Kirikiri::KagScript::LayerOptions options) {
+      if (options.layer != "2")
+        emitted.push_back("bad-layer");
+      else if (options.visible && !*options.visible) {
+        if (!options.left || *options.left != 42 || !options.top ||
+            *options.top != 21 || !options.opacity ||
+            *options.opacity != 90 || !options.order ||
+            *options.order != 10)
+          emitted.push_back("bad-layout");
+        emitted.push_back("hidden");
+      } else if (options.visible && *options.visible) {
+        if (options.left || options.top || options.opacity || options.order)
+          emitted.push_back("bad-reset");
+        emitted.push_back("visible");
+      }
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    if (!runner.isFinished() ||
+        emitted != std::vector<std::string>({
+            "show:2:hero.png:20:30", "hidden", "visible", "free:2"})) {
+      std::printf("FAIL: KAG layopt destroyed image or reset properties\n");
+      ++failures;
+    }
+
+    bool invalid = false;
+    try {
+      Kirikiri::KagScript::Runner broken(
+          Kirikiri::KagScript::parse(
+              "[layopt layer=2 visible=perhaps][end]", "bad-layopt.ks"),
+          cb);
+      broken.run();
+    } catch (const std::runtime_error &) {
+      invalid = true;
+    }
+    if (!invalid) {
+      std::printf("FAIL: malformed KAG layopt visibility accepted\n");
+      ++failures;
+    }
+  }
+
   // Loose KAG patches commonly use a UTF-16 BOM (the NEKOPARA VNX+
   // sysmenu.ks is one real-world example). They must reach the parser as
   // UTF-8 instead of producing one NUL byte between every character.
