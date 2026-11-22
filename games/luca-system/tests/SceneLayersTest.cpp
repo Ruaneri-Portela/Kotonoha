@@ -38,6 +38,15 @@ int main() {
               close(LucaSystem::wipeVisibleWidth(-50, 150, 50), 100) &&
               close(LucaSystem::wipeVisibleWidth(100, -10, 200), 0),
           "directional wipe crops without resizing or revealing beyond edge");
+    check(close(LucaSystem::croppedSpriteOrigin(640, 360, 20, 1, 0, 0),
+                300) &&
+              close(LucaSystem::croppedSpriteOrigin(640, 360, 20, 0.5f, 0, 0),
+                    470) &&
+              close(LucaSystem::croppedSpriteOrigin(640, 360, 20, 2, 4, -2),
+                    -38) &&
+              close(LucaSystem::croppedSpriteOrigin(400, 120, 30, 0.5f, 10, 5),
+                    370),
+          "scaled CZ4 character crop and anchor retain canvas coordinates");
     // Wipe transitions now carry a dedicated mode instead of silently
     // reusing alpha blending. A renderer can clip incoming objects to the
     // reveal edge without distorting their original image coordinates.

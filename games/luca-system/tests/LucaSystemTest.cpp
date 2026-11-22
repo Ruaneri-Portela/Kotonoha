@@ -158,7 +158,7 @@ void writeBytes(const std::filesystem::path &path,
 void checkFontOverlay(const std::filesystem::path &base,
                       const std::filesystem::path &overlay, int advance,
                       bool added = false) {
-  (void)advance; // PAK bitmap metrics no longer control VN's SDL_ttf layout.
+  // 'advance' is used only when the requested glyph is absent from TTF.
   constexpr char32_t extra = U'\uE000';
   if (added) {
     const Kotonoha::Providers::LucaSystemAssets original(base, {});
@@ -274,8 +274,9 @@ void checkFontOverlay(const std::filesystem::path &base,
   key(SDLK_ESCAPE);
   check(!backlog.isVisible() && runtime.instructionPosition() == pc,
         "Closing AIR history preserves the script position");
-  // Bitmap patches remain importable, but VN glyphs come from TTF.
-  const std::string text = "A";
+  // The overlay PUA glyph must come from the original bitmap; regular
+  // characters must continue through HiDPI SDL_ttf.
+  const std::string text = added ? u8"\uE000" : "A";
   box->setDialogue(text, text + text);
   box->show();
   box->completeDialogue();
@@ -309,9 +310,23 @@ void checkFontOverlay(const std::filesystem::path &base,
     }
     return false;
   };
-  check(containsColor({188, 516, 95, 28}, true) &&
-            containsColor({188, 564, 95, 34}, false),
-        "AIR VNTextBox rasterizes speaker/dialogue TTF at native colors");
+  if (added) {
+    const auto matches = [&](int x, int y, SDL_Color color) {
+      Uint8 red = 0, green = 0, blue = 0;
+      return SDL_ReadSurfacePixel(target.get(), x, y, &red, &green, &blue,
+                                  nullptr) &&
+             red == color.r && green == color.g && blue == color.b;
+    };
+    constexpr int offsetX = 3 + 1, offsetY = 4 + 1;
+    check(matches(188 + offsetX, 564 + offsetY, dialogue) &&
+              matches(188 + offsetX + advance, 564 + offsetY, dialogue) &&
+              matches(188 + offsetX, 516 + offsetY, speaker),
+          "AIR private-use glyphs use retail bitmap cells at native size");
+  } else {
+    check(containsColor({188, 516, 95, 28}, true) &&
+              containsColor({188, 564, 95, 34}, false),
+          "AIR ordinary glyphs remain high-density TTF");
+  }
   runtime.shutdown();
 }
 
