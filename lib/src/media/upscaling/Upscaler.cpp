@@ -325,6 +325,8 @@ void Upscaler::clear() {
 }
 
 SDL_Texture &Upscaler::process(TextureRef texture, Uint64 contentSerial) {
+  if (IsTTFTextRaster(texture))
+    return texture;
   if (!settings.enabled())
     return texture;
   const auto identity = SDL_GetTextureProperties(&texture);
@@ -416,6 +418,8 @@ void Upscaling::configure(const UpscaleSettings &value) {
 }
 
 SDL_Texture &Upscaling::process(TextureRef texture, Uint64 serial) {
+  if (IsTTFTextRaster(texture))
+    return texture;
   if (!implementation)
     return texture;
   try {
@@ -498,6 +502,8 @@ void Upscaling::clear() {
 }
 
 TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
+  if (IsTTFTextRaster(texture) && scale != 1.0f)
+    throw std::invalid_argument("SDL_ttf text must not be upscaled");
   if (!std::isfinite(scale) || scale <= 0 || scale > 16)
     throw std::invalid_argument("Scale must be in (0, 16]");
   const int w = std::max(1, static_cast<int>(std::lround(texture.w * scale)));
@@ -559,6 +565,8 @@ TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
 }
 
 SurfacePtr Upscaling::scaled(const SDL_Surface &surface, float scale) {
+  if (IsTTFTextRaster(surface) && scale != 1.0f)
+    throw std::invalid_argument("SDL_ttf surfaces must not be upscaled");
   TexturePtr input(SDL_CreateTextureFromSurface(
       &renderer, const_cast<SDL_Surface *>(&surface)));
   if (!input)
@@ -603,6 +611,7 @@ bool RenderUpscaledTextureRotated(SDL_Renderer *renderer, SDL_Texture *texture,
   };
   auto *pipeline = Upscaling::forRenderer(*renderer);
   if (!pipeline || !pipeline->getSettings().enabled() ||
+      IsTTFTextRaster(*texture) ||
       SDL_GetBooleanProperty(SDL_GetTextureProperties(texture),
                              "kotonoha.upscaled", false))
     return draw(texture, source);
@@ -665,6 +674,8 @@ const Upscaler *Upscaling::getImplementation() const { return nullptr; }
 SDL_Texture &Upscaling::process(TextureRef texture, Uint64) { return texture; }
 void Upscaling::clear() {}
 TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
+  if (IsTTFTextRaster(texture) && scale != 1.0f)
+    throw std::invalid_argument("SDL_ttf text must not be upscaled");
   if (!std::isfinite(scale) || scale <= 0 || scale > 16)
     throw std::invalid_argument("Scale must be in (0, 16]");
   const int w = std::max(1, static_cast<int>(std::lround(texture.w * scale)));
@@ -692,6 +703,8 @@ TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
   return result;
 }
 SurfacePtr Upscaling::scaled(const SDL_Surface &surface, float scale) {
+  if (IsTTFTextRaster(surface) && scale != 1.0f)
+    throw std::invalid_argument("SDL_ttf surfaces must not be upscaled");
   if (!std::isfinite(scale) || scale <= 0 || scale > 16)
     throw std::invalid_argument("Scale must be in (0, 16]");
   const int w = std::max(1, static_cast<int>(std::lround(surface.w * scale)));
