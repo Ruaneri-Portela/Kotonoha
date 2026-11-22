@@ -8,6 +8,11 @@ on:
       - "lib/src/localization/Encoding.mm"
       - "lib/include/Kotonoha/localization/Encoding.hpp"
       - "lib/tests/EncodingAppleTests.cpp"
+      - "lib/CMakeLists.txt"
+      - "games/reallive/CMakeLists.txt"
+      - "buildsystems/xcode/Config/**"
+      - "vcpkg.json"
+      - "buildsystems/cmake/dependencies/KotonohaSDL.cmake"
       - ".github/workflows/apple-encoding-no-iconv.yml"
   pull_request:
     paths:
@@ -15,6 +20,11 @@ on:
       - "lib/src/localization/Encoding.mm"
       - "lib/include/Kotonoha/localization/Encoding.hpp"
       - "lib/tests/EncodingAppleTests.cpp"
+      - "lib/CMakeLists.txt"
+      - "games/reallive/CMakeLists.txt"
+      - "buildsystems/xcode/Config/**"
+      - "vcpkg.json"
+      - "buildsystems/cmake/dependencies/KotonohaSDL.cmake"
       - ".github/workflows/apple-encoding-no-iconv.yml"
   workflow_dispatch:
 
@@ -28,6 +38,36 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Apple targets link CoreFoundation, not iconv
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path(".")
+          xcode = (root / "buildsystems/xcode/Kotonoha.xcodeproj/project.pbxproj").read_text()
+          assert "Encoding.mm in Sources" in xcode
+          assert "Encoding.cpp in Sources" in xcode
+          for platform in ("macOS", "iOS"):
+              flags = (root / f"buildsystems/xcode/Config/{platform}.xcconfig").read_text()
+              assert "-framework CoreFoundation" in flags
+              assert "-liconv" not in flags
+          common = (root / "buildsystems/xcode/Config/Common.xcconfig").read_text()
+          assert "-liconv" not in common
+
+          cmake = (root / "lib/CMakeLists.txt").read_text()
+          assert "find_library(KOTONOHA_COREFOUNDATION CoreFoundation REQUIRED)" in cmake
+          assert "Encoding.mm" in (root / "docs/ENCODING_APPLE.pt-BR.md").read_text()
+          manifest = json.loads((root / "vcpkg.json").read_text())
+          for dependency in manifest["dependencies"]:
+              if isinstance(dependency, dict) and dependency.get("name") == "libiconv":
+                  assert dependency.get("platform") == "!osx & !ios"
+              else:
+                  assert dependency != "libiconv"
+          realLive = (root / "games/reallive/CMakeLists.txt").read_text()
+          assert "if(NOT APPLE)" in realLive
+          print("Apple CoreFoundation/Xcode/CMake/vcpkg contracts passed")
+          PY
       - name: Compile Apple codec with C++17 (no SDL or iconv)
         run: |
           clang++ -std=c++17 -Wall -Wextra -Werror -Ilib/include \
