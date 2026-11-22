@@ -650,7 +650,10 @@ bool NsbVm::advance() {
       main.waitEntity.clear();
       consumed = true;
     }
-    if (main.waitingMovie && activeMovie_.active) {
+    // Keep decorative looping movies (such as the native title background)
+    // alive when keyboard navigation or a confirmation reaches advance().
+    // Only non-looping narrative movies are dismissible here.
+    if (main.waitingMovie && activeMovie_.active && !activeMovie_.loop) {
       notifyMovieFinished(activeMovie_.entityName);
       consumed = true;
     }
