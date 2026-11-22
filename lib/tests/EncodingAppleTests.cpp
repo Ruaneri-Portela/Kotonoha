@@ -39,7 +39,7 @@ int main() {
           std::string("\x81\x60", 2), "Windows wave dash byte mapping");
     equal(ConvertEncoding(std::string("a\x85\x40" "z", 4), "CP932"), "a?z",
           "Unmapped CP932 pair must be consumed once");
-    equal(ConvertEncoding(std::string("a\x81" "z", 3), "CP932"), "a?z",
+    equal(ConvertEncoding(std::string("a\x81" "!z", 4), "CP932"), "a?!z",
           "Bad CP932 trail does not eat the next ASCII character");
 
     equal(ConvertEncoding("caf\xe9", "LATIN1"), u8"café",
