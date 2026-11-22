@@ -137,12 +137,22 @@ Image decodeG00(const Bytes &bytes) {
     r.atlasY = r.y1;
     im.regions.push_back(r);
   }
-  bool stacked = count > 1;
-  for (const auto &r : im.regions) {
-    const auto &first = im.regions.front();
-    if (r.x1 != first.x1 || r.y1 != first.y1 || r.x2 != first.x2 ||
-        r.y2 != first.y2)
-      stacked = false;
+  bool stacked = false;
+  if (count > 1) {
+    for (std::size_t i = 0; i < count && !stacked; ++i) {
+      const auto &a = im.regions[i];
+      if (a.x2 < a.x1 || a.y2 < a.y1)
+        continue;
+      for (std::size_t j = i + 1; j < count; ++j) {
+        const auto &b = im.regions[j];
+        if (b.x2 < b.x1 || b.y2 < b.y1)
+          continue;
+        if (a.x1 <= b.x2 && a.x2 >= b.x1 && a.y1 <= b.y2 && a.y2 >= b.y1) {
+          stacked = true;
+          break;
+        }
+      }
+    }
   }
   if (stacked) {
     if (std::uint64_t(im.height) * count >

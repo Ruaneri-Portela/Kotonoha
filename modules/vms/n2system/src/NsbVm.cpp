@@ -103,6 +103,33 @@ float resolveCoord(const NsbValue &val, float current, float screenDim,
   return val.isDelta ? (current + num) : num;
 }
 
+bool isHoverOnlyChoiceChild(std::string_view name) {
+  const std::string lower = toLowerAscii(name);
+  return lower.find("/mouseover/") != std::string::npos ||
+         lower.find("/mouseclick/") != std::string::npos ||
+         lower.find("/mouseleave/") != std::string::npos;
+}
+
+void applyAlignmentFlags(Entity &e, const NsbValue &xVal,
+                         const NsbValue &yVal) {
+  e.alignCenterX = e.alignRightX = false;
+  e.alignCenterY = e.alignBottomY = false;
+  if (xVal.kind == NsbValue::Kind::String) {
+    const auto lx = toLowerAscii(xVal.strVal);
+    if (lx == "center" || lx == "incenter")
+      e.alignCenterX = true;
+    else if (lx == "right" || lx == "inright")
+      e.alignRightX = true;
+  }
+  if (yVal.kind == NsbValue::Kind::String) {
+    const auto ly = toLowerAscii(yVal.strVal);
+    if (ly == "center" || ly == "incenter")
+      e.alignCenterY = true;
+    else if (ly == "bottom" || ly == "inbottom")
+      e.alignBottomY = true;
+  }
+}
+
 } // namespace
 
 // --- NsbValue ---
@@ -1447,9 +1474,11 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       e->z = static_cast<float>(a[1].asFloat());
       e->x = resolveCoord(a[2], 0.0f, screenW, true);
       e->y = resolveCoord(a[3], 0.0f, screenH, false);
+      applyAlignmentFlags(*e, a[2], a[3]);
       e->imagePath = normalizeAssetPath(a[4].asString());
-      e->opacity = 1.0f;
-      e->visible = true;
+      const bool hiddenState = isHoverOnlyChoiceChild(e->name);
+      e->opacity = hiddenState ? 0.0f : 1.0f;
+      e->visible = !hiddenState;
       e->hasClipRect = false;
       sceneGraph_.setPriority(e->name, e->z);
     }
@@ -1462,14 +1491,43 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       e->z = static_cast<float>(a[1].asFloat());
       e->x = resolveCoord(a[2], 0.0f, screenW, true);
       e->y = resolveCoord(a[3], 0.0f, screenH, false);
+      applyAlignmentFlags(*e, a[2], a[3]);
       e->hasClipRect = true;
       e->clipX = static_cast<float>(a[4].asFloat());
       e->clipY = static_cast<float>(a[5].asFloat());
       e->clipW = static_cast<float>(a[6].asFloat());
       e->clipH = static_cast<float>(a[7].asFloat());
       e->imagePath = normalizeAssetPath(a[8].asString());
-      e->opacity = 1.0f;
+      const bool hiddenState = isHoverOnlyChoiceChild(e->name);
+      e->opacity = hiddenState ? 0.0f : 1.0f;
+      e->visible = !hiddenState;
+      sceneGraph_.setPriority(e->name, e->z);
+    }
+    break;
+  }
+  case 0x018: { // CreateScrollBar [name, prio, x1, y1, x2, y2, val, dir, ...]
+    auto a = popArgs(t, args.size());
+    if (!a.empty()) {
+      auto *e =
+          sceneGraph_.createEntity(a[0].asString(), EntityType::ScrollBar);
+      if (a.size() >= 2)
+        e->z = static_cast<float>(a[1].asFloat());
+      if (a.size() >= 6) {
+        const float x1 = resolveCoord(a[2], 0.0f, screenW, true);
+        const float y1 = resolveCoord(a[3], 0.0f, screenH, false);
+        const float x2 = static_cast<float>(a[4].asFloat());
+        const float y2 = static_cast<float>(a[5].asFloat());
+        e->x = x1;
+        e->y = y1;
+        e->width = (x2 > x1) ? (x2 - x1) : std::max(16.0f, x2);
+        e->height = (y2 > y1) ? (y2 - y1) : std::max(16.0f, y2);
+        e->scrollHorizontal = e->width >= e->height;
+      }
+      if (a.size() >= 7)
+        e->scrollValue =
+            std::clamp(static_cast<float>(a[6].asFloat()), 0.0f, 100.0f);
       e->visible = true;
+      e->opacity = 1.0f;
       sceneGraph_.setPriority(e->name, e->z);
     }
     break;
@@ -1480,8 +1538,7 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
   case 0x00b:   // CreateEffect
   case 0x00f:   // CreateMask
   case 0x015:   // CreateCamera
-  case 0x017:   // CreateBacklog
-  case 0x018: { // CreateScrollBar
+  case 0x017: { // CreateBacklog
     auto a = popArgs(t, args.size());
     if (!a.empty()) {
       auto *e =
@@ -1511,6 +1568,9 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       e->z = static_cast<float>(a[1].asFloat());
       e->x = resolveCoord(a[2], 0.0f, screenW, true);
       e->y = resolveCoord(a[3], 0.0f, screenH, false);
+      applyAlignmentFlags(*e, a[2], a[3]);
+      e->width = static_cast<float>(a[4].asFloat());
+      e->height = static_cast<float>(a[5].asFloat());
       e->text = a[6].asString();
       e->visible = true;
       sceneGraph_.setPriority(e->name, e->z);
@@ -2224,10 +2284,19 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       phone_.achievementsUnlocked.insert(a[0].asString());
     break;
   }
-  case 0x0e1:   // xbox360_GetKeyState
-  case 0x06b: { // GetScrollBarValue
+  case 0x0e1: { // xbox360_GetKeyState
     (void)popArgs(t, args.size());
     t.stack.push_back(NsbValue::makeInt(0));
+    break;
+  }
+  case 0x06b: { // GetScrollBarValue [name]
+    auto a = popArgs(t, args.size());
+    std::int64_t val = 0;
+    if (!a.empty()) {
+      if (const auto *e = sceneGraph_.findEntity(a[0].asString()))
+        val = static_cast<std::int64_t>(std::lround(e->scrollValue));
+    }
+    t.stack.push_back(NsbValue::makeInt(val));
     break;
   }
 

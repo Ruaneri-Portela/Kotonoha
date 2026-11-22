@@ -290,6 +290,18 @@ Engine::Engine(Runtime &run, EngineOptions options)
                                         SDL_LOGICAL_PRESENTATION_LETTERBOX))
     throw std::runtime_error(SDL_GetError());
   upscaler = std::make_unique<Upscaling>(*renderer);
+  {
+    int displayCount = 0;
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&displayCount));
+    if (displays && displayCount > 0 &&
+        (settings.display < 0 || settings.display >= displayCount)) {
+      SDL_LogWarn(LogCore,
+                  "Configured display %d is unavailable (%d available); "
+                  "falling back to display 1",
+                  settings.display + 1, displayCount);
+      settings.display = 0;
+    }
+  }
   applyWindowSettings(settings);
   if (!upscaler->supports(settings.upscaling.backend)) {
     SDL_LogWarn(LogUpscaler, "%s is unavailable on the %s renderer; using Auto",
@@ -348,11 +360,18 @@ void Engine::applyWindowSettings(const EngineSettings &value, bool geometry) {
   };
   if (geometry) {
     int count = 0;
-    SDL_DisplayID *raw = SDL_GetDisplays(&count);
-    std::unique_ptr<SDL_DisplayID, decltype(&SDL_free)> displays(raw, SDL_free);
-    if (!displays || value.display >= count)
-      throw std::runtime_error("Configured display is unavailable");
-    const auto display = displays.get()[value.display];
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
+    if (!displays || count <= 0)
+      throw std::runtime_error("No displays are available");
+    int displayIndex = value.display;
+    if (displayIndex < 0 || displayIndex >= count) {
+      SDL_LogWarn(LogCore,
+                  "Configured display %d is unavailable (%d available); "
+                  "falling back to display 1",
+                  displayIndex + 1, count);
+      displayIndex = 0;
+    }
+    const auto display = displays.get()[displayIndex];
     const auto flags = SDL_GetWindowFlags(window.get());
     const bool fullscreen = flags & SDL_WINDOW_FULLSCREEN;
     const bool wantsFullscreen = value.mode != WindowMode::Windowed;

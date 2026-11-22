@@ -1202,7 +1202,7 @@ final class KotonohaMacLauncherPresenter: NSObject, NSWindowDelegate {
                         item.saveProfileId,
                         store.splitSavesByGame,
                         store.customSaveRoot,
-                        item.params.assetOverlayPath,
+                        item.params.assetOverlayPath.isEmpty ? item.overlayPath : item.params.assetOverlayPath,
                         item.params.translationPath,
                         item.params.subtitleStylePath,
                         item.params.customDocumentsDir,

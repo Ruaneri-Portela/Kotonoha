@@ -17,7 +17,8 @@ enum class EntityType {
   Choice,
   Color,
   Movie,
-  Window
+  Window,
+  ScrollBar
 };
 
 struct Entity {
@@ -26,9 +27,12 @@ struct Entity {
   EntityType type = EntityType::Container;
 
   // Spatial & visual properties
+  uint64_t creationOrder = 0;
   float x = 0.0f, y = 0.0f, z = 0.0f;
   float width = 0.0f, height = 0.0f;
   float anchorX = 0.0f, anchorY = 0.0f;
+  bool alignCenterX = false, alignRightX = false;
+  bool alignCenterY = false, alignBottomY = false;
   float scaleX = 1.0f, scaleY = 1.0f;
   float angle = 0.0f;
   float opacity = 1.0f;
@@ -36,6 +40,8 @@ struct Entity {
   bool visible = true;
   bool locked = false;
   bool smoothing = false;
+  float scrollValue = 50.0f; // 0..100 for ScrollBar entities
+  bool scrollHorizontal = true;
 
   // Clip rectangle for CreateClipTexture / SetMovieClipRect
   bool hasClipRect = false;
@@ -145,6 +151,7 @@ private:
 
   std::unordered_map<std::string, Entity> entities_;
   std::vector<std::string> renderOrder_;
+  uint64_t nextCreationOrder_ = 1;
 };
 
 } // namespace N2System

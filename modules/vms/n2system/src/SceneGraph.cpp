@@ -105,6 +105,8 @@ Entity *SceneGraph::createEntity(std::string_view name, EntityType type) {
   auto &entity = entities_[sName];
   entity.name = sName;
   entity.type = type;
+  if (entity.creationOrder == 0)
+    entity.creationOrder = nextCreationOrder_++;
   rebuildRenderOrder();
   return &entity;
 }
@@ -419,6 +421,8 @@ void SceneGraph::rebuildRenderOrder() {
                 return false;
               if (ea->z != eb->z)
                 return ea->z < eb->z;
+              if (ea->creationOrder != eb->creationOrder)
+                return ea->creationOrder < eb->creationOrder;
               return ea->name < eb->name;
             });
 }

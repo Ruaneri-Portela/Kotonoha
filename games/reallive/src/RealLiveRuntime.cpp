@@ -157,8 +157,34 @@ struct Text : VNTextBox {
   std::function<bool()> autoActive, skipActive;
   std::map<SDL_Surface *, TexturePtr> imageTextures;
   std::vector<Uint8> fontData;
+  Image cursorImage;
+  int cursorSizeW = 16, cursorSizeH = 16, cursorCont = 0, cursorSpeed = 850;
+  int activeWindow = 0;
+  bool hasLocate = false;
+  int locateX = 0, locateY = 0;
   FontPtr font;
   int canvasW = 640, canvasH = 480;
+
+  std::string windowKey(const char *suffix) const {
+    std::ostringstream key;
+    key << "WINDOW." << std::setw(3) << std::setfill('0')
+        << std::max(0, activeWindow) << '.' << suffix;
+    return key.str();
+  }
+  void setWindow(int w) {
+    activeWindow = std::max(0, w);
+    hasLocate = false;
+    locateX = locateY = 0;
+  }
+  void setLocate(int x, int y) {
+    hasLocate = true;
+    locateX = x;
+    locateY = y;
+  }
+  void clearLocate() {
+    hasLocate = false;
+    locateX = locateY = 0;
+  }
 
   int boxWidth() const {
     if (frame && frame->w > 0)
@@ -177,19 +203,25 @@ struct Text : VNTextBox {
     return 122;
   }
   int boxX() const {
-    const auto &pos = assets.settings().get("WINDOW.000.POS");
-    if (pos.size() >= 3) {
-      const int mod = assets.settings().integer("WINDOW.000.POS", 0, 0);
-      const int px = assets.settings().integer("WINDOW.000.POS", 0, 1);
+    const std::string key = windowKey("POS");
+    const auto &pos = assets.settings().get(key);
+    const std::string &effKey = pos.size() >= 3 ? key : std::string("WINDOW.000.POS");
+    const auto &effPos = assets.settings().get(effKey);
+    if (effPos.size() >= 3) {
+      const int mod = assets.settings().integer(effKey, 0, 0);
+      const int px = assets.settings().integer(effKey, 0, 1);
       return (mod == 1 || mod == 3) ? (canvasW - boxWidth() - px) : px;
     }
     return (canvasW - boxWidth()) / 2;
   }
   int boxY() const {
-    const auto &pos = assets.settings().get("WINDOW.000.POS");
-    if (pos.size() >= 3) {
-      const int mod = assets.settings().integer("WINDOW.000.POS", 0, 0);
-      const int py = assets.settings().integer("WINDOW.000.POS", 0, 2);
+    const std::string key = windowKey("POS");
+    const auto &pos = assets.settings().get(key);
+    const std::string &effKey = pos.size() >= 3 ? key : std::string("WINDOW.000.POS");
+    const auto &effPos = assets.settings().get(effKey);
+    if (effPos.size() >= 3) {
+      const int mod = assets.settings().integer(effKey, 0, 0);
+      const int py = assets.settings().integer(effKey, 0, 2);
       return (mod == 2 || mod == 3) ? (canvasH - boxHeight() - py) : py;
     }
     return canvasH - boxHeight();
@@ -292,10 +324,22 @@ struct Text : VNTextBox {
     }
     const std::string curName =
         assets.settings().text("CURSOR.000.NAME", "kcur00");
+    cursorSizeW = std::max(1, assets.settings().integer("CURSOR.000.SIZE", 16, 0));
+    cursorSizeH = std::max(1, assets.settings().integer("CURSOR.000.SIZE", 16, 1));
+    cursorCont = std::max(0, assets.settings().integer("CURSOR.000.CONT", 0, 0));
+    cursorSpeed = std::max(100, assets.settings().integer("CURSOR.000.SPEED", 850, 0));
     if (!curName.empty()) {
       auto kcur00 = assets.graphic(curName, false);
-      if (!kcur00.empty())
+      if (!kcur00.empty()) {
+        auto bytes = assets.read(kcur00);
+        if (bytes.size() >= 5) {
+          try {
+            cursorImage = decodeG00(bytes);
+          } catch (...) {
+          }
+        }
         cursor = assets.loadSurface(kcur00);
+      }
     }
     const std::string frameName =
         assets.settings().text(wakuBase + ".NAME", "smw00a");
@@ -516,7 +560,7 @@ struct Text : VNTextBox {
   }
   void renderDialogue(RendererRef r) override {
     const float sx = scaleX(), sy = scaleY();
-    const float wrapWidth = (float(boxWidth()) - 112.0f) * sx;
+    const float wrapWidth = std::max(64.0f, float(boxWidth()) - 112.0f * sx);
     auto measure = [this](const std::string &text) {
       int w = 0, h = 0;
       if (!engine.GetSettings().vnFontPath.empty())
@@ -525,11 +569,14 @@ struct Text : VNTextBox {
         TTF_GetStringSize(font.get(), text.data(), text.size(), &w, &h);
       return float(w);
     };
+    const float baseX =
+        float(boxX()) + (hasLocate ? float(locateX) : 53.0f * sx);
+    const float baseY =
+        float(boxY()) + (hasLocate ? float(locateY) : 19.0f * sy);
     const auto lines = VNTextBoxUtility::RevealLines(
         fullDialogue, visibleDialogue.size(), measure, wrapWidth);
     for (std::size_t n = 0; n < lines.size(); ++n)
-      print(r, lines[n], float(boxX()) + 53.0f * sx,
-            float(boxY()) + 19.0f * sy + n * 28.0f * sy, int(wrapWidth));
+      print(r, lines[n], baseX, baseY + n * 28.0f * sy, int(wrapWidth));
   }
   void renderIndicator(RendererRef r) override {
     if (!cursor)
@@ -540,10 +587,48 @@ struct Text : VNTextBox {
       if (auto *pipeline = Upscaling::forRenderer(r))
         pipeline->process(*t, 0);
     }
+    const int speed = std::max(100, cursorSpeed);
+    SDL_FRect src{0, 0, float(cursor->w), float(cursor->h)};
+    if (!cursorImage.regions.empty()) {
+      const std::size_t frameCount = cursorImage.regions.size();
+      const std::size_t frameIdx =
+          (std::size_t(SDL_GetTicks() % Uint64(speed)) * frameCount) /
+          std::size_t(speed);
+      const auto &reg = cursorImage.regions[frameIdx % frameCount];
+      src = {float(reg.atlasX), float(reg.atlasY),
+             float(std::max(1, reg.x2 - reg.x1 + 1)),
+             float(std::max(1, reg.y2 - reg.y1 + 1))};
+    } else {
+      const int cw = std::min(cursor->w, std::max(1, cursorSizeW));
+      const int ch = std::min(cursor->h, std::max(1, cursorSizeH));
+      const bool horizStrip = cursor->w >= cw * 2 && cursor->h <= ch * 2;
+      const bool vertStrip = cursor->h >= ch * 2 && cursor->w <= cw * 2;
+      int frameCount = cursorCont > 0 ? cursorCont
+                       : horizStrip   ? (cursor->w / cw)
+                       : vertStrip    ? (cursor->h / ch)
+                                      : 1;
+      frameCount = std::max(1, frameCount);
+      const int frameIdx =
+          int((SDL_GetTicks() % Uint64(speed)) * Uint64(frameCount) /
+              Uint64(speed)) %
+          frameCount;
+      if (horizStrip && (frameIdx + 1) * cw <= cursor->w)
+        src = {float(frameIdx * cw), 0.0f, float(cw), float(ch)};
+      else if (vertStrip && (frameIdx + 1) * ch <= cursor->h)
+        src = {0.0f, float(frameIdx * ch), float(cw), float(ch)};
+      else
+        src = {0.0f, 0.0f, float(cw), float(ch)};
+    }
     const float sx = scaleX(), sy = scaleY();
-    SDL_FRect src{float((SDL_GetTicks() % 850) * 4 / 850 * 16), 0, 16, 16},
-        dst{float(boxX() + boxWidth()) - 49.0f * sx,
-            float(boxY() + boxHeight()) - 44.0f * sy, 16.0f * sx, 16.0f * sy};
+    float dstX = float(boxX() + boxWidth()) - 49.0f * sx;
+    float dstY = float(boxY() + boxHeight()) - 44.0f * sy;
+    const std::string keyPosKey = windowKey("KEYCUR_POS");
+    const auto &keyPos = assets.settings().get(keyPosKey);
+    if (keyPos.size() >= 2) {
+      dstX = float(boxX() + assets.settings().integer(keyPosKey, 0, 0));
+      dstY = float(boxY() + assets.settings().integer(keyPosKey, 0, 1));
+    }
+    SDL_FRect dst{dstX, dstY, src.w, src.h};
     RenderUpscaledTexture(&r, t.get(), &src, &dst);
   }
 };
@@ -1430,8 +1515,15 @@ struct RealLiveRuntime::Impl {
                                  ? 0
                                  : o.currentPattern(g.image.regions.size());
         if (!g.image.regions.empty()) {
-          x -= g.image.regions[pattern].originX;
-          y -= g.image.regions[pattern].originY;
+          const auto &reg = g.image.regions[pattern];
+          if (reg.originX != 0 || reg.originY != 0) {
+            x -= reg.originX;
+            y -= reg.originY;
+          } else if (g.image.regions.size() == 1 &&
+                     (reg.x1 != 0 || reg.y1 != 0)) {
+            x += reg.x1;
+            y += reg.y1;
+          }
         }
         auto &texture = patternTexture(g, pattern);
         const SDL_FRect area{float(x * scale), float(y * scale),
@@ -1742,8 +1834,13 @@ struct RealLiveRuntime::Impl {
       if (!g.image.regions.empty()) {
         auto &r = g.image.regions.at(pattern);
         src = {r.atlasX, r.atlasY, r.x2 - r.x1 + 1, r.y2 - r.y1 + 1};
-        dst.x -= r.originX;
-        dst.y -= r.originY;
+        if (r.originX != 0 || r.originY != 0) {
+          dst.x -= r.originX;
+          dst.y -= r.originY;
+        } else if (g.image.regions.size() == 1 && (r.x1 != 0 || r.y1 != 0)) {
+          dst.x += r.x1;
+          dst.y += r.y1;
+        }
       }
       if (scale == 1)
         blit(*g.surface, dest, &src, &dst, o.alpha);
@@ -2544,13 +2641,22 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 210:
       dialogue.clear();
       currentDialogueLine = 0;
+      if (textbox)
+        textbox->clearLocate();
       return true;
     case 101:
+      vm.currentWindow = value(c, 0);
+      if (textbox)
+        textbox->setWindow(vm.currentWindow);
+      return true;
+    case 300:
+      if (textbox)
+        textbox->setLocate(value(c, 0), value(c, 1));
+      return true;
     case 102:
     case 103:
     case 104:
     case 105:
-    case 300:
     case 301:
     case 310:
     case 311:
@@ -3647,24 +3753,45 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     case 1001: {
+      if (c.GetParamCount() >= 4) {
+        int slot = value(c, 1);
+        if (slot >= 0 && slot < 16)
+          o.adjustments[slot] = {value(c, 2), value(c, 3)};
+      } else {
+        o.x = value(c, 1);
+      }
+      return true;
+    }
+    case 1002:
+      o.y = value(c, 1);
+      return true;
+    case 1007: {
       int slot = value(c, 1);
       if (slot >= 0 && slot < 16)
-        o.adjustments[slot] = {value(c, 2), value(c, 3)};
+        o.adjustments[slot].x = value(c, 2);
+      return true;
+    }
+    case 1008: {
+      int slot = value(c, 1);
+      if (slot >= 0 && slot < 16)
+        o.adjustments[slot].y = value(c, 2);
       return true;
     }
     case 1040:
-      o.clipped = true;
-      o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
+      o.clipped = over == 1 || c.GetParamCount() >= 5;
+      if (o.clipped)
+        o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
       return true;
     case 1034:
-      o.clipped = over == 1;
-      o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
+      o.clipped = over == 1 || c.GetParamCount() >= 5;
+      if (o.clipped)
+        o.clip = {value(c, 1), value(c, 2), value(c, 3) - value(c, 1) + 1,
+                  value(c, 4) - value(c, 2) + 1};
       return true;
     case 1016:
       o.colour = {Uint8(value(c, 1)), Uint8(value(c, 2)), Uint8(value(c, 3)),
                   Uint8(value(c, 4))};
       return true;
-    case 1002:
     case 1009:
     case 1021:
     case 1025:
@@ -3680,37 +3807,81 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   }
   if (type == 2 && (m == 81 || m == 82)) {
     auto &objects = m == 81 ? fg : bg;
-    auto &o = objects[value(c, 0)];
-    switch (op) {
-    case 1000:
-      o.x = value(c, 1);
-      o.y = value(c, 2);
-      return true;
-    case 1003:
-      o.alpha = value(c, 1);
-      return true;
-    case 1004:
-      o.visible = value(c, 1);
-      return true;
-    case 1039:
-      o.pattern = value(c, 1);
-      return true;
-    case 1031:
-      o.driftCount = value(c, 1);
-      o.driftUseAnimation = value(c, 2) != 0;
-      o.driftStartPattern = value(c, 3);
-      o.driftEndPattern = value(c, 4);
-      o.driftAnimationTime = value(c, 5);
-      o.driftYSpeed = value(c, 6);
-      o.driftPeriod = value(c, 7);
-      o.driftAmplitude = value(c, 8);
-      o.driftUseDrift = value(c, 9) != 0;
-      o.driftUnknown = value(c, 10);
-      o.driftDriftSpeed = value(c, 11);
-      return true;
-    default:
-      return true;
+    int first = value(c, 0);
+    int last = value(c, 1);
+    if (first > last)
+      std::swap(first, last);
+    last = std::min(last, first + 1024);
+    for (int id = first; id <= last; ++id) {
+      auto &o = objects[id];
+      switch (op) {
+      case 1000:
+      case 1011:
+        o.x = value(c, 2);
+        o.y = value(c, 3);
+        break;
+      case 1001:
+        o.x = value(c, 2);
+        break;
+      case 1002:
+        o.y = value(c, 2);
+        break;
+      case 1003:
+        o.alpha = value(c, 2);
+        break;
+      case 1004:
+        o.visible = value(c, 2);
+        break;
+      case 1006: {
+        int slot = value(c, 2);
+        if (slot >= 0 && slot < 16)
+          o.adjustments[slot] = {value(c, 3), value(c, 4)};
+        break;
+      }
+      case 1007: {
+        int slot = value(c, 2);
+        if (slot >= 0 && slot < 16)
+          o.adjustments[slot].x = value(c, 3);
+        break;
+      }
+      case 1008: {
+        int slot = value(c, 2);
+        if (slot >= 0 && slot < 16)
+          o.adjustments[slot].y = value(c, 3);
+        break;
+      }
+      case 1034:
+        o.clipped = over == 1 || c.GetParamCount() >= 6;
+        if (o.clipped)
+          o.clip = {value(c, 2), value(c, 3), value(c, 4) - value(c, 2) + 1,
+                    value(c, 5) - value(c, 3) + 1};
+        break;
+      case 1040:
+        o.clipped = over == 1 || c.GetParamCount() >= 6;
+        if (o.clipped)
+          o.clip = {value(c, 2), value(c, 3), value(c, 4), value(c, 5)};
+        break;
+      case 1039:
+        o.pattern = value(c, 2);
+        break;
+      case 1031:
+        o.driftCount = value(c, 2);
+        o.driftUseAnimation = value(c, 3) != 0;
+        o.driftStartPattern = value(c, 4);
+        o.driftEndPattern = value(c, 5);
+        o.driftAnimationTime = value(c, 6);
+        o.driftYSpeed = value(c, 7);
+        o.driftPeriod = value(c, 8);
+        o.driftAmplitude = value(c, 9);
+        o.driftUseDrift = value(c, 10) != 0;
+        o.driftUnknown = value(c, 11);
+        o.driftDriftSpeed = value(c, 12);
+        break;
+      default:
+        break;
+      }
     }
+    return true;
   }
   if (type == 1 && (m == 61 || m == 62)) {
     auto &objects = m == 61 ? fg : bg;
@@ -3737,27 +3908,42 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   }
   if (type == 2 && (m == 61 || m == 62)) {
     auto &objects = m == 61 ? fg : bg;
-    int id = value(c, 0);
-    if (op == 10) {
-      objects[id] = Object{};
+    int first = value(c, 0);
+    int last = (c.GetParamCount() >= 2) ? value(c, 1) : first;
+    if (first > last)
+      std::swap(first, last);
+    last = std::min(last, first + 1024);
+    if (op == 0 || op == 1 || op == 4 || op == 10) {
+      for (int id = first; id <= last; ++id)
+        objects[id] = Object{};
       return true;
     }
     if (op == 11) {
-      objects.erase(id);
+      for (int id = first; id <= last; ++id)
+        objects.erase(id);
       return true;
     }
   }
   if (type == 2 && (m == 71 || m == 72)) {
     auto &objects = m == 71 ? fg : bg;
-    auto &o = objects[value(c, 0)];
+    int first = value(c, 0);
+    int last = value(c, 1);
+    if (first > last)
+      std::swap(first, last);
+    last = std::min(last, first + 1024);
     if (op == 1000) {
-      o.width = o.height = 0;
-      o.frameMs = 0;
-      o.animationElapsed = 0;
-      o.file = str(c, 2);
-      o.kind = Object::Kind::Sprite;
-      prepareGraphic(graphic(o.file));
-      o.visible = value(c, 1) != 0;
+      const std::string file = str(c, 2);
+      const bool vis = c.GetParamCount() >= 4 ? (value(c, 3) != 0) : true;
+      prepareGraphic(graphic(file));
+      for (int id = first; id <= last; ++id) {
+        auto &o = objects[id];
+        o.width = o.height = 0;
+        o.frameMs = 0;
+        o.animationElapsed = 0;
+        o.file = file;
+        o.kind = Object::Kind::Sprite;
+        o.visible = vis;
+      }
       return true;
     }
     return true;
@@ -3777,9 +3963,17 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     if (op == 1001) {
-      int slot = value(c, 1);
-      machine.set_store_register(slot >= 0 && slot < 16 ? o.adjustments[slot].y
-                                                        : 0);
+      if (c.GetParamCount() >= 2) {
+        int slot = value(c, 1);
+        machine.set_store_register(
+            slot >= 0 && slot < 16 ? o.adjustments[slot].y : 0);
+      } else {
+        machine.set_store_register(o.x);
+      }
+      return true;
+    }
+    if (op == 1002) {
+      machine.set_store_register(o.y);
       return true;
     }
     if (op == 1003) {
@@ -4011,8 +4205,14 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
           name = lastGraphic;
         if (name != "?" && !name.empty()) {
           auto &g = graphic(name);
-          if (g.surface)
-            blit(*g.surface, surface(1), nullptr, nullptr, 255, false);
+          if (g.surface) {
+            const bool useSelRect =
+                mainEffect.src.w > 0 && mainEffect.src.h > 0;
+            SDL_Rect sr = mainEffect.src;
+            SDL_Rect dr = mainEffect.dst;
+            blit(*g.surface, surface(1), useSelRect ? &sr : nullptr,
+                 useSelRect ? &dr : nullptr, 255, false);
+          }
         }
       } else if (value(c, 0) != 1)
         blit(surface(value(c, 0)), surface(1), nullptr, nullptr, 255, false);
@@ -4048,7 +4248,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
             alpha = n(2);
         }
         if (tag == 3 || tag == 4) {
-          sr = {n(1), n(2), n(3) - n(1), n(4) - n(2)};
+          sr = {n(1), n(2), n(3) - n(1) + 1, n(4) - n(2) + 1};
           dst = {n(5), n(6), 0, 0};
           if (tag == 4)
             alpha = n(7);
@@ -4225,6 +4425,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       }
       SDL_Rect source{value(c, 2), value(c, 3), value(c, 4), value(c, 5)},
           dest{value(c, 6), value(c, 7), 0, 0};
+      if (op == 70 && over >= 2) {
+        source.w = source.w - source.x + 1;
+        source.h = source.h - source.y + 1;
+      }
       if (over >= 2)
         ensureDC(n, dest.x + source.w, dest.y + source.h);
       blit(*g.surface, surface(n), over >= 2 ? &source : nullptr,
@@ -4238,8 +4442,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       SDL_Rect source{value(c, 0), value(c, 1), value(c, 2), value(c, 3)},
           dest{value(c, 5), value(c, 6), 0, 0};
       if (op < 1000) {
-        source.w -= source.x;
-        source.h -= source.y;
+        source.w = source.w - source.x + 1;
+        source.h = source.h - source.y + 1;
       }
       ensureDC(targetDC, over >= 2 ? dest.x + source.w : surface(sourceDC).w,
                over >= 2 ? dest.y + source.h : surface(sourceDC).h);
@@ -4286,7 +4490,9 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       transitionOld = compose(presentationScale());
       transitionTexture.reset();
       transitionStart = SDL_GetTicks();
-      const auto selEffect = parseSelEffect(value(c, 1), 500);
+      const int selIndex =
+          (over == 2 || over == 3) ? value(c, 7, 0) : value(c, 1, 0);
+      const auto selEffect = parseSelEffect(selIndex, 500);
       transitionMs = over == 4 ? value(c, 7) : selEffect.durationMs;
       transitionStyle = over == 4 ? value(c, 8) : selEffect.style;
       wait(transitionMs);
@@ -4304,13 +4510,19 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
           sr.w -= sr.x;
           sr.h -= sr.y;
         }
-        if (over == 0) {
+        int alpha = 255;
+        if (over == 0 || over == 1) {
           sr = selEffect.src;
           dst = selEffect.dst;
+          if (over == 1)
+            alpha = value(c, 2, 255);
+        } else if (over == 3) {
+          alpha = value(c, 8, 255);
+        } else if (over == 4) {
+          alpha = value(c, 15, 255);
         }
         if (g.surface)
-          blit(*g.surface, surface(1), &sr, &dst,
-               over == 4 ? value(c, 15, 255) : 255, op == 74);
+          blit(*g.surface, surface(1), &sr, &dst, alpha, op == 74);
       }
       blit(surface(1), surface(0), nullptr, nullptr, 255, false);
       fg = std::move(bg);
