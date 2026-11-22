@@ -40,8 +40,15 @@ if(KOTONOHA_BUILD_HOST_TOOLS)
     target_link_libraries(RealLiveInspect PRIVATE RealLiveFormats)
 endif()
 
-find_package(Iconv REQUIRED)
-target_link_libraries(RealLiveFormats PUBLIC KotonohaEngine Iconv::Iconv)
+# No RealLive text converter calls iconv on Apple: all character sets are
+# decoded through Kotonoha::ConvertEncoding in the shared CoreFoundation
+# backend. Keep the legacy CMake dependency only for non-Apple platforms.
+set(REALLIVE_ICONV_LIBS "")
+if(NOT APPLE)
+    find_package(Iconv REQUIRED)
+    set(REALLIVE_ICONV_LIBS Iconv::Iconv)
+endif()
+target_link_libraries(RealLiveFormats PUBLIC KotonohaEngine ${REALLIVE_ICONV_LIBS})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/reallive"
     "${CMAKE_CURRENT_BINARY_DIR}/providers/reallive")
@@ -52,7 +59,7 @@ set_target_properties(reallive_port PROPERTIES CXX_EXTENSIONS OFF)
 target_link_libraries(reallive_port PUBLIC
     RealLiveFormats
     KotonohaEngine
-    Iconv::Iconv
+    ${REALLIVE_ICONV_LIBS}
     kotonoha_provider_reallive
     kotonoha_vm_reallive
 )
