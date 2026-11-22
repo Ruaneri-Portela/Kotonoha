@@ -251,7 +251,8 @@ uint64_t VitaVmBridge::newSprite(uint32_t tex, uint32_t variant,
 std::optional<VmValue>
 VitaVmBridge::primitive(const std::string &owner, const std::string &method,
                         bool classMethod, const VmValue &receiver,
-                        unsigned number, const std::vector<VmValue> &args) {
+                        unsigned number, const std::vector<VmValue> &args,
+                        bool ps2Layout) {
   // The original native vibrate() sets two Tween components (amplitude and
   // frequency) of an existing visual channel. RGB light uses one shared
   // frequency; the other channels have one frequency per amplitude.
@@ -486,15 +487,18 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
 
   // ControlPad primitives (Vita system image). The caller supplies one input
   // frame through inputFrame(); these getters must not poll or mutate SDL.
-  // Scenario-only PS2-layout remapping depends on the invoking SCF class and
-  // remains separate future work.
+  // The live adapter distinguishes callers in the system image from
+  // scenario classes that still test the original PS2 pad button bits.
   if (owner == "ControlPad") {
     if (number == 0 || number == 1 || number == 2 || number == 4) {
       expectCount(args, 0);
-      const uint32_t mask = number == 0   ? vitaButtonsHeld()
-                            : number == 1 ? vitaButtonsPressed()
-                            : number == 2 ? vitaButtonsRapid()
-                                          : 0;
+      const uint32_t mask = number == 4 ? 0u
+                            : ps2Layout ? (number == 0   ? padHeld_
+                                           : number == 1 ? padPressed_
+                                                         : padRapid_)
+                            : number == 0   ? vitaButtonsHeld()
+                              : number == 1 ? vitaButtonsPressed()
+                                            : vitaButtonsRapid();
       return VmValue::num(mask);
     }
     if (number == 3) { // resetRapid()
