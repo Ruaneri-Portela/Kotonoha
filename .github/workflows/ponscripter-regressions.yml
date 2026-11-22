@@ -73,3 +73,40 @@ jobs:
             -Imodules/providers/ponscripter/include -I/usr/include/imgui \
             $(pkg-config --cflags sdl3 SDL3_ttf) \
             -fsyntax-only games/ponscripter/src/PonscripterRuntime.cpp
+
+  runtime-build:
+    name: Build and run Ponscripter runtime (CMake)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native engine build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ pkg-config \
+            python3 python3-dev libcurl4-openssl-dev \
+            libsdl3-dev libsdl3-ttf-dev libimgui-dev \
+            libass-dev libavcodec-dev libavformat-dev libavutil-dev \
+            libswscale-dev libswresample-dev zlib1g-dev \
+            libjson-c-dev libfreetype-dev libharfbuzz-dev \
+            fonts-dejavu-core
+      - name: Configure only the native Ponscripter port
+        run: |
+          cmake -S . -B build-ponscripter -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
+            -DKOTONOHA_SDL_PROVIDER=SYSTEM \
+            -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON \
+            -DKOTONOHA_BUILD_ALL=OFF \
+            -DKOTONOHA_BUILD_EXAMPLE=OFF \
+            -DKOTONOHA_BUILD_PONSCRIPTER=ON
+      - name: Build full Ponscripter game and runtime test executable
+        run: |
+          cmake --build build-ponscripter \
+            --target PonscripterGame PonscripterRuntimeTests --parallel 2
+      - name: Run synthetic Ponscripter native gameplay regression
+        run: |
+          mkdir -p build-ponscripter/bin/assets/fonts
+          cp /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+            build-ponscripter/bin/assets/fonts/NotoSansJP-Regular.ttf
+          ctest --test-dir build-ponscripter \
+            -R '^Ponscripter.Runtime$' --output-on-failure
