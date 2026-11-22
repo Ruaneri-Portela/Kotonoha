@@ -156,6 +156,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.ScrollTransition COMMAND RealLiveScrollTransitionTests)
     set_tests_properties(RealLive.ScrollTransition PROPERTIES LABELS synthetic)
 
+    # Native conditional choice visibility and disabled-option semantics.
+    add_executable(RealLiveSelectionRulesTests tests/SelectionRulesTest.cpp)
+    target_include_directories(RealLiveSelectionRulesTests PRIVATE src)
+    target_compile_features(RealLiveSelectionRulesTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.SelectionRules COMMAND RealLiveSelectionRulesTests)
+    set_tests_properties(RealLive.SelectionRules PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)

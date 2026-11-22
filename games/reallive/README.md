@@ -198,3 +198,15 @@ resolution before upscaling. The synthetic `RealLive.ScrollTransition` test
 checks all six styles in four directions with pixel-mapping assertions.
 Exact interpolation, speed and game-specific SEL entries still require Windows
 RealLive reference captures.
+
+## Conditional selections across RealLive editions
+
+RealLive's `select_w` now respects the encoded text-window override, with
+`DEFAULT_SEL_WINDOW` as a fallback. Choice conditions distinguish hidden
+entries from disabled/title-only entries, preserving original selection IDs
+for scenario branches. Disabled options cannot be activated through mouse,
+touch, keyboard or controller, and may use their configured color-table entry.
+Selection eligibility is tested without game data by
+`RealLive.SelectionRules`; shared menu controls retain enabled-by-default
+behavior. Native button-object selections and remaining specialized selection
+attributes still require edition-specific verification.
