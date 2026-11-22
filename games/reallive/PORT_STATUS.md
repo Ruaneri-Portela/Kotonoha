@@ -167,8 +167,11 @@ Still required:
 - Original save/config/gallery menus and CG/read/progression persistence beyond
   the current session. Kotonoha dialogue saves are separate from RealLive saves.
 - Remaining composite graphics commands and particle/drift effects.
-- Exact remaining transition styles: styles other than the orthogonal and
-  diagonal dither fades still use a crossfade where not implemented. Font
+- Remaining visual parity: directional wipes (style 10), blinds (120),
+  scroll/squash/slide styles 15–18 and 20–21 now have native-resolution
+  implementations and synthetic geometry tests. Exact timing and interpolation
+  still require comparison with the original RealLive executable; unknown SEL
+  styles continue to crossfade. Font
   metrics, name-box decoration, text pacing,
   selection styling and some window controls need native comparison.
 - Timed audio fades, some channel/volume commands, and complete media testing.

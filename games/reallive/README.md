@@ -156,7 +156,7 @@ native-resolution directional masks instead of generic crossfades. Direction
 The SEL interpolation and stripe-size parameters are honored; software
 composition is filtered as a completed frame, avoiding independent sprite
 upscaling. Ordered-dither styles 4/5 still use the accelerated mask when
-supported. Other scroll/squash/slide effect families (15–21) remain pending.
+supported. Scroll-on/off, squash-on/off and slide-on/off (styles 15–18, 20–21) now also sample both scenes at native resolution, including all four cardinal directions.
 These transitions need comparison against screenshots and timing from an
 original Windows RealLive executable before claiming exact visual parity.
 
@@ -186,3 +186,15 @@ clip at its actual sampling rate, whether 22,050 Hz, 32,000 Hz, 44,100 Hz or
 position back to frames; relative seeks are also bounded before pointer math.
 Synthetic audio regressions test round-trip and overflow cases without licensed
 music files.
+
+## Scroll, squash and slide SEL effects
+
+Style 15 scrolls the new frame in while scrolling the old frame out; 16
+scrolls the new frame in while compressing the old frame; 17 expands the new
+frame while scrolling the old out; 18 expands/compresses both frames; 20
+slides the new frame over the stationary old frame; and 21 slides the old
+frame away from the stationary new frame. These effects compose once at native
+resolution before upscaling. The synthetic `RealLive.ScrollTransition` test
+checks all six styles in four directions with pixel-mapping assertions.
+Exact interpolation, speed and game-specific SEL entries still require Windows
+RealLive reference captures.
