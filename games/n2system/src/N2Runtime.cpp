@@ -864,11 +864,13 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
   if (impl_->ponscripter)
     return impl_->ponscripter->onEvent(rawEvent);
-  if (isNsbActive() && impl_->nsbVm->activeMovie().active &&
-      impl_->moviePlayer && impl_->moviePlayer->isOpen()) {
+  if (isNsbActive() && impl_->nsbVm->activeMovie().active) {
+    // Guard the movie wait even before the decoder opens. Otherwise an early
+    // single click can advance the NSB VM while the first frame is loading.
     if (impl_->videoSkip.accept(rawEvent)) {
       const auto entity = impl_->nsbVm->activeMovie().entityName;
-      impl_->moviePlayer->stop();
+      if (impl_->moviePlayer)
+        impl_->moviePlayer->stop();
       impl_->currentMovie.clear();
       impl_->nsbVm->notifyMovieFinished(entity);
     }
