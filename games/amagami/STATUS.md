@@ -10,6 +10,13 @@
 - Playable original prologue, calendar/campaign node graph, conversation mode, mahjong/minigame scenes, and deterministic replay save/load.
 
 **Reference fidelity improvements (open-amagami):**
+- The experimental Vita live adapter starts at `GameMain.scriptMain` and
+  loads scenario classes only on demand from `SCENARIO.CPK`. The VM keeps
+  `Class.findClass` non-loading, while explicit `K2X_Script.loadClass`
+  and SCF class literals resolve and cache their requested class.
+- Vita `K2X_Script` now supports its initial status/class-loading/frame-clock
+  primitives. The live loop uses SDL's monotonic nanosecond timer for 60 Hz
+  pacing instead of an approximate 16 ms delay.
 - Vita diagnostic input uses Xbox A/B for confirm/cancel and PlayStation
   Circle/Cross on other pads; remapped SDL controllers preserve held state.
 - Scenario SCF callers of ControlPad now receive original PS2 button bits,
