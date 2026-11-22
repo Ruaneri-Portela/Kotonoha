@@ -3,6 +3,7 @@
 #include "RealLive/BoundedRange.hpp"
 #include "RealLive/CaseSelection.hpp"
 #include "RealLive/DecimalDigits.hpp"
+#include "RealLive/IntegerRanges.hpp"
 #include "RealLive/StringOps.hpp"
 #include <algorithm>
 #include <cctype>
@@ -452,80 +453,114 @@ bool Session::memory(const CommandElement &c) {
   switch (c.opcode()) {
   case 0:
   case 3: {
+    // rlvm's Argc_T resolves source expressions before setarray writes.
+    // Snapshot those values and check the entire destination address span.
     auto dest = ref(0);
-    int step = c.opcode() == 3 ? num(1) : 1;
-    std::size_t start = c.opcode() == 3 ? 2 : 1;
-    for (std::size_t i = start; i < c.GetParamCount(); ++i) {
-      *dest = num(static_cast<int>(i));
-      dest = dest + step;
+    const int step = c.opcode() == 3 ? num(1) : 1;
+    const std::size_t start = c.opcode() == 3 ? 2 : 1;
+    if (c.GetParamCount() < start)
+      throw std::out_of_range("REALLIVE setarray parameter count");
+    const auto count = c.GetParamCount() - start;
+    if (count > 1000000)
+      throw std::out_of_range("REALLIVE setarray exceeds limit");
+    std::vector<int> values;
+    values.reserve(count);
+    for (std::size_t i = start; i < c.GetParamCount(); ++i)
+      values.push_back(num(static_cast<int>(i)));
+    checkedIntegerSequence(dest, step, values.size());
+    for (std::size_t i = 0; i < values.size(); ++i) {
+      *dest = values[i];
+      if (i + 1 < values.size())
+        dest = dest + step;
     }
     break;
   }
   case 1: {
     auto a = ref(0), b = ref(1);
-    int v = c.overload() ? num(2) : 0;
-    std::size_t n = 0;
-    while (a != b) {
-      if (++n > 1000000)
-        throw std::runtime_error("REALLIVE invalid memory range");
-      *a = v;
-      ++a;
+    const int value = c.overload() ? num(2) : 0;
+    const auto count = checkedIntegerRange(a, b);
+    for (std::size_t i = 0; i < count; ++i) {
+      *a = value;
+      if (i + 1 < count)
+        ++a;
     }
-    *b = v;
     break;
   }
   case 2: {
-    auto a = ref(0), b = ref(1);
-    int count = num(2);
-    if (count < 0 || count > 1000000)
+    auto source = ref(0), dest = ref(1);
+    const int requested = num(2);
+    if (requested < 0 || requested > 1000000)
       throw std::out_of_range("REALLIVE copy count");
+    const auto count = static_cast<std::size_t>(requested);
+    checkedIntegerSequence(source, 1, count);
+    checkedIntegerSequence(dest, 1, count);
+    // Preserve rlvm's overlapping-copy behavior: read before writing.
     std::vector<int> values;
-    for (int i = 0; i < count; ++i, ++a)
-      values.push_back(*a);
-    for (int v : values) {
-      *b = v;
-      ++b;
+    values.reserve(count);
+    for (std::size_t i = 0; i < count; ++i) {
+      values.push_back(*source);
+      if (i + 1 < count)
+        ++source;
+    }
+    for (std::size_t i = 0; i < count; ++i) {
+      *dest = values[i];
+      if (i + 1 < count)
+        ++dest;
     }
     break;
   }
   case 4: {
     auto dest = ref(0);
-    int step = num(1), count = num(2), v = c.overload() ? num(3) : 0;
-    if (count < 0 || count > 1000000)
+    const int step = num(1);
+    const int requested = num(2);
+    const int value = c.overload() ? num(3) : 0;
+    if (requested < 0 || requested > 1000000)
       throw std::out_of_range("REALLIVE set count");
-    for (int i = 0; i < count; ++i) {
-      *dest = v;
-      dest = dest + step;
+    const auto count = static_cast<std::size_t>(requested);
+    checkedIntegerSequence(dest, step, count);
+    for (std::size_t i = 0; i < count; ++i) {
+      *dest = value;
+      if (i + 1 < count)
+        dest = dest + step;
     }
     break;
   }
   case 5: {
     auto a = ref(0), b = ref(1);
-    int temp = int(*a);
+    const int temp = int(*a);
     *a = int(*b);
     *b = temp;
     break;
   }
   case 6: {
     auto dest = ref(0);
-    int off = num(1);
-    for (std::size_t i = 2; i < c.GetParamCount(); ++i) {
-      *dest = *(ref(static_cast<int>(i)) + off);
-      ++dest;
+    const int offset = num(1);
+    if (c.GetParamCount() < 2)
+      throw std::out_of_range("REALLIVE cpyvars parameter count");
+    const auto count = c.GetParamCount() - 2;
+    checkedIntegerSequence(dest, 1, count);
+    // cpyvars reads each source in instruction order (unlike cpyrng),
+    // but first reject all malformed indirect source offsets.
+    std::vector<IntReferenceIterator> sources;
+    sources.reserve(count);
+    for (std::size_t i = 2; i < c.GetParamCount(); ++i)
+      sources.push_back(checkedIntegerOffset(ref(static_cast<int>(i)), offset));
+    for (std::size_t i = 0; i < count; ++i) {
+      *dest = int(*sources[i]);
+      if (i + 1 < count)
+        ++dest;
     }
     break;
   }
   case 100: {
-    auto a = ref(0), b = ref(1);
+    auto first = ref(0), last = ref(1);
+    const auto count = checkedIntegerRange(first, last);
     std::uint32_t total = 0;
-    std::size_t n = 0;
-    while (a != b) {
-      if (++n > 1000000)
-        throw std::runtime_error("REALLIVE invalid sum range");
-      total += int(*a);
-      ++a;
+    for (std::size_t i = 0; i < count; ++i) {
+      total += static_cast<std::uint32_t>(int(*first));
+      if (i + 1 < count)
+        ++first;
     }
-    total += int(*b);
     machine_.set_store_register(static_cast<std::int32_t>(total));
     break;
   }
@@ -537,15 +572,13 @@ bool Session::memory(const CommandElement &c) {
       if (!range.IsComplexParameter() || parts.size() != 2)
         throw std::runtime_error("REALLIVE malformed sums range");
       auto first = parts[0].GetIntegerReferenceIterator(machine_);
-      auto last = parts[1].GetIntegerReferenceIterator(machine_);
-      std::size_t n = 0;
-      while (first != last) {
-        if (++n > 1000000)
-          throw std::runtime_error("REALLIVE invalid sums range");
-        total += int(*first);
-        ++first;
+      const auto last = parts[1].GetIntegerReferenceIterator(machine_);
+      const auto count = checkedIntegerRange(first, last);
+      for (std::size_t n = 0; n < count; ++n) {
+        total += static_cast<std::uint32_t>(int(*first));
+        if (n + 1 < count)
+          ++first;
       }
-      total += int(*last);
     }
     machine_.set_store_register(static_cast<std::int32_t>(total));
     break;
