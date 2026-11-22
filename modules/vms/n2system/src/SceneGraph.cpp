@@ -1,7 +1,9 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/SceneGraph.hpp>
+#include <N2System/EntityQuery.hpp>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace N2System {
 
@@ -101,125 +103,272 @@ bool SceneGraph::wildcardMatch(std::string_view text,
 }
 
 Entity *SceneGraph::createEntity(std::string_view name, EntityType type) {
-  std::string sName(name);
+  const std::string sName(name);
+  // NitroSharp.World.AddEntity replaces an existing child with a fresh
+  // instance. Reusing the old object kept stale opacity, transforms, aliases
+  // and animation clocks after CreateTexture/CreateText/CreateMovie.
+  if (entities_.find(sName) != entities_.end())
+    destroyEntity(sName);
   auto &entity = entities_[sName];
   entity.name = sName;
   entity.type = type;
-  if (entity.creationOrder == 0)
-    entity.creationOrder = nextCreationOrder_++;
+  entity.creationOrder = nextCreationOrder_++;
+  insertionOrder_.push_back(sName);
   rebuildRenderOrder();
   return &entity;
 }
 
 Entity *SceneGraph::findEntity(std::string_view name) {
-  if (name.empty())
-    return nullptr;
-  std::string key(name);
-  if (key.front() == '@') {
-    const std::string_view aliasQuery(key.data() + 1, key.size() - 1);
-    for (auto &[k, e] : entities_) {
-      if (!e.alias.empty() && e.alias == aliasQuery)
-        return &e;
-    }
-    auto it = entities_.find(std::string(aliasQuery));
-    if (it != entities_.end())
-      return &it->second;
-    return nullptr;
-  }
-
-  auto it = entities_.find(key);
-  if (it != entities_.end())
-    return &it->second;
-
-  // Search by alias
-  for (auto &[k, e] : entities_) {
-    if (!e.alias.empty() && e.alias == key)
-      return &e;
-  }
-  return nullptr;
+  // The const implementation performs all reads, so direct callers and
+  // renderer access use identical and deterministic path resolution.
+  return const_cast<Entity *>(
+      static_cast<const SceneGraph *>(this)->findEntity(name));
 }
 
 const Entity *SceneGraph::findEntity(std::string_view name) const {
   if (name.empty())
     return nullptr;
-  std::string key(name);
-  if (key.front() == '@') {
-    const std::string_view aliasQuery(key.data() + 1, key.size() - 1);
-    for (const auto &[k, e] : entities_) {
-      if (!e.alias.empty() && e.alias == aliasQuery)
-        return &e;
+  const std::string key(name);
+  // Keep the exact identifiers used by the legacy NSB port, including
+  // slash-qualified objects that were created before their parents.
+  if (name.front() != '@') {
+    const auto exact = entities_.find(key);
+    if (exact != entities_.end())
+      return &exact->second;
+  }
+
+  const auto byAlias = [this](std::string_view alias) -> const Entity * {
+    const Entity *best = nullptr;
+    for (const auto &[key, entity] : entities_) {
+      if (entity.alias == alias &&
+          (!best || entity.creationOrder < best->creationOrder))
+        best = &entity;
     }
-    auto it = entities_.find(std::string(aliasQuery));
-    if (it != entities_.end())
-      return &it->second;
-    return nullptr;
+    return best;
+  };
+  if (name.front() == '@' && name.find('/') == std::string_view::npos) {
+    if (auto *entity = byAlias(name.substr(1)))
+      return entity;
+    auto legacy = entities_.find(std::string(name.substr(1)));
+    return legacy == entities_.end() ? nullptr : &legacy->second;
   }
 
-  auto it = entities_.find(key);
-  if (it != entities_.end())
-    return &it->second;
-
-  for (const auto &[k, e] : entities_) {
-    if (!e.alias.empty() && e.alias == key)
-      return &e;
+  // NitroSharp EntityPath supports exact components and per-part @aliases;
+  // unlike a query, it cannot contain "*" or scopes "<" and "<@".
+  const auto path = EntityPath::tryParse(name);
+  if (path && path->parts().size() > 1) {
+    const Entity *parent = nullptr;
+    for (const auto &part : path->parts()) {
+      const Entity *unique = nullptr;
+      for (const auto &[key, entity] : entities_) {
+        bool matches = false;
+        if (part.isAlias) {
+          matches = entity.alias == part.value;
+        } else {
+          const auto slash = entity.name.rfind('/');
+          const std::string_view local =
+              slash == std::string::npos
+                  ? std::string_view(entity.name)
+                  : std::string_view(entity.name).substr(slash + 1);
+          const std::string_view entityParent =
+              !entity.parent.empty()
+                  ? std::string_view(entity.parent)
+                  : (slash == std::string::npos
+                         ? std::string_view{}
+                         : std::string_view(entity.name).substr(0, slash));
+          matches = local == part.value &&
+                    entityParent ==
+                        (parent ? std::string_view(parent->name)
+                                : std::string_view{});
+        }
+        if (matches) {
+          // A path is a single entity, not a multi-target query. NitroSharp
+          // rejects ambiguous intermediate path components.
+          if (unique)
+            return nullptr;
+          unique = &entity;
+        }
+      }
+      if (!unique)
+        return nullptr;
+      parent = unique;
+    }
+    return parent;
   }
+
+  // Older native scripts occasionally address a registered alias without
+  // '@'. Preserve that lookup only for a single unqualified identifier.
+  if (name.find('/') == std::string_view::npos)
+    return byAlias(name);
   return nullptr;
 }
 
-std::vector<Entity *> SceneGraph::queryEntities(std::string_view pattern) {
-  std::vector<Entity *> matches;
-  if (pattern.empty())
-    return matches;
+std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
+  const auto parsed = EntityQuery::tryParse(expression);
+  if (!parsed)
+    return {};
 
-  const bool aliasMode = pattern.front() == '@';
-  const std::string_view body = aliasMode ? pattern.substr(1) : pattern;
-  const bool hasWildcard = body.find('*') != std::string_view::npos ||
-                           body.find('?') != std::string_view::npos;
-
-  if (!hasWildcard) {
-    if (auto *e = findEntity(pattern))
-      matches.push_back(e);
-    return matches;
+  // Preserve direct absolute entity identifiers used by existing NSB ports
+  // (some assets create "parent/child" before creating the parent entity).
+  // Scoped queries and wildcard queries still obey NitroSharp's grammar.
+  bool plainPath = true;
+  for (const auto &part : parsed->parts()) {
+    if (part.scope != EntityQueryScope::Current || part.hasWildcard())
+      plainPath = false;
+  }
+  if (plainPath) {
+    auto exact = entities_.find(std::string(expression));
+    if (exact != entities_.end())
+      return {&exact->second};
+    // Compatibility: older native scripts sometimes use a bare alias with
+    // no '@'. NitroSharp requires '@', but retain this exact-name fallback.
+    if (parsed->parts().size() == 1 && expression.find('>') ==
+                                                std::string_view::npos)
+      if (auto *legacy = findEntity(expression))
+        return {legacy};
   }
 
-  for (auto &[k, e] : entities_) {
-    if (aliasMode) {
-      if (!e.alias.empty() && wildcardMatch(e.alias, body))
-        matches.push_back(&e);
+  // Keep query order deterministic: entity creation order, not hash-map order.
+  // NitroSharp's World.Query enumerates children in their insertion order.
+  std::vector<Entity *> ordered;
+  ordered.reserve(insertionOrder_.size());
+  for (const auto &name : insertionOrder_) {
+    const auto it = entities_.find(name);
+    if (it != entities_.end())
+      ordered.push_back(&it->second);
+  }
+
+  // Support both explicit parent links and legacy absolute slash-delimited
+  // names. A wildcard matches one component; it never consumes a slash.
+  const auto parentName = [](const Entity &entity) -> std::string_view {
+    if (!entity.parent.empty())
+      return entity.parent;
+    const auto slash = entity.name.rfind('/');
+    if (slash != std::string::npos)
+      return std::string_view(entity.name).substr(0, slash);
+    return {};
+  };
+  const auto localName = [](const Entity &entity) -> std::string_view {
+    const auto slash = entity.name.rfind('/');
+    if (slash == std::string::npos)
+      return entity.name;
+    return std::string_view(entity.name).substr(slash + 1);
+  };
+  // Some existing compiled NSB scripts create slash-qualified sprites
+  // without materializing intermediate container entities. Keep these names
+  // queryable, but match '*'' within each slash-separated component only.
+  const auto legacyQualifiedMatches = [&]() {
+    std::vector<Entity *> result;
+    const auto &parts = parsed->parts();
+    if (parts.size() < 2)
+      return result;
+    for (const auto &part : parts)
+      if (part.scope != EntityQueryScope::Current)
+        return result;
+    for (auto *candidate : ordered) {
+      auto remaining = std::string_view(candidate->name);
+      bool matched = true;
+      for (std::size_t i = 0; i < parts.size(); ++i) {
+        const auto slash = remaining.find('/');
+        const auto component =
+            slash == std::string_view::npos ? remaining
+                                            : remaining.substr(0, slash);
+        if (!EntityQuery::matchPattern(component, parts[i].pattern) ||
+            (i + 1 == parts.size()) !=
+                (slash == std::string_view::npos)) {
+          matched = false;
+          break;
+        }
+        if (slash != std::string_view::npos)
+          remaining.remove_prefix(slash + 1);
+      }
+      if (matched)
+        result.push_back(candidate);
+    }
+    return result;
+  };
+  std::vector<Entity *> current;
+  for (const auto &part : parsed->parts()) {
+    std::vector<Entity *> next;
+    const bool aliasScope = part.scope == EntityQueryScope::CurrentAliases ||
+                            part.scope == EntityQueryScope::AllAliases;
+    const bool rootScope = current.empty() ||
+                           part.scope == EntityQueryScope::MainThread;
+    // Querying a nested current scope after a failed match must stay empty.
+    if (!aliasScope && !rootScope && current.empty())
+      break;
+    const auto add = [&next](Entity *candidate) {
+      if (std::find(next.begin(), next.end(), candidate) == next.end())
+        next.push_back(candidate);
+    };
+    if (aliasScope) {
+      for (auto *candidate : ordered)
+        if (!candidate->alias.empty() &&
+            EntityQuery::matchPattern(candidate->alias, part.pattern))
+          add(candidate);
+    } else if (rootScope) {
+      for (auto *candidate : ordered)
+        if (parentName(*candidate).empty() &&
+            EntityQuery::matchPattern(localName(*candidate), part.pattern))
+          add(candidate);
     } else {
-      if (wildcardMatch(e.name, body) ||
-          (!e.alias.empty() && wildcardMatch(e.alias, body))) {
-        matches.push_back(&e);
+      for (auto *parent : current) {
+        for (auto *candidate : ordered)
+          if (parentName(*candidate) == parent->name &&
+              EntityQuery::matchPattern(localName(*candidate), part.pattern))
+            add(candidate);
       }
     }
+    current = std::move(next);
+    if (current.empty())
+      return legacyQualifiedMatches();
   }
-  return matches;
+  return current;
 }
 
 bool SceneGraph::destroyEntity(std::string_view name) {
-  Entity *e = findEntity(name);
-  if (!e)
+  Entity *root = findEntity(name);
+  if (!root)
     return false;
-  std::string actualName = e->name;
 
-  // Remove from parent
-  if (!e->parent.empty()) {
-    auto *p = findEntity(e->parent);
-    if (p) {
-      p->children.erase(
-          std::remove(p->children.begin(), p->children.end(), actualName),
-          p->children.end());
+  // NitroSharp.World.CommitDestroyEntity recursively disposes children.
+  // Preserve the same lifecycle for both explicit parent links and the
+  // legacy slash-qualified names stored in the Kotonoha scene graph.
+  std::vector<std::string> removeNames{root->name};
+  for (std::size_t i = 0; i < removeNames.size(); ++i) {
+    const std::string ancestor = removeNames[i];
+    for (const auto &[key, entity] : entities_) {
+      const bool explicitChild = entity.parent == ancestor;
+      const bool implicitChild =
+          entity.parent.empty() && entity.name.size() > ancestor.size() &&
+          entity.name.compare(0, ancestor.size(), ancestor) == 0 &&
+          entity.name[ancestor.size()] == '/';
+      if ((explicitChild || implicitChild) &&
+          std::find(removeNames.begin(), removeNames.end(), key) ==
+              removeNames.end())
+        removeNames.push_back(key);
     }
   }
 
-  // Remove children or unparent them
-  for (const auto &childName : e->children) {
-    auto *c = findEntity(childName);
-    if (c)
-      c->parent.clear();
+  // Drop links held by surviving parents before deleting the descendants.
+  for (const auto &deletedName : removeNames) {
+    auto it = entities_.find(deletedName);
+    if (it == entities_.end() || it->second.parent.empty())
+      continue;
+    if (auto *parent = findEntity(it->second.parent)) {
+      parent->children.erase(
+          std::remove(parent->children.begin(), parent->children.end(),
+                      deletedName),
+          parent->children.end());
+    }
   }
-
-  entities_.erase(actualName);
+  for (const auto &deletedName : removeNames) {
+    entities_.erase(deletedName);
+    insertionOrder_.erase(
+        std::remove(insertionOrder_.begin(), insertionOrder_.end(),
+                    deletedName),
+        insertionOrder_.end());
+  }
   rebuildRenderOrder();
   return true;
 }
@@ -241,38 +390,43 @@ std::size_t SceneGraph::destroyMatching(std::string_view pattern,
 
 void SceneGraph::clear() {
   entities_.clear();
+  insertionOrder_.clear();
   renderOrder_.clear();
+  nextCreationOrder_ = 1;
 }
 
 bool SceneGraph::setParent(std::string_view childName,
                            std::string_view parentName) {
-  auto *child = findEntity(childName);
+  Entity *child = findEntity(childName);
   if (!child)
     return false;
-
-  if (parentName.empty()) {
-    if (!child->parent.empty()) {
-      auto *oldParent = findEntity(child->parent);
-      if (oldParent) {
-        oldParent->children.erase(std::remove(oldParent->children.begin(),
-                                              oldParent->children.end(),
-                                              child->name),
-                                  oldParent->children.end());
-      }
-    }
-    child->parent.clear();
-    return true;
-  }
-
-  auto *parent = findEntity(parentName);
-  if (!parent)
+  Entity *parent = parentName.empty() ? nullptr : findEntity(parentName);
+  if (!parentName.empty() && !parent)
     return false;
-
-  child->parent = parent->name;
-  if (std::find(parent->children.begin(), parent->children.end(),
-                child->name) == parent->children.end())
+  // NitroSharp's world is a tree. A reparent must not make an entity its
+  // own ancestor, or traversal and recursive deletion would loop forever.
+  std::size_t depth = 0;
+  for (const Entity *ancestor = parent; ancestor;) {
+    if (ancestor == child || ++depth > entities_.size())
+      return false;
+    if (ancestor->parent.empty())
+      break;
+    ancestor = findEntity(ancestor->parent);
+  }
+  if (child->parent == (parent ? parent->name : std::string{}))
+    return true;
+  if (!child->parent.empty()) {
+    if (auto *oldParent = findEntity(child->parent)) {
+      oldParent->children.erase(
+          std::remove(oldParent->children.begin(), oldParent->children.end(),
+                      child->name),
+          oldParent->children.end());
+    }
+  }
+  child->parent = parent ? parent->name : std::string{};
+  if (parent && std::find(parent->children.begin(), parent->children.end(),
+                          child->name) == parent->children.end())
     parent->children.push_back(child->name);
-
   rebuildRenderOrder();
   return true;
 }

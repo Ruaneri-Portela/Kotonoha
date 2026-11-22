@@ -174,6 +174,31 @@ jobs:
             modules/vms/n2system/tests/ScriptVmTest.cpp \
             -o /tmp/kotonoha-n2-vm
           /tmp/kotonoha-n2-vm
+      - name: Verify NitroSharp query grammar and scene traversal in C++17
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            modules/vms/n2system/tests/EntityQueryTest.cpp \
+            -o /tmp/kotonoha-nitrosharp-query
+          /tmp/kotonoha-nitrosharp-query
+      - name: Compile and run native compiled NSB VM regressions
+        run: |
+          g++ -std=c++17 -O0 -Wall -Wextra -pthread \
+            -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/NsbScript.cpp \
+            modules/vms/n2system/src/NsbVm.cpp \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            modules/vms/n2system/src/AudioSystem.cpp \
+            modules/vms/n2system/src/DialogueSystem.cpp \
+            modules/vms/n2system/src/VariableStore.cpp \
+            modules/vms/n2system/src/SaveState.cpp \
+            modules/vms/n2system/src/ScriptIndex.cpp \
+            modules/vms/n2system/src/ScriptExecutor.cpp \
+            modules/vms/n2system/src/ScriptVm.cpp \
+            modules/vms/n2system/tests/NsbVmTest.cpp \
+            -o /tmp/kotonoha-n2-nsb-vm
+          /tmp/kotonoha-n2-nsb-vm
       - name: Compile and run native LucaSystem Debug Catalog regression
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
