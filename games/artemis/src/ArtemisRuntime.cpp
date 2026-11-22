@@ -11,6 +11,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -115,6 +116,7 @@ struct ArtemisRuntime::Impl {
   Kotonoha::PcmPlayer voicePlayer;
   std::unordered_map<int, std::unique_ptr<Kotonoha::PcmPlayer>> sePlayers;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
+  Kotonoha::VideoSkipGesture videoSkip;
 
   std::uint64_t lastBgmGeneration = 0;
   std::string lastDialogueKey;
@@ -281,6 +283,7 @@ void ArtemisRuntime::update() {
       if (!mvPath.empty() && assets_) {
         try {
           impl_->moviePlayer->open(*assets_, mvPath, false, "movie");
+          impl_->videoSkip.reset();
         } catch (...) {
           vm_.finishMovie();
         }
@@ -567,6 +570,12 @@ void ArtemisRuntime::renderGameplay(Kotonoha::RendererRef renderer,
 }
 
 bool ArtemisRuntime::onEvent(Kotonoha::EventRef event) {
+  if (vm_.waitReason() == VmWaitReason::Movie && impl_->moviePlayer &&
+      impl_->moviePlayer->isOpen()) {
+    if (impl_->videoSkip.accept(event) && vm_.movie().cancellable)
+      return handleAdvanceAction();
+    return true;
+  }
   // Route to open modal overlays first.
   if (impl_->saveMenu && impl_->saveMenu->isOpen())
     return impl_->saveMenu->onEvent(event);
