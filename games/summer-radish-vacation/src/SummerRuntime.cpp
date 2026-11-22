@@ -2074,7 +2074,7 @@ struct SummerRuntime::Impl {
       const std::string file = argStr(0);
       if (movie && !file.empty()) {
         try {
-          movie->open(assets->movieHandle(file), false, "Movie");
+          movie->open(assets->movieHandle(file), file, false, "Movie");
           pending = "MOVIE";
           videoSkip.reset();
           imoutoVm.waiting = true;
