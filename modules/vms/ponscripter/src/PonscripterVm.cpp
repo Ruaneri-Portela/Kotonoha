@@ -29,6 +29,9 @@ void PonscripterVm::clear() {
     sp = SpriteSlot{};
   allSpritesHidden_ = false;
   allSprites2Hidden_ = false;
+  manualFrameVisible_ = false;
+  manualDraftOps_.clear();
+  manualDisplayOps_.clear();
   for (auto &b : bars_)
     b = BarGauge{};
   for (auto &p : prnums_)
@@ -112,6 +115,9 @@ void PonscripterVm::resetToStart() {
     sp = SpriteSlot{};
   allSpritesHidden_ = false;
   allSprites2Hidden_ = false;
+  manualFrameVisible_ = false;
+  manualDraftOps_.clear();
+  manualDisplayOps_.clear();
   for (auto &b : bars_)
     b = BarGauge{};
   for (auto &p : prnums_)
@@ -928,6 +934,9 @@ SlotSaveData PonscripterVm::exportSlotSave() const {
   data.standing = standing_;
   data.allSpritesHidden = allSpritesHidden_;
   data.allSprites2Hidden = allSprites2Hidden_;
+  data.manualFrameVisible = manualFrameVisible_;
+  data.manualDraftOps = manualDraftOps_;
+  data.manualDisplayOps = manualDisplayOps_;
   for (int i = 0; i < kMaxExtendedSprites; ++i) {
     if (sprites_[i].loaded)
       data.sprites[i] = sprites_[i];
@@ -964,6 +973,9 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   standing_ = data.standing;
   allSpritesHidden_ = data.allSpritesHidden;
   allSprites2Hidden_ = data.allSprites2Hidden;
+  manualFrameVisible_ = data.manualFrameVisible;
+  manualDraftOps_ = data.manualDraftOps;
+  manualDisplayOps_ = data.manualDisplayOps;
   for (int i = 0; i < 3; ++i) {
     if (standing_[i].loaded)
       populateStandingDimensions(standing_[i], i);
