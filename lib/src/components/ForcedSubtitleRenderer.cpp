@@ -5,12 +5,24 @@
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
 
 namespace Kotonoha {
+namespace {
+
+std::string asciiLower(std::string value) {
+  std::transform(value.begin(), value.end(), value.begin(),
+                 [](unsigned char ch) {
+                   return static_cast<char>(std::tolower(ch));
+                 });
+  return value;
+}
+
+} // namespace
 
 ForcedSubtitleRenderer::ForcedSubtitleRenderer(Engine &engine)
     : SubtitleScene(engine) {
@@ -47,11 +59,13 @@ void ForcedSubtitleRenderer::buildSubtitleCache() {
   }
   for (const auto &entry :
        std::filesystem::recursive_directory_iterator(sourceDirectory_)) {
-    if (!entry.is_regular_file() || entry.path().extension() != ".ass")
+    if (!entry.is_regular_file() ||
+        asciiLower(entry.path().extension().string()) != ".ass")
       continue;
-    const auto name = entry.path().filename().string();
-    if (!cache.emplace(name, entry.path()).second)
-      throw std::runtime_error("Duplicate forced subtitle filename: " + name);
+    const auto key = asciiLower(entry.path().filename().string());
+    if (!cache.emplace(key, entry.path()).second)
+      throw std::runtime_error("Duplicate forced subtitle filename: " +
+                               entry.path().filename().string());
   }
   subtitleCache = std::move(cache);
   cacheBuilt = true;
@@ -95,7 +109,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
       if (const auto dumped = dumpedSubtitles.find(id);
           dumped != dumpedSubtitles.end())
         return dumped->second;
-      if (const auto found = subtitleCache.find(fileName(id));
+      if (const auto found = subtitleCache.find(asciiLower(fileName(id)));
           found != subtitleCache.end())
         return found->second;
       return std::nullopt;

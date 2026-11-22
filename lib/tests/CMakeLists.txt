@@ -170,6 +170,10 @@ if(KOTONOHA_TEST_FFMPEG)
 endif()
 
 # Pure C++17 wrapping test; runs without SDL, a window or game assets.
+add_executable(KotonohaEncodingUtfTests EncodingUtfTests.cpp)
+target_link_libraries(KotonohaEncodingUtfTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.EncodingUtf COMMAND KotonohaEncodingUtfTests)
+
 add_executable(KotonohaTextWrappingStandaloneTests TextWrappingStandalone.cpp)
 target_include_directories(KotonohaTextWrappingStandaloneTests PRIVATE
     "${KOTONOHA_PROJECT_ROOT}/lib/include")
@@ -192,6 +196,16 @@ target_compile_features(KotonohaImGuiFrameScopeTests PRIVATE cxx_std_17)
 target_link_libraries(KotonohaImGuiFrameScopeTests PRIVATE
     ${KOTONOHA_IMGUI_TARGET})
 add_test(NAME Kotonoha.ImGuiFrameScope COMMAND KotonohaImGuiFrameScopeTests)
+
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
+add_executable(KotonohaImGuiThemeTests ImGuiThemeTests.cpp)
+target_link_libraries(KotonohaImGuiThemeTests PRIVATE KotonohaEngine)
+target_compile_definitions(KotonohaImGuiThemeTests PRIVATE
+    KOTONOHA_TEST_FONT="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/SvgTestFont.ttf")
+add_test(NAME Kotonoha.ImGuiTheme COMMAND KotonohaImGuiThemeTests)
+set_tests_properties(Kotonoha.ImGuiTheme PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+endif()
 
 add_executable(KotonohaDebugTranslationTests DebugTranslationTests.cpp)
 target_link_libraries(KotonohaDebugTranslationTests PRIVATE KotonohaEngine)
