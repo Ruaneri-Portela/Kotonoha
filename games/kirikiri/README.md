@@ -165,3 +165,11 @@ and `Layer.clearText()` are supported. A title with text-only interactive
 layers is eligible for the scripted menu instead of needing image textures.
 These changes cover a source-level subset, not every KiriKiri native font or
 canvas drawing operation. The menu test is synthetic.
+
+## Scripted menu mouse-release handlers
+
+Layer `onMouseUp` events are now retained, hit-tested front-to-back,
+executed on left-button release, and can select a KAG scenario just like
+existing `onClick`/mouse-down handlers. The top-level runtime routes these
+through the same fallback and diagnostic logic as press events. Synthetic
+coverage checks release-only menu buttons and hit testing.
