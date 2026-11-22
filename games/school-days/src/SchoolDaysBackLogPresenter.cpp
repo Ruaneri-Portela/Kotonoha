@@ -10,6 +10,7 @@
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 namespace Kotonoha {
@@ -17,16 +18,7 @@ namespace Kotonoha {
 namespace {
 
 std::string Utf16ToUtf8BackLog(const std::u16string &text) {
-  if (text.empty())
-    return {};
-  char *converted = SDL_iconv_string(
-      "UTF-8", "UTF-16LE", reinterpret_cast<const char *>(text.c_str()),
-      (text.size() + 1u) * sizeof(char16_t));
-  if (converted == nullptr)
-    return {};
-  std::string result(converted);
-  SDL_free(converted);
-  return result;
+  return Kotonoha::Utf16ToUtf8(text);
 }
 
 // The bundled UI font and common Windows UI/CJK fonts do not necessarily
