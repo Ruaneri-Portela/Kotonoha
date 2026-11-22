@@ -1284,6 +1284,20 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
 
       if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, sp.spec)) {
+        SDL_BlendMode blend = SDL_BLENDMODE_BLEND;
+        if (sp.blendMode == 1) {
+          blend = SDL_BLENDMODE_ADD;
+        } else if (sp.blendMode == 2) {
+          blend = SDL_ComposeCustomBlendMode(
+              SDL_BLENDFACTOR_SRC_ALPHA, SDL_BLENDFACTOR_ONE,
+              SDL_BLENDOPERATION_REV_SUBTRACT,
+              SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_ONE,
+              SDL_BLENDOPERATION_ADD);
+        }
+        // Texture objects are cached across sprites, so reset their blend mode
+        // on every draw. The software backend may reject custom subtraction.
+        if (!SDL_SetTextureBlendMode(tex, blend))
+          SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
         float tw = 0.0f, th = 0.0f;
         SDL_GetTextureSize(tex, &tw, &th);
         const auto *processed = impl_->getProcessedImage(sp.spec);
