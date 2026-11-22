@@ -2763,6 +2763,11 @@ Value Vm::menu(const std::vector<Interaction::Item> &items,
   // The caption only borrows the window; later pauses must not show it empty.
   if (windowAuto_)
     scene.window.visible = wasVisible;
+  // A missing result is not choice zero; let the caller fall through.
+  if (r.isNone()) {
+    committed = scene;
+    return Value();
+  }
   const size_t i = size_t(std::max<int64_t>(0, r.integer()));
   committed = scene;
   return i < items.size() ? items[i].value : Value();
