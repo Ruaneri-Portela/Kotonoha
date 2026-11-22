@@ -273,6 +273,20 @@ preventing an immediate jump to the old animation's endpoint. Save V6 uses
 the exact same interpolation when snapshotting an in-progress movement.
 Standalone SceneLayers regressions cover all these cases.
 
+## Robust RGBA uploads and missing-image retry
+
+The renderer now constructs and uploads CZ image textures fully before
+publishing them to caches. Failed SDL uploads or blend/sampler setup destroy
+the provisional texture, avoiding random VRAM garbage on the next frame.
+Script objects, title art, dialogue atlas and splash logos share this path.
+The SDL3 pixel regression verifies a valid RGBA upload and rejects missing
+pixels/invalid strides.
+
+Missing or corrupt image assets are logged no more than once per two seconds
+per ID, preventing repeated archive extraction and decoding in every frame.
+A later retry still permits an overlay to repair the missing asset. Invalid
+non-finite or zero-size sprite geometry is ignored instead of sent to SDL.
+
 ## SDL3 pixel-based scene regression
 
 A dedicated SDL-backed C++17 regression now exercises the same GPU composition

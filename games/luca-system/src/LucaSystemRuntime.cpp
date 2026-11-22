@@ -465,14 +465,11 @@ private:
     if (image.rgba.empty())
       return nullptr;
     if (!target) {
-      target.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
-                                     SDL_TEXTUREACCESS_STATIC, image.width,
-                                     image.height));
-      if (!target || !SDL_UpdateTexture(target.get(), nullptr,
-                                        image.rgba.data(), image.width * 4))
+      target.reset(uploadAirStaticRgba(renderer, image.width, image.height,
+                                       image.rgba.data(), image.width * 4,
+                                       SDL_SCALEMODE_LINEAR));
+      if (!target)
         return nullptr;
-      SDL_SetTextureScaleMode(target.get(), SDL_SCALEMODE_LINEAR);
-      SDL_SetTextureBlendMode(target.get(), SDL_BLENDMODE_BLEND);
     }
     return target.get();
   }
@@ -1764,6 +1761,7 @@ struct LucaSystemRuntime::Impl {
   size_t instructionIndex = 0;
   std::unordered_map<uint32_t, CzImage> objectImages;
   std::unordered_map<uint32_t, Kotonoha::TexturePtr> objectTextures;
+  std::unordered_map<uint32_t, uint64_t> failedImageRetryAt;
   CzImage background;
   Kotonoha::TexturePtr backgroundTexture;
   std::unordered_map<uint32_t, int32_t> numericVars;
@@ -2414,6 +2412,10 @@ struct LucaSystemRuntime::Impl {
   void loadObjectImage(uint32_t id) {
     if (id == 0 || objectImages.count(id))
       return;
+    const uint64_t now = SDL_GetTicks();
+    if (const auto retry = failedImageRetryAt.find(id);
+        retry != failedImageRetryAt.end() && now < retry->second)
+      return;
     try {
       auto image = DecodeCzImage(assets->readImageAsset(id));
       // Fill RGB in fully transparent boundary texels. SDL samples straight
@@ -2424,7 +2426,14 @@ struct LucaSystemRuntime::Impl {
             image.rgba.data(), image.width, image.height, image.width * 4);
       objectImages[id] = std::move(image);
       objectTextures[id].reset();
+      failedImageRetryAt.erase(id);
     } catch (const std::exception &e) {
+      // A missing/CZ-corrupt asset may be referenced by several slots.
+      // Decode/log at most once per two seconds, not every frame. Retry
+      // later so a newly mounted asset overlay can still fix the image.
+      if (failedImageRetryAt.size() > 4096)
+        failedImageRetryAt.clear();
+      failedImageRetryAt[id] = now + 2000;
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: image %u: %s", id,
                   e.what());
     }
@@ -2563,8 +2572,10 @@ struct LucaSystemRuntime::Impl {
   void renderSlottedLayer(Kotonoha::RendererRef renderer,
                           const SlottedLayer &slot, uint64_t now,
                           float opacityMod = 1.0f) {
-    if (!slot.visible || slot.assetId == 0 || slot.alpha <= 0.0f ||
-        opacityMod <= 0.0f)
+    if (!slot.visible || slot.assetId == 0 || !std::isfinite(slot.alpha) ||
+        slot.alpha <= 0.0f || !std::isfinite(opacityMod) ||
+        opacityMod <= 0.0f || !std::isfinite(slot.scaleX) ||
+        !std::isfinite(slot.scaleY))
       return;
     loadObjectImage(slot.assetId);
     auto it = objectImages.find(slot.assetId);
@@ -2573,17 +2584,13 @@ struct LucaSystemRuntime::Impl {
     const auto &img = it->second;
     auto &tex = objectTextures[slot.assetId];
     if (!tex) {
-      tex.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
-                                  SDL_TEXTUREACCESS_STATIC, img.width,
-                                  img.height));
-      if (!tex || !SDL_UpdateTexture(tex.get(), nullptr, img.rgba.data(),
-                                     img.width * 4))
+      tex.reset(uploadAirStaticRgba(
+          renderer, img.width, img.height, img.rgba.data(), img.width * 4,
+          (slot.assetId == 65000 || slot.assetId == 65001)
+              ? SDL_SCALEMODE_NEAREST
+              : SDL_SCALEMODE_LINEAR));
+      if (!tex)
         return;
-      SDL_SetTextureScaleMode(tex.get(),
-                              (slot.assetId == 65000 || slot.assetId == 65001)
-                                  ? SDL_SCALEMODE_NEAREST
-                                  : SDL_SCALEMODE_LINEAR);
-      SDL_SetTextureBlendMode(tex.get(), SDL_BLENDMODE_BLEND);
     }
 
     const float alpha = std::clamp(slot.alpha * opacityMod, 0.0f, 1.0f);
@@ -2621,6 +2628,10 @@ struct LucaSystemRuntime::Impl {
           offY, shakeY);
     }
 
+    if (!std::isfinite(drawX) || !std::isfinite(drawY) ||
+        !std::isfinite(drawW) || !std::isfinite(drawH) ||
+        drawW <= 0 || drawH <= 0)
+      return;
     SDL_FRect dst{drawX, drawY, drawW, drawH};
     // WIPE uses a full-scene clip instead of cropping a rotated/scaled
     // sprite's source rectangle, which used to shift faces and stretch art.
@@ -3695,6 +3706,7 @@ void LucaSystemRuntime::shutdown() {
   impl.menu = nullptr;
   impl.titleBackgroundTexture.reset();
   impl.objectTextures.clear();
+  impl.failedImageRetryAt.clear();
   impl.backgroundTexture.reset();
   impl.splashLogos.clear();
   if (impl.assets)
@@ -3883,14 +3895,10 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     } else {
       auto &logo = impl.splashLogos[impl.currentSplashIndex - 1];
       if (!logo.texture && !logo.image.rgba.empty()) {
-        logo.texture.reset(SDL_CreateTexture(
-            &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC,
-            logo.image.width, logo.image.height));
-        if (logo.texture) {
-          SDL_UpdateTexture(logo.texture.get(), nullptr, logo.image.rgba.data(),
-                            logo.image.width * 4);
-          SDL_SetTextureBlendMode(logo.texture.get(), SDL_BLENDMODE_BLEND);
-        }
+        logo.texture.reset(uploadAirStaticRgba(
+            renderer, logo.image.width, logo.image.height,
+            logo.image.rgba.data(), logo.image.width * 4,
+            SDL_SCALEMODE_LINEAR));
       }
       const auto logoElapsed = std::min(elapsed, Impl::logoDuration);
       float alpha = 1.0f;
@@ -3945,14 +3953,11 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (image.rgba.empty())
         return nullptr;
       if (!target) {
-        target.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
-                                       SDL_TEXTUREACCESS_STATIC, image.width,
-                                       image.height));
-        if (!target || !SDL_UpdateTexture(target.get(), nullptr,
-                                          image.rgba.data(), image.width * 4))
+        target.reset(uploadAirStaticRgba(
+            renderer, image.width, image.height, image.rgba.data(),
+            image.width * 4, SDL_SCALEMODE_LINEAR));
+        if (!target)
           return nullptr;
-        SDL_SetTextureScaleMode(target.get(), SDL_SCALEMODE_LINEAR);
-        SDL_SetTextureBlendMode(target.get(), SDL_BLENDMODE_BLEND);
       }
       return target.get();
     };
