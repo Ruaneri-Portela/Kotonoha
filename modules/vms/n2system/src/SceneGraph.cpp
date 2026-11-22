@@ -114,57 +114,87 @@ Entity *SceneGraph::createEntity(std::string_view name, EntityType type) {
 }
 
 Entity *SceneGraph::findEntity(std::string_view name) {
-  if (name.empty())
-    return nullptr;
-  std::string key(name);
-  if (key.front() == '@') {
-    const std::string_view aliasQuery(key.data() + 1, key.size() - 1);
-    for (auto &[k, e] : entities_) {
-      if (!e.alias.empty() && e.alias == aliasQuery)
-        return &e;
-    }
-    auto it = entities_.find(std::string(aliasQuery));
-    if (it != entities_.end())
-      return &it->second;
-    return nullptr;
-  }
-
-  auto it = entities_.find(key);
-  if (it != entities_.end())
-    return &it->second;
-
-  // Search by alias
-  for (auto &[k, e] : entities_) {
-    if (!e.alias.empty() && e.alias == key)
-      return &e;
-  }
-  return nullptr;
+  // The const implementation performs all reads, so direct callers and
+  // renderer access use identical and deterministic path resolution.
+  return const_cast<Entity *>(
+      static_cast<const SceneGraph *>(this)->findEntity(name));
 }
 
 const Entity *SceneGraph::findEntity(std::string_view name) const {
   if (name.empty())
     return nullptr;
-  std::string key(name);
-  if (key.front() == '@') {
-    const std::string_view aliasQuery(key.data() + 1, key.size() - 1);
-    for (const auto &[k, e] : entities_) {
-      if (!e.alias.empty() && e.alias == aliasQuery)
-        return &e;
+  const std::string key(name);
+  // Keep the exact identifiers used by the legacy NSB port, including
+  // slash-qualified objects that were created before their parents.
+  if (name.front() != '@') {
+    const auto exact = entities_.find(key);
+    if (exact != entities_.end())
+      return &exact->second;
+  }
+
+  const auto byAlias = [this](std::string_view alias) -> const Entity * {
+    const Entity *best = nullptr;
+    for (const auto &[key, entity] : entities_) {
+      if (entity.alias == alias &&
+          (!best || entity.creationOrder < best->creationOrder))
+        best = &entity;
     }
-    auto it = entities_.find(std::string(aliasQuery));
-    if (it != entities_.end())
-      return &it->second;
-    return nullptr;
+    return best;
+  };
+  if (name.front() == '@' && name.find('/') == std::string_view::npos) {
+    if (auto *entity = byAlias(name.substr(1)))
+      return entity;
+    auto legacy = entities_.find(std::string(name.substr(1)));
+    return legacy == entities_.end() ? nullptr : &legacy->second;
   }
 
-  auto it = entities_.find(key);
-  if (it != entities_.end())
-    return &it->second;
-
-  for (const auto &[k, e] : entities_) {
-    if (!e.alias.empty() && e.alias == key)
-      return &e;
+  // NitroSharp EntityPath supports exact components and per-part @aliases;
+  // unlike a query, it cannot contain "*" or scopes "<" and "<@".
+  const auto path = EntityPath::tryParse(name);
+  if (path && path->parts().size() > 1) {
+    const Entity *parent = nullptr;
+    for (const auto &part : path->parts()) {
+      const Entity *unique = nullptr;
+      for (const auto &[key, entity] : entities_) {
+        bool matches = false;
+        if (part.isAlias) {
+          matches = entity.alias == part.value;
+        } else {
+          const auto slash = entity.name.rfind('/');
+          const std::string_view local =
+              slash == std::string::npos
+                  ? std::string_view(entity.name)
+                  : std::string_view(entity.name).substr(slash + 1);
+          const std::string_view entityParent =
+              !entity.parent.empty()
+                  ? std::string_view(entity.parent)
+                  : (slash == std::string::npos
+                         ? std::string_view{}
+                         : std::string_view(entity.name).substr(0, slash));
+          matches = local == part.value &&
+                    entityParent ==
+                        (parent ? std::string_view(parent->name)
+                                : std::string_view{});
+        }
+        if (matches) {
+          // A path is a single entity, not a multi-target query. NitroSharp
+          // rejects ambiguous intermediate path components.
+          if (unique)
+            return nullptr;
+          unique = &entity;
+        }
+      }
+      if (!unique)
+        return nullptr;
+      parent = unique;
+    }
+    return parent;
   }
+
+  // Older native scripts occasionally address a registered alias without
+  // '@'. Preserve that lookup only for a single unqualified identifier.
+  if (name.find('/') == std::string_view::npos)
+    return byAlias(name);
   return nullptr;
 }
 
