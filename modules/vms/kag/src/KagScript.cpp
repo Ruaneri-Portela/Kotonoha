@@ -820,13 +820,51 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     }
     return false;
   }
-  if (name == "layopt" && !getAttrBool(tag, "visible", true)) {
-    const auto layer = getAttr(tag, "layer", "0");
-    if (layer == "base") {
-      if (cb_.showBg)
-        cb_.showBg("", 0);
-    } else if (cb_.hideChar) {
-      cb_.hideChar(layer, 0);
+  if (name == "layopt") {
+    LayerOptions options;
+    options.layer = getAttr(tag, "layer", "0");
+    const auto number = [&](const char *key) -> std::optional<int> {
+      const auto found = tag.attrs.find(key);
+      if (found == tag.attrs.end())
+        return std::nullopt;
+      try {
+        std::size_t consumed = 0;
+        const int parsed = std::stoi(found->second, &consumed);
+        if (consumed != found->second.size())
+          throw std::invalid_argument("trailing characters");
+        return parsed;
+      } catch (const std::exception &) {
+        throw std::runtime_error(std::string("KAG: invalid layopt ") + key);
+      }
+    };
+    options.left = number("left");
+    options.top = number("top");
+    options.opacity = number("opacity");
+    options.order = number("order");
+    if (const auto visible = tag.attrs.find("visible");
+        visible != tag.attrs.end()) {
+      std::string value = visible->second;
+      std::transform(value.begin(), value.end(), value.begin(),
+                     [](unsigned char ch) { return std::tolower(ch); });
+      if (value == "1" || value == "true" || value == "yes" ||
+          value == "on")
+        options.visible = true;
+      else if (value == "0" || value == "false" || value == "no" ||
+               value == "off")
+        options.visible = false;
+      else
+        throw std::runtime_error("KAG: invalid layopt visible");
+    }
+    if (cb_.updateLayer) {
+      cb_.updateLayer(std::move(options));
+    } else if (options.visible && !*options.visible) {
+      // Legacy callback hosts do not retain layer state.
+      if (options.layer == "base") {
+        if (cb_.showBg)
+          cb_.showBg("", 0);
+      } else if (cb_.hideChar) {
+        cb_.hideChar(options.layer, 0);
+      }
     }
     return false;
   }
