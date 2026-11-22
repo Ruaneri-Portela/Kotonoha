@@ -1,4 +1,5 @@
 #include <Ddlc/Runtime.hpp>
+#include <Ddlc/DdlcAssets.hpp>
 
 #include <SDL3/SDL.h>
 #include <zlib.h>
@@ -187,6 +188,14 @@ int main() {
                    std::streamsize(bytes.size()));
       require(bool(output), "Write synthetic compat.rpymc");
     }
+    // A standard Ren'Py project may use script.rpyc without DDLC archives
+    // and without a splashscreen. The generic provider must accept it.
+    Kotonoha::Providers::DdlcAssets generic(temp.directory);
+    require(!generic.isDdlc() && !generic.isKatawa() &&
+                generic.script().hasLabel("start") &&
+                generic.name().rfind("Ren'Py", 0) == 0,
+            "Load generic compiled Ren'Py game without DDLC assumptions");
+
     Ddlc::Assets assets;
     require(assets.open(temp.directory.string()), "Open synthetic script source");
     Ddlc::Script script;
