@@ -115,7 +115,8 @@ public:
                                    const std::string &method,
                                    bool classMethod, const VmValue &receiver,
                                    unsigned number,
-                                   const std::vector<VmValue> &arguments);
+                                   const std::vector<VmValue> &arguments,
+                                   bool ps2Layout = false);
 
 private:
   uint64_t newSprite(uint32_t texture, uint32_t variant, int64_t layer);
