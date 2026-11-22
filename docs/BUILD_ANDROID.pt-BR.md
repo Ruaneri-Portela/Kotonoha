@@ -15,4 +15,4 @@ No Windows, use `gradlew.bat` e defina `VCPKG_ROOT` no ambiente. O Gradle obtém
 
 Exemplos de flavors: `Launcher` (Hub Unificado), `Example`, `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `DokiDoki`, `SchoolDays`, `RealLive`, `Kirikiri`, `LucaSystem`, `Pmail`, `Ponscripter` e `N2System`. Instale com `:app:install<Flavor>Debug`.
 
-Por padrão, o Gradle inclui `game-assets` da variante. Use `-PbundleGameAssets=false` para dados externos (o exemplo continua incluído). Não versionar assets licenciados. Consulte os [detalhes do projeto Android](../buildsystems/android/README.pt-BR.md).
+Por padrão, o Gradle **não inclui** `game-assets` comerciais (o Example continua incluído). Para testes privados com arquivos cuja utilização seja autorizada, passe explicitamente `-PbundleGameAssets=true`; a variante `dist` sempre exclui dados comerciais. Não redistribua dados proprietários sem permissão nem os versione. Consulte os [detalhes do projeto Android](../buildsystems/android/README.pt-BR.md).

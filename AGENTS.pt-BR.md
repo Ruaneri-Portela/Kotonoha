@@ -17,12 +17,12 @@ O Kotonoha é um **motor de visual novel modular em C++17** construído sobre SD
 | `lib/` | Biblioteca central do motor, interfaces compartilhadas, cabeçalhos públicos (`lib/include/Kotonoha/`) e testes unitários. |
 | `modules/vms/` | Máquinas virtuais de script (Amagami, Snow Radish, Summer Radish, Ren'Py/DDLC, RealLive, Pure Mail). Execução pura de script, independente de renderização. |
 | `modules/providers/` | Decodificadores de arquivos e formatos de pacotes que implementam `Kotonoha::AssetProvider` (CMP, ADV, GPK, XP3, PAK, RealLive, RPA, Amagami, Pmail, Zero). |
-| `games/` | 15 aplicações de jogos (14 ports e Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`). |
+| `games/` | 16 aplicações de jogos (15 ports e Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`, `artemis`). |
 | `buildsystems/` | Orquestração de compilação por plataforma: `cmake/` (módulos CMake), `android/` (projeto Gradle), `xcode/` (`Kotonoha.xcodeproj` nativo). |
 | `assets/` | Recursos compartilhados do motor (fontes, ícones, shaders) e avisos legais de terceiros. |
 | `docs/` | Documentação bilíngue completa (`*.md` em en-US, `*.pt-BR.md` em pt-BR). |
 | `tools/` | Verificação de build, validação de metadados, empacotamento de assets e utilitários web. |
-| `translations/` | Catálogos de localização e strings. |
+| `launcher/` | Launcher unificado para execução dos runtimes em um único processo. |
 | `vcpkg.json` / `vcpkg-overlays/` | Manifesto de dependências e overlays de ports customizados do vcpkg. |
 
 ### Invariantes Arquiteturais

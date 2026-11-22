@@ -16,7 +16,7 @@ Execute dentro de `buildsystems/android/` (PowerShell: defina `$env:VCPKG_ROOT` 
 - APKs ficam em `app/build/outputs/apk/`. ABIs padrão: `arm64-v8a,armeabi-v7a,x86_64`; compile só ARMv7 com `-Pabis=armeabi-v7a`. O ARMv7 exige NEON (`ANDROID_ARM_NEON=ON`, triplet vcpkg `arm-neon-android`), portanto o dispositivo 32 bits deve ter suporte a NEON.
 - Cada flavor tem seu ID próprio e o CMake compila apenas o alvo nativo correspondente.
 - O Gradle usa o submódulo SDL e dependências do vcpkg. DDLC usa CPython por ABI (`armeabi-v7a` utiliza `arm-neon-android`); prefira uma ABI por build.
-- Gradle inclui `assets/` do motor e `game-assets/` do jogo; `-PbundleGameAssets=false` exclui os dados comerciais. Resources empacotados são extraídos no início; saves ficam separados.
+- Gradle inclui `assets/` do motor, mas **exclui `game-assets/` comerciais por padrão**; o Example continua com assets próprios. `-PbundleGameAssets=true` é exclusivo para testes privados autorizados e a variante Android `dist` sempre exclui esses dados. Os recursos são extraídos no início; saves ficam separados.
 - No Android, iOS e WebAssembly (WASM), dados de usuário e saves são armazenados diretamente em `pacote/**` (ignorando o nome do pacote/bundle), enquanto builds desktop standalone usam `Kotonoha/pacote/**`. No modo unificado (`UnifiedLauncher`), o nome do pacote é omitido para os saves.
 - Importações de pastas e ZIP no Android utilizam cópia robusta de diretórios e persistência de permissão SAF.
 

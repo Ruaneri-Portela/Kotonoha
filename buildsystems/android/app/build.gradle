@@ -39,8 +39,13 @@ if (!new File(vcpkgRoot, 'scripts/buildsystems/vcpkg.cmake').isFile()) {
   throw new GradleException("Invalid VCPKG_ROOT: ${vcpkgRoot}")
 }
 
+// Retail game files are never silently included in a distributable APK.
+// Developers may explicitly bundle authorized local data for private testing.
 def includeGameAssets = providers.gradleProperty('bundleGameAssets')
-  .orElse('true').get().toBoolean()
+  .orElse('false').get().toBoolean()
+if (includeGameAssets) {
+  logger.warn('[Kotonoha] bundleGameAssets=true: do not redistribute APKs containing commercial game data without permission.')
+}
 
 def rawAbis = providers.gradleProperty('abis')
   .orElse('arm64-v8a,armeabi-v7a,x86_64').get().split(',').toList()
@@ -216,11 +221,28 @@ android.applicationVariants.all { variant ->
   def isLauncher = variant.flavorName == 'launcher'
   def gameAssets = new File(engineRoot, "games/${game[0]}/game-assets")
   def schoolDaysRoute = new File(engineRoot, 'games/school-days/game-assets/school-days-hq.ktnroute')
-  def includeThisGame = !isLauncher && (includeGameAssets || variant.flavorName == 'example')
+  // The isolated dist variant must never embed retail game content, even if
+  // the property is enabled for private debug/release testing.
+  def includeThisGame = !isLauncher &&
+    (variant.flavorName == 'example' ||
+     (includeGameAssets && variant.buildType.name != 'dist'))
 
   def assets = tasks.register("stage${taskSuffix}Assets", Sync) {
     from(new File(engineRoot, 'assets')) {
       into 'assets'
+    }
+    // Keep license and attribution notices with every distributable APK.
+    from(new File(engineRoot, 'LICENSE')) {
+      into 'licenses'
+    }
+    from(new File(engineRoot, 'THIRD_PARTY_NOTICES.md')) {
+      into 'licenses'
+    }
+    from(new File(engineRoot, 'modules/providers/amagami/third_party/open-amagami-LICENSE.txt')) {
+      into 'licenses/third-party'
+    }
+    from(new File(engineRoot, 'games/reallive/vendor/libreallive/LICENSE')) {
+      into 'licenses/third-party'
     }
 
     if (includeThisGame) {
