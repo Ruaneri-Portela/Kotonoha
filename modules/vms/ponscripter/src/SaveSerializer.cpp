@@ -389,6 +389,9 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
         continue;
       op.kind = static_cast<ManualDrawOp::Kind>(kindValue);
       op.affine = affine != 0;
+      op.alpha = std::clamp(op.alpha, 0, 255);
+      op.scaleX = std::clamp(op.scaleX, -10000, 10000);
+      op.scaleY = std::clamp(op.scaleY, -10000, 10000);
       if (ls.peek() == '\t')
         ls.get();
       std::string raw, spriteText, text;
