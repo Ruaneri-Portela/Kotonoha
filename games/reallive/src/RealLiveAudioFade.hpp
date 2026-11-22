@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
+#include <stdexcept>
 
 namespace RealLive {
 
@@ -37,6 +39,32 @@ inline int advanceBgmFade(int elapsed, int duration, std::uint64_t deltaMs) {
   if (deltaMs >= remaining)
     return duration;
   return prior + static_cast<int>(deltaMs);
+}
+
+// A RealLive BGM resume offset is measured in milliseconds, not 44.1 kHz
+// frames. Convert using the decoded clip's actual rate. Work in long double
+// and clamp before converting to size_t to avoid overflow in corrupt scripts.
+inline std::size_t bgmSeekFrame(std::int64_t startFrame,
+                                std::int64_t offsetMilliseconds,
+                                int sampleRate, std::size_t totalFrames) {
+  if (offsetMilliseconds < 0 || sampleRate <= 0)
+    throw std::invalid_argument("Invalid RealLive music seek");
+  const long double position =
+      static_cast<long double>(startFrame) +
+      static_cast<long double>(offsetMilliseconds) * sampleRate / 1000.0L;
+  if (position <= 0)
+    return 0;
+  if (position >= static_cast<long double>(totalFrames))
+    return totalFrames;
+  return static_cast<std::size_t>(position);
+}
+
+inline std::int64_t bgmResumeMilliseconds(double seconds) {
+  if (!std::isfinite(seconds) || seconds < 0 ||
+      seconds > static_cast<double>(
+                    std::numeric_limits<std::int64_t>::max() / 1000))
+    throw std::out_of_range("Invalid RealLive saved BGM position");
+  return static_cast<std::int64_t>(std::llround(seconds * 1000.0));
 }
 
 }  // namespace RealLive

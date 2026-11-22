@@ -177,3 +177,12 @@ ctest --test-dir build -R RealLive.PersistentHistory --output-on-failure
 
 CG/gallery unlock rules and complete native menu fidelity still require
 reference edition data and original-game playthrough testing.
+
+## Sample-rate-aware BGM resume
+
+Presentation saves record BGM time in seconds and restore the decoded PCM
+clip at its actual sampling rate, whether 22,050 Hz, 32,000 Hz, 44,100 Hz or
+48,000 Hz. The interpreter no longer assumes 44.1 kHz when converting a saved
+position back to frames; relative seeks are also bounded before pointer math.
+Synthetic audio regressions test round-trip and overflow cases without licensed
+music files.
