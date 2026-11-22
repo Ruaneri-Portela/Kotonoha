@@ -12,9 +12,17 @@
 
 namespace Ponscripter {
 
+struct CallArgument {
+  bool isString = false;
+  int number = 0;
+  std::string text;
+};
+
 struct CallStackEntry {
   std::size_t returnStatementIndex = 0;
   std::string targetLabel;
+  std::vector<CallArgument> arguments;
+  std::size_t nextArgument = 0;
 };
 
 struct ForLoopFrame {
