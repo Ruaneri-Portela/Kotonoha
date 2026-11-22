@@ -41,7 +41,7 @@ orderedAirLayerKeys(const std::map<std::uint16_t, Layer> &slots) {
 // position before a second MOVE prevents a visible jump to the old endpoint.
 inline float airMoveOffset(float start, float target, std::uint64_t began,
                            std::uint64_t duration, std::uint64_t now) {
-  if (duration == 0 || now >= began && now - began >= duration)
+  if (duration == 0 || (now >= began && now - began >= duration))
     return target;
   if (now <= began)
     return start;
