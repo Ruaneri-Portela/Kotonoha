@@ -1006,6 +1006,64 @@ int main() {
       std::printf("FAIL: KAG invalid conditional state accepted\n"), ++failures;
   }
 
+  // KAG original title menus use [glink] and inline [link] anchors
+  // followed by [s]. They must expose actionable choices rather than
+  // completing the VM without user input.
+  {
+    const auto script = Kirikiri::KagScript::parse(
+        "*menu\n"
+        "[glink text=Play target=*play]"
+        "[link target=*config]Settings[endlink]"
+        "[s]\n"
+        "*play\n[cm text=Playing][end]\n"
+        "*config\n[cm text=Settings-open][end]",
+        "menu-links.ks");
+    for (int selected = 0; selected < 2; ++selected) {
+      std::vector<std::string> shown, options;
+      std::function<void(int)> choose;
+      Kirikiri::KagScript::Callbacks cb;
+      cb.showText = [&](std::string, std::string text) {
+        shown.push_back(std::move(text));
+      };
+      cb.showChoice = [&](std::string, std::vector<std::string> displayed,
+                          std::function<void(int)> callback) {
+        options = std::move(displayed);
+        choose = std::move(callback);
+      };
+      Kirikiri::KagScript::Runner runner(script, cb);
+      runner.run();
+      if (options != std::vector<std::string>({"Play", "Settings"}) ||
+          !runner.isBlocked() || !choose) {
+        std::printf("FAIL: KAG glink/link menu not presented\n");
+        ++failures;
+        continue;
+      }
+      choose(selected);
+      const std::string expected = selected == 0 ? "Playing" : "Settings-open";
+      if (shown != std::vector<std::string>{expected} || !runner.isBlocked()) {
+        std::printf("FAIL: KAG glink/link menu selection target\n");
+        ++failures;
+      }
+      runner.resumeWait();
+      if (!runner.isFinished()) {
+        std::printf("FAIL: KAG glink/link menu failed to finish\n");
+        ++failures;
+      }
+    }
+    bool rejected = false;
+    try {
+      Kirikiri::KagScript::Runner invalid(
+          Kirikiri::KagScript::parse("[endlink][end]", "orphan-link.ks"), {});
+      invalid.run();
+    } catch (const std::runtime_error &) {
+      rejected = true;
+    }
+    if (!rejected) {
+      std::printf("FAIL: orphan [endlink] was accepted\n");
+      ++failures;
+    }
+  }
+
   // Numbered KAG choices must render in numeric order. std::map's
   // lexical order would wrongly place option10 before option2.
   {

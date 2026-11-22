@@ -238,3 +238,12 @@ instead of searching for the first comparison operator. Both local variables
 and host-provided KAG flag variables (including `&f.flag`) are supported.
 Malformed expressions and excessive nesting fail explicitly. This is still a
 limited, side-effect-free expression subset rather than the full TJS2 VM.
+
+## KAG in-scenario link menus
+
+`[glink text=... target=*label]` and inline `[link target=*label]...
+[endlink]` entries are now gathered into actionable options at `[s]`.
+Choosing one resolves a local label or defers an external storage jump through
+the existing callback. This provides a functional UI fallback for text-based
+KAG menus and does **not** reproduce their original button skins, effects,
+or every graphical `[button]` command.
