@@ -207,6 +207,13 @@ jobs:
             modules/vms/n2system/tests/AnimationTimingTest.cpp \
             -o /tmp/kotonoha-n2-animation
           /tmp/kotonoha-n2-animation
+      - name: Verify NitroSharp monochrome and box blur effects
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            modules/vms/n2system/tests/ImageEffectsTest.cpp \
+            -o /tmp/kotonoha-n2-effects
+          /tmp/kotonoha-n2-effects
       - name: Compile and run native LucaSystem Debug Catalog regression
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
