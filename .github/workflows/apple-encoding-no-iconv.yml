@@ -57,6 +57,7 @@ jobs:
 
           cmake = (root / "lib/CMakeLists.txt").read_text()
           assert "find_library(KOTONOHA_COREFOUNDATION CoreFoundation REQUIRED)" in cmake
+          assert "find_library(KOTONOHA_APPLE_ICONV NAMES iconv REQUIRED)" in cmake
           assert "Encoding.mm" in (root / "docs/ENCODING_APPLE.pt-BR.md").read_text()
           manifest = json.loads((root / "vcpkg.json").read_text())
           for dependency in manifest["dependencies"]:
