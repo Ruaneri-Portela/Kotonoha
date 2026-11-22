@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/DebugCatalog.hpp>
+#include <N2System/ImageEffects.hpp>
 #include <N2System/N2Runtime.hpp>
 #include <N2System/ScriptIndex.hpp>
 
@@ -22,6 +23,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <limits>
 #include <optional>
@@ -52,6 +54,8 @@ struct N2Runtime::Impl {
   int focusedChoiceIndex = 0;
   std::vector<std::string> lastChoices;
   std::unordered_map<std::string, SDL_Point> imageSizeCache;
+  std::unordered_map<std::string, Kotonoha::TexturePtr> effectTextures;
+  SDL_Renderer *effectRenderer = nullptr;
   std::string currentBgm;
   std::string currentVoice;
   std::string currentSe;
@@ -93,6 +97,61 @@ struct N2Runtime::Impl {
     ui->textSized(renderer, text, x + 1.5f, y + 1.5f, wrapW, fontSize,
                   {0, 0, 0, 210});
     ui->textSized(renderer, text, x, y, wrapW, fontSize, color);
+  }
+
+  SDL_Texture *effectTexture(Kotonoha::RendererRef renderer,
+                             N2ArchiveAssets &assets,
+                             const std::string &path,
+                             bool monochrome, unsigned blur) {
+    if (!monochrome && blur == 0)
+      return &assets.texture(renderer, path);
+    if (effectRenderer != &renderer) {
+      effectTextures.clear();
+      effectRenderer = &renderer;
+    }
+    const std::string key = path + "|" + (monochrome ? "mono" : "color") +
+                            "|" + std::to_string(blur);
+    if (auto it = effectTextures.find(key); it != effectTextures.end())
+      return it->second.get();
+    auto source = assets.loadSurface(path);
+    if (!source)
+      return nullptr;
+    Kotonoha::SurfacePtr rgba(
+        SDL_ConvertSurface(source.get(), SDL_PIXELFORMAT_RGBA32));
+    if (!rgba || rgba->w <= 0 || rgba->h <= 0 ||
+        std::uint64_t(rgba->w) * std::uint64_t(rgba->h) > 2048u * 2048u)
+      return nullptr;
+    const std::size_t stride = std::size_t(rgba->w) * 4;
+    std::vector<uint8_t> pixels(stride * std::size_t(rgba->h));
+    if (!SDL_LockSurface(rgba.get()))
+      return nullptr;
+    for (int row = 0; row < rgba->h; ++row)
+      std::memcpy(pixels.data() + row * stride,
+                  static_cast<const uint8_t *>(rgba->pixels) +
+                      std::size_t(row) * rgba->pitch, stride);
+    SDL_UnlockSurface(rgba.get());
+
+    if (monochrome)
+      grayscaleRgba(pixels);
+    if (blur && !boxBlurRgba(pixels, rgba->w, rgba->h, blur))
+      return nullptr;
+
+    if (!SDL_LockSurface(rgba.get()))
+      return nullptr;
+    for (int row = 0; row < rgba->h; ++row)
+      std::memcpy(static_cast<uint8_t *>(rgba->pixels) +
+                      std::size_t(row) * rgba->pitch,
+                  pixels.data() + row * stride, stride);
+    SDL_UnlockSurface(rgba.get());
+
+    Kotonoha::TexturePtr texture(
+        SDL_CreateTextureFromSurface(&renderer, rgba.get()));
+    if (!texture)
+      return nullptr;
+    SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
+    auto *result = texture.get();
+    effectTextures.emplace(key, std::move(texture));
+    return result;
   }
 
   std::string resolveImagePath(const SceneGraph &graph,
@@ -338,6 +397,8 @@ void N2Runtime::shutdown() {
   impl_->focusedChoiceIndex = 0;
   impl_->lastChoices.clear();
   impl_->imageSizeCache.clear();
+  impl_->effectTextures.clear();
+  impl_->effectRenderer = nullptr;
   impl_->sgUi.reset();
   impl_->backlog.reset();
   impl_->textBox.reset();
@@ -983,7 +1044,9 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
           impl_->resolveImagePath(graph, entity->imagePath);
       if (assets_ && !resolvedImg.empty() && assets_->contains(resolvedImg)) {
         try {
-          tex = &assets_->texture(renderer, resolvedImg);
+          tex = impl_->effectTexture(renderer, *assets_, resolvedImg,
+                                       entity->monochrome,
+                                       entity->boxBlurPasses);
         } catch (...) {
           tex = nullptr;
         }
