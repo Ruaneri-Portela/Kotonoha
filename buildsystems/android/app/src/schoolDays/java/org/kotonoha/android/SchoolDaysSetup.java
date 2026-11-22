@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Display;
@@ -11,7 +13,6 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Spinner;
@@ -21,6 +22,7 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,6 +94,7 @@ public final class SchoolDaysSetup extends Activity {
 
     private SchoolDaysFolder folder;
     private File session;
+    private Bitmap packagedBannerArtwork;
 
     private String savedLanguageSelection;
     private String draftLanguageSelection;
@@ -174,6 +177,9 @@ public final class SchoolDaysSetup extends Activity {
         String versionText = getString(R.string.sd_info, BuildConfig.VERSION_NAME);
         ((TextView) findViewById(R.id.version)).setText(versionText);
         ((TextView) findViewById(R.id.home_version)).setText(versionText);
+
+        packagedBannerArtwork = loadPackagedBannerArtwork();
+        showArt(null);
 
         bindControls();
         populateStaticSpinners();
@@ -791,6 +797,10 @@ public final class SchoolDaysSetup extends Activity {
         findViewById(R.id.home).setVisibility(open ? View.GONE : View.VISIBLE);
         findViewById(R.id.settings).setVisibility(open ? View.VISIBLE : View.GONE);
         findViewById(R.id.options_footer).setVisibility(open ? View.VISIBLE : View.GONE);
+        TextView subtitle = findViewById(R.id.title_subtitle);
+        if (subtitle != null) {
+            subtitle.setText(open ? "SETUP / OPTIONS" : "LAUNCHER");
+        }
     }
 
     @Override
@@ -936,12 +946,18 @@ public final class SchoolDaysSetup extends Activity {
         });
     }
 
+    private Bitmap loadPackagedBannerArtwork() {
+        try (InputStream stream = getAssets().open("assets/SchoolDaysHQ-Launcher.png")) {
+            return BitmapFactory.decodeStream(stream);
+        } catch (IOException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
     private void showArt(SchoolDaysFolder f) {
-        ImageView art = findViewById(R.id.art);
-        boolean visible = f != null && f.artwork != null;
-        art.setImageBitmap(visible ? f.artwork : null);
-        art.setVisibility(visible ? View.VISIBLE : View.GONE);
-        findViewById(R.id.title).setVisibility(visible ? View.GONE : View.VISIBLE);
+        SchoolDaysBannerView banner = findViewById(R.id.art);
+        Bitmap bmp = (f != null && f.artwork != null) ? f.artwork : packagedBannerArtwork;
+        banner.setArtwork(bmp);
     }
 
     @Override

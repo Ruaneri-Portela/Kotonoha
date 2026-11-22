@@ -17,24 +17,58 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <ImageView
-                android:id="@+id/art"
+            <FrameLayout
+                android:id="@+id/banner_container"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:adjustViewBounds="true"
-                android:scaleType="fitCenter"
-                android:contentDescription="School Days HQ"
-                android:visibility="gone" />
+                android:layout_height="124dp"
+                android:background="#E5F3F7">
 
-            <TextView
-                android:id="@+id/title"
-                style="@style/SdText"
-                android:text="School Days HQ"
-                android:background="#E5F3F7"
-                android:textSize="32sp"
-                android:textStyle="bold"
-                android:padding="20dp"
-                android:accessibilityHeading="true" />
+                <org.kotonoha.android.SchoolDaysBannerView
+                    android:id="@+id/art"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="School Days HQ" />
+
+                <LinearLayout
+                    android:id="@+id/title_group"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end|center_vertical"
+                    android:gravity="end"
+                    android:orientation="vertical"
+                    android:paddingEnd="18dp"
+                    android:paddingStart="12dp">
+
+                    <TextView
+                        android:id="@+id/title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="School Days HQ"
+                        android:textColor="#0A3054"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:shadowColor="#E6FFFFFF"
+                        android:shadowDx="0"
+                        android:shadowDy="1"
+                        android:shadowRadius="4"
+                        android:accessibilityHeading="true" />
+
+                    <TextView
+                        android:id="@+id/title_subtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="SETUP / OPTIONS"
+                        android:textColor="#18517E"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.08"
+                        android:textStyle="bold"
+                        android:shadowColor="#E6FFFFFF"
+                        android:shadowDx="0"
+                        android:shadowDy="1"
+                        android:shadowRadius="3" />
+                </LinearLayout>
+            </FrameLayout>
 
             <View
                 android:layout_width="match_parent"
