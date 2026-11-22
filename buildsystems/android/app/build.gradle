@@ -231,6 +231,16 @@ android.applicationVariants.all { variant ->
     from(new File(engineRoot, 'assets')) {
       into 'assets'
     }
+    // Keep license and attribution notices with every distributable APK.
+    from(new File(engineRoot, 'LICENSE')) {
+      into 'licenses'
+    }
+    from(new File(engineRoot, 'THIRD_PARTY_NOTICES.md')) {
+      into 'licenses'
+    }
+    from(new File(engineRoot, 'modules/providers/amagami/third_party/open-amagami-LICENSE.txt')) {
+      into 'licenses/third-party'
+    }
 
     if (includeThisGame) {
       from(gameAssets) {
