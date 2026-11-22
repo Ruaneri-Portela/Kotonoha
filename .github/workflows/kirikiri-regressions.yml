@@ -1,0 +1,56 @@
+name: Kirikiri KAG, TJS2 and XP3 regressions
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/kirikiri-regressions.yml"
+      - "games/kirikiri/**"
+      - "modules/vms/kag/**"
+      - "modules/vms/tjs2/**"
+      - "modules/providers/xp3/**"
+  pull_request:
+    paths:
+      - ".github/workflows/kirikiri-regressions.yml"
+      - "games/kirikiri/**"
+      - "modules/vms/kag/**"
+      - "modules/vms/tjs2/**"
+      - "modules/providers/xp3/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  kirikiri:
+    name: Build Kirikiri port and run synthetic tests
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    timeout-minutes: 40
+    steps:
+      - name: Install C++ and portable engine dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git cmake ninja-build g++ pkg-config python3 python3-dev \
+            libsdl3-dev libsdl3-ttf-dev \
+            libass-dev libavformat-dev libavcodec-dev libavutil-dev \
+            libswscale-dev libswresample-dev libjson-c-dev \
+            libgl-dev libfreetype-dev libharfbuzz-dev zlib1g-dev fonts-dejavu-core
+      - uses: actions/checkout@v4
+      - name: Configure Kirikiri and synthetic test targets
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cmake -S . -B build-kirikiri -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
+            -DKOTONOHA_BUILD_ALL=OFF -DKOTONOHA_BUILD_KIRIKIRI=ON \
+            -DKOTONOHA_BUILD_EXAMPLE=OFF -DKOTONOHA_BUILD_LAUNCHER=OFF \
+            -DKOTONOHA_ENABLE_MCP=OFF -DKOTONOHA_ENABLE_UPSCALER=OFF \
+            -DKOTONOHA_SDL_PROVIDER=SYSTEM \
+            -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON
+      - name: Build Kirikiri and XP3/KAG/TJS2 regression executable
+        run: cmake --build build-kirikiri --target KirikiriXp3Tests Kirikiri --parallel 2
+      - name: Execute Kirikiri synthetic regression suite
+        run: |
+          ctest --test-dir build-kirikiri -R '^KirikiriXp3$' \
+            --output-on-failure --timeout 90
