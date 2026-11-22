@@ -254,6 +254,63 @@ int main() {
         pose, faceOnly, faceOnly, 12, -8, 0, 0);
     check(!close(wrongFaceRect.x, faceRect.x),
           "using a face's local header anchor causes visible misalignment");
+    // A new IMAGELOAD asset in the same slot must not reset alpha,
+    // scaling, movement or rotation, even with explicit X/Y.
+    struct SpriteProperties {
+      float posX = 100, posY = 200, alpha = 1;
+      float startOffsetX = 0, startOffsetY = 0;
+      float targetOffsetX = 0, targetOffsetY = 0;
+      std::uint64_t moveStart = 0, moveDuration = 0;
+      float scaleX = 1, scaleY = 1, rotation = 0;
+      std::uint8_t r = 255, g = 255, b = 255;
+      bool visible = true;
+    };
+    SpriteProperties oldPose{};
+    oldPose.posX = 440; oldPose.scaleX = 0.65f;
+    oldPose.alpha = 0.4f; oldPose.rotation = 19;
+    oldPose.targetOffsetX = 75; oldPose.moveDuration = 900;
+    oldPose.g = 120;
+    SpriteProperties newPose{};
+    newPose.posX = 95;
+    LucaSystem::inheritAirPortraitVisuals(newPose, oldPose, false);
+    check(close(newPose.posX, 95) && close(newPose.alpha, 0.4f) &&
+              close(newPose.scaleX, 0.65f) && close(newPose.rotation, 19) &&
+              newPose.moveDuration == 900 && newPose.g == 120,
+          "explicit image replacement retains pose visual properties");
+    LucaSystem::AirStageResetTracker initTracker;
+    check(initTracker.allowsVisibleFallback(2, 1), "default slot inheritance");
+    initTracker.clearSlot(2, 1);
+    check(!initTracker.allowsVisibleFallback(2, 1) &&
+              initTracker.allowsVisibleFallback(2, 2),
+          "INIT single slot must not resurrect old pose");
+    initTracker.clearGroup(2);
+    check(!initTracker.allowsVisibleFallback(2, 2) &&
+              initTracker.allowsVisibleFallback(0, 0),
+          "INIT character group blocks previous pose inheritance");
+    initTracker.clearAll();
+    check(!initTracker.allowsVisibleFallback(0, 0),
+          "global INIT blocks all stale sprite transforms");
+    initTracker.reset();
+    check(initTracker.allowsVisibleFallback(2, 1),
+          "DRAW restores normal inheritance for next sprite staging cycle");
+    struct CachedSlot { std::uint32_t assetId = 0; };
+    std::map<std::uint16_t, CachedSlot> oldScene{{0x0201, {10001}}};
+    std::map<std::uint16_t, CachedSlot> stagedScene;
+    LucaSystem::AirStageResetTracker withoutReset;
+    check(LucaSystem::keepAirSpriteAfterDecodeFailure(
+              stagedScene, oldScene, withoutReset, 2, 1) &&
+              stagedScene.at(0x0201).assetId == 10001,
+          "failed CZ replacement keeps the last valid sprite through DRAW");
+    stagedScene.clear();
+    withoutReset.clearSlot(2, 1);
+    check(!LucaSystem::keepAirSpriteAfterDecodeFailure(
+              stagedScene, oldScene, withoutReset, 2, 1) &&
+              stagedScene.empty(),
+          "failed CZ load cannot undo an explicit INIT clearing the slot");
+    withoutReset.reset();
+    check(!LucaSystem::keepAirSpriteAfterDecodeFailure(
+              stagedScene, oldScene, withoutReset, 0, 0),
+          "failed CZ cannot synthesize a background that never existed");
     // Draw a face fragment directly above its corresponding body instead of
     // above all portraits. An orphan fragment is intentionally not visible.
     std::map<std::uint16_t, int> layered = {

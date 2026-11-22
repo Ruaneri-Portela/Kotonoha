@@ -417,3 +417,8 @@ CZ4's separate RGB/alpha planes keep their existing layouts. Portable
 synthetic tests check all three variants, extended-header crop geometry and
 rejection of invalid/truncated image payloads. This is asset decoding parity,
 not an identical native game sprite compositor (LuckSystem does not have one).
+
+
+## Consistent sprite staging and INIT barriers
+
+When an image resource changes within an existing sprite slot, the port now keeps the object's opacity, tint, scale, rotation and ongoing movement, even when the script supplies a new position. Corrupt or missing CZ data no longer replaces a valid sprite with an invisible placeholder, and image zero removes its slot. INIT records explicitly cleared slots and groups to prevent the next IMAGELOAD from inheriting deleted poses. Standalone C++17 tests cover these transitions. LuckSystem is an asset/script compiler, so this runtime behavior requires retail AIR scene verification.
