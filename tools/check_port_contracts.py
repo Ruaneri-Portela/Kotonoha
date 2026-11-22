@@ -52,7 +52,10 @@ def errors():
         allowed_ids = {bundle.group(1)} if bundle else set()
         allowed_paths = {slug}
         if slug == "doki-doki-literature-club":
+            # The shared library is linked by three identities: DDLC, Katawa,
+            # and a neutral Ren'Py identity for other game installations.
             allowed_ids.add("me.hirameki.kotonoha.katawashoujo")
+            allowed_ids.add("me.hirameki.kotonoha.renpy")
             allowed_paths.add("katawa-shoujo")
         if any(metadata_id not in allowed_ids for metadata_id in metadata_ids):
             issues.append(
