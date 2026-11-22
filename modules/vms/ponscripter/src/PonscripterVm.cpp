@@ -38,6 +38,8 @@ void PonscripterVm::clear() {
   backlog_.clear();
   selectOptions_.clear();
   cselOptions_.clear();
+  selectionMode_ = SelectionMode::Jump;
+  selectionNumberVariable_ = -1;
   rmenuEntries_.clear();
   activeBgm_.clear();
   loopingWaves_.clear();
@@ -89,6 +91,10 @@ void PonscripterVm::resetToStart() {
   loopingWaves_.clear();
   callStack_.clear();
   forStack_.clear();
+  selectOptions_.clear();
+  cselOptions_.clear();
+  selectionMode_ = SelectionMode::Jump;
+  selectionNumberVariable_ = -1;
   buttons_.clear();
   hoveredButtonId_ = 0;
   btndefSpec_ = TaggedImageSpec{};
@@ -675,11 +681,27 @@ bool PonscripterVm::selectChoice(int optionIndex) {
     return false;
   if (optionIndex < 0 || optionIndex >= static_cast<int>(selectOptions_.size()))
     return false;
+  const SelectionMode mode = selectionMode_;
   const std::string target = selectOptions_[optionIndex].targetLabel;
+  if (mode != SelectionMode::Number && !script_.hasLabel(target))
+    return false;
+  if (mode == SelectionMode::Subroutine) {
+    CallStackEntry frame;
+    frame.returnStatementIndex = pc_;
+    frame.targetLabel = target;
+    callStack_.push_back(std::move(frame));
+  } else if (mode == SelectionMode::Number &&
+             selectionNumberVariable_ >= 0) {
+    const bool changed = vars_.setNum(selectionNumberVariable_, optionIndex);
+    if (changed && callbacks_)
+      callbacks_->onPersistGlobals();
+  }
   selectOptions_.clear();
+  selectionMode_ = SelectionMode::Jump;
+  selectionNumberVariable_ = -1;
   clearCurrentPage(true);
   waitState_ = WaitState::Running;
-  return jumpToLabel(target);
+  return mode == SelectionMode::Number ? true : jumpToLabel(target);
 }
 
 void PonscripterVm::finishSystemCall() {
