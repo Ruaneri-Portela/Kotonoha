@@ -3,6 +3,7 @@
 #include "RealLiveReadProgress.hpp"
 #include "RealLivePersistentHistory.hpp"
 #include "RealLiveSelectRules.hpp"
+#include "RealLiveAudioWait.hpp"
 #include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -758,6 +759,7 @@ struct RealLiveRuntime::Impl {
   int fadeElapsed = 0, fadeDuration = 0;
   bool fadeStops = false;
   bool bgmScriptPaused = false; // independent of gameplay/menu suspension
+  AudioWait audioWait;
   Uint64 audioTick = 0;
   std::map<int, std::unique_ptr<PcmPlayer>> sounds;
   std::map<std::string, Graphic> graphics;
@@ -2450,6 +2452,7 @@ struct RealLiveRuntime::Impl {
       deadline = 0;
       choice->hide();
       movie->stop();
+      audioWait.clear();
       voice.Stop();
       bgm.Stop();
       musicID.clear();
@@ -3640,6 +3643,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     if (op == 3 || op == 6 || op == 101) {
+      // A voice wait must preserve the current script PC progression until
+      // the decoder's PCM stream has actually drained. Unlike wait(ms), this
+      // works for arbitrary sample rates and pauses with the audio device.
+      audioWait.forVoice(voice.Playing());
       return true;
     }
   }
@@ -3682,8 +3689,22 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
   }
   if (type == 1 && m == 21) {
-    if (op == 4)
+    if (op == 3) {
+      const int channel = value(c, 0, 0);
+      const auto found = sounds.find(channel);
+      audioWait.forPcm(
+          channel, found != sounds.end() && found->second &&
+                       found->second->Playing());
       return true;
+    }
+    if (op == 4) {
+      const int channel = value(c, 0, 0);
+      const auto found = sounds.find(channel);
+      machine.set_store_register(
+          found != sounds.end() && found->second &&
+                  found->second->Playing() ? 1 : 0);
+      return true;
+    }
     if (op == 0 || op == 2) {
       int channel = value(c, 1);
       auto &p = sounds[channel];
@@ -3699,6 +3720,25 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     if (op == 1) {
+      if (c.GetParamCount() >= 2) {
+        // Native wavPlayEx(filename, channel[, fade]): synchronous PCM
+        // playback in older RealLive editions. A one-parameter variant is
+        // retained as the existing channel-stop compatibility alias.
+        const int channel = value(c, 1);
+        auto &player = sounds[channel];
+        if (!player)
+          player = std::make_unique<PcmPlayer>();
+        const auto id = audioAsset("WAV/" + str(c, 0));
+        if (!id.empty()) {
+          play(*player, id, "PCM", false);
+          audioWait.forPcm(channel, player->Playing());
+        } else {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "REALLIVE missing wavPlayEx audio on channel %d",
+                      channel);
+        }
+        return true;
+      }
       int channel = value(c, 0);
       sounds.erase(channel);
       return true;
@@ -4786,6 +4826,7 @@ void RealLiveRuntime::shutdown() {
   impl->bgm.Stop();
   impl->voice.Stop();
   impl->sounds.clear();
+  impl->audioWait.clear();
   if (impl->movie)
     impl->movie->stop();
   impl->graphics.clear();
@@ -4919,8 +4960,13 @@ void RealLiveRuntime::update() {
         i.advanceText(false);
     }
   }
+  const bool audioBlocked = i.audioWait.blocks(i.voice.Playing(), [&](int channel) {
+    const auto found = i.sounds.find(channel);
+    return found != i.sounds.end() && found->second &&
+           found->second->Playing();
+  });
   if (paused || i.pause || i.choice->isActive() || !i.error.empty() ||
-      SDL_GetTicks() < i.deadline)
+      SDL_GetTicks() < i.deadline || audioBlocked)
     return;
   if (i.movie->isOpen()) {
     if (!i.movie->finished())
@@ -4930,7 +4976,8 @@ void RealLiveRuntime::update() {
   i.refreshRequested = false;
   for (int n = 0;
        n < 3000 && !i.refreshRequested && !i.pause && !i.choice->isActive() &&
-       i.error.empty() && SDL_GetTicks() >= i.deadline && !i.movie->isOpen();
+       i.error.empty() && SDL_GetTicks() >= i.deadline &&
+       !i.movie->isOpen() && !i.audioWait.active();
        ++n)
     try {
       if (!i.vm.step())
@@ -5299,6 +5346,7 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.zoomTexture.reset();
   i.choice->hide();
   i.movie->stop();
+  i.audioWait.clear();
   i.voice.Stop();
   i.sounds.clear();
   i.bgm.Stop();

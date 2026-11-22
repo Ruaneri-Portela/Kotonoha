@@ -4,6 +4,8 @@ on:
   push:
     branches: [dev]
     paths:
+      - 'games/reallive/src/RealLiveAudioWait.hpp'
+      - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
       - 'games/reallive/src/RealLiveSelectRules.hpp'
       - 'games/reallive/tests/SelectionRulesTest.cpp'
