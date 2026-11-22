@@ -276,6 +276,36 @@ void appendUtf8Scalar(std::string &out, uint32_t value) {
   }
 }
 
+std::string decodeUtf16(std::string_view bytes, bool bigEndian) {
+  std::string out;
+  out.reserve(bytes.size());
+  for (size_t i = 0; i < bytes.size();) {
+    if (bytes.size() - i < 2) {
+      out.push_back('?');
+      break;
+    }
+    uint32_t scalar = read16(bytes, i, bigEndian);
+    i += 2;
+    if (scalar >= 0xd800 && scalar <= 0xdbff) {
+      if (bytes.size() - i >= 2) {
+        const uint32_t low = read16(bytes, i, bigEndian);
+        if (low >= 0xdc00 && low <= 0xdfff) {
+          scalar = 0x10000 + ((scalar - 0xd800) << 10) + (low - 0xdc00);
+          i += 2;
+        } else {
+          scalar = '?';
+        }
+      } else {
+        scalar = '?';
+      }
+    } else if (scalar >= 0xdc00 && scalar <= 0xdfff) {
+      scalar = '?';
+    }
+    appendUtf8Scalar(out, scalar);
+  }
+  return out;
+}
+
 std::string decodeUtf32(std::string_view bytes, bool bigEndian) {
   std::string out;
   out.reserve(bytes.size());
@@ -335,6 +365,9 @@ std::string ConvertEncoding(std::string_view text, const char *from,
   // Apple's CFString conversion can fail for explicit UTF-32LE/BE output.
   // Encode/decode the Unicode scalars ourselves, in this same Apple backend,
   // avoiding an iconv dependency and preserving embedded NUL bytes.
+  if (sourceKey == "UTF16LE" || sourceKey == "UTF16BE")
+    return ConvertEncoding(decodeUtf16(text, sourceKey == "UTF16BE"),
+                           "UTF-8", to);
   if (sourceKey == "UTF32LE" || sourceKey == "UTF32BE")
     return ConvertEncoding(decodeUtf32(text, sourceKey == "UTF32BE"),
                            "UTF-8", to);
