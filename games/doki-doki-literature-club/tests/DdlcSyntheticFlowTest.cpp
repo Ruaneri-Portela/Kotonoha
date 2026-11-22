@@ -161,8 +161,14 @@ int main() {
           list({tuple({text("Enabled"), nothing(), list({ret(text("123"))})}),
                 tuple({text("Disabled"), text("False"),
                        list({ret(text("456"))})})})}});
-    auto choices = label("menu_test", {menu});
-    auto root = tuple({nothing(), list({start, branch, helper, choices})});
+    auto choices = label("menu_test", {menu, ret(text("555"))});
+    auto emptyMenu = ast(
+        "Menu",
+        {{"items", list({tuple({text("Unavailable"), text("False"),
+                                list({ret(text("456"))})})})}});
+    auto disabled = label("menu_empty", {emptyMenu, ret(text("789"))});
+    auto root = tuple(
+        {nothing(), list({start, branch, helper, choices, disabled})});
 
     Temp temp;
     const auto scriptPath = temp.directory / "script.rpyc";
@@ -225,6 +231,18 @@ int main() {
     require(vm.finished() && vm.py.lookup("_return").integer() == 123,
             "Menu dispatches selected original choice");
     require(vm.errors.empty(), "Menu flow has no VM errors");
+
+    vm.start("menu_test");
+    require(vm.interaction().k == Ddlc::Interaction::K::Menu,
+            "Menu can be presented again");
+    vm.resume(); // No choice selected.
+    require(vm.finished() && vm.py.lookup("_return").integer() == 555,
+            "Cancelled menu falls through without selecting the first item");
+
+    vm.start("menu_empty");
+    require(vm.finished() && vm.py.lookup("_return").integer() == 789,
+            "Menu without eligible choices falls through without blocking");
+    require(vm.errors.empty(), "Synthetic flow reports no errors");
     std::cout << "DdlcSyntheticFlowTest: OK\n";
     return 0;
   } catch (const std::exception &error) {

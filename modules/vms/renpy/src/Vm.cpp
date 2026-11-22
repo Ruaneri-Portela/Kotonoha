@@ -2386,7 +2386,14 @@ Node *Vm::exec(Node *n) {
           {interpolate(translate ? translate(n->route, original) : original),
            Value::integer(int64_t(i))});
     }
+    // When every choice is disabled, Ren'Py falls through instead of
+    // presenting an empty modal menu which the player cannot dismiss.
+    if (choices.empty())
+      return n->next;
     Value r = menu(choices, caption, "choice");
+    // A dismissed/cancelled menu is not a selection of item zero.
+    if (r.isNone())
+      return n->next;
     const size_t i = size_t(r.integer());
     if (i < n->blocks.size() && !n->blocks[i].empty())
       return n->blocks[i][0];
