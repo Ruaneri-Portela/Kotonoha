@@ -2424,6 +2424,38 @@ struct LucaSystemRuntime::Impl {
     } else {
       Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), sourcePtr, &dst);
     }
+
+    // The date icon is part of the background composition, not a topmost
+    // HUD element. It fades/wipes with layer (0,0), disappears on virtual
+    // black/white fills and stays beneath later scene dimming overlays.
+    if (slot.group == 0 && slot.slot == 0 && slot.assetId != 65000 &&
+        slot.assetId != 65001) {
+      const int day = getVar(6003);
+      if (day >= 1 && day <= 31) {
+        std::string badge = day >= 16 ? "jul_" : "aug_";
+        if (day < 10)
+          badge += '0';
+        badge += std::to_string(day);
+        try {
+          if (assets->contains(badge)) {
+            auto &calendar = assets->texture(renderer, badge);
+            Uint8 originalAlpha = 255;
+            if (SDL_GetTextureAlphaMod(&calendar, &originalAlpha)) {
+              SDL_SetTextureAlphaMod(
+                  &calendar,
+                  static_cast<Uint8>(std::lround(alpha * originalAlpha)));
+              const SDL_FRect badgePosition{0, 0, 128, 133.33f};
+              Kotonoha::RenderUpscaledTexture(
+                  &renderer, &calendar, nullptr, &badgePosition);
+              SDL_SetTextureAlphaMod(&calendar, originalAlpha);
+            }
+          }
+        } catch (const std::exception &error) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "LucaSystem: calendar composition: %s", error.what());
+        }
+      }
+    }
   }
 
   void runUntilPause() {
@@ -3681,15 +3713,6 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                                   currentDialogueVoiceId_ != 0);
     if (impl.choiceActive)
       impl.textbox->renderChoiceControls(renderer);
-  }
-  // AIR's #6003 is the story day. Use its original badge at the upper-left
-  // position shown in the English retail manual.
-  if (const int day = impl.getVar(6003); day >= 1 && day <= 31) {
-    std::string badge = day >= 16 ? "jul_" : "aug_";
-    if (day < 10)
-      badge += '0';
-    badge += std::to_string(day);
-    drawAirArt(*impl.assets, renderer, badge.c_str(), {0, 0, 128, 133.33f});
   }
   Runtime::renderGameplay(renderer, scale);
 }
