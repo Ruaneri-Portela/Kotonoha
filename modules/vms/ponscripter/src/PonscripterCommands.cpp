@@ -503,26 +503,42 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
     return;
   }
 
-  if (cmd == "select" || cmd == "selgosub") {
+  if (cmd == "select" || cmd == "selgosub" || cmd == "selnum") {
     selectOptions_.clear();
-    // Collect `"text", *label` pairs across current statement AND subsequent
-    // statements if `select` spans multiple lines!
-    auto collectSelectPairs = [&](LineLexer &lx) {
-      while (!lx.eof()) {
-        lx.skipWhitespace();
-        if (lx.eof())
+    selectionMode_ = cmd == "selgosub" ? SelectionMode::Subroutine :
+                     cmd == "selnum" ? SelectionMode::Number :
+                                       SelectionMode::Jump;
+    selectionNumberVariable_ = -1;
+    if (selectionMode_ == SelectionMode::Number) {
+      selectionNumberVariable_ = lexer.parseVarRef();
+      if (!lexer.consumeComma())
+        return;
+    }
+
+    // selnum contains text-only options; select/selgosub use text/label pairs.
+    while (true) {
+      lexer.skipWhitespace();
+      if (lexer.eof())
+        break;
+      SelectOption opt;
+      const std::size_t before = lexer.position();
+      opt.text = TextFormatter::formatUiLabel(lexer.parseStringExpr(), true);
+      if (lexer.position() == before)
+        break;
+      if (selectionMode_ != SelectionMode::Number) {
+        if (!lexer.consumeComma())
           break;
-        SelectOption opt;
-        opt.text = TextFormatter::formatUiLabel(lx.parseStringExpr(), true);
-        lx.consumeComma();
-        opt.targetLabel = lx.parseLabelTarget();
-        if (!opt.text.empty() || !opt.targetLabel.empty())
-          selectOptions_.push_back(std::move(opt));
-        if (!lx.consumeComma())
-          break;
+        opt.targetLabel = lexer.parseLabelTarget();
       }
-    };
-    collectSelectPairs(lexer);
+      if (!opt.text.empty() ||
+          (selectionMode_ != SelectionMode::Number && !opt.targetLabel.empty()))
+        selectOptions_.push_back(std::move(opt));
+      if (!lexer.consumeComma())
+        break;
+    }
+
+    if (selectOptions_.empty())
+      return;
     enterTextDisplayMode();
     typewriterChars_ = totalPageChars_;
     waitState_ = WaitState::WaitSelect;
@@ -532,6 +548,8 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
   }
 
   if (cmd == "csel") {
+    selectionMode_ = SelectionMode::Jump;
+    selectionNumberVariable_ = -1;
     cselOptions_.clear();
     while (!lexer.eof()) {
       SelectOption opt;
