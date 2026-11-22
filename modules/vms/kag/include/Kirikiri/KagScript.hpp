@@ -143,6 +143,12 @@ public:
     std::vector<std::size_t> returnStack_;
     std::vector<std::uint8_t> ifBranches_;
     std::vector<std::size_t> callIfDepth_;
+    // KAG [glink]/[link] menu choices waiting at [s].
+    struct MenuLink { std::string caption, target; };
+    std::vector<MenuLink> pendingLinks_;
+    std::vector<std::string> activeChoiceTargets_;
+    bool capturingLink_ = false;
+    std::string currentLinkCaption_, currentLinkTarget_;
 
     bool executeTagBlocking(const Tag &tag); // returns true if tag blocks
     bool condition(const Tag &tag) const;

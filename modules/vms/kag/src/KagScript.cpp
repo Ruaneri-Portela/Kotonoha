@@ -467,6 +467,11 @@ void KagScript::Runner::restoreState(const State &state) {
   finished_ = state.finished || pc_ == script_.tags.size();
   blocked_ = false;
   pendingResume_ = nullptr;
+  pendingLinks_.clear();
+  activeChoiceTargets_.clear();
+  capturingLink_ = false;
+  currentLinkCaption_.clear();
+  currentLinkTarget_.clear();
 }
 
 void KagScript::Runner::restorePosition(std::size_t position) {
@@ -480,6 +485,11 @@ void KagScript::Runner::restorePosition(std::size_t position) {
   returnStack_.clear();
   ifBranches_.clear();
   callIfDepth_.clear();
+  pendingLinks_.clear();
+  activeChoiceTargets_.clear();
+  capturingLink_ = false;
+  currentLinkCaption_.clear();
+  currentLinkTarget_.clear();
 }
 
 bool KagScript::Runner::jumpToLabel(const std::string &label) {
@@ -494,6 +504,11 @@ bool KagScript::Runner::jumpToLabel(const std::string &label) {
   pc_ = position;
   blocked_ = finished_ = false;
   pendingResume_ = nullptr;
+  pendingLinks_.clear();
+  activeChoiceTargets_.clear();
+  capturingLink_ = false;
+  currentLinkCaption_.clear();
+  currentLinkTarget_.clear();
   return true;
 }
 
@@ -522,6 +537,27 @@ void KagScript::Runner::run() {
 void KagScript::Runner::resumeChoice(int index) {
   blocked_ = false;
   pendingResume_ = nullptr;
+  if (!activeChoiceTargets_.empty()) {
+    if (index < 0 ||
+        static_cast<std::size_t>(index) >= activeChoiceTargets_.size())
+      throw std::out_of_range("KAG: selected menu index out of range");
+    const std::string destination =
+        activeChoiceTargets_[static_cast<std::size_t>(index)];
+    activeChoiceTargets_.clear();
+    if (!destination.empty()) {
+      if (destination.front() == '*') {
+        if (!jumpToLabel(destination))
+          throw std::runtime_error("KAG: missing menu label " + destination);
+        ifBranches_.clear();
+      } else if (cb_.jump) {
+        // Storage changes are deferred by KirikiriRuntime. Do not execute
+        // the old scenario after scheduling its replacement.
+        finished_ = true;
+        cb_.jump(destination);
+        return;
+      }
+    }
+  }
   run();
 }
 
@@ -533,6 +569,12 @@ void KagScript::Runner::resumeWait() {
 
 bool KagScript::Runner::executeTag(const Tag &tag) {
   if (tag.type == TagType::Text) {
+    if (capturingLink_) {
+      if (currentLinkCaption_.size() + tag.text.size() > 8192)
+        throw std::runtime_error("KAG: [link] caption too long");
+      currentLinkCaption_ += tag.text;
+      return false;
+    }
     std::string text = trim(tag.text);
     if (!text.empty() && cb_.showText) {
       SDL_Log("KagScript: Text tag '%s'", text.c_str());
@@ -673,6 +715,58 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
       return false;
     }
     finished_ = true;
+    return true;
+  }
+  // A [glink] button or [link]...text...[endlink] contributes an
+  // interactive option. [s] presents collected options through Kotonoha's
+  // existing choice UI instead of silently terminating the scenario.
+  const auto menuTarget = [&](const Tag &button) {
+    const auto storage = getAttr(button, "storage", "");
+    const auto label = getAttr(button, "target", "");
+    return storage.empty() ? label
+                           : storage + (label.empty() ? "" : "#" + label);
+  };
+  if (name == "glink") {
+    if (pendingLinks_.size() >= 64)
+      throw std::runtime_error("KAG: too many glink options");
+    auto caption = getAttr(tag, "text", getAttr(tag, "caption", ""));
+    if (caption.empty())
+      caption = getAttr(tag, "graphic", "Choice");
+    pendingLinks_.push_back({std::move(caption), menuTarget(tag)});
+    return false;
+  }
+  if (name == "link") {
+    if (capturingLink_)
+      throw std::runtime_error("KAG: nested [link] is not supported");
+    capturingLink_ = true;
+    currentLinkCaption_.clear();
+    currentLinkTarget_ = menuTarget(tag);
+    return false;
+  }
+  if (name == "endlink") {
+    if (!capturingLink_)
+      throw std::runtime_error("KAG: unexpected [endlink]");
+    capturingLink_ = false;
+    if (pendingLinks_.size() >= 64)
+      throw std::runtime_error("KAG: too many link options");
+    pendingLinks_.push_back({trim(currentLinkCaption_), currentLinkTarget_});
+    currentLinkCaption_.clear();
+    currentLinkTarget_.clear();
+    return false;
+  }
+  if (name == "s" && !pendingLinks_.empty() && cb_.showChoice) {
+    if (capturingLink_)
+      throw std::runtime_error("KAG: unterminated [link] before [s]");
+    std::vector<std::string> captions;
+    activeChoiceTargets_.clear();
+    for (const auto &option : pendingLinks_) {
+      captions.push_back(option.caption);
+      activeChoiceTargets_.push_back(option.target);
+    }
+    pendingLinks_.clear();
+    blocked_ = true;
+    cb_.showChoice("", std::move(captions),
+                   [this](int index) { resumeChoice(index); });
     return true;
   }
   if (name == "end" || name == "s") {
