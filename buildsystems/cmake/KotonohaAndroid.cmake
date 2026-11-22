@@ -9,11 +9,11 @@ if (ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
     if (ANDROID_ABI STREQUAL "arm64-v8a")
         set(_VCPKG_ANDROID_TRIPLET "arm64-android")
     elseif (ANDROID_ABI STREQUAL "armeabi-v7a")
-        if (ANDROID_ARM_NEON)
-            set(_VCPKG_ANDROID_TRIPLET "arm-neon-android")
-        else ()
-            set(_VCPKG_ANDROID_TRIPLET "arm-android")
-        endif ()
+        # The 32-bit Android target always uses NEON, including vcpkg libs.
+        # Configure it before project() / the vcpkg toolchain is initialized.
+        set(ANDROID_ARM_NEON ON CACHE BOOL
+            "Enable ARMv7 NEON instructions" FORCE)
+        set(_VCPKG_ANDROID_TRIPLET "arm-neon-android")
     elseif (ANDROID_ABI STREQUAL "x86_64")
         set(_VCPKG_ANDROID_TRIPLET "x64-android")
     elseif (ANDROID_ABI STREQUAL "x86")
