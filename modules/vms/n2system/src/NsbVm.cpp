@@ -650,7 +650,7 @@ bool NsbVm::advance() {
       main.waitEntity.clear();
       consumed = true;
     }
-    if (main.waitingMovie && activeMovie_.active) {
+    if (main.waitingMovie && activeMovie_.active && !activeMovie_.loop) {
       notifyMovieFinished(activeMovie_.entityName);
       consumed = true;
     }
