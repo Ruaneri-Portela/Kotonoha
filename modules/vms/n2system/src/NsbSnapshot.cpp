@@ -57,18 +57,22 @@ struct Reader {
   size_t pos=0;
   bool available(size_t n) const {return n<=data.size()-pos;}
   bool byte(uint8_t &v) {
-    if(!available(1))return false; v=data[pos++];return true;
+    if (!available(1)) return false;
+    v = data[pos++];
+    return true;
   }
   bool flag(bool &v) {
     uint8_t b; if(!byte(b)||b>1)return false;v=b==1;return true;
   }
   bool u32(uint32_t &v) {
-    if(!available(4))return false;v=0;
+    if (!available(4)) return false;
+    v = 0;
     for(int i=0;i<4;++i)v|=uint32_t(data[pos++])<<(8*i);
     return true;
   }
   bool u64(uint64_t &v) {
-    if(!available(8))return false;v=0;
+    if (!available(8)) return false;
+    v = 0;
     for(int i=0;i<8;++i)v|=uint64_t(data[pos++])<<(8*i);
     return true;
   }
