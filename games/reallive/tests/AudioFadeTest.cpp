@@ -69,6 +69,51 @@ int main() {
     near(sampleBgmFade(0, 1, afterResume, 1000), 0.45f,
          "fade resumes without counting paused time");
 
+    using RealLive::bgmSeekFrame;
+    using RealLive::bgmResumeMilliseconds;
+    require(bgmSeekFrame(0, 1000, 22050, 300000) == 22050,
+            "22.05kHz music seek uses source rate");
+    require(bgmSeekFrame(0, 1000, 32000, 300000) == 32000,
+            "32kHz music seek uses source rate");
+    require(bgmSeekFrame(0, 1000, 44100, 300000) == 44100,
+            "44.1kHz seek retains original position");
+    require(bgmSeekFrame(0, 1000, 48000, 300000) == 48000,
+            "48kHz music seek uses source rate");
+    require(bgmSeekFrame(100, 250, 48000, 300000) == 12100,
+            "authored start offset combines with millisecond seek");
+    require(bgmSeekFrame(0, 250000, 48000, 300000) == 300000,
+            "oversized positive seek clamps to clip end");
+    require(bgmSeekFrame(-1000, 5, 44100, 300000) == 0,
+            "negative authored start clamps to zero");
+    require(bgmSeekFrame(0, INT64_MAX, 48000, 300000) == 300000,
+            "large offsets never overflow when seeking");
+    require(bgmResumeMilliseconds(1.125) == 1125,
+            "saved playback seconds convert to milliseconds");
+    require(bgmSeekFrame(0, bgmResumeMilliseconds(1.125), 48000, 300000) ==
+                54000, "saved position resumes precisely in 48kHz files");
+    bool rejectedSeek = false;
+    try {
+      (void)bgmSeekFrame(0, -1, 44100, 300000);
+    } catch (const std::invalid_argument &) {
+      rejectedSeek = true;
+    }
+    require(rejectedSeek, "negative music offsets are invalid");
+    rejectedSeek = false;
+    try {
+      (void)bgmSeekFrame(0, 1000, 0, 300000);
+    } catch (const std::invalid_argument &) {
+      rejectedSeek = true;
+    }
+    require(rejectedSeek, "zero rate cannot yield a frame position");
+    rejectedSeek = false;
+    try {
+      (void)bgmResumeMilliseconds(
+          std::numeric_limits<double>::infinity());
+    } catch (const std::out_of_range &) {
+      rejectedSeek = true;
+    }
+    require(rejectedSeek, "invalid save seconds rejected before playback");
+
     std::cout << "RealLive BGM gain/fade regressions passed\n";
     return 0;
   } catch (const std::exception& e) {

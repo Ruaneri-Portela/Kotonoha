@@ -749,6 +749,7 @@ struct RealLiveRuntime::Impl {
   int selectionWindow = 0;
   bool musicLoop = false;
   int64_t musicEnd = 0, musicLoopStart = 0, musicFrames = 0;
+  int musicRate = 44100;
   std::unique_ptr<MediaPlayer> movie;
   VideoSkipGesture videoSkip;
   PcmPlayer bgm, voice;
@@ -2216,16 +2217,11 @@ struct RealLiveRuntime::Impl {
       musicEnd = end;
       musicLoopStart = loopStart;
       musicFrames = clip.samples.size() / clip.channels;
+      musicRate = target.freq;
     }
     clip.loop = loop;
-    if (offsetMilliseconds < 0)
-      throw std::invalid_argument("Negative REALLIVE music position");
-    const auto offsetFrames = int64_t(offsetMilliseconds) * target.freq / 1000;
-    if (offsetFrames > std::numeric_limits<int64_t>::max() - start)
-      throw std::overflow_error("REALLIVE music position is too large");
-    clip.startFrame =
-        std::min<size_t>(std::max<int64_t>(0, start + offsetFrames),
-                         clip.samples.size() / clip.channels);
+    clip.startFrame = bgmSeekFrame(start, offsetMilliseconds, target.freq,
+                                   clip.samples.size() / clip.channels);
     clip.loopStart = std::min<size_t>(std::max<int64_t>(0, loopStart),
                                       clip.samples.size() / clip.channels);
     if (!p.Play(engine->GetAudio().channel(channel), std::move(clip)))
@@ -4914,15 +4910,17 @@ void RealLiveRuntime::saveGame(const std::string &path) {
       << std::quoted(i.dialogue) << ' ' << std::quoted(i.speakerName) << ' '
       << i.pauseKind << '\n';
   out << std::quoted(i.musicID) << ' ' << i.musicLoop << ' ' << i.musicEnd
-      << ' ' << i.musicLoopStart << ' ' <<
-      [&]() {
-        auto frame = i.bgm.Position() * 44100;
+      << ' ' << i.musicLoopStart << ' ' << std::setprecision(17)
+      << [&]() {
+        // PcmPlayer::Position() returns seconds using the source clip rate.
+        const auto rate = std::max(i.musicRate, 1);
+        auto frame = i.bgm.Position() * rate;
         if (i.musicLoop && i.musicFrames > i.musicLoopStart &&
             frame >= i.musicFrames)
           frame = i.musicLoopStart +
                   std::fmod(frame - i.musicLoopStart,
                             double(i.musicFrames - i.musicLoopStart));
-        return frame / 44100.;
+        return frame / rate;
       }()
       << '\n';
   out << i.bgmGain << ' ' << i.fadeFrom << ' ' << i.fadeTo << ' '
@@ -5026,7 +5024,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
        version != "REALLIVE-PRESENTATION-6" &&
        version != "REALLIVE-PRESENTATION-7") ||
       (pauseKind != 17 && pauseKind != 205) || position < 0 ||
-      !std::isfinite(position))
+      (!std::isfinite(position) ||
+       position > double(std::numeric_limits<std::int64_t>::max() / 1000)))
     invalid();
   float gain = 1, fadeFrom = 1, fadeTo = 1;
   int fadeElapsed = 0, fadeDuration = 0;
@@ -5270,8 +5269,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.textbox->completeDialogue();
   i.textbox->show();
   if (!music.empty())
-    i.play(i.bgm, music, "BGM", loop, int64_t(position * 44100), end,
-           loopStart);
+    i.play(i.bgm, music, "BGM", loop, 0, end,
+           loopStart, bgmResumeMilliseconds(position));
   i.bgmGain = gain;
   i.fadeFrom = fadeFrom;
   i.fadeTo = fadeTo;
