@@ -35,6 +35,25 @@ void test() {
   require(back != nullptr, "Create output surface");
   SDL_Renderer *renderer = SDL_CreateSoftwareRenderer(back);
   require(renderer != nullptr, "Create software GPU-contract renderer");
+  const std::uint8_t tinyRgba[] = {
+      11, 22, 33, 255, 11, 22, 33, 255,
+      11, 22, 33, 255, 11, 22, 33, 255};
+  require(LucaSystem::uploadAirStaticRgba(
+              *renderer, 2, 2, nullptr, 8, SDL_SCALEMODE_NEAREST) == nullptr &&
+              LucaSystem::uploadAirStaticRgba(
+                  *renderer, 2, 2, tinyRgba, 3, SDL_SCALEMODE_NEAREST) == nullptr,
+          "Reject invalid RGBA uploads before allocating a GPU cache entry");
+  SDL_Texture *uploaded = LucaSystem::uploadAirStaticRgba(
+      *renderer, 2, 2, tinyRgba, 8, SDL_SCALEMODE_NEAREST);
+  require(uploaded != nullptr, "Upload a complete RGBA texture");
+  require(SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255) &&
+              SDL_RenderClear(renderer), "Clear static texture test");
+  const SDL_FRect sampleArea{0, 0, 64, 32};
+  require(SDL_RenderTexture(renderer, uploaded, nullptr, &sampleArea),
+          "Present uploaded RGBA image");
+  pixel(*renderer, 32, 16, 11, 22, 33);
+  SDL_DestroyTexture(uploaded);
+
   SDL_Texture *incoming = SDL_CreateTexture(
       renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 64, 32);
   require(incoming && SDL_SetTextureBlendMode(incoming, SDL_BLENDMODE_BLEND),
