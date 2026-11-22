@@ -35,6 +35,9 @@ class UI {
 
 public:
   explicit UI(const std::string &fontPath = {});
+  // Load a game-specific font from its asset provider without writing a
+  // temporary file. Glyphs still use the shared renderer-backed UI atlas.
+  explicit UI(std::vector<uint8_t> fontBytes);
   ~UI();
   UI(const UI &) = delete;
   UI &operator=(const UI &) = delete;
