@@ -817,10 +817,10 @@ bool loadRpyc(const std::vector<uint8_t> &file, Value &out) {
     if (slot.id == 1 || slot.id == 2)
       slots.push_back(slot);
   }
-  // Slot 1 preserves the original script semantics used by DDLC/Katawa.
-  // Some compiled Ren'Py distributions only retain slot 2, or have a
-  // damaged slot 1; try the alternate slot rather than rejecting the game.
-  for (uint32_t wanted : {1u, 2u}) {
+  // Ren'Py prefers slot 2: its statically transformed AST is the same one
+  // the original runtime executes. Fall back to slot 1 for older builds or
+  // damaged/missing transformed bytecode.
+  for (uint32_t wanted : {2u, 1u}) {
     for (const Slot &slot : slots) {
       if (slot.id != wanted || slot.start > file.size() ||
           slot.length > file.size() - slot.start)
