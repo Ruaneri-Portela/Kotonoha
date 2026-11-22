@@ -23,6 +23,7 @@
 #include <cctype>
 #include <cmath>
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -475,6 +476,44 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
       return impl_->queryImageSize(assets_.get(), impl_->nsbVm->sceneGraph(),
                                    std::string(path), w, h);
     });
+    impl_->nsbVm->setSaveExistsQuery([](std::uint32_t slot) {
+      const auto name = slot == 0
+          ? std::string("n2system_quick.n2sv")
+          : "n2system_slot_" + std::to_string(slot) + ".n2sv";
+      std::error_code error;
+      return std::filesystem::is_regular_file(Kotonoha::saveDirectory() / name,
+                                              error) && !error;
+    });
+    impl_->nsbVm->setMediaTimeQuery(
+        [this](std::string_view query, MediaTimeKind kind) -> std::int64_t {
+          const Kotonoha::MediaPlayer *player = nullptr;
+          if (impl_->moviePlayer && impl_->moviePlayer->isOpen() &&
+              (query.empty() || query == impl_->currentMovie ||
+               (impl_->nsbVm &&
+                query == impl_->nsbVm->activeMovie().entityName)))
+            player = impl_->moviePlayer.get();
+          else if (impl_->bgmPlayer && impl_->bgmPlayer->isOpen() &&
+                   (query == impl_->currentBgm || query == "bgm"))
+            player = impl_->bgmPlayer.get();
+          else if (impl_->voicePlayer && impl_->voicePlayer->isOpen() &&
+                   (query == impl_->currentVoice || query == "voice"))
+            player = impl_->voicePlayer.get();
+          if (!player)
+            return 0;
+          const double duration = player->duration();
+          const double elapsed = player->elapsed();
+          double seconds = 0.0;
+          if (kind == MediaTimeKind::Elapsed)
+            seconds = elapsed;
+          else if (duration >= 0.0)
+            seconds = kind == MediaTimeKind::Duration
+                          ? duration : std::max(0.0, duration - elapsed);
+          if (!std::isfinite(seconds) || seconds < 0)
+            return 0;
+          return static_cast<std::int64_t>(
+              std::min(seconds * 1000.0,
+                       double(std::numeric_limits<std::int64_t>::max())));
+        });
     impl_->nsbVm->setLoader(
         [assets = assets_](std::string_view nsbPath,
                            std::vector<std::uint8_t> &nsbOut,
