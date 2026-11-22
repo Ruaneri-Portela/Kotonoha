@@ -105,7 +105,7 @@ remain cached.
 ## Browser storage and assets
 
 - **Saves:** an IDBFS mount at `/save` synchronizes with IndexedDB; writes are flushed through the web storage adapter.
-- **Server assets:** optional `tools/generate_manifest.py` emits a size-aware manifest; the browser mounts Emscripten Fetch as a read-only `IMount` and uses local game files first. Remote data is never staged into MEMFS.
+- **Server assets:** HTTP(S) requires a non-empty `manifest.json` beside `index.html`. Build it with `python3 tools/generate_manifest.py build-web/outputs/<target>`. Paths are relative to `game-assets/`; remote data remains lazy and is never copied into MEMFS.
 - **Local folder:** the page's folder picker imports chosen game files into the virtual filesystem. Browser audio/video may use `File` object URLs where supported.
 - **Media:** the shared player prefers browser decoding for supported formats, then uses the WebAssembly FFmpeg fallback. Optional `.webm` sidecars can help with legacy codecs; make them only from material you may legally use.
 
@@ -114,21 +114,31 @@ To test the optional web integration route, enable `-DKOTONOHA_WEB_SELFTEST=ON`,
 **Known constraints:** browser permissions, asynchronous downloads, browser codec support, and single-threaded execution differ from native desktop behavior. Never rely on direct POSIX access to a browser user's disk.
 
 
-## HTTP(S) game-assets fallback (Filesystem V2 draft)
+## Required HTTP(S) asset manifest
 
-**Startup waits for an explicit choice:** **Use local folder** or
-**Use HTTP(S)**, without automatic selection. Local mode reads imported files
-without contacting the server. HTTP(S) **checks for an optional `game-assets/manifest.json`** after
-the user chooses the remote source. If a valid size-aware `entries` index
-exists, it supplies VFS directory listings (including nested folders)
-immediately, so ports can discover arbitrary archive names. HTTP file bytes
-are still retrieved on demand using Fetch/Range, never copied into MEMFS.
-Files missing from a stale index can still be discovered by HTTP HEAD.
-Absent, empty or invalid manifests fall back to direct Fetch automatically.
+Every browser port waits for an explicit asset-source selection. **Local-folder
+mode** requires no manifest and never requests it. **HTTP(S) mode** must load a
+non-empty, size-aware `manifest.json` next to the page's `index.html`. If the
+manifest is missing, empty, invalid or rejected by the C++ provider, the game
+does not boot. Only a previously validated cached manifest may be reused
+when the network itself is unavailable.
 
-`tools/generate_manifest.py` can generate the optional size-aware index.
-No manifest request is made in local-folder mode or before the user makes a
-source choice.
+The Python tool accepts **one argument: the page root**:
+
+```sh
+python3 tools/generate_manifest.py build-web/outputs/N2SystemGame
+```
+
+It recursively scans that page's `game-assets/` and writes
+`build-web/outputs/N2SystemGame/manifest.json`. Each `entries` path is
+relative to `game-assets/`, not to `index.html`. Copy game files into the
+served directory before running it. CMake invokes the tool after the asset
+copy for every WebAssembly app.
+
+**The manifest is an allow-list.** Unindexed files return not found
+immediately; there is **no HEAD/GET discovery**, even for explicitly requested
+names. Only indexed files are fetched lazily using bounded HTTP Range.
+Optional `game-assets/preload.json` may refer only to indexed assets.
 
 By default, the browser resolves `game-assets/` relative to the page. You can
 configure an HTTPS CDN **before** the app script initializes:
@@ -188,36 +198,19 @@ not automatically instruct every game port to search that folder. Port-specific
 path resolution and touchscreen gameplay must be tested separately.
 
 
-### Manifest-free Fetch with Asyncify
+### Manifest-indexed Fetch with Asyncify
 
-The HTML checks for `game-assets/manifest.json` **only after the
-HTTP(S) source is selected**. Indexed entries enable `list()` / directory
-enumeration; unknown files remain available via direct Fetch discovery. Games
-can also access **known** relative paths without any manifest. The provider
-first requests HTTP `HEAD` to determine the file size; reads then use bounded
-`GET Range` requests and a byte cache. A small object from a server that
-ignores Range can be accepted as a complete HTTP 200 response. No remote file
-is staged in MEMFS.
+Indexed directory listings and file sizes come from the manifest without
+network probing. HTTP GET Range fetches actual file bytes only when needed.
+Asyncify lets synchronous VFS callers yield until a requested range becomes
+available; it does not use blocking XMLHttpRequest. Large files need proper
+206 Content-Range support. A correctly sized whole HTTP 200 response is
+accepted only for small files (up to 8 MiB).
 
-The web linker enables `-sASYNCIFY=1` so the synchronous VFS `exists()`,
-`open()`, and `FileHandle::read()` calls can yield to Fetch callbacks on
-the main browser thread. This is **not** a synchronous browser network API.
-An HTTP 404 is cached as missing; a network/CORS failure remains a load error.
-Large files require correct HTTP Range (206 and Content-Range). The entire
-HTTP object may still be returned by a misconfigured server, so enforce
-hosting limits. Cross-origin servers must allow HEAD and GET and expose
-Content-Length/Content-Range to the browser.
-
-`await window.KotonohaFetchAsset("known-file.bin")` can request one known
-relative path explicitly. The result is 1 on success, 0 if pending, or -1
-on an invalid request. `window.KotonohaAssetBaseURL` can override the
-default game-assets URL **before** initialization.
-
-A directory cannot be enumerated over ordinary HTTP without an index. File
-providers that discover unknown paths through directory enumeration or
-depend on physical archive file paths still need migration. These changes
-do not prove that every port can start or finish gameplay. Re-entrant
-Asyncify/SDL operations and memory usage must be tested in real browsers.
+`await window.KotonohaFetchAsset("indexed-file.bin")` checks the manifest
+(1 = indexed, 0 = absent, -1 = invalid) without fetching an absent file.
+Set `window.KotonohaAssetBaseURL` before startup to use a CDN, while serving
+the index from the page root.
 
 ### Browser validation
 
@@ -228,7 +221,7 @@ node tools/check_web_shell.js
 node --check tools/web_selftest.js
 ```
 
-The Playwright suite also exercises manifest-free HTTP, local folder import,
+The Playwright suite also exercises strict-manifest HTTP, local folder import,
 VFS hot-import refresh, saves, media, and browser touch delivery, when built
 with `-DKOTONOHA_WEB_SELFTEST=ON`. It does not certify each game's retail
 playthrough, and it has not been executed in this environment.

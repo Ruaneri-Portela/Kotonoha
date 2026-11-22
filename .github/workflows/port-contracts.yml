@@ -18,6 +18,8 @@ on:
       - "lib/include/Kotonoha/core/Runtime.hpp"
       - "lib/tests/AssetProviderTests.cpp"
       - "tools/check_sdl_cpack.py"
+      - "tools/generate_manifest.py"
+      - "tools/test_generate_manifest.py"
       - "tools/check_web_shell.js"
       - "tools/test_em_asm_fetch.js"
       - "tools/check_inline_em_asm.py"
@@ -72,6 +74,8 @@ on:
       - "lib/include/Kotonoha/core/Runtime.hpp"
       - "lib/tests/AssetProviderTests.cpp"
       - "tools/check_sdl_cpack.py"
+      - "tools/generate_manifest.py"
+      - "tools/test_generate_manifest.py"
       - "tools/check_web_shell.js"
       - "tools/test_em_asm_fetch.js"
       - "tools/check_inline_em_asm.py"
@@ -173,6 +177,7 @@ jobs:
           /tmp/kotonoha-luca-debug-catalog
       - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
         run: |
+          python3 -m unittest discover -s tools -p test_generate_manifest.py -v
           node tools/check_web_shell.js
           node tools/test_em_asm_fetch.js
           node tools/test_pwa_worker.js
