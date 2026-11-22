@@ -273,6 +273,17 @@ preventing an immediate jump to the old animation's endpoint. Save V6 uses
 the exact same interpolation when snapshotting an in-progress movement.
 Standalone SceneLayers regressions cover all these cases.
 
+## SDL3 pixel-based scene regression
+
+A dedicated SDL-backed C++17 regression now exercises the same GPU composition
+helpers as the native LucaSystem runtime. It renders red/blue synthetic scenes
+through the software SDL3 backend, verifies the exact midpoint blend and
+non-overlapping WIPE pixels, and checks that the renderer draw state, alpha
+modulation and parent clip are restored. No commercial AIR files are required.
+
+    cmake --build build --target LucaSystemGpuSceneTests
+    SDL_VIDEODRIVER=dummy ctest --test-dir build -R LucaSystem.GpuScene --output-on-failure
+
 ## GPU scene composition and transition correctness
 
 Gameplay DRAW now composes the incoming scene into a native 1280x720 SDL

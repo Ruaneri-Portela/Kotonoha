@@ -11,6 +11,7 @@
 #include <LucaSystem/LucaSystemScript.hpp>
 #include <LucaSystem/SaveState.hpp>
 #include <LucaSystem/SceneLayers.hpp>
+#include <LucaSystem/GpuSceneComposition.hpp>
 
 #include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -2678,61 +2679,22 @@ struct LucaSystemRuntime::Impl {
         return false;
       }
     }
-    SDL_Texture *previous = SDL_GetRenderTarget(&renderer);
-    if (!SDL_SetRenderTarget(&renderer, incomingTransitionFrame.get()))
-      return false;
-    // The newly allocated render target is a native 1280x720 framebuffer;
-    // never inherit a scaled/high-DPI viewport or an outer UI clip.
-    const bool ready =
-        SDL_SetRenderLogicalPresentation(
-            &renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED) &&
-        SDL_SetRenderViewport(&renderer, nullptr) &&
-        SDL_SetRenderClipRect(&renderer, nullptr) &&
-        SDL_SetRenderScale(&renderer, 1.0f, 1.0f) &&
-        SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255) &&
-        SDL_RenderClear(&renderer);
-    if (ready)
-      renderSlottedScene(renderer, visibleSlots, now);
-    const bool restored = SDL_SetRenderTarget(&renderer, previous);
-    if (!ready || !restored)
+    if (!renderAirSceneTarget(renderer, *incomingTransitionFrame, [&] {
+          renderSlottedScene(renderer, visibleSlots, now);
+        }))
       return false;
 
-    // Black backgrounds are part of both complete scenes. Composite once:
-    // old*(1-t) + new*t. Sprite alpha never gets multiplied twice.
+    // Blend two fully composed frames, not each sprite in isolation.
     renderSlottedScene(renderer, outgoingSlots, now);
-    const Uint8 weight =
-        static_cast<Uint8>(std::lround(std::clamp(t, 0.0f, 1.0f) * 255.0f));
     const SDL_FRect frame{0, 0, 1280, 720};
-    const bool drawn =
-        SDL_SetTextureAlphaMod(incomingTransitionFrame.get(), weight) &&
-        SDL_RenderTexture(&renderer, incomingTransitionFrame.get(), nullptr,
-                          &frame);
-    SDL_SetTextureAlphaMod(incomingTransitionFrame.get(), 255);
-    return drawn;
+    return blendAirSceneTarget(renderer, *incomingTransitionFrame, t, frame);
   }
 
-  void renderWipe(Kotonoha::RendererRef renderer, uint64_t now, float t) {
-    const int x = wipeSplitX(1280, t);
-    const SDL_Rect oldSide{x, 0, 1280 - x, 720};
-    const SDL_Rect newSide{0, 0, x, 720};
-    SDL_Rect parent{};
-    const bool parentClipped = SDL_RenderClipEnabled(&renderer);
-    if (parentClipped)
-      SDL_GetRenderClipRect(&renderer, &parent);
-    const auto drawRegion = [&](const SDL_Rect &region,
-                                const std::map<LayerKey, SlottedLayer> &slots) {
-      if (region.w <= 0 || region.h <= 0)
-        return;
-      SDL_Rect clip = region;
-      if (parentClipped &&
-          !SDL_GetRectIntersection(&region, &parent, &clip))
-        return;
-      if (SDL_SetRenderClipRect(&renderer, &clip))
-        renderSlottedScene(renderer, slots, now);
-    };
-    drawRegion(oldSide, outgoingSlots);
-    drawRegion(newSide, visibleSlots);
-    SDL_SetRenderClipRect(&renderer, parentClipped ? &parent : nullptr);
+  bool renderWipe(Kotonoha::RendererRef renderer, uint64_t now, float t) {
+    return renderAirHorizontalWipe(
+        renderer, 1280, 720, t,
+        [&] { renderSlottedScene(renderer, outgoingSlots, now); },
+        [&] { renderSlottedScene(renderer, visibleSlots, now); });
   }
 
   bool hasCalendarBackground(const std::map<uint16_t, SlottedLayer> &slots) const {
@@ -4031,7 +3993,8 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     if (impl.drawWipeMode) {
       // Two disjoint GPU scissor regions: incoming pixels REPLACE outgoing
       // pixels; faces and transparent sprites cannot be drawn twice.
-      impl.renderWipe(renderer, now, t);
+      if (!impl.renderWipe(renderer, now, t))
+        impl.renderSlottedScene(renderer, impl.visibleSlots, now);
     } else if (!impl.renderCrossfade(renderer, now, t)) {
       // Rare render-target allocation/backend failure: stay playable and
       // restore the legacy fade while emitting a meaningful diagnostic.
