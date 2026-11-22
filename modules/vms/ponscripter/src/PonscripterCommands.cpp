@@ -1003,6 +1003,149 @@ void PonscripterVm::cmdVars(LineLexer &lexer, const std::string &cmd) {
 }
 
 void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
+  auto queueManual = [this](ManualDrawOp op) {
+    constexpr std::size_t kMaxDrawOps = 4096;
+    if (manualDraftOps_.size() < kMaxDrawOps)
+      manualDraftOps_.push_back(std::move(op));
+  };
+  if (cmd == "drawclear" || cmd == "drawfill") {
+    ManualDrawOp op;
+    op.kind = cmd == "drawclear" ? ManualDrawOp::Kind::Clear
+                                 : ManualDrawOp::Kind::Fill;
+    if (cmd == "drawfill") {
+      const int r = std::clamp(lexer.parseIntExpr(), 0, 255);
+      lexer.consumeComma();
+      const int g = std::clamp(lexer.parseIntExpr(), 0, 255);
+      lexer.consumeComma();
+      const int b = std::clamp(lexer.parseIntExpr(), 0, 255);
+      op.colorRgb = (static_cast<std::uint32_t>(r) << 16) |
+                    (static_cast<std::uint32_t>(g) << 8) |
+                    static_cast<std::uint32_t>(b);
+    }
+    // A full-screen clear supersedes everything previously drawn on
+    // the accumulation buffer, but not the frame already being shown.
+    manualDraftOps_.clear();
+    queueManual(std::move(op));
+    return;
+  }
+  if (cmd == "drawbg" || cmd == "drawbg2") {
+    ManualDrawOp op;
+    op.kind = ManualDrawOp::Kind::Background;
+    op.spec = bg_;
+    if (cmd == "drawbg2") {
+      op.x = lexer.parseIntExpr();
+      lexer.consumeComma();
+      op.y = lexer.parseIntExpr();
+      lexer.consumeComma();
+      op.scaleX = lexer.parseIntExpr();
+      lexer.consumeComma();
+      op.scaleY = lexer.parseIntExpr();
+      lexer.consumeComma();
+      op.rotation = lexer.parseIntExpr();
+    }
+    queueManual(std::move(op));
+    return;
+  }
+  if (cmd == "drawsp" || cmd == "drawsp2" || cmd == "drawsp3") {
+    const int spriteNo = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int cellNo = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int opacity = std::clamp(lexer.parseIntExpr(), 0, 256);
+    if (!lexer.consumeComma())
+      return;
+    const int x = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int y = lexer.parseIntExpr();
+    if (spriteNo < 0 || spriteNo >= kMaxExtendedSprites ||
+        !sprites_[spriteNo].loaded)
+      return;
+    ManualDrawOp op;
+    op.kind = ManualDrawOp::Kind::Sprite;
+    op.spec = sprites_[spriteNo].spec;
+    op.x = x;
+    op.y = y;
+    op.cell = std::clamp(cellNo, 0, std::max(0, op.spec.numCells - 1));
+    op.alpha = (opacity * 255) / 256;
+    if (cmd == "drawsp2") {
+      if (!lexer.consumeComma())
+        return;
+      op.scaleX = lexer.parseIntExpr();
+      if (!lexer.consumeComma())
+        return;
+      op.scaleY = lexer.parseIntExpr();
+      if (!lexer.consumeComma())
+        return;
+      op.rotation = lexer.parseIntExpr();
+    } else if (cmd == "drawsp3") {
+      op.affine = true;
+      if (!lexer.consumeComma())
+        return;
+      op.transformA = lexer.parseIntExpr();
+      if (!lexer.consumeComma())
+        return;
+      op.transformB = lexer.parseIntExpr();
+      if (!lexer.consumeComma())
+        return;
+      op.transformC = lexer.parseIntExpr();
+      if (!lexer.consumeComma())
+        return;
+      op.transformD = lexer.parseIntExpr();
+    }
+    queueManual(std::move(op));
+    return;
+  }
+  if (cmd == "drawtext") {
+    ManualDrawOp op;
+    op.kind = ManualDrawOp::Kind::Text;
+    op.text = pagePlainText_;
+    op.x = window_.textX;
+    op.y = window_.textY;
+    op.width = window_.textAreaWidth();
+    op.height = window_.fontH;
+    op.colorRgb = currentTextStyle_.colorRgb;
+    queueManual(std::move(op));
+    return;
+  }
+  if (cmd == "blt") {
+    ManualDrawOp op;
+    op.kind = ManualDrawOp::Kind::Blit;
+    op.spec = btndefSpec_;
+    op.x = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.y = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.width = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.height = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.srcX = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.srcY = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.srcW = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.srcH = lexer.parseIntExpr();
+    if (!op.spec.imagePath.empty() && op.width > 0 && op.height > 0 &&
+        op.srcW > 0 && op.srcH > 0)
+      queueManual(std::move(op));
+    // blt is an immediate copy into the currently displayed image.
+    manualDisplayOps_ = manualDraftOps_;
+    manualFrameVisible_ = true;
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+  if (cmd == "draw") {
+    manualDisplayOps_ = manualDraftOps_;
+    manualFrameVisible_ = true;
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
   if (cmd == "allsphide" || cmd == "allspresume" ||
       cmd == "allsp2hide" || cmd == "allsp2resume") {
     const bool hide = (cmd == "allsphide" || cmd == "allsp2hide");
@@ -1092,6 +1235,7 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
   }
 
   if (cmd == "bg") {
+    manualFrameVisible_ = false;
     leaveTextDisplayMode(false);
     const std::string rawArg = lexer.parseRawArg();
     bg_ = parseTaggedString(rawArg, TransMode::Copy);
