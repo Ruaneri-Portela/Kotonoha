@@ -165,6 +165,8 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
   out << "WAIT\t" << static_cast<int>(data.waitState) << '\t'
       << data.btnwaitDestVar << '\t' << (data.btnwaitPreserveButtons ? 1 : 0)
       << '\n';
+  out << "SELMODE\t" << data.selectionMode << '\t'
+      << data.selectionNumberVariable << '\n';
   for (const auto &btn : data.buttons) {
     out << "BTN\t" << static_cast<int>(btn.kind) << '\t' << btn.id << '\t'
         << btn.spriteNo << '\t' << btn.x << '\t' << btn.y << '\t' << btn.w
@@ -353,6 +355,12 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       ls >> ws >> outData.btnwaitDestVar >> preserve;
       outData.waitState = static_cast<WaitState>(ws);
       outData.btnwaitPreserveButtons = (preserve != 0);
+    } else if (kind == "SELMODE") {
+      ls >> outData.selectionMode >> outData.selectionNumberVariable;
+      if (outData.selectionMode < 0 || outData.selectionMode > 2) {
+        outData.selectionMode = 0;
+        outData.selectionNumberVariable = -1;
+      }
     } else if (kind == "BTN") {
       int k = 0;
       ButtonDef btn;
