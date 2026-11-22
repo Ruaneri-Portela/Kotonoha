@@ -278,6 +278,13 @@ private:
   std::size_t currentSectionId_ = 0;
 
   // Select / Csel / RMenu / Save config
+  enum class SelectionMode : std::uint8_t {
+    Jump = 0,
+    Subroutine = 1,
+    Number = 2
+  };
+  SelectionMode selectionMode_ = SelectionMode::Jump;
+  int selectionNumberVariable_ = -1;
   std::vector<SelectOption> selectOptions_;
   std::vector<SelectOption> cselOptions_;
   std::uint32_t selectHoverColor_ = 0xFF0000u;
