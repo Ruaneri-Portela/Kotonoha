@@ -255,3 +255,11 @@ The bounded TJS2 source interpreter now handles remainder `%` and ternary
 allows common menu-slot arithmetic and selected/hover button expressions.
 Division or remainder by zero still fails explicitly. These operators are
 not a substitute for full TJS2 language and bytecode support.
+
+## KAG graphical button navigation fallback
+
+KAG `[button graphic=... target=*label]` is now recognized alongside
+`[glink]` and `[link]` for choice navigation at `[s]`. Until the actual
+KiriKiri button image/layer behavior is ported, this intentionally presents
+the graphic identifier as a text choice in Kotonoha UI; the target remains
+functional. Tests cover local target selection for all three command forms.

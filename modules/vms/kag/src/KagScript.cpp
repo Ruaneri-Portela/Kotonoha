@@ -726,9 +726,12 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     return storage.empty() ? label
                            : storage + (label.empty() ? "" : "#" + label);
   };
-  if (name == "glink") {
+  if (name == "glink" || name == "button") {
+    // [button graphic=... target=*label] uses its graphic identifier as
+    // a readable choice caption until native KAG button-layer rendering
+    // is implemented. The navigation destination remains unchanged.
     if (pendingLinks_.size() >= 64)
-      throw std::runtime_error("KAG: too many glink options");
+      throw std::runtime_error("KAG: too many menu button options");
     auto caption = getAttr(tag, "text", getAttr(tag, "caption", ""));
     if (caption.empty())
       caption = getAttr(tag, "graphic", "Choice");

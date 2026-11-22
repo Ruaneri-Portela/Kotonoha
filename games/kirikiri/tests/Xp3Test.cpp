@@ -1014,11 +1014,13 @@ int main() {
         "*menu\n"
         "[glink text=Play target=*play]"
         "[link target=*config]Settings[endlink]"
+        "[button graphic=button.png target=*extra]"
         "[s]\n"
         "*play\n[cm text=Playing][end]\n"
-        "*config\n[cm text=Settings-open][end]",
+        "*config\n[cm text=Settings-open][end]\n"
+        "*extra\n[cm text=Extras-open][end]",
         "menu-links.ks");
-    for (int selected = 0; selected < 2; ++selected) {
+    for (int selected = 0; selected < 3; ++selected) {
       std::vector<std::string> shown, options;
       std::function<void(int)> choose;
       Kirikiri::KagScript::Callbacks cb;
@@ -1032,14 +1034,17 @@ int main() {
       };
       Kirikiri::KagScript::Runner runner(script, cb);
       runner.run();
-      if (options != std::vector<std::string>({"Play", "Settings"}) ||
+      if (options !=
+              std::vector<std::string>({"Play", "Settings", "button.png"}) ||
           !runner.isBlocked() || !choose) {
         std::printf("FAIL: KAG glink/link menu not presented\n");
         ++failures;
         continue;
       }
       choose(selected);
-      const std::string expected = selected == 0 ? "Playing" : "Settings-open";
+      const std::string expected =
+          selected == 0 ? "Playing"
+                        : (selected == 1 ? "Settings-open" : "Extras-open");
       if (shown != std::vector<std::string>{expected} || !runner.isBlocked()) {
         std::printf("FAIL: KAG glink/link menu selection target\n");
         ++failures;
