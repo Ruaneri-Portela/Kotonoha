@@ -647,6 +647,60 @@ int main() {
             "allspresume/allsp2hide must resume only the selected layer");
     }
 
+    {
+      Ponscripter::PonscripterVm manual;
+      const std::string script =
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "bg \"bg.png\"\n"
+          "lsp 4,\"sprite.png\",0,0\n"
+          "drawclear\n"
+          "drawbg\n"
+          "drawsp 4,0,256,20,30\n"
+          "drawsp2 4,0,128,60,70,125,80,45\n"
+          "drawsp3 4,0,256,30,40,1000,200,-200,1000\n"
+          "draw\n"
+          "wait 10\n"
+          "drawfill 12,34,56\n"
+          "draw\n"
+          "end\n";
+      manual.appendScriptFile("0.utf", script);
+      check(manual.start(), "manual framebuffer fixture must start");
+      manual.tick(0);
+      check(manual.waitState() == Ponscripter::WaitState::WaitTimer &&
+                manual.hasManualDrawFrame() &&
+                manual.manualDrawFrame().size() == 5,
+            "draw must commit manual operations before the script waits");
+      const auto &ops = manual.manualDrawFrame();
+      check(ops[0].kind == Ponscripter::ManualDrawOp::Kind::Clear &&
+                ops[1].kind == Ponscripter::ManualDrawOp::Kind::Background &&
+                ops[2].kind == Ponscripter::ManualDrawOp::Kind::Sprite &&
+                ops[2].x == 20 && ops[2].y == 30 &&
+                ops[3].scaleX == 125 && ops[3].scaleY == 80 &&
+                ops[3].rotation == 45 && ops[4].affine &&
+                ops[4].transformB == 200,
+            "manual background, drawsp, scaled and affine commands must be captured");
+      Ponscripter::SlotSaveData slot;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(
+                    manual.exportSlotSave()), slot),
+            "manual GPU draw snapshot must roundtrip");
+      check(slot.manualFrameVisible && slot.manualDisplayOps.size() == 5 &&
+                slot.manualDisplayOps[2].spec.imagePath == "sprite.png" &&
+                slot.manualDisplayOps[4].transformC == -200,
+            "manual GPU draw state must survive save/load");
+      Ponscripter::PonscripterVm resumed;
+      resumed.appendScriptFile("0.utf", script);
+      check(resumed.start(), "manual framebuffer resumption must start");
+      resumed.importSlotSave(slot);
+      resumed.tick(20);
+      check(resumed.isHalted() && resumed.hasManualDrawFrame() &&
+                resumed.manualDrawFrame().size() == 1 &&
+                resumed.manualDrawFrame()[0].colorRgb == 0x0C2238u,
+            "drawfill must clear the accumulation and commit RGB color");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
