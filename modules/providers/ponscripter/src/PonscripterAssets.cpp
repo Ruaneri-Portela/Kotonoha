@@ -1,9 +1,5 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <Kotonoha/Filesystem/GameSourceProbe.hpp>
-#ifdef __EMSCRIPTEN__
-#include <Kotonoha/Filesystem/RemoteAssets.hpp>
-#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
-#endif
 #include <Ponscripter/PonscripterAssets.hpp>
 #include <SDL3/SDL.h>
 
@@ -249,15 +245,8 @@ PonscripterAssets::discoverScripts() const {
   // Binary-verified PONscripter script search order:
   // 0.utf, 00.utf .. 99.utf (then 0.txt, 00.txt .. 99.txt)
   std::set<std::string> seenNorms;
-  bool manifestFreeHttp = false;
-#ifdef __EMSCRIPTEN__
-  if (auto remote = Kotonoha::Filesystem::remoteGameAssets())
-    manifestFreeHttp = remote->manifestFree() && !remote->hasManifestIndex();
-#endif
   for (const char *ext : {"utf", "txt"}) {
-    int consecutiveMissing = 0;
     for (int i = 0; i <= 99; ++i) {
-      bool foundAtIndex = false;
       char buf1[32];
       char buf2[32];
       std::snprintf(buf1, sizeof(buf1), "%d.%s", i, ext);
@@ -267,22 +256,12 @@ PonscripterAssets::discoverScripts() const {
         if (seenNorms.count(norm))
           continue;
         if (containsAsset(cand)) {
-          foundAtIndex = true;
           seenNorms.insert(norm);
           const auto bytes = readAsset(cand);
           std::string text(reinterpret_cast<const char *>(bytes.data()),
                            bytes.size());
           scripts.emplace_back(cand, std::move(text));
         }
-      }
-      if (manifestFreeHttp) {
-        // Without a remote directory index, 0..99 would cause 200 HEADs.
-        // Most script sets are contiguous: stop after four absent indices,
-        // or after eight probes with no script at all.
-        consecutiveMissing = foundAtIndex ? 0 : consecutiveMissing + 1;
-        if ((!scripts.empty() && consecutiveMissing >= 4) ||
-            (scripts.empty() && i >= 8))
-          break;
       }
     }
     if (!scripts.empty())

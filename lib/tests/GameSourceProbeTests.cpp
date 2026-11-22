@@ -168,9 +168,10 @@ int main() {
     auto indexed = Kotonoha::Filesystem::FetchAssetProvider::fromManifest(
         "https://example.invalid/game-assets/",
         R"({"entries":[{"path":"data.xp3","size":1024},{"path":"misc/voice.xp3","size":2048}]})");
-    indexed->enableOnDemandDiscovery();
-    require(indexed->hasManifestIndex() && indexed->manifestFree(),
-            "Optional manifest must index listings and retain direct Fetch");
+    require(indexed->hasManifestIndex() && indexed->fileCount() == 2 &&
+                !indexed->exists("unlisted.xp3") &&
+                indexed->totalRequests() == 0,
+            "Manifest must index files and reject unknown HTTP paths without requests");
     auto indexedSource = Filesystem::mount(
         std::static_pointer_cast<Kotonoha::Filesystem::IMount>(indexed));
     require(Kotonoha::Filesystem::isGameSourceRegularFile(*indexedSource,
