@@ -29,6 +29,14 @@ inline float wipeVisibleWidth(float objectLeft, float imageWidth,
     return 0.0f;
   return std::clamp(revealRight - objectLeft, 0.0f, imageWidth);
 }
+
+// CZ4 character sprites store positions for an untrimmed canvas. The pixel
+// payload is cropped; when the script scales the sprite, its crop offset and
+// anchor must scale along with that payload or parts appear displaced.
+inline float croppedSpriteOrigin(float position, float anchor, float crop,
+                                 float scale, float move, float shake) {
+  return position + (crop - anchor) * scale + move + shake;
+}
 enum class SceneTransition { Crossfade, WipeLeftToRight };
 struct SceneBlend {
   float outgoing = 0, incoming = 1, blackout = 0;
