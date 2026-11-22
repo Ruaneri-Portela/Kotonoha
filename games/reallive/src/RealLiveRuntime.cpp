@@ -2,6 +2,7 @@
 #include "RealLiveAudioFade.hpp"
 #include "RealLiveReadProgress.hpp"
 #include "RealLivePersistentHistory.hpp"
+#include "RealLiveSelectRules.hpp"
 #include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -2792,41 +2793,64 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
   }
-  if (type == 0 && m == 2 && (op >= 0 && op <= 4)) {
+  if (type == 0 && m == 2 && op >= 0 && op <= 3) {
+    // Ordinary RealLive selections are SelectElements. The distinct
+    // select_objbtn opcode 4 takes an object group, not a SelectElement.
     auto *s = dynamic_cast<const libreallive::SelectElement *>(&c);
     if (!s)
-      throw std::runtime_error("Invalid REALLIVE selection");
+      throw std::runtime_error("Invalid REALLIVE select bytecode");
     std::vector<ChoiceOption> options;
     int id = 0;
-    for (auto &p : s->raw_params()) {
-      bool hidden = false;
-      for (auto &cond : p.cond_parsed)
-        if (cond.effect == libreallive::SelectElement::OPTION_HIDE &&
-            !cond.condition.empty()) {
-          const char *e = cond.condition.c_str();
-          hidden = libreallive::GetExpression(e).GetIntegerValue(machine) != 0;
+    for (const auto &p : s->raw_params()) {
+      SelectOptionState state;
+      for (const auto &condition : p.cond_parsed) {
+        bool value = false;
+        const bool hasCondition = !condition.condition.empty();
+        if (hasCondition) {
+          const char *expr = condition.condition.c_str();
+          value = libreallive::GetExpression(expr).GetIntegerValue(machine) != 0;
         }
-      if (!hidden) {
-        auto raw = libreallive::EvaluatePRINT(machine, p.text);
-        auto cached = selectionLabels.find(raw);
-        auto decoded =
+        std::optional<int> colour;
+        if (condition.effect == libreallive::SelectElement::OPTION_TITLE &&
+            (!hasCondition || value) && !condition.effect_argument.empty()) {
+          const char *expr = condition.effect_argument.c_str();
+          colour = libreallive::GetExpression(expr).GetIntegerValue(machine);
+        }
+        applySelectCondition(state, condition.effect, hasCondition, value,
+                             colour);
+      }
+      if (state.visible) {
+        const auto raw = libreallive::EvaluatePRINT(machine, p.text);
+        const auto cached = selectionLabels.find(raw);
+        const auto decoded =
             cached == selectionLabels.end()
                 ? decodeText(raw, archive.Scenario(vm.scenario()).encoding())
                 : cached->second;
-        options.push_back(
-            {engine->GetTranslation().text(vm.scenario(), decoded), id});
+        ChoiceOption option{
+            engine->GetTranslation().text(vm.scenario(), decoded), id};
+        option.enabled = state.enabled;
+        option.colourIndex = state.colourIndex;
+        options.push_back(std::move(option));
       }
       ++id;
     }
     textbox->hide();
-    static_cast<RealLiveSelection &>(*choice).configure(selectionWindow);
+    // select_w embeds a text-window override; -1 uses DEFAULT_SEL_WINDOW.
+    const int requestedWindow =
+        op == 0 ? s->GetWindowExpression().GetIntegerValue(machine) : -1;
+    const int activeWindow = selectWindowIndex(
+        selectionWindow, requestedWindow);
+    static_cast<RealLiveSelection &>(*choice).configure(activeWindow);
+    if (options.empty()) {
+      // A script may intentionally hide every branch until its conditions
+      // change. Do not crash the engine or invent a selectable route.
+      throw std::runtime_error("REALLIVE selection has no visible options");
+    }
     choice->setQuestion("", options, [this](int n, const std::string &) {
       vm.machine().set_store_register(n);
       choice->hide();
     });
-    // Consume the batched rlBabel selection labels now that the SelectElement
-    // has been presented. This prevents stale labels from leaking into the
-    // next unrelated selection.
+    // A batch of rlBabel translated choices belongs to exactly one select.
     selectionLabels.clear();
     return true;
   }
