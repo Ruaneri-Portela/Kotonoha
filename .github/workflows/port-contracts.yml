@@ -175,6 +175,13 @@ jobs:
             games/luca-system/tests/DebugCatalogTest.cpp \
             -o /tmp/kotonoha-luca-debug-catalog
           /tmp/kotonoha-luca-debug-catalog
+      - name: Compile and run LucaSystem scaled sprite geometry regression
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Igames/luca-system/include \
+            games/luca-system/tests/SceneLayersTest.cpp \
+            -o /tmp/kotonoha-luca-scene-layers
+          /tmp/kotonoha-luca-scene-layers
       - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
         run: |
           python3 -m unittest discover -s tools -p test_generate_manifest.py -v
