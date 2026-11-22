@@ -170,6 +170,7 @@ jobs:
             modules/vms/n2system/src/AudioSystem.cpp \
             modules/vms/n2system/src/DialogueSystem.cpp \
             modules/vms/n2system/src/SaveState.cpp \
+            modules/vms/n2system/src/SaveStateJson.cpp \
             modules/vms/n2system/src/ScriptVm.cpp \
             modules/vms/n2system/tests/ScriptVmTest.cpp \
             -o /tmp/kotonoha-n2-vm
