@@ -20,6 +20,7 @@
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
@@ -659,6 +660,7 @@ struct RealLiveRuntime::Impl {
   bool musicLoop = false;
   int64_t musicEnd = 0, musicLoopStart = 0, musicFrames = 0;
   std::unique_ptr<MediaPlayer> movie;
+  VideoSkipGesture videoSkip;
   PcmPlayer bgm, voice;
   float bgmGain = 1, fadeFrom = 1, fadeTo = 1;
   int fadeElapsed = 0, fadeDuration = 0;
@@ -3452,6 +3454,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       if (!assets->contains(id))
         id += ".mpg";
       movie->open(*assets, id, false, "BGM");
+      videoSkip.reset();
       return true;
     }
   }
@@ -4915,6 +4918,13 @@ void RealLiveRuntime::loadGame(const std::string &path) {
 bool RealLiveRuntime::onEvent(EventRef e) {
   if (!impl)
     return Runtime::onEvent(e);
+  // Movie playback owns input; no gameplay/UI event can accidentally end it.
+  if (impl->movie && impl->movie->isOpen() && !impl->movie->finished()) {
+    if (impl->videoSkip.accept(e))
+      impl->movie->stop();
+    return true;
+  }
+  impl->videoSkip.reset();
 
   // Engine sends raw fingers before synthetic SDL_TOUCH_MOUSEID pointer
   // events. Ignore mouse releases from drags, multi-touch and cancellations.
