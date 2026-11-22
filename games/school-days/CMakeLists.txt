@@ -138,6 +138,37 @@ if(WIN32 AND NOT ANDROID)
     endif()
 endif()
 
+# This font is a separately supplied local QA asset, not tracked game content.
+# Stage it AFTER kotonoha_configure_app's generic asset POST_BUILD copy so a
+# placeholder in the engine asset directory cannot overwrite the real font.
+# A separate verify target is mandatory before assembling a private QA ZIP.
+if(WIN32 AND NOT ANDROID)
+    set(KOTONOHA_SCHOOL_DAYS_LAUNCHER_FONT_SOURCE "" CACHE FILEPATH
+        "Path to approved local NotoSansJP-Regular.ttf for School Days Windows QA")
+    set(_school_days_font_script
+        "${CMAKE_CURRENT_SOURCE_DIR}/windows/StageLauncherFont.cmake")
+    set(_school_days_font_output
+        "$<TARGET_FILE_DIR:SchoolDays>/assets/fonts/NotoSansJP-Regular.ttf")
+    if(KOTONOHA_SCHOOL_DAYS_LAUNCHER_FONT_SOURCE)
+        add_custom_command(TARGET SchoolDays POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                "-DKOTONOHA_FONT_ACTION=stage"
+                "-DKOTONOHA_FONT_SOURCE=${KOTONOHA_SCHOOL_DAYS_LAUNCHER_FONT_SOURCE}"
+                "-DKOTONOHA_FONT_DESTINATION=${_school_days_font_output}"
+                -P "${_school_days_font_script}"
+            COMMENT "Stage and verify the approved School Days Windows launcher font"
+            VERBATIM)
+    endif()
+    add_custom_target(SchoolDaysVerifyLauncherFont
+        COMMAND "${CMAKE_COMMAND}"
+            "-DKOTONOHA_FONT_ACTION=verify"
+            "-DKOTONOHA_FONT_DESTINATION=${_school_days_font_output}"
+            -P "${_school_days_font_script}"
+        DEPENDS SchoolDays
+        COMMENT "Fail closed if the School Days Windows QA launcher font is missing or a stub"
+        VERBATIM)
+endif()
+
 # Use only the player's authorized School Days HQ key visual. Always copy it
 # from the source tree to the binary folder, including asset-only rebuilds.
 # The single SchoolDays.exe loads this PNG; no separate launcher EXE is needed.

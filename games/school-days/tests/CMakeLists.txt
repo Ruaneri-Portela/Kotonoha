@@ -1,5 +1,13 @@
 set(SCHOOL_DAYS_ROUTE "${CMAKE_CURRENT_SOURCE_DIR}/../game-assets/school-days-hq.ktnroute")
 
+if(WIN32)
+    add_test(NAME SchoolDays.LauncherFontStage
+        COMMAND "${CMAKE_COMMAND}"
+            "-DSTAGE_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/../windows/StageLauncherFont.cmake"
+            "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/launcher-font-stage-test"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/SchoolDaysLauncherFontStageTest.cmake")
+endif()
+
 # Shared launcher/asset-provider precedence with synthetic PNG/CMAP files.
 add_executable(SchoolDaysOverlaySelectionTest SchoolDaysOverlaySelectionTest.cpp)
 add_test(NAME SchoolDays.OverlaySelection COMMAND SchoolDaysOverlaySelectionTest)

@@ -59,6 +59,29 @@ Always compile virgin Windows builds in **brand-new CMake directories** using `V
    - `assets/` (`SPLASH.PNG`, `SchoolDays.ico`, `SchoolDaysHQ-Launcher.png`, `Anime4K/`, `ArtCNN/`, `fonts/NotoSansJP-Regular.ttf`)
    - `third-party-licenses/` (16 license notices)
 
+**Required Windows QA font validation (DEV and DIST):** The launcher font is
+private, untracked, and must never be copied blindly from a checkout's
+`assets/fonts/` directory. The 1,204-byte placeholder caused invisible
+launcher text; the known-good font is 5,733,060 bytes (SHA-256
+`7c8597677e9fac0f54d7848ad18bc6a708dfb5baa4ebf4bd91e66efcca313bf3`).
+Set `-DKOTONOHA_SCHOOL_DAYS_LAUNCHER_FONT_SOURCE=<approved-local-ttf>`
+when configuring either Windows build. The School Days post-build stage then
+validates and copies the approved font **after** generic engine assets.
+Before packaging, run `cmake --build <build-dir> --config Release --target
+SchoolDaysVerifyLauncherFont`. After assembling each DEV/DIST QA folder,
+verify its **final** copy (after all asset staging, before creating a ZIP):
+
+```powershell
+cmake "-DKOTONOHA_FONT_ACTION=verify" "-DKOTONOHA_FONT_DESTINATION=<qa-folder>/assets/fonts/NotoSansJP-Regular.ttf" -P games/school-days/windows/StageLauncherFont.cmake
+```
+
+To repair a staging folder from an explicitly approved local source, run the
+same script with `-DKOTONOHA_FONT_ACTION=stage`,
+`-DKOTONOHA_FONT_SOURCE=<approved-local-ttf>` and the destination above.
+Both modes fail on missing, wrong-size or wrong-hash fonts; neither supplies
+font bytes to Git. Never package after a failed verification. Run
+`ctest -R SchoolDays.LauncherFontStage` to exercise placeholder rejection.
+
 Legacy L4 two-DLL staging scripts (`games/school-days/tools/stage_clean_local_l4.ps1`, `publish_two_dll_l4.ps1`, `stage_windows_clean_local.py`) are historical and must not be run blindly over personal installs.
 
 ---
