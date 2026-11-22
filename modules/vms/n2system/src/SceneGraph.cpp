@@ -10,19 +10,28 @@ namespace N2System {
 void Entity::update(float dt) {
   if (isMoving && moveDuration > 0.0f) {
     moveElapsed += dt;
-    float t = std::min(1.0f, moveElapsed / moveDuration);
-    x = startX + (targetX - startX) * t;
-    y = startY + (targetY - startY) * t;
+    const float t = easeFactor(moveElapsed / moveDuration, moveEase);
+    if (isBezierMoving) {
+      const float inv = 1.0f - t;
+      x = inv * inv * inv * startX + 3.0f * inv * inv * t * bezierX1 +
+          3.0f * inv * t * t * bezierX2 + t * t * t * targetX;
+      y = inv * inv * inv * startY + 3.0f * inv * inv * t * bezierY1 +
+          3.0f * inv * t * t * bezierY2 + t * t * t * targetY;
+    } else {
+      x = startX + (targetX - startX) * t;
+      y = startY + (targetY - startY) * t;
+    }
     if (t >= 1.0f) {
       x = targetX;
       y = targetY;
       isMoving = false;
+      isBezierMoving = false;
     }
   }
 
   if (isFading && opacityDuration > 0.0f) {
     opacityElapsed += dt;
-    float t = std::min(1.0f, opacityElapsed / opacityDuration);
+    const float t = easeFactor(opacityElapsed / opacityDuration, opacityEase);
     opacity = startOpacity + (targetOpacity - startOpacity) * t;
     if (t >= 1.0f) {
       opacity = targetOpacity;
@@ -32,7 +41,7 @@ void Entity::update(float dt) {
 
   if (isScaling && scaleDuration > 0.0f) {
     scaleElapsed += dt;
-    float t = std::min(1.0f, scaleElapsed / scaleDuration);
+    const float t = easeFactor(scaleElapsed / scaleDuration, scaleEase);
     scaleX = startScaleX + (targetScaleX - startScaleX) * t;
     scaleY = startScaleY + (targetScaleY - startScaleY) * t;
     if (t >= 1.0f) {
@@ -44,7 +53,7 @@ void Entity::update(float dt) {
 
   if (isRotating && rotateDuration > 0.0f) {
     rotateElapsed += dt;
-    float t = std::min(1.0f, rotateElapsed / rotateDuration);
+    const float t = easeFactor(rotateElapsed / rotateDuration, rotateEase);
     angle = startAngle + (targetAngle - startAngle) * t;
     if (t >= 1.0f) {
       angle = targetAngle;
@@ -68,7 +77,7 @@ void Entity::update(float dt) {
 
   if (isTransitioning && transitionDuration > 0.0f) {
     transitionElapsed += dt;
-    float t = std::min(1.0f, transitionElapsed / transitionDuration);
+    const float t = easeFactor(transitionElapsed / transitionDuration, transitionEase);
     opacity = transitionStart + (transitionEnd - transitionStart) * t;
     if (t >= 1.0f) {
       opacity = transitionEnd;
@@ -448,9 +457,22 @@ bool SceneGraph::setPriority(std::string_view entityName, float z) {
   return true;
 }
 
+void SceneGraph::setMonochrome(std::string_view query, bool enabled) {
+  for (auto *e : queryEntities(query))
+    e->monochrome = enabled;
+}
+
+void SceneGraph::setBoxBlur(std::string_view query, unsigned passes) {
+  const uint8_t normalized = passes >= 16 ? 16 : passes >= 8 ? 8 : 0;
+  for (auto *e : queryEntities(query))
+    e->boxBlurPasses = normalized;
+}
+
 void SceneGraph::moveEntity(std::string_view name, float targetX, float targetY,
-                            float durationMs) {
+                            float durationMs, EaseFunction ease) {
   for (auto *e : queryEntities(name)) {
+    e->isBezierMoving = false;
+    e->moveEase = ease;
     if (durationMs <= 0.0f) {
       e->x = targetX;
       e->y = targetY;
@@ -467,9 +489,38 @@ void SceneGraph::moveEntity(std::string_view name, float targetX, float targetY,
   }
 }
 
-void SceneGraph::fadeEntity(std::string_view name, float targetOpacity,
-                            float durationMs) {
+void SceneGraph::bezierMoveEntity(std::string_view name, float control1X,
+                                  float control1Y, float control2X,
+                                  float control2Y, float targetX, float targetY,
+                                  float durationMs, EaseFunction ease) {
   for (auto *e : queryEntities(name)) {
+    e->moveEase = ease;
+    e->bezierX1 = control1X;
+    e->bezierY1 = control1Y;
+    e->bezierX2 = control2X;
+    e->bezierY2 = control2Y;
+    if (durationMs <= 0.0f) {
+      e->x = targetX;
+      e->y = targetY;
+      e->isMoving = false;
+      e->isBezierMoving = false;
+    } else {
+      e->startX = e->x;
+      e->startY = e->y;
+      e->targetX = targetX;
+      e->targetY = targetY;
+      e->moveDuration = durationMs / 1000.0f;
+      e->moveElapsed = 0.0f;
+      e->isMoving = true;
+      e->isBezierMoving = true;
+    }
+  }
+}
+
+void SceneGraph::fadeEntity(std::string_view name, float targetOpacity,
+                            float durationMs, EaseFunction ease) {
+  for (auto *e : queryEntities(name)) {
+    e->opacityEase = ease;
     if (durationMs <= 0.0f) {
       e->opacity = targetOpacity;
       e->isFading = false;
@@ -484,8 +535,10 @@ void SceneGraph::fadeEntity(std::string_view name, float targetOpacity,
 }
 
 void SceneGraph::zoomEntity(std::string_view name, float targetScaleX,
-                            float targetScaleY, float durationMs) {
+                            float targetScaleY, float durationMs,
+                            EaseFunction ease) {
   for (auto *e : queryEntities(name)) {
+    e->scaleEase = ease;
     if (durationMs <= 0.0f) {
       e->scaleX = targetScaleX;
       e->scaleY = targetScaleY;
@@ -503,8 +556,9 @@ void SceneGraph::zoomEntity(std::string_view name, float targetScaleX,
 }
 
 void SceneGraph::rotateEntity(std::string_view name, float targetAngle,
-                              float durationMs) {
+                              float durationMs, EaseFunction ease) {
   for (auto *e : queryEntities(name)) {
+    e->rotateEase = ease;
     if (durationMs <= 0.0f) {
       e->angle = targetAngle;
       e->isRotating = false;
@@ -537,8 +591,10 @@ void SceneGraph::shakeEntity(std::string_view name, float ampX, float ampY,
 
 void SceneGraph::transitionEntity(std::string_view name, float startAlpha,
                                   float endAlpha, float durationMs,
-                                  std::string_view maskPath) {
+                                  std::string_view maskPath,
+                                  EaseFunction ease) {
   for (auto *e : queryEntities(name)) {
+    e->transitionEase = ease;
     e->transitionMaskPath = std::string(maskPath);
     if (durationMs <= 0.0f) {
       e->opacity = endAlpha;

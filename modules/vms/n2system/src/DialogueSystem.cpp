@@ -1,6 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/DialogueSystem.hpp>
 #include <algorithm>
+#include <utility>
 
 namespace N2System {
 
@@ -21,6 +22,23 @@ void DialogueSystem::setDialogue(std::string_view speaker,
     if (backlog_.size() > 500)
       backlog_.erase(backlog_.begin());
   }
+}
+
+void DialogueSystem::restore(
+    std::string speaker, std::string text, std::string voice,
+    std::vector<DialogueBacklogEntry> backlog, std::size_t visibleChars,
+    float charsPerSecond, bool typing, bool waiting) {
+  speaker_ = std::move(speaker);
+  text_ = std::move(text);
+  voicePath_ = std::move(voice);
+  if (backlog.size() > 500)
+    backlog.erase(backlog.begin(), backlog.end() - 500);
+  backlog_ = std::move(backlog);
+  visibleCharCount_ = std::min(visibleChars, text_.size());
+  typewriterSpeed_ = std::max(1.0f, charsPerSecond);
+  typewriterElapsed_ = float(visibleCharCount_) / typewriterSpeed_;
+  isTyping_ = typing && visibleCharCount_ < text_.size();
+  isWaitingForKey_ = waiting;
 }
 
 void DialogueSystem::clearDialogue() {

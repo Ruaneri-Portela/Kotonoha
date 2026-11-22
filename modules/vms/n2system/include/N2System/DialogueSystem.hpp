@@ -45,6 +45,12 @@ public:
 
   const std::vector<DialogueBacklogEntry> &backlog() const { return backlog_; }
   void clearBacklog() { backlog_.clear(); }
+  // Restore exactly, without adding a duplicate backlog entry or restarting
+  // the typewriter from the beginning.
+  void restore(std::string speaker, std::string text, std::string voice,
+               std::vector<DialogueBacklogEntry> backlog,
+               std::size_t visibleChars, float charsPerSecond,
+               bool typing, bool waiting);
 
 private:
   std::string speaker_;
