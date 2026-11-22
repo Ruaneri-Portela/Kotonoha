@@ -656,12 +656,20 @@ bool Assets::open(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source) {
   overlayNames_ = {};
   rootNames_ = {};
 
-  // A retail DDLC tree is commonly rooted at game/, but some clients pass
-  // that folder as the root. Index relative IDs the same way in both cases.
-  const std::string prefix =
-      mounted_->exists("game/scripts.rpa") ? "game/" : "";
+  // Ren'Py distributions may put game data under game/ or mount game/
+  // directly. In particular, Katawa uses data.rpa rather than scripts.rpa.
+  // Discover the directory instead of assuming a DDLC archive filename.
+  std::string gameRoot;
+  for (const auto &entry : mounted_->list("")) {
+    if (entry.type == Kotonoha::Filesystem::FileType::Directory &&
+        lower(entry.path) == "game") {
+      gameRoot = entry.path;
+      break;
+    }
+  }
+  const std::string prefix = gameRoot.empty() ? "" : gameRoot + "/";
   std::vector<std::string> packages;
-  std::vector<std::string> folders{prefix.empty() ? "" : "game"};
+  std::vector<std::string> folders{gameRoot};
   while (!folders.empty()) {
     auto folder = std::move(folders.back());
     folders.pop_back();

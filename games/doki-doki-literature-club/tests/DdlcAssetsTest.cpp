@@ -1,5 +1,6 @@
 #include <Ddlc/DdlcAssets.hpp>
 #include <Ddlc/Runtime.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -130,6 +131,17 @@ void archiveTests(const std::filesystem::path &root) {
   Ddlc::Archive invalid;
   require(!invalid.open((dir / "invalid.rpx").string()),
           "Archive bounds reject invalid payload");
+
+  const auto mountedDir = root / "mounted-katawa";
+  std::filesystem::create_directories(mountedDir / "game");
+  archive(mountedDir / "game" / "data.rpa", "images/katawa.txt",
+          "mounted-legacy", false, false, true);
+  Ddlc::Assets mounted;
+  require(mounted.open(Kotonoha::Filesystem::Filesystem::mount(
+              mountedDir.string())),
+          "Discover virtual Ren'Py game folder containing data.rpa");
+  require(text(mounted.read("images/katawa.txt")) == "mounted-legacy",
+          "Read Katawa-era RPA-2.0 archive from virtual game directory");
 }
 
 
