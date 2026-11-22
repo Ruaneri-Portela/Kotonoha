@@ -113,7 +113,7 @@ struct PrintedNumber {
 };
 
 struct ButtonDef {
-  enum class Kind : std::uint8_t { RectBtn = 0, SpriteBtn = 1 };
+  enum class Kind : std::uint8_t { RectBtn = 0, SpriteBtn = 1, TextBtn = 2 };
   int id = 0;
   Kind kind = Kind::SpriteBtn;
   int spriteNo = -1;
@@ -124,6 +124,7 @@ struct ButtonDef {
   int srcX = 0;
   int srcY = 0;
   std::string exbtnControl;
+  std::string text; // UI-rendered custom-selection caption
 };
 
 struct RMenuEntry {
