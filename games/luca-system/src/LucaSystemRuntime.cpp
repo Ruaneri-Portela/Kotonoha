@@ -11,6 +11,7 @@
 #include <LucaSystem/LucaSystemScript.hpp>
 #include <LucaSystem/SaveState.hpp>
 #include <LucaSystem/SceneLayers.hpp>
+#include <LucaSystem/GpuSceneComposition.hpp>
 
 #include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -464,14 +465,11 @@ private:
     if (image.rgba.empty())
       return nullptr;
     if (!target) {
-      target.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
-                                     SDL_TEXTUREACCESS_STATIC, image.width,
-                                     image.height));
-      if (!target || !SDL_UpdateTexture(target.get(), nullptr,
-                                        image.rgba.data(), image.width * 4))
+      target.reset(uploadAirStaticRgba(renderer, image.width, image.height,
+                                       image.rgba.data(), image.width * 4,
+                                       SDL_SCALEMODE_LINEAR));
+      if (!target)
         return nullptr;
-      SDL_SetTextureScaleMode(target.get(), SDL_SCALEMODE_LINEAR);
-      SDL_SetTextureBlendMode(target.get(), SDL_BLENDMODE_BLEND);
     }
     return target.get();
   }
@@ -1764,6 +1762,7 @@ struct LucaSystemRuntime::Impl {
   std::unordered_map<uint32_t, CzImage> objectImages;
   std::unordered_map<uint32_t, bool> objectHasTransparency;
   std::unordered_map<uint32_t, Kotonoha::TexturePtr> objectTextures;
+  std::unordered_map<uint32_t, uint64_t> failedImageRetryAt;
   CzImage background;
   Kotonoha::TexturePtr backgroundTexture;
   std::unordered_map<uint32_t, int32_t> numericVars;
@@ -1819,6 +1818,9 @@ struct LucaSystemRuntime::Impl {
   std::map<LayerKey, SlottedLayer> stagedSlots;
   std::map<LayerKey, SlottedLayer> visibleSlots;
   std::map<LayerKey, SlottedLayer> outgoingSlots;
+  // GPU-owned full-scene framebuffer: crossfade AFTER sprite composition,
+  // never by modifying each layer's alpha independently.
+  Kotonoha::TexturePtr incomingTransitionFrame;
   uint64_t drawStartTick = 0;
   uint64_t drawDurationMs = 0;
   bool drawWipeMode = false;
@@ -2119,6 +2121,9 @@ struct LucaSystemRuntime::Impl {
     stagedSlots.clear();
     visibleSlots.clear();
     outgoingSlots.clear();
+    drawDurationMs = 0;
+    drawWipeMode = false;
+    pruneObjectCaches();
     sceneLayers.reset();
     originalTitle = true;
     titleShown = true;
@@ -2411,6 +2416,10 @@ struct LucaSystemRuntime::Impl {
   void loadObjectImage(uint32_t id) {
     if (id == 0 || objectImages.count(id))
       return;
+    const uint64_t now = SDL_GetTicks();
+    if (const auto retry = failedImageRetryAt.find(id);
+        retry != failedImageRetryAt.end() && now < retry->second)
+      return;
     try {
       auto image = DecodeCzImage(assets->readImageAsset(id));
       // Fill RGB in fully transparent boundary texels. SDL samples straight
@@ -2422,7 +2431,14 @@ struct LucaSystemRuntime::Impl {
       objectHasTransparency[id] = hasNonOpaquePixels(image.rgba);
       objectImages[id] = std::move(image);
       objectTextures[id].reset();
+      failedImageRetryAt.erase(id);
     } catch (const std::exception &e) {
+      // A missing/CZ-corrupt asset may be referenced by several slots.
+      // Decode/log at most once per two seconds, not every frame. Retry
+      // later so a newly mounted asset overlay can still fix the image.
+      if (failedImageRetryAt.size() > 4096)
+        failedImageRetryAt.clear();
+      failedImageRetryAt[id] = now + 2000;
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: image %u: %s", id,
                   e.what());
     }
@@ -2449,6 +2465,11 @@ struct LucaSystemRuntime::Impl {
       else if (auto shownIt = visibleSlots.find(key);
                shownIt != visibleSlots.end())
         baseLayer = &shownIt->second;
+      // IMAGELOAD(group=2,slot,asset) has no coordinates: retain the
+      // existing character placement and animation instead of teleporting
+      // a replacement portrait back to (0,0).
+      if (baseLayer && !hasExplicitPos)
+        inheritAirPortraitVisuals(layer, *baseLayer, true);
       const auto nextImage = objectImages.find(assetId);
       if (baseLayer && nextImage != objectImages.end()) {
         const auto baseImage = objectImages.find(baseLayer->assetId);
@@ -2460,10 +2481,9 @@ struct LucaSystemRuntime::Impl {
                 nextImage->second.canvasWidth, nextImage->second.canvasHeight)) {
           const SlottedLayer preservedBase = *baseLayer;
           stagedSlots[key] = preservedBase;
-          if (!hasExplicitPos) {
-            layer.posX = preservedBase.posX;
-            layer.posY = preservedBase.posY;
-          }
+          // Face crops must move/rotate/scale with their full portrait,
+          // including while MOVE is still interpolating.
+          inheritAirPortraitVisuals(layer, preservedBase, true);
           layer.group = 3;
           stagedSlots[makeKey(3, slot)] = layer;
           return;
@@ -2472,6 +2492,11 @@ struct LucaSystemRuntime::Impl {
       stagedSlots.erase(makeKey(3, slot));
     }
     stagedSlots[makeKey(group, slot)] = layer;
+  }
+
+  void pruneObjectCaches() {
+    pruneAirObjectCaches(stagedSlots, visibleSlots, outgoingSlots,
+                         objectImages, objectTextures);
   }
 
   void syncLegacySceneLayers() {
@@ -2488,7 +2513,9 @@ struct LucaSystemRuntime::Impl {
       obj.scaleX = slot.scaleX;
       obj.scaleY = slot.scaleY;
       obj.rotation = slot.rotation;
-      obj.priority = int(slot.group) * 100 + int(slot.slot);
+      obj.priority = key == AirPersistentBackdropKey
+                         ? -100
+                         : int(slot.group) * 100 + int(slot.slot);
       obj.visible = slot.visible;
       obj.r = slot.r;
       obj.g = slot.g;
@@ -2499,6 +2526,16 @@ struct LucaSystemRuntime::Impl {
   }
 
   void commitStagedSlots(uint64_t now, uint64_t durationMs, bool wipe) {
+    // A CZ overlay in slot (0,0) does not erase the last opaque outdoor
+    // background. A full opaque scene image replaces it as usual.
+    retainAirBackdrop(stagedSlots, visibleSlots, [&](const SlottedLayer &layer) {
+      if (layer.assetId == 65000 || layer.assetId == 65001)
+        return layer.group == 0 && layer.slot == 0 &&
+               layer.alpha >= 0.99f && layer.visible;
+      const auto found = objectImages.find(layer.assetId);
+      return found != objectImages.end() &&
+             isFullAirBackdrop(layer, found->second);
+    });
     // A cleared portrait also clears its private expression fragment.
     for (auto it = stagedSlots.begin(); it != stagedSlots.end();) {
       if (it->second.group == 3 &&
@@ -2529,6 +2566,7 @@ struct LucaSystemRuntime::Impl {
     }
     if (unlocked)
       saveGlobalState();
+    pruneObjectCaches();
   }
 
   std::pair<float, float> computeShakeOffset(uint64_t now,
@@ -2556,9 +2594,12 @@ struct LucaSystemRuntime::Impl {
 
   void renderSlottedLayer(Kotonoha::RendererRef renderer,
                           const SlottedLayer &slot, uint64_t now,
-                          float opacityMod = 1.0f, float rightClip = -1.0f) {
-    if (!slot.visible || slot.assetId == 0 || slot.alpha <= 0.0f ||
-        opacityMod <= 0.0f)
+                          float opacityMod = 1.0f,
+                          const SlottedLayer *portrait = nullptr) {
+    if (!slot.visible || slot.assetId == 0 || !std::isfinite(slot.alpha) ||
+        slot.alpha <= 0.0f || !std::isfinite(opacityMod) ||
+        opacityMod <= 0.0f || !std::isfinite(slot.scaleX) ||
+        !std::isfinite(slot.scaleY))
       return;
     loadObjectImage(slot.assetId);
     auto it = objectImages.find(slot.assetId);
@@ -2567,17 +2608,13 @@ struct LucaSystemRuntime::Impl {
     const auto &img = it->second;
     auto &tex = objectTextures[slot.assetId];
     if (!tex) {
-      tex.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
-                                  SDL_TEXTUREACCESS_STATIC, img.width,
-                                  img.height));
-      if (!tex || !SDL_UpdateTexture(tex.get(), nullptr, img.rgba.data(),
-                                     img.width * 4))
+      tex.reset(uploadAirStaticRgba(
+          renderer, img.width, img.height, img.rgba.data(), img.width * 4,
+          (slot.assetId == 65000 || slot.assetId == 65001)
+              ? SDL_SCALEMODE_NEAREST
+              : SDL_SCALEMODE_LINEAR));
+      if (!tex)
         return;
-      SDL_SetTextureScaleMode(tex.get(),
-                              (slot.assetId == 65000 || slot.assetId == 65001)
-                                  ? SDL_SCALEMODE_NEAREST
-                                  : SDL_SCALEMODE_LINEAR);
-      SDL_SetTextureBlendMode(tex.get(), SDL_BLENDMODE_BLEND);
     }
 
     const float alpha = std::clamp(slot.alpha * opacityMod, 0.0f, 1.0f);
@@ -2585,75 +2622,130 @@ struct LucaSystemRuntime::Impl {
                            static_cast<Uint8>(std::lround(alpha * 255.0f)));
     SDL_SetTextureColorMod(tex.get(), slot.r, slot.g, slot.b);
 
-    float offX = slot.targetOffsetX;
-    float offY = slot.targetOffsetY;
-    if (slot.moveDuration > 0 && now < slot.moveStart + slot.moveDuration) {
-      const float t = float(now > slot.moveStart ? (now - slot.moveStart) : 0) /
-                      float(slot.moveDuration);
-      offX = slot.startOffsetX + (slot.targetOffsetX - slot.startOffsetX) * t;
-      offY = slot.startOffsetY + (slot.targetOffsetY - slot.startOffsetY) * t;
+    // For expression crops the base portrait defines the full character
+    // canvas, movement and rotation pivot. A cropped face file's own
+    // anchor may be different even when its canvas dimensions match.
+    const CzImage *baseImage = &img;
+    const SlottedLayer *pose = &slot;
+    if (portrait && slot.group == 3) {
+      const auto found = objectImages.find(portrait->assetId);
+      if (found != objectImages.end() &&
+          found->second.canvasWidth == img.canvasWidth &&
+          found->second.canvasHeight == img.canvasHeight) {
+        baseImage = &found->second;
+        pose = portrait;
+      }
     }
+    const float offX = airMoveOffset(pose->startOffsetX, pose->targetOffsetX,
+                                     pose->moveStart, pose->moveDuration, now);
+    const float offY = airMoveOffset(pose->startOffsetY, pose->targetOffsetY,
+                                     pose->moveStart, pose->moveDuration, now);
 
     const uint8_t shakeKey =
         (slot.group == 0) ? 0 : static_cast<uint8_t>(1 + slot.slot);
     const auto [shakeX, shakeY] = computeShakeOffset(now, shakeKey);
 
-    float drawX = 0.0f;
-    float drawY = 0.0f;
-    float drawW = float(img.width) * slot.scaleX;
-    float drawH = float(img.height) * slot.scaleY;
+    const auto crop = airCharacterCropPlacement(
+        *pose, *baseImage, img, offX, offY, shakeX, shakeY);
+    float drawX = crop.x, drawY = crop.y;
+    float drawW = crop.w, drawH = crop.h;
 
     if (slot.assetId == 65000 || slot.assetId == 65001) {
       drawX = 0.0f;
       drawY = 0.0f;
       drawW = 1280.0f;
       drawH = 720.0f;
-    } else {
-      // The payload is cropped relative to the original CZ4 canvas. Scale
-      // anchor and crop together with the sprite, not independently.
-      drawX = croppedSpriteOrigin(
-          slot.posX, float(img.anchorX), float(img.cropX), slot.scaleX,
-          offX, shakeX);
-      drawY = croppedSpriteOrigin(
-          slot.posY, float(img.anchorY), float(img.cropY), slot.scaleY,
-          offY, shakeY);
     }
 
+    if (!std::isfinite(drawX) || !std::isfinite(drawY) ||
+        !std::isfinite(drawW) || !std::isfinite(drawH) ||
+        drawW <= 0 || drawH <= 0)
+      return;
     SDL_FRect dst{drawX, drawY, drawW, drawH};
-    SDL_FRect source{};
-    const SDL_FRect *sourcePtr = nullptr;
-    if (rightClip >= 0.0f) {
-      const float visibleWidth = wipeVisibleWidth(drawX, drawW, rightClip);
-      if (visibleWidth <= 0.0f)
-        return;
-      const float scaleFactor = (slot.assetId == 65000 || slot.assetId == 65001)
-                                    ? 1280.0f
-                                    : slot.scaleX;
-      source = SDL_FRect{0, 0, visibleWidth / scaleFactor, float(img.height)};
-      sourcePtr = &source;
-      dst.w = visibleWidth;
-    }
-    // Only fully opaque backgrounds can safely use image upscalers. CZ4
-    // windows, masks and other cropped overlays may be transparent even when
-    // they live outside the portrait groups; preserve their original alpha.
+    // WIPE uses a full-scene clip instead of cropping a rotated/scaled
+    // sprite's source rectangle, which used to shift faces and stretch art.
+    // Upscalers are intended for flat background art; running an image
+    // enhancement filter on transparent CHARCG portraits may distort edges,
+    // hair strands and the sprite's original alpha silhouette.
     const auto transparency = objectHasTransparency.find(slot.assetId);
     const bool nativeSprite = slot.group == 2 || slot.group == 3 ||
         (transparency != objectHasTransparency.end() && transparency->second);
-    if (slot.rotation != 0.0f) {
+    const SDL_FPoint sharedPivot{crop.pivotX, crop.pivotY};
+    const double rotation = double(pose->rotation);
+    if (rotation != 0.0) {
       if (nativeSprite)
-        SDL_RenderTextureRotated(&renderer, tex.get(), sourcePtr, &dst,
-                                 double(slot.rotation), nullptr, SDL_FLIP_NONE);
+        SDL_RenderTextureRotated(&renderer, tex.get(), nullptr, &dst,
+                                 rotation, &sharedPivot, SDL_FLIP_NONE);
       else
         Kotonoha::RenderUpscaledTextureRotated(
-            &renderer, tex.get(), sourcePtr, &dst, double(slot.rotation),
+            &renderer, tex.get(), nullptr, &dst, rotation,
             nullptr, SDL_FLIP_NONE);
     } else {
       if (nativeSprite)
-        SDL_RenderTexture(&renderer, tex.get(), sourcePtr, &dst);
+        SDL_RenderTexture(&renderer, tex.get(), nullptr, &dst);
       else
-        Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), sourcePtr, &dst);
+        Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), nullptr, &dst);
     }
 
+  }
+
+  // Always compose each portrait and its expression as an adjacent pair.
+  // This is the same ordering for ordinary frames, outgoing and incoming
+  // transition frames, so transitions cannot reorder character faces.
+  void renderSlottedScene(Kotonoha::RendererRef renderer,
+                          const std::map<LayerKey, SlottedLayer> &slots,
+                          uint64_t now, float opacity = 1.0f) {
+    for (const auto key : orderedAirLayerKeys(slots)) {
+      const auto it = slots.find(key);
+      if (it == slots.end())
+        continue;
+      const SlottedLayer *portrait = nullptr;
+      if ((key >> 8) == 3) {
+        const auto base = slots.find(makeKey(2, std::uint8_t(key)));
+        if (base != slots.end())
+          portrait = &base->second;
+      }
+      renderSlottedLayer(renderer, it->second, now, opacity, portrait);
+    }
+  }
+
+  // SDL3 keeps viewport, clip and logical presentation separately for each
+  // render target. Restore the caller's target before rendering the old
+  // frame or UI; the UI remains fully GPU-accelerated at native resolution.
+  bool renderCrossfade(Kotonoha::RendererRef renderer, uint64_t now, float t) {
+    if (t <= 0.0f) {
+      renderSlottedScene(renderer, outgoingSlots, now);
+      return true;
+    }
+    if (!incomingTransitionFrame) {
+      incomingTransitionFrame.reset(SDL_CreateTexture(
+          &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET,
+          1280, 720));
+      if (!incomingTransitionFrame ||
+          !SDL_SetTextureBlendMode(incomingTransitionFrame.get(),
+                                   SDL_BLENDMODE_BLEND) ||
+          !SDL_SetTextureScaleMode(incomingTransitionFrame.get(),
+                                   SDL_SCALEMODE_LINEAR)) {
+        incomingTransitionFrame.reset();
+        return false;
+      }
+    }
+    if (!renderAirSceneTarget(renderer, *incomingTransitionFrame, [&] {
+          renderSlottedScene(renderer, visibleSlots, now);
+        }))
+      return false;
+
+    // Blend two fully composed frames, not each sprite in isolation.
+    renderSlottedScene(renderer, outgoingSlots, now);
+    const SDL_FRect frame{0, 0, 1280, 720};
+    return blendAirSceneTarget(renderer, *incomingTransitionFrame, t, frame);
+  }
+
+  bool renderWipe(Kotonoha::RendererRef renderer, uint64_t now, float t) {
+    return renderAirHorizontalWipe(
+        renderer, 1280, 720, t,
+        [&] { renderSlottedScene(renderer, outgoingSlots, now); },
+        [&] { renderSlottedScene(renderer, visibleSlots, now); });
   }
 
   bool hasCalendarBackground(const std::map<uint16_t, SlottedLayer> &slots) const {
@@ -3010,10 +3102,16 @@ struct LucaSystemRuntime::Impl {
           const uint64_t now = storyNow();
           const uint64_t dur = skipMode ? 0 : framesToMs(frames);
           const auto applyMove = [&](SlottedLayer &l) {
-            l.startOffsetX = l.targetOffsetX;
-            l.startOffsetY = l.targetOffsetY;
-            l.targetOffsetX += dx;
-            l.targetOffsetY += dy;
+            // A new MOVE starts at the *current displayed position*, not at
+            // the previous animation's future target.
+            const float x = airMoveOffset(l.startOffsetX, l.targetOffsetX,
+                                          l.moveStart, l.moveDuration, now);
+            const float y = airMoveOffset(l.startOffsetY, l.targetOffsetY,
+                                          l.moveStart, l.moveDuration, now);
+            l.startOffsetX = x;
+            l.startOffsetY = y;
+            l.targetOffsetX = x + dx;
+            l.targetOffsetY = y + dy;
             l.moveStart = now;
             l.moveDuration = dur;
           };
@@ -3664,6 +3762,9 @@ void LucaSystemRuntime::shutdown() {
   impl.menu = nullptr;
   impl.titleBackgroundTexture.reset();
   impl.objectTextures.clear();
+  impl.objectImages.clear();
+  impl.objectHasTransparency.clear();
+  impl.failedImageRetryAt.clear();
   impl.backgroundTexture.reset();
   impl.splashLogos.clear();
   if (impl.assets)
@@ -3775,6 +3876,15 @@ void LucaSystemRuntime::update() {
     impl.advanceSplash();
   if (paused)
     return;
+  if (impl.drawDurationMs > 0 &&
+      impl.storyNow() >= impl.drawStartTick + impl.drawDurationMs) {
+    // Keep both compositions until the transition's final frame has
+    // elapsed. Once it is complete, the outgoing snapshot is disposable.
+    impl.outgoingSlots.clear();
+    impl.drawDurationMs = 0;
+    impl.drawWipeMode = false;
+    impl.pruneObjectCaches();
+  }
   impl.tickBgmFade();
   if (impl.moviePlayer && !impl.movieFinished) {
     if (impl.engine)
@@ -3852,14 +3962,10 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     } else {
       auto &logo = impl.splashLogos[impl.currentSplashIndex - 1];
       if (!logo.texture && !logo.image.rgba.empty()) {
-        logo.texture.reset(SDL_CreateTexture(
-            &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC,
-            logo.image.width, logo.image.height));
-        if (logo.texture) {
-          SDL_UpdateTexture(logo.texture.get(), nullptr, logo.image.rgba.data(),
-                            logo.image.width * 4);
-          SDL_SetTextureBlendMode(logo.texture.get(), SDL_BLENDMODE_BLEND);
-        }
+        logo.texture.reset(uploadAirStaticRgba(
+            renderer, logo.image.width, logo.image.height,
+            logo.image.rgba.data(), logo.image.width * 4,
+            SDL_SCALEMODE_LINEAR));
       }
       const auto logoElapsed = std::min(elapsed, Impl::logoDuration);
       float alpha = 1.0f;
@@ -3914,14 +4020,11 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (image.rgba.empty())
         return nullptr;
       if (!target) {
-        target.reset(SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
-                                       SDL_TEXTUREACCESS_STATIC, image.width,
-                                       image.height));
-        if (!target || !SDL_UpdateTexture(target.get(), nullptr,
-                                          image.rgba.data(), image.width * 4))
+        target.reset(uploadAirStaticRgba(
+            renderer, image.width, image.height, image.rgba.data(),
+            image.width * 4, SDL_SCALEMODE_LINEAR));
+        if (!target)
           return nullptr;
-        SDL_SetTextureScaleMode(target.get(), SDL_SCALEMODE_LINEAR);
-        SDL_SetTextureBlendMode(target.get(), SDL_BLENDMODE_BLEND);
       }
       return target.get();
     };
@@ -3960,33 +4063,23 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
             float(impl.drawDurationMs),
         0.0f, 1.0f);
     if (impl.drawWipeMode) {
-      for (const auto &[key, slot] : impl.outgoingSlots)
-        impl.renderSlottedLayer(renderer, slot, now, 1.0f);
-      const float revealRight = 1280.0f * t;
-      for (const auto &[key, slot] : impl.visibleSlots)
-        impl.renderSlottedLayer(renderer, slot, now, 1.0f, revealRight);
-    } else {
-      for (const auto &[key, outSlot] : impl.outgoingSlots) {
-        auto visIt = impl.visibleSlots.find(key);
-        if (visIt != impl.visibleSlots.end() &&
-            visIt->second.sameVisual(outSlot)) {
-          // Unchanged layer: render once at full opacity so alpha doesn't dip
-          impl.renderSlottedLayer(renderer, outSlot, now, 1.0f);
-        } else {
-          impl.renderSlottedLayer(renderer, outSlot, now, 1.0f - t);
-        }
-      }
-      for (const auto &[key, visSlot] : impl.visibleSlots) {
-        auto outIt = impl.outgoingSlots.find(key);
-        if (outIt != impl.outgoingSlots.end() &&
-            outIt->second.sameVisual(visSlot))
-          continue;
-        impl.renderSlottedLayer(renderer, visSlot, now, t);
-      }
+      // Two disjoint GPU scissor regions: incoming pixels REPLACE outgoing
+      // pixels; faces and transparent sprites cannot be drawn twice.
+      if (!impl.renderWipe(renderer, now, t))
+        impl.renderSlottedScene(renderer, impl.visibleSlots, now);
+    } else if (!impl.renderCrossfade(renderer, now, t)) {
+      // Rare render-target allocation/backend failure: stay playable and
+      // restore the legacy fade while emitting a meaningful diagnostic.
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "LucaSystem: full-scene crossfade unavailable: %s",
+                  SDL_GetError());
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+      SDL_RenderFillRect(&renderer, &screen);
+      impl.renderSlottedScene(renderer, impl.outgoingSlots, now, 1.0f - t);
+      impl.renderSlottedScene(renderer, impl.visibleSlots, now, t);
     }
   } else {
-    for (const auto &[key, slot] : impl.visibleSlots)
-      impl.renderSlottedLayer(renderer, slot, now, 1.0f);
+    impl.renderSlottedScene(renderer, impl.visibleSlots, now);
   }
 
   impl.renderCalendarBadge(renderer, now, inTransition);
@@ -4330,15 +4423,43 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
   state.callFrames = impl.callStack;
   for (const auto &frame : impl.callStack)
     state.callStack.push_back(frame.instructionIndex);
+  const auto saveTick = impl.storyNow();
   for (const auto &[key, slot] : impl.visibleSlots) {
-    if (!slot.visible || slot.assetId == 0)
+    if (slot.assetId == 0)
       continue;
-    // Encode (group, slot) in high bits of assetId only? No, keep assetId pure
-    // for SaveState V5 compatibility and store group/slot in x/y or re-derive
-    // group from assetId range (10001..10999 -> group 2, else group 0).
-    state.images.push_back({slot.assetId,
-                            static_cast<int32_t>(std::lround(slot.posX)),
-                            static_cast<int32_t>(std::lround(slot.posY))});
+    // Keep legacy image metadata as a fallback for old save readers.
+    if (slot.visible)
+      state.images.push_back({slot.assetId,
+                              static_cast<int32_t>(std::lround(slot.posX)),
+                              static_cast<int32_t>(std::lround(slot.posY))});
+    SavedVisualLayer saved;
+    saved.group = slot.group;
+    saved.slot = slot.slot;
+    saved.assetId = slot.assetId;
+    saved.posX = slot.posX;
+    saved.posY = slot.posY;
+    const uint64_t endTick = slot.moveStart + slot.moveDuration;
+    const bool moving = slot.moveDuration > 0 && saveTick < endTick;
+    saved.startOffsetX =
+        airMoveOffset(slot.startOffsetX, slot.targetOffsetX,
+                      slot.moveStart, slot.moveDuration, saveTick);
+    saved.startOffsetY =
+        airMoveOffset(slot.startOffsetY, slot.targetOffsetY,
+                      slot.moveStart, slot.moveDuration, saveTick);
+    saved.targetOffsetX = slot.targetOffsetX;
+    saved.targetOffsetY = slot.targetOffsetY;
+    saved.moveRemainingMs = moving
+        ? static_cast<uint32_t>(std::min<uint64_t>(endTick - saveTick, 60000))
+        : 0;
+    saved.alpha = slot.alpha;
+    saved.scaleX = slot.scaleX;
+    saved.scaleY = slot.scaleY;
+    saved.rotation = slot.rotation;
+    saved.r = slot.r;
+    saved.g = slot.g;
+    saved.b = slot.b;
+    saved.visible = slot.visible;
+    state.visualLayers.push_back(saved);
   }
   if (impl.engine) {
     // LucaSystem owns its script counter and variables, not VNManager's
@@ -4408,24 +4529,56 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
   impl.stagedSlots.clear();
   impl.visibleSlots.clear();
   impl.outgoingSlots.clear();
-  uint8_t charSlotCounter = 0;
-  uint8_t bgSlotCounter = 0;
-  for (const auto &place : state.images) {
-    impl.loadObjectImage(place.assetId);
-    SlottedLayer layer;
-    layer.assetId = place.assetId;
-    layer.posX = float(place.x);
-    layer.posY = float(place.y);
-    if (place.assetId >= 10000 && place.assetId < 20000) {
-      layer.group = 2;
-      layer.slot = charSlotCounter++;
-    } else {
-      layer.group = 0;
-      layer.slot = bgSlotCounter++;
+  if (!state.visualLayers.empty()) {
+    const auto now = impl.storyNow();
+    for (const auto &saved : state.visualLayers) {
+      impl.loadObjectImage(saved.assetId);
+      SlottedLayer layer;
+      layer.group = saved.group;
+      layer.slot = saved.slot;
+      layer.assetId = saved.assetId;
+      layer.posX = saved.posX;
+      layer.posY = saved.posY;
+      layer.startOffsetX = saved.startOffsetX;
+      layer.startOffsetY = saved.startOffsetY;
+      layer.targetOffsetX = saved.targetOffsetX;
+      layer.targetOffsetY = saved.targetOffsetY;
+      layer.moveStart = now;
+      layer.moveDuration = saved.moveRemainingMs;
+      layer.alpha = saved.alpha;
+      layer.scaleX = saved.scaleX;
+      layer.scaleY = saved.scaleY;
+      layer.rotation = saved.rotation;
+      layer.r = saved.r;
+      layer.g = saved.g;
+      layer.b = saved.b;
+      layer.visible = saved.visible;
+      impl.visibleSlots[Impl::makeKey(layer.group, layer.slot)] = layer;
     }
-    impl.visibleSlots[Impl::makeKey(layer.group, layer.slot)] = layer;
+  } else {
+    // V2–V5: only asset IDs and approximate coordinates were persisted.
+    uint8_t charSlotCounter = 0;
+    uint8_t bgSlotCounter = 0;
+    for (const auto &place : state.images) {
+      impl.loadObjectImage(place.assetId);
+      SlottedLayer layer;
+      layer.assetId = place.assetId;
+      layer.posX = float(place.x);
+      layer.posY = float(place.y);
+      if (place.assetId >= 10000 && place.assetId < 20000) {
+        layer.group = 2;
+        layer.slot = charSlotCounter++;
+      } else {
+        layer.group = 0;
+        layer.slot = bgSlotCounter++;
+      }
+      impl.visibleSlots[Impl::makeKey(layer.group, layer.slot)] = layer;
+    }
   }
   impl.stagedSlots = impl.visibleSlots;
+  impl.drawDurationMs = 0;
+  impl.drawWipeMode = false;
+  impl.pruneObjectCaches();
   impl.syncLegacySceneLayers();
 
   if (auto bgmIt = impl.numericVars.find(99001);

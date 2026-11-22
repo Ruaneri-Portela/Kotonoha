@@ -264,6 +264,26 @@ Script::replaceRaw(std::size_t instructionIndex,
   return result;
 }
 
+std::vector<std::uint8_t> Script::replaceRawAtOffsets(
+    const std::map<std::uint32_t, std::vector<std::uint8_t>> &edits) const {
+  auto output = serialize();
+  for (const auto &[offset, payload] : edits) {
+    const auto index = FindInstructionAtOffset(instructions_, offset);
+    if (!index)
+      throw std::out_of_range(name_ + ": no instruction at offset " +
+                              std::to_string(offset));
+    const auto &instruction = instructions_[*index];
+    if (payload.size() != instruction.rawBytes.size())
+      throw std::invalid_argument(
+          name_ + ": payload size differs at offset " +
+          std::to_string(offset) + " (expected " +
+          std::to_string(instruction.rawBytes.size()) + " bytes)");
+    std::copy(payload.begin(), payload.end(),
+              output.begin() + static_cast<std::size_t>(offset) + 4);
+  }
+  return output;
+}
+
 namespace {
 
 using Bytes = std::vector<uint8_t>;

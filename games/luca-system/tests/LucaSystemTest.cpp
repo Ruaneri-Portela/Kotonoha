@@ -913,6 +913,41 @@ int main(int argc, char **argv) {
             "same-size instruction rewrite preserves opcode structure");
       check(script.serialize() == originalScriptData,
             "script patch does not mutate original bytes");
+      // Multi-edit raw patching preserves all CodeLine boundaries and unknown
+      // opcodes without changing any jump offsets.
+      std::vector<std::uint8_t> joined = originalScriptData;
+      joined.insert(joined.end(), originalScriptData.begin(),
+                    originalScriptData.end());
+      LucaSystem::Script pair("pair.scr", joined);
+      auto second = replacement;
+      if (second.size() >= 3)
+        second[2] = 'J';
+      const auto edited = pair.replaceRawAtOffsets(
+          {{0, replacement},
+           {static_cast<std::uint32_t>(originalScriptData.size()), second}});
+      LucaSystem::Script updated("updated.scr", edited);
+      check(updated.valid() && updated.instructionCount() == 2 &&
+                edited.size() == joined.size() &&
+                updated.instructions()[0].rawBytes == replacement &&
+                updated.instructions()[1].rawBytes == second &&
+                pair.serialize() == joined,
+            "multi-instruction raw patch preserves offsets and source");
+      bool rejectsMisaligned = false;
+      try {
+        (void)pair.replaceRawAtOffsets({{1, replacement}});
+      } catch (const std::out_of_range &) {
+        rejectsMisaligned = true;
+      }
+      check(rejectsMisaligned,
+            "raw patch rejects offsets inside an instruction");
+      bool rejectsWrongLength = false;
+      try {
+        (void)pair.replaceRawAtOffsets({{0, {}}});
+      } catch (const std::invalid_argument &) {
+        rejectsWrongLength = true;
+      }
+      check(rejectsWrongLength,
+            "raw patch rejects size-changing replacements");
       bool rejectsSize = false;
       try {
         (void)script.replaceRaw(0, {});

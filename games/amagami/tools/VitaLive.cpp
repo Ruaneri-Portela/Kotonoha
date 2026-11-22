@@ -28,7 +28,8 @@ public:
 };
 struct Options {
   std::filesystem::path root;
-  std::string elf, klass = "SystemStartup", method = "run";
+  // The original Vita entry point is GameMain.scriptMain.
+  std::string elf, klass = "GameMain", method = "scriptMain";
   unsigned maxFrames = 18000;
 };
 Options parseArgs(int argc, char **argv) {
@@ -71,12 +72,24 @@ int main(int argc, char **argv) {
             (options.root / "graph" / "GRAPH.CPK").string(), options.elf);
     Amagami::Vita::VitaScripts scripts(options.root);
     Amagami::Vm vm;
-    scripts.installAll(vm);
-    if (!vm.hasClass(options.klass))
+    // Keep scenario classes unloaded until their K2X_Script.loadClass call
+    // or an explicit SCF class literal. Loading every scenario up front
+    // incorrectly makes Class.findClass report MahjongMain during dialogue.
+    scripts.installSystem(vm);
+    vm.resolveClass = [&scripts](const std::string &name)
+        -> std::optional<Amagami::Script> {
+      if (!scripts.hasScenario(name))
+        return std::nullopt;
+      return scripts.scenario(name);
+    };
+    if (!vm.loadClass(options.klass))
       throw std::runtime_error("Missing Vita SCF entry class: " +
                                options.klass);
 
     Amagami::Vita::VitaVmBridge bridge;
+    bridge.setClassLoader([&vm](const std::string &name) {
+      return vm.loadClass(name);
+    });
     bridge.setTextureSizeResolver(
         [graphics](uint32_t id, uint32_t variant)
             -> std::optional<std::pair<uint32_t, uint32_t>> {
@@ -95,11 +108,15 @@ int main(int argc, char **argv) {
             return std::nullopt;
           return std::make_pair(uint32_t(surface->w), uint32_t(surface->h));
         });
-    vm.scopedPrimitive = [&bridge](const std::string &owner,
+    vm.scopedPrimitive = [&bridge, &scripts, &vm](const std::string &owner,
                                    const std::string &method, bool classMethod,
                                    const Amagami::VmValue &self, unsigned code,
                                    const std::vector<Amagami::VmValue> &args) {
-      return bridge.primitive(owner, method, classMethod, self, code, args);
+      // Scenario scripts can still test PS2 button bits (not SceCtrl).
+      // The caller one frame below the native is their declaring SCF class.
+      const bool ps2Layout = scripts.hasScenario(vm.callerClass());
+      return bridge.primitive(owner, method, classMethod, self, code, args,
+                              ps2Layout);
     };
     // A cooperative SCF yield every 1000 instructions prevents a script loop
     // from monopolizing the window's SDL event pump.
@@ -139,6 +156,11 @@ int main(int argc, char **argv) {
       gamepad.reset(SDL_OpenGamepad(devices.get()[0]));
     bool running = true, halted = false;
     std::string haltedAt, haltedReason;
+    // SDL_Delay(16) was approximately 62.5 fps and drifted from the Vita's
+    // 60-frame script clock. Pace presentations against a monotonic timer,
+    // without accelerating the script after a slow frame.
+    constexpr Uint64 framePeriodNs = 1000000000ULL / 60ULL;
+    Uint64 nextFrameNs = SDL_GetTicksNS();
 
     for (unsigned frame = 0; running && frame < options.maxFrames; ++frame) {
       SDL_Event e{};
@@ -177,7 +199,12 @@ int main(int argc, char **argv) {
       presenter.draw(bridge);
       if (!SDL_RenderPresent(renderer.get()))
         throw std::runtime_error(SDL_GetError());
-      SDL_Delay(16); // Approx. 60 Hz debug pacing, not original frame sync.
+      nextFrameNs += framePeriodNs;
+      const Uint64 nowNs = SDL_GetTicksNS();
+      if (nextFrameNs > nowNs)
+        SDL_DelayPrecise(nextFrameNs - nowNs);
+      else if (nowNs - nextFrameNs > framePeriodNs * 2)
+        nextFrameNs = nowNs; // Never accumulate unbounded catch-up debt.
     }
     std::cout << "Vita SDL3 diagnostic: " << bridge.sprites().size()
               << " sprite(s), SCF "

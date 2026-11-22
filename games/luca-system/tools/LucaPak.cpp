@@ -148,6 +148,40 @@ void writePak(const LucaSystem::PakArchive &archive, const fs::path &path,
     throw std::runtime_error("Cannot close staged PAK");
 }
 
+// Same-length raw payload edits work with any structurally valid LucaSystem
+// script. We never interpret game-specific opcode operands or move branch PCs.
+std::map<uint32_t, fs::path>
+patchRaw(const LucaSystem::PakArchive &archive, Staging &staging, int argc,
+         char **argv) {
+  std::map<uint32_t, std::map<uint32_t, std::vector<uint8_t>>> edits;
+  for (int i = 4; i < argc; i += 3) {
+    const auto &entry = select(archive, argv[i]);
+    const auto offset = parseNumber<uint32_t>(argv[i + 1]);
+    const auto payload =
+        Kotonoha::Filesystem::readLocalFile(argv[i + 2], 65535);
+    if (!edits[entry.id].emplace(offset, payload).second)
+      throw std::runtime_error("Duplicate raw instruction edit: " +
+                               entry.name + " at byte " +
+                               std::to_string(offset));
+  }
+
+  std::map<uint32_t, fs::path> replacements;
+  for (const auto &[id, changes] : edits) {
+    const auto *entry = archive.findById(id);
+    if (!entry)
+      throw std::runtime_error("Missing PAK entry ID " + std::to_string(id));
+    LucaSystem::Script script(entry->name, archive.read(*entry));
+    if (!script.valid())
+      throw std::runtime_error(entry->name + ": " + script.error());
+    const auto patched = script.replaceRawAtOffsets(changes);
+    const auto path = staging.directory / ("raw-" + std::to_string(id));
+    staging.payloads.push_back(path);
+    writePayload(path, patched);
+    replacements.emplace(id, path);
+  }
+  return replacements;
+}
+
 void changeGlyph(char **argv, bool add) {
   const LucaSystem::PakArchive atlas(argv[2]);
   const auto &atlasEntry = select(atlas, argv[3]);
@@ -231,6 +265,8 @@ void usage(std::ostream &output) {
             " [name:NAME|id:ID FILE]...\n"
             "       LucaPak patch-air SCRIPT.PAK OUTPUT.pak"
             " {name:SCENARIO|id:ID OFFSET UTF8_FILE}...\n"
+            "       LucaPak patch-raw SCRIPT.PAK OUTPUT.pak"
+            " {name:SCENARIO|id:ID OFFSET RAW_PAYLOAD_FILE}...\n"
             "       LucaPak {edit-glyph|add-glyph} ATLAS.pak SELECTOR"
             " INFO.pak SELECTOR"
             " OVERLAY_DIR U+XXXX GLYPH.png X Y WIDTH ADVANCE\n";
@@ -247,9 +283,10 @@ int main(int argc, char **argv) {
   const bool list = command == "list" && argc == 3;
   const bool repack = command == "repack" && argc >= 4 && (argc - 4) % 2 == 0;
   const bool patch = command == "patch-air" && argc >= 7 && (argc - 4) % 3 == 0;
+  const bool raw = command == "patch-raw" && argc >= 7 && (argc - 4) % 3 == 0;
   const bool glyph =
       (command == "edit-glyph" || command == "add-glyph") && argc == 13;
-  if (!list && !repack && !patch && !glyph) {
+  if (!list && !repack && !patch && !raw && !glyph) {
     usage(std::cerr);
     return 2;
   }
@@ -270,6 +307,7 @@ int main(int argc, char **argv) {
     requireNewFile(destination);
     Staging staging(destination.parent_path());
     auto replacements = patch ? patchAir(archive, staging, argc, argv)
+                        : raw ? patchRaw(archive, staging, argc, argv)
                               : std::map<uint32_t, fs::path>{};
     for (int i = 4; repack && i < argc; i += 2) {
       const auto &entry = select(archive, argv[i]);

@@ -53,6 +53,8 @@ public:
   // Arrays ?0 .. ?N
   void dimArray(int arrayId, const std::vector<int> &dimensions);
   int getArray(int arrayId, const std::vector<int> &indices) const;
+  // Number of writable cells in the final dimension, starting at indices.
+  int remainingArrayElements(int arrayId, const std::vector<int> &indices) const;
   void setArray(int arrayId, const std::vector<int> &indices, int value);
 
   // Global variable snapshot for gloval.sav

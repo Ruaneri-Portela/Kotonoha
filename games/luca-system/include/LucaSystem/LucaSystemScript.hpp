@@ -65,6 +65,11 @@ public:
   std::vector<std::uint8_t>
   replaceRaw(std::size_t instructionIndex,
              const std::vector<std::uint8_t> &bytes) const;
+  // Multi-instruction payload patcher for non-AIR scripts. Every edit is
+  // addressed by its original byte offset and must preserve its raw length,
+  // fixed parameters and opcode framing; branches never need relocation.
+  std::vector<std::uint8_t> replaceRawAtOffsets(
+      const std::map<std::uint32_t, std::vector<std::uint8_t>> &edits) const;
 
 private:
   std::string name_;

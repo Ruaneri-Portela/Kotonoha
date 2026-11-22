@@ -1,0 +1,41 @@
+name: RealLive parser and compression regressions
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'games/reallive/vendor/libreallive/compression.cc'
+      - 'games/reallive/vendor/libreallive/scenario.cc'
+      - 'games/reallive/vendor/libreallive/scenario_internals.h'
+      - 'games/reallive/tests/CompressionTest.cpp'
+      - 'games/reallive/tests/ScriptTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - '.github/workflows/reallive-parser-regressions.yml'
+  pull_request:
+    paths:
+      - 'games/reallive/vendor/libreallive/**'
+      - 'games/reallive/tests/CompressionTest.cpp'
+      - 'games/reallive/tests/ScriptTest.cpp'
+      - '.github/workflows/reallive-parser-regressions.yml'
+  workflow_dispatch:
+
+jobs:
+  compression:
+    name: Native C++17 compression (signed/unsigned char)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        char_mode: [signed, unsigned]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile standalone libreallive compression regression
+        run: |
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -pedantic \
+            -f${{ matrix.char_mode }}-char \
+            -Igames/reallive/vendor \
+            games/reallive/vendor/libreallive/compression.cc \
+            games/reallive/tests/CompressionTest.cpp \
+            -o /tmp/reallive-compression-test
+      - name: Run synthetic compressed scenarios
+        run: /tmp/reallive-compression-test

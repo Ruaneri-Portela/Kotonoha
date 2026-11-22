@@ -38,7 +38,9 @@ class RealLiveSelection final : public Kotonoha::ChoiceQuestionScene {
       const float height = std::max(lineHeight, size.y);
       options[i].hitBox = {content.x, y,
                            std::min(content.w, std::max(1.0f, size.x)), height};
-      controls.buttons.push_back({options[i].hitBox, [this, i] { select(i); }});
+      if (options[i].enabled)
+        controls.buttons.push_back(
+            {options[i].hitBox, [this, i] { select(i); }});
       y += height;
     }
   }
@@ -62,10 +64,22 @@ class RealLiveSelection final : public Kotonoha::ChoiceQuestionScene {
   void renderOption(Kotonoha::RendererRef r, std::size_t index, bool) override {
     const auto &option = options[index];
     const bool focused =
-        controls.hovered == int(index) || (keyboardFocus && selected == index);
-    const auto color = engine.GetSettings().vnTextColorOverride
-                           ? engine.GetSettings().vnTextColor
-                           : textColor;
+        option.enabled &&
+        (controls.hovered == int(index) ||
+         (keyboardFocus && selected == index));
+    auto color = engine.GetSettings().vnTextColorOverride
+                     ? engine.GetSettings().vnTextColor
+                     : textColor;
+    if (!option.enabled) {
+      color = {140, 140, 140, 255};
+      if (option.colourIndex >= 0) {
+        const auto key = numbered("COLOR_TABLE.", option.colourIndex);
+        const auto &cfg = assets.settings();
+        color = {Uint8(std::clamp(cfg.integer(key, 140), 0, 255)),
+                 Uint8(std::clamp(cfg.integer(key, 140, 1), 0, 255)),
+                 Uint8(std::clamp(cfg.integer(key, 140, 2), 0, 255)), 255};
+      }
+    }
     if (focused) {
       SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
       SDL_SetRenderDrawColor(&r, color.r, color.g, color.b, 255);

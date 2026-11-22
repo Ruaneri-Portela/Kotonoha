@@ -23,6 +23,10 @@ struct SaveData {
   std::string activeVoice;
 
   std::vector<DialogueBacklogEntry> backlog;
+  // Versioned runtime extension, omitted in legacy N2SV saves. This captures
+  // the live NSB VM, scene graph and phone state without changing the v1
+  // variables/backlog layout. Not a pointer/native-struct memory dump.
+  std::vector<uint8_t> runtimeBlob;
 };
 
 class SaveStateCodec {

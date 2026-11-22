@@ -135,12 +135,36 @@ android {
   }
 
   buildTypes {
+    debug {
+      buildConfigField 'boolean', 'IS_DISTRIBUTION_BUILD', 'false'
+    }
     release {
+      buildConfigField 'boolean', 'IS_DISTRIBUTION_BUILD', 'false'
       minifyEnabled true
       shrinkResources true
       proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
         'proguard-rules.pro',
         file("${sdlRoot}/android-project/app/proguard-rules.pro")
+    }
+    dist {
+      initWith release
+      // Player-facing distribution build (test-signed for device QA; isolated
+      // application ID so Android DEV and DIST coexist without state overlap).
+      applicationIdSuffix '.dist'
+      versionNameSuffix '-dist'
+      debuggable false
+      signingConfig signingConfigs.debug
+      matchingFallbacks = ['release']
+      buildConfigField 'boolean', 'IS_DISTRIBUTION_BUILD', 'true'
+      externalNativeBuild {
+        cmake {
+          arguments '-DKOTONOHA_DISTRIBUTION_BUILD=ON',
+            '-DKOTONOHA_DEV_CONTROL=OFF',
+            '-DKOTONOHA_ENABLE_MCP=OFF',
+            '-DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF',
+            '-DCMAKE_BUILD_TYPE=Release'
+        }
+      }
     }
   }
 
@@ -287,6 +311,12 @@ android.applicationVariants.all { variant ->
   variant.mergeAssetsProvider.configure {
     dependsOn assets
     inputs.dir staged
+  }
+  tasks.matching {
+    it.name == "generate${taskSuffix}LintVitalReportModel" ||
+    it.name == "lintVitalAnalyze${taskSuffix}"
+  }.configureEach {
+    dependsOn assets
   }
   android.sourceSets[variant.name].assets.srcDir staged
 

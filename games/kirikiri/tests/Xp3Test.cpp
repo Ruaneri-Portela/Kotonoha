@@ -342,6 +342,65 @@ int main() {
     }
   }
 
+  // Layer options must mutate an existing image rather than calling
+  // hideChar (which permanently destroys the retained texture).
+  {
+    const auto script = Kirikiri::KagScript::parse(
+        "[image layer=2 storage=hero.png left=20 top=30]"
+        "[layopt layer=2 visible=false opacity=90 left=42 top=21 order=10]"
+        "[layopt layer=2 visible=true]"
+        "[freeimage layer=2][end]",
+        "layopt-persistence.ks");
+    std::vector<std::string> emitted;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showChar = [&](std::string layer, std::string file, int x, int y, int) {
+      emitted.push_back("show:" + layer + ":" + file + ":" +
+                        std::to_string(x) + ":" + std::to_string(y));
+    };
+    cb.hideChar = [&](std::string layer, int) {
+      emitted.push_back("free:" + layer);
+    };
+    cb.updateLayer = [&](Kirikiri::KagScript::LayerOptions options) {
+      if (options.layer != "2")
+        emitted.push_back("bad-layer");
+      else if (options.visible && !*options.visible) {
+        if (!options.left || *options.left != 42 || !options.top ||
+            *options.top != 21 || !options.opacity ||
+            *options.opacity != 90 || !options.order ||
+            *options.order != 10)
+          emitted.push_back("bad-layout");
+        emitted.push_back("hidden");
+      } else if (options.visible && *options.visible) {
+        if (options.left || options.top || options.opacity || options.order)
+          emitted.push_back("bad-reset");
+        emitted.push_back("visible");
+      }
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    if (!runner.isFinished() ||
+        emitted != std::vector<std::string>({
+            "show:2:hero.png:20:30", "hidden", "visible", "free:2"})) {
+      std::printf("FAIL: KAG layopt destroyed image or reset properties\n");
+      ++failures;
+    }
+
+    bool invalid = false;
+    try {
+      Kirikiri::KagScript::Runner broken(
+          Kirikiri::KagScript::parse(
+              "[layopt layer=2 visible=perhaps][end]", "bad-layopt.ks"),
+          cb);
+      broken.run();
+    } catch (const std::runtime_error &) {
+      invalid = true;
+    }
+    if (!invalid) {
+      std::printf("FAIL: malformed KAG layopt visibility accepted\n");
+      ++failures;
+    }
+  }
+
   // Loose KAG patches commonly use a UTF-16 BOM (the NEKOPARA VNX+
   // sysmenu.ks is one real-world example). They must reach the parser as
   // UTF-8 instead of producing one NUL byte between every character.
@@ -429,6 +488,304 @@ int main() {
         parsed.tags[2].type != Kirikiri::KagScript::TagType::Text ||
         parsed.tags[2].text != "hello [world") {
       std::printf("FAIL: KAG @commands/comments/escaped brackets\n");
+      ++failures;
+    }
+  }
+
+  // The original Kirikiri KAG parser skips leading tabs and aliases
+  // repeated labels. Edited scripts can also indent these with spaces.
+  {
+    const auto parsed = Kirikiri::KagScript::parse(
+        "\t; ignored comment\r\n"
+        "\t@wait time=12\r\n"
+        "  *intro|First page\r\n"
+        "\t*intro|Second page\r\n"
+        "\t*|Third page\r\n"
+        "[cm text='ready ] now'][end]",
+        "indented-labels.ks");
+    const bool valid =
+        parsed.tags.size() == 6 && parsed.tags[0].name == "wait" &&
+        parsed.tags[0].line == 2 && parsed.tags[0].column == 2 &&
+        parsed.labels.count("intro") == 1 &&
+        parsed.labels.count("intro:2") == 1 &&
+        parsed.labels.count("intro:3") == 1 &&
+        parsed.labels.at("intro") == 1 &&
+        parsed.labels.at("intro:2") == 2 &&
+        parsed.labels.at("intro:3") == 3 &&
+        parsed.tags[1].line == 3 && parsed.tags[1].column == 3 &&
+        parsed.tags[4].attrs.at("text") == "ready ] now";
+    Kirikiri::KagScript::Callbacks cb;
+    Kirikiri::KagScript::Runner runner(parsed, cb);
+    if (!valid || !runner.jumpToLabel("*intro:3") ||
+        runner.position() != parsed.labels.at("intro:3")) {
+      std::printf("FAIL: KAG indentation, duplicate labels or quoted ]\n");
+      ++failures;
+    }
+  }
+  // Malformed scripts must produce a finite, actionable parser error.
+  {
+    const std::vector<std::string> invalid = {
+        "*|Unnamed first label\n[end]", "[cm text='unclosed]",
+        "[cm text=missing"};
+    for (const auto &source : invalid) {
+      bool rejected = false;
+      try {
+        (void)Kirikiri::KagScript::parse(source, "malformed.ks");
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: malformed KAG scenario was accepted\n");
+        ++failures;
+      }
+    }
+  }
+
+  // Inline TJS must not be lexed as KAG, even if it contains brackets,
+  // quotes or text resembling KAG tags. Command names ignore ASCII case.
+  {
+    auto parsed = Kirikiri::KagScript::parse(
+        "@ISCRIPT\n"
+        "var title = \"[cm text=hidden]\";\n"
+        "var item = options[0];\n"
+        "  @EnDsCrIpT\n"
+        "[CM text=shown][END]",
+        "inline-tjs.ks");
+    if (parsed.tags.size() != 4 || parsed.tags[0].name != "iscript" ||
+        parsed.tags[1].name != "endscript" || parsed.tags[1].line != 4 ||
+        parsed.tags[1].column != 3 || parsed.tags[2].name != "cm" ||
+        parsed.tags[3].name != "end") {
+      std::printf("FAIL: inline TJS body leaked into the KAG parser\n");
+      ++failures;
+    } else {
+      std::vector<std::string> shown;
+      Kirikiri::KagScript::Callbacks cb;
+      cb.showText = [&](std::string, std::string text) {
+        shown.push_back(std::move(text));
+      };
+      Kirikiri::KagScript::Runner runner(parsed, cb);
+      runner.run();
+      if (shown != std::vector<std::string>{"shown"} || !runner.isBlocked()) {
+        std::printf("FAIL: inline TJS skipped valid dialogue\n");
+        ++failures;
+      }
+      runner.resumeWait();
+      if (!runner.isFinished()) {
+        std::printf("FAIL: inline TJS prevented KAG completion\n");
+        ++failures;
+      }
+    }
+    const auto bracketed = Kirikiri::KagScript::parse(
+        "[iscript]\r\nvar item = values[0];\r\n[endscript]\r\n"
+        "[cm text=ok][end]", "bracketed-tjs.ks");
+    if (bracketed.tags.size() != 4 ||
+        bracketed.tags[1].name != "endscript" ||
+        bracketed.tags[2].attrs.at("text") != "ok") {
+      std::printf("FAIL: bracketed inline TJS/CRLF parser\n");
+      ++failures;
+    }
+    for (const auto &unterminated : {"[iscript]\nvar x = array[0];",
+                                     "@iscript\nvar x = '[cm]';"}) {
+      bool rejected = false;
+      try {
+        (void)Kirikiri::KagScript::parse(unterminated, "missing-end.ks");
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: unterminated inline TJS was accepted\n");
+        ++failures;
+      }
+    }
+  }
+
+  // An [ignore] condition is inverted relative to [if]. Its nested
+  // exclusions must not leak dialogue when the outer condition is true.
+  {
+    auto parsed = Kirikiri::KagScript::parse(
+        "[set name=flag value=1]"
+        "[ignore exp=\"flag == 1\"]"
+        "[cm text=hidden]"
+        "[ignore exp=false][cm text=also-hidden][endignore]"
+        "[endignore]"
+        "[ignore exp=\"flag != 1\"][cm text=shown][endignore]"
+        "[end]",
+        "ignore.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string text) {
+      shown.push_back(std::move(text));
+    };
+    Kirikiri::KagScript::Runner runner(parsed, cb);
+    runner.run();
+    if (shown != std::vector<std::string>{"shown"} || !runner.isBlocked()) {
+      std::printf("FAIL: KAG [ignore] conditional or nested skip\n");
+      ++failures;
+    }
+    runner.resumeWait();
+    if (!runner.isFinished()) {
+      std::printf("FAIL: KAG [endignore] failed to resume\n");
+      ++failures;
+    }
+    bool rejected = false;
+    try {
+      Kirikiri::KagScript::Runner invalid(
+          Kirikiri::KagScript::parse("[ignore exp=true][end]",
+                                     "unclosed-ignore.ks"),
+          {});
+      invalid.run();
+    } catch (const std::runtime_error &) {
+      rejected = true;
+    }
+    if (!rejected) {
+      std::printf("FAIL: unterminated [ignore] was accepted\n");
+      ++failures;
+    }
+  }
+
+  // Preserve and execute KAG inline TJS without confusing inner TJS
+  // brackets with KAG markup. Retained variables survive a second block.
+  {
+    Kotonoha::Providers::KirikiriAssets source(tempDir);
+    Kotonoha::Providers::TjsStartupResult scope;
+    const auto parsed = Kirikiri::KagScript::parse(
+        "[iscript]\n"
+        "var menuTitle = \"Original\";\n"
+        "System.title = menuTitle + \" Menu\";\n"
+        "[endscript]\n"
+        "@iscript\n"
+        "System.title = menuTitle + \" Menu 2\";\n"
+        "@endscript\n"
+        "[cm text=ready][end]\n", "inline-title.ks");
+    std::vector<std::string> displayed;
+    unsigned executed = 0;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string text) {
+      displayed.push_back(std::move(text));
+    };
+    cb.executeInlineTjs = [&](std::string inlineCode) {
+      ++executed;
+      if (!Kotonoha::Providers::executeTjsInlineSubset(
+              scope, source, inlineCode, "inline-title.ks"))
+        throw std::runtime_error(scope.error);
+    };
+    Kirikiri::KagScript::Runner runner(parsed, cb);
+    runner.run();
+    if (executed != 2 || scope.title != "Original Menu 2" ||
+        !scope.error.empty() || displayed != std::vector<std::string>{"ready"} ||
+        !runner.isBlocked()) {
+      std::printf("FAIL: KAG to TJS2 inline execution/retained state\n");
+      ++failures;
+    }
+    runner.resumeWait();
+    if (!runner.isFinished()) {
+      std::printf("FAIL: KAG inline TJS scenario termination\n");
+      ++failures;
+    }
+    const bool rejected = !Kotonoha::Providers::executeTjsInlineSubset(
+        scope, source, "new UnsupportedNative();", "broken.ks", 32);
+    if (!rejected || scope.error.empty()) {
+      std::printf("FAIL: KAG inline TJS native object was accepted\n");
+      ++failures;
+    }
+  }
+
+  // KAG macros are declarations, not dialogue. Expand parameters and
+  // preserve the target labels after macro definitions are removed.
+  {
+    const auto script = Kirikiri::KagScript::parse(
+        "[macro name=message]"
+        "[cm text=%caption|Default]"
+        "[endmacro]\n"
+        "*begin\n"
+        "[message caption=First]"
+        "[message]"
+        "[end]",
+        "macros.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string text) {
+      shown.push_back(std::move(text));
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    if (!runner.jumpToLabel("*begin") ||
+        script.labels.at("begin") != 0 || script.tags.size() != 4) {
+      std::printf("FAIL: macro expansion shifted KAG labels incorrectly\n");
+      ++failures;
+    } else {
+      runner.run();
+      runner.resumeWait();
+      runner.resumeWait();
+      if (shown != std::vector<std::string>({"First", "Default"}) ||
+          !runner.isFinished()) {
+        std::printf("FAIL: macro arguments/defaults or runner resume\n");
+        ++failures;
+      }
+    }
+    for (const auto &bad : {
+             "[macro name=x][x][endmacro][x]",
+             "[macro name=x][cm text=bad]",
+             "[endmacro]",
+             "[macro name=x]\n*invalid\n[endmacro][x]"}) {
+      bool rejected = false;
+      try {
+        (void)Kirikiri::KagScript::parse(bad, "invalid-macros.ks");
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: malformed KAG macro accepted\n");
+        ++failures;
+      }
+    }
+  }
+
+  // Real KAG conditional expressions combine boolean operators, numeric
+  // comparisons, quoted literals, parentheses and variable dereferences.
+  {
+    auto script = Kirikiri::KagScript::parse(
+        "[set name=flag value=2]"
+        "[if exp=\"(flag >= 2 && flag < 3) || false\"]"
+        "[cm text=compound]"
+        "[else][cm text=bad-branch][endif]"
+        "[if exp=\"!(flag == 2) || ('a==b' == 'a==b')\"]"
+        "[cm text=quoted][endif]"
+        "[ignore exp=\"flag == 1 || (flag == 2 && false)\"]"
+        "[cm text=visible][endignore]"
+        "[if exp=\"&f.menuEnabled && flag != 0\"]"
+        "[cm text=external][endif]"
+        "[end]",
+        "compound-condition.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string value) {
+      shown.push_back(std::move(value));
+    };
+    cb.getVar = [](std::string name) {
+      return name == "f.menuEnabled" ? std::string("1") : std::string();
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    for (int i = 0; i < 4; ++i)
+      runner.resumeWait();
+    if (shown != std::vector<std::string>({
+                     "compound", "quoted", "visible", "external"}) ||
+        !runner.isFinished()) {
+      std::printf("FAIL: compound KAG boolean predicate precedence\n");
+      ++failures;
+    }
+    bool rejected = false;
+    try {
+      Kirikiri::KagScript::Runner malformed(
+          Kirikiri::KagScript::parse(
+              "[if exp=\"(flag == 1 &&\"][cm text=bad][endif][end]",
+              "bad-predicate.ks"), cb);
+      malformed.run();
+    } catch (const std::runtime_error &) {
+      rejected = true;
+    }
+    if (!rejected) {
+      std::printf("FAIL: malformed KAG boolean predicate was accepted\n");
       ++failures;
     }
   }
@@ -647,6 +1004,69 @@ int main() {
     }
     if (!rejected || !runner.saveState().ifBranches.empty())
       std::printf("FAIL: KAG invalid conditional state accepted\n"), ++failures;
+  }
+
+  // KAG original title menus use [glink] and inline [link] anchors
+  // followed by [s]. They must expose actionable choices rather than
+  // completing the VM without user input.
+  {
+    const auto script = Kirikiri::KagScript::parse(
+        "*menu\n"
+        "[glink text=Play target=*play]"
+        "[link target=*config]Settings[endlink]"
+        "[button graphic=button.png target=*extra]"
+        "[s]\n"
+        "*play\n[cm text=Playing][end]\n"
+        "*config\n[cm text=Settings-open][end]\n"
+        "*extra\n[cm text=Extras-open][end]",
+        "menu-links.ks");
+    for (int selected = 0; selected < 3; ++selected) {
+      std::vector<std::string> shown, options;
+      std::function<void(int)> choose;
+      Kirikiri::KagScript::Callbacks cb;
+      cb.showText = [&](std::string, std::string text) {
+        shown.push_back(std::move(text));
+      };
+      cb.showChoice = [&](std::string, std::vector<std::string> displayed,
+                          std::function<void(int)> callback) {
+        options = std::move(displayed);
+        choose = std::move(callback);
+      };
+      Kirikiri::KagScript::Runner runner(script, cb);
+      runner.run();
+      if (options !=
+              std::vector<std::string>({"Play", "Settings", "button.png"}) ||
+          !runner.isBlocked() || !choose) {
+        std::printf("FAIL: KAG glink/link menu not presented\n");
+        ++failures;
+        continue;
+      }
+      choose(selected);
+      const std::string expected =
+          selected == 0 ? "Playing"
+                        : (selected == 1 ? "Settings-open" : "Extras-open");
+      if (shown != std::vector<std::string>{expected} || !runner.isBlocked()) {
+        std::printf("FAIL: KAG glink/link menu selection target\n");
+        ++failures;
+      }
+      runner.resumeWait();
+      if (!runner.isFinished()) {
+        std::printf("FAIL: KAG glink/link menu failed to finish\n");
+        ++failures;
+      }
+    }
+    bool rejected = false;
+    try {
+      Kirikiri::KagScript::Runner invalid(
+          Kirikiri::KagScript::parse("[endlink][end]", "orphan-link.ks"), {});
+      invalid.run();
+    } catch (const std::runtime_error &) {
+      rejected = true;
+    }
+    if (!rejected) {
+      std::printf("FAIL: orphan [endlink] was accepted\n");
+      ++failures;
+    }
   }
 
   // Numbered KAG choices must render in numeric order. std::map's
@@ -1303,6 +1723,204 @@ int main() {
         std::printf("FAIL: TLG6 rejected entropy/invalid size accepted\n");
         ++failures;
       }
+    }
+  }
+
+  // Event handlers must have an independent instruction budget. A title
+  // remains interactive after many hover/movement updates.
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const bool ok = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input,
+        "var w = new Window(); var b = new Layer(w, w.primaryLayer);"
+        "b.setSize(100,100);"
+        "function tick(x) { System.title = \"Alive\"; }"
+        "b.onMouseMove = tick;",
+        "menu-budget.tjs", 24);
+    if (!ok || !menu.error.empty()) {
+      std::printf("FAIL: event-budget menu fixture\n");
+      ++failures;
+    } else {
+      bool healthy = true;
+      for (int n = 0; n < 100; ++n) {
+        if (!Kotonoha::Providers::dispatchTjsUiMouseMove(
+                menu, 12.0f, 12.0f) ||
+            !menu.error.empty()) {
+          healthy = false;
+          break;
+        }
+      }
+      if (!healthy || menu.title != "Alive") {
+        std::printf("FAIL: TJS2 repeated UI events exhausted startup budget\n");
+        ++failures;
+      }
+    }
+  }
+
+  // KiriKiri menu rollover scripts can update state from onMouseMove.
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const std::string source =
+        "var window = new Window();"
+        "var layer = new Layer(window, window.primaryLayer);"
+        "layer.setPos(20, 20); layer.setSize(120, 60);"
+        "function moved(x, y) { System.title = \"Hovered\"; }"
+        "layer.onMouseMove = moved;";
+    const bool parsed = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input, source, "menu-move.tjs");
+    if (!parsed || !menu.error.empty() ||
+        Kotonoha::Providers::dispatchTjsUiMouseMove(menu, -1.0f, -1.0f) ||
+        !Kotonoha::Providers::dispatchTjsUiMouseMove(menu, 44.0f, 38.0f) ||
+        menu.title != "Hovered") {
+      std::printf("FAIL: TJS2 onMouseMove original menu rollover\n");
+      ++failures;
+    }
+  }
+
+  // A native Window.onKeyDown can control an original text-layer title
+  // menu with KiriKiri virtual key codes (Enter=13, Escape=27).
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const std::string source =
+        "var win = new Window();"
+        "var button = new Layer(win, win.primaryLayer);"
+        "button.setPos(50, 50); button.setSize(120, 40);"
+        "button.drawText(0, 0, \"Start\");"
+        "function selectKey(code, modifiers) {"
+        "  if (code == 13) { System.title = \"Keyboard\"; }"
+        "}"
+        "win.onKeyDown = selectKey;";
+    const bool parsed = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input, source, "menu-keyboard.tjs");
+    if (!parsed || !menu.error.empty() ||
+        menu.onKeyDown != "selectKey" ||
+        Kotonoha::Providers::dispatchTjsUiKeyDown(menu, 999) ||
+        !Kotonoha::Providers::dispatchTjsUiKeyDown(menu, 27) ||
+        menu.title == "Keyboard" ||
+        !Kotonoha::Providers::dispatchTjsUiKeyDown(menu, 13) ||
+        menu.title != "Keyboard") {
+      std::printf("FAIL: TJS2 Window.onKeyDown title navigation\n");
+      ++failures;
+    }
+  }
+
+  // A menu that activates on release instead of mouse-down must be
+  // selectable, as used by KiriKiri's onMouseUp Layer events.
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const std::string source =
+        "var win = new Window();"
+        "var button = new Layer(win, win.primaryLayer);"
+        "button.setPos(20, 30); button.setSize(180, 70);"
+        "button.drawText(4, 6, \"Load\");"
+        "function released(x, y) { System.title = \"Released\"; }"
+        "button.onMouseUp = released;";
+    const bool ok = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input, source, "menu-release.tjs");
+    if (!ok || !menu.error.empty() || menu.layers.size() != 2 ||
+        menu.layers.back().onMouseUp.empty() ||
+        Kotonoha::Providers::dispatchTjsUiMouseUp(menu, 0.0f, 0.0f) ||
+        !Kotonoha::Providers::dispatchTjsUiMouseUp(menu, 30.0f, 45.0f) ||
+        menu.title != "Released") {
+      std::printf("FAIL: TJS2 Layer onMouseUp menu navigation\n");
+      ++failures;
+    }
+  }
+
+  // Script-created text-only title menus now project Layer.drawText onto
+  // Kotonoha's native UI renderer, with font.height and click callbacks.
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const std::string source =
+        "var win = new Window();"
+        "var button = new Layer(win, win.primaryLayer);"
+        "button.setPos(40, 80); button.setSize(160, 60);"
+        "button.font.height = 32;"
+        "button.fillRect(0, 0, 160, 60, 65280, 160);"
+        "button.drawText(8, 5, \"Start\", 16711680, 220, true);"
+        "function pressed() { System.title = \"Clicked\"; }"
+        "button.onClick = pressed;";
+    const bool ok = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input, source, "title-menu.tjs");
+    const auto it = std::find_if(
+        menu.layers.begin(), menu.layers.end(),
+        [](const Kotonoha::Providers::TjsUiLayer &layer) {
+          return !layer.texts.empty();
+        });
+    if (!ok || !menu.error.empty() || it == menu.layers.end() ||
+        it->texts.size() != 1 || it->texts[0].text != "Start" ||
+        it->texts[0].left != 8 || it->texts[0].top != 5 ||
+        it->texts[0].size != 32 || it->texts[0].opacity != 220 ||
+        it->texts[0].rgb != 16711680 ||
+        it->rectangles.size() != 1 ||
+        it->rectangles[0].width != 160 ||
+        it->rectangles[0].height != 60 ||
+        it->rectangles[0].rgb != 65280 ||
+        it->rectangles[0].opacity != 160 ||
+        !Kotonoha::Providers::dispatchTjsUiClick(menu, 60.0f, 100.0f) ||
+        menu.title != "Clicked") {
+      std::printf("FAIL: TJS2 text-only title menu drawing and click\n");
+      ++failures;
+    }
+  }
+
+  // Original TJS2 menu scripts frequently compute slot indices with %
+  // and choose button state with ?:; inactive arms must not call natives.
+  {
+    Kotonoha::Providers::KirikiriAssets assetsForVm(tempDir);
+    Kotonoha::Providers::TjsStartupResult result;
+    const std::string script =
+        "var even = (14 % 4 == 2);"
+        "var text = even ? \"Valid\" : new UnsupportedNative();"
+        "var ignored = 0 ? new UnsupportedNative() : (6 % 4);"
+        "System.title = text + ignored;";
+    if (!Kotonoha::Providers::executeTjsInlineSubset(
+            result, assetsForVm, script, "ternary-menu.tjs") ||
+        !result.error.empty() || result.title != "Valid2") {
+      std::printf("FAIL: TJS2 ternary/modulo or inactive arm isolation\n");
+      ++failures;
+    }
+    const bool accepted = Kotonoha::Providers::executeTjsInlineSubset(
+        result, assetsForVm, "var invalid = 5 % 0;",
+        "zero-modulus.tjs");
+    if (accepted || result.error.find("division by zero") == std::string::npos) {
+      std::printf("FAIL: TJS2 modulo by zero accepted\n");
+      ++failures;
+    }
+  }
+
+  // Source-created menus store button captions and objects in arrays.
+  // Literals, indexed assignment, length, push and pop share VM state.
+  {
+    Kotonoha::Providers::KirikiriAssets provider(tempDir);
+    Kotonoha::Providers::TjsStartupResult output;
+    const std::string source =
+        "var captions = [\"Start\", \"Load\"];"
+        "captions[1] = \"Settings\";"
+        "captions.push(\"Extra\");"
+        "var last = captions.pop();"
+        "var second = new Array(2);"
+        "second[0] = last;"
+        "System.title = captions[0] + \":\" + captions[1] + \":\""
+        " + second[0] + \":\" + captions.length;";
+    const bool success = Kotonoha::Providers::executeTjsInlineSubset(
+        output, provider, source, "arrays-menu.tjs");
+    if (!success || !output.error.empty() ||
+        output.title != "Start:Settings:Extra:2") {
+      std::printf("FAIL: TJS2 Array indexed menu state\n");
+      ++failures;
+    }
+    const bool overflow = Kotonoha::Providers::executeTjsInlineSubset(
+        output, provider, "var a = []; a[4096] = 1;", "array-bounds.tjs");
+    if (overflow ||
+        output.error.find("Array index") == std::string::npos) {
+      std::printf("FAIL: TJS2 Array out-of-bounds access accepted\n");
+      ++failures;
     }
   }
 

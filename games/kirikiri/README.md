@@ -106,3 +106,168 @@ var button = new TitleButton(window);
 ```
 
 Explicit limits: 128 classes, 64 methods per class, 256 instances, 2048 bound methods and bounded call depth. Inheritance from other user classes, `super`, lexical closures, native event loops and bytecode remain unsupported. Tests are synthetic and do not establish real-game compatibility.
+
+## KAG parser compatibility (Kirikiroid2Yuri reference)
+
+The KAG scenario parser now recognizes line-control markers after leading tabs or
+spaces, preserves line/column information, rejects an unnamed first bare label,
+and assigns duplicate bare labels stable `name:2`, `name:3` aliases
+(including `*|page title` for the previous name). It also rejects unclosed
+brackets and unterminated quoted attributes instead of silently consuming the
+rest of a malformed scenario. These behaviors are covered by synthetic
+regression tests and are informed by the Kirikiroid2Yuri/Kirikiri KAG parser.
+No third-party runtime code has been copied.
+
+This is a focused compatibility improvement, **not full KAG/TJS2 parity**.
+The original TJS2 VM, native plugins and complete rendering/event behavior
+remain separate longer-term work.
+
+## Inline TJS blocks and ignore conditions
+
+KAG parsing now treats the contents of `[iscript]` / `@iscript` as
+opaque TJS source until a standalone `[endscript]` / `@endscript`
+line, instead of interpreting embedded brackets as KAG commands or
+dialogue. Unterminated inline scripts fail with an actionable error.
+The TJS body is deliberately **not executed** by this limited KAG VM.
+
+Command tag names are case-insensitive (as in Kirikiri), while labels
+retain their original case. The runtime now recognizes
+`[ignore exp=...]` / `[endignore]` with nested conditional exclusion,
+using the inverse of `[if]` behavior. Synthetic regression tests cover
+both features; native TJS2 integration remains a separate task.
+
+## KAG inline TJS2 execution
+
+KAG `[iscript]` and `@iscript` now retain their source and pass it to the
+bounded TJS2 interpreter on the runtime thread, sharing variables and
+script-defined Window/Layer objects across inline blocks and the startup VM.
+`Scripts.execStorage` requests a scenario transition through the normal
+KAG queue. Unsupported TJS features are reported without executing native
+plugins; the script parser still recognizes exact standalone end markers.
+Synthetic tests verify consecutive blocks, shared values and diagnostics.
+This does not imply parity with full Kirikiri2/KirikiriZ TJS2 bytecode.
+
+## Bounded KAG macro support
+
+The parser now processes static `[macro name=...]`/`[endmacro]` declarations,
+expands macro calls with `%parameter` and `%parameter|default` arguments,
+and recomputes label PCs after expansion. Recursion, nested declarations,
+malformed/missing end tags and expansion beyond explicit budgets fail with a
+clear error. These cover common macro-driven KAG menu/action snippets but do
+not reproduce every dynamic KiriKiri macro and TJS2 binding behavior.
+
+## TJS2 text-only menu Layers
+
+Script-created `Layer.drawText(x, y, text[, color[, opacity]])` commands
+are now captured as bounded text runs, projected through the Layer hierarchy,
+and rendered with Kotonoha's GPU-backed VN UI text path. `Layer.font.height`
+and `Layer.clearText()` are supported. A title with text-only interactive
+layers is eligible for the scripted menu instead of needing image textures.
+These changes cover a source-level subset, not every KiriKiri native font or
+canvas drawing operation. The menu test is synthetic.
+
+## Scripted menu mouse-release handlers
+
+Layer `onMouseUp` events are now retained, hit-tested front-to-back,
+executed on left-button release, and can select a KAG scenario just like
+existing `onClick`/mouse-down handlers. The top-level runtime routes these
+through the same fallback and diagnostic logic as press events. Synthetic
+coverage checks release-only menu buttons and hit testing.
+
+## Original menu keyboard events
+
+Source-created `Window.onKeyDown` handlers now receive bounded virtual-key
+values for Enter, Escape, Space, and directional arrows. UI state and KAG
+scene requests are refreshed after each callback; unsupported arities are
+reported. Source-only menu tests check both ignored and recognized keys.
+Keyboard routing is a subset of the KiriKiri Windows-key event model and
+is not intended to imply full native platform input parity.
+
+## Script Layer.fillRect panels
+
+TJS2 title scripts may now construct colored menu panels with
+`Layer.fillRect(x,y,width,height,color[,opacity])`. Rectangle operations are
+bounded, projected with their parent layers and drawn using SDL's GPU-backed
+render geometry before associated text. Native `Layer.drawText` remains on
+Kotonoha's UI text path. The implementation does not yet emulate all
+KiriKiri2 Layer bitmap operations, masks, blend modes or draw ordering.
+
+## Original title priority versus VNX+ fallback
+
+When a source `startup.tjs` completes the supported subset and produces
+visible image/text/rectangle layers plus valid pointer/keyboard callbacks,
+Kotonoha now **prefers the script-created title** over a hard-coded VNX+ title
+screen. The overlay's Save/Load/Config and story UI remain available once a
+scenario starts. If script evaluation or rendering fails, the existing VNX+
+compatibility title is used instead. This is a presentation priority fix and
+does not make incomplete TJS2 bytecode or native plugins work.
+
+## Native menu pointer movement
+
+Source-created `Layer.onMouseMove` callbacks now receive bounded pointer
+coordinates via hit testing against the topmost active layer. The retained
+TJS2 VM can update its scene graph during rollover, with the same runtime
+fallback/error checks used for click and keyboard handlers. A synthetic test
+checks that movement outside a button does not invoke it.
+
+## Bounded TJS2 menu event budgets
+
+Mouse click, mouse release, mouse movement, hover transitions and key-down
+handlers now receive a fresh per-event bounded instruction allowance instead
+of consuming the single startup budget forever. This prevents ordinary title
+interaction from slowly exhausting the VM while still terminating one event
+handler that loops excessively. Synthetic coverage exercises 100 consecutive
+movement events with a deliberately small 24-instruction budget.
+
+## KAG visual layer persistence and ordering
+
+KAG `[layopt]` now changes the existing layer's visibility, coordinates,
+opacity and optional draw order without destroying its image. Explicit
+`[freeimage]` remains destructive. Foreground sprites are drawn in numeric
+layer/order sequence, fixing the previous `1,10,2` lexical ordering, and
+SDL texture alpha modulation is restored after each frame. Synthetic tests
+cover retained layer state, visibility restoration and invalid properties.
+This remains a front-page subset; backlay/forelay transitions and blend modes
+still need dedicated compatibility work.
+
+## Bounded KAG boolean predicates
+
+`[if]`, `[elsif]` and `[ignore]` now parse nested logical conditions with
+`&&`, `||`, `!`, parentheses, quoted strings and numeric comparisons,
+instead of searching for the first comparison operator. Both local variables
+and host-provided KAG flag variables (including `&f.flag`) are supported.
+Malformed expressions and excessive nesting fail explicitly. This is still a
+limited, side-effect-free expression subset rather than the full TJS2 VM.
+
+## KAG in-scenario link menus
+
+`[glink text=... target=*label]` and inline `[link target=*label]...
+[endlink]` entries are now gathered into actionable options at `[s]`.
+Choosing one resolves a local label or defers an external storage jump through
+the existing callback. This provides a functional UI fallback for text-based
+KAG menus and does **not** reproduce their original button skins, effects,
+or every graphical `[button]` command.
+
+## Additional TJS2 expression operators
+
+The bounded TJS2 source interpreter now handles remainder `%` and ternary
+`condition ? a : b`, with inactive arms parsed but never executed. This
+allows common menu-slot arithmetic and selected/hover button expressions.
+Division or remainder by zero still fails explicitly. These operators are
+not a substitute for full TJS2 language and bytecode support.
+
+## KAG graphical button navigation fallback
+
+KAG `[button graphic=... target=*label]` is now recognized alongside
+`[glink]` and `[link]` for choice navigation at `[s]`. Until the actual
+KiriKiri button image/layer behavior is ported, this intentionally presents
+the graphic identifier as a text choice in Kotonoha UI; the target remains
+functional. Tests cover local target selection for all three command forms.
+
+## Bounded TJS2 arrays for scripted menus
+
+TJS2 source now supports array literals, `new Array(length)`, indexed reads
+and assignments, and `Array.push`/`pop`/`length` for menus that construct
+button lists in script. Arrays are capped at 4096 entries, indexes are
+validated, and inactive branches do not mutate their contents. This is a
+restricted source subset (not TJS2 bytecode or a complete Array class).

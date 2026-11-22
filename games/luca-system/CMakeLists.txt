@@ -35,6 +35,12 @@ kotonoha_configure_app(LucaSystem
 set(LUCA_SYSTEM_TEST_DATA "" CACHE PATH "LucaSystem original data for integration tests")
 
 if(BUILD_TESTING)
+  # Standalone LuckSystem OPCODE.txt compatibility (no retail assets or SDL).
+  add_executable(LucaSystemOpcodeTableTests tests/OpcodeTableTest.cpp)
+  target_include_directories(LucaSystemOpcodeTableTests PRIVATE include)
+  target_compile_features(LucaSystemOpcodeTableTests PRIVATE cxx_std_17)
+  add_test(NAME LucaSystem.OpcodeTable COMMAND LucaSystemOpcodeTableTests)
+
   add_executable(LucaSystemFormatTests tests/LucaSystemTest.cpp)
   target_link_libraries(LucaSystemFormatTests PRIVATE luca_system_formats)
   add_test(NAME LucaSystemFormatTests COMMAND LucaSystemFormatTests)
@@ -58,6 +64,16 @@ if(BUILD_TESTING)
   target_include_directories(LucaSystemSaveCodecTests PRIVATE include)
   target_compile_features(LucaSystemSaveCodecTests PRIVATE cxx_std_17)
   add_test(NAME LucaSystem.SaveCodec COMMAND LucaSystemSaveCodecTests)
+
+  # SDL-backed pixel assertions for the actual GPU scene compositor.
+  add_executable(LucaSystemGpuSceneTests tests/GpuSceneTest.cpp)
+  target_include_directories(LucaSystemGpuSceneTests PRIVATE include)
+  target_compile_features(LucaSystemGpuSceneTests PRIVATE cxx_std_17)
+  target_link_libraries(LucaSystemGpuSceneTests PRIVATE SDL3::SDL3)
+  add_test(NAME LucaSystem.GpuScene COMMAND LucaSystemGpuSceneTests)
+  set_tests_properties(LucaSystem.GpuScene PROPERTIES
+      ENVIRONMENT "SDL_VIDEODRIVER=dummy"
+      LABELS synthetic)
 
   # SDL-free scene staging and transition-clock regressions.
   add_executable(LucaSystemSceneLayersTests tests/SceneLayersTest.cpp)

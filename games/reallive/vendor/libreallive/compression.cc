@@ -130,7 +130,9 @@ void Decompress(const char* src,
   unsigned char mask = 8;
   unsigned char flag = static_cast<unsigned char>(*src++) ^
                        static_cast<unsigned char>(xor_mask[mask++]);
-  while (src < srcend && dst < dstend) {
+  // The archive header declares the exact decoded size. Exhausting the input
+  // before producing that many bytes is corruption, not a successful decode.
+  while (dst < dstend) {
     if (bit == 256) {
       bit = 1;
       if (src >= srcend)
@@ -151,10 +153,14 @@ void Decompress(const char* src,
       const unsigned int high = static_cast<unsigned char>(*src++) ^
                                 static_cast<unsigned char>(xor_mask[mask++]);
       const unsigned int code = low | (high << 8);
-      repeat = dst - (code >> 4);
+      const size_t distance = code >> 4;
+      const size_t produced = static_cast<size_t>(dst - dststart);
+      // Validate offsets as integers first: forming a pointer before the
+      // beginning of the output allocation is undefined behavior in C++.
+      if (distance == 0 || distance > produced)
+        throw Error("Invalid RealLive compressed script back-reference");
+      repeat = dst - distance;
       const int count = (code & 0x0f) + 2;
-      if (repeat < dststart || repeat >= dst)
-        throw Error("corrupt data");
       if (dstend - dst < count)
         throw Error("RealLive compressed script exceeds declared size");
       for (int i = 0; i < count; i++)

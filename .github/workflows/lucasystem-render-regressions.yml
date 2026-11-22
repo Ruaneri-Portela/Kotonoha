@@ -1,0 +1,51 @@
+name: LucaSystem GPU scene composition regressions
+
+on:
+  pull_request:
+    paths:
+      - 'games/luca-system/src/LucaSystemRuntime.cpp'
+      - 'games/luca-system/include/LucaSystem/GpuSceneComposition.hpp'
+      - 'games/luca-system/include/LucaSystem/SceneLayers.hpp'
+      - 'games/luca-system/tests/SceneLayersTest.cpp'
+      - 'games/luca-system/tests/GpuSceneTest.cpp'
+      - 'games/luca-system/CMakeLists.txt'
+      - '.github/workflows/lucasystem-render-regressions.yml'
+  push:
+    branches: [dev]
+    paths:
+      - 'games/luca-system/src/LucaSystemRuntime.cpp'
+      - 'games/luca-system/include/LucaSystem/GpuSceneComposition.hpp'
+      - 'games/luca-system/include/LucaSystem/SceneLayers.hpp'
+      - 'games/luca-system/tests/SceneLayersTest.cpp'
+      - 'games/luca-system/tests/GpuSceneTest.cpp'
+      - 'games/luca-system/CMakeLists.txt'
+      - '.github/workflows/lucasystem-render-regressions.yml'
+  workflow_dispatch:
+
+jobs:
+  pixel-composition:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SDL3 build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ pkg-config libsdl3-dev
+      - name: Compile LucaSystem GPU compositor against SDL3
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -pedantic \
+            -Igames/luca-system/include \
+            games/luca-system/tests/GpuSceneTest.cpp \
+            $(pkg-config --cflags --libs sdl3) \
+            -o /tmp/kotonoha-luca-gpu-scene
+      - name: Check blended pixels and restored clip state
+        run: SDL_VIDEODRIVER=dummy /tmp/kotonoha-luca-gpu-scene
+      - name: Compile LucaSystem scene-state and CZ4 face geometry tests
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -pedantic \
+            -Igames/luca-system/include \
+            games/luca-system/tests/SceneLayersTest.cpp \
+            -o /tmp/kotonoha-luca-scene-layers
+      - name: Verify persistent background and portrait anchor regressions
+        run: /tmp/kotonoha-luca-scene-layers

@@ -10,8 +10,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -97,6 +99,16 @@ using NsbLoaderFn = std::function<bool(std::string_view nsbPath,
 // Callback to query image dimensions (for GetImageHorizon / GetImageVertical).
 using ImageSizeFn = std::function<bool(std::string_view path, int &w, int &h)>;
 
+enum class MediaTimeKind { Remaining, Duration, Elapsed };
+enum class SaveActionKind { Save, Load, Delete };
+struct PendingSaveAction {
+  SaveActionKind kind;
+  std::uint32_t slot = 0;
+};
+using MediaTimeQueryFn =
+    std::function<std::int64_t(std::string_view, MediaTimeKind)>;
+using SaveExistsFn = std::function<bool(std::uint32_t)>;
+
 // Compiled Steins;Gate .nsb + .map stack-based bytecode VM.
 class NsbVm {
 public:
@@ -104,6 +116,19 @@ public:
 
   void setLoader(NsbLoaderFn loader) { loader_ = std::move(loader); }
   void setImageSizeQuery(ImageSizeFn fn) { imageSizeFn_ = std::move(fn); }
+  void setMediaTimeQuery(MediaTimeQueryFn fn) {
+    mediaTimeQuery_ = std::move(fn);
+  }
+  void setSaveExistsQuery(SaveExistsFn fn) {
+    saveExistsQuery_ = std::move(fn);
+  }
+  // Execute file operations only AFTER VM::step has returned. In particular,
+  // Load can replace all threads and the scene tree.
+  std::optional<PendingSaveAction> takePendingSaveAction() {
+    auto operation = pendingSaveAction_;
+    pendingSaveAction_.reset();
+    return operation;
+  }
   void setConfig(const SystemIniConfig &cfg);
   const SystemIniConfig &config() const { return config_; }
 
@@ -138,6 +163,7 @@ public:
   std::string currentScriptPath() const;
   std::uint32_t currentLine() const;
   std::uint64_t totalExecuted() const { return totalExecuted_; }
+  std::size_t threadCount() const { return threads_.size(); }
 
   SceneGraph &sceneGraph() { return sceneGraph_; }
   const SceneGraph &sceneGraph() const { return sceneGraph_; }
@@ -181,6 +207,7 @@ private:
     std::vector<std::string> whileEndStack;
     bool running = true;
     bool locked = false;
+    bool deleted = false; // Deferred reclamation; never erase a running thread.
     bool waitingKey = false;
     bool waitingText = false;
     bool waitingChoice = false;
@@ -208,10 +235,15 @@ private:
   void assignVar(Thread &t, std::string_view varName, const NsbValue &val);
   NsbValue readVar(std::string_view varName) const;
   void syncSystemVars();
+  std::vector<uint8_t> writeRuntimeSnapshot() const;
+  bool restoreRuntimeSnapshot(const std::vector<uint8_t> &snapshot);
   static std::uint32_t parseColorName(std::string_view colorStr);
 
   NsbLoaderFn loader_;
   ImageSizeFn imageSizeFn_;
+  MediaTimeQueryFn mediaTimeQuery_;
+  SaveExistsFn saveExistsQuery_;
+  std::optional<PendingSaveAction> pendingSaveAction_;
   SystemIniConfig config_;
 
   std::unordered_map<std::string, std::shared_ptr<NsbScript>> scripts_;
@@ -221,7 +253,9 @@ private:
   std::unordered_map<std::string, std::string> soundEntities_;
   std::unordered_map<std::string, std::string> soundTypes_;
 
-  std::vector<Thread> threads_;
+  // Deque keeps Thread references stable when CreateProcess spawns during an
+  // NSB instruction. Deletion is deferred until after the scheduler tick.
+  std::deque<Thread> threads_;
   std::vector<std::string> activeChoices_;
   std::string triggeredChoice_;
   ActiveMovieRequest activeMovie_;

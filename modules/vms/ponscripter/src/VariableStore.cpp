@@ -166,6 +166,42 @@ void VariableStore::dimArray(int arrayId, const std::vector<int> &dimensions) {
   arrays_[arrayId] = std::move(data);
 }
 
+int VariableStore::remainingArrayElements(
+    int arrayId, const std::vector<int> &indices) const {
+  const auto it = arrays_.find(arrayId);
+  if (it == arrays_.end() || indices.empty() ||
+      indices.size() != it->second.dims.size() ||
+      it->second.values.empty())
+    return 0;
+
+  const auto &array = it->second;
+  std::size_t offset = 0;
+  std::size_t stride = 1;
+  for (std::size_t i = 0; i < indices.size(); ++i) {
+    const int index = indices[i];
+    if (index < 0 || index > std::max(0, array.dims[i]))
+      return 0;
+    const std::size_t position = static_cast<std::size_t>(index);
+    if (offset >= array.values.size() ||
+        position > (array.values.size() - 1 - offset) / stride)
+      return 0;
+    offset += position * stride;
+    if (i + 1 < indices.size()) {
+      const std::size_t extent =
+          static_cast<std::size_t>(std::max(0, array.dims[i])) + 1;
+      if (stride > array.values.size() / extent)
+        return 0;
+      stride *= extent;
+    }
+  }
+
+  const std::size_t remainingDimension = static_cast<std::size_t>(
+      array.dims.back() - indices.back()) + 1;
+  const std::size_t remainingStorage =
+      (array.values.size() - 1 - offset) / stride + 1;
+  return static_cast<int>(std::min(remainingDimension, remainingStorage));
+}
+
 int VariableStore::getArray(int arrayId,
                             const std::vector<int> &indices) const {
   const auto it = arrays_.find(arrayId);

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <ctime>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 
 namespace N2System {
@@ -332,6 +333,7 @@ std::shared_ptr<NsbScript> NsbVm::loadScript(std::string_view path) {
 bool NsbVm::boot(std::string_view startScript,
                  std::string_view initialChapter) {
   threads_.clear();
+  pendingSaveAction_.reset();
   activeChoices_.clear();
   triggeredChoice_.clear();
   activeMovie_ = {};
@@ -372,6 +374,7 @@ bool NsbVm::jumpToScript(std::string_view scriptPath,
     pc = 0;
 
   threads_.clear();
+  pendingSaveAction_.reset();
   activeChoices_.clear();
   triggeredChoice_.clear();
   activeMovie_ = {};
@@ -650,9 +653,6 @@ bool NsbVm::advance() {
       main.waitEntity.clear();
       consumed = true;
     }
-    // Keep decorative looping movies (such as the native title background)
-    // alive when keyboard navigation or a confirmation reaches advance().
-    // Only non-looping narrative movies are dismissible here.
     if (main.waitingMovie && activeMovie_.active && !activeMovie_.loop) {
       notifyMovieFinished(activeMovie_.entityName);
       consumed = true;
@@ -701,30 +701,42 @@ std::uint32_t NsbVm::currentLine() const {
 }
 
 std::size_t NsbVm::step(std::size_t budget) {
-  if (finished_ || threads_.empty())
+  if (finished_ || threads_.empty() || budget == 0 || pendingSaveAction_)
     return 0;
 
+  // Snapshot the thread set at frame start. Creating a process during a VM
+  // instruction must neither invalidate its current Thread reference nor run
+  // its first instruction before the next scheduler tick.
+  const std::size_t runnableAtStart = threads_.size();
   std::size_t total = 0;
-  // Step main thread
-  total += stepThread(threads_[0], budget);
-
-  // Step active background processes cooperatively (index 1..)
-  for (std::size_t i = 1; i < threads_.size(); ++i) {
-    if (threads_[i].running) {
-      total += stepThread(threads_[i], 256);
-    }
+  // Preserve the full native instruction budget for single-threaded titles;
+  // reserve a fair slice for workers only once background processes exist.
+  const std::size_t mainBudget =
+      runnableAtStart == 1 ? budget : std::min<std::size_t>(budget, 512);
+  if (threads_.front().running && !threads_.front().deleted)
+    total += stepThread(threads_.front(), mainBudget);
+  for (std::size_t i = 1; i < runnableAtStart && total < budget &&
+                          !pendingSaveAction_; ++i) {
+    if (threads_[i].running && !threads_[i].deleted)
+      total += stepThread(threads_[i], std::min<std::size_t>(256, budget - total));
   }
 
-  // If main thread terminated and call stack is empty, mark finished.
-  if (!threads_[0].running) {
+  // Do not erase while execInstruction() retains a reference to a Thread.
+  // A stopped process stays allocated because Request(Start) can resume it.
+  for (std::size_t i = 1; i < threads_.size();) {
+    if (threads_[i].deleted)
+      threads_.erase(threads_.begin() + static_cast<std::ptrdiff_t>(i));
+    else
+      ++i;
+  }
+  if (!threads_.front().running || threads_.front().deleted)
     finished_ = true;
-  }
   return total;
 }
 
 std::size_t NsbVm::stepThread(Thread &t, std::size_t budget) {
   std::size_t executed = 0;
-  while (executed < budget && t.running && t.script) {
+  while (executed < budget && t.running && !t.deleted && t.script) {
     if (t.waitTimer > 0.0f || t.waitingKey || t.waitingText ||
         t.waitingChoice || t.waitEntityAnim || t.waitingMovie) {
       break;
@@ -1674,6 +1686,29 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       sceneGraph_.setAlias(a[0].asString(), a[1].asString());
     break;
   }
+  case 0x02d: { // SetShade [query, Medium|Heavy]
+    auto a = popArgs(t, args.size());
+    if (a.size() >= 2) {
+      const std::string query = a[0].asString();
+      const std::string level = toLowerAscii(a[1].asString());
+      // NitroSharp's Medium/Heavy shader presets use 8/16 blur passes.
+      const unsigned passes =
+          level == "heavy" || level == "16" ? 16u
+          : level == "medium" || level == "8" ? 8u : 0u;
+      sceneGraph_.setBoxBlur(query, passes);
+    }
+    break;
+  }
+  case 0x02e: { // SetTone [query, Monochrome]
+    auto a = popArgs(t, args.size());
+    if (a.size() >= 2) {
+      const std::string query = a[0].asString();
+      const std::string tone = toLowerAscii(a[1].asString());
+      sceneGraph_.setMonochrome(query, tone == "monochrome" ||
+                                          tone == "mono" || tone == "1");
+    }
+    break;
+  }
   case 0x034: { // SetNextFocus [src, dst, dir]
     auto a = popArgs(t, args.size());
     if (a.size() >= 3) {
@@ -1699,7 +1734,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       for (auto *e : sceneGraph_.queryEntities(query)) {
         const float tx = resolveCoord(a[2], e->x, screenW, true);
         const float ty = resolveCoord(a[3], e->y, screenH, false);
-        sceneGraph_.moveEntity(e->name, tx, ty, ms);
+        sceneGraph_.moveEntity(e->name, tx, ty, ms,
+            a.size() >= 5 ? parseEaseFunction(a[4].asString()) : EaseFunction::Linear);
       }
       if (a.size() >= 6 && a[5].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
@@ -1709,9 +1745,27 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     }
     break;
   }
-  case 0x021: { // BezierMove
+  case 0x021: { // BezierMove [query,ms,c1x,c1y,c2x,c2y,x,y,tempo,wait]
     auto a = popArgs(t, args.size());
-    if (a.size() >= 4) {
+    if (a.size() >= 8) {
+      const std::string query = a[0].asString();
+      const float ms = static_cast<float>(a[1].asFloat());
+      sceneGraph_.bezierMoveEntity(
+          query, static_cast<float>(a[2].asFloat()),
+          static_cast<float>(a[3].asFloat()),
+          static_cast<float>(a[4].asFloat()),
+          static_cast<float>(a[5].asFloat()),
+          static_cast<float>(a[6].asFloat()),
+          static_cast<float>(a[7].asFloat()), ms,
+          a.size() >= 9 ? parseEaseFunction(a[8].asString())
+                        : EaseFunction::Linear);
+      if (a.size() >= 10 && a[9].isTruthy() && ms > 0.0f) {
+        t.waitEntity = query;
+        t.waitEntityAnim = true;
+        yielded = true;
+      }
+    } else if (a.size() >= 4) {
+      // Legacy native bytecode only provides a final coordinate pair.
       sceneGraph_.moveEntity(a[0].asString(),
                              static_cast<float>(a[2].asFloat()),
                              static_cast<float>(a[3].asFloat()),
@@ -1726,7 +1780,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const float ms = static_cast<float>(a[1].asFloat());
       const float opVal =
           std::clamp(static_cast<float>(a[2].asFloat()) / 1000.0f, 0.0f, 1.0f);
-      sceneGraph_.fadeEntity(query, opVal, ms);
+      sceneGraph_.fadeEntity(query, opVal, ms,
+          a.size() >= 4 ? parseEaseFunction(a[3].asString()) : EaseFunction::Linear);
       if (a.size() >= 5 && a[4].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
@@ -1742,7 +1797,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const float ms = static_cast<float>(a[1].asFloat());
       const float sx = static_cast<float>(a[2].asFloat()) / 1000.0f;
       const float sy = static_cast<float>(a[3].asFloat()) / 1000.0f;
-      sceneGraph_.zoomEntity(query, sx, sy, ms);
+      sceneGraph_.zoomEntity(query, sx, sy, ms,
+          a.size() >= 5 ? parseEaseFunction(a[4].asString()) : EaseFunction::Linear);
       if (a.size() >= 6 && a[5].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
@@ -1757,7 +1813,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const std::string query = a[0].asString();
       const float ms = static_cast<float>(a[1].asFloat());
       const float rz = static_cast<float>(a[4].asFloat());
-      sceneGraph_.rotateEntity(query, rz, ms);
+      sceneGraph_.rotateEntity(query, rz, ms,
+          a.size() >= 6 ? parseEaseFunction(a[5].asString()) : EaseFunction::Linear);
     }
     break;
   }
@@ -1784,7 +1841,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
           std::clamp(static_cast<float>(a[3].asFloat()) / 1000.0f, 0.0f, 1.0f);
       const std::string mask =
           a.size() >= 7 ? normalizeAssetPath(a[6].asString()) : "";
-      sceneGraph_.transitionEntity(query, s, e, ms, mask);
+      sceneGraph_.transitionEntity(query, s, e, ms, mask,
+          a.size() >= 6 ? parseEaseFunction(a[5].asString()) : EaseFunction::Linear);
       if (a.size() >= 8 && a[7].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
@@ -1798,13 +1856,13 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     if (!a.empty()) {
       const std::string query = a[0].asString();
       sceneGraph_.destroyMatching(query, true);
-      // Also stop matching background processes
-      for (std::size_t i = 1; i < threads_.size();) {
+      // Only mark for deletion. Erasing the current Thread from a vector
+      // or deque while execInstruction has its reference is undefined.
+      for (std::size_t i = 1; i < threads_.size(); ++i) {
         if (!threads_[i].locked &&
             SceneGraph::wildcardMatch(threads_[i].name, query)) {
-          threads_.erase(threads_.begin() + static_cast<std::ptrdiff_t>(i));
-        } else {
-          ++i;
+          threads_[i].deleted = true;
+          threads_[i].running = false;
         }
       }
     }
@@ -1818,6 +1876,14 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       std::shared_ptr<NsbScript> fnScript;
       std::size_t fnPc = 0;
       if (resolveFunction(t.script, funcName, fnScript, fnPc)) {
+        // NitroSharp replaces duplicate process names. Defer destruction
+        // until the current VM instruction has returned.
+        for (std::size_t i = 1; i < threads_.size(); ++i) {
+          if (threads_[i].name == procName) {
+            threads_[i].deleted = true;
+            threads_[i].running = false;
+          }
+        }
         Thread proc;
         proc.name = procName;
         proc.script = fnScript;
@@ -1858,7 +1924,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       }
       // Check background processes
       for (std::size_t i = 1; i < threads_.size(); ++i) {
-        if (SceneGraph::wildcardMatch(threads_[i].name, query)) {
+        if (!threads_[i].deleted &&
+            SceneGraph::wildcardMatch(threads_[i].name, query)) {
           if (action == "start")
             threads_[i].running = true;
           else if (action == "stop" || action == "pause")
@@ -2024,10 +2091,10 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     }
     break;
   }
-  case 0x06c: { // TimeStrategy (seconds)
+  case 0x06c: { // TimeStrategy: seconds elapsed in the process
     (void)popArgs(t, args.size());
-    t.stack.push_back(
-        NsbValue::makeInt(static_cast<std::int64_t>(std::time(nullptr))));
+    t.stack.push_back(NsbValue::makeInt(
+        static_cast<std::int64_t>(std::max(0.0, elapsedSeconds_))));
     break;
   }
   case 0x06d: { // MilliTimeStrategy
@@ -2039,8 +2106,16 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
   case 0x05e:   // RemainTime
   case 0x05f:   // DurationTime
   case 0x060: { // PassageTime
-    (void)popArgs(t, args.size());
-    t.stack.push_back(NsbValue::makeInt(0));
+    auto a = popArgs(t, args.size());
+    const std::string query =
+        !a.empty() ? a[0].asString() : (args.empty() ? "" : args[0]);
+    const MediaTimeKind kind =
+        op == 0x05e ? MediaTimeKind::Remaining
+        : op == 0x05f ? MediaTimeKind::Duration
+                      : MediaTimeKind::Elapsed;
+    const auto result = mediaTimeQuery_
+        ? mediaTimeQuery_(query, kind) : std::int64_t{0};
+    t.stack.push_back(NsbValue::makeInt(std::max<std::int64_t>(0, result)));
     break;
   }
 
@@ -2076,9 +2151,30 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     t.stack.push_back(NsbValue::makeInt(op == 0x061 ? w : h));
     break;
   }
+  case 0x04f: // Save(slot)
+  case 0x050: // Load(slot)
+  case 0x051: { // DeleteSaveFile(slot)
+    const auto values = popArgs(t, args.size());
+    const auto slot = values.empty() ? std::int64_t{0}
+                                     : values[0].asInt();
+    if (slot >= 0 && slot <= std::numeric_limits<std::uint32_t>::max()) {
+      const auto kind = op == 0x04f ? SaveActionKind::Save
+                        : op == 0x050 ? SaveActionKind::Load
+                                      : SaveActionKind::Delete;
+      pendingSaveAction_ =
+          PendingSaveAction{kind, static_cast<std::uint32_t>(slot)};
+      yielded = true; // Runtime executes action after stepThread unwinds.
+    }
+    break;
+  }
   case 0x052: { // ExistSave [slot]
-    (void)popArgs(t, args.size());
-    t.stack.push_back(NsbValue::makeInt(0));
+    auto a = popArgs(t, args.size());
+    const auto slot = !a.empty() ? a[0].asInt()
+                                 : (!args.empty() ? NsbValue::makeString(args[0]).asInt() : 0);
+    const bool found = saveExistsQuery_ && slot >= 0 &&
+                       slot <= std::numeric_limits<std::uint32_t>::max() &&
+                       saveExistsQuery_(static_cast<std::uint32_t>(slot));
+    t.stack.push_back(NsbValue::makeInt(found ? 1 : 0));
     break;
   }
   case 0x054: { // GetMousePosition
@@ -2086,9 +2182,24 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     t.stack.push_back(NsbValue::makeInt(mouseX_));
     break;
   }
-  case 0x056: { // DateTime
-    (void)popArgs(t, args.size());
-    t.stack.push_back(NsbValue::makeInt(0));
+  case 0x056: { // DateTime [year,month,day,hour,minute,second refs]
+    const auto a = popArgs(t, args.size());
+    if (args.size() >= 6) {
+      const std::time_t now = std::time(nullptr);
+      const std::tm *local = std::localtime(&now);
+      if (local) {
+        const int values[6] = {local->tm_year + 1900, local->tm_mon + 1,
+                               local->tm_mday, local->tm_hour,
+                               local->tm_min, local->tm_sec};
+        for (std::size_t i = 0; i < 6; ++i) {
+          const std::string name =
+              i < a.size() && !a[i].lvalueKey.empty()
+                  ? a[i].lvalueKey : args[i];
+          if (!name.empty())
+            assignVar(t, name, NsbValue::makeInt(values[i]));
+        }
+      }
+    }
     break;
   }
   case 0x077: { // PlatformStrategy
@@ -2320,6 +2431,7 @@ SaveData NsbVm::saveState() const {
   data.activeText = std::string(dialogueSystem_.fullText());
   data.activeVoice = std::string(dialogueSystem_.voicePath());
   data.backlog = dialogueSystem_.backlog();
+  data.runtimeBlob = writeRuntimeSnapshot();
   for (const auto &[k, v] : vars_) {
     if (v.kind == NsbValue::Kind::String)
       data.strings[k] = v.strVal;
@@ -2330,6 +2442,8 @@ SaveData NsbVm::saveState() const {
 }
 
 bool NsbVm::loadState(const SaveData &data) {
+  if (!data.runtimeBlob.empty())
+    return restoreRuntimeSnapshot(data.runtimeBlob);
   vars_.clear();
   for (const auto &[k, v] : data.integers)
     vars_[k] = NsbValue::makeInt(v);
@@ -2344,10 +2458,9 @@ bool NsbVm::loadState(const SaveData &data) {
       threads_.front().pc = data.position;
     }
   }
-  if (!data.activeText.empty()) {
-    dialogueSystem_.setDialogue(data.activeSpeaker, data.activeText,
-                                data.activeVoice);
-  }
+  dialogueSystem_.restore(data.activeSpeaker, data.activeText,
+                          data.activeVoice, data.backlog,
+                          data.activeText.size(), 30.0f, false, false);
   return true;
 }
 

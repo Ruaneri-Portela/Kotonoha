@@ -4,11 +4,192 @@
 #include <cstddef>
 #include <cstdint>
 #include <cmath>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 namespace LucaSystem {
+
+// Private bottommost layer retained across INIT/DRAW (V6 serializes it).
+inline constexpr std::uint16_t AirPersistentBackdropKey = 0xfe00;
+
+
+// AIR stores expression CZ4 fragments in (group=3, slot=N), while the
+// matching portrait resides in (group=2, slot=N). Drawing all group-3
+// slots after group-2 places a rear character's face over front characters.
+// Draw each expression immediately above its own portrait instead. Do not
+// paint an orphan expression without its portrait.
+template <class Layer>
+std::vector<std::uint16_t>
+orderedAirLayerKeys(const std::map<std::uint16_t, Layer> &slots) {
+  std::vector<std::uint16_t> result;
+  result.reserve(slots.size());
+  if (slots.find(AirPersistentBackdropKey) != slots.end())
+    result.push_back(AirPersistentBackdropKey);
+  for (const auto &[key, layer] : slots) {
+    (void)layer;
+    const unsigned group = unsigned(key) >> 8;
+    if (group == 3 || key == AirPersistentBackdropKey)
+      continue;
+    result.push_back(key);
+    if (group == 2) {
+      const auto expression = std::uint16_t((3u << 8) | (key & 0xffu));
+      if (slots.find(expression) != slots.end())
+        result.push_back(expression);
+    }
+  }
+  return result;
+}
+
+
+// INIT clears staged images, not necessarily the displayed background.
+// Preserve the last opaque full-frame group(0,0) below foreground cutouts.
+template <class Slots, class IsOpaqueBackdrop>
+bool retainAirBackdrop(Slots &staged, const Slots &visible,
+                       IsOpaqueBackdrop &&opaque) {
+  constexpr std::uint16_t nativeBackgroundKey = 0;
+  const auto next = staged.find(nativeBackgroundKey);
+  if (next != staged.end() && opaque(next->second)) {
+    staged.erase(AirPersistentBackdropKey);
+    return false;
+  }
+  const auto previousBacking = visible.find(AirPersistentBackdropKey);
+  const auto previousNative = visible.find(nativeBackgroundKey);
+  const auto *source =
+      previousBacking != visible.end() ? &previousBacking->second
+      : previousNative != visible.end() && opaque(previousNative->second)
+            ? &previousNative->second
+            : nullptr;
+  if (!source)
+    return false;
+  auto backing = *source;
+  backing.group = 0xfe;
+  backing.slot = 0;
+  staged[AirPersistentBackdropKey] = backing;
+  return true;
+}
+
+// An opaque background must cover the framebuffer, unlike cropped CZ art.
+// Checking alpha avoids treating a full-canvas window/face overlay as a BG.
+template <class Layer, class Image>
+bool isFullAirBackdrop(const Layer &layer, const Image &img,
+                       int viewportWidth = 1280, int viewportHeight = 720) {
+  if (layer.group != 0 || layer.slot != 0 || !layer.visible ||
+      !std::isfinite(layer.alpha) || layer.alpha < 0.99f ||
+      !std::isfinite(layer.scaleX) || !std::isfinite(layer.scaleY) ||
+      layer.scaleX <= 0 || layer.scaleY <= 0 ||
+      std::fabs(layer.rotation) > 0.001f ||
+      viewportWidth <= 0 || viewportHeight <= 0 ||
+      img.width <= 0 || img.height <= 0)
+    return false;
+  const float left = layer.posX +
+      (float(img.cropX) - float(img.anchorX)) * layer.scaleX +
+      layer.targetOffsetX;
+  const float top = layer.posY +
+      (float(img.cropY) - float(img.anchorY)) * layer.scaleY +
+      layer.targetOffsetY;
+  if (!std::isfinite(left) || !std::isfinite(top) ||
+      left > 1 || top > 1 ||
+      left + img.width * layer.scaleX < viewportWidth - 1 ||
+      top + img.height * layer.scaleY < viewportHeight - 1)
+    return false;
+  const auto count = std::size_t(img.width) * std::size_t(img.height);
+  if (!count || img.rgba.size() < count * 4)
+    return false;
+  std::size_t transparent = 0;
+  const auto maximum = count / 100;
+  for (std::size_t i = 0; i < count; ++i)
+    if (img.rgba[4 * i + 3] < 250 && ++transparent > maximum)
+      return false;
+  return true;
+}
+
+// Evaluate motion at a monotonic story-clock instant. Sampling the current
+// position before a second MOVE prevents a visible jump to the old endpoint.
+inline float airMoveOffset(float start, float target, std::uint64_t began,
+                           std::uint64_t duration, std::uint64_t now) {
+  if (duration == 0 || (now >= began && now - began >= duration))
+    return target;
+  if (now <= began)
+    return start;
+  const float progress = static_cast<float>(now - began) /
+                         static_cast<float>(duration);
+  return start + (target - start) * progress;
+}
+
+// An AIR expression fragment shares its portrait's canvas transform. Copy
+// animation, opacity, color modulation and scaling, but preserve an explicit
+// per-expression position from the script when requested.
+template <class Layer>
+void inheritAirPortraitVisuals(Layer &layer, const Layer &portrait,
+                               bool inheritPosition) {
+  if (inheritPosition) {
+    layer.posX = portrait.posX;
+    layer.posY = portrait.posY;
+  }
+  layer.startOffsetX = portrait.startOffsetX;
+  layer.startOffsetY = portrait.startOffsetY;
+  layer.targetOffsetX = portrait.targetOffsetX;
+  layer.targetOffsetY = portrait.targetOffsetY;
+  layer.moveStart = portrait.moveStart;
+  layer.moveDuration = portrait.moveDuration;
+  layer.scaleX = portrait.scaleX;
+  layer.scaleY = portrait.scaleY;
+  layer.rotation = portrait.rotation;
+  layer.alpha = portrait.alpha;
+  layer.r = portrait.r;
+  layer.g = portrait.g;
+  layer.b = portrait.b;
+  layer.visible = portrait.visible;
+}
+
+// Split a screen-wide WIPE into non-overlapping pixel-perfect halves.
+// The old composition must never be drawn beneath the incoming half:
+// otherwise transparent sprites, image fragments and white fades double up.
+inline int wipeSplitX(int width, float progress) {
+  if (width <= 0)
+    return 0;
+  const float fraction =
+      std::isfinite(progress) ? std::clamp(progress, 0.0f, 1.0f) : 0.0f;
+  return std::clamp(static_cast<int>(std::lround(width * fraction)), 0, width);
+}
+
+
+// Keep only images referenced by the staged scene, the committed scene or
+// the outgoing snapshot of a still-running transition. This releases both
+// decoded RGBA buffers (CPU) and SDL textures (GPU) as chapters advance.
+template <class Slots, class Images, class Textures>
+std::size_t pruneAirObjectCaches(const Slots &staged, const Slots &visible,
+                                 const Slots &outgoing, Images &images,
+                                 Textures &textures) {
+  std::unordered_set<std::uint32_t> retained;
+  retained.reserve(staged.size() + visible.size() + outgoing.size());
+  const auto mark = [&](const Slots &slots) {
+    for (const auto &[key, layer] : slots) {
+      (void)key;
+      if (layer.assetId != 0)
+        retained.insert(layer.assetId);
+    }
+  };
+  mark(staged);
+  mark(visible);
+  mark(outgoing);
+  const auto removeUnused = [&](auto &cache) {
+    for (auto it = cache.begin(); it != cache.end();) {
+      if (!retained.count(it->first))
+        it = cache.erase(it);
+      else
+        ++it;
+    }
+  };
+  const auto before = images.size() + textures.size();
+  removeUnused(images);
+  removeUnused(textures);
+  return before - images.size() - textures.size();
+}
+
 // Lightweight scene state: original image asset IDs plus screen positions,
 // opacity, scaling, rotation and priority parameters.
 // Rendering belongs to SDL; this stage/commit/transition clock is testable
@@ -30,6 +211,33 @@ inline float wipeVisibleWidth(float objectLeft, float imageWidth,
   if (imageWidth <= 0.0f)
     return 0.0f;
   return std::clamp(revealRight - objectLeft, 0.0f, imageWidth);
+}
+
+// CZ4 face and body pixels are crops of the same original character canvas.
+// Their local crop dimensions and per-file anchor fields can differ. Placing
+// and rotating each crop around its *own* rectangle shifts the face away
+// from the pose. Derive both rectangles from the full portrait's anchor.
+struct AirCharacterCropPlacement {
+  float x = 0, y = 0, w = 0, h = 0;
+  float pivotX = 0, pivotY = 0; // SDL rotation center relative to destination
+};
+template <class Pose, class BaseImage, class CropImage>
+AirCharacterCropPlacement
+airCharacterCropPlacement(const Pose &pose, const BaseImage &base,
+                          const CropImage &crop, float offsetX,
+                          float offsetY, float shakeX, float shakeY) {
+  AirCharacterCropPlacement result;
+  result.x = pose.posX +
+             (float(crop.cropX) - float(base.anchorX)) * pose.scaleX +
+             offsetX + shakeX;
+  result.y = pose.posY +
+             (float(crop.cropY) - float(base.anchorY)) * pose.scaleY +
+             offsetY + shakeY;
+  result.w = float(crop.width) * pose.scaleX;
+  result.h = float(crop.height) * pose.scaleY;
+  result.pivotX = (float(base.anchorX) - float(crop.cropX)) * pose.scaleX;
+  result.pivotY = (float(base.anchorY) - float(crop.cropY)) * pose.scaleY;
+  return result;
 }
 
 // CZ4 character sprites store positions for an untrimmed canvas. The pixel
