@@ -5,6 +5,7 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Runtime.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Pmail/Port.hpp>
@@ -76,6 +77,7 @@ private:
   TTF_Font *font_ = nullptr;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer_;
   bool movieFinished_ = true;
+  Kotonoha::VideoSkipGesture videoSkip_;
   bool startMovie(const std::string &stem);
   void stopMovie();
 };

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kotonoha/core/Scene.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <filesystem>
@@ -38,6 +39,7 @@ private:
   TexturePtr filteredTexture;
   UpscaleSettings imageUpscaling;
   std::unique_ptr<MediaPlayer> video;
+  VideoSkipGesture videoSkip;
   Uint64 startedNs = 0;
   bool loaded = false;
 

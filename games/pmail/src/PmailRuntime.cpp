@@ -220,6 +220,7 @@ bool PmailRuntime::startMovie(const std::string &stem) {
     return false;
   }
   movieFinished_ = false;
+  videoSkip_.reset();
   return true;
 }
 
@@ -330,11 +331,7 @@ bool PmailRuntime::onEvent(Kotonoha::EventRef rawEvent) {
     return true;
   }
   if (moviePlayer_ && !movieFinished_) {
-    if ((event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
-         (event.key.key == SDLK_ESCAPE || event.key.key == SDLK_RETURN ||
-          event.key.key == SDLK_SPACE)) ||
-        (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-         event.button.button == SDL_BUTTON_LEFT))
+    if (videoSkip_.accept(rawEvent))
       stopMovie();
     return true;
   }

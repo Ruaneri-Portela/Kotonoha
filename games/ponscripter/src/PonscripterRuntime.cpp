@@ -9,6 +9,7 @@
 #include <Kotonoha/components/VNManager.hpp>
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
@@ -396,6 +397,7 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   // Video player
   std::unique_ptr<Kotonoha::MediaPlayer> videoPlayer;
   bool videoCanCancel = true;
+  Kotonoha::VideoSkipGesture videoSkip;
 
   // Fonts mapped via h_mapfont
   std::array<std::unique_ptr<Kotonoha::UI>, 2> mappedUiFonts;
@@ -894,6 +896,7 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
 
   void onPlayVideo(const std::string &path, bool canCancel) override {
     videoCanCancel = canCancel;
+    videoSkip.reset();
     if (!engine || !assets || path.empty()) {
       runtime.vm().finishVideo();
       return;
@@ -1661,6 +1664,14 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
 }
 
 bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
+  if (vm_.waitState() == WaitState::WaitVideo && impl_->videoPlayer) {
+    if (impl_->videoSkip.accept(rawEvent) && impl_->videoCanCancel) {
+      impl_->videoPlayer->stop();
+      impl_->videoPlayer.reset();
+      vm_.finishVideo();
+    }
+    return true;
+  }
   // 1. PONscripter's native shared-component overrides handle open modals.
   if ((impl_->backlog && impl_->backlog->isVisible()) ||
       (impl_->inGameMenu && impl_->inGameMenu->IsOpen())) {

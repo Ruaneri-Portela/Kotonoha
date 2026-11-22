@@ -25,6 +25,7 @@
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -1738,6 +1739,7 @@ struct LucaSystemRuntime::Impl {
 
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
   bool movieFinished = false;
+  Kotonoha::VideoSkipGesture videoSkip;
 
   struct SplashLogo {
     std::string assetName;
@@ -2240,6 +2242,7 @@ struct LucaSystemRuntime::Impl {
             voice.Stop();
             scriptSe.clear();
             movieFinished = false;
+            videoSkip.reset();
             waiting = true;
             SDL_Log("LucaSystem: playing movie %s", cand.c_str());
             return;
@@ -3783,11 +3786,9 @@ bool LucaSystemRuntime::onEvent(Kotonoha::EventRef event) {
     return true;
   }
 
-  if (impl.moviePlayer && !impl.movieFinished && !isStoryPaused() &&
-      ((mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat &&
-        (mapped.key.key == SDLK_RETURN || mapped.key.key == SDLK_SPACE)) ||
-       Kotonoha::UI::clicked(mapped, {0, 0, 1280, 720}))) {
-    skipMovie();
+  if (impl.moviePlayer && !impl.movieFinished) {
+    if (!isStoryPaused() && impl.videoSkip.accept(event))
+      skipMovie();
     return true;
   }
 
