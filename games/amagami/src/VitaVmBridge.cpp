@@ -60,12 +60,12 @@ void SpriteTween::start(const std::array<double, 3> &values, std::size_t n,
   }
   for (std::size_t i = 0; i < n; ++i) {
     const double d = target[i] - current[i];
-    if (mode == 1) { // Ease-in, original Vita quadratic.
-      a[i] = -d / (frames * frames);
-      b[i] = 2 * d / frames;
-    } else if (mode == 2) { // Ease-out.
+    if (mode == 1) { // Fast start, slowing toward the target (Vita mode 1).
       a[i] = d / (frames * frames);
       b[i] = 0;
+    } else if (mode == 2) { // Slow start, accelerating (Vita mode 2).
+      a[i] = -d / (frames * frames);
+      b[i] = 2 * d / frames;
     } else { // Linear, including native unrecognized modes.
       a[i] = 0;
       b[i] = d / frames;

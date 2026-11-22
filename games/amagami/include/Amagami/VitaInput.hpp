@@ -2,6 +2,7 @@
 #include <Kotonoha/core/SDL.hpp>
 #include <array>
 #include <cstdint>
+#include <unordered_set>
 
 namespace Amagami::Vita {
 
@@ -12,10 +13,15 @@ namespace Amagami::Vita {
 class VitaInput {
 public:
   void handle(const SDL_Event &event);
-  uint32_t buttons() const { return keyboard_ | gamepad_; }
+  uint32_t buttons() const { return keyboard_ | gamepad_ | stick_ | triggers_; }
   const std::array<int, 4> &analog() const { return analog_; }
 private:
+  // Track physical keys, not only action bits: Z and Space both confirm,
+  // and releasing one must not release the other.
+  std::unordered_set<SDL_Keycode> heldKeys_;
   uint32_t keyboard_ = 0, gamepad_ = 0;
+  // Keep analog and digital sources independent when a stick recentres.
+  uint32_t stick_ = 0, triggers_ = 0;
   SDL_JoystickID activeGamepad_ = 0;
   std::array<int, 4> analog_{{0, 0, 0, 0}};
 };
