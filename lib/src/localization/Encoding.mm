@@ -104,7 +104,40 @@ CFStringRef createString(std::string_view bytes, CFStringEncoding encoding) {
       checkedLength(bytes.size()), encoding, false);
 }
 
+CFMutableStringRef repairedSupplementary(CFStringRef value,
+                                           CFStringEncoding encoding) {
+  // CFStringGetBytes can emit TWO loss bytes for an unrepresentable Unicode
+  // surrogate pair. Legacy codepages need exactly one '?' per scalar.
+  CFMutableStringRef repaired = nullptr;
+  for (CFIndex i = CFStringGetLength(value); i > 0;) {
+    --i;
+    const UniChar low = CFStringGetCharacterAtIndex(value, i);
+    if (low < 0xdc00 || low > 0xdfff || !i)
+      continue;
+    const UniChar high = CFStringGetCharacterAtIndex(value, i - 1);
+    if (high < 0xd800 || high > 0xdbff)
+      continue;
+    UInt8 buffer[64]{};
+    CFIndex used = 0;
+    const CFIndex consumed = CFStringGetBytes(
+        value, CFRangeMake(i - 1, 2), encoding, 0, false, buffer,
+        CFIndex(sizeof buffer), &used);
+    if (consumed != 2) {
+      if (!repaired)
+        repaired = CFStringCreateMutableCopy(kCFAllocatorDefault, 0, value);
+      if (!repaired)
+        throw std::runtime_error("Cannot allocate Apple text fallback");
+      CFStringReplace(repaired, CFRangeMake(i - 1, 2), CFSTR("?"));
+    }
+    --i;
+  }
+  return repaired;
+}
+
 std::string encodeString(CFStringRef value, CFStringEncoding encoding) {
+  OwnedString repaired(repairedSupplementary(value, encoding));
+  if (repaired.get())
+    value = repaired.get();
   const CFIndex count = CFStringGetLength(value);
   if (!count)
     return {};
