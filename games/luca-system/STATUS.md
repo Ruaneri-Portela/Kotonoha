@@ -21,6 +21,8 @@
 - Options uses the original AIR background, English tab atlas, text preview frame and slider sprites. Kotonoha's `SettingsMenu` still owns input, live audio, apply/cancel and persistence.
 - The title's **Gallery** opens the 72 slots and grouped variants from `_cggallery` using original AIR backgrounds, category art, thumbnails and cursors. The VM stores each drawn CG unlock in `global_system.kns`; unrevealed variants stay locked across sessions.
 
+The LucaInspect tool additionally supports external LuckSystem OPCODE.txt name catalogs (BOM/CRLF) for non-AIR inspection, with an SDL-free C++17 regression test. This does not execute non-AIR opcode handlers.
+
 **Limits:** Options uses Kotonoha's settings and input help rather than all the original per-device editors. Direct Ogg voices were verified with retail `AIR`; OggPak bundles were verified with synthetic data, not another retail title. Reference features still to port or verify include rebuilding fonts from scratch, script import beyond AIR English dialogue, and title-specific handlers outside `AIR`.
 
 The more detailed [PORT_STATUS.md](PORT_STATUS.md) and [docs/AIR_REA_2026_11_18.md](docs/AIR_REA_2026_11_18.md) contain original-game binary analysis and historical notes.
