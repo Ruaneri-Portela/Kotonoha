@@ -107,6 +107,10 @@ public:
     return prnums_;
   }
   const TaggedImageSpec &btndefSpec() const { return btndefSpec_; }
+  bool hasManualDrawFrame() const { return manualFrameVisible_; }
+  const std::vector<ManualDrawOp> &manualDrawFrame() const {
+    return manualDisplayOps_;
+  }
   const std::vector<ButtonDef> &activeButtons() const { return buttons_; }
   int hoveredButtonId() const { return hoveredButtonId_; }
   int mouseX() const { return mouseX_; }
@@ -252,6 +256,9 @@ private:
   std::array<SpriteSlot, kMaxExtendedSprites> sprites_;
   bool allSpritesHidden_ = false;
   bool allSprites2Hidden_ = false;
+  bool manualFrameVisible_ = false;
+  std::vector<ManualDrawOp> manualDraftOps_;
+  std::vector<ManualDrawOp> manualDisplayOps_;
   std::array<BarGauge, kMaxBars> bars_;
   std::array<PrintedNumber, kMaxPrnums> prnums_;
 
