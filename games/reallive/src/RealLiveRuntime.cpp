@@ -440,14 +440,21 @@ struct Text : VNTextBox {
                        : engine.GetSettings().vnTextColor)
             : SDL_Color{255, 255, 255, 255},
         int(std::ceil(wrap * density))));
-    if (shadow)
+    if (shadow) {
+      MarkTTFTextRaster(*shadow);
       drawRaster(r, *shadow, x + 1, y + 1, density);
-    if (text)
+    }
+    if (text) {
+      MarkTTFTextRaster(*text);
       drawRaster(r, *text, x, y, density);
+    }
   }
   void drawRaster(RendererRef r, SurfaceRef surface, float x, float y,
                   float density) {
     TexturePtr texture(SDL_CreateTextureFromSurface(&r, &surface));
+    if (!texture)
+      throw std::runtime_error(SDL_GetError());
+    MarkTTFTextRaster(*texture);
     SDL_SetTextureScaleMode(texture.get(), SDL_SCALEMODE_LINEAR);
     SDL_FRect destination{x, y, surface.w / density, surface.h / density};
     SDL_RenderTexture(&r, texture.get(), nullptr, &destination);
