@@ -320,6 +320,52 @@ int main() {
             "DateTime writes all six calendar outputs");
   }
 
+  // Verify actual N2System opcodes, not just the SceneGraph helper methods:
+  // libnpa maps SetShade=0x02d and SetTone=0x02e in retail NSB scripts.
+  {
+    Bytes nsb, map;
+    addMap(map, 0, "chapter.main");
+    const auto add = [&](uint16_t op, std::vector<std::string> args) {
+      addInsn(nsb, uint32_t(nsb.size() + 1), op, args);
+    };
+    const auto string = [&](const char *value) {
+      add(0x0d0, {"STRING", value});
+    };
+    add(0x094, {"chapter.main"});
+    string("fx"); string("Monochrome");
+    add(0x02e, {"fx", "Monochrome"});
+    add(0x08e, {});
+    string("fx"); string("Heavy");
+    add(0x02d, {"fx", "Heavy"});
+    add(0x08e, {});
+    add(0x0d4, {"chapter.main"});
+    N2System::NsbVm vm;
+    vm.setLoader([&](std::string_view, Bytes &script, Bytes &symbols) {
+      script = nsb;
+      symbols = map;
+      return true;
+    });
+    require(vm.boot("nss/0_boot.nss"), "Effects opcode test boot");
+    vm.sceneGraph().createEntity("fx", N2System::EntityType::Sprite);
+    vm.step(4096);
+    const auto *effect = vm.sceneGraph().findEntity("fx");
+    require(effect && effect->monochrome && effect->boxBlurPasses == 16,
+            "NSB SetTone and SetShade apply grayscale + heavy blur");
+    auto saved = vm.saveState();
+    N2System::NsbVm restored;
+    restored.setLoader([&](std::string_view, Bytes &script, Bytes &symbols) {
+      script = nsb;
+      symbols = map;
+      return true;
+    });
+    require(restored.boot("nss/0_boot.nss") && restored.loadState(saved),
+            "Effect state must resume across a full VM snapshot");
+    const auto *restoredEffect = restored.sceneGraph().findEntity("fx");
+    require(restoredEffect && restoredEffect->monochrome &&
+                restoredEffect->boxBlurPasses == 16,
+            "Saved scene retains shader effect selection");
+  }
+
   std::cout << "N2System NsbVm tests passed\n";
   return 0;
 }
