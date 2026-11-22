@@ -199,6 +199,13 @@ jobs:
             modules/vms/n2system/tests/NsbVmTest.cpp \
             -o /tmp/kotonoha-n2-nsb-vm
           /tmp/kotonoha-n2-nsb-vm
+      - name: Compile and run NitroSharp easing and cubic Bezier regressions
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            modules/vms/n2system/tests/AnimationTimingTest.cpp \
+            -o /tmp/kotonoha-n2-animation
+          /tmp/kotonoha-n2-animation
       - name: Compile and run native LucaSystem Debug Catalog regression
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
