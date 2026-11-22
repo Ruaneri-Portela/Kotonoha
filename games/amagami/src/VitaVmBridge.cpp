@@ -487,6 +487,49 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     return primitive("Sprite", method, false, receiver, shared, args);
   }
 
+  // Vita MemoryCard bootstrap queries. There is no native save backend in
+  // this experimental adapter yet: report an empty but usable card, rather
+  // than a false "save succeeded". Read/write operations 3..8 remain
+  // deliberately unimplemented and must surface an SCF location error.
+  if (owner == "MemoryCard" && !classMethod) {
+    if (number == 0 || number == 1) {
+      expectCount(args, 0);
+      if (number == 0) {
+        auto changed = VmValue::num(0);
+        changed.kind = VmValue::Boolean;
+        return changed; // isChanged: no external card changes.
+      }
+      return VmValue::num(6); // status: usable, no saved data yet.
+    }
+    if (number == 2) { // checkData(quiet): no pending card error.
+      expectCount(args, 1);
+      return receiver;
+    }
+    if (number == 9) { // No corrupted data to delete.
+      expectCount(args, 0);
+      return VmValue::num(0);
+    }
+    if (number == 10) { // No system error dialog without a card backend.
+      return receiver;
+    }
+    if (number == 11) { // No pending system message.
+      expectCount(args, 0);
+      auto busy = VmValue::num(0);
+      busy.kind = VmValue::Boolean;
+      return busy;
+    }
+    return std::nullopt;
+  }
+
+  // Vita Voice.length(channel): without an audio backend no voice sample is
+  // playing, hence there is no remaining duration. Playback itself stays
+  // unsupported instead of reporting fake audio success.
+  if (owner == "Voice" && !classMethod && number == 5) {
+    expectCount(args, 1);
+    (void)argument(args, 0);
+    return VmValue::num(0);
+  }
+
   // ControlPad primitives (Vita system image). The caller supplies one input
   // frame through inputFrame(); these getters must not poll or mutate SDL.
   // The live adapter distinguishes callers in the system image from
