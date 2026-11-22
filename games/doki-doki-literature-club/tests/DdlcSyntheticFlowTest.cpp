@@ -194,6 +194,18 @@ int main() {
     require(vm.errors.empty(), "Initialize synthetic VM");
 
     vm.start("start");
+    // A fresh say window may begin with a dissolve, before dialogue itself.
+    for (int i = 0; i < 8 &&
+                    (vm.interaction().k == Ddlc::Interaction::K::Transition ||
+                     vm.interaction().k == Ddlc::Interaction::K::Pause);
+         ++i)
+      vm.resume();
+    if (vm.interaction().k != Ddlc::Interaction::K::Say) {
+      std::cerr << "Expected Say, got interaction kind "
+                << int(vm.interaction().k) << "\n";
+      for (const auto &error : vm.errors)
+        std::cerr << "VM: " << error << "\n";
+    }
     require(vm.interaction().k == Ddlc::Interaction::K::Say,
             "Dynamic relative jump and call reach dialogue");
     require(vm.scene.window.what == "back from call",
