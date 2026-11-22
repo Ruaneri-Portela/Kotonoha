@@ -884,6 +884,55 @@ int main() {
             "spstr Cn-m must hide each sprite in the requested range");
     }
 
+    {
+      Ponscripter::PonscripterVm pretext;
+      pretext.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "pretextgosub *before\n"
+          "game\n"
+          "*start\n"
+          "^Main@\n"
+          "end\n"
+          "*before\n"
+          "^Text inside pretext hook\n"
+          "inc %1\n"
+          "return\n");
+      check(pretext.start(), "nested pretext guard fixture must start");
+      pretext.tick(0);
+      check(pretext.waitState() == Ponscripter::WaitState::WaitClickInline &&
+                pretext.variables().getNum(1) == 1,
+            "pretext text must not recursively re-invoke pretextgosub");
+    }
+
+    {
+      Ponscripter::PonscripterVm textHook;
+      textHook.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "textgosub *after\n"
+          "game\n"
+          "*start\n"
+          "^Main@\n"
+          "end\n"
+          "*after\n"
+          "^Click within textgosub@\n"
+          "inc %1\n"
+          "return\n");
+      check(textHook.start(), "nested text hook fixture must start");
+      textHook.tick(0);
+      check(textHook.waitState() == Ponscripter::WaitState::WaitClickInline,
+            "nested text hook must use normal wait without recursive gosub");
+      for (int i = 0; i < 5 && !textHook.isHalted(); ++i) {
+        if (textHook.waitState() ==
+            Ponscripter::WaitState::WaitClickInline)
+          textHook.advance();
+        textHook.tick(0);
+      }
+      check(textHook.isHalted() && textHook.variables().getNum(1) == 1,
+            "nested hook should return to main script without recursion");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
