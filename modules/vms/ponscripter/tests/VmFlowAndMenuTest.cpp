@@ -591,6 +591,62 @@ int main() {
             "restored pretext hook must return and avoid recursive invocation");
     }
 
+    {
+      Ponscripter::PonscripterVm gfx;
+      const std::string script =
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "ld l,\"actor.png\"\n"
+          "tal l,128\n"
+          "lsp 1,\"first.png\",10,10\n"
+          "lsp2 2,\"second.png\",30,30\n"
+          "strsp 10,\"Ação\",5,7,10,1,18,22,1,0,0,1,#ff0000\n"
+          "strsph 11,\"Escondido\",5,40\n"
+          "allsphide\n"
+          "wait 10\n"
+          "allspresume\n"
+          "allsp2hide\n"
+          "end\n";
+      gfx.appendScriptFile("0.utf", script);
+      check(gfx.start(), "graphics commands fixture must start");
+      gfx.tick(0);
+      check(gfx.waitState() == Ponscripter::WaitState::WaitTimer,
+            "graphics script must stop at timed visibility checkpoint");
+      check(gfx.standingSlots()[0].alpha == 127 &&
+                gfx.areSpritesHidden(false) &&
+                !gfx.areSpritesHidden(true),
+            "tal must change standing opacity and allsphide only main layer");
+      check(gfx.sprites()[2].secondaryLayer &&
+                !gfx.sprites()[1].secondaryLayer,
+            "lsp and lsp2 must have independent layer classification");
+      check(gfx.sprites()[10].spec.trans ==
+                Ponscripter::TransMode::String &&
+                gfx.sprites()[10].spec.text == "Ação" &&
+                gfx.sprites()[10].spec.color == 0xFF0000u &&
+                !gfx.sprites()[11].visible,
+            "strsp/strsph must set GPU-text sprite caption and visibility");
+      Ponscripter::SlotSaveData copy;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(
+                    gfx.exportSlotSave()), copy),
+            "graphics save roundtrip must deserialize");
+      check(copy.allSpritesHidden && !copy.allSprites2Hidden &&
+                copy.standing[0].alpha == 127 &&
+                copy.sprites[2].secondaryLayer &&
+                copy.sprites[10].spec.text == "Ação",
+            "graphics snapshots must retain layered state, alpha and text");
+      Ponscripter::PonscripterVm resumed;
+      resumed.appendScriptFile("0.utf", script);
+      check(resumed.start(), "graphics resume script must start");
+      resumed.importSlotSave(copy);
+      resumed.tick(20);
+      check(resumed.isHalted() &&
+                !resumed.areSpritesHidden(false) &&
+                resumed.areSpritesHidden(true),
+            "allspresume/allsp2hide must resume only the selected layer");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
