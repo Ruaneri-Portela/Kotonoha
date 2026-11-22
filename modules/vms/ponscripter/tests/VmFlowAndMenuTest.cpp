@@ -816,6 +816,46 @@ int main() {
             "postprocessing should be disabled by script commands");
     }
 
+    {
+      Ponscripter::PonscripterVm copied;
+      const std::string script =
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "bg black\n"
+          "lsp 12,\"sprite.png\",35,45\n"
+          "bgcopy\n"
+          "csp 12\n"
+          "bgcpy\n"
+          "wait 10\n"
+          "bg white\n"
+          "end\n";
+      copied.appendScriptFile("0.utf", script);
+      check(copied.start(), "background copy fixture must start");
+      copied.tick(0);
+      check(copied.waitState() == Ponscripter::WaitState::WaitTimer &&
+                copied.backgroundCopyOps().size() == 2 &&
+                copied.backgroundCopyOps()[1].kind ==
+                    Ponscripter::ManualDrawOp::Kind::Sprite &&
+                copied.backgroundCopyOps()[1].spec.imagePath == "sprite.png",
+            "bgcopy/bgcpy must retain prior sprite appearance after csp");
+      Ponscripter::SlotSaveData saved;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(
+                    copied.exportSlotSave()), saved),
+            "composited background should serialize");
+      check(saved.backgroundCopyOps.size() == 2 &&
+                saved.backgroundCopyOps[1].x == 35,
+            "background copy image and geometry must survive save");
+      Ponscripter::PonscripterVm resumed;
+      resumed.appendScriptFile("0.utf", script);
+      check(resumed.start(), "background copy resume fixture must start");
+      resumed.importSlotSave(saved);
+      resumed.tick(20);
+      check(resumed.isHalted() && resumed.backgroundCopyOps().empty(),
+            "loading a new background must invalidate the old capture");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
