@@ -409,6 +409,7 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
     CallStackEntry frame;
     frame.returnStatementIndex = pc_;
     frame.targetLabel = target;
+    frame.callerLabel = currentLabel_;
     captureCallArguments(lexer, frame, true);
     callStack_.push_back(std::move(frame));
     jumpToLabel(target);
@@ -427,6 +428,12 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
         }
       }
       pc_ = frame.returnStatementIndex;
+      if (!frame.callerLabel.empty()) {
+        currentLabel_ = frame.callerLabel;
+        const auto section = script_.findLabel(currentLabel_);
+        if (section != ScriptBuffer::npos)
+          currentSectionId_ = section;
+      }
     }
     return;
   }
