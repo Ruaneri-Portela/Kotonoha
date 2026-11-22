@@ -55,6 +55,9 @@ struct SlotSaveData {
   std::map<int, SpriteSlot> sprites;
   bool allSpritesHidden = false;
   bool allSprites2Hidden = false;
+  bool manualFrameVisible = false;
+  std::vector<ManualDrawOp> manualDraftOps;
+  std::vector<ManualDrawOp> manualDisplayOps;
   WindowSpec window;
   bool textWindowVisible = false;
   std::vector<TextSpan> pageSpans;
