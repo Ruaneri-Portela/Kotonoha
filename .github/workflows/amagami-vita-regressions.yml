@@ -66,6 +66,7 @@ jobs:
             AmagamiVitaSpinTest \
             AmagamiVitaInputTest \
             AmagamiVitaControlPadTest \
+            AmagamiVitaMemoryCardTest \
             AmagamiVitaVibrationTest
       - name: Run synthetic tests without commercial assets
         env:
@@ -73,5 +74,5 @@ jobs:
           SDL_AUDIO_DRIVER: dummy
         run: |
           ctest --test-dir build-amagami-vita \
-            -R '^Amagami\.(Formats|Vm|VitaCpk|VitaGraphics|VitaSystemGraphics|VitaBootstrap|VitaSpriteBridge|VitaSpriteRender|VitaBackground|VitaFontChar|VitaSpin|VitaInput|VitaControlPad|VitaVibration)$' \
+            -R '^Amagami\.(Formats|Vm|VitaCpk|VitaGraphics|VitaSystemGraphics|VitaBootstrap|VitaSpriteBridge|VitaSpriteRender|VitaBackground|VitaFontChar|VitaSpin|VitaInput|VitaControlPad|VitaMemoryCard|VitaVibration)$' \
             --output-on-failure --no-tests=error
