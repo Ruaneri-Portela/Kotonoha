@@ -52,7 +52,8 @@ DialoguePresentation inspectDialoguePresentation(const SceneGraph &graph,
       continue;
     if (entity->type == EntityType::Text) {
       if (!entity->text.empty() &&
-          (entity->text == visibleText || entity->text == fullText))
+          (std::string_view(entity->text) == visibleText ||
+           std::string_view(entity->text) == fullText))
         result.nativeText = true;
       continue;
     }
