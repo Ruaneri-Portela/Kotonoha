@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Verify Apple targets link CoreFoundation, not iconv
+      - name: Verify CoreFoundation decoding and libiconv link compatibility
         run: |
           python3 - <<'PY'
           import json
@@ -51,9 +51,9 @@ jobs:
           for platform in ("macOS", "iOS"):
               flags = (root / f"buildsystems/xcode/Config/{platform}.xcconfig").read_text()
               assert "-framework CoreFoundation" in flags
-              assert "-liconv" not in flags
+              assert "$(KOTONOHA_SHARED_LIBS)" in flags
           common = (root / "buildsystems/xcode/Config/Common.xcconfig").read_text()
-          assert "-liconv" not in common
+          assert "-liconv" in common
 
           cmake = (root / "lib/CMakeLists.txt").read_text()
           assert "find_library(KOTONOHA_COREFOUNDATION CoreFoundation REQUIRED)" in cmake
@@ -66,8 +66,20 @@ jobs:
                   assert dependency != "libiconv"
           realLive = (root / "games/reallive/CMakeLists.txt").read_text()
           assert "if(NOT APPLE)" in realLive
-          print("Apple CoreFoundation/Xcode/CMake/vcpkg contracts passed")
+          print("Apple Encoding.mm + Xcode libiconv linkage contracts passed")
           PY
+      - name: Verify Xcode SDK resolves _iconv_close
+        run: |
+          cat > "$RUNNER_TEMP/link-iconv.c" <<'EOF'
+          #include <iconv.h>
+          int main(void) {
+            iconv_t cd = iconv_open("UTF-8", "UTF-16LE");
+            if (cd == (iconv_t)-1) return 1;
+            return iconv_close(cd) != 0;
+          }
+          EOF
+          xcrun --sdk macosx clang "$RUNNER_TEMP/link-iconv.c" -liconv             -o "$RUNNER_TEMP/link-iconv"
+          "$RUNNER_TEMP/link-iconv"
       - name: Compile Apple codec with C++17 (no SDL or iconv)
         run: |
           clang++ -std=c++17 -Wall -Wextra -Werror -Ilib/include \
