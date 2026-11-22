@@ -26,6 +26,7 @@ public:
   void initGameplay(Kotonoha::Engine &engine) override;
   void update() override;
   void renderGameplay(Kotonoha::RendererRef renderer, float scale) override;
+  bool requiresNativeTextResolution() const override { return true; }
   bool onEvent(Kotonoha::EventRef event) override;
   bool onScreenEvent(Kotonoha::EventRef event) override;
 
