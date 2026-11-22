@@ -1,5 +1,8 @@
 package org.kotonoha.android;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Locale;
 import java.util.Map;
 
@@ -13,7 +16,55 @@ public final class PackCaseRegression {
         if (found != expected) throw new AssertionError(name);
     }
 
-    public static void main(String[] args) {
+    private static void checkEnableLxhIniReset() throws Exception {
+        File tmp = Files.createTempDirectory("sd-config-store-test-").toFile();
+        try {
+            SchoolDaysConfigStore store = new SchoolDaysConfigStore(tmp);
+            SchoolDaysConfigStore.Snapshot base = SchoolDaysConfigStore.Snapshot.defaults();
+
+            // 1. Explicit EnableLxh=0 persists alongside other keys.
+            SchoolDaysConfigStore.Snapshot off = base.copy();
+            off.contentAspectPreference = 2;
+            off.androidFrameLimit = 60;
+            off.enableLxh = Boolean.FALSE;
+            store.saveKotonohaIni(off);
+            SchoolDaysConfigStore.Snapshot reloaded = SchoolDaysConfigStore.Snapshot.defaults();
+            store.loadKotonohaIni(reloaded);
+            if (!Boolean.FALSE.equals(reloaded.enableLxh)
+                    || reloaded.contentAspectPreference != 2
+                    || reloaded.androidFrameLimit != 60) {
+                throw new AssertionError("Expected EnableLxh=0, aspect=2, fps=60 to persist");
+            }
+
+            // 2. Editing an unrelated setting preserves explicit EnableLxh=0.
+            SchoolDaysConfigStore.Snapshot edited = reloaded.copy();
+            edited.androidFrameLimit = 30;
+            store.saveKotonohaIni(edited);
+            reloaded = SchoolDaysConfigStore.Snapshot.defaults();
+            store.loadKotonohaIni(reloaded);
+            if (!Boolean.FALSE.equals(reloaded.enableLxh) || reloaded.androidFrameLimit != 30) {
+                throw new AssertionError("Unrelated save must preserve explicit EnableLxh=0");
+            }
+
+            // 3. Reset defaults (enableLxh=null) + Apply must remove stale EnableLxh from Kotonoha.ini.
+            SchoolDaysConfigStore.Snapshot reset = SchoolDaysConfigStore.Snapshot.defaults();
+            store.saveKotonohaIni(reset);
+            String iniText = new String(
+                    Files.readAllBytes(store.kotonohaIniFile().toPath()), StandardCharsets.UTF_8);
+            if (iniText.contains("EnableLxh=")) {
+                throw new AssertionError("Reset defaults left stale EnableLxh key in Kotonoha.ini: " + iniText);
+            }
+            SchoolDaysConfigStore.Snapshot afterReset = SchoolDaysConfigStore.Snapshot.defaults();
+            store.loadKotonohaIni(afterReset);
+            if (afterReset.enableLxh != null) {
+                throw new AssertionError("Expected enableLxh==null after reset defaults");
+            }
+        } finally {
+            SchoolDaysFolder.discard(tmp);
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
         Locale.setDefault(Locale.forLanguageTag("tr-TR"));
         check("System.gpk", FILE, true);
         check("System.GPK", FILE, true);
@@ -35,6 +86,7 @@ public final class PackCaseRegression {
         if (SchoolDaysFolder.missingPacks(Map.of()).size() != 29) {
             throw new AssertionError("Expected exactly 29 mandatory retail packs");
         }
-        System.out.println("PASS 11 synthetic pack metadata cases");
+        checkEnableLxhIniReset();
+        System.out.println("PASS 14 synthetic pack & Kotonoha.ini EnableLxh cases");
     }
 }

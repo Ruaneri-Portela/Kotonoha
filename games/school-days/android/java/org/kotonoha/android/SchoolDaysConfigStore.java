@@ -155,10 +155,17 @@ final class SchoolDaysConfigStore {
     private final File saveRoot;
 
     SchoolDaysConfigStore(Context context) {
+        this(resolveDocumentsRoot(context));
+    }
+
+    SchoolDaysConfigStore(File documentsRoot) {
+        this.documentsRoot = documentsRoot;
+        this.saveRoot = new File(documentsRoot, "save");
+    }
+
+    private static File resolveDocumentsRoot(Context context) {
         File ext = context.getExternalFilesDir(null);
-        if (ext == null) ext = context.getFilesDir();
-        this.documentsRoot = ext;
-        this.saveRoot = new File(ext, "save");
+        return ext != null ? ext : context.getFilesDir();
     }
 
     File settingsFile() {
@@ -396,7 +403,7 @@ final class SchoolDaysConfigStore {
         writeAtomic(file, encoded);
     }
 
-    private void loadKotonohaIni(Snapshot s) {
+    void loadKotonohaIni(Snapshot s) {
         File file = kotonohaIniFile();
         if (!file.isFile()) return;
         try {
@@ -428,7 +435,10 @@ final class SchoolDaysConfigStore {
         }
     }
 
-    private void saveKotonohaIni(Snapshot s) throws IOException {
+    void saveKotonohaIni(Snapshot s) throws IOException {
+        if (!saveRoot.isDirectory() && !saveRoot.mkdirs()) {
+            throw new IOException("Cannot create save directory");
+        }
         File file = kotonohaIniFile();
         List<String> lines = new ArrayList<>();
         if (file.isFile()) {
@@ -442,6 +452,8 @@ final class SchoolDaysConfigStore {
                 String.valueOf(s.androidFrameLimit == 30 || s.androidFrameLimit == 60 ? s.androidFrameLimit : 0));
         if (s.enableLxh != null) {
             setIniKey(lines, "EnableLxh", s.enableLxh ? "1" : "0");
+        } else {
+            removeIniKey(lines, "EnableLxh");
         }
         StringBuilder sb = new StringBuilder();
         for (String line : lines) {
@@ -459,6 +471,11 @@ final class SchoolDaysConfigStore {
             }
         }
         lines.add(prefix + value);
+    }
+
+    private static void removeIniKey(List<String> lines, String key) {
+        String prefix = key + "=";
+        lines.removeIf(line -> line != null && line.trim().startsWith(prefix));
     }
 
     private static String[] extractConfigLine(String line) {
