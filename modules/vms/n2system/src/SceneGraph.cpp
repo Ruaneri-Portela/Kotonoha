@@ -263,7 +263,7 @@ bool SceneGraph::destroyEntity(std::string_view name) {
   // legacy slash-qualified names stored in the Kotonoha scene graph.
   std::vector<std::string> removeNames{root->name};
   for (std::size_t i = 0; i < removeNames.size(); ++i) {
-    const std::string &ancestor = removeNames[i];
+    const std::string ancestor = removeNames[i];
     for (const auto &[key, entity] : entities_) {
       const bool explicitChild = entity.parent == ancestor;
       const bool implicitChild =
