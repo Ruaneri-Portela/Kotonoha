@@ -29,8 +29,6 @@ void PonscripterVm::clear() {
     sp = SpriteSlot{};
   allSpritesHidden_ = false;
   allSprites2Hidden_ = false;
-  allSpritesHidden_ = false;
-  allSprites2Hidden_ = false;
   for (auto &b : bars_)
     b = BarGauge{};
   for (auto &p : prnums_)
@@ -112,6 +110,8 @@ void PonscripterVm::resetToStart() {
     s = StandingSlot{};
   for (auto &sp : sprites_)
     sp = SpriteSlot{};
+  allSpritesHidden_ = false;
+  allSprites2Hidden_ = false;
   for (auto &b : bars_)
     b = BarGauge{};
   for (auto &p : prnums_)
