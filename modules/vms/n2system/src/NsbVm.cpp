@@ -5,6 +5,7 @@
 #include <cmath>
 #include <ctime>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 
 namespace N2System {
@@ -2061,10 +2062,10 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     }
     break;
   }
-  case 0x06c: { // TimeStrategy (seconds)
+  case 0x06c: { // TimeStrategy: seconds elapsed in the process
     (void)popArgs(t, args.size());
-    t.stack.push_back(
-        NsbValue::makeInt(static_cast<std::int64_t>(std::time(nullptr))));
+    t.stack.push_back(NsbValue::makeInt(
+        static_cast<std::int64_t>(std::max(0.0, elapsedSeconds_))));
     break;
   }
   case 0x06d: { // MilliTimeStrategy
@@ -2076,8 +2077,16 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
   case 0x05e:   // RemainTime
   case 0x05f:   // DurationTime
   case 0x060: { // PassageTime
-    (void)popArgs(t, args.size());
-    t.stack.push_back(NsbValue::makeInt(0));
+    auto a = popArgs(t, args.size());
+    const std::string query =
+        !a.empty() ? a[0].asString() : (args.empty() ? "" : args[0]);
+    const MediaTimeKind kind =
+        op == 0x05e ? MediaTimeKind::Remaining
+        : op == 0x05f ? MediaTimeKind::Duration
+                      : MediaTimeKind::Elapsed;
+    const auto result = mediaTimeQuery_
+        ? mediaTimeQuery_(query, kind) : std::int64_t{0};
+    t.stack.push_back(NsbValue::makeInt(std::max<std::int64_t>(0, result)));
     break;
   }
 
@@ -2114,8 +2123,13 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     break;
   }
   case 0x052: { // ExistSave [slot]
-    (void)popArgs(t, args.size());
-    t.stack.push_back(NsbValue::makeInt(0));
+    auto a = popArgs(t, args.size());
+    const auto slot = !a.empty() ? a[0].asInt()
+                                 : (!args.empty() ? NsbValue::makeString(args[0]).asInt() : 0);
+    const bool found = saveExistsQuery_ && slot >= 0 &&
+                       slot <= std::numeric_limits<std::uint32_t>::max() &&
+                       saveExistsQuery_(static_cast<std::uint32_t>(slot));
+    t.stack.push_back(NsbValue::makeInt(found ? 1 : 0));
     break;
   }
   case 0x054: { // GetMousePosition
@@ -2123,9 +2137,24 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     t.stack.push_back(NsbValue::makeInt(mouseX_));
     break;
   }
-  case 0x056: { // DateTime
-    (void)popArgs(t, args.size());
-    t.stack.push_back(NsbValue::makeInt(0));
+  case 0x056: { // DateTime [year,month,day,hour,minute,second refs]
+    const auto a = popArgs(t, args.size());
+    if (args.size() >= 6) {
+      const std::time_t now = std::time(nullptr);
+      const std::tm *local = std::localtime(&now);
+      if (local) {
+        const int values[6] = {local->tm_year + 1900, local->tm_mon + 1,
+                               local->tm_mday, local->tm_hour,
+                               local->tm_min, local->tm_sec};
+        for (std::size_t i = 0; i < 6; ++i) {
+          const std::string name =
+              i < a.size() && !a[i].lvalueKey.empty()
+                  ? a[i].lvalueKey : args[i];
+          if (!name.empty())
+            assignVar(t, name, NsbValue::makeInt(values[i]));
+        }
+      }
+    }
     break;
   }
   case 0x077: { // PlatformStrategy
