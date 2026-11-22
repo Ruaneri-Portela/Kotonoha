@@ -17,6 +17,10 @@
 - Vita `K2X_Script` now supports its initial status/class-loading/frame-clock
   primitives. The live loop uses SDL's monotonic nanosecond timer for 60 Hz
   pacing instead of an approximate 16 ms delay.
+- The Vita bootstrap exposes truthful no-save `MemoryCard` status and a
+  zero-length voice query when no audio backend exists. Save read/write and
+  actual voice playback still fail explicitly instead of claiming success.
+  Tests verify those boundaries and signed-byte analog limits.
 - Vita diagnostic input uses Xbox A/B for confirm/cancel and PlayStation
   Circle/Cross on other pads; remapped SDL controllers preserve held state.
 - Scenario SCF callers of ControlPad now receive original PS2 button bits,
