@@ -34,6 +34,8 @@ The renderer also uses atomic SDL3 RGBA texture uploads for sprites, dialogue as
 
 The actual GPU compositor now has an SDL3 software-rendered pixel regression for DRAW/WIPE, validating midpoint colors, clip restoration and texture-alpha restoration. This is in addition to standalone scene geometry tests.
 
+Opaque AIR backdrops are now retained below transparent or staging-only scenes across INIT/DRAW; a new opaque full-size image replaces the previous backdrop. This targets seen170 black backgrounds and cutout holes, with synthetic C++17 tests pending retail screenshot verification.
+
 The renderer composes each expression fragment immediately after its matching portrait. DRAW now crossfades complete GPU scene frames (rather than per-sprite alpha) and WIPE uses disjoint scissor regions to prevent overlapping transparent layers, with SDL-free z-order/clip regression tests. Native gameplay text stays on the shared UI renderer.
 
 **Limits:** Options uses Kotonoha's settings and input help rather than all the original per-device editors. Direct Ogg voices were verified with retail `AIR`; OggPak bundles were verified with synthetic data, not another retail title. Reference features still to port or verify include rebuilding fonts from scratch, script import beyond AIR English dialogue, and title-specific handlers outside `AIR`.
