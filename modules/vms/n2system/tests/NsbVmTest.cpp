@@ -237,6 +237,74 @@ int main() {
             "Independently scheduled workerB runs on its next VM frame");
   }
 
+  // Replace native built-in stubs with real media clock and persistence
+  // callbacks, and verify the UTC-independent local date structure.
+  {
+    Bytes nsb, map;
+    addMap(map, 0, "chapter.main");
+    auto emit = [&](uint16_t op, std::vector<std::string> args) {
+      addInsn(nsb, uint32_t(nsb.size() + 1), op, args);
+    };
+    const auto literal = [&](std::string type, std::string value) {
+      emit(0x0d0, {std::move(type), std::move(value)});
+    };
+    emit(0x094, {"chapter.main"});
+    literal("STRING", "movie/test.ngs");
+    emit(0x05e, {"movie/test.ngs"});
+    emit(0x0b0, {"$remain"});
+    emit(0x08e, {});
+    literal("STRING", "movie/test.ngs");
+    emit(0x05f, {"movie/test.ngs"});
+    emit(0x0b0, {"$duration"});
+    emit(0x08e, {});
+    literal("STRING", "movie/test.ngs");
+    emit(0x060, {"movie/test.ngs"});
+    emit(0x0b0, {"$passage"});
+    emit(0x08e, {});
+    literal("INT", "5");
+    emit(0x052, {"5"});
+    emit(0x0b0, {"$savePresent"});
+    emit(0x08e, {});
+    emit(0x056, {"$year", "$month", "$day", "$hour", "$minute", "$second"});
+    emit(0x06c, {});
+    emit(0x0b0, {"$elapsed"});
+    emit(0x0d4, {"chapter.main"});
+    N2System::NsbVm vm;
+    vm.setLoader([&](std::string_view, Bytes &out, Bytes &debug) {
+      out = nsb;
+      debug = map;
+      return true;
+    });
+    int mediaCalls = 0;
+    vm.setMediaTimeQuery([&](std::string_view key, N2System::MediaTimeKind k) {
+      require(key == "movie/test.ngs", "Media query must preserve asset key");
+      ++mediaCalls;
+      return std::int64_t(k == N2System::MediaTimeKind::Remaining ? 2000 :
+                           k == N2System::MediaTimeKind::Duration ? 9000 : 7000);
+    });
+    vm.setSaveExistsQuery([](std::uint32_t slot) { return slot == 5; });
+    require(vm.boot("nss/0_boot.nss"), "Builtins test boot");
+    vm.update(7.5f);
+    vm.step(4096);
+    const auto value = [&vm](const char *name) -> std::int64_t {
+      auto *v = vm.findVar(name);
+      require(v != nullptr, "Built-in result missing");
+      return v->asInt();
+    };
+    require(mediaCalls == 3 && value("$remain") == 2000 &&
+                value("$duration") == 9000 && value("$passage") == 7000,
+            "Native media time built-ins must report player clocks");
+    require(value("$savePresent") == 1,
+            "ExistSave must consult real storage callback");
+    require(value("$elapsed") == 7,
+            "Time builtin returns process elapsed seconds");
+    require(value("$year") >= 2020 && value("$year") < 2200 &&
+                value("$month") >= 1 && value("$month") <= 12 &&
+                value("$day") >= 1 && value("$day") <= 31 &&
+                value("$hour") >= 0 && value("$hour") < 24,
+            "DateTime writes all six calendar outputs");
+  }
+
   std::cout << "N2System NsbVm tests passed\n";
   return 0;
 }
