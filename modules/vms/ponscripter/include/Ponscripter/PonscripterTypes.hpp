@@ -71,6 +71,7 @@ struct SpriteSlot {
   bool loaded = false;
   bool visible = false;
   bool secondaryLayer = false; // lsp2/lsph2 separate hide-state group
+  int blendMode = 0; // 0=alpha, 1=add, 2=reverse subtract
   TaggedImageSpec spec;
   int x = 0;
   int y = 0;
