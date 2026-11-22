@@ -375,6 +375,9 @@ N2Runtime::~N2Runtime() { shutdown(); }
 void N2Runtime::shutdown() {
   if (!impl_)
     return;
+  // These are non-owning pointers: unregister before releasing their scenes.
+  // The unified launcher calls shutdown while the SDL renderer is still alive.
+  ClearScenes();
   if (impl_->ponscripter) {
     impl_->ponscripter->shutdown();
     impl_->ponscripter.reset();
@@ -405,9 +408,17 @@ void N2Runtime::shutdown() {
   impl_->imageSizeCache.clear();
   impl_->effectTextures.clear();
   impl_->effectRenderer = nullptr;
+  // TTF text objects, their fonts and the renderer-backed glyph atlas must
+  // be released before the Engine destroys its renderer or quits SDL_ttf.
   impl_->sgUi.reset();
+  // N2ArchiveAssets is shared by the runtime and Engine. Its cached textures
+  // otherwise survive Engine::~Engine and are destroyed after SDL_Renderer.
+  // clearCache() is idempotent, including on a second shutdown/destructor.
+  if (assets_)
+    assets_->clearCache();
   impl_->backlog.reset();
   impl_->textBox.reset();
+  impl_->pauseMenu.reset();
   impl_->engine = nullptr;
 }
 
