@@ -227,6 +227,7 @@ void testBridge() {
 
 int main() {
   try {
+    using namespace Amagami;
     testBridge();
     const auto path =
         std::filesystem::temp_directory_path() /
