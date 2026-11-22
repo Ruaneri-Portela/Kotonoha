@@ -63,20 +63,8 @@ protected:
   listAsset(const std::string &prefix = {}) const override;
 
 public:
-  // Manifest entries: {"entries":[{"path":"DATA/a.pak","size":123}, ...]}.
-  // generator also retains the old "files" array for legacy WebAssetFetch.
-  // Manifest-free mode discovers named objects with asynchronous GETs.
-  // Call requestAsset() and wait for completion before synchronous reads.
-  static std::shared_ptr<FetchAssetProvider>
-  fromUrl(std::string baseUrl, std::size_t cacheBudget = static_cast<std::size_t>(KOTONOHA_WASM_FETCH_CACHE_MIB) << 20);
-  bool requestAsset(std::string_view id);
-  // A size-aware manifest provides directory enumeration, while unknown
-  // names can still be discovered directly via HEAD/Range. Used by the
-  // optional-manifest browser bootstrap; strict fromManifest stays indexed.
-  void enableOnDemandDiscovery() noexcept { discover_ = true; }
-  bool manifestFree() const noexcept { return discover_; }
-  bool hasManifestIndex() const noexcept { return manifestIndex_; }
-  bool preferLocalWhenPresent() const noexcept override { return discover_; }
+  // Only indexed HTTP files are accessible. Unlisted paths never probe HTTP.
+  bool hasManifestIndex() const noexcept { return true; }
 
   static std::shared_ptr<FetchAssetProvider>
   fromManifest(std::string baseUrl, const std::string &json,

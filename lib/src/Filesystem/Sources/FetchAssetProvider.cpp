@@ -139,35 +139,6 @@ FetchAssetProvider::FetchAssetProvider(std::string base, std::size_t budget)
   nodes_.emplace("", FileInfo{"", FileType::Directory, 0});
 }
 
-std::shared_ptr<FetchAssetProvider>
-FetchAssetProvider::fromUrl(std::string baseUrl, std::size_t cacheBudget) {
-  auto provider = std::shared_ptr<FetchAssetProvider>(
-      new FetchAssetProvider(std::move(baseUrl), cacheBudget));
-  provider->discover_ = true;
-  return provider;
-}
-
-bool FetchAssetProvider::requestAsset(std::string_view id) {
-  if (!discover_)
-    return false;
-  // normalizePath rejects empty, traversal and absolute paths.
-  const auto name = normalizePath(id);
-  const auto key = lookupKey(name);
-  if (nodes_.count(key))
-    return true;
-  if (files_.count(key))
-    return false; // already in flight or failed
-  auto file = std::make_shared<Slot>();
-  file->info = FileInfo{name, FileType::Regular, -1};
-  file->remotePath = name;
-  files_.emplace(key, std::move(file));
-  enqueue({key, 0, 0, true, true});
-  if (!started_)
-    started_ = true;
-  pump();
-  return false;
-}
-
 std::shared_ptr<FetchAssetProvider> FetchAssetProvider::fromManifest(
     std::string baseUrl, const std::string &manifest, std::size_t cacheBudget) {
   if (manifest.size() > 4 * 1024 * 1024)
@@ -195,8 +166,9 @@ std::shared_ptr<FetchAssetProvider> FetchAssetProvider::fromManifest(
   auto provider = std::shared_ptr<FetchAssetProvider>(
       new FetchAssetProvider(std::move(baseUrl), cacheBudget));
   const auto count = json_object_array_length(entries);
-  if (count > 100000)
-    throw FilesystemError(ErrorCode::InvalidPath, "Too many remote entries");
+  if (count == 0 || count > 100000)
+    throw FilesystemError(ErrorCode::InvalidPath,
+                          "HTTP manifest must contain 1..100000 entries");
 
   for (std::size_t i = 0; i < count; ++i) {
     json_object *entry = json_object_array_get_idx(entries, i);
@@ -231,7 +203,6 @@ std::shared_ptr<FetchAssetProvider> FetchAssetProvider::fromManifest(
       throw FilesystemError(ErrorCode::InvalidPath,
                             "Remote file/directory collision: " + name);
   }
-  provider->manifestIndex_ = true;
   return provider;
 }
 
@@ -339,33 +310,10 @@ bool FetchAssetProvider::hasIndexedDirectory(std::string_view path) const {
   return it != nodes_.end() && it->second.type == FileType::Directory;
 }
 bool FetchAssetProvider::exists(std::string_view path) const {
-  const auto key = lookupKey(path, true);
-  if (nodes_.count(key))
-    return true;
-  // Unknown objects are discovered with HEAD, not invented as present.
-  // Asyncify lets the caller yield until the response confirms the path.
-  if (!discover_ || key.empty())
-    return false;
-  auto *self = const_cast<FetchAssetProvider *>(this);
-  if (!files_.count(key))
-    self->requestAsset(path);
-#ifdef __EMSCRIPTEN__
-  // Asyncify unwinds the stack here: the browser continues processing Fetch
-  // callbacks instead of blocking the JavaScript event loop.
-  const double deadline = emscripten_get_now() + 31000;
-  const auto pending = files_.find(key);
-  while (pending != files_.end() && !pending->second->failed &&
-         !nodes_.count(key) && emscripten_get_now() < deadline)
-    emscripten_sleep(15);
-#endif
-  return nodes_.count(key) != 0;
+  return nodes_.count(lookupKey(path, true)) != 0;
 }
 FileInfo FetchAssetProvider::stat(std::string_view path) const {
   const auto key = lookupKey(path, true);
-  // Direct stat callers must get the same asynchronous discovery guarantee
-  // as exists()/open(), rather than silently requiring an initial exists().
-  if (discover_ && !nodes_.count(key))
-    (void)exists(path);
   const auto it = nodes_.find(key);
   if (it == nodes_.end())
     throw FilesystemError(ErrorCode::NotFound,
@@ -386,12 +334,7 @@ FetchAssetProvider::list(std::string_view directory) const {
 
 std::unique_ptr<FileHandle>
 FetchAssetProvider::open(std::string_view id) const {
-  // A caller can open a direct-fetch file only after its metadata is known.
-  // This is safe for C++ synchronous APIs because Asyncify yields while
-  // Emscripten Fetch resolves the request.
-  if (discover_ && !exists(id))
-    throw FilesystemError(ErrorCode::NotFound,
-                          "HTTP asset not found: " + std::string(id));
+  // slot() rejects unknown manifest files before scheduling HTTP.
   const auto data = slot(id);
   auto owner = const_cast<FetchAssetProvider *>(this)->shared_from_this();
   const auto key = lookupKey(id);
@@ -399,7 +342,8 @@ FetchAssetProvider::open(std::string_view id) const {
       data->info.size,
       [data, owner, key](void *output, std::size_t count,
                          std::uint64_t cursor) -> std::int64_t {
-        if (owner->discover_ && data->info.size > 0) {
+#ifdef __EMSCRIPTEN__
+        if (data->info.size > 0) {
           auto cachedAt = [&]() {
             const auto after = data->chunks.upper_bound(cursor);
             return after != data->chunks.begin() &&
@@ -419,6 +363,7 @@ FetchAssetProvider::open(std::string_view id) const {
 #endif
           }
         }
+#endif
         if (data->failed)
           throw FilesystemError(data->failure, data->message);
         const auto after = data->chunks.upper_bound(cursor);
@@ -448,138 +393,6 @@ void FetchAssetProvider::complete(const Job &job, unsigned status,
                                   const char *body, std::uint64_t count,
                                   const std::string &headers) {
   const auto file = files_.at(job.key);
-  if (job.discovery) {
-    if (job.full && status == 404 && !job.lowercaseAttempt &&
-        file->remotePath != lookupKey(file->remotePath)) {
-      // Retry a case-insensitive filename using the exact lowercase spelling
-      // only after the original spelling was genuinely missing.
-      enqueue({job.key, 0, 0, true, true, true});
-      return;
-    }
-    if (job.full && (status == 405 || status == 501)) {
-      // Some static hosts do not implement HEAD. Probe one ranged byte.
-      enqueue({job.key, 0, 1, false, true, job.lowercaseAttempt});
-      return;
-    }
-    if (status != 200 && (job.full || status != 206)) {
-      file->failed = true;
-      file->failure =
-          status == 404 ? ErrorCode::NotFound : ErrorCode::NetworkError;
-      file->message =
-          "Remote asset discovery failed, HTTP " + std::to_string(status);
-      return;
-    }
-
-    std::string lengthValue, rangesValue, contentRangeValue;
-    for (std::size_t offset = 0; offset < headers.size();) {
-      const auto end = headers.find('\n', offset);
-      auto line = headers.substr(
-          offset, end == std::string::npos ? std::string::npos : end - offset);
-      const auto colon = line.find(':');
-      if (colon != std::string::npos) {
-        auto name = line.substr(0, colon);
-        std::transform(
-            name.begin(), name.end(), name.begin(),
-            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        auto value = line.substr(colon + 1);
-        value.erase(0, value.find_first_not_of(" \t"));
-        while (!value.empty() && (value.back() == '\r' || value.back() == ' ' ||
-                                  value.back() == '\t'))
-          value.pop_back();
-        if (name == "content-length")
-          lengthValue = std::move(value);
-        else if (name == "accept-ranges") {
-          rangesValue = std::move(value);
-          std::transform(rangesValue.begin(), rangesValue.end(),
-                         rangesValue.begin(), [](unsigned char c) {
-                           return static_cast<char>(std::tolower(c));
-                         });
-        } else if (name == "content-range")
-          contentRangeValue = std::move(value);
-      }
-      if (end == std::string::npos)
-        break;
-      offset = end + 1;
-    }
-
-    const auto parseSize = [](const std::string &value) -> std::uint64_t {
-      if (value.empty() ||
-          !std::all_of(value.begin(), value.end(),
-                       [](unsigned char c) { return c >= '0' && c <= '9'; }))
-        throw std::invalid_argument("Invalid HTTP object size");
-      const auto size = std::stoull(value);
-      if (size > static_cast<std::uint64_t>(INT64_MAX))
-        throw std::out_of_range("HTTP object too large");
-      return size;
-    };
-    constexpr std::uint64_t kSmallWholeObject = 8u << 20;
-    std::uint64_t size = 0;
-    if (!job.full) {
-      // Discovery probe: GET Range: bytes=0-0.
-      if (status == 206) {
-        // A valid partial response announces the total length. Cross-origin
-        // hosts must expose Content-Range to JavaScript through CORS.
-        constexpr auto prefix = "bytes 0-0/";
-        if (count != 1 || !body || contentRangeValue.rfind(prefix, 0) != 0) {
-          file->failed = true;
-          file->failure = ErrorCode::RangeUnsupported;
-          file->message = "HTTP Range probe requires an accessible "
-                          "Content-Range: bytes 0-0/size header";
-          return;
-        }
-        try {
-          size = parseSize(contentRangeValue.substr(sizeof("bytes 0-0/") - 1));
-          if (!size)
-            throw std::invalid_argument("Empty partial object");
-        } catch (const std::exception &) {
-          file->failed = true;
-          file->failure = ErrorCode::RangeUnsupported;
-          file->message = "Invalid Content-Range on HTTP discovery probe";
-          return;
-        }
-      } else {
-        // A server may ignore Range; permit a complete response for small
-        // assets such as Seen.txt, but not large disc images or archives.
-        if (count > kSmallWholeObject || count > budget_ || (count && !body)) {
-          file->failed = true;
-          file->failure = ErrorCode::RangeUnsupported;
-          file->message = "HTTP Range probe returned an oversized 200 "
-                          "response; large assets require HTTP 206";
-          return;
-        }
-        size = count;
-      }
-    } else {
-      try {
-        size = parseSize(lengthValue);
-      } catch (const std::exception &) {
-        // HTTP 200 on HEAD proves existence even without Content-Length.
-        // Do not mistake missing metadata for a missing asset.
-        enqueue({job.key, 0, 1, false, true, job.lowercaseAttempt});
-        return;
-      }
-      // A valid 206 probe is more reliable than Accept-Ranges, which may
-      // be absent or hidden by cross-origin response-header restrictions.
-      if (size > kSmallWholeObject && rangesValue != "bytes") {
-        enqueue({job.key, 0, 1, false, true, job.lowercaseAttempt});
-        return;
-      }
-    }
-
-    if (job.lowercaseAttempt)
-      file->remotePath = lookupKey(file->remotePath);
-    file->info.size = static_cast<std::int64_t>(size);
-    nodes_.emplace(job.key, file->info);
-    for (auto p = parent(file->info.path); !p.empty(); p = parent(p))
-      nodes_.emplace(lookupKey(p), FileInfo{p, FileType::Directory, 0});
-    if (!job.full) {
-      // Reuse the probe bytes, avoiding a second request for the same data.
-      complete(Job{job.key, 0, status == 206 ? 1u : size, status == 200, false,
-                   job.lowercaseAttempt},
-               status, body, count, headers);
-    }
-    return;
-  }
   // Simple HTTP servers may ignore Range. Accept their full 200 response
   // only if its length matches the entire object; store at offset zero.
   const bool wholeResponse =

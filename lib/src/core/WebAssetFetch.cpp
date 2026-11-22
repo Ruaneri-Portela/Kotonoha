@@ -105,37 +105,13 @@ EMSCRIPTEN_KEEPALIVE void KotonohaFreeRemoteFetchBuffer(void *memory) {
   std::free(memory);
 }
 
-// Optional HTTP index: use the manifest for directory enumeration, but keep
-// on-demand HEAD/Range discovery enabled for names absent from a stale index.
-// Unlike the strict manifest API, a valid index is not an allow-list.
+// A non-empty asset manifest is the authoritative HTTP allow-list.
 EMSCRIPTEN_KEEPALIVE int
 KotonohaConfigureRemoteAssetIndexedManifest(const char *baseUrl,
                                             const char *manifestJson) {
   if (KotonohaConfigureRemoteAssetManifest(baseUrl, manifestJson, 0) != 1)
     return 0;
-  if (auto provider = Filesystem::remoteGameAssets()) {
-    provider->enableOnDemandDiscovery();
-    return 1;
-  }
-  return 0;
-}
-
-// Optional direct HTTP(S) source: no manifest or directory listing required.
-// The provider only knows a file after its asynchronous GET has completed.
-EMSCRIPTEN_KEEPALIVE int KotonohaConfigureRemoteAssetUrl(const char *baseUrl) {
-  try {
-    if (!baseUrl || !*baseUrl)
-      return 0;
-    auto provider =
-        Filesystem::FetchAssetProvider::fromUrl(baseUrl, 256u * 1024u * 1024u);
-    Filesystem::setRemoteGameAssets(provider);
-    provider->begin(0);
-    return 1;
-  } catch (const std::exception &error) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "[Kotonoha] Fetch URL rejected: %s", error.what());
-    return 0;
-  }
+  return Filesystem::remoteGameAssets() ? 1 : 0;
 }
 
 EMSCRIPTEN_KEEPALIVE int KotonohaRequestRemoteAsset(const char *path) {
@@ -143,8 +119,6 @@ EMSCRIPTEN_KEEPALIVE int KotonohaRequestRemoteAsset(const char *path) {
   if (!provider || !path || !*path)
     return -1;
   try {
-    if (provider->manifestFree())
-      provider->requestAsset(path);
     return provider->exists(path) ? 1 : 0;
   } catch (const std::exception &) {
     return -1;

@@ -96,8 +96,8 @@ std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
     if (auto remote = remoteGameAssets())
       if (source == remote->baseUrl() || source + "/" == remote->baseUrl())
         return mount(std::static_pointer_cast<IMount>(remote));
-    return mount(std::static_pointer_cast<IMount>(
-        FetchAssetProvider::fromUrl(std::move(source))));
+    throw FilesystemError(ErrorCode::UnsupportedMount,
+                          "HTTP(S) sources require a non-empty asset manifest");
 #else
     throw FilesystemError(ErrorCode::UnsupportedMount,
                           "HTTP mounts are available only on Emscripten");
