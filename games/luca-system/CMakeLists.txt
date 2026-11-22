@@ -65,6 +65,16 @@ if(BUILD_TESTING)
   target_compile_features(LucaSystemSaveCodecTests PRIVATE cxx_std_17)
   add_test(NAME LucaSystem.SaveCodec COMMAND LucaSystemSaveCodecTests)
 
+  # SDL-backed pixel assertions for the actual GPU scene compositor.
+  add_executable(LucaSystemGpuSceneTests tests/GpuSceneTest.cpp)
+  target_include_directories(LucaSystemGpuSceneTests PRIVATE include)
+  target_compile_features(LucaSystemGpuSceneTests PRIVATE cxx_std_17)
+  target_link_libraries(LucaSystemGpuSceneTests PRIVATE SDL3::SDL3)
+  add_test(NAME LucaSystem.GpuScene COMMAND LucaSystemGpuSceneTests)
+  set_tests_properties(LucaSystem.GpuScene PROPERTIES
+      ENVIRONMENT "SDL_VIDEODRIVER=dummy"
+      LABELS synthetic)
+
   # SDL-free scene staging and transition-clock regressions.
   add_executable(LucaSystemSceneLayersTests tests/SceneLayersTest.cpp)
   target_include_directories(LucaSystemSceneLayersTests PRIVATE include)
