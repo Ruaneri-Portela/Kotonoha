@@ -346,6 +346,9 @@ private:
   void renderControls(Kotonoha::RendererRef renderer) {
     static constexpr const char *labels[]{"Menu", "Skip", "Auto", "Voice"};
     static constexpr const char *icons[]{"⚙", "⏩", "⇄", "♪"};
+    static constexpr const char *plainIcons[]{"M", "S", "A", "V"};
+    static constexpr std::uint32_t iconCodepoints[]{0x2699, 0x23e9,
+                                                      0x21c4, 0x266a};
     auto &ui = engine.GetVNUI();
     for (int i = 0; i < 4; ++i) {
       const auto box = controlRect(i);
@@ -354,7 +357,14 @@ private:
           : i == hoverControl_ || (i == 1 && skipOn_) || (i == 2 && autoOn_)
               ? SDL_Color{48, 76, 159, 255}
               : SDL_Color{111, 128, 142, 255};
-      ui.text(renderer, icons[i], box.x + 3, box.y + 3, 28, ink);
+      // Built-in TTFs may not contain these four symbols either. Use the
+      // game's bitmap glyphs when available; otherwise use a plain icon label
+      // rather than a missing-glyph box.
+      if (isBitmapOnlyGlyph(iconCodepoints[i], ui) ||
+          ui.hasGlyph(iconCodepoints[i]))
+        drawMixedText(renderer, icons[i], box.x + 3, box.y + 3, ink);
+      else
+        ui.text(renderer, plainIcons[i], box.x + 3, box.y + 3, 28, ink);
       ui.text(renderer, labels[i], box.x + 33, box.y + 4, box.w - 33, ink);
     }
   }
