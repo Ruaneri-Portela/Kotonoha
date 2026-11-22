@@ -31,9 +31,19 @@
 - Differentiated `select` (jump), `selgosub` (call/return), and `selnum` (zero-based choice index); pending choices preserve their mode and destination through save/load, and older V1 slots remain readable.
 - Added standalone C++17 regressions for the VM, lexer, tagged image/archive support, and menu/flow behavior without proprietary game data.
 
-### Remaining Compatibility Gaps
+### Current Script, Menu and Graphics Coverage
 
-- Multi-line choice statements and full `csel`/`customsel`/`cselbtn` lifecycle require further work.
-- Indirect/pointer forms of `getparam`, specialized text hooks (`textgosub`, `pretextgosub`), and mid-line click-waits are not yet fully emulated.
-- Some registered graphics, system, and platform-specific commands remain partial/no-op; end-to-end cross-platform game checks, especially on iOS, are also pending.
-- Compatibility is incremental. Synthetic regressions do not prove a 1:1 port of the GPL upstream interpreter; the Kotonoha implementation is independent.
+- Explicit multi-line continuation is assembled before statement indexing for `select`, `selgosub`, `selnum` and `csel`.
+- `csel` invokes `*customsel`, exposes `getcselnum`/`getcselstr`, supports text-only `cselbtn` hit boxes through the GPU-backed UI and `cselgoto`, and restores the pending selection and custom buttons from saves.
+- `getparam i%N` and `s%N` preserve the original caller variable identity (`CALLREF`), even across save/load. Subroutine returns restore the caller scene label (`CALLFROM`).
+- Definition-level `pretextgosub` and `textgosub` callbacks are supported with a recursion guard and page clearing via `texec`; interrupted callbacks and effect progress are serialized.
+- The graphics group has explicit handlers for standing opacity (`tal`), string sprites (`strsp`/`strsph`), independent `lsp2` visibility, additive/subtractive texture modes, retained `draw*`/`blt` framebuffer commands, `bgcopy`/`bgcpy` scene-layer snapshots, `spstr` sprite/sound controls, directional `quake`, `monocro`, and `nega`.
+- Added C++17 regressions for every group above, a Linux/macOS VM test matrix, Linux GCC/Clang full runtime syntax checks, and a dedicated native CMake game/runtime smoke-build workflow.
+
+### Integration and Fidelity Limitations
+
+- The game data for commercial scenarios is not included. A passing standalone VM test and native synthetic runtime test cannot establish universal game compatibility; gameplay routes and edge-case script syntax still need asset-backed verification.
+- `bgcopy` captures independently retained rendered layers rather than copying the physical output surface byte-for-byte; some ephemeral overlays may not be represented. Affine and blending behavior is implemented through SDL3 and should be visually compared against the reference interpreter.
+- `monocro` and `nega` use an optional SDL3 render-readback fallback when enabled (there is no custom fragment shader path for this renderer); this can be costly on high-resolution scenes and must be performance-tested on device.
+- Mid-line text click markers and platform-specific operations beyond the explicitly implemented graphics command group can still differ from the original. Native iOS/Android/WebAssembly builds and retail visual comparisons have not been certified by these workflows.
+- The implementation is clean-room, not a 1:1 code transfer from the GPL upstream project.
