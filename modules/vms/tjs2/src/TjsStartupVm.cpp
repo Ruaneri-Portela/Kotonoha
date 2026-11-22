@@ -89,6 +89,7 @@ struct Object {
   std::unordered_map<std::string, Value> members;
   std::weak_ptr<Object> parent;
   std::size_t layerId = 0;
+  std::vector<TjsUiText> texts;
 };
 
 struct Token {
@@ -979,6 +980,12 @@ Value Interpreter::construct(const std::string &type,
     layer->members["order"] = integer(int(layer->layerId));
     layer->members["visible"] = Value(true);
     layer->members["enabled"] = Value(true);
+    // KiriKiri exposes Layer.font as a mutable object. Only sizing and
+    // coloring used by drawText are projected into the Kotonoha UI.
+    auto font = std::make_shared<Object>();
+    font->members["height"] = integer(24);
+    font->members["color"] = integer(0xffffff);
+    layer->members["font"] = Value(std::move(font));
     layers.push_back(layer);
     return layer;
   };
@@ -1103,6 +1110,7 @@ void Interpreter::snapshotLayers() {
     frame.opacity = bounded(layer, "opacity", 255, 0, 255);
     frame.visible = member(layer, "visible").truthy();
     frame.enabled = member(layer, "enabled").truthy();
+    frame.texts = layer->texts;
     frame.storage = member(layer, "storage").string();
     if (!frame.storage.empty())
       frame.storage = safeName(frame.storage);
@@ -1189,7 +1197,8 @@ Value Interpreter::call(const std::string &name,
   if (dot != std::string::npos) {
     const auto method = name.substr(dot + 1);
     if (method == "loadImages" || method == "setImage" || method == "setPos" ||
-        method == "setSize" || method == "show" || method == "hide") {
+        method == "setSize" || method == "show" || method == "hide" ||
+        method == "drawText" || method == "clearText") {
       const auto receiver = get(name.substr(0, dot));
       const auto ptr = std::get_if<ObjectPtr>(&receiver.data);
       if (!ptr || !*ptr ||
@@ -1217,6 +1226,51 @@ Value Interpreter::call(const std::string &name,
         if (params.size() != 1)
           throw std::runtime_error("TJS2 UI: loadImages needs one storage ID");
         obj->members["storage"] = Value(safeName(params.front().string()));
+        return {};
+      }
+      if (method == "clearText") {
+        if (!params.empty())
+          throw std::runtime_error("TJS2 UI: clearText takes no arguments");
+        obj->texts.clear();
+        return {};
+      }
+      if (method == "drawText") {
+        if (params.size() < 3 || params.size() > 6)
+          throw std::runtime_error("TJS2 UI: drawText needs 3-6 arguments");
+        if (obj->texts.size() >= 256)
+          throw std::runtime_error("TJS2 UI: text operation limit exceeded");
+        TjsUiText run;
+        run.left = static_cast<int>(integer(0).number());
+        run.top = static_cast<int>(integer(1).number());
+        run.text = params.at(2).string();
+        if (run.text.size() > 4096)
+          throw std::runtime_error("TJS2 UI: text size limit exceeded");
+        if (params.size() >= 4) {
+          const double color = params.at(3).number();
+          if (!std::isfinite(color) || color < 0 || color > 4294967295.0)
+            throw std::runtime_error("TJS2 UI: invalid text color");
+          run.rgb = static_cast<std::uint32_t>(color) & 0xffffffu;
+        }
+        if (params.size() >= 5) {
+          const double alpha = params.at(4).number();
+          if (!std::isfinite(alpha) || alpha < 0 || alpha > 255)
+            throw std::runtime_error("TJS2 UI: invalid text opacity");
+          run.opacity = static_cast<int>(alpha);
+        }
+        const auto font = obj->members.find("font");
+        if (font != obj->members.end()) {
+          if (const auto ptr = std::get_if<ObjectPtr>(&font->second.data);
+              ptr && *ptr) {
+            if (auto height = (*ptr)->members.find("height");
+                height != (*ptr)->members.end()) {
+              const double points = height->second.number();
+              if (!std::isfinite(points) || points < -256 || points > 256)
+                throw std::runtime_error("TJS2 UI: invalid font height");
+              run.size = std::max(8, static_cast<int>(std::abs(points)));
+            }
+          }
+        }
+        obj->texts.push_back(std::move(run));
         return {};
       }
       if (params.size() != 2)

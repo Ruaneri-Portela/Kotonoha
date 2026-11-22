@@ -593,8 +593,10 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
       const bool imagePresent = std::any_of(
           ui.layers.begin(), ui.layers.end(),
           [&](const Kotonoha::Providers::TjsUiLayer &layer) {
-            return layer.visible && !layer.storage.empty() &&
-                   !resolveVisual(*impl.assets, layer.storage, true).empty();
+            return layer.visible &&
+                   (!layer.texts.empty() ||
+                    (!layer.storage.empty() &&
+                     !resolveVisual(*impl.assets, layer.storage, true).empty()));
           });
       const bool hasClickTarget =
           std::any_of(ui.layers.begin(), ui.layers.end(),
@@ -879,35 +881,50 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     draw(impl.titlePicture, true);
     if (impl.startupExecution.subsetCompleted) {
       for (auto &layer : impl.startupExecution.layers) {
-        if (!layer.visible || layer.opacity == 0 || layer.storage.empty() ||
-            impl.failedNativePictures.count(layer.storage))
+        if (!layer.visible || layer.opacity == 0)
           continue;
-        try {
-          const auto id = resolveVisual(*impl.assets, layer.storage, true);
-          if (id.empty())
-            throw std::runtime_error("asset not found");
-          auto &texture = impl.assets->texture(renderer, id);
-          if (layer.width <= 0)
-            layer.width = texture.w;
-          if (layer.height <= 0)
-            layer.height = texture.h;
-          const SDL_FRect destination{float(layer.left), float(layer.top),
-                                      float(layer.width), float(layer.height)};
-          Uint8 previousAlpha = 255;
-          if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
-              !SDL_SetTextureAlphaMod(&texture,
-                                      static_cast<Uint8>(layer.opacity)))
-            throw std::runtime_error(SDL_GetError());
-          const bool success = Kotonoha::RenderUpscaledTexture(
-              &renderer, &texture, nullptr, &destination);
-          SDL_SetTextureAlphaMod(&texture, previousAlpha);
-          if (!success)
-            throw std::runtime_error(SDL_GetError());
-        } catch (const std::exception &error) {
-          if (impl.failedNativePictures.insert(layer.storage).second)
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                        "KiriKiri: TJS2 Layer image %s unavailable: %s",
-                        layer.storage.c_str(), error.what());
+        if (!layer.storage.empty() &&
+            !impl.failedNativePictures.count(layer.storage)) {
+          try {
+            const auto id = resolveVisual(*impl.assets, layer.storage, true);
+            if (id.empty())
+              throw std::runtime_error("asset not found");
+            auto &texture = impl.assets->texture(renderer, id);
+            if (layer.width <= 0)
+              layer.width = texture.w;
+            if (layer.height <= 0)
+              layer.height = texture.h;
+            const SDL_FRect destination{float(layer.left), float(layer.top),
+                                        float(layer.width), float(layer.height)};
+            Uint8 previousAlpha = 255;
+            if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
+                !SDL_SetTextureAlphaMod(&texture,
+                                        static_cast<Uint8>(layer.opacity)))
+              throw std::runtime_error(SDL_GetError());
+            const bool success = Kotonoha::RenderUpscaledTexture(
+                &renderer, &texture, nullptr, &destination);
+            SDL_SetTextureAlphaMod(&texture, previousAlpha);
+            if (!success)
+              throw std::runtime_error(SDL_GetError());
+          } catch (const std::exception &error) {
+            if (impl.failedNativePictures.insert(layer.storage).second)
+              SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                          "KiriKiri: TJS2 Layer image %s unavailable: %s",
+                          layer.storage.c_str(), error.what());
+          }
+        }
+        // Native drawText commands project onto the accelerated VN UI.
+        for (const auto &run : layer.texts) {
+          const auto alpha = static_cast<Uint8>(
+              std::clamp(layer.opacity * run.opacity / 255, 0, 255));
+          const auto rgb = run.rgb;
+          drawTextLine(impl.engine, renderer, run.text, run.size,
+                       float(layer.left + run.left),
+                       float(layer.top + run.top),
+                       SDL_Color{static_cast<Uint8>(rgb >> 16),
+                                 static_cast<Uint8>(rgb >> 8),
+                                 static_cast<Uint8>(rgb), alpha},
+                       false, false);
         }
       }
     }
