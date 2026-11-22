@@ -113,14 +113,24 @@ endif()
 if(WIN32 AND NOT ANDROID)
     set(SCHOOL_DAYS_WINDOWS_ICON
         "${CMAKE_CURRENT_SOURCE_DIR}/windows/SchoolDays.ico")
+    if(NOT EXISTS "${SCHOOL_DAYS_WINDOWS_ICON}")
+        get_filename_component(_school_days_repo_root
+            "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+        if(EXISTS "${_school_days_repo_root}/assets/SchoolDays.ico")
+            set(SCHOOL_DAYS_WINDOWS_ICON
+                "${_school_days_repo_root}/assets/SchoolDays.ico")
+        endif()
+    endif()
     if(EXISTS "${SCHOOL_DAYS_WINDOWS_ICON}")
+        get_filename_component(_school_days_icon_dir
+            "${SCHOOL_DAYS_WINDOWS_ICON}" DIRECTORY)
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
             "${SCHOOL_DAYS_WINDOWS_ICON}")
         enable_language(RC)
         set(SCHOOL_DAYS_WINDOWS_RC
             "${CMAKE_CURRENT_SOURCE_DIR}/windows/SchoolDays.rc")
         set_source_files_properties("${SCHOOL_DAYS_WINDOWS_RC}" PROPERTIES
-            INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/windows")
+            INCLUDE_DIRECTORIES "${_school_days_icon_dir}")
         target_sources(SchoolDays PRIVATE "${SCHOOL_DAYS_WINDOWS_RC}")
     else()
         message(STATUS "School Days Windows icon pending: ${SCHOOL_DAYS_WINDOWS_ICON}")

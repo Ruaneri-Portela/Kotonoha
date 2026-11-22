@@ -1,4 +1,4 @@
-﻿# Created by https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
+# Created by https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
 
 ### C++ ###
@@ -681,7 +681,7 @@ assets/*
 games-assets/*
 !assets/Anime4K/
 !assets/ArtCNN/
-!assets/icon.ico
+!assets/SchoolDays.ico
 !assets/icon.png
 !assets/SPLASH.PNG
 .research/
