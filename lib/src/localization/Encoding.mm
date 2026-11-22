@@ -248,11 +248,20 @@ std::string ConvertEncoding(std::string_view text, const char *from,
     filtered.reserve(text.size());
     for (size_t i = 0; i < text.size();) {
       const auto b = uint8_t(text[i]);
-      if (b == 0x85 || b == 0x86 || b == 0xeb || b == 0xec) {
-        const size_t skip = i + 1 < text.size() &&
-                                    isTrail932(uint8_t(text[i + 1])) ? 2 : 1;
+      if (isLead932(b)) {
+        if (i + 1 >= text.size() || !isTrail932(uint8_t(text[i + 1]))) {
+          filtered.push_back('?');
+          ++i; // The following ASCII/trail byte remains independently valid.
+        } else if (b == 0x85 || b == 0x86 || b == 0xeb || b == 0xec) {
+          filtered.push_back('?');
+          i += 2;
+        } else {
+          filtered.append(text.data() + i, 2);
+          i += 2;
+        }
+      } else if (b == 0xa0 || b >= 0xfd) {
         filtered.push_back('?');
-        i += skip;
+        ++i;
       } else {
         filtered.push_back(text[i]);
         ++i;
