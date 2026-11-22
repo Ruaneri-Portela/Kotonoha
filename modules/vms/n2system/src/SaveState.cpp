@@ -104,7 +104,8 @@ std::vector<uint8_t> SaveStateCodec::serializeBinary(const SaveData &data) {
 
 bool SaveStateCodec::deserializeBinary(const std::vector<uint8_t> &bytes,
                                        SaveData &outData) {
-  if (bytes.size() < 4 || bytes[0] != 'N' || bytes[1] != '2' ||
+  if (bytes.size() < 4 || bytes.size() > 32u * 1024u * 1024u ||
+      bytes[0] != 'N' || bytes[1] != '2' ||
       bytes[2] != 'S' || bytes[3] != 'V')
     return false;
 
@@ -116,7 +117,9 @@ bool SaveStateCodec::deserializeBinary(const std::vector<uint8_t> &bytes,
     return false;
   if (!readU64(bytes, cursor, temp64))
     return false;
-  parsed.position = static_cast<size_t>(temp64);
+  if (temp64 > std::numeric_limits<std::size_t>::max())
+    return false;
+  parsed.position = static_cast<std::size_t>(temp64);
 
   if (!readString(bytes, cursor, parsed.activeSpeaker))
     return false;
@@ -127,6 +130,8 @@ bool SaveStateCodec::deserializeBinary(const std::vector<uint8_t> &bytes,
 
   // Integers
   if (!readU64(bytes, cursor, temp64))
+    return false;
+  if (temp64 > 100000 || temp64 > (bytes.size() - cursor) / 12)
     return false;
   size_t intCount = static_cast<size_t>(temp64);
   parsed.integers.clear();
@@ -141,6 +146,8 @@ bool SaveStateCodec::deserializeBinary(const std::vector<uint8_t> &bytes,
   // Strings
   if (!readU64(bytes, cursor, temp64))
     return false;
+  if (temp64 > 100000 || temp64 > (bytes.size() - cursor) / 8)
+    return false;
   size_t strCount = static_cast<size_t>(temp64);
   parsed.strings.clear();
   for (size_t i = 0; i < strCount; ++i) {
@@ -152,6 +159,8 @@ bool SaveStateCodec::deserializeBinary(const std::vector<uint8_t> &bytes,
 
   // Flags
   if (!readU64(bytes, cursor, temp64))
+    return false;
+  if (temp64 > 100000 || temp64 > (bytes.size() - cursor) / 5)
     return false;
   size_t flagCount = static_cast<size_t>(temp64);
   parsed.flags.clear();
@@ -165,6 +174,8 @@ bool SaveStateCodec::deserializeBinary(const std::vector<uint8_t> &bytes,
   // Backlog
   if (cursor < bytes.size()) {
     if (!readU64(bytes, cursor, temp64))
+      return false;
+    if (temp64 > 100000 || temp64 > (bytes.size() - cursor) / 12)
       return false;
     size_t bgCount = static_cast<size_t>(temp64);
     parsed.backlog.clear();
