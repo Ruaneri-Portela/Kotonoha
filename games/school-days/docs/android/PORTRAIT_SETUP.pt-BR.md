@@ -278,3 +278,45 @@ Todos os **7 finais integrados de *School Days L×H*** presentes em `LxH.GPK` fo
 | Ciclo de vida em background (suspensão/tela apagada) | SDL3 bloqueia `SDLThread` e pausa áudio nativamente (`SDL_HINT_ANDROID_BLOCK_ON_PAUSE`) | Preservado + flush atômico de `Config.DAT` em `SDL_EVENT_WILL_ENTER_BACKGROUND` | Sem drift de relógio narrativo (verificado `93.46s → 93.65s` após 25 s suspenso) |
 
 > **Nota técnica honesta**: O baseline de ~40–45% em `SDLThread` nos menus estáticos ocorre quando o limite de FPS do launcher está em `Ilimitado (Hz da tela)`, pois o SurfaceFlinger do POCO X7 Pro opera a `120 Hz` (`8,33 ms/quadro`) executando composição completa de `novelTarget` 120×/s. Selecionar `60 FPS` ou `30 FPS` no launcher reduz a cadência de renderização preservando integralmente o clock narrativo e de vídeo em `24 fps`.
+
+---
+
+## Auditoria de paridade funcional Android DEV/DIST e Regressões Windows DEV/DIST (Marco 8)
+
+### Matriz comparativa de paridade (classificação honesta de 6 níveis)
+Classificações usadas: **Paridade confirmada**, **Adaptado e validado**, **Parcial**, **Não funcional**, **Não testado**, **Não aplicável**.
+
+| Recurso / Fluxo | Windows DEV | Windows DIST | Android DEV (POCO X7 Pro) | Android DIST (test-signed) |
+|---|---|---|---|---|
+| Launcher (idiomas, display, áudio, arquivos) | Paridade confirmada | Paridade confirmada | Adaptado e validado | Não testado no aparelho (bloqueio HyperOS USB em novo package ID; código e APK validados) |
+| Detecção `30/30` GPKs + `LxH.GPK` + `ktnroute` + `styles.ass` + `overlay/` | Paridade confirmada | Paridade confirmada | Adaptado e validado (SAF zero-copy) | Não testado no aparelho (verificação estática/APK OK) |
+| White fade restrito ao viewport ativo (barras `#000000` em `16:9` e `4:3`) | Paridade confirmada | Paridade confirmada | Paridade confirmada | Não testado no aparelho (mesmo código C++ validado) |
+| Forced subtitles (`.ass`/`.ASS`, karaokê `\kf`, 5 idiomas, toggle `TextView`) | Paridade confirmada | Paridade confirmada | Paridade confirmada | Não testado no aparelho (mesmo código C++ validado) |
+| `TITLE`, `START`, `MENU`, `MenuBar` (`×1`–`×32`, `◀\|`, `▶\|`), `TOPMENU` | Paridade confirmada | Paridade confirmada | Paridade confirmada | Não testado no aparelho |
+| `SAVE` / `LOAD` (slots atômicos + `.kotonoha-lxh.v1` + editor de comentário) | Paridade confirmada | Paridade confirmada | Adaptado e validado (editor ancorado acima do IME) | Não testado no aparelho |
+| `BACKLOG` (viewport completo em `renderScale < 1.0`, multi-idioma) | Paridade confirmada | Paridade confirmada | Paridade confirmada | Não testado no aparelho (`VNBacklog` fallback ausente confirmado no `.so`) |
+| `OPTION` (`General`, `Sound`, `Display Options` + persistência bidirecional) | Paridade confirmada | Paridade confirmada | Paridade confirmada | Não testado no aparelho |
+| Escolhas temporizadas (`SETSELECT`) e `ROUTE MAP` | Paridade confirmada | Paridade confirmada | Parcial (validado por 15/15 CTests compartilhados; toque manual parcial) | Não testado no aparelho |
+| `REPLAY` (`H-scene` / `Replay Data`, desbloqueio pós-final) | Paridade confirmada | Paridade confirmada | Paridade confirmada | Não testado no aparelho |
+| Todos os **7 finais L×H** (`05-A2-Z00`, `05-A2-F00`, `05-B0-F00`, `05-G0-L03`, `05-KC-F00`, `05-SB-E01`, `05-SC-L03`) | Paridade confirmada | Paridade confirmada | Paridade confirmada (7/7 ao vivo no POCO X7 Pro) | Não testado no aparelho |
+| Áudio (`BGM`/`SE`/`Voice`/`Master`/`Movie` sem dupla atenuação) | Paridade confirmada | Paridade confirmada | Paridade confirmada (checagem subjetiva de volume físico recomendada) | Não testado no aparelho |
+| Vídeo WMV + MPV/GLSL Upscaling | Paridade confirmada | Paridade confirmada | Parcial (WMV OK; MPV/GLSL em GLES2 faz fallback seguro para cópia linear quando shader não compila) | Não testado no aparelho |
+| `DebugOverlay` (`F10`) / `Filter nodes` / MCP | Paridade confirmada (presente) | Não aplicável (removido em DIST) | Paridade confirmada (presente; MCP `OFF`) | Não aplicável (ausente confirmado no binário `.so`) |
+| Poda automática de cache SAF (`sd-saf-*`) | Não aplicável | Não aplicável | Adaptado e validado (`19 → 1` dir) | Não testado no aparelho (incluído no APK) |
+
+### Regressões Windows DEV e DIST
+- **`python tools/ValidateBuildMetadata.py`**: `[Kotonoha] OK: 13 CMake games; 22 existing Xcode schemes; Xcode pending: n2system, ponscripter`.
+- **Windows DEV Release (`build/school-days-l4-two-dll-staticmd`)**:
+  - Compilação completa (`cmake --build ... --config Release --parallel 1`) aprovada sem erros.
+  - Suíte completa `ctest`: **97 / 98 aprovados** (**58 / 58 testes de School Days aprovados**, 100%). Única falha pré-existente e não relacionada às alterações: `Kotonoha.Infrastructure` (`"MetalFX subclass rejects a software renderer"`).
+- **Windows DIST Release (build isolado temporário `-DKOTONOHA_DISTRIBUTION_BUILD=ON`, removido após teste)**:
+  - Compilação completa de `SchoolDays.exe`, `kotonoha.dll` e 5 suítes de teste DIST aprovada sem erros.
+  - `ctest` DIST: **5 / 5 aprovados** (`SchoolDaysPortTest`, `SchoolDaysLxhContentTest`, `SchoolDaysLxhFadeTest`, `SchoolDaysSystemPanelTransitionTest`, `SchoolDaysSystemUiCommentEditorTest`).
+
+### Artefatos finais Android ARM64 (pós-Marco 7)
+| Artefato | Package ID | Tamanho | SHA-256 | Verificações |
+|---|---|---|---|---|
+| `build/SchoolDaysHQ-android-arm64-dev.apk` | `me.hirameki.kotonoha.schooldays` | `33.325.413 B` | `47FBA33B792054FAC03C8F620BD81422000C297EE8DFC4107739C0EEC2746941` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK, instalado e validado no POCO X7 Pro |
+| `build/SchoolDaysHQ-android-arm64-dist-test.apk` | `me.hirameki.kotonoha.schooldays.dist` | `15.748.932 B` | `9F05CC93661219F439E319C8CF8E314B036203492D0E14AAE3D6D3A3B7105EEC` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK (test-signed); aguarda confirmação manual "Instalar via USB" do usuário no HyperOS |
+
+> **Como instalar e testar o APK DIST no POCO X7 Pro**: Com a tela do aparelho desbloqueada, execute `adb -s QO5XJZFYDMRWDU6T install build/SchoolDaysHQ-android-arm64-dist-test.apk` e toque em **Instalar** no diálogo de confirmação do Xiaomi HyperOS (ou copie o APK para o aparelho e instale manualmente). Ele coexiste de forma independente com o APK DEV sem alterar saves ou configurações existentes.
