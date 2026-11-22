@@ -230,3 +230,25 @@ gradle :app:assembleSchoolDaysDist -Pabis=arm64-v8a -PbundleGameAssets=false --n
 - **D. Áudio e vídeo**: `BGM`/`SE`/`Voice`/`Master`/`Movie` sem dupla atenuação, vídeos WMV + áudio OGG por 10+ minutos de Episódio 1 incluindo `01/01-00-OP1`, suspensão `HOME` → retomada sem crash ou tela preta — **Paridade confirmada** (avaliação subjetiva de volume físico nos alto-falantes recomendada ao usuário).
 - **E. Legendas e traduções**: `pt-BR` GPK (acentuação + cores por personagem + karaokê OP forced subtitles), `zh-CN` JSON (hanzi simplificado no `BackLog` sem tofu), `ru` JSON (inicialização + cena sem freeze/iconv) — **Paridade confirmada**.
 - **F. Saves e estado**: Gravação atômica `SaveFile0099.DAT` + `.kotonoha-lxh.v1` + `GlobalFlag.DAT` + `Config.DAT` + `settings.json`, `force-stop` + reabertura, suspensão/retomada — **Paridade confirmada**.
+
+---
+
+## Validação dos sete finais L×H (Marco 6)
+
+Todos os **7 finais integrados de *School Days L×H*** presentes em `LxH.GPK` foram executados e validados ao vivo no **POCO X7 Pro (Android 16, ARM64, `2712×1220`)** usando a build **Android DEV**, com `F10` (`Filter nodes` adicionado ao `DebugOverlay` DEV para seleção direta de nós em toque) e verificação simultânea de capturas de tela e `logcat` (`SDL/CUSTOM`):
+
+| # | Nó | Final L×H | Idioma testado | Fronteira EndRoll → L×H (ticks) | Mídia L×H (`LxH.GPK`) | Fade OUT/IN + Epílogo + Legenda | Terminal Next → `SaveFeel` → Title | Classificação |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `05/05-A2-Z00` | *Behind the Scenes* | `zh-CN` (JSON) | `6003` → `6075` | `05-A2-Z00-LXH.wmv` (69 ms) + `.OGG` (33 ms) | OK (fade OUT `6002`, IN `6075`, hanzi `zh-CN-lxh.json`) | OK (`tick=13133`, contagem regressiva, retorno automático ao `TITLE` + `REPLAY` desbloqueado) | **Paridade confirmada** |
+| 2 | `05/05-A2-F00` | *Blue Smile* | `pt-BR` (GPK) | `5867` → `5915` | `05-A2-F00-LXH.wmv` (83 ms) + `.OGG` (51 ms) | OK (fade OUT `5851`, IN `5915`, epílogo no túmulo) | OK (`tick=8967`, `SaveFeel` 30 s, retorno ao `TITLE`) | **Paridade confirmada** |
+| 3 | `05/05-B0-F00` | *Cold Scarf* | `pt-BR` (GPK) | `5683` → `5731` | `05-B0-F00-LXH.wmv` (74 ms) + `.OGG` (73 ms) | OK (fade OUT `5642`, IN `5731`, legenda PT-BR *"Estava na varanda da sua casa..."*) | OK (`tick=8110`, `SaveFeel`, `NO` → `TITLE`) | **Paridade confirmada** |
+| 4 | `05/05-G0-L03` | *Braided Hair* | `pt-BR` (GPK) | `4095` → `4119` | `05-G0-L03-LXH.wmv` (73 ms) + `.OGG` (51 ms) | OK (fade OUT `4076`, IN `4119`, epílogo ao pôr do sol) | OK (`tick=7119`, `SaveFeel`, `NO` → `TITLE`) | **Paridade confirmada** |
+| 5 | `05/05-KC-F00` | *The End of Madness* | `pt-BR` (GPK) | `19957` → `20005` | `05-KC-F00-LXH.wmv` (72 ms) + `.OGG` (57 ms) | OK (fade OUT `19941`, IN `20005`, legenda PT-BR *"Ei, espera por mim!"*) | OK (`tick=25527`, `SaveFeel`, `NO` → `TITLE`) | **Paridade confirmada** |
+| 6 | `05/05-SB-E01` | *Light* | `pt-BR` (GPK) | `6668` → `6668` (fronteira same-tick) | `05-SB-E01-LXH.wmv` (84 ms) + `.OGG` (74 ms) | OK (fade OUT `6639`, IN `6668`, legenda PT-BR *"A Kuroda vai ficar chateada..."*) | OK (`tick=14421`, `SaveFeel`, `NO` → `TITLE`) | **Paridade confirmada** |
+| 7 | `05/05-SC-L03` | *Innocent Sunset* | `pt-BR` (GPK) | `5111` → `5183` | `05-SC-L03-LXH.wmv` (83 ms) + `.OGG` (58 ms) | OK (fade OUT `5071`, IN `5183`, legenda PT-BR *"Então, que tal irmos àquele café..."*) | OK (`tick=8042`, `SaveFeel`, `NO` → `TITLE`) | **Paridade confirmada** |
+
+### Observações e integridade dos dados
+- **Cobertura bilíngue L×H validada**: Confirmado carregamento real tanto de `zh-CN-lxh.json` (`05-A2-Z00`) quanto de `LxH.PTBR.GPK` (`05-A2-F00`, `05-B0-F00`, `05-G0-L03`, `05-KC-F00`, `05-SB-E01`, `05-SC-L03`) sobre o `LxH.GPK` retail intacto.
+- **Pós-final**: Confirmado desbloqueio e abertura da tela **`REPLAY`** (`H-scene` / `Replay Data`, páginas `1–4`, `CLOSE`) no `TITLE` após conclusão dos finais, com `GlobalFlag.DAT` atualizado e `SaveFile000.DAT` pessoal do usuário rigorosamente intacto (`1210 bytes`, sem sobrescrita).
+- **Zero crashes, zero travamentos e zero ativos L×H ausentes** durante a execução consecutiva dos 7 finais no aparelho.
+- **Ferramenta DEV adicionada**: `lib/include/Kotonoha/debug/DebugOverlay.hpp` e `lib/src/debug/DebugOverlay.cpp` receberam campo `Filter nodes` em `drawRuntimeNodes()` (exclusivo de builds DEV; ausente em DIST).
