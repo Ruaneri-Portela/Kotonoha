@@ -88,7 +88,7 @@ struct SpriteSlot {
 // never execute script commands or mutate the layer stack.
 struct ManualDrawOp {
   enum class Kind : std::uint8_t {
-    Clear, Fill, Background, Sprite, Text, Blit
+    Clear, Fill, Background, Sprite, Text, Blit, Rect, Window
   };
   Kind kind = Kind::Clear;
   std::uint32_t colorRgb = 0;
