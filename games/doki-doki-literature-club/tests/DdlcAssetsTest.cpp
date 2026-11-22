@@ -45,7 +45,7 @@ void string(std::vector<uint8_t> &out, const std::string &text) {
 }
 void archive(const std::filesystem::path &path, const std::string &id,
              const std::string &body, bool rpe = false, bool invalid = false,
-             bool rpa2 = false) {
+             bool rpa2 = false, const std::string &prefix = {}) {
   const uint32_t key = rpa2 ? 0u : rpe ? 0x42424242u : 0x11111111u;
   std::vector<uint8_t> index{0x80, 2, '}'};
   string(index, id);
@@ -54,7 +54,10 @@ void archive(const std::filesystem::path &path, const std::string &id,
   number(index, (invalid ? 1000000 : 64) ^ key);
   index.push_back('J');
   number(index, uint32_t(body.size()) ^ key);
-  index.insert(index.end(), {0x86, 'a', 's', '.'});
+  if (!prefix.empty())
+    string(index, prefix);
+  index.insert(index.end(),
+               {uint8_t(prefix.empty() ? 0x86 : 0x87), 'a', 's', '.'});
   uLongf size = compressBound(index.size());
   std::vector<uint8_t> packed(size);
   require(compress(packed.data(), &size, index.data(), index.size()) == Z_OK,
@@ -120,6 +123,16 @@ void archiveTests(const std::filesystem::path &root) {
       [] { return std::vector<std::string>{"extra.rpyc"}; });
   require(text(assets.read("ui/test.txt")) == "mod",
           "Overlay loose file precedes overlay archive");
+  // Official RPAv3 indexes may include a prefix in a third tuple field.
+  // The reconstructed asset is prefix + body, not prefix + partial body.
+  archive(dir / "prefix.rpa", "ui/prefixed.bin", "payload", false, false,
+          false, "header-");
+  Ddlc::Archive prefixed;
+  require(prefixed.open((dir / "prefix.rpa").string()),
+          "Open RPA-3.0 with an entry prefix");
+  require(text(prefixed.read("ui/prefixed.bin")) == "header-payload",
+          "RPA-3.0 entries restore all prefix and body bytes");
+
   archive(dir / "legacy.rpa", "ui/legacy.txt", "Katawa-era", false, false,
           true);
   Ddlc::Archive legacy;
