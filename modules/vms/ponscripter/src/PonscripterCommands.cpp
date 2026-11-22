@@ -1146,6 +1146,31 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
       callbacks_->onSceneDirty();
     return;
   }
+  if (cmd == "monocro") {
+    const std::string arg = lexer.parseRawArg();
+    if (arg == "off") {
+      monochromeEnabled_ = false;
+    } else {
+      std::uint32_t rgb = 0xFFFFFFu;
+      if (arg == "black")
+        rgb = 0x000000u;
+      else if (arg == "white")
+        rgb = 0xFFFFFFu;
+      else if (!parseHexColor24(arg, rgb))
+        return;
+      monochromeColor_ = rgb;
+      monochromeEnabled_ = true;
+    }
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+  if (cmd == "nega") {
+    negativeMode_ = std::clamp(lexer.parseIntExpr(), 0, 2);
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
   if (cmd == "quake" || cmd == "quakex" || cmd == "quakey") {
     const int amplitude = std::max(0, lexer.parseIntExpr());
     if (!lexer.consumeComma())
