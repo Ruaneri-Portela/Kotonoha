@@ -9,7 +9,7 @@
 namespace RealLive {
 
 // RealLive variables are signed 32-bit integers. Keep wrap semantics
-// deterministic on macOS, Windows, Linux and Emscripten, regardless of the
+// deterministic on macOS, Windows, Linux and browser builds, regardless of the
 // host compiler's conversion from oversized signed values.
 inline int wrapInteger32(std::int64_t value) noexcept {
   const auto bits = static_cast<std::uint32_t>(value);
