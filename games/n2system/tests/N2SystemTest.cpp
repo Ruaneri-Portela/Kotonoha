@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <N2System/N2Runtime.hpp>
 #include <SDL3/SDL.h>
 #include <cstdlib>
@@ -15,6 +16,36 @@ static void check(bool value, const char *name) {
 
 int main() {
   try {
+    // Menu/title loops must not swallow native choice navigation.
+    check(!Kotonoha::VideoSkipGesture::capturesInput(true, true),
+          "Looping title movie must not intercept input");
+    check(Kotonoha::VideoSkipGesture::capturesInput(true, false),
+          "Narrative movie must intercept input");
+    check(!Kotonoha::VideoSkipGesture::capturesInput(false, false),
+          "Inactive movie must not intercept input");
+
+    Kotonoha::VideoSkipGesture gesture;
+    SDL_Event pointer{};
+    pointer.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    pointer.button.which = 0;
+    pointer.button.button = SDL_BUTTON_LEFT;
+    pointer.button.clicks = 1;
+    pointer.button.x = 100;
+    pointer.button.y = 100;
+    check(!gesture.accept(pointer, 1000),
+          "Single mouse click must not skip a movie");
+    check(gesture.accept(pointer, 1100),
+          "Double mouse click may skip a narrative movie");
+    SDL_Event wheel{};
+    wheel.type = SDL_EVENT_MOUSE_WHEEL;
+    check(!gesture.accept(wheel, 1200),
+          "Mouse wheel must never skip a movie");
+    SDL_Event keyboard{};
+    keyboard.type = SDL_EVENT_KEY_DOWN;
+    keyboard.key.repeat = false;
+    check(gesture.accept(keyboard, 1300),
+          "Explicit keyboard press may skip a narrative movie");
+
     auto assets = std::make_shared<N2System::N2ArchiveAssets>();
     N2System::N2Runtime runtime(assets);
 
