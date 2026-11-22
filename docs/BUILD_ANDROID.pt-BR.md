@@ -8,10 +8,10 @@ Android usa `buildsystems/android/`, com uma variante Gradle por jogo. Requisito
 export VCPKG_ROOT=/caminho/para/vcpkg
 cd buildsystems/android
 ./gradlew :app:assembleExampleDebug
-./gradlew :app:assembleRealLiveDebug -Pabis=arm64-v8a
+./gradlew :app:assembleRealLiveDebug -Pabis=armeabi-v7a
 ```
 
-No Windows, use `gradlew.bat` e defina `VCPKG_ROOT` no ambiente. O Gradle obtém o SDK pelo Android Studio/`local.properties`. As ABIs padrão são `arm64-v8a,x86_64`; restrinja com `-Pabis=arm64-v8a`.
+No Windows, use `gradlew.bat` e defina `VCPKG_ROOT` no ambiente. O Gradle obtém o SDK pelo Android Studio/`local.properties`. As ABIs padrão são `arm64-v8a,armeabi-v7a,x86_64`; selecione ARMv7 com NEON usando `-Pabis=armeabi-v7a` ou ambas as ABIs ARM com `-Pabis=arm64-v8a,armeabi-v7a`. O NDK recebe `ANDROID_ARM_NEON=ON`, e o vcpkg usa `arm-neon-android` para ARMv7. Somente dispositivos ARMv7 com NEON são compatíveis.
 
 Exemplos de flavors: `Launcher` (Hub Unificado), `Example`, `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `DokiDoki`, `SchoolDays`, `RealLive`, `Kirikiri`, `LucaSystem`, `Pmail`, `Ponscripter` e `N2System`. Instale com `:app:install<Flavor>Debug`.
 
