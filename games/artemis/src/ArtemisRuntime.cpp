@@ -755,6 +755,32 @@ std::vector<Kotonoha::DebugNode> ArtemisRuntime::debugNodes() const {
   return out;
 }
 
+std::vector<std::string> ArtemisRuntime::activeTranslationKeys() const {
+  const auto &dialogue = vm_.dialogue();
+  std::vector<std::string> keys;
+  if (!dialogue.speaker.empty())
+    keys.push_back(dialogue.speaker);
+  if (!dialogue.text.empty())
+    keys.push_back(dialogue.text);
+  return keys;
+}
+
+Kotonoha::Translation::SourceTexts
+ArtemisRuntime::translationSources() const {
+  Kotonoha::Translation::SourceTexts result;
+  const auto keys = activeTranslationKeys();
+  if (!keys.empty())
+    result[translationRoute()] = keys;
+  return result;
+}
+
+std::vector<Kotonoha::DebugAudioAsset> ArtemisRuntime::debugSceneAudio() {
+  if (!impl_ || impl_->lastVoiceAsset.empty())
+    return {};
+  const auto &dialogue = vm_.dialogue();
+  return {{impl_->lastVoiceAsset, dialogue.speaker, dialogue.text}};
+}
+
 void ArtemisRuntime::debugJumpToNode(const std::string &id) {
   vm_.jumpToBlock(id);
 }

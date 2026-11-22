@@ -18,6 +18,7 @@ MANIFEST = ROOT / "buildsystems/xcode/ProjectManifest.json"
 # The shared runtime implementation is intentional for game variants. The
 # Example game intentionally has no native scripts (VNManager fallback).
 RUNTIMES = {
+    "artemis": "games/artemis/src/ArtemisRuntime.cpp",
     "amagami": "games/amagami/src/AmagamiRuntime.cpp",
     "doki-doki-literature-club": "games/doki-doki-literature-club/src/DdlcRuntime.cpp",
     "example": None,
