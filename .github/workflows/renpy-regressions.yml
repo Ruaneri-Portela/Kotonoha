@@ -47,7 +47,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
             -DKOTONOHA_BUILD_ALL=OFF -DKOTONOHA_BUILD_DDLC=ON \
             -DKOTONOHA_BUILD_KATAWA=ON \
-            -DKOTONOHA_BUILD_EXAMPLE=OFF -DKOTONOHA_BUILD_LAUNCHER=OFF \
+            -DKOTONOHA_BUILD_EXAMPLE=OFF -DKOTONOHA_BUILD_LAUNCHER=ON \
             -DKOTONOHA_ENABLE_MCP=OFF -DKOTONOHA_ENABLE_UPSCALER=OFF \
             -DKOTONOHA_SDL_PROVIDER=SYSTEM \
             -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON
@@ -55,8 +55,11 @@ jobs:
         run: |
           cmake --build build-renpy --target \
             DdlcAssetsTest DdlcPythonTest DdlcSyntheticFlowTest \
-            KatawaIdentityTest KatawaStoryTest --parallel 2
+            KatawaIdentityTest KatawaStoryTest KotonohaEngineDetectorTests \
+            KotonohaUnifiedLauncherTests --parallel 2
       - name: Exercise synthetic scripts and Python bridge
         run: |
-          ctest --test-dir build-renpy -R '^DokiDoki\.(Assets|Python|SyntheticFlow)$' \
+          ctest --test-dir build-renpy \
+            -R '^(DokiDoki\.(Assets|Python|SyntheticFlow)|Kotonoha\.(EngineDetector|UnifiedLauncher))
+ \
             --output-on-failure --timeout 45
