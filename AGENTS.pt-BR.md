@@ -17,7 +17,7 @@ O Kotonoha é um **motor de visual novel modular em C++17** construído sobre SD
 | `lib/` | Biblioteca central do motor, interfaces compartilhadas, cabeçalhos públicos (`lib/include/Kotonoha/`) e testes unitários. |
 | `modules/vms/` | Máquinas virtuais de script (Amagami, Snow Radish, Summer Radish, Ren'Py/DDLC, RealLive, Pure Mail). Execução pura de script, independente de renderização. |
 | `modules/providers/` | Decodificadores de arquivos e formatos de pacotes que implementam `Kotonoha::AssetProvider` (CMP, ADV, GPK, XP3, PAK, RealLive, RPA, Amagami, Pmail, Zero). |
-| `games/` | 11 ports de jogos e demonstração (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`). |
+| `games/` | 15 aplicações de jogos (14 ports e Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`). |
 | `buildsystems/` | Orquestração de compilação por plataforma: `cmake/` (módulos CMake), `android/` (projeto Gradle), `xcode/` (`Kotonoha.xcodeproj` nativo). |
 | `assets/` | Recursos compartilhados do motor (fontes, ícones, shaders) e avisos legais de terceiros. |
 | `docs/` | Documentação bilíngue completa (`*.md` em en-US, `*.pt-BR.md` em pt-BR). |
@@ -128,13 +128,12 @@ cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
   cmake -S . -B build \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
     -DVCPKG_TARGET_TRIPLET=<triplet> \
-    '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg' \
-    -DKOTONOHA_SDL_FROM_VCPKG=ON \
-    -DKOTONOHA_IMGUI_FROM_VCPKG=ON
+    '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg' \
+    -DKOTONOHA_SDL_PROVIDER=VCPKG
   ```
 
 ### Plataformas Apple (macOS e iOS)
-- **Projeto Xcode Nativo**: `buildsystems/xcode/Kotonoha.xcodeproj` (contém 22 esquemas compartilhados: 11 para macOS e 11 para iOS).
+- **Projeto Xcode Nativo**: `buildsystems/xcode/Kotonoha.xcodeproj` (contém 32 esquemas compartilhados: 16 para macOS e 16 para iOS).
 - **Script de Preparação**:
   ```sh
   python3 tools/PrepareApple.py
@@ -181,7 +180,7 @@ Execute imediatamente após modificar `CMakeLists.txt`, `KotonohaGames.cmake`, `
 ```sh
 python3 tools/ValidateBuildMetadata.py
 ```
-*Saída esperada*: `[Kotonoha] OK: 11 games; 22 schemes; CMake/Xcode consistent`
+*Saída esperada*: `[Kotonoha] OK: 15 CMake games; 32 existing Xcode schemes; Xcode pending: none`
 
 ### 2. Testes Nativos em C++
 ```sh
@@ -228,3 +227,32 @@ python3 tools/check_sdl_cpack.py <diretorio_build>
 - **NÃO** carregue arquivos de múltiplos gigabytes/megabytes inteiros na MEMFS do WebAssembly; utilize requisições Fetch com HTTP Range.
 - **NÃO** procure ou tente executar ferramentas inexistentes como `UpdateGameTargets.rb` ou `Kotonoha.xcworkspace`.
 - **NÃO** use caminhos absolutos do sistema operacional gravados diretamente no código para saves ou configurações.
+
+---
+
+## 7. Políticas e Escopo do Fork (`tsubaki-0x/Kotonoha`)
+
+Todas as regras upstream acima permanecem obrigatórias neste fork. As diretrizes abaixo documentam o escopo autorizado, o papel das branches permanentes e o fluxo de trabalho do School Days HQ (consulte [docs/FORK_WORKFLOW.pt-BR.md](docs/FORK_WORKFLOW.pt-BR.md) para procedimentos detalhados).
+
+### Alvos Autorizados e Arquitetura Compartilhada
+- Tanto **Windows x64** quanto **Android (`arm64-v8a`)** são alvos ativos e autorizados do **School Days HQ v1.02** (superando a restrição histórica de 2026-11 restrita a Windows L4).
+- Preserve uma única implementação compartilhada da lógica de jogo em `games/school-days/`, código genérico do motor em `lib/`, VMs/provedores em `modules/` e adaptadores de plataforma Android (JNI/Gradle/SAF) em `buildsystems/android/`.
+- Não duplique a lógica do jogo entre Windows e Android nem reintroduza servidores MCP/DevBridge específicos de jogo (use o MCP genérico em `lib/`).
+
+### Branches Permanentes do Fork
+- `dev`: linha principal de desenvolvimento e colaboração upstream (branch padrão de `tsubaki-0x/Kotonoha`).
+- `kotonoha-v3-ruaneri-sync-transitions`: linha híbrida que preserva a infraestrutura DEV/DIST do School Days HQ e os fluxos de distribuição Windows/Android específicos do fork.
+- Nunca faça push diretamente para `upstream` (`Ruaneri-Portela/Kotonoha`), nunca use force-push em branches publicadas e mantenha os PRs upstream pequenos, limpos e baseados diretamente em `upstream/dev`.
+
+### Política DEV vs DIST (Windows e Android)
+- **DEV** (`-DKOTONOHA_DISTRIBUTION_BUILD=OFF -DKOTONOHA_ENABLE_MCP=ON` no Windows; `debug`/`release` com `BuildConfig.IS_DISTRIBUTION_BUILD=false` no Android): build de desenvolvimento otimizada em Release com `DebugOverlay`, MCP e ferramentas de QA.
+- **DIST** (`-DKOTONOHA_DISTRIBUTION_BUILD=ON -DKOTONOHA_ENABLE_MCP=OFF -DKOTONOHA_DEV_CONTROL=OFF -DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF`; buildType `dist` com `BuildConfig.IS_DISTRIBUTION_BUILD=true` no Android): build limpa para o jogador sem `DebugOverlay`, MCP ou flags CLI de DEV, com subsistema `WINDOWS_GUI` no Windows (sem janela de console extra).
+- No Windows, compile saídas virgens com `--config Release --parallel 1` em diretórios CMake novos e monte distribuições completas de QA privado (1 EXE + 4 DLLs + `translations/` + `overlay/` + `game-assets/` + `assets/` + `third-party-licenses/`) separadamente da saída bruta do CMake; não execute às cegas os scripts legados de duas DLLs L4 (`stage_clean_local_l4.ps1`, `publish_two_dll_l4.ps1`, `stage_windows_clean_local.py`).
+
+### Segurança Inegociável de Dados, Assets e Testes
+- Nunca execute o EXE/instalador retail original, não altere os 29 GPKs comerciais nem sobrescreva `LxH.GPK`.
+- Nunca altere saves pessoais (`Save/`, `GlobalFlag.DAT`) ou `Config.DAT`/`settings.json` pessoais: isole todos os testes com `--documents` e `--config` em diretórios descartáveis, preferindo fixtures sintéticas.
+- Não inicie outra instância GUI se já houver `SchoolDays.exe` em execução.
+- Nunca comite GPKs comerciais, traduções privadas ou pacotes sem autorização de redistribuição em Git público, nem publique ZIPs privados de QA como releases públicas.
+- Preserve as decisões autorizadas do proprietário para assets do fork (`assets/SPLASH.PNG` e `assets/SchoolDays.ico`, sem restaurar o legado `assets/icon.ico`); mantenha a identidade visual do fork separada de PRs upstream não solicitados.
+- Separe explicitamente verificações estáticas, unitárias/CTest, GPU real e QA físico no POCO X7 Pro. Nunca afirme validação em hardware apenas com base em Gradle ou testes estáticos.
