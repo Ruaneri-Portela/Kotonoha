@@ -1616,6 +1616,7 @@ int main() {
         "var button = new Layer(win, win.primaryLayer);"
         "button.setPos(40, 80); button.setSize(160, 60);"
         "button.font.height = 32;"
+        "button.fillRect(0, 0, 160, 60, 65280, 160);"
         "button.drawText(8, 5, \"Start\", 16711680, 220, true);"
         "function pressed() { System.title = \"Clicked\"; }"
         "button.onClick = pressed;";
@@ -1631,6 +1632,11 @@ int main() {
         it->texts[0].left != 8 || it->texts[0].top != 5 ||
         it->texts[0].size != 32 || it->texts[0].opacity != 220 ||
         it->texts[0].rgb != 16711680 ||
+        it->rectangles.size() != 1 ||
+        it->rectangles[0].width != 160 ||
+        it->rectangles[0].height != 60 ||
+        it->rectangles[0].rgb != 65280 ||
+        it->rectangles[0].opacity != 160 ||
         !Kotonoha::Providers::dispatchTjsUiClick(menu, 60.0f, 100.0f) ||
         menu.title != "Clicked") {
       std::printf("FAIL: TJS2 text-only title menu drawing and click\n");

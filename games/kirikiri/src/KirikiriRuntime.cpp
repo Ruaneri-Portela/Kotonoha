@@ -594,7 +594,7 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
           ui.layers.begin(), ui.layers.end(),
           [&](const Kotonoha::Providers::TjsUiLayer &layer) {
             return layer.visible &&
-                   (!layer.texts.empty() ||
+                   (!layer.texts.empty() || !layer.rectangles.empty() ||
                     (!layer.storage.empty() &&
                      !resolveVisual(*impl.assets, layer.storage, true).empty()));
           });
@@ -913,6 +913,24 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
               SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                           "KiriKiri: TJS2 Layer image %s unavailable: %s",
                           layer.storage.c_str(), error.what());
+          }
+        }
+        // A script's fillRect commands are rendered as GPU UI rectangles,
+        // not pre-rasterized software textures.
+        if (!layer.rectangles.empty()) {
+          SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+          for (const auto &rect : layer.rectangles) {
+            const auto rgb = rect.rgb;
+            const auto alpha = static_cast<Uint8>(
+                std::clamp(layer.opacity * rect.opacity / 255, 0, 255));
+            SDL_SetRenderDrawColor(&renderer,
+                                   static_cast<Uint8>(rgb >> 16),
+                                   static_cast<Uint8>(rgb >> 8),
+                                   static_cast<Uint8>(rgb), alpha);
+            const SDL_FRect bounds{float(layer.left + rect.left),
+                                   float(layer.top + rect.top),
+                                   float(rect.width), float(rect.height)};
+            SDL_RenderFillRect(&renderer, &bounds);
           }
         }
         // Native drawText commands project onto the accelerated VN UI.

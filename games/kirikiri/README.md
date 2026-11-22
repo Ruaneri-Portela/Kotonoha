@@ -182,3 +182,12 @@ scene requests are refreshed after each callback; unsupported arities are
 reported. Source-only menu tests check both ignored and recognized keys.
 Keyboard routing is a subset of the KiriKiri Windows-key event model and
 is not intended to imply full native platform input parity.
+
+## Script Layer.fillRect panels
+
+TJS2 title scripts may now construct colored menu panels with
+`Layer.fillRect(x,y,width,height,color[,opacity])`. Rectangle operations are
+bounded, projected with their parent layers and drawn using SDL's GPU-backed
+render geometry before associated text. Native `Layer.drawText` remains on
+Kotonoha's UI text path. The implementation does not yet emulate all
+KiriKiri2 Layer bitmap operations, masks, blend modes or draw ordering.

@@ -24,10 +24,19 @@ struct TjsUiText {
   std::uint32_t rgb = 0xffffff;
 };
 
+// Solid UI primitives issued by Layer.fillRect in source scripts.
+struct TjsUiRect {
+  int left = 0, top = 0;
+  int width = 0, height = 0;
+  int opacity = 255;
+  std::uint32_t rgb = 0xffffff;
+};
+
 struct TjsUiLayer {
   std::size_t id = 0;
   std::string storage;
   std::vector<TjsUiText> texts;
+  std::vector<TjsUiRect> rectangles;
   std::string onClick;
   std::string onMouseEnter;
   std::string onMouseLeave;
