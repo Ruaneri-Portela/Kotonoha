@@ -81,6 +81,7 @@ struct Value {
 struct Object {
   enum class Kind {
     Dictionary,
+    Array,
     Window,
     Layer,
     ScriptClass
@@ -88,6 +89,7 @@ struct Object {
   std::string className;
   std::unordered_map<std::string, Value> members;
   std::weak_ptr<Object> parent;
+  std::vector<Value> elements; // bounded source TJS2 Array values
   std::size_t layerId = 0;
   std::vector<TjsUiText> texts;
   std::vector<TjsUiRect> rectangles;
@@ -212,7 +214,7 @@ std::vector<Token> lex(const std::string &source) {
         continue;
       }
     }
-    if (std::string("{}();,.=+-*/%!?<>:").find(source[i]) == std::string::npos)
+    if (std::string("{}();,.=+-*/%!?<>:[]").find(source[i]) == std::string::npos)
       throw std::runtime_error(
           "TJS2 subset: unsupported lexical token at byte " +
           std::to_string(i));
@@ -313,6 +315,29 @@ public:
     throw std::runtime_error("TJS2 subset: callback not found: " + name);
   }
   void snapshotLayers();
+  static std::size_t checkedIndex(const Value &value) {
+    const auto n = value.number();
+    if (!std::isfinite(n) || n < 0 || n >= 4096 || std::floor(n) != n)
+      throw std::runtime_error("TJS2 subset: invalid Array index");
+    return static_cast<std::size_t>(n);
+  }
+  Value indexed(const Value &array, const Value &index) const {
+    const auto object = std::get_if<ObjectPtr>(&array.data);
+    if (!object || !*object || (*object)->kind != Object::Kind::Array)
+      throw std::runtime_error("TJS2 subset: indexed value is not Array");
+    const auto n = checkedIndex(index);
+    return n < (*object)->elements.size() ? (*object)->elements[n] : Value();
+  }
+  void setIndex(const std::string &name, const Value &index, Value value) {
+    const auto array = get(name);
+    const auto object = std::get_if<ObjectPtr>(&array.data);
+    if (!object || !*object || (*object)->kind != Object::Kind::Array)
+      throw std::runtime_error("TJS2 subset: indexed target is not Array");
+    const auto n = checkedIndex(index);
+    if ((*object)->elements.size() <= n)
+      (*object)->elements.resize(n + 1);
+    (*object)->elements[n] = std::move(value);
+  }
 
   Value get(const std::string &name) const {
     // Exact qualified built-ins like System.title remain supported.
@@ -334,11 +359,15 @@ public:
       if (!ptr || !*ptr)
         throw std::runtime_error(
             "TJS2 subset: property read on non-Dictionary");
-      const auto found = (*ptr)->members.find(key);
-      if (found == (*ptr)->members.end())
-        throw std::runtime_error("TJS2 subset: missing Dictionary property: " +
-                                 key);
-      current = found->second;
+      if ((*ptr)->kind == Object::Kind::Array && key == "length") {
+        current = Value(static_cast<double>((*ptr)->elements.size()));
+      } else {
+        const auto found = (*ptr)->members.find(key);
+        if (found == (*ptr)->members.end())
+          throw std::runtime_error(
+              "TJS2 subset: missing Dictionary property: " + key);
+        current = found->second;
+      }
       if (next == std::string::npos)
         break;
       first = next + 1;
@@ -482,6 +511,21 @@ class Parser {
           std::move(parameters)};
       return Value(functionName);
     }
+    if (match("[")) {
+      auto array = std::make_shared<Object>();
+      array->kind = Object::Kind::Array;
+      if (!match("]")) {
+        do {
+          if (array->elements.size() >= 4096)
+            throw std::runtime_error("TJS2 subset: Array limit exceeded");
+          auto item = expression(active);
+          if (active)
+            array->elements.push_back(std::move(item));
+        } while (match(","));
+        expect("]");
+      }
+      return active ? Value(std::move(array)) : Value();
+    }
     if (match("new")) {
       const auto type = identifier();
       std::vector<Value> args;
@@ -528,6 +572,16 @@ class Parser {
       return {};
     while (match("."))
       name += "." + identifier();
+    if (match("[")) {
+      Value result = active ? machine.get(name) : Value();
+      do {
+        const auto index = expression(active);
+        expect("]");
+        if (active)
+          result = machine.indexed(result, index);
+      } while (match("["));
+      return result;
+    }
     if (match("(")) {
       std::vector<Value> args;
       if (!match(")")) {
@@ -897,6 +951,28 @@ class Parser {
       auto name = identifier();
       while (match("."))
         name += "." + identifier();
+      if (match("[")) {
+        const auto index = expression(active);
+        expect("]");
+        if (match("=") || match("+=")) {
+          const auto op = tokens[pc - 1].text;
+          auto value = expression(active);
+          expect(";");
+          if (active) {
+            if (op == "+=") {
+              const auto before = machine.indexed(machine.get(name), index);
+              if (std::holds_alternative<std::string>(before.data) ||
+                  std::holds_alternative<std::string>(value.data))
+                value = Value(before.string() + value.string());
+              else
+                value = Value(before.number() + value.number());
+            }
+            machine.setIndex(name, index, value);
+          }
+          return;
+        }
+        pc = saved;
+      }
       if (match("++") || match("--")) {
         const auto op = tokens[pc - 1].text;
         expect(";");
@@ -1041,6 +1117,17 @@ Value Interpreter::construct(const std::string &type,
           "TJS2 subset: constructor arguments without declared constructor");
     }
     return Value(instance);
+  }
+  if (type == "Array") {
+    if (args.size() > 1)
+      throw std::runtime_error("TJS2 subset: Array accepts 0 or 1 lengths");
+    auto array = std::make_shared<Object>();
+    array->kind = Object::Kind::Array;
+    if (!args.empty()) {
+      const auto length = checkedIndex(args.front());
+      array->elements.resize(length);
+    }
+    return Value(std::move(array));
   }
   if (type == "Dictionary") {
     if (!args.empty())
@@ -1225,6 +1312,26 @@ Value Interpreter::call(const std::string &name,
   const auto dot = name.rfind('.');
   if (dot != std::string::npos) {
     const auto method = name.substr(dot + 1);
+    if (method == "push" || method == "pop") {
+      const auto receiver = get(name.substr(0, dot));
+      const auto object = std::get_if<ObjectPtr>(&receiver.data);
+      if (!object || !*object || (*object)->kind != Object::Kind::Array)
+        throw std::runtime_error("TJS2 subset: Array method receiver expected");
+      auto &elements = (*object)->elements;
+      if (method == "pop") {
+        if (!params.empty())
+          throw std::runtime_error("TJS2 subset: Array.pop takes no arguments");
+        if (elements.empty())
+          return {};
+        Value item = std::move(elements.back());
+        elements.pop_back();
+        return item;
+      }
+      if (params.size() != 1 || elements.size() >= 4096)
+        throw std::runtime_error("TJS2 subset: Array.push limit or arity");
+      elements.push_back(params.front());
+      return Value(static_cast<double>(elements.size()));
+    }
     if (method == "loadImages" || method == "setImage" || method == "setPos" ||
         method == "setSize" || method == "show" || method == "hide" ||
         method == "drawText" || method == "clearText" ||
