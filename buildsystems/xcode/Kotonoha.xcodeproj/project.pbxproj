@@ -48,6 +48,7 @@
 		0BEAF5A2140DCC13CB18334F /* DiscImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9BE4FE61A2DEA0B5468C0CA1 /* DiscImage.cpp */; };
 		0C3C85D5D3BFF8F76A0371BF /* SchoolDaysSaveProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 780A7ADC9019B8F33BE1D3E5 /* SchoolDaysSaveProfile.cpp */; };
 		0C59429BD2B57D1BA72AB478 /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 103E1C1B1A991352888811DC /* imgui.cpp */; };
+		0C7C0181E872AB5FF21C27DF /* ArtemisAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 52B436660FBD0A9A81607EA5 /* ArtemisAssets.cpp */; };
 		0D19A1172E76837C509EBC36 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
 		0D44326F6EB577A66F6FAFE8 /* SummerAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AC4B76E74D4407182235347D /* SummerAssets.cpp */; };
 		0D4C3AF8DEC475E0AA6F7B16 /* Lexer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB015B091994938C4CCCECA9 /* Lexer.cpp */; };
@@ -77,6 +78,7 @@
 		167A2021A20C7010A11D2018 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
 		16B299CB027D95AC787B7557 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		174D2F9CC6B56C015C90DA20 /* TextInputForm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8B1702A7CC30757F58E9D048 /* TextInputForm.cpp */; };
+		178E6CB211B5CA1CBC93185D /* PfsArchive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4852C5F0B15D0F71B3381F14 /* PfsArchive.cpp */; };
 		180CF8055FCF1AADDCC8C6FB /* SchoolDaysTopMeterRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7ED2CC95DA4471E479460CA0 /* SchoolDaysTopMeterRenderPlan.cpp */; };
 		1885BFA8ACB3762FAF00BFF3 /* LucaSystemRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A387D57559A39733FBA21A24 /* LucaSystemRuntime.cpp */; };
 		18BB2FB128FA4228451587BE /* LargePonPonVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */; };
@@ -131,6 +133,7 @@
 		26B6E038A9C20261EA964F47 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; };
 		26ECD72456D8C48339B68D6D /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B8EB964C41EE51C7ED718F28 /* main.cpp */; };
 		270410A63C723DE13A9F9723 /* VariableStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F7A7B3492CE48639D7D84CBD /* VariableStore.cpp */; };
+		288F4370B085AFACA1EF1C3D /* ArtemisVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 38261586909F755BA397E538 /* ArtemisVm.cpp */; };
 		291E003222273390F44CDC1D /* SnowLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CDA95F2216A98537A0054444 /* SnowLauncher.cpp */; };
 		29285D4674AEC318C0A1DE41 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		296ACCA108D2AE6F8B9C64FC /* SchoolDaysMenuBarPresenter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FF43CE57F88486C6645207F5 /* SchoolDaysMenuBarPresenter.cpp */; };
@@ -253,7 +256,9 @@
 		4EA0640CD076FE320463796C /* TimelinePlayer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6771305E4C2C7C6B6AEF123A /* TimelinePlayer.cpp */; };
 		4EA53FFC1A598B136421E8AA /* Game.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 58F9A200D3871F37F849750E /* Game.cpp */; };
 		4EAC0BF65CBF84376CFA709E /* DdlcRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0C39091D0D47DD2D9C982286 /* DdlcRuntime.cpp */; };
+		4EDE7440EA2B11407E6956A6 /* ArtemisRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BE1EFDAA95AF988AC2017AF /* ArtemisRuntime.cpp */; };
 		4F0FB46639FCB1FB2E871301 /* DdlcSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA64C0CEE2E21C91DEF07E99 /* DdlcSession.cpp */; };
+		4FEA48485F60F3252B807195 /* ArtemisAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 52B436660FBD0A9A81607EA5 /* ArtemisAssets.cpp */; };
 		50340C7D7A6FCE8CC962DE62 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = A7C14AC64EDF57AAA9F2134E /* game-assets */; };
 		50392536DD3862D86FB2B257 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1A071AD9D4D49D8DA6B2D9D2 /* Vm.cpp */; };
 		504F71AB09E7E9F62C12236B /* KtrfAdapter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4D822ECD5341FFAFBFDDE5C9 /* KtrfAdapter.cpp */; };
@@ -266,6 +271,7 @@
 		51EAEF0C6A8D2B1CB3330A01 /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 958F20C6564ED0D6B805C3A9 /* Script.cpp */; };
 		52E3553F6E69E616919F90B0 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
 		52EE18E236BA361986A37B07 /* SchoolDaysFontData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5896982C3DAB54827C102C60 /* SchoolDaysFontData.cpp */; };
+		53213555E158F83278ACA536 /* AstParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5A00C0BECB5BC6506CEA1223 /* AstParser.cpp */; };
 		5325CAAA99BDAFE54D5E6BD6 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		536C57B562C13917CE946855 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		5400312B0B4A327B5FDDDFD9 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
@@ -353,6 +359,7 @@
 		6C4C6705EA9E852CE701C3B2 /* PonscripterCommands.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD28A9453E7FAAF5E2424C0A /* PonscripterCommands.cpp */; };
 		6C94BEA7E336684115EE10E7 /* SchoolDaysLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C82B39DA702C2E4996A235CC /* SchoolDaysLauncher.cpp */; };
 		6CE767066FD0FB4BF8B980B0 /* TextureAlpha.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CCB3836321FF404DEC3F2554 /* TextureAlpha.cpp */; };
+		6D580B5B1C99A23B8B1FD88B /* ArtemisRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BE1EFDAA95AF988AC2017AF /* ArtemisRuntime.cpp */; };
 		6DBCB9348031A72955FC5AE6 /* ZeroSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4472A9E75D52E9DCED7B74D4 /* ZeroSession.cpp */; };
 		6E2366722FEA86C24A9C6FE0 /* SchoolDaysSystemUi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC9B90F9186D399CDD6DCA9D /* SchoolDaysSystemUi.cpp */; };
 		6E5ACFF9E2E3465BEE4FBBFF /* DisplayModeCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B488C0332A52E71ECC08033B /* DisplayModeCatalog.cpp */; };
@@ -391,6 +398,7 @@
 		7983FACC7700FD08F40E2DD4 /* Campaign.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BC48D9E2880CEA0BF73F649 /* Campaign.cpp */; };
 		798DD42F39B27B5CDE0365A7 /* AndroidDisplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18A81A34E8C7B94A1F557290 /* AndroidDisplay.cpp */; };
 		7A0E2C8A88B633C062E56670 /* MPVCompatibleUpscaler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE63135BA17021209CA24FFB /* MPVCompatibleUpscaler.cpp */; };
+		7A49C3D6C40D43354B344A02 /* ArtemisVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 38261586909F755BA397E538 /* ArtemisVm.cpp */; };
 		7A4D336610A4093EF2F447AA /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7AA5757FFE9374AA7FA868EF /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59EDD75E548BEEB417C71E02 /* Replay.cpp */; };
 		7AE9469181F3BB127AAB17F8 /* filemap.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED4EFA6784E9327D825AC454 /* filemap.cc */; };
@@ -742,11 +750,6 @@
 		B6B6000000000000000000A1 /* TimelineParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7844705E0B00AF60488FA150 /* TimelineParser.cpp */; };
 		B6B6000000000000000000A2 /* Transition.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 569CCFB593BC05FD5D5A2A08 /* Transition.cpp */; };
 		B6B6000000000000000000A3 /* UnifiedLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B5B500000000000000000009 /* UnifiedLauncher.cpp */; };
-		178E6CB211B5CA1CBC93185D /* PfsArchive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4852C5F0B15D0F71B3381F14 /* PfsArchive.cpp */; };
-		0C7C0181E872AB5FF21C27DF /* ArtemisAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 52B436660FBD0A9A81607EA5 /* ArtemisAssets.cpp */; };
-		D89E1186B903043E625383C1 /* AstParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5A00C0BECB5BC6506CEA1223 /* AstParser.cpp */; };
-		288F4370B085AFACA1EF1C3D /* ArtemisVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 38261586909F755BA397E538 /* ArtemisVm.cpp */; };
-		6D580B5B1C99A23B8B1FD88B /* ArtemisRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BE1EFDAA95AF988AC2017AF /* ArtemisRuntime.cpp */; };
 		B6B6000000000000000000A4 /* Vag.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF9EB911E757B53D9E52AEC5 /* Vag.cpp */; };
 		B6B6000000000000000000A5 /* Value.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73AE439517659FF3DAE39A4A /* Value.cpp */; };
 		B6B6000000000000000000A6 /* VariableStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */; };
@@ -893,6 +896,10 @@
 		CE0187B730B1613A00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B530B1613A00A74244 /* DebugCatalog.cpp */; };
 		CE0187B830B1613A00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B530B1613A00A74244 /* DebugCatalog.cpp */; };
 		CE0187B930B1613A00A74244 /* DebugCatalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187B530B1613A00A74244 /* DebugCatalog.cpp */; };
+		CECBF67530B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */; };
+		CECBF67630B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */; };
+		CECBF67730B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */; };
+		CECBF67830B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */; };
 		CEDC36241EF2901401305854 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; };
 		CEE219CCB0C0DC0A84FAADE2 /* ScriptBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FD846ABD52229FF1A602543 /* ScriptBuffer.cpp */; };
 		CF178F71E2941127FFF00A21 /* TextFormatter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2546EE42B786DD73AB620B7E /* TextFormatter.cpp */; };
@@ -1096,11 +1103,6 @@
 		D7D7000000000000000000AE /* TimelineParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7844705E0B00AF60488FA150 /* TimelineParser.cpp */; };
 		D7D7000000000000000000AF /* Transition.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 569CCFB593BC05FD5D5A2A08 /* Transition.cpp */; };
 		D7D7000000000000000000B0 /* UnifiedLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B5B500000000000000000009 /* UnifiedLauncher.cpp */; };
-		EA3C68C73FA5FE545D592B9C /* PfsArchive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4852C5F0B15D0F71B3381F14 /* PfsArchive.cpp */; };
-		4FEA48485F60F3252B807195 /* ArtemisAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 52B436660FBD0A9A81607EA5 /* ArtemisAssets.cpp */; };
-		53213555E158F83278ACA536 /* AstParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5A00C0BECB5BC6506CEA1223 /* AstParser.cpp */; };
-		7A49C3D6C40D43354B344A02 /* ArtemisVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 38261586909F755BA397E538 /* ArtemisVm.cpp */; };
-		4EDE7440EA2B11407E6956A6 /* ArtemisRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5BE1EFDAA95AF988AC2017AF /* ArtemisRuntime.cpp */; };
 		D7D7000000000000000000B1 /* Vag.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF9EB911E757B53D9E52AEC5 /* Vag.cpp */; };
 		D7D7000000000000000000B2 /* Value.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73AE439517659FF3DAE39A4A /* Value.cpp */; };
 		D7D7000000000000000000B3 /* VariableStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */; };
@@ -1125,6 +1127,7 @@
 		D7D7000000000000000000CB /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D7D7000000000000000000CC /* Python-iOS.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 22958217A619E67794485CB5 /* Python-iOS.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D8221CA3A8FD45C7C88F221B /* Game.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB011B48CD0249D568592273 /* Game.cpp */; };
+		D89E1186B903043E625383C1 /* AstParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5A00C0BECB5BC6506CEA1223 /* AstParser.cpp */; };
 		D8E467AD548B96B70B901826 /* Catalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B5D6FE67ABAF25925E010354 /* Catalog.cpp */; };
 		D9054514D8BF5A62936CE122 /* AmagamiLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDE9F0307C5FFAF41888D56E /* AmagamiLauncher.cpp */; };
 		D952367994ADFF7C8936B913 /* Native.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C2E1634FC1DAEE8E650A08 /* Native.cpp */; };
@@ -1187,6 +1190,7 @@
 		E9A2D835F71DA01686C0D74C /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; };
 		E9CB7A458BBB6A3D6B426A1A /* SchoolDaysEndBackgroundResolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9468B2F50950EA58F77F77 /* SchoolDaysEndBackgroundResolver.cpp */; };
 		E9FC5224B0C9D34DAF6030AB /* NsbVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */; };
+		EA3C68C73FA5FE545D592B9C /* PfsArchive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4852C5F0B15D0F71B3381F14 /* PfsArchive.cpp */; };
 		EA700DE705893B768A5A5231 /* Xp3Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7372E52FDC89DC2EFB26BE7F /* Xp3Archive.cpp */; };
 		EA77386865E7F9D8F540D0EE /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD5E8A6845109ED1B21087E1 /* Pack.cpp */; };
 		EB0C7BD2BADC1EEC6CB655CF /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
@@ -2206,6 +2210,7 @@
 		361E4ABD206F7FC5E563B510 /* scenario_internals.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = scenario_internals.h; path = ../../games/reallive/vendor/libreallive/scenario_internals.h; sourceTree = SOURCE_ROOT; };
 		369BEFED27D0BB808D48CC69 /* Source.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Source.cpp; path = "../../games/zero-no-tsukaima/src/Source.cpp"; sourceTree = SOURCE_ROOT; };
 		36AB3541375B3CA51CECE3A9 /* LucaSystemAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LucaSystemAssets.cpp; path = ../../modules/providers/pak/src/LucaSystemAssets.cpp; sourceTree = SOURCE_ROOT; };
+		38261586909F755BA397E538 /* ArtemisVm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ArtemisVm.cpp; path = ../../modules/vms/artemis/src/ArtemisVm.cpp; sourceTree = SOURCE_ROOT; };
 		398635A8C71257F8CFD5A4DA /* PmailPack.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailPack.cpp; path = ../../games/pmail/src/PmailPack.cpp; sourceTree = SOURCE_ROOT; };
 		399C87E47A410A072EDE117A /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/amagami/game-assets"; sourceTree = SOURCE_ROOT; };
 		3AA271E48E3E6DCF85B61089 /* DiscAssetProvider.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DiscAssetProvider.cpp; path = ../../modules/providers/zero/src/DiscAssetProvider.cpp; sourceTree = SOURCE_ROOT; };
@@ -2228,6 +2233,7 @@
 		44E28313EBCB4F51C52A0590 /* SettingsMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SettingsMenu.cpp; path = ../../lib/src/components/SettingsMenu.cpp; sourceTree = SOURCE_ROOT; };
 		4579E562C074033828A96F2B /* main.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../games/n2system/src/main.cpp; sourceTree = SOURCE_ROOT; };
 		45EDF70AF5BAB139AD8D47EA /* SchoolDaysAssetMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysAssetMount.cpp; path = ../../modules/providers/gpk/src/SchoolDaysAssetMount.cpp; sourceTree = SOURCE_ROOT; };
+		4852C5F0B15D0F71B3381F14 /* PfsArchive.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PfsArchive.cpp; path = ../../modules/providers/artemis/src/PfsArchive.cpp; sourceTree = SOURCE_ROOT; };
 		497D73E81AA69211967F7D13 /* MinigameScene.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MinigameScene.cpp; path = ../../games/amagami/src/MinigameScene.cpp; sourceTree = SOURCE_ROOT; };
 		498217BFCCA8F59BCAC414E4 /* ScriptExecutor.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = ScriptExecutor.cpp; path = ../../modules/vms/n2system/src/ScriptExecutor.cpp; sourceTree = SOURCE_ROOT; };
 		49C06E159552485B927062F8 /* Frontend.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Frontend.cpp; path = "../../games/zero-no-tsukaima/src/Frontend.cpp"; sourceTree = SOURCE_ROOT; };
@@ -2243,6 +2249,7 @@
 		506F17DDCDA49EAE21BA698B /* OpenGL.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = OpenGL.cpp; path = ../../lib/src/core/OpenGL.cpp; sourceTree = SOURCE_ROOT; };
 		514EC6ADE8BF32609E55E456 /* KagScript.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = KagScript.cpp; path = ../../modules/vms/kag/src/KagScript.cpp; sourceTree = SOURCE_ROOT; };
 		520B225442065EBAD6815C41 /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/doki-doki-literature-club/game-assets"; sourceTree = SOURCE_ROOT; };
+		52B436660FBD0A9A81607EA5 /* ArtemisAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ArtemisAssets.cpp; path = ../../modules/providers/artemis/src/ArtemisAssets.cpp; sourceTree = SOURCE_ROOT; };
 		5306B792EBD5809B1825F58D /* imgui_stdlib.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_stdlib.cpp; path = ../../lib/submodules/imgui/misc/cpp/imgui_stdlib.cpp; sourceTree = SOURCE_ROOT; };
 		5333ECFD929586DA073BF639 /* ImGuiTheme.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ImGuiTheme.cpp; path = ../../lib/src/debug/ImGuiTheme.cpp; sourceTree = SOURCE_ROOT; };
 		54BFA310BFD63BECBAEE3EBA /* Launcher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Launcher.cpp; path = ../../lib/src/core/Launcher.cpp; sourceTree = SOURCE_ROOT; };
@@ -2258,6 +2265,8 @@
 		59CB01200926B11C8BE1B71D /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../../games/katawa-shoujo/game-assets"; sourceTree = SOURCE_ROOT; };
 		59EDD75E548BEEB417C71E02 /* Replay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Replay.cpp; path = "../../games/doki-doki-literature-club/src/Replay.cpp"; sourceTree = SOURCE_ROOT; };
 		59F397CB2CDBECCF07A600C2 /* KirikiriAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = KirikiriAssets.cpp; path = ../../modules/providers/xp3/src/KirikiriAssets.cpp; sourceTree = SOURCE_ROOT; };
+		5A00C0BECB5BC6506CEA1223 /* AstParser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = AstParser.cpp; path = ../../modules/vms/artemis/src/AstParser.cpp; sourceTree = SOURCE_ROOT; };
+		5BE1EFDAA95AF988AC2017AF /* ArtemisRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ArtemisRuntime.cpp; path = ../../games/artemis/src/ArtemisRuntime.cpp; sourceTree = SOURCE_ROOT; };
 		5CA619DF85A2D64DC71181D0 /* SchoolDaysSaveStorage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysSaveStorage.cpp; path = "../../games/school-days/src/SchoolDaysSaveStorage.cpp"; sourceTree = SOURCE_ROOT; };
 		5E9FC32439DA5680D8113B0C /* Session.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Session.cpp; path = ../../games/amagami/src/Session.cpp; sourceTree = SOURCE_ROOT; };
 		5EA693D6F019624AB7DB078D /* SchoolDaysReplayPlaybackSession.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysReplayPlaybackSession.cpp; path = "../../games/school-days/src/SchoolDaysReplayPlaybackSession.cpp"; sourceTree = SOURCE_ROOT; };
@@ -2375,11 +2384,6 @@
 		B5B500000000000000000007 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../launcher/src/main.cpp; sourceTree = SOURCE_ROOT; };
 		B5B500000000000000000008 /* GameFactories.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = GameFactories.cpp; path = ../../launcher/src/GameFactories.cpp; sourceTree = SOURCE_ROOT; };
 		B5B500000000000000000009 /* UnifiedLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = UnifiedLauncher.cpp; path = ../../launcher/src/UnifiedLauncher.cpp; sourceTree = SOURCE_ROOT; };
-		4852C5F0B15D0F71B3381F14 /* PfsArchive.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PfsArchive.cpp; path = ../../modules/providers/artemis/src/PfsArchive.cpp; sourceTree = SOURCE_ROOT; };
-		52B436660FBD0A9A81607EA5 /* ArtemisAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ArtemisAssets.cpp; path = ../../modules/providers/artemis/src/ArtemisAssets.cpp; sourceTree = SOURCE_ROOT; };
-		5A00C0BECB5BC6506CEA1223 /* AstParser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = AstParser.cpp; path = ../../modules/vms/artemis/src/AstParser.cpp; sourceTree = SOURCE_ROOT; };
-		38261586909F755BA397E538 /* ArtemisVm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ArtemisVm.cpp; path = ../../modules/vms/artemis/src/ArtemisVm.cpp; sourceTree = SOURCE_ROOT; };
-		5BE1EFDAA95AF988AC2017AF /* ArtemisRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ArtemisRuntime.cpp; path = ../../games/artemis/src/ArtemisRuntime.cpp; sourceTree = SOURCE_ROOT; };
 		B5B50000000000000000000A /* UnifiedLauncher.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = UnifiedLauncher.hpp; path = ../../launcher/include/KotonohaLauncher/UnifiedLauncher.hpp; sourceTree = SOURCE_ROOT; };
 		B5D6FE67ABAF25925E010354 /* Catalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Catalog.cpp; path = "../../games/zero-no-tsukaima/src/Catalog.cpp"; sourceTree = SOURCE_ROOT; };
 		B6B600000000000000000005 /* KotonohaLauncher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaLauncher.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -2451,6 +2455,7 @@
 		CE0187A630B160B400A74244 /* MeoAudio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MeoAudio.cpp; path = ../../modules/providers/cmp/src/MeoAudio.cpp; sourceTree = SOURCE_ROOT; };
 		CE0187B030B160ED00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = "../../games/luca-system/src/DebugCatalog.cpp"; sourceTree = SOURCE_ROOT; };
 		CE0187B530B1613A00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = ../../modules/vms/n2system/src/DebugCatalog.cpp; sourceTree = SOURCE_ROOT; };
+		CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = NsbSnapshot.cpp; path = /Users/nero/Codes/Kotonoha/modules/vms/n2system/src/NsbSnapshot.cpp; sourceTree = "<absolute>"; };
 		CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LargePonPonVm.cpp; path = ../../modules/vms/pmail/src/LargePonPonVm.cpp; sourceTree = SOURCE_ROOT; };
 		CF96F1307DEFE04F63539C65 /* ZeroComponents.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ZeroComponents.cpp; path = "../../games/zero-no-tsukaima/src/ZeroComponents.cpp"; sourceTree = SOURCE_ROOT; };
 		D31A702A792A5505E0A79948 /* DebugOverlay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugOverlay.cpp; path = ../../lib/src/debug/DebugOverlay.cpp; sourceTree = SOURCE_ROOT; };
@@ -4057,6 +4062,7 @@
 				A039740292658EB792C886C9 /* ScriptVm.cpp */,
 				26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */,
 				CE0187B530B1613A00A74244 /* DebugCatalog.cpp */,
+				CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */,
 			);
 			name = n2system;
 			sourceTree = "<group>";
@@ -6810,6 +6816,7 @@
 				091B81CA32020CCDEEBFA4CD /* AudioSystem.cpp in Sources */,
 				573808673EF5DB0504A6BBCC /* DialogueSystem.cpp in Sources */,
 				0F1E16D454F93F6D90D01CA1 /* SaveState.cpp in Sources */,
+				CECBF67530B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */,
 				640B9F931EFD3E9058D174C4 /* SceneGraph.cpp in Sources */,
 				8786020CBF7177751885F95F /* ScriptExecutor.cpp in Sources */,
 				DD81ACDB36E212517CDD5DBF /* ScriptIndex.cpp in Sources */,
@@ -6964,6 +6971,7 @@
 				3BDF475F1CB960DBE94165B1 /* AudioSystem.cpp in Sources */,
 				1BBF38705157A3D20AF13150 /* DialogueSystem.cpp in Sources */,
 				9FFC65CE4838B5BF209AF52A /* SaveState.cpp in Sources */,
+				CECBF67830B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */,
 				EB92FD446353307485949FCF /* SceneGraph.cpp in Sources */,
 				CC64873FD8C7B508FE89EA3D /* ScriptExecutor.cpp in Sources */,
 				1B3E7F3E359E7418E060308A /* ScriptIndex.cpp in Sources */,
@@ -7657,6 +7665,7 @@
 				B6B60000000000000000008F /* Script.cpp in Sources */,
 				B6B600000000000000000090 /* ScriptBuffer.cpp in Sources */,
 				B6B600000000000000000091 /* ScriptExecutor.cpp in Sources */,
+				CECBF67630B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */,
 				B6B600000000000000000092 /* ScriptIndex.cpp in Sources */,
 				B6B600000000000000000093 /* ScriptVm.cpp in Sources */,
 				B6B600000000000000000094 /* Session.cpp in Sources */,
@@ -7939,6 +7948,7 @@
 				D7D7000000000000000000A3 /* SnowAssets.cpp in Sources */,
 				D7D7000000000000000000A4 /* SnowComponents.cpp in Sources */,
 				D7D7000000000000000000A5 /* SnowLauncher.cpp in Sources */,
+				CECBF67730B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */,
 				D7D7000000000000000000A6 /* SnowRuntime.cpp in Sources */,
 				D7D7000000000000000000A7 /* SnowSession.cpp in Sources */,
 				D7D7000000000000000000A8 /* Source.cpp in Sources */,
