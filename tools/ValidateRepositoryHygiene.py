@@ -72,6 +72,16 @@ def main() -> int:
         if "THIRD_PARTY_NOTICES.md" not in cmake_source:
             errors.append("CPack must install third-party notices")
 
+    gradle = ROOT / "buildsystems/android/app/build.gradle"
+    if gradle.is_file():
+        gradle_source = gradle.read_text(encoding="utf-8")
+        if ".orElse('false').get().toBoolean()" not in gradle_source:
+            errors.append("Android must opt in, not default in, to commercial game assets")
+        if "variant.buildType.name != 'dist'" not in gradle_source:
+            errors.append("Android dist must never include local retail game-assets")
+        if "THIRD_PARTY_NOTICES.md" not in gradle_source:
+            errors.append("Android packages must ship baseline third-party notices")
+
     ignore = ROOT / ".gitignore"
     if ignore.is_file():
         source = ignore.read_text(encoding="utf-8-sig")
