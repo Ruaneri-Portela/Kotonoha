@@ -18,6 +18,9 @@ on:
       - "lib/include/Kotonoha/core/Runtime.hpp"
       - "lib/tests/AssetProviderTests.cpp"
       - "tools/check_sdl_cpack.py"
+      - "tools/check_android_neon.py"
+      - "buildsystems/android/app/build.gradle"
+      - "buildsystems/cmake/KotonohaAndroid.cmake"
       - "tools/generate_manifest.py"
       - "tools/test_generate_manifest.py"
       - "tools/check_web_shell.js"
@@ -74,6 +77,9 @@ on:
       - "lib/include/Kotonoha/core/Runtime.hpp"
       - "lib/tests/AssetProviderTests.cpp"
       - "tools/check_sdl_cpack.py"
+      - "tools/check_android_neon.py"
+      - "buildsystems/android/app/build.gradle"
+      - "buildsystems/cmake/KotonohaAndroid.cmake"
       - "tools/generate_manifest.py"
       - "tools/test_generate_manifest.py"
       - "tools/check_web_shell.js"
@@ -137,6 +143,7 @@ jobs:
           python3 tools/check_port_debug_contracts.py
           python3 tools/check_inline_em_asm.py
           python3 tools/check_sdl_cpack.py
+          python3 tools/check_android_neon.py
       - name: Test common Kotonoha debug asset conventions (C++17)
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
