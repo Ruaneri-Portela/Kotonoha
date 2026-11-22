@@ -423,6 +423,7 @@ private:
     if (surf)
       SDL_DestroySurface(surf);
     if (t.tex) {
+      Kotonoha::MarkTTFTextRaster(*t.tex);
       SDL_SetTextureBlendMode(t.tex, SDL_BLENDMODE_BLEND);
       SDL_SetTextureScaleMode(t.tex, SDL_SCALEMODE_LINEAR);
     }

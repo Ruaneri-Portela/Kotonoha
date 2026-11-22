@@ -10,6 +10,7 @@
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 
 #include <Kotonoha/core/AssetProvider.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 namespace Kotonoha {
 
@@ -297,7 +298,9 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
                  first.x);
       const auto size = SchoolDaysBackLogRenderPlan::FitTextRaster(
           span, rendered->w, rendered->h);
-      SDL_Rect destination{first.x, y, size.w, size.h};
+      // A smaller retail layout may shrink TTF text, never enlarge it.
+      SDL_Rect destination{first.x, y, std::min(size.w, rendered->w),
+                           std::min(size.h, rendered->h)};
       const bool blitted = SDL_BlitSurfaceScaled(
           rendered, nullptr, scratch, &destination, SDL_SCALEMODE_LINEAR);
       SDL_DestroySurface(rendered);
@@ -307,7 +310,8 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
       }
     }
   }
-  if (!SDL_UpdateTexture(text_, nullptr, scratch->pixels, scratch->pitch)) {
+  if (!MarkTTFTextRaster(*text_) ||
+      !SDL_UpdateTexture(text_, nullptr, scratch->pixels, scratch->pitch)) {
     SDL_DestroySurface(scratch);
     if (error != nullptr)
       *error = SDL_GetError();
