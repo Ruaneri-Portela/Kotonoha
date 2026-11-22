@@ -133,6 +133,23 @@ int main() {
           "Destroy must cascade through qualified child paths only");
   matches(scene, "*", {"foo1"},
           "Remaining root order must be deterministic after deletion");
+
+  // World.AddEntity semantics: recreating an existing named node must not
+  // inherit the previous sprite's alpha, alias, animation, or descendants.
+  auto *original = scene.createEntity("reused", N2System::EntityType::Sprite);
+  require(original != nullptr, "Initial entity creation");
+  original->opacity = 0.25f;
+  original->isMoving = true;
+  require(scene.setAlias("reused", "stale"),
+          "Initial entity alias");
+  scene.createEntity("reused/child", N2System::EntityType::Text);
+  auto *fresh = scene.createEntity("reused", N2System::EntityType::Movie);
+  require(fresh && fresh->type == N2System::EntityType::Movie &&
+              fresh->opacity == 1.0f && !fresh->isMoving &&
+              fresh->alias.empty() && fresh->children.empty() &&
+              !scene.findEntity("reused/child"),
+          "Duplicate Create* must atomically replace old scene subtree");
+  matches(scene, "@stale", {}, "Replacement must clear the old alias");
   std::cout << "NitroSharp entity-query parity regressions passed\n";
   return 0;
 }
