@@ -217,7 +217,7 @@ inline DetectedEngine detectEngine(const Filesystem &source) {
   // 4. Ren'Py (scripts.rpa / archive.rpa / renpy runtime)
   if (const auto prefix = findRequiredFilesPrefix(
           source, {"scripts.rpa", "images.rpa"}, {"game/", ""})) {
-    return {EngineKind::RenPy, "doki-doki-literature-club", "Ren'Py", *prefix,
+    return {EngineKind::RenPy, "renpy", "Ren'Py", *prefix,
             *prefix + "scripts.rpa", true};
   }
 
@@ -306,9 +306,10 @@ inline DetectedEngine detectEngine(const Filesystem &source) {
         return {EngineKind::Kirikiri, "kirikiri", "KiriKiri2 / KiriKiriZ",
                 prefix, entry.path, true};
       }
-      // Ren'Py (.rpa / .rpyb / .rpyc)
-      if (endsWith(fname, ".rpa") || endsWith(fname, ".rpyc")) {
-        return {EngineKind::RenPy, "doki-doki-literature-club", "Ren'Py",
+      // Archives and compiled scripts (including compiled Python modules).
+      if (endsWith(fname, ".rpa") || endsWith(fname, ".rpx") ||
+          endsWith(fname, ".rpyc") || endsWith(fname, ".rpymc")) {
+        return {EngineKind::RenPy, "renpy", "Ren'Py",
                 prefix, entry.path, true};
       }
       // N2System / Nitroplus (.npa / .npk)
