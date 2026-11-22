@@ -593,7 +593,28 @@ void testTextMetrics(Kotonoha::Engine &engine) {
   require(std::abs(measured - rendered) < 0.01f,
           "CPU text measurements agree with rendered SDL_ttf dimensions");
   require(ui.cachedTextCount() == before + 1,
-          "Only visible text rendering allocates a cached texture");
+          "Only visible text rendering allocates a cached text object");
+  ui.text(renderer, text, -10000.0f, -10000.0f, 580.0f,
+          {255, 120, 80, 128});
+  require(ui.cachedTextCount() == before + 1,
+          "Recoloring an atlas entry does not rerasterize text");
+  float oldX = 1.0f, oldY = 1.0f;
+  require(SDL_GetRenderScale(&renderer, &oldX, &oldY),
+          "Read render scale before high-density text");
+  require(SDL_SetRenderScale(&renderer, oldX * 1.5f, oldY * 1.5f),
+          "Set high-density test scale");
+  const float hiDpiHeight =
+      ui.textSized(renderer, "A different raster size", -10000.0f,
+                   -10000.0f, 580.0f, 32.0f, {70, 220, 180, 255});
+  float afterX = 0.0f, afterY = 0.0f;
+  require(SDL_GetRenderScale(&renderer, &afterX, &afterY) &&
+              std::abs(afterX - oldX * 1.5f) < 0.001f &&
+              std::abs(afterY - oldY * 1.5f) < 0.001f,
+          "Atlas draw restores the SDL renderer scale");
+  require(SDL_SetRenderScale(&renderer, oldX, oldY),
+          "Restore render scale after high-density test");
+  require(hiDpiHeight > 0.0f && ui.cachedTextCount() == before + 2,
+          "Different font sizes retain independent cached text");
   const float unwrapped = ui.textWidth(text);
   require(unwrapped > 0.0f, "Unwrapped text width can be measured separately");
 }

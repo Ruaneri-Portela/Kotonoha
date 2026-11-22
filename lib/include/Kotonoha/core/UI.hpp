@@ -16,13 +16,19 @@ void eraseLastCharacter(std::string &text);
 
 class UI {
   struct CachedText {
-    TexturePtr texture;
+    TextPtr glyphText;
+    TexturePtr texture; // Surface fallback for unsupported renderers.
+    SDL_Color tint{255, 255, 255, 255};
     float width = 0, height = 0;
   };
   TTFSession ttfSession;
   std::vector<uint8_t> fontData;
   FontPtr font;
   std::unordered_map<std::string, CachedText> cache;
+  // Resizing a font invalidates all TTF_Text objects using that font.
+  std::unordered_map<std::string, FontPtr> rasterFonts;
+  RendererTextEnginePtr textEngine;
+  SDL_Renderer *textRenderer = nullptr; // Non-owning; renderer outlives UI.
   float density = 1;
   Translation *translation = nullptr;
   std::uint64_t instanceId_ = 0;

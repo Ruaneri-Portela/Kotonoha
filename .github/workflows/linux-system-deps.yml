@@ -7,6 +7,10 @@ on:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
       - "lib/src/core/AssetProvider.cpp"
+      - "lib/src/core/UI.cpp"
+      - "lib/include/Kotonoha/core/UI.hpp"
+      - "lib/include/Kotonoha/core/SDL.hpp"
+      - "lib/tests/ComponentHooksTests.cpp"
       - "lib/src/Filesystem/**"
       - "lib/include/Kotonoha/Filesystem/**"
       - "launcher/**"
@@ -18,6 +22,10 @@ on:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
       - "lib/src/core/AssetProvider.cpp"
+      - "lib/src/core/UI.cpp"
+      - "lib/include/Kotonoha/core/UI.hpp"
+      - "lib/include/Kotonoha/core/SDL.hpp"
+      - "lib/tests/ComponentHooksTests.cpp"
       - "lib/src/Filesystem/**"
       - "lib/include/Kotonoha/Filesystem/**"
       - "launcher/**"
@@ -66,7 +74,7 @@ jobs:
             -Ilauncher/include -Ilib/include \
             -Ilib/submodules/imgui -Ilib/submodules/imgui/misc/cpp \
             launcher/src/UnifiedLauncher.cpp
-      - name: Compile and run Filesystem V2 regression tests
+      - name: Compile and run filesystem and text rendering regressions
         run: |
-          cmake --build build-system --target KotonohaFilesystemV2Tests --parallel 2
-          ctest --test-dir build-system -R FilesystemV2 --output-on-failure
+          cmake --build build-system --target KotonohaFilesystemV2Tests KotonohaComponentHooksTests --parallel 2
+          ctest --test-dir build-system -R 'FilesystemV2|ComponentHooks' --output-on-failure
