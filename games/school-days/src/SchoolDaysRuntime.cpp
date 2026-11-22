@@ -6677,6 +6677,11 @@ void Runtime::applyConfig() {
     engine->applySettings(settings);
   }
   auto &audio = engine->GetAudio();
+  // School Days owns BGM/SE/Voice through Config.DAT's retail dB curve.
+  // Keep userVolume at unity so settings.json channelVolumes never square
+  // the attenuation (e.g. 0.2985 * 0.2985 = 0.089 / -21 dB) or cap 10/10.
+  for (const char *bank : {"BGM", "SE", "Voice"})
+    audio.channel(bank)->setUserVolume(1.0f);
   audio.channel("BGM")->setVolume(
       Policy::LinearGain(config, Policy::NativeAudioBank::Bgm));
   audio.channel("SE")->setVolume(
