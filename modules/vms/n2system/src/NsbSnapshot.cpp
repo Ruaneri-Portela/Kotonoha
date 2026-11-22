@@ -234,10 +234,15 @@ void writeEntity(Writer &w, const Entity &e) {
 }
 bool readEntity(Reader &r, Entity &e) {
   uint32_t type, size, index;
+  // Decode the on-disk uint64_t independently of size_t: on Apple arm64
+  // size_t is unsigned long while uint64_t is unsigned long long.
+  uint64_t visibleCharCount = 0;
   if (!r.u32(type) || type > uint32_t(EntityType::ScrollBar) ||
       !r.u64(e.creationOrder) || !r.u32(e.solidColor) ||
-      !r.u32(size) || !r.u32(index) || !r.u64(e.visibleCharCount))
+      !r.u32(size) || !r.u32(index) || !r.u64(visibleCharCount) ||
+      visibleCharCount > std::numeric_limits<std::size_t>::max())
     return false;
+  e.visibleCharCount = static_cast<std::size_t>(visibleCharCount);
   e.type = static_cast<EntityType>(type);
   e.fontSize = static_cast<int32_t>(size);
   e.selectedIndex = static_cast<int32_t>(index);
