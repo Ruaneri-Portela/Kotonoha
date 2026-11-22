@@ -118,6 +118,11 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
   for (const auto &frame : data.callStack) {
     out << "CALL\t" << frame.returnStatementIndex << '\t'
         << escapeLine(frame.targetLabel) << '\n';
+    out << "CALLCURSOR\t" << frame.nextArgument << '\n';
+    for (const auto &arg : frame.arguments) {
+      out << "CALLARG\t" << (arg.isString ? 1 : 0) << '\t'
+          << arg.number << '\t' << escapeLine(arg.text) << '\n';
+    }
   }
   for (const auto &f : data.forStack) {
     out << "FOR\t" << f.varId << '\t' << f.endValue << '\t' << f.step << '\t'
@@ -246,6 +251,22 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       std::getline(ls, lbl);
       frame.targetLabel = unescapeLine(lbl);
       outData.callStack.push_back(std::move(frame));
+    } else if (kind == "CALLCURSOR") {
+      if (!outData.callStack.empty())
+        ls >> outData.callStack.back().nextArgument;
+    } else if (kind == "CALLARG") {
+      if (!outData.callStack.empty()) {
+        CallArgument arg;
+        int flag = 0;
+        ls >> flag >> arg.number;
+        arg.isString = flag != 0;
+        if (ls.peek() == '\t')
+          ls.get();
+        std::string value;
+        std::getline(ls, value);
+        arg.text = unescapeLine(value);
+        outData.callStack.back().arguments.push_back(std::move(arg));
+      }
     } else if (kind == "FOR") {
       ForLoopFrame f;
       ls >> f.varId >> f.endValue >> f.step >> f.bodyStatementIndex;
