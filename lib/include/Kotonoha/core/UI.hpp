@@ -44,6 +44,9 @@ public:
   std::size_t cachedTextCount() const { return cache.size(); }
   std::uint64_t instanceId() const { return instanceId_; }
   const char *fontFamily() const { return TTF_GetFontFamilyName(font.get()); }
+  bool hasGlyph(std::uint32_t codepoint) const {
+    return font && TTF_FontHasGlyph(font.get(), codepoint);
+  }
   float rasterFontSize() const { return TTF_GetFontSize(font.get()); }
   static SDL_FPoint viewSize(RendererRef renderer);
   static float rasterDensity(RendererRef renderer);
