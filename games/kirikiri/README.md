@@ -229,3 +229,12 @@ SDL texture alpha modulation is restored after each frame. Synthetic tests
 cover retained layer state, visibility restoration and invalid properties.
 This remains a front-page subset; backlay/forelay transitions and blend modes
 still need dedicated compatibility work.
+
+## Bounded KAG boolean predicates
+
+`[if]`, `[elsif]` and `[ignore]` now parse nested logical conditions with
+`&&`, `||`, `!`, parentheses, quoted strings and numeric comparisons,
+instead of searching for the first comparison operator. Both local variables
+and host-provided KAG flag variables (including `&f.flag`) are supported.
+Malformed expressions and excessive nesting fail explicitly. This is still a
+limited, side-effect-free expression subset rather than the full TJS2 VM.
