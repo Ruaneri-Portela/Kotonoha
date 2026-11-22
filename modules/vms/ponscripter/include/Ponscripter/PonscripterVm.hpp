@@ -96,6 +96,9 @@ public:
   const std::array<SpriteSlot, kMaxExtendedSprites> &sprites() const {
     return sprites_;
   }
+  bool areSpritesHidden(bool secondaryLayer) const {
+    return secondaryLayer ? allSprites2Hidden_ : allSpritesHidden_;
+  }
   SpriteSlot *mutableSprite(int id) {
     return (id >= 0 && id < kMaxExtendedSprites) ? &sprites_[id] : nullptr;
   }
@@ -247,6 +250,8 @@ private:
   TaggedImageSpec bg_;
   std::array<StandingSlot, 3> standing_;
   std::array<SpriteSlot, kMaxExtendedSprites> sprites_;
+  bool allSpritesHidden_ = false;
+  bool allSprites2Hidden_ = false;
   std::array<BarGauge, kMaxBars> bars_;
   std::array<PrintedNumber, kMaxPrnums> prnums_;
 
