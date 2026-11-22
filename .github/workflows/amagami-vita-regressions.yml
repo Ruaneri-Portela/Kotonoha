@@ -64,5 +64,3 @@ jobs:
           ctest --test-dir build-amagami-vita \
             -R '^Amagami\.(Vm|VitaInput|VitaControlPad|VitaVibration)$' \
             --output-on-failure --no-tests=error
- \
-            --output-on-failure --no-tests=error
