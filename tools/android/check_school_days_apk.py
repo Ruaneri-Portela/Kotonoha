@@ -6,7 +6,7 @@ from struct import unpack_from
 from zipfile import ZipFile
 
 
-def inspect(apk: Path) -> None:
+def inspect(apk: Path, allow_local_launcher_art: bool = False) -> None:
     required = {"SDL3", "SDL3_ttf", "imgui", "kotonoha_engine", "SchoolDays", "c++_shared"}
     with ZipFile(apk) as archive:
         names = archive.namelist()
@@ -14,7 +14,9 @@ def inspect(apk: Path) -> None:
             raise ValueError("Duplicate APK entries")
         for name in names:
             lower = name.lower()
-            if lower.endswith((".gpk", ".ktnroute", ".cmap", "/schooldayshq-launcher.png")):
+            if lower.endswith((".gpk", ".ktnroute", ".cmap")):
+                raise ValueError(f"Unexpected game resource: {name}")
+            if lower.endswith("/schooldayshq-launcher.png") and not allow_local_launcher_art:
                 raise ValueError(f"Unexpected game resource: {name}")
         libraries = {f"lib/arm64-v8a/lib{name}.so" for name in required}
         actual = {name for name in names if name.startswith("lib/")}
@@ -25,6 +27,12 @@ def inspect(apk: Path) -> None:
             raise ValueError("Missing asset fingerprint")
         root = Path(__file__).resolve().parents[2] / "assets"
         permitted = {"assets/packaged-assets.sha256"}
+        splash_source = root / "SPLASH.PNG"
+        if splash_source.is_file():
+            splash_entry = "assets/assets/SPLASH.PNG"
+            permitted.add(splash_entry)
+            if archive.read(splash_entry) != splash_source.read_bytes():
+                raise ValueError(f"Unexpected asset contents: {splash_entry}")
         for family in ("Anime4K", "ArtCNN"):
             for source in (root / family).iterdir():
                 if source.suffix in (".glsl", ".txt"):
@@ -32,6 +40,8 @@ def inspect(apk: Path) -> None:
                     permitted.add(entry)
                     if archive.read(entry) != source.read_bytes():
                         raise ValueError(f"Unexpected asset contents: {entry}")
+        if allow_local_launcher_art and "assets/assets/SchoolDaysHQ-Launcher.png" in assets:
+            permitted.add("assets/assets/SchoolDaysHQ-Launcher.png")
         if assets != permitted:
             raise ValueError(f"Unexpected APK assets: {assets ^ permitted}")
         digest = hashlib.sha256()
@@ -61,4 +71,6 @@ def inspect(apk: Path) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("apk", type=Path)
-    inspect(parser.parse_args().apk)
+    parser.add_argument("--allow-local-launcher-art", action="store_true")
+    args = parser.parse_args()
+    inspect(args.apk, allow_local_launcher_art=args.allow_local_launcher_art)
