@@ -17,6 +17,7 @@ Run commands from `buildsystems/android/` (PowerShell: set `$env:VCPKG_ROOT` and
 - Each flavor has its own application ID; the root CMake selects only that game's native target.
 - Gradle uses the SDL submodule and vcpkg for native dependencies. DDLC's CPython dependencies have an ABI-specific installation directory; prefer a single ABI for DDLC builds.
 - Gradle bundles engine `assets/` and the selected game's `game-assets/`; `-PbundleGameAssets=false` excludes commercial game data. Packaged resources are extracted on startup and saves stay separate.
-- Do not launch concurrent Gradle invocations that compete for the same `.cxx` directory.
+- On Android, iOS, and WebAssembly (WASM), user data and saves are stored directly in `pacote/**` (ignoring package/bundle name), while desktop standalone builds use `Kotonoha/pacote/**`. In unified launcher mode (`UnifiedLauncher`), package names are omitted for saves.
+- Folder and ZIP imports on Android use robust directory copying and SAF permission persistence.
 
 For external assets, overlays, OBB, and saved files, see the [directory policy](../../docs/DIRECTORY_POLICY.md). See also [Android build guide](../../docs/BUILD_ANDROID.md).
