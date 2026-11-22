@@ -119,6 +119,9 @@ public:
 
   const ActiveEffect &activeEffect() const { return activeEffect_; }
   std::pair<int, int> quakeOffset() const;
+  bool isMonochromeEnabled() const { return monochromeEnabled_; }
+  std::uint32_t monochromeColor() const { return monochromeColor_; }
+  int negativeMode() const { return negativeMode_; }
   const EffectDef &windowEffect() const { return windowEffect_; }
 
   // Text & Window State
@@ -251,6 +254,9 @@ private:
   EffectDef windowEffect_{0, 1, 0, ""};
   ActiveEffect activeEffect_;
   int quakeAmplitude_ = 0;
+  bool monochromeEnabled_ = false;
+  std::uint32_t monochromeColor_ = 0xFFFFFFu;
+  int negativeMode_ = 0;
 
   // Visual layers
   int underlineValue_ = 599;
