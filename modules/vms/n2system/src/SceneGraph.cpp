@@ -113,6 +113,7 @@ Entity *SceneGraph::createEntity(std::string_view name, EntityType type) {
   entity.name = sName;
   entity.type = type;
   entity.creationOrder = nextCreationOrder_++;
+  insertionOrder_.push_back(sName);
   rebuildRenderOrder();
   return &entity;
 }
@@ -230,13 +231,12 @@ std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
   // Keep query order deterministic: entity creation order, not hash-map order.
   // NitroSharp's World.Query enumerates children in their insertion order.
   std::vector<Entity *> ordered;
-  ordered.reserve(entities_.size());
-  for (auto &[name, entity] : entities_)
-    ordered.push_back(&entity);
-  std::sort(ordered.begin(), ordered.end(), [](const Entity *a,
-                                               const Entity *b) {
-    return a->creationOrder < b->creationOrder;
-  });
+  ordered.reserve(insertionOrder_.size());
+  for (const auto &name : insertionOrder_) {
+    const auto it = entities_.find(name);
+    if (it != entities_.end())
+      ordered.push_back(&it->second);
+  }
 
   // Support both explicit parent links and legacy absolute slash-delimited
   // names. A wildcard matches one component; it never consumes a slash.
@@ -362,8 +362,13 @@ bool SceneGraph::destroyEntity(std::string_view name) {
           parent->children.end());
     }
   }
-  for (const auto &deletedName : removeNames)
+  for (const auto &deletedName : removeNames) {
     entities_.erase(deletedName);
+    insertionOrder_.erase(
+        std::remove(insertionOrder_.begin(), insertionOrder_.end(),
+                    deletedName),
+        insertionOrder_.end());
+  }
   rebuildRenderOrder();
   return true;
 }
@@ -385,7 +390,9 @@ std::size_t SceneGraph::destroyMatching(std::string_view pattern,
 
 void SceneGraph::clear() {
   entities_.clear();
+  insertionOrder_.clear();
   renderOrder_.clear();
+  nextCreationOrder_ = 1;
 }
 
 bool SceneGraph::setParent(std::string_view childName,
