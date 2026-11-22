@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Build a size-aware manifest.json for any existing assets directory.
+"""Generate a size-aware HTTP asset manifest: [pasta] [arquivo].
 
 Usage:
-    python3 tools/generate_manifest.py /path/to/SteinsGate
-    python3 tools/generate_manifest.py build-web/outputs/N2SystemGame
+    python3 tools/generate_manifest.py /path/to/game-assets /path/to/manifest.json
+    python3 tools/generate_manifest.py /path/to/SteinsGate /path/to/site/manifest.json
 
-If the supplied directory has a game-assets/ subdirectory, index its contents.
-Otherwise, index the supplied directory itself. In either case manifest.json is
-written in the supplied directory; entry paths are relative to the asset root.
+[pasta] is the directory to index recursively, without implicit subfolder
+selection. [arquivo] is the exact output file path (absolute or relative to
+the current working directory). Asset paths in the JSON are relative to [pasta].
 """
 from __future__ import annotations
 
@@ -22,14 +22,17 @@ EXCLUDED_FILES = {".gitignore", "README.txt", "manifest.json",
 EXCLUDED_DIRECTORIES = {".git", ".svn", "__pycache__"}
 
 
-def generate_manifest(directory: Path) -> Path:
-    root = directory.expanduser().resolve()
-    if not root.is_dir():
-        raise ValueError(f"Directory does not exist: {root}")
+def generate_manifest(directory: Path, filename: Path) -> Path:
+    assets = directory.expanduser().resolve()
+    if not assets.is_dir():
+        raise ValueError(f"Directory does not exist: {assets}")
 
-    # A packaged WASM page has game-assets/ next to index.html. Standalone
-    # retail game folders have their archives directly in the supplied root.
-    assets = root / "game-assets" if (root / "game-assets").is_dir() else root
+    output = filename.expanduser().resolve()
+    if output.is_dir():
+        raise ValueError(f"Manifest output must be a file: {output}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_name(output.name + ".tmp")
+
     entries = []
     for folder, subfolders, filenames in os.walk(assets):
         subfolders[:] = sorted(
@@ -39,7 +42,8 @@ def generate_manifest(directory: Path) -> Path:
         )
         for name in sorted(filenames):
             file = Path(folder) / name
-            if name in EXCLUDED_FILES or file.is_symlink() or not file.is_file():
+            if (name in EXCLUDED_FILES or file == output or file == temporary
+                    or file.is_symlink() or not file.is_file()):
                 continue
             entries.append({
                 "path": file.relative_to(assets).as_posix(),
@@ -48,12 +52,15 @@ def generate_manifest(directory: Path) -> Path:
     entries.sort(key=lambda item: item["path"])
     manifest = {"files": [item["path"] for item in entries], "entries": entries}
 
-    output = root / "manifest.json"
-    temporary = root / "manifest.json.tmp"
-    with temporary.open("w", encoding="utf-8") as handle:
-        json.dump(manifest, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
-    os.replace(temporary, output)
+    try:
+        with temporary.open("w", encoding="utf-8") as handle:
+            json.dump(manifest, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        os.replace(temporary, output)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
     print(f"[Kotonoha] Generated {output} with {len(entries)} assets "
           f"(scanned {assets})")
     if not entries:
@@ -64,10 +71,12 @@ def generate_manifest(directory: Path) -> Path:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("directory",
-                        help="Any assets folder or a web page root with game-assets/")
+    parser.add_argument("directory", metavar="pasta",
+                        help="Existing directory to index recursively")
+    parser.add_argument("output", metavar="arquivo",
+                        help="Exact output manifest filename")
     args = parser.parse_args()
     try:
-        generate_manifest(Path(args.directory))
+        generate_manifest(Path(args.directory), Path(args.output))
     except (OSError, ValueError) as error:
         parser.error(str(error))

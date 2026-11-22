@@ -205,7 +205,8 @@ function(kotonoha_configure_app target)
             # Index the final served directory after the asset copy.
             add_custom_command(TARGET ${target} POST_BUILD
                 COMMAND python3 "${KOTONOHA_PROJECT_ROOT}/tools/generate_manifest.py"
-                        "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}"
+                        "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/game-assets"
+                        "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/manifest.json"
                 COMMENT "Generating mandatory HTTP manifest.json beside index.html"
                 VERBATIM
             )
