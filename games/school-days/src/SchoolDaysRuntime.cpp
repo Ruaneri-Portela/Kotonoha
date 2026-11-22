@@ -19,7 +19,9 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#endif
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/mobile/AndroidDisplay.hpp>
@@ -1102,8 +1104,10 @@ void Runtime::traceDev(const char *event) { (void)event; }
 void Runtime::init(Kotonoha::Engine &owner) {
   if (engine != &owner) {
     engine = &owner;
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     engine->GetDebug().getSettings().showFPS = false;
     engine->GetDebug().getSettings().showNodeClock = false;
+#endif
 #if defined(_WIN32) && !defined(__ANDROID__)
     // Only a fresh profile tracks the monitor's desktop resolution. A chosen
     // size is persisted in settings.json and must survive subsequent launches
@@ -7245,6 +7249,9 @@ std::string Runtime::nodeClockKey() const {
 }
 
 std::vector<Kotonoha::DebugNode> Runtime::debugNodes() const {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  return {};
+#else
   const auto *document = bridge.Session().Adapter()->document;
   std::vector<Kotonoha::DebugNode> nodes;
   const auto *section = Kotonoha_KtrfFindSection(document, "NODE");
@@ -7269,6 +7276,7 @@ std::vector<Kotonoha::DebugNode> Runtime::debugNodes() const {
     nodes.push_back(std::move(output));
   }
   return nodes;
+#endif
 }
 
 std::vector<Kotonoha::DebugAudioAsset> Runtime::debugSceneAudio() {
@@ -7331,6 +7339,10 @@ Kotonoha::Translation::SourceTexts Runtime::translationSources() const {
 }
 
 void Runtime::debugJumpToNode(const std::string &id) {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  (void)id;
+  return;
+#else
   if (temporaryPlaybackActive())
     throw std::runtime_error(
         "School Days debug jump is unavailable during Replay playback");
@@ -7350,13 +7362,18 @@ void Runtime::debugJumpToNode(const std::string &id) {
   Kotonoha::SchoolDaysKtrfGameplayBridge::StepResult result;
   Check(bridge.DebugJumpToNode(index, &result, &error), error);
   openScene(result.scene);
+#endif
 }
 
 void Runtime::debugRestartScene() {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  return;
+#else
   if (temporaryPlaybackActive())
     throw std::runtime_error(
         "School Days scene restart is unavailable during Replay playback");
   debugJumpToNode(debugNode());
+#endif
 }
 
 bool Runtime::advanceStoryTime(double seconds) {
@@ -7370,6 +7387,10 @@ bool Runtime::advanceStoryTime(double seconds) {
 }
 
 void Runtime::loadKtrf(const std::string &path) {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  (void)path;
+  return;
+#else
   if (temporaryPlaybackActive())
     throw std::runtime_error(
         "School Days route replacement is unavailable during Replay playback");
@@ -7394,15 +7415,21 @@ void Runtime::loadKtrf(const std::string &path) {
     Check(bridge.Session().LoadGlobalFlag(global, &error), error);
   routePath = path;
   openScene(bridge.CurrentScene());
+#endif
 }
 
 void Runtime::dumpKtrf(const std::string &path) const {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  (void)path;
+  return;
+#else
   const auto *document = bridge.Session().Adapter()->document;
   if (!document)
     throw std::runtime_error("No School Days KTRF loaded");
   Kotonoha::writeTextFileAtomically(
       path, std::string(reinterpret_cast<const char *>(document->bytes),
                         document->size));
+#endif
 }
 
 } // namespace SchoolDays
