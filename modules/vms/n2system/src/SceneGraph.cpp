@@ -452,6 +452,15 @@ bool SceneGraph::setPriority(std::string_view entityName, float z) {
   auto *e = findEntity(entityName);
   if (!e)
     return false;
+  // Non-finite NSB priorities cannot participate in a strict ordering.
+  // The caller may have directly assigned e->z before asking to reorder.
+  if (!std::isfinite(z)) {
+    if (!std::isfinite(e->z)) {
+      e->z = 0.0f;
+      rebuildRenderOrder();
+    }
+    return false;
+  }
   e->z = z;
   rebuildRenderOrder();
   return true;
@@ -623,17 +632,20 @@ void SceneGraph::rebuildRenderOrder() {
     renderOrder_.push_back(name);
   }
 
+  // All keys originate in entities_. Do not re-resolve aliases or paths
+  // while sorting. Normalize malformed/legacy NaNs to keep the comparison
+  // transitive (std::sort requires a strict weak ordering).
   std::sort(renderOrder_.begin(), renderOrder_.end(),
             [this](const std::string &a, const std::string &b) {
-              const auto *ea = findEntity(a);
-              const auto *eb = findEntity(b);
-              if (!ea || !eb)
-                return false;
-              if (ea->z != eb->z)
-                return ea->z < eb->z;
-              if (ea->creationOrder != eb->creationOrder)
-                return ea->creationOrder < eb->creationOrder;
-              return ea->name < eb->name;
+              const Entity &ea = entities_.at(a);
+              const Entity &eb = entities_.at(b);
+              const float za = std::isfinite(ea.z) ? ea.z : 0.0f;
+              const float zb = std::isfinite(eb.z) ? eb.z : 0.0f;
+              if (za != zb)
+                return za < zb;
+              if (ea.creationOrder != eb.creationOrder)
+                return ea.creationOrder < eb.creationOrder;
+              return a < b;
             });
 }
 

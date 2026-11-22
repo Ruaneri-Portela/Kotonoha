@@ -39,6 +39,16 @@ kotonoha_configure_app(N2SystemGame
     BUNDLE_ID me.hirameki.kotonoha.n2system GAME n2system)
 
 if(BUILD_TESTING)
+  add_executable(KotonohaN2DialoguePresentationTests
+      tests/DialoguePresentationTest.cpp)
+  target_include_directories(KotonohaN2DialoguePresentationTests PRIVATE include)
+  target_link_libraries(KotonohaN2DialoguePresentationTests PRIVATE
+      kotonoha_vm_n2system)
+  add_test(NAME Kotonoha.N2System.DialoguePresentation
+      COMMAND KotonohaN2DialoguePresentationTests)
+  set_tests_properties(Kotonoha.N2System.DialoguePresentation PROPERTIES
+      LABELS synthetic)
+
   add_executable(N2SystemFormatTests tests/N2SystemTest.cpp)
   target_link_libraries(N2SystemFormatTests PRIVATE n2system_formats)
   add_test(NAME N2SystemFormatTests COMMAND N2SystemFormatTests)
