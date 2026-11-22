@@ -25,12 +25,12 @@ namespace N2System {
 struct N2Runtime::Impl {
   std::shared_ptr<Kotonoha::VNTextBox> textBox;
   std::shared_ptr<Kotonoha::VNBacklog> backlog;
-  std::shared_ptr<Kotonoha::ChoiceQuestionScene> choiceScene;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
   std::unique_ptr<Kotonoha::MediaPlayer> bgmPlayer;
   std::unique_ptr<Kotonoha::MediaPlayer> voicePlayer;
   std::unique_ptr<Kotonoha::MediaPlayer> sePlayer;
   Kotonoha::Engine *engine = nullptr;
+  std::unique_ptr<Kotonoha::ChoiceQuestionScene> choiceScene;
   bool choiceActive = false;
   bool restartRequested = false;
   std::string currentBgm;
@@ -140,8 +140,6 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
 
   impl_->textBox = std::make_shared<Kotonoha::VNTextBox>(engine, "", "", 30.0);
   impl_->backlog = std::make_shared<Kotonoha::VNBacklog>(engine);
-  impl_->choiceScene = std::make_shared<Kotonoha::ChoiceQuestionScene>(
-      engine, "", std::vector<Kotonoha::ChoiceOption>{{"", 0}}, nullptr);
   impl_->moviePlayer =
       std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
   impl_->bgmPlayer = std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
