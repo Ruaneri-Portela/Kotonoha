@@ -15,6 +15,7 @@
 #include <LucaSystem/LucaSystemAssets.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
+#include <LucaSystem/SceneLayers.hpp>
 #include <LucaSystem/SaveState.hpp>
 #include <SDL3/SDL.h>
 
@@ -671,6 +672,19 @@ int main(int argc, char **argv) {
           LucaSystem::DecodeCzImage(assets->readImageAsset(10001));
       require(char1.anchorX > 0 && char1.anchorY > 0,
               "CHARCG.PAK sprite preserves extended CZ4 anchorX/anchorY");
+      const auto portrait =
+          LucaSystem::DecodeCzImage(assets->readImageAsset(10413));
+      const auto expression =
+          LucaSystem::DecodeCzImage(assets->readImageAsset(10421));
+      require(LucaSystem::isCharacterFragment(
+                  portrait.width, portrait.height, portrait.canvasWidth,
+                  portrait.canvasHeight, expression.width, expression.height,
+                  expression.canvasWidth, expression.canvasHeight),
+              "AIR cgmz21p is a cropped overlay on cgmz20 portrait");
+      require(assets->contains("jul_17") && assets->contains("aug_01") &&
+                  assets->loadSurface("jul_17") &&
+                  assets->loadSurface("aug_01"),
+              "AIR calendar badges resolve and decode through provider");
       require(assets->contains("movie/AIR_OP_A.webm") ||
                   assets->contains("movie/AIR_OP_A_EN.webm"),
               "Loose files/movie/AIR_OP_A*.webm exposed through VFS");
@@ -748,6 +762,26 @@ int main(int argc, char **argv) {
     require(runtime.getVariable(30001) == 1280 &&
                 runtime.getVariable(30002) == 720,
             "EQUN 16-bit variable assignment set #30001=1280, #30002=720");
+
+    bool sawLayeredExpression = false;
+    for (int step = 0; step < 3000 &&
+                        runtime.currentScenarioName() == "seen190";
+         ++step) {
+      if (runtime.visibleLayerCount() >= 3) {
+        sawLayeredExpression = true;
+        break;
+      }
+      if (runtime.isMoviePlaying())
+        runtime.skipMovie();
+      else if (runtime.isChoiceActive())
+        runtime.selectChoice(0);
+      else if (runtime.isDialogueVisible())
+        runtime.advanceDialogue();
+      else
+        runtime.skipWait();
+    }
+    require(sawLayeredExpression,
+            "seen190 keeps the portrait beneath its expression fragment");
 
     // Save/Load roundtrip mid-seen190
     while (runtime.isRunning() && !runtime.isDialogueVisible() &&

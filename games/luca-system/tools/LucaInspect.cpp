@@ -166,6 +166,11 @@ int main(int argc, char **argv) {
       return 2;
     }
     auto image = LucaSystem::DecodeCzImage(assets.readAsset(argv[3]));
+    std::cerr << "CZ image " << argv[3] << ": crop " << image.width << 'x'
+              << image.height << " at " << image.cropX << ',' << image.cropY
+              << "; canvas " << image.canvasWidth << 'x'
+              << image.canvasHeight << "; anchor " << image.anchorX << ','
+              << image.anchorY << '\n';
     std::ofstream out(argv[4], std::ios::binary);
     out << "P6\n" << image.width << ' ' << image.height << "\n255\n";
     for (size_t i = 0; i < image.rgba.size(); i += 4) {

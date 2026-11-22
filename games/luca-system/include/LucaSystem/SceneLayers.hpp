@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace LucaSystem {
@@ -36,6 +37,27 @@ inline float wipeVisibleWidth(float objectLeft, float imageWidth,
 inline float croppedSpriteOrigin(float position, float anchor, float crop,
                                  float scale, float move, float shake) {
   return position + (crop - anchor) * scale + move + shake;
+}
+// AIR's face/expression CZ4 images retain the full character canvas but have
+// a much smaller cropped payload. Keep the last full portrait underneath.
+inline bool isCharacterFragment(int baseWidth, int baseHeight,
+                                int baseCanvasWidth, int baseCanvasHeight,
+                                int nextWidth, int nextHeight,
+                                int nextCanvasWidth, int nextCanvasHeight) {
+  if (baseWidth <= 0 || baseHeight <= 0 || nextWidth <= 0 || nextHeight <= 0 ||
+      baseCanvasWidth != nextCanvasWidth ||
+      baseCanvasHeight != nextCanvasHeight)
+    return false;
+  const auto baseArea = std::uint64_t(baseWidth) * baseHeight;
+  const auto nextArea = std::uint64_t(nextWidth) * nextHeight;
+  return nextArea * 2 < baseArea &&
+         (nextWidth < baseWidth || nextHeight < baseHeight);
+}
+inline std::string airCalendarBadgeName(int day) {
+  if (day < 1 || day > 31)
+    return {};
+  const std::string month = day >= 16 ? "jul_" : "aug_";
+  return month + (day < 10 ? "0" : "") + std::to_string(day);
 }
 enum class SceneTransition { Crossfade, WipeLeftToRight };
 struct SceneBlend {
