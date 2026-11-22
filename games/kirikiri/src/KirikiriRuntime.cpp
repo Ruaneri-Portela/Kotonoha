@@ -1675,14 +1675,29 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
 
   if (impl.currentScenario.empty() && impl.nativeTitleUi &&
       mapped.type == SDL_EVENT_MOUSE_MOTION) {
-    if (Kotonoha::Providers::dispatchTjsUiHover(
-            impl.startupExecution, mapped.motion.x, mapped.motion.y)) {
+    const bool hover = Kotonoha::Providers::dispatchTjsUiHover(
+        impl.startupExecution, mapped.motion.x, mapped.motion.y);
+    const bool motion = Kotonoha::Providers::dispatchTjsUiMouseMove(
+        impl.startupExecution, mapped.motion.x, mapped.motion.y);
+    if (hover || motion) {
       impl.failedNativePictures.clear();
-      if (!impl.startupExecution.error.empty()) {
+      const auto &run = impl.startupExecution;
+      if (!run.error.empty()) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "KiriKiri: TJS2 hover event failed: %s",
-                    impl.startupExecution.error.c_str());
+                    "KiriKiri: TJS2 pointer movement failed: %s",
+                    run.error.c_str());
         nativeFallback();
+      } else if (!run.kagEntry.empty()) {
+        const auto target = run.kagEntry;
+        if (startScenario(target)) {
+          impl.nativeTitleUi = false;
+          impl.choiceScene->hide();
+        } else {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: pointer motion requested missing KAG: %s",
+                      target.c_str());
+          nativeFallback();
+        }
       }
       return true;
     }

@@ -201,3 +201,11 @@ screen. The overlay's Save/Load/Config and story UI remain available once a
 scenario starts. If script evaluation or rendering fails, the existing VNX+
 compatibility title is used instead. This is a presentation priority fix and
 does not make incomplete TJS2 bytecode or native plugins work.
+
+## Native menu pointer movement
+
+Source-created `Layer.onMouseMove` callbacks now receive bounded pointer
+coordinates via hit testing against the topmost active layer. The retained
+TJS2 VM can update its scene graph during rollover, with the same runtime
+fallback/error checks used for click and keyboard handlers. A synthetic test
+checks that movement outside a button does not invoke it.

@@ -1148,6 +1148,7 @@ void Interpreter::snapshotLayers() {
     frame.onMouseEnter = callback("onMouseEnter");
     frame.onMouseLeave = callback("onMouseLeave");
     frame.onMouseUp = callback("onMouseUp");
+    frame.onMouseMove = callback("onMouseMove");
     int x = 0, y = 0;
     int alpha = frame.opacity;
     auto owner = layer;
@@ -1527,6 +1528,47 @@ bool dispatchTjsUiMouseUp(TjsStartupResult &result, float x, float y) {
       vm.snapshotLayers();
     } catch (const std::exception &error) {
       vm.result.error = std::string("TJS2 UI mouse-up: ") + error.what();
+    }
+    result = vm.result;
+    result.uiSession = std::move(session);
+    return true;
+  }
+  return false;
+}
+
+bool dispatchTjsUiMouseMove(TjsStartupResult &result, float x, float y) {
+  auto session = result.uiSession;
+  if (!session || !result.subsetCompleted || !std::isfinite(x) ||
+      !std::isfinite(y))
+    return false;
+  for (auto it = result.layers.rbegin(); it != result.layers.rend(); ++it) {
+    const auto &layer = *it;
+    if (!layer.visible || !layer.enabled || layer.opacity == 0 ||
+        layer.width <= 0 || layer.height <= 0 || layer.onMouseMove.empty())
+      continue;
+    if (x < layer.left || y < layer.top ||
+        x >= double(layer.left) + layer.width ||
+        y >= double(layer.top) + layer.height)
+      continue;
+    auto &vm = session->vm;
+    vm.result.kagEntry.clear();
+    try {
+      const auto arity = vm.callableArity(layer.onMouseMove);
+      if (arity > 4)
+        throw std::runtime_error("TJS2 UI: excessive motion parameters");
+      std::vector<Value> args;
+      if (arity >= 1)
+        args.emplace_back(double(x));
+      if (arity >= 2)
+        args.emplace_back(double(y));
+      if (arity >= 3)
+        args.emplace_back(0.0); // no mouse button change
+      if (arity >= 4)
+        args.emplace_back(0.0); // no modifiers
+      vm.call(layer.onMouseMove, args, {}, true);
+      vm.snapshotLayers();
+    } catch (const std::exception &error) {
+      vm.result.error = std::string("TJS2 UI mouse-move: ") + error.what();
     }
     result = vm.result;
     result.uiSession = std::move(session);

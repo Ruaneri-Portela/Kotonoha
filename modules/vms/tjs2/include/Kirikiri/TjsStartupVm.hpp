@@ -41,6 +41,7 @@ struct TjsUiLayer {
   std::string onMouseEnter;
   std::string onMouseLeave;
   std::string onMouseUp;
+  std::string onMouseMove;
   int left = 0, top = 0;
   int width = 0, height = 0;
   int opacity = 255;
@@ -88,6 +89,9 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y);
 // Dispatch Layer.onMouseUp from SDL left-button release, independently from
 // onMouseDown/onClick callbacks fired by the press event.
 bool dispatchTjsUiMouseUp(TjsStartupResult &result, float x, float y);
+
+// Dispatch pointer movement to the topmost source-created Layer.onMouseMove.
+bool dispatchTjsUiMouseMove(TjsStartupResult &result, float x, float y);
 
 // Dispatch KiriKiri virtual-key events to a source-created Window.onKeyDown.
 // Supported native mapping is supplied by the runtime (Enter/Space/Esc/arrows).

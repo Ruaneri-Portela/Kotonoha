@@ -1554,6 +1554,27 @@ int main() {
     }
   }
 
+  // KiriKiri menu rollover scripts can update state from onMouseMove.
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const std::string source =
+        "var window = new Window();"
+        "var layer = new Layer(window, window.primaryLayer);"
+        "layer.setPos(20, 20); layer.setSize(120, 60);"
+        "function moved(x, y) { System.title = \"Hovered\"; }"
+        "layer.onMouseMove = moved;";
+    const bool parsed = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input, source, "menu-move.tjs");
+    if (!parsed || !menu.error.empty() ||
+        Kotonoha::Providers::dispatchTjsUiMouseMove(menu, -1.0f, -1.0f) ||
+        !Kotonoha::Providers::dispatchTjsUiMouseMove(menu, 44.0f, 38.0f) ||
+        menu.title != "Hovered") {
+      std::printf("FAIL: TJS2 onMouseMove original menu rollover\n");
+      ++failures;
+    }
+  }
+
   // A native Window.onKeyDown can control an original text-layer title
   // menu with KiriKiri virtual key codes (Enter=13, Escape=27).
   {
