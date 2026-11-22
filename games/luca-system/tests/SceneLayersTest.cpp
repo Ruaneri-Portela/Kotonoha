@@ -56,6 +56,12 @@ int main() {
           "AIR expression crop overlays a matching portrait canvas");
     {
       std::vector<std::uint8_t> rgba(4 * 4 * 4, 255);
+      check(!LucaSystem::hasNonOpaquePixels(rgba),
+            "Fully opaque CZ art may use background upscaling");
+      rgba[3] = 0;
+      check(LucaSystem::hasNonOpaquePixels(rgba),
+            "Transparent CZ4 overlays must bypass image upscalers");
+      rgba[3] = 255;
       check(LucaSystem::rasterCoversPointWithOpacity(
                 rgba, 4, 4, 0, 0, 1, 1, 2, 2, 1.0f),
             "Opaque background covers the attached HUD point");
