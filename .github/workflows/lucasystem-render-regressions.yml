@@ -7,6 +7,8 @@ on:
       - 'games/luca-system/include/LucaSystem/GpuSceneComposition.hpp'
       - 'games/luca-system/include/LucaSystem/SceneLayers.hpp'
       - 'games/luca-system/tests/SceneLayersTest.cpp'
+      - 'games/luca-system/tests/CzImageParityTest.cpp'
+      - 'modules/providers/pak/src/CzImage.cpp'
       - 'games/luca-system/tests/GpuSceneTest.cpp'
       - 'games/luca-system/CMakeLists.txt'
       - '.github/workflows/lucasystem-render-regressions.yml'
@@ -17,6 +19,8 @@ on:
       - 'games/luca-system/include/LucaSystem/GpuSceneComposition.hpp'
       - 'games/luca-system/include/LucaSystem/SceneLayers.hpp'
       - 'games/luca-system/tests/SceneLayersTest.cpp'
+      - 'games/luca-system/tests/CzImageParityTest.cpp'
+      - 'modules/providers/pak/src/CzImage.cpp'
       - 'games/luca-system/tests/GpuSceneTest.cpp'
       - 'games/luca-system/CMakeLists.txt'
       - '.github/workflows/lucasystem-render-regressions.yml'
@@ -49,3 +53,13 @@ jobs:
             -o /tmp/kotonoha-luca-scene-layers
       - name: Verify persistent background and portrait anchor regressions
         run: /tmp/kotonoha-luca-scene-layers
+      - name: Compile LuckSystem CZ3/CZ4 decoder parity tests
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -pedantic \
+            -Imodules/providers/pak/include \
+            modules/providers/pak/src/CzImage.cpp \
+            games/luca-system/tests/CzImageParityTest.cpp \
+            -o /tmp/kotonoha-cz-parity
+      - name: Validate CZ3 RGB24 and CZ4 split alpha pixels
+        run: /tmp/kotonoha-cz-parity
+

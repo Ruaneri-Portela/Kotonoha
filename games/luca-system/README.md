@@ -404,3 +404,16 @@ not reconstruct earlier VM variables, call frames or rendered layers**.
 The currently loaded script is inspected without decoding every retail
 script at once. `LucaSystem.DebugCatalog` is a synthetic C++17 regression
 test; retail scene navigation still requires the optional retail-data suite.
+
+
+## LuckSystem CZ3/CZ4 pixel-format parity
+
+The reference `wetor/LuckSystem` implements `czimage/imagefix.go:LineDiff`
+with a per-row stride of `width*(Colorbits/8)` and expands CZ3 24-bit RGB
+pixels to opaque RGBA. Earlier Kotonoha code incorrectly demanded 32-bit
+raw pixels for *every* CZ3 image. CZ3 RGB24 is now decoded with the exact
+three-channel, 3-band delta predictor used by LuckSystem; CZ3 RGBA32 and
+CZ4's separate RGB/alpha planes keep their existing layouts. Portable
+synthetic tests check all three variants, extended-header crop geometry and
+rejection of invalid/truncated image payloads. This is asset decoding parity,
+not an identical native game sprite compositor (LuckSystem does not have one).

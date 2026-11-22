@@ -45,3 +45,6 @@ The renderer composes each expression fragment immediately after its matching po
 The more detailed [PORT_STATUS.md](PORT_STATUS.md) and [docs/AIR_REA_2026_11_18.md](docs/AIR_REA_2026_11_18.md) contain original-game binary analysis and historical notes.
 
 [Port README](README.md) · [All ports](../README.md)
+
+
+LuckSystem CZ3 reference parity: 24-bit RGB delta images now decode to opaque RGBA (instead of failing with an incorrect four-byte raw stride), with CZ3 RGBA32/CZ4 split-alpha regression fixtures and a separate C++17 CI check.
