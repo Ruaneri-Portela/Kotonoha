@@ -320,3 +320,73 @@ Classificações usadas: **Paridade confirmada**, **Adaptado e validado**, **Par
 | `build/SchoolDaysHQ-android-arm64-dist-test.apk` | `me.hirameki.kotonoha.schooldays.dist` | `15.748.932 B` | `9F05CC93661219F439E319C8CF8E314B036203492D0E14AAE3D6D3A3B7105EEC` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK (test-signed); aguarda confirmação manual "Instalar via USB" do usuário no HyperOS |
 
 > **Como instalar e testar o APK DIST no POCO X7 Pro**: Com a tela do aparelho desbloqueada, execute `adb -s QO5XJZFYDMRWDU6T install build/SchoolDaysHQ-android-arm64-dist-test.apk` e toque em **Instalar** no diálogo de confirmação do Xiaomi HyperOS (ou copie o APK para o aparelho e instale manualmente). Ele coexiste de forma independente com o APK DEV sem alterar saves ou configurações existentes.
+
+---
+
+## Auditoria de exclusão DEV na Android DIST
+
+Com base na política de distribuição oficial da versão **Windows DIST** (`KOTONOHA_DISTRIBUTION_BUILD=ON`, `KOTONOHA_DEV_CONTROL=OFF`, `KOTONOHA_ENABLE_MCP=OFF`, `KOTONOHA_ENABLE_PLAYER_DUBBING=OFF`), foi realizada uma auditoria completa de CMake, Gradle, Java, C++, binários ELF `.so` e testes ao vivo lado a lado (DEV vs DIST) no POCO X7 Pro (`QO5XJZFYDMRWDU6T`).
+
+### Causas-raiz identificadas e arquivos alterados
+1. **Botão extra `MENU` (renderização + hitbox de toque) presente na Android DIST** (`games/school-days/src/SchoolDaysRuntime.cpp`, `games/school-days/src/SchoolDaysRuntime.hpp`):
+   - **Causa-raiz**: Em `Runtime::renderScreen()` e `Runtime::onScreenEvent()`, o botão auxiliar `{18.0f, 649.0f, 118.0f, 54.0f}` (`"MENU"`) e seu teste de toque (`openConfig(...)`) estavam protegidos apenas por `#if defined(__ANDROID__) || defined(ANDROID)`, sem excluir `KOTONOHA_DISTRIBUTION_BUILD`.
+   - **Correção**: Alterado para `#if (defined(__ANDROID__) || defined(ANDROID)) && !defined(KOTONOHA_DISTRIBUTION_BUILD)` em ambos os blocos, expondo `Runtime::AndroidExtraMenuButtonCompiled` em `SchoolDaysRuntime.hpp`. Mantido `ownsMobileMenuButton() { return true; }` para impedir que o `Engine.cpp` reative o botão genérico `{16, 16, 76, 36}` do motor na DIST; jogadores continuam acessando `OPTION`, `SAVE`, `LOAD`, `BACKLOG` e `TOPMENU` pela `MenuBar` superior retail e pelo botão Voltar do Android (`SDLK_AC_BACK -> SDLK_ESCAPE`).
+2. **Flags CMake explícitas de paridade DEV/DIST no Gradle** (`buildsystems/android/app/build.gradle`):
+   - **Causa-raiz**: `buildTypes.dist` não passava explicitamente `-DKOTONOHA_DEV_CONTROL=OFF` nem `-DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF`, e `buildTypes.debug` dependia do valor padrão para `KOTONOHA_DISTRIBUTION_BUILD`.
+   - **Correção**: Explicitado `-DKOTONOHA_DISTRIBUTION_BUILD=OFF` em `debug` e `-DKOTONOHA_DISTRIBUTION_BUILD=ON`, `-DKOTONOHA_DEV_CONTROL=OFF`, `-DKOTONOHA_ENABLE_MCP=OFF`, `-DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF`, `-DCMAKE_BUILD_TYPE=Release` em `dist`.
+3. **Include desnecessário de `DebugOverlay.hpp` em DIST** (`games/school-days/src/SchoolDaysRuntime.cpp`):
+   - Guardado `#include <Kotonoha/debug/DebugOverlay.hpp>` sob `#if !defined(KOTONOHA_DISTRIBUTION_BUILD)`.
+4. **Contrato automatizado em tempo de compilação** (`games/school-days/tests/SchoolDaysDistDebugAbsenceTest.cpp`):
+   - Adicionado `static_assert(!SchoolDays::Runtime::AndroidExtraMenuButtonCompiled, ...)` garantindo que qualquer build DIST não compile o botão extra `MENU`.
+5. **Launcher Android (`SchoolDaysSetup.java`, `GameActivity.java`, `BootstrapActivity.java`, `school_days_setup.xml`)**:
+   - Auditado integralmente: nenhum recurso de debug/DEV exposto; as 6 abas (`Tela`, `Gráficos`, `Áudio`, `Geral`, `Idioma`, `Arquivos do jogo`) espelham exatamente a política da Windows DIST (sem aba `Advanced` nem opções de upscaling de engine).
+
+### Matriz comparativa DEV vs DIST (Windows e Android)
+| Recurso / Mecanismo | Windows DEV | Windows DIST | Android DEV (`me.hirameki.kotonoha.schooldays`) | Android DIST (`me.hirameki.kotonoha.schooldays.dist`) |
+|---|---|---|---|---|
+| `KOTONOHA_DISTRIBUTION_BUILD` | `OFF` | `ON` | `OFF` (explícito no Gradle) | `ON` (explícito no Gradle) |
+| `KOTONOHA_DEV_CONTROL` / `KOTONOHA_ENABLE_MCP` | `OFF` / opcional | `OFF` / `OFF` | `OFF` / `OFF` | `OFF` / `OFF` (explícito) |
+| `KOTONOHA_ENABLE_PLAYER_DUBBING` | `OFF` | `OFF` | `OFF` | `OFF` (explícito) |
+| `BuildConfig.IS_DISTRIBUTION_BUILD` / `android:debuggable` | N/A | N/A | `false` / `true` | `true` / ausente (não debuggable) |
+| Botão auxiliar `MENU` `{18, 649, 118, 54}` + hitbox | Ausente (desktop) | Ausente (desktop) | Presente (`UI::button` + `openConfig`) | **Removido na compilação** (visual e hitbox ausentes) |
+| Botão genérico `Engine::mobileMenuButton` `{16, 16, 76, 36}` | Ausente | Ausente | Suprimido (`ownsMobileMenuButton=true`) | Suprimido (`ownsMobileMenuButton=true`) |
+| `DebugOverlay` (`F10`) / `FPS` (`F9`) / `Node HUD` (`F8`) | Presente | Removido | Presente (`F10` abre `Kotonoha Debug Applets`) | **Removido** (`F8`/`F9`/`F10` sem efeito; `0` símbolos no `.so`) |
+| `MCPServer` / `VoiceDubbingApplet` / `VNBacklog` fallback | Presente conforme flags | Removido | `MCPServer=0`; `VoiceDubbing` presente em engine | **Removido** (`0` símbolos no `.so`) |
+| Flags CLI DEV (`--mcp-port`, `--dump-ktrf`, `--ktrf`, `--node`, `--log`) | Presente | Removido | Não exposto | **Removido** (opções CLI ausentes no registro de argumentos) |
+| `MenuBar` retail (`SAVE`, `LOAD`, `BACKLOG`, `OPTION`, `TOPMENU`) | Presente | Presente | Presente | **Validado ao vivo no POCO** (toque na borda superior) |
+| `OPTION` (`General`, `Sound`, `Display Options`), `BACKLOG`, `SAVE`/`LOAD`, Voltar Android | Presente | Presente | Presente | **Validado ao vivo no POCO** |
+| Isolamento de saves (`SaveFile000.DAT`, `GlobalFlag.DAT`, `settings.json`) | Diretório próprio | Diretório próprio | `/Android/data/...schooldays/files/` intacto | `/Android/data/...schooldays.dist/files/` isolado |
+
+### Evidências de configuração, binários ELF `.so` e disassembly
+- **CMakeCache efetivo**:
+  - DEV (`Debug/4t3j1z2r/arm64-v8a`): `CMAKE_BUILD_TYPE=Debug`, `KOTONOHA_DISTRIBUTION_BUILD=OFF`, `KOTONOHA_DEV_CONTROL=OFF`, `KOTONOHA_ENABLE_MCP=OFF`, `KOTONOHA_ENABLE_PLAYER_DUBBING=OFF`.
+  - DIST (`Release/4t736a4f/arm64-v8a`): `CMAKE_BUILD_TYPE=Release`, `KOTONOHA_DISTRIBUTION_BUILD=ON`, `KOTONOHA_DEV_CONTROL=OFF`, `KOTONOHA_ENABLE_MCP=OFF`, `KOTONOHA_ENABLE_PLAYER_DUBBING=OFF`.
+- **`BuildConfig` e `AndroidManifest.xml` (`aapt2 dump xmltree`)**:
+  - DEV: `DEBUG=true`, `IS_DISTRIBUTION_BUILD=false`, `VERSION_NAME=0.1.0`, `android:debuggable=true`.
+  - DIST: `DEBUG=false`, `IS_DISTRIBUTION_BUILD=true`, `VERSION_NAME=0.1.0-dist`, sem `android:debuggable`.
+- **Auditoria de símbolos (`llvm-nm -D -C`) nos APKs empacotados**:
+  - DEV: `libSchoolDays.so` (`4.533.568 B`), `libkotonoha_engine.so` (`35.628.472 B`) — `DebugOverlay=39` (`libkotonoha_engine.so`) + `1` (`libSchoolDays.so`), `VoiceDubbingApplet=45`, `Engine::GetUI()` presente.
+  - DIST: `libSchoolDays.so` (`2.325.600 B`), `libkotonoha_engine.so` (`21.887.480 B`) — **`DebugOverlay=0`, `MCPServer=0`, `VoiceDubbingApplet=0`, `Engine::GetUI()=0`**; strings `'Kotonoha Debug Applets'`, `'--dump-ktrf'`, `'--mcp-port'` ausentes. *(Observação transparente: mensagens internas compartilhadas com Windows DIST em `SchoolDaysAssets.cpp:475` e `SchoolDaysKtrfGameplayBridge.cpp:676` permanecem inalcançáveis em DIST porque não há registro CLI `--ktrf` nem invocador `debugJumpToNode`.)*
+- **Prova em código de máquina (`llvm-objdump -d`) em `libSchoolDays.so` (não-stripped)**:
+  - DEV (`Debug/4t3j1z2r`): `SchoolDays::Runtime::renderScreen` contém chamadas `bl` para `Kotonoha::Engine::GetUI()` e `Kotonoha::UI::button(...)`; `onScreenEvent` contém chamada `bl` para `SchoolDays::Runtime::openConfig(...)`.
+  - DIST (`Release/4t736a4f`): `renderScreen` tem **`0` chamadas** a `UI::button`/`GetUI`; `onScreenEvent` tem **`0` chamadas** a `openConfig`.
+
+### Validação em hardware real (POCO X7 Pro, `QO5XJZFYDMRWDU6T`) e regressões Windows
+- **Android DEV instalado e validado (`me.hirameki.kotonoha.schooldays`)**: Launcher `0.1.0`, `TITLE` desbloqueado (reaproveitando `GlobalFlag.DAT` próprio), e `KEYCODE_F10` abre `Kotonoha Debug Applets [F10]` normalmente.
+- **Android DIST instalada e validada (`me.hirameki.kotonoha.schooldays.dist`)**:
+  - Launcher `0.1.0-dist` reconhece `Português (Brasil) (GPK)` via SAF sem alterar arquivos DEV.
+  - Gameplay Episódio 1 sem nenhum botão `MENU` visível e com legendas PT-BR ativas.
+  - Toque direto na antiga área do `MENU` (`400, 1145` em `2712×1220`): sem efeito (nenhuma hitbox invisível).
+  - Teclas `F10` (`140`), `F9` (`139`) e `F8` (`138`) no `TITLE` e em gameplay: nenhum overlay/HUD aberto.
+  - `MenuBar` retail acessível por toque na borda superior; `OPTION` (`General Options`, `Sound Options`, `SOMCON/Display Options`), fechamento por Voltar do Android (`KEYCODE_BACK`), `BACKLOG` em viewport 16:9 completo, `SAVE` (slots isolados) e `TOPMENU` (`Return to Title Screen?`) todos validados visualmente.
+  - Isolamento confirmado: `SaveFile000.DAT` (`1.210 B`) e `SaveFile000.DAT.kotonoha-lxh.v1` (`243 B`) da DEV permaneceram 100% intactos.
+- **Regressões Windows**:
+  - `python tools/ValidateBuildMetadata.py`: PASS (`13 CMake games; 22 existing Xcode schemes`).
+  - **Windows DEV Release** (`build/school-days-l4-two-dll-staticmd`): compilação limpa; `ctest` (`CommandLine`, `Presentation`, `Launcher`, `ImGuiTheme`, `SchoolDays`): **63 / 63 aprovados (100%)**.
+  - **Windows DIST Release** (build isolado temporário `-DKOTONOHA_DISTRIBUTION_BUILD=ON -DKOTONOHA_DEV_CONTROL=OFF -DKOTONOHA_ENABLE_MCP=OFF`, removido após teste): compilação limpa; `ctest`: **6 / 6 aprovados (100%)**, incluindo **`SchoolDays.DistDebugAbsence`** com a nova asserção `AndroidExtraMenuButtonCompiled`.
+
+### Artefatos finais Android ARM64 (pós-auditoria DEV/DIST)
+| Artefato | Package ID | Tamanho | SHA-256 | Verificações |
+|---|---|---|---|---|
+| `build/SchoolDaysHQ-android-arm64-dev.apk` | `me.hirameki.kotonoha.schooldays` | `33.325.423 B` | `BBF97018E60FEAE455F934B3C3905C55021AA82652DA4F52A0606C290BC9CDA3` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK, instalado e validado no POCO X7 Pro |
+| `build/SchoolDaysHQ-android-arm64-dist-test.apk` | `me.hirameki.kotonoha.schooldays.dist` | `15.748.704 B` | `FF9FEE9EBA699A9C7037645F742B7E028B33C5E421EBC6E929CCB1BFC5F84617` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK (test-signed), instalado e validado no POCO X7 Pro |

@@ -31,7 +31,9 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#endif
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/mobile/AndroidDisplay.hpp>
@@ -4040,7 +4042,7 @@ void Runtime::renderScreen(Kotonoha::RendererRef renderer, float scale) {
   if (currentState == Kotonoha::GameState::Gameplay && gameScene &&
       !panelOpen() && !exitTransition.Active())
     gameScene->renderMenuBar(renderer);
-#if defined(__ANDROID__) || defined(ANDROID)
+#if (defined(__ANDROID__) || defined(ANDROID)) && !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (currentState == Kotonoha::GameState::Gameplay && !modal() &&
       !frontendTransition.Active(SDL_GetTicks()) &&
       !transportFade.InputLocked() && !exitTransition.Active()) {
@@ -4048,9 +4050,9 @@ void Runtime::renderScreen(Kotonoha::RendererRef renderer, float scale) {
     const Kotonoha::UI::Frame frame = Kotonoha::UI::designFrame(
         {std::max(1, static_cast<int>(std::lround(output.x))),
          std::max(1, static_cast<int>(std::lround(output.y)))});
-    // The 800/1280-pixel original top bar owns the TOP edge. Use a visible,
-    // touch-sized native button below the authored choice controls instead
-    // of opening the generic engine menu (not an active School Days scene).
+    // DEV-only QA convenience button below the authored choice controls.
+    // Excluded from Android DIST so player builds match retail Windows chrome
+    // (the retail top MenuBar and system Back key remain active).
     Kotonoha::UI::FrameScope scope(renderer, frame);
     engine->GetUI().button(renderer, {18.0f, 649.0f, 118.0f, 54.0f},
                            "MENU");
@@ -5592,7 +5594,7 @@ bool Runtime::onScreenEvent(Kotonoha::EventRef event) {
   if (transportFade.InputLocked()) return true;
   if (exitTransition.InputLocked()) return true;
   if (systemPanelTransition.InputLocked()) return true;
-#if defined(__ANDROID__) || defined(ANDROID)
+#if (defined(__ANDROID__) || defined(ANDROID)) && !defined(KOTONOHA_DISTRIBUTION_BUILD)
   if (currentState == Kotonoha::GameState::Gameplay && !modal() &&
       !frontendTransition.Active(SDL_GetTicks()) &&
       !transportFade.InputLocked() && !exitTransition.Active() &&

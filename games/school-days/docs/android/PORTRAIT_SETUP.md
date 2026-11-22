@@ -294,3 +294,73 @@ Classifications used: **Confirmed parity** (`Paridade confirmada`), **Adapted & 
 | `build/SchoolDaysHQ-android-arm64-dist-test.apk` | `me.hirameki.kotonoha.schooldays.dist` | `15,748,932 B` | `9F05CC93661219F439E319C8CF8E314B036203492D0E14AAE3D6D3A3B7105EEC` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK (test-signed); awaits user manual HyperOS "Install via USB" tap |
 
 > **Installing & smoke-testing the DIST APK on POCO X7 Pro**: With the phone unlocked, run `adb -s QO5XJZFYDMRWDU6T install build/SchoolDaysHQ-android-arm64-dist-test.apk` and tap **Install** on Xiaomi HyperOS's on-screen prompt (or sideload manually). It installs side-by-side with the DEV package without touching existing DEV saves or settings.
+
+---
+
+## DEV Exclusion Audit on Android DIST
+
+Using **Windows DIST** (`KOTONOHA_DISTRIBUTION_BUILD=ON`, `KOTONOHA_DEV_CONTROL=OFF`, `KOTONOHA_ENABLE_MCP=OFF`, `KOTONOHA_ENABLE_PLAYER_DUBBING=OFF`) as the authoritative reference policy, we performed a full audit across CMake, Gradle, Java, C++, ELF `.so` binaries, and live side-by-side testing (DEV vs DIST) on the POCO X7 Pro (`QO5XJZFYDMRWDU6T`).
+
+### Root Causes Found & Modified Files
+1. **Extra Android `MENU` button (rendering + touch hitbox) compiled into Android DIST** (`games/school-days/src/SchoolDaysRuntime.cpp`, `games/school-days/src/SchoolDaysRuntime.hpp`):
+   - **Root cause**: In `Runtime::renderScreen()` and `Runtime::onScreenEvent()`, the `{18.0f, 649.0f, 118.0f, 54.0f}` `"MENU"` button and its touch hit-test (`openConfig(...)`) were guarded only by `#if defined(__ANDROID__) || defined(ANDROID)`, omitting `!defined(KOTONOHA_DISTRIBUTION_BUILD)`.
+   - **Fix**: Tightened both guards to `#if (defined(__ANDROID__) || defined(ANDROID)) && !defined(KOTONOHA_DISTRIBUTION_BUILD)` and exposed `Runtime::AndroidExtraMenuButtonCompiled` in `SchoolDaysRuntime.hpp`. Preserved `ownsMobileMenuButton() { return true; }` so `Engine.cpp` never re-enables the generic `{16, 16, 76, 36}` engine menu button in DIST; players continue accessing `OPTION`, `SAVE`, `LOAD`, `BACKLOG`, and `TOPMENU` through the retail top `MenuBar` and Android's system Back key (`SDLK_AC_BACK -> SDLK_ESCAPE`).
+2. **Explicit DEV/DIST CMake flags in Gradle** (`buildsystems/android/app/build.gradle`):
+   - **Root cause**: `buildTypes.dist` did not explicitly pass `-DKOTONOHA_DEV_CONTROL=OFF` or `-DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF`, and `buildTypes.debug` relied on defaults for `KOTONOHA_DISTRIBUTION_BUILD`.
+   - **Fix**: Explicitly set `-DKOTONOHA_DISTRIBUTION_BUILD=OFF` on `debug` and `-DKOTONOHA_DISTRIBUTION_BUILD=ON`, `-DKOTONOHA_DEV_CONTROL=OFF`, `-DKOTONOHA_ENABLE_MCP=OFF`, `-DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF`, `-DCMAKE_BUILD_TYPE=Release` on `dist`.
+3. **Unnecessary `DebugOverlay.hpp` include in DIST** (`games/school-days/src/SchoolDaysRuntime.cpp`):
+   - Guarded `#include <Kotonoha/debug/DebugOverlay.hpp>` with `#if !defined(KOTONOHA_DISTRIBUTION_BUILD)`.
+4. **Compile-time contract test** (`games/school-days/tests/SchoolDaysDistDebugAbsenceTest.cpp`):
+   - Added `static_assert(!SchoolDays::Runtime::AndroidExtraMenuButtonCompiled, ...)` ensuring no DIST build compiles the extra `MENU` button.
+5. **Android Launcher (`SchoolDaysSetup.java`, `GameActivity.java`, `BootstrapActivity.java`, `school_days_setup.xml`)**:
+   - Fully audited: zero debug/DEV controls exposed; its 6 tabs (`Display`, `Graphics`, `Audio`, `General`, `Language`, `Game Files`) match Windows DIST policy (no `Advanced` tab, no engine upscaling debug options).
+
+### Comparative DEV vs DIST Matrix (Windows and Android)
+| Feature / Mechanism | Windows DEV | Windows DIST | Android DEV (`me.hirameki.kotonoha.schooldays`) | Android DIST (`me.hirameki.kotonoha.schooldays.dist`) |
+|---|---|---|---|---|
+| `KOTONOHA_DISTRIBUTION_BUILD` | `OFF` | `ON` | `OFF` (explicit in Gradle) | `ON` (explicit in Gradle) |
+| `KOTONOHA_DEV_CONTROL` / `KOTONOHA_ENABLE_MCP` | `OFF` / optional | `OFF` / `OFF` | `OFF` / `OFF` | `OFF` / `OFF` (explicit) |
+| `KOTONOHA_ENABLE_PLAYER_DUBBING` | `OFF` | `OFF` | `OFF` | `OFF` (explicit) |
+| `BuildConfig.IS_DISTRIBUTION_BUILD` / `android:debuggable` | N/A | N/A | `false` / `true` | `true` / absent (non-debuggable) |
+| Extra `MENU` button `{18, 649, 118, 54}` + hitbox | Absent (desktop) | Absent (desktop) | Present (`UI::button` + `openConfig`) | **Compiled out** (visual and hitbox absent) |
+| Generic `Engine::mobileMenuButton` `{16, 16, 76, 36}` | Absent | Absent | Suppressed (`ownsMobileMenuButton=true`) | Suppressed (`ownsMobileMenuButton=true`) |
+| `DebugOverlay` (`F10`) / `FPS` (`F9`) / `Node HUD` (`F8`) | Present | Compiled out | Present (`F10` opens `Kotonoha Debug Applets`) | **Compiled out** (`F8`/`F9`/`F10` no-op; `0` symbols in `.so`) |
+| `MCPServer` / `VoiceDubbingApplet` / `VNBacklog` fallback | Present per flags | Compiled out | `MCPServer=0`; `VoiceDubbing` in engine | **Compiled out** (`0` symbols in `.so`) |
+| DEV CLI flags (`--mcp-port`, `--dump-ktrf`, `--ktrf`, `--node`, `--log`) | Present | Compiled out | Not exposed | **Compiled out** (unregistered in CLI parser) |
+| Retail `MenuBar` (`SAVE`, `LOAD`, `BACKLOG`, `OPTION`, `TOPMENU`) | Present | Present | Present | **Verified live on POCO** (top-edge tap) |
+| `OPTION` (`General`, `Sound`, `Display Options`), `BACKLOG`, `SAVE`/`LOAD`, Android Back | Present | Present | Present | **Verified live on POCO** |
+| Save isolation (`SaveFile000.DAT`, `GlobalFlag.DAT`, `settings.json`) | Dedicated dir | Dedicated dir | `/Android/data/...schooldays/files/` untouched | `/Android/data/...schooldays.dist/files/` isolated |
+
+### Effective Build Flags, ELF `.so` Binary & Disassembly Evidence
+- **Effective `CMakeCache.txt`**:
+  - DEV (`Debug/4t3j1z2r/arm64-v8a`): `CMAKE_BUILD_TYPE=Debug`, `KOTONOHA_DISTRIBUTION_BUILD=OFF`, `KOTONOHA_DEV_CONTROL=OFF`, `KOTONOHA_ENABLE_MCP=OFF`, `KOTONOHA_ENABLE_PLAYER_DUBBING=OFF`.
+  - DIST (`Release/4t736a4f/arm64-v8a`): `CMAKE_BUILD_TYPE=Release`, `KOTONOHA_DISTRIBUTION_BUILD=ON`, `KOTONOHA_DEV_CONTROL=OFF`, `KOTONOHA_ENABLE_MCP=OFF`, `KOTONOHA_ENABLE_PLAYER_DUBBING=OFF`.
+- **`BuildConfig` & `AndroidManifest.xml` (`aapt2 dump xmltree`)**:
+  - DEV: `DEBUG=true`, `IS_DISTRIBUTION_BUILD=false`, `VERSION_NAME=0.1.0`, `android:debuggable=true`.
+  - DIST: `DEBUG=false`, `IS_DISTRIBUTION_BUILD=true`, `VERSION_NAME=0.1.0-dist`, no `android:debuggable`.
+- **Dynamic symbol audit (`llvm-nm -D -C`) on packaged APKs**:
+  - DEV: `libSchoolDays.so` (`4,533,568 B`), `libkotonoha_engine.so` (`35,628,472 B`) — `DebugOverlay=39` (`libkotonoha_engine.so`) + `1` (`libSchoolDays.so`), `VoiceDubbingApplet=45`, `Engine::GetUI()` present.
+  - DIST: `libSchoolDays.so` (`2,325,600 B`), `libkotonoha_engine.so` (`21,887,480 B`) — **`DebugOverlay=0`, `MCPServer=0`, `VoiceDubbingApplet=0`, `Engine::GetUI()=0`**; `'Kotonoha Debug Applets'`, `'--dump-ktrf'`, `'--mcp-port'` strings absent. *(Transparent note: shared internal error strings identical to Windows DIST in `SchoolDaysAssets.cpp:475` and `SchoolDaysKtrfGameplayBridge.cpp:676` remain unreachable in DIST because neither `--ktrf` CLI registration nor `debugJumpToNode` callers exist.)*
+- **Machine-code disassembly proof (`llvm-objdump -d`) on unstripped `libSchoolDays.so`**:
+  - DEV (`Debug/4t3j1z2r`): `SchoolDays::Runtime::renderScreen` contains `bl` calls to `Kotonoha::Engine::GetUI()` and `Kotonoha::UI::button(...)`; `onScreenEvent` contains a `bl` call to `SchoolDays::Runtime::openConfig(...)`.
+  - DIST (`Release/4t736a4f`): `renderScreen` has **`0` calls** to `UI::button`/`GetUI`; `onScreenEvent` has **`0` calls** to `openConfig`.
+
+### Live Hardware Verification (POCO X7 Pro, `QO5XJZFYDMRWDU6T`) & Windows Regressions
+- **Android DEV installed & verified (`me.hirameki.kotonoha.schooldays`)**: Launcher `0.1.0`, unlocked `TITLE` (reading its own `GlobalFlag.DAT`), and `KEYCODE_F10` opens `Kotonoha Debug Applets [F10]`.
+- **Android DIST installed & verified (`me.hirameki.kotonoha.schooldays.dist`)**:
+  - Launcher `0.1.0-dist` detects `Português (Brasil) (GPK)` via SAF without touching DEV data.
+  - Episode 1 gameplay displays with zero extra `MENU` button and active PT-BR subtitles.
+  - Direct tap on the former `MENU` coordinates (`400, 1145` on `2712×1220`): no-op (no invisible hit-test area).
+  - `F10` (`140`), `F9` (`139`), and `F8` (`138`) on `TITLE` and during gameplay: zero overlays or HUDs opened.
+  - Retail `MenuBar` opens via top-edge tap; `OPTION` (`General Options`, `Sound Options`, `SOMCON/Display Options`), Android Back dismissal (`KEYCODE_BACK`), full 16:9 `BACKLOG`, isolated `SAVE` screen, and `TOPMENU` (`Return to Title Screen?`) all visually verified.
+  - Storage isolation verified: DEV's `SaveFile000.DAT` (`1,210 B`) and `SaveFile000.DAT.kotonoha-lxh.v1` (`243 B`) remained 100% untouched.
+- **Windows Regressions**:
+  - `python tools/ValidateBuildMetadata.py`: PASS (`13 CMake games; 22 existing Xcode schemes`).
+  - **Windows DEV Release** (`build/school-days-l4-two-dll-staticmd`): clean build; `ctest` (`CommandLine`, `Presentation`, `Launcher`, `ImGuiTheme`, `SchoolDays`): **63 / 63 passed (100%)**.
+  - **Windows DIST Release** (temporary isolated `-DKOTONOHA_DISTRIBUTION_BUILD=ON -DKOTONOHA_DEV_CONTROL=OFF -DKOTONOHA_ENABLE_MCP=OFF` build, removed after testing): clean build; `ctest`: **6 / 6 passed (100%)**, including **`SchoolDays.DistDebugAbsence`** with the new `AndroidExtraMenuButtonCompiled` assertion.
+
+### Final Android ARM64 Artifacts (Post DEV/DIST Audit)
+| Artifact | Package ID | Size | SHA-256 | Verification |
+|---|---|---|---|---|
+| `build/SchoolDaysHQ-android-arm64-dev.apk` | `me.hirameki.kotonoha.schooldays` | `33,325,423 B` | `BBF97018E60FEAE455F934B3C3905C55021AA82652DA4F52A0606C290BC9CDA3` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK, installed & verified on POCO X7 Pro |
+| `build/SchoolDaysHQ-android-arm64-dist-test.apk` | `me.hirameki.kotonoha.schooldays.dist` | `15,748,704 B` | `FF9FEE9EBA699A9C7037645F742B7E028B33C5E421EBC6E929CCB1BFC5F84617` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK (test-signed), installed & verified on POCO X7 Pro |
