@@ -1340,6 +1340,32 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
     }
 
+    // cselbtn is a selectable text rectangle rendered by the shared GL
+    // accelerated VN UI, never by SDL_ttf. It is independent of the dialogue
+    // window so *customsel can position choices anywhere on screen.
+    for (const auto &btn : vm_.activeButtons()) {
+      if (btn.kind != ButtonDef::Kind::TextBtn || btn.text.empty())
+        continue;
+      const bool hovered = vm_.hoveredButtonId() == btn.id;
+      const std::uint32_t color =
+          hovered ? vm_.selectHoverColor() : vm_.selectIdleColor();
+      auto &fontUi = pickFont(false);
+      const std::string text = impl_->translateLine(btn.text);
+      const float textSize = static_cast<float>(
+          std::max(1, vm_.windowSpec().fontH));
+      if (vm_.windowSpec().shadow) {
+        fontUi.textSized(renderer, text,
+                         static_cast<float>(btn.x + 1),
+                         static_cast<float>(btn.y + 1),
+                         static_cast<float>(std::max(1, btn.w)), textSize,
+                         SDL_Color{0, 0, 0, 255});
+      }
+      fontUi.textSized(renderer, text, static_cast<float>(btn.x),
+                       static_cast<float>(btn.y),
+                       static_cast<float>(std::max(1, btn.w)), textSize,
+                       rgb24ToSdl(color, 255));
+    }
+
     // 6. Text Window Layer (`setwindow3` backdrop + proportional glyphs +
     // live Kotonoha translation override + `select` options + wait cursor)
     if (vm_.isTextWindowVisible()) {
