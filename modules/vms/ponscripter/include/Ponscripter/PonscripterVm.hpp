@@ -273,6 +273,12 @@ private:
   std::size_t totalPageChars_ = 0;
   double typewriterAccumMs_ = 0.0;
   std::vector<std::string> backlog_;
+  // Script-level text callbacks are invoked as gosubs and return to the
+  // original script cursor. A pending pretext index avoids re-entry loops.
+  std::string pretextGosubLabel_;
+  std::string textGosubLabel_;
+  std::size_t pendingPretextPc_ = ScriptBuffer::npos;
+  bool textGosubPagePending_ = false;
   std::array<CursorSpec, 2> cursors_;
   std::array<TaggedImageSpec, 4> lookbackButtons_;
   std::size_t currentSectionId_ = 0;
