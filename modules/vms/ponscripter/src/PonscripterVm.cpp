@@ -300,6 +300,18 @@ void PonscripterVm::captureCallArguments(LineLexer &lexer,
       std::string aliasValue;
       arg.isString = vars_.findStrAlias(identifier, aliasValue);
     }
+    // Retain the original variable identity separately from its value.
+    // getparam i%N / s%N requests the caller's reference id, not its value.
+    if (first == '%' || first == '$') {
+      LineLexer source = lexer;
+      const int id = first == '%' ? source.parseVarRef()
+                                  : source.parseStrVarRef();
+      source.skipWhitespace();
+      if (id >= 0 && (source.eof() || source.peek() == ',')) {
+        arg.sourceVariable = id;
+        arg.sourceIsString = (first == '$');
+      }
+    }
     const std::size_t before = lexer.position();
     if (first == '*')
       arg.text = lexer.parseLabelTarget();
