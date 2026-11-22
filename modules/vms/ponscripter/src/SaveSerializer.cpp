@@ -137,6 +137,28 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
   out << "BG\t" << escapeLine(data.bg.rawTag) << '\n';
   out << "HIDESPR\t" << (data.allSpritesHidden ? 1 : 0) << '\t'
       << (data.allSprites2Hidden ? 1 : 0) << '\n';
+  out << "MANUAL\t" << (data.manualFrameVisible ? 1 : 0) << '\n';
+  auto writeDrawOps = [&](char bucket, const std::vector<ManualDrawOp> &ops) {
+    for (const auto &op : ops) {
+      out << "MANUALOP\t" << bucket << '\t'
+          << static_cast<int>(op.kind) << '\t' << op.colorRgb << '\t'
+          << op.x << '\t' << op.y << '\t' << op.width << '\t' << op.height
+          << '\t' << op.srcX << '\t' << op.srcY << '\t' << op.srcW
+          << '\t' << op.srcH << '\t' << op.cell << '\t' << op.alpha
+          << '\t' << op.scaleX << '\t' << op.scaleY << '\t' << op.rotation
+          << '\t' << op.transformA << '\t' << op.transformB
+          << '\t' << op.transformC << '\t' << op.transformD
+          << '\t' << (op.affine ? 1 : 0)
+          << '\t' << static_cast<int>(op.spec.trans)
+          << '\t' << op.spec.fontWidth << '\t' << op.spec.fontHeight
+          << '\t' << op.spec.color << '\t'
+          << escapeLine(op.spec.rawTag) << '\t'
+          << escapeLine(op.spec.text) << '\t'
+          << escapeLine(op.text) << '\n';
+    }
+  };
+  writeDrawOps('D', data.manualDraftOps);
+  writeDrawOps('V', data.manualDisplayOps);
   for (int i = 0; i < 3; ++i) {
     if (data.standing[i].loaded) {
       out << "STAND\t" << i << '\t' << data.standing[i].x << '\t'
@@ -323,6 +345,40 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       ls >> first >> second;
       outData.allSpritesHidden = first != 0;
       outData.allSprites2Hidden = second != 0;
+    } else if (kind == "MANUAL") {
+      int shown = 0;
+      ls >> shown;
+      outData.manualFrameVisible = shown != 0;
+    } else if (kind == "MANUALOP") {
+      char bucket = '\0';
+      int kindValue = -1, affine = 0, trans = 0;
+      ManualDrawOp op;
+      ls >> bucket >> kindValue >> op.colorRgb >> op.x >> op.y
+         >> op.width >> op.height >> op.srcX >> op.srcY >> op.srcW
+         >> op.srcH >> op.cell >> op.alpha >> op.scaleX >> op.scaleY
+         >> op.rotation >> op.transformA >> op.transformB
+         >> op.transformC >> op.transformD >> affine >> trans
+         >> op.spec.fontWidth >> op.spec.fontHeight >> op.spec.color;
+      if (!ls || kindValue < 0 ||
+          kindValue > static_cast<int>(ManualDrawOp::Kind::Blit))
+        continue;
+      op.kind = static_cast<ManualDrawOp::Kind>(kindValue);
+      op.affine = affine != 0;
+      if (ls.peek() == '\t')
+        ls.get();
+      std::string raw, spriteText, text;
+      std::getline(ls, raw, '\t');
+      std::getline(ls, spriteText, '\t');
+      std::getline(ls, text);
+      op.spec = parseTaggedString(unescapeLine(raw), TransMode::Copy);
+      if (op.spec.rawTag.empty())
+        op.spec.trans = static_cast<TransMode>(trans);
+      op.spec.text = unescapeLine(spriteText);
+      op.text = unescapeLine(text);
+      auto *dest = bucket == 'D' ? &outData.manualDraftOps :
+                   bucket == 'V' ? &outData.manualDisplayOps : nullptr;
+      if (dest && dest->size() < 4096)
+        dest->push_back(std::move(op));
     } else if (kind == "STALPHA") {
       int index = 0, alpha = 255;
       ls >> index >> alpha;
