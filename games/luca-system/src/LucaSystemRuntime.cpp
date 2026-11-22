@@ -3,7 +3,6 @@
 // clean-room REA + Rizin analysis of AIR.exe (.rdata opcode/chapter tables) and
 // exhaustive audit of all 31 .PAK archives.
 #include <LucaSystem/AirGallery.hpp>
-#include <LucaSystem/BitmapFont.hpp>
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/DebugCatalog.hpp>
 #include <LucaSystem/DialogueFlow.hpp>
@@ -320,9 +319,7 @@ public:
   enum class Control { Menu, Skip, Auto, Voice };
 
 private:
-  static constexpr const char *fontAtlasId_ = "ゴシック27";
   Kotonoha::Providers::LucaSystemAssets &assets_;
-  std::optional<BitmapFont> font_;
   std::array<CzImage, 5> frames_;
   CzImage fallbackStrip_;
   CzImage cursor_;
@@ -330,7 +327,6 @@ private:
   Kotonoha::TexturePtr fallbackStripTexture_;
   Kotonoha::TexturePtr cursorTexture_;
   int windowType_ = 0;
-  bool layoutBitmap_ = false;
   std::function<void(Control)> onControl_;
   bool skipOn_ = false, autoOn_ = false, voiceAvailable_ = false;
   int hoverControl_ = -1;
@@ -353,30 +349,6 @@ private:
       ui.text(renderer, icons[i], box.x + 3, box.y + 3, 28, ink);
       ui.text(renderer, labels[i], box.x + 33, box.y + 4, box.w - 33, ink);
     }
-  }
-
-  std::optional<float> bitmapWidth(std::string_view text) const {
-    float width = 0;
-    if (font_ && engine.GetSettings().vnFontPath.empty() &&
-        font_->forEachGlyph(text,
-                            [&](const auto &glyph) { width += glyph.advance; }))
-      return width;
-    return std::nullopt;
-  }
-
-  SDL_Texture *bitmapTexture(Kotonoha::RendererRef renderer) {
-    try {
-      auto &atlas = assets_.texture(renderer, fontAtlasId_);
-      float w = 0, h = 0;
-      if (SDL_GetTextureSize(&atlas, &w, &h) && font_->fitsAtlas(w, h))
-        return &atlas;
-      font_.reset();
-    } catch (const std::exception &e) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "LucaSystem: dialogue font unavailable: %s", e.what());
-      font_.reset();
-    }
-    return nullptr;
   }
 
   static CzImage tryReadCz(const Kotonoha::Providers::LucaSystemAssets &assets,
@@ -507,12 +479,8 @@ protected:
     const SDL_Color color = settings.vnTextColorOverride
                                 ? settings.vnSpeakerColor
                                 : SDL_Color{255, 238, 175, 255};
-    if (const auto width = bitmapWidth(speakerName); width && *width <= 850) {
-      if (auto *atlas = bitmapTexture(renderer)) {
-        font_->render(renderer, *atlas, speakerName, 188, 516, color);
-        return;
-      }
-    }
+    // SDL_ttf draws directly at the active pixel density, not through the
+    // image upscaler or the original 27px bitmap atlas.
     engine.GetVNUI().text(renderer, speakerName, 188, 516, 900, color);
   }
 
@@ -528,22 +496,15 @@ protected:
       clip = intersection;
     }
     SDL_SetRenderClipRect(&renderer, &clip);
-    auto *atlas = bitmapWidth(fullDialogue) ? bitmapTexture(renderer) : nullptr;
     auto &ui = engine.GetVNUI();
     if (!layoutValid_ || layoutSource_ != fullDialogue ||
-        layoutBitmap_ != (atlas != nullptr) ||
         layoutDensity_ != ui.pixelDensity() || layoutUiId_ != ui.instanceId()) {
-      const auto measure = [this, atlas, &ui](const std::string &value) {
-        if (atlas) {
-          if (const auto width = bitmapWidth(value))
-            return *width;
-        }
+      const auto measure = [&ui](const std::string &value) {
         return ui.textWidth(value);
       };
       dialogueLayout_ =
           Kotonoha::TextWrapping::layout(fullDialogue, measure, 898);
       layoutSource_ = fullDialogue;
-      layoutBitmap_ = atlas != nullptr;
       layoutDensity_ = ui.pixelDensity();
       layoutUiId_ = ui.instanceId();
       layoutValid_ = true;
@@ -557,13 +518,8 @@ protected:
                                 : SDL_Color{255, 255, 255, 255};
     for (const auto &line : lines) {
       const SDL_Color shadow{15, 21, 32, 220};
-      if (atlas) {
-        font_->render(renderer, *atlas, line, 190, y + 2, shadow);
-        font_->render(renderer, *atlas, line, 188, y, color);
-      } else {
-        ui.text(renderer, line, 190, y + 2, 898, shadow);
-        ui.text(renderer, line, 188, y, 898, color);
-      }
+      ui.text(renderer, line, 190, y + 2, 898, shadow);
+      ui.text(renderer, line, 188, y, 898, color);
       y += 32;
     }
     SDL_SetRenderClipRect(&renderer, clipped ? &previousClip : nullptr);
@@ -577,16 +533,7 @@ public:
                  tryReadCz(assets, "MWIN2"), tryReadCz(assets, "MWIN3"),
                  tryReadCz(assets, "MWIN4")}},
         fallbackStrip_(tryReadCz(assets, "MWIN1280_0")),
-        cursor_(tryReadCz(assets, "MWIN_CURSOR")) {
-    try {
-      if (assets.contains("info27") && assets.contains(fontAtlasId_))
-        font_.emplace(assets.read("info27"));
-    } catch (const std::exception &e) {
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "LucaSystem: dialogue font metrics unavailable: %s",
-                  e.what());
-    }
-  }
+        cursor_(tryReadCz(assets, "MWIN_CURSOR")) {}
 };
 
 class AirBacklog final : public Kotonoha::VNBacklog {
