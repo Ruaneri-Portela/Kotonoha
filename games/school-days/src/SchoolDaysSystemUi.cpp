@@ -867,7 +867,7 @@ bool SchoolDaysSystemUi::OpenConfig(
     if (!ResolveSchoolDaysOverlayFile(pageBaseLogical, nullptr)) {
       const auto displayBase = ResolveSchoolDaysAssetPath(
           assetsRoot.c_str(),
-          SchoolDaysConfigMenuRenderPlan::BaseRelativePath(
+          SchoolDaysConfigMenuModel::BaseRelativePath(
               SchoolDaysConfigMenuModel::Page::Display));
       if (displayBase.present && !displayBase.collision) {
         configDisplayTabBaseTexture_ =
