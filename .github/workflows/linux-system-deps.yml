@@ -58,3 +58,8 @@ jobs:
           grep -q '^KOTONOHA_IMGUI_PROVIDER_RESOLVED:INTERNAL=SUBMODULES' build-system/CMakeCache.txt
       - name: Compile Example using system SDL and pinned ImGui
         run: cmake --build build-system --target Kotonoha --parallel 2
+      - name: Compile and run Filesystem V2 regression tests
+        run: |
+          cmake --build build-system --target KotonohaFilesystemV2Tests --parallel 2
+          ctest --test-dir build-system -R '^Kotonoha\\.FilesystemV2
+ --output-on-failure
