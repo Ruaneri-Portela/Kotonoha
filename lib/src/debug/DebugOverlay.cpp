@@ -11,6 +11,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <Kotonoha/core/BuildVersion.hpp>
@@ -827,7 +828,7 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
 
 namespace {
 // The original bytes are retained so changing the encoding never rereads or
-// mutates the AssetProvider. SDL_iconv uses the linked platform's converters.
+// mutates the AssetProvider. All conversions use the shared codec.
 constexpr const char *kTextEncodings[] = {"Auto (BOM / UTF-8)",
                                           "UTF-8",
                                           "Shift-JIS / CP932",
@@ -915,16 +916,16 @@ void DebugOverlay::decodeAssetText() {
     return;
   const char *data =
       reinterpret_cast<const char *>(textAssetBytes.data() + skip);
-  char *decoded = SDL_iconv_string("UTF-8", encoding, data, remaining);
-  if (!decoded) {
+  try {
+    textAssetContent = ConvertEncoding(std::string_view(data, remaining),
+                                      encoding, "UTF-8");
+  } catch (const std::exception &e) {
     textAssetError =
-        std::string("Cannot decode with ") + encoding + ": " + SDL_GetError();
+        std::string("Cannot decode with ") + encoding + ": " + e.what();
     return;
   }
   // ImGui's text editor expects NUL-terminated UTF-8. The raw file remains
   // untouched; replace embedded NULs only in the displayed representation.
-  textAssetContent.assign(decoded);
-  SDL_free(decoded);
   std::replace(textAssetContent.begin(), textAssetContent.end(), '\0', ' ');
 }
 
