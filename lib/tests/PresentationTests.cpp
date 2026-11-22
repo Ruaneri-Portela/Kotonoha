@@ -443,7 +443,7 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   std::filesystem::create_directories(originalDirectory / "nested");
   const auto originalPath = originalDirectory / "nested/80005.ass";
   const auto otherOriginal = originalDirectory / "80006.ass";
-  const auto upperOriginal = originalDirectory / "nested/80007.ASS";
+  const auto upperOriginal = originalDirectory / "nested/80009.ASS";
   writeTextFileAtomically(originalPath.string(), script);
   writeTextFileAtomically(otherOriginal.string(), script);
   writeTextFileAtomically(upperOriginal.string(), script);
@@ -452,7 +452,7 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   require(
       forced.activePath() == originalPath,
       "Before dumping, automatic recursive detection loads the original ASS");
-  runtime.node = "80007";
+  runtime.node = "80009";
   forced.updateForActiveNode();
   require(forced.activePath() == upperOriginal,
           "Case-insensitive .ASS extension and filename lookup succeeds");
