@@ -1520,10 +1520,12 @@ SDL_FPoint SnowSession::DrawText(SDL_Renderer *r, const std::string &text,
         font, text.c_str(), 0, {color.r, color.g, color.b, 255});
     if (!surface)
       return {0, 0};
+    Kotonoha::MarkTTFTextRaster(*surface);
     SDL_Texture *tex = SDL_CreateTextureFromSurface(r, surface);
     SDL_DestroySurface(surface);
     if (!tex)
       return {0, 0};
+    Kotonoha::MarkTTFTextRaster(*tex);
     SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
     found = texts_.emplace(key, tex).first;
   }

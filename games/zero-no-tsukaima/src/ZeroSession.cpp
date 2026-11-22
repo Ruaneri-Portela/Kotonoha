@@ -5,6 +5,7 @@
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
@@ -436,10 +437,12 @@ SDL_FPoint ZeroSession::DrawText(SDL_Renderer *r, const std::string &text,
         font, text.c_str(), 0, {color.r, color.g, color.b, 255});
     if (!surf)
       return {0, 0};
+    Kotonoha::MarkTTFTextRaster(*surf);
     SDL_Texture *tex = SDL_CreateTextureFromSurface(r, surf);
     SDL_DestroySurface(surf);
     if (!tex)
       return {0, 0};
+    Kotonoha::MarkTTFTextRaster(*tex);
     SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
     found = texts_.emplace(key, tex).first;
   }

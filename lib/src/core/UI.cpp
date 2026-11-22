@@ -1,5 +1,6 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <Kotonoha/localization/Translation.hpp>
 
 #include <algorithm>
@@ -183,10 +184,10 @@ float UI::textSized(RendererRef renderer, const std::string &original, float x,
       SurfacePtr surface{TTF_RenderText_Blended_Wrapped(
           font.get(), value.c_str(), value.size(), {255, 255, 255, 255},
           pixels)};
-      if (!surface)
+      if (!surface || !MarkTTFTextRaster(*surface))
         throw std::runtime_error(SDL_GetError());
       entry.texture.reset(SDL_CreateTextureFromSurface(&renderer, surface.get()));
-      if (!entry.texture)
+      if (!entry.texture || !MarkTTFTextRaster(*entry.texture))
         throw std::runtime_error(SDL_GetError());
       entry.width = static_cast<float>(surface->w) / raster;
       entry.height = static_cast<float>(surface->h) / raster;
