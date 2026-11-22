@@ -601,12 +601,16 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 
   const bool hasDialogue =
       isNsbActive() ? !impl_->nsbVm->dialogueSystem().fullText().empty() : true;
+  // Engine UI components are authored in the 1280x720 design space. Steins;Gate
+  // renders at 1024x576, so they must go through the design-space frame instead
+  // of being drawn directly in native canvas coordinates (which overflows the
+  // right/bottom edges on non-1280x720 viewports).
   if (impl_->textBox && !impl_->choiceActive && hasDialogue) {
-    impl_->textBox->render(renderer, scale);
+    renderScene(*impl_->textBox, renderer, scale);
   }
 
   if (impl_->choiceActive && impl_->choiceScene) {
-    impl_->choiceScene->render(renderer, scale);
+    renderScene(*impl_->choiceScene, renderer, scale);
   }
 }
 
@@ -620,7 +624,9 @@ bool N2Runtime::onEvent(Kotonoha::EventRef event) {
     return Runtime::onEvent(event);
 
   if (impl_->choiceActive && impl_->choiceScene) {
-    if (impl_->choiceScene->onEvent(event))
+    // ChoiceQuestionScene draws in design space; map pointer coordinates the
+    // same way renderScene() maps its pixels.
+    if (dispatchEvent(*impl_->choiceScene, event))
       return true;
   }
 
