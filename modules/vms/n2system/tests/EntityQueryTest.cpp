@@ -160,6 +160,17 @@ int main() {
               !scene.findEntity("reused/child"),
           "Duplicate Create* must atomically replace old scene subtree");
   matches(scene, "@stale", {}, "Replacement must clear the old alias");
+
+  scene.clear();
+  auto *first = scene.createEntity("first");
+  require(first && first->creationOrder == 1,
+          "Scene reset must also reset insertion ordering");
+  scene.createEntity("second");
+  matches(scene, "*", {"first", "second"},
+          "Entity queries must preserve insertion rather than hash order");
+  scene.createEntity("first");
+  matches(scene, "*", {"second", "first"},
+          "Replacing an entity moves the new instance to the end");
   std::cout << "NitroSharp entity-query parity regressions passed\n";
   return 0;
 }
