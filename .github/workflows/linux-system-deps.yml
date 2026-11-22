@@ -61,5 +61,4 @@ jobs:
       - name: Compile and run Filesystem V2 regression tests
         run: |
           cmake --build build-system --target KotonohaFilesystemV2Tests --parallel 2
-          ctest --test-dir build-system -R '^Kotonoha\\.FilesystemV2
- --output-on-failure
+          ctest --test-dir build-system -R FilesystemV2 --output-on-failure
