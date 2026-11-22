@@ -885,7 +885,10 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                    20, 640.0f, 326.0f, SDL_Color{85, 42, 58, 255}, true, false);
     }
   } else if (!impl.hasVnxUi || impl.nativeTitleUi) {
-    draw(impl.titlePicture, true);
+    // Do not inject the compatibility title backdrop behind an authentic
+    // source-created menu: the TJS Layer tree owns the entire title scene.
+    if (!impl.nativeTitleUi)
+      draw(impl.titlePicture, true);
     if (impl.startupExecution.subsetCompleted) {
       for (auto &layer : impl.startupExecution.layers) {
         if (!layer.visible || layer.opacity == 0)
