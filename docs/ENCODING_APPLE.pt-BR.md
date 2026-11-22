@@ -49,17 +49,26 @@ interpretar os bytes silenciosamente como UTF-8.
 
 ## Build e validação
 
-O `Common.xcconfig` não liga mais `-liconv`. Os `xcconfig` do
-macOS e iOS adicionam `-framework CoreFoundation`, e o CMake linka o
-framework diretamente em `KotonohaEngine`. O manifest vcpkg não solicita
-`libiconv` nos triplets macOS/iOS; RealLive não exige `Iconv::Iconv`
-nessas plataformas.
+O `Common.xcconfig` **mantém `-liconv`** para todos os targets Xcode
+que compartilham essa configuração. Isso é necessário porque bibliotecas
+terceirizadas ainda podem referenciar `_iconv_open`, `_iconv` e
+`_iconv_close`. A conversão de textos da engine continua independente
+de iconv, via `Encoding.mm` / CoreFoundation.
+
+Os `xcconfig` macOS e iOS também adicionam `-framework CoreFoundation`,
+e o CMake linka esse framework em `KotonohaEngine`. A biblioteca `libiconv`
+do SDK Apple pode ser usada pelo linker sem adicioná-la como pacote vcpkg.
+A ausência de `libiconv` no manifesto Apple **não** significa que os
+aplicativos completos sejam independentes de iconv.
 
 A suíte `.github/workflows/apple-encoding-no-iconv.yml` executa em
 macOS com C++17, compila `Encoding.cpp` e `Encoding.mm` juntos,
 verifica os símbolos com `nm`, verifica os frameworks vinculados com
 `otool` e executa `lib/tests/EncodingAppleTests.cpp`, sem SDL,
-fontes ou assets comerciais.
+fontes ou assets comerciais. Verifica separadamente que o SDK macOS
+disponibiliza `_iconv_close` em um executável ligado com `-liconv`.
+A checagem sem `iconv` aplica-se **somente ao executável isolado de
+testes de encoding**, e não aos binários finais dos jogos.
 
 Isso valida a **camada de conversão de textos da engine**, não garante
 automaticamente que bibliotecas terceirizadas ou o conjunto completo
