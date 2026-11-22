@@ -2120,6 +2120,9 @@ struct LucaSystemRuntime::Impl {
     stagedSlots.clear();
     visibleSlots.clear();
     outgoingSlots.clear();
+    drawDurationMs = 0;
+    drawWipeMode = false;
+    pruneObjectCaches();
     sceneLayers.reset();
     originalTitle = true;
     titleShown = true;
@@ -2489,6 +2492,11 @@ struct LucaSystemRuntime::Impl {
     stagedSlots[makeKey(group, slot)] = layer;
   }
 
+  void pruneObjectCaches() {
+    pruneAirObjectCaches(stagedSlots, visibleSlots, outgoingSlots,
+                         objectImages, objectTextures);
+  }
+
   void syncLegacySceneLayers() {
     std::vector<SceneObject> flat;
     flat.reserve(visibleSlots.size());
@@ -2544,6 +2552,7 @@ struct LucaSystemRuntime::Impl {
     }
     if (unlocked)
       saveGlobalState();
+    pruneObjectCaches();
   }
 
   std::pair<float, float> computeShakeOffset(uint64_t now,
@@ -3706,6 +3715,7 @@ void LucaSystemRuntime::shutdown() {
   impl.menu = nullptr;
   impl.titleBackgroundTexture.reset();
   impl.objectTextures.clear();
+  impl.objectImages.clear();
   impl.failedImageRetryAt.clear();
   impl.backgroundTexture.reset();
   impl.splashLogos.clear();
@@ -3818,6 +3828,15 @@ void LucaSystemRuntime::update() {
     impl.advanceSplash();
   if (paused)
     return;
+  if (impl.drawDurationMs > 0 &&
+      impl.storyNow() >= impl.drawStartTick + impl.drawDurationMs) {
+    // Keep both compositions until the transition's final frame has
+    // elapsed. Once it is complete, the outgoing snapshot is disposable.
+    impl.outgoingSlots.clear();
+    impl.drawDurationMs = 0;
+    impl.drawWipeMode = false;
+    impl.pruneObjectCaches();
+  }
   impl.tickBgmFade();
   if (impl.moviePlayer && !impl.movieFinished) {
     if (impl.engine)
@@ -4509,6 +4528,9 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
     }
   }
   impl.stagedSlots = impl.visibleSlots;
+  impl.drawDurationMs = 0;
+  impl.drawWipeMode = false;
+  impl.pruneObjectCaches();
   impl.syncLegacySceneLayers();
 
   if (auto bgmIt = impl.numericVars.find(99001);

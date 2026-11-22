@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 namespace LucaSystem {
 
@@ -85,6 +86,40 @@ inline int wipeSplitX(int width, float progress) {
   const float fraction =
       std::isfinite(progress) ? std::clamp(progress, 0.0f, 1.0f) : 0.0f;
   return std::clamp(static_cast<int>(std::lround(width * fraction)), 0, width);
+}
+
+
+// Keep only images referenced by the staged scene, the committed scene or
+// the outgoing snapshot of a still-running transition. This releases both
+// decoded RGBA buffers (CPU) and SDL textures (GPU) as chapters advance.
+template <class Slots, class Images, class Textures>
+std::size_t pruneAirObjectCaches(const Slots &staged, const Slots &visible,
+                                 const Slots &outgoing, Images &images,
+                                 Textures &textures) {
+  std::unordered_set<std::uint32_t> retained;
+  retained.reserve(staged.size() + visible.size() + outgoing.size());
+  const auto mark = [&](const Slots &slots) {
+    for (const auto &[key, layer] : slots) {
+      (void)key;
+      if (layer.assetId != 0)
+        retained.insert(layer.assetId);
+    }
+  };
+  mark(staged);
+  mark(visible);
+  mark(outgoing);
+  const auto removeUnused = [&](auto &cache) {
+    for (auto it = cache.begin(); it != cache.end();) {
+      if (!retained.count(it->first))
+        it = cache.erase(it);
+      else
+        ++it;
+    }
+  };
+  const auto before = images.size() + textures.size();
+  removeUnused(images);
+  removeUnused(textures);
+  return before - images.size() - textures.size();
 }
 
 // Lightweight scene state: original image asset IDs plus screen positions,
