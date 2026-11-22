@@ -60,6 +60,9 @@ struct SlotSaveData {
   std::vector<ManualDrawOp> manualDisplayOps;
   ActiveEffect activeEffect;
   int quakeAmplitude = 0;
+  bool monochromeEnabled = false;
+  std::uint32_t monochromeColor = 0xFFFFFFu;
+  int negativeMode = 0;
   WindowSpec window;
   bool textWindowVisible = false;
   std::vector<TextSpan> pageSpans;
