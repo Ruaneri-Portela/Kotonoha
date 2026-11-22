@@ -67,8 +67,8 @@ int main() {
     equal(ConvertEncoding(nul, "UTF-8", "UTF-8"), nul,
           "Embedded NUL must not truncate binary text");
 
-    const std::string le16 = "\x41\x00\x3d\xd8\x42\xde";
-    const std::string be16 = "\x00\x41\xd8\x3d\xde\x42";
+    const std::string le16("\x41\x00\x3d\xd8\x42\xde", 6);
+    const std::string be16("\x00\x41\xd8\x3d\xde\x42", 6);
     equal(ConvertEncoding(le16, "UTF-16LE"), u8"A🙂",
           "UTF-16LE supplementary decode");
     equal(ConvertEncoding(be16, "UTF-16BE"), u8"A🙂",
@@ -78,8 +78,8 @@ int main() {
     equal(ConvertEncoding(u8"A🙂", "UTF-8", "UTF-16BE"), be16,
           "UTF-16BE byte output without BOM");
 
-    const std::string le32 = "\x41\x00\x00\x00\x42\xf6\x01\x00";
-    const std::string be32 = "\x00\x00\x00\x41\x00\x01\xf6\x42";
+    const std::string le32("\x41\x00\x00\x00\x42\xf6\x01\x00", 8);
+    const std::string be32("\x00\x00\x00\x41\x00\x01\xf6\x42", 8);
     equal(ConvertEncoding(le32, "UTF-32LE"), u8"A🙂",
           "UTF-32LE BOM-asset decode");
     equal(ConvertEncoding(be32, "UTF-32BE"), u8"A🙂",
