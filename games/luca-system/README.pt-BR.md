@@ -98,6 +98,10 @@ a fala atual com **Voice** quando há uma gravação.
 As escolhas da história usam a arte original centralizada de `SELWIN_s` e
 `SELWIN` com os comandos de escolha do Kotonoha. O indicador no canto
 superior esquerdo usa a data de `#6003` e a arte original `jul_` e `aug_`.
+Os dias 16–31 selecionam `jul_`; os dias 1–15 selecionam `aug_`. O indicador
+é desenhado uma vez após a composição da cena, de modo que um slot de fundo
+ausente ou substituído não o esconda. Preenchimentos virtuais preto e branco
+continuam ocultando o indicador.
 
 ## Menus do AIR
 
@@ -239,6 +243,13 @@ transparentes antigas sejam desenhadas duas vezes e fiquem artificialmente
 escuras/opacas durante a transição. Ao término, a composição inteira é
 desenhada uma única vez. O teste `LucaSystem.SceneLayers` verifica a
 fronteira entre objetos antigos e novos.
+
+As expressões de personagens CZ4 do AIR podem ser recortes pequenos da mesma
+tela do retrato. Quando `IMAGELOAD` substitui um slot de personagem por um
+recorte menor da mesma tela, o retrato completo anterior permanece por baixo
+e apenas a expressão muda. `INIT` e retratos completos posteriores removem
+a expressão anterior. A verificação usa o par comercial `cgmz20` / `cgmz21p`
+e o fluxo `seen190`.
 
 Ainda não há garantia de correspondência exata às máscaras, camadas,
 ordens e curvas do AIR original.

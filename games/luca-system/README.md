@@ -94,6 +94,9 @@ current line with **Voice** when it has a recording.
 Story choices use the original centered `SELWIN_s` and `SELWIN` art with
 Kotonoha's choice input. The date badge in the upper-left corner uses the
 story date from `#6003` and the original `jul_` and `aug_` art.
+Days 16–31 select `jul_`; days 1–15 select `aug_`. The badge is drawn once
+after scene composition, so a missing or replaced background slot cannot
+hide it. Virtual black and white fills still conceal it.
 
 ## AIR menus
 
@@ -226,6 +229,12 @@ existing objects while incoming drawing processes only newly committed
 images. Previously visible translucent sprites are no longer drawn twice.
 Once the transition completes, the visible composition is rendered once.
 `LucaSystem.SceneLayers` checks the outgoing/incoming boundary.
+
+AIR's CZ4 character expressions can be small crops of the same portrait
+canvas. When `IMAGELOAD` replaces a character slot with a smaller matching
+crop, the previous full portrait remains underneath and only the expression
+changes. `INIT` and later full portraits clear the old expression. This is
+checked against the retail `cgmz20` / `cgmz21p` pair and the `seen190` flow.
 
 Original AIR transition masks, object ordering and timing still require
 retail-data validation.

@@ -47,6 +47,19 @@ int main() {
               close(LucaSystem::croppedSpriteOrigin(400, 120, 30, 0.5f, 10, 5),
                     370),
           "scaled CZ4 character crop and anchor retain canvas coordinates");
+    check(LucaSystem::isCharacterFragment(384, 640, 1280, 720,
+                                          200, 144, 1280, 720) &&
+              !LucaSystem::isCharacterFragment(384, 640, 1280, 720,
+                                               380, 620, 1280, 720) &&
+              !LucaSystem::isCharacterFragment(384, 640, 1280, 720,
+                                               200, 144, 640, 480),
+          "AIR expression crop overlays a matching portrait canvas");
+    check(LucaSystem::airCalendarBadgeName(16) == "jul_16" &&
+              LucaSystem::airCalendarBadgeName(31) == "jul_31" &&
+              LucaSystem::airCalendarBadgeName(1) == "aug_01" &&
+              LucaSystem::airCalendarBadgeName(15) == "aug_15" &&
+              LucaSystem::airCalendarBadgeName(0).empty(),
+          "AIR calendar follows the July-to-August script day cycle");
     // Wipe transitions now carry a dedicated mode instead of silently
     // reusing alpha blending. A renderer can clip incoming objects to the
     // reveal edge without distorting their original image coordinates.

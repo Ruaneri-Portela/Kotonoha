@@ -1,28 +1,86 @@
-<?xml version='1.0' encoding='utf-8'?>
-<Scheme LastUpgradeVersion="1600" version="1.3">
-   <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES">
-      <BuildActionEntries>
-         <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES">
-            <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="796C0DD621F679511C5D8BA9" BuildableName="DokiDoki.app" BlueprintName="DokiDoki-macOS" ReferencedContainer="container:Kotonoha.xcodeproj" />
-         </BuildActionEntry>
-      </BuildActionEntries>
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "1600"
+   version = "1.7">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "YES">
       <PreActions>
-         <ExecutionAction ActionType="Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
-            <ActionContent title="Prepare vcpkg and CPython" scriptText="set -eu&#10;if [ -n &quot;${PLATFORM_NAME:-}&quot; ]; then&#10;  /usr/bin/env python3 &quot;${SRCROOT}/../../tools/PrepareApple.py&quot; --platform macos --sdk &quot;${PLATFORM_NAME}&quot;&#10;else&#10;  /usr/bin/env python3 &quot;${SRCROOT}/../../tools/PrepareApple.py&quot; --platform macos&#10;fi">
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Prepare vcpkg and CPython"
+               scriptText = "set -eu&#10;if [ -n &quot;${PLATFORM_NAME:-}&quot; ]; then&#10;  /usr/bin/env python3 &quot;${SRCROOT}/../../tools/PrepareApple.py&quot; --platform macos --sdk &quot;${PLATFORM_NAME}&quot;&#10;else&#10;  /usr/bin/env python3 &quot;${SRCROOT}/../../tools/PrepareApple.py&quot; --platform macos&#10;fi">
                <EnvironmentBuildable>
-                  <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="796C0DD621F679511C5D8BA9" BuildableName="DokiDoki.app" BlueprintName="DokiDoki-macOS" ReferencedContainer="container:Kotonoha.xcodeproj" />
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "796C0DD621F679511C5D8BA9"
+                     BuildableName = "DokiDoki.app"
+                     BlueprintName = "DokiDoki-macOS"
+                     ReferencedContainer = "container:Kotonoha.xcodeproj">
+                  </BuildableReference>
                </EnvironmentBuildable>
             </ActionContent>
          </ExecutionAction>
       </PreActions>
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "796C0DD621F679511C5D8BA9"
+               BuildableName = "DokiDoki.app"
+               BlueprintName = "DokiDoki-macOS"
+               ReferencedContainer = "container:Kotonoha.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
    </BuildAction>
-   <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES" />
-   <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="NO" debugServiceExtension="internal" allowLocationSimulation="YES">
-      <BuildableProductRunnable runnableDebuggingMode="0">
-         <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="796C0DD621F679511C5D8BA9" BuildableName="DokiDoki.app" BlueprintName="DokiDoki-macOS" ReferencedContainer="container:Kotonoha.xcodeproj" />
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      shouldUseLaunchSchemeArgsEnv = "YES">
+      <Testables>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "NO"
+      debugServiceExtension = "internal"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "796C0DD621F679511C5D8BA9"
+            BuildableName = "DokiDoki.app"
+            BlueprintName = "DokiDoki-macOS"
+            ReferencedContainer = "container:Kotonoha.xcodeproj">
+         </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
-   <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugDocumentVersioning="NO" />
-   <AnalyzeAction buildConfiguration="Debug" />
-   <ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES" />
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "NO">
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
 </Scheme>

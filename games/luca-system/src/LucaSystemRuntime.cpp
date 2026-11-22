@@ -2386,6 +2386,41 @@ struct LucaSystemRuntime::Impl {
     }
   }
 
+  // Script slot (2, n) holds a complete portrait. Small CZ4 expression
+  // fragments replace one another above it in the private (3, n) layer.
+  // INIT may have cleared the staged portrait, so inspect the visible one.
+  void stageImage(uint8_t group, uint8_t slot, uint32_t assetId, float x,
+                  float y) {
+    loadObjectImage(assetId);
+    SlottedLayer layer;
+    layer.group = group;
+    layer.slot = slot;
+    layer.assetId = assetId;
+    layer.posX = x;
+    layer.posY = y;
+    if (group == 2) {
+      const auto key = makeKey(group, slot);
+      const auto shown = visibleSlots.find(key);
+      const auto nextImage = objectImages.find(assetId);
+      if (shown != visibleSlots.end() && nextImage != objectImages.end()) {
+        const auto baseImage = objectImages.find(shown->second.assetId);
+        if (baseImage != objectImages.end() &&
+            isCharacterFragment(
+                baseImage->second.width, baseImage->second.height,
+                baseImage->second.canvasWidth, baseImage->second.canvasHeight,
+                nextImage->second.width, nextImage->second.height,
+                nextImage->second.canvasWidth, nextImage->second.canvasHeight)) {
+          stagedSlots[key] = shown->second;
+          layer.group = 3;
+          stagedSlots[makeKey(3, slot)] = layer;
+          return;
+        }
+      }
+      stagedSlots.erase(makeKey(3, slot));
+    }
+    stagedSlots[makeKey(group, slot)] = layer;
+  }
+
   void syncLegacySceneLayers() {
     std::vector<SceneObject> flat;
     flat.reserve(visibleSlots.size());
@@ -2411,6 +2446,14 @@ struct LucaSystemRuntime::Impl {
   }
 
   void commitStagedSlots(uint64_t now, uint64_t durationMs, bool wipe) {
+    // A cleared portrait also clears its private expression fragment.
+    for (auto it = stagedSlots.begin(); it != stagedSlots.end();) {
+      if (it->second.group == 3 &&
+          !stagedSlots.count(makeKey(2, it->second.slot)))
+        it = stagedSlots.erase(it);
+      else
+        ++it;
+    }
     if (durationMs > 0) {
       outgoingSlots = visibleSlots;
       drawStartTick = now;
@@ -2540,7 +2583,7 @@ struct LucaSystemRuntime::Impl {
     // Upscalers are intended for flat background art; running an image
     // enhancement filter on transparent CHARCG portraits may distort edges,
     // hair strands and the sprite's original alpha silhouette.
-    const bool characterSprite = slot.group == 2;
+    const bool characterSprite = slot.group == 2 || slot.group == 3;
     if (slot.rotation != 0.0f) {
       if (characterSprite)
         SDL_RenderTextureRotated(&renderer, tex.get(), sourcePtr, &dst,
@@ -2556,36 +2599,28 @@ struct LucaSystemRuntime::Impl {
         Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), sourcePtr, &dst);
     }
 
-    // The date icon is part of the background composition, not a topmost
-    // HUD element. It fades/wipes with layer (0,0), disappears on virtual
-    // black/white fills and stays beneath later scene dimming overlays.
-    if (slot.group == 0 && slot.slot == 0 && slot.assetId != 65000 &&
-        slot.assetId != 65001) {
-      const int day = getVar(6003);
-      if (day >= 1 && day <= 31) {
-        std::string badge = day >= 16 ? "jul_" : "aug_";
-        if (day < 10)
-          badge += '0';
-        badge += std::to_string(day);
-        try {
-          if (assets->contains(badge)) {
-            auto &calendar = assets->texture(renderer, badge);
-            Uint8 originalAlpha = 255;
-            if (SDL_GetTextureAlphaMod(&calendar, &originalAlpha)) {
-              SDL_SetTextureAlphaMod(
-                  &calendar,
-                  static_cast<Uint8>(std::lround(alpha * originalAlpha)));
-              const SDL_FRect badgePosition{0, 0, 128, 133.33f};
-              Kotonoha::RenderUpscaledTexture(
-                  &renderer, &calendar, nullptr, &badgePosition);
-              SDL_SetTextureAlphaMod(&calendar, originalAlpha);
-            }
-          }
-        } catch (const std::exception &error) {
-          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "LucaSystem: calendar composition: %s", error.what());
-        }
-      }
+  }
+
+  void renderCalendarBadge(Kotonoha::RendererRef renderer) {
+    const std::string badge = airCalendarBadgeName(getVar(6003));
+    if (badge.empty())
+      return;
+    const auto background = visibleSlots.find(makeKey(0, 0));
+    if (background != visibleSlots.end() &&
+        (background->second.assetId == 65000 ||
+         background->second.assetId == 65001))
+      return;
+    try {
+      if (!assets->contains(badge))
+        return;
+      auto &calendar = assets->texture(renderer, badge);
+      // CZ4 stores a 192x200 crop at x=8 in its 200x200 canvas.
+      const SDL_FRect position{5.33f, 0.0f, 128.0f, 133.33f};
+      Kotonoha::RenderUpscaledTexture(&renderer, &calendar, nullptr,
+                                       &position);
+    } catch (const std::exception &error) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "LucaSystem: calendar composition: %s", error.what());
     }
   }
 
@@ -2765,28 +2800,14 @@ struct LucaSystemRuntime::Impl {
           const uint8_t group = ins.paramBytes[0];
           const uint8_t slot = ins.paramBytes[1];
           const uint16_t assetId = paramU16(ins, 2);
-          loadObjectImage(assetId);
-          SlottedLayer layer;
-          layer.group = group;
-          layer.slot = slot;
-          layer.assetId = assetId;
-          layer.posX = 0.0f;
-          layer.posY = 0.0f;
-          stagedSlots[makeKey(group, slot)] = layer;
+          stageImage(group, slot, assetId, 0.0f, 0.0f);
         } else if (ins.paramBytes.size() >= 14) {
           const uint8_t group = ins.paramBytes[0];
           const uint8_t slot = ins.paramBytes[1];
           const uint16_t assetId = paramU16(ins, 2);
           const float posX = paramFloat(ins, 6);
           const float posY = paramFloat(ins, 10);
-          loadObjectImage(assetId);
-          SlottedLayer layer;
-          layer.group = group;
-          layer.slot = slot;
-          layer.assetId = assetId;
-          layer.posX = posX;
-          layer.posY = posY;
-          stagedSlots[makeKey(group, slot)] = layer;
+          stageImage(group, slot, assetId, posX, posY);
         } else if (ins.paramBytes.size() >= 6) {
           const uint32_t id = paramU16(ins, 0);
           const float x = float(int16_t(paramU16(ins, 2)));
@@ -2812,10 +2833,18 @@ struct LucaSystemRuntime::Impl {
           auto it = stagedSlots.find(makeKey(group, slot));
           if (it != stagedSlots.end()) {
             it->second.alpha = alpha;
+            if (group == 2) {
+              auto fragment = stagedSlots.find(makeKey(3, slot));
+              if (fragment != stagedSlots.end())
+                fragment->second.alpha = alpha;
+            }
           } else if (group == 0 && slot >= 1) {
             auto charIt = stagedSlots.find(makeKey(2, slot - 1));
             if (charIt != stagedSlots.end())
               charIt->second.alpha = alpha;
+            auto fragment = stagedSlots.find(makeKey(3, slot - 1));
+            if (fragment != stagedSlots.end())
+              fragment->second.alpha = alpha;
           }
         }
         break;
@@ -2878,6 +2907,14 @@ struct LucaSystemRuntime::Impl {
           auto vit = visibleSlots.find(makeKey(group, slot));
           if (vit != visibleSlots.end())
             applyMove(vit->second);
+          if (group == 2) {
+            auto fragment = stagedSlots.find(makeKey(3, slot));
+            if (fragment != stagedSlots.end())
+              applyMove(fragment->second);
+            fragment = visibleSlots.find(makeKey(3, slot));
+            if (fragment != visibleSlots.end())
+              applyMove(fragment->second);
+          }
           if (dur > 0)
             lastDrawDeadline = std::max(lastDrawDeadline, now + dur);
         }
@@ -3826,6 +3863,8 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     for (const auto &[key, slot] : impl.visibleSlots)
       impl.renderSlottedLayer(renderer, slot, now, 1.0f);
   }
+
+  impl.renderCalendarBadge(renderer);
 
   if (impl.flashDurationMs > 0 &&
       now < impl.flashStartTick + impl.flashDurationMs) {
