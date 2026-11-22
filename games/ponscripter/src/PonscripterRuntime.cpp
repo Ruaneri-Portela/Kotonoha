@@ -1210,6 +1210,7 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       SDL_RenderClear(&renderer);
       if (!bg.imagePath.empty()) {
         if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, bg)) {
+          SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
           SDL_SetTextureAlphaMod(tex, 255);
           SDL_FRect dst{0.0f, 0.0f, viewW, viewH};
           SDL_RenderTexture(&renderer, tex, nullptr, &dst);
@@ -1225,6 +1226,7 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (!st.loaded || st.spec.imagePath.empty())
         continue;
       if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, st.spec)) {
+        SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
         float tw = 0.0f, th = 0.0f;
         SDL_GetTextureSize(tex, &tw, &th);
         const auto *processed = impl_->getProcessedImage(st.spec);
@@ -1388,6 +1390,7 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (!win.backdrop.imagePath.empty()) {
         if (SDL_Texture *tex =
                 impl_->getOrLoadTexture(renderer, win.backdrop)) {
+          SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
           float tw = 0.0f, th = 0.0f;
           SDL_GetTextureSize(tex, &tw, &th);
           const auto *processed = impl_->getProcessedImage(win.backdrop);
