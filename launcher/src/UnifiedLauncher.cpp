@@ -368,6 +368,14 @@ EngineLibraryRegistry::EngineLibraryRegistry() {
                    "me.hirameki.kotonoha.dokidokiliteratureclub",
                    {}});
   registerLibrary({EngineKind::RenPy,
+                   "renpy",
+                   "Ren'Py (compiled games)",
+                   "doki_doki_literature_club",
+                   "DokiDoki",
+                   "--ddlc",
+                   "me.hirameki.kotonoha.renpy",
+                   {}});
+  registerLibrary({EngineKind::RenPy,
                    "katawa-shoujo",
                    "Katawa Shoujo (Ren'Py)",
                    "doki_doki_literature_club",
@@ -533,6 +541,15 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
             *prefix,
             *prefix + "script-a1-monday.rpyc",
             true};
+  }
+
+  // Preserve DDLC's game identity and VNX overlay pairing. Other Ren'Py
+  // packages use the neutral renpy identity returned by detectEngine().
+  if (const auto prefix = findRequiredFilesPrefix(
+          source, {"scripts.rpa", "images.rpa"}, {"game/", ""})) {
+    return {EngineKind::RenPy, "doki-doki-literature-club",
+            "Doki Doki Literature Club! (Ren'Py)", *prefix,
+            *prefix + "scripts.rpa", true};
   }
 
   // 2. Check Summer Radish Vacation 1 & 2, Lost M, and Imouto de Ikou!
