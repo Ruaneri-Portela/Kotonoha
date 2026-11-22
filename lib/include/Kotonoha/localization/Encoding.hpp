@@ -5,8 +5,9 @@
 
 namespace Kotonoha {
 
-// Converts text between encodings using iconv; invalid input sequences become
-// '?'. Throws std::runtime_error when the conversion is unavailable.
+// Converts text between encodings. Apple uses CoreFoundation via Encoding.mm
+// without iconv; other platforms use their native/SDL converter. Invalid
+// byte sequences become '?' where recovery is possible. Unknown codecs throw.
 std::string ConvertEncoding(std::string_view text, const char *from,
                             const char *to = "UTF-8");
 

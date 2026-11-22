@@ -127,3 +127,23 @@ ctest --test-dir build -R '^RealLive.Input$' --output-on-failure
 
 Game-specific controller layouts and original touch hitboxes still require
 macOS and iOS hardware testing with the relevant RealLive editions.
+
+## Read progression and BGM state in saves
+
+RealLive presentation saves now use version 7. Each slot retains dialogue
+read-history, current page identity and the script-requested BGM pause state.
+Loading an earlier slot merges visited pages with the current session's read
+history, so already-read text does not become unread after a rollback. Files
+written by versions 1 through 6 remain readable; they have no stored read
+history, so those visits cannot be reconstructed from a legacy save.
+
+Synthetic tests (no game installation required):
+
+```sh
+cmake --build build --target RealLiveAudioFadeTests RealLiveReadProgressTests
+ctest --test-dir build -R 'RealLive.(AudioFade|ReadProgress)' --output-on-failure
+```
+
+Read history is persisted **inside a save slot**, not yet in a separate
+cross-save, title-wide progression database. CG gallery unlocks and original
+menu parity require additional per-game reference data and testing.

@@ -705,15 +705,7 @@ struct Presentation final : Kotonoha::SchoolDaysScenePresentation {
 const char *Text(const char *text) { return text ? text : ""; }
 
 std::u16string Utf16(const std::string &text) {
-  if (text.empty())
-    return {};
-  char *converted =
-      SDL_iconv_string("UTF-16LE", "UTF-8", text.c_str(), text.size() + 1);
-  if (!converted)
-    return {};
-  std::u16string result(reinterpret_cast<const char16_t *>(converted));
-  SDL_free(converted);
-  return result;
+  return Kotonoha::Utf8ToUtf16(text);
 }
 
 struct TtfFont {

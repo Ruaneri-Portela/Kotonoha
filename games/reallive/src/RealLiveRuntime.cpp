@@ -1,5 +1,6 @@
 #include "RealLiveRuntime.hpp"
 #include "RealLiveAudioFade.hpp"
+#include "RealLiveReadProgress.hpp"
 #include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -4808,7 +4809,7 @@ void RealLiveRuntime::saveGame(const std::string &path) {
     throw std::runtime_error(
         "Salve durante uma fala, após terminar a transição.");
   std::ostringstream out;
-  out << "REALLIVE-PRESENTATION-6\n"
+  out << "REALLIVE-PRESENTATION-7\n"
       << std::quoted(i.vm.snapshot()) << '\n'
       << std::quoted(i.dialogue) << ' ' << std::quoted(i.speakerName) << ' '
       << i.pauseKind << '\n';
@@ -4890,6 +4891,8 @@ void RealLiveRuntime::saveGame(const std::string &path) {
   for (const auto &[id, pixels] : i.dc)
     out << id << ' ' << indices.at(i.dcImage(id).get()) << '\n';
   out << i.mouseCursorNumber << '\n';
+  writeReadProgress(out, ReadProgress{
+      i.bgmScriptPaused, i.currentPage, i.readPages});
   VNSave save;
   save.nodeId = i.vm.scenario();
   save.gameData = out.str();
@@ -4911,6 +4914,7 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   double position;
   int pauseKind;
   int restoredMouseCursor = i.assets->settings().integer("MOUSE_CURSOR", -1);
+  ReadProgress restoredProgress;
   if (!(in >> version >> std::quoted(state) >> std::quoted(dialogue) >>
         std::quoted(speaker) >> pauseKind >> std::quoted(music) >> loop >>
         end >> loopStart >> position) ||
@@ -4919,7 +4923,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
        version != "REALLIVE-PRESENTATION-3" &&
        version != "REALLIVE-PRESENTATION-4" &&
        version != "REALLIVE-PRESENTATION-5" &&
-       version != "REALLIVE-PRESENTATION-6") ||
+       version != "REALLIVE-PRESENTATION-6" &&
+       version != "REALLIVE-PRESENTATION-7") ||
       (pauseKind != 17 && pauseKind != 205) || position < 0 ||
       !std::isfinite(position))
     invalid();
@@ -4955,12 +4960,14 @@ void RealLiveRuntime::loadGame(const std::string &path) {
       if ((version == "REALLIVE-PRESENTATION-3" ||
            version == "REALLIVE-PRESENTATION-4" ||
            (version == "REALLIVE-PRESENTATION-5" ||
-            version == "REALLIVE-PRESENTATION-6")) &&
+            version == "REALLIVE-PRESENTATION-6" ||
+             version == "REALLIVE-PRESENTATION-7")) &&
           (!(in >> o.frameMs >> o.animationElapsed) || o.frameMs < 0))
         invalid();
       if (version == "REALLIVE-PRESENTATION-4" ||
           version == "REALLIVE-PRESENTATION-5" ||
-          version == "REALLIVE-PRESENTATION-6")
+          version == "REALLIVE-PRESENTATION-6" ||
+          version == "REALLIVE-PRESENTATION-7")
         for (auto &adjustment : o.adjustments)
           if (!(in >> adjustment.x >> adjustment.y))
             invalid();
@@ -4996,14 +5003,16 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   std::map<int, std::shared_ptr<DCImage>> dcImages;
   in >> std::ws;
   if ((version == "REALLIVE-PRESENTATION-5" ||
-       version == "REALLIVE-PRESENTATION-6") &&
+       version == "REALLIVE-PRESENTATION-6" ||
+       version == "REALLIVE-PRESENTATION-7") &&
       in.eof())
     invalid();
   if (!in.eof()) {
     if (!(in >> std::quoted(saveName)))
       invalid();
     if (version == "REALLIVE-PRESENTATION-5" ||
-        version == "REALLIVE-PRESENTATION-6") {
+        version == "REALLIVE-PRESENTATION-6" ||
+        version == "REALLIVE-PRESENTATION-7") {
       size_t count;
       if (!(in >> count) || count > 65536)
         invalid();
@@ -5065,8 +5074,17 @@ void RealLiveRuntime::loadGame(const std::string &path) {
           invalid();
       }
     }
-    if (version == "REALLIVE-PRESENTATION-6" && !(in >> restoredMouseCursor))
+    if ((version == "REALLIVE-PRESENTATION-6" ||
+         version == "REALLIVE-PRESENTATION-7") &&
+        !(in >> restoredMouseCursor))
       invalid();
+    if (version == "REALLIVE-PRESENTATION-7") {
+      try {
+        restoredProgress = readReadProgress(in);
+      } catch (const std::exception &) {
+        invalid();
+      }
+    }
     in >> std::ws;
     if (!in.eof())
       invalid();
@@ -5076,7 +5094,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.vm.restore(state);
   if (version != "REALLIVE-PRESENTATION-4" &&
       version != "REALLIVE-PRESENTATION-5" &&
-      version != "REALLIVE-PRESENTATION-6") {
+      version != "REALLIVE-PRESENTATION-6" &&
+       version != "REALLIVE-PRESENTATION-7") {
     const auto restoreAdjustments = [&](std::map<int, Object> &objects) {
       for (auto &[id, o] : objects)
         for (size_t slot = 0; slot < o.adjustments.size(); ++slot) {
@@ -5111,6 +5130,18 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.saveName = std::move(saveName);
   i.pause = true;
   i.pauseKind = pauseKind;
+  if (version == "REALLIVE-PRESENTATION-7") {
+    // Loading an older slot cannot undo pages read during this session.
+    i.readPages.insert(restoredProgress.readPages.begin(),
+                       restoredProgress.readPages.end());
+    i.currentPage = restoredProgress.currentPage;
+  } else {
+    i.currentPage = {i.vm.scenario(), i.vm.index()};
+  }
+  i.currentRead = i.readPages.count(i.currentPage) != 0;
+  if (!i.currentRead)
+    i.skipMode = false;
+  i.autoDeadline = 0;
   i.deadline = 0;
   i.error.clear();
   i.transitionOld.reset();
@@ -5149,6 +5180,9 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.fadeStops = fadeStops;
   i.audioTick = SDL_GetTicks();
   i.bgm.SetGain(gain);
+  i.bgmScriptPaused = version == "REALLIVE-PRESENTATION-7" &&
+                      restoredProgress.bgmScriptPaused;
+  i.bgm.SetPaused(isStoryPaused() || i.bgmScriptPaused);
   i.selectMouseCursor(restoredMouseCursor);
 }
 
