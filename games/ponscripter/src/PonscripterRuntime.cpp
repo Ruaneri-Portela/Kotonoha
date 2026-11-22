@@ -384,6 +384,9 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   // Transition snapshot textures (800x600)
   Kotonoha::TexturePtr outgoingTarget;
   Kotonoha::TexturePtr incomingTarget;
+  Kotonoha::TexturePtr postProcessTexture;
+  int postProcessWidth = 0;
+  int postProcessHeight = 0;
   bool captureOutgoingBeforeNextEffect = false;
   bool hasValidOutgoingSnapshot = false;
 
@@ -998,6 +1001,8 @@ void PonscripterRuntime::shutdown() {
     font.reset();
   impl_->outgoingTarget.reset();
   impl_->incomingTarget.reset();
+  impl_->postProcessTexture.reset();
+  impl_->postProcessWidth = impl_->postProcessHeight = 0;
   impl_->imageCache.clear();
   if (impl_->assets)
     impl_->assets->clearCache();
@@ -1703,6 +1708,72 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
 
   if (shaking)
     SDL_SetRenderViewport(&renderer, &originalViewport);
+
+  // SDL3's high-level renderer cannot bind a custom fragment shader. Process
+  // only when these optional legacy effects are enabled; text and sprites are
+  // still rasterized by the accelerated UI before this readback. Native modal
+  // overlays draw later and intentionally do not inherit game color effects.
+  if (vm_.isMonochromeEnabled() || vm_.negativeMode() != 0) {
+    Kotonoha::SurfacePtr readback(SDL_RenderReadPixels(&renderer, nullptr));
+    if (readback) {
+      Kotonoha::SurfacePtr rgba(
+          SDL_ConvertSurface(readback.get(), SDL_PIXELFORMAT_RGBA32));
+      if (rgba && rgba->w > 0 && rgba->h > 0 &&
+          SDL_LockSurface(rgba.get())) {
+        const bool monochrome = vm_.isMonochromeEnabled();
+        const int negative = vm_.negativeMode();
+        const std::uint32_t tint = vm_.monochromeColor();
+        const int tintR = static_cast<int>((tint >> 16) & 0xFFu);
+        const int tintG = static_cast<int>((tint >> 8) & 0xFFu);
+        const int tintB = static_cast<int>(tint & 0xFFu);
+        for (int y = 0; y < rgba->h; ++y) {
+          auto *row = static_cast<std::uint8_t *>(rgba->pixels) +
+                      static_cast<std::size_t>(y) * rgba->pitch;
+          for (int x = 0; x < rgba->w; ++x) {
+            std::uint8_t *pixel = row + static_cast<std::size_t>(x) * 4;
+            int red = pixel[0], green = pixel[1], blue = pixel[2];
+            if (negative == 1) {
+              red = 255 - red;
+              green = 255 - green;
+              blue = 255 - blue;
+            }
+            if (monochrome) {
+              const int luma = (77 * red + 150 * green + 29 * blue + 128) >> 8;
+              red = (luma * tintR + 127) / 255;
+              green = (luma * tintG + 127) / 255;
+              blue = (luma * tintB + 127) / 255;
+            }
+            if (negative == 2) {
+              red = 255 - red;
+              green = 255 - green;
+              blue = 255 - blue;
+            }
+            pixel[0] = static_cast<std::uint8_t>(red);
+            pixel[1] = static_cast<std::uint8_t>(green);
+            pixel[2] = static_cast<std::uint8_t>(blue);
+          }
+        }
+        SDL_UnlockSurface(rgba.get());
+        if (!impl_->postProcessTexture ||
+            impl_->postProcessWidth != rgba->w ||
+            impl_->postProcessHeight != rgba->h) {
+          impl_->postProcessTexture.reset(SDL_CreateTexture(
+              &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
+              rgba->w, rgba->h));
+          impl_->postProcessWidth = rgba->w;
+          impl_->postProcessHeight = rgba->h;
+        }
+        if (impl_->postProcessTexture) {
+          SDL_Texture *texture = impl_->postProcessTexture.get();
+          if (SDL_UpdateTexture(texture, nullptr, rgba->pixels, rgba->pitch)) {
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+            SDL_FRect fill{0.0f, 0.0f, viewW, viewH};
+            SDL_RenderTexture(&renderer, texture, nullptr, &fill);
+          }
+        }
+      }
+    }
+  }
 
   // 7. PONscripter-native modal overlays. Shared menu/backlog components are
   // injected below as PonscripterMenu/PonscripterBacklog overrides.
