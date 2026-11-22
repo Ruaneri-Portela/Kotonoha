@@ -125,6 +125,23 @@ struct AirStageResetTracker {
   }
 };
 
+// If IMAGELOAD cannot decode a resource, leave the previous valid sprite
+// in the upcoming scene. But INIT-cleared slots MUST remain cleared.
+template <class Slots>
+bool keepAirSpriteAfterDecodeFailure(
+    Slots &staged, const Slots &visible, const AirStageResetTracker &clears,
+    std::uint8_t group, std::uint8_t slot) {
+  const auto key = std::uint16_t((std::uint16_t(group) << 8) | slot);
+  if (staged.find(key) != staged.end() ||
+      !clears.allowsVisibleFallback(group, slot))
+    return false;
+  const auto old = visible.find(key);
+  if (old == visible.end())
+    return false;
+  staged.emplace(key, old->second);
+  return true;
+}
+
 // Evaluate motion at a monotonic story-clock instant. Sampling the current
 // position before a second MOVE prevents a visible jump to the old endpoint.
 inline float airMoveOffset(float start, float target, std::uint64_t began,

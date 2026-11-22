@@ -293,6 +293,24 @@ int main() {
     initTracker.reset();
     check(initTracker.allowsVisibleFallback(2, 1),
           "DRAW restores normal inheritance for next sprite staging cycle");
+    struct CachedSlot { std::uint32_t assetId = 0; };
+    std::map<std::uint16_t, CachedSlot> oldScene{{0x0201, {10001}}};
+    std::map<std::uint16_t, CachedSlot> stagedScene;
+    LucaSystem::AirStageResetTracker withoutReset;
+    check(LucaSystem::keepAirSpriteAfterDecodeFailure(
+              stagedScene, oldScene, withoutReset, 2, 1) &&
+              stagedScene.at(0x0201).assetId == 10001,
+          "failed CZ replacement keeps the last valid sprite through DRAW");
+    stagedScene.clear();
+    withoutReset.clearSlot(2, 1);
+    check(!LucaSystem::keepAirSpriteAfterDecodeFailure(
+              stagedScene, oldScene, withoutReset, 2, 1) &&
+              stagedScene.empty(),
+          "failed CZ load cannot undo an explicit INIT clearing the slot");
+    withoutReset.reset();
+    check(!LucaSystem::keepAirSpriteAfterDecodeFailure(
+              stagedScene, oldScene, withoutReset, 0, 0),
+          "failed CZ cannot synthesize a background that never existed");
     // Draw a face fragment directly above its corresponding body instead of
     // above all portraits. An orphan fragment is intentionally not visible.
     std::map<std::uint16_t, int> layered = {

@@ -2463,9 +2463,13 @@ struct LucaSystemRuntime::Impl {
     if (!std::isfinite(x) || !std::isfinite(y))
       return;
     loadObjectImage(assetId);
-    // Invalid/missing CZ never replaces a valid sprite with an invisible one.
-    if (!objectImages.count(assetId))
+    // Failed CZ loads cannot cause the prior valid sprite to disappear
+    // during the next DRAW. An explicit INIT clear still takes precedence.
+    if (!objectImages.count(assetId)) {
+      keepAirSpriteAfterDecodeFailure(stagedSlots, visibleSlots, stageResets,
+                                      group, slot);
       return;
+    }
     SlottedLayer layer;
     layer.group = group;
     layer.slot = slot;
