@@ -17,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace Ponscripter {
@@ -117,6 +118,7 @@ public:
   int mouseY() const { return mouseY_; }
 
   const ActiveEffect &activeEffect() const { return activeEffect_; }
+  std::pair<int, int> quakeOffset() const;
   const EffectDef &windowEffect() const { return windowEffect_; }
 
   // Text & Window State
@@ -248,6 +250,7 @@ private:
   std::unordered_map<int, EffectDef> userEffects_;
   EffectDef windowEffect_{0, 1, 0, ""};
   ActiveEffect activeEffect_;
+  int quakeAmplitude_ = 0;
 
   // Visual layers
   int underlineValue_ = 599;
