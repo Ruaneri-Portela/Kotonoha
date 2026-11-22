@@ -184,6 +184,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.ChannelLevels COMMAND RealLiveChannelLevelsTests)
     set_tests_properties(RealLive.ChannelLevels PROPERTIES LABELS synthetic)
 
+    # Multi-edition RealLive BGM opcode aliases by parameter signature.
+    add_executable(RealLiveBgmCompatTests tests/BgmCompatTest.cpp)
+    target_include_directories(RealLiveBgmCompatTests PRIVATE src)
+    target_compile_features(RealLiveBgmCompatTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.BgmCompat COMMAND RealLiveBgmCompatTests)
+    set_tests_properties(RealLive.BgmCompat PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)

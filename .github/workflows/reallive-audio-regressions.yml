@@ -7,6 +7,8 @@ on:
       - 'games/reallive/src/RealLiveAudioFade.hpp'
       - 'games/reallive/src/RealLiveAudioWait.hpp'
       - 'games/reallive/src/RealLiveChannelLevels.hpp'
+      - 'games/reallive/src/RealLiveBgmCompat.hpp'
+      - 'games/reallive/tests/BgmCompatTest.cpp'
       - 'games/reallive/tests/ChannelLevelsTest.cpp'
       - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
@@ -18,6 +20,8 @@ on:
       - 'games/reallive/src/RealLiveAudioFade.hpp'
       - 'games/reallive/src/RealLiveAudioWait.hpp'
       - 'games/reallive/src/RealLiveChannelLevels.hpp'
+      - 'games/reallive/src/RealLiveBgmCompat.hpp'
+      - 'games/reallive/tests/BgmCompatTest.cpp'
       - 'games/reallive/tests/ChannelLevelsTest.cpp'
       - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
@@ -54,5 +58,12 @@ jobs:
             -o /tmp/reallive-channel-levels-test
       - name: Test fades and independent PCM channel levels
         run: /tmp/reallive-channel-levels-test
+      - name: Compile cross-edition BGM dispatch regression
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/BgmCompatTest.cpp \
+            -o /tmp/reallive-bgm-compat-test
+      - name: Check mixed-version BGM signatures
+        run: /tmp/reallive-bgm-compat-test
       - name: Run volume and fade fixtures
         run: /tmp/reallive-audio-fade-test

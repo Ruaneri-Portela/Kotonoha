@@ -6,6 +6,7 @@
 #include "RealLiveAudioWait.hpp"
 #include "RealLiveNumeric.hpp"
 #include "RealLiveChannelLevels.hpp"
+#include "RealLiveBgmCompat.hpp"
 #include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -2286,6 +2287,28 @@ struct RealLiveRuntime::Impl {
     if (duration <= 0)
       voice.SetGain(voiceLevels.gain(0));
   }
+  void setBgmVolume(int nativeVolume, int duration = 0,
+                    bool stopAtSilence = false) {
+    fadeFrom = bgmGain;
+    fadeTo = nativeBgmToGain(nativeVolume);
+    fadeElapsed = 0;
+    fadeDuration = std::max(0, duration);
+    fadeStops = stopAtSilence && fadeTo == 0.0f;
+    if (fadeDuration == 0) {
+      bgmGain = fadeTo;
+      bgm.SetGain(bgmGain);
+      if (fadeStops) {
+        bgm.Stop();
+        musicID.clear();
+      }
+    }
+  }
+  void stopBgm() {
+    bgm.Stop();
+    fadeDuration = fadeElapsed = 0;
+    bgmScriptPaused = false;
+    musicID.clear();
+  }
   int value(const libreallive::CommandElement &c, int n, int fallback = 0) {
     return n < c.GetParamCount() ? IntegerParameter(vm.machine(), c, n)
                                  : fallback;
@@ -3521,45 +3544,44 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       }
       return true;
     }
-    if (op == 8) {
+    switch (bgmCommandKind(op, c.GetParamCount())) {
+    case BgmCommandKind::Playing:
       machine.set_store_register(bgm.Playing() ? 1 : 0);
       return true;
-    }
-    if (op == 9) {
+    case BgmCommandKind::Status:
+      machine.set_store_register(bgm.Playing()
+                                     ? (bgmScriptPaused ? 2 : 1)
+                                     : 0);
+      return true;
+    case BgmCommandKind::Gain:
       machine.set_store_register(gainToNativeBgm(bgmGain));
       return true;
-    }
-    if (op == 10) {
-      bgmGain = nativeBgmToGain(value(c, 0));
-      fadeDuration = fadeElapsed = 0;
-      fadeFrom = fadeTo = bgmGain;
-      fadeStops = false;
-      bgm.SetGain(bgmGain);
+    case BgmCommandKind::TrackName:
+      Parameter(c, 0).SetStringValue(machine, musicID);
       return true;
-    }
-    if (op == 11) {
-      if (c.GetParamCount() > 0)
-        Parameter(c, 0).SetStringValue(machine, musicID);
-      else
-        machine.set_store_register(musicID.empty() ? 0 : 1);
+    case BgmCommandKind::SetGain:
+      setBgmVolume(value(c, 0), value(c, 1, 0));
       return true;
-    }
-    if (op == 12) {
+    case BgmCommandKind::Pause:
       bgmScriptPaused = true;
       bgm.SetPaused(true);
       return true;
-    }
-    if (op == 13) {
+    case BgmCommandKind::Resume:
       bgmScriptPaused = false;
       bgm.SetPaused(engine->isStoryPaused());
       return true;
-    }
-    if (op == 14) {
-      bgm.Stop();
-      fadeDuration = fadeElapsed = 0;
-      bgmScriptPaused = false;
-      musicID.clear();
+    case BgmCommandKind::Stop:
+      stopBgm();
       return true;
+    case BgmCommandKind::Unmute:
+      setBgmVolume(255, value(c, 0, 0));
+      return true;
+    case BgmCommandKind::Mute:
+      // Native BGM mute silences the stream without terminating its loop.
+      setBgmVolume(0, value(c, 0, 0));
+      return true;
+    case BgmCommandKind::Other:
+      break;
     }
     if (op == 1002) {
       auto name = str(c, 0);
@@ -3608,13 +3630,6 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       }
       if (op == 106 || op == 107)
         wait(fadeDuration);
-      return true;
-    }
-    if (op == 5) {
-      bgm.Stop();
-      fadeDuration = fadeElapsed = 0;
-      bgmScriptPaused = false;
-      musicID.clear();
       return true;
     }
   }

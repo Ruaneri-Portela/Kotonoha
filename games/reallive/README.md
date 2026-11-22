@@ -244,3 +244,15 @@ isolation, mute, exact fade endpoints and very large frame-time jumps.
 The exact command signatures vary between RealLive generations; audio routing
 and channel fades still need comparison with specific games. Voice/PCM gain is
 currently session state, not serialized in the presentation save.
+
+## Cross-edition BGM command variants
+
+The BGM dispatcher now recognizes additional `bgmPlaying`, `bgmStatus`,
+`bgmStop2`, `bgmSetVolume`, `bgmMute` and `bgmUnMute` forms as well as
+previous Kotonoha aliases. Several commands are distinguished by their number
+of parameters: no-argument pause/resume/stop aliases do not consume the
+volume/fade operands of other editions. Muting changes the gain without
+stopping the currently looping music, and timed volume changes continue to
+use the existing normalized PCM fade pipeline. Some older opcode numbers
+remain inherently ambiguous without detecting the game's RealLive version;
+those cannot be claimed to work universally yet.
