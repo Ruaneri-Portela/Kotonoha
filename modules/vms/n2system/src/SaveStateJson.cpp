@@ -10,6 +10,7 @@
 #include <limits>
 #include <map>
 #include <sstream>
+#include <type_traits>
 #include <string>
 #include <string_view>
 #include <utility>
