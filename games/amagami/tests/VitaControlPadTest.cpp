@@ -70,12 +70,6 @@ int main() {
               run(vm, self, "analog", {VmValue::num(9)}).number == 0,
           "Left stick magnitude and unsupported axis");
 
-    // Vita stick channels are signed bytes (-128..127), even when fed by
-    // a synthetic input source with values outside the SDL analog range.
-    bridge.inputFrame(buttons, {{500, -500, 0, 0}});
-    check(run(vm, self, "analog", {VmValue::num(0)}).number == 127 &&
-              run(vm, self, "analog", {VmValue::num(1)}).number == -128,
-          "Vita ControlPad clamps to signed 8-bit analog limits");
     bridge.inputFrame(buttons);
     check(run(vm, self, "trig").number == 0 &&
               run(vm, self, "rapid").number == 0,
@@ -89,6 +83,13 @@ int main() {
           "Auto-repeat is not active on every frame");
     run(vm, self, "resetRapid");
     check(run(vm, self, "rapid").number == 0, "resetRapid clears repeat phase");
+
+    // Vita stick channels are signed bytes (-128..127), even when fed by
+    // a synthetic input source with values outside the SDL analog range.
+    bridge.inputFrame(buttons, {{500, -500, 0, 0}});
+    check(run(vm, self, "analog", {VmValue::num(0)}).number == 127 &&
+              run(vm, self, "analog", {VmValue::num(1)}).number == -128,
+          "Vita ControlPad clamps to signed 8-bit analog limits");
     check(
         run(vm, self, "rumble", {VmValue::num(255), VmValue::num(1)}).object ==
             self.object,
