@@ -132,11 +132,14 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
         << f.bodyStatementIndex << '\n';
   }
   out << "BG\t" << escapeLine(data.bg.rawTag) << '\n';
+  out << "HIDESPR\t" << (data.allSpritesHidden ? 1 : 0) << '\t'
+      << (data.allSprites2Hidden ? 1 : 0) << '\n';
   for (int i = 0; i < 3; ++i) {
     if (data.standing[i].loaded) {
       out << "STAND\t" << i << '\t' << data.standing[i].x << '\t'
           << data.standing[i].y << '\t'
           << escapeLine(data.standing[i].spec.rawTag) << '\n';
+      out << "STALPHA\t" << i << '\t' << data.standing[i].alpha << '\n';
     }
   }
   for (const auto &[id, sp] : data.sprites) {
@@ -144,6 +147,15 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
       out << "SP\t" << id << '\t' << (sp.visible ? 1 : 0) << '\t' << sp.x
           << '\t' << sp.y << '\t' << sp.alpha << '\t' << sp.currentCell << '\t'
           << escapeLine(sp.spec.rawTag) << '\n';
+      if (sp.secondaryLayer)
+        out << "SPLAYER\t" << id << "\t1\n";
+      if (sp.spec.trans == TransMode::String) {
+        out << "SPTEXT\t" << id << '\t' << sp.spec.fontWidth << '\t'
+            << sp.spec.fontHeight << '\t' << sp.spec.fontSpacing << '\t'
+            << sp.spec.color << '\t' << sp.spec.hoverColor << '\t'
+            << (sp.spec.hasHoverColor ? 1 : 0) << '\t'
+            << escapeLine(sp.spec.text) << '\n';
+      }
     }
   }
   out << "WIN\t" << (data.textWindowVisible ? 1 : 0) << '\t'
@@ -296,6 +308,16 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       std::string tag;
       std::getline(ls, tag);
       outData.bg = parseTaggedString(unescapeLine(tag), TransMode::Copy);
+    } else if (kind == "HIDESPR") {
+      int first = 0, second = 0;
+      ls >> first >> second;
+      outData.allSpritesHidden = first != 0;
+      outData.allSprites2Hidden = second != 0;
+    } else if (kind == "STALPHA") {
+      int index = 0, alpha = 255;
+      ls >> index >> alpha;
+      if (index >= 0 && index < 3)
+        outData.standing[index].alpha = std::clamp(alpha, 0, 255);
     } else if (kind == "STAND") {
       int idx = 0, x = 0, y = 0;
       ls >> idx >> x >> y;
@@ -326,6 +348,32 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       sp.currentCell = cell;
       sp.spec = parseTaggedString(unescapeLine(tag), TransMode::Alpha);
       outData.sprites[id] = std::move(sp);
+    } else if (kind == "SPLAYER") {
+      int id = -1, secondary = 0;
+      ls >> id >> secondary;
+      const auto it = outData.sprites.find(id);
+      if (it != outData.sprites.end())
+        it->second.secondaryLayer = secondary != 0;
+    } else if (kind == "SPTEXT") {
+      int id = -1, width = 0, height = 0, spacing = 0, hoverFlag = 0;
+      std::uint32_t color = 0xFFFFFFu, hover = 0xFFFFFFu;
+      ls >> id >> width >> height >> spacing >> color >> hover >> hoverFlag;
+      if (ls.peek() == '\t')
+        ls.get();
+      std::string caption;
+      std::getline(ls, caption);
+      const auto it = outData.sprites.find(id);
+      if (it != outData.sprites.end()) {
+        auto &spec = it->second.spec;
+        spec.trans = TransMode::String;
+        spec.fontWidth = width;
+        spec.fontHeight = height;
+        spec.fontSpacing = spacing;
+        spec.color = color;
+        spec.hoverColor = hover;
+        spec.hasHoverColor = hoverFlag != 0;
+        spec.text = unescapeLine(caption);
+      }
     } else if (kind == "WIN") {
       int vis = 0, bold = 0, shadow = 1;
       ls >> vis >> outData.window.textX >> outData.window.textY >>
