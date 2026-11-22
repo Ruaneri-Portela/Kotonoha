@@ -16,14 +16,19 @@ void equal(const std::string &actual, const std::string &wanted,
   expect(actual == wanted, why);
 }
 void roundTrip(std::string_view bytes, const char *encoding, const char *why) {
-  const auto text = Kotonoha::ConvertEncoding(bytes, encoding, "UTF-8");
-  equal(Kotonoha::ConvertEncoding(text, "UTF-8", encoding),
-        std::string(bytes), why);
+  try {
+    const auto text = Kotonoha::ConvertEncoding(bytes, encoding, "UTF-8");
+    equal(Kotonoha::ConvertEncoding(text, "UTF-8", encoding),
+          std::string(bytes), why);
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string(why) + ": " + e.what());
+  }
 }
 } // namespace
 
 int main() {
   using Kotonoha::ConvertEncoding;
+  const char *stage = "CP932";
   try {
     // Real game content: JIS hiragana, an NEC symbol, Windows CP932 wave dash,
     // half-width Katakana, ASCII. This requires Windows-31J (not plain JIS).
@@ -42,6 +47,7 @@ int main() {
     equal(ConvertEncoding(std::string("a\x81" "!z", 4), "CP932"), "a?!z",
           "Bad CP932 trail does not eat the next ASCII character");
 
+    stage = "Western CP1252/Latin1";
     equal(ConvertEncoding("caf\xe9", "LATIN1"), u8"café",
           "ISO-8859-1/Latin1 decoding");
     roundTrip("caf\xe9", "ISO-8859-1", "Latin1 round trip");
@@ -56,6 +62,7 @@ int main() {
     equal(ConvertEncoding(std::string("a\xff" "z", 3), "utf-8"), "a?z",
           "Malformed UTF-8 cannot corrupt neighbors");
 
+    stage = "UTF-8/UTF-16 scalar";
     const std::string utf8 = u8"A🙂日";
     auto utf16 = Kotonoha::Utf8ToUtf16(utf8);
     expect(utf16 == u"A🙂日", "UTF-8 to native UTF-16 surrogate pairs");
@@ -67,6 +74,7 @@ int main() {
     equal(ConvertEncoding(nul, "UTF-8", "UTF-8"), nul,
           "Embedded NUL must not truncate binary text");
 
+    stage = "UTF-16 binary formats";
     const std::string le16("\x41\x00\x3d\xd8\x42\xde", 6);
     const std::string be16("\x00\x41\xd8\x3d\xde\x42", 6);
     equal(ConvertEncoding(le16, "UTF-16LE"), u8"A🙂",
@@ -78,6 +86,7 @@ int main() {
     equal(ConvertEncoding(u8"A🙂", "UTF-8", "UTF-16BE"), be16,
           "UTF-16BE byte output without BOM");
 
+    stage = "UTF-32 binary formats";
     const std::string le32("\x41\x00\x00\x00\x42\xf6\x01\x00", 8);
     const std::string be32("\x00\x00\x00\x41\x00\x01\xf6\x42", 8);
     equal(ConvertEncoding(le32, "UTF-32LE"), u8"A🙂",
@@ -91,6 +100,7 @@ int main() {
     equal(ConvertEncoding(std::string("\x00\xd8", 2), "UTF-16LE"), "?",
           "Broken UTF-16 surrogate recovered");
 
+    stage = "Debug overlay encodings";
     // The DebugOverlay exposes the following additional encoding families.
     roundTrip("\xc6\xfc\xcb\xdc", "EUC-JP",
               "EUC-JP Japanese text round trip");
@@ -104,6 +114,7 @@ int main() {
     roundTrip("\xf0\xd2\xc9\xd7\xc5\xd4", "KOI8-R",
               "KOI8-R Cyrillic round trip");
 
+    stage = "Invalid names";
     bool rejected = false;
     try { (void)ConvertEncoding("x", "NOT-AN-ENCODING"); }
     catch (const std::exception &) { rejected = true; }
@@ -111,7 +122,8 @@ int main() {
     std::cout << "Apple CoreFoundation text conversions passed without iconv\n";
     return 0;
   } catch (const std::exception &e) {
-    std::cerr << "Apple encoding regression failed: " << e.what() << '\n';
+    std::cerr << "Apple encoding regression failed at " << stage
+              << ": " << e.what() << '\n';
     return 1;
   }
 }
