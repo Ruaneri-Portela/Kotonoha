@@ -170,6 +170,10 @@ if(KOTONOHA_TEST_FFMPEG)
 endif()
 
 # Pure C++17 wrapping test; runs without SDL, a window or game assets.
+add_executable(KotonohaEncodingUtfTests EncodingUtfTests.cpp)
+target_link_libraries(KotonohaEncodingUtfTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.EncodingUtf COMMAND KotonohaEncodingUtfTests)
+
 add_executable(KotonohaTextWrappingStandaloneTests TextWrappingStandalone.cpp)
 target_include_directories(KotonohaTextWrappingStandaloneTests PRIVATE
     "${KOTONOHA_PROJECT_ROOT}/lib/include")
