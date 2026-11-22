@@ -5,6 +5,8 @@ on:
     branches: [dev]
     paths:
       - 'games/reallive/src/RealLiveAudioFade.hpp'
+      - 'games/reallive/src/RealLiveAudioWait.hpp'
+      - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
       - 'games/reallive/tests/AudioFadeTest.cpp'
       - 'games/reallive/CMakeLists.txt'
@@ -12,6 +14,8 @@ on:
   pull_request:
     paths:
       - 'games/reallive/src/RealLiveAudioFade.hpp'
+      - 'games/reallive/src/RealLiveAudioWait.hpp'
+      - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
       - 'games/reallive/tests/AudioFadeTest.cpp'
       - 'games/reallive/CMakeLists.txt'
@@ -32,5 +36,12 @@ jobs:
           ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
             -Igames/reallive/src games/reallive/tests/AudioFadeTest.cpp \
             -o /tmp/reallive-audio-fade-test
+      - name: Compile C++17 cooperative audio-wait regression
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/AudioWaitTest.cpp \
+            -o /tmp/reallive-audio-wait-test
+      - name: Run voice and PCM wait fixtures
+        run: /tmp/reallive-audio-wait-test
       - name: Run volume and fade fixtures
         run: /tmp/reallive-audio-fade-test

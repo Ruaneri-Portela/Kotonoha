@@ -210,3 +210,13 @@ Selection eligibility is tested without game data by
 `RealLive.SelectionRules`; shared menu controls retain enabled-by-default
 behavior. Native button-object selections and remaining specialized selection
 attributes still require edition-specific verification.
+
+## Synchronous voice and PCM waits
+
+`koeWait` and `wavWait` now yield the RealLive script VM while their
+associated audio stream is still playing, instead of returning immediately
+or guessing playback duration from a fixed timer. The native PCM wait follows
+the authored channel ID, and the newer `wavPlayEx` signature can start
+playback and wait in one opcode. These barriers cooperate with story pause,
+ending naturally when sound playback stops; save-load, title reset and shutdown
+clear pending waits. Data-free regression: `RealLive.AudioWait`.

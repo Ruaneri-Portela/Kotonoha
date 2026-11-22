@@ -163,6 +163,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.SelectionRules COMMAND RealLiveSelectionRulesTests)
     set_tests_properties(RealLive.SelectionRules PROPERTIES LABELS synthetic)
 
+    # Cooperative voice/PCM waits pause script execution until playback drains.
+    add_executable(RealLiveAudioWaitTests tests/AudioWaitTest.cpp)
+    target_include_directories(RealLiveAudioWaitTests PRIVATE src)
+    target_compile_features(RealLiveAudioWaitTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.AudioWait COMMAND RealLiveAudioWaitTests)
+    set_tests_properties(RealLive.AudioWait PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)
