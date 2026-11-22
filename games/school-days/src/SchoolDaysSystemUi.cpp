@@ -7,6 +7,7 @@
 #include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
 
+#include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysImageAssetResolver.hpp>
 
 #include <Kotonoha/core/AssetProvider.hpp>
@@ -233,6 +234,14 @@ void SchoolDaysSystemUi::DestroyTextures() {
   if (chipTexture_ != nullptr) {
     SDL_DestroyTexture(chipTexture_);
     chipTexture_ = nullptr;
+  }
+  if (configDisplayTabBaseTexture_ != nullptr) {
+    SDL_DestroyTexture(configDisplayTabBaseTexture_);
+    configDisplayTabBaseTexture_ = nullptr;
+  }
+  if (configDisplayTabChipTexture_ != nullptr) {
+    SDL_DestroyTexture(configDisplayTabChipTexture_);
+    configDisplayTabChipTexture_ = nullptr;
   }
   if (saveLoadTextTexture_ != nullptr) {
     SDL_DestroyTexture(saveLoadTextTexture_);
@@ -843,6 +852,46 @@ bool SchoolDaysSystemUi::OpenConfig(
                SDL_GetError();
     Close();
     return false;
+  }
+  // Retail Option_Def / Option_Sound artwork still labels tab 2 "SOMCON
+  // Options". When those pages come from unmodified retail packs while custom
+  // Display Options artwork is available, composite the authored "Display
+  // Options" tab from Option_Display.png / Option_Display_Chip.png so tab 2
+  // never reverts to "SOMCON Options" on General or Sound pages.
+  if (page == SchoolDaysConfigMenuModel::Page::Def ||
+      page == SchoolDaysConfigMenuModel::Page::Sound) {
+    const std::string pageBaseLogical =
+        SchoolDaysConfigMenuRenderPlan::BaseRelativePath(configMenu_);
+    const std::string pageChipLogical =
+        SchoolDaysConfigMenuModel::ChipRelativePath(page);
+    if (!ResolveSchoolDaysOverlayFile(pageBaseLogical, nullptr)) {
+      const auto displayBase = ResolveSchoolDaysAssetPath(
+          assetsRoot.c_str(),
+          SchoolDaysConfigMenuModel::BaseRelativePath(
+              SchoolDaysConfigMenuModel::Page::Display));
+      if (displayBase.present && !displayBase.collision) {
+        configDisplayTabBaseTexture_ =
+            LoadTexture(renderer, displayBase.physical);
+        if (configDisplayTabBaseTexture_ != nullptr) {
+          SDL_SetTextureBlendMode(configDisplayTabBaseTexture_,
+                                  SDL_BLENDMODE_NONE);
+        }
+      }
+    }
+    if (!ResolveSchoolDaysOverlayFile(pageChipLogical, nullptr)) {
+      const auto displayChip = ResolveSchoolDaysAssetPath(
+          assetsRoot.c_str(),
+          SchoolDaysConfigMenuModel::ChipRelativePath(
+              SchoolDaysConfigMenuModel::Page::Display));
+      if (displayChip.present && !displayChip.collision) {
+        configDisplayTabChipTexture_ =
+            LoadTexture(renderer, displayChip.physical);
+        if (configDisplayTabChipTexture_ != nullptr) {
+          SDL_SetTextureBlendMode(configDisplayTabChipTexture_,
+                                  SDL_BLENDMODE_BLEND);
+        }
+      }
+    }
   }
   resultEmitted_ = false;
   return true;
@@ -2195,6 +2244,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
     }
     const auto plan =
         SchoolDaysConfigMenuRenderPlan::Build(configMenu_, configVisualState_);
+    const auto planLayout = SchoolDaysConfigMenuRenderPlan::LayoutFor(
+        configMenu_.CurrentVariant());
     for (const auto &sprite : plan) {
       SDL_Texture *texture =
           sprite.texture == SchoolDaysConfigMenuRenderPlan::Texture::Chip
@@ -2203,8 +2254,14 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
       const SDL_FRect nativeDst = {sprite.destination.x, sprite.destination.y,
                                    sprite.destination.w, sprite.destination.h};
       const SDL_FRect dst = TransformRect(nativeDst, viewport);
-      const SDL_FRect source = {sprite.source.x, sprite.source.y,
-                                sprite.source.w, sprite.source.h};
+      SDL_FRect source = {sprite.source.x, sprite.source.y, sprite.source.w,
+                          sprite.source.h};
+      if (sprite.texture == SchoolDaysConfigMenuRenderPlan::Texture::Chip &&
+          sprite.role == SchoolDaysConfigMenuRenderPlan::Role::Hover &&
+          sprite.control == 2 && configDisplayTabChipTexture_ != nullptr) {
+        texture = configDisplayTabChipTexture_;
+        source = {392.0f, 2.0f, 192.0f, 36.0f};
+      }
       const SDL_FRect *sourcePtr = sprite.hasSource ? &source : nullptr;
       // Retail bank level0 has an intentionally empty strip. SDL
       // must not be asked to render its 0-width source/destination;
@@ -2216,6 +2273,21 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
         if (error != nullptr)
           *error = SDL_GetError();
         return false;
+      }
+      if (sprite.role == SchoolDaysConfigMenuRenderPlan::Role::Base &&
+          configDisplayTabBaseTexture_ != nullptr) {
+        const SDL_FRect tabSource = {398.0f, 54.0f, 194.0f, 38.0f};
+        const SDL_FRect tabNativeDst = {
+            (398.0f - 0.5f) * planLayout.scale,
+            (54.0f + planLayout.yOffset) * planLayout.scale,
+            194.0f * planLayout.scale, 38.0f * planLayout.scale};
+        const SDL_FRect tabDst = TransformRect(tabNativeDst, viewport);
+        if (!SDL_RenderTexture(renderer, configDisplayTabBaseTexture_,
+                               &tabSource, &tabDst)) {
+          if (error != nullptr)
+            *error = SDL_GetError();
+          return false;
+        }
       }
     }
     return true;
