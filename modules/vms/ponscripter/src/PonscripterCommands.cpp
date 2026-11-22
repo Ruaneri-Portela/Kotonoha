@@ -73,7 +73,7 @@ void PonscripterVm::registerCommands() {
   // 4. Variables & Math
   for (const char *c :
        {"mov",      "mov3",  "mov4", "mov5",     "mov6",     "mov7", "mov8",
-        "mov9",     "mov10", "movl", "inc",      "dec",      "add",  "sub",
+        "mov9",     "mov10", "movl", "movz", "inc",      "dec",      "add",  "sub",
         "mul",      "div",   "mod",  "rnd",      "rnd2",     "cmp",  "atoi",
         "itoa",     "itoa2", "len",  "mid",      "sin",      "cos",  "tan",
         "intlimit", "date",  "time", "savetime", "fileexist"}) {
@@ -301,6 +301,7 @@ void PonscripterVm::cmdAlias(LineLexer &lexer, const std::string &cmd) {
     return;
   }
   if (cmd == "dim") {
+    lexer.skipWhitespace();
     if (lexer.peek() == '?') {
       lexer.get();
       int arrId = 0;
@@ -685,15 +686,23 @@ void PonscripterVm::cmdVars(LineLexer &lexer, const std::string &cmd) {
         if (lexer.peek() == ']')
           lexer.get();
       }
-      lexer.consumeComma();
-      if (cmd == "movl") {
-        int idx = indices.empty() ? 0 : indices.back();
-        do {
-          if (!indices.empty())
-            indices.back() = idx++;
-          vars_.setArray(arrId, indices, lexer.parseIntExpr());
-        } while (lexer.consumeComma());
-      } else {
+      const bool firstArgument = lexer.consumeComma();
+      if (cmd == "movl" || cmd == "movz") {
+        const int count = vars_.remainingArrayElements(arrId, indices);
+        if (count <= 0)
+          return;
+        const int start = indices.back();
+        bool argumentAvailable = firstArgument;
+        for (int i = 0; i < count; ++i) {
+          if (!argumentAvailable && cmd == "movl")
+            break;
+          indices.back() = start + i;
+          vars_.setArray(arrId, indices,
+                         argumentAvailable ? lexer.parseIntExpr() : 0);
+          if (argumentAvailable)
+            argumentAvailable = lexer.consumeComma();
+        }
+      } else if (firstArgument) {
         vars_.setArray(arrId, indices, lexer.parseIntExpr());
       }
       return;
