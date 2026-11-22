@@ -425,13 +425,21 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   std::filesystem::create_directories(originalDirectory / "nested");
   const auto originalPath = originalDirectory / "nested/80005.ass";
   const auto otherOriginal = originalDirectory / "80006.ass";
+  const auto upperOriginal = originalDirectory / "nested/80007.ASS";
   writeTextFileAtomically(originalPath.string(), script);
   writeTextFileAtomically(otherOriginal.string(), script);
+  writeTextFileAtomically(upperOriginal.string(), script);
   forced.reload();
   forced.updateForActiveNode();
   require(
       forced.activePath() == originalPath,
       "Before dumping, automatic recursive detection loads the original ASS");
+  runtime.node = "80007";
+  forced.updateForActiveNode();
+  require(forced.activePath() == upperOriginal,
+          "Case-insensitive .ASS extension and filename lookup succeeds");
+  runtime.node = "80005";
+  forced.updateForActiveNode();
 
   const auto drawForced = [&] {
     auto &renderer = engine.GetRenderer();
