@@ -478,6 +478,11 @@ public:
 #else
   static constexpr bool GenericDialogueHistoryCompiled = true;
 #endif
+#if (defined(__ANDROID__) || defined(ANDROID)) && !defined(KOTONOHA_DISTRIBUTION_BUILD)
+  static constexpr bool AndroidExtraMenuButtonCompiled = true;
+#else
+  static constexpr bool AndroidExtraMenuButtonCompiled = false;
+#endif
   Runtime(std::shared_ptr<Assets> assets, std::string route,
           std::filesystem::path documents = {},
           std::string physicalSettingsPath = {});
