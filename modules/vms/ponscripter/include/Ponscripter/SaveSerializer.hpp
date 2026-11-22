@@ -58,6 +58,7 @@ struct SlotSaveData {
   bool manualFrameVisible = false;
   std::vector<ManualDrawOp> manualDraftOps;
   std::vector<ManualDrawOp> manualDisplayOps;
+  std::vector<ManualDrawOp> backgroundCopyOps;
   ActiveEffect activeEffect;
   int quakeAmplitude = 0;
   bool monochromeEnabled = false;
