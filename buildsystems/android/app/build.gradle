@@ -241,6 +241,9 @@ android.applicationVariants.all { variant ->
     from(new File(engineRoot, 'modules/providers/amagami/third_party/open-amagami-LICENSE.txt')) {
       into 'licenses/third-party'
     }
+    from(new File(engineRoot, 'games/reallive/vendor/libreallive/LICENSE')) {
+      into 'licenses/third-party'
+    }
 
     if (includeThisGame) {
       from(gameAssets) {
