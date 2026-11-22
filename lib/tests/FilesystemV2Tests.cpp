@@ -448,8 +448,17 @@ void testDirectorySafety() {
   writeFile(base / "abc.bin", "one");
   writeFile(base / "ABC.bin", "two");
   if (!fs::equivalent(base / "abc.bin", base / "ABC.bin")) {
-    expectCode(VFS::ErrorCode::InvalidPath,
-               [&] { VFS::Filesystem::mount(base.string()); });
+    // DirectoryMount explicitly keeps the first entry on a case-insensitive
+    // collision; both spelling variants must resolve to that same file.
+    auto indexed = VFS::Filesystem::mount(base.string());
+    require(indexed->list("").size() == 1,
+            "Duplicate case variants must have one virtual entry");
+    require(readText(indexed->open("abc.bin")) ==
+                readText(indexed->open("ABC.bin")),
+            "Case-insensitive collision resolves inconsistently");
+    auto lazy = VFS::Filesystem::mountForDetection(base.string());
+    require(lazy->list("").size() == 1,
+            "Lazy mount must preserve case-collision behavior");
   }
 
   auto outside = temp.root / "outside.bin";
@@ -459,6 +468,9 @@ void testDirectorySafety() {
   if (!error) {
     expectCode(VFS::ErrorCode::InvalidPath,
                [&] { VFS::Filesystem::mount(base.string()); });
+    auto lazy = VFS::Filesystem::mountForDetection(base.string());
+    expectCode(VFS::ErrorCode::InvalidPath,
+               [&] { lazy->exists("escape.bin"); });
   }
 }
 
