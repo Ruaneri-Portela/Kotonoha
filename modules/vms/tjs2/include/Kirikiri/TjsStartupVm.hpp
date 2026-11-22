@@ -47,6 +47,15 @@ struct TjsStartupResult {
   std::shared_ptr<TjsUiSession> uiSession;
 };
 
+// Execute KAG [iscript] source in a retained bounded TJS2 VM. This preserves
+// top-level variables/functions/Window/Layer state between inline blocks.
+// On error the result includes a diagnostic; no native plugins are executed.
+bool executeTjsInlineSubset(TjsStartupResult &result,
+                            const KirikiriAssets &assets,
+                            const std::string &source,
+                            const std::string &sourceName,
+                            std::size_t instructionBudget = 4096);
+
 // Execute one topmost hit-tested named onClick handler on the retained VM.
 // A callback may change layers, or request a KAG entry via Scripts.execStorage.
 // Returns false for a miss or when a native/KAG scene is already active.

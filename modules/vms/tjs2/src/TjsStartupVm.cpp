@@ -1330,6 +1330,33 @@ TjsStartupResult runTjsStartupSubset(const KirikiriAssets &assets,
   return output;
 }
 
+bool executeTjsInlineSubset(TjsStartupResult &result,
+                            const KirikiriAssets &assets,
+                            const std::string &source,
+                            const std::string &sourceName,
+                            std::size_t instructionBudget) {
+  auto session = result.uiSession;
+  if (!session)
+    session = std::make_shared<TjsUiSession>(assets, instructionBudget);
+  auto &vm = session->vm;
+  vm.remaining = instructionBudget;
+  vm.result.kagEntry.clear();
+  vm.result.error.clear();
+  bool success = false;
+  try {
+    Parser parser(vm, sourceName.empty() ? "inline.ks" : sourceName, source);
+    parser.run();
+    vm.snapshotLayers();
+    vm.result.subsetCompleted = true;
+    success = true;
+  } catch (const std::exception &error) {
+    vm.result.error = std::string("TJS2 inline: ") + error.what();
+  }
+  result = vm.result;
+  result.uiSession = std::move(session);
+  return success;
+}
+
 bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
   auto session = result.uiSession;
   if (!session || !result.subsetCompleted || !std::isfinite(x) ||
