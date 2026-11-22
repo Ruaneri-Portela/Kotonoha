@@ -13,6 +13,7 @@
 #include <deque>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -99,6 +100,11 @@ using NsbLoaderFn = std::function<bool(std::string_view nsbPath,
 using ImageSizeFn = std::function<bool(std::string_view path, int &w, int &h)>;
 
 enum class MediaTimeKind { Remaining, Duration, Elapsed };
+enum class SaveActionKind { Save, Load, Delete };
+struct PendingSaveAction {
+  SaveActionKind kind;
+  std::uint32_t slot = 0;
+};
 using MediaTimeQueryFn =
     std::function<std::int64_t(std::string_view, MediaTimeKind)>;
 using SaveExistsFn = std::function<bool(std::uint32_t)>;
@@ -115,6 +121,13 @@ public:
   }
   void setSaveExistsQuery(SaveExistsFn fn) {
     saveExistsQuery_ = std::move(fn);
+  }
+  // Execute file operations only AFTER VM::step has returned. In particular,
+  // Load can replace all threads and the scene tree.
+  std::optional<PendingSaveAction> takePendingSaveAction() {
+    auto operation = pendingSaveAction_;
+    pendingSaveAction_.reset();
+    return operation;
   }
   void setConfig(const SystemIniConfig &cfg);
   const SystemIniConfig &config() const { return config_; }
@@ -230,6 +243,7 @@ private:
   ImageSizeFn imageSizeFn_;
   MediaTimeQueryFn mediaTimeQuery_;
   SaveExistsFn saveExistsQuery_;
+  std::optional<PendingSaveAction> pendingSaveAction_;
   SystemIniConfig config_;
 
   std::unordered_map<std::string, std::shared_ptr<NsbScript>> scripts_;
