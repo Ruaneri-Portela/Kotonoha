@@ -602,7 +602,8 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
           std::any_of(ui.layers.begin(), ui.layers.end(),
                       [](const Kotonoha::Providers::TjsUiLayer &layer) {
                         return layer.visible && layer.enabled &&
-                               !layer.onClick.empty() &&
+                               (!layer.onClick.empty() ||
+                                !layer.onMouseUp.empty()) &&
                                ((layer.width > 0 && layer.height > 0) ||
                                 !layer.storage.empty());
                       });
@@ -1623,6 +1624,34 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
       return true;
     }
   }
+  if (impl.currentScenario.empty() && impl.nativeTitleUi &&
+      mapped.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+      mapped.button.button == SDL_BUTTON_LEFT) {
+    if (Kotonoha::Providers::dispatchTjsUiMouseUp(
+            impl.startupExecution, mapped.button.x, mapped.button.y)) {
+      impl.failedNativePictures.clear();
+      const auto &run = impl.startupExecution;
+      if (!run.error.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "KiriKiri: TJS2 release handler failed: %s",
+                    run.error.c_str());
+        nativeFallback();
+      } else if (!run.kagEntry.empty()) {
+        const auto target = run.kagEntry;
+        if (startScenario(target)) {
+          impl.nativeTitleUi = false;
+          impl.choiceScene->hide();
+        } else {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: UI requested unavailable KAG scenario: %s",
+                      target.c_str());
+          nativeFallback();
+        }
+      }
+      return true;
+    }
+  }
+
   if (impl.currentScenario.empty() && impl.nativeTitleUi &&
       mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
       mapped.button.button == SDL_BUTTON_LEFT) {

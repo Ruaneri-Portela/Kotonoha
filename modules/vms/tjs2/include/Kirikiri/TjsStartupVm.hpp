@@ -31,6 +31,7 @@ struct TjsUiLayer {
   std::string onClick;
   std::string onMouseEnter;
   std::string onMouseLeave;
+  std::string onMouseUp;
   int left = 0, top = 0;
   int width = 0, height = 0;
   int opacity = 255;
@@ -73,6 +74,10 @@ bool executeTjsInlineSubset(TjsStartupResult &result,
 // Returns false for a miss or when a native/KAG scene is already active.
 // The result is refreshed after callbacks, including any error diagnostics.
 bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y);
+
+// Dispatch Layer.onMouseUp from SDL left-button release, independently from
+// onMouseDown/onClick callbacks fired by the press event.
+bool dispatchTjsUiMouseUp(TjsStartupResult &result, float x, float y);
 
 // Dispatch pointer enter/leave changes to retained script event handlers.
 // Returns true only if a source handler was invoked.

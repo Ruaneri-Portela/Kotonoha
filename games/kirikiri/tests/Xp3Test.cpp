@@ -1554,6 +1554,30 @@ int main() {
     }
   }
 
+  // A menu that activates on release instead of mouse-down must be
+  // selectable, as used by KiriKiri's onMouseUp Layer events.
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const std::string source =
+        "var win = new Window();"
+        "var button = new Layer(win, win.primaryLayer);"
+        "button.setPos(20, 30); button.setSize(180, 70);"
+        "button.drawText(4, 6, \"Load\");"
+        "function released(x, y) { System.title = \"Released\"; }"
+        "button.onMouseUp = released;";
+    const bool ok = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input, source, "menu-release.tjs");
+    if (!ok || !menu.error.empty() || menu.layers.size() != 2 ||
+        menu.layers.back().onMouseUp.empty() ||
+        Kotonoha::Providers::dispatchTjsUiMouseUp(menu, 0.0f, 0.0f) ||
+        !Kotonoha::Providers::dispatchTjsUiMouseUp(menu, 30.0f, 45.0f) ||
+        menu.title != "Released") {
+      std::printf("FAIL: TJS2 Layer onMouseUp menu navigation\n");
+      ++failures;
+    }
+  }
+
   // Script-created text-only title menus now project Layer.drawText onto
   // Kotonoha's native UI renderer, with font.height and click callbacks.
   {
