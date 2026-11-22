@@ -155,4 +155,30 @@ Ongoing tracking of real-hardware defects observed on POCO X7 Pro (Android 16 / 
   - Confirmed staged `cache/sd-saf-*/game-assets/forced_subtitles/pt-BR/01-01-00-OP1.ass`.
   - Live gameplay captures on node `01/01-00-OP1` (with `F8` node clock HUD at `70.81s`, `78.16s`, `85.65s`) confirmed real `libass` `\kf` karaoke sweeps (top romaji + bottom PT-BR translation + credit-safe `\pos(400,316)`) rendered cleanly over the opening video.
   - Natural node exit from `01/01-00-OP1` to `01/01-00-B05` immediately cleared all OP forced subtitles with zero stale text; `Display subtitles` (`TextView`) `OFF`/`ON` and launcher `enableForcedSubtitles` switch verified.
-- **Classification**: **Confirmed parity** (`Paridade confirmada` on Android DEV & Windows; Android DIST verified in Milestone 4).
+- **Classification**: **Confirmed parity** (`Paridade confirmada`, Android DEV & Windows; Android DIST built and statically verified in Milestone 4).
+
+---
+
+## Android DIST Build & DEV vs DIST Comparison (Milestone 4)
+
+### Dedicated `dist` Build Type (`buildsystems/android/app/build.gradle`)
+- Added **`dist`** `buildType` (inheriting `release`), isolated from `debug` (DEV):
+  - `applicationIdSuffix '.dist'` → isolated package ID **`me.hirameki.kotonoha.schooldays.dist`**, coexisting side-by-side with DEV (`me.hirameki.kotonoha.schooldays`) with isolated save/config storage via `getKotonohaPackageIdentifier()`.
+  - `versionNameSuffix '-dist'`, `debuggable false`, `minifyEnabled true`, `shrinkResources true`.
+  - Release/DIST CMake flags: `-DKOTONOHA_DISTRIBUTION_BUILD=ON`, `-DKOTONOHA_ENABLE_MCP=OFF`, `-DCMAKE_BUILD_TYPE=Release`.
+  - `BuildConfig.IS_DISTRIBUTION_BUILD = true` (`false` in `debug`/`release`).
+  - Signing: `signingConfigs.debug` (**test-signed DIST for QA**, explicitly not store-signed).
+  - Updated `buildsystems/android/app/proguard-rules.pro` (`-keep class org.kotonoha.android.GameActivity` preserving `getKotonoha*`/`setKotonoha*`) and fixed Gradle 8 task dependency between `generate<Variant>LintVitalReportModel`/`lintVitalAnalyze<Variant>` and `stage<Variant>Assets`.
+
+### Binary & Packaging Audit (DEV vs DIST)
+| Check | Android DEV | Android DIST (test-signed) |
+|---|---|---|
+| Package ID | `me.hirameki.kotonoha.schooldays` | `me.hirameki.kotonoha.schooldays.dist` |
+| `check_school_days_apk.py` | PASS (6 ARM64 libs, 16 KiB LOAD, 47 assets) | PASS (6 ARM64 libs, 16 KiB LOAD, 47 assets) |
+| `zipalign -c -P 16 4` | PASS | PASS |
+| `apksigner verify` | v2 OK (1 signer) | v2 OK (1 signer, test-signed) |
+| `libSchoolDays.so` | 4,532,560 bytes | **2,326,704 bytes (-48.7%)** |
+| `libkotonoha_engine.so` | 35,615,512 bytes | **21,886,632 bytes (-38.5%)** |
+| `Kotonoha Debug Applets` (`DebugOverlay`) | Present (`True`) | **Absent (`False`)** |
+| `BackLog unavailable:` (DIST path, no `VNBacklog` fallback) | Absent (`False`) | **Present (`True`)** |
+| Live POCO X7 Pro runtime check | Executed & validated | **Not tested on device** — `adb install` of the new package ID `me.hirameki.kotonoha.schooldays.dist` returned `INSTALL_FAILED_USER_RESTRICTED` (Xiaomi HyperOS "Install via USB" requires manual user approval on-screen for new package IDs) |

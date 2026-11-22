@@ -169,4 +169,41 @@ Registro contínuo dos defeitos observados em hardware real (POCO X7 Pro, Androi
   - Em gameplay real no nó `01/01-00-OP1` (capturas com HUD `F8` em `70.81s`, `78.16s` e `85.65s`): renderização real de karaokê `\kf` romaji no topo, tradução PT-BR com acentuação na base e posicionamento `\pos(400,316)` credit-safe sobre o vídeo da abertura, com sincronia exata ao clock do nó.
   - Na transição natural de `01/01-00-OP1` para `01/01-00-B05`, as legendas forçadas da OP desapareceram imediatamente sem texto preso.
   - Alternância de `Display subtitles` (`TextView`) `OFF`/`ON` em `OPTION -> General` validada em cena (`allowForcedSubtitles()`), assim como o switch `enableForcedSubtitles` no launcher (aba **Geral**).
-- **Classificação**: **Paridade confirmada** (Android DEV e Windows DEV/DIST; Android DIST validado no Marco 4).
+- **Classificação**: **Paridade confirmada** (Android DEV e Windows DEV/DIST; Android DIST compilado e verificado estaticamente no Marco 4).
+
+---
+
+## Build Android DIST e Comparativo DEV vs DIST (Marco 4)
+
+### Variante `dist` dedicada (`buildsystems/android/app/build.gradle`)
+- Criado o `buildType` **`dist`** (herdando `release`), independente de `debug` (DEV):
+  - `applicationIdSuffix '.dist'` → pacote isolado **`me.hirameki.kotonoha.schooldays.dist`**, coexistindo lado a lado com o DEV (`me.hirameki.kotonoha.schooldays`) com diretórios de saves/configuração separados via `getKotonohaPackageIdentifier()`.
+  - `versionNameSuffix '-dist'`, `debuggable false`, `minifyEnabled true`, `shrinkResources true`.
+  - Flags CMake de produção: `-DKOTONOHA_DISTRIBUTION_BUILD=ON`, `-DKOTONOHA_ENABLE_MCP=OFF`, `-DCMAKE_BUILD_TYPE=Release`.
+  - `BuildConfig.IS_DISTRIBUTION_BUILD = true` (vs `false` em `debug`/`release`).
+  - Assinatura atual: `signingConfigs.debug` (**DIST assinado para teste/QA**, explicitamente não assinado para loja comercial).
+  - Regras R8/ProGuard atualizadas (`buildsystems/android/app/proguard-rules.pro`: `-keep class org.kotonoha.android.GameActivity` preservando `getKotonoha*` e `setKotonoha*`).
+  - Corrigida dependência explícita de Gradle 8 entre `generate<Variant>LintVitalReportModel`/`lintVitalAnalyze<Variant>` e `stage<Variant>Assets` para builds `release`/`dist`.
+
+### Comandos de compilação Android DEV e DIST
+```powershell
+# Android ARM64 DEV
+gradle :app:assembleSchoolDaysDebug -Pabis=arm64-v8a -PbundleGameAssets=false --no-daemon
+
+# Android ARM64 DIST (test-signed)
+gradle :app:assembleSchoolDaysDist -Pabis=arm64-v8a -PbundleGameAssets=false --no-daemon
+```
+
+### Auditoria binária e de empacotamento (DEV vs DIST)
+| Verificação | Android DEV (`app-schoolDays-debug.apk`) | Android DIST (`app-schoolDays-dist.apk`) |
+|---|---|---|
+| Package ID | `me.hirameki.kotonoha.schooldays` | `me.hirameki.kotonoha.schooldays.dist` |
+| `check_school_days_apk.py` | PASS (6 libs ARM64, 16 KiB LOAD, 47 assets) | PASS (6 libs ARM64, 16 KiB LOAD, 47 assets) |
+| `zipalign -c -P 16 4` | PASS | PASS |
+| `apksigner verify` | APK Signature Scheme v2 OK (1 signer) | APK Signature Scheme v2 OK (1 signer, test-signed) |
+| `libSchoolDays.so` | 4.532.560 bytes | **2.326.704 bytes (-48,7%)** |
+| `libkotonoha_engine.so` | 35.615.512 bytes | **21.886.632 bytes (-38,5%)** |
+| String `Kotonoha Debug Applets` (`DebugOverlay`) | Presente (`True`) | **Ausente (`False`)** |
+| Ramo `BackLog unavailable:` (sem `VNBacklog` fallback) | Ausente (`False`) | **Presente (`True`)** |
+| `KOTONOHA_ENABLE_MCP` | `OFF` | `OFF` |
+| Validação em hardware POCO X7 Pro | Executado e validado | **Não testado no aparelho** — `adb install` do novo package ID `me.hirameki.kotonoha.schooldays.dist` retornou `INSTALL_FAILED_USER_RESTRICTED` (diálogo de confirmação "Instalar via USB" do Xiaomi HyperOS requer aprovação manual do usuário na tela do telefone) |
