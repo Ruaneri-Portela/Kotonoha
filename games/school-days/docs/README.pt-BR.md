@@ -2,10 +2,14 @@
 
 [English (US)](README.md) | **Português (Brasil)**
 
-**Alvo:** Windows L4. Android fica adiado até a conclusão do Windows. A
-implementação de School Days pertence a `games/school-days/`, enquanto o
-motor genérico fica em `lib/`. Este índice orienta a navegação; não afirma
-paridade completa com o retail nem QA integral.
+**Alvos:** Windows x64 e Android (`arm64-v8a`), compartilhando uma única
+implementação de runtime do School Days HQ v1.02 em `games/school-days/`,
+enquanto o motor genérico permanece em `lib/` e os adaptadores Android ficam em
+`buildsystems/android/`. Este índice orienta a navegação; não afirma paridade
+completa com o retail nem conclusão de QA físico. Consulte
+[docs/FORK_WORKFLOW.pt-BR.md](../../../docs/FORK_WORKFLOW.pt-BR.md) e
+[Configuração Android portrait/SAF](android/PORTRAIT_SETUP.pt-BR.md) para os
+fluxos atuais de compilação e distribuição.
 
 Os documentos publicados anteriormente mantêm seus caminhos para não quebrar
 links externos. Registros de investigação datados são fotografias históricas,
