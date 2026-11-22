@@ -94,6 +94,9 @@ public:
   // Games with scene transactions can retain the fully composed Novel raster
   // in an engine-owned target. Readiness means a primary image/video drew.
   virtual bool useOwnedNarrativeTarget() const { return false; }
+  // Keep SDL_ttf dialogue at native output resolution, even when the user
+  // requests a reduced intermediate render scale for game imagery.
+  virtual bool requiresNativeTextResolution() const { return false; }
   // Optional game-authored vertical presentation inside the normal Novel
   // canvas. 1.0 fills the fitted canvas; e.g. 0.75 keeps the whole frame but
   // compresses it into the centered 75%, leaving black bands above/below.

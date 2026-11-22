@@ -1002,7 +1002,10 @@ SDL_AppResult Engine::Iterate() {
   SDL_RenderClear(renderer.get());
 
   const SDL_Point novelView = runtime.viewport();
-  const bool scaledNovel = settings.renderScale < 0.9999f;
+  // Prevent low-resolution intermediate targets from enlarging TTF glyphs.
+  const float novelScale =
+      runtime.requiresNativeTextResolution() ? 1.0f : settings.renderScale;
+  const bool scaledNovel = novelScale < 0.9999f;
   const bool ownedNovel = scaledNovel || runtime.useOwnedNarrativeTarget();
   if (ownedNovel) {
     SDL_FRect presentation{};
@@ -1010,10 +1013,10 @@ SDL_AppResult Engine::Iterate() {
       throw std::runtime_error(SDL_GetError());
     const int targetWidth = std::max(
         1,
-        static_cast<int>(std::lround(presentation.w * settings.renderScale)));
+        static_cast<int>(std::lround(presentation.w * novelScale)));
     const int targetHeight = std::max(
         1,
-        static_cast<int>(std::lround(presentation.h * settings.renderScale)));
+        static_cast<int>(std::lround(presentation.h * novelScale)));
     if (!novelTarget || novelTargetWidth != targetWidth ||
         novelTargetHeight != targetHeight) {
       TexturePtr next(SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA32,
