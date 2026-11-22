@@ -188,6 +188,7 @@ jobs:
             -Imodules/vms/n2system/include \
             modules/vms/n2system/src/NsbScript.cpp \
             modules/vms/n2system/src/NsbVm.cpp \
+            modules/vms/n2system/src/NsbSnapshot.cpp \
             modules/vms/n2system/src/SceneGraph.cpp \
             modules/vms/n2system/src/AudioSystem.cpp \
             modules/vms/n2system/src/DialogueSystem.cpp \
