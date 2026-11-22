@@ -290,6 +290,7 @@ void PonscripterVm::executeTextLine(std::string_view rawLine,
     CallStackEntry frame;
     frame.returnStatementIndex = pc_;
     frame.targetLabel = textGosubLabel_;
+    frame.callerLabel = currentLabel_;
     callStack_.push_back(std::move(frame));
     waitState_ = WaitState::Running;
     jumpToLabel(textGosubLabel_);
@@ -365,6 +366,7 @@ void PonscripterVm::executeStatement(const StatementSlice &stmt) {
         CallStackEntry frame;
         frame.returnStatementIndex = stmt.statementIndex;
         frame.targetLabel = pretextGosubLabel_;
+        frame.callerLabel = currentLabel_;
         callStack_.push_back(std::move(frame));
         jumpToLabel(pretextGosubLabel_);
         return;
@@ -395,6 +397,7 @@ void PonscripterVm::executeStatement(const StatementSlice &stmt) {
       return;
     frame.returnStatementIndex = pc_;
     frame.targetLabel = subIt->second;
+    frame.callerLabel = currentLabel_;
     captureCallArguments(lexer, frame, false);
     callStack_.push_back(std::move(frame));
     jumpToLabel(subIt->second);
@@ -738,6 +741,7 @@ bool PonscripterVm::selectChoice(int optionIndex) {
     CallStackEntry frame;
     frame.returnStatementIndex = pc_;
     frame.targetLabel = target;
+    frame.callerLabel = currentLabel_;
     callStack_.push_back(std::move(frame));
   } else if (mode == SelectionMode::Number &&
              selectionNumberVariable_ >= 0) {
