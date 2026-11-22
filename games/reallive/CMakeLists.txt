@@ -106,6 +106,14 @@ if(BUILD_TESTING)
         set_tests_properties("RealLive.EndianRead.${char_mode}"
             PROPERTIES LABELS synthetic)
     endforeach()
+    # Decoder regression vectors exercise truncation, LZ back-references,
+    # declared output lengths and second XOR bounds with no retail assets.
+    add_executable(RealLiveCompressionTests tests/CompressionTest.cpp)
+    target_link_libraries(RealLiveCompressionTests PRIVATE RealLiveFormats)
+    target_compile_features(RealLiveCompressionTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.Compression COMMAND RealLiveCompressionTests)
+    set_tests_properties(RealLive.Compression PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)

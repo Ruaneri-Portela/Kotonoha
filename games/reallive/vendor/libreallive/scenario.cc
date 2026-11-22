@@ -35,6 +35,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
+#include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -44,12 +47,22 @@ namespace libreallive {
 
 Metadata::Metadata() : encoding_(0) {}
 
-void Metadata::Assign(const char* input) {
-  const int meta_len = read_i32(input), id_len = read_i32(input + 4) + 1;
-  if (meta_len < id_len + 17)
-    return;  // malformed metadata
-  as_string_.assign(input, meta_len);
-  encoding_ = static_cast<unsigned char>(input[id_len + 16]);
+void Metadata::Assign(const char* input, size_t available) {
+  if (available < 8)
+    throw Error("Truncated RealLive metadata header");
+  const long meta_len = read_i32(input);
+  const long identifier_len = read_i32(input + 4);
+  if (meta_len < 0 || identifier_len < 0)
+    throw Error("Invalid RealLive metadata size");
+  if (static_cast<size_t>(meta_len) > available)
+    throw Error("RealLive metadata exceeds scenario bounds");
+  // The stored identifier length excludes its terminator; the encoding byte
+  // follows it by 17 more bytes. Preserve legacy handling of short metadata.
+  if (static_cast<std::uint64_t>(identifier_len) + 18 >
+      static_cast<std::uint64_t>(meta_len))
+    return;
+  as_string_.assign(input, static_cast<size_t>(meta_len));
+  encoding_ = static_cast<unsigned char>(input[identifier_len + 17]);
 }
 
 Header::Header(const char* data, const size_t length) {
@@ -85,21 +98,38 @@ Header::Header(const char* data, const size_t length) {
   savepoint_seentop_ = read_i32(data + 0x1cc);
 
   // Dramatis personae
-  int dplen = read_i32(data + 0x18);
-  dramatis_personae_.reserve(dplen);
-  int offs = read_i32(data + 0x14);
-  while (dplen--) {
-    int elen = read_i32(data + offs);
-    dramatis_personae_.emplace_back(data + offs + 4, elen - 1);
-    offs += elen + 4;
+  const long dplen = read_i32(data + 0x18);
+  const long raw_dramatis_offset = read_i32(data + 0x14);
+  if (dplen < 0 || static_cast<size_t>(dplen) > length / 5)
+    throw Error("Invalid RealLive character-name count");
+  if (raw_dramatis_offset < 0 ||
+      static_cast<size_t>(raw_dramatis_offset) > length)
+    throw Error("Invalid RealLive character-name offset");
+  dramatis_personae_.reserve(static_cast<size_t>(dplen));
+  size_t offs = static_cast<size_t>(raw_dramatis_offset);
+  for (long i = 0; i < dplen; ++i) {
+    if (length - offs < 4)
+      throw Error("Truncated RealLive character-name length");
+    const long elen = read_i32(data + offs);
+    if (elen < 1 || static_cast<size_t>(elen) > length - offs - 4)
+      throw Error("Invalid RealLive character-name length");
+    dramatis_personae_.emplace_back(data + offs + 4,
+                                   static_cast<size_t>(elen - 1));
+    offs += 4 + static_cast<size_t>(elen);
   }
 
-  // If this scenario was compiled with RLdev, it may include a
-  // potentially-useful metadata block.  Check for that and read it if
-  // it's present.
-  offs = read_i32(data + 0x14) + read_i32(data + 0x1c);
-  if (offs != read_i32(data + 0x20)) {
-    rldev_metadata_.Assign(data + offs);
+  // RLdev metadata, when present, lies between the dramatis personae
+  // region and the compressed bytecode. Validate its offset and length.
+  const std::int64_t raw_meta_offset =
+      static_cast<std::int64_t>(raw_dramatis_offset) +
+      static_cast<std::int64_t>(read_i32(data + 0x1c));
+  const long raw_code_offset = read_i32(data + 0x20);
+  if (raw_meta_offset != 0 && raw_meta_offset != raw_code_offset) {
+    if (raw_meta_offset < 0 ||
+        static_cast<std::uint64_t>(raw_meta_offset) > length)
+      throw Error("Invalid RealLive metadata offset");
+    const size_t meta_offset = static_cast<size_t>(raw_meta_offset);
+    rldev_metadata_.Assign(data + meta_offset, length - meta_offset);
   }
 }
 
@@ -112,14 +142,36 @@ Script::Script(const Header& hdr,
                bool use_xor_2,
                const compression::XorKey* second_level_xor_key) {
   // Kidoku/entrypoint table
-  const int kidoku_offs = read_i32(data + 0x08);
-  const size_t kidoku_length = read_i32(data + 0x0c);
+  // All section offsets are untrusted bytecode input. Validate using
+  // subtraction, avoiding signed overflow and out-of-bounds pointer math.
+  const auto sectionOffset = [length](long offset, size_t bytes) {
+    if (offset < 0 || static_cast<size_t>(offset) > length ||
+        bytes > length - static_cast<size_t>(offset))
+      throw Error("RealLive scenario section exceeds file bounds");
+    return static_cast<size_t>(offset);
+  };
+  const long kidoku_count = read_i32(data + 0x0c);
+  if (kidoku_count < 0 ||
+      static_cast<size_t>(kidoku_count) > length / 4)
+    throw Error("Invalid RealLive kidoku table length");
+  const size_t kidoku_length = static_cast<size_t>(kidoku_count);
+  const size_t kidoku_offs =
+      sectionOffset(read_i32(data + 0x08), kidoku_length * 4);
   ConstructionData cdat(kidoku_length, elts_.end());
   for (size_t i = 0; i < kidoku_length; ++i)
     cdat.kidoku_table[i] = read_i32(data + kidoku_offs + i * 4);
 
-  // Decompress data
-  const size_t dlen = read_i32(data + 0x24);
+  // A corrupt header must not request gigabytes of script allocation.
+  const long decoded_length = read_i32(data + 0x24);
+  constexpr long kMaxScenarioBytes = 256L * 1024L * 1024L;
+  if (decoded_length < 0 || decoded_length > kMaxScenarioBytes)
+    throw Error("Invalid RealLive decoded script length");
+  const size_t dlen = static_cast<size_t>(decoded_length);
+  const long compressed_length = read_i32(data + 0x28);
+  if (compressed_length < 0)
+    throw Error("Invalid RealLive compressed script length");
+  const size_t compressed_offs = sectionOffset(
+      read_i32(data + 0x20), static_cast<size_t>(compressed_length));
 
   const compression::XorKey* key = NULL;
   if (use_xor_2) {
@@ -132,15 +184,15 @@ Script::Script(const Header& hdr,
     }
   }
 
-  char* uncompressed = new char[dlen];
-  compression::Decompress(data + read_i32(data + 0x20),
-                          read_i32(data + 0x28),
-                          uncompressed,
-                          dlen,
-                          key);
+  // RAII keeps the decoded allocation alive during bytecode parsing and
+  // releases it if either decoding or an opcode constructor throws.
+  std::unique_ptr<char[]> uncompressed(new char[dlen]);
+  compression::Decompress(data + compressed_offs,
+                          static_cast<size_t>(compressed_length),
+                          uncompressed.get(), dlen, key);
   // Read bytecode
-  const char* stream = uncompressed;
-  const char* end = uncompressed + dlen;
+  const char* stream = uncompressed.get();
+  const char* end = stream + dlen;
   size_t pos = 0;
   pointer_t it = elts_.before_begin();
   while (pos < dlen) {
@@ -155,8 +207,10 @@ Script::Script(const Header& hdr,
 
     // Advance
     size_t l = (*it)->GetBytecodeLength();
-    if (l <= 0)
+    if (l == 0)
       l = 1;  // Failsafe: always advance at least one byte.
+    if (l > dlen - pos)
+      throw Error("RealLive bytecode element exceeds decoded script");
     stream += l;
     pos += l;
   }
@@ -166,7 +220,6 @@ Script::Script(const Header& hdr,
     element->SetPointers(cdat);
   }
 
-  delete[] uncompressed;
 }
 
 Script::~Script() {}
