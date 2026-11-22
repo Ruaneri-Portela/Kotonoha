@@ -1008,6 +1008,66 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
     if (manualDraftOps_.size() < kMaxDrawOps)
       manualDraftOps_.push_back(std::move(op));
   };
+  if (cmd == "bgcopy" || cmd == "bgcpy") {
+    // Snapshot a scene description rather than reading back pixels every
+    // frame. These immutable layers remain valid when the live sprites move.
+    std::vector<ManualDrawOp> captured;
+    if (manualFrameVisible_) {
+      captured = manualDisplayOps_;
+    } else {
+      if (!backgroundCopyOps_.empty()) {
+        captured = backgroundCopyOps_;
+      } else {
+        ManualDrawOp background;
+        background.kind = ManualDrawOp::Kind::Background;
+        background.spec = bg_;
+        captured.push_back(std::move(background));
+      }
+      for (int i : {0, 2, 1}) {
+        const auto &stand = standing_[i];
+        if (!stand.loaded || stand.alpha <= 0)
+          continue;
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Sprite;
+        op.spec = stand.spec;
+        op.x = stand.x;
+        op.y = stand.y;
+        op.alpha = stand.alpha;
+        captured.push_back(std::move(op));
+      }
+      for (int i = kMaxExtendedSprites - 1; i >= 0; --i) {
+        const auto &sprite = sprites_[i];
+        if (!sprite.loaded || !sprite.visible || sprite.alpha <= 0 ||
+            areSpritesHidden(sprite.secondaryLayer))
+          continue;
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Sprite;
+        op.spec = sprite.spec;
+        op.x = sprite.x;
+        op.y = sprite.y;
+        op.cell = sprite.currentCell;
+        op.alpha = sprite.alpha;
+        captured.push_back(std::move(op));
+      }
+      if (textWindowVisible_ && !pagePlainText_.empty()) {
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Text;
+        op.text = pagePlainText_;
+        op.x = window_.textX;
+        op.y = window_.textY;
+        op.width = window_.textAreaWidth();
+        op.height = window_.fontH;
+        op.colorRgb = currentTextStyle_.colorRgb;
+        captured.push_back(std::move(op));
+      }
+    }
+    if (captured.size() > 4096)
+      captured.resize(4096);
+    backgroundCopyOps_ = std::move(captured);
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
   if (cmd == "drawclear" || cmd == "drawfill") {
     ManualDrawOp op;
     op.kind = cmd == "drawclear" ? ManualDrawOp::Kind::Clear
@@ -1273,6 +1333,7 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
   }
 
   if (cmd == "bg") {
+    backgroundCopyOps_.clear();
     manualFrameVisible_ = false;
     leaveTextDisplayMode(false);
     const std::string rawArg = lexer.parseRawArg();
