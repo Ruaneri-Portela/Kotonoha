@@ -150,6 +150,10 @@ private:
   void rebuildRenderOrder();
 
   std::unordered_map<std::string, Entity> entities_;
+  // NitroSharp World preserves insertion order for wildcard queries.
+  // Keep a separate order from z-sorted renderOrder_ to avoid re-sorting
+  // every query during script execution.
+  std::vector<std::string> insertionOrder_;
   std::vector<std::string> renderOrder_;
   uint64_t nextCreationOrder_ = 1;
 };
