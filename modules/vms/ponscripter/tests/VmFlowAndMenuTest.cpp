@@ -360,6 +360,31 @@ int main() {
             "normal select must jump rather than return to the same line");
     }
 
+    {
+      Ponscripter::PonscripterVm arrayVm;
+      arrayVm.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "dim ?5[3]\n"
+          "game\n"
+          "*start\n"
+          "movl ?5[0],1,2,3,4\n"
+          "movz ?5[1],9\n"
+          "mov %0,?5[0]\n"
+          "mov %1,?5[1]\n"
+          "mov %2,?5[2]\n"
+          "mov %3,?5[3]\n"
+          "end\n");
+      check(arrayVm.start(), "movz fixture must start");
+      arrayVm.tick(0.0);
+      check(arrayVm.isHalted(), "movz script must terminate");
+      check(arrayVm.variables().getNum(0) == 1 &&
+                arrayVm.variables().getNum(1) == 9 &&
+                arrayVm.variables().getNum(2) == 0 &&
+                arrayVm.variables().getNum(3) == 0,
+            "movz must preserve preceding cells and clear remaining cells");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
