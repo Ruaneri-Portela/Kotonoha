@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <stdexcept>
 
 namespace RealLive {
 inline bool transitionRevealsNewPixel(int style, double progress, int x,
@@ -80,4 +82,60 @@ inline double transitionNewCoverage(const TransitionParameters &effect,
     return distance <= position ? 1.0 : 0.0;
   return std::clamp((position - distance) / feather, 0.0, 1.0);
 }
+// Screen-space composition for rlvm's scroll/squash/slide effect families.
+// Mapping is done in native RealLive pixels before global upscaling.
+struct TransitionSourcePixel {
+  bool newScene = false;
+  int x = 0, y = 0;
+};
+
+inline bool isScrollTransitionStyle(int style) {
+  return style == 15 || style == 16 || style == 17 ||
+         style == 18 || style == 20 || style == 21;
+}
+
+inline TransitionSourcePixel sampleScrollTransition(
+    int style, int direction, double progress,
+    int x, int y, int width, int height) {
+  if (!isScrollTransitionStyle(style) || width <= 0 || height <= 0 ||
+      x < 0 || x >= width || y < 0 || y >= height)
+    throw std::out_of_range("Invalid RealLive scroll transition sample");
+  const double t = std::isfinite(progress)
+                       ? std::clamp(progress, 0.0, 1.0) : 0.0;
+  const int dir = direction >= 0 && direction <= 3 ? direction : 0;
+  const bool vertical = dir < 2;
+  const bool reverse = dir == 1 || dir == 3;
+  const int size = vertical ? height : width;
+  const int pos = vertical ? y : x;
+  const int oriented = reverse ? size - 1 - pos : pos;
+  const int reveal = std::clamp(static_cast<int>(t * size), 0, size);
+  const bool newScene = oriented < reveal;
+
+  int src = oriented;
+  if (newScene) {
+    if (style == 17 || style == 18) {
+      // Squash on: expand all new pixels into the revealed portion.
+      src = int(static_cast<std::int64_t>(oriented) * size / reveal);
+    } else if (style != 21) {
+      // Scroll on: the approaching image enters from outside the edge.
+      src = oriented + size - reveal;
+    }
+    // Slide off (21) keeps the newly revealed background stationary.
+  } else {
+    if (style == 16 || style == 18) {
+      // Squash off: compress the old frame into the un-revealed portion.
+      src = int(static_cast<std::int64_t>(oriented - reveal) * size /
+                (size - reveal));
+    } else if (style != 20) {
+      // Scroll off: old image exits with its source coordinates shifted.
+      src = oriented - reveal;
+    }
+    // Slide on (20) keeps the old background stationary.
+  }
+  src = std::clamp(src, 0, size - 1);
+  const int result = reverse ? size - 1 - src : src;
+  return vertical ? TransitionSourcePixel{newScene, x, result}
+                  : TransitionSourcePixel{newScene, result, y};
+}
+
 } // namespace RealLive

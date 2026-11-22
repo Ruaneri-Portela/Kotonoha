@@ -149,6 +149,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.PersistentHistory COMMAND RealLivePersistentHistoryTests)
     set_tests_properties(RealLive.PersistentHistory PROPERTIES LABELS synthetic)
 
+    # The six remaining rlvm-style scroll/squash/slide SEL families.
+    add_executable(RealLiveScrollTransitionTests tests/ScrollTransitionTest.cpp)
+    target_include_directories(RealLiveScrollTransitionTests PRIVATE src)
+    target_compile_features(RealLiveScrollTransitionTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.ScrollTransition COMMAND RealLiveScrollTransitionTests)
+    set_tests_properties(RealLive.ScrollTransition PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)

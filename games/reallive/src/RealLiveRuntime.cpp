@@ -1967,8 +1967,30 @@ struct RealLiveRuntime::Impl {
       auto old = blank(output->w, output->h);
       scaledBlit(*transitionOld, *old, nullptr, {0, 0, old->w, old->h}, 255,
                  false);
-      if (transitionStyle == 4 || transitionStyle == 5 ||
-          transitionStyle == 10 || transitionStyle == 120) {
+      if (isScrollTransitionStyle(transitionStyle)) {
+        // Scroll/squash/slide require moving and scaling both frames, rather
+        // than masking the old frame in place. Compose in native coordinates
+        // and apply the shared upscaler only after this finished raster.
+        auto mixed = blank(output->w, output->h);
+        const int nativeWidth = output->w / scale;
+        const int nativeHeight = output->h / scale;
+        for (int y = 0; y < output->h; ++y) {
+          auto *destination = static_cast<Uint8 *>(mixed->pixels) +
+                              y * mixed->pitch;
+          for (int x = 0; x < output->w; ++x) {
+            const auto sample = sampleScrollTransition(
+                transitionStyle, transitionDirection, progress,
+                x / scale, y / scale, nativeWidth, nativeHeight);
+            const auto &surface = sample.newScene ? *output : *old;
+            const auto *row = static_cast<const Uint8 *>(surface.pixels) +
+                              (sample.y * scale + y % scale) * surface.pitch;
+            std::memcpy(destination + x * 4,
+                        row + (sample.x * scale + x % scale) * 4, 4);
+          }
+        }
+        output = std::move(mixed);
+      } else if (transitionStyle == 4 || transitionStyle == 5 ||
+                 transitionStyle == 10 || transitionStyle == 120) {
         const TransitionParameters effect{
             transitionStyle, transitionDirection, transitionInterpolation,
             transitionXSize, transitionYSize};
@@ -2049,7 +2071,10 @@ struct RealLiveRuntime::Impl {
           std::min<Uint64>(now - transitionStart, transitionMs);
       const auto step = transitionStyle == 4 || transitionStyle == 5
                             ? (elapsed * 64 + transitionMs - 1) / transitionMs
-                            : elapsed * 255 / transitionMs;
+                            : isScrollTransitionStyle(transitionStyle)
+                                  ? elapsed * std::max(canvasW, canvasH) /
+                                        transitionMs
+                                  : elapsed * 255 / transitionMs;
       key << " transition " << transitionStart << ' ' << transitionStyle << ' '
           << step;
     }
@@ -2125,6 +2150,7 @@ struct RealLiveRuntime::Impl {
     const bool softwareEffect =
         transitionOld &&
         (transitionStyle == 10 || transitionStyle == 120 ||
+         isScrollTransitionStyle(transitionStyle) ||
          ((transitionStyle == 4 || transitionStyle == 5) &&
           !prepareDither(r)));
     const bool upscale = imageUpscaling.enabled();
