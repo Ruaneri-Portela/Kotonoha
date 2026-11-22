@@ -3,11 +3,50 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cmath>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace LucaSystem {
+
+// AIR stores expression CZ4 fragments in (group=3, slot=N), while the
+// matching portrait resides in (group=2, slot=N). Drawing all group-3
+// slots after group-2 places a rear character's face over front characters.
+// Draw each expression immediately above its own portrait instead. Do not
+// paint an orphan expression without its portrait.
+template <class Layer>
+std::vector<std::uint16_t>
+orderedAirLayerKeys(const std::map<std::uint16_t, Layer> &slots) {
+  std::vector<std::uint16_t> result;
+  result.reserve(slots.size());
+  for (const auto &[key, layer] : slots) {
+    (void)layer;
+    const unsigned group = unsigned(key) >> 8;
+    if (group == 3)
+      continue;
+    result.push_back(key);
+    if (group == 2) {
+      const auto expression = std::uint16_t((3u << 8) | (key & 0xffu));
+      if (slots.find(expression) != slots.end())
+        result.push_back(expression);
+    }
+  }
+  return result;
+}
+
+// Split a screen-wide WIPE into non-overlapping pixel-perfect halves.
+// The old composition must never be drawn beneath the incoming half:
+// otherwise transparent sprites, image fragments and white fades double up.
+inline int wipeSplitX(int width, float progress) {
+  if (width <= 0)
+    return 0;
+  const float fraction =
+      std::isfinite(progress) ? std::clamp(progress, 0.0f, 1.0f) : 0.0f;
+  return std::clamp(static_cast<int>(std::lround(width * fraction)), 0, width);
+}
+
 // Lightweight scene state: original image asset IDs plus screen positions,
 // opacity, scaling, rotation and priority parameters.
 // Rendering belongs to SDL; this stage/commit/transition clock is testable

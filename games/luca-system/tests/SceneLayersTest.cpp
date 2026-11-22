@@ -2,6 +2,8 @@
 #include <LucaSystem/SceneLayers.hpp>
 #include <cmath>
 #include <iostream>
+#include <limits>
+#include <map>
 #include <stdexcept>
 #include <vector>
 
@@ -60,6 +62,23 @@ int main() {
               LucaSystem::airCalendarBadgeName(15) == "aug_15" &&
               LucaSystem::airCalendarBadgeName(0).empty(),
           "AIR calendar follows the July-to-August script day cycle");
+    // Draw a face fragment directly above its corresponding body instead of
+    // above all portraits. An orphan fragment is intentionally not visible.
+    std::map<std::uint16_t, int> layered = {
+        {0x0000, 1}, {0x0200, 2}, {0x0201, 3},
+        {0x0300, 4}, {0x0301, 5}, {0x0303, 6}, {0x0400, 7}};
+    check(LucaSystem::orderedAirLayerKeys(layered) ==
+              std::vector<std::uint16_t>(
+                  {0x0000, 0x0200, 0x0300, 0x0201, 0x0301, 0x0400}),
+          "face fragments preserve character z-order and reject orphans");
+    const auto wipeX = LucaSystem::wipeSplitX(1280, 0.375f);
+    check(wipeX == 480 && (1280 - wipeX) + wipeX == 1280 &&
+              LucaSystem::wipeSplitX(1280, -1.0f) == 0 &&
+              LucaSystem::wipeSplitX(1280, 2.0f) == 1280 &&
+              LucaSystem::wipeSplitX(1280,
+                  std::numeric_limits<float>::quiet_NaN()) == 0 &&
+              LucaSystem::wipeSplitX(0, 0.5f) == 0,
+          "scene-wide wipe splits non-overlapping clips exactly");
     // Wipe transitions now carry a dedicated mode instead of silently
     // reusing alpha blending. A renderer can clip incoming objects to the
     // reveal edge without distorting their original image coordinates.

@@ -249,6 +249,29 @@ cmake --build build --target LucaSystemSceneLayersTests
 ctest --test-dir build -R LucaSystem.SceneLayers --output-on-failure
 ```
 
+## GPU scene composition and transition correctness
+
+Gameplay DRAW now composes the incoming scene into a native 1280x720 SDL
+render target and blends the two *complete* frames. Previously each sprite
+was faded independently, causing semi-transparent hair, masks, portraits and
+colored overlays to accumulate alpha incorrectly. Animated, cropped CZ4
+portraits stay in authored canvas coordinates. Image assets remain on the
+GPU renderer; dialogue and UI text continue through the shared Kotonoha UI.
+
+WIPE uses two non-overlapping GPU scissor regions: the old frame to the
+right, the incoming frame to the left. Neither source rectangles nor rotated
+sprites are cropped per layer, preventing stretched/repeated image fragments.
+The caller's clip state is restored before UI rendering. A GPU render-target
+allocation failure keeps a legacy fallback and reports an SDL warning.
+
+Expression fragments in group 3 are now rendered immediately above the
+matching group-2 character slot, not on top of every portrait. The
+`LucaSystem.SceneLayers` regression guards z-order and wipe
+boundaries without requiring commercial artwork.
+
+This is a compositing fix, not proof of identical retail AIR transition
+masks or animation timing; those still require real-data visual comparisons.
+
 ## Horizontal WIPE reveal
 
 `WIPE` now uses a dedicated left-to-right reveal rather than the former

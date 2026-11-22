@@ -24,6 +24,8 @@
 
 The LucaInspect tool additionally supports external LuckSystem OPCODE.txt name catalogs (BOM/CRLF) for non-AIR inspection, with an SDL-free C++17 regression test. This does not execute non-AIR opcode handlers.
 
+The renderer composes each expression fragment immediately after its matching portrait. DRAW now crossfades complete GPU scene frames (rather than per-sprite alpha) and WIPE uses disjoint scissor regions to prevent overlapping transparent layers, with SDL-free z-order/clip regression tests. Native gameplay text stays on the shared UI renderer.
+
 **Limits:** Options uses Kotonoha's settings and input help rather than all the original per-device editors. Direct Ogg voices were verified with retail `AIR`; OggPak bundles were verified with synthetic data, not another retail title. Reference features still to port or verify include rebuilding fonts from scratch, script import beyond AIR English dialogue, and title-specific handlers outside `AIR`.
 
 The more detailed [PORT_STATUS.md](PORT_STATUS.md) and [docs/AIR_REA_2026_11_18.md](docs/AIR_REA_2026_11_18.md) contain original-game binary analysis and historical notes.
