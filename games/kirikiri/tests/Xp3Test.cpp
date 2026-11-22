@@ -1554,6 +1554,38 @@ int main() {
     }
   }
 
+  // Event handlers must have an independent instruction budget. A title
+  // remains interactive after many hover/movement updates.
+  {
+    Kotonoha::Providers::KirikiriAssets input(tempDir);
+    Kotonoha::Providers::TjsStartupResult menu;
+    const bool ok = Kotonoha::Providers::executeTjsInlineSubset(
+        menu, input,
+        "var w = new Window(); var b = new Layer(w, w.primaryLayer);"
+        "b.setSize(100,100);"
+        "function tick(x) { System.title = \"Alive\"; }"
+        "b.onMouseMove = tick;",
+        "menu-budget.tjs", 24);
+    if (!ok || !menu.error.empty()) {
+      std::printf("FAIL: event-budget menu fixture\n");
+      ++failures;
+    } else {
+      bool healthy = true;
+      for (int n = 0; n < 100; ++n) {
+        if (!Kotonoha::Providers::dispatchTjsUiMouseMove(
+                menu, 12.0f, 12.0f) ||
+            !menu.error.empty()) {
+          healthy = false;
+          break;
+        }
+      }
+      if (!healthy || menu.title != "Alive") {
+        std::printf("FAIL: TJS2 repeated UI events exhausted startup budget\n");
+        ++failures;
+      }
+    }
+  }
+
   // KiriKiri menu rollover scripts can update state from onMouseMove.
   {
     Kotonoha::Providers::KirikiriAssets input(tempDir);
