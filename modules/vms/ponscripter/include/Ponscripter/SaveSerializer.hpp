@@ -58,6 +58,8 @@ struct SlotSaveData {
   bool manualFrameVisible = false;
   std::vector<ManualDrawOp> manualDraftOps;
   std::vector<ManualDrawOp> manualDisplayOps;
+  ActiveEffect activeEffect;
+  int quakeAmplitude = 0;
   WindowSpec window;
   bool textWindowVisible = false;
   std::vector<TextSpan> pageSpans;
