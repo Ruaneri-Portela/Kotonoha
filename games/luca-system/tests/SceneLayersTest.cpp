@@ -57,6 +57,28 @@ int main() {
               !LucaSystem::isCharacterFragment(384, 640, 1280, 720,
                                                200, 144, 640, 480),
           "AIR expression crop overlays a matching portrait canvas");
+    {
+      std::vector<std::uint8_t> rgba(4 * 4 * 4, 255);
+      check(!LucaSystem::hasNonOpaquePixels(rgba),
+            "Fully opaque CZ art may use background upscaling");
+      rgba[3] = 0;
+      check(LucaSystem::hasNonOpaquePixels(rgba),
+            "Transparent CZ4 overlays must bypass image upscalers");
+      rgba[3] = 255;
+      check(LucaSystem::rasterCoversPointWithOpacity(
+                rgba, 4, 4, 0, 0, 1, 1, 2, 2, 1.0f),
+            "Opaque background covers the attached HUD point");
+      rgba[(2 * 4 + 2) * 4 + 3] = 0;
+      check(!LucaSystem::rasterCoversPointWithOpacity(
+                rgba, 4, 4, 0, 0, 1, 1, 2, 2, 1.0f),
+            "Transparent CZ4 holes do not justify calendar overlay");
+      check(!LucaSystem::rasterCoversPointWithOpacity(
+                rgba, 4, 4, 40, 40, 1, 1, 2, 2, 1.0f),
+            "Calendar must not float outside a cropped background");
+      check(!LucaSystem::rasterCoversPointWithOpacity(
+                rgba, 4, 4, 0, 0, 1, 1, 1, 1, 0.2f),
+            "Darkened/transparent background suppresses attached HUD");
+    }
     check(LucaSystem::airCalendarBadgeName(16) == "jul_16" &&
               LucaSystem::airCalendarBadgeName(31) == "jul_31" &&
               LucaSystem::airCalendarBadgeName(1) == "aug_01" &&

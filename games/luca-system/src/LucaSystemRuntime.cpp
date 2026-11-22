@@ -1760,6 +1760,7 @@ struct LucaSystemRuntime::Impl {
   std::vector<ScriptInstruction> instructions;
   size_t instructionIndex = 0;
   std::unordered_map<uint32_t, CzImage> objectImages;
+  std::unordered_map<uint32_t, bool> objectHasTransparency;
   std::unordered_map<uint32_t, Kotonoha::TexturePtr> objectTextures;
   std::unordered_map<uint32_t, uint64_t> failedImageRetryAt;
   CzImage background;
@@ -2427,6 +2428,7 @@ struct LucaSystemRuntime::Impl {
       if (!image.rgba.empty())
         Kotonoha::prepareStraightAlphaForLinearFiltering(
             image.rgba.data(), image.width, image.height, image.width * 4);
+      objectHasTransparency[id] = hasNonOpaquePixels(image.rgba);
       objectImages[id] = std::move(image);
       objectTextures[id].reset();
       failedImageRetryAt.erase(id);
@@ -2665,11 +2667,13 @@ struct LucaSystemRuntime::Impl {
     // Upscalers are intended for flat background art; running an image
     // enhancement filter on transparent CHARCG portraits may distort edges,
     // hair strands and the sprite's original alpha silhouette.
-    const bool characterSprite = slot.group == 2 || slot.group == 3;
+    const auto transparency = objectHasTransparency.find(slot.assetId);
+    const bool nativeSprite = slot.group == 2 || slot.group == 3 ||
+        (transparency != objectHasTransparency.end() && transparency->second);
     const SDL_FPoint sharedPivot{crop.pivotX, crop.pivotY};
     const double rotation = double(pose->rotation);
     if (rotation != 0.0) {
-      if (characterSprite)
+      if (nativeSprite)
         SDL_RenderTextureRotated(&renderer, tex.get(), nullptr, &dst,
                                  rotation, &sharedPivot, SDL_FLIP_NONE);
       else
@@ -2677,7 +2681,7 @@ struct LucaSystemRuntime::Impl {
             &renderer, tex.get(), nullptr, &dst, rotation,
             nullptr, SDL_FLIP_NONE);
     } else {
-      if (characterSprite)
+      if (nativeSprite)
         SDL_RenderTexture(&renderer, tex.get(), nullptr, &dst);
       else
         Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), nullptr, &dst);
@@ -2759,7 +2763,23 @@ struct LucaSystemRuntime::Impl {
           (slot.assetId == 65000 || slot.assetId == 65001))
         return false;
     }
-    return true;
+    // Scene slot (0,0) may be only a cropped/transparent fragment. Do not
+    // float the calendar over empty black pixels as in seen170 transitions.
+    const auto image = objectImages.find(background->second.assetId);
+    if (image == objectImages.end() || image->second.rgba.empty())
+      return false;
+    const auto &slot = background->second;
+    const auto &art = image->second;
+    const float x = croppedSpriteOrigin(
+        slot.posX, float(art.anchorX), float(art.cropX),
+        slot.scaleX, slot.targetOffsetX, 0.0f);
+    const float y = croppedSpriteOrigin(
+        slot.posY, float(art.anchorY), float(art.cropY),
+        slot.scaleY, slot.targetOffsetY, 0.0f);
+    // Centre of the native 128x133 calendar badge, not window pixels.
+    return rasterCoversPointWithOpacity(
+        art.rgba, art.width, art.height, x, y, slot.scaleX, slot.scaleY,
+        69.33f, 66.67f, slot.alpha);
   }
 
   void renderCalendarBadge(Kotonoha::RendererRef renderer, uint64_t now,
@@ -2803,8 +2823,8 @@ struct LucaSystemRuntime::Impl {
           static_cast<Uint8>(std::lround(badgeAlpha * float(originalAlpha))));
       // CZ4 stores a 192x200 crop at x=8 in its 200x200 canvas.
       const SDL_FRect position{5.33f, 0.0f, 128.0f, 133.33f};
-      Kotonoha::RenderUpscaledTexture(&renderer, &calendar, nullptr,
-                                       &position);
+      // The badge is native transparent UI art; never run an image upscaler.
+      SDL_RenderTexture(&renderer, &calendar, nullptr, &position);
       SDL_SetTextureAlphaMod(&calendar, originalAlpha);
     } catch (const std::exception &error) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
@@ -3743,6 +3763,7 @@ void LucaSystemRuntime::shutdown() {
   impl.titleBackgroundTexture.reset();
   impl.objectTextures.clear();
   impl.objectImages.clear();
+  impl.objectHasTransparency.clear();
   impl.failedImageRetryAt.clear();
   impl.backgroundTexture.reset();
   impl.splashLogos.clear();
