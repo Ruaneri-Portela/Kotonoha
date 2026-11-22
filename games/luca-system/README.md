@@ -309,6 +309,17 @@ modulation and parent clip are restored. No commercial AIR files are required.
     cmake --build build --target LucaSystemGpuSceneTests
     SDL_VIDEODRIVER=dummy ctest --test-dir build -R LucaSystem.GpuScene --output-on-failure
 
+## Persistent AIR background below transparent foregrounds
+
+The seen170 screenshot exposed a lost background: INIT removed the staged
+background, and DRAW replaced the visible scene with foreground assets alone.
+Their transparent holes then revealed the renderer's black clear. A private
+bottommost layer (0xfe00) now keeps the last opaque full-screen backdrop
+beneath subsequent scene sprites. An explicit new opaque background replaces
+it. The layer is part of the normal transition maps, scene texture cache and
+V6 visual save. Synthetic C++17 regression cases cover the scene sequence,
+alpha cutouts, layer order and replacement.
+
 ## GPU scene composition and transition correctness
 
 Gameplay DRAW now composes the incoming scene into a native 1280x720 SDL
