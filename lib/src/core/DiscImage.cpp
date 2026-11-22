@@ -1,6 +1,7 @@
 #include <Kotonoha/core/DiscImage.hpp>
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -227,11 +228,7 @@ void DiscImage::walk(Uint32 lba, Uint64 size, const std::string &prefix,
       for (size_t c = 0; c < name.size(); c += 2)
         if (name[c] == '\0' && name[c + 1] == '\0')
           throw std::runtime_error("invalid Joliet filename");
-      SDLMemoryPtr<char> utf8(
-          SDL_iconv_string("UTF-8", "UTF-16BE", name.data(), name.size()));
-      if (!utf8)
-        throw std::runtime_error("cannot decode Joliet filename");
-      name = utf8.get();
+      name = ConvertEncoding(name, "UTF-16BE", "UTF-8");
     }
     Uint32 fileVersion = 1;
     if (const auto versionPos = name.find(';');
