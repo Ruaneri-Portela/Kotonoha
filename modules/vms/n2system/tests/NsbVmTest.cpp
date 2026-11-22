@@ -413,6 +413,49 @@ int main() {
     require(vm.finished(), "Deferred save opcodes preserve control flow");
   }
 
+  // JSON debug saves need strict Unicode handling, escaped control characters
+  // and preservation of the caller's state on bad input.
+  {
+    N2System::SaveData data;
+    data.chapterName = "chapter/日本語";
+    data.activeSpeaker = "A\"B\\C";
+    data.activeText = "Line one\nLine two\nあ🌸";
+    data.strings["quote\"key"] = "value\nwith\ttabs";
+    data.integers["$negative"] = -42;
+    data.flags["#saved"] = true;
+    data.backlog.push_back({"声", "UTF-8 🌸", "voice/test.ogg"});
+    data.runtimeBlob = {0, 1, 2, 255, 17};
+    const std::string json = N2System::SaveStateCodec::serializeJson(data);
+    N2System::SaveData restored;
+    require(N2System::SaveStateCodec::deserializeJson(json, restored),
+            "JSON with quotes, unicode and control characters must parse");
+    require(restored.chapterName == data.chapterName &&
+                restored.activeText == data.activeText &&
+                restored.activeSpeaker == data.activeSpeaker &&
+                restored.strings == data.strings &&
+                restored.flags == data.flags &&
+                restored.integers == data.integers &&
+                restored.runtimeBlob == data.runtimeBlob &&
+                restored.backlog.size() == 1 &&
+                restored.backlog[0].speaker == "声",
+            "JSON save must round-trip every text/map/blob field");
+    N2System::SaveData unicode;
+    require(N2System::SaveStateCodec::deserializeJson(
+                R"({"chapter":"\u65e5\u672c","activeText":"\ud83c\udf38"})",
+                unicode) &&
+                unicode.chapterName == "日本" && unicode.activeText == "🌸",
+            "UTF-16 escaped Japanese and surrogate pair decode to UTF-8");
+    require(!N2System::SaveStateCodec::deserializeJson(
+                R"({"chapter":"ok","activeText":"\ud800"})",
+                unicode), "Unpaired surrogate must be rejected");
+    require(!N2System::SaveStateCodec::deserializeJson(
+                R"({"chapter":"ok","position":-1})",
+                unicode), "Negative save position must be rejected");
+    require(!N2System::SaveStateCodec::deserializeJson(
+                R"({"chapter":"ok","chapter":"duplicate"})",
+                unicode), "Duplicate JSON keys must be rejected");
+  }
+
   std::cout << "N2System NsbVm tests passed\n";
   return 0;
 }
