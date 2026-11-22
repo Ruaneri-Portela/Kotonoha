@@ -701,6 +701,56 @@ int main() {
             "drawfill must clear the accumulation and commit RGB color");
     }
 
+    {
+      Ponscripter::PonscripterVm shake;
+      const std::string script =
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "quakex 16,120\n"
+          "mov %1,1\n"
+          "quakey 12,100\n"
+          "mov %2,2\n"
+          "end\n";
+      shake.appendScriptFile("0.utf", script);
+      check(shake.start(), "quake fixture must start");
+      shake.tick(0);
+      check(shake.waitState() == Ponscripter::WaitState::WaitEffect &&
+                shake.activeEffect().builtinEffect == 10002,
+            "quakex must start horizontal timed effect");
+      shake.tick(31);
+      const auto offset = shake.quakeOffset();
+      check(offset.first != 0 && offset.second == 0,
+            "quakex frame offset must animate only X");
+      Ponscripter::SlotSaveData state;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(
+                    shake.exportSlotSave()), state),
+            "active quake must be savable");
+      check(state.activeEffect.active &&
+                state.activeEffect.durationMs == 120 &&
+                state.activeEffect.elapsedMs == 31 &&
+                state.quakeAmplitude == 16,
+            "quake state and frame progress must survive save roundtrip");
+      Ponscripter::PonscripterVm restored;
+      restored.appendScriptFile("0.utf", script);
+      check(restored.start(), "quake resumption fixture must start");
+      restored.importSlotSave(state);
+      restored.tick(100);
+      check(restored.waitState() == Ponscripter::WaitState::WaitEffect &&
+                restored.activeEffect().builtinEffect == 10001 &&
+                restored.variables().getNum(1) == 1,
+            "quakex completion must advance to next quakey command");
+      restored.tick(25);
+      const auto vertical = restored.quakeOffset();
+      check(vertical.first == 0 && vertical.second != 0,
+            "quakey frame offset must animate only Y");
+      restored.tick(110);
+      check(restored.isHalted() && restored.variables().getNum(2) == 2 &&
+                restored.quakeOffset() == std::pair<int,int>{0,0},
+            "completed quake must restore centered scene");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
