@@ -149,5 +149,8 @@ KOTONOHA_METALFX_DEF[sdk=iphonesimulator*] =
 GCC_PREPROCESSOR_DEFINITIONS = $(inherited) $(KOTONOHA_METALFX_DEF) KOTONOHA_ENABLE_UPSCALER=1 $(KOTONOHA_MCP_DEF)
 
 // The original projects link dynamic SDL3 / SDL3_ttf and vcpkg libraries.
+// CoreFoundation handles engine text conversion, but bundled/third-party
+// libraries may still reference _iconv_open/_iconv/_iconv_close.
+// Keep the Apple SDK's libiconv linked for all macOS/iOS app targets.
 KOTONOHA_SHARED_LIBS = -ljson-c -lass -lz -lharfbuzz -lfribidi -lfreetype -lfontconfig -liconv -lbz2 -lbrotlidec -lbrotlicommon -lexpat -lpng -lunibreak
 KOTONOHA_FFMPEG_LIBS = -lavcodec -lavformat -lavutil -lswresample -lswscale

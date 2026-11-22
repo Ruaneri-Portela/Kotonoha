@@ -22,6 +22,7 @@
 #include <array>
 #include <cctype>
 #include <cstring>
+#include <cstdlib>
 #include <filesystem>
 #include <functional>
 #include <iomanip>
@@ -219,6 +220,9 @@ struct KirikiriRuntime::Impl {
     std::string id;
     int x = 0, y = 0;
     bool decodeFailed = false;
+    bool visible = true;
+    int opacity = 255;
+    int order = 0;
   };
   Visual titlePicture, background, nameplateVisual;
   std::map<std::string, Visual> characters;
@@ -579,38 +583,47 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
                     "KiriKiri: cannot inspect startup.tjs: %s",
                     impl.bootstrap.error.c_str());
 
-      if (impl.hasVnxUi) {
-        impl.loadChapterList();
-        impl.refreshSaveSlots();
-        impl.screenMode = Impl::ScreenMode::Title;
-        impl.returnScreenMode = Impl::ScreenMode::Title;
-        impl.choiceScene->hide();
-        SDL_Log("KiriKiri: presenting native VNX+ title menu");
-        return;
-      }
-
       const auto &ui = impl.startupExecution;
       const bool imagePresent = std::any_of(
           ui.layers.begin(), ui.layers.end(),
           [&](const Kotonoha::Providers::TjsUiLayer &layer) {
-            return layer.visible && !layer.storage.empty() &&
-                   !resolveVisual(*impl.assets, layer.storage, true).empty();
+            return layer.visible &&
+                   (!layer.texts.empty() || !layer.rectangles.empty() ||
+                    (!layer.storage.empty() &&
+                     !resolveVisual(*impl.assets, layer.storage, true).empty()));
           });
       const bool hasClickTarget =
           std::any_of(ui.layers.begin(), ui.layers.end(),
                       [](const Kotonoha::Providers::TjsUiLayer &layer) {
                         return layer.visible && layer.enabled &&
-                               !layer.onClick.empty() &&
+                               (!layer.onClick.empty() ||
+                                !layer.onMouseUp.empty()) &&
                                ((layer.width > 0 && layer.height > 0) ||
                                 !layer.storage.empty());
                       });
       impl.nativeTitleUi = !impl.nativeTitleDisabled && ui.subsetCompleted &&
-                           ui.error.empty() && imagePresent && hasClickTarget;
+                           ui.error.empty() && imagePresent &&
+                           (hasClickTarget || !ui.onKeyDown.empty());
       SDL_Log("KiriKiri: TJS2 title projection: %zu layers, interactive=%d",
               ui.layers.size(), impl.nativeTitleUi ? 1 : 0);
       impl.titlePicture = {findTitlePicture(*impl.assets), 0, 0, false};
       if (impl.nativeTitleUi) {
+        // A coherent source-created title takes priority over asset-specific
+        // UI fallbacks, even when VNX+ overlay images are installed.
+        impl.screenMode = Impl::ScreenMode::None;
         impl.choiceScene->hide();
+        SDL_Log("KiriKiri: presenting script-created original title menu");
+        return;
+      }
+      if (impl.hasVnxUi) {
+        // The translation overlay's menu remains the safe fallback if the
+        // source title could not be evaluated or displayed.
+        impl.loadChapterList();
+        impl.refreshSaveSlots();
+        impl.screenMode = Impl::ScreenMode::Title;
+        impl.returnScreenMode = Impl::ScreenMode::Title;
+        impl.choiceScene->hide();
+        SDL_Log("KiriKiri: presenting VNX+ compatibility title menu");
         return;
       }
       const auto startup = !impl.startupExecution.kagEntry.empty()
@@ -727,7 +740,8 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                                      float scale) {
   auto &impl = *impl_;
   const auto draw = [&](Impl::Visual &visual, bool fullScreen) {
-    if (visual.id.empty() || visual.decodeFailed)
+    if (visual.id.empty() || visual.decodeFailed ||
+        !visual.visible || visual.opacity == 0)
       return;
     try {
       auto &texture = impl.assets->texture(renderer, visual.id);
@@ -735,8 +749,15 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           fullScreen ? SDL_FRect{0, 0, 1280, 720}
                      : SDL_FRect{float(visual.x), float(visual.y),
                                  float(texture.w), float(texture.h)};
-      if (!Kotonoha::RenderUpscaledTexture(&renderer, &texture, nullptr,
-                                           &destination))
+      Uint8 previousAlpha = 255;
+      if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
+          !SDL_SetTextureAlphaMod(
+              &texture, static_cast<Uint8>(visual.opacity)))
+        throw std::runtime_error(SDL_GetError());
+      const bool rendered = Kotonoha::RenderUpscaledTexture(
+          &renderer, &texture, nullptr, &destination);
+      SDL_SetTextureAlphaMod(&texture, previousAlpha);
+      if (!rendered)
         throw std::runtime_error(SDL_GetError());
     } catch (const std::exception &error) {
       visual.decodeFailed = true;
@@ -762,8 +783,18 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
     } else {
       draw(impl.background, true);
+      // Foreground KAG layer indices are numeric. Iterating the map
+      // lexically used to draw "10" before "2", breaking foreground order.
+      std::vector<Impl::Visual *> ordered;
+      ordered.reserve(impl.characters.size());
       for (auto &[layer, visual] : impl.characters)
-        draw(visual, false);
+        ordered.push_back(&visual);
+      std::stable_sort(ordered.begin(), ordered.end(),
+                       [](const Impl::Visual *a, const Impl::Visual *b) {
+                         return a->order < b->order;
+                       });
+      for (auto *visual : ordered)
+        draw(*visual, false);
     }
 
     // Native VNX+ In-Game Message Box & Toolbar
@@ -875,39 +906,75 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                        : "Carregamento rápido concluído!",
                    20, 640.0f, 326.0f, SDL_Color{85, 42, 58, 255}, true, false);
     }
-  } else if (!impl.hasVnxUi) {
-    draw(impl.titlePicture, true);
+  } else if (!impl.hasVnxUi || impl.nativeTitleUi) {
+    // Do not inject the compatibility title backdrop behind an authentic
+    // source-created menu: the TJS Layer tree owns the entire title scene.
+    if (!impl.nativeTitleUi)
+      draw(impl.titlePicture, true);
     if (impl.startupExecution.subsetCompleted) {
       for (auto &layer : impl.startupExecution.layers) {
-        if (!layer.visible || layer.opacity == 0 || layer.storage.empty() ||
-            impl.failedNativePictures.count(layer.storage))
+        if (!layer.visible || layer.opacity == 0)
           continue;
-        try {
-          const auto id = resolveVisual(*impl.assets, layer.storage, true);
-          if (id.empty())
-            throw std::runtime_error("asset not found");
-          auto &texture = impl.assets->texture(renderer, id);
-          if (layer.width <= 0)
-            layer.width = texture.w;
-          if (layer.height <= 0)
-            layer.height = texture.h;
-          const SDL_FRect destination{float(layer.left), float(layer.top),
-                                      float(layer.width), float(layer.height)};
-          Uint8 previousAlpha = 255;
-          if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
-              !SDL_SetTextureAlphaMod(&texture,
-                                      static_cast<Uint8>(layer.opacity)))
-            throw std::runtime_error(SDL_GetError());
-          const bool success = Kotonoha::RenderUpscaledTexture(
-              &renderer, &texture, nullptr, &destination);
-          SDL_SetTextureAlphaMod(&texture, previousAlpha);
-          if (!success)
-            throw std::runtime_error(SDL_GetError());
-        } catch (const std::exception &error) {
-          if (impl.failedNativePictures.insert(layer.storage).second)
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                        "KiriKiri: TJS2 Layer image %s unavailable: %s",
-                        layer.storage.c_str(), error.what());
+        if (!layer.storage.empty() &&
+            !impl.failedNativePictures.count(layer.storage)) {
+          try {
+            const auto id = resolveVisual(*impl.assets, layer.storage, true);
+            if (id.empty())
+              throw std::runtime_error("asset not found");
+            auto &texture = impl.assets->texture(renderer, id);
+            if (layer.width <= 0)
+              layer.width = texture.w;
+            if (layer.height <= 0)
+              layer.height = texture.h;
+            const SDL_FRect destination{float(layer.left), float(layer.top),
+                                        float(layer.width), float(layer.height)};
+            Uint8 previousAlpha = 255;
+            if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
+                !SDL_SetTextureAlphaMod(&texture,
+                                        static_cast<Uint8>(layer.opacity)))
+              throw std::runtime_error(SDL_GetError());
+            const bool success = Kotonoha::RenderUpscaledTexture(
+                &renderer, &texture, nullptr, &destination);
+            SDL_SetTextureAlphaMod(&texture, previousAlpha);
+            if (!success)
+              throw std::runtime_error(SDL_GetError());
+          } catch (const std::exception &error) {
+            if (impl.failedNativePictures.insert(layer.storage).second)
+              SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                          "KiriKiri: TJS2 Layer image %s unavailable: %s",
+                          layer.storage.c_str(), error.what());
+          }
+        }
+        // A script's fillRect commands are rendered as GPU UI rectangles,
+        // not pre-rasterized software textures.
+        if (!layer.rectangles.empty()) {
+          SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+          for (const auto &rect : layer.rectangles) {
+            const auto rgb = rect.rgb;
+            const auto alpha = static_cast<Uint8>(
+                std::clamp(layer.opacity * rect.opacity / 255, 0, 255));
+            SDL_SetRenderDrawColor(&renderer,
+                                   static_cast<Uint8>(rgb >> 16),
+                                   static_cast<Uint8>(rgb >> 8),
+                                   static_cast<Uint8>(rgb), alpha);
+            const SDL_FRect bounds{float(layer.left + rect.left),
+                                   float(layer.top + rect.top),
+                                   float(rect.width), float(rect.height)};
+            SDL_RenderFillRect(&renderer, &bounds);
+          }
+        }
+        // Native drawText commands project onto the accelerated VN UI.
+        for (const auto &run : layer.texts) {
+          const auto alpha = static_cast<Uint8>(
+              std::clamp(layer.opacity * run.opacity / 255, 0, 255));
+          const auto rgb = run.rgb;
+          drawTextLine(impl.engine, renderer, run.text, run.size,
+                       float(layer.left + run.left),
+                       float(layer.top + run.top),
+                       SDL_Color{static_cast<Uint8>(rgb >> 16),
+                                 static_cast<Uint8>(rgb >> 8),
+                                 static_cast<Uint8>(rgb), alpha},
+                       false, false);
         }
       }
     }
@@ -1593,19 +1660,101 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
       initGameplay(*impl.engine);
   };
   if (impl.currentScenario.empty() && impl.nativeTitleUi &&
-      mapped.type == SDL_EVENT_MOUSE_MOTION) {
-    if (Kotonoha::Providers::dispatchTjsUiHover(
-            impl.startupExecution, mapped.motion.x, mapped.motion.y)) {
+      mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat) {
+    int virtualKey = 0;
+    switch (mapped.key.key) {
+    case SDLK_RETURN:
+    case SDLK_KP_ENTER: virtualKey = 13; break;
+    case SDLK_ESCAPE: virtualKey = 27; break;
+    case SDLK_SPACE: virtualKey = 32; break;
+    case SDLK_LEFT: virtualKey = 37; break;
+    case SDLK_UP: virtualKey = 38; break;
+    case SDLK_RIGHT: virtualKey = 39; break;
+    case SDLK_DOWN: virtualKey = 40; break;
+    default: break;
+    }
+    if (virtualKey > 0 && Kotonoha::Providers::dispatchTjsUiKeyDown(
+                              impl.startupExecution, virtualKey)) {
       impl.failedNativePictures.clear();
-      if (!impl.startupExecution.error.empty()) {
+      const auto &run = impl.startupExecution;
+      if (!run.error.empty()) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "KiriKiri: TJS2 hover event failed: %s",
-                    impl.startupExecution.error.c_str());
+                    "KiriKiri: TJS2 keyboard handler failed: %s",
+                    run.error.c_str());
         nativeFallback();
+      } else if (!run.kagEntry.empty()) {
+        const auto target = run.kagEntry;
+        if (startScenario(target)) {
+          impl.nativeTitleUi = false;
+          impl.choiceScene->hide();
+        } else {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: keyboard requested unavailable KAG: %s",
+                      target.c_str());
+          nativeFallback();
+        }
       }
       return true;
     }
   }
+
+  if (impl.currentScenario.empty() && impl.nativeTitleUi &&
+      mapped.type == SDL_EVENT_MOUSE_MOTION) {
+    const bool hover = Kotonoha::Providers::dispatchTjsUiHover(
+        impl.startupExecution, mapped.motion.x, mapped.motion.y);
+    const bool motion = Kotonoha::Providers::dispatchTjsUiMouseMove(
+        impl.startupExecution, mapped.motion.x, mapped.motion.y);
+    if (hover || motion) {
+      impl.failedNativePictures.clear();
+      const auto &run = impl.startupExecution;
+      if (!run.error.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "KiriKiri: TJS2 pointer movement failed: %s",
+                    run.error.c_str());
+        nativeFallback();
+      } else if (!run.kagEntry.empty()) {
+        const auto target = run.kagEntry;
+        if (startScenario(target)) {
+          impl.nativeTitleUi = false;
+          impl.choiceScene->hide();
+        } else {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: pointer motion requested missing KAG: %s",
+                      target.c_str());
+          nativeFallback();
+        }
+      }
+      return true;
+    }
+  }
+  if (impl.currentScenario.empty() && impl.nativeTitleUi &&
+      mapped.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+      mapped.button.button == SDL_BUTTON_LEFT) {
+    if (Kotonoha::Providers::dispatchTjsUiMouseUp(
+            impl.startupExecution, mapped.button.x, mapped.button.y)) {
+      impl.failedNativePictures.clear();
+      const auto &run = impl.startupExecution;
+      if (!run.error.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "KiriKiri: TJS2 release handler failed: %s",
+                    run.error.c_str());
+        nativeFallback();
+      } else if (!run.kagEntry.empty()) {
+        const auto target = run.kagEntry;
+        if (startScenario(target)) {
+          impl.nativeTitleUi = false;
+          impl.choiceScene->hide();
+        } else {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: UI requested unavailable KAG scenario: %s",
+                      target.c_str());
+          nativeFallback();
+        }
+      }
+      return true;
+    }
+  }
+
   if (impl.currentScenario.empty() && impl.nativeTitleUi &&
       mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
       mapped.button.button == SDL_BUTTON_LEFT) {
@@ -1897,6 +2046,26 @@ bool KirikiriRuntime::startScenario(
     }
   };
 
+  callbacks.executeInlineTjs = [this, target](std::string source) {
+    auto &state = *impl_;
+    const bool success = Kotonoha::Providers::executeTjsInlineSubset(
+        state.startupExecution, *state.assets, source, target);
+    if (!success) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "KiriKiri: inline TJS2 in %s: %s", target.c_str(),
+                  state.startupExecution.error.c_str());
+      return; // Keep unsupported scripts visible as diagnostics.
+    }
+    const auto requested = state.startupExecution.kagEntry;
+    if (!requested.empty() && requested != target) {
+      const auto separator = requested.find('#');
+      state.pendingJumpStorage = requested.substr(0, separator);
+      state.pendingJumpTarget = separator == std::string::npos
+                                    ? std::string()
+                                    : requested.substr(separator + 1);
+    }
+  };
+
   callbacks.showChoice = [this](std::string question,
                                 std::vector<std::string> options,
                                 std::function<void(int)> onChoose) {
@@ -1997,7 +2166,18 @@ bool KirikiriRuntime::startScenario(
                     "KiriKiri: foreground image not found: %s", file.c_str());
       return;
     }
-    state.characters[layer] = {id, x, y, false};
+    auto &visual = state.characters[layer];
+    visual.id = id;
+    visual.x = x;
+    visual.y = y;
+    visual.decodeFailed = false;
+    visual.visible = true;
+    // Layers 0,1,2,... are ordered numerically, not lexically.
+    char *end = nullptr;
+    const long numeric = std::strtol(layer.c_str(), &end, 10);
+    if (end != layer.c_str() && end && *end == '\0' &&
+        numeric >= -10000 && numeric <= 10000)
+      visual.order = static_cast<int>(numeric);
     if (transitionMs > 0)
       SDL_LogDebug(
           SDL_LOG_CATEGORY_APPLICATION,
@@ -2007,6 +2187,31 @@ bool KirikiriRuntime::startScenario(
 
   callbacks.hideChar = [this](std::string layer, int) {
     impl_->characters.erase(layer);
+  };
+
+  callbacks.updateLayer = [this](KagScript::LayerOptions options) {
+    auto &state = *impl_;
+    Impl::Visual *visual = nullptr;
+    if (options.layer == "base") {
+      visual = &state.background;
+    } else {
+      const auto it = state.characters.find(options.layer);
+      if (it != state.characters.end())
+        visual = &it->second;
+    }
+    // [layopt] before [image] should not create an empty drawable.
+    if (!visual)
+      return;
+    if (options.left)
+      visual->x = *options.left;
+    if (options.top)
+      visual->y = *options.top;
+    if (options.visible)
+      visual->visible = *options.visible;
+    if (options.opacity)
+      visual->opacity = std::clamp(*options.opacity, 0, 255);
+    if (options.order)
+      visual->order = *options.order;
   };
 
   callbacks.playBgm = [this, playAudio](std::string file, bool loop) {

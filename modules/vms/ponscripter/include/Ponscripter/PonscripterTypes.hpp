@@ -70,6 +70,8 @@ struct ActiveEffect {
 struct SpriteSlot {
   bool loaded = false;
   bool visible = false;
+  bool secondaryLayer = false; // lsp2/lsph2 separate hide-state group
+  int blendMode = 0; // 0=alpha, 1=add, 2=reverse subtract
   TaggedImageSpec spec;
   int x = 0;
   int y = 0;
@@ -79,6 +81,29 @@ struct SpriteSlot {
   int currentCell = 0;
   int animDir = 1;
   double animAccumMs = 0.0;
+};
+
+// Retained manual drawing stream for drawclear/drawfill/drawbg/drawsp/
+// drawtext and draw. The VM captures immutable draw inputs so render frames
+// never execute script commands or mutate the layer stack.
+struct ManualDrawOp {
+  enum class Kind : std::uint8_t {
+    Clear, Fill, Background, Sprite, Text, Blit, Rect, Window
+  };
+  Kind kind = Kind::Clear;
+  std::uint32_t colorRgb = 0;
+  TaggedImageSpec spec;
+  std::string text;
+  int x = 0, y = 0;
+  int width = 0, height = 0;
+  int srcX = 0, srcY = 0, srcW = 0, srcH = 0;
+  int cell = 0;
+  int alpha = 255;
+  int scaleX = 100, scaleY = 100;
+  int rotation = 0;
+  int transformA = 1000, transformB = 0;
+  int transformC = 0, transformD = 1000;
+  bool affine = false;
 };
 
 struct StandingSlot {
@@ -113,7 +138,7 @@ struct PrintedNumber {
 };
 
 struct ButtonDef {
-  enum class Kind : std::uint8_t { RectBtn = 0, SpriteBtn = 1 };
+  enum class Kind : std::uint8_t { RectBtn = 0, SpriteBtn = 1, TextBtn = 2 };
   int id = 0;
   Kind kind = Kind::SpriteBtn;
   int spriteNo = -1;
@@ -124,6 +149,7 @@ struct ButtonDef {
   int srcX = 0;
   int srcY = 0;
   std::string exbtnControl;
+  std::string text; // UI-rendered custom-selection caption
 };
 
 struct RMenuEntry {

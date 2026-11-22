@@ -40,8 +40,15 @@ if(KOTONOHA_BUILD_HOST_TOOLS)
     target_link_libraries(RealLiveInspect PRIVATE RealLiveFormats)
 endif()
 
-find_package(Iconv REQUIRED)
-target_link_libraries(RealLiveFormats PUBLIC KotonohaEngine Iconv::Iconv)
+# No RealLive text converter calls iconv on Apple: all character sets are
+# decoded through Kotonoha::ConvertEncoding in the shared CoreFoundation
+# backend. Keep the legacy CMake dependency only for non-Apple platforms.
+set(REALLIVE_ICONV_LIBS "")
+if(NOT APPLE)
+    find_package(Iconv REQUIRED)
+    set(REALLIVE_ICONV_LIBS Iconv::Iconv)
+endif()
+target_link_libraries(RealLiveFormats PUBLIC KotonohaEngine ${REALLIVE_ICONV_LIBS})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/reallive"
     "${CMAKE_CURRENT_BINARY_DIR}/providers/reallive")
@@ -52,7 +59,7 @@ set_target_properties(reallive_port PROPERTIES CXX_EXTENSIONS OFF)
 target_link_libraries(reallive_port PUBLIC
     RealLiveFormats
     KotonohaEngine
-    Iconv::Iconv
+    ${REALLIVE_ICONV_LIBS}
     kotonoha_provider_reallive
     kotonoha_vm_reallive
 )
@@ -106,6 +113,84 @@ if(BUILD_TESTING)
         set_tests_properties("RealLive.EndianRead.${char_mode}"
             PROPERTIES LABELS synthetic)
     endforeach()
+    # Decoder regression vectors exercise truncation, LZ back-references,
+    # declared output lengths and second XOR bounds with no retail assets.
+    add_executable(RealLiveCompressionTests tests/CompressionTest.cpp)
+    target_link_libraries(RealLiveCompressionTests PRIVATE RealLiveFormats)
+    target_compile_features(RealLiveCompressionTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.Compression COMMAND RealLiveCompressionTests)
+    set_tests_properties(RealLive.Compression PROPERTIES LABELS synthetic)
+
+    # Normalized RealLive BGM gains and time-based fade interpolation.
+    add_executable(RealLiveAudioFadeTests tests/AudioFadeTest.cpp)
+    target_include_directories(RealLiveAudioFadeTests PRIVATE src)
+    target_compile_features(RealLiveAudioFadeTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.AudioFade COMMAND RealLiveAudioFadeTests)
+    set_tests_properties(RealLive.AudioFade PROPERTIES LABELS synthetic)
+
+    # Portable v7 save-section parser: read pages and script-paused BGM.
+    add_executable(RealLiveReadProgressTests tests/ReadProgressTest.cpp)
+    target_include_directories(RealLiveReadProgressTests PRIVATE src)
+    target_compile_features(RealLiveReadProgressTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.ReadProgress COMMAND RealLiveReadProgressTests)
+    set_tests_properties(RealLive.ReadProgress PROPERTIES LABELS synthetic)
+
+    # Native-resolution directional SEL wipes and repeating blind masks.
+    add_executable(RealLiveTransitionStyleTests tests/TransitionStyleTest.cpp)
+    target_include_directories(RealLiveTransitionStyleTests PRIVATE src)
+    target_compile_features(RealLiveTransitionStyleTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.TransitionStyle COMMAND RealLiveTransitionStyleTests)
+    set_tests_properties(RealLive.TransitionStyle PROPERTIES LABELS synthetic)
+
+    # Cross-session history regression (independent of SDL and game archives).
+    add_executable(RealLivePersistentHistoryTests tests/PersistentHistoryTest.cpp)
+    target_include_directories(RealLivePersistentHistoryTests PRIVATE src)
+    target_compile_features(RealLivePersistentHistoryTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.PersistentHistory COMMAND RealLivePersistentHistoryTests)
+    set_tests_properties(RealLive.PersistentHistory PROPERTIES LABELS synthetic)
+
+    # The six remaining rlvm-style scroll/squash/slide SEL families.
+    add_executable(RealLiveScrollTransitionTests tests/ScrollTransitionTest.cpp)
+    target_include_directories(RealLiveScrollTransitionTests PRIVATE src)
+    target_compile_features(RealLiveScrollTransitionTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.ScrollTransition COMMAND RealLiveScrollTransitionTests)
+    set_tests_properties(RealLive.ScrollTransition PROPERTIES LABELS synthetic)
+
+    # Native conditional choice visibility and disabled-option semantics.
+    add_executable(RealLiveSelectionRulesTests tests/SelectionRulesTest.cpp)
+    target_include_directories(RealLiveSelectionRulesTests PRIVATE src)
+    target_compile_features(RealLiveSelectionRulesTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.SelectionRules COMMAND RealLiveSelectionRulesTests)
+    set_tests_properties(RealLive.SelectionRules PROPERTIES LABELS synthetic)
+
+    # Cooperative voice/PCM waits pause script execution until playback drains.
+    add_executable(RealLiveAudioWaitTests tests/AudioWaitTest.cpp)
+    target_include_directories(RealLiveAudioWaitTests PRIVATE src)
+    target_compile_features(RealLiveAudioWaitTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.AudioWait COMMAND RealLiveAudioWaitTests)
+    set_tests_properties(RealLive.AudioWait PROPERTIES LABELS synthetic)
+
+    # Full-domain RealLive 32-bit math and unbiased random selection.
+    add_executable(RealLiveNumericCompatTests tests/NumericCompatTest.cpp)
+    target_include_directories(RealLiveNumericCompatTests PRIVATE src)
+    target_compile_features(RealLiveNumericCompatTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.NumericCompat COMMAND RealLiveNumericCompatTests)
+    set_tests_properties(RealLive.NumericCompat PROPERTIES LABELS synthetic)
+
+    # Native PCM/voice channel volume, mute, and active-time fades.
+    add_executable(RealLiveChannelLevelsTests tests/ChannelLevelsTest.cpp)
+    target_include_directories(RealLiveChannelLevelsTests PRIVATE src)
+    target_compile_features(RealLiveChannelLevelsTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.ChannelLevels COMMAND RealLiveChannelLevelsTests)
+    set_tests_properties(RealLive.ChannelLevels PROPERTIES LABELS synthetic)
+
+    # Multi-edition RealLive BGM opcode aliases by parameter signature.
+    add_executable(RealLiveBgmCompatTests tests/BgmCompatTest.cpp)
+    target_include_directories(RealLiveBgmCompatTests PRIVATE src)
+    target_compile_features(RealLiveBgmCompatTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.BgmCompat COMMAND RealLiveBgmCompatTests)
+    set_tests_properties(RealLive.BgmCompat PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)
@@ -131,6 +216,16 @@ if(BUILD_TESTING)
     # Data-independent verification of switch/case selection semantics.
     # Pure C++17 tests for Str.digits / Str.digit opcode parameters.
     # Strict, data-free tests for atomic Str.strclear range validation.
+    # RealLive Mem setrng/cpyrng/cpyvars/sum address checks and overlapping
+    # copies have standalone tests independent of game assets and SDL.
+    add_executable(RealLiveIntegerRangesTests tests/IntegerRangesTest.cpp)
+    target_include_directories(RealLiveIntegerRangesTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/vendor"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")
+    target_compile_features(RealLiveIntegerRangesTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.IntegerRanges COMMAND RealLiveIntegerRangesTests)
+    set_tests_properties(RealLive.IntegerRanges PROPERTIES LABELS synthetic)
+
     add_executable(RealLiveBoundedRangeTests tests/BoundedRangeTest.cpp)
     target_include_directories(RealLiveBoundedRangeTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")

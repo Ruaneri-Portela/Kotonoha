@@ -1,0 +1,86 @@
+name: RealLive full runtime C++17 integration
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'games/reallive/src/RealLiveAudioWait.hpp'
+      - 'games/reallive/src/RealLiveChannelLevels.hpp'
+      - 'games/reallive/src/RealLiveBgmCompat.hpp'
+      - 'games/reallive/tests/BgmCompatTest.cpp'
+      - 'games/reallive/tests/ChannelLevelsTest.cpp'
+      - 'games/reallive/tests/AudioWaitTest.cpp'
+      - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/src/RealLiveNumeric.hpp'
+      - 'games/reallive/tests/NumericCompatTest.cpp'
+      - 'games/reallive/src/RealLiveSelectRules.hpp'
+      - 'games/reallive/tests/SelectionRulesTest.cpp'
+      - 'games/reallive/src/RealLiveSelection.hpp'
+      - 'lib/include/Kotonoha/components/ChoiceQuestionScene.hpp'
+      - 'lib/src/components/ChoiceQuestionScene.cpp'
+      - 'games/reallive/src/RealLiveRuntime.hpp'
+      - 'games/reallive/src/RealLiveAudioFade.hpp'
+      - 'games/reallive/src/RealLiveReadProgress.hpp'
+      - 'games/reallive/src/RealLivePersistentHistory.hpp'
+      - 'games/reallive/tests/PersistentHistoryTest.cpp'
+      - 'games/reallive/src/RealLiveTransition.hpp'
+      - 'modules/vms/reallive/**'
+      - 'modules/providers/reallive/**'
+      - '.github/workflows/reallive-runtime-integration.yml'
+  pull_request:
+    paths:
+      - 'games/reallive/src/**'
+      - 'modules/vms/reallive/**'
+      - 'modules/providers/reallive/**'
+      - '.github/workflows/reallive-runtime-integration.yml'
+  workflow_dispatch:
+
+jobs:
+  runtime:
+    name: Compile full RealLive Runtime (${{ matrix.compiler }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SDL3 and development headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ clang pkg-config libsdl3-dev libsdl3-ttf-dev libimgui-dev
+      - name: Type-check entire RealLive runtime
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -funsigned-char -Wall -Wextra \
+            -Ilib/include -Igames/reallive/include \
+            -Igames/reallive/src -Igames/reallive/vendor \
+            -Imodules/vms/reallive/include \
+            -Imodules/providers/reallive/include \
+            -I/usr/include/imgui \
+            $(pkg-config --cflags sdl3 SDL3_ttf) \
+            -fsyntax-only games/reallive/src/RealLiveRuntime.cpp
+      - name: Type-check shared choice scene and native selection UI
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -funsigned-char -Wall -Wextra \
+            -Ilib/include -I/usr/include/imgui \
+            $(pkg-config --cflags sdl3 SDL3_ttf) \
+            -fsyntax-only lib/src/components/ChoiceQuestionScene.cpp
+      - name: Compile and run portable numeric regressions
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/NumericCompatTest.cpp \
+            -o /tmp/reallive-numeric-test
+          /tmp/reallive-numeric-test
+      - name: Compile and run RealLive conditional choice rules
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/SelectionRulesTest.cpp \
+            -o /tmp/reallive-selection-rules-test
+          /tmp/reallive-selection-rules-test
+      - name: Compile and run persistent read-history regression
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/PersistentHistoryTest.cpp \
+            -o /tmp/reallive-persistent-history-test
+          /tmp/reallive-persistent-history-test

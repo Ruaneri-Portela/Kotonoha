@@ -2270,8 +2270,13 @@ Node *Vm::exec(Node *n) {
     return n->next;
   case Node::K::Jump: {
     std::string target = n->str("target");
-    if (n->ast.get("expression").truthy())
+    if (n->ast.get("expression").truthy()) {
       target = py.eval(target).text();
+      // Ren'Py resolves expression-based local labels relative to the
+      // enclosing global label, not to the script's root namespace.
+      if (!target.empty() && target.front() == '.')
+        target = n->str("global_label") + target;
+    }
     Node *l = script.label(target);
     if (!l) {
       errors.push_back("missing label " + target);
@@ -2281,8 +2286,11 @@ Node *Vm::exec(Node *n) {
   }
   case Node::K::Call: {
     std::string target = n->str("label");
-    if (n->ast.get("expression").truthy())
+    if (n->ast.get("expression").truthy()) {
       target = py.eval(target).text();
+      if (!target.empty() && target.front() == '.')
+        target = n->str("global_label") + target;
+    }
     pendingArgs_.clear();
     pendingKw_.clear();
     Value args = n->ast.get("arguments");
@@ -2301,6 +2309,8 @@ Node *Vm::exec(Node *n) {
     if (!l) {
       errors.push_back("missing label " + target);
       backend.log(errors.back());
+      pendingArgs_.clear();
+      pendingKw_.clear();
       return n->next;
     }
     callStack_.push_back(n->next);
@@ -2346,7 +2356,6 @@ Node *Vm::exec(Node *n) {
   case Node::K::Menu: {
     const auto &items = n->ast.get("items").items();
     std::vector<Interaction::Item> choices;
-    std::vector<size_t> index;
     std::string caption;
     for (size_t i = 0; i < items.size(); ++i) {
       const auto &it = items[i].items();
@@ -2358,9 +2367,17 @@ Node *Vm::exec(Node *n) {
         continue;
       }
       bool ok = true;
-      try {
-        ok = py.eval(it[1].text()).truthy();
-      } catch (const PyError &) {
+      // Absent conditions represent unconditional menu choices. Avoid
+      // evaluating the string "None" as Python and hiding such options.
+      if (!it[1].isNone()) {
+        try {
+          ok = py.eval(it[1].text()).truthy();
+        } catch (const PyError &error) {
+          errors.push_back(n->file + ":" + std::to_string(n->line) +
+                           ": menu condition: " + error.what());
+          backend.log(errors.back());
+          ok = false;
+        }
       }
       if (!ok)
         continue;
@@ -2368,9 +2385,15 @@ Node *Vm::exec(Node *n) {
       choices.push_back(
           {interpolate(translate ? translate(n->route, original) : original),
            Value::integer(int64_t(i))});
-      index.push_back(i);
     }
+    // When every choice is disabled, Ren'Py falls through instead of
+    // presenting an empty modal menu which the player cannot dismiss.
+    if (choices.empty())
+      return n->next;
     Value r = menu(choices, caption, "choice");
+    // A dismissed/cancelled menu is not a selection of item zero.
+    if (r.isNone())
+      return n->next;
     const size_t i = size_t(r.integer());
     if (i < n->blocks.size() && !n->blocks[i].empty())
       return n->blocks[i][0];
@@ -2740,6 +2763,11 @@ Value Vm::menu(const std::vector<Interaction::Item> &items,
   // The caption only borrows the window; later pauses must not show it empty.
   if (windowAuto_)
     scene.window.visible = wasVisible;
+  // A missing result is not choice zero; let the caller fall through.
+  if (r.isNone()) {
+    committed = scene;
+    return Value();
+  }
   const size_t i = size_t(std::max<int64_t>(0, r.integer()));
   committed = scene;
   return i < items.size() ? items[i].value : Value();

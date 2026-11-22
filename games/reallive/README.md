@@ -127,3 +127,132 @@ ctest --test-dir build -R '^RealLive.Input$' --output-on-failure
 
 Game-specific controller layouts and original touch hitboxes still require
 macOS and iOS hardware testing with the relevant RealLive editions.
+
+## Read progression and BGM state in saves
+
+RealLive presentation saves now use version 7. Each slot retains dialogue
+read-history, current page identity and the script-requested BGM pause state.
+Loading an earlier slot merges visited pages with the current session's read
+history, so already-read text does not become unread after a rollback. Files
+written by versions 1 through 6 remain readable; they have no stored read
+history, so those visits cannot be reconstructed from a legacy save.
+
+Synthetic tests (no game installation required):
+
+```sh
+cmake --build build --target RealLiveAudioFadeTests RealLiveReadProgressTests
+ctest --test-dir build -R 'RealLive.(AudioFade|ReadProgress)' --output-on-failure
+```
+
+Read history is persisted **inside a save slot**, not yet in a separate
+cross-save, title-wide progression database. CG gallery unlocks and original
+menu parity require additional per-game reference data and testing.
+
+## Directional SEL effects
+
+SEL style 10 (directional wipes) and style 120 (repeating blinds) now use
+native-resolution directional masks instead of generic crossfades. Direction
+0/1/2/3 selects top-to-bottom, bottom-to-top, left-to-right or right-to-left.
+The SEL interpolation and stripe-size parameters are honored; software
+composition is filtered as a completed frame, avoiding independent sprite
+upscaling. Ordered-dither styles 4/5 still use the accelerated mask when
+supported. Scroll-on/off, squash-on/off and slide-on/off (styles 15–18, 20–21) now also sample both scenes at native resolution, including all four cardinal directions.
+These transitions need comparison against screenshots and timing from an
+original Windows RealLive executable before claiming exact visual parity.
+
+## Cross-session read history
+
+Read-skip now writes a separate versioned `.progress` journal after each newly
+completed dialogue page, using the engine's atomically written save directory.
+The journal is scoped to the original game's `#REGNAME` (or its asset mount
+when no REGNAME is defined), so two unrelated games do not share seen flags.
+Corrupt or unreadable journals are logged and ignored without blocking the game.
+Loading a v7 save merges read marks into the global history; the journal itself
+contains no saved dialogue text, BGM state, or graphic unlocks.
+
+```sh
+cmake --build build --target RealLivePersistentHistoryTests
+ctest --test-dir build -R RealLive.PersistentHistory --output-on-failure
+```
+
+CG/gallery unlock rules and complete native menu fidelity still require
+reference edition data and original-game playthrough testing.
+
+## Sample-rate-aware BGM resume
+
+Presentation saves record BGM time in seconds and restore the decoded PCM
+clip at its actual sampling rate, whether 22,050 Hz, 32,000 Hz, 44,100 Hz or
+48,000 Hz. The interpreter no longer assumes 44.1 kHz when converting a saved
+position back to frames; relative seeks are also bounded before pointer math.
+Synthetic audio regressions test round-trip and overflow cases without licensed
+music files.
+
+## Scroll, squash and slide SEL effects
+
+Style 15 scrolls the new frame in while scrolling the old frame out; 16
+scrolls the new frame in while compressing the old frame; 17 expands the new
+frame while scrolling the old out; 18 expands/compresses both frames; 20
+slides the new frame over the stationary old frame; and 21 slides the old
+frame away from the stationary new frame. These effects compose once at native
+resolution before upscaling. The synthetic `RealLive.ScrollTransition` test
+checks all six styles in four directions with pixel-mapping assertions.
+Exact interpolation, speed and game-specific SEL entries still require Windows
+RealLive reference captures.
+
+## Conditional selections across RealLive editions
+
+RealLive's `select_w` now respects the encoded text-window override, with
+`DEFAULT_SEL_WINDOW` as a fallback. Choice conditions distinguish hidden
+entries from disabled/title-only entries, preserving original selection IDs
+for scenario branches. Disabled options cannot be activated through mouse,
+touch, keyboard or controller, and may use their configured color-table entry.
+Selection eligibility is tested without game data by
+`RealLive.SelectionRules`; shared menu controls retain enabled-by-default
+behavior. Native button-object selections and remaining specialized selection
+attributes still require edition-specific verification.
+
+## Synchronous voice and PCM waits
+
+`koeWait` and `wavWait` now yield the RealLive script VM while their
+associated audio stream is still playing, instead of returning immediately
+or guessing playback duration from a fixed timer. The native PCM wait follows
+the authored channel ID, and the newer `wavPlayEx` signature can start
+playback and wait in one opcode. These barriers cooperate with story pause,
+ending naturally when sound playback stops; save-load, title reset and shutdown
+clear pending waits. Data-free regression: `RealLive.AudioWait`.
+
+## Portable 32-bit RealLive arithmetic
+
+Native script random-range operations now accept inclusive bounds as wide as
+INT_MIN..INT_MAX, without signed overflow or the bias of rand() % width.
+Other 32-bit arithmetic (negate, modulo and percentage) follows defined
+VM integer semantics even at extremal operands, including INT_MIN % -1.
+These behaviors are covered by the data-free RealLive.NumericCompat test
+on both GCC and Clang. Deterministic native-random compatibility with any
+specific Windows RealLive release has **not** yet been established.
+
+## Script-controlled voice and PCM channels
+
+Voice and PCM playback now apply per-script gain controls normalized from the
+native 0..255 volume range. Newly played sounds inherit their channel's volume,
+and fades advance only while gameplay is active. Native PCM volume/set/mute
+variants (11–14), voice volume/set/mute variants (11–14), and mapped sound effect
+channels use the same controller. A fade-out can stop its PCM channel after
+reaching silence. `RealLive.ChannelLevels` provides synthetic tests for per-channel
+isolation, mute, exact fade endpoints and very large frame-time jumps.
+
+The exact command signatures vary between RealLive generations; audio routing
+and channel fades still need comparison with specific games. Voice/PCM gain is
+currently session state, not serialized in the presentation save.
+
+## Cross-edition BGM command variants
+
+The BGM dispatcher now recognizes additional `bgmPlaying`, `bgmStatus`,
+`bgmStop2`, `bgmSetVolume`, `bgmMute` and `bgmUnMute` forms as well as
+previous Kotonoha aliases. Several commands are distinguished by their number
+of parameters: no-argument pause/resume/stop aliases do not consume the
+volume/fade operands of other editions. Muting changes the gain without
+stopping the currently looping music, and timed volume changes continue to
+use the existing normalized PCM fade pipeline. Some older opcode numbers
+remain inherently ambiguous without detecting the game's RealLive version;
+those cannot be claimed to work universally yet.

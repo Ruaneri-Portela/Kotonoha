@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <Ponscripter/PonscripterRuntime.hpp>
+#include <Ponscripter/PixelEffects.hpp>
 
 #include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -384,6 +385,9 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   // Transition snapshot textures (800x600)
   Kotonoha::TexturePtr outgoingTarget;
   Kotonoha::TexturePtr incomingTarget;
+  Kotonoha::TexturePtr postProcessTexture;
+  int postProcessWidth = 0;
+  int postProcessHeight = 0;
   bool captureOutgoingBeforeNextEffect = false;
   bool hasValidOutgoingSnapshot = false;
 
@@ -998,6 +1002,8 @@ void PonscripterRuntime::shutdown() {
     font.reset();
   impl_->outgoingTarget.reset();
   impl_->incomingTarget.reset();
+  impl_->postProcessTexture.reset();
+  impl_->postProcessWidth = impl_->postProcessHeight = 0;
   impl_->imageCache.clear();
   if (impl_->assets)
     impl_->assets->clearCache();
@@ -1198,10 +1204,158 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     return ui;
   };
 
+  // Retained manual drawing commands operate on an independent framebuffer.
+  // The VM publishes them only on draw; drafts do not appear before commit.
+  // Replaying the immutable snapshot uses GPU textures and the shared UI font.
+  auto renderManualFrame = [&](const std::vector<ManualDrawOp> &ops,
+                               bool clearCanvas) {
+    if (clearCanvas) {
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+      SDL_RenderClear(&renderer);
+    }
+    for (const ManualDrawOp &op : ops) {
+      if (op.kind == ManualDrawOp::Kind::Clear ||
+          op.kind == ManualDrawOp::Kind::Fill) {
+        const SDL_Color color = rgb24ToSdl(op.colorRgb);
+        SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, 255);
+        SDL_RenderClear(&renderer);
+        continue;
+      }
+      if (op.kind == ManualDrawOp::Kind::Rect) {
+        const SDL_Color color = rgb24ToSdl(op.colorRgb);
+        SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, 255);
+        SDL_FRect area{static_cast<float>(op.x), static_cast<float>(op.y),
+                       static_cast<float>(std::max(0, op.width)),
+                       static_cast<float>(std::max(0, op.height))};
+        SDL_RenderFillRect(&renderer, &area);
+        continue;
+      }
+      if (op.kind == ManualDrawOp::Kind::Text) {
+        if (op.text.empty())
+          continue;
+        pickFont(false).textSized(
+            renderer, impl_->translateLine(op.text),
+            static_cast<float>(op.x), static_cast<float>(op.y),
+            static_cast<float>(std::max(1, op.width)),
+            static_cast<float>(std::max(1, op.height)),
+            rgb24ToSdl(op.colorRgb, 255));
+        continue;
+      }
+
+      const bool background = op.kind == ManualDrawOp::Kind::Background;
+      if (op.spec.trans == TransMode::DirectColor) {
+        const SDL_Color color = rgb24ToSdl(op.spec.color);
+        SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b,
+                               static_cast<Uint8>(op.alpha));
+        SDL_FRect rect{static_cast<float>(op.x), static_cast<float>(op.y),
+                       background ? viewW : static_cast<float>(op.width),
+                       background ? viewH : static_cast<float>(op.height)};
+        SDL_RenderFillRect(&renderer, &rect);
+        continue;
+      }
+      if (op.spec.trans == TransMode::String) {
+        if (op.spec.text.empty())
+          continue;
+        pickFont(false).textSized(
+            renderer, impl_->translateLine(op.spec.text),
+            static_cast<float>(op.x), static_cast<float>(op.y),
+            static_cast<float>(std::max(1, op.width > 0 ? op.width : 2000)),
+            static_cast<float>(std::max(1, op.spec.fontHeight)),
+            rgb24ToSdl(op.spec.color, static_cast<Uint8>(op.alpha)));
+        continue;
+      }
+      if (op.spec.imagePath.empty())
+        continue;
+      SDL_Texture *texture = impl_->getOrLoadTexture(renderer, op.spec);
+      if (!texture)
+        continue;
+      SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+      SDL_SetTextureAlphaMod(texture, static_cast<Uint8>(op.alpha));
+      float textureW = 0.0f, textureH = 0.0f;
+      SDL_GetTextureSize(texture, &textureW, &textureH);
+      if (textureW <= 0.0f || textureH <= 0.0f)
+        continue;
+      const auto *processed = impl_->getProcessedImage(op.spec);
+      const float logicalW =
+          processed ? static_cast<float>(processed->width) : textureW;
+      const float logicalH =
+          processed ? static_cast<float>(processed->height) : textureH;
+      const int cells = background ? 1 : std::max(1, op.spec.numCells);
+      const float cellW = textureW / cells;
+      const float logicalCellW = logicalW / cells;
+      const int cell = std::clamp(op.cell, 0, cells - 1);
+      SDL_FRect source{cell * cellW, 0.0f, cellW, textureH};
+      if (op.kind == ManualDrawOp::Kind::Blit) {
+        source = SDL_FRect{static_cast<float>(op.srcX),
+                           static_cast<float>(op.srcY),
+                           static_cast<float>(op.srcW),
+                           static_cast<float>(op.srcH)};
+      }
+      float width = background ? viewW : logicalCellW;
+      float height = background ? viewH : logicalH;
+      if (op.kind == ManualDrawOp::Kind::Blit ||
+          op.kind == ManualDrawOp::Kind::Window) {
+        width = static_cast<float>(op.width);
+        height = static_cast<float>(op.height);
+      }
+      if (op.affine) {
+        const float halfW = width * 0.5f, halfH = height * 0.5f;
+        const SDL_FPoint corners[] = {{-halfW, -halfH}, {halfW, -halfH},
+                                      {halfW, halfH}, {-halfW, halfH}};
+        const float matrixA = op.transformA / 1000.0f;
+        const float matrixB = op.transformB / 1000.0f;
+        const float matrixC = op.transformC / 1000.0f;
+        const float matrixD = op.transformD / 1000.0f;
+        const float left = source.x / textureW;
+        const float right = (source.x + source.w) / textureW;
+        const float top = source.y / textureH;
+        const float bottom = (source.y + source.h) / textureH;
+        const SDL_FPoint uvs[] = {{left, top}, {right, top},
+                                  {right, bottom}, {left, bottom}};
+        SDL_Vertex vertices[4]{};
+        for (int i = 0; i < 4; ++i) {
+          vertices[i].position = SDL_FPoint{
+              static_cast<float>(op.x) + corners[i].x * matrixA +
+                  corners[i].y * matrixB,
+              static_cast<float>(op.y) + corners[i].x * matrixC +
+                  corners[i].y * matrixD};
+          vertices[i].tex_coord = uvs[i];
+          vertices[i].color = SDL_FColor{1.0f, 1.0f, 1.0f, 1.0f};
+        }
+        const int indices[] = {0, 1, 2, 0, 2, 3};
+        SDL_SetTextureAlphaMod(texture, 255);
+        for (auto &vertex : vertices)
+          vertex.color.a = static_cast<float>(op.alpha) / 255.0f;
+        SDL_RenderGeometry(&renderer, texture, vertices, 4, indices, 6);
+      } else {
+        width *= std::abs(op.scaleX) / 100.0f;
+        height *= std::abs(op.scaleY) / 100.0f;
+        if (width < 0.01f || height < 0.01f)
+          continue;
+        SDL_FRect dest{static_cast<float>(op.x), static_cast<float>(op.y),
+                       width, height};
+        if (op.rotation != 0 || op.scaleX < 0 || op.scaleY < 0) {
+          const SDL_FlipMode flip = static_cast<SDL_FlipMode>(
+              (op.scaleX < 0 ? SDL_FLIP_HORIZONTAL : 0) |
+              (op.scaleY < 0 ? SDL_FLIP_VERTICAL : 0));
+          SDL_RenderTextureRotated(&renderer, texture, &source, &dest,
+                                   static_cast<double>(op.rotation), nullptr,
+                                   flip);
+        } else {
+          SDL_RenderTexture(&renderer, texture, &source, &dest);
+        }
+      }
+    }
+  };
+
   auto renderSceneContents = [&]() {
     // 1. Background layer (`bg`)
     const auto &bg = vm_.background();
-    if (bg.trans == TransMode::DirectColor) {
+    if (!vm_.backgroundCopyOps().empty()) {
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+      SDL_RenderClear(&renderer);
+      renderManualFrame(vm_.backgroundCopyOps(), false);
+    } else if (bg.trans == TransMode::DirectColor) {
       const SDL_Color c = rgb24ToSdl(bg.color);
       SDL_SetRenderDrawColor(&renderer, c.r, c.g, c.b, 255);
       SDL_RenderClear(&renderer);
@@ -1210,6 +1364,7 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       SDL_RenderClear(&renderer);
       if (!bg.imagePath.empty()) {
         if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, bg)) {
+          SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
           SDL_SetTextureAlphaMod(tex, 255);
           SDL_FRect dst{0.0f, 0.0f, viewW, viewH};
           SDL_RenderTexture(&renderer, tex, nullptr, &dst);
@@ -1225,6 +1380,7 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (!st.loaded || st.spec.imagePath.empty())
         continue;
       if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, st.spec)) {
+        SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
         float tw = 0.0f, th = 0.0f;
         SDL_GetTextureSize(tex, &tw, &th);
         const auto *processed = impl_->getProcessedImage(st.spec);
@@ -1247,7 +1403,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     const auto &sprites = vm_.sprites();
     for (int id = PonscripterVm::kMaxExtendedSprites - 1; id >= 0; --id) {
       const auto &sp = sprites[id];
-      if (!sp.loaded || !sp.visible || sp.alpha <= 0)
+      if (!sp.loaded || !sp.visible || sp.alpha <= 0 ||
+          vm_.areSpritesHidden(sp.secondaryLayer))
         continue;
 
       if (sp.spec.trans == TransMode::String) {
@@ -1283,6 +1440,20 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
 
       if (SDL_Texture *tex = impl_->getOrLoadTexture(renderer, sp.spec)) {
+        SDL_BlendMode blend = SDL_BLENDMODE_BLEND;
+        if (sp.blendMode == 1) {
+          blend = SDL_BLENDMODE_ADD;
+        } else if (sp.blendMode == 2) {
+          blend = SDL_ComposeCustomBlendMode(
+              SDL_BLENDFACTOR_SRC_ALPHA, SDL_BLENDFACTOR_ONE,
+              SDL_BLENDOPERATION_REV_SUBTRACT,
+              SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_ONE,
+              SDL_BLENDOPERATION_ADD);
+        }
+        // Texture objects are cached across sprites, so reset their blend mode
+        // on every draw. The software backend may reject custom subtraction.
+        if (!SDL_SetTextureBlendMode(tex, blend))
+          SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
         float tw = 0.0f, th = 0.0f;
         SDL_GetTextureSize(tex, &tw, &th);
         const auto *processed = impl_->getProcessedImage(sp.spec);
@@ -1340,6 +1511,32 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
     }
 
+    // cselbtn is a selectable text rectangle rendered by the shared GL
+    // accelerated VN UI, never by SDL_ttf. It is independent of the dialogue
+    // window so *customsel can position choices anywhere on screen.
+    for (const auto &btn : vm_.activeButtons()) {
+      if (btn.kind != ButtonDef::Kind::TextBtn || btn.text.empty())
+        continue;
+      const bool hovered = vm_.hoveredButtonId() == btn.id;
+      const std::uint32_t color =
+          hovered ? vm_.selectHoverColor() : vm_.selectIdleColor();
+      auto &fontUi = pickFont(false);
+      const std::string text = impl_->translateLine(btn.text);
+      const float textSize = static_cast<float>(
+          std::max(1, vm_.windowSpec().fontH));
+      if (vm_.windowSpec().shadow) {
+        fontUi.textSized(renderer, text,
+                         static_cast<float>(btn.x + 1),
+                         static_cast<float>(btn.y + 1),
+                         static_cast<float>(std::max(1, btn.w)), textSize,
+                         SDL_Color{0, 0, 0, 255});
+      }
+      fontUi.textSized(renderer, text, static_cast<float>(btn.x),
+                       static_cast<float>(btn.y),
+                       static_cast<float>(std::max(1, btn.w)), textSize,
+                       rgb24ToSdl(color, 255));
+    }
+
     // 6. Text Window Layer (`setwindow3` backdrop + proportional glyphs +
     // live Kotonoha translation override + `select` options + wait cursor)
     if (vm_.isTextWindowVisible()) {
@@ -1347,6 +1544,7 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (!win.backdrop.imagePath.empty()) {
         if (SDL_Texture *tex =
                 impl_->getOrLoadTexture(renderer, win.backdrop)) {
+          SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
           float tw = 0.0f, th = 0.0f;
           SDL_GetTextureSize(tex, &tw, &th);
           const auto *processed = impl_->getProcessedImage(win.backdrop);
@@ -1510,7 +1708,63 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     }
   };
 
-  renderSceneContents();
+  // Apply a short-lived directional screen shake to the game layers only.
+  // Native modal overlays retain stable input coordinates and do not shake.
+  const auto shake = vm_.quakeOffset();
+  SDL_Rect originalViewport{};
+  const bool shaking = shake.first != 0 || shake.second != 0;
+  if (shaking) {
+    SDL_GetRenderViewport(&renderer, &originalViewport);
+    SDL_Rect shifted = originalViewport;
+    shifted.x += shake.first;
+    shifted.y += shake.second;
+    SDL_SetRenderViewport(&renderer, &shifted);
+  }
+
+  if (vm_.hasManualDrawFrame())
+    renderManualFrame(vm_.manualDrawFrame(), true);
+  else
+    renderSceneContents();
+
+  if (shaking)
+    SDL_SetRenderViewport(&renderer, &originalViewport);
+
+  // SDL3's high-level renderer cannot bind a custom fragment shader. Process
+  // only when these optional legacy effects are enabled; text and sprites are
+  // still rasterized by the accelerated UI before this readback. Native modal
+  // overlays draw later and intentionally do not inherit game color effects.
+  if (vm_.isMonochromeEnabled() || vm_.negativeMode() != 0) {
+    Kotonoha::SurfacePtr readback(SDL_RenderReadPixels(&renderer, nullptr));
+    if (readback) {
+      Kotonoha::SurfacePtr rgba(
+          SDL_ConvertSurface(readback.get(), SDL_PIXELFORMAT_RGBA32));
+      if (rgba && rgba->w > 0 && rgba->h > 0 &&
+          SDL_LockSurface(rgba.get())) {
+        applyScenePixelEffects(
+            static_cast<std::uint8_t *>(rgba->pixels), rgba->w, rgba->h,
+            rgba->pitch, vm_.isMonochromeEnabled(), vm_.monochromeColor(),
+            vm_.negativeMode());
+        SDL_UnlockSurface(rgba.get());
+        if (!impl_->postProcessTexture ||
+            impl_->postProcessWidth != rgba->w ||
+            impl_->postProcessHeight != rgba->h) {
+          impl_->postProcessTexture.reset(SDL_CreateTexture(
+              &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
+              rgba->w, rgba->h));
+          impl_->postProcessWidth = rgba->w;
+          impl_->postProcessHeight = rgba->h;
+        }
+        if (impl_->postProcessTexture) {
+          SDL_Texture *texture = impl_->postProcessTexture.get();
+          if (SDL_UpdateTexture(texture, nullptr, rgba->pixels, rgba->pitch)) {
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_NONE);
+            SDL_FRect fill{0.0f, 0.0f, viewW, viewH};
+            SDL_RenderTexture(&renderer, texture, nullptr, &fill);
+          }
+        }
+      }
+    }
+  }
 
   // 7. PONscripter-native modal overlays. Shared menu/backlog components are
   // injected below as PonscripterMenu/PonscripterBacklog overrides.

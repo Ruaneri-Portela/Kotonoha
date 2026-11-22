@@ -170,10 +170,52 @@ jobs:
             modules/vms/n2system/src/AudioSystem.cpp \
             modules/vms/n2system/src/DialogueSystem.cpp \
             modules/vms/n2system/src/SaveState.cpp \
+            modules/vms/n2system/src/SaveStateJson.cpp \
             modules/vms/n2system/src/ScriptVm.cpp \
             modules/vms/n2system/tests/ScriptVmTest.cpp \
             -o /tmp/kotonoha-n2-vm
           /tmp/kotonoha-n2-vm
+      - name: Verify NitroSharp query grammar and scene traversal in C++17
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror \
+            -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            modules/vms/n2system/tests/EntityQueryTest.cpp \
+            -o /tmp/kotonoha-nitrosharp-query
+          /tmp/kotonoha-nitrosharp-query
+      - name: Compile and run native compiled NSB VM regressions
+        run: |
+          g++ -std=c++17 -O0 -Wall -Wextra -pthread \
+            -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/NsbScript.cpp \
+            modules/vms/n2system/src/NsbVm.cpp \
+            modules/vms/n2system/src/NsbSnapshot.cpp \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            modules/vms/n2system/src/AudioSystem.cpp \
+            modules/vms/n2system/src/DialogueSystem.cpp \
+            modules/vms/n2system/src/VariableStore.cpp \
+            modules/vms/n2system/src/SaveState.cpp \
+            modules/vms/n2system/src/SaveStateJson.cpp \
+            modules/vms/n2system/src/ScriptIndex.cpp \
+            modules/vms/n2system/src/ScriptExecutor.cpp \
+            modules/vms/n2system/src/ScriptVm.cpp \
+            modules/vms/n2system/tests/NsbVmTest.cpp \
+            -o /tmp/kotonoha-n2-nsb-vm
+          /tmp/kotonoha-n2-nsb-vm
+      - name: Compile and run NitroSharp easing and cubic Bezier regressions
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            modules/vms/n2system/tests/AnimationTimingTest.cpp \
+            -o /tmp/kotonoha-n2-animation
+          /tmp/kotonoha-n2-animation
+      - name: Verify NitroSharp monochrome and box blur effects
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/SceneGraph.cpp \
+            modules/vms/n2system/tests/ImageEffectsTest.cpp \
+            -o /tmp/kotonoha-n2-effects
+          /tmp/kotonoha-n2-effects
       - name: Compile and run native LucaSystem Debug Catalog regression
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror \
@@ -189,6 +231,13 @@ jobs:
             games/luca-system/tests/SceneLayersTest.cpp \
             -o /tmp/kotonoha-luca-scene-layers
           /tmp/kotonoha-luca-scene-layers
+      - name: Compile and run LucaSystem V6 save/visual state regression
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -pedantic \
+            -Igames/luca-system/include \
+            games/luca-system/tests/SaveStateTest.cpp \
+            -o /tmp/kotonoha-luca-save-codec
+          /tmp/kotonoha-luca-save-codec
       - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
         run: |
           python3 -m unittest discover -s tools -p test_generate_manifest.py -v

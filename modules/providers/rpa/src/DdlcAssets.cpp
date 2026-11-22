@@ -84,6 +84,24 @@ bool isDirectoryCI(const std::filesystem::path &base,
   return true;
 }
 
+bool hasRenPyPayload(const std::filesystem::path &folder) {
+  std::error_code ec;
+  for (std::filesystem::directory_iterator it(
+           folder, std::filesystem::directory_options::skip_permission_denied,
+           ec), end; it != end && !ec; it.increment(ec)) {
+    std::error_code fileError;
+    if (!it->is_regular_file(fileError) || fileError)
+      continue;
+    std::string ext = it->path().extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+                   [](unsigned char c) { return char(std::tolower(c)); });
+    if (ext == ".rpa" || ext == ".rpx" ||
+        ext == ".rpyc" || ext == ".rpymc")
+      return true;
+  }
+  return false;
+}
+
 } // namespace
 
 bool hasOriginalCharacters(const std::filesystem::path &gameDirectory,
@@ -177,9 +195,7 @@ DdlcAssets::DdlcAssets(const std::filesystem::path &directory,
   auto gameDirectory = directory;
   std::filesystem::path subDir;
   if (isDirectoryCI(directory, {"game"}, &subDir) &&
-      (isRegularFileCI(subDir, {"scripts.rpa"}) ||
-       isRegularFileCI(subDir, {"data.rpa"}) ||
-       isRegularFileCI(subDir, {"script-a1-monday.rpyc"}))) {
+      hasRenPyPayload(subDir)) {
     gameDirectory = subDir;
   } else if (isDirectoryCI(directory, {"vnx", "game"}, &subDir) &&
              isRegularFileCI(subDir, {"scripts.rpa"})) {
@@ -191,6 +207,7 @@ DdlcAssets::DdlcAssets(const std::filesystem::path &directory,
   if (ec || !assets_.open(absGame.string()))
     throw std::runtime_error("Cannot open Ren'Py archives in " +
                              directory.string());
+  sourceIdentity_ = absGame.generic_string();
   configureOverlaysAndScripts(overlayDirectory, true);
 }
 
@@ -283,19 +300,14 @@ void DdlcAssets::configureOverlaysAndScripts(
   }
   std::string error;
   if (!script_.load(assets_, &error))
-    throw std::runtime_error("Cannot load DDLC scripts" +
+    throw std::runtime_error("Cannot load compiled Ren'Py scripts" +
                              (error.empty() ? std::string() : ": " + error));
-  const bool katawa = assets_.has("script-a1-monday.rpyc") ||
-                      isRegularFileCI(std::filesystem::path(assets_.dir()),
-                                      {"script-a1-monday.rpyc"});
-  if (!script_.hasLabel("start") && !script_.hasLabel("imachine"))
-    throw std::runtime_error(
-        "The game directory does not contain a start or imachine label");
-  if (!katawa && !script_.hasLabel("splashscreen"))
-    throw std::runtime_error(
-        "The game directory does not contain a splashscreen label");
+  if (!script_.hasLabel("start") &&
+      !(isKatawa() && script_.hasLabel("imachine")))
+    throw std::runtime_error("Ren'Py game has no executable start label");
+  // Ren'Py's splashscreen is optional, unlike the original DDLC port.
   std::error_code pathError;
-  if (!katawa && inspectCharacterPaths &&
+  if (isDdlc() && inspectCharacterPaths &&
       !hasOriginalCharacters(assets_.dir(), pathError)) {
     if (pathError)
       throw std::runtime_error("Cannot inspect DDLC character files: " +
@@ -306,11 +318,17 @@ void DdlcAssets::configureOverlaysAndScripts(
 }
 
 std::string DdlcAssets::name() const {
-  const std::filesystem::path game(assets_.dir());
-  if (assets_.has("script-a1-monday.rpyc") ||
-      isRegularFileCI(game, {"script-a1-monday.rpyc"}))
+  if (isKatawa())
     return "Katawa Shoujo (" + assets_.dir() + ")";
-  return "Doki Doki Literature Club! (" + assets_.dir() + ")";
+  if (isDdlc())
+    return "Doki Doki Literature Club! (" + assets_.dir() + ")";
+  auto path = std::filesystem::path(
+      sourceIdentity_.empty() ? assets_.dir() : sourceIdentity_);
+  if (path.filename() == "game")
+    path = path.parent_path();
+  const auto title = path.filename().string();
+  return title.empty() || title == "<virtual>" ? "Ren'Py Game"
+                                               : "Ren'Py: " + title;
 }
 
 bool DdlcAssets::containsAsset(const std::string &id) const {

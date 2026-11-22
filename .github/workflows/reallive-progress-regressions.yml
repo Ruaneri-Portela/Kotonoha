@@ -1,0 +1,36 @@
+name: RealLive save progression regressions
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'games/reallive/src/RealLiveReadProgress.hpp'
+      - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/tests/ReadProgressTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - '.github/workflows/reallive-progress-regressions.yml'
+  pull_request:
+    paths:
+      - 'games/reallive/src/RealLiveReadProgress.hpp'
+      - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/tests/ReadProgressTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - '.github/workflows/reallive-progress-regressions.yml'
+  workflow_dispatch:
+
+jobs:
+  read-progress:
+    name: RealLive v7 save history (${{ matrix.compiler }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile C++17 save-section regression
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/ReadProgressTest.cpp \
+            -o /tmp/reallive-progress-test
+      - name: Test archive page state and malformed saves
+        run: /tmp/reallive-progress-test

@@ -17,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace Ponscripter {
@@ -96,6 +97,9 @@ public:
   const std::array<SpriteSlot, kMaxExtendedSprites> &sprites() const {
     return sprites_;
   }
+  bool areSpritesHidden(bool secondaryLayer) const {
+    return secondaryLayer ? allSprites2Hidden_ : allSpritesHidden_;
+  }
   SpriteSlot *mutableSprite(int id) {
     return (id >= 0 && id < kMaxExtendedSprites) ? &sprites_[id] : nullptr;
   }
@@ -104,12 +108,23 @@ public:
     return prnums_;
   }
   const TaggedImageSpec &btndefSpec() const { return btndefSpec_; }
+  bool hasManualDrawFrame() const { return manualFrameVisible_; }
+  const std::vector<ManualDrawOp> &manualDrawFrame() const {
+    return manualDisplayOps_;
+  }
+  const std::vector<ManualDrawOp> &backgroundCopyOps() const {
+    return backgroundCopyOps_;
+  }
   const std::vector<ButtonDef> &activeButtons() const { return buttons_; }
   int hoveredButtonId() const { return hoveredButtonId_; }
   int mouseX() const { return mouseX_; }
   int mouseY() const { return mouseY_; }
 
   const ActiveEffect &activeEffect() const { return activeEffect_; }
+  std::pair<int, int> quakeOffset() const;
+  bool isMonochromeEnabled() const { return monochromeEnabled_; }
+  std::uint32_t monochromeColor() const { return monochromeColor_; }
+  int negativeMode() const { return negativeMode_; }
   const EffectDef &windowEffect() const { return windowEffect_; }
 
   // Text & Window State
@@ -178,6 +193,9 @@ private:
 
   void executeStatement(const StatementSlice &stmt);
   void executeTextLine(std::string_view rawLine, std::size_t stmtIndex);
+  void captureCallArguments(LineLexer &lexer, CallStackEntry &frame,
+                            bool requireLeadingComma);
+  bool isSubroutineActive(const std::string &label) const;
 
   void enterTextDisplayMode();
   void leaveTextDisplayMode(bool forceHide = false);
@@ -239,12 +257,22 @@ private:
   std::unordered_map<int, EffectDef> userEffects_;
   EffectDef windowEffect_{0, 1, 0, ""};
   ActiveEffect activeEffect_;
+  int quakeAmplitude_ = 0;
+  bool monochromeEnabled_ = false;
+  std::uint32_t monochromeColor_ = 0xFFFFFFu;
+  int negativeMode_ = 0;
 
   // Visual layers
   int underlineValue_ = 599;
   TaggedImageSpec bg_;
   std::array<StandingSlot, 3> standing_;
   std::array<SpriteSlot, kMaxExtendedSprites> sprites_;
+  bool allSpritesHidden_ = false;
+  bool allSprites2Hidden_ = false;
+  bool manualFrameVisible_ = false;
+  std::vector<ManualDrawOp> manualDraftOps_;
+  std::vector<ManualDrawOp> manualDisplayOps_;
+  std::vector<ManualDrawOp> backgroundCopyOps_;
   std::array<BarGauge, kMaxBars> bars_;
   std::array<PrintedNumber, kMaxPrnums> prnums_;
 
@@ -271,11 +299,24 @@ private:
   std::size_t totalPageChars_ = 0;
   double typewriterAccumMs_ = 0.0;
   std::vector<std::string> backlog_;
+  // Script-level text callbacks are invoked as gosubs and return to the
+  // original script cursor. A pending pretext index avoids re-entry loops.
+  std::string pretextGosubLabel_;
+  std::string textGosubLabel_;
+  std::size_t pendingPretextPc_ = ScriptBuffer::npos;
+  bool textGosubPagePending_ = false;
   std::array<CursorSpec, 2> cursors_;
   std::array<TaggedImageSpec, 4> lookbackButtons_;
   std::size_t currentSectionId_ = 0;
 
   // Select / Csel / RMenu / Save config
+  enum class SelectionMode : std::uint8_t {
+    Jump = 0,
+    Subroutine = 1,
+    Number = 2
+  };
+  SelectionMode selectionMode_ = SelectionMode::Jump;
+  int selectionNumberVariable_ = -1;
   std::vector<SelectOption> selectOptions_;
   std::vector<SelectOption> cselOptions_;
   std::uint32_t selectHoverColor_ = 0xFF0000u;

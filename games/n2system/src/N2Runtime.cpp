@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/DebugCatalog.hpp>
+#include <N2System/ImageEffects.hpp>
 #include <N2System/N2Runtime.hpp>
 #include <N2System/ScriptIndex.hpp>
 
@@ -22,13 +23,14 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <utility>
 
 namespace N2System {
 
@@ -52,6 +54,8 @@ struct N2Runtime::Impl {
   int focusedChoiceIndex = 0;
   std::vector<std::string> lastChoices;
   std::unordered_map<std::string, SDL_Point> imageSizeCache;
+  std::unordered_map<std::string, Kotonoha::TexturePtr> effectTextures;
+  SDL_Renderer *effectRenderer = nullptr;
   std::string currentBgm;
   std::string currentVoice;
   std::string currentSe;
@@ -84,15 +88,76 @@ struct N2Runtime::Impl {
                   SDL_Color color) {
     if (text.empty())
       return;
-    // Both the bundled Steins;Gate font and the fallback use the same cached,
-    // renderer-backed UI text path. Do not create a surface per dialogue frame.
     Kotonoha::UI *ui = sgUi ? sgUi.get()
                            : (engine ? &engine->GetVNUI() : nullptr);
     if (!ui)
       return;
-    ui->textSized(renderer, text, x + 1.5f, y + 1.5f, wrapW,
-                  fontSize, {0, 0, 0, 210});
+    // Both shadow and foreground share the renderer's glyph atlas. This
+    // path does not allocate SDL surfaces/textures on every frame.
+    ui->textSized(renderer, text, x + 1.5f, y + 1.5f, wrapW, fontSize,
+                  {0, 0, 0, 210});
     ui->textSized(renderer, text, x, y, wrapW, fontSize, color);
+  }
+
+  SDL_Texture *effectTexture(Kotonoha::RendererRef renderer,
+                             N2ArchiveAssets &assets,
+                             const std::string &path,
+                             bool monochrome, unsigned blur) {
+    if (!monochrome && blur == 0)
+      return &assets.texture(renderer, path);
+    if (effectRenderer != &renderer) {
+      effectTextures.clear();
+      effectRenderer = &renderer;
+    }
+    const std::string key = path + "|" + (monochrome ? "mono" : "color") +
+                            "|" + std::to_string(blur);
+    if (auto it = effectTextures.find(key); it != effectTextures.end())
+      return it->second.get();
+    auto source = assets.loadSurface(path);
+    if (!source)
+      return &assets.texture(renderer, path);
+    Kotonoha::SurfacePtr rgba(
+        SDL_ConvertSurface(source.get(), SDL_PIXELFORMAT_RGBA32));
+    // Avoid blocking the render thread with many 3x3 blur passes over a
+    // giant background; retaining the original image is preferable to a
+    // blank frame if a portable effect exceeds the preparation budget.
+    if (!rgba || rgba->w <= 0 || rgba->h <= 0 ||
+        std::uint64_t(rgba->w) * std::uint64_t(rgba->h) >
+            (blur ? 1024u * 1024u : 2048u * 2048u))
+      return &assets.texture(renderer, path);
+    const std::size_t stride = std::size_t(rgba->w) * 4;
+    std::vector<uint8_t> pixels(stride * std::size_t(rgba->h));
+    if (!SDL_LockSurface(rgba.get()))
+      return &assets.texture(renderer, path);
+    for (int row = 0; row < rgba->h; ++row)
+      std::memcpy(pixels.data() + row * stride,
+                  static_cast<const uint8_t *>(rgba->pixels) +
+                      std::size_t(row) * rgba->pitch, stride);
+    SDL_UnlockSurface(rgba.get());
+
+    if (monochrome)
+      grayscaleRgba(pixels);
+    if (blur && !boxBlurRgba(pixels, rgba->w, rgba->h, blur))
+      return &assets.texture(renderer, path);
+
+    if (!SDL_LockSurface(rgba.get()))
+      return &assets.texture(renderer, path);
+    for (int row = 0; row < rgba->h; ++row)
+      std::memcpy(static_cast<uint8_t *>(rgba->pixels) +
+                      std::size_t(row) * rgba->pitch,
+                  pixels.data() + row * stride, stride);
+    SDL_UnlockSurface(rgba.get());
+
+    Kotonoha::TexturePtr texture(
+        SDL_CreateTextureFromSurface(&renderer, rgba.get()));
+    if (!texture)
+      return &assets.texture(renderer, path);
+    SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
+    if (effectTextures.size() >= 256)
+      effectTextures.clear(); // Drop old renderer textures, never the provider.
+    auto *result = texture.get();
+    effectTextures.emplace(key, std::move(texture));
+    return result;
   }
 
   std::string resolveImagePath(const SceneGraph &graph,
@@ -338,6 +403,8 @@ void N2Runtime::shutdown() {
   impl_->focusedChoiceIndex = 0;
   impl_->lastChoices.clear();
   impl_->imageSizeCache.clear();
+  impl_->effectTextures.clear();
+  impl_->effectRenderer = nullptr;
   impl_->sgUi.reset();
   impl_->backlog.reset();
   impl_->textBox.reset();
@@ -431,25 +498,20 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
       std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
   impl_->sePlayer = std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
 
-  // Keep the game font in memory, but render it through Kotonoha::UI.
-  // SDL_ttf remains an internal font parser; text is composed by the renderer.
   impl_->sgUi.reset();
   if (assets_) {
-    static const char *kFontCandidates[] = {
-        "Droid Sans Fallback.ttf",
-        "font/Droid Sans Fallback.ttf",
-        "system/Droid Sans Fallback.ttf",
-    };
-    for (const char *cand : kFontCandidates) {
-      if (!assets_->contains(cand))
+    for (const char *name : {"Droid Sans Fallback.ttf",
+                             "font/Droid Sans Fallback.ttf",
+                             "system/Droid Sans Fallback.ttf"}) {
+      if (!assets_->contains(name))
         continue;
       try {
-        auto bytes = assets_->read(cand);
-        if (!bytes.empty())
-          impl_->sgUi = std::make_unique<Kotonoha::UI>(std::move(bytes));
+        auto fontBytes = assets_->read(name);
+        if (!fontBytes.empty())
+          impl_->sgUi = std::make_unique<Kotonoha::UI>(std::move(fontBytes));
       } catch (const std::exception &e) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "N2System: cannot load UI font %s: %s", cand, e.what());
+                    "N2System: font %s cannot load: %s", name, e.what());
       }
       if (impl_->sgUi)
         break;
@@ -481,6 +543,44 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
       return impl_->queryImageSize(assets_.get(), impl_->nsbVm->sceneGraph(),
                                    std::string(path), w, h);
     });
+    impl_->nsbVm->setSaveExistsQuery([](std::uint32_t slot) {
+      const auto name = slot == 0
+          ? std::string("n2system_quick.n2sv")
+          : "n2system_slot_" + std::to_string(slot) + ".n2sv";
+      std::error_code error;
+      return std::filesystem::is_regular_file(Kotonoha::saveDirectory() / name,
+                                              error) && !error;
+    });
+    impl_->nsbVm->setMediaTimeQuery(
+        [this](std::string_view query, MediaTimeKind kind) -> std::int64_t {
+          const Kotonoha::MediaPlayer *player = nullptr;
+          if (impl_->moviePlayer && impl_->moviePlayer->isOpen() &&
+              (query.empty() || query == impl_->currentMovie ||
+               (impl_->nsbVm &&
+                query == impl_->nsbVm->activeMovie().entityName)))
+            player = impl_->moviePlayer.get();
+          else if (impl_->bgmPlayer && impl_->bgmPlayer->isOpen() &&
+                   (query == impl_->currentBgm || query == "bgm"))
+            player = impl_->bgmPlayer.get();
+          else if (impl_->voicePlayer && impl_->voicePlayer->isOpen() &&
+                   (query == impl_->currentVoice || query == "voice"))
+            player = impl_->voicePlayer.get();
+          if (!player)
+            return 0;
+          const double duration = player->duration();
+          const double elapsed = player->elapsed();
+          double seconds = 0.0;
+          if (kind == MediaTimeKind::Elapsed)
+            seconds = elapsed;
+          else if (duration >= 0.0)
+            seconds = kind == MediaTimeKind::Duration
+                          ? duration : std::max(0.0, duration - elapsed);
+          if (!std::isfinite(seconds) || seconds < 0)
+            return 0;
+          return static_cast<std::int64_t>(
+              std::min(seconds * 1000.0,
+                       double(std::numeric_limits<std::int64_t>::max())));
+        });
     impl_->nsbVm->setLoader(
         [assets = assets_](std::string_view nsbPath,
                            std::vector<std::uint8_t> &nsbOut,
@@ -632,6 +732,44 @@ void N2Runtime::update() {
 
     if (!nvm.finished() && !impl_->choiceActive) {
       nvm.step(4096);
+    }
+    // Native persistence opcodes are deferred until AFTER stepThread
+    // releases references to the current call stack and process. Loading a
+    // checkpoint from within an instruction would invalidate them.
+    if (const auto pending = nvm.takePendingSaveAction()) {
+      const auto filename = pending->slot == 0
+          ? std::string("n2system_quick.n2sv")
+          : "n2system_slot_" + std::to_string(pending->slot) + ".n2sv";
+      const auto path = Kotonoha::saveDirectory() / filename;
+      switch (pending->kind) {
+      case SaveActionKind::Save:
+        saveGame(path.string());
+        break;
+      case SaveActionKind::Delete: {
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+        if (ec)
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "N2System: cannot delete save slot %u: %s",
+                      pending->slot, ec.message().c_str());
+        break;
+      }
+      case SaveActionKind::Load:
+        loadGame(path.string());
+        impl_->lastChoices.clear();
+        impl_->focusedChoiceIndex = 0;
+        impl_->choiceActive = false;
+        // Resynchronize players with restored audio and movie channels.
+        if (impl_->moviePlayer) impl_->moviePlayer->stop();
+        if (impl_->bgmPlayer) impl_->bgmPlayer->stop();
+        if (impl_->voicePlayer) impl_->voicePlayer->stop();
+        if (impl_->sePlayer) impl_->sePlayer->stop();
+        impl_->currentMovie.clear();
+        impl_->currentBgm.clear();
+        impl_->currentVoice.clear();
+        impl_->currentSe.clear();
+        return; // Rebuild UI and media from restored state next frame.
+      }
     }
 
     if (nvm.finished() && impl_->engine && !impl_->quitRequested) {
@@ -950,7 +1088,9 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
           impl_->resolveImagePath(graph, entity->imagePath);
       if (assets_ && !resolvedImg.empty() && assets_->contains(resolvedImg)) {
         try {
-          tex = &assets_->texture(renderer, resolvedImg);
+          tex = impl_->effectTexture(renderer, *assets_, resolvedImg,
+                                       entity->monochrome,
+                                       entity->boxBlurPasses);
         } catch (...) {
           tex = nullptr;
         }
@@ -991,7 +1131,6 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
         } else {
           Kotonoha::RenderUpscaledTexture(&renderer, tex, srcPtr, &dst);
         }
-        // Shared provider textures are reused by other entities and menus.
         SDL_SetTextureColorMod(tex, oldR, oldG, oldB);
         SDL_SetTextureAlphaMod(tex, oldAlpha);
       } else if (!isNsbActive()) {
@@ -1089,8 +1228,8 @@ bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
   if (impl_->backlog && impl_->backlog->isVisible())
     return Runtime::onEvent(rawEvent);
 
-  // Looping background movies (notably the title/menu video) must never
-  // swallow the menu's choice input or be dismissed as skippable cutscenes.
+  // Decorative looping title movies must not capture menu selections or
+  // accept generic video-skip gestures.
   if (isNsbActive() && Kotonoha::VideoSkipGesture::capturesInput(
                            impl_->nsbVm->activeMovie().active,
                            impl_->nsbVm->activeMovie().loop)) {
@@ -1321,11 +1460,21 @@ void N2Runtime::saveGame(const std::string &path) {
     impl_->ponscripter->saveGame(path);
     return;
   }
-  auto saveData = isNsbActive() ? impl_->nsbVm->saveState() : vm_.saveState();
-  auto bytes = SaveStateCodec::serializeBinary(saveData);
-  std::string err;
-  (void)Kotonoha::Filesystem::writeBinaryFileAtomically(
-      std::filesystem::path(path), bytes, &err);
+  try {
+    const auto saveData =
+        isNsbActive() ? impl_->nsbVm->saveState() : vm_.saveState();
+    const auto bytes = SaveStateCodec::serializeBinary(saveData);
+    std::string error;
+    if (!Kotonoha::Filesystem::writeBinaryFileAtomically(
+            std::filesystem::path(path), bytes, &error))
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "N2System: save %s failed: %s",
+                  path.c_str(), error.c_str());
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "N2System: cannot serialize save %s: %s",
+                path.c_str(), error.what());
+  }
 }
 
 void N2Runtime::loadGame(const std::string &path) {
@@ -1336,13 +1485,23 @@ void N2Runtime::loadGame(const std::string &path) {
   try {
     auto bytes = Kotonoha::Filesystem::readLocalFile(path);
     SaveData loaded;
-    if (SaveStateCodec::deserializeBinary(bytes, loaded)) {
-      if (isNsbActive())
-        impl_->nsbVm->loadState(loaded);
-      else
-        vm_.loadState(loaded);
+    if (!SaveStateCodec::deserializeBinary(bytes, loaded)) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "N2System: rejected truncated/corrupted save %s",
+                  path.c_str());
+      return;
     }
-  } catch (...) {
+    const bool restored = isNsbActive()
+                              ? impl_->nsbVm->loadState(loaded)
+                              : vm_.loadState(loaded);
+    if (!restored)
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "N2System: save %s references missing or invalid script state",
+                  path.c_str());
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "N2System: cannot load save %s: %s",
+                path.c_str(), error.what());
   }
 }
 

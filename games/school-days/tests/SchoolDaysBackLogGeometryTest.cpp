@@ -1,4 +1,5 @@
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <SDL3/SDL_stdinc.h>
 
 #include <algorithm>
@@ -318,13 +319,8 @@ void CheckSupplementaryUnicodeAndLongSpeaker(const fs::path &root,
   int utf8SmileRows = 0;
   for (const auto &[y, line] : rows) {
     (void)y;
-    char *encoded = SDL_iconv_string(
-        "UTF-8", "UTF-16LE", reinterpret_cast<const char *>(line.c_str()),
-        (line.size() + 1u) * sizeof(char16_t));
-    Check(encoded != nullptr,
-          "BackLog generated a row that SDL cannot convert to UTF-8");
-    const std::string utf8(encoded);
-    SDL_free(encoded);
+    const std::string utf8 = Kotonoha::Utf16ToUtf8(line);
+    Check(!utf8.empty(), "BackLog generated a row that cannot convert to UTF-8");
     if (utf8.find("\xF0\x9F\x99\x82") != std::string::npos)
       ++utf8SmileRows;
   }

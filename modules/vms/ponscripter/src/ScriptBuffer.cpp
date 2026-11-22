@@ -228,6 +228,53 @@ void ScriptBuffer::finalize() {
       }
     }
   }
+
+  // Choice statements may span physical lines.  Fold only explicit
+  // continuations into the original statement, before publishing PC indices.
+  // A continuation is either announced by a trailing comma or begins with
+  // a comma on the next line.  Colon-separated statements are left intact.
+  auto isChoice = [](std::string_view statement) {
+    const auto end = statement.find_first_of(" \t");
+    const auto cmd = statement.substr(0, end);
+    return cmd == "select" || cmd == "selgosub" || cmd == "selnum" ||
+           cmd == "csel";
+  };
+  std::vector<StatementSlice> folded;
+  folded.reserve(statements_.size());
+  for (std::size_t i = 0; i < statements_.size(); ++i) {
+    StatementSlice current = std::move(statements_[i]);
+    if (!current.isLabel && !current.isText && isChoice(current.text)) {
+      while (i + 1 < statements_.size()) {
+        const auto &next = statements_[i + 1];
+        if (next.isLabel || next.isText ||
+            next.lineIndex <= current.lineIndex)
+          break;
+        const bool continued = !current.text.empty() &&
+                               current.text.back() == ',';
+        const bool leadingComma = !next.text.empty() &&
+                                  next.text.front() == ',';
+        if (!continued && !leadingComma)
+          break;
+        // Consecutive commas must not accidentally produce a valid choice.
+        if (continued && leadingComma)
+          break;
+        if (leadingComma) {
+          current.text += next.text;
+        } else {
+          current.text += next.text;
+        }
+        ++i;
+      }
+    }
+    folded.push_back(std::move(current));
+  }
+  statements_ = std::move(folded);
+  labelIndex_.clear();
+  for (std::size_t i = 0; i < statements_.size(); ++i) {
+    statements_[i].statementIndex = i;
+    if (statements_[i].isLabel && !statements_[i].labelName.empty())
+      labelIndex_.emplace(statements_[i].labelName, i);
+  }
 }
 
 std::size_t ScriptBuffer::findLabel(std::string_view label) const {

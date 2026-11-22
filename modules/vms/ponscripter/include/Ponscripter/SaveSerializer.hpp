@@ -12,9 +12,20 @@
 
 namespace Ponscripter {
 
+struct CallArgument {
+  bool isString = false;
+  int number = 0;
+  std::string text;
+  int sourceVariable = -1; // source variable id for getparam i/s indirection
+  bool sourceIsString = false;
+};
+
 struct CallStackEntry {
   std::size_t returnStatementIndex = 0;
   std::string targetLabel;
+  std::string callerLabel; // restore source scene after a gosub return
+  std::vector<CallArgument> arguments;
+  std::size_t nextArgument = 0;
 };
 
 struct ForLoopFrame {
@@ -42,6 +53,17 @@ struct SlotSaveData {
   TaggedImageSpec bg;
   std::array<StandingSlot, 3> standing;
   std::map<int, SpriteSlot> sprites;
+  bool allSpritesHidden = false;
+  bool allSprites2Hidden = false;
+  bool manualFrameVisible = false;
+  std::vector<ManualDrawOp> manualDraftOps;
+  std::vector<ManualDrawOp> manualDisplayOps;
+  std::vector<ManualDrawOp> backgroundCopyOps;
+  ActiveEffect activeEffect;
+  int quakeAmplitude = 0;
+  bool monochromeEnabled = false;
+  std::uint32_t monochromeColor = 0xFFFFFFu;
+  int negativeMode = 0;
   WindowSpec window;
   bool textWindowVisible = false;
   std::vector<TextSpan> pageSpans;
@@ -56,6 +78,12 @@ struct SlotSaveData {
   bool btnwaitPreserveButtons = false;
   std::vector<ButtonDef> buttons;
   std::vector<SelectOption> selectOptions;
+  std::vector<SelectOption> cselOptions;
+  std::size_t pendingPretextStatementIndex = static_cast<std::size_t>(-1);
+  bool textGosubPagePending = false;
+  // Optional metadata, so V1 slot files remain readable without this line.
+  int selectionMode = 0; // 0=select/csel, 1=selgosub, 2=selnum
+  int selectionNumberVariable = -1;
 };
 
 class SaveSerializer {

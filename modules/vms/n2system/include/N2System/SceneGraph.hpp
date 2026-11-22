@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #pragma once
+#include <N2System/AnimationTiming.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -40,6 +41,8 @@ struct Entity {
   bool visible = true;
   bool locked = false;
   bool smoothing = false;
+  bool monochrome = false;
+  uint8_t boxBlurPasses = 0; // 0, 8 or 16; prepared once per GPU texture.
   float scrollValue = 50.0f; // 0..100 for ScrollBar entities
   bool scrollHorizontal = true;
 
@@ -71,21 +74,27 @@ struct Entity {
   float startX = 0.0f, startY = 0.0f;
   float targetX = 0.0f, targetY = 0.0f;
   float moveDuration = 0.0f, moveElapsed = 0.0f;
+  EaseFunction moveEase = EaseFunction::Linear;
+  bool isBezierMoving = false;
+  float bezierX1 = 0, bezierY1 = 0, bezierX2 = 0, bezierY2 = 0;
   bool isMoving = false;
 
   float startOpacity = 1.0f;
   float targetOpacity = 1.0f;
   float opacityDuration = 0.0f, opacityElapsed = 0.0f;
+  EaseFunction opacityEase = EaseFunction::Linear;
   bool isFading = false;
 
   float startScaleX = 1.0f, startScaleY = 1.0f;
   float targetScaleX = 1.0f, targetScaleY = 1.0f;
   float scaleDuration = 0.0f, scaleElapsed = 0.0f;
+  EaseFunction scaleEase = EaseFunction::Linear;
   bool isScaling = false;
 
   float startAngle = 0.0f;
   float targetAngle = 0.0f;
   float rotateDuration = 0.0f, rotateElapsed = 0.0f;
+  EaseFunction rotateEase = EaseFunction::Linear;
   bool isRotating = false;
 
   float shakeAmpX = 0.0f, shakeAmpY = 0.0f;
@@ -96,6 +105,7 @@ struct Entity {
   std::string transitionMaskPath;
   float transitionStart = 0.0f, transitionEnd = 1.0f;
   float transitionDuration = 0.0f, transitionElapsed = 0.0f;
+  EaseFunction transitionEase = EaseFunction::Linear;
   bool isTransitioning = false;
 
   bool isAnimating() const {
@@ -123,19 +133,30 @@ public:
   bool setParent(std::string_view childName, std::string_view parentName);
   bool setAlias(std::string_view entityName, std::string_view alias);
   bool setPriority(std::string_view entityName, float z);
+  void setMonochrome(std::string_view query, bool enabled);
+  void setBoxBlur(std::string_view query, unsigned passes);
 
   void moveEntity(std::string_view name, float targetX, float targetY,
-                  float durationMs = 0.0f);
+                  float durationMs = 0.0f,
+                  EaseFunction ease = EaseFunction::Linear);
+  void bezierMoveEntity(std::string_view name, float control1X, float control1Y,
+                        float control2X, float control2Y, float targetX,
+                        float targetY, float durationMs,
+                        EaseFunction ease = EaseFunction::Linear);
   void fadeEntity(std::string_view name, float targetOpacity,
-                  float durationMs = 0.0f);
+                  float durationMs = 0.0f,
+                  EaseFunction ease = EaseFunction::Linear);
   void zoomEntity(std::string_view name, float targetScaleX, float targetScaleY,
-                  float durationMs = 0.0f);
+                  float durationMs = 0.0f,
+                  EaseFunction ease = EaseFunction::Linear);
   void rotateEntity(std::string_view name, float targetAngle,
-                    float durationMs = 0.0f);
+                    float durationMs = 0.0f,
+                    EaseFunction ease = EaseFunction::Linear);
   void shakeEntity(std::string_view name, float ampX, float ampY,
                    float durationMs = 0.0f);
   void transitionEntity(std::string_view name, float startAlpha, float endAlpha,
-                        float durationMs, std::string_view maskPath = "");
+                        float durationMs, std::string_view maskPath = "",
+                        EaseFunction ease = EaseFunction::Linear);
 
   void update(float dtSeconds);
 
@@ -150,6 +171,10 @@ private:
   void rebuildRenderOrder();
 
   std::unordered_map<std::string, Entity> entities_;
+  // NitroSharp World preserves insertion order for wildcard queries.
+  // Keep a separate order from z-sorted renderOrder_ to avoid re-sorting
+  // every query during script execution.
+  std::vector<std::string> insertionOrder_;
   std::vector<std::string> renderOrder_;
   uint64_t nextCreationOrder_ = 1;
 };

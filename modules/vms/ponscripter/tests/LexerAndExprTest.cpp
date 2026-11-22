@@ -77,6 +77,17 @@ int main() {
             "Bareword stralias must resolve in parseStringExpr");
     }
 
+    {
+      Ponscripter::LineLexer lx("%123abc", &vars);
+      check(lx.parseVarRef() == -1,
+            "Numeric variables must reject trailing identifier text");
+    }
+    {
+      Ponscripter::LineLexer lx("$123abc", &vars);
+      check(lx.parseStrVarRef() == -1,
+            "String variables must reject trailing identifier text");
+    }
+
     // 3. TextFormatter inline tags, ~~ escape, #RRGGBB, and ligatures
     {
       Ponscripter::TextStyle style;

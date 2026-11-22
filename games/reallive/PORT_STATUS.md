@@ -150,7 +150,7 @@
   pause-menu item before the two-finger Back gesture is recognized.
 - SMW00C controls use original atlas regions for hide/history/forward/auto/skip.
   Auto waits for text and voice; the native character/wait settings control its
-  delay. Skip stops on unread pages; read tracking currently lasts one session.
+  delay. Skip stops on unread pages; read tracking is now journaled per game and merges with presentation saves v7.
 
 ## Incomplete — do not claim 100% parity
 
@@ -164,14 +164,16 @@ Still required:
 - Exact native edit-control typography and remaining glossary presentation details.
   Name-entry commands 1700/1701/1703/1710/1711 now create, edit, focus and read the original scenario 9037 fields; regression covers 9037:118, dark foreground/white background rendering and field clipping.
   Opcode 1700 uses arguments 6–8 for text RGB and 9–11 for background RGB.
-- Original save/config/gallery menus and CG/read/progression persistence beyond
-  the current session. Kotonoha dialogue saves are separate from RealLive saves.
+- Original save/config/gallery menus and CG/gallery unlock persistence. Dialogue read history now persists across sessions per RealLive game, independently of slots; Kotonoha presentation saves are still separate from original RealLive save files.
 - Remaining composite graphics commands and particle/drift effects.
-- Exact remaining transition styles: styles other than the orthogonal and
-  diagonal dither fades still use a crossfade where not implemented. Font
+- Remaining visual parity: directional wipes (style 10), blinds (120),
+  scroll/squash/slide styles 15–18 and 20–21 now have native-resolution
+  implementations and synthetic geometry tests. Exact timing and interpolation
+  still require comparison with the original RealLive executable; unknown SEL
+  styles continue to crossfade. Font
   metrics, name-box decoration, text pacing,
   selection styling and some window controls need native comparison.
-- Timed audio fades, some channel/volume commands, and complete media testing.
+- Remaining channel/voice volume behavior and complete media timing verification. Timed BGM fades and cooperative voice/PCM playback waits are implemented with synthetic regressions.
 - Native reference captures, route-by-route input replays, choice/ending checks,
   audiovisual timing comparison and save/reload equivalence beyond the tested
   dialogue point.

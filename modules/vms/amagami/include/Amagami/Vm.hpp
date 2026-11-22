@@ -49,6 +49,13 @@ public:
       const std::string &owner, const std::string &method, bool classMethod,
       const VmValue &, unsigned, const std::vector<VmValue> &)>;
   void add(Script script);
+  // On-demand SCF classes (notably Vita scenarios in SCENARIO.CPK) are
+  // resolved only for explicit loadClass calls and class literals. The
+  // Class.findClass query deliberately never requests a load.
+  using ClassResolver =
+      std::function<std::optional<Script>(const std::string &name)>;
+  ClassResolver resolveClass;
+  bool loadClass(const std::string &name);
   void reset();
   // Begin another script entry while preserving campaign globals and objects.
   void resetExecution();
@@ -86,6 +93,9 @@ public:
   // input sintetico entre instrucoes SCF).
   std::function<bool()> shouldYield;
   std::string location() const;
+  // Immediate SCF caller class; empty for a top-level invocation.
+  // Used by the Vita diagnostic to preserve scenario-specific pad layout.
+  std::string callerClass() const;
   // PC do frame atual (0 se nao houver frames). Usado para detectar loops
   // de sleep no mesmo ponto do script.
   size_t pc() const;

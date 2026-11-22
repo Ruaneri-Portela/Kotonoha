@@ -58,6 +58,14 @@ public:
 
   const Ddlc::Assets &source() const { return assets_; }
   const Ddlc::Script &script() const { return script_; }
+  bool isKatawa() const { return assets_.has("script-a1-monday.rpyc"); }
+  bool isDdlc() const {
+    return assets_.has("scripts.rpa") && assets_.has("gui/menu_bg.png");
+  }
+  const std::string &sourceIdentity() const { return sourceIdentity_; }
+  void setSourceIdentity(std::string identity) {
+    sourceIdentity_ = std::move(identity);
+  }
 
 private:
   void configureOverlaysAndScripts(
@@ -65,6 +73,7 @@ private:
       bool inspectCharacterPaths);
   Ddlc::Assets assets_;
   Ddlc::Script script_;
+  std::string sourceIdentity_;
 };
 
 } // namespace Kotonoha::Providers

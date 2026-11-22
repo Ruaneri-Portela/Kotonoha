@@ -32,6 +32,8 @@ void ChoiceQuestionScene::layout() {
 
 void ChoiceQuestionScene::select(std::size_t index) {
   const auto option = options.at(index);
+  if (!option.enabled)
+    return;
   const auto callback = onChoiceSelected;
   active = false;
   if (callback)
@@ -75,10 +77,19 @@ bool ChoiceQuestionScene::onEvent(EventRef rawEvent) {
       openMenu();
       return true;
     }
-    if (event.key.key == SDLK_DOWN)
-      selected = (selected + 1) % options.size();
-    else if (event.key.key == SDLK_UP)
-      selected = (selected + options.size() - 1) % options.size();
+    if (event.key.key == SDLK_DOWN || event.key.key == SDLK_UP) {
+      const auto step = event.key.key == SDLK_DOWN ? 1u : options.size() - 1;
+      // Skip disabled native options, without looping forever when every
+      // choice is disabled (the user can still open the system menu).
+      for (std::size_t i = 0; i < options.size(); ++i) {
+        const auto next = (selected + step) % options.size();
+        if (options[next].enabled) {
+          selected = next;
+          break;
+        }
+        selected = next;
+      }
+    }
     else if (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE) {
       select(selected);
       return true;
@@ -137,8 +148,15 @@ void ChoiceQuestionScene::renderPanel(RendererRef renderer) {
 
 void ChoiceQuestionScene::renderOption(RendererRef renderer, std::size_t index,
                                        bool focused) {
-  engine.GetUI().button(renderer, options[index].hitBox, options[index].label,
-                        focused);
+  if (options[index].enabled)
+    engine.GetUI().button(renderer, options[index].hitBox, options[index].label,
+                          focused);
+  else
+    engine.GetUI().text(renderer, options[index].label,
+                        options[index].hitBox.x + 12,
+                        options[index].hitBox.y + 12,
+                        options[index].hitBox.w - 24,
+                        {140, 140, 140, 255});
 }
 
 ChoiceQuestionScene &GetChoiceQuestionRuntime(

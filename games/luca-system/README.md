@@ -13,6 +13,26 @@ cmake -S . -B build -DKOTONOHA_BUILD_LUCA_SYSTEM=ON
 cmake --build build --target LucaSystem
 ```
 
+## Per-title opcode catalogs (LuckSystem)
+
+The inspector accepts original LuckSystem text opcode catalogs, including
+UTF-8 BOM and Windows CRLF. Names are resolved by index so a game-specific
+OPCODE.txt cannot be mistaken for AIR's built-in opcode mapping:
+
+    build/bin/LucaInspect /path/to/AIR/files seen170 36 --opcode-table data/AIR.txt
+    build/bin/LucaInspect /path/to/other-game/files scenario --opcode-table data/SP/OPCODE.txt
+
+Without the --opcode-table option, AIR's opcode names remain the default.
+The numeric filter is optional and must be within 0..255. Truncated scripts
+and malformed tables now fail instead of silently emitting partial output.
+
+This improves inspection, not runtime compatibility for non-AIR games.
+Opcode payload formats, script relocations, rendering and VM handlers remain
+title-specific and require game-data regression tests.
+
+    cmake --build build --target LucaSystemOpcodeTableTests
+    ctest --test-dir build -R LucaSystem.OpcodeTable --output-on-failure
+
 ## Game data
 
 Use original PAK files (including PARAM.PAK and SCRIPT.PAK); AIR is the reference title.
@@ -34,6 +54,24 @@ to replace entries, or omit the pairs to rebuild without replacements.
 The tool preserves names, IDs, entry order and block alignment, and writes
 to a new file. It does not add or rename entries or interpret imported
 payloads. Keep commercial inputs and repacked outputs local.
+
+### Conservative raw script import (all titles)
+
+The patch-raw command updates one or more instruction *payloads* by their
+original byte offsets, including unknown opcodes from non-AIR titles. It does
+not rewrite the four-byte instruction header or the alignment byte, and every
+replacement must have exactly the original payload length. Multiple edits
+across different PAK entries are applied together.
+
+    build/bin/LucaInspect /path/to/game/files seen170 --opcode-table data/AIR.txt
+    build/bin/LucaPak patch-raw SCRIPT.PAK SCRIPT-patched.PAK name:seen170 2202 raw-payload.bin
+
+The input is a binary file containing all bytes after the four-byte
+instruction header (including any fixed parameters). This is meant for
+expert, format-aware edits; changing a jump operand to an invalid target or
+changing an opcode's internal fields can still break the game. For variable-
+length AIR English dialogue, continue using patch-air, which relocates jumps.
+A standalone regression exercises multiple edits, bad offsets, and wrong sizes.
 
 ### AIR dialogue import
 
@@ -183,6 +221,17 @@ works while a textbox is visible. A synthetic test checks the
 `Reveal`/`ResumeScript` decision; original AIR data is still needed for
 integration verification.
 
+## Lossless visual save state V6
+
+V6 now records the original (group, slot) per image and its alpha, scale,
+rotation, tint, visibility and interpolated MOVE offsets with remaining time.
+The renderer resumes the same arrangement of layered portraits and CZ4 facial
+expressions after Load, instead of reconstructing grouping from image ID ranges.
+V2–V5 saves remain readable through their original fallback layouts. The
+codec rejects invalid floats, duplicate layer keys and excessive collections
+without applying malformed state. Retail integration is still needed to
+compare mid-transition frames and other live effects.
+
 ## Visual save state V4 & Cross-Scenario V5
 
 `LUCA_SYSTEM_SAVE_5` records the asset IDs and positions of rendered `IMAGELOAD`
@@ -210,6 +259,100 @@ binary/asset validation. Standalone C++17 regression test:
 cmake --build build --target LucaSystemSceneLayersTests
 ctest --test-dir build -R LucaSystem.SceneLayers --output-on-failure
 ```
+
+## CZ4 facial expressions: shared pose origin and rotation pivot
+
+Partial facial CZ4 crops can carry a different per-file anchor from the
+body sprite even when both share the same original canvas. The expression
+is now placed using its matching group's full portrait position and
+anchor, with the same movement offset, scale and rotation center. Rendering
+a rotated face around its own cropped rectangle formerly shifted it away
+from the original pose. Explicit expression positions are normalized to
+their parent canvas because the crop already encodes its face location.
+C++17 geometry regression checks both rectangles and their common pivot.
+
+## Position-preserving sprite replacements and MOVE interruptions
+
+Implicit-position IMAGELOAD commands now retain the previous portrait's
+on-screen placement and visual transform instead of resetting it to (0,0).
+Small CZ4 facial expression crops also inherit the body's animation,
+tint, alpha, scale and rotation while remaining above that body. An explicit
+expression position is honored.
+
+MOVE samples its current interpolated offset before accepting another MOVE,
+preventing an immediate jump to the old animation's endpoint. Save V6 uses
+the exact same interpolation when snapshotting an in-progress movement.
+Standalone SceneLayers regressions cover all these cases.
+
+## Bounded gameplay image lifetime
+
+The LucaSystem runtime now prunes decoded CPU CZ images and matching SDL GPU
+textures after each committed scene, retaining precisely the assets referenced
+by the staged, visible and outgoing transition layers. A still-running DRAW or
+WIPE retains both scenes; the outgoing assets are released only after the
+transition deadline. Returning to title and loading a save also drop obsolete
+gameplay images and reset stale transition clocks. This avoids growing CPU/GPU
+image caches across chapter changes without disturbing expression overlays.
+Standalone C++17 tests cover live, outgoing and discarded asset lifetimes.
+
+## Robust RGBA uploads and missing-image retry
+
+The renderer now constructs and uploads CZ image textures fully before
+publishing them to caches. Failed SDL uploads or blend/sampler setup destroy
+the provisional texture, avoiding random VRAM garbage on the next frame.
+Script objects, title art, dialogue atlas and splash logos share this path.
+The SDL3 pixel regression verifies a valid RGBA upload and rejects missing
+pixels/invalid strides.
+
+Missing or corrupt image assets are logged no more than once per two seconds
+per ID, preventing repeated archive extraction and decoding in every frame.
+A later retry still permits an overlay to repair the missing asset. Invalid
+non-finite or zero-size sprite geometry is ignored instead of sent to SDL.
+
+## SDL3 pixel-based scene regression
+
+A dedicated SDL-backed C++17 regression now exercises the same GPU composition
+helpers as the native LucaSystem runtime. It renders red/blue synthetic scenes
+through the software SDL3 backend, verifies the exact midpoint blend and
+non-overlapping WIPE pixels, and checks that the renderer draw state, alpha
+modulation and parent clip are restored. No commercial AIR files are required.
+
+    cmake --build build --target LucaSystemGpuSceneTests
+    SDL_VIDEODRIVER=dummy ctest --test-dir build -R LucaSystem.GpuScene --output-on-failure
+
+## Persistent AIR background below transparent foregrounds
+
+The seen170 screenshot exposed a lost background: INIT removed the staged
+background, and DRAW replaced the visible scene with foreground assets alone.
+Their transparent holes then revealed the renderer's black clear. A private
+bottommost layer (0xfe00) now keeps the last opaque full-screen backdrop
+beneath subsequent scene sprites. An explicit new opaque background replaces
+it. The layer is part of the normal transition maps, scene texture cache and
+V6 visual save. Synthetic C++17 regression cases cover the scene sequence,
+alpha cutouts, layer order and replacement.
+
+## GPU scene composition and transition correctness
+
+Gameplay DRAW now composes the incoming scene into a native 1280x720 SDL
+render target and blends the two *complete* frames. Previously each sprite
+was faded independently, causing semi-transparent hair, masks, portraits and
+colored overlays to accumulate alpha incorrectly. Animated, cropped CZ4
+portraits stay in authored canvas coordinates. Image assets remain on the
+GPU renderer; dialogue and UI text continue through the shared Kotonoha UI.
+
+WIPE uses two non-overlapping GPU scissor regions: the old frame to the
+right, the incoming frame to the left. Neither source rectangles nor rotated
+sprites are cropped per layer, preventing stretched/repeated image fragments.
+The caller's clip state is restored before UI rendering. A GPU render-target
+allocation failure keeps a legacy fallback and reports an SDL warning.
+
+Expression fragments in group 3 are now rendered immediately above the
+matching group-2 character slot, not on top of every portrait. The
+`LucaSystem.SceneLayers` regression guards z-order and wipe
+boundaries without requiring commercial artwork.
+
+This is a compositing fix, not proof of identical retail AIR transition
+masks or animation timing; those still require real-data visual comparisons.
 
 ## Horizontal WIPE reveal
 

@@ -149,7 +149,8 @@ bool Script::load(const Assets &assets, std::string *error) {
   const bool katawa = assets.has("script-a1-monday.rpyc") ||
                       assets.has("game/script-a1-monday.rpyc");
   for (const auto &name : assets.names())
-    if (name.size() > 5 && name.compare(name.size() - 5, 5, ".rpyc") == 0) {
+    if ((name.size() > 5 && name.compare(name.size() - 5, 5, ".rpyc") == 0) ||
+        (name.size() > 6 && name.compare(name.size() - 6, 6, ".rpymc") == 0)) {
       if (!katawa) {
         files.push_back(name);
         continue;

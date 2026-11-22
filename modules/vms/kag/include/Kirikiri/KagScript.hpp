@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -61,6 +62,14 @@ public:
   using PlayBgmCallback = std::function<void(std::string file, bool loop)>;
   using PlaySeCallback = std::function<void(std::string file)>;
   using StopBgmCallback = std::function<void()>;
+  // KAG [layopt] changes Layer properties without discarding its image.
+  // Optional values preserve unspecified properties from earlier tags.
+  struct LayerOptions {
+    std::string layer;
+    std::optional<int> left, top, opacity, order;
+    std::optional<bool> visible;
+  };
+  using LayerOptionsCallback = std::function<void(LayerOptions)>;
   using SetVarCallback =
       std::function<void(std::string name, std::string value)>;
   using GetVarCallback = std::function<std::string(std::string name)>;
@@ -73,9 +82,12 @@ public:
     ShowBgCallback showBg;
     ShowCharCallback showChar;
     HideCharCallback hideChar;
+    LayerOptionsCallback updateLayer;
     PlayBgmCallback playBgm;
     PlaySeCallback playSe;
     StopBgmCallback stopBgm;
+    // Executes an inline KAG [iscript] block in a retained bounded TJS2 VM.
+    std::function<void(std::string)> executeInlineTjs;
     SetVarCallback setVar;
     GetVarCallback getVar;
   };
@@ -131,6 +143,12 @@ public:
     std::vector<std::size_t> returnStack_;
     std::vector<std::uint8_t> ifBranches_;
     std::vector<std::size_t> callIfDepth_;
+    // KAG [glink]/[link] menu choices waiting at [s].
+    struct MenuLink { std::string caption, target; };
+    std::vector<MenuLink> pendingLinks_;
+    std::vector<std::string> activeChoiceTargets_;
+    bool capturingLink_ = false;
+    std::string currentLinkCaption_, currentLinkTarget_;
 
     bool executeTagBlocking(const Tag &tag); // returns true if tag blocks
     bool condition(const Tag &tag) const;

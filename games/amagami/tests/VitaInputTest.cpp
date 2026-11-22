@@ -34,6 +34,24 @@ SDL_Event axis(SDL_JoystickID device, uint8_t name, Sint16 value) {
 int main() {
   try {
     Amagami::Vita::VitaInput input;
+    using Amagami::Vita::VitaInput;
+    expect(VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_SOUTH,
+                                       SDL_GAMEPAD_TYPE_XBOXONE) == 32u &&
+               VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_EAST,
+                                           SDL_GAMEPAD_TYPE_XBOXONE) == 64u,
+           "Xbox A confirms and B cancels");
+    expect(VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_SOUTH,
+                                       SDL_GAMEPAD_TYPE_XBOX360) == 32u &&
+               VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_EAST,
+                                           SDL_GAMEPAD_TYPE_PS5) == 32u &&
+               VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_SOUTH,
+                                           SDL_GAMEPAD_TYPE_PS5) == 64u,
+           "Xbox 360 and PlayStation button layouts are distinct");
+    expect(VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_EAST,
+                                       SDL_GAMEPAD_TYPE_UNKNOWN) == 32u &&
+               VitaInput::mapGamepadButton(SDL_GAMEPAD_BUTTON_NORTH,
+                                           SDL_GAMEPAD_TYPE_XBOXONE) == 16u,
+           "Fallback controller layout leaves other buttons unchanged");
     Amagami::Vita::VitaVmBridge bridge;
     input.handle(key(SDL_EVENT_KEY_DOWN, SDLK_Z));
     input.handle(key(SDL_EVENT_KEY_DOWN, SDLK_UP));
@@ -44,6 +62,17 @@ int main() {
     input.handle(key(SDL_EVENT_KEY_DOWN, SDLK_Z));
     bridge.inputFrame(input.buttons(), input.analog());
     expect(bridge.vitaButtonsPressed() == 0, "Holding key not a new trigger");
+
+    // Both Z and Space activate Circle: key-up for one must not undo the
+    // other. Duplicate key-down events must also be idempotent.
+    input.handle(key(SDL_EVENT_KEY_DOWN, SDLK_SPACE));
+    input.handle(key(SDL_EVENT_KEY_UP, SDLK_Z));
+    expect(input.buttons() == (32u | 4096u),
+           "Releasing Z preserves Circle while Space is still pressed");
+    input.handle(key(SDL_EVENT_KEY_DOWN, SDLK_Z));
+    input.handle(key(SDL_EVENT_KEY_UP, SDLK_SPACE));
+    expect(input.buttons() == (32u | 4096u),
+           "Releasing Space preserves Circle while Z is still pressed");
 
     input.handle(
         button(SDL_EVENT_GAMEPAD_BUTTON_DOWN, 77, SDL_GAMEPAD_BUTTON_EAST));
@@ -64,8 +93,28 @@ int main() {
     input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTY, -8192));
     expect(input.analog()[0] == 64 && input.analog()[1] == -32,
            "Analog stick values converted to signed Vita range");
+    expect((input.buttons() & 8192u) != 0,
+           "Left stick crosses the dead zone and activates D-pad right");
+    input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTX, 15999));
+    expect((input.buttons() & 8192u) == 0 &&
+               (input.buttons() & 32768u) != 0,
+           "Recentering the stick preserves the physically held D-pad left");
+    input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTY, -20000));
+    expect((input.buttons() & 4096u) != 0,
+           "Left stick up is also a navigation button");
+    input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTY, 0));
+    input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTX, -32768));
+    expect(input.analog()[0] == -128 &&
+               (input.buttons() & 32768u) != 0,
+           "Left analog axis clamps to the signed Vita range");
     input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, 28000));
     expect((input.buttons() & 1u) == 1u, "Left trigger maps to L2");
+    input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, 4001));
+    expect((input.buttons() & 1u) != 0,
+           "Reference SDL threshold accepts partially pressed triggers");
+    input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, 4000));
+    expect((input.buttons() & 1u) == 0,
+           "Trigger threshold is strict and clears only trigger input");
     input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, 0));
     expect((input.buttons() & 1u) == 0, "Left trigger release clears L2");
     input.handle(key(SDL_EVENT_KEY_DOWN, SDLK_RETURN));

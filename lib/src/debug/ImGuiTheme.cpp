@@ -1,11 +1,16 @@
-﻿#include <Kotonoha/core/Config.hpp>
-#include <Kotonoha/debug/ImGuiTheme.hpp>
-
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Config.hpp>
+#include <Kotonoha/core/Log.hpp>
+#include <Kotonoha/debug/ImGuiTheme.hpp>
 
 #include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <filesystem>
+#include <limits>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -56,33 +61,197 @@ constexpr ImVec4 CardBorder{0.16f, 0.14f, 0.22f, 1.00f};
 // Tab bar colors.
 constexpr ImVec4 TabBg{0.090f, 0.080f, 0.120f, 1.00f};
 constexpr ImVec4 TabHovered{0.16f, 0.13f, 0.22f, 1.00f};
+constexpr std::size_t kMinFontBytes = 101;
+constexpr std::size_t kMaxFontBytes = 256u << 20;
+
+std::uint16_t readBe16(const std::uint8_t *data, std::size_t offset) {
+  return static_cast<std::uint16_t>(
+      (static_cast<std::uint16_t>(data[offset]) << 8) |
+      static_cast<std::uint16_t>(data[offset + 1]));
+}
+
+std::uint32_t readBe32(const std::uint8_t *data, std::size_t offset) {
+  return (static_cast<std::uint32_t>(data[offset]) << 24) |
+         (static_cast<std::uint32_t>(data[offset + 1]) << 16) |
+         (static_cast<std::uint32_t>(data[offset + 2]) << 8) |
+         static_cast<std::uint32_t>(data[offset + 3]);
+}
+
+bool tagEquals(const std::uint8_t *data, const char *tag) {
+  return std::memcmp(data, tag, 4) == 0;
+}
+
+bool hasSfntTag(const std::uint8_t *data) {
+  return tagEquals(data, "\x00\x01\x00\x00") || tagEquals(data, "OTTO") ||
+         tagEquals(data, "true") || tagEquals(data, "1\x00\x00\x00");
+}
+
+// Guards stb_truetype against out-of-bounds reads on truncated files before
+// letting ImGui's active font loader validate format compatibility.
+bool hasValidSfntContainerBounds(const std::uint8_t *data, std::size_t size) {
+  if (!data || size < kMinFontBytes)
+    return false;
+
+  std::size_t fontStart = 0;
+  if (tagEquals(data, "ttcf")) {
+    if (size < 16)
+      return false;
+    const std::uint32_t version = readBe32(data, 4);
+    const std::uint32_t numFonts = readBe32(data, 8);
+    if ((version != 0x00010000u && version != 0x00020000u) || numFonts == 0 ||
+        numFonts > (size - 12) / 4)
+      return false;
+    fontStart = readBe32(data, 12);
+  } else if (!hasSfntTag(data)) {
+    return false;
+  }
+
+  if (fontStart > size || size - fontStart < 12 || !hasSfntTag(data + fontStart))
+    return false;
+
+  const std::uint16_t numTables = readBe16(data, fontStart + 4);
+  if (numTables == 0 ||
+      static_cast<std::size_t>(numTables) * 16 > size - fontStart - 12)
+    return false;
+
+  for (std::uint16_t i = 0; i < numTables; ++i) {
+    const std::size_t rec = fontStart + 12 + static_cast<std::size_t>(i) * 16;
+    const std::uint32_t tableOffset = readBe32(data, rec + 8);
+    const std::uint32_t tableLength = readBe32(data, rec + 12);
+    if (tableOffset > size || tableLength > size - tableOffset)
+      return false;
+    if (tagEquals(data + rec, "head") && tableLength < 54)
+      return false;
+    if (tagEquals(data + rec, "maxp") && tableLength < 6)
+      return false;
+    if (tagEquals(data + rec, "hhea") && tableLength < 36)
+      return false;
+    if (tagEquals(data + rec, "cmap")) {
+      if (tableLength < 4)
+        return false;
+      const std::uint16_t subtables = readBe16(data, tableOffset + 2);
+      if (4 + static_cast<std::size_t>(subtables) * 8 > tableLength)
+        return false;
+      for (std::uint16_t j = 0; j < subtables; ++j) {
+        const std::size_t enc =
+            tableOffset + 4 + static_cast<std::size_t>(j) * 8;
+        const std::uint32_t subOffset = readBe32(data, enc + 4);
+        if (subOffset >= tableLength || tableLength - subOffset < 6)
+          return false;
+      }
+    }
+  }
+  return true;
+}
+
+struct ErrorRecoveryGuard {
+  ImGuiIO &io;
+  bool enableAssert;
+  bool enableDebugLog;
+  bool enableTooltip;
+
+  explicit ErrorRecoveryGuard(ImGuiIO &target)
+      : io(target),
+        enableAssert(target.ConfigErrorRecoveryEnableAssert),
+        enableDebugLog(target.ConfigErrorRecoveryEnableDebugLog),
+        enableTooltip(target.ConfigErrorRecoveryEnableTooltip) {
+    io.ConfigErrorRecoveryEnableAssert = false;
+    io.ConfigErrorRecoveryEnableDebugLog = false;
+    io.ConfigErrorRecoveryEnableTooltip = false;
+  }
+
+  ~ErrorRecoveryGuard() {
+    io.ConfigErrorRecoveryEnableAssert = enableAssert;
+    io.ConfigErrorRecoveryEnableDebugLog = enableDebugLog;
+    io.ConfigErrorRecoveryEnableTooltip = enableTooltip;
+  }
+};
+
+ImFont *tryLoadFontFile(ImGuiIO &io, const std::filesystem::path &resolved) {
+  std::error_code ec;
+  if (resolved.empty() || !std::filesystem::exists(resolved, ec) ||
+      !std::filesystem::is_regular_file(resolved, ec))
+    return nullptr;
+
+  const auto fileSize = std::filesystem::file_size(resolved, ec);
+  if (ec || fileSize < kMinFontBytes || fileSize > kMaxFontBytes ||
+      fileSize > static_cast<std::uintmax_t>((std::numeric_limits<int>::max)())) {
+    SDL_LogWarn(LogUI, "Skipping invalid ImGui font file: %s",
+                resolved.u8string().c_str());
+    return nullptr;
+  }
+
+  std::vector<std::uint8_t> bytes;
+  try {
+    bytes = Filesystem::readLocalFile(resolved, kMaxFontBytes);
+  } catch (const std::exception &e) {
+    SDL_LogWarn(LogUI, "Failed to read ImGui font '%s': %s",
+                resolved.u8string().c_str(), e.what());
+    return nullptr;
+  }
+
+  if (bytes.size() < kMinFontBytes ||
+      bytes.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()) ||
+      !hasValidSfntContainerBounds(bytes.data(), bytes.size())) {
+    SDL_LogWarn(LogUI, "Skipping truncated or malformed ImGui font: %s",
+                resolved.u8string().c_str());
+    return nullptr;
+  }
+
+  std::unique_ptr<void, void (*)(void *)> owned(ImGui::MemAlloc(bytes.size()),
+                                                &ImGui::MemFree);
+  if (!owned)
+    return nullptr;
+  std::memcpy(owned.get(), bytes.data(), bytes.size());
+
+  ImFontConfig cfg;
+  cfg.FontDataOwnedByAtlas = true;
+  cfg.Flags |= ImFontFlags_NoLoadError;
+  const std::string name = resolved.filename().u8string();
+  std::snprintf(cfg.Name, sizeof(cfg.Name), "%s", name.c_str());
+
+  ErrorRecoveryGuard guard(io);
+  ImFont *loaded = io.Fonts->AddFontFromMemoryTTF(
+      owned.release(), static_cast<int>(bytes.size()), 18.0f, &cfg);
+  if (!loaded)
+    SDL_LogWarn(LogUI, "Skipping ImGui-incompatible font: %s",
+                resolved.u8string().c_str());
+  return loaded;
+}
 } // namespace
 
-void loadFonts(const std::string &fontPath) {
+bool loadFontsFromPaths(const std::filesystem::path &customPath,
+                        const std::filesystem::path &defaultPath) {
   ImGuiIO &io = ImGui::GetIO();
   io.Fonts->Clear();
   ImFont *font = nullptr;
+  if (!customPath.empty())
+    font = tryLoadFontFile(io, customPath);
+  if (!font && !defaultPath.empty() && defaultPath != customPath)
+    font = tryLoadFontFile(io, defaultPath);
+  const bool loadedFromFile = (font != nullptr);
+  if (!font)
+    font = io.Fonts->AddFontDefaultVector();
+  io.FontDefault = font;
+  return loadedFromFile;
+}
+
+void loadFonts(const std::string &fontPath) {
+  std::filesystem::path customResolved;
+  std::filesystem::path defaultResolved;
   if (!fontPath.empty()) {
     try {
-      const auto resolved = FileResolver::font(fontPath);
-      if (std::filesystem::exists(resolved))
-        font = io.Fonts->AddFontFromFileTTF(resolved.string().c_str(), 18.0f);
+      customResolved = FileResolver::font(fontPath);
     } catch (...) {
       // A bad optional UI font must not make the engine unusable.
     }
   }
-  if (!font) {
-    try {
-      const auto resolved = FileResolver::font(defaultFontName());
-      if (std::filesystem::exists(resolved))
-        font = io.Fonts->AddFontFromFileTTF(resolved.string().c_str(), 18.0f);
-    } catch (...) {
-      // A bad optional UI font must not make the engine unusable.
-    }
+  try {
+    defaultResolved = FileResolver::font(defaultFontName());
+  } catch (...) {
+    // A bad optional UI font must not make the engine unusable.
   }
-  if (!font)
-    font = io.Fonts->AddFontDefault();
-  io.FontDefault = font;
+  loadFontsFromPaths(customResolved, defaultResolved);
 }
 
 void apply(float value) {

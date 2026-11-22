@@ -1,0 +1,104 @@
+name: Apple encoding without iconv
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "lib/src/localization/Encoding.cpp"
+      - "lib/src/localization/Encoding.mm"
+      - "lib/include/Kotonoha/localization/Encoding.hpp"
+      - "lib/tests/EncodingAppleTests.cpp"
+      - "lib/CMakeLists.txt"
+      - "games/reallive/CMakeLists.txt"
+      - "buildsystems/xcode/Config/**"
+      - "vcpkg.json"
+      - "buildsystems/cmake/dependencies/KotonohaSDL.cmake"
+      - ".github/workflows/apple-encoding-no-iconv.yml"
+  pull_request:
+    paths:
+      - "lib/src/localization/Encoding.cpp"
+      - "lib/src/localization/Encoding.mm"
+      - "lib/include/Kotonoha/localization/Encoding.hpp"
+      - "lib/tests/EncodingAppleTests.cpp"
+      - "lib/CMakeLists.txt"
+      - "games/reallive/CMakeLists.txt"
+      - "buildsystems/xcode/Config/**"
+      - "vcpkg.json"
+      - "buildsystems/cmake/dependencies/KotonohaSDL.cmake"
+      - ".github/workflows/apple-encoding-no-iconv.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  corefoundation:
+    name: Compile and test every Apple encoding without iconv
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify CoreFoundation decoding and libiconv link compatibility
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path(".")
+          xcode = (root / "buildsystems/xcode/Kotonoha.xcodeproj/project.pbxproj").read_text()
+          assert "Encoding.mm in Sources" in xcode
+          assert "Encoding.cpp in Sources" in xcode
+          for platform in ("macOS", "iOS"):
+              flags = (root / f"buildsystems/xcode/Config/{platform}.xcconfig").read_text()
+              assert "-framework CoreFoundation" in flags
+              assert "$(KOTONOHA_SHARED_LIBS)" in flags
+          common = (root / "buildsystems/xcode/Config/Common.xcconfig").read_text()
+          assert "-liconv" in common
+
+          cmake = (root / "lib/CMakeLists.txt").read_text()
+          assert "find_library(KOTONOHA_COREFOUNDATION CoreFoundation REQUIRED)" in cmake
+          assert "find_library(KOTONOHA_APPLE_ICONV NAMES iconv REQUIRED)" in cmake
+          assert "Encoding.mm" in (root / "docs/ENCODING_APPLE.pt-BR.md").read_text()
+          manifest = json.loads((root / "vcpkg.json").read_text())
+          for dependency in manifest["dependencies"]:
+              if isinstance(dependency, dict) and dependency.get("name") == "libiconv":
+                  assert dependency.get("platform") == "!osx & !ios"
+              else:
+                  assert dependency != "libiconv"
+          realLive = (root / "games/reallive/CMakeLists.txt").read_text()
+          assert "if(NOT APPLE)" in realLive
+          print("Apple Encoding.mm + Xcode libiconv linkage contracts passed")
+          PY
+      - name: Verify Xcode SDK resolves _iconv_close
+        run: |
+          cat > "$RUNNER_TEMP/link-iconv.c" <<'EOF'
+          #include <iconv.h>
+          int main(void) {
+            iconv_t cd = iconv_open("UTF-8", "UTF-16LE");
+            if (cd == (iconv_t)-1) return 1;
+            return iconv_close(cd) != 0;
+          }
+          EOF
+          xcrun --sdk macosx clang "$RUNNER_TEMP/link-iconv.c" -liconv             -o "$RUNNER_TEMP/link-iconv"
+          "$RUNNER_TEMP/link-iconv"
+      - name: Compile Apple codec with C++17 (no SDL or iconv)
+        run: |
+          clang++ -std=c++17 -Wall -Wextra -Werror -Ilib/include \
+            lib/src/localization/Encoding.cpp \
+            lib/src/localization/Encoding.mm \
+            lib/tests/EncodingAppleTests.cpp \
+            -framework CoreFoundation \
+            -o "$RUNNER_TEMP/kotonoha-apple-encoding-tests"
+      - name: Verify no SDL or libiconv imports in executable
+        run: |
+          nm -u "$RUNNER_TEMP/kotonoha-apple-encoding-tests" > "$RUNNER_TEMP/encoding-symbols.txt"
+          if grep -E '(_iconv|_SDL_iconv)' "$RUNNER_TEMP/encoding-symbols.txt"; then
+            echo "::error::Apple encoding executable references iconv"
+            exit 1
+          fi
+          if otool -L "$RUNNER_TEMP/kotonoha-apple-encoding-tests" | grep -i libiconv; then
+            echo "::error::Apple encoding executable links libiconv"
+            exit 1
+          fi
+      - name: Execute text decoding and encoding regressions
+        run: "$RUNNER_TEMP/kotonoha-apple-encoding-tests"

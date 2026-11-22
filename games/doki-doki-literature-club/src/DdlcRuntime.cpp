@@ -134,17 +134,21 @@ private:
 
 GameRuntime::GameRuntime(
     std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
-    : Runtime(assets && assets->name().compare(0, 13, "Katawa Shoujo") == 0
+    : Runtime(assets && assets->isKatawa()
                   ? "Katawa Shoujo"
-                  : "Doki Doki Literature Club!",
+                  : assets && assets->isDdlc()
+                        ? "Doki Doki Literature Club!"
+                        : assets ? assets->name() : "Ren'Py",
               "0.1.0",
-              assets && assets->name().compare(0, 13, "Katawa Shoujo") == 0
+              assets && assets->isKatawa()
                   ? "me.hirameki.kotonoha.katawashoujo"
-                  : "me.hirameki.kotonoha.dokidokiliteratureclub"),
+                  : assets && assets->isDdlc()
+                        ? "me.hirameki.kotonoha.dokidokiliteratureclub"
+                        : "me.hirameki.kotonoha.renpy"),
       assets_(std::move(assets)) {
   if (!assets_)
     throw std::invalid_argument(
-        "Doki Doki Literature Club requires its game directory");
+        "Ren'Py requires a game directory");
 }
 
 GameRuntime::~GameRuntime() { shutdown(); }
@@ -197,7 +201,7 @@ void GameRuntime::addGameScenes() {
 void GameRuntime::initMenu(Kotonoha::Engine &) { addGameScenes(); }
 void GameRuntime::initGameplay(Kotonoha::Engine &) {
   if (session_ && !session_->playing()) {
-    if (assets_->name().compare(0, 13, "Katawa Shoujo") == 0)
+    if (assets_->isKatawa())
       session_->update(false);
     else
       session_->startGame();

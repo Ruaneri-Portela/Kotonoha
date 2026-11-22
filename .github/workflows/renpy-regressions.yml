@@ -1,0 +1,64 @@
+name: RenPy synthetic compatibility regressions
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/renpy-regressions.yml"
+      - "games/doki-doki-literature-club/**"
+      - "games/katawa-shoujo/**"
+      - "modules/vms/renpy/**"
+      - "modules/providers/rpa/**"
+      - "lib/src/Filesystem/**"
+      - "lib/include/Kotonoha/Filesystem/**"
+      - "buildsystems/cmake/**"
+  pull_request:
+    paths:
+      - ".github/workflows/renpy-regressions.yml"
+      - "games/doki-doki-literature-club/**"
+      - "games/katawa-shoujo/**"
+      - "modules/vms/renpy/**"
+      - "modules/providers/rpa/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  renpy:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    timeout-minutes: 35
+    steps:
+      - name: Install system C++ and RenPy port dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git cmake ninja-build g++ pkg-config python3 python3-dev \
+            libsdl3-dev libsdl3-ttf-dev \
+            libass-dev libavformat-dev libavcodec-dev libavutil-dev \
+            libswscale-dev libswresample-dev libjson-c-dev \
+            libgl-dev libfreetype-dev libharfbuzz-dev zlib1g-dev fonts-dejavu-core
+      - uses: actions/checkout@v4
+      - name: Configure only DDLC and Katawa Shoujo ports
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cmake -S . -B build-renpy -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
+            -DKOTONOHA_BUILD_ALL=OFF -DKOTONOHA_BUILD_DDLC=ON \
+            -DKOTONOHA_BUILD_KATAWA=ON \
+            -DKOTONOHA_BUILD_EXAMPLE=OFF -DKOTONOHA_BUILD_LAUNCHER=OFF \
+            -DKOTONOHA_ENABLE_MCP=OFF -DKOTONOHA_ENABLE_UPSCALER=OFF \
+            -DKOTONOHA_SDL_PROVIDER=SYSTEM \
+            -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON
+      - name: Build native VM, providers and regression tests
+        run: |
+          cmake --build build-renpy --target \
+            DdlcAssetsTest DdlcPythonTest DdlcSyntheticFlowTest \
+            KatawaIdentityTest KatawaStoryTest KotonohaEngineDetectorTests \
+            --parallel 2
+      - name: Exercise synthetic scripts and Python bridge
+        run: |
+          ctest --test-dir build-renpy \
+            -R 'DokiDoki\.(Assets|Python|SyntheticFlow)|Kotonoha\.EngineDetector' \
+            --output-on-failure --timeout 45

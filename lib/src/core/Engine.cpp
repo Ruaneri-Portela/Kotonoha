@@ -1083,6 +1083,18 @@ SDL_AppResult Engine::Iterate() {
             *renderer, *novelTarget, runtime.narrativeFrameDrawable(),
             runtime.narrativeBoundaryFrame(), runtime.narrativeVisualOwner()))
       throw std::runtime_error(SDL_GetError());
+    // VisualTransition::compose/copy temporarily disables logical presentation
+    // for 1:1 texture snapshots. Restore the Novel logical presentation before
+    // renderNarrativeOverlay so narrative overlays fill the complete Novel
+    // viewport at every resolution and renderScale.
+    if (!SDL_SetRenderTarget(renderer.get(), novelTarget.get()) ||
+        !SDL_SetRenderViewport(renderer.get(), nullptr) ||
+        !SDL_SetRenderClipRect(renderer.get(), nullptr) ||
+        !SDL_SetRenderScale(renderer.get(), 1, 1) ||
+        !SDL_SetRenderLogicalPresentation(renderer.get(), novelView.x,
+                                          novelView.y,
+                                          SDL_LOGICAL_PRESENTATION_STRETCH))
+      throw std::runtime_error(SDL_GetError());
     runtime.renderNarrativeOverlay(*renderer, ui->pixelDensity());
     if (!SDL_SetRenderTarget(renderer.get(), nullptr))
       throw std::runtime_error(SDL_GetError());

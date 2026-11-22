@@ -121,6 +121,22 @@ int main() {
       require(renpy.detect().kind == EngineKind::RenPy, "Detect Ren'Py");
     }
 
+    {
+      TempSource generic("renpy-archive");
+      generic.write("game/archive.rpa",
+                    "RPA-3.0 0000000000000019 12345678\n");
+      const auto det = generic.detect();
+      require(det.kind == EngineKind::RenPy && det.slug == "renpy",
+              "Detect a generic Ren'Py game with archive.rpa");
+    }
+    {
+      TempSource compiled("renpy-module");
+      compiled.write("game/definitions.rpymc");
+      const auto det = compiled.detect();
+      require(det.kind == EngineKind::RenPy && det.slug == "renpy",
+              "Detect Ren'Py compiled Python modules");
+    }
+
     // 7. N2System / Nitroplus (nitrosharp)
     {
       TempSource n2("n2");

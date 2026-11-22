@@ -60,12 +60,12 @@ void SpriteTween::start(const std::array<double, 3> &values, std::size_t n,
   }
   for (std::size_t i = 0; i < n; ++i) {
     const double d = target[i] - current[i];
-    if (mode == 1) { // Ease-in, original Vita quadratic.
-      a[i] = -d / (frames * frames);
-      b[i] = 2 * d / frames;
-    } else if (mode == 2) { // Ease-out.
+    if (mode == 1) { // Fast start, slowing toward the target (Vita mode 1).
       a[i] = d / (frames * frames);
       b[i] = 0;
+    } else if (mode == 2) { // Slow start, accelerating (Vita mode 2).
+      a[i] = -d / (frames * frames);
+      b[i] = 2 * d / frames;
     } else { // Linear, including native unrecognized modes.
       a[i] = 0;
       b[i] = d / frames;
@@ -165,7 +165,7 @@ void VitaVmBridge::inputFrame(uint32_t heldButtons, std::array<int, 4> analog) {
                       : (rapidCount_ + 1 >= 25 ? 20 : rapidCount_ + 1);
   padRapid_ = padPressed_ | (rapidCount_ == 20 ? padHeld_ : 0u);
   for (std::size_t i = 0; i < 4; ++i)
-    padAnalog_[i] = std::clamp(analog[i], -128, 128);
+    padAnalog_[i] = std::clamp(analog[i], -128, 127);
 }
 uint32_t VitaVmBridge::vitaButtonsHeld() const { return sceButtons(padHeld_); }
 uint32_t VitaVmBridge::vitaButtonsPressed() const {
@@ -178,6 +178,8 @@ uint32_t VitaVmBridge::vitaButtonsRapid() const {
 void VitaVmBridge::tick(double frames) {
   if (!std::isfinite(frames) || frames < 0 || frames > 360000)
     throw std::runtime_error("Amagami Vita: invalid scene time delta");
+  // The native K2X_Script frame clock keeps running even on an empty scene.
+  frameCount_ += frames;
   for (auto &[uid, sprite] : sprites_) {
     if (sprite.paused)
       continue;
@@ -251,7 +253,8 @@ uint64_t VitaVmBridge::newSprite(uint32_t tex, uint32_t variant,
 std::optional<VmValue>
 VitaVmBridge::primitive(const std::string &owner, const std::string &method,
                         bool classMethod, const VmValue &receiver,
-                        unsigned number, const std::vector<VmValue> &args) {
+                        unsigned number, const std::vector<VmValue> &args,
+                        bool ps2Layout) {
   // The original native vibrate() sets two Tween components (amplitude and
   // frequency) of an existing visual channel. RGB light uses one shared
   // frequency; the other channels have one frequency per amplitude.
@@ -484,17 +487,63 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     return primitive("Sprite", method, false, receiver, shared, args);
   }
 
+  // Vita MemoryCard bootstrap queries. There is no native save backend in
+  // this experimental adapter yet: report an empty but usable card, rather
+  // than a false "save succeeded". Read/write operations 3..8 remain
+  // deliberately unimplemented and must surface an SCF location error.
+  if (owner == "MemoryCard" && !classMethod) {
+    if (number == 0 || number == 1) {
+      expectCount(args, 0);
+      if (number == 0) {
+        auto changed = VmValue::num(0);
+        changed.kind = VmValue::Boolean;
+        return changed; // isChanged: no external card changes.
+      }
+      return VmValue::num(6); // status: usable, no saved data yet.
+    }
+    if (number == 2) { // checkData(quiet): no pending card error.
+      expectCount(args, 1);
+      return receiver;
+    }
+    if (number == 9) { // No corrupted data to delete.
+      expectCount(args, 0);
+      return VmValue::num(0);
+    }
+    if (number == 10) { // No system error dialog without a card backend.
+      return receiver;
+    }
+    if (number == 11) { // No pending system message.
+      expectCount(args, 0);
+      auto busy = VmValue::num(0);
+      busy.kind = VmValue::Boolean;
+      return busy;
+    }
+    return std::nullopt;
+  }
+
+  // Vita Voice.length(channel): without an audio backend no voice sample is
+  // playing, hence there is no remaining duration. Playback itself stays
+  // unsupported instead of reporting fake audio success.
+  if (owner == "Voice" && !classMethod && number == 5) {
+    expectCount(args, 1);
+    (void)argument(args, 0);
+    return VmValue::num(0);
+  }
+
   // ControlPad primitives (Vita system image). The caller supplies one input
   // frame through inputFrame(); these getters must not poll or mutate SDL.
-  // Scenario-only PS2-layout remapping depends on the invoking SCF class and
-  // remains separate future work.
+  // The live adapter distinguishes callers in the system image from
+  // scenario classes that still test the original PS2 pad button bits.
   if (owner == "ControlPad") {
     if (number == 0 || number == 1 || number == 2 || number == 4) {
       expectCount(args, 0);
-      const uint32_t mask = number == 0   ? vitaButtonsHeld()
-                            : number == 1 ? vitaButtonsPressed()
-                            : number == 2 ? vitaButtonsRapid()
-                                          : 0;
+      const uint32_t mask = number == 4 ? 0u
+                            : ps2Layout ? (number == 0   ? padHeld_
+                                           : number == 1 ? padPressed_
+                                                         : padRapid_)
+                            : number == 0   ? vitaButtonsHeld()
+                              : number == 1 ? vitaButtonsPressed()
+                                            : vitaButtonsRapid();
       return VmValue::num(mask);
     }
     if (number == 3) { // resetRapid()
@@ -697,6 +746,36 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     expectCount(args, 0);
     sprites_.clear(); // Original reset drops scene objects; IDs remain unique.
     return receiver;
+  }
+  // The Vita retains the PS2 instance-side K2X_Script primitive table.
+  // 1: disc-change state, 2: explicit scenario class load, 3: ready state,
+  // 4: game-frame clock. Vita-only class methods begin at number 5.
+  if (!classMethod && number == 1) {
+    expectCount(args, 0);
+    auto result = VmValue::num(0);
+    result.kind = VmValue::Boolean;
+    return result;
+  }
+  if (!classMethod && number == 2) {
+    expectCount(args, 1);
+    if (args[0].kind != VmValue::Text && args[0].kind != VmValue::Symbol)
+      throw std::runtime_error("Amagami Vita: loadClass expects a name");
+    const std::string &name = args[0].asText();
+    if (name.empty() || name.size() > 256)
+      return VmValue{};
+    if (classLoader_ && classLoader_(name))
+      return VmValue::str(name, VmValue::Class);
+    return VmValue{}; // Unknown scenario: original VM returns nil.
+  }
+  if (!classMethod && number == 3) {
+    expectCount(args, 0);
+    auto result = VmValue::num(1);
+    result.kind = VmValue::Boolean;
+    return result;
+  }
+  if (!classMethod && number == 4) {
+    expectCount(args, 0);
+    return VmValue::num(double(frameCount()));
   }
   if (!classMethod)
     return std::nullopt;

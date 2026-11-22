@@ -125,6 +125,15 @@ target_link_libraries(KotonohaEngine
         ${kotonoha_json_target}
         ${kotonoha_ass_target}
 )
+if(APPLE)
+    # The engine's Encoding.mm converts through CoreFoundation, but third-party
+    # libraries may still call iconv_open/iconv/iconv_close. Link the SDK
+    # libiconv explicitly for Apple CMake targets as well as Xcode targets.
+    find_library(KOTONOHA_COREFOUNDATION CoreFoundation REQUIRED)
+    find_library(KOTONOHA_APPLE_ICONV NAMES iconv REQUIRED)
+    target_link_libraries(KotonohaEngine PUBLIC "${KOTONOHA_APPLE_ICONV}")
+    target_link_libraries(KotonohaEngine PRIVATE "${KOTONOHA_COREFOUNDATION}")
+endif()
 
 if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
     # SDL_ttf's pkg-config find modules emit -l flags for static dependencies.

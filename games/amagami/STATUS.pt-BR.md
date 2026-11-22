@@ -20,3 +20,26 @@
 O relatório [PORT_STATUS.md](PORT_STATUS.md) contém análises técnicas do jogo original, observações antigas e testes associados a revisões e assets locais específicos. É evidência histórica, não garantia de funcionamento em todas as plataformas.
 
 [README do port](README.pt-BR.md) · [Todos os ports](../README.pt-BR.md)
+
+
+## Melhorias de compatibilidade Vita (open-amagami)
+
+- O diagnóstico Vita inicia em `GameMain.scriptMain` e carrega os
+  cenários SCF sob demanda a partir de `SCENARIO.CPK`. `Class.findClass`
+  não antecipa a carga, mas `K2X_Script.loadClass` e referências literais
+  de classes carregam os cenários necessários.
+- As primitivas básicas de `K2X_Script` incluem a consulta ao relógio de
+  frames e estado do ambiente. O loop gráfico passa a usar cadência de
+  60 Hz com relógio monotônico de alta resolução do SDL3.
+- `MemoryCard` informa corretamente que ainda não há saves e `Voice.length`
+  informa duração zero enquanto o áudio Vita não está integrado. Leitura e
+  escrita de saves, assim como reprodução real de voz, continuam explicitamente
+  não suportadas para evitar sucessos fictícios. Testes verificam esses limites
+  e os valores assinados de 8 bits dos controles.
+
+
+O diagnóstico Vita reconhece os controles Xbox (A para confirmar, B para cancelar)
+e preserva o esquema PlayStation (Circle/Cross). Alterações de mapeamento SDL
+recalculam os botões segurados. As chamadas ControlPad originadas em cenários
+SCF retornam os bits originais do PS2, e as classes do sistema Vita continuam
+a receber os bits SceCtrl. Testes sintéticos cobrem as duas disposições.
