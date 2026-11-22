@@ -29,6 +29,7 @@
 #include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
+#include <Kotonoha/media/TextureAlpha.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <SDL3/SDL.h>
 
@@ -359,8 +360,12 @@ private:
   }
 
   bool isBitmapOnlyGlyph(std::uint32_t cp, const Kotonoha::UI &ui) const {
+    // Private-use codepoints are the game's own glyph identifiers. Prefer
+    // the retail atlas even if an unrelated font maps the same PUA position.
+    const bool gameSymbol = cp >= 0xe000u && cp <= 0xf8ffu;
     return originalGlyphs_ && originalAtlasAvailable_ &&
-           !ui.hasGlyph(cp) && originalGlyphs_->glyph(cp).has_value();
+           (gameSymbol || !ui.hasGlyph(cp)) &&
+           originalGlyphs_->glyph(cp).has_value();
   }
 
   template <class Visit>
@@ -2356,7 +2361,14 @@ struct LucaSystemRuntime::Impl {
     if (id == 0 || objectImages.count(id))
       return;
     try {
-      objectImages[id] = DecodeCzImage(assets->readImageAsset(id));
+      auto image = DecodeCzImage(assets->readImageAsset(id));
+      // Fill RGB in fully transparent boundary texels. SDL samples straight
+      // alpha linearly; without this, cropped character sprites can exhibit
+      // dark/color-fringed edges despite the decoded visible pixels being OK.
+      if (!image.rgba.empty())
+        Kotonoha::prepareStraightAlphaForLinearFiltering(
+            image.rgba.data(), image.width, image.height, image.width * 4);
+      objectImages[id] = std::move(image);
       objectTextures[id].reset();
     } catch (const std::exception &e) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "LucaSystem: image %u: %s", id,
@@ -2490,12 +2502,15 @@ struct LucaSystemRuntime::Impl {
       drawY = 0.0f;
       drawW = 1280.0f;
       drawH = 720.0f;
-    } else if (img.anchorX != 0 || img.anchorY != 0) {
-      drawX = slot.posX - float(img.anchorX) + float(img.cropX) + offX + shakeX;
-      drawY = slot.posY - float(img.anchorY) + float(img.cropY) + offY + shakeY;
     } else {
-      drawX = slot.posX + float(img.cropX) + offX + shakeX;
-      drawY = slot.posY + float(img.cropY) + offY + shakeY;
+      // The payload is cropped relative to the original CZ4 canvas. Scale
+      // anchor and crop together with the sprite, not independently.
+      drawX = croppedSpriteOrigin(
+          slot.posX, float(img.anchorX), float(img.cropX), slot.scaleX,
+          offX, shakeX);
+      drawY = croppedSpriteOrigin(
+          slot.posY, float(img.anchorY), float(img.cropY), slot.scaleY,
+          offY, shakeY);
     }
 
     SDL_FRect dst{drawX, drawY, drawW, drawH};
