@@ -3,10 +3,14 @@
 
 #include <Kotonoha/SchoolDaysGpkIndex.hpp>
 
+#include <Kotonoha/Filesystem/IMount.hpp>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <istream>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -33,7 +37,14 @@ const std::array<SchoolDaysRetailGpkSpec, 29> &SchoolDaysRetailGpkSpecs();
 
 class SchoolDaysGpkArchive final {
 public:
-  bool Open(const std::filesystem::path &path, std::string *error = nullptr);
+  SchoolDaysGpkArchive() = default;
+  SchoolDaysGpkArchive(SchoolDaysGpkArchive &&) noexcept = default;
+  SchoolDaysGpkArchive &operator=(SchoolDaysGpkArchive &&) noexcept = default;
+  ~SchoolDaysGpkArchive() = default;
+
+  bool Open(const std::filesystem::path &path, std::string *error = nullptr,
+            std::shared_ptr<const Filesystem::IMount> source = {});
+  std::unique_ptr<std::istream> OpenStream() const;
   void Close();
 
   bool IsOpen() const { return !path_.empty(); }
@@ -57,6 +68,9 @@ public:
 
 private:
   std::filesystem::path path_;
+  std::shared_ptr<const Filesystem::IMount> source_;
+  mutable std::unique_ptr<std::mutex> streamMutex_;
+  mutable std::unique_ptr<std::istream> cachedStream_;
   uint64_t pidxOffset_ = 0;
   SchoolDaysGpkIndex index_;
   std::vector<std::string> canonicalEntries_;
@@ -69,8 +83,9 @@ public:
   // Opens the authenticated 29-pack v1.02 set from the supplied Packs folder.
   // The operation is atomic: on any missing/invalid pack the store stays
   // closed.
-  bool OpenRetailDirectory(const std::filesystem::path &packDirectory,
-                           std::string *error = nullptr);
+  bool OpenRetailDirectory(
+      const std::filesystem::path &packDirectory, std::string *error = nullptr,
+      std::shared_ptr<const Filesystem::IMount> source = {});
   void Close();
 
   bool IsOpen() const {

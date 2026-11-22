@@ -1,8 +1,10 @@
 #pragma once
 // School Days GPK/loose-file adapter.
 
+#include <Kotonoha/Filesystem/IMount.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <filesystem>
+#include <memory>
 
 namespace Kotonoha::Providers {
 
@@ -17,8 +19,9 @@ class SchoolDaysAssets final : public Kotonoha::AssetProvider {
 
 public:
   using Kotonoha::AssetProvider::openStream;
-  explicit SchoolDaysAssets(std::filesystem::path root,
-                            const std::string &scripts = {});
+  explicit SchoolDaysAssets(
+      std::filesystem::path root, const std::string &scripts = {},
+      std::shared_ptr<const Kotonoha::Filesystem::IMount> packsMount = {});
   ~SchoolDaysAssets() override;
   const std::filesystem::path &root() const { return directory; }
   std::filesystem::path orsRoot() const;

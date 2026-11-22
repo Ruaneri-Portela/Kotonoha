@@ -33,7 +33,7 @@ std::shared_ptr<const SchoolDaysGpkAssetStore> CurrentMount() {
 
 class MountedRawAssetStream final : public AssetStream {
   std::shared_ptr<const SchoolDaysGpkAssetStore> mount_;
-  Kotonoha::Filesystem::InputFile file_;
+  std::unique_ptr<std::istream> file_;
   std::vector<uint8_t> prefix_;
   uint64_t bodyOffset_ = 0u;
   uint64_t logicalSize_ = 0u;
@@ -41,13 +41,13 @@ class MountedRawAssetStream final : public AssetStream {
 
 public:
   MountedRawAssetStream(std::shared_ptr<const SchoolDaysGpkAssetStore> mount,
-                        const std::filesystem::path &path,
+                        std::unique_ptr<std::istream> file,
                         std::vector<uint8_t> prefix, uint64_t bodyOffset,
                         uint64_t logicalSize)
-      : mount_(std::move(mount)), file_(path, std::ios::binary),
+      : mount_(std::move(mount)), file_(std::move(file)),
         prefix_(std::move(prefix)), bodyOffset_(bodyOffset),
         logicalSize_(logicalSize) {
-    if (!file_)
+    if (!file_ || !*file_)
       throw std::runtime_error(
           "School Days GPK raw stream could not open archive");
   }
@@ -83,13 +83,13 @@ public:
       throw std::runtime_error(
           "School Days GPK raw stream range exceeds host I/O limits");
     }
-    file_.clear();
-    file_.seekg(static_cast<std::streamoff>(physical), std::ios::beg);
-    if (!file_)
+    file_->clear();
+    file_->seekg(static_cast<std::streamoff>(physical), std::ios::beg);
+    if (!*file_)
       throw std::runtime_error("School Days GPK raw stream seek failed");
-    file_.read(reinterpret_cast<char *>(buffer + done),
-               static_cast<std::streamsize>(remaining));
-    const std::streamsize got = file_.gcount();
+    file_->read(reinterpret_cast<char *>(buffer + done),
+                static_cast<std::streamsize>(remaining));
+    const std::streamsize got = file_->gcount();
     if (got <= 0)
       throw std::runtime_error("School Days GPK raw stream read failed");
     position_ += static_cast<uint64_t>(got);
@@ -251,36 +251,39 @@ bool ReadFilesystem(std::string_view reference, std::vector<uint8_t> *out,
 
 } // namespace
 
-bool MountSchoolDaysRetailGpks(const std::filesystem::path &gameOrPacksRoot,
-                               std::string *error) {
+bool MountSchoolDaysRetailGpks(
+    const std::filesystem::path &gameOrPacksRoot, std::string *error,
+    std::shared_ptr<const Filesystem::IMount> source) {
   if (error != nullptr)
     error->clear();
   std::filesystem::path packs = gameOrPacksRoot;
-  std::error_code ec;
-  bool inRoot =
-      std::filesystem::is_regular_file(packs / "BGM.GPK", ec) ||
-      ResolveSchoolDaysAssetPath(packs.string().c_str(), "BGM.GPK").present;
+  if (!source) {
+    std::error_code ec;
+    bool inRoot =
+        std::filesystem::is_regular_file(packs / "BGM.GPK", ec) ||
+        ResolveSchoolDaysAssetPath(packs.string().c_str(), "BGM.GPK").present;
 #ifdef __EMSCRIPTEN__
-  if (!inRoot && Kotonoha::Filesystem::remoteGameAssets()) {
-    try {
-      auto files = Kotonoha::Filesystem::mountGameAssets("/game-assets");
-      inRoot = files->exists("BGM.GPK");
-    } catch (const Kotonoha::Filesystem::FilesystemError &) {
-      // A missing GPK is a normal case when the data lives under Packs/.
+    if (!inRoot && Kotonoha::Filesystem::remoteGameAssets()) {
+      try {
+        auto files = Kotonoha::Filesystem::mountGameAssets("/game-assets");
+        inRoot = files->exists("BGM.GPK");
+      } catch (const Kotonoha::Filesystem::FilesystemError &) {
+        // A missing GPK is a normal case when the data lives under Packs/.
+      }
     }
-  }
 #endif
-  if (!inRoot) {
-    const auto resolvedPacks =
-        ResolveSchoolDaysAssetPath(packs.string().c_str(), "Packs");
-    if (resolvedPacks.present)
-      packs = resolvedPacks.physical;
-    else
-      packs /= "Packs";
+    if (!inRoot) {
+      const auto resolvedPacks =
+          ResolveSchoolDaysAssetPath(packs.string().c_str(), "Packs");
+      if (resolvedPacks.present)
+        packs = resolvedPacks.physical;
+      else
+        packs /= "Packs";
+    }
   }
 
   auto candidate = std::make_shared<SchoolDaysGpkAssetStore>();
-  if (!candidate->OpenRetailDirectory(packs, error))
+  if (!candidate->OpenRetailDirectory(packs, error, std::move(source)))
     return false;
   {
     std::lock_guard<std::mutex> guard(gMountMutex);
@@ -435,7 +438,7 @@ OpenMountedSchoolDaysAssetStream(std::string_view logicalPath,
   }
   try {
     return std::make_unique<MountedRawAssetStream>(
-        mount, archive->Path(), entry.inlinePrefix, entry.offset,
+        mount, archive->OpenStream(), entry.inlinePrefix, entry.offset,
         static_cast<uint64_t>(entry.storedLength));
   } catch (...) {
     return {};

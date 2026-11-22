@@ -1,5 +1,7 @@
 #include <SchoolDays/SchoolDaysAssets.hpp>
 
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/SchoolDaysGpkArchive.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
@@ -222,6 +224,85 @@ int main() {
     const auto inflated = assets.read(compressedId);
     Require(std::string(inflated.begin(), inflated.end()) == "DFLT-FALLBACK",
             "Compressed GPK fallback did not materialize decoded bytes");
+
+    // Verify IMount-backed archive streaming & cached stream reuse (used by
+    // Android SAF DocumentMount without copying GPKs into internal storage).
+    {
+      class CountingMount final : public Kotonoha::Filesystem::IMount {
+      public:
+        explicit CountingMount(
+            std::shared_ptr<const Kotonoha::Filesystem::IMount> inner)
+            : inner_(std::move(inner)) {}
+        bool exists(std::string_view path) const override {
+          return inner_->exists(path);
+        }
+        Kotonoha::Filesystem::FileInfo
+        stat(std::string_view path) const override {
+          return inner_->stat(path);
+        }
+        std::vector<Kotonoha::Filesystem::FileInfo>
+        list(std::string_view path) const override {
+          return inner_->list(path);
+        }
+        std::unique_ptr<Kotonoha::Filesystem::FileHandle>
+        open(std::string_view path) const override {
+          ++openCount;
+          if (failOpens)
+            throw Kotonoha::Filesystem::FilesystemError(
+                Kotonoha::Filesystem::ErrorCode::IOError, "Simulated revoke");
+          return inner_->open(path);
+        }
+        mutable size_t openCount = 0u;
+        mutable bool failOpens = false;
+
+      private:
+        std::shared_ptr<const Kotonoha::Filesystem::IMount> inner_;
+      };
+
+      const auto rootWithoutPacks = root / "virtual-game";
+      fs::create_directory(rootWithoutPacks);
+      auto inner =
+          std::make_shared<Kotonoha::Filesystem::DirectoryMount>(root);
+      auto counting = std::make_shared<CountingMount>(inner);
+      {
+        Kotonoha::SchoolDaysGpkArchive cachedArchive;
+        std::string cachedError;
+        Require(cachedArchive.Open("BGM.GPK", &cachedError, counting),
+                "CountingMount failed to open BGM.GPK: " + cachedError);
+        Require(counting->openCount == 1u,
+                "Expected exactly 1 open during GPK Open()");
+        for (int i = 0; i < 4; ++i) {
+          std::vector<uint8_t> bytes;
+          Require(cachedArchive.Read("RAW.BIN", &bytes, &cachedError) &&
+                      std::string(bytes.begin(), bytes.end()) ==
+                          "PREFIX-RAW-BODY",
+                  "Cached virtual GPK read mismatch");
+        }
+        Require(counting->openCount == 2u,
+                "Expected repeated virtual ReadEntry calls to reuse 1 cached "
+                "stream");
+        counting->failOpens = true;
+        Require(!cachedArchive.OpenStream(),
+                "OpenStream must still fail closed when mount revokes opens");
+        counting->failOpens = false;
+      }
+
+      Kotonoha::Providers::SchoolDaysAssets virtualAssets(rootWithoutPacks, {},
+                                                          inner);
+      auto vStream = virtualAssets.openStream(
+          "BGM/RAW.BIN", Kotonoha::AssetSource::Original);
+      Require(vStream && vStream->size() == 15u,
+              "IMount-backed SchoolDaysAssets did not expose seekable stream");
+      std::array<Uint8, 8> vBuf{};
+      Require(vStream->seek(7u) && vStream->read(vBuf.data(), 8u) == 8u &&
+                  std::string(vBuf.begin(), vBuf.end()) == "RAW-BODY",
+              "IMount-backed stream seek/read mismatch");
+      const auto vInflated = virtualAssets.read(
+          "Movie00/COMPRESSED.BIN", Kotonoha::AssetSource::Original);
+      Require(std::string(vInflated.begin(), vInflated.end()) ==
+                  "DFLT-FALLBACK",
+              "IMount-backed compressed read mismatch");
+    }
   } catch (const std::exception &error) {
     fs::remove_all(root, ec);
     std::cerr << "SchoolDaysGpkStreamingTest: " << error.what() << '\n';

@@ -77,8 +77,9 @@ std::filesystem::path ResolveLooseOriginal(const std::filesystem::path &root,
 
 } // namespace
 
-SchoolDaysAssets::SchoolDaysAssets(std::filesystem::path root,
-                                   const std::string &overlay)
+SchoolDaysAssets::SchoolDaysAssets(
+    std::filesystem::path root, const std::string &overlay,
+    std::shared_ptr<const Kotonoha::Filesystem::IMount> packsMount)
     : directory(std::move(root)) {
   const std::string effectiveOverlay = overlay;
   if (!effectiveOverlay.empty() &&
@@ -86,10 +87,11 @@ SchoolDaysAssets::SchoolDaysAssets(std::filesystem::path root,
     throw std::runtime_error("School Days overlay directory does not exist");
   setOverlay(effectiveOverlay);
   std::string info;
-  if (!checkDirectory(directory, info))
+  if (!packsMount && !checkDirectory(directory, info))
     throw std::runtime_error(info);
-  if (ScriptRoot(directory).empty()) {
-    if (!Kotonoha::MountSchoolDaysRetailGpks(directory, &info))
+  if (packsMount || ScriptRoot(directory).empty()) {
+    if (!Kotonoha::MountSchoolDaysRetailGpks(directory, &info,
+                                             std::move(packsMount)))
       throw std::runtime_error(info);
     mounted = true;
     Kotonoha::InstallMountedSchoolDaysAssetResolver();

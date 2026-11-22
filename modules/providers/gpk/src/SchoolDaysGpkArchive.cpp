@@ -4,6 +4,7 @@
 #include <zlib.h>
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -177,8 +178,8 @@ bool FoldLogicalPath(std::string_view input, std::string *folded) {
   return NormalizeLogicalPath(input, nullptr, folded);
 }
 
-bool ReadRange(Kotonoha::Filesystem::InputFile *file, uint64_t offset,
-               size_t size, std::vector<uint8_t> *out) {
+bool ReadRange(std::istream *file, uint64_t offset, size_t size,
+               std::vector<uint8_t> *out) {
   if (file == nullptr || out == nullptr ||
       size > static_cast<size_t>(std::numeric_limits<std::streamsize>::max()) ||
       offset >
@@ -202,6 +203,19 @@ bool ReadRange(Kotonoha::Filesystem::InputFile *file, uint64_t offset,
       return false;
   }
   return true;
+}
+
+std::unique_ptr<std::istream>
+ArchiveInput(const std::filesystem::path &path,
+             const std::shared_ptr<const Filesystem::IMount> &source) {
+  if (!source)
+    return std::make_unique<Filesystem::InputFile>(path, std::ios::binary);
+  try {
+    return std::make_unique<Filesystem::InputFile>(
+        source->open(path.generic_string()));
+  } catch (const Filesystem::FilesystemError &) {
+    return {};
+  }
 }
 
 std::string LookupFailureMessage(SchoolDaysGpkLookupStatus status) {
@@ -241,8 +255,15 @@ const std::array<SchoolDaysRetailGpkSpec, 29> &SchoolDaysRetailGpkSpecs() {
   return specs;
 }
 
+std::unique_ptr<std::istream> SchoolDaysGpkArchive::OpenStream() const {
+  return ArchiveInput(path_, source_);
+}
+
 void SchoolDaysGpkArchive::Close() {
   path_.clear();
+  cachedStream_.reset();
+  streamMutex_.reset();
+  source_.reset();
   pidxOffset_ = 0u;
   index_.Clear();
   canonicalEntries_.clear();
@@ -250,23 +271,24 @@ void SchoolDaysGpkArchive::Close() {
   foldedCollisions_.clear();
 }
 
-bool SchoolDaysGpkArchive::Open(const std::filesystem::path &path,
-                                std::string *error) {
+bool SchoolDaysGpkArchive::Open(
+    const std::filesystem::path &path, std::string *error,
+    std::shared_ptr<const Filesystem::IMount> source) {
   if (error != nullptr)
     error->clear();
   Close();
 
-  Kotonoha::Filesystem::InputFile file(path, std::ios::binary);
-  if (!file)
+  auto file = ArchiveInput(path, source);
+  if (!file || !*file)
     return Fail(error, "School Days GPK could not be opened");
-  file.seekg(0, std::ios::end);
-  const std::streamoff fileEnd = file.tellg();
+  file->seekg(0, std::ios::end);
+  const std::streamoff fileEnd = file->tellg();
   if (fileEnd < static_cast<std::streamoff>(kTrailerSize))
     return Fail(error, "School Days GPK is too short for the retail trailer");
   const uint64_t fileSize = static_cast<uint64_t>(fileEnd);
 
   std::vector<uint8_t> trailer;
-  if (!ReadRange(&file, fileSize - kTrailerSize, kTrailerSize, &trailer))
+  if (!ReadRange(file.get(), fileSize - kTrailerSize, kTrailerSize, &trailer))
     return Fail(error, "School Days GPK trailer could not be read");
   if (std::memcmp(trailer.data(), kPidxSignature, 12u) != 0 ||
       std::memcmp(trailer.data() + 16u, kPackSignature, 16u) != 0) {
@@ -279,7 +301,7 @@ bool SchoolDaysGpkArchive::Open(const std::filesystem::path &path,
   const uint64_t pidxOffset = fileSize - kTrailerSize - pidxLength;
 
   std::vector<uint8_t> encoded;
-  if (!ReadRange(&file, pidxOffset, pidxLength, &encoded))
+  if (!ReadRange(file.get(), pidxOffset, pidxLength, &encoded))
     return Fail(error, "School Days GPK PIDX could not be read");
   for (size_t i = 0u; i < encoded.size(); ++i)
     encoded[i] ^= kPidxXorKey[i & 15u];
@@ -332,6 +354,9 @@ bool SchoolDaysGpkArchive::Open(const std::filesystem::path &path,
     return Fail(error, "School Days GPK final body exceeds the PIDX boundary");
 
   path_ = path;
+  source_ = std::move(source);
+  streamMutex_ = source_ ? std::make_unique<std::mutex>() : nullptr;
+  cachedStream_.reset();
   pidxOffset_ = pidxOffset;
   index_ = std::move(parsed);
   canonicalEntries_ = std::move(canonicalEntries);
@@ -477,12 +502,32 @@ bool SchoolDaysGpkArchive::ReadEntry(size_t entryIndex,
   if (physicalEnd < entry.offset || physicalEnd > pidxOffset_)
     return Fail(error, "School Days GPK entry body is outside the data region");
 
-  Kotonoha::Filesystem::InputFile file(path_, std::ios::binary);
-  if (!file)
-    return Fail(error, "School Days GPK could not be reopened for reading");
   std::vector<uint8_t> body;
-  if (!ReadRange(&file, entry.offset, bodySize, &body))
-    return Fail(error, "School Days GPK entry body could not be read");
+  if (source_) {
+    if (!streamMutex_)
+      return Fail(error, "School Days GPK stream state is invalid");
+    std::lock_guard<std::mutex> lock(*streamMutex_);
+    auto readCached = [&]() -> bool {
+      if (!cachedStream_ || !*cachedStream_)
+        cachedStream_ = ArchiveInput(path_, source_);
+      if (!cachedStream_ || !*cachedStream_)
+        return false;
+      return ReadRange(cachedStream_.get(), entry.offset, bodySize, &body);
+    };
+    if (!readCached()) {
+      cachedStream_.reset();
+      if (!readCached()) {
+        cachedStream_.reset();
+        return Fail(error, "School Days GPK entry body could not be read");
+      }
+    }
+  } else {
+    auto file = ArchiveInput(path_, source_);
+    if (!file || !*file)
+      return Fail(error, "School Days GPK could not be reopened for reading");
+    if (!ReadRange(file.get(), entry.offset, bodySize, &body))
+      return Fail(error, "School Days GPK entry body could not be read");
+  }
 
   std::vector<uint8_t> stored;
   try {
@@ -512,41 +557,60 @@ void SchoolDaysGpkAssetStore::Close() {
 }
 
 bool SchoolDaysGpkAssetStore::OpenRetailDirectory(
-    const std::filesystem::path &packDirectory, std::string *error) {
+    const std::filesystem::path &packDirectory, std::string *error,
+    std::shared_ptr<const Filesystem::IMount> source) {
   if (error != nullptr)
     error->clear();
   Close();
-  std::error_code ec;
-  bool folder = std::filesystem::is_directory(packDirectory, ec) && !ec;
-#ifdef __EMSCRIPTEN__
-  // HTTP assets have no physical Packs directory. Treat the known 29 GPK
-  // archive filenames as the directory index; each archive uses InputFile
-  // -> VFS FileHandle and fetches its PIDX/footer via HTTP Range.
-  if (!folder && Kotonoha::Filesystem::remoteGameAssets()) {
-    const auto path = packDirectory.generic_string();
-    folder = path.find("game-assets") != std::string::npos;
-  }
-#endif
-  if (!folder)
-    return Fail(error, "School Days GPK Packs directory is unavailable");
-
   std::unordered_map<std::string, std::filesystem::path> lowerFiles;
-  if (std::filesystem::is_directory(packDirectory, ec) && !ec) {
-    std::error_code dirEc;
-    for (std::filesystem::directory_iterator it(
-             packDirectory,
-             std::filesystem::directory_options::skip_permission_denied, dirEc),
-         end;
-         it != end && !dirEc; it.increment(dirEc)) {
-      std::error_code fileEc;
-      if (!it->is_regular_file(fileEc) || fileEc)
-        continue;
-      std::string lower = it->path().filename().string();
-      for (char &ch : lower) {
-        if (ch >= 'A' && ch <= 'Z')
-          ch = static_cast<char>(ch - 'A' + 'a');
+  if (source) {
+    try {
+      for (const auto &info : source->list("")) {
+        if (info.type != Filesystem::FileType::Regular)
+          continue;
+        std::string lower = info.path;
+        for (char &ch : lower) {
+          if (ch >= 'A' && ch <= 'Z')
+            ch = static_cast<char>(ch - 'A' + 'a');
+        }
+        lowerFiles.emplace(std::move(lower), std::filesystem::path(info.path));
       }
-      lowerFiles.emplace(std::move(lower), it->path());
+    } catch (const Filesystem::FilesystemError &) {
+      return Fail(error, "School Days GPK document mount is unavailable");
+    }
+  } else {
+    std::error_code ec;
+    bool folder = std::filesystem::is_directory(packDirectory, ec) && !ec;
+#ifdef __EMSCRIPTEN__
+    // HTTP assets have no physical Packs directory. Treat the known 29 GPK
+    // archive filenames as the directory index; each archive uses InputFile
+    // -> VFS FileHandle and fetches its PIDX/footer via HTTP Range.
+    if (!folder && Kotonoha::Filesystem::remoteGameAssets()) {
+      const auto path = packDirectory.generic_string();
+      folder = path.find("game-assets") != std::string::npos;
+    }
+#endif
+    if (!folder)
+      return Fail(error, "School Days GPK Packs directory is unavailable");
+
+    if (std::filesystem::is_directory(packDirectory, ec) && !ec) {
+      std::error_code dirEc;
+      for (std::filesystem::directory_iterator it(
+               packDirectory,
+               std::filesystem::directory_options::skip_permission_denied,
+               dirEc),
+           end;
+           it != end && !dirEc; it.increment(dirEc)) {
+        std::error_code fileEc;
+        if (!it->is_regular_file(fileEc) || fileEc)
+          continue;
+        std::string lower = it->path().filename().string();
+        for (char &ch : lower) {
+          if (ch >= 'A' && ch <= 'Z')
+            ch = static_cast<char>(ch - 'A' + 'a');
+        }
+        lowerFiles.emplace(std::move(lower), it->path());
+      }
     }
   }
 
@@ -564,9 +628,11 @@ bool SchoolDaysGpkAssetStore::OpenRetailDirectory(
     }
     const auto found = lowerFiles.find(lowerSpec);
     const std::filesystem::path archivePath =
-        found != lowerFiles.end() ? found->second
-                                  : (packDirectory / spec.filename);
-    if (!archive.Open(archivePath, &archiveError)) {
+        found != lowerFiles.end()
+            ? found->second
+            : (source ? std::filesystem::path(spec.filename)
+                      : (packDirectory / spec.filename));
+    if (!archive.Open(archivePath, &archiveError, source)) {
       return Fail(error, std::string("School Days GPK ") + spec.filename +
                              " failed validation: " + archiveError);
     }
