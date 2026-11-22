@@ -95,11 +95,15 @@ int main(int argc, char **argv) {
             return std::nullopt;
           return std::make_pair(uint32_t(surface->w), uint32_t(surface->h));
         });
-    vm.scopedPrimitive = [&bridge](const std::string &owner,
+    vm.scopedPrimitive = [&bridge, &scripts, &vm](const std::string &owner,
                                    const std::string &method, bool classMethod,
                                    const Amagami::VmValue &self, unsigned code,
                                    const std::vector<Amagami::VmValue> &args) {
-      return bridge.primitive(owner, method, classMethod, self, code, args);
+      // Scenario scripts can still test PS2 button bits (not SceCtrl).
+      // The caller one frame below the native is their declaring SCF class.
+      const bool ps2Layout = scripts.hasScenario(vm.callerClass());
+      return bridge.primitive(owner, method, classMethod, self, code, args,
+                              ps2Layout);
     };
     // A cooperative SCF yield every 1000 instructions prevents a script loop
     // from monopolizing the window's SDL event pump.
