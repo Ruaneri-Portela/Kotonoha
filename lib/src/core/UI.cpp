@@ -8,6 +8,7 @@
 #include <cmath>
 #include <filesystem>
 #include <stdexcept>
+#include <utility>
 
 namespace Kotonoha {
 
@@ -58,6 +59,19 @@ UI::UI(const std::string &fontPath)
     throw std::runtime_error(std::string("Cannot open font via memory: ") +
                              SDL_GetError());
   }
+}
+
+UI::UI(std::vector<uint8_t> bytes)
+    : fontData(std::move(bytes)),
+      instanceId_(nextUiInstance.fetch_add(1, std::memory_order_relaxed)) {
+  if (fontData.empty())
+    throw std::invalid_argument("UI font data cannot be empty");
+  IOStreamPtr stream(SDL_IOFromConstMem(fontData.data(), fontData.size()));
+  if (stream)
+    font.reset(TTF_OpenFontIO(stream.release(), true, 24));
+  if (!font)
+    throw std::runtime_error(std::string("Cannot load game UI font: ") +
+                             SDL_GetError());
 }
 
 UI::~UI() {
