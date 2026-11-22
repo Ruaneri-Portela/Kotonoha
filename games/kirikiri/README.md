@@ -106,3 +106,18 @@ var button = new TitleButton(window);
 ```
 
 Explicit limits: 128 classes, 64 methods per class, 256 instances, 2048 bound methods and bounded call depth. Inheritance from other user classes, `super`, lexical closures, native event loops and bytecode remain unsupported. Tests are synthetic and do not establish real-game compatibility.
+
+## KAG parser compatibility (Kirikiroid2Yuri reference)
+
+The KAG scenario parser now recognizes line-control markers after leading tabs or
+spaces, preserves line/column information, rejects an unnamed first bare label,
+and assigns duplicate bare labels stable `name:2`, `name:3` aliases
+(including `*|page title` for the previous name). It also rejects unclosed
+brackets and unterminated quoted attributes instead of silently consuming the
+rest of a malformed scenario. These behaviors are covered by synthetic
+regression tests and are informed by the Kirikiroid2Yuri/Kirikiri KAG parser.
+No third-party runtime code has been copied.
+
+This is a focused compatibility improvement, **not full KAG/TJS2 parity**.
+The original TJS2 VM, native plugins and complete rendering/event behavior
+remain separate longer-term work.
