@@ -52,6 +52,8 @@ struct SlotSaveData {
   TaggedImageSpec bg;
   std::array<StandingSlot, 3> standing;
   std::map<int, SpriteSlot> sprites;
+  bool allSpritesHidden = false;
+  bool allSprites2Hidden = false;
   WindowSpec window;
   bool textWindowVisible = false;
   std::vector<TextSpan> pageSpans;
