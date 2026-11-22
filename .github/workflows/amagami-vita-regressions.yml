@@ -49,10 +49,17 @@ jobs:
             -DKOTONOHA_BUILD_HOST_TOOLS=ON \
             -DKOTONOHA_ENABLE_MCP=OFF \
             -DBUILD_TESTING=ON
-      - name: Build Amagami VM and native input tests
+      - name: Build Vita live adapter, VM, graphics and native regressions
         run: |
           cmake --build build-amagami-vita --parallel 2 --target \
+            AmagamiVitaLive \
             AmagamiVmTest \
+            AmagamiVitaBootstrapTest \
+            AmagamiVitaSpriteBridgeTest \
+            AmagamiVitaSpriteRenderTest \
+            AmagamiVitaBackgroundTest \
+            AmagamiVitaFontCharTest \
+            AmagamiVitaSpinTest \
             AmagamiVitaInputTest \
             AmagamiVitaControlPadTest \
             AmagamiVitaVibrationTest
@@ -62,5 +69,6 @@ jobs:
           SDL_AUDIO_DRIVER: dummy
         run: |
           ctest --test-dir build-amagami-vita \
-            -R '^Amagami\.(Vm|VitaInput|VitaControlPad|VitaVibration)$' \
+            -R '^Amagami\.(Vm|VitaBootstrap|VitaSpriteBridge|VitaSpriteRender|VitaBackground|VitaFontChar|VitaSpin|VitaInput|VitaControlPad|VitaVibration)            --output-on-failure --no-tests=error
+ \
             --output-on-failure --no-tests=error
