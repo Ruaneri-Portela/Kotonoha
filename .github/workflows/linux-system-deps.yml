@@ -10,6 +10,7 @@ on:
       - "lib/src/Filesystem/**"
       - "lib/include/Kotonoha/Filesystem/**"
       - "launcher/**"
+      - "lib/tests/FilesystemV2Tests.cpp"
       - "buildsystems/cmake/dependencies/**"
       - ".github/workflows/linux-system-deps.yml"
   pull_request:
@@ -20,6 +21,7 @@ on:
       - "lib/src/Filesystem/**"
       - "lib/include/Kotonoha/Filesystem/**"
       - "launcher/**"
+      - "lib/tests/FilesystemV2Tests.cpp"
       - "buildsystems/cmake/dependencies/**"
       - ".github/workflows/linux-system-deps.yml"
 
