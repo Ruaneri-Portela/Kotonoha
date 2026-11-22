@@ -4382,15 +4382,45 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
   state.callFrames = impl.callStack;
   for (const auto &frame : impl.callStack)
     state.callStack.push_back(frame.instructionIndex);
+  const auto saveTick = impl.storyNow();
   for (const auto &[key, slot] : impl.visibleSlots) {
-    if (!slot.visible || slot.assetId == 0)
+    if (slot.assetId == 0)
       continue;
-    // Encode (group, slot) in high bits of assetId only? No, keep assetId pure
-    // for SaveState V5 compatibility and store group/slot in x/y or re-derive
-    // group from assetId range (10001..10999 -> group 2, else group 0).
-    state.images.push_back({slot.assetId,
-                            static_cast<int32_t>(std::lround(slot.posX)),
-                            static_cast<int32_t>(std::lround(slot.posY))});
+    // Keep legacy image metadata as a fallback for old save readers.
+    if (slot.visible)
+      state.images.push_back({slot.assetId,
+                              static_cast<int32_t>(std::lround(slot.posX)),
+                              static_cast<int32_t>(std::lround(slot.posY))});
+    SavedVisualLayer saved;
+    saved.group = slot.group;
+    saved.slot = slot.slot;
+    saved.assetId = slot.assetId;
+    saved.posX = slot.posX;
+    saved.posY = slot.posY;
+    const uint64_t endTick = slot.moveStart + slot.moveDuration;
+    const bool moving = slot.moveDuration > 0 && saveTick < endTick;
+    const float t = moving
+        ? std::clamp(float(saveTick > slot.moveStart ? saveTick - slot.moveStart : 0) /
+                         float(slot.moveDuration), 0.0f, 1.0f)
+        : 1.0f;
+    saved.startOffsetX =
+        slot.startOffsetX + (slot.targetOffsetX - slot.startOffsetX) * t;
+    saved.startOffsetY =
+        slot.startOffsetY + (slot.targetOffsetY - slot.startOffsetY) * t;
+    saved.targetOffsetX = slot.targetOffsetX;
+    saved.targetOffsetY = slot.targetOffsetY;
+    saved.moveRemainingMs = moving
+        ? static_cast<uint32_t>(std::min<uint64_t>(endTick - saveTick, 60000))
+        : 0;
+    saved.alpha = slot.alpha;
+    saved.scaleX = slot.scaleX;
+    saved.scaleY = slot.scaleY;
+    saved.rotation = slot.rotation;
+    saved.r = slot.r;
+    saved.g = slot.g;
+    saved.b = slot.b;
+    saved.visible = slot.visible;
+    state.visualLayers.push_back(saved);
   }
   if (impl.engine) {
     // LucaSystem owns its script counter and variables, not VNManager's
@@ -4460,22 +4490,51 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
   impl.stagedSlots.clear();
   impl.visibleSlots.clear();
   impl.outgoingSlots.clear();
-  uint8_t charSlotCounter = 0;
-  uint8_t bgSlotCounter = 0;
-  for (const auto &place : state.images) {
-    impl.loadObjectImage(place.assetId);
-    SlottedLayer layer;
-    layer.assetId = place.assetId;
-    layer.posX = float(place.x);
-    layer.posY = float(place.y);
-    if (place.assetId >= 10000 && place.assetId < 20000) {
-      layer.group = 2;
-      layer.slot = charSlotCounter++;
-    } else {
-      layer.group = 0;
-      layer.slot = bgSlotCounter++;
+  if (!state.visualLayers.empty()) {
+    const auto now = impl.storyNow();
+    for (const auto &saved : state.visualLayers) {
+      impl.loadObjectImage(saved.assetId);
+      SlottedLayer layer;
+      layer.group = saved.group;
+      layer.slot = saved.slot;
+      layer.assetId = saved.assetId;
+      layer.posX = saved.posX;
+      layer.posY = saved.posY;
+      layer.startOffsetX = saved.startOffsetX;
+      layer.startOffsetY = saved.startOffsetY;
+      layer.targetOffsetX = saved.targetOffsetX;
+      layer.targetOffsetY = saved.targetOffsetY;
+      layer.moveStart = now;
+      layer.moveDuration = saved.moveRemainingMs;
+      layer.alpha = saved.alpha;
+      layer.scaleX = saved.scaleX;
+      layer.scaleY = saved.scaleY;
+      layer.rotation = saved.rotation;
+      layer.r = saved.r;
+      layer.g = saved.g;
+      layer.b = saved.b;
+      layer.visible = saved.visible;
+      impl.visibleSlots[Impl::makeKey(layer.group, layer.slot)] = layer;
     }
-    impl.visibleSlots[Impl::makeKey(layer.group, layer.slot)] = layer;
+  } else {
+    // V2–V5: only asset IDs and approximate coordinates were persisted.
+    uint8_t charSlotCounter = 0;
+    uint8_t bgSlotCounter = 0;
+    for (const auto &place : state.images) {
+      impl.loadObjectImage(place.assetId);
+      SlottedLayer layer;
+      layer.assetId = place.assetId;
+      layer.posX = float(place.x);
+      layer.posY = float(place.y);
+      if (place.assetId >= 10000 && place.assetId < 20000) {
+        layer.group = 2;
+        layer.slot = charSlotCounter++;
+      } else {
+        layer.group = 0;
+        layer.slot = bgSlotCounter++;
+      }
+      impl.visibleSlots[Impl::makeKey(layer.group, layer.slot)] = layer;
+    }
   }
   impl.stagedSlots = impl.visibleSlots;
   impl.syncLegacySceneLayers();

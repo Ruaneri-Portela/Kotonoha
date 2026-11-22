@@ -221,6 +221,17 @@ works while a textbox is visible. A synthetic test checks the
 `Reveal`/`ResumeScript` decision; original AIR data is still needed for
 integration verification.
 
+## Lossless visual save state V6
+
+V6 now records the original (group, slot) per image and its alpha, scale,
+rotation, tint, visibility and interpolated MOVE offsets with remaining time.
+The renderer resumes the same arrangement of layered portraits and CZ4 facial
+expressions after Load, instead of reconstructing grouping from image ID ranges.
+V2–V5 saves remain readable through their original fallback layouts. The
+codec rejects invalid floats, duplicate layer keys and excessive collections
+without applying malformed state. Retail integration is still needed to
+compare mid-transition frames and other live effects.
+
 ## Visual save state V4 & Cross-Scenario V5
 
 `LUCA_SYSTEM_SAVE_5` records the asset IDs and positions of rendered `IMAGELOAD`
