@@ -159,10 +159,14 @@ jobs:
 
       - name: Prepare macOS icon from tracked Windows icon
         run: |
-          # icon.icns is not tracked; derive it from the repository's icon.ico.
-          test -f assets/icon.ico
+          # icon.icns is not tracked; derive it from the repository's tracked .ico.
+          ICON_SRC=""
+          for candidate in assets/icon.ico assets/SchoolDays.ico; do
+            if [ -f "$candidate" ]; then ICON_SRC="$candidate"; break; fi
+          done
+          test -n "$ICON_SRC"
           mkdir -p "$RUNNER_TEMP/kotonoha.iconset"
-          sips -s format png assets/icon.ico --out "$RUNNER_TEMP/kotonoha-icon.png"
+          sips -s format png "$ICON_SRC" --out "$RUNNER_TEMP/kotonoha-icon.png"
           for size in 16 32 128 256 512; do
             sips -z "$size" "$size" "$RUNNER_TEMP/kotonoha-icon.png" \
               --out "$RUNNER_TEMP/kotonoha.iconset/icon_${size}x${size}.png"
