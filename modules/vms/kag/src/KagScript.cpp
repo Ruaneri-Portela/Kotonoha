@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <stdexcept>
 
@@ -921,64 +922,186 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
 }
 
 bool KagScript::Runner::condition(const Tag &tag) const {
-  const auto expr = trim(getAttr(tag, "exp", getAttr(tag, "cond", "")));
-  if (expr.empty())
+  const auto expression = trim(getAttr(tag, "exp", getAttr(tag, "cond", "")));
+  if (expression.empty())
     return false;
-  const auto operand = [this](std::string token) -> std::string {
-    token = trim(token);
-    if (token.size() > 1 && ((token.front() == '"' && token.back() == '"') ||
-                             (token.front() == '\'' && token.back() == '\'')))
-      return token.substr(1, token.size() - 2);
+
+  // A bounded, side-effect-free subset of TJS2 predicates used by KAG
+  // [if], [elsif] and [ignore]. Evaluate parentheses and &&/|| with the
+  // correct precedence; searching for a comparator anywhere in a string
+  // misinterprets quoted strings and compound title-menu conditions.
+  const auto resolve = [this](std::string token) -> std::string {
     if (token == "true" || token == "false" || token == "null" ||
         token == "nil" || token.empty())
       return token;
     char *end = nullptr;
     (void)std::strtod(token.c_str(), &end);
-    if (end != token.c_str() && *end == 0)
+    if (end != token.c_str() && end && *end == '\0')
       return token;
-    if (!token.empty() && token.front() == '&')
+    if (token.front() == '&')
       token.erase(0, 1);
-    const auto found = vars_.find(token);
-    if (found != vars_.end())
+    if (const auto found = vars_.find(token); found != vars_.end())
       return found->second;
     return cb_.getVar ? cb_.getVar(token) : std::string();
   };
-  const auto truthy = [](const std::string &value) {
-    if (value.empty() || value == "false" || value == "nil" || value == "null")
-      return false;
-    char *end = nullptr;
-    const auto number = std::strtod(value.c_str(), &end);
-    if (end != value.c_str() && *end == 0)
-      return number != 0.0;
-    return true;
+
+  struct Predicate {
+    const std::string &input;
+    std::function<std::string(std::string)> variable;
+    std::size_t offset = 0;
+    std::size_t terms = 0;
+    std::size_t depth = 0;
+
+    void spaces() {
+      while (offset < input.size() &&
+             std::isspace(static_cast<unsigned char>(input[offset])))
+        ++offset;
+    }
+    bool match(const char *token) {
+      spaces();
+      const std::size_t size = std::char_traits<char>::length(token);
+      if (input.compare(offset, size, token) != 0)
+        return false;
+      offset += size;
+      return true;
+    }
+    [[noreturn]] void invalid() const {
+      throw std::runtime_error(
+          "KAG: unsupported conditional expression near offset " +
+          std::to_string(offset));
+    }
+    static bool number(const std::string &value, double &out) {
+      if (value.empty())
+        return false;
+      char *end = nullptr;
+      out = std::strtod(value.c_str(), &end);
+      return end != value.c_str() && end && *end == '\0' &&
+             std::isfinite(out);
+    }
+    static bool truthy(const std::string &value) {
+      if (value.empty() || value == "false" || value == "nil" ||
+          value == "null")
+        return false;
+      double parsed = 0;
+      return !number(value, parsed) || parsed != 0.0;
+    }
+    std::string value() {
+      spaces();
+      if (++terms > 256 || offset >= input.size())
+        invalid();
+      if (input[offset] == '!') {
+        ++offset;
+        return truthy(value()) ? "0" : "1";
+      }
+      if (input[offset] == '(') {
+        if (++depth > 32)
+          invalid();
+        ++offset;
+        const bool result = disjunction();
+        if (!match(")"))
+          invalid();
+        --depth;
+        return result ? "1" : "0";
+      }
+      if (input[offset] == '\'' || input[offset] == '"') {
+        const char quote = input[offset++];
+        std::string value;
+        bool closed = false;
+        while (offset < input.size()) {
+          char ch = input[offset++];
+          if (ch == quote) {
+            closed = true;
+            break;
+          }
+          if (ch == '\\' && offset < input.size()) {
+            ch = input[offset++];
+            if (ch == 'n')
+              ch = '\n';
+            else if (ch == 't')
+              ch = '\t';
+          }
+          value.push_back(ch);
+        }
+        if (!closed)
+          invalid();
+        return value;
+      }
+      const std::size_t start = offset;
+      if (input[offset] == '&' &&
+          (offset + 1 >= input.size() || input[offset + 1] != '&'))
+        ++offset; // TJS/KAG dereference, e.g. &f.menuEnabled
+      while (offset < input.size()) {
+        const char ch = input[offset];
+        if (std::isspace(static_cast<unsigned char>(ch)) || ch == ')' ||
+            ch == '(' || ch == '=' || ch == '!' || ch == '<' ||
+            ch == '>' || ch == '&' || ch == '|')
+          break;
+        ++offset;
+      }
+      if (offset == start || (offset == start + 1 && input[start] == '&'))
+        invalid();
+      return variable(input.substr(start, offset - start));
+    }
+    bool comparison() {
+      const auto left = value();
+      const char *op = nullptr;
+      for (const char *candidate :
+           {"==", "!=", ">=", "<=", ">", "<"}) {
+        if (match(candidate)) {
+          op = candidate;
+          break;
+        }
+      }
+      if (!op)
+        return truthy(left);
+      const auto right = value();
+      const std::string symbol = op;
+      double leftNumber = 0, rightNumber = 0;
+      const bool bothNumbers = number(left, leftNumber) &&
+                               number(right, rightNumber);
+      if (symbol == "==")
+        return bothNumbers ? leftNumber == rightNumber : left == right;
+      if (symbol == "!=")
+        return bothNumbers ? leftNumber != rightNumber : left != right;
+      if (!bothNumbers)
+        return false;
+      if (symbol == ">=")
+        return leftNumber >= rightNumber;
+      if (symbol == "<=")
+        return leftNumber <= rightNumber;
+      if (symbol == ">")
+        return leftNumber > rightNumber;
+      return leftNumber < rightNumber;
+    }
+    bool conjunction() {
+      bool left = comparison();
+      while (match("&&")) {
+        const bool right = comparison();
+        left = left && right;
+      }
+      return left;
+    }
+    bool disjunction() {
+      bool left = conjunction();
+      while (match("||")) {
+        const bool right = conjunction();
+        left = left || right;
+      }
+      return left;
+    }
+    bool evaluate() {
+      if (input.size() > 4096)
+        invalid();
+      const bool result = disjunction();
+      spaces();
+      if (offset != input.size())
+        invalid();
+      return result;
+    }
   };
-  for (const char *op : {"==", "!=", ">=", "<=", ">", "<"}) {
-    const auto pos = expr.find(op);
-    if (pos == std::string::npos)
-      continue;
-    const auto left = operand(expr.substr(0, pos));
-    const auto right =
-        operand(expr.substr(pos + std::char_traits<char>::length(op)));
-    if (std::string(op) == "==")
-      return left == right;
-    if (std::string(op) == "!=")
-      return left != right;
-    char *endL = nullptr, *endR = nullptr;
-    const auto lv = std::strtod(left.c_str(), &endL);
-    const auto rv = std::strtod(right.c_str(), &endR);
-    if (endL == left.c_str() || *endL || endR == right.c_str() || *endR)
-      return false;
-    if (std::string(op) == ">=")
-      return lv >= rv;
-    if (std::string(op) == "<=")
-      return lv <= rv;
-    if (std::string(op) == ">")
-      return lv > rv;
-    return lv < rv;
-  }
-  if (expr.front() == '!')
-    return !truthy(operand(expr.substr(1)));
-  return truthy(operand(expr));
+
+  Predicate parser{expression, resolve};
+  return parser.evaluate();
 }
 
 std::size_t KagScript::Runner::findLabel(const std::string &name) {

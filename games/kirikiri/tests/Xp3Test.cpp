@@ -740,6 +740,56 @@ int main() {
     }
   }
 
+  // Real KAG conditional expressions combine boolean operators, numeric
+  // comparisons, quoted literals, parentheses and variable dereferences.
+  {
+    auto script = Kirikiri::KagScript::parse(
+        "[set name=flag value=2]"
+        "[if exp=\"(flag >= 2 && flag < 3) || false\"]"
+        "[cm text=compound]"
+        "[else][cm text=bad-branch][endif]"
+        "[if exp=\"!(flag == 2) || ('a==b' == 'a==b')\"]"
+        "[cm text=quoted][endif]"
+        "[ignore exp=\"flag == 1 || (flag == 2 && false)\"]"
+        "[cm text=visible][endignore]"
+        "[if exp=\"&f.menuEnabled && flag != 0\"]"
+        "[cm text=external][endif]"
+        "[end]",
+        "compound-condition.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string value) {
+      shown.push_back(std::move(value));
+    };
+    cb.getVar = [](std::string name) {
+      return name == "f.menuEnabled" ? std::string("1") : std::string();
+    };
+    Kirikiri::KagScript::Runner runner(script, cb);
+    runner.run();
+    for (int i = 0; i < 4; ++i)
+      runner.resumeWait();
+    if (shown != std::vector<std::string>({
+                     "compound", "quoted", "visible", "external"}) ||
+        !runner.isFinished()) {
+      std::printf("FAIL: compound KAG boolean predicate precedence\n");
+      ++failures;
+    }
+    bool rejected = false;
+    try {
+      Kirikiri::KagScript::Runner malformed(
+          Kirikiri::KagScript::parse(
+              "[if exp=\"(flag == 1 &&\"][cm text=bad][endif][end]",
+              "bad-predicate.ks"), cb);
+      malformed.run();
+    } catch (const std::runtime_error &) {
+      rejected = true;
+    }
+    if (!rejected) {
+      std::printf("FAIL: malformed KAG boolean predicate was accepted\n");
+      ++failures;
+    }
+  }
+
   // In-script [call target=*label] and [return] must preserve continuation
   // after a blocked text command. A saved PC cannot inherit stale frames.
   {
