@@ -125,6 +125,11 @@ target_link_libraries(KotonohaEngine
         ${kotonoha_json_target}
         ${kotonoha_ass_target}
 )
+if(APPLE)
+    # Encoding.mm uses the public CoreFoundation conversion API, not libiconv.
+    find_library(KOTONOHA_COREFOUNDATION CoreFoundation REQUIRED)
+    target_link_libraries(KotonohaEngine PRIVATE "${KOTONOHA_COREFOUNDATION}")
+endif()
 
 if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
     # SDL_ttf's pkg-config find modules emit -l flags for static dependencies.
