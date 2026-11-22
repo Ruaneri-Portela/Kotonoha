@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace N2System {
@@ -105,6 +106,38 @@ public:
 
 private:
   std::vector<EntityQueryPart> parts_;
+};
+
+// NitroSharp.EntityPath is the non-wildcard subset of EntityQuery. The
+// native VM uses paths for direct property access, whereas query expressions
+// are used for multi-target effects and actions.
+struct EntityPathPart {
+  std::string value;
+  bool isAlias = false;
+};
+
+class EntityPath {
+public:
+  static std::optional<EntityPath> tryParse(std::string_view path) {
+    const auto query = EntityQuery::tryParse(path);
+    if (!query)
+      return std::nullopt;
+    EntityPath result;
+    for (const auto &part : query->parts()) {
+      if (part.hasWildcard() ||
+          (part.scope != EntityQueryScope::Current &&
+           part.scope != EntityQueryScope::CurrentAliases))
+        return std::nullopt;
+      result.parts_.push_back(
+          {part.pattern, part.scope == EntityQueryScope::CurrentAliases});
+    }
+    return result;
+  }
+
+  const std::vector<EntityPathPart> &parts() const { return parts_; }
+
+private:
+  std::vector<EntityPathPart> parts_;
 };
 
 } // namespace N2System
