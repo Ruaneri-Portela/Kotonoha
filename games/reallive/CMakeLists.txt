@@ -121,6 +121,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.AudioFade COMMAND RealLiveAudioFadeTests)
     set_tests_properties(RealLive.AudioFade PROPERTIES LABELS synthetic)
 
+    # Portable v7 save-section parser: read pages and script-paused BGM.
+    add_executable(RealLiveReadProgressTests tests/ReadProgressTest.cpp)
+    target_include_directories(RealLiveReadProgressTests PRIVATE src)
+    target_compile_features(RealLiveReadProgressTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.ReadProgress COMMAND RealLiveReadProgressTests)
+    set_tests_properties(RealLive.ReadProgress PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)
