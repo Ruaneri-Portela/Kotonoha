@@ -9,6 +9,8 @@ on:
       - "lib/src/core/AssetProvider.cpp"
       - "lib/src/core/UI.cpp"
       - "lib/include/Kotonoha/core/UI.hpp"
+      - "lib/include/Kotonoha/events/VideoSkipGesture.hpp"
+      - "lib/tests/VideoSkipGestureTests.cpp"
       - "lib/include/Kotonoha/core/SDL.hpp"
       - "lib/tests/ComponentHooksTests.cpp"
       - "lib/src/Filesystem/**"
@@ -24,6 +26,8 @@ on:
       - "lib/src/core/AssetProvider.cpp"
       - "lib/src/core/UI.cpp"
       - "lib/include/Kotonoha/core/UI.hpp"
+      - "lib/include/Kotonoha/events/VideoSkipGesture.hpp"
+      - "lib/tests/VideoSkipGestureTests.cpp"
       - "lib/include/Kotonoha/core/SDL.hpp"
       - "lib/tests/ComponentHooksTests.cpp"
       - "lib/src/Filesystem/**"
@@ -83,5 +87,5 @@ jobs:
           test -s /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
           cp /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
             build-system/bin/assets/fonts/NotoSansJP-Regular.ttf
-          cmake --build build-system --target KotonohaFilesystemV2Tests KotonohaComponentHooksTests --parallel 2
-          ctest --test-dir build-system -R 'FilesystemV2|ComponentHooks' --output-on-failure
+          cmake --build build-system --target KotonohaFilesystemV2Tests KotonohaComponentHooksTests KotonohaVideoSkipGestureTests --parallel 2
+          ctest --test-dir build-system -R 'FilesystemV2|ComponentHooks|VideoSkipGesture' --output-on-failure
