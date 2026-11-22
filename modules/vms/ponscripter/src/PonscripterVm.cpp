@@ -922,6 +922,8 @@ SlotSaveData PonscripterVm::exportSlotSave() const {
   data.forStack = forStack_;
   data.bg = bg_;
   data.standing = standing_;
+  data.allSpritesHidden = allSpritesHidden_;
+  data.allSprites2Hidden = allSprites2Hidden_;
   for (int i = 0; i < kMaxExtendedSprites; ++i) {
     if (sprites_[i].loaded)
       data.sprites[i] = sprites_[i];
@@ -956,6 +958,8 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   forStack_ = data.forStack;
   bg_ = data.bg;
   standing_ = data.standing;
+  allSpritesHidden_ = data.allSpritesHidden;
+  allSprites2Hidden_ = data.allSprites2Hidden;
   for (int i = 0; i < 3; ++i) {
     if (standing_[i].loaded)
       populateStandingDimensions(standing_[i], i);
