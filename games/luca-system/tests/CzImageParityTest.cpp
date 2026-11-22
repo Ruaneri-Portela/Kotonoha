@@ -20,14 +20,14 @@ void write32(std::vector<std::uint8_t> &d, size_t pos, unsigned value) {
   for (unsigned shift = 0; shift < 32; shift += 8)
     d.at(pos + shift / 8) = std::uint8_t(value >> shift);
 }
-// The classic LZW decoder consumes an initial seed (zero) then one code per
-// requested output byte. A stream of literal codes remains deterministic
-// and avoids generating any proprietary artwork.
+// Like LuckSystem's decompressLZW, the first code initializes the previous
+// dictionary entry AND contributes its literal pixel to the output. A
+// literal-only stream avoids proprietary artwork and isolates format parity.
 std::vector<std::uint8_t> sampleCz(char kind, unsigned bits,
                                     unsigned width, unsigned height,
                                     const std::vector<std::uint8_t> &bytes) {
   const unsigned header = 28;
-  std::vector<std::uint8_t> raw(header + 4 + 8 + (bytes.size() + 1) * 2, 0);
+  std::vector<std::uint8_t> raw(header + 4 + 8 + bytes.size() * 2, 0);
   raw[0] = 'C'; raw[1] = 'Z'; raw[2] = std::uint8_t(kind);
   write32(raw, 4, header);
   write16(raw, 8, width);
@@ -41,7 +41,7 @@ std::vector<std::uint8_t> sampleCz(char kind, unsigned bits,
   write32(raw, header + 4, unsigned(bytes.size()));
   write32(raw, header + 8, unsigned(bytes.size()));
   for (size_t i = 0; i < bytes.size(); ++i)
-    write16(raw, header + 12 + 2 * (i + 1), bytes[i]);
+    write16(raw, header + 12 + 2 * i, bytes[i]);
   return raw;
 }
 bool rejects(const std::vector<std::uint8_t> &bytes) {
