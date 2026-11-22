@@ -28,7 +28,8 @@ public:
 };
 struct Options {
   std::filesystem::path root;
-  std::string elf, klass = "SystemStartup", method = "run";
+  // The original Vita entry point is GameMain.scriptMain.
+  std::string elf, klass = "GameMain", method = "scriptMain";
   unsigned maxFrames = 18000;
 };
 Options parseArgs(int argc, char **argv) {
@@ -71,12 +72,24 @@ int main(int argc, char **argv) {
             (options.root / "graph" / "GRAPH.CPK").string(), options.elf);
     Amagami::Vita::VitaScripts scripts(options.root);
     Amagami::Vm vm;
-    scripts.installAll(vm);
-    if (!vm.hasClass(options.klass))
+    // Keep scenario classes unloaded until their K2X_Script.loadClass call
+    // or an explicit SCF class literal. Loading every scenario up front
+    // incorrectly makes Class.findClass report MahjongMain during dialogue.
+    scripts.installSystem(vm);
+    vm.resolveClass = [&scripts](const std::string &name)
+        -> std::optional<Amagami::Script> {
+      if (!scripts.hasScenario(name))
+        return std::nullopt;
+      return scripts.scenario(name);
+    };
+    if (!vm.loadClass(options.klass))
       throw std::runtime_error("Missing Vita SCF entry class: " +
                                options.klass);
 
     Amagami::Vita::VitaVmBridge bridge;
+    bridge.setClassLoader([&vm](const std::string &name) {
+      return vm.loadClass(name);
+    });
     bridge.setTextureSizeResolver(
         [graphics](uint32_t id, uint32_t variant)
             -> std::optional<std::pair<uint32_t, uint32_t>> {
