@@ -121,3 +121,17 @@ No third-party runtime code has been copied.
 This is a focused compatibility improvement, **not full KAG/TJS2 parity**.
 The original TJS2 VM, native plugins and complete rendering/event behavior
 remain separate longer-term work.
+
+## Inline TJS blocks and ignore conditions
+
+KAG parsing now treats the contents of `[iscript]` / `@iscript` as
+opaque TJS source until a standalone `[endscript]` / `@endscript`
+line, instead of interpreting embedded brackets as KAG commands or
+dialogue. Unterminated inline scripts fail with an actionable error.
+The TJS body is deliberately **not executed** by this limited KAG VM.
+
+Command tag names are case-insensitive (as in Kirikiri), while labels
+retain their original case. The runtime now recognizes
+`[ignore exp=...]` / `[endignore]` with nested conditional exclusion,
+using the inverse of `[if]` behavior. Synthetic regression tests cover
+both features; native TJS2 integration remains a separate task.

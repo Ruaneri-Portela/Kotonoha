@@ -32,6 +32,7 @@ KagScript::Script KagScript::parse(const std::string &text,
   std::size_t i = 0, n = text.size();
   std::string previousLabel;
   std::map<std::string, std::size_t> labelCounts;
+  bool inInlineScript = false;
 
   auto nextLine = [&]() {
     ++line;
@@ -39,6 +40,38 @@ KagScript::Script KagScript::parse(const std::string &text,
   };
 
   while (i < n) {
+    // Inline TJS is opaque to KAG. A standalone closing tag ends the
+    // block; brackets in TJS strings and array expressions are not tags.
+    if (inInlineScript) {
+      const auto lineStart = i;
+      while (i < n && text[i] != '\r' && text[i] != '\n')
+        ++i;
+      const std::string rawLine = text.substr(lineStart, i - lineStart);
+      std::string marker = trim(rawLine);
+      std::transform(marker.begin(), marker.end(), marker.begin(),
+                     [](unsigned char ch) { return std::tolower(ch); });
+      if (marker == "[endscript]" || marker == "[endscript]\\" ||
+          marker == "@endscript") {
+        Tag closing;
+        closing.type = TagType::Command;
+        closing.name = "endscript";
+        closing.line = line;
+        const auto firstNonWhitespace = rawLine.find_first_not_of(" \t");
+        closing.column = firstNonWhitespace == std::string::npos
+                             ? 1
+                             : static_cast<int>(firstNonWhitespace + 1);
+        script.tags.push_back(std::move(closing));
+        inInlineScript = false;
+      }
+      if (i < n) {
+        if (text[i] == '\r' && i + 1 < n && text[i + 1] == '\n')
+          ++i;
+        ++i;
+        nextLine();
+      }
+      continue;
+    }
+
     char c = text[i];
     // KAG treats line-leading tabs as indentation, not dialogue. Also allow
     // spaces before a line-control marker to accommodate edited scenarios.
@@ -120,6 +153,8 @@ KagScript::Script KagScript::parse(const std::string &text,
         for (auto &tag : parsed.tags) {
           tag.line = commandLineNumber;
           tag.column = commandColumn;
+          if (tag.name == "iscript")
+            inInlineScript = true;
           script.tags.push_back(std::move(tag));
         }
       }
@@ -136,6 +171,10 @@ KagScript::Script KagScript::parse(const std::string &text,
         ++i;
         ++column;
       }
+      // KAG command names are case-insensitive; labels are case-sensitive.
+      if (!tagName.empty() && tagName.front() != '*')
+        std::transform(tagName.begin(), tagName.end(), tagName.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
       Tag tag;
       tag.type = TagType::Command;
       tag.name = tagName;
@@ -207,7 +246,10 @@ KagScript::Script KagScript::parse(const std::string &text,
       } else if (!tag.name.empty() && tag.name[0] == '*') {
         script.labels.emplace(tag.name.substr(1), script.tags.size());
       }
+      const bool startsInlineScript = tag.name == "iscript";
       script.tags.push_back(std::move(tag));
+      if (startsInlineScript)
+        inInlineScript = true;
     } else if (c == '\n') {
       nextLine();
       ++i;
@@ -252,6 +294,9 @@ KagScript::Script KagScript::parse(const std::string &text,
     }
   }
 
+  if (inInlineScript)
+    throw std::runtime_error("KAG: unterminated [iscript] in " + sourceName +
+                             " at line " + std::to_string(line));
   return script;
 }
 
@@ -386,6 +431,31 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     }
     throw std::runtime_error("KAG: unterminated [if] block");
   };
+  // [ignore] is the inverse of [if]: a true expression excludes the
+  // body through its matching [endignore], respecting nested blocks.
+  if (name == "ignore") {
+    if (!condition(tag))
+      return false;
+    std::size_t nested = 0;
+    for (std::size_t i = pc_ + 1; i < script_.tags.size(); ++i) {
+      const auto &candidate = script_.tags[i];
+      if (candidate.type != TagType::Command)
+        continue;
+      if (candidate.name == "ignore") {
+        ++nested;
+      } else if (candidate.name == "endignore") {
+        if (nested == 0) {
+          pc_ = i; // run() advances past the closing tag.
+          return false;
+        }
+        --nested;
+      }
+    }
+    throw std::runtime_error("KAG: unterminated [ignore] block");
+  }
+  if (name == "endignore")
+    return false;
+
   if (name == "if") {
     if (ifBranches_.size() >= 1024)
       throw std::runtime_error("KAG: conditional nesting limit exceeded");
