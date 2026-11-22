@@ -123,17 +123,20 @@ manifest is missing, empty, invalid or rejected by the C++ provider, the game
 does not boot. Only a previously validated cached manifest may be reused
 when the network itself is unavailable.
 
-The Python tool accepts **one argument: the page root**:
+The Python tool accepts **one argument: any existing directory path**:
 
 ```sh
 python3 tools/generate_manifest.py build-web/outputs/N2SystemGame
+python3 tools/generate_manifest.py /Volumes/Server/data2/Games/SteinsGate/
 ```
 
-It recursively scans that page's `game-assets/` and writes
-`build-web/outputs/N2SystemGame/manifest.json`. Each `entries` path is
-relative to `game-assets/`, not to `index.html`. Copy game files into the
-served directory before running it. CMake invokes the tool after the asset
-copy for every WebAssembly app.
+If `game-assets/` exists inside the supplied directory, that subdirectory
+is indexed. Otherwise the supplied directory itself is indexed (including
+retail `.npa` archives and nested paths such as `dx/`). In both cases
+`manifest.json` is written at the path supplied, and is not indexed as an
+asset. For WASM serve the manifest beside `index.html`, and make its file
+paths available under `game-assets/` (or map URLs via the CDN/server). CMake
+invokes the generator after copying game assets for each app.
 
 **The manifest is an allow-list.** Unindexed files return not found
 immediately; there is **no HEAD/GET discovery**, even for explicitly requested

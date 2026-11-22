@@ -121,16 +121,21 @@ e tamanhos. Sem manifesto, ou com índice vazio ou inválido, o jogo não
 inicia. Se houver falha de rede, um manifesto válido já salvo no
 IndexedDB pode ser reutilizado.
 
-A ferramenta Python recebe **somente a pasta raiz da página**:
+A ferramenta Python recebe **qualquer caminho de diretório existente**:
 
 ```sh
 python3 tools/generate_manifest.py build-web/outputs/N2SystemGame
+python3 tools/generate_manifest.py /Volumes/Server/data2/Games/SteinsGate/
 ```
 
-Ela percorre `game-assets/` e grava
-`build-web/outputs/N2SystemGame/manifest.json`. Os caminhos em `entries`
-são relativos a `game-assets/`. Copie os arquivos para a pasta publicada
-antes de gerar o índice. O CMake chama o gerador após copiar os assets.
+Se existir `game-assets/` dentro do diretório, ela indexa essa subpasta.
+Caso contrário, indexa **os arquivos diretamente no diretório informado**
+(incluindo `.npa` e subpastas como `dx/`). Em ambos os modos, grava
+`manifest.json` no diretório passado como argumento, sem incluir o próprio
+manifesto no índice. Para o WASM, disponibilize esse arquivo ao lado de
+`index.html` e sirva os bytes em `game-assets/`, ou configure o servidor/CDN
+para mapear as URLs à pasta indexada. O CMake gera o índice após copiar
+os assets.
 
 **O manifesto é uma lista de permissão:** caminho ausente de `entries`
 retorna não encontrado imediatamente, sem executar HEAD/GET.
