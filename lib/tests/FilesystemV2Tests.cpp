@@ -418,14 +418,47 @@ void testLocalHttpFallback() {
              [&] { VFS::mountGameAssets(temp.root / "missing"); });
 }
 
+void testLazyDetectionMount() {
+  Temp temp;
+  const auto root = temp.root / "detected";
+  writeFile(root / "DATA/SCENARIO/intro.ks", "scenario");
+  writeFile(root / "Game/Data.XP3", "archive");
+
+  const auto preview = VFS::Filesystem::mountForDetection(root.string());
+  require(preview->exists("data/scenario/INTRO.KS"),
+          "Lazy detector missed a nested, case-insensitive file");
+  require(preview->stat("game/data.xp3").type == VFS::FileType::Regular,
+          "Lazy detector missed a file in a differently cased directory");
+  require(preview->list("data/scenario").size() == 1,
+          "Lazy detector did not list nested directory contents");
+  require(!preview->exists("DATA/missing.ks"),
+          "Lazy detector reported a nonexistent file");
+  expectCode(VFS::ErrorCode::InvalidPath,
+             [&] { preview->exists("../outside"); });
+
+  const auto runtime = VFS::Filesystem::mount(root.string());
+  require(runtime->list("data/scenario").size() ==
+              preview->list("data/scenario").size(),
+          "Detection and runtime VFS disagree on nested files");
+}
+
 void testDirectorySafety() {
   Temp temp;
   auto base = temp.root / "base";
   writeFile(base / "abc.bin", "one");
   writeFile(base / "ABC.bin", "two");
   if (!fs::equivalent(base / "abc.bin", base / "ABC.bin")) {
-    expectCode(VFS::ErrorCode::InvalidPath,
-               [&] { VFS::Filesystem::mount(base.string()); });
+    // DirectoryMount explicitly keeps the first entry on a case-insensitive
+    // collision; both spelling variants must resolve to that same file.
+    auto indexed = VFS::Filesystem::mount(base.string());
+    require(indexed->list("").size() == 1,
+            "Duplicate case variants must have one virtual entry");
+    require(readText(indexed->open("abc.bin")) ==
+                readText(indexed->open("ABC.bin")),
+            "Case-insensitive collision resolves inconsistently");
+    auto lazy = VFS::Filesystem::mountForDetection(base.string());
+    require(lazy->list("").size() == 1,
+            "Lazy mount must preserve case-collision behavior");
   }
 
   auto outside = temp.root / "outside.bin";
@@ -435,6 +468,9 @@ void testDirectorySafety() {
   if (!error) {
     expectCode(VFS::ErrorCode::InvalidPath,
                [&] { VFS::Filesystem::mount(base.string()); });
+    auto lazy = VFS::Filesystem::mountForDetection(base.string());
+    expectCode(VFS::ErrorCode::InvalidPath,
+               [&] { lazy->exists("escape.bin"); });
   }
 }
 
@@ -451,6 +487,7 @@ int main() {
     testLocalHttpFallback();
     testSDLAdapters();
     testDirectorySafety();
+    testLazyDetectionMount();
     std::cout << "Filesystem V2 tests passed\n";
   } catch (const std::exception &error) {
     std::cerr << "Filesystem V2 tests failed: " << error.what() << '\n';

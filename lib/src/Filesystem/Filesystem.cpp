@@ -138,6 +138,19 @@ std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
   return std::shared_ptr<Filesystem>(new Filesystem(std::move(base)));
 }
 
+std::shared_ptr<Filesystem> Filesystem::mountForDetection(std::string source) {
+  // Avoid building an entire recursive directory index just to look for
+  // well-known game files. Disc images, URLs and SAF retain their own mounts.
+  if (source.rfind("file://", 0) == 0)
+    source = normalizeFileUrl(std::move(source));
+  std::error_code ec;
+  if (std::filesystem::is_directory(std::filesystem::path(source), ec)) {
+    return mount(std::static_pointer_cast<IMount>(
+        std::make_shared<DirectoryMount>(std::filesystem::path(source), false)));
+  }
+  return mount(std::move(source));
+}
+
 std::shared_ptr<Filesystem> Filesystem::mount(std::shared_ptr<IMount> source) {
   return std::shared_ptr<Filesystem>(new Filesystem(std::move(source)));
 }

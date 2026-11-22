@@ -46,14 +46,20 @@ def audit() -> list[str]:
     android_rows = re.findall(
         r"(?m)^  ([A-Za-z][A-Za-z0-9_]*)\s*:\s*"
         r"\['([^']+)',\s*'([^']+)'", game_block)
-    android_slugs = {slug for _, slug, _ in android_rows}
-    if android_slugs != expected_slugs or len(android_rows) != len(expected_slugs):
+    # The unified Android launcher is an additional application flavor,
+    # not another entry in the canonical 15-game matrix.
+    launcher_rows = [row for row in android_rows if row[0] == "launcher"]
+    game_rows = [row for row in android_rows if row[0] != "launcher"]
+    android_slugs = {slug for _, slug, _ in game_rows}
+    if android_slugs != expected_slugs or len(game_rows) != len(expected_slugs):
         problems.append("Android flavors do not cover all CMake games exactly once")
+    if launcher_rows != [("launcher", "all", "KotonohaLauncher")]:
+        problems.append("Android launcher flavor must be launcher/all/KotonohaLauncher")
     expected_targets = {
         slug: ("Kotonoha" if slug == "example" else target)
         for target, slug in canonical.items()
     }
-    for flavor, slug, target in android_rows:
+    for flavor, slug, target in game_rows:
         if expected_targets.get(slug) != target:
             problems.append(
                 f"Android flavor {flavor}: target {target} differs from {slug}")

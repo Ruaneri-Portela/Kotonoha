@@ -7,6 +7,10 @@ on:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
       - "lib/src/core/AssetProvider.cpp"
+      - "lib/src/Filesystem/**"
+      - "lib/include/Kotonoha/Filesystem/**"
+      - "launcher/**"
+      - "lib/tests/FilesystemV2Tests.cpp"
       - "buildsystems/cmake/dependencies/**"
       - ".github/workflows/linux-system-deps.yml"
   pull_request:
@@ -14,6 +18,10 @@ on:
       - "CMakeLists.txt"
       - "lib/CMakeLists.txt"
       - "lib/src/core/AssetProvider.cpp"
+      - "lib/src/Filesystem/**"
+      - "lib/include/Kotonoha/Filesystem/**"
+      - "launcher/**"
+      - "lib/tests/FilesystemV2Tests.cpp"
       - "buildsystems/cmake/dependencies/**"
       - ".github/workflows/linux-system-deps.yml"
 
@@ -52,3 +60,13 @@ jobs:
           grep -q '^KOTONOHA_IMGUI_PROVIDER_RESOLVED:INTERNAL=SUBMODULES' build-system/CMakeCache.txt
       - name: Compile Example using system SDL and pinned ImGui
         run: cmake --build build-system --target Kotonoha --parallel 2
+      - name: Compile the shared launcher scanner in C++17
+        run: |
+          c++ -std=c++17 -fsyntax-only \
+            -Ilauncher/include -Ilib/include \
+            -Ilib/submodules/imgui -Ilib/submodules/imgui/misc/cpp \
+            launcher/src/UnifiedLauncher.cpp
+      - name: Compile and run Filesystem V2 regression tests
+        run: |
+          cmake --build build-system --target KotonohaFilesystemV2Tests --parallel 2
+          ctest --test-dir build-system -R FilesystemV2 --output-on-failure
