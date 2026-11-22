@@ -17,12 +17,12 @@ Kotonoha is a modular **C++17 visual novel engine** built upon SDL3, Dear ImGui,
 | `lib/` | Core engine library, shared interfaces, public headers (`lib/include/Kotonoha/`), and unit tests. |
 | `modules/vms/` | Script virtual machines (Amagami, Snow Radish, Summer Radish, Ren'Py/DDLC, RealLive, Pure Mail). Pure script execution, independent of rendering. |
 | `modules/providers/` | Asset and archive format decoders implementing `Kotonoha::AssetProvider` (CMP, ADV, GPK, XP3, PAK, RealLive, RPA, Amagami, Pmail, Zero). |
-| `games/` | 15 game applications (14 game ports and Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`). |
+| `games/` | 16 game applications (15 game ports and Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`, `artemis`). |
 | `buildsystems/` | Platform build orchestration: `cmake/` (CMake modules), `android/` (Gradle project), `xcode/` (Native `Kotonoha.xcodeproj`). |
 | `assets/` | Shared engine resources (fonts, icons, shaders) and legal third-party notices. |
 | `docs/` | Comprehensive bilingual documentation (`*.md` in en-US, `*.pt-BR.md` in pt-BR). |
 | `tools/` | Build verification, metadata validation, asset packaging, and web dev utilities. |
-| `translations/` | Localization catalogs and strings. |
+| `launcher/` | Unified multi-engine launcher running linked game runtimes in one process. |
 | `vcpkg.json` / `vcpkg-overlays/` | Dependency manifest and custom vcpkg port overlays. |
 
 ### Architectural Invariants
