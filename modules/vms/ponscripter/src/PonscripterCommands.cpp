@@ -249,6 +249,11 @@ void PonscripterVm::cmdAlias(LineLexer &lexer, const std::string &cmd) {
     CallStackEntry &frame = callStack_.back();
     while (true) {
       lexer.skipWhitespace();
+      // i%dest and s%dest return the caller's numeric/string variable ID,
+      // respectively, instead of the evaluated argument value.
+      char referenceMode = '\0';
+      if (lexer.peek() == 'i' || lexer.peek() == 's')
+        referenceMode = lexer.get();
       const char kind = lexer.peek();
       if (kind != '%' && kind != '$')
         break;
@@ -259,7 +264,11 @@ void PonscripterVm::cmdAlias(LineLexer &lexer, const std::string &cmd) {
       if (kind == '%') {
         const int id = lexer.parseVarRef();
         int value = arg.number;
-        if (arg.isString) {
+        if (referenceMode == 'i' || referenceMode == 's') {
+          value = (arg.sourceVariable >= 0 &&
+                   arg.sourceIsString == (referenceMode == 's'))
+                      ? arg.sourceVariable : -1;
+        } else if (arg.isString) {
           value = 0;
           const char *start = arg.text.data();
           const char *finish = start + arg.text.size();
@@ -272,8 +281,13 @@ void PonscripterVm::cmdAlias(LineLexer &lexer, const std::string &cmd) {
       } else {
         const int id = lexer.parseStrVarRef();
         if (id >= 0)
-          vars_.setStr(id, arg.isString ? arg.text
-                                       : std::to_string(arg.number));
+          vars_.setStr(
+              id, referenceMode == 'i' || referenceMode == 's'
+                      ? std::to_string(
+                            (arg.sourceVariable >= 0 &&
+                             arg.sourceIsString == (referenceMode == 's'))
+                                ? arg.sourceVariable : -1)
+                      : (arg.isString ? arg.text : std::to_string(arg.number)));
       }
       if (!lexer.consumeComma())
         break;
