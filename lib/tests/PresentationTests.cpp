@@ -467,6 +467,7 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   const auto explicitDir = directory.path / "explicit-forced-subtitles";
   std::filesystem::create_directories(explicitDir / "pt-BR");
   writeTextFileAtomically((explicitDir / "pt-BR/80005.ass").string(), script);
+  writeTextFileAtomically((explicitDir / "pt-BR/80007.ASS").string(), script);
   ForcedSubtitleRenderer explicitSource(engine, explicitDir);
   require(std::filesystem::equivalent(explicitSource.sourceDirectory(),
                                       explicitDir),
@@ -476,6 +477,10 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   require(explicitSource.activePath() ==
               std::filesystem::canonical(explicitDir / "pt-BR/80005.ass"),
           "Explicit forced subtitle directory loads locale-scoped ASS");
+  explicitSource.loadForNode("80007");
+  require(explicitSource.activePath() ==
+              std::filesystem::canonical(explicitDir / "pt-BR/80007.ASS"),
+          "Forced subtitle discovery accepts uppercase .ASS extensions");
   std::filesystem::create_directories(unrelatedDump.parent_path());
   writeTextFileAtomically(unrelatedDump.string(), header);
   missingSource.reload();

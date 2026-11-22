@@ -135,3 +135,24 @@ Ongoing tracking of real-hardware defects observed on POCO X7 Pro (Android 16 / 
     - **16:9** (`SAVE` open/close, `BACKLOG` open): pillarbox samples `x=20, 260, 2451, 2691` measured exact `(0, 0, 0)` while the active viewport faded to `(167, 167, 167)`, `(245, 244, 244)`, and `(180, 180, 180)`.
     - **4:3 Standard** (`SAVE` open): outer margins `x=20, 260, 500, 2211, 2451, 2691` measured exact `(0, 0, 0)` while the `4:3` rect (`x=600..2111`) faded to `(172, 172, 172)`.
 - **Classification**: **Confirmed parity** (`Paridade confirmada`, Windows & Android).
+
+---
+
+## Real Forced Subtitles Integration (Milestone 3)
+
+### Environment & End-to-End Audit
+- **Initial device state**: `/storage/emulated/0/Download/SchoolDaysHQ/game-assets/` on POCO X7 Pro originally held only `school-days-hq.ktnroute` and `styles.ass`; no `forced_subtitles/` directory existed on the device prior to this milestone.
+- **Legitimate test content (no retail GPK/save edits)**: Pushed the legitimate 3-OP × 5-locale set (`en`, `es`, `pt-BR`, `ru`, `zh-CN` + 33 legacy root EN `.ass` = 198 files from `SchoolDaysHQ-Windows-DIST-3OPs-5Locales-Fallback-QA-20261120/game-assets/forced_subtitles/`) into `/storage/emulated/0/Download/SchoolDaysHQ/game-assets/forced_subtitles/`.
+- **Verified pipeline**:
+  1. `SchoolDaysFolder.java`: detects `game-assets/forced_subtitles/` (`forced_subtitles/: OK` in **Files** tab), stages locale files into `<cache>/sd-saf-*/game-assets/forced_subtitles/<locale>/`, and passes `--forced-subtitles <path>`.
+  2. `games/school-days/src/main.cpp` + `lib/src/core/CommandLine.cpp`: wire `--forced-subtitles` to `EngineOptions::forcedSubtitlesPath` and call `engine.GetForcedSubtitles().setLocale(...)` for both native GPK and JSON launches.
+  3. `lib/src/components/ForcedSubtitleRenderer.cpp`: fixed case-sensitive extension filter (`entry.path().extension() != ".ass"`) to match `.ass`/`.ASS` case-insensitively (`asciiLower(...)`) and normalize cache keys to `<stem>.ass` on case-sensitive filesystems (Android/Linux).
+  4. `lib/src/components/SubtitleScene.cpp` + `SystemFontFile.java`: `libass` uses `/system/fonts/NotoSansCJK-Regular.ttc` (32 MB on POCO X7 Pro), covering Latin accents, Cyrillic, and CJK glyphs.
+- **Automated tests**:
+  - `Kotonoha.Presentation` (`lib/tests/PresentationTests.cpp`, extended with uppercase `.ASS` discovery in an explicit locale directory), `SchoolDaysPortTest`, and `SchoolDaysRuntimeConfigStorageTest` passed (3/3).
+- **Real hardware verification (POCO X7 Pro, `2712×1220`)**:
+  - Launcher **Files** tab confirmed `forced_subtitles/: OK` alongside `30 / 30 (LxH.GPK: OK)`, `ktnroute: OK`, `styles.ass: OK`, `overlay/: OK`.
+  - Confirmed staged `cache/sd-saf-*/game-assets/forced_subtitles/pt-BR/01-01-00-OP1.ass`.
+  - Live gameplay captures on node `01/01-00-OP1` (with `F8` node clock HUD at `70.81s`, `78.16s`, `85.65s`) confirmed real `libass` `\kf` karaoke sweeps (top romaji + bottom PT-BR translation + credit-safe `\pos(400,316)`) rendered cleanly over the opening video.
+  - Natural node exit from `01/01-00-OP1` to `01/01-00-B05` immediately cleared all OP forced subtitles with zero stale text; `Display subtitles` (`TextView`) `OFF`/`ON` and launcher `enableForcedSubtitles` switch verified.
+- **Classification**: **Confirmed parity** (`Paridade confirmada` on Android DEV & Windows; Android DIST verified in Milestone 4).

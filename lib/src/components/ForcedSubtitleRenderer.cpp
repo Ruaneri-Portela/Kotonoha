@@ -214,10 +214,10 @@ void ForcedSubtitleRenderer::buildSubtitleCache() {
         continue;
       }
       if (!std::filesystem::is_regular_file(status) ||
-          entry.path().extension() != ".ass" ||
+          asciiLower(entry.path().extension().string()) != ".ass" ||
           !safeRegularFile(entry.path(), directory))
         continue;
-      const auto name = entry.path().filename().string();
+      const auto name = entry.path().stem().string() + ".ass";
       if (!cache.emplace(name, entry.path()).second)
         throw std::runtime_error("Duplicate forced subtitle filename: " + name);
     }
