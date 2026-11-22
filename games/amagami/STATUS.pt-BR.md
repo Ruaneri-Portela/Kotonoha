@@ -24,6 +24,15 @@ O relatório [PORT_STATUS.md](PORT_STATUS.md) contém análises técnicas do jog
 
 ## Melhorias de compatibilidade Vita (open-amagami)
 
+- O diagnóstico Vita inicia em `GameMain.scriptMain` e carrega os
+  cenários SCF sob demanda a partir de `SCENARIO.CPK`. `Class.findClass`
+  não antecipa a carga, mas `K2X_Script.loadClass` e referências literais
+  de classes carregam os cenários necessários.
+- As primitivas básicas de `K2X_Script` incluem a consulta ao relógio de
+  frames e estado do ambiente. O loop gráfico passa a usar cadência de
+  60 Hz com relógio monotônico de alta resolução do SDL3.
+
+
 O diagnóstico Vita reconhece os controles Xbox (A para confirmar, B para cancelar)
 e preserva o esquema PlayStation (Circle/Cross). Alterações de mapeamento SDL
 recalculam os botões segurados. As chamadas ControlPad originadas em cenários
