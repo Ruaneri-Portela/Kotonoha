@@ -50,6 +50,14 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:text="Rescan" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_graphics_settings"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Graphics" />
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 

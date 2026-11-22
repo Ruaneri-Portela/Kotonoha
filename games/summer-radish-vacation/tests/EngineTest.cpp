@@ -55,7 +55,9 @@ void capture(Engine &engine, Runtime &game, const char *name) {
                                       SDL_TEXTUREACCESS_TARGET, 960, 720));
   auto *previous = SDL_GetRenderTarget(&r);
   SDL_SetRenderTarget(&r, target.get());
+  game.renderBackground(r, 1);
   game.render(r, 1);
+  game.renderOverlay(r, 1);
   SurfacePtr surface(SDL_RenderReadPixels(&r, nullptr));
   if (surface)
     SDL_SaveBMP(surface.get(),
@@ -111,6 +113,7 @@ int main(int argc, char **argv) {
         engine.Iterate();
       check(game.GetState() == GameState::Menu,
             "Imouto de Ikou! title menu did not open");
+      capture(engine, game, "title");
       // Press Enter on START to execute SCRIPT/init.scr
       press(engine, SDLK_RETURN);
       check(game.GetState() == GameState::Gameplay,
@@ -122,6 +125,7 @@ int main(int argc, char **argv) {
             "Imouto de Ikou! dialogue did not appear");
       const auto firstNode = game.debugNode();
       text->completeDialogue();
+      capture(engine, game, "story");
       press(engine, SDLK_RETURN);
       check(game.debugNode() != firstNode,
             "Imouto de Ikou! failed to advance dialogue");
@@ -200,6 +204,7 @@ int main(int argc, char **argv) {
     for (auto *scene : gameplay)
       check(std::count(gameplay.begin(), gameplay.end(), scene) == 1,
             "GAMESTART never registers the same scene twice");
+    text->completeDialogue();
     capture(engine, game, "story");
     auto padButton = [&](SDL_GamepadButton button, bool down) {
       SDL_Event event{};
@@ -216,7 +221,7 @@ int main(int argc, char **argv) {
     };
     // Raw directions must reach the native toolbar even though dialogue maps
     // Left/Right to text speed.
-    const int systemSteps = isLostM ? 3 : 4;
+    const int systemSteps = (isLostM || isSrv2) ? 3 : 4;
     for (int i = 0; i < systemSteps; ++i)
       tapPad(SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
     tapPad(SDL_GAMEPAD_BUTTON_EAST);
@@ -243,10 +248,12 @@ int main(int argc, char **argv) {
       event.type = SDL_EVENT_MOUSE_BUTTON_UP;
       check(text->handleEvent(event), "Summer native control accepts touch-up");
     };
-    nativeButton(isLostM ? 717.0f : 770.0f, isLostM ? 569.0f : 540.0f);
+    nativeButton(isLostM ? 717.0f : (isSrv2 ? 755.0f : 770.0f),
+                 isLostM ? 569.0f : (isSrv2 ? 585.0f : 540.0f));
     check(std::filesystem::is_regular_file(prefs / "quicksave.vn"),
           "Original quicksave control writes a save");
-    nativeButton(isLostM ? 658.0f : 550.0f, isLostM ? 586.0f : 585.0f);
+    nativeButton(isLostM ? 658.0f : (isSrv2 ? 518.0f : 550.0f),
+                 isLostM ? 586.0f : 585.0f);
     check(GetVNBacklogRuntime(engine).isVisible(),
           "Original backlog control opens history");
     auto *history = dynamic_cast<SummerRadish::SummerBacklog *>(
@@ -273,7 +280,7 @@ int main(int argc, char **argv) {
     history->onEvent(historyEvent);
     check(!history->isVisible() && game.debugNode() == historyPosition,
           "Native return closes history without advancing the story");
-    nativeButton(isLostM ? 548.0f : (isSrv2 ? 685.0f : 730.0f),
+    nativeButton(isLostM ? 548.0f : (isSrv2 ? 606.0f : 730.0f),
                  isLostM ? 586.0f : 585.0f);
     check(GetInGameMenuRuntime(engine).IsOpen(),
           "Original system control opens its menu");

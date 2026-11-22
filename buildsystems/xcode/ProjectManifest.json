@@ -161,11 +161,13 @@
     "PonscripterGame": "ponscripter",
     "N2SystemGame": "n2system",
     "KatawaShoujo": "katawa-shoujo",
-    "MEO": "meo"
+    "MEO": "meo",
+    "ArtemisGame": "artemis"
   },
   "modules": {
     "VM": [
       "amagami",
+      "artemis",
       "kag",
       "meo",
       "pmail",
@@ -188,7 +190,8 @@
       "xp3",
       "zero",
       "n2",
-      "ponscripter"
+      "ponscripter",
+      "artemis"
     ]
   },
   "source_files": 296,
@@ -282,6 +285,8 @@
       "note": "Vendor files are referenced in the source repository; the Xcode project includes no vendor source copies."
     }
   },
-  "xcode_pending": [],
+  "xcode_pending": [
+    "artemis"
+  ],
   "xcode_validation_note": "Full Apple SDK compile/link and runtime smoke test on macOS/iOS host required"
 }

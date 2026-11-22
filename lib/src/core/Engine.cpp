@@ -236,6 +236,20 @@ Engine::Engine(Runtime &run, EngineOptions options)
         std::lround(static_cast<double>(settings.height) * view.x / view.y));
   if (!options.rendererOverride.empty())
     settings.renderer = options.rendererOverride;
+#if KOTONOHA_ENABLE_UPSCALER
+  if (options.upscalerBackendOverride.has_value()) {
+    settings.upscaling.backend = *options.upscalerBackendOverride;
+    if (settings.upscaling.backend == UpscaleBackend::None &&
+        !options.upscalerFactorOverride.has_value())
+      settings.upscaling.factor = 1.0f;
+  }
+  if (options.upscalerPresetOverride.has_value()) {
+    settings.upscaling.preset = *options.upscalerPresetOverride;
+    settings.upscaling.shaderFiles.clear();
+  }
+  if (options.upscalerFactorOverride.has_value())
+    settings.upscaling.factor = *options.upscalerFactorOverride;
+#endif
   settings.validate();
 #if !KOTONOHA_ENABLE_UPSCALER
   // A build without this module never inherits a saved backend/preset.
@@ -763,6 +777,7 @@ SDL_AppResult Engine::Event(EventPtr event) {
       NormalizeControllerEvent(*event, settings.swapControllerAB);
   event = &normalized;
   session.deviceEvent(*event);
+  const Uint64 nowMs = SDL_GetTicks();
   const auto navigation = controllerNavigation.process(*event);
   // Synthetic D-pad releases must also reach the runtime when a controller
   // disconnects or the window loses focus, not only on axis motion.
@@ -775,16 +790,29 @@ SDL_AppResult Engine::Event(EventPtr event) {
       (event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTX ||
        event->gaxis.axis == SDL_GAMEPAD_AXIS_LEFTY))
     return SDL_APP_CONTINUE;
-  inputActions.process(*event);
+  navRepeater.process(*event, nowMs);
+  inputActions.process(*event, nowMs);
   SDL_Event pointer{};
   const bool nativeTouch = runtime.continuousTouch() || settingsMenu->isOpen();
   const bool pointerEvent = touchPointer.translate(*event, *window, pointer);
-  bool translate = nativeTouch && pointerEvent;
-  if (nativeTouch && event->type >= SDL_EVENT_FINGER_DOWN &&
+  const bool touchGesture =
+      event->type >= SDL_EVENT_FINGER_DOWN &&
       event->type <= SDL_EVENT_FINGER_CANCELED &&
-      (inputActions.back(*event) || inputActions.backlog(*event)))
+      (inputActions.back(*event) || inputActions.backlog(*event));
+  bool translate = nativeTouch && pointerEvent;
+  if (nativeTouch && touchGesture)
     translate = touchPointer.cancel(*window, pointer) || translate;
   const auto result = dispatchEvent(event);
+  if (result == SDL_APP_CONTINUE && !nativeTouch &&
+      event->type >= SDL_EVENT_FINGER_DOWN &&
+      event->type <= SDL_EVENT_FINGER_CANCELED &&
+      inputActions.skip(*event)) {
+    SDL_Event skipKey{};
+    skipKey.type = SDL_EVENT_KEY_DOWN;
+    skipKey.key.key = SDLK_S;
+    skipKey.key.down = true;
+    dispatchEvent(&skipKey);
+  }
   if (translate && result == SDL_APP_CONTINUE)
     return dispatchEvent(&pointer);
   return result;
@@ -925,6 +953,24 @@ SDL_AppResult Engine::Iterate() {
   try {
   if (translationDumpComplete)
     return SDL_APP_SUCCESS;
+  const Uint64 nowMs = SDL_GetTicks();
+  for (auto repeated : navRepeater.update(nowMs)) {
+    const auto repeatResult = dispatchEvent(&repeated);
+    if (repeatResult != SDL_APP_CONTINUE)
+      return repeatResult;
+  }
+  if (inputActions.pollLongPress(nowMs)) {
+    SDL_Event cancelPtr{};
+    if (touchPointer.cancel(*window, cancelPtr))
+      dispatchEvent(&cancelPtr);
+    SDL_Event menuKey{};
+    menuKey.type = SDL_EVENT_KEY_DOWN;
+    menuKey.key.key = SDLK_ESCAPE;
+    menuKey.key.down = true;
+    const auto longPressResult = dispatchEvent(&menuKey);
+    if (longPressResult != SDL_APP_CONTINUE)
+      return longPressResult;
+  }
   configureRenderSpace(RenderSpace::Novel);
   synchronizeTimeline();
 #if KOTONOHA_ENABLE_MCP

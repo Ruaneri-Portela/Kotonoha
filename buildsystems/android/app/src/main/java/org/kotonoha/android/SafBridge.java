@@ -27,6 +27,10 @@ public final class SafBridge {
     private static final String PREFS_NAME = "kotonoha_launcher_prefs";
     private static final String KEY_URIS = "persisted_library_uris_v1";
     private static final String KEY_SPLIT_SAVES = "split_saves_by_game_v1";
+    private static final String KEY_RENDERER_BACKEND = "renderer_backend_v1";
+    private static final String KEY_UPSCALER_BACKEND = "upscaler_backend_v1";
+    private static final String KEY_UPSCALER_PRESET = "upscaler_preset_v1";
+    private static final String KEY_UPSCALER_FACTOR = "upscaler_factor_v1";
 
     private SafBridge() {}
 
@@ -87,6 +91,50 @@ public final class SafBridge {
     public static void setSplitSavesEnabled(Context context, boolean enabled) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         prefs.edit().putBoolean(KEY_SPLIT_SAVES, enabled).apply();
+    }
+
+    public static String getRendererBackend(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String value = prefs.getString(KEY_RENDERER_BACKEND, "");
+        return value != null ? value : "";
+    }
+
+    public static void setRendererBackend(Context context, String backend) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_RENDERER_BACKEND, backend != null ? backend : "").apply();
+    }
+
+    public static String getUpscalerBackend(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String value = prefs.getString(KEY_UPSCALER_BACKEND, "none");
+        return (value != null && !value.isEmpty()) ? value : "none";
+    }
+
+    public static void setUpscalerBackend(Context context, String backend) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_UPSCALER_BACKEND, backend != null ? backend : "none").apply();
+    }
+
+    public static String getUpscalerPreset(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String value = prefs.getString(KEY_UPSCALER_PRESET, "0");
+        return (value != null && !value.isEmpty()) ? value : "0";
+    }
+
+    public static void setUpscalerPreset(Context context, String preset) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_UPSCALER_PRESET, preset != null ? preset : "0").apply();
+    }
+
+    public static String getUpscalerFactor(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String value = prefs.getString(KEY_UPSCALER_FACTOR, "2.0");
+        return (value != null && !value.isEmpty()) ? value : "2.0";
+    }
+
+    public static void setUpscalerFactor(Context context, String factor) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_UPSCALER_FACTOR, factor != null ? factor : "2.0").apply();
     }
 
     /**

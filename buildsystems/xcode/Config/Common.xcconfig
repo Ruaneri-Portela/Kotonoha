@@ -43,8 +43,12 @@ KOTONOHA_MODULE_HEADER_ROOTS = \
     "$(KOTONOHA_ROOT)/modules/providers/xp3/src" \
     "$(KOTONOHA_ROOT)/modules/providers/zero/include" \
     "$(KOTONOHA_ROOT)/modules/providers/zero/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/artemis/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/artemis/src" \
     "$(KOTONOHA_ROOT)/modules/vms/amagami/include" \
     "$(KOTONOHA_ROOT)/modules/vms/amagami/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/artemis/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/artemis/src" \
     "$(KOTONOHA_ROOT)/modules/vms/kag/include" \
     "$(KOTONOHA_ROOT)/modules/vms/kag/src" \
     "$(KOTONOHA_ROOT)/modules/vms/meo/include" \
@@ -88,6 +92,8 @@ KOTONOHA_GAME_HEADER_ROOTS = \
     "$(KOTONOHA_ROOT)/games/kirikiri/src" \
     "$(KOTONOHA_ROOT)/games/luca-system/include" \
     "$(KOTONOHA_ROOT)/games/luca-system/src" \
+    "$(KOTONOHA_ROOT)/games/artemis/include" \
+    "$(KOTONOHA_ROOT)/games/artemis/src" \
     "$(KOTONOHA_ROOT)/games/pmail/include" \
     "$(KOTONOHA_ROOT)/games/pmail/src" \
     "$(KOTONOHA_ROOT)/games/meo/include" \

@@ -404,6 +404,7 @@ struct PonscripterRuntime::Impl final : public HostCallbacks {
   int systemMenuHoverIndex = -1;
   int saveLoadPage = 0;
   int backlogScrollOffset = 0;
+  bool quitRequested = false;
   std::string statusBannerText;
   std::uint64_t statusBannerUntilTick = 0;
 
@@ -997,6 +998,7 @@ void PonscripterRuntime::shutdown() {
   impl_->imageCache.clear();
   if (impl_->assets)
     impl_->assets->clearCache();
+  impl_->quitRequested = false;
   impl_->engine = nullptr;
 }
 
@@ -1008,6 +1010,7 @@ SDL_Point PonscripterRuntime::viewport() const {
 
 void PonscripterRuntime::init(Kotonoha::Engine &engine) {
   impl_->engine = &engine;
+  impl_->quitRequested = false;
   ClearScenes();
 
   // Install PONscripter-native implementations behind Kotonoha shared
@@ -1125,6 +1128,23 @@ void PonscripterRuntime::update() {
   }
 
   vm_.tick(1000.0 / 60.0);
+
+  if (vm_.isHalted()) {
+    if (impl_->engine && !impl_->quitRequested) {
+      impl_->quitRequested = true;
+      if (impl_->videoPlayer) {
+        impl_->videoPlayer->stop();
+        impl_->videoPlayer.reset();
+      }
+      impl_->bgmPlayer.Stop();
+      for (auto &wp : impl_->wavePlayers)
+        wp.Stop();
+      SDL_Event quit{};
+      quit.type = SDL_EVENT_QUIT;
+      SDL_PushEvent(&quit);
+    }
+    return;
+  }
 
   // Sync newly completed pages into PONscripter's VNBacklog override
   if (impl_->backlog) {
@@ -1686,6 +1706,10 @@ bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
                 vm_.resetToStart();
                 return true;
               }
+              if (entry.command == "end") {
+                vm_.enterSystemCall("end");
+                return true;
+              }
               if (entry.command == "save" || entry.command == "load" ||
                   entry.command == "lookback") {
                 // Transition directly from rmenu into the selected modal
@@ -1801,8 +1825,12 @@ bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
         }
         return true;
       }
-      // B: Open PONscripter VNBacklog (with voice replay!)
-      if (event.key.key == SDLK_B && impl_->backlog) {
+      // B / PageUp (outside lookback): Open PONscripter VNBacklog (with voice replay!)
+      if ((event.key.key == SDLK_B ||
+           (event.key.key == SDLK_PAGEUP &&
+            !(vm_.waitState() == WaitState::WaitSystemCall &&
+              vm_.activeSystemCall() == "lookback"))) &&
+          impl_->backlog) {
         impl_->backlog->toggle();
         return true;
       }
@@ -1847,7 +1875,7 @@ bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
       vm_.setAutoMode(!vm_.isAutoMode());
       return true;
     }
-    if (event.key.key == SDLK_ESCAPE) {
+    if (event.key.key == SDLK_ESCAPE || event.key.key == SDLK_AC_BACK) {
       if (vm_.rightClick())
         return true;
       return Runtime::onEvent(rawEvent);

@@ -42,10 +42,22 @@ class SummerText final : public VNTextBox {
   std::string frameTexb, frameCmap, selectTexb, nameTexb;
   bool lostM = false;
   bool srv2 = false;
+  bool imouto = false;
+  bool meo = false;
   int nameId = -1;
   bool useCustomPlayerName = false;
   SDL_Color actorColor{240, 240, 245, 255};
   void renderFrame(RendererRef r) override {
+    if (meo) {
+      // MEO renders dialogue subtitles over MPEG-1 video without a TEXB frame.
+      SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(&r, 10, 12, 22, 190);
+      const SDL_FRect bar{20, 418, 760, 162};
+      SDL_RenderFillRect(&r, &bar);
+      SDL_SetRenderDrawColor(&r, 255, 255, 255, 65);
+      SDL_RenderRect(&r, &bar);
+      return;
+    }
     // The normal frame is already composited by the stage. Overlay the
     // original atlas states without rebuilding/upscaling the whole canvas.
     if (assets.contains(frameTexb)) {
@@ -121,7 +133,10 @@ class SummerText final : public VNTextBox {
       }
       return;
     }
-    engine.GetVNUI().text(r, speakerName, 24, 400, 650,
+    const float speakerX = imouto ? 62.0f : (meo ? 38.0f : 24.0f);
+    const float speakerY = imouto ? 454.0f : (meo ? 426.0f : 400.0f);
+    const float speakerW = imouto ? 676.0f : (meo ? 724.0f : 650.0f);
+    engine.GetVNUI().text(r, speakerName, speakerX, speakerY, speakerW,
                           engine.GetSettings().vnTextColorOverride
                               ? engine.GetSettings().vnSpeakerColor
                               : SDL_Color{240, 240, 245, 255});
@@ -130,9 +145,11 @@ class SummerText final : public VNTextBox {
     auto measure = [&](const std::string &value) {
       return engine.GetVNUI().textWidth(value);
     };
-    const float boxX = lostM ? 80.0f : 20.0f;
-    const float boxY = lostM ? 434.0f : 444.0f;
-    const float boxW = lostM ? 644.0f : 710.0f;
+    const float boxX = lostM ? 80.0f : (imouto ? 62.0f : (meo ? 38.0f : 20.0f));
+    const float boxY =
+        lostM ? 434.0f : (imouto ? 486.0f : (meo ? 460.0f : 444.0f));
+    const float boxW =
+        lostM ? 644.0f : (imouto ? 676.0f : (meo ? 724.0f : 710.0f));
     const SDL_Color color = engine.GetSettings().vnTextColorOverride
                                 ? engine.GetSettings().vnTextColor
                                 : actorColor;
@@ -182,7 +199,9 @@ public:
   }
   SummerText(Engine &e, Kotonoha::Providers::SummerAssets &a)
       : VNTextBox(e, "", "", 40), assets(a), lostM(a.isLostM()),
-        srv2(!a.isLostM() && a.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB")) {
+        srv2(!a.isLostM() && a.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB")),
+        imouto(a.isImoutoDeIkou()),
+        meo(!a.isImoutoDeIkou() && a.contains("SCRIPT/A-00.XML")) {
     // SRV2/LostM use GRAPHIC/MESFRAME/*; SRV1 uses GRAPHIC/FRAME/*.
     const bool useMesframe = lostM || srv2;
     const std::string prefix =
@@ -273,16 +292,31 @@ class SummerChoice final : public ChoiceQuestionScene {
       source = {start + capL + midW, 0, capR, 42};
       target = {rect.x + rect.w - capR, rect.y, capR, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
+    } else {
+      SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(&r, focused ? 72 : 20, focused ? 46 : 24,
+                             focused ? 116 : 42, focused ? 240 : 215);
+      SDL_RenderFillRect(&r, &rect);
+      SDL_SetRenderDrawColor(&r, focused ? 255 : 180, focused ? 225 : 190,
+                             focused ? 150 : 220, focused ? 235 : 160);
+      SDL_RenderRect(&r, &rect);
     }
-    const auto size =
-        engine.GetUI().measureSized(options[index].label, rect.w - 16, 28);
+    const float maxTextW = std::max(64.0f, rect.w - capL - capR);
+    float fontSize = 28.0f;
+    SDL_FPoint size =
+        engine.GetUI().measureSized(options[index].label, 10000.0f, fontSize);
+    while (size.x > maxTextW && fontSize > 16.0f) {
+      fontSize -= 2.0f;
+      size =
+          engine.GetUI().measureSized(options[index].label, 10000.0f, fontSize);
+    }
     const SDL_Color color = read ? (focused ? SDL_Color{255, 240, 128, 255}
                                             : SDL_Color{204, 192, 96, 255})
                                  : (focused ? SDL_Color{240, 240, 240, 255}
                                             : SDL_Color{192, 192, 192, 255});
     engine.GetUI().textSized(
         r, options[index].label, rect.x + (rect.w - size.x) / 2,
-        rect.y + (42 - size.y) / 2, rect.w - 16, 28, color);
+        rect.y + (42 - size.y) / 2, maxTextW, fontSize, color);
   }
   SDL_FRect listArea() const override { return {0, 0, 800, 600}; }
   void renderPanel(RendererRef r) override {
@@ -294,10 +328,13 @@ class SummerChoice final : public ChoiceQuestionScene {
   std::unique_ptr<ClickMap> hitmap;
   int nativeMode = -1, focus = -1, uniformPhase = 0, uniformIndex = 0;
   bool isSrv2 = false;
+  bool pointerDownInChoice = false;
+  Uint64 uniformPhaseStart = 0;
   float oldX = -100, oldY = -100;
 
 public:
   std::function<void(const std::string &)> nativeSound;
+  std::function<bool()> nativeSoundPlaying;
   explicit SummerChoice(Engine &e, Kotonoha::Providers::SummerAssets &a)
       : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {
     isSrv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
@@ -330,6 +367,8 @@ public:
     nativeMode = mode;
     focus = uniform ? 0 : -1;
     uniformPhase = 0;
+    pointerDownInChoice = false;
+    uniformPhaseStart = SDL_GetTicks();
     oldX = oldY = -100;
     const auto id = uniform ? "GRAPHIC/UNIFORM/UNICHOICE.CMAP"
                             : mapLayout(mode, isSrv2).hitmap;
@@ -452,10 +491,16 @@ public:
     }
     if (!active)
       return false;
+    if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        e.button.button == SDL_BUTTON_LEFT)
+      pointerDownInChoice = true;
     bool confirm = e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
                    (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE);
     bool mouse = e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
-                 e.button.button == SDL_BUTTON_LEFT;
+                 e.button.button == SDL_BUTTON_LEFT && pointerDownInChoice;
+    if (e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+        e.button.button == SDL_BUTTON_LEFT)
+      pointerDownInChoice = false;
     if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
       if (e.key.key == SDLK_ESCAPE) {
         if (nativeMode == 100 && uniformPhase) {
@@ -529,16 +574,34 @@ public:
     if (uniformPhase == 0 && focus >= 0) {
       uniformIndex = focus;
       uniformPhase = 1;
+      uniformPhaseStart = SDL_GetTicks();
       if (nativeSound) {
-        if (isSrv2)
-          nativeSound("SE/SELUNI/00" + std::to_string(2 * (uniformIndex + 1)));
-        else
-          nativeSound("systemmsg_000" + std::to_string(4 * (uniformIndex + 1)));
+        if (isSrv2) {
+          // Verified from SummerRadish2.sdll: 0=deccru->004, 1=declem->002,
+          // 2=decsuk->006.
+          static const char *srv2UniformVoices[3] = {
+              "SE/SELUNI/004", "SE/SELUNI/002", "SE/SELUNI/006"};
+          nativeSound(srv2UniformVoices[std::clamp(uniformIndex, 0, 2)]);
+        } else {
+          // Verified from SummerRadish.sdll: 0->0004, 1->0008, 2->0012.
+          static const char *srv1UniformVoices[3] = {
+              "systemmsg_0004", "systemmsg_0008", "systemmsg_0012"};
+          nativeSound(srv1UniformVoices[std::clamp(uniformIndex, 0, 2)]);
+        }
       }
       return true;
     }
     if (uniformPhase == 1) {
+      const Uint64 now = SDL_GetTicks();
+      const Uint64 elapsed =
+          now >= uniformPhaseStart ? now - uniformPhaseStart : 0;
+      // Let the outfit-name voice line play completely (matching the native
+      // crossfade wipe + voice delivery) before opening the confirm dialog.
+      if (elapsed < 450 ||
+          (nativeSoundPlaying && nativeSoundPlaying() && elapsed < 3000))
+        return true;
       uniformPhase = 2;
+      uniformPhaseStart = now;
       focus = -1;
       if (nativeSound)
         nativeSound(isSrv2 ? "SE/SELUNI/008" : "systemmsg_0016");
@@ -546,15 +609,16 @@ public:
     }
     if (uniformPhase == 2 && focus == 0) {
       if (nativeSound)
-        nativeSound(isSrv2 ? "SE/SELUNI/010" : "systemmsg_0020");
+        nativeSound(isSrv2 ? "SE/SELUNI/014" : "systemmsg_0020");
       select(size_t(uniformIndex));
       return true;
     }
     if (uniformPhase == 2 && focus == 1) {
       uniformPhase = 0;
+      uniformPhaseStart = SDL_GetTicks();
       focus = uniformIndex;
       if (nativeSound)
-        nativeSound(isSrv2 ? "SE/SELUNI/014" : "systemmsg_0024");
+        nativeSound(isSrv2 ? "SE/SELUNI/010" : "systemmsg_0024");
       return true;
     }
     return false;
@@ -706,10 +770,14 @@ struct SummerRuntime::Impl {
     uint8_t r = 0, g = 0, b = 0;
   };
   bool meo = false, meoMenu = false, meoSceneMenu = false;
+  bool meoLogoActive = false;
+  Uint64 meoLogoStart = 0;
+  Uint64 meoTitleFadeStart = 0;
   bool meoOverlayOpen = false;
   int meoOverlayFocus = 0; // 0=SPEED, 1=SAVE, 2=BACKLOG, 3=SYSTEM, 4=STOP
   int meoSpeedIndex = 0;   // 0=1x, 1=1.5x, 2=2x, 3=3x, 4=4x
   Bytes meoSystemMap;
+  Bytes meoTitleMap;
   std::map<std::string, Bytes> meoScripts;
   std::vector<std::string> meoScenes;
   size_t meoSceneFocus = 0;
@@ -814,6 +882,8 @@ struct SummerRuntime::Impl {
         meoScenes.push_back(stem(id.substr(id.find_last_of('/') + 1)));
       if (assets->contains("GRAPHIC/SYSTEM.MAP"))
         meoSystemMap = assets->read("GRAPHIC/SYSTEM.MAP");
+      if (assets->contains("GRAPHIC/TITLE.MAP"))
+        meoTitleMap = assets->read("GRAPHIC/TITLE.MAP");
     } else {
       for (auto &id : assets->list("SCRIPT/")) {
         auto bytes = assets->read(id);
@@ -1687,16 +1757,41 @@ struct SummerRuntime::Impl {
       text->setDialogue("", "MEO timeline loaded, but no Frame nodes found.");
     }
   }
-  void openMeoMenu() {
+  void openMeoLogo() {
     if (movie)
       movie->stop();
     bgm.Stop();
     voice.Stop();
     music.clear();
+    if (!assets->contains("GRAPHIC/ROGO.TEX")) {
+      openMeoMenu(false);
+      return;
+    }
+    meoLogoActive = true;
+    meoLogoStart = SDL_GetTicks();
+    meoTitleFadeStart = 0;
     meoMenu = true;
     meoSceneMenu = false;
     titleFocus = 0;
     text->hide();
+    runtime.SetState(GameState::Menu);
+  }
+  void openMeoMenu(bool fadeIn = false) {
+    if (movie)
+      movie->stop();
+    bgm.Stop();
+    voice.Stop();
+    music.clear();
+    meoLogoActive = false;
+    meoTitleFadeStart = fadeIn ? SDL_GetTicks() : 0;
+    meoMenu = true;
+    meoSceneMenu = false;
+    titleFocus = 0;
+    text->hide();
+    if (assets->contains("SOUND/MEO02.BGM")) {
+      music = "SOUND/MEO02.BGM";
+      audio(bgm, music, "BGM", true);
+    }
     runtime.SetState(GameState::Menu);
   }
   void updateMeo(Uint64 now) {
@@ -2296,7 +2391,8 @@ struct SummerRuntime::Impl {
       text = std::make_unique<SummerText>(e, *assets);
       text->autoActive = [this] { return autoMode; };
       text->skipActive = [this] { return skipMode || skipHeld; };
-      if (assets->isLostM()) {
+      if (assets->isLostM() ||
+          assets->contains("GRAPHIC/MESFRAME/MESFRAME.TEXB")) {
         text->controls.buttons[0].action = [this] {
           skipMode = !skipMode;
           if (skipMode)
@@ -2351,6 +2447,7 @@ struct SummerRuntime::Impl {
       choice->nativeSound = [this](const std::string &id) {
         audio(se, "SOUND/" + id + ".ogg", "Se");
       };
+      choice->nativeSoundPlaying = [this] { return se.Playing(); };
       stage->draw = [this](RendererRef r, float scale) { draw(r, scale); };
       stage->event = [this](EventRef e) { return event(e); };
     }
@@ -2378,7 +2475,7 @@ struct SummerRuntime::Impl {
             auto &atlas = assets->texture(renderer, "GRAPHIC/SYSTEM.TEX");
             SDL_FRect source{0, 0, 640, 60};
             SDL_FRect target{80, 60, 1120, 105};
-            SDL_RenderTexture(&renderer, &atlas, &source, &target);
+            RenderUpscaledTexture(&renderer, &atlas, &source, &target);
           },
           [this](RendererRef renderer, int index, bool focused) {
             static constexpr float rows[] = {328, 240, 284, 196, 196, 328};
@@ -2387,7 +2484,7 @@ struct SummerRuntime::Impl {
             auto &atlas = assets->texture(renderer, "GRAPHIC/SYSTEM.TEX");
             SDL_FRect source{0, rows[index], 640, 42};
             SDL_FRect target{120, float(180 + index * 74), 1040, 62};
-            SDL_RenderTexture(&renderer, &atlas, &source, &target);
+            RenderUpscaledTexture(&renderer, &atlas, &source, &target);
             if (focused) {
               SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
               SDL_SetRenderDrawColor(&renderer, 255, 220, 130, 70);
@@ -2421,7 +2518,7 @@ struct SummerRuntime::Impl {
       loadSystem();
       loaded = true;
       if (meo)
-        openMeoMenu();
+        openMeoLogo();
       else if (imouto)
         openImoutoMenu();
       else
@@ -2879,33 +2976,78 @@ struct SummerRuntime::Impl {
   }
   void draw(RendererRef r, float) {
     if (meo) {
+      if (meoLogoActive) {
+        SDL_SetRenderDrawColor(&r, 0, 0, 0, 255);
+        SDL_RenderClear(&r);
+        const SDL_FRect src{0, 0, 640, 480};
+        const SDL_FRect dst{0, 0, 800, 600};
+        picture(r, "GRAPHIC/ROGO.TEX", dst, &src);
+        // MEOModule.gem @ 0x100028a0: 1000ms fade-in, 2000ms hold, 1000ms
+        // fade-out.
+        const Uint64 now = SDL_GetTicks();
+        const Uint64 elapsed = now >= meoLogoStart ? now - meoLogoStart : 0;
+        Uint8 blackAlpha = 0;
+        if (elapsed < 1000)
+          blackAlpha = Uint8(255 - (elapsed * 255) / 1000);
+        else if (elapsed >= 3000)
+          blackAlpha =
+              Uint8(std::min<Uint64>(255, ((elapsed - 3000) * 255) / 1000));
+        if (blackAlpha > 0) {
+          SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawColor(&r, 0, 0, 0, blackAlpha);
+          SDL_RenderFillRect(&r, &dst);
+        }
+        return;
+      }
       if (meoMenu) {
         SDL_SetRenderDrawColor(&r, 0, 0, 0, 255);
         SDL_RenderClear(&r);
         const SDL_FRect source{0, 0, 640, 480};
         const SDL_FRect destination{0, 0, 800, 600};
         picture(r, "GRAPHIC/TITLE.TEX", destination, &source);
-        const SDL_FRect selected{194, float(480 + titleFocus * 48), 194, 48};
-        const SDL_FRect button{410, float(120 + titleFocus * 60), 243, 60};
-        picture(r, "GRAPHIC/TITLE.TEX", button, &selected);
+        // Exact TITLE.MAP button rectangles in 640x480 scaled 1.25x to 800x600.
+        static constexpr SDL_FRect kTitleBtn800[4] = {
+            {410.0f, 120.00f, 240.0f, 57.50f},
+            {410.0f, 177.50f, 240.0f, 56.25f},
+            {410.0f, 233.75f, 240.0f, 56.25f},
+            {410.0f, 303.75f, 240.0f, 56.25f}};
+        if (titleFocus >= 0 && titleFocus < 4) {
+          const SDL_FRect selected{194, float(480 + titleFocus * 48), 192, 45};
+          picture(r, "GRAPHIC/TITLE.TEX", kTitleBtn800[titleFocus], &selected);
+        }
+        if (meoTitleFadeStart > 0) {
+          const Uint64 now = SDL_GetTicks();
+          const Uint64 elapsed =
+              now >= meoTitleFadeStart ? now - meoTitleFadeStart : 0;
+          if (elapsed < 1000) {
+            SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(&r, 0, 0, 0,
+                                   Uint8(255 - (elapsed * 255) / 1000));
+            SDL_RenderFillRect(&r, &destination);
+          } else {
+            meoTitleFadeStart = 0;
+          }
+        }
         if (meoSceneMenu) {
           SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
           SDL_SetRenderDrawColor(&r, 16, 18, 28, 238);
           const SDL_FRect panel{100, 70, 600, 470};
           SDL_RenderFillRect(&r, &panel);
+          SDL_SetRenderDrawColor(&r, 255, 255, 255, 90);
+          SDL_RenderRect(&r, &panel);
           const size_t page = meoSceneFocus / 12;
-          SDL_SetRenderDrawColor(&r, 255, 255, 255, 255);
-          SDL_RenderDebugText(&r, 130, 95,
-                              "SCENE  UP/DOWN: SELECT  ENTER: PLAY  ESC: BACK");
+          engine->GetUI().textSized(
+              r, "SCENE  UP/DOWN: SELECT  ENTER: PLAY  ESC: BACK", 130, 88, 540,
+              18, {255, 255, 255, 255});
           for (size_t row = 0; row < 12; ++row) {
             const size_t index = page * 12 + row;
             if (index >= meoScenes.size())
               break;
-            SDL_SetRenderDrawColor(&r, index == meoSceneFocus ? 255 : 180,
-                                   index == meoSceneFocus ? 212 : 180,
-                                   index == meoSceneFocus ? 110 : 180, 255);
-            SDL_RenderDebugText(&r, 150, float(130 + row * 31),
-                                meoScenes[index].c_str());
+            const SDL_Color col =
+                index == meoSceneFocus ? SDL_Color{255, 212, 110, 255}
+                                       : SDL_Color{200, 205, 220, 255};
+            engine->GetUI().textSized(r, meoScenes[index], 150,
+                                      float(126 + row * 32), 480, 20, col);
           }
         }
         return;
@@ -2966,8 +3108,8 @@ struct SummerRuntime::Impl {
             std::clamp(float(love) / float(maxLove), 0.0f, 1.0f);
         if (ratio > 0.0f) {
           const SDL_FRect gaugeSrc{640, 30, 280.0f * ratio, 16};
-          const SDL_FRect gaugeDst{62 * sx, 33 * sy, 180.0f * ratio * sx,
-                                   14 * sy};
+          const SDL_FRect gaugeDst{96 * sx, 28 * sy, 280.0f * ratio * sx,
+                                   16 * sy};
           picture(r, "GRAPHIC/SYSTEM.TEX", gaugeDst, &gaugeSrc);
         }
         // 5 native buttons from SYSTEM.MAP: SPEED, SAVE, BACKLOG, SYSTEM, STOP
@@ -3038,9 +3180,11 @@ struct SummerRuntime::Impl {
         if (!imoutoMenu && text->isVisible() && !text->concealed &&
             assets->contains("SYSDAT/WIN.TEXB")) {
           const auto &win = image("SYSDAT/WIN.TEXB");
-          compositeImageRegion(canvas, win, 0, 391, 0, 0,
-                               std::min(800, win.width),
-                               std::min(209, win.height));
+          // SYSDAT/WIN.TEXB is 732x600; y=0..155 is the message frame + top
+          // tabs, y>=156 contains hover/indicator sprite sheets.
+          compositeImageRegion(canvas, win, 34, 432, 0, 0,
+                               std::min(732, win.width),
+                               std::min(156, win.height));
         }
         if (!canvasTexture)
           canvasTexture.reset(SDL_CreateTexture(&r, SDL_PIXELFORMAT_RGBA32,
@@ -3057,18 +3201,33 @@ struct SummerRuntime::Impl {
       RenderUpscaledTexture(&r, canvasTexture.get(), nullptr, &target,
                             canvasContentSerial);
       if (imoutoMenu) {
-        static constexpr const char *kLabels[4] = {"START", "LOAD", "CONFIG",
-                                                   "EXIT"};
-        SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
-        for (int b = 0; b < 4; ++b) {
-          const SDL_FRect btn{540, float(340 + b * 52), 200, 40};
-          const bool focused = (b == titleFocus);
-          SDL_SetRenderDrawColor(&r, focused ? 240 : 28, focused ? 130 : 32,
-                                 focused ? 170 : 54, focused ? 235 : 190);
-          SDL_RenderFillRect(&r, &btn);
-          SDL_SetRenderDrawColor(&r, 255, 255, 255, 255);
-          SDL_RenderRect(&r, &btn);
-          SDL_RenderDebugText(&r, btn.x + 68, btn.y + 16, kLabels[b]);
+        if (assets->contains("SYSDAT/MENU.TEXB")) {
+          // SYSDAT/MENU.TEXB (744x351): 9 rows of 39px; left half (x=0..371)
+          // is focused, right half (x=372..743) is unfocused.
+          // Rows: 0=START, 1=LOAD, 2=CONFIG, 4=EXIT.
+          static constexpr int kMenuRows[4] = {0, 1, 2, 4};
+          for (int b = 0; b < 4; ++b) {
+            const bool focused = (b == titleFocus);
+            const SDL_FRect src{focused ? 0.0f : 372.0f,
+                                float(kMenuRows[b] * 39), 372.0f, 39.0f};
+            const SDL_FRect dst{414.0f, float(350 + b * 48), 372.0f, 39.0f};
+            picture(r, "SYSDAT/MENU.TEXB", dst, &src);
+          }
+        } else {
+          static constexpr const char *kLabels[4] = {"START", "LOAD", "CONFIG",
+                                                     "EXIT"};
+          SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+          for (int b = 0; b < 4; ++b) {
+            const SDL_FRect btn{540, float(340 + b * 52), 200, 40};
+            const bool focused = (b == titleFocus);
+            SDL_SetRenderDrawColor(&r, focused ? 240 : 28, focused ? 130 : 32,
+                                   focused ? 170 : 54, focused ? 235 : 190);
+            SDL_RenderFillRect(&r, &btn);
+            SDL_SetRenderDrawColor(&r, 255, 255, 255, 255);
+            SDL_RenderRect(&r, &btn);
+            engine->GetUI().textSized(r, kLabels[b], btn.x + 20, btn.y + 8, 160,
+                                      22, {255, 255, 255, 255});
+          }
         }
       }
       if (pending == "MOVIE" && movie && movie->isOpen()) {
@@ -3193,10 +3352,42 @@ struct SummerRuntime::Impl {
     }
   }
   bool event(EventRef e) {
+    if (meo && meoLogoActive) {
+      if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) ||
+          (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+           (e.button.button == SDL_BUTTON_LEFT ||
+            e.button.button == SDL_BUTTON_RIGHT))) {
+        openMeoMenu(false);
+        return true;
+      }
+      return true;
+    }
     if (meo && meoMenu) {
+      auto hitMeoTitle = [this](float x, float y) -> int {
+        const int mx = int(x * 640.0f / 800.0f);
+        const int my = int(y * 480.0f / 600.0f);
+        if (mx < 0 || mx >= 640 || my < 0 || my >= 480)
+          return -1;
+        if (meoTitleMap.size() >= 8 + 640u * 480u) {
+          const uint8_t id = meoTitleMap[8 + size_t(my) * 640u + size_t(mx)];
+          if (id >= 1 && id <= 4)
+            return int(id) - 1;
+        }
+        static constexpr SDL_FRect kTitleBtn800[4] = {
+            {410.0f, 120.00f, 240.0f, 57.50f},
+            {410.0f, 177.50f, 240.0f, 56.25f},
+            {410.0f, 233.75f, 240.0f, 56.25f},
+            {410.0f, 303.75f, 240.0f, 56.25f}};
+        const SDL_FPoint pt{x, y};
+        for (int i = 0; i < 4; ++i)
+          if (SDL_PointInRectFloat(&pt, &kTitleBtn800[i]))
+            return i;
+        return -1;
+      };
       if (meoSceneMenu) {
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
-          if (e.key.key == SDLK_ESCAPE || e.key.key == SDLK_BACKSPACE)
+          if (e.key.key == SDLK_ESCAPE || e.key.key == SDLK_BACKSPACE ||
+              e.key.key == SDLK_AC_BACK)
             meoSceneMenu = false;
           else if (e.key.key == SDLK_UP && meoSceneFocus > 0)
             --meoSceneFocus;
@@ -3208,7 +3399,7 @@ struct SummerRuntime::Impl {
             beginMeo(meoScenes[meoSceneFocus]);
         } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
                    e.button.button == SDL_BUTTON_LEFT) {
-          const int row = int((e.button.y - 130) / 31);
+          const int row = int((e.button.y - 126) / 32);
           if (e.button.x >= 150 && e.button.x < 650 && row >= 0 && row < 12) {
             const size_t index = meoSceneFocus / 12 * 12 + size_t(row);
             if (index < meoScenes.size()) {
@@ -3238,26 +3429,26 @@ struct SummerRuntime::Impl {
             SDL_PushEvent(&quit);
           }
         }
+      } else if (e.type == SDL_EVENT_MOUSE_MOTION) {
+        const int hit = hitMeoTitle(e.motion.x, e.motion.y);
+        if (hit >= 0)
+          titleFocus = hit;
       } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
                  e.button.button == SDL_BUTTON_LEFT) {
-        for (int i = 0; i < 4; ++i) {
-          const SDL_FRect button{410, float(120 + i * 60), 243, 60};
-          const SDL_FPoint point{e.button.x, e.button.y};
-          if (SDL_PointInRectFloat(&point, &button)) {
-            titleFocus = i;
-            if (i == 0)
-              beginMeo("A-00");
-            else if (i == 1)
-              openSaves(true);
-            else if (i == 2) {
-              meoSceneMenu = true;
-              meoSceneFocus = 0;
-            } else if (i == 3) {
-              SDL_Event quit{};
-              quit.type = SDL_EVENT_QUIT;
-              SDL_PushEvent(&quit);
-            }
-            break;
+        const int hit = hitMeoTitle(e.button.x, e.button.y);
+        if (hit >= 0) {
+          titleFocus = hit;
+          if (hit == 0)
+            beginMeo("A-00");
+          else if (hit == 1)
+            openSaves(true);
+          else if (hit == 2) {
+            meoSceneMenu = true;
+            meoSceneFocus = 0;
+          } else if (hit == 3) {
+            SDL_Event quit{};
+            quit.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&quit);
           }
         }
       }
@@ -3303,7 +3494,8 @@ struct SummerRuntime::Impl {
       };
       if (meoOverlayOpen) {
         if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
-          if (e.key.key == SDLK_ESCAPE || e.key.key == SDLK_BACKSPACE) {
+          if (e.key.key == SDLK_ESCAPE || e.key.key == SDLK_BACKSPACE ||
+              e.key.key == SDLK_AC_BACK) {
             meoOverlayOpen = false;
           } else if (e.key.key == SDLK_LEFT || e.key.key == SDLK_UP) {
             meoOverlayFocus = (meoOverlayFocus + 4) % 5;
@@ -3368,6 +3560,12 @@ struct SummerRuntime::Impl {
           SDL_PushEvent(&quit);
         }
       };
+      const bool hasNativeMenu = assets->contains("SYSDAT/MENU.TEXB");
+      auto imoutoBtnRect = [hasNativeMenu](int b) -> SDL_FRect {
+        return hasNativeMenu
+                   ? SDL_FRect{414.0f, float(350 + b * 48), 372.0f, 39.0f}
+                   : SDL_FRect{540.0f, float(340 + b * 52), 200.0f, 40.0f};
+      };
       if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
         if (e.key.key == SDLK_UP)
           titleFocus = (titleFocus + 3) % 4;
@@ -3378,7 +3576,7 @@ struct SummerRuntime::Impl {
       } else if (e.type == SDL_EVENT_MOUSE_MOTION) {
         const SDL_FPoint pt{e.motion.x, e.motion.y};
         for (int b = 0; b < 4; ++b) {
-          const SDL_FRect btn{540, float(340 + b * 52), 200, 40};
+          const SDL_FRect btn = imoutoBtnRect(b);
           if (SDL_PointInRectFloat(&pt, &btn))
             titleFocus = b;
         }
@@ -3386,7 +3584,7 @@ struct SummerRuntime::Impl {
                  e.button.button == SDL_BUTTON_LEFT) {
         const SDL_FPoint pt{e.button.x, e.button.y};
         for (int b = 0; b < 4; ++b) {
-          const SDL_FRect btn{540, float(340 + b * 52), 200, 40};
+          const SDL_FRect btn = imoutoBtnRect(b);
           if (SDL_PointInRectFloat(&pt, &btn)) {
             titleFocus = b;
             runTitleBtn(b);
@@ -3608,6 +3806,12 @@ void SummerRuntime::update() {
   auto &i = *impl;
   if (i.meo) {
     const auto now = SDL_GetTicks();
+    if (i.meoLogoActive) {
+      i.lastUpdate = now;
+      if (now >= i.meoLogoStart && now - i.meoLogoStart >= 4000)
+        i.openMeoMenu(true);
+      return;
+    }
     const bool paused = i.engine->isStoryPaused() || i.meoOverlayOpen;
     i.bgm.SetPaused(paused);
     i.se.SetPaused(paused);
@@ -3769,8 +3973,12 @@ void SummerRuntime::update() {
 }
 bool SummerRuntime::onEvent(EventRef e) {
   auto &i = *impl;
-  if (i.meo)
-    return Runtime::onEvent(e);
+  if (i.meo) {
+    for (auto *scene : GetActiveScenes())
+      if (scene && scene->capturesInput())
+        return Runtime::onEvent(e);
+    return Runtime::onEvent(MapControllerEvent(e, false));
+  }
   // Shared modals (pause, save browser, history, name entry) and choices map
   // controller buttons in their own context. Pre-mapping would turn South
   // into held skip while a menu is open.

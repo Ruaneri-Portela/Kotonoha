@@ -15,6 +15,10 @@
 #include "macos/KotonohaMacLauncherBridge.h"
 #endif
 
+#include <algorithm>
+#include <cctype>
+#include <charconv>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
@@ -72,7 +76,7 @@ struct ScopedGameUserData {
   }
 };
 
-struct PendingIOSLaunch {
+struct PendingNativeLaunch {
   std::string gamePath;
   std::string engineSlug;
   std::string saveProfileId;
@@ -80,6 +84,100 @@ struct PendingIOSLaunch {
   std::string customSaveRoot;
   KotonohaLauncher::GameLaunchParameters params;
 };
+
+PendingNativeLaunch
+fromLaunchRequest(const KotonohaGameLaunchRequest &req) {
+  PendingNativeLaunch launch;
+  launch.gamePath = req.gamePath ? req.gamePath : "";
+  launch.engineSlug = req.engineSlug ? req.engineSlug : "";
+  launch.saveProfileId = req.saveProfileId ? req.saveProfileId : "";
+  launch.splitSavesByGame = req.splitSavesByGame != 0;
+  launch.customSaveRoot = req.customSaveRoot ? req.customSaveRoot : "";
+  launch.params.assetOverlayPath =
+      req.assetOverlayPath ? req.assetOverlayPath : "";
+  launch.params.translationPath =
+      req.translationPath ? req.translationPath : "";
+  launch.params.subtitleStylePath =
+      req.subtitleStylePath ? req.subtitleStylePath : "";
+  launch.params.customDocumentsDir =
+      req.customDocumentsDir ? req.customDocumentsDir : "";
+  launch.params.ktrfPath = req.ktrfPath ? req.ktrfPath : "";
+  launch.params.scriptsDir = req.scriptsDir ? req.scriptsDir : "";
+  launch.params.startScenario = req.startScenario ? req.startScenario : "";
+  launch.params.rendererBackend =
+      req.rendererBackend ? req.rendererBackend : "";
+  launch.params.upscalerBackend =
+      req.upscalerBackend ? req.upscalerBackend : "";
+  launch.params.upscalerPreset = req.upscalerPreset ? req.upscalerPreset : "";
+  launch.params.upscalerFactor = req.upscalerFactor ? req.upscalerFactor : "";
+  return launch;
+}
+
+void applyGraphicsParams(const KotonohaLauncher::GameLaunchParameters &params,
+                         Kotonoha::EngineOptions &gameOptions) {
+  if (!params.rendererBackend.empty() && gameOptions.rendererOverride.empty()) {
+    gameOptions.rendererOverride = params.rendererBackend;
+  }
+  if (!params.upscalerBackend.empty() &&
+      !gameOptions.upscalerBackendOverride.has_value()) {
+    std::string key = params.upscalerBackend;
+    std::transform(key.begin(), key.end(), key.begin(), [](unsigned char ch) {
+      return static_cast<char>(std::tolower(ch));
+    });
+    if (key == "none" || key == "off" || key == "0")
+      gameOptions.upscalerBackendOverride = Kotonoha::UpscaleBackend::None;
+    else if (key == "linear" || key == "1")
+      gameOptions.upscalerBackendOverride = Kotonoha::UpscaleBackend::Linear;
+    else if (key == "mpv" || key == "opengl" || key == "2")
+      gameOptions.upscalerBackendOverride = Kotonoha::UpscaleBackend::MPV;
+    else if (key == "metalfx" || key == "3")
+      gameOptions.upscalerBackendOverride = Kotonoha::UpscaleBackend::MetalFX;
+    else if (key == "auto" || key == "automatic" || key == "4")
+      gameOptions.upscalerBackendOverride = Kotonoha::UpscaleBackend::Auto;
+  }
+  if (!params.upscalerPreset.empty() &&
+      !gameOptions.upscalerPresetOverride.has_value()) {
+    int idx = -1;
+    const auto parsed =
+        std::from_chars(params.upscalerPreset.data(),
+                        params.upscalerPreset.data() +
+                            params.upscalerPreset.size(),
+                        idx);
+    const auto &presets = Kotonoha::UpscalePresets();
+    if (parsed.ec == std::errc{} &&
+        parsed.ptr ==
+            params.upscalerPreset.data() + params.upscalerPreset.size() &&
+        idx >= 0 && idx < static_cast<int>(presets.size())) {
+      gameOptions.upscalerPresetOverride =
+          presets[static_cast<std::size_t>(idx)];
+    } else {
+      std::string key = params.upscalerPreset;
+      std::transform(key.begin(), key.end(), key.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+      });
+      for (auto preset : presets) {
+        std::string name = Kotonoha::UpscalePresetName(preset);
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char ch) {
+                         return static_cast<char>(std::tolower(ch));
+                       });
+        if (name == key) {
+          gameOptions.upscalerPresetOverride = preset;
+          break;
+        }
+      }
+    }
+  }
+  if (!params.upscalerFactor.empty() &&
+      !gameOptions.upscalerFactorOverride.has_value()) {
+    char *end = nullptr;
+    const float factor = std::strtof(params.upscalerFactor.c_str(), &end);
+    if (end && *end == '\0' && std::isfinite(factor) && factor >= 1.0f &&
+        factor <= 4.0f) {
+      gameOptions.upscalerFactorOverride = factor;
+    }
+  }
+}
 
 struct Application {
   Kotonoha::EngineOptions options;
@@ -96,14 +194,14 @@ struct Application {
   Kotonoha::WindowPtr iosHubWindow;
   bool iosNativeHubActive = false;
   std::mutex iosLaunchMutex;
-  std::optional<PendingIOSLaunch> pendingIOSLaunch;
+  std::optional<PendingNativeLaunch> pendingIOSLaunch;
   bool pendingIOSQuit = false;
 #endif
 #if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
   Kotonoha::WindowPtr macHubWindow;
   bool macNativeHubActive = false;
   std::mutex macLaunchMutex;
-  std::optional<std::string> pendingMacLaunch;
+  std::optional<PendingNativeLaunch> pendingMacLaunch;
   bool pendingMacQuit = false;
 #endif
   std::unique_ptr<ScopedGameUserData> gameEnvironment;
@@ -156,6 +254,7 @@ struct Application {
         gameOptions.subtitleStylePath.empty()) {
       gameOptions.subtitleStylePath = entry.params.subtitleStylePath;
     }
+    applyGraphicsParams(entry.params, gameOptions);
 
     gameEnvironment = std::make_unique<ScopedGameUserData>();
     const std::string effectiveSaveRoot =
@@ -232,23 +331,7 @@ struct Application {
     if (!req || !userData)
       return;
     auto *self = static_cast<Application *>(userData);
-    PendingIOSLaunch launch;
-    launch.gamePath = req->gamePath ? req->gamePath : "";
-    launch.engineSlug = req->engineSlug ? req->engineSlug : "";
-    launch.saveProfileId = req->saveProfileId ? req->saveProfileId : "";
-    launch.splitSavesByGame = req->splitSavesByGame != 0;
-    launch.customSaveRoot = req->customSaveRoot ? req->customSaveRoot : "";
-    launch.params.assetOverlayPath =
-        req->assetOverlayPath ? req->assetOverlayPath : "";
-    launch.params.translationPath =
-        req->translationPath ? req->translationPath : "";
-    launch.params.subtitleStylePath =
-        req->subtitleStylePath ? req->subtitleStylePath : "";
-    launch.params.customDocumentsDir =
-        req->customDocumentsDir ? req->customDocumentsDir : "";
-    launch.params.ktrfPath = req->ktrfPath ? req->ktrfPath : "";
-    launch.params.scriptsDir = req->scriptsDir ? req->scriptsDir : "";
-    launch.params.startScenario = req->startScenario ? req->startScenario : "";
+    PendingNativeLaunch launch = fromLaunchRequest(*req);
     std::lock_guard<std::mutex> lock(self->iosLaunchMutex);
     self->pendingIOSLaunch = std::move(launch);
   }
@@ -263,12 +346,14 @@ struct Application {
 #endif
 
 #if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
-  static void onMacNativeLaunch(const char *path, void *userData) {
+  static void onMacNativeLaunch(const KotonohaGameLaunchRequest *req,
+                                void *userData) {
     auto *self = static_cast<Application *>(userData);
-    if (!self || !path)
+    if (!self || !req)
       return;
+    PendingNativeLaunch launch = fromLaunchRequest(*req);
     std::lock_guard<std::mutex> lock(self->macLaunchMutex);
-    self->pendingMacLaunch = path;
+    self->pendingMacLaunch = std::move(launch);
   }
 
   static void onMacNativeQuit(void *userData) {
@@ -507,7 +592,7 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
     auto &app = *static_cast<Application *>(state);
 #if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
     if (app.macNativeHubActive) {
-      std::optional<std::string> pending;
+      std::optional<PendingNativeLaunch> pending;
       bool shouldQuit = false;
       {
         std::lock_guard<std::mutex> lock(app.macLaunchMutex);
@@ -524,14 +609,20 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
       }
       if (pending) {
         const auto detected =
-            KotonohaLauncher::detectKotonohaEngineFromPath(*pending);
+            KotonohaLauncher::detectKotonohaEngineFromPath(pending->gamePath);
         if (detected.kind == Kotonoha::Filesystem::EngineKind::Unknown) {
           SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                       "Could not detect engine for: %s", pending->c_str());
+                       "Could not detect engine for: %s",
+                       pending->gamePath.c_str());
           return SDL_APP_CONTINUE;
         }
-        const auto entry = KotonohaLauncher::buildDiscoveredGameEntry(
-            *pending, detected);
+        auto entry = KotonohaLauncher::buildDiscoveredGameEntry(
+            pending->gamePath, detected);
+        if (!pending->saveProfileId.empty())
+          entry.saveProfileId = pending->saveProfileId;
+        entry.params = pending->params;
+        app.splitSavesByGame = pending->splitSavesByGame;
+        app.customSaveRoot = pending->customSaveRoot;
         KotonohaMacDismissNativeLauncher();
         app.macNativeHubActive = false;
         app.macHubWindow.reset();
@@ -545,7 +636,7 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
 #endif
 #if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
     if (app.iosNativeHubActive) {
-      std::optional<PendingIOSLaunch> pending;
+      std::optional<PendingNativeLaunch> pending;
       bool shouldQuit = false;
       {
         std::lock_guard<std::mutex> lock(app.iosLaunchMutex);
@@ -571,6 +662,10 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
                        "Could not detect engine for: %s",
                        pending->gamePath.c_str());
           app.openHub();
+          KotonohaIOSPresentError(
+              "Unable to Launch Game",
+              ("Could not detect a supported engine in:\n" + pending->gamePath)
+                  .c_str());
           return SDL_APP_CONTINUE;
         }
         auto entry = KotonohaLauncher::buildDiscoveredGameEntry(
@@ -580,11 +675,24 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
         entry.params = pending->params;
         app.splitSavesByGame = pending->splitSavesByGame;
         app.customSaveRoot = pending->customSaveRoot;
-        if (!app.startInProcess(entry)) {
+        try {
+          if (!app.startInProcess(entry)) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                         "Selected game runtime is not linked: %s",
+                         entry.engine.slug.c_str());
+            app.openHub();
+            KotonohaIOSPresentError(
+                "Engine Not Linked",
+                ("Runtime is not linked in this build: " + entry.engine.slug)
+                    .c_str());
+          }
+        } catch (const std::exception &error) {
           SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                       "Selected game runtime is not linked: %s",
-                       entry.engine.slug.c_str());
+                       "Failed to launch game [%s]: %s",
+                       entry.engine.slug.c_str(), error.what());
+          app.stopGame();
           app.openHub();
+          KotonohaIOSPresentError("Failed to Launch Game", error.what());
         }
         return SDL_APP_CONTINUE;
       }
@@ -631,10 +739,24 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
     }
     return result;
   } catch (const std::exception &error) {
-    const auto &app = *static_cast<Application *>(state);
+    auto &app = *static_cast<Application *>(state);
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Game frame failed [%s]: %s",
                  app.activeGame.empty() ? "launcher" : app.activeGame.c_str(),
                  error.what());
+#if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    if (app.frames <= 0) {
+      app.stopGame();
+      app.openHub();
+      KotonohaIOSPresentError("Game Error", error.what());
+      return SDL_APP_CONTINUE;
+    }
+#else
+    if (app.frames <= 0) {
+      SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+                               "KotonohaLauncher - runtime error",
+                               error.what(), nullptr);
+    }
+#endif
     return SDL_APP_FAILURE;
   }
 }

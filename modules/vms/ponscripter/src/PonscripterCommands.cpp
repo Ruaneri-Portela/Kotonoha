@@ -1522,8 +1522,11 @@ void PonscripterVm::cmdMenusAndSystem(LineLexer &lexer,
     }
     if (kind == "end") {
       waitState_ = WaitState::Halted;
-      if (callbacks_)
+      if (callbacks_) {
+        callbacks_->onStopBgm(0);
+        callbacks_->onStopWave(-1);
         callbacks_->onPersistGlobals();
+      }
       return;
     }
     if (kind == "skip") {

@@ -1533,7 +1533,8 @@ void Runtime::renderLoadTransition(Kotonoha::RendererRef renderer,
       const SDL_FRect dest{(screen.x - 800.0f * scale) * 0.5f,
                            (screen.y - 450.0f * scale) * 0.5f, 800.0f * scale,
                            450.0f * scale};
-      (void)SDL_RenderTexture(&renderer, &texture, nullptr, &dest);
+      (void)Kotonoha::RenderUpscaledTexture(&renderer, &texture, nullptr,
+                                            &dest);
     } catch (const std::exception &error) {
       SDL_LogWarn(Kotonoha::LogUI,
                   "School Days retail loading card unavailable: %s",
@@ -1709,7 +1710,8 @@ void Runtime::renderExitTransition(Kotonoha::RendererRef renderer,
     const float fraction = exitTransition.RevealedFraction(nowMs);
     const SDL_FRect source{0, 0, 800.0f, 450.0f * fraction};
     const SDL_FRect destination{area.x, area.y, area.w, area.h * fraction};
-    (void)SDL_RenderTexture(&renderer, &texture, &source, &destination);
+    (void)Kotonoha::RenderUpscaledTexture(&renderer, &texture, &source,
+                                          &destination);
     (void)SDL_SetTextureAlphaMod(&texture, previousAlpha);
   } catch (const std::exception &error) {
     SDL_LogWarn(Kotonoha::LogUI, "School Days SYSBASE transition: %s",
@@ -2760,8 +2762,8 @@ void Runtime::renderAbcOverlays(Kotonoha::RendererRef renderer,
     if (resource.empty())
       continue;
     try {
-      (void)SDL_RenderTexture(&renderer, &abcTexture(renderer, resource),
-                              nullptr, &area);
+      (void)Kotonoha::RenderUpscaledTexture(
+          &renderer, &abcTexture(renderer, resource), nullptr, &area);
     } catch (const std::exception &error) {
       SDL_LogWarn(Kotonoha::LogUI, "School Days ABC render failed: %s",
                   error.what());
@@ -3807,8 +3809,9 @@ void Runtime::renderMenu(Kotonoha::RendererRef renderer, float) {
                    800.0f * titleLayout.scale,
                    titleBackgroundHeight * titleLayout.scale});
     try {
-      SDL_RenderTexture(&renderer, &assets->texture(renderer, titleBackground),
-                        nullptr, &area);
+      Kotonoha::RenderUpscaledTexture(
+          &renderer, &assets->texture(renderer, titleBackground), nullptr,
+          &area);
     } catch (const std::exception &) {
       titleBackground.clear();
     }

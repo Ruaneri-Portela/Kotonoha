@@ -2,7 +2,9 @@
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/InputMapper.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -1022,6 +1024,7 @@ void LargePonPonRuntime::uploadDisplayBuffer(SDL_Renderer *renderer) {
     return;
   if (displayDirty_) {
     SDL_UpdateTexture(canvasTex_.get(), nullptr, displayBuffer_.data(), kW * 4);
+    ++canvasSerial_;
     displayDirty_ = false;
   }
 }
@@ -1035,7 +1038,7 @@ void LargePonPonRuntime::drawSurfaceAt(SDL_Renderer *renderer, SDL_Surface *src,
     return;
   SDL_FRect dst{static_cast<float>(x), static_cast<float>(y),
                 static_cast<float>(src->w), static_cast<float>(src->h)};
-  SDL_RenderTexture(renderer, tex.get(), nullptr, &dst);
+  Kotonoha::RenderUpscaledTexture(renderer, tex.get(), nullptr, &dst);
 }
 
 void LargePonPonRuntime::render(Kotonoha::RendererRef rendererRef, float) {
@@ -1046,7 +1049,8 @@ void LargePonPonRuntime::render(Kotonoha::RendererRef rendererRef, float) {
     SDL_FRect dst{static_cast<float>(shakeOffsetX_),
                   static_cast<float>(shakeOffsetY_), static_cast<float>(kW),
                   static_cast<float>(kH)};
-    SDL_RenderTexture(r, canvasTex_.get(), nullptr, &dst);
+    Kotonoha::RenderUpscaledTexture(r, canvasTex_.get(), nullptr, &dst,
+                                    canvasSerial_);
   }
 
   // Live eye-blink & lip-sync CANM overlay when not mid-transition
@@ -1279,7 +1283,11 @@ void LargePonPonRuntime::renderOverlay(Kotonoha::RendererRef, float) {}
 // ---- Input Handling ----
 
 bool LargePonPonRuntime::onEvent(Kotonoha::EventRef eventRef) {
-  const SDL_Event &ev = eventRef;
+  const bool inDialogue = (mode_ == Mode::Running);
+  const SDL_Event ev = Kotonoha::InputMapper::toKeyEvent(
+      eventRef,
+      inDialogue ? Kotonoha::InputContext::Dialogue
+                 : Kotonoha::InputContext::Menu);
 
   if (ev.type == SDL_EVENT_MOUSE_MOTION) {
     mouseX_ = ev.motion.x;
@@ -1346,7 +1354,7 @@ bool LargePonPonRuntime::onEvent(Kotonoha::EventRef eventRef) {
       mode_ = Mode::SaveLoadDialog;
       return true;
     }
-    if (key == SDLK_ESCAPE) {
+    if (Kotonoha::InputMapper::isBackKey(key)) {
       if (mode_ == Mode::SaveLoadDialog) {
         mode_ = modeBeforeSaveDialog_;
         if (mode_ == Mode::Running)
@@ -1367,6 +1375,77 @@ bool LargePonPonRuntime::onEvent(Kotonoha::EventRef eventRef) {
         return true;
       }
     }
+    if (mode_ == Mode::TitleMenu) {
+      const int count = (titlePage_ == 0) ? 3 : 4;
+      if (key == SDLK_UP || key == SDLK_LEFT) {
+        titleHover_ = titleHover_ < 0 ? 0 : (titleHover_ + count - 1) % count;
+        return true;
+      }
+      if (key == SDLK_DOWN || key == SDLK_RIGHT) {
+        titleHover_ = titleHover_ < 0 ? 0 : (titleHover_ + 1) % count;
+        return true;
+      }
+      if (Kotonoha::InputMapper::isConfirmKey(key)) {
+        const int idx = std::clamp(titleHover_ < 0 ? 0 : titleHover_, 0, count - 1);
+        const int bitIdx = (titlePage_ == 0) ? (90 + idx) : (93 + idx);
+        if (vm_.getBit(bitIdx)) {
+          vm_.setW(1, idx);
+          mode_ = Mode::Running;
+          stepVm();
+        }
+        return true;
+      }
+    }
+    if (mode_ == Mode::MapMode) {
+      if (key == SDLK_UP || key == SDLK_LEFT) {
+        mapHover_ = mapHover_ < 0 ? 0 : (mapHover_ + 10) % 11;
+        return true;
+      }
+      if (key == SDLK_DOWN || key == SDLK_RIGHT) {
+        mapHover_ = mapHover_ < 0 ? 0 : (mapHover_ + 1) % 11;
+        return true;
+      }
+      if (Kotonoha::InputMapper::isConfirmKey(key) && mapHover_ >= 0 &&
+          mapHover_ < 11) {
+        vm_.setW(1, mapHover_);
+        mode_ = Mode::Running;
+        stepVm();
+        return true;
+      }
+    }
+    if (mode_ == Mode::CgMode) {
+      if (key == SDLK_LEFT) {
+        cgHover_ = cgHover_ < 0 ? 0 : (cgHover_ + 19) % 20;
+        return true;
+      }
+      if (key == SDLK_RIGHT) {
+        cgHover_ = cgHover_ < 0 ? 0 : (cgHover_ + 1) % 20;
+        return true;
+      }
+      if (key == SDLK_UP) {
+        cgHover_ = cgHover_ < 0 ? 0 : (cgHover_ + 15) % 20;
+        return true;
+      }
+      if (key == SDLK_DOWN) {
+        cgHover_ = cgHover_ < 0 ? 0 : (cgHover_ + 5) % 20;
+        return true;
+      }
+      if (key == SDLK_PAGEUP) {
+        cgPage_ = (cgPage_ + 15) % 16;
+        return true;
+      }
+      if (key == SDLK_PAGEDOWN) {
+        cgPage_ = (cgPage_ + 1) % 16;
+        return true;
+      }
+      if (Kotonoha::InputMapper::isConfirmKey(key) && cgHover_ >= 0 &&
+          cgHover_ < 20) {
+        vm_.setW(1, cgPage_ * 20 + cgHover_);
+        mode_ = Mode::Running;
+        stepVm();
+        return true;
+      }
+    }
     if (mode_ == Mode::Choice && !choices_.empty()) {
       if (key == SDLK_UP) {
         selectedChoice_ =
@@ -1380,8 +1459,32 @@ bool LargePonPonRuntime::onEvent(Kotonoha::EventRef eventRef) {
         return true;
       }
     }
-    if (key == SDLK_RETURN || key == SDLK_SPACE || key == SDLK_KP_ENTER) {
+    if (Kotonoha::InputMapper::isConfirmKey(key) ||
+        Kotonoha::InputMapper::isSkipHoldKey(key)) {
       advanceInput();
+      return true;
+    }
+  }
+
+  if (ev.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      ev.button.button == SDL_BUTTON_RIGHT) {
+    if (mode_ == Mode::SaveLoadDialog) {
+      mode_ = modeBeforeSaveDialog_;
+      if (mode_ == Mode::Running)
+        stepVm();
+      return true;
+    }
+    if (mode_ == Mode::CgMode || mode_ == Mode::HeartMode ||
+        mode_ == Mode::MapMode) {
+      vm_.setW(1, -1);
+      mode_ = Mode::Running;
+      stepVm();
+      return true;
+    }
+    if (mode_ == Mode::TitleMenu && titlePage_ == 1) {
+      vm_.setW(1, 3);
+      mode_ = Mode::Running;
+      stepVm();
       return true;
     }
   }

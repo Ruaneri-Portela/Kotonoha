@@ -30,10 +30,14 @@ class SummerBacklog final : public Kotonoha::VNBacklog {
       targetScroll = std::clamp(rows[selected].y + rows[selected].h / 2 - 300,
                                 0.0f, maxScroll);
   }
-  SDL_FRect closeButtonArea() const override { return {}; }
+  SDL_FRect closeButtonArea() const override {
+    return hasCmap ? SDL_FRect{} : SDL_FRect{660, 12, 124, 34};
+  }
   float scrollInputHeight() const override { return 600; }
   void renderFrame(Kotonoha::RendererRef r) override {
     engine.GetUI().backdrop(r, {0, 0, 64, 160});
+    if (!hasCmap)
+      engine.GetUI().button(r, closeButtonArea(), "Close [ESC]");
   }
   void renderEntries(Kotonoha::RendererRef r) override {
     auto &ui = engine.GetVNUI();

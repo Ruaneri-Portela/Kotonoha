@@ -1,4 +1,5 @@
 #include <Amagami/VitaSpriteRenderer.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -129,13 +130,14 @@ void VitaSpriteRenderer::draw(const VitaVmBridge &bridge, bool clear) {
     const auto renderImage = [&](SDL_Texture *tex, const SDL_FRect *source,
                                  const SDL_FRect &destination) {
       if (std::abs(sprite->angle) < 1e-10) {
-        require(SDL_RenderTexture(renderer_, tex, source, &destination));
+        require(Kotonoha::RenderUpscaledTexture(renderer_, tex, source,
+                                                &destination));
       } else {
         const SDL_FPoint pivot{dst.x + dst.w / 2 - destination.x,
                                dst.y + dst.h / 2 - destination.y};
-        require(SDL_RenderTextureRotated(renderer_, tex, source, &destination,
-                                         -sprite->angle * 180.0, &pivot,
-                                         SDL_FLIP_NONE));
+        require(Kotonoha::RenderUpscaledTextureRotated(
+            renderer_, tex, source, &destination, -sprite->angle * 180.0,
+            &pivot, SDL_FLIP_NONE));
       }
     };
     if (sprite->fontGlyph) {

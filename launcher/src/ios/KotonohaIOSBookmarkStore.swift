@@ -5,6 +5,12 @@ import UIKit
 import UniformTypeIdentifiers
 import zlib
 
+struct KotonohaUpscalePresetOption: Codable, Identifiable, Equatable, Hashable, Sendable {
+    let index: Int
+    let name: String
+    var id: Int { index }
+}
+
 struct KotonohaGameParams: Codable, Equatable, Hashable, Sendable {
     var assetOverlayPath: String = ""
     var translationPath: String = ""
@@ -13,6 +19,27 @@ struct KotonohaGameParams: Codable, Equatable, Hashable, Sendable {
     var ktrfPath: String = ""
     var scriptsDir: String = ""
     var startScenario: String = ""
+    var rendererBackend: String = ""
+    var upscalerBackend: String = ""
+    var upscalerPreset: String = ""
+    var upscalerFactor: String = ""
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        assetOverlayPath = try c.decodeIfPresent(String.self, forKey: .assetOverlayPath) ?? ""
+        translationPath = try c.decodeIfPresent(String.self, forKey: .translationPath) ?? ""
+        subtitleStylePath = try c.decodeIfPresent(String.self, forKey: .subtitleStylePath) ?? ""
+        customDocumentsDir = try c.decodeIfPresent(String.self, forKey: .customDocumentsDir) ?? ""
+        ktrfPath = try c.decodeIfPresent(String.self, forKey: .ktrfPath) ?? ""
+        scriptsDir = try c.decodeIfPresent(String.self, forKey: .scriptsDir) ?? ""
+        startScenario = try c.decodeIfPresent(String.self, forKey: .startScenario) ?? ""
+        rendererBackend = try c.decodeIfPresent(String.self, forKey: .rendererBackend) ?? ""
+        upscalerBackend = try c.decodeIfPresent(String.self, forKey: .upscalerBackend) ?? ""
+        upscalerPreset = try c.decodeIfPresent(String.self, forKey: .upscalerPreset) ?? ""
+        upscalerFactor = try c.decodeIfPresent(String.self, forKey: .upscalerFactor) ?? ""
+    }
 
     var hasAnyOverride: Bool {
         !assetOverlayPath.isEmpty ||
@@ -21,7 +48,11 @@ struct KotonohaGameParams: Codable, Equatable, Hashable, Sendable {
         !customDocumentsDir.isEmpty ||
         !ktrfPath.isEmpty ||
         !scriptsDir.isEmpty ||
-        !startScenario.isEmpty
+        !startScenario.isEmpty ||
+        !rendererBackend.isEmpty ||
+        !upscalerBackend.isEmpty ||
+        !upscalerPreset.isEmpty ||
+        !upscalerFactor.isEmpty
     }
 }
 
@@ -102,10 +133,40 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
             UserDefaults.standard.set(customSaveRoot, forKey: Self.customSaveRootKey)
         }
     }
+    @Published var rendererBackend: String {
+        didSet {
+            UserDefaults.standard.set(rendererBackend, forKey: Self.rendererBackendKey)
+        }
+    }
+    @Published var upscalerBackend: String {
+        didSet {
+            UserDefaults.standard.set(upscalerBackend, forKey: Self.upscalerBackendKey)
+            if upscalerBackend != "none" && (Double(upscalerFactor) ?? 1.0) <= 1.0 {
+                upscalerFactor = "2.0"
+            }
+        }
+    }
+    @Published var upscalerPreset: String {
+        didSet {
+            UserDefaults.standard.set(upscalerPreset, forKey: Self.upscalerPresetKey)
+        }
+    }
+    @Published var upscalerFactor: String {
+        didSet {
+            UserDefaults.standard.set(upscalerFactor, forKey: Self.upscalerFactorKey)
+        }
+    }
+
+    let upscalePresets: [KotonohaUpscalePresetOption]
 
     private static let bookmarksKey = "me.hirameki.kotonoha.launcher.bookmarks.v1"
+    private static let manualPathsKey = "me.hirameki.kotonoha.launcher.manualPaths.v1"
     private static let splitSavesKey = "me.hirameki.kotonoha.launcher.splitSaves.v1"
     private static let customSaveRootKey = "me.hirameki.kotonoha.launcher.customSaveRoot.v1"
+    private static let rendererBackendKey = "me.hirameki.kotonoha.launcher.rendererBackend.v1"
+    private static let upscalerBackendKey = "me.hirameki.kotonoha.launcher.upscalerBackend.v1"
+    private static let upscalerPresetKey = "me.hirameki.kotonoha.launcher.upscalerPreset.v1"
+    private static let upscalerFactorKey = "me.hirameki.kotonoha.launcher.upscalerFactor.v1"
 
     // Retain security-scoped URLs for the lifetime of the app so POSIX/SDL
     // reads from bookmarked folders and disc images never fail with EPERM.
@@ -120,7 +181,43 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
             self.splitSavesByGame = true
         }
         self.customSaveRoot = defaults.string(forKey: Self.customSaveRootKey) ?? ""
+        self.rendererBackend = defaults.string(forKey: Self.rendererBackendKey) ?? ""
+        self.upscalerBackend = defaults.string(forKey: Self.upscalerBackendKey) ?? "none"
+        self.upscalerPreset = defaults.string(forKey: Self.upscalerPresetKey) ?? "0"
+        self.upscalerFactor = defaults.string(forKey: Self.upscalerFactorKey) ?? "2.0"
+        self.upscalePresets = Self.loadUpscalePresets()
         restorePersistedBookmarks()
+    }
+
+    private static func loadUpscalePresets() -> [KotonohaUpscalePresetOption] {
+        guard let ptr = KotonohaLauncherUpscalePresetsJson() else { return [] }
+        defer { KotonohaLauncherFreeString(ptr) }
+        let data = Data(String(cString: ptr).utf8)
+        return (try? JSONDecoder().decode([KotonohaUpscalePresetOption].self, from: data)) ?? []
+    }
+
+    func effectiveRenderer(for params: KotonohaGameParams) -> String {
+        params.rendererBackend.isEmpty ? rendererBackend : params.rendererBackend
+    }
+
+    func effectiveUpscalerBackend(for params: KotonohaGameParams) -> String {
+        params.upscalerBackend.isEmpty ? upscalerBackend : params.upscalerBackend
+    }
+
+    func effectiveUpscalerPreset(for params: KotonohaGameParams) -> String {
+        params.upscalerPreset.isEmpty ? upscalerPreset : params.upscalerPreset
+    }
+
+    func effectiveUpscalerFactor(for params: KotonohaGameParams) -> String {
+        let backend = effectiveUpscalerBackend(for: params)
+        if backend == "none" {
+            return "1.0"
+        }
+        let chosen = params.upscalerFactor.isEmpty ? upscalerFactor : params.upscalerFactor
+        if (Double(chosen) ?? 1.0) <= 1.0 {
+            return "2.0"
+        }
+        return chosen
     }
 
     var documentsDirectoryPath: String {
@@ -254,16 +351,28 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
                             params.ktrfPath.withCString { ktrfC in
                                 params.scriptsDir.withCString { scriptsC in
                                     params.startScenario.withCString { startC in
-                                        KotonohaLauncherSaveGameParams(
-                                            profileC,
-                                            overlayC,
-                                            transC,
-                                            subC,
-                                            docsC,
-                                            ktrfC,
-                                            scriptsC,
-                                            startC
-                                        )
+                                        params.rendererBackend.withCString { rendererC in
+                                            params.upscalerBackend.withCString { upscalerC in
+                                                params.upscalerPreset.withCString { presetC in
+                                                    params.upscalerFactor.withCString { factorC in
+                                                        KotonohaLauncherSaveGameParams(
+                                                            profileC,
+                                                            overlayC,
+                                                            transC,
+                                                            subC,
+                                                            docsC,
+                                                            ktrfC,
+                                                            scriptsC,
+                                                            startC,
+                                                            rendererC,
+                                                            upscalerC,
+                                                            presetC,
+                                                            factorC
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -315,10 +424,19 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
             if !bookmarkedPaths.contains(path) {
                 bookmarkedPaths.append(path)
             }
+            persistManualPath(path)
         }
 
         if shouldRescan {
             rescan()
+        }
+    }
+
+    private func persistManualPath(_ path: String) {
+        var manual = UserDefaults.standard.stringArray(forKey: Self.manualPathsKey) ?? []
+        if !manual.contains(path) {
+            manual.append(path)
+            UserDefaults.standard.set(manual, forKey: Self.manualPathsKey)
         }
     }
 
@@ -327,6 +445,9 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
             url.stopAccessingSecurityScopedResource()
         }
         bookmarkedPaths.removeAll { $0 == path }
+        var manual = UserDefaults.standard.stringArray(forKey: Self.manualPathsKey) ?? []
+        manual.removeAll { $0 == path }
+        UserDefaults.standard.set(manual, forKey: Self.manualPathsKey)
         rebuildStoredBookmarksFromActive()
         rescan()
     }
@@ -425,6 +546,10 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
 
         if refreshed.count != rawBookmarks.count {
             saveRawBookmarks(refreshed)
+        }
+        let manualPaths = UserDefaults.standard.stringArray(forKey: Self.manualPathsKey) ?? []
+        for manual in manualPaths where !manual.isEmpty && !paths.contains(manual) {
+            paths.append(manual)
         }
         self.bookmarkedPaths = paths
     }

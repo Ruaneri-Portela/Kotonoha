@@ -21,6 +21,7 @@ Kotonoha oferece múltiplos interpretadores e runtimes específicos. **Suporte n
 | Pure Mail | `KOTONOHA_BUILD_PMAIL` | `Pmail` | [Guia](pmail/README.pt-BR.md) |
 | PONscripter / ONScripter | `KOTONOHA_BUILD_PONSCRIPTER` | `PonscripterGame` | [Guia](ponscripter/README.pt-BR.md) |
 | N2System | `KOTONOHA_BUILD_N2SYSTEM` | `N2SystemGame` | [Guia](n2system/README.pt-BR.md) |
+| Artemis Engine | `KOTONOHA_BUILD_ARTEMIS` | `ArtemisGame` | [Guia](artemis/README.pt-BR.md) |
 
 Compile um port habilitando sua opção: `cmake -S . -B build -DKOTONOHA_BUILD_REALLIVE=ON`, depois `cmake --build build --target RealLive`. Para testes, use `ctest --test-dir build --output-on-failure`.
 

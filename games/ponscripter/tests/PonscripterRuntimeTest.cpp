@@ -404,6 +404,105 @@ void runEngineMenuIntegrationTest() {
   runtime.vm().finishSystemCall();
 }
 
+void runEngineExitTest() {
+  SDL_FlushEvents(SDL_EVENT_FIRST, SDL_EVENT_LAST);
+  auto assets = std::make_shared<Ponscripter::PonscripterAssets>();
+  Ponscripter::PonscripterRuntime runtime(assets);
+  Kotonoha::Engine engine(runtime);
+  struct ShutdownGuard {
+    Ponscripter::PonscripterRuntime &runtime;
+    ~ShutdownGuard() { runtime.shutdown(); }
+  } guard{runtime};
+
+  const std::string script =
+      "\xEF\xBB\xBF;mode800\n"
+      "*define\n"
+      "game\n"
+      "*start\n"
+      "delay 10\n"
+      "end\n";
+  runtime.vm().clear();
+  runtime.vm().appendScriptFile("00.utf", script);
+  check(runtime.vm().start(), "Exit test script must start");
+
+  bool sawQuitEvent = false;
+  for (int i = 0; i < 60 && !sawQuitEvent; ++i) {
+    check(engine.Iterate() == SDL_APP_CONTINUE,
+          "Engine iterate before quit must succeed");
+    SDL_Event ev{};
+    while (SDL_PollEvent(&ev)) {
+      if (ev.type == SDL_EVENT_QUIT) {
+        check(engine.Event(&ev) == SDL_APP_SUCCESS,
+              "Engine::Event must return SDL_APP_SUCCESS on SDL_EVENT_QUIT");
+        sawQuitEvent = true;
+        break;
+      }
+    }
+  }
+  check(runtime.vm().isHalted(), "Exit test VM must reach Halted state");
+  check(sawQuitEvent,
+        "Halting Ponscripter VM must push SDL_EVENT_QUIT to exit cleanly");
+}
+
+void runRetailExitTest(const std::string &sayaDir) {
+  SDL_FlushEvents(SDL_EVENT_FIRST, SDL_EVENT_LAST);
+  auto assets = std::make_shared<Ponscripter::PonscripterAssets>(sayaDir);
+  Ponscripter::PonscripterRuntime runtime(assets);
+  Kotonoha::EngineOptions opts;
+  opts.assets = assets;
+  Kotonoha::Engine engine(runtime, std::move(opts));
+  struct ShutdownGuard {
+    Ponscripter::PonscripterRuntime &runtime;
+    ~ShutdownGuard() { runtime.shutdown(); }
+  } guard{runtime};
+
+  runtime.vm().setSkipMode(true);
+  for (int i = 0;
+       i < 80 &&
+       runtime.vm().waitState() != Ponscripter::WaitState::WaitSelect &&
+       runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
+       ++i) {
+    runtime.vm().tick(1000.0);
+    if (runtime.vm().waitState() == Ponscripter::WaitState::WaitVideo)
+      runtime.vm().finishVideo();
+  }
+  if (runtime.vm().waitState() == Ponscripter::WaitState::WaitSelect)
+    check(runtime.vm().selectChoice(0), "Accept retail license terms");
+
+  for (int i = 0;
+       i < 80 && runtime.vm().waitState() != Ponscripter::WaitState::WaitButton;
+       ++i) {
+    runtime.vm().tick(1000.0);
+    if (runtime.vm().waitState() == Ponscripter::WaitState::WaitVideo)
+      runtime.vm().finishVideo();
+  }
+  check(runtime.vm().waitState() == Ponscripter::WaitState::WaitButton,
+        "Retail Saya exit test must reach title-screen buttons");
+
+  // Button 6 is "Sair" -> *saya_exit -> delay 1000 -> end
+  check(runtime.vm().selectButton(6), "Click retail Saya Exit button (6)");
+
+  bool sawQuitEvent = false;
+  for (int i = 0; i < 120 && !sawQuitEvent; ++i) {
+    runtime.advanceStoryTime(0.1);
+    check(engine.Iterate() == SDL_APP_CONTINUE,
+          "Engine iterate during *saya_exit must succeed");
+    SDL_Event ev{};
+    while (SDL_PollEvent(&ev)) {
+      if (ev.type == SDL_EVENT_QUIT) {
+        check(engine.Event(&ev) == SDL_APP_SUCCESS,
+              "Engine::Event must return SDL_APP_SUCCESS on Saya exit");
+        sawQuitEvent = true;
+        break;
+      }
+    }
+  }
+  check(runtime.vm().isHalted(),
+        "Retail Saya *saya_exit must halt the Ponscripter VM");
+  check(sawQuitEvent,
+        "Retail Saya *saya_exit must push SDL_EVENT_QUIT without hanging");
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
@@ -415,9 +514,11 @@ int main(int argc, char **argv) {
     }
     runSyntheticTest();
     runEngineMenuIntegrationTest();
+    runEngineExitTest();
     if (argc > 1 && std::filesystem::exists(argv[1])) {
       runRetailSayaAudit(argv[1]);
       runRetailMenuIntegrationTest(argv[1]);
+      runRetailExitTest(argv[1]);
     }
     std::cout << "PonscripterRuntimeTests passed\n";
     return 0;

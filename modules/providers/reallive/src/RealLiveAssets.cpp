@@ -25,6 +25,10 @@ RealLiveAssets::RealLiveAssets(
     mounted->addOverlay(overlay.string());
   source = std::make_unique<Kotonoha::IndexedFileSystemAssetProvider>(mounted);
   setOverlay(overlay);
+  if (!source->contains("Seen.txt") &&
+      source->contains("kineticdata/Seen.txt")) {
+    dataPrefix = "kineticdata/";
+  }
   const auto ini = read("Gameexe.ini");
   configSource.assign(ini.begin(), ini.end());
   config = Config(configSource);
@@ -32,12 +36,20 @@ RealLiveAssets::RealLiveAssets(
     throw std::runtime_error("REALLIVE Seen.txt missing from VFS");
 }
 
+std::string RealLiveAssets::qualify(const std::string &id) const {
+  if (dataPrefix.empty() || id.empty())
+    return dataPrefix + id;
+  if (canonical(id).rfind(canonical(dataPrefix), 0) == 0)
+    return id;
+  return dataPrefix + id;
+}
+
 bool RealLiveAssets::containsAsset(const std::string &id) const {
-  return source->contains(id);
+  return source->contains(qualify(id));
 }
 std::vector<Uint8> RealLiveAssets::readAsset(const std::string &id) const {
   try {
-    return source->read(id);
+    return source->read(qualify(id));
   } catch (const std::exception &e) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                 "Warning: Asset not found: %s (%s)", id.c_str(), e.what());
@@ -46,10 +58,18 @@ std::vector<Uint8> RealLiveAssets::readAsset(const std::string &id) const {
 }
 std::vector<std::string>
 RealLiveAssets::listAsset(const std::string &prefix) const {
-  return source->list(prefix);
+  auto listed = source->list(qualify(prefix));
+  if (dataPrefix.empty())
+    return listed;
+  const auto canonicalPrefix = canonical(dataPrefix);
+  for (auto &item : listed) {
+    if (canonical(item).rfind(canonicalPrefix, 0) == 0)
+      item.erase(0, dataPrefix.size());
+  }
+  return listed;
 }
 std::string RealLiveAssets::localPathAsset(const std::string &id) const {
-  return source->localPath(id);
+  return source->localPath(qualify(id));
 }
 ScriptArchive RealLiveAssets::scripts() const {
   std::map<int, std::vector<std::uint8_t>> overrides;

@@ -40,6 +40,7 @@ set(_kotonoha_launcher_libraries
     "PMAIL|PmailPort"
     "N2SYSTEM|n2system_formats"
     "PONSCRIPTER|ponscripter_port"
+    "ARTEMIS|artemis_port"
 )
 foreach(_linked IN LISTS _kotonoha_launcher_libraries)
     string(REPLACE "|" ";" _fields "${_linked}")

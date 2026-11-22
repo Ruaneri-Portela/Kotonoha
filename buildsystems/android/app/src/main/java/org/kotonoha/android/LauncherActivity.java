@@ -10,6 +10,8 @@ import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -76,6 +78,10 @@ public final class LauncherActivity extends AppCompatActivity {
         String ktrfPath = "";
         String scriptsDir = "";
         String startScenario = "";
+        String rendererBackend = "";
+        String upscalerBackend = "";
+        String upscalerPreset = "";
+        String upscalerFactor = "";
 
         boolean hasCustomParams() {
             return !assetOverlayPath.isEmpty()
@@ -84,9 +90,49 @@ public final class LauncherActivity extends AppCompatActivity {
                     || !customDocumentsDir.isEmpty()
                     || !ktrfPath.isEmpty()
                     || !scriptsDir.isEmpty()
-                    || !startScenario.isEmpty();
+                    || !startScenario.isEmpty()
+                    || !rendererBackend.isEmpty()
+                    || !upscalerBackend.isEmpty()
+                    || !upscalerPreset.isEmpty()
+                    || !upscalerFactor.isEmpty();
         }
     }
+
+    private static final String[] RENDERER_VALUES = new String[]{
+            "", "vulkan", "opengles2", "software"
+    };
+    private static final String[] RENDERER_LABELS = new String[]{
+            "Automatic", "Vulkan", "OpenGL ES", "Software"
+    };
+    private static final String[] UPSCALER_VALUES = new String[]{
+            "none", "auto", "mpv", "linear"
+    };
+    private static final String[] UPSCALER_LABELS = new String[]{
+            "Off", "Auto", "MPV / Anime4K / ArtCNN (OpenGL ES)", "Linear"
+    };
+    private static final String[] FACTOR_VALUES = new String[]{
+            "1.5", "2.0", "3.0", "4.0"
+    };
+    private static final String[] FACTOR_LABELS = new String[]{
+            "1.5x", "2.0x", "3.0x", "4.0x"
+    };
+    private static final String[] DEFAULT_PRESET_LABELS = new String[]{
+            "Anime4K: Mode A (HQ)",
+            "Anime4K: Mode B (HQ)",
+            "Anime4K: Mode C (HQ)",
+            "Anime4K: Mode A+A (HQ)",
+            "Anime4K: Mode B+B (HQ)",
+            "Anime4K: Mode C+A (HQ)",
+            "Anime4K: Mode A (Fast)",
+            "Anime4K: Mode B (Fast)",
+            "Anime4K: Mode C (Fast)",
+            "Anime4K: Mode A+A (Fast)",
+            "Anime4K: Mode B+B (Fast)",
+            "Anime4K: Mode C+A (Fast)",
+            "ArtCNN C4F16",
+            "ArtCNN C4F16 DS",
+            "ArtCNN C4F32"
+    };
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final List<GameEntry> allGames = new ArrayList<>();
@@ -129,11 +175,12 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private final ActivityResultLauncher<Uri> paramFolderPicker =
             registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(), uri -> {
-                if (uri != null && pendingPickerTarget != null) {
-                    SafBridge.persistUriPermission(this, uri);
-                    pendingPickerTarget.setText(uri.toString());
-                }
+                TextInputEditText target = pendingPickerTarget;
                 pendingPickerTarget = null;
+                if (uri != null && target != null) {
+                    SafBridge.persistUriPermission(this, uri);
+                    importParameterFolder(uri, target);
+                }
             });
 
     private final ActivityResultLauncher<String[]> paramFilePicker =
@@ -205,6 +252,9 @@ public final class LauncherActivity extends AppCompatActivity {
         MaterialButton rescanBtn = findViewById(R.id.btn_rescan);
         rescanBtn.setOnClickListener(v -> rescanLibrary());
 
+        MaterialButton graphicsBtn = findViewById(R.id.btn_graphics_settings);
+        graphicsBtn.setOnClickListener(v -> showGraphicsSettingsSheet());
+
         ExtendedFloatingActionButton addFolderFab = findViewById(R.id.fab_add_folder);
         addFolderFab.setOnClickListener(v -> addFolderPicker.launch(null));
 
@@ -233,6 +283,9 @@ public final class LauncherActivity extends AppCompatActivity {
         File obb = getObbDir();
         if (obb != null)
             Os.setenv("KOTONOHA_ANDROID_DATA_DIR", obb.getAbsolutePath(), true);
+        if (getApplicationInfo() != null && getApplicationInfo().nativeLibraryDir != null)
+            Os.setenv("KOTONOHA_ANDROID_NATIVE_LIB_DIR",
+                    getApplicationInfo().nativeLibraryDir, true);
         Os.setenv("KOTONOHA_ANDROID_PACKAGE_ID", getPackageName(), true);
     }
 
@@ -341,6 +394,49 @@ public final class LauncherActivity extends AppCompatActivity {
             java.nio.file.Files.copy(source.toPath(), target.toPath(),
                     java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         }
+    }
+
+    private void importParameterFolder(Uri uri, TextInputEditText target) {
+        Toast.makeText(this, "Importing selected folder...", Toast.LENGTH_SHORT).show();
+        executor.execute(() -> {
+            try {
+                File root = new File(getExternalFilesDir(null) != null
+                        ? getExternalFilesDir(null) : getFilesDir(), "overlays");
+                if (!root.isDirectory() && !root.mkdirs())
+                    throw new IOException("Cannot create overlays directory");
+
+                DocumentFile sourceTree = DocumentFile.fromTreeUri(this, uri);
+                if (sourceTree == null || !sourceTree.isDirectory())
+                    throw new IOException("Cannot open selected folder");
+
+                String folderName = sourceTree.getName();
+                if (folderName == null || folderName.isEmpty()) folderName = "Overlay";
+                folderName = folderName.replaceAll("[^A-Za-z0-9._ -]", "_");
+                if (folderName.isEmpty() || folderName.equals(".") || folderName.equals(".."))
+                    folderName = "Overlay";
+
+                File destination = new File(root, folderName);
+                deleteTree(destination);
+                if (!destination.mkdirs())
+                    throw new IOException("Cannot create overlay destination directory");
+
+                copyDocumentTree(sourceTree, destination);
+
+                String resolvedPath = destination.getAbsolutePath();
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    target.setText(resolvedPath);
+                    Toast.makeText(this, "Folder imported: " + destination.getName(),
+                            Toast.LENGTH_SHORT).show();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    Toast.makeText(this, "Folder import failed: " + error.getMessage(),
+                            Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     private void importFolder(Uri uri) {
@@ -472,9 +568,12 @@ public final class LauncherActivity extends AppCompatActivity {
         } else {
             args.add("--shared-engine-saves");
         }
-        if (!game.assetOverlayPath.isEmpty()) {
+        String effectiveOverlay = !game.assetOverlayPath.isEmpty()
+                ? game.assetOverlayPath
+                : game.overlayPath;
+        if (!effectiveOverlay.isEmpty()) {
             args.add("--asset-overlay");
-            args.add(game.assetOverlayPath);
+            args.add(effectiveOverlay);
         }
         if (!game.translationPath.isEmpty()) {
             args.add("--translation");
@@ -501,9 +600,142 @@ public final class LauncherActivity extends AppCompatActivity {
             args.add(game.startScenario);
         }
 
+        String effectiveRenderer = !game.rendererBackend.isEmpty()
+                ? game.rendererBackend
+                : SafBridge.getRendererBackend(this);
+        String effectiveUpscaler = !game.upscalerBackend.isEmpty()
+                ? game.upscalerBackend
+                : SafBridge.getUpscalerBackend(this);
+        String effectivePreset = !game.upscalerPreset.isEmpty()
+                ? game.upscalerPreset
+                : SafBridge.getUpscalerPreset(this);
+        String effectiveFactor = !game.upscalerFactor.isEmpty()
+                ? game.upscalerFactor
+                : SafBridge.getUpscalerFactor(this);
+
+        if (!effectiveRenderer.isEmpty()) {
+            args.add("--renderer");
+            args.add(effectiveRenderer);
+        }
+        if (!effectiveUpscaler.isEmpty()) {
+            args.add("--upscaler");
+            args.add(effectiveUpscaler);
+            if ("none".equals(effectiveUpscaler)) {
+                args.add("--upscaler-factor");
+                args.add("1.0");
+            } else {
+                args.add("--upscaler-factor");
+                args.add(effectiveFactor.isEmpty() ? "2.0" : effectiveFactor);
+                if (!effectivePreset.isEmpty()) {
+                    args.add("--upscaler-preset");
+                    args.add(effectivePreset);
+                }
+            }
+        }
+
         Intent intent = new Intent(this, GameActivity.class);
         intent.putExtra("kotonoha_args", args.toArray(new String[0]));
         startActivity(intent);
+    }
+
+    private String[] loadPresetLabels() {
+        if (LauncherBridge.ensureLoaded()) {
+            try {
+                String json = LauncherBridge.nativeUpscalePresetsJson();
+                if (json != null && !json.isEmpty()) {
+                    JSONArray array = new JSONArray(json);
+                    if (array.length() > 0) {
+                        String[] labels = new String[array.length()];
+                        for (int i = 0; i < array.length(); ++i) {
+                            labels[i] = array.getJSONObject(i).optString("name", "Preset " + i);
+                        }
+                        return labels;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return DEFAULT_PRESET_LABELS;
+    }
+
+    private static int indexOfValue(String[] values, String target) {
+        if (target == null) return 0;
+        for (int i = 0; i < values.length; ++i) {
+            if (values[i].equals(target)) return i;
+        }
+        return 0;
+    }
+
+    private static String[] prependOption(String first, String[] rest) {
+        String[] combined = new String[rest.length + 1];
+        combined[0] = first;
+        System.arraycopy(rest, 0, combined, 1, rest.length);
+        return combined;
+    }
+
+    private void showGraphicsSettingsSheet() {
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        View sheet = LayoutInflater.from(this).inflate(R.layout.dialog_graphics_settings, null);
+        dialog.setContentView(sheet);
+
+        AutoCompleteTextView rendererDropdown = sheet.findViewById(R.id.dropdown_global_renderer);
+        AutoCompleteTextView upscalerDropdown = sheet.findViewById(R.id.dropdown_global_upscaler);
+        AutoCompleteTextView factorDropdown = sheet.findViewById(R.id.dropdown_global_factor);
+        AutoCompleteTextView presetDropdown = sheet.findViewById(R.id.dropdown_global_preset);
+        View factorLayout = sheet.findViewById(R.id.layout_global_factor);
+        View presetLayout = sheet.findViewById(R.id.layout_global_preset);
+
+        String[] presetLabels = loadPresetLabels();
+        String[] presetValues = new String[presetLabels.length];
+        for (int i = 0; i < presetLabels.length; ++i) presetValues[i] = String.valueOf(i);
+
+        final int[] selRenderer = {indexOfValue(RENDERER_VALUES, SafBridge.getRendererBackend(this))};
+        final int[] selUpscaler = {indexOfValue(UPSCALER_VALUES, SafBridge.getUpscalerBackend(this))};
+        final int[] selFactor = {indexOfValue(FACTOR_VALUES, SafBridge.getUpscalerFactor(this))};
+        final int[] selPreset = {indexOfValue(presetValues, SafBridge.getUpscalerPreset(this))};
+
+        rendererDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, RENDERER_LABELS));
+        upscalerDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, UPSCALER_LABELS));
+        factorDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, FACTOR_LABELS));
+        presetDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, presetLabels));
+
+        rendererDropdown.setText(RENDERER_LABELS[selRenderer[0]], false);
+        upscalerDropdown.setText(UPSCALER_LABELS[selUpscaler[0]], false);
+        factorDropdown.setText(FACTOR_LABELS[selFactor[0]], false);
+        presetDropdown.setText(presetLabels[selPreset[0]], false);
+
+        Runnable syncVisibility = () -> {
+            String u = UPSCALER_VALUES[selUpscaler[0]];
+            String r = RENDERER_VALUES[selRenderer[0]];
+            boolean enabled = !"none".equals(u);
+            factorLayout.setVisibility(enabled ? View.VISIBLE : View.GONE);
+            boolean showPreset = enabled && ("mpv".equals(u) || ("auto".equals(u) && r.startsWith("opengl")));
+            presetLayout.setVisibility(showPreset ? View.VISIBLE : View.GONE);
+        };
+        syncVisibility.run();
+
+        rendererDropdown.setOnItemClickListener((parent, view, pos, id) -> {
+            selRenderer[0] = pos;
+            syncVisibility.run();
+        });
+        upscalerDropdown.setOnItemClickListener((parent, view, pos, id) -> {
+            selUpscaler[0] = pos;
+            syncVisibility.run();
+        });
+        factorDropdown.setOnItemClickListener((parent, view, pos, id) -> selFactor[0] = pos);
+        presetDropdown.setOnItemClickListener((parent, view, pos, id) -> selPreset[0] = pos);
+
+        sheet.findViewById(R.id.btn_graphics_cancel).setOnClickListener(v -> dialog.dismiss());
+        sheet.findViewById(R.id.btn_graphics_save).setOnClickListener(v -> {
+            SafBridge.setRendererBackend(this, RENDERER_VALUES[selRenderer[0]]);
+            SafBridge.setUpscalerBackend(this, UPSCALER_VALUES[selUpscaler[0]]);
+            SafBridge.setUpscalerFactor(this, FACTOR_VALUES[selFactor[0]]);
+            SafBridge.setUpscalerPreset(this, presetValues[selPreset[0]]);
+            Toast.makeText(this, "Graphics settings saved", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     private void showParametersSheet(GameEntry game) {
@@ -526,6 +758,43 @@ public final class LauncherActivity extends AppCompatActivity {
         TextInputEditText inputDocuments = sheet.findViewById(R.id.input_documents);
         TextInputEditText inputStart = sheet.findViewById(R.id.input_start_scenario);
         MaterialSwitch sheetSplitSwitch = sheet.findViewById(R.id.switch_sheet_split_saves);
+        AutoCompleteTextView paramRendererDropdown = sheet.findViewById(R.id.dropdown_param_renderer);
+        AutoCompleteTextView paramUpscalerDropdown = sheet.findViewById(R.id.dropdown_param_upscaler);
+        AutoCompleteTextView paramFactorDropdown = sheet.findViewById(R.id.dropdown_param_factor);
+        AutoCompleteTextView paramPresetDropdown = sheet.findViewById(R.id.dropdown_param_preset);
+
+        String[] presetLabelsBase = loadPresetLabels();
+        String[] presetValuesBase = new String[presetLabelsBase.length];
+        for (int i = 0; i < presetLabelsBase.length; ++i) presetValuesBase[i] = String.valueOf(i);
+
+        String[] paramRendererValues = new String[]{"", "vulkan", "opengles2", "software"};
+        String[] paramRendererLabels = new String[]{"Use Global Setting", "Vulkan", "OpenGL ES", "Software"};
+        String[] paramUpscalerValues = prependOption("", UPSCALER_VALUES);
+        String[] paramUpscalerLabels = prependOption("Use Global Setting", UPSCALER_LABELS);
+        String[] paramFactorValues = prependOption("", FACTOR_VALUES);
+        String[] paramFactorLabels = prependOption("Use Global Setting", FACTOR_LABELS);
+        String[] paramPresetValues = prependOption("", presetValuesBase);
+        String[] paramPresetLabels = prependOption("Use Global Setting", presetLabelsBase);
+
+        final int[] selParamRenderer = {indexOfValue(paramRendererValues, game.rendererBackend)};
+        final int[] selParamUpscaler = {indexOfValue(paramUpscalerValues, game.upscalerBackend)};
+        final int[] selParamFactor = {indexOfValue(paramFactorValues, game.upscalerFactor)};
+        final int[] selParamPreset = {indexOfValue(paramPresetValues, game.upscalerPreset)};
+
+        paramRendererDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, paramRendererLabels));
+        paramUpscalerDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, paramUpscalerLabels));
+        paramFactorDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, paramFactorLabels));
+        paramPresetDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, paramPresetLabels));
+
+        paramRendererDropdown.setText(paramRendererLabels[selParamRenderer[0]], false);
+        paramUpscalerDropdown.setText(paramUpscalerLabels[selParamUpscaler[0]], false);
+        paramFactorDropdown.setText(paramFactorLabels[selParamFactor[0]], false);
+        paramPresetDropdown.setText(paramPresetLabels[selParamPreset[0]], false);
+
+        paramRendererDropdown.setOnItemClickListener((p, v, pos, id) -> selParamRenderer[0] = pos);
+        paramUpscalerDropdown.setOnItemClickListener((p, v, pos, id) -> selParamUpscaler[0] = pos);
+        paramFactorDropdown.setOnItemClickListener((p, v, pos, id) -> selParamFactor[0] = pos);
+        paramPresetDropdown.setOnItemClickListener((p, v, pos, id) -> selParamPreset[0] = pos);
 
         inputKtrf.setText(game.ktrfPath);
         inputScripts.setText(game.scriptsDir);
@@ -587,6 +856,14 @@ public final class LauncherActivity extends AppCompatActivity {
             inputSubtitleStyle.setText("");
             inputDocuments.setText("");
             inputStart.setText("");
+            selParamRenderer[0] = 0;
+            selParamUpscaler[0] = 0;
+            selParamFactor[0] = 0;
+            selParamPreset[0] = 0;
+            paramRendererDropdown.setText(paramRendererLabels[0], false);
+            paramUpscalerDropdown.setText(paramUpscalerLabels[0], false);
+            paramFactorDropdown.setText(paramFactorLabels[0], false);
+            paramPresetDropdown.setText(paramPresetLabels[0], false);
         });
 
         sheet.findViewById(R.id.btn_params_cancel).setOnClickListener(v -> dialog.dismiss());
@@ -598,6 +875,10 @@ public final class LauncherActivity extends AppCompatActivity {
             game.subtitleStylePath = textOf(inputSubtitleStyle);
             game.customDocumentsDir = textOf(inputDocuments);
             game.startScenario = textOf(inputStart);
+            game.rendererBackend = paramRendererValues[selParamRenderer[0]];
+            game.upscalerBackend = paramUpscalerValues[selParamUpscaler[0]];
+            game.upscalerFactor = paramFactorValues[selParamFactor[0]];
+            game.upscalerPreset = paramPresetValues[selParamPreset[0]];
 
             boolean split = sheetSplitSwitch.isChecked();
             SafBridge.setSplitSavesEnabled(this, split);
@@ -612,7 +893,11 @@ public final class LauncherActivity extends AppCompatActivity {
                         game.customDocumentsDir,
                         game.ktrfPath,
                         game.scriptsDir,
-                        game.startScenario);
+                        game.startScenario,
+                        game.rendererBackend,
+                        game.upscalerBackend,
+                        game.upscalerPreset,
+                        game.upscalerFactor);
             }
             adapter.notifyDataSetChanged();
             dialog.dismiss();
@@ -654,6 +939,10 @@ public final class LauncherActivity extends AppCompatActivity {
                     e.ktrfPath = params.optString("ktrfPath", "");
                     e.scriptsDir = params.optString("scriptsDir", "");
                     e.startScenario = params.optString("startScenario", "");
+                    e.rendererBackend = params.optString("rendererBackend", "");
+                    e.upscalerBackend = params.optString("upscalerBackend", "");
+                    e.upscalerPreset = params.optString("upscalerPreset", "");
+                    e.upscalerFactor = params.optString("upscalerFactor", "");
                 }
                 list.add(e);
             }

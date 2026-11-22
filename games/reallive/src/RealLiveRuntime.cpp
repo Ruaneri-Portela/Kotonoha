@@ -333,16 +333,20 @@ struct Text : VNTextBox {
       }
     }
     const char *path = "/System/Library/Fonts/Supplemental/Verdana.ttf";
-    if (std::filesystem::exists(path)) {
+    std::error_code fontEc;
+    if (std::filesystem::exists(path, fontEc) && !fontEc) {
       font.reset(TTF_OpenFont(path, 25));
       if (font)
         TTF_SetFontLineSkip(font.get(), 28);
     }
     if (!font) {
       fontData = FileResolver::loadFontMemory(e.GetSettings().fontPath);
-      IOStreamPtr stream(SDL_IOFromConstMem(fontData.data(), fontData.size()));
-      if (stream)
-        font.reset(TTF_OpenFontIO(stream.release(), true, 25));
+      if (!fontData.empty()) {
+        IOStreamPtr stream(
+            SDL_IOFromConstMem(fontData.data(), fontData.size()));
+        if (stream)
+          font.reset(TTF_OpenFontIO(stream.release(), true, 25));
+      }
     }
     if (font)
       TTF_SetFontLineSkip(font.get(), 28);

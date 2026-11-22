@@ -52,12 +52,16 @@ public:
 
 int main() {
   try {
-    // 1. The hub links the 12 real game families, never the Example demo.
+    // 1. The hub links the 13 real game families (15 identities), never the Example demo.
     const auto &reg = EngineLibraryRegistry::instance();
-    require(reg.all().size() == 14, "Exactly 14 game identities must be "
-                                    "registered (12 shared engine families)");
+    require(reg.all().size() == 15, "Exactly 15 game identities must be "
+                                    "registered (13 shared engine families)");
     require(!reg.find(EngineKind::Unknown),
             "The Example demo must not be registered in the hub");
+    require(reg.find(EngineKind::Artemis) &&
+                reg.find(EngineKind::Artemis)->libraryTarget ==
+                    "artemis_port",
+            "Artemis maps to artemis_port library");
     require(reg.find(EngineKind::RealLive) &&
                 reg.find(EngineKind::RealLive)->libraryTarget ==
                     "reallive_port",

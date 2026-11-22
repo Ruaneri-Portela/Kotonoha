@@ -317,7 +317,8 @@ TextoutElement::TextoutElement(const char* src, const char* file_end) {
           *end == entrypoint_marker)
         break;
     }
-    if ((*end >= 0x81 && *end <= 0x9f) || (*end >= 0xe0 && *end <= 0xef))
+    const unsigned char ch = static_cast<unsigned char>(*end);
+    if ((ch >= 0x81 && ch <= 0x9f) || (ch >= 0xe0 && ch <= 0xef))
       end += 2;
     else
       ++end;
@@ -344,7 +345,8 @@ const string TextoutElement::GetText() const {
         rv.push_back('\\');
       }
     } else {
-      if ((*it >= 0x81 && *it <= 0x9f) || (*it >= 0xe0 && *it <= 0xef))
+      const unsigned char ch = static_cast<unsigned char>(*it);
+      if ((ch >= 0x81 && ch <= 0x9f) || (ch >= 0xe0 && ch <= 0xef))
         rv.push_back(*it++);
       rv.push_back(*it++);
     }

@@ -30,6 +30,12 @@ struct GameLaunchParameters {
 
   // RealLive / Amagami / Ponscripter / N2System / SchoolDays start override
   std::string startScenario;       // --start / --node <id>
+
+  // Graphics & Upscaling overrides (empty = inherit launcher global / Auto)
+  std::string rendererBackend;     // --renderer <name>
+  std::string upscalerBackend;     // --upscaler <auto|none|linear|mpv|metalfx>
+  std::string upscalerPreset;      // --upscaler-preset <index|name>
+  std::string upscalerFactor;      // --upscaler-factor <1.0..4.0>
 };
 
 struct DiscoveredGameEntry {
