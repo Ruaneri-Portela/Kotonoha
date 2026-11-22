@@ -295,7 +295,8 @@ mono_crash.*
 !lib/src/debug/
 !lib/src/debug/**
 !lib/include/Kotonoha/debug/
-!lib/include/Kotonoha/debug/**![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/
+!lib/include/Kotonoha/debug/**
+![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/
 ![Gg]ames/school-days/include/Kotonoha/[Dd]ebug/**
 [Dd]ebugPublic/
 [Rr]elease/
@@ -724,3 +725,12 @@ games-assets/*
 !lib/src/debug/**
 !lib/include/Kotonoha/debug
 !lib/include/Kotonoha/debug/**
+
+# Local credentials and signing materials; never commit these.
+*.pem
+*.p8
+*.p12
+*.mobileprovision
+.env
+.env.*
+!.env.example

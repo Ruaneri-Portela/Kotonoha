@@ -31,7 +31,7 @@ If using vcpkg explicitly, add `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buil
 
 ## Current integration notes
 
-The source tree includes **15 CMake/Android game applications** (including Example, N2System and PONscripter). The shared launcher is the default for interactive starts; `--no-launcher`, `--frames`, and MCP/headless execution are handled centrally. All 15 game applications have entries in the Xcode target manifest; verify actual device and simulator builds before claiming platform readiness. See [build validation](docs/BUILD_VALIDATION.md).
+The source tree includes **16 CMake/Android game applications (15 ports + Example)** (including Example, N2System and PONscripter). The shared launcher is the default for interactive starts; `--no-launcher`, `--frames`, and MCP/headless execution are handled centrally. All 16 game applications have entries in the Xcode target manifest; verify actual device and simulator builds before claiming platform readiness. See [build validation](docs/BUILD_VALIDATION.md).
 
 Linux and WebAssembly artifacts are built sequentially in **one GitHub Actions job**. Incremental game/engine build caches are disabled; vcpkg dependency binary caching is retained. See [CI instructions](docs/CI_VCPKG.md). Source and synthetic tests cannot establish full retail-game parity.
 
@@ -50,6 +50,8 @@ The [standalone unified launcher](launcher/README.md) is a desktop executable th
 | `buildsystems/` | CMake helpers, Android Gradle project, and native Xcode project |
 | `docs/` | Cross-platform documentation |
 | `tools/` | Build and asset utilities |
+
+See the [MIT license](LICENSE), [third-party notices](THIRD_PARTY_NOTICES.md) and [license audit](docs/LICENSING.md) before distributing binaries.
 
 ## Game data and licensing
 
