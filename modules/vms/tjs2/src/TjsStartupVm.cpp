@@ -212,7 +212,7 @@ std::vector<Token> lex(const std::string &source) {
         continue;
       }
     }
-    if (std::string("{}();,.=+-*/!<>").find(source[i]) == std::string::npos)
+    if (std::string("{}();,.=+-*/%!?<>:").find(source[i]) == std::string::npos)
       throw std::runtime_error(
           "TJS2 subset: unsupported lexical token at byte " +
           std::to_string(i));
@@ -559,16 +559,19 @@ class Parser {
   }
   Value product(bool active) {
     auto lhs = unary(active);
-    while (look().text == "*" || look().text == "/") {
+    while (look().text == "*" || look().text == "/" ||
+           look().text == "%") {
       const auto op = tokens[pc++].text;
       const auto rhs = unary(active);
       if (!active)
         continue;
       const auto denominator = rhs.number();
-      if (op == "/" && denominator == 0)
+      if ((op == "/" || op == "%") && denominator == 0)
         throw std::runtime_error("TJS2 subset: division by zero");
-      lhs = Value(op == "*" ? lhs.number() * denominator
-                            : lhs.number() / denominator);
+      const auto numerator = lhs.number();
+      lhs = Value(op == "*"   ? numerator * denominator
+                  : op == "/" ? numerator / denominator
+                              : std::fmod(numerator, denominator));
     }
     return lhs;
   }
@@ -638,7 +641,16 @@ class Parser {
     }
     return lhs;
   }
-  Value expression(bool active) { return disjunction(active); }
+  Value expression(bool active) {
+    auto test = disjunction(active);
+    if (!match("?"))
+      return test;
+    const bool condition = active && test.truthy();
+    auto whenTrue = expression(condition);
+    expect(":");
+    auto whenFalse = expression(active && !condition);
+    return !active ? Value() : (condition ? whenTrue : whenFalse);
+  }
 
   void statement(bool active) {
     machine.tick();
