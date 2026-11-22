@@ -21,3 +21,19 @@
 - PONscripter backlog and menu entries use `Engine::GetVNUI()` and apply `vnTextColorOverride`, `vnSpeakerColor`, and `vnTextColor`; generic VN backlog entries use the same shared controls.
 - Backgrounds, standing sprites, extended sprites, cursors, and text-window backdrops are cached after individual image processing and use the engine upscaler when enabled.
 - `PonscripterRuntimeTests` covers both a synthetic script and the retail Saya no Uta data: right-click `rmenu`, Save/Load, History, direct `lookback`/`save`, and VM resumption after each modal closes.
+
+## Compatibility Improvements (November 2026)
+
+- Added subroutine argument passing for `gosub`, `defsub`, and `getparam`, including round-trip serialization of pending arguments.
+- Added proportional text interpolation for `{$variable}`, `{%variable}`, and `{?array[index]}`; interpolated text is kept literal.
+- Fixed out-of-range `for` loops (including nested loops) and strengthened numeric variable-reference validation.
+- Added zero-based `tablegoto`/`debugtablegoto`, one-based `tablegoto1`, Unicode-safe `len` and `mid`, and `movz` array zero-filling without altering the distinct behavior of `movl`.
+- Differentiated `select` (jump), `selgosub` (call/return), and `selnum` (zero-based choice index); pending choices preserve their mode and destination through save/load, and older V1 slots remain readable.
+- Added standalone C++17 regressions for the VM, lexer, tagged image/archive support, and menu/flow behavior without proprietary game data.
+
+### Remaining Compatibility Gaps
+
+- Multi-line choice statements and full `csel`/`customsel`/`cselbtn` lifecycle require further work.
+- Indirect/pointer forms of `getparam`, specialized text hooks (`textgosub`, `pretextgosub`), and mid-line click-waits are not yet fully emulated.
+- Some registered graphics, system, and platform-specific commands remain partial/no-op; end-to-end cross-platform game checks, especially on iOS, are also pending.
+- Compatibility is incremental. Synthetic regressions do not prove a 1:1 port of the GPL upstream interpreter; the Kotonoha implementation is independent.
