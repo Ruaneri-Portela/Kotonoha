@@ -20,6 +20,7 @@ REQUIRED = (
     "assets/ArtCNN/LICENSE-ArtCNN.txt",
     "assets/ArtCNN/SOURCE.txt",
     "modules/providers/amagami/third_party/open-amagami-LICENSE.txt",
+    "games/reallive/vendor/libreallive/LICENSE",
     "docs/LICENSING.md",
     "docs/LICENSING.pt-BR.md",
 )
