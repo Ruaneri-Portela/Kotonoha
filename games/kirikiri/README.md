@@ -191,3 +191,13 @@ bounded, projected with their parent layers and drawn using SDL's GPU-backed
 render geometry before associated text. Native `Layer.drawText` remains on
 Kotonoha's UI text path. The implementation does not yet emulate all
 KiriKiri2 Layer bitmap operations, masks, blend modes or draw ordering.
+
+## Original title priority versus VNX+ fallback
+
+When a source `startup.tjs` completes the supported subset and produces
+visible image/text/rectangle layers plus valid pointer/keyboard callbacks,
+Kotonoha now **prefers the script-created title** over a hard-coded VNX+ title
+screen. The overlay's Save/Load/Config and story UI remain available once a
+scenario starts. If script evaluation or rendering fails, the existing VNX+
+compatibility title is used instead. This is a presentation priority fix and
+does not make incomplete TJS2 bytecode or native plugins work.

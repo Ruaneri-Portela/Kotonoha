@@ -579,16 +579,6 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
                     "KiriKiri: cannot inspect startup.tjs: %s",
                     impl.bootstrap.error.c_str());
 
-      if (impl.hasVnxUi) {
-        impl.loadChapterList();
-        impl.refreshSaveSlots();
-        impl.screenMode = Impl::ScreenMode::Title;
-        impl.returnScreenMode = Impl::ScreenMode::Title;
-        impl.choiceScene->hide();
-        SDL_Log("KiriKiri: presenting native VNX+ title menu");
-        return;
-      }
-
       const auto &ui = impl.startupExecution;
       const bool imagePresent = std::any_of(
           ui.layers.begin(), ui.layers.end(),
@@ -614,7 +604,22 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
               ui.layers.size(), impl.nativeTitleUi ? 1 : 0);
       impl.titlePicture = {findTitlePicture(*impl.assets), 0, 0, false};
       if (impl.nativeTitleUi) {
+        // A coherent source-created title takes priority over asset-specific
+        // UI fallbacks, even when VNX+ overlay images are installed.
+        impl.screenMode = Impl::ScreenMode::None;
         impl.choiceScene->hide();
+        SDL_Log("KiriKiri: presenting script-created original title menu");
+        return;
+      }
+      if (impl.hasVnxUi) {
+        // The translation overlay's menu remains the safe fallback if the
+        // source title could not be evaluated or displayed.
+        impl.loadChapterList();
+        impl.refreshSaveSlots();
+        impl.screenMode = Impl::ScreenMode::Title;
+        impl.returnScreenMode = Impl::ScreenMode::Title;
+        impl.choiceScene->hide();
+        SDL_Log("KiriKiri: presenting VNX+ compatibility title menu");
         return;
       }
       const auto startup = !impl.startupExecution.kagEntry.empty()
@@ -879,7 +884,7 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                        : "Carregamento rápido concluído!",
                    20, 640.0f, 326.0f, SDL_Color{85, 42, 58, 255}, true, false);
     }
-  } else if (!impl.hasVnxUi) {
+  } else if (!impl.hasVnxUi || impl.nativeTitleUi) {
     draw(impl.titlePicture, true);
     if (impl.startupExecution.subsetCompleted) {
       for (auto &layer : impl.startupExecution.layers) {
