@@ -3,6 +3,7 @@
 #include "SnowComponents.hpp"
 
 #include <Kotonoha/core/Runtime.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 
 #include <memory>
 
@@ -55,6 +56,7 @@ public:
                        kViewHeight = kGameHeight * 6 / 5;
 
 private:
+  Kotonoha::VideoSkipGesture videoSkip_;
   bool IsGameScene(const Kotonoha::Scene *scene) const;
   bool EngineSceneCaptures() const;
   void OpenSaves(bool load);

@@ -12,6 +12,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/InputMapper.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
@@ -31,6 +32,7 @@ struct N2Runtime::Impl {
   std::shared_ptr<Kotonoha::VNTextBox> textBox;
   std::shared_ptr<Kotonoha::VNBacklog> backlog;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
+  Kotonoha::VideoSkipGesture videoSkip;
   std::unique_ptr<Kotonoha::MediaPlayer> bgmPlayer;
   std::unique_ptr<Kotonoha::MediaPlayer> voicePlayer;
   std::unique_ptr<Kotonoha::MediaPlayer> sePlayer;
@@ -602,6 +604,7 @@ void N2Runtime::update() {
           if (assets_->contains(mov.path)) {
             try {
               impl_->moviePlayer->open(*assets_, mov.path, false, "movie");
+              impl_->videoSkip.reset();
             } catch (...) {
               nvm.notifyMovieFinished(mov.entityName);
             }
@@ -613,6 +616,7 @@ void N2Runtime::update() {
           if (mov.loop) {
             try {
               impl_->moviePlayer->open(*assets_, mov.path, false, "movie");
+              impl_->videoSkip.reset();
             } catch (...) {
               nvm.notifyMovieFinished(mov.entityName);
             }
@@ -860,6 +864,16 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
   if (impl_->ponscripter)
     return impl_->ponscripter->onEvent(rawEvent);
+  if (isNsbActive() && impl_->nsbVm->activeMovie().active &&
+      impl_->moviePlayer && impl_->moviePlayer->isOpen()) {
+    if (impl_->videoSkip.accept(rawEvent)) {
+      const auto entity = impl_->nsbVm->activeMovie().entityName;
+      impl_->moviePlayer->stop();
+      impl_->currentMovie.clear();
+      impl_->nsbVm->notifyMovieFinished(entity);
+    }
+    return true;
+  }
 
   for (auto *scene : GetActiveScenes()) {
     if (scene && scene->capturesInput())

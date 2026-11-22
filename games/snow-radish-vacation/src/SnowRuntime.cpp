@@ -144,6 +144,12 @@ void SnowRuntime::update() {
 bool SnowRuntime::onEvent(Kotonoha::EventRef event) {
   if (!session_)
     return false;
+  if (session_->MoviePlaying()) {
+    if (videoSkip_.accept(event))
+      session_->SkipMovie();
+    return true;
+  }
+  videoSkip_.reset();
   // The pause menu, history and save browser map controller input in their
   // own context. Pre-mapping would turn South into held skip while a menu is
   // open and Back into a history scroll instead of close.
