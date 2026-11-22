@@ -36,6 +36,46 @@ orderedAirLayerKeys(const std::map<std::uint16_t, Layer> &slots) {
   return result;
 }
 
+
+// Evaluate motion at a monotonic story-clock instant. Sampling the current
+// position before a second MOVE prevents a visible jump to the old endpoint.
+inline float airMoveOffset(float start, float target, std::uint64_t began,
+                           std::uint64_t duration, std::uint64_t now) {
+  if (duration == 0 || now >= began && now - began >= duration)
+    return target;
+  if (now <= began)
+    return start;
+  const float progress = static_cast<float>(now - began) /
+                         static_cast<float>(duration);
+  return start + (target - start) * progress;
+}
+
+// An AIR expression fragment shares its portrait's canvas transform. Copy
+// animation, opacity, color modulation and scaling, but preserve an explicit
+// per-expression position from the script when requested.
+template <class Layer>
+void inheritAirPortraitVisuals(Layer &layer, const Layer &portrait,
+                               bool inheritPosition) {
+  if (inheritPosition) {
+    layer.posX = portrait.posX;
+    layer.posY = portrait.posY;
+  }
+  layer.startOffsetX = portrait.startOffsetX;
+  layer.startOffsetY = portrait.startOffsetY;
+  layer.targetOffsetX = portrait.targetOffsetX;
+  layer.targetOffsetY = portrait.targetOffsetY;
+  layer.moveStart = portrait.moveStart;
+  layer.moveDuration = portrait.moveDuration;
+  layer.scaleX = portrait.scaleX;
+  layer.scaleY = portrait.scaleY;
+  layer.rotation = portrait.rotation;
+  layer.alpha = portrait.alpha;
+  layer.r = portrait.r;
+  layer.g = portrait.g;
+  layer.b = portrait.b;
+  layer.visible = portrait.visible;
+}
+
 // Split a screen-wide WIPE into non-overlapping pixel-perfect halves.
 // The old composition must never be drawn beneath the incoming half:
 // otherwise transparent sprites, image fragments and white fades double up.

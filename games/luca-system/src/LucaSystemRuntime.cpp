@@ -2450,6 +2450,11 @@ struct LucaSystemRuntime::Impl {
       else if (auto shownIt = visibleSlots.find(key);
                shownIt != visibleSlots.end())
         baseLayer = &shownIt->second;
+      // IMAGELOAD(group=2,slot,asset) has no coordinates: retain the
+      // existing character placement and animation instead of teleporting
+      // a replacement portrait back to (0,0).
+      if (baseLayer && !hasExplicitPos)
+        inheritAirPortraitVisuals(layer, *baseLayer, true);
       const auto nextImage = objectImages.find(assetId);
       if (baseLayer && nextImage != objectImages.end()) {
         const auto baseImage = objectImages.find(baseLayer->assetId);
@@ -2461,10 +2466,9 @@ struct LucaSystemRuntime::Impl {
                 nextImage->second.canvasWidth, nextImage->second.canvasHeight)) {
           const SlottedLayer preservedBase = *baseLayer;
           stagedSlots[key] = preservedBase;
-          if (!hasExplicitPos) {
-            layer.posX = preservedBase.posX;
-            layer.posY = preservedBase.posY;
-          }
+          // Face crops must move/rotate/scale with their full portrait,
+          // including while MOVE is still interpolating.
+          inheritAirPortraitVisuals(layer, preservedBase, !hasExplicitPos);
           layer.group = 3;
           stagedSlots[makeKey(3, slot)] = layer;
           return;
@@ -2586,14 +2590,10 @@ struct LucaSystemRuntime::Impl {
                            static_cast<Uint8>(std::lround(alpha * 255.0f)));
     SDL_SetTextureColorMod(tex.get(), slot.r, slot.g, slot.b);
 
-    float offX = slot.targetOffsetX;
-    float offY = slot.targetOffsetY;
-    if (slot.moveDuration > 0 && now < slot.moveStart + slot.moveDuration) {
-      const float t = float(now > slot.moveStart ? (now - slot.moveStart) : 0) /
-                      float(slot.moveDuration);
-      offX = slot.startOffsetX + (slot.targetOffsetX - slot.startOffsetX) * t;
-      offY = slot.startOffsetY + (slot.targetOffsetY - slot.startOffsetY) * t;
-    }
+    const float offX = airMoveOffset(slot.startOffsetX, slot.targetOffsetX,
+                                     slot.moveStart, slot.moveDuration, now);
+    const float offY = airMoveOffset(slot.startOffsetY, slot.targetOffsetY,
+                                     slot.moveStart, slot.moveDuration, now);
 
     const uint8_t shakeKey =
         (slot.group == 0) ? 0 : static_cast<uint8_t>(1 + slot.slot);
@@ -3073,10 +3073,16 @@ struct LucaSystemRuntime::Impl {
           const uint64_t now = storyNow();
           const uint64_t dur = skipMode ? 0 : framesToMs(frames);
           const auto applyMove = [&](SlottedLayer &l) {
-            l.startOffsetX = l.targetOffsetX;
-            l.startOffsetY = l.targetOffsetY;
-            l.targetOffsetX += dx;
-            l.targetOffsetY += dy;
+            // A new MOVE starts at the *current displayed position*, not at
+            // the previous animation's future target.
+            const float x = airMoveOffset(l.startOffsetX, l.targetOffsetX,
+                                          l.moveStart, l.moveDuration, now);
+            const float y = airMoveOffset(l.startOffsetY, l.targetOffsetY,
+                                          l.moveStart, l.moveDuration, now);
+            l.startOffsetX = x;
+            l.startOffsetY = y;
+            l.targetOffsetX = x + dx;
+            l.targetOffsetY = y + dy;
             l.moveStart = now;
             l.moveDuration = dur;
           };
@@ -4399,14 +4405,12 @@ void LucaSystemRuntime::saveGame(const std::string &path) {
     saved.posY = slot.posY;
     const uint64_t endTick = slot.moveStart + slot.moveDuration;
     const bool moving = slot.moveDuration > 0 && saveTick < endTick;
-    const float t = moving
-        ? std::clamp(float(saveTick > slot.moveStart ? saveTick - slot.moveStart : 0) /
-                         float(slot.moveDuration), 0.0f, 1.0f)
-        : 1.0f;
     saved.startOffsetX =
-        slot.startOffsetX + (slot.targetOffsetX - slot.startOffsetX) * t;
+        airMoveOffset(slot.startOffsetX, slot.targetOffsetX,
+                      slot.moveStart, slot.moveDuration, saveTick);
     saved.startOffsetY =
-        slot.startOffsetY + (slot.targetOffsetY - slot.startOffsetY) * t;
+        airMoveOffset(slot.startOffsetY, slot.targetOffsetY,
+                      slot.moveStart, slot.moveDuration, saveTick);
     saved.targetOffsetX = slot.targetOffsetX;
     saved.targetOffsetY = slot.targetOffsetY;
     saved.moveRemainingMs = moving

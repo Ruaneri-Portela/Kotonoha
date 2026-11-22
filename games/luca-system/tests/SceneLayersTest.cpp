@@ -62,6 +62,64 @@ int main() {
               LucaSystem::airCalendarBadgeName(15) == "aug_15" &&
               LucaSystem::airCalendarBadgeName(0).empty(),
           "AIR calendar follows the July-to-August script day cycle");
+    // Repeated MOVE commands must not teleport between keyframes.
+    check(close(LucaSystem::airMoveOffset(0, 100, 1000, 1000, 1000), 0) &&
+              close(LucaSystem::airMoveOffset(0, 100, 1000, 1000, 1500), 50) &&
+              close(LucaSystem::airMoveOffset(0, 100, 1000, 1000, 2500), 100) &&
+              close(LucaSystem::airMoveOffset(8, 21, 1000, 0, 1200), 21),
+          "MOVE interpolation clamps cleanly to start/end");
+    const auto interrupted =
+        LucaSystem::airMoveOffset(0.0f, 100.0f, 1000, 1000, 1250);
+    check(close(interrupted, 25.0f) &&
+              close(LucaSystem::airMoveOffset(interrupted,
+                                              interrupted + 60.0f,
+                                              1250, 500, 1250),
+                    25.0f) &&
+              close(LucaSystem::airMoveOffset(interrupted,
+                                              interrupted + 60.0f,
+                                              1250, 500, 1500),
+                    55.0f),
+          "interrupted MOVE preserves the onscreen position");
+    struct PortraitVisual {
+      float posX = 0, posY = 0;
+      float startOffsetX = 0, startOffsetY = 0;
+      float targetOffsetX = 0, targetOffsetY = 0;
+      std::uint64_t moveStart = 0, moveDuration = 0;
+      float scaleX = 1, scaleY = 1, rotation = 0, alpha = 1;
+      std::uint8_t r = 255, g = 255, b = 255;
+      bool visible = true;
+    };
+    PortraitVisual base{};
+    base.posX = 420;
+    base.posY = 160;
+    base.scaleX = 0.5f;
+    base.scaleY = 0.5f;
+    base.alpha = 0.65f;
+    base.rotation = -13;
+    base.startOffsetX = 3;
+    base.targetOffsetX = 29;
+    base.moveStart = 500;
+    base.moveDuration = 1000;
+    base.r = 100;
+    base.visible = false;
+    PortraitVisual fragment{};
+    LucaSystem::inheritAirPortraitVisuals(fragment, base, true);
+    check(close(fragment.posX, 420) && close(fragment.posY, 160) &&
+              close(fragment.scaleX, 0.5f) &&
+              close(fragment.rotation, -13) &&
+              close(fragment.alpha, 0.65f) &&
+              close(fragment.targetOffsetX, 29) &&
+              fragment.moveDuration == 1000 && fragment.r == 100 &&
+              !fragment.visible,
+          "CZ4 expression inherits body scaling, tint, motion and position");
+    PortraitVisual explicitlyPlaced{};
+    explicitlyPlaced.posX = 10;
+    explicitlyPlaced.posY = 20;
+    LucaSystem::inheritAirPortraitVisuals(explicitlyPlaced, base, false);
+    check(close(explicitlyPlaced.posX, 10) &&
+              close(explicitlyPlaced.posY, 20) &&
+              close(explicitlyPlaced.scaleX, 0.5f),
+          "explicit expression positions remain authored by the script");
     // Draw a face fragment directly above its corresponding body instead of
     // above all portraits. An orphan fragment is intentionally not visible.
     std::map<std::uint16_t, int> layered = {
