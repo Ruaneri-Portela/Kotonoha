@@ -1704,7 +1704,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       for (auto *e : sceneGraph_.queryEntities(query)) {
         const float tx = resolveCoord(a[2], e->x, screenW, true);
         const float ty = resolveCoord(a[3], e->y, screenH, false);
-        sceneGraph_.moveEntity(e->name, tx, ty, ms);
+        sceneGraph_.moveEntity(e->name, tx, ty, ms,
+            a.size() >= 5 ? parseEaseFunction(a[4].asString()) : EaseFunction::Linear);
       }
       if (a.size() >= 6 && a[5].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
@@ -1714,9 +1715,27 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     }
     break;
   }
-  case 0x021: { // BezierMove
+  case 0x021: { // BezierMove [query,ms,c1x,c1y,c2x,c2y,x,y,tempo,wait]
     auto a = popArgs(t, args.size());
-    if (a.size() >= 4) {
+    if (a.size() >= 8) {
+      const std::string query = a[0].asString();
+      const float ms = static_cast<float>(a[1].asFloat());
+      sceneGraph_.bezierMoveEntity(
+          query, static_cast<float>(a[2].asFloat()),
+          static_cast<float>(a[3].asFloat()),
+          static_cast<float>(a[4].asFloat()),
+          static_cast<float>(a[5].asFloat()),
+          static_cast<float>(a[6].asFloat()),
+          static_cast<float>(a[7].asFloat()), ms,
+          a.size() >= 9 ? parseEaseFunction(a[8].asString())
+                        : EaseFunction::Linear);
+      if (a.size() >= 10 && a[9].isTruthy() && ms > 0.0f) {
+        t.waitEntity = query;
+        t.waitEntityAnim = true;
+        yielded = true;
+      }
+    } else if (a.size() >= 4) {
+      // Legacy native bytecode only provides a final coordinate pair.
       sceneGraph_.moveEntity(a[0].asString(),
                              static_cast<float>(a[2].asFloat()),
                              static_cast<float>(a[3].asFloat()),
@@ -1731,7 +1750,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const float ms = static_cast<float>(a[1].asFloat());
       const float opVal =
           std::clamp(static_cast<float>(a[2].asFloat()) / 1000.0f, 0.0f, 1.0f);
-      sceneGraph_.fadeEntity(query, opVal, ms);
+      sceneGraph_.fadeEntity(query, opVal, ms,
+          a.size() >= 4 ? parseEaseFunction(a[3].asString()) : EaseFunction::Linear);
       if (a.size() >= 5 && a[4].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
@@ -1747,7 +1767,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const float ms = static_cast<float>(a[1].asFloat());
       const float sx = static_cast<float>(a[2].asFloat()) / 1000.0f;
       const float sy = static_cast<float>(a[3].asFloat()) / 1000.0f;
-      sceneGraph_.zoomEntity(query, sx, sy, ms);
+      sceneGraph_.zoomEntity(query, sx, sy, ms,
+          a.size() >= 5 ? parseEaseFunction(a[4].asString()) : EaseFunction::Linear);
       if (a.size() >= 6 && a[5].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
@@ -1762,7 +1783,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const std::string query = a[0].asString();
       const float ms = static_cast<float>(a[1].asFloat());
       const float rz = static_cast<float>(a[4].asFloat());
-      sceneGraph_.rotateEntity(query, rz, ms);
+      sceneGraph_.rotateEntity(query, rz, ms,
+          a.size() >= 6 ? parseEaseFunction(a[5].asString()) : EaseFunction::Linear);
     }
     break;
   }
@@ -1789,7 +1811,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
           std::clamp(static_cast<float>(a[3].asFloat()) / 1000.0f, 0.0f, 1.0f);
       const std::string mask =
           a.size() >= 7 ? normalizeAssetPath(a[6].asString()) : "";
-      sceneGraph_.transitionEntity(query, s, e, ms, mask);
+      sceneGraph_.transitionEntity(query, s, e, ms, mask,
+          a.size() >= 6 ? parseEaseFunction(a[5].asString()) : EaseFunction::Linear);
       if (a.size() >= 8 && a[7].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
