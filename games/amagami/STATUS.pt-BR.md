@@ -31,6 +31,11 @@ O relatório [PORT_STATUS.md](PORT_STATUS.md) contém análises técnicas do jog
 - As primitivas básicas de `K2X_Script` incluem a consulta ao relógio de
   frames e estado do ambiente. O loop gráfico passa a usar cadência de
   60 Hz com relógio monotônico de alta resolução do SDL3.
+- `MemoryCard` informa corretamente que ainda não há saves e `Voice.length`
+  informa duração zero enquanto o áudio Vita não está integrado. Leitura e
+  escrita de saves, assim como reprodução real de voz, continuam explicitamente
+  não suportadas para evitar sucessos fictícios. Testes verificam esses limites
+  e os valores assinados de 8 bits dos controles.
 
 
 O diagnóstico Vita reconhece os controles Xbox (A para confirmar, B para cancelar)
