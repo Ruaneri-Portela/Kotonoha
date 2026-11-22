@@ -5,9 +5,18 @@
 #if !TARGET_OS_IPHONE
 #include "KotonohaMacLauncherBridge.h"
 
+typedef void (^KotonohaMacLaunchBlock)(
+    NSString *gamePath, NSString *engineSlug, NSString *saveProfileId,
+    BOOL splitSavesByGame, NSString *customSaveRoot, NSString *assetOverlayPath,
+    NSString *translationPath, NSString *subtitleStylePath,
+    NSString *customDocumentsDir, NSString *ktrfPath, NSString *scriptsDir,
+    NSString *startScenario, NSString *rendererBackend,
+    NSString *upscalerBackend, NSString *upscalerPreset,
+    NSString *upscalerFactor);
+
 @protocol KotonohaMacLauncherPresenterProtocol <NSObject>
-+ (void)presentWithOnLaunch:(void (^)(NSString *))onLaunch
-                    onQuit:(void (^)(void))onQuit;
++ (void)presentWithOnLaunch:(KotonohaMacLaunchBlock)onLaunch
+                     onQuit:(void (^)(void))onQuit;
 + (void)dismiss;
 @end
 
@@ -32,13 +41,40 @@ extern "C" void KotonohaMacPresentNativeLauncher(
       NSLog(@"[KotonohaLauncher] macOS SwiftUI presenter is unavailable");
       return;
     }
-    [cls presentWithOnLaunch:^(NSString *path) {
-      if (onLaunch)
-        onLaunch(path.UTF8String ?: "", userData);
-    } onQuit:^{
-      if (onQuit)
-        onQuit(userData);
-    }];
+    [cls
+        presentWithOnLaunch:^(
+            NSString *gamePath, NSString *engineSlug, NSString *saveProfileId,
+            BOOL splitSavesByGame, NSString *customSaveRoot,
+            NSString *assetOverlayPath, NSString *translationPath,
+            NSString *subtitleStylePath, NSString *customDocumentsDir,
+            NSString *ktrfPath, NSString *scriptsDir, NSString *startScenario,
+            NSString *rendererBackend, NSString *upscalerBackend,
+            NSString *upscalerPreset, NSString *upscalerFactor) {
+          if (!onLaunch)
+            return;
+          KotonohaGameLaunchRequest req = {};
+          req.gamePath = gamePath.UTF8String ?: "";
+          req.engineSlug = engineSlug.UTF8String ?: "";
+          req.saveProfileId = saveProfileId.UTF8String ?: "";
+          req.splitSavesByGame = splitSavesByGame ? 1 : 0;
+          req.customSaveRoot = customSaveRoot.UTF8String ?: "";
+          req.assetOverlayPath = assetOverlayPath.UTF8String ?: "";
+          req.translationPath = translationPath.UTF8String ?: "";
+          req.subtitleStylePath = subtitleStylePath.UTF8String ?: "";
+          req.customDocumentsDir = customDocumentsDir.UTF8String ?: "";
+          req.ktrfPath = ktrfPath.UTF8String ?: "";
+          req.scriptsDir = scriptsDir.UTF8String ?: "";
+          req.startScenario = startScenario.UTF8String ?: "";
+          req.rendererBackend = rendererBackend.UTF8String ?: "";
+          req.upscalerBackend = upscalerBackend.UTF8String ?: "";
+          req.upscalerPreset = upscalerPreset.UTF8String ?: "";
+          req.upscalerFactor = upscalerFactor.UTF8String ?: "";
+          onLaunch(&req, userData);
+        }
+        onQuit:^{
+          if (onQuit)
+            onQuit(userData);
+        }];
   });
 }
 

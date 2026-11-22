@@ -46,7 +46,13 @@ public final class LauncherBridge {
             String customDocumentsDir,
             String ktrfPath,
             String scriptsDir,
-            String startScenario);
+            String startScenario,
+            String rendererBackend,
+            String upscalerBackend,
+            String upscalerPreset,
+            String upscalerFactor);
+
+    public static native String nativeUpscalePresetsJson();
 
     public static native String nativeDefaultSchoolDaysRoute();
 

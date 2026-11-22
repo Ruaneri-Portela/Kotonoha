@@ -431,6 +431,19 @@ struct KotonohaLauncherView: View {
                                     if !game.overlayPath.isEmpty || !game.params.assetOverlayPath.isEmpty {
                                         badge(text: "Overlay Active", tint: .purple)
                                     }
+                                    let activeBackend = store.effectiveRenderer(for: game.params)
+                                    badge(
+                                        text: "Backend: \(KotonohaGraphicsLabels.rendererLabel(activeBackend))",
+                                        tint: .teal
+                                    )
+                                    let activeUpscaler = store.effectiveUpscalerBackend(for: game.params)
+                                    if activeUpscaler != "none" {
+                                        let activeFactor = store.effectiveUpscalerFactor(for: game.params)
+                                        badge(
+                                            text: "\(KotonohaGraphicsLabels.upscalerLabel(activeUpscaler)) \(activeFactor)x",
+                                            tint: .mint
+                                        )
+                                    }
                                 }
                             }
                             Spacer()
@@ -547,6 +560,18 @@ struct KotonohaLauncherView: View {
             if !p.startScenario.isEmpty {
                 Text("--start: \(p.startScenario)").font(.caption2.monospaced())
             }
+            if !p.rendererBackend.isEmpty {
+                Text("--renderer: \(p.rendererBackend)").font(.caption2.monospaced())
+            }
+            if !p.upscalerBackend.isEmpty {
+                Text("--upscaler: \(p.upscalerBackend)").font(.caption2.monospaced())
+            }
+            if !p.upscalerFactor.isEmpty {
+                Text("--upscaler-factor: \(p.upscalerFactor)").font(.caption2.monospaced())
+            }
+            if !p.upscalerPreset.isEmpty {
+                Text("--upscaler-preset: \(p.upscalerPreset)").font(.caption2.monospaced())
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -645,6 +670,46 @@ private struct KotonohaGameParametersSheet: View {
                 }
 
                 Section {
+                    Picker("Renderer Backend", selection: $params.rendererBackend) {
+                        Text("Use Global Setting").tag("")
+                        ForEach(KotonohaGraphicsLabels.iosRenderers.filter { !$0.id.isEmpty }, id: \.id) { opt in
+                            Text(opt.label).tag(opt.id)
+                        }
+                    }
+                    Picker("Upscaler", selection: $params.upscalerBackend) {
+                        Text("Use Global Setting").tag("")
+                        ForEach(KotonohaGraphicsLabels.iosUpscalers, id: \.id) { opt in
+                            Text(opt.label).tag(opt.id)
+                        }
+                    }
+                    let effectiveUpscaler = params.upscalerBackend.isEmpty
+                        ? store.upscalerBackend
+                        : params.upscalerBackend
+                    if effectiveUpscaler != "none" {
+                        Picker("Scale Factor", selection: $params.upscalerFactor) {
+                            Text("Use Global Setting").tag("")
+                            ForEach(KotonohaGraphicsLabels.scaleFactors, id: \.self) { f in
+                                Text("\(f)x").tag(f)
+                            }
+                        }
+                        let effectiveRenderer = params.rendererBackend.isEmpty
+                            ? store.rendererBackend
+                            : params.rendererBackend
+                        if effectiveUpscaler == "mpv" ||
+                           (effectiveUpscaler == "auto" && effectiveRenderer.hasPrefix("opengl")) {
+                            Picker("Shader Preset", selection: $params.upscalerPreset) {
+                                Text("Use Global Setting").tag("")
+                                ForEach(store.upscalePresets) { preset in
+                                    Text(preset.name).tag(String(preset.index))
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Graphics & Upscaling")
+                }
+
+                Section {
                     Button(role: .destructive) {
                         params = KotonohaGameParams()
                         revalidateRoute()
@@ -729,15 +794,96 @@ private struct KotonohaGameParametersSheet: View {
     }
 }
 
+// MARK: - Graphics & Upscaler Option Labels
+
+private enum KotonohaGraphicsLabels {
+    struct Option: Identifiable {
+        let id: String
+        let label: String
+    }
+
+    static let iosRenderers: [Option] = [
+        Option(id: "", label: "Automatic"),
+        Option(id: "metal", label: "Metal"),
+        Option(id: "opengles2", label: "OpenGL ES"),
+        Option(id: "software", label: "Software")
+    ]
+
+    static let iosUpscalers: [Option] = [
+        Option(id: "none", label: "Off"),
+        Option(id: "auto", label: "Auto (MetalFX / OpenGL)"),
+        Option(id: "metalfx", label: "MetalFX"),
+        Option(id: "mpv", label: "MPV / Anime4K / ArtCNN (OpenGL ES)"),
+        Option(id: "linear", label: "Linear")
+    ]
+
+    static let scaleFactors: [String] = ["1.5", "2.0", "3.0", "4.0"]
+
+    static func rendererLabel(_ value: String) -> String {
+        switch value {
+        case "": return "Auto"
+        case "metal": return "Metal"
+        case "opengles2": return "OpenGL ES"
+        case "opengl": return "OpenGL"
+        case "software": return "Software"
+        default: return value
+        }
+    }
+
+    static func upscalerLabel(_ value: String) -> String {
+        switch value {
+        case "none": return "Off"
+        case "auto": return "Auto"
+        case "metalfx": return "MetalFX"
+        case "mpv": return "MPV"
+        case "linear": return "Linear"
+        default: return value
+        }
+    }
+}
+
 // MARK: - Library Roots & Global Settings Sheet
 
 private struct KotonohaLibraryRootsSheet: View {
     @ObservedObject var store: KotonohaIOSBookmarkStore
     @Environment(\.dismiss) private var dismiss
+    @State private var manualLibraryPath: String = ""
 
     var body: some View {
         NavigationView {
             List {
+                Section {
+                    Picker("Renderer Backend", selection: $store.rendererBackend) {
+                        ForEach(KotonohaGraphicsLabels.iosRenderers, id: \.id) { opt in
+                            Text(opt.label).tag(opt.id)
+                        }
+                    }
+                    Picker("Upscaler", selection: $store.upscalerBackend) {
+                        ForEach(KotonohaGraphicsLabels.iosUpscalers, id: \.id) { opt in
+                            Text(opt.label).tag(opt.id)
+                        }
+                    }
+                    if store.upscalerBackend != "none" {
+                        Picker("Scale Factor", selection: $store.upscalerFactor) {
+                            ForEach(KotonohaGraphicsLabels.scaleFactors, id: \.self) { f in
+                                Text("\(f)x").tag(f)
+                            }
+                        }
+                        if store.upscalerBackend == "mpv" ||
+                           (store.upscalerBackend == "auto" && store.rendererBackend.hasPrefix("opengl")) {
+                            Picker("Shader Preset", selection: $store.upscalerPreset) {
+                                ForEach(store.upscalePresets) { preset in
+                                    Text(preset.name).tag(String(preset.index))
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Graphics & Upscaling")
+                } footer: {
+                    Text("Auto uses MetalFX on Metal, Anime4K/ArtCNN on OpenGL ES, and Linear elsewhere. MPV automatically selects OpenGL ES when Renderer is Automatic.")
+                }
+
                 Section("Save Isolation") {
                     Toggle("Isolate Saves Per Game Title", isOn: $store.splitSavesByGame)
                 }
@@ -750,6 +896,33 @@ private struct KotonohaLibraryRootsSheet: View {
                 }
 
                 Section("External Bookmarked Folders & Disc Images") {
+                    HStack(spacing: 8) {
+                        TextField("Paste folder or disc path", text: $manualLibraryPath)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled(true)
+                            .font(.caption.monospaced())
+                        Button("Add") {
+                            let trimmed = manualLibraryPath.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmed.isEmpty {
+                                store.handleExternalPathOrURL(trimmed)
+                                manualLibraryPath = ""
+                            }
+                        }
+                        .disabled(manualLibraryPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+
+                    Button {
+                        store.presentPicker(contentTypes: [.folder], allowsMultiple: true) { _ in }
+                    } label: {
+                        Label("Add Folder from Files…", systemImage: "folder.badge.plus")
+                    }
+
+                    Button {
+                        store.presentPicker(contentTypes: KotonohaContentTypes.discImageTypes, allowsMultiple: true) { _ in }
+                    } label: {
+                        Label("Add Disc Image (ISO / BIN)…", systemImage: "opticaldisc")
+                    }
+
                     if store.bookmarkedPaths.isEmpty {
                         Text("No external bookmarks added yet.")
                             .foregroundStyle(.secondary)
@@ -766,7 +939,7 @@ private struct KotonohaLibraryRootsSheet: View {
                     }
                 }
             }
-            .navigationTitle("Library Sources")
+            .navigationTitle("Settings & Sources")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -788,7 +961,8 @@ final class KotonohaIOSLauncherPresenter: NSObject {
     @objc(presentWithOnLaunch:) static func present(
         onLaunch: @escaping (
             String, String, String, Bool, String,
-            String, String, String, String, String, String, String
+            String, String, String, String, String, String, String,
+            String, String, String, String
         ) -> Void
     ) {
         if launcherWindow != nil {
@@ -809,13 +983,17 @@ final class KotonohaIOSLauncherPresenter: NSObject {
                 item.saveProfileId,
                 store.splitSavesByGame,
                 store.customSaveRoot,
-                item.params.assetOverlayPath,
+                item.params.assetOverlayPath.isEmpty ? item.overlayPath : item.params.assetOverlayPath,
                 item.params.translationPath,
                 item.params.subtitleStylePath,
                 item.params.customDocumentsDir,
                 item.params.ktrfPath,
                 item.params.scriptsDir,
-                item.params.startScenario
+                item.params.startScenario,
+                store.effectiveRenderer(for: item.params),
+                store.effectiveUpscalerBackend(for: item.params),
+                store.effectiveUpscalerPreset(for: item.params),
+                store.effectiveUpscalerFactor(for: item.params)
             )
         }
         let host = UIHostingController(rootView: rootView)

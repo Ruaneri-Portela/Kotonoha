@@ -102,6 +102,7 @@ DebugOverlay::DebugOverlay(Engine &engine) : engine(engine) {
   ImGui::CreateContext();
   ImGui::GetIO().IniFilename = nullptr;
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
   ImGuiTheme::loadFonts();
   ImGuiTheme::apply(1);
   if (!ImGui_ImplSDL3_InitForSDLRenderer(&engine.GetWindow(),

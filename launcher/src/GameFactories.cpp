@@ -62,6 +62,10 @@
 #include <Ponscripter/PonscripterAssets.hpp>
 #include <Ponscripter/PonscripterRuntime.hpp>
 #endif
+#if defined(KOTONOHA_LAUNCH_ARTEMIS)
+#include <Artemis/ArtemisAssets.hpp>
+#include <Artemis/ArtemisRuntime.hpp>
+#endif
 
 namespace KotonohaLauncher {
 namespace {
@@ -313,6 +317,17 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
         return mount(std::make_unique<Ponscripter::PonscripterRuntime>(assets),
                      assets,
                      shutdownRuntime<Ponscripter::PonscripterRuntime>());
+      });
+#endif
+#if defined(KOTONOHA_LAUNCH_ARTEMIS)
+  bindFactory(
+      registry, EngineKind::Artemis,
+      [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
+        const auto path = selectedSourcePath(entry);
+        auto assets = std::make_shared<Artemis::ArtemisAssets>(
+            path, opts.assetOverlayDirectory());
+        return mount(std::make_unique<Artemis::ArtemisRuntime>(assets), assets,
+                     shutdownRuntime<Artemis::ArtemisRuntime>());
       });
 #endif
   // All variants were bound above by engine kind; no post-registration

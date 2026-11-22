@@ -4,6 +4,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <Kotonoha/routing/SchoolDaysChoiceTextPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 #include <algorithm>
@@ -116,7 +117,7 @@ void LogoSplash::render(Kotonoha::RendererRef renderer, float) {
   const double alpha =
       std::clamp(std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
   SDL_SetTextureAlphaModFloat(texture, float(alpha));
-  SDL_RenderTexture(&renderer, texture, nullptr, &target);
+  Kotonoha::RenderUpscaledTexture(&renderer, texture, nullptr, &target);
   SDL_SetTextureAlphaModFloat(texture, 1.0f);
 }
 

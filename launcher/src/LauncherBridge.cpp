@@ -101,6 +101,14 @@ void appendParamsObject(std::ostringstream &out,
   appendJsonString(out, params.scriptsDir);
   out << ",\"startScenario\":";
   appendJsonString(out, params.startScenario);
+  out << ",\"rendererBackend\":";
+  appendJsonString(out, params.rendererBackend);
+  out << ",\"upscalerBackend\":";
+  appendJsonString(out, params.upscalerBackend);
+  out << ",\"upscalerPreset\":";
+  appendJsonString(out, params.upscalerPreset);
+  out << ",\"upscalerFactor\":";
+  appendJsonString(out, params.upscalerFactor);
   out << '}';
 }
 
@@ -213,13 +221,13 @@ char *KotonohaLauncherLoadGameParamsJson(const char *saveProfileId) {
   }
 }
 
-int KotonohaLauncherSaveGameParams(const char *saveProfileId,
-                                   const char *assetOverlayPath,
-                                   const char *translationPath,
-                                   const char *subtitleStylePath,
-                                   const char *customDocumentsDir,
-                                   const char *ktrfPath, const char *scriptsDir,
-                                   const char *startScenario) {
+int KotonohaLauncherSaveGameParams(
+    const char *saveProfileId, const char *assetOverlayPath,
+    const char *translationPath, const char *subtitleStylePath,
+    const char *customDocumentsDir, const char *ktrfPath,
+    const char *scriptsDir, const char *startScenario,
+    const char *rendererBackend, const char *upscalerBackend,
+    const char *upscalerPreset, const char *upscalerFactor) {
   try {
     KotonohaLauncher::GameLaunchParameters params;
     params.assetOverlayPath = safeString(assetOverlayPath);
@@ -229,12 +237,35 @@ int KotonohaLauncherSaveGameParams(const char *saveProfileId,
     params.ktrfPath = safeString(ktrfPath);
     params.scriptsDir = safeString(scriptsDir);
     params.startScenario = safeString(startScenario);
+    params.rendererBackend = safeString(rendererBackend);
+    params.upscalerBackend = safeString(upscalerBackend);
+    params.upscalerPreset = safeString(upscalerPreset);
+    params.upscalerFactor = safeString(upscalerFactor);
     return KotonohaLauncher::saveGameParamsForProfile(safeString(saveProfileId),
                                                       params)
                ? 1
                : 0;
   } catch (...) {
     return 0;
+  }
+}
+
+char *KotonohaLauncherUpscalePresetsJson(void) {
+  try {
+    const auto &presets = Kotonoha::UpscalePresets();
+    std::ostringstream out;
+    out << '[';
+    for (std::size_t i = 0; i < presets.size(); ++i) {
+      if (i > 0)
+        out << ',';
+      out << "{\"index\":" << i << ",\"name\":";
+      appendJsonString(out, Kotonoha::UpscalePresetName(presets[i]));
+      out << '}';
+    }
+    out << ']';
+    return dupCString(out.str());
+  } catch (...) {
+    return dupCString("[]");
   }
 }
 
@@ -377,7 +408,8 @@ Java_org_kotonoha_android_LauncherBridge_nativeSaveGameParams(
     JNIEnv *env, jclass, jstring saveProfileId, jstring assetOverlayPath,
     jstring translationPath, jstring subtitleStylePath,
     jstring customDocumentsDir, jstring ktrfPath, jstring scriptsDir,
-    jstring startScenario) {
+    jstring startScenario, jstring rendererBackend, jstring upscalerBackend,
+    jstring upscalerPreset, jstring upscalerFactor) {
   const std::string profile = jstringToStd(env, saveProfileId);
   const std::string overlay = jstringToStd(env, assetOverlayPath);
   const std::string translation = jstringToStd(env, translationPath);
@@ -386,11 +418,25 @@ Java_org_kotonoha_android_LauncherBridge_nativeSaveGameParams(
   const std::string ktrf = jstringToStd(env, ktrfPath);
   const std::string scripts = jstringToStd(env, scriptsDir);
   const std::string start = jstringToStd(env, startScenario);
+  const std::string renderer = jstringToStd(env, rendererBackend);
+  const std::string upscaler = jstringToStd(env, upscalerBackend);
+  const std::string preset = jstringToStd(env, upscalerPreset);
+  const std::string factor = jstringToStd(env, upscalerFactor);
   const int ok = KotonohaLauncherSaveGameParams(
       profile.c_str(), overlay.c_str(), translation.c_str(),
       subtitleStyle.c_str(), customDocs.c_str(), ktrf.c_str(), scripts.c_str(),
-      start.c_str());
+      start.c_str(), renderer.c_str(), upscaler.c_str(), preset.c_str(),
+      factor.c_str());
   return ok != 0 ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jstring JNICALL
+Java_org_kotonoha_android_LauncherBridge_nativeUpscalePresetsJson(JNIEnv *env,
+                                                                  jclass) {
+  char *json = KotonohaLauncherUpscalePresetsJson();
+  jstring result = env->NewStringUTF(json ? json : "[]");
+  KotonohaLauncherFreeString(json);
+  return result;
 }
 
 JNIEXPORT jstring JNICALL

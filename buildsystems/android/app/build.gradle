@@ -74,6 +74,7 @@ def games = [
   pmail         : ['pmail', 'Pmail', 'me.hirameki.kotonoha.pmail', 'Pure Mail'],
   ponscripter   : ['ponscripter', 'PonscripterGame', 'me.hirameki.kotonoha.ponscripter', 'PONscripter'],
   n2System      : ['n2system', 'N2SystemGame', 'me.hirameki.kotonoha.n2system', 'N2System Game'],
+  artemis       : ['artemis', 'ArtemisGame', 'me.hirameki.kotonoha.artemis', 'Artemis Engine'],
   launcher      : ['all', 'KotonohaLauncher', 'me.hirameki.kotonoha.launcher', 'Kotonoha Launcher']
 ]
 
@@ -227,13 +228,15 @@ android.applicationVariants.all { variant ->
             'armeabi-v7a': 'arm-android'
           ][abi]
 
-          if (triplet != null) {
+          if (!foundStdlib && triplet != null) {
             def prefix = new File(rootProject.projectDir,
               "build/vcpkg-python/${abi}/${triplet}")
             def libraryRoot = new File(prefix,
               variant.buildType.name == 'debug' ? 'debug/lib' : 'lib')
             def stdlibs = fileTree(libraryRoot).matching {
               include 'python3.*/**'
+              exclude 'python3.*/lib-dynload/**'
+              exclude '**/__pycache__/**'
             }.files
 
             if (!stdlibs.empty) {
@@ -241,6 +244,8 @@ android.applicationVariants.all { variant ->
               copy {
                 from libraryRoot
                 include 'python3.*/**'
+                exclude 'python3.*/lib-dynload/**'
+                exclude '**/__pycache__/**'
                 into new File(stagedDir, 'python/lib')
               }
             }
@@ -284,6 +289,67 @@ android.applicationVariants.all { variant ->
   if (variant.flavorName in ['dokiDoki', 'katawaShoujo', 'launcher']) {
     assets.configure {
       dependsOn variant.externalNativeBuildProviders
+    }
+
+    // Android 10+ (API 29+, targetSdk >= 29) blocks dlopen() from getFilesDir().
+    // Package each ABI's CPython lib-dynload/*.so inside jniLibs/<abi>/ renamed
+    // to libpyext_<module>.so so Android PackageManager extracts them into
+    // ApplicationInfo.nativeLibraryDir with executable permissions.
+    def stagedJniLibs = layout.buildDirectory.dir("generated/jniLibs/${variant.name}")
+    def pythonExtensions = tasks.register("stage${taskSuffix}PythonExtensions") {
+      dependsOn variant.externalNativeBuildProviders
+      outputs.dir stagedJniLibs
+
+      doLast {
+        def outRoot = stagedJniLibs.get().asFile
+        delete outRoot
+        def foundAny = false
+
+        abis.each { abi ->
+          def triplet = [
+            'arm64-v8a'  : 'arm64-android',
+            'x86_64'     : 'x64-android',
+            'x86'        : 'x86-android',
+            'armeabi-v7a': 'arm-android'
+          ][abi]
+
+          if (triplet != null) {
+            def prefix = new File(rootProject.projectDir,
+              "build/vcpkg-python/${abi}/${triplet}")
+            def libraryRoot = new File(prefix,
+              variant.buildType.name == 'debug' ? 'debug/lib' : 'lib')
+            def dynloadFiles = fileTree(libraryRoot).matching {
+              include 'python3.*/lib-dynload/*.so'
+            }.files
+
+            if (!dynloadFiles.empty) {
+              foundAny = true
+              def abiDir = new File(outRoot, abi)
+              abiDir.mkdirs()
+              dynloadFiles.each { extFile ->
+                def moduleName = extFile.name.replaceFirst(/\.cpython-.*\.so$/, '')
+                  .replaceFirst(/\.so$/, '')
+                copy {
+                  from extFile
+                  into abiDir
+                  rename { "libpyext_${moduleName}.so" }
+                }
+              }
+            }
+          }
+        }
+
+        if (!foundAny) {
+          throw new GradleException(
+            'Android CPython lib-dynload extensions are missing for the selected ABIs.')
+        }
+      }
+    }
+
+    android.sourceSets[variant.name].jniLibs.srcDir stagedJniLibs.get().asFile
+    tasks.named("merge${taskSuffix}JniLibFolders").configure {
+      dependsOn pythonExtensions
+      inputs.dir stagedJniLibs
     }
   }
 }

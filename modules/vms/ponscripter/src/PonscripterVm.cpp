@@ -530,6 +530,16 @@ bool PonscripterVm::rightClick() {
 }
 
 void PonscripterVm::enterSystemCall(const std::string &kind) {
+  if (kind == "end") {
+    activeSystemCall_.clear();
+    waitState_ = WaitState::Halted;
+    if (callbacks_) {
+      callbacks_->onStopBgm(0);
+      callbacks_->onStopWave(-1);
+      callbacks_->onPersistGlobals();
+    }
+    return;
+  }
   if (waitState_ != WaitState::WaitSystemCall) {
     preSystemCallWaitState_ = waitState_;
   }

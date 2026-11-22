@@ -18,4 +18,5 @@ set(KOTONOHA_GAMES
         "PMAIL|pmail|games/pmail"
         "PONSCRIPTER|ponscripter|games/ponscripter"
         "N2SYSTEM|n2system|games/n2system"
+        "ARTEMIS|artemis|games/artemis"
 )

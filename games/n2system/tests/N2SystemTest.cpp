@@ -1,5 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
+#include <Kotonoha/core/Engine.hpp>
 #include <N2System/N2Runtime.hpp>
+#include <SDL3/SDL.h>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -127,8 +129,13 @@ int main() {
           vm.advance();
       }
       std::cout << "[Steins;Gate] After New Game: script="
-                << vm.currentScriptPath() << " executed=" << vm.totalExecuted()
-                << " entities=" << vm.sceneGraph().entities().size() << "\n";
+                << vm.currentScriptPath() << " line=" << vm.currentLine()
+                << " executed=" << vm.totalExecuted()
+                << " waitKey=" << vm.waitingForKey()
+                << " waitChoice=" << vm.waitingForChoice()
+                << " finished=" << vm.finished()
+                << " text='" << vm.dialogueSystem().fullText().substr(0, 60)
+                << "' entities=" << vm.sceneGraph().entities().size() << "\n";
 
       // Now verify prologue sg01_01.nsb executes to real dialogue + voice
       check(vm.jumpToScript("nss/sg01_01.nsb", "scene.sg01_01.nss"),
@@ -153,6 +160,108 @@ int main() {
             "SG sg01_01 did not produce dialogue");
       check(!vm.dialogueSystem().voicePath().empty(),
             "SG sg01_01 did not trigger voice");
+
+      // Headless Engine-backed title menu input test (hover, keyboard, gamepad,
+      // click -> sg01_01 prologue dialogue -> advance).
+      {
+        N2System::N2Runtime engineRuntime(sgAssets);
+        Kotonoha::EngineOptions opts;
+        opts.assets = sgAssets;
+        Kotonoha::Engine engine(engineRuntime, std::move(opts));
+        struct ShutdownGuard {
+          N2System::N2Runtime &rt;
+          ~ShutdownGuard() { rt.shutdown(); }
+        } guard{engineRuntime};
+
+        auto *nvm = engineRuntime.nsbVm();
+        check(nvm != nullptr, "Engine-backed N2Runtime must activate NsbVm");
+
+        for (int frame = 0; frame < 600 && !nvm->waitingForChoice(); ++frame) {
+          engineRuntime.advanceStoryTime(0.1);
+          engineRuntime.update();
+          if (nvm->waitingForKey() || nvm->activeMovie().active)
+            engineRuntime.handleAdvanceAction();
+        }
+        check(nvm->currentScriptPath() == "nss/sys_title.nsb",
+              "Engine-backed SG must reach sys_title.nsb");
+        check(nvm->waitingForChoice() && nvm->activeChoices().size() == 5,
+              "Engine-backed SG title menu must expose 5 choices");
+
+        // Render one frame so textures & hover rendering path are exercised.
+        check(engine.Iterate() == SDL_APP_CONTINUE,
+              "Engine iterate on SG title screen must succeed");
+
+        // Hover Load button (888, 97), navigate via keyboard + gamepad back to
+        // Start (888, 37), then click Start in 1024x576 logical coordinates.
+        SDL_Event hover{};
+        hover.type = SDL_EVENT_MOUSE_MOTION;
+        hover.motion.x = 920.0f;
+        hover.motion.y = 110.0f;
+        check(engineRuntime.onEvent(hover),
+              "Mouse hover on SG Load button must be handled");
+
+        SDL_Event keyUp{};
+        keyUp.type = SDL_EVENT_KEY_DOWN;
+        keyUp.key.key = SDLK_UP;
+        keyUp.key.down = true;
+        check(engineRuntime.onEvent(keyUp),
+              "Keyboard Up on SG title menu must be handled");
+
+        SDL_Event padDown{};
+        padDown.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+        padDown.gbutton.button = SDL_GAMEPAD_BUTTON_DPAD_DOWN;
+        padDown.gbutton.down = true;
+        check(engineRuntime.onEvent(padDown),
+              "Gamepad D-pad Down on SG title menu must be handled");
+
+        SDL_Event padUp{};
+        padUp.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
+        padUp.gbutton.button = SDL_GAMEPAD_BUTTON_DPAD_UP;
+        padUp.gbutton.down = true;
+        check(engineRuntime.onEvent(padUp),
+              "Gamepad D-pad Up on SG title menu must be handled");
+
+        SDL_Event clickStart{};
+        clickStart.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+        clickStart.button.button = SDL_BUTTON_LEFT;
+        clickStart.button.down = true;
+        clickStart.button.x = 920.0f;
+        clickStart.button.y = 50.0f;
+        check(engineRuntime.onEvent(clickStart),
+              "Left click on SG Start button must trigger New Game");
+
+        for (int frame = 0; frame < 400; ++frame) {
+          engineRuntime.advanceStoryTime(0.1);
+          engineRuntime.update();
+          if (!engineRuntime.dialogueText().empty())
+            break;
+          if (nvm->waitingForKey() || nvm->activeMovie().active)
+            engineRuntime.handleAdvanceAction();
+        }
+        const std::string firstLine = engineRuntime.dialogueText();
+        check(!firstLine.empty(),
+              "Selecting Start on SG title menu must enter sg01_01 prologue "
+              "with visible dialogue");
+
+        // Advance dialogue with Enter and verify dialogue progresses.
+        SDL_Event enter{};
+        enter.type = SDL_EVENT_KEY_DOWN;
+        enter.key.key = SDLK_RETURN;
+        enter.key.down = true;
+        bool advanced = false;
+        for (int attempt = 0; attempt < 20 && !advanced; ++attempt) {
+          engineRuntime.onEvent(enter);
+          for (int f = 0; f < 10; ++f) {
+            engineRuntime.advanceStoryTime(0.1);
+            engineRuntime.update();
+          }
+          if (engineRuntime.dialogueText() != firstLine)
+            advanced = true;
+        }
+        check(advanced,
+              "Pressing Enter must advance SG sg01_01 prologue dialogue");
+      }
+
       std::cout << "[Steins;Gate] Retail verification PASSED!\n";
     }
     return 0;

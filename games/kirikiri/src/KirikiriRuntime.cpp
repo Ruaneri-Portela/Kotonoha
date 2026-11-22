@@ -15,6 +15,7 @@
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -375,7 +376,8 @@ struct KirikiriRuntime::Impl {
       Uint8 prevAlpha = 255;
       SDL_GetTextureAlphaMod(&tex, &prevAlpha);
       SDL_SetTextureAlphaMod(&tex, alpha);
-      const bool ok = SDL_RenderTexture(&renderer, &tex, nullptr, &target);
+      const bool ok =
+          Kotonoha::RenderUpscaledTexture(&renderer, &tex, nullptr, &target);
       SDL_SetTextureAlphaMod(&tex, prevAlpha);
       return ok;
     } catch (...) {
@@ -733,7 +735,8 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           fullScreen ? SDL_FRect{0, 0, 1280, 720}
                      : SDL_FRect{float(visual.x), float(visual.y),
                                  float(texture.w), float(texture.h)};
-      if (!SDL_RenderTexture(&renderer, &texture, nullptr, &destination))
+      if (!Kotonoha::RenderUpscaledTexture(&renderer, &texture, nullptr,
+                                           &destination))
         throw std::runtime_error(SDL_GetError());
     } catch (const std::exception &error) {
       visual.decodeFailed = true;
@@ -895,8 +898,8 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
               !SDL_SetTextureAlphaMod(&texture,
                                       static_cast<Uint8>(layer.opacity)))
             throw std::runtime_error(SDL_GetError());
-          const bool success =
-              SDL_RenderTexture(&renderer, &texture, nullptr, &destination);
+          const bool success = Kotonoha::RenderUpscaledTexture(
+              &renderer, &texture, nullptr, &destination);
           SDL_SetTextureAlphaMod(&texture, previousAlpha);
           if (!success)
             throw std::runtime_error(SDL_GetError());
@@ -1283,7 +1286,8 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
     // Modal screens (`Title`, `Save`, `Load`, `Config`, `Backlog`, `Extra`)
     if (impl.screenMode != Impl::ScreenMode::None) {
       if (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat) {
-        if (mapped.key.key == SDLK_ESCAPE || mapped.key.key == SDLK_BACKSPACE) {
+        if (mapped.key.key == SDLK_ESCAPE || mapped.key.key == SDLK_BACKSPACE ||
+            mapped.key.key == SDLK_AC_BACK) {
           if (impl.screenMode != Impl::ScreenMode::Title) {
             impl.closeOverlayScreen();
             return true;
@@ -1501,7 +1505,7 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
         return true;
       }
       if (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat) {
-        if (mapped.key.key == SDLK_ESCAPE) {
+        if (mapped.key.key == SDLK_ESCAPE || mapped.key.key == SDLK_AC_BACK) {
           impl.openScreen(Impl::ScreenMode::Save);
           return true;
         }
@@ -1510,6 +1514,24 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
           impl.openScreen(Impl::ScreenMode::Backlog);
           return true;
         }
+        if (mapped.key.key == SDLK_S) {
+          impl.skipMode = !impl.skipMode;
+          return true;
+        }
+        if (mapped.key.key == SDLK_A) {
+          impl.autoMode = !impl.autoMode;
+          return true;
+        }
+      }
+      if (mapped.type == SDL_EVENT_KEY_DOWN &&
+          (mapped.key.key == SDLK_LCTRL || mapped.key.key == SDLK_RCTRL)) {
+        impl.skipMode = true;
+        return true;
+      }
+      if (mapped.type == SDL_EVENT_KEY_UP &&
+          (mapped.key.key == SDLK_LCTRL || mapped.key.key == SDLK_RCTRL)) {
+        impl.skipMode = false;
+        return true;
       }
       if (mapped.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
           mapped.button.button == SDL_BUTTON_LEFT && impl.dialogueVisible &&

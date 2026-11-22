@@ -21,6 +21,7 @@ Kotonoha supports multiple engines and game-specific runtimes. **Support is not 
 | Pure Mail | `KOTONOHA_BUILD_PMAIL` | `Pmail` | [Readme](pmail/README.md) |
 | PONscripter / ONScripter | `KOTONOHA_BUILD_PONSCRIPTER` | `PonscripterGame` | [Readme](ponscripter/README.md) |
 | N2System | `KOTONOHA_BUILD_N2SYSTEM` | `N2SystemGame` | [Readme](n2system/README.md) |
+| Artemis Engine | `KOTONOHA_BUILD_ARTEMIS` | `ArtemisGame` | [Readme](artemis/README.md) |
 
 Build one port by enabling its option: `cmake -S . -B build -DKOTONOHA_BUILD_REALLIVE=ON`, then `cmake --build build --target RealLive`. For tests use `ctest --test-dir build --output-on-failure`.
 

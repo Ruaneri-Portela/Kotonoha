@@ -203,18 +203,79 @@ float UI::textSized(RendererRef renderer, const std::string &original, float x,
         throw std::runtime_error(SDL_GetError());
       entry.tint = color;
     }
-    // Maintain logical positions with HiDPI glyphs; restore renderer state
-    // even if the text draw reports failure.
-    float scaleX = 1.0f, scaleY = 1.0f;
-    if (!SDL_GetRenderScale(&renderer, &scaleX, &scaleY))
-      throw std::runtime_error(SDL_GetError());
-    if (!SDL_SetRenderScale(&renderer, scaleX / raster, scaleY / raster))
-      throw std::runtime_error(SDL_GetError());
-    const bool drawn = TTF_DrawRendererText(entry.glyphText.get(), x * raster,
-                                            y * raster);
-    const bool restored = SDL_SetRenderScale(&renderer, scaleX, scaleY);
-    if (!drawn || !restored)
-      throw std::runtime_error(SDL_GetError());
+    if (std::abs(raster - 1.0f) < 1e-4f) {
+      if (!TTF_DrawRendererText(entry.glyphText.get(), x, y))
+        throw std::runtime_error(SDL_GetError());
+    } else {
+      // SDL3 scales both the active viewport and clip rect by the render scale.
+      // Scale them by `raster` alongside dividing render scale by `raster` so
+      // HiDPI atlas glyphs render at 1:1 physical pixels without shifting or
+      // clipping text inside FrameScope or clipped components (e.g. VNTextBox).
+      float scaleX = 1.0f, scaleY = 1.0f;
+      if (!SDL_GetRenderScale(&renderer, &scaleX, &scaleY))
+        throw std::runtime_error(SDL_GetError());
+      const bool viewportSet = SDL_RenderViewportSet(&renderer);
+      const bool clipEnabled = SDL_RenderClipEnabled(&renderer);
+      SDL_Rect viewport{}, clip{};
+      if (viewportSet && !SDL_GetRenderViewport(&renderer, &viewport))
+        throw std::runtime_error(SDL_GetError());
+      if (clipEnabled && !SDL_GetRenderClipRect(&renderer, &clip))
+        throw std::runtime_error(SDL_GetError());
+
+      struct RestoreRenderState {
+        SDL_Renderer *r;
+        float sx, sy;
+        bool hadViewport, hadClip;
+        SDL_Rect vp, cl;
+        bool &restored;
+        ~RestoreRenderState() {
+          if (!SDL_SetRenderScale(r, sx, sy))
+            restored = false;
+          if (hadViewport && !SDL_SetRenderViewport(r, &vp))
+            restored = false;
+          if (hadClip && !SDL_SetRenderClipRect(r, &cl))
+            restored = false;
+        }
+      };
+
+      bool drawn = false;
+      bool restored = true;
+      {
+        RestoreRenderState guard{&renderer, scaleX,   scaleY, viewportSet,
+                                 clipEnabled, viewport, clip,   restored};
+        float drawX = x * raster;
+        float drawY = y * raster;
+        if (!SDL_SetRenderScale(&renderer, scaleX / raster, scaleY / raster))
+          throw std::runtime_error(SDL_GetError());
+        if (viewportSet) {
+          const SDL_Rect scaledViewport{
+              static_cast<int>(std::lround(viewport.x * raster)),
+              static_cast<int>(std::lround(viewport.y * raster)),
+              static_cast<int>(std::ceil(viewport.w * raster)),
+              static_cast<int>(std::ceil(viewport.h * raster))};
+          drawX += viewport.x * raster - static_cast<float>(scaledViewport.x);
+          drawY += viewport.y * raster - static_cast<float>(scaledViewport.y);
+          if (!SDL_SetRenderViewport(&renderer, &scaledViewport))
+            throw std::runtime_error(SDL_GetError());
+        }
+        if (clipEnabled) {
+          const int clipX = static_cast<int>(std::floor(clip.x * raster));
+          const int clipY = static_cast<int>(std::floor(clip.y * raster));
+          const int clipRight =
+              static_cast<int>(std::ceil((clip.x + clip.w) * raster));
+          const int clipBottom =
+              static_cast<int>(std::ceil((clip.y + clip.h) * raster));
+          const SDL_Rect scaledClip{clipX, clipY,
+                                    std::max(0, clipRight - clipX),
+                                    std::max(0, clipBottom - clipY)};
+          if (!SDL_SetRenderClipRect(&renderer, &scaledClip))
+            throw std::runtime_error(SDL_GetError());
+        }
+        drawn = TTF_DrawRendererText(entry.glyphText.get(), drawX, drawY);
+      }
+      if (!drawn || !restored)
+        throw std::runtime_error(SDL_GetError());
+    }
   } else {
     SDL_SetTextureColorMod(entry.texture.get(), color.r, color.g, color.b);
     SDL_SetTextureAlphaMod(entry.texture.get(), color.a);

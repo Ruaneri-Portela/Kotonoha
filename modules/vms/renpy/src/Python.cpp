@@ -4,8 +4,12 @@
 
 #include <Python.h>
 #include <SDL3/SDL_filesystem.h>
+#include <SDL3/SDL_log.h>
 #ifdef __ANDROID__
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <SDL3/SDL_system.h>
+#include <cstdlib>
+#include <jni.h>
 #endif
 
 #if defined(__APPLE__)
@@ -55,6 +59,128 @@ void checkPythonStatus(PyStatus status) {
         (status.err_msg ? status.err_msg : "unknown error"));
 }
 
+#ifdef __ANDROID__
+std::filesystem::path androidNativeLibraryDirectory() {
+  if (const char *configured = std::getenv("KOTONOHA_ANDROID_NATIVE_LIB_DIR");
+      configured && *configured) {
+    return std::filesystem::path(configured);
+  }
+  auto *env = static_cast<JNIEnv *>(SDL_GetAndroidJNIEnv());
+  auto activity = static_cast<jobject>(SDL_GetAndroidActivity());
+  if (!env || !activity)
+    return {};
+  std::filesystem::path result;
+  jclass activityClass = env->GetObjectClass(activity);
+  jmethodID getAppInfo =
+      activityClass ? env->GetMethodID(activityClass, "getApplicationInfo",
+                                       "()Landroid/content/pm/ApplicationInfo;")
+                    : nullptr;
+  jobject appInfo =
+      getAppInfo ? env->CallObjectMethod(activity, getAppInfo) : nullptr;
+  if (env->ExceptionCheck()) {
+    env->ExceptionClear();
+    appInfo = nullptr;
+  }
+  if (appInfo) {
+    jclass appInfoClass = env->GetObjectClass(appInfo);
+    jfieldID libDirField =
+        appInfoClass ? env->GetFieldID(appInfoClass, "nativeLibraryDir",
+                                       "Ljava/lang/String;")
+                     : nullptr;
+    auto libDirStr =
+        libDirField
+            ? static_cast<jstring>(env->GetObjectField(appInfo, libDirField))
+            : nullptr;
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      libDirStr = nullptr;
+    }
+    if (libDirStr) {
+      if (const char *chars = env->GetStringUTFChars(libDirStr, nullptr)) {
+        if (*chars)
+          result = std::filesystem::path(chars);
+        env->ReleaseStringUTFChars(libDirStr, chars);
+      }
+      env->DeleteLocalRef(libDirStr);
+    }
+    if (appInfoClass)
+      env->DeleteLocalRef(appInfoClass);
+    env->DeleteLocalRef(appInfo);
+  }
+  if (activityClass)
+    env->DeleteLocalRef(activityClass);
+  env->DeleteLocalRef(activity);
+  return result;
+}
+
+void installAndroidExtensionFinder() {
+  const auto nativeLibDir = androidNativeLibraryDirectory();
+  std::error_code ec;
+  if (nativeLibDir.empty() ||
+      !std::filesystem::is_directory(nativeLibDir, ec)) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "[RenPy/Python] Android nativeLibraryDir unavailable (%s); "
+                "Python C extensions may fail to dlopen",
+                nativeLibDir.string().c_str());
+    return;
+  }
+  Ref globals(PyDict_New());
+  if (!globals || PyDict_SetItemString(globals.get(), "__builtins__",
+                                       PyEval_GetBuiltins()) < 0) {
+    throw std::runtime_error(
+        "Cannot allocate Android extension finder globals");
+  }
+  const std::string dirStr = nativeLibDir.string();
+  Ref pyDir(PyUnicode_DecodeUTF8(
+      dirStr.data(), static_cast<Py_ssize_t>(dirStr.size()), "surrogateescape"));
+  if (!pyDir ||
+      PyDict_SetItemString(globals.get(), "_kotonoha_native_lib_dir",
+                           pyDir.get()) < 0) {
+    throw std::runtime_error(
+        "Cannot bind Android nativeLibraryDir for Python extension finder");
+  }
+  // Android 10+ (API 29+, targetSdk >= 29) blocks dlopen() of .so files from
+  // writable app data directories (getFilesDir()). Python C extensions are
+  // packaged in jniLibs/<abi>/libpyext_<module>.so so Android extracts them
+  // into nativeLibraryDir with executable SELinux context.
+  static const char *bootstrapFinder = R"py(
+import importlib.machinery as _machinery
+import importlib.util as _util
+import os as _os
+import sys as _sys
+
+class _KotonohaAndroidExtensionFinder:
+    def __init__(self, lib_dir):
+        self._lib_dir = lib_dir
+
+    def find_spec(self, fullname, path=None, target=None):
+        if "." in fullname or fullname in _sys.builtin_module_names:
+            return None
+        candidate = _os.path.join(self._lib_dir, f"libpyext_{fullname}.so")
+        if _os.path.isfile(candidate):
+            loader = _machinery.ExtensionFileLoader(fullname, candidate)
+            return _util.spec_from_file_location(fullname, candidate, loader=loader)
+        return None
+
+_finder = _KotonohaAndroidExtensionFinder(_kotonoha_native_lib_dir)
+_insert_at = 0
+for _idx, _existing in enumerate(_sys.meta_path):
+    if getattr(_existing, "__name__", "") in ("BuiltinImporter", "FrozenImporter"):
+        _insert_at = _idx + 1
+_sys.meta_path.insert(_insert_at, _finder)
+)py";
+  Ref res(PyRun_String(bootstrapFinder, Py_file_input, globals.get(),
+                       globals.get()));
+  if (!res) {
+    PyErr_Print();
+    throw std::runtime_error(
+        "Cannot install Android Python native extension finder");
+  }
+  SDL_Log("[RenPy/Python] Installed Android native extension finder -> %s",
+          dirStr.c_str());
+}
+#endif
+
 void configureBundledPython(PyConfig &config) {
 #if defined(__APPLE__) || defined(__ANDROID__)
 #ifdef __ANDROID__
@@ -103,9 +229,27 @@ void configureBundledPython(PyConfig &config) {
 #endif
   }
 
+  const auto stdlib = home / "lib" / pythonVersion;
+  const auto encodingsInit = stdlib / "encodings" / "__init__.py";
+  if (!std::filesystem::is_regular_file(encodingsInit)) {
+#if TARGET_OS_IPHONE || defined(__ANDROID__)
+    throw std::runtime_error("Bundled Python encodings module is missing: " +
+                             encodingsInit.string());
+#else
+    if (macBundle)
+      throw std::runtime_error("Bundled Python encodings module is missing: " +
+                               encodingsInit.string());
+    return;
+#endif
+  }
+
+  SDL_Log("[RenPy/Python] Initializing bundled CPython %d.%d (home=%s, "
+          "stdlib=%s)",
+          PY_MAJOR_VERSION, PY_MINOR_VERSION, home.string().c_str(),
+          stdlib.string().c_str());
+
   checkPythonStatus(
       PyConfig_SetBytesString(&config, &config.home, home.c_str()));
-  const auto stdlib = home / "lib" / pythonVersion;
   for (const auto &path : {stdlib, stdlib / "lib-dynload", resources / "app"}) {
     wchar_t *wide = Py_DecodeLocale(path.c_str(), nullptr);
     if (!wide)
@@ -145,6 +289,9 @@ void initializePython() {
     config.parse_argv = 0;
     configureBundledPython(config);
     checkPythonStatus(Py_InitializeFromConfig(&config));
+#ifdef __ANDROID__
+    installAndroidExtensionFinder();
+#endif
     PyEval_SaveThread();
   });
 }

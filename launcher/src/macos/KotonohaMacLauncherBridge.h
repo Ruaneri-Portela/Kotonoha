@@ -7,7 +7,8 @@
 extern "C" {
 #endif
 
-typedef void (*KotonohaMacLaunchCallback)(const char *path, void *userData);
+typedef void (*KotonohaMacLaunchCallback)(
+    const KotonohaGameLaunchRequest *request, void *userData);
 typedef void (*KotonohaMacQuitCallback)(void *userData);
 
 void KotonohaMacPresentNativeLauncher(KotonohaMacLaunchCallback onLaunch,

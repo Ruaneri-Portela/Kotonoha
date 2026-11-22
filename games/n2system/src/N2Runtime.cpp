@@ -10,15 +10,20 @@
 #include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/InputMapper.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace N2System {
 
@@ -33,6 +38,10 @@ struct N2Runtime::Impl {
   std::unique_ptr<Kotonoha::ChoiceQuestionScene> choiceScene;
   bool choiceActive = false;
   bool restartRequested = false;
+  bool quitRequested = false;
+  int focusedChoiceIndex = 0;
+  std::vector<std::string> lastChoices;
+  std::unordered_map<std::string, SDL_Point> imageSizeCache;
   std::string currentBgm;
   std::string currentVoice;
   std::string currentSe;
@@ -45,6 +54,205 @@ struct N2Runtime::Impl {
   SDL_Point viewportSize{1280, 720};
   std::unique_ptr<NsbVm> nsbVm;
   std::unique_ptr<Ponscripter::PonscripterRuntime> ponscripter;
+
+  static bool startsWith(std::string_view text, std::string_view prefix) {
+    return text.size() >= prefix.size() &&
+           text.compare(0, prefix.size(), prefix) == 0;
+  }
+
+  std::string resolveImagePath(const SceneGraph &graph,
+                               const std::string &rawPath) const {
+    if (rawPath.empty())
+      return {};
+    if (rawPath.front() == '@') {
+      if (const auto *ref = graph.findEntity(rawPath)) {
+        if (!ref->imagePath.empty() && ref->imagePath != rawPath)
+          return resolveImagePath(graph, ref->imagePath);
+      }
+      return {};
+    }
+    return rawPath;
+  }
+
+  bool queryImageSize(N2ArchiveAssets *assets, const SceneGraph &graph,
+                      const std::string &rawPath, int &outW, int &outH) {
+    const std::string resolved = resolveImagePath(graph, rawPath);
+    if (resolved.empty() || !assets)
+      return false;
+    auto it = imageSizeCache.find(resolved);
+    if (it != imageSizeCache.end()) {
+      outW = it->second.x;
+      outH = it->second.y;
+      return outW > 0 && outH > 0;
+    }
+    if (!assets->contains(resolved)) {
+      imageSizeCache[resolved] = SDL_Point{0, 0};
+      return false;
+    }
+    try {
+      auto surf = assets->loadSurface(resolved);
+      if (surf && surf->w > 0 && surf->h > 0) {
+        imageSizeCache[resolved] = SDL_Point{surf->w, surf->h};
+        outW = surf->w;
+        outH = surf->h;
+        return true;
+      }
+    } catch (...) {
+    }
+    imageSizeCache[resolved] = SDL_Point{0, 0};
+    return false;
+  }
+
+  const Entity *findChoiceHitEntity(const SceneGraph &graph,
+                                    const std::string &choiceName) const {
+    if (const auto *e = graph.findEntity(choiceName + "/MouseUsual/hit"))
+      return e;
+    if (const auto *e = graph.findEntity(choiceName + "/MouseUsual/img"))
+      return e;
+    const std::string usualPrefix = choiceName + "/MouseUsual/";
+    for (const auto &[name, entity] : graph.entities()) {
+      if (startsWith(name, usualPrefix))
+        return &entity;
+    }
+    if (const auto *e = graph.findEntity(choiceName + "/MouseOver/img"))
+      return e;
+    const std::string overPrefix = choiceName + "/MouseOver/";
+    for (const auto &[name, entity] : graph.entities()) {
+      if (startsWith(name, overPrefix))
+        return &entity;
+    }
+    return graph.findEntity(choiceName + "/img");
+  }
+
+  std::optional<SDL_FRect> choiceBounds(N2ArchiveAssets *assets,
+                                        const SceneGraph &graph,
+                                        const std::string &choiceName) {
+    const Entity *e = findChoiceHitEntity(graph, choiceName);
+    if (!e)
+      return std::nullopt;
+    const float x = e->x + e->shakeOffsetX;
+    const float y = e->y + e->shakeOffsetY;
+    float w = 0.0f;
+    float h = 0.0f;
+    if (e->hasClipRect && e->clipW > 0.0f && e->clipH > 0.0f) {
+      w = e->clipW * e->scaleX;
+      h = e->clipH * e->scaleY;
+    } else if (e->width > 0.0f && e->height > 0.0f) {
+      w = e->width * e->scaleX;
+      h = e->height * e->scaleY;
+    } else if (!e->imagePath.empty()) {
+      int iw = 0, ih = 0;
+      if (queryImageSize(assets, graph, e->imagePath, iw, ih)) {
+        w = static_cast<float>(iw) * e->scaleX;
+        h = static_cast<float>(ih) * e->scaleY;
+      }
+    }
+    if (w <= 0.0f || h <= 0.0f)
+      return std::nullopt;
+    return SDL_FRect{x, y, w, h};
+  }
+
+  bool hasNativeChoices(N2ArchiveAssets *assets) {
+    if (!nsbMode || !nsbVm || !nsbVm->waitingForChoice())
+      return false;
+    const auto &graph = nsbVm->sceneGraph();
+    for (const auto &choice : nsbVm->activeChoices()) {
+      if (choiceBounds(assets, graph, choice).has_value())
+        return true;
+    }
+    return false;
+  }
+
+  int hitTestNativeChoice(N2ArchiveAssets *assets, float x, float y) {
+    if (!nsbMode || !nsbVm || !nsbVm->waitingForChoice())
+      return -1;
+    const auto &graph = nsbVm->sceneGraph();
+    const auto &choices = nsbVm->activeChoices();
+    for (std::size_t i = 0; i < choices.size(); ++i) {
+      const auto rect = choiceBounds(assets, graph, choices[i]);
+      if (rect && x >= rect->x && x < rect->x + rect->w && y >= rect->y &&
+          y < rect->y + rect->h) {
+        return static_cast<int>(i);
+      }
+    }
+    return -1;
+  }
+
+  bool hasOverSprite(const SceneGraph &graph,
+                     const std::string &choiceName) const {
+    const std::string overPrefix = choiceName + "/MouseOver/";
+    for (const auto &[name, entity] : graph.entities()) {
+      if (startsWith(name, overPrefix) && entity.type == EntityType::Sprite &&
+          !resolveImagePath(graph, entity.imagePath).empty()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool moveNativeChoiceFocus(int dir) {
+    if (!nsbMode || !nsbVm || !nsbVm->waitingForChoice())
+      return false;
+    const auto &choices = nsbVm->activeChoices();
+    if (choices.empty())
+      return false;
+    const int count = static_cast<int>(choices.size());
+    if (focusedChoiceIndex < 0 || focusedChoiceIndex >= count)
+      focusedChoiceIndex = 0;
+
+    const auto &graph = nsbVm->sceneGraph();
+    const std::string &cur = choices[static_cast<std::size_t>(focusedChoiceIndex)];
+    const Entity *focusEnt = findChoiceHitEntity(graph, cur);
+    if (!focusEnt)
+      focusEnt = graph.findEntity(cur);
+    if (focusEnt) {
+      std::string target;
+      if (dir == 0)
+        target = focusEnt->focusUp;
+      else if (dir == 1)
+        target = focusEnt->focusDown;
+      else if (dir == 2)
+        target = focusEnt->focusLeft;
+      else if (dir == 3)
+        target = focusEnt->focusRight;
+
+      if (!target.empty()) {
+        const auto slash = target.find('/');
+        const std::string targetChoice =
+            slash == std::string::npos ? target : target.substr(0, slash);
+        for (int i = 0; i < count; ++i) {
+          if (choices[static_cast<std::size_t>(i)] == targetChoice) {
+            focusedChoiceIndex = i;
+            return true;
+          }
+        }
+      }
+    }
+
+    if (dir == 0 || dir == 2)
+      focusedChoiceIndex = (focusedChoiceIndex + count - 1) % count;
+    else
+      focusedChoiceIndex = (focusedChoiceIndex + 1) % count;
+    return true;
+  }
+
+  int findCancelChoiceIndex() const {
+    if (!nsbMode || !nsbVm || !nsbVm->waitingForChoice())
+      return -1;
+    const auto &choices = nsbVm->activeChoices();
+    for (std::size_t i = 0; i < choices.size(); ++i) {
+      const std::string &c = choices[i];
+      if (c.find("戻る") != std::string::npos ||
+          c.find("キャンセル") != std::string::npos ||
+          c.find("Cancel") != std::string::npos ||
+          c.find("cancel") != std::string::npos ||
+          c.find("Back") != std::string::npos ||
+          c.find("back") != std::string::npos) {
+        return static_cast<int>(i);
+      }
+    }
+    return -1;
+  }
 };
 
 N2Runtime::N2Runtime(std::shared_ptr<N2ArchiveAssets> assets)
@@ -89,6 +297,11 @@ void N2Runtime::shutdown() {
   impl_->nsbVm.reset();
   impl_->nsbMode = false;
   impl_->choiceScene.reset();
+  impl_->choiceActive = false;
+  impl_->quitRequested = false;
+  impl_->focusedChoiceIndex = 0;
+  impl_->lastChoices.clear();
+  impl_->imageSizeCache.clear();
   impl_->backlog.reset();
   impl_->textBox.reset();
   impl_->engine = nullptr;
@@ -140,6 +353,12 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
 
   impl_->textBox = std::make_shared<Kotonoha::VNTextBox>(engine, "", "", 30.0);
   impl_->backlog = std::make_shared<Kotonoha::VNBacklog>(engine);
+  impl_->choiceScene = std::make_unique<Kotonoha::ChoiceQuestionScene>(
+      engine, "", std::vector<Kotonoha::ChoiceOption>{{"", 0}}, nullptr);
+  impl_->choiceActive = false;
+  impl_->quitRequested = false;
+  impl_->focusedChoiceIndex = 0;
+  impl_->lastChoices.clear();
   impl_->moviePlayer =
       std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
   impl_->bgmPlayer = std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
@@ -164,6 +383,14 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
     impl_->viewportSize = SDL_Point{cfg.width, cfg.height};
     impl_->nsbVm = std::make_unique<NsbVm>();
     impl_->nsbVm->setConfig(cfg);
+    impl_->nsbVm->setImageSizeQuery(
+        [this](std::string_view path, int &w, int &h) -> bool {
+          if (!impl_->nsbVm)
+            return false;
+          return impl_->queryImageSize(assets_.get(),
+                                       impl_->nsbVm->sceneGraph(),
+                                       std::string(path), w, h);
+        });
     impl_->nsbVm->setLoader(
         [assets = assets_](std::string_view nsbPath,
                            std::vector<std::uint8_t> &nsbOut,
@@ -277,25 +504,60 @@ void N2Runtime::update() {
     auto &nvm = *impl_->nsbVm;
     nvm.update(dt);
 
-    // Sync choices from Select/Case
-    if (nvm.waitingForChoice() && !impl_->choiceActive && impl_->choiceScene) {
+    // Sync choices from Select/Case: prefer native on-screen SceneGraph
+    // choices (e.g. Steins;Gate sys_title.nsb buttons) and only fall back to
+    // ChoiceQuestionScene when no visual choice hitboxes exist.
+    if (nvm.waitingForChoice()) {
       const auto &choices = nvm.activeChoices();
-      std::vector<Kotonoha::ChoiceOption> items;
-      for (std::size_t i = 0; i < choices.size(); ++i) {
-        items.push_back({choices[i], static_cast<int>(i)});
+      if (choices != impl_->lastChoices) {
+        impl_->lastChoices = choices;
+        impl_->focusedChoiceIndex = 0;
+        impl_->choiceActive = false;
       }
-      impl_->choiceActive = true;
-      impl_->choiceScene->setQuestion(
-          "", items, [this](int optionId, const std::string &label) {
-            (void)label;
-            impl_->choiceActive = false;
-            if (impl_->nsbVm)
-              impl_->nsbVm->triggerChoiceIndex(optionId);
-          });
+      const bool nativeChoices = impl_->hasNativeChoices(assets_.get());
+      if (nativeChoices) {
+        impl_->choiceActive = false;
+        if (impl_->focusedChoiceIndex < 0 ||
+            impl_->focusedChoiceIndex >= static_cast<int>(choices.size())) {
+          impl_->focusedChoiceIndex = 0;
+        }
+      } else if (!impl_->choiceActive && impl_->choiceScene) {
+        std::vector<Kotonoha::ChoiceOption> items;
+        for (std::size_t i = 0; i < choices.size(); ++i) {
+          items.push_back({choices[i], static_cast<int>(i)});
+        }
+        impl_->choiceActive = true;
+        impl_->choiceScene->setQuestion(
+            "", items, [this](int optionId, const std::string &label) {
+              (void)label;
+              impl_->choiceActive = false;
+              if (impl_->nsbVm)
+                impl_->nsbVm->triggerChoiceIndex(optionId);
+            });
+      }
+    } else {
+      impl_->lastChoices.clear();
+      impl_->focusedChoiceIndex = 0;
     }
 
     if (!nvm.finished() && !impl_->choiceActive) {
       nvm.step(4096);
+    }
+
+    if (nvm.finished() && impl_->engine && !impl_->quitRequested) {
+      impl_->quitRequested = true;
+      if (impl_->moviePlayer)
+        impl_->moviePlayer->stop();
+      if (impl_->bgmPlayer)
+        impl_->bgmPlayer->stop();
+      if (impl_->voicePlayer)
+        impl_->voicePlayer->stop();
+      if (impl_->sePlayer)
+        impl_->sePlayer->stop();
+      SDL_Event quit{};
+      quit.type = SDL_EVENT_QUIT;
+      SDL_PushEvent(&quit);
+      return;
     }
 
     // Sync BGM / Voice / SE via streaming MediaPlayer
@@ -458,13 +720,43 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
   const float vpW = static_cast<float>(impl_->viewportSize.x);
   const float vpH = static_cast<float>(impl_->viewportSize.y);
 
+  std::string focusedChoice;
+  bool focusedHasOver = false;
+  if (impl_->hasNativeChoices(assets_.get())) {
+    const auto &choices = impl_->nsbVm->activeChoices();
+    if (impl_->focusedChoiceIndex >= 0 &&
+        impl_->focusedChoiceIndex < static_cast<int>(choices.size())) {
+      focusedChoice =
+          choices[static_cast<std::size_t>(impl_->focusedChoiceIndex)];
+      focusedHasOver = impl_->hasOverSprite(graph, focusedChoice);
+    }
+  }
+  const std::string focusedOverPrefix =
+      focusedChoice.empty() ? std::string{} : focusedChoice + "/MouseOver/";
+  const std::string focusedUsualPrefix =
+      focusedChoice.empty() ? std::string{} : focusedChoice + "/MouseUsual/";
+
   for (const auto &name : graph.renderOrder()) {
     const auto *entity = graph.findEntity(name);
-    if (!entity || !entity->visible || entity->opacity <= 0.01f)
+    if (!entity)
+      continue;
+
+    const bool isFocusedOver =
+        !focusedOverPrefix.empty() &&
+        Impl::startsWith(entity->name, focusedOverPrefix);
+    const bool isFocusedUsual =
+        focusedHasOver && !focusedUsualPrefix.empty() &&
+        Impl::startsWith(entity->name, focusedUsualPrefix);
+    if (isFocusedUsual)
+      continue;
+
+    const float effectiveOpacity = isFocusedOver ? 1.0f : entity->opacity;
+    const bool effectiveVisible = isFocusedOver ? true : entity->visible;
+    if (!effectiveVisible || effectiveOpacity <= 0.01f)
       continue;
 
     const Uint8 alpha =
-        static_cast<Uint8>(std::clamp(entity->opacity, 0.0f, 1.0f) * 255.0f);
+        static_cast<Uint8>(std::clamp(effectiveOpacity, 0.0f, 1.0f) * 255.0f);
     const float drawX = entity->x + entity->shakeOffsetX;
     const float drawY = entity->y + entity->shakeOffsetY;
 
@@ -486,10 +778,11 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
       }
     } else if (entity->type == EntityType::Sprite) {
       SDL_Texture *tex = nullptr;
-      if (assets_ && !entity->imagePath.empty() &&
-          assets_->contains(entity->imagePath)) {
+      const std::string resolvedImg =
+          impl_->resolveImagePath(graph, entity->imagePath);
+      if (assets_ && !resolvedImg.empty() && assets_->contains(resolvedImg)) {
         try {
-          tex = &assets_->texture(renderer, entity->imagePath);
+          tex = &assets_->texture(renderer, resolvedImg);
         } catch (...) {
           tex = nullptr;
         }
@@ -512,10 +805,11 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
         SDL_FRect dst{drawX, drawY, tw * entity->scaleX,
                       th * entity->scaleY};
         if (std::abs(entity->angle) > 0.01f) {
-          SDL_RenderTextureRotated(&renderer, tex, srcPtr, &dst, entity->angle,
-                                   nullptr, SDL_FLIP_NONE);
+          Kotonoha::RenderUpscaledTextureRotated(&renderer, tex, srcPtr, &dst,
+                                                 entity->angle, nullptr,
+                                                 SDL_FLIP_NONE);
         } else {
-          SDL_RenderTexture(&renderer, tex, srcPtr, &dst);
+          Kotonoha::RenderUpscaledTexture(&renderer, tex, srcPtr, &dst);
         }
       } else if (!isNsbActive()) {
         SDL_FRect rect{drawX, drawY, vpW, vpH};
@@ -543,7 +837,7 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
       SDL_GetTextureSize(&cg, &cw, &ch);
       SDL_FRect dst{(vpW - cw) * 0.5f, (vpH - ch) * 0.5f,
                     cw, ch};
-      SDL_RenderTexture(&renderer, &cg, nullptr, &dst);
+      Kotonoha::RenderUpscaledTexture(&renderer, &cg, nullptr, &dst);
     } catch (...) {
     }
   }
@@ -563,29 +857,122 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
   }
 }
 
-bool N2Runtime::onEvent(Kotonoha::EventRef event) {
+bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
   if (impl_->ponscripter)
-    return impl_->ponscripter->onEvent(event);
+    return impl_->ponscripter->onEvent(rawEvent);
 
-  if ((impl_->backlog && impl_->backlog->isVisible()))
-    return Runtime::onEvent(event);
+  for (auto *scene : GetActiveScenes()) {
+    if (scene && scene->capturesInput())
+      return Runtime::onEvent(rawEvent);
+  }
+  if (impl_->backlog && impl_->backlog->isVisible())
+    return Runtime::onEvent(rawEvent);
 
   if (impl_->choiceActive && impl_->choiceScene) {
     // ChoiceQuestionScene draws in design space; map pointer coordinates the
     // same way renderScene() maps its pixels.
-    if (dispatchEvent(*impl_->choiceScene, event))
+    if (dispatchEvent(*impl_->choiceScene, rawEvent))
       return true;
   }
 
+  const bool nativeChoices = impl_->hasNativeChoices(assets_.get());
+  const SDL_Event event = Kotonoha::InputMapper::toKeyEvent(
+      rawEvent, nativeChoices ? Kotonoha::InputContext::Menu
+                              : Kotonoha::InputContext::Dialogue);
+
   if (event.type == SDL_EVENT_MOUSE_MOTION && isNsbActive()) {
-    impl_->nsbVm->setMousePosition(static_cast<int>(event.motion.x),
-                                   static_cast<int>(event.motion.y));
+    impl_->nsbVm->setMousePosition(
+        static_cast<int>(std::lround(event.motion.x)),
+        static_cast<int>(std::lround(event.motion.y)));
+    if (nativeChoices) {
+      const int hit = impl_->hitTestNativeChoice(assets_.get(), event.motion.x,
+                                                 event.motion.y);
+      if (hit >= 0) {
+        impl_->focusedChoiceIndex = hit;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (nativeChoices) {
+    if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+      impl_->nsbVm->setMousePosition(
+          static_cast<int>(std::lround(event.button.x)),
+          static_cast<int>(std::lround(event.button.y)));
+      if (event.button.button == SDL_BUTTON_LEFT) {
+        const int hit = impl_->hitTestNativeChoice(
+            assets_.get(), event.button.x, event.button.y);
+        if (hit >= 0) {
+          impl_->focusedChoiceIndex = hit;
+          impl_->nsbVm->triggerChoiceIndex(hit);
+          return true;
+        }
+        return false;
+      }
+      if (event.button.button == SDL_BUTTON_RIGHT) {
+        const int cancelIdx = impl_->findCancelChoiceIndex();
+        if (cancelIdx >= 0) {
+          impl_->nsbVm->triggerChoiceIndex(cancelIdx);
+          return true;
+        }
+        return handleBackAction();
+      }
+      return false;
+    }
+
+    if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+      if (event.key.key == SDLK_UP)
+        return impl_->moveNativeChoiceFocus(0);
+      if (event.key.key == SDLK_DOWN)
+        return impl_->moveNativeChoiceFocus(1);
+      if (event.key.key == SDLK_LEFT)
+        return impl_->moveNativeChoiceFocus(2);
+      if (event.key.key == SDLK_RIGHT)
+        return impl_->moveNativeChoiceFocus(3);
+      if (Kotonoha::InputMapper::isConfirmKey(event.key.key)) {
+        const int count =
+            static_cast<int>(impl_->nsbVm->activeChoices().size());
+        if (count > 0) {
+          const int idx = std::clamp(impl_->focusedChoiceIndex, 0, count - 1);
+          impl_->nsbVm->triggerChoiceIndex(idx);
+          return true;
+        }
+        return false;
+      }
+      if (Kotonoha::InputMapper::isBackKey(event.key.key)) {
+        const int cancelIdx = impl_->findCancelChoiceIndex();
+        if (cancelIdx >= 0) {
+          impl_->nsbVm->triggerChoiceIndex(cancelIdx);
+          return true;
+        }
+        return handleBackAction();
+      }
+    }
+    return false;
+  }
+
+  if (event.type == SDL_EVENT_MOUSE_WHEEL && impl_->backlog) {
+    const float dir =
+        event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
+    if (event.wheel.y * dir > 0.0f) {
+      impl_->backlog->open();
+      return true;
+    }
+  }
+
+  if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      event.button.button == SDL_BUTTON_RIGHT) {
+    return handleBackAction();
   }
 
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    if (event.key.key == SDLK_B && impl_->backlog) {
+    if (Kotonoha::InputMapper::isBacklogKey(event.key.key) && impl_->backlog) {
       impl_->backlog->toggle();
       return true;
+    }
+    if (Kotonoha::InputMapper::isBackKey(event.key.key)) {
+      return handleBackAction();
     }
     if (event.key.key == SDLK_F5) {
       saveGame((Kotonoha::saveDirectory() / "n2system_quick.n2sv").string());
@@ -595,13 +982,21 @@ bool N2Runtime::onEvent(Kotonoha::EventRef event) {
       loadGame((Kotonoha::saveDirectory() / "n2system_quick.n2sv").string());
       return true;
     }
+    if (Kotonoha::InputMapper::isConfirmKey(event.key.key)) {
+      return handleAdvanceAction();
+    }
   }
 
-  if (event.type == SDL_EVENT_KEY_DOWN ||
-      event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+  if (event.type == SDL_EVENT_KEY_DOWN &&
+      Kotonoha::InputMapper::isSkipHoldKey(event.key.key)) {
     return handleAdvanceAction();
   }
-  return false;
+
+  if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+      event.button.button == SDL_BUTTON_LEFT) {
+    return handleAdvanceAction();
+  }
+  return Runtime::onEvent(event);
 }
 
 bool N2Runtime::handleAdvanceAction() {

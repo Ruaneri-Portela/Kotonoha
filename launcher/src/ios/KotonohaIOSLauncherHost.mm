@@ -13,7 +13,9 @@ typedef void (^KotonohaIOSLaunchBlock)(
     BOOL splitSavesByGame, NSString *customSaveRoot, NSString *assetOverlayPath,
     NSString *translationPath, NSString *subtitleStylePath,
     NSString *customDocumentsDir, NSString *ktrfPath, NSString *scriptsDir,
-    NSString *startScenario);
+    NSString *startScenario, NSString *rendererBackend,
+    NSString *upscalerBackend, NSString *upscalerPreset,
+    NSString *upscalerFactor);
 
 @protocol KotonohaIOSLauncherPresenterProtocol <NSObject>
 + (void)presentWithOnLaunch:(KotonohaIOSLaunchBlock)onLaunch;
@@ -54,7 +56,9 @@ void KotonohaIOSPresentNativeLauncher(KotonohaIOSLaunchCallback onLaunch,
             BOOL splitSavesByGame, NSString *customSaveRoot,
             NSString *assetOverlayPath, NSString *translationPath,
             NSString *subtitleStylePath, NSString *customDocumentsDir,
-            NSString *ktrfPath, NSString *scriptsDir, NSString *startScenario) {
+            NSString *ktrfPath, NSString *scriptsDir, NSString *startScenario,
+            NSString *rendererBackend, NSString *upscalerBackend,
+            NSString *upscalerPreset, NSString *upscalerFactor) {
           if (!onLaunch)
             return;
           KotonohaGameLaunchRequest req = {};
@@ -70,6 +74,10 @@ void KotonohaIOSPresentNativeLauncher(KotonohaIOSLaunchCallback onLaunch,
           req.ktrfPath = ktrfPath.UTF8String ?: "";
           req.scriptsDir = scriptsDir.UTF8String ?: "";
           req.startScenario = startScenario.UTF8String ?: "";
+          req.rendererBackend = rendererBackend.UTF8String ?: "";
+          req.upscalerBackend = upscalerBackend.UTF8String ?: "";
+          req.upscalerPreset = upscalerPreset.UTF8String ?: "";
+          req.upscalerFactor = upscalerFactor.UTF8String ?: "";
           onLaunch(&req, userData);
         }];
   });
@@ -95,6 +103,49 @@ void KotonohaIOSNotifyOpenedURL(const char *pathOrUrl) {
     if (cls && [cls respondsToSelector:@selector(notifyOpenedURL:)]) {
       [cls notifyOpenedURL:str];
     }
+  });
+}
+
+void KotonohaIOSPresentError(const char *title, const char *message) {
+  NSString *nsTitle = (title && title[0] != '\0')
+                          ? [NSString stringWithUTF8String:title]
+                          : @"Kotonoha Error";
+  NSString *nsMessage = (message && message[0] != '\0')
+                            ? [NSString stringWithUTF8String:message]
+                            : @"Unknown error";
+  runOnMain(^{
+    UIWindow *keyWindow = nil;
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+      if (![scene isKindOfClass:[UIWindowScene class]])
+        continue;
+      UIWindowScene *windowScene = (UIWindowScene *)scene;
+      for (UIWindow *window in windowScene.windows) {
+        if (window.isKeyWindow) {
+          keyWindow = window;
+          break;
+        }
+      }
+      if (!keyWindow)
+        keyWindow = windowScene.windows.firstObject;
+      if (keyWindow)
+        break;
+    }
+    UIViewController *top = keyWindow.rootViewController;
+    while (top.presentedViewController) {
+      top = top.presentedViewController;
+    }
+    if (!top) {
+      NSLog(@"[KotonohaLauncher] Error (%@): %@", nsTitle, nsMessage);
+      return;
+    }
+    UIAlertController *alert =
+        [UIAlertController alertControllerWithTitle:nsTitle
+                                            message:nsMessage
+                                     preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK"
+                                              style:UIAlertActionStyleDefault
+                                            handler:nil]];
+    [top presentViewController:alert animated:YES completion:nil];
   });
 }
 

@@ -317,12 +317,12 @@ inline DetectedEngine detectEngine(const Filesystem &source) {
         return {EngineKind::N2System, "n2system", "N2System / Nitroplus",
                 prefix, entry.path, true};
       }
-      // Artemis (.pfs / root.pfs.000)
-      if (endsWith(fname, ".pfs") || fname == "root.pfs.000" ||
+      // Artemis (.pfs / *.pfs.000 / pf8 / pf6)
+      if (endsWith(fname, ".pfs") || fname.find(".pfs.") != std::string::npos ||
           startsWithBytes(source, entry.path, "pf8") ||
           startsWithBytes(source, entry.path, "pf6")) {
         return {EngineKind::Artemis, "artemis", "Artemis Engine", prefix,
-                entry.path, false};
+                entry.path, true};
       }
       // CatSystem2 (.int with KIF\0 header)
       if (endsWith(fname, ".int") &&

@@ -1257,7 +1257,7 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
         auto &tex = assets_->texture(r, "sysgraph/txt_start.tm2");
         SDL_SetTextureAlphaModFloat(&tex, alpha);
         SDL_FRect dst{196, 320, 248, 32};
-        SDL_RenderTexture(&r, &tex, nullptr, &dst);
+        Kotonoha::RenderUpscaledTexture(&r, &tex, nullptr, &dst);
         SDL_SetTextureAlphaModFloat(&tex, 1);
       }
     } else {

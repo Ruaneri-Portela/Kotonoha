@@ -107,7 +107,42 @@ int main(int argc, char **argv) {
         &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 960, 720));
     if (!target || !SDL_SetRenderTarget(&renderer, target.get()))
       throw std::runtime_error(SDL_GetError());
+    auto saveCapture = [&](const char *name) {
+      const char *dir = SDL_getenv("MEO_CAPTURE_DIR");
+      if (!dir)
+        return;
+      std::filesystem::create_directories(dir);
+      auto *prev = SDL_GetRenderTarget(&renderer);
+      SDL_SetRenderTarget(&renderer, target.get());
+      game.renderBackground(renderer, 1);
+      game.render(renderer, 1);
+      game.renderOverlay(renderer, 1);
+      Kotonoha::SurfacePtr surf(SDL_RenderReadPixels(&renderer, nullptr));
+      if (surf)
+        SDL_SaveBMP(
+            surf.get(),
+            (std::filesystem::path(dir) / (std::string(name) + ".bmp"))
+                .string()
+                .c_str());
+      SDL_SetRenderTarget(&renderer, prev);
+    };
+    // Verify MEO 0verflow ROGO.TEX boot animation renders before the title menu.
+    SDL_Delay(1100);
+    engine.Iterate();
     game.render(renderer, 1);
+    saveCapture("rogo");
+    Kotonoha::SurfacePtr rogo(SDL_RenderReadPixels(&renderer, nullptr));
+    if (!rogo)
+      throw std::runtime_error(SDL_GetError());
+    const auto *rogoPixel = static_cast<const uint8_t *>(rogo->pixels) +
+                            200 * rogo->pitch + 400 * 4;
+    if (int(rogoPixel[0]) + rogoPixel[1] + rogoPixel[2] < 200)
+      throw std::runtime_error("MEO 0verflow ROGO.TEX boot logo did not render");
+    // Skip ROGO.TEX to enter the MEO title menu.
+    engine.Event(&skipSplash);
+    engine.Iterate();
+    game.render(renderer, 1);
+    saveCapture("title");
     Kotonoha::SurfacePtr menu(SDL_RenderReadPixels(&renderer, nullptr));
     if (!menu)
       throw std::runtime_error(SDL_GetError());
@@ -176,6 +211,7 @@ int main(int argc, char **argv) {
     SDL_SetRenderTarget(&renderer, previous);
     if (!visible)
       throw std::runtime_error("MEO gameplay remained black");
+    saveCapture("story");
     const auto savePath = std::filesystem::temp_directory_path() /
                           "kotonoha-meo-presentation-test.vn";
     struct RemoveSave {
@@ -206,6 +242,7 @@ int main(int argc, char **argv) {
           choice = candidate;
       if (!choice || !choice->isActive() || choice->getOptions().size() != 1)
         throw std::runtime_error("MEO timed choice did not open");
+      saveCapture("choice");
       choice->chooseOption(0);
       if (game.debugNode().rfind("A-02.XML:", 0) != 0)
         throw std::runtime_error("MEO choice did not enter A-02.XML");
@@ -234,6 +271,7 @@ int main(int argc, char **argv) {
       throw std::runtime_error(
           "MEO should open native overlay menu instead of InGameMenu");
     engine.Iterate();
+    saveCapture("overlay");
     const auto pausedNode = game.debugNode();
     SDL_Delay(120);
     engine.Iterate();

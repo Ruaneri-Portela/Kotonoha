@@ -49,7 +49,7 @@ void Metadata::Assign(const char* input) {
   if (meta_len < id_len + 17)
     return;  // malformed metadata
   as_string_.assign(input, meta_len);
-  encoding_ = input[id_len + 16];
+  encoding_ = static_cast<unsigned char>(input[id_len + 16]);
 }
 
 Header::Header(const char* data, const size_t length) {

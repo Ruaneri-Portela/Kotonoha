@@ -165,6 +165,7 @@ private:
   std::vector<uint8_t> backBuffer_;
   std::vector<uint8_t> displayBuffer_;
   bool displayDirty_ = true;
+  Uint64 canvasSerial_ = 0;
   TexturePtr canvasTex_;
 
   // Scene composition state

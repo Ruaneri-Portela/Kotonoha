@@ -1881,7 +1881,7 @@ struct Game {
     if (sc.window.visible)
       drawWindow(r, sc.window, live ? t : 1e18);
     if (live && phase == Phase::Play && sc.window.visible &&
-        vm->py.lookup("quick_menu").truthy())
+        vm->py.has("quick_menu") && vm->py.lookup("quick_menu").truthy())
       drawQuickMenu(r);
   }
 
@@ -2222,7 +2222,8 @@ struct Game {
       return;
     const Node *n = vm->currentNode();
     if ((n && n->file != "splash.rpyc") ||
-        vm->py.lookup("s_kill_early").truthy()) {
+        (vm->py.has("s_kill_early") &&
+         vm->py.lookup("s_kill_early").truthy())) {
       phase = Phase::Play;
     }
   }
@@ -3079,7 +3080,8 @@ struct Game {
         !vm->scene.window.visible)
       return;
     drawWindow(r, vm->scene.window, now());
-    if (phase == Phase::Play && vm->py.lookup("quick_menu").truthy())
+    if (phase == Phase::Play && vm->py.has("quick_menu") &&
+        vm->py.lookup("quick_menu").truthy())
       drawQuickMenu(r);
   }
 

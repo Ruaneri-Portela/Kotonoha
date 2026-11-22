@@ -50,6 +50,7 @@ public final class BootstrapActivity extends Activity {
                     if (BuildConfig.NATIVE_TARGET.equals("DokiDoki")
                             || BuildConfig.NATIVE_TARGET.equals("KatawaShoujo")
                             || BuildConfig.NATIVE_TARGET.equals("KotonohaLauncher")) {
+                        deleteRecursive(new File(directory, "python"));
                         copyDirectory(getAssets(), "python", directory, "python");
                     }
                     Files.write(complete.toPath(), fingerprint.getBytes(StandardCharsets.UTF_8));
@@ -78,6 +79,17 @@ public final class BootstrapActivity extends Activity {
         return output.toByteArray();
     }
 
+    private static void deleteRecursive(File target) {
+        if (target == null || !target.exists()) return;
+        if (target.isDirectory()) {
+            File[] children = target.listFiles();
+            if (children != null) {
+                for (File child : children) deleteRecursive(child);
+            }
+        }
+        target.delete();
+    }
+
     private static void copyDirectory(AssetManager assets, String path, File root,
                                       String relative) throws IOException {
         File destination = new File(root, relative);
@@ -102,6 +114,12 @@ public final class BootstrapActivity extends Activity {
                 byte[] buffer = new byte[65536];
                 int count;
                 while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            } catch (java.io.FileNotFoundException emptyDirOrMissing) {
+                // AssetManager.list() returns an empty array for both regular files
+                // and empty directories. If opening as a file fails, create directory.
+                if (!destination.isDirectory() && !destination.mkdirs()) {
+                    throw emptyDirOrMissing;
+                }
             }
         }
     }

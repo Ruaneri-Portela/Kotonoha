@@ -24,6 +24,11 @@ typedef struct KotonohaGameLaunchRequest {
   const char *ktrfPath;
   const char *scriptsDir;
   const char *startScenario;
+  // Graphics & Upscaling overrides (empty = Auto / game default)
+  const char *rendererBackend;
+  const char *upscalerBackend;
+  const char *upscalerPreset;
+  const char *upscalerFactor;
 } KotonohaGameLaunchRequest;
 
 // Scans an array of library roots / single games / disc images / SAF URIs and
@@ -42,13 +47,18 @@ char *KotonohaLauncherDetectPathJson(const char *path, int splitSavesByGame,
 char *KotonohaLauncherLoadGameParamsJson(const char *saveProfileId);
 
 // Saves per-game launch parameters for `saveProfileId`. Returns 1 on success.
-int KotonohaLauncherSaveGameParams(const char *saveProfileId,
-                                   const char *assetOverlayPath,
-                                   const char *translationPath,
-                                   const char *subtitleStylePath,
-                                   const char *customDocumentsDir,
-                                   const char *ktrfPath, const char *scriptsDir,
-                                   const char *startScenario);
+int KotonohaLauncherSaveGameParams(
+    const char *saveProfileId, const char *assetOverlayPath,
+    const char *translationPath, const char *subtitleStylePath,
+    const char *customDocumentsDir, const char *ktrfPath,
+    const char *scriptsDir, const char *startScenario,
+    const char *rendererBackend, const char *upscalerBackend,
+    const char *upscalerPreset, const char *upscalerFactor);
+
+// Returns a newly-allocated UTF-8 JSON array of upscaler shader presets
+// ([{"index":0,"name":"Anime4K: Mode A (HQ)"}, ...]).
+// Caller must release with KotonohaLauncherFreeString().
+char *KotonohaLauncherUpscalePresetsJson(void);
 
 // Validates a School Days routing graph (.ktnroute / .ktrf).
 // Returns 1 if valid, 0 otherwise; writes diagnostic info into `infoBuf`.
@@ -88,6 +98,10 @@ void KotonohaIOSDismissNativeLauncher(void);
 // Notifies the iOS bookmark store of an incoming file/folder URL (e.g.
 // SDL_EVENT_DROP_FILE / Files.app "Open In").
 void KotonohaIOSNotifyOpenedURL(const char *pathOrUrl);
+
+// Presents a native UIAlertController over the active iOS launcher/window so
+// startup and runtime errors are surfaced clearly instead of silently closing.
+void KotonohaIOSPresentError(const char *title, const char *message);
 #endif
 #endif
 

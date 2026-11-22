@@ -399,6 +399,14 @@ EngineLibraryRegistry::EngineLibraryRegistry() {
                    "--ponscripter",
                    "me.hirameki.kotonoha.ponscripter",
                    {}});
+  registerLibrary({EngineKind::Artemis,
+                   "artemis",
+                   "Artemis Engine",
+                   "artemis_port",
+                   "ArtemisGame",
+                   "--artemis",
+                   "me.hirameki.kotonoha.artemis",
+                   {}});
   registerLibrary({EngineKind::Amagami,
                    "amagami",
                    "Amagami (PS2 SCF)",
@@ -882,6 +890,15 @@ loadGameParamsMap(const std::string &filePath) {
         std::quoted(p.translationPath) >> std::quoted(p.subtitleStylePath) >>
         std::quoted(p.customDocumentsDir) >> std::quoted(p.ktrfPath) >>
         std::quoted(p.scriptsDir) >> std::quoted(p.startScenario)) {
+      // Optional trailing graphics overrides (backward-compatible with older
+      // 8-field game-params.txt files).
+      if (ss >> std::quoted(p.rendererBackend)) {
+        if (ss >> std::quoted(p.upscalerBackend)) {
+          if (ss >> std::quoted(p.upscalerPreset)) {
+            ss >> std::quoted(p.upscalerFactor);
+          }
+        }
+      }
       if (!profileId.empty())
         result[profileId] = std::move(p);
     }
@@ -908,7 +925,11 @@ bool saveGameParamsMap(
           << std::quoted(p.subtitleStylePath) << ' '
           << std::quoted(p.customDocumentsDir) << ' ' << std::quoted(p.ktrfPath)
           << ' ' << std::quoted(p.scriptsDir) << ' '
-          << std::quoted(p.startScenario) << '\n';
+          << std::quoted(p.startScenario) << ' '
+          << std::quoted(p.rendererBackend) << ' '
+          << std::quoted(p.upscalerBackend) << ' '
+          << std::quoted(p.upscalerPreset) << ' '
+          << std::quoted(p.upscalerFactor) << '\n';
     }
     Kotonoha::writeTextFileAtomically(path, out.str());
     return true;

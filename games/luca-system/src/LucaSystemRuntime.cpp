@@ -28,6 +28,7 @@
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -77,7 +78,7 @@ bool drawAirArt(Kotonoha::Providers::LucaSystemAssets &assets,
   try {
     if (assets.contains(id)) {
       auto &texture = assets.texture(renderer, id);
-      return SDL_RenderTexture(&renderer, &texture, src, &dst);
+      return Kotonoha::RenderUpscaledTexture(&renderer, &texture, src, &dst);
     }
   } catch (const std::exception &) {
   }
@@ -472,12 +473,12 @@ protected:
     if (tex) {
       SDL_FRect destination{0, 480, 1280, 240};
       SDL_SetTextureAlphaMod(tex, 175);
-      SDL_RenderTexture(&renderer, tex, nullptr, &destination);
+      Kotonoha::RenderUpscaledTexture(&renderer, tex, nullptr, &destination);
       SDL_SetTextureAlphaMod(tex, 255);
     } else if (auto *strip =
                    texture(renderer, fallbackStripTexture_, fallbackStrip_)) {
       SDL_FRect destination{165, 543, 950, 162};
-      SDL_RenderTexture(&renderer, strip, nullptr, &destination);
+      Kotonoha::RenderUpscaledTexture(&renderer, strip, nullptr, &destination);
     } else {
       SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
       SDL_SetRenderDrawColor(&renderer, 40, 48, 72, 210);
@@ -495,7 +496,7 @@ protected:
       const int frame = int((SDL_GetTicks() / 120) % 4);
       SDL_FRect source{0, float(frame * 38), 48, 38};
       SDL_FRect destination{1056, 660, 48, 38};
-      SDL_RenderTexture(&renderer, tex, &source, &destination);
+      Kotonoha::RenderUpscaledTexture(&renderer, tex, &source, &destination);
     }
   }
 
@@ -596,7 +597,8 @@ class AirBacklog final : public Kotonoha::VNBacklog {
       if (assets_.contains("backlog_texture")) {
         const SDL_FRect screen{0, 0, 1280, 720};
         auto &background = assets_.texture(renderer, "backlog_texture");
-        SDL_RenderTexture(&renderer, &background, nullptr, &screen);
+        Kotonoha::RenderUpscaledTexture(&renderer, &background, nullptr,
+                                        &screen);
       }
     } catch (const std::exception &) {
     }
@@ -619,7 +621,8 @@ class AirSettingsSkin final : public Kotonoha::SettingsMenu::Skin {
     try {
       if (assets_->contains(id)) {
         auto &texture = assets_->texture(renderer, id);
-        return SDL_RenderTexture(&renderer, &texture, source, &dst);
+        return Kotonoha::RenderUpscaledTexture(&renderer, &texture, source,
+                                               &dst);
       }
     } catch (const std::exception &) {
     }
@@ -850,7 +853,8 @@ class AirSaveMenu final : public Kotonoha::VNSaveMenu {
     try {
       if (assets_.contains(id)) {
         auto &texture = assets_.texture(renderer, id);
-        return SDL_RenderTexture(&renderer, &texture, source, &dst);
+        return Kotonoha::RenderUpscaledTexture(&renderer, &texture, source,
+                                               &dst);
       }
     } catch (const std::exception &) {
     }
@@ -881,8 +885,8 @@ class AirSaveMenu final : public Kotonoha::VNSaveMenu {
       }
     }
     const SDL_FRect preview{rect.x + 32, rect.y + 7, 160, 90};
-    return it->second &&
-           SDL_RenderTexture(&renderer, it->second.get(), nullptr, &preview);
+    return it->second && Kotonoha::RenderUpscaledTexture(
+                             &renderer, it->second.get(), nullptr, &preview);
   }
 
 public:
@@ -1025,7 +1029,7 @@ class AirGallery final : public Kotonoha::Scene {
         dst.w = w * ratio;
         dst.h = h * ratio;
       }
-      return SDL_RenderTexture(&renderer, &texture, source, &dst);
+      return Kotonoha::RenderUpscaledTexture(&renderer, &texture, source, &dst);
     } catch (const std::exception &) {
       return false;
     }
@@ -1256,7 +1260,7 @@ protected:
   void renderPanel(Kotonoha::RendererRef renderer) override {
     const SDL_FRect screen{0, 0, 1280, 720};
     if (auto *background = asset(renderer, "system_menu_bg"))
-      SDL_RenderTexture(&renderer, background, nullptr, &screen);
+      Kotonoha::RenderUpscaledTexture(&renderer, background, nullptr, &screen);
     else
       engine.GetUI().backdrop(renderer, {16, 24, 48, 210});
   }
@@ -1265,7 +1269,7 @@ protected:
     if (auto *atlas = asset(renderer, "systemmenu")) {
       const SDL_FRect src{index * 230.0f, focused ? 200.0f : 0.0f, 230, 200};
       const auto dst = itemRect(index);
-      SDL_RenderTexture(&renderer, atlas, &src, &dst);
+      Kotonoha::RenderUpscaledTexture(&renderer, atlas, &src, &dst);
     } else {
       const auto area = itemRect(index);
       engine.GetUI().button(renderer,
@@ -1403,7 +1407,7 @@ public:
         if (SDL_GetTextureSize(page, &w, &h) && w > 0 && h > 0) {
           const float fit = std::min(1200.0f / w, 640.0f / h);
           const SDL_FRect dst{(1280 - w * fit) * .5f, 10, w * fit, h * fit};
-          SDL_RenderTexture(&renderer, page, nullptr, &dst);
+          Kotonoha::RenderUpscaledTexture(&renderer, page, nullptr, &dst);
         }
       }
     } else {
@@ -2467,10 +2471,11 @@ struct LucaSystemRuntime::Impl {
       dst.w = visibleWidth;
     }
     if (slot.rotation != 0.0f) {
-      SDL_RenderTextureRotated(&renderer, tex.get(), sourcePtr, &dst,
-                               double(slot.rotation), nullptr, SDL_FLIP_NONE);
+      Kotonoha::RenderUpscaledTextureRotated(&renderer, tex.get(), sourcePtr,
+                                             &dst, double(slot.rotation),
+                                             nullptr, SDL_FLIP_NONE);
     } else {
-      SDL_RenderTexture(&renderer, tex.get(), sourcePtr, &dst);
+      Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), sourcePtr, &dst);
     }
   }
 
@@ -3595,7 +3600,8 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       if (logo.texture) {
         SDL_SetTextureAlphaMod(logo.texture.get(),
                                static_cast<Uint8>(std::lround(alpha * 255.0f)));
-        SDL_RenderTexture(&renderer, logo.texture.get(), nullptr, &screen);
+        Kotonoha::RenderUpscaledTexture(&renderer, logo.texture.get(), nullptr,
+                                        &screen);
       }
     }
     return;
@@ -3649,7 +3655,7 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     };
     if (auto *bgTex =
             texture(impl.titleBackgroundTexture, impl.titleBackground)) {
-      SDL_RenderTexture(&renderer, bgTex, nullptr, &screen);
+      Kotonoha::RenderUpscaledTexture(&renderer, bgTex, nullptr, &screen);
     }
     const float offset = impl.titleOffset();
     for (int i = 0; i < int(std::size(titleItems)); ++i) {

@@ -77,7 +77,7 @@ SDL_Texture *PmailExtrasMenu::loadTexture(Kotonoha::RendererRef renderer,
 void PmailExtrasMenu::render(Kotonoha::RendererRef renderer) {
   if (auto *background = loadTexture(renderer, "OMAMENU00", "OMAMENU00.CRGB")) {
     const SDL_FRect stage{0, 0, float(kStageWidth), float(kStageHeight)};
-    SDL_RenderTexture(&renderer, background, nullptr, &stage);
+    Kotonoha::RenderUpscaledTexture(&renderer, background, nullptr, &stage);
   }
 
   const int selection = game_.extrasSelection();
@@ -89,7 +89,7 @@ void PmailExtrasMenu::render(Kotonoha::RendererRef renderer) {
     return;
   const auto &texture = textures_[key];
   const SDL_FRect dst{texture.x, texture.y, texture.w, texture.h};
-  SDL_RenderTexture(&renderer, item, nullptr, &dst);
+  Kotonoha::RenderUpscaledTexture(&renderer, item, nullptr, &dst);
 }
 
 } // namespace Kotonoha::PmailPort
