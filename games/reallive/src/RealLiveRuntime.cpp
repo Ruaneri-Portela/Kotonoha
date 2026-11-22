@@ -4,6 +4,7 @@
 #include "RealLivePersistentHistory.hpp"
 #include "RealLiveSelectRules.hpp"
 #include "RealLiveAudioWait.hpp"
+#include "RealLiveNumeric.hpp"
 #include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -41,6 +42,7 @@
 #include <charconv>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -3295,24 +3297,23 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 3510:
       return true;
     case 1000: {
+      // RealLive integer domains are signed 32-bit. rand() % width can
+      // overflow for INT_MIN..INT_MAX and excludes large portions of ranges
+      // wider than RAND_MAX. Use unbiased rejection sampling instead.
+      auto next = [] { return std::rand(); };
       if (over == 1 || c.GetParamCount() >= 2) {
-        int lo = value(c, 0), hi = value(c, 1);
-        if (lo > hi)
-          std::swap(lo, hi);
-        machine.set_store_register(
-            lo + (hi > lo ? (std::rand() % (hi - lo + 1)) : 0));
+        const int lo = value(c, 0), hi = value(c, 1);
+        machine.set_store_register(randomInclusive(lo, hi, RAND_MAX, next));
       } else {
-        int maxVal = value(c, 0);
-        machine.set_store_register(maxVal > 0 ? (std::rand() % maxVal) : 0);
+        const int limit = value(c, 0);
+        machine.set_store_register(
+            limit > 0 ? randomInclusive(0, limit - 1, RAND_MAX, next) : 0);
       }
       return true;
     }
-    case 1001: {
-      int num = value(c, 0), den = value(c, 1);
-      machine.set_store_register(den != 0 ? int((long long)(num) * 100 / den)
-                                          : 0);
+    case 1001:
+      machine.set_store_register(safePercent(value(c, 0), value(c, 1)));
       return true;
-    }
     case 1002: {
       auto v = static_cast<long long>(value(c, 0, 0));
       machine.set_store_register(
@@ -3320,13 +3321,11 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     case 1003:
-      machine.set_store_register(-value(c, 0, 0));
+      machine.set_store_register(safeNegate(value(c, 0, 0)));
       return true;
-    case 1004: {
-      int a = value(c, 0, 0), b = value(c, 1, 1);
-      machine.set_store_register(b != 0 ? (a % b) : 0);
+    case 1004:
+      machine.set_store_register(safeMod(value(c, 0, 0), value(c, 1, 1)));
       return true;
-    }
     case 1005:
     case 1006:
       machine.set_store_register(0);

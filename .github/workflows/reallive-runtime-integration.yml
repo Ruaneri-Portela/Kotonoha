@@ -7,6 +7,8 @@ on:
       - 'games/reallive/src/RealLiveAudioWait.hpp'
       - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/src/RealLiveNumeric.hpp'
+      - 'games/reallive/tests/NumericCompatTest.cpp'
       - 'games/reallive/src/RealLiveSelectRules.hpp'
       - 'games/reallive/tests/SelectionRulesTest.cpp'
       - 'games/reallive/src/RealLiveSelection.hpp'
@@ -60,6 +62,12 @@ jobs:
             -Ilib/include -I/usr/include/imgui \
             $(pkg-config --cflags sdl3 SDL3_ttf) \
             -fsyntax-only lib/src/components/ChoiceQuestionScene.cpp
+      - name: Compile and run portable numeric regressions
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/NumericCompatTest.cpp \
+            -o /tmp/reallive-numeric-test
+          /tmp/reallive-numeric-test
       - name: Compile and run RealLive conditional choice rules
         run: |
           ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
