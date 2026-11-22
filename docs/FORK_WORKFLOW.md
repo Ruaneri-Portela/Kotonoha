@@ -66,7 +66,7 @@ Legacy L4 two-DLL staging scripts (`games/school-days/tools/stage_clean_local_l4
 ## 4. Android DEV/DIST APKs & SAF
 
 - Android builds live under `buildsystems/android/` and produce isolated DEV (`me.hirameki.kotonoha.schooldays`) and DIST (`me.hirameki.kotonoha.schooldays.dist`) APKs via Gradle (`assembleSchoolDaysDebug` / `assembleSchoolDaysDist`).
-- Portrait launcher setup lets the player select their external `SchoolDaysHQ` folder via Storage Access Framework (SAF); the 29 retail GPKs + `LxH.GPK` are streamed directly from SAF without bundling commercial packs inside the APK.
+- Portrait launcher setup lets the player select their external `SchoolDaysHQ` folder via Storage Access Framework (SAF); the 29 original retail GPKs run standalone and optional `LxH.GPK` is controlled by `EnableLxh=0|1` in `Kotonoha.ini` (and the Windows/Android launcher checkbox/switch, plus `--lxh` / `--no-lxh` CLI flags). See [OPTIONAL_LXH_AND_PERFORMANCE.md](../games/school-days/docs/OPTIONAL_LXH_AND_PERFORMANCE.md).
 - Gameplay runs in landscape using the shared `games/school-days/` runtime, with engine `SPLASH.PNG`, `SchoolDays.ico` launcher icons, face-cropped banner art, and persistent `Display Options` tab labeling.
 - Validate APKs statically with `python3 tools/android/check_school_days_apk.py`, and always perform a separate physical hardware pass on the reference device (**POCO X7 Pro**) before declaring hardware readiness.
 
