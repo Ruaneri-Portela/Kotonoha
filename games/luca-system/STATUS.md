@@ -12,6 +12,7 @@
 - Recursive-descent C-style expression evaluation (`IFN`, `IFY`, `EQU`), `EQUN` 4-byte immediate assignment, UTF-16LE `$d` `SELECT` choices writing `#6001`, `@Speaker@` / `$n` / `$[base$ruby$]` tag parsing, `MWIN0..4` window switching (`#6002`), persistent `global_system.kns` (`#12000..#19999`), and `SaveCodec` round-trip saves.
 
 - `LucaPak` imports replacement payloads by name or ID and rebuilds named and numeric PAKs without changing the original archive.
+- `LucaPak patch-raw` imports multiple same-size instruction payload edits across any structurally valid LucaSystem script without moving offsets, with synthetic rejection tests; non-AIR VM execution remains separate.
 - `LucaPak patch-air` imports variable-length English `MESSAGE` text and relocates known local and cross-scenario jumps. Verified with a patched retail `SCRIPT.PAK` mounted through Kotonoha's asset overlay.
 - `LucaPak edit-glyph` patches existing 8-bit CZ2 glyphs and their metrics in repacked PAKs. The `VNTextBox` rendered the edited glyph and advance with the retail AIR font overlay.
 - `LucaPak add-glyph` adds an unmapped BMP character, growing the CZ2 atlas when necessary. The AIR `VNTextBox` rendered a new `U+E000` with the imported advance and Kotonoha's configured dialogue and speaker colors.
