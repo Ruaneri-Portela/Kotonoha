@@ -98,7 +98,12 @@ public:
   void setNamedPictureSizeResolver(NamedPictureSize resolver) {
     namedPictureSize_ = std::move(resolver);
   }
+  // Vita K2X_Script.loadClass loads a scene only when the script asks.
+  // This callback normally forwards to Vm::loadClass after the CPK lookup.
+  using ClassLoader = std::function<bool(const std::string &)>;
+  void setClassLoader(ClassLoader loader) { classLoader_ = std::move(loader); }
   const ViewState &view() const { return view_; }
+  uint64_t frameCount() const { return uint64_t(frameCount_); }
   const std::map<uint64_t, SpriteState> &sprites() const { return sprites_; }
   // Ingest one hardware/input frame. Buttons use the PS2-style physical
   // positions in the port (e.g. circle=32, up=4096); system Vita SCFs read
@@ -122,6 +127,8 @@ private:
   uint64_t newSprite(uint32_t texture, uint32_t variant, int64_t layer);
   void setTexture(SpriteState &sprite, uint32_t texture, uint32_t variant);
   ViewState view_{};
+  ClassLoader classLoader_;
+  double frameCount_ = 0.0;
   std::map<uint64_t, SpriteState> sprites_;
   uint64_t nextUid_ = 1, nextOrder_ = 0;
   TextureSize textureSize_;
