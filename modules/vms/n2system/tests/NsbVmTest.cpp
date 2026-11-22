@@ -222,14 +222,19 @@ int main() {
     });
     require(scheduler.boot("nss/0_boot.nss"), "scheduler boot");
     scheduler.step(4096);
-    require(scheduler.threadCount() == 3,
-            "Nested CreateProcess should retain all thread instances");
+    require(scheduler.threadCount() == 2,
+            "Main creates workerA; workerA must await the next scheduler tick");
     require(!scheduler.findVar("$workerValue"),
-            "New process must not execute in its creator's scheduler tick");
+            "New processes must not execute during their creator's frame");
+    scheduler.step(4096);
+    require(scheduler.threadCount() == 3,
+            "workerA can spawn workerB without invalidating its own frame");
+    require(!scheduler.findVar("$workerValue"),
+            "workerB must wait until the next scheduler tick");
     scheduler.step(4096);
     require(scheduler.findVar("$workerValue") &&
                 scheduler.findVar("$workerValue")->asInt() == 77,
-            "Independently scheduled worker runs in next VM frame");
+            "Independently scheduled workerB runs on its next VM frame");
   }
 
   std::cout << "N2System NsbVm tests passed\n";
