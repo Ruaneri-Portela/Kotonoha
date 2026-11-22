@@ -264,9 +264,21 @@ const manager = browserWindow.KotonohaAssetCache;
     const manifest = JSON.stringify({entries: [
         {path: "opening.bin", size: 17},
         {path: "later.bin", size: 16},
-        {path: "future.bin", size: 18}
+        {path: "future.bin", size: 18},
+        {path: "oversized.bin", size: 10 * 1024 * 1024},
+        {path: "fresh.bin", size: new TextEncoder().encode("Fresh cache item of 24b!").length},
+        {path: "quota.bin", size: new TextEncoder().encode("Quota fallback payload...").length}
     ]});
+    assert.throws(() => manager.configure(base, '{"entries":[]}'),
+        /manifest/i, "empty HTTP index must be rejected");
     manager.configure(base, manifest);
+    const unknownFetches = networkFetches;
+    await assert.rejects(manager.fetchJob({
+        url: base + "missing.bin", path: "missing.bin",
+        fileSize: 1, start: 0, length: 1, full: false
+    }), /not listed in manifest/);
+    assert.equal(networkFetches, unknownFetches,
+        "unindexed file must not initiate HTTP GET");
     await manager.sceneEntered("node-A");
     const file = files.get("opening.bin");
     let reply = await manager.fetchJob({

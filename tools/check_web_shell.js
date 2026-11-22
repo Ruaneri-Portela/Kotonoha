@@ -90,7 +90,7 @@ for (const id of [
   assert(html.includes('id="' + id + '"'), 'Missing web control: ' + id);
 }
 for (const symbol of [
-  'KotonohaConfigureRemoteAssetUrl',
+  'KotonohaConfigureRemoteAssetIndexedManifest',
   'KotonohaMountBrowserFolder', 'KotonohaRequestRemoteAsset',
 ]) {
   assert(html.includes(symbol), 'Missing web bootstrap interface: ' + symbol);
@@ -118,13 +118,15 @@ assert(html.includes('toolbar.hidden = true'),
   'Folder toolbar must be hidden when the source is chosen');
 assert(!html.includes('KotonohaAutoServerAssets'),
   'Browser startup must not automatically select remote assets');
-assert(html.includes('new URL("manifest.json", origin)'),
-  'HTTP startup must probe the optional manifest after explicit source selection');
+assert(html.includes('new URL("manifest.json", document.baseURI)'),
+  'HTTP startup must read the page-root asset manifest');
 assert(html.includes('KotonohaConfigureRemoteAssetIndexedManifest') &&
-       html.includes('KotonohaConfigureRemoteAssetUrl'),
-  'HTTP bootstrap must support indexed listings and direct Fetch fallback');
-assert(html.includes('window.KotonohaRemoteManifestIndexed = indexed'),
-  'The source selection must report whether the optional index was used');
+       !html.includes('KotonohaConfigureRemoteAssetUrl') &&
+       !webBridge.includes('KotonohaConfigureRemoteAssetUrl') &&
+       html.includes('parsed.entries.length === 0'),
+  'All HTTP games require non-empty manifest entries without direct fallback');
+assert(html.includes('window.KotonohaRemoteManifestIndexed = true'),
+  'Only a validated indexed manifest may start HTTP mode');
 assert(html.includes('KotonohaAllocateRemoteManifest') &&
        html.includes('KotonohaFreeRemoteManifest') &&
        html.includes('new TextEncoder().encode(manifest)') &&
@@ -142,8 +144,8 @@ assert(webBridge.includes('KotonohaAllocateRemoteManifest') &&
        webBridge.includes('std::free(memory)'),
   'WASM bridge must allocate and free bounded manifest transfers');
 assert(html.includes('if (!indexed)') &&
-       html.includes('const loadServerAssets = async function()'),
-  'Manifest failures must fall back to direct Fetch asynchronously');
+       html.includes('throw new Error(window.KotonohaText("manifestInvalid"))'),
+  'Invalid manifests must block startup instead of probing HTTP');
 assert(html.includes('window.KotonohaAssetCache.configure(origin.href, manifest)') &&
        html.includes('await window.KotonohaAssetCache.preloadIfPresent(') &&
        html.includes('window.KotonohaInitialPreloadReady = preloaded') &&
@@ -165,8 +167,9 @@ assert(wasmBuild.includes('lib/web/KotonohaPreloadCache.js'),
   'Every WASM output must bundle its cache manager');
 assert(html.includes('setStatus("chooseSource");'),
   'Boot must wait for an explicit source choice');
-assert(html.includes('setStatus("localReady");'),
-  'Local startup must finish without a server manifest probe');
+assert(html.includes('setStatus("localReady");') &&
+       persistentCache.includes('!indexedSizes.has(canonical(path))'),
+  'Local startup must stay independent and remote files must be allow-listed');
 assert(html.includes('id="kotonoha-lang-en"') &&
        html.includes('id="kotonoha-lang-pt"') &&
        html.includes('window.KotonohaSetLanguage') &&
