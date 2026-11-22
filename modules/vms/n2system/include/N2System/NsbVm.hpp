@@ -98,6 +98,11 @@ using NsbLoaderFn = std::function<bool(std::string_view nsbPath,
 // Callback to query image dimensions (for GetImageHorizon / GetImageVertical).
 using ImageSizeFn = std::function<bool(std::string_view path, int &w, int &h)>;
 
+enum class MediaTimeKind { Remaining, Duration, Elapsed };
+using MediaTimeQueryFn =
+    std::function<std::int64_t(std::string_view, MediaTimeKind)>;
+using SaveExistsFn = std::function<bool(std::uint32_t)>;
+
 // Compiled Steins;Gate .nsb + .map stack-based bytecode VM.
 class NsbVm {
 public:
@@ -105,6 +110,12 @@ public:
 
   void setLoader(NsbLoaderFn loader) { loader_ = std::move(loader); }
   void setImageSizeQuery(ImageSizeFn fn) { imageSizeFn_ = std::move(fn); }
+  void setMediaTimeQuery(MediaTimeQueryFn fn) {
+    mediaTimeQuery_ = std::move(fn);
+  }
+  void setSaveExistsQuery(SaveExistsFn fn) {
+    saveExistsQuery_ = std::move(fn);
+  }
   void setConfig(const SystemIniConfig &cfg);
   const SystemIniConfig &config() const { return config_; }
 
@@ -217,6 +228,8 @@ private:
 
   NsbLoaderFn loader_;
   ImageSizeFn imageSizeFn_;
+  MediaTimeQueryFn mediaTimeQuery_;
+  SaveExistsFn saveExistsQuery_;
   SystemIniConfig config_;
 
   std::unordered_map<std::string, std::shared_ptr<NsbScript>> scripts_;
