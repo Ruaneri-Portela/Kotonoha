@@ -1,0 +1,51 @@
+name: Apple encoding without iconv
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "lib/src/localization/Encoding.cpp"
+      - "lib/src/localization/Encoding.mm"
+      - "lib/include/Kotonoha/localization/Encoding.hpp"
+      - "lib/tests/EncodingAppleTests.cpp"
+      - ".github/workflows/apple-encoding-no-iconv.yml"
+  pull_request:
+    paths:
+      - "lib/src/localization/Encoding.cpp"
+      - "lib/src/localization/Encoding.mm"
+      - "lib/include/Kotonoha/localization/Encoding.hpp"
+      - "lib/tests/EncodingAppleTests.cpp"
+      - ".github/workflows/apple-encoding-no-iconv.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  corefoundation:
+    name: Compile and test every Apple encoding without iconv
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Apple codec with C++17 (no SDL or iconv)
+        run: |
+          clang++ -std=c++17 -Wall -Wextra -Werror -Ilib/include \
+            lib/src/localization/Encoding.cpp \
+            lib/src/localization/Encoding.mm \
+            lib/tests/EncodingAppleTests.cpp \
+            -framework CoreFoundation \
+            -o "$RUNNER_TEMP/kotonoha-apple-encoding-tests"
+      - name: Verify no SDL or libiconv imports in executable
+        run: |
+          nm -u "$RUNNER_TEMP/kotonoha-apple-encoding-tests" > "$RUNNER_TEMP/encoding-symbols.txt"
+          if grep -E '(_iconv|_SDL_iconv)' "$RUNNER_TEMP/encoding-symbols.txt"; then
+            echo "::error::Apple encoding executable references iconv"
+            exit 1
+          fi
+          if otool -L "$RUNNER_TEMP/kotonoha-apple-encoding-tests" | grep -i libiconv; then
+            echo "::error::Apple encoding executable links libiconv"
+            exit 1
+          fi
+      - name: Execute text decoding and encoding regressions
+        run: "$RUNNER_TEMP/kotonoha-apple-encoding-tests"
