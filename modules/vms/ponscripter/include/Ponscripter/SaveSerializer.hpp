@@ -23,6 +23,7 @@ struct CallArgument {
 struct CallStackEntry {
   std::size_t returnStatementIndex = 0;
   std::string targetLabel;
+  std::string callerLabel; // restore source scene after a gosub return
   std::vector<CallArgument> arguments;
   std::size_t nextArgument = 0;
 };
