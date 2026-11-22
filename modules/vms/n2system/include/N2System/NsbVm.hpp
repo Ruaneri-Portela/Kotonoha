@@ -211,6 +211,8 @@ private:
   void assignVar(Thread &t, std::string_view varName, const NsbValue &val);
   NsbValue readVar(std::string_view varName) const;
   void syncSystemVars();
+  std::vector<uint8_t> writeRuntimeSnapshot() const;
+  bool restoreRuntimeSnapshot(const std::vector<uint8_t> &snapshot);
   static std::uint32_t parseColorName(std::string_view colorStr);
 
   NsbLoaderFn loader_;
