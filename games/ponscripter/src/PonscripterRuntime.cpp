@@ -1683,10 +1683,26 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     }
   };
 
+  // Apply a short-lived directional screen shake to the game layers only.
+  // Native modal overlays retain stable input coordinates and do not shake.
+  const auto shake = vm_.quakeOffset();
+  SDL_Rect originalViewport{};
+  const bool shaking = shake.first != 0 || shake.second != 0;
+  if (shaking) {
+    SDL_GetRenderViewport(&renderer, &originalViewport);
+    SDL_Rect shifted = originalViewport;
+    shifted.x += shake.first;
+    shifted.y += shake.second;
+    SDL_SetRenderViewport(&renderer, &shifted);
+  }
+
   if (vm_.hasManualDrawFrame())
     renderManualFrame();
   else
     renderSceneContents();
+
+  if (shaking)
+    SDL_SetRenderViewport(&renderer, &originalViewport);
 
   // 7. PONscripter-native modal overlays. Shared menu/backlog components are
   // injected below as PonscripterMenu/PonscripterBacklog overrides.
