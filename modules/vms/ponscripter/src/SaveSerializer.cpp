@@ -144,6 +144,8 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
       << data.activeEffect.elapsedMs << '\t'
       << data.quakeAmplitude << '\t'
       << escapeLine(data.activeEffect.maskPath) << '\n';
+  out << "POSTFX\t" << (data.monochromeEnabled ? 1 : 0) << '\t'
+      << data.monochromeColor << '\t' << data.negativeMode << '\n';
   auto writeDrawOps = [&](char bucket, const std::vector<ManualDrawOp> &ops) {
     for (const auto &op : ops) {
       out << "MANUALOP\t" << bucket << '\t'
@@ -366,6 +368,11 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       std::getline(ls, mask);
       outData.activeEffect.active = active != 0;
       outData.activeEffect.maskPath = unescapeLine(mask);
+    } else if (kind == "POSTFX") {
+      int enabled = 0;
+      ls >> enabled >> outData.monochromeColor >> outData.negativeMode;
+      outData.monochromeEnabled = enabled != 0;
+      outData.negativeMode = std::clamp(outData.negativeMode, 0, 2);
     } else if (kind == "MANUALOP") {
       char bucket = '\0';
       int kindValue = -1, affine = 0, trans = 0;
