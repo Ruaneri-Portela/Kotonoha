@@ -608,7 +608,8 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
                                 !layer.storage.empty());
                       });
       impl.nativeTitleUi = !impl.nativeTitleDisabled && ui.subsetCompleted &&
-                           ui.error.empty() && imagePresent && hasClickTarget;
+                           ui.error.empty() && imagePresent &&
+                           (hasClickTarget || !ui.onKeyDown.empty());
       SDL_Log("KiriKiri: TJS2 title projection: %zu layers, interactive=%d",
               ui.layers.size(), impl.nativeTitleUi ? 1 : 0);
       impl.titlePicture = {findTitlePicture(*impl.assets), 0, 0, false};
@@ -1610,6 +1611,45 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
     if (impl.engine)
       initGameplay(*impl.engine);
   };
+  if (impl.currentScenario.empty() && impl.nativeTitleUi &&
+      mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat) {
+    int virtualKey = 0;
+    switch (mapped.key.key) {
+    case SDLK_RETURN:
+    case SDLK_KP_ENTER: virtualKey = 13; break;
+    case SDLK_ESCAPE: virtualKey = 27; break;
+    case SDLK_SPACE: virtualKey = 32; break;
+    case SDLK_LEFT: virtualKey = 37; break;
+    case SDLK_UP: virtualKey = 38; break;
+    case SDLK_RIGHT: virtualKey = 39; break;
+    case SDLK_DOWN: virtualKey = 40; break;
+    default: break;
+    }
+    if (virtualKey > 0 && Kotonoha::Providers::dispatchTjsUiKeyDown(
+                              impl.startupExecution, virtualKey)) {
+      impl.failedNativePictures.clear();
+      const auto &run = impl.startupExecution;
+      if (!run.error.empty()) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "KiriKiri: TJS2 keyboard handler failed: %s",
+                    run.error.c_str());
+        nativeFallback();
+      } else if (!run.kagEntry.empty()) {
+        const auto target = run.kagEntry;
+        if (startScenario(target)) {
+          impl.nativeTitleUi = false;
+          impl.choiceScene->hide();
+        } else {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "KiriKiri: keyboard requested unavailable KAG: %s",
+                      target.c_str());
+          nativeFallback();
+        }
+      }
+      return true;
+    }
+  }
+
   if (impl.currentScenario.empty() && impl.nativeTitleUi &&
       mapped.type == SDL_EVENT_MOUSE_MOTION) {
     if (Kotonoha::Providers::dispatchTjsUiHover(
