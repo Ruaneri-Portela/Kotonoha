@@ -364,8 +364,8 @@ VCPKG_INSTALLS = {
 }
 
 # These are the third-party libraries linked by Config/Common.xcconfig.
-# z, bz2 and iconv may also come from Apple SDKs and are omitted from the
-# completeness probe; vcpkg will still install whatever the manifest declares.
+# z and bz2 may come from Apple SDKs; no libiconv is required for the
+# engine's Apple text conversions (CoreFoundation/Encoding.mm).
 VCPKG_LINK_LIBRARIES = (
     "json-c", "ass", "harfbuzz", "fribidi", "freetype", "fontconfig",
     "brotlidec", "brotlicommon", "expat", "png", "unibreak",
