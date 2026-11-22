@@ -1088,8 +1088,8 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
         const std::size_t end = controls.find(')', pos);
         if (end == std::string::npos)
           break;
-        std::string path = normalizeAssetPath(
-            std::string_view(controls).substr(pos, end - pos));
+        std::string path = controls.substr(pos, end - pos);
+        std::replace(path.begin(), path.end(), '\\', '/');
         pos = end + 1;
         if (!path.empty()) {
           slot = std::clamp(slot, 0, 49);
