@@ -763,6 +763,9 @@ struct RealLiveRuntime::Impl {
   int fadeElapsed = 0, fadeDuration = 0;
   bool fadeStops = false;
   bool bgmScriptPaused = false; // independent of gameplay/menu suspension
+  // RealLive opcode numbers vary by generation; default to the working
+  // Kotonoha table unless the game's config explicitly selects rlvm's table.
+  BgmCommandDialect bgmDialect = BgmCommandDialect::KotonohaLegacy;
   AudioWait audioWait;
   ChannelLevels soundLevels, voiceLevels;
   Uint64 audioTick = 0;
@@ -845,6 +848,8 @@ struct RealLiveRuntime::Impl {
             [this](const std::string &id) { return assets->openStream(id); }),
         audio(parseAudioConfig(assets->settingsSource())) {
     syscomEntries.fill(1);
+    if (assets->settings().integer("KOTONOHA_BGM_OPCODE_DIALECT", 0) == 1)
+      bgmDialect = BgmCommandDialect::Rlvm;
     mouseCursorNumber = assets->settings().integer("MOUSE_CURSOR", -1);
     // Each RealLive release declares its own front-end in Gameexe.ini.
     titleScenario = assets->settings().integer("SEEN_MENU", 9032);
@@ -3544,7 +3549,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       }
       return true;
     }
-    switch (bgmCommandKind(op, c.GetParamCount())) {
+    switch (bgmCommandKind(op, c.GetParamCount(), bgmDialect)) {
     case BgmCommandKind::Playing:
       machine.set_store_register(bgm.Playing() ? 1 : 0);
       return true;
@@ -3555,6 +3560,11 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     case BgmCommandKind::Gain:
       machine.set_store_register(gainToNativeBgm(bgmGain));
+      return true;
+    case BgmCommandKind::HasTrack:
+      // Earlier Kotonoha versions returned whether a track was selected.
+      // A volume reading (255/0) here changes script control flow.
+      machine.set_store_register(musicID.empty() ? 0 : 1);
       return true;
     case BgmCommandKind::TrackName:
       Parameter(c, 0).SetStringValue(machine, musicID);
