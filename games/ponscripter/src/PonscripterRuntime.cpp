@@ -1247,7 +1247,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     const auto &sprites = vm_.sprites();
     for (int id = PonscripterVm::kMaxExtendedSprites - 1; id >= 0; --id) {
       const auto &sp = sprites[id];
-      if (!sp.loaded || !sp.visible || sp.alpha <= 0)
+      if (!sp.loaded || !sp.visible || sp.alpha <= 0 ||
+          vm_.areSpritesHidden(sp.secondaryLayer))
         continue;
 
       if (sp.spec.trans == TransMode::String) {
