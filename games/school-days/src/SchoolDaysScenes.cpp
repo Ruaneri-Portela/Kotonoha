@@ -287,10 +287,12 @@ bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
         return false;
       const int measuredWidth =
           std::max(1, Plan::Measure(lines[lineIndex].text));
+      // Allow only shrinking to retail cells, never enlarging TTF glyphs.
       SDL_Rect destination{0,
                            static_cast<int>(slot) * 256 +
                                static_cast<int>(lineIndex) * Plan::kGlyphHeight,
-                           std::min(measuredWidth, 1024), Plan::kGlyphHeight};
+                           std::min({measuredWidth, 1024, rendered->w}),
+                           std::min(Plan::kGlyphHeight, rendered->h)};
       if (!SDL_BlitSurfaceScaled(rendered.get(), nullptr, scratch.get(),
                                  &destination, SDL_SCALEMODE_LINEAR))
         return false;
@@ -298,7 +300,7 @@ bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
   }
 
   choiceScratch.reset(SDL_CreateTextureFromSurface(&renderer, scratch.get()));
-  if (!choiceScratch ||
+  if (!choiceScratch || !Kotonoha::MarkTTFTextRaster(*choiceScratch) ||
       !SDL_SetTextureBlendMode(choiceScratch.get(), SDL_BLENDMODE_BLEND)) {
     choiceScratch.reset();
     return false;
