@@ -112,6 +112,9 @@ public:
   const std::vector<ManualDrawOp> &manualDrawFrame() const {
     return manualDisplayOps_;
   }
+  const std::vector<ManualDrawOp> &backgroundCopyOps() const {
+    return backgroundCopyOps_;
+  }
   const std::vector<ButtonDef> &activeButtons() const { return buttons_; }
   int hoveredButtonId() const { return hoveredButtonId_; }
   int mouseX() const { return mouseX_; }
@@ -268,6 +271,7 @@ private:
   bool manualFrameVisible_ = false;
   std::vector<ManualDrawOp> manualDraftOps_;
   std::vector<ManualDrawOp> manualDisplayOps_;
+  std::vector<ManualDrawOp> backgroundCopyOps_;
   std::array<BarGauge, kMaxBars> bars_;
   std::array<PrintedNumber, kMaxPrnums> prnums_;
 
