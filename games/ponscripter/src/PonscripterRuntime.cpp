@@ -1273,6 +1273,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       SDL_SetTextureAlphaMod(texture, static_cast<Uint8>(op.alpha));
       float textureW = 0.0f, textureH = 0.0f;
       SDL_GetTextureSize(texture, &textureW, &textureH);
+      if (textureW <= 0.0f || textureH <= 0.0f)
+        continue;
       const auto *processed = impl_->getProcessedImage(op.spec);
       const float logicalW =
           processed ? static_cast<float>(processed->width) : textureW;
