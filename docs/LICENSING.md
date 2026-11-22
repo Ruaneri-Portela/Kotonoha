@@ -25,6 +25,7 @@ not a legal opinion or a claim that every commercial game/OS was tested.
 | --- | --- | --- |
 | High | Repository root lacked an explicit license even though `lib/LICENSE` contains an MIT grant | Add root `LICENSE` for original Kotonoha code; third-party exceptions in `THIRD_PARTY_NOTICES.md` |
 | High | The macOS `.app` CPack branch copied the whole bundle and could inadvertently include locally supplied `game-assets` | Exclude `game-assets` by default in both bundle and non-bundle packaging; retain explicit opt-in only for privately authorized packages |
+| High | Android Gradle automatically bundled local retail `game-assets` in APKs | Make `-PbundleGameAssets=false` the default, always exclude retail files in `dist`, and stage baseline legal notices |
 | High | ZIPs did not explicitly install source license/third-party notices | Include baseline notices in every CPack game component, including `.app/Contents/Resources/Legal`. **Before public release**, assemble license texts for every actually bundled third-party binary |
 | Medium | `.gitignore` contained concatenated debug rules | Separate patterns; check tracked files for accidentally committed secrets or retail archives |
 | Medium | Counts of applications/ports in active README/AGENTS/build guides were outdated | Align guides with the current 16-app manifest |
