@@ -709,7 +709,10 @@ std::size_t NsbVm::step(std::size_t budget) {
   // its first instruction before the next scheduler tick.
   const std::size_t runnableAtStart = threads_.size();
   std::size_t total = 0;
-  const std::size_t mainBudget = std::min<std::size_t>(budget, 512);
+  // Preserve the full native instruction budget for single-threaded titles;
+  // reserve a fair slice for workers only once background processes exist.
+  const std::size_t mainBudget =
+      runnableAtStart == 1 ? budget : std::min<std::size_t>(budget, 512);
   if (threads_.front().running && !threads_.front().deleted)
     total += stepThread(threads_.front(), mainBudget);
   for (std::size_t i = 1; i < runnableAtStart && total < budget &&
