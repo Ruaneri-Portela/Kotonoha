@@ -204,3 +204,25 @@ Ongoing tracking of real-hardware defects observed on POCO X7 Pro (Android 16 / 
 - **D. Audio & Video**: Fixed single-gain `BGM`/`SE`/`Voice`, multi-minute Episode 1 WMV+OGG playback including `01/01-00-OP1`, `HOME` background suspend → clean resume — **Confirmed parity** (subjective physical speaker loudness check recommended by user).
 - **E. Subtitles & Translations**: `pt-BR` GPK (accents + speaker colors + OP forced karaoke), `zh-CN` JSON (Simplified Chinese Hanzi in BackLog, zero tofu), `ru` JSON (clean launch & playback) — **Confirmed parity**.
 - **F. Saves & State**: Atomic `SaveFile0099.DAT` + `.kotonoha-lxh.v1` + `GlobalFlag.DAT` + `Config.DAT` + `settings.json`, `force-stop` persistence, suspend/resume — **Confirmed parity**.
+
+---
+
+## Validation of All Seven L×H Endings (Milestone 6)
+
+All **7 integrated *School Days L×H* endings** from `LxH.GPK` were executed and verified live on the **POCO X7 Pro (Android 16, ARM64, `2712×1220`)** on **Android DEV**, using the DEV-only `Filter nodes` input added to `DebugOverlay::drawRuntimeNodes()`, with live screenshots and `SDL/CUSTOM` `logcat` confirmation:
+
+| # | Node | L×H Ending | Tested Locale | EndRoll → L×H Boundary (ticks) | L×H Media (`LxH.GPK`) | Fade OUT/IN + Epilogue + Subtitles | Terminal Next → `SaveFeel` → Title | Classification |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `05/05-A2-Z00` | *Behind the Scenes* | `zh-CN` (JSON) | `6003` → `6075` | `05-A2-Z00-LXH.wmv` (69 ms) + `.OGG` (33 ms) | OK (fade OUT `6002`, IN `6075`, `zh-CN-lxh.json` Hanzi) | OK (`tick=13133`, countdown, auto-return to `TITLE` + `REPLAY` unlocked) | **Confirmed parity** |
+| 2 | `05/05-A2-F00` | *Blue Smile* | `pt-BR` (GPK) | `5867` → `5915` | `05-A2-F00-LXH.wmv` (83 ms) + `.OGG` (51 ms) | OK (fade OUT `5851`, IN `5915`, grave epilogue) | OK (`tick=8967`, `SaveFeel` 30 s, return to `TITLE`) | **Confirmed parity** |
+| 3 | `05/05-B0-F00` | *Cold Scarf* | `pt-BR` (GPK) | `5683` → `5731` | `05-B0-F00-LXH.wmv` (74 ms) + `.OGG` (73 ms) | OK (fade OUT `5642`, IN `5731`, PT-BR subtitle *"Estava na varanda da sua casa..."*) | OK (`tick=8110`, `SaveFeel`, `NO` → `TITLE`) | **Confirmed parity** |
+| 4 | `05/05-G0-L03` | *Braided Hair* | `pt-BR` (GPK) | `4095` → `4119` | `05-G0-L03-LXH.wmv` (73 ms) + `.OGG` (51 ms) | OK (fade OUT `4076`, IN `4119`, sunset epilogue) | OK (`tick=7119`, `SaveFeel`, `NO` → `TITLE`) | **Confirmed parity** |
+| 5 | `05/05-KC-F00` | *The End of Madness* | `pt-BR` (GPK) | `19957` → `20005` | `05-KC-F00-LXH.wmv` (72 ms) + `.OGG` (57 ms) | OK (fade OUT `19941`, IN `20005`, PT-BR subtitle *"Ei, espera por mim!"*) | OK (`tick=25527`, `SaveFeel`, `NO` → `TITLE`) | **Confirmed parity** |
+| 6 | `05/05-SB-E01` | *Light* | `pt-BR` (GPK) | `6668` → `6668` (same-tick boundary) | `05-SB-E01-LXH.wmv` (84 ms) + `.OGG` (74 ms) | OK (fade OUT `6639`, IN `6668`, PT-BR subtitle *"A Kuroda vai ficar chateada..."*) | OK (`tick=14421`, `SaveFeel`, `NO` → `TITLE`) | **Confirmed parity** |
+| 7 | `05/05-SC-L03` | *Innocent Sunset* | `pt-BR` (GPK) | `5111` → `5183` | `05-SC-L03-LXH.wmv` (83 ms) + `.OGG` (58 ms) | OK (fade OUT `5071`, IN `5183`, PT-BR subtitle *"Então, que tal irmos àquele café..."*) | OK (`tick=8042`, `SaveFeel`, `NO` → `TITLE`) | **Confirmed parity** |
+
+### Integrity & Post-Ending Checks
+- Verified both JSON (`zh-CN-lxh.json`) and native GPK (`LxH.PTBR.GPK`) L×H translation paths against the untouched retail `LxH.GPK`.
+- Verified `REPLAY` menu unlock and rendering (`H-scene` / `Replay Data`, pages `1–4`, `CLOSE`) on `TITLE`, `GlobalFlag.DAT` update, and zero modification to the user's personal `SaveFile000.DAT` (`1210 bytes`).
+- Zero crashes, zero hangs, and zero missing L×H assets across all 7 endings back-to-back.
+- DEV-only convenience: added `Filter nodes` input to `DebugOverlay::drawRuntimeNodes()` (`lib/include/Kotonoha/debug/DebugOverlay.hpp`, `lib/src/debug/DebugOverlay.cpp`; absent in DIST).

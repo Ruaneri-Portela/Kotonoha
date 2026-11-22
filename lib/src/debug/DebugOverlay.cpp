@@ -567,16 +567,34 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
       "Jumping keeps current variables; earlier events are not replayed. "
       "Replay-based saves are disabled after a jump until a normal "
       "restart/load.");
-  if (std::none_of(nodes.begin(), nodes.end(), [&](const auto &node) {
-        return node.id == selectedRuntimeNode;
+  ImGui::InputText("Filter nodes", runtimeNodeFilter, sizeof(runtimeNodeFilter));
+  std::string needle(runtimeNodeFilter);
+  std::transform(needle.begin(), needle.end(), needle.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  std::vector<const DebugNode *> filtered;
+  filtered.reserve(nodes.size());
+  for (const auto &node : nodes) {
+    if (needle.empty()) {
+      filtered.push_back(&node);
+      continue;
+    }
+    std::string hay = node.id + " " + node.label;
+    std::transform(hay.begin(), hay.end(), hay.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (hay.find(needle) != std::string::npos)
+      filtered.push_back(&node);
+  }
+  if (!filtered.empty() &&
+      std::none_of(filtered.begin(), filtered.end(), [&](const DebugNode *node) {
+        return node->id == selectedRuntimeNode;
       }))
-    selectedRuntimeNode = nodes.front().id;
+    selectedRuntimeNode = filtered.front()->id;
   ImGui::BeginChild("Runtime nodes", ImVec2(0, 210), ImGuiChildFlags_Borders);
   ImGuiListClipper clipper;
-  clipper.Begin(static_cast<int>(nodes.size()));
+  clipper.Begin(static_cast<int>(filtered.size()));
   while (clipper.Step())
     for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
-      const auto &node = nodes[static_cast<std::size_t>(i)];
+      const auto &node = *filtered[static_cast<std::size_t>(i)];
       const auto label = node.id + " | " + node.label;
       if (ImGui::Selectable(label.c_str(), node.id == selectedRuntimeNode))
         selectedRuntimeNode = node.id;
