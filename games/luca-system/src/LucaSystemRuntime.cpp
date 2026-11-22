@@ -1818,6 +1818,7 @@ struct LucaSystemRuntime::Impl {
   std::map<LayerKey, SlottedLayer> stagedSlots;
   std::map<LayerKey, SlottedLayer> visibleSlots;
   std::map<LayerKey, SlottedLayer> outgoingSlots;
+  AirStageResetTracker stageResets;
   // GPU-owned full-scene framebuffer: crossfade AFTER sprite composition,
   // never by modifying each layer's alpha independently.
   Kotonoha::TexturePtr incomingTransitionFrame;
@@ -2121,6 +2122,7 @@ struct LucaSystemRuntime::Impl {
     stagedSlots.clear();
     visibleSlots.clear();
     outgoingSlots.clear();
+    stageResets.reset();
     drawDurationMs = 0;
     drawWipeMode = false;
     pruneObjectCaches();
@@ -2450,26 +2452,51 @@ struct LucaSystemRuntime::Impl {
   // fall back to visibleSlots (INIT may have cleared the staged portrait).
   void stageImage(uint8_t group, uint8_t slot, uint32_t assetId, float x,
                   float y, bool hasExplicitPos = true) {
+    const LayerKey key = makeKey(group, slot);
+    if (assetId == 0) {
+      stagedSlots.erase(key);
+      if (group == 2)
+        stagedSlots.erase(makeKey(3, slot));
+      stageResets.clearSlot(group, slot);
+      return;
+    }
+    if (!std::isfinite(x) || !std::isfinite(y))
+      return;
     loadObjectImage(assetId);
+    // Invalid/missing CZ never replaces a valid sprite with an invisible one.
+    if (!objectImages.count(assetId))
+      return;
     SlottedLayer layer;
     layer.group = group;
     layer.slot = slot;
     layer.assetId = assetId;
     layer.posX = x;
     layer.posY = y;
+    if (group != 0 && group != 2) {
+      const SlottedLayer *prior = nullptr;
+      if (const auto it = stagedSlots.find(key); it != stagedSlots.end())
+        prior = &it->second;
+      else if (stageResets.allowsVisibleFallback(group, slot)) {
+        if (const auto it = visibleSlots.find(key); it != visibleSlots.end())
+          prior = &it->second;
+      }
+      if (prior)
+        inheritAirPortraitVisuals(layer, *prior, !hasExplicitPos);
+    }
     if (group == 2) {
       const auto key = makeKey(group, slot);
       const SlottedLayer *baseLayer = nullptr;
       if (auto stagedIt = stagedSlots.find(key); stagedIt != stagedSlots.end())
         baseLayer = &stagedIt->second;
-      else if (auto shownIt = visibleSlots.find(key);
-               shownIt != visibleSlots.end())
-        baseLayer = &shownIt->second;
-      // IMAGELOAD(group=2,slot,asset) has no coordinates: retain the
-      // existing character placement and animation instead of teleporting
-      // a replacement portrait back to (0,0).
-      if (baseLayer && !hasExplicitPos)
-        inheritAirPortraitVisuals(layer, *baseLayer, true);
+      else if (stageResets.allowsVisibleFallback(group, slot)) {
+        if (auto shownIt = visibleSlots.find(key);
+            shownIt != visibleSlots.end())
+          baseLayer = &shownIt->second;
+      }
+      // A pose change in the same slot changes pixels, not the object's
+      // opacity, tint, scale, rotation or active MOVE.
+      if (baseLayer)
+        inheritAirPortraitVisuals(layer, *baseLayer, !hasExplicitPos);
       const auto nextImage = objectImages.find(assetId);
       if (baseLayer && nextImage != objectImages.end()) {
         const auto baseImage = objectImages.find(baseLayer->assetId);
@@ -2555,6 +2582,7 @@ struct LucaSystemRuntime::Impl {
       drawWipeMode = false;
     }
     visibleSlots = stagedSlots;
+    stageResets.reset();
     syncLegacySceneLayers();
     bool unlocked = false;
     for (const auto &[key, layer] : visibleSlots) {
@@ -2976,6 +3004,7 @@ struct LucaSystemRuntime::Impl {
           const uint8_t slot = ins.paramBytes[1];
           if ((group == 0xff && slot == 0x00) ||
               (group == 0x00 && slot == 0xff)) {
+            stageResets.clearGroup(0);
             for (auto it = stagedSlots.begin(); it != stagedSlots.end();) {
               if (it->second.group == 0)
                 it = stagedSlots.erase(it);
@@ -2983,8 +3012,10 @@ struct LucaSystemRuntime::Impl {
                 ++it;
             }
           } else if (group == 0xff && slot == 0xff) {
+            stageResets.clearAll();
             stagedSlots.clear();
           } else if (slot == 0xff) {
+            stageResets.clearGroup(group);
             for (auto it = stagedSlots.begin(); it != stagedSlots.end();) {
               if (it->second.group == group)
                 it = stagedSlots.erase(it);
@@ -2992,7 +3023,10 @@ struct LucaSystemRuntime::Impl {
                 ++it;
             }
           } else {
+            stageResets.clearSlot(group, slot);
             stagedSlots.erase(makeKey(group, slot));
+            if (group == 2)
+              stagedSlots.erase(makeKey(3, slot));
           }
         }
         break;
@@ -3020,14 +3054,7 @@ struct LucaSystemRuntime::Impl {
           const uint32_t id = paramU16(ins, 0);
           const float x = float(int16_t(paramU16(ins, 2)));
           const float y = float(int16_t(paramU16(ins, 4)));
-          loadObjectImage(id);
-          SlottedLayer layer;
-          layer.group = 0;
-          layer.slot = 0;
-          layer.assetId = id;
-          layer.posX = x;
-          layer.posY = y;
-          stagedSlots[makeKey(0, 0)] = layer;
+          stageImage(0, 0, id, x, y);
         }
         break;
       }
@@ -4529,6 +4556,7 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
   impl.stagedSlots.clear();
   impl.visibleSlots.clear();
   impl.outgoingSlots.clear();
+  impl.stageResets.reset();
   if (!state.visualLayers.empty()) {
     const auto now = impl.storyNow();
     for (const auto &saved : state.visualLayers) {
@@ -4653,6 +4681,7 @@ bool LucaSystemRuntime::startScenario(const std::string &name, size_t position,
   impl.stagedSlots.clear();
   impl.visibleSlots.clear();
   impl.outgoingSlots.clear();
+  impl.stageResets.reset();
   impl.sceneLayers.reset();
   impl.waiting = false;
   impl.choiceActive = false;

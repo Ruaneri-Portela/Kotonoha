@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cmath>
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -105,6 +106,24 @@ bool isFullAirBackdrop(const Layer &layer, const Image &img,
       return false;
   return true;
 }
+
+// Explicit INIT clears form a barrier: a later IMAGELOAD must not read a
+// deleted pose from the previous committed scene. DRAW resets the barrier.
+struct AirStageResetTracker {
+  bool all = false;
+  std::set<std::uint8_t> groups;
+  std::set<std::uint16_t> keys;
+  void reset() { all = false; groups.clear(); keys.clear(); }
+  void clearAll() { all = true; groups.clear(); keys.clear(); }
+  void clearGroup(std::uint8_t group) { groups.insert(group); }
+  void clearSlot(std::uint8_t group, std::uint8_t slot) {
+    keys.insert((std::uint16_t(group) << 8) | slot);
+  }
+  bool allowsVisibleFallback(std::uint8_t group, std::uint8_t slot) const {
+    return !all && !groups.count(group) &&
+           !keys.count((std::uint16_t(group) << 8) | slot);
+  }
+};
 
 // Evaluate motion at a monotonic story-clock instant. Sampling the current
 // position before a second MOVE prevents a visible jump to the old endpoint.

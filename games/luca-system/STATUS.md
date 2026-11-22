@@ -48,3 +48,6 @@ The more detailed [PORT_STATUS.md](PORT_STATUS.md) and [docs/AIR_REA_2026_11_18.
 
 
 LuckSystem CZ3 reference parity: 24-bit RGB delta images now decode to opaque RGBA (instead of failing with an incorrect four-byte raw stride), with CZ3 RGBA32/CZ4 split-alpha regression fixtures and a separate C++17 CI check.
+
+
+Sprite lifecycle regression: IMAGELOAD now preserves transforms for existing non-background slots, prevents invalid assets from replacing valid sprites, and respects INIT clear barriers through DRAW; C++17 scene regressions added.
