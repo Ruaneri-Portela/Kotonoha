@@ -267,7 +267,8 @@ SchoolDaysTranslationGate::DetailedSources SchoolDaysTranslationGate::CollectDet
                                std::to_string(index));
     const auto lxhStart = LxhFirstEvent(ors.get(), scene.sceneKey);
 #if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-    if (assets.usesPackedResources() && LxhEnding(scene.sceneKey) && !lxhStart)
+    if (assets.usesPackedResources() && assets.lxhMounted() &&
+        LxhEnding(scene.sceneKey) && !lxhStart)
       throw std::runtime_error("Integrated LxH ORS marker is missing at NODE " +
                                std::to_string(index));
 #endif

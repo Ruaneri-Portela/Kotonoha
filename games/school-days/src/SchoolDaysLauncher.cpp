@@ -455,6 +455,8 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
                           "launcher-music.txt";
     musicEnabled = readLauncherMusicEnabled(musicPreferenceFile);
   }
+  loadLxhPreference();
+  refreshLxhAvailability();
 }
 
 Launcher::~Launcher() { close(); }
@@ -677,6 +679,8 @@ void Launcher::setRetailConfigRoot(std::filesystem::path documentsRoot) {
   aspectPreference = readAspectPreference(retailRoot);
   loadedAspectPreference = aspectPreference;
   retailConfigReady = true;
+  loadLxhPreference();
+  refreshLxhAvailability();
   // Runtime's retail mixer curve is authoritative for BGM/SE/Voice, NOT the
   // generic slider defaults in a previously saved settings.json. Movie and
   // master volume remain independent generic EngineSettings values.
@@ -772,6 +776,127 @@ void Launcher::saveAspectPreference() {
         "Narrative aspect changed in another session; close and reopen launcher");
   writeAspectPreference(retailRoot, aspectPreference);
   loadedAspectPreference = aspectPreference;
+}
+
+std::filesystem::path Launcher::lxhPreferenceRoot() const {
+  if (retailConfigReady && !retailRoot.empty())
+    return retailRoot;
+  if (!getSettingsPath().empty())
+    return fs::path(getSettingsPath()).parent_path();
+  return {};
+}
+
+void Launcher::loadLxhPreference() {
+  const auto root = lxhPreferenceRoot();
+  savedEnableLxh = Kotonoha::SchoolDaysLxhPreference::Read(root);
+  if (savedEnableLxh.has_value()) {
+    enableLxhDraft = *savedEnableLxh;
+  } else {
+    enableLxhDraft = lxhPackAvailability.packValid;
+  }
+  enableLxhModified = false;
+}
+
+void Launcher::refreshLxhAvailability() {
+  const std::string currentPath = path();
+  if (currentPath == probedLxhPath && !currentPath.empty())
+    return;
+  probedLxhPath = currentPath;
+  if (currentPath.empty()) {
+    lxhPackAvailability = {};
+    lxhPackAvailability.reason = "Game folder is not selected";
+  } else {
+    try {
+      lxhPackAvailability = Kotonoha::SchoolDaysLxhPreference::ProbePack(
+          Kotonoha::gameDataDirectory(currentPath));
+    } catch (const std::exception &error) {
+      lxhPackAvailability = {};
+      lxhPackAvailability.reason = error.what();
+    }
+  }
+  // Never overwrite an explicit persisted or edited choice with auto-detection.
+  if (!savedEnableLxh.has_value() && !enableLxhModified) {
+    enableLxhDraft = lxhPackAvailability.packValid;
+  }
+  const auto resolved = resolveCurrentLxhState();
+  effectiveLxh = resolved.effectiveEnabled;
+  lxhNotice = resolved.statusReason;
+}
+
+void Launcher::saveLxhPreference() {
+  if (!enableLxhModified)
+    return;
+  const auto root = lxhPreferenceRoot();
+  if (root.empty())
+    return;
+  Kotonoha::SchoolDaysLxhPreference::Write(root, enableLxhDraft);
+  savedEnableLxh = enableLxhDraft;
+  enableLxhModified = false;
+}
+
+bool Launcher::enableLxhPreference() const {
+#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+  return false;
+#else
+  if (enableLxhModified)
+    return enableLxhDraft;
+  if (savedEnableLxh.has_value())
+    return *savedEnableLxh;
+  return lxhPackAvailability.packValid;
+#endif
+}
+
+void Launcher::setEnableLxhPreference(bool enabled) {
+#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+  (void)enabled;
+  enableLxhDraft = false;
+  enableLxhModified = false;
+#else
+  enableLxhDraft = enabled;
+  enableLxhModified = true;
+  savedEnableLxh = enabled;
+#endif
+  const auto resolved = resolveCurrentLxhState();
+  effectiveLxh = resolved.effectiveEnabled;
+  lxhNotice = resolved.statusReason;
+}
+
+Kotonoha::SchoolDaysLxhPreference::Resolution
+Launcher::resolveCurrentLxhState(bool *outTranslationReady,
+                                 std::string *outTranslationReason) const {
+  bool transReady = true;
+  std::string transReason;
+  const auto selected = language();
+  if (isGpkLanguage(selected)) {
+    const auto locale = gpkLocale(selected);
+    if (!getSettingsPath().empty()) {
+      const auto epilogue =
+          Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(getSettingsPath(),
+                                                          locale);
+      std::error_code ec;
+      if (!fs::is_regular_file(epilogue, ec) || ec) {
+        transReady = false;
+        transReason = "missing " + epilogue.filename().string() +
+                      " in translations/scripts";
+      }
+    }
+  } else {
+    const auto &baseJson = currentSettings().translationPath;
+    const auto locale = Kotonoha::SchoolDaysTranslationGate::LocaleId(baseJson);
+    const auto lxh = lxhJsonPath();
+    if (lxh.empty() && locale != "es") {
+      transReady = false;
+      transReason = "missing " + locale + "-lxh.json";
+    }
+  }
+  if (outTranslationReady)
+    *outTranslationReady = transReady;
+  if (outTranslationReason)
+    *outTranslationReason = transReason;
+  const std::optional<bool> pref =
+      enableLxhModified ? std::optional<bool>(enableLxhDraft) : savedEnableLxh;
+  return Kotonoha::SchoolDaysLxhPreference::Resolve(
+      pref, lxhPackAvailability, transReady, transReason);
 }
 
 std::string Launcher::rememberedSpanishJsonPath(
@@ -1460,6 +1585,20 @@ void Launcher::drawRetailGeneralOptions() {
   ImGui::Checkbox("Swap controller A/B##sd", &settings().swapControllerAB);
   ImGui::Checkbox("Forced subtitles##sd", &settings().enableForcedSubtitles);
 
+  refreshLxhAvailability();
+#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+  ImGui::Spacing();
+  ImGui::SeparatorText("Optional expansion");
+  bool wantLxh = enableLxhPreference();
+  if (ImGui::Checkbox("Enable LxH endings##sd", &wantLxh))
+    setEnableLxhPreference(wantLxh);
+  ImGui::TextWrapped(
+      "Enables the seven additional epilogues when the required files are "
+      "available.");
+  const auto lxhResolved = resolveCurrentLxhState();
+  ImGui::TextDisabled("Status: %s", lxhResolved.statusReason.c_str());
+#endif
+
   constexpr const char *aspectLabels[]{"Automatic", "4:3", "16:9"};
   int aspect = aspectPreference;
   if (ImGui::Combo("Narrative aspect##sd", &aspect, aspectLabels, 3))
@@ -1511,40 +1650,26 @@ void Launcher::drawLanguageOptions() {
       setLanguage(Language::BrazilianGpk);
     // The original Spanish NSIS patch modifies controls and media paths.
     // Enable this option only after certified, retail-compatible GPKs exist.
+    refreshLxhAvailability();
+    const bool lxhWanted = enableLxhPreference() && lxhPackAvailability.packValid;
     std::error_code spanishError;
     const bool spanishPackReady = !getSettingsPath().empty() &&
         fs::is_regular_file(Kotonoha::SchoolDaysGpkLanguageProfile::ScriptPath(
-            getSettingsPath(), "es"), spanishError)
-#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-        &&
-        fs::is_regular_file(Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(
-            getSettingsPath(), "es"), spanishError)
-#endif
-        ;
+            getSettingsPath(), "es"), spanishError);
     ImGui::BeginDisabled(!spanishPackReady);
     if (ImGui::Selectable("Español##gpk",
                           beforeSelection == Language::SpanishGpk))
       setLanguage(Language::SpanishGpk);
     ImGui::EndDisabled();
     if (!spanishPackReady)
-#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-      ImGui::TextDisabled("Spanish GPK requires a compatible original HQ script archive.");
-#else
-      ImGui::TextDisabled("Spanish GPK requires certified HQ and LxH archives.");
-#endif
+      ImGui::TextDisabled("Spanish GPK requires a certified Script - Spanish.GPK archive.");
     // The original legacy Chinese GPK is incompatible. Use only the
     // retail-aligned UTF-8 derivative; full structural parity is verified
     // again by the mount before playback.
     std::error_code chineseError;
     const bool chinesePackReady = !getSettingsPath().empty() &&
         fs::is_regular_file(Kotonoha::SchoolDaysGpkLanguageProfile::ScriptPath(
-            getSettingsPath(), "zh-CN"), chineseError)
-#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-        &&
-        fs::is_regular_file(Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(
-            getSettingsPath(), "zh-CN"), chineseError)
-#endif
-        ;
+            getSettingsPath(), "zh-CN"), chineseError);
     ImGui::BeginDisabled(!chinesePackReady);
     if (ImGui::Selectable("Chinese - Simplified##gpk",
                           beforeSelection == Language::ChineseGpk))
@@ -1555,23 +1680,15 @@ void Launcher::drawLanguageOptions() {
     std::error_code russianError;
     const bool russianPackReady = !getSettingsPath().empty() &&
         fs::is_regular_file(Kotonoha::SchoolDaysGpkLanguageProfile::ScriptPath(
-            getSettingsPath(), "ru"), russianError)
-#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-        && fs::is_regular_file(Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(
-            getSettingsPath(), "ru"), russianError)
-#endif
-        ;
+            getSettingsPath(), "ru"), russianError);
     ImGui::BeginDisabled(!russianPackReady);
     if (ImGui::Selectable("Russian##gpk",
                           beforeSelection == Language::RussianGpk))
       setLanguage(Language::RussianGpk);
     ImGui::EndDisabled();
     if (!russianPackReady)
-      ImGui::TextDisabled("Russian GPK requires its certified HQ"
-#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-                          " and LxH"
-#endif
-                          " archive(s).");
+      ImGui::TextDisabled("Russian GPK requires its certified Script - Russian.GPK archive.");
+    (void)lxhWanted;
     ImGui::SeparatorText("JSON");
     for (const auto &preset : kJsonPresets) {
       const bool installed = !getSettingsPath().empty() &&
@@ -1606,23 +1723,22 @@ void Launcher::drawLanguageOptions() {
       ImGui::TextWrapped("Seven LxH endings GPK: %s", epilogue.string().c_str());
 #endif
       std::error_code ec;
-      if ((locale != "en" && !fs::is_regular_file(script, ec))
-#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-          || !fs::is_regular_file(epilogue, ec)
-#endif
-         )
+      if (locale != "en" && !fs::is_regular_file(script, ec))
         ImGui::TextWrapped(
-#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
             "Missing original HQ language script in translations/scripts.");
-#else
-            "Missing locale scripts in translations/scripts. This is separate "
-            "from the original Packs/LxH.GPK containing video/audio/cards.");
+#if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+      if (enableLxhPreference() && !fs::is_regular_file(epilogue, ec))
+        ImGui::TextWrapped(
+            "Optional LxH script %s not found in translations/scripts. "
+            "Base School Days HQ will play in %s without LxH endings.",
+            epilogue.filename().string().c_str(), locale.c_str());
 #endif
     }
 #if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
     ImGui::TextDisabled("Retail-only edition: original 29 GPKs; no LxH epilogues or translations.");
 #else
-    ImGui::TextDisabled("Original 29 retail GPKs and LxH media stay untouched.");
+    ImGui::TextDisabled("Original 29 retail GPKs and optional LxH media stay untouched.");
+    ImGui::TextDisabled("LxH status: %s", resolveCurrentLxhState().statusReason.c_str());
 #endif
     ImGui::TextDisabled("Language texts are read from scripts, not converted to JSON.");
     return;
@@ -1738,7 +1854,9 @@ void Launcher::openOptions() {
   optionSnapshot = OptionsSnapshot{settings(), retailDraft, selectedLanguage,
                                    selectedLocaleBaseJsonPath,
                                    selectedManualLxhJsonPath,
-                                   manualLxhBaseJsonPath, aspectPreference};
+                                   manualLxhBaseJsonPath, aspectPreference,
+                                   savedEnableLxh, enableLxhDraft,
+                                   enableLxhModified};
   screen = Screen::Options;
 #if !defined(__ANDROID__) && !defined(ANDROID)
   if (launcherWindow()) SDL_SetWindowSize(launcherWindow(), 950, 700);
@@ -1761,6 +1879,9 @@ void Launcher::cancelOptions() {
     selectedManualLxhJsonPath = optionSnapshot->manualLxhJson;
     manualLxhBaseJsonPath = optionSnapshot->manualLxhBase;
     aspectPreference = optionSnapshot->aspect;
+    savedEnableLxh = optionSnapshot->savedEnableLxh;
+    enableLxhDraft = optionSnapshot->enableLxhDraft;
+    enableLxhModified = optionSnapshot->enableLxhModified;
   }
   optionSnapshot.reset();
   screen = Screen::Main;
@@ -1980,11 +2101,8 @@ void Launcher::drawOptionsScreen() {
             "IMPORTANT: Do NOT select this new distribution folder or add "
             "\\Packs to its path. That folder contains no retail packs. "
             "Click Folder... and select the ORIGINAL School Days HQ game "
-#if defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
-            "installation containing the 29 original GPKs. "
-#else
-          "installation containing 29 GPKs and LxH.GPK. "
-#endif
+            "installation containing the 29 original retail GPKs "
+            "(optional LxH.GPK is supported when present). "
             "No save files are required.");
       drawPrimaryGamePath();
       ImGui::EndTabItem();
@@ -2139,6 +2257,10 @@ bool Launcher::validate(std::string &error) {
       }
     }
   }
+  refreshLxhAvailability();
+  const bool wantLxh = enableLxhPreference();
+  effectiveLxh = false;
+  lxhNotice.clear();
   const auto &translationFile = settings().translationPath;
   if (isGpkLanguage(language())) {
     if (getSettingsPath().empty()) {
@@ -2152,8 +2274,6 @@ bool Launcher::validate(std::string &error) {
     const auto locale = gpkLocale(language());
     const auto scriptPath =
         Kotonoha::SchoolDaysGpkLanguageProfile::ScriptPath(getSettingsPath(), locale);
-    const auto lxhPath =
-        Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(getSettingsPath(), locale);
     Kotonoha::SchoolDaysGpkArchive base;
     std::string reason;
     if (locale != "en") {
@@ -2170,42 +2290,69 @@ bool Launcher::validate(std::string &error) {
       }
     }
 #if !defined(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
+    if (!wantLxh) {
+      effectiveLxh = false;
+      lxhNotice = "LxH endings disabled (playing original School Days HQ).";
+      return true;
+    }
+    if (!lxhPackAvailability.packValid) {
+      effectiveLxh = false;
+      lxhNotice =
+          "LxH endings unavailable (" + lxhPackAvailability.reason +
+          "); playing base School Days HQ.";
+      return true;
+    }
+    const auto lxhPath =
+        Kotonoha::SchoolDaysGpkLanguageProfile::LxhPath(getSettingsPath(), locale);
     Kotonoha::SchoolDaysGpkArchive epilogue;
-    if (!epilogue.Open(lxhPath, &reason)) {
-      error = "Missing or invalid " + locale + " LxH *language* script GPK at " +
-              lxhPath.string() + ": " + reason +
-              ". This is different from original Packs/LxH.GPK "
-              "(which contains videos, audio and cards). "
-              "Put the matching *-lxh.GPK in translations/scripts.";
-      return false;
+    bool epilogueValid = epilogue.Open(lxhPath, &reason);
+    if (epilogueValid && epilogue.EntryCount() != 7) {
+      epilogueValid = false;
+      reason = "LxH language GPK must contain exactly the seven extended ORS";
     }
-    if (epilogue.EntryCount() != 7) {
-      error = "LxH language GPK must contain exactly the seven extended ORS.";
-      return false;
-    }
-    for (const auto ending : Kotonoha::SchoolDaysLxhContent::Endings) {
-      const std::string logical =
-          "Script/English/05/" + std::string(ending) + ".ENG.ORS";
-      if (epilogue.Lookup(logical) != Kotonoha::SchoolDaysGpkLookupStatus::Present) {
-        error = "LxH language GPK missing translated ending " + logical;
-        return false;
+    if (epilogueValid) {
+      for (const auto ending : Kotonoha::SchoolDaysLxhContent::Endings) {
+        const std::string logical =
+            "Script/English/05/" + std::string(ending) + ".ENG.ORS";
+        if (epilogue.Lookup(logical) !=
+            Kotonoha::SchoolDaysGpkLookupStatus::Present) {
+          epilogueValid = false;
+          reason = "missing translated ending " + logical;
+          break;
+        }
       }
     }
-    // The translated packs contain text only; the media and original assets
-    // must still be present in the independent retail+LxH installation.
+    if (!epilogueValid) {
+      // Never fall back silently to another language. Disable effective LxH
+      // and allow base School Days HQ in the chosen language.
+      effectiveLxh = false;
+      lxhNotice =
+          "LxH endings unavailable for " + locale + " (" +
+          lxhPath.filename().string() + ": " + reason +
+          "); playing base School Days HQ without LxH.";
+      return true;
+    }
     try {
       SchoolDays::Assets sourceAssets(
-          Kotonoha::gameDataDirectory(path()), effectiveOverlayRoot().string());
+          Kotonoha::gameDataDirectory(path()), effectiveOverlayRoot().string(),
+          true, {}, Kotonoha::SchoolDaysLxhMountMode::Required);
       bool mediaInstalled = false;
-      if (!checkIntegratedLxhContent(sourceAssets, &mediaInstalled, error))
-        return false;
-      if (!mediaInstalled) {
-        error = "Native GPK locale requires the original integrated LxH media.";
-        return false;
+      if (!checkIntegratedLxhContent(sourceAssets, &mediaInstalled, error) ||
+          !mediaInstalled) {
+        effectiveLxh = false;
+        lxhNotice = error.empty()
+                        ? "LxH endings unavailable (missing LxH media); playing base School Days HQ."
+                        : error;
+        error.clear();
+        return true;
       }
+      effectiveLxh = true;
+      lxhNotice = "LxH endings enabled (7 epilogues ready).";
     } catch (const std::exception &e) {
-      error = std::string("Cannot validate unchanged retail data: ") + e.what();
-      return false;
+      effectiveLxh = false;
+      lxhNotice = std::string("LxH endings unavailable (") + e.what() +
+                  "); playing base School Days HQ.";
+      return true;
     }
 #endif
     return true;
@@ -2216,27 +2363,15 @@ bool Launcher::validate(std::string &error) {
             "translation file in School Days HQ language before Play.";
     return false;
   }
-  if (!manualLxhJsonPath().empty() &&
+  if (wantLxh && !manualLxhJsonPath().empty() &&
       !regularTranslationFile(manualLxhJsonPath())) {
     error = "Manually selected LxH JSON is missing. Choose a valid file or "
             "restore automatic matching.";
     return false;
   }
-  // This must match Application's strict locale gate before Play closes the
-  // launcher. The asset provider owns mandatory Packs/LxH.GPK mounting; the
-  // launcher does not offer a separate LxH enable/disable selection.
   try {
-    SchoolDays::Assets sourceAssets(
-        Kotonoha::gameDataDirectory(path()), effectiveOverlayRoot().string());
     const bool nativeHq = translationFile.empty();
-    bool epiloguesPresent = false;
-    if (!checkIntegratedLxhContent(sourceAssets, &epiloguesPresent, error))
-      return false;
-    // Some extracted synthetic fixtures contain only HQ scripts. Production
-    // packed installs always require the complete additional LxH.GPK.
-    if (nativeHq && !epiloguesPresent) return true;
-
-    Kotonoha::Translation dictionary, reviewed, dlc, reviewedDlc;
+    Kotonoha::Translation dictionary, reviewed;
     if (!nativeHq) {
       dictionary.load(translationFile);
       reviewed = Kotonoha::SchoolDaysTranslationGate::LoadReviewedIdentities(
@@ -2258,35 +2393,121 @@ bool Launcher::validate(std::string &error) {
         }
       }
     }
-
     const auto locale = Kotonoha::SchoolDaysTranslationGate::LocaleId(
         translationFile);
-    std::string dlcFile;
-    if (epiloguesPresent) {
-      dlcFile = lxhJsonPath();
-      // Native English and new non-native locales need an independent epilogue
-      // dictionary. The installed Spanish V4b is the sole legacy exception:
-      // its HQ JSON already contains the 273 reviewed LxH occurrences.
-      // Checking only layered coverage would allow a custom HQ JSON to
-      // masquerade as the required per-locale LxH sidecar.
-      if (dlcFile.empty() && locale != "es") {
-        error = "Selected School Days locale INCOMPLETE: LxH requires " +
-                locale + "-lxh.json before Play (no epilogue JSON installed).";
+    const bool installedBaseJson =
+        !nativeHq &&
+        (locale == "en" ||
+         Kotonoha::SchoolDaysGpkLanguageProfile::IsInstalledLocaleJson(
+             getSettingsPath(), translationFile));
+
+    const auto validateBaseOnly = [&]() -> bool {
+      SchoolDays::Assets baseAssets(
+          Kotonoha::gameDataDirectory(path()), effectiveOverlayRoot().string(),
+          true, {}, Kotonoha::SchoolDaysLxhMountMode::Disabled);
+      if (nativeHq)
+        return true;
+      const auto baseSources =
+          Kotonoha::SchoolDaysTranslationGate::CollectDetailed(baseAssets,
+                                                               routePath());
+      const auto baseAudit = Kotonoha::SchoolDaysTranslationGate::CheckLayered(
+          baseSources, dictionary, reviewed, {}, {}, false, installedBaseJson);
+      if (!baseAudit.certifiedForNonNativeDisplay()) {
+        error = "Selected School Days locale INCOMPLETE: " +
+                baseAudit.summary() +
+                ". English fallback is forbidden. Review missing and "
+                "source-identical dialogue/choices before Play.";
         return false;
       }
-      if (!dlcFile.empty()) {
-        dlc.load(dlcFile);
-        reviewedDlc =
-            Kotonoha::SchoolDaysTranslationGate::LoadReviewedIdentities(dlcFile);
+      return true;
+    };
+
+    // Probe whether this installation uses packed retail GPKs (where LxH.GPK
+    // is independently toggleable) or an extracted loose developer directory.
+    SchoolDays::Assets sourceAssets(
+        Kotonoha::gameDataDirectory(path()), effectiveOverlayRoot().string(),
+        true, {},
+        wantLxh ? Kotonoha::SchoolDaysLxhMountMode::Optional
+                : Kotonoha::SchoolDaysLxhMountMode::Disabled);
+    const bool packedInstall = sourceAssets.usesPackedResources();
+
+    if (packedInstall && !wantLxh) {
+      if (!nativeHq) {
+        const auto baseSources =
+            Kotonoha::SchoolDaysTranslationGate::CollectDetailed(sourceAssets,
+                                                                 routePath());
+        const auto baseAudit = Kotonoha::SchoolDaysTranslationGate::CheckLayered(
+            baseSources, dictionary, reviewed, {}, {}, false, installedBaseJson);
+        if (!baseAudit.certifiedForNonNativeDisplay()) {
+          error = "Selected School Days locale INCOMPLETE: " +
+                  baseAudit.summary() +
+                  ". English fallback is forbidden. Review missing and "
+                  "source-identical dialogue/choices before Play.";
+          return false;
+        }
       }
+      effectiveLxh = false;
+      lxhNotice = "LxH endings disabled (playing original School Days HQ).";
+      return true;
+    }
+
+    bool epiloguesPresent = false;
+    std::string lxhMediaError;
+    const bool mediaOk =
+        checkIntegratedLxhContent(sourceAssets, &epiloguesPresent, lxhMediaError);
+    if (!mediaOk) {
+      if (!packedInstall) {
+        error = lxhMediaError;
+        return false;
+      }
+      if (!validateBaseOnly())
+        return false;
+      effectiveLxh = false;
+      lxhNotice = !lxhMediaError.empty()
+                      ? lxhMediaError
+                      : "LxH endings unavailable; playing base School Days HQ.";
+      return true;
+    }
+    if (!epiloguesPresent) {
+      if (!validateBaseOnly())
+        return false;
+      effectiveLxh = false;
+      lxhNotice = wantLxh
+                      ? (!lxhPackAvailability.reason.empty()
+                             ? ("LxH endings unavailable (" +
+                                lxhPackAvailability.reason +
+                                "); playing base School Days HQ.")
+                             : "LxH endings unavailable; playing base School Days HQ.")
+                      : "LxH endings disabled (playing original School Days HQ).";
+      return true;
+    }
+
+    Kotonoha::Translation dlc, reviewedDlc;
+    const std::string dlcFile = lxhJsonPath();
+    if (dlcFile.empty() && locale != "es") {
+      if (packedInstall) {
+        if (!validateBaseOnly())
+          return false;
+        effectiveLxh = false;
+        lxhNotice = "LxH endings unavailable for " + locale + " (missing " +
+                    locale +
+                    "-lxh.json); playing base School Days HQ without LxH.";
+        return true;
+      }
+      if (!nativeHq) {
+        Kotonoha::SchoolDaysTranslationGate::RequireLxhSidecar(locale, dlcFile);
+      }
+    }
+    if (!dlcFile.empty()) {
+      dlc.load(dlcFile);
+      reviewedDlc =
+          Kotonoha::SchoolDaysTranslationGate::LoadReviewedIdentities(dlcFile);
     }
     const auto sources = Kotonoha::SchoolDaysTranslationGate::CollectDetailed(
         sourceAssets, routePath());
     const auto audit = Kotonoha::SchoolDaysTranslationGate::CheckLayered(
         sources, dictionary, reviewed, dlc, reviewedDlc, nativeHq,
-        !nativeHq && (locale == "en" ||
-            Kotonoha::SchoolDaysGpkLanguageProfile::IsInstalledLocaleJson(
-                getSettingsPath(), translationFile)));
+        installedBaseJson);
     if (locale == "es" && audit.overriddenBaseSlots != 0) {
       error = "Spanish LxH JSON conflicts with the installed HQ V4b (" +
               std::to_string(audit.overriddenBaseSlots) +
@@ -2294,15 +2515,23 @@ bool Launcher::validate(std::string &error) {
       return false;
     }
     if (!audit.certifiedForNonNativeDisplay()) {
+      if (packedInstall) {
+        if (!validateBaseOnly())
+          return false;
+        effectiveLxh = false;
+        lxhNotice = "LxH endings unavailable for " + locale +
+                    " (incomplete LxH translation: " + audit.summary() +
+                    "); playing base School Days HQ without LxH.";
+        return true;
+      }
       error = "Selected School Days locale INCOMPLETE: " + audit.summary() +
-              (epiloguesPresent
-                   ? ". LxH requires complete dialogue for locale " + locale +
-                         (dlcFile.empty() ? " (epilogue JSON missing)." :
-                                            " (epilogue JSON: " + dlcFile + ").")
-                   : ". English fallback is forbidden. Review missing and "
-                     "source-identical dialogue/choices before Play.");
+              ". LxH requires complete dialogue for locale " + locale +
+              (dlcFile.empty() ? " (epilogue JSON missing)."
+                               : " (epilogue JSON: " + dlcFile + ").");
       return false;
     }
+    effectiveLxh = true;
+    lxhNotice = "LxH endings enabled (7 epilogues ready).";
   } catch (const std::exception &exception) {
     error = std::string("School Days locale validation failed: ") +
             exception.what();
@@ -2323,6 +2552,7 @@ void Launcher::save() {
       throw std::runtime_error("Cannot save retail Config.DAT: " + failure);
     saveAspectPreference();
   }
+  saveLxhPreference();
   GameLauncher::save();
   if (!getSettingsPath().empty()) {
     std::string error;

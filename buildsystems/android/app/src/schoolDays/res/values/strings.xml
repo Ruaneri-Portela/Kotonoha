@@ -22,14 +22,14 @@
     <string name="sd_preparing">Preparing game session…</string>
     <string name="sd_denied">Folder access is unavailable. Select the folder again.</string>
     <string name="sd_unreadable">Could not check the folder. Try again or select another folder.</string>
-    <string name="sd_ready">Ready · %1$s (%2$s)</string>
+    <string name="sd_ready">Ready · %1$s (%2$s) · %3$s</string>
     <string name="sd_choose">Choose an available language</string>
     <string name="sd_absent">Folder authorized. Missing, empty or ambiguous: %1$s</string>
-    <string name="sd_no_translations">No complete GPK or JSON translations found.</string>
-    <string name="sd_incomplete_json">Incomplete JSON pairs (require both HQ and L×H): %1$s</string>
+    <string name="sd_no_translations">No usable GPK or JSON translations found.</string>
+    <string name="sd_incomplete_json">Base JSON without L×H sidecar (playable in base HQ): %1$s</string>
     <string name="sd_missing_gpk_files">Unavailable — missing in translations/scripts/: %1$s</string>
-    <string name="sd_missing_gpk_json_hint">Unavailable — missing in translations/scripts/: %1$s (JSON pair is available below)</string>
-    <string name="sd_chinese_legacy_gpk">Incompatible legacy Script - chinese.GPK found; requires certified Script - chinese-compatible.GPK and zh-CN-lxh.GPK</string>
+    <string name="sd_missing_gpk_json_hint">Unavailable — missing in translations/scripts/: %1$s (JSON is available below)</string>
+    <string name="sd_chinese_legacy_gpk">Incompatible legacy Script - chinese.GPK found; requires certified Script - chinese-compatible.GPK</string>
     <string name="sd_detected_gpk">Detected GPK packs: %1$s</string>
     <string name="sd_detected_json">Detected JSON pairs: %1$s</string>
     <string name="sd_none">None</string>
@@ -91,15 +91,22 @@
     <string name="sd_general_engine_heading">Engine options (settings.json)</string>
     <string name="sd_swap_ab">Swap controller A/B</string>
     <string name="sd_forced_subtitles">Enable forced subtitles (.ass)</string>
+    <string name="sd_lxh_heading">Optional expansion (Kotonoha.ini)</string>
+    <string name="sd_enable_lxh">Enable L×H endings</string>
+    <string name="sd_enable_lxh_desc">Enables the seven additional epilogues when the required files are available.</string>
+    <string name="sd_lxh_state_active">L×H active (7 epilogues)</string>
+    <string name="sd_lxh_state_off">Base HQ (L×H off)</string>
+    <string name="sd_lxh_state_missing_pack">Base HQ (Packs/LxH.GPK not found)</string>
+    <string name="sd_lxh_state_missing_lang">Base HQ (L×H translation unavailable for this language)</string>
 
     <!-- Language -->
     <string name="sd_lang_active">Selected: %1$s</string>
     <string name="sd_lang_gpk_heading">Native GPK packs (translations/scripts/)</string>
     <string name="sd_lang_json_heading">JSON dictionaries (translations/jsons/)</string>
-    <string name="sd_lang_note">Both HQ and L×H epilogue translations are required. Silent English fallback is disabled.</string>
+    <string name="sd_lang_note">Base HQ translations work independently of L×H. When L×H is enabled, matching L×H files are required without silent language fallback.</string>
 
     <!-- Files status -->
-    <string name="sd_files_summary">Packs: %1$d / 30 (LxH.GPK: %2$s)\nRoute (ktnroute): %3$s\nstyles.ass: %4$s\nforced_subtitles/: %5$s\noverlay/: %6$s</string>
+    <string name="sd_files_summary">Retail packs: %1$d / 29 (Optional LxH.GPK: %2$s)\nRoute (ktnroute): %3$s\nstyles.ass: %4$s\nforced_subtitles/: %5$s\noverlay/: %6$s</string>
     <string name="sd_status_ok">OK</string>
     <string name="sd_status_missing">Missing</string>
     <string name="sd_status_optional">Not present (optional)</string>

@@ -26,10 +26,14 @@ final class SchoolDaysFolder {
     private static final long MAX_STAGED_SUBTITLE_BYTES = 16L * 1024L * 1024L;
 
     final List<String> missing = new ArrayList<>();
+    /** Base HQ JSON dictionaries present (usable when LxH is OFF or unavailable). */
+    final List<String> baseJsonLanguages = new ArrayList<>();
     /** Complete JSON pairs (HQ + LxH). */
     final List<String> languages = new ArrayList<>();
     /** Incomplete JSON entries (missing HQ or LxH pair). */
     final List<String> incompleteJsonLanguages = new ArrayList<>();
+    /** Base HQ native GPK packs present (English always uses Packs/Script.GPK). */
+    final List<String> baseGpkLanguages = new ArrayList<>();
     /** Complete native GPK translation packs (Script + LxH). */
     final List<String> gpkLanguages = new ArrayList<>();
     final boolean selectedPacksDirectly;
@@ -37,6 +41,7 @@ final class SchoolDaysFolder {
     final boolean hasForcedSubtitles;
     final boolean hasOverlay;
     final int packCount;
+    final int retailPackCount;
     final boolean hasLxhPack;
 
     private final Uri treeUri;
@@ -62,7 +67,7 @@ final class SchoolDaysFolder {
         return locale + "-lxh.GPK";
     }
 
-    List<String> missingGpkFiles(String locale) {
+    List<String> missingGpkFiles(String locale, boolean requireLxh) {
         List<String> absent = new ArrayList<>();
         String scriptName = gpkScriptFilename(locale);
         if (scriptName == null) {
@@ -70,11 +75,17 @@ final class SchoolDaysFolder {
         } else if (!file(scripts, scriptName)) {
             absent.add(scriptName);
         }
-        String lxhName = gpkLxhFilename(locale);
-        if (!file(scripts, lxhName)) {
-            absent.add(lxhName);
+        if (requireLxh) {
+            String lxhName = gpkLxhFilename(locale);
+            if (!file(scripts, lxhName)) {
+                absent.add(lxhName);
+            }
         }
         return absent;
+    }
+
+    List<String> missingGpkFiles(String locale) {
+        return missingGpkFiles(locale, false);
     }
 
     boolean hasLegacyIncompatibleChineseGpk() {
@@ -99,14 +110,25 @@ final class SchoolDaysFolder {
     boolean supportsSelection(String selection) {
         if (selection == null || selection.isEmpty()) return false;
         String loc = selectionLocale(selection);
-        return isGpkSelection(selection) ? gpkLanguages.contains(loc) : languages.contains(loc);
+        return isGpkSelection(selection)
+                ? baseGpkLanguages.contains(loc)
+                : baseJsonLanguages.contains(loc);
+    }
+
+    boolean supportsLxhForSelection(String selection) {
+        if (!hasLxhPack || selection == null || selection.isEmpty()) return false;
+        String loc = selectionLocale(selection);
+        return isGpkSelection(selection)
+                ? gpkLanguages.contains(loc)
+                : (languages.contains(loc) || ("es".equals(loc) && baseJsonLanguages.contains("es")));
     }
 
     String defaultSelection() {
-        if (gpkLanguages.contains("pt-BR")) return formatLanguageSelection("gpk", "pt-BR");
-        if (!gpkLanguages.isEmpty()) return formatLanguageSelection("gpk", gpkLanguages.get(0));
-        if (languages.contains("pt-BR")) return formatLanguageSelection("json", "pt-BR");
-        if (!languages.isEmpty()) return formatLanguageSelection("json", languages.get(0));
+        if (baseGpkLanguages.contains("pt-BR")) return formatLanguageSelection("gpk", "pt-BR");
+        if (baseGpkLanguages.contains("en")) return formatLanguageSelection("gpk", "en");
+        if (!baseGpkLanguages.isEmpty()) return formatLanguageSelection("gpk", baseGpkLanguages.get(0));
+        if (baseJsonLanguages.contains("pt-BR")) return formatLanguageSelection("json", "pt-BR");
+        if (!baseJsonLanguages.isEmpty()) return formatLanguageSelection("json", baseJsonLanguages.get(0));
         return null;
     }
 
@@ -136,9 +158,9 @@ final class SchoolDaysFolder {
                 && name.indexOf('/') < 0 && name.indexOf('\\') < 0 && name.indexOf('\0') < 0;
     }
 
-    private static List<String> packNames() {
+    private static List<String> retailPackNames() {
         List<String> names = new ArrayList<>();
-        Collections.addAll(names, "BGM.GPK", "Ini.GPK", "Script.GPK", "SysSe.GPK", "System.GPK", "LxH.GPK");
+        Collections.addAll(names, "BGM.GPK", "Ini.GPK", "Script.GPK", "SysSe.GPK", "System.GPK");
         for (String prefix : new String[]{"Event", "Movie", "Se", "Voice"}) {
             for (int i = 0; i < 6; i++) names.add(prefix + "0" + i + ".GPK");
         }
@@ -147,7 +169,7 @@ final class SchoolDaysFolder {
 
     static List<String> missingPacks(Map<String, DocumentTree.Entry> entries) {
         Map<String, DocumentTree.Entry> files = indexPacks(entries);
-        List<String> names = packNames();
+        List<String> names = retailPackNames();
         names.removeIf(name -> files.containsKey(name.toLowerCase(Locale.ROOT)));
         return names;
     }
@@ -205,17 +227,24 @@ final class SchoolDaysFolder {
     }
 
     // Only the small resources whose consumers require physical files go in cache.
-    // The native mount opens each retail/LxH archive on demand via provider-issued URIs.
-    File prepare(Context context, DocumentTree source, String selection) throws IOException {
+    // The native mount opens each retail/optional-LxH archive on demand via provider-issued URIs.
+    File prepare(Context context, DocumentTree source, String selection, boolean effectiveLxh) throws IOException {
         if (!missing.isEmpty() || !supportsSelection(selection)) throw new IOException();
         boolean useGpk = isGpkSelection(selection);
         String locale = selectionLocale(selection);
+        boolean stageLxh = effectiveLxh && supportsLxhForSelection(selection);
         File session = Files.createTempDirectory(context.getCacheDir().toPath(), "sd-saf-").toFile();
         try {
             JSONObject catalog = new JSONObject();
-            for (String name : packNames()) {
+            for (String name : retailPackNames()) {
                 DocumentTree.Entry entry = archives.get(name.toLowerCase(Locale.ROOT));
                 catalog.put(name, new JSONObject().put("uri", entry.uri.toString()).put("size", entry.size));
+            }
+            if (stageLxh && hasLxhPack) {
+                DocumentTree.Entry lxhEntry = archives.get("lxh.gpk");
+                if (lxhEntry != null) {
+                    catalog.put("LxH.GPK", new JSONObject().put("uri", lxhEntry.uri.toString()).put("size", lxhEntry.size));
+                }
             }
             Files.write(new File(session, "documents.json").toPath(),
                     catalog.toString().getBytes(StandardCharsets.UTF_8));
@@ -234,13 +263,18 @@ final class SchoolDaysFolder {
                 if (scriptName != null) {
                     source.copy(scripts.get(scriptName), new File(scriptsDir, scriptName));
                 }
-                String lxhName = gpkLxhFilename(locale);
-                source.copy(scripts.get(lxhName), new File(scriptsDir, lxhName));
+                if (stageLxh) {
+                    String lxhName = gpkLxhFilename(locale);
+                    if (file(scripts, lxhName)) {
+                        source.copy(scripts.get(lxhName), new File(scriptsDir, lxhName));
+                    }
+                }
             } else {
                 File dictionaries = new File(session, "translations/jsons");
                 Files.createDirectories(dictionaries.toPath());
-                for (String name : new String[]{locale + ".json", locale + "-lxh.json"}) {
-                    source.copy(jsons.get(name), new File(dictionaries, name));
+                source.copy(jsons.get(locale + ".json"), new File(dictionaries, locale + ".json"));
+                if (stageLxh && file(jsons, locale + "-lxh.json")) {
+                    source.copy(jsons.get(locale + "-lxh.json"), new File(dictionaries, locale + "-lxh.json"));
                 }
                 for (String sidecar : new String[]{
                         locale + "-reviewed-identities.json",
@@ -288,11 +322,12 @@ final class SchoolDaysFolder {
         session.delete();
     }
 
-    static String[] launchArguments(File session, String selection) {
+    static String[] launchArguments(File session, String selection, boolean effectiveLxh) {
         List<String> args = new ArrayList<>();
         String locale = selectionLocale(selection);
         Collections.addAll(args, "--school-days", session.getPath(), "--document-catalog",
                 new File(session, "documents.json").getPath());
+        args.add(effectiveLxh ? "--lxh" : "--no-lxh");
         if (isGpkSelection(selection)) {
             Collections.addAll(args, "--gpk-locale", locale);
         } else {
@@ -318,7 +353,7 @@ final class SchoolDaysFolder {
         File assets = new File(dataDir, "game_assets");
         if (!existingFile(assets, "school-days-hq.ktnroute")) return false;
         for (File directory : new File[]{new File(assets, "Packs"), assets}) {
-            if (packNames().stream().allMatch(name -> existingFile(directory, name))) return true;
+            if (retailPackNames().stream().allMatch(name -> existingFile(directory, name))) return true;
         }
         return false;
     }
@@ -340,12 +375,13 @@ final class SchoolDaysFolder {
                 || rootPacks.containsKey("lxh.gpk"));
 
         archives = indexPacks(packs);
-        int foundPacks = 0;
-        for (String name : packNames()) {
-            if (archives.containsKey(name.toLowerCase(Locale.ROOT))) foundPacks++;
+        int foundRetail = 0;
+        for (String name : retailPackNames()) {
+            if (archives.containsKey(name.toLowerCase(Locale.ROOT))) foundRetail++;
         }
-        packCount = foundPacks;
         hasLxhPack = archives.containsKey("lxh.gpk");
+        retailPackCount = foundRetail;
+        packCount = foundRetail + (hasLxhPack ? 1 : 0);
 
         route = assets.get("school-days-hq.ktnroute");
         if (!file(assets, "school-days-hq.ktnroute")) missing.add("game-assets/school-days-hq.ktnroute");
@@ -380,6 +416,9 @@ final class SchoolDaysFolder {
         for (String locale : SUPPORTED_LOCALES) {
             boolean hasBaseJson = file(jsons, locale + ".json");
             boolean hasLxhJson = file(jsons, locale + "-lxh.json");
+            if (hasBaseJson) {
+                baseJsonLanguages.add(locale);
+            }
             if (hasBaseJson && hasLxhJson) {
                 languages.add(locale);
             } else if (hasBaseJson || hasLxhJson) {
@@ -391,6 +430,9 @@ final class SchoolDaysFolder {
                     ? archives.containsKey("script.gpk")
                     : file(scripts, scriptName);
             boolean hasLxhGpk = file(scripts, gpkLxhFilename(locale));
+            if (hasBaseGpk) {
+                baseGpkLanguages.add(locale);
+            }
             if (hasBaseGpk && hasLxhGpk) {
                 gpkLanguages.add(locale);
             }

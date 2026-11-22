@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kotonoha/Filesystem/IMount.hpp>
+#include <Kotonoha/SchoolDaysAssetMount.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <filesystem>
 
@@ -9,6 +10,8 @@ namespace SchoolDays {
 class Assets final : public Kotonoha::AssetProvider {
   std::filesystem::path directory;
   bool mounted = false;
+  bool lxhActive = false;
+  std::string lxhNotice;
   std::string overlayId(const std::string&)const override;
   Kotonoha::AudioClip loadAudioAsset(const std::string &id) const override;
   bool containsOriginalAsset(const std::string &id) const override;
@@ -19,13 +22,16 @@ public:
   explicit Assets(
       std::filesystem::path root, const std::string &scripts = {},
       bool allowAutomaticOverlay = true,
-      std::shared_ptr<const Kotonoha::Filesystem::IMount> packs = {});
+      std::shared_ptr<const Kotonoha::Filesystem::IMount> packs = {},
+      Kotonoha::SchoolDaysLxhMountMode lxhMode =
+          Kotonoha::SchoolDaysLxhMountMode::Optional);
   ~Assets() override;
   // Distinguishes authenticated packaged installations from extracted loose
-  // developer fixtures. Never selects an LxH ON/OFF policy: packaged installs
-  // always require the 30th GPK, and only existing loose script content can
-  // be parsed when no retail Packs directory is involved.
+  // developer fixtures. LxH mounting is controlled by lxhMode and queried
+  // independently via lxhMounted().
   bool usesPackedResources() const { return mounted; }
+  bool lxhMounted() const { return lxhActive; }
+  const std::string &lxhStatusNotice() const { return lxhNotice; }
   const std::filesystem::path &root() const { return directory; }
   std::filesystem::path orsRoot() const;
   std::string name() const override { return "School Days HQ"; }

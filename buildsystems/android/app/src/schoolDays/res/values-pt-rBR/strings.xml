@@ -22,14 +22,14 @@
     <string name="sd_preparing">Preparando sessão do jogo…</string>
     <string name="sd_denied">O acesso à pasta está indisponível. Selecione a pasta novamente.</string>
     <string name="sd_unreadable">Não foi possível verificar a pasta. Tente novamente ou selecione outra pasta.</string>
-    <string name="sd_ready">Pronto · %1$s (%2$s)</string>
+    <string name="sd_ready">Pronto · %1$s (%2$s) · %3$s</string>
     <string name="sd_choose">Escolher um idioma disponível</string>
     <string name="sd_absent">Pasta autorizada. Ausentes, vazios ou ambíguos: %1$s</string>
-    <string name="sd_no_translations">Nenhuma tradução completa (GPK ou JSON) encontrada.</string>
-    <string name="sd_incomplete_json">Pares JSON incompletos (exigem HQ e L×H): %1$s</string>
+    <string name="sd_no_translations">Nenhuma tradução (GPK ou JSON) utilizável encontrada.</string>
+    <string name="sd_incomplete_json">JSON base sem sidecar L×H (jogável no HQ base): %1$s</string>
     <string name="sd_missing_gpk_files">Indisponível — ausente em translations/scripts/: %1$s</string>
-    <string name="sd_missing_gpk_json_hint">Indisponível — ausente em translations/scripts/: %1$s (par JSON disponível abaixo)</string>
-    <string name="sd_chinese_legacy_gpk">Encontrado Script - chinese.GPK legado incompatível; requer Script - chinese-compatible.GPK e zh-CN-lxh.GPK certificados</string>
+    <string name="sd_missing_gpk_json_hint">Indisponível — ausente em translations/scripts/: %1$s (JSON disponível abaixo)</string>
+    <string name="sd_chinese_legacy_gpk">Encontrado Script - chinese.GPK legado incompatível; requer Script - chinese-compatible.GPK certificado</string>
     <string name="sd_detected_gpk">Pacotes GPK detectados: %1$s</string>
     <string name="sd_detected_json">Pares JSON detectados: %1$s</string>
     <string name="sd_none">Nenhum</string>
@@ -91,15 +91,22 @@
     <string name="sd_general_engine_heading">Opções do motor (settings.json)</string>
     <string name="sd_swap_ab">Inverter botões A/B do controle</string>
     <string name="sd_forced_subtitles">Ativar legendas forçadas (.ass)</string>
+    <string name="sd_lxh_heading">Expansão opcional (Kotonoha.ini)</string>
+    <string name="sd_enable_lxh">Ativar finais L×H</string>
+    <string name="sd_enable_lxh_desc">Ativa os sete epílogos adicionais quando os arquivos necessários estiverem disponíveis.</string>
+    <string name="sd_lxh_state_active">L×H ativo (7 epílogos)</string>
+    <string name="sd_lxh_state_off">HQ base (L×H desativado)</string>
+    <string name="sd_lxh_state_missing_pack">HQ base (Packs/LxH.GPK ausente)</string>
+    <string name="sd_lxh_state_missing_lang">HQ base (tradução L×H indisponível neste idioma)</string>
 
     <!-- Idioma -->
     <string name="sd_lang_active">Selecionado: %1$s</string>
     <string name="sd_lang_gpk_heading">Pacotes GPK nativos (translations/scripts/)</string>
     <string name="sd_lang_json_heading">Dicionários JSON (translations/jsons/)</string>
-    <string name="sd_lang_note">Traduções HQ e dos epílogos L×H são obrigatórias. Fallback silencioso para inglês é bloqueado.</string>
+    <string name="sd_lang_note">Traduções do HQ base funcionam sem L×H. Com L×H ativado, os arquivos L×H do idioma escolhido são exigidos sem fallback silencioso.</string>
 
     <!-- Arquivos -->
-    <string name="sd_files_summary">Pacotes: %1$d / 30 (LxH.GPK: %2$s)\nRota (ktnroute): %3$s\nstyles.ass: %4$s\nforced_subtitles/: %5$s\noverlay/: %6$s</string>
+    <string name="sd_files_summary">Pacotes retail: %1$d / 29 (LxH.GPK opcional: %2$s)\nRota (ktnroute): %3$s\nstyles.ass: %4$s\nforced_subtitles/: %5$s\noverlay/: %6$s</string>
     <string name="sd_status_ok">OK</string>
     <string name="sd_status_missing">Ausente</string>
     <string name="sd_status_optional">Não presente (opcional)</string>

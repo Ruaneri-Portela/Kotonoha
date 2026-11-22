@@ -423,20 +423,22 @@ int main(int argc, char **argv) {
       require(launcher.language() ==
                   SchoolDays::Launcher::Language::EnglishGpk,
               "Fresh DIST launcher must default to native EnglishGpk");
-      const bool missingNativePackLaunched = launcher.launch();
-      require(!missingNativePackLaunched &&
-                  launcher.state() != Kotonoha::Launcher::State::Launch &&
-                  launcher.getStatus().find(
-                      "Missing or invalid en LxH *language* script GPK") !=
-                      std::string::npos &&
-                  !fs::exists(settings),
-              "DIST accepted missing native LxH language GPK "
+      // With optional LxH, a fresh fixture without Packs/LxH.GPK starts with
+      // LxH disabled by default and allows native English base HQ to launch.
+      require(!launcher.enableLxhPreference(),
+              "Fresh fixture without LxH.GPK must default LxH preference OFF");
+      const bool baseEnglishLaunched = launcher.launch();
+      require(baseEnglishLaunched &&
+                  launcher.state() == Kotonoha::Launcher::State::Launch &&
+                  !launcher.effectiveLxhEnabled(),
+              "DIST must allow base EnglishGpk without optional LxH.GPK "
               "(status=" + launcher.getStatus() + ")");
-#endif
+#else
       selectSyntheticEnglish(launcher);
       require(launcher.launch() &&
                   launcher.state() == Kotonoha::Launcher::State::Launch,
               "Valid route and game directory must launch");
+#endif
       launcher.close();
     }
 

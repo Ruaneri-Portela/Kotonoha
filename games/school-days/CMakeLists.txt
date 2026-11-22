@@ -71,6 +71,7 @@ add_library(school_days STATIC
     src/SchoolDaysSystemUi.cpp
     src/SchoolDaysAssets.cpp
     src/SchoolDaysDisplayNarrativeMarkup.cpp
+    src/SchoolDaysLxhPreference.cpp
     src/SchoolDaysTranslationCoverage.cpp
     src/SchoolDaysRuntime.cpp
     src/SchoolDaysScenes.cpp

@@ -29,6 +29,12 @@ public final class PackCaseRegression {
         }
         if (!SchoolDaysFolder.missingPacks(Map.of("System.gpk", FILE, "SYSTEM.GPK", FILE))
                 .contains("System.GPK")) throw new AssertionError("Ambiguous pack names");
-        System.out.println("PASS 9 synthetic pack metadata cases");
+        if (SchoolDaysFolder.missingPacks(Map.of()).contains("LxH.GPK")) {
+            throw new AssertionError("Optional LxH.GPK must never be reported as a missing retail pack");
+        }
+        if (SchoolDaysFolder.missingPacks(Map.of()).size() != 29) {
+            throw new AssertionError("Expected exactly 29 mandatory retail packs");
+        }
+        System.out.println("PASS 11 synthetic pack metadata cases");
     }
 }
