@@ -86,6 +86,9 @@ public:
   // input sintetico entre instrucoes SCF).
   std::function<bool()> shouldYield;
   std::string location() const;
+  // Immediate SCF caller class; empty for a top-level invocation.
+  // Used by the Vita diagnostic to preserve scenario-specific pad layout.
+  std::string callerClass() const;
   // PC do frame atual (0 se nao houver frames). Usado para detectar loops
   // de sleep no mesmo ponto do script.
   size_t pc() const;
