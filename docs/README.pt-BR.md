@@ -11,6 +11,7 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 | Apple | [macOS](BUILD_MACOS.pt-BR.md) · [iOS](BUILD_IOS.pt-BR.md) · [Xcode](../buildsystems/xcode/README.pt-BR.md) |
 | Navegador | [WebAssembly](BUILD_WEB.pt-BR.md) |
 | Testes | [Validação](BUILD_VALIDATION.pt-BR.md) |
+| Licenças e procedência | [Auditoria do repositório](LICENSING.pt-BR.md) · [Avisos de terceiros](../THIRD_PARTY_NOTICES.md) |
 | CI, artefatos e cache de dependências | [GitHub Actions e vcpkg](CI_VCPKG.md) |
 | Distribuição, callbacks SDL e ZIP | [Deploy e CPack](BUILD_PACKAGES.pt-BR.md) |
 | Assets e patches | [Overlays e traduções](ASSET_OVERLAYS.pt-BR.md) |
