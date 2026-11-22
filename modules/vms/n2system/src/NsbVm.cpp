@@ -2357,6 +2357,7 @@ SaveData NsbVm::saveState() const {
   data.activeText = std::string(dialogueSystem_.fullText());
   data.activeVoice = std::string(dialogueSystem_.voicePath());
   data.backlog = dialogueSystem_.backlog();
+  data.runtimeBlob = writeRuntimeSnapshot();
   for (const auto &[k, v] : vars_) {
     if (v.kind == NsbValue::Kind::String)
       data.strings[k] = v.strVal;
@@ -2367,6 +2368,8 @@ SaveData NsbVm::saveState() const {
 }
 
 bool NsbVm::loadState(const SaveData &data) {
+  if (!data.runtimeBlob.empty())
+    return restoreRuntimeSnapshot(data.runtimeBlob);
   vars_.clear();
   for (const auto &[k, v] : data.integers)
     vars_[k] = NsbValue::makeInt(v);
@@ -2381,10 +2384,9 @@ bool NsbVm::loadState(const SaveData &data) {
       threads_.front().pc = data.position;
     }
   }
-  if (!data.activeText.empty()) {
-    dialogueSystem_.setDialogue(data.activeSpeaker, data.activeText,
-                                data.activeVoice);
-  }
+  dialogueSystem_.restore(data.activeSpeaker, data.activeText,
+                          data.activeVoice, data.backlog,
+                          data.activeText.size(), 30.0f, false, false);
   return true;
 }
 
