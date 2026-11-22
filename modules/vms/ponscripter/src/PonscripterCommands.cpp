@@ -1153,7 +1153,11 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
         op.x = bar.x;
         op.y = bar.y;
         const int maxValue = std::max(1, bar.maxValue);
-        op.width = (bar.width * std::clamp(bar.value, 0, maxValue)) / maxValue;
+        const std::int64_t filled =
+            static_cast<std::int64_t>(bar.width) *
+            std::clamp(bar.value, 0, maxValue) / maxValue;
+        op.width = static_cast<int>(std::clamp<std::int64_t>(
+            filled, 0, static_cast<std::int64_t>(INT_MAX)));
         op.height = bar.height;
         op.colorRgb = bar.colorRgb;
         captured.push_back(std::move(op));
@@ -1268,10 +1272,10 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
     if (cmd == "drawsp2") {
       if (!lexer.consumeComma())
         return;
-      op.scaleX = lexer.parseIntExpr();
+      op.scaleX = std::clamp(lexer.parseIntExpr(), -10000, 10000);
       if (!lexer.consumeComma())
         return;
-      op.scaleY = lexer.parseIntExpr();
+      op.scaleY = std::clamp(lexer.parseIntExpr(), -10000, 10000);
       if (!lexer.consumeComma())
         return;
       op.rotation = lexer.parseIntExpr();
