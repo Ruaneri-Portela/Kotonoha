@@ -11,6 +11,9 @@ endif()
 
 option(KOTONOHA_CPACK_INCLUDE_GAME_ASSETS
     "Explicitly include local retail game-assets in ZIP archives" OFF)
+if(KOTONOHA_CPACK_INCLUDE_GAME_ASSETS)
+    message(WARNING "[Kotonoha] CPack will include local game-assets. Do not distribute archives containing copyrighted game data without the rights to do so.")
+endif()
 
 get_property(_kotonoha_zip_targets GLOBAL PROPERTY KOTONOHA_PACKAGE_TARGETS)
 if(NOT _kotonoha_zip_targets)
@@ -38,12 +41,21 @@ set(CPACK_COMPONENTS_ALL ${_kotonoha_zip_targets})
 
 foreach(_target IN LISTS _kotonoha_zip_targets)
     if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES)
-        # Keep .app/Contents/Frameworks and resources intact.
+        # Preserve the bundle layout, but never package user-supplied retail
+        # game-assets accidentally. This must match the non-bundle path below.
         set(_app_source "${KOTONOHA_OUTPUT_CONFIG_DIR}/${_target}.app")
-        install(DIRECTORY "${_app_source}"
-            DESTINATION "."
-            COMPONENT "${_target}"
-            )
+        if(KOTONOHA_CPACK_INCLUDE_GAME_ASSETS OR _target STREQUAL "Kotonoha")
+            install(DIRECTORY "${_app_source}"
+                DESTINATION "."
+                COMPONENT "${_target}"
+                PATTERN "*.lock" EXCLUDE)
+        else()
+            install(DIRECTORY "${_app_source}"
+                DESTINATION "."
+                COMPONENT "${_target}"
+                PATTERN "game-assets" EXCLUDE
+                PATTERN "*.lock" EXCLUDE)
+        endif()
     else()
         set(_app_source "${KOTONOHA_OUTPUT_CONFIG_DIR}/${_target}")
         if(KOTONOHA_CPACK_INCLUDE_GAME_ASSETS OR _target STREQUAL "Kotonoha")
@@ -61,6 +73,24 @@ foreach(_target IN LISTS _kotonoha_zip_targets)
                 )
         endif()
     endif()
+    # Include the engine license and third-party notices in every ZIP
+    # component. For macOS bundles keep them in the application resources.
+    if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES)
+        set(_kotonoha_legal_dir "${_target}.app/Contents/Resources/Legal")
+    else()
+        set(_kotonoha_legal_dir "${_target}/licenses")
+    endif()
+    install(FILES
+        "${PROJECT_SOURCE_DIR}/LICENSE"
+        "${PROJECT_SOURCE_DIR}/THIRD_PARTY_NOTICES.md"
+        DESTINATION "${_kotonoha_legal_dir}"
+        COMPONENT "${_target}")
+    install(FILES
+        "${PROJECT_SOURCE_DIR}/assets/Anime4K/LICENSE-Anime4K.txt"
+        "${PROJECT_SOURCE_DIR}/assets/ArtCNN/LICENSE-ArtCNN.txt"
+        "${PROJECT_SOURCE_DIR}/modules/providers/amagami/third_party/open-amagami-LICENSE.txt"
+        DESTINATION "${_kotonoha_legal_dir}/third-party"
+        COMPONENT "${_target}")
     # Fail loudly instead of silently producing an empty archive when
     # consumers run "cpack" before compiling an enabled application.
     install(CODE "
