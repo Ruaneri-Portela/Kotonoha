@@ -252,3 +252,45 @@ All **7 integrated *School Days L×H* endings** from `LxH.GPK` were executed and
 | Background lifecycle (suspend / screen off) | SDL3 pauses `SDLThread` & audio via `SDL_HINT_ANDROID_BLOCK_ON_PAUSE` | Preserved + atomic `Config.DAT` flush on `SDL_EVENT_WILL_ENTER_BACKGROUND` | Zero narrative clock drift (`93.46s → 93.65s` across 25 s sleep) |
 
 > **Honest engineering note**: The ~40–45% baseline on static menus occurs when the launcher FPS cap is set to `Unlimited (screen Hz)`, because the POCO X7 Pro's SurfaceFlinger drives `GameActivity` at `120 Hz` (`8.33 ms/frame`). Selecting `60 FPS` or `30 FPS` in Launcher Options reduces GPU/CPU frame cadence while preserving the `24 fps` story and video clock.
+
+---
+
+## Android DEV/DIST Parity Audit & Windows DEV/DIST Regression Summary (Milestone 8)
+
+### Comparative Parity Matrix (6 Honest Classifications)
+Classifications used: **Confirmed parity** (`Paridade confirmada`), **Adapted & validated** (`Adaptado e validado`), **Partial** (`Parcial`), **Non-functional** (`Não funcional`), **Not tested** (`Não testado`), **Not applicable** (`Não aplicável`).
+
+| Feature / Flow | Windows DEV | Windows DIST | Android DEV (POCO X7 Pro) | Android DIST (test-signed) |
+|---|---|---|---|---|
+| Launcher (languages, display, audio, files) | Confirmed parity | Confirmed parity | Adapted & validated | Not tested on device (HyperOS USB prompt for new package ID; code & APK verified) |
+| `30/30` GPKs + `LxH.GPK` + `ktnroute` + `styles.ass` + `overlay/` | Confirmed parity | Confirmed parity | Adapted & validated (zero-copy SAF) | Not tested on device (static/APK checks OK) |
+| Viewport-scoped white fade (`#000000` bars in `16:9` & `4:3`) | Confirmed parity | Confirmed parity | Confirmed parity | Not tested on device (shared C++ verified) |
+| Forced subtitles (`.ass`/`.ASS`, `\kf` karaoke, 5 locales, `TextView` toggle) | Confirmed parity | Confirmed parity | Confirmed parity | Not tested on device (shared C++ verified) |
+| `TITLE`, `START`, `MENU`, `MenuBar` (`×1`–`×32`, `◀\|`, `▶\|`), `TOPMENU` | Confirmed parity | Confirmed parity | Confirmed parity | Not tested on device |
+| `SAVE` / `LOAD` (atomic slots + `.kotonoha-lxh.v1` + comment editor) | Confirmed parity | Confirmed parity | Adapted & validated (editor anchored above IME) | Not tested on device |
+| `BACKLOG` (full viewport at `renderScale < 1.0`, multi-locale) | Confirmed parity | Confirmed parity | Confirmed parity | Not tested on device (`VNBacklog` fallback absent in `.so`) |
+| `OPTION` (`General`, `Sound`, `Display Options` + bidirectional persistence) | Confirmed parity | Confirmed parity | Confirmed parity | Not tested on device |
+| Timed choices (`SETSELECT`) & `ROUTE MAP` | Confirmed parity | Confirmed parity | Partial (15/15 shared CTests passing; partial live touch) | Not tested on device |
+| `REPLAY` (`H-scene` / `Replay Data`, post-ending unlock) | Confirmed parity | Confirmed parity | Confirmed parity | Not tested on device |
+| All **7 L×H endings** (`05-A2-Z00`, `05-A2-F00`, `05-B0-F00`, `05-G0-L03`, `05-KC-F00`, `05-SB-E01`, `05-SC-L03`) | Confirmed parity | Confirmed parity | Confirmed parity (7/7 verified live on POCO X7 Pro) | Not tested on device |
+| Audio (`BGM`/`SE`/`Voice`/`Master`/`Movie`, no double attenuation) | Confirmed parity | Confirmed parity | Confirmed parity (user speaker loudness check recommended) | Not tested on device |
+| WMV video + MPV/GLSL upscaling | Confirmed parity | Confirmed parity | Partial (WMV OK; MPV/GLSL on GLES2 falls back safely to linear copy when unsupported) | Not tested on device |
+| `DebugOverlay` (`F10`) / `Filter nodes` / MCP | Confirmed parity (present) | Not applicable (compiled out) | Confirmed parity (present; MCP `OFF`) | Not applicable (absent in `.so`) |
+| Automatic SAF cache pruning (`sd-saf-*`) | Not applicable | Not applicable | Adapted & validated (`19 → 1` dir) | Not tested on device (bundled in APK) |
+
+### Windows DEV & DIST Regression Verification
+- **`python tools/ValidateBuildMetadata.py`**: `[Kotonoha] OK: 13 CMake games; 22 existing Xcode schemes; Xcode pending: n2system, ponscripter`.
+- **Windows DEV Release (`build/school-days-l4-two-dll-staticmd`)**:
+  - Full build (`cmake --build ... --config Release --parallel 1`) succeeded cleanly.
+  - Full `ctest` suite: **97 / 98 passed** (**58 / 58 School Days tests passed**, 100%). The single failure is the pre-existing unrelated `Kotonoha.Infrastructure` (`"MetalFX subclass rejects a software renderer"`).
+- **Windows DIST Release (temporary isolated `-DKOTONOHA_DISTRIBUTION_BUILD=ON` build, removed after testing)**:
+  - Clean build of `SchoolDays.exe`, `kotonoha.dll`, and 5 DIST test suites.
+  - DIST `ctest`: **5 / 5 passed** (`SchoolDaysPortTest`, `SchoolDaysLxhContentTest`, `SchoolDaysLxhFadeTest`, `SchoolDaysSystemPanelTransitionTest`, `SchoolDaysSystemUiCommentEditorTest`).
+
+### Final Android ARM64 Artifacts (Post-Milestone 7)
+| Artifact | Package ID | Size | SHA-256 | Verification |
+|---|---|---|---|---|
+| `build/SchoolDaysHQ-android-arm64-dev.apk` | `me.hirameki.kotonoha.schooldays` | `33,325,413 B` | `47FBA33B792054FAC03C8F620BD81422000C297EE8DFC4107739C0EEC2746941` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK, installed & verified on POCO X7 Pro |
+| `build/SchoolDaysHQ-android-arm64-dist-test.apk` | `me.hirameki.kotonoha.schooldays.dist` | `15,748,932 B` | `9F05CC93661219F439E319C8CF8E314B036203492D0E14AAE3D6D3A3B7105EEC` | `check_school_days_apk.py` PASS, `zipalign -c -P 16 4` PASS, `apksigner` v2 OK (test-signed); awaits user manual HyperOS "Install via USB" tap |
+
+> **Installing & smoke-testing the DIST APK on POCO X7 Pro**: With the phone unlocked, run `adb -s QO5XJZFYDMRWDU6T install build/SchoolDaysHQ-android-arm64-dist-test.apk` and tap **Install** on Xiaomi HyperOS's on-screen prompt (or sideload manually). It installs side-by-side with the DEV package without touching existing DEV saves or settings.
