@@ -1,42 +1,3 @@
-# Kotonoha v3 — colaboração no VS Code
-
-O alvo atual do School Days HQ v1.02 é **somente Windows L4**.
-Código genérico em `lib/`; código específico em `games/school-days/`.
-
-Prioridades: paridade retail, segurança dos dados, testes reproduzíveis e
-diferenças explícitas entre launcher (`settings.json`) e Display/General
-(`Config.DAT`/preferências do jogo).
-
-## Limites inegociáveis
-
-- Nunca rodar o EXE/instalador retail nem alterar os 29 GPKs originais;
-  tampouco sobrescrever `LxH.GPK`.
-- Não alterar saves reais nem configurações pessoais: para teste usar
-  `--documents` e `--config` em `build/` isolado, com assets sintéticos sempre
-  que possível.
-- Não iniciar outra GUI se já houver `SchoolDays.exe` rodando.
-- Não comitar ou fazer push, publicar Release, atualizar staging instalado,
-  copiar GPKs ou criar PR sem solicitação explícita.
-- Não incluir tradução PT-BR privada nem ativos comerciais em Git público.
-- Não iniciar Android antes da conclusão do Windows.
-- Não reintroduzir MCP/DevBridge game-specific: usar MCP genérico em `lib/`.
-
-## Verificação
-
-Compilar com `cmake --build build/school-days-l4-two-dll-staticmd --config
-Release --parallel 1`. Para stress e CTest usar
-`games/school-days/tools/stress_l4.py` ou as tarefas de `.vscode/tasks.json`.
-Relatar regressões verificadas com arquivos/linhas e separar verificações
-estáticas, unitárias, GPU real e QA visual manual. Nunca prometer encontrar
-absolutamente todos os bugs ou executar trabalho em background.
-
-
----
-
-## Regras gerais do upstream/dev (acrescentadas em 2026-11-15)
-
-As restriÃ§Ãµes especÃ­ficas do Windows L4 e de seguranÃ§a acima prevalecem quando houver divergÃªncia de fluxo de trabalho.
-
 # Agent Guidelines for Kotonoha
 
 **English (US)** | [Português (Brasil)](AGENTS.pt-BR.md)
@@ -56,7 +17,7 @@ Kotonoha is a modular **C++17 visual novel engine** built upon SDL3, Dear ImGui,
 | `lib/` | Core engine library, shared interfaces, public headers (`lib/include/Kotonoha/`), and unit tests. |
 | `modules/vms/` | Script virtual machines (Amagami, Snow Radish, Summer Radish, Ren'Py/DDLC, RealLive, Pure Mail). Pure script execution, independent of rendering. |
 | `modules/providers/` | Asset and archive format decoders implementing `Kotonoha::AssetProvider` (CMP, ADV, GPK, XP3, PAK, RealLive, RPA, Amagami, Pmail, Zero). |
-| `games/` | 11 game ports and demo (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`). |
+| `games/` | 15 game applications (14 game ports and Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`). |
 | `buildsystems/` | Platform build orchestration: `cmake/` (CMake modules), `android/` (Gradle project), `xcode/` (Native `Kotonoha.xcodeproj`). |
 | `assets/` | Shared engine resources (fonts, icons, shaders) and legal third-party notices. |
 | `docs/` | Comprehensive bilingual documentation (`*.md` in en-US, `*.pt-BR.md` in pt-BR). |
@@ -167,13 +128,12 @@ cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
   cmake -S . -B build \
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
     -DVCPKG_TARGET_TRIPLET=<triplet> \
-    '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg' \
-    -DKOTONOHA_SDL_FROM_VCPKG=ON \
-    -DKOTONOHA_IMGUI_FROM_VCPKG=ON
+    '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg' \
+    -DKOTONOHA_SDL_PROVIDER=VCPKG
   ```
 
 ### Apple Platforms (macOS & iOS)
-- **Native Xcode Project**: `buildsystems/xcode/Kotonoha.xcodeproj` (contains 22 shared schemes: 11 macOS and 11 iOS).
+- **Native Xcode Project**: `buildsystems/xcode/Kotonoha.xcodeproj` (contains 32 shared schemes: 16 macOS and 16 iOS).
 - **Preparation Script**:
   ```sh
   python3 tools/PrepareApple.py
@@ -220,7 +180,7 @@ Run immediately after modifying `CMakeLists.txt`, `KotonohaGames.cmake`, `Kotono
 ```sh
 python3 tools/ValidateBuildMetadata.py
 ```
-*Expected output*: `[Kotonoha] OK: 11 games; 22 schemes; CMake/Xcode consistent`
+*Expected output*: `[Kotonoha] OK: 15 CMake games; 32 existing Xcode schemes; Xcode pending: none`
 
 ### 2. Native C++ Tests
 ```sh
@@ -267,3 +227,32 @@ python3 tools/check_sdl_cpack.py <build_dir>
 - **DO NOT** load large multi-hundred-megabyte archives into WebAssembly MEMFS; use HTTP Range with Fetch instead.
 - **DO NOT** search for or execute nonexistent tools like `UpdateGameTargets.rb` or `Kotonoha.xcworkspace`.
 - **DO NOT** hardcode absolute filesystem paths for saves or configuration files.
+
+---
+
+## 7. Fork Policies & Scope (`tsubaki-0x/Kotonoha`)
+
+All upstream rules above remain mandatory in this fork. The policies below document the fork's authorized scope, branch roles, and School Days HQ workflows (see [docs/FORK_WORKFLOW.md](docs/FORK_WORKFLOW.md) for detailed procedures).
+
+### Authorized Targets & Shared Architecture
+- Both **Windows x64** and **Android (`arm64-v8a`)** are active, authorized targets for **School Days HQ v1.02** (superseding the historical 2026-11 Windows-L4-only restriction).
+- Preserve a single shared School Days game-logic implementation in `games/school-days/`, generic engine code in `lib/`, VMs/providers in `modules/`, and Android JNI/Gradle/SAF platform adapters in `buildsystems/android/`.
+- Do not duplicate game logic across Windows and Android or introduce game-specific MCP/DevBridge servers (use generic MCP in `lib/`).
+
+### Permanent Fork Branches
+- `dev`: primary development and upstream-collaboration line (`tsubaki-0x/Kotonoha` default branch).
+- `kotonoha-v3-ruaneri-sync-transitions`: hybrid line preserving the School Days HQ DEV/DIST packaging infrastructure and fork-specific Windows/Android distribution flows.
+- Never push directly to `upstream` (`Ruaneri-Portela/Kotonoha`), never force-push published branches, and keep upstream PRs small, clean, and based directly on `upstream/dev`.
+
+### DEV vs DIST Policy (Windows & Android)
+- **DEV** (`-DKOTONOHA_DISTRIBUTION_BUILD=OFF -DKOTONOHA_ENABLE_MCP=ON` on Windows; `debug`/`release` with `BuildConfig.IS_DISTRIBUTION_BUILD=false` on Android): Release-optimized development build with `DebugOverlay`, MCP, and QA tooling.
+- **DIST** (`-DKOTONOHA_DISTRIBUTION_BUILD=ON -DKOTONOHA_ENABLE_MCP=OFF -DKOTONOHA_DEV_CONTROL=OFF -DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF`; `dist` buildType with `BuildConfig.IS_DISTRIBUTION_BUILD=true` on Android): clean player build with `DebugOverlay`, MCP, and DEV CLI options compiled out, and `WINDOWS_GUI` subsystem on Windows (no extra console window).
+- On Windows, build virgin outputs with `--config Release --parallel 1` in fresh CMake directories and assemble complete private QA distributions (1 EXE + 4 DLLs + `translations/` + `overlay/` + `game-assets/` + `assets/` + `third-party-licenses/`) strictly separately from raw CMake output directories; do not blindly run legacy L4 two-DLL staging scripts (`stage_clean_local_l4.ps1`, `publish_two_dll_l4.ps1`, `stage_windows_clean_local.py`).
+
+### Non-Negotiable Data, Asset & Testing Safety
+- Never execute the retail Windows EXE/installer, alter the 29 original retail GPKs, or overwrite `LxH.GPK`.
+- Never alter personal saves (`Save/`, `GlobalFlag.DAT`) or personal `Config.DAT`/`settings.json`: isolate all tests with `--documents` and `--config` in disposable directories, preferring synthetic fixtures.
+- Never start a second GUI instance while `SchoolDays.exe` is already running.
+- Never commit commercial GPKs, private translations, or unlicensed redistribution packs to public Git, and never publish private QA ZIPs as public releases.
+- Preserve owner-authorized fork asset decisions (`assets/SPLASH.PNG` and `assets/SchoolDays.ico`, without restoring legacy `assets/icon.ico`); keep fork visual identity separate from unsolicited upstream PRs.
+- Always distinguish static validation, unit/CTest execution, real-GPU visual checks, and physical POCO X7 Pro hardware QA. Do not claim hardware validation from static or Gradle checks alone.
