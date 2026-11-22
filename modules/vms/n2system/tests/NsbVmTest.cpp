@@ -366,6 +366,53 @@ int main() {
             "Saved scene retains shader effect selection");
   }
 
+  // Save/Load/DeleteSaveFile must be emitted as deferred operations: the
+  // runtime must never overwrite a Thread while execInstruction references it.
+  {
+    Bytes nsb, map;
+    addMap(map, 0, "chapter.main");
+    auto emit = [&](uint16_t opcode, std::vector<std::string> args) {
+      addInsn(nsb, uint32_t(nsb.size() + 1), opcode, args);
+    };
+    emit(0x094, {"chapter.main"});
+    emit(0x0d0, {"INT", "9"});
+    emit(0x04f, {"9"}); // Save
+    emit(0x0d0, {"INT", "42"});
+    emit(0x0b0, {"$afterSave"});
+    emit(0x0d0, {"INT", "9"});
+    emit(0x050, {"9"}); // Load
+    emit(0x0d0, {"INT", "9"});
+    emit(0x051, {"9"}); // DeleteSaveFile
+    emit(0x0d4, {"chapter.main"});
+
+    N2System::NsbVm vm;
+    vm.setLoader([&](std::string_view, Bytes &script, Bytes &symbols) {
+      script = nsb;
+      symbols = map;
+      return true;
+    });
+    require(vm.boot("nss/0_boot.nss"), "Deferred file I/O VM boot");
+    vm.step();
+    require(!vm.findVar("$afterSave") && vm.step() == 0,
+            "Pending save suspends opcode execution until runtime consumes it");
+    auto save = vm.takePendingSaveAction();
+    require(save && save->kind == N2System::SaveActionKind::Save &&
+                save->slot == 9, "Save opcode enqueues correct slot");
+    vm.step();
+    require(vm.findVar("$afterSave") &&
+                vm.findVar("$afterSave")->asInt() == 42,
+            "VM resumes after native save without losing its PC");
+    auto load = vm.takePendingSaveAction();
+    require(load && load->kind == N2System::SaveActionKind::Load &&
+                load->slot == 9, "Load opcode enqueues safe deferred restore");
+    vm.step();
+    auto del = vm.takePendingSaveAction();
+    require(del && del->kind == N2System::SaveActionKind::Delete &&
+                del->slot == 9, "DeleteSaveFile enqueues safe file removal");
+    vm.step();
+    require(vm.finished(), "Deferred save opcodes preserve control flow");
+  }
+
   std::cout << "N2System NsbVm tests passed\n";
   return 0;
 }
