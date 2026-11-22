@@ -149,7 +149,7 @@ int main() {
     N2System::SaveData malformed;
     malformed.chapterName = "do not overwrite";
     require(!N2System::SaveStateCodec::deserializeJson(
-                R"({"chapter":"ok","strings":{"bad":"\\q"}})", malformed) &&
+                R"({"chapter":"ok","strings":{"bad":"\q"}})", malformed) &&
                 malformed.chapterName == "do not overwrite",
             "Malformed JSON escapes must fail without modifying output");
     const auto saveBytes = N2System::SaveStateCodec::serializeBinary(beforeSave);
