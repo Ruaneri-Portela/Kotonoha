@@ -1236,9 +1236,9 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
       lexer.consumeComma();
       op.y = lexer.parseIntExpr();
       lexer.consumeComma();
-      op.scaleX = lexer.parseIntExpr();
+      op.scaleX = std::clamp(lexer.parseIntExpr(), -10000, 10000);
       lexer.consumeComma();
-      op.scaleY = lexer.parseIntExpr();
+      op.scaleY = std::clamp(lexer.parseIntExpr(), -10000, 10000);
       lexer.consumeComma();
       op.rotation = lexer.parseIntExpr();
     }
