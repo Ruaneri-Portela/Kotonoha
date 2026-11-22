@@ -1832,6 +1832,12 @@ void Runtime::openTitle(bool startBgm) {
   abcGroups.clear();
   abcTextures.clear();
   abcDecodedSurfaces.clear();
+  backgroundComposite.reset();
+  backgroundCompositeWidth = 0;
+  backgroundCompositeHeight = 0;
+  backgroundCompositeKey.clear();
+  if (assets)
+    assets->clearCache();
   const bool preserveTitleBgm =
       startBgm && titleBgm &&
       (frontendBgmOwner == FrontendBgmOwner::Title ||
