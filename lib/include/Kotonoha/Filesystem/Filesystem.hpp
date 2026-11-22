@@ -12,6 +12,9 @@ class Filesystem final {
   explicit Filesystem(std::shared_ptr<IMount> base);
 public:
   static std::shared_ptr<Filesystem> mount(std::string source);
+  // Lightweight, read-only mount for engine identification only. Runtime
+  // mounts retain the complete recursive directory index.
+  static std::shared_ptr<Filesystem> mountForDetection(std::string source);
   // Attach an already indexed virtual source, including FetchAssetProvider.
   static std::shared_ptr<Filesystem> mount(std::shared_ptr<IMount> source);
   void addOverlay(std::string source, int priority = 100);
