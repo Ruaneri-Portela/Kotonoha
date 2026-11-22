@@ -685,8 +685,7 @@ void FetchAssetProvider::pump() {
       // Only deduplicate queued/in-flight jobs. An evicted page must be
       // eligible for a new request on the next read of that offset.
       provider->requested_.erase(ctx->path + ":" + std::to_string(ctx->start) +
-                                 ":" + std::to_string(ctx->length) +
-                                 );
+                                 ":" + std::to_string(ctx->length));
       const auto it = provider->files_.find(ctx->path);
       ++provider->completed_;
       if (it != provider->files_.end() && it->second->failed) {
@@ -760,8 +759,7 @@ void FetchAssetProvider::completeBrowserJob(
     }
   }
   provider->requested_.erase(ctx->path + ":" + std::to_string(ctx->start) +
-                             ":" + std::to_string(ctx->length) +
-                             );
+                             ":" + std::to_string(ctx->length));
   ++provider->completed_;
   const auto found = provider->files_.find(ctx->path);
   if (found != provider->files_.end() && found->second->failed) {
