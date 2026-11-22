@@ -104,6 +104,14 @@ int main() {
   matches(scene, "foo1/*/*", {}, "Wildcards do not consume slashes");
   matches(scene, "foo1//bar", {}, "Malformed path cannot match");
 
+  // Legacy names may encode a complete absolute path with no container
+  // objects. Wildcards still match exactly one path component.
+  scene.createEntity("loose/container/leaf");
+  matches(scene, "loose/container/*", {"loose/container/leaf"},
+          "Legacy absolute child path must resolve without materialized parents");
+  matches(scene, "loose/*", {},
+          "Legacy wildcard must never swallow a slash");
+
   // The native VM also creates explicit parent relationships rather than
   // slash-qualified names. Both representations must support the same query.
   scene.createEntity("bar3");
