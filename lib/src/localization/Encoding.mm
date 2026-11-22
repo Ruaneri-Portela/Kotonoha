@@ -255,6 +255,75 @@ void normalizeCp932Unicode(std::string &utf8) {
 }
 } // namespace
 
+
+void appendUtf8Scalar(std::string &out, uint32_t value) {
+  if (value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff))
+    value = '?';
+  if (value <= 0x7f) {
+    out.push_back(char(value));
+  } else if (value <= 0x7ff) {
+    out.push_back(char(0xc0 | (value >> 6)));
+    out.push_back(char(0x80 | (value & 0x3f)));
+  } else if (value <= 0xffff) {
+    out.push_back(char(0xe0 | (value >> 12)));
+    out.push_back(char(0x80 | ((value >> 6) & 0x3f)));
+    out.push_back(char(0x80 | (value & 0x3f)));
+  } else {
+    out.push_back(char(0xf0 | (value >> 18)));
+    out.push_back(char(0x80 | ((value >> 12) & 0x3f)));
+    out.push_back(char(0x80 | ((value >> 6) & 0x3f)));
+    out.push_back(char(0x80 | (value & 0x3f)));
+  }
+}
+
+std::string decodeUtf32(std::string_view bytes, bool bigEndian) {
+  std::string out;
+  out.reserve(bytes.size());
+  for (size_t i = 0; i < bytes.size();) {
+    if (bytes.size() - i < 4) {
+      out.push_back('?'); // Incomplete trailing codepoint.
+      break;
+    }
+    uint32_t scalar = 0;
+    for (int b = 0; b < 4; ++b) {
+      const uint32_t octet = uint8_t(bytes[i + b]);
+      scalar = bigEndian ? ((scalar << 8) | octet)
+                         : (scalar | (octet << (8 * b)));
+    }
+    appendUtf8Scalar(out, scalar);
+    i += 4;
+  }
+  return out;
+}
+
+std::string encodeUtf32(std::string_view utf8, bool bigEndian) {
+  OwnedString unicode(createString(utf8, kCFStringEncodingUTF8));
+  if (!unicode.get())
+    throw std::runtime_error("UTF-32 output requires valid UTF-8");
+  const CFIndex length = CFStringGetLength(unicode.get());
+  std::string output;
+  output.reserve(size_t(length) * 4);
+  for (CFIndex i = 0; i < length; ++i) {
+    uint32_t scalar = CFStringGetCharacterAtIndex(unicode.get(), i);
+    if (scalar >= 0xd800 && scalar <= 0xdbff && i + 1 < length) {
+      const uint32_t low = CFStringGetCharacterAtIndex(unicode.get(), i + 1);
+      if (low >= 0xdc00 && low <= 0xdfff) {
+        scalar = 0x10000 + ((scalar - 0xd800) << 10) + (low - 0xdc00);
+        ++i;
+      } else {
+        scalar = '?';
+      }
+    } else if (scalar >= 0xd800 && scalar <= 0xdfff) {
+      scalar = '?';
+    }
+    for (int b = 0; b < 4; ++b) {
+      const unsigned shift = bigEndian ? unsigned(8 * (3 - b)) : unsigned(8 * b);
+      output.push_back(char((scalar >> shift) & 0xff));
+    }
+  }
+  return output;
+}
+
 std::string ConvertEncoding(std::string_view text, const char *from,
                             const char *to) {
   const auto sourceEncoding = resolveEncoding(from);
@@ -262,6 +331,16 @@ std::string ConvertEncoding(std::string_view text, const char *from,
   if (text.empty())
     return {};
   const auto sourceKey = normalizedName(from);
+  const auto targetKey = normalizedName(to);
+  // Apple's CFString conversion can fail for explicit UTF-32LE/BE output.
+  // Encode/decode the Unicode scalars ourselves, in this same Apple backend,
+  // avoiding an iconv dependency and preserving embedded NUL bytes.
+  if (sourceKey == "UTF32LE" || sourceKey == "UTF32BE")
+    return ConvertEncoding(decodeUtf32(text, sourceKey == "UTF32BE"),
+                           "UTF-8", to);
+  if (targetKey == "UTF32LE" || targetKey == "UTF32BE")
+    return encodeUtf32(ConvertEncoding(text, from, "UTF-8"),
+                       targetKey == "UTF32BE");
   // CP1252's five undefined bytes must be recoverable as '?'.
   std::string cleaned;
   if (sourceEncoding == kCFStringEncodingWindowsLatin1) {
