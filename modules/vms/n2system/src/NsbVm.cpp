@@ -333,6 +333,7 @@ std::shared_ptr<NsbScript> NsbVm::loadScript(std::string_view path) {
 bool NsbVm::boot(std::string_view startScript,
                  std::string_view initialChapter) {
   threads_.clear();
+  pendingSaveAction_.reset();
   activeChoices_.clear();
   triggeredChoice_.clear();
   activeMovie_ = {};
@@ -373,6 +374,7 @@ bool NsbVm::jumpToScript(std::string_view scriptPath,
     pc = 0;
 
   threads_.clear();
+  pendingSaveAction_.reset();
   activeChoices_.clear();
   triggeredChoice_.clear();
   activeMovie_ = {};
@@ -699,7 +701,7 @@ std::uint32_t NsbVm::currentLine() const {
 }
 
 std::size_t NsbVm::step(std::size_t budget) {
-  if (finished_ || threads_.empty() || budget == 0)
+  if (finished_ || threads_.empty() || budget == 0 || pendingSaveAction_)
     return 0;
 
   // Snapshot the thread set at frame start. Creating a process during a VM
@@ -710,7 +712,8 @@ std::size_t NsbVm::step(std::size_t budget) {
   const std::size_t mainBudget = std::min<std::size_t>(budget, 512);
   if (threads_.front().running && !threads_.front().deleted)
     total += stepThread(threads_.front(), mainBudget);
-  for (std::size_t i = 1; i < runnableAtStart && total < budget; ++i) {
+  for (std::size_t i = 1; i < runnableAtStart && total < budget &&
+                          !pendingSaveAction_; ++i) {
     if (threads_[i].running && !threads_[i].deleted)
       total += stepThread(threads_[i], std::min<std::size_t>(256, budget - total));
   }
@@ -2143,6 +2146,22 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       (void)imageSizeFn_(q, w, h);
     }
     t.stack.push_back(NsbValue::makeInt(op == 0x061 ? w : h));
+    break;
+  }
+  case 0x04f: // Save(slot)
+  case 0x050: // Load(slot)
+  case 0x051: { // DeleteSaveFile(slot)
+    const auto values = popArgs(t, args.size());
+    const auto slot = values.empty() ? std::int64_t{0}
+                                     : values[0].asInt();
+    if (slot >= 0 && slot <= std::numeric_limits<std::uint32_t>::max()) {
+      const auto kind = op == 0x04f ? SaveActionKind::Save
+                        : op == 0x050 ? SaveActionKind::Load
+                                      : SaveActionKind::Delete;
+      pendingSaveAction_ =
+          PendingSaveAction{kind, static_cast<std::uint32_t>(slot)};
+      yielded = true; // Runtime executes action after stepThread unwinds.
+    }
     break;
   }
   case 0x052: { // ExistSave [slot]
