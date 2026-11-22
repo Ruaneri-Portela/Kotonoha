@@ -197,16 +197,19 @@ function(kotonoha_configure_app target)
                 VERBATIM
             )
 
-            add_custom_command(TARGET ${target} POST_BUILD
-                COMMAND python3 "${KOTONOHA_PROJECT_ROOT}/tools/generate_manifest.py"
-                        "${_game_asset_source}"
-                        "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}/game-assets/manifest.json"
-                COMMENT "Generating manifest.json for lazy loading"
-            )
         endif()
 
         kotonoha_copy_assets(${target} GAME "${APP_GAME}"
             GAME_ASSET_SOURCE "${_game_asset_source}")
+        if(EMSCRIPTEN)
+            # Index the final served directory after the asset copy.
+            add_custom_command(TARGET ${target} POST_BUILD
+                COMMAND python3 "${KOTONOHA_PROJECT_ROOT}/tools/generate_manifest.py"
+                        "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}"
+                COMMENT "Generating mandatory HTTP manifest.json beside index.html"
+                VERBATIM
+            )
+        endif()
     endif()
     # Every native game must parse --help without retail assets or a running
     # renderer. This catches broken SDL callback entrypoints and missing
