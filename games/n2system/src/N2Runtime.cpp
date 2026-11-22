@@ -7,9 +7,7 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
-#include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
-#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
@@ -24,27 +22,9 @@
 
 namespace N2System {
 
-namespace {
-// Route the pause menu's History item to the backlog instance owned and
-// populated by this runtime instead of the engine's unused shared backlog.
-class N2GameMenu final : public Kotonoha::InGameMenu {
-public:
-  N2GameMenu(Kotonoha::Engine &engine, Kotonoha::VNBacklog &backlog)
-      : InGameMenu(engine), backlog_(backlog) {}
-
-protected:
-  void openBacklog() override { backlog_.open(); }
-
-private:
-  Kotonoha::VNBacklog &backlog_;
-};
-} // namespace
-
 struct N2Runtime::Impl {
   std::shared_ptr<Kotonoha::VNTextBox> textBox;
   std::shared_ptr<Kotonoha::VNBacklog> backlog;
-  std::shared_ptr<Kotonoha::InGameMenu> menu;
-  std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
   std::shared_ptr<Kotonoha::ChoiceQuestionScene> choiceScene;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
   std::unique_ptr<Kotonoha::MediaPlayer> bgmPlayer;
@@ -109,8 +89,6 @@ void N2Runtime::shutdown() {
   impl_->nsbVm.reset();
   impl_->nsbMode = false;
   impl_->choiceScene.reset();
-  impl_->saveMenu.reset();
-  impl_->menu.reset();
   impl_->backlog.reset();
   impl_->textBox.reset();
   impl_->engine = nullptr;
@@ -162,8 +140,6 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
 
   impl_->textBox = std::make_shared<Kotonoha::VNTextBox>(engine, "", "", 30.0);
   impl_->backlog = std::make_shared<Kotonoha::VNBacklog>(engine);
-  impl_->menu = std::make_shared<N2GameMenu>(engine, *impl_->backlog);
-  impl_->saveMenu = std::make_unique<Kotonoha::VNSaveMenu>(engine);
   impl_->choiceScene = std::make_shared<Kotonoha::ChoiceQuestionScene>(
       engine, "", std::vector<Kotonoha::ChoiceOption>{{"", 0}}, nullptr);
   impl_->moviePlayer =
@@ -174,31 +150,6 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
   impl_->sePlayer = std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
 
   AddScene(impl_->backlog.get(), Kotonoha::GameState::Gameplay);
-  AddScene(impl_->menu.get(), Kotonoha::GameState::Gameplay);
-
-  const auto openSaves = [this](bool load) {
-    if (!impl_->saveMenu)
-      return;
-    const auto dir = Kotonoha::saveDirectory() / "n2system";
-    std::error_code ec;
-    std::filesystem::create_directories(dir, ec);
-    const std::string label = isNsbActive() ? impl_->nsbVm->currentScriptPath()
-                                            : std::string(vm_.currentChapter());
-    impl_->saveMenu->open(dir.string(), load, label);
-    const auto &scenes = GetActiveScenes();
-    if (std::find(scenes.begin(), scenes.end(), impl_->saveMenu.get()) ==
-        scenes.end())
-      AddScene(impl_->saveMenu.get(), Kotonoha::GameState::Gameplay);
-  };
-  impl_->menu->SetOnSave([this, openSaves] {
-    impl_->menu->close();
-    openSaves(false);
-  });
-  impl_->menu->SetOnLoad([this, openSaves] {
-    impl_->menu->close();
-    openSaves(true);
-  });
-  impl_->menu->SetOnReturnToMenu([this] { impl_->restartRequested = true; });
 
   // Check for Steins;Gate / compiled .nsb bytecode layout first.
   impl_->nsbMode = false;
@@ -516,12 +467,12 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
 
     const Uint8 alpha =
         static_cast<Uint8>(std::clamp(entity->opacity, 0.0f, 1.0f) * 255.0f);
-    const float drawX = (entity->x + entity->shakeOffsetX) * scale;
-    const float drawY = (entity->y + entity->shakeOffsetY) * scale;
+    const float drawX = entity->x + entity->shakeOffsetX;
+    const float drawY = entity->y + entity->shakeOffsetY;
 
     if (entity->type == EntityType::Color) {
-      const float w = (entity->width > 0.0f ? entity->width : vpW) * scale;
-      const float h = (entity->height > 0.0f ? entity->height : vpH) * scale;
+      const float w = entity->width > 0.0f ? entity->width : vpW;
+      const float h = entity->height > 0.0f ? entity->height : vpH;
       const Uint8 r = static_cast<Uint8>((entity->solidColor >> 16) & 0xFFu);
       const Uint8 g = static_cast<Uint8>((entity->solidColor >> 8) & 0xFFu);
       const Uint8 b = static_cast<Uint8>(entity->solidColor & 0xFFu);
@@ -532,7 +483,7 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
     } else if (entity->type == EntityType::Movie) {
       if (impl_->moviePlayer && impl_->moviePlayer->isOpen() &&
           impl_->moviePlayer->hasVideoFrame()) {
-        SDL_FRect area{drawX, drawY, vpW * scale, vpH * scale};
+        SDL_FRect area{drawX, drawY, vpW, vpH};
         impl_->moviePlayer->render(renderer, area);
       }
     } else if (entity->type == EntityType::Sprite) {
@@ -560,8 +511,8 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
           tw = entity->clipW;
           th = entity->clipH;
         }
-        SDL_FRect dst{drawX, drawY, tw * entity->scaleX * scale,
-                      th * entity->scaleY * scale};
+        SDL_FRect dst{drawX, drawY, tw * entity->scaleX,
+                      th * entity->scaleY};
         if (std::abs(entity->angle) > 0.01f) {
           SDL_RenderTextureRotated(&renderer, tex, srcPtr, &dst, entity->angle,
                                    nullptr, SDL_FLIP_NONE);
@@ -569,7 +520,7 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
           SDL_RenderTexture(&renderer, tex, srcPtr, &dst);
         }
       } else if (!isNsbActive()) {
-        SDL_FRect rect{drawX, drawY, vpW * scale, vpH * scale};
+        SDL_FRect rect{drawX, drawY, vpW, vpH};
         SDL_SetRenderDrawColor(&renderer, 30, 36, 48, alpha);
         SDL_RenderFillRect(&renderer, &rect);
       }
@@ -580,7 +531,7 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
   if (isNsbActive() && impl_->nsbVm->activeMovie().active &&
       impl_->nsbVm->activeMovie().fullscreen && impl_->moviePlayer &&
       impl_->moviePlayer->isOpen() && impl_->moviePlayer->hasVideoFrame()) {
-    SDL_FRect full{0.0f, 0.0f, vpW * scale, vpH * scale};
+    SDL_FRect full{0.0f, 0.0f, vpW, vpH};
     impl_->moviePlayer->render(renderer, full);
   }
 
@@ -592,8 +543,8 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
           assets_->texture(renderer, impl_->nsbVm->phoneState().attachedCg);
       float cw = 0, ch = 0;
       SDL_GetTextureSize(&cg, &cw, &ch);
-      SDL_FRect dst{(vpW - cw) * 0.5f * scale, (vpH - ch) * 0.5f * scale,
-                    cw * scale, ch * scale};
+      SDL_FRect dst{(vpW - cw) * 0.5f, (vpH - ch) * 0.5f,
+                    cw, ch};
       SDL_RenderTexture(&renderer, &cg, nullptr, &dst);
     } catch (...) {
     }
@@ -618,9 +569,7 @@ bool N2Runtime::onEvent(Kotonoha::EventRef event) {
   if (impl_->ponscripter)
     return impl_->ponscripter->onEvent(event);
 
-  if ((impl_->saveMenu && impl_->saveMenu->isOpen()) ||
-      (impl_->backlog && impl_->backlog->isVisible()) ||
-      (impl_->menu && impl_->menu->IsOpen()))
+  if ((impl_->backlog && impl_->backlog->isVisible()))
     return Runtime::onEvent(event);
 
   if (impl_->choiceActive && impl_->choiceScene) {
@@ -636,10 +585,6 @@ bool N2Runtime::onEvent(Kotonoha::EventRef event) {
   }
 
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    if (event.key.key == SDLK_ESCAPE && impl_->menu) {
-      impl_->menu->open();
-      return true;
-    }
     if (event.key.key == SDLK_B && impl_->backlog) {
       impl_->backlog->toggle();
       return true;
