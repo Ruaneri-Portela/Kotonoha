@@ -211,6 +211,9 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
           assets = std::make_shared<Kotonoha::Providers::DdlcAssets>(
               std::filesystem::path(sourcePath), opts.assetOverlayDirectory());
         }
+        // Preserve the installation location for per-game persistent state
+        // when the launcher mounts a virtual archive instead of a directory.
+        assets->setSourceIdentity(sourcePath);
         return mount(std::make_unique<Ddlc::GameRuntime>(assets), assets,
                      shutdownRuntime<Ddlc::GameRuntime>());
       });
