@@ -52,9 +52,9 @@ public:
 
 int main() {
   try {
-    // 1. The hub links the 13 real game families (15 identities), never the Example demo.
+    // 1. The hub links 13 engine families (16 identities), never the Example demo.
     const auto &reg = EngineLibraryRegistry::instance();
-    require(reg.all().size() == 15, "Exactly 15 game identities must be "
+    require(reg.all().size() == 16, "Exactly 16 game identities must be "
                                     "registered (13 shared engine families)");
     require(!reg.find(EngineKind::Unknown),
             "The Example demo must not be registered in the hub");
@@ -89,6 +89,10 @@ int main() {
     require(reg.findBySlug("katawa-shoujo") &&
                 reg.findBySlug("katawa-shoujo")->targetBinary == "KatawaShoujo",
             "Katawa Shoujo must select its own port");
+    require(reg.findBySlug("renpy") &&
+                reg.findBySlug("renpy")->libraryTarget ==
+                    "doki_doki_literature_club",
+            "Generic Ren'Py games use the shared VM without DDLC branding");
 
     // The registry is a link-time contract. No external executable is needed.
 #if defined(KOTONOHA_LAUNCH_AMAGAMI)
@@ -199,6 +203,10 @@ int main() {
     // Katawa shares the Ren'Py VM, but has its own package and executable.
     lib.write("KatawaShoujo/game/script-a1-monday.rpyc", "RPYC");
 
+    // Generic Ren'Py games need not use DDLC's scripts/images archive names.
+    lib.write("AnotherRenpy/game/archive.rpa",
+              "RPA-3.0 0000000000000019 12345678\n");
+
     // Snow Radish Vacation
     lib.write("SnowRadishVacation/DATA/SCRIPT.PAK", "PACK");
     lib.write("SnowRadishVacation/DATA/GRAPHIC.PAK", "PACK");
@@ -244,6 +252,7 @@ int main() {
     bool foundDdlcOverlayPairing = false;
     bool foundMeo = false;
     bool foundKatawa = false;
+    bool foundGenericRenpy = false;
     bool foundPonscripter = false;
 
     for (const auto &entry : catalog) {
@@ -275,6 +284,13 @@ int main() {
             "Katawa must use its own game identity without DDLC patch overlay");
         foundKatawa = true;
       }
+      if (entry.title == "AnotherRenpy") {
+        require(entry.engine.kind == EngineKind::RenPy &&
+                    entry.engine.slug == "renpy" &&
+                    entry.overlayPath.empty(),
+                "Generic Ren'Py must avoid DDLC identity and VNX overlay");
+        foundGenericRenpy = true;
+      }
       if (entry.title == "SayaNoUta_PT-BR") {
         require(entry.engine.kind == EngineKind::ONScripter &&
                     entry.engine.implementedInKotonoha &&
@@ -289,6 +305,7 @@ int main() {
     require(foundDdlcOverlayPairing, "DDLC overlay pairing verified");
     require(foundMeo, "MEO detection verified");
     require(foundKatawa, "Katawa Shoujo detection verified");
+    require(foundGenericRenpy, "Generic Ren'Py detection verified");
     require(foundPonscripter, "PONScripter detection verified");
 
     // 4. Verify applyPerGameSaveIsolation updates KOTONOHA_USER_DATA_DIR and
