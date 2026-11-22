@@ -170,6 +170,9 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
       << '\n';
   out << "SELMODE\t" << data.selectionMode << '\t'
       << data.selectionNumberVariable << '\n';
+  if (data.pendingPretextStatementIndex != static_cast<std::size_t>(-1))
+    out << "PRETEXTPC\t" << data.pendingPretextStatementIndex << '\n';
+  out << "TEXTPAGE\t" << (data.textGosubPagePending ? 1 : 0) << '\n';
   for (const auto &btn : data.buttons) {
     out << "BTN\t" << static_cast<int>(btn.kind) << '\t' << btn.id << '\t'
         << btn.spriteNo << '\t' << btn.x << '\t' << btn.y << '\t' << btn.w
@@ -377,6 +380,12 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
         outData.selectionMode = 0;
         outData.selectionNumberVariable = -1;
       }
+    } else if (kind == "PRETEXTPC") {
+      ls >> outData.pendingPretextStatementIndex;
+    } else if (kind == "TEXTPAGE") {
+      int pending = 0;
+      ls >> pending;
+      outData.textGosubPagePending = (pending != 0);
     } else if (kind == "BTN") {
       int k = 0;
       ButtonDef btn;
