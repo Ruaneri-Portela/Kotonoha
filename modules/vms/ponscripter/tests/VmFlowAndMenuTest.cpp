@@ -856,6 +856,34 @@ int main() {
             "loading a new background must invalidate the old capture");
     }
 
+    {
+      Ponscripter::PonscripterVm exbtn;
+      exbtn.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "lsp 6,\":a/3,0,3;icon.png\",0,0\n"
+          "lsp 7,\"second.png\",0,0\n"
+          "spstr \"P6,2M6,80,-10S4,(audio/click.ogg)\"\n"
+          "wait 10\n"
+          "spstr \"C6-7\"\n"
+          "end\n");
+      check(exbtn.start(), "spstr fixture must start");
+      exbtn.tick(0);
+      check(exbtn.waitState() == Ponscripter::WaitState::WaitTimer &&
+                exbtn.sprites()[6].currentCell == 2 &&
+                exbtn.sprites()[6].x == 80 &&
+                exbtn.sprites()[6].y == -10 &&
+                exbtn.sprites()[6].visible &&
+                exbtn.lastSePath() == "audio/click.ogg",
+            "spstr must set the sprite cell, position and sample path");
+      exbtn.tick(20);
+      check(exbtn.isHalted() && !exbtn.sprites()[6].visible &&
+                !exbtn.sprites()[7].visible,
+            "spstr Cn-m must hide each sprite in the requested range");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
