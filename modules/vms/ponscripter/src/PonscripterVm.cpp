@@ -891,6 +891,8 @@ SlotSaveData PonscripterVm::exportSlotSave() const {
   data.btnwaitPreserveButtons = btnwaitPreserveButtons_;
   data.buttons = buttons_;
   data.selectOptions = selectOptions_;
+  data.selectionMode = static_cast<int>(selectionMode_);
+  data.selectionNumberVariable = selectionNumberVariable_;
   return data;
 }
 
@@ -936,6 +938,10 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   btnwaitPreserveButtons_ = data.btnwaitPreserveButtons;
   buttons_ = data.buttons;
   selectOptions_ = data.selectOptions;
+  selectionMode_ = data.selectionMode == 1 ? SelectionMode::Subroutine :
+                   data.selectionMode == 2 ? SelectionMode::Number :
+                                             SelectionMode::Jump;
+  selectionNumberVariable_ = data.selectionNumberVariable;
   hoveredButtonId_ = 0;
 
   if (callbacks_) {
