@@ -159,3 +159,21 @@ upscaling. Ordered-dither styles 4/5 still use the accelerated mask when
 supported. Other scroll/squash/slide effect families (15–21) remain pending.
 These transitions need comparison against screenshots and timing from an
 original Windows RealLive executable before claiming exact visual parity.
+
+## Cross-session read history
+
+Read-skip now writes a separate versioned `.progress` journal after each newly
+completed dialogue page, using the engine's atomically written save directory.
+The journal is scoped to the original game's `#REGNAME` (or its asset mount
+when no REGNAME is defined), so two unrelated games do not share seen flags.
+Corrupt or unreadable journals are logged and ignored without blocking the game.
+Loading a v7 save merges read marks into the global history; the journal itself
+contains no saved dialogue text, BGM state, or graphic unlocks.
+
+```sh
+cmake --build build --target RealLivePersistentHistoryTests
+ctest --test-dir build -R RealLive.PersistentHistory --output-on-failure
+```
+
+CG/gallery unlock rules and complete native menu fidelity still require
+reference edition data and original-game playthrough testing.

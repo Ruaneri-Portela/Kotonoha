@@ -1,6 +1,7 @@
 #include "RealLiveRuntime.hpp"
 #include "RealLiveAudioFade.hpp"
 #include "RealLiveReadProgress.hpp"
+#include "RealLivePersistentHistory.hpp"
 #include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -38,6 +39,7 @@
 #include <charconv>
 #include <cmath>
 #include <cstring>
+#include <fstream>
 #include <iomanip>
 #include <limits>
 #include <optional>
@@ -740,6 +742,7 @@ struct RealLiveRuntime::Impl {
   bool ctrlSkipEnabled = true, currentRead = false;
   std::pair<int, std::size_t> currentPage;
   std::set<std::pair<int, std::size_t>> readPages;
+  bool readHistoryLoaded = false;
   bool refreshRequested = false;
   std::string speakerName, musicID, saveName;
   std::map<std::string, std::string> selectionLabels;
@@ -2316,8 +2319,57 @@ struct RealLiveRuntime::Impl {
       SDL_DestroyCursor(old);
     mouseCursorApplied = true;
   }
+  std::filesystem::path readHistoryPath() const {
+    // REGNAME is stable when an installation is relocated; use its actual
+    // data mount only for editions that do not declare a registry identity.
+    const auto regname = assets->settings().text("REGNAME");
+    std::string identity =
+        regname.empty()
+            ? "mount:" + assets->directory().lexically_normal().generic_string()
+            : "reg:" + regname;
+    if (identity == "mount:")
+      throw std::runtime_error("REALLIVE missing read-history identity");
+    return Kotonoha::saveDirectory() / readHistoryFilename(identity);
+  }
+  void loadReadHistory() {
+    try {
+      const auto path = readHistoryPath();
+      std::error_code ec;
+      if (!std::filesystem::exists(path, ec))
+        return;
+      if (ec || !std::filesystem::is_regular_file(path, ec) ||
+          std::filesystem::file_size(path, ec) > 32u * 1024u * 1024u || ec)
+        throw std::runtime_error("Invalid REALLIVE read-history file");
+      std::ifstream input(path, std::ios::binary);
+      if (!input)
+        throw std::runtime_error("Cannot open REALLIVE read-history file");
+      const auto restored = readReadHistory(input);
+      readPages.insert(restored.begin(), restored.end());
+    } catch (const std::exception &error) {
+      // A damaged journal must not prevent running the original game.
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "REALLIVE read-history load: %s", error.what());
+    }
+  }
+  void persistReadHistory() const {
+    if (readPages.empty())
+      return;
+    try {
+      std::ostringstream out;
+      writeReadHistory(out, readPages);
+      Kotonoha::writeTextFileAtomically(readHistoryPath().string(), out.str());
+    } catch (const std::exception &error) {
+      // Retain the session's read flags even when the filesystem is readonly.
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "REALLIVE read-history save: %s", error.what());
+    }
+  }
   void bind(Engine &e) {
     engine = &e;
+    if (!readHistoryLoaded) {
+      readHistoryLoaded = true;
+      loadReadHistory();
+    }
     selectMouseCursor(mouseCursorNumber);
     if (!stage) {
       stage = std::make_unique<Stage>(e);
@@ -2417,7 +2469,8 @@ struct RealLiveRuntime::Impl {
     if (!textbox->isDialogueComplete())
       textbox->completeDialogue();
     else {
-      readPages.insert(currentPage);
+      if (readPages.insert(currentPage).second)
+        persistReadHistory();
       pause = false;
       autoDeadline = 0;
       updateAdvanceModes(manual, preserveReadSkip, autoMode, skipMode);
@@ -5231,6 +5284,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
                       restoredProgress.bgmScriptPaused;
   i.bgm.SetPaused(isStoryPaused() || i.bgmScriptPaused);
   i.selectMouseCursor(restoredMouseCursor);
+  if (version == "REALLIVE-PRESENTATION-7")
+    i.persistReadHistory();
 }
 
 bool RealLiveRuntime::onEvent(EventRef e) {

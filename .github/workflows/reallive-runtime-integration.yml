@@ -8,6 +8,8 @@ on:
       - 'games/reallive/src/RealLiveRuntime.hpp'
       - 'games/reallive/src/RealLiveAudioFade.hpp'
       - 'games/reallive/src/RealLiveReadProgress.hpp'
+      - 'games/reallive/src/RealLivePersistentHistory.hpp'
+      - 'games/reallive/tests/PersistentHistoryTest.cpp'
       - 'games/reallive/src/RealLiveTransition.hpp'
       - 'modules/vms/reallive/**'
       - 'modules/providers/reallive/**'
@@ -45,3 +47,9 @@ jobs:
             -I/usr/include/imgui \
             $(pkg-config --cflags sdl3 SDL3_ttf) \
             -fsyntax-only games/reallive/src/RealLiveRuntime.cpp
+      - name: Compile and run persistent read-history regression
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/PersistentHistoryTest.cpp \
+            -o /tmp/reallive-persistent-history-test
+          /tmp/reallive-persistent-history-test
