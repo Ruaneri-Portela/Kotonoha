@@ -178,6 +178,8 @@ private:
 
   void executeStatement(const StatementSlice &stmt);
   void executeTextLine(std::string_view rawLine, std::size_t stmtIndex);
+  void captureCallArguments(LineLexer &lexer, CallStackEntry &frame,
+                            bool requireLeadingComma);
 
   void enterTextDisplayMode();
   void leaveTextDisplayMode(bool forceHide = false);
