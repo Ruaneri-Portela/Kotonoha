@@ -15,6 +15,13 @@ class VideoSkipGesture {
 public:
   static constexpr Uint64 DoublePressIntervalMs = 350;
 
+  // A looping menu/background movie is decorative: it must not intercept
+  // choice input or be dismissed by a generic video-skip gesture.
+  // Narrative cutscenes still capture input until skipped or finished.
+  static constexpr bool capturesInput(bool active, bool looping) noexcept {
+    return active && !looping;
+  }
+
   void reset() {
     lastPressMs_ = 0;
     lastX_ = lastY_ = 0.0f;
