@@ -291,6 +291,16 @@ int main() {
         }
         check(advanced,
               "Pressing Enter must advance SG sg01_01 prologue dialogue");
+
+        // The runtime and Engine share the provider. Verify shutdown
+        // destroys the native font atlas and its cached SDL textures while
+        // the Engine renderer is still alive, including repeated teardown.
+        engineRuntime.shutdown();
+        check(sgAssets->cachedTextures() == 0,
+              "N2System shutdown must release provider GPU textures");
+        engineRuntime.shutdown();
+        check(TTF_WasInit() > 0,
+              "Engine UI must remain TTF-initialized during N2 teardown");
       }
 
       std::cout << "[Steins;Gate] Retail verification PASSED!\n";
