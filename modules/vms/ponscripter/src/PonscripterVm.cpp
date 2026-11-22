@@ -42,6 +42,11 @@ void PonscripterVm::clear() {
   callStack_.clear();
   forStack_.clear();
   userEffects_.clear();
+  activeEffect_ = ActiveEffect{};
+  quakeAmplitude_ = 0;
+  monochromeEnabled_ = false;
+  monochromeColor_ = 0xFFFFFFu;
+  negativeMode_ = 0;
   bg_ = TaggedImageSpec{};
   for (auto &s : standing_)
     s = StandingSlot{};
@@ -149,6 +154,9 @@ void PonscripterVm::resetToStart() {
   autoMode_ = false;
   activeEffect_ = ActiveEffect{};
   quakeAmplitude_ = 0;
+  monochromeEnabled_ = false;
+  monochromeColor_ = 0xFFFFFFu;
+  negativeMode_ = 0;
   waitState_ = WaitState::Running;
   inDefineBlock_ = false;
   jumpToLabel("start");
@@ -957,6 +965,9 @@ SlotSaveData PonscripterVm::exportSlotSave() const {
   data.allSprites2Hidden = allSprites2Hidden_;
   data.activeEffect = activeEffect_;
   data.quakeAmplitude = quakeAmplitude_;
+  data.monochromeEnabled = monochromeEnabled_;
+  data.monochromeColor = monochromeColor_;
+  data.negativeMode = negativeMode_;
   data.manualFrameVisible = manualFrameVisible_;
   data.manualDraftOps = manualDraftOps_;
   data.manualDisplayOps = manualDisplayOps_;
@@ -998,6 +1009,9 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   allSprites2Hidden_ = data.allSprites2Hidden;
   activeEffect_ = data.activeEffect;
   quakeAmplitude_ = data.quakeAmplitude;
+  monochromeEnabled_ = data.monochromeEnabled;
+  monochromeColor_ = data.monochromeColor;
+  negativeMode_ = data.negativeMode;
   manualFrameVisible_ = data.manualFrameVisible;
   manualDraftOps_ = data.manualDraftOps;
   manualDisplayOps_ = data.manualDisplayOps;
