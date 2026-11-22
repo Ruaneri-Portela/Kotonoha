@@ -156,6 +156,11 @@ int main(int argc, char **argv) {
       gamepad.reset(SDL_OpenGamepad(devices.get()[0]));
     bool running = true, halted = false;
     std::string haltedAt, haltedReason;
+    // SDL_Delay(16) was approximately 62.5 fps and drifted from the Vita's
+    // 60-frame script clock. Pace presentations against a monotonic timer,
+    // without accelerating the script after a slow frame.
+    constexpr Uint64 framePeriodNs = 1000000000ULL / 60ULL;
+    Uint64 nextFrameNs = SDL_GetTicksNS();
 
     for (unsigned frame = 0; running && frame < options.maxFrames; ++frame) {
       SDL_Event e{};
@@ -194,7 +199,12 @@ int main(int argc, char **argv) {
       presenter.draw(bridge);
       if (!SDL_RenderPresent(renderer.get()))
         throw std::runtime_error(SDL_GetError());
-      SDL_Delay(16); // Approx. 60 Hz debug pacing, not original frame sync.
+      nextFrameNs += framePeriodNs;
+      const Uint64 nowNs = SDL_GetTicksNS();
+      if (nextFrameNs > nowNs)
+        SDL_DelayPrecise(nextFrameNs - nowNs);
+      else if (nowNs - nextFrameNs > framePeriodNs * 2)
+        nextFrameNs = nowNs; // Never accumulate unbounded catch-up debt.
     }
     std::cout << "Vita SDL3 diagnostic: " << bridge.sprites().size()
               << " sprite(s), SCF "
