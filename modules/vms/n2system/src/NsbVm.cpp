@@ -698,30 +698,38 @@ std::uint32_t NsbVm::currentLine() const {
 }
 
 std::size_t NsbVm::step(std::size_t budget) {
-  if (finished_ || threads_.empty())
+  if (finished_ || threads_.empty() || budget == 0)
     return 0;
 
+  // Snapshot the thread set at frame start. Creating a process during a VM
+  // instruction must neither invalidate its current Thread reference nor run
+  // its first instruction before the next scheduler tick.
+  const std::size_t runnableAtStart = threads_.size();
   std::size_t total = 0;
-  // Step main thread
-  total += stepThread(threads_[0], budget);
-
-  // Step active background processes cooperatively (index 1..)
-  for (std::size_t i = 1; i < threads_.size(); ++i) {
-    if (threads_[i].running) {
-      total += stepThread(threads_[i], 256);
-    }
+  const std::size_t mainBudget = std::min<std::size_t>(budget, 512);
+  if (threads_.front().running && !threads_.front().deleted)
+    total += stepThread(threads_.front(), mainBudget);
+  for (std::size_t i = 1; i < runnableAtStart && total < budget; ++i) {
+    if (threads_[i].running && !threads_[i].deleted)
+      total += stepThread(threads_[i], std::min<std::size_t>(256, budget - total));
   }
 
-  // If main thread terminated and call stack is empty, mark finished.
-  if (!threads_[0].running) {
+  // Do not erase while execInstruction() retains a reference to a Thread.
+  // A stopped process stays allocated because Request(Start) can resume it.
+  for (std::size_t i = 1; i < threads_.size();) {
+    if (threads_[i].deleted)
+      threads_.erase(threads_.begin() + static_cast<std::ptrdiff_t>(i));
+    else
+      ++i;
+  }
+  if (!threads_.front().running || threads_.front().deleted)
     finished_ = true;
-  }
   return total;
 }
 
 std::size_t NsbVm::stepThread(Thread &t, std::size_t budget) {
   std::size_t executed = 0;
-  while (executed < budget && t.running && t.script) {
+  while (executed < budget && t.running && !t.deleted && t.script) {
     if (t.waitTimer > 0.0f || t.waitingKey || t.waitingText ||
         t.waitingChoice || t.waitEntityAnim || t.waitingMovie) {
       break;
@@ -1795,13 +1803,13 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     if (!a.empty()) {
       const std::string query = a[0].asString();
       sceneGraph_.destroyMatching(query, true);
-      // Also stop matching background processes
-      for (std::size_t i = 1; i < threads_.size();) {
+      // Only mark for deletion. Erasing the current Thread from a vector
+      // or deque while execInstruction has its reference is undefined.
+      for (std::size_t i = 1; i < threads_.size(); ++i) {
         if (!threads_[i].locked &&
             SceneGraph::wildcardMatch(threads_[i].name, query)) {
-          threads_.erase(threads_.begin() + static_cast<std::ptrdiff_t>(i));
-        } else {
-          ++i;
+          threads_[i].deleted = true;
+          threads_[i].running = false;
         }
       }
     }
@@ -1815,6 +1823,14 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       std::shared_ptr<NsbScript> fnScript;
       std::size_t fnPc = 0;
       if (resolveFunction(t.script, funcName, fnScript, fnPc)) {
+        // NitroSharp replaces duplicate process names. Defer destruction
+        // until the current VM instruction has returned.
+        for (std::size_t i = 1; i < threads_.size(); ++i) {
+          if (threads_[i].name == procName) {
+            threads_[i].deleted = true;
+            threads_[i].running = false;
+          }
+        }
         Thread proc;
         proc.name = procName;
         proc.script = fnScript;
@@ -1855,7 +1871,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       }
       // Check background processes
       for (std::size_t i = 1; i < threads_.size(); ++i) {
-        if (SceneGraph::wildcardMatch(threads_[i].name, query)) {
+        if (!threads_[i].deleted &&
+            SceneGraph::wildcardMatch(threads_[i].name, query)) {
           if (action == "start")
             threads_[i].running = true;
           else if (action == "stop" || action == "pause")
