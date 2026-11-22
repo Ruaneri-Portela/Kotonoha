@@ -124,6 +124,14 @@ float AudioSystem::getVolume(AudioChannelKind kind) const {
   return 1.0f;
 }
 
+void AudioSystem::restore(
+    const AudioChannel &bgm, const AudioChannel &voice,
+    const std::unordered_map<int, AudioChannel> &se) {
+  bgmChannel_ = bgm;
+  voiceChannel_ = voice;
+  seChannels_ = se;
+}
+
 void AudioSystem::update(float dtSeconds) {
   bgmChannel_.update(dtSeconds);
   voiceChannel_.update(dtSeconds);
