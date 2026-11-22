@@ -303,33 +303,35 @@ void SceneGraph::clear() {
 
 bool SceneGraph::setParent(std::string_view childName,
                            std::string_view parentName) {
-  auto *child = findEntity(childName);
+  Entity *child = findEntity(childName);
   if (!child)
     return false;
-
-  if (parentName.empty()) {
-    if (!child->parent.empty()) {
-      auto *oldParent = findEntity(child->parent);
-      if (oldParent) {
-        oldParent->children.erase(std::remove(oldParent->children.begin(),
-                                              oldParent->children.end(),
-                                              child->name),
-                                  oldParent->children.end());
-      }
-    }
-    child->parent.clear();
-    return true;
-  }
-
-  auto *parent = findEntity(parentName);
-  if (!parent)
+  Entity *parent = parentName.empty() ? nullptr : findEntity(parentName);
+  if (!parentName.empty() && !parent)
     return false;
-
-  child->parent = parent->name;
-  if (std::find(parent->children.begin(), parent->children.end(),
-                child->name) == parent->children.end())
+  // NitroSharp's world is a tree. A reparent must not make an entity its
+  // own ancestor, or traversal and recursive deletion would loop forever.
+  for (const Entity *ancestor = parent; ancestor;) {
+    if (ancestor == child)
+      return false;
+    if (ancestor->parent.empty())
+      break;
+    ancestor = findEntity(ancestor->parent);
+  }
+  if (child->parent == (parent ? parent->name : std::string{}))
+    return true;
+  if (!child->parent.empty()) {
+    if (auto *oldParent = findEntity(child->parent)) {
+      oldParent->children.erase(
+          std::remove(oldParent->children.begin(), oldParent->children.end(),
+                      child->name),
+          oldParent->children.end());
+    }
+  }
+  child->parent = parent ? parent->name : std::string{};
+  if (parent && std::find(parent->children.begin(), parent->children.end(),
+                          child->name) == parent->children.end())
     parent->children.push_back(child->name);
-
   rebuildRenderOrder();
   return true;
 }
