@@ -135,6 +135,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.TransitionStyle COMMAND RealLiveTransitionStyleTests)
     set_tests_properties(RealLive.TransitionStyle PROPERTIES LABELS synthetic)
 
+    # Cross-session history regression (independent of SDL and game archives).
+    add_executable(RealLivePersistentHistoryTests tests/PersistentHistoryTest.cpp)
+    target_include_directories(RealLivePersistentHistoryTests PRIVATE src)
+    target_compile_features(RealLivePersistentHistoryTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.PersistentHistory COMMAND RealLivePersistentHistoryTests)
+    set_tests_properties(RealLive.PersistentHistory PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)
