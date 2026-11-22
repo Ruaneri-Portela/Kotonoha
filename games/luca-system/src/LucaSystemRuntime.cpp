@@ -2481,7 +2481,7 @@ struct LucaSystemRuntime::Impl {
           stagedSlots[key] = preservedBase;
           // Face crops must move/rotate/scale with their full portrait,
           // including while MOVE is still interpolating.
-          inheritAirPortraitVisuals(layer, preservedBase, !hasExplicitPos);
+          inheritAirPortraitVisuals(layer, preservedBase, true);
           layer.group = 3;
           stagedSlots[makeKey(3, slot)] = layer;
           return;
@@ -2592,7 +2592,8 @@ struct LucaSystemRuntime::Impl {
 
   void renderSlottedLayer(Kotonoha::RendererRef renderer,
                           const SlottedLayer &slot, uint64_t now,
-                          float opacityMod = 1.0f) {
+                          float opacityMod = 1.0f,
+                          const SlottedLayer *portrait = nullptr) {
     if (!slot.visible || slot.assetId == 0 || !std::isfinite(slot.alpha) ||
         slot.alpha <= 0.0f || !std::isfinite(opacityMod) ||
         opacityMod <= 0.0f || !std::isfinite(slot.scaleX) ||
@@ -2619,34 +2620,39 @@ struct LucaSystemRuntime::Impl {
                            static_cast<Uint8>(std::lround(alpha * 255.0f)));
     SDL_SetTextureColorMod(tex.get(), slot.r, slot.g, slot.b);
 
-    const float offX = airMoveOffset(slot.startOffsetX, slot.targetOffsetX,
-                                     slot.moveStart, slot.moveDuration, now);
-    const float offY = airMoveOffset(slot.startOffsetY, slot.targetOffsetY,
-                                     slot.moveStart, slot.moveDuration, now);
+    // For expression crops the base portrait defines the full character
+    // canvas, movement and rotation pivot. A cropped face file's own
+    // anchor may be different even when its canvas dimensions match.
+    const CzImage *baseImage = &img;
+    const SlottedLayer *pose = &slot;
+    if (portrait && slot.group == 3) {
+      const auto found = objectImages.find(portrait->assetId);
+      if (found != objectImages.end() &&
+          found->second.canvasWidth == img.canvasWidth &&
+          found->second.canvasHeight == img.canvasHeight) {
+        baseImage = &found->second;
+        pose = portrait;
+      }
+    }
+    const float offX = airMoveOffset(pose->startOffsetX, pose->targetOffsetX,
+                                     pose->moveStart, pose->moveDuration, now);
+    const float offY = airMoveOffset(pose->startOffsetY, pose->targetOffsetY,
+                                     pose->moveStart, pose->moveDuration, now);
 
     const uint8_t shakeKey =
         (slot.group == 0) ? 0 : static_cast<uint8_t>(1 + slot.slot);
     const auto [shakeX, shakeY] = computeShakeOffset(now, shakeKey);
 
-    float drawX = 0.0f;
-    float drawY = 0.0f;
-    float drawW = float(img.width) * slot.scaleX;
-    float drawH = float(img.height) * slot.scaleY;
+    const auto crop = airCharacterCropPlacement(
+        *pose, *baseImage, img, offX, offY, shakeX, shakeY);
+    float drawX = crop.x, drawY = crop.y;
+    float drawW = crop.w, drawH = crop.h;
 
     if (slot.assetId == 65000 || slot.assetId == 65001) {
       drawX = 0.0f;
       drawY = 0.0f;
       drawW = 1280.0f;
       drawH = 720.0f;
-    } else {
-      // The payload is cropped relative to the original CZ4 canvas. Scale
-      // anchor and crop together with the sprite, not independently.
-      drawX = croppedSpriteOrigin(
-          slot.posX, float(img.anchorX), float(img.cropX), slot.scaleX,
-          offX, shakeX);
-      drawY = croppedSpriteOrigin(
-          slot.posY, float(img.anchorY), float(img.cropY), slot.scaleY,
-          offY, shakeY);
     }
 
     if (!std::isfinite(drawX) || !std::isfinite(drawY) ||
@@ -2660,13 +2666,15 @@ struct LucaSystemRuntime::Impl {
     // enhancement filter on transparent CHARCG portraits may distort edges,
     // hair strands and the sprite's original alpha silhouette.
     const bool characterSprite = slot.group == 2 || slot.group == 3;
-    if (slot.rotation != 0.0f) {
+    const SDL_FPoint sharedPivot{crop.pivotX, crop.pivotY};
+    const double rotation = double(pose->rotation);
+    if (rotation != 0.0) {
       if (characterSprite)
         SDL_RenderTextureRotated(&renderer, tex.get(), nullptr, &dst,
-                                 double(slot.rotation), nullptr, SDL_FLIP_NONE);
+                                 rotation, &sharedPivot, SDL_FLIP_NONE);
       else
         Kotonoha::RenderUpscaledTextureRotated(
-            &renderer, tex.get(), nullptr, &dst, double(slot.rotation),
+            &renderer, tex.get(), nullptr, &dst, rotation,
             nullptr, SDL_FLIP_NONE);
     } else {
       if (characterSprite)
@@ -2685,8 +2693,15 @@ struct LucaSystemRuntime::Impl {
                           uint64_t now, float opacity = 1.0f) {
     for (const auto key : orderedAirLayerKeys(slots)) {
       const auto it = slots.find(key);
-      if (it != slots.end())
-        renderSlottedLayer(renderer, it->second, now, opacity);
+      if (it == slots.end())
+        continue;
+      const SlottedLayer *portrait = nullptr;
+      if ((key >> 8) == 3) {
+        const auto base = slots.find(makeKey(2, std::uint8_t(key)));
+        if (base != slots.end())
+          portrait = &base->second;
+      }
+      renderSlottedLayer(renderer, it->second, now, opacity, portrait);
     }
   }
 

@@ -213,6 +213,33 @@ inline float wipeVisibleWidth(float objectLeft, float imageWidth,
   return std::clamp(revealRight - objectLeft, 0.0f, imageWidth);
 }
 
+// CZ4 face and body pixels are crops of the same original character canvas.
+// Their local crop dimensions and per-file anchor fields can differ. Placing
+// and rotating each crop around its *own* rectangle shifts the face away
+// from the pose. Derive both rectangles from the full portrait's anchor.
+struct AirCharacterCropPlacement {
+  float x = 0, y = 0, w = 0, h = 0;
+  float pivotX = 0, pivotY = 0; // SDL rotation center relative to destination
+};
+template <class Pose, class BaseImage, class CropImage>
+AirCharacterCropPlacement
+airCharacterCropPlacement(const Pose &pose, const BaseImage &base,
+                          const CropImage &crop, float offsetX,
+                          float offsetY, float shakeX, float shakeY) {
+  AirCharacterCropPlacement result;
+  result.x = pose.posX +
+             (float(crop.cropX) - float(base.anchorX)) * pose.scaleX +
+             offsetX + shakeX;
+  result.y = pose.posY +
+             (float(crop.cropY) - float(base.anchorY)) * pose.scaleY +
+             offsetY + shakeY;
+  result.w = float(crop.width) * pose.scaleX;
+  result.h = float(crop.height) * pose.scaleY;
+  result.pivotX = (float(base.anchorX) - float(crop.cropX)) * pose.scaleX;
+  result.pivotY = (float(base.anchorY) - float(crop.cropY)) * pose.scaleY;
+  return result;
+}
+
 // CZ4 character sprites store positions for an untrimmed canvas. The pixel
 // payload is cropped; when the script scales the sprite, its crop offset and
 // anchor must scale along with that payload or parts appear displaced.
