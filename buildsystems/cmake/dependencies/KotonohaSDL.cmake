@@ -9,7 +9,13 @@ endif ()
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "Disable SDL test library")
 set(SDL_TESTS OFF CACHE BOOL "Disable SDL tests")
 set(SDL_EXAMPLES OFF CACHE BOOL "Disable SDL examples")
-set(SDL_SYSTEM_ICONV ON CACHE BOOL "Use iconv() from system-installed libraries" FORCE)
+# The Apple text codec lives in Encoding.mm (CoreFoundation); bundled SDL3
+# must not require the host's libiconv for text conversion.
+if(APPLE)
+    set(SDL_SYSTEM_ICONV OFF CACHE BOOL "Do not link system iconv on Apple" FORCE)
+else()
+    set(SDL_SYSTEM_ICONV ON CACHE BOOL "Use iconv() from system-installed libraries" FORCE)
+endif()
 
 set(SDLTTF_SAMPLES OFF CACHE BOOL "Disable SDL_ttf examples")
 set(SDLTTF_VENDORED OFF CACHE BOOL "Use system FreeType/HarfBuzz/PlutoSVG")
