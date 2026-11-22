@@ -67,6 +67,8 @@ struct SlotSaveData {
   std::vector<ButtonDef> buttons;
   std::vector<SelectOption> selectOptions;
   std::vector<SelectOption> cselOptions;
+  std::size_t pendingPretextStatementIndex = static_cast<std::size_t>(-1);
+  bool textGosubPagePending = false;
   // Optional metadata, so V1 slot files remain readable without this line.
   int selectionMode = 0; // 0=select/csel, 1=selgosub, 2=selnum
   int selectionNumberVariable = -1;
