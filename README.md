@@ -51,7 +51,7 @@ The [standalone unified launcher](launcher/README.md) is a desktop executable th
 | `docs/` | Cross-platform documentation |
 | `tools/` | Build and asset utilities |
 
-See the [license and third-party notices](LICENSE) and [license audit](docs/LICENSING.md) before distributing binaries.
+See the [MIT license](LICENSE), [third-party notices](THIRD_PARTY_NOTICES.md) and [license audit](docs/LICENSING.md) before distributing binaries.
 
 ## Game data and licensing
 
