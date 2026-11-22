@@ -33,7 +33,14 @@ def audit() -> list[str]:
         if slug in registry:
             issues.append(f"Duplicate launcher registry entry for {slug}")
         registry[slug] = match.groupdict()
-    expected_slugs = set(games.values()) - {"example"}
+    # Generic Ren'Py is a virtual launcher identity sharing the DDLC VM,
+    # not another standalone game application in the Xcode/Android matrix.
+    expected_slugs = (set(games.values()) - {"example"}) | {"renpy"}
+    if registry.get("renpy", {}).get("target") != "DokiDoki" or (
+        registry.get("renpy", {}).get("bundle") !=
+        "me.hirameki.kotonoha.renpy"
+    ):
+        issues.append("Generic Ren'Py registry identity is inconsistent")
     if "example" in registry:
         issues.append("Example must not be registered in the launcher")
     if set(registry) != expected_slugs:
