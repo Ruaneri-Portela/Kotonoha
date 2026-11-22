@@ -138,6 +138,12 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
   out << "HIDESPR\t" << (data.allSpritesHidden ? 1 : 0) << '\t'
       << (data.allSprites2Hidden ? 1 : 0) << '\n';
   out << "MANUAL\t" << (data.manualFrameVisible ? 1 : 0) << '\n';
+  out << "ACTIVEFX\t" << (data.activeEffect.active ? 1 : 0) << '\t'
+      << data.activeEffect.builtinEffect << '\t'
+      << data.activeEffect.durationMs << '\t'
+      << data.activeEffect.elapsedMs << '\t'
+      << data.quakeAmplitude << '\t'
+      << escapeLine(data.activeEffect.maskPath) << '\n';
   auto writeDrawOps = [&](char bucket, const std::vector<ManualDrawOp> &ops) {
     for (const auto &op : ops) {
       out << "MANUALOP\t" << bucket << '\t'
@@ -349,6 +355,17 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       int shown = 0;
       ls >> shown;
       outData.manualFrameVisible = shown != 0;
+    } else if (kind == "ACTIVEFX") {
+      int active = 0;
+      ls >> active >> outData.activeEffect.builtinEffect
+         >> outData.activeEffect.durationMs
+         >> outData.activeEffect.elapsedMs >> outData.quakeAmplitude;
+      if (ls.peek() == '\t')
+        ls.get();
+      std::string mask;
+      std::getline(ls, mask);
+      outData.activeEffect.active = active != 0;
+      outData.activeEffect.maskPath = unescapeLine(mask);
     } else if (kind == "MANUALOP") {
       char bucket = '\0';
       int kindValue = -1, affine = 0, trans = 0;
