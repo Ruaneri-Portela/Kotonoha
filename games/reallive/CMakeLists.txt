@@ -114,6 +114,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.Compression COMMAND RealLiveCompressionTests)
     set_tests_properties(RealLive.Compression PROPERTIES LABELS synthetic)
 
+    # Normalized RealLive BGM gains and time-based fade interpolation.
+    add_executable(RealLiveAudioFadeTests tests/AudioFadeTest.cpp)
+    target_include_directories(RealLiveAudioFadeTests PRIVATE src)
+    target_compile_features(RealLiveAudioFadeTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.AudioFade COMMAND RealLiveAudioFadeTests)
+    set_tests_properties(RealLive.AudioFade PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)

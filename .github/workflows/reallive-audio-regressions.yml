@@ -1,0 +1,36 @@
+name: RealLive BGM fades and gain normalization
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'games/reallive/src/RealLiveAudioFade.hpp'
+      - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/tests/AudioFadeTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - '.github/workflows/reallive-audio-regressions.yml'
+  pull_request:
+    paths:
+      - 'games/reallive/src/RealLiveAudioFade.hpp'
+      - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/tests/AudioFadeTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - '.github/workflows/reallive-audio-regressions.yml'
+  workflow_dispatch:
+
+jobs:
+  audio-gain:
+    name: RealLive PCM gain and fades (${{ matrix.compiler }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile C++17 BGM regression
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/AudioFadeTest.cpp \
+            -o /tmp/reallive-audio-fade-test
+      - name: Run volume and fade fixtures
+        run: /tmp/reallive-audio-fade-test
