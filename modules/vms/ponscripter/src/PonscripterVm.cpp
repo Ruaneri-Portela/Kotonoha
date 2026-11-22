@@ -321,6 +321,7 @@ void PonscripterVm::executeTextLine(std::string_view rawLine,
   // textgosub substitutes the click/page wait with a script callback.
   // The callback can supply its own wait and invoke texec before return.
   if (!textGosubLabel_.empty() && script_.hasLabel(textGosubLabel_) &&
+      !isSubroutineActive(textGosubLabel_) &&
       (waitState_ == WaitState::WaitClickInline ||
        waitState_ == WaitState::WaitClickPage)) {
     textGosubPagePending_ = (waitState_ == WaitState::WaitClickPage);
@@ -332,6 +333,13 @@ void PonscripterVm::executeTextLine(std::string_view rawLine,
     waitState_ = WaitState::Running;
     jumpToLabel(textGosubLabel_);
   }
+}
+
+bool PonscripterVm::isSubroutineActive(const std::string &label) const {
+  return std::any_of(callStack_.begin(), callStack_.end(),
+                     [&](const CallStackEntry &frame) {
+                       return frame.targetLabel == label;
+                     });
 }
 
 void PonscripterVm::captureCallArguments(LineLexer &lexer,
@@ -397,7 +405,8 @@ void PonscripterVm::executeStatement(const StatementSlice &stmt) {
     return;
   }
   if (stmt.isText) {
-    if (!pretextGosubLabel_.empty() && script_.hasLabel(pretextGosubLabel_)) {
+    if (!pretextGosubLabel_.empty() && script_.hasLabel(pretextGosubLabel_) &&
+        !isSubroutineActive(pretextGosubLabel_)) {
       if (pendingPretextPc_ != stmt.statementIndex) {
         pendingPretextPc_ = stmt.statementIndex;
         CallStackEntry frame;
