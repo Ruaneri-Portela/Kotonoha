@@ -208,6 +208,8 @@ void writeEntity(Writer &w, const Entity &e) {
   w.flag(e.visible);
   w.flag(e.locked);
   w.flag(e.smoothing);
+  w.flag(e.monochrome);
+  w.byte(e.boxBlurPasses);
   w.flag(e.scrollHorizontal);
   w.flag(e.hasClipRect);
   w.flag(e.movieLoop);
@@ -307,6 +309,8 @@ bool readEntity(Reader &r, Entity &e) {
   if (!r.flag(e.visible)) return false;
   if (!r.flag(e.locked)) return false;
   if (!r.flag(e.smoothing)) return false;
+  if (!r.flag(e.monochrome) || !r.byte(e.boxBlurPasses) ||
+      e.boxBlurPasses > 16) return false;
   if (!r.flag(e.scrollHorizontal)) return false;
   if (!r.flag(e.hasClipRect)) return false;
   if (!r.flag(e.movieLoop)) return false;
