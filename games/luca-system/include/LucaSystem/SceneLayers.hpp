@@ -62,6 +62,15 @@ inline bool rasterCoversPointWithOpacity(
              opacity >=
          0.85f;
 }
+// Upscaling a texture with an alpha silhouette may damage cropped windows,
+ // hair, masks, and other overlays. Check once at decode time, not every frame.
+inline bool hasNonOpaquePixels(const std::vector<std::uint8_t> &rgba) {
+  for (std::size_t i = 3; i < rgba.size(); i += 4) {
+    if (rgba[i] != 255)
+      return true;
+  }
+  return false;
+}
 // AIR's face/expression CZ4 images retain the full character canvas but have
 // a much smaller cropped payload. Keep the last full portrait underneath.
 inline bool isCharacterFragment(int baseWidth, int baseHeight,
