@@ -1,0 +1,45 @@
+name: RealLive VM memory regressions
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'modules/vms/reallive/include/RealLive/IntegerRanges.hpp'
+      - 'modules/vms/reallive/src/Session.cpp'
+      - 'games/reallive/tests/IntegerRangesTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - '.github/workflows/reallive-memory-regressions.yml'
+  pull_request:
+    paths:
+      - 'modules/vms/reallive/**'
+      - 'games/reallive/tests/IntegerRangesTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - '.github/workflows/reallive-memory-regressions.yml'
+  workflow_dispatch:
+
+jobs:
+  memory:
+    name: C++17 Mem validation (${{ matrix.compiler }}, ${{ matrix.char_mode }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+        char_mode: [signed, unsigned]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile standalone integer-bank regression
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O1 -g \
+            -Wall -Wextra -Werror -pedantic -f${{ matrix.char_mode }}-char \
+            -Imodules/vms/reallive/include -Igames/reallive/vendor \
+            games/reallive/tests/IntegerRangesTest.cpp \
+            -o /tmp/reallive-memory-test
+      - name: Exercise range validation and overlapping copies
+        run: /tmp/reallive-memory-test
+      - name: Type-check integrated RealLive Session VM
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -f${{ matrix.char_mode }}-char \
+            -Ilib/include -Igames/reallive/include \
+            -Igames/reallive/vendor -Imodules/vms/reallive/include \
+            -fsyntax-only modules/vms/reallive/src/Session.cpp

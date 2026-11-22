@@ -139,6 +139,16 @@ if(BUILD_TESTING)
     # Data-independent verification of switch/case selection semantics.
     # Pure C++17 tests for Str.digits / Str.digit opcode parameters.
     # Strict, data-free tests for atomic Str.strclear range validation.
+    # RealLive Mem setrng/cpyrng/cpyvars/sum address checks and overlapping
+    # copies have standalone tests independent of game assets and SDL.
+    add_executable(RealLiveIntegerRangesTests tests/IntegerRangesTest.cpp)
+    target_include_directories(RealLiveIntegerRangesTests PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/vendor"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")
+    target_compile_features(RealLiveIntegerRangesTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.IntegerRanges COMMAND RealLiveIntegerRangesTests)
+    set_tests_properties(RealLive.IntegerRanges PROPERTIES LABELS synthetic)
+
     add_executable(RealLiveBoundedRangeTests tests/BoundedRangeTest.cpp)
     target_include_directories(RealLiveBoundedRangeTests PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/../../modules/vms/reallive/include")
