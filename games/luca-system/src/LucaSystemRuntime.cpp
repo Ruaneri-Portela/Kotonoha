@@ -3178,14 +3178,12 @@ struct LucaSystemRuntime::Impl {
       }
 
       case OP_HAIKEI_SET: {
-        uint32_t id = ins.paramBytes.size() >= 2 ? paramU16(ins, 0) : 0;
+        const uint32_t id =
+            ins.paramBytes.size() >= 2 ? paramU16(ins, 0) : 0;
         if (id > 0) {
-          loadObjectImage(id);
-          SlottedLayer layer;
-          layer.group = 0;
-          layer.slot = 0;
-          layer.assetId = id;
-          stagedSlots[makeKey(0, 0)] = layer;
+          // Use exactly the same validated scene staging path as IMAGELOAD.
+          // A missing or corrupt background must not erase the last scene.
+          stageImage(0, 0, id, 0.0f, 0.0f);
         }
         break;
       }
