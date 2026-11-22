@@ -219,6 +219,12 @@ std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
     auto exact = entities_.find(std::string(expression));
     if (exact != entities_.end())
       return {&exact->second};
+    // Compatibility: older native scripts sometimes use a bare alias with
+    // no '@'. NitroSharp requires '@', but retain this exact-name fallback.
+    if (parsed->parts().size() == 1 && expression.find('>') ==
+                                                std::string_view::npos)
+      if (auto *legacy = findEntity(expression))
+        return {legacy};
   }
 
   // Keep query order deterministic: entity creation order, not hash-map order.
