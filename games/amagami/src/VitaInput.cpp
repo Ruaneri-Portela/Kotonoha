@@ -86,21 +86,28 @@ int axisIndex(uint8_t axis) {
 
 void VitaInput::handle(const SDL_Event &e) {
   if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+    heldKeys_.clear();
     keyboard_ = 0; // Don't stick held keys when Alt-Tab releases them.
     return;
   }
   if (e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) {
     const uint32_t bit = keyboardButton(e.key.key);
-    if (e.type == SDL_EVENT_KEY_DOWN)
-      keyboard_ |= bit;
-    else
-      keyboard_ &= ~bit;
+    if (bit) {
+      if (e.type == SDL_EVENT_KEY_DOWN)
+        heldKeys_.insert(e.key.key);
+      else
+        heldKeys_.erase(e.key.key);
+      keyboard_ = 0;
+      for (SDL_Keycode held : heldKeys_)
+        keyboard_ |= keyboardButton(held);
+    }
     return;
   }
   if (e.type == SDL_EVENT_GAMEPAD_REMOVED) {
     if (e.gdevice.which == activeGamepad_) {
       activeGamepad_ = 0;
       gamepad_ = 0;
+      stick_ = triggers_ = 0;
       analog_ = {{0, 0, 0, 0}};
     }
     return;
@@ -124,17 +131,31 @@ void VitaInput::handle(const SDL_Event &e) {
     if (activeGamepad_ != e.gaxis.which)
       return;
     const int axis = axisIndex(e.gaxis.axis);
-    if (axis >= 0)
+    if (axis >= 0) {
+      // SceCtrl analog channels use signed 8-bit positions.
       analog_[std::size_t(axis)] =
-          std::clamp(int(e.gaxis.value) / 256, -128, 128);
+          std::clamp(int(e.gaxis.value) / 256, -128, 127);
+      if (axis < 2) {
+        // open-amagami: the left stick also navigates as a D-pad, with a
+        // deliberate 16000/32767 dead zone. Never erase a held D-pad button.
+        const uint32_t negative = axis == 0 ? 32768u : 4096u;
+        const uint32_t positive = axis == 0 ? 8192u : 16384u;
+        stick_ &= ~(negative | positive);
+        if (e.gaxis.value < -16000)
+          stick_ |= negative;
+        else if (e.gaxis.value > 16000)
+          stick_ |= positive;
+      }
+    }
     if (e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ||
         e.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) {
       const uint32_t bit =
           e.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? 1u : 2u;
-      if (e.gaxis.value > 16384)
-        gamepad_ |= bit;
+      // Same threshold as the reference port's SDL trigger reader.
+      if (e.gaxis.value > 4000)
+        triggers_ |= bit;
       else
-        gamepad_ &= ~bit;
+        triggers_ &= ~bit;
     }
   }
 }
