@@ -254,6 +254,39 @@ std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
       return entity.name;
     return std::string_view(entity.name).substr(slash + 1);
   };
+  // Some existing compiled NSB scripts create slash-qualified sprites
+  // without materializing intermediate container entities. Keep these names
+  // queryable, but match '*'' within each slash-separated component only.
+  const auto legacyQualifiedMatches = [&]() {
+    std::vector<Entity *> result;
+    const auto &parts = parsed->parts();
+    if (parts.size() < 2)
+      return result;
+    for (const auto &part : parts)
+      if (part.scope != EntityQueryScope::Current)
+        return result;
+    for (auto *candidate : ordered) {
+      auto remaining = std::string_view(candidate->name);
+      bool matched = true;
+      for (std::size_t i = 0; i < parts.size(); ++i) {
+        const auto slash = remaining.find('/');
+        const auto component =
+            slash == std::string_view::npos ? remaining
+                                            : remaining.substr(0, slash);
+        if (!EntityQuery::matchPattern(component, parts[i].pattern) ||
+            (i + 1 == parts.size()) !=
+                (slash == std::string_view::npos)) {
+          matched = false;
+          break;
+        }
+        if (slash != std::string_view::npos)
+          remaining.remove_prefix(slash + 1);
+      }
+      if (matched)
+        result.push_back(candidate);
+    }
+    return result;
+  };
   std::vector<Entity *> current;
   for (const auto &part : parsed->parts()) {
     std::vector<Entity *> next;
@@ -288,7 +321,7 @@ std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
     }
     current = std::move(next);
     if (current.empty())
-      return {};
+      return legacyQualifiedMatches();
   }
   return current;
 }
