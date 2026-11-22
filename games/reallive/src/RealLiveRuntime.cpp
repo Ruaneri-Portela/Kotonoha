@@ -799,6 +799,8 @@ struct RealLiveRuntime::Impl {
   Uint64 transitionStart = 0;
   int transitionMs = 0;
   int transitionStyle = 0;
+  int transitionDirection = 0, transitionInterpolation = 0;
+  int transitionXSize = 0, transitionYSize = 0;
   int canvasW = 800, canvasH = 600;
   struct ZoomEffect {
     SurfacePtr source;
@@ -944,8 +946,26 @@ struct RealLiveRuntime::Impl {
     SDL_Rect dst{};
     int durationMs = 0;
     int style = 0;
+    int direction = 0, interpolation = 0;
+    int xSize = 0, ySize = 0;
     int opacity = 255;
   };
+  void setTransitionEffect(const SelEffect &effect) {
+    transitionMs = std::max(0, effect.durationMs);
+    transitionStyle = effect.style;
+    transitionDirection = effect.direction;
+    transitionInterpolation = effect.interpolation;
+    transitionXSize = effect.xSize;
+    transitionYSize = effect.ySize;
+  }
+  void setTransitionParametersFromCommand(const libreallive::CommandElement &c,
+                                           int first = 8) {
+    transitionStyle = value(c, first);
+    transitionDirection = value(c, first + 1);
+    transitionInterpolation = value(c, first + 2);
+    transitionXSize = value(c, first + 3);
+    transitionYSize = value(c, first + 4);
+  }
   SelEffect parseSelEffect(int index, int defaultDurationMs = 0) const {
     std::ostringstream selrKey, selKey;
     selrKey << "SELR." << std::setw(3) << std::setfill('0') << index;
@@ -959,6 +979,10 @@ struct RealLiveRuntime::Impl {
       out.dst = {cfg.integer(k, 0, 4), cfg.integer(k, 0, 5), 0, 0};
       out.durationMs = cfg.integer(k, defaultDurationMs, 6);
       out.style = cfg.integer(k, 0, 7);
+      out.direction = cfg.integer(k, 0, 8);
+      out.interpolation = cfg.integer(k, 0, 9);
+      out.xSize = cfg.integer(k, 0, 10);
+      out.ySize = cfg.integer(k, 0, 11);
       out.opacity = cfg.integer(k, 255, 14);
     } else {
       const auto k = selKey.str();
@@ -970,6 +994,10 @@ struct RealLiveRuntime::Impl {
       out.dst = {cfg.integer(k, 0, 4), cfg.integer(k, 0, 5), 0, 0};
       out.durationMs = cfg.integer(k, defaultDurationMs, 6);
       out.style = cfg.integer(k, 0, 7);
+      out.direction = cfg.integer(k, 0, 8);
+      out.interpolation = cfg.integer(k, 0, 9);
+      out.xSize = cfg.integer(k, 0, 10);
+      out.ySize = cfg.integer(k, 0, 11);
       out.opacity = cfg.integer(k, 255, 14);
     }
     return out;
@@ -1935,15 +1963,31 @@ struct RealLiveRuntime::Impl {
       auto old = blank(output->w, output->h);
       scaledBlit(*transitionOld, *old, nullptr, {0, 0, old->w, old->h}, 255,
                  false);
-      if (transitionStyle == 4 || transitionStyle == 5) {
+      if (transitionStyle == 4 || transitionStyle == 5 ||
+          transitionStyle == 10 || transitionStyle == 120) {
+        const TransitionParameters effect{
+            transitionStyle, transitionDirection, transitionInterpolation,
+            transitionXSize, transitionYSize};
         for (int y = 0; y < output->h; ++y) {
-          auto *oldRow = static_cast<Uint8 *>(old->pixels) + y * old->pitch;
+          const auto *oldRow =
+              static_cast<const Uint8 *>(old->pixels) + y * old->pitch;
           auto *newRow =
               static_cast<Uint8 *>(output->pixels) + y * output->pitch;
-          for (int x = 0; x < output->w; ++x)
-            if (!transitionRevealsNewPixel(transitionStyle, progress, x / scale,
-                                           y / scale))
+          for (int x = 0; x < output->w; ++x) {
+            const double reveal = transitionNewCoverage(
+                effect, progress, x / scale, y / scale,
+                output->w / scale, output->h / scale);
+            if (reveal <= 0.0) {
               std::memcpy(newRow + x * 4, oldRow + x * 4, 4);
+            } else if (reveal < 1.0) {
+              for (int channel = 0; channel < 4; ++channel) {
+                const auto offset = x * 4 + channel;
+                newRow[offset] = Uint8(std::clamp(
+                    std::lround(oldRow[offset] * (1.0 - reveal) +
+                                newRow[offset] * reveal), 0L, 255L));
+              }
+            }
+          }
         }
       } else {
         auto mixed = std::move(old);
@@ -2075,8 +2119,10 @@ struct RealLiveRuntime::Impl {
   void draw(RendererRef r) {
     refreshImageUpscaling();
     const bool softwareEffect =
-        transitionOld && (transitionStyle == 4 || transitionStyle == 5) &&
-        !prepareDither(r);
+        transitionOld &&
+        (transitionStyle == 10 || transitionStyle == 120 ||
+         ((transitionStyle == 4 || transitionStyle == 5) &&
+          !prepareDither(r)));
     const bool upscale = imageUpscaling.enabled();
     const auto key = sceneFingerprint();
     if (!upscale || !filteredScene || sceneKey != key) {
@@ -3294,8 +3340,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     transitionStart = SDL_GetTicks();
     const int sel = blankBackground ? value(c, 0) : value(c, 1);
     const auto effect = parseSelEffect(sel, 0);
-    transitionMs = effect.durationMs;
-    transitionStyle = effect.style;
+    setTransitionEffect(effect);
     wait(transitionMs);
     if (blankBackground) {
       auto &destination = surface(0);
@@ -4191,7 +4236,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       transitionTexture.reset();
       transitionStart = SDL_GetTicks();
       transitionMs = std::max(0, value(c, 7));
-      transitionStyle = value(c, 8);
+      setTransitionParametersFromCommand(c);
       // '?' presents the already prepared DC1; it is not a filename.
       if (name != "?") {
         blit(surface(0), surface(1));
@@ -4224,8 +4269,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       transitionTexture.reset();
       transitionStart = SDL_GetTicks();
       const auto mainEffect = parseSelEffect(value(c, 1), 0);
-      transitionMs = mainEffect.durationMs;
-      transitionStyle = mainEffect.style;
+      setTransitionEffect(mainEffect);
       if (op == 75) {
         auto name = str(c, 0);
         if (name == "???")
@@ -4520,8 +4564,11 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       const int selIndex =
           (over == 2 || over == 3) ? value(c, 7, 0) : value(c, 1, 0);
       const auto selEffect = parseSelEffect(selIndex, 500);
-      transitionMs = over == 4 ? value(c, 7) : selEffect.durationMs;
-      transitionStyle = over == 4 ? value(c, 8) : selEffect.style;
+      setTransitionEffect(selEffect);
+      if (over == 4) {
+        transitionMs = std::max(0, value(c, 7));
+        setTransitionParametersFromCommand(c);
+      }
       wait(transitionMs);
       // "?" reuses DC1; copying DC0 here would destroy that prepared image.
       if (name != "?")

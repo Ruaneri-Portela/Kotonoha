@@ -128,6 +128,13 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.ReadProgress COMMAND RealLiveReadProgressTests)
     set_tests_properties(RealLive.ReadProgress PROPERTIES LABELS synthetic)
 
+    # Native-resolution directional SEL wipes and repeating blind masks.
+    add_executable(RealLiveTransitionStyleTests tests/TransitionStyleTest.cpp)
+    target_include_directories(RealLiveTransitionStyleTests PRIVATE src)
+    target_compile_features(RealLiveTransitionStyleTests PRIVATE cxx_std_17)
+    add_test(NAME RealLive.TransitionStyle COMMAND RealLiveTransitionStyleTests)
+    set_tests_properties(RealLive.TransitionStyle PROPERTIES LABELS synthetic)
+
     foreach(format Images Voice Script Session System)
         add_executable(RealLive${format}Tests tests/${format}Test.cpp)
         target_link_libraries(RealLive${format}Tests PRIVATE RealLiveFormats kotonoha_vm_reallive)

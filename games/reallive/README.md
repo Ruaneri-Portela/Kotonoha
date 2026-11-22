@@ -147,3 +147,15 @@ ctest --test-dir build -R 'RealLive.(AudioFade|ReadProgress)' --output-on-failur
 Read history is persisted **inside a save slot**, not yet in a separate
 cross-save, title-wide progression database. CG gallery unlocks and original
 menu parity require additional per-game reference data and testing.
+
+## Directional SEL effects
+
+SEL style 10 (directional wipes) and style 120 (repeating blinds) now use
+native-resolution directional masks instead of generic crossfades. Direction
+0/1/2/3 selects top-to-bottom, bottom-to-top, left-to-right or right-to-left.
+The SEL interpolation and stripe-size parameters are honored; software
+composition is filtered as a completed frame, avoiding independent sprite
+upscaling. Ordered-dither styles 4/5 still use the accelerated mask when
+supported. Other scroll/squash/slide effect families (15–21) remain pending.
+These transitions need comparison against screenshots and timing from an
+original Windows RealLive executable before claiming exact visual parity.
