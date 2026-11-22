@@ -165,6 +165,9 @@ public:
     cache_.clear();
   }
 
+  std::string fallbackFont_;
+  bool fallbackFontChecked_ = false;
+
   TTF_Font *font(const std::string &file, int px, int outline, int style) {
     auto key = std::make_tuple(file, px, outline, style);
     auto it = fonts_.find(key);
@@ -179,6 +182,23 @@ public:
       data = assets->read("gui/font/Aller_Rg.ttf");
     if (data.empty() && assets->contains("font/playtime.ttf"))
       data = assets->read("font/playtime.ttf");
+    if (data.empty()) {
+      // Try the game's own UI fonts before falling back to Kotonoha.
+      if (!fallbackFontChecked_) {
+        fallbackFontChecked_ = true;
+        for (const auto &id : assets->source().names()) {
+          const auto ext = std::filesystem::path(id).extension().string();
+          if (ext == ".ttf" || ext == ".otf" || ext == ".ttc") {
+            fallbackFont_ = id;
+            break;
+          }
+        }
+      }
+      if (!fallbackFont_.empty() && assets->contains(fallbackFont_))
+        data = assets->read(fallbackFont_);
+      if (data.empty())
+        data = Kotonoha::FileResolver::loadFontMemory("");
+    }
     TTF_Font *f =
         data.empty()
             ? nullptr
@@ -457,7 +477,20 @@ public:
        TextEngine &text)
       : engine_(engine), assets_(assets), text_(text) {
     directory_ = userDirectory();
-    if (assets.name().compare(0, 13, "Katawa Shoujo") != 0)
+    if (!assets.isDdlc() && !assets.isKatawa()) {
+      // Keep unrelated Ren'Py games from sharing DDLC's persistent state.
+      const std::string id = assets.sourceIdentity().empty()
+                                 ? assets.source().dir()
+                                 : assets.sourceIdentity();
+      uint64_t hash = 14695981039346656037ull;
+      for (unsigned char c : id)
+        hash = (hash ^ c) * 1099511628211ull;
+      std::ostringstream key;
+      key << std::hex << hash;
+      directory_ /= "renpy-" + key.str();
+      std::filesystem::create_directories(directory_);
+    }
+    if (assets.isDdlc())
       seedCharacters(directory_, assets.source().dir(), &assets.source());
     persistentPath_ = directory_ / "persistent.txt";
   }
@@ -2219,7 +2252,8 @@ struct Game {
   }
 
   void checkSplashTransition() {
-    if (phase != Phase::Splash || !vm || vm->finished())
+    // DDLC's splash.rpyc escape heuristic must not affect other games.
+    if (!assets->isDdlc() || phase != Phase::Splash || !vm || vm->finished())
       return;
     const Node *n = vm->currentNode();
     if ((n && n->file != "splash.rpyc") ||
@@ -2232,12 +2266,11 @@ struct Game {
   void startSplash() {
     phase = Phase::Splash;
     newVm();
-    const bool katawa = assets->name().compare(0, 13, "Katawa Shoujo") == 0;
-    if (katawa) {
+    if (assets->isKatawa() || !script.hasLabel("splashscreen")) {
       enterMenu();
       return;
     }
-    replay.label = katawa ? "imachine" : "splashscreen";
+    replay.label = "splashscreen";
     vm->start(replay.label);
     checkSplashTransition();
     reportErrors();
@@ -2252,7 +2285,7 @@ struct Game {
     host.savePersistent(persistentText);
     vm->scene = Scene{};
     vm->committed = Scene{};
-    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0)
+    if (!assets->isDdlc())
       return;
     const double pt = vm->py.getAttr(vm->persistent, "playthrough").num();
     std::vector<std::pair<const char *, std::string>> show = {
@@ -2291,7 +2324,7 @@ struct Game {
       throw std::runtime_error(SDL_GetError());
     host.stop("music", 1.0);
     newVm();
-    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0)
+    if (assets->isKatawa())
       vm->py.set("playthroughflag", Value::integer(1));
     phase = Phase::Play;
     replay.label = "start";
@@ -2830,7 +2863,7 @@ struct Game {
 
   void drawSaveLoadMenu(SDL_Renderer *r) {
     drawn.clear();
-    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0) {
+    if (assets->isKatawa()) {
       if (pauseMenu) {
         drawBase(r, vm->scene, now());
         drawImage(r, "ui/bg-gm.png", 870, 125, 240, 456);
@@ -2897,7 +2930,25 @@ struct Game {
   }
 
   void drawMainMenu(SDL_Renderer *r) {
-    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0) {
+    if (!assets->isDdlc() && !assets->isKatawa()) {
+      const bool ptBr = isPtBr();
+      drawn.clear();
+      drawText(r, assets->name(), uiStyle("kotonoha-vn-font:", 35, 0xffffffff),
+               80, 90);
+      if (subMenu == SubMenu::Load)
+        drawSaveLoadMenu(r);
+      else
+        navigation(
+            r,
+            {{ptBr ? "Novo Jogo" : "New Game", [this] { startGame(); }},
+             {ptBr ? "Carregar Jogo" : "Load Game",
+              [this] { subMenu = SubMenu::Load; }},
+             {ptBr ? "Opções" : "Settings",
+              [this] { engine.openSettings(); }},
+             {ptBr ? "Sair" : "Quit", [this] { quit = true; }}});
+      return;
+    }
+    if (assets->isKatawa()) {
       drawImage(r, "ui/main/bg-main.png", 160, 0, 960, 720);
       drawImage(r, "ui/main/00_tc1-hisao.png", 360, 320, 134, 152);
       const bool ptBr = isPtBr();
@@ -2996,7 +3047,7 @@ struct Game {
       return;
     }
     drawn.clear();
-    if (assets->name().compare(0, 13, "Katawa Shoujo") == 0) {
+    if (assets->isKatawa()) {
       drawBase(r, vm->scene, now());
       drawImage(r, "ui/bg-gm.png", 870, 125, 240, 456);
     } else {
