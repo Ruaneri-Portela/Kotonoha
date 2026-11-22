@@ -370,9 +370,15 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       std::getline(ls, raw, '\t');
       std::getline(ls, spriteText, '\t');
       std::getline(ls, text);
+      const int fontWidth = op.spec.fontWidth;
+      const int fontHeight = op.spec.fontHeight;
+      const std::uint32_t color = op.spec.color;
       op.spec = parseTaggedString(unescapeLine(raw), TransMode::Copy);
       if (op.spec.rawTag.empty())
         op.spec.trans = static_cast<TransMode>(trans);
+      op.spec.fontWidth = fontWidth;
+      op.spec.fontHeight = fontHeight;
+      op.spec.color = color;
       op.spec.text = unescapeLine(spriteText);
       op.text = unescapeLine(text);
       auto *dest = bucket == 'D' ? &outData.manualDraftOps :
