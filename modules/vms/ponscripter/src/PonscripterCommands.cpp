@@ -4,11 +4,37 @@
 #include <algorithm>
 #include <charconv>
 #include <cctype>
+#include <climits>
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
 
 namespace Ponscripter {
+namespace {
+
+// Index 'mid' and 'len' in Unicode code points instead of splitting a UTF-8
+// sequence. Malformed bytes are consumed as individual code points.
+std::size_t utf8Offset(std::string_view value, std::size_t count) {
+  std::size_t offset = 0;
+  while (offset < value.size() && count-- > 0) {
+    ++offset;
+    while (offset < value.size() &&
+           (static_cast<unsigned char>(value[offset]) & 0xC0u) == 0x80u)
+      ++offset;
+  }
+  return offset;
+}
+
+std::size_t utf8Length(std::string_view value) {
+  std::size_t count = 0;
+  for (unsigned char c : value) {
+    if ((c & 0xC0u) != 0x80u)
+      ++count;
+  }
+  return count;
+}
+
+} // namespace
 
 void PonscripterVm::registerCommand(std::string_view name,
                                     CommandHandler handler) {
@@ -39,7 +65,8 @@ void PonscripterVm::registerCommands() {
   for (const char *c :
        {"if", "notif", "goto", "gosub", "return", "for", "next", "break",
         "select", "selgosub", "selnum", "csel", "cselgoto", "cselbtn",
-        "getcselnum", "getcselstr", "skip", "tablegoto"}) {
+        "getcselnum", "getcselstr", "skip", "tablegoto",
+        "tablegoto1", "debugtablegoto"}) {
     registerCommand(c, &PonscripterVm::cmdFlow);
   }
 
@@ -545,6 +572,21 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
     return;
   }
 
+  if (cmd == "tablegoto" || cmd == "tablegoto1" ||
+      cmd == "debugtablegoto") {
+    const int index = lexer.parseIntExpr();
+    int current = cmd == "tablegoto1" ? 1 : 0;
+    while (lexer.consumeComma()) {
+      const std::string target = lexer.parseLabelTarget();
+      if (current == index && !target.empty()) {
+        jumpToLabel(target);
+        return;
+      }
+      ++current;
+    }
+    return;
+  }
+
   if (cmd == "skip") {
     const int delta = lexer.parseIntExpr();
     const auto &stmts = script_.statements();
@@ -567,6 +609,39 @@ void PonscripterVm::cmdVars(LineLexer &lexer, const std::string &cmd) {
     if (globalChanged && callbacks_)
       callbacks_->onPersistGlobals();
   };
+
+  if (cmd == "len") {
+    const int dest = lexer.parseVarRef();
+    if (!lexer.consumeComma())
+      return;
+    const std::string source = lexer.parseStringExpr();
+    if (dest >= 0)
+      notifyIfGlobal(vars_.setNum(dest, static_cast<int>(
+          std::min<std::size_t>(utf8Length(source),
+                                static_cast<std::size_t>(INT_MAX)))));
+    return;
+  }
+
+  if (cmd == "mid") {
+    const int dest = lexer.parseStrVarRef();
+    if (!lexer.consumeComma())
+      return;
+    const std::string source = lexer.parseStringExpr();
+    if (!lexer.consumeComma())
+      return;
+    const auto start = static_cast<std::size_t>(
+        std::max(0, lexer.parseIntExpr()));
+    if (!lexer.consumeComma())
+      return;
+    const auto count = static_cast<std::size_t>(
+        std::max(0, lexer.parseIntExpr()));
+    const std::size_t begin = utf8Offset(source, start);
+    const std::size_t length = utf8Offset(
+        std::string_view(source).substr(begin), count);
+    if (dest >= 0)
+      vars_.setStr(dest, source.substr(begin, length));
+    return;
+  }
 
   if (cmd.rfind("mov", 0) == 0) {
     lexer.skipWhitespace();

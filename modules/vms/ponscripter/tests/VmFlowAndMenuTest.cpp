@@ -214,6 +214,43 @@ int main() {
             "Interpolated values must remain literal text");
     }
 
+    {
+      Ponscripter::PonscripterVm compatibility;
+      compatibility.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "len %1,\"Olá\"\n"
+          "mid $2,\"Aé日Z\",1,2\n"
+          "tablegoto 1,*wrong,*chosen,*wrong\n"
+          "mov %9,900\n"
+          "end\n"
+          "*chosen\n"
+          "mov %3,13\n"
+          "tablegoto1 2,*wrong,*chosen2\n"
+          "end\n"
+          "*chosen2\n"
+          "mov %4,22\n"
+          "tablegoto 30,*wrong\n"
+          "mov %5,55\n"
+          "end\n"
+          "*wrong\n"
+          "mov %9,999\n"
+          "end\n");
+      check(compatibility.start(), "String/dispatch script must start");
+      compatibility.tick(0.0);
+      check(compatibility.isHalted(), "Dispatch script must terminate");
+      check(compatibility.variables().getNum(1) == 3 &&
+                compatibility.variables().getStr(2) == "é日",
+            "len/mid must preserve UTF-8 character boundaries");
+      check(compatibility.variables().getNum(3) == 13 &&
+                compatibility.variables().getNum(4) == 22 &&
+                compatibility.variables().getNum(5) == 55 &&
+                compatibility.variables().getNum(9) == 0,
+            "tablegoto indexing and unmatched fall-through must work");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
