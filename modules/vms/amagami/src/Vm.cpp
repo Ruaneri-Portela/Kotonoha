@@ -493,6 +493,12 @@ void Vm::send(VmValue receiver, std::string selector, std::vector<VmValue> args,
   throw std::runtime_error("Unhandled SCF call " + type + "." + selector + "/" +
                            std::to_string(args.size()) + " at " + location());
 }
+std::string Vm::callerClass() const {
+  if (frames_.size() < 2)
+    return {};
+  const auto *caller = frames_[frames_.size() - 2].script;
+  return caller ? caller->name : std::string{};
+}
 std::string Vm::location() const {
   if (frames_.empty())
     return "finished";
