@@ -147,8 +147,9 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
       out << "SP\t" << id << '\t' << (sp.visible ? 1 : 0) << '\t' << sp.x
           << '\t' << sp.y << '\t' << sp.alpha << '\t' << sp.currentCell << '\t'
           << escapeLine(sp.spec.rawTag) << '\n';
-      if (sp.secondaryLayer)
-        out << "SPLAYER\t" << id << "\t1\n";
+      if (sp.secondaryLayer || sp.blendMode != 0)
+        out << "SPLAYER\t" << id << '\t' << (sp.secondaryLayer ? 1 : 0)
+            << '\t' << sp.blendMode << '\n';
       if (sp.spec.trans == TransMode::String) {
         out << "SPTEXT\t" << id << '\t' << sp.spec.fontWidth << '\t'
             << sp.spec.fontHeight << '\t' << sp.spec.fontSpacing << '\t'
@@ -349,11 +350,13 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       sp.spec = parseTaggedString(unescapeLine(tag), TransMode::Alpha);
       outData.sprites[id] = std::move(sp);
     } else if (kind == "SPLAYER") {
-      int id = -1, secondary = 0;
-      ls >> id >> secondary;
+      int id = -1, secondary = 0, blend = 0;
+      ls >> id >> secondary >> blend;
       const auto it = outData.sprites.find(id);
-      if (it != outData.sprites.end())
+      if (it != outData.sprites.end()) {
         it->second.secondaryLayer = secondary != 0;
+        it->second.blendMode = std::clamp(blend, 0, 2);
+      }
     } else if (kind == "SPTEXT") {
       int id = -1, width = 0, height = 0, spacing = 0, hoverFlag = 0;
       std::uint32_t color = 0xFFFFFFu, hover = 0xFFFFFFu;
