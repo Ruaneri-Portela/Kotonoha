@@ -1,0 +1,41 @@
+name: Ponscripter VM regressions
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'modules/vms/ponscripter/**'
+      - '.github/workflows/ponscripter-regressions.yml'
+  workflow_dispatch:
+
+jobs:
+  vm-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run standalone C++17 VM regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/ponscripter-tests"
+          mkdir -p "$out"
+          root=modules/vms/ponscripter
+          sources=(
+            "$root/src/PonscripterTypes.cpp"
+            "$root/src/ScriptBuffer.cpp"
+            "$root/src/VariableStore.cpp"
+            "$root/src/Lexer.cpp"
+            "$root/src/TextFormatter.cpp"
+            "$root/src/SaveSerializer.cpp"
+            "$root/src/PonscripterVm.cpp"
+            "$root/src/PonscripterCommands.cpp"
+          )
+          for test in LexerAndExpr TaggedString VmFlowAndMenu; do
+            echo "::group::Ponscripter.$test"
+            g++ -std=c++17 -O1 -Wall -Wextra -pedantic \
+              -I"$root/include" \
+              "${sources[@]}" "$root/tests/${test}Test.cpp" \
+              -o "$out/$test"
+            "$out/$test"
+            echo "::endgroup::"
+          done
