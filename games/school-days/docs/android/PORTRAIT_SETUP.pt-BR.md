@@ -252,3 +252,29 @@ Todos os **7 finais integrados de *School Days L×H*** presentes em `LxH.GPK` fo
 - **Pós-final**: Confirmado desbloqueio e abertura da tela **`REPLAY`** (`H-scene` / `Replay Data`, páginas `1–4`, `CLOSE`) no `TITLE` após conclusão dos finais, com `GlobalFlag.DAT` atualizado e `SaveFile000.DAT` pessoal do usuário rigorosamente intacto (`1210 bytes`, sem sobrescrita).
 - **Zero crashes, zero travamentos e zero ativos L×H ausentes** durante a execução consecutiva dos 7 finais no aparelho.
 - **Ferramenta DEV adicionada**: `lib/include/Kotonoha/debug/DebugOverlay.hpp` e `lib/src/debug/DebugOverlay.cpp` receberam campo `Filter nodes` em `drawRuntimeNodes()` (exclusivo de builds DEV; ausente em DIST).
+
+---
+
+## Benchmark e otimizações Android (Marco 7)
+
+### Gargalos reais identificados por profiling no POCO X7 Pro (`2712×1220`, SurfaceFlinger `120 Hz`)
+1. **JNI + Binder IPC por quadro em `Display Options` (`games/school-days/src/SchoolDaysRuntime.cpp`)**: `renderDesktopDisplayPanel()` invocava `AndroidDisplayModesUnique()` (2 chamadas JNI + `WindowManager.getDefaultDisplay().getSupportedModes()`) a cada quadro (~120×/s), elevando `SDLThread` de `42,0%` (`General Options`) para `52,3%` (`Display Options`).
+   - **Otimização**: Cache de sessão `androidDisplayModesCache` (`SchoolDaysRuntime.hpp`), preenchido uma vez em `resetDesktopDisplayDraft()` e limpo em `discardDesktopDisplayDraft()`.
+2. **Acúmulo de diretórios temporários SAF órfãos (`games/school-days/android/java/org/kotonoha/android/SchoolDaysFolder.java`)**: Encerramentos forçados/crashes deixavam diretórios `cache/sd-saf-*` indefinidamente no armazenamento interno (**19 diretórios acumulados** observados no aparelho).
+   - **Otimização**: Adicionado `pruneStaleSessions(context.getCacheDir(), session)` ao final de `prepare()`, removendo automaticamente sessões `sd-saf-*` antigas.
+3. **Retenção de texturas de gameplay ao retornar ao `TITLE` (`games/school-days/src/SchoolDaysRuntime.cpp`)**: `openTitle()` limpava `abcTextures`, mas mantinha `backgroundComposite` e o cache de texturas de `AssetProvider` (`assets->clearCache()`).
+   - **Otimização**: `openTitle()` agora libera `backgroundComposite` e chama `assets->clearCache()`.
+4. **Invalidação redundante de tamanho de fonte FreeType/SDL3_ttf (`lib/src/core/UI.cpp`)**: `UI::textSized()`, `textHeight()`, `textWidth()` e `measureSized()` chamavam `TTF_SetFontSize()` incondicionalmente (e restauravam no destrutor) mesmo quando o tamanho alvo já coincidia com o tamanho ativo da fonte.
+   - **Otimização**: Comparação de tolerância (`std::abs(targetSize - oldSize) > 0.01f`) antes de chamar/restaurar `TTF_SetFontSize()`.
+
+### Medições comparativas ANTES vs DEPOIS (POCO X7 Pro, Android DEV, PT-BR GPK)
+| Métrica | ANTES | DEPOIS | Delta / Observação |
+|---|---|---|---|
+| Diretórios `cache/sd-saf-*` no aparelho | `19` | **`1`** | **-18 sessões órfãs (-94,7%)**, limpeza automática no launch |
+| Chamadas JNI/Binder `AndroidDisplayModesUnique()` em `Display Options` | ~120×/s (toda renderização) | **1× por abertura da aba** | **-100% IPC por quadro** |
+| CPU média `SDLThread` em `Display Options` (`120 Hz`, `top -H`) | `52,3%` (`51,8 / 52,0 / 53,0%`) | **`46,1%`** (`44,4 / 45,0 / 45,0 / 50,0%`) | **-6,2 pp (-11,9% relativo)** sem alterar visual (`1.341.866 B` idêntico) |
+| Memória em gameplay ativo (`dumpsys meminfo`) | `TOTAL PSS 692.951 KB` / `GL mtrack 187.008 KB` | `TOTAL PSS 718.461 KB` / `GL mtrack 189.648 KB` | Estável (sem regressão) |
+| Memória no `TITLE` após retorno (`openTitle`) | `GL mtrack 371.888 KB` / `TOTAL PSS 1.017.758 KB` (pós-7 finais acumulados) | `GL mtrack 207.904 KB` / `TOTAL PSS 726.585 KB` (pós-retorno de gameplay) | Cache de cena liberado no retorno ao `TITLE` |
+| Ciclo de vida em background (suspensão/tela apagada) | SDL3 bloqueia `SDLThread` e pausa áudio nativamente (`SDL_HINT_ANDROID_BLOCK_ON_PAUSE`) | Preservado + flush atômico de `Config.DAT` em `SDL_EVENT_WILL_ENTER_BACKGROUND` | Sem drift de relógio narrativo (verificado `93.46s → 93.65s` após 25 s suspenso) |
+
+> **Nota técnica honesta**: O baseline de ~40–45% em `SDLThread` nos menus estáticos ocorre quando o limite de FPS do launcher está em `Ilimitado (Hz da tela)`, pois o SurfaceFlinger do POCO X7 Pro opera a `120 Hz` (`8,33 ms/quadro`) executando composição completa de `novelTarget` 120×/s. Selecionar `60 FPS` ou `30 FPS` no launcher reduz a cadência de renderização preservando integralmente o clock narrativo e de vídeo em `24 fps`.

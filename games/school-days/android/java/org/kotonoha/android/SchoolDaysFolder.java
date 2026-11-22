@@ -261,10 +261,23 @@ final class SchoolDaysFolder {
                 copyTree(source, treeUri, overlayDir, stagedOverlay, MAX_STAGED_OVERLAY_BYTES, 0);
             }
 
+            pruneStaleSessions(context.getCacheDir(), session);
             return session;
         } catch (IOException | RuntimeException | JSONException failure) {
             discard(session);
             throw new IOException("Cannot prepare selected resources", failure);
+        }
+    }
+
+    static void pruneStaleSessions(File cacheDir, File keep) {
+        if (cacheDir == null || !cacheDir.isDirectory()) return;
+        File[] entries = cacheDir.listFiles();
+        if (entries == null) return;
+        for (File entry : entries) {
+            if (entry == null || entry.equals(keep)) continue;
+            if (entry.getName().startsWith("sd-saf-") && entry.isDirectory()) {
+                discard(entry);
+            }
         }
     }
 
