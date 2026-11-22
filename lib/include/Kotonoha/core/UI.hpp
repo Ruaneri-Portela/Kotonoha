@@ -35,6 +35,7 @@ class UI {
 
 public:
   explicit UI(const std::string &fontPath = {});
+  explicit UI(std::vector<uint8_t> fontBytes);
   ~UI();
   UI(const UI &) = delete;
   UI &operator=(const UI &) = delete;
