@@ -28,6 +28,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 
 namespace N2System {
 
@@ -957,6 +958,9 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
       if (tex) {
         float tw = vpW, th = vpH;
         SDL_GetTextureSize(tex, &tw, &th);
+        Uint8 oldR = 255, oldG = 255, oldB = 255, oldAlpha = 255;
+        SDL_GetTextureColorMod(tex, &oldR, &oldG, &oldB);
+        SDL_GetTextureAlphaMod(tex, &oldAlpha);
         SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
         SDL_SetTextureAlphaMod(tex, alpha);
         const Uint8 cr =
@@ -987,7 +991,9 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
         } else {
           Kotonoha::RenderUpscaledTexture(&renderer, tex, srcPtr, &dst);
         }
-        SDL_SetTextureColorMod(tex, 255, 255, 255);
+        // Shared provider textures are reused by other entities and menus.
+        SDL_SetTextureColorMod(tex, oldR, oldG, oldB);
+        SDL_SetTextureAlphaMod(tex, oldAlpha);
       } else if (!isNsbActive()) {
         SDL_FRect rect{drawX, drawY, vpW, vpH};
         SDL_SetRenderDrawColor(&renderer, 30, 36, 48, alpha);
@@ -1085,8 +1091,9 @@ bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
 
   // Looping background movies (notably the title/menu video) must never
   // swallow the menu's choice input or be dismissed as skippable cutscenes.
-  if (isNsbActive() && impl_->nsbVm->activeMovie().active &&
-      !impl_->nsbVm->activeMovie().loop) {
+  if (isNsbActive() && Kotonoha::VideoSkipGesture::capturesInput(
+                           impl_->nsbVm->activeMovie().active,
+                           impl_->nsbVm->activeMovie().loop)) {
     // Guard the movie wait even before the decoder opens. Otherwise an early
     // single click can advance the NSB VM while the first frame is loading.
     if (impl_->videoSkip.accept(rawEvent)) {
