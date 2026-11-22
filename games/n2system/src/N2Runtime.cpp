@@ -115,16 +115,20 @@ struct N2Runtime::Impl {
       return it->second.get();
     auto source = assets.loadSurface(path);
     if (!source)
-      return nullptr;
+      return &assets.texture(renderer, path);
     Kotonoha::SurfacePtr rgba(
         SDL_ConvertSurface(source.get(), SDL_PIXELFORMAT_RGBA32));
+    // Avoid blocking the render thread with many 3x3 blur passes over a
+    // giant background; retaining the original image is preferable to a
+    // blank frame if a portable effect exceeds the preparation budget.
     if (!rgba || rgba->w <= 0 || rgba->h <= 0 ||
-        std::uint64_t(rgba->w) * std::uint64_t(rgba->h) > 2048u * 2048u)
-      return nullptr;
+        std::uint64_t(rgba->w) * std::uint64_t(rgba->h) >
+            (blur ? 1024u * 1024u : 2048u * 2048u))
+      return &assets.texture(renderer, path);
     const std::size_t stride = std::size_t(rgba->w) * 4;
     std::vector<uint8_t> pixels(stride * std::size_t(rgba->h));
     if (!SDL_LockSurface(rgba.get()))
-      return nullptr;
+      return &assets.texture(renderer, path);
     for (int row = 0; row < rgba->h; ++row)
       std::memcpy(pixels.data() + row * stride,
                   static_cast<const uint8_t *>(rgba->pixels) +
@@ -134,10 +138,10 @@ struct N2Runtime::Impl {
     if (monochrome)
       grayscaleRgba(pixels);
     if (blur && !boxBlurRgba(pixels, rgba->w, rgba->h, blur))
-      return nullptr;
+      return &assets.texture(renderer, path);
 
     if (!SDL_LockSurface(rgba.get()))
-      return nullptr;
+      return &assets.texture(renderer, path);
     for (int row = 0; row < rgba->h; ++row)
       std::memcpy(static_cast<uint8_t *>(rgba->pixels) +
                       std::size_t(row) * rgba->pitch,
@@ -147,8 +151,10 @@ struct N2Runtime::Impl {
     Kotonoha::TexturePtr texture(
         SDL_CreateTextureFromSurface(&renderer, rgba.get()));
     if (!texture)
-      return nullptr;
+      return &assets.texture(renderer, path);
     SDL_SetTextureBlendMode(texture.get(), SDL_BLENDMODE_BLEND);
+    if (effectTextures.size() >= 256)
+      effectTextures.clear(); // Drop old renderer textures, never the provider.
     auto *result = texture.get();
     effectTextures.emplace(key, std::move(texture));
     return result;
