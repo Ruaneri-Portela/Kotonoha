@@ -1762,6 +1762,7 @@ struct LucaSystemRuntime::Impl {
   std::vector<ScriptInstruction> instructions;
   size_t instructionIndex = 0;
   std::unordered_map<uint32_t, CzImage> objectImages;
+  std::unordered_map<uint32_t, bool> objectHasTransparency;
   std::unordered_map<uint32_t, Kotonoha::TexturePtr> objectTextures;
   CzImage background;
   Kotonoha::TexturePtr backgroundTexture;
@@ -2418,6 +2419,7 @@ struct LucaSystemRuntime::Impl {
       if (!image.rgba.empty())
         Kotonoha::prepareStraightAlphaForLinearFiltering(
             image.rgba.data(), image.width, image.height, image.width * 4);
+      objectHasTransparency[id] = hasNonOpaquePixels(image.rgba);
       objectImages[id] = std::move(image);
       objectTextures[id].reset();
     } catch (const std::exception &e) {
@@ -2631,12 +2633,14 @@ struct LucaSystemRuntime::Impl {
       sourcePtr = &source;
       dst.w = visibleWidth;
     }
-    // Upscalers are intended for flat background art; running an image
-    // enhancement filter on transparent CHARCG portraits may distort edges,
-    // hair strands and the sprite's original alpha silhouette.
-    const bool characterSprite = slot.group == 2 || slot.group == 3;
+    // Only fully opaque backgrounds can safely use image upscalers. CZ4
+    // windows, masks and other cropped overlays may be transparent even when
+    // they live outside the portrait groups; preserve their original alpha.
+    const auto transparency = objectHasTransparency.find(slot.assetId);
+    const bool nativeSprite = slot.group == 2 || slot.group == 3 ||
+        (transparency != objectHasTransparency.end() && transparency->second);
     if (slot.rotation != 0.0f) {
-      if (characterSprite)
+      if (nativeSprite)
         SDL_RenderTextureRotated(&renderer, tex.get(), sourcePtr, &dst,
                                  double(slot.rotation), nullptr, SDL_FLIP_NONE);
       else
@@ -2644,7 +2648,7 @@ struct LucaSystemRuntime::Impl {
             &renderer, tex.get(), sourcePtr, &dst, double(slot.rotation),
             nullptr, SDL_FLIP_NONE);
     } else {
-      if (characterSprite)
+      if (nativeSprite)
         SDL_RenderTexture(&renderer, tex.get(), sourcePtr, &dst);
       else
         Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), sourcePtr, &dst);
@@ -2727,8 +2731,8 @@ struct LucaSystemRuntime::Impl {
           static_cast<Uint8>(std::lround(badgeAlpha * float(originalAlpha))));
       // CZ4 stores a 192x200 crop at x=8 in its 200x200 canvas.
       const SDL_FRect position{5.33f, 0.0f, 128.0f, 133.33f};
-      Kotonoha::RenderUpscaledTexture(&renderer, &calendar, nullptr,
-                                       &position);
+      // The badge is native transparent UI art; never run an image upscaler.
+      SDL_RenderTexture(&renderer, &calendar, nullptr, &position);
       SDL_SetTextureAlphaMod(&calendar, originalAlpha);
     } catch (const std::exception &error) {
       SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
