@@ -33,8 +33,6 @@ class FetchAssetProvider final
     std::uint64_t start = 0;
     std::uint64_t length = 0;
     bool full = false;
-    bool discovery = false;
-    bool lowercaseAttempt = false;
   };
   std::string base_;
   std::map<std::string, FileInfo> nodes_;
@@ -46,8 +44,6 @@ class FetchAssetProvider final
   std::size_t completed_ = 0, failures_ = 0, requestedCount_ = 0;
   std::size_t budget_ = static_cast<std::size_t>(KOTONOHA_WASM_FETCH_CACHE_MIB) << 20;
   bool started_ = false;
-  bool discover_ = false;
-  bool manifestIndex_ = false;
 
   FetchAssetProvider(std::string base, std::size_t budget);
   void enqueue(Job job);

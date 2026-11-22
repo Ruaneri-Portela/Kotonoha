@@ -218,8 +218,7 @@ FetchAssetProvider::slot(std::string_view id) const {
 
 void FetchAssetProvider::enqueue(Job job) {
   const auto dedup = job.key + ":" + std::to_string(job.start) + ":" +
-                     std::to_string(job.length) +
-                     (job.lowercaseAttempt ? ":lower" : ":exact");
+                     std::to_string(job.length);
   if (requested_.insert(dedup).second) {
     ++requestedCount_;
     queued_.push_back(std::move(job));
@@ -517,8 +516,6 @@ struct FetchContext {
   std::string path;
   std::uint64_t start, length;
   bool full;
-  bool discovery;
-  bool lowercaseAttempt;
   std::string range;
   std::array<const char *, 3> headers{};
 };
@@ -545,14 +542,11 @@ void FetchAssetProvider::pump() {
       auto job = std::move(queued_.front());
       queued_.pop_front();
       auto *ctx =
-          new FetchContext{shared_from_this(),   job.key,  job.start,
-                           job.length,           job.full, job.discovery,
-                           job.lowercaseAttempt, {},       {}};
+          new FetchContext{shared_from_this(), job.key, job.start,
+                           job.length, job.full, {}, {}};
       const auto &file = files_.at(job.key);
-      const auto &remotePath = job.discovery && job.lowercaseAttempt
-                                   ? lookupKey(file->remotePath)
-                               : file->remotePath.empty() ? file->info.path
-                                                          : file->remotePath;
+      const auto &remotePath = file->remotePath.empty()
+                                   ? file->info.path : file->remotePath;
       const std::string url = base_ + encodePath(remotePath);
       const auto fileSize = file->info.size;
       ++active_;
@@ -563,18 +557,16 @@ void FetchAssetProvider::pump() {
             const ctx = $0;
             const url = UTF8ToString($1);
             const path = UTF8ToString($2);
-            const remotePath = UTF8ToString($11);
+            const remotePath = path;
             const start = ($3 >>> 0) + ($4 >>> 0) * 4294967296;
             const length = ($5 >>> 0) + ($6 >>> 0) * 4294967296;
             const full = !!$7;
-            const discovery = !!$8;
-            const fileSize = ($9 >>> 0) + ($10 >>> 0) * 4294967296;
+            const fileSize = ($8 >>> 0) + ($9 >>> 0) * 4294967296;
             let delivered = false;
             Promise.resolve()
                 .then(function() {
                   return window.KotonohaAssetCache.fetchJob(
-                      {url, path, remotePath, start, length, full, discovery,
-                       fileSize});
+                      {url, path, remotePath, start, length, full, fileSize});
                 })
                 .then(function(result) {
                   const bytes = result.bytes || new Uint8Array(0);
@@ -624,25 +616,22 @@ void FetchAssetProvider::pump() {
           static_cast<std::uint32_t>(job.start >> 32),
           static_cast<std::uint32_t>(job.length),
           static_cast<std::uint32_t>(job.length >> 32),
-          static_cast<int>(job.full), static_cast<int>(job.discovery),
+          static_cast<int>(job.full),
           static_cast<std::uint32_t>(static_cast<std::uint64_t>(fileSize)),
           static_cast<std::uint32_t>(static_cast<std::uint64_t>(fileSize) >>
-                                     32),
-          remotePath.c_str());
+                                     32));
     }
     return;
   }
   while (active_ < 4 && !queued_.empty()) {
     auto job = std::move(queued_.front());
     queued_.pop_front();
-    auto *ctx = new FetchContext{shared_from_this(),   job.key,  job.start,
-                                 job.length,           job.full, job.discovery,
-                                 job.lowercaseAttempt, {},       {}};
+    auto *ctx = new FetchContext{shared_from_this(), job.key, job.start,
+                                 job.length, job.full, {}, {}};
     const auto &file = files_.at(job.key);
     emscripten_fetch_attr_t attr;
     emscripten_fetch_attr_init(&attr);
-    const bool head = job.discovery && job.full;
-    std::memcpy(attr.requestMethod, head ? "HEAD" : "GET", head ? 5 : 4);
+    std::memcpy(attr.requestMethod, "GET", 4);
     attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
     attr.timeoutMSecs = 30000;
     if (!job.full) {
@@ -679,8 +668,7 @@ void FetchAssetProvider::pump() {
           emscripten_fetch_get_response_headers(fetch, headers.data(),
                                                 headers.size());
         }
-        provider->complete(Job{ctx->path, ctx->start, ctx->length, ctx->full,
-                               ctx->discovery, ctx->lowercaseAttempt},
+        provider->complete(Job{ctx->path, ctx->start, ctx->length, ctx->full},
                            fetch->status, fetch->data, fetch->numBytes,
                            headers);
       } catch (const std::exception &error) {
@@ -698,7 +686,7 @@ void FetchAssetProvider::pump() {
       // eligible for a new request on the next read of that offset.
       provider->requested_.erase(ctx->path + ":" + std::to_string(ctx->start) +
                                  ":" + std::to_string(ctx->length) +
-                                 (ctx->lowercaseAttempt ? ":lower" : ":exact"));
+                                 );
       const auto it = provider->files_.find(ctx->path);
       ++provider->completed_;
       if (it != provider->files_.end() && it->second->failed) {
@@ -724,11 +712,8 @@ void FetchAssetProvider::pump() {
     };
     attr.onsuccess = finish;
     attr.onerror = finish;
-    const auto url =
-        base_ + encodePath(job.discovery && job.lowercaseAttempt
-                               ? lookupKey(file->remotePath)
-                           : file->remotePath.empty() ? file->info.path
-                                                      : file->remotePath);
+    const auto url = base_ + encodePath(
+        file->remotePath.empty() ? file->info.path : file->remotePath);
     ++active_;
     if (!emscripten_fetch(&attr, url.c_str())) {
       --active_;
@@ -751,8 +736,7 @@ void FetchAssetProvider::completeBrowserJob(
     return;
   auto provider = ctx->provider;
   try {
-    provider->complete(Job{ctx->path, ctx->start, ctx->length, ctx->full,
-                           ctx->discovery, ctx->lowercaseAttempt},
+    provider->complete(Job{ctx->path, ctx->start, ctx->length, ctx->full},
                        status, body, count, headers);
   } catch (const std::exception &error) {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
@@ -777,7 +761,7 @@ void FetchAssetProvider::completeBrowserJob(
   }
   provider->requested_.erase(ctx->path + ":" + std::to_string(ctx->start) +
                              ":" + std::to_string(ctx->length) +
-                             (ctx->lowercaseAttempt ? ":lower" : ":exact"));
+                             );
   ++provider->completed_;
   const auto found = provider->files_.find(ctx->path);
   if (found != provider->files_.end() && found->second->failed) {
