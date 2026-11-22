@@ -137,6 +137,21 @@ int main() {
 
     const auto beforeSave = vm.saveState();
     require(!beforeSave.runtimeBlob.empty(), "Runtime snapshot must be present");
+    const auto jsonSave = N2System::SaveStateCodec::serializeJson(beforeSave);
+    N2System::SaveData fromJson;
+    require(N2System::SaveStateCodec::deserializeJson(jsonSave, fromJson),
+            "JSON save must parse valid generated data");
+    require(fromJson.runtimeBlob == beforeSave.runtimeBlob &&
+                fromJson.integers == beforeSave.integers &&
+                fromJson.strings == beforeSave.strings &&
+                fromJson.backlog.size() == beforeSave.backlog.size(),
+            "JSON debug save must round-trip full VM state and backlog");
+    N2System::SaveData malformed;
+    malformed.chapterName = "do not overwrite";
+    require(!N2System::SaveStateCodec::deserializeJson(
+                R"({"chapter":"ok","strings":{"bad":"\\q"}})", malformed) &&
+                malformed.chapterName == "do not overwrite",
+            "Malformed JSON escapes must fail without modifying output");
     const auto saveBytes = N2System::SaveStateCodec::serializeBinary(beforeSave);
     N2System::SaveData parsed;
     require(N2System::SaveStateCodec::deserializeBinary(saveBytes, parsed),
