@@ -1204,10 +1204,146 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     return ui;
   };
 
+  // Retained manual drawing commands operate on an independent framebuffer.
+  // The VM publishes them only on draw; drafts do not appear before commit.
+  // Replaying the immutable snapshot uses GPU textures and the shared UI font.
+  auto renderManualFrame = [&](const std::vector<ManualDrawOp> &ops,
+                               bool clearCanvas) {
+    if (clearCanvas) {
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+      SDL_RenderClear(&renderer);
+    }
+    for (const ManualDrawOp &op : ops) {
+      if (op.kind == ManualDrawOp::Kind::Clear ||
+          op.kind == ManualDrawOp::Kind::Fill) {
+        const SDL_Color color = rgb24ToSdl(op.colorRgb);
+        SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, 255);
+        SDL_RenderClear(&renderer);
+        continue;
+      }
+      if (op.kind == ManualDrawOp::Kind::Text) {
+        if (op.text.empty())
+          continue;
+        pickFont(false).textSized(
+            renderer, impl_->translateLine(op.text),
+            static_cast<float>(op.x), static_cast<float>(op.y),
+            static_cast<float>(std::max(1, op.width)),
+            static_cast<float>(std::max(1, op.height)),
+            rgb24ToSdl(op.colorRgb, 255));
+        continue;
+      }
+
+      const bool background = op.kind == ManualDrawOp::Kind::Background;
+      if (op.spec.trans == TransMode::DirectColor) {
+        const SDL_Color color = rgb24ToSdl(op.spec.color);
+        SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b,
+                               static_cast<Uint8>(op.alpha));
+        SDL_FRect rect{static_cast<float>(op.x), static_cast<float>(op.y),
+                       background ? viewW : static_cast<float>(op.width),
+                       background ? viewH : static_cast<float>(op.height)};
+        SDL_RenderFillRect(&renderer, &rect);
+        continue;
+      }
+      if (op.spec.trans == TransMode::String) {
+        if (op.spec.text.empty())
+          continue;
+        pickFont(false).textSized(
+            renderer, impl_->translateLine(op.spec.text),
+            static_cast<float>(op.x), static_cast<float>(op.y),
+            static_cast<float>(std::max(1, op.width > 0 ? op.width : 2000)),
+            static_cast<float>(std::max(1, op.spec.fontHeight)),
+            rgb24ToSdl(op.spec.color, static_cast<Uint8>(op.alpha)));
+        continue;
+      }
+      if (op.spec.imagePath.empty())
+        continue;
+      SDL_Texture *texture = impl_->getOrLoadTexture(renderer, op.spec);
+      if (!texture)
+        continue;
+      SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+      SDL_SetTextureAlphaMod(texture, static_cast<Uint8>(op.alpha));
+      float textureW = 0.0f, textureH = 0.0f;
+      SDL_GetTextureSize(texture, &textureW, &textureH);
+      const auto *processed = impl_->getProcessedImage(op.spec);
+      const float logicalW =
+          processed ? static_cast<float>(processed->width) : textureW;
+      const float logicalH =
+          processed ? static_cast<float>(processed->height) : textureH;
+      const int cells = background ? 1 : std::max(1, op.spec.numCells);
+      const float cellW = textureW / cells;
+      const float logicalCellW = logicalW / cells;
+      const int cell = std::clamp(op.cell, 0, cells - 1);
+      SDL_FRect source{cell * cellW, 0.0f, cellW, textureH};
+      if (op.kind == ManualDrawOp::Kind::Blit) {
+        source = SDL_FRect{static_cast<float>(op.srcX),
+                           static_cast<float>(op.srcY),
+                           static_cast<float>(op.srcW),
+                           static_cast<float>(op.srcH)};
+      }
+      float width = background ? viewW : logicalCellW;
+      float height = background ? viewH : logicalH;
+      if (op.kind == ManualDrawOp::Kind::Blit) {
+        width = static_cast<float>(op.width);
+        height = static_cast<float>(op.height);
+      }
+      if (op.affine) {
+        const float halfW = width * 0.5f, halfH = height * 0.5f;
+        const SDL_FPoint corners[] = {{-halfW, -halfH}, {halfW, -halfH},
+                                      {halfW, halfH}, {-halfW, halfH}};
+        const float matrixA = op.transformA / 1000.0f;
+        const float matrixB = op.transformB / 1000.0f;
+        const float matrixC = op.transformC / 1000.0f;
+        const float matrixD = op.transformD / 1000.0f;
+        const float left = source.x / textureW;
+        const float right = (source.x + source.w) / textureW;
+        const float top = source.y / textureH;
+        const float bottom = (source.y + source.h) / textureH;
+        const SDL_FPoint uvs[] = {{left, top}, {right, top},
+                                  {right, bottom}, {left, bottom}};
+        SDL_Vertex vertices[4]{};
+        for (int i = 0; i < 4; ++i) {
+          vertices[i].position = SDL_FPoint{
+              static_cast<float>(op.x) + corners[i].x * matrixA +
+                  corners[i].y * matrixB,
+              static_cast<float>(op.y) + corners[i].x * matrixC +
+                  corners[i].y * matrixD};
+          vertices[i].tex_coord = uvs[i];
+          vertices[i].color = SDL_FColor{1.0f, 1.0f, 1.0f, 1.0f};
+        }
+        const int indices[] = {0, 1, 2, 0, 2, 3};
+        SDL_SetTextureAlphaMod(texture, 255);
+        for (auto &vertex : vertices)
+          vertex.color.a = static_cast<float>(op.alpha) / 255.0f;
+        SDL_RenderGeometry(&renderer, texture, vertices, 4, indices, 6);
+      } else {
+        width *= std::abs(op.scaleX) / 100.0f;
+        height *= std::abs(op.scaleY) / 100.0f;
+        if (width < 0.01f || height < 0.01f)
+          continue;
+        SDL_FRect dest{static_cast<float>(op.x), static_cast<float>(op.y),
+                       width, height};
+        if (op.rotation != 0 || op.scaleX < 0 || op.scaleY < 0) {
+          const SDL_FlipMode flip = static_cast<SDL_FlipMode>(
+              (op.scaleX < 0 ? SDL_FLIP_HORIZONTAL : 0) |
+              (op.scaleY < 0 ? SDL_FLIP_VERTICAL : 0));
+          SDL_RenderTextureRotated(&renderer, texture, &source, &dest,
+                                   static_cast<double>(op.rotation), nullptr,
+                                   flip);
+        } else {
+          SDL_RenderTexture(&renderer, texture, &source, &dest);
+        }
+      }
+    }
+  };
+
   auto renderSceneContents = [&]() {
     // 1. Background layer (`bg`)
     const auto &bg = vm_.background();
-    if (bg.trans == TransMode::DirectColor) {
+    if (!vm_.backgroundCopyOps().empty()) {
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+      SDL_RenderClear(&renderer);
+      renderManualFrame(vm_.backgroundCopyOps(), false);
+    } else if (bg.trans == TransMode::DirectColor) {
       const SDL_Color c = rgb24ToSdl(bg.color);
       SDL_SetRenderDrawColor(&renderer, c.r, c.g, c.b, 255);
       SDL_RenderClear(&renderer);
@@ -1560,135 +1696,6 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     }
   };
 
-  // Retained manual drawing commands operate on an independent framebuffer.
-  // The VM publishes them only on draw; drafts do not appear before commit.
-  // Replaying the immutable snapshot uses GPU textures and the shared UI font.
-  auto renderManualFrame = [&]() {
-    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
-    SDL_RenderClear(&renderer);
-    for (const ManualDrawOp &op : vm_.manualDrawFrame()) {
-      if (op.kind == ManualDrawOp::Kind::Clear ||
-          op.kind == ManualDrawOp::Kind::Fill) {
-        const SDL_Color color = rgb24ToSdl(op.colorRgb);
-        SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b, 255);
-        SDL_RenderClear(&renderer);
-        continue;
-      }
-      if (op.kind == ManualDrawOp::Kind::Text) {
-        if (op.text.empty())
-          continue;
-        pickFont(false).textSized(
-            renderer, impl_->translateLine(op.text),
-            static_cast<float>(op.x), static_cast<float>(op.y),
-            static_cast<float>(std::max(1, op.width)),
-            static_cast<float>(std::max(1, op.height)),
-            rgb24ToSdl(op.colorRgb, 255));
-        continue;
-      }
-
-      const bool background = op.kind == ManualDrawOp::Kind::Background;
-      if (op.spec.trans == TransMode::DirectColor) {
-        const SDL_Color color = rgb24ToSdl(op.spec.color);
-        SDL_SetRenderDrawColor(&renderer, color.r, color.g, color.b,
-                               static_cast<Uint8>(op.alpha));
-        SDL_FRect rect{static_cast<float>(op.x), static_cast<float>(op.y),
-                       background ? viewW : static_cast<float>(op.width),
-                       background ? viewH : static_cast<float>(op.height)};
-        SDL_RenderFillRect(&renderer, &rect);
-        continue;
-      }
-      if (op.spec.trans == TransMode::String) {
-        if (op.spec.text.empty())
-          continue;
-        pickFont(false).textSized(
-            renderer, impl_->translateLine(op.spec.text),
-            static_cast<float>(op.x), static_cast<float>(op.y),
-            static_cast<float>(std::max(1, op.width > 0 ? op.width : 2000)),
-            static_cast<float>(std::max(1, op.spec.fontHeight)),
-            rgb24ToSdl(op.spec.color, static_cast<Uint8>(op.alpha)));
-        continue;
-      }
-      if (op.spec.imagePath.empty())
-        continue;
-      SDL_Texture *texture = impl_->getOrLoadTexture(renderer, op.spec);
-      if (!texture)
-        continue;
-      SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
-      SDL_SetTextureAlphaMod(texture, static_cast<Uint8>(op.alpha));
-      float textureW = 0.0f, textureH = 0.0f;
-      SDL_GetTextureSize(texture, &textureW, &textureH);
-      const auto *processed = impl_->getProcessedImage(op.spec);
-      const float logicalW =
-          processed ? static_cast<float>(processed->width) : textureW;
-      const float logicalH =
-          processed ? static_cast<float>(processed->height) : textureH;
-      const int cells = background ? 1 : std::max(1, op.spec.numCells);
-      const float cellW = textureW / cells;
-      const float logicalCellW = logicalW / cells;
-      const int cell = std::clamp(op.cell, 0, cells - 1);
-      SDL_FRect source{cell * cellW, 0.0f, cellW, textureH};
-      if (op.kind == ManualDrawOp::Kind::Blit) {
-        source = SDL_FRect{static_cast<float>(op.srcX),
-                           static_cast<float>(op.srcY),
-                           static_cast<float>(op.srcW),
-                           static_cast<float>(op.srcH)};
-      }
-      float width = background ? viewW : logicalCellW;
-      float height = background ? viewH : logicalH;
-      if (op.kind == ManualDrawOp::Kind::Blit) {
-        width = static_cast<float>(op.width);
-        height = static_cast<float>(op.height);
-      }
-      if (op.affine) {
-        const float halfW = width * 0.5f, halfH = height * 0.5f;
-        const SDL_FPoint corners[] = {{-halfW, -halfH}, {halfW, -halfH},
-                                      {halfW, halfH}, {-halfW, halfH}};
-        const float matrixA = op.transformA / 1000.0f;
-        const float matrixB = op.transformB / 1000.0f;
-        const float matrixC = op.transformC / 1000.0f;
-        const float matrixD = op.transformD / 1000.0f;
-        const float left = source.x / textureW;
-        const float right = (source.x + source.w) / textureW;
-        const float top = source.y / textureH;
-        const float bottom = (source.y + source.h) / textureH;
-        const SDL_FPoint uvs[] = {{left, top}, {right, top},
-                                  {right, bottom}, {left, bottom}};
-        SDL_Vertex vertices[4]{};
-        for (int i = 0; i < 4; ++i) {
-          vertices[i].position = SDL_FPoint{
-              static_cast<float>(op.x) + corners[i].x * matrixA +
-                  corners[i].y * matrixB,
-              static_cast<float>(op.y) + corners[i].x * matrixC +
-                  corners[i].y * matrixD};
-          vertices[i].tex_coord = uvs[i];
-          vertices[i].color = SDL_FColor{1.0f, 1.0f, 1.0f, 1.0f};
-        }
-        const int indices[] = {0, 1, 2, 0, 2, 3};
-        SDL_SetTextureAlphaMod(texture, 255);
-        for (auto &vertex : vertices)
-          vertex.color.a = static_cast<float>(op.alpha) / 255.0f;
-        SDL_RenderGeometry(&renderer, texture, vertices, 4, indices, 6);
-      } else {
-        width *= std::abs(op.scaleX) / 100.0f;
-        height *= std::abs(op.scaleY) / 100.0f;
-        if (width < 0.01f || height < 0.01f)
-          continue;
-        SDL_FRect dest{static_cast<float>(op.x), static_cast<float>(op.y),
-                       width, height};
-        if (op.rotation != 0 || op.scaleX < 0 || op.scaleY < 0) {
-          const SDL_FlipMode flip = static_cast<SDL_FlipMode>(
-              (op.scaleX < 0 ? SDL_FLIP_HORIZONTAL : 0) |
-              (op.scaleY < 0 ? SDL_FLIP_VERTICAL : 0));
-          SDL_RenderTextureRotated(&renderer, texture, &source, &dest,
-                                   static_cast<double>(op.rotation), nullptr,
-                                   flip);
-        } else {
-          SDL_RenderTexture(&renderer, texture, &source, &dest);
-        }
-      }
-    }
-  };
-
   // Apply a short-lived directional screen shake to the game layers only.
   // Native modal overlays retain stable input coordinates and do not shake.
   const auto shake = vm_.quakeOffset();
@@ -1703,7 +1710,7 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
   }
 
   if (vm_.hasManualDrawFrame())
-    renderManualFrame();
+    renderManualFrame(vm_.manualDrawFrame(), true);
   else
     renderSceneContents();
 
