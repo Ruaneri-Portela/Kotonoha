@@ -1,5 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <LucaSystem/GpuSceneComposition.hpp>
+#include <LucaSystem/SceneLayers.hpp>
+#include <map>
 #include <SDL3/SDL.h>
 
 #include <cmath>
@@ -105,6 +107,45 @@ void test() {
   pixel(*renderer, 52, 16, 255, 0, 0);
   pixel(*renderer, 6, 16, 0, 0, 0);
   pixel(*renderer, 57, 16, 0, 0, 0);
+
+  // The seen170 regression: transparent foreground holes must reveal the
+  // prior exterior, not the framebuffer's black clear after INIT + DRAW.
+  struct SceneSlot {
+    std::uint8_t group = 0, slot = 0;
+    std::uint32_t assetId = 0;
+  };
+  std::map<std::uint16_t, SceneSlot> previous{{0, {0, 0, 100}}};
+  std::map<std::uint16_t, SceneSlot> current{{0, {0, 0, 200}}};
+  require(LucaSystem::retainAirBackdrop(
+              current, previous, [](const SceneSlot &slot) {
+                return slot.assetId == 100;
+              }),
+          "Keep original opaque scene underneath alpha-cutout foreground");
+  std::uint8_t cutoutPixels[4 * 4 * 4]{};
+  for (int p = 0; p < 16; ++p) {
+    cutoutPixels[p * 4] = 240;
+    cutoutPixels[p * 4 + 1] = 60;
+    cutoutPixels[p * 4 + 2] = 30;
+    cutoutPixels[p * 4 + 3] =
+        ((p / 4 == 1 || p / 4 == 2) &&
+         (p % 4 == 1 || p % 4 == 2)) ? 0 : 255;
+  }
+  SDL_Texture *frameCutout = LucaSystem::uploadAirStaticRgba(
+      *renderer, 4, 4, cutoutPixels, 16, SDL_SCALEMODE_NEAREST);
+  require(frameCutout != nullptr, "Create alpha-cutout foreground image");
+  require(SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255) &&
+              SDL_RenderClear(renderer), "Start on black backbuffer");
+  const SDL_FRect doorArea{8, 4, 48, 24};
+  for (const auto key : LucaSystem::orderedAirLayerKeys(current)) {
+    if (current.at(key).assetId == 100)
+      paint(*renderer, 25, 120, 70);
+    else if (current.at(key).assetId == 200)
+      require(SDL_RenderTexture(renderer, frameCutout, nullptr, &doorArea),
+              "Render CZ4-shaped transparent foreground above old background");
+  }
+  pixel(*renderer, 32, 16, 25, 120, 70);
+  pixel(*renderer, 10, 7, 240, 60, 30);
+  SDL_DestroyTexture(frameCutout);
 
   SDL_DestroyTexture(incoming);
   SDL_DestroyRenderer(renderer);
