@@ -36,6 +36,10 @@ void PonscripterVm::clear() {
   pageLineKeys_.clear();
   pagePlainText_.clear();
   backlog_.clear();
+  pretextGosubLabel_.clear();
+  textGosubLabel_.clear();
+  pendingPretextPc_ = ScriptBuffer::npos;
+  textGosubPagePending_ = false;
   selectOptions_.clear();
   cselOptions_.clear();
   selectionMode_ = SelectionMode::Jump;
@@ -89,6 +93,8 @@ void PonscripterVm::resetToStart() {
   activeBgm_.clear();
   activeBgmLoop_ = false;
   loopingWaves_.clear();
+  pendingPretextPc_ = ScriptBuffer::npos;
+  textGosubPagePending_ = false;
   callStack_.clear();
   forStack_.clear();
   selectOptions_.clear();
@@ -270,6 +276,20 @@ void PonscripterVm::executeTextLine(std::string_view rawLine,
     waitElapsedMs_ = 0.0;
     waitSkippable_ = formatted.inlineDelaySkippable;
   }
+
+  // textgosub substitutes the click/page wait with a script callback.
+  // The callback can supply its own wait and invoke texec before return.
+  if (!textGosubLabel_.empty() && script_.hasLabel(textGosubLabel_) &&
+      (waitState_ == WaitState::WaitClickInline ||
+       waitState_ == WaitState::WaitClickPage)) {
+    textGosubPagePending_ = (waitState_ == WaitState::WaitClickPage);
+    CallStackEntry frame;
+    frame.returnStatementIndex = pc_;
+    frame.targetLabel = textGosubLabel_;
+    callStack_.push_back(std::move(frame));
+    waitState_ = WaitState::Running;
+    jumpToLabel(textGosubLabel_);
+  }
 }
 
 void PonscripterVm::captureCallArguments(LineLexer &lexer,
@@ -335,6 +355,18 @@ void PonscripterVm::executeStatement(const StatementSlice &stmt) {
     return;
   }
   if (stmt.isText) {
+    if (!pretextGosubLabel_.empty() && script_.hasLabel(pretextGosubLabel_)) {
+      if (pendingPretextPc_ != stmt.statementIndex) {
+        pendingPretextPc_ = stmt.statementIndex;
+        CallStackEntry frame;
+        frame.returnStatementIndex = stmt.statementIndex;
+        frame.targetLabel = pretextGosubLabel_;
+        callStack_.push_back(std::move(frame));
+        jumpToLabel(pretextGosubLabel_);
+        return;
+      }
+      pendingPretextPc_ = ScriptBuffer::npos;
+    }
     executeTextLine(stmt.text, stmt.statementIndex);
     return;
   }
@@ -904,6 +936,8 @@ SlotSaveData PonscripterVm::exportSlotSave() const {
   data.buttons = buttons_;
   data.selectOptions = selectOptions_;
   data.cselOptions = cselOptions_;
+  data.pendingPretextStatementIndex = pendingPretextPc_;
+  data.textGosubPagePending = textGosubPagePending_;
   data.selectionMode = static_cast<int>(selectionMode_);
   data.selectionNumberVariable = selectionNumberVariable_;
   return data;
@@ -952,6 +986,8 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   buttons_ = data.buttons;
   selectOptions_ = data.selectOptions;
   cselOptions_ = data.cselOptions;
+  pendingPretextPc_ = data.pendingPretextStatementIndex;
+  textGosubPagePending_ = data.textGosubPagePending;
   selectionMode_ = data.selectionMode == 1 ? SelectionMode::Subroutine :
                    data.selectionMode == 2 ? SelectionMode::Number :
                                              SelectionMode::Jump;
