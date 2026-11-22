@@ -90,6 +90,31 @@ int main() {
   require(scene.setParent("bar3", "foo1"), "Attach explicit parent");
   matches(scene, "foo1/bar3", {"bar3"}, "Explicit child path resolution");
   matches(scene, "foo2/bar3", {}, "Child not found in unrelated branch");
+  scene.createEntity("foo3");
+  require(scene.setParent("bar3", "foo3"), "Reparenting must succeed");
+  const auto *oldParent = scene.findEntity("foo1");
+  const auto *newParent = scene.findEntity("foo3");
+  require(oldParent && newParent && oldParent->children.empty() &&
+              newParent->children == std::vector<std::string>{"bar3"},
+          "Reparenting must remove stale child links");
+  matches(scene, "foo3/bar3", {"bar3"}, "New parent owns moved child");
+  matches(scene, "foo1/bar3", {}, "Old parent no longer owns moved child");
+  require(!scene.setParent("foo3", "bar3"),
+          "Cycles must be rejected before modifying the scene graph");
+  require(!scene.setParent("foo3", "foo3"),
+          "An entity may not be its own parent");
+  require(scene.destroyEntity("foo3"), "Destroy parent with explicit child");
+  require(!scene.findEntity("bar3") && !scene.findEntity("foo3"),
+          "Destroy must cascade to explicitly attached children");
+
+  scene.createEntity("foo2/bar/deep");
+  require(scene.destroyEntity("foo2"), "Destroy parent with qualified child");
+  require(!scene.findEntity("foo2/bar") &&
+              !scene.findEntity("foo2/bar/deep") &&
+              scene.findEntity("foo1/bar"),
+          "Destroy must cascade through qualified child paths only");
+  matches(scene, "*", {"foo1"},
+          "Remaining root order must be deterministic after deletion");
   std::cout << "NitroSharp entity-query parity regressions passed\n";
   return 0;
 }
