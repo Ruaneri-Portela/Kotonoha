@@ -254,29 +254,43 @@ std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
 }
 
 bool SceneGraph::destroyEntity(std::string_view name) {
-  Entity *e = findEntity(name);
-  if (!e)
+  Entity *root = findEntity(name);
+  if (!root)
     return false;
-  std::string actualName = e->name;
 
-  // Remove from parent
-  if (!e->parent.empty()) {
-    auto *p = findEntity(e->parent);
-    if (p) {
-      p->children.erase(
-          std::remove(p->children.begin(), p->children.end(), actualName),
-          p->children.end());
+  // NitroSharp.World.CommitDestroyEntity recursively disposes children.
+  // Preserve the same lifecycle for both explicit parent links and the
+  // legacy slash-qualified names stored in the Kotonoha scene graph.
+  std::vector<std::string> removeNames{root->name};
+  for (std::size_t i = 0; i < removeNames.size(); ++i) {
+    const std::string &ancestor = removeNames[i];
+    for (const auto &[key, entity] : entities_) {
+      const bool explicitChild = entity.parent == ancestor;
+      const bool implicitChild =
+          entity.parent.empty() && entity.name.size() > ancestor.size() &&
+          entity.name.compare(0, ancestor.size(), ancestor) == 0 &&
+          entity.name[ancestor.size()] == '/';
+      if ((explicitChild || implicitChild) &&
+          std::find(removeNames.begin(), removeNames.end(), key) ==
+              removeNames.end())
+        removeNames.push_back(key);
     }
   }
 
-  // Remove children or unparent them
-  for (const auto &childName : e->children) {
-    auto *c = findEntity(childName);
-    if (c)
-      c->parent.clear();
+  // Drop links held by surviving parents before deleting the descendants.
+  for (const auto &deletedName : removeNames) {
+    auto it = entities_.find(deletedName);
+    if (it == entities_.end() || it->second.parent.empty())
+      continue;
+    if (auto *parent = findEntity(it->second.parent)) {
+      parent->children.erase(
+          std::remove(parent->children.begin(), parent->children.end(),
+                      deletedName),
+          parent->children.end());
+    }
   }
-
-  entities_.erase(actualName);
+  for (const auto &deletedName : removeNames)
+    entities_.erase(deletedName);
   rebuildRenderOrder();
   return true;
 }
@@ -311,8 +325,9 @@ bool SceneGraph::setParent(std::string_view childName,
     return false;
   // NitroSharp's world is a tree. A reparent must not make an entity its
   // own ancestor, or traversal and recursive deletion would loop forever.
+  std::size_t depth = 0;
   for (const Entity *ancestor = parent; ancestor;) {
-    if (ancestor == child)
+    if (ancestor == child || ++depth > entities_.size())
       return false;
     if (ancestor->parent.empty())
       break;
