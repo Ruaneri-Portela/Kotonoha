@@ -552,17 +552,69 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
     selectionMode_ = SelectionMode::Jump;
     selectionNumberVariable_ = -1;
     cselOptions_.clear();
+    selectOptions_.clear();
     while (!lexer.eof()) {
+      lexer.skipWhitespace();
+      if (lexer.eof())
+        break;
       SelectOption opt;
+      const auto before = lexer.position();
       opt.text = TextFormatter::formatUiLabel(lexer.parseStringExpr(), true);
-      lexer.consumeComma();
+      if (lexer.position() == before || !lexer.consumeComma())
+        break;
       opt.targetLabel = lexer.parseLabelTarget();
-      cselOptions_.push_back(std::move(opt));
+      if (!opt.targetLabel.empty())
+        cselOptions_.push_back(std::move(opt));
       if (!lexer.consumeComma())
         break;
     }
-    selectOptions_ = cselOptions_;
-    waitState_ = WaitState::WaitSelect;
+    // A custom selection is controlled by the script's own UI. It does not
+    // block in WaitSelect or display the built-in choice list.
+    if (!cselOptions_.empty() && script_.hasLabel("customsel")) {
+      jumpToLabel("customsel");
+    } else if (!cselOptions_.empty()) {
+      // Graceful fallback for scripts lacking the customsel routine.
+      selectOptions_ = cselOptions_;
+      enterTextDisplayMode();
+      waitState_ = WaitState::WaitSelect;
+    }
+    return;
+  }
+
+  if (cmd == "cselbtn") {
+    const int index = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int buttonId = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int x = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int y = lexer.parseIntExpr();
+    if (index < 0 || index >= static_cast<int>(cselOptions_.size()) ||
+        buttonId <= 0)
+      return;
+
+    ButtonDef button;
+    button.kind = ButtonDef::Kind::TextBtn;
+    button.spriteNo = index;
+    button.id = buttonId;
+    button.x = x;
+    button.y = y;
+    button.text = cselOptions_[index].text;
+    button.w = std::max(1, static_cast<int>(utf8Length(button.text))) *
+               std::max(1, window_.fontW + window_.pitchX);
+    button.h = std::max(1, window_.fontH + window_.pitchY);
+    const auto existing = std::find_if(
+        buttons_.begin(), buttons_.end(),
+        [&](const ButtonDef &item) { return item.id == buttonId; });
+    if (existing != buttons_.end())
+      *existing = std::move(button);
+    else
+      buttons_.push_back(std::move(button));
+    if (callbacks_)
+      callbacks_->onSceneDirty();
     return;
   }
 
@@ -586,7 +638,17 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
   if (cmd == "cselgoto") {
     const int idx = lexer.parseIntExpr();
     if (idx >= 0 && idx < static_cast<int>(cselOptions_.size())) {
-      jumpToLabel(cselOptions_[idx].targetLabel);
+      const std::string target = cselOptions_[idx].targetLabel;
+      if (script_.hasLabel(target)) {
+        cselOptions_.clear();
+        selectOptions_.clear();
+        buttons_.clear();
+        hoveredButtonId_ = 0;
+        clearCurrentPage(true);
+        jumpToLabel(target);
+        if (callbacks_)
+          callbacks_->onSceneDirty();
+      }
     }
     return;
   }
