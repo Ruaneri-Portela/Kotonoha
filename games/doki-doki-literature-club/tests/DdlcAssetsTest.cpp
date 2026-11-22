@@ -43,8 +43,9 @@ void string(std::vector<uint8_t> &out, const std::string &text) {
   out.insert(out.end(), text.begin(), text.end());
 }
 void archive(const std::filesystem::path &path, const std::string &id,
-             const std::string &body, bool rpe = false, bool invalid = false) {
-  const uint32_t key = rpe ? 0x42424242u : 0x11111111u;
+             const std::string &body, bool rpe = false, bool invalid = false,
+             bool rpa2 = false) {
+  const uint32_t key = rpa2 ? 0u : rpe ? 0x42424242u : 0x11111111u;
   std::vector<uint8_t> index{0x80, 2, '}'};
   string(index, id);
   index.push_back(']');
@@ -62,6 +63,9 @@ void archive(const std::filesystem::path &path, const std::string &id,
   if (rpe)
     std::snprintf(header, sizeof header, "RPE-1.0 %08x %016llx\n",
                   key ^ 0xffffffffu,
+                  static_cast<unsigned long long>(64 + body.size()));
+  else if (rpa2)
+    std::snprintf(header, sizeof header, "RPA-2.0 %016llx\n",
                   static_cast<unsigned long long>(64 + body.size()));
   else
     std::snprintf(header, sizeof header, "RPA-3.0 %016llx %08x\n",
@@ -115,10 +119,77 @@ void archiveTests(const std::filesystem::path &root) {
       [] { return std::vector<std::string>{"extra.rpyc"}; });
   require(text(assets.read("ui/test.txt")) == "mod",
           "Overlay loose file precedes overlay archive");
+  archive(dir / "legacy.rpa", "ui/legacy.txt", "Katawa-era", false, false,
+          true);
+  Ddlc::Archive legacy;
+  require(legacy.open((dir / "legacy.rpa").string()), "Open Ren'Py RPA-2.0");
+  require(text(legacy.read("UI/LEGACY.TXT")) == "Katawa-era",
+          "Read unobfuscated RPA-2.0 member");
+
   archive(dir / "invalid.rpx", "ui/test.txt", "bad", true, true);
   Ddlc::Archive invalid;
   require(!invalid.open((dir / "invalid.rpx").string()),
           "Archive bounds reject invalid payload");
+}
+
+
+std::vector<uint8_t> compressFixture(const std::vector<uint8_t> &data) {
+  uLongf length = compressBound(data.size());
+  std::vector<uint8_t> packed(length);
+  require(compress(packed.data(), &length, data.data(), data.size()) == Z_OK,
+          "Compress compiled-script fixture");
+  packed.resize(length);
+  return packed;
+}
+
+void pickleCompatibilityTests() {
+  const std::vector<uint8_t> modern{0x80, 4, '}', 0x94, 0x8c, 3,
+                                     'k',  'e', 'y', 0x94, 'K', 42, 's', '.'};
+  auto index = Ddlc::unpickle(modern);
+  auto *value = index.o->findKey(Ddlc::Value::str("key"));
+  require(value && value->integer() == 42, "Pickle 4 MEMOIZE and unicode");
+
+  const std::vector<uint8_t> oldInt{0x80, 2, 0x8a, 1, 0xff, '.'};
+  require(Ddlc::unpickle(oldInt).integer() == -1,
+          "Signed LONG1 values preserve their sign");
+
+  for (const std::vector<uint8_t> &bad :
+       {std::vector<uint8_t>{0x80}, std::vector<uint8_t>{0x86, '.'},
+        std::vector<uint8_t>{'V', 'x'}}) {
+    bool rejected = false;
+    try {
+      (void)Ddlc::unpickle(bad);
+    } catch (const std::exception &) {
+      rejected = true;
+    }
+    require(rejected, "Truncated or invalid pickle is rejected");
+  }
+
+  const std::vector<uint8_t> ast{0x80, 2, ']', ']', 0x86, '.'};
+  const auto packed = compressFixture(ast);
+  Ddlc::Value decoded;
+  require(Ddlc::loadRpyc(packed, decoded) && decoded.items().size() == 2,
+          "Legacy zlib RPYC format");
+
+  // Broken slot 1, usable slot 2: the engine must fall back to slot 2.
+  std::vector<uint8_t> rpc2{'R', 'E', 'N', 'P', 'Y', ' ', 'R', 'P', 'C', '2'};
+  number(rpc2, 1);
+  number(rpc2, 46);
+  number(rpc2, 4);
+  number(rpc2, 2);
+  number(rpc2, 50);
+  number(rpc2, uint32_t(packed.size()));
+  number(rpc2, 0);
+  number(rpc2, 0);
+  number(rpc2, 0);
+  rpc2.insert(rpc2.end(), {'b', 'a', 'd', '!'});
+  rpc2.insert(rpc2.end(), packed.begin(), packed.end());
+  decoded = {};
+  require(Ddlc::loadRpyc(rpc2, decoded) && decoded.items().size() == 2,
+          "RPYC2 falls back from corrupt slot 1 to slot 2");
+  rpc2.resize(14);
+  require(!Ddlc::loadRpyc(rpc2, decoded),
+          "Truncated RPYC2 directory is rejected");
 }
 
 struct HeadlessBackend : Ddlc::Backend {
@@ -258,6 +329,7 @@ int main(int argc, char **argv) {
   try {
     TemporaryDirectory temporary;
     archiveTests(temporary.path);
+    pickleCompatibilityTests();
     const auto game = temporary.path / "game";
     const auto characters = temporary.path / "characters";
     std::filesystem::create_directory(game);
