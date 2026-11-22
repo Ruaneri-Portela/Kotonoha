@@ -422,10 +422,16 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
   if (blockCount > (data.size() - table) / 8)
     throw std::runtime_error("CZ: invalid block table");
   size_t compressed = table + size_t(blockCount) * 8;
+  // LuckSystem's czimage/imagefix.go LineDiff reads exactly
+  // Width*Height*(Colorbits/8) bytes for CZ3. Its 24-bit form has RGB only:
+  // treating it as 32-bit makes valid CZ3 assets fail as "incomplete image".
+  if ((kind == '3' && bits != 24 && bits != 32) ||
+      (kind == '4' && bits != 32))
+    throw std::runtime_error("CZ3/CZ4: unsupported color depth");
   const size_t rawBytes =
-      (kind == '1' || kind == '2')
+      kind == '1' || kind == '2'
           ? (bits == 4 ? (pixelCount + 1) / 2 : pixelCount * (bits / 8))
-          : pixelBytes;
+          : pixelCount * (kind == '3' ? (bits / 8) : 4);
   std::vector<std::uint8_t> pixels;
   if (kind != '2')
     pixels.reserve(pixelBytes);
@@ -492,7 +498,7 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
     return image;
   }
 
-  const size_t stride = size_t(image.width) * 4;
+  const size_t stride = size_t(image.width) * (bits / 8);
   const int blockHeight = (image.height + 2) / 3;
   if (kind == '4') {
     const size_t rgbSize = size_t(image.width) * size_t(image.height) * 3;
@@ -528,7 +534,19 @@ CzImage DecodeCzImage(const std::vector<std::uint8_t> &data) {
     for (size_t x = 0; x < stride; ++x)
       pixels[line + x] = std::uint8_t(pixels[line + x] + pixels[previous + x]);
   }
-  image.rgba = std::move(pixels);
+  if (kind == '3' && bits == 24) {
+    // The reference's LineDiff emits NRGBA{RGB,255} from delta-decoded
+    // 24-bit rows; never read a phantom fourth byte as alpha.
+    image.rgba.resize(pixelBytes);
+    for (size_t i = 0; i < pixelCount; ++i) {
+      image.rgba[i * 4] = pixels[i * 3];
+      image.rgba[i * 4 + 1] = pixels[i * 3 + 1];
+      image.rgba[i * 4 + 2] = pixels[i * 3 + 2];
+      image.rgba[i * 4 + 3] = 255;
+    }
+  } else {
+    image.rgba = std::move(pixels);
+  }
   return image;
 }
 

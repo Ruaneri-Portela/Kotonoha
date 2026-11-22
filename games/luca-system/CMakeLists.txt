@@ -65,6 +65,15 @@ if(BUILD_TESTING)
   target_compile_features(LucaSystemSaveCodecTests PRIVATE cxx_std_17)
   add_test(NAME LucaSystem.SaveCodec COMMAND LucaSystemSaveCodecTests)
 
+  # Portable CZ3/CZ4 delta and RGB24 reference regressions; no SDL needed.
+  add_executable(LucaSystemCzParityTests
+      tests/CzImageParityTest.cpp
+      ../../modules/providers/pak/src/CzImage.cpp)
+  target_include_directories(LucaSystemCzParityTests PRIVATE
+      ../../modules/providers/pak/include)
+  target_compile_features(LucaSystemCzParityTests PRIVATE cxx_std_17)
+  add_test(NAME LucaSystem.CzParity COMMAND LucaSystemCzParityTests)
+
   # SDL-backed pixel assertions for the actual GPU scene compositor.
   add_executable(LucaSystemGpuSceneTests tests/GpuSceneTest.cpp)
   target_include_directories(LucaSystemGpuSceneTests PRIVATE include)
