@@ -10,6 +10,11 @@
 - Playable original prologue, calendar/campaign node graph, conversation mode, mahjong/minigame scenes, and deterministic replay save/load.
 
 **Reference fidelity improvements (open-amagami):**
+- Vita diagnostic input uses Xbox A/B for confirm/cancel and PlayStation
+  Circle/Cross on other pads; remapped SDL controllers preserve held state.
+- Scenario SCF callers of ControlPad now receive original PS2 button bits,
+  while Vita system-image callers receive SceCtrl masks. The VM exposes the
+  immediate call origin, with nested-SCF regression coverage.
 - The Vita sprite tweens now use the reference's original easing modes:
   1 decelerates and 2 accelerates, with regression checks for both curves.
 - The Vita SDL input adapter preserves Circle when Z and Space are held
