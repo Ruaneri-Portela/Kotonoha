@@ -66,10 +66,18 @@ public:
                  std::string *error = nullptr) const;
 
 private:
+    struct DirectoryIndexEntry {
+        bool collision = false;
+        std::vector<std::string> children;
+    };
+    bool EnsureDirectoryIndexLocked() const;
+
     std::filesystem::path path_;
     std::shared_ptr<const Filesystem::IMount> source_;
     mutable std::unique_ptr<std::mutex> streamMutex_;
     mutable std::unique_ptr<std::istream> cachedStream_;
+    mutable bool directoryIndexBuilt_ = false;
+    mutable std::unordered_map<std::string, DirectoryIndexEntry> directoryIndex_;
     uint64_t pidxOffset_ = 0;
     SchoolDaysGpkIndex index_;
     std::vector<std::string> canonicalEntries_;

@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cctype>
 #include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include <filesystem>
 #include <system_error>
 
@@ -245,6 +247,7 @@ SchoolDaysTranslationGate::DetailedSources SchoolDaysTranslationGate::CollectDet
   if (!nodes) throw std::runtime_error("No KTRF NODE table for locale audit");
 
   DetailedSources sources;
+  sources.reserve(32768u);
   for (uint32_t index = 0; index < nodes->item_count; ++index) {
     Kotonoha_KtrfNodeView node{};
     if (!Kotonoha_KtrfGetNodeView(session.Adapter(), index, &node, &error))
@@ -345,18 +348,73 @@ SchoolDaysTranslationCoverage SchoolDaysTranslationGate::CheckLayered(
     const Translation &baseReviews, const Translation &dlc,
     const Translation &dlcReviews, bool nativeHq,
     bool explicitSourceIdentities) {
+  using Section = std::unordered_map<std::string, std::string>;
+  const auto findSection = [](const Translation &dict,
+                              const std::string &name) -> const Section * {
+    const auto &sections = dict.getSections();
+    const auto it = sections.find(name);
+    return it == sections.end() ? nullptr : &it->second;
+  };
+  const auto lookupInSection =
+      [](const Section *section, const Section *fallbackNodo,
+         const std::string &contextKey, const std::string &original,
+         bool *contextual) -> const std::string * {
+    if (contextual) *contextual = false;
+    if (section) {
+      if (const auto it = section->find(contextKey); it != section->end()) {
+        if (contextual) *contextual = true;
+        return &it->second;
+      }
+      if (const auto it = section->find(original); it != section->end())
+        return &it->second;
+    }
+    if (fallbackNodo) {
+      if (const auto it = fallbackNodo->find(original);
+          it != fallbackNodo->end())
+        return &it->second;
+    }
+    return nullptr;
+  };
+
   SchoolDaysTranslationCoverage status;
-  std::set<int> visited;
-  std::set<int> incomplete;
+  std::unordered_set<int> visited;
+  visited.reserve(2048u);
+  std::unordered_set<int> incomplete;
   std::set<std::pair<std::string, std::string>> permittedDlcKeys;
-  std::map<std::pair<int, std::string>, std::set<std::string>> variants;
+  struct VariantTrack {
+    std::string_view firstValue;
+    bool collided = false;
+  };
+  std::unordered_map<int, std::unordered_map<std::string_view, VariantTrack>>
+      variants;
+  variants.reserve(2048u);
+
+  const Section *baseNodo = findSection(base, "nodo");
+  int cachedNode = -1;
+  bool hasCachedNode = false;
+  std::string cachedNodeKey;
+  const Section *baseSection = nullptr;
+  const Section *baseReviewSection = nullptr;
+  const Section *dlcSection = nullptr;
+  const Section *dlcReviewSection = nullptr;
+  std::unordered_map<std::string_view, VariantTrack> *nodeVariants = nullptr;
+
   for (const auto &entry : sources) {
     if (entry.original.empty()) continue;
+    if (!hasCachedNode || entry.node != cachedNode) {
+      cachedNode = entry.node;
+      hasCachedNode = true;
+      cachedNodeKey = std::to_string(entry.node);
+      baseSection = findSection(base, cachedNodeKey);
+      baseReviewSection = findSection(baseReviews, cachedNodeKey);
+      dlcSection = findSection(dlc, cachedNodeKey);
+      dlcReviewSection = findSection(dlcReviews, cachedNodeKey);
+      nodeVariants = &variants[entry.node];
+    }
+    const std::string contextKey = ContextKey(entry.eventOrdinal, entry.slot);
     if (entry.lxh) {
-      const auto node = std::to_string(entry.node);
-      permittedDlcKeys.emplace(node, entry.original);
-      permittedDlcKeys.emplace(node,
-          ContextKey(entry.eventOrdinal, entry.slot));
+      permittedDlcKeys.emplace(cachedNodeKey, entry.original);
+      permittedDlcKeys.emplace(cachedNodeKey, contextKey);
     }
     if (nativeHq && !entry.lxh) continue;
     visited.insert(entry.node);
@@ -365,13 +423,19 @@ SchoolDaysTranslationCoverage SchoolDaysTranslationGate::CheckLayered(
     else ++status.printTextSlots;
     bool contextual = false;
     bool fromDlc = false;
-    const auto *value = FindLayeredValue(base, dlc, entry.node,
-                                         entry.eventOrdinal, entry.slot,
-                                         entry.original, entry.lxh, &contextual,
-                                         &fromDlc);
+    const std::string *value = nullptr;
+    if (entry.lxh && dlcSection) {
+      value = lookupInSection(dlcSection, nullptr, contextKey, entry.original,
+                              &contextual);
+      if (value) fromDlc = true;
+    }
+    if (!value) {
+      value = lookupInSection(baseSection, baseNodo, contextKey, entry.original,
+                              &contextual);
+    }
     if (entry.lxh && fromDlc && value && !value->empty()) {
-      const auto *existing = FindDetailedValue(base, entry.node,
-                           entry.eventOrdinal, entry.slot, entry.original);
+      const auto *existing = lookupInSection(baseSection, baseNodo, contextKey,
+                                             entry.original, nullptr);
       if (existing && !existing->empty() && *existing != *value)
         ++status.overriddenBaseSlots;
     }
@@ -388,11 +452,18 @@ SchoolDaysTranslationCoverage SchoolDaysTranslationGate::CheckLayered(
                                SchoolDaysTranslationIssue::Kind::Blank});
     } else {
       ++status.found;
-      variants[{entry.node, entry.original}].insert(*value);
+      auto [vit, inserted] = nodeVariants->emplace(
+          std::string_view(entry.original),
+          VariantTrack{std::string_view(*value), false});
+      if (!inserted && !vit->second.collided &&
+          vit->second.firstValue != std::string_view(*value)) {
+        vit->second.collided = true;
+        ++status.resolvedCollisions;
+      }
       if (*value == entry.original) {
-        const auto *reason = FindReviewedValue(
-            fromDlc ? dlcReviews : baseReviews, entry.node, entry.eventOrdinal,
-            entry.slot, entry.original);
+        const auto *reason = lookupInSection(
+            fromDlc ? dlcReviewSection : baseReviewSection, nullptr, contextKey,
+            entry.original, nullptr);
         if (ReviewedReason(reason)) {
           ++status.reviewedIdentical;
         } else if (explicitSourceIdentities) {
@@ -408,6 +479,7 @@ SchoolDaysTranslationCoverage SchoolDaysTranslationGate::CheckLayered(
   }
   status.scenes = visited.size();
   status.incompleteNodes.assign(incomplete.begin(), incomplete.end());
+  std::sort(status.incompleteNodes.begin(), status.incompleteNodes.end());
   // Context keys computed against the wrong parser ordering can otherwise
   // remain unused while a literal fallback makes coverage look successful.
   // A DLC sidecar must contain keys only for actual grafted ORS slots.
@@ -415,8 +487,6 @@ SchoolDaysTranslationCoverage SchoolDaysTranslationGate::CheckLayered(
     for (const auto &[key, value] : entries)
       if (!permittedDlcKeys.count({node, key}))
         ++status.invalidDlcKeys;
-  for (const auto &[source, values] : variants)
-    if (values.size() > 1) ++status.resolvedCollisions;
   return status;
 }
 

@@ -5,6 +5,7 @@
 #include <Kotonoha/localization/Translation.hpp>
 #include <optional>
 #include <Kotonoha/parsers/Ors.h>
+#include <Kotonoha/routing/SchoolDaysChoiceTextPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <string_view>
@@ -90,6 +91,8 @@ class GameScene final : public Kotonoha::Scene {
   const Kotonoha_orsEvent *choiceScratchEvent = nullptr;
   std::vector<int> choiceScratchSlots;
   std::vector<std::string> choiceScratchTexts;
+  std::vector<std::vector<Kotonoha::SchoolDaysChoiceTextPlan::Line>>
+      choiceScratchLines;
   void syncChoice();
   bool ensureMenuBar();
   std::vector<int> choices() const;
