@@ -178,6 +178,8 @@ uint32_t VitaVmBridge::vitaButtonsRapid() const {
 void VitaVmBridge::tick(double frames) {
   if (!std::isfinite(frames) || frames < 0 || frames > 360000)
     throw std::runtime_error("Amagami Vita: invalid scene time delta");
+  // The native K2X_Script frame clock keeps running even on an empty scene.
+  frameCount_ += frames;
   for (auto &[uid, sprite] : sprites_) {
     if (sprite.paused)
       continue;
@@ -701,6 +703,36 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
     expectCount(args, 0);
     sprites_.clear(); // Original reset drops scene objects; IDs remain unique.
     return receiver;
+  }
+  // The Vita retains the PS2 instance-side K2X_Script primitive table.
+  // 1: disc-change state, 2: explicit scenario class load, 3: ready state,
+  // 4: game-frame clock. Vita-only class methods begin at number 5.
+  if (!classMethod && number == 1) {
+    expectCount(args, 0);
+    auto result = VmValue::num(0);
+    result.kind = VmValue::Boolean;
+    return result;
+  }
+  if (!classMethod && number == 2) {
+    expectCount(args, 1);
+    if (args[0].kind != VmValue::Text && args[0].kind != VmValue::Symbol)
+      throw std::runtime_error("Amagami Vita: loadClass expects a name");
+    const std::string &name = args[0].asText();
+    if (name.empty() || name.size() > 256)
+      return VmValue{};
+    if (classLoader_ && classLoader_(name))
+      return VmValue::str(name, VmValue::Class);
+    return VmValue{}; // Unknown scenario: original VM returns nil.
+  }
+  if (!classMethod && number == 3) {
+    expectCount(args, 0);
+    auto result = VmValue::num(1);
+    result.kind = VmValue::Boolean;
+    return result;
+  }
+  if (!classMethod && number == 4) {
+    expectCount(args, 0);
+    return VmValue::num(double(frameCount()));
   }
   if (!classMethod)
     return std::nullopt;
