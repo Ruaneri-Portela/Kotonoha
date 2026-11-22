@@ -2,10 +2,14 @@
 
 **English (US)** | [Português (Brasil)](README.pt-BR.md)
 
-**Target:** Windows L4. Android is deferred until Windows is ready. The
-School Days implementation is in `games/school-days/`, while generic engine
-functionality belongs to `lib/`. This index is navigational, not a claim of
-full retail parity or QA completion.
+**Targets:** Windows x64 and Android (`arm64-v8a`), sharing a single
+School Days HQ v1.02 runtime implementation in `games/school-days/` while
+generic engine functionality lives in `lib/` and Android platform adapters live
+in `buildsystems/android/`. This index is navigational, not a claim of full
+retail parity or physical QA completion. See
+[docs/FORK_WORKFLOW.md](../../../docs/FORK_WORKFLOW.md) and
+[Android portrait/SAF setup](android/PORTRAIT_SETUP.md) for current build and
+distribution workflows.
 
 The previously published documents retain their original paths to avoid
 breaking external links. Dated investigation records are historical snapshots,
