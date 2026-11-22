@@ -5,6 +5,8 @@ on:
     branches: [dev]
     paths:
       - 'modules/vms/ponscripter/**'
+      - 'games/ponscripter/src/**'
+      - 'games/ponscripter/include/**'
       - '.github/workflows/ponscripter-regressions.yml'
   workflow_dispatch:
 
@@ -44,3 +46,30 @@ jobs:
             "$out/$test"
             echo "::endgroup::"
           done
+
+  runtime-syntax:
+    name: Ponscripter runtime syntax (${{ matrix.compiler }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SDL3, UI and media headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ clang pkg-config \
+            libsdl3-dev libsdl3-ttf-dev libimgui-dev \
+            libass-dev libavcodec-dev libavformat-dev libavutil-dev \
+            libswscale-dev libswresample-dev zlib1g-dev \
+            libjson-c-dev libfreetype-dev libharfbuzz-dev
+      - name: Type-check PonscripterRuntime with full engine headers
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -funsigned-char -Wall -Wextra \
+            -Ilib/include -Igames/ponscripter/include \
+            -Imodules/vms/ponscripter/include \
+            -Imodules/providers/ponscripter/include -I/usr/include/imgui \
+            $(pkg-config --cflags sdl3 SDL3_ttf) \
+            -fsyntax-only games/ponscripter/src/PonscripterRuntime.cpp
