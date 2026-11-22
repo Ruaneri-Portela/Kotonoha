@@ -1144,6 +1144,46 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
         op.alpha = sprite.alpha;
         captured.push_back(std::move(op));
       }
+      for (const auto &bar : bars_) {
+        if (!bar.active || bar.value <= 0 || bar.width <= 0 ||
+            bar.height <= 0)
+          continue;
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Rect;
+        op.x = bar.x;
+        op.y = bar.y;
+        const int maxValue = std::max(1, bar.maxValue);
+        op.width = (bar.width * std::clamp(bar.value, 0, maxValue)) / maxValue;
+        op.height = bar.height;
+        op.colorRgb = bar.colorRgb;
+        captured.push_back(std::move(op));
+      }
+      for (const auto &number : prnums_) {
+        if (!number.active)
+          continue;
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Text;
+        op.text = std::to_string(number.value);
+        op.x = number.x;
+        op.y = number.y;
+        op.width = std::max(1, number.fontWidth *
+                               static_cast<int>(op.text.size()));
+        op.height = std::max(1, number.fontHeight);
+        op.colorRgb = number.colorRgb;
+        captured.push_back(std::move(op));
+      }
+      if (textWindowVisible_ &&
+          (!window_.backdrop.imagePath.empty() ||
+           window_.backdrop.trans == TransMode::DirectColor)) {
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Window;
+        op.spec = window_.backdrop;
+        op.x = window_.winX;
+        op.y = window_.winY;
+        op.width = std::max(1, window_.winW);
+        op.height = std::max(1, window_.winH);
+        captured.push_back(std::move(op));
+      }
       if (textWindowVisible_ && !pagePlainText_.empty()) {
         ManualDrawOp op;
         op.kind = ManualDrawOp::Kind::Text;
