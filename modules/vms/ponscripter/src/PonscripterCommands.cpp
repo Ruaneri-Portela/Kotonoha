@@ -1543,6 +1543,7 @@ void PonscripterVm::cmdEffects(LineLexer &lexer, const std::string &cmd) {
     return;
   }
   if (cmd == "print") {
+    manualFrameVisible_ = false;
     const EffectDef eff = resolveEffectSpec(lexer, false);
     triggerEffect(eff);
     return;
