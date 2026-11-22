@@ -545,9 +545,12 @@ bool Archive::open(File candidate) {
       e.length = uint64_t(t[1].integer() ^ int64_t(key));
       if (t.size() > 2 && t[2].isStr())
         e.prefix = t[2].s;
-      if (e.prefix.size() > e.length || e.offset > offset ||
-          e.length - e.prefix.size() > offset - e.offset ||
-          e.length > 1024ull * 1024 * 1024)
+      // A triple (offset, length, prefix) represents prefix bytes followed by
+      // the full archive slice. The prefix is *in addition* to length, not a
+      // portion of it (same as Ren'Py's archive compatibility path).
+      constexpr uint64_t kMaxAsset = 1024ull * 1024 * 1024;
+      if (e.offset > offset || e.length > offset - e.offset ||
+          e.length > kMaxAsset || e.prefix.size() > kMaxAsset - e.length)
         return false;
       chunks.push_back(std::move(e));
     }
@@ -567,10 +570,13 @@ std::vector<uint8_t> Archive::read(const std::string &name) const {
   std::lock_guard<std::mutex> lock(readMutex_);
   std::vector<uint8_t> out;
   for (const auto &e : found->second) {
-    if (e.length > 1024ull * 1024 * 1024 - out.size())
-      throw std::runtime_error("DDLC asset exceeds size limit");
+    constexpr uint64_t kMaxAsset = 1024ull * 1024 * 1024;
+    if (out.size() > kMaxAsset ||
+        e.prefix.size() > kMaxAsset - out.size() ||
+        e.length > kMaxAsset - out.size() - e.prefix.size())
+      throw std::runtime_error("Ren'Py asset exceeds size limit");
     out.insert(out.end(), e.prefix.begin(), e.prefix.end());
-    const auto body = size_t(e.length) - e.prefix.size(), at = out.size();
+    const auto body = size_t(e.length), at = out.size();
     out.resize(at + body);
     if (e.offset > static_cast<uint64_t>(INT64_MAX) ||
         file_->seek(static_cast<std::int64_t>(e.offset),
