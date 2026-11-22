@@ -50,6 +50,8 @@ public:
   const std::unordered_map<int, AudioChannel> &seChannels() const { return seChannels_; }
 
   void update(float dtSeconds);
+  void restore(const AudioChannel &bgm, const AudioChannel &voice,
+               const std::unordered_map<int, AudioChannel> &se);
 
 private:
   AudioChannel bgmChannel_;
