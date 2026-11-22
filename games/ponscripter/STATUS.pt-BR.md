@@ -21,3 +21,19 @@
 - Os itens do histórico e do menu PONscripter usam `Engine::GetVNUI()` e respeitam `vnTextColorOverride`, `vnSpeakerColor` e `vnTextColor`; entradas do histórico genérico usam os mesmos controles compartilhados.
 - Fundos, personagens, sprites estendidos, cursores e fundos da janela de texto são processados individualmente, cacheados e passam pelo upscaler do motor quando ativo.
 - `PonscripterRuntimeTests` cobre um script sintético e os dados comerciais de Saya no Uta: `rmenu` por clique direito, Salvar/Carregar, Histórico, `lookback`/`save` diretos e a retomada da VM após fechar cada modal.
+
+## Melhorias de compatibilidade (novembro de 2026)
+
+- Implementada passagem de parâmetros de subrotinas em `gosub`, `defsub` e `getparam`, incluindo persistência dos parâmetros pendentes nos saves.
+- Adicionada interpolação de texto proporcional com `{$variável}`, `{%variável}` e `{?vetor[índice]}`, sem executar caracteres interpolados como marcação.
+- Corrigidos laços `for` que já começam fora do intervalo, inclusive aninhados, e reforçada a validação de referências numéricas.
+- Implementados `tablegoto`/`debugtablegoto` (índices iniciados em zero), `tablegoto1` (índices iniciados em um), `len`, `mid` com suporte a UTF-8 e `movz` com preenchimento de zeros preservando a diferença em relação a `movl`.
+- Diferenciados `select` (salto), `selgosub` (chamada com retorno) e `selnum` (índice da escolha); o modo e o destino da seleção persistem em Save/Load, inclusive com leitura de saves V1 anteriores.
+- Acrescentados testes sintéticos em C++17 para VM, lexer, imagens/arquivos compactados e fluxo de menus sem depender de dados comerciais.
+
+### Pendências conhecidas
+
+- Continuar a compatibilidade de escolhas multilinha e do ciclo completo de `csel`/`customsel`/`cselbtn`.
+- Completar formas indiretas de `getparam`, hooks de texto (`textgosub`, `pretextgosub`) e pausas de clique no meio das linhas.
+- Revisar comandos registrados que ainda são parciais/no-op e validar jogos reais em todas as plataformas, sobretudo iOS.
+- A compatibilidade permanece incremental: testes sintéticos não garantem portabilidade 1:1 com o interpretador GPL original; o código do Kotonoha é independente.
