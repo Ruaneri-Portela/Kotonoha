@@ -162,6 +162,14 @@ struct TestRuntime : Runtime {
   int unpausedUpdates = 0;
   std::function<void(RendererRef)> inspectScreen;
   std::function<void(RendererRef)> inspectBeforeOverlay;
+  std::function<void(RendererRef)> inspectNarrativeOverlay;
+  bool ownedTarget = false;
+  bool useOwnedNarrativeTarget() const override { return ownedTarget; }
+  void renderNarrativeOverlay(RendererRef renderer, float scale) override {
+    if (inspectNarrativeOverlay)
+      inspectNarrativeOverlay(renderer);
+    Runtime::renderNarrativeOverlay(renderer, scale);
+  }
   TestRuntime()
       : Runtime("Presentation tests", "1",
                 "org.kotonoha.presentation.tests." +
@@ -257,9 +265,19 @@ void subtitles(Engine &engine) {
       "Live subtitle editing keeps the timeline and updates rendered glyphs");
   engine.GetRuntime().RemoveScene(&scene);
 
-  SDL_SetRenderScale(&renderer, 0.5f, 0.5f);
+  // The translation above deliberately reduces the cue to a single "X".
+  // Use a legible phrase to measure physical scaling across font rasterizers:
+  // a half-size glyph must remain visible and cover fewer pixels than at 1x.
+  scene.setCues({{1, 2, "SCALE CHECK", "Person"}});
   draw(1.5);
-  require(colored(renderer, 1) > 20, "Subtitle resizes with renderer scale");
+  const int fullScalePixels = colored(renderer, 1);
+  require(fullScalePixels > 100, "Scale reference has visible subtitle glyphs");
+  require(SDL_SetRenderScale(&renderer, 0.5f, 0.5f),
+          "Configure half-size subtitle renderer");
+  draw(1.5);
+  const int halfScalePixels = colored(renderer, 1);
+  require(halfScalePixels > 20 && halfScalePixels * 2 < fullScalePixels,
+          "Subtitle resizes with renderer scale");
   SDL_SetRenderScale(&renderer, 1, 1);
   class DialogueSubtitles : public SubtitleScene {
   protected:
@@ -425,13 +443,21 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   std::filesystem::create_directories(originalDirectory / "nested");
   const auto originalPath = originalDirectory / "nested/80005.ass";
   const auto otherOriginal = originalDirectory / "80006.ass";
+  const auto upperOriginal = originalDirectory / "nested/80009.ASS";
   writeTextFileAtomically(originalPath.string(), script);
   writeTextFileAtomically(otherOriginal.string(), script);
+  writeTextFileAtomically(upperOriginal.string(), script);
   forced.reload();
   forced.updateForActiveNode();
   require(
       forced.activePath() == originalPath,
       "Before dumping, automatic recursive detection loads the original ASS");
+  runtime.node = "80009";
+  forced.updateForActiveNode();
+  require(forced.activePath() == upperOriginal,
+          "Case-insensitive .ASS extension and filename lookup succeeds");
+  runtime.node = "80005";
+  forced.updateForActiveNode();
 
   const auto drawForced = [&] {
     auto &renderer = engine.GetRenderer();
@@ -1141,6 +1167,38 @@ int main() {
     forcedSubtitles(engine, runtime);
     fades(engine);
     splashUpscaling(engine);
+    // Regression: VisualTransition::compose/copy disables logical presentation
+    // while snapshotting owned Novel targets. renderNarrativeOverlay must see
+    // the restored Novel logical presentation rather than raw reduced pixels.
+    {
+      const auto previousSettings = engine.GetSettings();
+      auto scaled = previousSettings;
+      scaled.renderScale = 0.75f;
+      engine.applySettings(scaled, false);
+      runtime.ownedTarget = true;
+      runtime.SetState(GameState::Gameplay);
+      runtime.opaqueGameplay = true;
+      bool checked = false;
+      int logicalW = 0, logicalH = 0;
+      SDL_RendererLogicalPresentation mode = SDL_LOGICAL_PRESENTATION_DISABLED;
+      runtime.inspectNarrativeOverlay = [&](RendererRef r) {
+        checked =
+            SDL_GetRenderLogicalPresentation(&r, &logicalW, &logicalH, &mode);
+      };
+      // Frame 1 snapshots LastPresented (calls VisualTransition::copy);
+      // Frame 2 verifies logical presentation is restored before overlay.
+      engine.Iterate();
+      engine.Iterate();
+      runtime.inspectNarrativeOverlay = nullptr;
+      runtime.ownedTarget = false;
+      runtime.opaqueGameplay = false;
+      engine.applySettings(previousSettings, false);
+      const auto expectedView = runtime.viewport();
+      require(checked && mode == SDL_LOGICAL_PRESENTATION_STRETCH &&
+                  logicalW == expectedView.x && logicalH == expectedView.y,
+              "renderNarrativeOverlay must receive restored Novel logical "
+              "presentation after VisualTransition snapshot");
+    }
     std::cout << "Extensible arguments/help, ASS style import/rendering and "
                  "debug scaling passed\n";
     return 0;

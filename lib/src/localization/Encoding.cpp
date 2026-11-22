@@ -358,65 +358,131 @@ std::string ShiftJisToUtf8(std::string_view text) {
 }
 
 std::u16string Utf8ToUtf16(std::string_view text) {
-#if defined(_WIN32)
-  int wide = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
-                                 int(text.size()), nullptr, 0);
-  if (wide <= 0)
-    return {};
-  std::u16string result(size_t(wide), char16_t{});
-  if (MultiByteToWideChar(
-          CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), int(text.size()),
-          reinterpret_cast<wchar_t *>(result.data()), wide) != wide)
-    return {};
+  std::u16string result;
+  result.reserve(text.size());
+  const auto appendCodePoint = [&result](uint32_t cp) {
+    if (cp <= 0xFFFFu) {
+      result.push_back(static_cast<char16_t>(cp));
+    } else if (cp <= 0x10FFFFu) {
+      cp -= 0x10000u;
+      result.push_back(static_cast<char16_t>(0xD800u + (cp >> 10)));
+      result.push_back(static_cast<char16_t>(0xDC00u + (cp & 0x3FFu)));
+    } else {
+      result.push_back(static_cast<char16_t>(0xFFFDu));
+    }
+  };
+  for (size_t i = 0; i < text.size();) {
+    const unsigned char b0 = static_cast<unsigned char>(text[i]);
+    if (b0 < 0x80u) {
+      result.push_back(static_cast<char16_t>(b0));
+      ++i;
+      continue;
+    }
+    if ((b0 & 0xE0u) == 0xC0u) {
+      if (i + 1 < text.size()) {
+        const unsigned char b1 = static_cast<unsigned char>(text[i + 1]);
+        if ((b1 & 0xC0u) == 0x80u) {
+          const uint32_t cp =
+              (static_cast<uint32_t>(b0 & 0x1Fu) << 6) | (b1 & 0x3Fu);
+          if (cp >= 0x80u) {
+            appendCodePoint(cp);
+            i += 2;
+            continue;
+          }
+        }
+      }
+      result.push_back(static_cast<char16_t>(0xFFFDu));
+      ++i;
+      continue;
+    }
+    if ((b0 & 0xF0u) == 0xE0u) {
+      if (i + 2 < text.size()) {
+        const unsigned char b1 = static_cast<unsigned char>(text[i + 1]);
+        const unsigned char b2 = static_cast<unsigned char>(text[i + 2]);
+        if ((b1 & 0xC0u) == 0x80u && (b2 & 0xC0u) == 0x80u) {
+          const uint32_t cp = (static_cast<uint32_t>(b0 & 0x0Fu) << 12) |
+                              (static_cast<uint32_t>(b1 & 0x3Fu) << 6) |
+                              (b2 & 0x3Fu);
+          if (cp >= 0x800u && (cp < 0xD800u || cp > 0xDFFFu)) {
+            appendCodePoint(cp);
+            i += 3;
+            continue;
+          }
+        }
+      }
+      result.push_back(static_cast<char16_t>(0xFFFDu));
+      ++i;
+      continue;
+    }
+    if ((b0 & 0xF8u) == 0xF0u) {
+      if (i + 3 < text.size()) {
+        const unsigned char b1 = static_cast<unsigned char>(text[i + 1]);
+        const unsigned char b2 = static_cast<unsigned char>(text[i + 2]);
+        const unsigned char b3 = static_cast<unsigned char>(text[i + 3]);
+        if ((b1 & 0xC0u) == 0x80u && (b2 & 0xC0u) == 0x80u &&
+            (b3 & 0xC0u) == 0x80u) {
+          const uint32_t cp = (static_cast<uint32_t>(b0 & 0x07u) << 18) |
+                              (static_cast<uint32_t>(b1 & 0x3Fu) << 12) |
+                              (static_cast<uint32_t>(b2 & 0x3Fu) << 6) |
+                              (b3 & 0x3Fu);
+          if (cp >= 0x10000u && cp <= 0x10FFFFu) {
+            appendCodePoint(cp);
+            i += 4;
+            continue;
+          }
+        }
+      }
+      result.push_back(static_cast<char16_t>(0xFFFDu));
+      ++i;
+      continue;
+    }
+    result.push_back(static_cast<char16_t>(0xFFFDu));
+    ++i;
+  }
   return result;
-#elif defined(__ANDROID__)
-  std::string converted = ConvertViaJNI(text, "UTF-8", "UTF-16LE");
-  if (converted.size() % 2 != 0)
-    return {};
-  std::u16string result(converted.size() / 2, char16_t{});
-  std::memcpy(result.data(), converted.data(), converted.size());
-  return result;
-#else
-  Converter converter("UTF-8", "UTF-16LE");
-  if (!converter.valid())
-    return {};
-  std::string converted =
-      converter.run(text, [](const unsigned char *, size_t) { return 1; });
-  if (converted.size() % 2 != 0)
-    return {};
-  std::u16string result(converted.size() / 2, char16_t{});
-  std::memcpy(result.data(), converted.data(), converted.size());
-  return result;
-#endif
 }
 
 std::string Utf16ToUtf8(std::u16string_view text) {
-#if defined(_WIN32)
-  int utf8len =
-      WideCharToMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS,
-                          reinterpret_cast<const wchar_t *>(text.data()),
-                          int(text.size()), nullptr, 0, nullptr, nullptr);
-  if (utf8len <= 0)
-    return {};
-  std::string result(size_t(utf8len), '\0');
-  if (WideCharToMultiByte(CP_UTF8, MB_ERR_INVALID_CHARS,
-                          reinterpret_cast<const wchar_t *>(text.data()),
-                          int(text.size()), result.data(), int(utf8len),
-                          nullptr, nullptr) != utf8len)
-    return {};
+  std::string result;
+  result.reserve(text.size());
+  const auto appendUtf8 = [&result](uint32_t cp) {
+    if (cp < 0x80u) {
+      result.push_back(static_cast<char>(cp));
+    } else if (cp < 0x800u) {
+      result.push_back(static_cast<char>(0xC0u | (cp >> 6)));
+      result.push_back(static_cast<char>(0x80u | (cp & 0x3Fu)));
+    } else if (cp < 0x10000u) {
+      result.push_back(static_cast<char>(0xE0u | (cp >> 12)));
+      result.push_back(static_cast<char>(0x80u | ((cp >> 6) & 0x3Fu)));
+      result.push_back(static_cast<char>(0x80u | (cp & 0x3Fu)));
+    } else {
+      result.push_back(static_cast<char>(0xF0u | (cp >> 18)));
+      result.push_back(static_cast<char>(0x80u | ((cp >> 12) & 0x3Fu)));
+      result.push_back(static_cast<char>(0x80u | ((cp >> 6) & 0x3Fu)));
+      result.push_back(static_cast<char>(0x80u | (cp & 0x3Fu)));
+    }
+  };
+  for (size_t i = 0; i < text.size(); ++i) {
+    const uint32_t unit = static_cast<uint32_t>(text[i]);
+    if (unit >= 0xD800u && unit <= 0xDBFFu) {
+      if (i + 1 < text.size()) {
+        const uint32_t low = static_cast<uint32_t>(text[i + 1]);
+        if (low >= 0xDC00u && low <= 0xDFFFu) {
+          const uint32_t cp =
+              0x10000u + (((unit - 0xD800u) << 10) | (low - 0xDC00u));
+          appendUtf8(cp);
+          ++i;
+          continue;
+        }
+      }
+      appendUtf8(0xFFFDu);
+    } else if (unit >= 0xDC00u && unit <= 0xDFFFu) {
+      appendUtf8(0xFFFDu);
+    } else {
+      appendUtf8(unit);
+    }
+  }
   return result;
-#elif defined(__ANDROID__)
-  std::string_view sv(reinterpret_cast<const char *>(text.data()),
-                      text.size() * sizeof(char16_t));
-  return ConvertViaJNI(sv, "UTF-16LE", "UTF-8");
-#else
-  std::string_view sv(reinterpret_cast<const char *>(text.data()),
-                      text.size() * sizeof(char16_t));
-  Converter converter("UTF-16LE", "UTF-8");
-  if (!converter.valid())
-    return {};
-  return converter.run(sv, [](const unsigned char *, size_t) { return 1; });
-#endif
 }
 #endif // __APPLE__
 
