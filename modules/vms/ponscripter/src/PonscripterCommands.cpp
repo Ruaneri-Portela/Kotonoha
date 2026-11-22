@@ -1146,6 +1146,19 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
       callbacks_->onSceneDirty();
     return;
   }
+  if (cmd == "quake" || cmd == "quakex" || cmd == "quakey") {
+    const int amplitude = std::max(0, lexer.parseIntExpr());
+    if (!lexer.consumeComma())
+      return;
+    const int duration = std::max(0, lexer.parseIntExpr());
+    quakeAmplitude_ = amplitude;
+    EffectDef shake;
+    shake.builtinEffect = cmd == "quakey" ? 10001 :
+                          cmd == "quakex" ? 10002 : 10003;
+    shake.durationMs = std::max(duration, amplitude * 4);
+    triggerEffect(shake);
+    return;
+  }
   if (cmd == "allsphide" || cmd == "allspresume" ||
       cmd == "allsp2hide" || cmd == "allsp2resume") {
     const bool hide = (cmd == "allsphide" || cmd == "allsp2hide");
