@@ -167,6 +167,7 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
   };
   writeDrawOps('D', data.manualDraftOps);
   writeDrawOps('V', data.manualDisplayOps);
+  writeDrawOps('B', data.backgroundCopyOps);
   for (int i = 0; i < 3; ++i) {
     if (data.standing[i].loaded) {
       out << "STAND\t" << i << '\t' << data.standing[i].x << '\t'
@@ -406,7 +407,8 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       op.spec.text = unescapeLine(spriteText);
       op.text = unescapeLine(text);
       auto *dest = bucket == 'D' ? &outData.manualDraftOps :
-                   bucket == 'V' ? &outData.manualDisplayOps : nullptr;
+                   bucket == 'V' ? &outData.manualDisplayOps :
+                   bucket == 'B' ? &outData.backgroundCopyOps : nullptr;
       if (dest && dest->size() < 4096)
         dest->push_back(std::move(op));
     } else if (kind == "STALPHA") {
