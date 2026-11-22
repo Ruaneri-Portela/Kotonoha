@@ -1,0 +1,33 @@
+name: Repository hygiene and Apple NSB snapshot portability
+
+on:
+  pull_request:
+    branches: [dev]
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repository-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate tracked source and redistribution boundaries
+        run: python3 tools/ValidateRepositoryHygiene.py
+
+  apple-nsb-snapshot:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Apple compiler and architecture
+        run: |
+          uname -m
+          clang++ --version
+      - name: Compile N2System snapshot reader in C++17
+        run: |
+          clang++ -std=c++17 -fsyntax-only \
+            -Imodules/vms/n2system/include \
+            modules/vms/n2system/src/NsbSnapshot.cpp
