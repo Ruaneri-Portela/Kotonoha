@@ -33,6 +33,7 @@ KagScript::Script KagScript::parse(const std::string &text,
   std::string previousLabel;
   std::map<std::string, std::size_t> labelCounts;
   bool inInlineScript = false;
+  std::size_t inlineScriptTag = 0;
 
   auto nextLine = [&]() {
     ++line;
@@ -62,6 +63,12 @@ KagScript::Script KagScript::parse(const std::string &text,
                              : static_cast<int>(firstNonWhitespace + 1);
         script.tags.push_back(std::move(closing));
         inInlineScript = false;
+      } else {
+        auto &body = script.tags.at(inlineScriptTag).text;
+        if (body.size() + rawLine.size() + 1 > 256u * 1024u)
+          throw std::runtime_error("KAG: inline TJS size limit exceeded");
+        body += rawLine;
+        body += '\n';
       }
       if (i < n) {
         if (text[i] == '\r' && i + 1 < n && text[i + 1] == '\n')
@@ -147,14 +154,32 @@ KagScript::Script KagScript::parse(const std::string &text,
         ++column;
       }
       if (!trim(commandLine).empty()) {
-        auto parsed = parse("[" + commandLine + "]", sourceName);
+        // Parse the @tag through the common attribute parser. An @iscript
+        // opener needs a synthetic close in this *temporary* parse, otherwise
+        // the nested call correctly reports a missing [endscript] too early.
+        std::string commandName = trim(commandLine);
+        const auto delimiter = commandName.find_first_of(" \t");
+        if (delimiter != std::string::npos)
+          commandName.resize(delimiter);
+        std::transform(commandName.begin(), commandName.end(),
+                       commandName.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
+        const bool startsInline = commandName == "iscript";
+        auto parsed =
+            parse("[" + commandLine + "]" +
+                      (startsInline ? "\n[endscript]" : ""),
+                  sourceName);
+        if (startsInline)
+          parsed.tags.pop_back(); // synthetic close; real close follows later
         for (const auto &entry : parsed.labels)
           script.labels.emplace(entry.first, script.tags.size() + entry.second);
         for (auto &tag : parsed.tags) {
           tag.line = commandLineNumber;
           tag.column = commandColumn;
-          if (tag.name == "iscript")
+          if (tag.name == "iscript") {
             inInlineScript = true;
+            inlineScriptTag = script.tags.size();
+          }
           script.tags.push_back(std::move(tag));
         }
       }
@@ -248,8 +273,10 @@ KagScript::Script KagScript::parse(const std::string &text,
       }
       const bool startsInlineScript = tag.name == "iscript";
       script.tags.push_back(std::move(tag));
-      if (startsInlineScript)
+      if (startsInlineScript) {
         inInlineScript = true;
+        inlineScriptTag = script.tags.size() - 1;
+      }
     } else if (c == '\n') {
       nextLine();
       ++i;
@@ -552,15 +579,11 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     return false;
   }
 
-  // Inline TJS2 block in KAG scripts. Skip until matching [endscript].
+  // Source was collected verbatim by the KAG lexer. The TJS2 VM runs it
+  // without treating the inner brackets as KAG dialogue or commands.
   if (name == "iscript") {
-    for (std::size_t i = pc_ + 1; i < script_.tags.size(); ++i) {
-      if (script_.tags[i].type == TagType::Command &&
-          script_.tags[i].name == "endscript") {
-        pc_ = i;
-        break;
-      }
-    }
+    if (cb_.executeInlineTjs && !tag.text.empty())
+      cb_.executeInlineTjs(tag.text);
     return false;
   }
   if (name == "endscript")

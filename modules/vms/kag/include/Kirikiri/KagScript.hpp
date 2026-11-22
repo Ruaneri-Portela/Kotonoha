@@ -76,6 +76,8 @@ public:
     PlayBgmCallback playBgm;
     PlaySeCallback playSe;
     StopBgmCallback stopBgm;
+    // Executes an inline KAG [iscript] block in a retained bounded TJS2 VM.
+    std::function<void(std::string)> executeInlineTjs;
     SetVarCallback setVar;
     GetVarCallback getVar;
   };

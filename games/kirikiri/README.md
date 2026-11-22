@@ -135,3 +135,14 @@ retain their original case. The runtime now recognizes
 `[ignore exp=...]` / `[endignore]` with nested conditional exclusion,
 using the inverse of `[if]` behavior. Synthetic regression tests cover
 both features; native TJS2 integration remains a separate task.
+
+## KAG inline TJS2 execution
+
+KAG `[iscript]` and `@iscript` now retain their source and pass it to the
+bounded TJS2 interpreter on the runtime thread, sharing variables and
+script-defined Window/Layer objects across inline blocks and the startup VM.
+`Scripts.execStorage` requests a scenario transition through the normal
+KAG queue. Unsupported TJS features are reported without executing native
+plugins; the script parser still recognizes exact standalone end markers.
+Synthetic tests verify consecutive blocks, shared values and diagnostics.
+This does not imply parity with full Kirikiri2/KirikiriZ TJS2 bytecode.

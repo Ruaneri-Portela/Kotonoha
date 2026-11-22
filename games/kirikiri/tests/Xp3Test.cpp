@@ -584,6 +584,53 @@ int main() {
     }
   }
 
+  // Preserve and execute KAG inline TJS without confusing inner TJS
+  // brackets with KAG markup. Retained variables survive a second block.
+  {
+    Kotonoha::Providers::KirikiriAssets source(tempDir);
+    Kotonoha::Providers::TjsStartupResult scope;
+    const auto parsed = Kirikiri::KagScript::parse(
+        "[iscript]\n"
+        "var menuTitle = \"Original\";\n"
+        "System.title = menuTitle + \" Menu\";\n"
+        "[endscript]\n"
+        "@iscript\n"
+        "System.title = menuTitle + \" Menu 2\";\n"
+        "@endscript\n"
+        "[cm text=ready][end]\n", "inline-title.ks");
+    std::vector<std::string> displayed;
+    unsigned executed = 0;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string text) {
+      displayed.push_back(std::move(text));
+    };
+    cb.executeInlineTjs = [&](std::string inlineCode) {
+      ++executed;
+      if (!Kotonoha::Providers::executeTjsInlineSubset(
+              scope, source, inlineCode, "inline-title.ks"))
+        throw std::runtime_error(scope.error);
+    };
+    Kirikiri::KagScript::Runner runner(parsed, cb);
+    runner.run();
+    if (executed != 2 || scope.title != "Original Menu 2" ||
+        !scope.error.empty() || displayed != std::vector<std::string>{"ready"} ||
+        !runner.isBlocked()) {
+      std::printf("FAIL: KAG to TJS2 inline execution/retained state\n");
+      ++failures;
+    }
+    runner.resumeWait();
+    if (!runner.isFinished()) {
+      std::printf("FAIL: KAG inline TJS scenario termination\n");
+      ++failures;
+    }
+    const bool rejected = !Kotonoha::Providers::executeTjsInlineSubset(
+        scope, source, "new UnsupportedNative();", "broken.ks", 32);
+    if (!rejected || scope.error.empty()) {
+      std::printf("FAIL: KAG inline TJS native object was accepted\n");
+      ++failures;
+    }
+  }
+
   // In-script [call target=*label] and [return] must preserve continuation
   // after a blocked text command. A saved PC cannot inherit stale frames.
   {

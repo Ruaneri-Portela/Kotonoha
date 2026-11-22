@@ -1897,6 +1897,26 @@ bool KirikiriRuntime::startScenario(
     }
   };
 
+  callbacks.executeInlineTjs = [this, target](std::string source) {
+    auto &state = *impl_;
+    const bool success = Kotonoha::Providers::executeTjsInlineSubset(
+        state.startupExecution, *state.assets, source, target);
+    if (!success) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "KiriKiri: inline TJS2 in %s: %s", target.c_str(),
+                  state.startupExecution.error.c_str());
+      return; // Keep unsupported scripts visible as diagnostics.
+    }
+    const auto requested = state.startupExecution.kagEntry;
+    if (!requested.empty() && requested != target) {
+      const auto separator = requested.find('#');
+      state.pendingJumpStorage = requested.substr(0, separator);
+      state.pendingJumpTarget = separator == std::string::npos
+                                    ? std::string()
+                                    : requested.substr(separator + 1);
+    }
+  };
+
   callbacks.showChoice = [this](std::string question,
                                 std::vector<std::string> options,
                                 std::function<void(int)> onChoose) {
