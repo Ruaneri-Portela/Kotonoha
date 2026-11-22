@@ -31,9 +31,19 @@
 - Diferenciados `select` (salto), `selgosub` (chamada com retorno) e `selnum` (índice da escolha); o modo e o destino da seleção persistem em Save/Load, inclusive com leitura de saves V1 anteriores.
 - Acrescentados testes sintéticos em C++17 para VM, lexer, imagens/arquivos compactados e fluxo de menus sem depender de dados comerciais.
 
-### Pendências conhecidas
+### Cobertura atual de scripts, menus e gráficos
 
-- Continuar a compatibilidade de escolhas multilinha e do ciclo completo de `csel`/`customsel`/`cselbtn`.
-- Completar formas indiretas de `getparam`, hooks de texto (`textgosub`, `pretextgosub`) e pausas de clique no meio das linhas.
-- Revisar comandos registrados que ainda são parciais/no-op e validar jogos reais em todas as plataformas, sobretudo iOS.
-- A compatibilidade permanece incremental: testes sintéticos não garantem portabilidade 1:1 com o interpretador GPL original; o código do Kotonoha é independente.
+- Continuação explícita de escolhas em múltiplas linhas (`select`, `selgosub`, `selnum`, `csel`) reunida antes de numerar instruções.
+- `csel` chama `*customsel`, preserva `getcselnum`/`getcselstr` e implementa botões de texto `cselbtn` desenhados com a UI acelerada e `cselgoto`; escolhas e botões são recuperados do Save/Load.
+- `getparam i%N`/`s%N` usa a identidade original das variáveis da chamada (`CALLREF`), inclusive após carregar; `return` restaura a label do chamador (`CALLFROM`).
+- `pretextgosub` e `textgosub` entram nas subrotinas apropriadas, evitam recursão e suportam `texec`; saves guardam callbacks pendentes e o progresso dos efeitos.
+- O grupo de comandos gráficos agora possui tratamento explícito para `tal`, `strsp`/`strsph`, visibilidade independente de `lsp2`, blend aditivo/subtrativo, desenho manual `draw*`/`blt`, capturas por camadas `bgcopy`/`bgcpy`, comandos compostos `spstr`, tremores `quake`/`quakex`/`quakey` e filtros `monocro`/`nega`.
+- Os testes sintéticos em C++17 cobrem cada grupo, com matriz da VM em Linux/macOS, verificação da sintaxe do runtime completo via GCC/Clang no Linux e workflow de build/teste nativo CMake do jogo.
+
+### Verificações e diferenças ainda relevantes
+
+- Os dados dos jogos comerciais não estão incluídos nos testes sintéticos. As rotas e particularidades dos scripts precisam ser comparadas com conteúdo real antes de declarar compatibilidade universal.
+- `bgcopy` registra as camadas do cenário em vez de copiar literalmente cada pixel do framebuffer, podendo diferir em overlays temporários; as matrizes afins e os modos de blend SDL3 também exigem comparação visual com o interpretador de referência.
+- `monocro`/`nega` usam leitura do quadro e atualização de textura SDL3 quando ativados; esse caminho pode custar desempenho em alta resolução e precisa de medição em dispositivos.
+- Pausas de clique embutidas no meio das linhas e operações específicas de plataforma podem divergir do original. A validação deste workflow não certifica build completo iOS/Android/WebAssembly nem equivalência visual de jogos comerciais.
+- A implementação é independente, não uma transferência 1:1 do código GPL do projeto de referência.
