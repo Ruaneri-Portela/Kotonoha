@@ -1818,6 +1818,9 @@ struct LucaSystemRuntime::Impl {
   std::map<LayerKey, SlottedLayer> stagedSlots;
   std::map<LayerKey, SlottedLayer> visibleSlots;
   std::map<LayerKey, SlottedLayer> outgoingSlots;
+  // GPU-owned full-scene framebuffer: crossfade AFTER sprite composition,
+  // never by modifying each layer's alpha independently.
+  Kotonoha::TexturePtr incomingTransitionFrame;
   uint64_t drawStartTick = 0;
   uint64_t drawDurationMs = 0;
   bool drawWipeMode = false;
@@ -2554,7 +2557,7 @@ struct LucaSystemRuntime::Impl {
 
   void renderSlottedLayer(Kotonoha::RendererRef renderer,
                           const SlottedLayer &slot, uint64_t now,
-                          float opacityMod = 1.0f, float rightClip = -1.0f) {
+                          float opacityMod = 1.0f) {
     if (!slot.visible || slot.assetId == 0 || slot.alpha <= 0.0f ||
         opacityMod <= 0.0f)
       return;
@@ -2618,38 +2621,118 @@ struct LucaSystemRuntime::Impl {
     }
 
     SDL_FRect dst{drawX, drawY, drawW, drawH};
-    SDL_FRect source{};
-    const SDL_FRect *sourcePtr = nullptr;
-    if (rightClip >= 0.0f) {
-      const float visibleWidth = wipeVisibleWidth(drawX, drawW, rightClip);
-      if (visibleWidth <= 0.0f)
-        return;
-      const float scaleFactor = (slot.assetId == 65000 || slot.assetId == 65001)
-                                    ? 1280.0f
-                                    : slot.scaleX;
-      source = SDL_FRect{0, 0, visibleWidth / scaleFactor, float(img.height)};
-      sourcePtr = &source;
-      dst.w = visibleWidth;
-    }
+    // WIPE uses a full-scene clip instead of cropping a rotated/scaled
+    // sprite's source rectangle, which used to shift faces and stretch art.
     // Upscalers are intended for flat background art; running an image
     // enhancement filter on transparent CHARCG portraits may distort edges,
     // hair strands and the sprite's original alpha silhouette.
     const bool characterSprite = slot.group == 2 || slot.group == 3;
     if (slot.rotation != 0.0f) {
       if (characterSprite)
-        SDL_RenderTextureRotated(&renderer, tex.get(), sourcePtr, &dst,
+        SDL_RenderTextureRotated(&renderer, tex.get(), nullptr, &dst,
                                  double(slot.rotation), nullptr, SDL_FLIP_NONE);
       else
         Kotonoha::RenderUpscaledTextureRotated(
-            &renderer, tex.get(), sourcePtr, &dst, double(slot.rotation),
+            &renderer, tex.get(), nullptr, &dst, double(slot.rotation),
             nullptr, SDL_FLIP_NONE);
     } else {
       if (characterSprite)
-        SDL_RenderTexture(&renderer, tex.get(), sourcePtr, &dst);
+        SDL_RenderTexture(&renderer, tex.get(), nullptr, &dst);
       else
-        Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), sourcePtr, &dst);
+        Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), nullptr, &dst);
     }
 
+  }
+
+  // Always compose each portrait and its expression as an adjacent pair.
+  // This is the same ordering for ordinary frames, outgoing and incoming
+  // transition frames, so transitions cannot reorder character faces.
+  void renderSlottedScene(Kotonoha::RendererRef renderer,
+                          const std::map<LayerKey, SlottedLayer> &slots,
+                          uint64_t now, float opacity = 1.0f) {
+    for (const auto key : orderedAirLayerKeys(slots)) {
+      const auto it = slots.find(key);
+      if (it != slots.end())
+        renderSlottedLayer(renderer, it->second, now, opacity);
+    }
+  }
+
+  // SDL3 keeps viewport, clip and logical presentation separately for each
+  // render target. Restore the caller's target before rendering the old
+  // frame or UI; the UI remains fully GPU-accelerated at native resolution.
+  bool renderCrossfade(Kotonoha::RendererRef renderer, uint64_t now, float t) {
+    if (t <= 0.0f) {
+      renderSlottedScene(renderer, outgoingSlots, now);
+      return true;
+    }
+    if (!incomingTransitionFrame) {
+      incomingTransitionFrame.reset(SDL_CreateTexture(
+          &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET,
+          1280, 720));
+      if (!incomingTransitionFrame ||
+          !SDL_SetTextureBlendMode(incomingTransitionFrame.get(),
+                                   SDL_BLENDMODE_BLEND) ||
+          !SDL_SetTextureScaleMode(incomingTransitionFrame.get(),
+                                   SDL_SCALEMODE_LINEAR)) {
+        incomingTransitionFrame.reset();
+        return false;
+      }
+    }
+    SDL_Texture *previous = SDL_GetRenderTarget(&renderer);
+    if (!SDL_SetRenderTarget(&renderer, incomingTransitionFrame.get()))
+      return false;
+    // The newly allocated render target is a native 1280x720 framebuffer;
+    // never inherit a scaled/high-DPI viewport or an outer UI clip.
+    const bool ready =
+        SDL_SetRenderLogicalPresentation(
+            &renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED) &&
+        SDL_SetRenderViewport(&renderer, nullptr) &&
+        SDL_SetRenderClipRect(&renderer, nullptr) &&
+        SDL_SetRenderScale(&renderer, 1.0f, 1.0f) &&
+        SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255) &&
+        SDL_RenderClear(&renderer);
+    if (ready)
+      renderSlottedScene(renderer, visibleSlots, now);
+    const bool restored = SDL_SetRenderTarget(&renderer, previous);
+    if (!ready || !restored)
+      return false;
+
+    // Black backgrounds are part of both complete scenes. Composite once:
+    // old*(1-t) + new*t. Sprite alpha never gets multiplied twice.
+    renderSlottedScene(renderer, outgoingSlots, now);
+    const Uint8 weight =
+        static_cast<Uint8>(std::lround(std::clamp(t, 0.0f, 1.0f) * 255.0f));
+    const SDL_FRect frame{0, 0, 1280, 720};
+    const bool drawn =
+        SDL_SetTextureAlphaMod(incomingTransitionFrame.get(), weight) &&
+        SDL_RenderTexture(&renderer, incomingTransitionFrame.get(), nullptr,
+                          &frame);
+    SDL_SetTextureAlphaMod(incomingTransitionFrame.get(), 255);
+    return drawn;
+  }
+
+  void renderWipe(Kotonoha::RendererRef renderer, uint64_t now, float t) {
+    const int x = wipeSplitX(1280, t);
+    const SDL_Rect oldSide{x, 0, 1280 - x, 720};
+    const SDL_Rect newSide{0, 0, x, 720};
+    SDL_Rect parent{};
+    const bool parentClipped = SDL_RenderClipEnabled(&renderer);
+    if (parentClipped)
+      SDL_GetRenderClipRect(&renderer, &parent);
+    const auto drawRegion = [&](const SDL_Rect &region,
+                                const std::map<LayerKey, SlottedLayer> &slots) {
+      if (region.w <= 0 || region.h <= 0)
+        return;
+      SDL_Rect clip = region;
+      if (parentClipped &&
+          !SDL_GetRectIntersection(&region, &parent, &clip))
+        return;
+      if (SDL_SetRenderClipRect(&renderer, &clip))
+        renderSlottedScene(renderer, slots, now);
+    };
+    drawRegion(oldSide, outgoingSlots);
+    drawRegion(newSide, visibleSlots);
+    SDL_SetRenderClipRect(&renderer, parentClipped ? &parent : nullptr);
   }
 
   bool hasCalendarBackground(const std::map<uint16_t, SlottedLayer> &slots) const {
@@ -3940,33 +4023,22 @@ void LucaSystemRuntime::renderGameplay(Kotonoha::RendererRef renderer,
             float(impl.drawDurationMs),
         0.0f, 1.0f);
     if (impl.drawWipeMode) {
-      for (const auto &[key, slot] : impl.outgoingSlots)
-        impl.renderSlottedLayer(renderer, slot, now, 1.0f);
-      const float revealRight = 1280.0f * t;
-      for (const auto &[key, slot] : impl.visibleSlots)
-        impl.renderSlottedLayer(renderer, slot, now, 1.0f, revealRight);
-    } else {
-      for (const auto &[key, outSlot] : impl.outgoingSlots) {
-        auto visIt = impl.visibleSlots.find(key);
-        if (visIt != impl.visibleSlots.end() &&
-            visIt->second.sameVisual(outSlot)) {
-          // Unchanged layer: render once at full opacity so alpha doesn't dip
-          impl.renderSlottedLayer(renderer, outSlot, now, 1.0f);
-        } else {
-          impl.renderSlottedLayer(renderer, outSlot, now, 1.0f - t);
-        }
-      }
-      for (const auto &[key, visSlot] : impl.visibleSlots) {
-        auto outIt = impl.outgoingSlots.find(key);
-        if (outIt != impl.outgoingSlots.end() &&
-            outIt->second.sameVisual(visSlot))
-          continue;
-        impl.renderSlottedLayer(renderer, visSlot, now, t);
-      }
+      // Two disjoint GPU scissor regions: incoming pixels REPLACE outgoing
+      // pixels; faces and transparent sprites cannot be drawn twice.
+      impl.renderWipe(renderer, now, t);
+    } else if (!impl.renderCrossfade(renderer, now, t)) {
+      // Rare render-target allocation/backend failure: stay playable and
+      // restore the legacy fade while emitting a meaningful diagnostic.
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "LucaSystem: full-scene crossfade unavailable: %s",
+                  SDL_GetError());
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+      SDL_RenderFillRect(&renderer, &screen);
+      impl.renderSlottedScene(renderer, impl.outgoingSlots, now, 1.0f - t);
+      impl.renderSlottedScene(renderer, impl.visibleSlots, now, t);
     }
   } else {
-    for (const auto &[key, slot] : impl.visibleSlots)
-      impl.renderSlottedLayer(renderer, slot, now, 1.0f);
+    impl.renderSlottedScene(renderer, impl.visibleSlots, now);
   }
 
   impl.renderCalendarBadge(renderer, now, inTransition);
