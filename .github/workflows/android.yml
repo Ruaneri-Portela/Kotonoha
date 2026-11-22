@@ -176,8 +176,17 @@ jobs:
           expected = set(json.loads(
               Path("buildsystems/xcode/ProjectManifest.json").read_text(
                   encoding="utf-8"))["games"].values())
-          assert {slug for _, slug in flavor_entries} == expected, (
-              "Android Gradle flavors differ from the CMake game matrix")
+          # The dedicated hub selects all runtimes; it is not a game slug.
+          game_flavors = [(flavor, slug) for flavor, slug in flavor_entries
+                          if flavor != "launcher"]
+          launcher_flavors = [(flavor, slug) for flavor, slug in flavor_entries
+                              if flavor == "launcher"]
+          assert ({slug for _, slug in game_flavors} == expected
+                  and len(game_flavors) == len(expected)), (
+              "Android game flavors differ from the CMake game matrix")
+          assert launcher_flavors == [("launcher", "all")], (
+              "Expected one independent Android launcher flavor")
+          # Every game AND the additional hub must produce its own APK.
           flavors = [flavor for flavor, _ in flavor_entries]
           for flavor in flavors:
               suffix = f"-{flavor.lower()}-debug.apk"
@@ -226,8 +235,17 @@ jobs:
           expected = set(json.loads(
               Path("buildsystems/xcode/ProjectManifest.json").read_text(
                   encoding="utf-8"))["games"].values())
-          assert {slug for _, slug in flavor_entries} == expected, (
-              "Android Gradle flavors differ from the CMake game matrix")
+          # The dedicated hub selects all runtimes; it is not a game slug.
+          game_flavors = [(flavor, slug) for flavor, slug in flavor_entries
+                          if flavor != "launcher"]
+          launcher_flavors = [(flavor, slug) for flavor, slug in flavor_entries
+                              if flavor == "launcher"]
+          assert ({slug for _, slug in game_flavors} == expected
+                  and len(game_flavors) == len(expected)), (
+              "Android game flavors differ from the CMake game matrix")
+          assert launcher_flavors == [("launcher", "all")], (
+              "Expected one independent Android launcher flavor")
+          # Every game AND the additional hub must produce its own APK.
           flavors = [flavor for flavor, _ in flavor_entries]
           apk_dir = Path("buildsystems/android/app/build/outputs/apk")
           apk_files = list(apk_dir.rglob("*.apk"))

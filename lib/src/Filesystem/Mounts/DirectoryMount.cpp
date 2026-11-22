@@ -38,13 +38,19 @@ bool shouldSkipSystemEntry(std::string_view filename) {
 
 } // namespace
 
-DirectoryMount::DirectoryMount(const std::filesystem::path &source) {
+DirectoryMount::DirectoryMount(const std::filesystem::path &source,
+                               bool indexRecursively)
+    : lazyIndex_(!indexRecursively) {
   std::error_code ec;
   root_ = std::filesystem::canonical(source, ec);
   if (ec || !std::filesystem::is_directory(root_, ec))
     throw FilesystemError(ErrorCode::NotDirectory,
                           "Mount is not a local directory: " + source.string());
   nodes_.emplace("", Node{FileInfo{"", FileType::Directory, 0}, root_});
+  // Discovery only needs named probes and a few listed directories. Full
+  // recursive indexing remains the default for game execution and providers.
+  if (lazyIndex_)
+    return;
 
   std::filesystem::recursive_directory_iterator it(
       root_, std::filesystem::directory_options::skip_permission_denied, ec),
@@ -155,6 +161,87 @@ DirectoryMount::DirectoryMount(const std::filesystem::path &source) {
   }
 }
 
+// Lazy indexing is only used by engine discovery. Index one directory at a
+// time, resolving parent names through the same case-insensitive VFS keys as
+// the eager mount. Never follow a directory symlink or allow paths to escape.
+void DirectoryMount::indexDirectory(std::string_view directory) const {
+  if (!lazyIndex_)
+    return;
+  const std::string key = lookupKey(directory, true);
+  if (indexedDirectories_.count(key))
+    return;
+  if (!key.empty()) {
+    const auto slash = key.find_last_of('/');
+    indexDirectory(slash == std::string::npos
+                       ? std::string_view{}
+                       : std::string_view(key).substr(0, slash));
+  }
+  const auto parent = nodes_.find(key);
+  if (parent == nodes_.end() ||
+      parent->second.info.type != FileType::Directory)
+    return;
+
+  std::error_code ec;
+  for (std::filesystem::directory_iterator it(
+           parent->second.physical,
+           std::filesystem::directory_options::skip_permission_denied, ec),
+       end;
+       !ec && it != end; it.increment(ec)) {
+    const auto filename = it->path().filename().string();
+    if (shouldSkipSystemEntry(filename))
+      continue;
+    const auto rel = it->path().lexically_relative(root_).generic_string();
+    if (rel.find(':') != std::string::npos ||
+        rel.find(static_cast<char>(0)) != std::string::npos)
+      continue;
+
+    std::error_code statusError;
+    const auto symStatus = it->symlink_status(statusError);
+    if (statusError)
+      continue;
+    const bool symlink = std::filesystem::is_symlink(symStatus);
+    const bool directoryEntry = it->is_directory(statusError);
+    if (statusError || (symlink && directoryEntry))
+      continue;
+    const bool fileEntry = !directoryEntry && it->is_regular_file(statusError);
+    if (statusError || (!directoryEntry && !fileEntry))
+      continue;
+
+    const auto physical = std::filesystem::canonical(it->path(), statusError);
+    if (statusError)
+      continue;
+    if (!contained(physical, root_))
+      throw FilesystemError(ErrorCode::InvalidPath,
+                            "Mount entry escapes its directory: " + rel);
+
+    const auto id = normalizePath(rel);
+    std::int64_t size = 0;
+    if (fileEntry) {
+      const auto actualSize = it->file_size(statusError);
+      if (statusError ||
+          actualSize > static_cast<std::uintmax_t>(INT64_MAX))
+        continue;
+      size = static_cast<std::int64_t>(actualSize);
+    }
+    nodes_.emplace(lookupKey(id),
+                   Node{FileInfo{id, directoryEntry ? FileType::Directory
+                                                   : FileType::Regular, size},
+                        it->path()});
+  }
+  // An unreadable child must not trigger a full recursive retry.
+  indexedDirectories_.insert(key);
+}
+
+void DirectoryMount::ensureParentIndexed(std::string_view path) const {
+  if (!lazyIndex_)
+    return;
+  const auto key = lookupKey(path, true);
+  const auto slash = key.find_last_of('/');
+  indexDirectory(slash == std::string::npos
+                     ? std::string_view{}
+                     : std::string_view(key).substr(0, slash));
+}
+
 #ifdef __EMSCRIPTEN__
 void DirectoryMount::refreshFromBrowser() const {
   // A virtual folder can be mounted after game startup. The browser changes
@@ -163,8 +250,9 @@ void DirectoryMount::refreshFromBrowser() const {
       EM_ASM_INT({ return Module["KotonohaVfsGeneration"] | 0; });
   if (current == observedBrowserGeneration_)
     return;
-  DirectoryMount updated(root_);
+  DirectoryMount updated(root_, !lazyIndex_);
   nodes_ = std::move(updated.nodes_);
+  indexedDirectories_.clear();
   observedBrowserGeneration_ = current;
 }
 #endif
@@ -196,6 +284,7 @@ bool DirectoryMount::exists(std::string_view path) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  ensureParentIndexed(path);
   tryAddFile(path);
   return nodes_.count(lookupKey(path, true)) != 0;
 }
@@ -204,6 +293,7 @@ FileInfo DirectoryMount::stat(std::string_view path) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  ensureParentIndexed(path);
   tryAddFile(path);
   const auto found = nodes_.find(lookupKey(path, true));
   if (found == nodes_.end())
@@ -215,6 +305,7 @@ std::vector<FileInfo> DirectoryMount::list(std::string_view directory) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  indexDirectory(directory);
   const auto base = lookupKey(directory, true);
   const auto node = nodes_.find(base);
   if (node == nodes_.end())
@@ -238,6 +329,7 @@ std::unique_ptr<FileHandle> DirectoryMount::open(std::string_view path) const {
 #ifdef __EMSCRIPTEN__
   refreshFromBrowser();
 #endif
+  ensureParentIndexed(path);
   tryAddFile(path);
   const auto found = nodes_.find(lookupKey(path));
   if (found == nodes_.end())

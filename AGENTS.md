@@ -17,7 +17,7 @@ Kotonoha is a modular **C++17 visual novel engine** built upon SDL3, Dear ImGui,
 | `lib/` | Core engine library, shared interfaces, public headers (`lib/include/Kotonoha/`), and unit tests. |
 | `modules/vms/` | Script virtual machines (Amagami, Snow Radish, Summer Radish, Ren'Py/DDLC, RealLive, Pure Mail). Pure script execution, independent of rendering. |
 | `modules/providers/` | Asset and archive format decoders implementing `Kotonoha::AssetProvider` (CMP, ADV, GPK, XP3, PAK, RealLive, RPA, Amagami, Pmail, Zero). |
-| `games/` | 11 game ports and demo (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`). |
+| `games/` | 15 game applications (14 game ports and Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`). |
 | `buildsystems/` | Platform build orchestration: `cmake/` (CMake modules), `android/` (Gradle project), `xcode/` (Native `Kotonoha.xcodeproj`). |
 | `assets/` | Shared engine resources (fonts, icons, shaders) and legal third-party notices. |
 | `docs/` | Comprehensive bilingual documentation (`*.md` in en-US, `*.pt-BR.md` in pt-BR). |
@@ -129,12 +129,11 @@ cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
     -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
     -DVCPKG_TARGET_TRIPLET=<triplet> \
     '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg' \
-    -DKOTONOHA_SDL_PROVIDER=VCPKG \
-    
+    -DKOTONOHA_SDL_PROVIDER=VCPKG
   ```
 
 ### Apple Platforms (macOS & iOS)
-- **Native Xcode Project**: `buildsystems/xcode/Kotonoha.xcodeproj` (contains 22 shared schemes: 11 macOS and 11 iOS).
+- **Native Xcode Project**: `buildsystems/xcode/Kotonoha.xcodeproj` (contains 32 shared schemes: 16 macOS and 16 iOS).
 - **Preparation Script**:
   ```sh
   python3 tools/PrepareApple.py
@@ -181,7 +180,7 @@ Run immediately after modifying `CMakeLists.txt`, `KotonohaGames.cmake`, `Kotono
 ```sh
 python3 tools/ValidateBuildMetadata.py
 ```
-*Expected output*: `[Kotonoha] OK: 11 games; 22 schemes; CMake/Xcode consistent`
+*Expected output*: `[Kotonoha] OK: 15 CMake games; 32 existing Xcode schemes; Xcode pending: none`
 
 ### 2. Native C++ Tests
 ```sh
