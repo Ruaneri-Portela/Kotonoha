@@ -1,4 +1,5 @@
 #include "RealLiveRuntime.hpp"
+#include "RealLiveAudioFade.hpp"
 #include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
 #include "RealLiveSelection.hpp"
@@ -750,6 +751,7 @@ struct RealLiveRuntime::Impl {
   float bgmGain = 1, fadeFrom = 1, fadeTo = 1;
   int fadeElapsed = 0, fadeDuration = 0;
   bool fadeStops = false;
+  bool bgmScriptPaused = false; // independent of gameplay/menu suspension
   Uint64 audioTick = 0;
   std::map<int, std::unique_ptr<PcmPlayer>> sounds;
   std::map<std::string, Graphic> graphics;
@@ -2155,9 +2157,10 @@ struct RealLiveRuntime::Impl {
     if (end > 0 && uint64_t(end) < count)
       clip.samples.resize(size_t(end) * clip.channels);
     if (&p == &bgm) {
-      bgmGain = 1;
+      // Track changes preserve the script's gain, but cancel an old fade.
       fadeDuration = fadeElapsed = 0;
       fadeStops = false;
+      bgmScriptPaused = false;
       musicID = id;
       musicLoop = loop;
       musicEnd = end;
@@ -2177,6 +2180,8 @@ struct RealLiveRuntime::Impl {
                                       clip.samples.size() / clip.channels);
     if (!p.Play(engine->GetAudio().channel(channel), std::move(clip)))
       throw std::runtime_error(SDL_GetError());
+    if (&p == &bgm)
+      p.SetGain(bgmGain);
   }
   void play(PcmPlayer &p, const std::string &id, const std::string &channel,
             bool loop = false, int64_t start = 0, int64_t end = 0,
@@ -2328,6 +2333,7 @@ struct RealLiveRuntime::Impl {
       musicID.clear();
       fadeDuration = fadeElapsed = 0;
       bgmGain = 1;
+      bgmScriptPaused = false;
       sounds.clear();
       runtime.SetState(GameState::Menu);
       titleInput.reset();
@@ -3336,11 +3342,13 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         id += ".NWA";
       play(bgm, id, "BGM", op == 0 || op == 1, t.from, t.to, t.loop);
       if (op == 1 || op == 3) {
-        fadeFrom = 0;
-        fadeTo = bgmGain > 0 ? bgmGain : 255;
+        fadeTo = bgmGain;
+        fadeFrom = 0.0f;
         fadeElapsed = 0;
         fadeDuration = std::max(0, value(c, 1, 1000));
         fadeStops = false;
+        bgmGain = sampleBgmFade(fadeFrom, fadeTo, 0, fadeDuration);
+        bgm.SetGain(bgmGain);
       }
       return true;
     }
@@ -3349,11 +3357,15 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     if (op == 9) {
-      machine.set_store_register(bgmGain);
+      machine.set_store_register(gainToNativeBgm(bgmGain));
       return true;
     }
     if (op == 10) {
-      bgmGain = value(c, 0);
+      bgmGain = nativeBgmToGain(value(c, 0));
+      fadeDuration = fadeElapsed = 0;
+      fadeFrom = fadeTo = bgmGain;
+      fadeStops = false;
+      bgm.SetGain(bgmGain);
       return true;
     }
     if (op == 11) {
@@ -3364,15 +3376,19 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     if (op == 12) {
+      bgmScriptPaused = true;
       bgm.SetPaused(true);
       return true;
     }
     if (op == 13) {
-      bgm.SetPaused(false);
+      bgmScriptPaused = false;
+      bgm.SetPaused(engine->isStoryPaused());
       return true;
     }
     if (op == 14) {
       bgm.Stop();
+      fadeDuration = fadeElapsed = 0;
+      bgmScriptPaused = false;
       musicID.clear();
       return true;
     }
@@ -3393,24 +3409,33 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 101 || op == 102 || op == 103) {
       fadeFrom = bgmGain;
-      fadeTo = std::clamp(value(c, 0, 0), 0, 255);
+      fadeTo = nativeBgmToGain(value(c, 0, 0));
       fadeElapsed = 0;
       fadeDuration = std::max(0, value(c, 1, 1000));
-      fadeStops = fadeTo == 0;
+      fadeStops = fadeTo == 0.0f;
+      if (fadeDuration == 0) {
+        bgmGain = fadeTo;
+        bgm.SetGain(bgmGain);
+        if (fadeStops) {
+          bgm.Stop();
+          musicID.clear();
+        }
+      }
       if (op == 102 || op == 103)
         wait(fadeDuration);
       return true;
     }
     if (op == 105 || op == 106 || op == 107) {
       fadeFrom = bgmGain;
-      fadeTo = 0;
+      fadeTo = 0.0f;
       fadeElapsed = 0;
       fadeDuration = std::max(0, value(c, 0, 1000));
       fadeStops = true;
       if (!fadeDuration) {
         bgm.Stop();
         musicID.clear();
-        bgmGain = 0;
+        bgmGain = 0.0f;
+        bgm.SetGain(bgmGain);
       }
       if (op == 106 || op == 107)
         wait(fadeDuration);
@@ -3418,7 +3443,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     if (op == 5) {
       bgm.Stop();
-      fadeDuration = 0;
+      fadeDuration = fadeElapsed = 0;
+      bgmScriptPaused = false;
       musicID.clear();
       return true;
     }
@@ -4702,10 +4728,9 @@ void RealLiveRuntime::update() {
   if (paused && i.autoDeadline)
     i.autoDeadline += delta;
   if (!paused && i.fadeDuration > 0) {
-    i.fadeElapsed =
-        int(std::min<Uint64>(i.fadeDuration, Uint64(i.fadeElapsed) + delta));
-    i.bgmGain = i.fadeFrom +
-                (i.fadeTo - i.fadeFrom) * float(i.fadeElapsed) / i.fadeDuration;
+    i.fadeElapsed = advanceBgmFade(i.fadeElapsed, i.fadeDuration, delta);
+    i.bgmGain =
+        sampleBgmFade(i.fadeFrom, i.fadeTo, i.fadeElapsed, i.fadeDuration);
     i.bgm.SetGain(i.bgmGain);
     if (i.fadeElapsed == i.fadeDuration) {
       i.fadeDuration = 0;
@@ -4715,7 +4740,7 @@ void RealLiveRuntime::update() {
       }
     }
   }
-  i.bgm.SetPaused(paused);
+  i.bgm.SetPaused(paused || i.bgmScriptPaused);
   i.voice.SetPaused(paused);
   for (auto &[n, s] : i.sounds)
     s->SetPaused(paused);
