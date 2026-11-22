@@ -1,8 +1,10 @@
 #include <Kotonoha/Filesystem/Mounts/DirectoryMount.hpp>
 #include <Kotonoha/Filesystem/Path.hpp>
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
+#include <SDL3/SDL_log.h>
 
 #include <limits>
+#include <string_view>
 #include <utility>
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -19,56 +21,138 @@ bool contained(const std::filesystem::path &file,
       return false;
   return true;
 }
+
+bool shouldSkipSystemEntry(std::string_view filename) {
+  if (filename == ".DS_Store" || filename == ".Spotlight-V100" ||
+      filename == ".Trashes" || filename == ".fseventsd")
+    return true;
+  if (filename.size() >= 2 && filename[0] == '.' && filename[1] == '_')
+    return true;
+  constexpr std::string_view kICloudSuffix = ".icloud";
+  if (filename.size() >= kICloudSuffix.size() &&
+      filename.compare(filename.size() - kICloudSuffix.size(),
+                       kICloudSuffix.size(), kICloudSuffix) == 0)
+    return true;
+  return false;
+}
+
 } // namespace
 
 DirectoryMount::DirectoryMount(const std::filesystem::path &source) {
   std::error_code ec;
   root_ = std::filesystem::canonical(source, ec);
-  if (ec || !std::filesystem::is_directory(root_))
+  if (ec || !std::filesystem::is_directory(root_, ec))
     throw FilesystemError(ErrorCode::NotDirectory,
                           "Mount is not a local directory: " + source.string());
   nodes_.emplace("", Node{FileInfo{"", FileType::Directory, 0}, root_});
 
-  std::filesystem::recursive_directory_iterator it(root_, ec), end;
+  std::filesystem::recursive_directory_iterator it(
+      root_, std::filesystem::directory_options::skip_permission_denied, ec),
+      end;
   if (ec)
     throw FilesystemError(ErrorCode::IOError,
                           "Cannot enumerate mount directory: " +
                               root_.string());
   for (; it != end; it.increment(ec)) {
-    if (ec)
-      throw FilesystemError(ErrorCode::IOError, "Cannot enumerate mount");
-    const auto id =
-        normalizePath(it->path().lexically_relative(root_).generic_string());
+    if (ec) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "DirectoryMount: skipping unreadable entry in %s: %s",
+                  root_.string().c_str(), ec.message().c_str());
+      ec.clear();
+      continue;
+    }
+
+    const auto filename = it->path().filename().string();
+    if (shouldSkipSystemEntry(filename)) {
+      std::error_code dirEc;
+      if (it->is_directory(dirEc))
+        it.disable_recursion_pending();
+      continue;
+    }
+
+    const auto rel = it->path().lexically_relative(root_).generic_string();
+    if (rel.find(':') != std::string::npos ||
+        rel.find('\0') != std::string::npos) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "DirectoryMount: skipping entry with unsupported path "
+                  "characters: %s",
+                  rel.c_str());
+      std::error_code dirEc;
+      if (it->is_directory(dirEc))
+        it.disable_recursion_pending();
+      continue;
+    }
+
+    const auto id = normalizePath(rel);
     const auto key = lookupKey(id);
-    const auto real = std::filesystem::canonical(it->path(), ec);
-    if (ec || !contained(real, root_))
+
+    std::error_code symEc;
+    const auto symStatus = it->symlink_status(symEc);
+    const bool isSym = !symEc && std::filesystem::is_symlink(symStatus);
+
+    std::error_code canonEc;
+    const auto real = std::filesystem::canonical(it->path(), canonEc);
+    if (canonEc) {
+      SDL_LogWarn(
+          SDL_LOG_CATEGORY_APPLICATION,
+          "DirectoryMount: skipping broken or unreadable entry '%s': %s",
+          id.c_str(), canonEc.message().c_str());
+      continue;
+    }
+    if (!contained(real, root_))
       throw FilesystemError(ErrorCode::InvalidPath,
                             "Mount entry escapes its directory: " + id);
-    if (std::filesystem::is_symlink(it->symlink_status(ec)) &&
-        std::filesystem::is_directory(it->status(ec)))
-      throw FilesystemError(ErrorCode::UnsupportedMount,
-                            "Directory symlink is unsupported: " + id);
-    const bool directory = it->is_directory(ec);
-    const bool regular = it->is_regular_file(ec);
-    if (ec || (!directory && !regular))
-      throw FilesystemError(ErrorCode::UnsupportedMount,
-                            "Unsupported mount entry: " + id);
+
+    if (isSym) {
+      std::error_code statEc;
+      const auto targetStatus = it->status(statEc);
+      if (statEc || std::filesystem::is_directory(targetStatus)) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "DirectoryMount: skipping directory symlink '%s'",
+                    id.c_str());
+        it.disable_recursion_pending();
+        continue;
+      }
+    }
+
+    std::error_code typeEc;
+    const bool directory = it->is_directory(typeEc);
+    const bool regular = !typeEc && it->is_regular_file(typeEc);
+    if (typeEc || (!directory && !regular)) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "DirectoryMount: skipping unsupported entry '%s'",
+                  id.c_str());
+      continue;
+    }
+
     std::int64_t size = 0;
     if (regular) {
-      const auto actualSize = it->file_size(ec);
-      if (ec || actualSize > static_cast<std::uintmax_t>(INT64_MAX))
-        throw FilesystemError(ErrorCode::IOError, "Invalid file size: " + id);
+      std::error_code sizeEc;
+      const auto actualSize = it->file_size(sizeEc);
+      if (sizeEc || actualSize > static_cast<std::uintmax_t>(INT64_MAX)) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "DirectoryMount: skipping entry with unreadable size '%s'",
+                    id.c_str());
+        continue;
+      }
       size = static_cast<std::int64_t>(actualSize);
     }
+
     Node entry{
         FileInfo{id, directory ? FileType::Directory : FileType::Regular, size},
         it->path()};
-    if (!nodes_.emplace(key, std::move(entry)).second)
-      throw FilesystemError(ErrorCode::InvalidPath,
-                            "Ambiguous case-insensitive mount entry: " + id);
+    if (!nodes_.emplace(key, std::move(entry)).second) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "DirectoryMount: case-insensitive collision for '%s', "
+                  "keeping first entry",
+                  id.c_str());
+    }
   }
-  if (ec)
-    throw FilesystemError(ErrorCode::IOError, "Cannot enumerate mount");
+  if (ec) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "DirectoryMount: enumeration finished with warning in %s: %s",
+                root_.string().c_str(), ec.message().c_str());
+  }
 }
 
 #ifdef __EMSCRIPTEN__

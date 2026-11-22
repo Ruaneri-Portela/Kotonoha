@@ -321,7 +321,7 @@ void ZeroSession::PlayBgm(const std::string &name) {
       if (GameEdition() == SceneSource::Edition::Symphony)
         actual = "BGMB01";
       else if (GameEdition() == SceneSource::Edition::Concerto)
-        actual = "1";
+        actual = "2";
     }
   }
   if (actual == lastBgm_)
@@ -330,6 +330,16 @@ void ZeroSession::PlayBgm(const std::string &name) {
   bgm_.Stop();
   std::vector<uint8_t> raw;
   if (!actual.empty() && ReadAsset("sound/" + actual, &raw)) {
+    if (raw.size() <= 64 &&
+        std::all_of(actual.begin(), actual.end(),
+                    [](unsigned char c) { return std::isdigit(c); })) {
+      std::vector<uint8_t> nextRaw;
+      const std::string nextIdx = std::to_string(std::stoul(actual) + 1);
+      if (ReadAsset("sound/" + nextIdx, &nextRaw) &&
+          nextRaw.size() > raw.size()) {
+        raw = std::move(nextRaw);
+      }
+    }
     if (!PlayStream(bgm_, "bgm", raw, bgmRate_, true))
       SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                   "[zero] bgm %s: PlayStream failed", actual.c_str());

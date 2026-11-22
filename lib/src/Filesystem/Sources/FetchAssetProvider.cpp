@@ -724,7 +724,9 @@ void FetchAssetProvider::pump() {
         // '===' becomes two C tokens ('==' and '='), producing invalid '== ='
         // in the emitted JS. 'typeof' returns a string, so '==' is safe here.
         return window.KotonohaAssetCache &&
-               typeof window.KotonohaAssetCache.fetchJob == "function" ? 1 : 0;
+                       typeof window.KotonohaAssetCache.fetchJob == "function"
+                   ? 1
+                   : 0;
       })) {
     while (active_ < 4 && !queued_.empty()) {
       auto job = std::move(queued_.front());

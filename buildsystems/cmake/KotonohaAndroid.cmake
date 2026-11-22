@@ -42,7 +42,9 @@ if (ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
     endif ()
 
     # vcpkg manifest features must be declared before project().
-    if (KOTONOHA_BUILD_GAME STREQUAL "doki-doki-literature-club")
+    if (KOTONOHA_BUILD_GAME STREQUAL "doki-doki-literature-club" OR
+        KOTONOHA_BUILD_GAME STREQUAL "katawa-shoujo" OR
+        KOTONOHA_BUILD_GAME STREQUAL "all")
         list(APPEND VCPKG_MANIFEST_FEATURES android-python)
         list(REMOVE_DUPLICATES VCPKG_MANIFEST_FEATURES)
     endif ()

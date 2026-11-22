@@ -1,0 +1,146 @@
+// Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
+#include <N2System/NsbScript.hpp>
+#include <N2System/NsbVm.hpp>
+#include <cstdint>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace {
+using Bytes = std::vector<std::uint8_t>;
+
+void require(bool cond, const char *msg) {
+  if (!cond)
+    throw std::runtime_error(msg);
+}
+
+void put16(Bytes &b, std::uint16_t v) {
+  b.push_back(static_cast<std::uint8_t>(v & 0xFF));
+  b.push_back(static_cast<std::uint8_t>(v >> 8));
+}
+
+void put32(Bytes &b, std::uint32_t v) {
+  for (int i = 0; i < 4; ++i)
+    b.push_back(static_cast<std::uint8_t>(v >> (8 * i)));
+}
+
+Bytes utf16(std::string_view ascii) {
+  Bytes out;
+  for (unsigned char c : ascii) {
+    out.push_back(c);
+    out.push_back(0);
+  }
+  return out;
+}
+
+void addInsn(Bytes &nsb, std::uint32_t line, std::uint16_t op,
+             const std::vector<std::string> &args) {
+  put32(nsb, line);
+  put16(nsb, op);
+  put16(nsb, static_cast<std::uint16_t>(args.size()));
+  for (const auto &a : args) {
+    const auto u = utf16(a);
+    put32(nsb, static_cast<std::uint32_t>(u.size()));
+    nsb.insert(nsb.end(), u.begin(), u.end());
+  }
+}
+
+void addMap(Bytes &map, std::uint32_t off, std::string_view name) {
+  const auto u = utf16(name);
+  put32(map, off);
+  put16(map, static_cast<std::uint16_t>(u.size()));
+  map.insert(map.end(), u.begin(), u.end());
+}
+} // namespace
+
+int main() {
+  // 1. Test UTF-16LE system.ini parsing
+  {
+    const std::string iniText =
+        "[product]\r\nname=STEINS;GATE\r\nstart=nss/0_boot.nss\r\n"
+        "bgm_volume = 600\r\n";
+    Bytes raw = {0xFF, 0xFE};
+    auto u = utf16(iniText);
+    raw.insert(raw.end(), u.begin(), u.end());
+    auto cfg = N2System::SystemIniConfig::parseUtf16Le(raw);
+    require(cfg.productName == "STEINS;GATE", "productName mismatch");
+    require(cfg.startScript == "nss/0_boot.nss", "startScript mismatch");
+    require(cfg.bgmVolume == 600, "bgmVolume mismatch");
+  }
+
+  // 2. Test <PRE> XML block parsing
+  {
+    auto blk = N2System::NsbVm::parsePreBlock(
+        "text00010", "@box00",
+        "<PRE @box00>[text00010]\n<voice name=\"Rintaro\" class=\"VID_OKA\" "
+        "src=\"voice/OKA_0102\" mode=\"on\">\n\"El Psy "
+        "Kongroo.\"<br>Done.</PRE>");
+    require(blk.speaker == "Rintaro", "speaker mismatch");
+    require(blk.voicePath == "voice/OKA_0102.ogg", "voicePath mismatch");
+    require(blk.text == "\"El Psy Kongroo.\"\nDone.", "pre text mismatch");
+  }
+
+  // 3. Test .nsb bytecode execution: vars, arithmetic, texture, PreCreate,
+  // WaitKey, Phone
+  {
+    Bytes nsb, map;
+    addMap(map, 0, "chapter.main");
+    addInsn(nsb, 1, 0x094, {"chapter.main"});
+    addInsn(nsb, 2, 0x0d0, {"INT", "40"});
+    addInsn(nsb, 3, 0x0d0, {"INT", "2"});
+    addInsn(nsb, 4, 0x0a5, {}); // 40 + 2
+    addInsn(nsb, 5, 0x0b0, {"$answer"});
+    addInsn(nsb, 6, 0x08e, {});
+    // CreateTexture("bg", 100, 0, 0, "cg/bg/bg01a.jpg")
+    addInsn(nsb, 7, 0x0d0, {"STRING", "bg"});
+    addInsn(nsb, 8, 0x0d0, {"INT", "100"});
+    addInsn(nsb, 9, 0x0d0, {"INT", "0"});
+    addInsn(nsb, 10, 0x0d0, {"INT", "0"});
+    addInsn(nsb, 11, 0x0d0, {"STRING", "cg/bg/bg01a.jpg"});
+    addInsn(nsb, 12, 0x00d, {"bg", "100", "0", "0", "cg/bg/bg01a.jpg"});
+    addInsn(nsb, 13, 0x08e, {});
+    // AddressBookSet("PhID_MAY")
+    addInsn(nsb, 14, 0x0d0, {"STRING", "PhID_MAY"});
+    addInsn(nsb, 15, 0x0f8, {"PhID_MAY"});
+    addInsn(nsb, 16, 0x08e, {});
+    // PreCreate
+    addInsn(nsb, 17, 0x0d8,
+            {"text00010", "@box00",
+             "<PRE @box00>[text00010]\n<voice name=\"Okabe\" "
+             "src=\"voice/oka_0001\">\nHello!"});
+    // WaitKey
+    addInsn(nsb, 18, 0x03a, {});
+    addInsn(nsb, 19, 0x0d4, {"chapter.main"});
+
+    N2System::NsbVm vm;
+    vm.setLoader([&](std::string_view, Bytes &nsbOut, Bytes &mapOut) {
+      nsbOut = nsb;
+      mapOut = map;
+      return true;
+    });
+    require(vm.boot("nss/0_boot.nss"), "boot failed");
+    vm.step();
+
+    require(vm.findVar("$answer") != nullptr &&
+                vm.findVar("$answer")->asInt() == 42,
+            "arithmetic/assign failed");
+    const auto *bg = vm.sceneGraph().findEntity("bg");
+    require(bg != nullptr && bg->imagePath == "cg/bg/bg01a.jpg",
+            "CreateTexture failed");
+    require(vm.phoneState().addressBook.count("PhID_MAY") == 1,
+            "AddressBookSet failed");
+    require(vm.dialogueSystem().speaker() == "Okabe",
+            "dialogue speaker failed");
+    require(vm.dialogueSystem().fullText() == "Hello!", "dialogue text failed");
+    require(vm.waitingForKey(), "WaitKey did not pause");
+
+    vm.advance(); // finish typing
+    vm.advance(); // clear WaitKey
+    vm.step();
+    require(vm.finished(), "VM should finish cleanly");
+  }
+
+  std::cout << "N2System NsbVm tests passed\n";
+  return 0;
+}

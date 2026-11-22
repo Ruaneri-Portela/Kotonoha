@@ -156,6 +156,23 @@ public:
   // f.prm_tundere_boot the slot stopped at (0..17, +18 for the tsun slot).
   bool Roulette() const { return choosing_ && roulette_; }
   bool RouletteTsun() const { return rouletteTsun_; }
+  struct BattleUnit {
+    std::string name;
+    std::string pos;
+    std::string pose;
+    int hp = 100;
+    int maxHp = 100;
+  };
+  struct BattleState {
+    std::string back;
+    std::vector<BattleUnit> party;
+    std::vector<BattleUnit> enemies;
+    int turn = 1;
+    bool defending = false;
+    std::string log;
+  };
+  bool Battling() const { return choosing_ && battling_; }
+  const BattleState &Battle() const { return battle_; }
   // selopt: the area the select window spreads its buttons over.
   SDL_Rect SelectArea() const { return selectArea_; }
   // Identifies the page waiting for a click (read marks for skip mode "既読").
@@ -269,6 +286,8 @@ private:
   std::string bookDoneStorage_, bookSelect_, tndlDoneStorage_;
   std::vector<std::string> bookChoices_;
   bool booking_ = false;
+  bool battling_ = false;
+  BattleState battle_;
   std::string concertoTndlScene_, concertoTndlDone_, concertoBattleBack_;
   int concertoTndlFlag_ = 0, concertoTndlNo_ = 0;
   int concertoTunEvent_[6]{}, concertoDeleEvent_[6]{};

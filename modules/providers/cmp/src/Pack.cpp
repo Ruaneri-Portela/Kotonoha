@@ -705,4 +705,180 @@ void compositeImageRegion(Image &destination, const Image &source, int x, int y,
   destination.nativePixels.clear();
 }
 
+namespace {
+Image decodeManpuFrame(const Bytes &d, size_t baseOffset, size_t limitOffset) {
+  require(limitOffset <= d.size() && baseOffset <= limitOffset &&
+              limitOffset - baseOffset >= 32,
+          "Truncated MANP frame header");
+  Image img;
+  img.x = int(int32_t(word(d, baseOffset + 8)));
+  img.y = int(int32_t(word(d, baseOffset + 12)));
+  img.width = int(word(d, baseOffset + 16));
+  img.height = int(word(d, baseOffset + 20));
+  require(img.width > 0 && img.height > 0 && img.width <= 4096 &&
+              img.height <= 4096,
+          "Invalid MANP frame dimensions");
+  const size_t pixels = size_t(img.width) * size_t(img.height);
+  img.rgba.assign(pixels * 4, 0);
+  img.nativePixels.assign(pixels * 4, 0);
+  auto put = [&](size_t i, uint8_t b, uint8_t g, uint8_t r, uint8_t a) {
+    const size_t at = ((img.height - 1 - int(i / img.width)) * img.width +
+                       int(i % img.width)) *
+                      4;
+    img.rgba[at] = r;
+    img.rgba[at + 1] = g;
+    img.rgba[at + 2] = b;
+    img.rgba[at + 3] = a;
+  };
+  auto putNative = [&](size_t i, uint8_t b, uint8_t g, uint8_t r,
+                       uint8_t alpha) {
+    const size_t at = ((img.height - 1 - int(i / img.width)) * img.width +
+                       int(i % img.width)) *
+                      4;
+    img.nativePixels[at] = r;
+    img.nativePixels[at + 1] = g;
+    img.nativePixels[at + 2] = b;
+    img.nativePixels[at + 3] = alpha;
+    if (alpha >= 128)
+      put(i, b, g, r, 255);
+    else if (alpha == 0)
+      put(i, 0, 0, 0, 0);
+    else {
+      auto straight = [&](uint8_t c) {
+        return uint8_t(
+            std::min(255u, (unsigned(c) * 128u + alpha / 2u) / alpha));
+      };
+      put(i, straight(b), straight(g), straight(r),
+          uint8_t((unsigned(alpha) * 255u + 64u) / 128u));
+    }
+  };
+  size_t p = baseOffset + 32;
+  auto byte = [&]() {
+    require(p < limitOffset, "Truncated MANP frame stream");
+    return d[p++];
+  };
+  for (int row = 0; row < img.height; ++row) {
+    size_t x = 0;
+    while (true) {
+      unsigned a = byte();
+      if (a == 255)
+        break;
+      if (a < 127) {
+        uint8_t b = byte(), g = byte(), r = byte();
+        require(x < size_t(img.width), "MANP pixel overflow");
+        // MANP frames store premultiplied BGR on disk (GObj_Manpu.mod);
+        // do NOT premultiply again.
+        putNative(size_t(row) * img.width + x++, b, g, r, uint8_t(a + 1));
+      } else if (a < 159) {
+        unsigned n = a - 126;
+        require(n <= size_t(img.width) - x, "MANP run overflow");
+        uint8_t b = byte(), g = byte(), r = byte();
+        while (n--)
+          putNative(size_t(row) * img.width + x++, b, g, r, 128);
+      } else {
+        unsigned n = a - 158;
+        require(n <= size_t(img.width) - x, "MANP skip overflow");
+        x += n;
+      }
+    }
+  }
+  return img;
+}
+} // namespace
+
+ManpuAnimation decodeManpu(const Bytes &d) {
+  ManpuAnimation result;
+  size_t p = 0;
+  while (p + 8 <= d.size()) {
+    const char *fourcc = reinterpret_cast<const char *>(d.data() + p);
+    const uint32_t chunkSize = word(d, p + 4);
+    const size_t payloadStart = p + 8;
+    require(chunkSize <= d.size() - payloadStart, "Truncated MANP chunk");
+    const size_t payloadEnd = payloadStart + chunkSize;
+    if (std::memcmp(fourcc, "PICT", 4) == 0) {
+      size_t tp = payloadStart;
+      std::vector<std::pair<int32_t, uint32_t>> table;
+      while (tp + 4 <= payloadEnd) {
+        const int32_t id = int32_t(word(d, tp));
+        tp += 4;
+        if (id == -1)
+          break;
+        require(tp + 4 <= payloadEnd, "Truncated MANP PICT table");
+        const uint32_t rel = word(d, tp);
+        tp += 4;
+        table.emplace_back(id, rel);
+      }
+      for (const auto &[id, rel] : table) {
+        require(rel <= chunkSize, "Invalid MANP PICT frame offset");
+        result.frames.emplace(
+            id, decodeManpuFrame(d, payloadStart + rel, payloadEnd));
+      }
+    } else if (std::memcmp(fourcc, "SEQS", 4) == 0) {
+      size_t tp = payloadStart;
+      std::vector<std::pair<int32_t, uint32_t>> table;
+      while (tp + 4 <= payloadEnd) {
+        const int32_t id = int32_t(word(d, tp));
+        tp += 4;
+        if (id == -1)
+          break;
+        require(tp + 4 <= payloadEnd, "Truncated MANP SEQS table");
+        const uint32_t rel = word(d, tp);
+        tp += 4;
+        table.emplace_back(id, rel);
+      }
+      for (size_t i = 0; i < table.size(); ++i) {
+        const uint32_t rel = table[i].second;
+        require(rel <= chunkSize, "Invalid MANP SEQS offset");
+        size_t sp = payloadStart + rel;
+        std::vector<uint32_t> ops;
+        while (sp + 4 <= payloadEnd) {
+          const uint32_t w = word(d, sp);
+          sp += 4;
+          ops.push_back(w);
+          if ((w >> 24) == 0x00)
+            break;
+        }
+        result.sequences.emplace(table[i].first, std::move(ops));
+      }
+    } else if (std::memcmp(fourcc, "ENDE", 4) == 0) {
+      break;
+    }
+    p = payloadEnd;
+  }
+  return result;
+}
+
+ClickableMap decodeClickableMap(const Bytes &d) {
+  require(d.size() >= 8, "Truncated CMAP header");
+  ClickableMap map;
+  map.width = int(word(d, 0));
+  map.height = int(word(d, 4));
+  require(map.width > 0 && map.height > 0 && map.width <= 4096 &&
+              map.height <= 4096,
+          "Invalid CMAP dimensions");
+  const size_t pixels = size_t(map.width) * size_t(map.height);
+  require(d.size() - 8 >= pixels, "Truncated CMAP pixel table");
+  map.hitIds.assign(d.begin() + 8, d.begin() + 8 + pixels);
+  return map;
+}
+
+void applyLightingTint(Image &image, int tintMode) {
+  if (tintMode == 0)
+    return;
+  // 1 = evening (1.0, 0.9, 0.9), 2 = night (0.7, 0.7, 1.0)
+  const float rScale = (tintMode == 2) ? 0.7f : 1.0f;
+  const float gScale = (tintMode == 1) ? 0.9f : ((tintMode == 2) ? 0.7f : 1.0f);
+  const float bScale = (tintMode == 1) ? 0.9f : 1.0f;
+  auto scalePlane = [&](Bytes &plane) {
+    for (size_t i = 0; i + 4 <= plane.size(); i += 4) {
+      plane[i] = uint8_t(std::min(255.0f, plane[i] * rScale));
+      plane[i + 1] = uint8_t(std::min(255.0f, plane[i + 1] * gScale));
+      plane[i + 2] = uint8_t(std::min(255.0f, plane[i + 2] * bScale));
+    }
+  };
+  scalePlane(image.rgba);
+  if (!image.nativePixels.empty())
+    scalePlane(image.nativePixels);
+}
+
 } // namespace SummerRadish

@@ -480,6 +480,8 @@ bool cpk_read(const std::string &cpk_path, const CpkIndex &index,
   std::string raw(size_t(it->second.size), '\0');
   {
     std::lock_guard<std::mutex> guard(lock);
+    if (files.find(cpk_path) == files.end() && files.size() >= 16)
+      files.clear();
     auto &f = files[cpk_path];
     if (!f || !*f)
       f = std::make_unique<std::ifstream>(cpk_path, std::ios::binary);

@@ -3,6 +3,7 @@
 
 #include <Kotonoha/core/Runtime.hpp>
 #include <N2System/N2ArchiveAssets.hpp>
+#include <N2System/NsbVm.hpp>
 #include <N2System/ScriptVm.hpp>
 #include <Ponscripter/PonscripterRuntime.hpp>
 
@@ -56,6 +57,10 @@ public:
 
   ScriptVm &vm() { return vm_; }
   const ScriptVm &vm() const { return vm_; }
+
+  bool isNsbActive() const;
+  NsbVm *nsbVm();
+  const NsbVm *nsbVm() const;
 
   bool isPonscripterActive() const;
   Ponscripter::PonscripterVm *ponscripterVm();

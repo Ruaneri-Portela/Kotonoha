@@ -1,4 +1,5 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
+#include <KotonohaLauncher/LauncherBridge.h>
 #include <KotonohaLauncher/UnifiedLauncher.hpp>
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
@@ -271,10 +272,30 @@ int main() {
     // 4. Verify applyPerGameSaveIsolation updates KOTONOHA_USER_DATA_DIR and
     //    settingsPath to point inside the per-game profile.
     Kotonoha::EngineOptions opts;
+    opts.persistSettings = true;
     applyPerGameSaveIsolation(catalog.front(), opts, true, saveRoot.string());
     require(opts.settingsPath.find(catalog.front().saveProfileId) !=
                 std::string::npos,
             "Settings path must be isolated inside the game's profile folder");
+
+    // 5. Verify LauncherBridge C ABI (used by iOS SwiftUI & Android Material 3)
+    const std::string rootStr = lib.root.string();
+    const char *roots[1] = {rootStr.c_str()};
+    char *jsonCatalog =
+        KotonohaLauncherScanRootsJson(roots, 1, 1, saveRoot.string().c_str());
+    require(jsonCatalog != nullptr,
+            "KotonohaLauncherScanRootsJson returned null");
+    const std::string jsonStr(jsonCatalog);
+    KotonohaLauncherFreeString(jsonCatalog);
+    require(jsonStr.find("\"DDLC\"") != std::string::npos &&
+                jsonStr.find("\"SayaNoUta_PT-BR\"") != std::string::npos &&
+                jsonStr.find("\"saveDirectory\"") != std::string::npos,
+            "JSON catalog must include discovered titles and saveDirectory");
+
+    char routeInfo[256] = {};
+    require(KotonohaLauncherValidateRoute("", routeInfo, sizeof(routeInfo)) ==
+                1,
+            "Empty route path should be accepted (uses default bundled route)");
 
     std::cout << formatDiscoveredGamesReport(catalog, true);
     std::cout << "UnifiedLauncher & Per-Game Save Isolation tests passed\n";

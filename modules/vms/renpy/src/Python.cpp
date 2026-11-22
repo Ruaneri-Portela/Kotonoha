@@ -297,6 +297,7 @@ struct Interp::State {
     static const char *compatibility = R"py(
 import ast
 import hashlib as _native_hashlib
+import re as _re
 import types as _types
 def legacy_decode(value, encoding="utf-8", errors="strict"):
     if isinstance(value,str): value=value.encode("utf-8","surrogateescape")
@@ -312,6 +313,7 @@ class _LegacyHash:
 def _legacy_md5(data=b"", **kwargs):
     result=_LegacyHash(_native_hashlib.md5(**kwargs));result.update(data);return result
 legacy_hashlib=_types.SimpleNamespace(md5=_legacy_md5)
+legacy_sets=_types.SimpleNamespace(Set=set, ImmutableSet=frozenset)
 class _LegacyGlobals(ast.NodeTransformer):
     def visit_FunctionDef(self, node):
         self.generic_visit(node)
@@ -334,8 +336,29 @@ class _LegacyGlobals(ast.NodeTransformer):
         if isinstance(node.func,ast.Attribute) and node.func.attr=="decode":
             return ast.copy_location(ast.Call(func=ast.Name(id="_kt_legacy_decode",ctx=ast.Load()), args=[node.func.value]+node.args, keywords=node.keywords),node)
         return node
+def _py2_to_py3(source):
+    lines = []
+    for line in source.splitlines(True):
+        m = _re.match(r'^([ \t]*)print[ \t]+(.+?)(\r?\n?)$', line)
+        if m and not m.group(2).lstrip().startswith('('):
+            body = m.group(2).rstrip()
+            if body.startswith('>>'):
+                lines.append(m.group(1) + 'pass' + m.group(3))
+            else:
+                lines.append(m.group(1) + 'print(' + body + ')' + m.group(3))
+            continue
+        m = _re.match(r'^([ \t]*)except[ \t]+([^:,()]+?),[ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*:(\s*(?:#.*)?\r?\n?)$', line)
+        if m:
+            lines.append(m.group(1) + 'except ' + m.group(2).strip() + ' as ' + m.group(3) + ':' + m.group(4))
+            continue
+        lines.append(line)
+    return ''.join(lines)
 def compile_legacy(source,mode="exec"):
-    tree = _LegacyGlobals().visit(ast.parse(source, "<Ren'Py>", mode))
+    try:
+        tree = ast.parse(source, "<Ren'Py>", mode)
+    except SyntaxError:
+        tree = ast.parse(_py2_to_py3(source), "<Ren'Py>", mode)
+    tree = _LegacyGlobals().visit(tree)
     return compile(ast.fix_missing_locations(tree), "<Ren'Py>", mode)
 def legacy_range(*args):
     return list(range(*args))
@@ -353,6 +376,10 @@ def legacy_range(*args):
     if (!hashModule)
       raiseCurrentError();
     Py_INCREF(hashModule);
+    setsModule = PyDict_GetItemString(helperGlobals.get(), "legacy_sets");
+    if (!setsModule)
+      raiseCurrentError();
+    Py_INCREF(setsModule);
     legacyCompiler =
         PyDict_GetItemString(helperGlobals.get(), "compile_legacy");
     if (!legacyCompiler)
@@ -378,6 +405,7 @@ def legacy_range(*args):
     Py_XDECREF(callableType);
     Py_XDECREF(controlError);
     Py_XDECREF(legacyCompiler);
+    Py_XDECREF(setsModule);
     Py_XDECREF(hashModule);
   }
 
@@ -391,6 +419,7 @@ def legacy_range(*args):
   PyObject *controlError = nullptr;
   PyObject *legacyCompiler = nullptr;
   PyObject *hashModule = nullptr;
+  PyObject *setsModule = nullptr;
   std::unordered_map<Object *, PyObject *> proxies;
   std::unordered_map<std::string, PyObject *> codeCache;
   std::unordered_map<std::string, Value> modules;
@@ -583,6 +612,10 @@ def legacy_range(*args):
     if (std::string(name) == "hashlib") {
       Py_INCREF(bridge->hashModule);
       return bridge->hashModule;
+    }
+    if (std::string(name) == "sets") {
+      Py_INCREF(bridge->setsModule);
+      return bridge->setsModule;
     }
     if (name == std::string("copy") || name == std::string("re")) {
       return PyObject_CallFunction(bridge->originalImport, "s", name);
@@ -824,9 +857,12 @@ def legacy_range(*args):
         PyErr_Fetch(&type, &error, &trace);
         Ref typeRef(type), errorRef(error), traceRef(trace);
         Ref message(error ? PyObject_Str(error) : nullptr);
-        if (message &&
-            utf8(message.get()).find("is used prior to global declaration") !=
-                std::string::npos) {
+        const std::string msg = message ? utf8(message.get()) : std::string();
+        if (msg.find("is used prior to global declaration") !=
+                std::string::npos ||
+            msg.find("Missing parentheses in call to 'print'") !=
+                std::string::npos ||
+            msg.find("invalid syntax") != std::string::npos) {
           PyErr_Clear();
           Ref input(PyUnicode_DecodeUTF8(source.data(),
                                          static_cast<Py_ssize_t>(source.size()),

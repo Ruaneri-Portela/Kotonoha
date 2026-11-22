@@ -85,4 +85,26 @@ void compositeImage(Image &destination, const Image &source, int x, int y);
 // be inside the source image; destination clipping is automatic.
 void compositeImageRegion(Image &destination, const Image &source, int x, int y,
                           int sourceX, int sourceY, int width, int height);
+// Emotion-icon animation container (.MANP) used by Imouto de Ikou!
+struct ManpuAnimation {
+  std::map<int32_t, Image> frames;
+  std::map<int32_t, std::vector<uint32_t>> sequences;
+};
+ManpuAnimation decodeManpu(const Bytes &);
+// 8-bit clickable hitmap (.CMAP) used by Imouto de Ikou!
+struct ClickableMap {
+  int width = 0, height = 0;
+  Bytes hitIds;
+  uint8_t hitAt(int x, int y) const {
+    if (x < 0 || y < 0 || x >= width || y >= height)
+      return 0;
+    const size_t idx = size_t(y) * size_t(width) + size_t(x);
+    return idx < hitIds.size() ? hitIds[idx] : 0;
+  }
+};
+ClickableMap decodeClickableMap(const Bytes &);
+// Apply Imouto de Ikou! Ldbg lighting tint to a decoded character sprite:
+// 0 = normal (1.0, 1.0, 1.0), 1 = evening (1.0, 0.9, 0.9),
+// 2 = night (0.7, 0.7, 1.0).
+void applyLightingTint(Image &image, int tintMode);
 } // namespace SummerRadish

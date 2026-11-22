@@ -1,6 +1,6 @@
-#include <Kotonoha/media/SavePng.hpp>
 #include "SchoolDaysScenes.hpp"
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/media/SavePng.hpp>
 #include <SchoolDays/SchoolDaysAssets.hpp>
 #include <filesystem>
 #include <iostream>
@@ -39,8 +39,9 @@ int main(int argc, char **argv) {
     SDL_FillSurfaceRect(surface.get(), &ink,
                         SDL_MapSurfaceRGBA(surface.get(), 0, 128, 255, 255));
     std::filesystem::create_directories(overlay / "System/SYSTEM");
-    if (!Kotonoha::SavePng(surface.get(),
-                     (overlay / "System/SYSTEM/LOGO.png").string().c_str()))
+    if (!Kotonoha::SavePng(
+            surface.get(),
+            (overlay / "System/SYSTEM/LOGO.png").string().c_str()))
       throw std::runtime_error(SDL_GetError());
     assets->setOverlay(overlay);
     SchoolDays::LogoSplash logo(engine, *assets);

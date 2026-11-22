@@ -11,9 +11,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <iomanip>
+#include <map>
+#include <mutex>
 #include <sstream>
 #include <system_error>
 
@@ -92,6 +95,140 @@ fs::path defaultBaseUserDataDir() {
     return fs::temp_directory_path(ec) / "KotonohaUserData";
   }();
   return cachedBase;
+}
+
+struct CachedProbe {
+  std::uint64_t fingerprint = 0;
+  DetectedEngine engine;
+  bool vnxPatch = false;
+};
+
+std::uint64_t sourceFingerprint(const std::string &path) {
+  // SAF providers do not expose a cheap portable modification time. Refresh
+  // their entries hourly and whenever the persisted cache is removed.
+  if (path.find("://") != std::string::npos) {
+    const auto hour = std::chrono::duration_cast<std::chrono::hours>(
+                          std::chrono::system_clock::now().time_since_epoch())
+                          .count();
+    return std::hash<std::string>{}(path) ^ std::uint64_t(hour);
+  }
+  std::error_code error;
+  const fs::path root(path);
+  if (!fs::exists(root, error))
+    return 0;
+  std::uint64_t hash = 1469598103934665603ull;
+  auto mix = [&hash](std::uint64_t value) {
+    hash = (hash ^ value) * 1099511628211ull;
+  };
+  auto sample = [&](const fs::path &file) {
+    mix(std::hash<std::string>{}(file.lexically_relative(root).string()));
+    const auto modified = fs::last_write_time(file, error);
+    if (!error)
+      mix(std::uint64_t(modified.time_since_epoch().count()));
+    error.clear();
+    if (fs::is_regular_file(file, error)) {
+      const auto size = fs::file_size(file, error);
+      if (!error)
+        mix(size);
+    }
+    error.clear();
+  };
+  sample(root);
+  if (fs::is_directory(root, error)) {
+    std::vector<fs::path> samples;
+    for (fs::directory_iterator it(root, fs::directory_options::skip_permission_denied,
+                                   error), end;
+         !error && it != end; it.increment(error)) {
+      samples.push_back(it->path());
+      if (it->is_directory(error)) {
+        for (fs::directory_iterator child(
+                 it->path(), fs::directory_options::skip_permission_denied,
+                 error), childEnd;
+             !error && child != childEnd; child.increment(error))
+          samples.push_back(child->path());
+      }
+      error.clear();
+    }
+    std::sort(samples.begin(), samples.end());
+    for (const auto &path : samples)
+      sample(path);
+  }
+  return hash;
+}
+
+std::map<std::string, CachedProbe> &scanCache() {
+  static std::map<std::string, CachedProbe> cache;
+  static const bool loaded = [&] {
+    try {
+      const fs::path path = fs::path(defaultGameParamsFilePath()).parent_path() /
+                            "scan-cache-v1.txt";
+      Kotonoha::Filesystem::InputFile input(path);
+      if (!input.is_open())
+        return true;
+      std::string key;
+      CachedProbe item;
+      int kind = 0, implemented = 0, patch = 0;
+      while (input >> std::quoted(key) >> item.fingerprint >> kind >>
+             implemented >> patch >> std::quoted(item.engine.slug) >>
+             std::quoted(item.engine.displayName) >>
+             std::quoted(item.engine.dataPrefix) >>
+             std::quoted(item.engine.evidence)) {
+        item.engine.kind = EngineKind(kind);
+        item.engine.implementedInKotonoha = implemented != 0;
+        item.vnxPatch = patch != 0;
+        cache[key] = item;
+      }
+    } catch (const std::exception &) {
+      cache.clear();
+    }
+    return true;
+  }();
+  (void)loaded;
+  return cache;
+}
+
+void persistScanCache(const std::map<std::string, CachedProbe> &cache) {
+  try {
+    std::ostringstream data;
+    for (const auto &[path, item] : cache)
+      data << std::quoted(path) << ' ' << item.fingerprint << ' '
+           << int(item.engine.kind) << ' '
+           << int(item.engine.implementedInKotonoha) << ' '
+           << int(item.vnxPatch) << ' ' << std::quoted(item.engine.slug) << ' '
+           << std::quoted(item.engine.displayName) << ' '
+           << std::quoted(item.engine.dataPrefix) << ' '
+           << std::quoted(item.engine.evidence) << '\n';
+    const fs::path path = fs::path(defaultGameParamsFilePath()).parent_path() /
+                          "scan-cache-v1.txt";
+    Kotonoha::writeTextFileAtomically(path.string(), data.str());
+  } catch (const std::exception &) {
+    // An unwritable cache must not prevent game discovery.
+  }
+}
+
+CachedProbe probeCached(const std::string &path) {
+  static std::mutex mutex;
+  std::lock_guard<std::mutex> lock(mutex);
+  const auto fingerprint = sourceFingerprint(path);
+  auto &cache = scanCache();
+  if (const auto found = cache.find(path);
+      found != cache.end() && found->second.fingerprint == fingerprint)
+    return found->second;
+  CachedProbe result;
+  result.fingerprint = fingerprint;
+  try {
+    auto mounted = Filesystem::mount(path);
+    if (mounted) {
+      result.vnxPatch = isVnxOverlayPatch(*mounted);
+      result.engine = detectKotonohaEngine(*mounted, path);
+    }
+  } catch (const std::exception &) {
+  }
+  if (result.engine.kind != EngineKind::Unknown || result.vnxPatch) {
+    cache[path] = result;
+    persistScanCache(cache);
+  }
+  return result;
 }
 
 } // namespace
@@ -545,14 +682,7 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
 DetectedEngine detectKotonohaEngineFromPath(const std::string &path) {
   if (path.empty())
     return {};
-  try {
-    auto mounted = Filesystem::mount(path);
-    if (!mounted)
-      return {};
-    return detectKotonohaEngine(*mounted, path);
-  } catch (...) {
-    return {};
-  }
+  return probeCached(path).engine;
 }
 
 DiscoveredGameEntry buildDiscoveredGameEntry(const std::string &path,
@@ -621,22 +751,14 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
   std::sort(candidates.begin(), candidates.end());
 
   for (const auto &candidate : candidates) {
-    try {
-      auto mounted = Filesystem::mount(candidate.string());
-      if (!mounted)
-        continue;
-      if (isVnxOverlayPatch(*mounted)) {
-        vnxPatchPath = candidate.string();
-        continue;
-      }
-      const auto detected = detectKotonohaEngine(*mounted, candidate.string());
-      if (detected.kind != EngineKind::Unknown) {
-        results.push_back(
-            buildDiscoveredGameEntry(candidate.string(), detected));
-      }
-    } catch (...) {
+    const auto probe = probeCached(candidate.string());
+    if (probe.vnxPatch) {
+      vnxPatchPath = candidate.string();
       continue;
     }
+    if (probe.engine.kind != EngineKind::Unknown)
+      results.push_back(
+          buildDiscoveredGameEntry(candidate.string(), probe.engine));
   }
 
   // Pair companion VNX PT-BR patch with base DDLC automatically.
@@ -651,6 +773,147 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
   }
 
   return results;
+}
+
+std::vector<DiscoveredGameEntry>
+scanGameLibraryRoots(const std::vector<std::string> &roots) {
+  std::vector<DiscoveredGameEntry> merged;
+  std::vector<std::string> seenKeys;
+  std::string discoveredVnxPatch;
+
+  auto canonicalKey = [](const std::string &raw) -> std::string {
+    if (raw.find("://") != std::string::npos)
+      return raw;
+    std::error_code ec;
+    const auto canon = fs::weakly_canonical(fs::path(raw), ec);
+    return ec ? fs::path(raw).lexically_normal().string() : canon.string();
+  };
+
+  for (const auto &root : roots) {
+    if (root.empty())
+      continue;
+    auto found = scanGameLibrary(root);
+    for (auto &entry : found) {
+      if (!entry.overlayPath.empty() && discoveredVnxPatch.empty())
+        discoveredVnxPatch = entry.overlayPath;
+      const std::string key = canonicalKey(entry.path);
+      if (std::find(seenKeys.begin(), seenKeys.end(), key) != seenKeys.end())
+        continue;
+      seenKeys.push_back(key);
+      merged.push_back(std::move(entry));
+    }
+  }
+
+  // Cross-root VNX patch pairing (e.g. DDLC in Documents/games, patch in
+  // Documents/ or bookmarked folder).
+  if (!discoveredVnxPatch.empty()) {
+    for (auto &item : merged) {
+      if (item.engine.kind == EngineKind::RenPy &&
+          item.engine.slug == "doki-doki-literature-club" &&
+          item.path != discoveredVnxPatch && item.overlayPath.empty()) {
+        item.overlayPath = discoveredVnxPatch;
+      }
+    }
+  }
+
+  // Merge persisted per-game launch parameters.
+  const auto savedParams = loadGameParamsMap();
+  for (auto &item : merged) {
+    auto it = savedParams.find(item.saveProfileId);
+    if (it != savedParams.end())
+      item.params = it->second;
+  }
+
+  std::sort(merged.begin(), merged.end(),
+            [](const DiscoveredGameEntry &a, const DiscoveredGameEntry &b) {
+              return toLower(a.title) < toLower(b.title);
+            });
+  return merged;
+}
+
+std::string defaultGameParamsFilePath() {
+  try {
+    const std::string settings = Kotonoha::EngineSettings::defaultPath();
+    if (!settings.empty())
+      return (fs::path(settings).parent_path() / "game-params.txt").string();
+  } catch (const std::exception &) {
+  }
+  return (defaultBaseUserDataDir() / "Kotonoha" /
+          "me.hirameki.kotonoha.launcher" / "game-params.txt")
+      .string();
+}
+
+std::map<std::string, GameLaunchParameters>
+loadGameParamsMap(const std::string &filePath) {
+  std::map<std::string, GameLaunchParameters> result;
+  const std::string path =
+      filePath.empty() ? defaultGameParamsFilePath() : filePath;
+  if (path.empty())
+    return result;
+  Kotonoha::Filesystem::InputFile input(path);
+  if (!input.is_open())
+    return result;
+  std::string line;
+  while (std::getline(input, line)) {
+    std::istringstream ss(line);
+    std::string profileId;
+    GameLaunchParameters p;
+    if (ss >> std::quoted(profileId) >> std::quoted(p.assetOverlayPath) >>
+        std::quoted(p.translationPath) >> std::quoted(p.subtitleStylePath) >>
+        std::quoted(p.customDocumentsDir) >> std::quoted(p.ktrfPath) >>
+        std::quoted(p.scriptsDir) >> std::quoted(p.startScenario)) {
+      if (!profileId.empty())
+        result[profileId] = std::move(p);
+    }
+  }
+  return result;
+}
+
+bool saveGameParamsMap(
+    const std::map<std::string, GameLaunchParameters> &params,
+    const std::string &filePath) {
+  const std::string path =
+      filePath.empty() ? defaultGameParamsFilePath() : filePath;
+  if (path.empty())
+    return false;
+  try {
+    std::error_code ec;
+    fs::create_directories(fs::path(path).parent_path(), ec);
+    std::ostringstream out;
+    for (const auto &[profileId, p] : params) {
+      if (profileId.empty())
+        continue;
+      out << std::quoted(profileId) << ' ' << std::quoted(p.assetOverlayPath)
+          << ' ' << std::quoted(p.translationPath) << ' '
+          << std::quoted(p.subtitleStylePath) << ' '
+          << std::quoted(p.customDocumentsDir) << ' ' << std::quoted(p.ktrfPath)
+          << ' ' << std::quoted(p.scriptsDir) << ' '
+          << std::quoted(p.startScenario) << '\n';
+    }
+    Kotonoha::writeTextFileAtomically(path, out.str());
+    return true;
+  } catch (const std::exception &) {
+    return false;
+  }
+}
+
+GameLaunchParameters loadGameParamsForProfile(const std::string &saveProfileId,
+                                              const std::string &filePath) {
+  if (saveProfileId.empty())
+    return {};
+  const auto all = loadGameParamsMap(filePath);
+  const auto it = all.find(saveProfileId);
+  return it != all.end() ? it->second : GameLaunchParameters{};
+}
+
+bool saveGameParamsForProfile(const std::string &saveProfileId,
+                              const GameLaunchParameters &params,
+                              const std::string &filePath) {
+  if (saveProfileId.empty())
+    return false;
+  auto all = loadGameParamsMap(filePath);
+  all[saveProfileId] = params;
+  return saveGameParamsMap(all, filePath);
 }
 
 std::string
@@ -748,22 +1011,7 @@ void UnifiedLauncher::rescan() {
 void UnifiedLauncher::loadSavedGameParams() {
   if (rememberGameParamsPath.empty())
     return;
-  Kotonoha::Filesystem::InputFile input(rememberGameParamsPath);
-  if (!input.is_open())
-    return;
-  std::string line;
-  while (std::getline(input, line)) {
-    std::istringstream ss(line);
-    std::string profileId;
-    GameLaunchParameters p;
-    if (ss >> std::quoted(profileId) >> std::quoted(p.assetOverlayPath) >>
-        std::quoted(p.translationPath) >> std::quoted(p.subtitleStylePath) >>
-        std::quoted(p.customDocumentsDir) >> std::quoted(p.ktrfPath) >>
-        std::quoted(p.scriptsDir) >> std::quoted(p.startScenario)) {
-      if (!profileId.empty())
-        savedGameParams[profileId] = std::move(p);
-    }
-  }
+  savedGameParams = loadGameParamsMap(rememberGameParamsPath);
 }
 
 void UnifiedLauncher::saveGameParams() const {
@@ -774,16 +1022,7 @@ void UnifiedLauncher::saveGameParams() const {
     if (!entry.saveProfileId.empty())
       merged[entry.saveProfileId] = entry.params;
   }
-  std::ostringstream out;
-  for (const auto &[profileId, p] : merged) {
-    out << std::quoted(profileId) << ' ' << std::quoted(p.assetOverlayPath)
-        << ' ' << std::quoted(p.translationPath) << ' '
-        << std::quoted(p.subtitleStylePath) << ' '
-        << std::quoted(p.customDocumentsDir) << ' ' << std::quoted(p.ktrfPath)
-        << ' ' << std::quoted(p.scriptsDir) << ' '
-        << std::quoted(p.startScenario) << '\n';
-  }
-  Kotonoha::writeTextFileAtomically(rememberGameParamsPath, out.str());
+  saveGameParamsMap(merged, rememberGameParamsPath);
 }
 
 void UnifiedLauncher::setSelectedIndex(int index) {

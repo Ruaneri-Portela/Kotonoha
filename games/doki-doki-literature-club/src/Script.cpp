@@ -122,8 +122,6 @@ void Script::collect(const std::vector<Node *> &block, int priority,
     if (n->k == Node::K::Label) {
       const std::string name = n->str("name");
       labels_[name] = n;
-      if (name.rfind("en_", 0) == 0)
-        labels_[name.substr(3)] = n;
     }
     if (n->k == Node::K::Screen) {
       std::string sname = n->str("name");

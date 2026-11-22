@@ -27,6 +27,7 @@ public:
   std::string nodeClockKey() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &) override;
+  [[nodiscard]] bool isMeoOverlayOpen() const;
   [[nodiscard]] bool continuousTouch() const override { return true; }
   SDL_Point viewport() const override { return {960, 720}; }
   SDL_FPoint sceneSize(const Kotonoha::Scene &) const override;

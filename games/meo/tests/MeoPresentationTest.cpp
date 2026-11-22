@@ -59,6 +59,18 @@ int main(int argc, char **argv) {
       }
       if (!audible)
         throw std::runtime_error("MEO SND decoded to silence");
+      // Verify bit-exact ADPCM continuity (zero DC drift) across A-00.SND
+      // blocks
+      const auto a00 = assets->loadAudio("SOUND/A-00.SND");
+      if (a00.data.size() < 5u * 44100u * 4u)
+        throw std::runtime_error("MEO A-00.SND is truncated");
+      int16_t b2EndL = 0, b3EndL = 0;
+      std::memcpy(&b2EndL, a00.data.data() + (3u * 44100u - 1u) * 4u,
+                  sizeof(b2EndL));
+      std::memcpy(&b3EndL, a00.data.data() + (4u * 44100u - 1u) * 4u,
+                  sizeof(b3EndL));
+      if (b2EndL != -504 || b3EndL != -1)
+        throw std::runtime_error("MEO ADPCM DC offset drift detected");
       return 0;
     }
     SummerRadish::SummerRuntime game(assets, "Miss Each Other",
@@ -216,15 +228,20 @@ int main(int argc, char **argv) {
     pause.key.down = true;
     pause.key.windowID = SDL_GetWindowID(&engine.GetWindow());
     engine.Event(&pause);
-    if (!Kotonoha::GetInGameMenuRuntime(engine).IsOpen())
-      throw std::runtime_error("MEO system menu did not open");
+    if (!game.isMeoOverlayOpen())
+      throw std::runtime_error("MEO native overlay menu did not open");
+    if (Kotonoha::GetInGameMenuRuntime(engine).IsOpen())
+      throw std::runtime_error(
+          "MEO should open native overlay menu instead of InGameMenu");
     engine.Iterate();
     const auto pausedNode = game.debugNode();
     SDL_Delay(120);
     engine.Iterate();
     if (game.debugNode() != pausedNode)
       throw std::runtime_error("MEO timeline advanced while paused");
-    Kotonoha::GetInGameMenuRuntime(engine).close();
+    engine.Event(&pause);
+    if (game.isMeoOverlayOpen())
+      throw std::runtime_error("MEO native overlay menu did not close");
     std::cout << "MEO rendered its opening scene\n";
     return 0;
   } catch (const std::exception &error) {

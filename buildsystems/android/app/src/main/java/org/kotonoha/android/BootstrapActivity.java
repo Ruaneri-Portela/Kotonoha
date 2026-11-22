@@ -47,15 +47,20 @@ public final class BootstrapActivity extends Activity {
                     if (!gameAssets.isDirectory() && !gameAssets.mkdirs()) {
                         throw new IOException("Cannot create game-assets directory");
                     }
-                    if (BuildConfig.NATIVE_TARGET.equals("DokiDoki")) {
+                    if (BuildConfig.NATIVE_TARGET.equals("DokiDoki")
+                            || BuildConfig.NATIVE_TARGET.equals("KatawaShoujo")
+                            || BuildConfig.NATIVE_TARGET.equals("KotonohaLauncher")) {
                         copyDirectory(getAssets(), "python", directory, "python");
                     }
                     Files.write(complete.toPath(), fingerprint.getBytes(StandardCharsets.UTF_8));
                 }
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
-                    Intent game = new Intent(this, GameActivity.class);
-                    startActivity(game);
+                    Class<?> nextActivity = BuildConfig.NATIVE_TARGET.equals("KotonohaLauncher")
+                            ? LauncherActivity.class
+                            : GameActivity.class;
+                    Intent next = new Intent(this, nextActivity);
+                    startActivity(next);
                     finish();
                 });
             } catch (IOException error) {

@@ -28,6 +28,11 @@ fi
 for name in assets game-assets; do
   if [[ "${name}" == "game-assets" && "${KOTONOHA_GAME_DIR}" == "launcher" ]]; then
     mkdir -p "${resources_destination}/game-assets"
+    if [[ -f "${repo}/games/school-days/game-assets/school-days-hq.ktnroute" ]]; then
+      cp -f "${repo}/games/school-days/game-assets/school-days-hq.ktnroute" \
+        "${resources_destination}/game-assets/school-days-hq.ktnroute"
+      note "Bundled school-days-hq.ktnroute into launcher game-assets/"
+    fi
   fi
   [[ -d "${resources_destination}/${name}" ]] || fatal "Missing ${resources_destination}/${name}. Check Copy Bundle Resources."
   note "Verified ${name}/ in app resources"

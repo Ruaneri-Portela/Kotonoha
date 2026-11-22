@@ -73,7 +73,8 @@ def games = [
   lucaSystem    : ['luca-system', 'LucaSystem', 'me.hirameki.kotonoha.lucasystem', 'Luca System'],
   pmail         : ['pmail', 'Pmail', 'me.hirameki.kotonoha.pmail', 'Pure Mail'],
   ponscripter   : ['ponscripter', 'PonscripterGame', 'me.hirameki.kotonoha.ponscripter', 'PONscripter'],
-  n2System      : ['n2system', 'N2SystemGame', 'me.hirameki.kotonoha.n2system', 'N2System Game']
+  n2System      : ['n2system', 'N2SystemGame', 'me.hirameki.kotonoha.n2system', 'N2System Game'],
+  launcher      : ['all', 'KotonohaLauncher', 'me.hirameki.kotonoha.launcher', 'Kotonoha Launcher']
 ]
 
 android {
@@ -120,7 +121,7 @@ android {
           cmake {
             // Must match the variable consumed by the root CMakeLists.txt.
             arguments "-DKOTONOHA_BUILD_GAME=${game[0]}",
-              "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor in ['dokiDoki', 'katawaShoujo'] ? '-python' : ''}"
+              "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor in ['dokiDoki', 'katawaShoujo', 'launcher'] ? '-python' : ''}"
             targets game[1]
           }
         }
@@ -167,6 +168,14 @@ android {
   }
 }
 
+dependencies {
+  implementation 'com.google.android.material:material:1.12.0'
+  implementation 'androidx.appcompat:appcompat:1.7.0'
+  implementation 'androidx.recyclerview:recyclerview:1.3.2'
+  implementation 'androidx.documentfile:documentfile:1.0.1'
+  implementation 'androidx.activity:activity:1.9.3'
+}
+
 // ------------------------------------------------------------
 // Stage game assets and produce a SHA-256 manifest
 // ------------------------------------------------------------
@@ -175,8 +184,10 @@ android.applicationVariants.all { variant ->
   def game = games[variant.flavorName]
   def taskSuffix = variant.name.capitalize()
   def staged = layout.buildDirectory.dir("generated/assets/${variant.name}")
+  def isLauncher = variant.flavorName == 'launcher'
   def gameAssets = new File(engineRoot, "games/${game[0]}/game-assets")
-  def includeThisGame = includeGameAssets || variant.flavorName == 'example'
+  def schoolDaysRoute = new File(engineRoot, 'games/school-days/game-assets/school-days-hq.ktnroute')
+  def includeThisGame = !isLauncher && (includeGameAssets || variant.flavorName == 'example')
 
   def assets = tasks.register("stage${taskSuffix}Assets", Sync) {
     from(new File(engineRoot, 'assets')) {
@@ -185,6 +196,10 @@ android.applicationVariants.all { variant ->
 
     if (includeThisGame) {
       from(gameAssets) {
+        into 'game-assets'
+      }
+    } else if (isLauncher && schoolDaysRoute.isFile()) {
+      from(schoolDaysRoute) {
         into 'game-assets'
       }
     }
@@ -201,7 +216,7 @@ android.applicationVariants.all { variant ->
       def stagedDir = staged.get().asFile
       new File(stagedDir, 'game-assets').mkdirs()
 
-      if (variant.flavorName in ['dokiDoki', 'katawaShoujo']) {
+      if (variant.flavorName in ['dokiDoki', 'katawaShoujo', 'launcher']) {
         def foundStdlib = false
 
         abis.each { abi ->
@@ -266,7 +281,7 @@ android.applicationVariants.all { variant ->
   }
   android.sourceSets[variant.name].assets.srcDir staged
 
-  if (variant.flavorName in ['dokiDoki', 'katawaShoujo']) {
+  if (variant.flavorName in ['dokiDoki', 'katawaShoujo', 'launcher']) {
     assets.configure {
       dependsOn variant.externalNativeBuildProviders
     }

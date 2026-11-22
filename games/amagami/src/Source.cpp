@@ -110,7 +110,7 @@ Source::Source(const std::string &path)
   // bounded Fetch cache and can exhaust WebAssembly memory before the title.
   // Read one scene at a time instead; the shared HTTP provider caches pages.
   const auto &scenario = archive("SCENARIO.ARC");
-  if (!Kotonoha::isBrowserPlatform()) {
+  if (!Kotonoha::isBrowserPlatform() && !Kotonoha::isMobilePlatform()) {
     if (scenario.file.size > 256 * 1024 * 1024)
       throw std::runtime_error("Scenario archive exceeds memory limit");
     scenarioArchive_ = disc_->read(scenario.file, 0, scenario.file.size);

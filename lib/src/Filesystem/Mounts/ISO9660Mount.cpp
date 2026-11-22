@@ -33,11 +33,9 @@ public:
       return 0;
     const auto chunk = static_cast<std::size_t>(
         std::min<std::uint64_t>({entry_.size - cursor_, count, 1024u * 1024u}));
-    std::vector<Uint8> bytes;
-    if (!disc_->readInto(entry_, cursor_, chunk, bytes) ||
-        bytes.size() != chunk)
+    if (!disc_->readIntoBuffer(entry_, cursor_, chunk,
+                               static_cast<Uint8 *>(destination)))
       return -1;
-    std::memcpy(destination, bytes.data(), chunk);
     cursor_ += chunk;
     return static_cast<std::int64_t>(chunk);
   }

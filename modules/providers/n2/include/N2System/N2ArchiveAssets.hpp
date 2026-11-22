@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace N2System {
 // Adapter to Kotonoha's asset pipeline. User-supplied archives remain read-only.
@@ -20,6 +21,7 @@ public:
   const std::filesystem::path &rootDirectory() const { return rootDirectory_; }
 
   void mount(std::vector<std::uint8_t> data);
+  void mount(std::shared_ptr<ArchiveSource> source);
   void addAfsNames(std::string_view ini);
   bool containsAsset(const std::string &path) const override;
   std::vector<Uint8> readAsset(const std::string &path) const override;
@@ -29,8 +31,12 @@ public:
   openStream(const std::string &path) const override;
 
 private:
+  std::string resolveLoosePath(std::string_view path) const;
+
   std::filesystem::path rootDirectory_;
   std::shared_ptr<Kotonoha::Filesystem::Filesystem> vfs_;
   std::vector<std::shared_ptr<Archive>> archives_;
+  // Normalized lowercase path -> actual VFS path for loose files (e.g. dx/*.ngs).
+  std::unordered_map<std::string, std::string> looseFiles_;
 };
 } // namespace N2System

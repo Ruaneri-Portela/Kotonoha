@@ -15,6 +15,9 @@ add_library(kotonoha_unified_launcher STATIC
     src/UnifiedLauncher.cpp
     src/GameFactories.cpp
 )
+if(NOT ANDROID)
+    target_sources(kotonoha_unified_launcher PRIVATE src/LauncherBridge.cpp)
+endif()
 target_include_directories(kotonoha_unified_launcher PUBLIC include)
 target_link_libraries(kotonoha_unified_launcher PUBLIC KotonohaEngine)
 target_compile_features(kotonoha_unified_launcher PUBLIC cxx_std_17)
@@ -54,6 +57,11 @@ endforeach()
 unset(_kotonoha_launcher_libraries)
 
 kotonoha_add_app(KotonohaLauncher src/main.cpp)
+if(ANDROID)
+    # JNI entry points are called from Java, so a static linker cannot see
+    # references to them when LauncherBridge.cpp lives only in an archive.
+    target_sources(KotonohaLauncher PRIVATE src/LauncherBridge.cpp)
+endif()
 if(APPLE AND (IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS"))
     target_sources(KotonohaLauncher PRIVATE src/AppleDocuments.mm)
     target_link_libraries(KotonohaLauncher PRIVATE "-framework Foundation")

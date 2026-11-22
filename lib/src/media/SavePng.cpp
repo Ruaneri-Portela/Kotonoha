@@ -29,8 +29,8 @@ bool SavePng(SDL_Surface *surface, const char *filename) {
 
   const size_t rowBytes = static_cast<size_t>(rgba->w) * 4;
   const size_t height = static_cast<size_t>(rgba->h);
-  if (rgba->w > std::numeric_limits<int>::max() / 4 ||
-      rgba->pitch < 0 || static_cast<size_t>(rgba->pitch) < rowBytes ||
+  if (rgba->w > std::numeric_limits<int>::max() / 4 || rgba->pitch < 0 ||
+      static_cast<size_t>(rgba->pitch) < rowBytes ||
       height > (std::numeric_limits<size_t>::max() / (rowBytes + 1)))
     return SDL_SetError("PNG dimensions or stride are invalid");
 
@@ -44,7 +44,7 @@ bool SavePng(SDL_Surface *surface, const char *filename) {
   scanlines.reserve(height * (rowBytes + 1));
   const auto *pixels = static_cast<const std::uint8_t *>(rgba->pixels);
   for (size_t y = 0; y < height; ++y) {
-    scanlines.push_back(0);  // PNG filter: None.
+    scanlines.push_back(0); // PNG filter: None.
     const auto *row = pixels + y * static_cast<size_t>(rgba->pitch);
     scanlines.insert(scanlines.end(), row, row + rowBytes);
   }
@@ -121,4 +121,4 @@ bool SavePng(SDL_Surface *surface, const char *filename) {
 #endif
 }
 
-}  // namespace Kotonoha
+} // namespace Kotonoha

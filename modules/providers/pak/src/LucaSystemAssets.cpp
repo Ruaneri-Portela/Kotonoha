@@ -482,10 +482,21 @@ LucaSystemAssets::LucaSystemAssets(
                      [](unsigned char ch) { return char(std::tolower(ch)); });
       if (ext != ".pak")
         continue;
-      const bool corePak = std::find(core.begin(), core.end(),
-                                     name.filename().string()) != core.end();
-      if (file.path.compare(0, prefix_.size(), prefix_) == 0 &&
-          (file.path.substr(prefix_.size()).find('/') != std::string::npos ||
+      auto fileUpper = name.filename().string();
+      std::transform(fileUpper.begin(), fileUpper.end(), fileUpper.begin(),
+                     [](unsigned char ch) { return char(std::toupper(ch)); });
+      const bool corePak =
+          std::find(core.begin(), core.end(), fileUpper) != core.end();
+      std::string pathLower = file.path;
+      std::transform(pathLower.begin(), pathLower.end(), pathLower.begin(),
+                     [](unsigned char ch) { return char(std::tolower(ch)); });
+      std::string prefixLower = prefix_;
+      std::transform(prefixLower.begin(), prefixLower.end(),
+                     prefixLower.begin(),
+                     [](unsigned char ch) { return char(std::tolower(ch)); });
+      if (pathLower.compare(0, prefixLower.size(), prefixLower) == 0 &&
+          (pathLower.substr(prefixLower.size()).find('/') !=
+               std::string::npos ||
            !corePak))
         other.push_back(file.path);
     }
@@ -545,13 +556,13 @@ void LucaSystemAssets::mountPak(const std::string &path) {
                      : isBgmArchive   ? "music"
                      : isSeArchive    ? "se"
                                       : "data";
-  if (file.filename() == "PARAM.PAK") {
+  if (fileNameUpper == "PARAM.PAK") {
     paramPak_ = std::move(archive);
     role = "PARAM";
-  } else if (file.filename() == "SCRIPT.PAK") {
+  } else if (fileNameUpper == "SCRIPT.PAK") {
     scriptPak_ = std::move(archive);
     role = "SCRIPT";
-  } else if (file.filename() == "SYSSE.PAK") {
+  } else if (fileNameUpper == "SYSSE.PAK") {
     syssePak_ = std::move(archive);
     role = "SYSSE";
   } else {

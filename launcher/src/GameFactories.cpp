@@ -48,7 +48,10 @@
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #endif
 #if defined(KOTONOHA_LAUNCH_PMAIL)
+#include "LargePonPonRuntime.hpp"
 #include "PmailRuntime.hpp"
+#include <Pmail/GcPack.hpp>
+#include <Pmail/LargePonPonAssets.hpp>
 #include <SnowRadish/SnowAssets.hpp>
 #endif
 #if defined(KOTONOHA_LAUNCH_N2SYSTEM)
@@ -273,6 +276,16 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
       registry, EngineKind::PureMail,
       [](const DiscoveredGameEntry &entry, Kotonoha::EngineOptions &opts) {
         const auto path = selectedSourcePath(entry);
+        if (Kotonoha::Providers::isLargePonPonDirectory(path)) {
+          auto assets =
+              std::make_shared<Kotonoha::Providers::LargePonPonAssets>(path);
+          assets->setOverlay(opts.assetOverlayDirectory());
+          return mount(
+              std::make_unique<Kotonoha::PmailPort::LargePonPonRuntime>(path,
+                                                                        assets),
+              assets,
+              shutdownRuntime<Kotonoha::PmailPort::LargePonPonRuntime>());
+        }
         auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(path);
         assets->setOverlay(opts.assetOverlayDirectory());
         return mount(

@@ -120,6 +120,25 @@ SummerAssets::SummerAssets(
     files.insert(files.end(), listed.begin(), listed.end());
   }
 
+  // Detect Imouto de Ikou! 8-pack layout (BGDATA/CHRDATA/EVDATA/SYSDAT, no INI)
+  {
+    bool hasBgData = false, hasSysDat = false, hasIni = false;
+    for (const auto &file : files) {
+      if (file.type != Kotonoha::Filesystem::FileType::Regular)
+        continue;
+      const std::string upperName =
+          canonical(std::filesystem::path(file.path).filename().string());
+      if (upperName == "BGDATA.CMP")
+        hasBgData = true;
+      else if (upperName == "SYSDAT.CMP")
+        hasSysDat = true;
+      else if (upperName == "INI.CMP")
+        hasIni = true;
+    }
+    if (hasBgData && hasSysDat && !hasIni)
+      imoutoLayout_ = true;
+  }
+
   // Match FileSystem.mod @ 0x10003801: probe numbered patch packs
   // TYPE099.CMP .. TYPE000.CMP before the base TYPE.CMP, silently skipping
   // invalid non-CMP patch files (e.g. Lost M's 25 KB UPX PE VOICE000.cmp).
@@ -142,8 +161,15 @@ SummerAssets::SummerAssets(
     return idx;
   };
 
-  for (const auto *type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
-    const std::string typeStr(type);
+  std::vector<std::string> packTypes;
+  if (imoutoLayout_) {
+    packTypes = {"BGDATA", "CHRDATA", "EVDATA",  "SCRIPT",
+                 "SEDATA", "SYSDAT",  "BGMDATA", "VDATA"};
+  } else {
+    packTypes = {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"};
+  }
+
+  for (const auto &typeStr : packTypes) {
     const std::string desired = typeStr + ".CMP";
     std::vector<std::pair<int, std::string>> patches;
     std::string basePath;

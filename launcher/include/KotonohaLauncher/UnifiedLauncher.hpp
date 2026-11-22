@@ -143,6 +143,27 @@ buildDiscoveredGameEntry(const std::string &path,
 std::vector<DiscoveredGameEntry>
 scanGameLibrary(const std::string &libraryOrGamePath);
 
+// Scans multiple roots (e.g. Documents/games, Documents, bookmarked external
+// folders/ISOs, or Android SAF URIs), deduplicating by canonical path and
+// pairing companion overlays across roots.
+std::vector<DiscoveredGameEntry>
+scanGameLibraryRoots(const std::vector<std::string> &roots);
+
+// Persistent per-game launch parameter store shared by Desktop ImGui, iOS
+// SwiftUI, and Android Material 3 launchers.
+std::string defaultGameParamsFilePath();
+std::map<std::string, GameLaunchParameters>
+loadGameParamsMap(const std::string &filePath = {});
+bool saveGameParamsMap(
+    const std::map<std::string, GameLaunchParameters> &params,
+    const std::string &filePath = {});
+GameLaunchParameters
+loadGameParamsForProfile(const std::string &saveProfileId,
+                         const std::string &filePath = {});
+bool saveGameParamsForProfile(const std::string &saveProfileId,
+                              const GameLaunchParameters &params,
+                              const std::string &filePath = {});
+
 // Formats a human-readable and machine-parseable summary table of discovered
 // games, their CMake engine libraries, and their isolated per-game save IDs.
 std::string formatDiscoveredGamesReport(

@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1AC00000000000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1AC00000000000000000015 /* Assets.xcassets */; };
+		A1AC00000000000000000001 /* KotonohaMacLauncherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1AC00000000000000000011 /* KotonohaMacLauncherView.swift */; };
+		A1AC00000000000000000002 /* KotonohaMacLauncherHost.mm in Sources */ = {isa = PBXBuildFile; fileRef = A1AC00000000000000000012 /* KotonohaMacLauncherHost.mm */; };
 		001D06FD0DBB1EFC6A22EB48 /* LucaSystemScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CEE45A84649AE37A49032B7 /* LucaSystemScript.cpp */; };
 		003F4534DA3A1B2D0F0B3F0F /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D9932D19AEFC21BCAB4F7360 /* main.cpp */; };
 		006067031992234D2BCCB4A0 /* GameMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 01543A93C8494078A7ED03BB /* GameMenu.cpp */; };
@@ -1128,6 +1131,13 @@
 		E77811E4460057F580AD5302 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 933456486A0DCFC48D1015CB /* game-assets */; };
 		E808B45825E13CBDA11282FC /* VisualTransition.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B231FF8B95DB7E64FA3EE8D /* VisualTransition.cpp */; };
 		E8425FD8015377D5F92C2214 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
+		E8A000000000000000000002 /* SavePng.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000001 /* SavePng.cpp */; };
+		E8A000000000000000000003 /* SavePng.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000001 /* SavePng.cpp */; };
+		E8A000000000000000000011 /* LauncherBridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000010 /* LauncherBridge.cpp */; };
+		E8A000000000000000000012 /* LauncherBridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000010 /* LauncherBridge.cpp */; };
+		E8A000000000000000000021 /* KotonohaIOSBookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000020 /* KotonohaIOSBookmarkStore.swift */; };
+		E8A000000000000000000023 /* KotonohaLauncherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000022 /* KotonohaLauncherView.swift */; };
+		E8A000000000000000000025 /* KotonohaIOSLauncherHost.mm in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000024 /* KotonohaIOSLauncherHost.mm */; };
 		E8C682CCA222A78CF27F76E9 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; };
 		E8EC68A49315A9631AD3C5DE /* PonscripterCommands.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD28A9453E7FAAF5E2424C0A /* PonscripterCommands.cpp */; };
 		E90082B57397BD769A9487F1 /* KagScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 514EC6ADE8BF32609E55E456 /* KagScript.cpp */; };
@@ -1244,6 +1254,40 @@
 		FF1F79C3B01DDBB18C52E509 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		FF89A9E9B1E594E4E5F12062 /* Ps2SoundBank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */; };
 		FFBA4A0F4CBB3C0FF9662E59 /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
+		C5E52E82C31A0E1BB554FAB3 /* NsbScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 248EF79FD78FF46D9075D278 /* NsbScript.cpp */; };
+		C2C538F7A71931ECE020520A /* NsbScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 248EF79FD78FF46D9075D278 /* NsbScript.cpp */; };
+		5E38BCB31581C98217A21646 /* NsbScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 248EF79FD78FF46D9075D278 /* NsbScript.cpp */; };
+		E58DCA5325C98D03014712F3 /* NsbScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 248EF79FD78FF46D9075D278 /* NsbScript.cpp */; };
+		E9FC5224B0C9D34DAF6030AB /* NsbVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */; };
+		88ECDDC92B8B079D36C152EE /* NsbVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */; };
+		EDCCB2BD2D013367273524F5 /* NsbVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */; };
+		9B82FA2F655D02D054B97D52 /* NsbVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */; };
+		A1DC46FFAD31A0EBC955B124 /* GcPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ABB4CA81D50B8F5EDE127C05 /* GcPack.cpp */; };
+		F0549F51D45CB83D870D3FF0 /* GcPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ABB4CA81D50B8F5EDE127C05 /* GcPack.cpp */; };
+		C07AE85D4005B12371009358 /* GcPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ABB4CA81D50B8F5EDE127C05 /* GcPack.cpp */; };
+		378573CD61A912AC05B624A2 /* GcPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ABB4CA81D50B8F5EDE127C05 /* GcPack.cpp */; };
+		731E66CF53B0D45A7A2CECB9 /* LargePonPonAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E2DFFD704E9B5292C2D3F42A /* LargePonPonAssets.cpp */; };
+		39E1DE9ADCBAE788031E5A0F /* LargePonPonAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E2DFFD704E9B5292C2D3F42A /* LargePonPonAssets.cpp */; };
+		10E14F1A17FAE0C64930FEDA /* LargePonPonAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E2DFFD704E9B5292C2D3F42A /* LargePonPonAssets.cpp */; };
+		A113E83C06EA377ADC205EEA /* LargePonPonAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E2DFFD704E9B5292C2D3F42A /* LargePonPonAssets.cpp */; };
+		9D2905445B31050D3EDC1893 /* LargePonPonCodecs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */; };
+		D03F647F88CB3FB538832D9B /* LargePonPonCodecs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */; };
+		FD0D25FE3540BB133FF480F8 /* LargePonPonCodecs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */; };
+		0DCA8F56BB454B862EAFE2C5 /* LargePonPonCodecs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */; };
+		DF4B6FD292E2FD53FED35351 /* LargePonPonVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */; };
+		C13BF2D0E8CCF80F2746CC08 /* LargePonPonVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */; };
+		18BB2FB128FA4228451587BE /* LargePonPonVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */; };
+		1A54F85DC5DD300A5B95C7EC /* LargePonPonVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */; };
+		986EF1C0EF9DD870C2EA2927 /* LargePonPonRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CBEE31AB460081E8C66C345A /* LargePonPonRuntime.cpp */; };
+		2118D60BF5204EB8F3328B24 /* LargePonPonRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CBEE31AB460081E8C66C345A /* LargePonPonRuntime.cpp */; };
+		C62CFF8E9C90CF02315556E3 /* LargePonPonRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CBEE31AB460081E8C66C345A /* LargePonPonRuntime.cpp */; };
+		5533615DA325DF493A02894B /* LargePonPonRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CBEE31AB460081E8C66C345A /* LargePonPonRuntime.cpp */; };
+		44317D469FC8A2AA4136038B /* ImoutoScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */; };
+		2AB0BEE98103EE5B0A3650C7 /* ImoutoScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */; };
+		D73C4B9977BC8DA1AD253BF3 /* ImoutoScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */; };
+		F6915A72EE8AAC839465C31C /* ImoutoScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */; };
+		E77753CC5E1AC17521F845F0 /* ImoutoScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */; };
+		5D8E8B494F4486E0558D9665 /* ImoutoScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -2077,6 +2121,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A1AC00000000000000000015 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Assets.xcassets; sourceTree = SOURCE_ROOT; };
+		A1AC00000000000000000011 /* KotonohaMacLauncherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KotonohaMacLauncherView.swift; path = ../../launcher/src/macos/KotonohaMacLauncherView.swift; sourceTree = SOURCE_ROOT; };
+		A1AC00000000000000000012 /* KotonohaMacLauncherHost.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = KotonohaMacLauncherHost.mm; path = ../../launcher/src/macos/KotonohaMacLauncherHost.mm; sourceTree = SOURCE_ROOT; };
+		A1AC00000000000000000013 /* KotonohaMacLauncher-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "KotonohaMacLauncher-Bridging-Header.h"; path = "../../launcher/src/macos/KotonohaMacLauncher-Bridging-Header.h"; sourceTree = SOURCE_ROOT; };
+		A1AC00000000000000000014 /* KotonohaMacLauncherBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = KotonohaMacLauncherBridge.h; path = ../../launcher/src/macos/KotonohaMacLauncherBridge.h; sourceTree = SOURCE_ROOT; };
 		0066FBB8946FB87584BBC8EB /* Pmail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pmail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01543A93C8494078A7ED03BB /* GameMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = GameMenu.cpp; path = ../../lib/src/components/GameMenu.cpp; sourceTree = SOURCE_ROOT; };
 		02244B9FBB75E4DC31E5ECB0 /* PonscripterAssets.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = PonscripterAssets.cpp; path = ../../modules/providers/ponscripter/src/PonscripterAssets.cpp; sourceTree = SOURCE_ROOT; };
@@ -2375,9 +2424,9 @@
 		CCFBCB04C6B7A6FDE92053A2 /* PmailGame.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailGame.cpp; path = ../../games/pmail/src/PmailGame.cpp; sourceTree = SOURCE_ROOT; };
 		CD147B8DCD5C1DB9C4C6545E /* imgui_draw.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_draw.cpp; path = ../../lib/submodules/imgui/imgui_draw.cpp; sourceTree = SOURCE_ROOT; };
 		CDA95F2216A98537A0054444 /* SnowLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SnowLauncher.cpp; path = "../../games/snow-radish-vacation/src/SnowLauncher.cpp"; sourceTree = SOURCE_ROOT; };
-		CE0187A630B160B400A74244 /* MeoAudio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MeoAudio.cpp; path = /Users/nero/Codes/Kotonoha/modules/providers/cmp/src/MeoAudio.cpp; sourceTree = "<absolute>"; };
-		CE0187B030B160ED00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = "/Users/nero/Codes/Kotonoha/games/luca-system/src/DebugCatalog.cpp"; sourceTree = "<absolute>"; };
-		CE0187B530B1613A00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = /Users/nero/Codes/Kotonoha/modules/vms/n2system/src/DebugCatalog.cpp; sourceTree = "<absolute>"; };
+		CE0187A630B160B400A74244 /* MeoAudio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MeoAudio.cpp; path = ../../modules/providers/cmp/src/MeoAudio.cpp; sourceTree = SOURCE_ROOT; };
+		CE0187B030B160ED00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = "../../games/luca-system/src/DebugCatalog.cpp"; sourceTree = SOURCE_ROOT; };
+		CE0187B530B1613A00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = ../../modules/vms/n2system/src/DebugCatalog.cpp; sourceTree = SOURCE_ROOT; };
 		CF96F1307DEFE04F63539C65 /* ZeroComponents.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ZeroComponents.cpp; path = "../../games/zero-no-tsukaima/src/ZeroComponents.cpp"; sourceTree = SOURCE_ROOT; };
 		D31A702A792A5505E0A79948 /* DebugOverlay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugOverlay.cpp; path = ../../lib/src/debug/DebugOverlay.cpp; sourceTree = SOURCE_ROOT; };
 		D33B078112567AB0EF8AD765 /* MEO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MEO.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -2412,6 +2461,12 @@
 		E585EAD1BC6893A777235CFB /* SnowRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SnowRuntime.cpp; path = "../../games/snow-radish-vacation/src/SnowRuntime.cpp"; sourceTree = SOURCE_ROOT; };
 		E7A0A915B2FD3102490280F0 /* imgui_tables.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_tables.cpp; path = ../../lib/submodules/imgui/imgui_tables.cpp; sourceTree = SOURCE_ROOT; };
 		E81DE9C138E7193BB2A2BBBB /* Kirikiri.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kirikiri.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E8A000000000000000000001 /* SavePng.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SavePng.cpp; path = ../../lib/src/media/SavePng.cpp; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000010 /* LauncherBridge.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LauncherBridge.cpp; path = ../../launcher/src/LauncherBridge.cpp; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000020 /* KotonohaIOSBookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KotonohaIOSBookmarkStore.swift; path = ../../launcher/src/ios/KotonohaIOSBookmarkStore.swift; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000022 /* KotonohaLauncherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KotonohaLauncherView.swift; path = ../../launcher/src/ios/KotonohaLauncherView.swift; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000024 /* KotonohaIOSLauncherHost.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = KotonohaIOSLauncherHost.mm; path = ../../launcher/src/ios/KotonohaIOSLauncherHost.mm; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000026 /* KotonohaLauncher-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "KotonohaLauncher-Bridging-Header.h"; path = "../../launcher/src/ios/KotonohaLauncher-Bridging-Header.h"; sourceTree = SOURCE_ROOT; };
 		E94739250EC5458B6C11E2B1 /* Vm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Vm.cpp; path = ../../modules/vms/renpy/src/Vm.cpp; sourceTree = SOURCE_ROOT; };
 		E949246A76F4B6F62ACEB3D8 /* Amagami.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Amagami.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E94A94D90F9D51CD2E4BD0DD /* InGameMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = InGameMenu.cpp; path = ../../lib/src/components/InGameMenu.cpp; sourceTree = SOURCE_ROOT; };
@@ -2485,6 +2540,14 @@
 		FF242C49F26C09A041D6631C /* Config.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Config.cpp; path = ../../games/reallive/src/Config.cpp; sourceTree = SOURCE_ROOT; };
 		FF43CE57F88486C6645207F5 /* SchoolDaysMenuBarPresenter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysMenuBarPresenter.cpp; path = "../../games/school-days/src/SchoolDaysMenuBarPresenter.cpp"; sourceTree = SOURCE_ROOT; };
 		FFB62FA9D91BB0AE5ADD83BC /* PonscripterGame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PonscripterGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		248EF79FD78FF46D9075D278 /* NsbScript.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = NsbScript.cpp; path = "../../modules/vms/n2system/src/NsbScript.cpp"; sourceTree = SOURCE_ROOT; };
+		177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = NsbVm.cpp; path = "../../modules/vms/n2system/src/NsbVm.cpp"; sourceTree = SOURCE_ROOT; };
+		ABB4CA81D50B8F5EDE127C05 /* GcPack.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = GcPack.cpp; path = "../../modules/providers/pmail/src/GcPack.cpp"; sourceTree = SOURCE_ROOT; };
+		E2DFFD704E9B5292C2D3F42A /* LargePonPonAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LargePonPonAssets.cpp; path = "../../modules/providers/pmail/src/LargePonPonAssets.cpp"; sourceTree = SOURCE_ROOT; };
+		9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LargePonPonCodecs.cpp; path = "../../modules/providers/pmail/src/LargePonPonCodecs.cpp"; sourceTree = SOURCE_ROOT; };
+		CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LargePonPonVm.cpp; path = "../../modules/vms/pmail/src/LargePonPonVm.cpp"; sourceTree = SOURCE_ROOT; };
+		CBEE31AB460081E8C66C345A /* LargePonPonRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LargePonPonRuntime.cpp; path = "../../games/pmail/src/LargePonPonRuntime.cpp"; sourceTree = SOURCE_ROOT; };
+		BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ImoutoScript.cpp; path = "../../modules/vms/summer-radish/src/ImoutoScript.cpp"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -3366,6 +3429,11 @@
 				398635A8C71257F8CFD5A4DA /* PmailPack.cpp */,
 				E085600FDC5B674373709D53 /* PmailPauseMenu.cpp */,
 				35E9BCF53B0390115C61637A /* PmailRuntime.cpp */,
+				CBEE31AB460081E8C66C345A /* LargePonPonRuntime.cpp */,
+				CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */,
+				9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */,
+				E2DFFD704E9B5292C2D3F42A /* LargePonPonAssets.cpp */,
+				ABB4CA81D50B8F5EDE127C05 /* GcPack.cpp */,
 				C8FC4F26F74C05F0AA51508B /* PmailSession.cpp */,
 				8DC84839B2219CE992D6BBBB /* PmailStage.cpp */,
 				BA1A2231F5DE9908D1FFD3EB /* PmailTextBox.cpp */,
@@ -3444,6 +3512,7 @@
 				FE63135BA17021209CA24FFB /* MPVCompatibleUpscaler.cpp */,
 				85AA5C9FA85B655CBFE5AE68 /* MetalFXUpscaler.mm */,
 				E2B226AECE46EF3EACBEB799 /* Upscaler.cpp */,
+				E8A000000000000000000001 /* SavePng.cpp */,
 			);
 			name = media;
 			sourceTree = "<group>";
@@ -3558,6 +3627,15 @@
 				B5B500000000000000000008 /* GameFactories.cpp */,
 				B5B500000000000000000009 /* UnifiedLauncher.cpp */,
 				B5B50000000000000000000A /* UnifiedLauncher.hpp */,
+				E8A000000000000000000010 /* LauncherBridge.cpp */,
+				E8A000000000000000000020 /* KotonohaIOSBookmarkStore.swift */,
+				E8A000000000000000000022 /* KotonohaLauncherView.swift */,
+				E8A000000000000000000024 /* KotonohaIOSLauncherHost.mm */,
+				E8A000000000000000000026 /* KotonohaLauncher-Bridging-Header.h */,
+				A1AC00000000000000000011 /* KotonohaMacLauncherView.swift */,
+				A1AC00000000000000000012 /* KotonohaMacLauncherHost.mm */,
+				A1AC00000000000000000013 /* KotonohaMacLauncher-Bridging-Header.h */,
+				A1AC00000000000000000014 /* KotonohaMacLauncherBridge.h */,
 			);
 			name = Launcher;
 			sourceTree = "<group>";
@@ -3632,6 +3710,7 @@
 		C963BEF393DAC6DDB1DA44B6 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				A1AC00000000000000000015 /* Assets.xcassets */,
 				4A1E901E37BFEC69C8A16B85 /* Global */,
 				CCF0C4BA16FFEFDE95554B72 /* Games */,
 			);
@@ -3792,6 +3871,7 @@
 				EA79F738679D8D14664576A6 /* Map.cpp */,
 				E4C2E1634FC1DAEE8E650A08 /* Native.cpp */,
 				FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */,
+				BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */,
 				569CCFB593BC05FD5D5A2A08 /* Transition.cpp */,
 				3EB4999C63BBF09B864CB79E /* main.cpp */,
 			);
@@ -3946,6 +4026,8 @@
 				8361BEA245B3AD0E420B0FBF /* DialogueSystem.cpp */,
 				C8048E50DB6AEBB3E39E5A74 /* SaveState.cpp */,
 				2A3CD07849C395B9908654AE /* SceneGraph.cpp */,
+				177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */,
+				248EF79FD78FF46D9075D278 /* NsbScript.cpp */,
 				498217BFCCA8F59BCAC414E4 /* ScriptExecutor.cpp */,
 				F7684BA2CC0FEC25FB9CE283 /* ScriptIndex.cpp */,
 				A039740292658EB792C886C9 /* ScriptVm.cpp */,
@@ -5179,6 +5261,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1AC00000000000000000003 /* Assets.xcassets in Resources */,
 				D7D7000000000000000000C7 /* assets in Resources */,
 				D7D7000000000000000000C8 /* game-assets in Resources */,
 			);
@@ -6692,6 +6775,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				88ECDDC92B8B079D36C152EE /* NsbVm.cpp in Sources */,
+				C2C538F7A71931ECE020520A /* NsbScript.cpp in Sources */,
 				971815032ED8DE73169C1E61 /* N2Runtime.cpp in Sources */,
 				5EB7193745629AD26CAF52C2 /* main.cpp in Sources */,
 				9C1A1A1EF514A9C2E7BBC456 /* PonscripterRuntime.cpp in Sources */,
@@ -6776,6 +6861,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2118D60BF5204EB8F3328B24 /* LargePonPonRuntime.cpp in Sources */,
+				C13BF2D0E8CCF80F2746CC08 /* LargePonPonVm.cpp in Sources */,
+				D03F647F88CB3FB538832D9B /* LargePonPonCodecs.cpp in Sources */,
+				39E1DE9ADCBAE788031E5A0F /* LargePonPonAssets.cpp in Sources */,
+				F0549F51D45CB83D870D3FF0 /* GcPack.cpp in Sources */,
 				C8C800000000000000000007 /* PmailExtrasViewer.cpp in Sources */,
 				C8C800000000000000000003 /* PmailExtrasMenu.cpp in Sources */,
 				9C0DC688D0D16379D59A2B9F /* PmailComponents.cpp in Sources */,
@@ -6801,6 +6891,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D73C4B9977BC8DA1AD253BF3 /* ImoutoScript.cpp in Sources */,
 				2CB5941E7355F731357FE603 /* Transition.cpp in Sources */,
 				D952367994ADFF7C8936B913 /* Native.cpp in Sources */,
 				FCEC8BC53840429554B0C803 /* Map.cpp in Sources */,
@@ -6838,6 +6929,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9FC5224B0C9D34DAF6030AB /* NsbVm.cpp in Sources */,
+				C5E52E82C31A0E1BB554FAB3 /* NsbScript.cpp in Sources */,
 				22E688ECB053D46FA9DA3ED3 /* N2Runtime.cpp in Sources */,
 				B0EBBEA33EF04297B0812560 /* main.cpp in Sources */,
 				F8976959EEAFAC9DF551D6E7 /* PonscripterRuntime.cpp in Sources */,
@@ -7104,6 +7197,7 @@
 				118B7102398037AA88736C56 /* MediaDecoder.cpp in Sources */,
 				72361004DE90A3BF437FFB39 /* CriAudio.cpp in Sources */,
 				4B218F02D9F7C2261CDD3249 /* Ps2Tim2.cpp in Sources */,
+				E8A000000000000000000002 /* SavePng.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -7298,6 +7392,7 @@
 				5987FE170632321330ED4B4A /* MediaDecoder.cpp in Sources */,
 				043E96E019801925709AFB80 /* CriAudio.cpp in Sources */,
 				5F4E576345FC5FE699AC9CD1 /* Ps2Tim2.cpp in Sources */,
+				E8A000000000000000000003 /* SavePng.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -7359,6 +7454,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				44317D469FC8A2AA4136038B /* ImoutoScript.cpp in Sources */,
 				D44DFC2EFDF3AE4E06D656FA /* Transition.cpp in Sources */,
 				C5A02F2DFFE87B3E6B18F56E /* Native.cpp in Sources */,
 				58F6F182B69235E147908A66 /* Map.cpp in Sources */,
@@ -7374,6 +7470,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E77753CC5E1AC17521F845F0 /* ImoutoScript.cpp in Sources */,
+				C62CFF8E9C90CF02315556E3 /* LargePonPonRuntime.cpp in Sources */,
+				18BB2FB128FA4228451587BE /* LargePonPonVm.cpp in Sources */,
+				FD0D25FE3540BB133FF480F8 /* LargePonPonCodecs.cpp in Sources */,
+				10E14F1A17FAE0C64930FEDA /* LargePonPonAssets.cpp in Sources */,
+				C07AE85D4005B12371009358 /* GcPack.cpp in Sources */,
+				EDCCB2BD2D013367273524F5 /* NsbVm.cpp in Sources */,
+				5E38BCB31581C98217A21646 /* NsbScript.cpp in Sources */,
 				C8C800000000000000000008 /* PmailExtrasViewer.cpp in Sources */,
 				C8C800000000000000000004 /* PmailExtrasMenu.cpp in Sources */,
 				C7C70000000000000000002D /* VitaSystemGraphics.cpp in Sources */,
@@ -7560,6 +7664,9 @@
 				B6B6000000000000000000AF /* ZeroLauncher.cpp in Sources */,
 				B6B6000000000000000000B0 /* ZeroRuntime.cpp in Sources */,
 				B6B6000000000000000000B1 /* ZeroSession.cpp in Sources */,
+				E8A000000000000000000011 /* LauncherBridge.cpp in Sources */,
+				A1AC00000000000000000001 /* KotonohaMacLauncherView.swift in Sources */,
+				A1AC00000000000000000002 /* KotonohaMacLauncherHost.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -7597,6 +7704,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2AB0BEE98103EE5B0A3650C7 /* ImoutoScript.cpp in Sources */,
 				46B02CDA06919C38290F49C8 /* Transition.cpp in Sources */,
 				3D9EE0E848EAC90281433C70 /* Native.cpp in Sources */,
 				F09ACE546BBB01EF386BA398 /* Map.cpp in Sources */,
@@ -7631,6 +7739,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5D8E8B494F4486E0558D9665 /* ImoutoScript.cpp in Sources */,
+				5533615DA325DF493A02894B /* LargePonPonRuntime.cpp in Sources */,
+				1A54F85DC5DD300A5B95C7EC /* LargePonPonVm.cpp in Sources */,
+				0DCA8F56BB454B862EAFE2C5 /* LargePonPonCodecs.cpp in Sources */,
+				A113E83C06EA377ADC205EEA /* LargePonPonAssets.cpp in Sources */,
+				378573CD61A912AC05B624A2 /* GcPack.cpp in Sources */,
+				9B82FA2F655D02D054B97D52 /* NsbVm.cpp in Sources */,
+				E58DCA5325C98D03014712F3 /* NsbScript.cpp in Sources */,
 				D7D700000000000000000008 /* PmailExtrasViewer.cpp in Sources */,
 				D7D700000000000000000009 /* PmailExtrasMenu.cpp in Sources */,
 				D7D70000000000000000000A /* VitaSystemGraphics.cpp in Sources */,
@@ -7818,6 +7934,10 @@
 				D7D7000000000000000000BD /* ZeroRuntime.cpp in Sources */,
 				D7D7000000000000000000BE /* ZeroSession.cpp in Sources */,
 				D7D7000000000000000000BF /* AppleDocuments.mm in Sources */,
+				E8A000000000000000000012 /* LauncherBridge.cpp in Sources */,
+				E8A000000000000000000021 /* KotonohaIOSBookmarkStore.swift in Sources */,
+				E8A000000000000000000023 /* KotonohaLauncherView.swift in Sources */,
+				E8A000000000000000000025 /* KotonohaIOSLauncherHost.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -7861,6 +7981,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F6915A72EE8AAC839465C31C /* ImoutoScript.cpp in Sources */,
 				C0C3DE8D4FECC8D6077E0F0D /* Transition.cpp in Sources */,
 				2AAB5BDA8429C17A7856A341 /* Native.cpp in Sources */,
 				D9B8F746872EB50C2DD4E7B3 /* Map.cpp in Sources */,
@@ -7879,6 +8000,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				986EF1C0EF9DD870C2EA2927 /* LargePonPonRuntime.cpp in Sources */,
+				DF4B6FD292E2FD53FED35351 /* LargePonPonVm.cpp in Sources */,
+				9D2905445B31050D3EDC1893 /* LargePonPonCodecs.cpp in Sources */,
+				731E66CF53B0D45A7A2CECB9 /* LargePonPonAssets.cpp in Sources */,
+				A1DC46FFAD31A0EBC955B124 /* GcPack.cpp in Sources */,
 				C8C800000000000000000006 /* PmailExtrasViewer.cpp in Sources */,
 				C8C800000000000000000002 /* PmailExtrasMenu.cpp in Sources */,
 				2F3FE8E81D863CCCF7457153 /* PmailComponents.cpp in Sources */,

@@ -12,6 +12,49 @@
 #include <limits>
 
 namespace Kotonoha::Filesystem {
+namespace {
+
+int hexValue(char ch) {
+  if (ch >= '0' && ch <= '9')
+    return ch - '0';
+  if (ch >= 'a' && ch <= 'f')
+    return 10 + (ch - 'a');
+  if (ch >= 'A' && ch <= 'F')
+    return 10 + (ch - 'A');
+  return -1;
+}
+
+std::string percentDecode(std::string_view input) {
+  std::string out;
+  out.reserve(input.size());
+  for (std::size_t i = 0; i < input.size(); ++i) {
+    if (input[i] == '%' && i + 2 < input.size()) {
+      const int hi = hexValue(input[i + 1]);
+      const int lo = hexValue(input[i + 2]);
+      if (hi >= 0 && lo >= 0) {
+        out.push_back(static_cast<char>((hi << 4) | lo));
+        i += 2;
+        continue;
+      }
+    }
+    out.push_back(input[i]);
+  }
+  return out;
+}
+
+std::string normalizeFileUrl(std::string source) {
+  constexpr std::string_view kFileScheme = "file://";
+  if (source.rfind(kFileScheme, 0) != 0)
+    return source;
+  std::string_view rest(source);
+  rest.remove_prefix(kFileScheme.size());
+  constexpr std::string_view kLocalhost = "localhost/";
+  if (rest.rfind(kLocalhost, 0) == 0)
+    rest.remove_prefix(kLocalhost.size() - 1);
+  return percentDecode(rest);
+}
+
+} // namespace
 
 Filesystem::Filesystem(std::shared_ptr<IMount> base)
     : layers_(std::make_shared<LayeredMount>(std::move(base))) {}
@@ -19,6 +62,29 @@ Filesystem::Filesystem(std::shared_ptr<IMount> base)
 std::shared_ptr<Filesystem> Filesystem::mount(std::string source) {
   if (source.empty())
     throw FilesystemError(ErrorCode::InvalidPath, "Mount source is empty");
+
+  if (source.rfind("file://", 0) == 0)
+    source = normalizeFileUrl(std::move(source));
+
+  if (source.rfind("content://", 0) == 0) {
+#ifdef __ANDROID__
+    // On Android, SDL_IOFromFile natively opens single-file content:// URIs
+    // (such as .iso/.bin/.img picked via ACTION_OPEN_DOCUMENT).
+    try {
+      auto base = std::make_shared<ISO9660Mount>(std::filesystem::path(source));
+      return std::shared_ptr<Filesystem>(new Filesystem(std::move(base)));
+    } catch (const FilesystemError &) {
+      throw FilesystemError(
+          ErrorCode::UnsupportedMount,
+          "Android SAF content:// directory tree requires AndroidSafMount: " +
+              source);
+    }
+#else
+    throw FilesystemError(ErrorCode::UnsupportedMount,
+                          "content:// mounts are available only on Android");
+#endif
+  }
+
   // Explicit HTTP(S) source: use the configured provider when it matches
   // (sharing its cache), otherwise create a direct on-demand Fetch mount.
   // Do not treat URL components named game-assets as physical directories.

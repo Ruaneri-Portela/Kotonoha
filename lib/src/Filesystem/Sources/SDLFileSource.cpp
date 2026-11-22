@@ -2,11 +2,23 @@
 #include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 
 #include <SDL3/SDL.h>
+#include <cstdio>
 #include <limits>
 
 namespace Kotonoha::Filesystem {
 
 SDLFileSource::SDLFileSource(const std::filesystem::path &file) {
+#ifdef __ANDROID__
+  // SDL falls back to the Java asset manager when fopen fails, including for
+  // absolute paths. A native launcher Activity has no SDLActivity yet.
+  if (file.is_absolute()) {
+    auto *input = std::fopen(file.string().c_str(), "rb");
+    if (!input)
+      throw FilesystemError(ErrorCode::IOError,
+                            "Cannot open local file: " + file.string());
+    std::fclose(input);
+  }
+#endif
   io_ = SDL_IOFromFile(file.u8string().c_str(), "rb");
   if (!io_)
     throw FilesystemError(ErrorCode::IOError,

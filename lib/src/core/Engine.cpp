@@ -154,8 +154,9 @@ std::string EngineOptions::assetOverlayDirectory() const {
   if (!settings.assetOverlayName.empty()) {
     const auto &overlays = settings.assetOverlays;
     auto i = overlays.find(settings.assetOverlayName);
+    std::error_code dirEc;
     if (i != overlays.end() && !i->second.empty() &&
-        std::filesystem::is_directory(i->second))
+        std::filesystem::is_directory(i->second, dirEc) && !dirEc)
       return i->second;
     // Persisted absolute path no longer exists: resolve by name through the
     // standard overlay folder search.
@@ -203,7 +204,9 @@ void SDLSession::deviceEvent(EventRef event) {
 }
 SDLSession::~SDLSession() {
   gamepads.clear();
-  SDL_Quit();
+  // Do not call SDL_Quit() here: SDL3 callback apps tear down SDL after
+  // SDL_AppQuit(), and calling SDL_Quit() when returning from a game to
+  // KotonohaLauncher inside SDL_AppIterate destroys active UIKit/Cocoa state.
 }
 
 Engine::Engine(Runtime &run, EngineOptions options)
@@ -215,8 +218,10 @@ Engine::Engine(Runtime &run, EngineOptions options)
     subtitleStyle = AssStyle::load(options.subtitleStylePath);
   if (settingsPath.empty() && options.persistSettings)
     settingsPath = EngineSettings::defaultPath(runtime.identify);
-  const bool storedSettings =
-      !settingsPath.empty() && std::filesystem::exists(settingsPath);
+  std::error_code existsEc;
+  const bool storedSettings = !settingsPath.empty() &&
+                              std::filesystem::exists(settingsPath, existsEc) &&
+                              !existsEc;
   settingsLoadedFromDisk = storedSettings;
   if (storedSettings)
     settings = EngineSettings::load(settingsPath, settings);
@@ -916,6 +921,8 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
 }
 
 SDL_AppResult Engine::Iterate() {
+  const char *stage = "frame setup";
+  try {
   if (translationDumpComplete)
     return SDL_APP_SUCCESS;
   configureRenderSpace(RenderSpace::Novel);
@@ -928,12 +935,16 @@ SDL_AppResult Engine::Iterate() {
   // timeline clock. Continue rendering so native browser controls remain
   // usable; resume automatically as soon as browser playback resumes.
   if (browserMediaPlaybackBlocked()) {
+    stage = "runtime idle";
     runtime.devIdle();
   } else if (!runtime.devPauseRequested() || runtime.devConsumeStep()) {
+    stage = "runtime update";
     runtime.update();
   } else {
+    stage = "runtime idle";
     runtime.devIdle();
   }
+  stage = "frame preparation";
   synchronizeNodeClock(0);
   forcedSubtitles->updateForActiveNode();
   debug->update();
@@ -985,6 +996,7 @@ SDL_AppResult Engine::Iterate() {
       throw std::runtime_error(SDL_GetError());
   }
 
+  stage = "background render";
   runtime.renderBackground(*renderer, ui->pixelDensity());
   const auto design = UI::designFrame(runtime.viewport());
   {
@@ -992,8 +1004,10 @@ SDL_AppResult Engine::Iterate() {
     timeline->renderVideo(*renderer);
     timeline->renderSubtitles(*renderer);
   }
+  stage = "scene render";
   runtime.render(*renderer, ui->pixelDensity());
   runtime.renderScene(*forcedSubtitles, *renderer, ui->pixelDensity());
+  stage = "overlay render";
   runtime.renderOverlay(*renderer, ui->pixelDensity());
   if (ownedNovel) {
     if (runtime.useOwnedNarrativeTarget() &&
@@ -1020,6 +1034,7 @@ SDL_AppResult Engine::Iterate() {
       throw std::runtime_error(SDL_GetError());
   }
   configureRenderSpace(RenderSpace::Screen);
+  stage = "screen render";
   runtime.renderScreen(*renderer, ui->pixelDensity());
   if (settingsMenu->isOpen()) {
     configureRenderSpace(RenderSpace::Novel);
@@ -1035,6 +1050,10 @@ SDL_AppResult Engine::Iterate() {
   SDL_RenderPresent(renderer.get());
   configureRenderSpace(RenderSpace::Novel);
   return SDL_APP_CONTINUE;
+  } catch (const std::bad_alloc &) {
+    throw std::runtime_error(std::string("Memory allocation failed during ") +
+                             stage);
+  }
 }
 
 void Engine::dumpTranslation(const std::string &path) {

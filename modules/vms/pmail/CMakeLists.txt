@@ -2,7 +2,10 @@ if(TARGET kotonoha_vm_pmail)
     return()
 endif()
 
-add_library(kotonoha_vm_pmail STATIC "${CMAKE_CURRENT_LIST_DIR}/src/Vm.cpp")
+add_library(kotonoha_vm_pmail STATIC
+    "${CMAKE_CURRENT_LIST_DIR}/src/Vm.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/src/LargePonPonVm.cpp"
+)
 
 target_include_directories(kotonoha_vm_pmail PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 target_link_libraries(kotonoha_vm_pmail PUBLIC KotonohaEngine)
