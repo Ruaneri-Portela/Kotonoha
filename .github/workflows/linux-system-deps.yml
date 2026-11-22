@@ -46,7 +46,7 @@ jobs:
             libsdl3-dev libsdl3-ttf-dev \
             libass-dev libavformat-dev libavcodec-dev libavutil-dev \
             libswscale-dev libswresample-dev libjson-c-dev \
-            libgl-dev libfreetype-dev libharfbuzz-dev zlib1g-dev
+            libgl-dev libfreetype-dev libharfbuzz-dev zlib1g-dev fonts-dejavu-core
       - uses: actions/checkout@v4
         with:
           submodules: false
@@ -76,5 +76,12 @@ jobs:
             launcher/src/UnifiedLauncher.cpp
       - name: Compile and run filesystem and text rendering regressions
         run: |
+          # The distributable Noto Sans JP font is not tracked in git. Use a
+          # system-installed test font in the engine's documented asset path.
+          # Keep font assets out of the source repository and test bundles.
+          mkdir -p build-system/bin/assets/fonts
+          test -s /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+          cp /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+            build-system/bin/assets/fonts/NotoSansJP-Regular.ttf
           cmake --build build-system --target KotonohaFilesystemV2Tests KotonohaComponentHooksTests --parallel 2
           ctest --test-dir build-system -R 'FilesystemV2|ComponentHooks' --output-on-failure
