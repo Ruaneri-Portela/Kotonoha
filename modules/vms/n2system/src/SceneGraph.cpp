@@ -103,12 +103,18 @@ bool SceneGraph::wildcardMatch(std::string_view text,
 }
 
 Entity *SceneGraph::createEntity(std::string_view name, EntityType type) {
-  std::string sName(name);
+  const std::string sName(name);
+  if (sName.empty())
+    return nullptr;
+  // NitroSharp.World.AddEntity replaces an existing child with a fresh
+  // instance. Reusing the old object kept stale opacity, transforms, aliases
+  // and animation clocks after CreateTexture/CreateText/CreateMovie.
+  if (entities_.find(sName) != entities_.end())
+    destroyEntity(sName);
   auto &entity = entities_[sName];
   entity.name = sName;
   entity.type = type;
-  if (entity.creationOrder == 0)
-    entity.creationOrder = nextCreationOrder_++;
+  entity.creationOrder = nextCreationOrder_++;
   rebuildRenderOrder();
   return &entity;
 }
