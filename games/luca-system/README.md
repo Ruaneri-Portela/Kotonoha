@@ -55,6 +55,24 @@ The tool preserves names, IDs, entry order and block alignment, and writes
 to a new file. It does not add or rename entries or interpret imported
 payloads. Keep commercial inputs and repacked outputs local.
 
+### Conservative raw script import (all titles)
+
+The patch-raw command updates one or more instruction *payloads* by their
+original byte offsets, including unknown opcodes from non-AIR titles. It does
+not rewrite the four-byte instruction header or the alignment byte, and every
+replacement must have exactly the original payload length. Multiple edits
+across different PAK entries are applied together.
+
+    build/bin/LucaInspect /path/to/game/files seen170 --opcode-table data/AIR.txt
+    build/bin/LucaPak patch-raw SCRIPT.PAK SCRIPT-patched.PAK name:seen170 2202 raw-payload.bin
+
+The input is a binary file containing all bytes after the four-byte
+instruction header (including any fixed parameters). This is meant for
+expert, format-aware edits; changing a jump operand to an invalid target or
+changing an opcode's internal fields can still break the game. For variable-
+length AIR English dialogue, continue using patch-air, which relocates jumps.
+A standalone regression exercises multiple edits, bad offsets, and wrong sizes.
+
 ### AIR dialogue import
 
 Use `LucaInspect` with opcode `36` to find the original decimal byte offset of
