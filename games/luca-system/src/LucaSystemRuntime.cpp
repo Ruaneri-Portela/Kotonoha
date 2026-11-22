@@ -2527,12 +2527,23 @@ struct LucaSystemRuntime::Impl {
       sourcePtr = &source;
       dst.w = visibleWidth;
     }
+    // Upscalers are intended for flat background art; running an image
+    // enhancement filter on transparent CHARCG portraits may distort edges,
+    // hair strands and the sprite's original alpha silhouette.
+    const bool characterSprite = slot.group == 2;
     if (slot.rotation != 0.0f) {
-      Kotonoha::RenderUpscaledTextureRotated(&renderer, tex.get(), sourcePtr,
-                                             &dst, double(slot.rotation),
-                                             nullptr, SDL_FLIP_NONE);
+      if (characterSprite)
+        SDL_RenderTextureRotated(&renderer, tex.get(), sourcePtr, &dst,
+                                 double(slot.rotation), nullptr, SDL_FLIP_NONE);
+      else
+        Kotonoha::RenderUpscaledTextureRotated(
+            &renderer, tex.get(), sourcePtr, &dst, double(slot.rotation),
+            nullptr, SDL_FLIP_NONE);
     } else {
-      Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), sourcePtr, &dst);
+      if (characterSprite)
+        SDL_RenderTexture(&renderer, tex.get(), sourcePtr, &dst);
+      else
+        Kotonoha::RenderUpscaledTexture(&renderer, tex.get(), sourcePtr, &dst);
     }
 
     // The date icon is part of the background composition, not a topmost
