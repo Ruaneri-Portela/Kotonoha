@@ -1680,6 +1680,29 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       sceneGraph_.setAlias(a[0].asString(), a[1].asString());
     break;
   }
+  case 0x02d: { // SetShade [query, Medium|Heavy]
+    auto a = popArgs(t, args.size());
+    if (a.size() >= 2) {
+      const std::string query = a[0].asString();
+      const std::string level = toLowerAscii(a[1].asString());
+      // NitroSharp's Medium/Heavy shader presets use 8/16 blur passes.
+      const unsigned passes =
+          level == "heavy" || level == "16" ? 16u
+          : level == "medium" || level == "8" ? 8u : 0u;
+      sceneGraph_.setBoxBlur(query, passes);
+    }
+    break;
+  }
+  case 0x02e: { // SetTone [query, Monochrome]
+    auto a = popArgs(t, args.size());
+    if (a.size() >= 2) {
+      const std::string query = a[0].asString();
+      const std::string tone = toLowerAscii(a[1].asString());
+      sceneGraph_.setMonochrome(query, tone == "monochrome" ||
+                                          tone == "mono" || tone == "1");
+    }
+    break;
+  }
   case 0x034: { // SetNextFocus [src, dst, dir]
     auto a = popArgs(t, args.size());
     if (a.size() >= 3) {
