@@ -214,6 +214,24 @@ int main() {
             "Expected at least 8 discovered games in synthetic library, got " +
                 std::to_string(catalog.size()));
 
+    // The library may also contain non-game folders. Cache their negative
+    // probes without masking a game installed into one of them later.
+    SyntheticLibrary changing;
+    changing.write("NewTitle/unrelated/notes.txt", "not a game");
+    require(scanGameLibrary(changing.root.string()).empty(),
+            "Unrelated folder must not be a detected game");
+    changing.write("NewTitle/data.xp3", "XP3 placeholder");
+    std::error_code timestampError;
+    fs::last_write_time(changing.root / "NewTitle",
+                        fs::file_time_type::clock::now() +
+                            std::chrono::seconds(5),
+                        timestampError);
+    require(!timestampError, "Cannot set scan-cache fixture timestamp");
+    const auto changedCatalog = scanGameLibrary(changing.root.string());
+    require(changedCatalog.size() == 1 &&
+                changedCatalog[0].engine.kind == EngineKind::Kirikiri,
+            "Scan-cache must invalidate after adding a known game archive");
+
     // 3. Verify that every game gets a unique isolated save directory when
     //    splitSavesByGame is true, even when sharing the same engine &
     //    packageId!
