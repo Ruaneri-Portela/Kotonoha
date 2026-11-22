@@ -35,6 +35,12 @@ kotonoha_configure_app(LucaSystem
 set(LUCA_SYSTEM_TEST_DATA "" CACHE PATH "LucaSystem original data for integration tests")
 
 if(BUILD_TESTING)
+  # Standalone LuckSystem OPCODE.txt compatibility (no retail assets or SDL).
+  add_executable(LucaSystemOpcodeTableTests tests/OpcodeTableTest.cpp)
+  target_include_directories(LucaSystemOpcodeTableTests PRIVATE include)
+  target_compile_features(LucaSystemOpcodeTableTests PRIVATE cxx_std_17)
+  add_test(NAME LucaSystem.OpcodeTable COMMAND LucaSystemOpcodeTableTests)
+
   add_executable(LucaSystemFormatTests tests/LucaSystemTest.cpp)
   target_link_libraries(LucaSystemFormatTests PRIVATE luca_system_formats)
   add_test(NAME LucaSystemFormatTests COMMAND LucaSystemFormatTests)

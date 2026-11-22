@@ -1,12 +1,18 @@
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/LucaSystemAssets.hpp>
+#include <LucaSystem/OpcodeTable.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
 
+#include <charconv>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
+#include <optional>
+#include <stdexcept>
+#include <string_view>
 #include <sstream>
 #include <string>
 
@@ -146,7 +152,7 @@ const char *names[] = {"EQU",
                        "SAVE_THUMBNAIL",
                        "TEXTURE_PREFETCH",
                        "CLOSE_PRELOAD_FILE",
-                       "RESERVED_135",
+                       "NULL",
                        "MANPU",
                        "SCENARIO",
                        "HAIKEI_SET",
@@ -155,7 +161,7 @@ const char *names[] = {"EQU",
 
 int main(int argc, char **argv) {
   if (argc < 3) {
-    std::cerr << "Usage: LucaInspect DATA_DIR SCRIPT [OPCODE]\n";
+    std::cerr << "Usage: LucaInspect DATA_DIR SCRIPT [OPCODE] [--opcode-table FILE]\n";
     return 2;
   }
   Kotonoha::Providers::LucaSystemAssets assets(argv[1], {});
@@ -188,14 +194,60 @@ int main(int argc, char **argv) {
     }
     return out ? 0 : 1;
   }
+  int filter = -1;
+  std::optional<LucaSystem::OpcodeTable> opcodeTable;
+  for (int i = 3; i < argc; ++i) {
+    const std::string_view arg(argv[i]);
+    if (arg == "--opcode-table") {
+      if (opcodeTable || i + 1 >= argc) {
+        std::cerr << "Expected a single file after --opcode-table\n";
+        return 2;
+      }
+      const std::string file = argv[++i];
+      std::ifstream input(file, std::ios::binary);
+      if (!input) {
+        std::cerr << "Cannot open opcode table: " << file << '\n';
+        return 1;
+      }
+      const std::string contents(std::istreambuf_iterator<char>{input},
+                                 std::istreambuf_iterator<char>{});
+      if (input.bad()) {
+        std::cerr << "Cannot read opcode table: " << file << '\n';
+        return 1;
+      }
+      try {
+        opcodeTable = LucaSystem::OpcodeTable::parse(contents);
+      } catch (const std::invalid_argument &error) {
+        std::cerr << "Invalid opcode table " << file << ": " << error.what()
+                  << '\n';
+        return 1;
+      }
+    } else {
+      unsigned value = 0;
+      const auto parsed =
+          std::from_chars(arg.data(), arg.data() + arg.size(), value);
+      if (filter >= 0 || parsed.ec != std::errc{} ||
+          parsed.ptr != arg.data() + arg.size() || value > 255) {
+        std::cerr << "Expected one opcode number (0..255)\n";
+        return 2;
+      }
+      filter = static_cast<int>(value);
+    }
+  }
+
   auto bytes = assets.readAsset(argv[2]);
   LucaSystem::Script script(argv[2], std::move(bytes));
-  const int filter = argc > 3 ? std::atoi(argv[3]) : -1;
+  if (!script.valid()) {
+    std::cerr << "Malformed LucaSystem script: " << script.error() << '\n';
+    return 1;
+  }
   for (const auto &ins : script.instructions()) {
     if (filter >= 0 && ins.opcode != filter)
       continue;
     std::cout << ins.pos << ' ';
-    if (ins.opcode < sizeof(names) / sizeof(names[0]))
+    if (opcodeTable)
+      std::cout << opcodeTable->name(ins.opcode);
+    else if (ins.opcode < sizeof(names) / sizeof(names[0]))
       std::cout << names[ins.opcode];
     else
       std::cout << "OP_" << unsigned(ins.opcode);
