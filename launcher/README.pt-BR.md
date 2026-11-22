@@ -32,6 +32,19 @@ cmake --build build --target KotonohaLauncher
 
 A compilação completa exige as dependências de todos os ports, incluindo Python de desenvolvimento para DDLC quando necessário. O launcher é compilado somente com `KOTONOHA_BUILD_ALL=ON`, em plataformas desktop nativas, e exclui o Example. No macOS, o bundle do hub também inclui a biblioteca padrão do Python para o DDLC.
 
+## Varredura mais rápida da biblioteca
+
+O scanner utiliza um **mount leve e sob demanda, exclusivo da detecção**:
+consulta apenas os caminhos necessários para identificar o motor sem indexar
+todos os assets e texturas em subpastas. A execução do jogo continua usando o
+índice completo do VFS somente-leitura. Resultados reconhecidos e negativos
+são armazenados em cache, com fingerprints limitados às pastas/arquivos de
+metadados, atualização periódica por hora e gravação uma vez por varredura.
+
+A descoberta examina a pasta selecionada e suas subpastas imediatas/imagens
+de disco, não o disco inteiro. Selecione a pasta que contém as pastas de jogos
+ou uma pasta de jogo individual.
+
 ## Uso via CLI
 
 ```bash
