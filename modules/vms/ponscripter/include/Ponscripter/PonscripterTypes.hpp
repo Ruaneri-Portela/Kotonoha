@@ -70,6 +70,7 @@ struct ActiveEffect {
 struct SpriteSlot {
   bool loaded = false;
   bool visible = false;
+  bool secondaryLayer = false; // lsp2/lsph2 separate hide-state group
   TaggedImageSpec spec;
   int x = 0;
   int y = 0;
