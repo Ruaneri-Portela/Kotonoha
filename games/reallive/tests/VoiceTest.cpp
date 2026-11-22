@@ -2,6 +2,7 @@
 #include <RealLive/Voice.hpp>
 #include <cassert>
 #include <cctype>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <iterator>
