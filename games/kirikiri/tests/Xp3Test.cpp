@@ -482,6 +482,108 @@ int main() {
     }
   }
 
+  // Inline TJS must not be lexed as KAG, even if it contains brackets,
+  // quotes or text resembling KAG tags. Command names ignore ASCII case.
+  {
+    auto parsed = Kirikiri::KagScript::parse(
+        "@ISCRIPT\n"
+        "var title = \"[cm text=hidden]\";\n"
+        "var item = options[0];\n"
+        "  @EnDsCrIpT\n"
+        "[CM text=shown][END]",
+        "inline-tjs.ks");
+    if (parsed.tags.size() != 4 || parsed.tags[0].name != "iscript" ||
+        parsed.tags[1].name != "endscript" || parsed.tags[1].line != 4 ||
+        parsed.tags[1].column != 3 || parsed.tags[2].name != "cm" ||
+        parsed.tags[3].name != "end") {
+      std::printf("FAIL: inline TJS body leaked into the KAG parser\n");
+      ++failures;
+    } else {
+      std::vector<std::string> shown;
+      Kirikiri::KagScript::Callbacks cb;
+      cb.showText = [&](std::string, std::string text) {
+        shown.push_back(std::move(text));
+      };
+      Kirikiri::KagScript::Runner runner(parsed, cb);
+      runner.run();
+      if (shown != std::vector<std::string>{"shown"} || !runner.isBlocked()) {
+        std::printf("FAIL: inline TJS skipped valid dialogue\n");
+        ++failures;
+      }
+      runner.resumeWait();
+      if (!runner.isFinished()) {
+        std::printf("FAIL: inline TJS prevented KAG completion\n");
+        ++failures;
+      }
+    }
+    const auto bracketed = Kirikiri::KagScript::parse(
+        "[iscript]\r\nvar item = values[0];\r\n[endscript]\r\n"
+        "[cm text=ok][end]", "bracketed-tjs.ks");
+    if (bracketed.tags.size() != 4 ||
+        bracketed.tags[1].name != "endscript" ||
+        bracketed.tags[2].attrs.at("text") != "ok") {
+      std::printf("FAIL: bracketed inline TJS/CRLF parser\n");
+      ++failures;
+    }
+    for (const auto &unterminated : {"[iscript]\nvar x = array[0];",
+                                     "@iscript\nvar x = '[cm]';"}) {
+      bool rejected = false;
+      try {
+        (void)Kirikiri::KagScript::parse(unterminated, "missing-end.ks");
+      } catch (const std::runtime_error &) {
+        rejected = true;
+      }
+      if (!rejected) {
+        std::printf("FAIL: unterminated inline TJS was accepted\n");
+        ++failures;
+      }
+    }
+  }
+
+  // An [ignore] condition is inverted relative to [if]. Its nested
+  // exclusions must not leak dialogue when the outer condition is true.
+  {
+    auto parsed = Kirikiri::KagScript::parse(
+        "[set name=flag value=1]"
+        "[ignore exp=\"flag == 1\"]"
+        "[cm text=hidden]"
+        "[ignore exp=false][cm text=also-hidden][endignore]"
+        "[endignore]"
+        "[ignore exp=\"flag != 1\"][cm text=shown][endignore]"
+        "[end]",
+        "ignore.ks");
+    std::vector<std::string> shown;
+    Kirikiri::KagScript::Callbacks cb;
+    cb.showText = [&](std::string, std::string text) {
+      shown.push_back(std::move(text));
+    };
+    Kirikiri::KagScript::Runner runner(parsed, cb);
+    runner.run();
+    if (shown != std::vector<std::string>{"shown"} || !runner.isBlocked()) {
+      std::printf("FAIL: KAG [ignore] conditional or nested skip\n");
+      ++failures;
+    }
+    runner.resumeWait();
+    if (!runner.isFinished()) {
+      std::printf("FAIL: KAG [endignore] failed to resume\n");
+      ++failures;
+    }
+    bool rejected = false;
+    try {
+      Kirikiri::KagScript::Runner invalid(
+          Kirikiri::KagScript::parse("[ignore exp=true][end]",
+                                     "unclosed-ignore.ks"),
+          {});
+      invalid.run();
+    } catch (const std::runtime_error &) {
+      rejected = true;
+    }
+    if (!rejected) {
+      std::printf("FAIL: unterminated [ignore] was accepted\n");
+      ++failures;
+    }
+  }
+
   // In-script [call target=*label] and [return] must preserve continuation
   // after a blocked text command. A saved PC cannot inherit stale frames.
   {
