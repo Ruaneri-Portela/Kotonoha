@@ -457,6 +457,17 @@ bool SceneGraph::setPriority(std::string_view entityName, float z) {
   return true;
 }
 
+void SceneGraph::setMonochrome(std::string_view query, bool enabled) {
+  for (auto *e : queryEntities(query))
+    e->monochrome = enabled;
+}
+
+void SceneGraph::setBoxBlur(std::string_view query, unsigned passes) {
+  const uint8_t normalized = passes >= 16 ? 16 : passes >= 8 ? 8 : 0;
+  for (auto *e : queryEntities(query))
+    e->boxBlurPasses = normalized;
+}
+
 void SceneGraph::moveEntity(std::string_view name, float targetX, float targetY,
                             float durationMs, EaseFunction ease) {
   for (auto *e : queryEntities(name)) {
