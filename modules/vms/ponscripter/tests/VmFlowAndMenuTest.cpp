@@ -385,6 +385,96 @@ int main() {
             "movz must preserve preceding cells and clear remaining cells");
     }
 
+    {
+      Ponscripter::PonscripterVm multiline;
+      multiline.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "selnum %10,\"Primeiro\",\n"
+          "  \"Segundo\",\n"
+          "  \"Terceiro\"\n"
+          "mov %11,1\n"
+          "end\n");
+      check(multiline.start(), "multiline selnum fixture must start");
+      multiline.tick(0);
+      check(multiline.waitState() == Ponscripter::WaitState::WaitSelect &&
+                multiline.selectOptions().size() == 3,
+            "multiline selnum must combine all three source lines");
+      check(multiline.selectChoice(2), "third multiline option must work");
+      multiline.tick(0);
+      check(multiline.isHalted() &&
+                multiline.variables().getNum(10) == 2 &&
+                multiline.variables().getNum(11) == 1,
+            "selection must advance after the entire multiline statement");
+    }
+
+    {
+      Ponscripter::PonscripterVm custom;
+      const std::string script =
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "csel \"Zero\",*zero,\n"
+          "  \"Um\",*one\n"
+          "mov %99,999\n"
+          "end\n"
+          "*customsel\n"
+          "getcselnum %0\n"
+          "getcselstr $1,1\n"
+          "cselbtn 0,20,10,50\n"
+          "cselbtn 1,21,100,50\n"
+          "btnwait %2\n"
+          "sub %2,20\n"
+          "cselgoto %2\n"
+          "end\n"
+          "*zero\n"
+          "mov %3,0\n"
+          "end\n"
+          "*one\n"
+          "mov %3,7\n"
+          "end\n";
+      custom.appendScriptFile("0.utf", script);
+      check(custom.start(), "customsel fixture must start");
+      custom.tick(0);
+      check(custom.waitState() == Ponscripter::WaitState::WaitButton,
+            "csel must jump to customsel and wait on cselbtn buttons");
+      check(custom.variables().getNum(0) == 2 &&
+                custom.variables().getStr(1) == "Um",
+            "getcselnum/getcselstr must see all multi-line custom choices");
+      check(custom.activeButtons().size() == 2 &&
+                custom.activeButtons()[1].kind ==
+                    Ponscripter::ButtonDef::Kind::TextBtn &&
+                custom.activeButtons()[1].text == "Um",
+            "cselbtn must produce a UI-rendered custom text button");
+      auto saved = custom.exportSlotSave();
+      check(saved.cselOptions.size() == 2,
+            "pending custom choices must be serializable");
+      Ponscripter::SlotSaveData restored;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(saved), restored),
+            "custom select save/load must deserialize");
+      check(restored.cselOptions.size() == 2 &&
+                restored.buttons.size() == 2 &&
+                restored.buttons[1].text == "Um",
+            "custom choice labels/buttons must survive a save roundtrip");
+      Ponscripter::PonscripterVm resumed;
+      resumed.appendScriptFile("0.utf", script);
+      check(resumed.start(), "customsel reload must start");
+      resumed.importSlotSave(restored);
+      resumed.updateMousePos(105, 55);
+      check(resumed.hoveredButtonId() == 21,
+            "custom selection hit-testing must use text button bounds");
+      check(resumed.advance(), "custom button click must be accepted");
+      resumed.tick(0);
+      check(resumed.isHalted() &&
+                resumed.variables().getNum(2) == 1 &&
+                resumed.variables().getNum(3) == 7 &&
+                resumed.variables().getNum(99) == 0,
+            "custom button must branch through script-controlled cselgoto");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
