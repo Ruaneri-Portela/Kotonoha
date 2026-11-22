@@ -20,7 +20,10 @@
 - **Save State & Extras (`Ponscripter::SaveSerializer`)**: Persists global variables (`gloval.sav`: `%lic_accepted`, `%end1_clear..%end3_clear`, `%cgset_0..4`, `%gro`, `%vol*`, `%textspeed`, `%autospeed`, `%movplay`) and 20 save slots (`save1.dat`..`save20.dat`), unlocking the CG Gallery (`97` CGs), Music Box (`15` tracks), and Staff Notes across all 3 endings.
 
 ### 3. Shared Kotonoha UI
-- **Pause menu (`InGameMenu`)**: `N2GameMenu` opens on `Esc`, routes History to the runtime-owned `VNBacklog`, and delegates Save/Load to `VNSaveMenu`.
-- **Backlog (`VNBacklog`)**: `B` toggles the same instance populated by the VM; while a modal is open, input is dispatched to the active engine scene.
-- **Save browser (`VNSaveMenu`)**: Save and Load entries open the engine save browser under `n2system/`; `F5`/`F9` remain quick-save shortcuts.
-- **Title return**: the pause menu closes through the engine callback and restarts the N2 runtime without leaving the modal scene dangling.
+- **Pause menu (`InGameMenu`)**: the runtime uses the engine's shared menu, rather than the removed `N2GameMenu`. Settings are delegated to the `Engine`; the current return-to-menu callback requests application exit.
+- **Backlog (`VNBacklog`)**: `B` toggles the VM's backlog. While a modal scene is open, input is routed to the capturing scene.
+- **Quick save/load**: `F5` writes `n2system_quick.n2sv`; `F6` loads it. There is currently no runtime-owned `VNSaveMenu` save browser.
+- **Steins;Gate text**: the original TTF font is loaded from provider bytes into `Kotonoha::UI`, using renderer-backed cached text instead of per-frame surfaces.
+- **Movies**: looping background movies, including the title, cannot be dismissed through generic advance/skip input and do not capture native choice navigation. Non-looping narrative movies still require deliberate skip gestures.
+
+**Validation remaining:** retail assets and target platforms still require end-to-end visual, audio/video, gameplay, save/load, and text-rendering validation. Synthetic tests do not certify complete parity with the original N2System.

@@ -247,6 +247,38 @@ inline float croppedSpriteOrigin(float position, float anchor, float crop,
                                  float scale, float move, float shake) {
   return position + (crop - anchor) * scale + move + shake;
 }
+// A calendar or other background-attached HUD element needs an actual opaque
+// backing pixel in the current scene. A slot ID alone is insufficient: cropped
+// CZ4 art can occupy only a small part of the canvas, leaving black/empty space.
+inline bool rasterCoversPointWithOpacity(
+    const std::vector<std::uint8_t> &rgba, int width, int height,
+    float originX, float originY, float scaleX, float scaleY,
+    float pointX, float pointY, float opacity) {
+  if (width <= 0 || height <= 0 || scaleX <= 0.0f || scaleY <= 0.0f ||
+      !std::isfinite(originX) || !std::isfinite(originY) ||
+      !std::isfinite(scaleX) || !std::isfinite(scaleY) ||
+      !std::isfinite(pointX) || !std::isfinite(pointY) ||
+      !std::isfinite(opacity) ||
+      rgba.size() != std::size_t(width) * std::size_t(height) * 4)
+    return false;
+  const float sx = (pointX - originX) / scaleX;
+  const float sy = (pointY - originY) / scaleY;
+  if (sx < 0.0f || sy < 0.0f || sx >= width || sy >= height)
+    return false;
+  const auto ix = std::size_t(sx), iy = std::size_t(sy);
+  return (float(rgba[(iy * std::size_t(width) + ix) * 4 + 3]) / 255.0f) *
+             opacity >=
+         0.85f;
+}
+// Upscaling a texture with an alpha silhouette may damage cropped windows,
+ // hair, masks, and other overlays. Check once at decode time, not every frame.
+inline bool hasNonOpaquePixels(const std::vector<std::uint8_t> &rgba) {
+  for (std::size_t i = 3; i < rgba.size(); i += 4) {
+    if (rgba[i] != 255)
+      return true;
+  }
+  return false;
+}
 // AIR's face/expression CZ4 images retain the full character canvas but have
 // a much smaller cropped payload. Keep the last full portrait underneath.
 inline bool isCharacterFragment(int baseWidth, int baseHeight,

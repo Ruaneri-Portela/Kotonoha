@@ -33,6 +33,12 @@ SDL_Event touch(float x, float y) {
 
 int main() {
   try {
+    require(!Kotonoha::VideoSkipGesture::capturesInput(true, true),
+            "Looping menu video must not capture navigation");
+    require(Kotonoha::VideoSkipGesture::capturesInput(true, false),
+            "Narrative cutscene must capture input");
+    require(!Kotonoha::VideoSkipGesture::capturesInput(false, false),
+            "Inactive movie must not capture input");
     Kotonoha::VideoSkipGesture gesture;
     SDL_Event e{};
     e.type = SDL_EVENT_MOUSE_MOTION;

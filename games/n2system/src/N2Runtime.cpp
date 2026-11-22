@@ -1230,8 +1230,9 @@ bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
 
   // Decorative looping title movies must not capture menu selections or
   // accept generic video-skip gestures.
-  if (isNsbActive() && impl_->nsbVm->activeMovie().active &&
-      !impl_->nsbVm->activeMovie().loop) {
+  if (isNsbActive() && Kotonoha::VideoSkipGesture::capturesInput(
+                           impl_->nsbVm->activeMovie().active,
+                           impl_->nsbVm->activeMovie().loop)) {
     // Guard the movie wait even before the decoder opens. Otherwise an early
     // single click can advance the NSB VM while the first frame is loading.
     if (impl_->videoSkip.accept(rawEvent)) {
