@@ -6,6 +6,8 @@ on:
     paths:
       - 'games/reallive/src/RealLiveAudioWait.hpp'
       - 'games/reallive/src/RealLiveChannelLevels.hpp'
+      - 'games/reallive/src/RealLiveBgmCompat.hpp'
+      - 'games/reallive/tests/BgmCompatTest.cpp'
       - 'games/reallive/tests/ChannelLevelsTest.cpp'
       - 'games/reallive/tests/AudioWaitTest.cpp'
       - 'games/reallive/src/RealLiveRuntime.cpp'
