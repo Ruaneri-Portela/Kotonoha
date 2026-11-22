@@ -64,6 +64,9 @@ struct SlotSaveData {
   bool btnwaitPreserveButtons = false;
   std::vector<ButtonDef> buttons;
   std::vector<SelectOption> selectOptions;
+  // Optional metadata, so V1 slot files remain readable without this line.
+  int selectionMode = 0; // 0=select/csel, 1=selgosub, 2=selnum
+  int selectionNumberVariable = -1;
 };
 
 class SaveSerializer {
