@@ -3,6 +3,7 @@
 #include <LucaSystem/SaveState.hpp>
 
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -55,6 +56,24 @@ int main() {
     state.callStack = {3, 17, 1023};
     state.callFrames = {{"seen001", 3}, {"seen002", 17}, {"seen163", 1023}};
     state.images = {{17, -50, 20}, {2048, 900, -34}};
+    LucaSystem::SavedVisualLayer visual;
+    visual.group = 2;
+    visual.slot = 3;
+    visual.assetId = 10021;
+    visual.posX = 320.5f;
+    visual.posY = -12.25f;
+    visual.startOffsetX = 2.5f;
+    visual.startOffsetY = -1.25f;
+    visual.targetOffsetX = 50.0f;
+    visual.targetOffsetY = 7.0f;
+    visual.scaleX = 1.5f;
+    visual.scaleY = 0.75f;
+    visual.rotation = 32.0f;
+    visual.alpha = 0.375f;
+    visual.moveRemainingMs = 1200;
+    visual.r = 40; visual.g = 130; visual.b = 210;
+    visual.visible = false;
+    state.visualLayers = {visual};
     auto encoded = LucaSystem::encodeSaveState(state);
     const auto decoded = LucaSystem::decodeSaveState(encoded);
     require(
@@ -72,11 +91,35 @@ int main() {
             decoded.images.size() == state.images.size() &&
             decoded.images[0].assetId == 17 && decoded.images[0].x == -50 &&
             decoded.images[0].y == 20 && decoded.images[1].assetId == 2048 &&
-            decoded.images[1].x == 900 && decoded.images[1].y == -34,
-        "LucaSystem V5 round-trip must preserve VM, call frames, and visible "
-        "images");
+            decoded.images[1].x == 900 && decoded.images[1].y == -34 &&
+            decoded.visualLayers.size() == 1 &&
+            decoded.visualLayers[0].group == 2 &&
+            decoded.visualLayers[0].slot == 3 &&
+            decoded.visualLayers[0].assetId == 10021 &&
+            decoded.visualLayers[0].posX == 320.5f &&
+            decoded.visualLayers[0].posY == -12.25f &&
+            decoded.visualLayers[0].scaleX == 1.5f &&
+            decoded.visualLayers[0].rotation == 32.0f &&
+            decoded.visualLayers[0].alpha == 0.375f &&
+            decoded.visualLayers[0].moveRemainingMs == 1200 &&
+            !decoded.visualLayers[0].visible &&
+            decoded.visualLayers[0].r == 40,
+        "LucaSystem V6 round-trip preserves complete visual state");
     require(LucaSystem::encodeSaveState(decoded) == encoded,
-            "LucaSystem V5 saves must be stable on a repeat encode");
+            "LucaSystem V6 saves must be stable on a repeat encode");
+
+    // V5 payloads end after the old 12-byte image placements. Their
+    // frame stack and legacy images must remain readable after V6.
+    std::string v5Payload = encoded;
+    const std::size_t layerTail = 4 + state.visualLayers.size() * 56;
+    v5Payload.resize(v5Payload.size() - layerTail);
+    v5Payload.replace(0, LucaSystem::SaveCodec::Magic.size(),
+                      LucaSystem::SaveCodec::V5Magic);
+    const auto v5State = LucaSystem::decodeSaveState(v5Payload);
+    require(v5State.callFrames == state.callFrames &&
+                v5State.images.size() == state.images.size() &&
+                v5State.visualLayers.empty(),
+            "V5 saves remain readable with legacy image fallback");
 
     // V4 backward compatibility test: construct a V4 payload with
     // LUCA_SYSTEM_SAVE_4\n
@@ -133,20 +176,33 @@ int main() {
         [&] {
           LucaSystem::decodeSaveState(encoded.substr(0, encoded.size() - 1));
         },
-        "Truncated V5 image payload must be rejected");
+        "Truncated V6 visual layer payload must be rejected");
     rejects([&] { LucaSystem::decodeSaveState(encoded + "junk"); },
-            "Trailing V5 data must be rejected");
+            "Trailing V6 data must be rejected");
     rejects([&] { LucaSystem::decodeSaveState(v3Payload + "junk"); },
             "Trailing V3 data must be rejected");
     auto manyImages = state;
     manyImages.images.resize(LucaSystem::SaveCodec::MaxImages + 1);
     rejects([&] { LucaSystem::encodeSaveState(manyImages); },
             "Excessive V4 image count must be rejected");
-    auto invalidImageCount = encoded;
-    invalidImageCount.replace(encoded.size() - (4 + state.images.size() * 12),
+    auto invalidImageCount = v5Payload;
+    invalidImageCount.replace(v5Payload.size() - (4 + state.images.size() * 12),
                               4, 4, '\xff');
     rejects([&] { LucaSystem::decodeSaveState(invalidImageCount); },
-            "Corrupt V4 image count must be rejected");
+            "Corrupt V5 image count must be rejected");
+    auto invalidLayerCount = encoded;
+    invalidLayerCount.replace(encoded.size() - layerTail, 4, 4, '\xff');
+    rejects([&] { LucaSystem::decodeSaveState(invalidLayerCount); },
+            "Excessive V6 visual layer count rejected");
+    auto duplicateVisualSlots = state;
+    duplicateVisualSlots.visualLayers.push_back(visual);
+    rejects([&] { LucaSystem::encodeSaveState(duplicateVisualSlots); },
+            "Duplicate V6 group/slot is rejected");
+    auto nanVisual = state;
+    nanVisual.visualLayers[0].alpha =
+        std::numeric_limits<float>::quiet_NaN();
+    rejects([&] { LucaSystem::encodeSaveState(nanVisual); },
+            "NaN visual alpha is rejected");
     auto oversized = encoded;
     const auto offset = LucaSystem::SaveCodec::Magic.size();
     oversized.replace(offset, 4, 4, '\xff');
