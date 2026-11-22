@@ -496,7 +496,7 @@ std::filesystem::path documentsDirectory(const std::string &game) {
   if (!game.empty())
     validateGame(game);
 #ifdef __EMSCRIPTEN__
-  return webSaveDirectory(game);
+  return webSaveDirectory();
 #endif
   auto locations = storageLocations();
 #ifndef __ANDROID__
@@ -515,7 +515,7 @@ std::filesystem::path preferredDocumentsDirectory(const std::string &game) {
   if (!game.empty())
     validateGame(game);
 #ifdef __EMSCRIPTEN__
-  return webSaveDirectory(game);
+  return webSaveDirectory();
 #endif
   auto locations = storageLocations();
   // Old callers may pass a source-tree slug. Only metadata or an explicit
