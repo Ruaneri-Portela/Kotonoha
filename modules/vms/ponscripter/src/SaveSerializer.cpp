@@ -122,6 +122,9 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
     for (const auto &arg : frame.arguments) {
       out << "CALLARG\t" << (arg.isString ? 1 : 0) << '\t'
           << arg.number << '\t' << escapeLine(arg.text) << '\n';
+      if (arg.sourceVariable >= 0)
+        out << "CALLREF\t" << arg.sourceVariable << '\t'
+            << (arg.sourceIsString ? 1 : 0) << '\n';
     }
   }
   for (const auto &f : data.forStack) {
@@ -273,6 +276,14 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
         std::getline(ls, value);
         arg.text = unescapeLine(value);
         outData.callStack.back().arguments.push_back(std::move(arg));
+      }
+    } else if (kind == "CALLREF") {
+      if (!outData.callStack.empty() &&
+          !outData.callStack.back().arguments.empty()) {
+        auto &arg = outData.callStack.back().arguments.back();
+        int isString = 0;
+        ls >> arg.sourceVariable >> isString;
+        arg.sourceIsString = (isString != 0);
       }
     } else if (kind == "FOR") {
       ForLoopFrame f;
