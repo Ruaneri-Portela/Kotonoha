@@ -1,5 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <Ponscripter/PonscripterVm.hpp>
+#include <Ponscripter/PixelEffects.hpp>
 #include <Ponscripter/SaveSerializer.hpp>
 
 #include <iostream>
@@ -749,6 +750,70 @@ int main() {
       check(restored.isHalted() && restored.variables().getNum(2) == 2 &&
                 restored.quakeOffset() == std::pair<int,int>{0,0},
             "completed quake must restore centered scene");
+    }
+
+    {
+      std::uint8_t pixels[12] = {10, 20, 30, 191, 200, 100, 50, 117,
+                                 7, 8, 9, 10};
+      Ponscripter::applyScenePixelEffects(pixels, 2, 1, 12, false,
+                                           0xFFFFFFu, 1);
+      check(pixels[0] == 245 && pixels[1] == 235 &&
+                pixels[2] == 225 && pixels[3] == 191 &&
+                pixels[4] == 55 && pixels[5] == 155 &&
+                pixels[6] == 205 && pixels[7] == 117 &&
+                pixels[8] == 7 && pixels[9] == 8,
+            "negative mode must invert only RGB and preserve alpha/padding");
+
+      std::uint8_t mono[4] = {10, 20, 30, 127};
+      Ponscripter::applyScenePixelEffects(mono, 1, 1, 4, true,
+                                           0xFF0000u, 0);
+      check(mono[0] == 18 && mono[1] == 0 &&
+                mono[2] == 0 && mono[3] == 127,
+            "monochrome tint must compute luma and preserve transparency");
+      Ponscripter::applyScenePixelEffects(mono, 1, 1, 4, false,
+                                           0xFFFFFFu, 2);
+      check(mono[0] == 237 && mono[1] == 255 &&
+                mono[2] == 255 && mono[3] == 127,
+            "negative mode 2 must invert the fully composited tint");
+    }
+
+    {
+      Ponscripter::PonscripterVm postfx;
+      const std::string script =
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "monocro #ffcc00\n"
+          "nega 2\n"
+          "wait 10\n"
+          "monocro off\n"
+          "nega 0\n"
+          "end\n";
+      postfx.appendScriptFile("0.utf", script);
+      check(postfx.start(), "postprocess fixture must start");
+      postfx.tick(0);
+      check(postfx.waitState() == Ponscripter::WaitState::WaitTimer &&
+                postfx.isMonochromeEnabled() &&
+                postfx.monochromeColor() == 0xFFCC00u &&
+                postfx.negativeMode() == 2,
+            "monocro and nega must configure active rendering filters");
+      Ponscripter::SlotSaveData slot;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(
+                    postfx.exportSlotSave()), slot),
+            "postprocess state must roundtrip");
+      check(slot.monochromeEnabled &&
+                slot.monochromeColor == 0xFFCC00u &&
+                slot.negativeMode == 2,
+            "monochrome/negative state must survive save");
+      Ponscripter::PonscripterVm resumed;
+      resumed.appendScriptFile("0.utf", script);
+      check(resumed.start(), "postprocess restore fixture must start");
+      resumed.importSlotSave(slot);
+      resumed.tick(20);
+      check(resumed.isHalted() && !resumed.isMonochromeEnabled() &&
+                resumed.negativeMode() == 0,
+            "postprocessing should be disabled by script commands");
     }
 
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
