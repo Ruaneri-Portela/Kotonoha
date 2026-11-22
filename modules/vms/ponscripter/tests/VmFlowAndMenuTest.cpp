@@ -933,6 +933,37 @@ int main() {
             "nested hook should return to main script without recursion");
     }
 
+    {
+      Ponscripter::PonscripterVm hud;
+      hud.appendScriptFile(
+          "0.utf",
+          "*define\n"
+          "game\n"
+          "*start\n"
+          "bar 1,50,10,20,200,12,100,#ff0000\n"
+          "prnum 1,123,30,40,20,22,#ffffff\n"
+          "bgcopy\n"
+          "wait 10\n"
+          "end\n");
+      check(hud.start(), "HUD background capture fixture must start");
+      hud.tick(0);
+      const auto &captured = hud.backgroundCopyOps();
+      check(captured.size() == 3 &&
+                captured[1].kind == Ponscripter::ManualDrawOp::Kind::Rect &&
+                captured[1].width == 100 &&
+                captured[1].colorRgb == 0xFF0000u &&
+                captured[2].kind == Ponscripter::ManualDrawOp::Kind::Text &&
+                captured[2].text == "123",
+            "bgcopy must freeze bars and GPU-rendered number labels");
+      Ponscripter::SlotSaveData data;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(
+                    hud.exportSlotSave()), data) &&
+                data.backgroundCopyOps.size() == 3 &&
+                data.backgroundCopyOps[1].width == 100,
+            "background HUD snapshots must survive saved slot serialization");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
