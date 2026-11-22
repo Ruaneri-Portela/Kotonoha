@@ -518,6 +518,79 @@ int main() {
             "getparam i/s must return original numeric/string variable IDs");
     }
 
+    {
+      Ponscripter::PonscripterVm hooked;
+      const std::string script =
+          "*define\n"
+          "pretextgosub *before\n"
+          "textgosub *after\n"
+          "game\n"
+          "*start\n"
+          "^Primeiro@\n"
+          "^Segundo\\\n"
+          "end\n"
+          "*before\n"
+          "inc %1\n"
+          "return\n"
+          "*after\n"
+          "inc %2\n"
+          "texec\n"
+          "return\n";
+      hooked.appendScriptFile("0.utf", script);
+      check(hooked.start(), "text hook fixture must start");
+      hooked.tick(0);
+      check(hooked.isHalted() &&
+                hooked.variables().getNum(1) == 2 &&
+                hooked.variables().getNum(2) == 2,
+            "pretext and click text hooks must be called exactly once per line");
+      check(hooked.currentPagePlainText().empty() &&
+                !hooked.backlogPages().empty(),
+            "texec must clear the pending page after a page-click hook");
+    }
+
+    {
+      Ponscripter::PonscripterVm interrupted;
+      const std::string script =
+          "*define\n"
+          "pretextgosub *before\n"
+          "textgosub *after\n"
+          "game\n"
+          "*start\n"
+          "^Salvar\\\n"
+          "end\n"
+          "*before\n"
+          "wait 10\n"
+          "inc %1\n"
+          "return\n"
+          "*after\n"
+          "inc %2\n"
+          "texec\n"
+          "return\n";
+      interrupted.appendScriptFile("0.utf", script);
+      check(interrupted.start(), "interrupted hook fixture must start");
+      interrupted.tick(0);
+      check(interrupted.waitState() == Ponscripter::WaitState::WaitTimer,
+            "pretext callback must wait before rendering text");
+      const auto snapshot = interrupted.exportSlotSave();
+      check(snapshot.pendingPretextStatementIndex !=
+                static_cast<std::size_t>(-1),
+            "pending pretext execution must be represented in save state");
+      Ponscripter::SlotSaveData decoded;
+      check(Ponscripter::SaveSerializer::deserializeSlot(
+                Ponscripter::SaveSerializer::serializeSlot(snapshot), decoded),
+            "pretext save must deserialize");
+      Ponscripter::PonscripterVm restored;
+      restored.appendScriptFile("0.utf", script);
+      check(restored.start(), "restored text-hook script must start");
+      restored.importSlotSave(decoded);
+      restored.tick(20);
+      check(restored.isHalted() &&
+                restored.variables().getNum(1) == 1 &&
+                restored.variables().getNum(2) == 1 &&
+                restored.currentPagePlainText().empty(),
+            "restored pretext hook must return and avoid recursive invocation");
+    }
+
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";
     return 0;
   } catch (const std::exception &e) {
