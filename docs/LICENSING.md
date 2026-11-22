@@ -31,6 +31,7 @@ not a legal opinion or a claim that every commercial game/OS was tested.
 | Medium | Counts of applications/ports in active README/AGENTS/build guides were outdated | Align guides with the current 16-app manifest |
 | Medium | `assets/Anime4K/SOURCE.txt` only describes three files despite a larger shader directory | Clarify the provenance gap; verify all shader revisions against their upstream before redistributing modified variants |
 | Needs owner verification | `assets/SPLASH.PNG`, two icon files and `lib/tests/fixtures/SvgTestFont.ttf` have no clear standalone provenance record in the audited files | Confirm authorship, font terms, and binary distribution rights; do not imply approval merely from a filename |
+| High | The [rlvm](https://github.com/eglaysher/rlvm) and [ponscripter-fork](https://github.com/sekaiproject/ponscripter-fork) reference repositories are identified as GPL-3.0 and GPL-2.0 | Do not import GPL implementation files into MIT-only modules without a licensing/compliance decision; the separately vendored `libreallive` subset carries individual MIT headers and a bundled notice. Source-level provenance of all ports remains to be reviewed |
 | Ongoing | The N2System/LucaSystem ports are not proven compatible with all titles, save formats or platforms | Keep verification checklists in issues #83 and #75 until evidence exists |
 
 ## Dependency release checklist
