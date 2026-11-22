@@ -159,7 +159,14 @@ CommentEditorLayout BuildCommentEditorLayout(SDL_Point area) {
     const float boxWidth = std::min(width * 0.94f, 900.0f);
     constexpr float boxHeight = 170.0f;
     CommentEditorLayout layout;
-    layout.box = {(width - boxWidth) * 0.5f, (height - boxHeight) * 0.5f,
+#if defined(__ANDROID__) || defined(ANDROID)
+    // Keep the comment editor above the landscape IME soft keyboard on Android.
+    const float boxY = std::max(
+        24.0f, std::min(height * 0.08f, height - boxHeight - 24.0f));
+#else
+    const float boxY = (height - boxHeight) * 0.5f;
+#endif
+    layout.box = {(width - boxWidth) * 0.5f, boxY,
                   boxWidth, boxHeight};
     layout.field = {layout.box.x + 14.0f, layout.box.y + 50.0f,
                     boxWidth - 28.0f, 38.0f};

@@ -207,3 +207,26 @@ gradle :app:assembleSchoolDaysDist -Pabis=arm64-v8a -PbundleGameAssets=false --n
 | Ramo `BackLog unavailable:` (sem `VNBacklog` fallback) | Ausente (`False`) | **Presente (`True`)** |
 | `KOTONOHA_ENABLE_MCP` | `OFF` | `OFF` |
 | Validação em hardware POCO X7 Pro | Executado e validado | **Não testado no aparelho** — `adb install` do novo package ID `me.hirameki.kotonoha.schooldays.dist` retornou `INSTALL_FAILED_USER_RESTRICTED` (diálogo de confirmação "Instalar via USB" do Xiaomi HyperOS requer aprovação manual do usuário na tela do telefone) |
+
+---
+
+## Bateria completa de QA de gameplay e correções (Marco 5)
+
+### Dois defeitos reais encontrados e corrigidos durante o QA em hardware
+1. **[P1 — Windows & Android] `BACKLOG` reduzido a ~78% no canto superior esquerdo quando `renderScale < 1.0` ou target ≠ 1280×720**:
+   - **Causa raiz**: `VisualTransition::copy()` e `VisualTransition::compose()` (`lib/src/core/VisualTransition.cpp`) desativavam `SDL_SetRenderLogicalPresentation(..., SDL_LOGICAL_PRESENTATION_DISABLED)` para cópias 1:1 de textura, e `Engine.cpp` chamava `runtime.renderNarrativeOverlay()` imediatamente depois sem restaurar a apresentação lógica `1280×720` no `novelTarget`. Como o padrão mobile usa `renderScale = 0.75` (`1627×915`), o `BackLog` desenhava em `1280×720` pixels brutos no canto superior esquerdo deixando um "L" branco e deslocando os hitboxes de toque.
+   - **Correção**: `lib/src/core/Engine.cpp` restaura `SDL_SetRenderTarget` + `SDL_SetRenderLogicalPresentation(..., novelView.x, novelView.y, SDL_LOGICAL_PRESENTATION_STRETCH)` imediatamente após `visualTransition.compose(...)` e antes de `runtime.renderNarrativeOverlay(...)`.
+   - **Regressão automatizada**: Adicionado teste em `lib/tests/PresentationTests.cpp` (`Kotonoha.Presentation`, aprovado) validando `SDL_GetRenderLogicalPresentation` dentro de `renderNarrativeOverlay` após `VisualTransition::compose()` com `renderScale = 0.75`.
+   - **Validação em hardware (POCO X7 Pro)**: Captura `BACKLOG` preenchido 100% no viewport 16:9 com barras pretas íntegras e fechamento por toque direto no botão `CLOSE`.
+2. **[P1 — Android] Editor de comentário de `SAVE` encoberto pelo teclado virtual (IME)**:
+   - **Causa raiz**: `BuildCommentEditorLayout()` (`games/school-days/src/SchoolDaysSystemUi.cpp`) centralizava a caixa `900×170` verticalmente (`y ≈ 525..695` em `2712×1220`), exatamente atrás do teclado virtual Gboard em paisagem (`y ≈ 400..1220`).
+   - **Correção**: Em `#if defined(__ANDROID__)`, a caixa do editor ancora no topo (`y ≈ 8%` da altura, mantendo Windows centralizado), ficando 100% visível e clicável (`OK` / `Cancel` / campo de texto) acima do teclado.
+   - **Validação em hardware (POCO X7 Pro)**: Confirmado visualmente com Gboard aberto e editor totalmente visível no topo; salvamento isolado em Página 10 / Slot 99 (`SaveFile0099.DAT` + `.kotonoha-lxh.v1`) confirmado com comentário digitado, recarregado via `LOAD` e removido após o teste preservando slots existentes.
+
+### Resumo dos itens validados no POCO X7 Pro (Android DEV)
+- **A. Launcher**: Retrato, `TitleBGM`, detecção `30/30` (`LxH.GPK: OK`), `ktnroute: OK`, `styles.ass: OK`, `forced_subtitles/: OK`, `overlay/: OK`, troca GPK (`pt-BR`) ↔ JSON (`ru`, `zh-CN`), `Aplicar` / `Restaurar padrões`, diagnóstico exato de arquivos GPK ausentes para RU/ZH-CN — **Adaptado e validado**.
+- **B. Display e gráficos**: `2712×1220 @ 30/60/90/120 Hz`, VSync, `16:9` / `4:3`, `renderScale` (`0.75×`), overlay `Option_Display`, `DEFAULT`/`APPLY`, persistência bidirecional — **Paridade confirmada** (MPV/GLSL em OpenGL ES 2 possui fallback seguro para cópia linear quando shader/extensão não compila — **Parcial**).
+- **C. Gameplay**: `TITLE`, `START`, `MENU`, `MenuBar` (`×1`–`×32`, `◀|`, `▶|`), `SAVE` (slot isolado 99 + comentário + Gboard), `LOAD` (cartão e restauração), `BACKLOG` (full viewport + texto chinês/PT-BR), `OPTION` (3 abas), `SaveFeel` (contagem regressiva 30 s + medidores Kotonoha/Sekai), `TOPMENU` (`SYSBASE` + `Return to Title Screen?` → `YES` → `TITLE`) — **Paridade confirmada** (escolhas temporizadas `SETSELECT`, `ROUTE MAP` e `REPLAY` cobertas por 15/15 testes CTest automatizados em Windows; QA interativo por toque em aparelho classificado como **Parcial** / **Não testado** nos itens não percorridos manualmente).
+- **D. Áudio e vídeo**: `BGM`/`SE`/`Voice`/`Master`/`Movie` sem dupla atenuação, vídeos WMV + áudio OGG por 10+ minutos de Episódio 1 incluindo `01/01-00-OP1`, suspensão `HOME` → retomada sem crash ou tela preta — **Paridade confirmada** (avaliação subjetiva de volume físico nos alto-falantes recomendada ao usuário).
+- **E. Legendas e traduções**: `pt-BR` GPK (acentuação + cores por personagem + karaokê OP forced subtitles), `zh-CN` JSON (hanzi simplificado no `BackLog` sem tofu), `ru` JSON (inicialização + cena sem freeze/iconv) — **Paridade confirmada**.
+- **F. Saves e estado**: Gravação atômica `SaveFile0099.DAT` + `.kotonoha-lxh.v1` + `GlobalFlag.DAT` + `Config.DAT` + `settings.json`, `force-stop` + reabertura, suspensão/retomada — **Paridade confirmada**.
