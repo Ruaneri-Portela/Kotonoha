@@ -16,6 +16,8 @@ struct CallArgument {
   bool isString = false;
   int number = 0;
   std::string text;
+  int sourceVariable = -1; // source variable id for getparam i/s indirection
+  bool sourceIsString = false;
 };
 
 struct CallStackEntry {
