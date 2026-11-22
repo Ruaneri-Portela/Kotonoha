@@ -47,6 +47,38 @@ jobs:
             echo "::endgroup::"
           done
 
+  vm-sanitizers:
+    name: Ponscripter VM AddressSanitizer + UndefinedBehaviorSanitizer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run every VM fixture with sanitizers
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=modules/vms/ponscripter
+          sources=(
+            "$root/src/Archive.cpp"
+            "$root/src/PonscripterTypes.cpp"
+            "$root/src/ScriptBuffer.cpp"
+            "$root/src/VariableStore.cpp"
+            "$root/src/Lexer.cpp"
+            "$root/src/TextFormatter.cpp"
+            "$root/src/SaveSerializer.cpp"
+            "$root/src/PonscripterVm.cpp"
+            "$root/src/PonscripterCommands.cpp"
+          )
+          for name in LexerAndExpr TaggedString VmFlowAndMenu; do
+            g++ -std=c++17 -O1 -g -fno-omit-frame-pointer \
+              -fsanitize=address,undefined -fno-sanitize-recover=all \
+              -I"$root/include" "${sources[@]}" \
+              "$root/tests/${name}Test.cpp" -o "/tmp/$name"
+            "/tmp/$name"
+          done
   runtime-syntax:
     name: Ponscripter runtime syntax (${{ matrix.compiler }})
     runs-on: ubuntu-26.04
