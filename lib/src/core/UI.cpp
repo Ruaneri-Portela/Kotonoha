@@ -174,12 +174,18 @@ float UI::textSized(RendererRef renderer, const std::string &original, float x,
     if (!entry.glyphText) {
       // Compatibility fallback: rasterize the whole phrase once.
       const auto oldSize = TTF_GetFontSize(font.get());
+      const float targetSize = fontSize * raster;
+      const bool sizeChanged = std::abs(targetSize - oldSize) > 0.01f;
       struct RestoreSize {
         TTF_Font *font;
         float size;
-        ~RestoreSize() { TTF_SetFontSize(font, size); }
-      } restore{font.get(), oldSize};
-      if (!TTF_SetFontSize(font.get(), fontSize * raster))
+        bool restore;
+        ~RestoreSize() {
+          if (restore)
+            TTF_SetFontSize(font, size);
+        }
+      } restore{font.get(), oldSize, sizeChanged};
+      if (sizeChanged && !TTF_SetFontSize(font.get(), targetSize))
         throw std::runtime_error(SDL_GetError());
       SurfacePtr surface{TTF_RenderText_Blended_Wrapped(
           font.get(), value.c_str(), value.size(), {255, 255, 255, 255},
@@ -298,12 +304,18 @@ float UI::textHeight(RendererRef renderer, const std::string &original,
   const float raster = rasterDensity(renderer);
   const int pixels = std::max(1, static_cast<int>(std::ceil(wrap * raster)));
   const float oldSize = TTF_GetFontSize(font.get());
+  const float targetSize = 24.0f * raster;
+  const bool sizeChanged = std::abs(targetSize - oldSize) > 0.01f;
   struct RestoreSize {
     TTF_Font *font;
     float size;
-    ~RestoreSize() { TTF_SetFontSize(font, size); }
-  } restore{font.get(), oldSize};
-  if (!TTF_SetFontSize(font.get(), 24.0f * raster))
+    bool restore;
+    ~RestoreSize() {
+      if (restore)
+        TTF_SetFontSize(font, size);
+    }
+  } restore{font.get(), oldSize, sizeChanged};
+  if (sizeChanged && !TTF_SetFontSize(font.get(), targetSize))
     throw std::runtime_error(SDL_GetError());
   int width = 0, height = 0;
   if (!TTF_GetStringSizeWrapped(font.get(), value.c_str(), value.size(), pixels,
@@ -320,12 +332,18 @@ float UI::textWidth(const std::string &original, float fontSize) const {
   if (value.empty())
     return 0.0f;
   const float oldSize = TTF_GetFontSize(font.get());
+  const float targetSize = fontSize * density;
+  const bool sizeChanged = std::abs(targetSize - oldSize) > 0.01f;
   struct RestoreSize {
     TTF_Font *font;
     float size;
-    ~RestoreSize() { TTF_SetFontSize(font, size); }
-  } restore{font.get(), oldSize};
-  if (!TTF_SetFontSize(font.get(), fontSize * density))
+    bool restore;
+    ~RestoreSize() {
+      if (restore)
+        TTF_SetFontSize(font, size);
+    }
+  } restore{font.get(), oldSize, sizeChanged};
+  if (sizeChanged && !TTF_SetFontSize(font.get(), targetSize))
     throw std::runtime_error(SDL_GetError());
   int width = 0, height = 0;
   if (!TTF_GetStringSize(font.get(), value.c_str(), value.size(), &width,
@@ -338,12 +356,18 @@ SDL_FPoint UI::measureSized(const std::string &original, float width,
                             float fontSize) const {
   const auto value = translation ? translation->text(-1, original) : original;
   const float oldSize = TTF_GetFontSize(font.get());
+  const float targetSize = fontSize * density;
+  const bool sizeChanged = std::abs(targetSize - oldSize) > 0.01f;
   struct RestoreSize {
     TTF_Font *font;
     float size;
-    ~RestoreSize() { TTF_SetFontSize(font, size); }
-  } restore{font.get(), oldSize};
-  if (!TTF_SetFontSize(font.get(), fontSize * density))
+    bool restore;
+    ~RestoreSize() {
+      if (restore)
+        TTF_SetFontSize(font, size);
+    }
+  } restore{font.get(), oldSize, sizeChanged};
+  if (sizeChanged && !TTF_SetFontSize(font.get(), targetSize))
     throw std::runtime_error(SDL_GetError());
   if (value.empty())
     return {0, 0};
