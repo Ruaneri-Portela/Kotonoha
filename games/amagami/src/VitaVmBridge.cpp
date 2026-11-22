@@ -165,7 +165,7 @@ void VitaVmBridge::inputFrame(uint32_t heldButtons, std::array<int, 4> analog) {
                       : (rapidCount_ + 1 >= 25 ? 20 : rapidCount_ + 1);
   padRapid_ = padPressed_ | (rapidCount_ == 20 ? padHeld_ : 0u);
   for (std::size_t i = 0; i < 4; ++i)
-    padAnalog_[i] = std::clamp(analog[i], -128, 128);
+    padAnalog_[i] = std::clamp(analog[i], -128, 127);
 }
 uint32_t VitaVmBridge::vitaButtonsHeld() const { return sceButtons(padHeld_); }
 uint32_t VitaVmBridge::vitaButtonsPressed() const {
