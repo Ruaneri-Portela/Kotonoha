@@ -19,8 +19,6 @@
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
-#include <SDL3_ttf/SDL_ttf.h>
-
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -37,8 +35,7 @@ struct N2Runtime::Impl {
   std::shared_ptr<Kotonoha::VNTextBox> textBox;
   std::shared_ptr<Kotonoha::VNBacklog> backlog;
   std::shared_ptr<Kotonoha::InGameMenu> pauseMenu;
-  std::vector<uint8_t> sgFontBytes;
-  Kotonoha::FontPtr sgFont;
+  std::unique_ptr<Kotonoha::UI> sgUi;
   bool dialogueHidden = false;
   std::string activeScrollBarDrag;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
@@ -86,35 +83,15 @@ struct N2Runtime::Impl {
                   SDL_Color color) {
     if (text.empty())
       return;
-    if (sgFont) {
-      const float density = Kotonoha::UI::rasterDensity(renderer);
-      TTF_SetFontSize(sgFont.get(), fontSize * density);
-      const int wrapPx =
-          std::max(32, static_cast<int>(std::ceil(wrapW * density)));
-      Kotonoha::SurfacePtr shadow(TTF_RenderText_Blended_Wrapped(
-          sgFont.get(), text.data(), text.size(), {0, 0, 0, 210}, wrapPx));
-      Kotonoha::SurfacePtr fg(TTF_RenderText_Blended_Wrapped(
-          sgFont.get(), text.data(), text.size(), color, wrapPx));
-      auto blitText = [&](SDL_Surface *surf, float dx, float dy) {
-        if (!surf)
-          return;
-        Kotonoha::TexturePtr tex(SDL_CreateTextureFromSurface(&renderer, surf));
-        if (!tex)
-          return;
-        SDL_SetTextureScaleMode(tex.get(), SDL_SCALEMODE_LINEAR);
-        SDL_FRect dst{dx, dy, float(surf->w) / density,
-                      float(surf->h) / density};
-        SDL_RenderTexture(&renderer, tex.get(), nullptr, &dst);
-      };
-      blitText(shadow.get(), x + 1.5f, y + 1.5f);
-      blitText(fg.get(), x, y);
+    // Both the bundled Steins;Gate font and the fallback use the same cached,
+    // renderer-backed UI text path. Do not create a surface per dialogue frame.
+    Kotonoha::UI *ui = sgUi ? sgUi.get()
+                           : (engine ? &engine->GetVNUI() : nullptr);
+    if (!ui)
       return;
-    }
-    if (engine) {
-      engine->GetVNUI().textSized(renderer, text, x + 1.5f, y + 1.5f, wrapW,
-                                  fontSize, {0, 0, 0, 210});
-      engine->GetVNUI().textSized(renderer, text, x, y, wrapW, fontSize, color);
-    }
+    ui->textSized(renderer, text, x + 1.5f, y + 1.5f, wrapW,
+                  fontSize, {0, 0, 0, 210});
+    ui->textSized(renderer, text, x, y, wrapW, fontSize, color);
   }
 
   std::string resolveImagePath(const SceneGraph &graph,
@@ -360,6 +337,7 @@ void N2Runtime::shutdown() {
   impl_->focusedChoiceIndex = 0;
   impl_->lastChoices.clear();
   impl_->imageSizeCache.clear();
+  impl_->sgUi.reset();
   impl_->backlog.reset();
   impl_->textBox.reset();
   impl_->engine = nullptr;
@@ -452,10 +430,9 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
       std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
   impl_->sePlayer = std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
 
-  // Load Steins;Gate's bundled font if present so native Text entities and
-  // Steins;Gate dialogue render with authentic typography.
-  impl_->sgFont.reset();
-  impl_->sgFontBytes.clear();
+  // Keep the game font in memory, but render it through Kotonoha::UI.
+  // SDL_ttf remains an internal font parser; text is composed by the renderer.
+  impl_->sgUi.reset();
   if (assets_) {
     static const char *kFontCandidates[] = {
         "Droid Sans Fallback.ttf",
@@ -463,20 +440,18 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
         "system/Droid Sans Fallback.ttf",
     };
     for (const char *cand : kFontCandidates) {
-      if (assets_->contains(cand)) {
-        try {
-          impl_->sgFontBytes = assets_->read(cand);
-          if (!impl_->sgFontBytes.empty()) {
-            SDL_IOStream *io = SDL_IOFromConstMem(impl_->sgFontBytes.data(),
-                                                  impl_->sgFontBytes.size());
-            if (io)
-              impl_->sgFont.reset(TTF_OpenFontIO(io, true, 22.0f));
-          }
-        } catch (...) {
-        }
-        if (impl_->sgFont)
-          break;
+      if (!assets_->contains(cand))
+        continue;
+      try {
+        auto bytes = assets_->read(cand);
+        if (!bytes.empty())
+          impl_->sgUi = std::make_unique<Kotonoha::UI>(std::move(bytes));
+      } catch (const std::exception &e) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "N2System: cannot load UI font %s: %s", cand, e.what());
       }
+      if (impl_->sgUi)
+        break;
     }
   }
 
@@ -1108,7 +1083,10 @@ bool N2Runtime::onEvent(Kotonoha::EventRef rawEvent) {
   if (impl_->backlog && impl_->backlog->isVisible())
     return Runtime::onEvent(rawEvent);
 
-  if (isNsbActive() && impl_->nsbVm->activeMovie().active) {
+  // Looping background movies (notably the title/menu video) must never
+  // swallow the menu's choice input or be dismissed as skippable cutscenes.
+  if (isNsbActive() && impl_->nsbVm->activeMovie().active &&
+      !impl_->nsbVm->activeMovie().loop) {
     // Guard the movie wait even before the decoder opens. Otherwise an early
     // single click can advance the NSB VM while the first frame is loading.
     if (impl_->videoSkip.accept(rawEvent)) {
