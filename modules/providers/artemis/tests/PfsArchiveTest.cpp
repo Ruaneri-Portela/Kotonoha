@@ -231,6 +231,8 @@ void testNativeUiResolution() {
                                       {"script\\gamestart.ast", "GAME_START"},
                                       {"system\\table\\list_windows_en.tbl", uiTable},
                                       {"pc\\en\\title\\bt_new_game.png", "PNG"},
+                                      {"pc\\en\\title\\background_trial.png",
+                                       "TRIAL_BG"},
                                   }));
 
   Artemis::ArtemisAssets assets(dir.string());
@@ -242,6 +244,10 @@ void testNativeUiResolution() {
   assert(assets.resolveUiImagePath("title/bt_new_game") ==
          "pc/en/title/bt_new_game.png");
   assert(assets.resolveUiImagePath("title/does_not_exist").empty());
+  // Build-variant fallback: the table names background_2a while the
+  // shipped build contains only background_trial.png.
+  assert(assets.resolveUiImagePath("title/background_2a") ==
+         "pc/en/title/background_trial.png");
   assets.setUiLanguage("ja");
   assert(assets.uiLanguage() == "ja");
   // Only the English table exists in this synthetic archive.
