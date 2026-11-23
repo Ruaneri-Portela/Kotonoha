@@ -78,8 +78,12 @@ int main() {
     expect(utf16 == u"A🙂日", "UTF-8 to native UTF-16 surrogate pairs");
     equal(Kotonoha::Utf16ToUtf8(utf16), utf8,
           "Native UTF-16 to UTF-8 supplementary text");
-    expect(Kotonoha::Utf8ToUtf16(std::string("\xff", 1)).empty(),
-           "Invalid UTF-8 cannot be read as native UTF-16");
+    // Both Apple CoreFoundation and the portable codec recover invalid UTF-8
+    // with U+FFFD instead of deleting the entire string.
+    const std::u16string invalidUtf8 =
+        Kotonoha::Utf8ToUtf16(std::string("A\xff" "B", 3));
+    expect(invalidUtf8 == std::u16string({u'A', char16_t(0xFFFD), u'B'}),
+           "Invalid UTF-8 must yield U+FFFD without losing valid neighbors");
     const std::string nul("A\0B", 3);
     equal(ConvertEncoding(nul, "UTF-8", "UTF-8"), nul,
           "Embedded NUL must not truncate binary text");
