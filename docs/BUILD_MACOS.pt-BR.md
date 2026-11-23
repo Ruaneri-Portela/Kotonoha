@@ -143,6 +143,12 @@ ports baseados em meson sem incluir o caminho absoluto no hash de ABI. Assim, o
 mesmo quando o vcpkg é invocado automaticamente pelo toolchain do CMake durante
 `cmake --preset macos-amd64-vcpkg`.
 
+O `BundleApp.cmake` prepara `Python.framework` e `Python3.framework` como
+framework bundles reais, remove o helper `Python.app` aninhado e reescreve a
+dependência do runtime embutido para `@executable_path/../Frameworks/...`. Se um
+build antigo ainda falhar com `verify_app failed` ou `Could not ad-hoc sign`,
+apague apenas `out/build/macos-amd64-vcpkg/outputs/<App>.app` e recompile.
+
 ## Xcode
 
 ```sh
