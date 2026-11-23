@@ -286,17 +286,26 @@ int main(int argc, char **argv) {
     std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
     return 1;
   }
+  // This binary backs both the synthetic Boot test and the retail-only test.
+  // Only --require-retail (used by Artemis.Retail) turns missing retail data
+  // into a CTest "Skipped" result; synthetic coverage still runs and passes.
+  const bool requireRetail =
+      argc >= 2 && std::string(argv[1]) == "--require-retail";
+  bool skippedRetail = false;
   try {
     stageEngineFont();
     testSyntheticBoot();
     // Retail checks are gated by an environment variable, never a hardcoded
     // absolute path in the repository.
     const char *retail = SDL_getenv("KOTONOHA_ARTEMIS_RETAIL_DIR");
-    if (argc >= 2)
+    if (!requireRetail && argc >= 2)
       testRetailBoot(argv[1]);
     else if (retail && *retail)
       testRetailBoot(retail);
-    else
+    else if (requireRetail) {
+      std::cerr << "[SKIP] KOTONOHA_ARTEMIS_RETAIL_DIR not provided\n";
+      skippedRetail = true;
+    } else
       std::cout << "[ArtemisBootTest] Retail checks skipped (set "
                    "KOTONOHA_ARTEMIS_RETAIL_DIR).\n";
   } catch (const std::exception &error) {
@@ -305,5 +314,5 @@ int main(int argc, char **argv) {
     return 1;
   }
   SDL_Quit();
-  return 0;
+  return skippedRetail ? 77 : 0;
 }
