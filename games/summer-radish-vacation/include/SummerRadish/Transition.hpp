@@ -1,5 +1,8 @@
 #pragma once
 #include <SummerRadish/Pack.hpp>
+#include <SummerRadish/Codec.hpp>
+#include <SummerRadish/Images.hpp>
+
 namespace SummerRadish {
 // Graphic.sdll FUN_10003460, with its native 0..1000 WipeSpeed setting.
 int wipeDuration(int type, int speed = 500);

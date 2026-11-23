@@ -40,15 +40,13 @@ int main() {
     fast.step(2);
     slow.step(2);
     linear.step(2);
-    expect(equal(fast.current[0], 3.5) &&
-               equal(slow.current[0], 0.5) &&
+    expect(equal(fast.current[0], 3.5) && equal(slow.current[0], 0.5) &&
                equal(linear.current[0], 2.0),
            "Vita native interpolation modes follow reference quadratic curves");
     fast.step(6);
     slow.step(6);
     linear.step(6);
-    expect(equal(fast.current[0], 8) &&
-               equal(slow.current[0], 8) &&
+    expect(equal(fast.current[0], 8) && equal(slow.current[0], 8) &&
                equal(linear.current[0], 8),
            "All Vita tween modes land exactly on the final target");
 

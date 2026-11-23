@@ -10,15 +10,15 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <utility>
 
 namespace Kotonoha {
 namespace {
 
 std::string asciiLower(std::string value) {
-  std::transform(value.begin(), value.end(), value.begin(),
-                 [](unsigned char ch) {
-                   return static_cast<char>(std::tolower(ch));
-                 });
+  std::transform(
+      value.begin(), value.end(), value.begin(),
+      [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
   return value;
 }
 
@@ -92,7 +92,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
     return;
   lastLoadedNodeId = nodeId;
   if (nodeId.empty()) {
-    clear();
+    clearForcedSubtitles();
     activeFile.clear();
     useNodeClock = false;
     return;
@@ -119,7 +119,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
     if (!selected && nodeOnlyId != nodeId)
       selected = findPath(nodeOnlyId);
     if (!selected) {
-      clear();
+      clearForcedSubtitles();
       activeFile.clear();
       useNodeClock = false;
       return;
@@ -128,7 +128,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
     const auto &path = *selected;
     if (path == activeFile)
       return;
-    clear();
+    clearForcedSubtitles();
     activeFile.clear();
     Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
     if (!input)
@@ -140,10 +140,10 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
       throw std::runtime_error(
           "Cannot read forced subtitles or file exceeds 16 MiB");
     content.resize(static_cast<std::size_t>(size));
-    loadAss(content);
+    setForcedSubtitles(std::move(content));
     activeFile = path;
   } catch (const std::exception &error) {
-    clear();
+    clearForcedSubtitles();
     activeFile.clear();
     useNodeClock = false;
     SDL_LogError(LogMedia, "Forced subtitles for %s: %s", nodeId.c_str(),
@@ -154,7 +154,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
 void ForcedSubtitleRenderer::reload() {
   cacheBuilt = false;
   lastLoadedNodeId.clear();
-  clear();
+  clearForcedSubtitles();
   activeFile.clear();
   useNodeClock = false;
 }

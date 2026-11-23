@@ -52,15 +52,15 @@ public:
 
 int main() {
   try {
-    // 1. The hub links 13 engine families (16 identities), never the Example demo.
+    // 1. The hub links 13 engine families (16 identities), never the Example
+    // demo.
     const auto &reg = EngineLibraryRegistry::instance();
     require(reg.all().size() == 16, "Exactly 16 game identities must be "
                                     "registered (13 shared engine families)");
     require(!reg.find(EngineKind::Unknown),
             "The Example demo must not be registered in the hub");
     require(reg.find(EngineKind::Artemis) &&
-                reg.find(EngineKind::Artemis)->libraryTarget ==
-                    "artemis_port",
+                reg.find(EngineKind::Artemis)->libraryTarget == "artemis_port",
             "Artemis maps to artemis_port library");
     require(reg.find(EngineKind::RealLive) &&
                 reg.find(EngineKind::RealLive)->libraryTarget ==
@@ -89,9 +89,8 @@ int main() {
     require(reg.findBySlug("katawa-shoujo") &&
                 reg.findBySlug("katawa-shoujo")->targetBinary == "KatawaShoujo",
             "Katawa Shoujo must select its own port");
-    require(reg.findBySlug("renpy") &&
-                reg.findBySlug("renpy")->libraryTarget ==
-                    "doki_doki_literature_club",
+    require(reg.findBySlug("renpy") && reg.findBySlug("renpy")->libraryTarget ==
+                                           "doki_doki_literature_club",
             "Generic Ren'Py games use the shared VM without DDLC branding");
 
     // The registry is a link-time contract. No external executable is needed.
@@ -286,8 +285,7 @@ int main() {
       }
       if (entry.title == "AnotherRenpy") {
         require(entry.engine.kind == EngineKind::RenPy &&
-                    entry.engine.slug == "renpy" &&
-                    entry.overlayPath.empty(),
+                    entry.engine.slug == "renpy" && entry.overlayPath.empty(),
                 "Generic Ren'Py must avoid DDLC identity and VNX overlay");
         foundGenericRenpy = true;
       }

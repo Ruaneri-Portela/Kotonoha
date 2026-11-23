@@ -70,6 +70,16 @@ struct UpscaleSettings {
 };
 
 const char *UpscaleBackendName(UpscaleBackend backend);
+
+// Per-texture policy of a backend. MetalFX is a temporal spatial scaler that
+// must see the fully composed frame: applying it to individual textures would
+// rescale every sprite independently and break temporal reprojection. MPV
+// (Anime4K/ArtCNN shader chains) and Linear copies are texture-local and safe.
+// None performs no pipeline at all and Auto is resolved before drawing, so
+// both report true here; query Upscaling::supportsPerTexture() for the
+// effective policy of the active backend.
+bool SupportsPerTexture(UpscaleBackend backend);
+
 std::vector<std::string> UpscaleShaderFiles(const std::string &files);
 std::string UpscaleShaderFileList(const std::vector<std::string> &files);
 
@@ -98,6 +108,10 @@ public:
   Upscaler(const Upscaler &) = delete;
   Upscaler &operator=(const Upscaler &) = delete;
   virtual UpscaleBackend backend() const = 0;
+  // True for backends that may run on an individual texture. MetalFX returns
+  // false because it must upscale the whole rendered frame once (see
+  // UpscaleWholeFrameWithMetalFX in MetalFXUpscaler.hpp).
+  bool supportsPerTexture() const { return SupportsPerTexture(backend()); }
   virtual bool isAvaliable() const = 0;
   void configure(const UpscaleSettings &value);
   const UpscaleSettings &getSettings() const;
@@ -118,7 +132,7 @@ class Upscaling {
 
 public:
   explicit Upscaling(RendererRef renderer);
-  ~Upscaling();
+  virtual ~Upscaling();
   Upscaling(const Upscaling &) = delete;
   Upscaling &operator=(const Upscaling &) = delete;
   static Upscaling *forRenderer(RendererRef renderer);
@@ -127,6 +141,10 @@ public:
   UpscaleBackend resolve(UpscaleBackend backend) const;
   // Backend actually processing frames: None while disabled (factor <= 1).
   UpscaleBackend activeBackend() const;
+  // Policy of the active pipeline. MetalFX is whole-frame only, so texture
+  // draws must use the plain SDL path while it is active. Virtual so hosts
+  // managing their own whole-frame effect can force this behavior.
+  virtual bool supportsPerTexture() const;
   void configure(const UpscaleSettings &value);
   const UpscaleSettings &getSettings() const;
   const Upscaler *getImplementation() const;
@@ -143,7 +161,9 @@ public:
 
 // Draw a game image through the renderer’s configured engine pipeline.
 // Increment contentSerial only when pixels change; zero denotes a static
-// texture.
+// texture. When the active backend does not support per-texture upscaling
+// (MetalFX), the plain SDL path is used: the host applies MetalFX once to the
+// composed frame at presentation instead (see MetalFXUpscaler.hpp).
 bool RenderUpscaledTexture(SDL_Renderer *renderer, SDL_Texture *texture,
                            const SDL_FRect *source,
                            const SDL_FRect *destination,

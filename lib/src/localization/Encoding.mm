@@ -4,10 +4,11 @@
 #include <Kotonoha/localization/Encoding.hpp>
 
 #if defined(__APPLE__)
-#include <CoreFoundation/CoreFoundation.h>
 #include <CoreFoundation/CFStringEncodingExt.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
@@ -36,8 +37,8 @@ std::string normalizedName(const char *name) {
   if (!name || !*name)
     throw std::invalid_argument("Text encoding name must not be empty");
   std::string result;
-  for (const unsigned char *p =
-           reinterpret_cast<const unsigned char *>(name); *p; ++p) {
+  for (const unsigned char *p = reinterpret_cast<const unsigned char *>(name);
+       *p; ++p) {
     if (std::isalnum(*p))
       result.push_back(char(std::toupper(*p)));
     else if (*p != '-' && *p != '_' && *p != ' ' && *p != '.')
@@ -50,14 +51,22 @@ std::string normalizedName(const char *name) {
 
 CFStringEncoding resolveEncoding(const char *name) {
   const std::string key = normalizedName(name);
-  if (key == "UTF8") return kCFStringEncodingUTF8;
-  if (key == "UTF16") return kCFStringEncodingUTF16;
-  if (key == "UTF16LE") return kCFStringEncodingUTF16LE;
-  if (key == "UTF16BE") return kCFStringEncodingUTF16BE;
-  if (key == "UTF32") return kCFStringEncodingUTF32;
-  if (key == "UTF32LE") return kCFStringEncodingUTF32LE;
-  if (key == "UTF32BE") return kCFStringEncodingUTF32BE;
-  if (key == "ASCII" || key == "USASCII") return kCFStringEncodingASCII;
+  if (key == "UTF8")
+    return kCFStringEncodingUTF8;
+  if (key == "UTF16")
+    return kCFStringEncodingUTF16;
+  if (key == "UTF16LE")
+    return kCFStringEncodingUTF16LE;
+  if (key == "UTF16BE")
+    return kCFStringEncodingUTF16BE;
+  if (key == "UTF32")
+    return kCFStringEncodingUTF32;
+  if (key == "UTF32LE")
+    return kCFStringEncodingUTF32LE;
+  if (key == "UTF32BE")
+    return kCFStringEncodingUTF32BE;
+  if (key == "ASCII" || key == "USASCII")
+    return kCFStringEncodingASCII;
   if (key == "LATIN1" || key == "ISO88591" || key == "ISOIR100")
     return kCFStringEncodingISOLatin1;
   if (key == "CP1252" || key == "WINDOWS1252" || key == "MSANSI")
@@ -65,19 +74,24 @@ CFStringEncoding resolveEncoding(const char *name) {
   // These aliases intentionally mean Microsoft's Windows-31J, not strict
   // JIS Shift-JIS: game scripts rely on NEC/IBM symbols and U+FF5E.
   if (key == "CP932" || key == "WINDOWS31J" || key == "WINDOWS932" ||
-      key == "SJIS" || key == "SHIFTJIS" || key == "MSKANJI" ||
-      key == "MS932")
+      key == "SJIS" || key == "SHIFTJIS" || key == "MSKANJI" || key == "MS932")
     return kCFStringEncodingDOSJapanese;
-  if (key == "EUCJP") return kCFStringEncodingEUC_JP;
-  if (key == "ISO2022JP") return kCFStringEncodingISO_2022_JP;
-  if (key == "GB18030") return kCFStringEncodingGB_18030_2000;
+  if (key == "EUCJP")
+    return kCFStringEncodingEUC_JP;
+  if (key == "ISO2022JP")
+    return kCFStringEncodingISO_2022_JP;
+  if (key == "GB18030")
+    return kCFStringEncodingGB_18030_2000;
   if (key == "GBK" || key == "CP936" || key == "WINDOWS936")
     return kCFStringEncodingDOSChineseSimplif;
-  if (key == "BIG5" || key == "CP950") return kCFStringEncodingBig5;
-  if (key == "EUCKR") return kCFStringEncodingEUC_KR;
+  if (key == "BIG5" || key == "CP950")
+    return kCFStringEncodingBig5;
+  if (key == "EUCKR")
+    return kCFStringEncodingEUC_KR;
   if (key == "CP949" || key == "WINDOWS949")
     return kCFStringEncodingDOSKorean;
-  if (key == "KOI8R") return kCFStringEncodingKOI8_R;
+  if (key == "KOI8R")
+    return kCFStringEncodingKOI8_R;
 
   // Allow further IANA encodings supported by the installed Apple framework.
   OwnedString iana(CFStringCreateWithCString(kCFAllocatorDefault, name,
@@ -99,13 +113,13 @@ CFIndex checkedLength(size_t size) {
 CFStringRef createString(std::string_view bytes, CFStringEncoding encoding) {
   if (bytes.empty())
     return CFStringCreateWithCharacters(kCFAllocatorDefault, nullptr, 0);
-  return CFStringCreateWithBytes(
-      kCFAllocatorDefault, reinterpret_cast<const UInt8 *>(bytes.data()),
-      checkedLength(bytes.size()), encoding, false);
+  return CFStringCreateWithBytes(kCFAllocatorDefault,
+                                 reinterpret_cast<const UInt8 *>(bytes.data()),
+                                 checkedLength(bytes.size()), encoding, false);
 }
 
 CFMutableStringRef repairedSupplementary(CFStringRef value,
-                                           CFStringEncoding encoding) {
+                                         CFStringEncoding encoding) {
   // CFStringGetBytes can emit TWO loss bytes for an unrepresentable Unicode
   // surrogate pair. Legacy codepages need exactly one '?' per scalar.
   CFMutableStringRef repaired = nullptr;
@@ -119,9 +133,9 @@ CFMutableStringRef repairedSupplementary(CFStringRef value,
       continue;
     UInt8 buffer[64]{};
     CFIndex used = 0;
-    const CFIndex consumed = CFStringGetBytes(
-        value, CFRangeMake(i - 1, 2), encoding, 0, false, buffer,
-        CFIndex(sizeof buffer), &used);
+    const CFIndex consumed =
+        CFStringGetBytes(value, CFRangeMake(i - 1, 2), encoding, 0, false,
+                         buffer, CFIndex(sizeof buffer), &used);
     if (consumed != 2) {
       if (!repaired)
         repaired = CFStringCreateMutableCopy(kCFAllocatorDefault, 0, value);
@@ -146,10 +160,10 @@ std::string encodeString(CFStringRef value, CFStringEncoding encoding) {
   for (int attempt = 0; attempt < 12; ++attempt) {
     std::string result(capacity, '\0');
     CFIndex used = 0;
-    const CFIndex converted = CFStringGetBytes(
-        value, CFRangeMake(0, count), encoding, UInt8('?'), false,
-        reinterpret_cast<UInt8 *>(result.data()), checkedLength(capacity),
-        &used);
+    const CFIndex converted =
+        CFStringGetBytes(value, CFRangeMake(0, count), encoding, UInt8('?'),
+                         false, reinterpret_cast<UInt8 *>(result.data()),
+                         checkedLength(capacity), &used);
     if (converted == count) {
       result.resize(size_t(used));
       return result;
@@ -166,9 +180,7 @@ std::string encodeString(CFStringRef value, CFStringEncoding encoding) {
 bool isLead932(unsigned char b) {
   return (b >= 0x81 && b <= 0x9f) || (b >= 0xe0 && b <= 0xfc);
 }
-bool isTrail932(unsigned char b) {
-  return b >= 0x40 && b <= 0xfc && b != 0x7f;
-}
+bool isTrail932(unsigned char b) { return b >= 0x40 && b <= 0xfc && b != 0x7f; }
 uint16_t read16(std::string_view data, size_t pos, bool be) {
   const uint8_t x = uint8_t(data[pos]), y = uint8_t(data[pos + 1]);
   return be ? uint16_t((x << 8) | y) : uint16_t((y << 8) | x);
@@ -177,54 +189,64 @@ uint16_t read16(std::string_view data, size_t pos, bool be) {
 // An invalid sequence becomes one '?' without discarding a following valid
 // ASCII byte. An unmapped but structurally valid two-byte CP932 pair consumes
 // both bytes, matching the existing Windows and SDL fallback contract.
-size_t nextUnit(std::string_view bytes, size_t pos,
-                const std::string &key) {
+size_t nextUnit(std::string_view bytes, size_t pos, const std::string &key) {
   const size_t remaining = bytes.size() - pos;
   const auto first = uint8_t(bytes[pos]);
   if (key == "UTF16LE" || key == "UTF16BE" || key == "UTF16") {
-    if (remaining < 2) return remaining;
+    if (remaining < 2)
+      return remaining;
     const bool be = key == "UTF16BE";
     const uint16_t lead = read16(bytes, pos, be);
     if (lead >= 0xd800 && lead <= 0xdbff && remaining >= 4) {
       const auto trail = read16(bytes, pos + 2, be);
-      if (trail >= 0xdc00 && trail <= 0xdfff) return 4;
+      if (trail >= 0xdc00 && trail <= 0xdfff)
+        return 4;
     }
     return 2;
   }
   if (key == "UTF32LE" || key == "UTF32BE" || key == "UTF32")
     return std::min<size_t>(4, remaining);
   if (key == "UTF8") {
-    size_t width = first < 0x80 ? 1 : (first >= 0xc2 && first <= 0xdf) ? 2
+    size_t width = first < 0x80                       ? 1
+                   : (first >= 0xc2 && first <= 0xdf) ? 2
                    : (first >= 0xe0 && first <= 0xef) ? 3
-                   : (first >= 0xf0 && first <= 0xf4) ? 4 : 1;
-    if (width > remaining) return 1;
+                   : (first >= 0xf0 && first <= 0xf4) ? 4
+                                                      : 1;
+    if (width > remaining)
+      return 1;
     for (size_t i = 1; i < width; ++i)
-      if ((uint8_t(bytes[pos + i]) & 0xc0) != 0x80) return 1;
+      if ((uint8_t(bytes[pos + i]) & 0xc0) != 0x80)
+        return 1;
     return width;
   }
   if (key == "CP932" || key == "WINDOWS31J" || key == "WINDOWS932" ||
       key == "SJIS" || key == "SHIFTJIS" || key == "MSKANJI" ||
       key == "MS932") {
     if (isLead932(first) && remaining > 1 &&
-        isTrail932(uint8_t(bytes[pos + 1]))) return 2;
+        isTrail932(uint8_t(bytes[pos + 1])))
+      return 2;
     return 1;
   }
   if (key == "EUCJP") {
-    if (first == 0x8f && remaining >= 3) return 3;
-    if ((first == 0x8e || first >= 0xa1) && remaining >= 2) return 2;
+    if (first == 0x8f && remaining >= 3)
+      return 3;
+    if ((first == 0x8e || first >= 0xa1) && remaining >= 2)
+      return 2;
   }
   if (key == "GB18030" || key == "GBK" || key == "CP936" ||
       key == "WINDOWS936") {
     if (first >= 0x81 && first <= 0xfe && remaining >= 2) {
       const auto second = uint8_t(bytes[pos + 1]);
       if (key == "GB18030" && second >= 0x30 && second <= 0x39 &&
-          remaining >= 4) return 4;
+          remaining >= 4)
+        return 4;
       return 2;
     }
   }
-  if (key == "BIG5" || key == "CP950" || key == "EUCKR" ||
-      key == "CP949" || key == "WINDOWS949")
-    if (first >= 0x81 && remaining >= 2) return 2;
+  if (key == "BIG5" || key == "CP950" || key == "EUCKR" || key == "CP949" ||
+      key == "WINDOWS949")
+    if (first >= 0x81 && remaining >= 2)
+      return 2;
   return 1;
 }
 
@@ -246,15 +268,16 @@ void normalizeCp932Unicode(std::string &utf8) {
   // Some Apple tables use JIS Unicode punctuation code points instead of
   // the Windows mappings. Normalize these six historical compatibility pairs
   // for deterministic CP932 script text across native platforms.
-  replaceAll(utf8, "\xE3\x80\x9C", "\xEF\xBD\x9E"); // wave dash -> fullwidth tilde
-  replaceAll(utf8, "\xE2\x80\x96", "\xE2\x88\xA5"); // double vertical -> parallel
+  replaceAll(utf8, "\xE3\x80\x9C",
+             "\xEF\xBD\x9E"); // wave dash -> fullwidth tilde
+  replaceAll(utf8, "\xE2\x80\x96",
+             "\xE2\x88\xA5"); // double vertical -> parallel
   replaceAll(utf8, "\xE2\x88\x92", "\xEF\xBC\x8D"); // minus -> fullwidth hyphen
   replaceAll(utf8, "\xC2\xA2", "\xEF\xBF\xA0");     // cent -> fullwidth cent
   replaceAll(utf8, "\xC2\xA3", "\xEF\xBF\xA1");     // pound -> fullwidth pound
   replaceAll(utf8, "\xC2\xAC", "\xEF\xBF\xA2");     // not -> fullwidth not
 }
 } // namespace
-
 
 void appendUtf8Scalar(std::string &out, uint32_t value) {
   if (value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff))
@@ -317,8 +340,8 @@ std::string decodeUtf32(std::string_view bytes, bool bigEndian) {
     uint32_t scalar = 0;
     for (int b = 0; b < 4; ++b) {
       const uint32_t octet = uint8_t(bytes[i + b]);
-      scalar = bigEndian ? ((scalar << 8) | octet)
-                         : (scalar | (octet << (8 * b)));
+      scalar =
+          bigEndian ? ((scalar << 8) | octet) : (scalar | (octet << (8 * b)));
     }
     appendUtf8Scalar(out, scalar);
     i += 4;
@@ -347,7 +370,8 @@ std::string encodeUtf32(std::string_view utf8, bool bigEndian) {
       scalar = '?';
     }
     for (int b = 0; b < 4; ++b) {
-      const unsigned shift = bigEndian ? unsigned(8 * (3 - b)) : unsigned(8 * b);
+      const unsigned shift =
+          bigEndian ? unsigned(8 * (3 - b)) : unsigned(8 * b);
       output.push_back(char((scalar >> shift) & 0xff));
     }
   }
@@ -366,11 +390,11 @@ std::string ConvertEncoding(std::string_view text, const char *from,
   // Encode/decode the Unicode scalars ourselves, in this same Apple backend,
   // avoiding an iconv dependency and preserving embedded NUL bytes.
   if (sourceKey == "UTF16LE" || sourceKey == "UTF16BE")
-    return ConvertEncoding(decodeUtf16(text, sourceKey == "UTF16BE"),
-                           "UTF-8", to);
+    return ConvertEncoding(decodeUtf16(text, sourceKey == "UTF16BE"), "UTF-8",
+                           to);
   if (sourceKey == "UTF32LE" || sourceKey == "UTF32BE")
-    return ConvertEncoding(decodeUtf32(text, sourceKey == "UTF32BE"),
-                           "UTF-8", to);
+    return ConvertEncoding(decodeUtf32(text, sourceKey == "UTF32BE"), "UTF-8",
+                           to);
   if (targetKey == "UTF32LE" || targetKey == "UTF32BE")
     return encodeUtf32(ConvertEncoding(text, from, "UTF-8"),
                        targetKey == "UTF32BE");
@@ -379,8 +403,8 @@ std::string ConvertEncoding(std::string_view text, const char *from,
   if (sourceEncoding == kCFStringEncodingWindowsLatin1) {
     cleaned.assign(text);
     for (char &c : cleaned)
-      if (uint8_t(c) == 0x81 || uint8_t(c) == 0x8d ||
-          uint8_t(c) == 0x8f || uint8_t(c) == 0x90 || uint8_t(c) == 0x9d)
+      if (uint8_t(c) == 0x81 || uint8_t(c) == 0x8d || uint8_t(c) == 0x8f ||
+          uint8_t(c) == 0x90 || uint8_t(c) == 0x9d)
         c = '?';
     text = cleaned;
   }
@@ -418,7 +442,8 @@ std::string ConvertEncoding(std::string_view text, const char *from,
   OwnedString decoded(createString(text, sourceEncoding));
   if (decoded.get()) {
     if (isWindowsJapanese(sourceKey)) {
-      std::string normalized = encodeString(decoded.get(), kCFStringEncodingUTF8);
+      std::string normalized =
+          encodeString(decoded.get(), kCFStringEncodingUTF8);
       normalizeCp932Unicode(normalized);
       OwnedString fixed(createString(normalized, kCFStringEncodingUTF8));
       if (!fixed.get())
@@ -453,10 +478,72 @@ std::string ShiftJisToUtf8(std::string_view text) {
   return ConvertEncoding(text, "CP932", "UTF-8");
 }
 
+namespace {
+// CFStringCreateWithBytes rejects malformed UTF-8 outright. The portable
+// implementation replaces each invalid byte with U+FFFD; do the same here so
+// both backends behave identically for saved data from third-party tools.
+std::string sanitizeUtf8(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  const std::string replacement = "\xEF\xBF\xBD"; // U+FFFD
+  for (std::size_t i = 0; i < text.size();) {
+    const unsigned char b0 = static_cast<unsigned char>(text[i]);
+    if (b0 < 0x80u) {
+      out.push_back(static_cast<char>(b0));
+      ++i;
+      continue;
+    }
+    std::size_t count = 0;
+    std::uint32_t cp = 0;
+    if ((b0 & 0xE0u) == 0xC0u) {
+      count = 2;
+      cp = b0 & 0x1Fu;
+    } else if ((b0 & 0xF0u) == 0xE0u) {
+      count = 3;
+      cp = b0 & 0x0Fu;
+    } else if ((b0 & 0xF8u) == 0xF0u) {
+      count = 4;
+      cp = b0 & 0x07u;
+    } else {
+      out += replacement;
+      ++i;
+      continue;
+    }
+    bool valid = count <= text.size() - i;
+    for (std::size_t j = 1; valid && j < count; ++j) {
+      const unsigned char bj = static_cast<unsigned char>(text[i + j]);
+      if ((bj & 0xC0u) != 0x80u)
+        valid = false;
+      else
+        cp = (cp << 6) | (bj & 0x3Fu);
+    }
+    const bool scalar =
+        (count == 2 && cp >= 0x80u) ||
+        (count == 3 && cp >= 0x800u && (cp < 0xD800u || cp > 0xDFFFu)) ||
+        (count == 4 && cp >= 0x10000u && cp <= 0x10FFFFu);
+    if (valid && scalar) {
+      out.append(text.substr(i, count));
+      i += count;
+    } else {
+      out += replacement;
+      ++i;
+    }
+  }
+  return out;
+}
+} // namespace
+
 std::u16string Utf8ToUtf16(std::string_view text) {
-  if (text.empty()) return {};
-  OwnedString unicode(createString(text, kCFStringEncodingUTF8));
-  if (!unicode.get()) return {};
+  if (text.empty())
+    return {};
+  CFStringRef decoded = createString(text, kCFStringEncodingUTF8);
+  if (!decoded) {
+    const std::string repaired = sanitizeUtf8(text);
+    decoded = createString(repaired, kCFStringEncodingUTF8);
+  }
+  OwnedString unicode(decoded);
+  if (!unicode.get())
+    return {};
   const CFIndex length = CFStringGetLength(unicode.get());
   std::u16string result(size_t(length), char16_t{});
   CFStringGetCharacters(unicode.get(), CFRangeMake(0, length),
@@ -464,12 +551,41 @@ std::u16string Utf8ToUtf16(std::string_view text) {
   return result;
 }
 
+namespace {
+// CFString accepts unpaired UTF-16 surrogates but encodes them as '?' instead
+// of U+FFFD. Normalize them first to match the portable backend.
+std::u16string sanitizeUtf16(std::u16string_view text) {
+  std::u16string out;
+  out.reserve(text.size());
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    const char16_t unit = text[i];
+    if (unit >= 0xD800u && unit <= 0xDBFFu) {
+      if (i + 1 < text.size() && text[i + 1] >= 0xDC00u &&
+          text[i + 1] <= 0xDFFFu) {
+        out.push_back(unit);
+        out.push_back(text[++i]);
+      } else {
+        out.push_back(static_cast<char16_t>(0xFFFDu));
+      }
+    } else if (unit >= 0xDC00u && unit <= 0xDFFFu) {
+      out.push_back(static_cast<char16_t>(0xFFFDu));
+    } else {
+      out.push_back(unit);
+    }
+  }
+  return out;
+}
+} // namespace
+
 std::string Utf16ToUtf8(std::u16string_view text) {
-  if (text.empty()) return {};
+  if (text.empty())
+    return {};
+  const std::u16string clean = sanitizeUtf16(text);
   OwnedString unicode(CFStringCreateWithCharacters(
-      kCFAllocatorDefault, reinterpret_cast<const UniChar *>(text.data()),
-      checkedLength(text.size())));
-  if (!unicode.get()) return {};
+      kCFAllocatorDefault, reinterpret_cast<const UniChar *>(clean.data()),
+      checkedLength(clean.size())));
+  if (!unicode.get())
+    return {};
   try {
     return encodeString(unicode.get(), kCFStringEncodingUTF8);
   } catch (const std::runtime_error &) {

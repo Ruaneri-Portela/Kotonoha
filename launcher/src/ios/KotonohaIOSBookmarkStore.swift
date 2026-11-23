@@ -408,8 +408,10 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
         }
 
         do {
+            // `.minimalBookmark` cannot be combined with security-scoped
+            // bookmarks; CoreFoundation rejects it for folder URLs.
             let bookmark = try standardized.bookmarkData(
-                options: .minimalBookmark,
+                options: [],
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
@@ -531,7 +533,7 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
                 }
                 if isStale,
                    let fresh = try? standardized.bookmarkData(
-                       options: .minimalBookmark,
+                       options: [],
                        includingResourceValuesForKeys: nil,
                        relativeTo: nil
                    ) {
@@ -559,7 +561,7 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
         for path in bookmarkedPaths {
             if let url = activeScopedURLs[path],
                let data = try? url.bookmarkData(
-                   options: .minimalBookmark,
+                   options: [],
                    includingResourceValuesForKeys: nil,
                    relativeTo: nil
                ) {

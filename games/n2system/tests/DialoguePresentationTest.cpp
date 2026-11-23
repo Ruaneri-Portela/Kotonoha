@@ -13,8 +13,8 @@ void require(bool condition, const char *message) {
 
 int main() {
   N2System::SceneGraph graph;
-  const auto mockImageSize = [](const N2System::Entity &sprite,
-                                float &w, float &h) {
+  const auto mockImageSize = [](const N2System::Entity &sprite, float &w,
+                                float &h) {
     if (sprite.imagePath.empty())
       return false;
     w = 920.0f;
@@ -49,8 +49,8 @@ int main() {
           "Transparent native window cannot suppress host fallback");
   panel->opacity = 1.0f;
 
-  auto *nativeText = graph.createEntity("dialogue/text",
-                                       N2System::EntityType::Text);
+  auto *nativeText =
+      graph.createEntity("dialogue/text", N2System::EntityType::Text);
   nativeText->text = "Hello";
   require(inspect().nativeText,
           "NSB text must suppress duplicate text rasterization");

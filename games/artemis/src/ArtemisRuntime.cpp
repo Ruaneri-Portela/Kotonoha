@@ -20,9 +20,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <string>
-#include <cstring>
 #include <unordered_map>
 #include <vector>
 
@@ -147,16 +147,17 @@ ArtemisRuntime::ArtemisRuntime(std::shared_ptr<ArtemisAssets> assets)
               "0.1.0", "me.hirameki.kotonoha.artemis"),
       impl_(std::make_unique<Impl>()), assets_(std::move(assets)) {
   if (assets_) {
-    vm_.setScriptLoader([a = assets_](const std::string &scriptId) -> std::string {
-      const std::string resolved = a->resolveScriptPath(scriptId);
-      if (resolved.empty())
-        return {};
-      try {
-        return a->loadTextUtf8(resolved, "UTF-8");
-      } catch (...) {
-        return {};
-      }
-    });
+    vm_.setScriptLoader(
+        [a = assets_](const std::string &scriptId) -> std::string {
+          const std::string resolved = a->resolveScriptPath(scriptId);
+          if (resolved.empty())
+            return {};
+          try {
+            return a->loadTextUtf8(resolved, "UTF-8");
+          } catch (...) {
+            return {};
+          }
+        });
   }
 }
 
@@ -206,8 +207,8 @@ void ArtemisRuntime::initGlobal(Kotonoha::Engine &engine) {
     } catch (...) {
     }
   });
-  impl_->menu = std::make_unique<ArtemisMenu>(
-      engine, [this](const std::string &action) {
+  impl_->menu =
+      std::make_unique<ArtemisMenu>(engine, [this](const std::string &action) {
         if (action == "save" && impl_->saveMenu) {
           impl_->saveMenu->open(
               Kotonoha::applicationDirectories("artemis").saves.string(), false,
@@ -220,8 +221,8 @@ void ArtemisRuntime::initGlobal(Kotonoha::Engine &engine) {
         } else if (action == "lang") {
           const auto langs = vm_.availableLanguages();
           if (langs.size() > 1) {
-            auto it = std::find(langs.begin(), langs.end(),
-                                vm_.preferredLanguage());
+            auto it =
+                std::find(langs.begin(), langs.end(), vm_.preferredLanguage());
             const std::size_t nextIdx =
                 (it == langs.end())
                     ? 0
@@ -239,10 +240,13 @@ void ArtemisRuntime::initGlobal(Kotonoha::Engine &engine) {
 }
 
 void ArtemisRuntime::initSplash(Kotonoha::Engine &engine) {
-  // Skip straight to gameplay (Artemis scripts include their own brandlogo /
-  // startup flow).
+  // Artemis scripts include their own brandlogo / title flow, so skip the
+  // engine splash. Runtime::start() dispatches only ONE init hook based on the
+  // state it saw at entry (Splash here); switching the state to Gameplay alone
+  // never called initGameplay(), leaving impl_->engine null and no script
+  // loaded — the result was a black screen. Call the gameplay hook explicitly.
   SetState(Kotonoha::GameState::Gameplay);
-  (void)engine;
+  initGameplay(engine);
 }
 
 void ArtemisRuntime::initMenu(Kotonoha::Engine &engine) {
@@ -378,8 +382,8 @@ void ArtemisRuntime::update() {
 
   // Consume Quake events.
   for (const auto &q : vm_.consumeQuakeEvents()) {
-    impl_->quakeRemainingMs = std::max(impl_->quakeRemainingMs,
-                                       static_cast<double>(q.timeMs));
+    impl_->quakeRemainingMs =
+        std::max(impl_->quakeRemainingMs, static_cast<double>(q.timeMs));
     impl_->quakePowerX = q.powerX;
     impl_->quakePowerY = q.powerY;
   }
@@ -399,8 +403,8 @@ void ArtemisRuntime::update() {
     impl_->transitionElapsedMs = 0.0;
   }
   if (impl_->transitionDurationMs > 0.0) {
-    impl_->transitionElapsedMs =
-        std::min(impl_->transitionDurationMs, impl_->transitionElapsedMs + dtMs);
+    impl_->transitionElapsedMs = std::min(impl_->transitionDurationMs,
+                                          impl_->transitionElapsedMs + dtMs);
   }
 
   // Sync VNTextBox & Backlog.
@@ -445,9 +449,8 @@ void ArtemisRuntime::renderGameplay(Kotonoha::RendererRef renderer,
   // Movie playback takes over full screen.
   if (vm_.waitReason() == VmWaitReason::Movie && impl_->moviePlayer &&
       impl_->moviePlayer->isOpen()) {
-    impl_->moviePlayer->render(renderer,
-                               impl_->engine ? &impl_->engine->GetUpscaler()
-                                             : nullptr);
+    impl_->moviePlayer->render(
+        renderer, impl_->engine ? &impl_->engine->GetUpscaler() : nullptr);
     return;
   }
 
@@ -478,18 +481,21 @@ void ArtemisRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         const float zoom = static_cast<float>(bg.zoom) / 100.0f;
         const float dw = (tw > 0.0f ? tw : vw) * zoom;
         const float dh = (th > 0.0f ? th : vh) * zoom;
-        // Center oversized backgrounds (e.g. 1610x910 on 1600x900) with x/y offset.
+        // Center oversized backgrounds (e.g. 1610x910 on 1600x900) with x/y
+        // offset.
         const float dx = (vw - dw) * 0.5f + static_cast<float>(bg.x) + qx;
         const float dy = (vh - dh) * 0.5f + static_cast<float>(bg.y) + qy;
         const SDL_FRect dst{dx, dy, dw, dh};
-        SDL_SetTextureAlphaMod(&tex, static_cast<Uint8>(std::clamp(bg.alpha, 0, 255)));
+        SDL_SetTextureAlphaMod(
+            &tex, static_cast<Uint8>(std::clamp(bg.alpha, 0, 255)));
         SDL_RenderTexture(&renderer, &tex, nullptr, &dst);
       } catch (...) {
       }
     }
   }
 
-  // 2. Character / FG sprites (with multi-part file + file1 + file2 compositing).
+  // 2. Character / FG sprites (with multi-part file + file1 + file2
+  // compositing).
   if (assets_) {
     for (const auto &spr : vm_.sprites()) {
       if (!spr.visible || spr.alpha <= 0)
@@ -510,7 +516,8 @@ void ArtemisRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           const float zoom = static_cast<float>(spr.zoom) / 100.0f;
           const float dw = tw * zoom;
           const float dh = th * zoom;
-          // Artemis FG positions are centered horizontally on stage with x/y offsets.
+          // Artemis FG positions are centered horizontally on stage with x/y
+          // offsets.
           const float dx = (vw - dw) * 0.5f + static_cast<float>(spr.x) + qx;
           const float dy = (vh - dh) + static_cast<float>(spr.y) + qy;
           const SDL_FRect dst{dx, dy, dw, dh};
@@ -549,13 +556,14 @@ void ArtemisRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     const float btnW = vw * 0.6f;
     const float btnH = 56.0f;
     const float gap = 14.0f;
-    const float totalH = static_cast<float>(choices.size()) * (btnH + gap) - gap;
+    const float totalH =
+        static_cast<float>(choices.size()) * (btnH + gap) - gap;
     const float startX = (vw - btnW) * 0.5f;
     const float startY = (vh - totalH) * 0.45f;
 
     for (std::size_t i = 0; i < choices.size(); ++i) {
-      const SDL_FRect rect{startX, startY + static_cast<float>(i) * (btnH + gap),
-                           btnW, btnH};
+      const SDL_FRect rect{
+          startX, startY + static_cast<float>(i) * (btnH + gap), btnW, btnH};
       const bool focused = (static_cast<int>(i) == impl_->selectedChoice);
       impl_->engine->GetUI().button(renderer, rect, choices[i].text, focused);
     }
@@ -775,8 +783,7 @@ std::vector<std::string> ArtemisRuntime::activeTranslationKeys() const {
   return keys;
 }
 
-Kotonoha::Translation::SourceTexts
-ArtemisRuntime::translationSources() const {
+Kotonoha::Translation::SourceTexts ArtemisRuntime::translationSources() const {
   Kotonoha::Translation::SourceTexts result;
   const auto keys = activeTranslationKeys();
   if (!keys.empty())
@@ -806,9 +813,7 @@ void ArtemisRuntime::debugRestartScene() {
   }
 }
 
-std::string ArtemisRuntime::dialogueText() const {
-  return vm_.dialogue().text;
-}
+std::string ArtemisRuntime::dialogueText() const { return vm_.dialogue().text; }
 
 std::string ArtemisRuntime::dialogueSpeaker() const {
   return vm_.dialogue().speaker;

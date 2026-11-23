@@ -1,6 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
-#include <N2System/SceneGraph.hpp>
 #include <N2System/EntityQuery.hpp>
+#include <N2System/SceneGraph.hpp>
 #include <algorithm>
 #include <cmath>
 #include <utility>
@@ -77,7 +77,8 @@ void Entity::update(float dt) {
 
   if (isTransitioning && transitionDuration > 0.0f) {
     transitionElapsed += dt;
-    const float t = easeFactor(transitionElapsed / transitionDuration, transitionEase);
+    const float t =
+        easeFactor(transitionElapsed / transitionDuration, transitionEase);
     opacity = transitionStart + (transitionEnd - transitionStart) * t;
     if (t >= 1.0f) {
       opacity = transitionEnd;
@@ -186,9 +187,8 @@ const Entity *SceneGraph::findEntity(std::string_view name) const {
                          ? std::string_view{}
                          : std::string_view(entity.name).substr(0, slash));
           matches = local == part.value &&
-                    entityParent ==
-                        (parent ? std::string_view(parent->name)
-                                : std::string_view{});
+                    entityParent == (parent ? std::string_view(parent->name)
+                                            : std::string_view{});
         }
         if (matches) {
           // A path is a single entity, not a multi-target query. NitroSharp
@@ -231,8 +231,8 @@ std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
       return {&exact->second};
     // Compatibility: older native scripts sometimes use a bare alias with
     // no '@'. NitroSharp requires '@', but retain this exact-name fallback.
-    if (parsed->parts().size() == 1 && expression.find('>') ==
-                                                std::string_view::npos)
+    if (parsed->parts().size() == 1 &&
+        expression.find('>') == std::string_view::npos)
       if (auto *legacy = findEntity(expression))
         return {legacy};
   }
@@ -279,12 +279,11 @@ std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
       bool matched = true;
       for (std::size_t i = 0; i < parts.size(); ++i) {
         const auto slash = remaining.find('/');
-        const auto component =
-            slash == std::string_view::npos ? remaining
-                                            : remaining.substr(0, slash);
+        const auto component = slash == std::string_view::npos
+                                   ? remaining
+                                   : remaining.substr(0, slash);
         if (!EntityQuery::matchPattern(component, parts[i].pattern) ||
-            (i + 1 == parts.size()) !=
-                (slash == std::string_view::npos)) {
+            (i + 1 == parts.size()) != (slash == std::string_view::npos)) {
           matched = false;
           break;
         }
@@ -301,8 +300,8 @@ std::vector<Entity *> SceneGraph::queryEntities(std::string_view expression) {
     std::vector<Entity *> next;
     const bool aliasScope = part.scope == EntityQueryScope::CurrentAliases ||
                             part.scope == EntityQueryScope::AllAliases;
-    const bool rootScope = current.empty() ||
-                           part.scope == EntityQueryScope::MainThread;
+    const bool rootScope =
+        current.empty() || part.scope == EntityQueryScope::MainThread;
     // Querying a nested current scope after a failed match must stay empty.
     if (!aliasScope && !rootScope && current.empty())
       break;
@@ -365,18 +364,16 @@ bool SceneGraph::destroyEntity(std::string_view name) {
     if (it == entities_.end() || it->second.parent.empty())
       continue;
     if (auto *parent = findEntity(it->second.parent)) {
-      parent->children.erase(
-          std::remove(parent->children.begin(), parent->children.end(),
-                      deletedName),
-          parent->children.end());
+      parent->children.erase(std::remove(parent->children.begin(),
+                                         parent->children.end(), deletedName),
+                             parent->children.end());
     }
   }
   for (const auto &deletedName : removeNames) {
     entities_.erase(deletedName);
-    insertionOrder_.erase(
-        std::remove(insertionOrder_.begin(), insertionOrder_.end(),
-                    deletedName),
-        insertionOrder_.end());
+    insertionOrder_.erase(std::remove(insertionOrder_.begin(),
+                                      insertionOrder_.end(), deletedName),
+                          insertionOrder_.end());
   }
   rebuildRenderOrder();
   return true;
@@ -426,10 +423,10 @@ bool SceneGraph::setParent(std::string_view childName,
     return true;
   if (!child->parent.empty()) {
     if (auto *oldParent = findEntity(child->parent)) {
-      oldParent->children.erase(
-          std::remove(oldParent->children.begin(), oldParent->children.end(),
-                      child->name),
-          oldParent->children.end());
+      oldParent->children.erase(std::remove(oldParent->children.begin(),
+                                            oldParent->children.end(),
+                                            child->name),
+                                oldParent->children.end());
     }
   }
   child->parent = parent ? parent->name : std::string{};

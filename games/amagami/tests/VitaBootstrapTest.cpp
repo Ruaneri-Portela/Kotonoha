@@ -259,8 +259,8 @@ int main() {
     // Class.findClass() reports scenario classes that haven't been loaded.
     Vm lazy;
     source.installSystem(lazy);
-    lazy.resolveClass = [&source](const std::string &name)
-        -> std::optional<Script> {
+    lazy.resolveClass =
+        [&source](const std::string &name) -> std::optional<Script> {
       return source.hasScenario(name)
                  ? std::optional<Script>(source.scenario(name))
                  : std::nullopt;
@@ -272,9 +272,8 @@ int main() {
           "findClass must not implicitly load a Vita scenario");
 
     Vita::VitaVmBridge runtime;
-    runtime.setClassLoader([&lazy](const std::string &name) {
-      return lazy.loadClass(name);
-    });
+    runtime.setClassLoader(
+        [&lazy](const std::string &name) { return lazy.loadClass(name); });
     Script k2xLoad;
     k2xLoad.name = "K2X_Script";
     Method load;
@@ -283,14 +282,13 @@ int main() {
     load.code = {0x34, 2, 0x03};
     k2xLoad.methods.push_back(load);
     lazy.add(k2xLoad);
-    lazy.scopedPrimitive = [&runtime](
-                               const std::string &owner,
-                               const std::string &method, bool classMethod,
-                               const VmValue &receiver, unsigned native,
-                               const std::vector<VmValue> &args) {
-      return runtime.primitive(owner, method, classMethod, receiver, native,
-                               args);
-    };
+    lazy.scopedPrimitive =
+        [&runtime](const std::string &owner, const std::string &method,
+                   bool classMethod, const VmValue &receiver, unsigned native,
+                   const std::vector<VmValue> &args) {
+          return runtime.primitive(owner, method, classMethod, receiver, native,
+                                   args);
+        };
     lazy.call(lazy.instance("K2X_Script"), "loadClass",
               {VmValue::str("Test", VmValue::Symbol)});
     lazy.run();
@@ -331,14 +329,14 @@ int main() {
 
     const auto k2xSelf = VmValue::ref(std::make_shared<VmObject>());
     runtime.tick(3);
-    const auto clock = runtime.primitive("K2X_Script", "getTick", false,
-                                         k2xSelf, 4, {});
+    const auto clock =
+        runtime.primitive("K2X_Script", "getTick", false, k2xSelf, 4, {});
     check(clock && clock->number == 3 && runtime.frameCount() == 3,
           "K2X frame clock advances without any scene objects");
-    check(runtime.primitive("K2X_Script", "hasChanged", false,
-                            k2xSelf, 1, {})->kind == VmValue::Boolean &&
-              runtime.primitive("K2X_Script", "isReady", false,
-                                k2xSelf, 3, {})->number == 1,
+    check(runtime.primitive("K2X_Script", "hasChanged", false, k2xSelf, 1, {})
+                      ->kind == VmValue::Boolean &&
+              runtime.primitive("K2X_Script", "isReady", false, k2xSelf, 3, {})
+                      ->number == 1,
           "K2X status natives return typed values");
     rejects([&] {
       runtime.primitive("K2X_Script", "loadClass", false, k2xSelf, 2,

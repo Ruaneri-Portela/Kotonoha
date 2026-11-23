@@ -268,3 +268,17 @@ previous Kotonoha mapping. The port will **not infer a dialect from argument
 count**, because those ambiguous signatures were the cause of silent music.
 Use the override only after validating that specific edition's scripts.
 
+## Music starts only at an explicit BGM opcode
+
+AIR boot/logo scenarios (`SEEN` 9030/9031/9032) contain **no** module 20
+command, so the splash stays silent. The first explicit request is
+`1:20:0("BGM00")` at node `170:246`; nothing in `Gameexe.ini` (`#BGM_MODE`,
+`#DSTRACK`) starts music by itself. `bgmStartsPlayback()` gates playback on
+module 20 opcodes 0..3 only, and `bgmGainAfterStop()` restores gain after
+`bgmStop`. `RealLive.BgmCompat` verifies both rules:
+
+```sh
+cmake --build build --target RealLive
+ctest --test-dir build -R RealLive --output-on-failure
+```
+

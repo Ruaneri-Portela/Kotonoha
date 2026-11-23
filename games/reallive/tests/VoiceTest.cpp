@@ -1,8 +1,8 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <RealLive/Voice.hpp>
+#include <algorithm>
 #include <cassert>
 #include <cctype>
-#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <iterator>

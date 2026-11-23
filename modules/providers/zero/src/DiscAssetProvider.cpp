@@ -1,6 +1,6 @@
 #include <ZeroNoTsukaima/DiscAssetProvider.hpp>
 
-#include <Kotonoha/media/Ps2Tim2.hpp>
+#include <Kotonoha/Formats/Ps2Tim2.hpp>
 #include <ZeroNoTsukaima/Pss.hpp>
 
 #include <cstring>

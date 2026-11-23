@@ -2,12 +2,34 @@
 // Project directory: <repository>/buildsystems/xcode/
 KOTONOHA_ROOT = $(SRCROOT)/../..
 
-// Set the correct triplet and root for every destination. Override these values
-// locally if your vcpkg output uses a different directory layout.
-KOTONOHA_VCPKG_PARENT = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/macos
+// Architectures: macOS is universal (Apple Silicon + Intel). iOS and the iOS
+// Simulator are arm64-only because the vcpkg iOS triplets are arm64-only.
+// Debug keeps the active arch; Release is universal.
+ARCHS = arm64 x86_64
+ARCHS[sdk=iphoneos*] = arm64
+ARCHS[sdk=iphonesimulator*] = arm64
+ONLY_ACTIVE_ARCH = YES
+ONLY_ACTIVE_ARCH[config=Release] = NO
+
+// Minimum deployment targets: macOS Sequoia (15.0) and iOS 15.0.
+MACOSX_DEPLOYMENT_TARGET = 15.0
+IPHONEOS_DEPLOYMENT_TARGET = 15.0
+
+// macOS desktop builds consume the dynamic Sequoia (15.0) vcpkg triplets
+// produced by `cmake --preset macos-arm64` / `macos-x86_64`, so Xcode and
+// CMake use the same dependency artifacts. iOS keeps its own triplets.
+// SDL3 and SDL3_ttf come from the Xcode projects in lib/submodules (dynamic
+// frameworks). The remaining dependencies come from vcpkg. The Sequoia dynamic
+// install lives in out/build/macos-arm64-vcpkg in this checkout; the older
+// out/build/macos-sequoia-*-dynamic paths no longer exist and broke linking.
+// No x86_64 dynamic triplet is installed in this checkout: Intel builds need a
+// separately provisioned vcpkg root (the override below documents that slot).
+KOTONOHA_VCPKG_PARENT = $(KOTONOHA_ROOT)/out/build/macos-arm64-vcpkg/vcpkg_installed
+KOTONOHA_VCPKG_PARENT[arch=x86_64] = $(KOTONOHA_ROOT)/out/build/macos-x64-vcpkg/vcpkg_installed
 KOTONOHA_VCPKG_PARENT[sdk=iphoneos*] = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/ios
 KOTONOHA_VCPKG_PARENT[sdk=iphonesimulator*] = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/simulator
-KOTONOHA_VCPKG_TRIPLET = arm64-osx
+KOTONOHA_VCPKG_TRIPLET = arm64-osx-sequoia-dynamic
+KOTONOHA_VCPKG_TRIPLET[arch=x86_64] = x64-osx-sequoia-dynamic
 KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*] = arm64-ios
 KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*] = arm64-ios-simulator
 KOTONOHA_VCPKG_INCLUDE = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/include
@@ -19,6 +41,31 @@ KOTONOHA_VCPKG_LIB = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/lib
 // Keep these header roots shared so a multi-engine target can compile exactly
 // the same source files as the standalone game targets.
 KOTONOHA_MODULE_HEADER_ROOTS = \
+    "$(KOTONOHA_ROOT)/modules/formats/animation/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/animation/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/data/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/data/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/video/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/video/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/internal/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/animation/anm/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/adpcm/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/cri/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/pcm-block/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/smfd/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/spu/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/data/psb/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/crgb/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/cz/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/evd/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/tex/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/tim2/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/ui-atlas/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/tlg/include" \
     "$(KOTONOHA_ROOT)/modules/providers/adv/include" \
     "$(KOTONOHA_ROOT)/modules/providers/adv/src" \
     "$(KOTONOHA_ROOT)/modules/providers/amagami/include" \
@@ -132,6 +179,8 @@ HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GA
     "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/include" \
     "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/src"
 LIBRARY_SEARCH_PATHS = $(inherited) "$(KOTONOHA_VCPKG_LIB)"
+// SDL3 / SDL3_ttf are Xcode-built dynamic frameworks from lib/submodules;
+// KotonohaEngine / KotonohaImGui come from BUILT_PRODUCTS_DIR.
 FRAMEWORK_SEARCH_PATHS = $(inherited) "$(BUILT_PRODUCTS_DIR)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)"
 CLANG_CXX_LANGUAGE_STANDARD = c++17
 CLANG_CXX_LIBRARY = libc++
@@ -148,9 +197,25 @@ KOTONOHA_METALFX_DEF = KOTONOHA_HAS_METALFX=1
 KOTONOHA_METALFX_DEF[sdk=iphonesimulator*] =
 GCC_PREPROCESSOR_DEFINITIONS = $(inherited) $(KOTONOHA_METALFX_DEF) KOTONOHA_ENABLE_UPSCALER=1 $(KOTONOHA_MCP_DEF)
 
-// The original projects link dynamic SDL3 / SDL3_ttf and vcpkg libraries.
+// All app targets link the submodule SDL3 / SDL3_ttf frameworks; the remaining
+// libraries come from vcpkg.
 // CoreFoundation handles engine text conversion, but bundled/third-party
 // libraries may still reference _iconv_open/_iconv/_iconv_close.
 // Keep the Apple SDK's libiconv linked for all macOS/iOS app targets.
 KOTONOHA_SHARED_LIBS = -ljson-c -lass -lz -lharfbuzz -lfribidi -lfreetype -lfontconfig -liconv -lbz2 -lbrotlidec -lbrotlicommon -lexpat -lpng -lunibreak
 KOTONOHA_FFMPEG_LIBS = -lavcodec -lavformat -lavutil -lswresample -lswscale
+
+// Shared schemes build in dependency order; the legacy "manual target order"
+// warning is obsolete and noisy for every multi-target build.
+DISABLE_MANUAL_TARGET_ORDER_BUILD_WARNING = YES
+
+// Debug builds must not strip copied signed frameworks/dylibs (Engine, ImGui,
+// Python). Stripping signed binaries is a no-op that emits a warning per file
+// and previously broke the embedded CPython config-*/python.o artifact.
+// Release keeps the default stripping behaviour.
+STRIP_INSTALLED_PRODUCT[config=Debug] = NO
+STRIP_SWIFT_SYMBOLS[config=Debug] = NO
+// Embedders (Embed Frameworks / Python.framework) strip copied binaries via
+// COPY_PHASE_STRIP; disable it in Debug to avoid stripping signed frameworks
+// and the embedded CPython config-*/python.o object files.
+COPY_PHASE_STRIP[config=Debug] = NO

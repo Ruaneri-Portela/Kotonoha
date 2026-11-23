@@ -8,10 +8,10 @@
 
 namespace {
 void require(bool value, const char *message) {
-  if (!value) throw std::runtime_error(message);
+  if (!value)
+    throw std::runtime_error(message);
 }
-template <class F>
-void rejects(F callable, const char *message) {
+template <class F> void rejects(F callable, const char *message) {
   bool failed = false;
   try {
     callable();
@@ -43,8 +43,8 @@ int main() {
     auto merged = visited;
     const std::set<ReadProgress::Page> oldSave{{9032, 860}, {9031, 99}};
     merged.insert(oldSave.begin(), oldSave.end());
-    require(merged.size() == visited.size() + 1 &&
-                merged.count({9037, 118}) && merged.count({9031, 99}),
+    require(merged.size() == visited.size() + 1 && merged.count({9037, 118}) &&
+                merged.count({9031, 99}),
             "old save history merges without rollback");
     require(RealLive::readHistoryFilename("reg:KEY\\CLANNAD") ==
                 RealLive::readHistoryFilename("reg:KEY\\CLANNAD"),
@@ -52,10 +52,10 @@ int main() {
     require(RealLive::readHistoryFilename("reg:KEY\\CLANNAD") !=
                 RealLive::readHistoryFilename("reg:KEY\\AIR"),
             "unrelated games must not share read flags");
-    require(RealLive::readHistoryFilename("reg:KEY\\CLANNAD")
-                    .find('/') == std::string::npos &&
-                RealLive::readHistoryFilename("reg:KEY\\CLANNAD")
-                    .find('\\') == std::string::npos,
+    require(RealLive::readHistoryFilename("reg:KEY\\CLANNAD").find('/') ==
+                    std::string::npos &&
+                RealLive::readHistoryFilename("reg:KEY\\CLANNAD").find('\\') ==
+                    std::string::npos,
             "file name never embeds untrusted game paths");
     rejects([] { (void)RealLive::readHistoryFilename(""); },
             "missing game identity rejected");
@@ -76,10 +76,12 @@ int main() {
             "out-of-bounds instruction rejected");
     auto invalid = visited;
     invalid.insert({10000, 0});
-    rejects([&] {
-      std::ostringstream bad;
-      RealLive::writeReadHistory(bad, invalid);
-    }, "corrupt memory never creates a global journal");
+    rejects(
+        [&] {
+          std::ostringstream bad;
+          RealLive::writeReadHistory(bad, invalid);
+        },
+        "corrupt memory never creates a global journal");
 
     std::cout << "RealLive cross-session read history regressions passed\n";
     return 0;

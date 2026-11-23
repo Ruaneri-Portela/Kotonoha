@@ -22,16 +22,15 @@ template <class F> void expectInvalid(F fn) {
 
 int main() {
   try {
-    const auto air = LucaSystem::OpcodeTable::parse(
-        "EQU\nEQUN\nMESSAGE\nNULL\n");
+    const auto air =
+        LucaSystem::OpcodeTable::parse("EQU\nEQUN\nMESSAGE\nNULL\n");
     expect(air.size() == 4 && air.name(0) == "EQU" &&
                air.name(2) == "MESSAGE" && air.name(3) == "NULL" &&
                air.name(4) == "OP_4",
            "AIR name and opcode indices");
-    const auto sp = LucaSystem::OpcodeTable::parse(
-        "\xef\xbb\xbf" "EQU\r\nEQUN\r\nSELECT\r\n");
-    expect(sp.size() == 3 && sp.name(0) == "EQU" &&
-               sp.name(2) == "SELECT",
+    const auto sp = LucaSystem::OpcodeTable::parse("\xef\xbb\xbf"
+                                                   "EQU\r\nEQUN\r\nSELECT\r\n");
+    expect(sp.size() == 3 && sp.name(0) == "EQU" && sp.name(2) == "SELECT",
            "SP BOM and CRLF");
     expectInvalid([] { LucaSystem::OpcodeTable::parse(""); });
     expectInvalid([] { LucaSystem::OpcodeTable::parse("EQU\n\nMESSAGE"); });

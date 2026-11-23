@@ -18,6 +18,32 @@ cmake --build build-web --target RealLive
 
 Os caminhos das toolchains variam conforme a instalação. `KOTONOHA_BUILD_ALL=ON` seleciona os ports web suportados, mas exclui DDLC. Sirva o resultado por **HTTP**, não por `file://`.
 
+## Preset CMake (`wasm`)
+
+A mesma configuração está disponível como preset. Ele usa Ninja, Release, a
+toolchain vcpkg com o arquivo de chainload do Emscripten, o triplet
+`wasm32-emscripten` e `VCPKG_OVERLAY_PORTS=vcpkg-overlays/ports`. O diretório
+de build é `out/build/wasm`; o diretório clássico `build-web` acima não é
+modificado.
+
+```sh
+source /path/to/emsdk/emsdk_env.sh
+cmake --preset wasm
+cmake --build out/build/wasm --target RealLive
+```
+
+Algumas instalações (por exemplo, Emscripten via Homebrew) não exportam
+`EMSCRIPTEN_ROOT`, que o triplet do vcpkg exige. Use o auxiliar abaixo: ele
+descobre a raiz a partir do `emcc` no `PATH` e executa o mesmo preset.
+
+```sh
+./tools/configure_wasm.sh
+cmake --build out/build/wasm --target RealLive
+```
+
+Sempre carregue `emsdk_env.sh` (ou defina `EMSCRIPTEN_ROOT`) antes do primeiro
+configure: a toolchain Emscripten é escolhida nesse momento.
+
 ## Um PWA instalável para cada jogo web
 
 Cada target compilado com Emscripten vira um Progressive Web App próprio em

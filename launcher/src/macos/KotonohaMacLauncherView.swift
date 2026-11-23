@@ -535,7 +535,7 @@ private struct MacLauncherView: View {
         .onAppear {
             store.rescan()
         }
-        .onChange(of: store.games) { newGames in
+        .onChange(of: store.games) { _, newGames in
             if selectedGameId == nil || !newGames.contains(where: { $0.id == selectedGameId }) {
                 selectedGameId = newGames.first?.id
             }
@@ -1015,7 +1015,7 @@ private struct MacGameParametersSheet: View {
         }
         .frame(minWidth: 540, minHeight: 520)
         .onAppear { revalidateRoute() }
-        .onChange(of: params.ktrfPath) { _ in revalidateRoute() }
+        .onChange(of: params.ktrfPath) { revalidateRoute() }
     }
 
     private func revalidateRoute() {

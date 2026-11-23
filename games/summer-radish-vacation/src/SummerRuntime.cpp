@@ -3055,9 +3055,9 @@ struct SummerRuntime::Impl {
             const size_t index = page * 12 + row;
             if (index >= meoScenes.size())
               break;
-            const SDL_Color col =
-                index == meoSceneFocus ? SDL_Color{255, 212, 110, 255}
-                                       : SDL_Color{200, 205, 220, 255};
+            const SDL_Color col = index == meoSceneFocus
+                                      ? SDL_Color{255, 212, 110, 255}
+                                      : SDL_Color{200, 205, 220, 255};
             engine->GetUI().textSized(r, meoScenes[index], 150,
                                       float(126 + row * 32), 480, 20, col);
           }
@@ -3976,8 +3976,8 @@ void SummerRuntime::update() {
 }
 bool SummerRuntime::onEvent(EventRef e) {
   auto &i = *impl;
-  if ((i.pending == "OPENING" || i.pending == "MOVIE") &&
-      i.movie && i.movie->isOpen()) {
+  if ((i.pending == "OPENING" || i.pending == "MOVIE") && i.movie &&
+      i.movie->isOpen()) {
     if (i.videoSkip.accept(e)) {
       const bool opening = i.pending == "OPENING";
       i.movie->stop();

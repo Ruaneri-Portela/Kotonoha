@@ -71,7 +71,9 @@ int main() {
     visual.rotation = 32.0f;
     visual.alpha = 0.375f;
     visual.moveRemainingMs = 1200;
-    visual.r = 40; visual.g = 130; visual.b = 210;
+    visual.r = 40;
+    visual.g = 130;
+    visual.b = 210;
     visual.visible = false;
     state.visualLayers = {visual};
     auto encoded = LucaSystem::encodeSaveState(state);
@@ -102,8 +104,7 @@ int main() {
             decoded.visualLayers[0].rotation == 32.0f &&
             decoded.visualLayers[0].alpha == 0.375f &&
             decoded.visualLayers[0].moveRemainingMs == 1200 &&
-            !decoded.visualLayers[0].visible &&
-            decoded.visualLayers[0].r == 40,
+            !decoded.visualLayers[0].visible && decoded.visualLayers[0].r == 40,
         "LucaSystem V6 round-trip preserves complete visual state");
     require(LucaSystem::encodeSaveState(decoded) == encoded,
             "LucaSystem V6 saves must be stable on a repeat encode");
@@ -199,8 +200,7 @@ int main() {
     rejects([&] { LucaSystem::encodeSaveState(duplicateVisualSlots); },
             "Duplicate V6 group/slot is rejected");
     auto nanVisual = state;
-    nanVisual.visualLayers[0].alpha =
-        std::numeric_limits<float>::quiet_NaN();
+    nanVisual.visualLayers[0].alpha = std::numeric_limits<float>::quiet_NaN();
     rejects([&] { LucaSystem::encodeSaveState(nanVisual); },
             "NaN visual alpha is rejected");
     auto oversized = encoded;

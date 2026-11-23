@@ -89,8 +89,7 @@ void testRetailGame(const std::string &gameDir) {
       // Verify FG sprite decodes cleanly!
       if (!verifiedFgImage && !vm.sprites().empty()) {
         const auto &spr = vm.sprites().front();
-        const std::string fgPath =
-            assets->resolveImagePath(spr.path, spr.file);
+        const std::string fgPath = assets->resolveImagePath(spr.path, spr.file);
         if (!fgPath.empty()) {
           auto surf = assets->loadSurface(fgPath);
           assert(surf != nullptr && surf->w > 0 && surf->h > 0);

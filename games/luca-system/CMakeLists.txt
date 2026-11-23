@@ -68,9 +68,9 @@ if(BUILD_TESTING)
   # Portable CZ3/CZ4 delta and RGB24 reference regressions; no SDL needed.
   add_executable(LucaSystemCzParityTests
       tests/CzImageParityTest.cpp
-      ../../modules/providers/pak/src/CzImage.cpp)
+      ../../modules/formats/image/cz/src/CzImage.cpp)
   target_include_directories(LucaSystemCzParityTests PRIVATE
-      ../../modules/providers/pak/include)
+      ../../modules/formats/image/cz/include)
   target_compile_features(LucaSystemCzParityTests PRIVATE cxx_std_17)
   add_test(NAME LucaSystem.CzParity COMMAND LucaSystemCzParityTests)
 
@@ -89,6 +89,20 @@ if(BUILD_TESTING)
   target_include_directories(LucaSystemSceneLayersTests PRIVATE include)
   target_compile_features(LucaSystemSceneLayersTests PRIVATE cxx_std_17)
   add_test(NAME LucaSystem.SceneLayers COMMAND LucaSystemSceneLayersTests)
+
+  # seen170 sprite base: INIT(2,ff) followed by an expression crop must keep
+  # the displayed portrait underneath. Retail mode is opt-in via env var.
+  add_executable(LucaSystemSpriteBaseTests tests/AirSpriteBaseTest.cpp)
+  target_link_libraries(LucaSystemSpriteBaseTests PRIVATE luca_system_formats)
+  add_test(NAME LucaSystem.SpriteBase COMMAND LucaSystemSpriteBaseTests)
+  if(LUCA_SYSTEM_TEST_DATA AND EXISTS "${LUCA_SYSTEM_TEST_DATA}")
+    add_test(NAME LucaSystem.RetailSpriteBase
+        COMMAND LucaSystemSpriteBaseTests "${LUCA_SYSTEM_TEST_DATA}")
+    set_tests_properties(LucaSystem.RetailSpriteBase PROPERTIES
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+        WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}"
+        TIMEOUT 120)
+  endif()
 
   add_executable(LucaSystemRetailAirFlowTests tests/RetailAirFlowTest.cpp)
   target_link_libraries(LucaSystemRetailAirFlowTests PRIVATE luca_system_formats)
@@ -112,5 +126,5 @@ endif()
 if(BUILD_TESTING)
     kotonoha_label_directory_tests(REAL LucaSystem.RetailAirFlow
         LucaSystem.RetailAirGallery LucaSystem.RetailAirSaveGrid
-        LucaSystem.RetailAirSettings)
+        LucaSystem.RetailAirSettings LucaSystem.RetailSpriteBase)
 endif()

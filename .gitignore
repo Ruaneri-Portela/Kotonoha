@@ -682,7 +682,6 @@ FodyWeavers.xsd
 /.opencode/
 /forced_subtitles/
 /CMakeSettings.json
-/CMakePresets.json
 
 # Xcode Projects & Workspaces (Auto-generated)
 buildsystems/xcode/build/

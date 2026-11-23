@@ -86,17 +86,18 @@ bool isDirectoryCI(const std::filesystem::path &base,
 
 bool hasRenPyPayload(const std::filesystem::path &folder) {
   std::error_code ec;
-  for (std::filesystem::directory_iterator it(
-           folder, std::filesystem::directory_options::skip_permission_denied,
-           ec), end; it != end && !ec; it.increment(ec)) {
+  for (std::filesystem::directory_iterator
+           it(folder,
+              std::filesystem::directory_options::skip_permission_denied, ec),
+       end;
+       it != end && !ec; it.increment(ec)) {
     std::error_code fileError;
     if (!it->is_regular_file(fileError) || fileError)
       continue;
     std::string ext = it->path().extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(),
                    [](unsigned char c) { return char(std::tolower(c)); });
-    if (ext == ".rpa" || ext == ".rpx" ||
-        ext == ".rpyc" || ext == ".rpymc")
+    if (ext == ".rpa" || ext == ".rpx" || ext == ".rpyc" || ext == ".rpymc")
       return true;
   }
   return false;
@@ -194,8 +195,7 @@ DdlcAssets::DdlcAssets(const std::filesystem::path &directory,
                        const std::filesystem::path &overlayDirectory) {
   auto gameDirectory = directory;
   std::filesystem::path subDir;
-  if (isDirectoryCI(directory, {"game"}, &subDir) &&
-      hasRenPyPayload(subDir)) {
+  if (isDirectoryCI(directory, {"game"}, &subDir) && hasRenPyPayload(subDir)) {
     gameDirectory = subDir;
   } else if (isDirectoryCI(directory, {"vnx", "game"}, &subDir) &&
              isRegularFileCI(subDir, {"scripts.rpa"})) {
@@ -322,8 +322,8 @@ std::string DdlcAssets::name() const {
     return "Katawa Shoujo (" + assets_.dir() + ")";
   if (isDdlc())
     return "Doki Doki Literature Club! (" + assets_.dir() + ")";
-  auto path = std::filesystem::path(
-      sourceIdentity_.empty() ? assets_.dir() : sourceIdentity_);
+  auto path = std::filesystem::path(sourceIdentity_.empty() ? assets_.dir()
+                                                            : sourceIdentity_);
   if (path.filename() == "game")
     path = path.parent_path();
   const auto title = path.filename().string();

@@ -5,9 +5,9 @@
 #include <N2System/SceneGraph.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <limits>
-#include <cmath>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -33,18 +33,17 @@ void matches(N2System::SceneGraph &scene, std::string_view query,
 int main() {
   using N2System::EntityQuery;
   using N2System::EntityQueryScope;
-  for (const char *valid : {
-           "foo", "*", "foo/bar/baz", "@foo/bar", "foo/@bar",
-           "@fo*/@b*r", "<@foo/bar", "<@foo/bar>", "<@foo/@bar",
-           "<foo/bar", "foo>", "foo/bar>"}) {
+  for (const char *valid : {"foo", "*", "foo/bar/baz", "@foo/bar", "foo/@bar",
+                            "@fo*/@b*r", "<@foo/bar", "<@foo/bar>",
+                            "<@foo/@bar", "<foo/bar", "foo>", "foo/bar>"}) {
     const auto query = EntityQuery::tryParse(valid);
     require(query.has_value(), "NitroSharp valid entity query was rejected");
   }
-  for (const char *invalid : {
-           "", "//", "foo/", "f@o", "f<o", "<", ">", "@",
-           "<@", "<@>", "<foo>/bar", "foo/<bar", "@foo/<bar",
-           "<@foo/<bar", "<foo/@bar", "<foo/<bar", "<foo/<@bar",
-           "foo//bar", "foo/>", "foo/@>"}) {
+  for (const char *invalid :
+       {"",          "//",         "foo/",      "f@o",        "f<o",
+        "<",         ">",          "@",         "<@",         "<@>",
+        "<foo>/bar", "foo/<bar",   "@foo/<bar", "<@foo/<bar", "<foo/@bar",
+        "<foo/<bar", "<foo/<@bar", "foo//bar",  "foo/>",      "foo/@>"}) {
     require(!EntityQuery::tryParse(invalid),
             "NitroSharp malformed query was accepted");
   }
@@ -54,13 +53,13 @@ int main() {
               parsed->parts()[1].scope == EntityQueryScope::Current &&
               parsed->parts()[1].forceEnd,
           "Query scopes and terminal markers do not match NitroSharp");
-  for (const char *validPath : {"foo", "foo/bar", "@foo/bar",
-                                 "foo/@bar", "foo>"}) {
+  for (const char *validPath :
+       {"foo", "foo/bar", "@foo/bar", "foo/@bar", "foo>"}) {
     require(N2System::EntityPath::tryParse(validPath).has_value(),
             "NitroSharp valid EntityPath rejected");
   }
-  for (const char *invalidPath : {"*", "foo/*", "<foo", "<@foo",
-                                   "foo/<bar", "foo/@b*r", "foo/"}) {
+  for (const char *invalidPath :
+       {"*", "foo/*", "<foo", "<@foo", "foo/<bar", "foo/@b*r", "foo/"}) {
     require(!N2System::EntityPath::tryParse(invalidPath),
             "Wildcard/scoped query was accepted as an EntityPath");
   }
@@ -76,8 +75,7 @@ int main() {
   scene.createEntity("foo2");
   scene.createEntity("foo1/bar");
   scene.createEntity("foo2/bar");
-  require(scene.setAlias("foo1", "cat1") &&
-              scene.setAlias("foo2/bar", "cat2"),
+  require(scene.setAlias("foo1", "cat1") && scene.setAlias("foo2/bar", "cat2"),
           "Test aliases must initialize");
   matches(scene, "foo1", {"foo1"}, "Exact root lookup");
   matches(scene, "foo1/bar", {"foo1/bar"}, "Absolute child lookup");
@@ -100,8 +98,7 @@ int main() {
           "Alias path components switch to process alias scope");
   require(!scene.findEntity("@cat1/noSuchChild"),
           "Missing aliases or child paths must not resolve");
-  matches(scene, "foo1/b*", {"foo1/bar"},
-          "Component wildcard lookup");
+  matches(scene, "foo1/b*", {"foo1/bar"}, "Component wildcard lookup");
   matches(scene, "foo1/b*/missing", {}, "No implicit missing descendants");
   matches(scene, "foo1/*/*", {}, "Wildcards do not consume slashes");
   matches(scene, "foo1//bar", {}, "Malformed path cannot match");
@@ -109,10 +106,10 @@ int main() {
   // Legacy names may encode a complete absolute path with no container
   // objects. Wildcards still match exactly one path component.
   scene.createEntity("loose/container/leaf");
-  matches(scene, "loose/container/*", {"loose/container/leaf"},
-          "Legacy absolute child path must resolve without materialized parents");
-  matches(scene, "loose/*", {},
-          "Legacy wildcard must never swallow a slash");
+  matches(
+      scene, "loose/container/*", {"loose/container/leaf"},
+      "Legacy absolute child path must resolve without materialized parents");
+  matches(scene, "loose/*", {}, "Legacy wildcard must never swallow a slash");
 
   // The native VM also creates explicit parent relationships rather than
   // slash-qualified names. Both representations must support the same query.
@@ -139,8 +136,7 @@ int main() {
 
   scene.createEntity("foo2/bar/deep");
   require(scene.destroyEntity("foo2"), "Destroy parent with qualified child");
-  require(!scene.findEntity("foo2/bar") &&
-              !scene.findEntity("foo2/bar/deep") &&
+  require(!scene.findEntity("foo2/bar") && !scene.findEntity("foo2/bar/deep") &&
               scene.findEntity("foo1/bar"),
           "Destroy must cascade through qualified child paths only");
   matches(scene, "*", {"foo1"},
@@ -152,8 +148,7 @@ int main() {
   require(original != nullptr, "Initial entity creation");
   original->opacity = 0.25f;
   original->isMoving = true;
-  require(scene.setAlias("reused", "stale"),
-          "Initial entity alias");
+  require(scene.setAlias("reused", "stale"), "Initial entity alias");
   scene.createEntity("reused/child", N2System::EntityType::Text);
   auto *fresh = scene.createEntity("reused", N2System::EntityType::Movie);
   require(fresh && fresh->type == N2System::EntityType::Movie &&
@@ -183,8 +178,8 @@ int main() {
               scene.setPriority("foreground", 100.0f),
           "Finite layer priorities should be accepted");
   const auto normalOrder = scene.renderOrder();
-  require(normalOrder == std::vector<std::string>{
-                             "background", "dialogue", "foreground"},
+  require(normalOrder ==
+              std::vector<std::string>{"background", "dialogue", "foreground"},
           "Layer priority and creation order must remain stable");
   const float nan = std::numeric_limits<float>::quiet_NaN();
   const float inf = std::numeric_limits<float>::infinity();
@@ -198,9 +193,9 @@ int main() {
   // Force a non-finite legacy value to exercise the sort comparator directly.
   scene.findEntity("dialogue")->z = nan;
   scene.createEntity("newLayer");
-  require(scene.renderOrder() == std::vector<std::string>{
-                                     "background", "dialogue", "newLayer",
-                                     "foreground"},
+  require(scene.renderOrder() ==
+              std::vector<std::string>{"background", "dialogue", "newLayer",
+                                       "foreground"},
           "Legacy NaN layers must be sorted deterministically");
   for (int i = 0; i < 200; ++i) {
     const std::string name = "layer" + std::to_string(i);

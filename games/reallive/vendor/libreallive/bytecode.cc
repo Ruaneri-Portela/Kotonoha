@@ -264,7 +264,7 @@ MetaElement::MetaElement(const ConstructionData* cv, const char* src) {
     type_ = Line_;
   } else if (cv->kidoku_table.at(value_) >= 1000000) {
     type_ = Entrypoint_;
-    entrypoint_index_ = cv->kidoku_table[value_] - 1000000;
+    entrypoint_index_ = static_cast<int>(cv->kidoku_table[value_] - 1000000);
   } else {
     type_ = Kidoku_;
   }
@@ -374,12 +374,12 @@ ExpressionElement::ExpressionElement(const char* src)
     : parsed_expression_(invalid_expression_piece_t()) {
   const char* end = src;
   parsed_expression_ = GetAssignment(end);
-  length_ = std::distance(src, end);
+  length_ = static_cast<int>(std::distance(src, end));
 }
 
 ExpressionElement::ExpressionElement(const long val)
     : length_(0),
-      parsed_expression_(ExpressionPiece::IntConstant(val)) {
+      parsed_expression_(ExpressionPiece::IntConstant(static_cast<int>(val))) {
 }
 
 ExpressionElement::ExpressionElement(const ExpressionElement& rhs)
@@ -418,7 +418,7 @@ std::vector<std::string> CommandElement::GetUnparsedParameters() const {
   std::vector<std::string> parameters;
   size_t param_count = GetParamCount();
   for (size_t i = 0; i < param_count; ++i)
-    parameters.push_back(GetParam(i));
+    parameters.push_back(GetParam(static_cast<int>(i)));
   return parameters;
 }
 
@@ -475,7 +475,7 @@ SelectElement::SelectElement(const char* src)
 
   src += 8;
   if (*src == '(') {
-    const int elen = NextExpression(src);
+    const int elen = static_cast<int>(NextExpression(src));
     repr.append(src, elen);
     src += elen;
   }
@@ -502,7 +502,7 @@ SelectElement::SelectElement(const char* src)
       while (*src != ')') {
         Condition c;
         if (*src == '(') {
-          int len = NextExpression(src);
+          int len = static_cast<int>(NextExpression(src));
           c.condition = string(src, len);
           src += len;
         }
@@ -510,7 +510,7 @@ SelectElement::SelectElement(const char* src)
         c.effect = *src;
         ++src;
         if (seekarg && *src != ')' && (*src < '0' || *src > '9')) {
-          int len = NextExpression(src);
+          int len = static_cast<int>(NextExpression(src));
           c.effect_argument = string(src, len);
           src += len;
         }
@@ -748,7 +748,7 @@ GotoIfElement::GotoIfElement(const char* src, ConstructionData& cdata)
 
   if (*src++ != '(')
     throw Error("GotoIfElement(): expected `('");
-  int expr = NextExpression(src);
+  int expr = static_cast<int>(NextExpression(src));
   repr.push_back('(');
   repr.append(src, expr);
   repr.push_back(')');
@@ -798,7 +798,7 @@ GotoCaseElement::GotoCaseElement(const char* src, ConstructionData& cdata)
   repr.assign(src, 8);
   src += 8;
   // Condition
-  const int expr = NextExpression(src);
+  const int expr = static_cast<int>(NextExpression(src));
   repr.append(src, expr);
   src += expr;
   // Cases
@@ -814,7 +814,7 @@ GotoCaseElement::GotoCaseElement(const char* src, ConstructionData& cdata)
       cases.push_back("()");
       src += 2;
     } else {
-      int cexpr = NextExpression(src + 1);
+      int cexpr = static_cast<int>(NextExpression(src + 1));
       cases.emplace_back(src, cexpr + 2);
       src += cexpr + 1;
       if (*src++ != ')')
@@ -858,7 +858,7 @@ GotoOnElement::GotoOnElement(const char* src, ConstructionData& cdata)
   repr.assign(src, 8);
   src += 8;
   // Condition
-  const int expr = NextExpression(src);
+  const int expr = static_cast<int>(NextExpression(src));
   repr.append(src, expr);
   src += expr;
   // Pointers
@@ -898,7 +898,7 @@ GosubWithElement::GosubWithElement(const char* src, ConstructionData& cdata)
     repr_size++;
 
     while (*src != ')') {
-      int expr = NextData(src);
+      int expr = static_cast<int>(NextData(src));
       repr_size += expr;
       params.emplace_back(src, expr);
       src += expr;

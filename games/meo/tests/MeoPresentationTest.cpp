@@ -1,10 +1,10 @@
 #include <SummerRuntime.hpp>
 
+#include <Kotonoha/Formats/BlockPcm.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
 #include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <SummerRadish/MeoAudio.hpp>
 #include <SummerRadish/SummerAssets.hpp>
 
 #include <SDL3/SDL.h>
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     if (argc == 3 && std::string(argv[2]) == "audio") {
       const auto bytes = assets->read("SOUND/MEO02.BGM");
       const auto bgm = assets->loadAudio("SOUND/MEO02.BGM");
-      const auto decoded = Kotonoha::Providers::MeoAudio::decodeBgm(bytes);
+      const auto decoded = Kotonoha::Formats::BlockPcm::decodeBgm(bytes);
       if (bgm.spec.format != SDL_AUDIO_S16 || bgm.spec.channels != 2 ||
           bgm.spec.freq != 44100 ||
           bgm.data.size() != (bytes.size() - 16) * 4 ||
@@ -119,14 +119,14 @@ int main(int argc, char **argv) {
       game.renderOverlay(renderer, 1);
       Kotonoha::SurfacePtr surf(SDL_RenderReadPixels(&renderer, nullptr));
       if (surf)
-        SDL_SaveBMP(
-            surf.get(),
-            (std::filesystem::path(dir) / (std::string(name) + ".bmp"))
-                .string()
-                .c_str());
+        SDL_SaveBMP(surf.get(),
+                    (std::filesystem::path(dir) / (std::string(name) + ".bmp"))
+                        .string()
+                        .c_str());
       SDL_SetRenderTarget(&renderer, prev);
     };
-    // Verify MEO 0verflow ROGO.TEX boot animation renders before the title menu.
+    // Verify MEO 0verflow ROGO.TEX boot animation renders before the title
+    // menu.
     SDL_Delay(1100);
     engine.Iterate();
     game.render(renderer, 1);
@@ -137,7 +137,8 @@ int main(int argc, char **argv) {
     const auto *rogoPixel = static_cast<const uint8_t *>(rogo->pixels) +
                             200 * rogo->pitch + 400 * 4;
     if (int(rogoPixel[0]) + rogoPixel[1] + rogoPixel[2] < 200)
-      throw std::runtime_error("MEO 0verflow ROGO.TEX boot logo did not render");
+      throw std::runtime_error(
+          "MEO 0verflow ROGO.TEX boot logo did not render");
     // Skip ROGO.TEX to enter the MEO title menu.
     engine.Event(&skipSplash);
     engine.Iterate();

@@ -62,8 +62,10 @@ EMSCRIPTEN_KEEPALIVE int KotonohaConfigureRemoteAssetManifest(
     if (!baseUrl || !*baseUrl || !manifestJson || !*manifestJson ||
         preloadBytes < 0)
       throw std::invalid_argument("Missing HTTP(S) asset origin/manifest");
-    auto provider = Filesystem::FetchAssetProvider::fromManifest(
-        baseUrl, manifestJson, 256u * 1024u * 1024u);
+    // Honor the configured KOTONOHA_WASM_FETCH_CACHE_MIB limit instead of
+    // hardcoding a 256 MiB budget that silently overrode the build option.
+    auto provider =
+        Filesystem::FetchAssetProvider::fromManifest(baseUrl, manifestJson);
     if (!provider->fileCount())
       throw std::runtime_error("Remote asset manifest is empty");
     // Set the source before starting requests so consumers can use

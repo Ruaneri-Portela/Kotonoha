@@ -55,12 +55,11 @@ void NavRepeater::process(EventRef event, Uint64 nowMs) {
     return;
   }
   if (event.type == SDL_EVENT_GAMEPAD_REMOVED) {
-    held_.erase(
-        std::remove_if(held_.begin(), held_.end(),
-                       [&](const HeldDirection &d) {
-                         return d.which == event.gdevice.which;
-                       }),
-        held_.end());
+    held_.erase(std::remove_if(held_.begin(), held_.end(),
+                               [&](const HeldDirection &d) {
+                                 return d.which == event.gdevice.which;
+                               }),
+                held_.end());
     return;
   }
   if (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
@@ -69,19 +68,18 @@ void NavRepeater::process(EventRef event, Uint64 nowMs) {
       if (d.which == event.gbutton.which && d.button == event.gbutton.button)
         return;
     }
-    held_.push_back({event.gbutton.which, event.gbutton.button,
-                     nowMs + initialDelayMs_});
+    held_.push_back(
+        {event.gbutton.which, event.gbutton.button, nowMs + initialDelayMs_});
     return;
   }
   if (event.type == SDL_EVENT_GAMEPAD_BUTTON_UP &&
       isDpadButton(event.gbutton.button)) {
-    held_.erase(
-        std::remove_if(held_.begin(), held_.end(),
-                       [&](const HeldDirection &d) {
-                         return d.which == event.gbutton.which &&
-                                d.button == event.gbutton.button;
-                       }),
-        held_.end());
+    held_.erase(std::remove_if(held_.begin(), held_.end(),
+                               [&](const HeldDirection &d) {
+                                 return d.which == event.gbutton.which &&
+                                        d.button == event.gbutton.button;
+                               }),
+                held_.end());
   }
 }
 
@@ -184,8 +182,8 @@ MappedInput InputMapper::mapEvent(EventRef event, InputContext context,
       result.action = InputAction::Confirm;
       break;
     case SDLK_ESCAPE:
-      result.action =
-          context == InputContext::Dialogue ? InputAction::Menu : InputAction::Cancel;
+      result.action = context == InputContext::Dialogue ? InputAction::Menu
+                                                        : InputAction::Cancel;
       break;
     case SDLK_AC_BACK:
     case SDLK_BACKSPACE:

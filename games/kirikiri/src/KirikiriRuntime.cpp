@@ -21,8 +21,8 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <functional>
 #include <iomanip>
@@ -590,17 +590,17 @@ void KirikiriRuntime::initGameplay(Kotonoha::Engine &engine) {
             return layer.visible &&
                    (!layer.texts.empty() || !layer.rectangles.empty() ||
                     (!layer.storage.empty() &&
-                     !resolveVisual(*impl.assets, layer.storage, true).empty()));
+                     !resolveVisual(*impl.assets, layer.storage, true)
+                          .empty()));
           });
-      const bool hasClickTarget =
-          std::any_of(ui.layers.begin(), ui.layers.end(),
-                      [](const Kotonoha::Providers::TjsUiLayer &layer) {
-                        return layer.visible && layer.enabled &&
-                               (!layer.onClick.empty() ||
-                                !layer.onMouseUp.empty()) &&
-                               ((layer.width > 0 && layer.height > 0) ||
-                                !layer.storage.empty());
-                      });
+      const bool hasClickTarget = std::any_of(
+          ui.layers.begin(), ui.layers.end(),
+          [](const Kotonoha::Providers::TjsUiLayer &layer) {
+            return layer.visible && layer.enabled &&
+                   (!layer.onClick.empty() || !layer.onMouseUp.empty()) &&
+                   ((layer.width > 0 && layer.height > 0) ||
+                    !layer.storage.empty());
+          });
       impl.nativeTitleUi = !impl.nativeTitleDisabled && ui.subsetCompleted &&
                            ui.error.empty() && imagePresent &&
                            (hasClickTarget || !ui.onKeyDown.empty());
@@ -740,8 +740,8 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                                      float scale) {
   auto &impl = *impl_;
   const auto draw = [&](Impl::Visual &visual, bool fullScreen) {
-    if (visual.id.empty() || visual.decodeFailed ||
-        !visual.visible || visual.opacity == 0)
+    if (visual.id.empty() || visual.decodeFailed || !visual.visible ||
+        visual.opacity == 0)
       return;
     try {
       auto &texture = impl.assets->texture(renderer, visual.id);
@@ -751,8 +751,7 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
                                  float(texture.w), float(texture.h)};
       Uint8 previousAlpha = 255;
       if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
-          !SDL_SetTextureAlphaMod(
-              &texture, static_cast<Uint8>(visual.opacity)))
+          !SDL_SetTextureAlphaMod(&texture, static_cast<Uint8>(visual.opacity)))
         throw std::runtime_error(SDL_GetError());
       const bool rendered = Kotonoha::RenderUpscaledTexture(
           &renderer, &texture, nullptr, &destination);
@@ -927,7 +926,8 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
             if (layer.height <= 0)
               layer.height = texture.h;
             const SDL_FRect destination{float(layer.left), float(layer.top),
-                                        float(layer.width), float(layer.height)};
+                                        float(layer.width),
+                                        float(layer.height)};
             Uint8 previousAlpha = 255;
             if (!SDL_GetTextureAlphaMod(&texture, &previousAlpha) ||
                 !SDL_SetTextureAlphaMod(&texture,
@@ -953,8 +953,7 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
             const auto rgb = rect.rgb;
             const auto alpha = static_cast<Uint8>(
                 std::clamp(layer.opacity * rect.opacity / 255, 0, 255));
-            SDL_SetRenderDrawColor(&renderer,
-                                   static_cast<Uint8>(rgb >> 16),
+            SDL_SetRenderDrawColor(&renderer, static_cast<Uint8>(rgb >> 16),
                                    static_cast<Uint8>(rgb >> 8),
                                    static_cast<Uint8>(rgb), alpha);
             const SDL_FRect bounds{float(layer.left + rect.left),
@@ -969,8 +968,7 @@ void KirikiriRuntime::renderGameplay(Kotonoha::RendererRef renderer,
               std::clamp(layer.opacity * run.opacity / 255, 0, 255));
           const auto rgb = run.rgb;
           drawTextLine(impl.engine, renderer, run.text, run.size,
-                       float(layer.left + run.left),
-                       float(layer.top + run.top),
+                       float(layer.left + run.left), float(layer.top + run.top),
                        SDL_Color{static_cast<Uint8>(rgb >> 16),
                                  static_cast<Uint8>(rgb >> 8),
                                  static_cast<Uint8>(rgb), alpha},
@@ -1664,14 +1662,29 @@ bool KirikiriRuntime::onEvent(Kotonoha::EventRef event) {
     int virtualKey = 0;
     switch (mapped.key.key) {
     case SDLK_RETURN:
-    case SDLK_KP_ENTER: virtualKey = 13; break;
-    case SDLK_ESCAPE: virtualKey = 27; break;
-    case SDLK_SPACE: virtualKey = 32; break;
-    case SDLK_LEFT: virtualKey = 37; break;
-    case SDLK_UP: virtualKey = 38; break;
-    case SDLK_RIGHT: virtualKey = 39; break;
-    case SDLK_DOWN: virtualKey = 40; break;
-    default: break;
+    case SDLK_KP_ENTER:
+      virtualKey = 13;
+      break;
+    case SDLK_ESCAPE:
+      virtualKey = 27;
+      break;
+    case SDLK_SPACE:
+      virtualKey = 32;
+      break;
+    case SDLK_LEFT:
+      virtualKey = 37;
+      break;
+    case SDLK_UP:
+      virtualKey = 38;
+      break;
+    case SDLK_RIGHT:
+      virtualKey = 39;
+      break;
+    case SDLK_DOWN:
+      virtualKey = 40;
+      break;
+    default:
+      break;
     }
     if (virtualKey > 0 && Kotonoha::Providers::dispatchTjsUiKeyDown(
                               impl.startupExecution, virtualKey)) {
@@ -2175,8 +2188,8 @@ bool KirikiriRuntime::startScenario(
     // Layers 0,1,2,... are ordered numerically, not lexically.
     char *end = nullptr;
     const long numeric = std::strtol(layer.c_str(), &end, 10);
-    if (end != layer.c_str() && end && *end == '\0' &&
-        numeric >= -10000 && numeric <= 10000)
+    if (end != layer.c_str() && end && *end == '\0' && numeric >= -10000 &&
+        numeric <= 10000)
       visual.order = static_cast<int>(numeric);
     if (transitionMs > 0)
       SDL_LogDebug(

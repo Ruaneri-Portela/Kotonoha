@@ -25,6 +25,8 @@
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>ZIP Game Archive</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
 			<key>LSItemContentTypes</key>
@@ -35,6 +37,8 @@
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>Disc Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
 			<key>LSItemContentTypes</key>
@@ -46,6 +50,8 @@
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>Kotonoha Route File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>

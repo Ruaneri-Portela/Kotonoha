@@ -10,17 +10,17 @@
 
 namespace {
 void require(bool ok, const char *message) {
-  if (!ok) throw std::runtime_error(message);
+  if (!ok)
+    throw std::runtime_error(message);
 }
-void sample(int style, int dir, double progress, int x, int y,
-            bool newScene, int sourceX, int sourceY, const char *message) {
-  const auto got = RealLive::sampleScrollTransition(
-      style, dir, progress, x, y, 8, 8);
-  require(got.newScene == newScene && got.x == sourceX &&
-              got.y == sourceY, message);
+void sample(int style, int dir, double progress, int x, int y, bool newScene,
+            int sourceX, int sourceY, const char *message) {
+  const auto got =
+      RealLive::sampleScrollTransition(style, dir, progress, x, y, 8, 8);
+  require(got.newScene == newScene && got.x == sourceX && got.y == sourceY,
+          message);
 }
-template <class F>
-void rejects(F operation, const char *message) {
+template <class F> void rejects(F operation, const char *message) {
   bool failed = false;
   try {
     operation();
@@ -74,34 +74,33 @@ int main() {
           (style == 17 || style == 18 || style == 21) ? 7 : 3;
       sample(style, 1, .5, 4, 7, true, 4, bottomSample,
              "bottom-to-top samples the correct new image edge");
-      require(RealLive::sampleScrollTransition(
-                  style, 1, .5, 4, 0, 8, 8).newScene == false,
-              "bottom-to-top leaves the top unrevealed");
-      require(RealLive::sampleScrollTransition(
-                  style, 2, .5, 0, 4, 8, 8).newScene &&
-                  !RealLive::sampleScrollTransition(
-                       style, 2, .5, 7, 4, 8, 8).newScene,
-              "left-to-right reveals the left edge first");
-      require(RealLive::sampleScrollTransition(
-                  style, 3, .5, 7, 4, 8, 8).newScene &&
-                  !RealLive::sampleScrollTransition(
-                       style, 3, .5, 0, 4, 8, 8).newScene,
-              "right-to-left reveals the right edge first");
+      require(
+          RealLive::sampleScrollTransition(style, 1, .5, 4, 0, 8, 8).newScene ==
+              false,
+          "bottom-to-top leaves the top unrevealed");
+      require(
+          RealLive::sampleScrollTransition(style, 2, .5, 0, 4, 8, 8).newScene &&
+              !RealLive::sampleScrollTransition(style, 2, .5, 7, 4, 8, 8)
+                   .newScene,
+          "left-to-right reveals the left edge first");
+      require(
+          RealLive::sampleScrollTransition(style, 3, .5, 7, 4, 8, 8).newScene &&
+              !RealLive::sampleScrollTransition(style, 3, .5, 0, 4, 8, 8)
+                   .newScene,
+          "right-to-left reveals the right edge first");
     }
 
     const auto notNumber = std::numeric_limits<double>::quiet_NaN();
     sample(20, 0, notNumber, 3, 2, false, 3, 2,
            "non-finite elapsed time remains on old frame");
-    sample(21, 2, -100, 2, 3, false, 2, 3,
-           "negative elapsed time is clamped");
-    sample(17, 3, 100, 2, 3, true, 2, 3,
-           "overlong elapsed time is clamped");
-    rejects([] {
-      (void)RealLive::sampleScrollTransition(99, 0, .5, 2, 3, 8, 8);
-    }, "unknown style rejected");
-    rejects([] {
-      (void)RealLive::sampleScrollTransition(15, 0, .5, -1, 3, 8, 8);
-    }, "invalid screen position rejected");
+    sample(21, 2, -100, 2, 3, false, 2, 3, "negative elapsed time is clamped");
+    sample(17, 3, 100, 2, 3, true, 2, 3, "overlong elapsed time is clamped");
+    rejects(
+        [] { (void)RealLive::sampleScrollTransition(99, 0, .5, 2, 3, 8, 8); },
+        "unknown style rejected");
+    rejects(
+        [] { (void)RealLive::sampleScrollTransition(15, 0, .5, -1, 3, 8, 8); },
+        "invalid screen position rejected");
 
     std::cout << "RealLive scroll/squash/slide regressions passed\n";
     return 0;

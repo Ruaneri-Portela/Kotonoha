@@ -123,8 +123,7 @@ int main() {
 
     {
       TempSource generic("renpy-archive");
-      generic.write("game/archive.rpa",
-                    "RPA-3.0 0000000000000019 12345678\n");
+      generic.write("game/archive.rpa", "RPA-3.0 0000000000000019 12345678\n");
       const auto det = generic.detect();
       require(det.kind == EngineKind::RenPy && det.slug == "renpy",
               "Detect a generic Ren'Py game with archive.rpa");

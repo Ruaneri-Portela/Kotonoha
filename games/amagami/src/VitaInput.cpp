@@ -39,8 +39,8 @@ uint32_t keyboardButton(SDL_Keycode key) {
   }
 }
 uint32_t controllerButton(uint8_t button, SDL_GamepadType type) {
-  const bool xbox = type == SDL_GAMEPAD_TYPE_XBOX360 ||
-                    type == SDL_GAMEPAD_TYPE_XBOXONE;
+  const bool xbox =
+      type == SDL_GAMEPAD_TYPE_XBOX360 || type == SDL_GAMEPAD_TYPE_XBOXONE;
   switch (button) {
   case SDL_GAMEPAD_BUTTON_DPAD_UP:
     return 4096;

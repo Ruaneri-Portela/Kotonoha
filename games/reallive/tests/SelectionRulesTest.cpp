@@ -10,12 +10,12 @@ void require(bool ok, const char *message) {
   if (!ok)
     throw std::runtime_error(message);
 }
-}
+} // namespace
 
 int main() {
   try {
-    using RealLive::SelectOptionState;
     using RealLive::applySelectCondition;
+    using RealLive::SelectOptionState;
     using RealLive::selectWindowIndex;
     const auto checkDefault = [] {
       const SelectOptionState state;
@@ -56,8 +56,8 @@ int main() {
 
     SelectOptionState untouched;
     for (int effect : {0x30, 0x33, 0x34, 0x7f})
-      applySelectCondition(untouched, static_cast<unsigned char>(effect),
-                           true, true, 2);
+      applySelectCondition(untouched, static_cast<unsigned char>(effect), true,
+                           true, 2);
     require(untouched.visible && untouched.enabled &&
                 untouched.colourIndex == -1,
             "other attributes do not silently alter route eligibility");
@@ -87,8 +87,8 @@ int main() {
     for (std::size_t index = 0; index < authored.size(); ++index)
       if (authored[index].visible)
         presentedIds.push_back(static_cast<int>(index));
-    require(presentedIds == std::vector<int>({0, 2}) &&
-                authored[0].enabled && !authored[2].enabled,
+    require(presentedIds == std::vector<int>({0, 2}) && authored[0].enabled &&
+                !authored[2].enabled,
             "hidden/disabled entries retain original script route indices");
 
     std::cout << "RealLive conditional selection regressions passed\n";

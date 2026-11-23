@@ -1,9 +1,10 @@
 #include <Amagami/Assets.hpp>
-#include <Kotonoha/media/CriAudio.hpp>
-#include <Kotonoha/media/Ps2Tim2.hpp>
+#include <Kotonoha/Formats/CriAudio.hpp>
+#include <Kotonoha/Formats/Ps2Tim2.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 namespace Kotonoha::Providers {
 using namespace Amagami;
@@ -114,8 +115,10 @@ std::vector<Uint8> AmagamiAssets::readAsset(const std::string &id) const {
     auto slash = id.find('/', 6);
     if (slash == std::string::npos)
       throw std::runtime_error("Invalid voice ID");
-    auto result = source_->voice(id.substr(6, slash - 6),
-                                 std::stoul(id.substr(slash + 1)));
+    const auto rawIndex = std::stoul(id.substr(slash + 1));
+    if (rawIndex > std::numeric_limits<unsigned>::max())
+      throw std::runtime_error("Voice index out of range: " + id);
+    auto result = source_->voice(id.substr(6, slash - 6), unsigned(rawIndex));
     if (result.empty())
       throw std::runtime_error("Voice not found: " + id);
     return result;
@@ -135,13 +138,19 @@ std::vector<Uint8> AmagamiAssets::readAsset(const std::string &id) const {
     return source_->soundEffect(unsigned(index)).adpcm;
   }
   if (id.rfind("music/classic/", 0) == 0) {
-    int index = source_->musicIndex(std::stoul(id.substr(14)), true);
+    const auto rawIndex = std::stoul(id.substr(14));
+    if (rawIndex > std::numeric_limits<unsigned>::max())
+      throw std::runtime_error("Unknown Amagami classic music number");
+    int index = source_->musicIndex(unsigned(rawIndex), true);
     if (index < 0)
       throw std::runtime_error("Unknown Amagami classic music number");
     return source_->read("SOUND/MUSIC.AFS", index);
   }
   if (id.rfind("music/", 0) == 0) {
-    int index = source_->musicIndex(std::stoul(id.substr(6)));
+    const auto rawIndex = std::stoul(id.substr(6));
+    if (rawIndex > std::numeric_limits<unsigned>::max())
+      throw std::runtime_error("Unknown Amagami music number");
+    int index = source_->musicIndex(unsigned(rawIndex));
     if (index < 0)
       throw std::runtime_error("Unknown Amagami music number");
     return source_->read("SOUND/MUSIC.AFS", index);

@@ -89,8 +89,8 @@ struct N2Runtime::Impl {
                   SDL_Color color) {
     if (text.empty())
       return;
-    Kotonoha::UI *ui = sgUi ? sgUi.get()
-                           : (engine ? &engine->GetVNUI() : nullptr);
+    Kotonoha::UI *ui =
+        sgUi ? sgUi.get() : (engine ? &engine->GetVNUI() : nullptr);
     if (!ui)
       return;
     // Both shadow and foreground share the renderer's glyph atlas. This
@@ -101,8 +101,7 @@ struct N2Runtime::Impl {
   }
 
   SDL_Texture *effectTexture(Kotonoha::RendererRef renderer,
-                             N2ArchiveAssets &assets,
-                             const std::string &path,
+                             N2ArchiveAssets &assets, const std::string &path,
                              bool monochrome, unsigned blur) {
     if (!monochrome && blur == 0)
       return &assets.texture(renderer, path);
@@ -110,8 +109,8 @@ struct N2Runtime::Impl {
       effectTextures.clear();
       effectRenderer = &renderer;
     }
-    const std::string key = path + "|" + (monochrome ? "mono" : "color") +
-                            "|" + std::to_string(blur);
+    const std::string key = path + "|" + (monochrome ? "mono" : "color") + "|" +
+                            std::to_string(blur);
     if (auto it = effectTextures.find(key); it != effectTextures.end())
       return it->second.get();
     auto source = assets.loadSurface(path);
@@ -133,7 +132,8 @@ struct N2Runtime::Impl {
     for (int row = 0; row < rgba->h; ++row)
       std::memcpy(pixels.data() + row * stride,
                   static_cast<const uint8_t *>(rgba->pixels) +
-                      std::size_t(row) * rgba->pitch, stride);
+                      std::size_t(row) * rgba->pitch,
+                  stride);
     SDL_UnlockSurface(rgba.get());
 
     if (monochrome)
@@ -512,9 +512,9 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
 
   impl_->sgUi.reset();
   if (assets_) {
-    for (const char *name : {"Droid Sans Fallback.ttf",
-                             "font/Droid Sans Fallback.ttf",
-                             "system/Droid Sans Fallback.ttf"}) {
+    for (const char *name :
+         {"Droid Sans Fallback.ttf", "font/Droid Sans Fallback.ttf",
+          "system/Droid Sans Fallback.ttf"}) {
       if (!assets_->contains(name))
         continue;
       try {
@@ -557,42 +557,48 @@ void N2Runtime::init(Kotonoha::Engine &engine) {
     });
     impl_->nsbVm->setSaveExistsQuery([](std::uint32_t slot) {
       const auto name = slot == 0
-          ? std::string("n2system_quick.n2sv")
-          : "n2system_slot_" + std::to_string(slot) + ".n2sv";
+                            ? std::string("n2system_quick.n2sv")
+                            : "n2system_slot_" + std::to_string(slot) + ".n2sv";
       std::error_code error;
       return std::filesystem::is_regular_file(Kotonoha::saveDirectory() / name,
-                                              error) && !error;
+                                              error) &&
+             !error;
     });
-    impl_->nsbVm->setMediaTimeQuery(
-        [this](std::string_view query, MediaTimeKind kind) -> std::int64_t {
-          const Kotonoha::MediaPlayer *player = nullptr;
-          if (impl_->moviePlayer && impl_->moviePlayer->isOpen() &&
-              (query.empty() || query == impl_->currentMovie ||
-               (impl_->nsbVm &&
-                query == impl_->nsbVm->activeMovie().entityName)))
-            player = impl_->moviePlayer.get();
-          else if (impl_->bgmPlayer && impl_->bgmPlayer->isOpen() &&
-                   (query == impl_->currentBgm || query == "bgm"))
-            player = impl_->bgmPlayer.get();
-          else if (impl_->voicePlayer && impl_->voicePlayer->isOpen() &&
-                   (query == impl_->currentVoice || query == "voice"))
-            player = impl_->voicePlayer.get();
-          if (!player)
-            return 0;
-          const double duration = player->duration();
-          const double elapsed = player->elapsed();
-          double seconds = 0.0;
-          if (kind == MediaTimeKind::Elapsed)
-            seconds = elapsed;
-          else if (duration >= 0.0)
-            seconds = kind == MediaTimeKind::Duration
-                          ? duration : std::max(0.0, duration - elapsed);
-          if (!std::isfinite(seconds) || seconds < 0)
-            return 0;
-          return static_cast<std::int64_t>(
-              std::min(seconds * 1000.0,
-                       double(std::numeric_limits<std::int64_t>::max())));
-        });
+    impl_->nsbVm->setMediaTimeQuery([this](std::string_view query,
+                                           MediaTimeKind kind) -> std::int64_t {
+      const Kotonoha::MediaPlayer *player = nullptr;
+      if (impl_->moviePlayer && impl_->moviePlayer->isOpen() &&
+          (query.empty() || query == impl_->currentMovie ||
+           (impl_->nsbVm && query == impl_->nsbVm->activeMovie().entityName)))
+        player = impl_->moviePlayer.get();
+      else if (impl_->bgmPlayer && impl_->bgmPlayer->isOpen() &&
+               (query == impl_->currentBgm || query == "bgm"))
+        player = impl_->bgmPlayer.get();
+      else if (impl_->voicePlayer && impl_->voicePlayer->isOpen() &&
+               (query == impl_->currentVoice || query == "voice"))
+        player = impl_->voicePlayer.get();
+      if (!player)
+        return 0;
+      const double duration = player->duration();
+      // A freshly opened movie has no published duration until the demuxer
+      // worker finishes. RemainTime() is used by MovieWaitSG as a wait loop
+      // condition; reporting 0 here would let the script skip the entire
+      // intro movie during the hand-off between two .ngs clips.
+      if (duration < 0.0 && kind == MediaTimeKind::Remaining)
+        return std::numeric_limits<std::int64_t>::max() / 2;
+      const double elapsed = player->elapsed();
+      double seconds = 0.0;
+      if (kind == MediaTimeKind::Elapsed)
+        seconds = elapsed;
+      else if (duration >= 0.0)
+        seconds = kind == MediaTimeKind::Duration
+                      ? duration
+                      : std::max(0.0, duration - elapsed);
+      if (!std::isfinite(seconds) || seconds < 0)
+        return 0;
+      return static_cast<std::int64_t>(std::min(
+          seconds * 1000.0, double(std::numeric_limits<std::int64_t>::max())));
+    });
     impl_->nsbVm->setLoader(
         [assets = assets_](std::string_view nsbPath,
                            std::vector<std::uint8_t> &nsbOut,
@@ -749,9 +755,10 @@ void N2Runtime::update() {
     // releases references to the current call stack and process. Loading a
     // checkpoint from within an instruction would invalidate them.
     if (const auto pending = nvm.takePendingSaveAction()) {
-      const auto filename = pending->slot == 0
-          ? std::string("n2system_quick.n2sv")
-          : "n2system_slot_" + std::to_string(pending->slot) + ".n2sv";
+      const auto filename =
+          pending->slot == 0
+              ? std::string("n2system_quick.n2sv")
+              : "n2system_slot_" + std::to_string(pending->slot) + ".n2sv";
       const auto path = Kotonoha::saveDirectory() / filename;
       switch (pending->kind) {
       case SaveActionKind::Save:
@@ -762,8 +769,8 @@ void N2Runtime::update() {
         std::filesystem::remove(path, ec);
         if (ec)
           SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                      "N2System: cannot delete save slot %u: %s",
-                      pending->slot, ec.message().c_str());
+                      "N2System: cannot delete save slot %u: %s", pending->slot,
+                      ec.message().c_str());
         break;
       }
       case SaveActionKind::Load:
@@ -772,10 +779,14 @@ void N2Runtime::update() {
         impl_->focusedChoiceIndex = 0;
         impl_->choiceActive = false;
         // Resynchronize players with restored audio and movie channels.
-        if (impl_->moviePlayer) impl_->moviePlayer->stop();
-        if (impl_->bgmPlayer) impl_->bgmPlayer->stop();
-        if (impl_->voicePlayer) impl_->voicePlayer->stop();
-        if (impl_->sePlayer) impl_->sePlayer->stop();
+        if (impl_->moviePlayer)
+          impl_->moviePlayer->stop();
+        if (impl_->bgmPlayer)
+          impl_->bgmPlayer->stop();
+        if (impl_->voicePlayer)
+          impl_->voicePlayer->stop();
+        if (impl_->sePlayer)
+          impl_->sePlayer->stop();
         impl_->currentMovie.clear();
         impl_->currentBgm.clear();
         impl_->currentVoice.clear();
@@ -800,36 +811,60 @@ void N2Runtime::update() {
       return;
     }
 
-    // Sync BGM / Voice / SE via streaming MediaPlayer
+    // Sync BGM / Voice / SE via streaming MediaPlayer. The NSB VM owns a
+    // single BGM channel across title and gameplay, so the music heard on the
+    // title legitimately continues into the game. Loop/volume/retrigger are
+    // VM state, however, and must be applied here: MediaPlayer has no implicit
+    // loop and does not read the VM channel gain.
     const auto &audio = nvm.audioSystem();
     if (impl_->bgmPlayer && assets_) {
-      if (audio.bgmChannel().isPlaying &&
-          !audio.bgmChannel().assetPath.empty()) {
-        if (impl_->currentBgm != audio.bgmChannel().assetPath &&
-            assets_->contains(audio.bgmChannel().assetPath)) {
-          impl_->currentBgm = audio.bgmChannel().assetPath;
+      const auto &channel = audio.bgmChannel();
+      if (channel.isPlaying && !channel.assetPath.empty() &&
+          assets_->contains(channel.assetPath)) {
+        const bool pathChanged = impl_->currentBgm != channel.assetPath;
+        const bool ended =
+            impl_->bgmPlayer->isOpen() && impl_->bgmPlayer->finished();
+        if (pathChanged || (ended && channel.loop) ||
+            (channel.isPlaying && !impl_->bgmPlayer->isOpen())) {
+          // MediaPlayer::open() swallows decoder failures and leaves the
+          // player closed. Keep currentBgm empty so the next frame retries
+          // instead of latching a dead path (the title music never starting).
+          impl_->currentBgm.clear();
           try {
-            impl_->bgmPlayer->open(*assets_, impl_->currentBgm, true, "bgm");
+            impl_->bgmPlayer->open(*assets_, channel.assetPath, true, "bgm");
+            if (impl_->bgmPlayer->isOpen())
+              impl_->currentBgm = channel.assetPath;
           } catch (...) {
           }
+        } else if (ended && !channel.loop) {
+          impl_->bgmPlayer->stop();
+          impl_->currentBgm.clear();
         }
+        if (auto mixerChannel = impl_->bgmPlayer->getChannel())
+          mixerChannel->setVolume(channel.volume);
       } else if (!impl_->currentBgm.empty()) {
         impl_->bgmPlayer->stop();
         impl_->currentBgm.clear();
       }
     }
     if (impl_->voicePlayer && assets_) {
-      if (audio.voiceChannel().isPlaying &&
-          !audio.voiceChannel().assetPath.empty()) {
-        if (impl_->currentVoice != audio.voiceChannel().assetPath &&
-            assets_->contains(audio.voiceChannel().assetPath)) {
-          impl_->currentVoice = audio.voiceChannel().assetPath;
+      const auto &channel = audio.voiceChannel();
+      if (channel.isPlaying && !channel.assetPath.empty()) {
+        if (impl_->currentVoice != channel.assetPath &&
+            assets_->contains(channel.assetPath)) {
+          impl_->currentVoice = channel.assetPath;
           try {
             impl_->voicePlayer->open(*assets_, impl_->currentVoice, true,
                                      "voice");
           } catch (...) {
           }
         }
+        if (auto mixerChannel = impl_->voicePlayer->getChannel())
+          mixerChannel->setVolume(channel.volume);
+      } else if (!impl_->currentVoice.empty()) {
+        // Without this branch a repeated identical voice path never replays.
+        impl_->voicePlayer->stop();
+        impl_->currentVoice.clear();
       }
     }
     if (impl_->sePlayer && assets_) {
@@ -849,6 +884,14 @@ void N2Runtime::update() {
       } else if (latestSe.empty() && !impl_->currentSe.empty()) {
         impl_->sePlayer->stop();
         impl_->currentSe.clear();
+      }
+      for (const auto &[seId, ch] : audio.seChannels()) {
+        (void)seId;
+        if (!ch.assetPath.empty() && ch.assetPath == impl_->currentSe) {
+          if (auto mixerChannel = impl_->sePlayer->getChannel())
+            mixerChannel->setVolume(ch.volume);
+          break;
+        }
       }
     }
 
@@ -1101,8 +1144,7 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
       if (assets_ && !resolvedImg.empty() && assets_->contains(resolvedImg)) {
         try {
           tex = impl_->effectTexture(renderer, *assets_, resolvedImg,
-                                       entity->monochrome,
-                                       entity->boxBlurPasses);
+                                     entity->monochrome, entity->boxBlurPasses);
         } catch (...) {
           tex = nullptr;
         }
@@ -1204,13 +1246,13 @@ void N2Runtime::renderGameplay(Kotonoha::RendererRef renderer, float scale) {
       if (!nativeDialogue.nativeFrame && !nativeDialogue.nativeText) {
         SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
         SDL_FRect boxRect{marginX, boxY, boxW, boxH};
-      SDL_SetRenderDrawColor(&renderer, 10, 14, 22, 204);
-      SDL_RenderFillRect(&renderer, &boxRect);
-      // Subtle Steins;Gate warm-amber accent line along top of dialogue bar
-      SDL_FRect topLine{marginX, boxY, boxW, 2.0f};
-      SDL_SetRenderDrawColor(&renderer, 212, 168, 75, 220);
-      SDL_RenderFillRect(&renderer, &topLine);
-      SDL_SetRenderDrawColor(&renderer, 80, 96, 118, 160);
+        SDL_SetRenderDrawColor(&renderer, 10, 14, 22, 204);
+        SDL_RenderFillRect(&renderer, &boxRect);
+        // Subtle Steins;Gate warm-amber accent line along top of dialogue bar
+        SDL_FRect topLine{marginX, boxY, boxW, 2.0f};
+        SDL_SetRenderDrawColor(&renderer, 212, 168, 75, 220);
+        SDL_RenderFillRect(&renderer, &topLine);
+        SDL_SetRenderDrawColor(&renderer, 80, 96, 118, 160);
         SDL_RenderRect(&renderer, &boxRect);
       }
 
@@ -1498,13 +1540,12 @@ void N2Runtime::saveGame(const std::string &path) {
     std::string error;
     if (!Kotonoha::Filesystem::writeBinaryFileAtomically(
             std::filesystem::path(path), bytes, &error))
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "N2System: save %s failed: %s",
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "N2System: save %s failed: %s",
                   path.c_str(), error.c_str());
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "N2System: cannot serialize save %s: %s",
-                path.c_str(), error.what());
+                "N2System: cannot serialize save %s: %s", path.c_str(),
+                error.what());
   }
 }
 
@@ -1522,17 +1563,17 @@ void N2Runtime::loadGame(const std::string &path) {
                   path.c_str());
       return;
     }
-    const bool restored = isNsbActive()
-                              ? impl_->nsbVm->loadState(loaded)
-                              : vm_.loadState(loaded);
+    const bool restored =
+        isNsbActive() ? impl_->nsbVm->loadState(loaded) : vm_.loadState(loaded);
     if (!restored)
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "N2System: save %s references missing or invalid script state",
-                  path.c_str());
+      SDL_LogWarn(
+          SDL_LOG_CATEGORY_APPLICATION,
+          "N2System: save %s references missing or invalid script state",
+          path.c_str());
   } catch (const std::exception &error) {
     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "N2System: cannot load save %s: %s",
-                path.c_str(), error.what());
+                "N2System: cannot load save %s: %s", path.c_str(),
+                error.what());
   }
 }
 

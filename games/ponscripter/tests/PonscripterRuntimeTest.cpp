@@ -414,13 +414,12 @@ void runEngineExitTest() {
     ~ShutdownGuard() { runtime.shutdown(); }
   } guard{runtime};
 
-  const std::string script =
-      "\xEF\xBB\xBF;mode800\n"
-      "*define\n"
-      "game\n"
-      "*start\n"
-      "delay 10\n"
-      "end\n";
+  const std::string script = "\xEF\xBB\xBF;mode800\n"
+                             "*define\n"
+                             "game\n"
+                             "*start\n"
+                             "delay 10\n"
+                             "end\n";
   runtime.vm().clear();
   runtime.vm().appendScriptFile("00.utf", script);
   check(runtime.vm().start(), "Exit test script must start");

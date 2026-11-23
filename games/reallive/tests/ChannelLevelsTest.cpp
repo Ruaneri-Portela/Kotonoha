@@ -45,8 +45,7 @@ int main() {
     levels.advance(500, collect);
     near(levels.gain(3), 96.0f / 255.0f,
          "fade reaches exact interpolated midpoint");
-    require(events.size() == 1 && events[0].channel == 3 &&
-                !events[0].stop,
+    require(events.size() == 1 && events[0].channel == 3 && !events[0].stop,
             "gain interpolation affects only the requested PCM channel");
     levels.advance(500, collect);
     require(levels.volume(3) == 128 && !levels.fading(3),
@@ -74,8 +73,7 @@ int main() {
     levels.advance(500, collect);
     near(levels.gain(7), 0.75f, "independent channel fade starts");
     // During story pause update() doesn't advance the fade clock.
-    near(levels.gain(7), 0.75f,
-         "paused script time preserves current gain");
+    near(levels.gain(7), 0.75f, "paused script time preserves current gain");
     levels.set(7, 255, 2000);
     levels.advance(UINT64_MAX, collect);
     near(levels.gain(7), 1.0f,

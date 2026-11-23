@@ -166,10 +166,9 @@ KagScript::Script KagScript::parse(const std::string &text,
                        commandName.begin(),
                        [](unsigned char ch) { return std::tolower(ch); });
         const bool startsInline = commandName == "iscript";
-        auto parsed =
-            parse("[" + commandLine + "]" +
-                      (startsInline ? "\n[endscript]" : ""),
-                  sourceName);
+        auto parsed = parse("[" + commandLine + "]" +
+                                (startsInline ? "\n[endscript]" : ""),
+                            sourceName);
         if (startsInline)
           parsed.tags.pop_back(); // synthetic close; real close follows later
         for (const auto &entry : parsed.labels)
@@ -242,9 +241,9 @@ KagScript::Script KagScript::parse(const std::string &text,
               ++column;
             }
             if (i == n)
-              throw std::runtime_error("KAG: unterminated quoted attribute in " +
-                                       sourceName + " at line " +
-                                       std::to_string(tagStartLine));
+              throw std::runtime_error(
+                  "KAG: unterminated quoted attribute in " + sourceName +
+                  " at line " + std::to_string(tagStartLine));
             ++i;
             ++column; // skip closing quote
           } else {
@@ -382,9 +381,8 @@ KagScript::Script KagScript::parse(const std::string &text,
     if (value.size() <= 1 || value.front() != '%')
       return value;
     const auto bar = value.find('|');
-    const auto key = value.substr(1, bar == std::string::npos
-                                       ? std::string::npos
-                                       : bar - 1);
+    const auto key =
+        value.substr(1, bar == std::string::npos ? std::string::npos : bar - 1);
     if (const auto it = args.find(key); it != args.end())
       return it->second;
     return bar == std::string::npos ? std::string() : value.substr(bar + 1);
@@ -944,8 +942,7 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
       std::string value = visible->second;
       std::transform(value.begin(), value.end(), value.begin(),
                      [](unsigned char ch) { return std::tolower(ch); });
-      if (value == "1" || value == "true" || value == "yes" ||
-          value == "on")
+      if (value == "1" || value == "true" || value == "yes" || value == "on")
         options.visible = true;
       else if (value == "0" || value == "false" || value == "no" ||
                value == "off")
@@ -1072,8 +1069,7 @@ bool KagScript::Runner::condition(const Tag &tag) const {
         return false;
       char *end = nullptr;
       out = std::strtod(value.c_str(), &end);
-      return end != value.c_str() && end && *end == '\0' &&
-             std::isfinite(out);
+      return end != value.c_str() && end && *end == '\0' && std::isfinite(out);
     }
     static bool truthy(const std::string &value) {
       if (value.empty() || value == "false" || value == "nil" ||
@@ -1130,8 +1126,8 @@ bool KagScript::Runner::condition(const Tag &tag) const {
       while (offset < input.size()) {
         const char ch = input[offset];
         if (std::isspace(static_cast<unsigned char>(ch)) || ch == ')' ||
-            ch == '(' || ch == '=' || ch == '!' || ch == '<' ||
-            ch == '>' || ch == '&' || ch == '|')
+            ch == '(' || ch == '=' || ch == '!' || ch == '<' || ch == '>' ||
+            ch == '&' || ch == '|')
           break;
         ++offset;
       }
@@ -1142,8 +1138,7 @@ bool KagScript::Runner::condition(const Tag &tag) const {
     bool comparison() {
       const auto left = value();
       const char *op = nullptr;
-      for (const char *candidate :
-           {"==", "!=", ">=", "<=", ">", "<"}) {
+      for (const char *candidate : {"==", "!=", ">=", "<=", ">", "<"}) {
         if (match(candidate)) {
           op = candidate;
           break;
@@ -1154,8 +1149,8 @@ bool KagScript::Runner::condition(const Tag &tag) const {
       const auto right = value();
       const std::string symbol = op;
       double leftNumber = 0, rightNumber = 0;
-      const bool bothNumbers = number(left, leftNumber) &&
-                               number(right, rightNumber);
+      const bool bothNumbers =
+          number(left, leftNumber) && number(right, rightNumber);
       if (symbol == "==")
         return bothNumbers ? leftNumber == rightNumber : left == right;
       if (symbol == "!=")

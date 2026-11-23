@@ -171,7 +171,8 @@ int main() {
     require(indexed->hasManifestIndex() && indexed->fileCount() == 2 &&
                 !indexed->exists("unlisted.xp3") &&
                 indexed->totalRequests() == 0,
-            "Manifest must index files and reject unknown HTTP paths without requests");
+            "Manifest must index files and reject unknown HTTP paths without "
+            "requests");
     auto indexedSource = Filesystem::mount(
         std::static_pointer_cast<Kotonoha::Filesystem::IMount>(indexed));
     require(Kotonoha::Filesystem::isGameSourceRegularFile(*indexedSource,

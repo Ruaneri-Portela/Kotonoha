@@ -17,7 +17,8 @@ public:
       std::unique_ptr<Kotonoha::Filesystem::FileHandle> handle)
       : handle_(std::move(handle)) {
     if (handle_)
-      size_ = static_cast<std::uint64_t>(std::max<std::int64_t>(0, handle_->size()));
+      size_ = static_cast<std::uint64_t>(
+          std::max<std::int64_t>(0, handle_->size()));
   }
 
   std::uint64_t size() const override { return size_; }
@@ -291,8 +292,8 @@ std::string ArtemisAssets::expandArtemisPrefix(std::string_view path) {
     return p;
 
   const auto slash = p.find('/');
-  const std::string tag =
-      PfsArchive::toLowerAscii(slash == std::string::npos ? p : p.substr(0, slash));
+  const std::string tag = PfsArchive::toLowerAscii(
+      slash == std::string::npos ? p : p.substr(0, slash));
   const std::string rest =
       (slash == std::string::npos) ? std::string() : p.substr(slash + 1);
 
@@ -361,8 +362,8 @@ std::string ArtemisAssets::resolveImagePath(std::string_view path,
   bases.push_back("image/anime/" + std::string(file));
   bases.push_back("image/rule/" + std::string(file));
 
-  static constexpr const char *kExts[] = {"", ".png", ".webp", ".jpg", ".bmp",
-                                          ".ipt"};
+  static constexpr const char *kExts[] = {"",     ".png", ".webp",
+                                          ".jpg", ".bmp", ".ipt"};
   for (const auto &base : bases) {
     for (const char *ext : kExts) {
       const std::string hit = resolveActualPath(base + ext);
@@ -411,7 +412,8 @@ ArtemisAssets::resolveBgmPaths(std::string_view file) const {
   if (!direct.empty())
     return {{}, direct};
 
-  // Artemis commonly splits BGM into <name>_a.ogg (intro) and <name>_b.ogg (loop).
+  // Artemis commonly splits BGM into <name>_a.ogg (intro) and <name>_b.ogg
+  // (loop).
   const std::string intro = resolveAudioPath(":bgm/", std::string(file) + "_a");
   const std::string loop = resolveAudioPath(":bgm/", std::string(file) + "_b");
   if (!intro.empty() || !loop.empty())
@@ -430,8 +432,8 @@ std::string ArtemisAssets::resolveMoviePath(std::string_view file) const {
       "image/movie/" + std::string(file),
       "image/anime/" + std::string(file),
   };
-  static constexpr const char *kExts[] = {"", ".mp4", ".wmv", ".ogv", ".webm",
-                                          ".dat", ".mpg"};
+  static constexpr const char *kExts[] = {"",      ".mp4", ".wmv", ".ogv",
+                                          ".webm", ".dat", ".mpg"};
   for (const auto &base : bases) {
     for (const char *ext : kExts) {
       const std::string hit = resolveActualPath(base + ext);
@@ -462,7 +464,8 @@ std::string ArtemisAssets::resolveScriptPath(std::string_view file) const {
     return hit;
 
   // Fallback for minor underscore differences (e.g., NUKITASHI 2 gamestart.ast
-  // referencing "01_c_00" when the shipped archive contains "script/01_c00.ast").
+  // referencing "01_c_00" when the shipped archive contains
+  // "script/01_c00.ast").
   std::string stripped;
   stripped.reserve(file.size());
   for (std::size_t i = 0; i < file.size(); ++i) {

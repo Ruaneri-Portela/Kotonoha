@@ -2,6 +2,10 @@
 // DAT/ADV3 asset provider for Snow Radish Vacation!! and Pure Mail.
 
 #include "SnowRadish/Pack.hpp"
+#include <SnowRadish/PackAnimation.hpp>
+#include <SnowRadish/PackAudio.hpp>
+#include <SnowRadish/PackImage.hpp>
+
 
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>

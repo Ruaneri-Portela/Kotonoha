@@ -193,8 +193,9 @@ const LuaTable *ArtemisVm::findBlock(const ParsedAstScript &script,
   return script.ast->getTable(blockName);
 }
 
-std::string ArtemisVm::resolveLabelToBlock(const ParsedAstScript &script,
-                                           const std::string &labelOrBlock) const {
+std::string
+ArtemisVm::resolveLabelToBlock(const ParsedAstScript &script,
+                               const std::string &labelOrBlock) const {
   if (!script.ast)
     return {};
   if (labelOrBlock.empty()) {
@@ -205,7 +206,8 @@ std::string ArtemisVm::resolveLabelToBlock(const ParsedAstScript &script,
           return blk;
       }
     }
-    return script.blockOrder.empty() ? std::string{} : script.blockOrder.front();
+    return script.blockOrder.empty() ? std::string{}
+                                     : script.blockOrder.front();
   }
   if (script.ast->getTable(labelOrBlock))
     return labelOrBlock;
@@ -381,7 +383,8 @@ void ArtemisVm::extractBlockChoices(const LuaTable &cmd,
     parseChoicesFromArray(*selTbl);
   }
 
-  // Also check `link = { { file=..., label=... }, ... }` paired with choice texts.
+  // Also check `link = { { file=..., label=... }, ... }` paired with choice
+  // texts.
   if (const LuaTable *linkTbl = blockTable.getTable("link")) {
     for (std::size_t i = 0; i < linkTbl->array.size() && i < choices_.size();
          ++i) {
@@ -457,16 +460,15 @@ void ArtemisVm::executeCommand(const LuaTable &cmd, const LuaTable &blockTable,
       return;
     }
     if (mode == -1) {
-      sprites_.erase(
-          std::remove_if(sprites_.begin(), sprites_.end(),
-                         [&](const SpriteLayer &s) {
-                           if (id != 0)
-                             return s.id == id;
-                           if (!ch.empty())
-                             return s.ch == ch;
-                           return true;
-                         }),
-          sprites_.end());
+      sprites_.erase(std::remove_if(sprites_.begin(), sprites_.end(),
+                                    [&](const SpriteLayer &s) {
+                                      if (id != 0)
+                                        return s.id == id;
+                                      if (!ch.empty())
+                                        return s.ch == ch;
+                                      return true;
+                                    }),
+                     sprites_.end());
       return;
     }
     // Upsert sprite layer by id (or ch if id == 0).
@@ -515,10 +517,9 @@ void ArtemisVm::executeCommand(const LuaTable &cmd, const LuaTable &blockTable,
     if (cmd.has("zoom"))
       target->zoom = cmd.getInt("zoom", 100);
     target->visible = true;
-    std::stable_sort(sprites_.begin(), sprites_.end(),
-                     [](const SpriteLayer &a, const SpriteLayer &b) {
-                       return a.lv < b.lv;
-                     });
+    std::stable_sort(
+        sprites_.begin(), sprites_.end(),
+        [](const SpriteLayer &a, const SpriteLayer &b) { return a.lv < b.lv; });
     return;
   }
 
@@ -527,11 +528,10 @@ void ArtemisVm::executeCommand(const LuaTable &cmd, const LuaTable &blockTable,
     if (id < 0) {
       sprites_.clear();
     } else {
-      sprites_.erase(std::remove_if(sprites_.begin(), sprites_.end(),
-                                    [id](const SpriteLayer &s) {
-                                      return s.id == id;
-                                    }),
-                     sprites_.end());
+      sprites_.erase(
+          std::remove_if(sprites_.begin(), sprites_.end(),
+                         [id](const SpriteLayer &s) { return s.id == id; }),
+          sprites_.end());
     }
     return;
   }
@@ -1068,7 +1068,8 @@ bool ArtemisVm::deserializeState(std::string_view data) {
     if (p[0] == "LOC" && p.size() >= 6) {
       currentScript_ = p[1];
       currentBlock_ = p[2];
-      currentCmdIndex_ = static_cast<std::size_t>(std::strtoull(p[3].c_str(), nullptr, 10));
+      currentCmdIndex_ =
+          static_cast<std::size_t>(std::strtoull(p[3].c_str(), nullptr, 10));
       preferredLanguage_ = p[4];
       saveTitle_ = p[5];
     } else if (p[0] == "BG" && p.size() >= 15) {

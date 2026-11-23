@@ -3,6 +3,9 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/Filesystem/FileHandle.hpp>
 #include <SummerRadish/Pack.hpp>
+#include <SummerRadish/Codec.hpp>
+#include <SummerRadish/Images.hpp>
+
 #include <memory>
 namespace Kotonoha::Providers {
 class SummerAssets final : public Kotonoha::AssetProvider {

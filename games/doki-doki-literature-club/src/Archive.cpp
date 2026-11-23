@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <cctype>
 #include <climits>
-#include <limits>
 #include <cstring>
 #include <filesystem>
+#include <limits>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -121,14 +121,14 @@ public:
         stack_.push_back(Value::str(bytes(size_t(le(4)))));
         break;
       case 0x8c: // SHORT_BINUNICODE
-      case 'C': // SHORT_BINBYTES
+      case 'C':  // SHORT_BINBYTES
         stack_.push_back(Value::str(bytes(size_t(le(1)))));
         break;
       case 'B': // BINBYTES
         stack_.push_back(Value::str(bytes(size_t(le(4)))));
         break;
-      case 0x8d: // BINUNICODE8
-      case 0x8e: // BINBYTES8
+      case 0x8d:   // BINUNICODE8
+      case 0x8e:   // BINBYTES8
       case 0x96: { // BYTEARRAY8 (protocol 5)
         const uint64_t length = le(8);
         if (length > n_ - p_)
@@ -571,8 +571,7 @@ std::vector<uint8_t> Archive::read(const std::string &name) const {
   std::vector<uint8_t> out;
   for (const auto &e : found->second) {
     constexpr uint64_t kMaxAsset = 1024ull * 1024 * 1024;
-    if (out.size() > kMaxAsset ||
-        e.prefix.size() > kMaxAsset - out.size() ||
+    if (out.size() > kMaxAsset || e.prefix.size() > kMaxAsset - out.size() ||
         e.length > kMaxAsset - out.size() - e.prefix.size())
       throw std::runtime_error("Ren'Py asset exceeds size limit");
     out.insert(out.end(), e.prefix.begin(), e.prefix.end());
