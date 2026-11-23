@@ -68,14 +68,12 @@ int main(int argc, char **argv) {
         vm.resume(interaction.items.front().value);
       else
         vm.resume();
-      for (const auto &e : vm.errors)
-        std::fprintf(stderr, "DBG step %d error: %s\n", step, e.c_str());
-      vm.errors.clear();
+      if (!vm.errors.empty())
+        throw std::runtime_error(vm.errors.front());
     }
     std::printf("Katawa story: %d dialogue, %d choices, file %s\n", dialogue,
                 choices,
                 vm.currentNode() ? vm.currentNode()->file.c_str() : "end");
-    std::fprintf(stderr, "DBG final dialogue=%d choices=%d running=%d finished=%d errors=%zu node=%s\n", dialogue, choices, (int)vm.running(), (int)vm.finished(), vm.errors.size(), vm.currentNode()?vm.currentNode()->file.c_str():"end");
     if (dialogue < 100 || choices < 1)
       throw std::runtime_error("Katawa story did not reach a playable route");
   } catch (const std::exception &error) {
