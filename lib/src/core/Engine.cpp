@@ -368,14 +368,13 @@ void Engine::applyWindowSettings(const EngineSettings &value, bool geometry) {
     SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (!displays || count <= 0)
       throw std::runtime_error("No displays are available");
-    int displayIndex = value.display;
-    if (displayIndex < 0 || displayIndex >= count) {
-      SDL_LogWarn(LogCore,
-                  "Configured display %d is unavailable (%d available); "
-                  "falling back to display 1",
-                  displayIndex + 1, count);
-      displayIndex = 0;
-    }
+    // SDL3 identifies displays by SDL_DisplayID; an index is meaningful only
+    // inside this SDL_GetDisplays() snapshot. An out-of-range selection cannot
+    // be resolved, so reject it instead of silently persisting a display the
+    // user never selected.
+    const int displayIndex = value.display;
+    if (displayIndex < 0 || displayIndex >= count)
+      throw std::runtime_error("Configured display is unavailable");
     const auto display = displays.get()[displayIndex];
     const auto flags = SDL_GetWindowFlags(window.get());
     const bool fullscreen = flags & SDL_WINDOW_FULLSCREEN;
