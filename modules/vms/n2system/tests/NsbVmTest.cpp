@@ -1,6 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/NsbScript.hpp>
 #include <N2System/NsbVm.hpp>
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
@@ -541,19 +542,31 @@ int main() {
     emit(0x0ce, {"WaitMovie"});
     emit(0x08e, {});
 
-    // CreateMovieSG passes the parameter *name* "loopFlag" as its loop argument.
+    // CreateMovieSG passes bare parameter names as literal strings: the loop
+    // flag and, crucially for the black-intro regression, the render priority.
     lit("false");
     emit(0x0b0, {"loopFlag"});
     emit(0x08e, {});
-    lit("movie01");
     lit("9900");
+    emit(0x0b0, {"prioVar"});
+    emit(0x08e, {});
+    // The retail black background that used to cover the movie (z=100).
+    lit("BGBUF1");
+    lit("100");
+    lit("0");
+    lit("0");
+    lit("cg/bg/BG_BLACK.jpg");
+    emit(0x00d, {"BGBUF1", "100", "0", "0", "cg/bg/BG_BLACK.jpg"});
+    emit(0x08e, {});
+    lit("movie01");
+    lit("prioVar");
     lit("0");
     lit("0");
     lit("loopFlag");
     lit("false");
     lit("dx/prologue01.ngs");
     lit("false");
-    emit(0x012, {"movie01", "9900", "0", "0", "loopFlag", "false",
+    emit(0x012, {"movie01", "prioVar", "0", "0", "loopFlag", "false",
                  "dx/prologue01.ngs", "false"});
     emit(0x08e, {});
     lit("movie01");
@@ -599,6 +612,17 @@ int main() {
     const auto *movie = vm.sceneGraph().findEntity("movie01");
     require(movie && !movie->movieLoop,
             "CreateMovie must resolve the 'loopFlag' variable argument");
+    require(movie && movie->z == 9900.0f,
+            "CreateMovie must resolve the 'prioVar' argument to z=9900 so the "
+            "prologue renders above the black background");
+    bool movieAfterBackground = false;
+    const auto &order = vm.sceneGraph().renderOrder();
+    auto bgIt = std::find(order.begin(), order.end(), "BGBUF1");
+    auto mvIt = std::find(order.begin(), order.end(), "movie01");
+    if (bgIt != order.end() && mvIt != order.end())
+      movieAfterBackground = mvIt > bgIt;
+    require(movieAfterBackground,
+            "Prologue movie must render after the black background sprite");
     require(vm.activeMovie().active &&
                 vm.activeMovie().path == "dx/prologue01.ngs" &&
                 !vm.activeMovie().loop,

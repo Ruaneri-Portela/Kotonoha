@@ -35,7 +35,7 @@
       "name": "macos-vcpkg-base",
       "hidden": true,
       "displayName": "macOS | vcpkg (base)",
-      "description": "Base vcpkg macOS: triplets dinamicos Sequoia 15.0.",
+      "description": "Base vcpkg macOS: triplets dinâmicos para macOS 15.0.",
       "inherits": "macos-generic",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": {
@@ -56,27 +56,27 @@
       "cacheVariables": { "CMAKE_OSX_ARCHITECTURES": "arm64" }
     },
     {
-      "name": "macos-x86_64-native",
-      "displayName": "macOS x86_64 | Nativo (sem vcpkg)",
+      "name": "macos-amd64-native",
+      "displayName": "macOS amd64 | Nativo (sem vcpkg)",
       "inherits": "macos-generic",
       "cacheVariables": { "CMAKE_OSX_ARCHITECTURES": "x86_64" }
     },
     {
       "name": "macos-arm64-vcpkg",
-      "displayName": "macOS Sequoia arm64 | vcpkg dynamic",
+      "displayName": "macOS arm64 | vcpkg dynamic",
       "inherits": "macos-vcpkg-base",
       "cacheVariables": {
         "CMAKE_OSX_ARCHITECTURES": "arm64",
-        "VCPKG_TARGET_TRIPLET": "arm64-osx-sequoia-dynamic"
+        "VCPKG_TARGET_TRIPLET": "macos-arm64-vcpkg"
       }
     },
     {
-      "name": "macos-x86_64-vcpkg",
-      "displayName": "macOS Sequoia x86_64 | vcpkg dynamic",
+      "name": "macos-amd64-vcpkg",
+      "displayName": "macOS amd64 | vcpkg dynamic",
       "inherits": "macos-vcpkg-base",
       "cacheVariables": {
         "CMAKE_OSX_ARCHITECTURES": "x86_64",
-        "VCPKG_TARGET_TRIPLET": "x64-osx-sequoia-dynamic"
+        "VCPKG_TARGET_TRIPLET": "macos-amd64-vcpkg"
       }
     },
 

@@ -80,10 +80,22 @@ DialoguePresentation inspectDialoguePresentation(const SceneGraph &graph,
     const bool explicitDialogueFrame =
         isDialogueFrameName(entity->name) ||
         isDialogueFrameName(entity->imagePath);
+    // CreateWindow is the N2System dialogue-window primitive. Steins;Gate
+    // creates full-screen windows ("box00"/"box01"/"box10") whose artwork is
+    // supplied by script-owned sprites that can be faded to full transparency.
+    // Their names and geometry carry no "textbox" hint, so a visible window
+    // must be accepted as the native frame on its own - otherwise the host
+    // paints an opaque box over the script's transparent composition.
+    const bool scriptWindow = entity->type == EntityType::Window &&
+                              width >= viewportW * 0.4f &&
+                              height >= viewportH * 0.05f &&
+                              height <= viewportH * 1.01f;
     // Strong names permit full-screen UI atlases. Generic window/colour
     // rectangles require an actual bottom-of-screen panel geometry.
-    if (explicitDialogueFrame &&
-        (panelShape || nearBottom || entity->type == EntityType::Window))
+    if (scriptWindow)
+      result.nativeFrame = true;
+    else if (explicitDialogueFrame &&
+             (panelShape || nearBottom || entity->type == EntityType::Window))
       result.nativeFrame = true;
     else if (panelShape && nearBottom &&
              (entity->type == EntityType::Window ||
