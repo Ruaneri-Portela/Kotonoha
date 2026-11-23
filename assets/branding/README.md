@@ -74,3 +74,12 @@ os assets para os seus bundles, sem sobrescrever os arquivos antigos do Git.
 
 O arquivo assets/branding/tokens.json e a versao estruturada desta tabela;
 tools/generate_pwa_icons.py original define a geometria de referencia do K.
+
+## Observacoes sobre PWA e build
+
+O WebAssembly usa uma copia temporaria de assets do motor para carregar o novo
+splash (o original de cada jogo, quando existir, continua independente). O
+launcher HTML apresenta o icone da PWA centralizado sobre o fundo preto.
+CMake embute o icon.ico na secao WinRes de cada executavel Windows. O recurso
+icon.icns fica na raiz Resources do bundle macOS; no iOS o Info.plist
+compartilhado enumera os PNGs gerados pelos scripts de empacotamento.

@@ -246,6 +246,7 @@ android.applicationVariants.all { variant ->
   def assets = tasks.register("stage${taskSuffix}Assets", Sync) {
     dependsOn generateBranding
     from(new File(engineRoot, 'assets')) {
+      exclude 'SPLASH.PNG' // Replaced by the generated universal black splash.
       into 'assets'
     }
     from(brandOutput.map { new File(it.asFile, 'splash/SPLASH.PNG') }) {
