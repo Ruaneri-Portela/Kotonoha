@@ -158,11 +158,10 @@ int checkXp3(const std::filesystem::path &directory) {
   std::string startupDiagnostic;
   try {
     const auto bytes = assets.read("startup.tjs");
-    const auto strings =
-        Kotonoha::Providers::extractTjs2CompiledStrings(bytes);
-    const bool compiled = bytes.size() >= 7 &&
-                          std::string(bytes.begin(), bytes.begin() + 7) ==
-                              "TJS2100";
+    const auto strings = Kotonoha::Providers::extractTjs2CompiledStrings(bytes);
+    const bool compiled =
+        bytes.size() >= 7 &&
+        std::string(bytes.begin(), bytes.begin() + 7) == "TJS2100";
     std::printf("XP3 startup.tjs: %zu bytes, compiled=%d, strings=%zu\n",
                 bytes.size(), compiled ? 1 : 0, strings.size());
     startupDiagnostic = findUtf16Diagnostic(bytes);
@@ -200,9 +199,8 @@ int checkXp3(const std::filesystem::path &directory) {
     return 1;
   }
   try {
-    const std::string startup = !run.kagEntry.empty()
-                                    ? run.kagEntry
-                                    : assets.startupScenario();
+    const std::string startup =
+        !run.kagEntry.empty() ? run.kagEntry : assets.startupScenario();
     if (startup.empty()) {
       std::fprintf(stderr, "FAIL: no KAG startup resolved (TJS entry '%s')\n",
                    bootstrap.entry.c_str());
@@ -255,8 +253,9 @@ int probeXp3(const std::filesystem::path &directory) {
                 boot.entry.c_str(), boot.staticallyReferenced.size(),
                 boot.error.c_str());
     const auto text = assets.loadTextUtf8("startup.tjs");
-    std::printf("startup.tjs bytes=%zu first='%s'\n", text.size(),
-                text.substr(0, std::min<std::size_t>(120, text.size())).c_str());
+    std::printf(
+        "startup.tjs bytes=%zu first='%s'\n", text.size(),
+        text.substr(0, std::min<std::size_t>(120, text.size())).c_str());
   } catch (const std::exception &error) {
     std::printf("startup.tjs ERROR %s\n", error.what());
   }
@@ -284,8 +283,7 @@ int probeXp3(const std::filesystem::path &directory) {
 int checkVnx(const std::filesystem::path &directory) {
   Kotonoha::Providers::KirikiriAssets assets(directory);
   int failures = 0;
-  const char *const required[] = {"VNX+/sysmenu.ks",
-                                  "VNX+/scn/scenelist.scn",
+  const char *const required[] = {"VNX+/sysmenu.ks", "VNX+/scn/scenelist.scn",
                                   "VNX+/scn/00_01.ks.scn"};
   for (const char *id : required) {
     if (!assets.containsAsset(id)) {
@@ -382,8 +380,7 @@ int main(int argc, char **argv) {
       directory = env;
   }
   if (directory.empty() || !std::filesystem::is_directory(directory)) {
-    std::fprintf(stderr,
-                 "[SKIP] KIRIKIRI_TEST_DATA not provided or invalid\n");
+    std::fprintf(stderr, "[SKIP] KIRIKIRI_TEST_DATA not provided or invalid\n");
     return kSkip;
   }
   if (mode == "--vnx")

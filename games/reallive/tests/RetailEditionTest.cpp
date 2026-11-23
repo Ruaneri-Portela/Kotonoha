@@ -34,7 +34,8 @@ std::string lower(std::string value) {
 }
 bool endsWith(const std::string &value, const std::string &suffix) {
   return value.size() >= suffix.size() &&
-         value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+         value.compare(value.size() - suffix.size(), suffix.size(), suffix) ==
+             0;
 }
 } // namespace
 
@@ -56,7 +57,8 @@ int main(int argc, char **argv) {
     }
     auto mounted = Kotonoha::Filesystem::Filesystem::mount(source);
     require(Kotonoha::Filesystem::findRequiredFilesPrefix(
-                *mounted, {"Seen.txt", "Gameexe.ini"}).has_value(),
+                *mounted, {"Seen.txt", "Gameexe.ini"})
+                .has_value(),
             "mount exposes Seen.txt and Gameexe.ini");
 
     auto assets =
@@ -127,9 +129,10 @@ int main(int argc, char **argv) {
     require(game.diagnostic().empty(), "engine boot has no diagnostic");
 
     std::cout << "REALLIVE retail edition PASS: " << source << '\n'
-              << "  scenarios=" << scenarios.size() << " g00_candidates="
-              << images.size() << " decoded=" << decoded << " first_g00="
-              << chosen << " (" << width << "x" << height << ")\n";
+              << "  scenarios=" << scenarios.size()
+              << " g00_candidates=" << images.size() << " decoded=" << decoded
+              << " first_g00=" << chosen << " (" << width << "x" << height
+              << ")\n";
     SDL_Quit();
     return 0;
   } catch (const std::exception &error) {
