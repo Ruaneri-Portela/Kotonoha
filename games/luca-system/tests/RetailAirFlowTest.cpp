@@ -620,8 +620,8 @@ int main(int argc, char **argv) {
       airPath = env;
 
     if (airPath.empty() || !std::filesystem::exists(airPath)) {
-      std::cout << "skip - LUCA_SYSTEM_TEST_DATA not provided\n";
-      return 0;
+      std::cerr << "[SKIP] LUCA_SYSTEM_TEST_DATA not provided or invalid\n";
+      return 77;
     }
 
     SDL_SetAppMetadata("LucaSystem Retail Test", "0.1.0",

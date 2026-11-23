@@ -38,8 +38,8 @@ int main(int argc, char **argv) {
         data = env;
     }
     if (data.empty() || !std::filesystem::exists(data)) {
-      std::cout << "skip - REALLIVE_TEST_DATA not provided\n";
-      return 0;
+      std::cerr << "[SKIP] REALLIVE_TEST_DATA not provided or invalid\n";
+      return 77;
     }
     const auto path = std::filesystem::path(data) / "g00" / "BG008.g00";
     const auto image = RealLive::decodeG00(readFile(path));

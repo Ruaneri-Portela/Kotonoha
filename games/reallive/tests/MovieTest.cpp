@@ -29,8 +29,8 @@ int main(int argc, char **argv) {
         data = env;
     }
     if (data.empty() || !std::filesystem::exists(data)) {
-      std::cout << "skip - REALLIVE_TEST_DATA not provided\n";
-      return 0;
+      std::cerr << "[SKIP] REALLIVE_TEST_DATA not provided or invalid\n";
+      return 77;
     }
     SDL_SetAppMetadata("RealLive Movie Test", "0.1.0",
                        "me.hirameki.kotonoha.reallive.movie.test");
