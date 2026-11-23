@@ -199,7 +199,10 @@ void Mapping::mopen() {
   }
 
   const off_t targetSize =
-      std::max(static_cast<off_t>(msz_), st.st_size);
+          std::max(
+                  static_cast<decltype(st.st_size)>(msz_),
+                  st.st_size
+          );
 
   if (targetSize <= 0 ||
       static_cast<unsigned long long>(targetSize) >

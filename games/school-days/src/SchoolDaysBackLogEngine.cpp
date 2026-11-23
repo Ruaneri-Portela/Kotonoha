@@ -25,12 +25,14 @@ SchoolDaysBackLogModel::Variant BackLogVariant() {
 
 SchoolDaysBackLogEngine::SchoolDaysBackLogEngine(
     Engine &engine, Kotonoha::Providers::SchoolDaysAssets &assets)
-    : VNBacklog(engine), engine_(engine), assets_(assets) {}
+    : VNBacklog(engine), engine_(engine), assets_(assets),
+      backlogPresenter_(&assets) {}
 
 SchoolDaysBackLogEngine::~SchoolDaysBackLogEngine() { close(); }
 
 void SchoolDaysBackLogEngine::open() {
   close();
+  lastError_.clear();
   std::string failure;
   TTF_Font *font = nullptr;
   try {
@@ -49,7 +51,11 @@ void SchoolDaysBackLogEngine::open() {
                              backlogModel_.CurrentOrientation(), true, font,
                              nullptr, &failure)) {
     isOpen_ = true;
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     VNBacklog::open();
+#endif
+    // The presenter holds its own font copy; release the temporary original.
+    TTF_CloseFont(font);
     return;
   }
   if (!failure.empty())
@@ -58,9 +64,15 @@ void SchoolDaysBackLogEngine::open() {
   backlogPresenter_.Close();
   if (font)
     TTF_CloseFont(font);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   // Fall back to the engine backlog when the retail skin is unavailable.
   VNBacklog::open();
   isOpen_ = true;
+#else
+  // The native BackLog may fail with a missing skin or font. Keep generic
+  // dialogue history out of player builds and let Runtime show the failure.
+  lastError_ = failure.empty() ? "native skin or font unavailable" : failure;
+#endif
 }
 
 void SchoolDaysBackLogEngine::close() {
@@ -68,7 +80,9 @@ void SchoolDaysBackLogEngine::close() {
     return;
   backlogModel_.Close();
   backlogPresenter_.Close();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   VNBacklog::close();
+#endif
   isOpen_ = false;
 }
 
@@ -77,19 +91,30 @@ void SchoolDaysBackLogEngine::addEntry(const std::string &speaker,
   // Replica na loja nativa para preservar ScriptChange/TruncateRaw.
   backlogStore_.AppendLogMessage(static_cast<int>(backlogStore_.Size()),
                                  Utf8ToUtf16(speaker), Utf8ToUtf16(text));
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   // Replica no backlog do motor (scroll, toques, renderização base).
   VNBacklog::addEntry(speaker, text);
+#endif
 }
 
 void SchoolDaysBackLogEngine::clear() {
   backlogStore_.ResetTransient();
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   VNBacklog::clear();
+#endif
 }
 
 bool SchoolDaysBackLogEngine::onEvent(EventRef event) {
   if (!isOpen_)
     return false;
   const auto mapped = MapControllerEvent(event, false, true);
+  if (backlogModel_.IsOpen() && (mapped.type == SDL_EVENT_WINDOW_MOUSE_LEAVE ||
+                                 mapped.type == SDL_EVENT_WINDOW_FOCUS_LOST)) {
+    // No further mouse-motion event is guaranteed after focus or window exit.
+    // Clear only the blue hover CHIP; preserve entry and intra-entry scroll.
+    (void)backlogModel_.SetSelectionFromPointer(-1, -1);
+    return true;
+  }
   if (!touchActivation.accept(mapped))
     return true;
   // Fecha com Back/B ou área de fechar.
@@ -101,6 +126,25 @@ bool SchoolDaysBackLogEngine::onEvent(EventRef event) {
   }
   // Delegação ao modelo nativo quando a skin retail está aberta.
   if (backlogModel_.IsOpen()) {
+    if (mapped.type == SDL_EVENT_KEY_DOWN && !mapped.key.repeat) {
+      switch (mapped.key.key) {
+      case SDLK_UP:
+        (void)backlogModel_.StepCursor(-1);
+        break;
+      case SDLK_DOWN:
+        (void)backlogModel_.StepCursor(1);
+        break;
+      case SDLK_PAGEUP:
+        (void)backlogModel_.StepCursor(-3);
+        break;
+      case SDLK_PAGEDOWN:
+        (void)backlogModel_.StepCursor(3);
+        break;
+      default:
+        break;
+      }
+      return true;
+    }
     if (mapped.type == SDL_EVENT_MOUSE_MOTION ||
         mapped.type == SDL_EVENT_MOUSE_BUTTON_UP) {
       int x = -1, y = -1;
@@ -126,13 +170,19 @@ bool SchoolDaysBackLogEngine::onEvent(EventRef event) {
     }
     return true;
   }
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   return VNBacklog::onEvent(mapped);
+#else
+  return false;
+#endif
 }
 
 void SchoolDaysBackLogEngine::update() {
   if (!isOpen_)
     return;
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   VNBacklog::update();
+#endif
 }
 
 void SchoolDaysBackLogEngine::render(RendererRef renderer, float scale) {
@@ -146,11 +196,20 @@ void SchoolDaysBackLogEngine::render(RendererRef renderer, float scale) {
       if (!failure.empty())
         SDL_LogWarn(Kotonoha::LogUI, "School Days BackLog render failed: %s",
                     failure.c_str());
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+      lastError_ =
+          failure.empty() ? "native BackLog rendering failed" : failure;
+      close();
+#endif
       return;
     }
     return;
   }
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   VNBacklog::render(renderer, scale);
+#else
+  (void)scale;
+#endif
 }
 
 } // namespace Kotonoha

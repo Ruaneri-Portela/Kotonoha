@@ -4,7 +4,7 @@
 
 ## Ciclo de vida SDL3 compartilhado
 
-Os 11 portes utilizam `Kotonoha/core/SDLCallbackApp.hpp`. Cada jogo define
+Os ports de jogos utilizam `Kotonoha/core/SDLCallbackApp.hpp`. Cada jogo define
 uma classe com métodos estáticos `init`, `event`, `iterate` e `quit`;
 a macro `KOTONOHA_SDL_CALLBACK_APP(MeuPorte)` exporta os quatro callbacks
 exigidos pelo SDL3. Não é necessário escrever `SDL_AppInit` nem uma segunda

@@ -2,6 +2,7 @@
 
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <Pmail/Port.hpp>
 #include <algorithm>
 #include <cctype>
@@ -169,7 +170,7 @@ void PmailExtrasViewer::renderGrid(Kotonoha::RendererRef renderer,
                                    bool recollection) {
   auto *bg = background(renderer);
   if (bg)
-    SDL_RenderTexture(&renderer, bg, nullptr, nullptr);
+    Kotonoha::RenderUpscaledTexture(&renderer, bg, nullptr, nullptr);
 
   auto &ui = engine_.GetUI();
   const int category = game_.extrasViewerCategory();
@@ -204,7 +205,7 @@ void PmailExtrasViewer::renderGrid(Kotonoha::RendererRef renderer,
         const SDL_FRect dst{x + (kCellWidth - w * scale) * 0.5f,
                             y + (kCellHeight - h * scale) * 0.5f, w * scale,
                             h * scale};
-        SDL_RenderTexture(&renderer, tex, nullptr, &dst);
+        Kotonoha::RenderUpscaledTexture(&renderer, tex, nullptr, &dst);
       }
     }
     if (selected == slot + 1) {
@@ -233,7 +234,7 @@ void PmailExtrasViewer::renderGrid(Kotonoha::RendererRef renderer,
 void PmailExtrasViewer::renderMusic(Kotonoha::RendererRef renderer) {
   auto *bg = background(renderer);
   if (bg)
-    SDL_RenderTexture(&renderer, bg, nullptr, nullptr);
+    Kotonoha::RenderUpscaledTexture(&renderer, bg, nullptr, nullptr);
 
   auto &ui = engine_.GetUI();
   const auto cells = game_.extrasViewerCells();
@@ -279,7 +280,7 @@ void PmailExtrasViewer::renderFullView(Kotonoha::RendererRef renderer) {
         const SDL_FRect dst{area.x + (area.w - w * scale) * 0.5f,
                             area.y + (area.h - h * scale) * 0.5f, w * scale,
                             h * scale};
-        SDL_RenderTexture(&renderer, tex, nullptr, &dst);
+        Kotonoha::RenderUpscaledTexture(&renderer, tex, nullptr, &dst);
       }
     }
   }

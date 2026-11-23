@@ -144,6 +144,12 @@ void SnowRuntime::update() {
 bool SnowRuntime::onEvent(Kotonoha::EventRef event) {
   if (!session_)
     return false;
+  if (session_->MoviePlaying()) {
+    if (videoSkip_.accept(event))
+      session_->SkipMovie();
+    return true;
+  }
+  videoSkip_.reset();
   // The pause menu, history and save browser map controller input in their
   // own context. Pre-mapping would turn South into held skip while a menu is
   // open and Back into a history scroll instead of close.
@@ -177,6 +183,53 @@ bool SnowRuntime::onEvent(Kotonoha::EventRef event) {
 Kotonoha::Translation::SourceTexts SnowRuntime::translationSources() const {
   return session_ ? session_->TranslationSources()
                   : Kotonoha::Translation::SourceTexts{};
+}
+
+int SnowRuntime::translationRoute() const {
+  if (!session_ || !session_->Story())
+    return kNoRoute;
+  auto &story = *session_->Story();
+  if (story.hasMessage() && story.message().route != kNoRoute)
+    return story.message().route;
+  if (const auto object = story.vm().current())
+    return static_cast<int>(object->id & 0xfff);
+  return kNoRoute;
+}
+
+std::vector<std::string> SnowRuntime::activeTranslationKeys() const {
+  if (!session_ || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  std::vector<std::string> keys;
+  const auto append = [&](const std::string &key) {
+    if (!key.empty() && std::find(keys.begin(), keys.end(), key) == keys.end())
+      keys.push_back(key);
+  };
+  if (story.hasMessage()) {
+    append(story.message().name);
+    append(story.message().text);
+  }
+  if (story.choosing())
+    for (const auto &choice : story.choices())
+      append(choice);
+  return keys;
+}
+
+std::vector<Kotonoha::DebugAudioAsset> SnowRuntime::debugSceneAudio() {
+  if (!session_ || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  const auto &message = story.message();
+  const std::string id = "voice/" + message.voice;
+  if (!story.hasMessage() || message.voice.empty() || !assets_ ||
+      !assets_->contains(id))
+    return {};
+  return {{id, message.name, message.text}};
+}
+
+std::string SnowRuntime::debugNodeCatalogKey() const {
+  return session_ && session_->Story() ? session_->Story()->currentScript()
+                                       : std::string{};
 }
 
 // "start.obj | route N | pc 0x..": route N is the script id used by the

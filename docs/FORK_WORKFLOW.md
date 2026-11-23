@@ -22,12 +22,12 @@ Both platforms execute one shared School Days HQ game-logic codebase without dup
 | Branch | Role |
 |---|---|
 | `dev` | Default branch of `tsubaki-0x/Kotonoha`; active development and clean upstream collaboration baseline. |
-| `kotonoha-v3-ruaneri-sync-transitions` | Hybrid distribution branch preserving School Days HQ DEV/DIST packaging and fork-specific Windows/Android distribution infrastructure. |
+| `hybrid` | Hybrid distribution branch preserving School Days HQ DEV/DIST packaging and fork-specific Windows/Android distribution infrastructure. |
 | `upstream/dev` (`Ruaneri-Portela/Kotonoha`) | Upstream reference repository. Never push directly to `upstream`. |
 
 - Sync remotely with `git fetch origin --prune` and `git fetch upstream --prune`.
 - Always create upstream PR branches directly from `upstream/dev` with narrowly scoped commits, zero School Days symbols inside `lib/`, and zero proprietary assets.
-- Never force-push published branches (`dev` or `kotonoha-v3-ruaneri-sync-transitions`).
+- Never force-push published branches (`dev` or `hybrid`).
 
 ---
 

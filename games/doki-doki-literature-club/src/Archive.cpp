@@ -9,6 +9,7 @@
 #include <climits>
 #include <cstring>
 #include <filesystem>
+#include <limits>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -31,8 +32,14 @@ public:
       const uint8_t op = d_[p_++];
       switch (op) {
       case 0x80:
-        p_ += 1;
-        break; // PROTO
+        (void)le(1); // PROTO (including modern pickle protocols)
+        break;
+      case 0x95: { // FRAME (protocol 4+)
+        const uint64_t length = le(8);
+        if (length > n_ - p_)
+          throw PyError("unpickle: invalid frame length");
+        break;
+      }
       case '.':
         return pop(); // STOP
       case '(':
@@ -45,6 +52,8 @@ public:
         popMark();
         break;
       case '2':
+        if (stack_.empty())
+          throw PyError("unpickle: duplicate on empty stack");
         stack_.push_back(stack_.back());
         break;
       case 'N':
@@ -111,9 +120,22 @@ public:
       case 'X':
         stack_.push_back(Value::str(bytes(size_t(le(4)))));
         break;
-      case 0x8c:
+      case 0x8c: // SHORT_BINUNICODE
+      case 'C':  // SHORT_BINBYTES
         stack_.push_back(Value::str(bytes(size_t(le(1)))));
         break;
+      case 'B': // BINBYTES
+        stack_.push_back(Value::str(bytes(size_t(le(4)))));
+        break;
+      case 0x8d:   // BINUNICODE8
+      case 0x8e:   // BINBYTES8
+      case 0x96: { // BYTEARRAY8 (protocol 5)
+        const uint64_t length = le(8);
+        if (length > n_ - p_)
+          throw PyError("unpickle: invalid byte string length");
+        stack_.push_back(Value::str(bytes(size_t(length))));
+        break;
+      }
       case 'S': {
         std::string l = line();
         if (l.size() >= 2)
@@ -134,13 +156,19 @@ public:
       case 0x86:
       case 0x87: {
         const size_t k = size_t(op - 0x84);
+        if (stack_.size() < k)
+          throw PyError("unpickle: tuple stack underflow");
         std::vector<Value> v(stack_.end() - long(k), stack_.end());
         stack_.resize(stack_.size() - k);
         stack_.push_back(makeTuple(std::move(v)));
         break;
       }
       case ']':
+      case 0x8f: // EMPTY_SET
         stack_.push_back(makeList());
+        break;
+      case 0x91: // FROZENSET
+        stack_.push_back(makeList(popMark()));
         break;
       case 'l':
         stack_.push_back(makeList(popMark()));
@@ -150,6 +178,7 @@ public:
         listOf(stack_.back()).push_back(std::move(v));
         break;
       }
+      case 0x90: // ADDITEMS (set)
       case 'e': {
         auto v = popMark();
         auto &l = listOf(stack_.back());
@@ -184,13 +213,42 @@ public:
         stack_.push_back(Value::object(o));
         break;
       }
+      case 0x93: { // STACK_GLOBAL
+        const Value name = pop(), mod = pop();
+        if (!name.isStr() || !mod.isStr())
+          throw PyError("unpickle: invalid global name");
+        stack_.push_back(
+            Value::object(makeObj(Object::K::Class, mod.s + "." + name.s)));
+        break;
+      }
+      case 'i': { // INST (legacy Ren'Py / pickle protocol 0)
+        const std::string mod = line(), name = line();
+        stack_.push_back(construct(mod + "." + name, popMark(), false));
+        break;
+      }
+      case 'o': { // OBJ
+        auto args = popMark();
+        if (args.empty())
+          throw PyError("unpickle: missing OBJ constructor");
+        const std::string cls = args.front().cls();
+        args.erase(args.begin());
+        stack_.push_back(construct(cls, args, false));
+        break;
+      }
       case 'R': {
         Value args = pop(), fn = pop();
         stack_.push_back(construct(fn.cls(), args.items(), true));
         break;
       }
-      case 0x81: {
+      case 0x81: { // NEWOBJ
         Value args = pop(), fn = pop();
+        stack_.push_back(construct(fn.cls(), args.items(), false));
+        break;
+      }
+      case 0x92: { // NEWOBJ_EX
+        Value kwargs = pop(), args = pop(), fn = pop();
+        if (!kwargs.isObj() || kwargs.o->k != Object::K::Dict)
+          throw PyError("unpickle: invalid NEWOBJ_EX keyword arguments");
         stack_.push_back(construct(fn.cls(), args.items(), false));
         break;
       }
@@ -200,13 +258,18 @@ public:
         break;
       }
       case 'q':
-        memo_[uint32_t(le(1))] = stack_.back();
+        storeMemo(uint32_t(le(1)));
         break;
       case 'r':
-        memo_[uint32_t(le(4))] = stack_.back();
+        storeMemo(uint32_t(le(4)));
         break;
       case 'p':
-        memo_[uint32_t(std::stoul(line()))] = stack_.back();
+        storeMemo(uint32_t(std::stoul(line())));
+        break;
+      case 0x94: // MEMOIZE
+        if (nextMemo_ > UINT32_MAX)
+          throw PyError("unpickle: memo table too large");
+        storeMemo(uint32_t(nextMemo_));
         break;
       case 'h':
         stack_.push_back(memo_.at(uint32_t(le(1))));
@@ -226,8 +289,15 @@ public:
 
 private:
   void need(size_t k) {
-    if (p_ + k > n_)
+    if (k > n_ - p_)
       throw PyError("unpickle: truncated data");
+  }
+  void storeMemo(uint32_t index) {
+    if (stack_.empty())
+      throw PyError("unpickle: memoize on empty stack");
+    memo_[index] = stack_.back();
+    if (nextMemo_ <= index)
+      nextMemo_ = uint64_t(index) + 1;
   }
   uint64_t le(size_t k) {
     need(k);
@@ -239,13 +309,17 @@ private:
   }
   int64_t longN(size_t k) {
     need(k);
-    int64_t v = 0;
-    for (size_t j = 0; j < k && j < 8; ++j)
-      v |= int64_t(d_[p_ + j]) << (8 * j);
-    if (k > 0 && k < 8 && (d_[p_ + k - 1] & 0x80))
-      v -= int64_t(1) << (8 * k);
+    if (k > sizeof(int64_t))
+      throw PyError("unpickle: integer exceeds 64 bits");
+    uint64_t bits = 0;
+    for (size_t j = 0; j < k; ++j)
+      bits |= uint64_t(d_[p_ + j]) << (8 * j);
+    if (k > 0 && k < sizeof(int64_t) && (d_[p_ + k - 1] & 0x80))
+      bits |= UINT64_MAX << (8 * k);
     p_ += k;
-    return v;
+    int64_t value = 0;
+    std::memcpy(&value, &bits, sizeof(value));
+    return value;
   }
   std::string bytes(size_t k) {
     need(k);
@@ -257,6 +331,8 @@ private:
     size_t e = p_;
     while (e < n_ && d_[e] != '\n')
       ++e;
+    if (e == n_)
+      throw PyError("unpickle: unterminated line");
     std::string s(reinterpret_cast<const char *>(d_ + p_), e - p_);
     p_ = e + 1;
     return s;
@@ -336,14 +412,14 @@ private:
     }
     if (state.isObj() && state.o->k == Object::K::Tuple) {
       const auto &t = state.o->items;
-      bool dicts = true;
-      for (const auto &part : t)
-        if (!part.isNone() && !(part.isObj() && part.o->k == Object::K::Dict))
-          dicts = false;
-      if (dicts) {
-        for (const auto &part : t)
+      bool mergedDict = false;
+      for (const auto &part : t) {
+        if (part.isObj() && part.o->k == Object::K::Dict) {
           mergeState(o, part);
-      } else if (t.size() >= 2) {
+          mergedDict = true;
+        }
+      }
+      if (!mergedDict && t.size() >= 2) {
         // PyCode: (version, source, location, mode)
         o.attrs["source"] = t[1];
         if (t.size() >= 4)
@@ -359,6 +435,7 @@ private:
   std::vector<Value> stack_;
   std::vector<size_t> marks_;
   std::unordered_map<uint32_t, Value> memo_;
+  uint64_t nextMemo_ = 0;
 };
 
 } // namespace
@@ -368,6 +445,10 @@ Value unpickle(const uint8_t *data, size_t size) {
 }
 
 bool inflate(const uint8_t *data, size_t size, std::vector<uint8_t> &out) {
+  // Archive indexes and compiled scripts should never expand without bound.
+  constexpr size_t kMaxOutput = 256ull * 1024 * 1024;
+  if (size > std::numeric_limits<uInt>::max())
+    return false;
   z_stream z{};
   if (inflateInit(&z) != Z_OK)
     return false;
@@ -380,7 +461,12 @@ bool inflate(const uint8_t *data, size_t size, std::vector<uint8_t> &out) {
     z.next_out = buf.data();
     z.avail_out = uInt(buf.size());
     r = ::inflate(&z, Z_NO_FLUSH);
-    out.insert(out.end(), buf.data(), buf.data() + (buf.size() - z.avail_out));
+    const size_t produced = buf.size() - z.avail_out;
+    if (produced > kMaxOutput - out.size()) {
+      inflateEnd(&z);
+      return false;
+    }
+    out.insert(out.end(), buf.data(), buf.data() + produced);
   }
   inflateEnd(&z);
   return r == Z_STREAM_END;
@@ -417,7 +503,12 @@ bool Archive::open(File candidate) {
   unsigned int key = 0;
   if (std::sscanf(header, "RPE-1.0 %x %llx", &key, &offset) == 2)
     key ^= 0xffffffffu;
-  else if (std::sscanf(header, "RPA-3.0 %llx %x", &offset, &key) != 2)
+  else if (std::sscanf(header, "RPA-3.0 %llx %x", &offset, &key) == 2) {
+    // Ren'Py 6.99+ uses XOR-obfuscated offsets and sizes.
+  } else if (std::sscanf(header, "RPA-2.0 %llx", &offset) == 1) {
+    // Older Ren'Py games, including 6.x-era distributions, use plain offsets.
+    key = 0;
+  } else
     return false;
   const auto end = candidate->size();
   if (end < 0 || offset >= uint64_t(end) ||
@@ -454,9 +545,12 @@ bool Archive::open(File candidate) {
       e.length = uint64_t(t[1].integer() ^ int64_t(key));
       if (t.size() > 2 && t[2].isStr())
         e.prefix = t[2].s;
-      if (e.prefix.size() > e.length || e.offset > offset ||
-          e.length - e.prefix.size() > offset - e.offset ||
-          e.length > 1024ull * 1024 * 1024)
+      // A triple (offset, length, prefix) represents prefix bytes followed by
+      // the full archive slice. The prefix is *in addition* to length, not a
+      // portion of it (same as Ren'Py's archive compatibility path).
+      constexpr uint64_t kMaxAsset = 1024ull * 1024 * 1024;
+      if (e.offset > offset || e.length > offset - e.offset ||
+          e.length > kMaxAsset || e.prefix.size() > kMaxAsset - e.length)
         return false;
       chunks.push_back(std::move(e));
     }
@@ -476,10 +570,12 @@ std::vector<uint8_t> Archive::read(const std::string &name) const {
   std::lock_guard<std::mutex> lock(readMutex_);
   std::vector<uint8_t> out;
   for (const auto &e : found->second) {
-    if (e.length > 1024ull * 1024 * 1024 - out.size())
-      throw std::runtime_error("DDLC asset exceeds size limit");
+    constexpr uint64_t kMaxAsset = 1024ull * 1024 * 1024;
+    if (out.size() > kMaxAsset || e.prefix.size() > kMaxAsset - out.size() ||
+        e.length > kMaxAsset - out.size() - e.prefix.size())
+      throw std::runtime_error("Ren'Py asset exceeds size limit");
     out.insert(out.end(), e.prefix.begin(), e.prefix.end());
-    const auto body = size_t(e.length) - e.prefix.size(), at = out.size();
+    const auto body = size_t(e.length), at = out.size();
     out.resize(at + body);
     if (e.offset > static_cast<uint64_t>(INT64_MAX) ||
         file_->seek(static_cast<std::int64_t>(e.offset),
@@ -565,12 +661,20 @@ bool Assets::open(std::shared_ptr<Kotonoha::Filesystem::Filesystem> source) {
   overlayNames_ = {};
   rootNames_ = {};
 
-  // A retail DDLC tree is commonly rooted at game/, but some clients pass
-  // that folder as the root. Index relative IDs the same way in both cases.
-  const std::string prefix =
-      mounted_->exists("game/scripts.rpa") ? "game/" : "";
+  // Ren'Py distributions may put game data under game/ or mount game/
+  // directly. In particular, Katawa uses data.rpa rather than scripts.rpa.
+  // Discover the directory instead of assuming a DDLC archive filename.
+  std::string gameRoot;
+  for (const auto &entry : mounted_->list("")) {
+    if (entry.type == Kotonoha::Filesystem::FileType::Directory &&
+        lower(entry.path) == "game") {
+      gameRoot = entry.path;
+      break;
+    }
+  }
+  const std::string prefix = gameRoot.empty() ? "" : gameRoot + "/";
   std::vector<std::string> packages;
-  std::vector<std::string> folders{prefix.empty() ? "" : "game"};
+  std::vector<std::string> folders{gameRoot};
   while (!folders.empty()) {
     auto folder = std::move(folders.back());
     folders.pop_back();
@@ -686,6 +790,13 @@ std::vector<std::string> Assets::names() const {
 }
 
 bool loadRpyc(const std::vector<uint8_t> &file, Value &out) {
+  if (file.size() >= 2 && file[0] == 0x78) {
+    std::vector<uint8_t> raw;
+    if (!inflate(file.data(), file.size(), raw))
+      return false;
+    out = unpickle(raw);
+    return true;
+  }
   if (file.size() < 10 || std::memcmp(file.data(), "RENPY RPC2", 10) != 0)
     return false;
   size_t pos = 10;
@@ -693,18 +804,36 @@ bool loadRpyc(const std::vector<uint8_t> &file, Value &out) {
     return uint32_t(file[at]) | uint32_t(file[at + 1]) << 8 |
            uint32_t(file[at + 2]) << 16 | uint32_t(file[at + 3]) << 24;
   };
-  while (pos + 12 <= file.size()) {
-    const uint32_t slot = u32(pos), start = u32(pos + 4), len = u32(pos + 8);
+  struct Slot {
+    uint32_t id, start, length;
+  };
+  std::vector<Slot> slots;
+  while (file.size() - pos >= 12) {
+    const Slot slot{u32(pos), u32(pos + 4), u32(pos + 8)};
     pos += 12;
-    if (slot == 0)
+    if (slot.id == 0)
       break;
-    if (slot != 1 || size_t(start) + len > file.size())
-      continue;
-    std::vector<uint8_t> raw;
-    if (!inflate(file.data() + start, len, raw))
-      return false;
-    out = unpickle(raw);
-    return true;
+    if (slot.id == 1 || slot.id == 2)
+      slots.push_back(slot);
+  }
+  // Ren'Py prefers slot 2: its statically transformed AST is the same one
+  // the original runtime executes. Fall back to slot 1 for older builds or
+  // damaged/missing transformed bytecode.
+  for (uint32_t wanted : {2u, 1u}) {
+    for (const Slot &slot : slots) {
+      if (slot.id != wanted || slot.start > file.size() ||
+          slot.length > file.size() - slot.start)
+        continue;
+      std::vector<uint8_t> raw;
+      if (!inflate(file.data() + slot.start, slot.length, raw))
+        continue;
+      try {
+        out = unpickle(raw);
+        return true;
+      } catch (const std::exception &) {
+        // A broken/unsupported slot need not invalidate the other slot.
+      }
+    }
   }
   return false;
 }

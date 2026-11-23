@@ -2,6 +2,7 @@
 #include <Kotonoha/events/InputActions.hpp>
 
 #include <Kotonoha/core/Config.hpp>
+#include <Kotonoha/core/InputMapper.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Settings.hpp>
 
@@ -90,6 +91,8 @@ protected:
 private:
   struct Dialog;
   TouchPointer touchPointer;
+  GamepadManager gamepadManager;
+  bool gamepadInitialized = false;
   static void SDLCALL dialogFinished(void *data, const char *const *files,
                                      int filter);
   std::string title, settingsPath, status;

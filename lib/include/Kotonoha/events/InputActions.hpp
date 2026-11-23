@@ -12,17 +12,21 @@ class InputActions {
   struct Finger {
     float x, y, lastX, lastY;
     bool moved = false;
+    Uint64 downTimeMs = 0;
   };
   std::map<std::pair<SDL_TouchID, SDL_FingerID>, Finger> fingers;
   bool multi = false, backGesture = false, backlogGesture = false,
-       tapGesture = false;
+       tapGesture = false, skipGesture = false, longPressTriggered = false;
 
 public:
   void process(EventRef);
+  void process(EventRef, Uint64 nowMs);
   void reset();
   bool back(EventRef) const;
   bool backlog(EventRef) const;
+  bool skip(EventRef) const;
   bool tap() const { return tapGesture; }
+  bool pollLongPress(Uint64 nowMs);
 };
 // Converts one physical touch to a window-space pointer for mouse-based UIs.
 class TouchPointer {

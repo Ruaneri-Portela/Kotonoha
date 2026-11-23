@@ -35,9 +35,12 @@ public:
   // Back gesture accidentally advance the story before it opens the menu.
   bool continuousTouch() const override { return false; }
   Kotonoha::Translation::SourceTexts translationSources() const override;
+  std::vector<std::string> activeTranslationKeys() const override;
   std::string debugNode() const override;
   std::string nodeClockKey() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
+  void debugOverlayAssetChanged(const std::string &id) override;
   void debugJumpToNode(const std::string &id) override;
 
 private:

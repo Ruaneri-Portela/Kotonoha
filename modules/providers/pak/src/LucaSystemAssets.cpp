@@ -7,9 +7,13 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <algorithm>
+#include <array>
 #include <cctype>
+#include <charconv>
 #include <cstring>
 #include <filesystem>
+#include <limits>
+#include <optional>
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
@@ -74,6 +78,82 @@ uint32_t readU32(const std::vector<std::uint8_t> &data, size_t off) {
          (static_cast<uint32_t>(data[off + 1]) << 8) |
          (static_cast<uint32_t>(data[off + 2]) << 16) |
          (static_cast<uint32_t>(data[off + 3]) << 24);
+}
+
+struct VoiceId {
+  uint32_t entry = 0;
+  std::optional<uint32_t> clip;
+};
+
+bool parseAssetNumber(std::string_view text, uint32_t &value) {
+  if (text.empty())
+    return false;
+  const auto end = text.data() + text.size();
+  const auto parsed = std::from_chars(text.data(), end, value);
+  return parsed.ec == std::errc{} && parsed.ptr == end;
+}
+
+std::optional<VoiceId> parseVoiceId(std::string_view suffix) {
+  VoiceId id;
+  const auto colon = suffix.find(':');
+  if (!parseAssetNumber(suffix.substr(0, colon), id.entry))
+    return std::nullopt;
+  if (colon != std::string_view::npos &&
+      !parseAssetNumber(suffix.substr(colon + 1), id.clip.emplace()))
+    return std::nullopt;
+  return id;
+}
+
+bool hasOggCapture(const std::vector<std::uint8_t> &bytes, size_t offset) {
+  return offset <= bytes.size() && bytes.size() - offset >= 4 &&
+         std::memcmp(bytes.data() + offset, "OggS", 4) == 0;
+}
+
+std::vector<std::uint8_t> selectVoiceClip(std::vector<std::uint8_t> bytes,
+                                          uint32_t clipIndex) {
+  // LuckSystem's voice/oggpak.go skips seven header bytes, then reads
+  // repeated LE (sample rate, byte length, Ogg data) records until EOF.
+  // It leaves the header opaque. Detect a named OggPak header or an Ogg
+  // capture at the first record's payload offset for other header contents.
+  constexpr size_t headerSize = 7;
+  constexpr size_t recordSize = 8;
+  constexpr std::string_view magic = "oggpak";
+  const bool knownHeader =
+      bytes.size() >= magic.size() &&
+      std::equal(magic.begin(), magic.end(), bytes.begin(),
+                 [](char c, std::uint8_t b) { return c == std::tolower(b); });
+  if (hasOggCapture(bytes, 0) ||
+      (!knownHeader && !hasOggCapture(bytes, headerSize + recordSize))) {
+    if (clipIndex != 0)
+      throw std::runtime_error("LucaSystem: voice clip index out of range");
+    return bytes;
+  }
+
+  size_t selected = 0;
+  size_t selectedLength = 0;
+  size_t index = 0;
+  size_t offset = headerSize;
+  if (bytes.size() <= offset)
+    throw std::runtime_error("OggPak: missing clip records");
+  while (offset < bytes.size()) {
+    if (bytes.size() - offset < recordSize)
+      throw std::runtime_error("OggPak: truncated clip header");
+    // The engine's decoder gets the sample rate from the Ogg stream.
+    const auto length = readU32(bytes, offset + 4);
+    offset += recordSize;
+    if (length > bytes.size() - offset)
+      throw std::runtime_error("OggPak: truncated clip payload");
+    if (length < 4 || !hasOggCapture(bytes, offset))
+      throw std::runtime_error("OggPak: invalid Ogg capture");
+    if (index++ == clipIndex) {
+      selected = offset;
+      selectedLength = length;
+    }
+    offset += length;
+  }
+  if (selectedLength == 0)
+    throw std::runtime_error("OggPak: voice clip index out of range");
+  return {bytes.begin() + selected, bytes.begin() + selected + selectedLength};
 }
 
 std::string readCString(const std::vector<std::uint8_t> &data, size_t &cursor) {
@@ -244,6 +324,112 @@ std::vector<std::uint8_t> PakArchive::read(std::string_view name) const {
   return read(*entry);
 }
 
+void PakArchive::repack(
+    std::ostream &output,
+    const std::map<uint32_t, std::filesystem::path> &replacements) const {
+  const uint64_t block = header_.blockSize;
+  if (header_.headerLength % block != 0)
+    throw std::runtime_error("PAK: cannot repack an unaligned header");
+  if (named_ && offsetPos < 40)
+    throw std::runtime_error("PAK: invalid name table pointer field");
+  for (const auto &[id, path] : replacements) {
+    if (!findById(id))
+      throw std::runtime_error("PAK: unknown replacement ID " +
+                               std::to_string(id));
+    if (!std::filesystem::is_regular_file(path))
+      throw std::runtime_error("PAK: not a replacement file: " + path.string());
+  }
+
+  auto source = source_->open(sourceId_);
+  const auto sourceSize = source->size();
+  if (sourceSize < 0)
+    throw std::runtime_error("PAK: archive size unavailable");
+  Kotonoha::Filesystem::InputFile input(std::move(source));
+  auto repackedHeader = headerData_;
+  const auto putU32 = [&](size_t pos, uint64_t value) {
+    if (value > std::numeric_limits<uint32_t>::max())
+      throw std::runtime_error("PAK: repacked offset or length exceeds format");
+    for (size_t shift = 0; shift < 32; shift += 8)
+      repackedHeader.at(pos++) = static_cast<uint8_t>(value >> shift);
+  };
+  const auto padding = [block](uint64_t end) {
+    return (block - end % block) % block;
+  };
+  const bool externalNames =
+      named_ && readU32(headerData_, offsetPos - 4) >= headerData_.size();
+  uint64_t offset = header_.headerLength;
+  std::vector<uint32_t> lengths;
+  lengths.reserve(entries_.size());
+  for (const auto &entry : entries_) {
+    uint64_t length = entry.length;
+    const auto replacement = replacements.find(entry.id);
+    if (replacement != replacements.end()) {
+      length = std::filesystem::file_size(replacement->second);
+    } else if (entry.offset > uint64_t(sourceSize) ||
+               length > uint64_t(sourceSize) - entry.offset) {
+      throw std::runtime_error("PAK: original entry exceeds archive");
+    }
+    const size_t row = offsetPos + size_t(entry.index) * 8;
+    putU32(row, offset / block);
+    putU32(row + 4, length);
+    lengths.push_back(static_cast<uint32_t>(length));
+    offset += length;
+    offset += padding(offset);
+  }
+  if (externalNames)
+    putU32(offsetPos - 4, offset);
+  // The reader discovers the start of the table by scanning for the first
+  // entry's block offset. An external name pointer must not shadow it.
+  for (size_t pos = 32; pos < offsetPos; pos += 4) {
+    if (readU32(repackedHeader, pos) == header_.headerLength / block)
+      throw std::runtime_error("PAK: repacked header would hide offset table");
+  }
+
+  const auto write = [&](const char *data, std::streamsize count) {
+    if (!output.write(data, count))
+      throw std::runtime_error("PAK: cannot write repacked archive");
+  };
+  write(reinterpret_cast<const char *>(repackedHeader.data()),
+        static_cast<std::streamsize>(repackedHeader.size()));
+  std::array<char, 64 * 1024> buffer{};
+  const auto copy = [&](std::istream &file, uint64_t count) {
+    while (count != 0) {
+      const auto chunk = std::min<uint64_t>(count, buffer.size());
+      if (!file.read(buffer.data(), static_cast<std::streamsize>(chunk)))
+        throw std::runtime_error("PAK: cannot read complete entry payload");
+      write(buffer.data(), static_cast<std::streamsize>(chunk));
+      count -= chunk;
+    }
+  };
+  const std::array<char, 4096> zeros{};
+  for (const auto &entry : entries_) {
+    const auto length = lengths[entry.index];
+    const auto replacement = replacements.find(entry.id);
+    if (replacement != replacements.end()) {
+      Kotonoha::Filesystem::InputFile file(replacement->second);
+      if (!file)
+        throw std::runtime_error("PAK: cannot open replacement file");
+      copy(file, length);
+      if (file.peek() != std::char_traits<char>::eof() || file.bad())
+        throw std::runtime_error("PAK: replacement changed while reading");
+    } else {
+      if (!input.seekg(static_cast<std::streamoff>(entry.offset)))
+        throw std::runtime_error("PAK: cannot seek to original entry");
+      copy(input, length);
+    }
+    for (auto remaining = padding(length); remaining != 0;) {
+      const auto chunk = std::min<uint64_t>(remaining, zeros.size());
+      write(zeros.data(), static_cast<std::streamsize>(chunk));
+      remaining -= chunk;
+    }
+  }
+  if (externalNames) {
+    for (const auto &entry : entries_)
+      write(entry.name.c_str(),
+            static_cast<std::streamsize>(entry.name.size() + 1));
+  }
+}
+
 } // namespace LucaSystem
 
 namespace Kotonoha::Providers {
@@ -296,10 +482,21 @@ LucaSystemAssets::LucaSystemAssets(
                      [](unsigned char ch) { return char(std::tolower(ch)); });
       if (ext != ".pak")
         continue;
-      const bool corePak = std::find(core.begin(), core.end(),
-                                     name.filename().string()) != core.end();
-      if (file.path.compare(0, prefix_.size(), prefix_) == 0 &&
-          (file.path.substr(prefix_.size()).find('/') != std::string::npos ||
+      auto fileUpper = name.filename().string();
+      std::transform(fileUpper.begin(), fileUpper.end(), fileUpper.begin(),
+                     [](unsigned char ch) { return char(std::toupper(ch)); });
+      const bool corePak =
+          std::find(core.begin(), core.end(), fileUpper) != core.end();
+      std::string pathLower = file.path;
+      std::transform(pathLower.begin(), pathLower.end(), pathLower.begin(),
+                     [](unsigned char ch) { return char(std::tolower(ch)); });
+      std::string prefixLower = prefix_;
+      std::transform(prefixLower.begin(), prefixLower.end(),
+                     prefixLower.begin(),
+                     [](unsigned char ch) { return char(std::tolower(ch)); });
+      if (pathLower.compare(0, prefixLower.size(), prefixLower) == 0 &&
+          (pathLower.substr(prefixLower.size()).find('/') !=
+               std::string::npos ||
            !corePak))
         other.push_back(file.path);
     }
@@ -359,13 +556,13 @@ void LucaSystemAssets::mountPak(const std::string &path) {
                      : isBgmArchive   ? "music"
                      : isSeArchive    ? "se"
                                       : "data";
-  if (file.filename() == "PARAM.PAK") {
+  if (fileNameUpper == "PARAM.PAK") {
     paramPak_ = std::move(archive);
     role = "PARAM";
-  } else if (file.filename() == "SCRIPT.PAK") {
+  } else if (fileNameUpper == "SCRIPT.PAK") {
     scriptPak_ = std::move(archive);
     role = "SCRIPT";
-  } else if (file.filename() == "SYSSE.PAK") {
+  } else if (fileNameUpper == "SYSSE.PAK") {
     syssePak_ = std::move(archive);
     role = "SYSSE";
   } else {
@@ -397,10 +594,22 @@ std::string LucaSystemAssets::resolveLooseId(const std::string &id) const {
 }
 
 bool LucaSystemAssets::containsAsset(const std::string &id) const {
+  if (id.rfind("image:", 0) == 0) {
+    uint32_t number = 0;
+    return parseAssetNumber(std::string_view(id).substr(6), number) &&
+           (imageIdToPak_.count(number) != 0 || number == 65000 ||
+            number == 65001);
+  }
   if (id.rfind("voice:", 0) == 0) {
+    const auto voice = parseVoiceId(std::string_view(id).substr(6));
+    if (!voice || !hasVoiceAsset(voice->entry))
+      return false;
+    if (!voice->clip)
+      return true;
     try {
-      return hasVoiceAsset(static_cast<uint32_t>(std::stoul(id.substr(6))));
-    } catch (...) {
+      (void)readVoiceAsset(voice->entry, *voice->clip);
+      return true;
+    } catch (const std::exception &) {
       return false;
     }
   }
@@ -423,10 +632,38 @@ bool LucaSystemAssets::containsAsset(const std::string &id) const {
   return !resolveLooseId(id).empty();
 }
 
+std::string LucaSystemAssets::overlayId(const std::string &id) const {
+  if (id.rfind("image:", 0) == 0) {
+    uint32_t number = 0;
+    if (parseAssetNumber(std::string_view(id).substr(6), number))
+      return "image/" + std::to_string(number) + ".cz";
+  }
+  if (id.rfind("voice:", 0) == 0) {
+    if (const auto voice = parseVoiceId(std::string_view(id).substr(6))) {
+      return "voice/" + std::to_string(voice->entry) + "/" +
+             std::to_string(voice->clip.value_or(0)) + ".ogg";
+    }
+  }
+  return id;
+}
+
 std::vector<std::uint8_t>
 LucaSystemAssets::readAsset(const std::string &id) const {
-  if (id.rfind("voice:", 0) == 0)
-    return readVoiceAsset(static_cast<uint32_t>(std::stoul(id.substr(6))));
+  if (id.rfind("image:", 0) == 0) {
+    uint32_t number = 0;
+    if (!parseAssetNumber(std::string_view(id).substr(6), number) ||
+        !containsAsset(id))
+      throw std::runtime_error("LucaSystem: image asset not found: " + id);
+    return readImageAsset(number);
+  }
+  if (id.rfind("voice:", 0) == 0) {
+    const auto voice = parseVoiceId(std::string_view(id).substr(6));
+    if (!voice)
+      throw std::runtime_error("LucaSystem: invalid voice asset id: " + id);
+    if (voice->clip && !hasVoiceAsset(voice->entry))
+      throw std::runtime_error("LucaSystem: voice asset not found: " + id);
+    return readVoiceAsset(voice->entry, voice->clip.value_or(0));
+  }
   if (id.rfind("bgm:", 0) == 0)
     return readBgmAsset(static_cast<uint32_t>(std::stoul(id.substr(4))));
   if (id.rfind("se:", 0) == 0)
@@ -511,13 +748,17 @@ bool LucaSystemAssets::hasSeAsset(uint32_t id) const {
   return seIdToPak_.count(id) > 0;
 }
 
-std::vector<std::uint8_t> LucaSystemAssets::readVoiceAsset(uint32_t id) const {
+std::vector<std::uint8_t>
+LucaSystemAssets::readVoiceAsset(uint32_t id, uint32_t clipIndex) const {
   auto it = voiceIdToPak_.find(id);
   if (it != voiceIdToPak_.end()) {
     const auto *entry = it->second->findById(id);
     if (entry)
-      return it->second->read(*entry);
+      return selectVoiceClip(it->second->read(*entry), clipIndex);
   }
+  if (clipIndex != 0)
+    throw std::runtime_error("LucaSystem: voice asset not found: " +
+                             std::to_string(id));
   return readAsset(id);
 }
 
@@ -557,11 +798,27 @@ LucaSystemAssets::openStream(const std::string &id) const {
 std::vector<std::string>
 LucaSystemAssets::listAsset(const std::string &prefix) const {
   std::vector<std::string> result;
-  for (const auto &[name, _] : idToPak_) {
-    if (prefix.empty() || name.rfind(prefix, 0) == 0)
-      result.push_back(name);
-  }
+  // Expose the exact logical resource IDs supported by read()/loadSurface()
+  // and by the native VM, rather than only named archive entries. Image,
+  // voice, BGM and SE archives often contain numeric-only entries.
+  const auto append = [&](const std::string &id) {
+    if (prefix.empty() || id.rfind(prefix, 0) == 0)
+      result.push_back(id);
+  };
+  for (const auto &[name, _] : idToPak_)
+    append(name);
+  const auto numeric = [&](const auto &entries, const char *kind) {
+    for (const auto &[id, pak] : entries)
+      append(std::string(kind) + ":" + std::to_string(id));
+  };
+  numeric(imageIdToPak_, "image");
+  numeric(voiceIdToPak_, "voice");
+  numeric(bgmIdToPak_, "bgm");
+  numeric(seIdToPak_, "se");
+  append("image:65000"); // VM synthetic white fill
+  append("image:65001"); // VM synthetic black fill
   std::sort(result.begin(), result.end());
+  result.erase(std::unique(result.begin(), result.end()), result.end());
   return result;
 }
 

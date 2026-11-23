@@ -8,6 +8,7 @@
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <Kotonoha/script/TimelinePlayer.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -344,6 +345,10 @@ void AmagamiBacklog::renderEntries(Kotonoha::RendererRef r) {
   SDL_Rect clip{44, 16, 552, 416};
   SDL_SetRenderClipRect(&r, &clip);
   auto &ui = engine.GetVNUI();
+  const auto &settings = engine.GetSettings();
+  const SDL_Color textColor = settings.vnTextColorOverride
+                                  ? settings.vnTextColor
+                                  : SDL_Color{240, 240, 245, 255};
   for (size_t i = 0; i < rows_.size(); ++i) {
     const auto &row = rows_[i];
     const float y = 16 + row.top - scroll;
@@ -353,7 +358,7 @@ void AmagamiBacklog::renderEntries(Kotonoha::RendererRef r) {
       engine.GetUI().panel(r, {44, y, 552, row.height}, {204, 153, 102, 42});
     for (size_t line = 0; line < row.lines.size(); ++line)
       ui.textSized(r, row.lines[line], 44, y + float(line) * 44, 552, 24,
-                   {240, 240, 245, 255});
+                   textColor);
   }
   SDL_SetRenderClipRect(&r, clipped ? &previous : nullptr);
   if (maxScroll > 0) {
@@ -364,6 +369,52 @@ void AmagamiBacklog::renderEntries(Kotonoha::RendererRef r) {
         r, {611, 16 + (416 - height) * scroll / maxScroll, 5, height},
         {240, 210, 180, 210});
   }
+}
+std::string AmagamiMenu::itemLabel(int index) const {
+  static const char *labels[]{"戻る", "セーブ", "ロード", "タイトルへ", "設定"};
+  return index >= 0 && index < 5
+             ? engine.GetTranslation().text(-1, labels[index])
+             : "";
+}
+SDL_FRect AmagamiMenu::itemRect(int index) const {
+  return {180, 100.0f + static_cast<float>(index) * 54.0f, 280, 44};
+}
+void AmagamiMenu::activate(int index) {
+  if (index == 0) {
+    close();
+    if (onResumeCb)
+      onResumeCb();
+    return;
+  }
+  if (index == 4) {
+    close();
+    if (onSettingsCb)
+      onSettingsCb();
+    else
+      engine.openSettings();
+    return;
+  }
+  if (index == 3) {
+    close();
+    engine.GetTimeline().stop();
+    if (onReturnToMenuCb)
+      onReturnToMenuCb();
+    else {
+      engine.GetRuntime().SetState(Kotonoha::GameState::Menu);
+      engine.GetRuntime().init(engine);
+    }
+    return;
+  }
+  close();
+  const auto &callback = index == 1 ? onSaveCb : onLoadCb;
+  if (callback)
+    callback();
+  else
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "No save/load handler registered");
+}
+void AmagamiMenu::renderPanel(Kotonoha::RendererRef r) {
+  engine.GetUI().backdrop(r, {0, 0, 0, 170});
 }
 void AmagamiEventMap::setEvents(
     std::vector<Campaign::Event> available, std::vector<Campaign::Event> map,
@@ -635,6 +686,10 @@ AmagamiRuntime::~AmagamiRuntime() { shutdown(); }
 void AmagamiRuntime::shutdown() {
   voice_.Stop();
   music_.Stop();
+  if (saveMenu_)
+    saveMenu_->close();
+  if (menu_)
+    menu_->close();
   if (eventMap_)
     eventMap_->hide();
   campaignMapKey_.clear();
@@ -676,6 +731,31 @@ void AmagamiRuntime::initGlobal(Kotonoha::Engine &e) {
     eventMap_ = std::make_unique<AmagamiEventMap>(e, *assets_);
     AddScene(eventMap_.get(), Kotonoha::GameState::Gameplay);
   }
+  if (!menu_) {
+    menu_ = std::make_unique<AmagamiMenu>(e);
+    menu_->SetOnSave([this] { openSaves(false); });
+    menu_->SetOnLoad([this] { openSaves(true); });
+    menu_->SetOnReturnToMenu([this] {
+      shutdown();
+      SetState(Kotonoha::GameState::Menu);
+    });
+    menu_->SetOnSettings([this] {
+      if (engine_)
+        engine_->openSettings();
+    });
+    menu_->SetOnClose([this] {
+      paused_ = false;
+      frameClock_.reset();
+    });
+    AddScene(menu_.get(), Kotonoha::GameState::Gameplay);
+  }
+  if (!saveMenu_) {
+    saveMenu_ = std::make_unique<Kotonoha::VNSaveMenu>(e);
+    saveMenu_->SetOnClose([this] {
+      paused_ = false;
+      frameClock_.reset();
+    });
+  }
   savePath_ = (Kotonoha::saveDirectory() / "quick-save.txt").string();
 }
 void AmagamiRuntime::initMenu(Kotonoha::Engine &) {
@@ -686,6 +766,18 @@ void AmagamiRuntime::initMenu(Kotonoha::Engine &) {
   }
 }
 void AmagamiRuntime::initGameplay(Kotonoha::Engine &) {}
+void AmagamiRuntime::openSaves(bool load) {
+  if (!saveMenu_ || !session_)
+    return;
+  const auto directory = Kotonoha::saveDirectory() / "amagami";
+  std::error_code ec;
+  std::filesystem::create_directories(directory, ec);
+  paused_ = true;
+  saveMenu_->open(directory.string(), load, session_->name());
+  const auto &scenes = GetActiveScenes();
+  if (std::find(scenes.begin(), scenes.end(), saveMenu_.get()) == scenes.end())
+    AddScene(saveMenu_.get(), Kotonoha::GameState::Gameplay);
+}
 void AmagamiRuntime::start(const std::string &name, bool campaign) {
   error_.clear();
   notice_.clear();
@@ -701,6 +793,10 @@ void AmagamiRuntime::start(const std::string &name, bool campaign) {
   choices_->hide();
   eventMap_->hide();
   campaignMapKey_.clear();
+  if (menu_)
+    menu_->close();
+  if (saveMenu_)
+    saveMenu_->close();
   if (campaign)
     session_->startCampaign();
   else
@@ -956,6 +1052,24 @@ void AmagamiRuntime::renderModeIndicators(Kotonoha::RendererRef r) {
     }
   }
 }
+bool AmagamiRuntime::handleBackAction() {
+  if (!session_ || GetState() != Kotonoha::GameState::Gameplay)
+    return false;
+  if (!error_.empty()) {
+    error_.clear();
+    shutdown();
+    return true;
+  }
+  if (backlogView_ && backlogView_->isVisible()) {
+    backlogView_->close();
+    return true;
+  }
+  if (menu_) {
+    menu_->toggle();
+    return true;
+  }
+  return false;
+}
 bool AmagamiRuntime::handleBacklogAction() {
   if (!session_ || !backlogView_)
     return false;
@@ -1143,7 +1257,7 @@ void AmagamiRuntime::render(Kotonoha::RendererRef r, float scale) {
         auto &tex = assets_->texture(r, "sysgraph/txt_start.tm2");
         SDL_SetTextureAlphaModFloat(&tex, alpha);
         SDL_FRect dst{196, 320, 248, 32};
-        SDL_RenderTexture(&r, &tex, nullptr, &dst);
+        Kotonoha::RenderUpscaledTexture(&r, &tex, nullptr, &dst);
         SDL_SetTextureAlphaModFloat(&tex, 1);
       }
     } else {
@@ -1258,19 +1372,6 @@ void AmagamiRuntime::renderOverlay(Kotonoha::RendererRef r, float scale) {
     Kotonoha::UI::FrameScope frame(r,
                                    Kotonoha::UI::fit({640, 448}, viewport()));
     auto &ui = engine_->GetUI();
-    if (session_ && paused_) {
-      ui.backdrop(r);
-      const std::vector<std::string> menu = {"戻る", "セーブ", "ロード",
-                                             "タイトルへ", "設定"};
-      for (size_t i = 0; i < menu.size(); ++i) {
-        SDL_FRect b{180, float(100 + i * 54), 280, 44};
-        ui.panel(r, b,
-                 i == focus_ ? SDL_Color{133, 58, 110, 255}
-                             : SDL_Color{25, 30, 50, 255});
-        ui.textSized(r, engine_->GetTranslation().text(-1, menu[i]), b.x + 15,
-                     b.y + 8, b.w - 30, 24);
-      }
-    }
     if (!notice_.empty())
       ui.textSized(r, engine_->GetTranslation().text(-1, notice_), 10, 5, 620,
                    14, {255, 235, 150, 255});
@@ -1301,21 +1402,6 @@ void AmagamiRuntime::activate(size_t i) {
       quit.type = SDL_EVENT_QUIT;
       SDL_PushEvent(&quit);
     }
-    return;
-  }
-  if (paused_) {
-    if (i == 1)
-      saveGame(savePath_);
-    else if (i == 2)
-      loadGame(savePath_);
-    else if (i == 4)
-      engine_->openSettings();
-    else if (i == 3) {
-      shutdown();
-      SetState(Kotonoha::GameState::Menu);
-    }
-    paused_ = false;
-    focus_ = 0;
     return;
   }
   if (session_->ended()) {
@@ -1428,7 +1514,7 @@ bool AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
     }
     if (session_ && e.type == SDL_EVENT_WINDOW_FOCUS_LOST)
       session_->setSkipHeld(false);
-    size_t count = !session_ ? 3 : paused_ ? 5 : session_->choices().size();
+    size_t count = !session_ ? 3 : session_->choices().size();
     if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
       if (e.key.key == SDLK_ESCAPE) {
         if (session_)
@@ -1436,6 +1522,9 @@ bool AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
         if (!error_.empty()) {
           error_.clear();
           shutdown();
+        } else if (session_ && menu_) {
+          menu_->open();
+          focus_ = 0;
         } else {
           paused_ = !paused_;
           focus_ = 0;
@@ -1490,7 +1579,6 @@ bool AmagamiRuntime::onEvent(Kotonoha::EventRef event) {
       }
       for (size_t i = 0; i < count; ++i) {
         SDL_FRect b = !session_ ? SDL_FRect{220, float(300 + i * 36), 200, 38}
-                      : paused_ ? SDL_FRect{180, float(100 + i * 54), 280, 44}
                                 : SDL_FRect{55, float(70 + i * 49), 530, 44};
         if (Kotonoha::UI::clicked(e, b)) {
           focus_ = i;
@@ -1524,6 +1612,7 @@ void AmagamiRuntime::update() {
     Runtime::update();
     return;
   }
+  paused_ = (menu_ && menu_->IsOpen()) || (saveMenu_ && saveMenu_->isOpen());
   const double delta = frameClock_.seconds();
   frameClock_.reset();
   if (session_ && !paused_ && !backlog_ && !engine_->isStoryPaused()) {
@@ -1571,6 +1660,7 @@ SDL_FPoint AmagamiRuntime::sceneSize(const Kotonoha::Scene &scene) const {
       dynamic_cast<const Kotonoha::SubtitleScene *>(&scene) ||
       dynamic_cast<const AmagamiChoices *>(&scene) ||
       dynamic_cast<const AmagamiBacklog *>(&scene) ||
+      dynamic_cast<const AmagamiMenu *>(&scene) ||
       dynamic_cast<const AmagamiEventMap *>(&scene))
     return {640, 448};
   return Runtime::sceneSize(scene);
@@ -1583,10 +1673,71 @@ std::string AmagamiRuntime::nodeClockKey() const {
   // event clock resets between blocks/events of a scenario.
   return session_ ? session_->name() : "title";
 }
+std::string AmagamiRuntime::debugNodeCatalogKey() const {
+  return session_ ? session_->name() : std::string{};
+}
+
+std::vector<Kotonoha::DebugAudioAsset> AmagamiRuntime::debugSceneAudio() {
+  if (!session_)
+    return {};
+  std::vector<Kotonoha::DebugAudioAsset> audio;
+  const auto &line = session_->dialogue();
+  if (session_->messageVisible() && !session_->messageCleared() &&
+      line.voice >= 0 && !line.voiceCode.empty())
+    audio.push_back(
+        {"voice/" + line.voiceCode + "/" + std::to_string(line.voice),
+         line.speaker, line.original});
+  if (session_->musicTrack() >= 0)
+    audio.push_back(
+        {std::string(session_->classicMusic() ? "music/classic/" : "music/") +
+             std::to_string(session_->musicTrack()),
+         {},
+         {}});
+  if (session_->ambienceTrack() >= 0)
+    audio.push_back(
+        {"sound/" + std::to_string(session_->ambienceTrack()), {}, {}});
+  return audio;
+}
+
+void AmagamiRuntime::debugOverlayAssetChanged(const std::string &) {
+  if (assets_)
+    assets_->clearCache();
+  voiceEnvelope_.clear();
+}
+
 std::vector<Kotonoha::DebugNode> AmagamiRuntime::debugNodes() const {
   std::vector<Kotonoha::DebugNode> out;
-  for (const auto &name : assets_->source()->scenarios())
-    out.push_back({name, name, {}});
+  const auto active = session_ ? session_->name() : std::string{};
+  for (const auto &name : assets_->source()->scenarios()) {
+    Kotonoha::DebugNode node{name, name, {}};
+    if (name == active) {
+      const auto add = [&](const std::string &id) {
+        if (!id.empty() && assets_->contains(id) &&
+            std::find(node.assets.begin(), node.assets.end(), id) ==
+                node.assets.end())
+          node.assets.push_back(id);
+      };
+      for (const auto &[actor, visual] : session_->visuals()) {
+        if (!visual.visible)
+          continue;
+        add("actor-body/" + visual.file);
+        add(visual.face);
+      }
+      for (const auto &[object, sprite] : session_->sceneSprites())
+        if (sprite.visible)
+          add(sprite.asset);
+      const auto &line = session_->dialogue();
+      if (line.voice >= 0 && !line.voiceCode.empty())
+        add("voice/" + line.voiceCode + "/" + std::to_string(line.voice));
+      if (session_->musicTrack() >= 0)
+        add(std::string(session_->classicMusic() ? "music/classic/"
+                                                 : "music/") +
+            std::to_string(session_->musicTrack()));
+      if (session_->ambienceTrack() >= 0)
+        add("sound/" + std::to_string(session_->ambienceTrack()));
+    }
+    out.push_back(std::move(node));
+  }
   return out;
 }
 void AmagamiRuntime::debugJumpToNode(const std::string &id) { start(id); }

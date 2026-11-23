@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>@APP_TITLE@ - Kotonoha Engine</title>
+    <!-- Each WASM game is installable as its own scoped PWA. -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <meta name="theme-color" content="#0D142E">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="@APP_TITLE@">
+    <link rel="apple-touch-icon" href="./pwa-icon-180.png">
+
+    <style>
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            color: white;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* Fallback for older mobile browsers. */
+            height: 100dvh; /* Tracks dynamic browser chrome and rotation. */
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            touch-action: none;
+            display: block;
+            outline: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        /* The folder button is pre-game only: no popover/top layer needed.
+           Safari's popover default inset/margins used to center this element.
+           A normal fixed element anchors consistently in WebKit and Blink. */
+        #browser-folder-tools {
+            position: fixed;
+            top: max(8px, env(safe-area-inset-top, 0px));
+            right: max(8px, env(safe-area-inset-right, 0px));
+            bottom: auto;
+            left: auto;
+            z-index: 30; /* Above loading overlay, below browser dialogs. */
+            margin: 0;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            overflow: visible;
+            font: 13px system-ui, sans-serif;
+        }
+        #browser-folder-tools[hidden] { display: none !important; }
+        #browser-folder-tools button {
+            color: #fff;
+            background: #242424;
+            border: 1px solid #777;
+            border-radius: 6px;
+            padding: 10px 12px;
+            min-height: 44px;
+            cursor: pointer;
+        }
+        #browser-folder-tools button:disabled { opacity: 0.6; }
+        #browser-folder-status {
+            color: #fff;
+            max-width: min(360px, 80vw);
+            margin-top: 5px;
+            text-align: right;
+            text-shadow: 0 1px 3px #000;
+        }
+
+        #loading-overlay {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            z-index: 10;
+            box-sizing: border-box;
+            padding: max(20px, env(safe-area-inset-top))
+                     max(16px, env(safe-area-inset-right))
+                     max(20px, env(safe-area-inset-bottom))
+                     max(16px, env(safe-area-inset-left));
+            transition: opacity 0.5s ease;
+        }
+
+        #loading-overlay::before {
+            content: "";
+            width: clamp(72px, 13vmin, 108px);
+            aspect-ratio: 1;
+            flex: none;
+            margin-bottom: 24px;
+            background: center / contain no-repeat url("./pwa-icon-192.png");
+        }
+        #loading-title {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        #loading-build {
+            color: #B9B5D4;
+            font: 12px system-ui, sans-serif;
+            max-width: min(80vw, 520px);
+            overflow-wrap: anywhere;
+            text-align: center;
+            margin: -2px 0 14px;
+        }
+        #loading-status {
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 16px;
+            max-width: 80%;
+            text-align: center;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        #loading-progress-container {
+            width: min(320px, calc(100vw - 40px));
+            height: 6px;
+            background: #222;
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        #loading-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #2C3E9A, #6A5BE7, #C86BD9);
+            transition: width 0.1s ease;
+        }
+
+        #asset-source-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        #asset-source-actions button {
+            background: #292929;
+            border: 1px solid #555;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            padding: 10px 14px;
+            min-height: 44px;
+            max-width: min(90vw, 320px);
+        }
+
+        #asset-source-actions button:hover:not(:disabled),
+        #browser-folder-tools button:hover:not(:disabled) {
+            background: #3c2950;
+            border-color: #C86BD9;
+        }
+        #asset-source-actions button:focus-visible,
+        #browser-folder-tools button:focus-visible {
+            outline: 2px solid #00D6FF;
+            outline-offset: 3px;
+        }
+
+        #asset-source-actions button:disabled {
+            cursor: wait;
+            opacity: 0.5;
+        }
+        #kotonoha-language {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 18px;
+        }
+        #kotonoha-language button {
+            color: #ddd;
+            background: #242424;
+            border: 1px solid #555;
+            border-radius: 5px;
+            padding: 7px 12px;
+            cursor: pointer;
+            min-height: 36px;
+        }
+        #kotonoha-language button[aria-pressed="true"] {
+            color: white;
+            border-color: #c18bdc;
+            background: #49345a;
+        }
+
+        #kotonoha-video-player {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: transparent;
+            display: none;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* Cartilha Kotonoha v2: controls only, never recolor the game canvas.
+           The universal startup splash remains black (#000) and centered. */
+        :root {
+            color-scheme: dark;
+            --kotonoha-navy: #0D142E;
+            --kotonoha-raised: #182449;
+            --kotonoha-indigo: #2C3E9A;
+            --kotonoha-violet: #6A5BE7;
+            --kotonoha-magenta: #C86BD9;
+            --kotonoha-sakura: #FF8FBD;
+            --kotonoha-cyan: #00D6FF;
+            --kotonoha-outline: #39315E;
+            --kotonoha-muted: #B9B5D4;
+        }
+        #loading-overlay { background: #000; }
+        #loading-title { color: #fff; letter-spacing: .01em; text-align: center; }
+        #loading-build, #loading-status { color: var(--kotonoha-muted); }
+        #asset-source-actions button, #browser-folder-tools button {
+            border-radius: 12px;
+            border: 1px solid var(--kotonoha-outline);
+            background: var(--kotonoha-raised);
+            color: #fff;
+            font: 600 14px system-ui, sans-serif;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+            transition: background-color .16s ease, border-color .16s ease;
+        }
+        #asset-source-actions button:first-child {
+            background: linear-gradient(110deg, var(--kotonoha-indigo),
+                var(--kotonoha-violet), var(--kotonoha-magenta));
+            border-color: var(--kotonoha-magenta);
+        }
+        #asset-source-actions button:not(:disabled):hover,
+        #browser-folder-tools button:not(:disabled):hover {
+            background: var(--kotonoha-indigo);
+            border-color: var(--kotonoha-cyan);
+        }
+        #kotonoha-language { padding: 4px; border-radius: 12px;
+            border: 1px solid var(--kotonoha-outline); background: var(--kotonoha-navy); }
+        #kotonoha-language button {
+            color: var(--kotonoha-muted); background: transparent;
+            border: 1px solid transparent; border-radius: 8px;
+        }
+        #kotonoha-language button[aria-pressed="true"] {
+            color: #fff; border-color: var(--kotonoha-magenta);
+            background: var(--kotonoha-indigo);
+        }
+        #loading-progress-container { background: var(--kotonoha-navy);
+            border: 1px solid var(--kotonoha-outline); border-radius: 8px; }
+        #loading-bar { background: linear-gradient(90deg,
+            var(--kotonoha-cyan),var(--kotonoha-violet),var(--kotonoha-magenta)); }
+        #browser-folder-status { color: var(--kotonoha-muted); }
+        #asset-source-actions button:focus-visible,
+        #browser-folder-tools button:focus-visible,
+        #kotonoha-language button:focus-visible { outline: 2px solid var(--kotonoha-cyan);
+            outline-offset: 3px; }
+        @media (prefers-reduced-motion: reduce) {
+            #asset-source-actions button, #browser-folder-tools button,
+            #loading-bar, #loading-overlay { transition: none; }
+        }
+
+    </style>
+</head>
+
+<body>
+    <div id="loading-overlay">
+        <div id="loading-title">@APP_TITLE@ - Kotonoha Engine</div>
+        <div id="loading-build" data-i18n-aria-label="engineVersion" aria-label="Engine version">v@KOTONOHA_VERSION_FULL@</div>
+        <div id="loading-status" data-i18n="chooseSource">Choose an asset source to start.</div>
+        <div id="loading-progress-container">
+            <div id="loading-bar"></div>
+        </div>
+        <div id="asset-source-actions">
+            <button id="select-local-assets" type="button" data-i18n="localFolder" disabled>Use local folder</button>
+            <button id="use-server-assets" type="button" data-i18n="useHttp" disabled>Use HTTP(S)</button>
+        </div>
+        <input id="local-assets-folder" type="file" webkitdirectory multiple hidden>
+        <div id="kotonoha-language" role="group" data-i18n-aria-label="language" aria-label="Language">
+            <button id="kotonoha-lang-en" type="button" aria-pressed="true">English</button>
+            <button id="kotonoha-lang-pt" type="button" aria-pressed="false">Português</button>
+        </div>
+    </div>
+
+    <div id="browser-folder-tools" data-i18n-aria-label="gameFolders" aria-label="Game folders">
+        <button id="add-browser-folder" type="button" data-i18n="addFolder" data-i18n-title="mountFolder" title="Mount a local folder in the filesystem">+ Add folder</button>
+        <input id="add-browser-folder-input" type="file" webkitdirectory multiple hidden>
+        <div id="browser-folder-status" role="status" aria-live="polite"></div>
+    </div>
+    <canvas id="canvas" tabindex="0" data-i18n-aria-label="gameCanvas" aria-label="@APP_TITLE@ - game canvas" oncontextmenu="event.preventDefault()"></canvas>
+    <video id="kotonoha-video-player" playsinline preload="auto"></video>
+
+    <script>
+        // All browser startup UI text is localized independently of the game
+        // scripts. Language is remembered per origin; no build is required.
+        (function() {
+            const messages = {
+                en: {
+                    language: "Language",
+                    engineVersion: "Engine version",
+                    gameFolders: "Game folders",
+                    gameCanvas: "@APP_TITLE@ - game canvas",
+                    chooseSource: "Choose a local folder or HTTP(S) to start.",
+                    localFolder: "Use local folder",
+                    useHttp: "Use HTTP(S)",
+                    addFolder: "+ Add folder",
+                    mountFolder: "Mount a local folder in the filesystem",
+                    searchingIndex: "Loading required HTTP(S) manifest...",
+                    checkingPreload: "Checking for optional preload.json...",
+                    preloadProgress: "Required preload: {done}/{total} chunks — {path}",
+                    preloadDone: "Preload complete. Starting engine...",
+                    indexedReady: "HTTP index loaded. Starting engine...",
+                    manifestRequired: "HTTP(S) requires a non-empty manifest.json beside index.html",
+                    manifestInvalid: "Invalid manifest.json: expected non-empty entries with paths and sizes",
+                    memoryFatal: "Fatal WebAssembly memory error. Reload after deploying the corrected build.",
+                    fetchFailed: "Could not configure HTTP Fetch: {error}",
+                    retry: "{message} — try again or choose HTTP(S).",
+                    localLoading: "Loading local folder ({done}/{total})",
+                    localReady: "Local folder mounted. Starting engine...",
+                    localFailed: "Invalid local folder: {error}",
+                    invalidPath: "Invalid file path: {path}",
+                    duplicateLocal: "Duplicate local file: {path}",
+                    emptyFolder: "Folder is empty",
+                    remoteProtocol: "Remote assets require HTTP(S)",
+                    remoteCredentials: "Remote URL cannot contain credentials or query parameters",
+                    manifestTooLarge: "HTTP index exceeds 4 MiB in UTF-8",
+                    manifestAllocation: "Not enough memory for the HTTP index",
+                    manifestHeap: "WebAssembly heap unavailable for HTTP index",
+                    remoteUnavailable: "Unable to configure Fetch provider",
+                    invalidFolderName: "Invalid folder name (use letters, numbers, _ or -)",
+                    wasmUnavailable: "WASM filesystem is not available yet",
+                    unsafePath: "Unsafe path: {path}",
+                    duplicateFile: "Duplicate file: {path}",
+                    alreadyMounted: "Folder already mounted: {path}",
+                    fileAsFolder: "File used as folder: {path}",
+                    folderExists: "Directory /{path} already exists",
+                    fileExists: "File already exists: {path}",
+                    folderMounting: "Mounting /{root}: {done}/{total}",
+                    folderMounted: "{count} file(s) mounted in /{root}",
+                    folderPrompt: "Virtual folder name (e.g. game-assets, forced_subtitles, ovrlay):",
+                    fatal: "Fatal error: {reason}"
+                },
+                pt: {
+                    language: "Idioma",
+                    engineVersion: "Versão do motor",
+                    gameFolders: "Pastas do jogo",
+                    gameCanvas: "@APP_TITLE@ - área de jogo",
+                    chooseSource: "Escolha pasta local ou HTTP(S) para iniciar.",
+                    localFolder: "Usar pasta local",
+                    useHttp: "Usar HTTP(S)",
+                    addFolder: "+ Adicionar pasta",
+                    mountFolder: "Montar uma pasta local no filesystem",
+                    searchingIndex: "Carregando manifesto HTTP(S) obrigatório...",
+                    checkingPreload: "Verificando preload.json opcional...",
+                    preloadProgress: "Preload obrigatório: {done}/{total} blocos — {path}",
+                    preloadDone: "Preload completo. Iniciando engine...",
+                    indexedReady: "Índice HTTP carregado. Iniciando engine...",
+                    manifestRequired: "HTTP(S) exige manifest.json não vazio ao lado do index.html",
+                    manifestInvalid: "manifest.json inválido: entradas com caminhos e tamanhos são obrigatórias",
+                    memoryFatal: "Falha fatal de memória no WebAssembly. Atualize a página após instalar o build corrigido.",
+                    fetchFailed: "Falha ao configurar Fetch: {error}",
+                    retry: "{message} — tente novamente ou escolha HTTP(S).",
+                    localLoading: "Carregando pasta ({done}/{total})",
+                    localReady: "Pasta local montada. Iniciando engine...",
+                    localFailed: "Pasta local inválida: {error}",
+                    invalidPath: "Caminho inválido: {path}",
+                    duplicateLocal: "Nome local duplicado: {path}",
+                    emptyFolder: "Pasta local vazia",
+                    remoteProtocol: "Os assets remotos exigem HTTP(S)",
+                    remoteCredentials: "A origem remota não pode conter credenciais ou parâmetros",
+                    manifestTooLarge: "Índice HTTP ultrapassa 4 MiB em UTF-8",
+                    manifestAllocation: "Memória insuficiente para índice HTTP",
+                    manifestHeap: "Heap WASM não disponível para índice HTTP",
+                    remoteUnavailable: "Provider Fetch não pôde ser configurado",
+                    invalidFolderName: "Nome de pasta inválido (use letras, números, _ ou -)",
+                    wasmUnavailable: "Filesystem WASM ainda não está disponível",
+                    unsafePath: "Caminho inseguro: {path}",
+                    duplicateFile: "Arquivo duplicado: {path}",
+                    alreadyMounted: "Pasta já montada: {path}",
+                    fileAsFolder: "Arquivo usado como pasta: {path}",
+                    folderExists: "O diretório /{path} já existe",
+                    fileExists: "Arquivo já existe: {path}",
+                    folderMounting: "Montando /{root}: {done}/{total}",
+                    folderMounted: "{count} arquivo(s) montado(s) em /{root}",
+                    folderPrompt: "Nome da pasta virtual (ex.: game-assets, forced_subtitles, ovrlay):",
+                    fatal: "Erro fatal: {reason}"
+                }
+            };
+            let language = "en";
+            let lastStatus = {key: "chooseSource", params: {}};
+            const translate = (key, params = {}) => {
+                const text = messages[language][key] ||
+                    messages.en[key] || key;
+                return text.replace(/\{(\w+)\}/g, (_, name) =>
+                    String(params[name] ?? ""));
+            };
+            const apply = () => {
+                document.documentElement.lang = language === "pt" ? "pt-BR" : "en";
+                for (const node of document.querySelectorAll("[data-i18n]"))
+                    node.textContent = translate(node.dataset.i18n);
+                for (const node of document.querySelectorAll("[data-i18n-title]"))
+                    node.title = translate(node.dataset.i18nTitle);
+                for (const node of document.querySelectorAll("[data-i18n-aria-label]"))
+                    node.setAttribute("aria-label", translate(node.dataset.i18nAriaLabel));
+                const status = document.getElementById("loading-status");
+                if (status) status.textContent =
+                    translate(lastStatus.key, lastStatus.params);
+                document.getElementById("kotonoha-lang-en")
+                    .setAttribute("aria-pressed", String(language === "en"));
+                document.getElementById("kotonoha-lang-pt")
+                    .setAttribute("aria-pressed", String(language === "pt"));
+            };
+            window.KotonohaText = (key, params) => translate(key, params);
+            window.KotonohaStatus = (key, params = {}) => {
+                lastStatus = {key, params};
+                const status = document.getElementById("loading-status");
+                if (status) status.textContent = translate(key, params);
+            };
+            window.KotonohaSetLanguage = value => {
+                language = String(value).toLowerCase().startsWith("pt") ? "pt" : "en";
+                try { localStorage.setItem("kotonoha-language", language); }
+                catch (error) { /* Private mode may disable storage. */ }
+                apply();
+            };
+            try {
+                language = localStorage.getItem("kotonoha-language") ||
+                    window.KotonohaLanguage ||
+                    (navigator.language?.toLowerCase().startsWith("pt") ? "pt" : "en");
+            } catch (error) {
+                language = navigator.language?.toLowerCase().startsWith("pt") ? "pt" : "en";
+            }
+            language = String(language).toLowerCase().startsWith("pt") ? "pt" : "en";
+            document.getElementById("kotonoha-lang-en").addEventListener(
+                "click", () => window.KotonohaSetLanguage("en"));
+            document.getElementById("kotonoha-lang-pt").addEventListener(
+                "click", () => window.KotonohaSetLanguage("pt"));
+            apply();
+        })();
+    </script>
+
+    <script>
+        const kotonohaLocalAssets = new Map();
+        const kotonohaLocalUrls = new Map();
+        function kotonohaAssetUrl(path) {
+            let relative = String(path || "").split(/[?#]/)[0].replace(/^\/+/, "");
+            try { relative = decodeURIComponent(relative); } catch (error) {}
+            if (!relative.startsWith("game-assets/")) return path;
+            const file = kotonohaLocalAssets.get(relative.slice("game-assets/".length));
+            if (!file) return path;
+            const key = relative.slice("game-assets/".length);
+            if (!kotonohaLocalUrls.has(key))
+                kotonohaLocalUrls.set(key, URL.createObjectURL(file));
+            return kotonohaLocalUrls.get(key);
+        }
+        // Decoded RGBA pixels cross back into the managed SDL surface. A
+        // failed browser decode returns zero and lets the C++ decoder try.
+        const decodedImages = new Map();
+        let nextDecodedImage = 0;
+        window.KotonohaDecodeImage = async function(bytes) {
+            if (!window.createImageBitmap || !bytes || !bytes.length) return 0;
+            try {
+                const bitmap = await createImageBitmap(new Blob([bytes]));
+                if (!bitmap.width || !bitmap.height ||
+                    bitmap.width > 16384 || bitmap.height > 16384) {
+                    bitmap.close();
+                    return 0;
+                }
+                const canvas = document.createElement("canvas");
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+                const context = canvas.getContext("2d", {willReadFrequently: true});
+                if (!context) { bitmap.close(); return 0; }
+                context.drawImage(bitmap, 0, 0);
+                bitmap.close();
+                const pixels = context.getImageData(0, 0, canvas.width,
+                                                    canvas.height).data;
+                const token = ++nextDecodedImage;
+                decodedImages.set(token, {width: canvas.width,
+                                          height: canvas.height, pixels});
+                return token;
+            } catch (error) { return 0; }
+        };
+        window.KotonohaImageWidth = token => decodedImages.get(token)?.width || 0;
+        window.KotonohaImageHeight = token => decodedImages.get(token)?.height || 0;
+        window.KotonohaCopyImage = function(token, pointer, pitch) {
+            const image = decodedImages.get(token);
+            if (!image || pitch < image.width * 4) return 0;
+            for (let y = 0; y < image.height; ++y)
+                Module.HEAPU8.set(image.pixels.subarray(y * image.width * 4,
+                    (y + 1) * image.width * 4), pointer + y * pitch);
+            return 1;
+        };
+        window.KotonohaReleaseImage = token => decodedImages.delete(token);
+        const decodedAudio = new Map();
+        let nextDecodedAudio = 0;
+        window.KotonohaDecodeAudio = async function(bytes) {
+            if (!bytes || !bytes.length) return 0;
+            const AudioContextType = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextType) return 0;
+            let context;
+            try {
+                context = new AudioContextType();
+                const buffer = await context.decodeAudioData(bytes.buffer);
+                if (!buffer.length || !buffer.numberOfChannels ||
+                    buffer.numberOfChannels > 8 ||
+                    buffer.length * buffer.numberOfChannels * 4 > 1073741824)
+                    return 0;
+                const token = ++nextDecodedAudio;
+                decodedAudio.set(token, buffer);
+                return token;
+            } catch (error) { return 0; }
+            finally { if (context) context.close().catch(function() {}); }
+        };
+        window.KotonohaAudioChannels = token =>
+            decodedAudio.get(token)?.numberOfChannels || 0;
+        window.KotonohaAudioRate = token => decodedAudio.get(token)?.sampleRate || 0;
+        window.KotonohaAudioFrames = token => decodedAudio.get(token)?.length || 0;
+        window.KotonohaCopyAudio = function(token, pointer) {
+            const buffer = decodedAudio.get(token);
+            if (!buffer) return 0;
+            const channels = Array.from({length: buffer.numberOfChannels},
+                (_, index) => buffer.getChannelData(index));
+            const samples = new Float32Array(Module.HEAPU8.buffer, pointer,
+                buffer.length * channels.length);
+            for (let frame = 0; frame < buffer.length; ++frame)
+                for (let channel = 0; channel < channels.length; ++channel)
+                    samples[frame * channels.length + channel] =
+                        channels[channel][frame];
+            return 1;
+        };
+        window.KotonohaReleaseAudio = token => decodedAudio.delete(token);
+        window.addEventListener("pagehide", function() {
+            for (const url of kotonohaLocalUrls.values()) URL.revokeObjectURL(url);
+            kotonohaLocalUrls.clear();
+        });
+
+        // HTML5 video bridge. Loose assets can play directly from their URL;
+        // packed/archive assets are fed as chunks into a Blob, never as a URL.
+        (function() {
+            const canvas = document.getElementById("canvas");
+            const video = document.getElementById("kotonoha-video-player");
+            const frameCanvas = document.createElement("canvas");
+            const frameContext = frameCanvas.getContext("2d", { willReadFrequently: true });
+            let session = 0;
+            let mode = "none";          // "url" or "pipe"
+            let chunks = null;
+            let mime = "";
+            let blobUrl = null;
+            let ready = false;
+            let failed = false;
+            let desiredPaused = true;
+            let userPaused = false;
+            let lastVideoProgress = performance.now();
+            let lastVideoTime = 0;
+            let videoLoadStarted = 0;
+            let desiredRate = 1;
+            let layoutKey = "";
+            let lastLayoutCheck = 0;
+            let lastBufferWidth = 0;
+            let lastBufferHeight = 0;
+
+            // Match the SDL drawable area, not the browser viewport. The video
+            // then letterboxes inside that rect exactly like a texture drawn by
+            // the engine (e.g. 4:3 content on a 16:9 canvas stays 4:3). The
+            // buffer size changes when SDL creates/resizes its renderer; the
+            // observer below keeps the overlay in sync with that change.
+            function layoutVideo(force) {
+                if (mode === "none")
+                    return;
+                const now = performance.now();
+                const bounds = canvas.getBoundingClientRect();
+                const bufferWidth = canvas.width || bounds.width;
+                const bufferHeight = canvas.height || bounds.height;
+                const bufferChanged = bufferWidth !== lastBufferWidth ||
+                                      bufferHeight !== lastBufferHeight;
+                if (!force && !bufferChanged && now - lastLayoutCheck < 250)
+                    return;
+                lastLayoutCheck = now;
+                lastBufferWidth = bufferWidth;
+                lastBufferHeight = bufferHeight;
+                if (!bounds.width || !bounds.height || !bufferWidth || !bufferHeight)
+                    return;
+                const aspect = bufferWidth / bufferHeight;
+                let width = bounds.width;
+                let height = bounds.height;
+                if (width / height > aspect)
+                    width = height * aspect;
+                else
+                    height = width / aspect;
+                const left = bounds.left + (bounds.width - width) / 2;
+                const top = bounds.top + (bounds.height - height) / 2;
+                const key = `${left},${top},${width},${height}`;
+                if (key === layoutKey)
+                    return;
+                layoutKey = key;
+                video.style.left = left + "px";
+                video.style.top = top + "px";
+                video.style.width = width + "px";
+                video.style.height = height + "px";
+            }
+
+            window.addEventListener("resize", function() { layoutVideo(true); });
+            document.addEventListener("fullscreenchange", function() {
+                layoutVideo(true);
+            });
+            if (window.ResizeObserver)
+                new ResizeObserver(function() { layoutVideo(true); }).observe(canvas);
+            if (window.MutationObserver)
+                new MutationObserver(function() { layoutVideo(true); })
+                    .observe(canvas, { attributes: true,
+                                        attributeFilter: ["width", "height"] });
+
+            function mimeForPath(path) {
+                const clean = String(path || "").split(/[?#]/)[0].toLowerCase();
+                if (clean.endsWith(".mp4") || clean.endsWith(".m4v")) return "video/mp4";
+                if (clean.endsWith(".webm")) return "video/webm";
+                if (clean.endsWith(".ogv")) return "video/ogg";
+                if (clean.endsWith(".ogg") || clean.endsWith(".oga") ||
+                    clean.endsWith(".opus")) return "audio/ogg";
+                if (clean.endsWith(".mp3")) return "audio/mpeg";
+                if (clean.endsWith(".wav")) return "audio/wav";
+                if (clean.endsWith(".m4a") || clean.endsWith(".aac"))
+                    return "audio/mp4";
+                if (clean.endsWith(".flac")) return "audio/flac";
+                if (clean.endsWith(".mov")) return "video/quicktime";
+                if (clean.endsWith(".mpg") || clean.endsWith(".mpeg")) return "video/mpeg";
+                if (clean.endsWith(".avi")) return "video/x-msvideo";
+                return "";
+            }
+
+            function canPlay(type) {
+                if (!type) return false;
+                try {
+                    const probe = document.createElement("video");
+                    return probe.canPlayType(type) !== "";
+                } catch (error) {
+                    return false;
+                }
+            }
+
+            function resetElement() {
+                try { video.pause(); } catch (error) {}
+                video.removeAttribute("src");
+                try { video.load(); } catch (error) {}
+                if (blobUrl) {
+                    URL.revokeObjectURL(blobUrl);
+                    blobUrl = null;
+                }
+                video.style.display = "none";
+                video.loop = false;
+                chunks = null;
+                ready = false;
+                failed = false;
+                mode = "none";
+            }
+
+            function stopSession(id) {
+                if (id !== undefined && id !== session) return;
+                session++;
+                resetElement();
+                desiredPaused = true;
+                userPaused = false;
+                lastVideoProgress = performance.now();
+                lastVideoTime = 0;
+                videoLoadStarted = 0;
+                desiredRate = 1;
+            }
+
+            function tryPlay() {
+                if (desiredPaused || !ready || failed) return;
+                const promise = video.play();
+                if (!promise || !promise.catch) return;
+                promise.catch(function(error) {
+                    if (error && error.name === "NotSupportedError") {
+                        failed = true;
+                        return;
+                    }
+                    console.warn("[Kotonoha] HTML5 video play blocked:", error);
+                    if (!video.muted) {
+                        video.muted = true;
+                        video.play().catch(function() {});
+                    }
+                    const unlock = function() {
+                        video.muted = false;
+                        if (!desiredPaused) video.play().catch(function() {});
+                        document.removeEventListener("pointerdown", unlock);
+                        document.removeEventListener("keydown", unlock);
+                    };
+                    document.addEventListener("pointerdown", unlock);
+                    document.addEventListener("keydown", unlock);
+                });
+            }
+
+            video.addEventListener("loadeddata", function() {
+                ready = true;
+                lastVideoProgress = performance.now();
+                lastVideoTime = video.currentTime || 0;
+                tryPlay();
+            });
+            video.addEventListener("error", function() {
+                failed = true;
+                console.error("[Kotonoha] HTML5 video error:",
+                              video.error ? video.error.message : "unknown");
+            });
+            for (const event of ["playing", "pause", "ended"])
+                video.addEventListener(event, function() {
+                    if (navigator.mediaSession && mode !== "none")
+                        navigator.mediaSession.playbackState =
+                            event === "playing" ? "playing" : "paused";
+                });
+
+            // Keep media bytes in MEMFS. The browser may report a supported
+            // MIME type and still fail to decode the actual stream; FFmpeg
+            // needs the original bytes for a local fallback in that case.
+            window.KotonohaShouldDeferAsset = function(path) {
+                return 0;
+            };
+            window.KotonohaVideoMime = mimeForPath;
+            window.KotonohaVideoCanPlay = canPlay;
+
+            // Native URL playback for loose, HTTP-served assets.
+            window.KotonohaPlayVideo = function(path, loop) {
+                if (!path) return 0;
+                stopSession();
+                mode = "url";
+                mime = mimeForPath(path);
+                video.muted = false;
+                video.loop = !!loop;
+                video.src = kotonohaAssetUrl(path);
+                video.load();
+                videoLoadStarted = performance.now();
+                ready = false;
+                layoutVideo(true);
+                return session;
+            };
+
+            // Byte pipe for packed/archive assets. The C++ side reads the
+            // AssetProvider and appends chunks here; <video> only ever sees a
+            // Blob URL created in this function.
+            window.KotonohaVideoBegin = function(id, type, size) {
+                if (!canPlay(type)) return 0;
+                stopSession();
+                mode = "pipe";
+                mime = type || "";
+                chunks = [];
+                video.muted = false;
+                layoutVideo(true);
+                return session;
+            };
+ 
+            window.KotonohaVideoBeginBlob = function(bytes, mime) {
+                if (!bytes || bytes.length === 0) return 0;
+                if (!canPlay(mime)) return 0;
+                stopSession();
+                mode = "blob";
+                mime = mime || "";
+                const blob = new Blob([bytes], { type: mime });
+                if (blobUrl) URL.revokeObjectURL(blobUrl);
+                blobUrl = URL.createObjectURL(blob);
+                video.src = blobUrl;
+                video.load();
+                videoLoadStarted = performance.now();
+                ready = false;
+                layoutVideo(true);
+                return session;
+            };
+ 
+            window.KotonohaVideoAppend = function(id, bytes) {
+                if (id !== session || mode !== "pipe" || !chunks || !bytes)
+                    return false;
+                chunks.push(bytes.slice());
+                return true;
+            };
+
+            window.KotonohaVideoFinish = function(id) {
+                if (id !== session || mode !== "pipe" || !chunks)
+                    return false;
+                if (!chunks.length) {
+                    failed = true;
+                    return false;
+                }
+                const blob = new Blob(chunks, { type: mime || "video/mp4" });
+                chunks = null;
+                if (blobUrl) URL.revokeObjectURL(blobUrl);
+                blobUrl = URL.createObjectURL(blob);
+                video.src = blobUrl;
+                video.load();
+                videoLoadStarted = performance.now();
+                ready = false;
+                return true;
+            };
+
+            window.KotonohaVideoStop = function(id) { stopSession(id); };
+
+            window.KotonohaVideoSetPaused = function(id, paused) {
+                if (id !== session) return;
+                desiredPaused = !!paused;
+                if (!desiredPaused) userPaused = false;
+                if (desiredPaused) {
+                    try { video.pause(); } catch (error) {}
+                } else {
+                    tryPlay();
+                }
+            };
+
+            window.KotonohaVideoSetRate = function(id, rate) {
+                if (id !== session) return;
+                desiredRate = Math.max(0.0625, Math.min(16, Number(rate) || 1));
+                try { video.playbackRate = desiredRate; } catch (error) {}
+            };
+
+            window.KotonohaVideoSync = function(id, position) {
+                if (id !== session) return;
+                layoutVideo(false);
+                if (!ready || failed) return;
+                const duration = video.duration;
+                if (!Number.isFinite(duration) || duration <= 0) return;
+                const target = Math.max(0, Math.min(position, duration));
+                if (Math.abs(video.currentTime - target) > 0.3) {
+                    try { video.currentTime = target; } catch (error) {}
+                }
+            };
+
+            window.KotonohaVideoTime = function(id) {
+                if (id !== session || !ready) return -1;
+                return Number.isFinite(video.currentTime) ? video.currentTime : -1;
+            };
+
+            window.KotonohaVideoDuration = function(id) {
+                if (id !== session || !ready) return -1;
+                return Number.isFinite(video.duration) && video.duration > 0
+                    ? video.duration : -1;
+            };
+
+            window.KotonohaVideoFinished = function(id) {
+                if (id !== session) return 0;
+                return ready && (failed || video.ended) ? 1 : 0;
+            };
+
+            window.KotonohaVideoHasFrame = function(id) {
+                if (id !== session || !ready || failed) return 0;
+                return video.readyState >= 2 && !video.ended ? 1 : 0;
+            };
+
+            window.KotonohaVideoFailed = function(id) {
+                return id === session && failed ? 1 : 0;
+            };
+
+            // Audio sessions are independent: a game may play music, voice
+            // and effects at the same time. Video keeps its canvas overlay.
+            const audioSessions = new Map();
+            // The browser/OS owns the media controls. Expose play and pause
+            // only; unregistered seek actions should not appear in its UI.
+            if (navigator.mediaSession) {
+                const currentMedia = function() {
+                    if (mode !== "none" && ready && !video.ended) return video;
+                    const sessions = [...audioSessions.values()].reverse();
+                    return (sessions.find(state => state.ready &&
+                            !state.element.ended && !state.element.paused) ||
+                        sessions.find(state => state.ready &&
+                            !state.element.ended))?.element || null;
+                };
+                const setUserPaused = function(element, paused) {
+                    if (element === video) userPaused = paused;
+                    else for (const state of audioSessions.values())
+                        if (state.element === element) state.userPaused = paused;
+                };
+                navigator.mediaSession.setActionHandler("pause", function() {
+                    const element = currentMedia();
+                    if (element) {
+                        setUserPaused(element, true);
+                        element.pause();
+                        navigator.mediaSession.playbackState = "paused";
+                    }
+                });
+                navigator.mediaSession.setActionHandler("play", function() {
+                    const element = currentMedia();
+                    if (element) {
+                        setUserPaused(element, false);
+                        element.play().catch(function() {});
+                        navigator.mediaSession.playbackState = "playing";
+                    }
+                });
+                for (const action of ["seekto", "seekbackward", "seekforward",
+                                      "previoustrack", "nexttrack", "skipad"])
+                    try { navigator.mediaSession.setActionHandler(action,
+                        null); } catch (error) {}
+                if (window.MediaMetadata)
+                    navigator.mediaSession.metadata =
+                        new MediaMetadata({title: "@APP_TITLE@"});
+            }
+            let nextAudioSession = 1000000;
+            function audioSession(mimeType) {
+                const id = ++nextAudioSession;
+                const element = new Audio();
+                element.preload = "auto";
+                const state = { element, mimeType, ready: false, failed: false,
+                                paused: true, rate: 1, gain: 1, chunks: null,
+                                blobUrl: null, unlock: null, userPaused: false,
+                                lastProgress: performance.now(), lastTime: 0,
+                                loadStarted: 0 };
+                const tryPlay = function() {
+                    if (state.paused || !state.ready || state.failed) return;
+                    const promise = element.play();
+                    if (promise && promise.catch) promise.catch(function(error) {
+                        if (error && error.name === "NotSupportedError") {
+                            state.failed = true;
+                            return;
+                        }
+                        if (state.unlock) return;
+                        state.unlock = function() {
+                            document.removeEventListener("pointerdown", state.unlock);
+                            document.removeEventListener("keydown", state.unlock);
+                            state.unlock = null;
+                            tryPlay();
+                        };
+                        document.addEventListener("pointerdown", state.unlock);
+                        document.addEventListener("keydown", state.unlock);
+                    });
+                };
+                state.tryPlay = tryPlay;
+                element.addEventListener("loadeddata", function() {
+                    state.ready = true;
+                    state.lastProgress = performance.now();
+                    state.lastTime = element.currentTime || 0;
+                    tryPlay();
+                });
+                element.addEventListener("error", function() {
+                    state.failed = true;
+                    console.error("[Kotonoha] HTML5 audio error:",
+                                  element.error ? element.error.message : "unknown");
+                });
+                for (const event of ["playing", "pause", "ended"])
+                    element.addEventListener(event, function() {
+                        if (navigator.mediaSession &&
+                            (mode === "none" || video.paused))
+                            navigator.mediaSession.playbackState =
+                                event === "playing" ? "playing" : "paused";
+                    });
+                audioSessions.set(id, state);
+                return id;
+            }
+            function stopAudio(id) {
+                const state = audioSessions.get(id);
+                if (!state) return;
+                audioSessions.delete(id);
+                if (state.unlock) {
+                    document.removeEventListener("pointerdown", state.unlock);
+                    document.removeEventListener("keydown", state.unlock);
+                }
+                state.element.pause();
+                state.element.removeAttribute("src");
+                state.element.load();
+                if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+            }
+            function setAudioBlob(state, parts) {
+                state.blobUrl = URL.createObjectURL(
+                    new Blob(parts, { type: state.mimeType }));
+                state.element.src = state.blobUrl;
+                state.element.load();
+                state.loadStarted = performance.now();
+            }
+            window.KotonohaMediaCanPlay = function(type) {
+                if (!type) return false;
+                if (!type.startsWith("audio/")) return canPlay(type);
+                try { return document.createElement("audio").canPlayType(type) !== ""; }
+                catch (error) { return false; }
+            };
+            window.KotonohaMediaBeginUrl = function(path, audioOnly) {
+                if (!audioOnly) return typeof window.KotonohaPlayVideo === "function"
+                    ? window.KotonohaPlayVideo(path, 0) : 0;
+                if (!path) return 0;
+                const id = audioSession(mimeForPath(path));
+                const state = audioSessions.get(id);
+                state.element.src = kotonohaAssetUrl(path);
+                state.element.load();
+                state.loadStarted = performance.now();
+                return id;
+            };
+            window.KotonohaMediaBeginBlob = function(bytes, type, audioOnly) {
+                if (!audioOnly) return window.KotonohaVideoBeginBlob(bytes, type);
+                if (!bytes || !bytes.length || !window.KotonohaMediaCanPlay(type))
+                    return 0;
+                const id = audioSession(type);
+                setAudioBlob(audioSessions.get(id), [bytes]);
+                return id;
+            };
+            window.KotonohaMediaBegin = function(id, type, size, audioOnly) {
+                if (!audioOnly) return window.KotonohaVideoBegin(id, type, size);
+                if (!window.KotonohaMediaCanPlay(type)) return 0;
+                const result = audioSession(type);
+                audioSessions.get(result).chunks = [];
+                return result;
+            };
+            window.KotonohaMediaAppend = function(id, bytes) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoAppend(id, bytes);
+                if (!state.chunks || !bytes) return false;
+                state.chunks.push(bytes.slice());
+                return true;
+            };
+            window.KotonohaMediaFinish = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoFinish(id);
+                if (!state.chunks || !state.chunks.length) return false;
+                setAudioBlob(state, state.chunks);
+                state.chunks = null;
+                return true;
+            };
+            window.KotonohaMediaStop = function(id) {
+                if (audioSessions.has(id)) stopAudio(id);
+                else window.KotonohaVideoStop(id);
+            };
+            window.KotonohaMediaSetPaused = function(id, paused) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoSetPaused(id, paused);
+                state.paused = !!paused;
+                if (!state.paused) state.userPaused = false;
+                if (state.paused) state.element.pause();
+                else state.tryPlay();
+            };
+            window.KotonohaMediaSetRate = function(id, rate) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoSetRate(id, rate);
+                state.rate = Math.max(0.0625, Math.min(16, Number(rate) || 1));
+                state.element.playbackRate = state.rate;
+            };
+            window.KotonohaMediaSetGain = function(id, gain) {
+                const state = audioSessions.get(id);
+                const element = state ? state.element : id === session ? video : null;
+                if (element) element.volume = Math.max(0, Math.min(1, Number(gain) || 0));
+            };
+            window.KotonohaMediaSync = function(id, position) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoSync(id, position);
+                if (!state.ready || state.failed) return;
+                const duration = state.element.duration;
+                if (!Number.isFinite(duration) || duration <= 0) return;
+                const target = Math.max(0, Math.min(position, duration));
+                if (Math.abs(state.element.currentTime - target) > 0.3)
+                    state.element.currentTime = target;
+            };
+            window.KotonohaMediaTime = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoTime(id);
+                return state.ready && Number.isFinite(state.element.currentTime)
+                    ? state.element.currentTime : -1;
+            };
+            window.KotonohaMediaDuration = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoDuration(id);
+                return state.ready && Number.isFinite(state.element.duration)
+                    ? state.element.duration : -1;
+            };
+            window.KotonohaMediaFinished = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoFinished(id);
+                return state.ready && state.element.ended ? 1 : 0;
+            };
+            window.KotonohaMediaReady = function(id) {
+                const state = audioSessions.get(id);
+                if (!state) return window.KotonohaVideoHasFrame(id);
+                return state.ready && !state.failed &&
+                       state.element.readyState >= 2 ? 1 : 0;
+            };
+            window.KotonohaMediaFailed = function(id) {
+                const state = audioSessions.get(id);
+                if (state) {
+                    if (state.failed) return 1;
+                    if (!state.ready)
+                        return state.loadStarted && !state.paused &&
+                            performance.now() - state.loadStarted > 15000 ? 1 : 0;
+                    if (state.paused || state.userPaused ||
+                        state.element.ended) return 0;
+                    const time = state.element.currentTime;
+                    if (!state.element.paused && !state.element.seeking &&
+                        state.element.readyState >= 3 &&
+                        time > state.lastTime + 0.01) {
+                        state.lastTime = time;
+                        state.lastProgress = performance.now();
+                    }
+                    return performance.now() - state.lastProgress > 5000 ? 1 : 0;
+                }
+                if (window.KotonohaVideoFailed(id)) return 1;
+                if (id !== session) return 0;
+                if (!ready)
+                    return videoLoadStarted && !desiredPaused &&
+                        performance.now() - videoLoadStarted > 15000 ? 1 : 0;
+                if (desiredPaused || userPaused ||
+                    video.ended) return 0;
+                const time = video.currentTime;
+                if (!video.paused && !video.seeking &&
+                    video.readyState >= 3 && time > lastVideoTime + 0.01) {
+                    lastVideoTime = time;
+                    lastVideoProgress = performance.now();
+                }
+                return performance.now() - lastVideoProgress > 5000 ? 1 : 0;
+            };
+
+            // Report only unexpected browser pauses. Deliberate pauses from
+            // MediaPlayer::setPaused(), startup/loading, ended streams and
+            // failed sessions must not freeze the game. This also covers
+            // browser media controls and autoplay restrictions.
+            window.KotonohaMediaPlaybackBlocked = function() {
+                if (mode !== "none" && ready && !failed &&
+                    !desiredPaused && !video.ended && video.paused)
+                    return true;
+                for (const state of audioSessions.values()) {
+                    if (state.ready && !state.failed && !state.paused &&
+                        !state.element.ended && state.element.paused)
+                        return true;
+                }
+                return false;
+            };
+            window.KotonohaMediaVideoWidth = function(id) {
+                return id === session && ready && !failed ? video.videoWidth : 0;
+            };
+            window.KotonohaMediaVideoHeight = function(id) {
+                return id === session && ready && !failed ? video.videoHeight : 0;
+            };
+            window.KotonohaMediaCopyVideoFrame = function(id, output) {
+                if (id !== session || !ready || failed || !frameContext)
+                    return 0;
+                const width = video.videoWidth, height = video.videoHeight;
+                if (!width || !height || !output ||
+                    output.length !== width * height * 4)
+                    return 0;
+                try {
+                    if (frameCanvas.width !== width) frameCanvas.width = width;
+                    if (frameCanvas.height !== height) frameCanvas.height = height;
+                    frameContext.drawImage(video, 0, 0, width, height);
+                    output.set(frameContext.getImageData(0, 0, width, height).data);
+                    return 1;
+                } catch (error) {
+                    failed = true;
+                    console.error("[Kotonoha] Cannot copy video frame:", error);
+                    return 0;
+                }
+            };
+        })();
+
+        var Module = {
+            canvas: document.getElementById("canvas"),
+
+            preRun: [
+                function() {
+                    // Persistent save tree. IDBFS is mounted from C++ before
+                    // main(), and the run dependency it registers keeps the
+                    // engine waiting until IndexedDB restores the files.
+                    try {
+                        Module.ccall("KotonohaMountSaveStorage", null, [], []);
+                    } catch (error) {
+                        console.error("[Kotonoha] IDBFS save mount failed:", error);
+                    }
+                    window.KotonohaSyncSave = function(callback) {
+                        try {
+                            Module.ccall("KotonohaSyncSaveStorage", null, [], []);
+                        } catch (error) {
+                            if (callback) callback(error);
+                            return Promise.resolve(error);
+                        }
+                        const promise = Module.KotonohaSaveSyncPromise ||
+                                        Promise.resolve(null);
+                        if (callback) promise.then(callback);
+                        return promise;
+                    };
+                    // Flush pending writes when the page is hidden or closed.
+                    document.addEventListener("visibilitychange", function() {
+                        if (document.visibilityState === "hidden")
+                            window.KotonohaSyncSave();
+                    });
+                    window.addEventListener("pagehide", function() {
+                        window.KotonohaSyncSave();
+                    });
+                },
+                function() {
+                    const depId = "choose_kotonoha_asset_source";
+                    Module.addRunDependency(depId);
+                    // Keep a stable local mount available even when startup
+                    // relies exclusively on remote Fetch. A later folder
+                    // import can then refresh an existing DirectoryMount.
+                    Module.FS_createPath("/", "game-assets", true, true);
+                    const statusEl = document.getElementById("loading-status");
+                    const barEl = document.getElementById("loading-bar");
+                    const actions = document.getElementById("asset-source-actions");
+                    const folderButton = document.getElementById("select-local-assets");
+                    const serverButton = document.getElementById("use-server-assets");
+                    const folderInput = document.getElementById("local-assets-folder");
+                    // The source is resolved before SDL_AppInit. This never
+                    // waits synchronously for a Promise on the browser thread.
+                    // Saves (/save) are independent of the read-only asset tree.
+                    let busy = false;
+                    let finished = false;
+                    const localFiles = new Map();
+                    const finish = function() {
+                        if (finished) return;
+                        finished = true;
+                        actions.style.display = "none";
+                        // Dismiss the top-layer selector before SDL_AppInit.
+                        if (window.KotonohaCloseStartupFolderTools)
+                            window.KotonohaCloseStartupFolderTools();
+                        Module.removeRunDependency(depId);
+                    };
+                    const setStatus = window.KotonohaStatus;
+                    const unlock = function(key, params = {}) {
+                        const message = window.KotonohaText(key, params);
+                        console.warn("[Kotonoha] " + message);
+                        setStatus("retry", {message});
+                        busy = false;
+                        folderButton.disabled = false;
+                        serverButton.disabled = false;
+                    };
+                    const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+                    const validId = function(value) {
+                        if (typeof value !== "string" || !value.length ||
+                            value.startsWith("/") || value.includes("\\") ||
+                            value.includes("\0") || value.includes(":"))
+                            return false;
+                        return value.split("/").every(part =>
+                            part && part !== "." && part !== "..");
+                    };
+                    const httpRoot = function() {
+                        const supplied = window.KotonohaAssetBaseURL || "game-assets/";
+                        const origin = new URL(supplied, document.baseURI);
+                        if (origin.protocol !== "http:" && origin.protocol !== "https:")
+                            throw new Error(window.KotonohaText("remoteProtocol"));
+                        if (origin.username || origin.password ||
+                            origin.search || origin.hash)
+                            throw new Error(window.KotonohaText("remoteCredentials"));
+                        if (!origin.pathname.endsWith("/")) origin.pathname += "/";
+                        return origin;
+                    };
+                    // Every HTTP source requires a non-empty page-root manifest.
+                    // Unknown assets are never probed with HEAD/GET.
+                    const loadServerAssets = async function() {
+                        if (finished || busy) return;
+                        busy = true;
+                        folderButton.disabled = true;
+                        serverButton.disabled = true;
+                        setStatus("searchingIndex");
+                        try {
+                            const origin = httpRoot();
+                            if (!window.KotonohaAssetCache)
+                                throw new Error("KotonohaPreloadCache.js is missing");
+                            const manifestUrl = new URL("manifest.json", document.baseURI);
+                            let response = null;
+                            let manifest = null;
+                            const timeout = new AbortController();
+                            const deadline = setTimeout(() => timeout.abort(), 5000);
+                            try {
+                                response = await fetch(manifestUrl, {
+                                    signal: timeout.signal, cache: "no-store"
+                                });
+                            } catch (networkError) {
+                                // Offline startup may reuse a previously validated
+                                // index for this HTTP asset origin.
+                                manifest = await window.KotonohaAssetCache
+                                    .cachedManifest(origin.href);
+                                if (!manifest)
+                                    throw new Error(window.KotonohaText("manifestRequired") +
+                                        ": " + String(networkError.message || networkError));
+                            } finally {
+                                clearTimeout(deadline);
+                            }
+                            if (response) {
+                                if (!response.ok)
+                                    throw new Error(window.KotonohaText("manifestRequired") +
+                                        " (HTTP " + response.status + ")");
+                                if (Number(response.headers.get("content-length") || 0) >
+                                    4 * 1024 * 1024)
+                                    throw new Error(window.KotonohaText("manifestTooLarge"));
+                                manifest = await response.text();
+                            }
+                            let parsed;
+                            try {
+                                parsed = JSON.parse(manifest);
+                            } catch (error) {
+                                throw new Error(window.KotonohaText("manifestInvalid"));
+                            }
+                            if (!parsed || !Array.isArray(parsed.entries) ||
+                                parsed.entries.length === 0)
+                                throw new Error(window.KotonohaText("manifestInvalid"));
+                            const bytes = new TextEncoder().encode(manifest);
+                            if (bytes.length > 4 * 1024 * 1024)
+                                throw new Error(window.KotonohaText("manifestTooLarge"));
+                            // Avoid overflowing the WebAssembly stack with JSON.
+                            const pointer = Module.ccall(
+                                "KotonohaAllocateRemoteManifest", "number",
+                                ["number"], [bytes.length + 1]);
+                            if (!pointer)
+                                throw new Error(window.KotonohaText("manifestAllocation"));
+                            let indexed = false;
+                            try {
+                                const heap = Module.HEAPU8;
+                                if (!heap || pointer + bytes.length + 1 > heap.length)
+                                    throw new Error(window.KotonohaText("manifestHeap"));
+                                heap.set(bytes, pointer);
+                                heap[pointer + bytes.length] = 0;
+                                indexed = Module.ccall(
+                                    "KotonohaConfigureRemoteAssetIndexedManifest",
+                                    "number", ["string", "number"],
+                                    [origin.href, pointer]) === 1;
+                            } finally {
+                                Module.ccall("KotonohaFreeRemoteManifest",
+                                    null, ["number"], [pointer]);
+                            }
+                            if (!indexed)
+                                throw new Error(window.KotonohaText("manifestInvalid"));
+                            window.KotonohaAssetCache.configure(origin.href, manifest);
+                            if (response) {
+                                try {
+                                    await window.KotonohaAssetCache.storeManifest(
+                                        origin.href, manifest);
+                                } catch (error) {
+                                    console.warn("[Kotonoha] Cannot persist manifest:", error);
+                                }
+                            }
+                            window.KotonohaRemoteManifestIndexed = true;
+                            window.KotonohaFetchAsset = function(path) {
+                                return Module.ccall("KotonohaRequestRemoteAsset",
+                                    "number", ["string"], [path],
+                                    { async: true });
+                            };
+                            // A mandatory preload, if present, is a snapshot
+                            // of downloaded byte ranges created by the console
+                            // command KotonohaDumpPreload(). Do not release the
+                            // Emscripten startup dependency until every range
+                            // exists in persistent IndexedDB.
+                            if (!window.KotonohaAssetCache)
+                                throw new Error("KotonohaPreloadCache.js is missing");
+                            window.KotonohaAssetCache.configure(origin.href, manifest);
+                            window.KotonohaRemoteManifestIndexed = indexed;
+                            window.KotonohaFetchAsset = function(path) {
+                                return Module.ccall("KotonohaRequestRemoteAsset",
+                                    "number", ["string"], [path],
+                                    { async: true });
+                            };
+                            setStatus("checkingPreload");
+                            const preloaded = await window.KotonohaAssetCache.preloadIfPresent(
+                                (completed, total, path) => {
+                                    setStatus("preloadProgress", {
+                                        done: completed, total, path
+                                    });
+                                    if (barEl) barEl.style.width =
+                                        Math.round(completed / total * 100) + "%";
+                                });
+                            window.KotonohaInitialPreloadReady = preloaded;
+                            setStatus(preloaded ? "preloadDone" : "indexedReady");
+                            finish();
+                        } catch (error) {
+                            console.error("[Kotonoha] Fetch HTTP(S):", error);
+                            // An out-of-bounds WebAssembly trap is fatal; do
+                            // not offer a retry against the same corrupt VM.
+                            if (error instanceof WebAssembly.RuntimeError &&
+                                /memory access out of bounds|unreachable/i.test(
+                                    String(error.message || error))) {
+                                setStatus("memoryFatal");
+                                folderButton.disabled = true;
+                                serverButton.disabled = true;
+                                return;
+                            }
+                            unlock("fetchFailed", {
+                                error: String(error.message || error)
+                            });
+                        }
+                    };
+
+                    folderButton.disabled = false;
+                    serverButton.disabled = false;
+                    folderButton.addEventListener("click", function() {
+                        if (!busy) folderInput.click();
+                    });
+                    folderInput.addEventListener("change", async function() {
+                        if (busy || !folderInput.files.length) return;
+                        busy = true;
+                        folderButton.disabled = true;
+                        serverButton.disabled = true;
+                        const files = Array.from(folderInput.files);
+                        let loaded = 0;
+                        try {
+                            Module.FS_createPath("/", "game-assets", true, true);
+                            for (const file of files) {
+                                // Mobile browsers may permit picking individual
+                                // files but omit webkitRelativePath. Those files
+                                // are mounted at /game-assets/<filename>; a
+                                // directory picker retains any nested paths.
+                                const supplied = String(file.webkitRelativePath || file.name);
+                                const selectedParts = supplied.split("/");
+                                const parts = selectedParts.length > 1
+                                    ? selectedParts.slice(1) : selectedParts;
+                                if (parts[0] === "game-assets") parts.shift();
+                                const relative = parts.join("/");
+                                if (!validId(relative))
+                                    throw new Error(window.KotonohaText("invalidPath", {path: file.name}));
+                                const key = relative.toLowerCase();
+                                if (localFiles.has(key))
+                                    throw new Error(window.KotonohaText("duplicateLocal", {path: relative}));
+                                const directory = parts.slice(0, -1).join("/");
+                                if (directory)
+                                    Module.FS_createPath("/game-assets", directory, true, true);
+                                Module.FS_createDataFile(
+                                    "/game-assets" + (directory ? "/" + directory : ""),
+                                    parts[parts.length - 1],
+                                    new Uint8Array(await file.arrayBuffer()),
+                                    true, true, true);
+                                localFiles.set(key, file);
+                                kotonohaLocalAssets.set(relative, file);
+                                loaded++;
+                                if (barEl) barEl.style.width =
+                                    Math.round(loaded / files.length * 100) + "%";
+                                setStatus("localLoading", {done: loaded, total: files.length});
+                                if (loaded % 8 === 0)
+                                    await pause(0);
+                            }
+                            if (!loaded)
+                                throw new Error(window.KotonohaText("emptyFolder"));
+                            Module.KotonohaVfsGeneration =
+                                (Module.KotonohaVfsGeneration | 0) + 1;
+                            // A local choice must not implicitly contact HTTP.
+                            setStatus("localReady");
+                            finish();
+                        } catch (error) {
+                            console.error("[Kotonoha] Pasta local inválida:", error);
+                            unlock("localFailed", {
+                                error: String(error.message || error)
+                            });
+                        } finally {
+                            folderInput.value = "";
+                        }
+                    });
+                    serverButton.addEventListener("click", function() {
+                        if (!busy) loadServerAssets();
+                    });
+                    // Explicit choice is mandatory for every web port.
+                    // Never probe HTTP or release the startup run dependency
+                    // until the user chooses a source.
+                    setStatus("chooseSource");
+                }
+            ],
+
+            print: function(text) {
+                console.log("[Kotonoha]", text);
+            },
+
+            printErr: function(text) {
+                console.error("[Kotonoha]", text);
+            },
+
+            onRuntimeInitialized: function() {
+                window.KotonohaRuntimeStarted = true;
+                // This does not cache game-assets. The PWA worker stores only
+                // static runtime files, while IndexedDB owns asset chunks.
+                if ("serviceWorker" in navigator && window.isSecureContext) {
+                    navigator.serviceWorker.ready.then(registration => {
+                        if (registration.active)
+                            registration.active.postMessage({
+                                type: "KOTONOHA_CACHE_RUNTIME"
+                            });
+                    }).catch(error => console.warn(
+                        "[Kotonoha PWA] Offline runtime cache unavailable:", error));
+                }
+                if (window.KotonohaCloseStartupFolderTools)
+                    window.KotonohaCloseStartupFolderTools();
+                // Keep keyboard input on the game surface, not a vanished
+                // startup button. Does not request fullscreen or audio play.
+                try {
+                    document.getElementById("canvas").focus({ preventScroll: true });
+                } catch (error) {
+                    document.getElementById("canvas").focus();
+                }
+                console.log("[Kotonoha] Runtime inicializado");
+                // The preRun hook already restored /save with syncfs(true);
+                // saves flush explicitly and on pagehide, so no startup flush.
+                const overlay = document.getElementById("loading-overlay");
+                if (overlay) {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => overlay.remove(), 500);
+                }
+            },
+
+            onAbort: function(reason) {
+                console.error("[Kotonoha] Runtime abortado:", reason);
+                const statusEl = document.getElementById("loading-status");
+                if (statusEl) {
+                    statusEl.style.color = "#ff5252";
+                    statusEl.textContent = window.KotonohaText("fatal", {reason});
+                }
+            }
+        };
+    </script>
+
+    <script>
+        // Optional local overlays use the same Emscripten VFS as the engine.
+        // The folder's selected name is only a default: the user may choose
+        // game-assets, forced_subtitles, ovrlay, or another safe top-level name.
+        (function() {
+            const button = document.getElementById("add-browser-folder");
+            const input = document.getElementById("add-browser-folder-input");
+            const status = document.getElementById("browser-folder-status");
+            const roots = new Set();
+            const toolbar = button.parentElement;
+            // Once the game starts the toolbar stays hidden; there is no
+            // browser popover to center it or re-open it during fullscreen.
+            window.KotonohaCloseStartupFolderTools = function() {
+                toolbar.hidden = true;
+                button.disabled = true;
+                input.disabled = true;
+            };
+            let nextImportId = 0;
+            const validComponent = name => typeof name === "string" &&
+                /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/.test(name) &&
+                name !== "." && name !== ".." && name !== "save";
+            const validPath = path => path.length > 0 &&
+                path.split("/").every(validComponent);
+
+            window.KotonohaMountBrowserFolder = async function(files, name) {
+                const root = String(name || "").trim();
+                if (!validComponent(root))
+                    throw new Error(window.KotonohaText("invalidFolderName"));
+                if (!Module || !Module.FS_createPath || !Module.FS_createDataFile)
+                    throw new Error(window.KotonohaText("wasmUnavailable"));
+                const selected = Array.from(files || []);
+                if (!selected.length) throw new Error(window.KotonohaText("emptyFolder"));
+                const records = selected.map(file => {
+                    const source = file.webkitRelativePath || file.name;
+                    const parts = source.split("/");
+                    // webkitdirectory includes the selected folder as first segment.
+                    const relative = parts.length > 1 ? parts.slice(1).join("/") : parts[0];
+                    if (!validPath(relative))
+                        throw new Error(window.KotonohaText("unsafePath", {path: source}));
+                    return {file, relative, key: relative.toLowerCase()};
+                });
+                const unique = new Set();
+                for (const record of records) {
+                    if (unique.has(record.key))
+                        throw new Error(window.KotonohaText("duplicateFile", {path: record.relative}));
+                    unique.add(record.key);
+                }
+                if (roots.has(root))
+                    throw new Error(window.KotonohaText("alreadyMounted", {path: root}));
+                for (const record of records) {
+                    const pieces = record.key.split("/");
+                    for (let i = 1; i < pieces.length; ++i) {
+                        if (unique.has(pieces.slice(0, i).join("/")))
+                            throw new Error(window.KotonohaText("fileAsFolder", {
+                                path: record.relative
+                            }));
+                    }
+                }
+                // Do not overwrite an existing root, including engine-managed /save.
+                if (Module.FS && Module.FS.analyzePath("/" + root).exists &&
+                    root !== "game-assets")
+                    throw new Error(window.KotonohaText("folderExists", {path: root}));
+                // Validate all destination collisions before writing anything.
+                if (Module.FS) {
+                    for (const {relative} of records) {
+                        const target = "/" + root + "/" + relative;
+                        if (Module.FS.analyzePath(target).exists)
+                            throw new Error(window.KotonohaText("fileExists", {path: target}));
+                    }
+                }
+                const dependency = "kotonoha_browser_folder_" + (++nextImportId);
+                const holdBoot = !window.KotonohaRuntimeStarted &&
+                    typeof Module.addRunDependency === "function";
+                if (holdBoot) Module.addRunDependency(dependency);
+                let imported = 0;
+                try {
+                    Module.FS_createPath("/", root, true, true);
+                    for (const {file, relative} of records) {
+                    const slash = relative.lastIndexOf("/");
+                    const directory = slash < 0 ? "" : relative.slice(0, slash);
+                    const filename = slash < 0 ? relative : relative.slice(slash + 1);
+                    if (directory)
+                        Module.FS_createPath("/" + root, directory, true, true);
+                    const target = "/" + root + "/" + relative;
+                    if (Module.FS && Module.FS.analyzePath(target).exists)
+                        throw new Error("Arquivo já existe: " + target);
+                    Module.FS_createDataFile("/" + root +
+                        (directory ? "/" + directory : ""),
+                        filename, new Uint8Array(await file.arrayBuffer()),
+                        true, true, true);
+                    if (root === "game-assets") {
+                        kotonohaLocalAssets.set(relative, file);
+                    }
+                    imported++;
+                    status.textContent = window.KotonohaText("folderMounting", {
+                        root, done: imported, total: records.length
+                    });
+                }
+                    roots.add(root);
+                    // Invalidate DirectoryMount indexes already in use by a game.
+                    Module.KotonohaVfsGeneration =
+                        (Module.KotonohaVfsGeneration | 0) + 1;
+                    return imported;
+                } finally {
+                    if (holdBoot) Module.removeRunDependency(dependency);
+                }
+            };
+
+            button.addEventListener("click", function() {
+                if (!toolbar.hidden && !window.KotonohaRuntimeStarted)
+                    input.click();
+            });
+            input.addEventListener("change", async function() {
+                if (toolbar.hidden || window.KotonohaRuntimeStarted ||
+                    !input.files.length) return;
+                const suggested = input.files[0].webkitRelativePath.split("/")[0] ||
+                    "game-assets";
+                const chosen = window.prompt(
+                    window.KotonohaText("folderPrompt"), suggested);
+                if (chosen === null) { input.value = ""; return; }
+                button.disabled = true;
+                try {
+                    const count = await window.KotonohaMountBrowserFolder(input.files, chosen);
+                    status.textContent = window.KotonohaText("folderMounted", {
+                        count, root: chosen
+                    });
+                } catch (error) {
+                    console.error("[Kotonoha] Importação da pasta:", error);
+                    status.textContent = String(error.message || error);
+                } finally {
+                    button.disabled = false;
+                    input.value = "";
+                }
+            });
+        })();
+    </script>
+    <script>
+        // Registration is local to the game output directory. Installing
+        // RealLive and Kirikiri at /RealLive/ and /Kirikiri/ yields two PWAs.
+        // Service Workers require HTTPS or localhost; ordinary HTTP play
+        // continues without installability.
+        if ("serviceWorker" in navigator && window.isSecureContext) {
+            window.addEventListener("load", function() {
+                navigator.serviceWorker.register("./service-worker.js", {
+                    scope: "./",
+                    updateViaCache: "none"
+                }).catch(error => console.warn(
+                    "[Kotonoha PWA] Service Worker registration failed:", error));
+            });
+        }
+    </script>
+    <script src="KotonohaPreloadCache.js"></script>
+    <script src="@TARGET_NAME@.js"></script>
+</body>
+</html>

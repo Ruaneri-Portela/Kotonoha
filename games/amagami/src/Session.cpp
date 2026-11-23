@@ -1597,16 +1597,16 @@ std::optional<VmValue> Session::primitive(const std::string &owner,
   // Sprite primitives restantes (open-amagami port/src/gfx.cpp): attach,
   // destruct, update, animate, spin, vibrate, skip, pause -- todos retornam
   // self (no-ops no port, sem modelo de objetos de tela do PS2).
-  if (owner == "Sprite" && (n == 2 || n == 3 || n >= 7 && n <= 18))
+  if (owner == "Sprite" && (n == 2 || n == 3 || (n >= 7 && n <= 18)))
     return r;
   // ActorPicture primitives restantes: initialize, diversos setters/getters,
   // animate, vibrate, skip, pause -- todos retornam self.
-  if (owner == "ActorPicture" && (n >= 1 && n <= 4) ||
+  if ((owner == "ActorPicture" && (n >= 1 && n <= 4)) ||
       (owner == "ActorPicture" && n >= 6 && n <= 24))
     return r;
   // ExtraPicture primitives restantes: diversos setters/getters, animate,
   // vibrate, skip, pause -- todos retornam self.
-  if (owner == "ExtraPicture" && n >= 1 && n <= 4 ||
+  if ((owner == "ExtraPicture" && n >= 1 && n <= 4) ||
       (owner == "ExtraPicture" && n >= 6 && n <= 15))
     return r;
   // FontChar primitives restantes: destruct, update, animate, vibrate -- todos
@@ -1830,7 +1830,7 @@ void Session::load(const std::string &path) {
             !std::all_of(
                 action.value.begin(), action.value.end(),
                 [](unsigned char c) { return c >= '0' && c <= '9'; }) ||
-            action.value[0] == '0' && action.value.size() > 1)
+            (action.value[0] == '0' && action.value.size() > 1))
           throw std::runtime_error("Invalid campaign choice selector");
       } else {
         throw std::runtime_error("Unknown Amagami campaign save action");

@@ -7,6 +7,7 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <Kotonoha/routing/SchoolDaysChoiceTextPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 #include <algorithm>
@@ -102,7 +103,7 @@ void LogoSplash::render(Kotonoha::RendererRef renderer, float) {
   const double time = elapsed();
   const double alpha = std::clamp(std::min(time, displaySeconds - time) / fadeSeconds, 0.0, 1.0);
   SDL_SetTextureAlphaModFloat(texture, float(alpha));
-  SDL_RenderTexture(&renderer, texture, nullptr, &target);
+  Kotonoha::RenderUpscaledTexture(&renderer, texture, nullptr, &target);
   SDL_SetTextureAlphaModFloat(texture, 1.0f);
 }
 
@@ -358,7 +359,8 @@ bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
       SDL_Rect destination{0,
                            static_cast<int>(slot) * 256 +
                                static_cast<int>(lineIndex) * Plan::kGlyphHeight,
-                           std::min(measuredWidth, 1024), Plan::kGlyphHeight};
+                           std::min({measuredWidth, 1024, rendered->w}),
+                           std::min(Plan::kGlyphHeight, rendered->h)};
       if (!SDL_BlitSurfaceScaled(rendered.get(), nullptr, scratch.get(),
                                  &destination, SDL_SCALEMODE_LINEAR))
         return false;
@@ -367,7 +369,7 @@ bool GameScene::ensureChoiceScratch(Kotonoha::RendererRef renderer,
   }
 
   choiceScratch.reset(SDL_CreateTextureFromSurface(&renderer, scratch.get()));
-  if (!choiceScratch ||
+  if (!choiceScratch || !Kotonoha::MarkTTFTextRaster(*choiceScratch) ||
       !SDL_SetTextureBlendMode(choiceScratch.get(), SDL_BLENDMODE_BLEND)) {
     choiceScratch.reset();
     return false;

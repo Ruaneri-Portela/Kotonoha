@@ -1,15 +1,17 @@
 # Compatibilidade dos motores — referências e progresso (novembro de 2026)
 
+> **Registro histórico, não estado atual dos ports.** As descrições abaixo refletem uma etapa anterior à integração dos PRs #71 e #76. Consulte [o estado atual do N2System](../games/n2system/STATUS.pt-BR.md), [o relatório de paridade](NITROSHARP_PORT_PARITY.md) e [a auditoria de licenças](LICENSING.pt-BR.md).
+
 Este documento registra avanços **incrementais** no Kotonoha com base em outros interpretadores e ferramentas. Testes sintéticos e leitura de formatos não comprovam compatibilidade 1:1 com jogos comerciais.
 
 ## Referências e licenças
 
 | Referência | Módulo do Kotonoha | Política de licença |
 | --- | --- | --- |
-| [rlvm](https://github.com/eglaysher/rlvm) | `modules/vms/reallive` | O projeto rlvm completo usa GPL-3.0-or-later; foi consultado como referência comportamental, sem incorporar código GPL novo ao Kotonoha MIT. Os arquivos já incluídos de `libreallive` têm seus próprios cabeçalhos MIT. |
+| [rlvm](https://github.com/eglaysher/rlvm) | `modules/vms/reallive` | O projeto rlvm completo usa GPL-3.0 (metadados públicos; conferir cabeçalhos de cada arquivo); foi consultado como referência comportamental, sem incorporar código GPL novo ao Kotonoha MIT. Os arquivos já incluídos de `libreallive` têm seus próprios cabeçalhos MIT. |
 | [NitroSharp](https://github.com/CommitteeOfZero/nitrosharp) | `modules/vms/n2system` | NitroSharp é MIT, mas componentes externos podem ter outras licenças. O indexador foi implementado em C++17, sem importar o runtime C#/.NET. |
 | [LuckSystem](https://github.com/wetor/LuckSystem) | `games/luca-system` | MIT; referência para estrutura dos scripts, padding e mensagens AIR. |
-| [Kirikiroid2Yuri](https://github.com/YuriSizuku/Kirikiroid2Yuri) | `modules/vms/kag` e `modules/providers/xp3` | Contém componentes e avisos de terceiros diversos. Não copiar bibliotecas sem auditoria por arquivo. |
+| [Kirikiroid2Yuri](https://github.com/YuriSizuku/Kirikiroid2Yuri) | `modules/vms/kag` e `modules/providers/xp3` | Licença global não classificada nos metadados públicos, com componentes de terceiros. Conferir a licença de cada arquivo antes de copiar. |
 
 ## Implementado na `dev`
 

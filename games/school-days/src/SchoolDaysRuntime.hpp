@@ -529,7 +529,9 @@ public:
   SDL_Point viewport() const override { return {1280, 720}; }
   int translationRoute() const override;
   Kotonoha::Translation::SourceTexts translationSources() const override;
+  bool advanceStoryTime(double seconds) override;
   std::string debugNode() const override;
+  std::string nodeClockKey() const override;
   bool usesTimedNodeClock() const override { return true; }
   std::optional<double> debugNodeSeconds() const override { return elapsed; }
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
@@ -539,6 +541,7 @@ public:
     return documents.empty() ? std::filesystem::path{} : documents / "overlay";
   }
   void debugJumpToNode(const std::string &id) override;
+  void debugRestartScene() override;
   bool hasCustomKtrf() const override { return true; }
   void loadKtrf(const std::string &path) override;
   void dumpKtrf(const std::string &path) const override;

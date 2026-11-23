@@ -1,0 +1,110 @@
+name: Linux system SDL3 with pinned ImGui
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "CMakeLists.txt"
+      - "lib/CMakeLists.txt"
+      - "lib/src/core/AssetProvider.cpp"
+      - "lib/src/core/UI.cpp"
+      - "lib/src/core/Engine.cpp"
+      - "lib/tests/AssetProviderTests.cpp"
+      - "games/n2system/**"
+      - "modules/vms/n2system/**"
+      - "lib/include/Kotonoha/core/UI.hpp"
+      - "lib/include/Kotonoha/events/VideoSkipGesture.hpp"
+      - "lib/tests/VideoSkipGestureTests.cpp"
+      - "lib/include/Kotonoha/core/SDL.hpp"
+      - "lib/tests/ComponentHooksTests.cpp"
+      - "lib/src/filesystem/**"
+      - "lib/include/Kotonoha/Filesystem/**"
+      - "launcher/**"
+      - "lib/tests/FilesystemV2Tests.cpp"
+      - "buildsystems/cmake/dependencies/**"
+      - ".github/workflows/linux-system-deps.yml"
+  pull_request:
+    paths:
+      - "CMakeLists.txt"
+      - "lib/CMakeLists.txt"
+      - "lib/src/core/AssetProvider.cpp"
+      - "lib/src/core/UI.cpp"
+      - "lib/src/core/Engine.cpp"
+      - "lib/tests/AssetProviderTests.cpp"
+      - "games/n2system/**"
+      - "modules/vms/n2system/**"
+      - "lib/include/Kotonoha/core/UI.hpp"
+      - "lib/include/Kotonoha/events/VideoSkipGesture.hpp"
+      - "lib/tests/VideoSkipGestureTests.cpp"
+      - "lib/include/Kotonoha/core/SDL.hpp"
+      - "lib/tests/ComponentHooksTests.cpp"
+      - "lib/src/filesystem/**"
+      - "lib/include/Kotonoha/Filesystem/**"
+      - "launcher/**"
+      - "lib/tests/FilesystemV2Tests.cpp"
+      - "buildsystems/cmake/dependencies/**"
+      - ".github/workflows/linux-system-deps.yml"
+
+jobs:
+  system-sdl:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: Install system packages (no libimgui-dev)
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git cmake ninja-build g++ pkg-config python3 python3-dev \
+            libsdl3-dev libsdl3-ttf-dev \
+            libass-dev libavformat-dev libavcodec-dev libavutil-dev \
+            libswscale-dev libswresample-dev libjson-c-dev \
+            libgl-dev libfreetype-dev libharfbuzz-dev zlib1g-dev fonts-dejavu-core
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - name: Configure without pre-downloaded submodules
+        run: |
+          # The checkout is owned by the runner, while the Debian container is root.
+          # Trust only this CI workspace before CMake invokes git submodule update.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test ! -f lib/submodules/imgui/imgui.cpp
+          cmake -S . -B build-system -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DKOTONOHA_SDL_PROVIDER=SYSTEM \
+            -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON \
+            -DKOTONOHA_BUILD_EXAMPLE=ON \
+            -DKOTONOHA_BUILD_ALL=OFF
+          test -f lib/submodules/imgui/backends/imgui_impl_sdl3.cpp
+          test -f lib/submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp
+          grep -q '^KOTONOHA_SDL_PROVIDER_RESOLVED:INTERNAL=SYSTEM' build-system/CMakeCache.txt
+          grep -q '^KOTONOHA_IMGUI_PROVIDER_RESOLVED:INTERNAL=SUBMODULES' build-system/CMakeCache.txt
+      - name: Compile Example using system SDL and pinned ImGui
+        run: cmake --build build-system --target Kotonoha --parallel 2
+      - name: Compile N2System runtime in C++17 against system SDL3
+        run: |
+          c++ -std=c++17 -Wall -Wextra -fsyntax-only \
+            -Ilib/include -Igames/n2system/include \
+            -Igames/ponscripter/include \
+            -Imodules/vms/n2system/include \
+            -Imodules/providers/n2/include \
+            -Imodules/vms/ponscripter/include \
+            -Imodules/providers/ponscripter/include \
+            -Ilib/submodules/imgui -Ilib/submodules/imgui/misc/cpp \
+            games/n2system/src/N2Runtime.cpp
+      - name: Compile the shared launcher scanner in C++17
+        run: |
+          c++ -std=c++17 -fsyntax-only \
+            -Ilauncher/include -Ilib/include \
+            -Ilib/submodules/imgui -Ilib/submodules/imgui/misc/cpp \
+            launcher/src/UnifiedLauncher.cpp
+      - name: Compile and run filesystem and text rendering regressions
+        run: |
+          # The distributable Noto Sans JP font is not tracked in git. Use a
+          # system-installed test font in the engine's documented asset path.
+          # Keep font assets out of the source repository and test bundles.
+          mkdir -p build-system/bin/assets/fonts
+          test -s /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+          cp /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+            build-system/bin/assets/fonts/NotoSansJP-Regular.ttf
+          cmake --build build-system --target KotonohaFilesystemV2Tests KotonohaComponentHooksTests KotonohaVideoSkipGestureTests --parallel 2
+          ctest --test-dir build-system -R 'FilesystemV2|ComponentHooks|VideoSkipGesture' --output-on-failure

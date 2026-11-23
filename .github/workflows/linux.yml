@@ -50,7 +50,7 @@ jobs:
         run: |
           mkdir -p vcpkg-binary-cache/linux
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache/linux,readwrite"
-          "$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-dynamic --x-feature=sdl-vcpkg --x-feature=imgui-vcpkg \
+          "$VCPKG_ROOT/vcpkg" install --triplet=x64-linux-dynamic --x-feature=sdl-vcpkg \
             "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
 
       - name: Save Linux vcpkg dependency archives
@@ -73,8 +73,8 @@ jobs:
           cmake -S . -B build-linux -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic \
-            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
-            -DKOTONOHA_SDL_FROM_VCPKG=ON -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
+            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" \
+            -DKOTONOHA_SDL_PROVIDER=VCPKG \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON
       - name: Compile all game ports
@@ -100,13 +100,139 @@ jobs:
           print(f"Validated {len(packages)} Linux game ZIPs")
           PY
 
-      - name: Upload Linux artifacts
+      - name: Upload linux standalone build outputs
         uses: actions/upload-artifact@v4
         with:
-          name: kotonoha-linux-x64-dynamic-vcpkg
-          path: |
-            build-linux/outputs/
-            build-linux/packages/*.zip
+          name: kotonoha-linux-x64-outputs
+          path: build-linux/outputs/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Kotonoha CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-Kotonoha
+          path: build-linux/packages/*-Kotonoha.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Amagami CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-Amagami
+          path: build-linux/packages/*-Amagami.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload ZeroNoTsukaima CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-ZeroNoTsukaima
+          path: build-linux/packages/*-ZeroNoTsukaima.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SnowRadish CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-SnowRadish
+          path: build-linux/packages/*-SnowRadish.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SummerRadish CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-SummerRadish
+          path: build-linux/packages/*-SummerRadish.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload MEO CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-MEO
+          path: build-linux/packages/*-MEO.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload DokiDoki CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-DokiDoki
+          path: build-linux/packages/*-DokiDoki.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload KatawaShoujo CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-KatawaShoujo
+          path: build-linux/packages/*-KatawaShoujo.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SchoolDays CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-SchoolDays
+          path: build-linux/packages/*-SchoolDays.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload RealLive CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-RealLive
+          path: build-linux/packages/*-RealLive.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Kirikiri CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-Kirikiri
+          path: build-linux/packages/*-Kirikiri.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload LucaSystem CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-LucaSystem
+          path: build-linux/packages/*-LucaSystem.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Pmail CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-Pmail
+          path: build-linux/packages/*-Pmail.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload PonscripterGame CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-PonscripterGame
+          path: build-linux/packages/*-PonscripterGame.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload N2SystemGame CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-N2SystemGame
+          path: build-linux/packages/*-N2SystemGame.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload KotonohaLauncher CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-linux-x64-KotonohaLauncher
+          path: build-linux/packages/*-KotonohaLauncher.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -142,7 +268,7 @@ jobs:
         run: |
           mkdir -p vcpkg-binary-cache/wasm
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache/wasm,readwrite"
-          "$VCPKG_ROOT/vcpkg" install --triplet=wasm32-emscripten --x-feature=sdl-vcpkg --x-feature=imgui-vcpkg \
+          "$VCPKG_ROOT/vcpkg" install --triplet=wasm32-emscripten --x-feature=sdl-vcpkg \
             "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
 
       - name: Save WASM vcpkg dependency archives
@@ -165,8 +291,8 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" \
             -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
-            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
-            -DKOTONOHA_SDL_FROM_VCPKG=ON -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
+            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" \
+            -DKOTONOHA_SDL_PROVIDER=VCPKG \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_WEB_SELFTEST=ON \
             -DKOTONOHA_BUILD_ALL=ON \
@@ -192,10 +318,17 @@ jobs:
       - name: Verify Asyncify exports for every generated WASM game
         run: |
           count=0
-          while IFS= read -r -d '' js; do
-            python3 tools/check_wasm_asyncify.py "$js"
-            count=$((count + 1))
-          done < <(find build-web/outputs -name '*.js' -type f -print0)
+          # Only game entrypoints have a sibling .wasm with the same basename.
+          # Helper scripts (service-worker.js, KotonohaPreloadCache.js, ...)
+          # are not Asyncify entrypoints and must not be passed to the checker.
+          while IFS= read -r -d '' dir; do
+            name=$(basename "$dir")
+            js="$dir/$name.js"
+            if [ -f "$js" ] && [ -f "$dir/$name.wasm" ]; then
+              python3 tools/check_wasm_asyncify.py "$js"
+              count=$((count + 1))
+            fi
+          done < <(find build-web/outputs -mindepth 1 -maxdepth 1 -type d -print0)
           test "$count" -ge 10
           echo "[Kotonoha] verified $count browser entrypoints"
 

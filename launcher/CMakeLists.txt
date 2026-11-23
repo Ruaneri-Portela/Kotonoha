@@ -6,15 +6,18 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
-if(NOT KOTONOHA_BUILD_ALL)
+if(NOT KOTONOHA_BUILD_ALL AND NOT KOTONOHA_BUILD_LAUNCHER)
     message(FATAL_ERROR
-        "[KotonohaLauncher] Enable KOTONOHA_BUILD_ALL=ON to build the unified launcher")
+        "[KotonohaLauncher] Enable KOTONOHA_BUILD_ALL=ON or KOTONOHA_BUILD_LAUNCHER=ON to build the unified launcher")
 endif()
 
 add_library(kotonoha_unified_launcher STATIC
     src/UnifiedLauncher.cpp
     src/GameFactories.cpp
 )
+if(NOT ANDROID)
+    target_sources(kotonoha_unified_launcher PRIVATE src/LauncherBridge.cpp)
+endif()
 target_include_directories(kotonoha_unified_launcher PUBLIC include)
 target_link_libraries(kotonoha_unified_launcher PUBLIC KotonohaEngine)
 target_compile_features(kotonoha_unified_launcher PUBLIC cxx_std_17)
@@ -27,7 +30,9 @@ set(_kotonoha_launcher_libraries
     "ZERO|zero_no_tsukaima"
     "SNOW|snow_radish_vacation"
     "SUMMER|summer_radish_vacation"
+    "MEO|summer_radish_vacation"
     "DDLC|doki_doki_literature_club"
+    "KATAWA|doki_doki_literature_club"
     "SCHOOL_DAYS|school_days"
     "REALLIVE|reallive_port"
     "KIRIKIRI|kirikiri_formats"
@@ -35,6 +40,7 @@ set(_kotonoha_launcher_libraries
     "PMAIL|PmailPort"
     "N2SYSTEM|n2system_formats"
     "PONSCRIPTER|ponscripter_port"
+    "ARTEMIS|artemis_port"
 )
 foreach(_linked IN LISTS _kotonoha_launcher_libraries)
     string(REPLACE "|" ";" _fields "${_linked}")
@@ -52,6 +58,15 @@ endforeach()
 unset(_kotonoha_launcher_libraries)
 
 kotonoha_add_app(KotonohaLauncher src/main.cpp)
+if(ANDROID)
+    # JNI entry points are called from Java, so a static linker cannot see
+    # references to them when LauncherBridge.cpp lives only in an archive.
+    target_sources(KotonohaLauncher PRIVATE src/LauncherBridge.cpp)
+endif()
+if(APPLE AND (IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS"))
+    target_sources(KotonohaLauncher PRIVATE src/AppleDocuments.mm)
+    target_link_libraries(KotonohaLauncher PRIVATE "-framework Foundation")
+endif()
 target_link_libraries(KotonohaLauncher PRIVATE kotonoha_unified_launcher)
 set_target_properties(KotonohaLauncher PROPERTIES CXX_EXTENSIONS OFF)
 # Keep the global engine resources, but do not copy the Example demo data.
@@ -68,8 +83,8 @@ if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES AND KOTONOHA_BUILD_DDLC
         BUNDLE_ID me.hirameki.kotonoha.launcher
         GAME launcher
         GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}"
-        PYTHON_STDLIB "${Python3_STDLIB}"
-        PYTHON_VERSION "${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}")
+        PYTHON_STDLIB "${KOTONOHA_RENPY_PYTHON_STDLIB}"
+        PYTHON_VERSION "${KOTONOHA_RENPY_PYTHON_VERSION}")
 else()
     kotonoha_configure_app(KotonohaLauncher
         BUNDLE_ID me.hirameki.kotonoha.launcher

@@ -1,0 +1,78 @@
+name: Amagami Vita input and VM regressions
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "games/amagami/**"
+      - "modules/vms/amagami/**"
+      - "modules/providers/amagami/**"
+      - ".github/workflows/amagami-vita-regressions.yml"
+  pull_request:
+    paths:
+      - "games/amagami/**"
+      - "modules/vms/amagami/**"
+      - "modules/providers/amagami/**"
+      - ".github/workflows/amagami-vita-regressions.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vita-synthetic:
+    name: Compile and run Vita SDL3/SCF regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    container: debian:trixie
+    steps:
+      - name: Install native test dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git cmake ninja-build g++ pkg-config python3 python3-dev \
+            libsdl3-dev libsdl3-ttf-dev libass-dev libavformat-dev \
+            libavcodec-dev libavutil-dev libswscale-dev libswresample-dev \
+            libjson-c-dev libgl-dev libfreetype-dev libharfbuzz-dev zlib1g-dev
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - name: Configure only the Amagami port and host tools
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cmake -S . -B build-amagami-vita -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DKOTONOHA_SDL_PROVIDER=SYSTEM \
+            -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON \
+            -DKOTONOHA_BUILD_ALL=OFF \
+            -DKOTONOHA_BUILD_AMAGAMI=ON \
+            -DKOTONOHA_BUILD_HOST_TOOLS=ON \
+            -DKOTONOHA_ENABLE_MCP=OFF \
+            -DBUILD_TESTING=ON
+      - name: Build Vita live adapter, CPK assets, VM and scene tests
+        run: |
+          cmake --build build-amagami-vita --parallel 2 --target \
+            AmagamiVitaLive \
+            AmagamiFormatsTest \
+            AmagamiVitaCpkTest \
+            AmagamiVitaGraphicsTest \
+            AmagamiVitaSystemGraphicsTest \
+            AmagamiVmTest \
+            AmagamiVitaBootstrapTest \
+            AmagamiVitaSpriteBridgeTest \
+            AmagamiVitaSpriteRenderTest \
+            AmagamiVitaBackgroundTest \
+            AmagamiVitaFontCharTest \
+            AmagamiVitaSpinTest \
+            AmagamiVitaInputTest \
+            AmagamiVitaControlPadTest \
+            AmagamiVitaMemoryCardTest \
+            AmagamiVitaVibrationTest
+      - name: Run synthetic tests without commercial assets
+        env:
+          SDL_VIDEO_DRIVER: dummy
+          SDL_AUDIO_DRIVER: dummy
+        run: |
+          ctest --test-dir build-amagami-vita \
+            -R '^Amagami\.(Formats|Vm|VitaCpk|VitaGraphics|VitaSystemGraphics|VitaBootstrap|VitaSpriteBridge|VitaSpriteRender|VitaBackground|VitaFontChar|VitaSpin|VitaInput|VitaControlPad|VitaMemoryCard|VitaVibration)$' \
+            --output-on-failure --no-tests=error

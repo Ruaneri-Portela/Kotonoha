@@ -1,6 +1,7 @@
 #include <Kotonoha/components/SplashScreen.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/SurfaceTexture.hpp>
@@ -41,6 +42,7 @@ void SplashScreen::restart() {
   current = 0;
   texture.reset();
   video.reset();
+  videoSkip.reset();
   loaded = false;
   startedNs = SDL_GetTicksNS();
 }
@@ -49,6 +51,7 @@ void SplashScreen::next() {
   ++current;
   texture.reset();
   video.reset();
+  videoSkip.reset();
   loaded = false;
   startedNs = SDL_GetTicksNS();
 }
@@ -65,6 +68,13 @@ bool SplashScreen::handleEvent(EventRef rawEvent) {
   const auto event = MapControllerEvent(rawEvent);
   if (finished())
     return false;
+  // A playing video must not be skipped by a single click/touch or by
+  // unrelated SDL events. Images retain their original one-click handling.
+  if (currentIsVideo()) {
+    if (videoSkip.accept(rawEvent))
+      next();
+    return true;
+  }
   // Touches also arrive as synthetic mouse events; count them once.
   const bool click = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
                      event.button.which != SDL_TOUCH_MOUSEID;

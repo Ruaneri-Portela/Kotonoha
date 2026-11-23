@@ -6,6 +6,10 @@ import android.content.res.AssetManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.TextView;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.view.Gravity;
+import android.graphics.Color;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -18,10 +22,24 @@ public final class BootstrapActivity extends Activity {
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
+        // Universal black splash, centered logo; no portrait/landscape artwork.
+        FrameLayout splash = new FrameLayout(this);
+        splash.setBackgroundColor(Color.BLACK);
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.kotonoha_splash_mark);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        int size = (int)(168 * getResources().getDisplayMetrics().density);
+        splash.addView(logo, new FrameLayout.LayoutParams(size, size, Gravity.CENTER));
         TextView status = new TextView(this);
-        status.setPadding(32, 32, 32, 32);
+        status.setTextColor(Color.WHITE);
         status.setText("Preparing game assets...");
-        setContentView(status);
+        status.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams message = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        message.bottomMargin = (int)(32 * getResources().getDisplayMetrics().density);
+        splash.addView(status, message);
+        setContentView(splash);
         new Thread(() -> {
             try {
                 String fingerprint;
@@ -47,24 +65,30 @@ public final class BootstrapActivity extends Activity {
                     if (!gameAssets.isDirectory() && !gameAssets.mkdirs()) {
                         throw new IOException("Cannot create game-assets directory");
                     }
-                    if (BuildConfig.NATIVE_TARGET.equals("DokiDoki")) {
+                    if (BuildConfig.NATIVE_TARGET.equals("DokiDoki")
+                            || BuildConfig.NATIVE_TARGET.equals("KatawaShoujo")
+                            || BuildConfig.NATIVE_TARGET.equals("KotonohaLauncher")) {
+                        deleteRecursive(new File(directory, "python"));
                         copyDirectory(getAssets(), "python", directory, "python");
                     }
                     Files.write(complete.toPath(), fingerprint.getBytes(StandardCharsets.UTF_8));
                 }
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
-                    Intent game = new Intent(this, GameActivity.class);
-                    if (getCallingActivity() != null &&
+                    Class<?> nextActivity = BuildConfig.NATIVE_TARGET.equals("KotonohaLauncher")
+                            ? LauncherActivity.class : GameActivity.class;
+                    Intent next = new Intent(this, nextActivity);
+                    // Preserve local on-device School Days setup arguments when
+                    // returning through the bootstrap into the game activity.
+                    if (nextActivity == GameActivity.class && getCallingActivity() != null &&
                             getPackageName().equals(getCallingActivity().getPackageName()) &&
                             getIntent().hasExtra(GameActivity.LAUNCH_ARGUMENTS)) {
-                        game.putExtra(GameActivity.LAUNCH_ARGUMENTS,
+                        next.putExtra(GameActivity.LAUNCH_ARGUMENTS,
                                 getIntent().getStringArrayExtra(GameActivity.LAUNCH_ARGUMENTS));
                     }
-                    if (getCallingActivity() != null) {
-                        game.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
-                    }
-                    startActivity(game);
+                    if (getCallingActivity() != null)
+                        next.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
+                    startActivity(next);
                     finish();
                 });
             } catch (IOException error) {
@@ -88,6 +112,17 @@ public final class BootstrapActivity extends Activity {
         int count;
         while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
         return output.toByteArray();
+    }
+
+    private static void deleteRecursive(File target) {
+        if (target == null || !target.exists()) return;
+        if (target.isDirectory()) {
+            File[] children = target.listFiles();
+            if (children != null) {
+                for (File child : children) deleteRecursive(child);
+            }
+        }
+        target.delete();
     }
 
     private static void copyDirectory(AssetManager assets, String path, File root,
@@ -114,6 +149,12 @@ public final class BootstrapActivity extends Activity {
                 byte[] buffer = new byte[65536];
                 int count;
                 while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            } catch (java.io.FileNotFoundException emptyDirOrMissing) {
+                // AssetManager.list() returns an empty array for both regular files
+                // and empty directories. If opening as a file fails, create directory.
+                if (!destination.isDirectory() && !destination.mkdirs()) {
+                    throw emptyDirOrMissing;
+                }
             }
         }
     }

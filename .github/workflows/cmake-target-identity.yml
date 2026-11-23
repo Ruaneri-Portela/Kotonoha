@@ -9,9 +9,10 @@ on:
       - 'modules/**/CMakeLists.txt'
       - 'buildsystems/cmake/**'
       - 'tools/check_cmake_target_identity.py'
+      - 'tools/test_msvc_dependency_isolation.py'
       - '.github/workflows/cmake-target-identity.yml'
   push:
-    branches: [dev]
+    branches: [main, dev]
     paths:
       - 'CMakeLists.txt'
       - 'lib/**/CMakeLists.txt'
@@ -19,6 +20,7 @@ on:
       - 'modules/**/CMakeLists.txt'
       - 'buildsystems/cmake/**'
       - 'tools/check_cmake_target_identity.py'
+      - 'tools/test_msvc_dependency_isolation.py'
       - '.github/workflows/cmake-target-identity.yml'
   workflow_dispatch:
 
@@ -30,3 +32,4 @@ jobs:
       - name: Validate canonical CMake targets and dependency graph
         run: |
           python3 tools/check_cmake_target_identity.py --self-test
+          python3 tools/test_msvc_dependency_isolation.py

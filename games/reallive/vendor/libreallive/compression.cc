@@ -128,22 +128,41 @@ void Decompress(const char* src,
   char* dstend = dst + dst_len;
   src += 8;
   unsigned char mask = 8;
-  char flag = *src++ ^ xor_mask[mask++];
-  while (src < srcend && dst < dstend) {
+  unsigned char flag = static_cast<unsigned char>(*src++) ^
+                       static_cast<unsigned char>(xor_mask[mask++]);
+  // The archive header declares the exact decoded size. Exhausting the input
+  // before producing that many bytes is corruption, not a successful decode.
+  while (dst < dstend) {
     if (bit == 256) {
       bit = 1;
-      flag = *src++ ^ xor_mask[mask++];
+      if (src >= srcend)
+        throw Error("Truncated RealLive compressed script flags");
+      flag = static_cast<unsigned char>(*src++) ^
+             static_cast<unsigned char>(xor_mask[mask++]);
     }
     if (flag & bit) {
+      if (src >= srcend)
+        throw Error("Truncated RealLive compressed script literal");
       *dst++ = *src++ ^ xor_mask[mask++];
     } else {
+      if (srcend - src < 2)
+        throw Error("Truncated RealLive compressed script back-reference");
       char* repeat;
-      int count = *src++ ^ xor_mask[mask++];
-      count += (*src++ ^ xor_mask[mask++]) << 8;
-      repeat = dst - ((count >> 4) - 1) - 1;
-      count = (count & 0x0f) + 2;
-      if (repeat < dststart || repeat >= dst)
-        throw Error("corrupt data");
+      const unsigned int low = static_cast<unsigned char>(*src++) ^
+                               static_cast<unsigned char>(xor_mask[mask++]);
+      const unsigned int high = static_cast<unsigned char>(*src++) ^
+                                static_cast<unsigned char>(xor_mask[mask++]);
+      const unsigned int code = low | (high << 8);
+      const size_t distance = code >> 4;
+      const size_t produced = static_cast<size_t>(dst - dststart);
+      // Validate offsets as integers first: forming a pointer before the
+      // beginning of the output allocation is undefined behavior in C++.
+      if (distance == 0 || distance > produced)
+        throw Error("Invalid RealLive compressed script back-reference");
+      repeat = dst - distance;
+      const int count = (code & 0x0f) + 2;
+      if (dstend - dst < count)
+        throw Error("RealLive compressed script exceeds declared size");
       for (int i = 0; i < count; i++)
         *dst++ = *repeat++;
     }

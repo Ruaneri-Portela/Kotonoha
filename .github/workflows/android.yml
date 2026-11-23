@@ -1,4 +1,4 @@
-name: Android arm64 all game APKs (Gradle and NDK)
+name: Android ARM64 and ARMv7 NEON all game APKs (Gradle and NDK)
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ concurrency:
 jobs:
   vcpkg-deps:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - name: Restore prebuilt dependency archives
@@ -21,9 +21,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: vcpkg-binary-cache
-          key: kotonoha-deps-v3-android-arm64-ndk28-python-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          key: kotonoha-deps-v4-android-arm64-armv7-neon-ndk28-python-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
           restore-keys: |
-            kotonoha-deps-v3-android-arm64-ndk28-python-
+            kotonoha-deps-v4-android-arm64-armv7-neon-ndk28-python-
       - uses: android-actions/setup-android@v4
         if: steps.deps-cache.outputs.cache-hit != 'true'
 
@@ -51,26 +51,28 @@ jobs:
           git -C "$RUNNER_TEMP/vcpkg" checkout --quiet 9a5dfef5d1a0438a7d24856a85bd60f309d355e9
           "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
           echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
-      - name: Precompile Android ARM64 vcpkg packages
+      - name: Precompile Android ARM64 and ARMv7 NEON vcpkg packages
         if: steps.deps-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           mkdir -p vcpkg-binary-cache
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
-          "$VCPKG_ROOT/vcpkg" install --triplet=arm64-android --x-feature=android-python \
-            "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
+          for triplet in arm64-android arm-neon-android; do
+            "$VCPKG_ROOT/vcpkg" install --triplet="$triplet" --x-feature=android-python \
+              "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
+          done
       - name: Save finished vcpkg dependency archives
         if: steps.deps-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: vcpkg-binary-cache
-          key: kotonoha-deps-v3-android-arm64-ndk28-python-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          key: kotonoha-deps-v4-android-arm64-armv7-neon-ndk28-python-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
 
   android:
     needs: vcpkg-deps
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,7 +120,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: vcpkg-binary-cache
-          key: kotonoha-deps-v3-android-arm64-ndk28-python-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
+          key: kotonoha-deps-v4-android-arm64-armv7-neon-ndk28-python-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'vcpkg-overlays/ports/**') }}
           fail-on-cache-miss: true
 
 
@@ -146,7 +148,7 @@ jobs:
           python3 tools/ValidateBuildMetadata.py
           python3 tools/check_game_platform_isolation.py
 
-      - name: Build all game APKs from the Gradle matrix (arm64-v8a Debug)
+      - name: Build all game APKs from the Gradle matrix (ARM64 and ARMv7 NEON Debug)
         working-directory: buildsystems/android
         run: |
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
@@ -154,7 +156,7 @@ jobs:
           # Includes DokiDoki (CPython from the vcpkg android-python feature).
           # SDL3 native/Java, SDL3_ttf and ImGui remain submodule sources.
           gradle :app:assembleDebug \
-            -Pabis=arm64-v8a -PbundleGameAssets=false --no-daemon --stacktrace
+            -Pabis=arm64-v8a,armeabi-v7a -PbundleGameAssets=false --no-daemon --stacktrace
       - name: Package Android APK binaries into ZIP
         run: |
           python3 - <<'PY'
@@ -176,15 +178,24 @@ jobs:
           expected = set(json.loads(
               Path("buildsystems/xcode/ProjectManifest.json").read_text(
                   encoding="utf-8"))["games"].values())
-          assert {slug for _, slug in flavor_entries} == expected, (
-              "Android Gradle flavors differ from the CMake game matrix")
+          # The dedicated hub selects all runtimes; it is not a game slug.
+          game_flavors = [(flavor, slug) for flavor, slug in flavor_entries
+                          if flavor != "launcher"]
+          launcher_flavors = [(flavor, slug) for flavor, slug in flavor_entries
+                              if flavor == "launcher"]
+          assert ({slug for _, slug in game_flavors} == expected
+                  and len(game_flavors) == len(expected)), (
+              "Android game flavors differ from the CMake game matrix")
+          assert launcher_flavors == [("launcher", "all")], (
+              "Expected one independent Android launcher flavor")
+          # Every game AND the additional hub must produce its own APK.
           flavors = [flavor for flavor, _ in flavor_entries]
           for flavor in flavors:
               suffix = f"-{flavor.lower()}-debug.apk"
               assert sum(p.name.lower().endswith(suffix) for p in apks) == 1, (
                   f"Missing or duplicate Debug APK: {flavor}"
               )
-          dest = Path("buildsystems/android/app/build/outputs/kotonoha-android-arm64.zip")
+          dest = Path("buildsystems/android/app/build/outputs/kotonoha-android-arm64-armv7-neon.zip")
           with ZipFile(dest, "w", compression=ZIP_DEFLATED, compresslevel=1) as archive:
               for apk in apks:
                   archive.write(apk, apk.relative_to(apk_root))
@@ -193,7 +204,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: kotonoha-android-arm64-debug
+          name: kotonoha-android-arm64-armv7-neon-debug
           path: |
             buildsystems/android/app/build/outputs/apk/**/*.apk
             buildsystems/android/app/build/outputs/*.zip
@@ -208,10 +219,19 @@ jobs:
           import re
           caches = list(Path("buildsystems/android/app/.cxx").rglob("CMakeCache.txt"))
           assert caches, "No Android CMake cache generated"
+          armv7_caches = [cache for cache in caches
+                           if "armeabi-v7a" in cache.parts]
+          assert armv7_caches, "No ARMv7 NEON CMake cache generated"
           for cache in caches:
               settings = cache.read_text(encoding="utf-8")
-              for option in ("KOTONOHA_SDL_FROM_VCPKG", "KOTONOHA_IMGUI_FROM_VCPKG"):
-                  assert re.search(rf"^{option}:[^=]+=(OFF|FALSE|0)$", settings, re.M), (cache, option)
+              for option in ("KOTONOHA_SDL_PROVIDER", "KOTONOHA_IMGUI_PROVIDER"):
+                  assert re.search(rf"^{option}:[^=]+=SUBMODULES$", settings, re.M), (cache, option)
+          for cache in armv7_caches:
+              settings = cache.read_text(encoding="utf-8")
+              assert re.search(r"^ANDROID_ARM_NEON:[^=]+=ON$", settings, re.M), cache
+              assert re.search(
+                  r"^VCPKG_TARGET_TRIPLET:[^=]+=arm-neon-android$",
+                  settings, re.M), cache
           # Derive APK variants from the real Gradle flavor matrix.
           # Cross-check their CMake slugs against ProjectManifest so newly
           # added game apps cannot silently disappear from release checks.
@@ -226,8 +246,17 @@ jobs:
           expected = set(json.loads(
               Path("buildsystems/xcode/ProjectManifest.json").read_text(
                   encoding="utf-8"))["games"].values())
-          assert {slug for _, slug in flavor_entries} == expected, (
-              "Android Gradle flavors differ from the CMake game matrix")
+          # The dedicated hub selects all runtimes; it is not a game slug.
+          game_flavors = [(flavor, slug) for flavor, slug in flavor_entries
+                          if flavor != "launcher"]
+          launcher_flavors = [(flavor, slug) for flavor, slug in flavor_entries
+                              if flavor == "launcher"]
+          assert ({slug for _, slug in game_flavors} == expected
+                  and len(game_flavors) == len(expected)), (
+              "Android game flavors differ from the CMake game matrix")
+          assert launcher_flavors == [("launcher", "all")], (
+              "Expected one independent Android launcher flavor")
+          # Every game AND the additional hub must produce its own APK.
           flavors = [flavor for flavor, _ in flavor_entries]
           apk_dir = Path("buildsystems/android/app/build/outputs/apk")
           apk_files = list(apk_dir.rglob("*.apk"))
@@ -237,8 +266,9 @@ jobs:
               assert len(matching) == 1, f"Expected one {flavor} Debug APK, got {matching}"
               with ZipFile(matching[0]) as archive:
                   libraries = set(archive.namelist())
-                  for libname in ("libSDL3.so", "libSDL3_ttf.so", "libimgui.so"):
-                      expected = f"lib/arm64-v8a/{libname}"
-                      assert expected in libraries, f"Missing {expected} in {matching[0]}"
-          print(f"Validated all {len(flavors)} Android ARM64 Debug APKs")
+                  for abi in ("arm64-v8a", "armeabi-v7a"):
+                      for libname in ("libSDL3.so", "libSDL3_ttf.so", "libimgui.so"):
+                          expected = f"lib/{abi}/{libname}"
+                          assert expected in libraries, f"Missing {expected} in {matching[0]}"
+          print(f"Validated all {len(flavors)} Android ARM64 and ARMv7 NEON Debug APKs")
           PY

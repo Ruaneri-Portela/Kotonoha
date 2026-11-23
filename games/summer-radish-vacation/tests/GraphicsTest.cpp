@@ -1,4 +1,7 @@
+#include <SummerRadish/Codec.hpp>
+#include <SummerRadish/Images.hpp>
 #include <SummerRadish/Pack.hpp>
+
 #include <stdexcept>
 using namespace SummerRadish;
 namespace {

@@ -11,11 +11,21 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <iomanip>
+#include <map>
+#include <mutex>
 #include <sstream>
 #include <system_error>
+
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+extern "C" const char *KotonohaIOSDocumentsGamesPath();
+#endif
+#endif
 
 namespace KotonohaLauncher {
 
@@ -87,6 +97,158 @@ fs::path defaultBaseUserDataDir() {
   return cachedBase;
 }
 
+struct CachedProbe {
+  std::uint64_t fingerprint = 0;
+  DetectedEngine engine;
+  bool vnxPatch = false;
+};
+
+std::uint64_t sourceFingerprint(const std::string &path) {
+  // Native discovery must not stat every file in a game's asset tree merely
+  // to reuse a cached engine identity. Inspect the root and known metadata
+  // directories; refresh periodically for changes deeper in the tree.
+  const auto hour = std::chrono::duration_cast<std::chrono::hours>(
+                        std::chrono::system_clock::now().time_since_epoch())
+                        .count();
+  if (path.find("://") != std::string::npos)
+    return std::hash<std::string>{}(path) ^ std::uint64_t(hour);
+
+  std::error_code error;
+  const fs::path root(path);
+  if (!fs::exists(root, error))
+    return 0;
+  std::uint64_t hash = 1469598103934665603ull;
+  auto mix = [&hash](std::uint64_t value) {
+    hash = (hash ^ value) * 1099511628211ull;
+  };
+  mix(static_cast<std::uint64_t>(hour));
+  auto sample = [&](const fs::path &file) {
+    mix(std::hash<std::string>{}(file.lexically_relative(root).string()));
+    error.clear();
+    const auto modified = fs::last_write_time(file, error);
+    if (!error)
+      mix(std::uint64_t(modified.time_since_epoch().count()));
+    error.clear();
+    if (fs::is_regular_file(file, error)) {
+      error.clear();
+      const auto size = fs::file_size(file, error);
+      if (!error)
+        mix(size);
+    }
+  };
+  sample(root);
+  if (fs::is_directory(root, error)) {
+    for (const char *name :
+         {"files", "game", "data", "archive", "Packs", "USRDIR", "kineticdata",
+          "Data", "script", "scripts", "scenario", "game-assets"}) {
+      sample(root / name);
+    }
+    for (const char *name :
+         {"Seen.txt", "Gameexe.ini", "PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK",
+          "data.xp3", "startup.tjs", "0.txt", "nscript.dat"}) {
+      sample(root / name);
+    }
+  }
+  return hash;
+}
+
+std::map<std::string, CachedProbe> &scanCache() {
+  static std::map<std::string, CachedProbe> cache;
+  static const bool loaded = [&] {
+    try {
+      const fs::path path =
+          fs::path(defaultGameParamsFilePath()).parent_path() /
+          "scan-cache-v1.txt";
+      Kotonoha::Filesystem::InputFile input(path);
+      if (!input.is_open())
+        return true;
+      std::string key;
+      CachedProbe item;
+      int kind = 0, implemented = 0, patch = 0;
+      while (input >> std::quoted(key) >> item.fingerprint >> kind >>
+             implemented >> patch >> std::quoted(item.engine.slug) >>
+             std::quoted(item.engine.displayName) >>
+             std::quoted(item.engine.dataPrefix) >>
+             std::quoted(item.engine.evidence)) {
+        item.engine.kind = EngineKind(kind);
+        item.engine.implementedInKotonoha = implemented != 0;
+        item.vnxPatch = patch != 0;
+        cache[key] = item;
+      }
+    } catch (const std::exception &) {
+      cache.clear();
+    }
+    return true;
+  }();
+  (void)loaded;
+  return cache;
+}
+
+bool &scanCacheDirty() {
+  static bool dirty = false;
+  return dirty;
+}
+
+std::mutex &scanCacheMutex() {
+  static std::mutex mutex;
+  return mutex;
+}
+
+void persistScanCache(const std::map<std::string, CachedProbe> &cache) {
+  try {
+    std::ostringstream data;
+    for (const auto &[path, item] : cache)
+      data << std::quoted(path) << ' ' << item.fingerprint << ' '
+           << int(item.engine.kind) << ' '
+           << int(item.engine.implementedInKotonoha) << ' '
+           << int(item.vnxPatch) << ' ' << std::quoted(item.engine.slug) << ' '
+           << std::quoted(item.engine.displayName) << ' '
+           << std::quoted(item.engine.dataPrefix) << ' '
+           << std::quoted(item.engine.evidence) << '\n';
+    const fs::path path = fs::path(defaultGameParamsFilePath()).parent_path() /
+                          "scan-cache-v1.txt";
+    Kotonoha::writeTextFileAtomically(path.string(), data.str());
+  } catch (const std::exception &) {
+    // An unwritable cache must not prevent game discovery.
+  }
+}
+
+CachedProbe probeCached(const std::string &path) {
+  std::lock_guard<std::mutex> lock(scanCacheMutex());
+  const auto fingerprint = sourceFingerprint(path);
+  auto &cache = scanCache();
+  if (const auto found = cache.find(path);
+      found != cache.end() && found->second.fingerprint == fingerprint)
+    return found->second;
+  CachedProbe result;
+  result.fingerprint = fingerprint;
+  try {
+    auto mounted = Filesystem::mountForDetection(path);
+    if (mounted) {
+      result.vnxPatch = isVnxOverlayPatch(*mounted);
+      result.engine = detectKotonohaEngine(*mounted, path);
+    }
+  } catch (const std::exception &) {
+  }
+  if (result.engine.kind != EngineKind::Unknown || result.vnxPatch) {
+    cache[path] = result;
+    scanCacheDirty() = true;
+  } else {
+    // Cache negative probes too; a changed root/hour still invalidates them.
+    cache[path] = result;
+    scanCacheDirty() = true;
+  }
+  return result;
+}
+
+void flushScanCache() {
+  std::lock_guard<std::mutex> lock(scanCacheMutex());
+  if (scanCacheDirty()) {
+    persistScanCache(scanCache());
+    scanCacheDirty() = false;
+  }
+}
+
 } // namespace
 
 std::string sanitizeGameProfileId(std::string_view titleOrPath) {
@@ -135,9 +297,7 @@ std::string resolveGameSaveDirectory(const DiscoveredGameEntry &entry,
                                      std::string_view customSaveRoot) {
   const fs::path userRoot =
       resolveIsolatedUserDataRoot(entry, splitSavesByGame, customSaveRoot);
-  const std::string pkg =
-      entry.packageId.empty() ? "me.hirameki.kotonoha.launcher" : entry.packageId;
-  return (userRoot / "Kotonoha" / pkg / "save").lexically_normal().string();
+  return (userRoot / "save").lexically_normal().string();
 }
 
 void applyPerGameSaveIsolation(const DiscoveredGameEntry &entry,
@@ -162,7 +322,7 @@ void applyPerGameSaveIsolation(const DiscoveredGameEntry &entry,
   setenv("KOTONOHA_USER_DATA_DIR", isolatedRoot.c_str(), 1);
 #endif
 
-  if (splitSavesByGame) {
+  if (splitSavesByGame && options.persistSettings) {
     const fs::path docDir = saveDir.parent_path();
     fs::create_directories(docDir, ec);
     options.settingsPath = (docDir / "settings.json").string();
@@ -176,47 +336,134 @@ EngineLibraryRegistry &EngineLibraryRegistry::instance() {
 
 EngineLibraryRegistry::EngineLibraryRegistry() {
   // Modular CMake engine libraries for every Kotonoha port:
-  registerLibrary({EngineKind::LucaSystem, "luca-system", "LucaSystem",
-                   "luca_system_formats", "LucaSystem", "--luca-system",
-                   "me.hirameki.kotonoha.lucasystem", {}});
-  registerLibrary({EngineKind::RealLive, "reallive", "RealLive / rlBabel",
-                   "reallive_port", "RealLive", "--reallive",
-                   "me.hirameki.kotonoha.reallive", {}});
-  registerLibrary({EngineKind::Kirikiri, "kirikiri", "KiriKiri2 / KiriKiriZ",
-                   "kirikiri_formats", "Kirikiri", "--kirikiri",
-                   "me.hirameki.kotonoha.kirikiri", {}});
-  registerLibrary({EngineKind::RenPy, "doki-doki-literature-club", "Ren'Py",
-                   "doki_doki_literature_club", "DokiDoki", "--ddlc",
-                   "me.hirameki.kotonoha.dokidokiliteratureclub", {}});
-  registerLibrary({EngineKind::N2System, "n2system", "N2System / Nitroplus",
-                   "n2system_formats", "N2SystemGame", "--n2system",
-                   "me.hirameki.kotonoha.n2system", {}});
-  registerLibrary({EngineKind::ONScripter, "ponscripter",
-                   "PONScripter / ONScripter", "ponscripter_port",
-                   "PonscripterGame", "--ponscripter",
-                   "me.hirameki.kotonoha.ponscripter", {}});
-  registerLibrary({EngineKind::Amagami, "amagami", "Amagami (PS2 SCF)",
-                   "amagami_port", "Amagami", "--amagami",
-                   "me.hirameki.kotonoha.amagami", {}});
-  registerLibrary({EngineKind::SchoolDays, "school-days",
-                   "Overflow GPK / FILMEngine (School Days HQ)", "school_days",
-                   "SchoolDays", "--school-days",
-                   "me.hirameki.kotonoha.schooldays", {}});
-  registerLibrary({EngineKind::PureMail, "pmail", "Pure Mail (OverFlow ADV)",
-                   "PmailPort", "Pmail", "--pmail",
-                   "me.hirameki.kotonoha.pmail", {}});
-  registerLibrary({EngineKind::SnowRadish, "snow-radish-vacation",
-                   "Snow Radish ADV (of_adv3)", "snow_radish_vacation",
-                   "SnowRadish", "--snow",
-                   "me.hirameki.kotonoha.snowradishvacation", {}});
-  registerLibrary({EngineKind::SummerRadish, "summer-radish-vacation",
-                   "Summer Radish / Overflow CMP", "summer_radish_vacation",
-                   "SummerRadish", "--summer",
-                   "me.hirameki.kotonoha.summerradishvacation", {}});
-  registerLibrary({EngineKind::ZeroNoTsukaima, "zero-no-tsukaima",
-                   "Zero no Tsukaima (PS2 Squirrel/KAG)", "zero_no_tsukaima",
-                   "ZeroNoTsukaima", "--zero",
-                   "me.hirameki.kotonoha.zeronotsukaima", {}});
+  registerLibrary({EngineKind::LucaSystem,
+                   "luca-system",
+                   "LucaSystem",
+                   "luca_system_formats",
+                   "LucaSystem",
+                   "--luca-system",
+                   "me.hirameki.kotonoha.lucasystem",
+                   {}});
+  registerLibrary({EngineKind::RealLive,
+                   "reallive",
+                   "RealLive / rlBabel",
+                   "reallive_port",
+                   "RealLive",
+                   "--reallive",
+                   "me.hirameki.kotonoha.reallive",
+                   {}});
+  registerLibrary({EngineKind::Kirikiri,
+                   "kirikiri",
+                   "KiriKiri2 / KiriKiriZ",
+                   "kirikiri_formats",
+                   "Kirikiri",
+                   "--kirikiri",
+                   "me.hirameki.kotonoha.kirikiri",
+                   {}});
+  registerLibrary({EngineKind::RenPy,
+                   "doki-doki-literature-club",
+                   "Ren'Py",
+                   "doki_doki_literature_club",
+                   "DokiDoki",
+                   "--ddlc",
+                   "me.hirameki.kotonoha.dokidokiliteratureclub",
+                   {}});
+  registerLibrary({EngineKind::RenPy,
+                   "renpy",
+                   "Ren'Py (compiled games)",
+                   "doki_doki_literature_club",
+                   "DokiDoki",
+                   "--ddlc",
+                   "me.hirameki.kotonoha.renpy",
+                   {}});
+  registerLibrary({EngineKind::RenPy,
+                   "katawa-shoujo",
+                   "Katawa Shoujo (Ren'Py)",
+                   "doki_doki_literature_club",
+                   "KatawaShoujo",
+                   "--katawa",
+                   "me.hirameki.kotonoha.katawashoujo",
+                   {}});
+  registerLibrary({EngineKind::SummerRadish,
+                   "meo",
+                   "Miss Each Other",
+                   "summer_radish_vacation",
+                   "MEO",
+                   "--meo",
+                   "me.hirameki.kotonoha.meo",
+                   {}});
+  registerLibrary({EngineKind::N2System,
+                   "n2system",
+                   "N2System / Nitroplus",
+                   "n2system_formats",
+                   "N2SystemGame",
+                   "--n2system",
+                   "me.hirameki.kotonoha.n2system",
+                   {}});
+  registerLibrary({EngineKind::ONScripter,
+                   "ponscripter",
+                   "PONScripter / ONScripter",
+                   "ponscripter_port",
+                   "PonscripterGame",
+                   "--ponscripter",
+                   "me.hirameki.kotonoha.ponscripter",
+                   {}});
+  registerLibrary({EngineKind::Artemis,
+                   "artemis",
+                   "Artemis Engine",
+                   "artemis_port",
+                   "ArtemisGame",
+                   "--artemis",
+                   "me.hirameki.kotonoha.artemis",
+                   {}});
+  registerLibrary({EngineKind::Amagami,
+                   "amagami",
+                   "Amagami (PS2 SCF)",
+                   "amagami_port",
+                   "Amagami",
+                   "--amagami",
+                   "me.hirameki.kotonoha.amagami",
+                   {}});
+  registerLibrary({EngineKind::SchoolDays,
+                   "school-days",
+                   "Overflow GPK / FILMEngine (School Days HQ)",
+                   "school_days",
+                   "SchoolDays",
+                   "--school-days",
+                   "me.hirameki.kotonoha.schooldays",
+                   {}});
+  registerLibrary({EngineKind::PureMail,
+                   "pmail",
+                   "Pure Mail (OverFlow ADV)",
+                   "PmailPort",
+                   "Pmail",
+                   "--pmail",
+                   "me.hirameki.kotonoha.pmail",
+                   {}});
+  registerLibrary({EngineKind::SnowRadish,
+                   "snow-radish-vacation",
+                   "Snow Radish ADV (of_adv3)",
+                   "snow_radish_vacation",
+                   "SnowRadish",
+                   "--snow",
+                   "me.hirameki.kotonoha.snowradishvacation",
+                   {}});
+  registerLibrary({EngineKind::SummerRadish,
+                   "summer-radish-vacation",
+                   "Summer Radish / Overflow CMP",
+                   "summer_radish_vacation",
+                   "SummerRadish",
+                   "--summer",
+                   "me.hirameki.kotonoha.summerradishvacation",
+                   {}});
+  registerLibrary({EngineKind::ZeroNoTsukaima,
+                   "zero-no-tsukaima",
+                   "Zero no Tsukaima (PS2 Squirrel/KAG)",
+                   "zero_no_tsukaima",
+                   "ZeroNoTsukaima",
+                   "--zero",
+                   "me.hirameki.kotonoha.zeronotsukaima",
+                   {}});
   registerLinkedEngineFactories(*this);
 }
 
@@ -257,7 +504,9 @@ bool EngineLibraryRegistry::canInstantiateInProcess(EngineKind kind) const {
 MountedEngineInstance
 EngineLibraryRegistry::instantiate(const DiscoveredGameEntry &entry,
                                    Kotonoha::EngineOptions &options) const {
-  const auto *desc = find(entry.engine.kind);
+  const auto *desc = findBySlug(entry.engine.slug);
+  if (!desc || desc->kind != entry.engine.kind)
+    desc = find(entry.engine.kind);
   if (desc && desc->factory)
     return desc->factory(entry, options);
   return {};
@@ -265,7 +514,8 @@ EngineLibraryRegistry::instantiate(const DiscoveredGameEntry &entry,
 
 DetectedEngine detectKotonohaEngine(const Filesystem &source,
                                     std::string_view hintPath) {
-  // 1. Check Overflow gEngine / MEO (Personal/MISSEACHOTHER, MISS EACH OTHER.msi,
+  // 1. Check Overflow gEngine / MEO (Personal/MISSEACHOTHER, MISS EACH
+  // OTHER.msi,
   //    MEO.exe, gEngine.gesl, or FILMEngine.gem).
   if (hasFileCaseInsensitive(source, "MISS EACH OTHER.msi") ||
       hasFileCaseInsensitive(source, "gEngine.gesl") ||
@@ -273,34 +523,92 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
       findRequiredFilesPrefix(
           source, {"SCRIPT.CMP"},
           {"Personal/MISSEACHOTHER/", "Personal/MISSEACHOTHER/DATA/",
-           "Personal/MISSEACHOTHER/PACK/"})) {
+           "Personal/MISSEACHOTHER/PACK/", "Personal/MISSEACHOTHER/PACKS/"})) {
     return {EngineKind::SummerRadish,
-            "summer-radish-vacation",
+            "meo",
             "Overflow gEngine / FILMEngine (MEO CMP)",
             "Personal/MISSEACHOTHER/",
             "MISS EACH OTHER (CMP / FILMEngine)",
             true};
   }
 
-  // 2. Check Summer Radish Vacation 1 & 2 (SCRIPT.CMP + GRAPHIC.CMP in
+  // Katawa Shoujo is Ren'Py-based but must retain its own application
+  // identity, save directory and standalone executable.
+  if (const auto prefix = findRequiredFilesPrefix(
+          source, {"script-a1-monday.rpyc"}, {"game/", ""})) {
+    return {EngineKind::RenPy,
+            "katawa-shoujo",
+            "Katawa Shoujo (Ren'Py)",
+            *prefix,
+            *prefix + "script-a1-monday.rpyc",
+            true};
+  }
+
+  // Preserve DDLC's game identity and VNX overlay pairing. Other Ren'Py
+  // packages use the neutral renpy identity returned by detectEngine().
+  if (const auto prefix = findRequiredFilesPrefix(
+          source, {"scripts.rpa", "images.rpa"}, {"game/", ""})) {
+    return {EngineKind::RenPy,
+            "doki-doki-literature-club",
+            "Doki Doki Literature Club! (Ren'Py)",
+            *prefix,
+            *prefix + "scripts.rpa",
+            true};
+  }
+
+  // 2. Check Summer Radish Vacation 1 & 2, Lost M, and Imouto de Ikou!
+  //    (SCRIPT.CMP + GRAPHIC.CMP / GRAPHIC000.CMP / BGDATA.CMP in
   //    DISC1/PACK/, PACK/, DATA/, or root; or INSTALL.cmp + Info.DISC).
+  if (findRequiredFilesPrefix(source, {"Lost-M.conf"}, {"", "DISC1/"}) ||
+      findRequiredFilesPrefix(source, {"SCRIPT.CMP", "GRAPHIC000.CMP"},
+                              {"", "PACK/", "DISC1/PACK/"})) {
+    const auto cmpPrefix =
+        findRequiredFilesPrefix(source, {"SCRIPT.CMP"},
+                                {"", "PACK/", "DISC1/PACK/", "DATA/"})
+            .value_or("DISC1/PACK/");
+    return {EngineKind::SummerRadish,
+            "summer-radish-vacation",
+            "Overflow CMP (Lost M)",
+            cmpPrefix,
+            cmpPrefix + "SCRIPT.CMP + GRAPHIC000.CMP",
+            true};
+  }
+  if (findRequiredFilesPrefix(source, {"SCRIPT.CMP", "BGDATA.CMP"},
+                              {"", "PACK/", "DISC1/PACK/", "DATA/"})) {
+    const auto cmpPrefix =
+        findRequiredFilesPrefix(source, {"SCRIPT.CMP", "BGDATA.CMP"},
+                                {"", "PACK/", "DISC1/PACK/", "DATA/"})
+            .value_or("DISC1/PACK/");
+    return {EngineKind::SummerRadish,
+            "summer-radish-vacation",
+            "Overflow CMP (Imouto de Ikou!)",
+            cmpPrefix,
+            cmpPrefix + "SCRIPT.CMP + BGDATA.CMP",
+            true};
+  }
   if (const auto cmpPrefix = findRequiredFilesPrefix(
           source, {"SCRIPT.CMP", "GRAPHIC.CMP"},
           {"", "DATA/", "PACK/", "DISC1/PACK/", "DISC1/DATA/"})) {
-    return {EngineKind::SummerRadish,
-            "summer-radish-vacation",
-            "Summer Radish CMP",
-            *cmpPrefix,
-            *cmpPrefix + "SCRIPT.CMP",
-            true};
+    return {EngineKind::SummerRadish,  "summer-radish-vacation",
+            "Summer Radish CMP",       *cmpPrefix,
+            *cmpPrefix + "SCRIPT.CMP", true};
   }
   if (hasFileCaseInsensitive(source, "INSTALL.cmp") &&
       hasFileCaseInsensitive(source, "Info.DISC")) {
-    return {EngineKind::SummerRadish,
-            "summer-radish-vacation",
-            "Summer Radish CMP",
-            "DISC1/",
-            "INSTALL.cmp + Info.DISC",
+    return {EngineKind::SummerRadish,  "summer-radish-vacation",
+            "Summer Radish CMP",       "DISC1/",
+            "INSTALL.cmp + Info.DISC", true};
+  }
+
+  // 2b. Check Large PonPon (MAINSYS.INI + PACK/script.dat + PACK/GRAPHIC.DAT)
+  if (hasFileCaseInsensitive(source, "MAINSYS.INI") &&
+      findRequiredFilesPrefix(source, {"SCRIPT.DAT", "GRAPHIC.DAT"},
+                              {"", "PACK/", "pack/"})) {
+    return {EngineKind::PureMail,
+            "pmail",
+            "Overflow GC Engine (Large PonPon)",
+            "PACK/",
+            "MAINSYS.INI + PACK/SCRIPT.DAT",
             true};
   }
 
@@ -324,12 +632,9 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
                                {"", "files/"})) {
     if (const auto snowPrefix = findRequiredFilesPrefix(
             source, {"SCRIPT.PAK", "GRAPHIC.PAK"}, {"DATA/", ""})) {
-      return {EngineKind::SnowRadish,
-              "snow-radish-vacation",
-              "Snow Radish ADV (of_adv3)",
-              *snowPrefix,
-              *snowPrefix + "SCRIPT.PAK",
-              true};
+      return {EngineKind::SnowRadish,      "snow-radish-vacation",
+              "Snow Radish ADV (of_adv3)", *snowPrefix,
+              *snowPrefix + "SCRIPT.PAK",  true};
     }
   }
 
@@ -406,13 +711,11 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
 
   // 7. Refine Ren'Py when VNX PT-BR patch structure is detected.
   if (detected.kind == EngineKind::Unknown &&
-      findRequiredFilesPrefix(source, {"vnx.rpx"}, {"vnx/game/", "game/", ""})) {
-    return {EngineKind::RenPy,
-            "doki-doki-literature-club",
-            "Ren'Py (VNX PT-BR Patch)",
-            "vnx/game/",
-            "vnx/game/vnx.rpx",
-            true};
+      findRequiredFilesPrefix(source, {"vnx.rpx"},
+                              {"vnx/game/", "game/", ""})) {
+    return {EngineKind::RenPy,          "doki-doki-literature-club",
+            "Ren'Py (VNX PT-BR Patch)", "vnx/game/",
+            "vnx/game/vnx.rpx",         true};
   }
 
   (void)hintPath;
@@ -422,14 +725,7 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
 DetectedEngine detectKotonohaEngineFromPath(const std::string &path) {
   if (path.empty())
     return {};
-  try {
-    auto mounted = Filesystem::mount(path);
-    if (!mounted)
-      return {};
-    return detectKotonohaEngine(*mounted, path);
-  } catch (...) {
-    return {};
-  }
+  return probeCached(path).engine;
 }
 
 DiscoveredGameEntry buildDiscoveredGameEntry(const std::string &path,
@@ -443,7 +739,11 @@ DiscoveredGameEntry buildDiscoveredGameEntry(const std::string &path,
   entry.path = path;
   entry.engine = detected;
 
-  if (const auto *desc = EngineLibraryRegistry::instance().find(detected.kind)) {
+  const auto &registry = EngineLibraryRegistry::instance();
+  const auto *desc = registry.findBySlug(detected.slug);
+  if (!desc || desc->kind != detected.kind)
+    desc = registry.find(detected.kind);
+  if (desc) {
     entry.libraryTarget = desc->libraryTarget;
     entry.targetBinary = desc->targetBinary;
     entry.cliOption = desc->cliOption;
@@ -471,12 +771,15 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
     const auto direct = detectKotonohaEngineFromPath(rootPath.string());
     if (direct.kind != EngineKind::Unknown) {
       results.push_back(buildDiscoveredGameEntry(rootPath.string(), direct));
+      flushScanCache();
       return results;
     }
   }
 
-  if (!fs::is_directory(rootPath, ec))
+  if (!fs::is_directory(rootPath, ec)) {
+    flushScanCache();
     return results;
+  }
 
   std::string vnxPatchPath;
   std::vector<fs::path> candidates;
@@ -494,35 +797,185 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
   std::sort(candidates.begin(), candidates.end());
 
   for (const auto &candidate : candidates) {
-    try {
-      auto mounted = Filesystem::mount(candidate.string());
-      if (!mounted)
-        continue;
-      if (isVnxOverlayPatch(*mounted)) {
-        vnxPatchPath = candidate.string();
-      }
-      const auto detected =
-          detectKotonohaEngine(*mounted, candidate.string());
-      if (detected.kind != EngineKind::Unknown) {
-        results.push_back(
-            buildDiscoveredGameEntry(candidate.string(), detected));
-      }
-    } catch (...) {
+    const auto probe = probeCached(candidate.string());
+    if (probe.vnxPatch) {
+      vnxPatchPath = candidate.string();
       continue;
     }
+    if (probe.engine.kind != EngineKind::Unknown)
+      results.push_back(
+          buildDiscoveredGameEntry(candidate.string(), probe.engine));
   }
 
   // Pair companion VNX PT-BR patch with base DDLC automatically.
   if (!vnxPatchPath.empty()) {
     for (auto &item : results) {
-      if (item.engine.kind == EngineKind::RenPy && item.path != vnxPatchPath &&
-          item.overlayPath.empty()) {
+      if (item.engine.kind == EngineKind::RenPy &&
+          item.engine.slug == "doki-doki-literature-club" &&
+          item.path != vnxPatchPath && item.overlayPath.empty()) {
         item.overlayPath = vnxPatchPath;
       }
     }
   }
 
+  // Persist once per directory scan, not after every candidate. On libraries
+  // with many titles, repeated atomic full-cache rewrites dominated IO.
+  flushScanCache();
   return results;
+}
+
+std::vector<DiscoveredGameEntry>
+scanGameLibraryRoots(const std::vector<std::string> &roots) {
+  std::vector<DiscoveredGameEntry> merged;
+  std::vector<std::string> seenKeys;
+  std::string discoveredVnxPatch;
+
+  auto canonicalKey = [](const std::string &raw) -> std::string {
+    if (raw.find("://") != std::string::npos)
+      return raw;
+    std::error_code ec;
+    const auto canon = fs::weakly_canonical(fs::path(raw), ec);
+    return ec ? fs::path(raw).lexically_normal().string() : canon.string();
+  };
+
+  for (const auto &root : roots) {
+    if (root.empty())
+      continue;
+    auto found = scanGameLibrary(root);
+    for (auto &entry : found) {
+      if (!entry.overlayPath.empty() && discoveredVnxPatch.empty())
+        discoveredVnxPatch = entry.overlayPath;
+      const std::string key = canonicalKey(entry.path);
+      if (std::find(seenKeys.begin(), seenKeys.end(), key) != seenKeys.end())
+        continue;
+      seenKeys.push_back(key);
+      merged.push_back(std::move(entry));
+    }
+  }
+
+  // Cross-root VNX patch pairing (e.g. DDLC in Documents/games, patch in
+  // Documents/ or bookmarked folder).
+  if (!discoveredVnxPatch.empty()) {
+    for (auto &item : merged) {
+      if (item.engine.kind == EngineKind::RenPy &&
+          item.engine.slug == "doki-doki-literature-club" &&
+          item.path != discoveredVnxPatch && item.overlayPath.empty()) {
+        item.overlayPath = discoveredVnxPatch;
+      }
+    }
+  }
+
+  // Merge persisted per-game launch parameters.
+  const auto savedParams = loadGameParamsMap();
+  for (auto &item : merged) {
+    auto it = savedParams.find(item.saveProfileId);
+    if (it != savedParams.end())
+      item.params = it->second;
+  }
+
+  std::sort(merged.begin(), merged.end(),
+            [](const DiscoveredGameEntry &a, const DiscoveredGameEntry &b) {
+              return toLower(a.title) < toLower(b.title);
+            });
+  return merged;
+}
+
+std::string defaultGameParamsFilePath() {
+  try {
+    const std::string settings = Kotonoha::EngineSettings::defaultPath();
+    if (!settings.empty())
+      return (fs::path(settings).parent_path() / "game-params.txt").string();
+  } catch (const std::exception &) {
+  }
+  return (defaultBaseUserDataDir() / "Kotonoha" /
+          "me.hirameki.kotonoha.launcher" / "game-params.txt")
+      .string();
+}
+
+std::map<std::string, GameLaunchParameters>
+loadGameParamsMap(const std::string &filePath) {
+  std::map<std::string, GameLaunchParameters> result;
+  const std::string path =
+      filePath.empty() ? defaultGameParamsFilePath() : filePath;
+  if (path.empty())
+    return result;
+  Kotonoha::Filesystem::InputFile input(path);
+  if (!input.is_open())
+    return result;
+  std::string line;
+  while (std::getline(input, line)) {
+    std::istringstream ss(line);
+    std::string profileId;
+    GameLaunchParameters p;
+    if (ss >> std::quoted(profileId) >> std::quoted(p.assetOverlayPath) >>
+        std::quoted(p.translationPath) >> std::quoted(p.subtitleStylePath) >>
+        std::quoted(p.customDocumentsDir) >> std::quoted(p.ktrfPath) >>
+        std::quoted(p.scriptsDir) >> std::quoted(p.startScenario)) {
+      // Optional trailing graphics overrides (backward-compatible with older
+      // 8-field game-params.txt files).
+      if (ss >> std::quoted(p.rendererBackend)) {
+        if (ss >> std::quoted(p.upscalerBackend)) {
+          if (ss >> std::quoted(p.upscalerPreset)) {
+            ss >> std::quoted(p.upscalerFactor);
+          }
+        }
+      }
+      if (!profileId.empty())
+        result[profileId] = std::move(p);
+    }
+  }
+  return result;
+}
+
+bool saveGameParamsMap(
+    const std::map<std::string, GameLaunchParameters> &params,
+    const std::string &filePath) {
+  const std::string path =
+      filePath.empty() ? defaultGameParamsFilePath() : filePath;
+  if (path.empty())
+    return false;
+  try {
+    std::error_code ec;
+    fs::create_directories(fs::path(path).parent_path(), ec);
+    std::ostringstream out;
+    for (const auto &[profileId, p] : params) {
+      if (profileId.empty())
+        continue;
+      out << std::quoted(profileId) << ' ' << std::quoted(p.assetOverlayPath)
+          << ' ' << std::quoted(p.translationPath) << ' '
+          << std::quoted(p.subtitleStylePath) << ' '
+          << std::quoted(p.customDocumentsDir) << ' ' << std::quoted(p.ktrfPath)
+          << ' ' << std::quoted(p.scriptsDir) << ' '
+          << std::quoted(p.startScenario) << ' '
+          << std::quoted(p.rendererBackend) << ' '
+          << std::quoted(p.upscalerBackend) << ' '
+          << std::quoted(p.upscalerPreset) << ' '
+          << std::quoted(p.upscalerFactor) << '\n';
+    }
+    Kotonoha::writeTextFileAtomically(path, out.str());
+    return true;
+  } catch (const std::exception &) {
+    return false;
+  }
+}
+
+GameLaunchParameters loadGameParamsForProfile(const std::string &saveProfileId,
+                                              const std::string &filePath) {
+  if (saveProfileId.empty())
+    return {};
+  const auto all = loadGameParamsMap(filePath);
+  const auto it = all.find(saveProfileId);
+  return it != all.end() ? it->second : GameLaunchParameters{};
+}
+
+bool saveGameParamsForProfile(const std::string &saveProfileId,
+                              const GameLaunchParameters &params,
+                              const std::string &filePath) {
+  if (saveProfileId.empty())
+    return false;
+  auto all = loadGameParamsMap(filePath);
+  all[saveProfileId] = params;
+  return saveGameParamsMap(all, filePath);
 }
 
 std::string
@@ -554,34 +1007,84 @@ formatDiscoveredGamesReport(const std::vector<DiscoveredGameEntry> &entries,
 UnifiedLauncher::UnifiedLauncher(std::string settingsPath,
                                  std::string initialLibraryPath,
                                  Kotonoha::EngineSettings defaults)
-    : Launcher("KotonohaLauncher — Unified Multi-Engine Hub",
-               settingsPath, std::move(defaults)) {
+    : Launcher("KotonohaLauncher — Unified Multi-Engine Hub", settingsPath,
+               std::move(defaults)) {
   if (!settingsPath.empty()) {
     const fs::path parent = fs::path(settingsPath).parent_path();
     rememberFilePath = (parent / "library.txt").string();
     rememberSaveSplitPath = (parent / "save-isolation.txt").string();
     rememberSaveRootPath = (parent / "save-root.txt").string();
+    rememberGameParamsPath = (parent / "game-params.txt").string();
   }
   const std::string savedSplit = readFirstLineFromFile(rememberSaveSplitPath);
   if (savedSplit == "0" || savedSplit == "false")
     isolateSavesPerGame = false;
   customSaveRootPath = readFirstLineFromFile(rememberSaveRootPath);
+  loadSavedGameParams();
 
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+  // On iOS, the hub scans one stable Files-visible sandbox directory.
+  // Saved desktop library paths must never override Documents/games.
+  (void)initialLibraryPath;
+  setLibraryPath(KotonohaIOSDocumentsGamesPath());
+#else
   std::string startPath = std::move(initialLibraryPath);
   if (startPath.empty())
     startPath = readFirstLineFromFile(rememberFilePath);
+  if (startPath.empty()) {
+#if defined(__ANDROID__)
+    try {
+      const auto docs = Kotonoha::applicationStorageLocations().userData;
+      if (!docs.empty())
+        startPath = (docs / "games").string();
+    } catch (const std::exception &) {
+    }
+#endif
+  }
   setLibraryPath(std::move(startPath));
+#endif
 }
 
 void UnifiedLauncher::setLibraryPath(std::string path) {
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+  (void)path;
+  currentLibraryPath = KotonohaIOSDocumentsGamesPath();
+#else
   currentLibraryPath = std::move(path);
+#endif
   rescan();
 }
 
 void UnifiedLauncher::rescan() {
+  for (const auto &entry : catalog) {
+    if (!entry.saveProfileId.empty())
+      savedGameParams[entry.saveProfileId] = entry.params;
+  }
   catalog = scanGameLibrary(currentLibraryPath);
+  for (auto &entry : catalog) {
+    auto it = savedGameParams.find(entry.saveProfileId);
+    if (it != savedGameParams.end())
+      entry.params = it->second;
+  }
   if (selected < 0 || selected >= static_cast<int>(catalog.size()))
     selected = 0;
+}
+
+void UnifiedLauncher::loadSavedGameParams() {
+  if (rememberGameParamsPath.empty())
+    return;
+  savedGameParams = loadGameParamsMap(rememberGameParamsPath);
+}
+
+void UnifiedLauncher::saveGameParams() const {
+  if (rememberGameParamsPath.empty())
+    return;
+  std::map<std::string, GameLaunchParameters> merged = savedGameParams;
+  for (const auto &entry : catalog) {
+    if (!entry.saveProfileId.empty())
+      merged[entry.saveProfileId] = entry.params;
+  }
+  saveGameParamsMap(merged, rememberGameParamsPath);
 }
 
 void UnifiedLauncher::setSelectedIndex(int index) {
@@ -610,6 +1113,11 @@ void UnifiedLauncher::drawGameOptions() {
   ImGui::TextUnformatted("Game Library Folder or Individual Game (Folder / ISO "
                          "/ PS2 BIN):");
 
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+  // Files.app exposes Documents/games. The iOS hub must not browse outside
+  // its sandbox or persist an arbitrary desktop path.
+  ImGui::TextWrapped("%s", currentLibraryPath.c_str());
+#else
   if (ImGui::InputText("##libraryPath", &currentLibraryPath,
                        ImGuiInputTextFlags_EnterReturnsTrue)) {
     rescan();
@@ -625,6 +1133,7 @@ void UnifiedLauncher::drawGameOptions() {
                currentLibraryPath,
                [this](const std::string &chosen) { setLibraryPath(chosen); });
   }
+#endif
   ImGui::SameLine();
   if (ImGui::Button("Rescan")) {
     rescan();
@@ -647,32 +1156,31 @@ void UnifiedLauncher::drawGameOptions() {
   ImGui::PopStyleColor();
 
   ImGui::Spacing();
-  ImGui::Checkbox(
-      "Split Save & Config Folder by Game Title (Prevent Same-Engine Conflicts)",
-      &isolateSavesPerGame);
-  ImGui::InputTextWithHint(
-      "##customSaveRoot",
-      "Optional custom save root directory (leave empty for platform default)...",
-      &customSaveRootPath);
+  ImGui::Checkbox("Split Save & Config Folder by Game Title (Prevent "
+                  "Same-Engine Conflicts)",
+                  &isolateSavesPerGame);
+  ImGui::InputTextWithHint("##customSaveRoot",
+                           "Optional custom save root directory (leave empty "
+                           "for platform default)...",
+                           &customSaveRootPath);
 
   ImGui::Spacing();
-  ImGui::InputTextWithHint("##filter",
-                           "Filter by title, engine family, or CMake library...",
-                           &filterText);
+  ImGui::InputTextWithHint(
+      "##filter", "Filter by title, engine family, or CMake library...",
+      &filterText);
   ImGui::Spacing();
 
   if (ImGui::BeginTable("UnifiedCatalog", 5,
                         ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
-                            ImGuiTableFlags_Resizable |
-                            ImGuiTableFlags_ScrollY,
+                            ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY,
                         ImVec2(0.0f, 220.0f))) {
     ImGui::TableSetupColumn("Title", ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableSetupColumn("Engine Family",
                             ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("Engine Library",
-                            ImGuiTableColumnFlags_WidthFixed, 145.0f);
-    ImGui::TableSetupColumn("Save Profile",
-                            ImGuiTableColumnFlags_WidthFixed, 130.0f);
+    ImGui::TableSetupColumn("Engine Library", ImGuiTableColumnFlags_WidthFixed,
+                            145.0f);
+    ImGui::TableSetupColumn("Save Profile", ImGuiTableColumnFlags_WidthFixed,
+                            130.0f);
     ImGui::TableSetupColumn("Signature / Patch",
                             ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableHeadersRow();
@@ -704,8 +1212,8 @@ void UnifiedLauncher::drawGameOptions() {
       ImGui::TextUnformatted(item.libraryTarget.c_str());
 
       ImGui::TableSetColumnIndex(3);
-      ImGui::TextUnformatted(
-          isolateSavesPerGame ? item.saveProfileId.c_str() : "(shared engine)");
+      ImGui::TextUnformatted(isolateSavesPerGame ? item.saveProfileId.c_str()
+                                                 : "(shared engine)");
 
       ImGui::TableSetColumnIndex(4);
       if (!item.overlayPath.empty()) {
@@ -719,7 +1227,7 @@ void UnifiedLauncher::drawGameOptions() {
   }
 
   if (hasValidSelection()) {
-    const auto current = selectedEntry();
+    auto &current = catalog[static_cast<std::size_t>(selected)];
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Text("Selected: %s  |  Engine: %s  |  Library: %s",
@@ -731,6 +1239,109 @@ void UnifiedLauncher::drawGameOptions() {
     if (!current.overlayPath.empty()) {
       ImGui::TextWrapped("Auto-Paired Overlay Patch: %s",
                          current.overlayPath.c_str());
+    }
+
+    ImGui::Spacing();
+    const bool expandByDefault = current.engine.kind == EngineKind::SchoolDays;
+    if (ImGui::CollapsingHeader(
+            "Optional Game Launch Parameters (Routes, Patches, Translations)",
+            expandByDefault ? ImGuiTreeNodeFlags_DefaultOpen : 0)) {
+      if (current.engine.kind == EngineKind::SchoolDays) {
+        ImGui::InputTextWithHint(
+            "##ktrfPath",
+            "Route file (.ktnroute / .ktrf) — leave empty for bundled default",
+            &current.params.ktrfPath);
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+        ImGui::SameLine();
+        if (ImGui::Button("Route (.ktnroute)...")) {
+          const int idx = selected;
+          browseFile(
+              {{"School Days route (.ktnroute, .ktrf)", "ktnroute;ktrf"},
+               {"All files", "*"}},
+              current.params.ktrfPath.empty() ? current.path
+                                              : current.params.ktrfPath,
+              [this, idx](const std::string &chosen) {
+                if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
+                  catalog[static_cast<std::size_t>(idx)].params.ktrfPath =
+                      chosen;
+                }
+              });
+        }
+#endif
+        ImGui::InputTextWithHint("##scriptsDir",
+                                 "Translated ORS scripts directory (--scripts)",
+                                 &current.params.scriptsDir);
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+        ImGui::SameLine();
+        if (ImGui::Button("Scripts Folder...")) {
+          const int idx = selected;
+          browseFolder(
+              current.params.scriptsDir.empty() ? current.path
+                                                : current.params.scriptsDir,
+              [this, idx](const std::string &chosen) {
+                if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
+                  catalog[static_cast<std::size_t>(idx)].params.scriptsDir =
+                      chosen;
+                }
+              });
+        }
+#endif
+      }
+
+      ImGui::InputTextWithHint(
+          "##assetOverlayPath",
+          "Asset overlay directory or patch (--asset-overlay)",
+          &current.params.assetOverlayPath);
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+      ImGui::SameLine();
+      if (ImGui::Button("Overlay Folder...")) {
+        const int idx = selected;
+        browseFolder(
+            current.params.assetOverlayPath.empty()
+                ? current.path
+                : current.params.assetOverlayPath,
+            [this, idx](const std::string &chosen) {
+              if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
+                catalog[static_cast<std::size_t>(idx)].params.assetOverlayPath =
+                    chosen;
+              }
+            });
+      }
+#endif
+
+      ImGui::InputTextWithHint(
+          "##translationPath",
+          "Translation catalog file (.ktr) (--translation)",
+          &current.params.translationPath);
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+      ImGui::SameLine();
+      if (ImGui::Button("Translation (.ktr)...")) {
+        const int idx = selected;
+        browseFile(
+            {{"Kotonoha Translation (.ktr)", "ktr"}, {"All files", "*"}},
+            current.params.translationPath.empty()
+                ? current.path
+                : current.params.translationPath,
+            [this, idx](const std::string &chosen) {
+              if (idx >= 0 && idx < static_cast<int>(catalog.size())) {
+                catalog[static_cast<std::size_t>(idx)].params.translationPath =
+                    chosen;
+              }
+            });
+      }
+#endif
+
+      ImGui::InputTextWithHint(
+          "##subtitleStylePath",
+          "ASS subtitle stylesheet (.ass) (--subtitle-style)",
+          &current.params.subtitleStylePath);
+      ImGui::InputTextWithHint("##customDocumentsDir",
+                               "Custom save/documents directory (--documents)",
+                               &current.params.customDocumentsDir);
+      ImGui::InputTextWithHint(
+          "##startScenario",
+          "Initial scenario / node override (--start / --node)",
+          &current.params.startScenario);
     }
   }
 }
@@ -768,6 +1379,7 @@ void UnifiedLauncher::save() {
     Kotonoha::writeTextFileAtomically(rememberSaveRootPath,
                                       customSaveRootPath + "\n");
   }
+  saveGameParams();
 }
 
 } // namespace KotonohaLauncher

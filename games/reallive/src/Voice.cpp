@@ -1,4 +1,5 @@
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/core/AssetProvider.hpp>
 #include <RealLive/Voice.hpp>
 #include <algorithm>
 #include <cctype>
@@ -97,8 +98,8 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets) {
   }
 }
 VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
-                       LocalPath localPath)
-    : reader_(std::move(reader)) {
+                       LocalPath localPath, StreamOpener openStream)
+    : reader_(std::move(reader)), openStream_(std::move(openStream)) {
   const std::regex pattern("z?0*([0-9]{6,9})\\.(ogg|wav|nwa|koe)",
                            std::regex::icase);
   for (const auto &id : assets) {
@@ -156,7 +157,34 @@ VoiceIndex::VoiceIndex(const std::vector<std::string> &assets, Reader reader,
       if (!input.read(reinterpret_cast<char *>(table.data() + 4),
                       std::streamsize(table.size() - 4)))
         continue;
-    } else {
+    } else if (openStream_) {
+      if (auto stream = openStream_(asset)) {
+        std::uint8_t countBytes[4]{};
+        if (stream->read(countBytes, 4) != 4)
+          continue;
+        const auto count = std::uint32_t(countBytes[0]) |
+                           (std::uint32_t(countBytes[1]) << 8) |
+                           (std::uint32_t(countBytes[2]) << 16) |
+                           (std::uint32_t(countBytes[3]) << 24);
+        if (count > 1000000)
+          continue;
+        const std::size_t tableBytes = std::size_t(count) * stride;
+        table.resize(4 + tableBytes);
+        std::copy(countBytes, countBytes + 4, table.begin());
+        std::size_t got = 0;
+        while (got < tableBytes) {
+          const std::size_t n =
+              stream->read(table.data() + 4 + got, tableBytes - got);
+          if (n == 0)
+            break;
+          got += n;
+        }
+        if (got != tableBytes)
+          continue;
+      } else if (reader_) {
+        table = reader_(asset);
+      }
+    } else if (reader_) {
       table = reader_(asset);
     }
     if (table.size() < 4)
@@ -202,6 +230,27 @@ std::optional<std::vector<std::uint8_t>> VoiceIndex::read(int id) const {
     return bytes;
   }
   if (entry.asset.empty())
+    return std::nullopt;
+  if (openStream_) {
+    if (auto stream = openStream_(entry.asset)) {
+      const auto size = payload(stream->size());
+      if (!size)
+        return std::nullopt;
+      if (!stream->seek(entry.offset))
+        return std::nullopt;
+      std::vector<std::uint8_t> bytes(*size);
+      std::size_t got = 0;
+      while (got < bytes.size()) {
+        const std::size_t n =
+            stream->read(bytes.data() + got, bytes.size() - got);
+        if (n == 0)
+          return std::nullopt;
+        got += n;
+      }
+      return bytes;
+    }
+  }
+  if (!reader_)
     return std::nullopt;
   auto bytes = reader_(entry.asset);
   const auto size = payload(bytes.size());

@@ -1,4 +1,5 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
+#include <KotonohaLauncher/LauncherBridge.h>
 #include <KotonohaLauncher/UnifiedLauncher.hpp>
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
@@ -51,14 +52,19 @@ public:
 
 int main() {
   try {
-    // 1. The hub links the 12 real game families, never the Example demo.
+    // 1. The hub links 13 engine families (16 identities), never the Example
+    // demo.
     const auto &reg = EngineLibraryRegistry::instance();
-    require(reg.all().size() == 12,
-            "Exactly 12 real game runtime libraries must be registered");
+    require(reg.all().size() == 16, "Exactly 16 game identities must be "
+                                    "registered (13 shared engine families)");
     require(!reg.find(EngineKind::Unknown),
             "The Example demo must not be registered in the hub");
+    require(reg.find(EngineKind::Artemis) &&
+                reg.find(EngineKind::Artemis)->libraryTarget == "artemis_port",
+            "Artemis maps to artemis_port library");
     require(reg.find(EngineKind::RealLive) &&
-                reg.find(EngineKind::RealLive)->libraryTarget == "reallive_port",
+                reg.find(EngineKind::RealLive)->libraryTarget ==
+                    "reallive_port",
             "RealLive maps to reallive_port library");
     require(reg.find(EngineKind::ONScripter) &&
                 reg.find(EngineKind::ONScripter)->libraryTarget ==
@@ -76,6 +82,16 @@ int main() {
                 reg.find(EngineKind::ZeroNoTsukaima)->libraryTarget ==
                     "zero_no_tsukaima",
             "ZeroNoTsukaima maps to zero_no_tsukaima library");
+
+    require(reg.findBySlug("meo") &&
+                reg.findBySlug("meo")->targetBinary == "MEO",
+            "Miss Each Other must select the MEO port");
+    require(reg.findBySlug("katawa-shoujo") &&
+                reg.findBySlug("katawa-shoujo")->targetBinary == "KatawaShoujo",
+            "Katawa Shoujo must select its own port");
+    require(reg.findBySlug("renpy") && reg.findBySlug("renpy")->libraryTarget ==
+                                           "doki_doki_literature_club",
+            "Generic Ren'Py games use the shared VM without DDLC branding");
 
     // The registry is a link-time contract. No external executable is needed.
 #if defined(KOTONOHA_LAUNCH_AMAGAMI)
@@ -183,6 +199,13 @@ int main() {
     lib.write("MEO/DATA/GRAPHIC.CMP", "PACK");
     lib.write("MEO/gEngine.gesl", "MZ");
 
+    // Katawa shares the Ren'Py VM, but has its own package and executable.
+    lib.write("KatawaShoujo/game/script-a1-monday.rpyc", "RPYC");
+
+    // Generic Ren'Py games need not use DDLC's scripts/images archive names.
+    lib.write("AnotherRenpy/game/archive.rpa",
+              "RPA-3.0 0000000000000019 12345678\n");
+
     // Snow Radish Vacation
     lib.write("SnowRadishVacation/DATA/SCRIPT.PAK", "PACK");
     lib.write("SnowRadishVacation/DATA/GRAPHIC.PAK", "PACK");
@@ -202,12 +225,33 @@ int main() {
             "Expected at least 8 discovered games in synthetic library, got " +
                 std::to_string(catalog.size()));
 
+    // The library may also contain non-game folders. Cache their negative
+    // probes without masking a game installed into one of them later.
+    SyntheticLibrary changing;
+    changing.write("NewTitle/unrelated/notes.txt", "not a game");
+    require(scanGameLibrary(changing.root.string()).empty(),
+            "Unrelated folder must not be a detected game");
+    changing.write("NewTitle/data.xp3", "XP3 placeholder");
+    std::error_code timestampError;
+    fs::last_write_time(changing.root / "NewTitle",
+                        fs::file_time_type::clock::now() +
+                            std::chrono::seconds(5),
+                        timestampError);
+    require(!timestampError, "Cannot set scan-cache fixture timestamp");
+    const auto changedCatalog = scanGameLibrary(changing.root.string());
+    require(changedCatalog.size() == 1 &&
+                changedCatalog[0].engine.kind == EngineKind::Kirikiri,
+            "Scan-cache must invalidate after adding a known game archive");
+
     // 3. Verify that every game gets a unique isolated save directory when
-    //    splitSavesByGame is true, even when sharing the same engine & packageId!
+    //    splitSavesByGame is true, even when sharing the same engine &
+    //    packageId!
     const fs::path saveRoot = lib.root / "save-root";
     std::set<std::string> uniqueSaveDirs;
     bool foundDdlcOverlayPairing = false;
     bool foundMeo = false;
+    bool foundKatawa = false;
+    bool foundGenericRenpy = false;
     bool foundPonscripter = false;
 
     for (const auto &entry : catalog) {
@@ -221,9 +265,29 @@ int main() {
       }
       if (entry.title == "MEO") {
         require(entry.engine.kind == EngineKind::SummerRadish &&
-                    entry.libraryTarget == "summer_radish_vacation",
-                "MEO must map to SummerRadish/CMP library");
+                    entry.engine.slug == "meo" &&
+                    entry.libraryTarget == "summer_radish_vacation" &&
+                    entry.targetBinary == "MEO" &&
+                    entry.packageId == "me.hirameki.kotonoha.meo",
+                "MEO must use the MEO identity and shared CMP library");
         foundMeo = true;
+      }
+      if (entry.title == "KatawaShoujo") {
+        require(
+            entry.engine.kind == EngineKind::RenPy &&
+                entry.engine.slug == "katawa-shoujo" &&
+                entry.libraryTarget == "doki_doki_literature_club" &&
+                entry.targetBinary == "KatawaShoujo" &&
+                entry.packageId == "me.hirameki.kotonoha.katawashoujo" &&
+                entry.overlayPath.empty(),
+            "Katawa must use its own game identity without DDLC patch overlay");
+        foundKatawa = true;
+      }
+      if (entry.title == "AnotherRenpy") {
+        require(entry.engine.kind == EngineKind::RenPy &&
+                    entry.engine.slug == "renpy" && entry.overlayPath.empty(),
+                "Generic Ren'Py must avoid DDLC identity and VNX overlay");
+        foundGenericRenpy = true;
       }
       if (entry.title == "SayaNoUta_PT-BR") {
         require(entry.engine.kind == EngineKind::ONScripter &&
@@ -238,15 +302,37 @@ int main() {
 
     require(foundDdlcOverlayPairing, "DDLC overlay pairing verified");
     require(foundMeo, "MEO detection verified");
+    require(foundKatawa, "Katawa Shoujo detection verified");
+    require(foundGenericRenpy, "Generic Ren'Py detection verified");
     require(foundPonscripter, "PONScripter detection verified");
 
     // 4. Verify applyPerGameSaveIsolation updates KOTONOHA_USER_DATA_DIR and
     //    settingsPath to point inside the per-game profile.
     Kotonoha::EngineOptions opts;
+    opts.persistSettings = true;
     applyPerGameSaveIsolation(catalog.front(), opts, true, saveRoot.string());
     require(opts.settingsPath.find(catalog.front().saveProfileId) !=
                 std::string::npos,
             "Settings path must be isolated inside the game's profile folder");
+
+    // 5. Verify LauncherBridge C ABI (used by iOS SwiftUI & Android Material 3)
+    const std::string rootStr = lib.root.string();
+    const char *roots[1] = {rootStr.c_str()};
+    char *jsonCatalog =
+        KotonohaLauncherScanRootsJson(roots, 1, 1, saveRoot.string().c_str());
+    require(jsonCatalog != nullptr,
+            "KotonohaLauncherScanRootsJson returned null");
+    const std::string jsonStr(jsonCatalog);
+    KotonohaLauncherFreeString(jsonCatalog);
+    require(jsonStr.find("\"DDLC\"") != std::string::npos &&
+                jsonStr.find("\"SayaNoUta_PT-BR\"") != std::string::npos &&
+                jsonStr.find("\"saveDirectory\"") != std::string::npos,
+            "JSON catalog must include discovered titles and saveDirectory");
+
+    char routeInfo[256] = {};
+    require(KotonohaLauncherValidateRoute("", routeInfo, sizeof(routeInfo)) ==
+                1,
+            "Empty route path should be accepted (uses default bundled route)");
 
     std::cout << formatDiscoveredGamesReport(catalog, true);
     std::cout << "UnifiedLauncher & Per-Game Save Isolation tests passed\n";

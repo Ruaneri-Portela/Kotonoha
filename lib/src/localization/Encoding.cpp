@@ -10,6 +10,11 @@
 #include <windows.h>
 #endif
 
+// Apple builds use CoreFoundation exclusively, implemented in Encoding.mm.
+// Deliberately exclude this SDL/iconv converter (including the iOS system
+// iconv branch) so Apple executables have no codec dependency on iconv.
+#if !defined(__APPLE__)
+
 // -----------------------------------------------------------------------------
 // SELECAO DA PLATAFORMA DE CONVERSAO
 // -----------------------------------------------------------------------------
@@ -582,3 +587,5 @@ std::string Utf16ToUtf8(std::u16string_view text) {
 #endif // __APPLE__
 
 } // namespace Kotonoha
+
+#endif // !defined(__APPLE__) -- platform encoder is Encoding.mm on Apple

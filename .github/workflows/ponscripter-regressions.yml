@@ -1,0 +1,144 @@
+name: Ponscripter VM regressions
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'modules/vms/ponscripter/**'
+      - 'games/ponscripter/src/**'
+      - 'games/ponscripter/include/**'
+      - '.github/workflows/ponscripter-regressions.yml'
+  workflow_dispatch:
+
+jobs:
+  vm-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run standalone C++17 VM regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/ponscripter-tests"
+          mkdir -p "$out"
+          root=modules/vms/ponscripter
+          sources=(
+            "$root/src/Archive.cpp"
+            "$root/src/PonscripterTypes.cpp"
+            "$root/src/ScriptBuffer.cpp"
+            "$root/src/VariableStore.cpp"
+            "$root/src/Lexer.cpp"
+            "$root/src/TextFormatter.cpp"
+            "$root/src/SaveSerializer.cpp"
+            "$root/src/PonscripterVm.cpp"
+            "$root/src/PonscripterCommands.cpp"
+          )
+          for test in LexerAndExpr TaggedString VmFlowAndMenu; do
+            echo "::group::Ponscripter.$test"
+            g++ -std=c++17 -O1 -Wall -Wextra -pedantic \
+              -I"$root/include" \
+              "${sources[@]}" "$root/tests/${test}Test.cpp" \
+              -o "$out/$test"
+            "$out/$test"
+            echo "::endgroup::"
+          done
+
+  vm-sanitizers:
+    name: Ponscripter VM AddressSanitizer + UndefinedBehaviorSanitizer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run every VM fixture with sanitizers
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=modules/vms/ponscripter
+          sources=(
+            "$root/src/Archive.cpp"
+            "$root/src/PonscripterTypes.cpp"
+            "$root/src/ScriptBuffer.cpp"
+            "$root/src/VariableStore.cpp"
+            "$root/src/Lexer.cpp"
+            "$root/src/TextFormatter.cpp"
+            "$root/src/SaveSerializer.cpp"
+            "$root/src/PonscripterVm.cpp"
+            "$root/src/PonscripterCommands.cpp"
+          )
+          for name in LexerAndExpr TaggedString VmFlowAndMenu; do
+            g++ -std=c++17 -O1 -g -fno-omit-frame-pointer \
+              -fsanitize=address,undefined -fno-sanitize-recover=all \
+              -I"$root/include" "${sources[@]}" \
+              "$root/tests/${name}Test.cpp" -o "/tmp/$name"
+            "/tmp/$name"
+          done
+  runtime-syntax:
+    name: Ponscripter runtime syntax (${{ matrix.compiler }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SDL3, UI and media headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ clang pkg-config \
+            libsdl3-dev libsdl3-ttf-dev libimgui-dev \
+            libass-dev libavcodec-dev libavformat-dev libavutil-dev \
+            libswscale-dev libswresample-dev zlib1g-dev \
+            libjson-c-dev libfreetype-dev libharfbuzz-dev
+      - name: Type-check PonscripterRuntime with full engine headers
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -funsigned-char -Wall -Wextra \
+            -Ilib/include -Igames/ponscripter/include \
+            -Imodules/vms/ponscripter/include \
+            -Imodules/providers/ponscripter/include -I/usr/include/imgui \
+            $(pkg-config --cflags sdl3 SDL3_ttf) \
+            -fsyntax-only games/ponscripter/src/PonscripterRuntime.cpp
+
+  runtime-build:
+    name: Build and run Ponscripter runtime (CMake)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native engine build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ pkg-config \
+            python3 python3-dev libcurl4-openssl-dev \
+            libsdl3-dev libsdl3-ttf-dev libimgui-dev \
+            libass-dev libavcodec-dev libavformat-dev libavutil-dev \
+            libswscale-dev libswresample-dev zlib1g-dev \
+            libjson-c-dev libfreetype-dev libharfbuzz-dev \
+            fonts-dejavu-core
+      - name: Configure only the native Ponscripter port
+        run: |
+          cmake -S . -B build-ponscripter -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
+            -DKOTONOHA_SDL_PROVIDER=SYSTEM \
+            -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON \
+            -DKOTONOHA_BUILD_ALL=OFF \
+            -DKOTONOHA_BUILD_EXAMPLE=OFF \
+            -DKOTONOHA_BUILD_PONSCRIPTER=ON
+      - name: Build full Ponscripter game and runtime test executable
+        run: |
+          cmake --build build-ponscripter \
+            --target PonscripterGame PonscripterRuntimeTests --parallel 2
+      - name: Run synthetic Ponscripter native gameplay regression
+        run: |
+          mkdir -p build-ponscripter/bin/assets/fonts
+          cp /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+            build-ponscripter/bin/assets/fonts/NotoSansJP-Regular.ttf
+          ctest --test-dir build-ponscripter \
+            -R '^Ponscripter.Runtime$' --output-on-failure

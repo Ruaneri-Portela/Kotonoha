@@ -9,12 +9,34 @@
 #include <Kotonoha/core/Runtime.hpp>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace KotonohaLauncher {
+
+struct GameLaunchParameters {
+  // Common optional parameters across all ports
+  std::string assetOverlayPath;    // --asset-overlay <path>
+  std::string translationPath;     // --translation <file.ktr>
+  std::string subtitleStylePath;   // --subtitle-style <file.ass>
+  std::string customDocumentsDir;  // --documents <dir>
+
+  // School Days specific
+  std::string ktrfPath;            // --ktrf <file.ktnroute>
+  std::string scriptsDir;          // --scripts <dir>
+
+  // RealLive / Amagami / Ponscripter / N2System / SchoolDays start override
+  std::string startScenario;       // --start / --node <id>
+
+  // Graphics & Upscaling overrides (empty = inherit launcher global / Auto)
+  std::string rendererBackend;     // --renderer <name>
+  std::string upscalerBackend;     // --upscaler <auto|none|linear|mpv|metalfx>
+  std::string upscalerPreset;      // --upscaler-preset <index|name>
+  std::string upscalerFactor;      // --upscaler-factor <1.0..4.0>
+};
 
 struct DiscoveredGameEntry {
   std::string title;
@@ -26,6 +48,7 @@ struct DiscoveredGameEntry {
   std::string targetBinary;  // Modular port executable, e.g. "RealLive"
   std::string cliOption;     // Port CLI option, e.g. "--reallive"
   std::string packageId;     // Bundle/package ID, e.g. "me.hirameki.kotonoha.reallive"
+  GameLaunchParameters params;
 };
 
 // Swappable in-process engine instance produced by an engine library factory.
@@ -126,6 +149,27 @@ buildDiscoveredGameEntry(const std::string &path,
 std::vector<DiscoveredGameEntry>
 scanGameLibrary(const std::string &libraryOrGamePath);
 
+// Scans multiple roots (e.g. Documents/games, Documents, bookmarked external
+// folders/ISOs, or Android SAF URIs), deduplicating by canonical path and
+// pairing companion overlays across roots.
+std::vector<DiscoveredGameEntry>
+scanGameLibraryRoots(const std::vector<std::string> &roots);
+
+// Persistent per-game launch parameter store shared by Desktop ImGui, iOS
+// SwiftUI, and Android Material 3 launchers.
+std::string defaultGameParamsFilePath();
+std::map<std::string, GameLaunchParameters>
+loadGameParamsMap(const std::string &filePath = {});
+bool saveGameParamsMap(
+    const std::map<std::string, GameLaunchParameters> &params,
+    const std::string &filePath = {});
+GameLaunchParameters
+loadGameParamsForProfile(const std::string &saveProfileId,
+                         const std::string &filePath = {});
+bool saveGameParamsForProfile(const std::string &saveProfileId,
+                              const GameLaunchParameters &params,
+                              const std::string &filePath = {});
+
 // Formats a human-readable and machine-parseable summary table of discovered
 // games, their CMake engine libraries, and their isolated per-game save IDs.
 std::string formatDiscoveredGamesReport(
@@ -169,12 +213,16 @@ private:
   std::string rememberFilePath;
   std::string rememberSaveSplitPath;
   std::string rememberSaveRootPath;
+  std::string rememberGameParamsPath;
   std::string filterText;
   std::vector<DiscoveredGameEntry> catalog;
+  std::map<std::string, GameLaunchParameters> savedGameParams;
   int selected = 0;
   bool isolateSavesPerGame = true;
 
   void rescan();
+  void loadSavedGameParams();
+  void saveGameParams() const;
 };
 
 } // namespace KotonohaLauncher

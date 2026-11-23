@@ -1,4 +1,6 @@
+#include <Kotonoha/core/AssetProvider.hpp>
 #include <RealLive/Voice.hpp>
+#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <fstream>
@@ -25,6 +27,19 @@ static std::filesystem::path directory(const std::filesystem::path &root,
     for (auto &c : candidate)
       c = char(std::tolower(static_cast<unsigned char>(c)));
     if (entry.is_directory() && candidate == name)
+      return entry.path();
+  }
+  return {};
+}
+static std::filesystem::path findFile(const std::filesystem::path &root,
+                                      std::string name) {
+  for (auto &c : name)
+    c = char(std::tolower(static_cast<unsigned char>(c)));
+  for (const auto &entry : std::filesystem::directory_iterator(root)) {
+    auto candidate = entry.path().filename().string();
+    for (auto &c : candidate)
+      c = char(std::tolower(static_cast<unsigned char>(c)));
+    if (entry.is_regular_file() && candidate == name)
       return entry.path();
   }
   return {};
@@ -89,17 +104,66 @@ int main(int argc, char **argv) {
     assert(bytes && std::string(bytes->begin(), bytes->end()) == "OggS");
     assert(!mountedOvk.read(7));
   }
+  {
+    // Streaming VoiceIndex via openStream must read only header + clip slice
+    // and never call the full-file reader.
+    struct MemoryStream : Kotonoha::AssetStream {
+      const std::vector<std::uint8_t> &data;
+      std::uint64_t pos = 0;
+      explicit MemoryStream(const std::vector<std::uint8_t> &d) : data(d) {}
+      std::uint64_t size() const override { return data.size(); }
+      std::uint64_t tell() const override { return pos; }
+      std::size_t read(Uint8 *buffer, std::size_t n) override {
+        const std::size_t avail =
+            pos < data.size() ? std::size_t(data.size() - pos) : 0;
+        const std::size_t take = std::min(n, avail);
+        std::copy_n(data.data() + pos, take, buffer);
+        pos += take;
+        return take;
+      }
+      bool seek(std::uint64_t p) override {
+        if (p > data.size())
+          return false;
+        pos = p;
+        return true;
+      }
+    };
+    const std::vector<std::uint8_t> ovkArchive{1,  0, 0, 0, 4,   0,   0,   0,
+                                               20, 0, 0, 0, 7,   0,   0,   0,
+                                               0,  0, 0, 0, 'O', 'g', 'g', 'S'};
+    bool fullReaderCalled = false;
+    const RealLive::VoiceIndex streamedOvk(
+        std::vector<std::string>{"KOE/z0002.ovk"},
+        [&](const std::string &) -> std::vector<std::uint8_t> {
+          fullReaderCalled = true;
+          return ovkArchive;
+        },
+        [](const std::string &) { return std::string(); },
+        [&](const std::string &) -> std::unique_ptr<Kotonoha::AssetStream> {
+          return std::make_unique<MemoryStream>(ovkArchive);
+        });
+    assert(!fullReaderCalled);
+    const auto bytes = streamedOvk.read(200007);
+    assert(!fullReaderCalled);
+    assert(bytes && std::string(bytes->begin(), bytes->end()) == "OggS");
+  }
   if (argc < 2)
     return 0;
   const std::filesystem::path root(argv[1]);
   RealLive::VoiceIndex index(root);
-  std::size_t oggs = 0, songs = 0;
+  std::size_t oggs = 0, archives = 0, songs = 0;
   const auto koe = directory(root, "koe");
   assert(!koe.empty());
   for (const auto &e : std::filesystem::recursive_directory_iterator(koe)) {
+    if (!e.is_regular_file())
+      continue;
     auto extension = e.path().extension().string();
     for (auto &c : extension)
       c = char(std::tolower(static_cast<unsigned char>(c)));
+    if (extension == ".ovk" || extension == ".nwk" || extension == ".nwa") {
+      ++archives;
+      continue;
+    }
     if (extension != ".ogg")
       continue;
     const auto name = e.path().stem().string();
@@ -111,25 +175,34 @@ int main(int argc, char **argv) {
     assert(std::string(magic, 4) == "OggS");
     ++oggs;
   }
-  assert(index.size() == oggs);
-  const auto bgm = directory(root, "bgm");
-  assert(!bgm.empty());
-  for (const auto &e : std::filesystem::directory_iterator(bgm)) {
-    auto extension = e.path().extension().string();
-    for (auto &c : extension)
-      c = char(std::tolower(static_cast<unsigned char>(c)));
-    if (extension != ".nwa")
-      continue;
-    auto b = read(e.path());
-    auto wav = RealLive::nwaToWav(b);
-    assert(wav.size() == b.size());
-    assert(std::equal(b.begin() + 44, b.end(), wav.begin() + 44));
-    ++songs;
+  if (archives == 0) {
+    assert(index.size() == oggs);
+  } else {
+    assert(index.size() > oggs);
   }
-  auto ini = read(root / "Gameexe.ini");
+  const auto bgm = directory(root, "bgm");
+  if (!bgm.empty()) {
+    for (const auto &e : std::filesystem::directory_iterator(bgm)) {
+      auto extension = e.path().extension().string();
+      for (auto &c : extension)
+        c = char(std::tolower(static_cast<unsigned char>(c)));
+      if (extension != ".nwa")
+        continue;
+      auto b = read(e.path());
+      auto wav = RealLive::nwaToWav(b);
+      assert(wav.size() == b.size());
+      assert(std::equal(b.begin() + 44, b.end(), wav.begin() + 44));
+      ++songs;
+    }
+  }
+  const auto iniPath = findFile(root, "gameexe.ini");
+  assert(!iniPath.empty());
+  auto ini = read(iniPath);
   auto tracks = RealLive::parseAudioConfig(
       std::string_view(reinterpret_cast<const char *>(ini.data()), ini.size()));
   assert(!tracks.tracks.empty());
-  std::cout << oggs << " loose Ogg voices; " << songs << " NWA PCM tracks; "
-            << tracks.tracks.size() << " track mappings verified\n";
+  std::cout << oggs << " loose Ogg voices; " << archives
+            << " packed voice archives (" << index.size() << " indexed); "
+            << songs << " NWA PCM tracks; " << tracks.tracks.size()
+            << " track mappings verified\n";
 }

@@ -6,11 +6,13 @@ Start with the [project README](../README.md), then choose a topic:
 
 | Topic | Guide |
 | --- | --- |
+| Visual identity | [Official Kotonoha brand README](../assets/branding/README.md) |
 | Build overview | [Build guides](BUILD_GUIDES.md) |
 | Android | [Android](BUILD_ANDROID.md) · [Gradle details](../buildsystems/android/README.md) |
 | Apple | [macOS](BUILD_MACOS.md) · [iOS](BUILD_IOS.md) · [Xcode](../buildsystems/xcode/README.md) |
 | Browser | [WebAssembly](BUILD_WEB.md) |
 | Tests and build scope | [Validation](BUILD_VALIDATION.md) |
+| Licensing and provenance | [Repository license audit](LICENSING.md) · [Third-party notices](../THIRD_PARTY_NOTICES.md) |
 | CI, build artifacts and dependency cache | [GitHub Actions and vcpkg](CI_VCPKG.md) |
 | Portable outputs, shared SDL entrypoints, ZIP | [Deployment and CPack](BUILD_PACKAGES.md) |
 | Assets and patches | [Overlays and translation](ASSET_OVERLAYS.md) |

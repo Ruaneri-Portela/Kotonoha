@@ -28,6 +28,13 @@ RANGE = re.compile(r"bytes=(\d*)-(\d*)\Z", re.IGNORECASE)
 
 
 class RangeRequestHandler(SimpleHTTPRequestHandler):
+    # Web app manifests need their own MIME type for PWA installation;
+    # WebAssembly should also advertise the native application/wasm type.
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".webmanifest": "application/manifest+json",
+        ".wasm": "application/wasm",
+    }
     protocol_version = "HTTP/1.1"
 
     def end_headers(self) -> None:
@@ -37,7 +44,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Range, Content-Type")
         self.send_header("Access-Control-Expose-Headers",
                          "Content-Length, Content-Range, Accept-Ranges")
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
     def do_OPTIONS(self) -> None:

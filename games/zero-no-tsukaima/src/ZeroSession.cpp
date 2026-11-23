@@ -5,6 +5,7 @@
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
@@ -321,7 +322,7 @@ void ZeroSession::PlayBgm(const std::string &name) {
       if (GameEdition() == SceneSource::Edition::Symphony)
         actual = "BGMB01";
       else if (GameEdition() == SceneSource::Edition::Concerto)
-        actual = "1";
+        actual = "2";
     }
   }
   if (actual == lastBgm_)
@@ -330,6 +331,16 @@ void ZeroSession::PlayBgm(const std::string &name) {
   bgm_.Stop();
   std::vector<uint8_t> raw;
   if (!actual.empty() && ReadAsset("sound/" + actual, &raw)) {
+    if (raw.size() <= 64 &&
+        std::all_of(actual.begin(), actual.end(),
+                    [](unsigned char c) { return std::isdigit(c); })) {
+      std::vector<uint8_t> nextRaw;
+      const std::string nextIdx = std::to_string(std::stoul(actual) + 1);
+      if (ReadAsset("sound/" + nextIdx, &nextRaw) &&
+          nextRaw.size() > raw.size()) {
+        raw = std::move(nextRaw);
+      }
+    }
     if (!PlayStream(bgm_, "bgm", raw, bgmRate_, true))
       SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                   "[zero] bgm %s: PlayStream failed", actual.c_str());
@@ -426,10 +437,12 @@ SDL_FPoint ZeroSession::DrawText(SDL_Renderer *r, const std::string &text,
         font, text.c_str(), 0, {color.r, color.g, color.b, 255});
     if (!surf)
       return {0, 0};
+    Kotonoha::MarkTTFTextRaster(*surf);
     SDL_Texture *tex = SDL_CreateTextureFromSurface(r, surf);
     SDL_DestroySurface(surf);
     if (!tex)
       return {0, 0};
+    Kotonoha::MarkTTFTextRaster(*tex);
     SDL_SetTextureScaleMode(tex, SDL_SCALEMODE_LINEAR);
     found = texts_.emplace(key, tex).first;
   }

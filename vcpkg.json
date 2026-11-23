@@ -1,7 +1,7 @@
 {
   "name": "kotonoha",
   "version-string": "0.1.0",
-  "builtin-baseline": "9a5dfef5d1a0438a7d24856a85bd60f309d355e9",
+  "builtin-baseline": "2c88ca199b27256e4c7d9f796216f82f2b976b0e",
   "overrides": [
     {
       "name": "vcpkg-tool-meson",
@@ -14,7 +14,10 @@
     "harfbuzz",
     "json-c",
     "libass",
-    "libiconv",
+    {
+      "name": "libiconv",
+      "platform": "!osx & !ios"
+    },
     {
       "name": "python3",
       "platform": "windows & !mingw"
@@ -25,7 +28,7 @@
     },
     {
       "name": "libunibreak",
-      "platform": "ios | android"
+      "platform": "android | ios | osx"
     },
     {
       "name": "plutosvg",
@@ -76,19 +79,6 @@
           "features": [
             "harfbuzz",
             "svg"
-          ],
-          "default-features": false
-        }
-      ]
-    },
-    "imgui-vcpkg": {
-      "description": "Import ImGui core, SDL3 backend and SDL3 renderer backend from vcpkg",
-      "dependencies": [
-        {
-          "name": "imgui",
-          "features": [
-            "sdl3-binding",
-            "sdl3-renderer-binding"
           ],
           "default-features": false
         }

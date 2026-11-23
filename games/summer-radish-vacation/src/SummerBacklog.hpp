@@ -30,10 +30,14 @@ class SummerBacklog final : public Kotonoha::VNBacklog {
       targetScroll = std::clamp(rows[selected].y + rows[selected].h / 2 - 300,
                                 0.0f, maxScroll);
   }
-  SDL_FRect closeButtonArea() const override { return {}; }
+  SDL_FRect closeButtonArea() const override {
+    return hasCmap ? SDL_FRect{} : SDL_FRect{660, 12, 124, 34};
+  }
   float scrollInputHeight() const override { return 600; }
   void renderFrame(Kotonoha::RendererRef r) override {
     engine.GetUI().backdrop(r, {0, 0, 64, 160});
+    if (!hasCmap)
+      engine.GetUI().button(r, closeButtonArea(), "Close [ESC]");
   }
   void renderEntries(Kotonoha::RendererRef r) override {
     auto &ui = engine.GetVNUI();
@@ -79,15 +83,27 @@ class SummerBacklog final : public Kotonoha::VNBacklog {
             : "GRAPHIC/FRAME/BACKLOG.TEXB";
     if (assets.containsAsset(backlogTex)) {
       auto &atlas = assets.texture(r, backlogTex);
-      SDL_FRect source{0, 0, 56, 600}, target{744, 0, 56, 600};
-      Kotonoha::RenderUpscaledTexture(&r, &atlas, &source, &target);
-      constexpr SDL_FRect sources[] = {{56, 0, 36, 32},   {56, 32, 36, 22},
-                                       {56, 54, 38, 38},  {56, 92, 36, 22},
-                                       {56, 114, 36, 32}, {56, 146, 32, 32}};
-      for (int i = 0; i < 6; ++i)
-        if (controls.state(i))
-          Kotonoha::RenderUpscaledTexture(&r, &atlas, &sources[i],
-                                          &controls.buttons[i].area);
+      if (assets.isLostM()) {
+        SDL_FRect source{0, 0, 54, 559}, target{746, 37, 54, 559};
+        Kotonoha::RenderUpscaledTexture(&r, &atlas, &source, &target);
+        constexpr SDL_FRect sources[] = {{54, 0, 33, 60},   {54, 60, 33, 60},
+                                         {54, 138, 33, 38}, {54, 179, 33, 60},
+                                         {54, 257, 33, 60}, {54, 341, 33, 38}};
+        for (int i = 0; i < 6; ++i)
+          if (controls.state(i))
+            Kotonoha::RenderUpscaledTexture(&r, &atlas, &sources[i],
+                                            &controls.buttons[i].area);
+      } else {
+        SDL_FRect source{0, 0, 56, 600}, target{744, 0, 56, 600};
+        Kotonoha::RenderUpscaledTexture(&r, &atlas, &source, &target);
+        constexpr SDL_FRect sources[] = {{56, 0, 36, 32},   {56, 32, 36, 22},
+                                         {56, 54, 38, 38},  {56, 92, 36, 22},
+                                         {56, 114, 36, 32}, {56, 146, 32, 32}};
+        for (int i = 0; i < 6; ++i)
+          if (controls.state(i))
+            Kotonoha::RenderUpscaledTexture(&r, &atlas, &sources[i],
+                                            &controls.buttons[i].area);
+      }
     }
   }
 
@@ -100,16 +116,27 @@ public:
     else if (auto cmap1 = assets.tryReadAsset("GRAPHIC/FRAME/BACKLOG.CMAP"))
       map = ClickMap(std::move(*cmap1)), hasCmap = true;
     controls.axis = Kotonoha::ImageButtonBar::NavigationAxis::Vertical;
-    controls.hitTest = [this](SDL_FPoint p) {
-      const int id = map.value(int(p.x) - 744, int(p.y));
+    const bool lostM = assets.isLostM();
+    controls.hitTest = [this, lostM](SDL_FPoint p) {
+      const int id = lostM ? map.value(int(p.x) - 746, int(p.y) - 37)
+                           : map.value(int(p.x) - 744, int(p.y));
       return id >= 1 && id <= 6 ? id - 1 : -1;
     };
-    controls.buttons = {{{757, 73, 36, 32}, [this] { move(-3); }},
-                        {{757, 155, 36, 22}, [this] { move(-1); }},
-                        {{757, 250, 38, 38}, [this] { replayEntry(selected); }},
-                        {{757, 360, 36, 22}, [this] { move(1); }},
-                        {{757, 431, 36, 32}, [this] { move(3); }},
-                        {{759, 544, 32, 32}, [this] { close(); }}};
+    if (lostM) {
+      controls.buttons = {{{751, 59, 33, 60}, [this] { move(-3); }},
+                          {{751, 149, 33, 60}, [this] { move(-1); }},
+                          {{751, 281, 33, 38}, [this] { replayEntry(selected); }},
+                          {{751, 359, 33, 60}, [this] { move(1); }},
+                          {{751, 449, 33, 60}, [this] { move(3); }},
+                          {{751, 531, 33, 38}, [this] { close(); }}};
+    } else {
+      controls.buttons = {{{757, 73, 36, 32}, [this] { move(-3); }},
+                          {{757, 155, 36, 22}, [this] { move(-1); }},
+                          {{757, 250, 38, 38}, [this] { replayEntry(selected); }},
+                          {{757, 360, 36, 22}, [this] { move(1); }},
+                          {{757, 431, 36, 32}, [this] { move(3); }},
+                          {{759, 544, 32, 32}, [this] { close(); }}};
+    }
   }
   bool designSpace() const override { return false; }
   std::size_t selectedEntry() const { return selected; }

@@ -2,23 +2,38 @@ cmake_minimum_required(VERSION 3.16)
 
 # Kotonoha: select target platforms and game ports in the project root.
 # Platform/toolchain setup must run before project() for Android/vcpkg.
-include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaGames.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/games/KotonohaGames.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaAndroid.cmake")
 
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 
-# CMake 3.29+ deduplicates repeated static archives where the linker
-# supports it (notably Apple's ld64). Earlier versions retain compatibility.
-if(POLICY CMP0156)
-    # Each game/module invokes cmake_minimum_required(VERSION 3.16), which
-    # resets newer policies unless their default is inherited explicitly.
-    set(CMAKE_POLICY_DEFAULT_CMP0156 NEW)
-    cmake_policy(SET CMP0156 NEW)
+# Windows app targets embed the shared generated K icon as a native WinRes.
+# Enable RC in the root directory (not in lib/) for all game subdirectories.
+if(WIN32)
+    enable_language(RC)
 endif()
-if(POLICY CMP0179)
-    set(CMAKE_POLICY_DEFAULT_CMP0179 NEW)
-    cmake_policy(SET CMP0179 NEW)
+
+# MSVC cannot link or compile packages built against the MinGW/UCRT ABI.
+# The engine's native media dependencies require vcpkg; only SDL/ImGui may
+# build from their pinned submodules. Enforce this before any find_package().
+if(MSVC)
+    add_compile_options(/utf-8)
+    if(NOT VCPKG_INSTALLED_DIR OR NOT VCPKG_TARGET_TRIPLET)
+        message(FATAL_ERROR
+            "[Kotonoha] MSVC requires the vcpkg toolchain for native "
+            "FFmpeg, libass and json-c dependencies. Pass "
+            "-DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake "
+            "on the FIRST configuration. SDL3 can use vcpkg or submodules; "
+            "MSYS2/MinGW system packages are never accepted.")
+    endif()
+    if(VCPKG_TARGET_TRIPLET MATCHES "[Mm][Ii][Nn][Gg][Ww]")
+        message(FATAL_ERROR
+            "[Kotonoha] The MSVC compiler cannot use the vcpkg triplet "
+            "${VCPKG_TARGET_TRIPLET}. Select x64-windows, x86-windows, "
+            "arm64-windows or their MSVC static variants.")
+    endif()
 endif()
+
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/BuildVersion.cmake")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,7 +48,6 @@ if(EMSCRIPTEN)
     add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-fexceptions>")
 endif()
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/MSVC.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaOptions.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaTestGroups.cmake")
 
@@ -51,36 +65,38 @@ if(KOTONOHA_DISTRIBUTION_BUILD AND KOTONOHA_DEV_CONTROL)
     message(FATAL_ERROR "Distribution builds must disable KOTONOHA_DEV_CONTROL")
 endif()
 
+# Upstream: distribution builds disable MCP without changing the cached DEV preference.
+if(KOTONOHA_DISTRIBUTION_BUILD)
+    set(KOTONOHA_ENABLE_MCP OFF)
+endif()
+
 add_subdirectory(lib)
 
-# Imported vcpkg targets found inside lib/ are directory-scoped. Game ports
-# are siblings of lib/, so resolve their SDL targets in the root scope too.
-if(KOTONOHA_SDL_FROM_VCPKG)
-    find_package(SDL3 CONFIG REQUIRED)
-    find_package(SDL3_ttf CONFIG REQUIRED)
-endif()
-
-# Each port is configured only when explicitly selected (or BUILD_ALL).
-set(_KOTONOHA_ENABLED_GAME_DETAILS "")
-foreach(game IN LISTS KOTONOHA_GAMES)
-    string(REPLACE "|" ";" fields "${game}")
-    list(GET fields 0 game_option)
-    list(GET fields 1 game_id)
-    list(GET fields 2 game_directory)
-
-    if(KOTONOHA_BUILD_${game_option} AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${game_directory}/CMakeLists.txt")
-        list(APPEND _KOTONOHA_ENABLED_GAME_DETAILS "${game_id}|${game_directory}")
-        add_subdirectory("${game_directory}")
+# CMake CONFIG imported targets are directory-scoped. Make them available
+# to sibling game ports too. PkgConfig fallback targets are explicitly GLOBAL.
+if(MSVC AND (KOTONOHA_SDL_CONFIG_SDL3 OR KOTONOHA_SDL_CONFIG_TTF))
+    # Imported package targets are directory-scoped. Re-discover the SAME
+    # vcpkg triplet selected in lib/, never a MinGW/system installation.
+    set(_kotonoha_root_vcpkg_prefix
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+    if(KOTONOHA_SDL_CONFIG_SDL3)
+        find_package(SDL3 CONFIG REQUIRED
+            PATHS "${_kotonoha_root_vcpkg_prefix}" NO_DEFAULT_PATH)
     endif()
-endforeach()
-
-# The unified hub exists only for a full native desktop build.
-# Individual port builds, including the Example demo, do not build a launcher.
-if(KOTONOHA_BUILD_ALL AND NOT ANDROID AND NOT EMSCRIPTEN AND
-   NOT (APPLE AND CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS|watchOS") AND
-   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launcher/CMakeLists.txt")
-    add_subdirectory(launcher)
+    if(KOTONOHA_SDL_CONFIG_TTF)
+        find_package(SDL3_ttf CONFIG REQUIRED
+            PATHS "${_kotonoha_root_vcpkg_prefix}" NO_DEFAULT_PATH)
+    endif()
+else()
+    if(KOTONOHA_SDL_CONFIG_SDL3)
+        find_package(SDL3 CONFIG REQUIRED)
+    endif()
+    if(KOTONOHA_SDL_CONFIG_TTF)
+        find_package(SDL3_ttf CONFIG REQUIRED)
+    endif()
 endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/games/KotonohaBuild.cmake")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaReport.cmake")
-include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaCPack.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/packaging/KotonohaCPack.cmake")

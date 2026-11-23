@@ -26,9 +26,12 @@ public:
   void initGameplay(Kotonoha::Engine &engine) override;
   void update() override;
   void renderGameplay(Kotonoha::RendererRef renderer, float scale) override;
+  bool requiresNativeTextResolution() const override { return true; }
   bool onEvent(Kotonoha::EventRef event) override;
+  bool onScreenEvent(Kotonoha::EventRef event) override;
 
   bool handleAdvanceAction() override;
+  bool handleBackAction() override;
 
   void saveGame(const std::string &path) override;
   void loadGame(const std::string &path) override;
@@ -58,10 +61,18 @@ public:
   uint32_t activeBgmId() const;
   uint32_t lastVoiceId() const;
   size_t visibleLayerCount() const;
+  bool isGalleryOpen() const;
+  uint16_t galleryImageId() const;
+  bool isCgUnlocked(uint32_t id) const;
 
   std::string dialogueText() const override { return dialogueText_; }
   std::string dialogueSpeaker() const override { return dialogueSpeaker_; }
   std::string debugNode() const override;
+  std::string debugNodeCatalogKey() const override;
+  std::vector<Kotonoha::DebugNode> debugNodes() const override;
+  void debugJumpToNode(const std::string &id) override;
+  int translationRoute() const override { return 0; }
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
   void debugRestartScene() override;
   std::vector<std::string> activeTranslationKeys() const override;
   Kotonoha::Translation::SourceTexts translationSources() const override;
@@ -76,6 +87,7 @@ public:
   std::string dialogueSpeaker_;
   std::vector<std::string> originalActiveKeys_;
   std::vector<std::string> scenarioTexts_;
+  uint32_t currentDialogueVoiceId_ = 0;
 
 private:
   struct Impl;

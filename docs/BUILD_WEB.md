@@ -18,10 +18,119 @@ cmake --build build-web --target RealLive
 
 Toolchain locations vary by installation. `KOTONOHA_BUILD_ALL=ON` enables supported web ports but excludes DDLC. Serve the generated output through **HTTP**, not `file://`.
 
+## CMake preset (`wasm`)
+
+The same configuration is available as a preset. It uses Ninja, Release, the
+vcpkg toolchain with the Emscripten chainload file, the `wasm32-emscripten`
+triplet and `VCPKG_OVERLAY_PORTS=vcpkg-overlays/ports`. Its build directory is
+`out/build/wasm`; the classic `build-web` directory above is not modified.
+
+```sh
+source /path/to/emsdk/emsdk_env.sh
+cmake --preset wasm
+cmake --build out/build/wasm --target RealLive
+```
+
+Some installations (for example Homebrew Emscripten) do not export
+`EMSCRIPTEN_ROOT`, which the vcpkg triplet needs. Use the helper instead; it
+derives the root from `emcc` on `PATH` and then runs the same preset:
+
+```sh
+./tools/configure_wasm.sh
+cmake --build out/build/wasm --target RealLive
+```
+
+Always source `emsdk_env.sh` (or set `EMSCRIPTEN_ROOT`) before the first
+configure: the Emscripten toolchain is selected at configure time.
+
+## One installable PWA per browser game
+
+Each Emscripten target is packaged as its own installable Progressive Web App
+under `build-web/outputs/<target>/`. The directory includes
+`index.html`, `manifest.webmanifest`, `service-worker.js`,
+`pwa-icon-180.png`, `pwa-icon-192.png`, `pwa-icon-512.png`,
+`KotonohaPreloadCache.js`, and the matching game JS/WASM/data artifacts.
+The install name, identity, icon accent and Service Worker scope are specific
+to that target. For example, `/RealLive/` and `/Kirikiri/` install separately.
+The generated icons need no additional Python packages.
+
+Serve each directory over **HTTPS**, or use `http://localhost` while
+developing; Service Workers are unavailable for ordinary insecure HTTP sites.
+Install from your browser's menu (or **Add to Home Screen** on iOS). The PWA
+worker caches the application shell and, after the runtime initializes, its
+JS/WASM/data for later offline use. It **never intercepts `game-assets/`**,
+`HEAD`, or HTTP `Range`: game assets and preloading are handled by the
+separate, persistent IndexedDB byte-range cache. Offline gameplay requires all
+assets the engine needs to have been cached previously; installing a PWA alone
+does not download an entire game's archives. Storage quotas and eviction still
+apply.
+
+### Console-driven initial preload
+
+With an HTTP(S) source selected, play through the menus and initial scenes to
+record the actual fetched byte ranges. In DevTools, run:
+
+```javascript
+await KotonohaDumpPreload();
+```
+
+The browser downloads `preload.json`. Put it next to the source manifest at
+`game-assets/preload.json`. This dump includes **only successfully downloaded
+files and ranges**, not every file listed by `manifest.json`. The runtime
+also records current story nodes, which assets were downloaded while visiting
+each node, and observed transitions. These are exported in the optional
+`nodes` map of the guide. On later runs the shared C++ runtime notifies the
+browser when the node changes; the JavaScript scheduler prefetches current and
+neighboring node assets, limited to an 8 MiB budget and two concurrent
+requests. Speculative prefetching can be cancelled on another scene change.
+The exported `entries` remain the **mandatory boot set**: all listed byte
+ranges must finish before the engine starts. If you only want boot menus and
+the first scene to block startup, trim `entries` to those ranges while keeping
+the other scenes and their relations under `nodes`. If that preload
+file exists, the HTTP(S) startup waits until each required range is in
+IndexedDB, fetching any missing chunks before releasing the WASM startup
+dependency. The dump includes a manifest fingerprint to prevent mixing two
+asset versions. A cached guide and cached index can also be restored when
+offline; missing required chunks prevent the startup barrier from completing.
+No HTTP preload is attempted when choosing a local folder.
+
+## Browser language and bounded asset cache
+
+Every generated game page provides **English / Português** buttons in the
+startup overlay. Browser language is the initial default; the selected language
+is remembered with `localStorage` and applies to the asset picker, progress,
+folder mounting, error messages, and accessibility labels. The choice does
+not change in-game script localization.
+
+Asset chunks use an **oldest-first (LRU)** IndexedDB cache shared by games
+hosted on the same web origin. The default upper bound is **2 GiB** of cached
+binary chunks (not game saves or the PWA runtime). A successful read refreshes
+its last-access time. Before adding a chunk, the manager attempts to free old
+chunks to remain under the cap and `navigator.storage.estimate()` headroom.
+If a browser returns `QuotaExceededError`, older chunks are evicted and the
+write retried. Deletions are transactional: the binary data, metadata, and
+stored byte count change together. The boot guide's required byte ranges are
+protected from eviction during the session; if those ranges cannot fit, the
+preload fails rather than launching with incomplete required assets.
+
+Optionally set a per-origin cache size **before starting an HTTP game**:
+
+```javascript
+window.KotonohaCacheMaxBytes = 512 * 1024 * 1024; // 512 MiB
+// Once the HTTP source has been configured:
+await KotonohaAssetCache.getCacheStats();
+```
+
+Changing this value applies to subsequent writes, not an immediate purge.
+Only the asset chunk cache is evicted; `/save` IDBFS and PWA shell Cache
+Storage are not affected. If persistent caching cannot write, normal online
+asset reads can still continue. Offline use requires that the needed chunks
+remain cached.
+
 ## Browser storage and assets
 
 - **Saves:** an IDBFS mount at `/save` synchronizes with IndexedDB; writes are flushed through the web storage adapter.
-- **Server assets:** optional `tools/generate_manifest.py` emits a size-aware manifest; the browser mounts Emscripten Fetch as a read-only `IMount` and uses local game files first. Remote data is never staged into MEMFS.
+- **Server assets:** HTTP(S) requires a non-empty `manifest.json` beside `index.html`. Build it with `python3 tools/generate_manifest.py build-web/outputs/<target>/game-assets build-web/outputs/<target>/manifest.json`. Paths are relative to `game-assets/`; remote data remains lazy and is never copied into MEMFS.
 - **Local folder:** the page's folder picker imports chosen game files into the virtual filesystem. Browser audio/video may use `File` object URLs where supported.
 - **Media:** the shared player prefers browser decoding for supported formats, then uses the WebAssembly FFmpeg fallback. Optional `.webm` sidecars can help with legacy codecs; make them only from material you may legally use.
 
@@ -30,21 +139,37 @@ To test the optional web integration route, enable `-DKOTONOHA_WEB_SELFTEST=ON`,
 **Known constraints:** browser permissions, asynchronous downloads, browser codec support, and single-threaded execution differ from native desktop behavior. Never rely on direct POSIX access to a browser user's disk.
 
 
-## HTTP(S) game-assets fallback (Filesystem V2 draft)
+## Required HTTP(S) asset manifest
 
-**Startup waits for an explicit choice:** **Use local folder** or
-**Use HTTP(S)**, without automatic selection. Local mode reads imported files
-without contacting the server. HTTP(S) **checks for an optional `game-assets/manifest.json`** after
-the user chooses the remote source. If a valid size-aware `entries` index
-exists, it supplies VFS directory listings (including nested folders)
-immediately, so ports can discover arbitrary archive names. HTTP file bytes
-are still retrieved on demand using Fetch/Range, never copied into MEMFS.
-Files missing from a stale index can still be discovered by HTTP HEAD.
-Absent, empty or invalid manifests fall back to direct Fetch automatically.
+Every browser port waits for an explicit asset-source selection. **Local-folder
+mode** requires no manifest and never requests it. **HTTP(S) mode** must load a
+non-empty, size-aware `manifest.json` next to the page's `index.html`. If the
+manifest is missing, empty, invalid or rejected by the C++ provider, the game
+does not boot. Only a previously validated cached manifest may be reused
+when the network itself is unavailable.
 
-`tools/generate_manifest.py` can generate the optional size-aware index.
-No manifest request is made in local-folder mode or before the user makes a
-source choice.
+The Python tool accepts **two positional arguments**:
+`[pasta] [arquivo]` (source asset directory and exact output filename):
+
+```sh
+python3 tools/generate_manifest.py build-web/outputs/N2SystemGame/game-assets build-web/outputs/N2SystemGame/manifest.json
+python3 tools/generate_manifest.py /Volumes/Server/data2/Games/SteinsGate /Volumes/Server/data2/Games/manifest.json
+```
+
+`[pasta]` is indexed **directly and recursively**, including retail `.npa`
+archives and nested paths such as `dx/`; the tool does not silently switch to
+a `game-assets/` child. `[arquivo]` determines the exact JSON output location
+(absolute or relative to the current working directory), including a file
+one directory above the indexed assets. The selected output file is never
+included in its own index. For WASM, publish the manifest beside `index.html`
+and expose the indexed paths under `game-assets/` (or map URLs via the
+CDN/server). CMake calls the generator with both paths after copying the
+assets for each app.
+
+**The manifest is an allow-list.** Unindexed files return not found
+immediately; there is **no HEAD/GET discovery**, even for explicitly requested
+names. Only indexed files are fetched lazily using bounded HTTP Range.
+Optional `game-assets/preload.json` may refer only to indexed assets.
 
 By default, the browser resolves `game-assets/` relative to the page. You can
 configure an HTTPS CDN **before** the app script initializes:
@@ -104,36 +229,19 @@ not automatically instruct every game port to search that folder. Port-specific
 path resolution and touchscreen gameplay must be tested separately.
 
 
-### Manifest-free Fetch with Asyncify
+### Manifest-indexed Fetch with Asyncify
 
-The HTML checks for `game-assets/manifest.json` **only after the
-HTTP(S) source is selected**. Indexed entries enable `list()` / directory
-enumeration; unknown files remain available via direct Fetch discovery. Games
-can also access **known** relative paths without any manifest. The provider
-first requests HTTP `HEAD` to determine the file size; reads then use bounded
-`GET Range` requests and a byte cache. A small object from a server that
-ignores Range can be accepted as a complete HTTP 200 response. No remote file
-is staged in MEMFS.
+Indexed directory listings and file sizes come from the manifest without
+network probing. HTTP GET Range fetches actual file bytes only when needed.
+Asyncify lets synchronous VFS callers yield until a requested range becomes
+available; it does not use blocking XMLHttpRequest. Large files need proper
+206 Content-Range support. A correctly sized whole HTTP 200 response is
+accepted only for small files (up to 8 MiB).
 
-The web linker enables `-sASYNCIFY=1` so the synchronous VFS `exists()`,
-`open()`, and `FileHandle::read()` calls can yield to Fetch callbacks on
-the main browser thread. This is **not** a synchronous browser network API.
-An HTTP 404 is cached as missing; a network/CORS failure remains a load error.
-Large files require correct HTTP Range (206 and Content-Range). The entire
-HTTP object may still be returned by a misconfigured server, so enforce
-hosting limits. Cross-origin servers must allow HEAD and GET and expose
-Content-Length/Content-Range to the browser.
-
-`await window.KotonohaFetchAsset("known-file.bin")` can request one known
-relative path explicitly. The result is 1 on success, 0 if pending, or -1
-on an invalid request. `window.KotonohaAssetBaseURL` can override the
-default game-assets URL **before** initialization.
-
-A directory cannot be enumerated over ordinary HTTP without an index. File
-providers that discover unknown paths through directory enumeration or
-depend on physical archive file paths still need migration. These changes
-do not prove that every port can start or finish gameplay. Re-entrant
-Asyncify/SDL operations and memory usage must be tested in real browsers.
+`await window.KotonohaFetchAsset("indexed-file.bin")` checks the manifest
+(1 = indexed, 0 = absent, -1 = invalid) without fetching an absent file.
+Set `window.KotonohaAssetBaseURL` before startup to use a CDN, while serving
+the index from the page root.
 
 ### Browser validation
 
@@ -144,7 +252,7 @@ node tools/check_web_shell.js
 node --check tools/web_selftest.js
 ```
 
-The Playwright suite also exercises manifest-free HTTP, local folder import,
+The Playwright suite also exercises strict-manifest HTTP, local folder import,
 VFS hot-import refresh, saves, media, and browser touch delivery, when built
 with `-DKOTONOHA_WEB_SELFTEST=ON`. It does not certify each game's retail
 playthrough, and it has not been executed in this environment.

@@ -1,0 +1,45 @@
+name: RealLive SEL directional effects
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'games/reallive/src/RealLiveTransition.hpp'
+      - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/tests/TransitionStyleTest.cpp'
+      - 'games/reallive/tests/ScrollTransitionTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - '.github/workflows/reallive-transition-regressions.yml'
+  pull_request:
+    paths:
+      - 'games/reallive/src/RealLiveTransition.hpp'
+      - 'games/reallive/src/RealLiveRuntime.cpp'
+      - 'games/reallive/tests/TransitionStyleTest.cpp'
+      - 'games/reallive/tests/ScrollTransitionTest.cpp'
+      - 'games/reallive/CMakeLists.txt'
+      - '.github/workflows/reallive-transition-regressions.yml'
+  workflow_dispatch:
+
+jobs:
+  transition-mask:
+    name: SEL directional mask (${{ matrix.compiler }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile C++17 transition test
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/TransitionStyleTest.cpp \
+            -o /tmp/reallive-transition-test
+      - name: Check four directions, feathered wipes and blind stripes
+        run: /tmp/reallive-transition-test
+      - name: Compile six scroll/squash/slide families
+        run: |
+          ${{ matrix.compiler }} -std=c++17 -O2 -Wall -Wextra -Werror -pedantic \
+            -Igames/reallive/src games/reallive/tests/ScrollTransitionTest.cpp \
+            -o /tmp/reallive-scroll-test
+      - name: Check all styles across four directions
+        run: /tmp/reallive-scroll-test

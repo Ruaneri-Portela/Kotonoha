@@ -7,7 +7,7 @@
     },
     "macOS/KotonohaEngine": {
       "target": "E17D1F83ED8A3B29572860F9",
-      "sources": 76
+      "sources": 83
     },
     "macOS/KotonohaExample": {
       "target": "042046F061537917D55247C8",
@@ -15,7 +15,7 @@
     },
     "macOS/Amagami": {
       "target": "6414192B57D2D03B22974B39",
-      "sources": 10
+      "sources": 14
     },
     "macOS/ZeroNoTsukaima": {
       "target": "3C021557A8120B3C455FBBB5",
@@ -35,7 +35,7 @@
     },
     "macOS/SchoolDays": {
       "target": "A5BC13A0BF404C22CFA1CCAA",
-      "sources": 63
+      "sources": 64
     },
     "macOS/RealLive": {
       "target": "340308E942D2105935823F89",
@@ -43,7 +43,7 @@
     },
     "macOS/Kirikiri": {
       "target": "83E7ADA7774F01DECDC57E13",
-      "sources": 5
+      "sources": 12
     },
     "macOS/LucaSystem": {
       "target": "9AFA08279ADEA7CF4AE299F4",
@@ -51,7 +51,7 @@
     },
     "macOS/Pmail": {
       "target": "D9B6CD3809CE357BEA918F33",
-      "sources": 16
+      "sources": 18
     },
     "iOS/KotonohaImGui": {
       "target": "602CC6310602184A1C7CAFDB",
@@ -59,7 +59,7 @@
     },
     "iOS/KotonohaEngine": {
       "target": "F20A323ED8754B150319722C",
-      "sources": 76
+      "sources": 83
     },
     "iOS/KotonohaExample": {
       "target": "5A342ED04FE0E9E62B03B67B",
@@ -67,7 +67,7 @@
     },
     "iOS/Amagami": {
       "target": "F9F69A7C90C1366A40BBEB2A",
-      "sources": 10
+      "sources": 14
     },
     "iOS/ZeroNoTsukaima": {
       "target": "D972BF9A2114E05049521F09",
@@ -87,7 +87,7 @@
     },
     "iOS/SchoolDays": {
       "target": "D5F2C0089D323AE73B17CFF7",
-      "sources": 63
+      "sources": 64
     },
     "iOS/RealLive": {
       "target": "DBD7FDAAD48B4AC8B150422C",
@@ -95,7 +95,7 @@
     },
     "iOS/Kirikiri": {
       "target": "D9FDDC700436E4DCEC8BAABC",
-      "sources": 5
+      "sources": 12
     },
     "iOS/LucaSystem": {
       "target": "B90814E69C6CB48AEBF372F6",
@@ -103,7 +103,47 @@
     },
     "iOS/Pmail": {
       "target": "B1583208E1B067219E50E5CD",
-      "sources": 16
+      "sources": 18
+    },
+    "macOS/KatawaShoujo": {
+      "target": "06628F1E7E708814ECF8438D",
+      "sources": 12
+    },
+    "iOS/KatawaShoujo": {
+      "target": "E5F2C6617BB42988C1616485",
+      "sources": 12
+    },
+    "macOS/MEO": {
+      "target": "3388DC2CF1F900A563C4670D",
+      "sources": 10
+    },
+    "iOS/MEO": {
+      "target": "D234BAB08272DB319271934E",
+      "sources": 10
+    },
+    "macOS/PonscripterGame": {
+      "target": "D311171D4BD3A22A92216753",
+      "sources": 12
+    },
+    "iOS/PonscripterGame": {
+      "target": "4E4FFDFFD15EB42FD86B23AE",
+      "sources": 12
+    },
+    "macOS/N2SystemGame": {
+      "target": "F51AE3C0C88CE46B2E55E4AD",
+      "sources": 23
+    },
+    "iOS/N2SystemGame": {
+      "target": "DD05515AF63B6E92EACE87FF",
+      "sources": 23
+    },
+    "macOS/KotonohaLauncher": {
+      "target": "B5B500000000000000000001",
+      "sources": 187
+    },
+    "iOS/KotonohaLauncher": {
+      "target": "D7D700000000000000000001",
+      "sources": 191
     }
   },
   "games": {
@@ -119,18 +159,24 @@
     "LucaSystem": "luca-system",
     "Pmail": "pmail",
     "PonscripterGame": "ponscripter",
-    "N2SystemGame": "n2system"
+    "N2SystemGame": "n2system",
+    "KatawaShoujo": "katawa-shoujo",
+    "MEO": "meo",
+    "ArtemisGame": "artemis"
   },
   "modules": {
     "VM": [
       "amagami",
+      "artemis",
       "kag",
       "meo",
       "pmail",
       "reallive",
       "renpy",
       "snow-radish",
-      "summer-radish"
+      "summer-radish",
+      "n2system",
+      "ponscripter"
     ],
     "Providers": [
       "adv",
@@ -142,12 +188,23 @@
       "reallive",
       "rpa",
       "xp3",
-      "zero"
+      "zero",
+      "n2",
+      "ponscripter",
+      "artemis"
+    ],
+    "Formats": [
+      "adv",
+      "cmp",
+      "kirikiri",
+      "luca",
+      "pmail",
+      "vita"
     ]
   },
-  "source_files": 241,
-  "schemes": 22,
-  "note": "The C++ sources and binary dependencies are external to this generated project.",
+  "source_files": 296,
+  "schemes": 32,
+  "note": "The Xcode project compiles game/provider/VM sources directly. Both macOS and iOS Unified Launcher targets are native Xcode applications; iOS searches its sandbox Documents/games.",
   "bundling": {
     "schema_version": 2,
     "assets_global": "assets/",
@@ -165,17 +222,29 @@
     "script": "buildsystems/xcode/Scripts/EmbedSDLFrameworks.sh",
     "asset_copy_phase": "Copy Bundle Resources (native folder references)",
     "sdl_embed_phase": "Embed SDL3 + SDL3_ttf and Verify Assets",
-    "targets_configured": 22,
+    "targets_configured": 32,
     "shared_info_plist": "buildsystems/xcode/Info.plist (referenced, not duplicated)",
-    "all_app_configs_using_shared_plist": 44,
+    "all_app_configs_using_shared_plist": 64,
     "framework_embeds_require_prebuilt_binaries": true,
     "framework_embed_script_present": true,
     "macos_icon": "assets/icon.icns copied to Contents/Resources/icon.icns and processed Info.plist CFBundleIconFile=icon.icns",
     "macos_icon_script": "buildsystems/xcode/Scripts/ConfigureMacOSIcon.sh",
     "document_revisions_debug_enabled": false,
-    "disabled_in_shared_schemes": 22,
-    "ddlc_python": "CPython 3.15 prepared by tools/PrepareApple.py and packaged only by DokiDoki targets",
-    "ddlc_python_script": "buildsystems/xcode/Scripts/EmbedDokiDokiPython.sh"
+    "disabled_in_shared_schemes": 32,
+    "ddlc_python": "CPython 3.15 prepared by tools/PrepareApple.py and packaged by DokiDoki and KatawaShoujo targets",
+    "ddlc_python_script": "buildsystems/xcode/Scripts/EmbedDokiDokiPython.sh",
+    "unified_launcher": "Native macOS PBXNativeTarget compiling game sources directly; does not invoke CMake",
+    "renpy_python": "CPython 3.15 shared by DokiDoki, KatawaShoujo and KotonohaLauncher macOS",
+    "native_launcher_sources": 187,
+    "navigated_optional_sources": [
+      "modules/vms/renpy/src/PythonDummy.cpp",
+      "games/amagami/src/VitaScripts.cpp",
+      "games/amagami/src/VitaVmBridge.cpp",
+      "games/amagami/src/VitaSpriteRenderer.cpp",
+      "games/amagami/src/VitaInput.cpp"
+    ],
+    "native_launcher_ios_sources": 191,
+    "ios_launcher_game_library": "Documents/games + Documents + security-scoped UIDocumentPicker bookmarks (Liquid Glass SwiftUI hub)"
   },
   "preparation": {
     "script": "tools/PrepareApple.py",
@@ -185,8 +254,8 @@
       "ios": "buildsystems/xcode/vcpkg/ios/arm64-ios",
       "ios_simulator": "buildsystems/xcode/vcpkg/simulator/arm64-ios-simulator"
     },
-    "schemes_with_vcpkg_preaction": 22,
-    "schemes_with_python_preaction": 2
+    "schemes_with_vcpkg_preaction": 32,
+    "schemes_with_python_preaction": 4
   },
   "vendors": {
     "RealLive": {
@@ -225,7 +294,7 @@
     }
   },
   "xcode_pending": [
-    "n2system",
-    "ponscripter"
-  ]
+    "artemis"
+  ],
+  "xcode_validation_note": "Full Apple SDK compile/link and runtime smoke test on macOS/iOS host required"
 }

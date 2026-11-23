@@ -2,6 +2,14 @@ name: Xcode macOS and iOS scheme validation
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "buildsystems/xcode/**"
+      - "tools/ValidateBuildMetadata.py"
+      - "assets/icon.icns"
+      - "lib/include/Kotonoha/Filesystem/**"
+      - "lib/src/filesystem/**"
+      - ".github/workflows/xcode.yml"
 
 permissions:
   contents: read

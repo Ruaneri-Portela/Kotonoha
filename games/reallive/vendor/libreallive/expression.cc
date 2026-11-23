@@ -73,7 +73,7 @@ namespace libreallive {
 size_t NextToken(const char* src) {
   if (*src++ != '$')
     return 0;
-  if (*src++ == 0xff)
+  if (static_cast<unsigned char>(*src++) == 0xff)
     return 6;
   if (*src++ != '[')
     return 2;
@@ -132,15 +132,17 @@ size_t NextString(const char* src) {
         end += 1 + NextExpression(end);
         continue;
       }
-      if (!((*end >= 0x81 && *end <= 0x9f) || (*end >= 0xe0 && *end <= 0xef) ||
-            (*end >= 'a' && *end <= 'z') ||
-            (*end >= 'A' && *end <= 'Z') || (*end >= '0' && *end <= '9') ||
-            *end == ' ' || *end == '?' || *end == '_' || *end == '"' ||
-            *end == '\\')) {
+      const unsigned char ch = static_cast<unsigned char>(*end);
+      if (!((ch >= 0x81 && ch <= 0x9f) || (ch >= 0xe0 && ch <= 0xef) ||
+            (ch >= 'a' && ch <= 'z') ||
+            (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') ||
+            ch == ' ' || ch == '?' || ch == '_' || ch == '"' ||
+            ch == '\\')) {
         break;
       }
     }
-    if ((*end >= 0x81 && *end <= 0x9f) || (*end >= 0xe0 && *end <= 0xef))
+    const unsigned char lead = static_cast<unsigned char>(*end);
+    if ((lead >= 0x81 && lead <= 0x9f) || (lead >= 0xe0 && lead <= 0xef))
       end += 2;
     else
       ++end;
@@ -154,9 +156,10 @@ size_t NextData(const char* src) {
     return 1 + NextData(src + 1);
   if (*src == '\n')
     return 3 + NextData(src + 3);
-  if ((*src >= 0x81 && *src <= 0x9f) || (*src >= 0xe0 && *src <= 0xef) ||
-      (*src >= 'A' && *src <= 'Z') || (*src >= '0' && *src <= '9') ||
-      *src == ' ' || *src == '?' || *src == '_' || *src == '"' ||
+  const unsigned char ch = static_cast<unsigned char>(*src);
+  if ((ch >= 0x81 && ch <= 0x9f) || (ch >= 0xe0 && ch <= 0xef) ||
+      (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') ||
+      ch == ' ' || ch == '?' || ch == '_' || ch == '"' ||
       strcmp(src, "###PRINT(") == 0)
     return NextString(src);
   if (*src == 'a' || *src == '(') {
@@ -202,16 +205,17 @@ size_t NextData(const char* src) {
 // really gets all the credit.
 
 ExpressionPiece GetExpressionToken(const char*& src) {
-  if (src[0] == 0xff) {
+  const unsigned char b0 = static_cast<unsigned char>(src[0]);
+  if (b0 == 0xff) {
     src++;
-    int value = read_i32(src);
+    int value = static_cast<int>(read_i32(src));
     src += 4;
     return ExpressionPiece::IntConstant(value);
-  } else if (src[0] == 0xc8) {
+  } else if (b0 == 0xc8) {
     src++;
     return ExpressionPiece::StoreRegister();
-  } else if ((src[0] != 0xc8 && src[0] != 0xff) && src[1] == '[') {
-    int type = src[0];
+  } else if ((b0 != 0xc8 && b0 != 0xff) && src[1] == '[') {
+    int type = b0;
     src += 2;
     ExpressionPiece location = GetExpression(src);
 
@@ -224,11 +228,11 @@ ExpressionPiece GetExpressionToken(const char*& src) {
     src++;
 
     return ExpressionPiece::MemoryReference(type, std::move(location));
-  } else if (src[0] == 0) {
+  } else if (b0 == 0) {
     throw Error("Unexpected end of buffer in GetExpressionToken");
   } else {
     std::ostringstream err;
-    err << "Unknown toke type 0x" << std::hex << (short)src[0]
+    err << "Unknown toke type 0x" << std::hex << static_cast<unsigned int>(b0)
         << " in GetExpressionToken" << std::endl;
     throw Error(err.str());
   }
@@ -368,7 +372,7 @@ ExpressionPiece GetExpression(const char*& src) {
 // Parses an expression of the form [dest] = [source expression];
 ExpressionPiece GetAssignment(const char*& src) {
   ExpressionPiece itok(GetExpressionTerm(src));
-  int op = src[1];
+  int op = static_cast<unsigned char>(src[1]);
   src += 2;
   ExpressionPiece etok(GetExpression(src));
   if (op >= 0x14 && op <= 0x24) {
@@ -411,10 +415,12 @@ ExpressionPiece GetData(const char*& src) {
   } else if (*src == '\n') {
     src += 3;
     return GetData(src);
-  } else if ((*src >= 0x81 && *src <= 0x9f) || (*src >= 0xe0 && *src <= 0xef) ||
-             (*src >= 'A' && *src <= 'Z') || (*src >= '0' && *src <= '9') ||
-             *src == ' ' || *src == '?' || *src == '_' || *src == '"' ||
-             strcmp(src, "###PRINT(") == 0) {
+  }
+  const unsigned char ch = static_cast<unsigned char>(*src);
+  if ((ch >= 0x81 && ch <= 0x9f) || (ch >= 0xe0 && ch <= 0xef) ||
+      (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') ||
+      ch == ' ' || ch == '?' || ch == '_' || ch == '"' ||
+      strcmp(src, "###PRINT(") == 0) {
     return GetString(src);
   } else if (*src == 'a') {
     // TODO(erg): Cleanup below.
@@ -423,12 +429,12 @@ ExpressionPiece GetData(const char*& src) {
     ExpressionPiece cep = ExpressionPiece::ComplexExpression();
 
     if (*end++ == 'a') {
-      int tag = *end++;
+      int tag = static_cast<unsigned char>(*end++);
 
       // Some special cases have multiple tags.
       if (*end == 'a') {
         end++;
-        int second = *end++;
+        int second = static_cast<unsigned char>(*end++);
         tag = (second << 16) | tag;
       }
 

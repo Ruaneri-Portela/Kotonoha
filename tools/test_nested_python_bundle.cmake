@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # Portable synthetic fixture for the macOS Python.framework cleanup.
 # No macOS SDK, Homebrew Python, or commercial game assets are needed.
-include("${CMAKE_CURRENT_LIST_DIR}/../buildsystems/cmake/PruneNestedPythonApp.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../buildsystems/cmake/packaging/PruneNestedPythonApp.cmake")
 
 set(_fixture "${CMAKE_CURRENT_BINARY_DIR}/kotonoha-nested-python-bundle-fixture")
 set(_version "${_fixture}/KotonohaLauncher.app/Contents/Frameworks/Python.framework/Versions/3.15")

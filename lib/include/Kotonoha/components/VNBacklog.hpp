@@ -39,6 +39,7 @@ protected:
   Clock clock;
   ScrollGesture scrollGesture;
   std::function<void(const std::string &)> voiceReplay;
+  std::function<void()> onCloseCb;
   std::vector<float> entryOffsets_;
   std::vector<float> speakerHeights_;
   std::vector<float> textHeights_;
@@ -65,6 +66,9 @@ public:
   void setVoiceReplay(std::function<void(const std::string &)> callback) {
     voiceReplay = std::move(callback);
   }
+  void SetOnClose(std::function<void()> callback) {
+    onCloseCb = std::move(callback);
+  }
   bool replayEntry(std::size_t index) {
     if (index >= entries.size() || entries[index].voice.empty() || !voiceReplay)
       return false;
@@ -82,10 +86,14 @@ public:
     clock.reset();
   }
   virtual void close() {
+    if (!isOpen)
+      return;
     isOpen = false;
     isDragging = false;
     scrollGesture.reset();
     scrollVelocity = 0;
+    if (onCloseCb)
+      onCloseCb();
   }
   void toggle() { isVisible() ? close() : open(); }
 

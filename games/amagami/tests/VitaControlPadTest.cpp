@@ -83,6 +83,13 @@ int main() {
           "Auto-repeat is not active on every frame");
     run(vm, self, "resetRapid");
     check(run(vm, self, "rapid").number == 0, "resetRapid clears repeat phase");
+
+    // Vita stick channels are signed bytes (-128..127), even when fed by
+    // a synthetic input source with values outside the SDL analog range.
+    bridge.inputFrame(buttons, {{500, -500, 0, 0}});
+    check(run(vm, self, "analog", {VmValue::num(0)}).number == 127 &&
+              run(vm, self, "analog", {VmValue::num(1)}).number == -128,
+          "Vita ControlPad clamps to signed 8-bit analog limits");
     check(
         run(vm, self, "rumble", {VmValue::num(255), VmValue::num(1)}).object ==
             self.object,
@@ -95,6 +102,48 @@ int main() {
     bridge.inputFrame(32);
     check(run(vm, self, "trig").number == 0x2000,
           "New press after release is recognized");
+
+    // A nested SCF call from a scenario must use original PS2 button
+    // positions. System-image calls continue to use swapped Vita bits.
+    Script scenario;
+    scenario.name = "ScenarioControlTest";
+    for (const char *methodName : {"held", "trig", "rapid"}) {
+      Value selector;
+      selector.type = Value::Symbol;
+      selector.text = methodName;
+      const uint8_t index = uint8_t(scenario.constants.size());
+      scenario.constants.push_back(selector);
+      Method probe;
+      probe.name = std::string("read_") + methodName;
+      probe.arguments = 1;
+      // Push ControlPad argument, send method, return its result.
+      probe.code = {0x22, 0, 0x30, 0, index, 0x03};
+      scenario.methods.push_back(probe);
+    }
+    vm.add(scenario);
+    bool observedScenario = false;
+    vm.scopedPrimitive = [&bridge, &vm, &observedScenario](
+                             const std::string &owner,
+                             const std::string &method, bool cls,
+                             const VmValue &receiver, unsigned code,
+                             const std::vector<VmValue> &args) {
+      const bool isScenario = vm.callerClass() == "ScenarioControlTest";
+      observedScenario |= isScenario;
+      return bridge.primitive(owner, method, cls, receiver, code, args,
+                              isScenario);
+    };
+    bridge.inputFrame(0);
+    bridge.inputFrame(4096u | 32u);
+    for (const char *methodName : {"held", "trig", "rapid"}) {
+      const std::string selector = std::string("read_") + methodName;
+      vm.call(vm.instance("ScenarioControlTest"), selector, {self});
+      vm.run(1000);
+      check(vm.finished() && vm.result().number == (4096u | 32u),
+            "Scenario ControlPad reads original PS2 mask");
+    }
+    check(observedScenario, "Nested native detected scenario caller");
+    check(run(vm, self, "held").number == (0x10u | 0x2000u),
+          "Direct system native still uses Vita SceCtrl mask");
     std::cout << "Vita SCF ControlPad synthetic tests passed\n";
     return 0;
   } catch (const std::exception &e) {

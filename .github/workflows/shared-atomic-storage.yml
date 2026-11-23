@@ -4,9 +4,9 @@ on:
   pull_request:
     paths:
       - 'lib/include/Kotonoha/Filesystem/AtomicFile.hpp'
-      - 'lib/src/Filesystem/AtomicFile.cpp'
-      - 'lib/src/Filesystem/Sources/SDLFileSource.cpp'
-      - 'lib/src/Filesystem/Adapters/StreamAdapter.cpp'
+      - 'lib/src/filesystem/AtomicFile.cpp'
+      - 'lib/src/filesystem/Sources/SDLFileSource.cpp'
+      - 'lib/src/filesystem/Adapters/StreamAdapter.cpp'
       - 'lib/tests/AtomicFileTests.cpp'
       - 'games/school-days/**'
       - 'tools/check_school_days_platform_io.py'
@@ -15,9 +15,9 @@ on:
     branches: [dev]
     paths:
       - 'lib/include/Kotonoha/Filesystem/AtomicFile.hpp'
-      - 'lib/src/Filesystem/AtomicFile.cpp'
-      - 'lib/src/Filesystem/Sources/SDLFileSource.cpp'
-      - 'lib/src/Filesystem/Adapters/StreamAdapter.cpp'
+      - 'lib/src/filesystem/AtomicFile.cpp'
+      - 'lib/src/filesystem/Sources/SDLFileSource.cpp'
+      - 'lib/src/filesystem/Adapters/StreamAdapter.cpp'
       - 'lib/tests/AtomicFileTests.cpp'
       - 'games/school-days/**'
       - 'tools/check_school_days_platform_io.py'
@@ -51,7 +51,7 @@ jobs:
       - name: Compile shared SDL writer as C++17
         run: |
           c++ -std=c++17 -Wall -Wextra -Wpedantic -Werror -pthread \
-            -Ilib/include lib/src/Filesystem/AtomicFile.cpp \
+            -Ilib/include lib/src/filesystem/AtomicFile.cpp \
             lib/tests/AtomicFileTests.cpp \
             $(pkg-config --cflags --libs sdl3) -o ./atomic-file-test
       - name: Run synthetic atomic file tests
@@ -73,7 +73,7 @@ jobs:
         shell: msys2 {0}
         run: |
           g++ -std=c++17 -Wall -Wextra -Wpedantic -Werror -pthread \
-            -Ilib/include lib/src/Filesystem/AtomicFile.cpp \
+            -Ilib/include lib/src/filesystem/AtomicFile.cpp \
             lib/tests/AtomicFileTests.cpp \
             $(pkg-config --cflags --libs sdl3) -o atomic-file-test.exe
           ./atomic-file-test.exe

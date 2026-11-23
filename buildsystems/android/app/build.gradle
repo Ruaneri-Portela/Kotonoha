@@ -49,8 +49,13 @@ if (!new File(vcpkgRoot, 'scripts/buildsystems/vcpkg.cmake').isFile()) {
   throw new GradleException("Invalid VCPKG_ROOT: ${vcpkgRoot}")
 }
 
+// Retail game files are never silently included in a distributable APK.
+// Developers may explicitly bundle authorized local data for private testing.
 def includeGameAssets = providers.gradleProperty('bundleGameAssets')
-  .orElse('true').get().toBoolean()
+  .orElse('false').get().toBoolean()
+if (includeGameAssets) {
+  logger.warn('[Kotonoha] bundleGameAssets=true: do not redistribute APKs containing commercial game data without permission.')
+}
 
 def rawAbis = providers.gradleProperty('abis')
   .orElse('arm64-v8a,armeabi-v7a,x86_64').get().split(',').toList()
@@ -74,6 +79,8 @@ def games = [
   amagami       : ['amagami', 'Amagami', 'me.hirameki.kotonoha.amagami', 'Amagami'],
   zeroNoTsukaima: ['zero-no-tsukaima', 'ZeroNoTsukaima', 'me.hirameki.kotonoha.zeronotsukaima', 'Zero no Tsukaima'],
   snowRadish    : ['snow-radish-vacation', 'SnowRadish', 'me.hirameki.kotonoha.snowradishvacation', 'Snow Radish Vacation!!'],
+  meo           : ['meo', 'MEO', 'me.hirameki.kotonoha.meo', 'Miss Each Other'],
+  katawaShoujo  : ['katawa-shoujo', 'KatawaShoujo', 'me.hirameki.kotonoha.katawashoujo', 'Katawa Shoujo'],
   dokiDoki      : ['doki-doki-literature-club', 'DokiDoki', 'me.hirameki.kotonoha.dokidokiliteratureclub', 'Doki Doki Literature Club!'],
   schoolDays    : ['school-days', 'SchoolDays', 'me.hirameki.kotonoha.schooldays', 'School Days'],
   reallive      : ['reallive', 'RealLive', 'me.hirameki.kotonoha.reallive', 'RealLive'],
@@ -82,8 +89,24 @@ def games = [
   lucaSystem    : ['luca-system', 'LucaSystem', 'me.hirameki.kotonoha.lucasystem', 'Luca System'],
   pmail         : ['pmail', 'Pmail', 'me.hirameki.kotonoha.pmail', 'Pure Mail'],
   ponscripter   : ['ponscripter', 'PonscripterGame', 'me.hirameki.kotonoha.ponscripter', 'PONscripter'],
-  n2System      : ['n2system', 'N2SystemGame', 'me.hirameki.kotonoha.n2system', 'N2System Game']
+  n2System      : ['n2system', 'N2SystemGame', 'me.hirameki.kotonoha.n2system', 'N2System Game'],
+  artemis       : ['artemis', 'ArtemisGame', 'me.hirameki.kotonoha.artemis', 'Artemis Engine'],
+  launcher      : ['all', 'KotonohaLauncher', 'me.hirameki.kotonoha.launcher', 'Kotonoha Launcher']
 ]
+
+// Shared Material 3 launcher artwork is generated, never maintained per flavor.
+def brandOutput = layout.buildDirectory.dir('generated/kotonoha-brand')
+def generateBranding = tasks.register('generateKotonohaBranding', Exec) {
+  def generator = new File(engineRoot, 'tools/generate_brand_assets.py')
+  inputs.file(generator)
+  outputs.dir(brandOutput)
+  commandLine providers.environmentVariable('PYTHON').orElse('python3').get(),
+    generator.absolutePath, '--kind', 'android', '--out', brandOutput.get().asFile.absolutePath
+}
+tasks.matching { it.name == 'preBuild' ||
+  (it.name.startsWith('merge') && it.name.endsWith('Resources')) }.configureEach {
+  dependsOn generateBranding
+}
 
 android {
   namespace 'org.kotonoha.android'
@@ -108,9 +131,9 @@ android {
           "-DKOTONOHA_SDL_SOURCE_DIR=${sdlRoot}",
           // Android requires SDL's Java bindings and matching native sources.
           // Keep SDL3, SDL3_ttf and ImGui from their checked-out submodules.
-          '-DKOTONOHA_SDL_FROM_VCPKG=OFF',
+          '-DKOTONOHA_SDL_PROVIDER=SUBMODULES',
           '-DKOTONOHA_IMGUI_FROM_VCPKG=OFF',
-          // The ARMv7 NDK build and its vcpkg dependencies must both use NEON.
+          // Keep NDK and vcpkg ARMv7 builds on the same NEON target.
           '-DANDROID_ARM_NEON=ON',
           '-DANDROID_STL=c++_shared'
       }
@@ -133,7 +156,7 @@ android {
             // Must match the variable consumed by the root CMakeLists.txt.
             arguments "-DANDROID_PLATFORM=android-${flavor == 'schoolDays' ? 30 : 28}",
               "-DKOTONOHA_BUILD_GAME=${game[0]}",
-              "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor == 'dokiDoki' ? '-python' : ''}"
+              "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor in ['dokiDoki', 'katawaShoujo', 'launcher'] ? '-python' : ''}"
             targets game[1]
           }
         }
@@ -200,6 +223,8 @@ android {
     schoolDays.java.srcDir new File(engineRoot, 'games/school-days/android/java')
     main {
       java.srcDirs += sdlJavaRoot
+      // Generated adaptive icons and density fallbacks for all product flavors.
+      res.srcDir new File(buildDir, 'generated/kotonoha-brand/android/res')
     }
   }
 
@@ -208,6 +233,14 @@ android {
       useLegacyPackaging = true
     }
   }
+}
+
+dependencies {
+  implementation 'com.google.android.material:material:1.12.0'
+  implementation 'androidx.appcompat:appcompat:1.7.0'
+  implementation 'androidx.recyclerview:recyclerview:1.3.2'
+  implementation 'androidx.documentfile:documentfile:1.0.1'
+  implementation 'androidx.activity:activity:1.9.3'
 }
 
 // ------------------------------------------------------------
@@ -338,9 +371,16 @@ android.applicationVariants.all { variant ->
   def game = games[variant.flavorName]
   def taskSuffix = variant.name.capitalize()
   def staged = layout.buildDirectory.dir("generated/assets/${variant.name}")
+  def isLauncher = variant.flavorName == 'launcher'
   def gameAssets = new File(engineRoot, "games/${game[0]}/game-assets")
-  def includeThisGame = variant.flavorName != 'schoolDays' &&
-    (includeGameAssets || variant.flavorName == 'example')
+  def schoolDaysRoute = new File(engineRoot,
+    'games/school-days/game-assets/school-days-hq.ktnroute')
+  // Original School Days packs are always loaded externally via SAF.
+  // Other games may include assets only when explicitly allowed for private QA;
+  // no dist build may carry retail GPKs or proprietary game data.
+  def includeThisGame = !isLauncher && variant.flavorName != 'schoolDays' &&
+    (variant.flavorName == 'example' ||
+     (includeGameAssets && variant.buildType.name != 'dist'))
   def schoolDaysLauncherArt = new File(engineRoot,
     'games/school-days/game-assets/launcher-art/SchoolDaysHQ-Launcher.png')
   def stageSchoolDaysLauncherArt = variant.flavorName == 'schoolDays' &&
@@ -348,11 +388,37 @@ android.applicationVariants.all { variant ->
     schoolDaysLauncherArt.isFile()
 
   def assets = tasks.register("stage${taskSuffix}Assets", Sync) {
+    dependsOn generateBranding
     from(new File(engineRoot, 'assets')) {
       if (variant.flavorName == 'schoolDays') {
-        include 'Anime4K/*.glsl', 'Anime4K/*.txt', 'ArtCNN/*.glsl', 'ArtCNN/*.txt', 'SPLASH.PNG'
+        // Preserve the fork's authorized School Days splash / art; keep
+        // common fonts available for subtitles and presentation.
+        include 'Anime4K/*.glsl', 'Anime4K/*.txt',
+          'ArtCNN/*.glsl', 'ArtCNN/*.txt', 'SPLASH.PNG', 'fonts/**'
+      } else {
+        exclude 'SPLASH.PNG' // Other games use the universal generated brand.
       }
       into 'assets'
+    }
+    // Do not override School Days' fork-specific SPLASH.PNG with the
+    // upstream universal-brand splash. All other games use upstream branding.
+    if (variant.flavorName != 'schoolDays') {
+      from(brandOutput.map { new File(it.asFile, 'splash/SPLASH.PNG') }) {
+        into 'assets'
+      }
+    }
+    // Keep license and attribution notices with every distributable APK.
+    from(new File(engineRoot, 'LICENSE')) {
+      into 'licenses'
+    }
+    from(new File(engineRoot, 'THIRD_PARTY_NOTICES.md')) {
+      into 'licenses'
+    }
+    from(new File(engineRoot, 'modules/providers/amagami/third_party/open-amagami-LICENSE.txt')) {
+      into 'licenses/third-party'
+    }
+    from(new File(engineRoot, 'games/reallive/vendor/libreallive/LICENSE')) {
+      into 'licenses/third-party'
     }
 
     if (stageSchoolDaysLauncherArt) {
@@ -363,6 +429,10 @@ android.applicationVariants.all { variant ->
 
     if (includeThisGame) {
       from(gameAssets) {
+        into 'game-assets'
+      }
+    } else if (isLauncher && schoolDaysRoute.isFile()) {
+      from(schoolDaysRoute) {
         into 'game-assets'
       }
     }
@@ -379,7 +449,7 @@ android.applicationVariants.all { variant ->
       def stagedDir = staged.get().asFile
       new File(stagedDir, 'game-assets').mkdirs()
 
-      if (variant.flavorName == 'dokiDoki') {
+      if (variant.flavorName in ['dokiDoki', 'katawaShoujo', 'launcher']) {
         def foundStdlib = false
 
         abis.each { abi ->
@@ -390,13 +460,15 @@ android.applicationVariants.all { variant ->
             'armeabi-v7a': 'arm-neon-android'
           ][abi]
 
-          if (triplet != null) {
+          if (!foundStdlib && triplet != null) {
             def prefix = new File(rootProject.projectDir,
               "build/vcpkg-python/${abi}/${triplet}")
             def libraryRoot = new File(prefix,
               variant.buildType.name == 'debug' ? 'debug/lib' : 'lib')
             def stdlibs = fileTree(libraryRoot).matching {
               include 'python3.*/**'
+              exclude 'python3.*/lib-dynload/**'
+              exclude '**/__pycache__/**'
             }.files
 
             if (!stdlibs.empty) {
@@ -404,6 +476,8 @@ android.applicationVariants.all { variant ->
               copy {
                 from libraryRoot
                 include 'python3.*/**'
+                exclude 'python3.*/lib-dynload/**'
+                exclude '**/__pycache__/**'
                 into new File(stagedDir, 'python/lib')
               }
             }
@@ -450,9 +524,70 @@ android.applicationVariants.all { variant ->
   }
   android.sourceSets[variant.name].assets.srcDir staged
 
-  if (variant.flavorName == 'dokiDoki') {
+  if (variant.flavorName in ['dokiDoki', 'katawaShoujo', 'launcher']) {
     assets.configure {
       dependsOn variant.externalNativeBuildProviders
+    }
+
+    // Android 10+ (API 29+, targetSdk >= 29) blocks dlopen() from getFilesDir().
+    // Package each ABI's CPython lib-dynload/*.so inside jniLibs/<abi>/ renamed
+    // to libpyext_<module>.so so Android PackageManager extracts them into
+    // ApplicationInfo.nativeLibraryDir with executable permissions.
+    def stagedJniLibs = layout.buildDirectory.dir("generated/jniLibs/${variant.name}")
+    def pythonExtensions = tasks.register("stage${taskSuffix}PythonExtensions") {
+      dependsOn variant.externalNativeBuildProviders
+      outputs.dir stagedJniLibs
+
+      doLast {
+        def outRoot = stagedJniLibs.get().asFile
+        delete outRoot
+        def foundAny = false
+
+        abis.each { abi ->
+          def triplet = [
+            'arm64-v8a'  : 'arm64-android',
+            'x86_64'     : 'x64-android',
+            'x86'        : 'x86-android',
+            'armeabi-v7a': 'arm-neon-android'
+          ][abi]
+
+          if (triplet != null) {
+            def prefix = new File(rootProject.projectDir,
+              "build/vcpkg-python/${abi}/${triplet}")
+            def libraryRoot = new File(prefix,
+              variant.buildType.name == 'debug' ? 'debug/lib' : 'lib')
+            def dynloadFiles = fileTree(libraryRoot).matching {
+              include 'python3.*/lib-dynload/*.so'
+            }.files
+
+            if (!dynloadFiles.empty) {
+              foundAny = true
+              def abiDir = new File(outRoot, abi)
+              abiDir.mkdirs()
+              dynloadFiles.each { extFile ->
+                def moduleName = extFile.name.replaceFirst(/\.cpython-.*\.so$/, '')
+                  .replaceFirst(/\.so$/, '')
+                copy {
+                  from extFile
+                  into abiDir
+                  rename { "libpyext_${moduleName}.so" }
+                }
+              }
+            }
+          }
+        }
+
+        if (!foundAny) {
+          throw new GradleException(
+            'Android CPython lib-dynload extensions are missing for the selected ABIs.')
+        }
+      }
+    }
+
+    android.sourceSets[variant.name].jniLibs.srcDir stagedJniLibs.get().asFile
+    tasks.named("merge${taskSuffix}JniLibFolders").configure {
+      dependsOn pythonExtensions
+      inputs.dir stagedJniLibs
     }
   }
 }

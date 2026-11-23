@@ -14,8 +14,11 @@ using RealLive::ScriptArchive;
 class RealLiveAssets final : public Kotonoha::AssetProvider {
   std::unique_ptr<Kotonoha::AssetProvider> source;
   std::filesystem::path root;
+  std::string dataPrefix;
   std::string configSource;
   Config config;
+
+  std::string qualify(const std::string &id) const;
 
 public:
   explicit RealLiveAssets(const std::filesystem::path &directory,

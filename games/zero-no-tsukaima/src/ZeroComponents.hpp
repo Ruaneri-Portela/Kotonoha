@@ -137,6 +137,21 @@ protected:
                     bool focused) override;
 };
 
+// Concerto turn-based battle overlay (party & enemy HP bars + 4 action choices).
+class ZeroBattleChoice : public ZeroChoice {
+public:
+  using ZeroChoice::ZeroChoice;
+
+protected:
+  bool Wanted() const override;
+  std::vector<std::string> Labels() const override;
+  int InitialFocus() const override { return 0; }
+  void layout() override;
+  void renderPanel(Kotonoha::RendererRef renderer) override;
+  void renderOption(Kotonoha::RendererRef renderer, std::size_t index,
+                    bool focused) override;
+};
+
 // RouletteState (tndlslot) over the story.
 class ZeroRoulette : public Kotonoha::Scene {
 public:

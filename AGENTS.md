@@ -15,14 +15,15 @@ Kotonoha is a modular **C++17 visual novel engine** built upon SDL3, Dear ImGui,
 | Directory / File | Description |
 |---|---|
 | `lib/` | Core engine library, shared interfaces, public headers (`lib/include/Kotonoha/`), and unit tests. |
-| `modules/vms/` | Script virtual machines (Amagami, Snow Radish, Summer Radish, Ren'Py/DDLC, RealLive, Pure Mail). Pure script execution, independent of rendering. |
-| `modules/providers/` | Asset and archive format decoders implementing `Kotonoha::AssetProvider` (CMP, ADV, GPK, XP3, PAK, RealLive, RPA, Amagami, Pmail, Zero). |
-| `games/` | 15 game applications (14 game ports and Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`). |
+| `modules/vms/` | Script virtual machines (Amagami, Artemis, KAG, MEO, N2System, Ponscripter, Pure Mail, RealLive, Ren'Py, Snow Radish, Summer Radish, TJS2). Pure script execution, independent of rendering. |
+| `modules/providers/` | Archive/package containers and `Kotonoha::AssetProvider` implementations (VFS adapters, overlays, caching). |
+| `modules/formats/` | Pure file-format codecs in `modules/formats/<type>/<format>/`, one folder per file format, named after the format (never a game or engine). Codecs return neutral RGBA/PCM data and depend only on the C++ standard library. |
+| `games/` | 16 game applications (15 game ports and Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`, `artemis`). |
 | `buildsystems/` | Platform build orchestration: `cmake/` (CMake modules), `android/` (Gradle project), `xcode/` (Native `Kotonoha.xcodeproj`). |
 | `assets/` | Shared engine resources (fonts, icons, shaders) and legal third-party notices. |
 | `docs/` | Comprehensive bilingual documentation (`*.md` in en-US, `*.pt-BR.md` in pt-BR). |
 | `tools/` | Build verification, metadata validation, asset packaging, and web dev utilities. |
-| `translations/` | Localization catalogs and strings. |
+| `launcher/` | Unified multi-engine launcher running linked game runtimes in one process. |
 | `vcpkg.json` / `vcpkg-overlays/` | Dependency manifest and custom vcpkg port overlays. |
 
 ### Architectural Invariants
@@ -38,8 +39,9 @@ Kotonoha is a modular **C++17 visual novel engine** built upon SDL3, Dear ImGui,
    - **Never** call `SDL_Destroy*` or `SDL_free` manually on an object managed by an RAII handle.
 3. **Clean Separation of Concerns**:
    - VM modules (`modules/vms/`) only execute bytecode/scripts; presentation and rendering remain in `games/`.
-   - Asset providers (`modules/providers/`) decompress and parse archive containers; they must conform to `Kotonoha::AssetProvider`.
-   - Avoid circular dependencies between VMs, providers, and presentation layers.
+   - Format modules (`modules/formats/<type>/<format>/`) implement one file format per folder, are game- and engine-neutral, and return neutral RGBA pixels, interleaved PCM or indexed frames. They depend only on the C++ standard library; games and providers convert to SDL/engine types.
+   - Asset providers (`modules/providers/`) handle archive/package containers and implement `Kotonoha::AssetProvider` with VFS mounting, overlays, and caching.
+   - Avoid circular dependencies between VMs, formats, providers, and presentation layers.
 4. **Virtual Filesystem (Filesystem V2)**:
    - The engine uses a read-only virtual filesystem (`FileHandle`, `IMount`, `SDLFileSource`, `DirectoryMount`, `LayeredMount`, `ISO9660Mount`, `Filesystem::mount`).
    - Saves, preferences, and Documents directories remain strictly outside this read-only VFS.
@@ -241,7 +243,7 @@ All upstream rules above remain mandatory in this fork. The policies below docum
 
 ### Permanent Fork Branches
 - `dev`: primary development and upstream-collaboration line (`tsubaki-0x/Kotonoha` default branch).
-- `kotonoha-v3-ruaneri-sync-transitions`: hybrid line preserving the School Days HQ DEV/DIST packaging infrastructure and fork-specific Windows/Android distribution flows.
+- `hybrid`: hybrid line preserving the School Days HQ DEV/DIST packaging infrastructure and fork-specific Windows/Android distribution flows.
 - Never push directly to `upstream` (`Ruaneri-Portela/Kotonoha`), never force-push published branches, and keep upstream PRs small, clean, and based directly on `upstream/dev`.
 
 ### DEV vs DIST Policy (Windows & Android)

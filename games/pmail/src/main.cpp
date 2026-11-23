@@ -1,6 +1,7 @@
 #include <Kotonoha/core/SDLCallbackApp.hpp>
 #include <SDL3/SDL.h>
 
+#include "LargePonPonRuntime.hpp"
 #include "PmailRuntime.hpp"
 
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -9,6 +10,8 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
+#include <Pmail/GcPack.hpp>
+#include <Pmail/LargePonPonAssets.hpp>
 
 #include <cstdio>
 #include <exception>
@@ -22,16 +25,21 @@
 namespace {
 
 struct Application {
-  Kotonoha::PmailPort::PmailRuntime game;
+  std::unique_ptr<Kotonoha::Runtime> game;
   Kotonoha::Engine engine;
   long framesRemaining = -1;
-  ~Application() { game.shutdown(); }
+  ~Application() {
+    if (auto *pm =
+            dynamic_cast<Kotonoha::PmailPort::PmailRuntime *>(game.get()))
+      pm->shutdown();
+    else if (auto *lp = dynamic_cast<Kotonoha::PmailPort::LargePonPonRuntime *>(
+                 game.get()))
+      lp->shutdown();
+  }
 
-  Application(std::string directory, Kotonoha::EngineOptions options)
-      : game(directory,
-             std::dynamic_pointer_cast<Kotonoha::Providers::SnowAssets>(
-                 options.assets)),
-        engine(game, std::move(options)) {}
+  Application(std::unique_ptr<Kotonoha::Runtime> runtime,
+              Kotonoha::EngineOptions options)
+      : game(std::move(runtime)), engine(*game, std::move(options)) {}
 };
 
 // Resolve packaged or user-provided game data independently of developer
@@ -55,13 +63,18 @@ std::string DefaultDirectory() {
 bool validate(const std::string &path, std::string &info) {
   try {
     auto source = Kotonoha::Filesystem::Filesystem::mount(path);
+    if (Kotonoha::Providers::isLargePonPonSource(*source)) {
+      info = "Large PonPon script and graphics archives found";
+      return true;
+    }
     if (Kotonoha::Filesystem::findRequiredFilesPrefix(
             *source, {"SCRIPT.DAT", "GRAPHIC.DAT"},
             {"", "pack/", "data/pack/"})) {
       info = "Pure Mail script and graphics archives found";
       return true;
     }
-    info = "Select a Pure Mail source with SCRIPT.DAT and GRAPHIC.DAT";
+    info = "Select a Pure Mail or Large PonPon source with SCRIPT.DAT and "
+           "GRAPHIC.DAT";
     return false;
   } catch (const std::exception &error) {
     info = error.what();
@@ -76,10 +89,23 @@ struct App {
   std::unique_ptr<Application> game;
 
   void start(const std::string &directory) {
-    auto assets = std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
-    assets->setOverlay(options.assetOverlayDirectory());
-    options.assets = std::move(assets);
-    game = std::make_unique<Application>(directory, options);
+    if (Kotonoha::Providers::isLargePonPonDirectory(directory)) {
+      auto assets =
+          std::make_shared<Kotonoha::Providers::LargePonPonAssets>(directory);
+      assets->setOverlay(options.assetOverlayDirectory());
+      options.assets = assets;
+      auto runtime = std::make_unique<Kotonoha::PmailPort::LargePonPonRuntime>(
+          directory, std::move(assets));
+      game = std::make_unique<Application>(std::move(runtime), options);
+    } else {
+      auto assets =
+          std::make_shared<Kotonoha::Providers::SnowAssets>(directory);
+      assets->setOverlay(options.assetOverlayDirectory());
+      options.assets = assets;
+      auto runtime = std::make_unique<Kotonoha::PmailPort::PmailRuntime>(
+          directory, std::move(assets));
+      game = std::make_unique<Application>(std::move(runtime), options);
+    }
     game->framesRemaining = frames;
   }
 };

@@ -3,12 +3,18 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/Filesystem/FileHandle.hpp>
 #include <SummerRadish/Pack.hpp>
+#include <SummerRadish/Codec.hpp>
+#include <SummerRadish/Images.hpp>
+
 #include <memory>
 namespace Kotonoha::Providers {
 class SummerAssets final : public Kotonoha::AssetProvider {
-  std::map<std::string, std::unique_ptr<SummerRadish::Pack>> packs;
+  std::map<std::string, std::vector<std::unique_ptr<SummerRadish::Pack>>> packs;
   std::filesystem::path discDirectory;
   std::shared_ptr<Kotonoha::Filesystem::Filesystem> source_;
+  bool meoLayout_ = false;
+  bool lostMLayout_ = false;
+  bool imoutoLayout_ = false;
 
 public:
   explicit SummerAssets(std::filesystem::path root,
@@ -18,7 +24,17 @@ public:
   std::shared_ptr<Kotonoha::Filesystem::Filesystem> source() const {
     return source_;
   }
-  std::string name() const override { return "Summer Radish CMP"; }
+  bool isLostM() const { return lostMLayout_; }
+  bool isImoutoDeIkou() const { return imoutoLayout_; }
+  std::string name() const override {
+    if (meoLayout_)
+      return "MEO CMP";
+    if (lostMLayout_)
+      return "Lost M CMP";
+    if (imoutoLayout_)
+      return "Imouto de Ikou! CMP";
+    return "Summer Radish CMP";
+  }
   bool containsAsset(const std::string &) const override;
   SummerRadish::Bytes readAsset(const std::string &) const override;
   // Lê o asset se existir; retorna nullopt quando ausente (útil para ativos
@@ -27,6 +43,7 @@ public:
   std::vector<std::string>
   listAsset(const std::string &prefix = {}) const override;
   Kotonoha::SurfacePtr loadSurfaceAsset(const std::string &) const override;
+  Kotonoha::AudioClip loadAudioAsset(const std::string &) const override;
   SummerRadish::Image picture(const std::string &) const;
   // Native movie files are loose on DISC1 rather than inside a CMP archive.
   std::filesystem::path moviePath(const std::string &filename) const;

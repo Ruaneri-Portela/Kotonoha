@@ -3,6 +3,7 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/Clock.hpp>
 #include <Kotonoha/core/Config.hpp>
+#include <Kotonoha/core/InputMapper.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/SDL.hpp>
@@ -47,6 +48,9 @@ struct EngineOptions {
   bool persistSettings = false;
   std::string logPath;
   std::string rendererOverride;
+  std::optional<UpscaleBackend> upscalerBackendOverride;
+  std::optional<UpscalePreset> upscalerPresetOverride;
+  std::optional<float> upscalerFactorOverride;
   std::string subtitleStylePath;
   std::string forcedSubtitlesPath;
   bool launcher = defaultLauncherEnabled();
@@ -105,6 +109,7 @@ private:
   MobileTouchAdapter mobileTouch;
 #endif
   ControllerNavigation controllerNavigation;
+  NavRepeater navRepeater;
   SDL_AppResult dispatchEvent(EventPtr event);
   // A screen-space control owns both edges of a mouse press, even if the
   // pressed edge opens a modal before the release event arrives.

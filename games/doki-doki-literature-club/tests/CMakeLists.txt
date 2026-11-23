@@ -1,5 +1,5 @@
 add_executable(DdlcPythonTest DdlcPythonTest.cpp)
-target_link_libraries(DdlcPythonTest PRIVATE DdlcFormats)
+target_link_libraries(DdlcPythonTest PRIVATE kotonoha_vm_renpy DdlcFormats)
 add_test(NAME DokiDoki.Python COMMAND DdlcPythonTest)
 
 if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLES)
@@ -27,7 +27,7 @@ if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND KOTONOHA_BUILD_MACOS_BUNDLE
             "-DTEST_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}"
             "-DTEST_EXECUTABLE=$<TARGET_FILE:DdlcPythonTest>"
             "-DAPP_CONTENTS=$<TARGET_BUNDLE_CONTENT_DIR:DokiDoki>"
-            "-DBUNDLE_SCRIPT=${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/BundleApp.cmake"
+            "-DBUNDLE_SCRIPT=${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/BundleApp.cmake"
             "-DDEPENDENCY_DIRS=${_ddlc_dep_dirs}"
             "-DPYTHON_STDLIB=${Python3_STDLIB}"
             "-DPYTHON_VERSION=${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}"
@@ -37,6 +37,19 @@ endif()
 add_executable(DdlcAssetsTest DdlcAssetsTest.cpp)
 target_link_libraries(DdlcAssetsTest PRIVATE doki_doki_literature_club)
 add_test(NAME DokiDoki.Assets COMMAND DdlcAssetsTest)
+
+# Generated compiled-script fixtures exercise real VM flow without proprietary
+# DDLC/Katawa data, so CI catches regressions in both games.
+add_executable(DdlcSyntheticFlowTest DdlcSyntheticFlowTest.cpp)
+target_link_libraries(DdlcSyntheticFlowTest PRIVATE doki_doki_literature_club)
+add_test(NAME DokiDoki.SyntheticFlow COMMAND DdlcSyntheticFlowTest)
+set_tests_properties(DokiDoki.SyntheticFlow PROPERTIES TIMEOUT 45)
+
+# Synthetic renpy.movie_cutscene script: no retail video assets are required.
+add_executable(DdlcMovieCutsceneTest DdlcMovieCutsceneTest.cpp)
+target_link_libraries(DdlcMovieCutsceneTest PRIVATE doki_doki_literature_club)
+add_test(NAME Ddlc.MovieCutscene COMMAND DdlcMovieCutsceneTest)
+set_tests_properties(Ddlc.MovieCutscene PROPERTIES TIMEOUT 45)
 
 set(DDLC_DATA_DIR "" CACHE PATH
     "Doki Doki Literature Club game directory for the retail-data tests")

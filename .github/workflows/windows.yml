@@ -38,7 +38,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force vcpkg-binary-cache | Out-Null
           $env:VCPKG_BINARY_SOURCES="clear;files,$env:GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
-          & "$env:VCPKG_ROOT/vcpkg.exe" install --triplet=x64-windows --x-feature=sdl-vcpkg --x-feature=imgui-vcpkg "--overlay-ports=$env:GITHUB_WORKSPACE/vcpkg-overlays/ports"
+          & "$env:VCPKG_ROOT/vcpkg.exe" install --triplet=x64-windows --x-feature=sdl-vcpkg "--overlay-ports=$env:GITHUB_WORKSPACE/vcpkg-overlays/ports"
       - name: Save finished vcpkg dependency archives
         if: steps.deps-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -78,7 +78,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force vcpkg-binary-cache | Out-Null
           $env:VCPKG_BINARY_SOURCES="clear;files,$env:GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
-          cmake -S . -B build-windows -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" -DKOTONOHA_SDL_FROM_VCPKG=ON -DKOTONOHA_IMGUI_FROM_VCPKG=ON -DVCPKG_OVERLAY_PORTS="$env:GITHUB_WORKSPACE/vcpkg-overlays/ports" -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON
+          cmake -S . -B build-windows -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" -DKOTONOHA_SDL_PROVIDER=VCPKG -DVCPKG_OVERLAY_PORTS="$env:GITHUB_WORKSPACE/vcpkg-overlays/ports" -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON
       - name: Build all game ports
         shell: pwsh
         run: cmake --build build-windows --config Release --parallel 3
@@ -105,13 +105,139 @@ jobs:
           print(f"Validated {len(packages)} Windows game ZIPs")
           '@ | python -
 
-      - name: Upload Windows artifacts
+      - name: Upload windows standalone build outputs
         uses: actions/upload-artifact@v4
         with:
-          name: kotonoha-windows-x64-vcpkg
-          path: |
-            build-windows/outputs/
-            build-windows/packages/*.zip
+          name: kotonoha-windows-x64-outputs
+          path: build-windows/outputs/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Kotonoha CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-Kotonoha
+          path: build-windows/packages/*-Kotonoha.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Amagami CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-Amagami
+          path: build-windows/packages/*-Amagami.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload ZeroNoTsukaima CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-ZeroNoTsukaima
+          path: build-windows/packages/*-ZeroNoTsukaima.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SnowRadish CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-SnowRadish
+          path: build-windows/packages/*-SnowRadish.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SummerRadish CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-SummerRadish
+          path: build-windows/packages/*-SummerRadish.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload MEO CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-MEO
+          path: build-windows/packages/*-MEO.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload DokiDoki CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-DokiDoki
+          path: build-windows/packages/*-DokiDoki.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload KatawaShoujo CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-KatawaShoujo
+          path: build-windows/packages/*-KatawaShoujo.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SchoolDays CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-SchoolDays
+          path: build-windows/packages/*-SchoolDays.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload RealLive CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-RealLive
+          path: build-windows/packages/*-RealLive.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Kirikiri CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-Kirikiri
+          path: build-windows/packages/*-Kirikiri.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload LucaSystem CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-LucaSystem
+          path: build-windows/packages/*-LucaSystem.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Pmail CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-Pmail
+          path: build-windows/packages/*-Pmail.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload PonscripterGame CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-PonscripterGame
+          path: build-windows/packages/*-PonscripterGame.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload N2SystemGame CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-N2SystemGame
+          path: build-windows/packages/*-N2SystemGame.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload KotonohaLauncher CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-windows-x64-KotonohaLauncher
+          path: build-windows/packages/*-KotonohaLauncher.zip
           if-no-files-found: error
           retention-days: 14
 

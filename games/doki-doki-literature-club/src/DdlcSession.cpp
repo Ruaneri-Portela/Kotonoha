@@ -9,6 +9,7 @@
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
 #include <Kotonoha/events/InputActions.hpp>
+#include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
@@ -165,6 +166,9 @@ public:
     cache_.clear();
   }
 
+  std::string fallbackFont_;
+  bool fallbackFontChecked_ = false;
+
   TTF_Font *font(const std::string &file, int px, int outline, int style) {
     auto key = std::make_tuple(file, px, outline, style);
     auto it = fonts_.find(key);
@@ -177,6 +181,25 @@ public:
       data = assets->read(file);
     if (data.empty() && assets->contains("gui/font/Aller_Rg.ttf"))
       data = assets->read("gui/font/Aller_Rg.ttf");
+    if (data.empty() && assets->contains("font/playtime.ttf"))
+      data = assets->read("font/playtime.ttf");
+    if (data.empty()) {
+      // Try the game's own UI fonts before falling back to Kotonoha.
+      if (!fallbackFontChecked_) {
+        fallbackFontChecked_ = true;
+        for (const auto &id : assets->source().names()) {
+          const auto ext = std::filesystem::path(id).extension().string();
+          if (ext == ".ttf" || ext == ".otf" || ext == ".ttc") {
+            fallbackFont_ = id;
+            break;
+          }
+        }
+      }
+      if (!fallbackFont_.empty() && assets->contains(fallbackFont_))
+        data = assets->read(fallbackFont_);
+      if (data.empty())
+        data = Kotonoha::FileResolver::loadFontMemory("");
+    }
     TTF_Font *f =
         data.empty()
             ? nullptr
@@ -210,7 +233,8 @@ public:
     const uint32_t cp = utf8Code(ch);
     if (f && (cp <= 0x20 || TTF_FontHasGlyph(f, cp)))
       return f;
-    for (const char *fb : {"gui/font/Aller_Rg.ttf", "gui/font/Vera.ttf"}) {
+    for (const char *fb :
+         {"gui/font/Aller_Rg.ttf", "gui/font/Vera.ttf", "font/playtime.ttf"}) {
       if (file == fb)
         continue;
       if (TTF_Font *alt = font(fb, px, outline, style))
@@ -420,6 +444,7 @@ private:
     if (surf)
       SDL_DestroySurface(surf);
     if (t.tex) {
+      Kotonoha::MarkTTFTextRaster(*t.tex);
       SDL_SetTextureBlendMode(t.tex, SDL_BLENDMODE_BLEND);
       SDL_SetTextureScaleMode(t.tex, SDL_SCALEMODE_LINEAR);
     }
@@ -453,7 +478,21 @@ public:
        TextEngine &text)
       : engine_(engine), assets_(assets), text_(text) {
     directory_ = userDirectory();
-    seedCharacters(directory_, assets.source().dir(), &assets.source());
+    if (!assets.isDdlc() && !assets.isKatawa()) {
+      // Keep unrelated Ren'Py games from sharing DDLC's persistent state.
+      const std::string id = assets.sourceIdentity().empty()
+                                 ? assets.source().dir()
+                                 : assets.sourceIdentity();
+      uint64_t hash = 14695981039346656037ull;
+      for (unsigned char c : id)
+        hash = (hash ^ c) * 1099511628211ull;
+      std::ostringstream key;
+      key << std::hex << hash;
+      directory_ /= "renpy-" + key.str();
+      std::filesystem::create_directories(directory_);
+    }
+    if (assets.isDdlc())
+      seedCharacters(directory_, assets.source().dir(), &assets.source());
     persistentPath_ = directory_ / "persistent.txt";
   }
 
@@ -615,7 +654,7 @@ public:
         channel.queue.clear();
         if (channel.player && command.fadeout > 0 && channel.player->Playing())
           fading_.push_back({std::move(channel.player), currentGain(channel),
-                             realNow(), command.fadeout});
+                             audioNow(), command.fadeout});
         else if (channel.player)
           channel.player->Stop();
         start(command.channel, channel, command.spec, command.fade,
@@ -632,12 +671,12 @@ public:
         channel.spec.clear();
         if (channel.player && command.fade > 0 && channel.player->Playing())
           fading_.push_back({std::move(channel.player), currentGain(channel),
-                             realNow(), command.fade});
+                             audioNow(), command.fade});
         else if (channel.player)
           channel.player->Stop();
       }
     }
-    const double now = realNow();
+    const double now = audioNow();
     for (auto &[name, channel] : channels_) {
       if (!channel.player) {
         std::lock_guard<std::mutex> lock(commandsMutex_);
@@ -682,6 +721,22 @@ public:
         ++it;
       }
     }
+  }
+
+  void setPaused(bool paused) {
+    if (paused == (audioPausedAt_ >= 0))
+      return;
+    if (paused)
+      audioPausedAt_ = realNow();
+    else {
+      audioPausedTotal_ += realNow() - audioPausedAt_;
+      audioPausedAt_ = -1;
+    }
+    for (auto &[_, channel] : channels_)
+      if (channel.player)
+        channel.player->SetPaused(paused);
+    for (auto &fading : fading_)
+      fading.player->SetPaused(paused);
   }
 
   void stopAll() {
@@ -788,11 +843,15 @@ private:
     double fadeout = 0;
   };
 
-  static double currentGain(const Channel &channel) {
+  double audioNow() const {
+    return (audioPausedAt_ >= 0 ? audioPausedAt_ : realNow()) -
+           audioPausedTotal_;
+  }
+  double currentGain(const Channel &channel) const {
     if (channel.fadeLen <= 0)
       return channel.fadeTo;
-    const double progress =
-        std::clamp((realNow() - channel.fadeStart) / channel.fadeLen, 0.0, 1.0);
+    const double progress = std::clamp(
+        (audioNow() - channel.fadeStart) / channel.fadeLen, 0.0, 1.0);
     return channel.fadeFrom + (channel.fadeTo - channel.fadeFrom) * progress;
   }
   void start(const std::string &name, Channel &channel, const std::string &spec,
@@ -829,6 +888,7 @@ private:
                    "DDLC: cannot start audio channel %s", name.c_str());
       return;
     }
+    channel.player->SetPaused(audioPausedAt_ >= 0);
     channel.spec = spec;
     channel.parsed = parsed;
     channel.loop = loop;
@@ -836,7 +896,7 @@ private:
         data->rate ? double(clip.samples.size() / 2) / data->rate : 0;
     channel.fadeFrom = fade > 0 ? 0 : 1;
     channel.fadeTo = 1;
-    channel.fadeStart = realNow();
+    channel.fadeStart = audioNow();
     channel.fadeLen = fade;
     channel.player->SetGain(float(channel.fadeFrom));
   }
@@ -849,6 +909,7 @@ private:
   std::map<std::string, std::shared_ptr<Pcm>> pcm_;
   std::map<std::string, Channel> channels_;
   std::vector<Fading> fading_;
+  double audioPausedAt_ = -1, audioPausedTotal_ = 0;
   std::mutex commandsMutex_;
   std::vector<Command> commands_;
   std::map<std::string, std::string> requested_;
@@ -1087,6 +1148,10 @@ struct Game {
   int fxW = 0, fxH = 0;
   double rigClock = 0;
   std::unique_ptr<Kotonoha::PcmPlayer> uiSfx;
+  // Katawa Shoujo cutscenes (renpy.movie_cutscene) decoded from data.rpa.
+  std::unique_ptr<Kotonoha::MediaPlayer> cutscenePlayer;
+  std::string cutsceneId;
+  bool cutsceneReady = false;
 
   // Drawing state.
   std::map<std::string, Tex> images;
@@ -1119,6 +1184,8 @@ struct Game {
     }
     vm.reset();
     host.stopAll();
+    if (cutscenePlayer)
+      cutscenePlayer->stop();
     if (uiSfx)
       uiSfx->Stop();
     images.clear();
@@ -1152,6 +1219,36 @@ struct Game {
     if (!uiSfx->Play(engine.GetAudio().channel("DDLC ui"), std::move(c)))
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                    "DDLC: cannot play UI sound %s", file);
+  }
+
+  void stopCutscene() {
+    if (cutscenePlayer)
+      cutscenePlayer->stop();
+    cutsceneId.clear();
+    cutsceneReady = false;
+  }
+
+  void startCutscene(const Interaction &in) {
+    const std::string id = in.movie;
+    if (cutscenePlayer)
+      cutscenePlayer->stop();
+    cutsceneId = id; // record the attempt so a missing asset is logged once
+    cutsceneReady = false;
+    if (id.empty() || !assets->contains(id)) {
+      SDL_Log("DDLC: cutscene asset '%s' not found; continuing script",
+              id.c_str());
+      return;
+    }
+    if (!cutscenePlayer)
+      cutscenePlayer =
+          std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
+    try {
+      cutscenePlayer->open(*assets, id, false, "DDLC movie");
+      cutsceneReady = true;
+    } catch (const std::exception &error) {
+      SDL_Log("DDLC: cannot open cutscene '%s': %s", id.c_str(), error.what());
+      cutscenePlayer->stop();
+    }
   }
 
   struct LiveEdit {
@@ -1518,9 +1615,16 @@ struct Game {
     const Window &w = displayWindow(native);
     const std::string box =
         w.monika ? "gui/textbox_monika.png" : "gui/textbox.png";
-    if (Tex *tb = image(r, box))
-      drawImage(r, box, (kW - float(tb->logicalW)) / 2,
-                kWinTop + kWinH - float(tb->logicalH));
+    if (vm->assets.has(box)) {
+      if (Tex *tb = image(r, box))
+        drawImage(r, box, (kW - float(tb->logicalW)) / 2,
+                  kWinTop + kWinH - float(tb->logicalH));
+    } else {
+      SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(r, 12, 12, 20, 210);
+      const SDL_FRect backdrop{240, kWinTop, 800, kWinH};
+      SDL_RenderFillRect(r, &backdrop);
+    }
     if (!w.who.empty()) {
       drawImage(r, "gui/namebox.png", 350 - 84, kWinTop - 3);
       TextStyle ls = vm->styleNamed("say_label");
@@ -1654,15 +1758,19 @@ struct Game {
   // A navigation-style text button (main menu, pause menu, dialogs).
   void navButton(SDL_Renderer *r, const std::string &label, float x, float y,
                  float w, std::function<void()> act) {
+    const bool katawa = assets->name().compare(0, 13, "Katawa Shoujo") == 0;
     const SDL_FRect b{x, y, w, 36};
     const bool hov = button(
         b,
         [this, act] {
-          sfx("gui/sfx/select.ogg");
+          if (assets->name().compare(0, 13, "Katawa Shoujo") != 0)
+            sfx("gui/sfx/select.ogg");
           act();
         },
-        "nav" + label, true);
-    const TextStyle s = navStyle(hov, false);
+        "nav" + label, !katawa);
+    const TextStyle s =
+        katawa ? uiStyle("font/playtime.ttf", 30, hov ? 0x9a402fff : 0x604b3bff)
+               : navStyle(hov, false);
     const SDL_FPoint sz = textSize(label, s);
     drawText(r, label, s, x + 4, y + (36 - sz.y) / 2);
   }
@@ -1670,13 +1778,18 @@ struct Game {
   void navigation(
       SDL_Renderer *r,
       const std::vector<std::pair<std::string, std::function<void()>>> &items) {
+    const bool katawa = assets->name().compare(0, 13, "Katawa Shoujo") == 0;
     float w = 0;
     for (auto &[l, _] : items)
-      w = std::max(w, textSize(l, navStyle(false, false)).x + 8);
+      w = std::max(
+          w, textSize(l, katawa ? uiStyle("font/playtime.ttf", 30, 0x604b3bff)
+                                : navStyle(false, false))
+                     .x +
+                 8);
     const float h = float(items.size()) * 36 + float(items.size() - 1) * 6;
-    float y = (kH - h) * .8f;
+    float y = katawa ? (kH - h) / 2 : (kH - h) * .8f;
     for (auto &[l, a] : items) {
-      navButton(r, l, 80, y, w, a);
+      navButton(r, l, katawa ? (pauseMenu ? 922 : 680) : 80, y, w, a);
       y += 42;
     }
   }
@@ -1839,7 +1952,7 @@ struct Game {
     if (sc.window.visible)
       drawWindow(r, sc.window, live ? t : 1e18);
     if (live && phase == Phase::Play && sc.window.visible &&
-        vm->py.lookup("quick_menu").truthy())
+        vm->py.has("quick_menu") && vm->py.lookup("quick_menu").truthy())
       drawQuickMenu(r);
   }
 
@@ -2176,11 +2289,13 @@ struct Game {
   }
 
   void checkSplashTransition() {
-    if (phase != Phase::Splash || !vm || vm->finished())
+    // DDLC's splash.rpyc escape heuristic must not affect other games.
+    if (!assets->isDdlc() || phase != Phase::Splash || !vm || vm->finished())
       return;
     const Node *n = vm->currentNode();
     if ((n && n->file != "splash.rpyc") ||
-        vm->py.lookup("s_kill_early").truthy()) {
+        (vm->py.has("s_kill_early") &&
+         vm->py.lookup("s_kill_early").truthy())) {
       phase = Phase::Play;
     }
   }
@@ -2188,8 +2303,12 @@ struct Game {
   void startSplash() {
     phase = Phase::Splash;
     newVm();
+    if (assets->isKatawa() || !script.hasLabel("splashscreen")) {
+      enterMenu();
+      return;
+    }
     replay.label = "splashscreen";
-    vm->start("splashscreen");
+    vm->start(replay.label);
     checkSplashTransition();
     reportErrors();
   }
@@ -2203,6 +2322,8 @@ struct Game {
     host.savePersistent(persistentText);
     vm->scene = Scene{};
     vm->committed = Scene{};
+    if (!assets->isDdlc())
+      return;
     const double pt = vm->py.getAttr(vm->persistent, "playthrough").num();
     std::vector<std::pair<const char *, std::string>> show = {
         {"mm_bg", "menu_bg"},
@@ -2240,6 +2361,8 @@ struct Game {
       throw std::runtime_error(SDL_GetError());
     host.stop("music", 1.0);
     newVm();
+    if (assets->isKatawa())
+      vm->py.set("playthroughflag", Value::integer(1));
     phase = Phase::Play;
     replay.label = "start";
     vm->start("start");
@@ -2614,6 +2737,7 @@ struct Game {
     if (!on)
       subMenu = SubMenu::None;
     freeze(on);
+    host.setPaused(on);
   }
 
   void resume(Value v = {}) {
@@ -2686,6 +2810,8 @@ struct Game {
     updateRiggedChoice();
     const Interaction &in = vm->interaction();
     const double t = now(), el = t - in.start;
+    if (in.k != Interaction::K::MovieCutscene && !cutsceneId.empty())
+      stopCutscene();
     switch (in.k) {
     case Interaction::K::Say: {
       const Window &w = vm->scene.window;
@@ -2710,6 +2836,16 @@ struct Game {
     case Interaction::K::Transition:
       if ((in.deadline >= 0 && el >= in.deadline) || (skipping() && el > .03))
         resume();
+      break;
+    case Interaction::K::MovieCutscene:
+      if (cutsceneId != in.movie)
+        startCutscene(in);
+      if (!cutsceneReady || (cutscenePlayer->finished() && el > .1))
+        resume();
+      else if (skipping() && el > .03) {
+        stopCutscene();
+        resume();
+      }
       break;
     case Interaction::K::None:
       resume();
@@ -2740,6 +2876,12 @@ struct Game {
     case Interaction::K::Transition:
       if (in.dismiss)
         resume();
+      break;
+    case Interaction::K::MovieCutscene:
+      if (in.dismiss) {
+        stopCutscene();
+        resume();
+      }
       break;
     case Interaction::K::Menu:
       if (phase == Phase::Splash && in.items.size() == 1 &&
@@ -2776,7 +2918,16 @@ struct Game {
 
   void drawSaveLoadMenu(SDL_Renderer *r) {
     drawn.clear();
-    drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    if (assets->isKatawa()) {
+      if (pauseMenu) {
+        drawBase(r, vm->scene, now());
+        drawImage(r, "ui/bg-gm.png", 870, 125, 240, 456);
+      } else {
+        drawImage(r, "ui/main/bg-main.png", 160, 0, 960, 720);
+      }
+    } else {
+      drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    }
     const bool ptBr = isPtBr();
     std::vector<std::pair<std::string, std::function<void()>>> slotButtons;
     for (int i = 1; i <= 6; ++i) {
@@ -2787,7 +2938,9 @@ struct Game {
                  vm ? int(vm->py.getAttr(vm->persistent, "playthrough")
                               .integer())
                     : 0;
-             if (subMenu == SubMenu::Save && pt == 3) {
+             const bool katawa =
+                 assets->name().compare(0, 13, "Katawa Shoujo") == 0;
+             if (!katawa && subMenu == SubMenu::Save && pt == 3) {
                notice = ptBr ? "N\xC3\xA3o h\xC3\xA1 sentido em salvar agora.\n"
                                "N\xC3\xA3o se preocupe, eu n\xC3\xA3o vou a "
                                "lugar algum."
@@ -2796,7 +2949,7 @@ struct Game {
                subMenu = SubMenu::None;
                return;
              }
-             if (subMenu == SubMenu::Load && pt == 2 &&
+             if (!katawa && subMenu == SubMenu::Load && pt == 2 &&
                  !std::filesystem::is_regular_file(
                      charactersDirectory(host.directory()) / "sayori.chr")) {
                corruptLoadPending = true;
@@ -2808,7 +2961,8 @@ struct Game {
              }
              std::filesystem::path path =
                  Kotonoha::saveDirectory() /
-                 ("ddlc_slot" + std::to_string(i) + ".vn");
+                 ((katawa ? "katawa_slot" : "ddlc_slot") + std::to_string(i) +
+                  ".vn");
              if (subMenu == SubMenu::Save) {
                saveGame(path.string());
                notice = (ptBr ? "Jogo salvo no Slot " : "Game saved to Slot ") +
@@ -2831,8 +2985,44 @@ struct Game {
   }
 
   void drawMainMenu(SDL_Renderer *r) {
+    if (!assets->isDdlc() && !assets->isKatawa()) {
+      const bool ptBr = isPtBr();
+      drawn.clear();
+      drawText(r, assets->name(), uiStyle("kotonoha-vn-font:", 35, 0xffffffff),
+               80, 90);
+      if (subMenu == SubMenu::Load)
+        drawSaveLoadMenu(r);
+      else
+        navigation(
+            r,
+            {{ptBr ? "Novo Jogo" : "New Game", [this] { startGame(); }},
+             {ptBr ? "Carregar Jogo" : "Load Game",
+              [this] { subMenu = SubMenu::Load; }},
+             {ptBr ? "Opções" : "Settings", [this] { engine.openSettings(); }},
+             {ptBr ? "Sair" : "Quit", [this] { quit = true; }}});
+      return;
+    }
+    if (assets->isKatawa()) {
+      drawImage(r, "ui/main/bg-main.png", 160, 0, 960, 720);
+      drawImage(r, "ui/main/00_tc1-hisao.png", 360, 320, 134, 152);
+      const bool ptBr = isPtBr();
+      if (subMenu == SubMenu::Load) {
+        drawSaveLoadMenu(r);
+      } else {
+        navigation(
+            r,
+            {{ptBr ? "Novo Jogo" : "New Game", [this] { startGame(); }},
+             {ptBr ? "Carregar Jogo" : "Load Game",
+              [this] { subMenu = SubMenu::Load; }},
+             {ptBr ? "Opções" : "Settings", [this] { engine.openSettings(); }},
+             {ptBr ? "Sair" : "Quit", [this] { quit = true; }}});
+      }
+      return;
+    }
     const double t = now();
     const auto &m = vm->scene.master;
+    if (m.empty() && vm->assets.has("presplash.png"))
+      drawImage(r, "presplash.png", 0, 0, kW, kH);
     const size_t below = std::min<size_t>(4, m.size());
     drawRender(r,
                vm->renderLayer(
@@ -2911,7 +3101,12 @@ struct Game {
       return;
     }
     drawn.clear();
-    drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    if (assets->isKatawa()) {
+      drawBase(r, vm->scene, now());
+      drawImage(r, "ui/bg-gm.png", 870, 125, 240, 456);
+    } else {
+      drawImage(r, "gui/overlay/game_menu.png", 0, 0, kW, kH);
+    }
     if (!notice.empty()) {
       drawConfirm(r, notice, {{"OK", [this] { dismissNotice(); }}}, nullptr);
       return;
@@ -2976,7 +3171,17 @@ struct Game {
     if (!vm || (phase != Phase::Splash && phase != Phase::Play) || pauseMenu ||
         phase == Phase::Menu)
       return;
+    if (vm->scene.master.empty() && vm->assets.has("presplash.png"))
+      drawImage(r, "presplash.png", 0, 0, kW, kH);
     const Interaction &interaction = vm->interaction();
+    if (interaction.k == Interaction::K::MovieCutscene) {
+      if (cutsceneReady && cutscenePlayer) {
+        cutscenePlayer->update(*r);
+        const SDL_FRect area{0, 0, kW, kH};
+        cutscenePlayer->render(*r, area);
+      }
+      return;
+    }
     if (interaction.k == Interaction::K::Transition && interaction.trans)
       drawTransition(r, interaction, now());
     else
@@ -2986,17 +3191,20 @@ struct Game {
   void drawDialogue(SDL_Renderer *r) {
     if (!vm || (phase != Phase::Splash && phase != Phase::Play) ||
         vm->interaction().k == Interaction::K::Transition ||
+        vm->interaction().k == Interaction::K::MovieCutscene ||
         !vm->scene.window.visible)
       return;
     drawWindow(r, vm->scene.window, now());
-    if (phase == Phase::Play && vm->py.lookup("quick_menu").truthy())
+    if (phase == Phase::Play && vm->py.has("quick_menu") &&
+        vm->py.lookup("quick_menu").truthy())
       drawQuickMenu(r);
   }
 
   void drawChoices(SDL_Renderer *r) {
     drawScreenEffects(r);
     drawSkipIndicator(r);
-    if (!vm || (phase != Phase::Splash && phase != Phase::Play))
+    if (!vm || (phase != Phase::Splash && phase != Phase::Play) ||
+        vm->interaction().k == Interaction::K::MovieCutscene)
       return;
     const Interaction &interaction = vm->interaction();
     if (interaction.k == Interaction::K::Menu ||
@@ -3214,6 +3422,18 @@ std::string GameSession::dialogueSpeaker() const {
   auto &g = impl_->game;
   return g.vm ? g.displayWindow(g.vm->scene.window).who : std::string();
 }
+std::vector<std::pair<std::string, std::string>>
+GameSession::activeAudioAssets() const {
+  auto &game = impl_->game;
+  std::vector<std::pair<std::string, std::string>> result;
+  for (const char *channel : {"voice", "music", "sound", "ambience"}) {
+    const auto id = game.host.playing(channel);
+    if (!id.empty())
+      result.emplace_back(channel, id);
+  }
+  return result;
+}
+
 std::string GameSession::visibleDialogueText() const {
   auto &g = impl_->game;
   std::string result;
@@ -3256,6 +3476,7 @@ int GameSession::translationRoute() const {
 void GameSession::update(bool suspended) {
   auto &game = impl_->game;
   game.freeze(suspended || (game.pauseMenu));
+  game.host.setPaused(suspended || game.pauseMenu);
   if (suspended && (!game.pauseMenu))
     game.host.tick();
   else

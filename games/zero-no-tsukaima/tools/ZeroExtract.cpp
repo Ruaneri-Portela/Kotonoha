@@ -1,10 +1,11 @@
 #include <Kotonoha/core/SDL.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 // Extracts a Zero no Tsukaima (PS2) disc image into plain files:
 //   ZeroExtract <disc.bin|disc.iso> <outdir> [--png] [--archive NAME]
 // Archives (NAME.HD + NAME.BIN) become <outdir>/NAME/NNNN.{tm2,txt,bin};
 // with --png every TIM2 picture is also written as NNNN.png.
+#include <Kotonoha/Formats/Ps2Tim2.hpp>
 #include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/media/Ps2Tim2.hpp>
 #include <ZeroNoTsukaima/Archive.hpp>
 #include <ZeroNoTsukaima/Lz.hpp>
 
@@ -39,7 +40,7 @@ void SavePng(const fs::path &path, Kotonoha::Ps2Image &img) {
       SDL_CreateSurfaceFrom(img.width, img.height, SDL_PIXELFORMAT_RGBA32,
                             img.rgba.data(), img.width * 4);
   if (s != nullptr) {
-    SDL_SavePNG(s, path.string().c_str());
+    Kotonoha::SavePng(s, path.string().c_str());
     SDL_DestroySurface(s);
   }
 }

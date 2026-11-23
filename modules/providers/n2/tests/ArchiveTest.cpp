@@ -180,4 +180,61 @@ int main() {
     rejects([&] { N2System::Archive invalid(broken); });
   }
   std::cout << "N2System AFS/NPA archive tests passed\n";
+
+  // Steins;Gate SG-NPA format test (UTF-16LE filenames + O(1) seekable XOR).
+  {
+    const std::uint8_t sgKey[8] = {0xBD, 0xAA, 0xBC, 0xB4,
+                                   0xAB, 0xB6, 0xBC, 0xB4};
+    auto put64 = [](Bytes &d, std::uint64_t v) {
+      for (int j = 0; j < 8; ++j)
+        d.push_back(static_cast<std::uint8_t>(v >> (8 * j)));
+    };
+    auto utf16le = [](std::string_view ascii) {
+      Bytes out;
+      for (unsigned char c : ascii) {
+        out.push_back(c);
+        out.push_back(0);
+      }
+      return out;
+    };
+
+    const Bytes nameBytes = utf16le("NSS\\0_Boot.nsb");
+    const std::string payload = "Hello, Steins;Gate streaming XOR payload!";
+
+    Bytes hdr;
+    put32(hdr, 1);
+    put32(hdr, static_cast<std::uint32_t>(nameBytes.size()));
+    hdr.insert(hdr.end(), nameBytes.begin(), nameBytes.end());
+    put32(hdr, static_cast<std::uint32_t>(payload.size()));
+    const std::uint64_t dataOffset = 4 + hdr.size() + 8;
+    put64(hdr, dataOffset);
+
+    Bytes encryptedHdr = hdr;
+    for (std::size_t i = 0; i < encryptedHdr.size(); ++i)
+      encryptedHdr[i] ^= sgKey[i & 7u];
+
+    Bytes sgArchive;
+    put32(sgArchive, static_cast<std::uint32_t>(encryptedHdr.size()));
+    sgArchive.insert(sgArchive.end(), encryptedHdr.begin(), encryptedHdr.end());
+    for (std::size_t i = 0; i < payload.size(); ++i)
+      sgArchive.push_back(static_cast<std::uint8_t>(payload[i]) ^
+                          sgKey[i & 7u]);
+
+    N2System::Archive sg(sgArchive);
+    require(sg.format() == N2System::ArchiveFormat::SG_NPA);
+    require(sg.entries().size() == 1);
+    require(sg.contains("nss/0_boot.nsb"));
+    const auto full = sg.read("NSS/0_BOOT.NSB");
+    require(std::string(full.begin(), full.end()) == payload);
+
+    // Verify O(1) seekable readAt starting at an unaligned offset (offset = 7).
+    const auto *entry = sg.find("nss/0_boot.nsb");
+    require(entry != nullptr);
+    std::uint8_t slice[11] = {};
+    const auto got = sg.readAt(*entry, 7, slice, sizeof(slice));
+    require(got == sizeof(slice));
+    require(std::string(reinterpret_cast<const char *>(slice), got) ==
+            payload.substr(7, sizeof(slice)));
+  }
+  std::cout << "N2System SG-NPA archive tests passed\n";
 }

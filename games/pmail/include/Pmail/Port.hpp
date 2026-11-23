@@ -114,6 +114,21 @@ public:
   ~PmailGame() override;
 
   bool init();
+  // Read-only PAK index for the shared Kotonoha Debug UI. Returns logical
+  // script names without decoding every VM object.
+  std::map<int, std::vector<std::string>> translationInventory();
+  std::vector<std::string> debugScripts() const {
+    std::lock_guard lock(mutex_);
+    std::vector<std::string> names;
+    names.reserve(entries_.size());
+    for (const auto &entry : entries_)
+      if (!entry.name.empty())
+        names.push_back(entry.name);
+    return names;
+  }
+  std::string scriptPackId() const { return packPath_; }
+  // Debug-only jump to a native Pmail script entry (not to library routines).
+  bool debugJumpScript(const std::string &name);
   std::string serialize() const;
   void deserialize(const std::string &data);
   void returnToTitle();
@@ -452,6 +467,10 @@ private:
 
   std::vector<uint8_t> pack_;
   std::string packPath_;
+  // Read-only cache; script pack does not change during a game session.
+  // Avoid unpacking all scripts again when F7 follows a new native scene.
+  std::map<int, std::vector<std::string>> translationCatalog_;
+  bool translationCatalogReady_ = false;
   std::unique_ptr<PmailPack> packReader_;
   std::vector<Entry> entries_;
   std::map<std::string, ::Pmail::ObjectPtr> byName_;

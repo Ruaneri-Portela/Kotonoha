@@ -1,7 +1,8 @@
 // Reusable XP3 provider; independent of the KAG runtime.
 #include <Kirikiri/KirikiriAssets.hpp>
 #include <Kirikiri/PsbFile.hpp>
-#include <Kirikiri/TlgImage.hpp>
+#include <Kotonoha/Formats/Tlg.hpp>
+
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <zlib.h>
@@ -626,7 +627,13 @@ KirikiriAssets::loadSurfaceAsset(const std::string &id) const {
         [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (extension == ".tlg" || extension == ".tlg5" || extension == ".tlg6") {
       const auto bytes = read(id);
-      return decodeTlgImage(bytes);
+      const auto img = Kotonoha::Formats::decodeTlgImage(bytes);
+      Kotonoha::SurfacePtr surface(SDL_CreateSurface(
+          static_cast<int>(img.width), static_cast<int>(img.height),
+          SDL_PIXELFORMAT_RGBA32));
+      if (surface && !img.rgba.empty())
+        std::memcpy(surface->pixels, img.rgba.data(), img.rgba.size());
+      return surface;
     }
     if (extension == ".pimg" || extension == ".psb") {
       const auto bytes = read(id);
@@ -721,10 +728,10 @@ void KirikiriAssets::mountAllXp3() {
 #endif
   if (probeKnownArchives) {
     for (const char *id :
-         {"data.xp3", "emote.xp3", "evimage.xp3", "voice.xp3",
-          "bgimage.xp3", "image.xp3", "sound.xp3", "system.xp3",
-          "patch.xp3", "patch2.xp3", "patch3.xp3", "startup.xp3",
-          "scenario.xp3", "data/data.xp3", "data/patch.xp3"}) {
+         {"data.xp3", "emote.xp3", "evimage.xp3", "voice.xp3", "bgimage.xp3",
+          "image.xp3", "sound.xp3", "system.xp3", "patch.xp3", "patch2.xp3",
+          "patch3.xp3", "startup.xp3", "scenario.xp3", "data/data.xp3",
+          "data/patch.xp3"}) {
       const auto alreadyListed = std::any_of(
           names.begin(), names.end(), [id](const std::string &existing) {
             auto lower = existing;

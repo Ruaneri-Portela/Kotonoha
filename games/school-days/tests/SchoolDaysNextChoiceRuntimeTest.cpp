@@ -5,6 +5,7 @@
 #include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -304,6 +305,71 @@ public:
     return runtime.timeline.ComputeSkipToEndTarget(runtime.tick);
   }
   static void Pause(Runtime &runtime, bool enabled) { runtime.paused = enabled; }
+  static void Auto(Runtime &runtime, bool enabled) {
+    runtime.config.autoMode = enabled;
+    runtime.choiceInteraction.SetAutoMode(enabled);
+  }
+  // Deterministic simulation of an authored choice becoming visible before
+  // an already started 500 ms transport fade is allowed to navigate.
+  static void DispatchChoiceDuringFade(Runtime &runtime) {
+    runtime.tick = 48;
+    runtime.elapsed = 2.0;
+    for (auto *event : runtime.timeline.AdvanceTo(48))
+      runtime.dispatch(*event);
+    Require(runtime.choice != nullptr && !runtime.committed,
+            "fade race fixture failed to dispatch an unresolved choice");
+    runtime.tick = 49;
+    runtime.elapsed = 49.0 / 24.0;
+    runtime.updateChoiceInteraction();
+  }
+  static void Control(Runtime &runtime, int control) {
+    runtime.activateControl(control);
+  }
+  static void
+  MenuAction(Runtime &runtime,
+             Kotonoha::SchoolDaysMenuBarPresenter::ActionKind kind) {
+    Kotonoha::SchoolDaysMenuBarPresenter::Action action{};
+    action.kind = kind;
+    runtime.activateMenuAction(action);
+  }
+  static bool Paused(const Runtime &runtime) { return runtime.paused; }
+  static bool ChoiceMenuFrozen(const Runtime &runtime) {
+    return runtime.choiceMenuFrozen &&
+           runtime.menuBarProjection().choiceTailFrozen;
+  }
+  static bool ChoiceMenuNewSceneBound(const Runtime &runtime) {
+    return runtime.choiceMenuNextSceneBound;
+  }
+  static void SimulatePhysicalSceneRebind(Runtime &runtime,
+                                          bool nextScene = true) {
+    auto synthetic = runtime.bridge.CurrentScene();
+    if (nextScene)
+      synthetic.sceneKey = "00/00-00-SYNTHETIC-NEXT";
+    runtime.bindScene(synthetic, runtime.bridge.CurrentGameplay());
+  }
+  static void ChoiceMeterCue(Runtime &runtime, int code, uint32_t nowMs) {
+    runtime.noteChoiceMenuCue(code, nowMs);
+  }
+  static void MaybeUnlockChoiceMenu(Runtime &runtime, uint32_t nowMs,
+                                    bool meterAnimating) {
+    runtime.updateChoiceMenuUnlock(nowMs, meterAnimating);
+  }
+  static bool BarSuppressed(const Runtime &runtime) {
+    return runtime.menuBarProjection().fullBarSuppressed;
+  }
+  static bool PromptMeterOnly(const Runtime &runtime) {
+    return runtime.menuBarProjection().meterOnly;
+  }
+  static bool ChoiceFeelVisible(const Runtime &runtime) {
+    return runtime.choiceFeelVisible;
+  }
+  static Kotonoha::SchoolDaysOptionalTick
+  RawSkipTarget(const Runtime &runtime) {
+    return runtime.timeline.ComputeSkipToEndTarget(runtime.tick);
+  }
+  static void Pause(Runtime &runtime, bool enabled) {
+    runtime.paused = enabled;
+  }
   static void Auto(Runtime &runtime, bool enabled) {
     runtime.config.autoMode = enabled;
     runtime.choiceInteraction.SetAutoMode(enabled);

@@ -24,7 +24,14 @@ public:
 
   void open() override;
   void close() override;
-  bool isVisible() const override { return isOpen_ || VNBacklog::isVisible(); }
+  bool isVisible() const override {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+    return isOpen_;
+#else
+    return isOpen_ || VNBacklog::isVisible();
+#endif
+  }
+  const std::string &LastError() const { return lastError_; }
   void addEntry(const std::string &speaker, const std::string &text) override;
   void clear() override;
   bool onEvent(EventRef event) override;
@@ -42,6 +49,7 @@ private:
   SchoolDaysBackLogStore backlogStore_;
   SchoolDaysBackLogModel backlogModel_;
   SchoolDaysBackLogPresenter backlogPresenter_;
+  std::string lastError_;
   bool isOpen_ = false;
 };
 

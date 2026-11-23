@@ -25,9 +25,16 @@ if(KOTONOHA_DISTRIBUTION_BUILD)
     # accidental return of developer MCP/log controls to public builds.
     add_executable(SchoolDaysDistDebugAbsenceTest
         SchoolDaysDistDebugAbsenceTest.cpp)
-    target_link_libraries(SchoolDaysDistDebugAbsenceTest PRIVATE school_days)
+    # This contract only exercises the shared engine CLI; linking the game
+    # runtime would introduce unrelated retail presentation dependencies.
+    target_link_libraries(SchoolDaysDistDebugAbsenceTest PRIVATE KotonohaEngine)
     add_test(NAME SchoolDays.DistDebugAbsence
         COMMAND SchoolDaysDistDebugAbsenceTest)
+    if(WIN32)
+        set_tests_properties(SchoolDays.DistDebugAbsence PROPERTIES
+            ENVIRONMENT_MODIFICATION
+                "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+    endif()
 endif()
 
 add_executable(SchoolDaysSessionTest KtrfSchoolDaysSessionTest.cpp)
@@ -278,6 +285,10 @@ kotonoha_copy_assets(SchoolDaysBackRuntimeTest)
 add_test(NAME SchoolDaysBackRuntimeTest COMMAND SchoolDaysBackRuntimeTest
     "${SCHOOL_DAYS_ROUTE}")
 set_tests_properties(SchoolDaysBackRuntimeTest PROPERTIES
+    ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
+add_test(NAME SchoolDays.BackLogFallback COMMAND SchoolDaysBackRuntimeTest
+    "${SCHOOL_DAYS_ROUTE}" "--fallback-only")
+set_tests_properties(SchoolDays.BackLogFallback PROPERTIES
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
 
 add_executable(SchoolDaysConfigStorageTest SchoolDaysConfigStorageTest.cpp)

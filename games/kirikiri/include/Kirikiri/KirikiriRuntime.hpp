@@ -51,6 +51,11 @@ public:
 
   std::string diagnostic() const override;
   std::string debugNode() const override;
+  std::string debugNodeCatalogKey() const override;
+  std::vector<Kotonoha::DebugNode> debugNodes() const override;
+  void debugJumpToNode(const std::string &id) override;
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
+  int translationRoute() const override { return 0; }
   void debugRestartScene() override;
   std::string dialogueText() const override { return dialogueText_; }
   std::string dialogueSpeaker() const override { return dialogueSpeaker_; }

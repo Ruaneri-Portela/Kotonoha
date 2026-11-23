@@ -1,0 +1,105 @@
+/* Per-game Kotonoha PWA. Shell/runtime caching is independent of IndexedDB.
+ * Never intercept game-assets/, HEAD, POST or HTTP Range: those belong to
+ * KotonohaAssetCache and the C++ virtual filesystem. */
+"use strict";
+const SCOPE = new URL(self.registration.scope);
+const NAMESPACE = "kotonoha:pwa:" + SCOPE.origin + SCOPE.pathname + ":";
+const CACHE_NAME = NAMESPACE + "@PWA_CACHE_KEY@";
+const SHELL = [
+  "index.html",
+  "KotonohaPreloadCache.js",
+  "manifest.webmanifest",
+  "pwa-icon-192.png",
+  "pwa-icon-512.png",
+  "pwa-icon-180.png"
+];
+const RUNTIME = [
+  "@TARGET_NAME@.js",
+  "@TARGET_NAME@.wasm",
+  "@TARGET_NAME@.data"
+];
+const STATIC = new Set([...SHELL, ...RUNTIME]);
+
+function withinScope(url) {
+  return url.origin === SCOPE.origin &&
+    url.pathname.startsWith(SCOPE.pathname);
+}
+async function cachePath(cache, relative) {
+  const request = new Request(new URL(relative, SCOPE), {
+    method: "GET", cache: "reload"
+  });
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.type === "basic" && response.status === 200)
+      await cache.put(request, response);
+  } catch (error) {
+    // Offline or quota failure must not prevent the PWA from installing.
+    console.warn("[Kotonoha PWA] Shell cache unavailable:", relative, error);
+  }
+}
+self.addEventListener("install", event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await Promise.all(SHELL.map(relative => cachePath(cache, relative)));
+    await self.skipWaiting();
+  })());
+});
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key =>
+      key.startsWith(NAMESPACE) && key !== CACHE_NAME
+    ).map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
+self.addEventListener("message", event => {
+  if (!event.data || event.data.type !== "KOTONOHA_CACHE_RUNTIME")
+    return;
+  // Called only after WASM has initialized, to enable offline reuse without
+  // downloading the engine twice during the first-page load.
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    for (const relative of RUNTIME) {
+      const url = new URL(relative, SCOPE);
+      if (!await cache.match(url))
+        await cachePath(cache, relative);
+    }
+  })());
+});
+self.addEventListener("fetch", event => {
+  const request = event.request;
+  if (request.method !== "GET" || request.headers.has("range"))
+    return;
+  const url = new URL(request.url);
+  if (!withinScope(url))
+    return;
+  const relative = decodeURI(url.pathname.slice(SCOPE.pathname.length));
+  // No interference with HTTP asset discovery, Range requests, preload.json,
+  // manifest.json, or the persistent scene-aware IndexedDB cache.
+  if (relative === "game-assets" || relative.startsWith("game-assets/"))
+    return;
+  const navigation = request.mode === "navigate" &&
+    (relative === "" || relative === "index.html");
+  if (!navigation && !STATIC.has(relative))
+    return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    try {
+      // Network-first makes deployments with an unchanged build label safe
+      // from permanently stale JS/WASM pairs while preserving offline fallback.
+      const response = await fetch(request);
+      if (response.ok && response.status === 200 &&
+          response.type === "basic") {
+        const copy = response.clone();
+        event.waitUntil(cache.put(request, copy).catch(error =>
+          console.warn("[Kotonoha PWA] Could not cache runtime:", error)));
+      }
+      return response;
+    } catch (error) {
+      return await cache.match(request, {ignoreSearch: true}) ||
+        (navigation ? await cache.match(new URL("index.html", SCOPE)) : null) ||
+        Response.error();
+    }
+  })());
+});

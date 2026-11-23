@@ -1,3 +1,4 @@
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 
 #include <algorithm>
@@ -88,7 +89,7 @@ SDL_Surface *SchoolDaysSubtitleTypography::Render(TTF_Font *font,
   SDL_DestroySurface(shadow);
   SDL_DestroySurface(fill);
   SDL_DestroySurface(outline);
-  if (!ok) {
+  if (!ok || !MarkTTFTextRaster(*result)) {
     SDL_DestroySurface(result);
     return nullptr;
   }

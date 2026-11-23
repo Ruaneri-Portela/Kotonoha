@@ -1,7 +1,8 @@
 #include <Amagami/Session.hpp>
 #include <Amagami/Source.hpp>
 #include <Amagami/Vm.hpp>
-#include <Kotonoha/media/Ps2Tim2.hpp>
+#include <Kotonoha/Formats/Ps2Tim2.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <SDL3/SDL.h>
 #include <cstdint>
 #include <cstring>
@@ -500,7 +501,7 @@ int main(int argc, char **argv) {
             image.rgba.data(), image.width * 4);
         if (!surface)
           throw std::runtime_error(SDL_GetError());
-        bool ok = SDL_SavePNG(surface, argv[5]);
+        bool ok = Kotonoha::SavePng(surface, argv[5]);
         SDL_DestroySurface(surface);
         if (!ok)
           throw std::runtime_error(SDL_GetError());

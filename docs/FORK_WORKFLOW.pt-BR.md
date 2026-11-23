@@ -22,12 +22,12 @@ As duas plataformas executam uma única base de código compartilhada para a ló
 | Branch | Papel |
 |---|---|
 | `dev` | Branch padrão de `tsubaki-0x/Kotonoha`; linha principal de desenvolvimento e base limpa para colaboração upstream. |
-| `kotonoha-v3-ruaneri-sync-transitions` | Branch híbrida de distribuição que preserva a infraestrutura DEV/DIST do School Days HQ e os fluxos Windows/Android específicos do fork. |
+| `hybrid` | Branch híbrida de distribuição que preserva a infraestrutura DEV/DIST do School Days HQ e os fluxos Windows/Android específicos do fork. |
 | `upstream/dev` (`Ruaneri-Portela/Kotonoha`) | Repositório upstream de referência. Nunca faça push diretamente para `upstream`. |
 
 - Atualize referências remotas com `git fetch origin --prune` e `git fetch upstream --prune`.
 - Crie branches de PR upstream sempre a partir de `upstream/dev`, com commits pequenos e bem delimitados, zero símbolos de School Days dentro de `lib/` e zero assets proprietários.
-- Nunca utilize force-push em branches publicadas (`dev` ou `kotonoha-v3-ruaneri-sync-transitions`).
+- Nunca utilize force-push em branches publicadas (`dev` ou `hybrid`).
 
 ---
 

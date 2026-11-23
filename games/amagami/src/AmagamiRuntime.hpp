@@ -3,7 +3,9 @@
 #include <Amagami/Campaign.hpp>
 #include <Amagami/Session.hpp>
 #include <Kotonoha/components/ChoiceQuestionScene.hpp>
+#include <Kotonoha/components/InGameMenu.hpp>
 #include <Kotonoha/components/VNBacklog.hpp>
+#include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
@@ -90,6 +92,22 @@ private:
   void focus(size_t);
   void stepFocus(size_t);
 };
+// Native pause menu (戻る / セーブ / ロード / タイトルへ / 設定) mapped onto
+// Kotonoha's InGameMenu so save, load, settings and title return share the
+// engine flow. The original menu drawing is preserved in design space.
+class AmagamiMenu final : public Kotonoha::InGameMenu {
+public:
+  explicit AmagamiMenu(Kotonoha::Engine &engine) : InGameMenu(engine) {}
+  bool designSpace() const override { return false; }
+
+protected:
+  int itemCount() const override { return 5; }
+  std::string itemLabel(int index) const override;
+  SDL_FRect itemRect(int index) const override;
+  void activate(int index) override;
+  void renderPanel(Kotonoha::RendererRef) override;
+};
+
 // Selects only EventNode.isExecutable entries. The original map assets/grid
 // are retained; full native icon overlays and transition choreography are
 // still separate presentation work, not inferred replacement route rules.
@@ -139,6 +157,7 @@ public:
   void renderOverlay(Kotonoha::RendererRef, float) override;
   bool onEvent(Kotonoha::EventRef) override;
   bool handleNewGameAction() override;
+  bool handleBackAction() override;
   bool handleBacklogAction() override;
   bool handleAdvanceAction() override;
   bool advanceStoryTime(double) override;
@@ -149,6 +168,9 @@ public:
   std::string debugNode() const override;
   std::string nodeClockKey() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
+  std::string debugNodeCatalogKey() const override;
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
+  void debugOverlayAssetChanged(const std::string &id) override;
   void debugJumpToNode(const std::string &) override;
   int translationRoute() const override;
   std::vector<std::string> activeTranslationKeys() const override;
@@ -164,9 +186,12 @@ private:
   std::unique_ptr<AmagamiTextBox> textBox_;
   std::unique_ptr<AmagamiChoices> choices_;
   std::unique_ptr<AmagamiBacklog> backlogView_;
+  std::unique_ptr<AmagamiMenu> menu_;
+  std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu_;
   std::unique_ptr<AmagamiEventMap> eventMap_;
   std::string campaignMapKey_;
   void syncCampaignMap();
+  void openSaves(bool load);
   Kotonoha::Clock frameClock_;
   bool titleMenu_ = false;
   void syncChoices();

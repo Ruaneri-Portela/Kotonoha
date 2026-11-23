@@ -29,8 +29,9 @@ public:
 
   // Loads the complete system image into the VM.
   void installSystem(Vm &vm) const;
-  // Also loads all scenario classes. Useful for a boot/menu diagnostic; later
-  // native Class.loadClass should replace this with demand paging.
+  // Eagerly installs all scenario classes for static inspections and tests.
+  // The interactive Vita adapter instead calls installSystem() and installs
+  // Vm::resolveClass for K2X_Script.loadClass / explicit class literals.
   void installAll(Vm &vm) const;
   Script scenario(const std::string &name) const;
 

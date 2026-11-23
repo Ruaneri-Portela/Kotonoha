@@ -691,12 +691,37 @@ games-assets/*
 /build/
 /vcpkg_installed/
 /.cache/
+/.opencode/
+/forced_subtitles/
+/CMakeSettings.json
+
+# Xcode Projects & Workspaces (Auto-generated)
+buildsystems/xcode/build/
+buildsystems/xcode/vcpkg/
+buildsystems/xcode/python/
+
+# Android & Gradle
+.gradle/
+.cxx/
+local.properties
+app/build/
+app/.cxx/
+/Android/
+
+# macOS & IDEs
 **/.DS_Store
 **/xcuserdata/
 **/*.xcuserstate
 **/imgui.ini
 *.vn
 *.vn.tmp
+.idea/
+.vscode/
+
+# Assets & Translations
+games-assets/*
+.research/
+*.ini
 /translation.json
 # Dumps/translations contain the games' script text
 /translations/
@@ -734,3 +759,13 @@ forced_subtitles/
 **/[Ss]ave[Ff]ile*.DAT
 **/[Gg]lobal[Ff]lag.DAT
 **/[Cc]onfig.DAT
+
+
+# Local credentials and signing materials; never commit these.
+*.pem
+*.p8
+*.p12
+*.mobileprovision
+.env
+.env.*
+!.env.example

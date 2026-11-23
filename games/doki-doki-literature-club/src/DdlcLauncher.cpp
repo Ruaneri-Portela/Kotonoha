@@ -1,5 +1,6 @@
 #include "DdlcLauncher.hpp"
 #include <Ddlc/DdlcAssets.hpp>
+#include <Kotonoha/Filesystem/EngineDetector.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/GameSourceProbe.hpp>
 
@@ -29,67 +30,20 @@ bool GameLauncher::checkPath(const std::string &path, std::string &info) {
 }
 
 bool GameLauncher::validatePath(const std::string &path, std::string &info) {
-  std::error_code error;
-  if (std::filesystem::is_regular_file(path, error)) {
-    try {
-      const auto mounted = Kotonoha::Filesystem::Filesystem::mount(path);
-      if (!Kotonoha::Filesystem::findRequiredFilesPrefix(
-              *mounted, {"scripts.rpa", "images.rpa"}, {"game/", ""})) {
-        info = "Archive missing DDLC scripts.rpa or images.rpa";
-        return false;
-      }
-      info = "Virtual DDLC archive: scripts and images found";
-      return true;
-    } catch (const std::exception &failure) {
-      info = failure.what();
+  try {
+    const auto mounted = Kotonoha::Filesystem::Filesystem::mount(path);
+    if (!mounted || Kotonoha::Filesystem::detectEngine(*mounted).kind !=
+                        Kotonoha::Filesystem::EngineKind::RenPy) {
+      info = "Select a Ren'Py installation containing .rpa, .rpyc or "
+             ".rpymc files";
       return false;
     }
-  }
-  const auto game = std::filesystem::path(path) / "game";
-  if (std::filesystem::is_regular_file(game / "scripts.rpa", error))
-    return validatePath(game.string(), info);
-  if (!std::filesystem::is_directory(path, error)) {
-    info = "Game folder not found: " + path;
+    info = "Ren'Py package detected; this port requires compiled scripts";
+    return true;
+  } catch (const std::exception &error) {
+    info = error.what();
     return false;
   }
-  std::set<std::string> files;
-  for (const auto &entry : std::filesystem::directory_iterator(path, error)) {
-    if (!entry.is_regular_file(error))
-      continue;
-    auto name = entry.path().filename().string();
-    std::transform(name.begin(), name.end(), name.begin(),
-                   [](unsigned char ch) { return char(std::tolower(ch)); });
-    files.insert(std::move(name));
-  }
-  if (error) {
-    info = "Cannot read game folder: " + error.message();
-    return false;
-  }
-  if (!files.count("scripts.rpa") || !files.count("images.rpa")) {
-    info = "Select the game folder containing scripts.rpa and images.rpa";
-    return false;
-  }
-  info =
-      !files.count("audio.rpa") || !files.count("fonts.rpa")
-          ? "Game scripts and images found; audio.rpa or fonts.rpa is missing"
-          : "Game scripts, images, audio and fonts found";
-  const bool characters = hasOriginalCharacters(path, error);
-  if (error) {
-    info = "Cannot inspect character files: " + error.message();
-    return false;
-  }
-  if (!characters)
-    info +=
-        "; no sibling characters/ folder, the .chr files come from scripts.rpa";
-  try {
-    info += "; live character files: " +
-            charactersDirectory(userDirectory()).string();
-  } catch (const std::exception &failure) {
-    info = std::string("Cannot open the DDLC documents directory: ") +
-           failure.what();
-    return false;
-  }
-  return true;
 }
 
 } // namespace Ddlc

@@ -4,7 +4,7 @@
 
 ## Shared SDL3 lifecycle
 
-All 11 game ports use `Kotonoha/core/SDLCallbackApp.hpp`. Each port defines a
+Game ports use `Kotonoha/core/SDLCallbackApp.hpp`. Each port defines a
 class with static `init`, `event`, `iterate` and `quit` methods; the
 `KOTONOHA_SDL_CALLBACK_APP(MyPort)` macro exports the four SDL3 callback
 symbols. Do not write a second `SDL_AppInit` or `main` function. Port-
@@ -60,11 +60,11 @@ cpack --config build/CPackConfig.cmake -G ZIP \
   -D CPACK_COMPONENTS_ALL=Kotonoha
 ```
 
-Retail assets are **excluded by default** to avoid distributing
+Retail assets are **excluded by default on both macOS `.app` and non-bundle ZIPs** to avoid distributing
 copyrighted game data; only the free `Kotonoha` example can include its
 sample assets. To explicitly package *your own* local data, configure
 `-DKOTONOHA_CPACK_INCLUDE_GAME_ASSETS=ON`. Never redistribute commercial
-game files without the necessary rights. Android APK/AAB is still built
+game files without the necessary rights. Each ZIP includes baseline license notices; audit the licenses of actually shipped dynamic libraries separately. Android APK/AAB is still built
 through Gradle.
 
 ## WebAssembly memory

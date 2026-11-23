@@ -243,6 +243,62 @@ bool PmailGame::loadScript(const std::string &name, bool asMain) {
   return true;
 }
 
+std::map<int, std::vector<std::string>> PmailGame::translationInventory() {
+  std::lock_guard lock(mutex_);
+  if (translationCatalogReady_)
+    return translationCatalog_;
+  std::map<int, std::vector<std::string>> result;
+  std::map<int, std::set<std::string>> seen;
+  // Read-only indexing: DO NOT call loadByName() here. It registers objects
+  // in the VM's name/ID maps and could change control flow merely because
+  // the user opened F7. Decode temporary, unregistered script objects.
+  for (const auto &entry : entries_) {
+    if (entry.name.empty())
+      continue;
+    std::vector<uint8_t> bytes;
+    try {
+      if (packReader_)
+        bytes = packReader_->read(lower(entry.name));
+      if (bytes.empty() && entry.size > 0 && entry.offset <= pack_.size() &&
+          entry.size <= pack_.size() - entry.offset)
+        bytes.assign(pack_.begin() + entry.offset,
+                     pack_.begin() + entry.offset + entry.size);
+      if (bytes.empty())
+        continue;
+      ::Pmail::ScriptObject script;
+      if (!script.parse(entry.name, std::move(bytes)))
+        continue;
+      const int route = static_cast<int>(script.id & 0xfff);
+      auto &keys = result[route];
+      auto &unique = seen[route];
+      for (const auto &line : script.strings)
+        if (!line.empty() && unique.insert(line).second)
+          keys.push_back(line);
+    } catch (const std::exception &) {
+      // A malformed optional archive entry must not erase valid translation
+      // routes or affect the native VM.
+      continue;
+    }
+  }
+  translationCatalog_ = result;
+  translationCatalogReady_ = true;
+  return result;
+}
+
+bool PmailGame::debugJumpScript(const std::string &name) {
+  if (name.empty() || name == "pmail.obj")
+    return false; // The native library is never a playable story root.
+  if (!loadScript(name, true))
+    return false;
+  std::lock_guard lock(mutex_);
+  waiting_ = false;
+  choosing_ = false;
+  message_.clear();
+  speakerName_.clear();
+  messageQueue_.clear();
+  return true;
+}
+
 bool PmailGame::init() {
   std::lock_guard lock(mutex_);
   // pmail.exe:0x422357-0x4223df loads pmail.obj (the user-function library

@@ -594,6 +594,26 @@ bool SchoolDaysGpkAssetStore::OpenRetailDirectory(
   if (!folder)
     return Fail(error, "School Days GPK Packs directory is unavailable");
 
+  std::unordered_map<std::string, std::filesystem::path> lowerFiles;
+  if (std::filesystem::is_directory(packDirectory, ec) && !ec) {
+    std::error_code dirEc;
+    for (std::filesystem::directory_iterator it(
+             packDirectory,
+             std::filesystem::directory_options::skip_permission_denied, dirEc),
+         end;
+         it != end && !dirEc; it.increment(dirEc)) {
+      std::error_code fileEc;
+      if (!it->is_regular_file(fileEc) || fileEc)
+        continue;
+      std::string lower = it->path().filename().string();
+      for (char &ch : lower) {
+        if (ch >= 'A' && ch <= 'Z')
+          ch = static_cast<char>(ch - 'A' + 'a');
+      }
+      lowerFiles.emplace(std::move(lower), it->path());
+    }
+  }
+
   std::vector<SchoolDaysGpkArchive> archives;
   std::unordered_map<std::string, size_t> prefixes;
   archives.reserve(SchoolDaysRetailGpkSpecs().size());
@@ -601,9 +621,15 @@ bool SchoolDaysGpkAssetStore::OpenRetailDirectory(
   for (const auto &spec : SchoolDaysRetailGpkSpecs()) {
     SchoolDaysGpkArchive archive;
     std::string archiveError;
-    const std::filesystem::path archivePath =
-        source ? std::filesystem::path(spec.filename)
-               : packDirectory / spec.filename;
+    std::string lowerSpec(spec.filename);
+    for (char &ch : lowerSpec) {
+      if (ch >= 'A' && ch <= 'Z')
+        ch = static_cast<char>(ch - 'A' + 'a');
+    }
+    const auto found = lowerFiles.find(lowerSpec);
+    const std::filesystem::path archivePath = source
+        ? std::filesystem::path(spec.filename)
+        : (found != lowerFiles.end() ? found->second : (packDirectory / spec.filename));
     if (!archive.Open(archivePath, &archiveError, source)) {
       return Fail(error, std::string("School Days GPK ") + spec.filename +
                              " failed validation: " + archiveError);

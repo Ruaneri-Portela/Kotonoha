@@ -141,10 +141,27 @@ def audit(sources: dict[str, str]) -> list[str]:
     # Versioned shared library output expands a single compiled target to
     # extra symlink names, breaking the requested one-file-per-target layout.
     core = sources.get("lib/CMakeLists.txt", "")
-    if re.search(r"(?m)^[ \t]*(?:VERSION|SOVERSION)[ \t]+\$\{PROJECT_VERSION", core):
-        errors.append("lib/CMakeLists.txt: do not set versioned shared-library filenames")
-    if "PROPERTY VERSION)" not in core or "PROPERTY SOVERSION)" not in core:
-        errors.append("lib/CMakeLists.txt: vendored SDL shared libraries must clear version properties")
+    sdl = sources.get("buildsystems/cmake/dependencies/KotonohaSDL.cmake", core)
+    if re.search(r"(?m)^[ \t]*(?:VERSION|SOVERSION)[ \t]+\$\{PROJECT_VERSION", core + "\n" + sdl):
+        errors.append("shared libraries must not use project-versioned filenames")
+    if "PROPERTY VERSION)" not in sdl or "PROPERTY SOVERSION)" not in sdl:
+        errors.append("KotonohaSDL.cmake: vendored SDL must clear version properties")
+
+    # The DDLC format archive calls the engine Filesystem APIs. Without an
+    # explicit target dependency, GNU ld (notably MinGW) may put the engine's
+    # DLL import library before DdlcFormats.a and fail to resolve readAll,
+    # SDLFileSource and Filesystem::open/exists/list.
+    ddlc = sources.get("games/doki-doki-literature-club/CMakeLists.txt")
+    if ddlc is not None:
+        has_engine_dependency = any(
+            kind == "target_link_libraries"
+            and body.split()[:1] == ["DdlcFormats"]
+            and "KotonohaEngine" in body.split()
+            for kind, body, _ in commands(ddlc)
+        )
+        if not has_engine_dependency:
+            errors.append("DDLC DdlcFormats must directly link KotonohaEngine "
+                          "to preserve import-library link order on MinGW")
 
     return errors
 
@@ -169,6 +186,28 @@ def self_test() -> None:
        "target_link_libraries(bar PRIVATE foo)\n", True)
     ok("add_executable(test_tool main.cpp)\n"
        "add_test(NAME test_tool COMMAND test_tool)\n", False)
+    fixture_core = ("set_property(TARGET sdl PROPERTY VERSION)\n"
+                    "set_property(TARGET sdl PROPERTY SOVERSION)\n")
+    fixture_path = "games/doki-doki-literature-club/CMakeLists.txt"
+    assert any("DdlcFormats must directly link" in issue for issue in audit({
+        "lib/CMakeLists.txt": fixture_core,
+        fixture_path: "add_library(DdlcFormats STATIC Archive.cpp)\n",
+    }))
+    assert not audit({
+        "lib/CMakeLists.txt": fixture_core,
+        fixture_path: ("add_library(DdlcFormats STATIC Archive.cpp)\n"
+                       "target_link_libraries(DdlcFormats PUBLIC KotonohaEngine)\n"),
+    })
+    # The SDL provider moved out of lib/CMakeLists.txt. The audit must find
+    # the helper through its POSIX-style dictionary key, including on Windows.
+    sdl_key = "buildsystems/cmake/dependencies/KotonohaSDL.cmake"
+    provider = ("set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY VERSION)\n"
+                "set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY SOVERSION)\n")
+    assert not audit({"lib/CMakeLists.txt": "", sdl_key: provider})
+    assert any("vendored SDL must clear version properties" in issue for issue in audit({
+        "lib/CMakeLists.txt": fixture_core,
+        sdl_key: "set_property(TARGET sdl PROPERTY VERSION)\n",
+    }))
     print("[CMake targets] self-tests passed")
 
 
@@ -182,6 +221,12 @@ def main() -> int:
         and "out" not in file.parts
         and "build" not in file.parts
     }
+    for helper in ("KotonohaSDL.cmake", "KotonohaImGui.cmake"):
+        helper_path = ROOT / "buildsystems" / "cmake" / "dependencies" / helper
+        if not helper_path.is_file():
+            print(f"[CMake targets] missing dependency helper: {helper}", file=sys.stderr)
+            return 1
+        files[helper_path.relative_to(ROOT).as_posix()] = helper_path.read_text(encoding="utf-8")
     core_path = ROOT / "lib/CMakeLists.txt"
     if not core_path.exists():
         print("[CMake targets] expected lib/CMakeLists.txt is missing", file=sys.stderr)

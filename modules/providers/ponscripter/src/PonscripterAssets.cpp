@@ -1,15 +1,12 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <Kotonoha/Filesystem/GameSourceProbe.hpp>
-#ifdef __EMSCRIPTEN__
-#include <Kotonoha/Filesystem/RemoteAssets.hpp>
-#include <Kotonoha/Filesystem/Sources/FetchAssetProvider.hpp>
-#endif
-#include <SDL3/SDL.h>
 #include <Ponscripter/PonscripterAssets.hpp>
+#include <SDL3/SDL.h>
 
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <mutex>
 #include <set>
 #include <stdexcept>
 #include <utility>
@@ -101,15 +98,19 @@ void PonscripterAssets::setRootDirectory(std::string_view rootDir) {
       caseIndex_[norm] = info.path;
 
       // Auto-mount arc.nsa, arc1.nsa..arc9.nsa, or arc.sar if present
-      if (norm == "arc.nsa" || norm == "arc1.nsa" || norm == "arc2.nsa" ||
-          norm == "arc.sar") {
+      const bool isKnownArchive =
+          norm == "arc.nsa" || norm == "arc.sar" ||
+          (norm.size() == 8 && norm.rfind("arc", 0) == 0 && norm[3] >= '1' &&
+           norm[3] <= '9' && norm.substr(4) == ".nsa");
+      if (isKnownArchive) {
         try {
-          auto handle = vfs_->open(info.path);
-          if (handle) {
-            const ArchiveFormat fmt =
-                (norm == "arc.sar") ? ArchiveFormat::SAR : ArchiveFormat::NSA;
-            mountArchive(Kotonoha::Filesystem::readAll(*handle), fmt, 0);
-          }
+          const ArchiveFormat fmt =
+              (norm == "arc.sar") ? ArchiveFormat::SAR : ArchiveFormat::NSA;
+          mountArchiveFromVfs(info.path, fmt, 0);
+        } catch (const std::exception &error) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "PONscripter archive %s unavailable: %s",
+                      info.path.c_str(), error.what());
         } catch (...) {
         }
       }
@@ -118,28 +119,23 @@ void PonscripterAssets::setRootDirectory(std::string_view rootDir) {
     // Discover common loose scripts and archives by their canonical paths.
     // Indexed directory/ISO sources have already been handled above.
     for (const char *known :
-         {"00.utf", "0.utf", "nscript.dat", "pscript.dat", "00.txt",
-          "0.txt", "arc.nsa", "arc1.nsa", "arc2.nsa", "arc3.nsa",
-          "arc4.nsa", "arc5.nsa", "arc6.nsa", "arc7.nsa",
-          "arc8.nsa", "arc9.nsa", "arc.sar"}) {
+         {"00.utf", "0.utf", "nscript.dat", "pscript.dat", "00.txt", "0.txt",
+          "arc.nsa", "arc1.nsa", "arc2.nsa", "arc3.nsa", "arc4.nsa", "arc5.nsa",
+          "arc6.nsa", "arc7.nsa", "arc8.nsa", "arc9.nsa", "arc.sar"}) {
       if (caseIndex_.count(known) || !vfs_->exists(known) ||
           vfs_->stat(known).type != Kotonoha::Filesystem::FileType::Regular)
         continue;
       caseIndex_[known] = known;
       const std::string name(known);
-      if (name.size() < 4 ||
-          (name.substr(name.size() - 4) != ".nsa" &&
-           name.substr(name.size() - 4) != ".sar"))
+      if (name.size() < 4 || (name.substr(name.size() - 4) != ".nsa" &&
+                              name.substr(name.size() - 4) != ".sar"))
         continue;
       try {
-        auto handle = vfs_->open(known);
-        if (handle)
-          mountArchive(
-              Kotonoha::Filesystem::readAll(*handle),
-              name.substr(name.size() - 4) == ".sar"
-                  ? ArchiveFormat::SAR
-                  : ArchiveFormat::NSA,
-              0);
+        mountArchiveFromVfs(known,
+                            name.substr(name.size() - 4) == ".sar"
+                                ? ArchiveFormat::SAR
+                                : ArchiveFormat::NSA,
+                            0);
       } catch (const std::exception &error) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "PONscripter HTTP archive %s unavailable: %s", known,
@@ -158,6 +154,44 @@ void PonscripterAssets::mountArchive(std::vector<std::uint8_t> data,
                                      std::size_t nsaOffset) {
   auto reader = std::make_shared<ArchiveReader>();
   if (reader->loadFromMemory(std::move(data), format, nsaOffset)) {
+    archives_.push_back(std::move(reader));
+  }
+}
+
+void PonscripterAssets::mountArchiveFromVfs(const std::string &vfsPath,
+                                            ArchiveFormat format,
+                                            std::size_t nsaOffset) {
+  if (!vfs_)
+    return;
+  auto handle = std::shared_ptr<Kotonoha::Filesystem::FileHandle>(
+      vfs_->open(vfsPath).release());
+  if (!handle)
+    return;
+  const std::int64_t totalSize = handle->size();
+  if (totalSize < 0)
+    return;
+  auto ioMutex = std::make_shared<std::mutex>();
+  ArchiveReader::ReadRangeFn readRange =
+      [handle = std::move(handle), ioMutex = std::move(ioMutex)](
+          std::uint64_t offset, std::uint8_t *dst, std::size_t size) -> bool {
+    if (size == 0)
+      return true;
+    std::lock_guard<std::mutex> lock(*ioMutex);
+    if (handle->seek(static_cast<std::int64_t>(offset),
+                     Kotonoha::Filesystem::SeekOrigin::Begin) < 0)
+      return false;
+    std::size_t cursor = 0;
+    while (cursor < size) {
+      const auto got = handle->read(dst + cursor, size - cursor);
+      if (got <= 0)
+        return false;
+      cursor += static_cast<std::size_t>(got);
+    }
+    return true;
+  };
+  auto reader = std::make_shared<ArchiveReader>();
+  if (reader->loadFromReader(static_cast<std::uint64_t>(totalSize),
+                             std::move(readRange), format, nsaOffset)) {
     archives_.push_back(std::move(reader));
   }
 }
@@ -211,15 +245,8 @@ PonscripterAssets::discoverScripts() const {
   // Binary-verified PONscripter script search order:
   // 0.utf, 00.utf .. 99.utf (then 0.txt, 00.txt .. 99.txt)
   std::set<std::string> seenNorms;
-  bool manifestFreeHttp = false;
-#ifdef __EMSCRIPTEN__
-  if (auto remote = Kotonoha::Filesystem::remoteGameAssets())
-    manifestFreeHttp = remote->manifestFree() && !remote->hasManifestIndex();
-#endif
   for (const char *ext : {"utf", "txt"}) {
-    int consecutiveMissing = 0;
     for (int i = 0; i <= 99; ++i) {
-      bool foundAtIndex = false;
       char buf1[32];
       char buf2[32];
       std::snprintf(buf1, sizeof(buf1), "%d.%s", i, ext);
@@ -229,22 +256,12 @@ PonscripterAssets::discoverScripts() const {
         if (seenNorms.count(norm))
           continue;
         if (containsAsset(cand)) {
-          foundAtIndex = true;
           seenNorms.insert(norm);
           const auto bytes = readAsset(cand);
           std::string text(reinterpret_cast<const char *>(bytes.data()),
                            bytes.size());
           scripts.emplace_back(cand, std::move(text));
         }
-      }
-      if (manifestFreeHttp) {
-        // Without a remote directory index, 0..99 would cause 200 HEADs.
-        // Most script sets are contiguous: stop after four absent indices,
-        // or after eight probes with no script at all.
-        consecutiveMissing = foundAtIndex ? 0 : consecutiveMissing + 1;
-        if ((!scripts.empty() && consecutiveMissing >= 4) ||
-            (scripts.empty() && i >= 8))
-          break;
       }
     }
     if (!scripts.empty())

@@ -8,6 +8,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -80,6 +81,7 @@ struct Value {
 struct Object {
   enum class Kind {
     Dictionary,
+    Array,
     Window,
     Layer,
     ScriptClass
@@ -87,7 +89,10 @@ struct Object {
   std::string className;
   std::unordered_map<std::string, Value> members;
   std::weak_ptr<Object> parent;
+  std::vector<Value> elements; // bounded source TJS2 Array values
   std::size_t layerId = 0;
+  std::vector<TjsUiText> texts;
+  std::vector<TjsUiRect> rectangles;
 };
 
 struct Token {
@@ -209,7 +214,8 @@ std::vector<Token> lex(const std::string &source) {
         continue;
       }
     }
-    if (std::string("{}();,.=+-*/!<>").find(source[i]) == std::string::npos)
+    if (std::string("{}();,.=+-*/%!?<>:[]").find(source[i]) ==
+        std::string::npos)
       throw std::runtime_error(
           "TJS2 subset: unsupported lexical token at byte " +
           std::to_string(i));
@@ -310,6 +316,29 @@ public:
     throw std::runtime_error("TJS2 subset: callback not found: " + name);
   }
   void snapshotLayers();
+  static std::size_t checkedIndex(const Value &value) {
+    const auto n = value.number();
+    if (!std::isfinite(n) || n < 0 || n >= 4096 || std::floor(n) != n)
+      throw std::runtime_error("TJS2 subset: invalid Array index");
+    return static_cast<std::size_t>(n);
+  }
+  Value indexed(const Value &array, const Value &index) const {
+    const auto object = std::get_if<ObjectPtr>(&array.data);
+    if (!object || !*object || (*object)->kind != Object::Kind::Array)
+      throw std::runtime_error("TJS2 subset: indexed value is not Array");
+    const auto n = checkedIndex(index);
+    return n < (*object)->elements.size() ? (*object)->elements[n] : Value();
+  }
+  void setIndex(const std::string &name, const Value &index, Value value) {
+    const auto array = get(name);
+    const auto object = std::get_if<ObjectPtr>(&array.data);
+    if (!object || !*object || (*object)->kind != Object::Kind::Array)
+      throw std::runtime_error("TJS2 subset: indexed target is not Array");
+    const auto n = checkedIndex(index);
+    if ((*object)->elements.size() <= n)
+      (*object)->elements.resize(n + 1);
+    (*object)->elements[n] = std::move(value);
+  }
 
   Value get(const std::string &name) const {
     // Exact qualified built-ins like System.title remain supported.
@@ -331,11 +360,15 @@ public:
       if (!ptr || !*ptr)
         throw std::runtime_error(
             "TJS2 subset: property read on non-Dictionary");
-      const auto found = (*ptr)->members.find(key);
-      if (found == (*ptr)->members.end())
-        throw std::runtime_error("TJS2 subset: missing Dictionary property: " +
-                                 key);
-      current = found->second;
+      if ((*ptr)->kind == Object::Kind::Array && key == "length") {
+        current = Value(static_cast<double>((*ptr)->elements.size()));
+      } else {
+        const auto found = (*ptr)->members.find(key);
+        if (found == (*ptr)->members.end())
+          throw std::runtime_error(
+              "TJS2 subset: missing Dictionary property: " + key);
+        current = found->second;
+      }
       if (next == std::string::npos)
         break;
       first = next + 1;
@@ -479,6 +512,21 @@ class Parser {
           std::move(parameters)};
       return Value(functionName);
     }
+    if (match("[")) {
+      auto array = std::make_shared<Object>();
+      array->kind = Object::Kind::Array;
+      if (!match("]")) {
+        do {
+          if (array->elements.size() >= 4096)
+            throw std::runtime_error("TJS2 subset: Array limit exceeded");
+          auto item = expression(active);
+          if (active)
+            array->elements.push_back(std::move(item));
+        } while (match(","));
+        expect("]");
+      }
+      return active ? Value(std::move(array)) : Value();
+    }
     if (match("new")) {
       const auto type = identifier();
       std::vector<Value> args;
@@ -525,6 +573,16 @@ class Parser {
       return {};
     while (match("."))
       name += "." + identifier();
+    if (match("[")) {
+      Value result = active ? machine.get(name) : Value();
+      do {
+        const auto index = expression(active);
+        expect("]");
+        if (active)
+          result = machine.indexed(result, index);
+      } while (match("["));
+      return result;
+    }
     if (match("(")) {
       std::vector<Value> args;
       if (!match(")")) {
@@ -556,16 +614,18 @@ class Parser {
   }
   Value product(bool active) {
     auto lhs = unary(active);
-    while (look().text == "*" || look().text == "/") {
+    while (look().text == "*" || look().text == "/" || look().text == "%") {
       const auto op = tokens[pc++].text;
       const auto rhs = unary(active);
       if (!active)
         continue;
       const auto denominator = rhs.number();
-      if (op == "/" && denominator == 0)
+      if ((op == "/" || op == "%") && denominator == 0)
         throw std::runtime_error("TJS2 subset: division by zero");
-      lhs = Value(op == "*" ? lhs.number() * denominator
-                            : lhs.number() / denominator);
+      const auto numerator = lhs.number();
+      lhs = Value(op == "*"   ? numerator * denominator
+                  : op == "/" ? numerator / denominator
+                              : std::fmod(numerator, denominator));
     }
     return lhs;
   }
@@ -635,7 +695,16 @@ class Parser {
     }
     return lhs;
   }
-  Value expression(bool active) { return disjunction(active); }
+  Value expression(bool active) {
+    auto test = disjunction(active);
+    if (!match("?"))
+      return test;
+    const bool condition = active && test.truthy();
+    auto whenTrue = expression(condition);
+    expect(":");
+    auto whenFalse = expression(active && !condition);
+    return !active ? Value() : (condition ? whenTrue : whenFalse);
+  }
 
   void statement(bool active) {
     machine.tick();
@@ -882,6 +951,28 @@ class Parser {
       auto name = identifier();
       while (match("."))
         name += "." + identifier();
+      if (match("[")) {
+        const auto index = expression(active);
+        expect("]");
+        if (match("=") || match("+=")) {
+          const auto op = tokens[pc - 1].text;
+          auto value = expression(active);
+          expect(";");
+          if (active) {
+            if (op == "+=") {
+              const auto before = machine.indexed(machine.get(name), index);
+              if (std::holds_alternative<std::string>(before.data) ||
+                  std::holds_alternative<std::string>(value.data))
+                value = Value(before.string() + value.string());
+              else
+                value = Value(before.number() + value.number());
+            }
+            machine.setIndex(name, index, value);
+          }
+          return;
+        }
+        pc = saved;
+      }
       if (match("++") || match("--")) {
         const auto op = tokens[pc - 1].text;
         expect(";");
@@ -978,6 +1069,12 @@ Value Interpreter::construct(const std::string &type,
     layer->members["order"] = integer(int(layer->layerId));
     layer->members["visible"] = Value(true);
     layer->members["enabled"] = Value(true);
+    // KiriKiri exposes Layer.font as a mutable object. Only sizing and
+    // coloring used by drawText are projected into the Kotonoha UI.
+    auto font = std::make_shared<Object>();
+    font->members["height"] = integer(24);
+    font->members["color"] = integer(0xffffff);
+    layer->members["font"] = Value(std::move(font));
     layers.push_back(layer);
     return layer;
   };
@@ -1020,6 +1117,17 @@ Value Interpreter::construct(const std::string &type,
           "TJS2 subset: constructor arguments without declared constructor");
     }
     return Value(instance);
+  }
+  if (type == "Array") {
+    if (args.size() > 1)
+      throw std::runtime_error("TJS2 subset: Array accepts 0 or 1 lengths");
+    auto array = std::make_shared<Object>();
+    array->kind = Object::Kind::Array;
+    if (!args.empty()) {
+      const auto length = checkedIndex(args.front());
+      array->elements.resize(length);
+    }
+    return Value(std::move(array));
   }
   if (type == "Dictionary") {
     if (!args.empty())
@@ -1079,6 +1187,19 @@ Value Interpreter::construct(const std::string &type,
 
 void Interpreter::snapshotLayers() {
   result.layers.clear();
+  result.onKeyDown.clear();
+  for (const auto &window : windows) {
+    const auto callback = window->members.find("onKeyDown");
+    if (callback == window->members.end())
+      continue;
+    const auto name = callback->second.string();
+    if (name.empty())
+      continue;
+    if (name.size() > 128 || !hasCallable(name))
+      throw std::runtime_error(
+          "TJS2 UI: Window.onKeyDown must name a declared script function");
+    result.onKeyDown = name;
+  }
   const auto member = [](const ObjectPtr &object, const char *name) -> Value {
     const auto found = object->members.find(name);
     return found == object->members.end() ? Value() : found->second;
@@ -1102,6 +1223,8 @@ void Interpreter::snapshotLayers() {
     frame.opacity = bounded(layer, "opacity", 255, 0, 255);
     frame.visible = member(layer, "visible").truthy();
     frame.enabled = member(layer, "enabled").truthy();
+    frame.texts = layer->texts;
+    frame.rectangles = layer->rectangles;
     frame.storage = member(layer, "storage").string();
     if (!frame.storage.empty())
       frame.storage = safeName(frame.storage);
@@ -1123,6 +1246,8 @@ void Interpreter::snapshotLayers() {
           "TJS2 UI: onClick must name a declared script function");
     frame.onMouseEnter = callback("onMouseEnter");
     frame.onMouseLeave = callback("onMouseLeave");
+    frame.onMouseUp = callback("onMouseUp");
+    frame.onMouseMove = callback("onMouseMove");
     int x = 0, y = 0;
     int alpha = frame.opacity;
     auto owner = layer;
@@ -1187,8 +1312,29 @@ Value Interpreter::call(const std::string &name,
   const auto dot = name.rfind('.');
   if (dot != std::string::npos) {
     const auto method = name.substr(dot + 1);
+    if (method == "push" || method == "pop") {
+      const auto receiver = get(name.substr(0, dot));
+      const auto object = std::get_if<ObjectPtr>(&receiver.data);
+      if (!object || !*object || (*object)->kind != Object::Kind::Array)
+        throw std::runtime_error("TJS2 subset: Array method receiver expected");
+      auto &elements = (*object)->elements;
+      if (method == "pop") {
+        if (!params.empty())
+          throw std::runtime_error("TJS2 subset: Array.pop takes no arguments");
+        if (elements.empty())
+          return {};
+        Value item = std::move(elements.back());
+        elements.pop_back();
+        return item;
+      }
+      if (params.size() != 1 || elements.size() >= 4096)
+        throw std::runtime_error("TJS2 subset: Array.push limit or arity");
+      elements.push_back(params.front());
+      return Value(static_cast<double>(elements.size()));
+    }
     if (method == "loadImages" || method == "setImage" || method == "setPos" ||
-        method == "setSize" || method == "show" || method == "hide") {
+        method == "setSize" || method == "show" || method == "hide" ||
+        method == "drawText" || method == "clearText" || method == "fillRect") {
       const auto receiver = get(name.substr(0, dot));
       const auto ptr = std::get_if<ObjectPtr>(&receiver.data);
       if (!ptr || !*ptr ||
@@ -1216,6 +1362,76 @@ Value Interpreter::call(const std::string &name,
         if (params.size() != 1)
           throw std::runtime_error("TJS2 UI: loadImages needs one storage ID");
         obj->members["storage"] = Value(safeName(params.front().string()));
+        return {};
+      }
+      if (method == "clearText") {
+        if (!params.empty())
+          throw std::runtime_error("TJS2 UI: clearText takes no arguments");
+        obj->texts.clear();
+        return {};
+      }
+      if (method == "fillRect") {
+        if (params.size() < 5 || params.size() > 6)
+          throw std::runtime_error("TJS2 UI: fillRect needs 5-6 arguments");
+        if (obj->rectangles.size() >= 256)
+          throw std::runtime_error("TJS2 UI: rectangle count limit exceeded");
+        TjsUiRect rect;
+        rect.left = static_cast<int>(integer(0).number());
+        rect.top = static_cast<int>(integer(1).number());
+        rect.width = static_cast<int>(integer(2).number());
+        rect.height = static_cast<int>(integer(3).number());
+        if (rect.width <= 0 || rect.height <= 0)
+          throw std::runtime_error("TJS2 UI: fillRect dimensions invalid");
+        const auto color = params.at(4).number();
+        if (!std::isfinite(color) || color < 0 || color > 4294967295.0)
+          throw std::runtime_error("TJS2 UI: fillRect color invalid");
+        rect.rgb = static_cast<std::uint32_t>(color) & 0xffffffu;
+        if (params.size() == 6) {
+          const auto opacity = params.at(5).number();
+          if (!std::isfinite(opacity) || opacity < 0 || opacity > 255)
+            throw std::runtime_error("TJS2 UI: fillRect opacity invalid");
+          rect.opacity = static_cast<int>(opacity);
+        }
+        obj->rectangles.push_back(rect);
+        return {};
+      }
+      if (method == "drawText") {
+        if (params.size() < 3 || params.size() > 6)
+          throw std::runtime_error("TJS2 UI: drawText needs 3-6 arguments");
+        if (obj->texts.size() >= 256)
+          throw std::runtime_error("TJS2 UI: text operation limit exceeded");
+        TjsUiText run;
+        run.left = static_cast<int>(integer(0).number());
+        run.top = static_cast<int>(integer(1).number());
+        run.text = params.at(2).string();
+        if (run.text.size() > 4096)
+          throw std::runtime_error("TJS2 UI: text size limit exceeded");
+        if (params.size() >= 4) {
+          const double color = params.at(3).number();
+          if (!std::isfinite(color) || color < 0 || color > 4294967295.0)
+            throw std::runtime_error("TJS2 UI: invalid text color");
+          run.rgb = static_cast<std::uint32_t>(color) & 0xffffffu;
+        }
+        if (params.size() >= 5) {
+          const double alpha = params.at(4).number();
+          if (!std::isfinite(alpha) || alpha < 0 || alpha > 255)
+            throw std::runtime_error("TJS2 UI: invalid text opacity");
+          run.opacity = static_cast<int>(alpha);
+        }
+        const auto font = obj->members.find("font");
+        if (font != obj->members.end()) {
+          if (const auto ptr = std::get_if<ObjectPtr>(&font->second.data);
+              ptr && *ptr) {
+            if (auto height = (*ptr)->members.find("height");
+                height != (*ptr)->members.end()) {
+              const double points = height->second.number();
+              if (!std::isfinite(points) || points < -256 || points > 256)
+                throw std::runtime_error("TJS2 UI: invalid font height");
+              run.size = std::max(8, static_cast<int>(std::abs(points)));
+            }
+          }
+        }
+        obj->texts.push_back(std::move(run));
         return {};
       }
       if (params.size() != 2)
@@ -1303,8 +1519,9 @@ void Interpreter::runFile(std::string id, std::size_t depth) {
 class TjsUiSession {
 public:
   explicit TjsUiSession(const KirikiriAssets &assets, std::size_t budget)
-      : vm(assets, budget) {}
+      : vm(assets, budget), eventBudget(std::min<std::size_t>(budget, 4096)) {}
   Interpreter vm;
+  std::size_t eventBudget = 4096;
   std::size_t hoveredLayer = 0;
 };
 
@@ -1329,6 +1546,33 @@ TjsStartupResult runTjsStartupSubset(const KirikiriAssets &assets,
   return output;
 }
 
+bool executeTjsInlineSubset(TjsStartupResult &result,
+                            const KirikiriAssets &assets,
+                            const std::string &source,
+                            const std::string &sourceName,
+                            std::size_t instructionBudget) {
+  auto session = result.uiSession;
+  if (!session)
+    session = std::make_shared<TjsUiSession>(assets, instructionBudget);
+  auto &vm = session->vm;
+  vm.remaining = instructionBudget;
+  vm.result.kagEntry.clear();
+  vm.result.error.clear();
+  bool success = false;
+  try {
+    Parser parser(vm, sourceName.empty() ? "inline.ks" : sourceName, source);
+    parser.run();
+    vm.snapshotLayers();
+    vm.result.subsetCompleted = true;
+    success = true;
+  } catch (const std::exception &error) {
+    vm.result.error = std::string("TJS2 inline: ") + error.what();
+  }
+  result = vm.result;
+  result.uiSession = std::move(session);
+  return success;
+}
+
 bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
   auto session = result.uiSession;
   if (!session || !result.subsetCompleted || !std::isfinite(x) ||
@@ -1344,6 +1588,7 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
         y >= double(layer.top) + layer.height)
       continue;
     auto &vm = session->vm;
+    vm.remaining = session->eventBudget;
     vm.result.kagEntry.clear();
     try {
       std::vector<Value> arguments;
@@ -1368,6 +1613,117 @@ bool dispatchTjsUiClick(TjsStartupResult &result, float x, float y) {
     return true;
   }
   return false;
+}
+
+bool dispatchTjsUiMouseUp(TjsStartupResult &result, float x, float y) {
+  auto session = result.uiSession;
+  if (!session || !result.subsetCompleted || !std::isfinite(x) ||
+      !std::isfinite(y))
+    return false;
+  for (auto it = result.layers.rbegin(); it != result.layers.rend(); ++it) {
+    const auto &layer = *it;
+    if (!layer.visible || !layer.enabled || layer.opacity == 0 ||
+        layer.width <= 0 || layer.height <= 0 || layer.onMouseUp.empty())
+      continue;
+    if (x < layer.left || y < layer.top ||
+        x >= double(layer.left) + layer.width ||
+        y >= double(layer.top) + layer.height)
+      continue;
+    auto &vm = session->vm;
+    vm.remaining = session->eventBudget;
+    vm.result.kagEntry.clear();
+    try {
+      const auto arity = vm.callableArity(layer.onMouseUp);
+      if (arity > 4)
+        throw std::runtime_error("TJS2 UI: excessive release parameters");
+      std::vector<Value> args;
+      if (arity >= 1)
+        args.emplace_back(double(x));
+      if (arity >= 2)
+        args.emplace_back(double(y));
+      if (arity >= 3)
+        args.emplace_back(1.0);
+      if (arity >= 4)
+        args.emplace_back(0.0);
+      vm.call(layer.onMouseUp, args, {}, true);
+      vm.snapshotLayers();
+    } catch (const std::exception &error) {
+      vm.result.error = std::string("TJS2 UI mouse-up: ") + error.what();
+    }
+    result = vm.result;
+    result.uiSession = std::move(session);
+    return true;
+  }
+  return false;
+}
+
+bool dispatchTjsUiMouseMove(TjsStartupResult &result, float x, float y) {
+  auto session = result.uiSession;
+  if (!session || !result.subsetCompleted || !std::isfinite(x) ||
+      !std::isfinite(y))
+    return false;
+  for (auto it = result.layers.rbegin(); it != result.layers.rend(); ++it) {
+    const auto &layer = *it;
+    if (!layer.visible || !layer.enabled || layer.opacity == 0 ||
+        layer.width <= 0 || layer.height <= 0 || layer.onMouseMove.empty())
+      continue;
+    if (x < layer.left || y < layer.top ||
+        x >= double(layer.left) + layer.width ||
+        y >= double(layer.top) + layer.height)
+      continue;
+    auto &vm = session->vm;
+    vm.remaining = session->eventBudget;
+    vm.result.kagEntry.clear();
+    try {
+      const auto arity = vm.callableArity(layer.onMouseMove);
+      if (arity > 4)
+        throw std::runtime_error("TJS2 UI: excessive motion parameters");
+      std::vector<Value> args;
+      if (arity >= 1)
+        args.emplace_back(double(x));
+      if (arity >= 2)
+        args.emplace_back(double(y));
+      if (arity >= 3)
+        args.emplace_back(0.0); // no mouse button change
+      if (arity >= 4)
+        args.emplace_back(0.0); // no modifiers
+      vm.call(layer.onMouseMove, args, {}, true);
+      vm.snapshotLayers();
+    } catch (const std::exception &error) {
+      vm.result.error = std::string("TJS2 UI mouse-move: ") + error.what();
+    }
+    result = vm.result;
+    result.uiSession = std::move(session);
+    return true;
+  }
+  return false;
+}
+
+bool dispatchTjsUiKeyDown(TjsStartupResult &result, int virtualKey) {
+  auto session = result.uiSession;
+  if (!session || !result.subsetCompleted || result.onKeyDown.empty() ||
+      virtualKey < 1 || virtualKey > 255)
+    return false;
+  auto &vm = session->vm;
+  vm.remaining = session->eventBudget;
+  vm.result.kagEntry.clear();
+  try {
+    const auto arity = vm.callableArity(result.onKeyDown);
+    if (arity > 2)
+      throw std::runtime_error("TJS2 UI: excessive key event parameters");
+    std::vector<Value> args;
+    if (arity >= 1)
+      args.emplace_back(double(virtualKey));
+    if (arity >= 2)
+      args.emplace_back(0.0); // keyboard modifiers
+    vm.call(result.onKeyDown, args, {}, true);
+    vm.snapshotLayers();
+  } catch (const std::exception &error) {
+    vm.result.error = std::string("TJS2 UI key-down: ") + error.what();
+  }
+  result = vm.result;
+  result.uiSession = std::move(session);
+  return true;
 }
 
 bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
@@ -1403,6 +1759,7 @@ bool dispatchTjsUiHover(TjsStartupResult &result, float x, float y) {
   }
   session->hoveredLayer = next;
   auto &vm = session->vm;
+  vm.remaining = session->eventBudget;
   bool called = false;
   try {
     const auto invoke = [&](const std::string &name) {

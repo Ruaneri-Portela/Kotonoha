@@ -4,6 +4,7 @@
 #include <Kotonoha/core/Clock.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/localization/Translation.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <memory>
 #include <string>
 #include <utility>
@@ -52,15 +53,26 @@ class DebugOverlay {
   // Node lists are expensive (whole KTRF graphs); refreshed on demand only.
   std::vector<DebugNode> cachedRuntimeNodes, cachedEngineNodes;
   bool nodesStale = true;
+  std::string lastNodeCatalogKey;
   void refreshNodes();
   char assetPath[1024]{};
   std::string previewAsset;
   std::string previewError;
+  bool dumpOriginalAsset = false;
+  std::string assetDumpStatus;
+  bool assetDumpError = false;
   float previewSeconds = 0;
   TexturePtr previewTexture;
   AudioStreamPtr previewAudio;
   std::shared_ptr<AudioChannel> previewChannel;
   std::vector<std::string> browsedAssets;
+  bool showAssetTextViewer = false;
+  std::string textAssetId;
+  std::vector<Uint8> textAssetBytes;
+  std::string textAssetContent;
+  std::string textAssetError;
+  int textAssetEncoding = 0;
+  bool textAssetTruncated = false;
   bool showTranslationWindow = false;
   bool showOptionsWindow = false;
   bool showDubbingWindow = false;
@@ -78,10 +90,14 @@ class DebugOverlay {
   Translation::SourceTexts cachedRuntimeSources;
   std::vector<std::string> cachedAllNodeKeys;
   bool transSourcesStale = true;
+  std::string lastTranslationCatalogKey;
   void refreshTranslationSources();
   void drawKtrfTools();
   void drawRuntimeNodes(const std::vector<DebugNode> &nodes);
   void drawAssets(const std::vector<std::string> &assets);
+  void openAssetTextViewer(const std::string &id);
+  void decodeAssetText();
+  void drawAssetTextViewer();
   void stopPreviewAudio();
   void drawInspector();
   void drawTranslationExport();
@@ -92,6 +108,9 @@ class DebugOverlay {
   void drawDubbingWindow();
   void drawInfoWindow();
   void drawMenuBar();
+  void takeScreenshot(RendererRef renderer);
+  bool screenshotPending = false;
+  ImageFormat screenshotFormat = ImageFormat::Png;
   void drawInterfaceTools();
   void drawAudioTools();
   void drawDubbingTools();
@@ -115,7 +134,7 @@ public:
   void openOptions() { showOptionsWindow = true; }
   bool isVisible() const {
     return visible || showOptionsWindow || showTranslationWindow ||
-           showDubbingWindow || showInfoWindow;
+           showDubbingWindow || showInfoWindow || showAssetTextViewer;
   }
   bool pausesStory() const { return isVisible() && !settings.ignorePause; }
   void setVisible(bool value);

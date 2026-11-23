@@ -171,6 +171,20 @@ const char *UpscaleBackendName(UpscaleBackend backend) {
   return "Unknown";
 }
 
+bool SupportsPerTexture(UpscaleBackend backend) {
+  switch (backend) {
+  case UpscaleBackend::MetalFX:
+    // Temporal spatial scaler: only meaningful on the composed frame.
+    return false;
+  case UpscaleBackend::None: // No pipeline: the plain SDL draw is used.
+  case UpscaleBackend::Linear: // Texture-local copy.
+  case UpscaleBackend::MPV: // Anime4K/ArtCNN shader chains are texture-local.
+  case UpscaleBackend::Auto: // Resolved to a concrete backend before drawing.
+    return true;
+  }
+  return true;
+}
+
 std::vector<std::string> UpscaleShaderFiles(const std::string &files) {
   std::vector<std::string> result;
   const bool lines = files.find('\n') != std::string::npos;
@@ -294,6 +308,10 @@ UpscaleBackend Upscaling::activeBackend() const {
   return implementation ? implementation->backend() : UpscaleBackend::None;
 }
 
+bool Upscaling::supportsPerTexture() const {
+  return SupportsPerTexture(activeBackend());
+}
+
 void Upscaler::configure(const UpscaleSettings &value) {
   value.validate();
   if (!isAvaliable())
@@ -325,6 +343,8 @@ void Upscaler::clear() {
 }
 
 SDL_Texture &Upscaler::process(TextureRef texture, Uint64 contentSerial) {
+  if (IsTTFTextRaster(texture))
+    return texture;
   if (!settings.enabled())
     return texture;
   const auto identity = SDL_GetTextureProperties(&texture);
@@ -416,6 +436,8 @@ void Upscaling::configure(const UpscaleSettings &value) {
 }
 
 SDL_Texture &Upscaling::process(TextureRef texture, Uint64 serial) {
+  if (IsTTFTextRaster(texture))
+    return texture;
   if (!implementation)
     return texture;
   try {
@@ -496,6 +518,8 @@ void Upscaling::clear() {
 }
 
 TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
+  if (IsTTFTextRaster(texture) && scale != 1.0f)
+    throw std::invalid_argument("SDL_ttf text must not be upscaled");
   if (!std::isfinite(scale) || scale <= 0 || scale > 16)
     throw std::invalid_argument("Scale must be in (0, 16]");
   const int w = std::max(1, static_cast<int>(std::lround(texture.w * scale)));
@@ -557,6 +581,8 @@ TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
 }
 
 SurfacePtr Upscaling::scaled(const SDL_Surface &surface, float scale) {
+  if (IsTTFTextRaster(surface) && scale != 1.0f)
+    throw std::invalid_argument("SDL_ttf surfaces must not be upscaled");
   TexturePtr input(SDL_CreateTextureFromSurface(
       &renderer, const_cast<SDL_Surface *>(&surface)));
   if (!input)
@@ -601,9 +627,19 @@ bool RenderUpscaledTextureRotated(SDL_Renderer *renderer, SDL_Texture *texture,
   };
   auto *pipeline = Upscaling::forRenderer(*renderer);
   if (!pipeline || !pipeline->getSettings().enabled() ||
+      IsTTFTextRaster(*texture) ||
       SDL_GetBooleanProperty(SDL_GetTextureProperties(texture),
                              "kotonoha.upscaled", false))
     return draw(texture, source);
+
+  // MetalFX (and any future whole-frame-only backend) must not be applied
+  // here: a temporal scaler needs the complete composed frame and cannot
+  // reproject independent sprites. The host runs it once at presentation via
+  // UpscaleWholeFrameWithMetalFX(); draw each texture with ordinary SDL
+  // scaling instead, without even touching the per-texture pipeline.
+  if (!pipeline->supportsPerTexture())
+    return draw(texture, source);
+
   auto &processed = pipeline->process(*texture, contentSerial);
   Uint8 r, g, b, a;
   SDL_GetTextureColorMod(texture, &r, &g, &b);
@@ -626,8 +662,16 @@ bool RenderUpscaledTextureRotated(SDL_Renderer *renderer, SDL_Texture *texture,
 } // namespace Kotonoha
 
 #else  // !KOTONOHA_ENABLE_UPSCALER
+#include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 // OFF builds keep only the SDL render path required by game ports.
 // No GPU upscale backends, shaders, caches, or renderer property hooks.
+// MetalFXUpscaler.cpp is excluded from OFF builds, so provide the host-facing
+// whole-frame helper here as well (see MetalFXUpscaler.hpp).
+bool UpscaleWholeFrameWithMetalFX(SDL_Renderer *, SDL_Texture *,
+                                  SDL_Texture *) {
+  return SDL_SetError(
+      "UpscaleWholeFrameWithMetalFX: MetalFX is unavailable in this build");
+}
 Upscaler::Upscaler(RendererRef value) : renderer(value) {}
 Upscaler::~Upscaler() = default;
 Uint64 Upscaler::retryDeadline() const { return 0; }
@@ -652,6 +696,9 @@ UpscaleBackend Upscaling::resolve(UpscaleBackend) const {
   return UpscaleBackend::None;
 }
 UpscaleBackend Upscaling::activeBackend() const { return UpscaleBackend::None; }
+bool Upscaling::supportsPerTexture() const {
+  return SupportsPerTexture(activeBackend());
+}
 void Upscaling::clearTextureCaches() { textureCaches.clear(); }
 void Upscaling::configure(const UpscaleSettings &) {
   settings = {};
@@ -663,6 +710,8 @@ const Upscaler *Upscaling::getImplementation() const { return nullptr; }
 SDL_Texture &Upscaling::process(TextureRef texture, Uint64) { return texture; }
 void Upscaling::clear() {}
 TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
+  if (IsTTFTextRaster(texture) && scale != 1.0f)
+    throw std::invalid_argument("SDL_ttf text must not be upscaled");
   if (!std::isfinite(scale) || scale <= 0 || scale > 16)
     throw std::invalid_argument("Scale must be in (0, 16]");
   const int w = std::max(1, static_cast<int>(std::lround(texture.w * scale)));
@@ -690,6 +739,8 @@ TexturePtr Upscaling::scaled(TextureRef texture, float scale) {
   return result;
 }
 SurfacePtr Upscaling::scaled(const SDL_Surface &surface, float scale) {
+  if (IsTTFTextRaster(surface) && scale != 1.0f)
+    throw std::invalid_argument("SDL_ttf surfaces must not be upscaled");
   if (!std::isfinite(scale) || scale <= 0 || scale > 16)
     throw std::invalid_argument("Scale must be in (0, 16]");
   const int w = std::max(1, static_cast<int>(std::lround(surface.w * scale)));

@@ -53,13 +53,20 @@ def validate_fork_retained_git_safety():
 
 def validate():
     manifest = json.loads((XCODE / "ProjectManifest.json").read_text(encoding="utf-8"))
+    # All native macOS app targets invoke ConfigureMacOSIcon.sh. Ensure the
+    # actual binary resource exists, not just a reference in ProjectManifest.
+    icon = (ROOT / "assets" / "icon.icns").read_bytes()
+    require(len(icon) >= 8 and icon[:4] == b"icns" and
+            int.from_bytes(icon[4:8], "big") == len(icon),
+            "Missing or malformed shared macOS icon.icns")
+
     root = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     modules = ("KotonohaGames", "KotonohaAndroid", "KotonohaOptions", "KotonohaReport")
     positions = [root.index(name + ".cmake") for name in modules]
     require(positions == sorted(positions), "CMake includes must remain ordered")
     require(root.index("KotonohaAndroid.cmake") < root.index("project(Kotonoha"),
             "Android toolchain selection must precede project()")
-    matrix = (ROOT / "buildsystems/cmake/KotonohaGames.cmake").read_text(encoding="utf-8")
+    matrix = (ROOT / "buildsystems/cmake/games/KotonohaGames.cmake").read_text(encoding="utf-8")
     rows = re.findall(r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"', matrix)
     require(len(rows) == len(manifest["games"]), "Incorrect number of CMake games")
     require({path: slug for _, slug, path in rows} ==

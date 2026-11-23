@@ -51,34 +51,39 @@ void CheckControlRect(int control, Variant variant, float x, float y, float w,
 } // namespace
 
 int main() {
-    try {
-        CheckLayout(Variant::Standard, 800, 600, 1.0f, 800.0f, 75.0f);
-        CheckLayout(Variant::Wide, 800, 450, 1.0f, 800.0f, 75.0f);
-        CheckLayout(Variant::WideFull, 1280, 720, 1.6f, 1280.0f, 120.0f);
-        CheckLayout(Variant::WideNote, 1024, 576, 1.28f, 1024.0f, 96.0f);
-        // Confirming a choice does NOT reveal a meter on its own. The meter
-        // appears only when the native feeling-change detector emits code3/4.
-        const auto idleTail = Presenter::VisibilityForFrozenChoiceTail(0, false, true);
-        const auto hoveredTail = Presenter::VisibilityForFrozenChoiceTail(200, false, true);
-        const auto hiddenTail = Presenter::VisibilityForFrozenChoiceTail(200, true, true);
-        const auto unchangedTail = Presenter::VisibilityForFrozenChoiceTail(0, false, false);
-        const auto unchangedHover = Presenter::VisibilityForFrozenChoiceTail(200, false, false);
-        Check(idleTail.meter && !idleTail.chrome && hoveredTail.meter &&
-                  !hoveredTail.chrome && hiddenTail.meter && !hiddenTail.chrome &&
-                  !unchangedTail.meter && !unchangedTail.chrome &&
-                  !unchangedHover.meter && !unchangedHover.chrome,
-              "frozen menu revealed stale hover chrome or unsupported Feel");
-        Presenter frozenMenu;
-        frozenMenu.SetChoiceTailFrozen(true);
-        Check(frozenMenu.ChoiceTailFrozen(), "post-choice lock did not latch");
-        frozenMenu.SetChoiceTailFrozen(false);
-        Check(!frozenMenu.ChoiceTailFrozen(), "post-choice lock did not release");
-        // SysMenu stores CMAP-1 in this+0xD4. Internal control12 is therefore
-        // raw CMAP value13; its case pushes ReMenu(3), the BackLog view.
-        CheckBackLogRect(Variant::Standard, 603.0f, 26.0f, 61.0f, 27.0f);
-        CheckBackLogRect(Variant::Wide, 603.0f, 26.0f, 61.0f, 27.0f);
-        CheckBackLogRect(Variant::WideFull, 965.0f, 41.0f, 97.0f, 44.0f);
-        CheckBackLogRect(Variant::WideNote, 772.0f, 33.0f, 78.0f, 35.0f);
+  try {
+    CheckLayout(Variant::Standard, 800, 600, 1.0f, 800.0f, 75.0f);
+    CheckLayout(Variant::Wide, 800, 450, 1.0f, 800.0f, 75.0f);
+    CheckLayout(Variant::WideFull, 1280, 720, 1.6f, 1280.0f, 120.0f);
+    CheckLayout(Variant::WideNote, 1024, 576, 1.28f, 1024.0f, 96.0f);
+    // Confirming a choice does NOT reveal a meter on its own. The meter
+    // appears only when the native feeling-change detector emits code3/4.
+    const auto idleTail =
+        Presenter::VisibilityForFrozenChoiceTail(0, false, true);
+    const auto hoveredTail =
+        Presenter::VisibilityForFrozenChoiceTail(200, false, true);
+    const auto hiddenTail =
+        Presenter::VisibilityForFrozenChoiceTail(200, true, true);
+    const auto unchangedTail =
+        Presenter::VisibilityForFrozenChoiceTail(0, false, false);
+    const auto unchangedHover =
+        Presenter::VisibilityForFrozenChoiceTail(200, false, false);
+    Check(idleTail.meter && !idleTail.chrome && hoveredTail.meter &&
+              !hoveredTail.chrome && hiddenTail.meter && !hiddenTail.chrome &&
+              !unchangedTail.meter && !unchangedTail.chrome &&
+              !unchangedHover.meter && !unchangedHover.chrome,
+          "frozen menu revealed stale hover chrome or unsupported Feel");
+    Presenter frozenMenu;
+    frozenMenu.SetChoiceTailFrozen(true);
+    Check(frozenMenu.ChoiceTailFrozen(), "post-choice lock did not latch");
+    frozenMenu.SetChoiceTailFrozen(false);
+    Check(!frozenMenu.ChoiceTailFrozen(), "post-choice lock did not release");
+    // SysMenu stores CMAP-1 in this+0xD4. Internal control12 is therefore
+    // raw CMAP value13; its case pushes ReMenu(3), the BackLog view.
+    CheckBackLogRect(Variant::Standard, 603.0f, 26.0f, 61.0f, 27.0f);
+    CheckBackLogRect(Variant::Wide, 603.0f, 26.0f, 61.0f, 27.0f);
+    CheckBackLogRect(Variant::WideFull, 965.0f, 41.0f, 97.0f, 44.0f);
+    CheckBackLogRect(Variant::WideNote, 772.0f, 33.0f, 78.0f, 35.0f);
 
         // SysMenuSDHQ v1.02 records 10..14 are the five ReMenu/top-level
         // controls: SAVE, LOAD, BackLog, Config, Main Menu.
@@ -541,4 +546,200 @@ int main() {
         std::cerr << ex.what() << '\n';
         return EXIT_FAILURE;
     }
+    double invalidRate = 0.0;
+    Check(!Kotonoha::SchoolDaysPlaybackPolicy::RateForIndex(-1, &invalidRate) &&
+              !Kotonoha::SchoolDaysPlaybackPolicy::RateForIndex(5,
+                                                                &invalidRate) &&
+              !Kotonoha::SchoolDaysPlaybackPolicy::RateForIndex(0, nullptr),
+          "School Days playback-rate mapping accepted invalid input");
+    Kotonoha::SchoolDaysPlaybackPolicy::Selection invalidSelection;
+    Check(
+        !Kotonoha::SchoolDaysPlaybackPolicy::SelectionForIndex(
+            -1, &invalidSelection) &&
+            !Kotonoha::SchoolDaysPlaybackPolicy::SelectionForIndex(
+                5, &invalidSelection) &&
+            !Kotonoha::SchoolDaysPlaybackPolicy::SelectionForIndex(0,
+                                                                   nullptr) &&
+            !Kotonoha::SchoolDaysPlaybackPolicy::SuppressesNarrativeAudioAtRate(
+                4.0) &&
+            Kotonoha::SchoolDaysPlaybackPolicy::SuppressesNarrativeAudioAtRate(
+                12.0) &&
+            Kotonoha::SchoolDaysPlaybackPolicy::SuppressesNarrativeAudioAtRate(
+                24.0),
+        "School Days retail audio suppression threshold drifted");
+
+    Check(Presenter::FadeAlpha(0, true, 0) == 0,
+          "MenuBar reveal start drifted");
+    Check(Presenter::FadeAlpha(0, true, 150) == 127,
+          "MenuBar 300ms reveal midpoint drifted");
+    Check(Presenter::FadeAlpha(0, true, 300) == 255,
+          "MenuBar reveal finish drifted");
+    Check(Presenter::FadeAlpha(255, false, 0) == 255,
+          "MenuBar hide start drifted");
+    Check(Presenter::FadeAlpha(255, false, 500) == 127,
+          "MenuBar 1000ms hide midpoint drifted");
+    Check(Presenter::FadeAlpha(255, false, 1000) == 0,
+          "MenuBar hide finish drifted");
+    Check(Presenter::FadeAlpha(100, true, 150) == 177,
+          "MenuBar interrupted reveal interpolation drifted");
+    Check(Presenter::FadeAlpha(100, false, 500) == 50,
+          "MenuBar interrupted hide interpolation drifted");
+
+    // The optional meter-only composition is a POST-selection delta
+    // effect; it must never be projected by an unresolved prompt.
+    const auto hidden = Presenter::VisibilityForState(0, false, false);
+    const auto ordinary = Presenter::VisibilityForState(255, false, false);
+    const auto suppressed = Presenter::VisibilityForState(255, true, false);
+    const auto meterOnlyHidden = Presenter::VisibilityForState(0, true, true);
+    const auto meterOnlyVisible =
+        Presenter::VisibilityForState(255, false, true);
+    const auto independentlyLatched =
+        Presenter::VisibilityForState(0, false, false, true);
+    const auto handoffLatched =
+        Presenter::VisibilityForState(0, true, false, true);
+    Check(!hidden.meter && !hidden.chrome && ordinary.meter &&
+              ordinary.chrome && !suppressed.meter && !suppressed.chrome &&
+              meterOnlyHidden.meter && !meterOnlyHidden.chrome &&
+              meterOnlyVisible.meter && !meterOnlyVisible.chrome &&
+              independentlyLatched.meter && !independentlyLatched.chrome &&
+              !handoffLatched.meter && !handoffLatched.chrome,
+          "Choice-tail meter-only visibility and independent latch drifted");
+
+    // Native SysMenu's chrome-fade setter explicitly skips feeling-meter
+    // sprites when host +0x154 reports a pending feeling update. The
+    // choice-only meter and frozen post-choice meter likewise remain at
+    // full opacity even when the mouse reveals/fades the surrounding bar.
+    const auto meterAlpha = Presenter::MeterAlphaForState;
+    Check(meterAlpha(0, false, false, true, false) == 255 &&
+              meterAlpha(120, true, false, true, false) == 255 &&
+              meterAlpha(120, true, true, false, false) == 255 &&
+              meterAlpha(120, true, false, false, true) == 255 &&
+              meterAlpha(0, false, true, false, false) == 255 &&
+              meterAlpha(120, true, false, false, false) == 120 &&
+              meterAlpha(255, true, false, false, false) == 255,
+          "Top Menu hover fade obscured the independent feeling meter");
+
+    // The retail selected-speed square and AUTO ON are full-opacity
+    // standalone sprites even while the ordinary hover chrome is hidden.
+    // Only the selected speed is suppressed by choice/scene transitions:
+    // when AUTO is ON its blue animated chip remains visible during the
+    // pending choice, changed-feeling meter and omitted-choice tail.
+    const auto persistentAuto = Presenter::PersistentTransportForState(
+        true, 0, true, false, false, false);
+    const auto persistentSpeed = Presenter::PersistentTransportForState(
+        false, 3, true, false, false, false);
+    const auto persistentBoth = Presenter::PersistentTransportForState(
+        true, 4, true, false, false, false);
+    const auto persistentOff = Presenter::PersistentTransportForState(
+        false, 0, true, false, false, false);
+    const auto persistentLocked = Presenter::PersistentTransportForState(
+        true, 2, true, true, false, false);
+    const auto persistentMeter = Presenter::PersistentTransportForState(
+        true, 2, true, false, false, true);
+    const auto persistentHandoff = Presenter::PersistentTransportForState(
+        true, 2, true, false, true, false);
+    const auto persistentSpeedDisabled = Presenter::PersistentTransportForState(
+        true, 2, false, false, false, false);
+    Check(!hidden.chrome && persistentAuto.autoOn &&
+              !persistentAuto.selectedSpeed && persistentSpeed.selectedSpeed &&
+              !persistentSpeed.autoOn && persistentBoth.autoOn &&
+              persistentBoth.selectedSpeed && !persistentOff.autoOn &&
+              !persistentOff.selectedSpeed && persistentLocked.autoOn &&
+              !persistentLocked.selectedSpeed &&
+              persistentSpeedDisabled.autoOn &&
+              !persistentSpeedDisabled.selectedSpeed &&
+              persistentMeter.autoOn && !persistentMeter.selectedSpeed &&
+              persistentHandoff.autoOn && !persistentHandoff.selectedSpeed,
+          "Choice and handoff hid persistent AUTO ON or exposed speed chrome");
+
+    // SysMenu 0x100252BA..0x10025323 takes AUTO-on GetTickCount epoch
+    // (EXE vtable+0x138, host+0x224), chooses 1000/(speedIndex+1) ms per
+    // frame and cycles through exactly 13 CHIP records 29..41.
+    const auto frame = Presenter::AutoLightRecordForTime;
+    Check(frame(1000, 1000, 0) == 29 && frame(1999, 1000, 0) == 29 &&
+              frame(2000, 1000, 0) == 30 && frame(13999, 1000, 0) == 41 &&
+              frame(14000, 1000, 0) == 29 && frame(1499, 1000, 1) == 29 &&
+              frame(1500, 1000, 1) == 30 && frame(7500, 1000, 1) == 29 &&
+              frame(1332, 1000, 2) == 29 && frame(1333, 1000, 2) == 30 &&
+              frame(1250, 1000, 3) == 30 && frame(1200, 1000, 4) == 30 &&
+              frame(3600, 1000, 4) == 29 &&
+              frame(0x20u, 0xfffffff0u, 0) == 29 && frame(999, 1000, 4) == 29 &&
+              frame(0, 0, -1) == -1 && frame(0, 0, 5) == -1,
+          "Retail AUTO 13-frame animation timing drifted");
+    for (int index = 0; index < 13; ++index) {
+      const auto record =
+          Presenter::FixedChipRecord(29 + index, Variant::Standard);
+      Near(record.destination.x, 6.0f,
+           "AUTO glint record destination x drifted");
+      Near(record.destination.y, 3.0f,
+           "AUTO glint record destination y drifted");
+      Near(record.destination.w, 106.0f, "AUTO glint record width drifted");
+      Near(record.destination.h, 19.0f, "AUTO glint record height drifted");
+    }
+
+    const auto standard = Presenter::LayoutForVariant(Variant::Standard);
+    auto vp = Presenter::FitViewport(1280, 720, standard);
+    Near(vp.scale, 1.2f, "Standard 720p scale mismatch");
+    Near(vp.x, 160.0f, "Standard 720p pillarbox mismatch");
+    Near(vp.y, 0.0f, "Standard 720p vertical placement mismatch");
+    Near(standard.barWidth * vp.scale, 960.0f,
+         "Standard 720p MenuBar width mismatch");
+    Near(standard.barHeight * vp.scale, 90.0f,
+         "Standard 720p MenuBar height mismatch");
+
+    const auto wide = Presenter::LayoutForVariant(Variant::Wide);
+    vp = Presenter::FitViewport(1280, 720, wide);
+    Near(vp.scale, 1.6f, "Wide 720p scale mismatch");
+    Near(vp.x, 0.0f, "Wide 720p unexpectedly pillarboxed");
+    Near(wide.barWidth * vp.scale, 1280.0f, "Wide 720p MenuBar width mismatch");
+
+    vp = Presenter::FitViewport(3440, 1440, wide);
+    Near(vp.scale, 3.2f, "Ultrawide aspect-fit scale mismatch");
+    Near(vp.x, 440.0f, "Ultrawide centered pillarbox mismatch");
+    Near(vp.y, 0.0f, "Ultrawide vertical placement mismatch");
+    Near(wide.barWidth * vp.scale, 2560.0f,
+         "Ultrawide MenuBar stretched beyond 16:9 viewport");
+
+    const auto wideFull = Presenter::LayoutForVariant(Variant::WideFull);
+    vp = Presenter::FitViewport(3840, 2160, wideFull);
+    Near(vp.scale, 3.0f, "WideFull 4K scale mismatch");
+    Near(vp.x, 0.0f, "WideFull 4K horizontal placement mismatch");
+    Near(wideFull.barHeight * vp.scale, 360.0f,
+         "WideFull 4K MenuBar height mismatch");
+
+    const auto wideNote = Presenter::LayoutForVariant(Variant::WideNote);
+    vp = Presenter::FitViewport(2560, 1440, wideNote);
+    Near(vp.scale, 2.5f, "WideNote 1440p scale mismatch");
+    Near(vp.x, 0.0f, "WideNote 1440p horizontal placement mismatch");
+
+    vp = Presenter::FitViewport(1366, 768, standard);
+    Near(vp.scale, 1.28f, "Standard 1366x768 scale mismatch");
+    Near(vp.x, 171.0f, "Standard 1366x768 pillarbox mismatch");
+
+    vp = Presenter::FitViewport(0, 1080, wide);
+    Check(vp.scale == 0.0f, "Invalid output did not fail closed");
+
+    std::cout << "SCHOOL DAYS MENUBAR MULTIRES GATE PASS\n"
+              << "logical_profiles=PASS\n"
+              << "standard_4_3_pillarbox=PASS\n"
+              << "wide_16_9_fill=PASS\n"
+              << "widefull_4k=PASS\n"
+              << "widenote_1440p=PASS\n"
+              << "backlog_control_raw13=PASS\n"
+              << "controls_0_24_geometry=PASS\n"
+              << "system_controls_normal_records_48_52=PASS\n"
+              << "normal_gameplay_availability=PASS\n"
+              << "native_hover_help_records_53_64=PASS\n"
+              << "replay_opacity_levels=PASS\n"
+              << "replay_strip_records_69_71=PASS\n"
+              << "transport_predicate_classes=PASS\n"
+              << "speed_vs_superskip_bases=PASS\n"
+              << "remenu_actions_10_14=PASS\n"
+              << "ultrawide_aspect_fit=PASS\n"
+              << "physical_resolution_independent=PASS\n";
+    return EXIT_SUCCESS;
+  } catch (const std::exception &ex) {
+    std::cerr << ex.what() << '\n';
+    return EXIT_FAILURE;
+  }
 }

@@ -3,6 +3,7 @@
 #include "SchoolDaysChineseFont.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <vector>
@@ -12,6 +13,7 @@
 
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 namespace Kotonoha {
 
@@ -19,6 +21,33 @@ namespace {
 
 std::string Utf16ToUtf8BackLog(const std::u16string &text) {
   return Kotonoha::Utf16ToUtf8(text);
+}
+
+// The bundled UI font and common Windows UI/CJK fonts do not necessarily
+// contain supplementary emoji. Only borrow a font from the Windows install;
+// a missing or unsupported system font is NOT a BackLog initialization error.
+TTF_Font *OpenWindowsEmojiFont(float pointSize) {
+#if defined(_WIN32) && !defined(__ANDROID__)
+  const char *windowsRoot = SDL_getenv("WINDIR");
+  if (windowsRoot == nullptr || *windowsRoot == '\0')
+    windowsRoot = SDL_getenv("SystemRoot");
+  if (windowsRoot == nullptr || *windowsRoot == '\0' || pointSize <= 0.0f)
+    return nullptr;
+
+  const auto path =
+      std::filesystem::u8path(windowsRoot) / "Fonts" / "seguiemj.ttf";
+  TTF_Font *candidate = TTF_OpenFont(path.u8string().c_str(), pointSize);
+  if (candidate == nullptr)
+    return nullptr;
+  if (!TTF_FontHasGlyph(candidate, 0x1F642u)) {
+    TTF_CloseFont(candidate);
+    return nullptr;
+  }
+  return candidate;
+#else
+  (void)pointSize;
+  return nullptr;
+#endif
 }
 
 } // namespace
@@ -95,6 +124,17 @@ bool SchoolDaysBackLogPresenter::Open(
     }
   }
   chineseFallbackFont_ = AttachSchoolDaysChineseFallback(font_).release();
+  // Preserve the requested CJK fallback first. Emoji is the last resort,
+  // added only when no earlier font in the chain can draw the smiley.
+  if (!TTF_FontHasGlyph(font_, 0x1F642u)) {
+    TTF_Font *candidate = OpenWindowsEmojiFont(TTF_GetFontSize(font_));
+    if (candidate != nullptr) {
+      if (TTF_AddFallbackFont(font_, candidate))
+        emojiFallbackFont_ = candidate;
+      else
+        TTF_CloseFont(candidate);
+    }
+  }
   text_ = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
                             SDL_TEXTUREACCESS_STREAMING, 2048, 1024);
   if (text_ == nullptr ||
@@ -128,9 +168,12 @@ void SchoolDaysBackLogPresenter::Close() {
     TTF_CloseFont(fallbackFont_);
   if (chineseFallbackFont_ != nullptr)
     TTF_CloseFont(chineseFallbackFont_);
+  if (emojiFallbackFont_ != nullptr)
+    TTF_CloseFont(emojiFallbackFont_);
   font_ = nullptr;
   fallbackFont_ = nullptr;
   chineseFallbackFont_ = nullptr;
+  emojiFallbackFont_ = nullptr;
   useEnglish_ = false;
   opened_ = false;
 }
@@ -254,7 +297,9 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
                  first.x);
       const auto size = SchoolDaysBackLogRenderPlan::FitTextRaster(
           span, rendered->w, rendered->h);
-      SDL_Rect destination{first.x, y, size.w, size.h};
+      // A smaller retail layout may shrink TTF text, never enlarge it.
+      SDL_Rect destination{first.x, y, std::min(size.w, rendered->w),
+                           std::min(size.h, rendered->h)};
       const bool blitted = SDL_BlitSurfaceScaled(
           rendered, nullptr, scratch, &destination, SDL_SCALEMODE_LINEAR);
       SDL_DestroySurface(rendered);
@@ -264,7 +309,8 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
       }
     }
   }
-  if (!SDL_UpdateTexture(text_, nullptr, scratch->pixels, scratch->pitch)) {
+  if (!MarkTTFTextRaster(*text_) ||
+      !SDL_UpdateTexture(text_, nullptr, scratch->pixels, scratch->pitch)) {
     SDL_DestroySurface(scratch);
     if (error != nullptr)
       *error = SDL_GetError();

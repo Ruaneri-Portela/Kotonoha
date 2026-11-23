@@ -1,8 +1,11 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/components/SubtitleScene.hpp>
+#include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/workers/EmbeddedSubtitleExtractor.hpp>
+#include <Kotonoha/workers/SubtitleWorker.hpp>
 
 #include <algorithm>
 #include <array>
@@ -13,7 +16,6 @@
 #include <filesystem>
 #include <iomanip>
 #include <limits>
-#include <list>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -70,7 +72,7 @@ std::string assEventText(const std::string &text) {
 }
 } // namespace
 
-struct SubtitleScene::State {
+struct SubtitleScene::State : workers::FrameSink {
   std::unique_ptr<ASS_Library, decltype(&ass_library_done)> library{
       ass_library_init(), ass_library_done};
   std::unique_ptr<ASS_Renderer, decltype(&ass_renderer_done)> renderer{
@@ -108,6 +110,51 @@ struct SubtitleScene::State {
   std::unordered_map<uint32_t, std::array<Uint32, 256>> colorLuts;
   std::string registeredVNFont;
 
+  // The worker owns libass rasterization; this state owns GPU resources and
+  // receives finished, owned frames on the main thread.
+  std::unique_ptr<workers::SubtitleWorker> worker;
+  SDL_Renderer *activeRenderer = nullptr;
+  uint64_t contentEpoch = 0;
+  bool haveFrame = false;
+  long long lastTimeMs = -1;
+  int lastWidth = 0, lastHeight = 0;
+  float lastScaleX = 0, lastScaleY = 0;
+  SDL_Renderer *lastRenderer = nullptr;
+  uint64_t lastEpoch = 0;
+
+  // Source composition. Only the winning script is loaded into libass; the
+  // other slots stay resident so priority changes are composable.
+  workers::SubtitleSourceDirector sources;
+  workers::SubtitleFontRegistry attachedFonts;
+  Engine &engineRef;
+  workers::SubtitleSourceKind loadedKind = workers::SubtitleSourceKind::None;
+  std::string loadedScript;
+  std::string openVideoId;
+  bool embeddedDecoderAvailable = false;
+  std::string embeddedReason;
+
+  workers::SubtitleSourceSelection applySource() {
+    const auto selection = sources.select();
+    if (selection.kind == loadedKind && selection.script == loadedScript)
+      return selection;
+    std::unique_ptr<ASS_Track, decltype(&ass_free_track)> parsed{
+        nullptr, ass_free_track};
+    if (!selection.script.empty()) {
+      std::string bytes = selection.script;
+      parsed.reset(
+          ass_read_memory(library.get(), bytes.data(), bytes.size(), nullptr));
+      if (!parsed || parsed->n_styles == 0)
+        throw std::runtime_error("Invalid ASS subtitle script");
+    }
+    track = std::move(parsed);
+    worker->setTrack(track.get());
+    appearanceInitialized = false;
+    invalidate();
+    loadedKind = selection.kind;
+    loadedScript = selection.script;
+    return selection;
+  }
+
   void recycle(TexturePtr texture, int w, int h) {
     if (!texture)
       return;
@@ -140,6 +187,7 @@ struct SubtitleScene::State {
       recycle(std::move(glyph.texture), glyph.bitmapWidth, glyph.bitmapHeight);
     glyphs.clear();
     cacheValid = false;
+    ++contentEpoch;
     if (discardPool) {
       texturePool.clear();
       poolBytes = 0;
@@ -162,13 +210,104 @@ struct SubtitleScene::State {
     return colorLuts.emplace(color, std::move(values)).first->second;
   }
 
-  State(Engine &engine) {
-    if (!library)
-      throw std::runtime_error("Cannot initialize libass");
-    ass_set_message_cb(library.get(), message, nullptr);
-    renderer.reset(ass_renderer_init(library.get()));
-    if (!renderer)
-      throw std::runtime_error("Cannot initialize libass renderer");
+  // Exact coverage comparison: compares owned bytes rather than ASS_Image
+  // pointers, preserving the original glyph-reuse semantics.
+  static bool matches(const CachedGlyph &glyph,
+                      const workers::OwnedImage &image) {
+    if (glyph.bitmapWidth != image.width ||
+        glyph.bitmapHeight != image.height ||
+        glyph.bitmapColor != image.color ||
+        glyph.coverage.size() != image.coverage.size())
+      return false;
+    return std::memcmp(glyph.coverage.data(), image.coverage.data(),
+                       glyph.coverage.size()) == 0;
+  }
+
+  void blit(SDL_Renderer &destination) {
+    for (const auto &glyph : glyphs)
+      if (!SDL_RenderTexture(&destination, glyph.texture.get(), nullptr,
+                             &glyph.destination))
+        throw std::runtime_error(SDL_GetError());
+  }
+
+  void present(const workers::RasterResult &result) override {
+    if (!result.error.empty())
+      return; // renderFrame() surfaces the error on the calling thread.
+    if (!cacheValid || result.changed != 0) {
+      // Stage new entries while preserving the old textures for reuse.
+      std::vector<CachedGlyph> previous = std::move(glyphs);
+      std::vector<CachedGlyph> next;
+      size_t totalPixels = 0;
+      size_t index = 0;
+      try {
+        for (const auto &image : result.images) {
+          if (image.width <= 0 || image.height <= 0 || image.width > 8192 ||
+              image.height > 8192 ||
+              image.coverage.size() != size_t(image.width) * image.height)
+            continue;
+          const size_t pixels = image.coverage.size();
+          if (pixels > 32ull * 1024 * 1024 ||
+              totalPixels > 64ull * 1024 * 1024 - pixels || next.size() >= 4096)
+            break;
+          totalPixels += pixels;
+          CachedGlyph glyph;
+          const bool same = index < previous.size() &&
+                            previous[index].texture &&
+                            matches(previous[index], image);
+          if (same) {
+            glyph = std::move(previous[index]);
+          } else {
+            // Reuse same-size texture first, then the bounded pool.
+            if (index < previous.size() && previous[index].texture &&
+                previous[index].bitmapWidth == image.width &&
+                previous[index].bitmapHeight == image.height)
+              glyph.texture = std::move(previous[index].texture);
+            else
+              glyph.texture =
+                  acquire(*activeRenderer, image.width, image.height);
+
+            glyph.coverage = image.coverage;
+            const auto &colorLut = lut(image.color);
+            void *pixelsOut = nullptr;
+            int pitch = 0;
+            if (!SDL_LockTexture(glyph.texture.get(), nullptr, &pixelsOut,
+                                 &pitch))
+              throw std::runtime_error(SDL_GetError());
+            for (int y = 0; y < image.height; ++y) {
+              auto *row = static_cast<Uint8 *>(pixelsOut) + size_t(y) * pitch;
+              const auto *src = image.coverage.data() + size_t(y) * image.width;
+              for (int x = 0; x < image.width; ++x) {
+                const Uint32 pixel = colorLut[src[x]];
+                std::memcpy(row + size_t(x) * 4, &pixel, sizeof(pixel));
+              }
+            }
+            SDL_UnlockTexture(glyph.texture.get());
+          }
+          glyph.destination = image.destination;
+          glyph.bitmapWidth = image.width;
+          glyph.bitmapHeight = image.height;
+          glyph.bitmapColor = image.color;
+          next.push_back(std::move(glyph));
+          ++index;
+        }
+      } catch (...) {
+        glyphs.clear();
+        cacheValid = false;
+        throw;
+      }
+      for (auto &glyph : previous)
+        recycle(std::move(glyph.texture), glyph.bitmapWidth,
+                glyph.bitmapHeight);
+      glyphs = std::move(next);
+      cacheValid = true; // Empty frames are cached too.
+    }
+    blit(*activeRenderer);
+  }
+
+  // Re-registers the engine font catalog. libass has no selective font
+  // removal, so replacing video attachments requires ass_clear_fonts() followed
+  // by a full re-registration of the engine fonts.
+  void registerEngineFonts() {
     // libass scans every file in ass_set_fonts_dir(), including OFL.txt.
     // Register only the font files accepted by the engine's font catalog.
     for (const auto &[name, bytes] : FileResolver::getFontMap())
@@ -177,7 +316,8 @@ struct SubtitleScene::State {
                    static_cast<int>(bytes.size()));
 
     try {
-      auto data = FileResolver::loadFontMemory(engine.GetSettings().fontPath);
+      auto data =
+          FileResolver::loadFontMemory(engineRef.GetSettings().fontPath);
       if (!data.empty()) {
         ass_add_font(library.get(), const_cast<char *>("default"),
                      reinterpret_cast<char *>(data.data()),
@@ -188,6 +328,28 @@ struct SubtitleScene::State {
       }
     } catch (...) {
     }
+  }
+
+  // Must run before a sidecar/embedded ASS track is rasterized, and whenever
+  // the attached-font set changes or a different video opens.
+  void rebuildFonts() {
+    ass_clear_fonts(library.get());
+    registerEngineFonts();
+    for (const auto &font : attachedFonts.fonts())
+      ass_add_font(library.get(), font.name.c_str(),
+                   reinterpret_cast<const char *>(font.bytes.data()),
+                   static_cast<int>(font.bytes.size()));
+    invalidate();
+  }
+
+  State(Engine &engine) : engineRef(engine) {
+    if (!library)
+      throw std::runtime_error("Cannot initialize libass");
+    ass_set_message_cb(library.get(), message, nullptr);
+    renderer.reset(ass_renderer_init(library.get()));
+    if (!renderer)
+      throw std::runtime_error("Cannot initialize libass renderer");
+    registerEngineFonts();
 
     std::filesystem::path font;
     try {
@@ -199,6 +361,9 @@ struct SubtitleScene::State {
     ass_set_fonts(renderer.get(),
                   font.empty() ? nullptr : font.string().c_str(),
                   "Noto Sans JP", ASS_FONTPROVIDER_NONE, nullptr, 1);
+
+    worker = std::make_unique<workers::SubtitleWorker>(
+        workers::makeAssRasterBackend(renderer.get(), track.get()), *this);
   }
 };
 
@@ -220,16 +385,155 @@ SubtitleScene::~SubtitleScene() = default;
 void SubtitleScene::loadAss(const std::string &script) {
   if (script.empty() || script.size() > 16 * 1024 * 1024)
     throw std::invalid_argument("ASS script must contain 1 byte to 16 MiB");
+  // Validate eagerly so callers still see a bad script immediately; the winning
+  // source is only parsed into libass when render() applies source priority.
   std::string bytes = script;
-  std::unique_ptr<ASS_Track, decltype(&ass_free_track)> track(
+  std::unique_ptr<ASS_Track, decltype(&ass_free_track)> check(
       ass_read_memory(state->library.get(), bytes.data(), bytes.size(),
                       nullptr),
       ass_free_track);
-  if (!track || track->n_styles == 0)
+  if (!check || check->n_styles == 0)
     throw std::runtime_error("Invalid ASS subtitle script");
-  state->track = std::move(track);
-  state->appearanceInitialized = false;
-  state->invalidate();
+  state->sources.setDefault(script);
+}
+
+void SubtitleScene::setForcedSubtitles(std::string script) {
+  if (script.empty() || script.size() > 16 * 1024 * 1024)
+    throw std::invalid_argument("ASS script must contain 1 byte to 16 MiB");
+  state->sources.setForced(std::move(script));
+}
+
+void SubtitleScene::clearForcedSubtitles() { state->sources.clearForced(); }
+
+void SubtitleScene::setEmbeddedSubtitles(std::string script,
+                                         double videoSeconds) {
+  if (script.empty() || script.size() > 16 * 1024 * 1024)
+    throw std::invalid_argument("ASS script must contain 1 byte to 16 MiB");
+  state->sources.setEmbedded(std::move(script), videoSeconds);
+}
+
+void SubtitleScene::clearEmbeddedSubtitles() { state->sources.clearEmbedded(); }
+
+bool SubtitleScene::openVideoSubtitles(const AssetProvider &assets,
+                                       const std::string &videoAssetId,
+                                       double videoSeconds) {
+  if (videoAssetId.empty())
+    throw std::invalid_argument("Video asset id must not be empty");
+  if (state->openVideoId == videoAssetId) {
+    state->sources.setVideoClock(videoSeconds);
+    return state->sources.select().kind ==
+               workers::SubtitleSourceKind::Sidecar ||
+           state->sources.select().kind ==
+               workers::SubtitleSourceKind::Embedded;
+  }
+  // A different video opens: drop every video-derived source and its attached
+  // fonts before resolving the new one, so neither a stale sidecar nor a stale
+  // embedded font can affect the new track.
+  state->sources.clearSidecar();
+  state->sources.clearEmbedded();
+  if (!state->attachedFonts.fonts().empty()) {
+    state->attachedFonts.clear();
+    state->rebuildFonts();
+  }
+  state->openVideoId = videoAssetId;
+
+  // Rule: same basename as the video, .ass extension (case-insensitive),
+  // resolved exclusively through the public AssetProvider API.
+  for (const auto &candidate :
+       workers::SubtitleSourceDirector::sidecarIdsForVideo(videoAssetId)) {
+    if (!assets.contains(candidate))
+      continue;
+    try {
+      const std::string text = assets.loadTextUtf8(candidate, "UTF-8");
+      if (!text.empty()) {
+        state->sources.setSidecar(text, videoSeconds);
+        SDL_LogInfo(LogMedia, "Sidecar subtitles: %s", candidate.c_str());
+        break;
+      }
+    } catch (const std::exception &error) {
+      SDL_LogWarn(LogMedia, "Sidecar subtitles %s: %s", candidate.c_str(),
+                  error.what());
+    }
+  }
+
+  // Embedded subtitle stream. Large media is deliberately skipped rather than
+  // materialized a second time in memory for the demuxer.
+  const bool hadEmbedded = state->embeddedDecoderAvailable;
+  std::vector<Uint8> bytes;
+  try {
+    bytes = assets.read(videoAssetId);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(LogMedia, "Embedded subtitles %s: %s", videoAssetId.c_str(),
+                error.what());
+  }
+  if (bytes.size() <= 64ull * 1024 * 1024) {
+    const auto embedded = workers::extractEmbeddedSubtitles(bytes);
+    state->embeddedDecoderAvailable = embedded.decoderAvailable;
+    state->embeddedReason = embedded.reason;
+    if (!embedded.decoderAvailable && hadEmbedded != embedded.decoderAvailable)
+      SDL_LogWarn(LogMedia, "Embedded subtitles unavailable: %s",
+                  embedded.reason.c_str());
+    if (embedded.found)
+      state->sources.setEmbedded(embedded.script, videoSeconds);
+  } else {
+    state->embeddedDecoderAvailable = false;
+    state->embeddedReason = "Media too large to scan for embedded subtitles";
+    SDL_LogWarn(LogMedia, "Embedded subtitles: %s",
+                state->embeddedReason.c_str());
+  }
+  const auto kind = state->sources.select().kind;
+  return kind == workers::SubtitleSourceKind::Sidecar ||
+         kind == workers::SubtitleSourceKind::Embedded;
+}
+
+void SubtitleScene::updateVideoClock(double seconds) {
+  if (!std::isfinite(seconds) || seconds < 0 || seconds > 24 * 3600)
+    throw std::invalid_argument(
+        "Video subtitle clock must be within 0..86400 seconds");
+  state->sources.setVideoClock(seconds);
+}
+
+void SubtitleScene::closeVideoSubtitles() {
+  state->sources.clearSidecar();
+  state->sources.clearEmbedded();
+  state->openVideoId.clear();
+  state->embeddedDecoderAvailable = false;
+  state->embeddedReason.clear();
+  if (!state->attachedFonts.fonts().empty()) {
+    state->attachedFonts.clear();
+    state->rebuildFonts();
+  }
+}
+
+bool SubtitleScene::hasEmbeddedSubtitleDecoder() const {
+  return state->embeddedDecoderAvailable;
+}
+
+workers::SubtitleSourceKind SubtitleScene::activeSubtitleSource() const {
+  return state->sources.select().kind;
+}
+
+size_t SubtitleScene::setAttachedFonts(
+    const std::vector<workers::SubtitleAttachedFont> &fonts) {
+  const size_t accepted = state->attachedFonts.replace(fonts);
+  state->rebuildFonts();
+  return accepted;
+}
+
+void SubtitleScene::clearAttachedFonts() {
+  if (state->attachedFonts.fonts().empty())
+    return;
+  state->attachedFonts.clear();
+  state->rebuildFonts();
+}
+
+const std::vector<workers::SubtitleAttachedFont> &
+SubtitleScene::attachedFonts() const {
+  return state->attachedFonts.fonts();
+}
+
+size_t SubtitleScene::attachedFontBytes() const {
+  return state->attachedFonts.totalBytes();
 }
 
 void SubtitleScene::setCues(const std::vector<SubtitleCue> &cues,
@@ -309,7 +613,19 @@ void SubtitleScene::translationChanged(const std::string &original,
     setCues(cues, cueFontSize);
 }
 void SubtitleScene::clear() {
+  state->sources.clearForced();
+  state->sources.clearSidecar();
+  state->sources.clearEmbedded();
+  state->sources.clearDefault();
+  if (!state->attachedFonts.fonts().empty()) {
+    state->attachedFonts.clear();
+    state->rebuildFonts();
+  }
   state->track.reset();
+  state->worker->setTrack(nullptr);
+  state->loadedKind = workers::SubtitleSourceKind::None;
+  state->loadedScript.clear();
+  state->openVideoId.clear();
   state->invalidate();
   sourceCues.clear();
 }
@@ -343,6 +659,9 @@ void SubtitleScene::setPosition(double seconds) {
 }
 
 void SubtitleScene::render(RendererRef renderer, float) {
+  // Apply source priority before any libass/renderer work. One selected ASS
+  // script is loaded into libass; the worker sees only that script.
+  const auto selection = state->applySource();
   if (!state->track)
     return;
 
@@ -444,104 +763,40 @@ void SubtitleScene::render(RendererRef renderer, float) {
     state->assHeight = h;
     state->invalidate();
   }
-  int changed = 0;
-  ASS_Image *images =
-      ass_render_frame(state->renderer.get(), state->track.get(),
-                       std::llround(position * 1000), &changed);
 
-  const auto destinationFor = [&](const ASS_Image *image) -> SDL_FRect {
-    return {image->dst_x * float(width) / w, image->dst_y * float(height) / h,
-            image->w * float(width) / w, image->h * float(height) / h};
-  };
+  // Sidecar and embedded sources are driven by the video playback clock;
+  // forced/default sources keep following the scene/engine clock.
+  const bool videoDriven =
+      selection.kind == workers::SubtitleSourceKind::Sidecar ||
+      selection.kind == workers::SubtitleSourceKind::Embedded;
+  const double activeClock = videoDriven ? selection.clock : position;
+  workers::RasterRequest request;
+  request.timeMs = std::llround(activeClock * 1000);
+  request.scaleX = float(width) / w;
+  request.scaleY = float(height) / h;
 
-  // Exact coverage comparison: no reliance on ASS_Image bitmap pointer
-  // identity.
-  const auto matches = [](const State::CachedGlyph &glyph,
-                          const ASS_Image *image) -> bool {
-    if (!image->bitmap || glyph.bitmapWidth != image->w ||
-        glyph.bitmapHeight != image->h || glyph.bitmapColor != image->color)
-      return false;
-    for (int y = 0; y < image->h; ++y) {
-      if (std::memcmp(glyph.coverage.data() + size_t(y) * image->w,
-                      image->bitmap + size_t(y) * image->stride,
-                      size_t(image->w)) != 0)
-        return false;
-    }
-    return true;
-  };
-
-  if (!state->cacheValid || changed != 0) {
-    // Stage new entries while preserving the old textures for reuse.
-    std::vector<State::CachedGlyph> previous = std::move(state->glyphs);
-    std::vector<State::CachedGlyph> next;
-    size_t totalPixels = 0;
-    size_t index = 0;
-    try {
-      for (ASS_Image *image = images; image; image = image->next) {
-        if (!image->bitmap || image->w <= 0 || image->h <= 0 ||
-            image->w > 8192 || image->h > 8192 || image->stride < image->w)
-          continue;
-        const size_t pixels = size_t(image->w) * size_t(image->h);
-        if (pixels > 32ull * 1024 * 1024 ||
-            totalPixels > 64ull * 1024 * 1024 - pixels || next.size() >= 4096)
-          break;
-        totalPixels += pixels;
-        State::CachedGlyph glyph;
-        const bool same = index < previous.size() && previous[index].texture &&
-                          matches(previous[index], image);
-        if (same) {
-          glyph = std::move(previous[index]);
-        } else {
-          // Reuse same-size texture first, then the bounded pool.
-          if (index < previous.size() && previous[index].texture &&
-              previous[index].bitmapWidth == image->w &&
-              previous[index].bitmapHeight == image->h)
-            glyph.texture = std::move(previous[index].texture);
-          else
-            glyph.texture = state->acquire(renderer, image->w, image->h);
-
-          glyph.coverage.resize(pixels);
-          const auto &lut = state->lut(image->color);
-          void *pixelsOut = nullptr;
-          int pitch = 0;
-          if (!SDL_LockTexture(glyph.texture.get(), nullptr, &pixelsOut,
-                               &pitch))
-            throw std::runtime_error(SDL_GetError());
-          for (int y = 0; y < image->h; ++y) {
-            auto *row = static_cast<Uint8 *>(pixelsOut) + size_t(y) * pitch;
-            const auto *src = image->bitmap + size_t(y) * image->stride;
-            std::memcpy(glyph.coverage.data() + size_t(y) * image->w, src,
-                        size_t(image->w));
-            for (int x = 0; x < image->w; ++x) {
-              const Uint32 pixel = lut[src[x]];
-              std::memcpy(row + size_t(x) * 4, &pixel, sizeof(pixel));
-            }
-          }
-          SDL_UnlockTexture(glyph.texture.get());
-        }
-        glyph.destination = destinationFor(image);
-        glyph.bitmapWidth = image->w;
-        glyph.bitmapHeight = image->h;
-        glyph.bitmapColor = image->color;
-        next.push_back(std::move(glyph));
-        ++index;
-      }
-    } catch (...) {
-      state->glyphs.clear();
-      state->cacheValid = false;
-      throw;
-    }
-    for (auto &glyph : previous)
-      state->recycle(std::move(glyph.texture), glyph.bitmapWidth,
-                     glyph.bitmapHeight);
-    state->glyphs = std::move(next);
-    state->cacheValid = true; // Empty frames are cached too.
+  // The engine advances its clock once per Engine::Iterate() pass and calls
+  // render() from that pass. Coalesce repeat render() calls for the same tick
+  // instead of rasterizing the same libass frame again.
+  if (state->haveFrame && state->cacheValid &&
+      state->lastTimeMs == request.timeMs && state->lastWidth == w &&
+      state->lastHeight == h && state->lastScaleX == request.scaleX &&
+      state->lastScaleY == request.scaleY && state->lastRenderer == &renderer &&
+      state->lastEpoch == state->contentEpoch) {
+    state->activeRenderer = &renderer;
+    state->blit(renderer);
+    return;
   }
 
-  for (const auto &glyph : state->glyphs) {
-    if (!SDL_RenderTexture(&renderer, glyph.texture.get(), nullptr,
-                           &glyph.destination))
-      throw std::runtime_error(SDL_GetError());
-  }
+  state->activeRenderer = &renderer;
+  state->lastTimeMs = request.timeMs;
+  state->lastWidth = w;
+  state->lastHeight = h;
+  state->lastScaleX = request.scaleX;
+  state->lastScaleY = request.scaleY;
+  state->lastRenderer = &renderer;
+  state->lastEpoch = state->contentEpoch;
+  state->worker->renderFrame(request);
+  state->haveFrame = true;
 }
 } // namespace Kotonoha
