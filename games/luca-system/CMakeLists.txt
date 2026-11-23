@@ -95,32 +95,34 @@ if(BUILD_TESTING)
   add_executable(LucaSystemSpriteBaseTests tests/AirSpriteBaseTest.cpp)
   target_link_libraries(LucaSystemSpriteBaseTests PRIVATE luca_system_formats)
   add_test(NAME LucaSystem.SpriteBase COMMAND LucaSystemSpriteBaseTests)
-  if(LUCA_SYSTEM_TEST_DATA AND EXISTS "${LUCA_SYSTEM_TEST_DATA}")
-    add_test(NAME LucaSystem.RetailSpriteBase
-        COMMAND LucaSystemSpriteBaseTests "${LUCA_SYSTEM_TEST_DATA}")
-    set_tests_properties(LucaSystem.RetailSpriteBase PROPERTIES
-        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
-        WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}"
-        TIMEOUT 120)
-  endif()
+  # Registered unconditionally: without retail data the executable exits 77
+  # (CTest Skipped) instead of silently passing an empty integration test.
+  add_test(NAME LucaSystem.RetailSpriteBase
+      COMMAND LucaSystemSpriteBaseTests --require-retail)
+  set_tests_properties(LucaSystem.RetailSpriteBase PROPERTIES
+      ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+      WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}"
+      TIMEOUT 120
+      SKIP_RETURN_CODE 77)
 
   add_executable(LucaSystemRetailAirFlowTests tests/RetailAirFlowTest.cpp)
   target_link_libraries(LucaSystemRetailAirFlowTests PRIVATE luca_system_formats)
-  if(LUCA_SYSTEM_TEST_DATA AND EXISTS "${LUCA_SYSTEM_TEST_DATA}")
-    add_test(NAME LucaSystem.RetailAirFlow
-        COMMAND LucaSystemRetailAirFlowTests "${LUCA_SYSTEM_TEST_DATA}")
-    add_test(NAME LucaSystem.RetailAirGallery
-        COMMAND LucaSystemRetailAirFlowTests "${LUCA_SYSTEM_TEST_DATA}" --gallery)
-    add_test(NAME LucaSystem.RetailAirSaveGrid
-        COMMAND LucaSystemRetailAirFlowTests "${LUCA_SYSTEM_TEST_DATA}" --save-grid)
-    add_test(NAME LucaSystem.RetailAirSettings
-        COMMAND LucaSystemRetailAirFlowTests "${LUCA_SYSTEM_TEST_DATA}" --settings)
-    set_tests_properties(LucaSystem.RetailAirFlow LucaSystem.RetailAirGallery
-        LucaSystem.RetailAirSaveGrid LucaSystem.RetailAirSettings PROPERTIES
-        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
-        WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}"
-        TIMEOUT 120)
-  endif()
+  # The path argument comes from the configure-time option when present; an
+  # empty argument still lets the runtime LUCA_SYSTEM_TEST_DATA env win.
+  add_test(NAME LucaSystem.RetailAirFlow
+      COMMAND LucaSystemRetailAirFlowTests "$ENV{LUCA_SYSTEM_TEST_DATA}")
+  add_test(NAME LucaSystem.RetailAirGallery
+      COMMAND LucaSystemRetailAirFlowTests "$ENV{LUCA_SYSTEM_TEST_DATA}" --gallery)
+  add_test(NAME LucaSystem.RetailAirSaveGrid
+      COMMAND LucaSystemRetailAirFlowTests "$ENV{LUCA_SYSTEM_TEST_DATA}" --save-grid)
+  add_test(NAME LucaSystem.RetailAirSettings
+      COMMAND LucaSystemRetailAirFlowTests "$ENV{LUCA_SYSTEM_TEST_DATA}" --settings)
+  set_tests_properties(LucaSystem.RetailAirFlow LucaSystem.RetailAirGallery
+      LucaSystem.RetailAirSaveGrid LucaSystem.RetailAirSettings PROPERTIES
+      ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+      WORKING_DIRECTORY "${KOTONOHA_PROJECT_ROOT}"
+      TIMEOUT 120
+      SKIP_RETURN_CODE 77)
 endif()
 
 if(BUILD_TESTING)
