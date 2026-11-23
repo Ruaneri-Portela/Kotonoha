@@ -72,6 +72,31 @@ void Runtime::loadGame(const std::string &) {
   throw std::logic_error("This game has not implemented loadGame");
 }
 
+// One node notification per story transition, shared by every game port.
+// nodeClockKey() is the preferred stable scene identity; other runtimes expose
+// their existing debugNode() without any per-port browser code. Kept before
+// init() so the EM_ASM scene bridge stays the first EM_ASM in this translation
+// unit (tools/test_em_asm_fetch.js matches it by source order).
+void Runtime::publishPredictiveNode(std::string node) {
+  if (node.empty() || node == lastPredictiveNode_)
+    return;
+  lastPredictiveNode_ = node;
+#ifdef __EMSCRIPTEN__
+  EM_ASM(
+      {
+        // 'typeof' returns a string; use JS '==' because '===' is
+        // broken into '== =' by C++ macro tokenization in EM_ASM.
+        if (typeof window.KotonohaSceneEntered == "function")
+          window.KotonohaSceneEntered(UTF8ToString($0));
+      },
+      node.c_str());
+#endif
+  if (!recognizedPrefetchNodes_.count(node))
+    return;
+  ++predictiveTransitions_;
+  prefetchScheduler_.observeAndPrefetch(std::move(node));
+}
+
 void Runtime::init(Engine &engine) {
   splashEngine = &engine;
 #ifdef __EMSCRIPTEN__
@@ -241,29 +266,6 @@ void Runtime::registerPrefetchGraph(std::string_view graph) {
         prefetchScheduler_.registerHint(record.id, asset, 2.0f * weight);
     }
   }
-}
-
-void Runtime::publishPredictiveNode(std::string node) {
-  if (node.empty() || node == lastPredictiveNode_)
-    return;
-  lastPredictiveNode_ = node;
-#ifdef __EMSCRIPTEN__
-  // One node notification per story transition, shared by every game port.
-  // nodeClockKey() is the preferred stable scene identity; other runtimes
-  // expose their existing debugNode() without any per-port browser code.
-  EM_ASM(
-      {
-        // 'typeof' returns a string; use JS '==' because '===' is
-        // broken into '== =' by C++ macro tokenization in EM_ASM.
-        if (typeof window.KotonohaSceneEntered == "function")
-          window.KotonohaSceneEntered(UTF8ToString($0));
-      },
-      node.c_str());
-#endif
-  if (!recognizedPrefetchNodes_.count(node))
-    return;
-  ++predictiveTransitions_;
-  prefetchScheduler_.observeAndPrefetch(std::move(node));
 }
 
 void Runtime::render(RendererRef renderer, float scale) {

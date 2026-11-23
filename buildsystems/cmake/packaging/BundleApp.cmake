@@ -32,9 +32,14 @@ if(include_python)
     # latter because Homebrew is arm64-only. Detect both so the runtime is
     # staged inside a real .framework bundle instead of a plain "python"
     # directory, which codesign --deep rejects as an invalid bundle.
-    if(python_framework_version MATCHES "/(Python3?)\\.framework/Versions/[^/]+$" AND
-       EXISTS "${python_framework_version}/${CMAKE_MATCH_1}")
-        set(python_framework_name "${CMAKE_MATCH_1}")
+    if(python_framework_version MATCHES "/(Python3?)\\.framework/Versions/[^/]+$")
+        # CMAKE_MATCH_1 must be captured before another if() is evaluated.
+        set(_python_framework_name "${CMAKE_MATCH_1}")
+    else()
+        set(_python_framework_name "")
+    endif()
+    if(_python_framework_name AND EXISTS "${python_framework_version}/${_python_framework_name}")
+        set(python_framework_name "${_python_framework_name}")
         set(python_binary_name "${python_framework_name}")
         get_filename_component(python_version "${python_framework_version}" NAME)
         set(python_framework "${BUNDLE_CONTENTS}/Frameworks/${python_framework_name}.framework")
