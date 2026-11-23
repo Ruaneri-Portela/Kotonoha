@@ -1,5 +1,8 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 import AppKit
+import Foundation
+import SwiftUI
+import UniformTypeIdentifiers
 
 // Cartilha visual Kotonoha v2. Native Liquid Glass stays system-owned.
 private enum KotonohaBrand {
@@ -13,10 +16,6 @@ private enum KotonohaBrand {
     static let outline = Color(red: 57.0/255, green: 49.0/255, blue: 94.0/255)
     static let muted = Color(red: 185.0/255, green: 181.0/255, blue: 212.0/255)
 }
-
-import Foundation
-import SwiftUI
-import UniformTypeIdentifiers
 
 // MARK: - Data Models
 

@@ -45,11 +45,20 @@ def flower(x,y,cx,cy,r):
 
 def pixel(x,y,n,variant,accent):
     if variant=="splash":
-        fx=(x-.5)/.55+.5
-        fy=(y-.5)/.55+.5
-        glow=max(0,1-math.hypot(fx-.5,fy-.5)*1.65)
-        rgb=blend((0,0,0),VIOLET,glow*.13)
-        return (*blend(rgb,WHITE,k(fx,fy,n*.55)),255)
+        # Pure black outside the centered emblem, independent of display ratio.
+        # Keep any glow INSIDE the icon; the surrounding pixels are #000000.
+        fx=(x-.5)/.38+.5
+        fy=(y-.5)/.38+.5
+        if fx<0 or fx>1 or fy<0 or fy>1:
+            return (0,0,0,255)
+        radius=.19
+        dx=max(0,abs(fx-.5)-(.5-radius))
+        dy=max(0,abs(fy-.5)-(.5-radius))
+        mask=max(0,min(1,(radius-math.hypot(dx,dy))*n*.38+.5))
+        if mask<=0:
+            return (0,0,0,255)
+        r,g,b,_=pixel(fx,fy,max(32,int(n*.38)),"apple",accent)
+        return (*blend((0,0,0),(r,g,b),mask),255)
     if variant in ("foreground","mono"):
         rgb=(255,255,255)
         alpha=0
