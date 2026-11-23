@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <limits>
@@ -167,7 +168,8 @@ struct ErrorRecoveryGuard {
   }
 };
 
-ImFont *tryLoadFontFile(ImGuiIO &io, const std::filesystem::path &resolved) {
+ImFont *tryLoadFontFile(ImGuiIO &io, const std::filesystem::path &resolved,
+                        bool mergeMode = false) {
   std::error_code ec;
   if (resolved.empty() || !std::filesystem::exists(resolved, ec) ||
       !std::filesystem::is_regular_file(resolved, ec))
@@ -206,6 +208,7 @@ ImFont *tryLoadFontFile(ImGuiIO &io, const std::filesystem::path &resolved) {
 
   ImFontConfig cfg;
   cfg.FontDataOwnedByAtlas = true;
+  cfg.MergeMode = mergeMode;
   cfg.Flags |= ImFontFlags_NoLoadError;
   const std::string name = resolved.filename().u8string();
   std::snprintf(cfg.Name, sizeof(cfg.Name), "%s", name.c_str());
@@ -218,6 +221,37 @@ ImFont *tryLoadFontFile(ImGuiIO &io, const std::filesystem::path &resolved) {
                 resolved.u8string().c_str());
   return loaded;
 }
+
+void tryMergePlatformCjkFallbackFont(ImGuiIO &io,
+                                     const std::filesystem::path &primaryPath) {
+  std::vector<std::filesystem::path> candidates;
+#if defined(_WIN32) && !defined(__ANDROID__)
+  const char *windir = std::getenv("SystemRoot");
+  const std::filesystem::path fontsDir =
+      (windir && *windir ? std::filesystem::path(windir)
+                         : std::filesystem::path("C:\\Windows")) /
+      "Fonts";
+  candidates.push_back(fontsDir / "msyh.ttc");
+  candidates.push_back(fontsDir / "simhei.ttf");
+  candidates.push_back(fontsDir / "simsun.ttc");
+#elif defined(__APPLE__)
+  candidates.emplace_back("/System/Library/Fonts/PingFang.ttc");
+  candidates.emplace_back("/System/Library/Fonts/STHeiti Medium.ttc");
+#elif defined(__linux__) && !defined(__ANDROID__)
+  candidates.emplace_back(
+      "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc");
+  candidates.emplace_back(
+      "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc");
+  candidates.emplace_back(
+      "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf");
+#endif
+  for (const auto &candidate : candidates) {
+    if (candidate == primaryPath)
+      continue;
+    if (tryLoadFontFile(io, candidate, /*mergeMode=*/true) != nullptr)
+      return;
+  }
+}
 } // namespace
 
 bool loadFontsFromPaths(const std::filesystem::path &customPath,
@@ -225,13 +259,22 @@ bool loadFontsFromPaths(const std::filesystem::path &customPath,
   ImGuiIO &io = ImGui::GetIO();
   io.Fonts->Clear();
   ImFont *font = nullptr;
-  if (!customPath.empty())
+  std::filesystem::path loadedPath;
+  if (!customPath.empty()) {
     font = tryLoadFontFile(io, customPath);
-  if (!font && !defaultPath.empty() && defaultPath != customPath)
+    if (font)
+      loadedPath = customPath;
+  }
+  if (!font && !defaultPath.empty() && defaultPath != customPath) {
     font = tryLoadFontFile(io, defaultPath);
+    if (font)
+      loadedPath = defaultPath;
+  }
   const bool loadedFromFile = (font != nullptr);
   if (!font)
     font = io.Fonts->AddFontDefaultVector();
+  else
+    tryMergePlatformCjkFallbackFont(io, loadedPath);
   io.FontDefault = font;
   return loadedFromFile;
 }

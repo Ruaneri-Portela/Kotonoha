@@ -23,6 +23,7 @@ permission to publish private art, retail packs, saves or translations.
 | Release and upstream integration | [Release readiness](RELEASE_READINESS_AUDIT.md), [Windows L4 handoff](RUANERI_KOTONOHA_V3_WINDOWS_L4_HANDOFF.md), [Ruaneri sync](RUANERI_SYNC_2026-11-04.md) |
 | Retail research | [Runtime tracing](ORIGINAL_RUNTIME_TRACING.md), [Missing retail assets](MISSING_RETAIL_ASSETS.md), [Menu transition trace](MENU_TRANSITION_TRACE.md), [Route Map audit](MENU_ROUTE_MAP_AUDIT.md) |
 | UI and parity | [Exit transition](EXIT_TRANSITION_PORT.md), [Menu SFX and hover](MENU_SFX_AND_ROUTE_MAP_HOVER_2026-11-05.md), [Title AC/CHIP](TITLE_AC_CHIP.md) |
+| Launcher interface language (Windows/Android) | [Five interface languages, persistence, testing](LAUNCHER_INTERFACE_LANGUAGE.md) |
 | QA | [Clean-profile pilot](CLEAN_PROFILE_PILOT.md) |
 
 ## Research notes by topic (historical snapshots)
