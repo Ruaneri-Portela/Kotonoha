@@ -27,4 +27,9 @@ if(BUILD_TESTING AND NOT ANDROID)
             MEO.NextScene MEO.Choice MEO.Audio PROPERTIES
             WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
     endif()
+    if(COMMAND kotonoha_label_directory_tests)
+        kotonoha_label_directory_tests(REAL
+            MEO.Presentation MEO.SceneMenu MEO.MouseMenu
+            MEO.NextScene MEO.Choice MEO.Audio)
+    endif()
 endif()
