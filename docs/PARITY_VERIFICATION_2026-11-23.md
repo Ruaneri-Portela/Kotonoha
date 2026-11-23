@@ -16,17 +16,21 @@ Este documento registra a evidência objetiva de paridade coletada em 2026-11-23
 ## Resultado
 
 ```
-$ ctest --test-dir out/build/retail-verify -L real -j4
-100% tests passed out of 88
-Label Time Summary: real = 221.13 sec*proc (88 tests)
+$ ctest --test-dir out/build/retail-verify -L real --output-on-failure
+100% tests passed out of 89
+Label Time Summary: real = 241.63 sec*proc (89 tests)
 ```
 
-Cobertura final: **88/88 testes retail** com todos os gates (incluindo edições
-AIR-SE/KANON/PLANETARIAN/Clannad, multi-disc LostM/Imouto e testes VNX do
-NEKOPARA). Um teste é `Skipped` de forma legítima: `Kirikiri.RetailXp3Startup`
+Cobertura final: **89/89 testes retail** com todos os gates — os 27 conjuntos
+de assets da pasta `KotonohaAssets` (incluindo edições AIR-SE/KANON/PLANETARIAN/
+Clannad, multi-disc LostM/Imouto, LargePonPon e testes VNX do NEKOPARA).
+Um teste é `Skipped` de forma legítima: `Kirikiri.RetailXp3Startup`
 — 1186/1187 entradas do `data.xp3` estão protegidas por `PackinOne.dll`
 (flag `0x80000000`), sem chave de descriptografia disponível; o teste reporta
 o diagnóstico exato em vez de um falso `Passed`. Múltiplas rodadas estáveis.
+
+CTest sintético/engine: **209/209** (`-j4`), zero falhas após a correção de
+display inválido, root de Documents/save e registros ISO duplicados.
 
 ## Cobertura por jogo
 
@@ -77,8 +81,6 @@ Resultado sem dados: `Skipped`, nunca `Passed`.
   (`data.xp3` SHA-256 `6384cd1a…`, 1186/1187 entradas com flag
   `0x80000000`). A tradução solta `VNX+/` é jogável e testada; a paridade
   1:1 do conteúdo original é impossível sem assets descriptografados.
-- `LargePonPon` — testes sintéticos; o diretório retail não é consumido por
-  um gate próprio.
 - Windows cross-build a partir do macOS: bloqueio de plataforma (sem MSVC /
   Windows SDK; MinGW linka libs Mach-O do Homebrew no libass).
 
