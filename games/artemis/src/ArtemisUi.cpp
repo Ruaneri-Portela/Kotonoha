@@ -40,6 +40,34 @@ bool parseRect(std::string_view text, SDL_FRect &out) {
   return true;
 }
 
+// Lua positional elements (including mixed tables such as
+// `ok={id=0,"sysse_on"}`) are stored in `array` by AstParser. Keys named with
+// digits can also appear in `fields`; accept both shapes so a table variant
+// never silently disables the title audio.
+std::string firstAudioId(const LuaValue *value) {
+  if (!value)
+    return {};
+  if (value->isString())
+    return value->strVal;
+  if (!value->isTable())
+    return {};
+  const LuaTable &table = *value->tableVal;
+  if (!table.array.empty())
+    return table.array.front().asString();
+  for (const auto &[key, field] : table.fields) {
+    bool numeric = !key.empty();
+    for (char c : key) {
+      if (c < '0' || c > '9') {
+        numeric = false;
+        break;
+      }
+    }
+    if (numeric && field.isString())
+      return field.strVal;
+  }
+  return {};
+}
+
 } // namespace
 
 ArtemisUi::ArtemisUi(ArtemisAssets &assets) : assets_(assets) {}
@@ -210,6 +238,61 @@ std::optional<UiItem> ArtemisUi::findItem(const std::string &name) const {
     }
   }
   return std::nullopt;
+}
+
+std::string ArtemisUi::titleBgmId(const std::string &route) const {
+  for (const std::shared_ptr<LuaTable> *table : {&root_, &baseRoot_}) {
+    if (!*table)
+      continue;
+    const LuaTable *init = (*table)->getTable("init");
+    if (!init)
+      continue;
+    if (!route.empty()) {
+      const std::string id = firstAudioId(init->get("titlebgm_" + route));
+      if (!id.empty())
+        return id;
+    }
+    // Fall back to the keys shipped by every NUKITASHI list_windows.tbl.
+    for (const char *key :
+         {"titlebgm_title01", "titlebgm_title02", "titlebgm_trial"}) {
+      const std::string id = firstAudioId(init->get(key));
+      if (!id.empty())
+        return id;
+    }
+  }
+  return {};
+}
+
+std::string ArtemisUi::clickSeId() const {
+  for (const std::shared_ptr<LuaTable> *table : {&root_, &baseRoot_}) {
+    if (!*table)
+      continue;
+    const LuaTable *csv = (*table)->getTable("csv");
+    if (!csv)
+      continue;
+    const LuaTable *sysse = csv->getTable("sysse");
+    if (!sysse)
+      continue;
+    // se_ok() calls sysse("ok"), which plays csv.sysse.ok[1] through
+    // sound/sysse/<id>.ogg.
+    const std::string id = firstAudioId(sysse->get("ok"));
+    if (!id.empty())
+      return id;
+  }
+  return "sysse_on"; // shipped fallback in both retail editions
+}
+
+double ArtemisUi::initNumber(const std::string &key, double fallback) const {
+  for (const std::shared_ptr<LuaTable> *table : {&root_, &baseRoot_}) {
+    if (!*table)
+      continue;
+    const LuaTable *init = (*table)->getTable("init");
+    if (!init)
+      continue;
+    if (const LuaValue *value = init->get(key); value && value->isNumber())
+      return value->numVal;
+  }
+  return fallback;
 }
 
 std::string ArtemisUi::resolveImage(const UiItem &item) const {

@@ -61,6 +61,23 @@ public:
   bool startGameplay();
   bool titleVisible() const;
 
+  // Native title audio. The IDs/gains come from the shipped init/csv tables
+  // (see ArtemisUi), never from hardcoded asset paths in the game port.
+  // `setTitleBgmRoute` selects the Lua route ("title01", "title02" for a
+  // cleared game, or "trial"); the default is "title01" with fallback to the
+  // first table entry that resolves to an existing asset.
+  void setTitleBgmRoute(const std::string &route);
+  const std::string &titleBgmRoute() const;
+  void startTitleBgm();
+  void stopTitleBgm();
+  const std::string &titleBgmAsset() const;
+  bool titleBgmPlaying() const;
+  // Mirrors se_ok(): one short click confirmation on the "se" channel.
+  // Returns true only when the native clip was actually played.
+  bool playUiClickSe();
+  const std::string &titleClickSeAsset() const;
+  int titleClickSeCount() const;
+
 private:
   struct Impl;
   ArtemisUi *ensureUi();
