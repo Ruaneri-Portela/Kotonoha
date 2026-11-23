@@ -95,8 +95,13 @@ class ManifestGeneratorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             game = Path(directory)
             (game / "voice.npa").write_bytes(b"voice")
-            (game / "link.npa").symlink_to(game / "voice.npa")
-            (game / "loop").symlink_to(game, target_is_directory=True)
+            try:
+                (game / "link.npa").symlink_to(game / "voice.npa")
+                (game / "loop").symlink_to(game, target_is_directory=True)
+            except OSError as error:
+                if getattr(error, "winerror", None) == 1314:
+                    self.skipTest("Windows symlink privilege is unavailable")
+                raise
             manifest = json.loads(
                 module.generate_manifest(game, game / "manifest.json").read_text())
             self.assertEqual(manifest["files"], ["voice.npa"])
