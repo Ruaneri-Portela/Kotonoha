@@ -80,6 +80,14 @@
     <string name="sd_launcher_music">Música de fundo do launcher</string>
     <string name="sd_launcher_music_btn_on">Música do launcher: LIGADA</string>
     <string name="sd_launcher_music_btn_off">Música do launcher: DESLIGADA</string>
+    <string name="sd_launcher_language">Idioma do launcher</string>
+    <string name="sd_launcher_language_btn">Idioma do launcher: %1$s</string>
+    <string name="sd_title_launcher">LAUNCHER</string>
+    <string name="sd_title_options">CONFIGURAÇÃO / OPÇÕES</string>
+    <string name="sd_upscaler_auto">Automático</string>
+    <string name="sd_upscaler_none">Nenhum</string>
+    <string name="sd_upscaler_linear">Linear</string>
+    <string name="sd_upscaler_mpv">MPV</string>
 
     <!-- Geral -->
     <string name="sd_general_retail_heading">Opções de jogo (Config.DAT)</string>

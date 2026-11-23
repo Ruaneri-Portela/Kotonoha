@@ -114,6 +114,11 @@
                         android:text="@string/sd_launcher_music_btn_on" />
 
                     <Button
+                        android:id="@+id/home_launcher_language"
+                        style="@style/SdButton"
+                        android:text="@string/sd_launcher_language" />
+
+                    <Button
                         android:id="@+id/quit"
                         style="@style/SdButton"
                         android:text="@string/sd_quit" />
