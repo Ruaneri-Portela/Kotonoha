@@ -106,16 +106,23 @@ void retailTest(const std::string &directory) {
 } // namespace
 
 int main(int argc, char **argv) {
+  // This binary backs both the synthetic SpriteBase test and the retail-only
+  // registration. Only --require-retail turns missing data into CTest Skipped.
+  const bool requireRetail =
+      argc > 1 && std::string(argv[1]) == "--require-retail";
   try {
     syntheticTest();
-    std::string directory = argc > 1 ? argv[1] : "";
+    std::string directory = !requireRetail && argc > 1 ? argv[1] : "";
     if (directory.empty()) {
       if (const char *env = std::getenv("LUCA_SYSTEM_TEST_DATA"))
         directory = env;
     }
     if (!directory.empty() && std::filesystem::exists(directory))
       retailTest(directory);
-    else
+    else if (requireRetail) {
+      std::cerr << "[SKIP] LUCA_SYSTEM_TEST_DATA not provided or invalid\n";
+      return 77;
+    } else
       std::cout << "skip - LUCA_SYSTEM_TEST_DATA not provided\n";
     std::cout << "AIR sprite base regressions passed\n";
     return 0;
