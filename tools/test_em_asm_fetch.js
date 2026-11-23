@@ -10,7 +10,7 @@ const vm = require("node:vm");
 const {spawnSync} = require("node:child_process");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "lib", "src",
-    "Filesystem", "Sources", "FetchAssetProvider.cpp"), "utf8");
+    "filesystem", "sources", "FetchAssetProvider.cpp"), "utf8");
 const block = source.match(
     /if\s*\(\s*EM_ASM_INT\s*\(\s*(\{[\s\S]*?\})\s*\)\s*\)/);
 assert(block, "Missing Fetch/IndexedDB EM_ASM_INT availability probe");
@@ -20,7 +20,9 @@ assert(block[1].includes("typeof window.KotonohaAssetCache.fetchJob"),
 function preprocess(inline) {
     const cpp = "#define EM_ASM_INT(...) #__VA_ARGS__\n" +
         "const char* js = EM_ASM_INT(" + inline + ");\n";
-    const output = spawnSync("c++", ["-E", "-P", "-x", "c++", "-"], {
+    const cxx = process.env.KOTONOHA_CXX ||
+        (process.platform === "win32" ? "clang++" : "c++");
+    const output = spawnSync(cxx, ["-E", "-P", "-x", "c++", "-"], {
         input: cpp, encoding: "utf8", maxBuffer: 1024 * 1024
     });
     assert.equal(output.status, 0, output.stderr);
