@@ -346,7 +346,15 @@ int main(int argc, char **argv) {
   testVmSynthetic();
   std::cout << "[LargePonPonTest] All synthetic unit tests passed!"
             << std::endl;
-  if (argc > 1 && argv[1] && argv[1][0] != '\0')
-    testRetail(argv[1]);
+  // CTest registers this binary twice: without an argument for the
+  // always-on synthetic gate and with LARGEPONPON_TEST_DATA for the retail
+  // gate. An empty/missing retail argument means "no data supplied", so
+  // exit 77 to let CTest report the real-labelled test as skipped.
+  if (argc > 1) {
+    const char *dir = argv[1];
+    if (!dir || dir[0] == '\0')
+      return 77;
+    testRetail(dir);
+  }
   return 0;
 }

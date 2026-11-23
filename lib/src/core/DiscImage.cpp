@@ -289,10 +289,11 @@ void DiscImage::walk(Uint32 lba, Uint64 size, const std::string &prefix,
       }
       if (fileVersion < state.version)
         continue;
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "DiscImage: duplicate ISO path '%s', keeping first entry",
-                  fullPath.c_str());
-      continue;
+      // ECMA-119 7.8.1.1 requires a unique file identification per directory.
+      // Distinct versions and multi-extent chains are handled above, so two
+      // same-version records for one normalized path are a malformed image,
+      // not data to silently merge or discard.
+      throw std::runtime_error("duplicate ISO path: " + fullPath);
     }
 
     if (!paths.insert(normKey).second)

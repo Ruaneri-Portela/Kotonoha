@@ -241,8 +241,10 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addGame(locations.workingDirectory, true);
     }
 
-    auto pkg = game.empty() ? locations.packageIdentifier : game;
-    result.documents = locations.userData / "Kotonoha" / pkg;
+    // The package identifier is the save identity; the source-game slug is
+    // only used above to locate source-tree game assets.
+    result.documents =
+        locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
   }
