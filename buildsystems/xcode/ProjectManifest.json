@@ -144,6 +144,14 @@
     "iOS/KotonohaLauncher": {
       "target": "D7D700000000000000000001",
       "sources": 191
+    },
+    "macOS/ArtemisGame": {
+      "target": "A37E00000000000000000001",
+      "sources": 7
+    },
+    "iOS/ArtemisGame": {
+      "target": "A37E00000000000000000002",
+      "sources": 7
     }
   },
   "games": {
@@ -203,7 +211,7 @@
     ]
   },
   "source_files": 296,
-  "schemes": 32,
+  "schemes": 34,
   "note": "The Xcode project compiles game/provider/VM sources directly. Both macOS and iOS Unified Launcher targets are native Xcode applications; iOS searches its sandbox Documents/games.",
   "bundling": {
     "schema_version": 2,
@@ -222,15 +230,15 @@
     "script": "buildsystems/xcode/Scripts/EmbedSDLFrameworks.sh",
     "asset_copy_phase": "Copy Bundle Resources (native folder references)",
     "sdl_embed_phase": "Embed SDL3 + SDL3_ttf and Verify Assets",
-    "targets_configured": 32,
+    "targets_configured": 34,
     "shared_info_plist": "buildsystems/xcode/Info.plist (referenced, not duplicated)",
-    "all_app_configs_using_shared_plist": 64,
+    "all_app_configs_using_shared_plist": 68,
     "framework_embeds_require_prebuilt_binaries": true,
     "framework_embed_script_present": true,
     "macos_icon": "assets/icon.icns copied to Contents/Resources/icon.icns and processed Info.plist CFBundleIconFile=icon.icns",
     "macos_icon_script": "buildsystems/xcode/Scripts/ConfigureMacOSIcon.sh",
     "document_revisions_debug_enabled": false,
-    "disabled_in_shared_schemes": 32,
+    "disabled_in_shared_schemes": 34,
     "ddlc_python": "CPython 3.15 prepared by tools/PrepareApple.py and packaged by DokiDoki and KatawaShoujo targets",
     "ddlc_python_script": "buildsystems/xcode/Scripts/EmbedDokiDokiPython.sh",
     "unified_launcher": "Native macOS PBXNativeTarget compiling game sources directly; does not invoke CMake",
@@ -254,7 +262,7 @@
       "ios": "buildsystems/xcode/vcpkg/ios/arm64-ios",
       "ios_simulator": "buildsystems/xcode/vcpkg/simulator/arm64-ios-simulator"
     },
-    "schemes_with_vcpkg_preaction": 32,
+    "schemes_with_vcpkg_preaction": 34,
     "schemes_with_python_preaction": 4
   },
   "vendors": {
@@ -293,8 +301,6 @@
       "note": "Vendor files are referenced in the source repository; the Xcode project includes no vendor source copies."
     }
   },
-  "xcode_pending": [
-    "artemis"
-  ],
+  "xcode_pending": [],
   "xcode_validation_note": "Full Apple SDK compile/link and runtime smoke test on macOS/iOS host required"
 }

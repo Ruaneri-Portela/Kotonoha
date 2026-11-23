@@ -74,9 +74,16 @@
       "name": "macos-amd64-vcpkg",
       "displayName": "macOS amd64 | vcpkg dynamic",
       "inherits": "macos-vcpkg-base",
+      "environment": {
+        "PKG_CONFIG_LIBDIR": "${sourceDir}/out/build/macos-amd64-vcpkg/vcpkg_installed/macos-amd64-vcpkg/lib/pkgconfig"
+      },
       "cacheVariables": {
         "CMAKE_OSX_ARCHITECTURES": "x86_64",
-        "VCPKG_TARGET_TRIPLET": "macos-amd64-vcpkg"
+        "VCPKG_TARGET_TRIPLET": "macos-amd64-vcpkg",
+        "Python3_EXECUTABLE": "/usr/bin/python3",
+        "Python3_ROOT_DIR": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks",
+        "Python3_FIND_FRAMEWORK": "FIRST",
+        "CMAKE_EXE_LINKER_FLAGS": "-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks"
       }
     },
 

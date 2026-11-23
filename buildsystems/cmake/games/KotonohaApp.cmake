@@ -30,7 +30,13 @@ include("${CMAKE_CURRENT_LIST_DIR}/../packaging/KotonohaAppPackaging.cmake")
 # Avoid checked-in generated output and stale legacy assets/icon.ico/icon.icns.
 if(NOT ANDROID AND NOT EMSCRIPTEN)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
-    set(KOTONOHA_BRAND_OUTPUT "${CMAKE_BINARY_DIR}/kotonoha-brand")
+    # CACHE INTERNAL makes the generated icon directory visible to every
+    # sibling game/launcher directory that calls kotonoha_configure_app().
+    # A plain set() is scoped to this directory only, so callers see an empty
+    # value and resolve "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns" to
+    # "/generic/icon.icns", which fails target_sources() in every port.
+    set(KOTONOHA_BRAND_OUTPUT "${CMAKE_BINARY_DIR}/kotonoha-brand" CACHE INTERNAL
+        "Generated Kotonoha brand assets shared by all app targets" FORCE)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
         "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py")
     execute_process(
@@ -47,7 +53,12 @@ endif()
 # the built-in splash follows the same brand without modifying tracked files.
 if(EMSCRIPTEN)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
-    set(KOTONOHA_WEB_ENGINE_ASSETS "${CMAKE_BINARY_DIR}/kotonoha-web-engine-assets")
+    # Same scope rule as KOTONOHA_BRAND_OUTPUT: the staging directory is
+    # consumed inside kotonoha_configure_app() from sibling game directories.
+    # Without CACHE INTERNAL it expands empty there and --preload-file becomes
+    # "@/assets", which makes file_packager fail for every WASM target.
+    set(KOTONOHA_WEB_ENGINE_ASSETS "${CMAKE_BINARY_DIR}/kotonoha-web-engine-assets"
+        CACHE INTERNAL "Staged engine assets for WASM preloads" FORCE)
     file(MAKE_DIRECTORY "${KOTONOHA_WEB_ENGINE_ASSETS}")
     file(COPY "${KOTONOHA_ENGINE_ASSETS}/" DESTINATION "${KOTONOHA_WEB_ENGINE_ASSETS}")
     execute_process(COMMAND "${Python3_EXECUTABLE}"
@@ -87,9 +98,14 @@ function(kotonoha_configure_app target)
     # Embed the canonical icon in every Windows .exe (Explorer, taskbar, ZIP).
     if(WIN32)
         set(_winres "${CMAKE_CURRENT_BINARY_DIR}/${target}-brand.rc")
-        file(TO_CMAKE_PATH "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico" _icon_path)
-        file(WRITE "${_winres}" "1 ICON \"${_icon_path}\"\n")
-        target_sources(${target} PRIVATE "${_winres}")
+        if(KOTONOHA_BRAND_OUTPUT AND EXISTS "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico")
+            file(TO_CMAKE_PATH "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico" _icon_path)
+            file(WRITE "${_winres}" "1 ICON \"${_icon_path}\"\n")
+            target_sources(${target} PRIVATE "${_winres}")
+        else()
+            message(FATAL_ERROR
+                "Kotonoha brand icon missing for ${target}: ${KOTONOHA_BRAND_OUTPUT}")
+        endif()
     endif()
 
     # Register configured desktop/browser applications for CPack. Registration
@@ -117,12 +133,17 @@ function(kotonoha_configure_app target)
 
         kotonoha_configure_app_output(${target})
 
-        set(icon "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns")
-        set_source_files_properties("${icon}" PROPERTIES
-            MACOSX_PACKAGE_LOCATION Resources
-            HEADER_FILE_ONLY TRUE
-        )
-        target_sources(${target} PRIVATE "${icon}")
+        if(KOTONOHA_BRAND_OUTPUT AND EXISTS "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns")
+            set(icon "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns")
+            set_source_files_properties("${icon}" PROPERTIES
+                MACOSX_PACKAGE_LOCATION Resources
+                HEADER_FILE_ONLY TRUE
+            )
+            target_sources(${target} PRIVATE "${icon}")
+        else()
+            message(FATAL_ERROR
+                "Kotonoha brand icon missing for ${target}: ${KOTONOHA_BRAND_OUTPUT}")
+        endif()
 
         set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/BundleApp.cmake"
@@ -165,6 +186,11 @@ function(kotonoha_configure_app target)
         endif()
 
         if(EMSCRIPTEN)
+            if(NOT KOTONOHA_WEB_ENGINE_ASSETS OR
+               NOT IS_DIRECTORY "${KOTONOHA_WEB_ENGINE_ASSETS}")
+                message(FATAL_ERROR
+                    "Kotonoha WASM asset staging directory missing for ${target}: ${KOTONOHA_WEB_ENGINE_ASSETS}")
+            endif()
             target_compile_options(${target} PRIVATE
                 -fexceptions
             )

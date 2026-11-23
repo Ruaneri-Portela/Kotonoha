@@ -1,8 +1,10 @@
 #include <Kotonoha/Prefetch/Prefetch.hpp>
+#include <Kotonoha/core/Runtime.hpp>
 
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -135,6 +137,68 @@ void testNativeBehaviorIsNoOp() {
           "dispatch brackets the burst with lifecycle hooks");
 }
 
+// Exercises the real cross-port path: Runtime::update() resolves the current
+// debug node and publishes one transition through
+// publishPredictiveNode() -> Scheduler::observeAndPrefetch().
+class RuntimePrefetchProbe final : public Kotonoha::Runtime {
+public:
+  using Kotonoha::Runtime::Runtime;
+  using Kotonoha::Runtime::publishPredictiveNode;
+  using Kotonoha::Runtime::registerPrefetchGraph;
+
+  void attach(Backend *backend) { prefetchScheduler_.setBackend(backend); }
+  void dispatch() { prefetchScheduler_.dispatch(); }
+  std::size_t transitions() const noexcept { return predictiveTransitions_; }
+  std::string current() const { return prefetchScheduler_.current(); }
+  bool hasCurrent() const noexcept { return prefetchScheduler_.hasCurrent(); }
+
+  std::string debugNode() const override { return node_; }
+  void setNode(std::string node) { node_ = std::move(node); }
+
+private:
+  std::string node_;
+};
+
+void testRuntimeObserveAndPrefetchOnNodeChange() {
+  RuntimePrefetchProbe runtime("prefetch", "1", "prefetch");
+  RecordingBackend recorder;
+  runtime.attach(&recorder);
+
+  // The graph is what KotonohaPreloadCache.js::prefetchGraph() exports:
+  // node-A uses assets/a.bin and points (weighted) to node-B, and vice versa.
+  runtime.registerPrefetchGraph("N\tnode-A\nA\tassets/a.bin\n"
+                                "X\tnode-B\t1.5\n"
+                                "N\tnode-B\nA\tassets/b.bin\n"
+                                "X\tnode-A\t1\n");
+  runtime.SetState(Kotonoha::GameState::Gameplay);
+
+  // A raw debug label that is not a preload.json key is never observed.
+  runtime.setNode("8005:1505");
+  runtime.update();
+  Require(runtime.transitions() == 0 && !runtime.hasCurrent(),
+          "unrecognized debug node must not reach the Scheduler");
+
+  runtime.setNode("node-A");
+  runtime.update();
+  Require(runtime.transitions() == 1,
+          "Runtime::update publishes the recognized node transition");
+  Require(runtime.hasCurrent() && runtime.current() == "node-A",
+          "observeAndPrefetch() observed node-A on the transition");
+
+  runtime.dispatch();
+  Require(recorder.ids.size() == 2 && recorder.ids[0] == "assets/b.bin" &&
+              recorder.ids[1] == "assets/a.bin",
+          "graph hints dispatch only manifest asset ids, weighted by next");
+
+  runtime.update(); // same node: deduped by lastPredictiveNode_
+  Require(runtime.transitions() == 1, "unchanged node is not re-observed");
+
+  runtime.setNode("node-B");
+  runtime.update();
+  Require(runtime.transitions() == 2 && runtime.current() == "node-B",
+          "the following node is observed exactly once");
+}
+
 // Concrete integration example: a port reports VM nodes and feeds hints from
 // its own manifest. No game/VM source file needs to change for this to work.
 void testPortIntegrationExample() {
@@ -168,6 +232,7 @@ int main() {
   testSiblingHeuristic();
   testSequentialHeuristic();
   testNativeBehaviorIsNoOp();
+  testRuntimeObserveAndPrefetchOnNodeChange();
   testPortIntegrationExample();
 
   std::cout << "PrefetchTests PASS\n";
