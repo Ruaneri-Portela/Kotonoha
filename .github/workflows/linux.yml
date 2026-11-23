@@ -318,10 +318,17 @@ jobs:
       - name: Verify Asyncify exports for every generated WASM game
         run: |
           count=0
-          while IFS= read -r -d '' js; do
-            python3 tools/check_wasm_asyncify.py "$js"
-            count=$((count + 1))
-          done < <(find build-web/outputs -name '*.js' -type f -print0)
+          # Only game entrypoints have a sibling .wasm with the same basename.
+          # Helper scripts (service-worker.js, KotonohaPreloadCache.js, ...)
+          # are not Asyncify entrypoints and must not be passed to the checker.
+          while IFS= read -r -d '' dir; do
+            name=$(basename "$dir")
+            js="$dir/$name.js"
+            if [ -f "$js" ] && [ -f "$dir/$name.wasm" ]; then
+              python3 tools/check_wasm_asyncify.py "$js"
+              count=$((count + 1))
+            fi
+          done < <(find build-web/outputs -mindepth 1 -maxdepth 1 -type d -print0)
           test "$count" -ge 10
           echo "[Kotonoha] verified $count browser entrypoints"
 

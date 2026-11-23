@@ -1,3 +1,6 @@
+#include <Kotonoha/Formats/Adpcm.hpp>
+#include <Kotonoha/Formats/Crgb.hpp>
+#include <Kotonoha/Formats/Smfd.hpp>
 #include <Pmail/LargePonPonAssets.hpp>
 
 #include <Kotonoha/localization/Encoding.hpp>
@@ -10,6 +13,17 @@
 #include <stdexcept>
 
 namespace Kotonoha::Providers {
+
+namespace {
+// Defined below, after the format headers; declared here so the loader
+// methods can convert neutral DecodedImage data into SDL surfaces.
+Kotonoha::SurfacePtr toSurface(const Kotonoha::Formats::DecodedImage &img);
+CanmData toCanm(const Kotonoha::Formats::CanmData &data);
+Adp4Decoded toAdp4(const Kotonoha::Formats::Adp4Decoded &dec);
+Kotonoha::AudioClip toClip(const Kotonoha::Formats::DecodedPcm &pcm);
+std::vector<Kotonoha::SurfacePtr>
+toSurfaces(const std::vector<Kotonoha::Formats::DecodedImage> &images);
+} // namespace
 
 namespace {
 
@@ -248,29 +262,37 @@ SurfacePtr LargePonPonAssets::loadSurfaceAsset(const std::string &id) const {
     return nullptr;
   const std::string ext = upperExt(id);
   if (ext == ".CRGB" || ext == ".BGD")
-    return decodeCrgbOrBgd(bytes.data(), bytes.size());
+    return toSurface(
+        Kotonoha::Formats::Crgb::decodeCrgbOrBgd(bytes.data(), bytes.size()));
   if (ext == ".CHAR")
-    return decodeCharStream(bytes.data(), bytes.size(), 800, 600);
+    return toSurface(Kotonoha::Formats::Crgb::decodeCharStream(
+        bytes.data(), bytes.size(), 800, 600));
   if (ext == ".PCHR") {
-    auto frames = decodePchrOrIcon(bytes.data(), bytes.size(), 800, 600);
+    auto frames = toSurfaces(Kotonoha::Formats::Crgb::decodePchrOrIcon(
+        bytes.data(), bytes.size(), 800, 600));
     return frames.empty() ? nullptr : std::move(frames[0]);
   }
   if (ext == ".ICON") {
-    auto frames = decodePchrOrIcon(bytes.data(), bytes.size(), 32, 32);
+    auto frames = toSurfaces(Kotonoha::Formats::Crgb::decodePchrOrIcon(
+        bytes.data(), bytes.size(), 32, 32));
     return frames.empty() ? nullptr : std::move(frames[0]);
   }
   if (ext == ".PRGB") {
-    auto sprites = decodePrgb(bytes.data(), bytes.size());
+    auto sprites = toSurfaces(
+        Kotonoha::Formats::Crgb::decodePrgb(bytes.data(), bytes.size()));
     return sprites.empty() ? nullptr : std::move(sprites[0]);
   }
   if (ext == ".P256")
-    return decodeP256Thumbnail(bytes.data(), bytes.size(), 0, true);
+    return toSurface(Kotonoha::Formats::Crgb::decodeP256Thumbnail(
+        bytes.data(), bytes.size(), 0, true));
   if (ext == ".ALPF")
-    return alphaMaskToSurface(decodeAlpfMask(bytes.data(), bytes.size()), 800,
-                              600);
+    return toSurface(Kotonoha::Formats::Crgb::alphaMaskToImage(
+        Kotonoha::Formats::Crgb::decodeAlpfMask(bytes.data(), bytes.size()),
+        800, 600));
   if (ext == ".ALPM")
-    return alphaMaskToSurface(decodeAlpmMask(bytes.data(), bytes.size()), 800,
-                              600);
+    return toSurface(Kotonoha::Formats::Crgb::alphaMaskToImage(
+        Kotonoha::Formats::Crgb::decodeAlpmMask(bytes.data(), bytes.size()),
+        800, 600));
   return nullptr;
 }
 
@@ -280,7 +302,8 @@ AudioClip LargePonPonAssets::loadAudioAsset(const std::string &id) const {
     return {};
   const std::string ext = upperExt(id);
   if (ext == ".ADP4") {
-    auto decoded = decodeAdp4(bytes.data(), bytes.size());
+    auto decoded = toAdp4(
+        Kotonoha::Formats::Adpcm::decodeAdp4(bytes.data(), bytes.size()));
     if (decoded.samples.empty())
       return {};
     AudioClip clip;
@@ -292,7 +315,8 @@ AudioClip LargePonPonAssets::loadAudioAsset(const std::string &id) const {
     return clip;
   }
   if (ext == ".SMFD")
-    return decodeSmfdToPcm(bytes.data(), bytes.size());
+    return toClip(
+        Kotonoha::Formats::Smfd::decodeSmfdToPcm(bytes.data(), bytes.size()));
   return {};
 }
 
@@ -303,53 +327,63 @@ LargePonPonAssets::loadScriptBytes(const std::string &stemOrName) const {
 
 SurfacePtr LargePonPonAssets::loadCrgb(const std::string &stem) const {
   const auto bytes = graphicPack_.read(ensureExt(stem, ".CRGB"));
-  return bytes.empty() ? nullptr : decodeCrgbOrBgd(bytes.data(), bytes.size());
+  return bytes.empty() ? nullptr
+                       : toSurface(Kotonoha::Formats::Crgb::decodeCrgbOrBgd(
+                             bytes.data(), bytes.size()));
 }
 
 SurfacePtr LargePonPonAssets::loadBgd(const std::string &stem) const {
   const auto bytes = graphicPack_.read(ensureExt(stem, ".BGD"));
-  return bytes.empty() ? nullptr : decodeCrgbOrBgd(bytes.data(), bytes.size());
+  return bytes.empty() ? nullptr
+                       : toSurface(Kotonoha::Formats::Crgb::decodeCrgbOrBgd(
+                             bytes.data(), bytes.size()));
 }
 
 SurfacePtr LargePonPonAssets::loadChar(const std::string &stem) const {
   const auto bytes = graphicPack_.read(ensureExt(stem, ".CHAR"));
   return bytes.empty() ? nullptr
-                       : decodeCharStream(bytes.data(), bytes.size(), 800, 600);
+                       : toSurface(Kotonoha::Formats::Crgb::decodeCharStream(
+                             bytes.data(), bytes.size(), 800, 600));
 }
 
 std::vector<SurfacePtr>
 LargePonPonAssets::loadPchrFrames(const std::string &stem) const {
   const auto bytes = graphicPack_.read(ensureExt(stem, ".PCHR"));
   return bytes.empty() ? std::vector<SurfacePtr>{}
-                       : decodePchrOrIcon(bytes.data(), bytes.size(), 800, 600);
+                       : toSurfaces(Kotonoha::Formats::Crgb::decodePchrOrIcon(
+                             bytes.data(), bytes.size(), 800, 600));
 }
 
 std::vector<SurfacePtr>
 LargePonPonAssets::loadIconFrames(const std::string &stem) const {
   const auto bytes = graphicPack_.read(ensureExt(stem, ".ICON"));
   return bytes.empty() ? std::vector<SurfacePtr>{}
-                       : decodePchrOrIcon(bytes.data(), bytes.size(), 32, 32);
+                       : toSurfaces(Kotonoha::Formats::Crgb::decodePchrOrIcon(
+                             bytes.data(), bytes.size(), 32, 32));
 }
 
 std::vector<SurfacePtr>
 LargePonPonAssets::loadPrgbSprites(const std::string &stem) const {
   const auto bytes = graphicPack_.read(ensureExt(stem, ".PRGB"));
   return bytes.empty() ? std::vector<SurfacePtr>{}
-                       : decodePrgb(bytes.data(), bytes.size());
+                       : toSurfaces(Kotonoha::Formats::Crgb::decodePrgb(
+                             bytes.data(), bytes.size()));
 }
 
 SurfacePtr LargePonPonAssets::loadP256Thumbnail(const std::string &stem,
                                                 size_t index,
                                                 bool color) const {
   const auto bytes = graphicPack_.read(ensureExt(stem, ".P256"));
-  return bytes.empty()
-             ? nullptr
-             : decodeP256Thumbnail(bytes.data(), bytes.size(), index, color);
+  return bytes.empty() ? nullptr
+                       : toSurface(Kotonoha::Formats::Crgb::decodeP256Thumbnail(
+                             bytes.data(), bytes.size(), index, color));
 }
 
 CanmData LargePonPonAssets::loadCanm(const std::string &stem) const {
   const auto bytes = graphicPack_.read(ensureExt(stem, ".CANM"));
-  return bytes.empty() ? CanmData{} : decodeCanm(bytes.data(), bytes.size());
+  return bytes.empty() ? CanmData{}
+                       : toCanm(Kotonoha::Formats::Crgb::decodeCanm(
+                             bytes.data(), bytes.size()));
 }
 
 std::vector<uint8_t> LargePonPonAssets::loadAlphaMask(const std::string &stem,
@@ -358,19 +392,84 @@ std::vector<uint8_t> LargePonPonAssets::loadAlphaMask(const std::string &stem,
       graphicPack_.read(ensureExt(stem, isAlpm ? ".ALPM" : ".ALPF"));
   if (bytes.empty())
     return {};
-  return isAlpm ? decodeAlpmMask(bytes.data(), bytes.size())
-                : decodeAlpfMask(bytes.data(), bytes.size());
+  return isAlpm ? Kotonoha::Formats::Crgb::decodeAlpmMask(bytes.data(),
+                                                          bytes.size())
+                : Kotonoha::Formats::Crgb::decodeAlpfMask(bytes.data(),
+                                                          bytes.size());
 }
 
 Adp4Decoded LargePonPonAssets::loadAdp4(const std::string &stem) const {
   const auto bytes = soundPack_.read(ensureExt(stem, ".ADP4"));
-  return bytes.empty() ? Adp4Decoded{} : decodeAdp4(bytes.data(), bytes.size());
+  return bytes.empty() ? Adp4Decoded{}
+                       : toAdp4(Kotonoha::Formats::Adpcm::decodeAdp4(
+                             bytes.data(), bytes.size()));
 }
 
 AudioClip LargePonPonAssets::loadSmfdAudio(const std::string &stem) const {
   const auto bytes = soundPack_.read(ensureExt(stem, ".SMFD"));
   return bytes.empty() ? AudioClip{}
-                       : decodeSmfdToPcm(bytes.data(), bytes.size());
+                       : toClip(Kotonoha::Formats::Smfd::decodeSmfdToPcm(
+                             bytes.data(), bytes.size()));
 }
 
+// Provider-side conversions from neutral format data to the engine's
+// SurfacePtr / AudioClip representations. Decoding itself is in
+// modules/formats.
+namespace {
+Kotonoha::SurfacePtr toSurface(const Kotonoha::Formats::DecodedImage &img) {
+  if (img.width == 0 || img.height == 0)
+    return nullptr;
+  Kotonoha::SurfacePtr surface(SDL_CreateSurface(static_cast<int>(img.width),
+                                                 static_cast<int>(img.height),
+                                                 SDL_PIXELFORMAT_RGBA32));
+  if (!surface)
+    return nullptr;
+  if (!img.rgba.empty())
+    std::memcpy(surface->pixels, img.rgba.data(), img.rgba.size());
+  return surface;
+}
+
+std::vector<Kotonoha::SurfacePtr>
+toSurfaces(const std::vector<Kotonoha::Formats::DecodedImage> &images) {
+  std::vector<Kotonoha::SurfacePtr> out;
+  out.reserve(images.size());
+  for (const auto &img : images)
+    out.push_back(toSurface(img));
+  return out;
+}
+
+Kotonoha::AudioClip toClip(const Kotonoha::Formats::DecodedPcm &pcm) {
+  Kotonoha::AudioClip clip;
+  clip.spec = {SDL_AUDIO_S16, pcm.channels, pcm.sampleRate};
+  clip.data.resize(pcm.samples.size() * sizeof(int16_t));
+  if (!pcm.samples.empty())
+    std::memcpy(clip.data.data(), pcm.samples.data(), clip.data.size());
+  return clip;
+}
+
+CanmData toCanm(const Kotonoha::Formats::CanmData &neutral) {
+  CanmData out;
+  for (size_t i = 0; i < out.slots.size(); ++i) {
+    out.slots[i].x = neutral.slots[i].x;
+    out.slots[i].y = neutral.slots[i].y;
+    out.slots[i].width = neutral.slots[i].width;
+    out.slots[i].height = neutral.slots[i].height;
+    out.slots[i].slotType = neutral.slots[i].slotType;
+    out.slots[i].groupId = neutral.slots[i].groupId;
+    out.slots[i].frameCount = neutral.slots[i].frameCount;
+    for (const auto &frame : neutral.slots[i].frames)
+      out.slots[i].frames.push_back(toSurface(frame));
+  }
+  return out;
+}
+
+Adp4Decoded toAdp4(const Kotonoha::Formats::Adp4Decoded &dec) {
+  Adp4Decoded out;
+  out.samples = dec.samples;
+  out.mouthFrames = dec.mouthFrames;
+  out.sampleRate = dec.sampleRate;
+  out.channels = dec.channels;
+  return out;
+}
+} // namespace
 } // namespace Kotonoha::Providers

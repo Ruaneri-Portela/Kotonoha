@@ -85,8 +85,7 @@ struct PendingNativeLaunch {
   KotonohaLauncher::GameLaunchParameters params;
 };
 
-PendingNativeLaunch
-fromLaunchRequest(const KotonohaGameLaunchRequest &req) {
+PendingNativeLaunch fromLaunchRequest(const KotonohaGameLaunchRequest &req) {
   PendingNativeLaunch launch;
   launch.gamePath = req.gamePath ? req.gamePath : "";
   launch.engineSlug = req.engineSlug ? req.engineSlug : "";
@@ -138,11 +137,9 @@ void applyGraphicsParams(const KotonohaLauncher::GameLaunchParameters &params,
   if (!params.upscalerPreset.empty() &&
       !gameOptions.upscalerPresetOverride.has_value()) {
     int idx = -1;
-    const auto parsed =
-        std::from_chars(params.upscalerPreset.data(),
-                        params.upscalerPreset.data() +
-                            params.upscalerPreset.size(),
-                        idx);
+    const auto parsed = std::from_chars(
+        params.upscalerPreset.data(),
+        params.upscalerPreset.data() + params.upscalerPreset.size(), idx);
     const auto &presets = Kotonoha::UpscalePresets();
     if (parsed.ec == std::errc{} &&
         parsed.ptr ==
@@ -230,75 +227,76 @@ struct Application {
   bool startInProcess(const KotonohaLauncher::DiscoveredGameEntry &entry) {
     const char *phase = "registry lookup";
     try {
-    auto &registry = KotonohaLauncher::EngineLibraryRegistry::instance();
-    if (!registry.canInstantiateInProcess(entry.engine.kind))
-      return false;
+      auto &registry = KotonohaLauncher::EngineLibraryRegistry::instance();
+      if (!registry.canInstantiateInProcess(entry.engine.kind))
+        return false;
 
-    activeGame = entry.engine.slug + " (" + entry.path + ")";
+      activeGame = entry.engine.slug + " (" + entry.path + ")";
 
-    gameOptions = options;
-    gameOptions.launcher = false;
-    if (!entry.params.assetOverlayPath.empty()) {
-      gameOptions.assetOverlayPath = entry.params.assetOverlayPath;
-      gameOptions.assetOverlaySpecified = true;
-    } else if (!entry.overlayPath.empty() &&
-               !gameOptions.assetOverlaySpecified) {
-      gameOptions.assetOverlayPath = entry.overlayPath;
-      gameOptions.assetOverlaySpecified = true;
-    }
-    if (!entry.params.translationPath.empty() &&
-        gameOptions.translationPath.empty()) {
-      gameOptions.translationPath = entry.params.translationPath;
-    }
-    if (!entry.params.subtitleStylePath.empty() &&
-        gameOptions.subtitleStylePath.empty()) {
-      gameOptions.subtitleStylePath = entry.params.subtitleStylePath;
-    }
-    applyGraphicsParams(entry.params, gameOptions);
+      gameOptions = options;
+      gameOptions.launcher = false;
+      if (!entry.params.assetOverlayPath.empty()) {
+        gameOptions.assetOverlayPath = entry.params.assetOverlayPath;
+        gameOptions.assetOverlaySpecified = true;
+      } else if (!entry.overlayPath.empty() &&
+                 !gameOptions.assetOverlaySpecified) {
+        gameOptions.assetOverlayPath = entry.overlayPath;
+        gameOptions.assetOverlaySpecified = true;
+      }
+      if (!entry.params.translationPath.empty() &&
+          gameOptions.translationPath.empty()) {
+        gameOptions.translationPath = entry.params.translationPath;
+      }
+      if (!entry.params.subtitleStylePath.empty() &&
+          gameOptions.subtitleStylePath.empty()) {
+        gameOptions.subtitleStylePath = entry.params.subtitleStylePath;
+      }
+      applyGraphicsParams(entry.params, gameOptions);
 
-    gameEnvironment = std::make_unique<ScopedGameUserData>();
-    const std::string effectiveSaveRoot =
-        !entry.params.customDocumentsDir.empty()
-            ? entry.params.customDocumentsDir
-            : customSaveRoot;
-    KotonohaLauncher::applyPerGameSaveIsolation(
-        entry, gameOptions, splitSavesByGame, effectiveSaveRoot);
+      gameEnvironment = std::make_unique<ScopedGameUserData>();
+      const std::string effectiveSaveRoot =
+          !entry.params.customDocumentsDir.empty()
+              ? entry.params.customDocumentsDir
+              : customSaveRoot;
+      KotonohaLauncher::applyPerGameSaveIsolation(
+          entry, gameOptions, splitSavesByGame, effectiveSaveRoot);
 #if defined(_WIN32)
-    // The CRT and SDL have separate environment storage on Windows.
-    // Preserve Unicode profile paths for runtimes using std::filesystem.
-    const std::wstring nativeRoot =
-        std::filesystem::u8path(KotonohaLauncher::resolveIsolatedUserDataRoot(
-                                    entry, splitSavesByGame, effectiveSaveRoot))
-            .wstring();
-    if (_wputenv_s(L"KOTONOHA_USER_DATA_DIR", nativeRoot.c_str()) != 0)
-      throw std::runtime_error("Unable to set the game save environment");
+      // The CRT and SDL have separate environment storage on Windows.
+      // Preserve Unicode profile paths for runtimes using std::filesystem.
+      const std::wstring nativeRoot =
+          std::filesystem::u8path(
+              KotonohaLauncher::resolveIsolatedUserDataRoot(
+                  entry, splitSavesByGame, effectiveSaveRoot))
+              .wstring();
+      if (_wputenv_s(L"KOTONOHA_USER_DATA_DIR", nativeRoot.c_str()) != 0)
+        throw std::runtime_error("Unable to set the game save environment");
 #endif
 
-    phase = "game assets and runtime construction";
-    auto mounted = registry.instantiate(entry, gameOptions);
-    if (!mounted.runtime) {
-      gameEnvironment.reset();
-      return false;
-    }
-    runtime = std::move(mounted.runtime);
-    assets = std::move(mounted.assets);
-    shutdownRuntime = std::move(mounted.shutdown);
-    if (assets)
-      gameOptions.assets = assets;
-    phase = "engine construction";
-    engine = std::make_unique<Kotonoha::Engine>(*runtime, gameOptions);
-    if (!entry.params.startScenario.empty()) {
-      try {
-        runtime->SetState(Kotonoha::GameState::Gameplay);
-        engine->debugJumpToNode(entry.params.startScenario);
-      } catch (const std::exception &e) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Failed to jump to startScenario '%s': %s",
-                    entry.params.startScenario.c_str(), e.what());
+      phase = "game assets and runtime construction";
+      auto mounted = registry.instantiate(entry, gameOptions);
+      if (!mounted.runtime) {
+        gameEnvironment.reset();
+        return false;
       }
-    }
-    returnToHub = false;
-    return true;
+      runtime = std::move(mounted.runtime);
+      assets = std::move(mounted.assets);
+      shutdownRuntime = std::move(mounted.shutdown);
+      if (assets)
+        gameOptions.assets = assets;
+      phase = "engine construction";
+      engine = std::make_unique<Kotonoha::Engine>(*runtime, gameOptions);
+      if (!entry.params.startScenario.empty()) {
+        try {
+          runtime->SetState(Kotonoha::GameState::Gameplay);
+          engine->debugJumpToNode(entry.params.startScenario);
+        } catch (const std::exception &e) {
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "Failed to jump to startScenario '%s': %s",
+                      entry.params.startScenario.c_str(), e.what());
+        }
+      }
+      returnToHub = false;
+      return true;
     } catch (const std::bad_alloc &) {
       throw std::runtime_error(std::string("Memory allocation failed during ") +
                                phase + " for " + entry.path);
@@ -386,8 +384,8 @@ struct Application {
     if (!macHubWindow) {
       if (!SDL_WasInit(SDL_INIT_VIDEO))
         SDL_InitSubSystem(SDL_INIT_VIDEO);
-      macHubWindow.reset(SDL_CreateWindow("KotonohaLauncher", 1, 1,
-                                           SDL_WINDOW_HIDDEN));
+      macHubWindow.reset(
+          SDL_CreateWindow("KotonohaLauncher", 1, 1, SDL_WINDOW_HIDDEN));
     }
     macNativeHubActive = true;
     KotonohaMacPresentNativeLauncher(&Application::onMacNativeLaunch,
@@ -457,8 +455,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
       if (relative.empty() || relative.front() == '/' ||
           relative.find("..") != std::string::npos)
         throw std::invalid_argument("Invalid documents: game path");
-      app->libraryPath =
-          (Kotonoha::documentsDirectory() / relative).string();
+      app->libraryPath = (Kotonoha::documentsDirectory() / relative).string();
     }
     if (sharedSaves)
       app->splitSavesByGame = false;
@@ -753,8 +750,8 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
 #else
     if (app.frames <= 0) {
       SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-                               "KotonohaLauncher - runtime error",
-                               error.what(), nullptr);
+                               "KotonohaLauncher - runtime error", error.what(),
+                               nullptr);
     }
 #endif
     return SDL_APP_FAILURE;

@@ -1,7 +1,7 @@
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/LucaSystemAssets.hpp>
-#include <LucaSystem/OpcodeTable.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
+#include <LucaSystem/OpcodeTable.hpp>
 
 #include <charconv>
 #include <cstdio>
@@ -11,10 +11,10 @@
 #include <iostream>
 #include <iterator>
 #include <optional>
-#include <stdexcept>
-#include <string_view>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace {
 const char *names[] = {"EQU",
@@ -161,7 +161,8 @@ const char *names[] = {"EQU",
 
 int main(int argc, char **argv) {
   if (argc < 3) {
-    std::cerr << "Usage: LucaInspect DATA_DIR SCRIPT [OPCODE] [--opcode-table FILE]\n";
+    std::cerr << "Usage: LucaInspect DATA_DIR SCRIPT [OPCODE] [--opcode-table "
+                 "FILE]\n";
     return 2;
   }
   Kotonoha::Providers::LucaSystemAssets assets(argv[1], {});
@@ -174,9 +175,8 @@ int main(int argc, char **argv) {
     auto image = LucaSystem::DecodeCzImage(assets.readAsset(argv[3]));
     std::cerr << "CZ image " << argv[3] << ": crop " << image.width << 'x'
               << image.height << " at " << image.cropX << ',' << image.cropY
-              << "; canvas " << image.canvasWidth << 'x'
-              << image.canvasHeight << "; anchor " << image.anchorX << ','
-              << image.anchorY << '\n';
+              << "; canvas " << image.canvasWidth << 'x' << image.canvasHeight
+              << "; anchor " << image.anchorX << ',' << image.anchorY << '\n';
     std::ofstream out(argv[4], std::ios::binary);
     out << "P6\n" << image.width << ' ' << image.height << "\n255\n";
     for (size_t i = 0; i < image.rgba.size(); i += 4) {

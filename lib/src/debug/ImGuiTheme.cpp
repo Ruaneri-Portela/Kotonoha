@@ -106,7 +106,8 @@ bool hasValidSfntContainerBounds(const std::uint8_t *data, std::size_t size) {
     return false;
   }
 
-  if (fontStart > size || size - fontStart < 12 || !hasSfntTag(data + fontStart))
+  if (fontStart > size || size - fontStart < 12 ||
+      !hasSfntTag(data + fontStart))
     return false;
 
   const std::uint16_t numTables = readBe16(data, fontStart + 4);
@@ -151,8 +152,7 @@ struct ErrorRecoveryGuard {
   bool enableTooltip;
 
   explicit ErrorRecoveryGuard(ImGuiIO &target)
-      : io(target),
-        enableAssert(target.ConfigErrorRecoveryEnableAssert),
+      : io(target), enableAssert(target.ConfigErrorRecoveryEnableAssert),
         enableDebugLog(target.ConfigErrorRecoveryEnableDebugLog),
         enableTooltip(target.ConfigErrorRecoveryEnableTooltip) {
     io.ConfigErrorRecoveryEnableAssert = false;
@@ -175,7 +175,8 @@ ImFont *tryLoadFontFile(ImGuiIO &io, const std::filesystem::path &resolved) {
 
   const auto fileSize = std::filesystem::file_size(resolved, ec);
   if (ec || fileSize < kMinFontBytes || fileSize > kMaxFontBytes ||
-      fileSize > static_cast<std::uintmax_t>((std::numeric_limits<int>::max)())) {
+      fileSize >
+          static_cast<std::uintmax_t>((std::numeric_limits<int>::max)())) {
     SDL_LogWarn(LogUI, "Skipping invalid ImGui font file: %s",
                 resolved.u8string().c_str());
     return nullptr;
@@ -191,7 +192,8 @@ ImFont *tryLoadFontFile(ImGuiIO &io, const std::filesystem::path &resolved) {
   }
 
   if (bytes.size() < kMinFontBytes ||
-      bytes.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()) ||
+      bytes.size() >
+          static_cast<std::size_t>((std::numeric_limits<int>::max)()) ||
       !hasValidSfntContainerBounds(bytes.data(), bytes.size())) {
     SDL_LogWarn(LogUI, "Skipping truncated or malformed ImGui font: %s",
                 resolved.u8string().c_str());

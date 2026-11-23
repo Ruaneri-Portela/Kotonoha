@@ -4,8 +4,8 @@
 #include <iostream>
 #include <limits>
 #include <map>
-#include <unordered_map>
 #include <stdexcept>
+#include <unordered_map>
 #include <vector>
 
 static void check(bool ok, const char *message) {
@@ -41,8 +41,7 @@ int main() {
               close(LucaSystem::wipeVisibleWidth(-50, 150, 50), 100) &&
               close(LucaSystem::wipeVisibleWidth(100, -10, 200), 0),
           "directional wipe crops without resizing or revealing beyond edge");
-    check(close(LucaSystem::croppedSpriteOrigin(640, 360, 20, 1, 0, 0),
-                300) &&
+    check(close(LucaSystem::croppedSpriteOrigin(640, 360, 20, 1, 0, 0), 300) &&
               close(LucaSystem::croppedSpriteOrigin(640, 360, 20, 0.5f, 0, 0),
                     470) &&
               close(LucaSystem::croppedSpriteOrigin(640, 360, 20, 2, 4, -2),
@@ -50,12 +49,12 @@ int main() {
               close(LucaSystem::croppedSpriteOrigin(400, 120, 30, 0.5f, 10, 5),
                     370),
           "scaled CZ4 character crop and anchor retain canvas coordinates");
-    check(LucaSystem::isCharacterFragment(384, 640, 1280, 720,
-                                          200, 144, 1280, 720) &&
-              !LucaSystem::isCharacterFragment(384, 640, 1280, 720,
-                                               380, 620, 1280, 720) &&
-              !LucaSystem::isCharacterFragment(384, 640, 1280, 720,
-                                               200, 144, 640, 480),
+    check(LucaSystem::isCharacterFragment(384, 640, 1280, 720, 200, 144, 1280,
+                                          720) &&
+              !LucaSystem::isCharacterFragment(384, 640, 1280, 720, 380, 620,
+                                               1280, 720) &&
+              !LucaSystem::isCharacterFragment(384, 640, 1280, 720, 200, 144,
+                                               640, 480),
           "AIR expression crop overlays a matching portrait canvas");
     {
       std::vector<std::uint8_t> rgba(4 * 4 * 4, 255);
@@ -65,18 +64,18 @@ int main() {
       check(LucaSystem::hasNonOpaquePixels(rgba),
             "Transparent CZ4 overlays must bypass image upscalers");
       rgba[3] = 255;
-      check(LucaSystem::rasterCoversPointWithOpacity(
-                rgba, 4, 4, 0, 0, 1, 1, 2, 2, 1.0f),
+      check(LucaSystem::rasterCoversPointWithOpacity(rgba, 4, 4, 0, 0, 1, 1, 2,
+                                                     2, 1.0f),
             "Opaque background covers the attached HUD point");
       rgba[(2 * 4 + 2) * 4 + 3] = 0;
-      check(!LucaSystem::rasterCoversPointWithOpacity(
-                rgba, 4, 4, 0, 0, 1, 1, 2, 2, 1.0f),
+      check(!LucaSystem::rasterCoversPointWithOpacity(rgba, 4, 4, 0, 0, 1, 1, 2,
+                                                      2, 1.0f),
             "Transparent CZ4 holes do not justify calendar overlay");
-      check(!LucaSystem::rasterCoversPointWithOpacity(
-                rgba, 4, 4, 40, 40, 1, 1, 2, 2, 1.0f),
+      check(!LucaSystem::rasterCoversPointWithOpacity(rgba, 4, 4, 40, 40, 1, 1,
+                                                      2, 2, 1.0f),
             "Calendar must not float outside a cropped background");
-      check(!LucaSystem::rasterCoversPointWithOpacity(
-                rgba, 4, 4, 0, 0, 1, 1, 1, 1, 0.2f),
+      check(!LucaSystem::rasterCoversPointWithOpacity(rgba, 4, 4, 0, 0, 1, 1, 1,
+                                                      1, 0.2f),
             "Darkened/transparent background suppresses attached HUD");
     }
     check(LucaSystem::airCalendarBadgeName(16) == "jul_16" &&
@@ -87,7 +86,9 @@ int main() {
           "AIR calendar follows the July-to-August script day cycle");
     // An outgoing scene must remain cached while crossfading or wiping;
     // release it only after the transition completes.
-    struct SlotId { std::uint32_t assetId = 0; };
+    struct SlotId {
+      std::uint32_t assetId = 0;
+    };
     std::map<std::uint16_t, SlotId> staged{{1, {10}}, {2, {12}}};
     std::map<std::uint16_t, SlotId> visible{{1, {10}}, {3, {13}}};
     std::map<std::uint16_t, SlotId> outgoing{{1, {10}}, {4, {14}}};
@@ -97,20 +98,19 @@ int main() {
         {10, 1}, {12, 1}, {13, 1}, {14, 1}, {99, 1}};
     const auto evicted = LucaSystem::pruneAirObjectCaches(
         staged, visible, outgoing, imageCache, textureCache);
-    check(evicted == 2 && !imageCache.count(99) &&
-              !textureCache.count(99) && imageCache.count(14),
+    check(evicted == 2 && !imageCache.count(99) && !textureCache.count(99) &&
+              imageCache.count(14),
           "active and outgoing scene assets survive GPU cache pruning");
     outgoing.clear();
     const auto discarded = LucaSystem::pruneAirObjectCaches(
         staged, visible, outgoing, imageCache, textureCache);
-    check(discarded == 2 && !imageCache.count(14) &&
-              !textureCache.count(14) && imageCache.count(13) &&
-              textureCache.count(12),
+    check(discarded == 2 && !imageCache.count(14) && !textureCache.count(14) &&
+              imageCache.count(13) && textureCache.count(12),
           "finished transition releases obsolete CPU and GPU images");
     staged.clear();
     visible.clear();
-    LucaSystem::pruneAirObjectCaches(staged, visible, outgoing,
-                                     imageCache, textureCache);
+    LucaSystem::pruneAirObjectCaches(staged, visible, outgoing, imageCache,
+                                     textureCache);
     check(imageCache.empty() && textureCache.empty(),
           "returning to title releases retained gameplay images");
     // Repeated MOVE commands must not teleport between keyframes.
@@ -122,12 +122,10 @@ int main() {
     const auto interrupted =
         LucaSystem::airMoveOffset(0.0f, 100.0f, 1000, 1000, 1250);
     check(close(interrupted, 25.0f) &&
-              close(LucaSystem::airMoveOffset(interrupted,
-                                              interrupted + 60.0f,
+              close(LucaSystem::airMoveOffset(interrupted, interrupted + 60.0f,
                                               1250, 500, 1250),
                     25.0f) &&
-              close(LucaSystem::airMoveOffset(interrupted,
-                                              interrupted + 60.0f,
+              close(LucaSystem::airMoveOffset(interrupted, interrupted + 60.0f,
                                               1250, 500, 1500),
                     55.0f),
           "interrupted MOVE preserves the onscreen position");
@@ -156,8 +154,7 @@ int main() {
     PortraitVisual fragment{};
     LucaSystem::inheritAirPortraitVisuals(fragment, base, true);
     check(close(fragment.posX, 420) && close(fragment.posY, 160) &&
-              close(fragment.scaleX, 0.5f) &&
-              close(fragment.rotation, -13) &&
+              close(fragment.scaleX, 0.5f) && close(fragment.rotation, -13) &&
               close(fragment.alpha, 0.65f) &&
               close(fragment.targetOffsetX, 29) &&
               fragment.moveDuration == 1000 && fragment.r == 100 &&
@@ -184,20 +181,20 @@ int main() {
       return obj.assetId == 100 || obj.assetId == 300;
     };
     check(LucaSystem::retainAirBackdrop(cutout, original, isBackdrop) &&
-          cutout.at(LucaSystem::AirPersistentBackdropKey).assetId == 100 &&
-          LucaSystem::orderedAirLayerKeys(cutout) ==
-              std::vector<std::uint16_t>({
-                  LucaSystem::AirPersistentBackdropKey, 0}),
+              cutout.at(LucaSystem::AirPersistentBackdropKey).assetId == 100 &&
+              LucaSystem::orderedAirLayerKeys(cutout) ==
+                  std::vector<std::uint16_t>(
+                      {LucaSystem::AirPersistentBackdropKey, 0}),
           "seen170 transparent foreground retains old outdoor background");
     std::map<std::uint16_t, AirSlot> foregroundOnly{{0x0201, {2, 1, 210}}};
     check(LucaSystem::retainAirBackdrop(foregroundOnly, cutout, isBackdrop) &&
-          foregroundOnly.count(LucaSystem::AirPersistentBackdropKey) == 1,
+              foregroundOnly.count(LucaSystem::AirPersistentBackdropKey) == 1,
           "background persists even when INIT clears group-0 staging");
     std::map<std::uint16_t, AirSlot> newBackground{{0, {0, 0, 300}}};
     newBackground[LucaSystem::AirPersistentBackdropKey] = {0xfe, 0, 100};
     check(!LucaSystem::retainAirBackdrop(newBackground, foregroundOnly,
                                          isBackdrop) &&
-          !newBackground.count(LucaSystem::AirPersistentBackdropKey),
+              !newBackground.count(LucaSystem::AirPersistentBackdropKey),
           "a full-screen opaque background replaces old backdrop");
     struct PixelImage {
       int width = 4, height = 2;
@@ -241,15 +238,14 @@ int main() {
         pose, fullPortrait, fullPortrait, 12, -8, 0, 0);
     const auto faceRect = LucaSystem::airCharacterCropPlacement(
         pose, fullPortrait, faceOnly, 12, -8, 0, 0);
-    check(close(bodyRect.x, 432) && close(bodyRect.y, 192) &&
-              close(faceRect.x, 477) && close(faceRect.y, 212) &&
-              close(bodyRect.pivotX, 220) && close(faceRect.pivotX, 175) &&
-              close(bodyRect.x + bodyRect.pivotX,
-                    faceRect.x + faceRect.pivotX) &&
-              close(bodyRect.y + bodyRect.pivotY,
-                    faceRect.y + faceRect.pivotY) &&
-              close(faceRect.w, 100) && close(faceRect.h, 72),
-          "face crop uses portrait anchor/pivot rather than local face anchor");
+    check(
+        close(bodyRect.x, 432) && close(bodyRect.y, 192) &&
+            close(faceRect.x, 477) && close(faceRect.y, 212) &&
+            close(bodyRect.pivotX, 220) && close(faceRect.pivotX, 175) &&
+            close(bodyRect.x + bodyRect.pivotX, faceRect.x + faceRect.pivotX) &&
+            close(bodyRect.y + bodyRect.pivotY, faceRect.y + faceRect.pivotY) &&
+            close(faceRect.w, 100) && close(faceRect.h, 72),
+        "face crop uses portrait anchor/pivot rather than local face anchor");
     const auto wrongFaceRect = LucaSystem::airCharacterCropPlacement(
         pose, faceOnly, faceOnly, 12, -8, 0, 0);
     check(!close(wrongFaceRect.x, faceRect.x),
@@ -266,9 +262,12 @@ int main() {
       bool visible = true;
     };
     SpriteProperties oldPose{};
-    oldPose.posX = 440; oldPose.scaleX = 0.65f;
-    oldPose.alpha = 0.4f; oldPose.rotation = 19;
-    oldPose.targetOffsetX = 75; oldPose.moveDuration = 900;
+    oldPose.posX = 440;
+    oldPose.scaleX = 0.65f;
+    oldPose.alpha = 0.4f;
+    oldPose.rotation = 19;
+    oldPose.targetOffsetX = 75;
+    oldPose.moveDuration = 900;
     oldPose.g = 120;
     SpriteProperties newPose{};
     newPose.posX = 95;
@@ -293,29 +292,31 @@ int main() {
     initTracker.reset();
     check(initTracker.allowsVisibleFallback(2, 1),
           "DRAW restores normal inheritance for next sprite staging cycle");
-    struct CachedSlot { std::uint32_t assetId = 0; };
+    struct CachedSlot {
+      std::uint32_t assetId = 0;
+    };
     std::map<std::uint16_t, CachedSlot> oldScene{{0x0201, {10001}}};
     std::map<std::uint16_t, CachedSlot> stagedScene;
     LucaSystem::AirStageResetTracker withoutReset;
-    check(LucaSystem::keepAirSpriteAfterDecodeFailure(
-              stagedScene, oldScene, withoutReset, 2, 1) &&
+    check(LucaSystem::keepAirSpriteAfterDecodeFailure(stagedScene, oldScene,
+                                                      withoutReset, 2, 1) &&
               stagedScene.at(0x0201).assetId == 10001,
           "failed CZ replacement keeps the last valid sprite through DRAW");
     stagedScene.clear();
     withoutReset.clearSlot(2, 1);
-    check(!LucaSystem::keepAirSpriteAfterDecodeFailure(
-              stagedScene, oldScene, withoutReset, 2, 1) &&
+    check(!LucaSystem::keepAirSpriteAfterDecodeFailure(stagedScene, oldScene,
+                                                       withoutReset, 2, 1) &&
               stagedScene.empty(),
           "failed CZ load cannot undo an explicit INIT clearing the slot");
     withoutReset.reset();
-    check(!LucaSystem::keepAirSpriteAfterDecodeFailure(
-              stagedScene, oldScene, withoutReset, 0, 0),
+    check(!LucaSystem::keepAirSpriteAfterDecodeFailure(stagedScene, oldScene,
+                                                       withoutReset, 0, 0),
           "failed CZ cannot synthesize a background that never existed");
     // Draw a face fragment directly above its corresponding body instead of
     // above all portraits. An orphan fragment is intentionally not visible.
     std::map<std::uint16_t, int> layered = {
-        {0x0000, 1}, {0x0200, 2}, {0x0201, 3},
-        {0x0300, 4}, {0x0301, 5}, {0x0303, 6}, {0x0400, 7}};
+        {0x0000, 1}, {0x0200, 2}, {0x0201, 3}, {0x0300, 4},
+        {0x0301, 5}, {0x0303, 6}, {0x0400, 7}};
     check(LucaSystem::orderedAirLayerKeys(layered) ==
               std::vector<std::uint16_t>(
                   {0x0000, 0x0200, 0x0300, 0x0201, 0x0301, 0x0400}),
@@ -324,8 +325,8 @@ int main() {
     check(wipeX == 480 && (1280 - wipeX) + wipeX == 1280 &&
               LucaSystem::wipeSplitX(1280, -1.0f) == 0 &&
               LucaSystem::wipeSplitX(1280, 2.0f) == 1280 &&
-              LucaSystem::wipeSplitX(1280,
-                  std::numeric_limits<float>::quiet_NaN()) == 0 &&
+              LucaSystem::wipeSplitX(
+                  1280, std::numeric_limits<float>::quiet_NaN()) == 0 &&
               LucaSystem::wipeSplitX(0, 0.5f) == 0,
           "scene-wide wipe splits non-overlapping clips exactly");
     // Wipe transitions now carry a dedicated mode instead of silently

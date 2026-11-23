@@ -164,7 +164,7 @@ def main() -> int:
         if (ROOT / "launcher/src" / name).resolve() not in launcher:
             errors.append(f"Native launcher missing {name}")
     for filename in ("lib/src/media/SurfaceTexture.cpp",
-                     "lib/src/Filesystem/AtomicFile.cpp"):
+                     "lib/src/filesystem/AtomicFile.cpp"):
         path = (ROOT / filename).resolve()
         if path not in mac or path not in ios:
             errors.append(f"Engine is missing {filename} on Apple platforms")

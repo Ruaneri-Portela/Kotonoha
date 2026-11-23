@@ -1,5 +1,5 @@
-#include <Ddlc/Runtime.hpp>
 #include <Ddlc/DdlcAssets.hpp>
+#include <Ddlc/Runtime.hpp>
 
 #include <SDL3/SDL.h>
 #include <zlib.h>
@@ -36,11 +36,15 @@ struct Pickle {
     u32(uint32_t(v.size()));
     data.insert(data.end(), v.begin(), v.end());
   }
-  void raw(const std::string &v) { data.insert(data.end(), v.begin(), v.end()); }
+  void raw(const std::string &v) {
+    data.insert(data.end(), v.begin(), v.end());
+  }
 };
 using Emit = std::function<void(Pickle &)>;
 
-Emit nothing() { return [](Pickle &p) { p.byte('N'); }; }
+Emit nothing() {
+  return [](Pickle &p) { p.byte('N'); };
+}
 Emit text(std::string value) {
   return [value = std::move(value)](Pickle &p) { p.text(value); };
 }
@@ -56,28 +60,32 @@ Emit sequence(std::vector<Emit> values, bool tuple = false) {
   };
 }
 Emit list(std::vector<Emit> values) { return sequence(std::move(values)); }
-Emit tuple(std::vector<Emit> values) { return sequence(std::move(values), true); }
+Emit tuple(std::vector<Emit> values) {
+  return sequence(std::move(values), true);
+}
 Emit object(std::string name,
             std::vector<std::pair<std::string, Emit>> properties) {
-  return [name = std::move(name),
-          properties = std::move(properties)](Pickle &p) {
-    p.byte('c');
-    p.raw("renpy.ast\n" + name + "\n");
-    p.byte(')');
-    p.byte(0x81); // NEWOBJ
-    p.byte('}');  // state dict
-    for (const auto &field : properties) {
-      p.text(field.first);
-      field.second(p);
-      p.byte('s');
-    }
-    p.byte('b'); // BUILD
-  };
+  return
+      [name = std::move(name), properties = std::move(properties)](Pickle &p) {
+        p.byte('c');
+        p.raw("renpy.ast\n" + name + "\n");
+        p.byte(')');
+        p.byte(0x81); // NEWOBJ
+        p.byte('}');  // state dict
+        for (const auto &field : properties) {
+          p.text(field.first);
+          field.second(p);
+          p.byte('s');
+        }
+        p.byte('b'); // BUILD
+      };
 }
 Emit ast(std::string name,
          std::vector<std::pair<std::string, Emit>> properties) {
-  properties.emplace_back("linenumber",
-                          [](Pickle &p) { p.byte('K'); p.byte(1); });
+  properties.emplace_back("linenumber", [](Pickle &p) {
+    p.byte('K');
+    p.byte(1);
+  });
   return object(std::move(name), std::move(properties));
 }
 Emit label(std::string name, std::vector<Emit> block, Emit params = nothing()) {
@@ -91,7 +99,8 @@ Emit ret(Emit expression = nothing()) {
 Emit say(std::string message) {
   return ast("Say", {{"who", nothing()},
                      {"what", text(std::move(message))},
-                     {"attributes", nothing()}, {"with_", nothing()}});
+                     {"attributes", nothing()},
+                     {"with_", nothing()}});
 }
 Emit dynamicJump(const std::string &expression) {
   return ast("Jump", {{"target", text(expression)},
@@ -122,8 +131,8 @@ struct Backend : Ddlc::Backend {
     h = 720;
     return true;
   }
-  void textSize(const std::string &text, const Ddlc::TextStyle &style,
-                float &w, float &h) override {
+  void textSize(const std::string &text, const Ddlc::TextStyle &style, float &w,
+                float &h) override {
     w = float(text.size()) * style.size * .5f;
     h = style.size;
   }
@@ -143,33 +152,29 @@ struct Temp {
 int main() {
   try {
     // The synthetic source uses both .rpyc and compiled .rpymc modules.
-    auto parameters = object(
-        "ParameterInfo", {{"parameters",
-                            list({tuple({text("a"), nothing()}),
-                                  tuple({text("b"), text("3")})})}});
-    auto args = object(
-        "ArgumentInfo",
-        {{"arguments", list({tuple({nothing(), text("7")}),
-                              tuple({text("b"), text("9")})})}});
+    auto parameters =
+        object("ParameterInfo",
+               {{"parameters", list({tuple({text("a"), nothing()}),
+                                     tuple({text("b"), text("3")})})}});
+    auto args = object("ArgumentInfo",
+                       {{"arguments", list({tuple({nothing(), text("7")}),
+                                            tuple({text("b"), text("9")})})}});
     auto start = label("start", {dynamicJump("'.branch'")});
-    auto branch = label("start.branch",
-                        {dynamicCall("'.helper'", args), say("back from call"),
-                         ret()});
+    auto branch = label("start.branch", {dynamicCall("'.helper'", args),
+                                         say("back from call"), ret()});
     auto helper = label("start.helper", {ret(text("a + b"))}, parameters);
-    auto menu = ast(
-        "Menu",
-        {{"items",
-          list({tuple({text("Enabled"), nothing(), list({ret(text("123"))})}),
-                tuple({text("Disabled"), text("False"),
-                       list({ret(text("456"))})})})}});
+    auto menu =
+        ast("Menu", {{"items", list({tuple({text("Enabled"), nothing(),
+                                            list({ret(text("123"))})}),
+                                     tuple({text("Disabled"), text("False"),
+                                            list({ret(text("456"))})})})}});
     auto choices = label("menu_test", {menu, ret(text("555"))});
-    auto emptyMenu = ast(
-        "Menu",
-        {{"items", list({tuple({text("Unavailable"), text("False"),
-                                list({ret(text("456"))})})})}});
+    auto emptyMenu =
+        ast("Menu", {{"items", list({tuple({text("Unavailable"), text("False"),
+                                            list({ret(text("456"))})})})}});
     auto disabled = label("menu_empty", {emptyMenu, ret(text("789"))});
-    auto root = tuple(
-        {nothing(), list({start, branch, helper, choices, disabled})});
+    auto root =
+        tuple({nothing(), list({start, branch, helper, choices, disabled})});
 
     Temp temp;
     const auto scriptPath = temp.directory / "script.rpyc";
@@ -182,7 +187,8 @@ int main() {
       require(bool(output), "Write synthetic script.rpyc");
     }
     {
-      const auto bytes = compile(tuple({nothing(), list({label("module_label", {ret()})})}));
+      const auto bytes =
+          compile(tuple({nothing(), list({label("module_label", {ret()})})}));
       std::ofstream output(modulePath, std::ios::binary);
       output.write(reinterpret_cast<const char *>(bytes.data()),
                    std::streamsize(bytes.size()));
@@ -197,7 +203,8 @@ int main() {
             "Load generic compiled Ren'Py game without DDLC assumptions");
 
     Ddlc::Assets assets;
-    require(assets.open(temp.directory.string()), "Open synthetic script source");
+    require(assets.open(temp.directory.string()),
+            "Open synthetic script source");
     Ddlc::Script script;
     std::string error;
     require(script.load(assets, &error), "Load synthetic Ren'Py AST");
@@ -210,9 +217,9 @@ int main() {
 
     vm.start("start");
     // A fresh say window may begin with a dissolve, before dialogue itself.
-    for (int i = 0; i < 8 &&
-                    (vm.interaction().k == Ddlc::Interaction::K::Transition ||
-                     vm.interaction().k == Ddlc::Interaction::K::Pause);
+    for (int i = 0;
+         i < 8 && (vm.interaction().k == Ddlc::Interaction::K::Transition ||
+                   vm.interaction().k == Ddlc::Interaction::K::Pause);
          ++i)
       vm.resume();
     if (vm.interaction().k != Ddlc::Interaction::K::Say) {

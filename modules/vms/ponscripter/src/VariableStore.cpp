@@ -170,8 +170,7 @@ int VariableStore::remainingArrayElements(
     int arrayId, const std::vector<int> &indices) const {
   const auto it = arrays_.find(arrayId);
   if (it == arrays_.end() || indices.empty() ||
-      indices.size() != it->second.dims.size() ||
-      it->second.values.empty())
+      indices.size() != it->second.dims.size() || it->second.values.empty())
     return 0;
 
   const auto &array = it->second;
@@ -195,8 +194,8 @@ int VariableStore::remainingArrayElements(
     }
   }
 
-  const std::size_t remainingDimension = static_cast<std::size_t>(
-      array.dims.back() - indices.back()) + 1;
+  const std::size_t remainingDimension =
+      static_cast<std::size_t>(array.dims.back() - indices.back()) + 1;
   const std::size_t remainingStorage =
       (array.values.size() - 1 - offset) / stride + 1;
   return static_cast<int>(std::min(remainingDimension, remainingStorage));

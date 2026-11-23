@@ -1,5 +1,5 @@
-#include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
 
 #include <algorithm>
 

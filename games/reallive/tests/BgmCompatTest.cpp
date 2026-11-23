@@ -17,8 +17,8 @@ void require(bool value, const char *message) {
 
 int main() {
   try {
-    using RealLive::BgmCommandKind;
     using RealLive::BgmCommandDialect;
+    using RealLive::BgmCommandKind;
     using RealLive::bgmCommandKind;
     constexpr auto legacy = BgmCommandDialect::KotonohaLegacy;
     constexpr auto rlvm = BgmCommandDialect::Rlvm;
@@ -32,17 +32,17 @@ int main() {
               "legacy opcode 13 must RESUME regardless of extra args");
       require(bgmCommandKind(14, count) == BgmCommandKind::Stop,
               "legacy opcode 14 must STOP, not leave a zero-gain track");
-      require(bgmCommandKind(12, count, legacy) ==
-                  bgmCommandKind(12, count) &&
-                  bgmCommandKind(13, count, legacy) ==
-                      bgmCommandKind(13, count) &&
-                  bgmCommandKind(14, count, legacy) ==
-                      bgmCommandKind(14, count),
-              "legacy game configuration must remain the default");
+      require(
+          bgmCommandKind(12, count, legacy) == bgmCommandKind(12, count) &&
+              bgmCommandKind(13, count, legacy) == bgmCommandKind(13, count) &&
+              bgmCommandKind(14, count, legacy) == bgmCommandKind(14, count),
+          "legacy game configuration must remain the default");
     }
     require(bgmCommandKind(9, 0) == BgmCommandKind::Gain &&
-                bgmCommandKind(10, 0) == BgmCommandKind::SetGain,
-            "legacy gain getter/setter do not become pause/resume");
+                bgmCommandKind(10, 0) == BgmCommandKind::Resume &&
+                bgmCommandKind(10, 1) == BgmCommandKind::SetGain,
+            "legacy gain getter is preserved; a no-arg opcode 10 resumes "
+            "instead of setting gain to zero");
     require(bgmCommandKind(11, 0) == BgmCommandKind::HasTrack,
             "legacy opcode 11 without args returns 0/1 track presence");
     require(bgmCommandKind(11, 1) == BgmCommandKind::TrackName,
@@ -62,15 +62,26 @@ int main() {
     bool paused = false;
     int gain = 255;
     for (const auto &[opcode, count] :
-         std::array<std::pair<int, std::size_t>, 3>{
-             {{12, 1}, {13, 1}, {14, 1}}}) {
+         std::array<std::pair<int, std::size_t>, 4>{
+             {{12, 1}, {10, 0}, {13, 1}, {14, 1}}}) {
       switch (bgmCommandKind(opcode, count)) {
-      case BgmCommandKind::Pause: paused = true; break;
-      case BgmCommandKind::Resume: paused = false; break;
-      case BgmCommandKind::Stop: playing = false; break;
-      case BgmCommandKind::Mute: gain = 0; break;
-      case BgmCommandKind::SetGain: gain = 0; break;
-      default: break;
+      case BgmCommandKind::Pause:
+        paused = true;
+        break;
+      case BgmCommandKind::Resume:
+        paused = false;
+        break;
+      case BgmCommandKind::Stop:
+        playing = false;
+        break;
+      case BgmCommandKind::Mute:
+        gain = 0;
+        break;
+      case BgmCommandKind::SetGain:
+        gain = 0;
+        break;
+      default:
+        break;
       }
     }
     require(!playing && !paused && gain == 255,
@@ -98,8 +109,39 @@ int main() {
                   bgmCommandKind(opcode, 0, rlvm) == BgmCommandKind::Other,
               "play, seek and fades keep their established runtime paths");
 
-    std::cout << "RealLive BGM legacy-volume regression and explicit rlvm "
-                 "dialect tests passed\n";
+    // Boot/logo scenarios of the retail AIR edition (SEEN 9030/9031/9032)
+    // contain no module 20 command at all. This inventory was obtained with
+    // RealLiveInspect from Seen.txt; it must stay free of BGM start opcodes.
+    using RealLive::bgmGainAfterStop;
+    using RealLive::bgmStartsPlayback;
+    constexpr std::array<std::pair<int, int>, 8> bootCommands{{
+        {1, 4},  {1, 21}, {1, 22}, {1, 30},
+        {1, 31}, {1, 33}, {1, 71}, {1, 81},
+    }};
+    for (const auto &[module, opcode] : bootCommands)
+      require(!(module == 20 && bgmStartsPlayback(opcode)),
+              "boot and logo scenarios must not start BGM");
+    require(!bgmStartsPlayback(-1) && !bgmStartsPlayback(4) &&
+                !bgmStartsPlayback(105),
+            "status, stop and fade opcodes never start a track");
+
+    // The first explicit BGM command of AIR scenario 170 is instruction 246:
+    // 1:20:0("BGM00"). Only this and its fade/play variants start playback.
+    require(bgmStartsPlayback(0) && bgmStartsPlayback(1) &&
+                bgmStartsPlayback(2) && bgmStartsPlayback(3),
+            "an explicit BGM play/loop opcode starts the requested track");
+    require(!bgmStartsPlayback(5) && !bgmStartsPlayback(9) &&
+                !bgmStartsPlayback(10) && !bgmStartsPlayback(14),
+            "stop, pause, resume and gain opcodes do not start playback");
+
+    // A no-argument opcode 10 is Resume (asserted above), never SetGain(0).
+    // Stopping BGM restores full gain so the next explicit track is audible.
+    require(bgmGainAfterStop(0.0f) == 1.0f &&
+                bgmGainAfterStop(0.42f) == 1.0f,
+            "stopBgm restores gain to one after a fade-out to silence");
+
+    std::cout << "RealLive BGM script-only playback, no-arg resume and "
+                 "stop-gain regressions passed\n";
     return 0;
   } catch (const std::exception &error) {
     std::cerr << "RealLive BGM compatibility regression: " << error.what()

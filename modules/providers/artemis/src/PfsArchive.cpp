@@ -141,7 +141,8 @@ std::array<std::uint8_t, 20> PfsArchive::sha1(const std::uint8_t *data,
   const std::size_t paddedLen = (rem + 1 + 8 <= 64) ? 64 : 128;
   const std::uint64_t bitLen = static_cast<std::uint64_t>(size) * 8ull;
   for (int i = 0; i < 8; ++i) {
-    tail[paddedLen - 1 - i] = static_cast<std::uint8_t>((bitLen >> (i * 8)) & 0xFFu);
+    tail[paddedLen - 1 - i] =
+        static_cast<std::uint8_t>((bitLen >> (i * 8)) & 0xFFu);
   }
   processBlock(tail);
   if (paddedLen == 128)
@@ -248,7 +249,8 @@ PfsArchive::open(std::unique_ptr<Kotonoha::Filesystem::FileHandle> handle,
     const std::uint32_t dataLen = readU32LE(table.data() + pos);
     pos += 4;
 
-    if (static_cast<std::uint64_t>(offset) + static_cast<std::uint64_t>(dataLen) >
+    if (static_cast<std::uint64_t>(offset) +
+            static_cast<std::uint64_t>(dataLen) >
         static_cast<std::uint64_t>(fileSize)) {
       continue;
     }

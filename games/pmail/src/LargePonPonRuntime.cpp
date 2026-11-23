@@ -1,4 +1,6 @@
 #include "LargePonPonRuntime.hpp"
+#include <Kotonoha/Formats/Crgb.hpp>
+#include <Kotonoha/media/DecodedImageSurface.hpp>
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/Engine.hpp>
@@ -1219,7 +1221,8 @@ void LargePonPonRuntime::render(Kotonoha::RendererRef rendererRef, float) {
     const int baseInFile = (cgPage_ % 4) * 20;
     if (p256Idx >= 0 && p256Idx < 4 && !cgP256Raw_[p256Idx].empty()) {
       const auto &raw = cgP256Raw_[p256Idx];
-      const size_t total = Kotonoha::Providers::p256ThumbnailCount(raw.size());
+      const size_t total =
+          Kotonoha::Formats::Crgb::p256ThumbnailCount(raw.size());
       for (int i = 0; i < 20; ++i) {
         const size_t ti = static_cast<size_t>(baseInFile + i);
         if (ti >= total)
@@ -1228,9 +1231,10 @@ void LargePonPonRuntime::render(Kotonoha::RendererRef rendererRef, float) {
         const int row = i / 5;
         const int x = 24 + col * 152;
         const int y = 26 + row * 114;
-        auto thumb = Kotonoha::Providers::decodeP256Thumbnail(
+        auto thumb = Kotonoha::Formats::Crgb::decodeP256Thumbnail(
             raw.data(), raw.size(), ti, cgHover_ == i);
-        drawSurfaceAt(r, thumb.get(), x, y);
+        auto thumbSurface = Kotonoha::media::surfaceFromDecoded(thumb);
+        drawSurfaceAt(r, thumbSurface.get(), x, y);
       }
     }
     ui.button(rendererRef, {32.0f, 487.0f, 120.0f, 38.0f}, "Prev", false);
@@ -1285,9 +1289,8 @@ void LargePonPonRuntime::renderOverlay(Kotonoha::RendererRef, float) {}
 bool LargePonPonRuntime::onEvent(Kotonoha::EventRef eventRef) {
   const bool inDialogue = (mode_ == Mode::Running);
   const SDL_Event ev = Kotonoha::InputMapper::toKeyEvent(
-      eventRef,
-      inDialogue ? Kotonoha::InputContext::Dialogue
-                 : Kotonoha::InputContext::Menu);
+      eventRef, inDialogue ? Kotonoha::InputContext::Dialogue
+                           : Kotonoha::InputContext::Menu);
 
   if (ev.type == SDL_EVENT_MOUSE_MOTION) {
     mouseX_ = ev.motion.x;
@@ -1386,7 +1389,8 @@ bool LargePonPonRuntime::onEvent(Kotonoha::EventRef eventRef) {
         return true;
       }
       if (Kotonoha::InputMapper::isConfirmKey(key)) {
-        const int idx = std::clamp(titleHover_ < 0 ? 0 : titleHover_, 0, count - 1);
+        const int idx =
+            std::clamp(titleHover_ < 0 ? 0 : titleHover_, 0, count - 1);
         const int bitIdx = (titlePage_ == 0) ? (90 + idx) : (93 + idx);
         if (vm_.getBit(bitIdx)) {
           vm_.setW(1, idx);

@@ -239,6 +239,14 @@ private:
   bool restoreRuntimeSnapshot(const std::vector<uint8_t> &snapshot);
   static std::uint32_t parseColorName(std::string_view colorStr);
 
+  // N2 scripts address sound entities either by creation name ("BGM04") or by
+  // entity-path queries ("@BGM04", "@BGM*"). Match both, including wildcards.
+  std::vector<std::string> matchingSoundEntities(std::string_view query) const;
+  // The NSB compiler sometimes emits a bare identifier where a variable value
+  // is expected (e.g. the "ループ" loop argument). Resolve such names against
+  // the VM's global variable slots before interpreting them as literals.
+  NsbValue resolveVariableName(const NsbValue &value) const;
+
   NsbLoaderFn loader_;
   ImageSizeFn imageSizeFn_;
   MediaTimeQueryFn mediaTimeQuery_;
@@ -252,6 +260,11 @@ private:
   std::unordered_map<std::string, PreDialogueBlock> preBlocks_;
   std::unordered_map<std::string, std::string> soundEntities_;
   std::unordered_map<std::string, std::string> soundTypes_;
+  // Per-sound-entity state. The engine owns a single playback channel per
+  // kind, but scripts create dozens of muted entities and start/loop/volume
+  // them individually. A negative volume means "use the configured master".
+  std::unordered_map<std::string, float> soundVolumes_;
+  std::unordered_map<std::string, bool> soundLoops_;
 
   // Deque keeps Thread references stable when CreateProcess spawns during an
   // NSB instruction. Deletion is deferred until after the scheduler tick.

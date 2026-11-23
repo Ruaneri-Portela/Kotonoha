@@ -338,6 +338,10 @@ bool NsbVm::boot(std::string_view startScript,
   triggeredChoice_.clear();
   activeMovie_ = {};
   sceneGraph_.clear();
+  soundEntities_.clear();
+  soundTypes_.clear();
+  soundVolumes_.clear();
+  soundLoops_.clear();
   dialogueSystem_.clearDialogue();
   finished_ = false;
   totalExecuted_ = 0;
@@ -542,6 +546,44 @@ NsbValue NsbVm::readVar(std::string_view varName) const {
   return NsbValue::makeInt(0);
 }
 
+std::vector<std::string>
+NsbVm::matchingSoundEntities(std::string_view query) const {
+  std::vector<std::string> out;
+  if (query.empty())
+    return out;
+  std::string name(query);
+  // "@BGM04" is an entity path, "BGM04" is the creation name. Function
+  // arguments in retail scripts use both spellings for the same sound.
+  if (name.front() == '@')
+    name.erase(name.begin());
+  if (const auto slash = name.find('/'); slash != std::string::npos)
+    name.erase(slash);
+  if (name.empty())
+    return out;
+  if (soundEntities_.find(name) != soundEntities_.end()) {
+    out.push_back(name);
+    return out;
+  }
+  for (const auto &[entity, path] : soundEntities_) {
+    (void)path;
+    if (SceneGraph::wildcardMatch(entity, name))
+      out.push_back(entity);
+  }
+  return out;
+}
+
+NsbValue NsbVm::resolveVariableName(const NsbValue &value) const {
+  if (value.kind != NsbValue::Kind::String || value.strVal.empty())
+    return value;
+  if (auto it = vars_.find(value.strVal); it != vars_.end())
+    return it->second;
+  if (value.strVal.front() != '$' && value.strVal.front() != '#') {
+    if (auto it = vars_.find("$" + value.strVal); it != vars_.end())
+      return it->second;
+  }
+  return value;
+}
+
 const NsbValue *NsbVm::findVar(std::string_view name) const {
   auto it = vars_.find(std::string(name));
   return it == vars_.end() ? nullptr : &it->second;
@@ -715,10 +757,11 @@ std::size_t NsbVm::step(std::size_t budget) {
       runnableAtStart == 1 ? budget : std::min<std::size_t>(budget, 512);
   if (threads_.front().running && !threads_.front().deleted)
     total += stepThread(threads_.front(), mainBudget);
-  for (std::size_t i = 1; i < runnableAtStart && total < budget &&
-                          !pendingSaveAction_; ++i) {
+  for (std::size_t i = 1;
+       i < runnableAtStart && total < budget && !pendingSaveAction_; ++i) {
     if (threads_[i].running && !threads_[i].deleted)
-      total += stepThread(threads_[i], std::min<std::size_t>(256, budget - total));
+      total +=
+          stepThread(threads_[i], std::min<std::size_t>(256, budget - total));
   }
 
   // Do not erase while execInstruction() retains a reference to a Thread.
@@ -746,12 +789,10 @@ std::size_t NsbVm::stepThread(Thread &t, std::size_t budget) {
       if (!t.callStack.empty()) {
         auto frame = std::move(t.callStack.back());
         t.callStack.pop_back();
-        for (const auto &[k, prev] : frame.savedParams) {
-          if (prev.first)
-            vars_[k] = prev.second;
-          else
-            vars_.erase(k);
-        }
+        // N2System function parameters are global variable slots: the script
+        // intentionally reads them after a function returns (e.g. $MOVIESG is
+        // set by CreateMovieSG and consumed later by MovieWaitSG). Do not
+        // restore them here; EndFunctionStrategy used to do so.
         t.script = std::move(frame.script);
         t.pc = frame.pc;
         continue;
@@ -1355,12 +1396,10 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     if (!t.callStack.empty()) {
       auto frame = std::move(t.callStack.back());
       t.callStack.pop_back();
-      for (const auto &[k, prev] : frame.savedParams) {
-        if (prev.first)
-          vars_[k] = prev.second;
-        else
-          vars_.erase(k);
-      }
+      // Function parameters are global N2 variables and deliberately survive
+      // the return so later builtins can read them (S;G MovieWaitSG reads the
+      // $MOVIESG entity name written by CreateMovieSG). Keep savedParams in
+      // the frame for save-state fidelity, but never apply them on return.
       t.script = std::move(frame.script);
       t.pc = frame.pc;
     } else {
@@ -1606,7 +1645,10 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       e->z = static_cast<float>(a[1].asFloat());
       e->x = resolveCoord(a[2], 0.0f, screenW, true);
       e->y = resolveCoord(a[3], 0.0f, screenH, false);
-      e->movieLoop = a[4].isTruthy();
+      // Retail scripts pass the *name* of the loop parameter ("ループ") here
+      // instead of its value; resolve it before interpreting the flag. A bare
+      // "true" literal still works as before.
+      e->movieLoop = resolveVariableName(a[4]).isTruthy();
       e->moviePath = normalizeAssetPath(a[6].asString());
       e->moviePlaying = true;
       e->visible = true;
@@ -1653,15 +1695,23 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
   case 0x01f: { // UnLoadFile
     auto a = popArgs(t, args.size());
     if (op == 0x019 && a.size() >= 2) {
-      auto *e = sceneGraph_.createEntity(a[0].asString(), EntityType::Sprite);
+      // LoadImage fills an EXISTING entity created by CreateTexture. Creating
+      // a fresh one here discarded its transform/priority/visibility and made
+      // character sprites disappear (e.g. Mayuri in function.nsb).
+      auto *e = sceneGraph_.findEntity(a[0].asString());
+      const bool fresh = !e || e->type != EntityType::Sprite;
+      if (fresh)
+        e = sceneGraph_.createEntity(a[0].asString(), EntityType::Sprite);
       e->imagePath = normalizeAssetPath(a[1].asString());
-      e->visible = false;
+      if (fresh)
+        e->visible = false;
     } else if (op == 0x01b && a.size() >= 4) {
-      auto *e = sceneGraph_.createEntity(a[0].asString(), EntityType::Color);
+      auto *e = sceneGraph_.findEntity(a[0].asString());
+      if (!e || e->type != EntityType::Color)
+        e = sceneGraph_.createEntity(a[0].asString(), EntityType::Color);
       e->width = static_cast<float>(a[1].asFloat());
       e->height = static_cast<float>(a[2].asFloat());
       e->solidColor = parseColorName(a[3].asString());
-      e->visible = false;
     }
     break;
   }
@@ -1692,9 +1742,9 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const std::string query = a[0].asString();
       const std::string level = toLowerAscii(a[1].asString());
       // NitroSharp's Medium/Heavy shader presets use 8/16 blur passes.
-      const unsigned passes =
-          level == "heavy" || level == "16" ? 16u
-          : level == "medium" || level == "8" ? 8u : 0u;
+      const unsigned passes = level == "heavy" || level == "16"   ? 16u
+                              : level == "medium" || level == "8" ? 8u
+                                                                  : 0u;
       sceneGraph_.setBoxBlur(query, passes);
     }
     break;
@@ -1704,8 +1754,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     if (a.size() >= 2) {
       const std::string query = a[0].asString();
       const std::string tone = toLowerAscii(a[1].asString());
-      sceneGraph_.setMonochrome(query, tone == "monochrome" ||
-                                          tone == "mono" || tone == "1");
+      sceneGraph_.setMonochrome(query, tone == "monochrome" || tone == "mono" ||
+                                           tone == "1");
     }
     break;
   }
@@ -1735,7 +1785,9 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
         const float tx = resolveCoord(a[2], e->x, screenW, true);
         const float ty = resolveCoord(a[3], e->y, screenH, false);
         sceneGraph_.moveEntity(e->name, tx, ty, ms,
-            a.size() >= 5 ? parseEaseFunction(a[4].asString()) : EaseFunction::Linear);
+                               a.size() >= 5
+                                   ? parseEaseFunction(a[4].asString())
+                                   : EaseFunction::Linear);
       }
       if (a.size() >= 6 && a[5].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
@@ -1750,15 +1802,15 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     if (a.size() >= 8) {
       const std::string query = a[0].asString();
       const float ms = static_cast<float>(a[1].asFloat());
-      sceneGraph_.bezierMoveEntity(
-          query, static_cast<float>(a[2].asFloat()),
-          static_cast<float>(a[3].asFloat()),
-          static_cast<float>(a[4].asFloat()),
-          static_cast<float>(a[5].asFloat()),
-          static_cast<float>(a[6].asFloat()),
-          static_cast<float>(a[7].asFloat()), ms,
-          a.size() >= 9 ? parseEaseFunction(a[8].asString())
-                        : EaseFunction::Linear);
+      sceneGraph_.bezierMoveEntity(query, static_cast<float>(a[2].asFloat()),
+                                   static_cast<float>(a[3].asFloat()),
+                                   static_cast<float>(a[4].asFloat()),
+                                   static_cast<float>(a[5].asFloat()),
+                                   static_cast<float>(a[6].asFloat()),
+                                   static_cast<float>(a[7].asFloat()), ms,
+                                   a.size() >= 9
+                                       ? parseEaseFunction(a[8].asString())
+                                       : EaseFunction::Linear);
       if (a.size() >= 10 && a[9].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
@@ -1781,7 +1833,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const float opVal =
           std::clamp(static_cast<float>(a[2].asFloat()) / 1000.0f, 0.0f, 1.0f);
       sceneGraph_.fadeEntity(query, opVal, ms,
-          a.size() >= 4 ? parseEaseFunction(a[3].asString()) : EaseFunction::Linear);
+                             a.size() >= 4 ? parseEaseFunction(a[3].asString())
+                                           : EaseFunction::Linear);
       if (a.size() >= 5 && a[4].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
@@ -1798,7 +1851,8 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const float sx = static_cast<float>(a[2].asFloat()) / 1000.0f;
       const float sy = static_cast<float>(a[3].asFloat()) / 1000.0f;
       sceneGraph_.zoomEntity(query, sx, sy, ms,
-          a.size() >= 5 ? parseEaseFunction(a[4].asString()) : EaseFunction::Linear);
+                             a.size() >= 5 ? parseEaseFunction(a[4].asString())
+                                           : EaseFunction::Linear);
       if (a.size() >= 6 && a[5].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
@@ -1814,7 +1868,9 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const float ms = static_cast<float>(a[1].asFloat());
       const float rz = static_cast<float>(a[4].asFloat());
       sceneGraph_.rotateEntity(query, rz, ms,
-          a.size() >= 6 ? parseEaseFunction(a[5].asString()) : EaseFunction::Linear);
+                               a.size() >= 6
+                                   ? parseEaseFunction(a[5].asString())
+                                   : EaseFunction::Linear);
     }
     break;
   }
@@ -1842,7 +1898,9 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const std::string mask =
           a.size() >= 7 ? normalizeAssetPath(a[6].asString()) : "";
       sceneGraph_.transitionEntity(query, s, e, ms, mask,
-          a.size() >= 6 ? parseEaseFunction(a[5].asString()) : EaseFunction::Linear);
+                                   a.size() >= 6
+                                       ? parseEaseFunction(a[5].asString())
+                                       : EaseFunction::Linear);
       if (a.size() >= 8 && a[7].isTruthy() && ms > 0.0f) {
         t.waitEntity = query;
         t.waitEntityAnim = true;
@@ -1908,9 +1966,18 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
           e->smoothing = true;
         else if (action == "hide" || action == "erase")
           e->visible = false;
-        else if (action == "show" || action == "enter")
+        else if (action == "show" || action == "enter" ||
+                 action == "fadeenter" || action == "open") {
+          // The original Request dispatcher (STEINSGATE.exe 0x47b740)
+          // recognises FadeEnter/Open in addition to Show/Enter. The host
+          // compositor owns opacity transitions, so make the entity visible
+          // here and let Fade/Zoom opcodes animate it when the script asks.
           e->visible = true;
-        else if (action == "stop")
+          e->opacity = 1.0f;
+        } else if (action == "nolog" || action == "nolg") {
+          // Request(..., "NoLog") suppresses backlog for the next line; the
+          // host owns backlog, so acknowledge it without changing the entity.
+        } else if (action == "stop")
           e->moviePlaying = false;
         else if (action == "play" || action == "start") {
           if (e->type == EntityType::Movie) {
@@ -1926,7 +1993,7 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       for (std::size_t i = 1; i < threads_.size(); ++i) {
         if (!threads_[i].deleted &&
             SceneGraph::wildcardMatch(threads_[i].name, query)) {
-          if (action == "start")
+          if (action == "start" || action == "resume")
             threads_[i].running = true;
           else if (action == "stop" || action == "pause")
             threads_[i].running = false;
@@ -1936,23 +2003,41 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
             threads_[i].locked = false;
         }
       }
-      // Check sound entities
-      if (auto sit = soundEntities_.find(query); sit != soundEntities_.end()) {
-        const auto &type = soundTypes_[query];
+      // Check sound entities. CreateSound only *creates* a muted entity in
+      // the original engine; Request(Play) is what actually starts it. The
+      // retail title BGM is started this way by function.SoundPlay, so BGM
+      // must never be started merely by CreateSound (nor stopped by
+      // "Disused", which means destroy-when-idle, not Stop).
+      for (const auto &sound : matchingSoundEntities(query)) {
+        const auto &type = soundTypes_[sound];
+        const auto &path = soundEntities_[sound];
         if (action == "play" || action == "start") {
-          if (type == "BGM")
-            audioSystem_.playBgm(sit->second, true);
-          else if (type == "VOICE")
-            audioSystem_.playVoice(sit->second);
-          else
-            audioSystem_.playSe(sit->second, 0, false);
-        } else if (action == "stop" || action == "disused") {
-          if (type == "BGM")
+          const float volume = soundVolumes_.count(sound)
+                                   ? soundVolumes_[sound]
+                                   : -1.0f;
+          const bool loop =
+              soundLoops_.count(sound) ? soundLoops_[sound] : true;
+          AudioChannelKind kind = AudioChannelKind::Bgm;
+          if (type == "BGM") {
+            audioSystem_.playBgm(path, loop);
+          } else if (type == "VOICE") {
+            audioSystem_.playVoice(path);
+            kind = AudioChannelKind::Voice;
+          } else {
+            audioSystem_.playSe(path, 0, loop);
+            kind = AudioChannelKind::Se;
+          }
+          if (volume >= 0.0f)
+            audioSystem_.fadeVolume(kind, volume, 0.0f);
+        } else if (action == "stop") {
+          // A wildcard query must not kill an unrelated track that is still
+          // playing; only stop when this entity owns the active channel.
+          if (type == "BGM" &&
+              audioSystem_.bgmChannel().assetPath == path)
             audioSystem_.stopBgm();
-          else if (type == "VOICE")
+          else if (type == "VOICE" &&
+                   audioSystem_.voiceChannel().assetPath == path)
             audioSystem_.stopVoice();
-          else
-            audioSystem_.stopSe(0);
         }
       }
       // Check <PRE> text blocks
@@ -1980,42 +2065,78 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const std::string type = a[1].asString();
       soundEntities_[name] = path;
       soundTypes_[name] = type;
-      if (type == "BGM")
-        audioSystem_.playBgm(path, true);
-      else if (type == "VOICE")
-        audioSystem_.playVoice(path);
-      else
-        audioSystem_.playSe(path, 0, false);
+      // InitBGM creates ~70 muted BGM entities at boot. Playing all of them
+      // here left the last one (bgm99st.ogg) on the single BGM channel with
+      // volume 0, which is exactly the "title music is silent" regression.
+      soundVolumes_[name] = -1.0f;
+      soundLoops_[name] = true;
     }
     break;
   }
   case 0x043: { // SetVolume [query, ms, vol(0..1000), tempo]
     auto a = popArgs(t, args.size());
+    // The NSB compiler emits bare parameter names ("秒数", "ボリウム") as
+    // literal strings inside function bodies; resolve them to the values the
+    // caller supplied before interpreting the operands.
+    for (auto &arg : a)
+      arg = resolveVariableName(arg);
     if (a.size() >= 3) {
       const float vol =
           std::clamp(static_cast<float>(a[2].asFloat()) / 1000.0f, 0.0f, 1.0f);
+      // Operand 1 is the fade duration in milliseconds; the original engine
+      // crossfades volume changes instead of jumping to the target instantly.
+      const float fadeMs =
+          a.size() > 1 ? std::max(0.0f, static_cast<float>(a[1].asFloat()))
+                       : 0.0f;
       const auto &q = a[0].asString();
-      auto it = soundTypes_.find(q);
-      if (it != soundTypes_.end()) {
-        if (it->second == "BGM")
-          audioSystem_.setVolume(AudioChannelKind::Bgm, vol);
-        else if (it->second == "VOICE")
-          audioSystem_.setVolume(AudioChannelKind::Voice, vol);
-        else
-          audioSystem_.setVolume(AudioChannelKind::Se, vol);
+      for (const auto &sound : matchingSoundEntities(q)) {
+        soundVolumes_[sound] = vol;
+        const auto &type = soundTypes_[sound];
+        const auto &path = soundEntities_[sound];
+        AudioChannelKind kind = AudioChannelKind::Bgm;
+        if (type == "BGM") {
+          if (audioSystem_.bgmChannel().assetPath != path ||
+              !audioSystem_.bgmChannel().isPlaying)
+            continue;
+        } else if (type == "VOICE") {
+          if (audioSystem_.voiceChannel().assetPath != path ||
+              !audioSystem_.voiceChannel().isPlaying)
+            continue;
+          kind = AudioChannelKind::Voice;
+        } else {
+          if (audioSystem_.seChannels().empty())
+            continue;
+          kind = AudioChannelKind::Se;
+        }
+        // Only a change to the currently playing entity affects the channel.
+        audioSystem_.fadeVolume(kind, vol, fadeMs);
       }
     }
     break;
   }
   case 0x044: // SetPan
   case 0x045: // SetFrequency
-  case 0x046: // SetLoop
   case 0x047: // SetLoopPoint
   case 0x06f: // SoundAmplitude
     (void)popArgs(t, args.size());
     if (op == 0x06f)
       t.stack.push_back(NsbValue::makeInt(0));
     break;
+  case 0x046: { // SetLoop [query, loop]
+    auto a = popArgs(t, args.size());
+    for (auto &arg : a)
+      arg = resolveVariableName(arg);
+    if (a.size() >= 2) {
+      const bool loop = resolveVariableName(a[1]).isTruthy();
+      for (const auto &sound : matchingSoundEntities(a[0].asString())) {
+        soundLoops_[sound] = loop;
+        if (soundTypes_[sound] == "BGM" &&
+            audioSystem_.bgmChannel().assetPath == soundEntities_[sound])
+          audioSystem_.setBgmLoop(loop);
+      }
+    }
+    break;
+  }
 
   // --- Dialogue & <PRE> ---
   case 0x0d8: { // PreCreateStrategy [textId, boxName, rawXml]
@@ -2109,12 +2230,11 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     auto a = popArgs(t, args.size());
     const std::string query =
         !a.empty() ? a[0].asString() : (args.empty() ? "" : args[0]);
-    const MediaTimeKind kind =
-        op == 0x05e ? MediaTimeKind::Remaining
-        : op == 0x05f ? MediaTimeKind::Duration
-                      : MediaTimeKind::Elapsed;
-    const auto result = mediaTimeQuery_
-        ? mediaTimeQuery_(query, kind) : std::int64_t{0};
+    const MediaTimeKind kind = op == 0x05e   ? MediaTimeKind::Remaining
+                               : op == 0x05f ? MediaTimeKind::Duration
+                                             : MediaTimeKind::Elapsed;
+    const auto result =
+        mediaTimeQuery_ ? mediaTimeQuery_(query, kind) : std::int64_t{0};
     t.stack.push_back(NsbValue::makeInt(std::max<std::int64_t>(0, result)));
     break;
   }
@@ -2151,14 +2271,13 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
     t.stack.push_back(NsbValue::makeInt(op == 0x061 ? w : h));
     break;
   }
-  case 0x04f: // Save(slot)
-  case 0x050: // Load(slot)
+  case 0x04f:   // Save(slot)
+  case 0x050:   // Load(slot)
   case 0x051: { // DeleteSaveFile(slot)
     const auto values = popArgs(t, args.size());
-    const auto slot = values.empty() ? std::int64_t{0}
-                                     : values[0].asInt();
+    const auto slot = values.empty() ? std::int64_t{0} : values[0].asInt();
     if (slot >= 0 && slot <= std::numeric_limits<std::uint32_t>::max()) {
-      const auto kind = op == 0x04f ? SaveActionKind::Save
+      const auto kind = op == 0x04f   ? SaveActionKind::Save
                         : op == 0x050 ? SaveActionKind::Load
                                       : SaveActionKind::Delete;
       pendingSaveAction_ =
@@ -2169,8 +2288,10 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
   }
   case 0x052: { // ExistSave [slot]
     auto a = popArgs(t, args.size());
-    const auto slot = !a.empty() ? a[0].asInt()
-                                 : (!args.empty() ? NsbValue::makeString(args[0]).asInt() : 0);
+    const auto slot =
+        !a.empty()
+            ? a[0].asInt()
+            : (!args.empty() ? NsbValue::makeString(args[0]).asInt() : 0);
     const bool found = saveExistsQuery_ && slot >= 0 &&
                        slot <= std::numeric_limits<std::uint32_t>::max() &&
                        saveExistsQuery_(static_cast<std::uint32_t>(slot));
@@ -2189,12 +2310,12 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
       const std::tm *local = std::localtime(&now);
       if (local) {
         const int values[6] = {local->tm_year + 1900, local->tm_mon + 1,
-                               local->tm_mday, local->tm_hour,
-                               local->tm_min, local->tm_sec};
+                               local->tm_mday,        local->tm_hour,
+                               local->tm_min,         local->tm_sec};
         for (std::size_t i = 0; i < 6; ++i) {
-          const std::string name =
-              i < a.size() && !a[i].lvalueKey.empty()
-                  ? a[i].lvalueKey : args[i];
+          const std::string name = i < a.size() && !a[i].lvalueKey.empty()
+                                       ? a[i].lvalueKey
+                                       : args[i];
           if (!name.empty())
             assignVar(t, name, NsbValue::makeInt(values[i]));
         }
@@ -2458,9 +2579,9 @@ bool NsbVm::loadState(const SaveData &data) {
       threads_.front().pc = data.position;
     }
   }
-  dialogueSystem_.restore(data.activeSpeaker, data.activeText,
-                          data.activeVoice, data.backlog,
-                          data.activeText.size(), 30.0f, false, false);
+  dialogueSystem_.restore(data.activeSpeaker, data.activeText, data.activeVoice,
+                          data.backlog, data.activeText.size(), 30.0f, false,
+                          false);
   return true;
 }
 

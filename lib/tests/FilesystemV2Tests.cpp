@@ -280,8 +280,8 @@ void testRemoteManifest() {
   require(remote->totalRequests() == beforeMissing,
           "Unlisted file open scheduled HTTP");
   expectCode(VFS::ErrorCode::InvalidPath, [&] {
-    VFS::FetchAssetProvider::fromManifest(
-        "https://example.invalid/", R"({"entries":[]})");
+    VFS::FetchAssetProvider::fromManifest("https://example.invalid/",
+                                          R"({"entries":[]})");
   });
   auto files =
       VFS::Filesystem::mount(std::static_pointer_cast<VFS::IMount>(remote));

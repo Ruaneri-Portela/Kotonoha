@@ -8,20 +8,21 @@
 #include <stdexcept>
 
 namespace {
-void require(bool ok, const char* message) {
-  if (!ok) throw std::runtime_error(message);
+void require(bool ok, const char *message) {
+  if (!ok)
+    throw std::runtime_error(message);
 }
-void near(float actual, float expected, const char* message) {
+void near(float actual, float expected, const char *message) {
   require(std::fabs(actual - expected) < 0.00002f, message);
 }
-}  // namespace
+} // namespace
 
 int main() {
   try {
-    using RealLive::nativeBgmToGain;
-    using RealLive::gainToNativeBgm;
-    using RealLive::sampleBgmFade;
     using RealLive::advanceBgmFade;
+    using RealLive::gainToNativeBgm;
+    using RealLive::nativeBgmToGain;
+    using RealLive::sampleBgmFade;
 
     near(nativeBgmToGain(0), 0.0f, "native mute to PCM gain");
     near(nativeBgmToGain(255), 1.0f, "native maximum to PCM gain");
@@ -32,15 +33,12 @@ int main() {
     for (int volume = 0; volume <= 255; ++volume)
       require(gainToNativeBgm(nativeBgmToGain(volume)) == volume,
               "native gain conversion must round-trip for every byte");
-    require(gainToNativeBgm(-1) == 0 &&
-                gainToNativeBgm(5) == 255 &&
+    require(gainToNativeBgm(-1) == 0 && gainToNativeBgm(5) == 255 &&
                 gainToNativeBgm(std::numeric_limits<float>::quiet_NaN()) == 0,
             "queries reject invalid gain without leaving native range");
 
-    near(sampleBgmFade(0.0f, 1.0f, 0, 1000), 0.0f,
-         "fade-in starts silent");
-    near(sampleBgmFade(0.0f, 1.0f, 500, 1000), 0.5f,
-         "fade-in midpoint");
+    near(sampleBgmFade(0.0f, 1.0f, 0, 1000), 0.0f, "fade-in starts silent");
+    near(sampleBgmFade(0.0f, 1.0f, 500, 1000), 0.5f, "fade-in midpoint");
     near(sampleBgmFade(0.0f, 1.0f, 1000, 1000), 1.0f,
          "fade-in reaches exact target");
     near(sampleBgmFade(1.0f, 0.0f, 250, 1000), 0.75f,
@@ -69,8 +67,8 @@ int main() {
     near(sampleBgmFade(0, 1, afterResume, 1000), 0.45f,
          "fade resumes without counting paused time");
 
-    using RealLive::bgmSeekFrame;
     using RealLive::bgmResumeMilliseconds;
+    using RealLive::bgmSeekFrame;
     require(bgmSeekFrame(0, 1000, 22050, 300000) == 22050,
             "22.05kHz music seek uses source rate");
     require(bgmSeekFrame(0, 1000, 32000, 300000) == 32000,
@@ -90,7 +88,8 @@ int main() {
     require(bgmResumeMilliseconds(1.125) == 1125,
             "saved playback seconds convert to milliseconds");
     require(bgmSeekFrame(0, bgmResumeMilliseconds(1.125), 48000, 300000) ==
-                54000, "saved position resumes precisely in 48kHz files");
+                54000,
+            "saved position resumes precisely in 48kHz files");
     bool rejectedSeek = false;
     try {
       (void)bgmSeekFrame(0, -1, 44100, 300000);
@@ -107,8 +106,7 @@ int main() {
     require(rejectedSeek, "zero rate cannot yield a frame position");
     rejectedSeek = false;
     try {
-      (void)bgmResumeMilliseconds(
-          std::numeric_limits<double>::infinity());
+      (void)bgmResumeMilliseconds(std::numeric_limits<double>::infinity());
     } catch (const std::out_of_range &) {
       rejectedSeek = true;
     }
@@ -116,7 +114,7 @@ int main() {
 
     std::cout << "RealLive BGM gain/fade regressions passed\n";
     return 0;
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     std::cerr << "RealLive audio fade regression: " << e.what() << '\n';
     return 1;
   }

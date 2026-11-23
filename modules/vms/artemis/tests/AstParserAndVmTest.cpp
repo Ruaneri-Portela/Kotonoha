@@ -102,7 +102,8 @@ ast = {
     auto it = scripts.find(id);
     return it != scripts.end() ? it->second : std::string{};
   });
-  // Even when preferred language is "ja", "*テキスト*" placeholder must fall back to "en".
+  // Even when preferred language is "ja", "*テキスト*" placeholder must fall
+  // back to "en".
   vm.setPreferredLanguage("ja");
   assert(vm.loadScript("gamestart"));
 

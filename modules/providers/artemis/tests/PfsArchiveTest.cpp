@@ -106,18 +106,18 @@ std::vector<std::uint8_t> buildSyntheticPfs(
 void testSha1() {
   // RFC 3174: SHA-1("abc") = a9993e364706816aba3e25717850c26c9cd0d89d
   const char *msg = "abc";
-  const auto digest = Artemis::PfsArchive::sha1(
-      reinterpret_cast<const std::uint8_t *>(msg), 3);
-  const std::uint8_t expected[20] = {
-      0xa9, 0x99, 0x3e, 0x36, 0x47, 0x06, 0x81, 0x6a, 0xba, 0x3e,
-      0x25, 0x71, 0x78, 0x50, 0xc2, 0x6c, 0x9c, 0xd0, 0xd8, 0x9d};
+  const auto digest =
+      Artemis::PfsArchive::sha1(reinterpret_cast<const std::uint8_t *>(msg), 3);
+  const std::uint8_t expected[20] = {0xa9, 0x99, 0x3e, 0x36, 0x47, 0x06, 0x81,
+                                     0x6a, 0xba, 0x3e, 0x25, 0x71, 0x78, 0x50,
+                                     0xc2, 0x6c, 0x9c, 0xd0, 0xd8, 0x9d};
   assert(std::memcmp(digest.data(), expected, 20) == 0);
 }
 
 void testPf8AndPf6Streaming() {
   const std::string payload(100, 'A');
-  const std::string longPayload =
-      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()";
+  const std::string longPayload = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGH"
+                                  "IJKLMNOPQRSTUVWXYZ!@#$%^&*()";
 
   auto pf8Bytes = buildSyntheticPfs(
       '8', {{"system.ini", "[WINDOWS]\nWIDTH = 1600\nHEIGHT = 900\n"},
@@ -144,10 +144,10 @@ void testPf8AndPf6Streaming() {
   assert(std::string(slice.begin(), slice.end()) == longPayload.substr(17, 25));
 
   // Test unencrypted pf6 overlay.
-  auto pf6Bytes = buildSyntheticPfs(
-      '6', {{"script\\gamestart.ast", "PATCHED_PF6_CONTENT"},
-            {"sound\\bgm\\bgm01_a.ogg", "INTRO"},
-            {"sound\\bgm\\bgm01_b.ogg", "LOOP"}});
+  auto pf6Bytes =
+      buildSyntheticPfs('6', {{"script\\gamestart.ast", "PATCHED_PF6_CONTENT"},
+                              {"sound\\bgm\\bgm01_a.ogg", "INTRO"},
+                              {"sound\\bgm\\bgm01_b.ogg", "LOOP"}});
   auto pf6 = Artemis::PfsArchive::open(
       std::make_unique<MemoryFileHandle>(std::move(pf6Bytes)), "test.pfs.000");
   assert(pf6 != nullptr);
@@ -185,8 +185,8 @@ void testMultiVolumeDirectoryOverlay() {
   writeBin("root.pfs",
            buildSyntheticPfs('8', {{"script\\01_c00.ast", "BASE_SCRIPT"},
                                    {"image\\bg\\bg01.png", "BASE_BG"}}));
-  writeBin("root.pfs.000",
-           buildSyntheticPfs('8', {{"script\\01_c00.ast", "PATCH_000_SCRIPT"}}));
+  writeBin("root.pfs.000", buildSyntheticPfs('8', {{"script\\01_c00.ast",
+                                                    "PATCH_000_SCRIPT"}}));
   writeBin("root.pfs.001",
            buildSyntheticPfs('6', {{"image\\bg\\bg01.png", "PATCH_001_BG"}}));
 

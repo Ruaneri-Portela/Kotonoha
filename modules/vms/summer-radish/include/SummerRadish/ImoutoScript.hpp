@@ -1,6 +1,9 @@
 #pragma once
 // Stack-based .SCR bytecode VM for Overflow's Imouto de Ikou! (runscrmod.dll).
 #include <SummerRadish/Pack.hpp>
+#include <SummerRadish/Codec.hpp>
+#include <SummerRadish/Images.hpp>
+
 #include <array>
 #include <cstdint>
 #include <functional>

@@ -26,12 +26,12 @@ extern "C" {
 #include <cmath>
 #include <condition_variable>
 #include <cstdint>
+#include <cstring>
 #include <deque>
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
 #include <string>
-#include <thread>
 #include <vector>
 
 #ifdef __EMSCRIPTEN__
@@ -395,13 +395,96 @@ struct MediaPlayer::State {
   bool threaded = false, paused = true, closing = false;
   double decodeRate = 1.0, targetBuffer = 0.5;
   std::condition_variable wake;
-  std::thread decoderThread;
+  SDL_Thread *decoderThread = nullptr;
   std::string failure;
   struct VideoFrame {
     double at;
     Frame frame;
   };
   std::deque<VideoFrame> frames;
+
+  // Font attachments discovered during demux. Bounded so a crafted container
+  // cannot make the player allocate without limit.
+  static constexpr std::size_t kMaxAttachedFonts = 16;
+  static constexpr std::size_t kMaxAttachedFontBytes = 8u * 1024u * 1024u;
+  struct FontStream {
+    int index = -1;
+    std::string name;
+  };
+  std::vector<FontStream> fontStreams;
+  std::vector<workers::AttachedFont> attachedFonts;
+  std::size_t attachedFontBytes = 0;
+
+  static bool looksLikeFont(const char *mime, const char *fileName) {
+    std::string probe = mime ? mime : "";
+    probe += ' ';
+    probe += fileName ? fileName : "";
+    std::transform(
+        probe.begin(), probe.end(), probe.begin(), [](unsigned char c) {
+          return static_cast<char>(std::tolower(c));
+        });
+    if (probe.find("font") != std::string::npos)
+      return true;
+    for (const char *extension :
+         {".ttf", ".otf", ".ttc", ".otc", ".woff", ".woff2"}) {
+      const std::size_t length = std::strlen(extension);
+      if (probe.size() >= length &&
+          probe.compare(probe.size() - length, length, extension) == 0)
+        return true;
+    }
+    return false;
+  }
+
+  // Enumerate attached-file streams right after demux setup so that their
+  // packets can be recognised while reading frames.
+  void prepareFontStreams() {
+    fontStreams.clear();
+    for (unsigned i = 0; format && i < format->nb_streams; ++i) {
+      AVStream *stream = format->streams[i];
+      if (!stream || !stream->codecpar)
+        continue;
+      const bool attached =
+          stream->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT ||
+          (stream->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0;
+      if (!attached)
+        continue;
+      AVDictionaryEntry *fileName =
+          av_dict_get(stream->metadata, "filename", nullptr, 0);
+      AVDictionaryEntry *title =
+          av_dict_get(stream->metadata, "title", nullptr, 0);
+      AVDictionaryEntry *mime =
+          av_dict_get(stream->metadata, "mimetype", nullptr, 0);
+      const char *name =
+          fileName ? fileName->value : (title ? title->value : nullptr);
+      if (!looksLikeFont(mime ? mime->value : nullptr, name))
+        continue;
+      FontStream info;
+      info.index = static_cast<int>(i);
+      info.name = name ? name : "font-" + std::to_string(i);
+      fontStreams.push_back(std::move(info));
+    }
+  }
+
+  void captureFont(const AVPacket *packet) {
+    if (attachedFonts.size() >= kMaxAttachedFonts || !packet || !packet->data ||
+        packet->size <= 0 || attachedFontBytes >= kMaxAttachedFontBytes)
+      return;
+    std::string name = "font-" + std::to_string(packet->stream_index);
+    for (const auto &info : fontStreams) {
+      if (info.index == packet->stream_index) {
+        name = info.name;
+        break;
+      }
+    }
+    const std::size_t take =
+        std::min<std::size_t>(static_cast<std::size_t>(packet->size),
+                              kMaxAttachedFontBytes - attachedFontBytes);
+    workers::AttachedFont font;
+    font.name = std::move(name);
+    font.bytes.assign(packet->data, packet->data + take);
+    attachedFonts.push_back(std::move(font));
+    attachedFontBytes += take;
+  }
 
   ~State() {
 #ifdef __EMSCRIPTEN__
@@ -416,8 +499,10 @@ struct MediaPlayer::State {
       closing = true;
     }
     wake.notify_one();
-    if (decoderThread.joinable())
-      decoderThread.join();
+    if (decoderThread) {
+      SDL_WaitThread(decoderThread, nullptr);
+      decoderThread = nullptr;
+    }
     if (channel && stream)
       channel->detach(stream.get());
     stream.reset();
@@ -891,6 +976,20 @@ struct MediaPlayer::State {
         continue;
       }
       check(result, "Read media packet");
+      // Attached font payloads are not decodable frames: keep the bytes for
+      // the subtitle side instead of feeding them to an AVCodecContext.
+      bool attachment = false;
+      for (const auto &info : fontStreams) {
+        if (info.index == packet->stream_index) {
+          captureFont(packet);
+          attachment = true;
+          break;
+        }
+      }
+      if (attachment) {
+        av_packet_unref(packet);
+        continue;
+      }
       bool used = false;
       bool valid = true;
       if (packet->stream_index == videoIndex) {
@@ -918,24 +1017,34 @@ struct MediaPlayer::State {
     static_cast<State *>(userdata)->wake.notify_one();
   }
 
+  void decoderLoop() {
+    std::unique_lock<std::mutex> lock(mutex);
+    while (!closing) {
+      // Prime a prepared input while the audio device is paused.  After a
+      // seek, nextAudioTime identifies the new queue origin.
+      if ((!paused || queuedEnd < 0) && !eof && failure.empty()) {
+        try {
+          const double position = queuedEnd < 0 ? nextAudioTime : playhead();
+          fill(position, std::min(4.0, targetBuffer * decodeRate));
+        } catch (const std::exception &error) {
+          failure = error.what();
+        }
+      }
+      wake.wait_for(lock, std::chrono::milliseconds(10));
+    }
+  }
+
+  static int SDLCALL decoderThreadEntry(void *userdata) {
+    static_cast<State *>(userdata)->decoderLoop();
+    return 0;
+  }
+
   void startDecoder() {
     threaded = true;
-    decoderThread = std::thread([this] {
-      std::unique_lock<std::mutex> lock(mutex);
-      while (!closing) {
-        // Prime a prepared input while the audio device is paused.  After a
-        // seek, nextAudioTime identifies the new queue origin.
-        if ((!paused || queuedEnd < 0) && !eof && failure.empty()) {
-          try {
-            const double position = queuedEnd < 0 ? nextAudioTime : playhead();
-            fill(position, std::min(4.0, targetBuffer * decodeRate));
-          } catch (const std::exception &error) {
-            failure = error.what();
-          }
-        }
-        wake.wait_for(lock, std::chrono::milliseconds(10));
-      }
-    });
+    decoderThread = SDL_CreateThread(&State::decoderThreadEntry,
+                                     "KotonohaMediaDecoder", this);
+    if (!decoderThread)
+      throw std::runtime_error(SDL_GetError());
   }
 
   void upload(RendererRef renderer, AVFrame *image) {
@@ -1171,6 +1280,7 @@ void MediaPlayer::openDecoder(State &next, const std::string &url,
   check(opened, "Open media");
   detail::initializeMediaLog();
   check(avformat_find_stream_info(next.format, nullptr), "Read media streams");
+  next.prepareFontStreams();
   if (next.format->start_time != AV_NOPTS_VALUE)
     next.origin = next.format->start_time / static_cast<double>(AV_TIME_BASE);
   if (!audioOnly)
@@ -1712,6 +1822,13 @@ void MediaPlayer::updateDecoder(RendererRef renderer, double position) {
   }
   if (latest)
     s.upload(renderer, latest.get());
+}
+
+std::vector<workers::AttachedFont> MediaPlayer::attachedFonts() const {
+  if (!state)
+    return {};
+  std::lock_guard<std::mutex> lock(state->mutex);
+  return state->attachedFonts;
 }
 
 bool MediaPlayer::hasVideoFrame() const {

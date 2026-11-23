@@ -7,6 +7,50 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA5500000000000000000060 /* MeoAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187A630B160B400A74244 /* MeoAudio.cpp */; };
+		AA5500000000000000000061 /* MeoAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187A630B160B400A74244 /* MeoAudio.cpp */; };
+		AA5500000000000000000040 /* MeoAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187A630B160B400A74244 /* MeoAudio.cpp */; };
+		AA5500000000000000000041 /* MeoAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CE0187A630B160B400A74244 /* MeoAudio.cpp */; };
+		AA5500000000000000000050 /* SummerAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AC4B76E74D4407182235347D /* SummerAssets.cpp */; };
+		AA5500000000000000000051 /* SummerAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AC4B76E74D4407182235347D /* SummerAssets.cpp */; };
+		AA5500000000000000000052 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000001 /* Pack.cpp */; };
+		AA5500000000000000000053 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000001 /* Pack.cpp */; };
+		AA5500000000000000000054 /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		AA5500000000000000000055 /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		AA5500000000000000000056 /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
+		AA5500000000000000000057 /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
+		AA5500000000000000000010 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000001 /* Pack.cpp */; };
+		AA5500000000000000000011 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000001 /* Pack.cpp */; };
+		AA5500000000000000000012 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000001 /* Pack.cpp */; };
+		AA5500000000000000000013 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000001 /* Pack.cpp */; };
+		AA5500000000000000000014 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000001 /* Pack.cpp */; };
+		AA5500000000000000000015 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000001 /* Pack.cpp */; };
+		AA5500000000000000000020 /* Smfd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000002 /* Smfd.cpp */; };
+		AA5500000000000000000021 /* Smfd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000002 /* Smfd.cpp */; };
+		AA5500000000000000000022 /* Smfd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000002 /* Smfd.cpp */; };
+		AA5500000000000000000023 /* Smfd.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000002 /* Smfd.cpp */; };
+		AA5500000000000000000030 /* Adpcm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000003 /* Adpcm.cpp */; };
+		AA5500000000000000000031 /* Adpcm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000003 /* Adpcm.cpp */; };
+		AA5500000000000000000032 /* Adpcm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000003 /* Adpcm.cpp */; };
+		AA5500000000000000000033 /* Adpcm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000003 /* Adpcm.cpp */; };
+		F200000000000000000000A11 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A10 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A9 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A8 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A7 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A6 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A5 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A4 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A3 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A2 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A1 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		F200000000000000000000A0 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000090 /* Pack.cpp */; };
+		E8A000000000000000000072 /* SubtitleSourceDirector.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000062 /* SubtitleSourceDirector.cpp */; };
+		E8A000000000000000000071 /* EmbeddedSubtitleExtractor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000061 /* EmbeddedSubtitleExtractor.cpp */; };
+		E8A000000000000000000070 /* SubtitleFontRegistry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000060 /* SubtitleFontRegistry.cpp */; };
+		E8A000000000000000000053 /* SubtitleWorker.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000043 /* SubtitleWorker.cpp */; };
+		E8A000000000000000000051 /* WasmBackend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000041 /* WasmBackend.cpp */; };
+		E8A000000000000000000050 /* Scheduler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000040 /* Scheduler.cpp */; };
 		001D06FD0DBB1EFC6A22EB48 /* LucaSystemScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CEE45A84649AE37A49032B7 /* LucaSystemScript.cpp */; };
 		003F4534DA3A1B2D0F0B3F0F /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D9932D19AEFC21BCAB4F7360 /* main.cpp */; };
 		006067031992234D2BCCB4A0 /* GameMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 01543A93C8494078A7ED03BB /* GameMenu.cpp */; };
@@ -269,7 +313,9 @@
 		514F7AF7211C18CE4D4717DC /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		51D6B7A4156FC1F10509ED1E /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; };
 		51EAEF0C6A8D2B1CB3330A01 /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 958F20C6564ED0D6B805C3A9 /* Script.cpp */; };
-		52E3553F6E69E616919F90B0 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F20000000000000000000064 /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F20000000000000000000065 /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F20000000000000000000066 /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		52EE18E236BA361986A37B07 /* SchoolDaysFontData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5896982C3DAB54827C102C60 /* SchoolDaysFontData.cpp */; };
 		53213555E158F83278ACA536 /* AstParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5A00C0BECB5BC6506CEA1223 /* AstParser.cpp */; };
 		5325CAAA99BDAFE54D5E6BD6 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
@@ -334,7 +380,9 @@
 		65522530AE85704F80AB071A /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 55DDE3D25C2E19533CB2474A /* main.cpp */; };
 		655B5C7CB6467CF2B5C62E60 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; };
 		65C4833996D8AD7CC76233D0 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		663DCE59973AA5034CD1D873 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F20000000000000000000067 /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F20000000000000000000068 /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F20000000000000000000069 /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		6703CAC770EB1D88227681C1 /* TextureAlpha.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CCB3836321FF404DEC3F2554 /* TextureAlpha.cpp */; };
 		671CE6B3C1A70CBB5D7EE367 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0D0C1CB68431A438687040FB /* main.cpp */; };
 		674D225C748CCC420EDDD2B3 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -388,7 +436,8 @@
 		760C4994A2C2A1347A0E2D8F /* AmagamiRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 825899848BE41CBA62F28A87 /* AmagamiRuntime.cpp */; };
 		763B445B959F211278855761 /* PmailGame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CCFBCB04C6B7A6FDE92053A2 /* PmailGame.cpp */; };
 		76925E69BF828296D88B880B /* Lz.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D723EA7A17B9706EC59D043A /* Lz.cpp */; };
-		76D08CC177D5643ABF96A725 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD5E8A6845109ED1B21087E1 /* Pack.cpp */; };
+		F30000000000000000000064 /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		F30000000000000000000065 /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
 		7772AB99315270835CD8F335 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7130DA4E830697FB022B5F58 /* SchoolDaysRouteMapRenderPlan.cpp */; };
 		77A4B970BE59E8C190B69ABB /* SchoolDaysReplayScriptOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F0F4CCEBB9B31A0A778B9994 /* SchoolDaysReplayScriptOracle.cpp */; };
 		783505D9A4A798DB9534520E /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 520B225442065EBAD6815C41 /* game-assets */; };
@@ -402,7 +451,9 @@
 		7A4D336610A4093EF2F447AA /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7AA5757FFE9374AA7FA868EF /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59EDD75E548BEEB417C71E02 /* Replay.cpp */; };
 		7AE9469181F3BB127AAB17F8 /* filemap.cc in Sources */ = {isa = PBXBuildFile; fileRef = ED4EFA6784E9327D825AC454 /* filemap.cc */; };
-		7B17B63ED9B912AF7A181C1F /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F2000000000000000000006A /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F2000000000000000000006B /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F2000000000000000000006C /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		7B491842C7108BD868346869 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
 		7B5A47D5D9652FC332D4A968 /* SnowAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 44878821F495891FD2362550 /* SnowAssets.cpp */; };
 		7C7B94C2DB0CF2898E4BE990 /* SchoolDaysHistory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F0B2149FF23014807BCA7B58 /* SchoolDaysHistory.cpp */; };
@@ -434,7 +485,9 @@
 		88E3E0454D0E09ACD7C66BD0 /* SchoolDaysSaveService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133FEB14CFB5BEAF36775A44 /* SchoolDaysSaveService.cpp */; };
 		88ECDDC92B8B079D36C152EE /* NsbVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */; };
 		892F77CA203733D8AEBAC797 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 9A89B56E0A99AC44987F8ABB /* game-assets */; };
-		89D3D64F1C5C4143120AF224 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F2000000000000000000006D /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F2000000000000000000006E /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F2000000000000000000006F /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		8A76D3967154812B31EB83E3 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; };
 		8AC1E9BF538B1E3164A11869 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; };
 		8AC948ADF44121A2A09E521C /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 3FE30BE349A80BA17071E5D0 /* game-assets */; };
@@ -466,7 +519,9 @@
 		9310F51AFBCBFA8DF66A91D6 /* Clock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA012E1118407A93D2729088 /* Clock.cpp */; };
 		93483238E4492906C1DEA6EC /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; };
 		938B7AC1EE5913576E18E03B /* Upscaler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E2B226AECE46EF3EACBEB799 /* Upscaler.cpp */; };
-		94059E262ACD6778ACEA579F /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F20000000000000000000070 /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F20000000000000000000071 /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F20000000000000000000072 /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		944D8937A0125B994947C6C6 /* GameMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 01543A93C8494078A7ED03BB /* GameMenu.cpp */; };
 		947490FAA5E5B1E35DD1138D /* imgui_impl_sdlrenderer3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 11BE528C7D3C993BD9029E17 /* imgui_impl_sdlrenderer3.cpp */; };
 		95177050F87E726900B2FA5F /* Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3E6AB84CE0219CD8D488E0F1 /* Archive.cpp */; };
@@ -485,7 +540,9 @@
 		989552BCAE8B55ADDC30295A /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = B6E17E938090A37BA118FBBC /* game-assets */; };
 		98BE521039FA2B9A9E40BB49 /* SaveSerializer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18D58932EC2483DD04214A21 /* SaveSerializer.cpp */; };
 		9915FFDF898A9D355FD6481C /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
-		99CE2BA48F47AA0C769696AE /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F20000000000000000000073 /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F20000000000000000000074 /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F20000000000000000000075 /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		99D8247B0C5B439AFE83E407 /* VariableStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F7A7B3492CE48639D7D84CBD /* VariableStore.cpp */; };
 		9A152B3208BB0CB66EF9D005 /* PonscripterVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4DA71E6C6B0DC29DAA0C1AAA /* PonscripterVm.cpp */; };
 		9A9D031071F2E036E5760413 /* SchoolDaysSystemUi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC9B90F9186D399CDD6DCA9D /* SchoolDaysSystemUi.cpp */; };
@@ -503,13 +560,17 @@
 		9D0904CB3C214BE240BD6400 /* FadeScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 02D263E32C2F18BD345EEF6E /* FadeScene.cpp */; };
 		9D2905445B31050D3EDC1893 /* LargePonPonCodecs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */; };
 		9E766198A158C86ACDD51C8C /* Launcher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 54BFA310BFD63BECBAEE3EBA /* Launcher.cpp */; };
-		9E7E6C96AADFBFBC11C8291A /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F20000000000000000000076 /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F20000000000000000000077 /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F20000000000000000000078 /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		9EB5902D4070295C4B3C0001 /* SubtitleScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EC83EF0F15835940875BAB4 /* SubtitleScene.cpp */; };
 		9EB8A2801D3887EB7816CE9E /* KtrfScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6E0E179ED70FDB071D315FFD /* KtrfScript.cpp */; };
 		9ECE752D20786BFD5D510A90 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; };
 		9EEE78D7A282EFA6CA5567F7 /* SchoolDaysTitleProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66D8FCA228CF79166F2651A9 /* SchoolDaysTitleProfile.cpp */; };
 		9F1F1B608CFDC56C19B8B949 /* Settings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 886721A08057B37285174655 /* Settings.cpp */; };
-		9F370C9F131B5ECE698B505F /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F20000000000000000000079 /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F2000000000000000000007A /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F2000000000000000000007B /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		9F4BF2F2BD47DB0BC8BDEFD3 /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
 		9FF476DC94E3CBAE6C33FB6F /* SchoolDaysReplayScriptOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F0F4CCEBB9B31A0A778B9994 /* SchoolDaysReplayScriptOracle.cpp */; };
 		9FFC65CE4838B5BF209AF52A /* SaveState.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8048E50DB6AEBB3E39E5A74 /* SaveState.cpp */; };
@@ -537,7 +598,8 @@
 		A36CB6B0AB722DA8DC9A355C /* TextInputDialog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4AE7A12F2F4FBE4A213DF6BE /* TextInputDialog.cpp */; };
 		A389C6740D6920047E774AC0 /* OpenGL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 506F17DDCDA49EAE21BA698B /* OpenGL.cpp */; };
 		A389DA6375A908BDC4C02CFE /* Display.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4DA44EA779EF5ED5B0159EB0 /* Display.cpp */; };
-		A3AB5D73C2B7879DE055346F /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD5E8A6845109ED1B21087E1 /* Pack.cpp */; };
+		F30000000000000000000066 /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		F30000000000000000000067 /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
 		A3BF7F9732DB17BF14DF7A8B /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A3F56C2FF1EAD3A1A25B8AE6 /* ZeroLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEB4A5936E2DA9ED50D85D1C /* ZeroLauncher.cpp */; };
 		A5223CC1C1B132291EAF9B5E /* SchoolDaysSaveStorage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5CA619DF85A2D64DC71181D0 /* SchoolDaysSaveStorage.cpp */; };
@@ -642,8 +704,11 @@
 		B6B600000000000000000035 /* N2ArchiveAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D3683F089CA573ACAEA3AE74 /* N2ArchiveAssets.cpp */; };
 		B6B600000000000000000036 /* N2Runtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EF37725F3CC934BDF93D8B09 /* N2Runtime.cpp */; };
 		B6B600000000000000000037 /* Native.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C2E1634FC1DAEE8E650A08 /* Native.cpp */; };
-		B6B600000000000000000038 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
-		B6B600000000000000000039 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD5E8A6845109ED1B21087E1 /* Pack.cpp */; };
+		F2000000000000000000007C /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F2000000000000000000007D /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F2000000000000000000007E /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
+		F30000000000000000000068 /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		F30000000000000000000069 /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
 		B6B60000000000000000003A /* PmailAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A22FC35904554B40EEB8BF84 /* PmailAssets.cpp */; };
 		B6B60000000000000000003B /* PmailAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A31D21EDCFBFACFB87FBC4B2 /* PmailAudio.cpp */; };
 		B6B60000000000000000003C /* PmailBacklog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C691896FFE305192A639A31D /* PmailBacklog.cpp */; };
@@ -803,7 +868,9 @@
 		C0E7353BF2F3F875AD3A3397 /* KtrfRouter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 309615A4698503873574DEF6 /* KtrfRouter.cpp */; };
 		C13BF2D0E8CCF80F2746CC08 /* LargePonPonVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */; };
 		C179598D0BB11CAE1B96FAF4 /* SchoolDaysSaveMetadataState.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0889A624989F7E3085C489DC /* SchoolDaysSaveMetadataState.cpp */; };
-		C18404974303E4EAE56E6453 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F2000000000000000000007F /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F20000000000000000000080 /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F20000000000000000000081 /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		C2A64A979055CB87457CAEF1 /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 91E75ED2AA683074D387C16B /* imgui_widgets.cpp */; };
 		C2C538F7A71931ECE020520A /* NsbScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 248EF79FD78FF46D9075D278 /* NsbScript.cpp */; };
 		C2E2EF4046EEDD4E6533BCBC /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
@@ -995,8 +1062,11 @@
 		D7D700000000000000000042 /* N2ArchiveAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D3683F089CA573ACAEA3AE74 /* N2ArchiveAssets.cpp */; };
 		D7D700000000000000000043 /* N2Runtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EF37725F3CC934BDF93D8B09 /* N2Runtime.cpp */; };
 		D7D700000000000000000044 /* Native.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C2E1634FC1DAEE8E650A08 /* Native.cpp */; };
-		D7D700000000000000000045 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
-		D7D700000000000000000046 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD5E8A6845109ED1B21087E1 /* Pack.cpp */; };
+		F20000000000000000000082 /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F20000000000000000000083 /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F20000000000000000000084 /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
+		F3000000000000000000006A /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		F3000000000000000000006B /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
 		D7D700000000000000000047 /* PmailAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A22FC35904554B40EEB8BF84 /* PmailAssets.cpp */; };
 		D7D700000000000000000048 /* PmailAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A31D21EDCFBFACFB87FBC4B2 /* PmailAudio.cpp */; };
 		D7D700000000000000000049 /* PmailBacklog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C691896FFE305192A639A31D /* PmailBacklog.cpp */; };
@@ -1150,7 +1220,9 @@
 		DD0C2BF6C16CD5ACC7263570 /* Lexer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BB015B091994938C4CCCECA9 /* Lexer.cpp */; };
 		DD36CDFBCB9133D472EC31B1 /* SchoolDaysConfigMenuModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACA0F098A7088702A203F5DF /* SchoolDaysConfigMenuModel.cpp */; };
 		DD81ACDB36E212517CDD5DBF /* ScriptIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F7684BA2CC0FEC25FB9CE283 /* ScriptIndex.cpp */; };
-		DDC5BB18E41364E79D264758 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8A50B44B78B35A30E5F8B97 /* Pack.cpp */; };
+		F20000000000000000000085 /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F20000000000000000000086 /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F20000000000000000000087 /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
 		DDF9B680FB57A55F447B5D4C /* SchoolDaysTitleProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66D8FCA228CF79166F2651A9 /* SchoolDaysTitleProfile.cpp */; };
 		DE44904C2169D9C273202F38 /* DemoStory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2565EC79DC321AB699848B17 /* DemoStory.cpp */; };
 		DE8132A2DD98CEE1F06384A9 /* SchoolDaysExitViewModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 750FFD6471EB984A3CE519CB /* SchoolDaysExitViewModel.cpp */; };
@@ -1175,8 +1247,8 @@
 		E77811E4460057F580AD5302 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 933456486A0DCFC48D1015CB /* game-assets */; };
 		E808B45825E13CBDA11282FC /* VisualTransition.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B231FF8B95DB7E64FA3EE8D /* VisualTransition.cpp */; };
 		E8425FD8015377D5F92C2214 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
-		E8A000000000000000000002 /* SavePng.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000001 /* SavePng.cpp */; };
-		E8A000000000000000000003 /* SavePng.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000001 /* SavePng.cpp */; };
+		E8A000000000000000000002 /* SaveImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000001 /* SaveImage.cpp */; };
+		E8A000000000000000000003 /* SaveImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000001 /* SaveImage.cpp */; };
 		E8A000000000000000000011 /* LauncherBridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000010 /* LauncherBridge.cpp */; };
 		E8A000000000000000000012 /* LauncherBridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000010 /* LauncherBridge.cpp */; };
 		E8A000000000000000000021 /* KotonohaIOSBookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8A000000000000000000020 /* KotonohaIOSBookmarkStore.swift */; };
@@ -1192,7 +1264,8 @@
 		E9FC5224B0C9D34DAF6030AB /* NsbVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */; };
 		EA3C68C73FA5FE545D592B9C /* PfsArchive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4852C5F0B15D0F71B3381F14 /* PfsArchive.cpp */; };
 		EA700DE705893B768A5A5231 /* Xp3Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7372E52FDC89DC2EFB26BE7F /* Xp3Archive.cpp */; };
-		EA77386865E7F9D8F540D0EE /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD5E8A6845109ED1B21087E1 /* Pack.cpp */; };
+		F3000000000000000000006C /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		F3000000000000000000006D /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
 		EB0C7BD2BADC1EEC6CB655CF /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		EB407C82F9AC66B0B46C38C2 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 8DD17A20F2CD7598DFA0EDC3 /* game-assets */; };
 		EB4E714887D17B3B7362A8F1 /* KotonohaEngine.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -1277,7 +1350,8 @@
 		F8B09A353AAA95D31ADF34FC /* Ps2SoundBank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */; };
 		F937A1EA9AEEFEE04024F1DB /* VisualTransition.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0B231FF8B95DB7E64FA3EE8D /* VisualTransition.cpp */; };
 		F97BC13E666F4E4640E26AA0 /* SnowAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 44878821F495891FD2362550 /* SnowAssets.cpp */; };
-		F98612F8622E62BCCC080F51 /* Pack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FD5E8A6845109ED1B21087E1 /* Pack.cpp */; };
+		F3000000000000000000006E /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		F3000000000000000000006F /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
 		F9F1F044EA030D2B8098CB9A /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 3C5A9DABEDBC8EBC44761F06 /* game-assets */; };
 		FAAC20910D9BF66419FCCEE6 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
 		FAD16FC3492CDD5C64C9FDB9 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
@@ -1304,6 +1378,8 @@
 		FF1F79C3B01DDBB18C52E509 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		FF89A9E9B1E594E4E5F12062 /* Ps2SoundBank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */; };
 		FFBA4A0F4CBB3C0FF9662E59 /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
+		E8A000000000000000000030 /* CzImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 196840683DC0B0DF058B04D6 /* CzImage.cpp */; };
+		E8A000000000000000000031 /* LucaSystemAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 36AB3541375B3CA51CECE3A9 /* LucaSystemAssets.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -2137,6 +2213,16 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AA5500000000000000000001 /* Pack.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Pack.cpp; path = ../../modules/providers/cmp/src/Pack.cpp; sourceTree = SOURCE_ROOT; };
+		AA5500000000000000000002 /* Smfd.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Smfd.cpp; path = ../../modules/formats/audio/smfd/src/Smfd.cpp; sourceTree = SOURCE_ROOT; };
+		AA5500000000000000000003 /* Adpcm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Adpcm.cpp; path = ../../modules/formats/audio/adpcm/src/Adpcm.cpp; sourceTree = SOURCE_ROOT; };
+		F20000000000000000000090 /* Pack.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Pack.cpp; path = ../../modules/providers/adv/src/Pack.cpp; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000062 /* SubtitleSourceDirector.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SubtitleSourceDirector.cpp; path = ../../lib/src/workers/SubtitleSourceDirector.cpp; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000061 /* EmbeddedSubtitleExtractor.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = EmbeddedSubtitleExtractor.cpp; path = ../../lib/src/workers/EmbeddedSubtitleExtractor.cpp; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000060 /* SubtitleFontRegistry.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SubtitleFontRegistry.cpp; path = ../../lib/src/workers/SubtitleFontRegistry.cpp; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000043 /* SubtitleWorker.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SubtitleWorker.cpp; path = ../../lib/src/workers/SubtitleWorker.cpp; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000041 /* WasmBackend.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = WasmBackend.cpp; path = ../../lib/src/prefetch/WasmBackend.cpp; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000040 /* Scheduler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Scheduler.cpp; path = ../../lib/src/prefetch/Scheduler.cpp; sourceTree = SOURCE_ROOT; };
 		0066FBB8946FB87584BBC8EB /* Pmail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pmail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		01543A93C8494078A7ED03BB /* GameMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = GameMenu.cpp; path = ../../lib/src/components/GameMenu.cpp; sourceTree = SOURCE_ROOT; };
 		02244B9FBB75E4DC31E5ECB0 /* PonscripterAssets.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = PonscripterAssets.cpp; path = ../../modules/providers/ponscripter/src/PonscripterAssets.cpp; sourceTree = SOURCE_ROOT; };
@@ -2169,7 +2255,7 @@
 		18D58932EC2483DD04214A21 /* SaveSerializer.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = SaveSerializer.cpp; path = ../../modules/vms/ponscripter/src/SaveSerializer.cpp; sourceTree = SOURCE_ROOT; };
 		19112695FD55F58CBC83DE39 /* Media.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Media.cpp; path = "../../games/zero-no-tsukaima/src/Media.cpp"; sourceTree = SOURCE_ROOT; };
 		1955C99F04872E5EDFA4A3FB /* Pss.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Pss.cpp; path = "../../games/zero-no-tsukaima/src/Pss.cpp"; sourceTree = SOURCE_ROOT; };
-		196840683DC0B0DF058B04D6 /* CzImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = CzImage.cpp; path = ../../modules/providers/pak/src/CzImage.cpp; sourceTree = SOURCE_ROOT; };
+		196840683DC0B0DF058B04D6 /* CzImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = CzImage.cpp; path = ../../modules/formats/image/cz/src/CzImage.cpp; sourceTree = SOURCE_ROOT; };
 		1A071AD9D4D49D8DA6B2D9D2 /* Vm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Vm.cpp; path = ../../modules/vms/amagami/src/Vm.cpp; sourceTree = SOURCE_ROOT; };
 		1B15FA4158C3214E44CCC1B6 /* ZeroNoTsukaima.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZeroNoTsukaima.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BA5E519F92A1C06B1309CF9 /* Encoding.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Encoding.cpp; path = ../../lib/src/localization/Encoding.cpp; sourceTree = SOURCE_ROOT; };
@@ -2261,7 +2347,7 @@
 		58D942EC03CAE227B15B8EC2 /* Ktrf.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Ktrf.cpp; path = ../../lib/src/parsers/Ktrf.cpp; sourceTree = SOURCE_ROOT; };
 		58ECC13021C822AE658D4A17 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../games/amagami/src/main.cpp; sourceTree = SOURCE_ROOT; };
 		58F9A200D3871F37F849750E /* Game.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Game.cpp; path = "../../games/zero-no-tsukaima/src/Game.cpp"; sourceTree = SOURCE_ROOT; };
-		591559879EB1EFB7028191A6 /* CriAudio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = CriAudio.cpp; path = ../../lib/src/media/CriAudio.cpp; sourceTree = SOURCE_ROOT; };
+		591559879EB1EFB7028191A6 /* CriAudio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = CriAudio.cpp; path = ../../modules/formats/audio/cri/src/CriAudio.cpp; sourceTree = SOURCE_ROOT; };
 		59CB01200926B11C8BE1B71D /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../../games/katawa-shoujo/game-assets"; sourceTree = SOURCE_ROOT; };
 		59EDD75E548BEEB417C71E02 /* Replay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Replay.cpp; path = "../../games/doki-doki-literature-club/src/Replay.cpp"; sourceTree = SOURCE_ROOT; };
 		59F397CB2CDBECCF07A600C2 /* KirikiriAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = KirikiriAssets.cpp; path = ../../modules/providers/xp3/src/KirikiriAssets.cpp; sourceTree = SOURCE_ROOT; };
@@ -2317,7 +2403,7 @@
 		7ED2CC95DA4471E479460CA0 /* SchoolDaysTopMeterRenderPlan.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysTopMeterRenderPlan.cpp; path = "../../games/school-days/src/SchoolDaysTopMeterRenderPlan.cpp"; sourceTree = SOURCE_ROOT; };
 		7EF4F9023D498F09F8041F36 /* Script.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Script.cpp; path = "../../games/doki-doki-literature-club/src/Script.cpp"; sourceTree = SOURCE_ROOT; };
 		7F0ADEA9E46A8D62454DFC9D /* KtrfTyped.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = KtrfTyped.cpp; path = ../../lib/src/parsers/KtrfTyped.cpp; sourceTree = SOURCE_ROOT; };
-		823AECB09BB754F38EE2E3F6 /* Ps2Tim2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Ps2Tim2.cpp; path = ../../lib/src/media/Ps2Tim2.cpp; sourceTree = SOURCE_ROOT; };
+		823AECB09BB754F38EE2E3F6 /* Ps2Tim2.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Ps2Tim2.cpp; path = ../../modules/formats/image/tim2/src/Ps2Tim2.cpp; sourceTree = SOURCE_ROOT; };
 		825899848BE41CBA62F28A87 /* AmagamiRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = AmagamiRuntime.cpp; path = ../../games/amagami/src/AmagamiRuntime.cpp; sourceTree = SOURCE_ROOT; };
 		8296A210E862BB77BA0DFFF8 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = ../../assets; sourceTree = SOURCE_ROOT; };
 		83224C27CFFBCDAFB2C5740F /* Translation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Translation.cpp; path = ../../lib/src/localization/Translation.cpp; sourceTree = SOURCE_ROOT; };
@@ -2345,14 +2431,14 @@
 		95EB7E452BD54DD736B39583 /* Engine.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Engine.cpp; path = ../../lib/src/core/Engine.cpp; sourceTree = SOURCE_ROOT; };
 		9A89B56E0A99AC44987F8ABB /* game-assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "game-assets"; path = "../../games/pmail/game-assets"; sourceTree = SOURCE_ROOT; };
 		9AA6431FA9881D7F1164625B /* Amagami.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Amagami.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LargePonPonCodecs.cpp; path = ../../modules/providers/pmail/src/LargePonPonCodecs.cpp; sourceTree = SOURCE_ROOT; };
+		9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LargePonPonCodecs.cpp; path = ../../modules/formats/image/crgb/src/LargePonPonCodecs.cpp; sourceTree = SOURCE_ROOT; };
 		9BE4FE61A2DEA0B5468C0CA1 /* DiscImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DiscImage.cpp; path = ../../lib/src/core/DiscImage.cpp; sourceTree = SOURCE_ROOT; };
 		9D844BB211DE2CBE3A3584BE /* InputMapper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = InputMapper.cpp; path = ../../lib/src/core/InputMapper.cpp; sourceTree = SOURCE_ROOT; };
 		9DF50A6E55898419DBE03DF9 /* SchoolDaysTitleModel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysTitleModel.cpp; path = "../../games/school-days/src/SchoolDaysTitleModel.cpp"; sourceTree = SOURCE_ROOT; };
 		9E33FF983C907A114A8A8EA1 /* ImGui.macOS.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = ImGui.macOS.xcconfig; path = Config/ImGui.macOS.xcconfig; sourceTree = SOURCE_ROOT; };
 		A039740292658EB792C886C9 /* ScriptVm.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = ScriptVm.cpp; path = ../../modules/vms/n2system/src/ScriptVm.cpp; sourceTree = SOURCE_ROOT; };
 		A0BB04C014A9271AFB3B4364 /* SchoolDaysKtrfProfile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysKtrfProfile.cpp; path = "../../games/school-days/src/SchoolDaysKtrfProfile.cpp"; sourceTree = SOURCE_ROOT; };
-		A1A100000000000000000001 /* AtomicFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = AtomicFile.cpp; path = ../../lib/src/Filesystem/AtomicFile.cpp; sourceTree = SOURCE_ROOT; };
+		A1A100000000000000000001 /* AtomicFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = AtomicFile.cpp; path = ../../lib/src/filesystem/AtomicFile.cpp; sourceTree = SOURCE_ROOT; };
 		A1A100000000000000000002 /* SurfaceTexture.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SurfaceTexture.cpp; path = ../../lib/src/media/SurfaceTexture.cpp; sourceTree = SOURCE_ROOT; };
 		A1A100000000000000000003 /* WebAssetFetch.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = WebAssetFetch.cpp; path = ../../lib/src/core/WebAssetFetch.cpp; sourceTree = SOURCE_ROOT; };
 		A1A100000000000000000004 /* MetalFXUpscaler.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MetalFXUpscaler.cpp; path = ../../lib/src/media/upscaling/MetalFXUpscaler.cpp; sourceTree = SOURCE_ROOT; };
@@ -2400,7 +2486,7 @@
 		BB011B48CD0249D568592273 /* Game.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Game.cpp; path = "../../games/snow-radish-vacation/src/Game.cpp"; sourceTree = SOURCE_ROOT; };
 		BB015B091994938C4CCCECA9 /* Lexer.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = Lexer.cpp; path = ../../modules/vms/ponscripter/src/Lexer.cpp; sourceTree = SOURCE_ROOT; };
 		BCA9A64DD44702C5B9B9668D /* SchoolDaysGpkArchive.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysGpkArchive.cpp; path = ../../modules/providers/gpk/src/SchoolDaysGpkArchive.cpp; sourceTree = SOURCE_ROOT; };
-		BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Ps2SoundBank.cpp; path = ../../lib/src/media/Ps2SoundBank.cpp; sourceTree = SOURCE_ROOT; };
+		BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Ps2SoundBank.cpp; path = ../../modules/formats/audio/spu/src/Ps2SoundBank.cpp; sourceTree = SOURCE_ROOT; };
 		BDD17E067A3F2802DBFF2330 /* KotonohaExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotonohaExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaImGui.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEB4A5936E2DA9ED50D85D1C /* ZeroLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ZeroLauncher.cpp; path = "../../games/zero-no-tsukaima/src/ZeroLauncher.cpp"; sourceTree = SOURCE_ROOT; };
@@ -2418,20 +2504,22 @@
 		C6E461F411FF2380F95D573D /* reference.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = reference.h; path = ../../games/reallive/vendor/machine/reference.h; sourceTree = SOURCE_ROOT; };
 		C7393DCCC9970E48C7D54966 /* Session.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Session.cpp; path = ../../modules/vms/reallive/src/Session.cpp; sourceTree = SOURCE_ROOT; };
 		C7C700000000000000000002 /* EmoteRenderer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = EmoteRenderer.cpp; path = ../../games/kirikiri/src/EmoteRenderer.cpp; sourceTree = SOURCE_ROOT; };
-		C7C700000000000000000006 /* PsbFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PsbFile.cpp; path = ../../modules/providers/xp3/src/PsbFile.cpp; sourceTree = SOURCE_ROOT; };
-		C7C70000000000000000000A /* TlgImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TlgImage.cpp; path = ../../modules/providers/xp3/src/TlgImage.cpp; sourceTree = SOURCE_ROOT; };
-		C7C70000000000000000000E /* Tlg6Image.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Tlg6Image.cpp; path = ../../modules/providers/xp3/src/Tlg6Image.cpp; sourceTree = SOURCE_ROOT; };
+		C7C700000000000000000006 /* PsbFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PsbFile.cpp; path = ../../modules/formats/data/psb/src/PsbFile.cpp; sourceTree = SOURCE_ROOT; };
+		C7C70000000000000000000A /* TlgImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TlgImage.cpp; path = ../../modules/formats/image/tlg/src/TlgImage.cpp; sourceTree = SOURCE_ROOT; };
+		C7C70000000000000000000E /* Tlg6Image.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Tlg6Image.cpp; path = ../../modules/formats/image/tlg/src/Tlg6Image.cpp; sourceTree = SOURCE_ROOT; };
 		C7C700000000000000000012 /* TjsBootstrap.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TjsBootstrap.cpp; path = ../../modules/providers/xp3/src/TjsBootstrap.cpp; sourceTree = SOURCE_ROOT; };
 		C7C700000000000000000016 /* ScnRunner.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ScnRunner.cpp; path = ../../modules/vms/kag/src/ScnRunner.cpp; sourceTree = SOURCE_ROOT; };
 		C7C70000000000000000001A /* TjsStartupVm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TjsStartupVm.cpp; path = ../../modules/vms/tjs2/src/TjsStartupVm.cpp; sourceTree = SOURCE_ROOT; };
 		C7C70000000000000000001E /* VitaCpk.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaCpk.cpp; path = ../../modules/providers/amagami/src/VitaCpk.cpp; sourceTree = SOURCE_ROOT; };
-		C7C700000000000000000022 /* VitaGraphics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaGraphics.cpp; path = ../../modules/providers/amagami/src/VitaGraphics.cpp; sourceTree = SOURCE_ROOT; };
+		C7C700000000000000000022 /* VitaGraphics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaGraphics.cpp; path = ../../modules/formats/image/tim2/src/VitaGraphics.cpp; sourceTree = SOURCE_ROOT; };
 		C7C700000000000000000026 /* VitaGraphicsAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaGraphicsAssets.cpp; path = ../../modules/providers/amagami/src/VitaGraphicsAssets.cpp; sourceTree = SOURCE_ROOT; };
-		C7C70000000000000000002A /* VitaSystemGraphics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaSystemGraphics.cpp; path = ../../modules/providers/amagami/src/VitaSystemGraphics.cpp; sourceTree = SOURCE_ROOT; };
+		C7C70000000000000000002A /* VitaSystemGraphics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VitaSystemGraphics.cpp; path = ../../modules/formats/image/ui-atlas/src/VitaSystemGraphics.cpp; sourceTree = SOURCE_ROOT; };
 		C8048E50DB6AEBB3E39E5A74 /* SaveState.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = SaveState.cpp; path = ../../modules/vms/n2system/src/SaveState.cpp; sourceTree = SOURCE_ROOT; };
 		C82B39DA702C2E4996A235CC /* SchoolDaysLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysLauncher.cpp; path = "../../games/school-days/src/SchoolDaysLauncher.cpp"; sourceTree = SOURCE_ROOT; };
 		C87403999D2B9C01A08AF7EF /* SchoolDaysSaveFeelModel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysSaveFeelModel.cpp; path = "../../games/school-days/src/SchoolDaysSaveFeelModel.cpp"; sourceTree = SOURCE_ROOT; };
-		C8A50B44B78B35A30E5F8B97 /* Pack.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Pack.cpp; path = ../../modules/providers/adv/src/Pack.cpp; sourceTree = SOURCE_ROOT; };
+		F20000000000000000000001 /* PackImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PackImage.cpp; path = ../../modules/formats/image/evd/src/PackImage.cpp; sourceTree = SOURCE_ROOT; };
+		F20000000000000000000002 /* PackAnimation.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PackAnimation.cpp; path = ../../modules/formats/animation/anm/src/PackAnimation.cpp; sourceTree = SOURCE_ROOT; };
+		F20000000000000000000003 /* PackAudio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PackAudio.cpp; path = ../../modules/formats/audio/adpcm/src/PackAudio.cpp; sourceTree = SOURCE_ROOT; };
 		C8C800000000000000000001 /* PmailExtrasMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailExtrasMenu.cpp; path = ../../games/pmail/src/PmailExtrasMenu.cpp; sourceTree = SOURCE_ROOT; };
 		C8C800000000000000000005 /* PmailExtrasViewer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailExtrasViewer.cpp; path = ../../games/pmail/src/PmailExtrasViewer.cpp; sourceTree = SOURCE_ROOT; };
 		C8C800000000000000000009 /* PythonDummy.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PythonDummy.cpp; path = ../../modules/vms/renpy/src/PythonDummy.cpp; sourceTree = SOURCE_ROOT; };
@@ -2452,10 +2540,10 @@
 		CCFBCB04C6B7A6FDE92053A2 /* PmailGame.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailGame.cpp; path = ../../games/pmail/src/PmailGame.cpp; sourceTree = SOURCE_ROOT; };
 		CD147B8DCD5C1DB9C4C6545E /* imgui_draw.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_draw.cpp; path = ../../lib/submodules/imgui/imgui_draw.cpp; sourceTree = SOURCE_ROOT; };
 		CDA95F2216A98537A0054444 /* SnowLauncher.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SnowLauncher.cpp; path = "../../games/snow-radish-vacation/src/SnowLauncher.cpp"; sourceTree = SOURCE_ROOT; };
-		CE0187A630B160B400A74244 /* MeoAudio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MeoAudio.cpp; path = ../../modules/providers/cmp/src/MeoAudio.cpp; sourceTree = SOURCE_ROOT; };
+		CE0187A630B160B400A74244 /* MeoAudio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = MeoAudio.cpp; path = ../../modules/formats/audio/pcm-block/src/MeoAudio.cpp; sourceTree = SOURCE_ROOT; };
 		CE0187B030B160ED00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = "../../games/luca-system/src/DebugCatalog.cpp"; sourceTree = SOURCE_ROOT; };
 		CE0187B530B1613A00A74244 /* DebugCatalog.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugCatalog.cpp; path = ../../modules/vms/n2system/src/DebugCatalog.cpp; sourceTree = SOURCE_ROOT; };
-		CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = NsbSnapshot.cpp; path = /Users/nero/Codes/Kotonoha/modules/vms/n2system/src/NsbSnapshot.cpp; sourceTree = "<absolute>"; };
+		CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = NsbSnapshot.cpp; path = ../../modules/vms/n2system/src/NsbSnapshot.cpp; sourceTree = SOURCE_ROOT; };
 		CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LargePonPonVm.cpp; path = ../../modules/vms/pmail/src/LargePonPonVm.cpp; sourceTree = SOURCE_ROOT; };
 		CF96F1307DEFE04F63539C65 /* ZeroComponents.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ZeroComponents.cpp; path = "../../games/zero-no-tsukaima/src/ZeroComponents.cpp"; sourceTree = SOURCE_ROOT; };
 		D31A702A792A5505E0A79948 /* DebugOverlay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DebugOverlay.cpp; path = ../../lib/src/debug/DebugOverlay.cpp; sourceTree = SOURCE_ROOT; };
@@ -2492,7 +2580,7 @@
 		E585EAD1BC6893A777235CFB /* SnowRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SnowRuntime.cpp; path = "../../games/snow-radish-vacation/src/SnowRuntime.cpp"; sourceTree = SOURCE_ROOT; };
 		E7A0A915B2FD3102490280F0 /* imgui_tables.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_tables.cpp; path = ../../lib/submodules/imgui/imgui_tables.cpp; sourceTree = SOURCE_ROOT; };
 		E81DE9C138E7193BB2A2BBBB /* Kirikiri.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kirikiri.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E8A000000000000000000001 /* SavePng.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SavePng.cpp; path = ../../lib/src/media/SavePng.cpp; sourceTree = SOURCE_ROOT; };
+		E8A000000000000000000001 /* SaveImage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SaveImage.cpp; path = ../../lib/src/media/SaveImage.cpp; sourceTree = SOURCE_ROOT; };
 		E8A000000000000000000010 /* LauncherBridge.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LauncherBridge.cpp; path = ../../launcher/src/LauncherBridge.cpp; sourceTree = SOURCE_ROOT; };
 		E8A000000000000000000020 /* KotonohaIOSBookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KotonohaIOSBookmarkStore.swift; path = ../../launcher/src/ios/KotonohaIOSBookmarkStore.swift; sourceTree = SOURCE_ROOT; };
 		E8A000000000000000000022 /* KotonohaLauncherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KotonohaLauncherView.swift; path = ../../launcher/src/ios/KotonohaLauncherView.swift; sourceTree = SOURCE_ROOT; };
@@ -2520,20 +2608,20 @@
 		F0EFB68E5BDAC507F296178A /* VNSaveMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VNSaveMenu.cpp; path = ../../lib/src/components/VNSaveMenu.cpp; sourceTree = SOURCE_ROOT; };
 		F0F4CCEBB9B31A0A778B9994 /* SchoolDaysReplayScriptOracle.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysReplayScriptOracle.cpp; path = "../../games/school-days/src/SchoolDaysReplayScriptOracle.cpp"; sourceTree = SOURCE_ROOT; };
 		F17071A51EFE30209328ED65 /* KatawaShoujo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KatawaShoujo.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F1F1F1000000000000000064 /* Path.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Path.cpp; path = ../../lib/src/Filesystem/Path.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000065 /* SDLFileSource.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SDLFileSource.cpp; path = ../../lib/src/Filesystem/Sources/SDLFileSource.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000066 /* DirectoryMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DirectoryMount.cpp; path = ../../lib/src/Filesystem/Mounts/DirectoryMount.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000067 /* LayeredMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LayeredMount.cpp; path = ../../lib/src/Filesystem/Mounts/LayeredMount.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000068 /* ISO9660Mount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ISO9660Mount.cpp; path = ../../lib/src/Filesystem/Mounts/ISO9660Mount.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000069 /* Filesystem.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Filesystem.cpp; path = ../../lib/src/Filesystem/Filesystem.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F100000000000000006A /* StoragePaths.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StoragePaths.cpp; path = ../../lib/src/Filesystem/StoragePaths.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000078 /* TarMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TarMount.cpp; path = ../../lib/src/Filesystem/Mounts/TarMount.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000079 /* FetchAssetProvider.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FetchAssetProvider.cpp; path = ../../lib/src/Filesystem/Sources/FetchAssetProvider.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000082 /* StreamAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StreamAdapter.cpp; path = ../../lib/src/Filesystem/Adapters/StreamAdapter.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000084 /* SDLIOAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SDLIOAdapter.cpp; path = ../../lib/src/Filesystem/Adapters/SDLIOAdapter.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = BrowserBlobAdapter.cpp; path = ../../lib/src/Filesystem/Adapters/BrowserBlobAdapter.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F100000000000000008C /* FallbackMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FallbackMount.cpp; path = ../../lib/src/Filesystem/Mounts/FallbackMount.cpp; sourceTree = SOURCE_ROOT; };
-		F1F1F100000000000000008D /* RemoteAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = RemoteAssets.cpp; path = ../../lib/src/Filesystem/RemoteAssets.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000064 /* Path.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Path.cpp; path = ../../lib/src/filesystem/Path.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000065 /* SDLFileSource.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SDLFileSource.cpp; path = ../../lib/src/filesystem/sources/SDLFileSource.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000066 /* DirectoryMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DirectoryMount.cpp; path = ../../lib/src/filesystem/mounts/DirectoryMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000067 /* LayeredMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LayeredMount.cpp; path = ../../lib/src/filesystem/mounts/LayeredMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000068 /* ISO9660Mount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ISO9660Mount.cpp; path = ../../lib/src/filesystem/mounts/ISO9660Mount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000069 /* Filesystem.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Filesystem.cpp; path = ../../lib/src/filesystem/Filesystem.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000006A /* StoragePaths.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StoragePaths.cpp; path = ../../lib/src/filesystem/StoragePaths.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000078 /* TarMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TarMount.cpp; path = ../../lib/src/filesystem/mounts/TarMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000079 /* FetchAssetProvider.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FetchAssetProvider.cpp; path = ../../lib/src/filesystem/sources/FetchAssetProvider.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000082 /* StreamAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StreamAdapter.cpp; path = ../../lib/src/filesystem/adapters/StreamAdapter.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000084 /* SDLIOAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SDLIOAdapter.cpp; path = ../../lib/src/filesystem/adapters/SDLIOAdapter.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = BrowserBlobAdapter.cpp; path = ../../lib/src/filesystem/adapters/BrowserBlobAdapter.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000008C /* FallbackMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = FallbackMount.cpp; path = ../../lib/src/filesystem/mounts/FallbackMount.cpp; sourceTree = SOURCE_ROOT; };
+		F1F1F100000000000000008D /* RemoteAssets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = RemoteAssets.cpp; path = ../../lib/src/filesystem/RemoteAssets.cpp; sourceTree = SOURCE_ROOT; };
 		F1F1F100000000000000008E /* SystemInfo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SystemInfo.cpp; path = ../../lib/src/debug/SystemInfo.cpp; sourceTree = SOURCE_ROOT; };
 		F1F1F100000000000000012C /* FileHandle.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FileHandle.hpp; path = ../../lib/include/Kotonoha/Filesystem/FileHandle.hpp; sourceTree = SOURCE_ROOT; };
 		F1F1F100000000000000012D /* IMount.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = IMount.hpp; path = ../../lib/include/Kotonoha/Filesystem/IMount.hpp; sourceTree = SOURCE_ROOT; };
@@ -2563,7 +2651,8 @@
 		FA70A1D23033480A2BD47AFD /* BacklogEvents.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = BacklogEvents.cpp; path = ../../lib/src/events/BacklogEvents.cpp; sourceTree = SOURCE_ROOT; };
 		FC2BC0CC5C1C4CDAE4E355A5 /* Python.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Python.cpp; path = ../../modules/vms/renpy/src/Python.cpp; sourceTree = SOURCE_ROOT; };
 		FCEB3EB28E661CF01E787621 /* SchoolDaysKtrfSession.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysKtrfSession.cpp; path = "../../games/school-days/src/SchoolDaysKtrfSession.cpp"; sourceTree = SOURCE_ROOT; };
-		FD5E8A6845109ED1B21087E1 /* Pack.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Pack.cpp; path = ../../modules/providers/cmp/src/Pack.cpp; sourceTree = SOURCE_ROOT; };
+		F30000000000000000000001 /* Codec.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Codec.cpp; path = ../../modules/formats/image/tex/src/Codec.cpp; sourceTree = SOURCE_ROOT; };
+		F30000000000000000000002 /* Images.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Images.cpp; path = ../../modules/formats/image/tex/src/Images.cpp; sourceTree = SOURCE_ROOT; };
 		FDCD2319A08A9AD7AF38D4A0 /* SchoolDaysSaveLoadRenderPlan.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysSaveLoadRenderPlan.cpp; path = "../../games/school-days/src/SchoolDaysSaveLoadRenderPlan.cpp"; sourceTree = SOURCE_ROOT; };
 		FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SummerRuntime.cpp; path = "../../games/summer-radish-vacation/src/SummerRuntime.cpp"; sourceTree = SOURCE_ROOT; };
 		FE4D3B71392CBBCCC90D9235 /* KtrfRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = KtrfRuntime.cpp; path = ../../lib/src/routing/KtrfRuntime.cpp; sourceTree = SOURCE_ROOT; };
@@ -2949,6 +3038,12 @@
 		0C04E59682E5D462F08B41CC /* KotonohaEngine */ = {
 			isa = PBXGroup;
 			children = (
+				E8A000000000000000000062 /* SubtitleSourceDirector.cpp */,
+				E8A000000000000000000061 /* EmbeddedSubtitleExtractor.cpp */,
+				E8A000000000000000000060 /* SubtitleFontRegistry.cpp */,
+				E8A000000000000000000040 /* Scheduler.cpp */,
+				E8A000000000000000000041 /* WasmBackend.cpp */,
+				E8A000000000000000000043 /* SubtitleWorker.cpp */,
 				F1F1F1000000000000000078 /* TarMount.cpp */,
 				F1F1F1000000000000000079 /* FetchAssetProvider.cpp */,
 				F1F1F1000000000000000140 /* TarMount.hpp */,
@@ -3217,8 +3312,11 @@
 		57E033BD5EABDEDB69501EB0 /* adv */ = {
 			isa = PBXGroup;
 			children = (
-				C8A50B44B78B35A30E5F8B97 /* Pack.cpp */,
+				F20000000000000000000001 /* PackImage.cpp */,
+				F20000000000000000000002 /* PackAnimation.cpp */,
+				F20000000000000000000003 /* PackAudio.cpp */,
 				44878821F495891FD2362550 /* SnowAssets.cpp */,
+				F20000000000000000000090 /* Pack.cpp */,
 			);
 			name = adv;
 			sourceTree = "<group>";
@@ -3463,6 +3561,8 @@
 				BA1A2231F5DE9908D1FFD3EB /* PmailTextBox.cpp */,
 				3D1D2B56AF4EAA3118FF3A1D /* PmailTitleMenu.cpp */,
 				2BCDD65DDEFCFD0B2650E483 /* main.cpp */,
+				AA5500000000000000000002 /* Smfd.cpp */,
+				AA5500000000000000000003 /* Adpcm.cpp */,
 			);
 			name = Pmail;
 			sourceTree = "<group>";
@@ -3536,7 +3636,7 @@
 				FE63135BA17021209CA24FFB /* MPVCompatibleUpscaler.cpp */,
 				85AA5C9FA85B655CBFE5AE68 /* MetalFXUpscaler.mm */,
 				E2B226AECE46EF3EACBEB799 /* Upscaler.cpp */,
-				E8A000000000000000000001 /* SavePng.cpp */,
+				E8A000000000000000000001 /* SaveImage.cpp */,
 			);
 			name = media;
 			sourceTree = "<group>";
@@ -4070,9 +4170,11 @@
 		F6FF3729C4502D04661B73B6 /* cmp */ = {
 			isa = PBXGroup;
 			children = (
-				FD5E8A6845109ED1B21087E1 /* Pack.cpp */,
+				F30000000000000000000001 /* Codec.cpp */,
+				F30000000000000000000002 /* Images.cpp */,
 				AC4B76E74D4407182235347D /* SummerAssets.cpp */,
 				CE0187A630B160B400A74244 /* MeoAudio.cpp */,
+				AA5500000000000000000001 /* Pack.cpp */,
 			);
 			name = cmp;
 			sourceTree = "<group>";
@@ -6878,12 +6980,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E8A000000000000000000030 /* CzImage.cpp in Sources */,
+				E8A000000000000000000031 /* LucaSystemAssets.cpp in Sources */,
 				92664C9232CB4E6E815262CD /* LucaSystemScript.cpp in Sources */,
 				1885BFA8ACB3762FAF00BFF3 /* LucaSystemRuntime.cpp in Sources */,
 				003F4534DA3A1B2D0F0B3F0F /* main.cpp in Sources */,
 				CE0187B130B160ED00A74244 /* DebugCatalog.cpp in Sources */,
 				A96E8B610AE61A3AA66EA615 /* SnowAssets.cpp in Sources */,
-				DDC5BB18E41364E79D264758 /* Pack.cpp in Sources */,
+				F200000000000000000000A4 /* Pack.cpp in Sources */,
+				F20000000000000000000085 /* PackImage.cpp in Sources */,
+				F20000000000000000000086 /* PackAnimation.cpp in Sources */,
+				F20000000000000000000087 /* PackAudio.cpp in Sources */,
 				545930E621DA841013AF8075 /* TimelineParser.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -6896,6 +7003,8 @@
 				C13BF2D0E8CCF80F2746CC08 /* LargePonPonVm.cpp in Sources */,
 				D03F647F88CB3FB538832D9B /* LargePonPonCodecs.cpp in Sources */,
 				39E1DE9ADCBAE788031E5A0F /* LargePonPonAssets.cpp in Sources */,
+				AA5500000000000000000020 /* Smfd.cpp in Sources */,
+				AA5500000000000000000030 /* Adpcm.cpp in Sources */,
 				F0549F51D45CB83D870D3FF0 /* GcPack.cpp in Sources */,
 				C8C800000000000000000007 /* PmailExtrasViewer.cpp in Sources */,
 				C8C800000000000000000003 /* PmailExtrasMenu.cpp in Sources */,
@@ -6913,7 +7022,10 @@
 				67756F7FA9E676C3D54A2273 /* PmailPack.cpp in Sources */,
 				BBDB4159D97146F17696E390 /* PmailAssets.cpp in Sources */,
 				FB9DB82ACFC42688465A864D /* SnowAssets.cpp in Sources */,
-				89D3D64F1C5C4143120AF224 /* Pack.cpp in Sources */,
+				F200000000000000000000A10 /* Pack.cpp in Sources */,
+				F2000000000000000000006D /* PackImage.cpp in Sources */,
+				F2000000000000000000006E /* PackAnimation.cpp in Sources */,
+				F2000000000000000000006F /* PackAudio.cpp in Sources */,
 				55A42CD4311E584702525246 /* Vm.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -6929,11 +7041,16 @@
 				3DF8DDBCA763022EA1BE7EC8 /* SummerRuntime.cpp in Sources */,
 				35F959DBCC0B60937C589F95 /* main.cpp in Sources */,
 				FEB15E56955276DFC36A79A2 /* SnowAssets.cpp in Sources */,
-				94059E262ACD6778ACEA579F /* Pack.cpp in Sources */,
+				F200000000000000000000A11 /* Pack.cpp in Sources */,
+				F20000000000000000000070 /* PackImage.cpp in Sources */,
+				F20000000000000000000071 /* PackAnimation.cpp in Sources */,
+				F20000000000000000000072 /* PackAudio.cpp in Sources */,
 				E98EBCDC14C3E918621A5C59 /* Script.cpp in Sources */,
-				A3AB5D73C2B7879DE055346F /* Pack.cpp in Sources */,
+				F30000000000000000000066 /* Codec.cpp in Sources */,
+				F30000000000000000000067 /* Images.cpp in Sources */,
 				CE0187A730B160B400A74244 /* MeoAudio.cpp in Sources */,
 				73544F3DD0DB5CFFF630FD40 /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000010 /* Pack.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -7001,7 +7118,10 @@
 				DADC6B1C17BFC5D91FC85E63 /* main.cpp in Sources */,
 				D8221CA3A8FD45C7C88F221B /* Game.cpp in Sources */,
 				296CA9B5A148BC37A806A0BC /* SnowAssets.cpp in Sources */,
-				52E3553F6E69E616919F90B0 /* Pack.cpp in Sources */,
+				F200000000000000000000A0 /* Pack.cpp in Sources */,
+				F20000000000000000000064 /* PackImage.cpp in Sources */,
+				F20000000000000000000065 /* PackAnimation.cpp in Sources */,
+				F20000000000000000000066 /* PackAudio.cpp in Sources */,
 				5743F04C4369674378915D76 /* Vm.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -7071,8 +7191,11 @@
 				2E694F203FE4557298628D29 /* SchoolDaysAssets.cpp in Sources */,
 				50AA247654C5C3A833B34A84 /* CzImage.cpp in Sources */,
 				AB1A5284A042F4F8EDE5A1ED /* LucaSystemAssets.cpp in Sources */,
-				EA77386865E7F9D8F540D0EE /* Pack.cpp in Sources */,
+				F3000000000000000000006C /* Codec.cpp in Sources */,
+				F3000000000000000000006D /* Images.cpp in Sources */,
 				348EB5FD8D3CC0D0F4B5C9E5 /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000041 /* MeoAudio.cpp in Sources */,
+				AA5500000000000000000011 /* Pack.cpp in Sources */,
 				E90082B57397BD769A9487F1 /* KagScript.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -7147,6 +7270,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E8A000000000000000000072 /* SubtitleSourceDirector.cpp in Sources */,
+				E8A000000000000000000071 /* EmbeddedSubtitleExtractor.cpp in Sources */,
+				E8A000000000000000000070 /* SubtitleFontRegistry.cpp in Sources */,
+				E8A000000000000000000053 /* SubtitleWorker.cpp in Sources */,
+				E8A000000000000000000051 /* WasmBackend.cpp in Sources */,
+				E8A000000000000000000050 /* Scheduler.cpp in Sources */,
 				A1A100000000000000000011 /* AtomicFile.cpp in Sources */,
 				A1A100000000000000000013 /* SurfaceTexture.cpp in Sources */,
 				A1A100000000000000000015 /* WebAssetFetch.cpp in Sources */,
@@ -7230,7 +7359,7 @@
 				118B7102398037AA88736C56 /* MediaDecoder.cpp in Sources */,
 				72361004DE90A3BF437FFB39 /* CriAudio.cpp in Sources */,
 				4B218F02D9F7C2261CDD3249 /* Ps2Tim2.cpp in Sources */,
-				E8A000000000000000000002 /* SavePng.cpp in Sources */,
+				E8A000000000000000000002 /* SaveImage.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -7343,6 +7472,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E8A000000000000000000072 /* SubtitleSourceDirector.cpp in Sources */,
+				E8A000000000000000000071 /* EmbeddedSubtitleExtractor.cpp in Sources */,
+				E8A000000000000000000070 /* SubtitleFontRegistry.cpp in Sources */,
+				E8A000000000000000000053 /* SubtitleWorker.cpp in Sources */,
+				E8A000000000000000000051 /* WasmBackend.cpp in Sources */,
+				E8A000000000000000000050 /* Scheduler.cpp in Sources */,
 				A1A100000000000000000012 /* AtomicFile.cpp in Sources */,
 				A1A100000000000000000014 /* SurfaceTexture.cpp in Sources */,
 				A1A100000000000000000016 /* WebAssetFetch.cpp in Sources */,
@@ -7426,7 +7561,7 @@
 				5987FE170632321330ED4B4A /* MediaDecoder.cpp in Sources */,
 				043E96E019801925709AFB80 /* CriAudio.cpp in Sources */,
 				5F4E576345FC5FE699AC9CD1 /* Ps2Tim2.cpp in Sources */,
-				E8A000000000000000000003 /* SavePng.cpp in Sources */,
+				E8A000000000000000000003 /* SaveImage.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -7441,7 +7576,10 @@
 				26ECD72456D8C48339B68D6D /* main.cpp in Sources */,
 				75C06E6593CF84E85CAF4B17 /* Game.cpp in Sources */,
 				B3933E449D8A5DC3071C56B0 /* SnowAssets.cpp in Sources */,
-				99CE2BA48F47AA0C769696AE /* Pack.cpp in Sources */,
+				F200000000000000000000A5 /* Pack.cpp in Sources */,
+				F20000000000000000000073 /* PackImage.cpp in Sources */,
+				F20000000000000000000074 /* PackAnimation.cpp in Sources */,
+				F20000000000000000000075 /* PackAudio.cpp in Sources */,
 				9138B5682E639A85D683E354 /* Vm.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -7493,9 +7631,17 @@
 				C5A02F2DFFE87B3E6B18F56E /* Native.cpp in Sources */,
 				58F6F182B69235E147908A66 /* Map.cpp in Sources */,
 				FFBA4A0F4CBB3C0FF9662E59 /* SummerRuntime.cpp in Sources */,
+				AA5500000000000000000050 /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000060 /* MeoAudio.cpp in Sources */,
+				AA5500000000000000000052 /* Pack.cpp in Sources */,
+				AA5500000000000000000054 /* Codec.cpp in Sources */,
+				AA5500000000000000000056 /* Images.cpp in Sources */,
 				25AAF3FE9F7B5DD4070F4F42 /* main.cpp in Sources */,
 				F97BC13E666F4E4640E26AA0 /* SnowAssets.cpp in Sources */,
-				663DCE59973AA5034CD1D873 /* Pack.cpp in Sources */,
+				F200000000000000000000A9 /* Pack.cpp in Sources */,
+				F20000000000000000000067 /* PackImage.cpp in Sources */,
+				F20000000000000000000068 /* PackAnimation.cpp in Sources */,
+				F20000000000000000000069 /* PackAudio.cpp in Sources */,
 				D42E9C05F742E9147D4D1EEE /* Script.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -7509,6 +7655,8 @@
 				18BB2FB128FA4228451587BE /* LargePonPonVm.cpp in Sources */,
 				FD0D25FE3540BB133FF480F8 /* LargePonPonCodecs.cpp in Sources */,
 				10E14F1A17FAE0C64930FEDA /* LargePonPonAssets.cpp in Sources */,
+				AA5500000000000000000021 /* Smfd.cpp in Sources */,
+				AA5500000000000000000031 /* Adpcm.cpp in Sources */,
 				C07AE85D4005B12371009358 /* GcPack.cpp in Sources */,
 				EDCCB2BD2D013367273524F5 /* NsbVm.cpp in Sources */,
 				5E38BCB31581C98217A21646 /* NsbScript.cpp in Sources */,
@@ -7574,8 +7722,11 @@
 				B6B600000000000000000035 /* N2ArchiveAssets.cpp in Sources */,
 				B6B600000000000000000036 /* N2Runtime.cpp in Sources */,
 				B6B600000000000000000037 /* Native.cpp in Sources */,
-				B6B600000000000000000038 /* Pack.cpp in Sources */,
-				B6B600000000000000000039 /* Pack.cpp in Sources */,
+				F2000000000000000000007C /* PackImage.cpp in Sources */,
+				F2000000000000000000007D /* PackAnimation.cpp in Sources */,
+				F2000000000000000000007E /* PackAudio.cpp in Sources */,
+				F30000000000000000000068 /* Codec.cpp in Sources */,
+				F30000000000000000000069 /* Images.cpp in Sources */,
 				B6B60000000000000000003A /* PmailAssets.cpp in Sources */,
 				B6B60000000000000000003B /* PmailAudio.cpp in Sources */,
 				B6B60000000000000000003C /* PmailBacklog.cpp in Sources */,
@@ -7671,6 +7822,7 @@
 				B6B600000000000000000094 /* Session.cpp in Sources */,
 				B6B600000000000000000095 /* Session.cpp in Sources */,
 				B6B600000000000000000096 /* SnowAssets.cpp in Sources */,
+				F200000000000000000000A6 /* Pack.cpp in Sources */,
 				B6B600000000000000000097 /* SnowComponents.cpp in Sources */,
 				B6B600000000000000000098 /* SnowLauncher.cpp in Sources */,
 				B6B600000000000000000099 /* SnowRuntime.cpp in Sources */,
@@ -7679,6 +7831,7 @@
 				B6B60000000000000000009B /* Source.cpp in Sources */,
 				B6B60000000000000000009C /* Source.cpp in Sources */,
 				B6B60000000000000000009D /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000012 /* Pack.cpp in Sources */,
 				B6B60000000000000000009E /* SummerRuntime.cpp in Sources */,
 				B6B60000000000000000009F /* System.cpp in Sources */,
 				B6B6000000000000000000A0 /* TextFormatter.cpp in Sources */,
@@ -7749,9 +7902,17 @@
 				3D9EE0E848EAC90281433C70 /* Native.cpp in Sources */,
 				F09ACE546BBB01EF386BA398 /* Map.cpp in Sources */,
 				C2E2EF4046EEDD4E6533BCBC /* SummerRuntime.cpp in Sources */,
+				AA5500000000000000000051 /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000061 /* MeoAudio.cpp in Sources */,
+				AA5500000000000000000053 /* Pack.cpp in Sources */,
+				AA5500000000000000000055 /* Codec.cpp in Sources */,
+				AA5500000000000000000057 /* Images.cpp in Sources */,
 				1E7C31923AC3B5511E317173 /* main.cpp in Sources */,
 				5432BBF30E6DF5C39593364B /* SnowAssets.cpp in Sources */,
-				C18404974303E4EAE56E6453 /* Pack.cpp in Sources */,
+				F200000000000000000000A1 /* Pack.cpp in Sources */,
+				F2000000000000000000007F /* PackImage.cpp in Sources */,
+				F20000000000000000000080 /* PackAnimation.cpp in Sources */,
+				F20000000000000000000081 /* PackAudio.cpp in Sources */,
 				B49AF121754A34A804473807 /* Script.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -7784,6 +7945,8 @@
 				1A54F85DC5DD300A5B95C7EC /* LargePonPonVm.cpp in Sources */,
 				0DCA8F56BB454B862EAFE2C5 /* LargePonPonCodecs.cpp in Sources */,
 				A113E83C06EA377ADC205EEA /* LargePonPonAssets.cpp in Sources */,
+				AA5500000000000000000022 /* Smfd.cpp in Sources */,
+				AA5500000000000000000032 /* Adpcm.cpp in Sources */,
 				378573CD61A912AC05B624A2 /* GcPack.cpp in Sources */,
 				9B82FA2F655D02D054B97D52 /* NsbVm.cpp in Sources */,
 				E58DCA5325C98D03014712F3 /* NsbScript.cpp in Sources */,
@@ -7851,8 +8014,11 @@
 				D7D700000000000000000042 /* N2ArchiveAssets.cpp in Sources */,
 				D7D700000000000000000043 /* N2Runtime.cpp in Sources */,
 				D7D700000000000000000044 /* Native.cpp in Sources */,
-				D7D700000000000000000045 /* Pack.cpp in Sources */,
-				D7D700000000000000000046 /* Pack.cpp in Sources */,
+				F20000000000000000000082 /* PackImage.cpp in Sources */,
+				F20000000000000000000083 /* PackAnimation.cpp in Sources */,
+				F20000000000000000000084 /* PackAudio.cpp in Sources */,
+				F3000000000000000000006A /* Codec.cpp in Sources */,
+				F3000000000000000000006B /* Images.cpp in Sources */,
 				D7D700000000000000000047 /* PmailAssets.cpp in Sources */,
 				D7D700000000000000000048 /* PmailAudio.cpp in Sources */,
 				D7D700000000000000000049 /* PmailBacklog.cpp in Sources */,
@@ -7946,6 +8112,7 @@
 				D7D7000000000000000000A1 /* Session.cpp in Sources */,
 				D7D7000000000000000000A2 /* Session.cpp in Sources */,
 				D7D7000000000000000000A3 /* SnowAssets.cpp in Sources */,
+				F200000000000000000000A8 /* Pack.cpp in Sources */,
 				D7D7000000000000000000A4 /* SnowComponents.cpp in Sources */,
 				D7D7000000000000000000A5 /* SnowLauncher.cpp in Sources */,
 				CECBF67730B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */,
@@ -7954,6 +8121,7 @@
 				D7D7000000000000000000A8 /* Source.cpp in Sources */,
 				D7D7000000000000000000A9 /* Source.cpp in Sources */,
 				D7D7000000000000000000AA /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000013 /* Pack.cpp in Sources */,
 				D7D7000000000000000000AB /* SummerRuntime.cpp in Sources */,
 				D7D7000000000000000000AC /* System.cpp in Sources */,
 				D7D7000000000000000000AD /* TextFormatter.cpp in Sources */,
@@ -7991,12 +8159,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E8A000000000000000000030 /* CzImage.cpp in Sources */,
+				E8A000000000000000000031 /* LucaSystemAssets.cpp in Sources */,
 				001D06FD0DBB1EFC6A22EB48 /* LucaSystemScript.cpp in Sources */,
 				0BEADAEC1DCC522788661604 /* LucaSystemRuntime.cpp in Sources */,
 				9174735963F63315B8FB0B67 /* main.cpp in Sources */,
 				CE0187B330B160ED00A74244 /* DebugCatalog.cpp in Sources */,
 				7B5A47D5D9652FC332D4A968 /* SnowAssets.cpp in Sources */,
-				9E7E6C96AADFBFBC11C8291A /* Pack.cpp in Sources */,
+				F200000000000000000000A3 /* Pack.cpp in Sources */,
+				F20000000000000000000076 /* PackImage.cpp in Sources */,
+				F20000000000000000000077 /* PackAnimation.cpp in Sources */,
+				F20000000000000000000078 /* PackAudio.cpp in Sources */,
 				690738957BDA60607F930CC4 /* TimelineParser.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -8034,11 +8207,16 @@
 				9F4BF2F2BD47DB0BC8BDEFD3 /* SummerRuntime.cpp in Sources */,
 				CB07C526314208072013BD3A /* main.cpp in Sources */,
 				D16DA3B7DC8A2200371A4390 /* SnowAssets.cpp in Sources */,
-				7B17B63ED9B912AF7A181C1F /* Pack.cpp in Sources */,
+				F200000000000000000000A7 /* Pack.cpp in Sources */,
+				F2000000000000000000006A /* PackImage.cpp in Sources */,
+				F2000000000000000000006B /* PackAnimation.cpp in Sources */,
+				F2000000000000000000006C /* PackAudio.cpp in Sources */,
 				51EAEF0C6A8D2B1CB3330A01 /* Script.cpp in Sources */,
-				F98612F8622E62BCCC080F51 /* Pack.cpp in Sources */,
+				F3000000000000000000006E /* Codec.cpp in Sources */,
+				F3000000000000000000006F /* Images.cpp in Sources */,
 				CE0187AA30B160B400A74244 /* MeoAudio.cpp in Sources */,
 				32AC806A811B6ACAA0C8396D /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000014 /* Pack.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -8050,6 +8228,8 @@
 				DF4B6FD292E2FD53FED35351 /* LargePonPonVm.cpp in Sources */,
 				9D2905445B31050D3EDC1893 /* LargePonPonCodecs.cpp in Sources */,
 				731E66CF53B0D45A7A2CECB9 /* LargePonPonAssets.cpp in Sources */,
+				AA5500000000000000000023 /* Smfd.cpp in Sources */,
+				AA5500000000000000000033 /* Adpcm.cpp in Sources */,
 				A1DC46FFAD31A0EBC955B124 /* GcPack.cpp in Sources */,
 				C8C800000000000000000006 /* PmailExtrasViewer.cpp in Sources */,
 				C8C800000000000000000002 /* PmailExtrasMenu.cpp in Sources */,
@@ -8067,7 +8247,10 @@
 				471BCB7FEA1565BF94446DA0 /* PmailPack.cpp in Sources */,
 				2FE2277D88C46CFD3A020D23 /* PmailAssets.cpp in Sources */,
 				6ED5A76AD841569919DC9C98 /* SnowAssets.cpp in Sources */,
-				9F370C9F131B5ECE698B505F /* Pack.cpp in Sources */,
+				F200000000000000000000A2 /* Pack.cpp in Sources */,
+				F20000000000000000000079 /* PackImage.cpp in Sources */,
+				F2000000000000000000007A /* PackAnimation.cpp in Sources */,
+				F2000000000000000000007B /* PackAudio.cpp in Sources */,
 				A0A2A0276F435BD067005381 /* Vm.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -8137,8 +8320,11 @@
 				031FF9214A409617C5CB54D3 /* SchoolDaysAssets.cpp in Sources */,
 				C8C705E1B08B33DCD4D64D79 /* CzImage.cpp in Sources */,
 				BE7E24BBDA307966F0373D47 /* LucaSystemAssets.cpp in Sources */,
-				76D08CC177D5643ABF96A725 /* Pack.cpp in Sources */,
+				F30000000000000000000064 /* Codec.cpp in Sources */,
+				F30000000000000000000065 /* Images.cpp in Sources */,
 				0D44326F6EB577A66F6FAFE8 /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000040 /* MeoAudio.cpp in Sources */,
+				AA5500000000000000000015 /* Pack.cpp in Sources */,
 				C9305EC51C082F6A0E63D6A9 /* KagScript.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -8488,7 +8674,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = ponscripter;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.ponscripter;
 				PRODUCT_NAME = PonscripterGame;
 				SDKROOT = iphoneos;
@@ -8512,7 +8698,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "zero-no-tsukaima";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.zeronotsukaima;
 				PRODUCT_NAME = ZeroNoTsukaima;
 				SDKROOT = iphoneos;
@@ -8535,7 +8721,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = amagami;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.amagami;
 				PRODUCT_NAME = Amagami;
 				SDKROOT = macosx;
@@ -8555,7 +8741,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "doki-doki-literature-club";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.dokidokiliteratureclub;
 				PRODUCT_NAME = DokiDoki;
 				SDKROOT = macosx;
@@ -8575,7 +8761,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "summer-radish-vacation";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.summerradish;
 				PRODUCT_NAME = SummerRadish;
 				SDKROOT = macosx;
@@ -8592,7 +8778,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
+				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -8602,7 +8788,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.engine;
 				PRODUCT_NAME = KotonohaEngine;
@@ -8620,7 +8806,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
+				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -8631,7 +8817,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.engine;
 				PRODUCT_NAME = KotonohaImGui;
@@ -8656,7 +8842,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = reallive;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.reallive;
 				PRODUCT_NAME = RealLive;
 				SDKROOT = iphoneos;
@@ -8680,7 +8866,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = pmail;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.pmail;
 				PRODUCT_NAME = Pmail;
 				SDKROOT = iphoneos;
@@ -8702,7 +8888,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "zero-no-tsukaima";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.zeronotsukaima;
 				PRODUCT_NAME = ZeroNoTsukaima;
 				SDKROOT = macosx;
@@ -8724,7 +8910,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = meo;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.meo;
 				PRODUCT_NAME = MEO;
 				SDKROOT = iphoneos;
@@ -8743,7 +8929,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
+				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -8754,7 +8940,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.imgui;
 				PRODUCT_NAME = KotonohaEngine;
@@ -8779,7 +8965,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = reallive;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.reallive;
 				PRODUCT_NAME = RealLive;
 				SDKROOT = iphoneos;
@@ -8801,7 +8987,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = kirikiri;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.kirikiri;
 				PRODUCT_NAME = Kirikiri;
 				SDKROOT = macosx;
@@ -8823,7 +9009,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = kirikiri;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.kirikiri;
 				PRODUCT_NAME = Kirikiri;
 				SDKROOT = iphoneos;
@@ -8847,7 +9033,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "snow-radish-vacation";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.snowradish;
 				PRODUCT_NAME = SnowRadish;
 				SDKROOT = iphoneos;
@@ -8871,7 +9057,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "luca-system";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.lucasystem;
 				PRODUCT_NAME = LucaSystem;
 				SDKROOT = iphoneos;
@@ -8895,7 +9081,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "luca-system";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.lucasystem;
 				PRODUCT_NAME = LucaSystem;
 				SDKROOT = iphoneos;
@@ -8917,7 +9103,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "katawa-shoujo";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.katawashoujo;
 				PRODUCT_NAME = KatawaShoujo;
 				SDKROOT = macosx;
@@ -8939,7 +9125,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = n2system;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.n2system;
 				PRODUCT_NAME = N2SystemGame;
 				SDKROOT = iphoneos;
@@ -8963,7 +9149,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "school-days";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.schooldays;
 				PRODUCT_NAME = SchoolDays;
 				SDKROOT = iphoneos;
@@ -8985,7 +9171,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "luca-system";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.lucasystem;
 				PRODUCT_NAME = LucaSystem;
 				SDKROOT = macosx;
@@ -9005,7 +9191,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = ponscripter;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.ponscripter;
 				PRODUCT_NAME = PonscripterGame;
 				SDKROOT = macosx;
@@ -9025,7 +9211,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = reallive;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.reallive;
 				PRODUCT_NAME = RealLive;
 				SDKROOT = macosx;
@@ -9045,7 +9231,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "luca-system";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.lucasystem;
 				PRODUCT_NAME = LucaSystem;
 				SDKROOT = macosx;
@@ -9065,7 +9251,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = ponscripter;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.ponscripter;
 				PRODUCT_NAME = PonscripterGame;
 				SDKROOT = macosx;
@@ -9086,7 +9272,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = n2system;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.n2system;
 				PRODUCT_NAME = N2SystemGame;
 				SDKROOT = macosx;
@@ -9106,7 +9292,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "school-days";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.schooldays;
 				PRODUCT_NAME = SchoolDays;
 				SDKROOT = macosx;
@@ -9128,7 +9314,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = meo;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.meo;
 				PRODUCT_NAME = MEO;
 				SDKROOT = iphoneos;
@@ -9150,7 +9336,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "summer-radish-vacation";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.summerradish;
 				PRODUCT_NAME = SummerRadish;
 				SDKROOT = macosx;
@@ -9172,7 +9358,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = ponscripter;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.ponscripter;
 				PRODUCT_NAME = PonscripterGame;
 				SDKROOT = iphoneos;
@@ -9196,7 +9382,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "snow-radish-vacation";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.snowradish;
 				PRODUCT_NAME = SnowRadish;
 				SDKROOT = iphoneos;
@@ -9215,7 +9401,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
+				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -9225,7 +9411,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.engine;
 				PRODUCT_NAME = KotonohaEngine;
@@ -9248,7 +9434,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "doki-doki-literature-club";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.dokidokiliteratureclub;
 				PRODUCT_NAME = DokiDoki;
 				SDKROOT = iphoneos;
@@ -9272,7 +9458,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "katawa-shoujo";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.katawashoujo;
 				PRODUCT_NAME = KatawaShoujo;
 				SDKROOT = iphoneos;
@@ -9296,7 +9482,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "zero-no-tsukaima";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.zeronotsukaima;
 				PRODUCT_NAME = ZeroNoTsukaima;
 				SDKROOT = iphoneos;
@@ -9320,7 +9506,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = pmail;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.pmail;
 				PRODUCT_NAME = Pmail;
 				SDKROOT = iphoneos;
@@ -9342,7 +9528,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "snow-radish-vacation";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.snowradish;
 				PRODUCT_NAME = SnowRadish;
 				SDKROOT = macosx;
@@ -9362,7 +9548,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "school-days";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.schooldays;
 				PRODUCT_NAME = SchoolDays;
 				SDKROOT = macosx;
@@ -9384,7 +9570,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = example;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.example;
 				PRODUCT_NAME = KotonohaExample;
 				SDKROOT = iphoneos;
@@ -9408,7 +9594,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = amagami;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.amagami;
 				PRODUCT_NAME = Amagami;
 				SDKROOT = iphoneos;
@@ -9432,7 +9618,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = kirikiri;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.kirikiri;
 				PRODUCT_NAME = Kirikiri;
 				SDKROOT = iphoneos;
@@ -9456,7 +9642,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "school-days";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.schooldays;
 				PRODUCT_NAME = SchoolDays;
 				SDKROOT = iphoneos;
@@ -9480,7 +9666,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = example;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.example;
 				PRODUCT_NAME = KotonohaExample;
 				SDKROOT = iphoneos;
@@ -9504,7 +9690,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "summer-radish-vacation";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.summerradish;
 				PRODUCT_NAME = SummerRadish;
 				SDKROOT = iphoneos;
@@ -9526,7 +9712,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "katawa-shoujo";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.katawashoujo;
 				PRODUCT_NAME = KatawaShoujo;
 				SDKROOT = macosx;
@@ -9559,7 +9745,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = meo;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.meo;
 				PRODUCT_NAME = MEO;
 				SDKROOT = macosx;
@@ -9576,7 +9762,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
+				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -9586,7 +9772,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.engine;
 				PRODUCT_NAME = KotonohaImGui;
@@ -9607,7 +9793,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = meo;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.meo;
 				PRODUCT_NAME = MEO;
 				SDKROOT = macosx;
@@ -9629,7 +9815,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = launcher;
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
 				PRODUCT_NAME = KotonohaLauncher;
 				SDKROOT = macosx;
@@ -9651,7 +9837,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = launcher;
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
 				PRODUCT_NAME = KotonohaLauncher;
 				SDKROOT = macosx;
@@ -9673,7 +9859,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "doki-doki-literature-club";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.dokidokiliteratureclub;
 				PRODUCT_NAME = DokiDoki;
 				SDKROOT = iphoneos;
@@ -9695,7 +9881,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = pmail;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.pmail;
 				PRODUCT_NAME = Pmail;
 				SDKROOT = macosx;
@@ -9716,7 +9902,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = example;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
 				PRODUCT_NAME = KotonohaExample;
 				SDKROOT = macosx;
@@ -9736,7 +9922,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = pmail;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.pmail;
 				PRODUCT_NAME = Pmail;
 				SDKROOT = macosx;
@@ -9756,7 +9942,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = reallive;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.reallive;
 				PRODUCT_NAME = RealLive;
 				SDKROOT = macosx;
@@ -9777,7 +9963,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = amagami;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.amagami;
 				PRODUCT_NAME = Amagami;
 				SDKROOT = macosx;
@@ -9797,7 +9983,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "snow-radish-vacation";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.snowradish;
 				PRODUCT_NAME = SnowRadish;
 				SDKROOT = macosx;
@@ -9818,7 +10004,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = n2system;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.n2system;
 				PRODUCT_NAME = N2SystemGame;
 				SDKROOT = macosx;
@@ -9838,7 +10024,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = kirikiri;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.kirikiri;
 				PRODUCT_NAME = Kirikiri;
 				SDKROOT = macosx;
@@ -9860,7 +10046,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = amagami;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.amagami;
 				PRODUCT_NAME = Amagami;
 				SDKROOT = iphoneos;
@@ -9884,7 +10070,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = launcher;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
 				PRODUCT_NAME = KotonohaLauncher;
 				SDKROOT = iphoneos;
@@ -9908,7 +10094,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = launcher;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
 				PRODUCT_NAME = KotonohaLauncher;
 				SDKROOT = iphoneos;
@@ -9931,7 +10117,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = example;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
 				PRODUCT_NAME = KotonohaExample;
 				SDKROOT = macosx;
@@ -9966,7 +10152,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
+				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -9976,7 +10162,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.engine;
 				PRODUCT_NAME = KotonohaImGui;
@@ -9999,7 +10185,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "summer-radish-vacation";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.summerradish;
 				PRODUCT_NAME = SummerRadish;
 				SDKROOT = iphoneos;
@@ -10018,7 +10204,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
+				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -10029,7 +10215,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.imgui;
 				PRODUCT_NAME = KotonohaEngine;
@@ -10052,7 +10238,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "doki-doki-literature-club";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.dokidokiliteratureclub;
 				PRODUCT_NAME = DokiDoki;
 				SDKROOT = macosx;
@@ -10069,7 +10255,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEFINES_MODULE = YES;
+				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 64T9B5HFFD;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -10080,7 +10266,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.engine;
 				PRODUCT_NAME = KotonohaImGui;
@@ -10105,7 +10291,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = n2system;
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.n2system;
 				PRODUCT_NAME = N2SystemGame;
 				SDKROOT = iphoneos;
@@ -10127,7 +10313,7 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "zero-no-tsukaima";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.zeronotsukaima;
 				PRODUCT_NAME = ZeroNoTsukaima;
 				SDKROOT = macosx;
@@ -10149,7 +10335,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = "katawa-shoujo";
-				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.katawashoujo;
 				PRODUCT_NAME = KatawaShoujo;
 				SDKROOT = iphoneos;

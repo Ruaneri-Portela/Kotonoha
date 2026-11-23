@@ -9,6 +9,7 @@
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
 #include <Kotonoha/events/InputActions.hpp>
+#include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
 
@@ -1147,6 +1148,10 @@ struct Game {
   int fxW = 0, fxH = 0;
   double rigClock = 0;
   std::unique_ptr<Kotonoha::PcmPlayer> uiSfx;
+  // Katawa Shoujo cutscenes (renpy.movie_cutscene) decoded from data.rpa.
+  std::unique_ptr<Kotonoha::MediaPlayer> cutscenePlayer;
+  std::string cutsceneId;
+  bool cutsceneReady = false;
 
   // Drawing state.
   std::map<std::string, Tex> images;
@@ -1179,6 +1184,8 @@ struct Game {
     }
     vm.reset();
     host.stopAll();
+    if (cutscenePlayer)
+      cutscenePlayer->stop();
     if (uiSfx)
       uiSfx->Stop();
     images.clear();
@@ -1212,6 +1219,36 @@ struct Game {
     if (!uiSfx->Play(engine.GetAudio().channel("DDLC ui"), std::move(c)))
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                    "DDLC: cannot play UI sound %s", file);
+  }
+
+  void stopCutscene() {
+    if (cutscenePlayer)
+      cutscenePlayer->stop();
+    cutsceneId.clear();
+    cutsceneReady = false;
+  }
+
+  void startCutscene(const Interaction &in) {
+    const std::string id = in.movie;
+    if (cutscenePlayer)
+      cutscenePlayer->stop();
+    cutsceneId = id; // record the attempt so a missing asset is logged once
+    cutsceneReady = false;
+    if (id.empty() || !assets->contains(id)) {
+      SDL_Log("DDLC: cutscene asset '%s' not found; continuing script",
+              id.c_str());
+      return;
+    }
+    if (!cutscenePlayer)
+      cutscenePlayer =
+          std::make_unique<Kotonoha::MediaPlayer>(engine.GetAudio());
+    try {
+      cutscenePlayer->open(*assets, id, false, "DDLC movie");
+      cutsceneReady = true;
+    } catch (const std::exception &error) {
+      SDL_Log("DDLC: cannot open cutscene '%s': %s", id.c_str(), error.what());
+      cutscenePlayer->stop();
+    }
   }
 
   struct LiveEdit {
@@ -2773,6 +2810,8 @@ struct Game {
     updateRiggedChoice();
     const Interaction &in = vm->interaction();
     const double t = now(), el = t - in.start;
+    if (in.k != Interaction::K::MovieCutscene && !cutsceneId.empty())
+      stopCutscene();
     switch (in.k) {
     case Interaction::K::Say: {
       const Window &w = vm->scene.window;
@@ -2797,6 +2836,16 @@ struct Game {
     case Interaction::K::Transition:
       if ((in.deadline >= 0 && el >= in.deadline) || (skipping() && el > .03))
         resume();
+      break;
+    case Interaction::K::MovieCutscene:
+      if (cutsceneId != in.movie)
+        startCutscene(in);
+      if (!cutsceneReady || (cutscenePlayer->finished() && el > .1))
+        resume();
+      else if (skipping() && el > .03) {
+        stopCutscene();
+        resume();
+      }
       break;
     case Interaction::K::None:
       resume();
@@ -2827,6 +2876,12 @@ struct Game {
     case Interaction::K::Transition:
       if (in.dismiss)
         resume();
+      break;
+    case Interaction::K::MovieCutscene:
+      if (in.dismiss) {
+        stopCutscene();
+        resume();
+      }
       break;
     case Interaction::K::Menu:
       if (phase == Phase::Splash && in.items.size() == 1 &&
@@ -2943,8 +2998,7 @@ struct Game {
             {{ptBr ? "Novo Jogo" : "New Game", [this] { startGame(); }},
              {ptBr ? "Carregar Jogo" : "Load Game",
               [this] { subMenu = SubMenu::Load; }},
-             {ptBr ? "Opções" : "Settings",
-              [this] { engine.openSettings(); }},
+             {ptBr ? "Opções" : "Settings", [this] { engine.openSettings(); }},
              {ptBr ? "Sair" : "Quit", [this] { quit = true; }}});
       return;
     }
@@ -3120,6 +3174,14 @@ struct Game {
     if (vm->scene.master.empty() && vm->assets.has("presplash.png"))
       drawImage(r, "presplash.png", 0, 0, kW, kH);
     const Interaction &interaction = vm->interaction();
+    if (interaction.k == Interaction::K::MovieCutscene) {
+      if (cutsceneReady && cutscenePlayer) {
+        cutscenePlayer->update(*r);
+        const SDL_FRect area{0, 0, kW, kH};
+        cutscenePlayer->render(*r, area);
+      }
+      return;
+    }
     if (interaction.k == Interaction::K::Transition && interaction.trans)
       drawTransition(r, interaction, now());
     else
@@ -3129,6 +3191,7 @@ struct Game {
   void drawDialogue(SDL_Renderer *r) {
     if (!vm || (phase != Phase::Splash && phase != Phase::Play) ||
         vm->interaction().k == Interaction::K::Transition ||
+        vm->interaction().k == Interaction::K::MovieCutscene ||
         !vm->scene.window.visible)
       return;
     drawWindow(r, vm->scene.window, now());
@@ -3140,7 +3203,8 @@ struct Game {
   void drawChoices(SDL_Renderer *r) {
     drawScreenEffects(r);
     drawSkipIndicator(r);
-    if (!vm || (phase != Phase::Splash && phase != Phase::Play))
+    if (!vm || (phase != Phase::Splash && phase != Phase::Play) ||
+        vm->interaction().k == Interaction::K::MovieCutscene)
       return;
     const Interaction &interaction = vm->interaction();
     if (interaction.k == Interaction::K::Menu ||

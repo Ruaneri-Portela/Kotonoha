@@ -131,3 +131,18 @@ ctest --test-dir build -R '^RealLive.Input$' --output-on-failure
 
 Ainda é necessário validar os layouts e áreas de toque nos dispositivos
 macOS/iOS com cada edição original de RealLive.
+
+## A música começa apenas em um opcode BGM explícito
+
+As cenas de boot/logo do AIR (`SEEN` 9030/9031/9032) **não** contêm nenhum
+comando do módulo 20, portanto o splash permanece silencioso. A primeira
+solicitação explícita é `1:20:0("BGM00")` no nó `170:246`; nada em
+`Gameexe.ini` (`#BGM_MODE`, `#DSTRACK`) inicia música por conta própria.
+`bgmStartsPlayback()` só habilita a reprodução para os opcodes 0..3 do módulo
+20, e `bgmGainAfterStop()` restaura o ganho após `bgmStop`.
+`RealLive.BgmCompat` verifica as duas regras:
+
+```sh
+cmake --build build --target RealLive
+ctest --test-dir build -R RealLive --output-on-failure
+```

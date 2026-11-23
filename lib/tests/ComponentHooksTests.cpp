@@ -594,8 +594,7 @@ void testTextMetrics(Kotonoha::Engine &engine) {
           "CPU text measurements agree with rendered SDL_ttf dimensions");
   require(ui.cachedTextCount() == before + 1,
           "Only visible text rendering allocates a cached text object");
-  ui.text(renderer, text, -10000.0f, -10000.0f, 580.0f,
-          {255, 120, 80, 128});
+  ui.text(renderer, text, -10000.0f, -10000.0f, 580.0f, {255, 120, 80, 128});
   require(ui.cachedTextCount() == before + 1,
           "Recoloring an atlas entry does not rerasterize text");
   float oldX = 1.0f, oldY = 1.0f;
@@ -604,8 +603,8 @@ void testTextMetrics(Kotonoha::Engine &engine) {
   require(SDL_SetRenderScale(&renderer, oldX * 1.5f, oldY * 1.5f),
           "Set high-density test scale");
   const float hiDpiHeight =
-      ui.textSized(renderer, "A different raster size", -10000.0f,
-                   -10000.0f, 580.0f, 32.0f, {70, 220, 180, 255});
+      ui.textSized(renderer, "A different raster size", -10000.0f, -10000.0f,
+                   580.0f, 32.0f, {70, 220, 180, 255});
   float afterX = 0.0f, afterY = 0.0f;
   require(SDL_GetRenderScale(&renderer, &afterX, &afterY) &&
               std::abs(afterX - oldX * 1.5f) < 0.001f &&
@@ -639,13 +638,12 @@ void testTextMetrics(Kotonoha::Engine &engine) {
       float sx = 0.0f, sy = 0.0f;
       SDL_Rect afterVp{}, afterClip{};
       require(SDL_GetRenderScale(&renderer, &sx, &sy) &&
-                  std::abs(sx - 2.0f) < 0.001f &&
-                  std::abs(sy - 2.0f) < 0.001f,
+                  std::abs(sx - 2.0f) < 0.001f && std::abs(sy - 2.0f) < 0.001f,
               "HiDPI text draw preserves render scale");
       require(SDL_RenderViewportSet(&renderer) &&
                   SDL_GetRenderViewport(&renderer, &afterVp) &&
-                  afterVp.x == vp.x && afterVp.y == vp.y &&
-                  afterVp.w == vp.w && afterVp.h == vp.h,
+                  afterVp.x == vp.x && afterVp.y == vp.y && afterVp.w == vp.w &&
+                  afterVp.h == vp.h,
               "HiDPI text draw preserves active viewport");
       require(SDL_RenderClipEnabled(&renderer) &&
                   SDL_GetRenderClipRect(&renderer, &afterClip) &&
@@ -655,8 +653,7 @@ void testTextMetrics(Kotonoha::Engine &engine) {
       SDL_SetRenderClipRect(&renderer, nullptr);
       SDL_SetRenderViewport(&renderer, nullptr);
       SDL_SetRenderScale(&renderer, 1.0f, 1.0f);
-      if (Kotonoha::SurfacePtr snap{
-              SDL_RenderReadPixels(&renderer, nullptr)}) {
+      if (Kotonoha::SurfacePtr snap{SDL_RenderReadPixels(&renderer, nullptr)}) {
         Kotonoha::SurfacePtr rgba(
             SDL_ConvertSurface(snap.get(), SDL_PIXELFORMAT_RGBA32));
         if (rgba) {

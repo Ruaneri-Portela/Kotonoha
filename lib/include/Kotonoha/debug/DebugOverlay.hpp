@@ -4,6 +4,7 @@
 #include <Kotonoha/core/Clock.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/localization/Translation.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <memory>
 #include <string>
 #include <utility>
@@ -107,6 +108,9 @@ class DebugOverlay {
   void drawDubbingWindow();
   void drawInfoWindow();
   void drawMenuBar();
+  void takeScreenshot(RendererRef renderer);
+  bool screenshotPending = false;
+  ImageFormat screenshotFormat = ImageFormat::Png;
   void drawInterfaceTools();
   void drawAudioTools();
   void drawDubbingTools();

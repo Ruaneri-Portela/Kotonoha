@@ -1,8 +1,8 @@
 #include "DdlcLauncher.hpp"
 #include <Ddlc/DdlcAssets.hpp>
+#include <Kotonoha/Filesystem/EngineDetector.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/Filesystem/GameSourceProbe.hpp>
-#include <Kotonoha/Filesystem/EngineDetector.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -32,9 +32,8 @@ bool GameLauncher::checkPath(const std::string &path, std::string &info) {
 bool GameLauncher::validatePath(const std::string &path, std::string &info) {
   try {
     const auto mounted = Kotonoha::Filesystem::Filesystem::mount(path);
-    if (!mounted ||
-        Kotonoha::Filesystem::detectEngine(*mounted).kind !=
-            Kotonoha::Filesystem::EngineKind::RenPy) {
+    if (!mounted || Kotonoha::Filesystem::detectEngine(*mounted).kind !=
+                        Kotonoha::Filesystem::EngineKind::RenPy) {
       info = "Select a Ren'Py installation containing .rpa, .rpyc or "
              ".rpymc files";
       return false;

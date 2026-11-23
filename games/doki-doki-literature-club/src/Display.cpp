@@ -1363,6 +1363,20 @@ DispP Vm::toDisp(const Value &v) {
   }
   if (!v.isObj())
     return nullptr;
+  if (v.cls() == "Movie") {
+    // Video frames are decoded by the host presentation layer; the VM keeps a
+    // transparent, correctly-sized placeholder so Movie() screens stay laid
+    // out even when the asset cannot be rendered as a static image.
+    double w = 400, h = 300;
+    if (const Value *size = v.attr("size")) {
+      const auto parts = size->items();
+      if (parts.size() == 2) {
+        w = parts[0].num();
+        h = parts[1].num();
+      }
+    }
+    return makeNullDisp(w, h);
+  }
   if (v.cls() == "Displayable" && v.o->payload)
     return std::static_pointer_cast<Disp>(v.o->payload);
   if (v.cls() == "ATLTransform" && v.o->payload)

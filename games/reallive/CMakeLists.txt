@@ -213,6 +213,19 @@ if(BUILD_TESTING)
         endif()
     endforeach()
 
+    # Retail BG008.G00 background art: the pale lamp in seen170 is baked into
+    # the shipped art, not a runtime sprite; lock its byte-exact decode.
+    add_executable(RealLiveG00RetailArtTests tests/G00RetailArtTest.cpp)
+    target_link_libraries(RealLiveG00RetailArtTests PRIVATE RealLiveFormats kotonoha_vm_reallive)
+    if(REALLIVE_TEST_DATA AND EXISTS "${REALLIVE_TEST_DATA}/g00/BG008.g00")
+        add_test(NAME RealLive.G00RetailArt
+            COMMAND RealLiveG00RetailArtTests "${REALLIVE_TEST_DATA}")
+        set_tests_properties(RealLive.G00RetailArt PROPERTIES LABELS real)
+    else()
+        add_test(NAME RealLive.G00RetailArt COMMAND RealLiveG00RetailArtTests)
+        set_tests_properties(RealLive.G00RetailArt PROPERTIES LABELS synthetic)
+    endif()
+
     # Data-independent verification of switch/case selection semantics.
     # Pure C++17 tests for Str.digits / Str.digit opcode parameters.
     # Strict, data-free tests for atomic Str.strclear range validation.
@@ -261,6 +274,18 @@ if(BUILD_TESTING)
 
     add_executable(RealLiveEngineTests tests/EngineTest.cpp)
     target_link_libraries(RealLiveEngineTests PRIVATE reallive_port)
+    # Retail AIR 1:26:0 opening movie: asset resolution, embedded audio and
+    # the script block/skip contract. Data is supplied at runtime through
+    # REALLIVE_TEST_DATA (or the configure-time REALLIVE_TEST_DATA option).
+    add_executable(RealLiveMovieTests tests/MovieTest.cpp)
+    target_link_libraries(RealLiveMovieTests PRIVATE reallive_port)
+    if(REALLIVE_TEST_DATA AND EXISTS "${REALLIVE_TEST_DATA}/MOV/op_air.mpg")
+        add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests "${REALLIVE_TEST_DATA}")
+        set_tests_properties(RealLive.Movie PROPERTIES LABELS real)
+    else()
+        add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests)
+        set_tests_properties(RealLive.Movie PROPERTIES LABELS synthetic)
+    endif()
     add_executable(RealLiveConfigTests tests/ConfigTest.cpp)
     target_link_libraries(RealLiveConfigTests PRIVATE reallive_port)
     add_test(NAME RealLiveConfig COMMAND RealLiveConfigTests)

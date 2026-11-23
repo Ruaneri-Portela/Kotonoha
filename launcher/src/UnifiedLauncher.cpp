@@ -138,14 +138,14 @@ std::uint64_t sourceFingerprint(const std::string &path) {
   };
   sample(root);
   if (fs::is_directory(root, error)) {
-    for (const char *name : {"files", "game", "data", "archive", "Packs",
-                             "USRDIR", "kineticdata", "Data", "script",
-                             "scripts", "scenario", "game-assets"}) {
+    for (const char *name :
+         {"files", "game", "data", "archive", "Packs", "USRDIR", "kineticdata",
+          "Data", "script", "scripts", "scenario", "game-assets"}) {
       sample(root / name);
     }
-    for (const char *name : {"Seen.txt", "Gameexe.ini", "PARAM.PAK",
-                             "SCRIPT.PAK", "SYSSE.PAK", "data.xp3",
-                             "startup.tjs", "0.txt", "nscript.dat"}) {
+    for (const char *name :
+         {"Seen.txt", "Gameexe.ini", "PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK",
+          "data.xp3", "startup.tjs", "0.txt", "nscript.dat"}) {
       sample(root / name);
     }
   }
@@ -156,8 +156,9 @@ std::map<std::string, CachedProbe> &scanCache() {
   static std::map<std::string, CachedProbe> cache;
   static const bool loaded = [&] {
     try {
-      const fs::path path = fs::path(defaultGameParamsFilePath()).parent_path() /
-                            "scan-cache-v1.txt";
+      const fs::path path =
+          fs::path(defaultGameParamsFilePath()).parent_path() /
+          "scan-cache-v1.txt";
       Kotonoha::Filesystem::InputFile input(path);
       if (!input.is_open())
         return true;
@@ -547,9 +548,12 @@ DetectedEngine detectKotonohaEngine(const Filesystem &source,
   // packages use the neutral renpy identity returned by detectEngine().
   if (const auto prefix = findRequiredFilesPrefix(
           source, {"scripts.rpa", "images.rpa"}, {"game/", ""})) {
-    return {EngineKind::RenPy, "doki-doki-literature-club",
-            "Doki Doki Literature Club! (Ren'Py)", *prefix,
-            *prefix + "scripts.rpa", true};
+    return {EngineKind::RenPy,
+            "doki-doki-literature-club",
+            "Doki Doki Literature Club! (Ren'Py)",
+            *prefix,
+            *prefix + "scripts.rpa",
+            true};
   }
 
   // 2. Check Summer Radish Vacation 1 & 2, Lost M, and Imouto de Ikou!

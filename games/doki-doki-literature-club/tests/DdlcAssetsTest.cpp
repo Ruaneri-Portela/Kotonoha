@@ -125,8 +125,8 @@ void archiveTests(const std::filesystem::path &root) {
           "Overlay loose file precedes overlay archive");
   // Official RPAv3 indexes may include a prefix in a third tuple field.
   // The reconstructed asset is prefix + body, not prefix + partial body.
-  archive(dir / "prefix.rpa", "ui/prefixed.bin", "payload", false, false,
-          false, "header-");
+  archive(dir / "prefix.rpa", "ui/prefixed.bin", "payload", false, false, false,
+          "header-");
   Ddlc::Archive prefixed;
   require(prefixed.open((dir / "prefix.rpa").string()),
           "Open RPA-3.0 with an entry prefix");
@@ -150,13 +150,12 @@ void archiveTests(const std::filesystem::path &root) {
   archive(mountedDir / "game" / "data.rpa", "images/katawa.txt",
           "mounted-legacy", false, false, true);
   Ddlc::Assets mounted;
-  require(mounted.open(Kotonoha::Filesystem::Filesystem::mount(
-              mountedDir.string())),
+  require(mounted.open(
+              Kotonoha::Filesystem::Filesystem::mount(mountedDir.string())),
           "Discover virtual Ren'Py game folder containing data.rpa");
   require(text(mounted.read("images/katawa.txt")) == "mounted-legacy",
           "Read Katawa-era RPA-2.0 archive from virtual game directory");
 }
-
 
 std::vector<uint8_t> compressFixture(const std::vector<uint8_t> &data) {
   uLongf length = compressBound(data.size());
@@ -168,8 +167,8 @@ std::vector<uint8_t> compressFixture(const std::vector<uint8_t> &data) {
 }
 
 void pickleCompatibilityTests() {
-  const std::vector<uint8_t> modern{0x80, 4, '}', 0x94, 0x8c, 3,
-                                     'k',  'e', 'y', 0x94, 'K', 42, 's', '.'};
+  const std::vector<uint8_t> modern{0x80, 4,   '}',  0x94, 0x8c, 3,   'k',
+                                    'e',  'y', 0x94, 'K',  42,   's', '.'};
   auto index = Ddlc::unpickle(modern);
   auto *value = index.o->findKey(Ddlc::Value::str("key"));
   require(value && value->integer() == 42, "Pickle 4 MEMOIZE and unicode");
@@ -219,7 +218,8 @@ void pickleCompatibilityTests() {
   // Both slots valid: Ren'Py executes slot 2's statically transformed AST.
   const auto before = compressFixture({0x80, 2, 'K', 1, '.'});
   const auto after = compressFixture({0x80, 2, 'K', 2, '.'});
-  std::vector<uint8_t> transformed{'R', 'E', 'N', 'P', 'Y', ' ', 'R', 'P', 'C', '2'};
+  std::vector<uint8_t> transformed{'R', 'E', 'N', 'P', 'Y',
+                                   ' ', 'R', 'P', 'C', '2'};
   number(transformed, 1);
   number(transformed, 46);
   number(transformed, uint32_t(before.size()));

@@ -14,16 +14,15 @@ PonscripterVm::PonscripterVm(HostCallbacks *callbacks) : callbacks_(callbacks) {
 std::pair<int, int> PonscripterVm::quakeOffset() const {
   if (!activeEffect_.active || quakeAmplitude_ <= 0 ||
       activeEffect_.builtinEffect < 10001 ||
-      activeEffect_.builtinEffect > 10003 ||
-      activeEffect_.durationMs <= 0)
+      activeEffect_.builtinEffect > 10003 || activeEffect_.durationMs <= 0)
     return {0, 0};
-  const double progress = std::clamp(
-      activeEffect_.elapsedMs / activeEffect_.durationMs, 0.0, 1.0);
+  const double progress =
+      std::clamp(activeEffect_.elapsedMs / activeEffect_.durationMs, 0.0, 1.0);
   const double amplitude = quakeAmplitude_ * (1.0 - progress);
-  const int x = static_cast<int>(std::lround(
-      amplitude * std::sin(activeEffect_.elapsedMs * 0.085)));
-  const int y = static_cast<int>(std::lround(
-      amplitude * std::cos(activeEffect_.elapsedMs * 0.077)));
+  const int x = static_cast<int>(
+      std::lround(amplitude * std::sin(activeEffect_.elapsedMs * 0.085)));
+  const int y = static_cast<int>(
+      std::lround(amplitude * std::cos(activeEffect_.elapsedMs * 0.077)));
   if (activeEffect_.builtinEffect == 10001)
     return {0, y};
   if (activeEffect_.builtinEffect == 10002)
@@ -238,8 +237,7 @@ void PonscripterVm::executeTextLine(std::string_view rawLine,
   std::string interpolated;
   interpolated.reserve(rawLine.size());
   for (std::size_t i = 0; i < rawLine.size();) {
-    if (rawLine[i] == '{' && i + 1 < rawLine.size() &&
-        rawLine[i + 1] == '|') {
+    if (rawLine[i] == '{' && i + 1 < rawLine.size() && rawLine[i + 1] == '|') {
       interpolated.push_back('{');
       i += 2;
       continue;
@@ -260,8 +258,8 @@ void PonscripterVm::executeTextLine(std::string_view rawLine,
           for (char ch : replacement) {
             if (ch == '~' || ch == '#')
               interpolated.push_back(ch);
-            else if (ch == '@' || ch == '\\' || ch == '/' ||
-                     ch == '^' || ch == '!' || ch == '_')
+            else if (ch == '@' || ch == '\\' || ch == '/' || ch == '^' ||
+                     ch == '!' || ch == '_')
               interpolated.push_back('#');
             interpolated.push_back(ch);
           }
@@ -336,15 +334,14 @@ void PonscripterVm::executeTextLine(std::string_view rawLine,
 }
 
 bool PonscripterVm::isSubroutineActive(const std::string &label) const {
-  return std::any_of(callStack_.begin(), callStack_.end(),
-                     [&](const CallStackEntry &frame) {
-                       return frame.targetLabel == label;
-                     });
+  return std::any_of(
+      callStack_.begin(), callStack_.end(),
+      [&](const CallStackEntry &frame) { return frame.targetLabel == label; });
 }
 
 void PonscripterVm::captureCallArguments(LineLexer &lexer,
-                                        CallStackEntry &frame,
-                                        bool requireLeadingComma) {
+                                         CallStackEntry &frame,
+                                         bool requireLeadingComma) {
   if (requireLeadingComma && !lexer.consumeComma())
     return;
   if (!requireLeadingComma)
@@ -361,8 +358,7 @@ void PonscripterVm::captureCallArguments(LineLexer &lexer,
     }
     CallArgument arg;
     const char first = lexer.peek();
-    arg.isString = first == '$' || first == '"' || first == '^' ||
-                   first == '*';
+    arg.isString = first == '$' || first == '"' || first == '^' || first == '*';
     if (!arg.isString &&
         (std::isalpha(static_cast<unsigned char>(first)) || first == '_')) {
       LineLexer probe = lexer;
@@ -374,8 +370,8 @@ void PonscripterVm::captureCallArguments(LineLexer &lexer,
     // getparam i%N / s%N requests the caller's reference id, not its value.
     if (first == '%' || first == '$') {
       LineLexer source = lexer;
-      const int id = first == '%' ? source.parseVarRef()
-                                  : source.parseStrVarRef();
+      const int id =
+          first == '%' ? source.parseVarRef() : source.parseStrVarRef();
       source.skipWhitespace();
       if (id >= 0 && (source.eof() || source.peek() == ',')) {
         arg.sourceVariable = id;
@@ -617,8 +613,7 @@ void PonscripterVm::updateButtonHover() {
       if (btn.spriteNo < 0 || btn.spriteNo >= kMaxExtendedSprites)
         continue;
       const auto &sp = sprites_[btn.spriteNo];
-      if (!sp.loaded || !sp.visible ||
-          areSpritesHidden(sp.secondaryLayer))
+      if (!sp.loaded || !sp.visible || areSpritesHidden(sp.secondaryLayer))
         continue;
       bx = sp.x;
       by = sp.y;
@@ -789,8 +784,7 @@ bool PonscripterVm::selectChoice(int optionIndex) {
     frame.targetLabel = target;
     frame.callerLabel = currentLabel_;
     callStack_.push_back(std::move(frame));
-  } else if (mode == SelectionMode::Number &&
-             selectionNumberVariable_ >= 0) {
+  } else if (mode == SelectionMode::Number && selectionNumberVariable_ >= 0) {
     const bool changed = vars_.setNum(selectionNumberVariable_, optionIndex);
     if (changed && callbacks_)
       callbacks_->onPersistGlobals();
@@ -1065,9 +1059,9 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   cselOptions_ = data.cselOptions;
   pendingPretextPc_ = data.pendingPretextStatementIndex;
   textGosubPagePending_ = data.textGosubPagePending;
-  selectionMode_ = data.selectionMode == 1 ? SelectionMode::Subroutine :
-                   data.selectionMode == 2 ? SelectionMode::Number :
-                                             SelectionMode::Jump;
+  selectionMode_ = data.selectionMode == 1   ? SelectionMode::Subroutine
+                   : data.selectionMode == 2 ? SelectionMode::Number
+                                             : SelectionMode::Jump;
   selectionNumberVariable_ = data.selectionNumberVariable;
   hoveredButtonId_ = 0;
 

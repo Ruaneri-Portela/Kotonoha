@@ -150,9 +150,8 @@ void writePak(const LucaSystem::PakArchive &archive, const fs::path &path,
 
 // Same-length raw payload edits work with any structurally valid LucaSystem
 // script. We never interpret game-specific opcode operands or move branch PCs.
-std::map<uint32_t, fs::path>
-patchRaw(const LucaSystem::PakArchive &archive, Staging &staging, int argc,
-         char **argv) {
+std::map<uint32_t, fs::path> patchRaw(const LucaSystem::PakArchive &archive,
+                                      Staging &staging, int argc, char **argv) {
   std::map<uint32_t, std::map<uint32_t, std::vector<uint8_t>>> edits;
   for (int i = 4; i < argc; i += 3) {
     const auto &entry = select(archive, argv[i]);
@@ -160,9 +159,8 @@ patchRaw(const LucaSystem::PakArchive &archive, Staging &staging, int argc,
     const auto payload =
         Kotonoha::Filesystem::readLocalFile(argv[i + 2], 65535);
     if (!edits[entry.id].emplace(offset, payload).second)
-      throw std::runtime_error("Duplicate raw instruction edit: " +
-                               entry.name + " at byte " +
-                               std::to_string(offset));
+      throw std::runtime_error("Duplicate raw instruction edit: " + entry.name +
+                               " at byte " + std::to_string(offset));
   }
 
   std::map<uint32_t, fs::path> replacements;

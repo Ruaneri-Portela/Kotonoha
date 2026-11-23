@@ -246,13 +246,12 @@ void ScriptBuffer::finalize() {
     if (!current.isLabel && !current.isText && isChoice(current.text)) {
       while (i + 1 < statements_.size()) {
         const auto &next = statements_[i + 1];
-        if (next.isLabel || next.isText ||
-            next.lineIndex <= current.lineIndex)
+        if (next.isLabel || next.isText || next.lineIndex <= current.lineIndex)
           break;
-        const bool continued = !current.text.empty() &&
-                               current.text.back() == ',';
-        const bool leadingComma = !next.text.empty() &&
-                                  next.text.front() == ',';
+        const bool continued =
+            !current.text.empty() && current.text.back() == ',';
+        const bool leadingComma =
+            !next.text.empty() && next.text.front() == ',';
         if (!continued && !leadingComma)
           break;
         // Consecutive commas must not accidentally produce a valid choice.

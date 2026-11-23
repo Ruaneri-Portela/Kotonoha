@@ -41,6 +41,7 @@
 #include <Kotonoha/routing/SchoolDaysTitleMovieClock.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysTitleRenderPlan.hpp>
+#include <Kotonoha/workers/SubtitleBridge.hpp>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <algorithm>
 #include <array>
@@ -1813,8 +1814,7 @@ void Runtime::renderSystemPanelTransition(Kotonoha::RendererRef renderer,
       break;
     }
     const auto target = systemPanelTransition.CurrentTarget();
-    if (uiVariant == DisplayPolicy::Variant::Standard &&
-        heightScale < 0.999f) {
+    if (uiVariant == DisplayPolicy::Variant::Standard && heightScale < 0.999f) {
       if (target == Transition::Target::Config) {
         stretchFullscreen = true;
       } else if (target == Transition::Target::BackLog) {
@@ -2320,6 +2320,12 @@ bool Runtime::play(Kotonoha_orsEvent &event, const std::string &logical,
     }
     Playing item;
     item.player = std::move(player);
+    // A sidecar .ass next to the video and fonts attached to the container
+    // must reach libass before the first movie frame is rasterized.
+    if (channel == "Movie" && subtitles) {
+      subtitles->openVideoSubtitles(*assets, assets->resolve(logical), 0.0);
+      Kotonoha::workers::transferAttachedFonts(*item.player, *subtitles);
+    }
     item.preparedLoop = std::move(loopInput);
     item.event = &event;
     item.loop = loop;
@@ -3955,6 +3961,8 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
           adjacent != playing.end() && adjacent->player->hasVideoFrame();
       if (it->terminalFramePresented &&
           (adjacent == playing.end() || incomingReady)) {
+        if (it->movie && subtitles)
+          subtitles->closeVideoSubtitles();
         it = playing.erase(it);
         continue;
       }
@@ -3982,6 +3990,9 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
       if (!halted)
         item.player->update(renderer,
                             std::max(0.0, elapsed - item.segmentStart));
+      // ASS sidecar/embedded tracks follow the VIDEO clock, not the node clock.
+      if (item.movie && subtitles)
+        subtitles->updateVideoClock(std::max(0.0, elapsed - item.segmentStart));
       if (item.movie && item.player->finished()) {
         auto state = movieStates.find(item.event);
         if (state != movieStates.end() && !state->second.eof)

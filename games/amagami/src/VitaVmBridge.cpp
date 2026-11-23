@@ -537,13 +537,13 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
   if (owner == "ControlPad") {
     if (number == 0 || number == 1 || number == 2 || number == 4) {
       expectCount(args, 0);
-      const uint32_t mask = number == 4 ? 0u
-                            : ps2Layout ? (number == 0   ? padHeld_
-                                           : number == 1 ? padPressed_
-                                                         : padRapid_)
-                            : number == 0   ? vitaButtonsHeld()
-                              : number == 1 ? vitaButtonsPressed()
-                                            : vitaButtonsRapid();
+      const uint32_t mask = number == 4   ? 0u
+                            : ps2Layout   ? (number == 0   ? padHeld_
+                                             : number == 1 ? padPressed_
+                                                           : padRapid_)
+                            : number == 0 ? vitaButtonsHeld()
+                            : number == 1 ? vitaButtonsPressed()
+                                          : vitaButtonsRapid();
       return VmValue::num(mask);
     }
     if (number == 3) { // resetRapid()

@@ -96,16 +96,14 @@ int main() {
     expect((input.buttons() & 8192u) != 0,
            "Left stick crosses the dead zone and activates D-pad right");
     input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTX, 15999));
-    expect((input.buttons() & 8192u) == 0 &&
-               (input.buttons() & 32768u) != 0,
+    expect((input.buttons() & 8192u) == 0 && (input.buttons() & 32768u) != 0,
            "Recentering the stick preserves the physically held D-pad left");
     input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTY, -20000));
     expect((input.buttons() & 4096u) != 0,
            "Left stick up is also a navigation button");
     input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTY, 0));
     input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFTX, -32768));
-    expect(input.analog()[0] == -128 &&
-               (input.buttons() & 32768u) != 0,
+    expect(input.analog()[0] == -128 && (input.buttons() & 32768u) != 0,
            "Left analog axis clamps to the signed Vita range");
     input.handle(axis(77, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, 28000));
     expect((input.buttons() & 1u) == 1u, "Left trigger maps to L2");

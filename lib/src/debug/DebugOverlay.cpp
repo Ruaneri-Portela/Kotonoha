@@ -12,6 +12,7 @@
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/localization/Encoding.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <Kotonoha/core/BuildVersion.hpp>
@@ -28,6 +29,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <charconv>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <filesystem>
@@ -253,7 +255,54 @@ std::pair<std::string, std::string> DebugOverlay::hudText(float width) const {
   return text;
 }
 
+void DebugOverlay::takeScreenshot(RendererRef renderer) {
+  const char *extension =
+      screenshotFormat == ImageFormat::Jpeg ? ".jpg" : ".png";
+  const auto stamp =
+      std::chrono::steady_clock::now().time_since_epoch().count();
+  try {
+    // Per-game Documents root: desktop, mobile and WASM all resolve this
+    // through the shared StoragePaths policy, never a hardcoded path.
+    const auto root =
+        documentsDirectory(engine.GetRuntime().identify) / "screenshots";
+    std::filesystem::create_directories(root);
+    auto path = root / ("screenshot-" + std::to_string(stamp) + extension);
+    for (unsigned copy = 1; std::filesystem::exists(path); ++copy) {
+      if (copy > 9999)
+        throw std::runtime_error("Too many screenshots with this timestamp");
+      path = root / ("screenshot-" + std::to_string(stamp) + "-" +
+                     std::to_string(copy) + extension);
+    }
+
+    // renderHUD runs before the ImGui pass, so the backbuffer still holds the
+    // fully composed game frame in Screen render space.
+    SurfacePtr frame(SDL_RenderReadPixels(&renderer, nullptr));
+    if (!frame)
+      throw std::runtime_error(std::string("Cannot read frame: ") +
+                               SDL_GetError());
+    if (!SaveImage(frame.get(), path.string().c_str(), screenshotFormat)) {
+      const char *detail = SDL_GetError();
+      throw std::runtime_error(
+          std::string("FFmpeg image encoding failed") +
+          (detail && *detail ? std::string(": ") + detail : std::string()));
+    }
+    status = "Screenshot saved: " + path.string();
+    statusError = false;
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Debug screenshot: %s",
+                path.string().c_str());
+  } catch (const std::exception &error) {
+    status = std::string("Screenshot failed: ") + error.what();
+    statusError = true;
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Debug screenshot: %s",
+                 error.what());
+  }
+}
+
 void DebugOverlay::renderHUD(RendererRef renderer) {
+  if (screenshotPending) {
+    screenshotPending = false;
+    takeScreenshot(renderer);
+  }
   auto &ui = engine.GetUI();
   const auto size = UI::viewSize(renderer);
   const float width = std::max(1.0f, size.x - 20);
@@ -579,10 +628,12 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
       "Jumping keeps current variables; earlier events are not replayed. "
       "Replay-based saves are disabled after a jump until a normal "
       "restart/load.");
-  ImGui::InputText("Filter nodes", runtimeNodeFilter, sizeof(runtimeNodeFilter));
+  ImGui::InputText("Filter nodes", runtimeNodeFilter,
+                   sizeof(runtimeNodeFilter));
   std::string needle(runtimeNodeFilter);
-  std::transform(needle.begin(), needle.end(), needle.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  std::transform(
+      needle.begin(), needle.end(), needle.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   std::vector<const DebugNode *> filtered;
   filtered.reserve(nodes.size());
   for (const auto &node : nodes) {
@@ -591,21 +642,23 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
       continue;
     }
     std::string hay = node.id + " " + node.label;
-    std::transform(hay.begin(), hay.end(), hay.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(hay.begin(), hay.end(), hay.begin(), [](unsigned char c) {
+      return static_cast<char>(std::tolower(c));
+    });
     if (hay.find(needle) != std::string::npos)
       filtered.push_back(&node);
   }
-  if (!filtered.empty() &&
-      std::none_of(filtered.begin(), filtered.end(), [&](const DebugNode *node) {
-        return node->id == selectedRuntimeNode;
-      })) {
+  if (!filtered.empty() && std::none_of(filtered.begin(), filtered.end(),
+                                        [&](const DebugNode *node) {
+                                          return node->id ==
+                                                 selectedRuntimeNode;
+                                        })) {
     const auto &runtime = engine.GetRuntime();
     const auto current = runtime.debugNode();
     const auto catalog = runtime.debugNodeCatalogKey();
     const auto clockKey = runtime.nodeClockKey();
-    auto active =
-        std::find_if(filtered.begin(), filtered.end(), [&](const DebugNode *node) {
+    auto active = std::find_if(
+        filtered.begin(), filtered.end(), [&](const DebugNode *node) {
           const auto prefix = [&](const std::string &value) {
             return !value.empty() && value.size() >= node->id.size() &&
                    value.compare(0, node->id.size(), node->id) == 0;
@@ -614,8 +667,8 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
               !catalog.empty() && node->id.size() >= catalog.size() &&
               node->id.compare(node->id.size() - catalog.size(), catalog.size(),
                                catalog) == 0;
-          return node->id == current || prefix(current) || node->id == clockKey ||
-                 node->id == catalog || catalogSuffix;
+          return node->id == current || prefix(current) ||
+                 node->id == clockKey || node->id == catalog || catalogSuffix;
         });
     selectedRuntimeNode =
         active == filtered.end() ? filtered.front()->id : (*active)->id;
@@ -936,8 +989,8 @@ void DebugOverlay::decodeAssetText() {
   const char *data =
       reinterpret_cast<const char *>(textAssetBytes.data() + skip);
   try {
-    textAssetContent = ConvertEncoding(std::string_view(data, remaining),
-                                      encoding, "UTF-8");
+    textAssetContent =
+        ConvertEncoding(std::string_view(data, remaining), encoding, "UTF-8");
   } catch (const std::exception &e) {
     textAssetError =
         std::string("Cannot decode with ") + encoding + ": " + e.what();
@@ -1527,6 +1580,20 @@ void DebugOverlay::drawAppletHub() {
       ImGui::SameLine();
     if (ImGuiTheme::primaryButton("System info", buttonSize))
       showInfoWindow = true;
+    if (twoColumns)
+      ImGui::SameLine();
+    if (ImGuiTheme::primaryButton("Screenshot (PNG)", buttonSize)) {
+      screenshotFormat = ImageFormat::Png;
+      screenshotPending = true;
+    }
+    if (twoColumns)
+      ImGui::SameLine();
+    if (ImGuiTheme::primaryButton("Screenshot (JPEG)", buttonSize)) {
+      screenshotFormat = ImageFormat::Jpeg;
+      screenshotPending = true;
+    }
+    ImGui::TextDisabled("Screenshots go to the per-game Documents/screenshots "
+                        "directory; a confirmation appears in this window.");
     ImGui::SeparatorText("Scene inspector");
     drawInspector();
     if (!status.empty())

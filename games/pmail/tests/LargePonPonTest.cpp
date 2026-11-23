@@ -1,7 +1,10 @@
 #include "LargePonPonRuntime.hpp"
+#include <Kotonoha/Formats/Adpcm.hpp>
+#include <Kotonoha/Formats/Crgb.hpp>
+#include <Kotonoha/Formats/DecodedData.hpp>
+#include <Kotonoha/Formats/Smfd.hpp>
 #include <Pmail/GcPack.hpp>
 #include <Pmail/LargePonPonAssets.hpp>
-#include <Pmail/LargePonPonCodecs.hpp>
 #include <Pmail/LargePonPonVm.hpp>
 
 #include <SDL3/SDL.h>
@@ -62,20 +65,21 @@ void testGcPackSynthetic() {
 void testCodecsSynthetic() {
   // 1. CRGB: literal 1 pixel BGR(10, 20, 30) + repeat 1 + end
   std::vector<uint8_t> crgb = {0xC0, 10, 20, 30, 0x80, 0xFF};
-  auto surf = decodeCrgbOrBgd(crgb.data(), crgb.size());
-  assert(surf && surf->w == 800 && surf->h == 600);
-  auto *px = static_cast<const uint8_t *>(surf->pixels);
+  auto surf =
+      Kotonoha::Formats::Crgb::decodeCrgbOrBgd(crgb.data(), crgb.size());
+  assert(surf.width == 800 && surf.height == 600);
+  auto *px = surf.rgba.data();
   // Row 0 bottom-up maps to dstY = 599
-  const uint8_t *p0 = px + 599 * surf->pitch;
+  const uint8_t *p0 = px + 599 * surf.width * 4;
   assert(p0[0] == 30 && p0[1] == 20 && p0[2] == 10 && p0[3] == 255);
   assert(p0[4] == 30 && p0[5] == 20 && p0[6] == 10 && p0[7] == 255);
 
   // 2. CHAR: 1 transparent skip (0x9F), 1 opaque pixel (0x7F, B=5,G=6,R=7), EOL
   std::vector<uint8_t> ch = {0x9F, 0x7F, 5, 6, 7, 0xFF};
-  auto chSurf = decodeCharStream(ch.data(), ch.size(), 4, 2);
-  assert(chSurf && chSurf->w == 4 && chSurf->h == 2);
-  const uint8_t *cp =
-      static_cast<const uint8_t *>(chSurf->pixels) + 1 * chSurf->pitch;
+  auto chSurf =
+      Kotonoha::Formats::Crgb::decodeCharStream(ch.data(), ch.size(), 4, 2);
+  assert(chSurf.width == 4 && chSurf.height == 2);
+  const uint8_t *cp = chSurf.rgba.data() + 1 * chSurf.width * 4;
   assert(cp[3] == 0); // skipped pixel transparent
   assert(cp[4] == 7 && cp[5] == 6 && cp[6] == 5 && cp[7] == 255);
 
@@ -86,16 +90,16 @@ void testCodecsSynthetic() {
   writeU16LE(prgb, 2);
   writeU16LE(prgb, 1);
   prgb.insert(prgb.end(), {1, 2, 3, 4, 5, 6});
-  auto sprites = decodePrgb(prgb.data(), prgb.size());
-  assert(sprites.size() == 1 && sprites[0] && sprites[0]->w == 2 &&
-         sprites[0]->h == 1);
+  auto sprites = Kotonoha::Formats::Crgb::decodePrgb(prgb.data(), prgb.size());
+  assert(sprites.size() == 1 && sprites[0].width == 2 &&
+         sprites[0].height == 1);
 
   // 4. ADP4: 4 silence pairs (8 zero samples)
   std::vector<uint8_t> adp4;
   writeU32LE(adp4, 4);
   adp4.push_back(0x01); // bit 0 = 1 (silence)
   adp4.push_back(0x83); // count = (3 + 1) = 4 pairs
-  auto dec = decodeAdp4(adp4.data(), adp4.size());
+  auto dec = Kotonoha::Formats::Adpcm::decodeAdp4(adp4.data(), adp4.size());
   assert(dec.samples.size() == 8);
   for (int16_t s : dec.samples)
     assert(s == 0);
@@ -104,10 +108,12 @@ void testCodecsSynthetic() {
   std::vector<uint8_t> smfd;
   writeU16LE(smfd, 480);
   smfd.insert(smfd.end(), {0x00, 0x90, 60, 100, 0x60, 0x80, 60, 0, 0x00, 0xFF});
-  auto mid = smfdToStandardMidi(smfd.data(), smfd.size());
+  auto mid =
+      Kotonoha::Formats::Smfd::smfdToStandardMidi(smfd.data(), smfd.size());
   assert(mid.size() > 22 && std::memcmp(mid.data(), "MThd", 4) == 0);
-  auto pcm = decodeSmfdToPcm(smfd.data(), smfd.size(), 22050);
-  assert(!pcm.data.empty() && pcm.spec.freq == 22050 && pcm.spec.channels == 2);
+  auto pcm =
+      Kotonoha::Formats::Smfd::decodeSmfdToPcm(smfd.data(), smfd.size(), 22050);
+  assert(!pcm.samples.empty() && pcm.sampleRate == 22050 && pcm.channels == 2);
 }
 
 class DummyHost : public LargePonPonHost {
@@ -231,36 +237,44 @@ void testRetail(const std::string &dir) {
     const auto bytes = assets->graphicPack().read(e.name);
     assert(!bytes.empty());
     if (ext == ".CRGB" || ext == ".BGD") {
-      auto s = decodeCrgbOrBgd(bytes.data(), bytes.size());
-      assert(s && s->w == 800 && s->h == 600);
+      auto s =
+          Kotonoha::Formats::Crgb::decodeCrgbOrBgd(bytes.data(), bytes.size());
+      assert(s.width == 800 && s.height == 600);
     } else if (ext == ".CHAR") {
-      auto s = decodeCharStream(bytes.data(), bytes.size(), 800, 600);
-      assert(s && s->w == 800 && s->h == 600);
+      auto s = Kotonoha::Formats::Crgb::decodeCharStream(
+          bytes.data(), bytes.size(), 800, 600);
+      assert(s.width == 800 && s.height == 600);
     } else if (ext == ".PCHR") {
-      auto frames = decodePchrOrIcon(bytes.data(), bytes.size(), 800, 600);
-      assert(!frames.empty() && frames[0] && frames[0]->w == 800);
+      auto frames = Kotonoha::Formats::Crgb::decodePchrOrIcon(
+          bytes.data(), bytes.size(), 800, 600);
+      assert(!frames.empty() && frames[0].width == 800);
     } else if (ext == ".ICON") {
-      auto frames = decodePchrOrIcon(bytes.data(), bytes.size(), 32, 32);
-      assert(!frames.empty() && frames[0] && frames[0]->w == 32);
+      auto frames = Kotonoha::Formats::Crgb::decodePchrOrIcon(
+          bytes.data(), bytes.size(), 32, 32);
+      assert(!frames.empty() && frames[0].width == 32);
     } else if (ext == ".PRGB") {
-      auto sprites = decodePrgb(bytes.data(), bytes.size());
-      assert(!sprites.empty() && sprites[0]);
+      auto sprites =
+          Kotonoha::Formats::Crgb::decodePrgb(bytes.data(), bytes.size());
+      assert(!sprites.empty() && sprites[0].width > 0);
     } else if (ext == ".P256") {
-      assert(p256ThumbnailCount(bytes.size()) > 0);
-      auto t = decodeP256Thumbnail(bytes.data(), bytes.size(), 0, true);
-      assert(t && t->w == 150 && t->h == 112);
+      assert(Kotonoha::Formats::Crgb::p256ThumbnailCount(bytes.size()) > 0);
+      auto t = Kotonoha::Formats::Crgb::decodeP256Thumbnail(
+          bytes.data(), bytes.size(), 0, true);
+      assert(t.width == 150 && t.height == 112);
     } else if (ext == ".CANM") {
-      auto c = decodeCanm(bytes.data(), bytes.size());
+      auto c = Kotonoha::Formats::Crgb::decodeCanm(bytes.data(), bytes.size());
       bool hasAny = false;
       for (const auto &sl : c.slots)
         if (!sl.frames.empty())
           hasAny = true;
       assert(hasAny);
     } else if (ext == ".ALPF") {
-      auto m = decodeAlpfMask(bytes.data(), bytes.size());
+      auto m =
+          Kotonoha::Formats::Crgb::decodeAlpfMask(bytes.data(), bytes.size());
       assert(m.size() == 800 * 600);
     } else if (ext == ".ALPM") {
-      auto m = decodeAlpmMask(bytes.data(), bytes.size());
+      auto m =
+          Kotonoha::Formats::Crgb::decodeAlpmMask(bytes.data(), bytes.size());
       assert(m.size() == 800 * 600);
     }
     ++decodedGraphics;
@@ -278,14 +292,17 @@ void testRetail(const std::string &dir) {
         (dot != std::string::npos) ? e.name.substr(dot) : "";
     if (ext == ".SMFD") {
       const auto bytes = assets->soundPack().read(e.name);
-      auto mid = smfdToStandardMidi(bytes.data(), bytes.size());
+      auto mid = Kotonoha::Formats::Smfd::smfdToStandardMidi(bytes.data(),
+                                                             bytes.size());
       assert(mid.size() > 32);
-      auto pcm = decodeSmfdToPcm(bytes.data(), bytes.size(), 22050);
-      assert(!pcm.data.empty());
+      auto pcm = Kotonoha::Formats::Smfd::decodeSmfdToPcm(bytes.data(),
+                                                          bytes.size(), 22050);
+      assert(!pcm.samples.empty());
       ++smfdCount;
     } else if (ext == ".ADP4" && adp4Count < 20) {
       const auto bytes = assets->soundPack().read(e.name);
-      auto dec = decodeAdp4(bytes.data(), bytes.size());
+      auto dec =
+          Kotonoha::Formats::Adpcm::decodeAdp4(bytes.data(), bytes.size());
       assert(!dec.samples.empty());
       ++adp4Count;
     }

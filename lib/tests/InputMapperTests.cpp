@@ -76,9 +76,10 @@ void testKeyboardAndMouseMapping() {
   check(InputMapper::mapEvent(keyEvent(SDLK_ESCAPE), InputContext::Dialogue)
                 .action == InputAction::Menu,
         "Escape maps to Menu in dialogue");
-  check(InputMapper::mapEvent(keyEvent(SDLK_ESCAPE), InputContext::Menu)
-                .action == InputAction::Cancel,
-        "Escape maps to Cancel in menu");
+  check(
+      InputMapper::mapEvent(keyEvent(SDLK_ESCAPE), InputContext::Menu).action ==
+          InputAction::Cancel,
+      "Escape maps to Cancel in menu");
   check(InputMapper::mapEvent(keyEvent(SDLK_PAGEUP), InputContext::Dialogue)
                 .action == InputAction::Backlog,
         "PageUp maps to Backlog in dialogue");
@@ -159,20 +160,23 @@ void testGamepadMappingAndSwap() {
 void testNavRepeaterAndStick() {
   InputMapper mapper(300, 100);
   // Left stick down -> emits initial DPAD_DOWN and arms repeater.
-  auto initial =
-      mapper.processDirectional(padAxis(SDL_GAMEPAD_AXIS_LEFTY, 24000, 4), 1000);
-  check(initial.size() == 1 && initial[0].type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+  auto initial = mapper.processDirectional(
+      padAxis(SDL_GAMEPAD_AXIS_LEFTY, 24000, 4), 1000);
+  check(initial.size() == 1 &&
+            initial[0].type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
             initial[0].gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN,
         "Left stick emits virtual D-pad down");
   check(mapper.updateRepeat(1200).empty(),
         "No repeat before initial delay elapses");
   auto rep1 = mapper.updateRepeat(1300);
-  check(rep1.size() == 1 && rep1[0].gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+  check(rep1.size() == 1 &&
+            rep1[0].gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN,
         "First repeat fires at initialDelay");
   check(mapper.updateRepeat(1350).empty(),
         "No repeat before repeatInterval elapses");
   auto rep2 = mapper.updateRepeat(1400);
-  check(rep2.size() == 1 && rep2[0].gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN,
+  check(rep2.size() == 1 &&
+            rep2[0].gbutton.button == SDL_GAMEPAD_BUTTON_DPAD_DOWN,
         "Second repeat fires after repeatInterval");
 
   // Releasing stick cancels repeat.

@@ -1,8 +1,8 @@
 #include <Amagami/Session.hpp>
 #include <Amagami/Source.hpp>
 #include <Amagami/Vm.hpp>
-#include <Kotonoha/media/Ps2Tim2.hpp>
-#include <Kotonoha/media/SavePng.hpp>
+#include <Kotonoha/Formats/Ps2Tim2.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <SDL3/SDL.h>
 #include <cstdint>
 #include <cstring>

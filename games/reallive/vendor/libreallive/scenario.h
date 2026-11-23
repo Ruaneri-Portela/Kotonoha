@@ -64,9 +64,15 @@ public:
 
   // Access to metadata in the script. Don't worry about information loss;
   // valid values are 0, 1, and 2.
-  int savepoint_message() const { return header.savepoint_message_; }
-  int savepoint_selcom() const { return header.savepoint_selcom_; }
-  int savepoint_seentop() const { return header.savepoint_seentop_; }
+  int savepoint_message() const {
+    return static_cast<int>(header.savepoint_message_);
+  }
+  int savepoint_selcom() const {
+    return static_cast<int>(header.savepoint_selcom_);
+  }
+  int savepoint_seentop() const {
+    return static_cast<int>(header.savepoint_seentop_);
+  }
 
   // Access to script
   typedef BytecodeList::const_iterator const_iterator;

@@ -18,7 +18,8 @@ add_library(ZeroNoTsukaimaFormats STATIC
     src/Game.cpp
 )
 target_include_directories(ZeroNoTsukaimaFormats PUBLIC include)
-target_link_libraries(ZeroNoTsukaimaFormats PUBLIC KotonohaEngine)
+target_link_libraries(ZeroNoTsukaimaFormats PUBLIC KotonohaEngine
+    kotonoha_format_tim2)
 target_compile_features(ZeroNoTsukaimaFormats PUBLIC cxx_std_17)
 set_target_properties(ZeroNoTsukaimaFormats PROPERTIES CXX_EXTENSIONS OFF)
 

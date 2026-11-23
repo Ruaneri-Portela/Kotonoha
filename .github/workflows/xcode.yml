@@ -8,7 +8,7 @@ on:
       - "tools/ValidateBuildMetadata.py"
       - "assets/icon.icns"
       - "lib/include/Kotonoha/Filesystem/**"
-      - "lib/src/Filesystem/**"
+      - "lib/src/filesystem/**"
       - ".github/workflows/xcode.yml"
 
 permissions:

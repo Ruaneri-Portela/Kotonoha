@@ -1,6 +1,7 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
+
 #include <Kotonoha/Filesystem/Path.hpp>
-#include <SummerRadish/MeoAudio.hpp>
+#include <Kotonoha/Formats/BlockPcm.hpp>
 #include <SummerRadish/SummerAssets.hpp>
 #include <algorithm>
 #include <cstring>
@@ -70,7 +71,6 @@ SummerAssets::SummerAssets(
            source_->stat("PACK").type ==
                Kotonoha::Filesystem::FileType::Directory)
     packRoot = "PACK";
-
 
   const bool meoLayout = packRoot.find("Personal/MISSEACHOTHER") == 0 ||
                          packRoot == "PACKS" || source_->exists("MEO.exe") ||
@@ -340,11 +340,25 @@ Image SummerAssets::picture(const std::string &id) const {
 Kotonoha::AudioClip SummerAssets::loadAudioAsset(const std::string &id) const {
   const auto name = canonical(id);
   if (meoLayout_ && name.size() >= 4 &&
-      name.compare(name.size() - 4, 4, ".BGM") == 0)
-    return MeoAudio::decodeBgm(readAsset(id)).clip;
+      name.compare(name.size() - 4, 4, ".BGM") == 0) {
+    const auto dec = Kotonoha::Formats::BlockPcm::decodeBgm(readAsset(id));
+    AudioClip clip;
+    clip.spec = {SDL_AUDIO_S16, 2, 44100};
+    clip.data.resize(dec.pcm.samples.size() * sizeof(int16_t));
+    if (!dec.pcm.samples.empty())
+      std::memcpy(clip.data.data(), dec.pcm.samples.data(), clip.data.size());
+    return clip;
+  }
   if (meoLayout_ && name.size() >= 4 &&
-      name.compare(name.size() - 4, 4, ".SND") == 0)
-    return MeoAudio::decodeSnd(readAsset(id));
+      name.compare(name.size() - 4, 4, ".SND") == 0) {
+    const auto pcm = Kotonoha::Formats::BlockPcm::decodeSnd(readAsset(id));
+    AudioClip clip;
+    clip.spec = {SDL_AUDIO_S16, 2, 44100};
+    clip.data.resize(pcm.samples.size() * sizeof(int16_t));
+    if (!pcm.samples.empty())
+      std::memcpy(clip.data.data(), pcm.samples.data(), clip.data.size());
+    return clip;
+  }
   return AssetProvider::loadAudioAsset(id);
 }
 Kotonoha::SurfacePtr
@@ -359,4 +373,5 @@ SummerAssets::loadSurfaceAsset(const std::string &id) const {
                 img.rgba.data() + size_t(y) * img.width * 4, img.width * 4);
   return s;
 }
+
 } // namespace Kotonoha::Providers

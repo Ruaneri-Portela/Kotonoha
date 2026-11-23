@@ -63,7 +63,12 @@ inline BgmCommandKind bgmCommandKind(
   case 9:
     return BgmCommandKind::Gain;
   case 10:
-    return BgmCommandKind::SetGain;
+    // A volume set always carries a volume operand. With zero operands this
+    // is rlvm's bgmUnPause / the legacy no-arg resume; treating it as SetGain
+    // falls back to volume 0 and permanently silences every later track
+    // (bgmGain is preserved across song changes).
+    return parameterCount ? BgmCommandKind::SetGain
+                          : BgmCommandKind::Resume;
   case 11:
     return parameterCount ? BgmCommandKind::TrackName
                           : BgmCommandKind::HasTrack;
@@ -79,5 +84,17 @@ inline BgmCommandKind bgmCommandKind(
     return BgmCommandKind::Other;
   }
 }
+
+// Only an explicit script opcode starts music. Boot and logo scenarios (AIR
+// SEEN 9030/9031/9032) contain no BGM command; the first one in scenario 170
+// is 1:20:0("BGM00") at instruction 246. Nothing in the engine may preload or
+// auto-play a #DSTRACK track before that command executes.
+inline bool bgmStartsPlayback(int opcode) noexcept {
+  return opcode == 0 || opcode == 1 || opcode == 2 || opcode == 3;
+}
+
+// A stopped BGM always returns to full gain. Without this, a fade-out to zero
+// leaves the next explicitly requested track silent.
+inline float bgmGainAfterStop(float) noexcept { return 1.0f; }
 
 } // namespace RealLive

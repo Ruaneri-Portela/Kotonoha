@@ -2,8 +2,8 @@
 #include "RealLiveNumeric.hpp"
 
 #include <climits>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -13,8 +13,7 @@ void require(bool ok, const char *message) {
   if (!ok)
     throw std::runtime_error(message);
 }
-template <class Fn>
-void rejects(Fn operation, const char *message) {
+template <class Fn> void rejects(Fn operation, const char *message) {
   try {
     operation();
   } catch (const std::exception &) {
@@ -22,15 +21,15 @@ void rejects(Fn operation, const char *message) {
   }
   throw std::runtime_error(message);
 }
-}
+} // namespace
 
 int main() {
   try {
-    using RealLive::wrapInteger32;
-    using RealLive::safeNegate;
-    using RealLive::safeMod;
-    using RealLive::safePercent;
     using RealLive::randomInclusive;
+    using RealLive::safeMod;
+    using RealLive::safeNegate;
+    using RealLive::safePercent;
+    using RealLive::wrapInteger32;
     require(sizeof(int) == sizeof(std::int32_t),
             "RealLive uses 32-bit signed VM integers");
     require(wrapInteger32(INT64_C(2147483648)) == INT_MIN,
@@ -45,15 +44,17 @@ int main() {
             "signed modulo special case cannot trigger division UB");
     require(safeMod(-100, 7) == -2 && safeMod(100, 0) == 0,
             "signed modulo and zero divisor behavior");
-    require(safePercent(1, 4) == 25 &&
-                safePercent(-2, 5) == -40 &&
+    require(safePercent(1, 4) == 25 && safePercent(-2, 5) == -40 &&
                 safePercent(INT_MAX, 0) == 0,
             "percentage arithmetic is reliable for common operands");
     require(safePercent(INT_MIN, -1) == 0,
             "large percentage values follow 32-bit wrapping semantics");
 
     int calls = 0;
-    auto zero = [&] { ++calls; return 0; };
+    auto zero = [&] {
+      ++calls;
+      return 0;
+    };
     require(randomInclusive(-3, 3, RAND_MAX, zero) == -3,
             "lower endpoint inclusive");
     require(randomInclusive(9, 9, RAND_MAX, zero) == 9,
@@ -63,8 +64,8 @@ int main() {
             "reversed interval normalizes its endpoints");
 
     const int maxRandom = INT_MAX;
-    require(randomInclusive(INT_MIN, INT_MAX, maxRandom,
-                            [] { return 0; }) == INT_MIN,
+    require(randomInclusive(INT_MIN, INT_MAX, maxRandom, [] { return 0; }) ==
+                INT_MIN,
             "full 2^32 interval includes lower endpoint");
     require(randomInclusive(INT_MIN, INT_MAX, maxRandom,
                             [] { return INT_MAX; }) == INT_MAX,
@@ -84,12 +85,10 @@ int main() {
     require(result == 10 && pos == 4,
             "unbiased rejection redraws out-of-range combinations");
 
-    rejects([] {
-      (void)randomInclusive(0, 100, 0, [] { return 0; });
-    }, "RNG with one possible value must be rejected");
-    rejects([] {
-      (void)randomInclusive(0, 100, 4, [] { return 5; });
-    }, "RNG values above declared maximum are invalid");
+    rejects([] { (void)randomInclusive(0, 100, 0, [] { return 0; }); },
+            "RNG with one possible value must be rejected");
+    rejects([] { (void)randomInclusive(0, 100, 4, [] { return 5; }); },
+            "RNG values above declared maximum are invalid");
     std::cout << "RealLive numeric and full-range random tests passed\n";
     return 0;
   } catch (const std::exception &error) {

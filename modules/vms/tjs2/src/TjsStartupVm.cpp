@@ -214,7 +214,8 @@ std::vector<Token> lex(const std::string &source) {
         continue;
       }
     }
-    if (std::string("{}();,.=+-*/%!?<>:[]").find(source[i]) == std::string::npos)
+    if (std::string("{}();,.=+-*/%!?<>:[]").find(source[i]) ==
+        std::string::npos)
       throw std::runtime_error(
           "TJS2 subset: unsupported lexical token at byte " +
           std::to_string(i));
@@ -613,8 +614,7 @@ class Parser {
   }
   Value product(bool active) {
     auto lhs = unary(active);
-    while (look().text == "*" || look().text == "/" ||
-           look().text == "%") {
+    while (look().text == "*" || look().text == "/" || look().text == "%") {
       const auto op = tokens[pc++].text;
       const auto rhs = unary(active);
       if (!active)
@@ -1334,8 +1334,7 @@ Value Interpreter::call(const std::string &name,
     }
     if (method == "loadImages" || method == "setImage" || method == "setPos" ||
         method == "setSize" || method == "show" || method == "hide" ||
-        method == "drawText" || method == "clearText" ||
-        method == "fillRect") {
+        method == "drawText" || method == "clearText" || method == "fillRect") {
       const auto receiver = get(name.substr(0, dot));
       const auto ptr = std::get_if<ObjectPtr>(&receiver.data);
       if (!ptr || !*ptr ||

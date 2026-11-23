@@ -33,6 +33,14 @@ function(kotonoha_copy_assets target)
         set(include_game "${KOTONOHA_BUNDLE_LOCAL_GAME_ASSETS}")
     endif()
 
+    # Emscripten mounts the engine assets inside the WASM filesystem via
+    # --preload-file ${KOTONOHA_ENGINE_ASSETS}@/assets, so a physical copy in
+    # every output directory is redundant (~6.6 MiB x number of game targets).
+    set(include_engine ON)
+    if(EMSCRIPTEN)
+        set(include_engine OFF)
+    endif()
+
     if(ASSETS_GAME)
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}"
@@ -40,6 +48,7 @@ function(kotonoha_copy_assets target)
                 "-DGAME_SOURCE=${_game_asset_source}"
                 "-DRESOURCE_DESTINATION=${destination}"
                 "-DINCLUDE_GAME_ASSETS=${include_game}"
+                "-DINCLUDE_ENGINE_ASSETS=${include_engine}"
                 -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/PackageAssets.cmake"
             VERBATIM)
     else()

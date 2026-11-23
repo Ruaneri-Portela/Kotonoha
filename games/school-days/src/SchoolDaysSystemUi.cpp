@@ -866,9 +866,8 @@ bool SchoolDaysSystemUi::OpenConfig(
         SchoolDaysConfigMenuModel::ChipRelativePath(page);
     if (!ResolveSchoolDaysOverlayFile(pageBaseLogical, nullptr)) {
       const auto displayBase = ResolveSchoolDaysAssetPath(
-          assetsRoot.c_str(),
-          SchoolDaysConfigMenuModel::BaseRelativePath(
-              SchoolDaysConfigMenuModel::Page::Display));
+          assetsRoot.c_str(), SchoolDaysConfigMenuModel::BaseRelativePath(
+                                  SchoolDaysConfigMenuModel::Page::Display));
       if (displayBase.present && !displayBase.collision) {
         configDisplayTabBaseTexture_ =
             LoadTexture(renderer, displayBase.physical);
@@ -880,9 +879,8 @@ bool SchoolDaysSystemUi::OpenConfig(
     }
     if (!ResolveSchoolDaysOverlayFile(pageChipLogical, nullptr)) {
       const auto displayChip = ResolveSchoolDaysAssetPath(
-          assetsRoot.c_str(),
-          SchoolDaysConfigMenuModel::ChipRelativePath(
-              SchoolDaysConfigMenuModel::Page::Display));
+          assetsRoot.c_str(), SchoolDaysConfigMenuModel::ChipRelativePath(
+                                  SchoolDaysConfigMenuModel::Page::Display));
       if (displayChip.present && !displayChip.collision) {
         configDisplayTabChipTexture_ =
             LoadTexture(renderer, displayChip.physical);
@@ -2244,8 +2242,8 @@ bool SchoolDaysSystemUi::Render(SDL_Renderer *renderer, std::string *error) {
     }
     const auto plan =
         SchoolDaysConfigMenuRenderPlan::Build(configMenu_, configVisualState_);
-    const auto planLayout = SchoolDaysConfigMenuRenderPlan::LayoutFor(
-        configMenu_.CurrentVariant());
+    const auto planLayout =
+        SchoolDaysConfigMenuRenderPlan::LayoutFor(configMenu_.CurrentVariant());
     for (const auto &sprite : plan) {
       SDL_Texture *texture =
           sprite.texture == SchoolDaysConfigMenuRenderPlan::Texture::Chip
