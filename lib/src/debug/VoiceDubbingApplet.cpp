@@ -820,8 +820,10 @@ void VoiceDubbingApplet::draw() {
               engine_.GetRuntime().translationRoute(), row.text);
           ImGui::TextWrapped("%s", localized.c_str());
           ImGui::TextDisabled("%s", id.c_str());
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
           if (ImGui::SmallButton("Translate line"))
             engine_.GetDebug().trackActiveTranslation();
+#endif
         } else
           ImGui::TextWrapped("%s", id.c_str());
         ImGui::TableSetColumnIndex(2);

@@ -129,8 +129,10 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
   flag("--launcher", "Open the game selection launcher", engine.launcher);
   flag("--no-launcher", "Start the game directly",
        [&engine] { engine.launcher = false; });
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   option("--dump-translation", "FILE", "Export original texts and exit",
          engine.dumpTranslationPath);
+#endif
   option("--translation", "FILE", "Load a translation dictionary",
          engine.translationPath);
   option("--subtitle-style", "FILE.ass",
@@ -140,6 +142,7 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
   option("--forced-subtitles", "DIRECTORY",
          "Use an explicit forced subtitles directory",
          engine.forcedSubtitlesPath);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   option("--frames", "N", "Exit after N rendered frames (positive integer)",
          [this](const std::string &value) {
            long count = 0;
@@ -150,6 +153,7 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
              throw std::invalid_argument("--frames must be a positive integer");
            frames = count;
          });
+#endif // !KOTONOHA_DISTRIBUTION_BUILD
 }
 
 void CommandLine::option(std::string name, std::string value,
