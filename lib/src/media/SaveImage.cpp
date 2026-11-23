@@ -240,6 +240,13 @@ bool SaveImage(SDL_Surface *surface, const char *path, ImageFormat format) {
     logFFmpegError(result, "container trailer", path);
     return false;
   }
+  // A successful write must also report a failed flush or file close.
+  // FormatDeleter remains responsible for close on every earlier error path.
+  result = avio_closep(&output->pb);
+  if (result < 0) {
+    logFFmpegError(result, "output file close", path);
+    return false;
+  }
   return true;
 }
 

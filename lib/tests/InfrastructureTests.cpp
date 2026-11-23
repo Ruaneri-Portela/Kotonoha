@@ -501,6 +501,9 @@ void testUnchangedWindowGeometry(Engine &engine) {
 
 void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   const auto original = engine.GetSettings();
+  // Register the channel that this synthetic mixer interaction is going to
+  // adjust. The engine's default audio/video channels are not named BGM.
+  engine.GetAudio().channel("BGM");
   engine.openSettings();
   SDL_FingerID fingerId = 98;
   auto touch = [&](Uint32 type, float x, float y) {
@@ -546,10 +549,11 @@ void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   tap(400, 646); // Apply.
   require(!engine.GetSettingsMenu().isOpen(),
           "Touch applies settings and closes the modal");
-  require(std::abs(engine.GetSettings().masterVolume - .75f) < .01f &&
-              std::abs(engine.GetAudio().channel("BGM")->getUserVolume() -
-                       .25f) < .01f,
-          "Finger drag changes master gain and finger tap sets channel gain");
+  require(std::abs(engine.GetSettings().masterVolume - .75f) < .01f,
+          "Finger drag sets master gain without an extra release click");
+  require(std::abs(engine.GetAudio().channel("BGM")->getUserVolume() - .25f) <
+              .01f,
+          "Finger tap sets the expected BGM channel gain");
   require(engine.GetSettings().vnTextColorOverride &&
               engine.GetSettings().vnTextColor.r == 0,
           "Touch selects VN text colors through the shared selection box");

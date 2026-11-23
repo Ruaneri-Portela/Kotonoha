@@ -379,7 +379,9 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
         event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
       slider = -1;
       persistAudio();
-      return false;
+      // A touch-generated pointer release must not fall through to the row
+      // click handler: that would apply a second +0.05 volume adjustment.
+      return event.type == SDL_EVENT_MOUSE_BUTTON_UP;
     }
   }
   const int tabs = pageCount();
