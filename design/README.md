@@ -141,3 +141,32 @@ baixo contraste e nunca aparecem sobre o jogo em execução.
 Estados de confirmação, erro, aviso, seleção, hover e teclado são obrigatórios.
 A renderização nativa pode divergir em detalhes de superfície, mas não na
 paleta, hierarquia ou identidade do monograma K.
+
+### Variante ImGui "Soft" (somente launcher / debug overlay)
+
+O tema Dear ImGui usa uma derivação dessaturada e mais clara da paleta oficial,
+aplicada em `lib/src/debug/ImGuiTheme.cpp` (constantes `constexpr`) e na faixa
+de cabeçalho do launcher. Os tokens de `design/tokens.json`, o monograma K, as
+flores de sakura e os assets de ícone **não** foram alterados; web, Android,
+iOS e macOS continuam usando a paleta v2 original.
+
+| Papel | Antes | Depois |
+| --- | --- | --- |
+| Fundo da janela (Navy) | #0D142E | #1B2740 |
+| Superfície elevada (Raised) | #182449 | #273451 |
+| Cabeçalho de tabela / seleção (Indigo) | #2C3E9A | #525D84 |
+| Acento / título (Violet) | #6A5BE7 | #A79BD4 |
+| Hover (Magenta) | #C86BD9 | #C3B4E0 |
+| Borda de tabela (Cyan) | #00D6FF | #8FB8D9 |
+| Borda / divisor (Outline) | #39315E | #3D4763 |
+| Texto (White) | #FFFFFF | #DCE3F0 |
+| Texto secundário (Muted) | #B9B5D4 | #9DA9C2 |
+| Botão primário | #6A5BE7 | #525D84 |
+| Sucesso / aviso / erro | #47D7A1 / #FFBE68 / #FF7389 | #7FC8A8 / #E8C89A / #E0A3AC |
+
+A seleção de texto usa lilás com alpha 0,25 (antes 0,35) e as linhas
+alternadas da tabela passam a slate com alpha 0,16. A hierarquia
+fundo → superfície → acento é preservada e o contraste do texto se mantém
+acima de 4,5:1 em texto normal (e acima de 3:1 no título grande), conforme
+WCAG AA. Raios e espaçamentos foram aumentados de forma leve para uma leitura
+mais calma.
