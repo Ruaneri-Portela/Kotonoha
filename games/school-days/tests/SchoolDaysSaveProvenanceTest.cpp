@@ -4,6 +4,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -212,10 +213,20 @@ void TestSidecarOverwriteAndProfiles() {
           Provenance::Check(quick, -1, save) == Provenance::Verdict::LxhEpilogue &&
           Provenance::Check(quick, 0, save) == Provenance::Verdict::Untrusted,
           "Integrated LxH QuickSave provenance path or slot identity failed");
-  // A path close to the classic Windows MAX_PATH limit still round-trips.
-  // The full binding includes the actual resolved absolute path, not basename.
+  // Exercise a long, distinct profile path without accidentally exceeding
+  // Windows MAX_PATH because the external TEMP root itself is already long.
+  // Include the sidecar's .tmp suffix in the headroom calculation: Publish
+  // must write it and atomically rename it before Check can authenticate it.
+  constexpr std::size_t PortablePathLimit = 240;
+  const auto shortestTemporary = temp.root / "docs-long" / "a" / "b" /
+      "SaveFile99.DAT.kotonoha-lxh.v1.tmp";
+  const auto baseLength = shortestTemporary.native().size();
+  Require(baseLength < PortablePathLimit,
+          "Synthetic TEMP root is too long for the portable profile fixture");
+  const auto padding =
+      std::min<std::size_t>(45, 1 + (PortablePathLimit - baseLength) / 2);
   const auto longDir = temp.root / "docs-long" /
-      std::string(45, 'a') / std::string(45, 'b');
+      std::string(padding, 'a') / std::string(padding, 'b');
   fs::create_directories(longDir);
   const auto longPath = longDir / "SaveFile99.DAT";
   Write(longPath, other);

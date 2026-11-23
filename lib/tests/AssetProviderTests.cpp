@@ -554,9 +554,21 @@ int main(int argc, char **argv) {
       char a0[] = "test", a1[] = "--dump-translation", a2[] = "texts.json",
            a3[] = "--launcher";
       char *args[] = {a0, a1, a2, a3};
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+      bool rejected = false;
+      try {
+        cli.parse(4, args);
+      } catch (const std::invalid_argument &) {
+        rejected = true;
+      }
+      require(rejected && options.dumpTranslationPath.empty() &&
+                  cli.help().find("--dump-translation") == std::string::npos,
+              "DIST must reject the developer-only translation dump command");
+#else
       cli.parse(4, args);
       require(options.dumpTranslationPath == "texts.json" && !options.launcher,
               "Engine export bypasses the launcher regardless of option order");
+#endif
     }
     fileSystemProvider();
     decoders();
