@@ -1,9 +1,13 @@
 package org.kotonoha.android;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -47,6 +51,56 @@ public final class SchoolDaysSetup extends Activity {
     private static final int TAB_GENERAL = 3;
     private static final int TAB_LANGUAGE = 4;
     private static final int TAB_FILES = 5;
+
+    // Independent of script/backend language. Activity.getPreferences()
+    // stores preferences under the FULL Activity class name on Android.
+    // Use exactly the same file in attachBaseContext (before onCreate).
+    private static final String LAUNCHER_PREFS = SchoolDaysSetup.class.getName();
+    private static final String LAUNCHER_UI_LANGUAGE_KEY = "launcherUiLanguage";
+    private static final String[] LAUNCHER_UI_LANGUAGE_CODES =
+            {"en", "pt-BR", "es", "ru", "zh-CN"};
+    private static final String[] LAUNCHER_UI_LANGUAGE_NAMES =
+            {"English", "Português (Brasil)", "Español", "Русский", "简体中文"};
+
+    private static String supportedLauncherLanguage(String tag) {
+        if (tag == null || tag.isEmpty()) return null;
+        String folded = tag.trim().replace('_', '-').toLowerCase(Locale.ROOT);
+        if (folded.equals("en") || folded.startsWith("en-")) return "en";
+        if (folded.equals("pt") || folded.startsWith("pt-")) return "pt-BR";
+        if (folded.equals("es") || folded.startsWith("es-")) return "es";
+        if (folded.equals("ru") || folded.startsWith("ru-")) return "ru";
+        // Match SchoolDaysLauncherLocale::ParseCode on Windows: traditional
+        // Chinese system locales must not silently select simplified Chinese.
+        if (folded.equals("zh") || folded.equals("zh-cn")
+                || folded.startsWith("zh-cn-") || folded.equals("zh-hans")
+                || folded.startsWith("zh-hans-")) return "zh-CN";
+        return null;
+    }
+
+    private static String resolveLauncherLanguage(Context base) {
+        SharedPreferences prefs =
+                base.getSharedPreferences(LAUNCHER_PREFS, Context.MODE_PRIVATE);
+        String explicit = supportedLauncherLanguage(
+                prefs.getString(LAUNCHER_UI_LANGUAGE_KEY, null));
+        if (explicit != null) return explicit;
+        // Existing installations retain their previous English UI unless
+        // they explicitly chose a different launcher language.
+        if (prefs.contains("languageSelection") || prefs.contains("locale"))
+            return "en";
+        Configuration cfg = base.getResources().getConfiguration();
+        Locale system = cfg.getLocales().isEmpty()
+                ? Locale.ENGLISH : cfg.getLocales().get(0);
+        String supported = supportedLauncherLanguage(system.toLanguageTag());
+        return supported != null ? supported : "en";
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        Configuration localized = new Configuration(
+                base.getResources().getConfiguration());
+        localized.setLocale(Locale.forLanguageTag(resolveLauncherLanguage(base)));
+        super.attachBaseContext(base.createConfigurationContext(localized));
+    }
 
     private static final int[] UPSCALER_VALUES = {
             SchoolDaysConfigStore.UPSCALE_AUTO,
@@ -144,6 +198,7 @@ public final class SchoolDaysSetup extends Activity {
     private TextView lblLxhStatus;
 
     private Button homeMusicToggle;
+    private Button homeLauncherLanguage;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -250,6 +305,7 @@ public final class SchoolDaysSetup extends Activity {
         lblLxhStatus = findViewById(R.id.lbl_lxh_status);
 
         homeMusicToggle = findViewById(R.id.home_music_toggle);
+        homeLauncherLanguage = findViewById(R.id.home_launcher_language);
     }
 
     private void populateStaticSpinners() {
@@ -292,7 +348,12 @@ public final class SchoolDaysSetup extends Activity {
                 getString(R.string.sd_fps_60)
         });
 
-        setSpinnerItems(spinUpscaler, UPSCALER_LABELS);
+        setSpinnerItems(spinUpscaler, new String[]{
+                getString(R.string.sd_upscaler_auto),
+                getString(R.string.sd_upscaler_none),
+                getString(R.string.sd_upscaler_linear),
+                getString(R.string.sd_upscaler_mpv)
+        });
 
         String[] presetLabels = new String[SchoolDaysConfigStore.PRESET_OPTIONS.length];
         for (int i = 0; i < SchoolDaysConfigStore.PRESET_OPTIONS.length; i++) {
@@ -338,6 +399,7 @@ public final class SchoolDaysSetup extends Activity {
             syncUiFromDraft();
             updateLauncherMusicState();
         });
+        homeLauncherLanguage.setOnClickListener(v -> showLauncherLanguagePicker());
 
         findViewById(R.id.pick).setOnClickListener(v -> launchPicker());
         findViewById(R.id.retry).setOnClickListener(v -> {
@@ -618,6 +680,49 @@ public final class SchoolDaysSetup extends Activity {
         homeMusicToggle.setText(savedConfig.launcherMusic
                 ? R.string.sd_launcher_music_btn_on
                 : R.string.sd_launcher_music_btn_off);
+        updateLauncherLanguageButton();
+    }
+
+    private void updateLauncherLanguageButton() {
+        if (homeLauncherLanguage == null) return;
+        String language = resolveLauncherLanguage(this);
+        for (int i = 0; i < LAUNCHER_UI_LANGUAGE_CODES.length; ++i) {
+            if (LAUNCHER_UI_LANGUAGE_CODES[i].equals(language)) {
+                homeLauncherLanguage.setText(getString(
+                        R.string.sd_launcher_language_btn, LAUNCHER_UI_LANGUAGE_NAMES[i]));
+                return;
+            }
+        }
+    }
+
+    private void showLauncherLanguagePicker() {
+        String current = resolveLauncherLanguage(this);
+        int selected = 0;
+        for (int i = 0; i < LAUNCHER_UI_LANGUAGE_CODES.length; ++i) {
+            if (LAUNCHER_UI_LANGUAGE_CODES[i].equals(current)) {
+                selected = i;
+                break;
+            }
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.sd_launcher_language)
+                .setSingleChoiceItems(LAUNCHER_UI_LANGUAGE_NAMES, selected,
+                        (dialog, index) -> {
+                            dialog.dismiss();
+                            String next = LAUNCHER_UI_LANGUAGE_CODES[index];
+                            if (!next.equals(current)) {
+                                if (getPreferences(MODE_PRIVATE).edit()
+                                        .putString(LAUNCHER_UI_LANGUAGE_KEY, next)
+                                        .commit()) {
+                                    recreate();
+                                } else {
+                                    Toast.makeText(this, R.string.sd_save_error,
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        })
+                .setNegativeButton(R.string.sd_cancel, null)
+                .show();
     }
 
     private void selectTab(int tab) {
@@ -714,8 +819,8 @@ public final class SchoolDaysSetup extends Activity {
         if ("en".equals(locale)) return "English";
         if ("pt-BR".equals(locale)) return "Português (Brasil)";
         if ("es".equals(locale)) return "Español";
-        if ("ru".equals(locale)) return "Russian";
-        if ("zh-CN".equals(locale)) return "Chinese - Simplified";
+        if ("ru".equals(locale)) return "Русский";
+        if ("zh-CN".equals(locale)) return "简体中文";
         return locale;
     }
 
@@ -845,7 +950,7 @@ public final class SchoolDaysSetup extends Activity {
         findViewById(R.id.options_footer).setVisibility(open ? View.VISIBLE : View.GONE);
         TextView subtitle = findViewById(R.id.title_subtitle);
         if (subtitle != null) {
-            subtitle.setText(open ? "SETUP / OPTIONS" : "LAUNCHER");
+            subtitle.setText(open ? R.string.sd_title_options : R.string.sd_title_launcher);
         }
     }
 

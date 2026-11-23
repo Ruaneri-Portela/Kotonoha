@@ -80,6 +80,14 @@
     <string name="sd_launcher_music">Launcher title music (launcher only)</string>
     <string name="sd_launcher_music_btn_on">Launcher music: ON</string>
     <string name="sd_launcher_music_btn_off">Launcher music: OFF</string>
+    <string name="sd_launcher_language">Launcher language</string>
+    <string name="sd_launcher_language_btn">Launcher language: %1$s</string>
+    <string name="sd_title_launcher">LAUNCHER</string>
+    <string name="sd_title_options">SETUP / OPTIONS</string>
+    <string name="sd_upscaler_auto">Auto</string>
+    <string name="sd_upscaler_none">None</string>
+    <string name="sd_upscaler_linear">Linear</string>
+    <string name="sd_upscaler_mpv">MPV</string>
 
     <!-- General -->
     <string name="sd_general_retail_heading">Gameplay options (retail Config.DAT)</string>
