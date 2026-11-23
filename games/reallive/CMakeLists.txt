@@ -220,10 +220,12 @@ if(BUILD_TESTING)
     if(REALLIVE_TEST_DATA AND EXISTS "${REALLIVE_TEST_DATA}/g00/BG008.g00")
         add_test(NAME RealLive.G00RetailArt
             COMMAND RealLiveG00RetailArtTests "${REALLIVE_TEST_DATA}")
-        set_tests_properties(RealLive.G00RetailArt PROPERTIES LABELS real)
+        set_tests_properties(RealLive.G00RetailArt PROPERTIES
+            LABELS real SKIP_RETURN_CODE 77)
     else()
         add_test(NAME RealLive.G00RetailArt COMMAND RealLiveG00RetailArtTests)
-        set_tests_properties(RealLive.G00RetailArt PROPERTIES LABELS synthetic)
+        set_tests_properties(RealLive.G00RetailArt PROPERTIES
+            LABELS synthetic SKIP_RETURN_CODE 77)
     endif()
 
     # Data-independent verification of switch/case selection semantics.
@@ -281,17 +283,20 @@ if(BUILD_TESTING)
     target_link_libraries(RealLiveMovieTests PRIVATE reallive_port)
     if(REALLIVE_TEST_DATA AND EXISTS "${REALLIVE_TEST_DATA}/MOV/op_air.mpg")
         add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests "${REALLIVE_TEST_DATA}")
-        set_tests_properties(RealLive.Movie PROPERTIES LABELS real)
+        set_tests_properties(RealLive.Movie PROPERTIES
+            LABELS real SKIP_RETURN_CODE 77)
     else()
         add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests)
-        set_tests_properties(RealLive.Movie PROPERTIES LABELS synthetic)
+        set_tests_properties(RealLive.Movie PROPERTIES
+            LABELS synthetic SKIP_RETURN_CODE 77)
     endif()
     # Retail sprite-atlas layout guards for the Key logo clip, AIR textbox
     # toggle frames and CLANNAD animated indicator strip.
     add_executable(RealLiveSpriteAtlasTests tests/SpriteAtlasTest.cpp)
     target_link_libraries(RealLiveSpriteAtlasTests PRIVATE RealLiveFormats)
     add_test(NAME RealLive.SpriteAtlas COMMAND RealLiveSpriteAtlasTests)
-    set_tests_properties(RealLive.SpriteAtlas PROPERTIES LABELS synthetic)
+    set_tests_properties(RealLive.SpriteAtlas PROPERTIES
+        LABELS synthetic SKIP_RETURN_CODE 77)
     add_executable(RealLiveConfigTests tests/ConfigTest.cpp)
     target_link_libraries(RealLiveConfigTests PRIVATE reallive_port)
     add_test(NAME RealLiveConfig COMMAND RealLiveConfigTests)
@@ -299,4 +304,6 @@ endif()
 
 kotonoha_label_directory_tests(REAL
     RealLiveSession
+    RealLive.G00RetailArt
+    RealLive.Movie
 )

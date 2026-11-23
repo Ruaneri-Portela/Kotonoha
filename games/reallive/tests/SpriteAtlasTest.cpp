@@ -33,14 +33,14 @@ int main() {
     const char *airEnv = std::getenv("REALLIVE_TEST_DATA");
     const char *clannadEnv = std::getenv("CLANNAD_TEST_DATA");
     if (!airEnv || !*airEnv || !clannadEnv || !*clannadEnv) {
-      std::cout << "skip - REALLIVE_TEST_DATA/CLANNAD_TEST_DATA not provided\n";
-      return 0;
+      std::cerr << "[SKIP] REALLIVE_TEST_DATA/CLANNAD_TEST_DATA not provided\n";
+      return 77;
     }
     const std::filesystem::path air(airEnv), clannad(clannadEnv);
     if (!std::filesystem::exists(air / "g00/KEYLOGO0.g00") ||
         !std::filesystem::exists(clannad / "G00/KCUR00.g00")) {
-      std::cout << "skip - retail sprite atlases not present\n";
-      return 0;
+      std::cerr << "[SKIP] retail sprite atlases not present\n";
+      return 77;
     }
 
     const auto logo = RealLive::decodeG00(readFile(air / "g00/KEYLOGO0.g00"));
