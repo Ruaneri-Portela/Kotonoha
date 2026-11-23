@@ -77,10 +77,16 @@ Result without data: `Skipped`, never `Passed`.
 
 ## Known limitations
 
-- `NEKOPARA_VOL0_PT-BR` — XP3 protected by `PackinOne.dll`
-  (`data.xp3` SHA-256 `6384cd1a…`, 1186/1187 entries with flag
-  `0x80000000`). The loose `VNX+/` translation is playable and tested;
-  1:1 parity of the original content is impossible without decrypted assets.
+- `NEKOPARA_VOL0_PT-BR` — `data.xp3` SHA-256 `6384cd1a…`, 1186/1187 entries
+  with flag `0x80000000`. Exhaustive analysis confirmed the blocker:
+  `PackinOne.dll` is a TJS2 utility bundle (only `V2Link`/`V2Unlink`, no
+  CryptoAPI imports, no XP3/crypt strings) — the real stream cipher lives in
+  the engine EXE. A brute force of all 256 single-byte XOR keys in both orders,
+  validated by Adler-32, verified only 1/1182 entries (the plaintext
+  `startup.tjs`); the other 1181 remained encrypted. Derivations from the
+  public SmileCrypt formula also failed. The loose `VNX+/` translation is
+  playable and tested; 1:1 parity of the encrypted original requires the
+  decrypted assets or runtime capture of the engine's filter on Windows.
 - Windows cross-build from macOS: platform blocker (no MSVC / Windows SDK;
   MinGW links Mach-O libraries from Homebrew into libass).
 
