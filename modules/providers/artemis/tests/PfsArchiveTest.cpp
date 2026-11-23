@@ -4,6 +4,7 @@
 
 #include <Kotonoha/Filesystem/FileHandle.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <filesystem>
