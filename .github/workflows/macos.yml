@@ -157,19 +157,6 @@ jobs:
           python3 tools/ValidateBuildMetadata.py
           python3 tools/audit_filesystem_v2.py --strict
 
-      - name: Prepare macOS icon from tracked Windows icon
-        run: |
-          # icon.icns is not tracked; derive it from the repository's icon.ico.
-          test -f assets/icon.ico
-          mkdir -p "$RUNNER_TEMP/kotonoha.iconset"
-          sips -s format png assets/icon.ico --out "$RUNNER_TEMP/kotonoha-icon.png"
-          for size in 16 32 128 256 512; do
-            sips -z "$size" "$size" "$RUNNER_TEMP/kotonoha-icon.png" \
-              --out "$RUNNER_TEMP/kotonoha.iconset/icon_${size}x${size}.png"
-          done
-          iconutil -c icns "$RUNNER_TEMP/kotonoha.iconset" -o assets/icon.icns
-          test -s assets/icon.icns
-
       - name: Configure all native game ports
         run: |
           mkdir -p vcpkg-binary-cache
