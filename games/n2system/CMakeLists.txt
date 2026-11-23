@@ -55,5 +55,5 @@ if(BUILD_TESTING)
 endif()
 
 if(BUILD_TESTING)
-  kotonoha_label_directory_tests()
+  kotonoha_label_directory_tests(REAL N2SystemFormatTests)
 endif()

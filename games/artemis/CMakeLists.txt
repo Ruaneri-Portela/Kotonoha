@@ -31,10 +31,11 @@ if(BUILD_TESTING)
 
     # Retail assets are supplied at run time through the environment; no
     # absolute installation paths are stored in the repository.
-    add_test(NAME Artemis.Retail COMMAND ArtemisBootTests)
+    add_test(NAME Artemis.Retail COMMAND ArtemisBootTests --require-retail)
     set_tests_properties(Artemis.Retail PROPERTIES
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
-        TIMEOUT 180)
+        TIMEOUT 180
+        SKIP_RETURN_CODE 77)
 
     if(COMMAND kotonoha_label_directory_tests)
         kotonoha_label_directory_tests(REAL Artemis.Retail)
