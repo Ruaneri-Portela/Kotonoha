@@ -9,7 +9,7 @@ on:
       - "games/katawa-shoujo/**"
       - "modules/vms/renpy/**"
       - "modules/providers/rpa/**"
-      - "lib/src/Filesystem/**"
+      - "lib/src/filesystem/**"
       - "lib/include/Kotonoha/Filesystem/**"
       - "buildsystems/cmake/**"
   pull_request:

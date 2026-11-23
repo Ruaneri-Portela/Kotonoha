@@ -1,16 +1,30 @@
 #include "LargePonPonRuntime.hpp"
+#include <Kotonoha/Formats/Adpcm.hpp>
+#include <Kotonoha/Formats/Crgb.hpp>
+#include <Kotonoha/Formats/DecodedData.hpp>
+#include <Kotonoha/Formats/Smfd.hpp>
 #include <Pmail/GcPack.hpp>
 #include <Pmail/LargePonPonAssets.hpp>
-#include <Pmail/LargePonPonCodecs.hpp>
 #include <Pmail/LargePonPonVm.hpp>
 
 #include <SDL3/SDL.h>
 
-#include <cassert>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
+
+// Retail parity gates must really verify in Release builds, where NDEBUG
+// compiles standard assert() away. Use an always-active check instead.
+#define CHECK(expr)                                                            \
+  do {                                                                         \
+    if (!(expr)) {                                                             \
+      std::cerr << "[LargePonPonTest] CHECK failed: " #expr " (" << __FILE__   \
+                << ":" << __LINE__ << ")" << std::endl;                        \
+      std::exit(1);                                                            \
+    }                                                                          \
+  } while (false)
 
 namespace {
 
@@ -32,13 +46,13 @@ void writeU32LE(std::vector<uint8_t> &v, uint32_t x) {
 void testGcPackSynthetic() {
   uint8_t packed[12];
   GcPackArchive::encodePackedName("TITLE.OBJ", packed);
-  assert(GcPackArchive::decodePackedName(packed) == "TITLE.OBJ");
+  CHECK(GcPackArchive::decodePackedName(packed) == "TITLE.OBJ");
 
   GcPackArchive::encodePackedName("OVERFLOW.CRGB", packed);
-  assert(GcPackArchive::decodePackedName(packed) == "OVERFLOW.CRGB");
+  CHECK(GcPackArchive::decodePackedName(packed) == "OVERFLOW.CRGB");
 
   GcPackArchive::encodePackedName("CGMODE01.P256", packed);
-  assert(GcPackArchive::decodePackedName(packed) == "CGMODE01.P256");
+  CHECK(GcPackArchive::decodePackedName(packed) == "CGMODE01.P256");
 
   // Build minimal valid 4-sector GCPackFile: 3 header sectors + 1 data sector
   std::vector<uint8_t> archive(4 * 512, 0);
@@ -51,33 +65,34 @@ void testGcPackSynthetic() {
   archive[3 * 512 + 1] = 0xAD;
 
   GcPackArchive pack;
-  assert(pack.openBytes(archive));
-  assert(pack.entries().size() == 1);
-  assert(pack.contains("test.obj"));
+  CHECK(pack.openBytes(archive));
+  CHECK(pack.entries().size() == 1);
+  CHECK(pack.contains("test.obj"));
   auto data = pack.read("TEST.OBJ");
-  assert(data.size() == 512);
-  assert(data[0] == 0xDE && data[1] == 0xAD);
+  CHECK(data.size() == 512);
+  CHECK(data[0] == 0xDE && data[1] == 0xAD);
 }
 
 void testCodecsSynthetic() {
   // 1. CRGB: literal 1 pixel BGR(10, 20, 30) + repeat 1 + end
   std::vector<uint8_t> crgb = {0xC0, 10, 20, 30, 0x80, 0xFF};
-  auto surf = decodeCrgbOrBgd(crgb.data(), crgb.size());
-  assert(surf && surf->w == 800 && surf->h == 600);
-  auto *px = static_cast<const uint8_t *>(surf->pixels);
+  auto surf =
+      Kotonoha::Formats::Crgb::decodeCrgbOrBgd(crgb.data(), crgb.size());
+  CHECK(surf.width == 800 && surf.height == 600);
+  auto *px = surf.rgba.data();
   // Row 0 bottom-up maps to dstY = 599
-  const uint8_t *p0 = px + 599 * surf->pitch;
-  assert(p0[0] == 30 && p0[1] == 20 && p0[2] == 10 && p0[3] == 255);
-  assert(p0[4] == 30 && p0[5] == 20 && p0[6] == 10 && p0[7] == 255);
+  const uint8_t *p0 = px + 599 * surf.width * 4;
+  CHECK(p0[0] == 30 && p0[1] == 20 && p0[2] == 10 && p0[3] == 255);
+  CHECK(p0[4] == 30 && p0[5] == 20 && p0[6] == 10 && p0[7] == 255);
 
   // 2. CHAR: 1 transparent skip (0x9F), 1 opaque pixel (0x7F, B=5,G=6,R=7), EOL
   std::vector<uint8_t> ch = {0x9F, 0x7F, 5, 6, 7, 0xFF};
-  auto chSurf = decodeCharStream(ch.data(), ch.size(), 4, 2);
-  assert(chSurf && chSurf->w == 4 && chSurf->h == 2);
-  const uint8_t *cp =
-      static_cast<const uint8_t *>(chSurf->pixels) + 1 * chSurf->pitch;
-  assert(cp[3] == 0); // skipped pixel transparent
-  assert(cp[4] == 7 && cp[5] == 6 && cp[6] == 5 && cp[7] == 255);
+  auto chSurf =
+      Kotonoha::Formats::Crgb::decodeCharStream(ch.data(), ch.size(), 4, 2);
+  CHECK(chSurf.width == 4 && chSurf.height == 2);
+  const uint8_t *cp = chSurf.rgba.data() + 1 * chSurf.width * 4;
+  CHECK(cp[3] == 0); // skipped pixel transparent
+  CHECK(cp[4] == 7 && cp[5] == 6 && cp[6] == 5 && cp[7] == 255);
 
   // 3. PRGB: 1 sprite 2x1 BGR
   std::vector<uint8_t> prgb;
@@ -86,28 +101,30 @@ void testCodecsSynthetic() {
   writeU16LE(prgb, 2);
   writeU16LE(prgb, 1);
   prgb.insert(prgb.end(), {1, 2, 3, 4, 5, 6});
-  auto sprites = decodePrgb(prgb.data(), prgb.size());
-  assert(sprites.size() == 1 && sprites[0] && sprites[0]->w == 2 &&
-         sprites[0]->h == 1);
+  auto sprites = Kotonoha::Formats::Crgb::decodePrgb(prgb.data(), prgb.size());
+  CHECK(sprites.size() == 1 && sprites[0].width == 2 &&
+         sprites[0].height == 1);
 
   // 4. ADP4: 4 silence pairs (8 zero samples)
   std::vector<uint8_t> adp4;
   writeU32LE(adp4, 4);
   adp4.push_back(0x01); // bit 0 = 1 (silence)
   adp4.push_back(0x83); // count = (3 + 1) = 4 pairs
-  auto dec = decodeAdp4(adp4.data(), adp4.size());
-  assert(dec.samples.size() == 8);
+  auto dec = Kotonoha::Formats::Adpcm::decodeAdp4(adp4.data(), adp4.size());
+  CHECK(dec.samples.size() == 8);
   for (int16_t s : dec.samples)
-    assert(s == 0);
+    CHECK(s == 0);
 
   // 5. SMFD -> Standard MIDI + PCM
   std::vector<uint8_t> smfd;
   writeU16LE(smfd, 480);
   smfd.insert(smfd.end(), {0x00, 0x90, 60, 100, 0x60, 0x80, 60, 0, 0x00, 0xFF});
-  auto mid = smfdToStandardMidi(smfd.data(), smfd.size());
-  assert(mid.size() > 22 && std::memcmp(mid.data(), "MThd", 4) == 0);
-  auto pcm = decodeSmfdToPcm(smfd.data(), smfd.size(), 22050);
-  assert(!pcm.data.empty() && pcm.spec.freq == 22050 && pcm.spec.channels == 2);
+  auto mid =
+      Kotonoha::Formats::Smfd::smfdToStandardMidi(smfd.data(), smfd.size());
+  CHECK(mid.size() > 22 && std::memcmp(mid.data(), "MThd", 4) == 0);
+  auto pcm =
+      Kotonoha::Formats::Smfd::decodeSmfdToPcm(smfd.data(), smfd.size(), 22050);
+  CHECK(!pcm.samples.empty() && pcm.sampleRate == 22050 && pcm.channels == 2);
 }
 
 class DummyHost : public LargePonPonHost {
@@ -180,7 +197,7 @@ void testVmSynthetic() {
       0x0A,                                 // RET
       0x00                                  // END
   };
-  assert(vm.loadDefine(def));
+  CHECK(vm.loadDefine(def));
 
   // Script: CALL_SUB 1, SET_BIT 2048, SAVE_CHECKPOINT, END
   struct ScriptHost : DummyHost {
@@ -192,35 +209,35 @@ void testVmSynthetic() {
   sh.script = {0x53, 1, 0x64, 0x98, 0x00, 0xF5, 0x00};
   // Note: 0x98 0x00 -> varint: extra=(0x98>>4)&3=1, v=(8<<8)|0 = 2048
   LargePonPonVm vm2(sh);
-  assert(vm2.loadDefine(def));
-  assert(vm2.jumpScript("TEST", 0));
+  CHECK(vm2.loadDefine(def));
+  CHECK(vm2.jumpScript("TEST", 0));
   vm2.runUntilYield(100);
-  assert(vm2.getW(5) == -1);
-  assert(vm2.getW(16) == 35);
-  assert(vm2.getBit(2048));
+  CHECK(vm2.getW(5) == -1);
+  CHECK(vm2.getW(16) == 35);
+  CHECK(vm2.getBit(2048));
 
   // Save/load round-trip (1,568 bytes)
   auto save = vm2.serializeSaveData(true);
-  assert(save.size() == LargePonPonVm::kSaveFileSize);
+  CHECK(save.size() == LargePonPonVm::kSaveFileSize);
   LargePonPonVm vm3(sh);
   std::string scriptName;
   uint32_t savedPc = 0;
-  assert(vm3.deserializeSaveData(save, scriptName, savedPc));
-  assert(scriptName == "TEST");
-  assert(vm3.getW(16) == 35);
-  assert(vm3.getBit(2048));
+  CHECK(vm3.deserializeSaveData(save, scriptName, savedPc));
+  CHECK(scriptName == "TEST");
+  CHECK(vm3.getW(16) == 35);
+  CHECK(vm3.getBit(2048));
 }
 
 void testRetail(const std::string &dir) {
   std::cout << "[LargePonPonTest] Verifying retail directory: " << dir
             << std::endl;
-  assert(isLargePonPonDirectory(dir));
+  CHECK(isLargePonPonDirectory(dir));
   auto assets = std::make_shared<LargePonPonAssets>(dir);
-  assert(assets->scriptPack().entries().size() == 241);
-  assert(assets->graphicPack().entries().size() == 703);
-  assert(assets->soundPack().entries().size() == 4400);
-  assert(assets->config().config[0] == 8);
-  assert(assets->config().names[0] == "伊能");
+  CHECK(assets->scriptPack().entries().size() == 241);
+  CHECK(assets->graphicPack().entries().size() == 703);
+  CHECK(assets->soundPack().entries().size() == 4400);
+  CHECK(assets->config().config[0] == 8);
+  CHECK(assets->config().names[0] == "伊能");
 
   // Decode ALL 703 graphic files in GRAPHIC.DAT
   size_t decodedGraphics = 0;
@@ -229,43 +246,51 @@ void testRetail(const std::string &dir) {
     const std::string ext =
         (dot != std::string::npos) ? e.name.substr(dot) : "";
     const auto bytes = assets->graphicPack().read(e.name);
-    assert(!bytes.empty());
+    CHECK(!bytes.empty());
     if (ext == ".CRGB" || ext == ".BGD") {
-      auto s = decodeCrgbOrBgd(bytes.data(), bytes.size());
-      assert(s && s->w == 800 && s->h == 600);
+      auto s =
+          Kotonoha::Formats::Crgb::decodeCrgbOrBgd(bytes.data(), bytes.size());
+      CHECK(s.width == 800 && s.height == 600);
     } else if (ext == ".CHAR") {
-      auto s = decodeCharStream(bytes.data(), bytes.size(), 800, 600);
-      assert(s && s->w == 800 && s->h == 600);
+      auto s = Kotonoha::Formats::Crgb::decodeCharStream(
+          bytes.data(), bytes.size(), 800, 600);
+      CHECK(s.width == 800 && s.height == 600);
     } else if (ext == ".PCHR") {
-      auto frames = decodePchrOrIcon(bytes.data(), bytes.size(), 800, 600);
-      assert(!frames.empty() && frames[0] && frames[0]->w == 800);
+      auto frames = Kotonoha::Formats::Crgb::decodePchrOrIcon(
+          bytes.data(), bytes.size(), 800, 600);
+      CHECK(!frames.empty() && frames[0].width == 800);
     } else if (ext == ".ICON") {
-      auto frames = decodePchrOrIcon(bytes.data(), bytes.size(), 32, 32);
-      assert(!frames.empty() && frames[0] && frames[0]->w == 32);
+      auto frames = Kotonoha::Formats::Crgb::decodePchrOrIcon(
+          bytes.data(), bytes.size(), 32, 32);
+      CHECK(!frames.empty() && frames[0].width == 32);
     } else if (ext == ".PRGB") {
-      auto sprites = decodePrgb(bytes.data(), bytes.size());
-      assert(!sprites.empty() && sprites[0]);
+      auto sprites =
+          Kotonoha::Formats::Crgb::decodePrgb(bytes.data(), bytes.size());
+      CHECK(!sprites.empty() && sprites[0].width > 0);
     } else if (ext == ".P256") {
-      assert(p256ThumbnailCount(bytes.size()) > 0);
-      auto t = decodeP256Thumbnail(bytes.data(), bytes.size(), 0, true);
-      assert(t && t->w == 150 && t->h == 112);
+      CHECK(Kotonoha::Formats::Crgb::p256ThumbnailCount(bytes.size()) > 0);
+      auto t = Kotonoha::Formats::Crgb::decodeP256Thumbnail(
+          bytes.data(), bytes.size(), 0, true);
+      CHECK(t.width == 150 && t.height == 112);
     } else if (ext == ".CANM") {
-      auto c = decodeCanm(bytes.data(), bytes.size());
+      auto c = Kotonoha::Formats::Crgb::decodeCanm(bytes.data(), bytes.size());
       bool hasAny = false;
       for (const auto &sl : c.slots)
         if (!sl.frames.empty())
           hasAny = true;
-      assert(hasAny);
+      CHECK(hasAny);
     } else if (ext == ".ALPF") {
-      auto m = decodeAlpfMask(bytes.data(), bytes.size());
-      assert(m.size() == 800 * 600);
+      auto m =
+          Kotonoha::Formats::Crgb::decodeAlpfMask(bytes.data(), bytes.size());
+      CHECK(m.size() == 800 * 600);
     } else if (ext == ".ALPM") {
-      auto m = decodeAlpmMask(bytes.data(), bytes.size());
-      assert(m.size() == 800 * 600);
+      auto m =
+          Kotonoha::Formats::Crgb::decodeAlpmMask(bytes.data(), bytes.size());
+      CHECK(m.size() == 800 * 600);
     }
     ++decodedGraphics;
   }
-  assert(decodedGraphics == 703);
+  CHECK(decodedGraphics == 703);
   std::cout << "[LargePonPonTest] Decoded all " << decodedGraphics
             << " graphics in GRAPHIC.DAT cleanly!" << std::endl;
 
@@ -278,27 +303,30 @@ void testRetail(const std::string &dir) {
         (dot != std::string::npos) ? e.name.substr(dot) : "";
     if (ext == ".SMFD") {
       const auto bytes = assets->soundPack().read(e.name);
-      auto mid = smfdToStandardMidi(bytes.data(), bytes.size());
-      assert(mid.size() > 32);
-      auto pcm = decodeSmfdToPcm(bytes.data(), bytes.size(), 22050);
-      assert(!pcm.data.empty());
+      auto mid = Kotonoha::Formats::Smfd::smfdToStandardMidi(bytes.data(),
+                                                             bytes.size());
+      CHECK(mid.size() > 32);
+      auto pcm = Kotonoha::Formats::Smfd::decodeSmfdToPcm(bytes.data(),
+                                                          bytes.size(), 22050);
+      CHECK(!pcm.samples.empty());
       ++smfdCount;
     } else if (ext == ".ADP4" && adp4Count < 20) {
       const auto bytes = assets->soundPack().read(e.name);
-      auto dec = decodeAdp4(bytes.data(), bytes.size());
-      assert(!dec.samples.empty());
+      auto dec =
+          Kotonoha::Formats::Adpcm::decodeAdp4(bytes.data(), bytes.size());
+      CHECK(!dec.samples.empty());
       ++adp4Count;
     }
   }
-  assert(smfdCount == 15 && adp4Count == 20);
+  CHECK(smfdCount == 15 && adp4Count == 20);
   std::cout << "[LargePonPonTest] Decoded all " << smfdCount << " SMFD and "
             << adp4Count << " sample ADP4 files cleanly!" << std::endl;
 
   // Boot LargePonPonRuntime headlessly: DEFINE -> TITLE -> START -> PRO
   // dialogue
   Kotonoha::PmailPort::LargePonPonRuntime runtime(dir, assets);
-  assert(runtime.vm().loadDefine(assets->loadScriptBytes("DEFINE")));
-  assert(runtime.vm().jumpScript("TITLE", 0));
+  CHECK(runtime.vm().loadDefine(assets->loadScriptBytes("DEFINE")));
+  CHECK(runtime.vm().jumpScript("TITLE", 0));
 
   bool reachedStart = false;
   bool reachedProDialogue = false;
@@ -315,8 +343,8 @@ void testRetail(const std::string &dir) {
     }
     runtime.advanceInput();
   }
-  assert(reachedStart);
-  assert(reachedProDialogue);
+  CHECK(reachedStart);
+  CHECK(reachedProDialogue);
   std::cout << "[LargePonPonTest] Retail boot & story progression verified!"
             << std::endl;
 }
@@ -329,7 +357,15 @@ int main(int argc, char **argv) {
   testVmSynthetic();
   std::cout << "[LargePonPonTest] All synthetic unit tests passed!"
             << std::endl;
-  if (argc > 1 && argv[1] && argv[1][0] != '\0')
-    testRetail(argv[1]);
+  // CTest registers this binary twice: without an argument for the
+  // always-on synthetic gate and with LARGEPONPON_TEST_DATA for the retail
+  // gate. An empty/missing retail argument means "no data supplied", so
+  // exit 77 to let CTest report the real-labelled test as skipped.
+  if (argc > 1) {
+    const char *dir = argv[1];
+    if (!dir || dir[0] == '\0')
+      return 77;
+    testRetail(dir);
+  }
   return 0;
 }

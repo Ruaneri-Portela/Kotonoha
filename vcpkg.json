@@ -30,11 +30,11 @@
     },
     {
       "name": "fontconfig",
-      "platform": "android | ios | osx"
+      "platform": "android | ios | osx | mingw"
     },
     {
       "name": "libunibreak",
-      "platform": "android | ios | osx"
+      "platform": "android | ios | osx | mingw"
     },
     {
       "name": "plutosvg",

@@ -213,7 +213,9 @@ if (BUILD_TESTING)
     add_subdirectory(tests)
 endif ()
 
-# Add modules to the build system
+# Add modules to the build system. Format decoders are added before archive
+# providers so providers can link the kotonoha_format_* libraries.
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../modules/formats" "${CMAKE_CURRENT_BINARY_DIR}/formats")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../modules/providers/n2" "${CMAKE_CURRENT_BINARY_DIR}/n2archive")
 # C++17 N2System/NsScript index (independent of the other game VMs).
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../modules/vms/n2system" "${CMAKE_CURRENT_BINARY_DIR}/n2system")

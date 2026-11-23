@@ -142,6 +142,24 @@ bool keepAirSpriteAfterDecodeFailure(
   return true;
 }
 
+// An AIR expression CZ4 stores only a small crop of its portrait's canvas.
+// Scripts routinely clear the character group with INIT and then load just
+// the face crop for the next line. INIT must still prevent stale *transform*
+// inheritance, but the pixels of the portrait currently on screen remain the
+// base the crop is authored against. Dropping that base renders floating eyes
+// over the background (or nothing at all when the old pose fades out during
+// DRAW), which is the seen170 sprite regression.
+template <class Slots>
+auto airExpressionPixelBase(const Slots &staged, const Slots &visible,
+                            std::uint16_t key)
+    -> const typename Slots::mapped_type * {
+  if (const auto it = staged.find(key); it != staged.end())
+    return &it->second;
+  if (const auto it = visible.find(key); it != visible.end())
+    return &it->second;
+  return nullptr;
+}
+
 // Evaluate motion at a monotonic story-clock instant. Sampling the current
 // position before a second MOVE prevents a visible jump to the old endpoint.
 inline float airMoveOffset(float start, float target, std::uint64_t began,

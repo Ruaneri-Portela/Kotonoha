@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="lib">
+      <UniqueIdentifier>{B720A75C-6A83-5BF4-8884-334B9761B58F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules">
+      <UniqueIdentifier>{4548933C-AC76-5E11-BEE2-DFA0DD6ACD1A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules\imgui">
+      <UniqueIdentifier>{6B3B2470-4E37-5124-B9FB-6EBBA519D111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules\imgui\backends">
+      <UniqueIdentifier>{239D77CC-9D47-579C-8F4B-2171EABC5BE7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules\imgui\misc">
+      <UniqueIdentifier>{A2578C80-8D7B-593D-B28B-D030FC566F80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules\imgui\misc\cpp">
+      <UniqueIdentifier>{94ACB610-EE2E-5702-A16F-893C8537D62C}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui.cpp">
+      <Filter>lib\submodules\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_draw.cpp">
+      <Filter>lib\submodules\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_tables.cpp">
+      <Filter>lib\submodules\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_widgets.cpp">
+      <Filter>lib\submodules\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdl3.cpp">
+      <Filter>lib\submodules\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdlrenderer3.cpp">
+      <Filter>lib\submodules\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\misc\cpp\imgui_stdlib.cpp">
+      <Filter>lib\submodules\imgui\misc\cpp</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

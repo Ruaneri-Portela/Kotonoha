@@ -491,10 +491,11 @@ void Launcher::draw() {
     const ImVec2 origin = ImGui::GetWindowPos();
     const float band = 78 * contentScale;
     auto *draw = ImGui::GetWindowDrawList();
+    // Faixa suave em slate/lilá, alinhada ao tema ImGui "Soft".
     draw->AddRectFilledMultiColor(
         origin, {origin.x + io.DisplaySize.x, origin.y + band},
-        IM_COL32(58, 26, 86, 255), IM_COL32(30, 18, 52, 255),
-        IM_COL32(23, 18, 33, 255), IM_COL32(23, 18, 33, 255));
+        IM_COL32(69, 74, 107, 255), IM_COL32(53, 60, 91, 255),
+        IM_COL32(43, 51, 78, 255), IM_COL32(43, 51, 78, 255));
     draw->AddRectFilled({origin.x, origin.y + band - 2 * contentScale},
                         {origin.x + io.DisplaySize.x, origin.y + band},
                         ImGui::GetColorU32(ImGuiTheme::accent()));

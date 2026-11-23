@@ -58,7 +58,7 @@ def file_issues(path: Path) -> list[tuple[int, str]]:
 
 def validate_build_metadata() -> list[str]:
     issues = []
-    source_dir = ROOT / "lib/src/Filesystem"
+    source_dir = ROOT / "lib/src/filesystem"
     sources = sorted(source_dir.rglob("*.cpp"))
     xcode = ROOT / "buildsystems/xcode/Kotonoha.xcodeproj/project.pbxproj"
     cmake = ROOT / "lib/CMakeLists.txt"

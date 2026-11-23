@@ -11,6 +11,8 @@
 
 namespace Artemis {
 
+class ArtemisUi;
+
 class ArtemisRuntime : public Kotonoha::Runtime {
 public:
   explicit ArtemisRuntime(std::shared_ptr<ArtemisAssets> assets = nullptr);
@@ -27,9 +29,11 @@ public:
   void initGameplay(Kotonoha::Engine &engine) override;
 
   void update() override;
+  void renderMenu(Kotonoha::RendererRef renderer, float scale) override;
   void renderGameplay(Kotonoha::RendererRef renderer, float scale) override;
   bool onEvent(Kotonoha::EventRef event) override;
 
+  bool handleNewGameAction() override;
   bool handleAdvanceAction() override;
   bool advanceStoryTime(double seconds) override;
   bool handleBacklogAction() override;
@@ -50,9 +54,38 @@ public:
   ArtemisVm &vm() { return vm_; }
   const ArtemisVm &vm() const { return vm_; }
   std::shared_ptr<ArtemisAssets> assets() const { return assets_; }
+  const ArtemisUi &ui() const;
+
+  // Title -> gameplay transition. Returns true when the native START entry
+  // was resolved and the gameplay script was loaded.
+  bool startGameplay();
+  bool titleVisible() const;
+
+  // Native title audio. The IDs/gains come from the shipped init/csv tables
+  // (see ArtemisUi), never from hardcoded asset paths in the game port.
+  // `setTitleBgmRoute` selects the Lua route ("title01", "title02" for a
+  // cleared game, or "trial"); the default is "title01" with fallback to the
+  // first table entry that resolves to an existing asset.
+  void setTitleBgmRoute(const std::string &route);
+  const std::string &titleBgmRoute() const;
+  void startTitleBgm();
+  void stopTitleBgm();
+  const std::string &titleBgmAsset() const;
+  bool titleBgmPlaying() const;
+  // Mirrors se_ok(): one short click confirmation on the "se" channel.
+  // Returns true only when the native clip was actually played.
+  bool playUiClickSe();
+  const std::string &titleClickSeAsset() const;
+  int titleClickSeCount() const;
 
 private:
   struct Impl;
+  ArtemisUi *ensureUi();
+  // Title buttons actually present in the shipped build (SCENARIOS / EXTRA
+  // are not part of the original title screen).
+  const std::vector<int> &visibleTitleButtons(ArtemisUi &ui);
+  bool activateTitleButton(int index);
+
   std::unique_ptr<Impl> impl_;
   std::shared_ptr<ArtemisAssets> assets_;
   ArtemisVm vm_;

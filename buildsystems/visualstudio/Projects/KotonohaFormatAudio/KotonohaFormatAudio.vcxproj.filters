@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats">
+      <UniqueIdentifier>{EABB7FE5-9CFE-5542-B36F-87FAED8426F6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio">
+      <UniqueIdentifier>{7169CF3F-15F2-5F2D-B6E3-13595C5C9CCE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\adpcm">
+      <UniqueIdentifier>{E2070784-0ADD-5749-8BDB-9F9526E00AB2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\adpcm\src">
+      <UniqueIdentifier>{A62A06E1-7FEB-5615-AAD6-EB67D51D7803}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\cri">
+      <UniqueIdentifier>{3146EE3F-ED27-585A-937E-7F4E987C96C8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\cri\src">
+      <UniqueIdentifier>{070ACF95-DF1D-5C93-BA35-8628E38E91B6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\pcm-block">
+      <UniqueIdentifier>{DB15616B-B49C-5DF1-99C7-0573A562150B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\pcm-block\src">
+      <UniqueIdentifier>{2BAD6198-8A8C-58EF-BD80-722DB0E41E53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\smfd">
+      <UniqueIdentifier>{1161C015-0498-5D1B-961D-FA46DB78B953}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\smfd\src">
+      <UniqueIdentifier>{58A7F33D-BE66-5908-A4E2-47E9ACFBB45C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\spu">
+      <UniqueIdentifier>{85148B3C-7499-586B-AB97-6D8B9DC00662}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\audio\spu\src">
+      <UniqueIdentifier>{DE501A77-9C57-54BD-BBB0-9615021F6B03}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\formats\audio\adpcm\src\Adpcm.cpp">
+      <Filter>modules\formats\audio\adpcm\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\audio\adpcm\src\PackAudio.cpp">
+      <Filter>modules\formats\audio\adpcm\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\audio\cri\src\CriAudio.cpp">
+      <Filter>modules\formats\audio\cri\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\audio\pcm-block\src\MeoAudio.cpp">
+      <Filter>modules\formats\audio\pcm-block\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\audio\smfd\src\Smfd.cpp">
+      <Filter>modules\formats\audio\smfd\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\audio\spu\src\Ps2SoundBank.cpp">
+      <Filter>modules\formats\audio\spu\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

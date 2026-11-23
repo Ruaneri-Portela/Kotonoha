@@ -1,14 +1,14 @@
 #include "RealLiveRuntime.hpp"
 #include "RealLiveAudioFade.hpp"
-#include "RealLiveReadProgress.hpp"
-#include "RealLivePersistentHistory.hpp"
-#include "RealLiveSelectRules.hpp"
 #include "RealLiveAudioWait.hpp"
-#include "RealLiveNumeric.hpp"
-#include "RealLiveChannelLevels.hpp"
 #include "RealLiveBgmCompat.hpp"
+#include "RealLiveChannelLevels.hpp"
 #include "RealLiveInput.hpp"
 #include "RealLiveMouseCursor.hpp"
+#include "RealLiveNumeric.hpp"
+#include "RealLivePersistentHistory.hpp"
+#include "RealLiveReadProgress.hpp"
+#include "RealLiveSelectRules.hpp"
 #include "RealLiveSelection.hpp"
 #include "RealLiveTransition.hpp"
 #include "SceneTexture.hpp"
@@ -43,8 +43,8 @@
 #include <array>
 #include <charconv>
 #include <cmath>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -215,7 +215,8 @@ struct Text : VNTextBox {
   int boxX() const {
     const std::string key = windowKey("POS");
     const auto &pos = assets.settings().get(key);
-    const std::string &effKey = pos.size() >= 3 ? key : std::string("WINDOW.000.POS");
+    const std::string &effKey =
+        pos.size() >= 3 ? key : std::string("WINDOW.000.POS");
     const auto &effPos = assets.settings().get(effKey);
     if (effPos.size() >= 3) {
       const int mod = assets.settings().integer(effKey, 0, 0);
@@ -227,7 +228,8 @@ struct Text : VNTextBox {
   int boxY() const {
     const std::string key = windowKey("POS");
     const auto &pos = assets.settings().get(key);
-    const std::string &effKey = pos.size() >= 3 ? key : std::string("WINDOW.000.POS");
+    const std::string &effKey =
+        pos.size() >= 3 ? key : std::string("WINDOW.000.POS");
     const auto &effPos = assets.settings().get(effKey);
     if (effPos.size() >= 3) {
       const int mod = assets.settings().integer(effKey, 0, 0);
@@ -334,10 +336,14 @@ struct Text : VNTextBox {
     }
     const std::string curName =
         assets.settings().text("CURSOR.000.NAME", "kcur00");
-    cursorSizeW = std::max(1, assets.settings().integer("CURSOR.000.SIZE", 16, 0));
-    cursorSizeH = std::max(1, assets.settings().integer("CURSOR.000.SIZE", 16, 1));
-    cursorCont = std::max(0, assets.settings().integer("CURSOR.000.CONT", 0, 0));
-    cursorSpeed = std::max(100, assets.settings().integer("CURSOR.000.SPEED", 850, 0));
+    cursorSizeW =
+        std::max(1, assets.settings().integer("CURSOR.000.SIZE", 16, 0));
+    cursorSizeH =
+        std::max(1, assets.settings().integer("CURSOR.000.SIZE", 16, 1));
+    cursorCont =
+        std::max(0, assets.settings().integer("CURSOR.000.CONT", 0, 0));
+    cursorSpeed =
+        std::max(100, assets.settings().integer("CURSOR.000.SPEED", 850, 0));
     if (!curName.empty()) {
       auto kcur00 = assets.graphic(curName, false);
       if (!kcur00.empty()) {
@@ -550,9 +556,13 @@ struct Text : VNTextBox {
     for (std::size_t i = 0; i < controls.buttons.size(); ++i) {
       const bool active = (i == 3 && autoActive && autoActive()) ||
                           (i == 4 && skipActive && skipActive());
+      // The native SMW00 button atlas stores five states per control:
+      // normal, hover, pressed, hover-active and the red active toggle.
+      // Region 116/108 (group + 4) is the red "auto/skip on" frame; +3 is
+      // only the unfilled active frame and made enabled toggles look idle.
       const int index =
           groups[i] +
-          (active && controls.state(int(i)) == 0 ? 3 : controls.state(int(i)));
+          (active && controls.state(int(i)) == 0 ? 4 : controls.state(int(i)));
       if (index < int(buttonImage.regions.size())) {
         const auto &region = buttonImage.regions.at(index);
         SDL_FRect source{float(region.atlasX), float(region.atlasY),
@@ -599,7 +609,16 @@ struct Text : VNTextBox {
     }
     const int speed = std::max(100, cursorSpeed);
     SDL_FRect src{0, 0, float(cursor->w), float(cursor->h)};
-    if (!cursorImage.regions.empty()) {
+    // A G00/PDT cursor with a single region spanning the whole surface is
+    // still an animation strip: RealLive stores every frame side by side and
+    // uses CURSOR.000.CONT/SIZE to select one. Treating that sole region as a
+    // single frame drew the entire texture map in the textbox corner.
+    const bool singleFullRegion =
+        cursorImage.regions.size() == 1 &&
+        cursorImage.regions[0].x1 == 0 && cursorImage.regions[0].y1 == 0 &&
+        cursorImage.regions[0].x2 + 1 >= int(cursorImage.width) &&
+        cursorImage.regions[0].y2 + 1 >= int(cursorImage.height);
+    if (!cursorImage.regions.empty() && !singleFullRegion) {
       const std::size_t frameCount = cursorImage.regions.size();
       const std::size_t frameIdx =
           (std::size_t(SDL_GetTicks() % Uint64(speed)) * frameCount) /
@@ -618,10 +637,9 @@ struct Text : VNTextBox {
                        : vertStrip    ? (cursor->h / ch)
                                       : 1;
       frameCount = std::max(1, frameCount);
-      const int frameIdx =
-          int((SDL_GetTicks() % Uint64(speed)) * Uint64(frameCount) /
-              Uint64(speed)) %
-          frameCount;
+      const int frameIdx = int((SDL_GetTicks() % Uint64(speed)) *
+                               Uint64(frameCount) / Uint64(speed)) %
+                           frameCount;
       if (horizStrip && (frameIdx + 1) * cw <= cursor->w)
         src = {float(frameIdx * cw), 0.0f, float(cw), float(ch)};
       else if (vertStrip && (frameIdx + 1) * ch <= cursor->h)
@@ -976,7 +994,7 @@ struct RealLiveRuntime::Impl {
     transitionYSize = effect.ySize;
   }
   void setTransitionParametersFromCommand(const libreallive::CommandElement &c,
-                                           int first = 8) {
+                                          int first = 8) {
     transitionStyle = value(c, first);
     transitionDirection = value(c, first + 1);
     transitionInterpolation = value(c, first + 2);
@@ -1988,12 +2006,12 @@ struct RealLiveRuntime::Impl {
         const int nativeWidth = output->w / scale;
         const int nativeHeight = output->h / scale;
         for (int y = 0; y < output->h; ++y) {
-          auto *destination = static_cast<Uint8 *>(mixed->pixels) +
-                              y * mixed->pitch;
+          auto *destination =
+              static_cast<Uint8 *>(mixed->pixels) + y * mixed->pitch;
           for (int x = 0; x < output->w; ++x) {
             const auto sample = sampleScrollTransition(
-                transitionStyle, transitionDirection, progress,
-                x / scale, y / scale, nativeWidth, nativeHeight);
+                transitionStyle, transitionDirection, progress, x / scale,
+                y / scale, nativeWidth, nativeHeight);
             const auto &surface = sample.newScene ? *output : *old;
             const auto *row = static_cast<const Uint8 *>(surface.pixels) +
                               (sample.y * scale + y % scale) * surface.pitch;
@@ -2004,26 +2022,27 @@ struct RealLiveRuntime::Impl {
         output = std::move(mixed);
       } else if (transitionStyle == 4 || transitionStyle == 5 ||
                  transitionStyle == 10 || transitionStyle == 120) {
-        const TransitionParameters effect{
-            transitionStyle, transitionDirection, transitionInterpolation,
-            transitionXSize, transitionYSize};
+        const TransitionParameters effect{transitionStyle, transitionDirection,
+                                          transitionInterpolation,
+                                          transitionXSize, transitionYSize};
         for (int y = 0; y < output->h; ++y) {
           const auto *oldRow =
               static_cast<const Uint8 *>(old->pixels) + y * old->pitch;
           auto *newRow =
               static_cast<Uint8 *>(output->pixels) + y * output->pitch;
           for (int x = 0; x < output->w; ++x) {
-            const double reveal = transitionNewCoverage(
-                effect, progress, x / scale, y / scale,
-                output->w / scale, output->h / scale);
+            const double reveal =
+                transitionNewCoverage(effect, progress, x / scale, y / scale,
+                                      output->w / scale, output->h / scale);
             if (reveal <= 0.0) {
               std::memcpy(newRow + x * 4, oldRow + x * 4, 4);
             } else if (reveal < 1.0) {
               for (int channel = 0; channel < 4; ++channel) {
                 const auto offset = x * 4 + channel;
-                newRow[offset] = Uint8(std::clamp(
-                    std::lround(oldRow[offset] * (1.0 - reveal) +
-                                newRow[offset] * reveal), 0L, 255L));
+                newRow[offset] = Uint8(
+                    std::clamp(std::lround(oldRow[offset] * (1.0 - reveal) +
+                                           newRow[offset] * reveal),
+                               0L, 255L));
               }
             }
           }
@@ -2082,12 +2101,12 @@ struct RealLiveRuntime::Impl {
         now - transitionStart < Uint64(transitionMs)) {
       const auto elapsed =
           std::min<Uint64>(now - transitionStart, transitionMs);
-      const auto step = transitionStyle == 4 || transitionStyle == 5
-                            ? (elapsed * 64 + transitionMs - 1) / transitionMs
-                            : isScrollTransitionStyle(transitionStyle)
-                                  ? elapsed * std::max(canvasW, canvasH) /
-                                        transitionMs
-                                  : elapsed * 255 / transitionMs;
+      const auto step =
+          transitionStyle == 4 || transitionStyle == 5
+              ? (elapsed * 64 + transitionMs - 1) / transitionMs
+          : isScrollTransitionStyle(transitionStyle)
+              ? elapsed * std::max(canvasW, canvasH) / transitionMs
+              : elapsed * 255 / transitionMs;
       key << " transition " << transitionStart << ' ' << transitionStyle << ' '
           << step;
     }
@@ -2164,8 +2183,7 @@ struct RealLiveRuntime::Impl {
         transitionOld &&
         (transitionStyle == 10 || transitionStyle == 120 ||
          isScrollTransitionStyle(transitionStyle) ||
-         ((transitionStyle == 4 || transitionStyle == 5) &&
-          !prepareDither(r)));
+         ((transitionStyle == 4 || transitionStyle == 5) && !prepareDither(r)));
     const bool upscale = imageUpscaling.enabled();
     const auto key = sceneFingerprint();
     if (!upscale || !filteredScene || sceneKey != key) {
@@ -2310,7 +2328,13 @@ struct RealLiveRuntime::Impl {
   }
   void stopBgm() {
     bgm.Stop();
-    fadeDuration = fadeElapsed = 0;
+    // A fade-out leaves bgmGain at zero; without this reset the next
+    // explicitly requested track would inherit silence because playClip()
+    // reapplies the stored gain.
+    bgmGain = bgmGainAfterStop(bgmGain);
+    fadeFrom = fadeTo = 1.0f;
+    fadeElapsed = fadeDuration = 0;
+    fadeStops = false;
     bgmScriptPaused = false;
     musicID.clear();
   }
@@ -2863,7 +2887,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         const bool hasCondition = !condition.condition.empty();
         if (hasCondition) {
           const char *expr = condition.condition.c_str();
-          value = libreallive::GetExpression(expr).GetIntegerValue(machine) != 0;
+          value =
+              libreallive::GetExpression(expr).GetIntegerValue(machine) != 0;
         }
         std::optional<int> colour;
         if (condition.effect == libreallive::SelectElement::OPTION_TITLE &&
@@ -2893,8 +2918,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     // select_w embeds a text-window override; -1 uses DEFAULT_SEL_WINDOW.
     const int requestedWindow =
         op == 0 ? s->GetWindowExpression().GetIntegerValue(machine) : -1;
-    const int activeWindow = selectWindowIndex(
-        selectionWindow, requestedWindow);
+    const int activeWindow =
+        selectWindowIndex(selectionWindow, requestedWindow);
     static_cast<RealLiveSelection &>(*choice).configure(activeWindow);
     if (options.empty()) {
       // A script may intentionally hide every branch until its conditions
@@ -3525,7 +3550,9 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
   }
   if (type == 1 && m == 20) {
-    if (op == 0 || op == 1 || op == 2 || op == 3) {
+    // Music starts here and nowhere else: boot/logo scenarios contain no
+    // module 20 command, so no track is loaded before this opcode executes.
+    if (bgmStartsPlayback(op)) {
       auto name = str(c, 0);
       for (auto &ch : name)
         if (ch >= 'A' && ch <= 'Z')
@@ -3554,9 +3581,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       machine.set_store_register(bgm.Playing() ? 1 : 0);
       return true;
     case BgmCommandKind::Status:
-      machine.set_store_register(bgm.Playing()
-                                     ? (bgmScriptPaused ? 2 : 1)
-                                     : 0);
+      machine.set_store_register(bgm.Playing() ? (bgmScriptPaused ? 2 : 1) : 0);
       return true;
     case BgmCommandKind::Gain:
       machine.set_store_register(gainToNativeBgm(bgmGain));
@@ -3750,8 +3775,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     if (op == 10 && c.GetParamCount() >= 2) {
       auto mapping = audio.soundEffects.find(value(c, 0));
       if (mapping != audio.soundEffects.end())
-        setSoundVolume(mapping->second.channel, value(c, 1),
-                       value(c, 2, 0));
+        setSoundVolume(mapping->second.channel, value(c, 1), value(c, 2, 0));
       return true;
     }
     if (op == 10)
@@ -3761,17 +3785,17 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     if (op == 3) {
       const int channel = value(c, 0, 0);
       const auto found = sounds.find(channel);
-      audioWait.forPcm(
-          channel, found != sounds.end() && found->second &&
-                       found->second->Playing());
+      audioWait.forPcm(channel, found != sounds.end() && found->second &&
+                                    found->second->Playing());
       return true;
     }
     if (op == 4) {
       const int channel = value(c, 0, 0);
       const auto found = sounds.find(channel);
-      machine.set_store_register(
-          found != sounds.end() && found->second &&
-                  found->second->Playing() ? 1 : 0);
+      machine.set_store_register(found != sounds.end() && found->second &&
+                                         found->second->Playing()
+                                     ? 1
+                                     : 0);
       return true;
     }
     if (op == 0 || op == 2) {
@@ -3826,18 +3850,15 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       return true;
     }
     if (op == 10 && c.GetParamCount() >= 2) {
-      setSoundVolume(value(c, 0), value(c, 1),
-                     value(c, 2, 0));
+      setSoundVolume(value(c, 0), value(c, 1), value(c, 2, 0));
       return true;
     }
     if (op == 12 && c.GetParamCount() >= 2) {
-      setSoundVolume(value(c, 0), value(c, 1),
-                     value(c, 2, 0));
+      setSoundVolume(value(c, 0), value(c, 1), value(c, 2, 0));
       return true;
     }
     if (op == 13 || op == 14) {
-      setSoundVolume(value(c, 0), op == 13 ? 255 : 0,
-                     value(c, 1, 0));
+      setSoundVolume(value(c, 0), op == 13 ? 255 : 0, value(c, 1, 0));
       return true;
     }
     if (op == 105) {
@@ -3859,9 +3880,19 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     if (op == 1 || op == 20)
       return true;
     if (op == 0) {
+      // Retail AIR calls 1:26:0("op_air.mpg", ...); other editions ship the
+      // same name without an extension or with uppercase extensions. Resolve
+      // through the public AssetProvider API so overlays and VFS mounts work,
+      // and never build a doubled ".mpg.mpg" identifier.
       std::string id = "MOV/" + str(c, 0);
-      if (!assets->contains(id))
-        id += ".mpg";
+      if (!assets->contains(id)) {
+        const std::string withMpg = id + ".mpg";
+        const std::string withUpperMpg = id + ".MPG";
+        if (assets->contains(withMpg))
+          id = withMpg;
+        else if (assets->contains(withUpperMpg))
+          id = withUpperMpg;
+      }
       movie->open(*assets, id, false, "BGM");
       videoSkip.reset();
       return true;
@@ -3885,7 +3916,9 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         o.anmSet = std::clamp(set, 0, int(o.anm->sets.size()) - 1);
         o.anmStart = SDL_GetTicks();
         o.anmPlaying = true;
-        wait(anmSetDuration(*o.anm, o.anmSet));
+        const auto duration = anmSetDuration(*o.anm, o.anmSet);
+        wait(static_cast<int>(std::min(
+            duration, static_cast<Uint64>(std::numeric_limits<int>::max()))));
         return true;
       }
       value(c, 0);
@@ -4086,10 +4119,14 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
       return true;
     case 1034:
+      // objDispRect(buf, x, y, w, h): the last two parameters are a width
+      // and a height, NOT inclusive x2/y2. AIR 9031:97 passes
+      // (240, 170, 160, 120); the old subtraction produced negative extents,
+      // so SDL ignored the clip and the entire KEYLOGO0 texture map (all
+      // blur/color stages) was drawn at once.
       o.clipped = over == 1 || c.GetParamCount() >= 5;
       if (o.clipped)
-        o.clip = {value(c, 1), value(c, 2), value(c, 3) - value(c, 1) + 1,
-                  value(c, 4) - value(c, 2) + 1};
+        o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
       return true;
     case 1016:
       o.colour = {Uint8(value(c, 1)), Uint8(value(c, 2)), Uint8(value(c, 3)),
@@ -4154,10 +4191,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         break;
       }
       case 1034:
+        // Bulk form of objDispRect: first/last object range, then x,y,w,h.
         o.clipped = over == 1 || c.GetParamCount() >= 6;
         if (o.clipped)
-          o.clip = {value(c, 2), value(c, 3), value(c, 4) - value(c, 2) + 1,
-                    value(c, 5) - value(c, 3) + 1};
+          o.clip = {value(c, 2), value(c, 3), value(c, 4), value(c, 5)};
         break;
       case 1040:
         o.clipped = over == 1 || c.GetParamCount() >= 6;
@@ -5010,9 +5047,8 @@ void RealLiveRuntime::update() {
   if (paused && i.autoDeadline)
     i.autoDeadline += delta;
   if (!paused) {
-    i.voiceLevels.advance(delta, [&](int, float gain, bool) {
-      i.voice.SetGain(gain);
-    });
+    i.voiceLevels.advance(
+        delta, [&](int, float gain, bool) { i.voice.SetGain(gain); });
     i.soundLevels.advance(delta, [&](int channel, float gain, bool stop) {
       const auto found = i.sounds.find(channel);
       if (found != i.sounds.end() && found->second) {
@@ -5068,11 +5104,12 @@ void RealLiveRuntime::update() {
         i.advanceText(false);
     }
   }
-  const bool audioBlocked = i.audioWait.blocks(i.voice.Playing(), [&](int channel) {
-    const auto found = i.sounds.find(channel);
-    return found != i.sounds.end() && found->second &&
-           found->second->Playing();
-  });
+  const bool audioBlocked =
+      i.audioWait.blocks(i.voice.Playing(), [&](int channel) {
+        const auto found = i.sounds.find(channel);
+        return found != i.sounds.end() && found->second &&
+               found->second->Playing();
+      });
   if (paused || i.pause || i.choice->isActive() || !i.error.empty() ||
       SDL_GetTicks() < i.deadline || audioBlocked)
     return;
@@ -5084,8 +5121,8 @@ void RealLiveRuntime::update() {
   i.refreshRequested = false;
   for (int n = 0;
        n < 3000 && !i.refreshRequested && !i.pause && !i.choice->isActive() &&
-       i.error.empty() && SDL_GetTicks() >= i.deadline &&
-       !i.movie->isOpen() && !i.audioWait.active();
+       i.error.empty() && SDL_GetTicks() >= i.deadline && !i.movie->isOpen() &&
+       !i.audioWait.active();
        ++n)
     try {
       if (!i.vm.step())
@@ -5115,8 +5152,8 @@ void RealLiveRuntime::saveGame(const std::string &path) {
       << std::quoted(i.dialogue) << ' ' << std::quoted(i.speakerName) << ' '
       << i.pauseKind << '\n';
   out << std::quoted(i.musicID) << ' ' << i.musicLoop << ' ' << i.musicEnd
-      << ' ' << i.musicLoopStart << ' ' << std::setprecision(17)
-      << [&]() {
+      << ' ' << i.musicLoopStart << ' ' << std::setprecision(17) <<
+      [&]() {
         // PcmPlayer::Position() returns seconds using the source clip rate.
         const auto rate = std::max(i.musicRate, 1);
         auto frame = i.bgm.Position() * rate;
@@ -5194,8 +5231,8 @@ void RealLiveRuntime::saveGame(const std::string &path) {
   for (const auto &[id, pixels] : i.dc)
     out << id << ' ' << indices.at(i.dcImage(id).get()) << '\n';
   out << i.mouseCursorNumber << '\n';
-  writeReadProgress(out, ReadProgress{
-      i.bgmScriptPaused, i.currentPage, i.readPages});
+  writeReadProgress(
+      out, ReadProgress{i.bgmScriptPaused, i.currentPage, i.readPages});
   VNSave save;
   save.nodeId = i.vm.scenario();
   save.gameData = out.str();
@@ -5265,7 +5302,7 @@ void RealLiveRuntime::loadGame(const std::string &path) {
            version == "REALLIVE-PRESENTATION-4" ||
            (version == "REALLIVE-PRESENTATION-5" ||
             version == "REALLIVE-PRESENTATION-6" ||
-             version == "REALLIVE-PRESENTATION-7")) &&
+            version == "REALLIVE-PRESENTATION-7")) &&
           (!(in >> o.frameMs >> o.animationElapsed) || o.frameMs < 0))
         invalid();
       if (version == "REALLIVE-PRESENTATION-4" ||
@@ -5399,7 +5436,7 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   if (version != "REALLIVE-PRESENTATION-4" &&
       version != "REALLIVE-PRESENTATION-5" &&
       version != "REALLIVE-PRESENTATION-6" &&
-       version != "REALLIVE-PRESENTATION-7") {
+      version != "REALLIVE-PRESENTATION-7") {
     const auto restoreAdjustments = [&](std::map<int, Object> &objects) {
       for (auto &[id, o] : objects)
         for (size_t slot = 0; slot < o.adjustments.size(); ++slot) {
@@ -5477,8 +5514,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.textbox->completeDialogue();
   i.textbox->show();
   if (!music.empty())
-    i.play(i.bgm, music, "BGM", loop, 0, end,
-           loopStart, bgmResumeMilliseconds(position));
+    i.play(i.bgm, music, "BGM", loop, 0, end, loopStart,
+           bgmResumeMilliseconds(position));
   i.bgmGain = gain;
   i.fadeFrom = fadeFrom;
   i.fadeTo = fadeTo;
@@ -5487,8 +5524,8 @@ void RealLiveRuntime::loadGame(const std::string &path) {
   i.fadeStops = fadeStops;
   i.audioTick = SDL_GetTicks();
   i.bgm.SetGain(gain);
-  i.bgmScriptPaused = version == "REALLIVE-PRESENTATION-7" &&
-                      restoredProgress.bgmScriptPaused;
+  i.bgmScriptPaused =
+      version == "REALLIVE-PRESENTATION-7" && restoredProgress.bgmScriptPaused;
   i.bgm.SetPaused(isStoryPaused() || i.bgmScriptPaused);
   i.selectMouseCursor(restoredMouseCursor);
   if (version == "REALLIVE-PRESENTATION-7")

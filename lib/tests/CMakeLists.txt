@@ -155,6 +155,13 @@ add_test(NAME Kotonoha.Presentation COMMAND KotonohaPresentationTests)
 set_tests_properties(Kotonoha.Presentation PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
+# Per-texture policy: MetalFX must use the whole-frame path, never per sprite.
+add_executable(KotonohaUpscalerPolicyTests UpscalerPolicyTests.cpp)
+target_link_libraries(KotonohaUpscalerPolicyTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.UpscalerPolicy COMMAND KotonohaUpscalerPolicyTests)
+set_tests_properties(Kotonoha.UpscalerPolicy PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+
 find_program(KOTONOHA_TEST_FFMPEG ffmpeg)
 if(KOTONOHA_TEST_FFMPEG)
     add_executable(KotonohaAudioBufferTests AudioBufferTests.cpp)
@@ -216,14 +223,23 @@ target_link_libraries(KotonohaDebugTranslationTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.DebugTranslation COMMAND KotonohaDebugTranslationTests)
 set_tests_properties(Kotonoha.DebugTranslation PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
-add_executable(KotonohaPs2SoundBankTests Ps2SoundBankTests.cpp)
-target_link_libraries(KotonohaPs2SoundBankTests PRIVATE KotonohaEngine)
-add_test(NAME Kotonoha.Ps2SoundBank COMMAND KotonohaPs2SoundBankTests)
 
 add_executable(KotonohaNativeInputTests NativeInputTests.cpp)
 target_link_libraries(KotonohaNativeInputTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.NativeInput COMMAND KotonohaNativeInputTests)
 set_tests_properties(Kotonoha.NativeInput PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+
+add_executable(KotonohaSaveImageTests SaveImageTests.cpp)
+target_link_libraries(KotonohaSaveImageTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.SaveImage COMMAND KotonohaSaveImageTests)
+set_tests_properties(Kotonoha.SaveImage PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+
+add_executable(KotonohaPrefetchTests Prefetch/PrefetchTests.cpp)
+target_link_libraries(KotonohaPrefetchTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.Prefetch COMMAND KotonohaPrefetchTests)
+set_tests_properties(Kotonoha.Prefetch PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
 # The Windows loader does not search the engine DLL output directory when CTest

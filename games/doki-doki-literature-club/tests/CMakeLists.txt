@@ -45,6 +45,12 @@ target_link_libraries(DdlcSyntheticFlowTest PRIVATE doki_doki_literature_club)
 add_test(NAME DokiDoki.SyntheticFlow COMMAND DdlcSyntheticFlowTest)
 set_tests_properties(DokiDoki.SyntheticFlow PROPERTIES TIMEOUT 45)
 
+# Synthetic renpy.movie_cutscene script: no retail video assets are required.
+add_executable(DdlcMovieCutsceneTest DdlcMovieCutsceneTest.cpp)
+target_link_libraries(DdlcMovieCutsceneTest PRIVATE doki_doki_literature_club)
+add_test(NAME Ddlc.MovieCutscene COMMAND DdlcMovieCutsceneTest)
+set_tests_properties(Ddlc.MovieCutscene PROPERTIES TIMEOUT 45)
+
 set(DDLC_DATA_DIR "" CACHE PATH
     "Doki Doki Literature Club game directory for the retail-data tests")
 if(DDLC_DATA_DIR)

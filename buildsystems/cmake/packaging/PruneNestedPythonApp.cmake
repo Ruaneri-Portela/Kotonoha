@@ -1,6 +1,7 @@
-# Python.framework provided by Homebrew can contain a Python.app helper under
-# Versions/<version>/Resources. This nested executable is not required for
-# CPython embedding and must not remain inside the signed Kotonoha .app.
+# Python.framework (Homebrew) and Python3.framework (Xcode) can contain a
+# Python.app helper under Versions/<version>/Resources. This nested executable
+# is not required for CPython embedding and must not remain inside the signed
+# Kotonoha .app.
 # Only touch the staged framework directory; never modify the Python install.
 include_guard(GLOBAL)
 

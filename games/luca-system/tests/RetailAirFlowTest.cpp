@@ -15,8 +15,8 @@
 #include <LucaSystem/LucaSystemAssets.hpp>
 #include <LucaSystem/LucaSystemRuntime.hpp>
 #include <LucaSystem/LucaSystemScript.hpp>
-#include <LucaSystem/SceneLayers.hpp>
 #include <LucaSystem/SaveState.hpp>
+#include <LucaSystem/SceneLayers.hpp>
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -429,6 +429,16 @@ void checkSaveGrid(
   runtime.update();
   require(!runtime.isStoryPaused() && runtime.isMoviePlaying(),
           "closing pause resumes the same opening");
+
+  // seen170 contains both AIR opening movies (evidence: AIR.exe SHA-256
+  // 48439f7e... strings `AIR_OP_A`/`AIR_OP_B`, and the two OP_MOVIE
+  // instructions at byte offsets 15604 and 15640). The second cutscene must
+  // resolve through the same provider path and block the script as well.
+  runtime.skipMovie();
+  runAt(15640);
+  require(runtime.isMoviePlaying() && runtime.activeBgmId() == 0,
+          "AIR_OP_B: second opening resolves and owns its embedded audio");
+  runtime.skipMovie();
   std::cout << "AIR save grid: original Save/Load art, title, pause, paging, "
                "native .vn previews, write/load and cancellation verified\n";
 }
@@ -610,8 +620,8 @@ int main(int argc, char **argv) {
       airPath = env;
 
     if (airPath.empty() || !std::filesystem::exists(airPath)) {
-      std::cout << "skip - LUCA_SYSTEM_TEST_DATA not provided\n";
-      return 0;
+      std::cerr << "[SKIP] LUCA_SYSTEM_TEST_DATA not provided or invalid\n";
+      return 77;
     }
 
     SDL_SetAppMetadata("LucaSystem Retail Test", "0.1.0",
@@ -764,9 +774,8 @@ int main(int argc, char **argv) {
             "EQUN 16-bit variable assignment set #30001=1280, #30002=720");
 
     bool sawLayeredExpression = false;
-    for (int step = 0; step < 3000 &&
-                        runtime.currentScenarioName() == "seen190";
-         ++step) {
+    for (int step = 0;
+         step < 3000 && runtime.currentScenarioName() == "seen190"; ++step) {
       if (runtime.visibleLayerCount() >= 3) {
         sawLayeredExpression = true;
         break;

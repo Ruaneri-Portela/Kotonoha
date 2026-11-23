@@ -274,10 +274,10 @@ std::vector<std::uint8_t> Script::replaceRawAtOffsets(
                               std::to_string(offset));
     const auto &instruction = instructions_[*index];
     if (payload.size() != instruction.rawBytes.size())
-      throw std::invalid_argument(
-          name_ + ": payload size differs at offset " +
-          std::to_string(offset) + " (expected " +
-          std::to_string(instruction.rawBytes.size()) + " bytes)");
+      throw std::invalid_argument(name_ + ": payload size differs at offset " +
+                                  std::to_string(offset) + " (expected " +
+                                  std::to_string(instruction.rawBytes.size()) +
+                                  " bytes)");
     std::copy(payload.begin(), payload.end(),
               output.begin() + static_cast<std::size_t>(offset) + 4);
   }

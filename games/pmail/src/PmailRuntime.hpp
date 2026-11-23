@@ -12,6 +12,10 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <SnowRadish/Pack.hpp>
+#include <SnowRadish/PackAnimation.hpp>
+#include <SnowRadish/PackAudio.hpp>
+#include <SnowRadish/PackImage.hpp>
+
 #include <SnowRadish/SnowAssets.hpp>
 
 #include <map>

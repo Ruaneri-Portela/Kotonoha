@@ -4,6 +4,7 @@
 
 #include <Kotonoha/Filesystem/FileHandle.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <filesystem>
@@ -106,18 +107,18 @@ std::vector<std::uint8_t> buildSyntheticPfs(
 void testSha1() {
   // RFC 3174: SHA-1("abc") = a9993e364706816aba3e25717850c26c9cd0d89d
   const char *msg = "abc";
-  const auto digest = Artemis::PfsArchive::sha1(
-      reinterpret_cast<const std::uint8_t *>(msg), 3);
-  const std::uint8_t expected[20] = {
-      0xa9, 0x99, 0x3e, 0x36, 0x47, 0x06, 0x81, 0x6a, 0xba, 0x3e,
-      0x25, 0x71, 0x78, 0x50, 0xc2, 0x6c, 0x9c, 0xd0, 0xd8, 0x9d};
+  const auto digest =
+      Artemis::PfsArchive::sha1(reinterpret_cast<const std::uint8_t *>(msg), 3);
+  const std::uint8_t expected[20] = {0xa9, 0x99, 0x3e, 0x36, 0x47, 0x06, 0x81,
+                                     0x6a, 0xba, 0x3e, 0x25, 0x71, 0x78, 0x50,
+                                     0xc2, 0x6c, 0x9c, 0xd0, 0xd8, 0x9d};
   assert(std::memcmp(digest.data(), expected, 20) == 0);
 }
 
 void testPf8AndPf6Streaming() {
   const std::string payload(100, 'A');
-  const std::string longPayload =
-      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()";
+  const std::string longPayload = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGH"
+                                  "IJKLMNOPQRSTUVWXYZ!@#$%^&*()";
 
   auto pf8Bytes = buildSyntheticPfs(
       '8', {{"system.ini", "[WINDOWS]\nWIDTH = 1600\nHEIGHT = 900\n"},
@@ -144,10 +145,10 @@ void testPf8AndPf6Streaming() {
   assert(std::string(slice.begin(), slice.end()) == longPayload.substr(17, 25));
 
   // Test unencrypted pf6 overlay.
-  auto pf6Bytes = buildSyntheticPfs(
-      '6', {{"script\\gamestart.ast", "PATCHED_PF6_CONTENT"},
-            {"sound\\bgm\\bgm01_a.ogg", "INTRO"},
-            {"sound\\bgm\\bgm01_b.ogg", "LOOP"}});
+  auto pf6Bytes =
+      buildSyntheticPfs('6', {{"script\\gamestart.ast", "PATCHED_PF6_CONTENT"},
+                              {"sound\\bgm\\bgm01_a.ogg", "INTRO"},
+                              {"sound\\bgm\\bgm01_b.ogg", "LOOP"}});
   auto pf6 = Artemis::PfsArchive::open(
       std::make_unique<MemoryFileHandle>(std::move(pf6Bytes)), "test.pfs.000");
   assert(pf6 != nullptr);
@@ -185,8 +186,8 @@ void testMultiVolumeDirectoryOverlay() {
   writeBin("root.pfs",
            buildSyntheticPfs('8', {{"script\\01_c00.ast", "BASE_SCRIPT"},
                                    {"image\\bg\\bg01.png", "BASE_BG"}}));
-  writeBin("root.pfs.000",
-           buildSyntheticPfs('8', {{"script\\01_c00.ast", "PATCH_000_SCRIPT"}}));
+  writeBin("root.pfs.000", buildSyntheticPfs('8', {{"script\\01_c00.ast",
+                                                    "PATCH_000_SCRIPT"}}));
   writeBin("root.pfs.001",
            buildSyntheticPfs('6', {{"image\\bg\\bg01.png", "PATCH_001_BG"}}));
 
@@ -203,12 +204,66 @@ void testMultiVolumeDirectoryOverlay() {
   std::filesystem::remove_all(tmpDir);
 }
 
+void testNativeUiResolution() {
+  const auto dir = std::filesystem::temp_directory_path() /
+                   "kotonoha_artemis_ui_test";
+  std::filesystem::remove_all(dir);
+  std::filesystem::create_directories(dir);
+  const std::string uiTable =
+      "lang = {\n"
+      "\tui_title01_en = {\n"
+      "\t\tbt_start = { name=\"bt_start\", file=\"title/bt_new_game\", "
+      "x=30, y=744, w=278, h=121, p1=\"start\", p2=\"gamestart\" },\n"
+      "\t\tbg = { name=\"bg\", file=\"title/background_2a\", "
+      "x=0, y=0, w=1600, h=900 },\n"
+      "\t},\n"
+      "}\n";
+  const auto writeBin = [](const std::filesystem::path &path,
+                           const std::vector<std::uint8_t> &bytes) {
+    std::ofstream output(path, std::ios::binary);
+    output.write(reinterpret_cast<const char *>(bytes.data()),
+                 static_cast<std::streamsize>(bytes.size()));
+  };
+  writeBin(dir / "root.pfs",
+           buildSyntheticPfs('8', {
+                                      {"system.ini", "[WINDOWS]\nWIDTH=1600\n"
+                                                     "HEIGHT=900\n"
+                                                     "BOOT=system/first.iet\n"},
+                                      {"script\\gamestart.ast", "GAME_START"},
+                                      {"system\\table\\list_windows_en.tbl", uiTable},
+                                      {"pc\\en\\title\\bt_new_game.png", "PNG"},
+                                      {"pc\\en\\title\\background_trial.png",
+                                       "TRIAL_BG"},
+                                  }));
+
+  Artemis::ArtemisAssets assets(dir.string());
+  assert(assets.systemConfig().bootFile == "system/first.iet");
+  const auto languages = assets.uiLanguages();
+  assert(std::find(languages.begin(), languages.end(), "en") !=
+         languages.end());
+  assert(assets.uiTablePath() == "system/table/list_windows_en.tbl");
+  assert(assets.resolveUiImagePath("title/bt_new_game") ==
+         "pc/en/title/bt_new_game.png");
+  assert(assets.resolveUiImagePath("title/does_not_exist").empty());
+  // Build-variant fallback: the table names background_2a while the
+  // shipped build contains only background_trial.png.
+  assert(assets.resolveUiImagePath("title/background_2a") ==
+         "pc/en/title/background_trial.png");
+  assets.setUiLanguage("ja");
+  assert(assets.uiLanguage() == "ja");
+  // Only the English table exists in this synthetic archive.
+  assert(assets.uiTablePath().empty());
+
+  std::filesystem::remove_all(dir);
+}
+
 } // namespace
 
 int main() {
   testSha1();
   testPf8AndPf6Streaming();
   testMultiVolumeDirectoryOverlay();
+  testNativeUiResolution();
   std::cout << "[PfsArchiveTest] All tests passed!\n";
   return 0;
 }

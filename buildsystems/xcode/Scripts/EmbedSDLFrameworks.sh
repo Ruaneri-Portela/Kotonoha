@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# Embed SDL3 and SDL3_ttf into the app after Xcode's Copy Bundle Resources phase.
-# Frameworks must have been built for the target SDK and configuration beforehand.
+# Embed the SDL3 and SDL3_ttf frameworks built by the SDL Xcode subprojects
+# into the app, verify the Xcode-signed Kotonoha frameworks, and copy the
+# remaining @rpath dylibs from the active vcpkg install root.
+#
+# SDL3 / SDL3_ttf come from lib/submodules (dynamic frameworks); other
+# dependencies come from vcpkg. The vcpkg copy loop is required so the launcher
+# does not fail at launch with "Library not loaded" for json-c / ffmpeg / ass.
 set -euo pipefail
 
 note() { printf '[Kotonoha/Bundle] %s\n' "$*"; }
@@ -105,4 +110,78 @@ ttf=$(find_framework SDL3_ttf "${KOTONOHA_SDL3_TTF_FRAMEWORK_PATH:-}" "${ttf_bas
 
 install_framework SDL3 "${sdl}"
 install_framework SDL3_ttf "${ttf}"
-note "Both SDL frameworks and both asset directories are present for ${TARGET_NAME:-app}"
+note "Both SDL frameworks are present for ${TARGET_NAME:-app}"
+
+# KotonohaEngine.framework / KotonohaImGui.framework are embedded and signed by
+# Xcode's "Embed Frameworks" phase (CodeSignOnCopy). Verify that those signed
+# binaries are still present and valid; never re-sign or replace them here.
+if [[ "${CODE_SIGNING_ALLOWED:-NO}" == "YES" ]]; then
+  command -v codesign >/dev/null 2>&1 || fatal 'codesign not available for verifying embedded frameworks'
+  for name in KotonohaEngine KotonohaImGui; do
+    fw="${framework_destination}/${name}.framework"
+    [[ -d "${fw}" ]] || continue
+    [[ -f "${fw}/${name}" ]] || fatal "Embedded ${name}.framework has no binary"
+    codesign --verify "${fw}" || fatal "Signature verification failed for ${fw}"
+    note "Verified signature of embedded ${name}.framework"
+  done
+fi
+
+# Copy every @rpath dependency from the active vcpkg root into the app bundle
+# so @executable_path/Frameworks can resolve json-c, ffmpeg, ass, etc. at launch.
+vcpkg_lib="${KOTONOHA_VCPKG_LIB:-}"
+if [[ -n "${vcpkg_lib}" && -d "${vcpkg_lib}" ]]; then
+  copied=0
+  while :; do
+    changed=0
+    while IFS= read -r dep; do
+      [[ "${dep}" == @rpath/* ]] || continue
+      name="${dep#@rpath/}"
+      dest="${framework_destination}/${name}"
+      [[ -e "${dest}" ]] && continue
+      src="${vcpkg_lib}/${name}"
+      if [[ ! -e "${src}" ]]; then
+        note "WARNING: @rpath dependency ${name} is not in ${vcpkg_lib}"
+        continue
+      fi
+      mkdir -p "${framework_destination}"
+      ditto "${src}" "${dest}"
+      if [[ "${CODE_SIGNING_ALLOWED:-NO}" == "YES" ]]; then
+        command -v codesign >/dev/null 2>&1 || fatal 'codesign not available for signing embedded dylibs'
+        local_identity="${EXPANDED_CODE_SIGN_IDENTITY:-}"
+        [[ -n "${local_identity}" ]] || local_identity='-'
+        codesign --force --sign "${local_identity}" --timestamp=none "${dest}" || \
+          fatal "Could not sign embedded dylib ${dest}"
+      fi
+      copied=$((copied + 1))
+      changed=1
+    done < <(
+      {
+        otool -L "${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}" 2>/dev/null || true
+        for fw in "${framework_destination}"/*.framework; do
+          [[ -f "${fw}/$(basename "${fw%.framework}")" ]] || continue
+          otool -L "${fw}/$(basename "${fw%.framework}")" 2>/dev/null || true
+        done
+        for dylib in "${framework_destination}"/*.dylib; do
+          [[ -e "${dylib}" ]] || continue
+          otool -L "${dylib}" 2>/dev/null || true
+        done
+      } | awk '{print $1}'
+    )
+    [[ "${changed}" -eq 1 ]] || break
+  done
+  note "Embedded ${copied} dynamic vcpkg library dependency/ dependencies"
+fi
+# Install iOS art from the versioned design/generated/ source of truth into
+# the bundle root (the location CFBundleIcons expects) without changing the
+# shared Info.plist. Never stage the design/ folder as a generic asset.
+if [[ "${PLATFORM_NAME:-}" == iphoneos || "${PLATFORM_NAME:-}" == iphonesimulator ]]; then
+  brand="${repo}/design/generated"
+  python3 "${repo}/tools/generate_brand_assets.py" --kind apple --out "${brand}"
+  cp "${brand}/apple/AppIcon-120.png" "${resources_destination}/KotonohaIcon120.png"
+  cp "${brand}/apple/AppIcon-180.png" "${resources_destination}/KotonohaIcon180.png"
+  cp "${brand}/apple/AppIcon-76.png" "${resources_destination}/KotonohaIcon76.png"
+  cp "${brand}/apple/AppIcon-1024.png" "${resources_destination}/KotonohaIcon1024.png"
+  cp "${brand}/splash/SPLASH.PNG" "${resources_destination}/assets/SPLASH.PNG"
+  note "Installed iOS AppIcon sizes and black universal splash"
+fi
+note "Both SDL frameworks, vcpkg dylibs and both asset directories are present for ${TARGET_NAME:-app}"

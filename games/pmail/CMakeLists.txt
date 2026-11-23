@@ -80,6 +80,18 @@ if(BUILD_TESTING)
     add_executable(LargePonPonCheck tests/LargePonPonTest.cpp)
     target_link_libraries(LargePonPonCheck PRIVATE PmailPort)
     add_test(NAME Pmail.LargePonPon COMMAND LargePonPonCheck)
+
+    # Retail gate for the Large PonPon runtime. The test is always registered
+    # so CTest reports it as skipped (exit 77) when no retail data is supplied;
+    # the binary never mutates the game directory.
+    set(LARGEPONPON_TEST_DATA "" CACHE PATH
+        "Large PonPon retail directory for integration tests")
+    add_test(NAME Pmail.LargePonPon.Retail COMMAND LargePonPonCheck
+        "${LARGEPONPON_TEST_DATA}")
+    set_tests_properties(Pmail.LargePonPon.Retail PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+        LABELS real SKIP_RETURN_CODE 77 TIMEOUT 300)
     # Build the route audit on all platforms, but run it only with retail
     # assets provided explicitly by the developer. Never run in default CI.
     add_executable(PmailRouteAuditCheck tests/RouteAudit.cpp)
@@ -115,6 +127,7 @@ if(BUILD_TESTING)
 endif()
 
 kotonoha_label_directory_tests(REAL
+    Pmail.LargePonPon.Retail
     Pmail.Audio
     Pmail.Graphics
     Pmail.RuntimeAudio

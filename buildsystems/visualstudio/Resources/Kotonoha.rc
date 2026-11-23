@@ -1,0 +1,40 @@
+// Shared Win32 resource script. Keep the macros unquoted: MSBuild's rc.exe
+// task wraps /D values in quotes and re-escaping them breaks rc.exe (RC1107).
+#ifndef KOTONOHA_ICON_PATH
+#define KOTONOHA_ICON_PATH design/generated/generic/icon.ico
+#endif
+#ifndef KOTONOHA_DISPLAY_NAME
+#define KOTONOHA_DISPLAY_NAME Kotonoha
+#endif
+#define KOTONOHA_STR(x) #x
+#define KOTONOHA_XSTR(x) KOTONOHA_STR(x)
+#define VOS__WINDOWS32 0x00040004L
+#define VFT_APP 0x1L
+#define VFT2_UNKNOWN 0x0L
+
+1 ICON KOTONOHA_ICON_PATH
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 0,1,0,0
+ PRODUCTVERSION 0,1,0,0
+ FILEFLAGSMASK 0x3fL
+ FILEOS VOS__WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "Kotonoha contributors"
+            VALUE "FileDescription", KOTONOHA_XSTR(KOTONOHA_DISPLAY_NAME)
+            VALUE "FileVersion", "0.1.0"
+            VALUE "ProductName", KOTONOHA_XSTR(KOTONOHA_DISPLAY_NAME)
+            VALUE "ProductVersion", "0.1.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

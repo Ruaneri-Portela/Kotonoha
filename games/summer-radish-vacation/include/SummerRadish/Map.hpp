@@ -1,5 +1,8 @@
 #pragma once
 #include <SummerRadish/Pack.hpp>
+#include <SummerRadish/Codec.hpp>
+#include <SummerRadish/Images.hpp>
+
 #include <array>
 #include <string>
 #include <vector>

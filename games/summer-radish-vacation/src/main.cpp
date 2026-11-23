@@ -32,9 +32,16 @@ struct App {
   long frames = -1;
   std::unique_ptr<Kotonoha::FolderGameLauncher> launcher;
   std::unique_ptr<Game> game;
-  void start(const std::string &directory) {
-    auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(
-        std::filesystem::path(directory), options.assetOverlayDirectory());
+  void start(const std::string &directory, const std::string &disc2 = {}) {
+    auto assets = disc2.empty()
+                      ? std::make_shared<Kotonoha::Providers::SummerAssets>(
+                            std::filesystem::path(directory),
+                            options.assetOverlayDirectory())
+                      : std::make_shared<Kotonoha::Providers::SummerAssets>(
+                            Kotonoha::Providers::MultiDisc{},
+                            std::filesystem::path(directory),
+                            std::filesystem::path(disc2),
+                            options.assetOverlayDirectory());
     assets->setOverlay(options.assetOverlayDirectory());
     game = std::make_unique<Game>(assets, options);
   }
@@ -65,10 +72,12 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     auto app = std::make_unique<App>();
     auto &options = app->options;
     options.persistSettings = true;
-    std::string directory;
+    std::string directory, disc2;
     Kotonoha::CommandLine cli("SummerRadish", options);
     cli.option("--summer", "DIRECTORY|ISO", "Game data directory or ISO image",
                directory);
+    cli.option("--summer-disc2", "DIRECTORY",
+               "Second disc directory for multi-disc installations", disc2);
     cli.parse(argc, argv);
     if (cli.wantsHelp()) {
       std::fputs(cli.help().c_str(), stdout);
@@ -82,12 +91,21 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
     const auto settingsPath =
         options.persistSettings ? options.settingsPath : std::string();
     const auto env = SDL_getenv("SUMMER_DIR");
-    directory = Kotonoha::GameLauncher::findGamePath(
-        "summer-radish-vacation",
-        {directory, env ? env : "",
-         Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
-         Kotonoha::gameAssetDirectory("summer-radish-vacation").string()},
-        validate);
+    if (disc2.empty()) {
+      directory = Kotonoha::GameLauncher::findGamePath(
+          "summer-radish-vacation",
+          {directory, env ? env : "",
+           Kotonoha::GameLauncher::rememberedPath(settingsPath, "dir.txt"),
+           Kotonoha::gameAssetDirectory("summer-radish-vacation").string()},
+          validate);
+    } else {
+      // A single disc cannot pass the combined-root probe (BGMDATA.CMP and
+      // VOICE.CMP live on DISC2), so validate the pair through SummerAssets.
+      options.launcher = false;
+      if (directory.empty())
+        throw std::runtime_error(
+            "--summer DISC1 and --summer-disc2 DISC2 are required");
+    }
     // An explicit game source must not silently suppress the launcher.
     // --frames/--mcp and --no-launcher are handled by CommandLine.
     if (directory.empty() && !options.launcher)
@@ -101,7 +119,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **state, int argc, char **argv) {
       app->launcher->setAudioChannels({"BGM", "Voice", "Se"});
       app->launcher->open();
     } else {
-      app->start(directory);
+      app->start(directory, disc2);
     }
     *state = app.release();
     return SDL_APP_CONTINUE;

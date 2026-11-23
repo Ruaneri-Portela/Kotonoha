@@ -32,12 +32,14 @@ static void onMain(dispatch_block_t block) {
     dispatch_async(dispatch_get_main_queue(), block);
 }
 
-extern "C" void KotonohaMacPresentNativeLauncher(
-    KotonohaMacLaunchCallback onLaunch, KotonohaMacQuitCallback onQuit,
-    void *userData) {
+extern "C" void
+KotonohaMacPresentNativeLauncher(KotonohaMacLaunchCallback onLaunch,
+                                 KotonohaMacQuitCallback onQuit,
+                                 void *userData) {
   onMain(^{
     Class<KotonohaMacLauncherPresenterProtocol> cls = presenterClass();
-    if (!cls || ![cls respondsToSelector:@selector(presentWithOnLaunch:onQuit:)]) {
+    if (!cls ||
+        ![cls respondsToSelector:@selector(presentWithOnLaunch:onQuit:)]) {
       NSLog(@"[KotonohaLauncher] macOS SwiftUI presenter is unavailable");
       return;
     }

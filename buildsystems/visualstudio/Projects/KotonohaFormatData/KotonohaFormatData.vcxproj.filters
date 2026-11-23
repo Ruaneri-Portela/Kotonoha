@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats">
+      <UniqueIdentifier>{EABB7FE5-9CFE-5542-B36F-87FAED8426F6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\data">
+      <UniqueIdentifier>{CDF5C684-167B-5EEC-B678-79CE53EA46A1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\data\psb">
+      <UniqueIdentifier>{24A398CE-A475-50D6-BAB6-AC80A362AB62}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\data\psb\src">
+      <UniqueIdentifier>{E61B296B-B2E1-54B5-B2B7-503E594AAB67}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\formats\data\psb\src\PsbFile.cpp">
+      <Filter>modules\formats\data\psb\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

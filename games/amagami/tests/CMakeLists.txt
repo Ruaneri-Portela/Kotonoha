@@ -43,7 +43,8 @@ if(KOTONOHA_BUILD_HOST_TOOLS)
 endif()
 
 add_executable(AmagamiFormatsTest FormatsTest.cpp)
-target_link_libraries(AmagamiFormatsTest PRIVATE AmagamiFormats)
+target_link_libraries(AmagamiFormatsTest PRIVATE AmagamiFormats
+    kotonoha_format_tim2)
 add_test(NAME Amagami.Formats COMMAND AmagamiFormatsTest)
 set(AMAGAMI_DISC_IMAGE "" CACHE FILEPATH "Amagami Japan PS2 disc image for integration checks")
 if(AMAGAMI_DISC_IMAGE AND EXISTS "${AMAGAMI_DISC_IMAGE}" AND TARGET AmagamiInspect)

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats">
+      <UniqueIdentifier>{EABB7FE5-9CFE-5542-B36F-87FAED8426F6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image">
+      <UniqueIdentifier>{CD2175BE-AD41-5F35-9237-77DE41DA0D6F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\crgb">
+      <UniqueIdentifier>{58C7B509-5DBD-5B7D-BE72-C358F111A0F9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\crgb\src">
+      <UniqueIdentifier>{E110D7F7-3726-516B-B0CF-A4A6C0206438}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\cz">
+      <UniqueIdentifier>{EB667801-2E59-5388-A834-E89433519B42}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\cz\src">
+      <UniqueIdentifier>{08D8CC16-B8D9-5936-A6FB-18D4F3D14F90}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\evd">
+      <UniqueIdentifier>{51BB861D-8E8E-53CB-91FB-EFB0530F9C07}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\evd\src">
+      <UniqueIdentifier>{801A4FDF-9228-5BDF-A2B9-0239B1755FC2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\tex">
+      <UniqueIdentifier>{6B295BF5-5508-5433-BA45-B3451867B6C4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\tex\src">
+      <UniqueIdentifier>{B192D272-6017-538B-92F0-B710F1F54571}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\tim2">
+      <UniqueIdentifier>{B6A69F18-030D-5EF3-B180-05F3D21A7A67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\tim2\src">
+      <UniqueIdentifier>{B085DD4D-FC4D-5F48-B754-1FABC1C69816}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\tlg">
+      <UniqueIdentifier>{F351BE30-F7D4-58AB-BBEB-A418C5168CCC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\tlg\src">
+      <UniqueIdentifier>{8B24EA52-4675-5B71-ADAE-BF7582CC1A77}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\ui-atlas">
+      <UniqueIdentifier>{E296AEBC-72D0-5CB2-8119-1AEA100708DF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\image\ui-atlas\src">
+      <UniqueIdentifier>{4F5A4332-9DF1-5EED-9AF3-3C9AD4FF19B3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\formats\image\crgb\src\LargePonPonCodecs.cpp">
+      <Filter>modules\formats\image\crgb\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\image\cz\src\CzImage.cpp">
+      <Filter>modules\formats\image\cz\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\image\evd\src\PackImage.cpp">
+      <Filter>modules\formats\image\evd\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\image\tex\src\Codec.cpp">
+      <Filter>modules\formats\image\tex\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\image\tex\src\Images.cpp">
+      <Filter>modules\formats\image\tex\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\image\tim2\src\Ps2Tim2.cpp">
+      <Filter>modules\formats\image\tim2\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\image\tim2\src\VitaGraphics.cpp">
+      <Filter>modules\formats\image\tim2\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\image\tlg\src\Tlg6Image.cpp">
+      <Filter>modules\formats\image\tlg\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\image\tlg\src\TlgImage.cpp">
+      <Filter>modules\formats\image\tlg\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\formats\image\ui-atlas\src\VitaSystemGraphics.cpp">
+      <Filter>modules\formats\image\ui-atlas\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

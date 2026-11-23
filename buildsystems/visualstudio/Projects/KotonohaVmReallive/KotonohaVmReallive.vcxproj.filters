@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms">
+      <UniqueIdentifier>{45B28604-2082-520E-A52E-654FBA483FCF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\reallive">
+      <UniqueIdentifier>{296ED8C2-81E3-5C5C-9546-A70D9F702FF5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\reallive\src">
+      <UniqueIdentifier>{85367D65-E5EE-5C3A-82E2-93D606047331}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\vms\reallive\src\Session.cpp">
+      <Filter>modules\vms\reallive\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -44,7 +44,7 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Range, Content-Type")
         self.send_header("Access-Control-Expose-Headers",
                          "Content-Length, Content-Range, Accept-Ranges")
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
     def do_OPTIONS(self) -> None:

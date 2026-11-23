@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{283F518B-CA16-5581-A851-6546F3814AB7}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>MEO</RootNamespace>
+    <ProjectName>MEO</ProjectName>
+    <VcpkgEnabled>false</VcpkgEnabled>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <OutDir>$(KotonohaOutputDir)$(Configuration)\$(ProjectName)\</OutDir>
+    <IntDir>$(KotonohaIntermediateDir)$(ProjectName)\$(Configuration)\</IntDir>
+    <TargetName>MEO</TargetName>
+    <KotonohaDisplayName>MEO</KotonohaDisplayName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\games\meo\src\main.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\ChoiceQuestionScene.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\DisplayModeCatalog.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\FadeScene.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\ForcedSubtitleRenderer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\GameMenu.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\InGameMenu.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\SettingsMenu.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\SplashScreen.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\SubtitleScene.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\TextInputDialog.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\TextInputForm.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNBacklog.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNManager.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNSave.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNSaveMenu.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNTextBox.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\AssetOverlay.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\AssetProvider.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Clock.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\CommandLine.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\DiscImage.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Engine.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\GameLauncher.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\InputMapper.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Launcher.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\LauncherLocale.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Log.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\OpenGL.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\PresentedFrame.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Runtime.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Settings.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\UI.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\VisualTransition.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\WebAssetFetch.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\debug\DebugOverlay.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\debug\ImGuiTheme.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\debug\SystemInfo.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\debug\VoiceDubbingApplet.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\events\BackAction.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\events\BacklogEvents.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\events\InputActions.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\AtomicFile.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\Filesystem.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\Path.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\RemoteAssets.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\StoragePaths.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\adapters\BrowserBlobAdapter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\adapters\SDLIOAdapter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\adapters\StreamAdapter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\DirectoryMount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\FallbackMount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\ISO9660Mount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\LayeredMount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\TarMount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\sources\FetchAssetProvider.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\sources\SDLFileSource.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\localization\Encoding.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\localization\Translation.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\mcp\MCPServer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\AudioMixer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\MediaDecoder.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\MediaPlayer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\PcmPlayer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\SaveImage.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\SurfaceTexture.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\TextureAlpha.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\upscaling\MPVCompatibleUpscaler.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\upscaling\MetalFXUpscaler.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\upscaling\Upscaler.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\mobile\AndroidDisplay.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\parsers\AssStyle.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\parsers\Ktrf.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\parsers\KtrfTyped.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\parsers\Ors.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\prefetch\Scheduler.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\prefetch\WasmBackend.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\routing\KtrfAdapter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\routing\KtrfRouter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\routing\KtrfRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\script\KtrfScript.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\script\Timeline.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\script\TimelinePlayer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\workers\EmbeddedSubtitleExtractor.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\workers\SubtitleFontRegistry.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\workers\SubtitleSourceDirector.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\workers\SubtitleWorker.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdl3.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdlrenderer3.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\misc\cpp\imgui_stdlib.cpp" />
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\Map.cpp" />
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\Transition.cpp" />
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\Native.cpp" />
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\SummerRuntime.cpp" />
+    <ResourceCompile Include="$(KotonohaVSRoot)Resources\Kotonoha.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\KotonohaEngine\KotonohaEngine.vcxproj">
+      <Project>{DD7FAA6C-C414-5970-AE96-008EA221AD67}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaImGui\KotonohaImGui.vcxproj">
+      <Project>{7AB3A0E2-C20B-587E-AC96-C328A979E6C1}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaFormatAnimation\KotonohaFormatAnimation.vcxproj">
+      <Project>{E5A078C3-2F47-5018-8EBC-F295F9277DD3}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaFormatAudio\KotonohaFormatAudio.vcxproj">
+      <Project>{0955477D-80DB-52DA-A411-E1132FC344BE}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaFormatData\KotonohaFormatData.vcxproj">
+      <Project>{1B2F690B-7292-5844-BEE5-271CB07496C4}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaFormatImage\KotonohaFormatImage.vcxproj">
+      <Project>{056C3EA5-0C67-503D-97BE-CADACAF4CA6F}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderAdv\KotonohaProviderAdv.vcxproj">
+      <Project>{235691B0-942F-5B9E-8E06-92E6DF7ED040}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderAmagami\KotonohaProviderAmagami.vcxproj">
+      <Project>{3E837707-DFA1-5581-BBDE-10934E77AD1E}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderArtemis\KotonohaProviderArtemis.vcxproj">
+      <Project>{F5463C2C-8B8C-5D33-9FEC-26A5F79250C9}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderCmp\KotonohaProviderCmp.vcxproj">
+      <Project>{14F94418-BD6E-536D-BC25-DFC756CE30AB}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderGpk\KotonohaProviderGpk.vcxproj">
+      <Project>{DEE18BDD-23C3-5EDA-9F27-A199796E6008}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderN2\KotonohaProviderN2.vcxproj">
+      <Project>{1F6C885B-2CF9-5AC8-9475-6CA239709388}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderPak\KotonohaProviderPak.vcxproj">
+      <Project>{A3376F20-D85E-5C1C-BD38-A76825C09A76}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderPmail\KotonohaProviderPmail.vcxproj">
+      <Project>{CC275A2E-A770-5CD9-A515-A669B9EBDA66}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderPonscripter\KotonohaProviderPonscripter.vcxproj">
+      <Project>{3329A779-C43C-50B0-8DEC-7817BEADF6F0}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderReallive\KotonohaProviderReallive.vcxproj">
+      <Project>{75FFDCBA-BC51-5993-901F-B6326DCD0E71}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderRpa\KotonohaProviderRpa.vcxproj">
+      <Project>{0F7CFC0B-2E3A-5D7E-8E09-D0FB35679DA0}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderXp3\KotonohaProviderXp3.vcxproj">
+      <Project>{8BB31F0B-3249-54DA-9630-FAF209E7C89C}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderZero\KotonohaProviderZero.vcxproj">
+      <Project>{8B4D2692-6A24-5678-BF3E-2037B4E4FC48}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmAmagami\KotonohaVmAmagami.vcxproj">
+      <Project>{1F092C53-CB5C-5F0F-AD35-FA55DDABD49C}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmArtemis\KotonohaVmArtemis.vcxproj">
+      <Project>{9E8A28A1-CED0-5F81-86D8-8EE03FF7CCF7}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmKag\KotonohaVmKag.vcxproj">
+      <Project>{E013BE45-C977-5249-9622-EB09B913A3DB}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmN2system\KotonohaVmN2system.vcxproj">
+      <Project>{80B27B62-28F7-5987-9115-7BDEC581B560}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmPmail\KotonohaVmPmail.vcxproj">
+      <Project>{CDD4BC54-A7BF-56FE-97E2-683BB7942A2A}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmPonscripter\KotonohaVmPonscripter.vcxproj">
+      <Project>{9129AED1-BA73-517C-8100-E9F70F621172}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmReallive\KotonohaVmReallive.vcxproj">
+      <Project>{6628EA6E-F2BD-53EB-B304-4AF5D46CB375}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmRenpy\KotonohaVmRenpy.vcxproj">
+      <Project>{D0EC05AC-5ABF-5D66-816B-D9453058522D}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmSnowRadish\KotonohaVmSnowRadish.vcxproj">
+      <Project>{D4C2CA39-D0E5-5693-B32D-6415877479B2}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmSummerRadish\KotonohaVmSummerRadish.vcxproj">
+      <Project>{ADDA3F8A-0199-5074-AAB4-E4FD63EF76CC}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmTjs2\KotonohaVmTjs2.vcxproj">
+      <Project>{A02DD51B-DED8-5A9D-9EC8-242A4081103B}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\lib/submodules/SDL/VisualC/SDL/SDL.vcxproj">
+      <Project>{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\lib/submodules/SDL_ttf/VisualC/SDL_ttf.vcxproj" Condition="'$(Platform)' != 'ARM64'">
+      <Project>{DDDBD07D-DC76-4AF6-8D02-3E2DEB6EE255}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+</Project>

@@ -137,8 +137,8 @@ void InputActions::process(EventRef e, Uint64 nowMs) {
   }
   auto key = std::make_pair(e.tfinger.touchID, e.tfinger.fingerID);
   if (e.type == SDL_EVENT_FINGER_DOWN) {
-    fingers[key] = {e.tfinger.x, e.tfinger.y, e.tfinger.x, e.tfinger.y,
-                    false,       nowMs};
+    fingers[key] = {e.tfinger.x, e.tfinger.y, e.tfinger.x,
+                    e.tfinger.y, false,       nowMs};
     if (fingers.size() > 1)
       multi = true;
   } else if (e.type == SDL_EVENT_FINGER_MOTION) {

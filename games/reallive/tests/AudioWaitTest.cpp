@@ -9,7 +9,7 @@ void require(bool ok, const char *message) {
   if (!ok)
     throw std::runtime_error(message);
 }
-}
+} // namespace
 
 int main() {
   try {
@@ -20,8 +20,7 @@ int main() {
       ++probes;
       return channel == 7;
     };
-    require(!wait.active() && !wait.blocks(true, playingChannel) &&
-                probes == 0,
+    require(!wait.active() && !wait.blocks(true, playingChannel) && probes == 0,
             "idle VM never queries PCM playback");
 
     wait.forVoice(true);
@@ -41,15 +40,16 @@ int main() {
     require(wait.blocks(false, playingChannel),
             "another voice's status cannot release PCM wait");
     require(probes == 1, "PCM wait probes only the selected channel");
-    require(!wait.blocks(false, [&](int channel) {
-      return channel != 7;
-    }) && !wait.active(), "PCM barrier releases when its channel ends");
+    require(!wait.blocks(false, [&](int channel) { return channel != 7; }) &&
+                !wait.active(),
+            "PCM barrier releases when its channel ends");
 
     wait.forPcm(-2, false);
     require(!wait.active(), "absent channel wait must not suspend scripts");
     wait.forPcm(7, true);
     wait.clear();
-    require(!wait.active(), "save/load, return-to-title and shutdown reset waits");
+    require(!wait.active(),
+            "save/load, return-to-title and shutdown reset waits");
 
     // Replacing a voice wait with another wait never leaves two pending
     // barriers behind. Scripts can wait only for their most recent sound.

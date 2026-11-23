@@ -76,8 +76,8 @@ int main(int argc, char **argv) {
     // or an explicit SCF class literal. Loading every scenario up front
     // incorrectly makes Class.findClass report MahjongMain during dialogue.
     scripts.installSystem(vm);
-    vm.resolveClass = [&scripts](const std::string &name)
-        -> std::optional<Amagami::Script> {
+    vm.resolveClass =
+        [&scripts](const std::string &name) -> std::optional<Amagami::Script> {
       if (!scripts.hasScenario(name))
         return std::nullopt;
       return scripts.scenario(name);
@@ -87,9 +87,8 @@ int main(int argc, char **argv) {
                                options.klass);
 
     Amagami::Vita::VitaVmBridge bridge;
-    bridge.setClassLoader([&vm](const std::string &name) {
-      return vm.loadClass(name);
-    });
+    bridge.setClassLoader(
+        [&vm](const std::string &name) { return vm.loadClass(name); });
     bridge.setTextureSizeResolver(
         [graphics](uint32_t id, uint32_t variant)
             -> std::optional<std::pair<uint32_t, uint32_t>> {
@@ -108,10 +107,11 @@ int main(int argc, char **argv) {
             return std::nullopt;
           return std::make_pair(uint32_t(surface->w), uint32_t(surface->h));
         });
-    vm.scopedPrimitive = [&bridge, &scripts, &vm](const std::string &owner,
-                                   const std::string &method, bool classMethod,
-                                   const Amagami::VmValue &self, unsigned code,
-                                   const std::vector<Amagami::VmValue> &args) {
+    vm.scopedPrimitive = [&bridge, &scripts,
+                          &vm](const std::string &owner,
+                               const std::string &method, bool classMethod,
+                               const Amagami::VmValue &self, unsigned code,
+                               const std::vector<Amagami::VmValue> &args) {
       // Scenario scripts can still test PS2 button bits (not SceCtrl).
       // The caller one frame below the native is their declaring SCF class.
       const bool ps2Layout = scripts.hasScenario(vm.callerClass());

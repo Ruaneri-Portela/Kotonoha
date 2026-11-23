@@ -89,8 +89,7 @@ bool ChoiceQuestionScene::onEvent(EventRef rawEvent) {
         }
         selected = next;
       }
-    }
-    else if (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE) {
+    } else if (event.key.key == SDLK_RETURN || event.key.key == SDLK_SPACE) {
       select(selected);
       return true;
     }
@@ -155,8 +154,7 @@ void ChoiceQuestionScene::renderOption(RendererRef renderer, std::size_t index,
     engine.GetUI().text(renderer, options[index].label,
                         options[index].hitBox.x + 12,
                         options[index].hitBox.y + 12,
-                        options[index].hitBox.w - 24,
-                        {140, 140, 140, 255});
+                        options[index].hitBox.w - 24, {140, 140, 140, 255});
 }
 
 ChoiceQuestionScene &GetChoiceQuestionRuntime(

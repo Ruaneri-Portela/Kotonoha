@@ -123,8 +123,8 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
       out << "CALLFROM\t" << escapeLine(frame.callerLabel) << '\n';
     out << "CALLCURSOR\t" << frame.nextArgument << '\n';
     for (const auto &arg : frame.arguments) {
-      out << "CALLARG\t" << (arg.isString ? 1 : 0) << '\t'
-          << arg.number << '\t' << escapeLine(arg.text) << '\n';
+      out << "CALLARG\t" << (arg.isString ? 1 : 0) << '\t' << arg.number << '\t'
+          << escapeLine(arg.text) << '\n';
       if (arg.sourceVariable >= 0)
         out << "CALLREF\t" << arg.sourceVariable << '\t'
             << (arg.sourceIsString ? 1 : 0) << '\n';
@@ -139,30 +139,24 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
       << (data.allSprites2Hidden ? 1 : 0) << '\n';
   out << "MANUAL\t" << (data.manualFrameVisible ? 1 : 0) << '\n';
   out << "ACTIVEFX\t" << (data.activeEffect.active ? 1 : 0) << '\t'
-      << data.activeEffect.builtinEffect << '\t'
-      << data.activeEffect.durationMs << '\t'
-      << data.activeEffect.elapsedMs << '\t'
-      << data.quakeAmplitude << '\t'
-      << escapeLine(data.activeEffect.maskPath) << '\n';
+      << data.activeEffect.builtinEffect << '\t' << data.activeEffect.durationMs
+      << '\t' << data.activeEffect.elapsedMs << '\t' << data.quakeAmplitude
+      << '\t' << escapeLine(data.activeEffect.maskPath) << '\n';
   out << "POSTFX\t" << (data.monochromeEnabled ? 1 : 0) << '\t'
       << data.monochromeColor << '\t' << data.negativeMode << '\n';
   auto writeDrawOps = [&](char bucket, const std::vector<ManualDrawOp> &ops) {
     for (const auto &op : ops) {
-      out << "MANUALOP\t" << bucket << '\t'
-          << static_cast<int>(op.kind) << '\t' << op.colorRgb << '\t'
-          << op.x << '\t' << op.y << '\t' << op.width << '\t' << op.height
-          << '\t' << op.srcX << '\t' << op.srcY << '\t' << op.srcW
-          << '\t' << op.srcH << '\t' << op.cell << '\t' << op.alpha
+      out << "MANUALOP\t" << bucket << '\t' << static_cast<int>(op.kind) << '\t'
+          << op.colorRgb << '\t' << op.x << '\t' << op.y << '\t' << op.width
+          << '\t' << op.height << '\t' << op.srcX << '\t' << op.srcY << '\t'
+          << op.srcW << '\t' << op.srcH << '\t' << op.cell << '\t' << op.alpha
           << '\t' << op.scaleX << '\t' << op.scaleY << '\t' << op.rotation
-          << '\t' << op.transformA << '\t' << op.transformB
-          << '\t' << op.transformC << '\t' << op.transformD
-          << '\t' << (op.affine ? 1 : 0)
-          << '\t' << static_cast<int>(op.spec.trans)
-          << '\t' << op.spec.fontWidth << '\t' << op.spec.fontHeight
-          << '\t' << op.spec.color << '\t'
-          << escapeLine(op.spec.rawTag) << '\t'
-          << escapeLine(op.spec.text) << '\t'
-          << escapeLine(op.text) << '\n';
+          << '\t' << op.transformA << '\t' << op.transformB << '\t'
+          << op.transformC << '\t' << op.transformD << '\t'
+          << (op.affine ? 1 : 0) << '\t' << static_cast<int>(op.spec.trans)
+          << '\t' << op.spec.fontWidth << '\t' << op.spec.fontHeight << '\t'
+          << op.spec.color << '\t' << escapeLine(op.spec.rawTag) << '\t'
+          << escapeLine(op.spec.text) << '\t' << escapeLine(op.text) << '\n';
     }
   };
   writeDrawOps('D', data.manualDraftOps);
@@ -182,8 +176,8 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
           << '\t' << sp.y << '\t' << sp.alpha << '\t' << sp.currentCell << '\t'
           << escapeLine(sp.spec.rawTag) << '\n';
       if (sp.secondaryLayer || sp.blendMode != 0)
-        out << "SPLAYER\t" << id << '\t' << (sp.secondaryLayer ? 1 : 0)
-            << '\t' << sp.blendMode << '\n';
+        out << "SPLAYER\t" << id << '\t' << (sp.secondaryLayer ? 1 : 0) << '\t'
+            << sp.blendMode << '\n';
       if (sp.spec.trans == TransMode::String) {
         out << "SPTEXT\t" << id << '\t' << sp.spec.fontWidth << '\t'
             << sp.spec.fontHeight << '\t' << sp.spec.fontSpacing << '\t'
@@ -223,8 +217,8 @@ std::string SaveSerializer::serializeSlot(const SlotSaveData &data) {
   for (const auto &btn : data.buttons) {
     out << "BTN\t" << static_cast<int>(btn.kind) << '\t' << btn.id << '\t'
         << btn.spriteNo << '\t' << btn.x << '\t' << btn.y << '\t' << btn.w
-        << '\t' << btn.h << '\t' << btn.srcX << '\t' << btn.srcY
-        << '\t' << escapeLine(btn.text) << '\n';
+        << '\t' << btn.h << '\t' << btn.srcX << '\t' << btn.srcY << '\t'
+        << escapeLine(btn.text) << '\n';
   }
   for (const auto &opt : data.selectOptions) {
     out << "SEL\t" << escapeLine(opt.text) << '\t'
@@ -360,9 +354,9 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       outData.manualFrameVisible = shown != 0;
     } else if (kind == "ACTIVEFX") {
       int active = 0;
-      ls >> active >> outData.activeEffect.builtinEffect
-         >> outData.activeEffect.durationMs
-         >> outData.activeEffect.elapsedMs >> outData.quakeAmplitude;
+      ls >> active >> outData.activeEffect.builtinEffect >>
+          outData.activeEffect.durationMs >> outData.activeEffect.elapsedMs >>
+          outData.quakeAmplitude;
       if (ls.peek() == '\t')
         ls.get();
       std::string mask;
@@ -378,12 +372,11 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       char bucket = '\0';
       int kindValue = -1, affine = 0, trans = 0;
       ManualDrawOp op;
-      ls >> bucket >> kindValue >> op.colorRgb >> op.x >> op.y
-         >> op.width >> op.height >> op.srcX >> op.srcY >> op.srcW
-         >> op.srcH >> op.cell >> op.alpha >> op.scaleX >> op.scaleY
-         >> op.rotation >> op.transformA >> op.transformB
-         >> op.transformC >> op.transformD >> affine >> trans
-         >> op.spec.fontWidth >> op.spec.fontHeight >> op.spec.color;
+      ls >> bucket >> kindValue >> op.colorRgb >> op.x >> op.y >> op.width >>
+          op.height >> op.srcX >> op.srcY >> op.srcW >> op.srcH >> op.cell >>
+          op.alpha >> op.scaleX >> op.scaleY >> op.rotation >> op.transformA >>
+          op.transformB >> op.transformC >> op.transformD >> affine >> trans >>
+          op.spec.fontWidth >> op.spec.fontHeight >> op.spec.color;
       if (!ls || kindValue < 0 ||
           kindValue > static_cast<int>(ManualDrawOp::Kind::Window))
         continue;
@@ -409,9 +402,10 @@ bool SaveSerializer::deserializeSlot(std::string_view text,
       op.spec.color = color;
       op.spec.text = unescapeLine(spriteText);
       op.text = unescapeLine(text);
-      auto *dest = bucket == 'D' ? &outData.manualDraftOps :
-                   bucket == 'V' ? &outData.manualDisplayOps :
-                   bucket == 'B' ? &outData.backgroundCopyOps : nullptr;
+      auto *dest = bucket == 'D'   ? &outData.manualDraftOps
+                   : bucket == 'V' ? &outData.manualDisplayOps
+                   : bucket == 'B' ? &outData.backgroundCopyOps
+                                   : nullptr;
       if (dest && dest->size() < 4096)
         dest->push_back(std::move(op));
     } else if (kind == "STALPHA") {

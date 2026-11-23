@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers">
+      <UniqueIdentifier>{ED8D3577-0377-5C4D-A4F5-A4BB6BD5D47C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\rpa">
+      <UniqueIdentifier>{4DEEDFE5-CAFC-52D7-B923-D126E4C6DF9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\rpa\src">
+      <UniqueIdentifier>{B1EACAF6-BC23-5E9D-A5F7-5ED77ECB10E9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\providers\rpa\src\DdlcAssets.cpp">
+      <Filter>modules\providers\rpa\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

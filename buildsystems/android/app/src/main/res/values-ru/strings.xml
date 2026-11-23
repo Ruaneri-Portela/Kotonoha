@@ -9,7 +9,7 @@
     <string name="scanning_library">Поиск игр…</string>
     <string name="isolate_saves">Разделять сохранения</string>
     <string name="no_games_found">Игры не найдены</string>
-    <string name="empty_library_hint">Добавьте папку с игрой, образ ISO/BIN или ZIP кнопками ниже. Игры также можно поместить в Android/data/me.hirameki.kotonoha.launcher/files/games.</string>
+    <string name="empty_library_hint">Добавьте папку с игрой, образ ISO/BIN или ZIP кнопками ниже. Игры также можно поместить в Android/data/%1$s/files/games.</string>
     <string name="import_zip_action">+ Импорт ZIP</string>
     <string name="add_disc_action">+ Добавить ISO/BIN</string>
     <string name="add_folder_action">+ Добавить папку</string>

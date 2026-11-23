@@ -16,51 +16,49 @@
 
 namespace Kotonoha::ImGuiTheme {
 namespace {
-// Paleta "noir" moderna com acento violeta-vivo — fundos profundos de baixa
-// saturação, contraste alto no texto e acentos vibrantes. Bordas arredondadas
-// e sombreamento sutil dão aspecto de interface contemporânea.
-constexpr ImVec4 Accent{0.90f, 0.60f, 1.00f, 1.00f};
-constexpr ImVec4 AccentDim{0.55f, 0.30f, 0.70f, 1.00f};
-constexpr ImVec4 AccentHover{1.00f, 0.75f, 1.00f, 1.00f};
-constexpr ImVec4 Success{0.40f, 0.88f, 0.60f, 1.00f};
-constexpr ImVec4 Warning{1.00f, 0.70f, 0.35f, 1.00f};
-constexpr ImVec4 Error{1.00f, 0.45f, 0.50f, 1.00f};
-constexpr ImVec4 WindowBg{0.070f, 0.060f, 0.095f, 1.00f};
-constexpr ImVec4 ChildBg{0.090f, 0.080f, 0.120f, 1.00f};
-constexpr ImVec4 PopupBg{0.085f, 0.075f, 0.115f, 1.00f};
-constexpr ImVec4 Border{0.18f, 0.15f, 0.24f, 1.00f};
-constexpr ImVec4 BorderHovered{0.35f, 0.28f, 0.45f, 1.00f};
-constexpr ImVec4 FrameBg{0.12f, 0.10f, 0.16f, 1.00f};
-constexpr ImVec4 FrameBgHovered{0.18f, 0.15f, 0.24f, 1.00f};
-constexpr ImVec4 FrameBgActive{0.26f, 0.20f, 0.34f, 1.00f};
-constexpr ImVec4 TitleBg{0.090f, 0.080f, 0.120f, 1.00f};
-constexpr ImVec4 TitleBgActive{0.12f, 0.10f, 0.16f, 1.00f};
-constexpr ImVec4 TitleBgCollapsed{0.070f, 0.060f, 0.095f, 1.00f};
-constexpr ImVec4 MenuBarBg{0.090f, 0.080f, 0.120f, 1.00f};
-constexpr ImVec4 ScrollbarBg{0.090f, 0.080f, 0.120f, 1.00f};
-constexpr ImVec4 ScrollbarGrab{0.24f, 0.20f, 0.30f, 1.00f};
-constexpr ImVec4 ScrollbarGrabHovered{0.38f, 0.30f, 0.45f, 1.00f};
-constexpr ImVec4 ScrollbarGrabActive{0.52f, 0.40f, 0.60f, 1.00f};
-constexpr ImVec4 Header{0.14f, 0.11f, 0.19f, 1.00f};
-constexpr ImVec4 HeaderHovered{0.22f, 0.18f, 0.28f, 1.00f};
-constexpr ImVec4 HeaderActive{0.32f, 0.25f, 0.42f, 1.00f};
-constexpr ImVec4 Separator{0.18f, 0.15f, 0.24f, 1.00f};
-constexpr ImVec4 SeparatorHovered{0.35f, 0.28f, 0.45f, 1.00f};
-constexpr ImVec4 SeparatorActive{0.48f, 0.38f, 0.58f, 1.00f};
-constexpr ImVec4 Text{0.96f, 0.96f, 1.00f, 1.00f};
-constexpr ImVec4 TextDisabled{0.55f, 0.55f, 0.65f, 1.00f};
-constexpr ImVec4 TextSelectedBg{0.45f, 0.30f, 0.60f, 0.35f};
-constexpr ImVec4 Button{0.20f, 0.12f, 0.30f, 1.00f};
-constexpr ImVec4 ButtonHovered{0.34f, 0.22f, 0.48f, 1.00f};
-constexpr ImVec4 ButtonActive{0.50f, 0.32f, 0.66f, 1.00f};
-
-// Card background (slightly lighter than window bg, subtle border).
-constexpr ImVec4 CardBg{0.10f, 0.09f, 0.14f, 1.00f};
-constexpr ImVec4 CardBorder{0.16f, 0.14f, 0.22f, 1.00f};
-
-// Tab bar colors.
-constexpr ImVec4 TabBg{0.090f, 0.080f, 0.120f, 1.00f};
-constexpr ImVec4 TabHovered{0.16f, 0.13f, 0.22f, 1.00f};
+// Guia visual Kotonoha v2 — variante "Soft" exclusiva do ImGui.
+// Mesma hierarquia (fundo -> superficie -> acento) da web/Android/SwiftUI,
+// porem dessaturada e mais clara para reduzir o contraste do launcher e do
+// debug overlay. A paleta oficial em design/tokens.json permanece intacta
+// nas demais plataformas; o monograma K e as sakura nao sao afetados.
+constexpr ImVec4 Accent{0.655f, 0.608f, 0.831f, 1.00f};        // #A79BD4
+constexpr ImVec4 AccentDim{0.322f, 0.365f, 0.518f, 1.00f};     // #525D84
+constexpr ImVec4 AccentHover{0.765f, 0.706f, 0.878f, 1.00f};   // #C3B4E0
+constexpr ImVec4 Success{0.498f, 0.784f, 0.659f, 1.00f};       // #7FC8A8
+constexpr ImVec4 Warning{0.910f, 0.784f, 0.604f, 1.00f};       // #E8C89A
+constexpr ImVec4 Error{0.878f, 0.639f, 0.675f, 1.00f};         // #E0A3AC
+constexpr ImVec4 WindowBg{0.106f, 0.153f, 0.251f, 1.00f};      // #1B2740
+constexpr ImVec4 ChildBg{0.153f, 0.204f, 0.318f, 1.00f};       // #273451
+constexpr ImVec4 PopupBg{0.153f, 0.204f, 0.318f, 1.00f};
+constexpr ImVec4 Border{0.239f, 0.278f, 0.388f, 1.00f};        // #3D4763
+constexpr ImVec4 BorderHovered{0.561f, 0.722f, 0.851f, 1.00f}; // #8FB8D9
+constexpr ImVec4 FrameBg{0.153f, 0.204f, 0.318f, 1.00f};
+constexpr ImVec4 FrameBgHovered{0.227f, 0.278f, 0.412f, 1.00f}; // #3A4769
+constexpr ImVec4 FrameBgActive{0.322f, 0.365f, 0.518f, 1.00f};  // #525D84
+constexpr ImVec4 TitleBg{0.106f, 0.153f, 0.251f, 1.00f};
+constexpr ImVec4 TitleBgActive{0.153f, 0.204f, 0.318f, 1.00f};
+constexpr ImVec4 TitleBgCollapsed{0.106f, 0.153f, 0.251f, 1.00f};
+constexpr ImVec4 MenuBarBg{0.153f, 0.204f, 0.318f, 1.00f};
+constexpr ImVec4 ScrollbarBg{0.106f, 0.153f, 0.251f, 1.00f};
+constexpr ImVec4 ScrollbarGrab{0.322f, 0.365f, 0.518f, 1.00f};
+constexpr ImVec4 ScrollbarGrabHovered{0.345f, 0.384f, 0.549f, 1.00f};
+constexpr ImVec4 ScrollbarGrabActive{0.322f, 0.365f, 0.518f, 1.00f};
+constexpr ImVec4 Header{0.322f, 0.365f, 0.518f, 1.00f};        // #525D84
+constexpr ImVec4 HeaderHovered{0.345f, 0.384f, 0.549f, 1.00f}; // #58628C
+constexpr ImVec4 HeaderActive{0.306f, 0.345f, 0.494f, 1.00f};  // #4E587E
+constexpr ImVec4 Separator{0.239f, 0.278f, 0.388f, 1.00f};
+constexpr ImVec4 SeparatorHovered{0.345f, 0.384f, 0.549f, 1.00f};
+constexpr ImVec4 SeparatorActive{0.322f, 0.365f, 0.518f, 1.00f};
+constexpr ImVec4 Text{0.863f, 0.890f, 0.941f, 1.00f};          // #DCE3F0
+constexpr ImVec4 TextDisabled{0.616f, 0.663f, 0.761f, 1.00f};  // #9DA9C2
+constexpr ImVec4 TextSelectedBg{0.655f, 0.608f, 0.831f, 0.25f};
+constexpr ImVec4 Button{0.322f, 0.365f, 0.518f, 1.00f};        // #525D84
+constexpr ImVec4 ButtonHovered{0.345f, 0.384f, 0.549f, 1.00f}; // #58628C
+constexpr ImVec4 ButtonActive{0.306f, 0.345f, 0.494f, 1.00f};  // #4E587E
+constexpr ImVec4 CardBg{0.153f, 0.204f, 0.318f, 1.00f};
+constexpr ImVec4 CardBorder{0.239f, 0.278f, 0.388f, 1.00f};
+constexpr ImVec4 TabBg{0.153f, 0.204f, 0.318f, 1.00f};
+constexpr ImVec4 TabHovered{0.345f, 0.384f, 0.549f, 1.00f};
 constexpr std::size_t kMinFontBytes = 101;
 constexpr std::size_t kMaxFontBytes = 256u << 20;
 
@@ -106,7 +104,8 @@ bool hasValidSfntContainerBounds(const std::uint8_t *data, std::size_t size) {
     return false;
   }
 
-  if (fontStart > size || size - fontStart < 12 || !hasSfntTag(data + fontStart))
+  if (fontStart > size || size - fontStart < 12 ||
+      !hasSfntTag(data + fontStart))
     return false;
 
   const std::uint16_t numTables = readBe16(data, fontStart + 4);
@@ -151,8 +150,7 @@ struct ErrorRecoveryGuard {
   bool enableTooltip;
 
   explicit ErrorRecoveryGuard(ImGuiIO &target)
-      : io(target),
-        enableAssert(target.ConfigErrorRecoveryEnableAssert),
+      : io(target), enableAssert(target.ConfigErrorRecoveryEnableAssert),
         enableDebugLog(target.ConfigErrorRecoveryEnableDebugLog),
         enableTooltip(target.ConfigErrorRecoveryEnableTooltip) {
     io.ConfigErrorRecoveryEnableAssert = false;
@@ -175,7 +173,8 @@ ImFont *tryLoadFontFile(ImGuiIO &io, const std::filesystem::path &resolved) {
 
   const auto fileSize = std::filesystem::file_size(resolved, ec);
   if (ec || fileSize < kMinFontBytes || fileSize > kMaxFontBytes ||
-      fileSize > static_cast<std::uintmax_t>((std::numeric_limits<int>::max)())) {
+      fileSize >
+          static_cast<std::uintmax_t>((std::numeric_limits<int>::max)())) {
     SDL_LogWarn(LogUI, "Skipping invalid ImGui font file: %s",
                 resolved.u8string().c_str());
     return nullptr;
@@ -191,7 +190,8 @@ ImFont *tryLoadFontFile(ImGuiIO &io, const std::filesystem::path &resolved) {
   }
 
   if (bytes.size() < kMinFontBytes ||
-      bytes.size() > static_cast<std::size_t>((std::numeric_limits<int>::max)()) ||
+      bytes.size() >
+          static_cast<std::size_t>((std::numeric_limits<int>::max)()) ||
       !hasValidSfntContainerBounds(bytes.data(), bytes.size())) {
     SDL_LogWarn(LogUI, "Skipping truncated or malformed ImGui font: %s",
                 resolved.u8string().c_str());
@@ -259,25 +259,26 @@ void apply(float value) {
   ImGui::StyleColorsDark();
   ImGuiStyle &style = ImGui::GetStyle();
 
-  // Geometry (scales with UI scale).
-  style.WindowPadding = {16.0f * scale, 14.0f * scale};
-  style.WindowRounding = 12.0f * scale;
+  // Geometry (scales with UI scale). Cantos um pouco mais arredondados e
+  // respiracao maior deixam o tema mais calmo sem perder densidade.
+  style.WindowPadding = {18.0f * scale, 16.0f * scale};
+  style.WindowRounding = 14.0f * scale;
   style.WindowBorderSize = 1.0f * scale;
-  style.ChildRounding = 10.0f * scale;
+  style.ChildRounding = 12.0f * scale;
   style.ChildBorderSize = 1.0f * scale;
-  style.PopupRounding = 10.0f * scale;
+  style.PopupRounding = 12.0f * scale;
   style.PopupBorderSize = 1.0f * scale;
-  style.FramePadding = {14.0f * scale, 8.0f * scale};
-  style.FrameRounding = 8.0f * scale;
-  style.FrameBorderSize = 0.0f;
-  style.ItemSpacing = {12.0f * scale, 8.0f * scale};
-  style.ItemInnerSpacing = {8.0f * scale, 6.0f * scale};
-  style.IndentSpacing = 20.0f * scale;
+  style.FramePadding = {16.0f * scale, 9.0f * scale};
+  style.FrameRounding = 10.0f * scale;
+  style.FrameBorderSize = 1.0f * scale;
+  style.ItemSpacing = {14.0f * scale, 10.0f * scale};
+  style.ItemInnerSpacing = {10.0f * scale, 8.0f * scale};
+  style.IndentSpacing = 22.0f * scale;
   style.ScrollbarSize = 14.0f * scale;
-  style.ScrollbarRounding = 7.0f * scale;
+  style.ScrollbarRounding = 8.0f * scale;
   style.GrabMinSize = 14.0f * scale;
-  style.GrabRounding = 4.0f * scale;
-  style.TabRounding = 8.0f * scale;
+  style.GrabRounding = 6.0f * scale;
+  style.TabRounding = 10.0f * scale;
   style.SeparatorTextBorderSize = 1.0f * scale;
   style.SeparatorTextPadding = {28.0f * scale, 4.0f * scale};
   style.ButtonTextAlign = {0.5f, 0.5f};
@@ -293,7 +294,7 @@ void apply(float value) {
   style.Colors[ImGuiCol_ChildBg] = ChildBg;
   style.Colors[ImGuiCol_PopupBg] = PopupBg;
   style.Colors[ImGuiCol_Border] = Border;
-  style.Colors[ImGuiCol_BorderShadow] = {0.0f, 0.0f, 0.0f, 0.50f};
+  style.Colors[ImGuiCol_BorderShadow] = {0.0f, 0.0f, 0.0f, 0.25f};
   style.Colors[ImGuiCol_FrameBg] = FrameBg;
   style.Colors[ImGuiCol_FrameBgHovered] = FrameBgHovered;
   style.Colors[ImGuiCol_FrameBgActive] = FrameBgActive;
@@ -317,9 +318,9 @@ void apply(float value) {
   style.Colors[ImGuiCol_Separator] = Separator;
   style.Colors[ImGuiCol_SeparatorHovered] = SeparatorHovered;
   style.Colors[ImGuiCol_SeparatorActive] = SeparatorActive;
-  style.Colors[ImGuiCol_ResizeGrip] = {0.30f, 0.24f, 0.38f, 0.60f};
-  style.Colors[ImGuiCol_ResizeGripHovered] = {0.44f, 0.34f, 0.52f, 0.70f};
-  style.Colors[ImGuiCol_ResizeGripActive] = {0.58f, 0.44f, 0.68f, 0.80f};
+  style.Colors[ImGuiCol_ResizeGrip] = {0.42f, 0.46f, 0.58f, 0.45f};
+  style.Colors[ImGuiCol_ResizeGripHovered] = {0.55f, 0.59f, 0.70f, 0.55f};
+  style.Colors[ImGuiCol_ResizeGripActive] = {0.65f, 0.66f, 0.76f, 0.65f};
   style.Colors[ImGuiCol_Tab] = TabBg;
   style.Colors[ImGuiCol_TabHovered] = TabHovered;
   style.Colors[ImGuiCol_PlotLines] = AccentDim;
@@ -330,7 +331,7 @@ void apply(float value) {
   style.Colors[ImGuiCol_TableBorderStrong] = BorderHovered;
   style.Colors[ImGuiCol_TableBorderLight] = Border;
   style.Colors[ImGuiCol_TableRowBg] = {0.0f, 0.0f, 0.0f, 0.0f};
-  style.Colors[ImGuiCol_TableRowBgAlt] = {0.15f, 0.12f, 0.20f, 0.20f};
+  style.Colors[ImGuiCol_TableRowBgAlt] = {0.32f, 0.36f, 0.46f, 0.16f};
 }
 
 ImVec4 accent() { return Accent; }
@@ -380,7 +381,7 @@ struct LabeledGroup {
 // --- Modern UI helpers ---
 
 void cardBegin(const char *id, bool collapsible, bool *open) {
-  ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 10.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 12.0f);
   ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 1.0f);
   ImGui::PushStyleColor(ImGuiCol_ChildBg, CardBg);
   ImGui::PushStyleColor(ImGuiCol_Border, CardBorder);
@@ -408,8 +409,9 @@ void badge(const char *label, ImVec4 color) {
   auto *draw = ImGui::GetWindowDrawList();
   draw->AddRectFilled(pos,
                       {pos.x + text.x + 2 * pad.x, pos.y + text.y + 2 * pad.y},
-                      ImGui::GetColorU32(color), 6.0f * scale);
-  draw->AddText({pos.x + pad.x, pos.y + pad.y}, IM_COL32(255, 255, 255, 255),
+                      ImGui::GetColorU32(color), 7.0f * scale);
+  // Texto escuro sobre o preenchimento pastel: legivel sem branco puro.
+  draw->AddText({pos.x + pad.x, pos.y + pad.y}, ImGui::GetColorU32(WindowBg),
                 value);
 }
 
@@ -441,8 +443,9 @@ bool toggleSwitch(const char *label, bool *v) {
   if (clicked)
     *v = !*v;
 
-  const ImVec4 bgColor = *v ? Accent : ImVec4{0.20f, 0.18f, 0.26f, 1.f};
-  const ImVec4 thumbColor = {0.95f, 0.95f, 1.00f, 1.f};
+  // Lilas suave no estado ligado, mantendo o polegar claro e legivel.
+  const ImVec4 bgColor = *v ? AccentDim : FrameBg;
+  const ImVec4 thumbColor = Text;
 
   draw->AddRectFilled(cursor, {cursor.x + width, cursor.y + height},
                       ImGui::GetColorU32(bgColor), height * 0.5f);
@@ -471,11 +474,11 @@ void kotonohaHeader(const char *title, const char *subtitle, float scale) {
   const float band = 80.f * scale;
   const ImVec2 origin = ImGui::GetWindowPos();
   auto *draw = ImGui::GetWindowDrawList();
-  // Gradient background band.
+  // Faixa em degradê slate/lilá dessaturado (mesma hierarquia do launcher).
   draw->AddRectFilledMultiColor(
       origin, {origin.x + ImGui::GetWindowSize().x, origin.y + band},
-      IM_COL32(45, 20, 70, 255), IM_COL32(25, 12, 45, 255),
-      IM_COL32(20, 10, 30, 255), IM_COL32(20, 10, 30, 255));
+      IM_COL32(69, 74, 107, 255), IM_COL32(53, 60, 91, 255),
+      IM_COL32(43, 51, 78, 255), IM_COL32(43, 51, 78, 255));
   draw->AddRectFilled({origin.x, origin.y + band - 2.f * scale},
                       {origin.x + ImGui::GetWindowSize().x, origin.y + band},
                       ImGui::GetColorU32(Accent));

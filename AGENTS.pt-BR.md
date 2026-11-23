@@ -15,8 +15,9 @@ O Kotonoha é um **motor de visual novel modular em C++17** construído sobre SD
 | Diretório / Arquivo | Descrição |
 |---|---|
 | `lib/` | Biblioteca central do motor, interfaces compartilhadas, cabeçalhos públicos (`lib/include/Kotonoha/`) e testes unitários. |
-| `modules/vms/` | Máquinas virtuais de script (Amagami, Snow Radish, Summer Radish, Ren'Py/DDLC, RealLive, Pure Mail). Execução pura de script, independente de renderização. |
-| `modules/providers/` | Decodificadores de arquivos e formatos de pacotes que implementam `Kotonoha::AssetProvider` (CMP, ADV, GPK, XP3, PAK, RealLive, RPA, Amagami, Pmail, Zero). |
+| `modules/vms/` | Máquinas virtuais de script (Amagami, Artemis, KAG, MEO, N2System, Ponscripter, Pure Mail, RealLive, Ren'Py, Snow Radish, Summer Radish, TJS2). Execução pura de script, independente de renderização. |
+| `modules/providers/` | Contêineres de pacotes/arquivos e implementações de `Kotonoha::AssetProvider` (adaptadores VFS, overlays, cache). |
+| `modules/formats/` | Codecs puros em `modules/formats/<type>/<format>/`, uma pasta por formato de arquivo, nomeada pelo formato (nunca por jogo ou engine). Retornam pixels RGBA/PCM neutros e dependem apenas da biblioteca padrão C++. |
 | `games/` | 16 aplicações de jogos (15 ports e Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`, `artemis`). |
 | `buildsystems/` | Orquestração de compilação por plataforma: `cmake/` (módulos CMake), `android/` (projeto Gradle), `xcode/` (`Kotonoha.xcodeproj` nativo). |
 | `assets/` | Recursos compartilhados do motor (fontes, ícones, shaders) e avisos legais de terceiros. |
@@ -38,8 +39,9 @@ O Kotonoha é um **motor de visual novel modular em C++17** construído sobre SD
    - **Nunca** chame `SDL_Destroy*` ou `SDL_free` manualmente em objetos gerenciados por handles RAII.
 3. **Separação Clara de Responsabilidades**:
    - Módulos de VM (`modules/vms/`) executam apenas bytecode/scripts; apresentação e renderização permanecem em `games/`.
-   - Provedores de assets (`modules/providers/`) descompactam e analisam contêineres de arquivo; devem estar em conformidade com `Kotonoha::AssetProvider`.
-   - Evite dependências circulares entre VMs, provedores e camadas de apresentação.
+   - Módulos de formato (`modules/formats/<type>/<format>/`) implementam um formato por pasta, são neutros quanto a jogos/engines e retornam pixels RGBA, PCM entrelaçado ou frames indexados. Dependem apenas da biblioteca padrão C++; jogos e providers convertem para tipos SDL/engine.
+   - Provedores de assets (`modules/providers/`) gerenciam contêineres de pacotes/arquivos e implementam `Kotonoha::AssetProvider` com montagem VFS, overlays e cache.
+   - Evite dependências circulares entre VMs, formatos, provedores e camadas de apresentação.
 4. **Sistema de Arquivos Virtual (Filesystem V2)**:
    - O motor utiliza um sistema de arquivos virtual somente-leitura (`FileHandle`, `IMount`, `SDLFileSource`, `DirectoryMount`, `LayeredMount`, `ISO9660Mount`, `Filesystem::mount`).
    - Saves, preferências e diretórios Documents permanecem estritamente fora deste VFS somente-leitura.

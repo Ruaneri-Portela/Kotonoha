@@ -84,6 +84,18 @@ class LauncherLocalesTest(unittest.TestCase):
             self.assertIn(f'"{country}".equalsIgnoreCase(system.getCountry())', source)
         self.assertIn('case "zh":', source)
 
+    def test_empty_library_folder_uses_actual_variant_package_id(self):
+        java = JAVA.read_text(encoding="utf-8")
+        self.assertIn(
+            "getString(R.string.empty_library_hint, BuildConfig.APPLICATION_ID)",
+            java,
+        )
+        for locale, resources in self.catalogs.items():
+            with self.subTest(locale=locale):
+                text = resources["empty_library_hint"][1][0]
+                self.assertIn("Android/data/%1$s/files/games", text)
+                self.assertNotIn("me.hirameki.kotonoha.launcher", text)
+
     def test_all_layout_labels_use_resources(self):
         base = self.catalogs["values"]
         for layout in sorted((RES / "layout").glob("*.xml")):

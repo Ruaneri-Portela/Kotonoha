@@ -13,8 +13,8 @@ void require(bool condition, const char *message) {
 
 int main() {
   N2System::SceneGraph graph;
-  const auto mockImageSize = [](const N2System::Entity &sprite,
-                                float &w, float &h) {
+  const auto mockImageSize = [](const N2System::Entity &sprite, float &w,
+                                float &h) {
     if (sprite.imagePath.empty())
       return false;
     w = 920.0f;
@@ -49,8 +49,8 @@ int main() {
           "Transparent native window cannot suppress host fallback");
   panel->opacity = 1.0f;
 
-  auto *nativeText = graph.createEntity("dialogue/text",
-                                       N2System::EntityType::Text);
+  auto *nativeText =
+      graph.createEntity("dialogue/text", N2System::EntityType::Text);
   nativeText->text = "Hello";
   require(inspect().nativeText,
           "NSB text must suppress duplicate text rasterization");
@@ -74,6 +74,25 @@ int main() {
   shape->y = 12.0f;
   require(!inspect().nativeFrame,
           "Upper screen decorations must not hide the textbox");
+
+  // Steins;Gate creates full-screen Window entities named "box00"/"box01"/
+  // "box10" and fades their script-owned artwork to full transparency. Their
+  // generic names and full-viewport geometry used to suppress nativeFrame
+  // detection, so the host painted an opaque box over the transparent script
+  // composition. A visible window must own the dialogue presentation.
+  graph.clear();
+  auto *window = graph.createEntity("box00", N2System::EntityType::Window);
+  window->width = 1024.0f;
+  window->height = 576.0f;
+  require(inspect().nativeFrame,
+          "Full-screen script window must suppress the host textbox fallback");
+  window->visible = false;
+  require(!inspect().nativeFrame,
+          "Hidden script window cannot suppress the host fallback");
+  window->visible = true;
+  window->opacity = 0.0f;
+  require(!inspect().nativeFrame,
+          "Transparent script window cannot suppress the host fallback");
 
   return 0;
 }

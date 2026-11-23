@@ -8,10 +8,10 @@
 
 namespace {
 void require(bool condition, const char *message) {
-  if (!condition) throw std::runtime_error(message);
+  if (!condition)
+    throw std::runtime_error(message);
 }
-template <class F>
-void rejects(F operation, const char *message) {
+template <class F> void rejects(F operation, const char *message) {
   bool threw = false;
   try {
     operation();
@@ -27,7 +27,7 @@ RealLive::ReadProgress parse(const std::string &bytes) {
   require(in.eof(), "Read-progress must not consume trailing save fields");
   return progress;
 }
-}  // namespace
+} // namespace
 
 int main() {
   try {
@@ -47,8 +47,7 @@ int main() {
     std::ostringstream outEmpty;
     RealLive::writeReadProgress(outEmpty, empty);
     const auto reloadedEmpty = parse(outEmpty.str());
-    require(reloadedEmpty.readPages.empty() &&
-                !reloadedEmpty.bgmScriptPaused,
+    require(reloadedEmpty.readPages.empty() && !reloadedEmpty.bgmScriptPaused,
             "Empty read history is valid");
     const auto plain = parse("0 9032 860 2\n9031 100\n9032 860\n");
     require(plain.currentPage == RealLive::ReadProgress::Page(9032, 860) &&
@@ -74,16 +73,20 @@ int main() {
 
     auto invalid = progress;
     invalid.readPages.insert({10000, 0});
-    rejects([&] {
-      std::ostringstream bad;
-      RealLive::writeReadProgress(bad, invalid);
-    }, "writer rejects impossible scenario IDs");
+    rejects(
+        [&] {
+          std::ostringstream bad;
+          RealLive::writeReadProgress(bad, invalid);
+        },
+        "writer rejects impossible scenario IDs");
     invalid = progress;
     invalid.currentPage = {-1, 100};
-    rejects([&] {
-      std::ostringstream bad;
-      RealLive::writeReadProgress(bad, invalid);
-    }, "writer rejects invalid current page");
+    rejects(
+        [&] {
+          std::ostringstream bad;
+          RealLive::writeReadProgress(bad, invalid);
+        },
+        "writer rejects invalid current page");
 
     // Loading a previous save merges read pages into the current playthrough.
     auto current = plain.readPages;

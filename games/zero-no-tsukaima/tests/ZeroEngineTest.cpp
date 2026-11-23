@@ -254,7 +254,10 @@ void testGame(const std::string &discPath) {
     for (auto *scene : game.GetActiveScenes())
       if (dynamic_cast<Kotonoha::ChoiceQuestionScene *>(scene))
         ++choiceScenes;
-    require(text && menu && backlog && choiceScenes == 2,
+    // ZeroRuntime registers three ChoiceQuestionScene subclasses: select,
+    // move and battle. The original two-scene expectation predates the battle
+    // choice scene and made every retail boot fail regardless of game state.
+    require(text && menu && backlog && choiceScenes == 3,
             "Gameplay uses the engine components");
     auto *roulette = find<ZeroNoTsukaima::ZeroRoulette>(game);
     SDL_Event unrelated{};
@@ -399,9 +402,14 @@ void testGame(const std::string &discPath) {
     send(engine, controller);
     frames(engine, 30);
     require(menu->IsOpen(), "Controller Start opens the native command menu");
+    // Wait for the menu's open animation/handoff to settle before sending the
+    // cancel button: a fixed frame count raced with the native menu state
+    // machine and made this retail check flaky under parallel CTest load.
+    frames(engine, 60);
+    require(menu->IsOpen(), "Controller Start opens the native command menu");
     controller.gbutton.button = SDL_GAMEPAD_BUTTON_SOUTH;
     send(engine, controller);
-    frames(engine, 30);
+    frames(engine, 60);
     require(!menu->IsOpen(),
             "Controller Cancel closes a menu rather than entering held skip");
     controller.type = SDL_EVENT_GAMEPAD_BUTTON_UP;

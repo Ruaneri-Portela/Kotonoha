@@ -6,9 +6,10 @@ on:
     paths:
       - "buildsystems/xcode/**"
       - "tools/ValidateBuildMetadata.py"
-      - "assets/icon.icns"
+      - "design/generated/generic/icon.icns"
+      - "tools/generate_brand_assets.py"
       - "lib/include/Kotonoha/Filesystem/**"
-      - "lib/src/Filesystem/**"
+      - "lib/src/filesystem/**"
       - ".github/workflows/xcode.yml"
 
 permissions:

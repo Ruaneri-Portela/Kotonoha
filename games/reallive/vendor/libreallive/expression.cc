@@ -208,7 +208,7 @@ ExpressionPiece GetExpressionToken(const char*& src) {
   const unsigned char b0 = static_cast<unsigned char>(src[0]);
   if (b0 == 0xff) {
     src++;
-    int value = read_i32(src);
+    int value = static_cast<int>(read_i32(src));
     src += 4;
     return ExpressionPiece::IntConstant(value);
   } else if (b0 == 0xc8) {

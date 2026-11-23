@@ -42,6 +42,18 @@ public:
   std::size_t archiveCount() const { return archives_.size(); }
   std::size_t entryCount() const { return mergedIndex_.size(); }
 
+  // Localized UI data lives under `pc/<language>/...` inside the PFS. The
+  // engine's generic components cannot find those IDs, so expose the native
+  // language/table discovery here instead of hardcoding paths in game code.
+  std::vector<std::string> uiLanguages() const;
+  void setUiLanguage(std::string language);
+  const std::string &uiLanguage() const { return uiLanguage_; }
+  std::string uiTablePath() const;
+
+  // Maps a logical ID from the game's own UI table (e.g.
+  // `title/bt_new_game`) to a canonical `pc/<language>/...` asset ID.
+  std::string resolveUiImagePath(std::string_view logicalFile) const;
+
   // Discovers all .ast scripts in the merged archive/VFS.
   std::vector<std::string> discoverScripts() const;
 
@@ -86,6 +98,7 @@ private:
   std::vector<std::shared_ptr<PfsArchive>> archives_;
   std::unordered_map<std::string, EntryRef> mergedIndex_; // lower -> EntryRef
   SystemConfig systemConfig_;
+  std::string uiLanguage_ = "en";
 };
 
 } // namespace Artemis

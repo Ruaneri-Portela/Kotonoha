@@ -3,6 +3,19 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+// Cartilha visual Kotonoha v2. Native Liquid Glass stays system-owned.
+private enum KotonohaBrand {
+    static let navy = Color(red: 13.0/255, green: 20.0/255, blue: 46.0/255)
+    static let raised = Color(red: 24.0/255, green: 36.0/255, blue: 73.0/255)
+    static let indigo = Color(red: 44.0/255, green: 62.0/255, blue: 154.0/255)
+    static let violet = Color(red: 106.0/255, green: 91.0/255, blue: 231.0/255)
+    static let magenta = Color(red: 200.0/255, green: 107.0/255, blue: 217.0/255)
+    static let cyan = Color(red: 0.0, green: 214.0/255, blue: 1.0)
+    static let sakura = Color(red: 1.0, green: 143.0/255, blue: 189.0/255)
+    static let outline = Color(red: 57.0/255, green: 49.0/255, blue: 94.0/255)
+    static let muted = Color(red: 185.0/255, green: 181.0/255, blue: 212.0/255)
+}
+
 // MARK: - Liquid Glass Helpers (iOS 26+ with iOS 15–18 .ultraThinMaterial fallback)
 
 private struct KotonohaGlassSurfaceModifier: ViewModifier {
@@ -21,7 +34,7 @@ private struct KotonohaGlassSurfaceModifier: ViewModifier {
             content
                 .background(.ultraThinMaterial, in: shape)
                 .overlay(
-                    shape.strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                    shape.strokeBorder(KotonohaBrand.magenta.opacity(0.42), lineWidth: 1)
                 )
         }
     }
@@ -84,25 +97,33 @@ private struct KotonohaAmbientBackdrop: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.07, green: 0.10, blue: 0.18),
-                    Color(red: 0.10, green: 0.14, blue: 0.25),
-                    Color(red: 0.08, green: 0.09, blue: 0.16)
+                    KotonohaBrand.navy,
+                    KotonohaBrand.raised,
+                    KotonohaBrand.indigo.opacity(0.45)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             RadialGradient(
-                colors: [Color(red: 0.26, green: 0.56, blue: 0.96).opacity(0.32), .clear],
+                colors: [KotonohaBrand.cyan.opacity(0.20), .clear],
                 center: .topLeading,
                 startRadius: 20,
                 endRadius: 520
             )
             RadialGradient(
-                colors: [Color(red: 0.78, green: 0.35, blue: 0.66).opacity(0.24), .clear],
+                colors: [KotonohaBrand.magenta.opacity(0.22), .clear],
                 center: .bottomTrailing,
                 startRadius: 30,
                 endRadius: 540
             )
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Text("✿")
+                .font(.system(size: 138, weight: .ultraLight))
+                .foregroundStyle(KotonohaBrand.sakura.opacity(0.07))
+                .padding(28)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
         .ignoresSafeArea()
     }
@@ -148,6 +169,7 @@ struct KotonohaLauncherView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
         }
+        .tint(KotonohaBrand.violet)
         .preferredColorScheme(.dark)
         .onAppear {
             store.rescan()
@@ -369,7 +391,7 @@ struct KotonohaLauncherView: View {
                                 .font(.system(size: 9, weight: .bold))
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
-                                .background(Color.purple.opacity(0.35), in: Capsule())
+                                .background(KotonohaBrand.violet.opacity(0.30), in: Capsule())
                         }
                         if game.params.hasAnyOverride {
                             Image(systemName: "slider.horizontal.3")

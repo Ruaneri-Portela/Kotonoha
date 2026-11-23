@@ -1,7 +1,7 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
-#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <Kotonoha/localization/Translation.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -166,14 +166,16 @@ float UI::textSized(RendererRef renderer, const std::string &original, float x,
         }
         IOStreamPtr io(SDL_IOFromConstMem(fontData.data(), fontData.size()));
         if (io) {
-          FontPtr created(TTF_OpenFontIO(io.release(), true, fontSize * raster));
+          FontPtr created(
+              TTF_OpenFontIO(io.release(), true, fontSize * raster));
           if (created)
             sized = rasterFonts.emplace(sizeKey, std::move(created)).first;
         }
       }
       if (sized != rasterFonts.end()) {
-        entry.glyphText.reset(TTF_CreateText(textEngine.get(), sized->second.get(),
-                                            value.c_str(), value.size()));
+        entry.glyphText.reset(TTF_CreateText(textEngine.get(),
+                                             sized->second.get(), value.c_str(),
+                                             value.size()));
         int width = 0, height = 0;
         if (entry.glyphText &&
             TTF_SetTextWrapWidth(entry.glyphText.get(), pixels) &&
@@ -206,7 +208,8 @@ float UI::textSized(RendererRef renderer, const std::string &original, float x,
           pixels)};
       if (!surface || !MarkTTFTextRaster(*surface))
         throw std::runtime_error(SDL_GetError());
-      entry.texture.reset(SDL_CreateTextureFromSurface(&renderer, surface.get()));
+      entry.texture.reset(
+          SDL_CreateTextureFromSurface(&renderer, surface.get()));
       if (!entry.texture || !MarkTTFTextRaster(*entry.texture))
         throw std::runtime_error(SDL_GetError());
       entry.width = static_cast<float>(surface->w) / raster;
@@ -262,7 +265,7 @@ float UI::textSized(RendererRef renderer, const std::string &original, float x,
       bool drawn = false;
       bool restored = true;
       {
-        RestoreRenderState guard{&renderer, scaleX,   scaleY, viewportSet,
+        RestoreRenderState guard{&renderer,   scaleX,   scaleY, viewportSet,
                                  clipEnabled, viewport, clip,   restored};
         float drawX = x * raster;
         float drawY = y * raster;

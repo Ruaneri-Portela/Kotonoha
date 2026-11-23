@@ -92,8 +92,10 @@ def main() -> int:
             if pattern not in source.splitlines():
                 errors.append(f"missing ignore rule: {pattern}")
 
-    for path in ("assets/SPLASH.PNG", "assets/icon.icns",
-                 "assets/icon.ico", "lib/tests/fixtures/SvgTestFont.ttf"):
+    # Visual identity binaries live in design/generated/ and are produced by
+    # tools/generate_brand_assets.py from design/tokens.json, so their
+    # provenance is established. Only the test-only font still needs review.
+    for path in ("lib/tests/fixtures/SvgTestFont.ttf",):
         if path in tracked:
             warnings.append(
                 f"confirm provenance/redistribution rights separately: {path}")

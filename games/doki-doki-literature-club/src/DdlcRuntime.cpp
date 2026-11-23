@@ -134,21 +134,18 @@ private:
 
 GameRuntime::GameRuntime(
     std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
-    : Runtime(assets && assets->isKatawa()
-                  ? "Katawa Shoujo"
-                  : assets && assets->isDdlc()
-                        ? "Doki Doki Literature Club!"
-                        : assets ? assets->name() : "Ren'Py",
+    : Runtime(assets && assets->isKatawa() ? "Katawa Shoujo"
+              : assets && assets->isDdlc() ? "Doki Doki Literature Club!"
+              : assets                     ? assets->name()
+                                           : "Ren'Py",
               "0.1.0",
-              assets && assets->isKatawa()
-                  ? "me.hirameki.kotonoha.katawashoujo"
-                  : assets && assets->isDdlc()
-                        ? "me.hirameki.kotonoha.dokidokiliteratureclub"
-                        : "me.hirameki.kotonoha.renpy"),
+              assets && assets->isKatawa() ? "me.hirameki.kotonoha.katawashoujo"
+              : assets && assets->isDdlc()
+                  ? "me.hirameki.kotonoha.dokidokiliteratureclub"
+                  : "me.hirameki.kotonoha.renpy"),
       assets_(std::move(assets)) {
   if (!assets_)
-    throw std::invalid_argument(
-        "Ren'Py requires a game directory");
+    throw std::invalid_argument("Ren'Py requires a game directory");
 }
 
 GameRuntime::~GameRuntime() { shutdown(); }

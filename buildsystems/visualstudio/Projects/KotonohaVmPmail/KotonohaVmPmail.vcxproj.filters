@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms">
+      <UniqueIdentifier>{45B28604-2082-520E-A52E-654FBA483FCF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\pmail">
+      <UniqueIdentifier>{B41685BF-F72B-516D-90C7-8283C17336D0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\pmail\src">
+      <UniqueIdentifier>{2FCDE77D-532D-5D9E-9FAA-6ACFB07CD0B7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\vms\pmail\src\LargePonPonVm.cpp">
+      <Filter>modules\vms\pmail\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\pmail\src\Vm.cpp">
+      <Filter>modules\vms\pmail\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -80,14 +80,14 @@ if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES AND KOTONOHA_BUILD_DDLC
    AND NOT KOTONOHA_USE_PYTHON_STUBS)
     find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
     kotonoha_configure_app(KotonohaLauncher
-        BUNDLE_ID me.hirameki.kotonoha.launcher
+        BUNDLE_ID me.hirameki.kotonoha
         GAME launcher
         GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}"
         PYTHON_STDLIB "${KOTONOHA_RENPY_PYTHON_STDLIB}"
         PYTHON_VERSION "${KOTONOHA_RENPY_PYTHON_VERSION}")
 else()
     kotonoha_configure_app(KotonohaLauncher
-        BUNDLE_ID me.hirameki.kotonoha.launcher
+        BUNDLE_ID me.hirameki.kotonoha
         GAME launcher
         GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}")
 endif()

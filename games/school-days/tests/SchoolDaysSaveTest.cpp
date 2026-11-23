@@ -212,6 +212,22 @@ int main(int argc, char **argv) {
           "Retail LOAD did not close SaveLoad after the loading transition");
     check(app.runtime.debugNode() == original,
           "Retail save/load changed the scene");
+    // The custom Display Options tab needs user-authored PNG/CMAP files in the
+    // separate overlay. They are not part of the retail packs or this repo, so
+    // only run that final native-tab check when the overlay actually provides
+    // them, just as the port itself refuses to replace the native menu with a
+    // generic host settings screen when the art cannot be resolved.
+    const std::filesystem::path overlay(argv[3]);
+    const auto displayArt = [&](const char *file) {
+      return std::filesystem::exists(overlay / "System" / "Option" / file);
+    };
+    const bool displayArtwork = displayArt("Option_Display.cmap") &&
+                                displayArt("Option_Display.png") &&
+                                displayArt("Option_Display_Chip.png");
+    if (!displayArtwork) {
+      std::cout << "[SKIP] Display Options artwork is not present in "
+                << overlay << "; native tab assertions skipped\n";
+    } else {
     // Exercise the original aspect buttons and new Display Options tab through
     // their actual retail hit maps, not a synthetic host-only setter.
     auto configControl = [&](int control) {
@@ -255,6 +271,7 @@ int main(int argc, char **argv) {
               displaySprites.front().role ==
                   Kotonoha::SchoolDaysConfigMenuRenderPlan::Role::Base,
           "Display Options base art must be rendered from its own atlas");
+    }
     // Terminal handoff is exercised by SchoolDaysHandoffRuntimeTest.
     std::cout << "School Days retail save: cancel, named UTF-16 metadata, "
                  "write and reload passed\n";

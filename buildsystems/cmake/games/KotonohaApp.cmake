@@ -9,22 +9,80 @@ endif()
 # game directories even though this module is included from lib/CMakeLists.
 set(KOTONOHA_BUILD_HOST_TOOLS ${_kotonoha_host_tools} CACHE INTERNAL
     "Build host-only inspectors from game ports" FORCE)
-if(EMSCRIPTEN)
-    set(_kotonoha_python_development OFF)
-else()
+# FindPython3 always resolves the HOST CPython. Linking its Development
+# artifacts into a cross-compiled binary pulls Mach-O/ELF libpython plus
+# macOS-only flags (-framework CoreFoundation, -ldl) into the MinGW link.
+# vcpkg does not provide a MinGW CPython port, so cross builds use the same
+# interpreter stubs as WebAssembly.
+set(_kotonoha_host_python_usable ON)
+if(EMSCRIPTEN OR MINGW OR (CMAKE_CROSSCOMPILING AND WIN32))
+    set(_kotonoha_host_python_usable OFF)
+endif()
+if(_kotonoha_host_python_usable)
     set(_kotonoha_python_development ON)
+else()
+    set(_kotonoha_python_development OFF)
 endif()
 set(KOTONOHA_HAS_PYTHON_DEVELOPMENT ${_kotonoha_python_development} CACHE INTERNAL
     "CPython Development components are available for native builds" FORCE)
-if(EMSCRIPTEN)
-    set(_kotonoha_web_python_stubs ON)
-else()
+if(_kotonoha_host_python_usable)
     set(_kotonoha_web_python_stubs OFF)
+else()
+    set(_kotonoha_web_python_stubs ON)
 endif()
 set(KOTONOHA_USE_PYTHON_STUBS ${_kotonoha_web_python_stubs} CACHE INTERNAL
     "Use the browser-compatible Python stubs in port code" FORCE)
 
 include("${CMAKE_CURRENT_LIST_DIR}/../packaging/KotonohaAppPackaging.cmake")
+
+# design/generated/ is the versioned source of truth for the visual identity.
+# Every buildsystem imports only the specific files it needs from there; the
+# folder itself is never packaged as a generic engine/game asset.
+# CACHE INTERNAL keeps the path visible to sibling game/launcher directories
+# that call kotonoha_configure_app(): a plain set() is scoped to lib/ and the
+# callers would resolve "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns" to
+# "/generic/icon.icns", which fails target_sources() in every port.
+set(KOTONOHA_BRAND_OUTPUT "${KOTONOHA_PROJECT_ROOT}/design/generated"
+    CACHE INTERNAL "Versioned Kotonoha visual identity outputs")
+if(NOT ANDROID AND NOT EMSCRIPTEN)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py")
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}"
+            "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py"
+            --kind desktop --out "${KOTONOHA_BRAND_OUTPUT}"
+        RESULT_VARIABLE _brand_status)
+    if(NOT _brand_status EQUAL 0)
+        message(FATAL_ERROR "Cannot generate Kotonoha platform icons")
+    endif()
+endif()
+
+# WebAssembly preloads only a staged copy of the engine's SPLASH.PNG; the
+# design/ folder itself never enters the --preload-file MEMFS payload.
+if(EMSCRIPTEN)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    # The staging directory is consumed inside kotonoha_configure_app() from
+    # sibling game directories. Without CACHE INTERNAL it expands empty there
+    # and --preload-file becomes "@/assets", which makes file_packager fail.
+    set(KOTONOHA_WEB_ENGINE_ASSETS "${CMAKE_BINARY_DIR}/kotonoha-web-engine-assets"
+        CACHE INTERNAL "Staged engine assets for WASM preloads" FORCE)
+    file(MAKE_DIRECTORY "${KOTONOHA_WEB_ENGINE_ASSETS}")
+    file(COPY "${KOTONOHA_ENGINE_ASSETS}/" DESTINATION "${KOTONOHA_WEB_ENGINE_ASSETS}")
+    execute_process(COMMAND "${Python3_EXECUTABLE}"
+        "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py"
+        --kind web --out "${KOTONOHA_BRAND_OUTPUT}"
+        RESULT_VARIABLE _web_brand_status)
+    if(NOT _web_brand_status EQUAL 0)
+        message(FATAL_ERROR "Cannot generate Kotonoha WebApp branding")
+    endif()
+    # Only this single engine asset is staged for the WASM preload; importing
+    # the whole design/ tree would bloat MEMFS and leak design sources.
+    configure_file(
+        "${KOTONOHA_BRAND_OUTPUT}/splash/SPLASH.PNG"
+        "${KOTONOHA_WEB_ENGINE_ASSETS}/SPLASH.PNG"
+        COPYONLY)
+endif()
 
 # Cria o executável ou biblioteca compartilhada (Android)
 function(kotonoha_add_app target)
@@ -41,10 +99,62 @@ endfunction()
 # Configurações gerais do app por plataforma
 function(kotonoha_configure_app target)
     cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;GAME_ASSET_SOURCE;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
+
+    # Only the unified launcher is presented as "Kotonoha"; each game bundle
+    # keeps its own game/engine display name.
+    if(target STREQUAL "KotonohaLauncher")
+        set(_display_name "Kotonoha")
+    else()
+        set(_display_name "${target}")
+    endif()
     if(APP_GAME_ASSET_SOURCE)
         set(_game_asset_source "${APP_GAME_ASSET_SOURCE}")
     else()
         set(_game_asset_source "${KOTONOHA_PROJECT_ROOT}/games/${APP_GAME}/game-assets")
+    endif()
+
+    # Embed the canonical icon in every Windows .exe (Explorer, taskbar, ZIP).
+    # VERSIONINFO carries the player-facing name: without it Windows falls
+    # back to the target/filename ("KotonohaLauncher") in Explorer and Task
+    # Manager. Only the unified launcher is presented as "Kotonoha"; every
+    # individual game port keeps its own name.
+    if(WIN32)
+        set(_winres "${CMAKE_CURRENT_BINARY_DIR}/${target}-brand.rc")
+        if(KOTONOHA_BRAND_OUTPUT AND EXISTS "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico")
+            file(TO_CMAKE_PATH "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico" _icon_path)
+            string(REPLACE "." "," _win_version "${PROJECT_VERSION}.0")
+            file(WRITE "${_winres}"
+                "1 ICON \"${_icon_path}\"\n"
+                "VS_VERSION_INFO VERSIONINFO\n"
+                " FILEVERSION ${_win_version}\n"
+                " PRODUCTVERSION ${_win_version}\n"
+                " FILEFLAGSMASK 0x3fL\n"
+                " FILEFLAGS 0x0L\n"
+                " FILEOS 0x40004L\n"
+                " FILETYPE 0x1L\n"
+                " FILESUBTYPE 0x0L\n"
+                "BEGIN\n"
+                "    BLOCK \"StringFileInfo\"\n"
+                "    BEGIN\n"
+                "        BLOCK \"040904b0\"\n"
+                "        BEGIN\n"
+                "            VALUE \"CompanyName\", \"Kotonoha contributors\"\n"
+                "            VALUE \"FileDescription\", \"${_display_name}\"\n"
+                "            VALUE \"FileVersion\", \"${PROJECT_VERSION}\"\n"
+                "            VALUE \"ProductName\", \"${_display_name}\"\n"
+                "            VALUE \"ProductVersion\", \"${PROJECT_VERSION}\"\n"
+                "        END\n"
+                "    END\n"
+                "    BLOCK \"VarFileInfo\"\n"
+                "    BEGIN\n"
+                "        VALUE \"Translation\", 0x409, 1200\n"
+                "    END\n"
+                "END\n")
+            target_sources(${target} PRIVATE "${_winres}")
+        else()
+            message(FATAL_ERROR
+                "Kotonoha brand icon missing for ${target}: ${KOTONOHA_BRAND_OUTPUT}")
+        endif()
     endif()
 
     # Register configured desktop/browser applications for CPack. Registration
@@ -61,7 +171,7 @@ function(kotonoha_configure_app target)
         set_target_properties(${target} PROPERTIES
             MACOSX_BUNDLE TRUE
             MACOSX_BUNDLE_INFO_PLIST "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/Info.plist.in"
-            MACOSX_BUNDLE_BUNDLE_NAME "${target}"
+            MACOSX_BUNDLE_BUNDLE_NAME "${_display_name}"
             MACOSX_BUNDLE_GUI_IDENTIFIER "${APP_BUNDLE_ID}"
             MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
             MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
@@ -72,12 +182,17 @@ function(kotonoha_configure_app target)
 
         kotonoha_configure_app_output(${target})
 
-        set(icon "${KOTONOHA_ENGINE_ASSETS}/icon.icns")
-        set_source_files_properties("${icon}" PROPERTIES
-            MACOSX_PACKAGE_LOCATION Resources
-            HEADER_FILE_ONLY TRUE
-        )
-        target_sources(${target} PRIVATE "${icon}")
+        if(KOTONOHA_BRAND_OUTPUT AND EXISTS "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns")
+            set(icon "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns")
+            set_source_files_properties("${icon}" PROPERTIES
+                MACOSX_PACKAGE_LOCATION Resources
+                HEADER_FILE_ONLY TRUE
+            )
+            target_sources(${target} PRIVATE "${icon}")
+        else()
+            message(FATAL_ERROR
+                "Kotonoha brand icon missing for ${target}: ${KOTONOHA_BRAND_OUTPUT}")
+        endif()
 
         set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
             "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/BundleApp.cmake"
@@ -118,8 +233,16 @@ function(kotonoha_configure_app target)
         if(NOT EMSCRIPTEN)
             kotonoha_copy_runtime_libraries(${target} "${_kotonoha_dependency_dirs}")
         endif()
+        # Every MinGW .exe needs its GCC runtime and the full vcpkg bin set
+        # beside it, regardless of build type, target or selected game ports.
+        kotonoha_deploy_mingw_runtime(${target})
 
         if(EMSCRIPTEN)
+            if(NOT KOTONOHA_WEB_ENGINE_ASSETS OR
+               NOT IS_DIRECTORY "${KOTONOHA_WEB_ENGINE_ASSETS}")
+                message(FATAL_ERROR
+                    "Kotonoha WASM asset staging directory missing for ${target}: ${KOTONOHA_WEB_ENGINE_ASSETS}")
+            endif()
             target_compile_options(${target} PRIVATE
                 -fexceptions
             )
@@ -144,10 +267,12 @@ function(kotonoha_configure_app target)
                 "SHELL:-sASYNCIFY_STACK_SIZE=262144"
                 "SHELL:-sFETCH=1"
                 "SHELL:-lidbfs.js"
-                "SHELL:--preload-file ${KOTONOHA_ENGINE_ASSETS}@/assets"
+                "SHELL:--preload-file ${KOTONOHA_WEB_ENGINE_ASSETS}@/assets"
             )
 
-            set(APP_TITLE "${target}")
+            # The browser tab/PWA name must follow the player-facing name,
+            # not the CMake target ("KotonohaLauncher" for the unified hub).
+            set(APP_TITLE "${_display_name}")
             set(TARGET_NAME "${target}")
             # Every output directory is a standalone PWA with its own
             # start URL, installation identity and Service Worker scope.

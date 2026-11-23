@@ -1,6 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
-#include <Ponscripter/PonscripterVm.hpp>
 #include <Ponscripter/PixelEffects.hpp>
+#include <Ponscripter/PonscripterVm.hpp>
 #include <Ponscripter/SaveSerializer.hpp>
 
 #include <iostream>
@@ -135,32 +135,31 @@ int main() {
 
     {
       Ponscripter::PonscripterVm sub;
-      const std::string subScript =
-          "*define\n"
-          "defsub greet\n"
-          "game\n"
-          "*start\n"
-          "gosub *math,2,\"Alpha\",5\n"
-          "greet 7,\"Texto\"\n"
-          "for %10=4 to 1\n"
-          "mov %99,999\n"
-          "for %12=1 to 2\n"
-          "mov %99,888\n"
-          "next\n"
-          "next\n"
-          "for %11=1 to 3 step -1\n"
-          "mov %99,777\n"
-          "next\n"
-          "end\n"
-          "*math ; inline comment\n"
-          "getparam %1,$1\n"
-          "wait 15\n"
-          "getparam %2\n"
-          "mov %20,%1+%2\n"
-          "return\n"
-          "*greet\n"
-          "getparam %3,$3\n"
-          "return\n";
+      const std::string subScript = "*define\n"
+                                    "defsub greet\n"
+                                    "game\n"
+                                    "*start\n"
+                                    "gosub *math,2,\"Alpha\",5\n"
+                                    "greet 7,\"Texto\"\n"
+                                    "for %10=4 to 1\n"
+                                    "mov %99,999\n"
+                                    "for %12=1 to 2\n"
+                                    "mov %99,888\n"
+                                    "next\n"
+                                    "next\n"
+                                    "for %11=1 to 3 step -1\n"
+                                    "mov %99,777\n"
+                                    "next\n"
+                                    "end\n"
+                                    "*math ; inline comment\n"
+                                    "getparam %1,$1\n"
+                                    "wait 15\n"
+                                    "getparam %2\n"
+                                    "mov %20,%1+%2\n"
+                                    "return\n"
+                                    "*greet\n"
+                                    "getparam %3,$3\n"
+                                    "return\n";
       sub.appendScriptFile("0.utf", subScript);
       check(sub.start(), "Subroutine fixture must start");
       sub.tick(0.0);
@@ -197,48 +196,44 @@ int main() {
 
     {
       Ponscripter::PonscripterVm textVm;
-      textVm.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "mov %5,42\n"
-          "mov $6,\"A@#~!\"\n"
-          "^Score {%5}, {$6}, {|raw@\n"
-          "end\n");
+      textVm.appendScriptFile("0.utf", "*define\n"
+                                       "game\n"
+                                       "*start\n"
+                                       "mov %5,42\n"
+                                       "mov $6,\"A@#~!\"\n"
+                                       "^Score {%5}, {$6}, {|raw@\n"
+                                       "end\n");
       check(textVm.start(), "Interpolation script must start");
       textVm.tick(0.0);
       check(textVm.waitState() == Ponscripter::WaitState::WaitClickInline,
             "Interpolated text must retain its click terminator");
-      check(textVm.currentPagePlainText() ==
-                "Score 42, A@#~!, {raw",
+      check(textVm.currentPagePlainText() == "Score 42, A@#~!, {raw",
             "Interpolated values must remain literal text");
     }
 
     {
       Ponscripter::PonscripterVm compatibility;
-      compatibility.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "len %1,\"Olá\"\n"
-          "mid $2,\"Aé日Z\",1,2\n"
-          "tablegoto 1,*wrong,*chosen,*wrong\n"
-          "mov %9,900\n"
-          "end\n"
-          "*chosen\n"
-          "mov %3,13\n"
-          "tablegoto1 2,*wrong,*chosen2\n"
-          "end\n"
-          "*chosen2\n"
-          "mov %4,22\n"
-          "tablegoto 30,*wrong\n"
-          "mov %5,55\n"
-          "end\n"
-          "*wrong\n"
-          "mov %9,999\n"
-          "end\n");
+      compatibility.appendScriptFile("0.utf",
+                                     "*define\n"
+                                     "game\n"
+                                     "*start\n"
+                                     "len %1,\"Olá\"\n"
+                                     "mid $2,\"Aé日Z\",1,2\n"
+                                     "tablegoto 1,*wrong,*chosen,*wrong\n"
+                                     "mov %9,900\n"
+                                     "end\n"
+                                     "*chosen\n"
+                                     "mov %3,13\n"
+                                     "tablegoto1 2,*wrong,*chosen2\n"
+                                     "end\n"
+                                     "*chosen2\n"
+                                     "mov %4,22\n"
+                                     "tablegoto 30,*wrong\n"
+                                     "mov %5,55\n"
+                                     "end\n"
+                                     "*wrong\n"
+                                     "mov %9,999\n"
+                                     "end\n");
       check(compatibility.start(), "String/dispatch script must start");
       compatibility.tick(0.0);
       check(compatibility.isHalted(), "Dispatch script must terminate");
@@ -254,13 +249,12 @@ int main() {
 
     {
       Ponscripter::PonscripterVm numeric;
-      const std::string script =
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "selnum %9,\"Zero\",\"Um\",\"Dois\"\n"
-          "mov %10,100\n"
-          "end\n";
+      const std::string script = "*define\n"
+                                 "game\n"
+                                 "*start\n"
+                                 "selnum %9,\"Zero\",\"Um\",\"Dois\"\n"
+                                 "mov %10,100\n"
+                                 "end\n";
       numeric.appendScriptFile("0.utf", script);
       check(numeric.start(), "selnum fixture must start");
       numeric.tick(0.0);
@@ -279,8 +273,7 @@ int main() {
           Ponscripter::SaveSerializer::serializeSlot(snapshot);
       check(Ponscripter::SaveSerializer::deserializeSlot(serialized, decoded),
             "numeric choice slot must deserialize");
-      check(decoded.selectionMode == 2 &&
-                decoded.selectionNumberVariable == 9,
+      check(decoded.selectionMode == 2 && decoded.selectionNumberVariable == 9,
             "numeric choice mode must survive save serialization");
 
       Ponscripter::PonscripterVm resumedChoice;
@@ -311,21 +304,20 @@ int main() {
 
     {
       Ponscripter::PonscripterVm choice;
-      choice.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "mov %1,5\n"
-          "selgosub \"Primeira\",*one,\"Segunda\",*two\n"
-          "add %1,100\n"
-          "end\n"
-          "*one\n"
-          "add %1,1\n"
-          "return\n"
-          "*two\n"
-          "add %1,2\n"
-          "return\n");
+      choice.appendScriptFile("0.utf",
+                              "*define\n"
+                              "game\n"
+                              "*start\n"
+                              "mov %1,5\n"
+                              "selgosub \"Primeira\",*one,\"Segunda\",*two\n"
+                              "add %1,100\n"
+                              "end\n"
+                              "*one\n"
+                              "add %1,1\n"
+                              "return\n"
+                              "*two\n"
+                              "add %1,2\n"
+                              "return\n");
       check(choice.start(), "selgosub fixture must start");
       choice.tick(0.0);
       check(choice.waitState() == Ponscripter::WaitState::WaitSelect &&
@@ -340,16 +332,15 @@ int main() {
     {
       Ponscripter::PonscripterVm normal;
       normal.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "select \"Primeira\",*missing,\"Segunda\",*valid\n"
-          "mov %1,999\n"
-          "end\n"
-          "*valid\n"
-          "mov %1,2\n"
-          "end\n");
+          "0.utf", "*define\n"
+                   "game\n"
+                   "*start\n"
+                   "select \"Primeira\",*missing,\"Segunda\",*valid\n"
+                   "mov %1,999\n"
+                   "end\n"
+                   "*valid\n"
+                   "mov %1,2\n"
+                   "end\n");
       check(normal.start(), "select fixture must start");
       normal.tick(0.0);
       check(!normal.selectChoice(0) &&
@@ -363,19 +354,17 @@ int main() {
 
     {
       Ponscripter::PonscripterVm arrayVm;
-      arrayVm.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "dim ?5[3]\n"
-          "game\n"
-          "*start\n"
-          "movl ?5[0],1,2,3,4\n"
-          "movz ?5[1],9\n"
-          "mov %0,?5[0]\n"
-          "mov %1,?5[1]\n"
-          "mov %2,?5[2]\n"
-          "mov %3,?5[3]\n"
-          "end\n");
+      arrayVm.appendScriptFile("0.utf", "*define\n"
+                                        "dim ?5[3]\n"
+                                        "game\n"
+                                        "*start\n"
+                                        "movl ?5[0],1,2,3,4\n"
+                                        "movz ?5[1],9\n"
+                                        "mov %0,?5[0]\n"
+                                        "mov %1,?5[1]\n"
+                                        "mov %2,?5[2]\n"
+                                        "mov %3,?5[3]\n"
+                                        "end\n");
       check(arrayVm.start(), "movz fixture must start");
       arrayVm.tick(0.0);
       check(arrayVm.isHalted(), "movz script must terminate");
@@ -388,16 +377,14 @@ int main() {
 
     {
       Ponscripter::PonscripterVm multiline;
-      multiline.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "selnum %10,\"Primeiro\",\n"
-          "  \"Segundo\",\n"
-          "  \"Terceiro\"\n"
-          "mov %11,1\n"
-          "end\n");
+      multiline.appendScriptFile("0.utf", "*define\n"
+                                          "game\n"
+                                          "*start\n"
+                                          "selnum %10,\"Primeiro\",\n"
+                                          "  \"Segundo\",\n"
+                                          "  \"Terceiro\"\n"
+                                          "mov %11,1\n"
+                                          "end\n");
       check(multiline.start(), "multiline selnum fixture must start");
       multiline.tick(0);
       check(multiline.waitState() == Ponscripter::WaitState::WaitSelect &&
@@ -405,37 +392,35 @@ int main() {
             "multiline selnum must combine all three source lines");
       check(multiline.selectChoice(2), "third multiline option must work");
       multiline.tick(0);
-      check(multiline.isHalted() &&
-                multiline.variables().getNum(10) == 2 &&
+      check(multiline.isHalted() && multiline.variables().getNum(10) == 2 &&
                 multiline.variables().getNum(11) == 1,
             "selection must advance after the entire multiline statement");
     }
 
     {
       Ponscripter::PonscripterVm custom;
-      const std::string script =
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "csel \"Zero\",*zero,\n"
-          "  \"Um\",*one\n"
-          "mov %99,999\n"
-          "end\n"
-          "*customsel\n"
-          "getcselnum %0\n"
-          "getcselstr $1,1\n"
-          "cselbtn 0,20,10,50\n"
-          "cselbtn 1,21,100,50\n"
-          "btnwait %2\n"
-          "sub %2,20\n"
-          "cselgoto %2\n"
-          "end\n"
-          "*zero\n"
-          "mov %3,0\n"
-          "end\n"
-          "*one\n"
-          "mov %3,7\n"
-          "end\n";
+      const std::string script = "*define\n"
+                                 "game\n"
+                                 "*start\n"
+                                 "csel \"Zero\",*zero,\n"
+                                 "  \"Um\",*one\n"
+                                 "mov %99,999\n"
+                                 "end\n"
+                                 "*customsel\n"
+                                 "getcselnum %0\n"
+                                 "getcselstr $1,1\n"
+                                 "cselbtn 0,20,10,50\n"
+                                 "cselbtn 1,21,100,50\n"
+                                 "btnwait %2\n"
+                                 "sub %2,20\n"
+                                 "cselgoto %2\n"
+                                 "end\n"
+                                 "*zero\n"
+                                 "mov %3,0\n"
+                                 "end\n"
+                                 "*one\n"
+                                 "mov %3,7\n"
+                                 "end\n";
       custom.appendScriptFile("0.utf", script);
       check(custom.start(), "customsel fixture must start");
       custom.tick(0);
@@ -456,8 +441,7 @@ int main() {
       check(Ponscripter::SaveSerializer::deserializeSlot(
                 Ponscripter::SaveSerializer::serializeSlot(saved), restored),
             "custom select save/load must deserialize");
-      check(restored.cselOptions.size() == 2 &&
-                restored.buttons.size() == 2 &&
+      check(restored.cselOptions.size() == 2 && restored.buttons.size() == 2 &&
                 restored.buttons[1].text == "Um",
             "custom choice labels/buttons must survive a save roundtrip");
       Ponscripter::PonscripterVm resumed;
@@ -469,8 +453,7 @@ int main() {
             "custom selection hit-testing must use text button bounds");
       check(resumed.advance(), "custom button click must be accepted");
       resumed.tick(0);
-      check(resumed.isHalted() &&
-                resumed.variables().getNum(2) == 1 &&
+      check(resumed.isHalted() && resumed.variables().getNum(2) == 1 &&
                 resumed.variables().getNum(3) == 7 &&
                 resumed.variables().getNum(99) == 0,
             "custom button must branch through script-controlled cselgoto");
@@ -478,18 +461,17 @@ int main() {
 
     {
       Ponscripter::PonscripterVm refs;
-      const std::string script =
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "mov %5,91\n"
-          "mov $6,\"Referência\"\n"
-          "gosub *indirect,%5,$6\n"
-          "end\n"
-          "*indirect\n"
-          "wait 10\n"
-          "getparam i%1,s%2\n"
-          "return\n";
+      const std::string script = "*define\n"
+                                 "game\n"
+                                 "*start\n"
+                                 "mov %5,91\n"
+                                 "mov $6,\"Referência\"\n"
+                                 "gosub *indirect,%5,$6\n"
+                                 "end\n"
+                                 "*indirect\n"
+                                 "wait 10\n"
+                                 "getparam i%1,s%2\n"
+                                 "return\n";
       refs.appendScriptFile("0.utf", script);
       check(refs.start(), "indirect getparam fixture must start");
       refs.tick(0);
@@ -513,37 +495,36 @@ int main() {
       check(resumed.start(), "indirect getparam resume script must start");
       resumed.importSlotSave(restored);
       resumed.tick(20);
-      check(resumed.isHalted() &&
-                resumed.variables().getNum(1) == 5 &&
+      check(resumed.isHalted() && resumed.variables().getNum(1) == 5 &&
                 resumed.variables().getNum(2) == 6,
             "getparam i/s must return original numeric/string variable IDs");
     }
 
     {
       Ponscripter::PonscripterVm hooked;
-      const std::string script =
-          "*define\n"
-          "pretextgosub *before\n"
-          "textgosub *after\n"
-          "game\n"
-          "*start\n"
-          "^Primeiro@\n"
-          "^Segundo\\\n"
-          "end\n"
-          "*before\n"
-          "inc %1\n"
-          "return\n"
-          "*after\n"
-          "inc %2\n"
-          "texec\n"
-          "return\n";
+      const std::string script = "*define\n"
+                                 "pretextgosub *before\n"
+                                 "textgosub *after\n"
+                                 "game\n"
+                                 "*start\n"
+                                 "^Primeiro@\n"
+                                 "^Segundo\\\n"
+                                 "end\n"
+                                 "*before\n"
+                                 "inc %1\n"
+                                 "return\n"
+                                 "*after\n"
+                                 "inc %2\n"
+                                 "texec\n"
+                                 "return\n";
       hooked.appendScriptFile("0.utf", script);
       check(hooked.start(), "text hook fixture must start");
       hooked.tick(0);
-      check(hooked.isHalted() && hooked.currentLabel() == "start" &&
-                hooked.variables().getNum(1) == 2 &&
-                hooked.variables().getNum(2) == 2,
-            "pretext and click text hooks must be called exactly once per line");
+      check(
+          hooked.isHalted() && hooked.currentLabel() == "start" &&
+              hooked.variables().getNum(1) == 2 &&
+              hooked.variables().getNum(2) == 2,
+          "pretext and click text hooks must be called exactly once per line");
       check(hooked.currentPagePlainText().empty() &&
                 !hooked.backlogPages().empty(),
             "texec must clear the pending page after a page-click hook");
@@ -551,22 +532,21 @@ int main() {
 
     {
       Ponscripter::PonscripterVm interrupted;
-      const std::string script =
-          "*define\n"
-          "pretextgosub *before\n"
-          "textgosub *after\n"
-          "game\n"
-          "*start\n"
-          "^Salvar\\\n"
-          "end\n"
-          "*before\n"
-          "wait 10\n"
-          "inc %1\n"
-          "return\n"
-          "*after\n"
-          "inc %2\n"
-          "texec\n"
-          "return\n";
+      const std::string script = "*define\n"
+                                 "pretextgosub *before\n"
+                                 "textgosub *after\n"
+                                 "game\n"
+                                 "*start\n"
+                                 "^Salvar\\\n"
+                                 "end\n"
+                                 "*before\n"
+                                 "wait 10\n"
+                                 "inc %1\n"
+                                 "return\n"
+                                 "*after\n"
+                                 "inc %2\n"
+                                 "texec\n"
+                                 "return\n";
       interrupted.appendScriptFile("0.utf", script);
       check(interrupted.start(), "interrupted hook fixture must start");
       interrupted.tick(0);
@@ -615,23 +595,21 @@ int main() {
       check(gfx.waitState() == Ponscripter::WaitState::WaitTimer,
             "graphics script must stop at timed visibility checkpoint");
       check(gfx.standingSlots()[0].alpha == 127 &&
-                gfx.areSpritesHidden(false) &&
-                !gfx.areSpritesHidden(true),
+                gfx.areSpritesHidden(false) && !gfx.areSpritesHidden(true),
             "tal must change standing opacity and allsphide only main layer");
-      check(gfx.sprites()[2].secondaryLayer &&
-                !gfx.sprites()[1].secondaryLayer,
+      check(gfx.sprites()[2].secondaryLayer && !gfx.sprites()[1].secondaryLayer,
             "lsp and lsp2 must have independent layer classification");
-      check(gfx.sprites()[10].spec.trans ==
-                Ponscripter::TransMode::String &&
+      check(gfx.sprites()[10].spec.trans == Ponscripter::TransMode::String &&
                 gfx.sprites()[10].spec.text == "Ação" &&
                 gfx.sprites()[10].spec.color == 0xFF0000u &&
                 !gfx.sprites()[11].visible,
             "strsp/strsph must set GPU-text sprite caption and visibility");
       Ponscripter::SlotSaveData copy;
-      check(Ponscripter::SaveSerializer::deserializeSlot(
-                Ponscripter::SaveSerializer::serializeSlot(
-                    gfx.exportSlotSave()), copy),
-            "graphics save roundtrip must deserialize");
+      check(
+          Ponscripter::SaveSerializer::deserializeSlot(
+              Ponscripter::SaveSerializer::serializeSlot(gfx.exportSlotSave()),
+              copy),
+          "graphics save roundtrip must deserialize");
       check(copy.allSpritesHidden && !copy.allSprites2Hidden &&
                 copy.standing[0].alpha == 127 &&
                 copy.sprites[2].secondaryLayer &&
@@ -642,30 +620,28 @@ int main() {
       check(resumed.start(), "graphics resume script must start");
       resumed.importSlotSave(copy);
       resumed.tick(20);
-      check(resumed.isHalted() &&
-                !resumed.areSpritesHidden(false) &&
+      check(resumed.isHalted() && !resumed.areSpritesHidden(false) &&
                 resumed.areSpritesHidden(true),
             "allspresume/allsp2hide must resume only the selected layer");
     }
 
     {
       Ponscripter::PonscripterVm manual;
-      const std::string script =
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "bg \"bg.png\"\n"
-          "lsp 4,\"sprite.png\",0,0\n"
-          "drawclear\n"
-          "drawbg\n"
-          "drawsp 4,0,256,20,30\n"
-          "drawsp2 4,0,128,60,70,125,80,45\n"
-          "drawsp3 4,0,256,30,40,1000,200,-200,1000\n"
-          "draw\n"
-          "wait 10\n"
-          "drawfill 12,34,56\n"
-          "draw\n"
-          "end\n";
+      const std::string script = "*define\n"
+                                 "game\n"
+                                 "*start\n"
+                                 "bg \"bg.png\"\n"
+                                 "lsp 4,\"sprite.png\",0,0\n"
+                                 "drawclear\n"
+                                 "drawbg\n"
+                                 "drawsp 4,0,256,20,30\n"
+                                 "drawsp2 4,0,128,60,70,125,80,45\n"
+                                 "drawsp3 4,0,256,30,40,1000,200,-200,1000\n"
+                                 "draw\n"
+                                 "wait 10\n"
+                                 "drawfill 12,34,56\n"
+                                 "draw\n"
+                                 "end\n";
       manual.appendScriptFile("0.utf", script);
       check(manual.start(), "manual framebuffer fixture must start");
       manual.tick(0);
@@ -677,15 +653,16 @@ int main() {
       check(ops[0].kind == Ponscripter::ManualDrawOp::Kind::Clear &&
                 ops[1].kind == Ponscripter::ManualDrawOp::Kind::Background &&
                 ops[2].kind == Ponscripter::ManualDrawOp::Kind::Sprite &&
-                ops[2].x == 20 && ops[2].y == 30 &&
-                ops[3].scaleX == 125 && ops[3].scaleY == 80 &&
-                ops[3].rotation == 45 && ops[4].affine &&
+                ops[2].x == 20 && ops[2].y == 30 && ops[3].scaleX == 125 &&
+                ops[3].scaleY == 80 && ops[3].rotation == 45 && ops[4].affine &&
                 ops[4].transformB == 200,
-            "manual background, drawsp, scaled and affine commands must be captured");
+            "manual background, drawsp, scaled and affine commands must be "
+            "captured");
       Ponscripter::SlotSaveData slot;
       check(Ponscripter::SaveSerializer::deserializeSlot(
                 Ponscripter::SaveSerializer::serializeSlot(
-                    manual.exportSlotSave()), slot),
+                    manual.exportSlotSave()),
+                slot),
             "manual GPU draw snapshot must roundtrip");
       check(slot.manualFrameVisible && slot.manualDisplayOps.size() == 5 &&
                 slot.manualDisplayOps[2].spec.imagePath == "sprite.png" &&
@@ -704,15 +681,14 @@ int main() {
 
     {
       Ponscripter::PonscripterVm shake;
-      const std::string script =
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "quakex 16,120\n"
-          "mov %1,1\n"
-          "quakey 12,100\n"
-          "mov %2,2\n"
-          "end\n";
+      const std::string script = "*define\n"
+                                 "game\n"
+                                 "*start\n"
+                                 "quakex 16,120\n"
+                                 "mov %1,1\n"
+                                 "quakey 12,100\n"
+                                 "mov %2,2\n"
+                                 "end\n";
       shake.appendScriptFile("0.utf", script);
       check(shake.start(), "quake fixture must start");
       shake.tick(0);
@@ -726,10 +702,10 @@ int main() {
       Ponscripter::SlotSaveData state;
       check(Ponscripter::SaveSerializer::deserializeSlot(
                 Ponscripter::SaveSerializer::serializeSlot(
-                    shake.exportSlotSave()), state),
+                    shake.exportSlotSave()),
+                state),
             "active quake must be savable");
-      check(state.activeEffect.active &&
-                state.activeEffect.durationMs == 120 &&
+      check(state.activeEffect.active && state.activeEffect.durationMs == 120 &&
                 state.activeEffect.elapsedMs == 31 &&
                 state.quakeAmplitude == 16,
             "quake state and frame progress must survive save roundtrip");
@@ -748,47 +724,42 @@ int main() {
             "quakey frame offset must animate only Y");
       restored.tick(110);
       check(restored.isHalted() && restored.variables().getNum(2) == 2 &&
-                restored.quakeOffset() == std::pair<int,int>{0,0},
+                restored.quakeOffset() == std::pair<int, int>{0, 0},
             "completed quake must restore centered scene");
     }
 
     {
-      std::uint8_t pixels[12] = {10, 20, 30, 191, 200, 100, 50, 117,
-                                 7, 8, 9, 10};
-      Ponscripter::applyScenePixelEffects(pixels, 2, 1, 12, false,
-                                           0xFFFFFFu, 1);
-      check(pixels[0] == 245 && pixels[1] == 235 &&
-                pixels[2] == 225 && pixels[3] == 191 &&
-                pixels[4] == 55 && pixels[5] == 155 &&
-                pixels[6] == 205 && pixels[7] == 117 &&
-                pixels[8] == 7 && pixels[9] == 8,
+      std::uint8_t pixels[12] = {10, 20,  30, 191, 200, 100,
+                                 50, 117, 7,  8,   9,   10};
+      Ponscripter::applyScenePixelEffects(pixels, 2, 1, 12, false, 0xFFFFFFu,
+                                          1);
+      check(pixels[0] == 245 && pixels[1] == 235 && pixels[2] == 225 &&
+                pixels[3] == 191 && pixels[4] == 55 && pixels[5] == 155 &&
+                pixels[6] == 205 && pixels[7] == 117 && pixels[8] == 7 &&
+                pixels[9] == 8,
             "negative mode must invert only RGB and preserve alpha/padding");
 
       std::uint8_t mono[4] = {10, 20, 30, 127};
-      Ponscripter::applyScenePixelEffects(mono, 1, 1, 4, true,
-                                           0xFF0000u, 0);
-      check(mono[0] == 18 && mono[1] == 0 &&
-                mono[2] == 0 && mono[3] == 127,
+      Ponscripter::applyScenePixelEffects(mono, 1, 1, 4, true, 0xFF0000u, 0);
+      check(mono[0] == 18 && mono[1] == 0 && mono[2] == 0 && mono[3] == 127,
             "monochrome tint must compute luma and preserve transparency");
-      Ponscripter::applyScenePixelEffects(mono, 1, 1, 4, false,
-                                           0xFFFFFFu, 2);
-      check(mono[0] == 237 && mono[1] == 255 &&
-                mono[2] == 255 && mono[3] == 127,
+      Ponscripter::applyScenePixelEffects(mono, 1, 1, 4, false, 0xFFFFFFu, 2);
+      check(mono[0] == 237 && mono[1] == 255 && mono[2] == 255 &&
+                mono[3] == 127,
             "negative mode 2 must invert the fully composited tint");
     }
 
     {
       Ponscripter::PonscripterVm postfx;
-      const std::string script =
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "monocro #ffcc00\n"
-          "nega 2\n"
-          "wait 10\n"
-          "monocro off\n"
-          "nega 0\n"
-          "end\n";
+      const std::string script = "*define\n"
+                                 "game\n"
+                                 "*start\n"
+                                 "monocro #ffcc00\n"
+                                 "nega 2\n"
+                                 "wait 10\n"
+                                 "monocro off\n"
+                                 "nega 0\n"
+                                 "end\n";
       postfx.appendScriptFile("0.utf", script);
       check(postfx.start(), "postprocess fixture must start");
       postfx.tick(0);
@@ -800,10 +771,10 @@ int main() {
       Ponscripter::SlotSaveData slot;
       check(Ponscripter::SaveSerializer::deserializeSlot(
                 Ponscripter::SaveSerializer::serializeSlot(
-                    postfx.exportSlotSave()), slot),
+                    postfx.exportSlotSave()),
+                slot),
             "postprocess state must roundtrip");
-      check(slot.monochromeEnabled &&
-                slot.monochromeColor == 0xFFCC00u &&
+      check(slot.monochromeEnabled && slot.monochromeColor == 0xFFCC00u &&
                 slot.negativeMode == 2,
             "monochrome/negative state must survive save");
       Ponscripter::PonscripterVm resumed;
@@ -818,18 +789,17 @@ int main() {
 
     {
       Ponscripter::PonscripterVm copied;
-      const std::string script =
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "bg black\n"
-          "lsp 12,\"sprite.png\",35,45\n"
-          "bgcopy\n"
-          "csp 12\n"
-          "bgcpy\n"
-          "wait 10\n"
-          "bg white\n"
-          "end\n";
+      const std::string script = "*define\n"
+                                 "game\n"
+                                 "*start\n"
+                                 "bg black\n"
+                                 "lsp 12,\"sprite.png\",35,45\n"
+                                 "bgcopy\n"
+                                 "csp 12\n"
+                                 "bgcpy\n"
+                                 "wait 10\n"
+                                 "bg white\n"
+                                 "end\n";
       copied.appendScriptFile("0.utf", script);
       check(copied.start(), "background copy fixture must start");
       copied.tick(0);
@@ -842,7 +812,8 @@ int main() {
       Ponscripter::SlotSaveData saved;
       check(Ponscripter::SaveSerializer::deserializeSlot(
                 Ponscripter::SaveSerializer::serializeSlot(
-                    copied.exportSlotSave()), saved),
+                    copied.exportSlotSave()),
+                saved),
             "composited background should serialize");
       check(saved.backgroundCopyOps.size() == 2 &&
                 saved.backgroundCopyOps[1].x == 35,
@@ -858,23 +829,21 @@ int main() {
 
     {
       Ponscripter::PonscripterVm exbtn;
-      exbtn.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "lsp 6,\":a/3,0,3;icon.png\",0,0\n"
-          "lsp 7,\"second.png\",0,0\n"
-          "spstr \"P6,2M6,80,-10S4,(audio/click.ogg)\"\n"
-          "wait 10\n"
-          "spstr \"C6-7\"\n"
-          "end\n");
+      exbtn.appendScriptFile("0.utf",
+                             "*define\n"
+                             "game\n"
+                             "*start\n"
+                             "lsp 6,\":a/3,0,3;icon.png\",0,0\n"
+                             "lsp 7,\"second.png\",0,0\n"
+                             "spstr \"P6,2M6,80,-10S4,(audio/click.ogg)\"\n"
+                             "wait 10\n"
+                             "spstr \"C6-7\"\n"
+                             "end\n");
       check(exbtn.start(), "spstr fixture must start");
       exbtn.tick(0);
       check(exbtn.waitState() == Ponscripter::WaitState::WaitTimer &&
                 exbtn.sprites()[6].currentCell == 2 &&
-                exbtn.sprites()[6].x == 80 &&
-                exbtn.sprites()[6].y == -10 &&
+                exbtn.sprites()[6].x == 80 && exbtn.sprites()[6].y == -10 &&
                 exbtn.sprites()[6].visible &&
                 exbtn.lastSePath() == "audio/click.ogg",
             "spstr must set the sprite cell, position and sample path");
@@ -886,18 +855,16 @@ int main() {
 
     {
       Ponscripter::PonscripterVm pretext;
-      pretext.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "pretextgosub *before\n"
-          "game\n"
-          "*start\n"
-          "^Main@\n"
-          "end\n"
-          "*before\n"
-          "^Text inside pretext hook\n"
-          "inc %1\n"
-          "return\n");
+      pretext.appendScriptFile("0.utf", "*define\n"
+                                        "pretextgosub *before\n"
+                                        "game\n"
+                                        "*start\n"
+                                        "^Main@\n"
+                                        "end\n"
+                                        "*before\n"
+                                        "^Text inside pretext hook\n"
+                                        "inc %1\n"
+                                        "return\n");
       check(pretext.start(), "nested pretext guard fixture must start");
       pretext.tick(0);
       check(pretext.waitState() == Ponscripter::WaitState::WaitClickInline &&
@@ -907,25 +874,22 @@ int main() {
 
     {
       Ponscripter::PonscripterVm textHook;
-      textHook.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "textgosub *after\n"
-          "game\n"
-          "*start\n"
-          "^Main@\n"
-          "end\n"
-          "*after\n"
-          "^Click within textgosub@\n"
-          "inc %1\n"
-          "return\n");
+      textHook.appendScriptFile("0.utf", "*define\n"
+                                         "textgosub *after\n"
+                                         "game\n"
+                                         "*start\n"
+                                         "^Main@\n"
+                                         "end\n"
+                                         "*after\n"
+                                         "^Click within textgosub@\n"
+                                         "inc %1\n"
+                                         "return\n");
       check(textHook.start(), "nested text hook fixture must start");
       textHook.tick(0);
       check(textHook.waitState() == Ponscripter::WaitState::WaitClickInline,
             "nested text hook must use normal wait without recursive gosub");
       for (int i = 0; i < 5 && !textHook.isHalted(); ++i) {
-        if (textHook.waitState() ==
-            Ponscripter::WaitState::WaitClickInline)
+        if (textHook.waitState() == Ponscripter::WaitState::WaitClickInline)
           textHook.advance();
         textHook.tick(0);
       }
@@ -935,33 +899,31 @@ int main() {
 
     {
       Ponscripter::PonscripterVm hud;
-      hud.appendScriptFile(
-          "0.utf",
-          "*define\n"
-          "game\n"
-          "*start\n"
-          "bar 1,50,10,20,200,12,100,#ff0000\n"
-          "prnum 1,123,30,40,20,22,#ffffff\n"
-          "bgcopy\n"
-          "wait 10\n"
-          "end\n");
+      hud.appendScriptFile("0.utf", "*define\n"
+                                    "game\n"
+                                    "*start\n"
+                                    "bar 1,50,10,20,200,12,100,#ff0000\n"
+                                    "prnum 1,123,30,40,20,22,#ffffff\n"
+                                    "bgcopy\n"
+                                    "wait 10\n"
+                                    "end\n");
       check(hud.start(), "HUD background capture fixture must start");
       hud.tick(0);
       const auto &captured = hud.backgroundCopyOps();
       check(captured.size() == 3 &&
                 captured[1].kind == Ponscripter::ManualDrawOp::Kind::Rect &&
-                captured[1].width == 100 &&
-                captured[1].colorRgb == 0xFF0000u &&
+                captured[1].width == 100 && captured[1].colorRgb == 0xFF0000u &&
                 captured[2].kind == Ponscripter::ManualDrawOp::Kind::Text &&
                 captured[2].text == "123",
             "bgcopy must freeze bars and GPU-rendered number labels");
       Ponscripter::SlotSaveData data;
-      check(Ponscripter::SaveSerializer::deserializeSlot(
-                Ponscripter::SaveSerializer::serializeSlot(
-                    hud.exportSlotSave()), data) &&
-                data.backgroundCopyOps.size() == 3 &&
-                data.backgroundCopyOps[1].width == 100,
-            "background HUD snapshots must survive saved slot serialization");
+      check(
+          Ponscripter::SaveSerializer::deserializeSlot(
+              Ponscripter::SaveSerializer::serializeSlot(hud.exportSlotSave()),
+              data) &&
+              data.backgroundCopyOps.size() == 3 &&
+              data.backgroundCopyOps[1].width == 100,
+          "background HUD snapshots must survive saved slot serialization");
     }
 
     std::cout << "Ponscripter.VmFlowAndMenu passed\n";

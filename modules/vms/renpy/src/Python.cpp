@@ -131,11 +131,11 @@ void installAndroidExtensionFinder() {
         "Cannot allocate Android extension finder globals");
   }
   const std::string dirStr = nativeLibDir.string();
-  Ref pyDir(PyUnicode_DecodeUTF8(
-      dirStr.data(), static_cast<Py_ssize_t>(dirStr.size()), "surrogateescape"));
-  if (!pyDir ||
-      PyDict_SetItemString(globals.get(), "_kotonoha_native_lib_dir",
-                           pyDir.get()) < 0) {
+  Ref pyDir(PyUnicode_DecodeUTF8(dirStr.data(),
+                                 static_cast<Py_ssize_t>(dirStr.size()),
+                                 "surrogateescape"));
+  if (!pyDir || PyDict_SetItemString(globals.get(), "_kotonoha_native_lib_dir",
+                                     pyDir.get()) < 0) {
     throw std::runtime_error(
         "Cannot bind Android nativeLibraryDir for Python extension finder");
   }

@@ -2,8 +2,8 @@
 #include <N2System/SaveState.hpp>
 #include <cstring>
 #include <limits>
-#include <utility>
 #include <sstream>
+#include <utility>
 
 namespace N2System {
 
@@ -21,8 +21,7 @@ bool readString(const std::vector<uint8_t> &in, size_t &cursor,
                 std::string &outStr) {
   if (cursor + 4 > in.size())
     return false;
-  const uint32_t len = uint32_t(in[cursor]) |
-                       (uint32_t(in[cursor + 1]) << 8) |
+  const uint32_t len = uint32_t(in[cursor]) | (uint32_t(in[cursor + 1]) << 8) |
                        (uint32_t(in[cursor + 2]) << 16) |
                        (uint32_t(in[cursor + 3]) << 24);
   cursor += 4;
@@ -105,8 +104,7 @@ std::vector<uint8_t> SaveStateCodec::serializeBinary(const SaveData &data) {
 bool SaveStateCodec::deserializeBinary(const std::vector<uint8_t> &bytes,
                                        SaveData &outData) {
   if (bytes.size() < 4 || bytes.size() > 32u * 1024u * 1024u ||
-      bytes[0] != 'N' || bytes[1] != '2' ||
-      bytes[2] != 'S' || bytes[3] != 'V')
+      bytes[0] != 'N' || bytes[1] != '2' || bytes[2] != 'S' || bytes[3] != 'V')
     return false;
 
   SaveData parsed;
@@ -199,8 +197,8 @@ bool SaveStateCodec::deserializeBinary(const std::vector<uint8_t> &bytes,
     if (!readU64(bytes, cursor, length) || length > 16u * 1024u * 1024u ||
         length != bytes.size() - cursor)
       return false;
-    parsed.runtimeBlob.assign(bytes.begin() + static_cast<std::ptrdiff_t>(cursor),
-                              bytes.end());
+    parsed.runtimeBlob.assign(
+        bytes.begin() + static_cast<std::ptrdiff_t>(cursor), bytes.end());
     cursor = bytes.size();
   }
   if (cursor != bytes.size())

@@ -188,19 +188,21 @@ void runFontTests(const fs::path &root, const fs::path &validTtf) {
     options.persistSettings = false;
     Engine engine(runtime, options);
 
-    // Case 1: Both custom and default fonts are incompatible (Android scenario).
-    // Must fall back to AddFontDefaultVector() without asserting or crashing.
-    for (const auto &bad : {emptyFile, tinyFile, garbageFile, truncatedFile,
-                            badTtcFile, incompatibleOtf, incompatibleTtc,
-                            root / "does-not-exist.ttf"}) {
+    // Case 1: Both custom and default fonts are incompatible (Android
+    // scenario). Must fall back to AddFontDefaultVector() without asserting or
+    // crashing.
+    for (const auto &bad :
+         {emptyFile, tinyFile, garbageFile, truncatedFile, badTtcFile,
+          incompatibleOtf, incompatibleTtc, root / "does-not-exist.ttf"}) {
       require(!ImGuiTheme::loadFontsFromPaths(bad, incompatibleTtc),
               "Invalid/incompatible font pair must fall back to built-in font");
       engine.Iterate();
     }
 
     // Case 2: Empty custom path with incompatible default font.
-    require(!ImGuiTheme::loadFontsFromPaths({}, incompatibleTtc),
-            "Empty custom path with incompatible default must fall back safely");
+    require(
+        !ImGuiTheme::loadFontsFromPaths({}, incompatibleTtc),
+        "Empty custom path with incompatible default must fall back safely");
     engine.Iterate();
 
     // Case 3: Valid TTF must still load as the active ImGui font.
@@ -208,7 +210,8 @@ void runFontTests(const fs::path &root, const fs::path &validTtf) {
             "Valid TTF font must load instead of built-in fallback");
     engine.Iterate();
 
-    // Case 4: Invalid custom font with valid default font falls back to default.
+    // Case 4: Invalid custom font with valid default font falls back to
+    // default.
     require(ImGuiTheme::loadFontsFromPaths(incompatibleTtc, validTtf),
             "Invalid custom font must fall back to valid default TTF");
     engine.Iterate();
@@ -221,7 +224,8 @@ void runFontTests(const fs::path &root, const fs::path &validTtf) {
     ImGuiTheme::loadFonts();
     engine.Iterate();
 
-    // Case 6: Repeated alternating reloads must not leak or corrupt atlas state.
+    // Case 6: Repeated alternating reloads must not leak or corrupt atlas
+    // state.
     for (int i = 0; i < 12; ++i) {
       const bool expectFile = (i % 2 != 0);
       const bool loaded = ImGuiTheme::loadFontsFromPaths(

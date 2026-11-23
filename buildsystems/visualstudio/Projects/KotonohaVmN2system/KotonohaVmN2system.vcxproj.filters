@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms">
+      <UniqueIdentifier>{45B28604-2082-520E-A52E-654FBA483FCF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\n2system">
+      <UniqueIdentifier>{19451501-7B85-570F-B2A1-51FB1E3F2241}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\n2system\src">
+      <UniqueIdentifier>{6A71CED1-99AA-5349-8CC4-BACE2CB15D32}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\AudioSystem.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\DebugCatalog.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\DialogueSystem.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\NsbScript.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\NsbSnapshot.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\NsbVm.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\SaveState.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\SaveStateJson.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\SceneGraph.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\ScriptExecutor.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\ScriptIndex.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\ScriptVm.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\VariableStore.cpp">
+      <Filter>modules\vms\n2system\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

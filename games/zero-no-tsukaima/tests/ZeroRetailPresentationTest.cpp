@@ -1,6 +1,6 @@
 #include "ZeroRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/media/SavePng.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <filesystem>
 #include <functional>
 #include <iostream>

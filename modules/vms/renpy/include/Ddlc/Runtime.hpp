@@ -260,7 +260,8 @@ struct Interaction {
     Screen,
     Ui,
     End,
-    Restart
+    Restart,
+    MovieCutscene // renpy.movie_cutscene(): blocks until the movie ends/a click
   } k = K::None;
   double start = 0, deadline = -1; // seconds; deadline < 0: none
   bool dismiss = true;             // a click ends it
@@ -280,6 +281,10 @@ struct Interaction {
   std::string message;
   Args args;
   Kwargs kw;
+  // MovieCutscene: logical asset id plus the action value returned by the
+  // renpy.movie_cutscene builtin (class "MovieCutscene").
+  std::string movie;
+  Value action;
 };
 
 // Services of the host (asset sizes, audio, persistence).
@@ -401,6 +406,7 @@ private:
   void doWith(const std::string &expr);
   void transition(const std::shared_ptr<Transition> &t);
   void pause(double seconds, bool dismiss);
+  void movieCutscene(const std::string &path, const Value &action);
   Value menu(const std::vector<Interaction::Item> &items,
              const std::string &caption, const std::string &screen);
   void showDisp(const std::string &tag, const std::vector<std::string> &name,

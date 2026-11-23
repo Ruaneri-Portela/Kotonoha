@@ -8,21 +8,22 @@
 
 namespace {
 void check(bool ok, const char *why) {
-  if (!ok) throw std::runtime_error(why);
+  if (!ok)
+    throw std::runtime_error(why);
 }
 bool near(float a, float b, float eps = 0.002f) {
   return std::fabs(a - b) < eps;
 }
-}
+} // namespace
 
 int main() {
   using namespace N2System;
   constexpr EaseFunction functions[] = {
-      EaseFunction::Linear, EaseFunction::QuadraticIn,
-      EaseFunction::CubicIn, EaseFunction::QuarticIn,
+      EaseFunction::Linear,       EaseFunction::QuadraticIn,
+      EaseFunction::CubicIn,      EaseFunction::QuarticIn,
       EaseFunction::QuadraticOut, EaseFunction::CubicOut,
-      EaseFunction::QuarticOut, EaseFunction::SineIn,
-      EaseFunction::SineOut, EaseFunction::SineInOut,
+      EaseFunction::QuarticOut,   EaseFunction::SineIn,
+      EaseFunction::SineOut,      EaseFunction::SineInOut,
       EaseFunction::SineOutIn};
   for (const auto curve : functions) {
     check(near(easeFactor(0, curve), 0), "Ease must start at zero");
@@ -39,8 +40,8 @@ int main() {
   check(near(easeFactor(0.5f, EaseFunction::QuadraticOut), 0.75f),
         "Quadratic-out uses NitroSharp curve");
   check(parseEaseFunction("7") == EaseFunction::SineIn &&
-        parseEaseFunction("SineEaseInOut") == EaseFunction::SineInOut &&
-        parseEaseFunction("CubicEaseOut") == EaseFunction::CubicOut,
+            parseEaseFunction("SineEaseInOut") == EaseFunction::SineInOut &&
+            parseEaseFunction("CubicEaseOut") == EaseFunction::CubicOut,
         "Named and numbered NSB tempo arguments map to NitroSharp");
   SceneGraph graph;
   auto *e = graph.createEntity("sprite", EntityType::Sprite);
@@ -57,8 +58,8 @@ int main() {
         "Zoom interpolates using easing");
   check(near(e->angle, 90), "Rotate interpolates over elapsed time");
   graph.update(0.5f);
-  check(near(e->x, 100) && near(e->opacity, 0) &&
-        near(e->scaleX, 2) && !e->isAnimating(),
+  check(near(e->x, 100) && near(e->opacity, 0) && near(e->scaleX, 2) &&
+            !e->isAnimating(),
         "All tween end states are exact and waits may complete");
 
   e->x = 0;
@@ -73,7 +74,7 @@ int main() {
   graph.transitionEntity("sprite", 0, 1, 1000, "mask",
                          EaseFunction::QuadraticIn);
   graph.update(0.5f);
-  check(near(e->opacity, 0.25f) &&
-        e->transitionMaskPath == "mask", "Transition easing and mask retained");
+  check(near(e->opacity, 0.25f) && e->transitionMaskPath == "mask",
+        "Transition easing and mask retained");
   std::cout << "NitroSharp easing and Bezier tests passed\n";
 }

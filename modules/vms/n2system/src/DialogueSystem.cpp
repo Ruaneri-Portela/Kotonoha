@@ -24,10 +24,11 @@ void DialogueSystem::setDialogue(std::string_view speaker,
   }
 }
 
-void DialogueSystem::restore(
-    std::string speaker, std::string text, std::string voice,
-    std::vector<DialogueBacklogEntry> backlog, std::size_t visibleChars,
-    float charsPerSecond, bool typing, bool waiting) {
+void DialogueSystem::restore(std::string speaker, std::string text,
+                             std::string voice,
+                             std::vector<DialogueBacklogEntry> backlog,
+                             std::size_t visibleChars, float charsPerSecond,
+                             bool typing, bool waiting) {
   speaker_ = std::move(speaker);
   text_ = std::move(text);
   voicePath_ = std::move(voice);

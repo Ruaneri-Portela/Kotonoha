@@ -9,7 +9,7 @@
     <string name="scanning_library">Scanning library…</string>
     <string name="isolate_saves">Isolate saves</string>
     <string name="no_games_found">No Games Found</string>
-    <string name="empty_library_hint">Add a game folder, ISO/BIN disc image, or ZIP using the buttons below. You can also place games in Android/data/me.hirameki.kotonoha.launcher/files/games.</string>
+    <string name="empty_library_hint">Add a game folder, ISO/BIN disc image, or ZIP using the buttons below. You can also place games in Android/data/%1$s/files/games.</string>
     <string name="import_zip_action">+ Import ZIP</string>
     <string name="add_disc_action">+ Add ISO/BIN</string>
     <string name="add_folder_action">+ Add folder</string>

@@ -150,9 +150,10 @@ void Archive::ReadTOC() {
   if (size < 80000) throw Error("Truncated SEEN archive index");
   const char* idx = data;
   for (int i = 0; i < 10000; ++i, idx += 8) {
-    const int offs = read_i32(idx);
+    // read_i32() produces a signed 32-bit value, so the narrowing is exact.
+    const int offs = static_cast<int>(read_i32(idx));
     if (offs) {
-      const int length = read_i32(idx + 4);
+      const int length = static_cast<int>(read_i32(idx + 4));
       if (offs < 80000 || length < 0 || static_cast<size_t>(offs) > size || static_cast<size_t>(length) > size-static_cast<size_t>(offs)) throw Error("Invalid SEEN archive entry");
       scenarios_[i] = FilePos(data + offs, length);
     }

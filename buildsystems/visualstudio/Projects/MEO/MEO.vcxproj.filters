@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="games">
+      <UniqueIdentifier>{5FCCA92E-B3F1-5DE8-A57C-01A34E47C6B3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="games\meo">
+      <UniqueIdentifier>{E8E94532-5948-532C-BC09-A04065677EC6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="games\meo\src">
+      <UniqueIdentifier>{81263BFD-C30C-54A2-865C-45E388A6D733}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="games\summer-radish-vacation">
+      <UniqueIdentifier>{575E4D22-5685-5F06-B9D6-623B39E59276}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="games\summer-radish-vacation\src">
+      <UniqueIdentifier>{1C4DB795-FFFB-502E-962A-0ABDE35B87E5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib">
+      <UniqueIdentifier>{B720A75C-6A83-5BF4-8884-334B9761B58F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src">
+      <UniqueIdentifier>{26413059-CE2B-5144-8718-2475F8ABED5E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\components">
+      <UniqueIdentifier>{DC48B2F8-5968-5EFE-9F35-EC557BFEAE28}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\core">
+      <UniqueIdentifier>{9EAFB41D-D41C-5E31-A4EB-79B4AC2652B6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\debug">
+      <UniqueIdentifier>{481D7E5A-3DE1-5BAD-92EF-B7801330C87E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\events">
+      <UniqueIdentifier>{2C9B6AE6-77A9-57C5-B615-86427B8A2F37}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\filesystem">
+      <UniqueIdentifier>{2F8180C7-5791-54F5-AEB4-2F587D7CFC04}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\filesystem\adapters">
+      <UniqueIdentifier>{6D750A11-B280-544F-A3F1-A9347945F34C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\filesystem\mounts">
+      <UniqueIdentifier>{9D307DBA-2BF7-5596-A2B4-D1E646FEAA2E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\filesystem\sources">
+      <UniqueIdentifier>{1EA06391-D360-55BB-AE9C-48EAA618340B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\localization">
+      <UniqueIdentifier>{871B3D97-5327-515D-BA4D-858A96F29875}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\mcp">
+      <UniqueIdentifier>{C5F85E0E-D063-5E09-8A65-2245D185E185}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\media">
+      <UniqueIdentifier>{986065B7-EC4B-55F8-994A-C53E184F4482}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\media\upscaling">
+      <UniqueIdentifier>{6E58F3B7-C97B-5A8A-97EA-85CC8C286BDD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\mobile">
+      <UniqueIdentifier>{C943AA68-1A2C-58B1-9E71-9B2930A474F8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\parsers">
+      <UniqueIdentifier>{8BFA513A-375B-5292-8D56-9798428C33B8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\prefetch">
+      <UniqueIdentifier>{85650E13-F0D3-5D9A-AB16-AABD7C660B20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\routing">
+      <UniqueIdentifier>{308ACDD5-3756-5DEC-B4EA-8DD41EBCE5AB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\script">
+      <UniqueIdentifier>{02B40039-7545-5C4E-9877-F3CB1C040E1B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\src\workers">
+      <UniqueIdentifier>{C74EA1F8-4324-54BF-A06C-CA6C202A3619}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules">
+      <UniqueIdentifier>{4548933C-AC76-5E11-BEE2-DFA0DD6ACD1A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules\imgui">
+      <UniqueIdentifier>{6B3B2470-4E37-5124-B9FB-6EBBA519D111}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules\imgui\backends">
+      <UniqueIdentifier>{239D77CC-9D47-579C-8F4B-2171EABC5BE7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules\imgui\misc">
+      <UniqueIdentifier>{A2578C80-8D7B-593D-B28B-D030FC566F80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="lib\submodules\imgui\misc\cpp">
+      <UniqueIdentifier>{94ACB610-EE2E-5702-A16F-893C8537D62C}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\games\meo\src\main.cpp">
+      <Filter>games\meo\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\ChoiceQuestionScene.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\DisplayModeCatalog.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\FadeScene.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\ForcedSubtitleRenderer.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\GameMenu.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\InGameMenu.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\SettingsMenu.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\SplashScreen.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\SubtitleScene.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\TextInputDialog.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\TextInputForm.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\VNBacklog.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\VNManager.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\VNSave.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\VNSaveMenu.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\components\VNTextBox.cpp">
+      <Filter>lib\src\components</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\AssetOverlay.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\AssetProvider.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\Clock.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\CommandLine.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\DiscImage.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\Engine.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\GameLauncher.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\InputMapper.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\Launcher.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\LauncherLocale.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\Log.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\OpenGL.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\PresentedFrame.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\Runtime.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\Settings.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\UI.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\VisualTransition.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\core\WebAssetFetch.cpp">
+      <Filter>lib\src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\debug\DebugOverlay.cpp">
+      <Filter>lib\src\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\debug\ImGuiTheme.cpp">
+      <Filter>lib\src\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\debug\SystemInfo.cpp">
+      <Filter>lib\src\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\debug\VoiceDubbingApplet.cpp">
+      <Filter>lib\src\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\events\BackAction.cpp">
+      <Filter>lib\src\events</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\events\BacklogEvents.cpp">
+      <Filter>lib\src\events</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\events\InputActions.cpp">
+      <Filter>lib\src\events</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\AtomicFile.cpp">
+      <Filter>lib\src\filesystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\Filesystem.cpp">
+      <Filter>lib\src\filesystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\Path.cpp">
+      <Filter>lib\src\filesystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\RemoteAssets.cpp">
+      <Filter>lib\src\filesystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\StoragePaths.cpp">
+      <Filter>lib\src\filesystem</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\adapters\BrowserBlobAdapter.cpp">
+      <Filter>lib\src\filesystem\adapters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\adapters\SDLIOAdapter.cpp">
+      <Filter>lib\src\filesystem\adapters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\adapters\StreamAdapter.cpp">
+      <Filter>lib\src\filesystem\adapters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\DirectoryMount.cpp">
+      <Filter>lib\src\filesystem\mounts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\FallbackMount.cpp">
+      <Filter>lib\src\filesystem\mounts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\ISO9660Mount.cpp">
+      <Filter>lib\src\filesystem\mounts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\LayeredMount.cpp">
+      <Filter>lib\src\filesystem\mounts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\TarMount.cpp">
+      <Filter>lib\src\filesystem\mounts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\sources\FetchAssetProvider.cpp">
+      <Filter>lib\src\filesystem\sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\sources\SDLFileSource.cpp">
+      <Filter>lib\src\filesystem\sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\localization\Encoding.cpp">
+      <Filter>lib\src\localization</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\localization\Translation.cpp">
+      <Filter>lib\src\localization</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\mcp\MCPServer.cpp">
+      <Filter>lib\src\mcp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\AudioMixer.cpp">
+      <Filter>lib\src\media</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\MediaDecoder.cpp">
+      <Filter>lib\src\media</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\MediaPlayer.cpp">
+      <Filter>lib\src\media</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\PcmPlayer.cpp">
+      <Filter>lib\src\media</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\SaveImage.cpp">
+      <Filter>lib\src\media</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\SurfaceTexture.cpp">
+      <Filter>lib\src\media</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\TextureAlpha.cpp">
+      <Filter>lib\src\media</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\upscaling\MPVCompatibleUpscaler.cpp">
+      <Filter>lib\src\media\upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\upscaling\MetalFXUpscaler.cpp">
+      <Filter>lib\src\media\upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\media\upscaling\Upscaler.cpp">
+      <Filter>lib\src\media\upscaling</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\mobile\AndroidDisplay.cpp">
+      <Filter>lib\src\mobile</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\parsers\AssStyle.cpp">
+      <Filter>lib\src\parsers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\parsers\Ktrf.cpp">
+      <Filter>lib\src\parsers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\parsers\KtrfTyped.cpp">
+      <Filter>lib\src\parsers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\parsers\Ors.cpp">
+      <Filter>lib\src\parsers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\prefetch\Scheduler.cpp">
+      <Filter>lib\src\prefetch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\prefetch\WasmBackend.cpp">
+      <Filter>lib\src\prefetch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\routing\KtrfAdapter.cpp">
+      <Filter>lib\src\routing</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\routing\KtrfRouter.cpp">
+      <Filter>lib\src\routing</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\routing\KtrfRuntime.cpp">
+      <Filter>lib\src\routing</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\script\KtrfScript.cpp">
+      <Filter>lib\src\script</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\script\Timeline.cpp">
+      <Filter>lib\src\script</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\script\TimelinePlayer.cpp">
+      <Filter>lib\src\script</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\workers\EmbeddedSubtitleExtractor.cpp">
+      <Filter>lib\src\workers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\workers\SubtitleFontRegistry.cpp">
+      <Filter>lib\src\workers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\workers\SubtitleSourceDirector.cpp">
+      <Filter>lib\src\workers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\src\workers\SubtitleWorker.cpp">
+      <Filter>lib\src\workers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui.cpp">
+      <Filter>lib\submodules\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_draw.cpp">
+      <Filter>lib\submodules\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_tables.cpp">
+      <Filter>lib\submodules\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_widgets.cpp">
+      <Filter>lib\submodules\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdl3.cpp">
+      <Filter>lib\submodules\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdlrenderer3.cpp">
+      <Filter>lib\submodules\imgui\backends</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\misc\cpp\imgui_stdlib.cpp">
+      <Filter>lib\submodules\imgui\misc\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\Map.cpp">
+      <Filter>games\summer-radish-vacation\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\Transition.cpp">
+      <Filter>games\summer-radish-vacation\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\Native.cpp">
+      <Filter>games\summer-radish-vacation\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\SummerRuntime.cpp">
+      <Filter>games\summer-radish-vacation\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -67,8 +67,8 @@ int main(int argc, char **argv) {
   // Malformed RealLive headers must be rejected before copying from an
   // unchecked scenario offset or attempting a huge allocation. Each case
   // contains only the synthetic, empty scenario constructed above.
-  const auto write32 = [](std::vector<std::uint8_t> &bytes,
-                          std::size_t offset, std::uint32_t value) {
+  const auto write32 = [](std::vector<std::uint8_t> &bytes, std::size_t offset,
+                          std::uint32_t value) {
     for (std::size_t i = 0; i < 4; ++i)
       bytes.at(offset + i) = static_cast<std::uint8_t>(value >> (i * 8));
   };

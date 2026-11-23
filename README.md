@@ -23,6 +23,7 @@ If using vcpkg explicitly, add `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buil
 ## Documentation
 
 - **[Documentation index](docs/README.md)** — all guides and platform entry points.
+- **[Visual identity and icon style guide](design/README.md)** — canonical K, splash, colors, themes, and cross-platform icon build.
 - **[Build guides](docs/BUILD_GUIDES.md)** — desktop, Android, iOS, macOS, and WebAssembly.
 - **[CI and vcpkg](docs/CI_VCPKG.md)** — one-runner Linux/WASM pipeline, artifact builds, and cache policy.
 - **[Game ports](games/README.md)** — supported modules, limitations, and game-specific instructions.

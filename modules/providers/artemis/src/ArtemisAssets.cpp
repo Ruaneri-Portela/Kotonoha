@@ -17,7 +17,8 @@ public:
       std::unique_ptr<Kotonoha::Filesystem::FileHandle> handle)
       : handle_(std::move(handle)) {
     if (handle_)
-      size_ = static_cast<std::uint64_t>(std::max<std::int64_t>(0, handle_->size()));
+      size_ = static_cast<std::uint64_t>(
+          std::max<std::int64_t>(0, handle_->size()));
   }
 
   std::uint64_t size() const override { return size_; }
@@ -291,8 +292,8 @@ std::string ArtemisAssets::expandArtemisPrefix(std::string_view path) {
     return p;
 
   const auto slash = p.find('/');
-  const std::string tag =
-      PfsArchive::toLowerAscii(slash == std::string::npos ? p : p.substr(0, slash));
+  const std::string tag = PfsArchive::toLowerAscii(
+      slash == std::string::npos ? p : p.substr(0, slash));
   const std::string rest =
       (slash == std::string::npos) ? std::string() : p.substr(slash + 1);
 
@@ -361,13 +362,154 @@ std::string ArtemisAssets::resolveImagePath(std::string_view path,
   bases.push_back("image/anime/" + std::string(file));
   bases.push_back("image/rule/" + std::string(file));
 
-  static constexpr const char *kExts[] = {"", ".png", ".webp", ".jpg", ".bmp",
-                                          ".ipt"};
+  static constexpr const char *kExts[] = {"",     ".png", ".webp",
+                                          ".jpg", ".bmp", ".ipt"};
   for (const auto &base : bases) {
     for (const char *ext : kExts) {
       const std::string hit = resolveActualPath(base + ext);
       if (!hit.empty())
         return hit;
+    }
+  }
+  return {};
+}
+
+std::vector<std::string> ArtemisAssets::uiLanguages() const {
+  std::vector<std::string> languages;
+  for (const auto &[lower, ref] : mergedIndex_) {
+    (void)ref;
+    if (lower.rfind("pc/", 0) != 0)
+      continue;
+    const auto slash = lower.find('/', 3);
+    if (slash == std::string::npos || slash == 3)
+      continue;
+    const std::string language = lower.substr(3, slash - 3);
+    if (std::find(languages.begin(), languages.end(), language) ==
+        languages.end())
+      languages.push_back(language);
+  }
+  std::sort(languages.begin(), languages.end(),
+            [](const std::string &a, const std::string &b) {
+              if (a == "en")
+                return true;
+              if (b == "en")
+                return false;
+              return a < b;
+            });
+  return languages;
+}
+
+void ArtemisAssets::setUiLanguage(std::string language) {
+  uiLanguage_ = PfsArchive::toLowerAscii(trimAscii(language));
+  if (uiLanguage_.empty())
+    uiLanguage_ = "en";
+}
+
+std::string ArtemisAssets::uiTablePath() const {
+  const std::string localized =
+      "system/table/list_windows_" + uiLanguage_ + ".tbl";
+  if (!resolveActualPath(localized).empty())
+    return localized;
+  if (!resolveActualPath("system/table/list_windows.tbl").empty())
+    return "system/table/list_windows.tbl";
+  return {};
+}
+
+std::string
+ArtemisAssets::resolveUiImagePath(std::string_view logicalFile) const {
+  if (logicalFile.empty())
+    return {};
+  const std::string file = PfsArchive::normalizePath(logicalFile);
+  if (file.empty())
+    return {};
+
+  std::vector<std::string> languages;
+  for (const auto &lang : uiLanguages()) {
+    if (lang == uiLanguage_)
+      languages.insert(languages.begin(), lang);
+    else
+      languages.push_back(lang);
+  }
+
+  static constexpr const char *kExts[] = {"", ".png", ".webp", ".jpg", ".bmp"};
+  for (const auto &lang : languages) {
+    const std::string base = "pc/" + lang + "/" + file;
+    for (const char *ext : kExts) {
+      const std::string hit = resolveActualPath(base + ext);
+      if (!hit.empty())
+        return hit;
+    }
+  }
+  // Some titles ship loose UI pictures outside the language tree.
+  for (const char *ext : kExts) {
+    const std::string hit = resolveActualPath(file + ext);
+    if (!hit.empty())
+      return hit;
+  }
+
+  // Build-variant fallback. A shipped build can replace a piece of title art
+  // with a differently suffixed file while its UI table still names the
+  // original: NUKITASHI 2's `list_windows_en.tbl` asks for
+  // `title/background_2a`, but its archives contain `background_trial.png`.
+  // When the logical file misses, strip a trailing alphanumeric variant token
+  // (e.g. `_2a`, `_1b`) and look for a sibling in the same language directory
+  // that shares the remaining stem family. Only short tokens containing a
+  // digit are treated as variants, so descriptive names such as
+  // `bt_new_game` are never rewritten.
+  const auto slash = file.find_last_of('/');
+  const std::string dir = slash == std::string::npos
+                              ? std::string()
+                              : file.substr(0, slash + 1);
+  const std::string name = slash == std::string::npos
+                               ? file
+                               : file.substr(slash + 1);
+  const auto dot = name.find_last_of('.');
+  const std::string stem =
+      dot == std::string::npos ? name : name.substr(0, dot);
+  const auto underscore = stem.find_last_of('_');
+  if (underscore == std::string::npos || underscore == 0)
+    return {};
+
+  const std::string suffix = stem.substr(underscore + 1);
+  bool variant = !suffix.empty();
+  bool hasDigit = false;
+  for (char c : suffix) {
+    const auto uc = static_cast<unsigned char>(c);
+    if (!std::isdigit(uc) && (c < 'a' || c > 'z')) {
+      variant = false;
+      break;
+    }
+    if (std::isdigit(uc))
+      hasDigit = true;
+  }
+  if (!variant || !hasDigit)
+    return {};
+
+  const std::string family = stem.substr(0, underscore);
+  for (const auto &lang : languages) {
+    const std::string prefix = "pc/" + lang + "/" + dir;
+
+    // Prefer an unsuffixed sibling (e.g. `background.png`) when present.
+    for (const char *ext : kExts) {
+      const std::string hit = resolveActualPath(prefix + family + ext);
+      if (!hit.empty())
+        return hit;
+    }
+
+    std::vector<std::string> siblings;
+    for (const auto &[lower, ref] : mergedIndex_) {
+      if (lower.rfind(prefix, 0) != 0)
+        continue;
+      const std::string relative = lower.substr(prefix.size());
+      if (relative.find('/') != std::string::npos)
+        continue;
+      if (relative.rfind(family + "_", 0) == 0 &&
+          relative.size() > family.size() + 1)
+        siblings.push_back(ref.canonicalPath);
+    }
+    if (!siblings.empty()) {
+      std::sort(siblings.begin(), siblings.end());
+      return siblings.front();
     }
   }
   return {};
@@ -411,7 +553,8 @@ ArtemisAssets::resolveBgmPaths(std::string_view file) const {
   if (!direct.empty())
     return {{}, direct};
 
-  // Artemis commonly splits BGM into <name>_a.ogg (intro) and <name>_b.ogg (loop).
+  // Artemis commonly splits BGM into <name>_a.ogg (intro) and <name>_b.ogg
+  // (loop).
   const std::string intro = resolveAudioPath(":bgm/", std::string(file) + "_a");
   const std::string loop = resolveAudioPath(":bgm/", std::string(file) + "_b");
   if (!intro.empty() || !loop.empty())
@@ -430,8 +573,8 @@ std::string ArtemisAssets::resolveMoviePath(std::string_view file) const {
       "image/movie/" + std::string(file),
       "image/anime/" + std::string(file),
   };
-  static constexpr const char *kExts[] = {"", ".mp4", ".wmv", ".ogv", ".webm",
-                                          ".dat", ".mpg"};
+  static constexpr const char *kExts[] = {"",      ".mp4", ".wmv", ".ogv",
+                                          ".webm", ".dat", ".mpg"};
   for (const auto &base : bases) {
     for (const char *ext : kExts) {
       const std::string hit = resolveActualPath(base + ext);
@@ -462,7 +605,8 @@ std::string ArtemisAssets::resolveScriptPath(std::string_view file) const {
     return hit;
 
   // Fallback for minor underscore differences (e.g., NUKITASHI 2 gamestart.ast
-  // referencing "01_c_00" when the shipped archive contains "script/01_c00.ast").
+  // referencing "01_c_00" when the shipped archive contains
+  // "script/01_c00.ast").
   std::string stripped;
   stripped.reserve(file.size());
   for (std::size_t i = 0; i < file.size(); ++i) {

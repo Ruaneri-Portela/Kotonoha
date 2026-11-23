@@ -68,6 +68,11 @@ endif()
 if(NOT test_result EQUAL 0 OR NOT test_output MATCHES "DdlcPythonTest: OK")
     message(FATAL_ERROR "Bundled Python probe failed:\n${test_output}${test_error}")
 endif()
-if(missing_result EQUAL 0 OR NOT missing_error MATCHES "Cannot initialize CPython")
+# configureBundledPython() now rejects a missing standard library/encodings
+# before Py_InitializeFromConfig(), so the explicit failure is reported by that
+# check (older runtimes surfaced it as a CPython initialization error instead).
+set(missing_python_error
+    "Bundled Python (encodings module|standard library) is missing|Cannot initialize CPython")
+if(missing_result EQUAL 0 OR NOT missing_error MATCHES "${missing_python_error}")
     message(FATAL_ERROR "Missing bundled Python did not fail explicitly:\n${missing_output}${missing_error}")
 endif()

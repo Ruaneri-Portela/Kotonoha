@@ -304,8 +304,7 @@ void checkFontOverlay(const std::filesystem::path &base,
         Uint8 r = 0, g = 0, b = 0;
         if (!SDL_ReadSurfacePixel(target.get(), x, y, &r, &g, &b, nullptr))
           continue;
-        if (isSpeaker ? (g > r + 35 && g > b + 20)
-                      : (r > g + 45 && r > b + 40))
+        if (isSpeaker ? (g > r + 35 && g > b + 20) : (r > g + 45 && r > b + 40))
           return true;
       }
     }
@@ -420,18 +419,18 @@ int main(int argc, char **argv) {
     check(LucaSystem::hasNonOpaquePixels(pixels),
           "Alpha CZ art must bypass upscaler");
     pixels[3] = 255;
-    check(LucaSystem::rasterCoversPointWithOpacity(
-              pixels, 4, 4, 0, 0, 1, 1, 2, 2, 1),
+    check(LucaSystem::rasterCoversPointWithOpacity(pixels, 4, 4, 0, 0, 1, 1, 2,
+                                                   2, 1),
           "Opaque background covers calendar position");
     pixels[(2 * 4 + 2) * 4 + 3] = 0;
-    check(!LucaSystem::rasterCoversPointWithOpacity(
-              pixels, 4, 4, 0, 0, 1, 1, 2, 2, 1),
+    check(!LucaSystem::rasterCoversPointWithOpacity(pixels, 4, 4, 0, 0, 1, 1, 2,
+                                                    2, 1),
           "Transparent background must hide calendar badge");
-    check(!LucaSystem::rasterCoversPointWithOpacity(
-              pixels, 4, 4, 100, 100, 1, 1, 2, 2, 1),
+    check(!LucaSystem::rasterCoversPointWithOpacity(pixels, 4, 4, 100, 100, 1,
+                                                    1, 2, 2, 1),
           "Cropped background outside badge cannot expose calendar");
-    check(!LucaSystem::rasterCoversPointWithOpacity(
-              pixels, 4, 4, 0, 0, 1, 1, 1, 1, 0.1f),
+    check(!LucaSystem::rasterCoversPointWithOpacity(pixels, 4, 4, 0, 0, 1, 1, 1,
+                                                    1, 0.1f),
           "Dimmed background cannot expose calendar");
   }
 
@@ -946,8 +945,7 @@ int main(int argc, char **argv) {
       } catch (const std::invalid_argument &) {
         rejectsWrongLength = true;
       }
-      check(rejectsWrongLength,
-            "raw patch rejects size-changing replacements");
+      check(rejectsWrongLength, "raw patch rejects size-changing replacements");
       bool rejectsSize = false;
       try {
         (void)script.replaceRaw(0, {});
@@ -1123,6 +1121,13 @@ int main(int argc, char **argv) {
     air = env;
   else
     air = "/Volumes/Nero 2TB/SteamLibrary/steamapps/common/AIR/files";
+  // The retail test env var names the game root (it also holds AIR.exe), while
+  // this format test consumes the PAK directory directly. Accept both layouts
+  // so the same variable works for the whole LucaSystem test suite.
+  if (std::filesystem::is_directory(air) &&
+      !std::filesystem::exists(std::filesystem::path(air) / "PARAM.PAK") &&
+      std::filesystem::is_directory(std::filesystem::path(air) / "files"))
+    air = (std::filesystem::path(air) / "files").string();
   if (std::filesystem::is_directory(air)) {
     std::printf("ok   - AIR data dir present: %s\n", air.c_str());
 

@@ -210,18 +210,18 @@ int main(int argc, char **argv) {
     Check(app.engine.GetSettings().masterMuted,
           "Runtime did not project persisted Mute into engine settings");
     using RetailPolicy = Kotonoha::SchoolDaysRetailConfigPolicy;
-    Check(std::abs(app.engine.GetAudio().channel("BGM")->getUserVolume() -
-                   1.0f) < 0.0001f &&
-              std::abs(app.engine.GetAudio().channel("SE")->getUserVolume() -
-                       1.0f) < 0.0001f &&
-              std::abs(app.engine.GetAudio().channel("Voice")->getUserVolume() -
-                       1.0f) < 0.0001f &&
-              std::abs(app.engine.GetAudio().channel("BGM")->getVolume() -
-                       RetailPolicy::LinearGain(
-                           state, RetailPolicy::NativeAudioBank::Bgm)) <
-                  0.0001f,
-          "Runtime double-attenuated BGM/SE/Voice instead of applying retail "
-          "gain once");
+    Check(
+        std::abs(app.engine.GetAudio().channel("BGM")->getUserVolume() - 1.0f) <
+                0.0001f &&
+            std::abs(app.engine.GetAudio().channel("SE")->getUserVolume() -
+                     1.0f) < 0.0001f &&
+            std::abs(app.engine.GetAudio().channel("Voice")->getUserVolume() -
+                     1.0f) < 0.0001f &&
+            std::abs(app.engine.GetAudio().channel("BGM")->getVolume() -
+                     RetailPolicy::LinearGain(
+                         state, RetailPolicy::NativeAudioBank::Bgm)) < 0.0001f,
+        "Runtime double-attenuated BGM/SE/Voice instead of applying retail "
+        "gain once");
     Check(!app.engine.GetDebug().getSettings().showFPS &&
               !app.engine.GetDebug().getSettings().showNodeClock,
           "School Days normal runtime debug HUD defaults are visible");

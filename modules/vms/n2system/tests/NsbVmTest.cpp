@@ -1,6 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <N2System/NsbScript.hpp>
 #include <N2System/NsbVm.hpp>
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <stdexcept>
@@ -136,7 +137,8 @@ int main() {
     require(vm.waitingForKey(), "WaitKey did not pause");
 
     const auto beforeSave = vm.saveState();
-    require(!beforeSave.runtimeBlob.empty(), "Runtime snapshot must be present");
+    require(!beforeSave.runtimeBlob.empty(),
+            "Runtime snapshot must be present");
     const auto jsonSave = N2System::SaveStateCodec::serializeJson(beforeSave);
     N2System::SaveData fromJson;
     require(N2System::SaveStateCodec::deserializeJson(jsonSave, fromJson),
@@ -152,7 +154,8 @@ int main() {
                 R"({"chapter":"ok","strings":{"bad":"\q"}})", malformed) &&
                 malformed.chapterName == "do not overwrite",
             "Malformed JSON escapes must fail without modifying output");
-    const auto saveBytes = N2System::SaveStateCodec::serializeBinary(beforeSave);
+    const auto saveBytes =
+        N2System::SaveStateCodec::serializeBinary(beforeSave);
     N2System::SaveData parsed;
     require(N2System::SaveStateCodec::deserializeBinary(saveBytes, parsed),
             "Versioned N2SV must deserialize");
@@ -185,9 +188,10 @@ int main() {
     truncated.pop_back();
     N2System::SaveData untouched;
     untouched.chapterName = "must-remain-unchanged";
-    require(!N2System::SaveStateCodec::deserializeBinary(truncated, untouched) &&
-                untouched.chapterName == "must-remain-unchanged",
-            "Truncated save must fail atomically");
+    require(
+        !N2System::SaveStateCodec::deserializeBinary(truncated, untouched) &&
+            untouched.chapterName == "must-remain-unchanged",
+        "Truncated save must fail atomically");
     auto corrupt = parsed;
     corrupt.runtimeBlob[0] ^= 0xff;
     require(!loadedVm.loadState(corrupt), "Invalid snapshot header rejected");
@@ -209,19 +213,29 @@ int main() {
     Bytes nsb, map;
     addMap(map, 0, "chapter.main");
     auto ins = [&](uint16_t opcode, std::vector<std::string> args) {
-      addInsn(nsb, static_cast<uint32_t>(nsb.size()+1), opcode, args);
+      addInsn(nsb, static_cast<uint32_t>(nsb.size() + 1), opcode, args);
     };
     ins(0x094, {"chapter.main"});
     const auto literal = [&](std::string v) { ins(0x0d0, {"STRING", v}); };
-    literal("workerA"); literal("0"); literal("0"); literal("0"); literal("fnA");
+    literal("workerA");
+    literal("0");
+    literal("0");
+    literal("0");
+    literal("fnA");
     ins(0x009, {"workerA", "0", "0", "0", "fnA"});
-    literal("workerA"); literal("start");
+    literal("workerA");
+    literal("start");
     ins(0x023, {"workerA", "start"});
     ins(0x03a, {});
     ins(0x097, {"fnA"});
-    literal("workerB"); literal("0"); literal("0"); literal("0"); literal("fnB");
+    literal("workerB");
+    literal("0");
+    literal("0");
+    literal("0");
+    literal("fnB");
     ins(0x009, {"workerB", "0", "0", "0", "fnB"});
-    literal("workerB"); literal("start");
+    literal("workerB");
+    literal("start");
     ins(0x023, {"workerB", "start"});
     ins(0x0d7, {});
     ins(0x097, {"fnB"});
@@ -294,8 +308,9 @@ int main() {
     vm.setMediaTimeQuery([&](std::string_view key, N2System::MediaTimeKind k) {
       require(key == "movie/test.ngs", "Media query must preserve asset key");
       ++mediaCalls;
-      return std::int64_t(k == N2System::MediaTimeKind::Remaining ? 2000 :
-                           k == N2System::MediaTimeKind::Duration ? 9000 : 7000);
+      return std::int64_t(k == N2System::MediaTimeKind::Remaining  ? 2000
+                          : k == N2System::MediaTimeKind::Duration ? 9000
+                                                                   : 7000);
     });
     vm.setSaveExistsQuery([](std::uint32_t slot) { return slot == 5; });
     require(vm.boot("nss/0_boot.nss"), "Builtins test boot");
@@ -332,10 +347,12 @@ int main() {
       add(0x0d0, {"STRING", value});
     };
     add(0x094, {"chapter.main"});
-    string("fx"); string("Monochrome");
+    string("fx");
+    string("Monochrome");
     add(0x02e, {"fx", "Monochrome"});
     add(0x08e, {});
-    string("fx"); string("Heavy");
+    string("fx");
+    string("Heavy");
     add(0x02d, {"fx", "Heavy"});
     add(0x08e, {});
     add(0x0d4, {"chapter.main"});
@@ -397,18 +414,20 @@ int main() {
             "Pending save suspends opcode execution until runtime consumes it");
     auto save = vm.takePendingSaveAction();
     require(save && save->kind == N2System::SaveActionKind::Save &&
-                save->slot == 9, "Save opcode enqueues correct slot");
+                save->slot == 9,
+            "Save opcode enqueues correct slot");
     vm.step();
-    require(vm.findVar("$afterSave") &&
-                vm.findVar("$afterSave")->asInt() == 42,
+    require(vm.findVar("$afterSave") && vm.findVar("$afterSave")->asInt() == 42,
             "VM resumes after native save without losing its PC");
     auto load = vm.takePendingSaveAction();
     require(load && load->kind == N2System::SaveActionKind::Load &&
-                load->slot == 9, "Load opcode enqueues safe deferred restore");
+                load->slot == 9,
+            "Load opcode enqueues safe deferred restore");
     vm.step();
     auto del = vm.takePendingSaveAction();
     require(del && del->kind == N2System::SaveActionKind::Delete &&
-                del->slot == 9, "DeleteSaveFile enqueues safe file removal");
+                del->slot == 9,
+            "DeleteSaveFile enqueues safe file removal");
     vm.step();
     require(vm.finished(), "Deferred save opcodes preserve control flow");
   }
@@ -429,16 +448,15 @@ int main() {
     N2System::SaveData restored;
     require(N2System::SaveStateCodec::deserializeJson(json, restored),
             "JSON with quotes, unicode and control characters must parse");
-    require(restored.chapterName == data.chapterName &&
-                restored.activeText == data.activeText &&
-                restored.activeSpeaker == data.activeSpeaker &&
-                restored.strings == data.strings &&
-                restored.flags == data.flags &&
-                restored.integers == data.integers &&
-                restored.runtimeBlob == data.runtimeBlob &&
-                restored.backlog.size() == 1 &&
-                restored.backlog[0].speaker == "声",
-            "JSON save must round-trip every text/map/blob field");
+    require(
+        restored.chapterName == data.chapterName &&
+            restored.activeText == data.activeText &&
+            restored.activeSpeaker == data.activeSpeaker &&
+            restored.strings == data.strings && restored.flags == data.flags &&
+            restored.integers == data.integers &&
+            restored.runtimeBlob == data.runtimeBlob &&
+            restored.backlog.size() == 1 && restored.backlog[0].speaker == "声",
+        "JSON save must round-trip every text/map/blob field");
     N2System::SaveData unicode;
     require(N2System::SaveStateCodec::deserializeJson(
                 R"({"chapter":"\u65e5\u672c","activeText":"\ud83c\udf38"})",
@@ -446,14 +464,169 @@ int main() {
                 unicode.chapterName == "日本" && unicode.activeText == "🌸",
             "UTF-16 escaped Japanese and surrogate pair decode to UTF-8");
     require(!N2System::SaveStateCodec::deserializeJson(
-                R"({"chapter":"ok","activeText":"\ud800"})",
-                unicode), "Unpaired surrogate must be rejected");
+                R"({"chapter":"ok","activeText":"\ud800"})", unicode),
+            "Unpaired surrogate must be rejected");
     require(!N2System::SaveStateCodec::deserializeJson(
-                R"({"chapter":"ok","position":-1})",
-                unicode), "Negative save position must be rejected");
+                R"({"chapter":"ok","position":-1})", unicode),
+            "Negative save position must be rejected");
     require(!N2System::SaveStateCodec::deserializeJson(
-                R"({"chapter":"ok","chapter":"duplicate"})",
-                unicode), "Duplicate JSON keys must be rejected");
+                R"({"chapter":"ok","chapter":"duplicate"})", unicode),
+            "Duplicate JSON keys must be rejected");
+  }
+
+  // Steins;Gate title BGM + prologue movie regressions. Retail sys_title.nsb
+  // starts its BGM with Request("@BGM04", "Play") from function.SoundPlay after
+  // InitBGM created dozens of muted BGM entities. CreateSound must not start
+  // them all, entity-path queries ("@BGM04") must resolve, and per-entity
+  // volume/loop changes must reach the single playback channel.
+  {
+    Bytes nsb, map;
+    addMap(map, 0, "chapter.main");
+    auto emit = [&](std::uint16_t op, std::vector<std::string> args) {
+      addInsn(nsb, static_cast<std::uint32_t>(nsb.size() + 1), op,
+              std::move(args));
+    };
+    auto lit = [&](const std::string &value) {
+      emit(0x0d0, {"STRING", value});
+    };
+    emit(0x094, {"chapter.main"});
+
+    // CreateSound only creates a muted entity.
+    lit("BGM04");
+    lit("BGM");
+    lit("sound/bgm/bgm04");
+    emit(0x011, {"BGM04", "BGM", "sound/bgm/bgm04"});
+    emit(0x08e, {});
+
+    // InitBGM-style initial mute; this must not poison the shared master gain.
+    lit("@BGM04");
+    lit("0");
+    lit("0");
+    lit("0");
+    emit(0x043, {"@BGM04", "0", "0", "0"});
+    emit(0x08e, {});
+
+    // Request(Play) is the only thing that starts the BGM.
+    lit("@BGM04");
+    lit("Play");
+    emit(0x023, {"@BGM04", "Play"});
+    emit(0x08e, {});
+
+    // SoundPlay's fade-in to full volume.
+    lit("@BGM04");
+    lit("1000");
+    lit("1000");
+    lit("0");
+    emit(0x043, {"@BGM04", "1000", "1000", "0"});
+    emit(0x08e, {});
+
+    // SetLoop(false) must retarget the playing channel, not be discarded.
+    lit("@BGM04");
+    lit("false");
+    emit(0x046, {"@BGM04", "false"});
+    emit(0x08e, {});
+
+    // "Disused" means destroy-when-idle; it must not stop the music.
+    lit("@BGM04");
+    lit("Disused");
+    emit(0x023, {"@BGM04", "Disused"});
+    emit(0x08e, {});
+
+    // function.SetMovie($MOVIESG) writes a global parameter, then
+    // function.WaitMovie() reads it back with RemainTime - exactly the
+    // CreateMovieSG / MovieWaitSG pair used by sg00_01.nsb. Declarations are
+    // appended after EndChapter below, as in real compiled NSB scripts.
+    lit("movie01");
+    emit(0x0ce, {"SetMovie", "$MOVIESG"});
+    emit(0x08e, {});
+    emit(0x0ce, {"WaitMovie"});
+    emit(0x08e, {});
+
+    // CreateMovieSG passes bare parameter names as literal strings: the loop
+    // flag and, crucially for the black-intro regression, the render priority.
+    lit("false");
+    emit(0x0b0, {"loopFlag"});
+    emit(0x08e, {});
+    lit("9900");
+    emit(0x0b0, {"prioVar"});
+    emit(0x08e, {});
+    // The retail black background that used to cover the movie (z=100).
+    lit("BGBUF1");
+    lit("100");
+    lit("0");
+    lit("0");
+    lit("cg/bg/BG_BLACK.jpg");
+    emit(0x00d, {"BGBUF1", "100", "0", "0", "cg/bg/BG_BLACK.jpg"});
+    emit(0x08e, {});
+    lit("movie01");
+    lit("prioVar");
+    lit("0");
+    lit("0");
+    lit("loopFlag");
+    lit("false");
+    lit("dx/prologue01.ngs");
+    lit("false");
+    emit(0x012, {"movie01", "prioVar", "0", "0", "loopFlag", "false",
+                 "dx/prologue01.ngs", "false"});
+    emit(0x08e, {});
+    lit("movie01");
+    lit("Play");
+    emit(0x023, {"movie01", "Play"});
+    emit(0x08e, {});
+
+    emit(0x0d4, {"chapter.main"}); // EndChapter; declarations follow.
+    emit(0x097, {"function.SetMovie", "$MOVIESG"});
+    emit(0x0d7, {});
+    emit(0x097, {"function.WaitMovie"});
+    emit(0x0d1, {"$MOVIESG"});
+    emit(0x05e, {"$MOVIESG"});
+    emit(0x08e, {});
+    emit(0x0d7, {});
+
+    N2System::NsbVm vm;
+    vm.setLoader([&](std::string_view, Bytes &out, Bytes &debug) {
+      out = nsb;
+      debug = map;
+      return true;
+    });
+    std::string mediaQuery;
+    vm.setMediaTimeQuery([&](std::string_view query, N2System::MediaTimeKind) {
+      mediaQuery = std::string(query);
+      return 9000;
+    });
+    require(vm.boot("nss/0_boot.nss"), "BGM/movie regression boot failed");
+    vm.step(4096);
+    vm.update(1.1f);
+
+    const auto &bgm = vm.audioSystem().bgmChannel();
+    require(bgm.isPlaying, "Request(Play) must start the title BGM");
+    require(bgm.assetPath == "sound/bgm/bgm04.ogg",
+            "Request must resolve the @BGM04 entity-path query");
+    require(bgm.fadeElapsed >= bgm.fadeDuration, "BGM fade must complete");
+    require(bgm.volume > 0.99f,
+            "SetVolume(1000) must make the title BGM audible");
+    require(!bgm.loop, "SetLoop(false) must update the playing BGM channel");
+    require(bgm.isPlaying, "Request(Disused) must not stop the BGM channel");
+    require(mediaQuery == "movie01",
+            "Function parameters must survive return for MovieWaitSG");
+    const auto *movie = vm.sceneGraph().findEntity("movie01");
+    require(movie && !movie->movieLoop,
+            "CreateMovie must resolve the 'loopFlag' variable argument");
+    require(movie && movie->z == 9900.0f,
+            "CreateMovie must resolve the 'prioVar' argument to z=9900 so the "
+            "prologue renders above the black background");
+    bool movieAfterBackground = false;
+    const auto &order = vm.sceneGraph().renderOrder();
+    auto bgIt = std::find(order.begin(), order.end(), "BGBUF1");
+    auto mvIt = std::find(order.begin(), order.end(), "movie01");
+    if (bgIt != order.end() && mvIt != order.end())
+      movieAfterBackground = mvIt > bgIt;
+    require(movieAfterBackground,
+            "Prologue movie must render after the black background sprite");
+    require(vm.activeMovie().active &&
+                vm.activeMovie().path == "dx/prologue01.ngs" &&
+                !vm.activeMovie().loop,
+            "Post-START prologue movie must be requested as non-looping");
   }
 
   std::cout << "N2System NsbVm tests passed\n";

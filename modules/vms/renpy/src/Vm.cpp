@@ -1626,6 +1626,17 @@ void VmNatives::install(Vm &vm) {
                   transitionValue(pauseT), color, transitionValue(dissolve(in)),
                   Value::boolean(true)}));
   });
+  // A Movie displayable. The VM cannot render video itself; it keeps the
+  // metadata and the presentation layer decides how to display the asset.
+  auto movieValue = [](Interp &, Args &a, Kwargs &kw) {
+    Value r = makeInstance("Movie");
+    r.o->attrs["filename"] = argOr(a, 0, kw, "filename");
+    r.o->attrs["size"] = kwGet(kw, "size");
+    r.o->attrs["fps"] = kwGet(kw, "fps", Value::real(24.0));
+    r.o->attrs["loop"] = kwGet(kw, "loop");
+    return r;
+  };
+  py.def("Movie", movieValue);
   py.def("Return", [](Interp &, Args &a, Kwargs &) {
     Value r = makeInstance("Return");
     r.o->attrs["value"] = a.empty() ? Value::boolean(true) : a[0];
@@ -1646,6 +1657,7 @@ void VmNatives::install(Vm &vm) {
 
   // The renpy module.
   Value renpy = Interp::nameSpace("renpy");
+  renpy.o->attrs["Movie"] = py.lookup("Movie");
   py.set("renpy", renpy);
   py.builtins["renpy"] = renpy;
   py.registerModule("renpy", renpy);
@@ -1899,6 +1911,22 @@ void VmNatives::install(Vm &vm) {
     else if (t.num() > 0)
       v->pause(t.num(), !hard && v->py.lookup("_dismiss_pause").truthy());
     return Value::boolean(false);
+  });
+  // renpy.movie_cutscene(filename, ...): yield a MovieCutscene interaction so
+  // the host can play the asset through MediaPlayer. The returned action value
+  // is also stored on the interaction for hosts that inspect values directly.
+  def(renpy, "movie_cutscene", [v](Interp &, Args &a, Kwargs &kw) {
+    const std::string path = argOr(a, 0, kw, "filename").text();
+    Value r = makeInstance("MovieCutscene");
+    r.o->attrs["filename"] = Value::str(path);
+    r.o->attrs["path"] = Value::str(path);
+    r.o->attrs["first_frame"] = kwGet(kw, "first_frame");
+    r.o->attrs["stills"] = kwGet(kw, "stills");
+    r.o->attrs["end_delay"] = kwGet(kw, "end_delay");
+    r.o->attrs["delay"] = kwGet(kw, "delay");
+    r.o->attrs["loops"] = kwGet(kw, "loops");
+    v->movieCutscene(path, r);
+    return r;
   });
   def(renpy, "with_statement", [v](Interp &, Args &a, Kwargs &) {
     if (auto t = a.empty() ? nullptr : v->toTransition(a[0]))
@@ -2238,6 +2266,14 @@ Node *Vm::exec(Node *n) {
   switch (n->k) {
   case Node::K::Label:
     bindLabel(n, {});
+    return n->next;
+  // Ren'Py's statically transformed AST (RPYC2 slot 2) wraps translatable
+  // statements in Translate/EndTranslate pairs. Execute the original block;
+  // the host-supplied translate callback substitutes the active language.
+  case Node::K::Translate:
+    return n->blocks.empty() || n->blocks[0].empty() ? n->next
+                                                     : n->blocks[0][0];
+  case Node::K::EndTranslate:
     return n->next;
   case Node::K::Say: {
     Value who = n->ast.get("who");
@@ -3000,6 +3036,17 @@ void Vm::pause(double seconds, bool dismiss) {
   in.k = Interaction::K::Pause;
   in.deadline = seconds;
   in.dismiss = dismiss || seconds < 0;
+  interact(std::move(in));
+}
+
+void Vm::movieCutscene(const std::string &path, const Value &action) {
+  if (path.empty())
+    return;
+  Interaction in;
+  in.k = Interaction::K::MovieCutscene;
+  in.movie = path;
+  in.action = action;
+  in.dismiss = true; // a click skips the cutscene (Ren'Py's default)
   interact(std::move(in));
 }
 

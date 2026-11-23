@@ -1,6 +1,6 @@
 #pragma once
 #include <Kotonoha/core/DiscImage.hpp>
-#include <Kotonoha/media/Ps2Tim2.hpp>
+#include <Kotonoha/Formats/Ps2Tim2.hpp>
 #include <ZeroNoTsukaima/Archive.hpp>
 #include <ZeroNoTsukaima/Catalog.hpp>
 

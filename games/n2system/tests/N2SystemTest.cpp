@@ -38,8 +38,7 @@ int main() {
           "Double mouse click may skip a narrative movie");
     SDL_Event wheel{};
     wheel.type = SDL_EVENT_MOUSE_WHEEL;
-    check(!gesture.accept(wheel, 1200),
-          "Mouse wheel must never skip a movie");
+    check(!gesture.accept(wheel, 1200), "Mouse wheel must never skip a movie");
     SDL_Event keyboard{};
     keyboard.type = SDL_EVENT_KEY_DOWN;
     keyboard.key.repeat = false;
@@ -135,6 +134,10 @@ int main() {
       for (int frame = 0; frame < 600 && !vm.waitingForChoice(); ++frame) {
         vm.update(0.1f);
         vm.step(4096);
+        // Native Save/DeleteSaveFile opcodes are deferred so the runtime can
+        // persist state without invalidating the active call stack. The
+        // standalone VM must drain them too or boot stalls at 0_boot.
+        (void)vm.takePendingSaveAction();
         if (vm.waitingForKey() || vm.activeMovie().active)
           vm.advance();
       }
@@ -154,6 +157,7 @@ int main() {
       for (int frame = 0; frame < 300; ++frame) {
         vm.update(0.1f);
         vm.step(4096);
+        (void)vm.takePendingSaveAction();
         if (!vm.dialogueSystem().fullText().empty())
           break;
         if (vm.waitingForKey() || vm.activeMovie().active)
@@ -164,8 +168,8 @@ int main() {
                 << " executed=" << vm.totalExecuted()
                 << " waitKey=" << vm.waitingForKey()
                 << " waitChoice=" << vm.waitingForChoice()
-                << " finished=" << vm.finished()
-                << " text='" << vm.dialogueSystem().fullText().substr(0, 60)
+                << " finished=" << vm.finished() << " text='"
+                << vm.dialogueSystem().fullText().substr(0, 60)
                 << "' entities=" << vm.sceneGraph().entities().size() << "\n";
 
       // Now verify prologue sg01_01.nsb executes to real dialogue + voice
@@ -174,6 +178,9 @@ int main() {
       for (int frame = 0; frame < 300; ++frame) {
         vm.update(0.1f);
         vm.step(4096);
+        // Deferred Save/DeleteSaveFile opcodes stall step() until drained;
+        // mirror N2Runtime::update() in this standalone VM loop too.
+        (void)vm.takePendingSaveAction();
         if (!vm.dialogueSystem().fullText().empty())
           break;
         if (vm.waitingForKey() || vm.activeMovie().active)
@@ -218,6 +225,17 @@ int main() {
         check(nvm->waitingForChoice() && nvm->activeChoices().size() == 5,
               "Engine-backed SG title menu must expose 5 choices");
 
+        // The original has a single BGM channel that starts on the title and
+        // is reused in gameplay. InitBGM creates dozens of muted entities;
+        // SoundPlay must actually start one at audible volume.
+        const auto &titleBgm = nvm->audioSystem().bgmChannel();
+        std::cout << "[Steins;Gate] Title BGM: playing="
+                  << titleBgm.isPlaying << " path='" << titleBgm.assetPath
+                  << "' vol=" << titleBgm.volume << "\n";
+        check(titleBgm.isPlaying && !titleBgm.assetPath.empty() &&
+                  titleBgm.volume > 0.01f,
+              "SG title BGM must be started at audible volume");
+
         // Render one frame so textures & hover rendering path are exercised.
         check(engine.Iterate() == SDL_APP_CONTINUE,
               "Engine iterate on SG title screen must succeed");
@@ -261,12 +279,48 @@ int main() {
         check(engineRuntime.onEvent(clickStart),
               "Left click on SG Start button must trigger New Game");
 
+        // sg00_01.nsb requests dx/prologue01.ngs / prologue02.ngs via
+        // CreateMovieSG + Request(Play) and waits with MovieWaitSG. The
+        // narrative movie must be non-looping and must not be skipped by the
+        // generic advance path used below.
+        bool sawPrologueMovie = false;
+        for (int frame = 0; frame < 120; ++frame) {
+          engineRuntime.advanceStoryTime(0.1);
+          engineRuntime.update();
+          const auto &mov = nvm->activeMovie();
+          if (mov.active && mov.path.find("prologue") != std::string::npos) {
+            sawPrologueMovie = true;
+            check(!mov.loop,
+                  "SG prologue movie must be non-looping so MovieWaitSG ends");
+            break;
+          }
+        }
+        std::cout << "[Steins;Gate] Post-Start movie: sawPrologue="
+                  << sawPrologueMovie << " path='" << nvm->activeMovie().path
+                  << "'\n";
+        check(sawPrologueMovie,
+              "SG post-Start prologue .ngs movie must be requested");
+
+        // CreateMovieSG passes the priority by parameter name. If it is not
+        // resolved to 9900, BGBUF1 (BG_BLACK.jpg, z=100) paints over the movie
+        // and the intro becomes a black screen.
+        const auto *movieEntity = nvm->sceneGraph().findEntity("ムービー");
+        const auto *blackBackground = nvm->sceneGraph().findEntity("BGBUF1");
+        check(movieEntity && blackBackground &&
+                  movieEntity->z > blackBackground->z,
+              "SG prologue movie must render above the black background");
+
         for (int frame = 0; frame < 400; ++frame) {
           engineRuntime.advanceStoryTime(0.1);
           engineRuntime.update();
           if (!engineRuntime.dialogueText().empty())
             break;
-          if (nvm->waitingForKey() || nvm->activeMovie().active)
+          // A real run pumps MediaPlayer::update() from the render callback
+          // until the movie drains. This headless test has no render loop, so
+          // simulate the decoder reaching EOF after the intro was observed.
+          if (nvm->activeMovie().active && !nvm->activeMovie().loop)
+            nvm->notifyMovieFinished(nvm->activeMovie().entityName);
+          if (nvm->waitingForKey())
             engineRuntime.handleAdvanceAction();
         }
         const std::string firstLine = engineRuntime.dialogueText();

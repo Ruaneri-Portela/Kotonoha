@@ -368,14 +368,13 @@ void Engine::applyWindowSettings(const EngineSettings &value, bool geometry) {
     SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&count));
     if (!displays || count <= 0)
       throw std::runtime_error("No displays are available");
-    int displayIndex = value.display;
-    if (displayIndex < 0 || displayIndex >= count) {
-      SDL_LogWarn(LogCore,
-                  "Configured display %d is unavailable (%d available); "
-                  "falling back to display 1",
-                  displayIndex + 1, count);
-      displayIndex = 0;
-    }
+    // SDL3 identifies displays by SDL_DisplayID; an index is meaningful only
+    // inside this SDL_GetDisplays() snapshot. An out-of-range selection cannot
+    // be resolved, so reject it instead of silently persisting a display the
+    // user never selected.
+    const int displayIndex = value.display;
+    if (displayIndex < 0 || displayIndex >= count)
+      throw std::runtime_error("Configured display is unavailable");
     const auto display = displays.get()[displayIndex];
     const auto flags = SDL_GetWindowFlags(window.get());
     const bool fullscreen = flags & SDL_WINDOW_FULLSCREEN;
@@ -829,8 +828,7 @@ SDL_AppResult Engine::Event(EventPtr event) {
   const auto result = dispatchEvent(event);
   if (result == SDL_APP_CONTINUE && !nativeTouch &&
       event->type >= SDL_EVENT_FINGER_DOWN &&
-      event->type <= SDL_EVENT_FINGER_CANCELED &&
-      inputActions.skip(*event)) {
+      event->type <= SDL_EVENT_FINGER_CANCELED && inputActions.skip(*event)) {
     SDL_Event skipKey{};
     skipKey.type = SDL_EVENT_KEY_DOWN;
     skipKey.key.key = SDLK_S;
@@ -975,166 +973,166 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
 SDL_AppResult Engine::Iterate() {
   const char *stage = "frame setup";
   try {
-  if (translationDumpComplete)
-    return SDL_APP_SUCCESS;
-  const Uint64 nowMs = SDL_GetTicks();
-  for (auto repeated : navRepeater.update(nowMs)) {
-    const auto repeatResult = dispatchEvent(&repeated);
-    if (repeatResult != SDL_APP_CONTINUE)
-      return repeatResult;
-  }
-  if (inputActions.pollLongPress(nowMs)) {
-    SDL_Event cancelPtr{};
-    if (touchPointer.cancel(*window, cancelPtr))
-      dispatchEvent(&cancelPtr);
-    SDL_Event menuKey{};
-    menuKey.type = SDL_EVENT_KEY_DOWN;
-    menuKey.key.key = SDLK_ESCAPE;
-    menuKey.key.down = true;
-    const auto longPressResult = dispatchEvent(&menuKey);
-    if (longPressResult != SDL_APP_CONTINUE)
-      return longPressResult;
-  }
-  configureRenderSpace(RenderSpace::Novel);
-  synchronizeTimeline();
-#if KOTONOHA_ENABLE_MCP
-  if (mcp && !mcp->pump())
-    return SDL_APP_SUCCESS;
-#endif
-  // A browser media-control pause must also stop game logic, not just the
-  // timeline clock. Continue rendering so native browser controls remain
-  // usable; resume automatically as soon as browser playback resumes.
-  if (browserMediaPlaybackBlocked()) {
-    stage = "runtime idle";
-    runtime.devIdle();
-  } else if (!runtime.devPauseRequested() || runtime.devConsumeStep()) {
-    stage = "runtime update";
-    runtime.update();
-  } else {
-    stage = "runtime idle";
-    runtime.devIdle();
-  }
-  stage = "frame preparation";
-  synchronizeNodeClock(0);
-  forcedSubtitles->updateForActiveNode();
-  debug->update();
-
-  // Clear the native output first so the letterbox outside the fitted Novel
-  // presentation remains deterministic even when the Novel itself is rendered
-  // into a reduced intermediate target.
-  SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
-  SDL_RenderClear(renderer.get());
-
-  const SDL_Point novelView = runtime.viewport();
-  // Prevent low-resolution intermediate targets from enlarging TTF glyphs.
-  const float novelScale =
-      runtime.requiresNativeTextResolution() ? 1.0f : settings.renderScale;
-  const bool scaledNovel = novelScale < 0.9999f;
-  const bool ownedNovel = scaledNovel || runtime.useOwnedNarrativeTarget();
-  if (ownedNovel) {
-    SDL_FRect presentation{};
-    if (!SDL_GetRenderLogicalPresentationRect(renderer.get(), &presentation))
-      throw std::runtime_error(SDL_GetError());
-    const int targetWidth = std::max(
-        1,
-        static_cast<int>(std::lround(presentation.w * novelScale)));
-    const int targetHeight = std::max(
-        1,
-        static_cast<int>(std::lround(presentation.h * novelScale)));
-    if (!novelTarget || novelTargetWidth != targetWidth ||
-        novelTargetHeight != targetHeight) {
-      TexturePtr next(SDL_CreateTexture(renderer.get(), SDL_PIXELFORMAT_RGBA32,
-                                        SDL_TEXTUREACCESS_TARGET, targetWidth,
-                                        targetHeight));
-      if (!next || !SDL_SetTextureScaleMode(next.get(), SDL_SCALEMODE_LINEAR) ||
-          !SDL_SetTextureBlendMode(next.get(), SDL_BLENDMODE_NONE))
-        throw std::runtime_error(SDL_GetError());
-      novelTarget = std::move(next);
-      novelTargetWidth = targetWidth;
-      novelTargetHeight = targetHeight;
+    if (translationDumpComplete)
+      return SDL_APP_SUCCESS;
+    const Uint64 nowMs = SDL_GetTicks();
+    for (auto repeated : navRepeater.update(nowMs)) {
+      const auto repeatResult = dispatchEvent(&repeated);
+      if (repeatResult != SDL_APP_CONTINUE)
+        return repeatResult;
     }
-    if (!SDL_SetRenderTarget(renderer.get(), novelTarget.get()) ||
-        !SDL_SetRenderViewport(renderer.get(), nullptr) ||
-        !SDL_SetRenderClipRect(renderer.get(), nullptr) ||
-        !SDL_SetRenderScale(renderer.get(), 1, 1) ||
-        !SDL_SetRenderLogicalPresentation(renderer.get(), novelView.x,
-                                          novelView.y,
-                                          SDL_LOGICAL_PRESENTATION_STRETCH))
-      throw std::runtime_error(SDL_GetError());
-    ui->setPixelDensity(
-        std::min(static_cast<float>(targetWidth) / novelView.x,
-                 static_cast<float>(targetHeight) / novelView.y));
-    SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
-    if (!SDL_RenderClear(renderer.get()))
-      throw std::runtime_error(SDL_GetError());
-  }
+    if (inputActions.pollLongPress(nowMs)) {
+      SDL_Event cancelPtr{};
+      if (touchPointer.cancel(*window, cancelPtr))
+        dispatchEvent(&cancelPtr);
+      SDL_Event menuKey{};
+      menuKey.type = SDL_EVENT_KEY_DOWN;
+      menuKey.key.key = SDLK_ESCAPE;
+      menuKey.key.down = true;
+      const auto longPressResult = dispatchEvent(&menuKey);
+      if (longPressResult != SDL_APP_CONTINUE)
+        return longPressResult;
+    }
+    configureRenderSpace(RenderSpace::Novel);
+    synchronizeTimeline();
+#if KOTONOHA_ENABLE_MCP
+    if (mcp && !mcp->pump())
+      return SDL_APP_SUCCESS;
+#endif
+    // A browser media-control pause must also stop game logic, not just the
+    // timeline clock. Continue rendering so native browser controls remain
+    // usable; resume automatically as soon as browser playback resumes.
+    if (browserMediaPlaybackBlocked()) {
+      stage = "runtime idle";
+      runtime.devIdle();
+    } else if (!runtime.devPauseRequested() || runtime.devConsumeStep()) {
+      stage = "runtime update";
+      runtime.update();
+    } else {
+      stage = "runtime idle";
+      runtime.devIdle();
+    }
+    stage = "frame preparation";
+    synchronizeNodeClock(0);
+    forcedSubtitles->updateForActiveNode();
+    debug->update();
 
-  stage = "background render";
-  runtime.renderBackground(*renderer, ui->pixelDensity());
-  const auto design = UI::designFrame(runtime.viewport());
-  {
-    UI::FrameScope scope(*renderer, design);
-    timeline->renderVideo(*renderer);
-    timeline->renderSubtitles(*renderer);
-  }
-  stage = "scene render";
-  runtime.render(*renderer, ui->pixelDensity());
-  runtime.renderScene(*forcedSubtitles, *renderer, ui->pixelDensity());
-  stage = "overlay render";
-  runtime.renderOverlay(*renderer, ui->pixelDensity());
-  if (ownedNovel) {
-    if (runtime.useOwnedNarrativeTarget() &&
-        !visualTransition.compose(
-            *renderer, *novelTarget, runtime.narrativeFrameDrawable(),
-            runtime.narrativeBoundaryFrame(), runtime.narrativeVisualOwner()))
-      throw std::runtime_error(SDL_GetError());
-    // VisualTransition::compose/copy temporarily disables logical presentation
-    // for 1:1 texture snapshots. Restore the Novel logical presentation before
-    // renderNarrativeOverlay so narrative overlays fill the complete Novel
-    // viewport at every resolution and renderScale.
-    if (!SDL_SetRenderTarget(renderer.get(), novelTarget.get()) ||
-        !SDL_SetRenderViewport(renderer.get(), nullptr) ||
-        !SDL_SetRenderClipRect(renderer.get(), nullptr) ||
-        !SDL_SetRenderScale(renderer.get(), 1, 1) ||
-        !SDL_SetRenderLogicalPresentation(renderer.get(), novelView.x,
-                                          novelView.y,
-                                          SDL_LOGICAL_PRESENTATION_STRETCH))
-      throw std::runtime_error(SDL_GetError());
-    runtime.renderNarrativeOverlay(*renderer, ui->pixelDensity());
-    if (!SDL_SetRenderTarget(renderer.get(), nullptr))
-      throw std::runtime_error(SDL_GetError());
-    configureRenderSpace(RenderSpace::Novel);
-    // The media/image upscalers have already run at their existing call sites.
-    // This copy only maps the reduced Novel raster back to the fitted physical
-    // presentation, avoiding a second upscaler pass over the whole frame.
-    const float heightScale = runtime.narrativePresentationHeightScale();
-    if (!std::isfinite(heightScale) || heightScale <= 0.0f ||
-        heightScale > 1.0f)
-      throw std::invalid_argument("Invalid Novel presentation height scale");
-    const SDL_FRect presentedNovel{
-        0.0f, novelView.y * (1.0f - heightScale) * 0.5f,
-        static_cast<float>(novelView.x), novelView.y * heightScale};
-    if (!SDL_RenderTexture(renderer.get(), novelTarget.get(), nullptr,
-                           &presentedNovel))
-      throw std::runtime_error(SDL_GetError());
-  }
-  configureRenderSpace(RenderSpace::Screen);
-  stage = "screen render";
-  runtime.renderScreen(*renderer, ui->pixelDensity());
-  if (settingsMenu->isOpen()) {
-    configureRenderSpace(RenderSpace::Novel);
+    // Clear the native output first so the letterbox outside the fitted Novel
+    // presentation remains deterministic even when the Novel itself is rendered
+    // into a reduced intermediate target.
+    SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
+    SDL_RenderClear(renderer.get());
+
+    const SDL_Point novelView = runtime.viewport();
+    // Prevent low-resolution intermediate targets from enlarging TTF glyphs.
+    const float novelScale =
+        runtime.requiresNativeTextResolution() ? 1.0f : settings.renderScale;
+    const bool scaledNovel = novelScale < 0.9999f;
+    const bool ownedNovel = scaledNovel || runtime.useOwnedNarrativeTarget();
+    if (ownedNovel) {
+      SDL_FRect presentation{};
+      if (!SDL_GetRenderLogicalPresentationRect(renderer.get(), &presentation))
+        throw std::runtime_error(SDL_GetError());
+      const int targetWidth = std::max(
+          1, static_cast<int>(std::lround(presentation.w * novelScale)));
+      const int targetHeight = std::max(
+          1, static_cast<int>(std::lround(presentation.h * novelScale)));
+      if (!novelTarget || novelTargetWidth != targetWidth ||
+          novelTargetHeight != targetHeight) {
+        TexturePtr next(SDL_CreateTexture(
+            renderer.get(), SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET,
+            targetWidth, targetHeight));
+        if (!next ||
+            !SDL_SetTextureScaleMode(next.get(), SDL_SCALEMODE_LINEAR) ||
+            !SDL_SetTextureBlendMode(next.get(), SDL_BLENDMODE_NONE))
+          throw std::runtime_error(SDL_GetError());
+        novelTarget = std::move(next);
+        novelTargetWidth = targetWidth;
+        novelTargetHeight = targetHeight;
+      }
+      if (!SDL_SetRenderTarget(renderer.get(), novelTarget.get()) ||
+          !SDL_SetRenderViewport(renderer.get(), nullptr) ||
+          !SDL_SetRenderClipRect(renderer.get(), nullptr) ||
+          !SDL_SetRenderScale(renderer.get(), 1, 1) ||
+          !SDL_SetRenderLogicalPresentation(renderer.get(), novelView.x,
+                                            novelView.y,
+                                            SDL_LOGICAL_PRESENTATION_STRETCH))
+        throw std::runtime_error(SDL_GetError());
+      ui->setPixelDensity(
+          std::min(static_cast<float>(targetWidth) / novelView.x,
+                   static_cast<float>(targetHeight) / novelView.y));
+      SDL_SetRenderDrawColor(renderer.get(), 0, 0, 0, 0);
+      if (!SDL_RenderClear(renderer.get()))
+        throw std::runtime_error(SDL_GetError());
+    }
+
+    stage = "background render";
+    runtime.renderBackground(*renderer, ui->pixelDensity());
+    const auto design = UI::designFrame(runtime.viewport());
     {
       UI::FrameScope scope(*renderer, design);
-      settingsMenu->render(*renderer);
+      timeline->renderVideo(*renderer);
+      timeline->renderSubtitles(*renderer);
+    }
+    stage = "scene render";
+    runtime.render(*renderer, ui->pixelDensity());
+    runtime.renderScene(*forcedSubtitles, *renderer, ui->pixelDensity());
+    stage = "overlay render";
+    runtime.renderOverlay(*renderer, ui->pixelDensity());
+    if (ownedNovel) {
+      if (runtime.useOwnedNarrativeTarget() &&
+          !visualTransition.compose(
+              *renderer, *novelTarget, runtime.narrativeFrameDrawable(),
+              runtime.narrativeBoundaryFrame(), runtime.narrativeVisualOwner()))
+        throw std::runtime_error(SDL_GetError());
+      // VisualTransition::compose/copy temporarily disables logical
+      // presentation for 1:1 texture snapshots. Restore the Novel logical
+      // presentation before renderNarrativeOverlay so narrative overlays fill
+      // the complete Novel viewport at every resolution and renderScale.
+      if (!SDL_SetRenderTarget(renderer.get(), novelTarget.get()) ||
+          !SDL_SetRenderViewport(renderer.get(), nullptr) ||
+          !SDL_SetRenderClipRect(renderer.get(), nullptr) ||
+          !SDL_SetRenderScale(renderer.get(), 1, 1) ||
+          !SDL_SetRenderLogicalPresentation(renderer.get(), novelView.x,
+                                            novelView.y,
+                                            SDL_LOGICAL_PRESENTATION_STRETCH))
+        throw std::runtime_error(SDL_GetError());
+      runtime.renderNarrativeOverlay(*renderer, ui->pixelDensity());
+      if (!SDL_SetRenderTarget(renderer.get(), nullptr))
+        throw std::runtime_error(SDL_GetError());
+      configureRenderSpace(RenderSpace::Novel);
+      // The media/image upscalers have already run at their existing call
+      // sites. This copy only maps the reduced Novel raster back to the fitted
+      // physical presentation, avoiding a second upscaler pass over the whole
+      // frame.
+      const float heightScale = runtime.narrativePresentationHeightScale();
+      if (!std::isfinite(heightScale) || heightScale <= 0.0f ||
+          heightScale > 1.0f)
+        throw std::invalid_argument("Invalid Novel presentation height scale");
+      const SDL_FRect presentedNovel{
+          0.0f, novelView.y * (1.0f - heightScale) * 0.5f,
+          static_cast<float>(novelView.x), novelView.y * heightScale};
+      if (!SDL_RenderTexture(renderer.get(), novelTarget.get(), nullptr,
+                             &presentedNovel))
+        throw std::runtime_error(SDL_GetError());
     }
     configureRenderSpace(RenderSpace::Screen);
-  }
-  debug->renderHUD(*renderer);
-  debug->renderMenu(*renderer);
-  runtime.devControlPump(*renderer);
-  SDL_RenderPresent(renderer.get());
-  configureRenderSpace(RenderSpace::Novel);
-  return SDL_APP_CONTINUE;
+    stage = "screen render";
+    runtime.renderScreen(*renderer, ui->pixelDensity());
+    if (settingsMenu->isOpen()) {
+      configureRenderSpace(RenderSpace::Novel);
+      {
+        UI::FrameScope scope(*renderer, design);
+        settingsMenu->render(*renderer);
+      }
+      configureRenderSpace(RenderSpace::Screen);
+    }
+    debug->renderHUD(*renderer);
+    debug->renderMenu(*renderer);
+    runtime.devControlPump(*renderer);
+    SDL_RenderPresent(renderer.get());
+    configureRenderSpace(RenderSpace::Novel);
+    return SDL_APP_CONTINUE;
   } catch (const std::bad_alloc &) {
     throw std::runtime_error(std::string("Memory allocation failed during ") +
                              stage);

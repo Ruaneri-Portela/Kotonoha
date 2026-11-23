@@ -4,6 +4,7 @@
 #include <Kotonoha/core/Clock.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/localization/Translation.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <memory>
 #include <string>
 #include <utility>
@@ -20,8 +21,10 @@ class ShaderFilePicker;
 }
 
 struct DebugSettings {
-  bool showFPS = true;
-  bool showNodeClock = true;
+  // The HUD is opt-in: the shipped game presentation must be clean by default.
+  // F9 / F8 still toggle these overlays for debugging and development builds.
+  bool showFPS = false;
+  bool showNodeClock = false;
   bool ignorePause = false;
   std::string fpsLabel = "FPS";
   std::string nodeLabel = "Node";
@@ -107,6 +110,9 @@ class DebugOverlay {
   void drawDubbingWindow();
   void drawInfoWindow();
   void drawMenuBar();
+  void takeScreenshot(RendererRef renderer);
+  bool screenshotPending = false;
+  ImageFormat screenshotFormat = ImageFormat::Png;
   void drawInterfaceTools();
   void drawAudioTools();
   void drawDubbingTools();

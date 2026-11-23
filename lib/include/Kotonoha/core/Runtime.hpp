@@ -1,15 +1,19 @@
 #pragma once
 
+#include <Kotonoha/Prefetch/Prefetch.hpp>
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/localization/Translation.hpp>
 
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <unordered_set>
 #include <vector>
 
 namespace Kotonoha {
@@ -46,13 +50,28 @@ protected:
   std::vector<Scene *> menuScenes;
   std::vector<Scene *> gameplayScenes;
 
+  // Cross-port predictive prefetch. The Scheduler runs as a manifest-driven
+  // dispatcher: only hints built from preload.json's `nodes` graph can become
+  // backend requests. Every dispatched id is therefore a real
+  // FetchAssetProvider asset path, never a debugNode()/"8005:1505" label.
+  Prefetch::Scheduler prefetchScheduler_;
+  Prefetch::WasmBackend wasmPrefetchBackend_;
+  std::string lastPredictiveNode_;
+  std::size_t predictiveTransitions_ = 0;
+  // Keys of the `nodes` map published by KotonohaPreloadCache.js.
+  std::unordered_set<std::string> recognizedPrefetchNodes_;
+
+  // Publishes one story transition. Always notifies the browser cache (its
+  // recorder keeps building future preload.json guides); observes the C++
+  // Scheduler only when the id is a recognized graph node. Called by update().
+  void publishPredictiveNode(std::string node);
+  // Parses the compact graph exported by the JS preload cache and registers
+  // node -> asset hints. Pure C++ so native tests can exercise the integration.
+  void registerPrefetchGraph(std::string_view graph);
+
 private:
   std::unique_ptr<SplashChainloader> splash;
   Engine *splashEngine = nullptr;
-  // Last scene published to the browser scheduler; native ports are unchanged.
-#ifdef __EMSCRIPTEN__
-  std::string lastPredictiveNode_;
-#endif
 
 public:
   Runtime(std::string name, std::string version, std::string identify);

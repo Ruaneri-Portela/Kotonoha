@@ -9,7 +9,7 @@
     <string name="scanning_library">正在扫描游戏库…</string>
     <string name="isolate_saves">独立存档</string>
     <string name="no_games_found">未找到游戏</string>
-    <string name="empty_library_hint">使用下方按钮添加游戏文件夹、ISO/BIN 光盘镜像或 ZIP。也可以将游戏放入 Android/data/me.hirameki.kotonoha.launcher/files/games。</string>
+    <string name="empty_library_hint">使用下方按钮添加游戏文件夹、ISO/BIN 光盘镜像或 ZIP。也可以将游戏放入 Android/data/%1$s/files/games。</string>
     <string name="import_zip_action">+ 导入 ZIP</string>
     <string name="add_disc_action">+ 添加 ISO/BIN</string>
     <string name="add_folder_action">+ 添加文件夹</string>

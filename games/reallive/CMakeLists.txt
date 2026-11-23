@@ -6,6 +6,17 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
+# Retail parity gates. Paths are supplied by the caller; no retail data or
+# absolute location is stored in the repository.
+set(REALLIVE_AIRSE_ISO "" CACHE FILEPATH
+    "AIR Standard Edition ISO for the retail parity test")
+set(REALLIVE_KANON_ISO "" CACHE FILEPATH
+    "Kanon Standard Edition ISO for the retail parity test")
+set(REALLIVE_PLANETARIAN_ISO "" CACHE FILEPATH
+    "planetarian ISO for the retail parity test")
+set(CLANNAD_TEST_DATA "" CACHE PATH
+    "CLANNAD retail data directory for integration tests")
+
 add_library(RealLiveFormats STATIC
     src/Config.cpp
     src/Images.cpp
@@ -213,6 +224,49 @@ if(BUILD_TESTING)
         endif()
     endforeach()
 
+    # Retail BG008.G00 background art: the pale lamp in seen170 is baked into
+    # the shipped art, not a runtime sprite; lock its byte-exact decode.
+    add_executable(RealLiveG00RetailArtTests tests/G00RetailArtTest.cpp)
+    target_link_libraries(RealLiveG00RetailArtTests PRIVATE RealLiveFormats kotonoha_vm_reallive)
+    if(REALLIVE_TEST_DATA AND EXISTS "${REALLIVE_TEST_DATA}/g00/BG008.g00")
+        add_test(NAME RealLive.G00RetailArt
+            COMMAND RealLiveG00RetailArtTests "${REALLIVE_TEST_DATA}")
+        set_tests_properties(RealLive.G00RetailArt PROPERTIES
+            LABELS real SKIP_RETURN_CODE 77)
+    else()
+        add_test(NAME RealLive.G00RetailArt COMMAND RealLiveG00RetailArtTests)
+        set_tests_properties(RealLive.G00RetailArt PROPERTIES
+            LABELS synthetic SKIP_RETURN_CODE 77)
+    endif()
+
+    # One generic gate per edition: mount the ISO or installed directory,
+    # read Seen.txt, decode a real G00, list scenarios and boot the runtime.
+    # Without a gate the executable exits 77 (CTest Skipped), never Failed.
+    add_executable(RealLiveRetailEditionTests tests/RetailEditionTest.cpp)
+    target_link_libraries(RealLiveRetailEditionTests PRIVATE reallive_port)
+    set_target_properties(RealLiveRetailEditionTests PROPERTIES CXX_EXTENSIONS OFF)
+    foreach(edition IN ITEMS AirSE KanonSE Planetarian Clannad)
+        if(edition STREQUAL "AirSE")
+            set(gate "${REALLIVE_AIRSE_ISO}")
+            set(gate_env "REALLIVE_AIRSE_ISO")
+        elseif(edition STREQUAL "KanonSE")
+            set(gate "${REALLIVE_KANON_ISO}")
+            set(gate_env "REALLIVE_KANON_ISO")
+        elseif(edition STREQUAL "Planetarian")
+            set(gate "${REALLIVE_PLANETARIAN_ISO}")
+            set(gate_env "REALLIVE_PLANETARIAN_ISO")
+        else()
+            set(gate "${CLANNAD_TEST_DATA}")
+            set(gate_env "CLANNAD_TEST_DATA")
+        endif()
+        add_test(NAME "RealLive.Retail.${edition}"
+            COMMAND RealLiveRetailEditionTests "${gate}" "${gate_env}")
+        set_tests_properties("RealLive.Retail.${edition}" PROPERTIES
+            LABELS real SKIP_RETURN_CODE 77
+            ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIO_DRIVER=dummy"
+            TIMEOUT 180)
+    endforeach()
+
     # Data-independent verification of switch/case selection semantics.
     # Pure C++17 tests for Str.digits / Str.digit opcode parameters.
     # Strict, data-free tests for atomic Str.strclear range validation.
@@ -261,6 +315,31 @@ if(BUILD_TESTING)
 
     add_executable(RealLiveEngineTests tests/EngineTest.cpp)
     target_link_libraries(RealLiveEngineTests PRIVATE reallive_port)
+    # Retail AIR 1:26:0 opening movie: asset resolution, embedded audio and
+    # the script block/skip contract. Data is supplied at runtime through
+    # REALLIVE_TEST_DATA (or the configure-time REALLIVE_TEST_DATA option).
+    add_executable(RealLiveMovieTests tests/MovieTest.cpp)
+    target_link_libraries(RealLiveMovieTests PRIVATE reallive_port)
+    if(REALLIVE_TEST_DATA AND EXISTS "${REALLIVE_TEST_DATA}/MOV/op_air.mpg")
+        add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests "${REALLIVE_TEST_DATA}")
+        set_tests_properties(RealLive.Movie PROPERTIES
+            LABELS real SKIP_RETURN_CODE 77)
+    else()
+        add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests)
+        set_tests_properties(RealLive.Movie PROPERTIES
+            LABELS synthetic SKIP_RETURN_CODE 77)
+    endif()
+    # Retail sprite-atlas layout guards for the Key logo clip, AIR textbox
+    # toggle frames and CLANNAD animated indicator strip.
+    add_executable(RealLiveSpriteAtlasTests tests/SpriteAtlasTest.cpp)
+    target_link_libraries(RealLiveSpriteAtlasTests PRIVATE RealLiveFormats)
+    add_test(NAME RealLive.SpriteAtlas COMMAND RealLiveSpriteAtlasTests)
+    set_tests_properties(RealLive.SpriteAtlas PROPERTIES
+        LABELS synthetic SKIP_RETURN_CODE 77)
+    if(CLANNAD_TEST_DATA)
+        set_tests_properties(RealLive.SpriteAtlas PROPERTIES
+            ENVIRONMENT "CLANNAD_TEST_DATA=${CLANNAD_TEST_DATA}")
+    endif()
     add_executable(RealLiveConfigTests tests/ConfigTest.cpp)
     target_link_libraries(RealLiveConfigTests PRIVATE reallive_port)
     add_test(NAME RealLiveConfig COMMAND RealLiveConfigTests)
@@ -268,4 +347,10 @@ endif()
 
 kotonoha_label_directory_tests(REAL
     RealLiveSession
+    RealLive.G00RetailArt
+    RealLive.Movie
+    RealLive.Retail.AirSE
+    RealLive.Retail.KanonSE
+    RealLive.Retail.Planetarian
+    RealLive.Retail.Clannad
 )

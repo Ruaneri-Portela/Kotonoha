@@ -6,10 +6,14 @@
     <title>@APP_TITLE@ - Kotonoha Engine</title>
     <!-- Each WASM game is installable as its own scoped PWA. -->
     <link rel="manifest" href="./manifest.webmanifest">
-    <meta name="theme-color" content="#101623">
+    <meta name="theme-color" content="#0D142E">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="@APP_TITLE@">
+    <!-- Canonical favicons live in design/generated/web/ and are copied into
+         each standalone PWA output by tools/generate_pwa_icons.py. -->
+    <link rel="icon" href="./favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="./favicon.png">
     <link rel="apple-touch-icon" href="./pwa-icon-180.png">
 
     <style>
@@ -84,7 +88,7 @@
             inset: 0;
             width: 100%;
             height: 100%;
-            background: #111;
+            background: #000;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -99,6 +103,14 @@
             transition: opacity 0.5s ease;
         }
 
+        #loading-overlay::before {
+            content: "";
+            width: clamp(72px, 13vmin, 108px);
+            aspect-ratio: 1;
+            flex: none;
+            margin-bottom: 24px;
+            background: center / contain no-repeat url("./pwa-icon-192.png");
+        }
         #loading-title {
             color: #fff;
             font-size: 20px;
@@ -107,7 +119,7 @@
         }
 
         #loading-build {
-            color: #b9a2d1;
+            color: #B9B5D4;
             font: 12px system-ui, sans-serif;
             max-width: min(80vw, 520px);
             overflow-wrap: anywhere;
@@ -136,7 +148,7 @@
         #loading-bar {
             width: 0%;
             height: 100%;
-            background: linear-gradient(90deg, #8855ad, #c485e9);
+            background: linear-gradient(90deg, #2C3E9A, #6A5BE7, #C86BD9);
             transition: width 0.1s ease;
         }
 
@@ -162,11 +174,11 @@
         #asset-source-actions button:hover:not(:disabled),
         #browser-folder-tools button:hover:not(:disabled) {
             background: #3c2950;
-            border-color: #c18bdc;
+            border-color: #C86BD9;
         }
         #asset-source-actions button:focus-visible,
         #browser-folder-tools button:focus-visible {
-            outline: 2px solid #e1baff;
+            outline: 2px solid #00D6FF;
             outline-offset: 3px;
         }
 
@@ -208,6 +220,67 @@
             pointer-events: none;
             z-index: 5;
         }
+
+        /* Cartilha Kotonoha v2: controls only, never recolor the game canvas.
+           The universal startup splash remains black (#000) and centered. */
+        :root {
+            color-scheme: dark;
+            --kotonoha-navy: #0D142E;
+            --kotonoha-raised: #182449;
+            --kotonoha-indigo: #2C3E9A;
+            --kotonoha-violet: #6A5BE7;
+            --kotonoha-magenta: #C86BD9;
+            --kotonoha-sakura: #FF8FBD;
+            --kotonoha-cyan: #00D6FF;
+            --kotonoha-outline: #39315E;
+            --kotonoha-muted: #B9B5D4;
+        }
+        #loading-overlay { background: #000; }
+        #loading-title { color: #fff; letter-spacing: .01em; text-align: center; }
+        #loading-build, #loading-status { color: var(--kotonoha-muted); }
+        #asset-source-actions button, #browser-folder-tools button {
+            border-radius: 12px;
+            border: 1px solid var(--kotonoha-outline);
+            background: var(--kotonoha-raised);
+            color: #fff;
+            font: 600 14px system-ui, sans-serif;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+            transition: background-color .16s ease, border-color .16s ease;
+        }
+        #asset-source-actions button:first-child {
+            background: linear-gradient(110deg, var(--kotonoha-indigo),
+                var(--kotonoha-violet), var(--kotonoha-magenta));
+            border-color: var(--kotonoha-magenta);
+        }
+        #asset-source-actions button:not(:disabled):hover,
+        #browser-folder-tools button:not(:disabled):hover {
+            background: var(--kotonoha-indigo);
+            border-color: var(--kotonoha-cyan);
+        }
+        #kotonoha-language { padding: 4px; border-radius: 12px;
+            border: 1px solid var(--kotonoha-outline); background: var(--kotonoha-navy); }
+        #kotonoha-language button {
+            color: var(--kotonoha-muted); background: transparent;
+            border: 1px solid transparent; border-radius: 8px;
+        }
+        #kotonoha-language button[aria-pressed="true"] {
+            color: #fff; border-color: var(--kotonoha-magenta);
+            background: var(--kotonoha-indigo);
+        }
+        #loading-progress-container { background: var(--kotonoha-navy);
+            border: 1px solid var(--kotonoha-outline); border-radius: 8px; }
+        #loading-bar { background: linear-gradient(90deg,
+            var(--kotonoha-cyan),var(--kotonoha-violet),var(--kotonoha-magenta)); }
+        #browser-folder-status { color: var(--kotonoha-muted); }
+        #asset-source-actions button:focus-visible,
+        #browser-folder-tools button:focus-visible,
+        #kotonoha-language button:focus-visible { outline: 2px solid var(--kotonoha-cyan);
+            outline-offset: 3px; }
+        @media (prefers-reduced-motion: reduce) {
+            #asset-source-actions button, #browser-folder-tools button,
+            #loading-bar, #loading-overlay { transition: none; }
+        }
+
     </style>
 </head>
 

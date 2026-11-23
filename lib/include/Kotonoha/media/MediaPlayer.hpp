@@ -2,9 +2,11 @@
 
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
+#include <Kotonoha/workers/AttachedFont.hpp>
 #include <atomic>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace Kotonoha {
 class AssetProvider;
@@ -117,6 +119,10 @@ public:
   void render(RendererRef renderer, const SDL_FRect &area,
               Upscaling *upscaler = nullptr, bool stretch = false);
   bool hasVideoFrame() const;
+  // Font payloads carried by the media container (e.g. Matroska attachments).
+  // Collected while demuxing on the calling thread, bounded to 16 files / 8
+  // MiB. The subtitle side decides which of them to register with libass.
+  std::vector<workers::AttachedFont> attachedFonts() const;
   bool isOpen() const;
   // True when nothing is open, or every frame was presented and the queued
   // audio (soundtrack included) drained.

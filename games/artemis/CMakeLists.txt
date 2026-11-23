@@ -14,11 +14,6 @@ set_target_properties(ArtemisGame PROPERTIES CXX_EXTENSIONS OFF)
 kotonoha_configure_app(ArtemisGame
     BUNDLE_ID me.hirameki.kotonoha.artemis GAME artemis)
 
-set(ARTEMIS_TEST_DATA_1 "" CACHE PATH
-    "Artemis retail game #1 directory (e.g. NUKITASHI)")
-set(ARTEMIS_TEST_DATA_2 "" CACHE PATH
-    "Artemis retail game #2 directory (e.g. NUKITASHI 2)")
-
 if(BUILD_TESTING)
     add_executable(ArtemisRuntimeTests tests/ArtemisRuntimeTest.cpp)
     target_link_libraries(ArtemisRuntimeTests PRIVATE artemis_port)
@@ -27,34 +22,22 @@ if(BUILD_TESTING)
         ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
         LABELS "synthetic;fast")
 
-    set(_artemis_real_tests "")
-    set(_nukitashi1_dir "${ARTEMIS_TEST_DATA_1}")
-    if(NOT _nukitashi1_dir AND EXISTS "/Volumes/Nero 2TB/SteamLibrary/steamapps/common/NUKITASHI/NUKITASHI.pfs")
-        set(_nukitashi1_dir "/Volumes/Nero 2TB/SteamLibrary/steamapps/common/NUKITASHI")
-    endif()
-    if(_nukitashi1_dir AND EXISTS "${_nukitashi1_dir}/NUKITASHI.pfs")
-        add_test(NAME Artemis.Retail.Nukitashi1
-            COMMAND ArtemisRuntimeTests "${_nukitashi1_dir}")
-        set_tests_properties(Artemis.Retail.Nukitashi1 PROPERTIES
-            ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
-            TIMEOUT 120)
-        list(APPEND _artemis_real_tests Artemis.Retail.Nukitashi1)
-    endif()
+    add_executable(ArtemisBootTests tests/ArtemisBootTest.cpp)
+    target_link_libraries(ArtemisBootTests PRIVATE artemis_port)
+    add_test(NAME Artemis.Boot COMMAND ArtemisBootTests)
+    set_tests_properties(Artemis.Boot PROPERTIES
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+        LABELS "synthetic;fast")
 
-    set(_nukitashi2_dir "${ARTEMIS_TEST_DATA_2}")
-    if(NOT _nukitashi2_dir AND EXISTS "/Volumes/Nero 2TB/SteamLibrary/steamapps/common/NUKITASHI 2/root.pfs")
-        set(_nukitashi2_dir "/Volumes/Nero 2TB/SteamLibrary/steamapps/common/NUKITASHI 2")
-    endif()
-    if(_nukitashi2_dir AND EXISTS "${_nukitashi2_dir}/root.pfs")
-        add_test(NAME Artemis.Retail.Nukitashi2
-            COMMAND ArtemisRuntimeTests "${_nukitashi2_dir}")
-        set_tests_properties(Artemis.Retail.Nukitashi2 PROPERTIES
-            ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
-            TIMEOUT 120)
-        list(APPEND _artemis_real_tests Artemis.Retail.Nukitashi2)
-    endif()
+    # Retail assets are supplied at run time through the environment; no
+    # absolute installation paths are stored in the repository.
+    add_test(NAME Artemis.Retail COMMAND ArtemisBootTests --require-retail)
+    set_tests_properties(Artemis.Retail PROPERTIES
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+        TIMEOUT 180
+        SKIP_RETURN_CODE 77)
 
     if(COMMAND kotonoha_label_directory_tests)
-        kotonoha_label_directory_tests(REAL ${_artemis_real_tests})
+        kotonoha_label_directory_tests(REAL Artemis.Retail)
     endif()
 endif()

@@ -500,7 +500,8 @@ ParsedAstScript AstParser::parseScript(std::string_view source) {
     return result;
 
   result.astver = result.root->getNumber("astver", 2.0);
-  if (const auto *astVal = result.root->get("ast"); astVal && astVal->isTable()) {
+  if (const auto *astVal = result.root->get("ast");
+      astVal && astVal->isTable()) {
     result.ast = astVal->tableVal;
     for (const auto &[key, val] : result.ast->fields) {
       if (key == "label") {

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms">
+      <UniqueIdentifier>{45B28604-2082-520E-A52E-654FBA483FCF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\summer-radish">
+      <UniqueIdentifier>{793D2718-A0A5-5ED0-8958-8CF6F6F8CA8A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\summer-radish\src">
+      <UniqueIdentifier>{875CB5C8-6984-5974-B964-B2A02449158F}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\vms\summer-radish\src\ImoutoScript.cpp">
+      <Filter>modules\vms\summer-radish\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\summer-radish\src\Script.cpp">
+      <Filter>modules\vms\summer-radish\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -7,8 +7,15 @@
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <Kotonoha/events/InputActions.hpp>
+#include <algorithm>
 #include <charconv>
+#include <cmath>
+#include <cstdlib>
 #include <stdexcept>
+#include <string_view>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -18,7 +25,18 @@ namespace Kotonoha {
 
 Runtime::Runtime(std::string name, std::string version, std::string identify)
     : name(std::move(name)), version(std::move(version)),
-      identify(std::move(identify)) {}
+      identify(std::move(identify)) {
+  Prefetch::Scheduler::Config config;
+  // Every id dispatched by this Scheduler must be a manifest asset path. The
+  // recency/sibling/sequential heuristics would emit raw debugNode() labels
+  // ("8005:1505", "luca_system | ...") that FetchAssetProvider::stat() cannot
+  // resolve. The preload.json `nodes` graph is the authoritative predictor.
+  config.learnFromObservation = false;
+  config.siblingsEnabled = false;
+  config.sequentialEnabled = false;
+  config.recencyCapacity = 0;
+  prefetchScheduler_ = Prefetch::Scheduler(config);
+}
 
 Runtime::~Runtime() = default;
 
@@ -54,8 +72,61 @@ void Runtime::loadGame(const std::string &) {
   throw std::logic_error("This game has not implemented loadGame");
 }
 
+// One node notification per story transition, shared by every game port.
+// nodeClockKey() is the preferred stable scene identity; other runtimes expose
+// their existing debugNode() without any per-port browser code. Kept before
+// init() so the EM_ASM scene bridge stays the first EM_ASM in this translation
+// unit (tools/test_em_asm_fetch.js matches it by source order).
+void Runtime::publishPredictiveNode(std::string node) {
+  if (node.empty() || node == lastPredictiveNode_)
+    return;
+  lastPredictiveNode_ = node;
+#ifdef __EMSCRIPTEN__
+  EM_ASM(
+      {
+        // 'typeof' returns a string; use JS '==' because '===' is
+        // broken into '== =' by C++ macro tokenization in EM_ASM.
+        if (typeof window.KotonohaSceneEntered == "function")
+          window.KotonohaSceneEntered(UTF8ToString($0));
+      },
+      node.c_str());
+#endif
+  if (!recognizedPrefetchNodes_.count(node))
+    return;
+  ++predictiveTransitions_;
+  prefetchScheduler_.observeAndPrefetch(std::move(node));
+}
+
 void Runtime::init(Engine &engine) {
   splashEngine = &engine;
+#ifdef __EMSCRIPTEN__
+  // Rebind after the browser has indexed the remote manifest: WasmBackend
+  // captures remoteGameAssets() in its constructor, while Runtime objects may
+  // be created before the asynchronous bootstrap finishes. Then import the
+  // `nodes` graph exported by KotonohaPreloadCache.js so the Scheduler only
+  // ever predicts real asset paths from the very same map the JS cache uses.
+  wasmPrefetchBackend_ = Prefetch::WasmBackend();
+  prefetchScheduler_.setBackend(&wasmPrefetchBackend_);
+  std::string graph;
+  const int graphBytes = EM_ASM_INT({
+    var cache = window.KotonohaAssetCache;
+    if (!cache || typeof cache.prefetchGraph !== "function") return 0;
+    var text = cache.prefetchGraph();
+    return typeof text === "string" ? lengthBytesUTF8(text) : 0;
+  });
+  if (graphBytes > 0 && graphBytes <= 2 * 1024 * 1024) {
+    graph.resize(static_cast<std::size_t>(graphBytes));
+    EM_ASM({
+      var cache = window.KotonohaAssetCache;
+      stringToUTF8(cache.prefetchGraph(), $0, $1 + 1);
+    }, graph.data(), graphBytes);
+  }
+  registerPrefetchGraph(graph);
+  // One predictive pathway: C++ predicts and dispatches through WasmBackend;
+  // the JS sceneEntered() keeps recording transitions but stops issuing its
+  // own speculative range requests while this flag is set.
+  EM_ASM({ window.KotonohaCppPrefetchActive = true; });
+#endif
   engine.GetTimeline().stop();
   if (SDL_TextInputActive(&engine.GetWindow()) &&
       !SDL_StopTextInput(&engine.GetWindow()))
@@ -121,6 +192,82 @@ void Runtime::initSplash(Engine &engine) {
 void Runtime::initMenu(Engine &engine) {}
 void Runtime::initGameplay(Engine &engine) {}
 
+// Compact graph format produced by KotonohaPreloadCache.js::prefetchGraph():
+//   N\t<node id>          start a node record (id is a preload.json key)
+//   A\t<asset path>       manifest asset used by the current node
+//   X\t<node id>\t<weight> weighted successor from the `next` array
+// Both passes matter: successors are resolved to their own asset lists before
+// hints are registered, so a hint target is always a valid manifest id.
+void Runtime::registerPrefetchGraph(std::string_view graph) {
+  struct Record {
+    std::string id;
+    std::vector<std::string> assets;
+    std::vector<std::pair<std::string, float>> next;
+  };
+  std::vector<Record> records;
+  Record *current = nullptr;
+  std::size_t pos = 0;
+  while (pos < graph.size()) {
+    const std::size_t end = graph.find('\n', pos);
+    const std::size_t stop = end == std::string_view::npos ? graph.size() : end;
+    std::string_view line = graph.substr(pos, stop - pos);
+    pos = stop + 1;
+    if (!line.empty() && line.back() == '\r')
+      line.remove_suffix(1);
+    if (line.size() < 2 || line[1] != '\t')
+      continue;
+    const char kind = line[0];
+    const std::string_view value = line.substr(2);
+    if (kind == 'N') {
+      records.push_back(Record{std::string(value), {}, {}});
+      current = &records.back();
+      continue;
+    }
+    if (!current)
+      continue;
+    if (kind == 'A') {
+      if (!value.empty())
+        current->assets.emplace_back(value);
+    } else if (kind == 'X') {
+      const auto tab = value.find('\t');
+      if (tab == std::string_view::npos)
+        continue;
+      // std::from_chars for floating point needs a newer SDK than the
+      // macOS/Android deployment targets. strtod is portable; validate that
+      // the entire token was consumed, mirroring ArtemisUi::parseRect().
+      const std::string token(value.substr(tab + 1));
+      char *endPtr = nullptr;
+      const double parsed = std::strtod(token.c_str(), &endPtr);
+      if (endPtr != token.c_str() + token.size())
+        continue;
+      const float weight = static_cast<float>(parsed);
+      if (std::isfinite(weight) && weight > 0.0f)
+        current->next.emplace_back(std::string(value.substr(0, tab)), weight);
+    }
+  }
+
+  std::unordered_map<std::string, const Record *> byId;
+  byId.reserve(records.size());
+  for (const Record &record : records)
+    byId.emplace(record.id, &record);
+  for (const Record &record : records) {
+    if (record.id.empty())
+      continue;
+    recognizedPrefetchNodes_.insert(record.id);
+    for (const std::string &asset : record.assets) {
+      prefetchScheduler_.registerKnown(asset);
+      prefetchScheduler_.registerHint(record.id, asset, 1.0f);
+    }
+    for (const auto &[nextId, weight] : record.next) {
+      const auto found = byId.find(nextId);
+      if (found == byId.end())
+        continue;
+      for (const std::string &asset : found->second->assets)
+        prefetchScheduler_.registerHint(record.id, asset, 2.0f * weight);
+    }
+  }
+}
+
 void Runtime::render(RendererRef renderer, float scale) {
   switch (currentState) {
   case GameState::Splash:
@@ -174,25 +321,20 @@ void Runtime::update() {
     if (scene)
       scene->update();
 #ifdef __EMSCRIPTEN__
-  // One node notification per story transition, shared by every game port.
-  // nodeClockKey() is the preferred stable scene identity; other runtimes
-  // expose their existing debugNode() without any per-port browser code.
-  if (currentState == GameState::Gameplay) {
+  // Always publish to the browser cache, even before a graph is available,
+  // so its recorder can produce a first preload.json from real play.
+  const bool publishNode = currentState == GameState::Gameplay;
+#else
+  // Native has no browser graph: keep the historical no-op unless a test or
+  // host explicitly registered one (its Scheduler prefetch() is a no-op).
+  const bool publishNode =
+      currentState == GameState::Gameplay && !recognizedPrefetchNodes_.empty();
+#endif
+  if (publishNode) {
     const auto stable = nodeClockKey();
     const auto node = stable.empty() ? debugNode() : stable;
-    if (!node.empty() && node != lastPredictiveNode_) {
-      lastPredictiveNode_ = node;
-      EM_ASM(
-          {
-            // 'typeof' returns a string; use JS '==' because '===' is
-            // broken into '== =' by C++ macro tokenization in EM_ASM.
-            if (typeof window.KotonohaSceneEntered == "function")
-              window.KotonohaSceneEntered(UTF8ToString($0));
-          },
-          node.c_str());
-    }
+    publishPredictiveNode(node);
   }
-#endif
 }
 
 bool Runtime::onEvent(EventRef event) {

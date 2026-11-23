@@ -682,7 +682,6 @@ FodyWeavers.xsd
 /.opencode/
 /forced_subtitles/
 /CMakeSettings.json
-/CMakePresets.json
 
 # Xcode Projects & Workspaces (Auto-generated)
 buildsystems/xcode/build/
@@ -708,17 +707,21 @@ app/.cxx/
 .vscode/
 
 # Assets & Translations
-assets/*
 games-assets/*
-!assets/Anime4K/
-!assets/ArtCNN/
-!assets/icon.ico
-!assets/icon.png
-!assets/SPLASH.PNG
 .research/
 *.ini
 /translation.json
 /translations/
+
+# Kotonoha visual identity: design/ is the versioned source of truth.
+# design/generated/ is committed so the identities are visible in the repo.
+# Buildsystems import specific files from it but never package the folder.
+!design/
+!design/generated/
+# Transient generator coordination and isolated test exports stay untracked.
+design/generated/.kotonoha-brand.lock/
+design/generated/.kotonoha-*.complete
+design/generated/pwa/
 
 # Debug Includes
 !lib/src/debug/

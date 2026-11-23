@@ -4,15 +4,15 @@
 #include <N2System/SaveState.hpp>
 
 #include <algorithm>
-#include <charconv>
 #include <cctype>
+#include <charconv>
 #include <cstdint>
 #include <limits>
 #include <map>
 #include <sstream>
-#include <type_traits>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -23,13 +23,27 @@ void quoted(std::ostringstream &out, std::string_view value) {
   out << '"';
   for (unsigned char c : value) {
     switch (c) {
-    case '"': out << "\\\""; break;
-    case '\\': out << "\\\\"; break;
-    case '\n': out << "\\n"; break;
-    case '\r': out << "\\r"; break;
-    case '\t': out << "\\t"; break;
-    case '\b': out << "\\b"; break;
-    case '\f': out << "\\f"; break;
+    case '"':
+      out << "\\\"";
+      break;
+    case '\\':
+      out << "\\\\";
+      break;
+    case '\n':
+      out << "\\n";
+      break;
+    case '\r':
+      out << "\\r";
+      break;
+    case '\t':
+      out << "\\t";
+      break;
+    case '\b':
+      out << "\\b";
+      break;
+    case '\f':
+      out << "\\f";
+      break;
     default:
       if (c < 0x20) {
         out << "\\u00" << hex[c >> 4] << hex[c & 15];
@@ -109,9 +123,10 @@ private:
     value = 0;
     for (int i = 0; i < 4; ++i) {
       const char c = source_[cursor_++];
-      const int n = c >= '0' && c <= '9' ? c - '0' :
-                    c >= 'a' && c <= 'f' ? c - 'a' + 10 :
-                    c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+      const int n = c >= '0' && c <= '9'   ? c - '0'
+                    : c >= 'a' && c <= 'f' ? c - 'a' + 10
+                    : c >= 'A' && c <= 'F' ? c - 'A' + 10
+                                           : -1;
       if (n < 0)
         return false;
       value = (value << 4) | static_cast<std::uint32_t>(n);
@@ -133,14 +148,30 @@ private:
           return false;
         const char next = source_[cursor_++];
         switch (next) {
-        case '"': value.push_back('"'); break;
-        case '\\': value.push_back('\\'); break;
-        case '/': value.push_back('/'); break;
-        case 'n': value.push_back('\n'); break;
-        case 'r': value.push_back('\r'); break;
-        case 't': value.push_back('\t'); break;
-        case 'b': value.push_back('\b'); break;
-        case 'f': value.push_back('\f'); break;
+        case '"':
+          value.push_back('"');
+          break;
+        case '\\':
+          value.push_back('\\');
+          break;
+        case '/':
+          value.push_back('/');
+          break;
+        case 'n':
+          value.push_back('\n');
+          break;
+        case 'r':
+          value.push_back('\r');
+          break;
+        case 't':
+          value.push_back('\t');
+          break;
+        case 'b':
+          value.push_back('\b');
+          break;
+        case 'f':
+          value.push_back('\f');
+          break;
         case 'u': {
           std::uint32_t cp;
           if (!hex4(cp))
@@ -223,32 +254,36 @@ private:
       return false;
     };
     if (match("true")) {
-      value.kind = Kind::Boolean; value.boolean = true; return true;
+      value.kind = Kind::Boolean;
+      value.boolean = true;
+      return true;
     }
     if (match("false")) {
-      value.kind = Kind::Boolean; value.boolean = false; return true;
+      value.kind = Kind::Boolean;
+      value.boolean = false;
+      return true;
     }
     if (match("null")) {
-      value.kind = Kind::Null; return true;
+      value.kind = Kind::Null;
+      return true;
     }
     const std::size_t start = cursor_;
     if (c == '-')
       ++cursor_;
-    if (cursor_ >= source_.size() ||
-        source_[cursor_] < '0' || source_[cursor_] > '9')
+    if (cursor_ >= source_.size() || source_[cursor_] < '0' ||
+        source_[cursor_] > '9')
       return false;
     if (source_[cursor_] == '0') {
       ++cursor_;
     } else {
-      while (cursor_ < source_.size() &&
-             source_[cursor_] >= '0' && source_[cursor_] <= '9')
+      while (cursor_ < source_.size() && source_[cursor_] >= '0' &&
+             source_[cursor_] <= '9')
         ++cursor_;
     }
     const auto parsed = std::from_chars(
         source_.data() + start, source_.data() + cursor_, value.integer);
     value.kind = Kind::Integer;
-    return parsed.ec == std::errc{} &&
-           parsed.ptr == source_.data() + cursor_;
+    return parsed.ec == std::errc{} && parsed.ptr == source_.data() + cursor_;
   }
 };
 
@@ -281,22 +316,26 @@ bool readMap(const Value *value, std::map<std::string, T> &out) {
     return false;
   for (const auto &[key, entry] : value->object) {
     if constexpr (std::is_same_v<T, std::string>) {
-      if (entry.kind != Kind::String) return false;
+      if (entry.kind != Kind::String)
+        return false;
       out[key] = entry.text;
     } else if constexpr (std::is_same_v<T, bool>) {
-      if (entry.kind != Kind::Boolean) return false;
+      if (entry.kind != Kind::Boolean)
+        return false;
       out[key] = entry.boolean;
     } else {
-      if (entry.kind != Kind::Integer) return false;
+      if (entry.kind != Kind::Integer)
+        return false;
       out[key] = static_cast<T>(entry.integer);
     }
   }
   return true;
 }
 int nibble(char c) {
-  return c >= '0' && c <= '9' ? c - '0' :
-         c >= 'a' && c <= 'f' ? c - 'a' + 10 :
-         c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+  return c >= '0' && c <= '9'   ? c - '0'
+         : c >= 'a' && c <= 'f' ? c - 'a' + 10
+         : c >= 'A' && c <= 'F' ? c - 'A' + 10
+                                : -1;
 }
 } // namespace
 
@@ -319,7 +358,8 @@ std::string SaveStateCodec::serializeJson(const SaveData &data) {
   out << ",\"backlog\":[";
   bool first = true;
   for (const auto &entry : data.backlog) {
-    if (!first) out << ',';
+    if (!first)
+      out << ',';
     first = false;
     out << "{\"speaker\":";
     quoted(out, entry.speaker);
@@ -359,8 +399,7 @@ bool SaveStateCodec::deserializeJson(std::string_view json, SaveData &outData) {
     field = value->text;
     return true;
   };
-  if (!getString("chapter", parsed.chapterName) ||
-      parsed.chapterName.empty() ||
+  if (!getString("chapter", parsed.chapterName) || parsed.chapterName.empty() ||
       !getString("activeSpeaker", parsed.activeSpeaker) ||
       !getString("activeText", parsed.activeText) ||
       !getString("activeVoice", parsed.activeVoice))

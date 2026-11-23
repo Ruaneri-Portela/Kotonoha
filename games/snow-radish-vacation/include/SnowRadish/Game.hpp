@@ -1,5 +1,9 @@
 #pragma once
 #include "SnowRadish/Pack.hpp"
+#include <SnowRadish/PackAnimation.hpp>
+#include <SnowRadish/PackAudio.hpp>
+#include <SnowRadish/PackImage.hpp>
+
 #include "SnowRadish/Vm.hpp"
 
 #include <cstdint>

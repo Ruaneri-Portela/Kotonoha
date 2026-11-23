@@ -1,6 +1,6 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
-#include <Ponscripter/PonscripterRuntime.hpp>
 #include <Ponscripter/PixelEffects.hpp>
+#include <Ponscripter/PonscripterRuntime.hpp>
 
 #include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/Filesystem/Filesystem.hpp>
@@ -10,10 +10,10 @@
 #include <Kotonoha/components/VNManager.hpp>
 #include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
@@ -1234,9 +1234,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         if (op.text.empty())
           continue;
         pickFont(false).textSized(
-            renderer, impl_->translateLine(op.text),
-            static_cast<float>(op.x), static_cast<float>(op.y),
-            static_cast<float>(std::max(1, op.width)),
+            renderer, impl_->translateLine(op.text), static_cast<float>(op.x),
+            static_cast<float>(op.y), static_cast<float>(std::max(1, op.width)),
             static_cast<float>(std::max(1, op.height)),
             rgb24ToSdl(op.colorRgb, 255));
         continue;
@@ -1286,10 +1285,9 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       const int cell = std::clamp(op.cell, 0, cells - 1);
       SDL_FRect source{cell * cellW, 0.0f, cellW, textureH};
       if (op.kind == ManualDrawOp::Kind::Blit) {
-        source = SDL_FRect{static_cast<float>(op.srcX),
-                           static_cast<float>(op.srcY),
-                           static_cast<float>(op.srcW),
-                           static_cast<float>(op.srcH)};
+        source =
+            SDL_FRect{static_cast<float>(op.srcX), static_cast<float>(op.srcY),
+                      static_cast<float>(op.srcW), static_cast<float>(op.srcH)};
       }
       float width = background ? viewW : logicalCellW;
       float height = background ? viewH : logicalH;
@@ -1300,8 +1298,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
       }
       if (op.affine) {
         const float halfW = width * 0.5f, halfH = height * 0.5f;
-        const SDL_FPoint corners[] = {{-halfW, -halfH}, {halfW, -halfH},
-                                      {halfW, halfH}, {-halfW, halfH}};
+        const SDL_FPoint corners[] = {
+            {-halfW, -halfH}, {halfW, -halfH}, {halfW, halfH}, {-halfW, halfH}};
         const float matrixA = op.transformA / 1000.0f;
         const float matrixB = op.transformB / 1000.0f;
         const float matrixC = op.transformC / 1000.0f;
@@ -1310,15 +1308,15 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         const float right = (source.x + source.w) / textureW;
         const float top = source.y / textureH;
         const float bottom = (source.y + source.h) / textureH;
-        const SDL_FPoint uvs[] = {{left, top}, {right, top},
-                                  {right, bottom}, {left, bottom}};
+        const SDL_FPoint uvs[] = {
+            {left, top}, {right, top}, {right, bottom}, {left, bottom}};
         SDL_Vertex vertices[4]{};
         for (int i = 0; i < 4; ++i) {
-          vertices[i].position = SDL_FPoint{
-              static_cast<float>(op.x) + corners[i].x * matrixA +
-                  corners[i].y * matrixB,
-              static_cast<float>(op.y) + corners[i].x * matrixC +
-                  corners[i].y * matrixD};
+          vertices[i].position =
+              SDL_FPoint{static_cast<float>(op.x) + corners[i].x * matrixA +
+                             corners[i].y * matrixB,
+                         static_cast<float>(op.y) + corners[i].x * matrixC +
+                             corners[i].y * matrixD};
           vertices[i].tex_coord = uvs[i];
           vertices[i].color = SDL_FColor{1.0f, 1.0f, 1.0f, 1.0f};
         }
@@ -1446,9 +1444,8 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
         } else if (sp.blendMode == 2) {
           blend = SDL_ComposeCustomBlendMode(
               SDL_BLENDFACTOR_SRC_ALPHA, SDL_BLENDFACTOR_ONE,
-              SDL_BLENDOPERATION_REV_SUBTRACT,
-              SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_ONE,
-              SDL_BLENDOPERATION_ADD);
+              SDL_BLENDOPERATION_REV_SUBTRACT, SDL_BLENDFACTOR_ZERO,
+              SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_ADD);
         }
         // Texture objects are cached across sprites, so reset their blend mode
         // on every draw. The software backend may reject custom subtraction.
@@ -1522,11 +1519,10 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           hovered ? vm_.selectHoverColor() : vm_.selectIdleColor();
       auto &fontUi = pickFont(false);
       const std::string text = impl_->translateLine(btn.text);
-      const float textSize = static_cast<float>(
-          std::max(1, vm_.windowSpec().fontH));
+      const float textSize =
+          static_cast<float>(std::max(1, vm_.windowSpec().fontH));
       if (vm_.windowSpec().shadow) {
-        fontUi.textSized(renderer, text,
-                         static_cast<float>(btn.x + 1),
+        fontUi.textSized(renderer, text, static_cast<float>(btn.x + 1),
                          static_cast<float>(btn.y + 1),
                          static_cast<float>(std::max(1, btn.w)), textSize,
                          SDL_Color{0, 0, 0, 255});
@@ -1738,19 +1734,17 @@ void PonscripterRuntime::renderGameplay(Kotonoha::RendererRef renderer,
     if (readback) {
       Kotonoha::SurfacePtr rgba(
           SDL_ConvertSurface(readback.get(), SDL_PIXELFORMAT_RGBA32));
-      if (rgba && rgba->w > 0 && rgba->h > 0 &&
-          SDL_LockSurface(rgba.get())) {
-        applyScenePixelEffects(
-            static_cast<std::uint8_t *>(rgba->pixels), rgba->w, rgba->h,
-            rgba->pitch, vm_.isMonochromeEnabled(), vm_.monochromeColor(),
-            vm_.negativeMode());
+      if (rgba && rgba->w > 0 && rgba->h > 0 && SDL_LockSurface(rgba.get())) {
+        applyScenePixelEffects(static_cast<std::uint8_t *>(rgba->pixels),
+                               rgba->w, rgba->h, rgba->pitch,
+                               vm_.isMonochromeEnabled(), vm_.monochromeColor(),
+                               vm_.negativeMode());
         SDL_UnlockSurface(rgba.get());
-        if (!impl_->postProcessTexture ||
-            impl_->postProcessWidth != rgba->w ||
+        if (!impl_->postProcessTexture || impl_->postProcessWidth != rgba->w ||
             impl_->postProcessHeight != rgba->h) {
-          impl_->postProcessTexture.reset(SDL_CreateTexture(
-              &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING,
-              rgba->w, rgba->h));
+          impl_->postProcessTexture.reset(
+              SDL_CreateTexture(&renderer, SDL_PIXELFORMAT_RGBA32,
+                                SDL_TEXTUREACCESS_STREAMING, rgba->w, rgba->h));
           impl_->postProcessWidth = rgba->w;
           impl_->postProcessHeight = rgba->h;
         }
@@ -2090,7 +2084,8 @@ bool PonscripterRuntime::onEvent(Kotonoha::EventRef rawEvent) {
         }
         return true;
       }
-      // B / PageUp (outside lookback): Open PONscripter VNBacklog (with voice replay!)
+      // B / PageUp (outside lookback): Open PONscripter VNBacklog (with voice
+      // replay!)
       if ((event.key.key == SDLK_B ||
            (event.key.key == SDLK_PAGEUP &&
             !(vm_.waitState() == WaitState::WaitSystemCall &&

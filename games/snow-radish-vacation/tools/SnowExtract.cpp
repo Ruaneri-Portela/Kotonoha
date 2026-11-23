@@ -1,8 +1,11 @@
-#include <Kotonoha/media/SavePng.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 // SnowExtract <PACK.DAT> <outdir> [--png]
 // Lists a Snow Radish pack and writes each (decompressed) entry; supported
 // pictures, animation frames, and alpha masks can also be written as PNG.
 #include "SnowRadish/Pack.hpp"
+#include <SnowRadish/PackAnimation.hpp>
+#include <SnowRadish/PackAudio.hpp>
+#include <SnowRadish/PackImage.hpp>
 
 #include <SDL3/SDL.h>
 

@@ -7,6 +7,9 @@ Use compilador C++17, CMake, submódulos do repositório e as dependências de `
 | Plataforma | Guia |
 | --- | --- |
 | Linux / Windows | [Desktop abaixo](#desktop) |
+| Windows (Visual Studio nativo: x86/amd64/arm64) | [Alvos e arquiteturas do VS](VISUAL_STUDIO_TARGETS.pt-BR.md) |
+| Launcher nativo WinUI (planejado) | [Plano de implementação](WINUI_NATIVE_APP_PLAN.pt-BR.md) |
+| Windows (cross MinGW a partir de macOS/Linux) | [Cross-build MinGW](BUILD_WINDOWS.pt-BR.md) |
 | macOS | [Bundles de aplicativo](BUILD_MACOS.pt-BR.md) |
 | iOS | [Projeto Xcode nativo](BUILD_IOS.pt-BR.md) |
 | Android | [Variants do Gradle](BUILD_ANDROID.pt-BR.md) |

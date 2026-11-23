@@ -159,14 +159,14 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
 
     let upscalePresets: [KotonohaUpscalePresetOption]
 
-    private static let bookmarksKey = "me.hirameki.kotonoha.launcher.bookmarks.v1"
-    private static let manualPathsKey = "me.hirameki.kotonoha.launcher.manualPaths.v1"
-    private static let splitSavesKey = "me.hirameki.kotonoha.launcher.splitSaves.v1"
-    private static let customSaveRootKey = "me.hirameki.kotonoha.launcher.customSaveRoot.v1"
-    private static let rendererBackendKey = "me.hirameki.kotonoha.launcher.rendererBackend.v1"
-    private static let upscalerBackendKey = "me.hirameki.kotonoha.launcher.upscalerBackend.v1"
-    private static let upscalerPresetKey = "me.hirameki.kotonoha.launcher.upscalerPreset.v1"
-    private static let upscalerFactorKey = "me.hirameki.kotonoha.launcher.upscalerFactor.v1"
+    private static let bookmarksKey = "me.hirameki.kotonoha.bookmarks.v1"
+    private static let manualPathsKey = "me.hirameki.kotonoha.manualPaths.v1"
+    private static let splitSavesKey = "me.hirameki.kotonoha.splitSaves.v1"
+    private static let customSaveRootKey = "me.hirameki.kotonoha.customSaveRoot.v1"
+    private static let rendererBackendKey = "me.hirameki.kotonoha.rendererBackend.v1"
+    private static let upscalerBackendKey = "me.hirameki.kotonoha.upscalerBackend.v1"
+    private static let upscalerPresetKey = "me.hirameki.kotonoha.upscalerPreset.v1"
+    private static let upscalerFactorKey = "me.hirameki.kotonoha.upscalerFactor.v1"
 
     // Retain security-scoped URLs for the lifetime of the app so POSIX/SDL
     // reads from bookmarked folders and disc images never fail with EPERM.
@@ -408,8 +408,10 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
         }
 
         do {
+            // `.minimalBookmark` cannot be combined with security-scoped
+            // bookmarks; CoreFoundation rejects it for folder URLs.
             let bookmark = try standardized.bookmarkData(
-                options: .minimalBookmark,
+                options: [],
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
@@ -531,7 +533,7 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
                 }
                 if isStale,
                    let fresh = try? standardized.bookmarkData(
-                       options: .minimalBookmark,
+                       options: [],
                        includingResourceValuesForKeys: nil,
                        relativeTo: nil
                    ) {
@@ -559,7 +561,7 @@ final class KotonohaIOSBookmarkStore: ObservableObject {
         for path in bookmarkedPaths {
             if let url = activeScopedURLs[path],
                let data = try? url.bookmarkData(
-                   options: .minimalBookmark,
+                   options: [],
                    includingResourceValuesForKeys: nil,
                    relativeTo: nil
                ) {
