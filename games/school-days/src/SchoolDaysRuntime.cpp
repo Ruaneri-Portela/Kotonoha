@@ -7374,6 +7374,27 @@ Kotonoha::Translation::SourceTexts Runtime::translationSources() const {
   return sources;
 }
 
+std::vector<std::string> Runtime::activeTranslationKeys() const {
+  std::vector<std::string> keys;
+  if (currentState != Kotonoha::GameState::Gameplay) return keys;
+
+  // Match translationSources(): only untranslated dialogue and choice texts
+  // are keys. Retail speaker names select ASS colors and are not translated.
+  const auto append = [&](const char *text) {
+    if (text && *text &&
+        std::find(keys.begin(), keys.end(), text) == keys.end())
+      keys.emplace_back(text);
+  };
+  if (caption && caption->command == PRINT_TEXT && caption->data.print_text &&
+      caption->startTick <= tick && tick < caption->endTick)
+    append(caption->data.print_text->text);
+  if (choice && choice->command == SetSELECT && choice->data.set_select &&
+      (choicePresentation.exitActive || choiceInteraction.VisibleAtTick(tick)))
+    for (Uint64 slot = 0; slot < choice->data.set_select->size; ++slot)
+      append(choice->data.set_select->options[slot]);
+  return keys;
+}
+
 std::string Runtime::debugNode() const {
   return temporaryPlaybackActive() ? scene.sceneKey : bridge.CurrentScene().sceneKey;
 }
