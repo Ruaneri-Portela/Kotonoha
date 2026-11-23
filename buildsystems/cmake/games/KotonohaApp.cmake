@@ -26,6 +26,26 @@ set(KOTONOHA_USE_PYTHON_STUBS ${_kotonoha_web_python_stubs} CACHE INTERNAL
 
 include("${CMAKE_CURRENT_LIST_DIR}/../packaging/KotonohaAppPackaging.cmake")
 
+# Generate the same K icon for macOS/Linux/WinRes at configure time.
+# Avoid checked-in generated output and stale legacy assets/icon.ico/icon.icns.
+if(NOT ANDROID AND NOT EMSCRIPTEN)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    set(KOTONOHA_BRAND_OUTPUT "${CMAKE_BINARY_DIR}/kotonoha-brand")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py")
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}"
+            "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py"
+            --kind desktop --out "${KOTONOHA_BRAND_OUTPUT}"
+        RESULT_VARIABLE _brand_status)
+    if(NOT _brand_status EQUAL 0)
+        message(FATAL_ERROR "Cannot generate Kotonoha platform icons")
+    endif()
+    if(WIN32)
+        enable_language(RC)
+    endif()
+endif()
+
 # Cria o executável ou biblioteca compartilhada (Android)
 function(kotonoha_add_app target)
     if(ANDROID)
@@ -45,6 +65,14 @@ function(kotonoha_configure_app target)
         set(_game_asset_source "${APP_GAME_ASSET_SOURCE}")
     else()
         set(_game_asset_source "${KOTONOHA_PROJECT_ROOT}/games/${APP_GAME}/game-assets")
+    endif()
+
+    # Embed the canonical icon in every Windows .exe (Explorer, taskbar, ZIP).
+    if(WIN32)
+        set(_winres "${CMAKE_CURRENT_BINARY_DIR}/${target}-brand.rc")
+        file(TO_CMAKE_PATH "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico" _icon_path)
+        file(WRITE "${_winres}" "1 ICON \"${_icon_path}\"\n")
+        target_sources(${target} PRIVATE "${_winres}")
     endif()
 
     # Register configured desktop/browser applications for CPack. Registration
@@ -72,7 +100,7 @@ function(kotonoha_configure_app target)
 
         kotonoha_configure_app_output(${target})
 
-        set(icon "${KOTONOHA_ENGINE_ASSETS}/icon.icns")
+        set(icon "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns")
         set_source_files_properties("${icon}" PROPERTIES
             MACOSX_PACKAGE_LOCATION Resources
             HEADER_FILE_ONLY TRUE

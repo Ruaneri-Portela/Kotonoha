@@ -1,6 +1,16 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 import SwiftUI
 import UIKit
+
+// Shared Kotonoha branding tokens. Native Liquid Glass remains OS-owned.
+private enum KotonohaBrand {
+    static let navy = Color(red: 13.0/255, green: 20.0/255, blue: 46.0/255)
+    static let raised = Color(red: 24.0/255, green: 36.0/255, blue: 73.0/255)
+    static let violet = Color(red: 106.0/255, green: 91.0/255, blue: 231.0/255)
+    static let cyan = Color(red: 0.0, green: 214.0/255, blue: 1.0)
+    static let sakura = Color(red: 1.0, green: 143.0/255, blue: 189.0/255)
+}
+
 import UniformTypeIdentifiers
 
 // MARK: - Liquid Glass Helpers (iOS 26+ with iOS 15–18 .ultraThinMaterial fallback)
@@ -84,21 +94,21 @@ private struct KotonohaAmbientBackdrop: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(red: 0.07, green: 0.10, blue: 0.18),
-                    Color(red: 0.10, green: 0.14, blue: 0.25),
-                    Color(red: 0.08, green: 0.09, blue: 0.16)
+                    KotonohaBrand.navy,
+                    KotonohaBrand.raised,
+                    KotonohaBrand.navy
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             RadialGradient(
-                colors: [Color(red: 0.26, green: 0.56, blue: 0.96).opacity(0.32), .clear],
+                colors: [KotonohaBrand.cyan.opacity(0.20), .clear],
                 center: .topLeading,
                 startRadius: 20,
                 endRadius: 520
             )
             RadialGradient(
-                colors: [Color(red: 0.78, green: 0.35, blue: 0.66).opacity(0.24), .clear],
+                colors: [KotonohaBrand.sakura.opacity(0.18), .clear],
                 center: .bottomTrailing,
                 startRadius: 30,
                 endRadius: 540
@@ -148,6 +158,7 @@ struct KotonohaLauncherView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
         }
+        .tint(KotonohaBrand.violet)
         .preferredColorScheme(.dark)
         .onAppear {
             store.rescan()
@@ -369,7 +380,7 @@ struct KotonohaLauncherView: View {
                                 .font(.system(size: 9, weight: .bold))
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
-                                .background(Color.purple.opacity(0.35), in: Capsule())
+                                .background(KotonohaBrand.violet.opacity(0.30), in: Capsule())
                         }
                         if game.params.hasAnyOverride {
                             Image(systemName: "slider.horizontal.3")

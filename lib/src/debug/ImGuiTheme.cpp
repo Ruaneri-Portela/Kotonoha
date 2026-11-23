@@ -19,17 +19,17 @@ namespace {
 // Paleta "noir" moderna com acento violeta-vivo — fundos profundos de baixa
 // saturação, contraste alto no texto e acentos vibrantes. Bordas arredondadas
 // e sombreamento sutil dão aspecto de interface contemporânea.
-constexpr ImVec4 Accent{0.90f, 0.60f, 1.00f, 1.00f};
-constexpr ImVec4 AccentDim{0.55f, 0.30f, 0.70f, 1.00f};
-constexpr ImVec4 AccentHover{1.00f, 0.75f, 1.00f, 1.00f};
+constexpr ImVec4 Accent{0.416f, 0.357f, 0.906f, 1.00f};
+constexpr ImVec4 AccentDim{0.173f, 0.243f, 0.604f, 1.00f};
+constexpr ImVec4 AccentHover{0.784f, 0.420f, 0.851f, 1.00f};
 constexpr ImVec4 Success{0.40f, 0.88f, 0.60f, 1.00f};
 constexpr ImVec4 Warning{1.00f, 0.70f, 0.35f, 1.00f};
 constexpr ImVec4 Error{1.00f, 0.45f, 0.50f, 1.00f};
-constexpr ImVec4 WindowBg{0.070f, 0.060f, 0.095f, 1.00f};
-constexpr ImVec4 ChildBg{0.090f, 0.080f, 0.120f, 1.00f};
-constexpr ImVec4 PopupBg{0.085f, 0.075f, 0.115f, 1.00f};
-constexpr ImVec4 Border{0.18f, 0.15f, 0.24f, 1.00f};
-constexpr ImVec4 BorderHovered{0.35f, 0.28f, 0.45f, 1.00f};
+constexpr ImVec4 WindowBg{0.051f, 0.078f, 0.180f, 1.00f};
+constexpr ImVec4 ChildBg{0.094f, 0.141f, 0.286f, 1.00f};
+constexpr ImVec4 PopupBg{0.094f, 0.141f, 0.286f, 1.00f};
+constexpr ImVec4 Border{0.224f, 0.192f, 0.369f, 1.00f};
+constexpr ImVec4 BorderHovered{0.000f, 0.839f, 1.000f, 1.00f};
 constexpr ImVec4 FrameBg{0.12f, 0.10f, 0.16f, 1.00f};
 constexpr ImVec4 FrameBgHovered{0.18f, 0.15f, 0.24f, 1.00f};
 constexpr ImVec4 FrameBgActive{0.26f, 0.20f, 0.34f, 1.00f};
@@ -48,15 +48,15 @@ constexpr ImVec4 Separator{0.18f, 0.15f, 0.24f, 1.00f};
 constexpr ImVec4 SeparatorHovered{0.35f, 0.28f, 0.45f, 1.00f};
 constexpr ImVec4 SeparatorActive{0.48f, 0.38f, 0.58f, 1.00f};
 constexpr ImVec4 Text{0.96f, 0.96f, 1.00f, 1.00f};
-constexpr ImVec4 TextDisabled{0.55f, 0.55f, 0.65f, 1.00f};
+constexpr ImVec4 TextDisabled{0.725f, 0.710f, 0.831f, 1.00f};
 constexpr ImVec4 TextSelectedBg{0.45f, 0.30f, 0.60f, 0.35f};
-constexpr ImVec4 Button{0.20f, 0.12f, 0.30f, 1.00f};
-constexpr ImVec4 ButtonHovered{0.34f, 0.22f, 0.48f, 1.00f};
-constexpr ImVec4 ButtonActive{0.50f, 0.32f, 0.66f, 1.00f};
+constexpr ImVec4 Button{0.416f, 0.357f, 0.906f, 1.00f};
+constexpr ImVec4 ButtonHovered{0.784f, 0.420f, 0.851f, 1.00f};
+constexpr ImVec4 ButtonActive{0.173f, 0.243f, 0.604f, 1.00f};
 
 // Card background (slightly lighter than window bg, subtle border).
-constexpr ImVec4 CardBg{0.10f, 0.09f, 0.14f, 1.00f};
-constexpr ImVec4 CardBorder{0.16f, 0.14f, 0.22f, 1.00f};
+constexpr ImVec4 CardBg{0.094f, 0.141f, 0.286f, 1.00f};
+constexpr ImVec4 CardBorder{0.224f, 0.192f, 0.369f, 1.00f};
 
 // Tab bar colors.
 constexpr ImVec4 TabBg{0.090f, 0.080f, 0.120f, 1.00f};

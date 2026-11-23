@@ -8,9 +8,11 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <application android:label="${appName}" android:hasCode="true"
+        android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
         android:allowBackup="false" android:extractNativeLibs="true"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/Theme.Kotonoha.Launcher">
         <activity android:name=".BootstrapActivity" android:exported="true"
+            android:theme="@style/Theme.Kotonoha.Splash"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:screenOrientation="sensorLandscape">
             <intent-filter>
