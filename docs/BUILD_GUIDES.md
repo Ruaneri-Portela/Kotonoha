@@ -7,6 +7,7 @@ Use a C++17 compiler, CMake, repository submodules, and dependencies from `vcpkg
 | Target | Guide |
 | --- | --- |
 | Linux / Windows desktop | [Desktop section below](#desktop) |
+| Windows (MinGW cross from macOS/Linux) | [MinGW cross-build](BUILD_WINDOWS.md) |
 | macOS | [macOS app bundles](BUILD_MACOS.md) |
 | iOS | [Native Xcode project](BUILD_IOS.md) |
 | Android | [Gradle flavors](BUILD_ANDROID.md) |

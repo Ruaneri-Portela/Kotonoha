@@ -7,6 +7,7 @@ Use compilador C++17, CMake, submódulos do repositório e as dependências de `
 | Plataforma | Guia |
 | --- | --- |
 | Linux / Windows | [Desktop abaixo](#desktop) |
+| Windows (cross MinGW a partir de macOS/Linux) | [Cross-build MinGW](BUILD_WINDOWS.pt-BR.md) |
 | macOS | [Bundles de aplicativo](BUILD_MACOS.pt-BR.md) |
 | iOS | [Projeto Xcode nativo](BUILD_IOS.pt-BR.md) |
 | Android | [Variants do Gradle](BUILD_ANDROID.pt-BR.md) |

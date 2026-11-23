@@ -81,7 +81,7 @@ def games = [
   ponscripter   : ['ponscripter', 'PonscripterGame', 'me.hirameki.kotonoha.ponscripter', 'PONscripter'],
   n2System      : ['n2system', 'N2SystemGame', 'me.hirameki.kotonoha.n2system', 'N2System Game'],
   artemis       : ['artemis', 'ArtemisGame', 'me.hirameki.kotonoha.artemis', 'Artemis Engine'],
-  launcher      : ['all', 'KotonohaLauncher', 'me.hirameki.kotonoha.launcher', 'Kotonoha Launcher']
+  launcher      : ['all', 'KotonohaLauncher', 'me.hirameki.kotonoha', 'Kotonoha']
 ]
 
 // Shared Material 3 launcher artwork lives in the versioned design/generated/

@@ -17,7 +17,7 @@
             android:id="@+id/launcher_toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Kotonoha Launcher"
+            app:title="Kotonoha"
             app:subtitle="Universal Visual Novel Hub" />
 
         <LinearLayout
@@ -138,7 +138,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:text="Add a game folder or ISO/BIN disc image using the buttons below, or place games in Android/data/me.hirameki.kotonoha.launcher/files/games."
+                    android:text="Add a game folder or ISO/BIN disc image using the buttons below, or place games in Android/data/me.hirameki.kotonoha/files/games."
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
             </LinearLayout>
         </FrameLayout>

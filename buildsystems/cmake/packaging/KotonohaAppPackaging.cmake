@@ -140,6 +140,116 @@ function(kotonoha_copy_runtime_libraries target dependency_dirs)
         VERBATIM)
 endfunction()
 
+# True for every build whose executables are produced by a MinGW toolchain.
+# This is the only gate for runtime DLL deployment: no build type, target or
+# preset condition is allowed to skip it.
+function(kotonoha_is_mingw_toolchain _out)
+    set(${_out} FALSE PARENT_SCOPE)
+    if(NOT WIN32)
+        return()
+    endif()
+    if(MINGW OR CMAKE_CXX_COMPILER MATCHES "[Mm][Ii][Nn][Gg][Ww]"
+              OR CMAKE_C_COMPILER MATCHES "[Mm][Ii][Nn][Gg][Ww]"
+              OR VCPKG_TARGET_TRIPLET MATCHES "-mingw")
+        set(${_out} TRUE PARENT_SCOPE)
+    endif()
+endfunction()
+
+# Locate the GCC runtime DLLs shipped with the active MinGW toolchain.
+# CMAKE_CXX_COMPILER can be a symlink (Homebrew: /opt/homebrew/bin/<triple>-g++
+# -> .../Cellar/mingw-w64/<version>/toolchain-<arch>/bin/<triple>-g++), so
+# REALPATH it first and derive both the toolchain prefix and the target triple
+# from the resolved compiler. No version, Cellar path or architecture-specific
+# filename is hardcoded: libgcc_s_*.dll covers seh/sjlj/dw2 variants.
+function(kotonoha_find_mingw_runtime_dlls _out)
+    set(${_out} "" PARENT_SCOPE)
+    kotonoha_is_mingw_toolchain(_mingw)
+    if(NOT _mingw)
+        return()
+    endif()
+
+    set(_compiler "${CMAKE_CXX_COMPILER}")
+    if(NOT _compiler)
+        set(_compiler "${CMAKE_C_COMPILER}")
+    endif()
+    get_filename_component(_compiler_real "${_compiler}" REALPATH)
+    if(NOT EXISTS "${_compiler_real}")
+        set(_compiler_real "${_compiler}")
+    endif()
+    get_filename_component(_bin_dir "${_compiler_real}" DIRECTORY)
+    get_filename_component(_prefix "${_bin_dir}" DIRECTORY)
+    get_filename_component(_compiler_file "${_compiler_real}" NAME)
+    string(REGEX REPLACE "-(g\\+\\+|gcc|clang\\+\\+|clang)(\\.exe)?$" ""
+        _triple "${_compiler_file}")
+
+    # Homebrew keeps libwinpthread in <prefix>/<triple>/bin and libgcc_s /
+    # libstdc++ in <prefix>/<triple>/lib; MSYS2 keeps all of them in <prefix>/bin.
+    set(_search_dirs "${_bin_dir}" "${_prefix}/bin" "${_prefix}/lib")
+    if(_triple MATCHES "-w64-mingw32$")
+        list(APPEND _search_dirs
+            "${_prefix}/${_triple}/bin" "${_prefix}/${_triple}/lib")
+    else()
+        file(GLOB _sysroots LIST_DIRECTORIES TRUE "${_prefix}/*-w64-mingw32")
+        foreach(_root IN LISTS _sysroots)
+            list(APPEND _search_dirs "${_root}/bin" "${_root}/lib")
+        endforeach()
+    endif()
+    list(REMOVE_DUPLICATES _search_dirs)
+
+    set(_dlls)
+    foreach(_dir IN LISTS _search_dirs)
+        foreach(_pattern IN ITEMS "libwinpthread-1.dll" "libgcc_s_*.dll"
+                                  "libstdc++-6.dll" "libssp-0.dll")
+            file(GLOB _matches LIST_DIRECTORIES FALSE "${_dir}/${_pattern}")
+            list(APPEND _dlls ${_matches})
+        endforeach()
+    endforeach()
+    list(REMOVE_DUPLICATES _dlls)
+
+    set(_have_pthread FALSE)
+    set(_have_gcc FALSE)
+    set(_have_stdcxx FALSE)
+    foreach(_dll IN LISTS _dlls)
+        get_filename_component(_name "${_dll}" NAME)
+        if(_name STREQUAL "libwinpthread-1.dll")
+            set(_have_pthread TRUE)
+        elseif(_name MATCHES "^libgcc_s_")
+            set(_have_gcc TRUE)
+        elseif(_name STREQUAL "libstdc++-6.dll")
+            set(_have_stdcxx TRUE)
+        endif()
+    endforeach()
+    if(NOT _have_pthread OR NOT _have_gcc OR NOT _have_stdcxx)
+        message(FATAL_ERROR
+            "[Kotonoha] Incomplete MinGW runtime DLLs for ${_compiler} in: "
+            "${_search_dirs}")
+    endif()
+
+    set(${_out} "${_dlls}" PARENT_SCOPE)
+endfunction()
+
+# Always deploy the MinGW runtime DLLs plus every vcpkg bin DLL beside a
+# Windows executable. Called for each configured app target; the helper above
+# is the single platform predicate.
+function(kotonoha_deploy_mingw_runtime target)
+    kotonoha_is_mingw_toolchain(_mingw)
+    if(NOT _mingw)
+        return()
+    endif()
+
+    kotonoha_find_mingw_runtime_dlls(_runtime_dlls)
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND "${CMAKE_COMMAND}"
+            "-DTARGET_DIR=$<TARGET_FILE_DIR:${target}>"
+            "-DMINGW_RUNTIME_DLLS=${_runtime_dlls}"
+            "-DVCPKG_BIN_DIR=${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
+            -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/DeployMinGWRuntime.cmake"
+        COMMENT "Deploying MinGW and vcpkg runtime DLLs for ${target}"
+        VERBATIM)
+    set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS
+        "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/DeployMinGWRuntime.cmake")
+endfunction()
+
 # Helper to get the default dependency directories for tools/apps
 function(kotonoha_get_default_dependency_dirs _out_dirs)
     if(ANDROID OR EMSCRIPTEN)
