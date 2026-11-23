@@ -19,7 +19,16 @@ O histórico divergente exigiu **65 resoluções de conflito no candidato DEV**.
 
 Os testes devem usar fixtures sintéticos e ambientes isolados; **nunca executar o EXE retail de School Days, nem modificar GPKs/saves pessoais**.
 
-As verificações estáticas de metadados CMake, matriz de jogos, NEON/Android, persistência e detecção de alvos duplicados passaram. **Compilação Windows DEV/DIST, testes CTest, APK Android e QA visual/hardware permanecem sujeitos ao relatório final de validação**, e não devem ser presumidos.
+As verificações estáticas de metadados CMake, matriz de jogos, NEON/Android, persistência, isolamento de plataformas e detecção de alvos duplicados passaram. A validação nativa Windows é detalhada abaixo. **Não confundir compilação e CTest sintético com montagem de APK, QA visual/GPU ou QA físico Android.**
+
+### Resultados nativos Windows — 23/11/2026
+- **DEV:** CMake/MSVC x64 Release `ALL_BUILD` concluído; `ctest -C Release -LE real --output-on-failure` aprovou **98/98 testes**, sem acessar saves ou GPKs originais. Log: `D:/Dev/_research/Kotonoha-Upstream-Sync-Audit-20261123/ctest-dev-all-synthetic-green-final.log`.
+- **HYBRID/DIST:** configuração `KOTONOHA_DISTRIBUTION_BUILD=ON`, `KOTONOHA_ENABLE_MCP=OFF`, `KOTONOHA_DEV_CONTROL=OFF`, assets comerciais fora do bundle. `ALL_BUILD` x64 Release aprovado; CTest sintético **93/93 testes**, incluindo `SchoolDays.DistDebugAbsence` e isolamento DEV/DIST. Log: `D:/Dev/_research/Kotonoha-Upstream-Sync-Audit-20261123/ctest-hybrid-dist-all-synthetic-final-green.log`.
+- **Testes dependentes de dados reais:** 14 alvos DEV e 12 HYBRID/DIST excluídos pela etiqueta `real` ou por dependências reais. Não executamos o EXE/instalador retail nem testes destrutivos em saves pessoais.
+- **Regressões tratadas:** contratos de BackLog/menus/NextChoice; include legado, ícone WinRes; rejeição de monitor inválido, diretórios sem identidade, ISO duplicado, fechamento real de saída FFmpeg, fallback MetalFX e clique duplicado no slider; atualização dos testes para proteção de CLI DIST e sidecars longos sob TEMP variável.
+- **Android:** `Gradle :app:tasks --offline` na HYBRID aprovou a configuração; não equivale a compilar APK. SDK plataforma `android-37` ausente no ambiente de QA, e não houve instalação nem teste físico desta integração.
+
+Os builds são binários brutos de QA, não os pacotes finais com assets privados. Os recursos privados de launcher/Display Options não estavam presentes nas worktrees de integração, e a execução visual real ainda exige inspeção separada.
 
 ## Backups e recuperação
 O bundle de 91 refs foi verificado em `D:/Dev/_backups/Kotonoha-pre-ruaneri-sync-20261123-0606/kotonoha-all-refs.bundle`; SHA-256 `EC7A583B15D6A39C3E8BF49C96D2C1493A5A2325882FCD8F8EF7EB71282BC1E6`.
@@ -28,5 +37,7 @@ Os 13 arquivos não rastreados da L1 Cross Days foram preservados em `cross-days
 
 A branch `hybrid` deve ser integrada e testada separadamente, preservando suas especificidades e histórico. Não usar `git reset --hard`, `git clean`, force-push, nem excluir worktrees/branches sem classificação. PRs upstream, inclusive #95, não devem ser atualizados automaticamente.
 
-## Estado
-A integração exige validação local e registro de todas as falhas antes de ser considerada pronta para publicação. Este documento descreve as decisões do candidato, não certifica ainda um build jogável.
+## Estado e limpeza segura
+As compilações e os testes sintéticos Windows dos candidatos estão aprovados. A distribuição ao jogador e a paridade Android permanecem condicionadas a QA visual/físico, assets autorizados e empacotamento privado separado.
+
+O inventário local em `D:/Dev/_research/Kotonoha-Upstream-Sync-Audit-20261123/REPOSITORY_INVENTORY_20261123.pt-BR.md` registrou **30 worktrees e 37 branches locais**. Manter obrigatoriamente a worktree Cross Days L1 (diretório `games/cross-days/` não rastreado) e a worktree de PR de tradução (`SchoolDaysTranslationGate` ainda não commitado). Branches com commits exclusivos, worktrees de PRs e backups não podem ser removidos apenas por aparentarem estar obsoletos; a situação remota dos PRs deve ser verificada antes de limpeza destrutiva.
