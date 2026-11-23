@@ -9,34 +9,43 @@ endif()
 # game directories even though this module is included from lib/CMakeLists.
 set(KOTONOHA_BUILD_HOST_TOOLS ${_kotonoha_host_tools} CACHE INTERNAL
     "Build host-only inspectors from game ports" FORCE)
-if(EMSCRIPTEN)
-    set(_kotonoha_python_development OFF)
-else()
+# FindPython3 always resolves the HOST CPython. Linking its Development
+# artifacts into a cross-compiled binary pulls Mach-O/ELF libpython plus
+# macOS-only flags (-framework CoreFoundation, -ldl) into the MinGW link.
+# vcpkg does not provide a MinGW CPython port, so cross builds use the same
+# interpreter stubs as WebAssembly.
+set(_kotonoha_host_python_usable ON)
+if(EMSCRIPTEN OR MINGW OR (CMAKE_CROSSCOMPILING AND WIN32))
+    set(_kotonoha_host_python_usable OFF)
+endif()
+if(_kotonoha_host_python_usable)
     set(_kotonoha_python_development ON)
+else()
+    set(_kotonoha_python_development OFF)
 endif()
 set(KOTONOHA_HAS_PYTHON_DEVELOPMENT ${_kotonoha_python_development} CACHE INTERNAL
     "CPython Development components are available for native builds" FORCE)
-if(EMSCRIPTEN)
-    set(_kotonoha_web_python_stubs ON)
-else()
+if(_kotonoha_host_python_usable)
     set(_kotonoha_web_python_stubs OFF)
+else()
+    set(_kotonoha_web_python_stubs ON)
 endif()
 set(KOTONOHA_USE_PYTHON_STUBS ${_kotonoha_web_python_stubs} CACHE INTERNAL
     "Use the browser-compatible Python stubs in port code" FORCE)
 
 include("${CMAKE_CURRENT_LIST_DIR}/../packaging/KotonohaAppPackaging.cmake")
 
-# Generate the same K icon for macOS/Linux/WinRes at configure time.
-# Avoid checked-in generated output and stale legacy assets/icon.ico/icon.icns.
+# design/generated/ is the versioned source of truth for the visual identity.
+# Every buildsystem imports only the specific files it needs from there; the
+# folder itself is never packaged as a generic engine/game asset.
+# CACHE INTERNAL keeps the path visible to sibling game/launcher directories
+# that call kotonoha_configure_app(): a plain set() is scoped to lib/ and the
+# callers would resolve "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns" to
+# "/generic/icon.icns", which fails target_sources() in every port.
+set(KOTONOHA_BRAND_OUTPUT "${KOTONOHA_PROJECT_ROOT}/design/generated"
+    CACHE INTERNAL "Versioned Kotonoha visual identity outputs")
 if(NOT ANDROID AND NOT EMSCRIPTEN)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
-    # CACHE INTERNAL makes the generated icon directory visible to every
-    # sibling game/launcher directory that calls kotonoha_configure_app().
-    # A plain set() is scoped to this directory only, so callers see an empty
-    # value and resolve "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns" to
-    # "/generic/icon.icns", which fails target_sources() in every port.
-    set(KOTONOHA_BRAND_OUTPUT "${CMAKE_BINARY_DIR}/kotonoha-brand" CACHE INTERNAL
-        "Generated Kotonoha brand assets shared by all app targets" FORCE)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
         "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py")
     execute_process(
@@ -49,27 +58,28 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
     endif()
 endif()
 
-# WebAssembly preloads engine assets from a generated staging directory so
-# the built-in splash follows the same brand without modifying tracked files.
+# WebAssembly preloads only a staged copy of the engine's SPLASH.PNG; the
+# design/ folder itself never enters the --preload-file MEMFS payload.
 if(EMSCRIPTEN)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
-    # Same scope rule as KOTONOHA_BRAND_OUTPUT: the staging directory is
-    # consumed inside kotonoha_configure_app() from sibling game directories.
-    # Without CACHE INTERNAL it expands empty there and --preload-file becomes
-    # "@/assets", which makes file_packager fail for every WASM target.
+    # The staging directory is consumed inside kotonoha_configure_app() from
+    # sibling game directories. Without CACHE INTERNAL it expands empty there
+    # and --preload-file becomes "@/assets", which makes file_packager fail.
     set(KOTONOHA_WEB_ENGINE_ASSETS "${CMAKE_BINARY_DIR}/kotonoha-web-engine-assets"
         CACHE INTERNAL "Staged engine assets for WASM preloads" FORCE)
     file(MAKE_DIRECTORY "${KOTONOHA_WEB_ENGINE_ASSETS}")
     file(COPY "${KOTONOHA_ENGINE_ASSETS}/" DESTINATION "${KOTONOHA_WEB_ENGINE_ASSETS}")
     execute_process(COMMAND "${Python3_EXECUTABLE}"
         "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py"
-        --kind web --out "${CMAKE_BINARY_DIR}/kotonoha-web-brand"
+        --kind web --out "${KOTONOHA_BRAND_OUTPUT}"
         RESULT_VARIABLE _web_brand_status)
     if(NOT _web_brand_status EQUAL 0)
         message(FATAL_ERROR "Cannot generate Kotonoha WebApp branding")
     endif()
+    # Only this single engine asset is staged for the WASM preload; importing
+    # the whole design/ tree would bloat MEMFS and leak design sources.
     configure_file(
-        "${CMAKE_BINARY_DIR}/kotonoha-web-brand/splash/SPLASH.PNG"
+        "${KOTONOHA_BRAND_OUTPUT}/splash/SPLASH.PNG"
         "${KOTONOHA_WEB_ENGINE_ASSETS}/SPLASH.PNG"
         COPYONLY)
 endif()
@@ -89,6 +99,14 @@ endfunction()
 # Configurações gerais do app por plataforma
 function(kotonoha_configure_app target)
     cmake_parse_arguments(APP "" "BUNDLE_ID;GAME;GAME_ASSET_SOURCE;PYTHON_STDLIB;PYTHON_VERSION" "" ${ARGN})
+
+    # Only the unified launcher is presented as "Kotonoha"; each game bundle
+    # keeps its own game/engine display name.
+    if(target STREQUAL "KotonohaLauncher")
+        set(_display_name "Kotonoha")
+    else()
+        set(_display_name "${target}")
+    endif()
     if(APP_GAME_ASSET_SOURCE)
         set(_game_asset_source "${APP_GAME_ASSET_SOURCE}")
     else()
@@ -122,7 +140,7 @@ function(kotonoha_configure_app target)
         set_target_properties(${target} PROPERTIES
             MACOSX_BUNDLE TRUE
             MACOSX_BUNDLE_INFO_PLIST "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/Info.plist.in"
-            MACOSX_BUNDLE_BUNDLE_NAME "${target}"
+            MACOSX_BUNDLE_BUNDLE_NAME "${_display_name}"
             MACOSX_BUNDLE_GUI_IDENTIFIER "${APP_BUNDLE_ID}"
             MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
             MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"

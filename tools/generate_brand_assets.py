@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Generate brand PNG, ICO, ICNS, Android resources and universal black splash."""
+"""Generate brand PNG, ICO, ICNS, Android resources and universal black splash.
+
+Output defaults to design/generated/ at the repository root: the versioned
+source of truth for Kotonoha's visual identity. Buildsystems only import the
+specific files they need from there; the folder itself is never packaged.
+Use --out only for isolated tests or one-off exports.
+"""
 import argparse
 import hashlib
 import math
@@ -9,11 +15,21 @@ import os
 import time
 from pathlib import Path
 
+# Versioned source of truth, independent of the current working directory and
+# of any ephemeral build directory.
+DEFAULT_OUTPUT = Path(__file__).resolve().parent.parent / "design" / "generated"
+
 NAVY = (13,20,46)
 VIOLET = (106,91,231)
 PINK = (255,143,189)
 CYAN = (0,214,255)
 WHITE = (255,255,255)
+# Light icon fill: icy blue -> lilac, with a deeper sakura wave and an indigo
+# contour that keeps the white monogram readable on the bright background.
+ICE = (196,222,255)
+LILAC = (205,188,252)
+WAVE = (236,106,165)
+HALO = (74,52,150)
 
 def blend(a,b,t):
     return tuple(int(max(0,min(255,a[i]*(1-t)+b[i]*t))) for i in range(3))
@@ -63,26 +79,30 @@ def pixel(x,y,n,variant,accent):
         rgb=(255,255,255)
         alpha=0
     else:
-        rgb=blend(NAVY,accent,.22+.26*x+.12*(1-y))
-        glow=max(0,1-math.hypot(x-.49,y-.52)*1.6)
-        rgb=blend(rgb,PINK,glow*.21)
+        rgb=blend(ICE,LILAC,.12+.55*(1-y)+.18*x)
+        glow=max(0,1-math.hypot(x-.49,y-.52)*1.5)
+        # Per-game accent survives as a soft, heavily-lightened centre glow.
+        rgb=blend(rgb,blend(accent,WHITE,.55),glow*.22)
         if y>.78+math.sin(7*x)*.04:
-            rgb=blend(rgb,PINK,.29)
+            rgb=blend(rgb,WAVE,.28)
         if variant=="apple":
             shine=max(0,1-math.hypot(x-.08,y-.06)*1.4)
-            rgb=blend(rgb,CYAN,shine*.45)
+            rgb=blend(rgb,CYAN,shine*.18)
             edge=min(x,y,1-x,1-y)
             if .018<edge<.028:
-                rgb=blend(rgb,PINK if y>.5 else CYAN,.7)
+                rgb=blend(rgb,PINK if y>.5 else CYAN,.28)
+        # Full-bleed: the background fills the whole canvas for every variant.
+        # Transparent corners made macOS composite a white edge around icons.
+        # The K geometry (k()) is intentionally unchanged.
         alpha=255
-        if variant=="generic":
-            radius=.19
-            dx=max(0,abs(x-.5)-(.5-radius))
-            dy=max(0,abs(y-.5)-(.5-radius))
-            alpha=int(max(0,min(1,(radius-math.hypot(dx,dy))*n+.5))*255)
     if variant!="mono" and (flower(x,y,.81,.82,.11) or flower(x,y,.93,.89,.063)):
         return (*PINK,255)
     amount=k(x,y,n)
+    if variant not in ("foreground","mono") and .28<x<.73 and .22<y<.78:
+        o=.011
+        halo=max(k(x+dx,y+dy,n) for dx,dy in
+                 ((o,o),(-o,o),(o,-o),(-o,-o)))
+        rgb=blend(rgb,HALO,halo*.82)
     return (*blend(rgb,WHITE,amount),int(max(alpha,255*amount)))
 
 def png(n,variant="generic",accent=VIOLET):
@@ -110,6 +130,12 @@ def icns(images):
     blocks=b"".join(tag.encode()+struct.pack(">I",len(data)+8)+data for tag,data in images)
     return b"icns"+struct.pack(">I",len(blocks)+8)+blocks
 
+def favicon_assets():
+    """Browser favicons from the same monogram as the desktop icon."""
+    sizes=(16,32,48)
+    images={size:png(size) for size in sizes}
+    return ico([(size,images[size]) for size in sizes]), images[32]
+
 def save(root,path,data):
     target=root/path
     target.parent.mkdir(parents=True,exist_ok=True)
@@ -124,9 +150,15 @@ def generate(root,kind):
         save(root,"generic/icon.ico",ico([(size,images[size]) for size in (16,32,48,256)]))
         save(root,"generic/icon.icns",icns([(tag,images[size]) for tag,size in
             (("icp4",16),("icp5",32),("icp6",64),("ic07",128),("ic08",256),("ic09",512),("ic10",1024))]))
+        # Full-bleed 1024 PNG, ready for Icon Composer -> .icon export.
+        save(root,"apple/AppIcon-1024.png",images[1024])
     if kind in ("all","apple"):
         for size in (76,120,180,1024):
             save(root,"apple/AppIcon-"+str(size)+".png",png(size,"apple"))
+    if kind in ("all","desktop","web"):
+        favicon_ico,favicon_png=favicon_assets()
+        save(root,"web/favicon.ico",favicon_ico)
+        save(root,"web/favicon.png",favicon_png)
     if kind in ("all","android"):
         for suffix,size in (("mdpi",48),("hdpi",72),("xhdpi",96),("xxhdpi",144),("xxxhdpi",192)):
             for name in ("ic_launcher","ic_launcher_round"):
@@ -145,9 +177,14 @@ def generate(root,kind):
     if kind in ("all","desktop","apple","android","web"):
         save(root,"splash/SPLASH.PNG",png(1024,"splash"))
 
+def source_digest():
+    return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+
 def safe_generate(root,kind):
-    # Xcode schemes run in parallel and share TARGET_BUILD_DIR. Use a lock
-    # and a source-mtime stamp, so no app reads a partially rendered ICNS.
+    # CMake/Xcode/Gradle can invoke the generator concurrently and all read
+    # the same versioned design/generated/ tree. Use a lock and a source stamp
+    # (mtime + digest) so no build reads a partially rendered ICNS and any
+    # script edit always regenerates its outputs.
     root.mkdir(parents=True,exist_ok=True)
     lock=root/".kotonoha-brand.lock"
     for attempt in range(3000):
@@ -166,17 +203,21 @@ def safe_generate(root,kind):
         raise RuntimeError("Timed out acquiring Kotonoha brand output lock")
     try:
         stamp=root/(".kotonoha-"+kind+".complete")
-        if stamp.is_file() and stamp.stat().st_mtime>=Path(__file__).stat().st_mtime:
+        digest=source_digest()
+        if (stamp.is_file()
+                and stamp.stat().st_mtime>=Path(__file__).stat().st_mtime
+                and stamp.read_text(encoding="ascii").strip()==digest):
             return
         generate(root,kind)
-        stamp.touch()
+        stamp.write_text(digest+"\n",encoding="ascii")
     finally:
         lock.rmdir()
 
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--kind",choices=("all","desktop","apple","android","web"),default="all")
-    parser.add_argument("--out",type=Path,required=True)
+    parser.add_argument("--out",type=Path,default=DEFAULT_OUTPUT,
+                        help="output root (default: design/generated/)")
     args=parser.parse_args()
     safe_generate(args.out,args.kind)
     print("[Kotonoha/Brand]",args.kind,args.out)

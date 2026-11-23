@@ -6,7 +6,7 @@ Start with the [project README](../README.md), then choose a topic:
 
 | Topic | Guide |
 | --- | --- |
-| Visual identity | [Official Kotonoha brand README](../assets/branding/README.md) |
+| Visual identity | [Official Kotonoha brand README](../design/README.md) |
 | Build overview | [Build guides](BUILD_GUIDES.md) |
 | Android | [Android](BUILD_ANDROID.md) · [Gradle details](../buildsystems/android/README.md) |
 | Apple | [macOS](BUILD_MACOS.md) · [iOS](BUILD_IOS.md) · [Xcode](../buildsystems/xcode/README.md) |

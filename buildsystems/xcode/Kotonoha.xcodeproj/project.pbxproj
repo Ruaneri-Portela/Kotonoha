@@ -3093,142 +3093,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		022D339C18FEC01CBB8C309E /* iOS */ = {
+		42F30634C2CFADA428E6AA3C /* KotonohaUnified */ = {
 			isa = PBXGroup;
 			children = (
-				4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */,
-				BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */,
-				BDD17E067A3F2802DBFF2330 /* KotonohaExample.app */,
-				E949246A76F4B6F62ACEB3D8 /* Amagami.app */,
-				EAC1A23A3061B0238C2CCB00 /* ZeroNoTsukaima.app */,
-				BED36997A7B983928570DB86 /* SnowRadish.app */,
-				171DE99B251CCE8862F5D1BC /* SummerRadish.app */,
-				32161E2C77450DE6E6563580 /* DokiDoki.app */,
-				AC129D4B42F89C3B0A47EDEC /* SchoolDays.app */,
-				E3DA525D5F0AB0B17715A61F /* RealLive.app */,
-				1BF5D46EE318C6AC8468E1D4 /* Kirikiri.app */,
-				EFBE8B041576B2FFE9DE2D8A /* LucaSystem.app */,
-				2319DDB5DFBEE4A94378AE61 /* Pmail.app */,
+				4246503E402C6A47F918A467 /* Frameworks */,
+				3B37570FB5A54779D136910F /* Products */,
+				C0FFEE000000000000000000 /* assets */,
+				C0FFEE000000000000000001 /* buildsystems */,
+				C0FFEE000000000000000002 /* games */,
+				C0FFEE000000000000000003 /* launcher */,
+				C0FFEE000000000000000004 /* lib */,
+				C0FFEE000000000000000005 /* modules */,
 			);
-			name = iOS;
+			name = KotonohaUnified;
 			sourceTree = "<group>";
 		};
-		06EEE27E8212D35A205BAC4F /* core */ = {
+		4246503E402C6A47F918A467 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				A1A100000000000000000003 /* WebAssetFetch.cpp */,
-				BA6DF2EA8DCE31D1E6FFCC08 /* AssetOverlay.cpp */,
-				C68346DF0F4C502F914FB431 /* AssetProvider.cpp */,
-				EA012E1118407A93D2729088 /* Clock.cpp */,
-				79AED9CD2E8FDC21D4FBBA23 /* CommandLine.cpp */,
-				9BE4FE61A2DEA0B5468C0CA1 /* DiscImage.cpp */,
-				95EB7E452BD54DD736B39583 /* Engine.cpp */,
-				9D844BB211DE2CBE3A3584BE /* InputMapper.cpp */,
-				F1F1F1000000000000000010 /* Filesystem */,
-				0952B39C0D559C76E51E70F3 /* GameLauncher.cpp */,
-				54BFA310BFD63BECBAEE3EBA /* Launcher.cpp */,
-				93E3F79FB02F2D2821A706AA /* Log.cpp */,
-				506F17DDCDA49EAE21BA698B /* OpenGL.cpp */,
-				BECA37F407A19BDF0265EBC3 /* PresentedFrame.cpp */,
-				187CC833D963E02878C79311 /* Runtime.cpp */,
-				886721A08057B37285174655 /* Settings.cpp */,
-				CAF48EF950A800145272C8C0 /* UI.cpp */,
-				0B231FF8B95DB7E64FA3EE8D /* VisualTransition.cpp */,
+				2A4E325FA0CC61A8800AAFFB /* iOS */,
+				45BC43346E979F2EC951FC97 /* macOS */,
 			);
-			name = core;
-			sourceTree = "<group>";
-		};
-		0C04E59682E5D462F08B41CC /* KotonohaEngine */ = {
-			isa = PBXGroup;
-			children = (
-				E8A000000000000000000062 /* SubtitleSourceDirector.cpp */,
-				E8A000000000000000000061 /* EmbeddedSubtitleExtractor.cpp */,
-				E8A000000000000000000060 /* SubtitleFontRegistry.cpp */,
-				E8A000000000000000000040 /* Scheduler.cpp */,
-				E8A000000000000000000041 /* WasmBackend.cpp */,
-				E8A000000000000000000043 /* SubtitleWorker.cpp */,
-				F1F1F1000000000000000078 /* TarMount.cpp */,
-				F1F1F1000000000000000079 /* FetchAssetProvider.cpp */,
-				F1F1F1000000000000000140 /* TarMount.hpp */,
-				F1F1F1000000000000000141 /* FetchAssetProvider.hpp */,
-				AFE7C9E655C165BA23EE0855 /* components */,
-				06EEE27E8212D35A205BAC4F /* core */,
-				4BCC0B299FA63798E45D79AC /* debug */,
-				C3F421D31822163948217A2D /* events */,
-				9A0E3F5E48C82FDE6A3E60EE /* localization */,
-				3ADF80B47E4ED42E7618B37E /* mcp */,
-				9D426063D0517617E5A3E6B9 /* media */,
-				8EE9541D45D2F8C7D3F63EA2 /* mobile */,
-				D37A47295E87D7DAD40A2516 /* parsers */,
-				9234A6A83824CFC5D013FA6A /* routing */,
-				157273BEE7C26ACF845DAC37 /* script */,
-			);
-			name = KotonohaEngine;
-			sourceTree = "<group>";
-		};
-		157273BEE7C26ACF845DAC37 /* script */ = {
-			isa = PBXGroup;
-			children = (
-				6E0E179ED70FDB071D315FFD /* KtrfScript.cpp */,
-				901F3126BFAF38852E89A428 /* Timeline.cpp */,
-				6771305E4C2C7C6B6AEF123A /* TimelinePlayer.cpp */,
-			);
-			name = script;
-			sourceTree = "<group>";
-		};
-		1C87ED69746E28E095C4B93A /* backends */ = {
-			isa = PBXGroup;
-			children = (
-				6576FD8B6C0C14B6BD6C4403 /* imgui_impl_sdl3.cpp */,
-				11BE528C7D3C993BD9029E17 /* imgui_impl_sdlrenderer3.cpp */,
-			);
-			name = backends;
-			sourceTree = "<group>";
-		};
-		1CE3DAED6AD19B9CC2F91EE7 /* amagami */ = {
-			isa = PBXGroup;
-			children = (
-				C7C70000000000000000002A /* VitaSystemGraphics.cpp */,
-				C7C700000000000000000026 /* VitaGraphicsAssets.cpp */,
-				C7C700000000000000000022 /* VitaGraphics.cpp */,
-				C7C70000000000000000001E /* VitaCpk.cpp */,
-				288099B0D83BCE4D70C3C9DF /* Assets.cpp */,
-			);
-			name = amagami;
-			sourceTree = "<group>";
-		};
-		20067FCB165DFC23E07997B8 /* snow-radish */ = {
-			isa = PBXGroup;
-			children = (
-				6FE8923635C71B59FC1168B1 /* Vm.cpp */,
-			);
-			name = "snow-radish";
-			sourceTree = "<group>";
-		};
-		2371941AB1A297B903EF1BA2 /* pak */ = {
-			isa = PBXGroup;
-			children = (
-				196840683DC0B0DF058B04D6 /* CzImage.cpp */,
-				36AB3541375B3CA51CECE3A9 /* LucaSystemAssets.cpp */,
-			);
-			name = pak;
-			sourceTree = "<group>";
-		};
-		23F89609280DBBBCE88D7D90 /* kag */ = {
-			isa = PBXGroup;
-			children = (
-				C7C700000000000000000016 /* ScnRunner.cpp */,
-				514EC6ADE8BF32609E55E456 /* KagScript.cpp */,
-			);
-			name = kag;
-			sourceTree = "<group>";
-		};
-		2599A7040CB692CC41D3CD46 /* Dependencies */ = {
-			isa = PBXGroup;
-			children = (
-				32D3B5252C93CFB823056F1C /* Python */,
-			);
-			name = Dependencies;
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		2A4E325FA0CC61A8800AAFFB /* iOS */ = {
@@ -3239,54 +3125,451 @@
 			name = iOS;
 			sourceTree = "<group>";
 		};
-		315E08176CA54F07EC794AB1 /* amagami */ = {
+		45BC43346E979F2EC951FC97 /* macOS */ = {
 			isa = PBXGroup;
 			children = (
-				1A071AD9D4D49D8DA6B2D9D2 /* Vm.cpp */,
+				63DE967DF3E0BDBC312F821E /* Cocoa.framework */,
 			);
-			name = amagami;
-			sourceTree = "<group>";
-		};
-		32D3B5252C93CFB823056F1C /* Python */ = {
-			isa = PBXGroup;
-			children = (
-				7A99BDAEF7E3EDA577E9E91D /* Python-macOS.xcframework */,
-				22958217A619E67794485CB5 /* Python-iOS.xcframework */,
-			);
-			name = Python;
-			sourceTree = "<group>";
-		};
-		3ADF80B47E4ED42E7618B37E /* mcp */ = {
-			isa = PBXGroup;
-			children = (
-				7884C3CF10F33987B0AA15DA /* MCPServer.cpp */,
-			);
-			name = mcp;
+			name = macOS;
 			sourceTree = "<group>";
 		};
 		3B37570FB5A54779D136910F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				E1652DDBE7D43706B6F0001A /* macOS */,
 				022D339C18FEC01CBB8C309E /* iOS */,
-				ACCDFEACE45756E8A16EFA5E /* KatawaShoujo.app */,
-				F17071A51EFE30209328ED65 /* KatawaShoujo.app */,
-				A4E985C10EC78AC5987CE883 /* MEO.app */,
-				D33B078112567AB0EF8AD765 /* MEO.app */,
-				DCD1C6184E213B4987E86999 /* PonscripterGame.app */,
-				FFB62FA9D91BB0AE5ADD83BC /* PonscripterGame.app */,
-				E019E242DC9B1498E7C1E693 /* N2SystemGame.app */,
-				A37E0000000000000000001A /* ArtemisGame.app */,
-				7E8D21721B9E455B8FD22061 /* N2SystemGame.app */,
-				A37E0000000000000000001B /* ArtemisGame.app */,
+				E1652DDBE7D43706B6F0001A /* macOS */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		3B4A5AD557F40EB2B6912322 /* libreallive */ = {
+		022D339C18FEC01CBB8C309E /* iOS */ = {
 			isa = PBXGroup;
 			children = (
-				EA80D3248619701A14FFA980 /* ORIGIN.md */,
+				E949246A76F4B6F62ACEB3D8 /* Amagami.app */,
+				32161E2C77450DE6E6563580 /* DokiDoki.app */,
+				1BF5D46EE318C6AC8468E1D4 /* Kirikiri.app */,
+				4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */,
+				BDD17E067A3F2802DBFF2330 /* KotonohaExample.app */,
+				BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */,
+				EFBE8B041576B2FFE9DE2D8A /* LucaSystem.app */,
+				2319DDB5DFBEE4A94378AE61 /* Pmail.app */,
+				E3DA525D5F0AB0B17715A61F /* RealLive.app */,
+				AC129D4B42F89C3B0A47EDEC /* SchoolDays.app */,
+				BED36997A7B983928570DB86 /* SnowRadish.app */,
+				171DE99B251CCE8862F5D1BC /* SummerRadish.app */,
+				EAC1A23A3061B0238C2CCB00 /* ZeroNoTsukaima.app */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		E1652DDBE7D43706B6F0001A /* macOS */ = {
+			isa = PBXGroup;
+			children = (
+				9AA6431FA9881D7F1164625B /* Amagami.app */,
+				A37E0000000000000000001A /* ArtemisGame.app */,
+				A37E0000000000000000001B /* ArtemisGame.app */,
+				946EAFD1220645E9753BE7ED /* DokiDoki.app */,
+				ACCDFEACE45756E8A16EFA5E /* KatawaShoujo.app */,
+				F17071A51EFE30209328ED65 /* KatawaShoujo.app */,
+				E81DE9C138E7193BB2A2BBBB /* Kirikiri.app */,
+				03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */,
+				F5D0B1722C71D9F02EDB7E45 /* KotonohaExample.app */,
+				893D77D1754B0E042E17C299 /* KotonohaImGui.framework */,
+				B6B600000000000000000005 /* KotonohaLauncher.app */,
+				D7D700000000000000000002 /* KotonohaLauncher.app */,
+				A2D5CBE4C132EB005456A69B /* LucaSystem.app */,
+				A4E985C10EC78AC5987CE883 /* MEO.app */,
+				D33B078112567AB0EF8AD765 /* MEO.app */,
+				7E8D21721B9E455B8FD22061 /* N2SystemGame.app */,
+				E019E242DC9B1498E7C1E693 /* N2SystemGame.app */,
+				0066FBB8946FB87584BBC8EB /* Pmail.app */,
+				DCD1C6184E213B4987E86999 /* PonscripterGame.app */,
+				FFB62FA9D91BB0AE5ADD83BC /* PonscripterGame.app */,
+				29A715E1B377B2170E1BE25A /* RealLive.app */,
+				42A921F110B7F9C2114C6268 /* SchoolDays.app */,
+				B3841B12E3F312D33A2D52C9 /* SnowRadish.app */,
+				91D375FBC0533C6706795C67 /* SummerRadish.app */,
+				1B15FA4158C3214E44CCC1B6 /* ZeroNoTsukaima.app */,
+			);
+			name = macOS;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000000 /* assets */ = {
+			isa = PBXGroup;
+			children = (
+				8296A210E862BB77BA0DFFF8 /* assets */,
+			);
+			name = assets;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000001 /* buildsystems */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000006 /* xcode */,
+			);
+			name = buildsystems;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000006 /* xcode */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000007 /* Config */,
+				C0FFEE000000000000000008 /* Scripts */,
+				C0FFEE000000000000000009 /* python */,
+				A1AC00000000000000000015 /* Assets.xcassets */,
+				CB6678BD1590676CA696DF6B /* Info.plist */,
+			);
+			name = xcode;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000007 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				5043CC1F18355D335ECAE025 /* Common.xcconfig */,
+				1D0C1E5C0F9A1B2C3D4E5002 /* DokiDoki.iOS.xcconfig */,
+				1D0C1E5C0F9A1B2C3D4E5001 /* DokiDoki.macOS.xcconfig */,
+				28A0DA855E1491FB55B62D02 /* Engine.iOS.xcconfig */,
+				78AC036BBFC03A6867D76F87 /* Engine.macOS.xcconfig */,
+				654C3BE6FE0CF6A920C6F057 /* Game.iOS.xcconfig */,
+				89862531EA0C1EFB205A4AF7 /* Game.macOS.xcconfig */,
+				CA724C7A46AD813CC2458311 /* ImGui.iOS.xcconfig */,
+				9E33FF983C907A114A8A8EA1 /* ImGui.macOS.xcconfig */,
+				6F21FE918E6ACF4F735E2E35 /* iOS.xcconfig */,
+				D7D700000000000000000004 /* Launcher.iOS.xcconfig */,
+				B6B600000000000000000007 /* Launcher.macOS.xcconfig */,
+				74CC1EA25C528F17D6E1E11E /* macOS.xcconfig */,
+				4BFFFA1E06699AEE9F4EA1A0 /* RealLive.iOS.xcconfig */,
+				E158C73BAA0F7BE672B1A0B4 /* RealLive.macOS.xcconfig */,
+			);
+			name = Config;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000008 /* Scripts */ = {
+			isa = PBXGroup;
+			children = (
+				D3DE05974DAEB199FF71D6C5 /* ConfigureMacOSIcon.sh */,
+				3F5B047F1B80A04FBE672AE4 /* EmbedDokiDokiPython.sh */,
+				C327919824D2D650ED44A512 /* EmbedSDLFrameworks.sh */,
+			);
+			name = Scripts;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000009 /* python */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000000A /* iOS */,
+				C0FFEE00000000000000000B /* macOS */,
+			);
+			name = python;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000000A /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				22958217A619E67794485CB5 /* Python-iOS.xcframework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000000B /* macOS */ = {
+			isa = PBXGroup;
+			children = (
+				7A99BDAEF7E3EDA577E9E91D /* Python-macOS.xcframework */,
+			);
+			name = macOS;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000002 /* games */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000000C /* amagami */,
+				C0FFEE00000000000000000D /* artemis */,
+				C0FFEE00000000000000000E /* doki-doki-literature-club */,
+				C0FFEE00000000000000000F /* example */,
+				C0FFEE000000000000000010 /* katawa-shoujo */,
+				C0FFEE000000000000000011 /* kirikiri */,
+				C0FFEE000000000000000012 /* luca-system */,
+				C0FFEE000000000000000013 /* meo */,
+				C0FFEE000000000000000014 /* n2system */,
+				C0FFEE000000000000000015 /* pmail */,
+				C0FFEE000000000000000016 /* ponscripter */,
+				C0FFEE000000000000000017 /* reallive */,
+				C0FFEE000000000000000018 /* school-days */,
+				C0FFEE000000000000000019 /* snow-radish-vacation */,
+				C0FFEE00000000000000001A /* summer-radish-vacation */,
+				C0FFEE00000000000000001B /* zero-no-tsukaima */,
+			);
+			name = games;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000000C /* amagami */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000001C /* src */,
+				399C87E47A410A072EDE117A /* game-assets */,
+			);
+			name = amagami;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000001C /* src */ = {
+			isa = PBXGroup;
+			children = (
+				EDE9F0307C5FFAF41888D56E /* AmagamiLauncher.cpp */,
+				825899848BE41CBA62F28A87 /* AmagamiRuntime.cpp */,
+				2BC48D9E2880CEA0BF73F649 /* Campaign.cpp */,
+				0EA031C961EEEB6D67C21FFF /* Formats.cpp */,
+				58ECC13021C822AE658D4A17 /* main.cpp */,
+				497D73E81AA69211967F7D13 /* MinigameScene.cpp */,
+				5E9FC32439DA5680D8113B0C /* Session.cpp */,
+				940698E23CA94DA1B92F0074 /* Source.cpp */,
+				C8C80000000000000000000D /* VitaInput.cpp */,
+				C8C80000000000000000000A /* VitaScripts.cpp */,
+				C8C80000000000000000000C /* VitaSpriteRenderer.cpp */,
+				C8C80000000000000000000B /* VitaVmBridge.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000000D /* artemis */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000001D /* src */,
+				A37E00000000000000000030 /* game-assets */,
+			);
+			name = artemis;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000001D /* src */ = {
+			isa = PBXGroup;
+			children = (
+				5BE1EFDAA95AF988AC2017AF /* ArtemisRuntime.cpp */,
+				A37E0000000000000000002F /* ArtemisUi.cpp */,
+				A37E0000000000000000002E /* main.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000000E /* doki-doki-literature-club */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000001E /* src */,
+				520B225442065EBAD6815C41 /* game-assets */,
+			);
+			name = doki-doki-literature-club;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000001E /* src */ = {
+			isa = PBXGroup;
+			children = (
+				B6D2DF48314E047478BF0880 /* Archive.cpp */,
+				C15343D0644A446E927EF7E0 /* DdlcLauncher.cpp */,
+				0C39091D0D47DD2D9C982286 /* DdlcRuntime.cpp */,
+				AA64C0CEE2E21C91DEF07E99 /* DdlcSession.cpp */,
+				4DA44EA779EF5ED5B0159EB0 /* Display.cpp */,
+				F000ECDE541D4B98EDB011F4 /* main.cpp */,
+				59EDD75E548BEEB417C71E02 /* Replay.cpp */,
+				7EF4F9023D498F09F8041F36 /* Script.cpp */,
+				73AE439517659FF3DAE39A4A /* Value.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000000F /* example */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000001F /* src */,
+				B6E17E938090A37BA118FBBC /* game-assets */,
+			);
+			name = example;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000001F /* src */ = {
+			isa = PBXGroup;
+			children = (
+				EF4BDCD1430047A917A6A930 /* DemoGame.cpp */,
+				EA79FED5A5E1AFEA22C89E1B /* DemoStage.cpp */,
+				2565EC79DC321AB699848B17 /* DemoStory.cpp */,
+				DDC7F4321FA381B07001355B /* main.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000010 /* katawa-shoujo */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000020 /* src */,
+				59CB01200926B11C8BE1B71D /* game-assets */,
+			);
+			name = katawa-shoujo;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000020 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				0D0C1CB68431A438687040FB /* main.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000011 /* kirikiri */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000021 /* src */,
+				A7C14AC64EDF57AAA9F2134E /* game-assets */,
+			);
+			name = kirikiri;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000021 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				C7C700000000000000000002 /* EmoteRenderer.cpp */,
+				21399AF4EDC475966F00B67C /* KirikiriRuntime.cpp */,
+				299F98C3690196D9F3D0DE62 /* main.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000012 /* luca-system */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000022 /* src */,
+				DD7FF307F319E50C1D05AFC0 /* game-assets */,
+			);
+			name = luca-system;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000022 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				CE0187B030B160ED00A74244 /* DebugCatalog.cpp */,
+				A387D57559A39733FBA21A24 /* LucaSystemRuntime.cpp */,
+				6CEE45A84649AE37A49032B7 /* LucaSystemScript.cpp */,
+				D9932D19AEFC21BCAB4F7360 /* main.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000013 /* meo */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000023 /* src */,
+				933456486A0DCFC48D1015CB /* game-assets */,
+			);
+			name = meo;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000023 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				3D216FD739A4CDADA245F32C /* main.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000014 /* n2system */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000024 /* src */,
+				3C5A9DABEDBC8EBC44761F06 /* game-assets */,
+			);
+			name = n2system;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000024 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				4579E562C074033828A96F2B /* main.cpp */,
+				EF37725F3CC934BDF93D8B09 /* N2Runtime.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000015 /* pmail */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000025 /* src */,
+				9A89B56E0A99AC44987F8ABB /* game-assets */,
+			);
+			name = pmail;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000025 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				CBEE31AB460081E8C66C345A /* LargePonPonRuntime.cpp */,
+				2BCDD65DDEFCFD0B2650E483 /* main.cpp */,
+				A31D21EDCFBFACFB87FBC4B2 /* PmailAudio.cpp */,
+				C691896FFE305192A639A31D /* PmailBacklog.cpp */,
+				10AD1DF9A3EA1A0FF604E678 /* PmailComponents.cpp */,
+				C8C800000000000000000001 /* PmailExtrasMenu.cpp */,
+				C8C800000000000000000005 /* PmailExtrasViewer.cpp */,
+				CCFBCB04C6B7A6FDE92053A2 /* PmailGame.cpp */,
+				398635A8C71257F8CFD5A4DA /* PmailPack.cpp */,
+				E085600FDC5B674373709D53 /* PmailPauseMenu.cpp */,
+				35E9BCF53B0390115C61637A /* PmailRuntime.cpp */,
+				C8FC4F26F74C05F0AA51508B /* PmailSession.cpp */,
+				8DC84839B2219CE992D6BBBB /* PmailStage.cpp */,
+				BA1A2231F5DE9908D1FFD3EB /* PmailTextBox.cpp */,
+				3D1D2B56AF4EAA3118FF3A1D /* PmailTitleMenu.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000016 /* ponscripter */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000026 /* src */,
+				E4140295E45357F3C459C8B3 /* game-assets */,
+			);
+			name = ponscripter;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000026 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				B83C082FC0962DAF7B1758AA /* main.cpp */,
+				AFF3E2A6496DED8FA9ACD68D /* PonscripterRuntime.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000017 /* reallive */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000027 /* src */,
+				C0FFEE000000000000000028 /* vendor */,
+				8DD17A20F2CD7598DFA0EDC3 /* game-assets */,
+			);
+			name = reallive;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000027 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				FF242C49F26C09A041D6631C /* Config.cpp */,
+				BEE8A43B97669A7DAA56299B /* Images.cpp */,
+				55DDE3D25C2E19533CB2474A /* main.cpp */,
+				6CCEEC7CC335B1CBE767AEBA /* RealLiveRuntime.cpp */,
+				60D5B6274B9869891928D08D /* Script.cpp */,
+				93BD379D29100188F3773D8F /* System.cpp */,
+				60FF7E28B850F9BF1AE57DC2 /* Voice.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000028 /* vendor */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000029 /* libreallive */,
+				C0FFEE00000000000000002A /* machine */,
+			);
+			name = vendor;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000029 /* libreallive */ = {
+			isa = PBXGroup;
+			children = (
 				7D2A8B46E0836388F022936F /* alldefs.h */,
 				F9EF1470FDC8991EFDC03605 /* archive.cc */,
 				04CBBF8E1E179D8024005C19 /* archive.h */,
@@ -3301,6 +3584,7 @@
 				ED4EFA6784E9327D825AC454 /* filemap.cc */,
 				6CA0087AC351C463CC701253 /* filemap.h */,
 				CB627763045FC0521470C27C /* intmemref.h */,
+				EA80D3248619701A14FFA980 /* ORIGIN.md */,
 				1D9FA831D25A1165C076BA36 /* reallive.h */,
 				6CBA5F70D300D87328ECC945 /* scenario.cc */,
 				BF521FED1C2856191DCAAAAD /* scenario.h */,
@@ -3309,276 +3593,31 @@
 			name = libreallive;
 			sourceTree = "<group>";
 		};
-		4246503E402C6A47F918A467 /* Frameworks */ = {
+		C0FFEE00000000000000002A /* machine */ = {
 			isa = PBXGroup;
 			children = (
-				45BC43346E979F2EC951FC97 /* OS X */,
-				2A4E325FA0CC61A8800AAFFB /* iOS */,
+				C6E461F411FF2380F95D573D /* reference.h */,
+				0F8753A4F7916D58D8B17B7E /* rlmachine.h */,
 			);
-			name = Frameworks;
+			name = machine;
 			sourceTree = "<group>";
 		};
-		42F30634C2CFADA428E6AA3C /* KotonohaUnified */ = {
+		C0FFEE000000000000000018 /* school-days */ = {
 			isa = PBXGroup;
 			children = (
-				AAC2FB1A53CEC3BB26D6F755 /* Core */,
-				BF719613F5C44F5226F8FCF8 /* Games */,
-				B5B500000000000000000006 /* Launcher */,
-				9287D60EE3E38940F4AEC1DA /* Modules */,
-				2599A7040CB692CC41D3CD46 /* Dependencies */,
-				C963BEF393DAC6DDB1DA44B6 /* Resources */,
-				F7D680C2350DD145D98BAF3F /* Build Scripts */,
-				CC5E47A9D08DF0537706F71D /* Configurations */,
-				3B37570FB5A54779D136910F /* Products */,
-				4246503E402C6A47F918A467 /* Frameworks */,
+				C0FFEE00000000000000002B /* src */,
+				6360E6F008913111F5D43A1F /* game-assets */,
 			);
-			name = KotonohaUnified;
+			name = school-days;
 			sourceTree = "<group>";
 		};
-		45BC43346E979F2EC951FC97 /* OS X */ = {
-			isa = PBXGroup;
-			children = (
-				63DE967DF3E0BDBC312F821E /* Cocoa.framework */,
-			);
-			name = "OS X";
-			sourceTree = "<group>";
-		};
-		49F368BFEE22590B2D3003F0 /* renpy */ = {
-			isa = PBXGroup;
-			children = (
-				C8C800000000000000000009 /* PythonDummy.cpp */,
-				E94739250EC5458B6C11E2B1 /* Vm.cpp */,
-				FC2BC0CC5C1C4CDAE4E355A5 /* Python.cpp */,
-			);
-			name = renpy;
-			sourceTree = "<group>";
-		};
-		4A1E901E37BFEC69C8A16B85 /* Global */ = {
-			isa = PBXGroup;
-			children = (
-				8296A210E862BB77BA0DFFF8 /* assets */,
-			);
-			name = Global;
-			sourceTree = "<group>";
-		};
-		4BCC0B299FA63798E45D79AC /* debug */ = {
-			isa = PBXGroup;
-			children = (
-				D31A702A792A5505E0A79948 /* DebugOverlay.cpp */,
-				F1F1F100000000000000008E /* SystemInfo.cpp */,
-				F1F1F1000000000000000156 /* SystemInfo.hpp */,
-				5333ECFD929586DA073BF639 /* ImGuiTheme.cpp */,
-				C98208D243C8534A4A1D8CE9 /* VoiceDubbingApplet.cpp */,
-			);
-			name = debug;
-			sourceTree = "<group>";
-		};
-		4CE1F4D785BE4E86F9EC8239 /* vendor */ = {
-			isa = PBXGroup;
-			children = (
-				ABB017DD44BA325994A2C0CF /* machine */,
-				3B4A5AD557F40EB2B6912322 /* libreallive */,
-			);
-			name = vendor;
-			sourceTree = "<group>";
-		};
-		4F250A16D0AB9EF5B61A8812 /* xp3 */ = {
-			isa = PBXGroup;
-			children = (
-				C7C700000000000000000012 /* TjsBootstrap.cpp */,
-				C7C70000000000000000000E /* Tlg6Image.cpp */,
-				C7C70000000000000000000A /* TlgImage.cpp */,
-				C7C700000000000000000006 /* PsbFile.cpp */,
-				59F397CB2CDBECCF07A600C2 /* KirikiriAssets.cpp */,
-				7372E52FDC89DC2EFB26BE7F /* Xp3Archive.cpp */,
-			);
-			name = xp3;
-			sourceTree = "<group>";
-		};
-		5033C4D6C3D152F4264A1538 /* imgui_widgets.cpp */ = {
-			isa = PBXGroup;
-			children = (
-				91E75ED2AA683074D387C16B /* imgui_widgets.cpp */,
-			);
-			name = imgui_widgets.cpp;
-			sourceTree = "<group>";
-		};
-		545A3F8E80CC6132D11E27BF /* gpk */ = {
-			isa = PBXGroup;
-			children = (
-				45EDF70AF5BAB139AD8D47EA /* SchoolDaysAssetMount.cpp */,
-				404AC76CB983D414A589654F /* SchoolDaysAssets.cpp */,
-				BCA9A64DD44702C5B9B9668D /* SchoolDaysGpkArchive.cpp */,
-				F2D426AE20CF319F1A184611 /* SchoolDaysGpkIndex.cpp */,
-			);
-			name = gpk;
-			sourceTree = "<group>";
-		};
-		57E033BD5EABDEDB69501EB0 /* adv */ = {
-			isa = PBXGroup;
-			children = (
-				F20000000000000000000001 /* PackImage.cpp */,
-				F20000000000000000000002 /* PackAnimation.cpp */,
-				F20000000000000000000003 /* PackAudio.cpp */,
-				44878821F495891FD2362550 /* SnowAssets.cpp */,
-				F20000000000000000000090 /* Pack.cpp */,
-			);
-			name = adv;
-			sourceTree = "<group>";
-		};
-		630F870C109B950F54B16C89 /* imgui_draw.cpp */ = {
-			isa = PBXGroup;
-			children = (
-				CD147B8DCD5C1DB9C4C6545E /* imgui_draw.cpp */,
-			);
-			name = imgui_draw.cpp;
-			sourceTree = "<group>";
-		};
-		68DBAF202EC3AF9A8E7E423F /* meo */ = {
-			isa = PBXGroup;
-			children = (
-				7844705E0B00AF60488FA150 /* TimelineParser.cpp */,
-			);
-			name = meo;
-			sourceTree = "<group>";
-		};
-		6CF0F19702D718AC2B80E1C0 /* ZeroNoTsukaima */ = {
-			isa = PBXGroup;
-			children = (
-				E272AC0CF52FB7A37C7291EF /* Archive.cpp */,
-				B5D6FE67ABAF25925E010354 /* Catalog.cpp */,
-				654032D8B559BFB3DFFA5A6D /* ConcertoScene.cpp */,
-				49C06E159552485B927062F8 /* Frontend.cpp */,
-				58F9A200D3871F37F849750E /* Game.cpp */,
-				D723EA7A17B9706EC59D043A /* Lz.cpp */,
-				19112695FD55F58CBC83DE39 /* Media.cpp */,
-				1955C99F04872E5EDFA4A3FB /* Pss.cpp */,
-				6C4FC97B6BFABD20E782D042 /* Scene.cpp */,
-				369BEFED27D0BB808D48CC69 /* Source.cpp */,
-				DF9EB911E757B53D9E52AEC5 /* Vag.cpp */,
-				CF96F1307DEFE04F63539C65 /* ZeroComponents.cpp */,
-				BEB4A5936E2DA9ED50D85D1C /* ZeroLauncher.cpp */,
-				49E45658D3CD024F171CEEC6 /* ZeroRuntime.cpp */,
-				4472A9E75D52E9DCED7B74D4 /* ZeroSession.cpp */,
-				D65B8B7973FC33F801238449 /* main.cpp */,
-			);
-			name = ZeroNoTsukaima;
-			sourceTree = "<group>";
-		};
-		74F74E7A958A207E5676CE79 /* pmail */ = {
-			isa = PBXGroup;
-			children = (
-				A22002F273400D20C622C670 /* Vm.cpp */,
-			);
-			name = pmail;
-			sourceTree = "<group>";
-		};
-		7697E55C94E2F1B38A11FB8F /* KotonohaImGui */ = {
-			isa = PBXGroup;
-			children = (
-				1C87ED69746E28E095C4B93A /* backends */,
-				8205A29F0C8999A67CA8BEA0 /* imgui.cpp */,
-				630F870C109B950F54B16C89 /* imgui_draw.cpp */,
-				A21D9F0A85E4A8545B8B085F /* imgui_tables.cpp */,
-				5033C4D6C3D152F4264A1538 /* imgui_widgets.cpp */,
-				851828D3113CC44A72C4F966 /* misc */,
-			);
-			name = KotonohaImGui;
-			sourceTree = "<group>";
-		};
-		77322DD2DBE7BD6123701626 /* Providers */ = {
-			isa = PBXGroup;
-			children = (
-				57E033BD5EABDEDB69501EB0 /* adv */,
-				1CE3DAED6AD19B9CC2F91EE7 /* amagami */,
-				F6FF3729C4502D04661B73B6 /* cmp */,
-				545A3F8E80CC6132D11E27BF /* gpk */,
-				2371941AB1A297B903EF1BA2 /* pak */,
-				8585673828312870AB424E33 /* pmail */,
-				78BFC733E820CF54999C8095 /* reallive */,
-				85390CF22608FE7FFFC3AF87 /* rpa */,
-				4F250A16D0AB9EF5B61A8812 /* xp3 */,
-				9B09BD2718ED2583B4251A5B /* zero */,
-				F2F200000000000000000009 /* ponscripter */,
-				F2F20000000000000000000A /* n2 */,
-			);
-			name = Providers;
-			sourceTree = "<group>";
-		};
-		78BFC733E820CF54999C8095 /* reallive */ = {
-			isa = PBXGroup;
-			children = (
-				226C941B21C1F85269ADD270 /* RealLiveAssets.cpp */,
-			);
-			name = reallive;
-			sourceTree = "<group>";
-		};
-		7CE80190DFF70E96FB91E1C4 /* Kirikiri */ = {
-			isa = PBXGroup;
-			children = (
-				A7C14AC64EDF57AAA9F2134E /* game-assets */,
-			);
-			name = Kirikiri;
-			sourceTree = "<group>";
-		};
-		7D77FA2B6C4067ABDD31C069 /* summer-radish */ = {
-			isa = PBXGroup;
-			children = (
-				958F20C6564ED0D6B805C3A9 /* Script.cpp */,
-			);
-			name = "summer-radish";
-			sourceTree = "<group>";
-		};
-		7DB28234EDE783493428C05B /* SnowRadish */ = {
-			isa = PBXGroup;
-			children = (
-				BB011B48CD0249D568592273 /* Game.cpp */,
-				F2323B73AF87856D39A096CB /* SnowComponents.cpp */,
-				CDA95F2216A98537A0054444 /* SnowLauncher.cpp */,
-				E585EAD1BC6893A777235CFB /* SnowRuntime.cpp */,
-				27BCE616C3E92D664BB9EFDB /* SnowSession.cpp */,
-				B8EB964C41EE51C7ED718F28 /* main.cpp */,
-			);
-			name = SnowRadish;
-			sourceTree = "<group>";
-		};
-		8205A29F0C8999A67CA8BEA0 /* imgui.cpp */ = {
-			isa = PBXGroup;
-			children = (
-				103E1C1B1A991352888811DC /* imgui.cpp */,
-			);
-			name = imgui.cpp;
-			sourceTree = "<group>";
-		};
-		851828D3113CC44A72C4F966 /* misc */ = {
-			isa = PBXGroup;
-			children = (
-				5306B792EBD5809B1825F58D /* imgui_stdlib.cpp */,
-			);
-			name = misc;
-			sourceTree = "<group>";
-		};
-		85390CF22608FE7FFFC3AF87 /* rpa */ = {
-			isa = PBXGroup;
-			children = (
-				DC4ED3DFF3AB6D211D5F95B6 /* DdlcAssets.cpp */,
-			);
-			name = rpa;
-			sourceTree = "<group>";
-		};
-		8585673828312870AB424E33 /* pmail */ = {
-			isa = PBXGroup;
-			children = (
-				A22FC35904554B40EEB8BF84 /* PmailAssets.cpp */,
-			);
-			name = pmail;
-			sourceTree = "<group>";
-		};
-		86BB619602AA4D5D73300178 /* SchoolDays */ = {
+		C0FFEE00000000000000002B /* src */ = {
 			isa = PBXGroup;
 			children = (
 				089014A90823BE002DB60B26 /* KtrfAssetResolver.cpp */,
 				23224AC725437164C13D3D42 /* KtrfStateStore.cpp */,
+				ABEC67FE33BE7B58E862CCDE /* main.cpp */,
+				C0C000000000000000000001 /* SchoolDaysAtomicFile.cpp */,
 				E9EFF082D1157F2E14352985 /* SchoolDaysBackLog.cpp */,
 				09BA2F0E241E1C34C21A1BA5 /* SchoolDaysBackLogEngine.cpp */,
 				326F875C5011356E5AD0FFDC /* SchoolDaysBackLogPresenter.cpp */,
@@ -3621,7 +3660,6 @@
 				780A7ADC9019B8F33BE1D3E5 /* SchoolDaysSaveProfile.cpp */,
 				133FEB14CFB5BEAF36775A44 /* SchoolDaysSaveService.cpp */,
 				25D4F7ED89890B0AA3BABA20 /* SchoolDaysSaveServiceRead.cpp */,
-				C0C000000000000000000001 /* SchoolDaysAtomicFile.cpp */,
 				5CA619DF85A2D64DC71181D0 /* SchoolDaysSaveStorage.cpp */,
 				051BE4DA1D87AB250C0FDFF0 /* SchoolDaysScenes.cpp */,
 				3B00210150B5407CBD46C59A /* SchoolDaysSubtitleTypography.cpp */,
@@ -3631,185 +3669,251 @@
 				D487B040E6AE1CCCAC8C59AB /* SchoolDaysTitleRenderPlan.cpp */,
 				7C2C54C4DDDC0D8F489C35C0 /* SchoolDaysTopMeterModel.cpp */,
 				7ED2CC95DA4471E479460CA0 /* SchoolDaysTopMeterRenderPlan.cpp */,
-				ABEC67FE33BE7B58E862CCDE /* main.cpp */,
 			);
-			name = SchoolDays;
+			name = src;
 			sourceTree = "<group>";
 		};
-		877E62E76BCBDCE2C0D98D78 /* Pmail */ = {
+		C0FFEE000000000000000019 /* snow-radish-vacation */ = {
 			isa = PBXGroup;
 			children = (
-				9A89B56E0A99AC44987F8ABB /* game-assets */,
-			);
-			name = Pmail;
-			sourceTree = "<group>";
-		};
-		8EE3EB86781B8D1F0DD99260 /* Pmail */ = {
-			isa = PBXGroup;
-			children = (
-				C8C800000000000000000005 /* PmailExtrasViewer.cpp */,
-				C8C800000000000000000001 /* PmailExtrasMenu.cpp */,
-				A31D21EDCFBFACFB87FBC4B2 /* PmailAudio.cpp */,
-				C691896FFE305192A639A31D /* PmailBacklog.cpp */,
-				10AD1DF9A3EA1A0FF604E678 /* PmailComponents.cpp */,
-				CCFBCB04C6B7A6FDE92053A2 /* PmailGame.cpp */,
-				398635A8C71257F8CFD5A4DA /* PmailPack.cpp */,
-				E085600FDC5B674373709D53 /* PmailPauseMenu.cpp */,
-				35E9BCF53B0390115C61637A /* PmailRuntime.cpp */,
-				CBEE31AB460081E8C66C345A /* LargePonPonRuntime.cpp */,
-				CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */,
-				9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */,
-				E2DFFD704E9B5292C2D3F42A /* LargePonPonAssets.cpp */,
-				ABB4CA81D50B8F5EDE127C05 /* GcPack.cpp */,
-				C8FC4F26F74C05F0AA51508B /* PmailSession.cpp */,
-				8DC84839B2219CE992D6BBBB /* PmailStage.cpp */,
-				BA1A2231F5DE9908D1FFD3EB /* PmailTextBox.cpp */,
-				3D1D2B56AF4EAA3118FF3A1D /* PmailTitleMenu.cpp */,
-				2BCDD65DDEFCFD0B2650E483 /* main.cpp */,
-				AA5500000000000000000002 /* Smfd.cpp */,
-				AA5500000000000000000003 /* Adpcm.cpp */,
-			);
-			name = Pmail;
-			sourceTree = "<group>";
-		};
-		8EE9541D45D2F8C7D3F63EA2 /* mobile */ = {
-			isa = PBXGroup;
-			children = (
-				18A81A34E8C7B94A1F557290 /* AndroidDisplay.cpp */,
-			);
-			name = mobile;
-			sourceTree = "<group>";
-		};
-		9234A6A83824CFC5D013FA6A /* routing */ = {
-			isa = PBXGroup;
-			children = (
-				4D822ECD5341FFAFBFDDE5C9 /* KtrfAdapter.cpp */,
-				309615A4698503873574DEF6 /* KtrfRouter.cpp */,
-				FE4D3B71392CBBCCC90D9235 /* KtrfRuntime.cpp */,
-			);
-			name = routing;
-			sourceTree = "<group>";
-		};
-		9287D60EE3E38940F4AEC1DA /* Modules */ = {
-			isa = PBXGroup;
-			children = (
-				A01C1200C806CF1EA58E1DEE /* VM */,
-				77322DD2DBE7BD6123701626 /* Providers */,
-			);
-			name = Modules;
-			sourceTree = "<group>";
-		};
-		92967B4F844B3406C4B9700D /* SnowRadish */ = {
-			isa = PBXGroup;
-			children = (
+				C0FFEE00000000000000002C /* src */,
 				69A3F046AB1B72F71D2CABA3 /* game-assets */,
 			);
-			name = SnowRadish;
+			name = snow-radish-vacation;
 			sourceTree = "<group>";
 		};
-		9A0E3F5E48C82FDE6A3E60EE /* localization */ = {
+		C0FFEE00000000000000002C /* src */ = {
 			isa = PBXGroup;
 			children = (
-				1BA5E519F92A1C06B1309CF9 /* Encoding.cpp */,
-				AA11BB22CC33DD44EE55FF02 /* Encoding.mm */,
-				83224C27CFFBCDAFB2C5740F /* Translation.cpp */,
+				BB011B48CD0249D568592273 /* Game.cpp */,
+				B8EB964C41EE51C7ED718F28 /* main.cpp */,
+				F2323B73AF87856D39A096CB /* SnowComponents.cpp */,
+				CDA95F2216A98537A0054444 /* SnowLauncher.cpp */,
+				E585EAD1BC6893A777235CFB /* SnowRuntime.cpp */,
+				27BCE616C3E92D664BB9EFDB /* SnowSession.cpp */,
 			);
-			name = localization;
+			name = src;
 			sourceTree = "<group>";
 		};
-		9B09BD2718ED2583B4251A5B /* zero */ = {
+		C0FFEE00000000000000001A /* summer-radish-vacation */ = {
 			isa = PBXGroup;
 			children = (
-				3AA271E48E3E6DCF85B61089 /* DiscAssetProvider.cpp */,
+				C0FFEE00000000000000002D /* src */,
+				3FE30BE349A80BA17071E5D0 /* game-assets */,
 			);
-			name = zero;
+			name = summer-radish-vacation;
 			sourceTree = "<group>";
 		};
-		9D426063D0517617E5A3E6B9 /* media */ = {
+		C0FFEE00000000000000002D /* src */ = {
 			isa = PBXGroup;
 			children = (
-				A1A100000000000000000002 /* SurfaceTexture.cpp */,
-				A1A100000000000000000004 /* MetalFXUpscaler.cpp */,
-				41942E0E6BF2A4A1B70F7A43 /* AudioMixer.cpp */,
-				591559879EB1EFB7028191A6 /* CriAudio.cpp */,
-				A761AF29AD7872AD741EE3A0 /* MediaDecoder.cpp */,
-				1415F6AB5B7E112C32BB6754 /* MediaPlayer.cpp */,
-				F3D97835A95238791202E8E9 /* PcmPlayer.cpp */,
-				BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */,
-				823AECB09BB754F38EE2E3F6 /* Ps2Tim2.cpp */,
-				CCB3836321FF404DEC3F2554 /* TextureAlpha.cpp */,
-				FE63135BA17021209CA24FFB /* MPVCompatibleUpscaler.cpp */,
-				85AA5C9FA85B655CBFE5AE68 /* MetalFXUpscaler.mm */,
-				E2B226AECE46EF3EACBEB799 /* Upscaler.cpp */,
-				E8A000000000000000000001 /* SaveImage.cpp */,
+				3EB4999C63BBF09B864CB79E /* main.cpp */,
+				EA79F738679D8D14664576A6 /* Map.cpp */,
+				E4C2E1634FC1DAEE8E650A08 /* Native.cpp */,
+				FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */,
+				569CCFB593BC05FD5D5A2A08 /* Transition.cpp */,
 			);
-			name = media;
+			name = src;
 			sourceTree = "<group>";
 		};
-		A01C1200C806CF1EA58E1DEE /* VM */ = {
+		C0FFEE00000000000000001B /* zero-no-tsukaima */ = {
 			isa = PBXGroup;
 			children = (
-				C7C700000000000000000001 /* tjs2 */,
-				315E08176CA54F07EC794AB1 /* amagami */,
-				23F89609280DBBBCE88D7D90 /* kag */,
-				68DBAF202EC3AF9A8E7E423F /* meo */,
-				74F74E7A958A207E5676CE79 /* pmail */,
-				CE73F7760EC840965EA285F7 /* reallive */,
-				49F368BFEE22590B2D3003F0 /* renpy */,
-				20067FCB165DFC23E07997B8 /* snow-radish */,
-				7D77FA2B6C4067ABDD31C069 /* summer-radish */,
-				F2F20000000000000000000B /* ponscripter */,
-				F2F20000000000000000000C /* n2system */,
+				C0FFEE00000000000000002E /* src */,
+				211037564817A2932CBA705A /* game-assets */,
 			);
-			name = VM;
+			name = zero-no-tsukaima;
 			sourceTree = "<group>";
 		};
-		A21D9F0A85E4A8545B8B085F /* imgui_tables.cpp */ = {
+		C0FFEE00000000000000002E /* src */ = {
 			isa = PBXGroup;
 			children = (
-				E7A0A915B2FD3102490280F0 /* imgui_tables.cpp */,
+				E272AC0CF52FB7A37C7291EF /* Archive.cpp */,
+				B5D6FE67ABAF25925E010354 /* Catalog.cpp */,
+				654032D8B559BFB3DFFA5A6D /* ConcertoScene.cpp */,
+				49C06E159552485B927062F8 /* Frontend.cpp */,
+				58F9A200D3871F37F849750E /* Game.cpp */,
+				D723EA7A17B9706EC59D043A /* Lz.cpp */,
+				D65B8B7973FC33F801238449 /* main.cpp */,
+				19112695FD55F58CBC83DE39 /* Media.cpp */,
+				1955C99F04872E5EDFA4A3FB /* Pss.cpp */,
+				6C4FC97B6BFABD20E782D042 /* Scene.cpp */,
+				369BEFED27D0BB808D48CC69 /* Source.cpp */,
+				DF9EB911E757B53D9E52AEC5 /* Vag.cpp */,
+				CF96F1307DEFE04F63539C65 /* ZeroComponents.cpp */,
+				BEB4A5936E2DA9ED50D85D1C /* ZeroLauncher.cpp */,
+				49E45658D3CD024F171CEEC6 /* ZeroRuntime.cpp */,
+				4472A9E75D52E9DCED7B74D4 /* ZeroSession.cpp */,
 			);
-			name = imgui_tables.cpp;
+			name = src;
 			sourceTree = "<group>";
 		};
-		A314D17418AC0B24A857DF18 /* KotonohaExample */ = {
+		C0FFEE000000000000000003 /* launcher */ = {
 			isa = PBXGroup;
 			children = (
-				B6E17E938090A37BA118FBBC /* game-assets */,
+				C0FFEE00000000000000002F /* include */,
+				C0FFEE000000000000000030 /* src */,
+				B6B600000000000000000006 /* game-assets */,
 			);
-			name = KotonohaExample;
+			name = launcher;
 			sourceTree = "<group>";
 		};
-		A4A05ECBC252DB09B058865C /* LucaSystem */ = {
+		C0FFEE00000000000000002F /* include */ = {
 			isa = PBXGroup;
 			children = (
-				A387D57559A39733FBA21A24 /* LucaSystemRuntime.cpp */,
-				6CEE45A84649AE37A49032B7 /* LucaSystemScript.cpp */,
-				D9932D19AEFC21BCAB4F7360 /* main.cpp */,
-				CE0187B030B160ED00A74244 /* DebugCatalog.cpp */,
+				C0FFEE000000000000000031 /* KotonohaLauncher */,
 			);
-			name = LucaSystem;
+			name = include;
 			sourceTree = "<group>";
 		};
-		AAC2FB1A53CEC3BB26D6F755 /* Core */ = {
+		C0FFEE000000000000000031 /* KotonohaLauncher */ = {
 			isa = PBXGroup;
 			children = (
-				0C04E59682E5D462F08B41CC /* KotonohaEngine */,
-				7697E55C94E2F1B38A11FB8F /* KotonohaImGui */,
+				B5B50000000000000000000A /* UnifiedLauncher.hpp */,
 			);
-			name = Core;
+			name = KotonohaLauncher;
 			sourceTree = "<group>";
 		};
-		ABB017DD44BA325994A2C0CF /* machine */ = {
+		C0FFEE000000000000000030 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				C6E461F411FF2380F95D573D /* reference.h */,
-				0F8753A4F7916D58D8B17B7E /* rlmachine.h */,
+				C0FFEE000000000000000032 /* ios */,
+				C0FFEE000000000000000033 /* macos */,
+				D7D700000000000000000003 /* AppleDocuments.mm */,
+				B5B500000000000000000008 /* GameFactories.cpp */,
+				E8A000000000000000000010 /* LauncherBridge.cpp */,
+				B5B500000000000000000007 /* main.cpp */,
+				B5B500000000000000000009 /* UnifiedLauncher.cpp */,
 			);
-			name = machine;
+			name = src;
 			sourceTree = "<group>";
 		};
-		AFE7C9E655C165BA23EE0855 /* components */ = {
+		C0FFEE000000000000000032 /* ios */ = {
+			isa = PBXGroup;
+			children = (
+				E8A000000000000000000020 /* KotonohaIOSBookmarkStore.swift */,
+				E8A000000000000000000024 /* KotonohaIOSLauncherHost.mm */,
+				E8A000000000000000000026 /* KotonohaLauncher-Bridging-Header.h */,
+				E8A000000000000000000022 /* KotonohaLauncherView.swift */,
+			);
+			name = ios;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000033 /* macos */ = {
+			isa = PBXGroup;
+			children = (
+				A1AC00000000000000000013 /* KotonohaMacLauncher-Bridging-Header.h */,
+				A1AC00000000000000000014 /* KotonohaMacLauncherBridge.h */,
+				A1AC00000000000000000012 /* KotonohaMacLauncherHost.mm */,
+				A1AC00000000000000000011 /* KotonohaMacLauncherView.swift */,
+			);
+			name = macos;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000004 /* lib */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000034 /* include */,
+				C0FFEE000000000000000035 /* src */,
+				C0FFEE000000000000000036 /* submodules */,
+			);
+			name = lib;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000034 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000037 /* Kotonoha */,
+			);
+			name = include;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000037 /* Kotonoha */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000038 /* Filesystem */,
+				C0FFEE000000000000000039 /* debug */,
+			);
+			name = Kotonoha;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000038 /* Filesystem */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000003A /* Adapters */,
+				C0FFEE00000000000000003B /* Mounts */,
+				C0FFEE00000000000000003C /* Sources */,
+				F1F1F100000000000000012C /* FileHandle.hpp */,
+				F1F1F100000000000000012F /* Filesystem.hpp */,
+				F1F1F100000000000000012D /* IMount.hpp */,
+				F1F1F100000000000000012E /* Path.hpp */,
+				F1F1F1000000000000000155 /* RemoteAssets.hpp */,
+				F1F1F1000000000000000134 /* StoragePaths.hpp */,
+			);
+			name = Filesystem;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000003A /* Adapters */ = {
+			isa = PBXGroup;
+			children = (
+				F1F1F100000000000000014E /* BrowserBlobAdapter.hpp */,
+				F1F1F100000000000000014C /* SDLIOAdapter.hpp */,
+				F1F1F100000000000000014A /* StreamAdapter.hpp */,
+			);
+			name = Adapters;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000003B /* Mounts */ = {
+			isa = PBXGroup;
+			children = (
+				F1F1F1000000000000000131 /* DirectoryMount.hpp */,
+				F1F1F1000000000000000154 /* FallbackMount.hpp */,
+				F1F1F1000000000000000133 /* ISO9660Mount.hpp */,
+				F1F1F1000000000000000132 /* LayeredMount.hpp */,
+				F1F1F1000000000000000140 /* TarMount.hpp */,
+			);
+			name = Mounts;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000003C /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				F1F1F1000000000000000141 /* FetchAssetProvider.hpp */,
+				F1F1F1000000000000000130 /* SDLFileSource.hpp */,
+			);
+			name = Sources;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000039 /* debug */ = {
+			isa = PBXGroup;
+			children = (
+				F1F1F1000000000000000156 /* SystemInfo.hpp */,
+			);
+			name = debug;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000035 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000003D /* components */,
+				C0FFEE00000000000000003E /* core */,
+				C0FFEE00000000000000003F /* debug */,
+				C0FFEE000000000000000040 /* events */,
+				C0FFEE000000000000000041 /* filesystem */,
+				C0FFEE000000000000000042 /* localization */,
+				C0FFEE000000000000000043 /* mcp */,
+				C0FFEE000000000000000044 /* media */,
+				C0FFEE000000000000000045 /* mobile */,
+				C0FFEE000000000000000046 /* parsers */,
+				C0FFEE000000000000000047 /* prefetch */,
+				C0FFEE000000000000000048 /* routing */,
+				C0FFEE000000000000000049 /* script */,
+				C0FFEE00000000000000004A /* workers */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000003D /* components */ = {
 			isa = PBXGroup;
 			children = (
 				95B0FC8ABDE10AAFBC564358 /* ChoiceQuestionScene.cpp */,
@@ -3832,91 +3936,42 @@
 			name = components;
 			sourceTree = "<group>";
 		};
-		B2882911A7932EB1555E2014 /* DokiDoki */ = {
+		C0FFEE00000000000000003E /* core */ = {
 			isa = PBXGroup;
 			children = (
-				B6D2DF48314E047478BF0880 /* Archive.cpp */,
-				C15343D0644A446E927EF7E0 /* DdlcLauncher.cpp */,
-				0C39091D0D47DD2D9C982286 /* DdlcRuntime.cpp */,
-				AA64C0CEE2E21C91DEF07E99 /* DdlcSession.cpp */,
-				4DA44EA779EF5ED5B0159EB0 /* Display.cpp */,
-				59EDD75E548BEEB417C71E02 /* Replay.cpp */,
-				7EF4F9023D498F09F8041F36 /* Script.cpp */,
-				73AE439517659FF3DAE39A4A /* Value.cpp */,
-				F000ECDE541D4B98EDB011F4 /* main.cpp */,
+				BA6DF2EA8DCE31D1E6FFCC08 /* AssetOverlay.cpp */,
+				C68346DF0F4C502F914FB431 /* AssetProvider.cpp */,
+				EA012E1118407A93D2729088 /* Clock.cpp */,
+				79AED9CD2E8FDC21D4FBBA23 /* CommandLine.cpp */,
+				9BE4FE61A2DEA0B5468C0CA1 /* DiscImage.cpp */,
+				95EB7E452BD54DD736B39583 /* Engine.cpp */,
+				0952B39C0D559C76E51E70F3 /* GameLauncher.cpp */,
+				9D844BB211DE2CBE3A3584BE /* InputMapper.cpp */,
+				54BFA310BFD63BECBAEE3EBA /* Launcher.cpp */,
+				93E3F79FB02F2D2821A706AA /* Log.cpp */,
+				506F17DDCDA49EAE21BA698B /* OpenGL.cpp */,
+				BECA37F407A19BDF0265EBC3 /* PresentedFrame.cpp */,
+				187CC833D963E02878C79311 /* Runtime.cpp */,
+				886721A08057B37285174655 /* Settings.cpp */,
+				CAF48EF950A800145272C8C0 /* UI.cpp */,
+				0B231FF8B95DB7E64FA3EE8D /* VisualTransition.cpp */,
+				A1A100000000000000000003 /* WebAssetFetch.cpp */,
 			);
-			name = DokiDoki;
+			name = core;
 			sourceTree = "<group>";
 		};
-		B5B500000000000000000006 /* Launcher */ = {
+		C0FFEE00000000000000003F /* debug */ = {
 			isa = PBXGroup;
 			children = (
-				D7D700000000000000000003 /* AppleDocuments.mm */,
-				B5B500000000000000000007 /* main.cpp */,
-				B5B500000000000000000008 /* GameFactories.cpp */,
-				B5B500000000000000000009 /* UnifiedLauncher.cpp */,
-				4852C5F0B15D0F71B3381F14 /* PfsArchive.cpp */,
-				52B436660FBD0A9A81607EA5 /* ArtemisAssets.cpp */,
-				5A00C0BECB5BC6506CEA1223 /* AstParser.cpp */,
-				38261586909F755BA397E538 /* ArtemisVm.cpp */,
-				5BE1EFDAA95AF988AC2017AF /* ArtemisRuntime.cpp */,
-				B5B50000000000000000000A /* UnifiedLauncher.hpp */,
-				E8A000000000000000000010 /* LauncherBridge.cpp */,
-				E8A000000000000000000020 /* KotonohaIOSBookmarkStore.swift */,
-				E8A000000000000000000022 /* KotonohaLauncherView.swift */,
-				E8A000000000000000000024 /* KotonohaIOSLauncherHost.mm */,
-				E8A000000000000000000026 /* KotonohaLauncher-Bridging-Header.h */,
-				A1AC00000000000000000011 /* KotonohaMacLauncherView.swift */,
-				A1AC00000000000000000012 /* KotonohaMacLauncherHost.mm */,
-				A1AC00000000000000000013 /* KotonohaMacLauncher-Bridging-Header.h */,
-				A1AC00000000000000000014 /* KotonohaMacLauncherBridge.h */,
+				D31A702A792A5505E0A79948 /* DebugOverlay.cpp */,
+				5333ECFD929586DA073BF639 /* ImGuiTheme.cpp */,
+				F1F1F100000000000000008E /* SystemInfo.cpp */,
+				C98208D243C8534A4A1D8CE9 /* VoiceDubbingApplet.cpp */,
 			);
-			name = Launcher;
+			name = debug;
 			sourceTree = "<group>";
 		};
-		BB866B17E76CB452B075CAA2 /* KotonohaExample */ = {
-			isa = PBXGroup;
-			children = (
-				EF4BDCD1430047A917A6A930 /* DemoGame.cpp */,
-				EA79FED5A5E1AFEA22C89E1B /* DemoStage.cpp */,
-				2565EC79DC321AB699848B17 /* DemoStory.cpp */,
-				DDC7F4321FA381B07001355B /* main.cpp */,
-			);
-			name = KotonohaExample;
-			sourceTree = "<group>";
-		};
-		BF719613F5C44F5226F8FCF8 /* Games */ = {
-			isa = PBXGroup;
-			children = (
-				BB866B17E76CB452B075CAA2 /* KotonohaExample */,
-				DA08E452F701D352660A3027 /* Amagami */,
-				6CF0F19702D718AC2B80E1C0 /* ZeroNoTsukaima */,
-				7DB28234EDE783493428C05B /* SnowRadish */,
-				EBC50119260A1082A3252366 /* SummerRadish */,
-				B2882911A7932EB1555E2014 /* DokiDoki */,
-				86BB619602AA4D5D73300178 /* SchoolDays */,
-				F957BD182A291DA508FB9879 /* RealLive */,
-				EA2218DD91679D351989FD0F /* Kirikiri */,
-				A4A05ECBC252DB09B058865C /* LucaSystem */,
-				8EE3EB86781B8D1F0DD99260 /* Pmail */,
-				F2F200000000000000000001 /* KatawaShoujo */,
-				F2F200000000000000000002 /* MEO */,
-				F2F200000000000000000003 /* PonscripterGame */,
-				F2F200000000000000000004 /* N2SystemGame */,
-				A37E0000000000000000001C /* ArtemisGame */,
-			);
-			name = Games;
-			sourceTree = "<group>";
-		};
-		BFF72F74403499D979E8990D /* SummerRadish */ = {
-			isa = PBXGroup;
-			children = (
-				3FE30BE349A80BA17071E5D0 /* game-assets */,
-			);
-			name = SummerRadish;
-			sourceTree = "<group>";
-		};
-		C3F421D31822163948217A2D /* events */ = {
+		C0FFEE000000000000000040 /* events */ = {
 			isa = PBXGroup;
 			children = (
 				AD7ECFD5E0F68F8F29A5DBB7 /* BackAction.cpp */,
@@ -3926,88 +3981,105 @@
 			name = events;
 			sourceTree = "<group>";
 		};
-		C6AE94497D94045CC532EE3F /* SchoolDays */ = {
+		C0FFEE000000000000000041 /* filesystem */ = {
 			isa = PBXGroup;
 			children = (
-				6360E6F008913111F5D43A1F /* game-assets */,
+				C0FFEE00000000000000004B /* adapters */,
+				C0FFEE00000000000000004C /* mounts */,
+				C0FFEE00000000000000004D /* sources */,
+				A1A100000000000000000001 /* AtomicFile.cpp */,
+				F1F1F1000000000000000069 /* Filesystem.cpp */,
+				F1F1F1000000000000000064 /* Path.cpp */,
+				F1F1F100000000000000008D /* RemoteAssets.cpp */,
+				F1F1F100000000000000006A /* StoragePaths.cpp */,
 			);
-			name = SchoolDays;
+			name = filesystem;
 			sourceTree = "<group>";
 		};
-		C7C700000000000000000001 /* tjs2 */ = {
+		C0FFEE00000000000000004B /* adapters */ = {
 			isa = PBXGroup;
 			children = (
-				C7C70000000000000000001A /* TjsStartupVm.cpp */,
+				F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */,
+				F1F1F1000000000000000084 /* SDLIOAdapter.cpp */,
+				F1F1F1000000000000000082 /* StreamAdapter.cpp */,
 			);
-			name = tjs2;
+			name = adapters;
 			sourceTree = "<group>";
 		};
-		C963BEF393DAC6DDB1DA44B6 /* Resources */ = {
+		C0FFEE00000000000000004C /* mounts */ = {
 			isa = PBXGroup;
 			children = (
-				A1AC00000000000000000015 /* Assets.xcassets */,
-				4A1E901E37BFEC69C8A16B85 /* Global */,
-				CCF0C4BA16FFEFDE95554B72 /* Games */,
+				F1F1F1000000000000000066 /* DirectoryMount.cpp */,
+				F1F1F100000000000000008C /* FallbackMount.cpp */,
+				F1F1F1000000000000000068 /* ISO9660Mount.cpp */,
+				F1F1F1000000000000000067 /* LayeredMount.cpp */,
+				F1F1F1000000000000000078 /* TarMount.cpp */,
 			);
-			name = Resources;
+			name = mounts;
 			sourceTree = "<group>";
 		};
-		CC5E47A9D08DF0537706F71D /* Configurations */ = {
+		C0FFEE00000000000000004D /* sources */ = {
 			isa = PBXGroup;
 			children = (
-				D7D700000000000000000004 /* Launcher.iOS.xcconfig */,
-				B6B600000000000000000007 /* Launcher.macOS.xcconfig */,
-				E158C73BAA0F7BE672B1A0B4 /* RealLive.macOS.xcconfig */,
-				4BFFFA1E06699AEE9F4EA1A0 /* RealLive.iOS.xcconfig */,
-				CB6678BD1590676CA696DF6B /* Info.plist */,
-				5043CC1F18355D335ECAE025 /* Common.xcconfig */,
-				74CC1EA25C528F17D6E1E11E /* macOS.xcconfig */,
-				6F21FE918E6ACF4F735E2E35 /* iOS.xcconfig */,
-				89862531EA0C1EFB205A4AF7 /* Game.macOS.xcconfig */,
-				654C3BE6FE0CF6A920C6F057 /* Game.iOS.xcconfig */,
-				78AC036BBFC03A6867D76F87 /* Engine.macOS.xcconfig */,
-				28A0DA855E1491FB55B62D02 /* Engine.iOS.xcconfig */,
-				9E33FF983C907A114A8A8EA1 /* ImGui.macOS.xcconfig */,
-				CA724C7A46AD813CC2458311 /* ImGui.iOS.xcconfig */,
-				1D0C1E5C0F9A1B2C3D4E5001 /* DokiDoki.macOS.xcconfig */,
-				1D0C1E5C0F9A1B2C3D4E5002 /* DokiDoki.iOS.xcconfig */,
+				F1F1F1000000000000000079 /* FetchAssetProvider.cpp */,
+				F1F1F1000000000000000065 /* SDLFileSource.cpp */,
 			);
-			name = Configurations;
+			name = sources;
 			sourceTree = "<group>";
 		};
-		CCF0C4BA16FFEFDE95554B72 /* Games */ = {
+		C0FFEE000000000000000042 /* localization */ = {
 			isa = PBXGroup;
 			children = (
-				B6B600000000000000000006 /* game-assets */,
-				A314D17418AC0B24A857DF18 /* KotonohaExample */,
-				F0826E46E3F82974CDD61848 /* Amagami */,
-				E5BDA54E776E53C4A7A606BE /* ZeroNoTsukaima */,
-				92967B4F844B3406C4B9700D /* SnowRadish */,
-				BFF72F74403499D979E8990D /* SummerRadish */,
-				EA668CAFCB5DBC8021A25CCF /* DokiDoki */,
-				C6AE94497D94045CC532EE3F /* SchoolDays */,
-				E60D5A07A585F694164A9CDE /* RealLive */,
-				7CE80190DFF70E96FB91E1C4 /* Kirikiri */,
-				EA110AD835EAEB0BC9E89C47 /* LucaSystem */,
-				877E62E76BCBDCE2C0D98D78 /* Pmail */,
-				F2F200000000000000000005 /* KatawaShoujo */,
-				F2F200000000000000000006 /* MEO */,
-				F2F200000000000000000007 /* PonscripterGame */,
-				F2F200000000000000000008 /* N2SystemGame */,
-				A37E0000000000000000001D /* ArtemisGame */,
+				1BA5E519F92A1C06B1309CF9 /* Encoding.cpp */,
+				AA11BB22CC33DD44EE55FF02 /* Encoding.mm */,
+				83224C27CFFBCDAFB2C5740F /* Translation.cpp */,
 			);
-			name = Games;
+			name = localization;
 			sourceTree = "<group>";
 		};
-		CE73F7760EC840965EA285F7 /* reallive */ = {
+		C0FFEE000000000000000043 /* mcp */ = {
 			isa = PBXGroup;
 			children = (
-				C7393DCCC9970E48C7D54966 /* Session.cpp */,
+				7884C3CF10F33987B0AA15DA /* MCPServer.cpp */,
 			);
-			name = reallive;
+			name = mcp;
 			sourceTree = "<group>";
 		};
-		D37A47295E87D7DAD40A2516 /* parsers */ = {
+		C0FFEE000000000000000044 /* media */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000004E /* upscaling */,
+				41942E0E6BF2A4A1B70F7A43 /* AudioMixer.cpp */,
+				A761AF29AD7872AD741EE3A0 /* MediaDecoder.cpp */,
+				1415F6AB5B7E112C32BB6754 /* MediaPlayer.cpp */,
+				F3D97835A95238791202E8E9 /* PcmPlayer.cpp */,
+				E8A000000000000000000001 /* SaveImage.cpp */,
+				A1A100000000000000000002 /* SurfaceTexture.cpp */,
+				CCB3836321FF404DEC3F2554 /* TextureAlpha.cpp */,
+			);
+			name = media;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000004E /* upscaling */ = {
+			isa = PBXGroup;
+			children = (
+				A1A100000000000000000004 /* MetalFXUpscaler.cpp */,
+				85AA5C9FA85B655CBFE5AE68 /* MetalFXUpscaler.mm */,
+				FE63135BA17021209CA24FFB /* MPVCompatibleUpscaler.cpp */,
+				E2B226AECE46EF3EACBEB799 /* Upscaler.cpp */,
+			);
+			name = upscaling;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000045 /* mobile */ = {
+			isa = PBXGroup;
+			children = (
+				18A81A34E8C7B94A1F557290 /* AndroidDisplay.cpp */,
+			);
+			name = mobile;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000046 /* parsers */ = {
 			isa = PBXGroup;
 			children = (
 				0FCF528A7FD46BBD15885287 /* AssStyle.cpp */,
@@ -4018,228 +4090,762 @@
 			name = parsers;
 			sourceTree = "<group>";
 		};
-		DA08E452F701D352660A3027 /* Amagami */ = {
+		C0FFEE000000000000000047 /* prefetch */ = {
 			isa = PBXGroup;
 			children = (
-				C8C80000000000000000000D /* VitaInput.cpp */,
-				C8C80000000000000000000C /* VitaSpriteRenderer.cpp */,
-				C8C80000000000000000000B /* VitaVmBridge.cpp */,
-				C8C80000000000000000000A /* VitaScripts.cpp */,
-				EDE9F0307C5FFAF41888D56E /* AmagamiLauncher.cpp */,
-				825899848BE41CBA62F28A87 /* AmagamiRuntime.cpp */,
-				2BC48D9E2880CEA0BF73F649 /* Campaign.cpp */,
-				0EA031C961EEEB6D67C21FFF /* Formats.cpp */,
-				497D73E81AA69211967F7D13 /* MinigameScene.cpp */,
-				5E9FC32439DA5680D8113B0C /* Session.cpp */,
-				940698E23CA94DA1B92F0074 /* Source.cpp */,
-				58ECC13021C822AE658D4A17 /* main.cpp */,
+				E8A000000000000000000040 /* Scheduler.cpp */,
+				E8A000000000000000000041 /* WasmBackend.cpp */,
 			);
-			name = Amagami;
+			name = prefetch;
 			sourceTree = "<group>";
 		};
-		E1652DDBE7D43706B6F0001A /* macOS */ = {
+		C0FFEE000000000000000048 /* routing */ = {
 			isa = PBXGroup;
 			children = (
-				D7D700000000000000000002 /* KotonohaLauncher.app */,
-				B6B600000000000000000005 /* KotonohaLauncher.app */,
-				03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */,
-				893D77D1754B0E042E17C299 /* KotonohaImGui.framework */,
-				F5D0B1722C71D9F02EDB7E45 /* KotonohaExample.app */,
-				9AA6431FA9881D7F1164625B /* Amagami.app */,
-				1B15FA4158C3214E44CCC1B6 /* ZeroNoTsukaima.app */,
-				B3841B12E3F312D33A2D52C9 /* SnowRadish.app */,
-				91D375FBC0533C6706795C67 /* SummerRadish.app */,
-				946EAFD1220645E9753BE7ED /* DokiDoki.app */,
-				42A921F110B7F9C2114C6268 /* SchoolDays.app */,
-				29A715E1B377B2170E1BE25A /* RealLive.app */,
-				E81DE9C138E7193BB2A2BBBB /* Kirikiri.app */,
-				A2D5CBE4C132EB005456A69B /* LucaSystem.app */,
-				0066FBB8946FB87584BBC8EB /* Pmail.app */,
+				4D822ECD5341FFAFBFDDE5C9 /* KtrfAdapter.cpp */,
+				309615A4698503873574DEF6 /* KtrfRouter.cpp */,
+				FE4D3B71392CBBCCC90D9235 /* KtrfRuntime.cpp */,
 			);
-			name = macOS;
+			name = routing;
 			sourceTree = "<group>";
 		};
-		E5BDA54E776E53C4A7A606BE /* ZeroNoTsukaima */ = {
+		C0FFEE000000000000000049 /* script */ = {
 			isa = PBXGroup;
 			children = (
-				211037564817A2932CBA705A /* game-assets */,
+				6E0E179ED70FDB071D315FFD /* KtrfScript.cpp */,
+				901F3126BFAF38852E89A428 /* Timeline.cpp */,
+				6771305E4C2C7C6B6AEF123A /* TimelinePlayer.cpp */,
 			);
-			name = ZeroNoTsukaima;
+			name = script;
 			sourceTree = "<group>";
 		};
-		E60D5A07A585F694164A9CDE /* RealLive */ = {
+		C0FFEE00000000000000004A /* workers */ = {
 			isa = PBXGroup;
 			children = (
-				8DD17A20F2CD7598DFA0EDC3 /* game-assets */,
+				E8A000000000000000000061 /* EmbeddedSubtitleExtractor.cpp */,
+				E8A000000000000000000060 /* SubtitleFontRegistry.cpp */,
+				E8A000000000000000000062 /* SubtitleSourceDirector.cpp */,
+				E8A000000000000000000043 /* SubtitleWorker.cpp */,
 			);
-			name = RealLive;
+			name = workers;
 			sourceTree = "<group>";
 		};
-		EA110AD835EAEB0BC9E89C47 /* LucaSystem */ = {
+		C0FFEE000000000000000036 /* submodules */ = {
 			isa = PBXGroup;
 			children = (
-				DD7FF307F319E50C1D05AFC0 /* game-assets */,
+				C0FFEE00000000000000004F /* imgui */,
 			);
-			name = LucaSystem;
+			name = submodules;
 			sourceTree = "<group>";
 		};
-		EA2218DD91679D351989FD0F /* Kirikiri */ = {
+		C0FFEE00000000000000004F /* imgui */ = {
 			isa = PBXGroup;
 			children = (
-				C7C700000000000000000002 /* EmoteRenderer.cpp */,
-				21399AF4EDC475966F00B67C /* KirikiriRuntime.cpp */,
-				299F98C3690196D9F3D0DE62 /* main.cpp */,
+				C0FFEE000000000000000050 /* backends */,
+				C0FFEE000000000000000051 /* misc */,
+				103E1C1B1A991352888811DC /* imgui.cpp */,
+				CD147B8DCD5C1DB9C4C6545E /* imgui_draw.cpp */,
+				E7A0A915B2FD3102490280F0 /* imgui_tables.cpp */,
+				91E75ED2AA683074D387C16B /* imgui_widgets.cpp */,
 			);
-			name = Kirikiri;
+			name = imgui;
 			sourceTree = "<group>";
 		};
-		EA668CAFCB5DBC8021A25CCF /* DokiDoki */ = {
+		C0FFEE000000000000000050 /* backends */ = {
 			isa = PBXGroup;
 			children = (
-				520B225442065EBAD6815C41 /* game-assets */,
+				6576FD8B6C0C14B6BD6C4403 /* imgui_impl_sdl3.cpp */,
+				11BE528C7D3C993BD9029E17 /* imgui_impl_sdlrenderer3.cpp */,
 			);
-			name = DokiDoki;
+			name = backends;
 			sourceTree = "<group>";
 		};
-		EBC50119260A1082A3252366 /* SummerRadish */ = {
+		C0FFEE000000000000000051 /* misc */ = {
 			isa = PBXGroup;
 			children = (
-				EA79F738679D8D14664576A6 /* Map.cpp */,
-				E4C2E1634FC1DAEE8E650A08 /* Native.cpp */,
-				FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */,
-				BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */,
-				569CCFB593BC05FD5D5A2A08 /* Transition.cpp */,
-				3EB4999C63BBF09B864CB79E /* main.cpp */,
+				C0FFEE000000000000000052 /* cpp */,
 			);
-			name = SummerRadish;
+			name = misc;
 			sourceTree = "<group>";
 		};
-		F0826E46E3F82974CDD61848 /* Amagami */ = {
+		C0FFEE000000000000000052 /* cpp */ = {
 			isa = PBXGroup;
 			children = (
-				399C87E47A410A072EDE117A /* game-assets */,
+				5306B792EBD5809B1825F58D /* imgui_stdlib.cpp */,
 			);
-			name = Amagami;
+			name = cpp;
 			sourceTree = "<group>";
 		};
-		F1F1F1000000000000000010 /* Filesystem */ = {
+		C0FFEE000000000000000005 /* modules */ = {
 			isa = PBXGroup;
 			children = (
-				A1A100000000000000000001 /* AtomicFile.cpp */,
-				F1F1F100000000000000008C /* FallbackMount.cpp */,
-				F1F1F100000000000000008D /* RemoteAssets.cpp */,
-				F1F1F1000000000000000154 /* FallbackMount.hpp */,
-				F1F1F1000000000000000155 /* RemoteAssets.hpp */,
-				F1F1F1000000000000000086 /* BrowserBlobAdapter.cpp */,
-				F1F1F100000000000000014E /* BrowserBlobAdapter.hpp */,
-				F1F1F1000000000000000084 /* SDLIOAdapter.cpp */,
-				F1F1F100000000000000014C /* SDLIOAdapter.hpp */,
-				F1F1F1000000000000000082 /* StreamAdapter.cpp */,
-				F1F1F100000000000000014A /* StreamAdapter.hpp */,
-				F1F1F100000000000000006A /* StoragePaths.cpp */,
-				F1F1F1000000000000000134 /* StoragePaths.hpp */,
-				F1F1F1000000000000000064 /* Path.cpp */,
-				F1F1F1000000000000000065 /* SDLFileSource.cpp */,
-				F1F1F1000000000000000066 /* DirectoryMount.cpp */,
-				F1F1F1000000000000000067 /* LayeredMount.cpp */,
-				F1F1F1000000000000000068 /* ISO9660Mount.cpp */,
-				F1F1F1000000000000000069 /* Filesystem.cpp */,
-				F1F1F100000000000000012C /* FileHandle.hpp */,
-				F1F1F100000000000000012D /* IMount.hpp */,
-				F1F1F100000000000000012E /* Path.hpp */,
-				F1F1F100000000000000012F /* Filesystem.hpp */,
-				F1F1F1000000000000000130 /* SDLFileSource.hpp */,
-				F1F1F1000000000000000131 /* DirectoryMount.hpp */,
-				F1F1F1000000000000000132 /* LayeredMount.hpp */,
-				F1F1F1000000000000000133 /* ISO9660Mount.hpp */,
+				C0FFEE000000000000000053 /* formats */,
+				C0FFEE000000000000000054 /* providers */,
+				C0FFEE000000000000000055 /* vms */,
 			);
-			name = Filesystem;
+			name = modules;
 			sourceTree = "<group>";
 		};
-		F2F200000000000000000001 /* KatawaShoujo */ = {
+		C0FFEE000000000000000053 /* formats */ = {
 			isa = PBXGroup;
 			children = (
-				0D0C1CB68431A438687040FB /* main.cpp */,
+				C0FFEE000000000000000056 /* animation */,
+				C0FFEE000000000000000057 /* audio */,
+				C0FFEE000000000000000058 /* data */,
+				C0FFEE000000000000000059 /* image */,
 			);
-			name = KatawaShoujo;
+			name = formats;
 			sourceTree = "<group>";
 		};
-		F2F200000000000000000002 /* MEO */ = {
+		C0FFEE000000000000000056 /* animation */ = {
 			isa = PBXGroup;
 			children = (
-				3D216FD739A4CDADA245F32C /* main.cpp */,
+				C0FFEE00000000000000005A /* anm */,
 			);
-			name = MEO;
+			name = animation;
 			sourceTree = "<group>";
 		};
-		F2F200000000000000000003 /* PonscripterGame */ = {
+		C0FFEE00000000000000005A /* anm */ = {
 			isa = PBXGroup;
 			children = (
-				AFF3E2A6496DED8FA9ACD68D /* PonscripterRuntime.cpp */,
-				B83C082FC0962DAF7B1758AA /* main.cpp */,
+				C0FFEE00000000000000005B /* src */,
 			);
-			name = PonscripterGame;
+			name = anm;
 			sourceTree = "<group>";
 		};
-		F2F200000000000000000004 /* N2SystemGame */ = {
+		C0FFEE00000000000000005B /* src */ = {
 			isa = PBXGroup;
 			children = (
-				EF37725F3CC934BDF93D8B09 /* N2Runtime.cpp */,
-				4579E562C074033828A96F2B /* main.cpp */,
+				F20000000000000000000002 /* PackAnimation.cpp */,
 			);
-			name = N2SystemGame;
+			name = src;
 			sourceTree = "<group>";
 		};
-		F2F200000000000000000005 /* KatawaShoujo */ = {
+		C0FFEE000000000000000057 /* audio */ = {
 			isa = PBXGroup;
 			children = (
-				59CB01200926B11C8BE1B71D /* game-assets */,
+				C0FFEE00000000000000005C /* adpcm */,
+				C0FFEE00000000000000005D /* cri */,
+				C0FFEE00000000000000005E /* pcm-block */,
+				C0FFEE00000000000000005F /* smfd */,
+				C0FFEE000000000000000060 /* spu */,
 			);
-			name = KatawaShoujo;
+			name = audio;
 			sourceTree = "<group>";
 		};
-		F2F200000000000000000006 /* MEO */ = {
+		C0FFEE00000000000000005C /* adpcm */ = {
 			isa = PBXGroup;
 			children = (
-				933456486A0DCFC48D1015CB /* game-assets */,
+				C0FFEE000000000000000061 /* src */,
 			);
-			name = MEO;
+			name = adpcm;
 			sourceTree = "<group>";
 		};
-		F2F200000000000000000007 /* PonscripterGame */ = {
+		C0FFEE000000000000000061 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				E4140295E45357F3C459C8B3 /* game-assets */,
+				AA5500000000000000000003 /* Adpcm.cpp */,
+				F20000000000000000000003 /* PackAudio.cpp */,
 			);
-			name = PonscripterGame;
+			name = src;
 			sourceTree = "<group>";
 		};
-		F2F200000000000000000008 /* N2SystemGame */ = {
+		C0FFEE00000000000000005D /* cri */ = {
 			isa = PBXGroup;
 			children = (
-				3C5A9DABEDBC8EBC44761F06 /* game-assets */,
+				C0FFEE000000000000000062 /* src */,
 			);
-			name = N2SystemGame;
+			name = cri;
 			sourceTree = "<group>";
 		};
-		F2F200000000000000000009 /* ponscripter */ = {
+		C0FFEE000000000000000062 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				02244B9FBB75E4DC31E5ECB0 /* PonscripterAssets.cpp */,
+				591559879EB1EFB7028191A6 /* CriAudio.cpp */,
 			);
-			name = ponscripter;
+			name = src;
 			sourceTree = "<group>";
 		};
-		F2F20000000000000000000A /* n2 */ = {
+		C0FFEE00000000000000005E /* pcm-block */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000063 /* src */,
+			);
+			name = pcm-block;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000063 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				CE0187A630B160B400A74244 /* MeoAudio.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000005F /* smfd */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000064 /* src */,
+			);
+			name = smfd;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000064 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				AA5500000000000000000002 /* Smfd.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000060 /* spu */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000065 /* src */,
+			);
+			name = spu;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000065 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000058 /* data */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000066 /* psb */,
+			);
+			name = data;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000066 /* psb */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000067 /* src */,
+			);
+			name = psb;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000067 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				C7C700000000000000000006 /* PsbFile.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000059 /* image */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000068 /* crgb */,
+				C0FFEE000000000000000069 /* cz */,
+				C0FFEE00000000000000006A /* evd */,
+				C0FFEE00000000000000006B /* tex */,
+				C0FFEE00000000000000006C /* tim2 */,
+				C0FFEE00000000000000006D /* tlg */,
+				C0FFEE00000000000000006E /* ui-atlas */,
+			);
+			name = image;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000068 /* crgb */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000006F /* src */,
+			);
+			name = crgb;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000006F /* src */ = {
+			isa = PBXGroup;
+			children = (
+				9B1FAE38311087744DC53F36 /* LargePonPonCodecs.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000069 /* cz */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000070 /* src */,
+			);
+			name = cz;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000070 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				196840683DC0B0DF058B04D6 /* CzImage.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000006A /* evd */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000071 /* src */,
+			);
+			name = evd;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000071 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				F20000000000000000000001 /* PackImage.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000006B /* tex */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000072 /* src */,
+			);
+			name = tex;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000072 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				F30000000000000000000001 /* Codec.cpp */,
+				F30000000000000000000002 /* Images.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000006C /* tim2 */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000073 /* src */,
+			);
+			name = tim2;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000073 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				823AECB09BB754F38EE2E3F6 /* Ps2Tim2.cpp */,
+				C7C700000000000000000022 /* VitaGraphics.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000006D /* tlg */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000074 /* src */,
+			);
+			name = tlg;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000074 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				C7C70000000000000000000E /* Tlg6Image.cpp */,
+				C7C70000000000000000000A /* TlgImage.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000006E /* ui-atlas */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000075 /* src */,
+			);
+			name = ui-atlas;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000075 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				C7C70000000000000000002A /* VitaSystemGraphics.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000054 /* providers */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000076 /* adv */,
+				C0FFEE000000000000000077 /* amagami */,
+				C0FFEE000000000000000078 /* artemis */,
+				C0FFEE000000000000000079 /* cmp */,
+				C0FFEE00000000000000007A /* gpk */,
+				C0FFEE00000000000000007B /* n2 */,
+				C0FFEE00000000000000007C /* pak */,
+				C0FFEE00000000000000007D /* pmail */,
+				C0FFEE00000000000000007E /* ponscripter */,
+				C0FFEE00000000000000007F /* reallive */,
+				C0FFEE000000000000000080 /* rpa */,
+				C0FFEE000000000000000081 /* xp3 */,
+				C0FFEE000000000000000082 /* zero */,
+			);
+			name = providers;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000076 /* adv */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000083 /* src */,
+			);
+			name = adv;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000083 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				F20000000000000000000090 /* Pack.cpp */,
+				44878821F495891FD2362550 /* SnowAssets.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000077 /* amagami */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000084 /* src */,
+			);
+			name = amagami;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000084 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				288099B0D83BCE4D70C3C9DF /* Assets.cpp */,
+				C7C70000000000000000001E /* VitaCpk.cpp */,
+				C7C700000000000000000026 /* VitaGraphicsAssets.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000078 /* artemis */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000085 /* src */,
+			);
+			name = artemis;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000085 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				52B436660FBD0A9A81607EA5 /* ArtemisAssets.cpp */,
+				4852C5F0B15D0F71B3381F14 /* PfsArchive.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000079 /* cmp */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000086 /* src */,
+			);
+			name = cmp;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000086 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				AA5500000000000000000001 /* Pack.cpp */,
+				AC4B76E74D4407182235347D /* SummerAssets.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000007A /* gpk */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000087 /* src */,
+			);
+			name = gpk;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000087 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				45EDF70AF5BAB139AD8D47EA /* SchoolDaysAssetMount.cpp */,
+				404AC76CB983D414A589654F /* SchoolDaysAssets.cpp */,
+				BCA9A64DD44702C5B9B9668D /* SchoolDaysGpkArchive.cpp */,
+				F2D426AE20CF319F1A184611 /* SchoolDaysGpkIndex.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000007B /* n2 */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000088 /* src */,
+			);
+			name = n2;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000088 /* src */ = {
 			isa = PBXGroup;
 			children = (
 				3E6AB84CE0219CD8D488E0F1 /* Archive.cpp */,
 				D3683F089CA573ACAEA3AE74 /* N2ArchiveAssets.cpp */,
 			);
-			name = n2;
+			name = src;
 			sourceTree = "<group>";
 		};
-		F2F20000000000000000000B /* ponscripter */ = {
+		C0FFEE00000000000000007C /* pak */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000089 /* src */,
+			);
+			name = pak;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000089 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				36AB3541375B3CA51CECE3A9 /* LucaSystemAssets.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000007D /* pmail */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000008A /* src */,
+			);
+			name = pmail;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000008A /* src */ = {
+			isa = PBXGroup;
+			children = (
+				ABB4CA81D50B8F5EDE127C05 /* GcPack.cpp */,
+				E2DFFD704E9B5292C2D3F42A /* LargePonPonAssets.cpp */,
+				A22FC35904554B40EEB8BF84 /* PmailAssets.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000007E /* ponscripter */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000008B /* src */,
+			);
+			name = ponscripter;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000008B /* src */ = {
+			isa = PBXGroup;
+			children = (
+				02244B9FBB75E4DC31E5ECB0 /* PonscripterAssets.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000007F /* reallive */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000008C /* src */,
+			);
+			name = reallive;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000008C /* src */ = {
+			isa = PBXGroup;
+			children = (
+				226C941B21C1F85269ADD270 /* RealLiveAssets.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000080 /* rpa */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000008D /* src */,
+			);
+			name = rpa;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000008D /* src */ = {
+			isa = PBXGroup;
+			children = (
+				DC4ED3DFF3AB6D211D5F95B6 /* DdlcAssets.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000081 /* xp3 */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000008E /* src */,
+			);
+			name = xp3;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000008E /* src */ = {
+			isa = PBXGroup;
+			children = (
+				59F397CB2CDBECCF07A600C2 /* KirikiriAssets.cpp */,
+				C7C700000000000000000012 /* TjsBootstrap.cpp */,
+				7372E52FDC89DC2EFB26BE7F /* Xp3Archive.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000082 /* zero */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000008F /* src */,
+			);
+			name = zero;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000008F /* src */ = {
+			isa = PBXGroup;
+			children = (
+				3AA271E48E3E6DCF85B61089 /* DiscAssetProvider.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000055 /* vms */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000000090 /* amagami */,
+				C0FFEE000000000000000091 /* artemis */,
+				C0FFEE000000000000000092 /* kag */,
+				C0FFEE000000000000000093 /* meo */,
+				C0FFEE000000000000000094 /* n2system */,
+				C0FFEE000000000000000095 /* pmail */,
+				C0FFEE000000000000000096 /* ponscripter */,
+				C0FFEE000000000000000097 /* reallive */,
+				C0FFEE000000000000000098 /* renpy */,
+				C0FFEE000000000000000099 /* snow-radish */,
+				C0FFEE00000000000000009A /* summer-radish */,
+				C0FFEE00000000000000009B /* tjs2 */,
+			);
+			name = vms;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000090 /* amagami */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000009C /* src */,
+			);
+			name = amagami;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000009C /* src */ = {
+			isa = PBXGroup;
+			children = (
+				1A071AD9D4D49D8DA6B2D9D2 /* Vm.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000091 /* artemis */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000009D /* src */,
+			);
+			name = artemis;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000009D /* src */ = {
+			isa = PBXGroup;
+			children = (
+				38261586909F755BA397E538 /* ArtemisVm.cpp */,
+				5A00C0BECB5BC6506CEA1223 /* AstParser.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000092 /* kag */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000009E /* src */,
+			);
+			name = kag;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000009E /* src */ = {
+			isa = PBXGroup;
+			children = (
+				514EC6ADE8BF32609E55E456 /* KagScript.cpp */,
+				C7C700000000000000000016 /* ScnRunner.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000093 /* meo */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000000009F /* src */,
+			);
+			name = meo;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000009F /* src */ = {
+			isa = PBXGroup;
+			children = (
+				7844705E0B00AF60488FA150 /* TimelineParser.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000094 /* n2system */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE0000000000000000A0 /* src */,
+			);
+			name = n2system;
+			sourceTree = "<group>";
+		};
+		C0FFEE0000000000000000A0 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				798D22DEAD1C84C7184A5A1B /* AudioSystem.cpp */,
+				CE0187B530B1613A00A74244 /* DebugCatalog.cpp */,
+				8361BEA245B3AD0E420B0FBF /* DialogueSystem.cpp */,
+				248EF79FD78FF46D9075D278 /* NsbScript.cpp */,
+				CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */,
+				177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */,
+				C8048E50DB6AEBB3E39E5A74 /* SaveState.cpp */,
+				2A3CD07849C395B9908654AE /* SceneGraph.cpp */,
+				498217BFCCA8F59BCAC414E4 /* ScriptExecutor.cpp */,
+				F7684BA2CC0FEC25FB9CE283 /* ScriptIndex.cpp */,
+				A039740292658EB792C886C9 /* ScriptVm.cpp */,
+				26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000095 /* pmail */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE0000000000000000A1 /* src */,
+			);
+			name = pmail;
+			sourceTree = "<group>";
+		};
+		C0FFEE0000000000000000A1 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				CF118C84F3AA495CD78BBE9D /* LargePonPonVm.cpp */,
+				A22002F273400D20C622C670 /* Vm.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000000096 /* ponscripter */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE0000000000000000A2 /* src */,
+			);
+			name = ponscripter;
+			sourceTree = "<group>";
+		};
+		C0FFEE0000000000000000A2 /* src */ = {
 			isa = PBXGroup;
 			children = (
 				841482B61A864B4EB85E0977 /* Archive.cpp */,
@@ -4252,80 +4858,90 @@
 				2546EE42B786DD73AB620B7E /* TextFormatter.cpp */,
 				F7A7B3492CE48639D7D84CBD /* VariableStore.cpp */,
 			);
-			name = ponscripter;
+			name = src;
 			sourceTree = "<group>";
 		};
-		F2F20000000000000000000C /* n2system */ = {
+		C0FFEE000000000000000097 /* reallive */ = {
 			isa = PBXGroup;
 			children = (
-				798D22DEAD1C84C7184A5A1B /* AudioSystem.cpp */,
-				8361BEA245B3AD0E420B0FBF /* DialogueSystem.cpp */,
-				C8048E50DB6AEBB3E39E5A74 /* SaveState.cpp */,
-				2A3CD07849C395B9908654AE /* SceneGraph.cpp */,
-				177DB5DCB6BAFD1EC49FFB6B /* NsbVm.cpp */,
-				248EF79FD78FF46D9075D278 /* NsbScript.cpp */,
-				498217BFCCA8F59BCAC414E4 /* ScriptExecutor.cpp */,
-				F7684BA2CC0FEC25FB9CE283 /* ScriptIndex.cpp */,
-				A039740292658EB792C886C9 /* ScriptVm.cpp */,
-				26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */,
-				CE0187B530B1613A00A74244 /* DebugCatalog.cpp */,
-				CECBF67430B340B1007CF3B9 /* NsbSnapshot.cpp */,
+				C0FFEE0000000000000000A3 /* src */,
 			);
-			name = n2system;
+			name = reallive;
 			sourceTree = "<group>";
 		};
-		F6FF3729C4502D04661B73B6 /* cmp */ = {
+		C0FFEE0000000000000000A3 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				F30000000000000000000001 /* Codec.cpp */,
-				F30000000000000000000002 /* Images.cpp */,
-				AC4B76E74D4407182235347D /* SummerAssets.cpp */,
-				CE0187A630B160B400A74244 /* MeoAudio.cpp */,
-				AA5500000000000000000001 /* Pack.cpp */,
+				C7393DCCC9970E48C7D54966 /* Session.cpp */,
 			);
-			name = cmp;
+			name = src;
 			sourceTree = "<group>";
 		};
-		F7D680C2350DD145D98BAF3F /* Build Scripts */ = {
+		C0FFEE000000000000000098 /* renpy */ = {
 			isa = PBXGroup;
 			children = (
-				D3DE05974DAEB199FF71D6C5 /* ConfigureMacOSIcon.sh */,
-				3F5B047F1B80A04FBE672AE4 /* EmbedDokiDokiPython.sh */,
-				C327919824D2D650ED44A512 /* EmbedSDLFrameworks.sh */,
+				C0FFEE0000000000000000A4 /* src */,
 			);
-			name = "Build Scripts";
+			name = renpy;
 			sourceTree = "<group>";
 		};
-		F957BD182A291DA508FB9879 /* RealLive */ = {
+		C0FFEE0000000000000000A4 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				4CE1F4D785BE4E86F9EC8239 /* vendor */,
-				FF242C49F26C09A041D6631C /* Config.cpp */,
-				BEE8A43B97669A7DAA56299B /* Images.cpp */,
-				6CCEEC7CC335B1CBE767AEBA /* RealLiveRuntime.cpp */,
-				60D5B6274B9869891928D08D /* Script.cpp */,
-				93BD379D29100188F3773D8F /* System.cpp */,
-				60FF7E28B850F9BF1AE57DC2 /* Voice.cpp */,
-				55DDE3D25C2E19533CB2474A /* main.cpp */,
+				FC2BC0CC5C1C4CDAE4E355A5 /* Python.cpp */,
+				C8C800000000000000000009 /* PythonDummy.cpp */,
+				E94739250EC5458B6C11E2B1 /* Vm.cpp */,
 			);
-			name = RealLive;
+			name = src;
 			sourceTree = "<group>";
 		};
-		A37E0000000000000000001C /* ArtemisGame */ = {
+		C0FFEE000000000000000099 /* snow-radish */ = {
 			isa = PBXGroup;
 			children = (
-				A37E0000000000000000002E /* main.cpp */,
-				A37E0000000000000000002F /* ArtemisUi.cpp */,
+				C0FFEE0000000000000000A5 /* src */,
 			);
-			name = ArtemisGame;
+			name = snow-radish;
 			sourceTree = "<group>";
 		};
-		A37E0000000000000000001D /* ArtemisGame */ = {
+		C0FFEE0000000000000000A5 /* src */ = {
 			isa = PBXGroup;
 			children = (
-				A37E00000000000000000030 /* game-assets */,
+				6FE8923635C71B59FC1168B1 /* Vm.cpp */,
 			);
-			name = ArtemisGame;
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000009A /* summer-radish */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE0000000000000000A6 /* src */,
+			);
+			name = summer-radish;
+			sourceTree = "<group>";
+		};
+		C0FFEE0000000000000000A6 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */,
+				958F20C6564ED0D6B805C3A9 /* Script.cpp */,
+			);
+			name = src;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000000009B /* tjs2 */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE0000000000000000A7 /* src */,
+			);
+			name = tjs2;
+			sourceTree = "<group>";
+		};
+		C0FFEE0000000000000000A7 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				C7C70000000000000000001A /* TjsStartupVm.cpp */,
+			);
+			name = src;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -10056,6 +10672,7 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				KOTONOHA_DISPLAY_NAME = "$(PRODUCT_NAME)";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_OPTIMIZATION_LEVEL = 3;
 				ONLY_ACTIVE_ARCH = NO;
@@ -10141,6 +10758,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
+				KOTONOHA_DISPLAY_NAME = Kotonoha;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = launcher;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
@@ -10163,6 +10781,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
+				KOTONOHA_DISPLAY_NAME = Kotonoha;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = launcher;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
@@ -10395,6 +11014,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
+				KOTONOHA_DISPLAY_NAME = Kotonoha;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = launcher;
@@ -10419,6 +11039,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
+				KOTONOHA_DISPLAY_NAME = Kotonoha;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				KOTONOHA_GAME_DIR = launcher;
@@ -10462,6 +11083,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_TESTABILITY = YES;
+				KOTONOHA_DISPLAY_NAME = "$(PRODUCT_NAME)";
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (

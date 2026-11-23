@@ -84,14 +84,18 @@ def games = [
   launcher      : ['all', 'KotonohaLauncher', 'me.hirameki.kotonoha.launcher', 'Kotonoha Launcher']
 ]
 
-// Shared Material 3 launcher artwork is generated, never maintained per flavor.
-def brandOutput = layout.buildDirectory.dir('generated/kotonoha-brand')
+// Shared Material 3 launcher artwork lives in the versioned design/generated/
+// source of truth. Gradle only imports it into res/; it never packages the
+// design/ folder as a generic asset and never generates into a build dir.
+def brandOutput = new File(engineRoot, 'design/generated')
 def generateBranding = tasks.register('generateKotonohaBranding', Exec) {
   def generator = new File(engineRoot, 'tools/generate_brand_assets.py')
   inputs.file(generator)
-  outputs.dir(brandOutput)
+  // Declare one concrete output instead of outputs.dir(): design/ files are
+  // versioned and must never be removed by a Gradle clean.
+  outputs.file(new File(brandOutput, 'android/res/mipmap-mdpi/ic_launcher.png'))
   commandLine providers.environmentVariable('PYTHON').orElse('python3').get(),
-    generator.absolutePath, '--kind', 'android', '--out', brandOutput.get().asFile.absolutePath
+    generator.absolutePath, '--kind', 'android', '--out', brandOutput.absolutePath
 }
 tasks.matching { it.name == 'preBuild' ||
   (it.name.startsWith('merge') && it.name.endsWith('Resources')) }.configureEach {
@@ -206,8 +210,8 @@ android {
   sourceSets {
     main {
       java.srcDirs += sdlJavaRoot
-      // Generated adaptive icons and density fallbacks for all product flavors.
-      res.srcDir new File(buildDir, 'generated/kotonoha-brand/android/res')
+      // Adaptive icons and density fallbacks imported from design/generated/.
+      res.srcDir new File(brandOutput, 'android/res')
     }
   }
 
@@ -249,7 +253,9 @@ android.applicationVariants.all { variant ->
       exclude 'SPLASH.PNG' // Replaced by the generated universal black splash.
       into 'assets'
     }
-    from(brandOutput.map { new File(it.asFile, 'splash/SPLASH.PNG') }) {
+    // Only the universal engine splash is staged as an asset; icons stay in
+    // res/ and the rest of design/ is never packaged.
+    from(new File(brandOutput, 'splash/SPLASH.PNG')) {
       into 'assets'
     }
     // Keep license and attribution notices with every distributable APK.

@@ -1007,7 +1007,7 @@ formatDiscoveredGamesReport(const std::vector<DiscoveredGameEntry> &entries,
 UnifiedLauncher::UnifiedLauncher(std::string settingsPath,
                                  std::string initialLibraryPath,
                                  Kotonoha::EngineSettings defaults)
-    : Launcher("KotonohaLauncher — Unified Multi-Engine Hub", settingsPath,
+    : Launcher("Kotonoha", settingsPath,
                std::move(defaults)) {
   if (!settingsPath.empty()) {
     const fs::path parent = fs::path(settingsPath).parent_path();
