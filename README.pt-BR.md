@@ -23,6 +23,7 @@ Para usar o vcpkg explicitamente, acrescente `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROO
 ## Documentação
 
 - **[Índice da documentação](docs/README.pt-BR.md)** — guias e plataformas.
+- **[Carta de estilo e identidade visual](assets/branding/README.md)** — K oficial, splash, paleta, temas e geração de ícones por plataforma.
 - **[Guias de compilação](docs/BUILD_GUIDES.pt-BR.md)** — desktop, Android, iOS, macOS e WebAssembly.
 - **[CI e vcpkg](docs/CI_VCPKG.md)** — Linux/WASM no mesmo runner, artefatos e política de cache.
 - **[Ports de jogos](games/README.pt-BR.md)** — módulos, limitações e instruções específicas.

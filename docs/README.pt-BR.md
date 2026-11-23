@@ -6,6 +6,7 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 
 | Assunto | Guia |
 | --- | --- |
+| Identidade visual | [Carta de estilo oficial](../assets/branding/README.md) |
 | Compilação | [Guias de compilação](BUILD_GUIDES.pt-BR.md) |
 | Android | [Android](BUILD_ANDROID.pt-BR.md) · [Gradle](../buildsystems/android/README.pt-BR.md) |
 | Apple | [macOS](BUILD_MACOS.pt-BR.md) · [iOS](BUILD_IOS.pt-BR.md) · [Xcode](../buildsystems/xcode/README.pt-BR.md) |
