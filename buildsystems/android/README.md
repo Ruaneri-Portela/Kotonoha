@@ -8,14 +8,14 @@ Open this folder in Android Studio. Required: **JDK 17**, Android **SDK 36**, **
 export VCPKG_ROOT=/path/to/vcpkg
 ./gradlew :app:assembleExampleDebug
 ./gradlew :app:assembleDokiDokiDebug -Pabis=arm64-v8a
-./gradlew :app:assembleSchoolDaysDebug -Pabis=arm64-v8a
+./gradlew :app:assembleSchoolDaysDebug -Pabis=armeabi-v7a -PbundleGameAssets=false
 ```
 
 Run commands from `buildsystems/android/` (PowerShell: set `$env:VCPKG_ROOT` and use `.\gradlew.bat`). Other flavors include `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `RealLive`, `Kirikiri`, `LucaSystem`, and `Pmail`.
 
-- APKs are written under `app/build/outputs/apk/`. Default ABIs: `arm64-v8a,x86_64`; use `-Pabis=...` to restrict them.
+- APKs are written under `app/build/outputs/apk/`. Default ABIs: `arm64-v8a,armeabi-v7a,x86_64`; use `-Pabis=armeabi-v7a` for ARMv7-only or `-Pabis=arm64-v8a` for ARM64-only APKs. ARMv7 requires NEON (`ANDROID_ARM_NEON=ON`, vcpkg `arm-neon-android`), so the device must support NEON.
 - Each flavor has its own application ID; the root CMake selects only that game's native target.
-- Gradle uses the SDL submodule and vcpkg for native dependencies. DDLC's CPython dependencies have an ABI-specific installation directory; prefer a single ABI for DDLC builds.
+- Gradle uses the SDL submodule and vcpkg for native dependencies. DDLC's CPython dependencies have an ABI-specific installation directory (`armeabi-v7a` uses `arm-neon-android`); prefer a single ABI for DDLC builds.
 - Gradle bundles engine `assets/` and the selected game's `game-assets/`; `-PbundleGameAssets=false` excludes commercial game data. Packaged resources are extracted on startup and saves stay separate.
 - Do not launch concurrent Gradle invocations that compete for the same `.cxx` directory.
 

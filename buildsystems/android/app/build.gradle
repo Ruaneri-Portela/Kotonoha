@@ -53,11 +53,12 @@ def includeGameAssets = providers.gradleProperty('bundleGameAssets')
   .orElse('true').get().toBoolean()
 
 def rawAbis = providers.gradleProperty('abis')
-  .orElse('arm64-v8a,x86_64').get().split(',').toList()
+  .orElse('arm64-v8a,armeabi-v7a,x86_64').get().split(',').toList()
 
 def abis = rawAbis.collect { abi ->
   def cleanAbi = abi.trim().toLowerCase(Locale.ROOT)
   if (cleanAbi == 'arm64' || cleanAbi == 'aarch64') return 'arm64-v8a'
+  if (cleanAbi in ['armv7', 'armv7a', 'arm-neon', 'arm-neon-android']) return 'armeabi-v7a'
   if (cleanAbi == 'amd64' || cleanAbi == 'x64') return 'x86_64'
   return cleanAbi
 }.unique()
@@ -109,6 +110,8 @@ android {
           // Keep SDL3, SDL3_ttf and ImGui from their checked-out submodules.
           '-DKOTONOHA_SDL_FROM_VCPKG=OFF',
           '-DKOTONOHA_IMGUI_FROM_VCPKG=OFF',
+          // The ARMv7 NDK build and its vcpkg dependencies must both use NEON.
+          '-DANDROID_ARM_NEON=ON',
           '-DANDROID_STL=c++_shared'
       }
     }
@@ -384,7 +387,7 @@ android.applicationVariants.all { variant ->
             'arm64-v8a': 'arm64-android',
             'x86_64'   : 'x64-android',
             'x86'      : 'x86-android',
-            'armeabi-v7a': 'arm-android'
+            'armeabi-v7a': 'arm-neon-android'
           ][abi]
 
           if (triplet != null) {
