@@ -1380,6 +1380,12 @@
 		FFBA4A0F4CBB3C0FF9662E59 /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
 		E8A000000000000000000030 /* CzImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 196840683DC0B0DF058B04D6 /* CzImage.cpp */; };
 		E8A000000000000000000031 /* LucaSystemAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 36AB3541375B3CA51CECE3A9 /* LucaSystemAssets.cpp */; };
+		3019480E18F79CC5C79C5230 /* DubbingOverlay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2EF2FF17DDC2EF7B54594909 /* DubbingOverlay.cpp */; };
+		0CF181B9E0BE0CEA461EB03E /* DubbingOverlay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2EF2FF17DDC2EF7B54594909 /* DubbingOverlay.cpp */; };
+		B5BA432A7949CDCEA45D697E /* DocumentMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C66D4A7F7155B146D1EC6757 /* DocumentMount.cpp */; };
+		D20D0899C5E814EFC1DFDD8C /* DocumentMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C66D4A7F7155B146D1EC6757 /* DocumentMount.cpp */; };
+		080F540815FA31C5E6C727AB /* StartupStage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 02659DE8B6EE867EB1DF8BA6 /* StartupStage.cpp */; };
+		00A84D7790C292B992F8DBB4 /* StartupStage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 02659DE8B6EE867EB1DF8BA6 /* StartupStage.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -2660,6 +2666,9 @@
 		FF242C49F26C09A041D6631C /* Config.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Config.cpp; path = ../../games/reallive/src/Config.cpp; sourceTree = SOURCE_ROOT; };
 		FF43CE57F88486C6645207F5 /* SchoolDaysMenuBarPresenter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysMenuBarPresenter.cpp; path = "../../games/school-days/src/SchoolDaysMenuBarPresenter.cpp"; sourceTree = SOURCE_ROOT; };
 		FFB62FA9D91BB0AE5ADD83BC /* PonscripterGame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PonscripterGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2EF2FF17DDC2EF7B54594909 /* DubbingOverlay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DubbingOverlay.cpp; path = ../../lib/src/debug/DubbingOverlay.cpp; sourceTree = SOURCE_ROOT; };
+		C66D4A7F7155B146D1EC6757 /* DocumentMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DocumentMount.cpp; path = ../../lib/src/mobile/DocumentMount.cpp; sourceTree = SOURCE_ROOT; };
+		02659DE8B6EE867EB1DF8BA6 /* StartupStage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StartupStage.cpp; path = ../../lib/src/mobile/StartupStage.cpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -3260,6 +3269,7 @@
 			isa = PBXGroup;
 			children = (
 				D31A702A792A5505E0A79948 /* DebugOverlay.cpp */,
+				2EF2FF17DDC2EF7B54594909 /* DubbingOverlay.cpp */,
 				F1F1F100000000000000008E /* SystemInfo.cpp */,
 				F1F1F1000000000000000156 /* SystemInfo.hpp */,
 				5333ECFD929586DA073BF639 /* ImGuiTheme.cpp */,
@@ -3571,6 +3581,8 @@
 			isa = PBXGroup;
 			children = (
 				18A81A34E8C7B94A1F557290 /* AndroidDisplay.cpp */,
+				C66D4A7F7155B146D1EC6757 /* DocumentMount.cpp */,
+				02659DE8B6EE867EB1DF8BA6 /* StartupStage.cpp */,
 			);
 			name = mobile;
 			sourceTree = "<group>";
@@ -7335,6 +7347,9 @@
 				944D8937A0125B994947C6C6 /* GameMenu.cpp in Sources */,
 				5A61A3975BEE6B4802F6275A /* SplashScreen.cpp in Sources */,
 				798DD42F39B27B5CDE0365A7 /* AndroidDisplay.cpp in Sources */,
+				3019480E18F79CC5C79C5230 /* DubbingOverlay.cpp in Sources */,
+				B5BA432A7949CDCEA45D697E /* DocumentMount.cpp in Sources */,
+				080F540815FA31C5E6C727AB /* StartupStage.cpp in Sources */,
 				C0E7353BF2F3F875AD3A3397 /* KtrfRouter.cpp in Sources */,
 				9558E0A8CF0F436A00311435 /* KtrfRuntime.cpp in Sources */,
 				DF0C539DA00A437951F7CB63 /* KtrfAdapter.cpp in Sources */,
@@ -7537,6 +7552,9 @@
 				006067031992234D2BCCB4A0 /* GameMenu.cpp in Sources */,
 				CA4D4A1637B623345B9AFE81 /* SplashScreen.cpp in Sources */,
 				D31251C67A040635B0F47E85 /* AndroidDisplay.cpp in Sources */,
+				0CF181B9E0BE0CEA461EB03E /* DubbingOverlay.cpp in Sources */,
+				D20D0899C5E814EFC1DFDD8C /* DocumentMount.cpp in Sources */,
+				00A84D7790C292B992F8DBB4 /* StartupStage.cpp in Sources */,
 				2E4CA11973A08C07F823F4E7 /* KtrfRouter.cpp in Sources */,
 				BB57C77D69734A293012B9B5 /* KtrfRuntime.cpp in Sources */,
 				504F71AB09E7E9F62C12236B /* KtrfAdapter.cpp in Sources */,
