@@ -10,14 +10,15 @@ add_test(NAME Kotonoha.Demo COMMAND KotonohaDemoTests)
 set_tests_properties(Kotonoha.Demo PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 # The demo test runs from its own executable directory, not the Kotonoha
-# game's packaged asset directory. Stage the tracked splash and the real
-# engine font; a test-only SVG font has no Latin glyphs and must not replace
-# the default font shared by every test binary.
+# game's packaged asset directory. Stage the generated splash from the
+# versioned brand source and the real engine font; a test-only SVG font has
+# no Latin glyphs and must not replace the default font shared by every test
+# binary.
 add_custom_command(TARGET KotonohaDemoTests POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E make_directory
         "$<TARGET_FILE_DIR:KotonohaDemoTests>/assets/fonts"
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-        "${KOTONOHA_PROJECT_ROOT}/assets/SPLASH.PNG"
+        "${KOTONOHA_BRAND_OUTPUT}/splash/SPLASH.PNG"
         "$<TARGET_FILE_DIR:KotonohaDemoTests>/assets/SPLASH.PNG"
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different
         "${KOTONOHA_PROJECT_ROOT}/assets/fonts/NotoSansJP-Regular.ttf"

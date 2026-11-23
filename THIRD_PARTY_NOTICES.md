@@ -61,8 +61,10 @@ every Kotonoha implementation was **not fully established** by this audit.
 
 ## Material requiring provenance confirmation
 
-- `assets/SPLASH.PNG`, `assets/icon.icns`, `assets/icon.ico`: owner/source
-  and redistribution authorization should be recorded before a public release.
+- Splash and platform icons are generated into `design/generated/` by
+  `tools/generate_brand_assets.py` from `design/tokens.json`. Their source is
+  in-repo, so the former `assets/SPLASH.PNG` / `assets/icon.*` provenance
+  review no longer applies; those legacy binaries are being removed.
 - `lib/tests/fixtures/SvgTestFont.ttf`: test-only font; origin and embedding
   permission still need to be recorded. Do not copy it into a player bundle.
 - Synthetic game test fixtures should remain traceable to their generators;
