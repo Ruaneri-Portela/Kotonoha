@@ -69,6 +69,25 @@ The CI only runs synthetic tests, including `Pmail.Expression32`,
 retail-only route auditor reports missing objects and unimplemented native
 commands as failures; this does not imply any ending is already verified.
 
+## Large PonPon retail gate
+
+`Pmail.LargePonPon.Retail` is labelled `real` and is always registered, but
+returns 77 (CTest "Skipped") until a retail directory is supplied via
+`LARGEPONPON_TEST_DATA`. The test mounts `PACK/script.dat`, `PACK/GRAPHIC.DAT`
+and `PACK/SOUND.DAT`, decodes real graphics and audio, and boots the runtime
+headlessly from the title screen into the opening dialogue. The game directory
+is only ever read.
+
+```sh
+cmake -S . -B build -DBUILD_TESTING=ON -DKOTONOHA_BUILD_PMAIL=ON \
+  -DLARGEPONPON_TEST_DATA=/path/to/LargePonPon
+cmake --build build --target LargePonPonCheck
+ctest --test-dir build -R '^Pmail\.LargePonPon' --output-on-failure
+```
+
+Without the gate the same CTest command still runs the synthetic
+`Pmail.LargePonPon` test and reports the retail test as skipped.
+
 
 ## Detailed research
 
