@@ -141,6 +141,12 @@ arm64-only `libunibreak.pc` out of the x86_64 libass build even when vcpkg is
 invoked automatically by the CMake toolchain during `cmake --preset
 macos-amd64-vcpkg`.
 
+`BundleApp.cmake` stages both `Python.framework` and `Python3.framework` as real
+framework bundles, prunes the nested `Python.app` helper, and rewrites the
+embedded runtime dependency to `@executable_path/../Frameworks/...`. If a stale
+build still fails with `verify_app failed` or `Could not ad-hoc sign`, delete
+only `out/build/macos-amd64-vcpkg/outputs/<App>.app` and rebuild.
+
 ## Xcode
 
 ```sh
