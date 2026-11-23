@@ -145,6 +145,10 @@ add_test(NAME Kotonoha.Launcher COMMAND KotonohaLauncherTests)
 set_tests_properties(Kotonoha.Launcher PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
+add_executable(KotonohaLauncherLocaleTests LauncherLocaleTests.cpp)
+target_link_libraries(KotonohaLauncherLocaleTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.LauncherLocale COMMAND KotonohaLauncherLocaleTests)
+
 add_executable(KotonohaPresentationTests PresentationTests.cpp)
 target_link_libraries(KotonohaPresentationTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.Presentation COMMAND KotonohaPresentationTests)

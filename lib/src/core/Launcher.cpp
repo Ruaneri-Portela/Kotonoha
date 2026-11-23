@@ -38,11 +38,6 @@ struct Launcher::Dialog {
 };
 
 namespace {
-constexpr const char *Modes[]{"Windowed", "Borderless fullscreen",
-                              "Exclusive fullscreen"};
-
-constexpr const char *Priorities[]{"Trace",   "Verbose", "Debug",   "Info",
-                                   "Warning", "Error",   "Critical"};
 constexpr std::pair<int, int> Resolutions[]{
     {1280, 720}, {1600, 900}, {1920, 1080}, {2560, 1440}, {3840, 2160}};
 
@@ -99,6 +94,17 @@ void Launcher::open() {
   if (!SDL_InitSubSystem(SDL_INIT_VIDEO))
     throw std::runtime_error(SDL_GetError());
   videoInitialized = true;
+  // SDL provides the platform locale without changing engine/game language.
+  int localeCount = 0;
+  SDL_Locale **preferred = SDL_GetPreferredLocales(&localeCount);
+  auto systemLocale = LauncherLocale::Language::English;
+  if (preferred && localeCount > 0 && preferred[0]) {
+    systemLocale = LauncherLocale::systemLanguage(
+        preferred[0]->language ? preferred[0]->language : "",
+        preferred[0]->country ? preferred[0]->country : "");
+  }
+  SDL_free(preferred);
+  uiLanguage = LauncherLocale::load(settingsPath, systemLocale);
   if (SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
     gamepadInitialized = true;
     gamepadManager.openConnected();
@@ -211,6 +217,22 @@ void Launcher::setAudioChannels(std::vector<std::string> names) {
 EngineSettings &Launcher::settings() { return draft; }
 const std::string &Launcher::getSettingsPath() const { return settingsPath; }
 const std::string &Launcher::getStatus() const { return status; }
+LauncherLocale::Language Launcher::interfaceLanguage() const {
+  return uiLanguage;
+}
+void Launcher::setInterfaceLanguage(LauncherLocale::Language language) {
+  if (uiLanguage == language)
+    return;
+  try {
+    LauncherLocale::save(settingsPath, language);
+    uiLanguage = language;
+  } catch (const std::exception &error) {
+    setStatus(std::string("Cannot save launcher language: ") + error.what(), true);
+  }
+}
+const char *Launcher::tr(const char *english) const {
+  return LauncherLocale::text(uiLanguage, english);
+}
 void Launcher::quit() { current = State::Quit; }
 
 void Launcher::drawGameOptions() {}
@@ -270,8 +292,17 @@ bool Launcher::launch() {
       setStatus(error.empty() ? "Invalid settings" : error, true);
       return false;
     }
-    if (!settingsPath.empty())
+    if (!settingsPath.empty()) {
       draft.save(settingsPath);
+      // Persist the system-chosen language on first launch too, so it doesn't
+      // silently revert to English after settings.json has been created.
+      try {
+        LauncherLocale::save(settingsPath, uiLanguage);
+      } catch (const std::exception &error) {
+        SDL_LogWarn(LogConfig, "Launcher language preference: %s",
+                    error.what());
+      }
+    }
     save();
   } catch (const std::exception &error) {
     setStatus(error.what(), true);
@@ -471,7 +502,7 @@ void Launcher::draw() {
     ImGui::TextColored(ImGuiTheme::accent(), "%s", title.c_str());
     ImGui::PopFont();
     ImGui::TextDisabled("%s", settingsPath.empty()
-                                  ? "Settings will not be saved"
+                                  ? tr("Settings will not be saved")
                                   : settingsPath.c_str());
     ImGui::TextDisabled("Engine %s  |  Commit %s", BuildVersion::Base,
                         BuildVersion::ShortCommit);
@@ -483,26 +514,26 @@ void Launcher::draw() {
          std::max(ImGui::GetCursorScreenPos().y, origin.y + band) +
              10 * contentScale});
   }
-  const float footer = ImGui::GetFrameHeightWithSpacing() * 2.5f;
+  const float footer = ImGui::GetFrameHeightWithSpacing() * 3.5f;
   ImGui::BeginChild("##options", {0, -footer});
   if (ImGui::BeginTabBar("##tabs")) {
-    if (ImGui::BeginTabItem("Game")) {
+    if (ImGui::BeginTabItem(tr("Game"))) {
       drawGameOptions();
-      ImGuiTheme::sectionHeader("Asset overlay");
+      ImGuiTheme::sectionHeader(tr("Asset overlay"));
       // The text input holds the absolute path. When confirmed it is stored as
       // a (name -> absolute path) pair; the display always shows the absolute
       // path. The persisted absolute is tried first, otherwise the name is
       // resolved through the standard overlay folder search.
-      if (ImGui::InputText("Overlay folder", &draft.assetOverlayPath,
+      if (ImGui::InputText(tr("Overlay folder"), &draft.assetOverlayPath,
                            ImGuiInputTextFlags_EnterReturnsTrue) ||
           !ImGui::IsItemActive())
         selectOverlayFolder(draft.assetOverlayPath);
-      if (ImGui::Button("Browse overlay..."))
+      if (ImGui::Button(tr("Browse overlay...")))
         browseFolder(draft.assetOverlayPath, [this](const std::string &path) {
           selectOverlayFolder(path);
         });
       ImGui::SameLine();
-      if (ImGui::Button("Automatic overlay")) {
+      if (ImGui::Button(tr("Automatic overlay"))) {
         draft.assetOverlayPath.clear();
         draft.assetOverlayName.clear();
         checkOverlay(true);
@@ -517,23 +548,23 @@ void Launcher::draw() {
 
       ImGui::EndTabItem();
     }
-    if (ImGui::BeginTabItem("Video")) {
+    if (ImGui::BeginTabItem(tr("Video"))) {
       drawVideo();
       ImGui::EndTabItem();
     }
-    if (ImGui::BeginTabItem("Upscaling")) {
+    if (ImGui::BeginTabItem(tr("Upscaling"))) {
       drawUpscaling();
       ImGui::EndTabItem();
     }
-    if (ImGui::BeginTabItem("Translation")) {
+    if (ImGui::BeginTabItem(tr("Translation"))) {
       drawTranslation();
       ImGui::EndTabItem();
     }
-    if (ImGui::BeginTabItem("System info")) {
+    if (ImGui::BeginTabItem(tr("System info"))) {
       drawSystemInfoPanel(window.get(), renderer.get());
       ImGui::EndTabItem();
     }
-    if (ImGui::BeginTabItem("Advanced")) {
+    if (ImGui::BeginTabItem(tr("Advanced"))) {
       drawAdvanced();
       ImGui::EndTabItem();
     }
@@ -541,19 +572,38 @@ void Launcher::draw() {
   }
   ImGui::EndChild();
   ImGui::Separator();
+  // Native names stay recognizable even when the current UI is unfamiliar.
+  ImGui::TextUnformatted(tr("Interface language"));
+  ImGui::SameLine();
+  ImGui::SetNextItemWidth(175 * contentScale);
+  if (ImGui::BeginCombo("##launcher-interface-language",
+                        LauncherLocale::nativeName(uiLanguage))) {
+    for (auto language : {LauncherLocale::Language::English,
+                          LauncherLocale::Language::PortugueseBrazil,
+                          LauncherLocale::Language::Spanish,
+                          LauncherLocale::Language::Russian,
+                          LauncherLocale::Language::Chinese}) {
+      const bool selected = uiLanguage == language;
+      if (ImGui::Selectable(LauncherLocale::nativeName(language), selected))
+        setInterfaceLanguage(language);
+      if (selected)
+        ImGui::SetItemDefaultFocus();
+    }
+    ImGui::EndCombo();
+  }
   if (!status.empty())
-    ImGuiTheme::statusText(status.c_str(), statusError);
+    ImGuiTheme::statusText(tr(status.c_str()), statusError);
   else
     ImGui::NewLine();
-  if (ImGuiTheme::primaryButton("Play", {120 * contentScale, 0}))
+  if (ImGuiTheme::primaryButton(tr("Play"), {120 * contentScale, 0}))
     launch();
   ImGui::SameLine();
-  if (ImGui::Button("Restore defaults")) {
+  if (ImGui::Button(tr("Restore defaults"))) {
     draft = defaults;
     setStatus("Defaults restored (saved on Play)", false);
   }
   ImGui::SameLine();
-  if (ImGui::Button("Quit"))
+  if (ImGui::Button(tr("Quit")))
     quit();
   if (io.DisplaySize.x >= 680 * contentScale) {
     ImGui::SameLine();
@@ -572,9 +622,11 @@ void Launcher::draw() {
 
 void Launcher::drawVideo() {
   if (canChangeDisplaySize()) {
-    ImGuiTheme::sectionHeader("Display");
+    ImGuiTheme::sectionHeader(tr("Display"));
     int mode = static_cast<int>(draft.mode);
-    if (ImGui::Combo("Mode", &mode, Modes, 3))
+    const char *modes[]{tr("Windowed"), tr("Borderless fullscreen"),
+                        tr("Exclusive fullscreen")};
+    if (ImGui::Combo(tr("Mode"), &mode, modes, 3))
       draft.mode = static_cast<WindowMode>(mode);
 
     int count = 0;
@@ -584,7 +636,7 @@ void Launcher::drawVideo() {
       const char *name = SDL_GetDisplayName(displays.get()[draft.display]);
       const std::string current =
           std::to_string(draft.display + 1) + ": " + (name ? name : "Monitor");
-      if (ImGui::BeginCombo("Monitor", current.c_str())) {
+      if (ImGui::BeginCombo(tr("Monitor"), current.c_str())) {
         for (int i = 0; i < count; ++i) {
           const char *label = SDL_GetDisplayName(displays.get()[i]);
           const std::string text =
@@ -598,7 +650,7 @@ void Launcher::drawVideo() {
 
     const std::string size =
         std::to_string(draft.width) + " x " + std::to_string(draft.height);
-    if (ImGui::BeginCombo("Window", size.c_str())) {
+    if (ImGui::BeginCombo(tr("Window"), size.c_str())) {
       for (const auto &[w, h] : Resolutions) {
         const std::string text = std::to_string(w) + " x " + std::to_string(h);
         if (ImGui::Selectable(text.c_str(),
@@ -610,7 +662,7 @@ void Launcher::drawVideo() {
       ImGui::EndCombo();
     }
     int custom[2]{draft.width, draft.height};
-    if (ImGui::InputInt2("Custom size", custom)) {
+    if (ImGui::InputInt2(tr("Custom size"), custom)) {
       draft.width = std::clamp(custom[0], 320, 16384);
       draft.height = std::clamp(custom[1], 240, 16384);
     }
@@ -619,14 +671,14 @@ void Launcher::drawVideo() {
       int modes = 0;
       SDLArrayPtr<SDL_DisplayMode *> list(
           SDL_GetFullscreenDisplayModes(displays.get()[draft.display], &modes));
-      std::string current = "Desktop resolution";
+      std::string current = tr("Desktop resolution");
       if (draft.fullscreenWidth > 0)
         current = std::to_string(draft.fullscreenWidth) + " x " +
                   std::to_string(draft.fullscreenHeight) + " @ " +
                   std::to_string(static_cast<int>(draft.refreshRate + 0.5f)) +
                   " Hz";
-      if (ImGui::BeginCombo("Exclusive resolution", current.c_str())) {
-        if (ImGui::Selectable("Desktop resolution",
+      if (ImGui::BeginCombo(tr("Exclusive resolution"), current.c_str())) {
+        if (ImGui::Selectable(tr("Desktop resolution"),
                               draft.fullscreenWidth == 0)) {
           draft.fullscreenWidth = draft.fullscreenHeight = 0;
           draft.refreshRate = 0;
@@ -658,14 +710,14 @@ void Launcher::drawVideo() {
   ImGui::Checkbox("VSync", &draft.vsync);
   if (canChangeDisplaySize()) {
     ImGui::SameLine();
-    ImGui::Checkbox("Resizable window", &draft.resizable);
+    ImGui::Checkbox(tr("Resizable window"), &draft.resizable);
   }
 
-  ImGuiTheme::sectionHeader("Renderer");
+  ImGuiTheme::sectionHeader(tr("Renderer"));
   const std::string renderer =
-      draft.renderer.empty() ? "Automatic" : draft.renderer;
-  if (ImGui::BeginCombo("Renderer", renderer.c_str())) {
-    if (ImGui::Selectable("Automatic", draft.renderer.empty()))
+      draft.renderer.empty() ? tr("Automatic") : draft.renderer;
+  if (ImGui::BeginCombo(tr("Renderer"), renderer.c_str())) {
+    if (ImGui::Selectable(tr("Automatic"), draft.renderer.empty()))
       draft.renderer.clear();
     for (int i = 0; i < SDL_GetNumRenderDrivers(); ++i) {
       const char *driver = SDL_GetRenderDriver(i);
@@ -679,14 +731,14 @@ void Launcher::drawVideo() {
 void Launcher::drawUpscaling() {
 #if KOTONOHA_ENABLE_UPSCALER
   auto &upscaling = draft.upscaling;
-  ImGuiTheme::sectionHeader("Scale");
+  ImGuiTheme::sectionHeader(tr("Scale"));
   // Same rule as Kotonoha: 1.0 is off, anything above turns it on.
-  ImGui::SliderFloat("Scale", &upscaling.factor, 1.0f, 4.0f,
-                     upscaling.factor <= 1 ? "Off (1.00x)" : "%.2fx");
+  ImGui::SliderFloat(tr("Scale"), &upscaling.factor, 1.0f, 4.0f,
+                     upscaling.factor <= 1 ? tr("Off (1.00x)") : "%.2fx");
   upscaling.factor = std::clamp(upscaling.factor, 1.0f, 4.0f);
   ImGui::TextDisabled("1.0 = off; above 1.0 = on (Ctrl+click "
                       "to type)");
-  if (ImGui::Button("Turn off"))
+  if (ImGui::Button(tr("Turn off")))
     upscaling.factor = 1;
   for (float preset : {1.5f, 2.0f, 3.0f, 4.0f}) {
     ImGui::SameLine();
@@ -695,15 +747,16 @@ void Launcher::drawUpscaling() {
       upscaling.factor = preset;
   }
 
-  ImGuiTheme::sectionHeader("Backend");
-  if (ImGui::BeginCombo("Backend", backendLabel(upscaling.backend))) {
+  ImGuiTheme::sectionHeader(tr("Backend"));
+  if (ImGui::BeginCombo(tr("Backend"),
+                        tr(backendLabel(upscaling.backend)))) {
     for (auto backend : {UpscaleBackend::Auto, UpscaleBackend::Linear,
                          UpscaleBackend::MPV, UpscaleBackend::MetalFX}) {
 #ifndef __APPLE__
       if (backend == UpscaleBackend::MetalFX)
         continue;
 #endif
-      if (ImGui::Selectable(backendLabel(backend),
+      if (ImGui::Selectable(tr(backendLabel(backend)),
                             backend == upscaling.backend)) {
         upscaling.backend = backend;
         if (backend == UpscaleBackend::MPV)
@@ -715,7 +768,7 @@ void Launcher::drawUpscaling() {
   const bool mpv = upscaling.backend == UpscaleBackend::MPV ||
                    (upscaling.backend == UpscaleBackend::Auto &&
                     draft.renderer.rfind("opengl", 0) == 0);
-  if (mpv && ImGui::BeginCombo("Shader (OpenGL)",
+  if (mpv && ImGui::BeginCombo(tr("Shader (OpenGL)"),
                                UpscalePresetName(upscaling.preset))) {
     for (auto preset : UpscalePresets())
       if (ImGui::Selectable(UpscalePresetName(preset),
@@ -747,27 +800,27 @@ void Launcher::drawUpscaling() {
 }
 
 void Launcher::drawAdvanced() {
-  ImGui::SliderFloat("Master volume", &draft.masterVolume, 0, 1, "%.2f");
-  ImGui::Checkbox("Mute all audio", &draft.masterMuted);
+  ImGui::SliderFloat(tr("Master volume"), &draft.masterVolume, 0, 1, "%.2f");
+  ImGui::Checkbox(tr("Mute all audio"), &draft.masterMuted);
   for (const auto &name : audioChannels) {
     auto [entry, inserted] = draft.channelVolumes.try_emplace(name, 1.f);
     ImGui::SliderFloat((name + "##mixer").c_str(), &entry->second, 0, 1,
                        "%.2f");
   }
-  ImGuiTheme::sectionHeader("VN text");
+  ImGuiTheme::sectionHeader(tr("VN text"));
   const auto vnFonts = VNFontOptions();
-  if (ImGui::BeginCombo("VN font", draft.vnFontPath.empty()
-                                       ? "Original game font"
+  if (ImGui::BeginCombo(tr("VN font"), draft.vnFontPath.empty()
+                                       ? tr("Original game font")
                                        : draft.vnFontPath.c_str())) {
     for (const auto &font : vnFonts)
-      if (ImGui::Selectable(font.empty() ? "Original game font" : font.c_str(),
+      if (ImGui::Selectable(font.empty() ? tr("Original game font") : font.c_str(),
                             draft.vnFontPath == font))
         draft.vnFontPath = font;
     ImGui::EndCombo();
   }
-  ImGui::Checkbox("Override VN text colors", &draft.vnTextColorOverride);
+  ImGui::Checkbox(tr("Override VN text colors"), &draft.vnTextColorOverride);
   auto chooseColor = [&](const char *label, SDL_Color &color) {
-    if (ImGui::BeginCombo(label, label)) {
+    if (ImGui::BeginCombo(tr(label), tr(label))) {
       for (const auto &[name, value] : VNColorOptions)
         if (ImGui::Selectable(name)) {
           color = value;
@@ -777,7 +830,7 @@ void Launcher::drawAdvanced() {
     }
     float rgba[]{color.r / 255.f, color.g / 255.f, color.b / 255.f,
                  color.a / 255.f};
-    if (ImGui::ColorEdit4((std::string(label) + "##custom").c_str(), rgba)) {
+    if (ImGui::ColorEdit4((std::string(tr(label)) + "##custom").c_str(), rgba)) {
       color = {
           Uint8(std::lround(rgba[0] * 255)), Uint8(std::lround(rgba[1] * 255)),
           Uint8(std::lround(rgba[2] * 255)), Uint8(std::lround(rgba[3] * 255))};
@@ -786,16 +839,19 @@ void Launcher::drawAdvanced() {
   };
   chooseColor("Dialogue color", draft.vnTextColor);
   chooseColor("Speaker color", draft.vnSpeakerColor);
-  ImGui::SliderFloat("Debug UI scale", &draft.debugUIScale, 1, 3, "%.2fx");
-  ImGuiTheme::sectionHeader("UI font");
+  ImGui::SliderFloat(tr("Debug UI scale"), &draft.debugUIScale, 1, 3, "%.2fx");
+  ImGuiTheme::sectionHeader(tr("UI font"));
   drawFontSelector(draft.fontPath);
-  ImGuiTheme::sectionHeader("Subtitles");
-  ImGui::Checkbox("Enable forced subtitles", &draft.enableForcedSubtitles);
+  ImGuiTheme::sectionHeader(tr("Subtitles"));
+  ImGui::Checkbox(tr("Enable forced subtitles"), &draft.enableForcedSubtitles);
   ImGui::TextWrapped(
       "Load .ass files from \"forced_subtitles\" folder for each node");
   ImGui::Separator();
   int priority = static_cast<int>(draft.logPriority) - SDL_LOG_PRIORITY_TRACE;
-  if (ImGui::Combo("Log level", &priority, Priorities, 7))
+  const char *priorities[]{tr("Trace"), tr("Verbose"), tr("Debug"),
+                           tr("Info"), tr("Warning"), tr("Error"),
+                           tr("Critical")};
+  if (ImGui::Combo(tr("Log level"), &priority, priorities, 7))
     draft.logPriority =
         static_cast<SDL_LogPriority>(priority + SDL_LOG_PRIORITY_TRACE);
 }
@@ -833,10 +889,10 @@ std::vector<FontOption> getAvailableFonts() {
 } // namespace
 
 void Launcher::drawTranslation() {
-  ImGui::TextUnformatted("Translation dictionary (JSON)");
+  ImGui::TextUnformatted(tr("Translation dictionary (JSON)"));
   const ImGuiStyle &style = ImGui::GetStyle();
-  constexpr const char *Browse = "Browse...";
-  constexpr const char *Clear = "Clear";
+  const char *Browse = tr("Browse...");
+  const char *Clear = tr("Clear");
 
   const float buttonWidth = ImGui::CalcTextSize(Browse).x +
                             ImGui::CalcTextSize(Clear).x +
@@ -844,7 +900,7 @@ void Launcher::drawTranslation() {
   ImGui::SetNextItemWidth(-buttonWidth - style.ItemSpacing.x);
   ImGui::InputText("##translationPath", &draft.translationPath);
   ImGui::SameLine();
-  if (ImGui::Button("Browse...##translation")) {
+  if (ImGui::Button((std::string(Browse) + "##translation").c_str())) {
     const std::string initial =
         draft.translationPath.empty()
             ? std::string()
@@ -857,7 +913,7 @@ void Launcher::drawTranslation() {
                });
   }
   ImGui::SameLine();
-  if (ImGui::Button("Clear##translation")) {
+  if (ImGui::Button((std::string(Clear) + "##translation").c_str())) {
     draft.translationPath.clear();
   }
 
@@ -865,15 +921,15 @@ void Launcher::drawTranslation() {
   if (!draft.translationPath.empty()) {
     if (std::filesystem::exists(draft.translationPath, ec)) {
       ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::success());
-      ImGui::TextUnformatted("Translation file found");
+      ImGui::TextUnformatted(tr("Translation file found"));
       ImGui::PopStyleColor();
     } else {
       ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::warning());
-      ImGui::TextUnformatted("Translation file not found");
+      ImGui::TextUnformatted(tr("Translation file not found"));
       ImGui::PopStyleColor();
     }
   } else {
-    ImGui::TextDisabled("No translation file selected");
+    ImGui::TextDisabled("%s", tr("No translation file selected"));
   }
 
   ImGui::Spacing();
@@ -886,8 +942,8 @@ void Launcher::drawTranslation() {
 
 void Launcher::drawFontSelector(std::string &fontPath) {
   const ImGuiStyle &style = ImGui::GetStyle();
-  constexpr const char *Browse = "Browse...";
-  constexpr const char *Clear = "Clear";
+  const char *Browse = tr("Browse...");
+  const char *Clear = tr("Clear");
 
   const float buttonWidth = ImGui::CalcTextSize(Browse).x +
                             ImGui::CalcTextSize(Clear).x +
@@ -923,7 +979,7 @@ void Launcher::drawFontSelector(std::string &fontPath) {
     ImGui::EndCombo();
   }
   ImGui::SameLine();
-  if (ImGui::Button("Clear##font")) {
+  if (ImGui::Button((std::string(Clear) + "##font").c_str())) {
     fontPath = defaults.fontPath;
     ImGuiTheme::loadFonts(fontPath);
     ImGuiTheme::apply(contentScale);
@@ -937,11 +993,11 @@ void Launcher::drawFontSelector(std::string &fontPath) {
     }
     if (!resolvedFont.empty() && std::filesystem::exists(resolvedFont)) {
       ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::success());
-      ImGui::TextUnformatted("UI font file found");
+      ImGui::TextUnformatted(tr("UI font file found"));
       ImGui::PopStyleColor();
     } else {
       ImGui::PushStyleColor(ImGuiCol_Text, ImGuiTheme::warning());
-      ImGui::TextUnformatted("UI font file not found");
+      ImGui::TextUnformatted(tr("UI font file not found"));
       ImGui::PopStyleColor();
     }
   } else {

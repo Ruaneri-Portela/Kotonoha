@@ -3,6 +3,7 @@
 
 #include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/InputMapper.hpp>
+#include <Kotonoha/core/LauncherLocale.hpp>
 #include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/core/Settings.hpp>
 
@@ -52,6 +53,9 @@ public:
   }
   const std::string &getSettingsPath() const;
   const std::string &getStatus() const;
+  LauncherLocale::Language interfaceLanguage() const;
+  // UI-only; persisted independently of translationPath and game settings.
+  void setInterfaceLanguage(LauncherLocale::Language language);
   // Validates and saves, then finishes with State::Launch. On failure keeps
   // running and returns false with the reason in getStatus().
   bool launch();
@@ -63,6 +67,7 @@ protected:
   // Persists game options; called by launch() after the engine settings.
   virtual void save();
   void setStatus(std::string message, bool error);
+  const char *tr(const char *english) const;
   // Native file picker; `done` runs on the launcher thread on selection.
   void browseFile(const FileFilters &filters, const std::string &initial,
                   std::function<void(const std::string &)> done);
@@ -78,6 +83,7 @@ private:
   static void SDLCALL dialogFinished(void *data, const char *const *files,
                                      int filter);
   std::string title, settingsPath, status;
+  LauncherLocale::Language uiLanguage = LauncherLocale::Language::English;
   bool statusError = false;
   EngineSettings draft, defaults;
   std::vector<std::string> audioChannels;

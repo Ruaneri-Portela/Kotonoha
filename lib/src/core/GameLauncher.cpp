@@ -205,11 +205,11 @@ void GameLauncher::check(PathField &field, bool force) {
 
 void GameLauncher::drawPathField(PathField &field) {
   const char *Browse =
-      field.options.kind == PathKind::Folder ? "Folder..." : "Browse...";
+      field.options.kind == PathKind::Folder ? tr("Folder...") : tr("Browse...");
   const ImGuiStyle &style = ImGui::GetStyle();
-  ImGui::TextUnformatted(field.options.label.c_str());
+  ImGui::TextUnformatted(tr(field.options.label.c_str()));
   const float isoWidth = field.options.kind == PathKind::Folder
-                             ? ImGui::CalcTextSize("ISO...").x +
+                             ? ImGui::CalcTextSize(tr("ISO...")).x +
                                    style.FramePadding.x * 2 +
                                    style.ItemSpacing.x
                              : 0;
@@ -241,9 +241,9 @@ void GameLauncher::drawPathField(PathField &field) {
   }
   if (field.options.kind == PathKind::Folder) {
     ImGui::SameLine();
-    if (ImGui::Button("ISO...")) {
+    if (ImGui::Button(tr("ISO..."))) {
       browseFile(
-          {{"ISO disc image", "iso"}, {"All files", "*"}},
+          {{tr("ISO disc image"), "iso"}, {tr("All files"), "*"}},
           std::filesystem::is_directory(field.current)
               ? field.current
               : std::filesystem::path(field.current).parent_path().string(),
@@ -254,11 +254,11 @@ void GameLauncher::drawPathField(PathField &field) {
   }
   ImGui::PushStyleColor(ImGuiCol_Text, field.valid ? ImGuiTheme::success()
                                                    : ImGuiTheme::warning());
-  ImGui::TextWrapped("%s", field.info.c_str());
+  ImGui::TextWrapped("%s", tr(field.info.c_str()));
   ImGui::PopStyleColor();
   if (!field.options.hint.empty()) {
     ImGui::Spacing();
-    ImGui::TextWrapped("%s", field.options.hint.c_str());
+    ImGui::TextWrapped("%s", tr(field.options.hint.c_str()));
   }
 }
 
