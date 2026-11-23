@@ -707,13 +707,7 @@ app/.cxx/
 .vscode/
 
 # Assets & Translations
-assets/*
 games-assets/*
-!assets/Anime4K/
-!assets/ArtCNN/
-!assets/icon.ico
-!assets/icon.png
-!assets/SPLASH.PNG
 .research/
 *.ini
 /translation.json
