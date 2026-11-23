@@ -213,6 +213,8 @@ void testNativeUiResolution() {
       "\tui_title01_en = {\n"
       "\t\tbt_start = { name=\"bt_start\", file=\"title/bt_new_game\", "
       "x=30, y=744, w=278, h=121, p1=\"start\", p2=\"gamestart\" },\n"
+      "\t\tbg = { name=\"bg\", file=\"title/background_2a\", "
+      "x=0, y=0, w=1600, h=900 },\n"
       "\t},\n"
       "}\n";
   const auto writeBin = [](const std::filesystem::path &path,

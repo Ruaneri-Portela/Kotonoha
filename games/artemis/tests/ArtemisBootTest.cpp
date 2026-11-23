@@ -260,9 +260,20 @@ void testRetailBoot(const std::string &gameDir) {
   assert(start->logicalFile == "title/bt_new_game");
   assert(start->p2 == "gamestart");
   assert(ui.titleButtons().size() >= 7);
-  for (const char *logical : {"title/background_1a", "title/start_titlelogo_1a",
-                              "title/bt_new_game", "mw/base", "mw/choice",
-                              "mw/bt_save"}) {
+
+  // Take the artwork IDs from the shipped UI table instead of hardcoding
+  // NUKITASHI 1 names: NUKITASHI 2 names the same items
+  // `title/background_2a` / `title/start_titlelogo_2`. Asserting the table's
+  // own IDs keeps this retail check valid for both titles.
+  std::vector<std::string> uiImages;
+  for (const char *name : {"bt_start", "bg", "titlelogo"}) {
+    const auto item = ui.titleItem(name);
+    assert(item.has_value());
+    uiImages.push_back(item->logicalFile);
+  }
+  for (const char *logical : {"mw/base", "mw/choice", "mw/bt_save"})
+    uiImages.push_back(logical);
+  for (const auto &logical : uiImages) {
     const std::string resolved = ui.resolveImage(logical);
     assert(!resolved.empty());
     auto surface = assets->loadSurface(resolved);
