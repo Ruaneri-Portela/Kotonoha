@@ -14,6 +14,7 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -246,9 +247,18 @@ void requireRuntimeBoot(const std::shared_ptr<Artemis::ArtemisAssets> &assets,
   capture(engine, captureDir, "artemis-boot-gameplay-ui.bmp");
 }
 
+// CTest can run Artemis.Boot and Artemis.Retail (from different build trees)
+// at the same time. Both execute this same binary, so a fixed temp directory
+// made the BMP captures race and fail with "Cannot save Artemis capture".
+std::filesystem::path uniqueTempDir(const std::string &prefix) {
+  std::random_device random;
+  return std::filesystem::temp_directory_path() /
+         (prefix + "-" + std::to_string(SDL_GetPerformanceCounter()) + "-" +
+          std::to_string(random()));
+}
+
 void testSyntheticBoot() {
-  const auto dir = std::filesystem::temp_directory_path() /
-                   "kotonoha_artemis_boot_test";
+  const auto dir = uniqueTempDir("kotonoha_artemis_boot_test");
   std::filesystem::remove_all(dir);
   std::filesystem::create_directories(dir);
   const auto pngBackground = solidBmp(30, 60, 140);
@@ -332,10 +342,13 @@ void testRetailBoot(const std::string &gameDir) {
   }
 
   const char *captureEnv = SDL_getenv("KOTONOHA_ARTEMIS_CAPTURE_DIR");
-  const auto captureDir = captureEnv ? std::filesystem::path(captureEnv)
-                                     : std::filesystem::temp_directory_path();
+  const auto captureDir = captureEnv
+                              ? std::filesystem::path(captureEnv)
+                              : uniqueTempDir("kotonoha_artemis_retail_test");
   std::filesystem::create_directories(captureDir);
   requireRuntimeBoot(assets, captureDir);
+  if (!captureEnv)
+    std::filesystem::remove_all(captureDir);
   std::cout << "[ArtemisBootTest] Retail boot assertions passed.\n";
 }
 

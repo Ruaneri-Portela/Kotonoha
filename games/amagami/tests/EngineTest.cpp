@@ -4,7 +4,9 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/SaveImage.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+extern "C" {
 #include <libavcodec/avcodec.h>
+}
 #include <cmath>
 #include <cstring>
 #include <filesystem>
