@@ -8,16 +8,25 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace {
+
+// assert() is compiled out in Release (NDEBUG), which turns a missing retail
+// asset into a cryptic "Artemis asset not found: " error deep in the runtime.
+// Keep every boot/UI invariant active in all build types with an actionable
+// message naming the exact value that failed.
+void require(bool condition, const std::string &message) {
+  if (!condition)
+    throw std::runtime_error(message);
+}
 
 void appendU32LE(std::vector<std::uint8_t> &buf, std::uint32_t value) {
   for (int i = 0; i < 4; ++i)
@@ -157,57 +166,81 @@ ast = {
 void requireRuntimeBoot(const std::shared_ptr<Artemis::ArtemisAssets> &assets,
                         const std::filesystem::path &captureDir,
                         std::size_t expectedButtons = 0) {
-  assert(assets->systemConfig().bootFile == "system/first.iet");
-  assert(assets->findStartScript() == "script/gamestart.ast");
-  assert(!assets->uiLanguages().empty());
-  assert(assets->uiLanguage() == "en");
+  require(assets->systemConfig().bootFile == "system/first.iet",
+          "system.ini BOOT is not 'system/first.iet': '" +
+              assets->systemConfig().bootFile + "'");
+  require(assets->findStartScript() == "script/gamestart.ast",
+          "start script is not 'script/gamestart.ast': '" +
+              assets->findStartScript() + "'");
+  require(!assets->uiLanguages().empty(), "no pc/<language> UI assets found");
+  require(assets->uiLanguage() == "en",
+          "UI language is not 'en': '" + assets->uiLanguage() + "'");
 
   Artemis::ArtemisUi ui(*assets);
-  assert(ui.load());
-  assert(ui.tablePath().find("list_windows") != std::string::npos);
+  require(ui.load(), "cannot load the native UI table");
+  require(ui.tablePath().find("list_windows") != std::string::npos,
+          "UI table path is not a list_windows table: '" + ui.tablePath() +
+              "'");
   if (expectedButtons != 0)
-    assert(ui.titleButtons().size() == expectedButtons);
+    require(ui.titleButtons().size() == expectedButtons,
+            "expected " + std::to_string(expectedButtons) +
+                " title buttons, got " +
+                std::to_string(ui.titleButtons().size()));
   else
-    assert(!ui.titleButtons().empty());
+    require(!ui.titleButtons().empty(), "title screen has no buttons");
   const auto start = ui.titleItem("bt_start");
-  assert(start.has_value());
-  assert(start->logicalFile == "title/bt_new_game");
-  assert(start->p2 == "gamestart");
+  require(start.has_value(), "UI table has no 'bt_start' item");
+  require(start->logicalFile == "title/bt_new_game",
+          "bt_start file is not 'title/bt_new_game': '" + start->logicalFile +
+              "'");
+  require(start->p2 == "gamestart",
+          "bt_start p2 is not 'gamestart': '" + start->p2 + "'");
   const auto resolved = ui.resolveImage(*start);
-  assert(!resolved.empty());
-  assert(assets->contains(resolved));
-  assert(!ui.resolveImage("mw/choice").empty());
+  require(!resolved.empty(), "bt_start logical file '" + start->logicalFile +
+                                 "' does not resolve to an asset");
+  require(assets->contains(resolved),
+          "resolved bt_start asset is missing: '" + resolved + "'");
+  const auto choiceImage = ui.resolveImage("mw/choice");
+  require(!choiceImage.empty(), "UI image 'mw/choice' does not resolve");
 
   Kotonoha::EngineOptions options;
   options.assets = assets;
   const auto font = engineFontPath();
-  assert(std::filesystem::exists(font));
+  require(std::filesystem::exists(font),
+          "shared engine font not found: '" + font.string() + "'");
   options.settings.fontPath = font.string();
   options.persistSettings = false;
   options.launcher = false;
   Artemis::ArtemisRuntime runtime(assets);
   Kotonoha::Engine engine(runtime, options);
-  assert(runtime.GetState() == Kotonoha::GameState::Menu);
-  assert(runtime.titleVisible());
-  assert(runtime.vm().currentScript().empty());
+  require(runtime.GetState() == Kotonoha::GameState::Menu,
+          "boot did not enter the Menu state");
+  require(runtime.titleVisible(), "title screen is not visible at boot");
+  require(runtime.vm().currentScript().empty(),
+          "a script is already running before START");
   for (int i = 0; i < 12; ++i) {
-    assert(engine.Iterate() == SDL_APP_CONTINUE);
+    require(engine.Iterate() == SDL_APP_CONTINUE,
+            "engine stopped iterating on the title screen");
     SDL_Delay(50);
   }
   capture(engine, captureDir, "artemis-boot-title.bmp");
 
-  assert(runtime.handleNewGameAction());
-  assert(runtime.GetState() == Kotonoha::GameState::Gameplay);
-  assert(!runtime.titleVisible());
+  require(runtime.handleNewGameAction(), "START action was rejected");
+  require(runtime.GetState() == Kotonoha::GameState::Gameplay,
+          "START did not enter the Gameplay state");
+  require(!runtime.titleVisible(), "title screen is still visible after START");
   // Retail gamestart.ast immediately excalls 01_c_00.ast, so the live node
   // may have advanced; both are valid gameplay entry points.
   const std::string liveScript = runtime.vm().currentScript();
   std::cout << "  debug node after START: " << runtime.debugNode()
             << " (script='" << liveScript << "')\n";
-  assert(!liveScript.empty());
+  require(!liveScript.empty(),
+          "no gameplay script is running after START (gamestart failed to "
+          "load or execute)");
   std::cout << "  gameplay script: " << liveScript << "\n";
   for (int i = 0; i < 12; ++i) {
-    assert(engine.Iterate() == SDL_APP_CONTINUE);
+    require(engine.Iterate() == SDL_APP_CONTINUE,
+            "engine stopped iterating during gameplay");
     SDL_Delay(50);
   }
   capture(engine, captureDir, "artemis-boot-gameplay-ui.bmp");
@@ -242,7 +275,9 @@ void testSyntheticBoot() {
   writeBin(dir / "root.pfs", bytes);
 
   auto assets = std::make_shared<Artemis::ArtemisAssets>(dir.string());
-  assert(assets->archiveCount() == 1);
+  require(assets->archiveCount() == 1,
+          "expected 1 synthetic PFS archive, got " +
+              std::to_string(assets->archiveCount()));
   requireRuntimeBoot(assets, dir, 1);
   std::cout << "[ArtemisBootTest] Synthetic boot flow passed.\n";
   std::filesystem::remove_all(dir);
@@ -250,16 +285,25 @@ void testSyntheticBoot() {
 
 void testRetailBoot(const std::string &gameDir) {
   auto assets = std::make_shared<Artemis::ArtemisAssets>(gameDir);
-  assert(assets->archiveCount() >= 1);
-  assert(assets->entryCount() > 100);
+  require(assets->archiveCount() >= 1,
+          "no .pfs archives found in retail directory: '" + gameDir + "'");
+  require(assets->entryCount() > 100, "retail directory has too few assets (" +
+                                          std::to_string(assets->entryCount()) +
+                                          ") in '" + gameDir + "'");
 
   Artemis::ArtemisUi ui(*assets);
-  assert(ui.load());
+  require(ui.load(), "cannot load the native UI table from '" + gameDir + "'");
   const auto start = ui.titleItem("bt_start");
-  assert(start.has_value());
-  assert(start->logicalFile == "title/bt_new_game");
-  assert(start->p2 == "gamestart");
-  assert(ui.titleButtons().size() >= 7);
+  require(start.has_value(),
+          "UI table has no 'bt_start' item in '" + gameDir + "'");
+  require(start->logicalFile == "title/bt_new_game",
+          "bt_start file is not 'title/bt_new_game': '" + start->logicalFile +
+              "'");
+  require(start->p2 == "gamestart",
+          "bt_start p2 is not 'gamestart': '" + start->p2 + "'");
+  require(ui.titleButtons().size() >= 7,
+          "expected at least 7 title buttons, got " +
+              std::to_string(ui.titleButtons().size()));
 
   // Take the artwork IDs from the shipped UI table instead of hardcoding
   // NUKITASHI 1 names: NUKITASHI 2 names the same items
@@ -268,16 +312,21 @@ void testRetailBoot(const std::string &gameDir) {
   std::vector<std::string> uiImages;
   for (const char *name : {"bt_start", "bg", "titlelogo"}) {
     const auto item = ui.titleItem(name);
-    assert(item.has_value());
+    require(item.has_value(), std::string("UI table has no '") + name +
+                                  "' item in '" + gameDir + "'");
     uiImages.push_back(item->logicalFile);
   }
   for (const char *logical : {"mw/base", "mw/choice", "mw/bt_save"})
     uiImages.push_back(logical);
   for (const auto &logical : uiImages) {
     const std::string resolved = ui.resolveImage(logical);
-    assert(!resolved.empty());
+    require(!resolved.empty(), "UI image '" + logical +
+                                   "' does not resolve to an asset in '" +
+                                   gameDir + "'");
     auto surface = assets->loadSurface(resolved);
-    assert(surface != nullptr && surface->w > 0 && surface->h > 0);
+    require(surface != nullptr && surface->w > 0 && surface->h > 0,
+            "UI asset '" + logical + "' -> '" + resolved +
+                "' failed to decode to a non-empty surface");
     std::cout << "  native UI: " << logical << " -> " << resolved << " ("
               << surface->w << "x" << surface->h << ")\n";
   }
