@@ -529,6 +529,7 @@ public:
   SDL_Point viewport() const override { return {1280, 720}; }
   int translationRoute() const override;
   Kotonoha::Translation::SourceTexts translationSources() const override;
+  std::vector<std::string> activeTranslationKeys() const override;
   bool advanceStoryTime(double seconds) override;
   std::string debugNode() const override;
   std::string nodeClockKey() const override;
