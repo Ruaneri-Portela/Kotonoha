@@ -556,9 +556,13 @@ struct Text : VNTextBox {
     for (std::size_t i = 0; i < controls.buttons.size(); ++i) {
       const bool active = (i == 3 && autoActive && autoActive()) ||
                           (i == 4 && skipActive && skipActive());
+      // The native SMW00 button atlas stores five states per control:
+      // normal, hover, pressed, hover-active and the red active toggle.
+      // Region 116/108 (group + 4) is the red "auto/skip on" frame; +3 is
+      // only the unfilled active frame and made enabled toggles look idle.
       const int index =
           groups[i] +
-          (active && controls.state(int(i)) == 0 ? 3 : controls.state(int(i)));
+          (active && controls.state(int(i)) == 0 ? 4 : controls.state(int(i)));
       if (index < int(buttonImage.regions.size())) {
         const auto &region = buttonImage.regions.at(index);
         SDL_FRect source{float(region.atlasX), float(region.atlasY),
@@ -605,7 +609,16 @@ struct Text : VNTextBox {
     }
     const int speed = std::max(100, cursorSpeed);
     SDL_FRect src{0, 0, float(cursor->w), float(cursor->h)};
-    if (!cursorImage.regions.empty()) {
+    // A G00/PDT cursor with a single region spanning the whole surface is
+    // still an animation strip: RealLive stores every frame side by side and
+    // uses CURSOR.000.CONT/SIZE to select one. Treating that sole region as a
+    // single frame drew the entire texture map in the textbox corner.
+    const bool singleFullRegion =
+        cursorImage.regions.size() == 1 &&
+        cursorImage.regions[0].x1 == 0 && cursorImage.regions[0].y1 == 0 &&
+        cursorImage.regions[0].x2 + 1 >= int(cursorImage.width) &&
+        cursorImage.regions[0].y2 + 1 >= int(cursorImage.height);
+    if (!cursorImage.regions.empty() && !singleFullRegion) {
       const std::size_t frameCount = cursorImage.regions.size();
       const std::size_t frameIdx =
           (std::size_t(SDL_GetTicks() % Uint64(speed)) * frameCount) /
@@ -4106,10 +4119,14 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
       return true;
     case 1034:
+      // objDispRect(buf, x, y, w, h): the last two parameters are a width
+      // and a height, NOT inclusive x2/y2. AIR 9031:97 passes
+      // (240, 170, 160, 120); the old subtraction produced negative extents,
+      // so SDL ignored the clip and the entire KEYLOGO0 texture map (all
+      // blur/color stages) was drawn at once.
       o.clipped = over == 1 || c.GetParamCount() >= 5;
       if (o.clipped)
-        o.clip = {value(c, 1), value(c, 2), value(c, 3) - value(c, 1) + 1,
-                  value(c, 4) - value(c, 2) + 1};
+        o.clip = {value(c, 1), value(c, 2), value(c, 3), value(c, 4)};
       return true;
     case 1016:
       o.colour = {Uint8(value(c, 1)), Uint8(value(c, 2)), Uint8(value(c, 3)),
@@ -4174,10 +4191,10 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         break;
       }
       case 1034:
+        // Bulk form of objDispRect: first/last object range, then x,y,w,h.
         o.clipped = over == 1 || c.GetParamCount() >= 6;
         if (o.clipped)
-          o.clip = {value(c, 2), value(c, 3), value(c, 4) - value(c, 2) + 1,
-                    value(c, 5) - value(c, 3) + 1};
+          o.clip = {value(c, 2), value(c, 3), value(c, 4), value(c, 5)};
         break;
       case 1040:
         o.clipped = over == 1 || c.GetParamCount() >= 6;

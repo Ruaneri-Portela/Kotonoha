@@ -374,6 +374,81 @@ std::string ArtemisAssets::resolveImagePath(std::string_view path,
   return {};
 }
 
+std::vector<std::string> ArtemisAssets::uiLanguages() const {
+  std::vector<std::string> languages;
+  for (const auto &[lower, ref] : mergedIndex_) {
+    (void)ref;
+    if (lower.rfind("pc/", 0) != 0)
+      continue;
+    const auto slash = lower.find('/', 3);
+    if (slash == std::string::npos || slash == 3)
+      continue;
+    const std::string language = lower.substr(3, slash - 3);
+    if (std::find(languages.begin(), languages.end(), language) ==
+        languages.end())
+      languages.push_back(language);
+  }
+  std::sort(languages.begin(), languages.end(),
+            [](const std::string &a, const std::string &b) {
+              if (a == "en")
+                return true;
+              if (b == "en")
+                return false;
+              return a < b;
+            });
+  return languages;
+}
+
+void ArtemisAssets::setUiLanguage(std::string language) {
+  uiLanguage_ = PfsArchive::toLowerAscii(trimAscii(language));
+  if (uiLanguage_.empty())
+    uiLanguage_ = "en";
+}
+
+std::string ArtemisAssets::uiTablePath() const {
+  const std::string localized =
+      "system/table/list_windows_" + uiLanguage_ + ".tbl";
+  if (!resolveActualPath(localized).empty())
+    return localized;
+  if (!resolveActualPath("system/table/list_windows.tbl").empty())
+    return "system/table/list_windows.tbl";
+  return {};
+}
+
+std::string
+ArtemisAssets::resolveUiImagePath(std::string_view logicalFile) const {
+  if (logicalFile.empty())
+    return {};
+  const std::string file = PfsArchive::normalizePath(logicalFile);
+  if (file.empty())
+    return {};
+
+  std::vector<std::string> languages;
+  for (const auto &lang : uiLanguages()) {
+    if (lang == uiLanguage_)
+      languages.insert(languages.begin(), lang);
+    else
+      languages.push_back(lang);
+  }
+
+  static constexpr const char *kExts[] = {"", ".png", ".webp", ".jpg", ".bmp"};
+  for (const auto &lang : languages) {
+    const std::string base = "pc/" + lang + "/" + file;
+    for (const char *ext : kExts) {
+      const std::string hit = resolveActualPath(base + ext);
+      if (!hit.empty())
+        return hit;
+    }
+  }
+  // Some titles ship loose UI pictures outside the language tree.
+  for (const char *ext : kExts) {
+    const std::string hit = resolveActualPath(file + ext);
+    if (!hit.empty())
+      return hit;
+  }
+  return {};
+}
+
 std::string ArtemisAssets::resolveAudioPath(std::string_view category,
                                             std::string_view file) const {
   if (file.empty())

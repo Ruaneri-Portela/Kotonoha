@@ -1640,15 +1640,18 @@ void NsbVm::execInstruction(Thread &t, const NsbInstruction &ins,
   }
   case 0x012: { // CreateMovie [name, prio, x, y, loop, alpha, path, audio]
     auto a = popArgs(t, args.size());
+    // CreateMovieSG passes bare parameter names ("描画優先度", "Ｙ座標",
+    // "ループ", "音声同期") as literal strings. Resolve every operand against
+    // the global variable slots, otherwise priority becomes 0 and the movie
+    // renders behind BGBUF1 (BG_BLACK.jpg, z=100) - a black intro screen.
+    for (auto &arg : a)
+      arg = resolveVariableName(arg);
     if (a.size() >= 7) {
       auto *e = sceneGraph_.createEntity(a[0].asString(), EntityType::Movie);
       e->z = static_cast<float>(a[1].asFloat());
       e->x = resolveCoord(a[2], 0.0f, screenW, true);
       e->y = resolveCoord(a[3], 0.0f, screenH, false);
-      // Retail scripts pass the *name* of the loop parameter ("ループ") here
-      // instead of its value; resolve it before interpreting the flag. A bare
-      // "true" literal still works as before.
-      e->movieLoop = resolveVariableName(a[4]).isTruthy();
+      e->movieLoop = a[4].isTruthy();
       e->moviePath = normalizeAssetPath(a[6].asString());
       e->moviePlaying = true;
       e->visible = true;

@@ -161,8 +161,11 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  const char *retail = SDL_getenv("KOTONOHA_ARTEMIS_RETAIL_DIR");
   if (argc >= 2) {
     testRetailGame(argv[1]);
+  } else if (retail && *retail) {
+    testRetailGame(retail);
   } else {
     testSyntheticRuntime();
   }

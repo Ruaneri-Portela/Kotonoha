@@ -286,6 +286,12 @@ if(BUILD_TESTING)
         add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests)
         set_tests_properties(RealLive.Movie PROPERTIES LABELS synthetic)
     endif()
+    # Retail sprite-atlas layout guards for the Key logo clip, AIR textbox
+    # toggle frames and CLANNAD animated indicator strip.
+    add_executable(RealLiveSpriteAtlasTests tests/SpriteAtlasTest.cpp)
+    target_link_libraries(RealLiveSpriteAtlasTests PRIVATE RealLiveFormats)
+    add_test(NAME RealLive.SpriteAtlas COMMAND RealLiveSpriteAtlasTests)
+    set_tests_properties(RealLive.SpriteAtlas PROPERTIES LABELS synthetic)
     add_executable(RealLiveConfigTests tests/ConfigTest.cpp)
     target_link_libraries(RealLiveConfigTests PRIVATE reallive_port)
     add_test(NAME RealLiveConfig COMMAND RealLiveConfigTests)

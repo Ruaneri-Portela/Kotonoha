@@ -301,6 +301,15 @@ int main() {
         check(sawPrologueMovie,
               "SG post-Start prologue .ngs movie must be requested");
 
+        // CreateMovieSG passes the priority by parameter name. If it is not
+        // resolved to 9900, BGBUF1 (BG_BLACK.jpg, z=100) paints over the movie
+        // and the intro becomes a black screen.
+        const auto *movieEntity = nvm->sceneGraph().findEntity("ムービー");
+        const auto *blackBackground = nvm->sceneGraph().findEntity("BGBUF1");
+        check(movieEntity && blackBackground &&
+                  movieEntity->z > blackBackground->z,
+              "SG prologue movie must render above the black background");
+
         for (int frame = 0; frame < 400; ++frame) {
           engineRuntime.advanceStoryTime(0.1);
           engineRuntime.update();

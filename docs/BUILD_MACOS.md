@@ -16,17 +16,18 @@ cmake --build build/macos --target Kotonoha
 
 Use the appropriate game option/target for other ports. When vcpkg is not auto-detected, set `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"`.
 
-## CMake presets (macOS Sequoia+)
+## CMake presets (macOS 15.0+)
 
 The checked-in `CMakePresets.json` provides two Release/Ninja presets with
 `KOTONOHA_BUILD_EXAMPLE=ON` and `KOTONOHA_BUILD_MACOS_BUNDLES=ON`. They use
 `out/build/<preset>` as the build directory and leave the existing `build`
-tree untouched. The `-vcpkg` presets use the dynamic Sequoia triplets; the `-native` presets
-compile directly against host dependencies without a vcpkg toolchain.
+tree untouched. The `-vcpkg` presets use the dynamic macOS 15.0 triplets;
+the `-native` presets compile directly against host dependencies without a
+vcpkg toolchain.
 
 ```sh
 # Native Apple Silicon (arm64)
-# Compilar sem vcpkg (dependências do host)
+# Build without vcpkg (host dependencies)
 cmake --preset macos-arm64-native
 cmake --build out/build/macos-arm64-native --target Kotonoha
 
@@ -34,18 +35,20 @@ cmake --preset macos-arm64-vcpkg
 cmake --build out/build/macos-arm64-vcpkg --target Kotonoha
 
 # Native Intel, or cross-compiled on Apple Silicon with the x86_64 SDK
-cmake --preset macos-x86_64-vcpkg
-cmake --build out/build/macos-x86_64-vcpkg --target Kotonoha
+cmake --preset macos-amd64-vcpkg
+cmake --build out/build/macos-amd64-vcpkg --target Kotonoha
 ```
 
-## Sequoia dynamic triplets (vcpkg)
+## Dynamic vcpkg triplets (macOS 15.0)
 
 Two dedicated overlay triplets in `vcpkg-overlays/triplets/` build all vcpkg
-dependencies with dynamic library linkage and a macOS 15.0 (Sequoia)
-deployment target:
+dependencies with dynamic library linkage and a macOS 15.0 deployment target:
 
-- `arm64-osx-sequoia-dynamic.cmake` — Apple Silicon (`arm64`)
-- `x64-osx-sequoia-dynamic.cmake` — Intel (`x86_64`)
+- `macos-arm64-vcpkg.cmake` — Apple Silicon (`arm64`)
+- `macos-amd64-vcpkg.cmake` — Intel (`x86_64`)
+
+The `amd64` spelling is only a name: the triplet, preset and build directory
+all use it, while the compiler and vcpkg still target `x86_64` internally.
 
 Both set `VCPKG_LIBRARY_LINKAGE dynamic`, `VCPKG_CRT_LINKAGE dynamic`,
 `VCPKG_CMAKE_SYSTEM_NAME Darwin`, `CMAKE_OSX_DEPLOYMENT_TARGET 15.0` and
@@ -56,24 +59,24 @@ on the **first** configure.
 
 ```sh
 # Apple Silicon (arm64), all game ports, Release, dynamic vcpkg libraries
-cmake -S . -B out/build/macos-sequoia-arm64-dynamic -G Ninja \
+cmake -S . -B out/build/macos-arm64-vcpkg -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-  -DVCPKG_TARGET_TRIPLET=arm64-osx-sequoia-dynamic \
+  -DVCPKG_TARGET_TRIPLET=macos-arm64-vcpkg \
   -DVCPKG_OVERLAY_TRIPLETS=/Users/nero/Codes/Kotonoha/vcpkg-overlays/triplets \
   -DVCPKG_OVERLAY_PORTS=/Users/nero/Codes/Kotonoha/vcpkg-overlays/ports \
   '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg' \
   -DKOTONOHA_SDL_PROVIDER=VCPKG \
   -DKOTONOHA_BUILD_ALL=ON -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
-cmake --build out/build/macos-sequoia-arm64-dynamic --parallel
+cmake --build out/build/macos-arm64-vcpkg --parallel
 
 # Intel (x86_64), all game ports, Release, dynamic vcpkg libraries.
 # The Xcode Python3.framework is universal (x86_64 + arm64); Homebrew's
 # Python and libunibreak are arm64-only and cannot be used for x86_64.
 XCODE_PY=/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9
-cmake -S . -B out/build/macos-sequoia-x64-dynamic -G Ninja \
+cmake -S . -B out/build/macos-amd64-vcpkg -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
-  -DVCPKG_TARGET_TRIPLET=x64-osx-sequoia-dynamic \
+  -DVCPKG_TARGET_TRIPLET=macos-amd64-vcpkg \
   -DVCPKG_OVERLAY_TRIPLETS=/Users/nero/Codes/Kotonoha/vcpkg-overlays/triplets \
   -DVCPKG_OVERLAY_PORTS=/Users/nero/Codes/Kotonoha/vcpkg-overlays/ports \
   '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg' \
@@ -84,7 +87,7 @@ cmake -S . -B out/build/macos-sequoia-x64-dynamic -G Ninja \
   -DPython3_ROOT_DIR=/Applications/Xcode.app/Contents/Developer/Library/Frameworks \
   -DPython3_FIND_FRAMEWORK=FIRST \
   '-DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks'
-cmake --build out/build/macos-sequoia-x64-dynamic --parallel
+cmake --build out/build/macos-amd64-vcpkg --parallel
 ```
 
 Run the headless test suite for either tree with
@@ -100,21 +103,21 @@ bootstrapping quirk), pre-populate the install tree with `vcpkg install` and
 then re-run the same configure command:
 
 ```sh
-vcpkg install --triplet arm64-osx-sequoia-dynamic \
+vcpkg install --triplet macos-arm64-vcpkg \
   --overlay-triplets=/Users/nero/Codes/Kotonoha/vcpkg-overlays/triplets \
   --overlay-ports=/Users/nero/Codes/Kotonoha/vcpkg-overlays/ports \
   --x-feature=sdl-vcpkg \
-  --x-install-root=/Users/nero/Codes/Kotonoha/out/build/macos-sequoia-arm64-dynamic/vcpkg_installed
+  --x-install-root=/Users/nero/Codes/Kotonoha/out/build/macos-arm64-vcpkg/vcpkg_installed
 
 # On an arm64 host, keep Homebrew's arm64-only packages out of the x86_64
 # pkg-config search path so the overlay libass port does not link them.
-VCPKG_LIBDIR=/Users/nero/Codes/Kotonoha/out/build/macos-sequoia-x64-dynamic/vcpkg_installed/x64-osx-sequoia-dynamic/lib/pkgconfig
+VCPKG_LIBDIR=/Users/nero/Codes/Kotonoha/out/build/macos-amd64-vcpkg/vcpkg_installed/macos-amd64-vcpkg/lib/pkgconfig
 PKG_CONFIG_LIBDIR="$VCPKG_LIBDIR" \
-vcpkg install --triplet x64-osx-sequoia-dynamic \
+vcpkg install --triplet macos-amd64-vcpkg \
   --overlay-triplets=/Users/nero/Codes/Kotonoha/vcpkg-overlays/triplets \
   --overlay-ports=/Users/nero/Codes/Kotonoha/vcpkg-overlays/ports \
   --x-feature=sdl-vcpkg \
-  --x-install-root=/Users/nero/Codes/Kotonoha/out/build/macos-sequoia-x64-dynamic/vcpkg_installed
+  --x-install-root=/Users/nero/Codes/Kotonoha/out/build/macos-amd64-vcpkg/vcpkg_installed
 ```
 
 ## Xcode

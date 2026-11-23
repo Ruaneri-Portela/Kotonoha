@@ -11,6 +11,8 @@
 
 namespace Artemis {
 
+class ArtemisUi;
+
 class ArtemisRuntime : public Kotonoha::Runtime {
 public:
   explicit ArtemisRuntime(std::shared_ptr<ArtemisAssets> assets = nullptr);
@@ -27,9 +29,11 @@ public:
   void initGameplay(Kotonoha::Engine &engine) override;
 
   void update() override;
+  void renderMenu(Kotonoha::RendererRef renderer, float scale) override;
   void renderGameplay(Kotonoha::RendererRef renderer, float scale) override;
   bool onEvent(Kotonoha::EventRef event) override;
 
+  bool handleNewGameAction() override;
   bool handleAdvanceAction() override;
   bool advanceStoryTime(double seconds) override;
   bool handleBacklogAction() override;
@@ -50,9 +54,18 @@ public:
   ArtemisVm &vm() { return vm_; }
   const ArtemisVm &vm() const { return vm_; }
   std::shared_ptr<ArtemisAssets> assets() const { return assets_; }
+  const ArtemisUi &ui() const;
+
+  // Title -> gameplay transition. Returns true when the native START entry
+  // was resolved and the gameplay script was loaded.
+  bool startGameplay();
+  bool titleVisible() const;
 
 private:
   struct Impl;
+  ArtemisUi *ensureUi();
+  bool activateTitleButton(int index);
+
   std::unique_ptr<Impl> impl_;
   std::shared_ptr<ArtemisAssets> assets_;
   ArtemisVm vm_;

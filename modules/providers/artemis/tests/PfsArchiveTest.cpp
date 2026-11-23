@@ -203,12 +203,58 @@ void testMultiVolumeDirectoryOverlay() {
   std::filesystem::remove_all(tmpDir);
 }
 
+void testNativeUiResolution() {
+  const auto dir = std::filesystem::temp_directory_path() /
+                   "kotonoha_artemis_ui_test";
+  std::filesystem::remove_all(dir);
+  std::filesystem::create_directories(dir);
+  const std::string uiTable =
+      "lang = {\n"
+      "\tui_title01_en = {\n"
+      "\t\tbt_start = { name=\"bt_start\", file=\"title/bt_new_game\", "
+      "x=30, y=744, w=278, h=121, p1=\"start\", p2=\"gamestart\" },\n"
+      "\t},\n"
+      "}\n";
+  const auto writeBin = [](const std::filesystem::path &path,
+                           const std::vector<std::uint8_t> &bytes) {
+    std::ofstream output(path, std::ios::binary);
+    output.write(reinterpret_cast<const char *>(bytes.data()),
+                 static_cast<std::streamsize>(bytes.size()));
+  };
+  writeBin(dir / "root.pfs",
+           buildSyntheticPfs('8', {
+                                      {"system.ini", "[WINDOWS]\nWIDTH=1600\n"
+                                                     "HEIGHT=900\n"
+                                                     "BOOT=system/first.iet\n"},
+                                      {"script\\gamestart.ast", "GAME_START"},
+                                      {"system\\table\\list_windows_en.tbl", uiTable},
+                                      {"pc\\en\\title\\bt_new_game.png", "PNG"},
+                                  }));
+
+  Artemis::ArtemisAssets assets(dir.string());
+  assert(assets.systemConfig().bootFile == "system/first.iet");
+  const auto languages = assets.uiLanguages();
+  assert(std::find(languages.begin(), languages.end(), "en") !=
+         languages.end());
+  assert(assets.uiTablePath() == "system/table/list_windows_en.tbl");
+  assert(assets.resolveUiImagePath("title/bt_new_game") ==
+         "pc/en/title/bt_new_game.png");
+  assert(assets.resolveUiImagePath("title/does_not_exist").empty());
+  assets.setUiLanguage("ja");
+  assert(assets.uiLanguage() == "ja");
+  // Only the English table exists in this synthetic archive.
+  assert(assets.uiTablePath().empty());
+
+  std::filesystem::remove_all(dir);
+}
+
 } // namespace
 
 int main() {
   testSha1();
   testPf8AndPf6Streaming();
   testMultiVolumeDirectoryOverlay();
+  testNativeUiResolution();
   std::cout << "[PfsArchiveTest] All tests passed!\n";
   return 0;
 }

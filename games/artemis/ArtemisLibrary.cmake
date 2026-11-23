@@ -14,6 +14,7 @@ endif()
 if(NOT TARGET artemis_port)
     add_library(artemis_port STATIC
         "${CMAKE_CURRENT_LIST_DIR}/src/ArtemisRuntime.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/src/ArtemisUi.cpp"
     )
     target_include_directories(artemis_port PUBLIC
         "${CMAKE_CURRENT_LIST_DIR}/include"
