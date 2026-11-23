@@ -114,11 +114,42 @@ function(kotonoha_configure_app target)
     endif()
 
     # Embed the canonical icon in every Windows .exe (Explorer, taskbar, ZIP).
+    # VERSIONINFO carries the player-facing name: without it Windows falls
+    # back to the target/filename ("KotonohaLauncher") in Explorer and Task
+    # Manager. Only the unified launcher is presented as "Kotonoha"; every
+    # individual game port keeps its own name.
     if(WIN32)
         set(_winres "${CMAKE_CURRENT_BINARY_DIR}/${target}-brand.rc")
         if(KOTONOHA_BRAND_OUTPUT AND EXISTS "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico")
             file(TO_CMAKE_PATH "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico" _icon_path)
-            file(WRITE "${_winres}" "1 ICON \"${_icon_path}\"\n")
+            string(REPLACE "." "," _win_version "${PROJECT_VERSION}.0")
+            file(WRITE "${_winres}"
+                "1 ICON \"${_icon_path}\"\n"
+                "VS_VERSION_INFO VERSIONINFO\n"
+                " FILEVERSION ${_win_version}\n"
+                " PRODUCTVERSION ${_win_version}\n"
+                " FILEFLAGSMASK 0x3fL\n"
+                " FILEFLAGS 0x0L\n"
+                " FILEOS 0x40004L\n"
+                " FILETYPE 0x1L\n"
+                " FILESUBTYPE 0x0L\n"
+                "BEGIN\n"
+                "    BLOCK \"StringFileInfo\"\n"
+                "    BEGIN\n"
+                "        BLOCK \"040904b0\"\n"
+                "        BEGIN\n"
+                "            VALUE \"CompanyName\", \"Kotonoha contributors\"\n"
+                "            VALUE \"FileDescription\", \"${_display_name}\"\n"
+                "            VALUE \"FileVersion\", \"${PROJECT_VERSION}\"\n"
+                "            VALUE \"ProductName\", \"${_display_name}\"\n"
+                "            VALUE \"ProductVersion\", \"${PROJECT_VERSION}\"\n"
+                "        END\n"
+                "    END\n"
+                "    BLOCK \"VarFileInfo\"\n"
+                "    BEGIN\n"
+                "        VALUE \"Translation\", 0x409, 1200\n"
+                "    END\n"
+                "END\n")
             target_sources(${target} PRIVATE "${_winres}")
         else()
             message(FATAL_ERROR
@@ -202,6 +233,9 @@ function(kotonoha_configure_app target)
         if(NOT EMSCRIPTEN)
             kotonoha_copy_runtime_libraries(${target} "${_kotonoha_dependency_dirs}")
         endif()
+        # Every MinGW .exe needs its GCC runtime and the full vcpkg bin set
+        # beside it, regardless of build type, target or selected game ports.
+        kotonoha_deploy_mingw_runtime(${target})
 
         if(EMSCRIPTEN)
             if(NOT KOTONOHA_WEB_ENGINE_ASSETS OR
@@ -236,7 +270,9 @@ function(kotonoha_configure_app target)
                 "SHELL:--preload-file ${KOTONOHA_WEB_ENGINE_ASSETS}@/assets"
             )
 
-            set(APP_TITLE "${target}")
+            # The browser tab/PWA name must follow the player-facing name,
+            # not the CMake target ("KotonohaLauncher" for the unified hub).
+            set(APP_TITLE "${_display_name}")
             set(TARGET_NAME "${target}")
             # Every output directory is a standalone PWA with its own
             # start URL, installation identity and Service Worker scope.

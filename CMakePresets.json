@@ -237,10 +237,11 @@
     {
       "name": "mingw-cross-base",
       "hidden": true,
-      "displayName": "Windows cross | MinGW + vcpkg (base, macOS host)",
-      "description": "Base para cross-build Windows via mingw-w64 em hosts Darwin.",
+      "displayName": "Windows cross | MinGW + vcpkg (base, macOS/Linux host)",
+      "description": "Base para cross-build Windows via mingw-w64 em hosts Darwin ou Linux.",
       "inherits": "platform-base",
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" },
+      "condition": { "type": "inList", "string": "${hostSystemName}", "list": ["Darwin", "Linux"] },
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_TOOLCHAIN_FILE": {
@@ -260,7 +261,7 @@
     },
     {
       "name": "mingw-x64",
-      "displayName": "Windows x64 | MinGW cross (macOS host)",
+      "displayName": "Windows x64 | MinGW cross (macOS/Linux host)",
       "inherits": "mingw-cross-base",
       "environment": {
         "PKG_CONFIG_LIBDIR": "${sourceDir}/out/build/mingw-x64/vcpkg_installed/x64-mingw-dynamic/lib/pkgconfig:${sourceDir}/out/build/mingw-x64/vcpkg_installed/x64-mingw-dynamic/share/pkgconfig"
@@ -272,7 +273,7 @@
     },
     {
       "name": "mingw-x86",
-      "displayName": "Windows x86 | MinGW cross (macOS host)",
+      "displayName": "Windows x86 | MinGW cross (macOS/Linux host)",
       "inherits": "mingw-cross-base",
       "environment": {
         "PKG_CONFIG_LIBDIR": "${sourceDir}/out/build/mingw-x86/vcpkg_installed/x86-mingw-dynamic/lib/pkgconfig:${sourceDir}/out/build/mingw-x86/vcpkg_installed/x86-mingw-dynamic/share/pkgconfig"
@@ -284,7 +285,7 @@
     },
     {
       "name": "mingw-arm64",
-      "displayName": "Windows ARM64 | MinGW cross (macOS host)",
+      "displayName": "Windows ARM64 | MinGW cross (macOS/Linux host)",
       "inherits": "mingw-cross-base",
       "environment": {
         "PKG_CONFIG_LIBDIR": "${sourceDir}/out/build/mingw-arm64/vcpkg_installed/arm64-mingw-dynamic/lib/pkgconfig:${sourceDir}/out/build/mingw-arm64/vcpkg_installed/arm64-mingw-dynamic/share/pkgconfig"
@@ -326,17 +327,17 @@
     {
       "name": "mingw-x64",
       "configurePreset": "mingw-x64",
-      "displayName": "Windows x64 | MinGW cross (macOS host)"
+      "displayName": "Windows x64 | MinGW cross (macOS/Linux host)"
     },
     {
       "name": "mingw-x86",
       "configurePreset": "mingw-x86",
-      "displayName": "Windows x86 | MinGW cross (macOS host)"
+      "displayName": "Windows x86 | MinGW cross (macOS/Linux host)"
     },
     {
       "name": "mingw-arm64",
       "configurePreset": "mingw-arm64",
-      "displayName": "Windows ARM64 | MinGW cross (macOS host)"
+      "displayName": "Windows ARM64 | MinGW cross (macOS/Linux host)"
     }
   ]
 }

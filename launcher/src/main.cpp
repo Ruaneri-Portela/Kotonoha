@@ -367,7 +367,7 @@ struct Application {
     // Engine initialization may set game-specific SDL application metadata.
     // Restore the hub identity before reopening its settings/UI.
     KOTONOHA_SET_APP_METADATA("Kotonoha",
-                              "me.hirameki.kotonoha.launcher");
+                              "me.hirameki.kotonoha");
 #if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
     if (!iosHubWindow) {
       if (!SDL_WasInit(SDL_INIT_VIDEO))
@@ -413,7 +413,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
                                           char **argv) {
   *appstate = nullptr;
   KOTONOHA_SET_APP_METADATA("Kotonoha",
-                            "me.hirameki.kotonoha.launcher");
+                            "me.hirameki.kotonoha");
   try {
     auto app = std::make_unique<Application>();
     app->options.persistSettings = true;

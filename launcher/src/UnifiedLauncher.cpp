@@ -888,7 +888,7 @@ std::string defaultGameParamsFilePath() {
   } catch (const std::exception &) {
   }
   return (defaultBaseUserDataDir() / "Kotonoha" /
-          "me.hirameki.kotonoha.launcher" / "game-params.txt")
+          "me.hirameki.kotonoha" / "game-params.txt")
       .string();
 }
 
