@@ -142,17 +142,13 @@ int main(int argc, char **argv) {
             "Loaded map event runs to the same ending as uninterrupted PS2");
     require(session.history().size() > before,
             "First selected campaign event adds original dialogue");
-    for (unsigned i = 0; i < 6; ++i) {
+    // n1dea_ev04A is scheduled for day 2, period 5. The prologue leaves the
+    // calendar at day 1, period 5, so advance a full day (14 periods) before
+    // checking that the executed branch opened the follow-up node.
+    for (unsigned i = 0; i < 14; ++i) {
       const int beforeDay = session.campaignDate();
       const int beforePeriod = session.campaignPeriod();
-      std::cerr << "DBG step " << i << " before date=" << beforeDay << " per=" << beforePeriod << "\n";
       session.nextCampaignPeriod();
-      std::cerr << "DBG step " << i << " after date=" << session.campaignDate() << " per=" << session.campaignPeriod() << "\n";
-      std::cerr << "after period step " << i << " (day=" << session.campaignDate()
-                << " per=" << session.campaignPeriod() << "): ";
-      for (const auto &ev : session.availableEvents())
-        std::cerr << ev.name << " ";
-      std::cerr << "\n";
       require(session.campaignDate() > beforeDay ||
                   (session.campaignDate() == beforeDay &&
                    session.campaignPeriod() > beforePeriod),
@@ -162,32 +158,12 @@ int main(int argc, char **argv) {
                   session.campaignPeriod() < 14,
               "Campaign map dates remain inside the original six-week span");
     }
-    for (int k = 0; k < 20; ++k) {
-      std::cerr << "SCAN day=" << session.campaignDate() << " per=" << session.campaignPeriod() << ": ";
-      for (const auto &ev : session.availableEvents())
-        if (ev.name == "n1dea_ev04A" || ev.name == "n1dea_ev01B" || ev.name == "n1dea_ev01A")
-          std::cerr << ev.name << " ";
-      std::cerr << "\n";
-      session.nextCampaignPeriod();
-    }
     const auto unlocked = session.availableEvents();
     bool nextMeeting = false, excludedMeeting = false;
-    for (const auto &event : session.campaignMapEvents()) {
-      if (event.name == "n1dea_ev04A" || event.name == "n1dea_ev01B" ||
-          event.name == "n1dea_ev01A")
-        std::cerr << "mapEvent: " << event.name << " icon=" << event.icon
-                  << " firstDay=" << event.firstDay
-                  << " lastDay=" << event.lastDay << " cat=" << event.category
-                  << " lvl=" << event.level << "\n";
-    }
     for (const auto &event : unlocked) {
       nextMeeting |= event.name == "n1dea_ev04A";
       excludedMeeting |= event.name == "n1dea_ev01B";
     }
-    std::cerr << "DBG date=" << session.campaignDate() << " period=" << session.campaignPeriod()
-              << " nextMeeting=" << nextMeeting << " excludedMeeting=" << excludedMeeting << "\n";
-    for (const auto &e : unlocked)
-      std::cerr << "DBG unlocked: " << e.name << " icon=" << e.icon << "\n";
     require(nextMeeting && !excludedMeeting,
             "Executed branch opens and excludes the original follow-up nodes");
     session.save(savePath.string());

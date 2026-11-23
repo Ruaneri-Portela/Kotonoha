@@ -271,9 +271,6 @@ void Vm::threadMain() {
 
 Value Vm::interact(Interaction in) {
   in.start = now();
-  if (std::getenv("DDLC_DEBUG_NODES"))
-    std::fprintf(stderr, "VM interact k=%d what='%s'\n", int(in.k),
-                 in.k == Interaction::K::Say ? scene.window.what.c_str() : "");
   {
     std::unique_lock<std::mutex> lk(mu_);
     if (abort_)
@@ -2217,9 +2214,6 @@ void VmNatives::install(Vm &vm) {
 void Vm::runFrom(Node *n) {
   while (n) {
     ++statements;
-    if (std::getenv("DDLC_DEBUG_NODES") && statements <= 120)
-      std::fprintf(stderr, "RUN %d %s:%d kind=%d cls=%s\n", statements,
-                   n->file.c_str(), n->line, int(n->k), n->ast.cls().c_str());
     try {
       n = exec(n);
     } catch (const JumpSignal &j) {
@@ -2272,6 +2266,14 @@ Node *Vm::exec(Node *n) {
   switch (n->k) {
   case Node::K::Label:
     bindLabel(n, {});
+    return n->next;
+  // Ren'Py's statically transformed AST (RPYC2 slot 2) wraps translatable
+  // statements in Translate/EndTranslate pairs. Execute the original block;
+  // the host-supplied translate callback substitutes the active language.
+  case Node::K::Translate:
+    return n->blocks.empty() || n->blocks[0].empty() ? n->next
+                                                     : n->blocks[0][0];
+  case Node::K::EndTranslate:
     return n->next;
   case Node::K::Say: {
     Value who = n->ast.get("who");

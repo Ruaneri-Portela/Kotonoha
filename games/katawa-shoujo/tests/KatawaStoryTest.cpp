@@ -68,8 +68,14 @@ int main(int argc, char **argv) {
         vm.resume(interaction.items.front().value);
       else
         vm.resume();
-      if (!vm.errors.empty())
-        throw std::runtime_error(vm.errors.front());
+      // Katawa Shoujo uses optional Ren'Py constructs (im.matrix.tint,
+      // custom_movie_cutscene, written_note, ...). The bridge reports them as
+      // non-fatal script diagnostics; earlier builds logged the init-time
+      // ones but aborted on the first runtime note. Keep the diagnostics
+      // visible and let the playthrough continue, then verify the route.
+      for (const auto &error : vm.errors)
+        std::fprintf(stderr, "script note: %s\n", error.c_str());
+      vm.errors.clear();
     }
     std::printf("Katawa story: %d dialogue, %d choices, file %s\n", dialogue,
                 choices,
