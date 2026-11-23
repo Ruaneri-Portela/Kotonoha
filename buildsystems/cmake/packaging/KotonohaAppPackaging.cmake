@@ -59,6 +59,23 @@ function(kotonoha_copy_assets target)
                 -P "${KOTONOHA_PROJECT_ROOT}/buildsystems/cmake/packaging/CopyAssetDirectory.cmake"
             VERBATIM)
     endif()
+    # Replaced only inside the staged bundle/output, never in tracked assets.
+    if(NOT ANDROID AND NOT EMSCRIPTEN AND KOTONOHA_BRAND_OUTPUT)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${KOTONOHA_BRAND_OUTPUT}/splash/SPLASH.PNG"
+                "${destination}/assets/SPLASH.PNG"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${KOTONOHA_BRAND_OUTPUT}/generic/icon.png"
+                "${destination}/assets/brand-icon.png"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico"
+                "${destination}/assets/icon.ico"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns"
+                "${destination}/assets/icon.icns"
+            VERBATIM)
+    endif()
 endfunction()
 
 # Deploy CMake-produced shared libraries AND resolved runtime dependencies

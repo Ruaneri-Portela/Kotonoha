@@ -171,4 +171,16 @@ if [[ -n "${vcpkg_lib}" && -d "${vcpkg_lib}" ]]; then
   done
   note "Embedded ${copied} dynamic vcpkg library dependency/ dependencies"
 fi
+# Install generated iOS art into bundle without changing the shared Info.plist.
+# CFBundleIcons is declared in Info.plist; names below must remain stable.
+if [[ "${PLATFORM_NAME:-}" == iphoneos || "${PLATFORM_NAME:-}" == iphonesimulator ]]; then
+  brand="${TARGET_BUILD_DIR}/KotonohaBrand"
+  python3 "${repo}/tools/generate_brand_assets.py" --kind apple --out "${brand}"
+  cp "${brand}/apple/AppIcon-120.png" "${resources_destination}/KotonohaIcon120.png"
+  cp "${brand}/apple/AppIcon-180.png" "${resources_destination}/KotonohaIcon180.png"
+  cp "${brand}/apple/AppIcon-76.png" "${resources_destination}/KotonohaIcon76.png"
+  cp "${brand}/apple/AppIcon-1024.png" "${resources_destination}/KotonohaIcon1024.png"
+  cp "${brand}/splash/SPLASH.PNG" "${resources_destination}/assets/SPLASH.PNG"
+  note "Installed iOS AppIcon sizes and black universal splash"
+fi
 note "Both SDL frameworks, vcpkg dylibs and both asset directories are present for ${TARGET_NAME:-app}"

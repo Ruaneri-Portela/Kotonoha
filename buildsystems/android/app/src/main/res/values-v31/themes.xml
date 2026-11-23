@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Kotonoha.Splash" parent="Theme.Kotonoha.Launcher">
+        <item name="android:windowSplashScreenBackground">@color/kotonoha_black</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/kotonoha_splash_mark</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/kotonoha_black</item>
+    </style>
+</resources>

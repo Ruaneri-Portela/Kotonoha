@@ -6,6 +6,10 @@ import android.content.res.AssetManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.TextView;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.view.Gravity;
+import android.graphics.Color;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -18,10 +22,24 @@ public final class BootstrapActivity extends Activity {
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
+        // Universal black splash, centered logo; no portrait/landscape artwork.
+        FrameLayout splash = new FrameLayout(this);
+        splash.setBackgroundColor(Color.BLACK);
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.kotonoha_splash_mark);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        int size = (int)(168 * getResources().getDisplayMetrics().density);
+        splash.addView(logo, new FrameLayout.LayoutParams(size, size, Gravity.CENTER));
         TextView status = new TextView(this);
-        status.setPadding(32, 32, 32, 32);
+        status.setTextColor(Color.WHITE);
         status.setText("Preparing game assets...");
-        setContentView(status);
+        status.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams message = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        message.bottomMargin = (int)(32 * getResources().getDisplayMetrics().density);
+        splash.addView(status, message);
+        setContentView(splash);
         new Thread(() -> {
             try {
                 String fingerprint;

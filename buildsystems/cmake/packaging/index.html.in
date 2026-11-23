@@ -6,7 +6,7 @@
     <title>@APP_TITLE@ - Kotonoha Engine</title>
     <!-- Each WASM game is installable as its own scoped PWA. -->
     <link rel="manifest" href="./manifest.webmanifest">
-    <meta name="theme-color" content="#101623">
+    <meta name="theme-color" content="#0D142E">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="@APP_TITLE@">
@@ -84,7 +84,7 @@
             inset: 0;
             width: 100%;
             height: 100%;
-            background: #111;
+            background: #000;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -99,6 +99,14 @@
             transition: opacity 0.5s ease;
         }
 
+        #loading-overlay::before {
+            content: "";
+            width: clamp(72px, 13vmin, 108px);
+            aspect-ratio: 1;
+            flex: none;
+            margin-bottom: 24px;
+            background: center / contain no-repeat url("./pwa-icon-192.png");
+        }
         #loading-title {
             color: #fff;
             font-size: 20px;
@@ -107,7 +115,7 @@
         }
 
         #loading-build {
-            color: #b9a2d1;
+            color: #B9B5D4;
             font: 12px system-ui, sans-serif;
             max-width: min(80vw, 520px);
             overflow-wrap: anywhere;
@@ -136,7 +144,7 @@
         #loading-bar {
             width: 0%;
             height: 100%;
-            background: linear-gradient(90deg, #8855ad, #c485e9);
+            background: linear-gradient(90deg, #2C3E9A, #6A5BE7, #C86BD9);
             transition: width 0.1s ease;
         }
 
@@ -162,11 +170,11 @@
         #asset-source-actions button:hover:not(:disabled),
         #browser-folder-tools button:hover:not(:disabled) {
             background: #3c2950;
-            border-color: #c18bdc;
+            border-color: #C86BD9;
         }
         #asset-source-actions button:focus-visible,
         #browser-folder-tools button:focus-visible {
-            outline: 2px solid #e1baff;
+            outline: 2px solid #00D6FF;
             outline-offset: 3px;
         }
 
