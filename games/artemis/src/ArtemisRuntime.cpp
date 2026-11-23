@@ -680,12 +680,19 @@ void ArtemisRuntime::renderMenu(Kotonoha::RendererRef renderer, float scale) {
   const Uint8 fade = static_cast<Uint8>(
       std::clamp(impl_->titleElapsedMs / 400.0, 0.0, 1.0) * 255.0);
 
+  // The shipped table places `version` at y=101, i.e. on top of the
+  // `blandlogo` artwork's Qruppo signature. The original draws the version
+  // string just below the badge; anchor it to the badge's bottom edge.
+  const auto badgeItem = ui->titleItem("blandlogo");
   for (const UiItem &item : ui->titleItems()) {
     if (item.isButton)
       continue;
+    SDL_FRect rect = item.rect;
+    if (item.name == "version" && badgeItem)
+      rect.y = badgeItem->rect.y + badgeItem->rect.h;
     try {
       auto &texture = ui->texture(renderer, item.logicalFile);
-      ArtemisUi::draw(renderer, texture, item.rect,
+      ArtemisUi::draw(renderer, texture, rect,
                       item.hasClip ? &item.clip : nullptr, fade);
     } catch (...) {
     }
