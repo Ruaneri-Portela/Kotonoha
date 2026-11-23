@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers">
+      <UniqueIdentifier>{ED8D3577-0377-5C4D-A4F5-A4BB6BD5D47C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\artemis">
+      <UniqueIdentifier>{4168A793-2FA6-5B37-9C26-DEC0454CCCEF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\artemis\src">
+      <UniqueIdentifier>{935E1102-049D-5355-8BB8-2FF9BFB23CF9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\providers\artemis\src\ArtemisAssets.cpp">
+      <Filter>modules\providers\artemis\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\providers\artemis\src\PfsArchive.cpp">
+      <Filter>modules\providers\artemis\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms">
+      <UniqueIdentifier>{45B28604-2082-520E-A52E-654FBA483FCF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\renpy">
+      <UniqueIdentifier>{732E3B97-B465-5BB7-A37A-1374C83E4143}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\renpy\src">
+      <UniqueIdentifier>{E4B340E9-E59B-5E50-A906-FBCA09AB0C36}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\vms\renpy\src\Python.cpp">
+      <Filter>modules\vms\renpy\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\vms\renpy\src\Vm.cpp">
+      <Filter>modules\vms\renpy\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

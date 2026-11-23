@@ -215,7 +215,10 @@ def check():
     names = [t['name'] for t in data['targets']]
     if len(names) != len(set(names)):
         errors.append('duplicate target name')
-    expected = ['KotonohaEngine', 'KotonohaImGui'] + GAME_ORDER + ['KotonohaLauncher']
+    expected = (['KotonohaEngine', 'KotonohaImGui'] +
+                [m['name'] for m in data.get('module_libraries', [])] +
+                GAME_ORDER +
+                ['KotonohaLauncherCore', 'KotonohaLauncher'])
     if names != expected:
         errors.append(f'target order/names differ: {names}')
     for target in data['targets']:
@@ -229,6 +232,9 @@ def check():
                 errors.append(f'{target["name"]}: missing source {src}')
             if rel_source(src, target['name']) not in text:
                 errors.append(f'{target["name"]}: source not in project: {src}')
+        filters = project_path(target['name']).with_suffix('.vcxproj.filters')
+        if not filters.is_file():
+            errors.append(f'missing filters: {filters.name}')
         for cfg in data['configurations']:
             for plat in data['platforms']:
                 if f"'{cfg}|{plat}'" not in text:
@@ -323,6 +329,45 @@ def write_vcxproj(target, data):
     add('  <ImportGroup Label="ExtensionTargets" />')
     add('</Project>')
     path = project_path(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+
+def filter_guid(name):
+    value = uuid.uuid5(uuid.NAMESPACE_URL, 'kotonoha/vs/filter/' + name)
+    return '{' + str(value).upper() + '}'
+
+
+def write_filters(target, data):
+    """Generate Solution Explorer folders mirroring the repository layout."""
+    name = target['name']
+    lines = [
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<Project ToolsVersion="4.0" '
+        'xmlns="http://schemas.microsoft.com/developer/msbuild/2003">',
+        '  <ItemGroup>',
+    ]
+    folders = set()
+    for source in target['sources']:
+        parts = Path(source).parts
+        for i in range(1, len(parts)):
+            folders.add('\\'.join(parts[:i]))
+    for folder in sorted(folders):
+        lines.append(f'    <Filter Include="{xml_escape(folder)}">')
+        lines.append(f'      <UniqueIdentifier>{filter_guid(folder)}</UniqueIdentifier>')
+        lines.append('    </Filter>')
+    lines.append('  </ItemGroup>')
+    lines.append('  <ItemGroup>')
+    for source in target['sources']:
+        folder = '\\'.join(Path(source).parts[:-1])
+        rel = rel_source(source, name)
+        lines.append(f'    <ClCompile Include="{xml_escape(rel)}">')
+        if folder:
+            lines.append(f'      <Filter>{xml_escape(folder)}</Filter>')
+        lines.append('    </ClCompile>')
+    lines.append('  </ItemGroup>')
+    lines.append('</Project>')
+    path = project_path(name).with_suffix('.vcxproj.filters')
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
@@ -473,24 +518,76 @@ END
 '''
 
 
+SOLUTION_FOLDER_TYPE = '{2150E333-8FDC-42A3-9474-1A3956D46DE8}'
+CPP_PROJECT_TYPE = '{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}'
+
+# Solution Explorer folders (name -> parent folder). Categories mirror the
+# repository layout: lib/, games/, modules/ and launcher/.
+SOLUTION_FOLDERS = {
+    'lib': None,
+    'games': None,
+    'modules': None,
+    'vms': 'modules',
+    'providers': 'modules',
+    'formats': 'modules',
+    'launcher': None,
+    'external': None,
+}
+
+
+def folder_guid(name):
+    value = uuid.uuid5(uuid.NAMESPACE_URL, 'kotonoha/vs/folder/' + name)
+    return '{' + str(value).upper() + '}'
+
+
+def project_folder(target):
+    name = target['name']
+    if name in ('KotonohaEngine', 'KotonohaImGui'):
+        return 'lib'
+    if target.get('module'):
+        return target['module'].split('/')[1]
+    if target.get('game'):
+        return 'games'
+    if name in ('KotonohaLauncher', 'KotonohaLauncherCore'):
+        return 'launcher'
+    return None
+
+
 def write_solution(data):
     lines = [
         'Microsoft Visual Studio Solution File, Format Version 12.00',
-        '# Visual Studio Version 17',
-        'VisualStudioVersion = 17.0.31903.59',
+        '# Visual Studio Version 18',
+        'VisualStudioVersion = 18.0.0.0',
         'MinimumVisualStudioVersion = 10.0.40219.1',
     ]
+    for folder, parent in SOLUTION_FOLDERS.items():
+        lines.append(f'Project("{SOLUTION_FOLDER_TYPE}") = "{folder}", "{folder}", '
+                     f'"{folder_guid(folder)}"')
+        lines.append('EndProject')
+    children = {}
     for target in data['targets']:
         name = target['name']
         rel = 'Projects\\' + name + '\\' + name + '.vcxproj'
-        lines.append(f'Project("{{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}}") = '
+        lines.append(f'Project("{CPP_PROJECT_TYPE}") = '
                      f'"{name}", "{rel}", "{project_guid(name)}"')
         lines.append('EndProject')
+        folder = project_folder(target)
+        if folder:
+            children[project_guid(name)] = folder
     for native, info in data['native_projects'].items():
-        lines.append(f'Project("{{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}}") = '
+        lines.append(f'Project("{CPP_PROJECT_TYPE}") = '
                      f'"{native}", "..\\..\\{info["path"]}", "{info["guid"]}"')
         lines.append('EndProject')
+        children[info['guid']] = ('launcher' if native == 'KotonohaWinUI'
+                                  else 'external')
     lines.append('Global')
+    lines.append('\tGlobalSection(NestedProjects) = preSolution')
+    for folder, parent in SOLUTION_FOLDERS.items():
+        if parent:
+            lines.append(f'\t\t{folder_guid(folder)} = {folder_guid(parent)}')
+    for guid, folder in children.items():
+        lines.append(f'\t\t{guid} = {folder_guid(folder)}')
+    lines.append('\tEndGlobalSection')
     lines.append('\tGlobalSection(SolutionConfigurationPlatforms) = preSolution')
     combos = []
     for cfg in data['configurations']:
@@ -513,6 +610,13 @@ def write_solution(data):
             lines.append(f'\t\t{guid}.{combo}.ActiveCfg = {mapped}')
             if supported:
                 lines.append(f'\t\t{guid}.{combo}.Build.0 = {mapped}')
+    # Solution folders need configuration mappings too; without them VS marks
+    # the folder as "incompatible" even though the GUID is correct.
+    for folder in SOLUTION_FOLDERS:
+        guid = folder_guid(folder)
+        for combo in combos:
+            lines.append(f'\t\t{guid}.{combo}.ActiveCfg = {combo}')
+            lines.append(f'\t\t{guid}.{combo}.Build.0 = {combo}')
     lines.append('\tEndGlobalSection')
     lines.append('\tGlobalSection(SolutionProperties) = preSolution')
     lines.append('\t\tHideSolutionNode = FALSE')
@@ -536,6 +640,7 @@ def generate():
     (VS / 'Resources/Kotonoha.rc').write_text(RC, encoding='utf-8')
     for target in data['targets']:
         write_vcxproj(target, data)
+        write_filters(target, data)
     write_solution(data)
     print(f'[Kotonoha] Generated Kotonoha.sln with {len(data["targets"])} projects')
 

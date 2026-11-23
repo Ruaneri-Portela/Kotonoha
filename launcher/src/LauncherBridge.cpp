@@ -2,12 +2,17 @@
 #include <KotonohaLauncher/LauncherBridge.h>
 #include <KotonohaLauncher/UnifiedLauncher.hpp>
 
+#include <Kotonoha/core/Settings.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
+
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <map>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -75,6 +80,193 @@ void appendJsonString(std::ostringstream &out, std::string_view value) {
   }
   out << '"';
 }
+
+// Minimal JSON reader for the partial EngineSettings objects sent by native
+// UIs. Produces flattened keys ("upscaling.factor") so the merge code stays
+// explicit and no new third-party dependency is needed in the launcher.
+class FlatJsonReader {
+public:
+  explicit FlatJsonReader(std::string_view input) : input_(input) {}
+
+  bool parse() {
+    skipSpace();
+    if (!consume('{'))
+      return false;
+    skipSpace();
+    if (consume('}'))
+      return true;
+    for (;;) {
+      skipSpace();
+      std::string key;
+      if (!readString(key))
+        return false;
+      skipSpace();
+      if (!consume(':'))
+        return false;
+      skipSpace();
+      if (!readValue(key))
+        return false;
+      skipSpace();
+      if (consume('}'))
+        return true;
+      if (!consume(','))
+        return false;
+    }
+  }
+
+  const std::map<std::string, std::string> &values() const { return values_; }
+
+private:
+  void skipSpace() {
+    while (pos_ < input_.size() &&
+           (input_[pos_] == ' ' || input_[pos_] == '\t' ||
+            input_[pos_] == '\r' || input_[pos_] == '\n'))
+      ++pos_;
+  }
+  bool consume(char ch) {
+    skipSpace();
+    if (pos_ < input_.size() && input_[pos_] == ch) {
+      ++pos_;
+      return true;
+    }
+    return false;
+  }
+  static void appendUtf8(std::string &out, unsigned code) {
+    if (code < 0x80) {
+      out += static_cast<char>(code);
+    } else if (code < 0x800) {
+      out += static_cast<char>(0xC0 | (code >> 6));
+      out += static_cast<char>(0x80 | (code & 0x3F));
+    } else {
+      out += static_cast<char>(0xE0 | (code >> 12));
+      out += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+      out += static_cast<char>(0x80 | (code & 0x3F));
+    }
+  }
+  bool readHex4(unsigned &code) {
+    if (pos_ + 4 > input_.size())
+      return false;
+    code = 0;
+    for (int i = 0; i < 4; ++i) {
+      const char ch = input_[pos_++];
+      code <<= 4;
+      if (ch >= '0' && ch <= '9')
+        code |= static_cast<unsigned>(ch - '0');
+      else if (ch >= 'a' && ch <= 'f')
+        code |= static_cast<unsigned>(ch - 'a' + 10);
+      else if (ch >= 'A' && ch <= 'F')
+        code |= static_cast<unsigned>(ch - 'A' + 10);
+      else
+        return false;
+    }
+    return true;
+  }
+  bool readString(std::string &out) {
+    if (!consume('"'))
+      return false;
+    out.clear();
+    while (pos_ < input_.size()) {
+      const char ch = input_[pos_++];
+      if (ch == '"')
+        return true;
+      if (ch != '\\') {
+        out += ch;
+        continue;
+      }
+      if (pos_ >= input_.size())
+        return false;
+      const char escaped = input_[pos_++];
+      switch (escaped) {
+      case '"': out += '"'; break;
+      case '\\': out += '\\'; break;
+      case '/': out += '/'; break;
+      case 'b': out += '\b'; break;
+      case 'f': out += '\f'; break;
+      case 'n': out += '\n'; break;
+      case 'r': out += '\r'; break;
+      case 't': out += '\t'; break;
+      case 'u': {
+        unsigned code = 0;
+        if (!readHex4(code))
+          return false;
+        appendUtf8(out, code);
+        break;
+      }
+      default:
+        return false;
+      }
+    }
+    return false;
+  }
+  bool skipComposite() {
+    const char open = input_[pos_++];
+    const char close = open == '{' ? '}' : ']';
+    int depth = 1;
+    bool inString = false;
+    while (pos_ < input_.size() && depth > 0) {
+      const char ch = input_[pos_++];
+      if (inString) {
+        if (ch == '\\' && pos_ < input_.size())
+          ++pos_;
+        else if (ch == '"')
+          inString = false;
+        continue;
+      }
+      if (ch == '"')
+        inString = true;
+      else if (ch == open || ch == '{' || ch == '[')
+        ++depth;
+      else if (ch == close || ch == '}' || ch == ']')
+        --depth;
+    }
+    return depth == 0;
+  }
+  bool readValue(const std::string &key) {
+    if (pos_ >= input_.size())
+      return false;
+    if (input_[pos_] == '{') {
+      ++pos_;
+      if (consume('}'))
+        return true;
+      for (;;) {
+        skipSpace();
+        std::string child;
+        if (!readString(child))
+          return false;
+        if (!consume(':'))
+          return false;
+        if (!readValue(key + "." + child))
+          return false;
+        if (consume('}'))
+          return true;
+        if (!consume(','))
+          return false;
+      }
+    }
+    if (input_[pos_] == '[')
+      return skipComposite();
+    if (input_[pos_] == '"') {
+      std::string text;
+      if (!readString(text))
+        return false;
+      values_[key] = text;
+      return true;
+    }
+    const std::size_t start = pos_;
+    while (pos_ < input_.size() && input_[pos_] != ',' &&
+           input_[pos_] != '}' && input_[pos_] != ']' && input_[pos_] != ' ' &&
+           input_[pos_] != '\t' && input_[pos_] != '\r' && input_[pos_] != '\n')
+      ++pos_;
+    if (start == pos_)
+      return false;
+    values_[key] = std::string(input_.substr(start, pos_ - start));
+    return true;
+  }
+
+  std::string_view input_;
+  std::size_t pos_ = 0;
+  std::map<std::string, std::string> values_;
+};
 
 bool isDiscImagePath(const std::string &path) {
   std::string ext = fs::path(path).extension().string();
@@ -247,6 +439,204 @@ int KotonohaLauncherSaveGameParams(
                : 0;
   } catch (...) {
     return 0;
+  }
+}
+
+namespace {
+
+bool readIntValue(const std::string &text, int &out) {
+  try {
+    std::size_t used = 0;
+    out = std::stoi(text, &used);
+    return used == text.size();
+  } catch (...) {
+    return false;
+  }
+}
+
+bool readFloatValue(const std::string &text, float &out) {
+  try {
+    std::size_t used = 0;
+    out = std::stof(text, &used);
+    return used == text.size();
+  } catch (...) {
+    return false;
+  }
+}
+
+bool readBoolValue(const std::string &text, bool &out) {
+  if (text == "true" || text == "1") {
+    out = true;
+    return true;
+  }
+  if (text == "false" || text == "0") {
+    out = false;
+    return true;
+  }
+  return false;
+}
+
+char *statusJson(bool ok, const std::string &error = {}) {
+  std::ostringstream out;
+  out << "{\"ok\":" << (ok ? "true" : "false");
+  if (!ok) {
+    out << ",\"error\":";
+    appendJsonString(out, error);
+  }
+  out << '}';
+  return dupCString(out.str());
+}
+
+} // namespace
+
+char *KotonohaLauncherSaveProfileEngineSettingsJson(const char *profileId,
+                                                     const char *partialJson) {
+  try {
+    const std::string json = safeString(partialJson);
+    FlatJsonReader reader(json);
+    if (!reader.parse())
+      return statusJson(false, "Malformed JSON object");
+    const auto &fields = reader.values();
+
+    const std::string id = safeString(profileId);
+    if (id.empty() || id.find('/') != std::string::npos ||
+        id.find('\\') != std::string::npos || id.find("..") != std::string::npos)
+      return statusJson(false, "Invalid profile id");
+
+    const std::string baseSettings = Kotonoha::EngineSettings::defaultPath();
+    if (baseSettings.empty())
+      return statusJson(false, "Engine settings path unavailable");
+    const fs::path baseDir = fs::path(baseSettings).parent_path();
+    const fs::path profileDir = baseDir / "Kotonoha-Profiles" / id;
+    const fs::path target = profileDir / "settings.json";
+
+    Kotonoha::EngineSettings defaults;
+    if (fs::exists(baseSettings)) {
+      try {
+        defaults = Kotonoha::EngineSettings::load(baseSettings);
+      } catch (...) {
+      }
+    }
+    Kotonoha::EngineSettings settings = defaults;
+    if (fs::exists(target)) {
+      try {
+        settings = Kotonoha::EngineSettings::load(target.string(), defaults);
+      } catch (...) {
+      }
+    }
+
+    const auto integer = [&](const char *name, int &slot) {
+      auto it = fields.find(name);
+      return it != fields.end() && readIntValue(it->second, slot);
+    };
+    const auto number = [&](const char *name, float &slot) {
+      auto it = fields.find(name);
+      return it != fields.end() && readFloatValue(it->second, slot);
+    };
+    const auto boolean = [&](const char *name, bool &slot) {
+      auto it = fields.find(name);
+      return it != fields.end() && readBoolValue(it->second, slot);
+    };
+    const auto text = [&](const char *name, std::string &slot) {
+      auto it = fields.find(name);
+      if (it == fields.end())
+        return false;
+      slot = it->second;
+      return true;
+    };
+
+    integer("width", settings.width);
+    integer("height", settings.height);
+    integer("display", settings.display);
+    integer("fullscreenWidth", settings.fullscreenWidth);
+    integer("fullscreenHeight", settings.fullscreenHeight);
+    number("refreshRate", settings.refreshRate);
+    boolean("resizable", settings.resizable);
+    boolean("vsync", settings.vsync);
+    boolean("swapControllerAB", settings.swapControllerAB);
+    number("masterVolume", settings.masterVolume);
+    boolean("masterMuted", settings.masterMuted);
+    number("vnTextSpeed", settings.vnTextSpeed);
+    boolean("vnTextInstant", settings.vnTextInstant);
+    boolean("vnTextColorOverride", settings.vnTextColorOverride);
+    number("debugUIScale", settings.debugUIScale);
+    number("renderScale", settings.renderScale);
+    text("renderer", settings.renderer);
+    text("translationPath", settings.translationPath);
+    text("fontPath", settings.fontPath);
+    text("vnFontPath", settings.vnFontPath);
+    text("customCursorPath", settings.customCursorPath);
+    text("assetOverlayName", settings.assetOverlayName);
+
+    auto colorField = [&](const char *prefix, SDL_Color &slot) {
+      const std::string key = std::string(prefix);
+      auto it = fields.find(key);
+      if (it != fields.end()) {
+        int r = 0, g = 0, b = 0, a = 255;
+        if (std::sscanf(it->second.c_str(), "%d,%d,%d,%d", &r, &g, &b, &a) < 3)
+          return;
+        slot = SDL_Color{static_cast<Uint8>(r), static_cast<Uint8>(g),
+                         static_cast<Uint8>(b), static_cast<Uint8>(a)};
+        return;
+      }
+      int dummy = 0;
+      auto channel = [&](const char *name, Uint8 &target) {
+        auto found = fields.find(key + "." + name);
+        if (found != fields.end() && readIntValue(found->second, dummy))
+          target = static_cast<Uint8>(dummy);
+      };
+      channel("r", slot.r);
+      channel("g", slot.g);
+      channel("b", slot.b);
+      channel("a", slot.a);
+    };
+    colorField("vnTextColor", settings.vnTextColor);
+    colorField("vnSpeakerColor", settings.vnSpeakerColor);
+
+    text("upscaling.shaderFiles", settings.upscaling.shaderFiles);
+    number("upscaling.factor", settings.upscaling.factor);
+    auto backend = fields.find("upscaling.backend");
+    if (backend != fields.end()) {
+      const std::string &name = backend->second;
+      int value = 0;
+      if (readIntValue(name, value)) {
+        settings.upscaling.backend =
+            static_cast<Kotonoha::UpscaleBackend>(value);
+      } else if (name == "None") {
+        settings.upscaling.backend = Kotonoha::UpscaleBackend::None;
+      } else if (name == "Linear") {
+        settings.upscaling.backend = Kotonoha::UpscaleBackend::Linear;
+      } else if (name == "MPV") {
+        settings.upscaling.backend = Kotonoha::UpscaleBackend::MPV;
+      } else if (name == "MetalFX") {
+        settings.upscaling.backend = Kotonoha::UpscaleBackend::MetalFX;
+      } else if (name == "Auto") {
+        settings.upscaling.backend = Kotonoha::UpscaleBackend::Auto;
+      }
+    }
+    auto preset = fields.find("upscaling.preset");
+    if (preset != fields.end()) {
+      int value = 0;
+      if (readIntValue(preset->second, value)) {
+        settings.upscaling.preset = static_cast<Kotonoha::UpscalePreset>(value);
+      } else {
+        for (const auto &candidate : Kotonoha::UpscalePresets()) {
+          if (preset->second == Kotonoha::UpscalePresetName(candidate)) {
+            settings.upscaling.preset = candidate;
+            break;
+          }
+        }
+      }
+    }
+
+    settings.validate();
+    fs::create_directories(profileDir);
+    settings.save(target.string());
+    return statusJson(true);
+  } catch (const std::exception &e) {
+    return statusJson(false, e.what());
+  } catch (...) {
+    return statusJson(false, "Unknown error saving engine settings");
   }
 }
 

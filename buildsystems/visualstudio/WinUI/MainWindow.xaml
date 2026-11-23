@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Kotonoha.WinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
+    Title="Kotonoha Launcher">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <controls:TitleBar x:Name="AppTitleBar" Title="Kotonoha Launcher"
+                           Grid.Row="0" />
+
+        <Grid Grid.Row="1" Padding="16" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Game library -->
+            <StackPanel Grid.Column="0" Spacing="10">
+                <TextBlock Text="Library" FontSize="20" FontWeight="SemiBold"
+                           Foreground="{StaticResource KotonohaAccent}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="AddRootButton" Content="Add folder"
+                            Click="OnAddRoot" />
+                    <Button x:Name="ScanButton" Content="Scan" Click="OnScan" />
+                </StackPanel>
+                <ListView x:Name="GamesList" Height="420"
+                          SelectionChanged="OnGameSelected"
+                          SelectionMode="Single">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{x:Bind}" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap"
+                           Foreground="{StaticResource KotonohaMuted}" />
+            </StackPanel>
+
+            <!-- Game settings -->
+            <ScrollViewer Grid.Column="1">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Game" FontSize="24" FontWeight="SemiBold"
+                               Foreground="{StaticResource KotonohaSakura}" />
+                    <TextBlock x:Name="GamePathText" TextWrapping="Wrap"
+                               Foreground="{StaticResource KotonohaMuted}" />
+
+                    <TextBlock Text="Per-game options" FontSize="16"
+                               FontWeight="SemiBold" />
+                    <TextBox x:Name="OverlayBox" Header="Asset overlay"
+                             PlaceholderText="--asset-overlay" />
+                    <TextBox x:Name="TranslationBox" Header="Translation"
+                             PlaceholderText="--translation" />
+                    <TextBox x:Name="SubtitleStyleBox" Header="Subtitle style (ASS)"
+                             PlaceholderText="--subtitle-style" />
+                    <TextBox x:Name="RouteBox" Header="Route file / scripts (School Days)"
+                             PlaceholderText="--ktrf" />
+                    <CheckBox x:Name="ForcedSubtitlesBox"
+                              Content="Forced subtitles (settings.json)" />
+
+                    <TextBlock Text="Startup" FontSize="16" FontWeight="SemiBold" />
+                    <ComboBox x:Name="RendererCombo" Header="Renderer backend"
+                              PlaceholderText="Auto" />
+                    <ComboBox x:Name="UpscalerCombo" Header="Upscaler"
+                              PlaceholderText="Auto" />
+                    <ComboBox x:Name="PresetCombo" Header="Upscaler preset" />
+                    <Slider x:Name="FactorSlider" Header="Upscale factor"
+                            Minimum="1" Maximum="4" StepFrequency="0.25" Value="1" />
+                    <Slider x:Name="VolumeSlider" Header="Master volume"
+                            Minimum="0" Maximum="1" StepFrequency="0.05" Value="1" />
+                    <TextBox x:Name="FontBox" Header="Font family"
+                             Text="Segoe UI Variable" />
+                    <TextBox x:Name="AccentBox" Header="Accent colour"
+                             Text="#6A5BE7" />
+                    <CheckBox x:Name="WindowedBox" Content="Windowed (monitor 0)"
+                              IsChecked="True" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="SaveButton" Content="Save"
+                                Click="OnSave" />
+                        <Button x:Name="LaunchButton" Content="Launch"
+                                Click="OnLaunch" Style="{StaticResource AccentButtonStyle}" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <controls:InfoBar x:Name="ErrorBar" Grid.Row="2" IsOpen="False"
+                          Severity="Error" />
+    </Grid>
+</Window>

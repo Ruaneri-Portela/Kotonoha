@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers">
+      <UniqueIdentifier>{ED8D3577-0377-5C4D-A4F5-A4BB6BD5D47C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\n2">
+      <UniqueIdentifier>{6A7319EF-821B-5B20-9DB0-5C7E79F6B768}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\n2\src">
+      <UniqueIdentifier>{0F03BEAC-092F-51E8-A908-813948FC502F}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\providers\n2\src\Archive.cpp">
+      <Filter>modules\providers\n2\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\providers\n2\src\N2ArchiveAssets.cpp">
+      <Filter>modules\providers\n2\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

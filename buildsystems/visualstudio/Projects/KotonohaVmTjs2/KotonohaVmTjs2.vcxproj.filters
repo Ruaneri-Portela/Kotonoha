@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms">
+      <UniqueIdentifier>{45B28604-2082-520E-A52E-654FBA483FCF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\tjs2">
+      <UniqueIdentifier>{03FB23B4-3631-57B2-B969-CC9ED61745ED}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\vms\tjs2\src">
+      <UniqueIdentifier>{AE1F3BC7-E0FA-59A1-9D31-57C31EC73826}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\vms\tjs2\src\TjsStartupVm.cpp">
+      <Filter>modules\vms\tjs2\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

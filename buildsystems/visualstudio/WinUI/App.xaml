@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="Kotonoha.WinUI.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <controls:XamlControlsResources />
+            </ResourceDictionary.MergedDictionaries>
+            <!-- Kotonoha brand palette, adapted to Fluent. -->
+            <SolidColorBrush x:Key="KotonohaBackground" Color="#0D142E" />
+            <SolidColorBrush x:Key="KotonohaSurface" Color="#182449" />
+            <SolidColorBrush x:Key="KotonohaAccent" Color="#6A5BE7" />
+            <SolidColorBrush x:Key="KotonohaCyan" Color="#00D6FF" />
+            <SolidColorBrush x:Key="KotonohaSakura" Color="#FF8FBD" />
+            <SolidColorBrush x:Key="KotonohaMuted" Color="#B9B5D4" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

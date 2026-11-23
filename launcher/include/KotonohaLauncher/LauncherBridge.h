@@ -55,6 +55,15 @@ int KotonohaLauncherSaveGameParams(
     const char *rendererBackend, const char *upscalerBackend,
     const char *upscalerPreset, const char *upscalerFactor);
 
+// Merges a partial UTF-8 JSON object of EngineSettings fields into the
+// settings.json of `profileId` (Kotonoha-Profiles/<id>/settings.json). Unknown
+// keys are ignored; values are validated with EngineSettings::validate() before
+// the file is written atomically. Returns a newly-allocated JSON status object
+// ({"ok":true} or {"ok":false,"error":"..."}) to be released with
+// KotonohaLauncherFreeString().
+char *KotonohaLauncherSaveProfileEngineSettingsJson(const char *profileId,
+                                                     const char *partialJson);
+
 // Returns a newly-allocated UTF-8 JSON array of upscaler shader presets
 // ([{"index":0,"name":"Anime4K: Mode A (HQ)"}, ...]).
 // Caller must release with KotonohaLauncherFreeString().

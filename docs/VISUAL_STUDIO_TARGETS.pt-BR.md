@@ -33,6 +33,14 @@ diretamente no executável (a mesma estratégia do projeto Xcode versionado).
 
 | Projeto | Tipo | Fontes | Slug do jogo | Observação |
 |---|---|---:|---|---|
+A solução agrupa os alvos em **pastas de solução** `lib`, `games`,
+`modules` (com subpastas `vms`, `providers`, `formats`), `launcher` e `external`.
+Cada projeto também tem um `.vcxproj.filters` que espelha a árvore de diretórios
+do repositório no Solution Explorer.
+
+As 28 bibliotecas estáticas de módulos estão listadas abaixo; os alvos de
+aplicação as referenciam em vez de recompilar esses fontes.
+
 | `KotonohaEngine` | StaticLibrary | 85 | — | engine compartilhado; `Kotonoha/core/BuildVersion.hpp` gerado do Git |
 | `KotonohaImGui` | StaticLibrary | 7 | — | Dear ImGui + backends SDL3 |
 | `KotonohaExample` | Application | 96 | `example` | amostra redistribuível |
@@ -51,6 +59,7 @@ diretamente no executável (a mesma estratégia do projeto Xcode versionado).
 | `PonscripterGame` | Application | 104 | `ponscripter` | |
 | `N2SystemGame` | Application | 120 | `n2system` | |
 | `ArtemisGame` | Application | 99 | `artemis` | |
+| `KotonohaLauncherCore` | StaticLibrary | 302 | — | lógica de detecção/bridge do launcher, linkada pela WinUI |
 | `KotonohaLauncher` | Application | 303 | — | todos os runtimes em um processo |
 
 Projetos nativos importados (referenciados, não copiados nem modificados):
@@ -59,6 +68,7 @@ Projetos nativos importados (referenciados, não copiados nem modificados):
 |---|---|---|
 | `SDL3` | `lib/submodules/SDL/VisualC/SDL/SDL.vcxproj` | Win32, x64, ARM64 |
 | `SDL3_ttf` | `lib/submodules/SDL_ttf/VisualC/SDL_ttf.vcxproj` | Win32, x64 |
+| `KotonohaWinUI` | `buildsystems/visualstudio/WinUI/KotonohaWinUI.vcxproj` | x64, ARM64 |
 
 ## Comandos de build
 
@@ -89,8 +99,10 @@ geram essas árvores em `out/build/<preset>/vcpkg_installed/`.
 - Nenhum dado comercial de jogos é versionado. As aplicações compilam sem
   assets de varejo, mas precisam de assets locais para executar.
 
-Um launcher nativo WinUI está **planejado** como projeto importado x64/ARM64;
-veja o [plano de implementação](WINUI_NATIVE_APP_PLAN.pt-BR.md).
+O launcher nativo WinUI (`KotonohaWinUI`) está **em implementação** como projeto
+importado x64/ARM64; veja o [plano de implementação](WINUI_NATIVE_APP_PLAN.pt-BR.md).
+Ele linka `KotonohaLauncherCore` e chama a bridge C ABI; não hospeda SDL3 em um
+`SwapChainPanel`.
 
 Veja o [guia do Visual Studio](../buildsystems/visualstudio/README.pt-BR.md), os
 [guias de build](BUILD_GUIDES.pt-BR.md) e o [cross-build Windows](BUILD_WINDOWS.pt-BR.md).

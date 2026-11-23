@@ -2,7 +2,9 @@
 
 **Português (Brasil)** | [English (US)](WINUI_NATIVE_APP_PLAN.md)
 
-Status: **planejado, não implementado**. Este plano transforma o estudo de
+Status: **em implementação** — Fase 1 (bridge) e o esqueleto da Fase 2 estão
+presentes; a camada XAML WinUI ainda exige o toolchain do Windows App SDK.
+Este plano transforma o estudo de
 viabilidade do WinUI em etapas acionáveis. Leitura relacionada:
 [alvos do Visual Studio](VISUAL_STUDIO_TARGETS.pt-BR.md),
 [guia do Visual Studio](../buildsystems/visualstudio/README.pt-BR.md),
@@ -22,7 +24,7 @@ Ele deve:
 - permitir escolher **opções de inicialização**: janela/monitor, backend de
   renderização, upscaler, volume, fontes e cores;
 - compilar dentro de `buildsystems/visualstudio/` para **x64 e ARM64**, junto
-  dos 19 projetos existentes.
+  dos 19 projetos existentes (mais a nova biblioteca estática `KotonohaLauncherCore`).
 
 Não-objetivos na primeira iteração:
 

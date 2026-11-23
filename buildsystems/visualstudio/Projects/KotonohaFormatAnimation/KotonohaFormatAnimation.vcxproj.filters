@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats">
+      <UniqueIdentifier>{EABB7FE5-9CFE-5542-B36F-87FAED8426F6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\animation">
+      <UniqueIdentifier>{7988A392-603E-5E3A-844A-E711EEFADD44}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\animation\anm">
+      <UniqueIdentifier>{726B483F-7330-5735-A313-FF7F3E2F8A76}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\formats\animation\anm\src">
+      <UniqueIdentifier>{6881D199-E8A2-5D12-9783-CB8CCE5DAAD2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\formats\animation\anm\src\PackAnimation.cpp">
+      <Filter>modules\formats\animation\anm\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

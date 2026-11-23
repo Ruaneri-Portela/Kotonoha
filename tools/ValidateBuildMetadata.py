@@ -67,8 +67,15 @@ def validate_visual_studio(xcode_manifest):
         require(info["guid"] in sln, f"Native project absent from solution: {native}")
         require(set(info["platforms"]) <= set(manifest["platforms"]),
                 f"Unknown platform for native project: {native}")
+
+    folder_type = "{2150E333-8FDC-42A3-9474-1A3956D46DE8}"
+    for folder in ("lib", "games", "modules", "launcher"):
+        require(f'Project("{folder_type}") = "{folder}"' in sln,
+                f"Missing solution folder: {folder}")
+    require("GlobalSection(NestedProjects) = preSolution" in sln,
+            "Solution folders are not wired up")
     print(f"[Kotonoha] OK: {len(targets)} Visual Studio projects; "
-          f"{len(manifest['native_projects'])} imported SDL projects; "
+          f"{len(manifest['native_projects'])} imported projects; "
           f"{len(combos)} configuration/platform targets")
 
 

@@ -2,7 +2,9 @@
 
 **English (US)** | [Português (Brasil)](WINUI_NATIVE_APP_PLAN.pt-BR.md)
 
-Status: **planned, not implemented**. This plan turns the WinUI feasibility
+Status: **in implementation** — Phase 1 (bridge) and the Phase 2 skeleton are
+landed; the WinUI XAML layer still requires the Windows App SDK toolchain.
+This plan turns the WinUI feasibility
 study into actionable steps. Related reading:
 [Visual Studio targets](VISUAL_STUDIO_TARGETS.md),
 [Visual Studio guide](../buildsystems/visualstudio/README.md),
@@ -22,7 +24,7 @@ It must:
 - let the user choose **startup options**: window/monitor, renderer backend,
   upscaler, volume, fonts and colours;
 - build inside `buildsystems/visualstudio/` for **x64 and ARM64** alongside the
-  existing 19 projects.
+  existing 19 projects (plus the new `KotonohaLauncherCore` static library).
 
 Non-goals for the first iteration:
 

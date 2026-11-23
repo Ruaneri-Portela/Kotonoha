@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers">
+      <UniqueIdentifier>{ED8D3577-0377-5C4D-A4F5-A4BB6BD5D47C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\cmp">
+      <UniqueIdentifier>{A6D4DCFF-F74B-592A-94F7-1B055055125C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\cmp\src">
+      <UniqueIdentifier>{697445C0-B16C-5028-9DE3-7B918E1DD2AA}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\providers\cmp\src\Pack.cpp">
+      <Filter>modules\providers\cmp\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\providers\cmp\src\SummerAssets.cpp">
+      <Filter>modules\providers\cmp\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

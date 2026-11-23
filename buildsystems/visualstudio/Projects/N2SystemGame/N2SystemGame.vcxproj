@@ -180,31 +180,6 @@
     <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdl3.cpp" />
     <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdlrenderer3.cpp" />
     <ClCompile Include="..\..\..\..\lib\submodules\imgui\misc\cpp\imgui_stdlib.cpp" />
-    <ClCompile Include="..\..\..\..\modules\providers\n2\src\Archive.cpp" />
-    <ClCompile Include="..\..\..\..\modules\providers\n2\src\N2ArchiveAssets.cpp" />
-    <ClCompile Include="..\..\..\..\modules\providers\ponscripter\src\PonscripterAssets.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\Archive.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\PonscripterTypes.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\ScriptBuffer.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\VariableStore.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\Lexer.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\TextFormatter.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\SaveSerializer.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\PonscripterVm.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\PonscripterCommands.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\ScriptIndex.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\DebugCatalog.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\ScriptExecutor.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\VariableStore.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\SceneGraph.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\AudioSystem.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\DialogueSystem.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\SaveState.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\SaveStateJson.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\ScriptVm.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\NsbScript.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\NsbVm.cpp" />
-    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\NsbSnapshot.cpp" />
     <ClCompile Include="..\..\..\..\games\n2system\src\N2Runtime.cpp" />
     <ClCompile Include="..\..\..\..\games\ponscripter\src\PonscripterRuntime.cpp" />
     <ResourceCompile Include="$(KotonohaVSRoot)Resources\Kotonoha.rc" />
@@ -216,6 +191,118 @@
     </ProjectReference>
     <ProjectReference Include="..\KotonohaImGui\KotonohaImGui.vcxproj">
       <Project>{7AB3A0E2-C20B-587E-AC96-C328A979E6C1}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaFormatAnimation\KotonohaFormatAnimation.vcxproj">
+      <Project>{E5A078C3-2F47-5018-8EBC-F295F9277DD3}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaFormatAudio\KotonohaFormatAudio.vcxproj">
+      <Project>{0955477D-80DB-52DA-A411-E1132FC344BE}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaFormatData\KotonohaFormatData.vcxproj">
+      <Project>{1B2F690B-7292-5844-BEE5-271CB07496C4}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaFormatImage\KotonohaFormatImage.vcxproj">
+      <Project>{056C3EA5-0C67-503D-97BE-CADACAF4CA6F}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderAdv\KotonohaProviderAdv.vcxproj">
+      <Project>{235691B0-942F-5B9E-8E06-92E6DF7ED040}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderAmagami\KotonohaProviderAmagami.vcxproj">
+      <Project>{3E837707-DFA1-5581-BBDE-10934E77AD1E}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderArtemis\KotonohaProviderArtemis.vcxproj">
+      <Project>{F5463C2C-8B8C-5D33-9FEC-26A5F79250C9}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderCmp\KotonohaProviderCmp.vcxproj">
+      <Project>{14F94418-BD6E-536D-BC25-DFC756CE30AB}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderGpk\KotonohaProviderGpk.vcxproj">
+      <Project>{DEE18BDD-23C3-5EDA-9F27-A199796E6008}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderN2\KotonohaProviderN2.vcxproj">
+      <Project>{1F6C885B-2CF9-5AC8-9475-6CA239709388}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderPak\KotonohaProviderPak.vcxproj">
+      <Project>{A3376F20-D85E-5C1C-BD38-A76825C09A76}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderPmail\KotonohaProviderPmail.vcxproj">
+      <Project>{CC275A2E-A770-5CD9-A515-A669B9EBDA66}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderPonscripter\KotonohaProviderPonscripter.vcxproj">
+      <Project>{3329A779-C43C-50B0-8DEC-7817BEADF6F0}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderReallive\KotonohaProviderReallive.vcxproj">
+      <Project>{75FFDCBA-BC51-5993-901F-B6326DCD0E71}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderRpa\KotonohaProviderRpa.vcxproj">
+      <Project>{0F7CFC0B-2E3A-5D7E-8E09-D0FB35679DA0}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderXp3\KotonohaProviderXp3.vcxproj">
+      <Project>{8BB31F0B-3249-54DA-9630-FAF209E7C89C}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaProviderZero\KotonohaProviderZero.vcxproj">
+      <Project>{8B4D2692-6A24-5678-BF3E-2037B4E4FC48}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmAmagami\KotonohaVmAmagami.vcxproj">
+      <Project>{1F092C53-CB5C-5F0F-AD35-FA55DDABD49C}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmArtemis\KotonohaVmArtemis.vcxproj">
+      <Project>{9E8A28A1-CED0-5F81-86D8-8EE03FF7CCF7}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmKag\KotonohaVmKag.vcxproj">
+      <Project>{E013BE45-C977-5249-9622-EB09B913A3DB}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmN2system\KotonohaVmN2system.vcxproj">
+      <Project>{80B27B62-28F7-5987-9115-7BDEC581B560}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmPmail\KotonohaVmPmail.vcxproj">
+      <Project>{CDD4BC54-A7BF-56FE-97E2-683BB7942A2A}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmPonscripter\KotonohaVmPonscripter.vcxproj">
+      <Project>{9129AED1-BA73-517C-8100-E9F70F621172}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmReallive\KotonohaVmReallive.vcxproj">
+      <Project>{6628EA6E-F2BD-53EB-B304-4AF5D46CB375}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmRenpy\KotonohaVmRenpy.vcxproj">
+      <Project>{D0EC05AC-5ABF-5D66-816B-D9453058522D}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmSnowRadish\KotonohaVmSnowRadish.vcxproj">
+      <Project>{D4C2CA39-D0E5-5693-B32D-6415877479B2}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmSummerRadish\KotonohaVmSummerRadish.vcxproj">
+      <Project>{ADDA3F8A-0199-5074-AAB4-E4FD63EF76CC}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaVmTjs2\KotonohaVmTjs2.vcxproj">
+      <Project>{A02DD51B-DED8-5A9D-9EC8-242A4081103B}</Project>
       <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
     </ProjectReference>
     <ProjectReference Include="..\..\..\..\lib/submodules/SDL/VisualC/SDL/SDL.vcxproj">

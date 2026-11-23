@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="modules">
+      <UniqueIdentifier>{160B7168-5BF8-551F-8CC2-5C5619D28F48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers">
+      <UniqueIdentifier>{ED8D3577-0377-5C4D-A4F5-A4BB6BD5D47C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\xp3">
+      <UniqueIdentifier>{8AFF9D13-48C4-5CBD-95F1-F12D44C5D7B4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="modules\providers\xp3\src">
+      <UniqueIdentifier>{1CA97D99-5E6A-5E46-82E3-ED433A82BD9D}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\modules\providers\xp3\src\KirikiriAssets.cpp">
+      <Filter>modules\providers\xp3\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\providers\xp3\src\TjsBootstrap.cpp">
+      <Filter>modules\providers\xp3\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\modules\providers\xp3\src\Xp3Archive.cpp">
+      <Filter>modules\providers\xp3\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
