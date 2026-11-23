@@ -21,8 +21,10 @@ class ShaderFilePicker;
 }
 
 struct DebugSettings {
-  bool showFPS = true;
-  bool showNodeClock = true;
+  // The HUD is opt-in: the shipped game presentation must be clean by default.
+  // F9 / F8 still toggle these overlays for debugging and development builds.
+  bool showFPS = false;
+  bool showNodeClock = false;
   bool ignorePause = false;
   std::string fpsLabel = "FPS";
   std::string nodeLabel = "Node";

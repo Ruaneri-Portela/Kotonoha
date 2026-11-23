@@ -107,12 +107,23 @@ private:
 };
 
 // The generic VNTextBox frame draws an engine-coloured panel and three text
-// buttons. Replace it with the game's own dock artwork and button bitmaps,
-// whose IDs come from the shipped UI layout table via AssetProvider.
+// buttons. The native Artemis presentation draws dialogue directly over the
+// background and only uses the shipped dock artwork for the side menu and
+// status icons. All IDs come from the shipped UI layout table via
+// AssetProvider.
 class ArtemisTextBox final : public Kotonoha::VNTextBox {
 public:
   ArtemisTextBox(Kotonoha::Engine &engine, ArtemisUi &ui)
-      : Kotonoha::VNTextBox(engine, "", "", 45.0), ui_(ui) {}
+      : Kotonoha::VNTextBox(engine, "", "", 45.0), ui_(ui) {
+    // NUKITASHI 2 renders white, slightly outlined condensed dialogue text;
+    // the engine default (cream, no outline) is only used by other ports.
+    speakerColor = {255, 255, 255, 255};
+    dialogueColor = {255, 255, 255, 255};
+    textOutlineColor = {0, 0, 0, 255};
+    textOutlineWidth = 2;
+    speakerFontSize = 28.0f;
+    dialogueFontSize = 28.0f;
+  }
 
 protected:
   void renderFrame(Kotonoha::RendererRef renderer) override {
@@ -120,18 +131,13 @@ protected:
       Kotonoha::VNTextBox::renderFrame(renderer);
       return;
     }
-    const SDL_FRect box{40.0f, 496.0f, 1200.0f, 204.0f};
-    const auto bar = ui_.findItem("dockarea2"); // pc/<lang>/mw/base.png
-    if (bar) {
-      try {
-        auto &texture = ui_.texture(renderer, bar->logicalFile);
-        ArtemisUi::draw(renderer, texture, box,
-                        bar->hasClip ? &bar->clip : nullptr, 225);
-      } catch (...) {
-      }
-    }
-    static const char *buttons[] = {"bt_save", "bt_load", "bt_conf",
-                                    "bt_back", "bt_title"};
+    // Native dock buttons reuse the game's own artwork. `mw/base` is a noisy
+    // dock strip, not a dialogue panel: stretching it across the text area
+    // produced the opaque box absent from the original. Draw only the buttons.
+    static const char *buttons[] = {
+        "bt_save", "bt_load",  "bt_qsave", "bt_qload", "bt_conf",
+        "bt_back", "bt_title", "bt_lock",  "bt_mute",  "bt_voice",
+        "bt_auto", "bt_skip",  "bt_close"};
     for (const char *name : buttons) {
       const auto item = ui_.findItem(name);
       if (!item)
@@ -192,6 +198,10 @@ struct ArtemisRuntime::Impl {
   int selectedTitleItem = 0;
   double titleElapsedMs = 0.0;
   std::string gameplayScript;
+  // Indices into ui->titleButtons() for the buttons the shipped retail build
+  // actually exposes. SCENARIOS / EXTRA are absent from the original title.
+  std::vector<int> titleButtonOrder;
+  bool titleOrderReady = false;
 };
 
 ArtemisRuntime::ArtemisRuntime(std::shared_ptr<ArtemisAssets> assets)
@@ -257,12 +267,34 @@ ArtemisUi *ArtemisRuntime::ensureUi() {
   return impl_->ui->loaded() ? impl_->ui.get() : nullptr;
 }
 
+const std::vector<int> &ArtemisRuntime::visibleTitleButtons(ArtemisUi &ui) {
+  if (!impl_->titleOrderReady) {
+    impl_->titleOrderReady = true;
+    const auto &buttons = ui.titleButtons();
+    for (std::size_t i = 0; i < buttons.size(); ++i) {
+      // The retail title never offers SCENARIOS or EXTRA; those buttons only
+      // appear in the full version's table but have no content in this build.
+      if (buttons[i].name == "bt_select" || buttons[i].name == "bt_extra")
+        continue;
+      impl_->titleButtonOrder.push_back(static_cast<int>(i));
+    }
+    if (impl_->titleButtonOrder.empty()) {
+      for (std::size_t i = 0; i < buttons.size(); ++i)
+        impl_->titleButtonOrder.push_back(static_cast<int>(i));
+    }
+  }
+  return impl_->titleButtonOrder;
+}
+
 bool ArtemisRuntime::activateTitleButton(int index) {
   ArtemisUi *ui = ensureUi();
-  if (!ui || index < 0 ||
-      index >= static_cast<int>(ui->titleButtons().size()))
+  if (!ui)
     return false;
-  const UiItem &item = ui->titleButtons()[static_cast<std::size_t>(index)];
+  const auto &order = visibleTitleButtons(*ui);
+  if (index < 0 || index >= static_cast<int>(order.size()))
+    return false;
+  const UiItem &item = ui->titleButtons()[static_cast<std::size_t>(
+      order[static_cast<std::size_t>(index)])];
   impl_->selectedTitleItem = index;
   if (!impl_->engine)
     return false;
@@ -659,15 +691,15 @@ void ArtemisRuntime::renderMenu(Kotonoha::RendererRef renderer, float scale) {
     }
   }
   const auto &buttons = ui->titleButtons();
-  for (std::size_t i = 0; i < buttons.size(); ++i) {
-    const UiItem &item = buttons[i];
-    const bool focused = static_cast<int>(i) == impl_->selectedTitleItem;
+  const auto &order = visibleTitleButtons(*ui);
+  for (std::size_t i = 0; i < order.size(); ++i) {
+    const UiItem &item = buttons[static_cast<std::size_t>(order[i])];
+    // The original title uses the frame's base artwork for every button.
+    // Applying `clip_a` to the keyboard-selected item turned NEW GAME orange.
     try {
       auto &texture = ui->texture(renderer, item.logicalFile);
-      const SDL_FRect *source = (focused && item.hasOverClip)
-                                    ? &item.overClip
-                                    : (item.hasClip ? &item.clip : nullptr);
-      ArtemisUi::draw(renderer, texture, item.rect, source, fade);
+      ArtemisUi::draw(renderer, texture, item.rect,
+                      item.hasClip ? &item.clip : nullptr, fade);
     } catch (...) {
     }
   }
@@ -809,11 +841,10 @@ void ArtemisRuntime::renderGameplay(Kotonoha::RendererRef renderer,
           auto &texture = impl_->ui->texture(renderer, choiceFile);
           ArtemisUi::draw(
               renderer, texture, rect,
-              artwork
-                  ? ((focused && artwork->hasOverClip)
-                         ? &artwork->overClip
-                         : (artwork->hasClip ? &artwork->clip : nullptr))
-                  : nullptr);
+              artwork ? ((focused && artwork->hasOverClip)
+                             ? &artwork->overClip
+                             : (artwork->hasClip ? &artwork->clip : nullptr))
+                      : nullptr);
         } catch (...) {
         }
       }
@@ -835,11 +866,14 @@ void ArtemisRuntime::renderGameplay(Kotonoha::RendererRef renderer,
 bool ArtemisRuntime::onEvent(Kotonoha::EventRef event) {
   if (titleVisible()) {
     ArtemisUi *ui = ensureUi();
-    const int count =
-        ui ? static_cast<int>(ui->titleButtons().size()) : 0;
+    const auto &order = ui ? visibleTitleButtons(*ui) : std::vector<int>{};
+    const int count = static_cast<int>(order.size());
     if (event.type == SDL_EVENT_MOUSE_MOTION) {
       for (int i = 0; i < count; ++i) {
-        const SDL_FRect &rect = ui->titleButtons()[i].rect;
+        const SDL_FRect &rect =
+            ui->titleButtons()[static_cast<std::size_t>(
+                                   order[static_cast<std::size_t>(i)])]
+                .rect;
         const SDL_FPoint point{event.motion.x, event.motion.y};
         if (SDL_PointInRectFloat(&point, &rect))
           impl_->selectedTitleItem = i;
@@ -850,7 +884,11 @@ bool ArtemisRuntime::onEvent(Kotonoha::EventRef event) {
         event.button.button == SDL_BUTTON_LEFT) {
       const SDL_FPoint point{event.button.x, event.button.y};
       for (int i = 0; i < count; ++i) {
-        if (SDL_PointInRectFloat(&point, &ui->titleButtons()[i].rect)) {
+        if (SDL_PointInRectFloat(
+                &point,
+                &ui->titleButtons()[static_cast<std::size_t>(
+                                        order[static_cast<std::size_t>(i)])]
+                     .rect)) {
           impl_->selectedTitleItem = i;
           return activateTitleButton(i);
         }
@@ -859,7 +897,8 @@ bool ArtemisRuntime::onEvent(Kotonoha::EventRef event) {
     }
     if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
       if (event.key.key == SDLK_UP && count > 0) {
-        impl_->selectedTitleItem = (impl_->selectedTitleItem + count - 1) % count;
+        impl_->selectedTitleItem =
+            (impl_->selectedTitleItem + count - 1) % count;
         return true;
       }
       if (event.key.key == SDLK_DOWN && count > 0) {
@@ -877,27 +916,46 @@ bool ArtemisRuntime::onEvent(Kotonoha::EventRef event) {
   if (impl_->engine && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
       event.button.button == SDL_BUTTON_LEFT) {
     const SDL_FPoint point{event.button.x, event.button.y};
-    static const char *dockButtons[] = {"bt_save", "bt_load", "bt_conf",
-                                        "bt_back", "bt_title"};
+    static const char *dockButtons[] = {
+        "bt_save", "bt_load",  "bt_qsave", "bt_qload", "bt_conf",
+        "bt_back", "bt_title", "bt_lock",  "bt_mute",  "bt_voice",
+        "bt_auto", "bt_skip",  "bt_close"};
     for (const char *name : dockButtons) {
-      const auto item = impl_->ui ? impl_->ui->findItem(name)
-                                  : std::optional<UiItem>{};
+      const auto item =
+          impl_->ui ? impl_->ui->findItem(name) : std::optional<UiItem>{};
       if (!item || !SDL_PointInRectFloat(&point, &item->rect))
         continue;
-      if (name == std::string("bt_save") && impl_->saveMenu) {
-        impl_->saveMenu->open(
-            Kotonoha::applicationDirectories("artemis").saves.string(), false,
-            vm_.saveTitle().empty() ? "Artemis" : vm_.saveTitle());
-      } else if (name == std::string("bt_load") && impl_->saveMenu) {
-        impl_->saveMenu->open(
-            Kotonoha::applicationDirectories("artemis").saves.string(), true);
-      } else if (name == std::string("bt_conf")) {
+      const std::string action(name);
+      const auto saves = Kotonoha::applicationDirectories("artemis").saves;
+      if (action == "bt_save" && impl_->saveMenu) {
+        impl_->saveMenu->open(saves.string(), false,
+                              vm_.saveTitle().empty() ? "Artemis"
+                                                      : vm_.saveTitle());
+      } else if (action == "bt_load" && impl_->saveMenu) {
+        impl_->saveMenu->open(saves.string(), true);
+      } else if (action == "bt_qsave") {
+        std::filesystem::create_directories(saves);
+        saveGame((saves / "quicksave.dat").string());
+      } else if (action == "bt_qload") {
+        loadGame((saves / "quicksave.dat").string());
+      } else if (action == "bt_conf") {
         impl_->engine->GetSettingsMenu().open();
-      } else if (name == std::string("bt_back") && impl_->backlog) {
+      } else if (action == "bt_back" && impl_->backlog) {
         impl_->backlog->open();
-      } else if (name == std::string("bt_title")) {
+      } else if (action == "bt_title") {
         initMenu(*impl_->engine);
+      } else if (action == "bt_mute") {
+        auto &audio = impl_->engine->GetAudio();
+        audio.setMasterMuted(!audio.isMasterMuted());
+      } else if (action == "bt_voice" && impl_->backlog) {
+        const auto &entries = impl_->backlog->getEntries();
+        if (!entries.empty())
+          impl_->backlog->replayEntry(entries.size() - 1);
+      } else if (action == "bt_close" && impl_->textBox) {
+        impl_->textBox->toggleUserHidden();
       }
+      // bt_lock / bt_auto / bt_skip are purely native status indicators in
+      // this port; consume the click so it never reaches the dialogue advance.
       return true;
     }
   }

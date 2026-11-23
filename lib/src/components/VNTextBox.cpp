@@ -176,11 +176,39 @@ void VNTextBox::renderFrame(RendererRef renderer) {
   ui.button(renderer, {1070, 506, 160, 44}, "Log [B]");
 }
 
+void VNTextBox::drawStyledText(RendererRef renderer, UI &ui,
+                               const std::string &text, float x, float y,
+                               float wrap, const SDL_Color &color,
+                               float fontSize) {
+  const auto draw = [&](float dx, float dy, const SDL_Color &tint) {
+    if (fontSize > 0.0f)
+      ui.textSized(renderer, text, x + dx, y + dy, wrap, fontSize, tint);
+    else
+      ui.text(renderer, text, x + dx, y + dy, wrap, tint);
+  };
+  if (textOutlineWidth > 0 && textOutlineColor.a > 0) {
+    const float d = static_cast<float>(textOutlineWidth);
+    // Eight neighbours give a smooth outline on both horizontal and diagonal
+    // strokes without needing a font with an outline API.
+    draw(-d, 0, textOutlineColor);
+    draw(d, 0, textOutlineColor);
+    draw(0, -d, textOutlineColor);
+    draw(0, d, textOutlineColor);
+    draw(-d, -d, textOutlineColor);
+    draw(d, -d, textOutlineColor);
+    draw(-d, d, textOutlineColor);
+    draw(d, d, textOutlineColor);
+  }
+  draw(0, 0, color);
+}
+
 void VNTextBox::renderSpeaker(RendererRef renderer) {
-  engine.GetVNUI().text(renderer, speakerName, 60, 510, 810,
-                        engine.GetSettings().vnTextColorOverride
-                            ? engine.GetSettings().vnSpeakerColor
-                            : SDL_Color{255, 215, 100, 255});
+  auto &ui = engine.GetVNUI();
+  const auto color = engine.GetSettings().vnTextColorOverride
+                         ? engine.GetSettings().vnSpeakerColor
+                         : speakerColor;
+  drawStyledText(renderer, ui, speakerName, 60, 510, 810, color,
+                 speakerFontSize);
 }
 
 void VNTextBox::renderDialogue(RendererRef renderer) {
@@ -206,14 +234,17 @@ void VNTextBox::renderDialogue(RendererRef renderer) {
   const auto lines =
       TextWrapping::visibleLines(dialogueLayout_, visibleDialogue.size());
 
+  const auto color = engine.GetSettings().vnTextColorOverride
+                         ? engine.GetSettings().vnTextColor
+                         : dialogueColor;
+  // Outlined text needs a slightly taller line stride to avoid the shadow of
+  // one line touching the next.
+  const int stride = dialogueFontSize > 26.0f ? 32 : 28;
   int yOffset = 550;
   for (const auto &line : lines) {
-    engine.GetVNUI().text(renderer, line, 60, static_cast<float>(yOffset),
-                          1140.0f,
-                          engine.GetSettings().vnTextColorOverride
-                              ? engine.GetSettings().vnTextColor
-                              : SDL_Color{240, 240, 245, 255});
-    yOffset += 28;
+    drawStyledText(renderer, ui, line, 60, static_cast<float>(yOffset), 1140.0f,
+                   color, dialogueFontSize);
+    yOffset += stride;
   }
 
   SDL_SetRenderClipRect(&renderer, nullptr);

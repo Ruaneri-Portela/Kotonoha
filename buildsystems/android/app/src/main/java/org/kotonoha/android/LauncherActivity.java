@@ -420,7 +420,13 @@ public final class LauncherActivity extends AppCompatActivity {
                 if (!destination.mkdirs())
                     throw new IOException("Cannot create overlay destination directory");
 
-                copyDocumentTree(sourceTree, destination);
+                try {
+                    copyDocumentTree(sourceTree, destination);
+                    verifyImportedTree(sourceTree, destination, destination.getName(), false);
+                } catch (Exception error) {
+                    deleteTree(destination);
+                    throw error;
+                }
 
                 String resolvedPath = destination.getAbsolutePath();
                 runOnUiThread(() -> {
@@ -465,7 +471,15 @@ public final class LauncherActivity extends AppCompatActivity {
                 if (!destination.mkdirs())
                     throw new IOException("Cannot create game destination directory");
 
-                copyDocumentTree(sourceTree, destination);
+                try {
+                    copyDocumentTree(sourceTree, destination);
+                    verifyImportedTree(sourceTree, destination, destination.getName(), true);
+                } catch (Exception error) {
+                    // Never leave a partial game on disk: a later rescan would
+                    // register it and reproduce the audio-only symptom.
+                    deleteTree(destination);
+                    throw error;
+                }
 
                 runOnUiThread(this::rescanLibrary);
             } catch (Exception error) {
@@ -479,29 +493,148 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void copyDocumentTree(DocumentFile source, File targetDir) throws IOException {
         DocumentFile[] children = source.listFiles();
-        if (children != null) {
-            for (DocumentFile child : children) {
-                String name = child.getName();
-                if (name == null) continue;
-                File targetFile = new File(targetDir, name);
-                if (child.isDirectory()) {
-                    if (!targetFile.isDirectory() && !targetFile.mkdirs()) {
-                        throw new IOException("Cannot create directory: " + targetFile);
-                    }
-                    copyDocumentTree(child, targetFile);
-                } else {
-                    try (InputStream in = getContentResolver().openInputStream(child.getUri());
-                         FileOutputStream out = new FileOutputStream(targetFile)) {
-                        if (in != null) {
-                            byte[] buffer = new byte[65536];
-                            int count;
-                            while ((count = in.read(buffer)) != -1) {
-                                out.write(buffer, 0, count);
-                            }
+        if (children == null)
+            throw new IOException("Cannot list folder: " + source.getName());
+        for (DocumentFile child : children) {
+            String name = child.getName();
+            if (name == null)
+                throw new IOException("Cannot read an entry name in: " + source.getName());
+            File targetFile = new File(targetDir, name);
+            if (child.isDirectory()) {
+                if (!targetFile.isDirectory() && !targetFile.mkdirs())
+                    throw new IOException("Cannot create directory: " + targetFile);
+                copyDocumentTree(child, targetFile);
+            } else {
+                try (InputStream in = getContentResolver().openInputStream(child.getUri())) {
+                    if (in == null)
+                        throw new IOException("Cannot open asset: " + name);
+                    try (FileOutputStream out = new FileOutputStream(targetFile)) {
+                        byte[] buffer = new byte[65536];
+                        int count;
+                        while ((count = in.read(buffer)) != -1) {
+                            out.write(buffer, 0, count);
                         }
                     }
                 }
             }
+        }
+    }
+
+    /** Number of entries in a DocumentFile subtree; -1 if it cannot be listed. */
+    private static int countDocumentEntries(DocumentFile source) {
+        DocumentFile[] children = source.listFiles();
+        if (children == null) return -1;
+        int count = 0;
+        for (DocumentFile child : children) {
+            if (child.getName() == null) return -1;
+            count++;
+            if (child.isDirectory()) {
+                int nested = countDocumentEntries(child);
+                if (nested < 0) return -1;
+                count += nested;
+            }
+        }
+        return count;
+    }
+
+    /** Number of entries actually written below a destination directory. */
+    private static int countFileEntries(File directory) {
+        File[] children = directory.listFiles();
+        if (children == null) return -1;
+        int count = 0;
+        for (File child : children) {
+            count++;
+            if (child.isDirectory()) {
+                int nested = countFileEntries(child);
+                if (nested < 0) return -1;
+                count += nested;
+            }
+        }
+        return count;
+    }
+
+    private static File findIgnoreCase(File parent, String name) {
+        File[] children = parent.listFiles();
+        if (children == null) return null;
+        for (File child : children)
+            if (child.getName().equalsIgnoreCase(name)) return child;
+        return null;
+    }
+
+    private static File findPathIgnoreCase(File root, String relativePath) {
+        File current = root;
+        for (String segment : relativePath.split("/")) {
+            if (segment.isEmpty()) continue;
+            current = findIgnoreCase(current, segment);
+            if (current == null) return null;
+        }
+        return current;
+    }
+
+    private static boolean isNonEmptyDirectory(File directory) {
+        File[] children = directory.listFiles();
+        return children != null && children.length > 0;
+    }
+
+    private static boolean hasLooseGraphics(File root) {
+        File[] children = root.listFiles();
+        if (children == null) return false;
+        for (File child : children) {
+            if (!child.isFile()) continue;
+            String name = child.getName().toLowerCase(Locale.ROOT);
+            if (name.endsWith(".g00") || name.endsWith(".pdt")) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Engine-specific checks for directories without which the game would be
+     * registered but only partially playable (e.g. RealLive audio without g00).
+     */
+    private static String missingEngineAssets(File root) {
+        for (String prefix : new String[]{"", "kineticdata/"}) {
+            if (findPathIgnoreCase(root, prefix + "Seen.txt") != null
+                    && findPathIgnoreCase(root, prefix + "Gameexe.ini") != null) {
+                File g00 = findPathIgnoreCase(root, prefix + "G00");
+                File pdt = findPathIgnoreCase(root, prefix + "PDT");
+                if (!((g00 != null && isNonEmptyDirectory(g00))
+                        || (pdt != null && isNonEmptyDirectory(pdt))
+                        || hasLooseGraphics(root)))
+                    return "g00/ is empty (RealLive graphics missing)";
+                break;
+            }
+        }
+        for (String prefix : new String[]{"", "files/"}) {
+            String[] required = {"PARAM.PAK", "SCRIPT.PAK", "SYSSE.PAK"};
+            boolean any = false;
+            for (String name : required)
+                if (findPathIgnoreCase(root, prefix + name) != null) any = true;
+            if (!any) continue;
+            for (String name : required)
+                if (findPathIgnoreCase(root, prefix + name) == null)
+                    return name + " missing (LucaSystem package incomplete)";
+            break;
+        }
+        return null;
+    }
+
+    /**
+     * Rejects incomplete copies before the library is rescanned, so the user
+     * never gets a game entry that plays audio but cannot display images.
+     */
+    private static void verifyImportedTree(DocumentFile source, File destination,
+                                           String label, boolean gameFolder)
+            throws IOException {
+        int expected = countDocumentEntries(source);
+        int copied = countFileEntries(destination);
+        if (expected >= 0 && copied != expected)
+            throw new IOException(label + ": incomplete copy (" + copied
+                    + " of " + expected + " entries). Re-import the folder.");
+        if (gameFolder) {
+            String issue = missingEngineAssets(destination);
+            if (issue != null)
+                throw new IOException(label + ": incomplete copy — " + issue
+                        + ". Re-import the folder.");
         }
     }
 

@@ -17,6 +17,7 @@ class RealLiveAssets final : public Kotonoha::AssetProvider {
   std::string dataPrefix;
   std::string configSource;
   Config config;
+  bool graphicsAvailable = false;
 
   std::string qualify(const std::string &id) const;
 

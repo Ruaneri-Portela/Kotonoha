@@ -64,6 +64,9 @@ public:
 private:
   struct Impl;
   ArtemisUi *ensureUi();
+  // Title buttons actually present in the shipped build (SCENARIOS / EXTRA
+  // are not part of the original title screen).
+  const std::vector<int> &visibleTitleButtons(ArtemisUi &ui);
   bool activateTitleButton(int index);
 
   std::unique_ptr<Impl> impl_;
