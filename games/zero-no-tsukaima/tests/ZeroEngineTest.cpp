@@ -402,9 +402,14 @@ void testGame(const std::string &discPath) {
     send(engine, controller);
     frames(engine, 30);
     require(menu->IsOpen(), "Controller Start opens the native command menu");
+    // Wait for the menu's open animation/handoff to settle before sending the
+    // cancel button: a fixed frame count raced with the native menu state
+    // machine and made this retail check flaky under parallel CTest load.
+    frames(engine, 60);
+    require(menu->IsOpen(), "Controller Start opens the native command menu");
     controller.gbutton.button = SDL_GAMEPAD_BUTTON_SOUTH;
     send(engine, controller);
-    frames(engine, 30);
+    frames(engine, 60);
     require(!menu->IsOpen(),
             "Controller Cancel closes a menu rather than entering held skip");
     controller.type = SDL_EVENT_GAMEPAD_BUTTON_UP;
