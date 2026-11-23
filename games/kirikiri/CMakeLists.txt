@@ -42,8 +42,20 @@ if(BUILD_TESTING)
     add_executable(KirikiriXp3Tests tests/Xp3Test.cpp)
     target_link_libraries(KirikiriXp3Tests PRIVATE kirikiri_formats)
     add_test(NAME KirikiriXp3 COMMAND KirikiriXp3Tests)
-endif()
 
-if(BUILD_TESTING)
-    kotonoha_label_directory_tests()
+    # Retail evidence: the original XP3 stack is protected, while the loose
+    # VNX+ translation scripts are readable. Both report 77 when no data is
+    # supplied; a protected XP3 is a SKIP with the exact parser error, never
+    # a false pass.
+    add_executable(KirikiriRetailTests tests/RetailXp3Test.cpp)
+    target_link_libraries(KirikiriRetailTests PRIVATE kirikiri_formats)
+    add_test(NAME Kirikiri.RetailXp3Startup
+        COMMAND KirikiriRetailTests --xp3 "${KIRIKIRI_TEST_DATA}")
+    add_test(NAME Kirikiri.RetailVnxScripts
+        COMMAND KirikiriRetailTests --vnx "${KIRIKIRI_TEST_DATA}")
+    set_tests_properties(Kirikiri.RetailXp3Startup Kirikiri.RetailVnxScripts
+        PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    kotonoha_label_directory_tests(REAL Kirikiri.RetailXp3Startup
+        Kirikiri.RetailVnxScripts)
 endif()

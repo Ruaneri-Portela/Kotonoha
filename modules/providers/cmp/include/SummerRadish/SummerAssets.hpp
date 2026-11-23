@@ -8,6 +8,8 @@
 
 #include <memory>
 namespace Kotonoha::Providers {
+// Disambiguates the two-disc constructor from (root, overlay).
+struct MultiDisc {};
 class SummerAssets final : public Kotonoha::AssetProvider {
   std::map<std::string, std::vector<std::unique_ptr<SummerRadish::Pack>>> packs;
   std::filesystem::path discDirectory;
@@ -18,6 +20,12 @@ class SummerAssets final : public Kotonoha::AssetProvider {
 
 public:
   explicit SummerAssets(std::filesystem::path root,
+                        std::filesystem::path overlay = {});
+  // Multi-disc installation: combine DISC1 and DISC2 as one layered VFS.
+  // The packs unique to each disc (VOICE.CMP/BGMDATA.CMP, ...) are merged
+  // into a single PACK view while movies keep resolving from DISC1.
+  explicit SummerAssets(MultiDisc, std::filesystem::path disc1,
+                        std::filesystem::path disc2,
                         std::filesystem::path overlay = {});
   explicit SummerAssets(
       std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted);

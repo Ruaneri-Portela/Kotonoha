@@ -42,6 +42,17 @@ public:
   // alphabetical order of scenario files.
   std::string startupScenario() const;
 
+  // Read-only summary of the mounted XP3 indexes. Entries whose `info` flags
+  // have bit 31 set carry encrypted payloads; the parser keeps them
+  // discoverable but their bytes are not decodable without the game's
+  // native protection filter.
+  struct Xp3IndexReport {
+    std::size_t archives = 0;
+    std::size_t entries = 0;
+    std::size_t protectedEntries = 0;
+  };
+  Xp3IndexReport xp3IndexReport() const;
+
   // Mounts an XP3 archive by path (relative to the game root or absolute).
   // Only the file table is parsed; entry data is read on demand.
   void mountXp3(const std::filesystem::path &path);
@@ -61,6 +72,7 @@ private:
     std::string name;
     std::string archiveId; // virtual identifier for the XP3 source
     std::uint64_t originalSize = 0;
+    bool protectedEntry = false; // `info` flags bit 31 (encrypted payload)
     // A Kirikiri storage may span many raw or zlib-compressed segments.
     // Keep the physical spans rather than incorrectly returning only one.
     std::vector<Xp3Segment> segments;
