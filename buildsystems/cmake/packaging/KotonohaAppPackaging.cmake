@@ -76,6 +76,14 @@ function(kotonoha_copy_assets target)
                 "${destination}/assets/icon.icns"
             VERBATIM)
     endif()
+    if(APPLE AND is_bundle AND KOTONOHA_BRAND_OUTPUT)
+        # An .app requires the icon next to Info.plist's Resources directory.
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "${KOTONOHA_BRAND_OUTPUT}/generic/icon.icns"
+                "${destination}/icon.icns"
+            VERBATIM)
+    endif()
 endfunction()
 
 # Deploy CMake-produced shared libraries AND resolved runtime dependencies

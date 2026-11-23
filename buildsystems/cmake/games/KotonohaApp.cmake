@@ -46,6 +46,26 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
     endif()
 endif()
 
+# WebAssembly preloads engine assets from a generated staging directory so
+# the built-in splash follows the same brand without modifying tracked files.
+if(EMSCRIPTEN)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    set(KOTONOHA_WEB_ENGINE_ASSETS "${CMAKE_BINARY_DIR}/kotonoha-web-engine-assets")
+    file(MAKE_DIRECTORY "${KOTONOHA_WEB_ENGINE_ASSETS}")
+    file(COPY "${KOTONOHA_ENGINE_ASSETS}/" DESTINATION "${KOTONOHA_WEB_ENGINE_ASSETS}")
+    execute_process(COMMAND "${Python3_EXECUTABLE}"
+        "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py"
+        --kind web --out "${CMAKE_BINARY_DIR}/kotonoha-web-brand"
+        RESULT_VARIABLE _web_brand_status)
+    if(NOT _web_brand_status EQUAL 0)
+        message(FATAL_ERROR "Cannot generate Kotonoha WebApp branding")
+    endif()
+    file(COPY_FILE
+        "${CMAKE_BINARY_DIR}/kotonoha-web-brand/splash/SPLASH.PNG"
+        "${KOTONOHA_WEB_ENGINE_ASSETS}/SPLASH.PNG"
+        ONLY_IF_DIFFERENT)
+endif()
+
 # Cria o executável ou biblioteca compartilhada (Android)
 function(kotonoha_add_app target)
     if(ANDROID)
@@ -172,7 +192,7 @@ function(kotonoha_configure_app target)
                 "SHELL:-sASYNCIFY_STACK_SIZE=262144"
                 "SHELL:-sFETCH=1"
                 "SHELL:-lidbfs.js"
-                "SHELL:--preload-file ${KOTONOHA_ENGINE_ASSETS}@/assets"
+                "SHELL:--preload-file ${KOTONOHA_WEB_ENGINE_ASSETS}@/assets"
             )
 
             set(APP_TITLE "${target}")

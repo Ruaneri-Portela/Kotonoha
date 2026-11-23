@@ -126,12 +126,12 @@ def generate(root,kind):
                 '  <monochrome android:drawable="@drawable/ic_launcher_monochrome"/>\n'
                 '</adaptive-icon>\n')
             save(root,"android/res/mipmap-anydpi-v26/"+name+".xml",content)
-    if kind in ("all","desktop","apple","android"):
+    if kind in ("all","desktop","apple","android","web"):
         save(root,"splash/SPLASH.PNG",png(1024,"splash"))
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument("--kind",choices=("all","desktop","apple","android"),default="all")
+    parser.add_argument("--kind",choices=("all","desktop","apple","android","web"),default="all")
     parser.add_argument("--out",type=Path,required=True)
     args=parser.parse_args()
     generate(args.out,args.kind)
