@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{87A63015-FD31-5683-8EBD-F9C2FD6E70D5}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>KotonohaLauncher</RootNamespace>
+    <ProjectName>KotonohaLauncher</ProjectName>
+    <VcpkgEnabled>false</VcpkgEnabled>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <OutDir>$(KotonohaOutputDir)$(Configuration)\$(ProjectName)\</OutDir>
+    <IntDir>$(KotonohaIntermediateDir)$(ProjectName)\$(Configuration)\</IntDir>
+    <TargetName>KotonohaLauncher</TargetName>
+    <KotonohaDisplayName>Kotonoha</KotonohaDisplayName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\launcher\src\main.cpp" />
+    <ClCompile Include="..\..\..\..\games\amagami\src\Formats.cpp" />
+    <ClCompile Include="..\..\..\..\games\amagami\src\Source.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\ChoiceQuestionScene.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\DisplayModeCatalog.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\FadeScene.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\ForcedSubtitleRenderer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\GameMenu.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\InGameMenu.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\SettingsMenu.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\SplashScreen.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\SubtitleScene.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\TextInputDialog.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\TextInputForm.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNBacklog.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNManager.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNSave.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNSaveMenu.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\components\VNTextBox.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\AssetOverlay.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\AssetProvider.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Clock.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\CommandLine.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\DiscImage.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Engine.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\GameLauncher.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\InputMapper.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Launcher.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Log.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\OpenGL.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\PresentedFrame.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Runtime.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\Settings.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\UI.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\VisualTransition.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\core\WebAssetFetch.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\debug\DebugOverlay.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\debug\ImGuiTheme.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\debug\SystemInfo.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\debug\VoiceDubbingApplet.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\events\BackAction.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\events\BacklogEvents.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\events\InputActions.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\AtomicFile.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\Filesystem.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\Path.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\RemoteAssets.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\StoragePaths.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\adapters\BrowserBlobAdapter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\adapters\SDLIOAdapter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\adapters\StreamAdapter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\DirectoryMount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\FallbackMount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\ISO9660Mount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\LayeredMount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\mounts\TarMount.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\sources\FetchAssetProvider.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\filesystem\sources\SDLFileSource.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\localization\Encoding.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\localization\Translation.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\mcp\MCPServer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\AudioMixer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\MediaDecoder.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\MediaPlayer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\PcmPlayer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\SaveImage.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\SurfaceTexture.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\TextureAlpha.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\upscaling\MPVCompatibleUpscaler.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\upscaling\MetalFXUpscaler.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\media\upscaling\Upscaler.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\mobile\AndroidDisplay.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\parsers\AssStyle.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\parsers\Ktrf.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\parsers\KtrfTyped.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\parsers\Ors.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\prefetch\Scheduler.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\prefetch\WasmBackend.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\routing\KtrfAdapter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\routing\KtrfRouter.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\routing\KtrfRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\script\KtrfScript.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\script\Timeline.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\script\TimelinePlayer.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\workers\EmbeddedSubtitleExtractor.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\workers\SubtitleFontRegistry.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\workers\SubtitleSourceDirector.cpp" />
+    <ClCompile Include="..\..\..\..\lib\src\workers\SubtitleWorker.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_draw.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_tables.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdl3.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\backends\imgui_impl_sdlrenderer3.cpp" />
+    <ClCompile Include="..\..\..\..\lib\submodules\imgui\misc\cpp\imgui_stdlib.cpp" />
+    <ClCompile Include="..\..\..\..\games\doki-doki-literature-club\src\Archive.cpp" />
+    <ClCompile Include="..\..\..\..\games\doki-doki-literature-club\src\Display.cpp" />
+    <ClCompile Include="..\..\..\..\games\doki-doki-literature-club\src\Script.cpp" />
+    <ClCompile Include="..\..\..\..\games\doki-doki-literature-club\src\Value.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailGame.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\LargePonPonRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailAudio.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailPack.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailSession.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailComponents.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailTitleMenu.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailExtrasMenu.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailExtrasViewer.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailStage.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailTextBox.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailPauseMenu.cpp" />
+    <ClCompile Include="..\..\..\..\games\pmail\src\PmailBacklog.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\audio\adpcm\src\PackAudio.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\audio\adpcm\src\Adpcm.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\animation\anm\src\PackAnimation.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\crgb\src\LargePonPonCodecs.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\evd\src\PackImage.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\audio\smfd\src\Smfd.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\adv\src\Pack.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\adv\src\SnowAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\pmail\src\PmailAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\pmail\src\GcPack.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\pmail\src\LargePonPonAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\pmail\src\Vm.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\pmail\src\LargePonPonVm.cpp" />
+    <ClCompile Include="..\..\..\..\games\reallive\src\Config.cpp" />
+    <ClCompile Include="..\..\..\..\games\reallive\src\Images.cpp" />
+    <ClCompile Include="..\..\..\..\games\reallive\src\Voice.cpp" />
+    <ClCompile Include="..\..\..\..\games\reallive\src\Script.cpp" />
+    <ClCompile Include="..\..\..\..\games\reallive\src\System.cpp" />
+    <ClCompile Include="..\..\..\..\games\reallive\vendor\libreallive\archive.cc" />
+    <ClCompile Include="..\..\..\..\games\reallive\vendor\libreallive\bytecode.cc" />
+    <ClCompile Include="..\..\..\..\games\reallive\vendor\libreallive\compression.cc" />
+    <ClCompile Include="..\..\..\..\games\reallive\vendor\libreallive\expression.cc" />
+    <ClCompile Include="..\..\..\..\games\reallive\vendor\libreallive\filemap.cc" />
+    <ClCompile Include="..\..\..\..\games\reallive\vendor\libreallive\scenario.cc" />
+    <ClCompile Include="..\..\..\..\games\snow-radish-vacation\src\Game.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\snow-radish\src\Vm.cpp" />
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\Map.cpp" />
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\Transition.cpp" />
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\Native.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\audio\pcm-block\src\MeoAudio.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\tex\src\Codec.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\tex\src\Images.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\cmp\src\Pack.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\cmp\src\SummerAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\summer-radish\src\Script.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\summer-radish\src\ImoutoScript.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Archive.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Lz.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Scene.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\ConcertoScene.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Source.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Catalog.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Vag.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Pss.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Game.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\tim2\src\VitaGraphics.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\tim2\src\Ps2Tim2.cpp" />
+    <ClCompile Include="..\..\..\..\games\amagami\src\AmagamiRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\amagami\src\AmagamiLauncher.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\audio\cri\src\CriAudio.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\audio\spu\src\Ps2SoundBank.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\ui-atlas\src\VitaSystemGraphics.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\amagami\src\Assets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\amagami\src\VitaCpk.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\amagami\src\VitaGraphicsAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\amagami\src\Vm.cpp" />
+    <ClCompile Include="..\..\..\..\games\amagami\src\Session.cpp" />
+    <ClCompile Include="..\..\..\..\games\amagami\src\Campaign.cpp" />
+    <ClCompile Include="..\..\..\..\games\artemis\src\ArtemisRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\artemis\src\ArtemisUi.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\artemis\src\PfsArchive.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\artemis\src\ArtemisAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\artemis\src\AstParser.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\artemis\src\ArtemisVm.cpp" />
+    <ClCompile Include="..\..\..\..\games\doki-doki-literature-club\src\DdlcLauncher.cpp" />
+    <ClCompile Include="..\..\..\..\games\doki-doki-literature-club\src\DdlcRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\doki-doki-literature-club\src\DdlcSession.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\rpa\src\DdlcAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\renpy\src\Vm.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\renpy\src\Python.cpp" />
+    <ClCompile Include="..\..\..\..\games\doki-doki-literature-club\src\Replay.cpp" />
+    <ClCompile Include="..\..\..\..\games\kirikiri\src\KirikiriRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\kirikiri\src\EmoteRenderer.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\data\psb\src\PsbFile.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\tlg\src\TlgImage.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\tlg\src\Tlg6Image.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\xp3\src\Xp3Archive.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\xp3\src\KirikiriAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\xp3\src\TjsBootstrap.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\kag\src\KagScript.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\kag\src\ScnRunner.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\tjs2\src\TjsStartupVm.cpp" />
+    <ClCompile Include="..\..\..\..\modules\formats\image\cz\src\CzImage.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\n2\src\Archive.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\gpk\src\SchoolDaysGpkArchive.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\gpk\src\SchoolDaysGpkIndex.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\gpk\src\SchoolDaysAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\gpk\src\SchoolDaysAssetMount.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\n2\src\N2ArchiveAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\pak\src\LucaSystemAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\ponscripter\src\PonscripterAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\Archive.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\PonscripterTypes.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\ScriptBuffer.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\VariableStore.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\Lexer.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\TextFormatter.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\SaveSerializer.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\PonscripterVm.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\ponscripter\src\PonscripterCommands.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\reallive\src\RealLiveAssets.cpp" />
+    <ClCompile Include="..\..\..\..\modules\providers\zero\src\DiscAssetProvider.cpp" />
+    <ClCompile Include="..\..\..\..\launcher\src\UnifiedLauncher.cpp" />
+    <ClCompile Include="..\..\..\..\launcher\src\GameFactories.cpp" />
+    <ClCompile Include="..\..\..\..\launcher\src\LauncherBridge.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\ScriptIndex.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\DebugCatalog.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\ScriptExecutor.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\VariableStore.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\SceneGraph.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\AudioSystem.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\DialogueSystem.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\SaveState.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\SaveStateJson.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\ScriptVm.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\NsbScript.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\NsbVm.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\n2system\src\NsbSnapshot.cpp" />
+    <ClCompile Include="..\..\..\..\modules\vms\reallive\src\Session.cpp" />
+    <ClCompile Include="..\..\..\..\games\luca-system\src\LucaSystemScript.cpp" />
+    <ClCompile Include="..\..\..\..\games\luca-system\src\DebugCatalog.cpp" />
+    <ClCompile Include="..\..\..\..\games\luca-system\src\LucaSystemRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\n2system\src\N2Runtime.cpp" />
+    <ClCompile Include="..\..\..\..\games\ponscripter\src\PonscripterRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\reallive\src\RealLiveRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\KtrfAssetResolver.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\KtrfStateStore.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysHistory.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysPersistenceCodec.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysPersistence.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysBackRules.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysKtrfProfile.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysKtrfSession.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysKtrfGameplayBridge.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysCmap.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysTitleModel.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysTitleRenderPlan.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysTitleProfile.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysEndBackgroundResolver.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysRouteMapModel.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysRouteMapOracle.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysConfigMenuModel.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysConfigMenuRenderPlan.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysRetailConfigPolicy.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysDisplayPolicy.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysConfigStorage.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysMenuBarPresenter.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysMenuBarLayout.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysTopMeterModel.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysTopMeterRenderPlan.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysChoiceTextPlan.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveLoadModel.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveLoadRenderPlan.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveFeelModel.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveFeelRenderPlan.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysExitViewModel.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysExitViewRenderPlan.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysReplayModel.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysReplayRenderPlan.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysReplayScriptOracle.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysReplayPlaybackSession.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysPlayDataSession.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysRouteMapRenderPlan.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysFontData.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveProfile.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysAtomicFile.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveStorage.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveMetadata.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveMetadataState.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveService.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSaveServiceRead.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysBackLog.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysBackLogEngine.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysBackLogPresenter.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSubtitleTypography.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysSystemUi.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysScenes.cpp" />
+    <ClCompile Include="..\..\..\..\games\school-days\src\SchoolDaysLauncher.cpp" />
+    <ClCompile Include="..\..\..\..\games\snow-radish-vacation\src\SnowSession.cpp" />
+    <ClCompile Include="..\..\..\..\games\snow-radish-vacation\src\SnowComponents.cpp" />
+    <ClCompile Include="..\..\..\..\games\snow-radish-vacation\src\SnowRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\snow-radish-vacation\src\SnowLauncher.cpp" />
+    <ClCompile Include="..\..\..\..\games\summer-radish-vacation\src\SummerRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Media.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\Frontend.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\ZeroSession.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\ZeroComponents.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\ZeroRuntime.cpp" />
+    <ClCompile Include="..\..\..\..\games\zero-no-tsukaima\src\ZeroLauncher.cpp" />
+    <ResourceCompile Include="$(KotonohaVSRoot)Resources\Kotonoha.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\KotonohaEngine\KotonohaEngine.vcxproj">
+      <Project>{DD7FAA6C-C414-5970-AE96-008EA221AD67}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\KotonohaImGui\KotonohaImGui.vcxproj">
+      <Project>{7AB3A0E2-C20B-587E-AC96-C328A979E6C1}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\lib/submodules/SDL/VisualC/SDL/SDL.vcxproj">
+      <Project>{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\..\lib/submodules/SDL_ttf/VisualC/SDL_ttf.vcxproj" Condition="'$(Platform)' != 'ARM64'">
+      <Project>{DDDBD07D-DC76-4AF6-8D02-3E2DEB6EE255}</Project>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+</Project>

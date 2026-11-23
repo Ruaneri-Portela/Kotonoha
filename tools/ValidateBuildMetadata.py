@@ -9,11 +9,67 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 XCODE = ROOT / "buildsystems" / "xcode"
 SCHEMES = XCODE / "Kotonoha.xcodeproj" / "xcshareddata" / "xcschemes"
+VISUAL_STUDIO = ROOT / "buildsystems" / "visualstudio"
 
 
 def require(value, message):
     if not value:
         raise ValueError(message)
+
+
+def validate_visual_studio(xcode_manifest):
+    manifest = json.loads((VISUAL_STUDIO / "ProjectManifest.json").read_text(encoding="utf-8"))
+    require(manifest["project"] == "buildsystems/visualstudio/Kotonoha.sln",
+            "Unexpected Visual Studio solution path")
+    require(set(manifest["platforms"]) == {"Win32", "x64", "ARM64"},
+            "Visual Studio platforms must be Win32/x64/ARM64")
+    require(set(manifest["configurations"]) == {"Debug", "Release"},
+            "Visual Studio configurations must be Debug/Release")
+    require(manifest["architectures"] == {"x86": "Win32", "amd64": "x64", "arm64": "ARM64"},
+            "Visual Studio architecture mapping disagrees with the platform matrix")
+    require(manifest["vcpkg_triplets"] == {"Win32": "x86-windows",
+                                           "x64": "x64-windows",
+                                           "ARM64": "arm64-windows"},
+            "Visual Studio vcpkg triplets disagree with the platform matrix")
+    for doc in ("README.md", "README.pt-BR.md"):
+        require((VISUAL_STUDIO / doc).is_file(), f"Missing Visual Studio {doc}")
+    for doc in ("VISUAL_STUDIO_TARGETS.md", "VISUAL_STUDIO_TARGETS.pt-BR.md"):
+        require((ROOT / "docs" / doc).is_file(), f"Missing {doc}")
+
+    targets = {target["name"]: target for target in manifest["targets"]}
+    expected_games = set(xcode_manifest["games"])
+    actual_games = {name for name, target in targets.items() if "game" in target}
+    require(expected_games == actual_games,
+            "Visual Studio game targets differ from Xcode ProjectManifest")
+    for name, slug in xcode_manifest["games"].items():
+        require(targets[name]["game"] == slug, f"Wrong game slug for {name}")
+    for name in ("KotonohaEngine", "KotonohaImGui", "KotonohaLauncher"):
+        require(name in targets, f"Missing Visual Studio target: {name}")
+
+    sln = (VISUAL_STUDIO / "Kotonoha.sln").read_text(encoding="utf-8")
+    combos = [f"{cfg}|{plat}" for cfg in manifest["configurations"]
+              for plat in manifest["platforms"]]
+    for name, target in targets.items():
+        project = VISUAL_STUDIO / "Projects" / name / (name + ".vcxproj")
+        require(project.is_file(), f"Missing Visual Studio project: {name}.vcxproj")
+        text = project.read_text(encoding="utf-8")
+        guids = re.findall(r"<ProjectGuid>([^<]+)</ProjectGuid>", text)
+        require(len(guids) == 1 and guids[0] in sln,
+                f"Project GUID missing from solution: {name}")
+        for combo in combos:
+            require(f'<ProjectConfiguration Include="{combo}">' in text,
+                    f"{name}: missing {combo}")
+        for source in target["sources"]:
+            require((ROOT / source).is_file(), f"{name}: missing source {source}")
+
+    for native, info in manifest["native_projects"].items():
+        require((ROOT / info["path"]).is_file(), f"Missing native project: {native}")
+        require(info["guid"] in sln, f"Native project absent from solution: {native}")
+        require(set(info["platforms"]) <= set(manifest["platforms"]),
+                f"Unknown platform for native project: {native}")
+    print(f"[Kotonoha] OK: {len(targets)} Visual Studio projects; "
+          f"{len(manifest['native_projects'])} imported SDL projects; "
+          f"{len(combos)} configuration/platform targets")
 
 
 def validate():
@@ -95,6 +151,7 @@ def validate():
     require(seen == set(expected), "Some Xcode schemes are missing")
     print(f"[Kotonoha] OK: {len(rows)} CMake games; {len(schemes)} existing Xcode "
           f"schemes; Xcode pending: {', '.join(sorted(pending_xcode)) or 'none'}")
+    validate_visual_studio(manifest)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Runs once per project build; the script is idempotent and keeps the
+       header timestamp when Git metadata has not changed. -->
+  <Target Name="KotonohaGenerateVersion" BeforeTargets="ClCompile">
+    <Exec Command="python &quot;$(KotonohaVSRoot)Scripts\GenerateBuildVersion.py&quot; --out &quot;$(KotonohaVSRoot)generated&quot;" />
+  </Target>
+  <Target Name="KotonohaDeployVcpkgRuntime" AfterTargets="Build" Condition="'$(ConfigurationType)' == 'Application'">
+    <Exec Condition="Exists('$(KotonohaVcpkgBin)')" Command="xcopy /Y /Q /I &quot;$(KotonohaVcpkgBin)\*.dll&quot; &quot;$(OutDir)&quot;" IgnoreExitCode="true" />
+    <Exec Condition="'$(Platform)' != 'ARM64' And Exists('$(SolutionDir)$(Platform)\$(Configuration)\SDL3.dll')" Command="xcopy /Y /Q /I &quot;$(SolutionDir)$(Platform)\$(Configuration)\SDL3*.dll&quot; &quot;$(OutDir)&quot;" IgnoreExitCode="true" />
+  </Target>
+</Project>

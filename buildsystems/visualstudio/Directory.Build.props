@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Shared settings for every checked-in Visual Studio project.  CMake and
+       Xcode own the canonical source lists; this file only mirrors their
+       compiler, include and dependency choices for MSBuild. -->
+  <PropertyGroup>
+    <KotonohaVSRoot>$(MSBuildThisFileDirectory)</KotonohaVSRoot>
+    <KotonohaRoot>$(MSBuildThisFileDirectory)..\..\</KotonohaRoot>
+    <KotonohaOutputDir>$(KotonohaRoot)out\vs\</KotonohaOutputDir>
+    <KotonohaIntermediateDir>$(KotonohaRoot)out\vs\obj\</KotonohaIntermediateDir>
+    <KotonohaGeneratedDir>$(KotonohaVSRoot)generated\</KotonohaGeneratedDir>
+    <KotonohaVcpkgInstalled Condition="'$(KotonohaVcpkgInstalled)' == ''">$(KotonohaRoot)vcpkg_installed\</KotonohaVcpkgInstalled>
+    <!-- Tracker.exe re-escapes the quoted /D macros and breaks rc.exe. -->
+    <TrackFileAccess>false</TrackFileAccess>
+    <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'Win32'">x86-windows</KotonohaVcpkgTriplet>
+    <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'x64'">x64-windows</KotonohaVcpkgTriplet>
+    <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'ARM64'">arm64-windows</KotonohaVcpkgTriplet>
+    <KotonohaVcpkgPrefix>$(KotonohaVcpkgInstalled)$(KotonohaVcpkgTriplet)\</KotonohaVcpkgPrefix>
+    <KotonohaVcpkgInclude>$(KotonohaVcpkgPrefix)include</KotonohaVcpkgInclude>
+    <KotonohaVcpkgLib>$(KotonohaVcpkgPrefix)lib</KotonohaVcpkgLib>
+    <KotonohaVcpkgBin Condition="'$(Configuration)' == 'Debug'">$(KotonohaVcpkgPrefix)debug\bin</KotonohaVcpkgBin>
+    <KotonohaVcpkgBin Condition="'$(Configuration)' != 'Debug'">$(KotonohaVcpkgPrefix)bin</KotonohaVcpkgBin>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <KotonohaIncludeDirs>$(KotonohaGeneratedDir);$(KotonohaRoot)games\amagami\include;$(KotonohaRoot)games\amagami\src;$(KotonohaRoot)games\artemis\include;$(KotonohaRoot)games\artemis\src;$(KotonohaRoot)games\doki-doki-literature-club\include;$(KotonohaRoot)games\doki-doki-literature-club\src;$(KotonohaRoot)games\example\include;$(KotonohaRoot)games\example\src;$(KotonohaRoot)games\kirikiri\include;$(KotonohaRoot)games\kirikiri\src;$(KotonohaRoot)games\luca-system\include;$(KotonohaRoot)games\luca-system\src;$(KotonohaRoot)games\n2system\include;$(KotonohaRoot)games\n2system\src;$(KotonohaRoot)games\pmail\include;$(KotonohaRoot)games\pmail\src;$(KotonohaRoot)games\ponscripter\include;$(KotonohaRoot)games\ponscripter\src;$(KotonohaRoot)games\reallive\include;$(KotonohaRoot)games\reallive\src;$(KotonohaRoot)games\reallive\vendor;$(KotonohaRoot)games\school-days\include;$(KotonohaRoot)games\school-days\src;$(KotonohaRoot)games\snow-radish-vacation\include;$(KotonohaRoot)games\snow-radish-vacation\src;$(KotonohaRoot)games\summer-radish-vacation\include;$(KotonohaRoot)games\summer-radish-vacation\src;$(KotonohaRoot)games\zero-no-tsukaima\include;$(KotonohaRoot)games\zero-no-tsukaima\src;$(KotonohaRoot)launcher\include;$(KotonohaRoot)launcher\src;$(KotonohaRoot)lib\include;$(KotonohaRoot)lib\submodules\SDL\include;$(KotonohaRoot)lib\submodules\SDL_ttf\include;$(KotonohaRoot)lib\submodules\imgui;$(KotonohaRoot)lib\submodules\imgui\backends;$(KotonohaRoot)lib\submodules\imgui\misc\cpp;$(KotonohaRoot)modules\formats\animation\anm\include;$(KotonohaRoot)modules\formats\audio\adpcm\include;$(KotonohaRoot)modules\formats\audio\cri\include;$(KotonohaRoot)modules\formats\audio\pcm-block\include;$(KotonohaRoot)modules\formats\audio\smfd\include;$(KotonohaRoot)modules\formats\audio\spu\include;$(KotonohaRoot)modules\formats\data\psb\include;$(KotonohaRoot)modules\formats\image\crgb\include;$(KotonohaRoot)modules\formats\image\cz\include;$(KotonohaRoot)modules\formats\image\evd\include;$(KotonohaRoot)modules\formats\image\tex\include;$(KotonohaRoot)modules\formats\image\tim2\include;$(KotonohaRoot)modules\formats\image\tlg\include;$(KotonohaRoot)modules\formats\image\ui-atlas\include;$(KotonohaRoot)modules\formats\internal\include;$(KotonohaRoot)modules\providers\adv\include;$(KotonohaRoot)modules\providers\amagami\include;$(KotonohaRoot)modules\providers\artemis\include;$(KotonohaRoot)modules\providers\cmp\include;$(KotonohaRoot)modules\providers\gpk\include;$(KotonohaRoot)modules\providers\n2\include;$(KotonohaRoot)modules\providers\pak\include;$(KotonohaRoot)modules\providers\pmail\include;$(KotonohaRoot)modules\providers\ponscripter\include;$(KotonohaRoot)modules\providers\reallive\include;$(KotonohaRoot)modules\providers\rpa\include;$(KotonohaRoot)modules\providers\xp3\include;$(KotonohaRoot)modules\providers\zero\include;$(KotonohaRoot)modules\vms\amagami\include;$(KotonohaRoot)modules\vms\artemis\include;$(KotonohaRoot)modules\vms\kag\include;$(KotonohaRoot)modules\vms\meo\include;$(KotonohaRoot)modules\vms\n2system\include;$(KotonohaRoot)modules\vms\pmail\include;$(KotonohaRoot)modules\vms\ponscripter\include;$(KotonohaRoot)modules\vms\reallive\include;$(KotonohaRoot)modules\vms\renpy\include;$(KotonohaRoot)modules\vms\renpy\src;$(KotonohaRoot)modules\vms\snow-radish\include;$(KotonohaRoot)modules\vms\summer-radish\include;$(KotonohaRoot)modules\vms\tjs2\include;$(KotonohaVcpkgInclude);$(KotonohaVcpkgInclude)\python3.14</KotonohaIncludeDirs>
+    <KotonohaDefines>WIN32;_WINDOWS;KOTONOHA_ENABLE_UPSCALER=1;KOTONOHA_ENABLE_MCP=1;_CRT_SECURE_NO_WARNINGS</KotonohaDefines>
+    <KotonohaLinkLibs>ass.lib;json-c.lib;avcodec.lib;avformat.lib;avutil.lib;swresample.lib;swscale.lib;avdevice.lib;avfilter.lib;iconv.lib;charset.lib;opengl32.lib;user32.lib;ws2_32.lib;kernel32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</KotonohaLinkLibs>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(KotonohaIncludeDirs);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>$(KotonohaDefines);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <WarningLevel>Level3</WarningLevel>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>KOTONOHA_ICON_PATH=$([MSBuild]::NormalizePath('$(KotonohaRoot)', 'design/generated/generic/icon.ico').Replace('\','/'));KOTONOHA_DISPLAY_NAME=$(ProjectName);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(KotonohaIncludeDirs);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(KotonohaVcpkgLib);$(KotonohaVcpkgLib)\$(Configuration);$(KotonohaVcpkgPrefix)debug\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(KotonohaLinkLibs);%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <AdditionalOptions Condition="'$(Platform)' == 'x64'">%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Platform)' == 'Win32'">%(AdditionalOptions) /machine:x86</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Platform)' == 'ARM64'">%(AdditionalOptions) /machine:arm64</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <!-- Win32/x64 link the native SDL3 / SDL3_ttf projects imported into the
+       solution. The upstream SDL3_ttf .vcxproj has no ARM64 configuration,
+       so ARM64 uses the vcpkg SDL libraries instead. -->
+  <ItemDefinitionGroup Condition="'$(Platform)' == 'ARM64'">
+    <Link>
+      <AdditionalDependencies>SDL3.lib;SDL3_ttf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' == 'Debug'">
+    <Link>
+      <AdditionalDependencies>zd.lib;python314_d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)' != 'Debug'">
+    <Link>
+      <AdditionalDependencies>z.lib;python314.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>
