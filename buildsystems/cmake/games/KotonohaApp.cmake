@@ -41,9 +41,6 @@ if(NOT ANDROID AND NOT EMSCRIPTEN)
     if(NOT _brand_status EQUAL 0)
         message(FATAL_ERROR "Cannot generate Kotonoha platform icons")
     endif()
-    if(WIN32)
-        enable_language(RC)
-    endif()
 endif()
 
 # WebAssembly preloads engine assets from a generated staging directory so
@@ -60,10 +57,10 @@ if(EMSCRIPTEN)
     if(NOT _web_brand_status EQUAL 0)
         message(FATAL_ERROR "Cannot generate Kotonoha WebApp branding")
     endif()
-    file(COPY_FILE
+    configure_file(
         "${CMAKE_BINARY_DIR}/kotonoha-web-brand/splash/SPLASH.PNG"
         "${KOTONOHA_WEB_ENGINE_ASSETS}/SPLASH.PNG"
-        ONLY_IF_DIFFERENT)
+        COPYONLY)
 endif()
 
 # Cria o executável ou biblioteca compartilhada (Android)

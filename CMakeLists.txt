@@ -7,6 +7,12 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaAndroid.cmake")
 
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 
+# Windows app targets embed the shared generated K icon as a native WinRes.
+# Enable RC in the root directory (not in lib/) for all game subdirectories.
+if(WIN32)
+    enable_language(RC)
+endif()
+
 # MSVC cannot link or compile packages built against the MinGW/UCRT ABI.
 # The engine's native media dependencies require vcpkg; only SDL/ImGui may
 # build from their pinned submodules. Enforce this before any find_package().
