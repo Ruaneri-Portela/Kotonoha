@@ -230,11 +230,19 @@ public:
     bool TopMeterHidden() const { return topMeterHidden_; }
     void ToggleAutoHideLock() {
         autoHideLocked_ = !autoHideLocked_;
-        if (fullBarSuppressed_ || meterOnly_ || choiceTailFrozen_) return;
-        fadeStartAlpha_ = barAlpha_;
-        fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
-        fadeTargetVisible_ = autoHideLocked_ || pointerInsideBar_;
-        if (autoHideLocked_) barAlpha_ = 255;
+        if (autoHideLocked_) {
+            // An explicit pin is not permission to reveal chrome while the
+            // choice owns input; physical hover can resume after handoff.
+            if (fullBarSuppressed_ || meterOnly_ || choiceTailFrozen_) return;
+            fadeStartAlpha_ = barAlpha_;
+            fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
+            fadeTargetVisible_ = true;
+            barAlpha_ = 255;
+        } else if (!pointerInsideBar_) {
+            fadeStartAlpha_ = barAlpha_;
+            fadeStartMs_ = static_cast<uint32_t>(SDL_GetTicks());
+            fadeTargetVisible_ = false;
+        }
     }
     void ToggleTopMeter() { topMeterHidden_ = !topMeterHidden_; }
     const SchoolDaysTopMeterModel& Meter() const { return meter_; }

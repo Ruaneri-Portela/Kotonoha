@@ -594,7 +594,93 @@ void testTextMetrics(Kotonoha::Engine &engine) {
   require(std::abs(measured - rendered) < 0.01f,
           "CPU text measurements agree with rendered SDL_ttf dimensions");
   require(ui.cachedTextCount() == before + 1,
-          "Only visible text rendering allocates a cached texture");
+          "Only visible text rendering allocates a cached text object");
+  ui.text(renderer, text, -10000.0f, -10000.0f, 580.0f, {255, 120, 80, 128});
+  require(ui.cachedTextCount() == before + 1,
+          "Recoloring an atlas entry does not rerasterize text");
+  float oldX = 1.0f, oldY = 1.0f;
+  require(SDL_GetRenderScale(&renderer, &oldX, &oldY),
+          "Read render scale before high-density text");
+  require(SDL_SetRenderScale(&renderer, oldX * 1.5f, oldY * 1.5f),
+          "Set high-density test scale");
+  const float hiDpiHeight =
+      ui.textSized(renderer, "A different raster size", -10000.0f, -10000.0f,
+                   580.0f, 32.0f, {70, 220, 180, 255});
+  float afterX = 0.0f, afterY = 0.0f;
+  require(SDL_GetRenderScale(&renderer, &afterX, &afterY) &&
+              std::abs(afterX - oldX * 1.5f) < 0.001f &&
+              std::abs(afterY - oldY * 1.5f) < 0.001f,
+          "Atlas draw restores the SDL renderer scale");
+  require(SDL_SetRenderScale(&renderer, oldX, oldY),
+          "Restore render scale after high-density test");
+  require(hiDpiHeight > 0.0f && ui.cachedTextCount() == before + 2,
+          "Different font sizes retain independent cached text");
+  // Regression: HiDPI glyph atlas draws must scale and restore both viewport
+  // and clip rect so text inside FrameScope or clipped VNTextBox is neither
+  // shifted upward nor clipped away.
+  {
+    Kotonoha::TexturePtr target(SDL_CreateTexture(
+        &renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, 400, 400));
+    if (target) {
+      SDL_Texture *prevTarget = SDL_GetRenderTarget(&renderer);
+      require(SDL_SetRenderTarget(&renderer, target.get()),
+              "Bind offscreen target for HiDPI viewport/clip text regression");
+      SDL_SetRenderLogicalPresentation(&renderer, 0, 0,
+                                       SDL_LOGICAL_PRESENTATION_DISABLED);
+      SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+      SDL_RenderClear(&renderer);
+      const SDL_Rect vp{0, 50, 200, 150};
+      const SDL_Rect clip{10, 100, 180, 40};
+      require(SDL_SetRenderScale(&renderer, 2.0f, 2.0f) &&
+                  SDL_SetRenderViewport(&renderer, &vp) &&
+                  SDL_SetRenderClipRect(&renderer, &clip),
+              "Configure HiDPI scale, viewport and clip rect");
+      ui.text(renderer, "Clannad", 12.0f, 104.0f, 170.0f, {255, 255, 255, 255});
+      float sx = 0.0f, sy = 0.0f;
+      SDL_Rect afterVp{}, afterClip{};
+      require(SDL_GetRenderScale(&renderer, &sx, &sy) &&
+                  std::abs(sx - 2.0f) < 0.001f && std::abs(sy - 2.0f) < 0.001f,
+              "HiDPI text draw preserves render scale");
+      require(SDL_RenderViewportSet(&renderer) &&
+                  SDL_GetRenderViewport(&renderer, &afterVp) &&
+                  afterVp.x == vp.x && afterVp.y == vp.y && afterVp.w == vp.w &&
+                  afterVp.h == vp.h,
+              "HiDPI text draw preserves active viewport");
+      require(SDL_RenderClipEnabled(&renderer) &&
+                  SDL_GetRenderClipRect(&renderer, &afterClip) &&
+                  afterClip.x == clip.x && afterClip.y == clip.y &&
+                  afterClip.w == clip.w && afterClip.h == clip.h,
+              "HiDPI text draw preserves active clip rect");
+      SDL_SetRenderClipRect(&renderer, nullptr);
+      SDL_SetRenderViewport(&renderer, nullptr);
+      SDL_SetRenderScale(&renderer, 1.0f, 1.0f);
+      if (Kotonoha::SurfacePtr snap{SDL_RenderReadPixels(&renderer, nullptr)}) {
+        Kotonoha::SurfacePtr rgba(
+            SDL_ConvertSurface(snap.get(), SDL_PIXELFORMAT_RGBA32));
+        if (rgba) {
+          int litInside = 0;
+          int litAbove = 0;
+          for (int y = 0; y < rgba->h; ++y) {
+            const auto *row =
+                static_cast<const Uint8 *>(rgba->pixels) + y * rgba->pitch;
+            for (int x = 0; x < rgba->w; ++x) {
+              if (row[x * 4] > 32) {
+                if (y >= 300 && y < 380 && x >= 20 && x < 380)
+                  ++litInside;
+                else if (y < 300)
+                  ++litAbove;
+              }
+            }
+          }
+          require(litInside > 0,
+                  "HiDPI clipped text inside offset viewport renders pixels");
+          require(litAbove == 0,
+                  "HiDPI text inside offset viewport does not shift upward");
+        }
+      }
+      SDL_SetRenderTarget(&renderer, prevTarget);
+    }
+  }
   const float unwrapped = ui.textWidth(text);
   require(unwrapped > 0.0f, "Unwrapped text width can be measured separately");
 }

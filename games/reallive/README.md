@@ -127,3 +127,157 @@ ctest --test-dir build -R '^RealLive.Input$' --output-on-failure
 
 Game-specific controller layouts and original touch hitboxes still require
 macOS and iOS hardware testing with the relevant RealLive editions.
+
+## Read progression and BGM state in saves
+
+RealLive presentation saves now use version 7. Each slot retains dialogue
+read-history, current page identity and the script-requested BGM pause state.
+Loading an earlier slot merges visited pages with the current session's read
+history, so already-read text does not become unread after a rollback. Files
+written by versions 1 through 6 remain readable; they have no stored read
+history, so those visits cannot be reconstructed from a legacy save.
+
+Synthetic tests (no game installation required):
+
+```sh
+cmake --build build --target RealLiveAudioFadeTests RealLiveReadProgressTests
+ctest --test-dir build -R 'RealLive.(AudioFade|ReadProgress)' --output-on-failure
+```
+
+Read history is persisted **inside a save slot**, not yet in a separate
+cross-save, title-wide progression database. CG gallery unlocks and original
+menu parity require additional per-game reference data and testing.
+
+## Directional SEL effects
+
+SEL style 10 (directional wipes) and style 120 (repeating blinds) now use
+native-resolution directional masks instead of generic crossfades. Direction
+0/1/2/3 selects top-to-bottom, bottom-to-top, left-to-right or right-to-left.
+The SEL interpolation and stripe-size parameters are honored; software
+composition is filtered as a completed frame, avoiding independent sprite
+upscaling. Ordered-dither styles 4/5 still use the accelerated mask when
+supported. Scroll-on/off, squash-on/off and slide-on/off (styles 15–18, 20–21) now also sample both scenes at native resolution, including all four cardinal directions.
+These transitions need comparison against screenshots and timing from an
+original Windows RealLive executable before claiming exact visual parity.
+
+## Cross-session read history
+
+Read-skip now writes a separate versioned `.progress` journal after each newly
+completed dialogue page, using the engine's atomically written save directory.
+The journal is scoped to the original game's `#REGNAME` (or its asset mount
+when no REGNAME is defined), so two unrelated games do not share seen flags.
+Corrupt or unreadable journals are logged and ignored without blocking the game.
+Loading a v7 save merges read marks into the global history; the journal itself
+contains no saved dialogue text, BGM state, or graphic unlocks.
+
+```sh
+cmake --build build --target RealLivePersistentHistoryTests
+ctest --test-dir build -R RealLive.PersistentHistory --output-on-failure
+```
+
+CG/gallery unlock rules and complete native menu fidelity still require
+reference edition data and original-game playthrough testing.
+
+## Sample-rate-aware BGM resume
+
+Presentation saves record BGM time in seconds and restore the decoded PCM
+clip at its actual sampling rate, whether 22,050 Hz, 32,000 Hz, 44,100 Hz or
+48,000 Hz. The interpreter no longer assumes 44.1 kHz when converting a saved
+position back to frames; relative seeks are also bounded before pointer math.
+Synthetic audio regressions test round-trip and overflow cases without licensed
+music files.
+
+## Scroll, squash and slide SEL effects
+
+Style 15 scrolls the new frame in while scrolling the old frame out; 16
+scrolls the new frame in while compressing the old frame; 17 expands the new
+frame while scrolling the old out; 18 expands/compresses both frames; 20
+slides the new frame over the stationary old frame; and 21 slides the old
+frame away from the stationary new frame. These effects compose once at native
+resolution before upscaling. The synthetic `RealLive.ScrollTransition` test
+checks all six styles in four directions with pixel-mapping assertions.
+Exact interpolation, speed and game-specific SEL entries still require Windows
+RealLive reference captures.
+
+## Conditional selections across RealLive editions
+
+RealLive's `select_w` now respects the encoded text-window override, with
+`DEFAULT_SEL_WINDOW` as a fallback. Choice conditions distinguish hidden
+entries from disabled/title-only entries, preserving original selection IDs
+for scenario branches. Disabled options cannot be activated through mouse,
+touch, keyboard or controller, and may use their configured color-table entry.
+Selection eligibility is tested without game data by
+`RealLive.SelectionRules`; shared menu controls retain enabled-by-default
+behavior. Native button-object selections and remaining specialized selection
+attributes still require edition-specific verification.
+
+## Synchronous voice and PCM waits
+
+`koeWait` and `wavWait` now yield the RealLive script VM while their
+associated audio stream is still playing, instead of returning immediately
+or guessing playback duration from a fixed timer. The native PCM wait follows
+the authored channel ID, and the newer `wavPlayEx` signature can start
+playback and wait in one opcode. These barriers cooperate with story pause,
+ending naturally when sound playback stops; save-load, title reset and shutdown
+clear pending waits. Data-free regression: `RealLive.AudioWait`.
+
+## Portable 32-bit RealLive arithmetic
+
+Native script random-range operations now accept inclusive bounds as wide as
+INT_MIN..INT_MAX, without signed overflow or the bias of rand() % width.
+Other 32-bit arithmetic (negate, modulo and percentage) follows defined
+VM integer semantics even at extremal operands, including INT_MIN % -1.
+These behaviors are covered by the data-free RealLive.NumericCompat test
+on both GCC and Clang. Deterministic native-random compatibility with any
+specific Windows RealLive release has **not** yet been established.
+
+## Script-controlled voice and PCM channels
+
+Voice and PCM playback now apply per-script gain controls normalized from the
+native 0..255 volume range. Newly played sounds inherit their channel's volume,
+and fades advance only while gameplay is active. Native PCM volume/set/mute
+variants (11–14), voice volume/set/mute variants (11–14), and mapped sound effect
+channels use the same controller. A fade-out can stop its PCM channel after
+reaching silence. `RealLive.ChannelLevels` provides synthetic tests for per-channel
+isolation, mute, exact fade endpoints and very large frame-time jumps.
+
+The exact command signatures vary between RealLive generations; audio routing
+and channel fades still need comparison with specific games. Voice/PCM gain is
+currently session state, not serialized in the presentation save.
+
+## Cross-edition BGM command variants and silence regression
+
+**The previously working Kotonoha BGM opcode mapping is the default.**
+In this dialect, opcodes 12/13/14 pause/resume/stop even when the bytecode
+includes extra operands, and opcode 11 with zero operands returns whether a
+track is selected (0/1). A previous attempt to choose native/rlvm meanings
+from operand count instead could accidentally set BGM gain to zero or leave
+later tracks muted. This is covered by `RealLive.BgmCompat`.
+
+RealLive generations can use incompatible opcode tables. When a title has been
+verified against the rlvm BGM module, it can explicitly opt in with a
+Gameexe.ini entry:
+
+```ini
+#KOTONOHA_BGM_OPCODE_DIALECT=1
+```
+
+This opts into the rlvm-style BGM pause/unpause (9/10), volume query/set
+(11/12), and mute/unmute (14/13) operations. Absent or zero selects the
+previous Kotonoha mapping. The port will **not infer a dialect from argument
+count**, because those ambiguous signatures were the cause of silent music.
+Use the override only after validating that specific edition's scripts.
+
+## Music starts only at an explicit BGM opcode
+
+AIR boot/logo scenarios (`SEEN` 9030/9031/9032) contain **no** module 20
+command, so the splash stays silent. The first explicit request is
+`1:20:0("BGM00")` at node `170:246`; nothing in `Gameexe.ini` (`#BGM_MODE`,
+`#DSTRACK`) starts music by itself. `bgmStartsPlayback()` gates playback on
+module 20 opcodes 0..3 only, and `bgmGainAfterStop()` restores gain after
+`bgmStop`. `RealLive.BgmCompat` verifies both rules:
+
+```sh
+cmake --build build --target RealLive
+ctest --test-dir build -R RealLive --output-on-failure
+```

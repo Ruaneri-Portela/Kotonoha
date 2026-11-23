@@ -5,12 +5,17 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Runtime.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Pmail/Port.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <SnowRadish/Pack.hpp>
+#include <SnowRadish/PackAnimation.hpp>
+#include <SnowRadish/PackAudio.hpp>
+#include <SnowRadish/PackImage.hpp>
+
 #include <SnowRadish/SnowAssets.hpp>
 
 #include <map>
@@ -45,6 +50,10 @@ public:
 
   std::string debugNode() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
+  std::string debugNodeCatalogKey() const override;
+  void debugJumpToNode(const std::string &id) override;
+  Kotonoha::Translation::SourceTexts translationSources() const override;
+  void debugOverlayAssetChanged(const std::string &id) override;
   std::string dialogueText() const override;
   std::string dialogueSpeaker() const override;
   int translationRoute() const override;
@@ -72,6 +81,7 @@ private:
   TTF_Font *font_ = nullptr;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer_;
   bool movieFinished_ = true;
+  Kotonoha::VideoSkipGesture videoSkip_;
   bool startMovie(const std::string &stem);
   void stopMovie();
 };

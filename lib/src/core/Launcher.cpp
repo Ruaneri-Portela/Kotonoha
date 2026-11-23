@@ -99,6 +99,13 @@ void Launcher::open() {
   if (!SDL_InitSubSystem(SDL_INIT_VIDEO))
     throw std::runtime_error(SDL_GetError());
   videoInitialized = true;
+  if (SDL_InitSubSystem(SDL_INIT_GAMEPAD)) {
+    gamepadInitialized = true;
+    gamepadManager.openConnected();
+  } else {
+    SDL_LogWarn(LogCore, "Launcher gamepad subsystem unavailable: %s",
+                SDL_GetError());
+  }
   try {
     // 1. Define o modo padrão baseado na plataforma se não estiver configurado
     WindowMode mode = defaultWindowMode();
@@ -139,6 +146,7 @@ void Launcher::open() {
     auto &io = ImGui::GetIO();
     io.IniFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     ImGuiTheme::loadFonts(draft.fontPath);
     ImGuiTheme::apply(1);
 
@@ -155,6 +163,11 @@ void Launcher::open() {
     }
     renderer.reset();
     window.reset();
+    gamepadManager.clear();
+    if (gamepadInitialized) {
+      SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
+      gamepadInitialized = false;
+    }
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     videoInitialized = false;
     throw;
@@ -173,6 +186,11 @@ void Launcher::close() {
   }
   renderer.reset();
   window.reset();
+  gamepadManager.clear();
+  if (gamepadInitialized) {
+    SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
+    gamepadInitialized = false;
+  }
   if (videoInitialized) {
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
     videoInitialized = false;
@@ -325,6 +343,7 @@ void Launcher::browseFolder(const std::string &initial,
 SDL_AppResult Launcher::event(const SDL_Event &event) {
   if (!isOpen())
     return SDL_APP_CONTINUE;
+  gamepadManager.handleEvent(event);
   ImGui::SetCurrentContext(context);
   ImGui_ImplSDL3_ProcessEvent(&event);
   SDL_Event pointer{};

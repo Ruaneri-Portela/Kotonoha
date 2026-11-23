@@ -15,11 +15,11 @@ namespace Kotonoha {
 
 namespace {
 // Do not pass HTTP URLs through std::filesystem::path or FileResolver: that
-// transforms their scheme (http:// -> http:/) into a local path. The WebAssembly
-// VFS knows how to mount a direct URL and probe its known filenames.
+// transforms their scheme (http:// -> http:/) into a local path. The
+// WebAssembly VFS knows how to mount a direct URL and probe its known
+// filenames.
 bool isHttpGameSource(const std::string &path) {
-  return path.rfind("https://", 0) == 0 ||
-         path.rfind("http://", 0) == 0;
+  return path.rfind("https://", 0) == 0 || path.rfind("http://", 0) == 0;
 }
 
 std::string rememberFilePath(const std::string &settingsPath,

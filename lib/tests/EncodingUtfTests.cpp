@@ -31,15 +31,21 @@ int main() {
   Require(dots == u"......", "ASCII six dots");
   Require(Kotonoha::Utf16ToUtf8(dots) == "......", "ASCII round-trip");
 
-  // Portuguese, Spanish, Russian, Japanese, Simplified Chinese, and astral planes.
-  CheckRoundTrip("Ela parecia gostar de livros. N\xC3\xA3o era uma descoberta profunda...",
-                 "PT-BR accents round-trip");
-  CheckRoundTrip("\xC2\xBFPor qu\xC3\xA9 todav\xC3\xAD""a eres pobre?", "ES accents round-trip");
-  CheckRoundTrip("\xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82, \xD0\xBC\xD0\xB8\xD1\x80!",
+  // Multilingual BMP scripts (Latin accents, Cyrillic, Japanese, Chinese).
+  CheckRoundTrip(
+      "Ela parecia gostar de livros. N\xC3\xA3o era uma descoberta profunda...",
+      "PT-BR accents round-trip");
+  CheckRoundTrip("\xC2\xBFPor qu\xC3\xA9 todav\xC3\xAD"
+                 "a eres pobre?",
+                 "ES accents round-trip");
+  CheckRoundTrip("\xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82, "
+                 "\xD0\xBC\xD0\xB8\xD1\x80!",
                  "Russian Cyrillic round-trip");
-  CheckRoundTrip("\xE8\xA8\x80\xE8\x91\x89\xE3\x83\xBB\xE4\xB8\x96\xE7\x95\x8C\xE3\x83\xBB\xE8\xAA\xA0",
+  CheckRoundTrip("\xE8\xA8\x80\xE8\x91\x89\xE3\x83\xBB\xE4\xB8\x96\xE7\x95\x8C"
+                 "\xE3\x83\xBB\xE8\xAA\xA0",
                  "Japanese/CJK round-trip");
-  CheckRoundTrip("\xE7\xAE\x80\xE4\xBD\x93\xE4\xB8\xAD\xE6\x96\x87\xE5\xAD\x97\xE5\xB9\x95",
+  CheckRoundTrip("\xE7\xAE\x80\xE4\xBD\x93\xE4\xB8\xAD\xE6\x96\x87\xE5\xAD\x97"
+                 "\xE5\xB9\x95",
                  "Simplified Chinese round-trip");
   // U+1F600 (GRINNING FACE) -> surrogate pair D83D DE00.
   const std::string emoji = "\xF0\x9F\x98\x80";

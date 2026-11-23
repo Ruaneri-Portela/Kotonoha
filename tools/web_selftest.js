@@ -147,7 +147,7 @@ function ensureVirtualIsoFixture() {
 }
 
 function ensureCustomFolderFixture() {
-  // Synthetic retail-like layout for manifest-free VFS discovery. Do not
+  // Synthetic retail-like layout for indexed VFS discovery. Do not
   // request HEAD for "data" or "data/pack" as though they were files.
   const packs = path.join(output, 'game-assets', 'data', 'pack');
   fs.mkdirSync(packs, {recursive: true});
@@ -174,6 +174,7 @@ function updateManifest() {
         traverse(absolute, relative);
       } else if (item.isFile() &&
                  item.name !== 'manifest.json' &&
+                 item.name !== 'preload.json' &&
                  item.name !== 'README.txt') {
         entries.push({path: relative, size: fs.statSync(absolute).size});
       }
@@ -188,7 +189,7 @@ function updateManifest() {
     entries, files: entries.map(e => e.path),
     testMetadataPadding: 'x'.repeat(256 * 1024)
   };
-  fs.writeFileSync(path.join(root, 'manifest.json'), JSON.stringify(manifest));
+  fs.writeFileSync(path.join(output, 'manifest.json'), JSON.stringify(manifest));
 }
 
 async function waitForServer() {
@@ -212,13 +213,14 @@ async function main() {
   ensureVirtualIsoFixture();
   ensureLargeRangeFixture();
   const testLegacySidecar = ensureLegacySidecar();
-  // Make repeated test runs deterministic: remove any previous unindexed
-  // fixture BEFORE writing the manifest, then create it afterwards.
-  const lateName = 'late-unindexed.txt';
-  const lateBody = 'unindexed HTTP file';
+  // Create the files before generating the authoritative HTTP index.
+  const lateName = 'late-listed.txt';
+  const lateBody = 'indexed HTTP file';
+  const preloadPath = path.join(output, 'game-assets', 'preload.json');
+  fs.rmSync(preloadPath, { force: true });
   fs.rmSync(path.join(output, 'game-assets', lateName), { force: true });
-  updateManifest();
   fs.writeFileSync(path.join(output, 'game-assets', lateName), lateBody);
+  updateManifest();
   const server = spawn('python3', [
     path.join(__dirname, 'serve_web.py'),
     '--port', String(port), '--root', output,
@@ -248,7 +250,7 @@ async function main() {
 
     const sourceRequests = [];
     page.on('request', request => {
-      if (/\/game-assets\/manifest\.json(?:[?#]|$)/.test(request.url()))
+      if (/\/manifest\.json(?:[?#]|$)/.test(request.url()))
         sourceRequests.push(request.url());
     });
     await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
@@ -256,6 +258,26 @@ async function main() {
     await page.waitForFunction(() =>
       !document.getElementById('select-local-assets').disabled &&
       !document.getElementById('use-server-assets').disabled);
+
+    // English/Portuguese can be switched before source selection without
+    // starting the runtime or triggering a remote asset request.
+    await page.locator('#kotonoha-lang-en').click();
+    assert(await page.locator('#select-local-assets').innerText() ===
+      'Use local folder', 'English asset picker label must be localized');
+    assert(await page.locator('#loading-status').innerText() ===
+      'Choose a local folder or HTTP(S) to start.',
+      'English startup status must be localized');
+    await page.locator('#kotonoha-lang-pt').click();
+    assert(await page.locator('#select-local-assets').innerText() ===
+      'Usar pasta local', 'Portuguese asset picker label must be localized');
+    assert(await page.locator('#loading-status').innerText() ===
+      'Escolha pasta local ou HTTP(S) para iniciar.',
+      'Portuguese startup status must be localized');
+    assert(await page.evaluate(() =>
+      document.documentElement.lang === 'pt-BR' &&
+      localStorage.getItem('kotonoha-language') === 'pt'),
+      'Portuguese language selection must persist');
+    await page.locator('#kotonoha-lang-en').click();
     // The user may take as long as they want. No 500ms HTTP auto-start.
     await page.waitForTimeout(1150);
     const pendingChoice = await page.evaluate(() => ({
@@ -374,76 +396,67 @@ async function main() {
     await page.evaluate(() =>
       document.fullscreenElement ? document.exitFullscreen() : null);
 
-    // Check direct Fetch without a manifest: a Range-aware server must
-    // deliver a few bytes from a 320 MiB synthetic GPK with HTTP 206,
-    // not download the entire archive or fill the WASM memory cache.
-    const manifestPath = path.join(output, 'game-assets', 'manifest.json');
+    // An absent or empty manifest must block HTTP startup before any game
+    // resource is requested. Local-folder startup above remains unchanged.
+    const manifestPath = path.join(output, 'manifest.json');
     const backupPath = manifestPath + '.testing';
     fs.renameSync(manifestPath, backupPath);
-    const directoryProbes = [];
-    const gpkResponses = [];
-    const trackResponse = response => {
-      if (new URL(response.url()).pathname.endsWith('/game-assets/event01.gpk'))
-        gpkResponses.push({
-          status: response.status(),
-          contentRange: response.headers()['content-range']
-        });
-    };
-    page.on('response', trackResponse);
-    const trackProbe = request => {
-      const pathname = new URL(request.url()).pathname;
-      if (/\/game-assets\/(?:data|data\/pack)$/.test(pathname))
-        directoryProbes.push(pathname);
-    };
-    page.on('request', trackProbe);
     try {
       await page.goto(baseUrl + '/index.html',
-        { waitUntil: 'domcontentloaded' });
+        {waitUntil: 'domcontentloaded'});
       await page.locator('#use-server-assets').click();
-      await ready();
-      const direct = await page.evaluate(async () => {
-        const size = await Module.ccall('KotonohaWebSelfTestRemoteSize',
-          'number', ['string'], ['selftest.webm'], { async: true });
-        const upperCaseSize = await Module.ccall('KotonohaWebSelfTestRemoteSize',
-          'number', ['string'], ['SELFTEST.WEBM'], { async: true });
-        const nestedSize = await Module.ccall('KotonohaWebSelfTestRemoteSize',
-          'number', ['string'], ['DATA/PACK/SCRIPT.DAT'], { async: true });
-        const disc = await Module.ccall('KotonohaWebSelfTestVirtualDisc',
-          'number', [], [], { async: true });
-        const largeTail = await Module.ccall('KotonohaWebSelfTestLargeRemoteTail',
-          'number', [], [], { async: true });
-        const missing = await Module.ccall('KotonohaWebSelfTestRemoteSize',
-          'number', ['string'], ['missing-selftest.bin'], { async: true });
-        let staged = false;
-        try {
-          Module.FS_readFile('/game-assets/selftest.webm');
-          staged = true;
-        } catch (_) { /* Remote Fetch must not be copied to MEMFS. */ }
-        return {
-          size, upperCaseSize, nestedSize, disc, largeTail, missing, staged,
-          configured: typeof window.KotonohaFetchAsset === 'function',
-          indexed: window.KotonohaRemoteManifestIndexed === true
-        };
-      });
-      console.log('MANIFEST_FREE', JSON.stringify(direct));
-      assert(direct.configured && !direct.indexed && direct.size > 0 &&
-        direct.upperCaseSize === direct.size &&
-        direct.nestedSize === Buffer.byteLength('browser-pack-fixture') &&
-        direct.disc === 1 && direct.largeTail === 1 &&
-        gpkResponses.some(reply => reply.status === 206 &&
-          /^bytes \d+-\d+\/335544320$/.test(reply.contentRange || '')) &&
-        directoryProbes.length === 0 &&
-        direct.missing === -1 && !direct.staged,
-        'manifest-free HEAD/Range Fetch works without MEMFS staging');
+      await page.waitForFunction(() =>
+        document.getElementById('loading-status').textContent
+          .includes('manifest.json'));
+      assert(await page.evaluate(() => !window.KotonohaRuntimeStarted &&
+          typeof window.KotonohaFetchAsset !== 'function'),
+        'missing page manifest must block startup without direct Fetch');
     } finally {
-      page.off('request', trackProbe);
-      page.off('response', trackResponse);
       fs.renameSync(backupPath, manifestPath);
+    }
+    const validManifest = fs.readFileSync(manifestPath, 'utf8');
+    try {
+      fs.writeFileSync(manifestPath, '{"entries":[]}');
+      await page.reload({waitUntil: 'domcontentloaded'});
+      await page.locator('#use-server-assets').click();
+      await page.waitForFunction(() =>
+        document.getElementById('loading-status').textContent
+          .includes('manifest.json'));
+      assert(await page.evaluate(() => !window.KotonohaRuntimeStarted &&
+          typeof window.KotonohaFetchAsset !== 'function'),
+        'empty page manifest must block HTTP startup');
+    } finally {
+      fs.writeFileSync(manifestPath, validManifest);
     }
 
     await page.goto(baseUrl + '/index.html', { waitUntil: 'domcontentloaded' });
     await page.locator('#use-server-assets').click();
     await ready();
+
+    // Every compiled WASM game is also an installable, scope-isolated PWA.
+    // Its Service Worker never takes ownership of Range/game-assets caching.
+    const pwa = await page.evaluate(async () => {
+      const reply = await fetch('./manifest.webmanifest');
+      const manifest = await reply.json();
+      const registration = await navigator.serviceWorker.ready;
+      const icon = await fetch('./pwa-icon-192.png');
+      const iconBytes = await icon.arrayBuffer();
+      return {
+        name: manifest.short_name,
+        scope: manifest.scope,
+        start: manifest.start_url,
+        display: manifest.display,
+        registeredScope: registration.scope,
+        expectedScope: new URL('./', document.baseURI).href,
+        active: !!registration.active,
+        iconOk: icon.ok && iconBytes.byteLength > 1000
+      };
+    });
+    assert(pwa.name === 'KotonohaWebSelfTest' &&
+      pwa.scope === './' && pwa.start === './index.html' &&
+      pwa.display === 'standalone' && pwa.active && pwa.iconOk &&
+      pwa.registeredScope === pwa.expectedScope,
+      'WebAssembly test target must install as a scoped per-game PWA');
 
     const indexed = await page.evaluate(async () => {
       const listed = Module.ccall('KotonohaWebSelfTestRemoteListContains',
@@ -456,15 +469,71 @@ async function main() {
         listed, late
       };
     });
-    console.log('OPTIONAL_MANIFEST', JSON.stringify(indexed));
+    console.log('REQUIRED_MANIFEST', JSON.stringify(indexed));
     assert(fs.statSync(manifestPath).size > 256 * 1024,
       'manifest fixture must be large enough to reproduce ccall stack overflow');
     assert(indexed.selected && indexed.listed === 1 &&
       indexed.late === Buffer.byteLength(lateBody),
-      'manifest index must enumerate nested files and fall back to direct ' +
-      'HEAD/Range for files missing from stale manifests');
+      'manifest index must enumerate nested files and fetch listed assets');
     assert(sourceRequests.length > 0,
-      'HTTP choice should attempt optional manifest.json before startup');
+      'HTTP choice must load page-root manifest.json before startup');
+
+    // Capture exactly the byte ranges the real WASM FileHandle downloaded.
+    // This must NOT dump the entire manifest, especially the 320 MiB GPK.
+    const preloadSnapshot = await page.evaluate(async () => {
+      const largeTail = await Module.ccall('KotonohaWebSelfTestLargeRemoteTail',
+        'number', [], [], { async: true });
+      const dump = await window.KotonohaAssetCache.buildPreload();
+      return {largeTail, dump};
+    });
+    assert(preloadSnapshot.largeTail === 1 &&
+      preloadSnapshot.dump.entries.some(item =>
+        item.path === 'event01.gpk' &&
+        item.ranges.some(([offset, length]) =>
+          offset >= 319 * 1024 * 1024 && length <= 1024 * 1024)),
+      'downloaded byte ranges must be exported instead of all manifest files');
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.evaluate(() => window.KotonohaDumpPreload())
+    ]);
+    assert(download.suggestedFilename() === 'preload.json',
+      'browser console dump must download preload.json');
+    const fromDownload = JSON.parse(fs.readFileSync(await download.path(), 'utf8'));
+    assert(fromDownload.entries.some(item => item.path === 'event01.gpk'),
+      'downloaded preload.json must contain previously fetched archive ranges');
+
+    // Install the dumped guide server-side. The extra uncached file proves
+    // the startup run dependency stays held until HTTP Range + IndexedDB
+    // have completed, while the GPK chunks must be reused from IndexedDB.
+    const required = structuredClone(preloadSnapshot.dump);
+    required.entries.push({path: lateName,
+      ranges: [[0, Buffer.byteLength(lateBody)]]});
+    fs.writeFileSync(preloadPath, JSON.stringify(required));
+    let gpkReloadRequests = 0;
+    const measureReload = request => {
+      if (new URL(request.url()).pathname.endsWith('/game-assets/event01.gpk'))
+        gpkReloadRequests++;
+    };
+    page.on('request', measureReload);
+    try {
+      await page.reload({waitUntil: 'domcontentloaded'});
+      await page.locator('#use-server-assets').click();
+      await ready();
+      const preloadReady = await page.evaluate(async expectedLength => ({
+        completed: window.KotonohaInitialPreloadReady === true,
+        loaded: new TextDecoder().decode(await
+          window.KotonohaAssetCache.readRange('late-unindexed.txt',
+            0, expectedLength))
+      }), Buffer.byteLength(lateBody));
+      assert(preloadReady.completed && preloadReady.loaded === lateBody,
+        'required preload must be committed to IndexedDB before engine boot');
+      assert(gpkReloadRequests === 0,
+        'reload must reuse persisted GPK ranges without a second network fetch');
+    } finally {
+      page.off('request', measureReload);
+      fs.rmSync(preloadPath, {force: true});
+    }
 
     const prepared = await page.evaluate(() => {
       let staged = false;

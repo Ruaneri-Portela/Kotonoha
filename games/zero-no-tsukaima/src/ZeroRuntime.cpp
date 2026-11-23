@@ -24,6 +24,7 @@ void ZeroRuntime::Shutdown() {
   backlog_.reset();
   command_.reset();
   roulette_.reset();
+  battle_.reset();
   move_.reset();
   select_.reset();
   textBox_.reset();
@@ -48,6 +49,7 @@ void ZeroRuntime::initGlobal(Kotonoha::Engine &engine) {
   textBox_ = std::make_unique<ZeroTextBox>(engine, *session_);
   select_ = std::make_unique<ZeroSelectChoice>(engine, *session_);
   move_ = std::make_unique<ZeroMoveChoice>(engine, *session_);
+  battle_ = std::make_unique<ZeroBattleChoice>(engine, *session_);
   roulette_ = std::make_unique<ZeroRoulette>(engine, *session_);
   command_ = std::make_unique<ZeroCommandMenu>(engine, *session_);
   backlog_ = std::make_unique<ZeroBacklog>(engine, *session_);
@@ -62,7 +64,7 @@ void ZeroRuntime::initMenu(Kotonoha::Engine &) {
 void ZeroRuntime::initGameplay(Kotonoha::Engine &) {
   for (Kotonoha::Scene *scene : std::initializer_list<Kotonoha::Scene *>{
            stage_.get(), textBox_.get(), select_.get(), move_.get(),
-           roulette_.get(), command_.get(), backlog_.get()})
+           battle_.get(), roulette_.get(), command_.get(), backlog_.get()})
     AddScene(scene);
 }
 
@@ -93,6 +95,12 @@ void ZeroRuntime::update() {
 bool ZeroRuntime::onEvent(Kotonoha::EventRef event) {
   if (!session_)
     return false;
+  if (session_->MoviePlaying()) {
+    if (videoSkip_.accept(event))
+      session_->SkipMovie();
+    return true;
+  }
+  videoSkip_.reset();
   // Menu, map choices and roulette keep navigation controls; dialogue-only
   // shortcuts must never turn Cancel into a held skip inside those screens.
   if (textBox_ && (event.type == SDL_EVENT_WINDOW_FOCUS_LOST ||
@@ -104,8 +112,9 @@ bool ZeroRuntime::onEvent(Kotonoha::EventRef event) {
   // rename/delete shortcuts); only this game's retail scenes use its mapping.
   for (auto *scene : GetActiveScenes())
     if (scene && scene->capturesInput() && scene != select_.get() &&
-        scene != move_.get() && scene != roulette_.get() &&
-        scene != command_.get() && scene != backlog_.get()) {
+        scene != move_.get() && scene != battle_.get() &&
+        scene != roulette_.get() && scene != command_.get() &&
+        scene != backlog_.get()) {
       if (textBox_)
         textBox_->cancelHeldSkip();
       return Runtime::onEvent(event);
@@ -165,6 +174,46 @@ Kotonoha::Translation::SourceTexts ZeroRuntime::translationSources() const {
       texts[int(i)] = std::move(scene);
   }
   return texts;
+}
+
+int ZeroRuntime::translationRoute() const {
+  return session_ && session_->Playing() && session_->Story()
+             ? static_cast<int>(session_->Story()->SceneIndex())
+             : -1;
+}
+
+std::vector<std::string> ZeroRuntime::activeTranslationKeys() const {
+  if (!session_ || !session_->Playing() || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  std::vector<std::string> result;
+  const auto append = [&](const std::string &key) {
+    if (!key.empty() &&
+        std::find(result.begin(), result.end(), key) == result.end())
+      result.push_back(key);
+  };
+  append(story.Speaker());
+  append(story.Text());
+  for (const auto &choice : story.Choices())
+    append(choice);
+  return result;
+}
+
+std::vector<Kotonoha::DebugAudioAsset> ZeroRuntime::debugSceneAudio() {
+  if (!session_ || !session_->Playing() || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  if (story.Voice() <= 0)
+    return {};
+  const auto id = "voice/" + std::to_string(story.Voice());
+  return {{id, story.Speaker(), story.Text()}};
+}
+
+std::string ZeroRuntime::debugNodeCatalogKey() const {
+  if (!session_ || !session_->Playing() || !session_->Story())
+    return {};
+  const auto &story = *session_->Story();
+  return story.ScriptName() + ":" + std::to_string(story.SceneIndex());
 }
 
 // "SCRIPT.KS *label | scene N | tag M": scene N is the translation route.

@@ -3,6 +3,7 @@
 #include "SnowComponents.hpp"
 
 #include <Kotonoha/core/Runtime.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 
 #include <memory>
 
@@ -39,6 +40,10 @@ public:
 
   // Route = 12-bit script object id (texts in Shift-JIS converted to UTF-8).
   Kotonoha::Translation::SourceTexts translationSources() const override;
+  int translationRoute() const override;
+  std::vector<std::string> activeTranslationKeys() const override;
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
+  std::string debugNodeCatalogKey() const override;
   std::string debugNode() const override;
   std::string nodeClockKey() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
@@ -51,6 +56,7 @@ public:
                        kViewHeight = kGameHeight * 6 / 5;
 
 private:
+  Kotonoha::VideoSkipGesture videoSkip_;
   bool IsGameScene(const Kotonoha::Scene *scene) const;
   bool EngineSceneCaptures() const;
   void OpenSaves(bool load);

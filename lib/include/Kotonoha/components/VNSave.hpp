@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Kotonoha/script/Timeline.hpp>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -14,6 +15,13 @@ struct VNSave {
   std::vector<std::size_t> resolvedChoices;
   std::optional<int> pendingBranch;
   std::string gameData;
+  // Optional packed RGB24 preview. Embedded in the same file as the save so
+  // the native slot manager can rename or delete both in one operation.
+  static constexpr int thumbnailWidth = 192;
+  static constexpr int thumbnailHeight = 108;
+  static constexpr std::size_t thumbnailBytes =
+      thumbnailWidth * thumbnailHeight * 3;
+  std::vector<std::uint8_t> thumbnailRgb;
 
   void write(const std::string &path) const;
   static VNSave read(const std::string &path);

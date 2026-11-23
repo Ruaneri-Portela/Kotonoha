@@ -15,7 +15,7 @@ The previous standalone `wasm.yml` was retired. Linux and WASM compile sequentia
 
 **Cache policy:** build-tree/incremental compilation caches are **not restored or saved** in any platform workflow. Binary archives of **vcpkg dependencies** remain cached by target triplet so unchanged third-party packages need not be rebuilt. This is *not* a cache of compiled Kotonoha game/engine objects. The Emscripten setup may cache its SDK installation; the Android Gradle setup disables its build cache. Published GitHub Actions artifacts are retained separately from caches.
 
-In Linux, Windows, macOS and WASM, select the vcpkg features `sdl-vcpkg` and `imgui-vcpkg` together with `KOTONOHA_SDL_FROM_VCPKG=ON` and `KOTONOHA_IMGUI_FROM_VCPKG=ON`. Android uses checked-in SDL/ImGui submodules for native integration and vcpkg for other dependencies, including the `android-python` feature. The non-Android binary workflows do not initialize game submodules; local builds can still use the source submodules.
+In Linux, Windows, macOS and WASM, select the vcpkg feature `sdl-vcpkg` and `KOTONOHA_SDL_PROVIDER=VCPKG`. Dear ImGui is always compiled from the pinned Git submodule, automatically initialized by CMake when missing. Android uses SDL and ImGui submodules for native integration and vcpkg for other dependencies. The workflows no longer install ImGui through vcpkg.
 
 Example Linux configure:
 
@@ -23,9 +23,9 @@ Example Linux configure:
 cmake -S . -B build -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
   -DVCPKG_TARGET_TRIPLET=x64-linux-dynamic \
-  '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg' \
-  -DKOTONOHA_SDL_FROM_VCPKG=ON \
-  -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
+  '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg' \
+  -DKOTONOHA_SDL_PROVIDER=VCPKG \
+   \
   -DKOTONOHA_BUILD_EXAMPLE=ON
 cmake --build build
 ```
@@ -49,7 +49,7 @@ O antigo `wasm.yml` foi removido. Linux e WASM são compilados em sequência no 
 
 **Política de cache:** nenhuma workflow restaura ou grava os diretórios de **compilação incremental** dos jogos e do motor. Mantemos apenas os arquivos binários de **dependências do vcpkg**, separados por triplet, para não recompilar bibliotecas externas desnecessariamente. O SDK do Emscripten pode usar cache de instalação, e o cache de build do Gradle foi desativado. Artefatos publicados pelo GitHub Actions são independentes desses caches.
 
-Em Linux, Windows, macOS e WASM, habilite as features `sdl-vcpkg;imgui-vcpkg` e as opções `KOTONOHA_SDL_FROM_VCPKG=ON` e `KOTONOHA_IMGUI_FROM_VCPKG=ON`. Android usa os submódulos SDL/ImGui para integração nativa e vcpkg para outras dependências, incluindo `android-python`. Builds locais ainda podem utilizar submódulos. Para um exemplo de configuração Linux, consulte o comando na seção EN-US acima.
+Em Linux, Windows, macOS e WASM, selecione a feature `sdl-vcpkg` com `KOTONOHA_SDL_PROVIDER=VCPKG`. Dear ImGui sempre é compilado a partir do submódulo Git fixado pelo projeto, inicializado automaticamente pelo CMake quando ausente. Android continua usando os submódulos SDL e ImGui para integração nativa.
 
 Para WASM, utilize `wasm32-emscripten` e a ferramenta de chainload CMake do Emscripten. Selecionar SDL/ImGui via vcpkg sem configurar a toolchain é erro de configuração.
 

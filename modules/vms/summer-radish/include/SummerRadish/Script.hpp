@@ -1,6 +1,9 @@
 #pragma once
 #include <Kotonoha/core/Vm.hpp>
 #include <SummerRadish/Pack.hpp>
+#include <SummerRadish/Codec.hpp>
+#include <SummerRadish/Images.hpp>
+
 #include <functional>
 #include <map>
 #include <variant>

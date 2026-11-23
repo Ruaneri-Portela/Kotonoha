@@ -1,10 +1,13 @@
+#include <Kotonoha/Filesystem/Path.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/AssetOverlay.hpp>
+#include <SDL3/SDL_log.h>
 #include <stdexcept>
 
 namespace Kotonoha {
 
 std::string AssetOverlay::key(std::string id) {
+  id = Kotonoha::Filesystem::normalizeUtf8Nfc(id);
   for (auto &c : id) {
     if (c == '\\')
       c = '/';
@@ -47,19 +50,47 @@ AssetOverlay::AssetOverlay(const std::filesystem::path &root,
   if (ec || !std::filesystem::is_directory(root_, ec))
     return;
 
-  for (const auto &entry :
-       std::filesystem::recursive_directory_iterator(root_)) {
-    if (!entry.is_regular_file())
+  std::filesystem::recursive_directory_iterator it(
+      root_, std::filesystem::directory_options::skip_permission_denied, ec),
+      end;
+  if (ec)
+    return;
+  for (; it != end; it.increment(ec)) {
+    if (ec) {
+      ec.clear();
       continue;
-    auto actual = std::filesystem::canonical(entry.path());
+    }
+    const auto filename = it->path().filename().string();
+    if (filename == ".DS_Store" ||
+        (filename.size() >= 2 && filename[0] == '.' && filename[1] == '_') ||
+        (filename.size() >= 7 &&
+         filename.compare(filename.size() - 7, 7, ".icloud") == 0))
+      continue;
+
+    std::error_code entryEc;
+    if (!it->is_regular_file(entryEc) || entryEc)
+      continue;
+    auto actual = std::filesystem::canonical(it->path(), entryEc);
+    if (entryEc)
+      continue;
     auto relative = actual.lexically_relative(root_);
     if (relative.empty() || *relative.begin() == "..")
       throw std::invalid_argument(
           "Asset overlay symlink escapes its directory: " +
-          entry.path().string());
-    auto id = key(entry.path().lexically_relative(root_).generic_string());
-    if (!files_.emplace(id, actual).second)
-      throw std::invalid_argument("Ambiguous asset overlay name: " + id);
+          it->path().string());
+    auto id = key(it->path().lexically_relative(root_).generic_string());
+    if (id.empty()) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "AssetOverlay: skipping unsupported overlay path '%s'",
+                  it->path().string().c_str());
+      continue;
+    }
+    if (!files_.emplace(id, actual).second) {
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "AssetOverlay: case-insensitive collision for '%s', "
+                  "keeping first entry",
+                  id.c_str());
+    }
   }
 }
 

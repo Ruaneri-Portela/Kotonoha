@@ -85,7 +85,7 @@ int LineLexer::parseVarRef() {
     auto [p, ec] =
         std::from_chars(token.data(), token.data() + token.size(), id);
     (void)p;
-    if (ec != std::errc{})
+    if (ec != std::errc{} || p != token.data() + token.size())
       return -1;
   } else if (vars_) {
     if (!vars_->findNumAlias(token, id))
@@ -119,7 +119,7 @@ int LineLexer::parseStrVarRef() {
     auto [p, ec] =
         std::from_chars(token.data(), token.data() + token.size(), id);
     (void)p;
-    return (ec == std::errc{}) ? id : -1;
+    return (ec == std::errc{} && p == token.data() + token.size()) ? id : -1;
   }
   if (vars_ && vars_->findNumAlias(token, id))
     return id;

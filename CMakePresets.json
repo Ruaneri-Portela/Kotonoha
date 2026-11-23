@@ -1,0 +1,242 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "platform-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "installDir": "${sourceDir}/out/install/${presetName}",
+      "cacheVariables": {
+        "KOTONOHA_BUILD_ALL": "ON",
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+      }
+    },
+
+    {
+      "name": "macos-generic",
+      "displayName": "macOS | Nativo (sem vcpkg)",
+      "description": "Base macOS que compila direto na plataforma, sem toolchain vcpkg.",
+      "inherits": "platform-base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "KOTONOHA_BUILD_MACOS_BUNDLES": "ON",
+        "KOTONOHA_SDL_PROVIDER": "SYSTEM"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioRemoteSettings/CMake/1.0": {
+          "sourceDir": "$env{HOME}/.vs/$ms{projectDirName}"
+        }
+      }
+    },
+    {
+      "name": "macos-vcpkg-base",
+      "hidden": true,
+      "displayName": "macOS | vcpkg (base)",
+      "description": "Base vcpkg macOS: triplets dinâmicos para macOS 15.0.",
+      "inherits": "macos-generic",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg-overlays/triplets",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
+        "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
+        "KOTONOHA_SDL_PROVIDER": "VCPKG",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0"
+      }
+    },
+    {
+      "name": "macos-arm64-native",
+      "displayName": "macOS arm64 | Nativo (sem vcpkg)",
+      "inherits": "macos-generic",
+      "cacheVariables": { "CMAKE_OSX_ARCHITECTURES": "arm64" }
+    },
+    {
+      "name": "macos-amd64-native",
+      "displayName": "macOS amd64 | Nativo (sem vcpkg)",
+      "inherits": "macos-generic",
+      "cacheVariables": { "CMAKE_OSX_ARCHITECTURES": "x86_64" }
+    },
+    {
+      "name": "macos-arm64-vcpkg",
+      "displayName": "macOS arm64 | vcpkg dynamic",
+      "inherits": "macos-vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "VCPKG_TARGET_TRIPLET": "macos-arm64-vcpkg"
+      }
+    },
+    {
+      "name": "macos-amd64-vcpkg",
+      "displayName": "macOS amd64 | vcpkg dynamic",
+      "inherits": "macos-vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "VCPKG_TARGET_TRIPLET": "macos-amd64-vcpkg"
+      }
+    },
+
+    {
+      "name": "linux-generic",
+      "displayName": "Linux | Nativo (sem vcpkg)",
+      "description": "Base Linux que compila direto na plataforma, sem toolchain vcpkg.",
+      "inherits": "platform-base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" },
+      "vendor": {
+        "microsoft.com/VisualStudioRemoteSettings/CMake/2.0": {
+          "remoteSourceRootDir": "$env{HOME}/.vs/$ms{projectDirName}"
+        }
+      }
+    },
+    {
+      "name": "linux-vcpkg-base",
+      "hidden": true,
+      "displayName": "Linux | vcpkg (base)",
+      "inherits": "linux-generic",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
+        "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
+        "KOTONOHA_SDL_PROVIDER": "VCPKG"
+      }
+    },
+    {
+      "name": "linux-x64-native",
+      "displayName": "Linux x64 | Nativo",
+      "inherits": "linux-generic",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "linux-arm64-native",
+      "displayName": "Linux ARM64 | Nativo (cross)",
+      "inherits": "linux-generic",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "Linux",
+        "CMAKE_SYSTEM_PROCESSOR": "aarch64",
+        "CMAKE_C_COMPILER": "aarch64-linux-gnu-gcc",
+        "CMAKE_CXX_COMPILER": "aarch64-linux-gnu-g++"
+      }
+    },
+    {
+      "name": "linux-x64-vcpkg",
+      "displayName": "Linux x64 | vcpkg",
+      "inherits": "linux-vcpkg-base",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-linux",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "linux-arm64-vcpkg",
+      "displayName": "Linux ARM64 | vcpkg",
+      "inherits": "linux-vcpkg-base",
+      "cacheVariables": { "VCPKG_TARGET_TRIPLET": "arm64-linux" }
+    },
+
+    {
+      "name": "windows-generic",
+      "displayName": "Windows | Nativo (sem vcpkg)",
+      "description": "Base Windows que compila direto na plataforma, sem toolchain vcpkg.",
+      "inherits": "platform-base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
+      }
+    },
+    {
+      "name": "windows-vcpkg-base",
+      "hidden": true,
+      "displayName": "Windows | vcpkg (base)",
+      "inherits": "windows-generic",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        }
+      }
+    },
+    {
+      "name": "windows-x64",
+      "displayName": "Windows x64 | MSVC + vcpkg",
+      "inherits": "windows-vcpkg-base",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "windows-x86",
+      "displayName": "Windows x86 | MSVC + vcpkg",
+      "inherits": "windows-vcpkg-base",
+      "architecture": { "value": "x86", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x86-windows"
+      }
+    },
+    {
+      "name": "windows-arm64",
+      "displayName": "Windows ARM64 | MSVC + vcpkg",
+      "inherits": "windows-vcpkg-base",
+      "architecture": { "value": "arm64", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "arm64-windows"
+      }
+    },
+    {
+      "name": "windows-mingw-x64",
+      "displayName": "Windows x64 | MinGW + vcpkg",
+      "inherits": "windows-vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+        "VCPKG_HOST_TRIPLET": "x64-mingw-dynamic"
+      }
+    },
+
+    {
+      "name": "wasm-vcpkg-base",
+      "hidden": true,
+      "displayName": "WebAssembly vcpkg (base)",
+      "inherits": "platform-base",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/toolchains/emscripten.cmake"
+        },
+        "VCPKG_TARGET_TRIPLET": "wasm32-emscripten",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
+        "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg",
+        "KOTONOHA_SDL_PROVIDER": "VCPKG",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "wasm",
+      "displayName": "WebAssembly | Release (vcpkg + emcmake)",
+      "inherits": "wasm-vcpkg-base"
+    }
+  ]
+}

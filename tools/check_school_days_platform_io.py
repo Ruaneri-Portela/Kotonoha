@@ -6,7 +6,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHOOL = ROOT / "games/school-days"
-ENGINE = ROOT / "lib/src/Filesystem/AtomicFile.cpp"
+ENGINE = ROOT / "lib/src/filesystem/AtomicFile.cpp"
 
 
 def inspect() -> list[str]:

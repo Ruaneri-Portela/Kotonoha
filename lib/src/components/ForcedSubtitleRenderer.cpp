@@ -11,6 +11,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <tuple>
+#include <utility>
 
 namespace Kotonoha {
 namespace {
@@ -260,7 +261,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
     return;
   lastLoadedNodeId = nodeId;
   if (nodeId.empty()) {
-    clear();
+    clearForcedSubtitles();
     activeFile.clear();
     useNodeClock = false;
     return;
@@ -300,7 +301,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
     if (!selected && (locale_.empty() || locale_ == "en"))
       std::tie(selected, eventSpecific) = findForLocale(legacySubtitleCache, "");
     if (!selected) {
-      clear();
+      clearForcedSubtitles();
       activeFile.clear();
       useNodeClock = false;
       return;
@@ -309,7 +310,7 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
     const auto &path = *selected;
     if (path == activeFile)
       return;
-    clear();
+    clearForcedSubtitles();
     activeFile.clear();
     const auto inSelected = !locale_.empty() &&
         safeRegularFile(path, localeDirectory_);
@@ -332,10 +333,10 @@ void ForcedSubtitleRenderer::loadForNode(const std::string &nodeId) {
       throw std::runtime_error(
           "Cannot read forced subtitles or file exceeds 16 MiB");
     content.resize(static_cast<std::size_t>(size));
-    loadAss(content);
+    setForcedSubtitles(std::move(content));
     activeFile = path;
   } catch (const std::exception &error) {
-    clear();
+    clearForcedSubtitles();
     activeFile.clear();
     useNodeClock = false;
     SDL_LogError(LogMedia, "Forced subtitles for %s: %s", nodeId.c_str(),
@@ -349,7 +350,7 @@ void ForcedSubtitleRenderer::reload() {
   subtitleCache.clear();
   legacySubtitleCache.clear();
   localeDirectory_.clear();
-  clear();
+  clearForcedSubtitles();
   activeFile.clear();
   useNodeClock = false;
 }

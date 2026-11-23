@@ -1,5 +1,5 @@
 #include <Amagami/Formats.hpp>
-#include <Kotonoha/media/Ps2Tim2.hpp>
+#include <Kotonoha/Formats/Ps2Tim2.hpp>
 #include <iostream>
 #include <stdexcept>
 using namespace Amagami;

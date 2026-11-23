@@ -1,6 +1,11 @@
+#include <SummerRadish/Codec.hpp>
+#include <SummerRadish/Images.hpp>
+#include <SummerRadish/Map.hpp>
 #include <SummerRadish/Native.hpp>
 #include <SummerRadish/Pack.hpp>
+
 #include <SummerRadish/Script.hpp>
+#include <SummerRadish/SummerAssets.hpp>
 #include <fstream>
 #include <iostream>
 #include <set>
@@ -12,46 +17,59 @@ int main(int argc, char **argv) {
                    "--read PACK/ASSET]\n";
       return 0;
     }
-    auto root = std::filesystem::path(argv[1]);
-    if (std::filesystem::exists(root / "DISC1/PACK"))
-      root /= "DISC1/PACK";
-    else if (std::filesystem::exists(root / "PACK"))
-      root /= "PACK";
-    Machine vm;
+    Kotonoha::Providers::SummerAssets assets(argv[1]);
     const std::string mode = argc > 2 ? argv[2] : "";
+    if (mode == "--read" && argc > 3) {
+      const auto id = canonical(argv[3]);
+      if (!assets.contains(id))
+        throw std::runtime_error("Expected an existing PACK/ASSET identifier");
+      const auto data = assets.read(id);
+      std::cout.write(reinterpret_cast<const char *>(data.data()), data.size());
+      return 0;
+    }
+    if (mode == "--list") {
+      for (const auto &id : assets.list())
+        std::cout << id << '\n';
+      return 0;
+    }
+    Machine vm;
+    bool isMeo = false;
+    size_t meoScriptCount = 0;
     for (auto type : {"INI", "SCRIPT", "GRAPHIC", "SOUND", "VOICE"}) {
-      Pack pack(root / (std::string(type) + ".cmp"));
-      if (mode == "--read" && argc > 3) {
-        const auto id = canonical(argv[3]);
-        const auto prefix = std::string(type) + "/";
-        if (id.compare(0, prefix.size(), prefix) == 0) {
-          const auto data = pack.read(id.substr(prefix.size()));
-          std::cout.write(reinterpret_cast<const char *>(data.data()),
-                          data.size());
-          return 0;
-        }
+      const auto prefix = std::string(type) + "/";
+      const auto entries = assets.list(prefix);
+      if (entries.empty())
         continue;
-      }
-      if (mode == "--list") {
-        for (const auto &[name, entry] : pack.entries())
-          std::cout << type << '/' << name << '\n';
-        continue;
-      }
-      std::cout << type << ": " << pack.entries().size() << " entries\n";
-      if (std::string(type) == "SCRIPT")
-        for (auto &[name, e] : pack.entries()) {
-          auto d = pack.read(name);
-          vm.add(name.substr(0, name.size() - 4),
-                 std::string(d.begin(), d.end()));
+      std::cout << type << ": " << entries.size() << " entries\n";
+      if (std::string(type) == "SCRIPT") {
+        for (const auto &id : entries) {
+          const auto name = id.substr(prefix.size());
+          if (name.size() <= 4)
+            continue;
+          const auto ext = canonical(name.substr(name.find_last_of('.') + 1));
+          if (ext != "XML")
+            continue;
+          auto d = assets.read(id);
+          const std::string xml(d.begin(), d.end());
+          if (xml.find("<Script>") != std::string::npos) {
+            isMeo = true;
+            parseXml(xml);
+            ++meoScriptCount;
+          } else {
+            vm.add(name.substr(0, name.size() - 4), xml);
+          }
         }
+      }
       if (mode == "--validate" && std::string(type) == "GRAPHIC") {
         size_t count = 0, regions = 0;
-        for (auto &[name, e] : pack.entries()) {
-          auto ext = name.substr(name.find_last_of('.') + 1);
-          if (ext == "CMAP")
+        for (const auto &id : entries) {
+          const auto name = id.substr(prefix.size());
+          auto ext = canonical(name.substr(name.find_last_of('.') + 1));
+          if (ext == "CMAP" || ext == "M1V" || ext == "SFD" || ext == "MAP" ||
+              ext == "DAT")
             continue;
           try {
-            auto bytes = pack.read(name);
+            auto bytes = assets.read(id);
             auto img = decodeImage(bytes, ext);
             if (ext == "CHR")
               regions += decodeCharacterAnimations(bytes).size();
@@ -74,13 +92,14 @@ int main(int argc, char **argv) {
                   << " animation regions\n";
       }
     }
-    if (mode == "--list")
+    if (isMeo) {
+      std::cout << "Parsed " << meoScriptCount << " MEO timeline scripts\n";
       return 0;
-    if (mode == "--read")
-      throw std::runtime_error("Expected an existing PACK/ASSET identifier");
+    }
     std::cout << "Parsed " << vm.programs().size() << " scripts\n";
     size_t messages = 0, choices = 0, functions = 0;
     std::string last;
+    const bool isSrv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
     vm.function = [&](const std::string &name, const std::vector<Value> &args) {
       ++functions;
       last = name;
@@ -90,7 +109,14 @@ int main(int argc, char **argv) {
       }
       if (name == "SELECT") {
         ++choices;
-        vm.variables["@RESULT"] = int64_t(0);
+        const auto &node = vm.programs()
+                               .at(vm.position.script)
+                               .code.at(vm.position.pc - 1)
+                               .node;
+        const std::string target = node.children.empty()
+                                       ? "@RESULT"
+                                       : vm.referenceKey(node.children.front());
+        vm.variables[target] = int64_t(0);
       }
       if (name == "UNISELECT") {
         vm.variables["@制服番号"] = int64_t(2);
@@ -99,7 +125,21 @@ int main(int argc, char **argv) {
       if (name == "EASYTITLE")
         vm.variables["@RESULT"] = std::string("START");
       if (name == "MAPSELECT") {
-        vm.variables["@移動場所"] = int64_t(0);
+        int mode = args.empty() ? 0 : int(number(args[0]));
+        const auto &layout = mapLayout(mode, isSrv2);
+        int chosen = 0;
+        for (const auto &location : layout.locations) {
+          auto key = mapCharacterVariable(location.result, isSrv2);
+          key.replace(0, 5, "FILE_");
+          auto it = vm.variables.find("@" + key);
+          if (mode == 2 || (it != vm.variables.end() &&
+                            std::holds_alternative<std::string>(it->second) &&
+                            !string(it->second).empty())) {
+            chosen = location.result;
+            break;
+          }
+        }
+        vm.variables["@移動場所"] = int64_t(chosen);
       }
       if (name == "TOPLADY")
         vm.variables["@FLAG020"] = int64_t(topLady(

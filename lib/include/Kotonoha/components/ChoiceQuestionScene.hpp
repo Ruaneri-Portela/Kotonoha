@@ -15,6 +15,10 @@ struct ChoiceOption {
   std::string label;
   int optionId;
   SDL_FRect hitBox{0.0f, 0.0f, 0.0f, 0.0f};
+  // Disabled entries remain on screen and retain their authored option ID,
+  // but cannot be activated by keyboard, mouse, touch, or scripts.
+  bool enabled = true;
+  int colourIndex = -1;
 };
 
 // Question with a scrollable list of options. Subclasses override the layout,
@@ -59,6 +63,10 @@ public:
     onChoiceSelected = std::move(callback);
     active = true;
     selected = 0;
+    while (selected < options.size() && !options[selected].enabled)
+      ++selected;
+    if (selected == options.size())
+      selected = 0;
     scroll = 0;
   }
 

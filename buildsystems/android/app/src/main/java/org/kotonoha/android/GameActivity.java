@@ -4,6 +4,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.os.Build;
+import android.os.Bundle;
+import android.system.ErrnoException;
+import android.system.Os;
+import android.util.Log;
 import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -54,6 +58,21 @@ public final class GameActivity extends SDLActivity {
         if (result != 0 && getIntent().hasExtra(LAUNCH_ARGUMENTS))
             setResult(RESULT_CANCELED, new Intent().putExtra(STARTUP_STAGE, startupStage));
         else setResult(result == 0 ? RESULT_OK : RESULT_CANCELED);
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        try {
+            String nativeLibDir = getApplicationInfo() != null
+                    ? getApplicationInfo().nativeLibraryDir
+                    : null;
+            if (nativeLibDir != null && !nativeLibDir.isEmpty()) {
+                Os.setenv("KOTONOHA_ANDROID_NATIVE_LIB_DIR", nativeLibDir, true);
+            }
+        } catch (ErrnoException error) {
+            Log.w("Kotonoha", "Cannot set KOTONOHA_ANDROID_NATIVE_LIB_DIR", error);
+        }
+        super.onCreate(savedInstanceState);
     }
 
     @Override
@@ -148,9 +167,23 @@ public final class GameActivity extends SDLActivity {
     }
 
     @Override
+    protected String[] getArguments() {
+        String[] extraArgs = getIntent() != null
+                ? getIntent().getStringArrayExtra("kotonoha_args")
+                : null;
+        return extraArgs != null ? extraArgs : new String[0];
+    }
+
+    @Override
     protected String[] getLibraries() {
         return new String[]{"c++_shared", "SDL3",
                             "SDL3_ttf", "imgui", "kotonoha_engine", BuildConfig.NATIVE_TARGET};
+    }
+
+    public String getKotonohaNativeLibraryDirectory() {
+        return getApplicationInfo() != null && getApplicationInfo().nativeLibraryDir != null
+                ? getApplicationInfo().nativeLibraryDir
+                : "";
     }
 
     public String getKotonohaResourceDirectory() {

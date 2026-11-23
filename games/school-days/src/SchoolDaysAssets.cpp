@@ -434,7 +434,14 @@ bool Assets::checkDirectory(const std::filesystem::path &root, std::string &info
       }
     }
   }
-  for (const auto &candidate : {root, root / "Packs"}) {
+  std::vector<std::filesystem::path> candidates = {root};
+  const auto resolvedPacks =
+      Kotonoha::ResolveSchoolDaysAssetPath(root.string().c_str(), "Packs");
+  if (resolvedPacks.present)
+    candidates.emplace_back(resolvedPacks.physical);
+  else
+    candidates.push_back(root / "Packs");
+  for (const auto &candidate : candidates) {
     if (Kotonoha::ResolveSchoolDaysAssetPath(candidate.string().c_str(),
                                              "BGM.GPK")
             .present) {

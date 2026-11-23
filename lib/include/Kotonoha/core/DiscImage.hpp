@@ -25,10 +25,16 @@ std::filesystem::path gameDataDirectory(const std::filesystem::path &source);
 // version suffix; subdirectories use '/' ("MOVIE/OPENING.PSS").
 class DiscImage {
 public:
+  struct Extent {
+    Uint32 lba = 0;
+    Uint64 size = 0;
+  };
+
   struct Entry {
     std::string path; // without the ";1" version suffix
     Uint32 lba = 0;
     Uint64 size = 0;
+    std::vector<Extent> extents; // non-empty for multi-extent ISO9660 files
   };
 
   DiscImage();
@@ -60,6 +66,9 @@ public:
   // Non-throwing range read for hot paths; false on any failure.
   bool readInto(const Entry &entry, Uint64 offset, Uint64 size,
                 std::vector<Uint8> &out) const;
+  // Zero-allocation range read directly into caller-owned buffer.
+  bool readIntoBuffer(const Entry &entry, Uint64 offset, Uint64 size,
+                      Uint8 *dst) const;
 
 private:
   struct Stream;

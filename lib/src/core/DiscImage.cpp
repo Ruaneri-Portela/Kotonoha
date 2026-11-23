@@ -1,6 +1,7 @@
 #include <Kotonoha/core/DiscImage.hpp>
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -163,7 +164,24 @@ bool DiscImage::readSectors(Uint32 lba, Uint32 count,
   std::lock_guard lock(mutex);
   if (!stream)
     return false;
-  out.assign(std::size_t(count) * logicalSector, 0);
+  const std::size_t totalBytes = std::size_t(count) * logicalSector;
+  out.resize(totalBytes);
+  if (totalBytes == 0)
+    return true;
+  if (sector == logicalSector && dataOffset == 0) {
+    const Sint64 at = Sint64(lba) * logicalSector;
+    if (SDL_SeekIO(stream->io.get(), at, SDL_IO_SEEK_SET) < 0)
+      return false;
+    std::size_t cursor = 0;
+    while (cursor < totalBytes) {
+      const std::size_t got = SDL_ReadIO(stream->io.get(), out.data() + cursor,
+                                         totalBytes - cursor);
+      if (got == 0)
+        return false;
+      cursor += got;
+    }
+    return true;
+  }
   for (Uint32 i = 0; i < count; ++i) {
     const Sint64 at = Sint64(lba + i) * sector + dataOffset;
     if (SDL_SeekIO(stream->io.get(), at, SDL_IO_SEEK_SET) < 0 ||
@@ -183,6 +201,12 @@ void DiscImage::walk(Uint32 lba, Uint64 size, const std::string &prefix,
   if (!readSectors(lba, Uint32((size + logicalSector - 1) / logicalSector),
                    data))
     throw std::runtime_error("cannot read directory " + prefix);
+  struct FileVersionState {
+    Uint32 version = 1;
+    bool expectingMoreExtents = false;
+  };
+  std::unordered_map<std::string, FileVersionState> fileStates;
+
   std::size_t i = 0;
   while (i < size && i < data.size()) {
     const Uint8 length = data[i];
@@ -206,29 +230,149 @@ void DiscImage::walk(Uint32 lba, Uint64 size, const std::string &prefix,
       for (size_t c = 0; c < name.size(); c += 2)
         if (name[c] == '\0' && name[c + 1] == '\0')
           throw std::runtime_error("invalid Joliet filename");
-      SDLMemoryPtr<char> utf8(
-          SDL_iconv_string("UTF-8", "UTF-16BE", name.data(), name.size()));
-      if (!utf8)
-        throw std::runtime_error("cannot decode Joliet filename");
-      name = utf8.get();
+      name = ConvertEncoding(name, "UTF-16BE", "UTF-8");
     }
-    if (const auto version = name.find(';'); version != std::string::npos)
-      name.resize(version);
+    Uint32 fileVersion = 1;
+    if (const auto versionPos = name.find(';');
+        versionPos != std::string::npos) {
+      Uint32 parsed = 0;
+      bool validDigits = (versionPos + 1 < name.size());
+      for (std::size_t k = versionPos + 1; k < name.size(); ++k) {
+        if (name[k] < '0' || name[k] > '9') {
+          validDigits = false;
+          break;
+        }
+        parsed = parsed * 10u + static_cast<Uint32>(name[k] - '0');
+      }
+      if (validDigits && parsed > 0)
+        fileVersion = parsed;
+      name.resize(versionPos);
+    }
     if (name.empty() || name == "." || name == ".." ||
         name.find_first_of("/\\:") != std::string::npos ||
         name.find('\0') != std::string::npos)
       throw std::runtime_error("unsafe ISO filename");
     const Uint32 extent = le32(record + 2), extentSize = le32(record + 10);
-    if (!paths.insert(normalize(prefix + name)).second)
-      throw std::runtime_error("duplicate ISO path: " + prefix + name);
-    if (record[25] & 2) {
-      directoryEntries.push_back(prefix + name);
-      walk(extent, extentSize, prefix + name + "/", depth + 1);
-    } else {
-      byName.emplace(normalize(prefix + name), entries.size());
-      entries.push_back({prefix + name, extent, extentSize});
+    const bool isDir = (record[25] & 2u) != 0;
+    const bool hasMoreExtents = (record[25] & 0x80u) != 0;
+    const std::string fullPath = prefix + name;
+    const std::string normKey = normalize(fullPath);
+
+    if (isDir) {
+      if (!paths.insert(normKey).second)
+        throw std::runtime_error("duplicate ISO path: " + fullPath);
+      directoryEntries.push_back(fullPath);
+      walk(extent, extentSize, fullPath + "/", depth + 1);
+      continue;
     }
+
+    const auto existing = byName.find(normKey);
+    if (existing != byName.end()) {
+      auto &state = fileStates[normKey];
+      auto &target = entries[existing->second];
+      if (state.expectingMoreExtents && fileVersion == state.version) {
+        if (target.extents.empty())
+          target.extents.push_back({target.lba, target.size});
+        target.extents.push_back({extent, extentSize});
+        target.size += extentSize;
+        state.expectingMoreExtents = hasMoreExtents;
+        continue;
+      }
+      if (fileVersion > state.version) {
+        target.path = fullPath;
+        target.lba = extent;
+        target.size = extentSize;
+        target.extents.clear();
+        if (hasMoreExtents)
+          target.extents.push_back({extent, extentSize});
+        state.version = fileVersion;
+        state.expectingMoreExtents = hasMoreExtents;
+        continue;
+      }
+      if (fileVersion < state.version)
+        continue;
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "DiscImage: duplicate ISO path '%s', keeping first entry",
+                  fullPath.c_str());
+      continue;
+    }
+
+    if (!paths.insert(normKey).second)
+      throw std::runtime_error("duplicate ISO path: " + fullPath);
+    byName.emplace(normKey, entries.size());
+    Entry entry{fullPath, extent, extentSize, {}};
+    if (hasMoreExtents)
+      entry.extents.push_back({extent, extentSize});
+    entries.push_back(std::move(entry));
+    fileStates[normKey] = FileVersionState{fileVersion, hasMoreExtents};
   }
+}
+
+bool DiscImage::readIntoBuffer(const Entry &entry, Uint64 offset, Uint64 size,
+                               Uint8 *dst) const {
+  if (offset > entry.size || size > entry.size - offset)
+    return false;
+  if (size == 0)
+    return true;
+  if (!dst)
+    return false;
+
+  auto readExtentSlice = [&](Uint32 extentLba, Uint64 extentOffset,
+                             Uint64 sliceSize, Uint8 *outPtr) -> bool {
+    if (sector == logicalSector && dataOffset == 0) {
+      std::lock_guard lock(mutex);
+      if (!stream)
+        return false;
+      const Sint64 at =
+          Sint64(extentLba) * logicalSector + Sint64(extentOffset);
+      if (SDL_SeekIO(stream->io.get(), at, SDL_IO_SEEK_SET) < 0)
+        return false;
+      Uint64 cursor = 0;
+      while (cursor < sliceSize) {
+        const std::size_t got =
+            SDL_ReadIO(stream->io.get(), outPtr + cursor,
+                       static_cast<std::size_t>(sliceSize - cursor));
+        if (got == 0)
+          return false;
+        cursor += got;
+      }
+      return true;
+    }
+    const Uint32 first = Uint32(extentOffset / logicalSector);
+    const Uint32 last =
+        Uint32((extentOffset + sliceSize + logicalSector - 1) / logicalSector);
+    std::vector<Uint8> sectors;
+    if (!readSectors(extentLba + first, last - first, sectors))
+      return false;
+    const auto skip = std::size_t(extentOffset - Uint64(first) * logicalSector);
+    std::memcpy(outPtr, sectors.data() + skip,
+                static_cast<std::size_t>(sliceSize));
+    return true;
+  };
+
+  if (entry.extents.empty())
+    return readExtentSlice(entry.lba, offset, size, dst);
+
+  Uint64 remaining = size;
+  Uint64 fileCursor = offset;
+  Uint64 extentStart = 0;
+  Uint8 *writePtr = dst;
+  for (const auto &ext : entry.extents) {
+    if (remaining == 0)
+      break;
+    const Uint64 extentEnd = extentStart + ext.size;
+    if (fileCursor < extentEnd) {
+      const Uint64 inExtentOffset = fileCursor - extentStart;
+      const Uint64 take = std::min(remaining, ext.size - inExtentOffset);
+      if (!readExtentSlice(ext.lba, inExtentOffset, take, writePtr))
+        return false;
+      writePtr += take;
+      fileCursor += take;
+      remaining -= take;
+    }
+    extentStart = extentEnd;
+  }
+  return remaining == 0;
 }
 
 bool DiscImage::readInto(const Entry &entry, Uint64 offset, Uint64 size,
@@ -239,15 +383,8 @@ bool DiscImage::readInto(const Entry &entry, Uint64 offset, Uint64 size,
     out.clear();
     return true;
   }
-  const Uint32 first = Uint32(offset / logicalSector);
-  const Uint32 last =
-      Uint32((offset + size + logicalSector - 1) / logicalSector);
-  std::vector<Uint8> sectors;
-  if (!readSectors(entry.lba + first, last - first, sectors))
-    return false;
-  const auto skip = std::size_t(offset - Uint64(first) * logicalSector);
-  out.assign(sectors.begin() + skip, sectors.begin() + skip + size);
-  return true;
+  out.resize(static_cast<std::size_t>(size));
+  return readIntoBuffer(entry, offset, size, out.data());
 }
 
 std::vector<Uint8> DiscImage::read(const Entry &entry, Uint64 offset,
@@ -314,8 +451,11 @@ DiscImageAssetProvider::listAsset(const std::string &prefix) const {
 }
 
 bool isISOImage(const std::filesystem::path &path) {
-  return normalize(path.extension().string()) == ".ISO" &&
-         !std::filesystem::is_directory(path);
+  const auto ext = normalize(path.extension().string());
+  if (ext != ".ISO" && ext != ".BIN" && ext != ".IMG")
+    return false;
+  std::error_code ec;
+  return !std::filesystem::is_directory(path, ec);
 }
 
 std::filesystem::path gameDataDirectory(const std::filesystem::path &source) {

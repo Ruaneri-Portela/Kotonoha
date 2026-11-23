@@ -1,0 +1,28 @@
+name: Kotonoha visual identity and icon pack
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "tools/generate_brand_assets.py"
+      - "tools/generate_pwa_icons.py"
+      - "tools/test_brand_assets.py"
+      - "assets/branding/**"
+      - ".github/workflows/brand-assets.yml"
+  workflow_dispatch:
+
+jobs:
+  branding:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate platform icons and generate distributable pack
+        run: python3 tools/test_brand_assets.py build/branding
+      - name: Upload generated brand icon pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-brand-icons
+          path: build/branding/
+          if-no-files-found: error
+          retention-days: 30

@@ -380,6 +380,28 @@ void engineProvider() {
   require(engine.GetAssets().name() == "Files", "Keep provider on failure");
 }
 
+void retainedAssetProviderLifetime() {
+  // The runtime/launcher can retain its shared provider after Engine dies.
+  // GPU textures must not outlive the SDL_Renderer that created them.
+  auto provider = std::make_shared<SolidColorProvider>();
+  const int initialTtfRefs = TTF_WasInit();
+  {
+    TestRuntime runtime;
+    EngineOptions options;
+    options.assets = provider;
+    Engine engine(runtime, options);
+    provider->texture(engine.GetRenderer(), "solid:ff00ff");
+    require(provider->cachedTextures() == 1,
+            "Provider has a renderer-owned texture during gameplay");
+    require(TTF_WasInit() > initialTtfRefs,
+            "Engine UI fonts must hold SDL_ttf initialization");
+  }
+  require(provider->cachedTextures() == 0,
+          "Engine destruction must clear textures of retained providers");
+  require(TTF_WasInit() == initialTtfRefs,
+          "Engine shutdown must release all SDL_ttf UI sessions");
+}
+
 void seekableMediaProvider() {
   StreamingAssetProvider assets;
   assets.bytes = bitmap();
@@ -406,6 +428,71 @@ void seekableMediaProvider() {
   require(player.isOpen() && fallback.reads == 1,
           "MediaPlayer memory fallback changed");
   player.stop();
+}
+
+void dumpProviderAssets() {
+  struct Temp {
+    std::filesystem::path root =
+        std::filesystem::temp_directory_path() /
+        ("kotonoha-asset-dumps-" + std::to_string(SDL_GetTicksNS()));
+    Temp() { std::filesystem::create_directories(root); }
+    ~Temp() {
+      std::error_code ignored;
+      std::filesystem::remove_all(root, ignored);
+    }
+  } temp;
+
+  const auto fileBytes = [](const std::filesystem::path &path) {
+    std::ifstream input(path, std::ios::binary);
+    return std::vector<Uint8>(std::istreambuf_iterator<char>(input), {});
+  };
+
+  MemoryAssetProvider archive;
+  archive.files["dialogue.txt"] = {'h', 'e', 'l', 'l', 'o'};
+  archive.files["empty.bin"] = {};
+  const auto out = temp.root / "archive" / "dialogue.txt";
+  require(archive.dumpAsset("dialogue.txt", out) == 5 &&
+              fileBytes(out) == archive.files["dialogue.txt"],
+          "Raw archive dump retains source bytes");
+  require(archive.dumpAsset("empty.bin", temp.root / "empty.bin") == 0 &&
+              std::filesystem::file_size(temp.root / "empty.bin") == 0,
+          "Empty asset dumps are valid");
+  rejects([&] { archive.dumpAsset("dialogue.txt", out); },
+          "Never overwrite existing export");
+  rejects([&] { archive.dumpAsset("missing", temp.root / "missing"); },
+          "Missing asset is rejected");
+  rejects([&] { archive.dumpAsset("dialogue.txt", {}); },
+          "Missing destination is rejected");
+
+  const auto overlay = temp.root / "overlay";
+  std::filesystem::create_directories(overlay);
+  {
+    std::ofstream replacement(overlay / "dialogue.txt", std::ios::binary);
+    replacement << "translated";
+  }
+  archive.setOverlay(overlay);
+  const auto effective = temp.root / "dump-effective.bin";
+  const auto original = temp.root / "dump-original.bin";
+  require(archive.dumpAsset("dialogue.txt", effective) == 10 &&
+              fileBytes(effective) ==
+                  std::vector<Uint8>(
+                      {'t', 'r', 'a', 'n', 's', 'l', 'a', 't', 'e', 'd'}),
+          "Effective dump contains overlay bytes");
+  require(archive.dumpAsset("dialogue.txt", original, AssetSource::Original) ==
+                  5 &&
+              fileBytes(original) == archive.files["dialogue.txt"],
+          "Original dump bypasses overlay bytes");
+
+  StreamingAssetProvider streaming;
+  streaming.bytes.resize(2 * 1024 * 1024 + 123);
+  for (std::size_t i = 0; i < streaming.bytes.size(); ++i)
+    streaming.bytes[i] = static_cast<Uint8>(i % 251);
+  const auto streamed = temp.root / "streamed.bin";
+  require(
+      streaming.dumpAsset("image.bmp", streamed) == streaming.bytes.size() &&
+          streaming.streams == 1 && streaming.reads == 0 &&
+          fileBytes(streamed) == streaming.bytes,
+      "Streamed archive export preserves bytes without materializing read()");
 }
 
 void textApi() {
@@ -478,8 +565,10 @@ int main(int argc, char **argv) {
     if (argc > 1)
       memoryMedia(argv[1]);
     seekableMediaProvider();
+    dumpProviderAssets();
     // Engines own the SDL session and quit SDL when destroyed.
     engineProvider();
+    retainedAssetProviderLifetime();
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';
     return 1;

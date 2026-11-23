@@ -19,17 +19,20 @@ set(PONSCRIPTER_TEST_DATA "" CACHE PATH "PONscripter / SayaNoUta_PT-BR data dire
 if(BUILD_TESTING)
   add_executable(PonscripterRuntimeTests tests/PonscripterRuntimeTest.cpp)
   target_link_libraries(PonscripterRuntimeTests PRIVATE ponscripter_port)
-  add_test(NAME Ponscripter.Runtime COMMAND PonscripterRuntimeTests)
-  set_tests_properties(Ponscripter.Runtime PROPERTIES
-      ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
+    add_test(NAME Ponscripter.Runtime
+        COMMAND PonscripterRuntimeTests
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+    set_tests_properties(Ponscripter.Runtime PROPERTIES
+        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
 
-  if(PONSCRIPTER_TEST_DATA AND EXISTS "${PONSCRIPTER_TEST_DATA}/00.utf")
-    add_test(NAME Ponscripter.RetailSayaFlow
-        COMMAND PonscripterRuntimeTests "${PONSCRIPTER_TEST_DATA}")
-    set_tests_properties(Ponscripter.RetailSayaFlow PROPERTIES
-        ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
-        TIMEOUT 120)
-  endif()
+    if(PONSCRIPTER_TEST_DATA AND EXISTS "${PONSCRIPTER_TEST_DATA}/00.utf")
+        add_test(NAME Ponscripter.RetailSayaFlow
+            COMMAND PonscripterRuntimeTests "${PONSCRIPTER_TEST_DATA}"
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+        set_tests_properties(Ponscripter.RetailSayaFlow PROPERTIES
+            ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
+            TIMEOUT 120)
+    endif()
 endif()
 
 if(BUILD_TESTING)

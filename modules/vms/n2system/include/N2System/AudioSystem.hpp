@@ -21,6 +21,7 @@ struct AudioChannel {
   bool loop = false;
   float volume = 1.0f;
 
+  float fadeFrom = 1.0f;
   float targetVolume = 1.0f;
   float fadeDuration = 0.0f;
   float fadeElapsed = 0.0f;
@@ -35,6 +36,9 @@ public:
 
   void playBgm(std::string_view path, bool loop = true, float fadeMs = 0.0f);
   void stopBgm(float fadeMs = 0.0f);
+  // SetLoop() opcodes retarget the currently playing BGM without restarting
+  // it, so the runtime can keep streaming the same asset across the change.
+  void setBgmLoop(bool loop) { bgmChannel_.loop = loop; }
 
   void playVoice(std::string_view path);
   void stopVoice();
@@ -43,6 +47,9 @@ public:
   void stopSe(int channelIdx = 0);
 
   void setVolume(AudioChannelKind kind, float volume);
+  // Native SetVolume carries a millisecond fade; use it instead of an
+  // instantaneous jump so crossfades match the original engine.
+  void fadeVolume(AudioChannelKind kind, float volume, float fadeMs);
   float getVolume(AudioChannelKind kind) const;
 
   const AudioChannel &bgmChannel() const { return bgmChannel_; }
@@ -50,6 +57,8 @@ public:
   const std::unordered_map<int, AudioChannel> &seChannels() const { return seChannels_; }
 
   void update(float dtSeconds);
+  void restore(const AudioChannel &bgm, const AudioChannel &voice,
+               const std::unordered_map<int, AudioChannel> &se);
 
 private:
   AudioChannel bgmChannel_;

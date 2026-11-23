@@ -52,7 +52,12 @@ struct TextStyle {
   float maxWidth = 0;                               // wrapping width, 0 = none
   float align = 0;                                  // text_align
   float lineSpacing = 0;
-  bool operator==(const TextStyle &) const = default;
+  bool operator==(const TextStyle &other) const {
+    return font == other.font && size == other.size && color == other.color &&
+           outlines == other.outlines && maxWidth == other.maxWidth &&
+           align == other.align && lineSpacing == other.lineSpacing;
+  }
+  bool operator!=(const TextStyle &other) const { return !(*this == other); }
 };
 
 struct DrawOp {
@@ -206,6 +211,7 @@ DispP makeGrayscaleDisp(const DispP &child);
 DispP makeAnimatedMaskDisp(const DispP &child, bool moving, double speed,
                            double frequency, double amount, double oc);
 DispP makeSpriteManagerDisp(const Value &sm);
+DispP makeSnowDisp(const std::string &flakeImage);
 
 struct Shown {
   std::string tag;
@@ -254,7 +260,8 @@ struct Interaction {
     Screen,
     Ui,
     End,
-    Restart
+    Restart,
+    MovieCutscene // renpy.movie_cutscene(): blocks until the movie ends/a click
   } k = K::None;
   double start = 0, deadline = -1; // seconds; deadline < 0: none
   bool dismiss = true;             // a click ends it
@@ -274,6 +281,10 @@ struct Interaction {
   std::string message;
   Args args;
   Kwargs kw;
+  // MovieCutscene: logical asset id plus the action value returned by the
+  // renpy.movie_cutscene builtin (class "MovieCutscene").
+  std::string movie;
+  Value action;
 };
 
 // Services of the host (asset sizes, audio, persistence).
@@ -395,6 +406,7 @@ private:
   void doWith(const std::string &expr);
   void transition(const std::shared_ptr<Transition> &t);
   void pause(double seconds, bool dismiss);
+  void movieCutscene(const std::string &path, const Value &action);
   Value menu(const std::vector<Interaction::Item> &items,
              const std::string &caption, const std::string &screen);
   void showDisp(const std::string &tag, const std::vector<std::string> &name,

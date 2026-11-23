@@ -74,6 +74,8 @@ public:
   std::map<int, std::vector<std::string>> TranslationSources() const;
   int InitialFocus() const;
   bool VoiceActive() const { return voice_.Playing(); }
+  bool MoviePlaying() const { return movie_ && movie_->isOpen() && !movie_->finished(); }
+  void SkipMovie() { if (movie_) movie_->stop(); }
   bool Auto() const { return auto_; }
   void SetAuto(bool enabled) { auto_ = enabled; }
   int AutoDelayMs() const { return 2000; }

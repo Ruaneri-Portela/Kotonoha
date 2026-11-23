@@ -32,6 +32,7 @@ public:
   void saveGame(const std::string &) override;
   void loadGame(const std::string &) override;
   Kotonoha::Translation::SourceTexts translationSources() const override;
+  std::vector<std::string> activeTranslationKeys() const override;
   int translationRoute() const override;
   std::string nodeClockKey() const override;
   std::vector<int> translationRoutes() const override;

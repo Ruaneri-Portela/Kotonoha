@@ -257,7 +257,9 @@ bool MountSchoolDaysRetailGpks(const std::filesystem::path &gameOrPacksRoot,
     error->clear();
   std::filesystem::path packs = gameOrPacksRoot;
   std::error_code ec;
-  bool inRoot = std::filesystem::is_regular_file(packs / "BGM.GPK", ec);
+  bool inRoot =
+      std::filesystem::is_regular_file(packs / "BGM.GPK", ec) ||
+      ResolveSchoolDaysAssetPath(packs.string().c_str(), "BGM.GPK").present;
 #ifdef __EMSCRIPTEN__
   if (!inRoot && Kotonoha::Filesystem::remoteGameAssets()) {
     try {
@@ -268,8 +270,14 @@ bool MountSchoolDaysRetailGpks(const std::filesystem::path &gameOrPacksRoot,
     }
   }
 #endif
-  if (!inRoot)
-    packs /= "Packs";
+  if (!inRoot) {
+    const auto resolvedPacks =
+        ResolveSchoolDaysAssetPath(packs.string().c_str(), "Packs");
+    if (resolvedPacks.present)
+      packs = resolvedPacks.physical;
+    else
+      packs /= "Packs";
+  }
 
   auto candidate = std::make_shared<SchoolDaysGpkAssetStore>();
   if (!candidate->OpenRetailDirectory(packs, error))

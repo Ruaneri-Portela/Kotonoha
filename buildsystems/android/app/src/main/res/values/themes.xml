@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Kotonoha.Launcher" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/kotonoha_violet</item>
+        <item name="colorOnPrimary">@color/kotonoha_white</item>
+        <item name="colorSecondary">@color/kotonoha_magenta</item>
+        <item name="colorTertiary">@color/kotonoha_cyan</item>
+        <item name="colorOnTertiary">@color/kotonoha_navy</item>
+        <item name="colorError">@color/kotonoha_error</item>
+        <item name="colorOnError">@color/kotonoha_white</item>
+        <item name="colorControlHighlight">@color/kotonoha_indigo</item>
+        <item name="colorOnSecondary">@color/kotonoha_white</item>
+        <item name="colorSurface">@color/kotonoha_surface</item>
+        <item name="colorOnSurface">@color/kotonoha_white</item>
+        <item name="colorSurfaceVariant">@color/kotonoha_raised</item>
+        <item name="colorOnSurfaceVariant">@color/kotonoha_muted</item>
+        <item name="colorOutline">@color/kotonoha_outline</item>
+        <item name="android:windowBackground">@color/kotonoha_navy</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+    <style name="Theme.Kotonoha.Splash" parent="Theme.Kotonoha.Launcher">
+        <item name="android:windowBackground">@color/kotonoha_black</item>
+    </style>
+</resources>

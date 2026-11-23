@@ -11,6 +11,8 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/localization/Encoding.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <Kotonoha/core/BuildVersion.hpp>
@@ -27,7 +29,9 @@
 #include <algorithm>
 #include <cfloat>
 #include <charconv>
+#include <chrono>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -101,6 +105,7 @@ DebugOverlay::DebugOverlay(Engine &engine) : engine(engine) {
   ImGui::CreateContext();
   ImGui::GetIO().IniFilename = nullptr;
   ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
   ImGuiTheme::loadFonts();
   ImGuiTheme::apply(1);
   if (!ImGui_ImplSDL3_InitForSDLRenderer(&engine.GetWindow(),
@@ -250,7 +255,54 @@ std::pair<std::string, std::string> DebugOverlay::hudText(float width) const {
   return text;
 }
 
+void DebugOverlay::takeScreenshot(RendererRef renderer) {
+  const char *extension =
+      screenshotFormat == ImageFormat::Jpeg ? ".jpg" : ".png";
+  const auto stamp =
+      std::chrono::steady_clock::now().time_since_epoch().count();
+  try {
+    // Per-game Documents root: desktop, mobile and WASM all resolve this
+    // through the shared StoragePaths policy, never a hardcoded path.
+    const auto root =
+        documentsDirectory(engine.GetRuntime().identify) / "screenshots";
+    std::filesystem::create_directories(root);
+    auto path = root / ("screenshot-" + std::to_string(stamp) + extension);
+    for (unsigned copy = 1; std::filesystem::exists(path); ++copy) {
+      if (copy > 9999)
+        throw std::runtime_error("Too many screenshots with this timestamp");
+      path = root / ("screenshot-" + std::to_string(stamp) + "-" +
+                     std::to_string(copy) + extension);
+    }
+
+    // renderHUD runs before the ImGui pass, so the backbuffer still holds the
+    // fully composed game frame in Screen render space.
+    SurfacePtr frame(SDL_RenderReadPixels(&renderer, nullptr));
+    if (!frame)
+      throw std::runtime_error(std::string("Cannot read frame: ") +
+                               SDL_GetError());
+    if (!SaveImage(frame.get(), path.string().c_str(), screenshotFormat)) {
+      const char *detail = SDL_GetError();
+      throw std::runtime_error(
+          std::string("FFmpeg image encoding failed") +
+          (detail && *detail ? std::string(": ") + detail : std::string()));
+    }
+    status = "Screenshot saved: " + path.string();
+    statusError = false;
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Debug screenshot: %s",
+                path.string().c_str());
+  } catch (const std::exception &error) {
+    status = std::string("Screenshot failed: ") + error.what();
+    statusError = true;
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Debug screenshot: %s",
+                 error.what());
+  }
+}
+
 void DebugOverlay::renderHUD(RendererRef renderer) {
+  if (screenshotPending) {
+    screenshotPending = false;
+    takeScreenshot(renderer);
+  }
   auto &ui = engine.GetUI();
   const auto size = UI::viewSize(renderer);
   const float width = std::max(1.0f, size.x - 20);
@@ -277,7 +329,8 @@ void DebugOverlay::drawInspector() {
   ImGuiTheme::sectionHeader("KTRF / custom nodes");
   drawKtrfTools();
   drawForcedSubtitlesGenerator();
-  if (nodesStale)
+  if (nodesStale ||
+      engine.GetRuntime().debugNodeCatalogKey() != lastNodeCatalogKey)
     refreshNodes();
   if (ImGui::SmallButton("Refresh node list"))
     refreshNodes();
@@ -342,6 +395,9 @@ void DebugOverlay::drawInspector() {
   ImGui::SeparatorText("Script nodes");
   if (ids.empty()) {
     ImGui::TextUnformatted("No engine script nodes loaded.");
+    // Native title menus and engines without VNManager scripts must still be
+    // able to browse, export and preview the mounted AssetProvider.
+    drawAssets({});
     drawTranslationExport();
     return;
   }
@@ -419,7 +475,12 @@ void DebugOverlay::refreshNodes() {
   nodesStale = false;
   try {
     cachedRuntimeNodes = engine.GetRuntime().debugNodes();
-    cachedEngineNodes = engine.debugNodes();
+    // Engine::debugNodes() delegates to Runtime::debugNodes() when native
+    // nodes exist. Reuse that result instead of enumerating/decoding a large
+    // script twice on every scenario refresh.
+    cachedEngineNodes =
+        cachedRuntimeNodes.empty() ? engine.debugNodes() : cachedRuntimeNodes;
+    lastNodeCatalogKey = engine.GetRuntime().debugNodeCatalogKey();
   } catch (const std::exception &error) {
     cachedRuntimeNodes.clear();
     cachedEngineNodes.clear();
@@ -567,10 +628,12 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
       "Jumping keeps current variables; earlier events are not replayed. "
       "Replay-based saves are disabled after a jump until a normal "
       "restart/load.");
-  ImGui::InputText("Filter nodes", runtimeNodeFilter, sizeof(runtimeNodeFilter));
+  ImGui::InputText("Filter nodes", runtimeNodeFilter,
+                   sizeof(runtimeNodeFilter));
   std::string needle(runtimeNodeFilter);
-  std::transform(needle.begin(), needle.end(), needle.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  std::transform(
+      needle.begin(), needle.end(), needle.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
   std::vector<const DebugNode *> filtered;
   filtered.reserve(nodes.size());
   for (const auto &node : nodes) {
@@ -579,16 +642,37 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
       continue;
     }
     std::string hay = node.id + " " + node.label;
-    std::transform(hay.begin(), hay.end(), hay.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(hay.begin(), hay.end(), hay.begin(), [](unsigned char c) {
+      return static_cast<char>(std::tolower(c));
+    });
     if (hay.find(needle) != std::string::npos)
       filtered.push_back(&node);
   }
-  if (!filtered.empty() &&
-      std::none_of(filtered.begin(), filtered.end(), [&](const DebugNode *node) {
-        return node->id == selectedRuntimeNode;
-      }))
-    selectedRuntimeNode = filtered.front()->id;
+  if (!filtered.empty() && std::none_of(filtered.begin(), filtered.end(),
+                                        [&](const DebugNode *node) {
+                                          return node->id ==
+                                                 selectedRuntimeNode;
+                                        })) {
+    const auto &runtime = engine.GetRuntime();
+    const auto current = runtime.debugNode();
+    const auto catalog = runtime.debugNodeCatalogKey();
+    const auto clockKey = runtime.nodeClockKey();
+    auto active = std::find_if(
+        filtered.begin(), filtered.end(), [&](const DebugNode *node) {
+          const auto prefix = [&](const std::string &value) {
+            return !value.empty() && value.size() >= node->id.size() &&
+                   value.compare(0, node->id.size(), node->id) == 0;
+          };
+          const auto catalogSuffix =
+              !catalog.empty() && node->id.size() >= catalog.size() &&
+              node->id.compare(node->id.size() - catalog.size(), catalog.size(),
+                               catalog) == 0;
+          return node->id == current || prefix(current) ||
+                 node->id == clockKey || node->id == catalog || catalogSuffix;
+        });
+    selectedRuntimeNode =
+        active == filtered.end() ? filtered.front()->id : (*active)->id;
+  }
   ImGui::BeginChild("Runtime nodes", ImVec2(0, 210), ImGuiChildFlags_Borders);
   ImGuiListClipper clipper;
   clipper.Begin(static_cast<int>(filtered.size()));
@@ -620,13 +704,15 @@ void DebugOverlay::drawRuntimeNodes(const std::vector<DebugNode> &nodes) {
 }
 
 void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
-  if (!ImGui::CollapsingHeader("Scene / node assets"))
+  if (!ImGui::CollapsingHeader("Scene / node assets",
+                               ImGuiTreeNodeFlags_DefaultOpen))
     return;
   auto choose = [&](const std::string &id) {
     SDL_strlcpy(assetPath, id.c_str(), sizeof(assetPath));
     previewTexture.reset();
     previewAsset.clear();
     previewError.clear();
+    assetDumpStatus.clear();
     previewSeconds = 0;
     stopPreviewAudio();
   };
@@ -634,9 +720,21 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
   for (const auto &id : nodeAssets)
     if (ImGui::Selectable(id.c_str(), id == assetPath))
       choose(id);
+  for (const auto &audio : engine.GetRuntime().debugSceneAudio()) {
+    if (std::find(nodeAssets.begin(), nodeAssets.end(), audio.id) ==
+            nodeAssets.end() &&
+        ImGui::Selectable(audio.id.c_str(), audio.id == assetPath))
+      choose(audio.id);
+  }
   if (nodeAssets.empty())
     ImGui::TextDisabled(
         "No asset references on this node. Enter an asset ID below.");
+  if (ImGui::TreeNode("Audio requested this session")) {
+    for (const auto &id : engine.GetAssets().recentAudio())
+      if (ImGui::Selectable(id.c_str(), id == assetPath))
+        choose(id);
+    ImGui::TreePop();
+  }
   if (ImGui::Button("List provider assets")) {
     try {
       browsedAssets = engine.GetAssets().list();
@@ -662,6 +760,68 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
   }
   if (ImGui::InputText("Asset ID", assetPath, sizeof(assetPath)))
     previewError.clear();
+  if (ImGui::Button("Open as text (read-only)"))
+    openAssetTextViewer(assetPath);
+  ImGui::Checkbox("Dump untouched original (ignore overlays)",
+                  &dumpOriginalAsset);
+  if (ImGui::Button("Dump raw asset to Documents")) {
+    try {
+      const std::string requested = assetPath;
+      // Archive providers expose logical IDs such as image:1127, voice:100,
+      // bgm:123 and se:42. These are not filesystem paths. Prefer the
+      // provider's normalized overlay ID, then encode a remaining ':'
+      // without weakening AssetOverlay's traversal/absolute-path checks.
+      std::string safeId = engine.GetAssets().overlayWriteId(requested);
+      if (safeId.empty()) {
+        std::string filename = requested;
+        std::replace(filename.begin(), filename.end(), ':', '_');
+        safeId = AssetOverlay::key(filename);
+      }
+      if (safeId.empty() || safeId.back() == '/')
+        throw std::invalid_argument("Choose a valid relative asset ID");
+
+      // Never export into the active asset overlay, and never let a virtual
+      // archive ID select an arbitrary filesystem destination.
+      const auto dumpRoot =
+          documentsDirectory(engine.GetRuntime().identify) / "asset-dumps";
+      const auto destinationRoot =
+          dumpRoot / (dumpOriginalAsset ? "original" : "effective");
+      const auto requestedPath =
+          destinationRoot / std::filesystem::path(safeId);
+      std::filesystem::create_directories(requestedPath.parent_path());
+      const auto canonicalRoot = std::filesystem::canonical(destinationRoot);
+      const auto canonicalParent =
+          std::filesystem::canonical(requestedPath.parent_path());
+      const auto relativeParent =
+          canonicalParent.lexically_relative(canonicalRoot);
+      if (relativeParent.empty() || *relativeParent.begin() == "..")
+        throw std::runtime_error("Asset dump destination escapes Documents");
+
+      auto output = requestedPath;
+      for (unsigned copy = 1; std::filesystem::exists(output); ++copy) {
+        if (copy > 9999)
+          throw std::runtime_error("Too many dumps of this asset");
+        output = requestedPath.parent_path() /
+                 (requestedPath.stem().string() + "-" + std::to_string(copy) +
+                  requestedPath.extension().string());
+      }
+      const auto bytes = engine.GetAssets().dumpAsset(
+          requested, output,
+          dumpOriginalAsset ? AssetSource::Original : AssetSource::Effective);
+      assetDumpStatus =
+          "Dumped " + std::to_string(bytes) + " raw bytes: " + output.string();
+      assetDumpError = false;
+    } catch (const std::exception &error) {
+      assetDumpStatus = error.what();
+      assetDumpError = true;
+      SDL_LogError(LogCore, "Asset dump: %s", error.what());
+    }
+  }
+  ImGui::TextDisabled(
+      "Raw bytes; no decoding or transcode. Existing dumps are preserved.");
+  if (!assetDumpStatus.empty())
+    ImGuiTheme::statusText(assetDumpStatus.c_str(), assetDumpError);
+  ImGui::SameLine();
   ImGui::InputFloat("Frame position (seconds)", &previewSeconds, 1, 10, "%.2f");
   if (ImGui::Button("Preview picture / video frame")) {
     try {
@@ -711,6 +871,17 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
   ImGui::SameLine();
   if (ImGui::Button("Stop audio"))
     stopPreviewAudio();
+  ImGui::SameLine();
+  if (ImGui::Button("Open in Voice Dubbing")) {
+    try {
+      dubbingApplet->openAsset(assetPath);
+      showDubbingWindow = true;
+      previewError.clear();
+    } catch (const std::exception &error) {
+      previewError = error.what();
+      SDL_LogError(LogMedia, "Open asset in dubbing: %s", error.what());
+    }
+  }
   if (previewTexture) {
     float width = 0, height = 0;
     if (SDL_GetTextureSize(previewTexture.get(), &width, &height) &&
@@ -727,11 +898,142 @@ void DebugOverlay::drawAssets(const std::vector<std::string> &nodeAssets) {
     ImGuiTheme::statusText(previewError.c_str(), true);
 }
 
+namespace {
+// The original bytes are retained so changing the encoding never rereads or
+// mutates the AssetProvider. All conversions use the shared codec.
+constexpr const char *kTextEncodings[] = {"Auto (BOM / UTF-8)",
+                                          "UTF-8",
+                                          "Shift-JIS / CP932",
+                                          "EUC-JP",
+                                          "ISO-2022-JP",
+                                          "UTF-16 LE",
+                                          "UTF-16 BE",
+                                          "Windows-1252",
+                                          "ISO-8859-1",
+                                          "GB18030",
+                                          "Big5",
+                                          "EUC-KR",
+                                          "KOI8-R"};
+constexpr const char *kTextEncodingNames[] = {
+    "",         "UTF-8",    "CP932",        "EUC-JP",     "ISO-2022-JP",
+    "UTF-16LE", "UTF-16BE", "WINDOWS-1252", "ISO-8859-1", "GB18030",
+    "BIG5",     "EUC-KR",   "KOI8-R"};
+constexpr std::size_t kMaxDebugTextBytes = 4u * 1024u * 1024u;
+} // namespace
+
+void DebugOverlay::openAssetTextViewer(const std::string &id) {
+  textAssetId = id;
+  textAssetBytes.clear();
+  textAssetContent.clear();
+  textAssetError.clear();
+  textAssetEncoding = 0;
+  textAssetTruncated = false;
+  showAssetTextViewer = true;
+  try {
+    if (id.empty())
+      throw std::invalid_argument("Select an asset ID before opening text");
+    if (auto stream = engine.GetAssets().openStream(id)) {
+      std::vector<Uint8> chunk(64 * 1024);
+      while (textAssetBytes.size() < kMaxDebugTextBytes) {
+        const auto request =
+            std::min(chunk.size(), kMaxDebugTextBytes - textAssetBytes.size());
+        const auto count = stream->read(chunk.data(), request);
+        if (!count)
+          break;
+        if (count > request)
+          throw std::runtime_error(
+              "Asset stream returned more data than requested");
+        textAssetBytes.insert(textAssetBytes.end(), chunk.begin(),
+                              chunk.begin() + count);
+      }
+      textAssetTruncated = stream->size() > textAssetBytes.size();
+    } else {
+      const auto bytes = engine.GetAssets().read(id);
+      textAssetTruncated = bytes.size() > kMaxDebugTextBytes;
+      textAssetBytes.assign(bytes.begin(),
+                            bytes.begin() +
+                                std::min(bytes.size(), kMaxDebugTextBytes));
+    }
+    decodeAssetText();
+  } catch (const std::exception &error) {
+    textAssetError = error.what();
+    SDL_LogWarn(LogCore, "Text asset viewer: %s", error.what());
+  }
+}
+
+void DebugOverlay::decodeAssetText() {
+  textAssetContent.clear();
+  textAssetError.clear();
+  if (textAssetBytes.empty())
+    return;
+  const char *encoding = kTextEncodingNames[textAssetEncoding];
+  std::size_t skip = 0;
+  if (textAssetEncoding == 0) {
+    encoding = "UTF-8";
+    if (textAssetBytes.size() >= 3 && textAssetBytes[0] == 0xef &&
+        textAssetBytes[1] == 0xbb && textAssetBytes[2] == 0xbf)
+      skip = 3;
+    else if (textAssetBytes.size() >= 2 && textAssetBytes[0] == 0xff &&
+             textAssetBytes[1] == 0xfe) {
+      encoding = "UTF-16LE";
+      skip = 2;
+    } else if (textAssetBytes.size() >= 2 && textAssetBytes[0] == 0xfe &&
+               textAssetBytes[1] == 0xff) {
+      encoding = "UTF-16BE";
+      skip = 2;
+    }
+  }
+  const auto remaining = textAssetBytes.size() - skip;
+  if (remaining == 0)
+    return;
+  const char *data =
+      reinterpret_cast<const char *>(textAssetBytes.data() + skip);
+  try {
+    textAssetContent =
+        ConvertEncoding(std::string_view(data, remaining), encoding, "UTF-8");
+  } catch (const std::exception &e) {
+    textAssetError =
+        std::string("Cannot decode with ") + encoding + ": " + e.what();
+    return;
+  }
+  // ImGui's text editor expects NUL-terminated UTF-8. The raw file remains
+  // untouched; replace embedded NULs only in the displayed representation.
+  std::replace(textAssetContent.begin(), textAssetContent.end(), '\0', ' ');
+}
+
+void DebugOverlay::drawAssetTextViewer() {
+  if (!showAssetTextViewer)
+    return;
+  const auto display = ImGui::GetIO().DisplaySize;
+  ImGui::SetNextWindowSize(ImVec2(std::min(900.0f * contentScale, display.x),
+                                  std::min(680.0f * contentScale, display.y)),
+                           ImGuiCond_FirstUseEver);
+  if (ImGui::Begin("Asset text viewer (read-only)", &showAssetTextViewer)) {
+    ImGui::TextWrapped("Asset: %s", textAssetId.c_str());
+    ImGui::TextDisabled("%zu bytes loaded%s (limit: 4 MiB)",
+                        textAssetBytes.size(),
+                        textAssetTruncated ? " - truncated preview" : "");
+    ImGui::SetNextItemWidth(260.0f * contentScale);
+    if (ImGui::Combo("Encoding", &textAssetEncoding, kTextEncodings,
+                     IM_ARRAYSIZE(kTextEncodings)))
+      decodeAssetText();
+    if (!textAssetError.empty())
+      ImGuiTheme::statusText(textAssetError.c_str(), true);
+    ImGui::Separator();
+    // std::string overload keeps ImGui's readonly buffer stable.
+    ImGui::InputTextMultiline("##text-asset-ro", &textAssetContent,
+                              ImVec2(-FLT_MIN, -FLT_MIN),
+                              ImGuiInputTextFlags_ReadOnly);
+  }
+  ImGui::End();
+}
+
 void DebugOverlay::refreshTranslationSources() {
   transSourcesStale = false;
   // Garante que os nodos de runtime (ex: School Days KTRF) estejam carregados
   // antes de listar as chaves de tradução.
-  if (nodesStale)
+  if (nodesStale ||
+      engine.GetRuntime().debugNodeCatalogKey() != lastNodeCatalogKey)
     refreshNodes();
   try {
     cachedManagerSources = GetVNManagerRuntime(engine).translationSources();
@@ -779,7 +1081,13 @@ void DebugOverlay::refreshTranslationSources() {
                   return idA < idB;
                 return a < b;
               });
-  } catch (...) {
+    lastTranslationCatalogKey =
+        engine.GetRuntime().debugNodeCatalogKey() + "|" +
+        std::to_string(engine.GetRuntime().translationRoute());
+  } catch (const std::exception &error) {
+    transSourcesStale = true;
+    status = std::string("Translation catalog: ") + error.what();
+    statusError = true;
   }
 }
 
@@ -795,7 +1103,10 @@ void DebugOverlay::drawTranslationWindow() {
   if (!showTranslationWindow)
     return;
 
-  if (transSourcesStale)
+  const auto translationKey =
+      engine.GetRuntime().debugNodeCatalogKey() + "|" +
+      std::to_string(engine.GetRuntime().translationRoute());
+  if (transSourcesStale || translationKey != lastTranslationCatalogKey)
     refreshTranslationSources();
 
   auto &io = ImGui::GetIO();
@@ -823,10 +1134,15 @@ void DebugOverlay::drawTranslationWindow() {
 
   std::string activeNodeKey;
   const int mgrActiveId = manager.getCurrentNodeId();
-  if (mgrActiveId >= 0) {
+  const int nativeRoute = engine.GetRuntime().translationRoute();
+  // A native VM's translation route wins over VNManager's incidental
+  // default node. Shared VNManager games still use their script-node IDs.
+  if (nativeRoute >= 0 && !engine.GetRuntime().debugNode().empty()) {
+    activeNodeKey = std::to_string(nativeRoute);
+  } else if (mgrActiveId >= 0) {
     activeNodeKey = std::to_string(mgrActiveId);
-  } else if (engine.GetRuntime().translationRoute() >= 0) {
-    activeNodeKey = std::to_string(engine.GetRuntime().translationRoute());
+  } else if (nativeRoute >= 0) {
+    activeNodeKey = std::to_string(nativeRoute);
   } else {
     std::string rtDebug = engine.GetRuntime().debugNode();
     if (!rtDebug.empty()) {
@@ -1264,6 +1580,20 @@ void DebugOverlay::drawAppletHub() {
       ImGui::SameLine();
     if (ImGuiTheme::primaryButton("System info", buttonSize))
       showInfoWindow = true;
+    if (twoColumns)
+      ImGui::SameLine();
+    if (ImGuiTheme::primaryButton("Screenshot (PNG)", buttonSize)) {
+      screenshotFormat = ImageFormat::Png;
+      screenshotPending = true;
+    }
+    if (twoColumns)
+      ImGui::SameLine();
+    if (ImGuiTheme::primaryButton("Screenshot (JPEG)", buttonSize)) {
+      screenshotFormat = ImageFormat::Jpeg;
+      screenshotPending = true;
+    }
+    ImGui::TextDisabled("Screenshots go to the per-game Documents/screenshots "
+                        "directory; a confirmation appears in this window.");
     ImGui::SeparatorText("Scene inspector");
     drawInspector();
     if (!status.empty())
@@ -1398,6 +1728,7 @@ void DebugOverlay::renderMenu(RendererRef renderer) {
   drawTranslationWindow();
   drawDubbingWindow();
   drawInfoWindow();
+  drawAssetTextViewer();
   if (!isVisible())
     stopPreviewAudio();
   frame.render();

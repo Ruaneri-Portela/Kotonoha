@@ -17,7 +17,7 @@
    - The Example demo is never registered or linked into the hub; it remains a separate game target. The hub is not generated for individual-port builds.
 
 3. **Per-Game Save & Config Folder Isolation (`splitSavesByGame`)**:
-   - Isolates `KOTONOHA_USER_DATA_DIR` and `settings.json` under `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/Kotonoha/<packageId>/save` so multiple titles sharing the same engine (e.g., `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` on RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` on CMP; `ZeroNoTsukaima0..2` on Zero) never collide.
+   - Isolates `KOTONOHA_USER_DATA_DIR` and `settings.json` under `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/save` (omitting package names in unified launcher mode and on mobile/WASM) so multiple titles sharing the same engine (e.g., `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` on RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` on CMP; `ZeroNoTsukaima0..2` on Zero) never collide.
 
 ## Build with game libraries
 
@@ -32,6 +32,20 @@ cmake --build build --target KotonohaLauncher
 
 All source dependencies (including optional Python development packages for DDLC) must be installed for a complete build. The linked hub is built only with `KOTONOHA_BUILD_ALL=ON` on native desktop platforms. It does not include Example. macOS bundles include the DDLC Python standard library because the hub links that runtime.
 
+## Faster game-library scanning
+
+The library scanner uses a **detection-only, lazy directory mount**: it checks
+the small set of paths needed to identify a game without indexing every nested
+asset or texture. Normal gameplay still uses the full read-only VFS index.
+Discovery results (including unknown folders) are cached with bounded
+root/metadata fingerprints and a periodic hourly refresh; the cache is saved
+once per library scan, not once per title. Adding or removing game files in a
+top-level folder invalidates the cache through its modification timestamp.
+
+The launcher intentionally scans the selected folder and its immediate
+subfolders/disc images, not the entire filesystem. Point it at the folder
+containing game directories, or select an individual game folder.
+
 ## CLI Usage
 
 ```bash
@@ -45,4 +59,4 @@ KotonohaLauncher --detect "/path/to/game-library/SayaNoUta_PT-BR"
 KotonohaLauncher --library "/path/to/game-library"
 ```
 
-The standalone hub is built on desktop (Linux, macOS and Windows), not Android or WebAssembly. Source detection and synthetic tests do not certify complete original-game compatibility.
+The standalone hub is built on desktop (Linux, macOS, Windows) and mobile (Android, iOS), but not WebAssembly. Source detection and synthetic tests do not certify complete original-game compatibility.

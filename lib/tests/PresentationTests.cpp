@@ -8,12 +8,17 @@
 #include <Kotonoha/components/VNBacklog.hpp>
 #include <Kotonoha/components/VNManager.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
+#include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/TransformTween.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
+#include <Kotonoha/workers/EmbeddedSubtitleExtractor.hpp>
+#include <Kotonoha/workers/SubtitleFontRegistry.hpp>
+#include <Kotonoha/workers/SubtitleSourceDirector.hpp>
+#include <Kotonoha/workers/SubtitleWorker.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -443,13 +448,21 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   std::filesystem::create_directories(originalDirectory / "nested");
   const auto originalPath = originalDirectory / "nested/80005.ass";
   const auto otherOriginal = originalDirectory / "80006.ass";
+  const auto upperOriginal = originalDirectory / "nested/80009.ASS";
   writeTextFileAtomically(originalPath.string(), script);
   writeTextFileAtomically(otherOriginal.string(), script);
+  writeTextFileAtomically(upperOriginal.string(), script);
   forced.reload();
   forced.updateForActiveNode();
   require(
       forced.activePath() == originalPath,
       "Before dumping, automatic recursive detection loads the original ASS");
+  runtime.node = "80009";
+  forced.updateForActiveNode();
+  require(forced.activePath() == upperOriginal,
+          "Case-insensitive .ASS extension and filename lookup succeeds");
+  runtime.node = "80005";
+  forced.updateForActiveNode();
 
   const auto drawForced = [&] {
     auto &renderer = engine.GetRenderer();
@@ -1009,6 +1022,223 @@ void subtitleRasterization(Engine &engine) {
           "Restore window after subtitle rasterization tests");
 }
 
+// Headless SDL test for the dedicated libass worker. The backend is a
+// deterministic stand-in for an ASS frame, so the test needs no libass headers
+// and verifies the thread handoff and coverage bytes directly.
+namespace {
+class FixtureRasterBackend final : public workers::RasterBackend {
+public:
+  bool rasterizedOffMainThread = false;
+
+  void setTrack(ASS_Track *) override {}
+
+  workers::RasterResult
+  rasterize(const workers::RasterRequest &request) override {
+    rasterizedOffMainThread = !SDL_IsMainThread();
+    workers::RasterResult result;
+    result.changed = 1;
+    workers::OwnedImage image;
+    image.width = 3;
+    image.height = 3;
+    image.color = 0x11223300;
+    image.coverage = {0, 40, 0, 80, 200, 80, 0, 40, 0};
+    image.destination = {10, 20, 30, 30};
+    result.images.push_back(std::move(image));
+    return result;
+  }
+};
+
+class FixtureFrameSink final : public workers::FrameSink {
+public:
+  int calls = 0;
+  bool alwaysOnMainThread = true;
+  std::vector<workers::OwnedImage> seen;
+
+  void present(const workers::RasterResult &result) override {
+    ++calls;
+    alwaysOnMainThread = SDL_IsMainThread() && alwaysOnMainThread;
+    seen = result.images;
+  }
+};
+
+bool sameCoverage(const std::vector<workers::OwnedImage> &a,
+                  const std::vector<workers::OwnedImage> &b) {
+  if (a.size() != b.size())
+    return false;
+  for (size_t i = 0; i < a.size(); ++i)
+    if (a[i].width != b[i].width || a[i].height != b[i].height ||
+        a[i].color != b[i].color || a[i].coverage != b[i].coverage ||
+        a[i].destination.x != b[i].destination.x ||
+        a[i].destination.y != b[i].destination.y ||
+        a[i].destination.w != b[i].destination.w ||
+        a[i].destination.h != b[i].destination.h)
+      return false;
+  return true;
+}
+} // namespace
+
+void subtitleWorker(Engine &engine) {
+  auto backend = std::make_unique<FixtureRasterBackend>();
+  auto *backendPtr = backend.get();
+  FixtureFrameSink sink;
+  workers::SubtitleWorker worker(std::move(backend), sink);
+  require(worker.hasWorkerThread(), "ASS raster worker owns an SDL thread");
+
+  const workers::RasterRequest request{1500, 1.0f, 1.0f};
+  worker.renderFrame(request);
+  require(sink.calls == 1 && sink.alwaysOnMainThread,
+          "Finished ASS frame is delivered through the main-thread handler");
+  require(backendPtr->rasterizedOffMainThread,
+          "libass rasterization runs on the worker, never the main thread");
+  const auto threaded = sink.seen;
+
+  worker.renderFrameSynchronous(request);
+  require(sink.calls == 2 && sink.alwaysOnMainThread,
+          "Synchronous frame uses the same main-thread handler");
+  require(!backendPtr->rasterizedOffMainThread,
+          "Synchronous path rasterizes on the calling main thread");
+  require(sameCoverage(threaded, sink.seen),
+          "Worker and synchronous reference produce identical coverage bytes");
+
+  // Exercise the real libass backend through the worker as well.
+  auto &renderer = engine.GetRenderer();
+  SubtitleScene scene(engine);
+  scene.setStyle(AssStyle::parse(styleFile()));
+  scene.setCues({{0, 5, "WORKER", "Person"}});
+  scene.setPosition(1);
+  SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+  SDL_RenderClear(&renderer);
+  scene.render(renderer, 1);
+  require(colored(renderer, 1) > 0,
+          "Real ASS scene renders through the dedicated worker");
+}
+
+void subtitleSources(Engine &engine) {
+  using Kotonoha::workers::SubtitleSourceDirector;
+  using Kotonoha::workers::SubtitleSourceKind;
+
+  // Sidecar naming rule: same basename, case-insensitive extension.
+  const auto candidates =
+      SubtitleSourceDirector::sidecarIdsForVideo("video/Movie.MKV");
+  require(candidates.size() == 2 && candidates[0] == "video/Movie.ass" &&
+              candidates[1] == "video/Movie.ASS",
+          "Sidecar id replaces any video extension case-insensitively");
+  require(SubtitleSourceDirector::sidecarIdsForVideo("video/Movie")[0] ==
+              "video/Movie.ass",
+          "Sidecar id appends .ass when the video has no extension");
+
+  // Source priority: forced > sidecar > embedded > default > none.
+  SubtitleSourceDirector director;
+  require(director.select().kind == SubtitleSourceKind::None,
+          "Empty director selects no source");
+  director.setDefault("default-ass");
+  require(director.select().kind == SubtitleSourceKind::Default,
+          "Default source is the fallback");
+  director.setEmbedded("embedded-ass", 1.0);
+  require(director.select().kind == SubtitleSourceKind::Embedded &&
+              director.select().clock == 1.0,
+          "Embedded outranks default and carries the video clock");
+  director.setSidecar("sidecar-ass", 2.0);
+  require(director.select().kind == SubtitleSourceKind::Sidecar &&
+              director.select().script == "sidecar-ass",
+          "Sidecar outranks embedded");
+  director.setForced("forced-ass");
+  require(director.select().kind == SubtitleSourceKind::Forced,
+          "Forced has the highest priority");
+  director.clearForced();
+  require(director.select().kind == SubtitleSourceKind::Sidecar,
+          "Clearing forced restores the sidecar");
+  director.clearSidecar();
+  require(director.select().kind == SubtitleSourceKind::Embedded,
+          "Clearing sidecar restores embedded");
+  director.setVideoClock(3.5);
+  require(director.select().clock == 3.5,
+          "Video clock update reaches the active video source");
+  director.clearEmbedded();
+  require(director.select().kind == SubtitleSourceKind::Default,
+          "Clearing embedded restores default");
+
+  // Attached-font registry: dedup, bounds, replace.
+  Kotonoha::workers::SubtitleFontRegistry registry;
+  const Kotonoha::workers::SubtitleAttachedFont font{"Attached.ttf",
+                                                     {1, 2, 3, 4}};
+  require(registry.add(font) && !registry.add(font) &&
+              registry.totalBytes() == font.bytes.size(),
+          "Identical attached fonts are registered once");
+  const Kotonoha::workers::SubtitleAttachedFont oversized{
+      "Oversized.ttf", std::vector<Uint8>(9 * 1024 * 1024)};
+  require(!registry.add(oversized) && registry.fonts().size() == 1,
+          "Oversized attached fonts are rejected");
+  require(registry.replace({font, font}) == 1, "Replace deduplicates");
+  registry.clear();
+  require(registry.fonts().empty() && registry.totalBytes() == 0,
+          "Registry clear releases all fonts");
+
+  // No subtitle decoder for random bytes: explicit, non-crashing degradation.
+  const auto embedded =
+      Kotonoha::workers::extractEmbeddedSubtitles({1, 2, 3, 4, 5});
+  require(!embedded.found && !embedded.reason.empty(),
+          "Embedded extraction degrades gracefully on unsupported input");
+
+  // Sidecar discovery and video-clock driving of ASS events, using only
+  // synthetic assets through the public AssetProvider API.
+  const auto directory =
+      std::filesystem::temp_directory_path() /
+      ("kotonoha-sidecar-" + std::to_string(SDL_GetPerformanceCounter()));
+  std::filesystem::create_directories(directory);
+  struct Cleanup {
+    std::filesystem::path path;
+    ~Cleanup() {
+      std::error_code error;
+      std::filesystem::remove_all(path, error);
+    }
+  } cleanup{directory};
+  writeTextFileAtomically((directory / "movie.mkv").string(),
+                          "synthetic-video-without-subtitle-stream");
+  const auto header = styleFile().substr(0, styleFile().find("[Events]"));
+  writeTextFileAtomically(
+      (directory / "movie.ass").string(),
+      header +
+          "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, "
+          "MarginR, MarginV, Effect, Text\n"
+          "Dialogue: 0,0:00:01.00,0:00:02.00,Person,,0,0,0,,SIDECAR CUE\n");
+  Kotonoha::FileSystemAssetProvider assets(directory);
+  require(assets.contains("movie.ass"), "Synthetic sidecar is discoverable");
+
+  auto &renderer = engine.GetRenderer();
+  SubtitleScene scene(engine);
+  scene.setStyle(Kotonoha::AssStyle::parse(styleFile()));
+  scene.setCues({{3, 4, "DEFAULT CUE", "Person"}});
+  scene.setPosition(1.5);
+  const auto draw = [&] {
+    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+    SDL_RenderClear(&renderer);
+    scene.render(renderer, 1);
+    return colored(renderer, 1);
+  };
+  require(draw() == 0, "Default cue is outside the video-clock sidecar range");
+  require(scene.openVideoSubtitles(assets, "movie.mkv", 0.0),
+          "Sidecar and embedded sources are resolved through AssetProvider");
+  require(scene.activeSubtitleSource() == SubtitleSourceKind::Sidecar,
+          "Sidecar outranks the default cue in a real scene");
+  require(scene.setAttachedFonts({font}) == 1 &&
+              scene.attachedFonts().size() == 1 &&
+              scene.attachedFontBytes() == font.bytes.size(),
+          "Attached fonts are accepted with dedup and byte accounting");
+  scene.updateVideoClock(1.5);
+  require(draw() > 0, "Sidecar ASS is driven by the video playback clock");
+  scene.updateVideoClock(2.5);
+  require(draw() == 0, "Sidecar ASS expires on the video clock");
+  require(scene.getPosition() == 1.5,
+          "Video clock does not overwrite the engine scene clock");
+  scene.closeVideoSubtitles();
+  require(scene.activeSubtitleSource() == SubtitleSourceKind::Default &&
+              scene.attachedFonts().empty(),
+          "Closing the video restores default source and clears its fonts");
+  scene.setPosition(3.5);
+  require(draw() > 0, "Default cue renders again after the video closes");
+}
+
 void controls(Engine &engine, TestRuntime &runtime) {
   auto settings = engine.GetSettings();
   settings.debugUIScale = 2;
@@ -1330,6 +1560,8 @@ int main() {
             "Export separates global interface strings from scene routes");
     subtitles(engine);
     subtitleRasterization(engine);
+    subtitleWorker(engine);
+    subtitleSources(engine);
     controls(engine, runtime);
     pauseSources(engine, runtime);
     forcedSubtitles(engine, runtime);
@@ -1352,7 +1584,8 @@ int main() {
       int logicalW = 0, logicalH = 0;
       SDL_RendererLogicalPresentation mode = SDL_LOGICAL_PRESENTATION_DISABLED;
       runtime.inspectNarrativeOverlay = [&](RendererRef r) {
-        checked = SDL_GetRenderLogicalPresentation(&r, &logicalW, &logicalH, &mode);
+        checked =
+            SDL_GetRenderLogicalPresentation(&r, &logicalW, &logicalH, &mode);
       };
       // Frame 1 snapshots LastPresented (calls VisualTransition::copy);
       // Frame 2 verifies logical presentation is restored before overlay.
@@ -1360,12 +1593,13 @@ int main() {
       engine.Iterate();
       runtime.inspectNarrativeOverlay = nullptr;
       runtime.ownedTarget = false;
+      runtime.opaqueGameplay = false;
       engine.applySettings(previousSettings, false);
-      const auto view = runtime.viewport();
+      const auto expectedView = runtime.viewport();
       require(checked && mode == SDL_LOGICAL_PRESENTATION_STRETCH &&
-                  logicalW == view.x && logicalH == view.y,
+                  logicalW == expectedView.x && logicalH == expectedView.y,
               "renderNarrativeOverlay must receive restored Novel logical "
-              "presentation after VisualTransition::compose");
+              "presentation after VisualTransition snapshot");
     }
     std::cout << "Extensible arguments/help, ASS style import/rendering and "
                  "debug scaling passed\n";

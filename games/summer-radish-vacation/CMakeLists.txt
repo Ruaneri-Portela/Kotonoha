@@ -29,11 +29,13 @@ target_link_libraries(summer_radish_vacation PUBLIC
     kotonoha_vm_summer-radish
 )
 
-kotonoha_add_app(SummerRadish src/main.cpp)
-target_link_libraries(SummerRadish PRIVATE summer_radish_vacation)
-set_target_properties(SummerRadish PROPERTIES CXX_EXTENSIONS OFF)
-kotonoha_configure_app(SummerRadish
-    BUNDLE_ID me.hirameki.kotonoha.summerradishvacation GAME summer-radish-vacation)
+if(KOTONOHA_BUILD_SUMMER OR CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    kotonoha_add_app(SummerRadish src/main.cpp)
+    target_link_libraries(SummerRadish PRIVATE summer_radish_vacation)
+    set_target_properties(SummerRadish PROPERTIES CXX_EXTENSIONS OFF)
+    kotonoha_configure_app(SummerRadish
+        BUNDLE_ID me.hirameki.kotonoha.summerradishvacation GAME summer-radish-vacation)
+endif()
 
 if(KOTONOHA_BUILD_HOST_TOOLS)
     add_executable(SummerInspect tools/SummerInspect.cpp)

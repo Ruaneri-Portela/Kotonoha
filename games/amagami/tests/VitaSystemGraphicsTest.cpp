@@ -84,7 +84,8 @@ std::string sampleSysgraph() {
     image[at + 7] = char(173);
     image[at + 1024] = 1;
     image[at + 1025] = 0;
-    image[at + 1026] = 255; // padding index must not enter visible pixels
+    image[at + 1026] =
+        static_cast<char>(255); // padding index must not enter visible pixels
     image[at + 1027] = 0;
     image[at + 1028] = 1;
   }

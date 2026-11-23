@@ -95,6 +95,40 @@ struct NullDisp : Disp {
   }
 };
 
+struct SnowDisp : Disp {
+  std::string image;
+  explicit SnowDisp(std::string file) : image(std::move(file)) {}
+  Render render(Vm &vm, double st, double) override {
+    Render r;
+    r.w = kScreenW;
+    r.h = kScreenH;
+    int width = 0, height = 0;
+    if (!vm.backend.imageSize(image, width, height))
+      return r;
+    for (int i = 0; i < 80; ++i) {
+      const double seed =
+          double((i * 1103515245u + 12345u) & 0xffffu) / 65536.0;
+      const double speed = 25.0 + double(i % 7) * 8.0;
+      const double scale = 0.45 + double(i % 5) * 0.14;
+      const double x = std::fmod(
+          seed * kScreenW + 18.0 * std::sin(st * 0.8 + i), double(kScreenW));
+      const double y =
+          std::fmod(seed * kScreenH + st * speed, double(kScreenH + height)) -
+          height;
+      DrawOp op;
+      op.image = image;
+      op.w = float(width);
+      op.h = float(height);
+      op.m[0] = op.m[4] = float(scale);
+      op.m[2] = float(x);
+      op.m[5] = float(y);
+      op.alpha = float(0.45 + double(i % 4) * 0.13);
+      r.ops.push_back(std::move(op));
+    }
+    return r;
+  }
+};
+
 // An image name used before its definition (init order): resolved at render.
 struct LazyDisp : Disp {
   std::vector<std::string> name;
@@ -1329,6 +1363,20 @@ DispP Vm::toDisp(const Value &v) {
   }
   if (!v.isObj())
     return nullptr;
+  if (v.cls() == "Movie") {
+    // Video frames are decoded by the host presentation layer; the VM keeps a
+    // transparent, correctly-sized placeholder so Movie() screens stay laid
+    // out even when the asset cannot be rendered as a static image.
+    double w = 400, h = 300;
+    if (const Value *size = v.attr("size")) {
+      const auto parts = size->items();
+      if (parts.size() == 2) {
+        w = parts[0].num();
+        h = parts[1].num();
+      }
+    }
+    return makeNullDisp(w, h);
+  }
   if (v.cls() == "Displayable" && v.o->payload)
     return std::static_pointer_cast<Disp>(v.o->payload);
   if (v.cls() == "ATLTransform" && v.o->payload)
@@ -1518,6 +1566,9 @@ DispP makeSpriteManagerDisp(const Value &sm) {
   auto s = std::make_shared<SpriteManagerDisp>();
   s->sm = sm;
   return s;
+}
+DispP makeSnowDisp(const std::string &flakeImage) {
+  return std::make_shared<SnowDisp>(flakeImage);
 }
 
 } // namespace Ddlc

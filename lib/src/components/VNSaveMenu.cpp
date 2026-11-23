@@ -20,6 +20,27 @@ std::size_t VNSaveMenu::count() const {
   return slots.size() + (loading ? 0 : 1);
 }
 
+std::string VNSaveMenu::slotLabel(std::size_t index) const {
+  if (!loading && index == 0)
+    return suggestedName.empty() ? "+ New save"
+                                 : "+ New save — " + suggestedName;
+  return slots.at(index - (loading ? 0 : 1)).name;
+}
+
+std::string VNSaveMenu::slotPath(std::size_t index) const {
+  if ((!loading && index == 0) || index >= count())
+    return {};
+  return slots.at(index - (loading ? 0 : 1)).path;
+}
+
+std::string VNSaveMenu::confirmationPrompt() const {
+  if (confirmation == Confirmation::None || !hasSelectedSave())
+    return {};
+  return (confirmation == Confirmation::Delete ? "Permanently delete "
+                                               : "Overwrite ") +
+         selectedSave().name + "?";
+}
+
 void VNSaveMenu::open(const std::string &path, bool load,
                       const std::string &suggestion) {
   touchActivation.reset();
@@ -41,10 +62,14 @@ void VNSaveMenu::open(const std::string &path, bool load,
 }
 
 void VNSaveMenu::close() {
+  if (!opened)
+    return;
   finishRename();
   opened = false;
   confirmation = Confirmation::None;
   engine.GetRuntime().RemoveScene(this);
+  if (onCloseCb)
+    onCloseCb();
 }
 
 bool VNSaveMenu::hasSelectedSave() const {
@@ -142,6 +167,10 @@ void VNSaveMenu::deleteSelected() {
 }
 
 void VNSaveMenu::revealSelection() {
+  if (const auto *grid = slotGrid()) {
+    first = selected / grid->capacity() * grid->capacity();
+    return;
+  }
   if (selected < first)
     first = selected;
   if (selected >= first + pageSize)
@@ -190,6 +219,7 @@ bool VNSaveMenu::onEvent(EventRef rawEvent) {
   const auto event = MapControllerEvent(rawEvent);
   if (!touchActivation.accept(event))
     return true;
+  const auto *grid = slotGrid();
 
   if (rawEvent.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
       confirmation == Confirmation::None && hasSelectedSave()) {
@@ -202,7 +232,9 @@ bool VNSaveMenu::onEvent(EventRef rawEvent) {
       return true;
     }
   }
-  if (BackAction(engine, event)) {
+  if (BackAction(engine, event) ||
+      (grid && event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
+       event.key.key == SDLK_X)) {
     if (confirmation != Confirmation::None)
       confirmation = Confirmation::None;
     else
@@ -211,7 +243,7 @@ bool VNSaveMenu::onEvent(EventRef rawEvent) {
   }
 
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-    if (event.key.key == SDLK_RETURN) {
+    if (event.key.key == SDLK_RETURN || (grid && event.key.key == SDLK_SPACE)) {
       activate();
       return true;
     }
@@ -225,7 +257,7 @@ bool VNSaveMenu::onEvent(EventRef rawEvent) {
         return true;
       }
     }
-    if (confirmation == Confirmation::None && count()) {
+    if (!grid && confirmation == Confirmation::None && count()) {
       if (event.key.key == SDLK_DOWN)
         selected = (selected + 1) % count();
       else if (event.key.key == SDLK_UP)
@@ -238,6 +270,8 @@ bool VNSaveMenu::onEvent(EventRef rawEvent) {
       return true;
     }
   }
+  if (grid)
+    return gridEvent(event, *grid);
   if (UI::clicked(event, {890, 80, 180, 44})) {
     close();
     return true;
@@ -313,6 +347,88 @@ bool VNSaveMenu::onEvent(EventRef rawEvent) {
   return false;
 }
 
+bool VNSaveMenu::gridEvent(EventRef event, const SlotGrid &grid) {
+  if (UI::clicked(event, grid.back)) {
+    close();
+    return true;
+  }
+  if (confirmation != Confirmation::None) {
+    if (UI::clicked(event, grid.primary))
+      activate();
+    else if (UI::clicked(event, grid.secondary))
+      confirmation = Confirmation::None;
+    return true;
+  }
+  if (!count())
+    return false;
+  const auto move = [&](int delta) {
+    const auto next = std::clamp<std::ptrdiff_t>(
+        std::ptrdiff_t(selected) + delta, 0, std::ptrdiff_t(count() - 1));
+    selected = static_cast<std::size_t>(next);
+    revealSelection();
+  };
+  const auto page = static_cast<int>(grid.capacity());
+  if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+    switch (event.key.key) {
+    case SDLK_LEFT:
+      move(-1);
+      break;
+    case SDLK_RIGHT:
+      move(1);
+      break;
+    case SDLK_UP:
+      move(-static_cast<int>(grid.columns));
+      break;
+    case SDLK_DOWN:
+      move(static_cast<int>(grid.columns));
+      break;
+    case SDLK_PAGEUP:
+    case SDLK_Z:
+      move(-page);
+      break;
+    case SDLK_PAGEDOWN:
+    case SDLK_C:
+      move(page);
+      break;
+    default:
+      return false;
+    }
+    return true;
+  }
+  if (UI::clicked(event, grid.previous)) {
+    move(-page);
+    return true;
+  }
+  if (UI::clicked(event, grid.next)) {
+    move(page);
+    return true;
+  }
+  if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+    const float delta =
+        event.wheel.y *
+        (event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.f : 1.f);
+    if (delta != 0)
+      move(delta < 0 ? page : -page);
+    return true;
+  }
+  if (hasSelectedSave() && UI::clicked(event, grid.primary)) {
+    beginRename();
+    return true;
+  }
+  if (hasSelectedSave() && UI::clicked(event, grid.secondary)) {
+    confirmation = Confirmation::Delete;
+    return true;
+  }
+  for (std::size_t i = 0; i < grid.capacity() && first + i < count(); ++i) {
+    if (UI::clicked(event, grid.card(i))) {
+      selected = first + i;
+      activate();
+      return true;
+    }
+  }
+  return false;
+}
+
 void VNSaveMenu::render(RendererRef renderer, float) {
   if (!opened)
     return;
@@ -324,11 +440,7 @@ void VNSaveMenu::render(RendererRef renderer, float) {
   ui.button(renderer, {890, 80, 180, 44}, "Close [ESC]");
   for (std::size_t row = 0; row < pageSize && first + row < count(); ++row) {
     const auto index = first + row;
-    const auto label =
-        !loading && index == 0
-            ? std::string("+ New save") +
-                  (suggestedName.empty() ? "" : " — " + suggestedName)
-            : slots.at(index - (loading ? 0 : 1)).name;
+    const auto label = slotLabel(index);
     const float y = 160.0f + row * 50;
     const SDL_Rect rowClip{230, static_cast<int>(y), 820, 44};
     if (!SDL_SetRenderClipRect(&renderer, &rowClip))

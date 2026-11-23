@@ -1,5 +1,6 @@
 #include "ZeroRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <filesystem>
 #include <functional>
 #include <iostream>
@@ -27,7 +28,11 @@ int main(int argc, char **argv) {
     ZeroSession session(engine, disc);
     const bool concerto =
         session.GameEdition() == SceneSource::Edition::Concerto;
-    const std::string edition = concerto ? "concerto" : "symphony";
+    const bool symphony =
+        session.GameEdition() == SceneSource::Edition::Symphony;
+    const std::string edition = concerto   ? "concerto"
+                                : symphony ? "symphony"
+                                           : "nocturne";
     auto *renderer = &engine.GetRenderer();
     SDL_Texture *target = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
                                             SDL_TEXTUREACCESS_TARGET, 640, 448);
@@ -64,11 +69,12 @@ int main(int argc, char **argv) {
               std::string(name) + " renders a nonblank image area");
       if (const char *dir = SDL_getenv("ZERO_CAPTURE_DIR")) {
         std::filesystem::create_directories(dir);
-        Require(SDL_SavePNG(pixels.get(), (std::filesystem::path(dir) /
-                                           (edition + "-" + name + ".png"))
-                                              .string()
-                                              .c_str()),
-                SDL_GetError());
+        Require(
+            Kotonoha::SavePng(pixels.get(), (std::filesystem::path(dir) /
+                                             (edition + "-" + name + ".png"))
+                                                .string()
+                                                .c_str()),
+            SDL_GetError());
       }
       std::cout << edition << " " << name << ": " << colored
                 << " visible pixels\n";
@@ -125,7 +131,10 @@ int main(int argc, char **argv) {
     if (concerto) {
       Require(disc->Source().MovieCount() == 26,
               "Concerto movie table has 26 PSS entries");
-    } else {
+      std::vector<uint8_t> bgmData;
+      Require(disc->Source().LoadSound(2, &bgmData) && bgmData.size() > 100000,
+              "Concerto title BGM sound/2 .STV stream payload is non-empty");
+    } else if (symphony) {
       Require(
           disc->Source().SoundIndex("BGMB01") == 53,
           "Symphony BGMB01 resolves to .STV stream entry (53), not .PSH (52)");
@@ -142,6 +151,23 @@ int main(int argc, char **argv) {
               "background uses the authoritative SCENEDAT table");
       Require(stage >= 0 && session.SceneIndexPicture(stage),
               "background texture resolves");
+      capture("background", [&] {
+        const SDL_FRect screen{0, 0, 640, 448};
+        session.SceneIndexPicture(stage)->Draw(renderer, nullptr, &screen);
+      });
+    } else {
+      const int bgmIdx = disc->Source().SoundIndex("BGMA01");
+      std::vector<uint8_t> bgmData;
+      Require(bgmIdx >= 0 &&
+                  disc->Source().LoadSound(size_t(bgmIdx), &bgmData) &&
+                  bgmData.size() > 100000,
+              "Nocturne BGMA01 stream payload is non-empty");
+      Require(!session.Story()->Stage().empty(),
+              "Nocturne retail background tag executed");
+      const int stage =
+          disc->Source().Catalog().ResolveStage(session.Story()->Stage());
+      Require(stage >= 0 && session.SceneIndexPicture(stage),
+              "Nocturne background texture resolves");
       capture("background", [&] {
         const SDL_FRect screen{0, 0, 640, 448};
         session.SceneIndexPicture(stage)->Draw(renderer, nullptr, &screen);

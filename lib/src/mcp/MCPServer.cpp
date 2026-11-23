@@ -8,7 +8,9 @@
 #include <Kotonoha/components/VNManager.hpp>
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/core/SDL.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#include <Kotonoha/media/SaveImage.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <json-c/json.h>
@@ -160,6 +162,10 @@ const std::map<std::string, Tool> &tools() {
        {"Set inspector, FPS and node/clock visibility without synthesizing "
         "keys.",
         R"({"type":"object","properties":{"visible":{"type":"boolean"},"fps":{"type":"boolean"},"node_clock":{"type":"boolean"}},"additionalProperties":false})"}},
+      {"screenshot",
+       {"Capture the current rendered frame to a PNG inside the MCP file root "
+        "(no window capture required).",
+        R"({"type":"object","properties":{"path":{"type":"string","minLength":1}},"required":["path"],"additionalProperties":false})"}},
       {"save_game",
        {"Save the game through its runtime, including inventory, within the "
         "MCP file root.",
@@ -462,9 +468,25 @@ struct MCPServer::State {
       json_object_object_add(result.get(), "nodes", nodes);
       return result;
     }
+    if (name == "screenshot") {
+      const std::string path = filePath(args);
+      Kotonoha::SurfacePtr surface(
+          SDL_RenderReadPixels(&engine.GetRenderer(), nullptr));
+      if (!surface)
+        throw std::runtime_error(std::string("Cannot read frame: ") +
+                                 SDL_GetError());
+      if (!Kotonoha::SaveImage(surface.get(), path.c_str(),
+                               Kotonoha::ImageFormat::Png))
+        throw std::runtime_error(std::string("Cannot save frame: ") + path);
+      auto result = object();
+      put(result.get(), "path", path);
+      put(result.get(), "width", static_cast<int>(surface->w));
+      put(result.get(), "height", static_cast<int>(surface->h));
+      return result;
+    }
     if (engine.GetSettingsMenu().isOpen() && name != "set_paused" &&
         name != "set_debug" && name != "dump_translation" &&
-        name != "dump_ktrf")
+        name != "dump_ktrf" && name != "screenshot")
       throw std::logic_error(
           "Close engine settings before controlling the story");
     if (name == "set_paused") {

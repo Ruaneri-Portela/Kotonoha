@@ -571,6 +571,21 @@ bool MetalFXUpscaler::renderInto(TextureRef input, TextureRef output) {
 
 void MetalFXUpscaler::clearBackendCache() { KotonohaMetalFXClearScalerCache(); }
 
+bool UpscaleWholeFrameWithMetalFX(SDL_Renderer *renderer, SDL_Texture *source,
+                                  SDL_Texture *output) {
+  if (renderer == nullptr || source == nullptr || output == nullptr) {
+    SDL_SetError("UpscaleWholeFrameWithMetalFX: missing renderer or texture");
+    return false;
+  }
+  // The per-texture MetalFXUpscaler constructor normally initializes this;
+  // whole-frame hosts do not need one, so initialize the device on demand.
+  if (g_metalDevice == nil || g_metalQueue == nil) {
+    if (!KotonohaMetalFXInit(renderer))
+      return false;
+  }
+  return KotonohaMetalFXUpscaleSDLTextureInto(renderer, source, output);
+}
+
 } // namespace Kotonoha
 #endif // defined(KOTONOHA_HAS_METALFX) && defined(__APPLE__) &&
        // KOTONOHA_ENABLE_UPSCALER

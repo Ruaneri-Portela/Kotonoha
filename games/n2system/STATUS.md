@@ -18,3 +18,12 @@
 - **Sprite Tag & Compositor Semantics**: Supports `:a` (native PNG alpha or right-half mask for non-alpha BMPs like `system\uoncur.bmp`), `:c`, `:l`, `:r`, `:m`, and `:s[;][#RRGGBB]^text` string sprites, multi-cell animation modes `0` (loop), `1` (once), `2` (ping-pong), and `3` (manual button hover cells), and PONscripter `999 -> 0` sprite Z-order.
 - **Proportional Text & Inline Tags (`Ponscripter::TextFormatter`)**: Handles `^` proportional text, `@` inline click-wait, `\` page-end click-wait + backlog push, `~i~`/`~b~`/`~c~`/`~s~` inline tags, `~~` literal tilde escape, `#RRGGBB` inline colors, and smart ligatures (`...` -> `…`, `--` -> `–`, `---` -> `—`).
 - **Save State & Extras (`Ponscripter::SaveSerializer`)**: Persists global variables (`gloval.sav`: `%lic_accepted`, `%end1_clear..%end3_clear`, `%cgset_0..4`, `%gro`, `%vol*`, `%textspeed`, `%autospeed`, `%movplay`) and 20 save slots (`save1.dat`..`save20.dat`), unlocking the CG Gallery (`97` CGs), Music Box (`15` tracks), and Staff Notes across all 3 endings.
+
+### 3. Shared Kotonoha UI
+- **Pause menu (`InGameMenu`)**: the runtime uses the engine's shared menu, rather than the removed `N2GameMenu`. Settings are delegated to the `Engine`; the current return-to-menu callback requests application exit.
+- **Backlog (`VNBacklog`)**: `B` toggles the VM's backlog. While a modal scene is open, input is routed to the capturing scene.
+- **Quick save/load**: `F5` writes `n2system_quick.n2sv`; `F6` loads it. There is currently no runtime-owned `VNSaveMenu` save browser.
+- **Steins;Gate text**: the original TTF font is loaded from provider bytes into `Kotonoha::UI`, using renderer-backed cached text instead of per-frame surfaces.
+- **Movies**: looping background movies, including the title, cannot be dismissed through generic advance/skip input and do not capture native choice navigation. Non-looping narrative movies still require deliberate skip gestures.
+
+**Validation remaining:** retail assets and target platforms still require end-to-end visual, audio/video, gameplay, save/load, and text-rendering validation. Synthetic tests do not certify complete parity with the original N2System.

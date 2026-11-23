@@ -11,7 +11,9 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/hwcontext.h>
 #include <libavutil/mem.h>
+#include <libavutil/pixdesc.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
 }
@@ -24,12 +26,12 @@ extern "C" {
 #include <cmath>
 #include <condition_variable>
 #include <cstdint>
+#include <cstring>
 #include <deque>
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
 #include <string>
-#include <thread>
 #include <vector>
 
 #ifdef __EMSCRIPTEN__
@@ -102,6 +104,9 @@ struct MediaPlayer::State {
   AVIOContext *io = nullptr;
   AVFormatContext *format = nullptr;
   AVCodecContext *video = nullptr, *audio = nullptr;
+  AVPixelFormat hardwarePixelFormat = AV_PIX_FMT_NONE;
+  AVHWDeviceType hardwareDeviceType = AV_HWDEVICE_TYPE_NONE;
+  bool hardwareDecodeLogged = false;
   AVPacket *packet = nullptr;
   Frame frame{av_frame_alloc()};
   SwsContext *scaler = nullptr;
@@ -185,6 +190,9 @@ struct MediaPlayer::State {
     const std::string mime = mimeForMediaPath(id, audioOnly);
     if (!canPlayWebMedia(mime))
       return false;
+    // Native browser playback takes precedence over FFmpeg. Keep the
+    // AssetProvider stream as the single source of bytes (including archives
+    // and IndexedDB-backed range fetches).
     auto source = assets.openStream(id);
     std::uint64_t size = source ? source->size() : 0;
     if (source && size) {
@@ -248,6 +256,9 @@ struct MediaPlayer::State {
     }
     webVideoSession = session;
     webVideoStarted = true;
+    SDL_Log("[Kotonoha] Browser-native %s playback selected (%s); decoding "
+            "acceleration is browser-controlled",
+            webAudioOnly ? "audio" : "video", webVideoMime.c_str());
     webVideoReady =
         webVideoUrlMode; // Blob mode will be set later in serviceWebVideo
     return true;
@@ -384,13 +395,96 @@ struct MediaPlayer::State {
   bool threaded = false, paused = true, closing = false;
   double decodeRate = 1.0, targetBuffer = 0.5;
   std::condition_variable wake;
-  std::thread decoderThread;
+  SDL_Thread *decoderThread = nullptr;
   std::string failure;
   struct VideoFrame {
     double at;
     Frame frame;
   };
   std::deque<VideoFrame> frames;
+
+  // Font attachments discovered during demux. Bounded so a crafted container
+  // cannot make the player allocate without limit.
+  static constexpr std::size_t kMaxAttachedFonts = 16;
+  static constexpr std::size_t kMaxAttachedFontBytes = 8u * 1024u * 1024u;
+  struct FontStream {
+    int index = -1;
+    std::string name;
+  };
+  std::vector<FontStream> fontStreams;
+  std::vector<workers::AttachedFont> attachedFonts;
+  std::size_t attachedFontBytes = 0;
+
+  static bool looksLikeFont(const char *mime, const char *fileName) {
+    std::string probe = mime ? mime : "";
+    probe += ' ';
+    probe += fileName ? fileName : "";
+    std::transform(
+        probe.begin(), probe.end(), probe.begin(), [](unsigned char c) {
+          return static_cast<char>(std::tolower(c));
+        });
+    if (probe.find("font") != std::string::npos)
+      return true;
+    for (const char *extension :
+         {".ttf", ".otf", ".ttc", ".otc", ".woff", ".woff2"}) {
+      const std::size_t length = std::strlen(extension);
+      if (probe.size() >= length &&
+          probe.compare(probe.size() - length, length, extension) == 0)
+        return true;
+    }
+    return false;
+  }
+
+  // Enumerate attached-file streams right after demux setup so that their
+  // packets can be recognised while reading frames.
+  void prepareFontStreams() {
+    fontStreams.clear();
+    for (unsigned i = 0; format && i < format->nb_streams; ++i) {
+      AVStream *stream = format->streams[i];
+      if (!stream || !stream->codecpar)
+        continue;
+      const bool attached =
+          stream->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT ||
+          (stream->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0;
+      if (!attached)
+        continue;
+      AVDictionaryEntry *fileName =
+          av_dict_get(stream->metadata, "filename", nullptr, 0);
+      AVDictionaryEntry *title =
+          av_dict_get(stream->metadata, "title", nullptr, 0);
+      AVDictionaryEntry *mime =
+          av_dict_get(stream->metadata, "mimetype", nullptr, 0);
+      const char *name =
+          fileName ? fileName->value : (title ? title->value : nullptr);
+      if (!looksLikeFont(mime ? mime->value : nullptr, name))
+        continue;
+      FontStream info;
+      info.index = static_cast<int>(i);
+      info.name = name ? name : "font-" + std::to_string(i);
+      fontStreams.push_back(std::move(info));
+    }
+  }
+
+  void captureFont(const AVPacket *packet) {
+    if (attachedFonts.size() >= kMaxAttachedFonts || !packet || !packet->data ||
+        packet->size <= 0 || attachedFontBytes >= kMaxAttachedFontBytes)
+      return;
+    std::string name = "font-" + std::to_string(packet->stream_index);
+    for (const auto &info : fontStreams) {
+      if (info.index == packet->stream_index) {
+        name = info.name;
+        break;
+      }
+    }
+    const std::size_t take =
+        std::min<std::size_t>(static_cast<std::size_t>(packet->size),
+                              kMaxAttachedFontBytes - attachedFontBytes);
+    workers::AttachedFont font;
+    font.name = std::move(name);
+    font.bytes.assign(packet->data, packet->data + take);
+    attachedFonts.push_back(std::move(font));
+    attachedFontBytes += take;
+  }
 
   ~State() {
 #ifdef __EMSCRIPTEN__
@@ -405,8 +499,10 @@ struct MediaPlayer::State {
       closing = true;
     }
     wake.notify_one();
-    if (decoderThread.joinable())
-      decoderThread.join();
+    if (decoderThread) {
+      SDL_WaitThread(decoderThread, nullptr);
+      decoderThread = nullptr;
+    }
     if (channel && stream)
       channel->detach(stream.get());
     stream.reset();
@@ -563,6 +659,25 @@ struct MediaPlayer::State {
     format->flags |= AVFMT_FLAG_CUSTOM_IO;
   }
 
+  static AVPixelFormat chooseHardwareFormat(AVCodecContext *context,
+                                            const AVPixelFormat *formats) {
+    const auto *self = static_cast<const State *>(context->opaque);
+    for (const AVPixelFormat *format = formats; *format != AV_PIX_FMT_NONE;
+         ++format) {
+      if (self && *format == self->hardwarePixelFormat)
+        return *format;
+    }
+    // A decoder can offer a software output even after hardware negotiation
+    // fails. Never return an incompatible hardware surface format.
+    for (const AVPixelFormat *format = formats; *format != AV_PIX_FMT_NONE;
+         ++format) {
+      const AVPixFmtDescriptor *description = av_pix_fmt_desc_get(*format);
+      if (description && !(description->flags & AV_PIX_FMT_FLAG_HWACCEL))
+        return *format;
+    }
+    return AV_PIX_FMT_NONE;
+  }
+
   AVCodecContext *decoder(int &index, AVMediaType type, bool required) {
     const AVCodec *codec = nullptr;
     index = av_find_best_stream(format, type, -1, -1, &codec, 0);
@@ -573,18 +688,90 @@ struct MediaPlayer::State {
         check(index, "Find media decoder");
       return nullptr;
     }
-    AVCodecContext *context = avcodec_alloc_context3(codec);
-    if (!context)
-      throw std::bad_alloc();
-    try {
-      check(avcodec_parameters_to_context(context,
-                                          format->streams[index]->codecpar),
-            "Read codec parameters");
-      context->pkt_timebase = format->streams[index]->time_base;
-      check(avcodec_open2(context, codec, nullptr), "Open codec");
-    } catch (...) {
+    auto createContext = [&]() -> AVCodecContext * {
+      AVCodecContext *context = avcodec_alloc_context3(codec);
+      if (!context)
+        throw std::bad_alloc();
+      try {
+        check(avcodec_parameters_to_context(context,
+                                            format->streams[index]->codecpar),
+              "Read codec parameters");
+        context->pkt_timebase = format->streams[index]->time_base;
+      } catch (...) {
+        avcodec_free_context(&context);
+        throw;
+      }
+      return context;
+    };
+    // Hardware backends are discovered from the linked FFmpeg build rather
+    // than selected by operating-system macros. Only decoder-compatible
+    // devices are attempted. A failed device never prevents trying the next.
+#ifndef __EMSCRIPTEN__
+    if (type == AVMEDIA_TYPE_VIDEO) {
+      for (AVHWDeviceType deviceType =
+               av_hwdevice_iterate_types(AV_HWDEVICE_TYPE_NONE);
+           deviceType != AV_HWDEVICE_TYPE_NONE;
+           deviceType = av_hwdevice_iterate_types(deviceType)) {
+        for (int i = 0;; ++i) {
+          const AVCodecHWConfig *config = avcodec_get_hw_config(codec, i);
+          if (!config)
+            break;
+          if (config->device_type != deviceType ||
+              !(config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX))
+            continue;
+
+          AVBufferRef *device = nullptr;
+          const int deviceResult =
+              av_hwdevice_ctx_create(&device, deviceType, nullptr, nullptr, 0);
+          if (deviceResult < 0) {
+            SDL_LogDebug(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "[Kotonoha] Video acceleration backend %s unavailable (%d)",
+                av_hwdevice_get_type_name(deviceType), deviceResult);
+            continue;
+          }
+          AVCodecContext *candidate = createContext();
+          candidate->hw_device_ctx = av_buffer_ref(device);
+          av_buffer_unref(&device);
+          if (!candidate->hw_device_ctx) {
+            avcodec_free_context(&candidate);
+            throw std::bad_alloc();
+          }
+          hardwarePixelFormat = config->pix_fmt;
+          candidate->opaque = this;
+          candidate->get_format = chooseHardwareFormat;
+          SDL_Log("[Kotonoha] Trying hardware decoder %s (%s)",
+                  av_hwdevice_get_type_name(deviceType), codec->name);
+          const int result = avcodec_open2(candidate, codec, nullptr);
+          if (result >= 0) {
+            hardwareDeviceType = deviceType;
+            SDL_Log("[Kotonoha] Hardware decoder initialized: %s (%s); "
+                    "awaiting decoded frames",
+                    av_hwdevice_get_type_name(deviceType), codec->name);
+            return candidate;
+          }
+          SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                      "[Kotonoha] Hardware decoder %s failed (%d); trying "
+                      "another backend",
+                      av_hwdevice_get_type_name(deviceType), result);
+          avcodec_free_context(&candidate);
+          hardwarePixelFormat = AV_PIX_FMT_NONE;
+        }
+      }
+    }
+#endif
+    AVCodecContext *context = createContext();
+    const int opened = avcodec_open2(context, codec, nullptr);
+    if (opened < 0) {
       avcodec_free_context(&context);
-      throw;
+      check(opened, "Open codec");
+    }
+    if (type == AVMEDIA_TYPE_VIDEO) {
+      hardwarePixelFormat = AV_PIX_FMT_NONE;
+      hardwareDeviceType = AV_HWDEVICE_TYPE_NONE;
+      SDL_Log(
+          "[Kotonoha] Video decoder: software (%s); no usable hardware backend",
+          codec->name);
     }
     return context;
   }
@@ -632,7 +819,26 @@ struct MediaPlayer::State {
         const double rate = av_q2d(
             av_guess_frame_rate(format, format->streams[videoIndex], nullptr));
         nextVideoTime = at + (rate > 0 ? 1.0 / rate : 1.0 / 30);
-        Frame copy{av_frame_clone(frame.get())};
+        AVFrame *decoded = frame.get();
+        Frame softwareFrame;
+        if (hardwarePixelFormat != AV_PIX_FMT_NONE &&
+            frame->format == hardwarePixelFormat) {
+          softwareFrame.reset(av_frame_alloc());
+          if (!softwareFrame)
+            throw std::bad_alloc();
+          check(av_hwframe_transfer_data(softwareFrame.get(), frame.get(), 0),
+                "Transfer hardware video frame");
+          check(av_frame_copy_props(softwareFrame.get(), frame.get()),
+                "Copy video frame properties");
+          decoded = softwareFrame.get();
+          if (!hardwareDecodeLogged) {
+            SDL_Log("[Kotonoha] Hardware video decoding ACTIVE (%s); "
+                    "transferring decoded surfaces for SDL rendering",
+                    av_hwdevice_get_type_name(hardwareDeviceType));
+            hardwareDecodeLogged = true;
+          }
+        }
+        Frame copy{av_frame_clone(decoded)};
         if (!copy)
           throw std::bad_alloc();
         frames.push_back({at, std::move(copy)});
@@ -770,6 +976,20 @@ struct MediaPlayer::State {
         continue;
       }
       check(result, "Read media packet");
+      // Attached font payloads are not decodable frames: keep the bytes for
+      // the subtitle side instead of feeding them to an AVCodecContext.
+      bool attachment = false;
+      for (const auto &info : fontStreams) {
+        if (info.index == packet->stream_index) {
+          captureFont(packet);
+          attachment = true;
+          break;
+        }
+      }
+      if (attachment) {
+        av_packet_unref(packet);
+        continue;
+      }
       bool used = false;
       bool valid = true;
       if (packet->stream_index == videoIndex) {
@@ -797,24 +1017,34 @@ struct MediaPlayer::State {
     static_cast<State *>(userdata)->wake.notify_one();
   }
 
+  void decoderLoop() {
+    std::unique_lock<std::mutex> lock(mutex);
+    while (!closing) {
+      // Prime a prepared input while the audio device is paused.  After a
+      // seek, nextAudioTime identifies the new queue origin.
+      if ((!paused || queuedEnd < 0) && !eof && failure.empty()) {
+        try {
+          const double position = queuedEnd < 0 ? nextAudioTime : playhead();
+          fill(position, std::min(4.0, targetBuffer * decodeRate));
+        } catch (const std::exception &error) {
+          failure = error.what();
+        }
+      }
+      wake.wait_for(lock, std::chrono::milliseconds(10));
+    }
+  }
+
+  static int SDLCALL decoderThreadEntry(void *userdata) {
+    static_cast<State *>(userdata)->decoderLoop();
+    return 0;
+  }
+
   void startDecoder() {
     threaded = true;
-    decoderThread = std::thread([this] {
-      std::unique_lock<std::mutex> lock(mutex);
-      while (!closing) {
-        // Prime a prepared input while the audio device is paused.  After a
-        // seek, nextAudioTime identifies the new queue origin.
-        if ((!paused || queuedEnd < 0) && !eof && failure.empty()) {
-          try {
-            const double position = queuedEnd < 0 ? nextAudioTime : playhead();
-            fill(position, std::min(4.0, targetBuffer * decodeRate));
-          } catch (const std::exception &error) {
-            failure = error.what();
-          }
-        }
-        wake.wait_for(lock, std::chrono::milliseconds(10));
-      }
-    });
+    decoderThread = SDL_CreateThread(&State::decoderThreadEntry,
+                                     "KotonohaMediaDecoder", this);
+    if (!decoderThread)
+      throw std::runtime_error(SDL_GetError());
   }
 
   void upload(RendererRef renderer, AVFrame *image) {
@@ -1050,6 +1280,7 @@ void MediaPlayer::openDecoder(State &next, const std::string &url,
   check(opened, "Open media");
   detail::initializeMediaLog();
   check(avformat_find_stream_info(next.format, nullptr), "Read media streams");
+  next.prepareFontStreams();
   if (next.format->start_time != AV_NOPTS_VALUE)
     next.origin = next.format->start_time / static_cast<double>(AV_TIME_BASE);
   if (!audioOnly)
@@ -1444,13 +1675,16 @@ void MediaPlayer::updateDecoder(RendererRef renderer, double position) {
             (s.webFallbackId.empty() ? s.webVideoId : s.webFallbackId));
       openDecoder(*next, {}, s.webAudioOnly);
       const bool wasPaused = pausedAt != 0;
+      const bool wasAudioOnly = s.webAudioOnly;
       adoptPreparedInput(
           std::unique_ptr<PreparedInput>(new PreparedInput(std::move(next))),
           channelName);
       clockOffset = position;
       if (!wasPaused)
         setPaused(false);
-      SDL_Log("[Kotonoha] HTML5 video failed; decoding locally with FFmpeg");
+      SDL_Log("[Kotonoha] Browser-native %s playback unavailable; falling back "
+              "to FFmpeg",
+              wasAudioOnly ? "audio" : "video");
       update(renderer, position);
       return;
     }
@@ -1588,6 +1822,13 @@ void MediaPlayer::updateDecoder(RendererRef renderer, double position) {
   }
   if (latest)
     s.upload(renderer, latest.get());
+}
+
+std::vector<workers::AttachedFont> MediaPlayer::attachedFonts() const {
+  if (!state)
+    return {};
+  std::lock_guard<std::mutex> lock(state->mutex);
+  return state->attachedFonts;
 }
 
 bool MediaPlayer::hasVideoFrame() const {

@@ -136,6 +136,17 @@ int main(int argc, char **argv) {
     SDL_Delay(510);
     app.runtime.update();
     openPanel(11);
+    const auto loadSprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
+        app.runtime.panels().SaveLoad());
+    // The base LOAD art contains the neutral label; Role::RouteMap is its
+    // hover CHIP, not an always-on sprite.
+    check(std::none_of(
+              loadSprites.begin(), loadSprites.end(),
+              [](const auto &sprite) {
+                return sprite.role ==
+                       Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
+              }),
+          "LOAD blue Route Map CHIP must be absent without pointer hover");
     const auto hasBlueRouteMapHover = [&] {
       const auto sprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
           app.runtime.panels().SaveLoad());

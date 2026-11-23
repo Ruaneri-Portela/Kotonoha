@@ -1,5 +1,6 @@
 #include <Kirikiri/EmoteRenderer.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <SDL3/SDL.h>
 
 #include <algorithm>
@@ -130,7 +131,7 @@ void EmoteRenderer::renderLayer(Kotonoha::RendererRef renderer,
         const auto alpha =
             static_cast<Uint8>(std::clamp(layer.opacity, 0.0, 255.0));
         SDL_SetTextureAlphaMod(&texture, alpha);
-        SDL_RenderTexture(&renderer, &texture, nullptr, &dst);
+        Kotonoha::RenderUpscaledTexture(&renderer, &texture, nullptr, &dst);
         SDL_SetTextureAlphaMod(&texture, 255);
         return;
       } catch (const std::exception &) {
@@ -159,7 +160,7 @@ void EmoteRenderer::renderLayer(Kotonoha::RendererRef renderer,
           SDL_SetTextureColorMod(&tex, 245, 190, 165);
         else
           SDL_SetTextureColorMod(&tex, 255, 248, 245);
-        SDL_RenderTexture(&renderer, &tex, nullptr, &dst);
+        Kotonoha::RenderUpscaledTexture(&renderer, &tex, nullptr, &dst);
         SDL_SetTextureColorMod(&tex, 255, 255, 255);
       } catch (...) {
       }
@@ -216,10 +217,11 @@ void EmoteRenderer::renderCharacter(Kotonoha::RendererRef renderer,
         const double angle = ch.imagerotate + getVar("$body_slant") * 0.3 +
                              getVar("$head_slant") * 0.2;
         if (std::abs(angle) > 0.01) {
-          SDL_RenderTextureRotated(&renderer, &texture, nullptr, &dst, angle,
-                                   nullptr, SDL_FLIP_NONE);
+          Kotonoha::RenderUpscaledTextureRotated(&renderer, &texture, nullptr,
+                                                 &dst, angle, nullptr,
+                                                 SDL_FLIP_NONE);
         } else {
-          SDL_RenderTexture(&renderer, &texture, nullptr, &dst);
+          Kotonoha::RenderUpscaledTexture(&renderer, &texture, nullptr, &dst);
         }
         SDL_SetTextureAlphaMod(&texture, 255);
         return;
@@ -271,7 +273,7 @@ void EmoteRenderer::renderCharacter(Kotonoha::RendererRef renderer,
         const float ph = pw * (41.0f / 380.0f);
         const SDL_FRect pdst{cx - pw * 0.5f, card.y + card.h - ph - 20.0f, pw,
                              ph};
-        SDL_RenderTexture(&renderer, &plateTex, nullptr, &pdst);
+        Kotonoha::RenderUpscaledTexture(&renderer, &plateTex, nullptr, &pdst);
       } catch (...) {
       }
     }

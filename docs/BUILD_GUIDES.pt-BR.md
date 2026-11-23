@@ -21,9 +21,9 @@ cmake --build build --target Kotonoha
 ctest --test-dir build --output-on-failure
 ```
 
-Configure `CMAKE_TOOLCHAIN_FILE` para o vcpkg quando necessário. Para jogos, use `-DKOTONOHA_BUILD_<OPCAO>=ON`; as opções incluem `AMAGAMI`, `ZERO`, `SNOW`, `SUMMER`, `DDLC`, `SCHOOL_DAYS`, `REALLIVE`, `KIRIKIRI`, `LUCA_SYSTEM`, `PMAIL`, `PONSCRIPTER` e `N2SYSTEM`. `-DKOTONOHA_BUILD_ALL=ON` solicita todos os ports desktop e pode exigir dependências adicionais. Veja o [índice de jogos](../games/README.pt-BR.md). N2System e PONscripter possuem targets CMake/Android, mas os schemes macOS/iOS no Xcode ainda estão pendentes.
+Configure `CMAKE_TOOLCHAIN_FILE` para o vcpkg quando necessário. Para jogos, use `-DKOTONOHA_BUILD_<OPCAO>=ON`; as opções incluem `AMAGAMI`, `ZERO`, `SNOW`, `SUMMER`, `MEO`, `DDLC`, `KATAWA`, `SCHOOL_DAYS`, `REALLIVE`, `KIRIKIRI`, `LUCA_SYSTEM`, `PMAIL`, `PONSCRIPTER`, `N2SYSTEM` e `ARTEMIS`. `-DKOTONOHA_BUILD_ALL=ON` solicita todos os ports desktop e pode exigir dependências adicionais. Veja o [índice de jogos](../games/README.pt-BR.md). Os 16 aplicativos (incluindo Example) constam no manifesto Xcode com 32 schemes; builds reais por plataforma/dispositivo continuam exigindo validação.
 
-No desktop, o alvo `KotonohaLauncher` só existe com `-DKOTONOHA_BUILD_ALL=ON`. Ele linka as bibliotecas dos 12 jogos reais, excluindo o Example independente, e executa os jogos no mesmo processo; veja o [guia do launcher](../launcher/README.pt-BR.md).
+No desktop, o alvo `KotonohaLauncher` só existe com `-DKOTONOHA_BUILD_ALL=ON`. Ele linka as bibliotecas dos 15 ports de jogos, excluindo o Example independente, e executa os jogos no mesmo processo; veja o [guia do launcher](../launcher/README.pt-BR.md).
 
 Na CI do GitHub Actions, Linux e WASM usam um único runner, sem cache das builds incrementais; veja os [detalhes de CI/vcpkg](CI_VCPKG.md).
 

@@ -49,7 +49,7 @@ public:
   const string &to_string() const { return as_string_; }
   const int text_encoding() const { return encoding_; }
 
-  void Assign(const char *input);
+  void Assign(const char *input, size_t available);
 
 private:
   string as_string_;

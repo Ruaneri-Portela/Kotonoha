@@ -5,6 +5,8 @@
 #include <Kotonoha/media/AudioMixer.hpp>
 #include <Kotonoha/media/MediaDecoder.hpp>
 
+#include <Kotonoha/debug/DebugAssetCatalog.hpp>
+#include <Kotonoha/debug/DebugOverlay.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
 
 #include <imgui.h>
@@ -47,19 +49,7 @@ struct ImGuiIdScope {
   ~ImGuiIdScope() { ImGui::PopID(); }
 };
 
-bool audioName(std::string id) {
-  std::transform(id.begin(), id.end(), id.begin(),
-                 [](unsigned char c) { return char(std::tolower(c)); });
-  static const char *extensions[] = {".wav", ".ogg", ".opus", ".mp3", ".flac",
-                                     ".m4a", ".aac", ".aiff", ".nwa", ".adx",
-                                     ".hca", ".at3", ".vag",  ".wma"};
-  return std::any_of(
-      std::begin(extensions), std::end(extensions), [&](const char *extension) {
-        return id.size() >= std::strlen(extension) &&
-               id.compare(id.size() - std::strlen(extension),
-                          std::strlen(extension), extension) == 0;
-      });
-}
+bool audioName(const std::string &id) { return DebugAssetCatalog::isAudio(id); }
 
 double duration(const AudioClip &clip) {
   const int frame = SDL_AUDIO_BYTESIZE(clip.spec.format) * clip.spec.channels;
@@ -192,11 +182,37 @@ void VoiceDubbingApplet::refreshSceneAudio() {
   auto active = engine_.GetRuntime().debugNode();
   if (active.empty())
     active = engine_.activeNode();
-  if (active == sceneNode_)
+  // Some runtimes enumerate an entire archive scenario in debugSceneAudio().
+  // Re-query only when the active text or most recent voice actually changes.
+  std::string audioMarker;
+  const auto recent = engine_.GetAssets().recentAudio();
+  if (!recent.empty())
+    audioMarker = recent.front();
+  for (const auto &original : engine_.GetRuntime().activeTranslationKeys()) {
+    audioMarker.push_back('\n');
+    audioMarker += original;
+  }
+  if (active == sceneNode_) {
+    if (audioMarker == sceneAudioMarker_)
+      return;
+    sceneAudioMarker_ = audioMarker;
+    // Native interpreters can advance to another voice within the same
+    // script node. Refresh metadata without discarding the current edit.
+    for (const auto &line : engine_.GetRuntime().debugSceneAudio()) {
+      auto found =
+          std::find_if(sceneAudio_.begin(), sceneAudio_.end(),
+                       [&](const auto &item) { return item.id == line.id; });
+      if (found == sceneAudio_.end())
+        sceneAudio_.push_back(line);
+      else
+        *found = line;
+    }
     return;
+  }
   stopRecording();
   stopPreview();
   sceneNode_ = active;
+  sceneAudioMarker_ = std::move(audioMarker);
   selectedId_.clear();
   manualId_[0] = '\0';
   characterFilter_.clear();
@@ -228,6 +244,11 @@ void VoiceDubbingApplet::refreshSceneAudio() {
         sceneAudio_.push_back({asset, {}, {}});
   }
 #endif
+}
+
+void VoiceDubbingApplet::openAsset(const std::string &id) {
+  refreshSceneAudio();
+  select(id);
 }
 
 void VoiceDubbingApplet::select(const std::string &id) {
@@ -722,13 +743,13 @@ void VoiceDubbingApplet::draw() {
     if (sceneAudio_.empty() && recent.empty())
       ImGui::TextDisabled("No audio has been requested in this session yet.");
     std::vector<DebugAudioAsset> rows = sceneAudio_;
-    // Runtimes which enumerate a scene are authoritative: never leak audio
-    // requested by the preceding scene into the booth.
-    if (rows.empty())
-      for (const auto &id : recent)
-        if (std::none_of(rows.begin(), rows.end(),
-                         [&](const auto &item) { return item.id == id; }))
-          rows.push_back({id, {}, {}});
+    // Explicit scene metadata stays authoritative. Expose audio requested by
+    // other providers too, but label it as session history rather than
+    // falsely attributing it to the current scene or character.
+    for (const auto &id : recent)
+      if (std::none_of(rows.begin(), rows.end(),
+                       [&](const auto &item) { return item.id == id; }))
+        rows.push_back({id, "Recent (session)", {}});
     std::sort(rows.begin(), rows.end(),
               [](const auto &left, const auto &right) {
                 if (left.character != right.character)
@@ -795,8 +816,12 @@ void VoiceDubbingApplet::draw() {
           ImGui::TextUnformatted(row.character.c_str());
         ImGui::TableSetColumnIndex(1);
         if (!row.text.empty()) {
-          ImGui::TextWrapped("%s", row.text.c_str());
+          const auto localized = engine_.GetTranslation().text(
+              engine_.GetRuntime().translationRoute(), row.text);
+          ImGui::TextWrapped("%s", localized.c_str());
           ImGui::TextDisabled("%s", id.c_str());
+          if (ImGui::SmallButton("Translate line"))
+            engine_.GetDebug().trackActiveTranslation();
         } else
           ImGui::TextWrapped("%s", id.c_str());
         ImGui::TableSetColumnIndex(2);
@@ -841,6 +866,54 @@ void VoiceDubbingApplet::draw() {
       else if (rowAction == RowAction::DiscardOverlay)
         discardOverlay();
     }
+    ImGui::SeparatorText("Browse provider audio assets");
+    // Every engine participates through its existing AssetProvider::list().
+    // Loading is deliberately opt-in; archive catalogs can contain 100k+
+    // entries and should never be rescanned every rendered frame.
+    auto rebuildAudioFilter = [&] {
+      filteredAudioAssets_.clear();
+      std::string needle = providerAudioFilter_;
+      std::transform(needle.begin(), needle.end(), needle.begin(),
+                     [](unsigned char ch) { return char(std::tolower(ch)); });
+      for (const auto &id : providerAudioAssets_) {
+        std::string lower = id;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+                       [](unsigned char ch) { return char(std::tolower(ch)); });
+        if (needle.empty() || lower.find(needle) != std::string::npos)
+          filteredAudioAssets_.push_back(id);
+      }
+    };
+    if (ImGui::Button("List provider audio")) {
+      providerAudioAssets_.clear();
+      for (const auto &id : engine_.GetAssets().list())
+        if (audioName(id))
+          providerAudioAssets_.push_back(id);
+      providerAudioLoaded_ = true;
+      rebuildAudioFilter();
+    }
+    if (providerAudioLoaded_) {
+      ImGui::TextDisabled("%zu audio assets (%zu matching)",
+                          providerAudioAssets_.size(),
+                          filteredAudioAssets_.size());
+      if (ImGui::InputText("Search audio", providerAudioFilter_,
+                           sizeof(providerAudioFilter_)))
+        rebuildAudioFilter();
+      std::string openProviderAsset;
+      ImGui::BeginChild("All provider audio", ImVec2(0, 145),
+                        ImGuiChildFlags_Borders);
+      ImGuiListClipper clipper;
+      clipper.Begin(static_cast<int>(filteredAudioAssets_.size()));
+      while (clipper.Step())
+        for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i) {
+          const auto &id = filteredAudioAssets_[static_cast<std::size_t>(i)];
+          if (ImGui::Selectable(id.c_str(), id == selectedId_))
+            openProviderAsset = id;
+        }
+      ImGui::EndChild();
+      if (!openProviderAsset.empty())
+        select(openProviderAsset);
+    }
+
     ImGui::SetNextItemWidth(
         std::max(110.0f, ImGui::GetContentRegionAvail().x - 180.0f));
     ImGui::InputText("Logical asset ID", manualId_, sizeof(manualId_));

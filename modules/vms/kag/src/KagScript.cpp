@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <stdexcept>
 
@@ -30,6 +31,10 @@ KagScript::Script KagScript::parse(const std::string &text,
   Script script;
   int line = 1, column = 1;
   std::size_t i = 0, n = text.size();
+  std::string previousLabel;
+  std::map<std::string, std::size_t> labelCounts;
+  bool inInlineScript = false;
+  std::size_t inlineScriptTag = 0;
 
   auto nextLine = [&]() {
     ++line;
@@ -37,11 +42,68 @@ KagScript::Script KagScript::parse(const std::string &text,
   };
 
   while (i < n) {
+    // Inline TJS is opaque to KAG. A standalone closing tag ends the
+    // block; brackets in TJS strings and array expressions are not tags.
+    if (inInlineScript) {
+      const auto lineStart = i;
+      while (i < n && text[i] != '\r' && text[i] != '\n')
+        ++i;
+      const std::string rawLine = text.substr(lineStart, i - lineStart);
+      std::string marker = trim(rawLine);
+      std::transform(marker.begin(), marker.end(), marker.begin(),
+                     [](unsigned char ch) { return std::tolower(ch); });
+      if (marker == "[endscript]" || marker == "[endscript]\\" ||
+          marker == "@endscript") {
+        Tag closing;
+        closing.type = TagType::Command;
+        closing.name = "endscript";
+        closing.line = line;
+        const auto firstNonWhitespace = rawLine.find_first_not_of(" \t");
+        closing.column = firstNonWhitespace == std::string::npos
+                             ? 1
+                             : static_cast<int>(firstNonWhitespace + 1);
+        script.tags.push_back(std::move(closing));
+        inInlineScript = false;
+      } else {
+        auto &body = script.tags.at(inlineScriptTag).text;
+        if (body.size() + rawLine.size() + 1 > 256u * 1024u)
+          throw std::runtime_error("KAG: inline TJS size limit exceeded");
+        body += rawLine;
+        body += '\n';
+      }
+      if (i < n) {
+        if (text[i] == '\r' && i + 1 < n && text[i + 1] == '\n')
+          ++i;
+        ++i;
+        nextLine();
+      }
+      continue;
+    }
+
     char c = text[i];
-    if (c == '*' && column == 1) {
-      // KAG labels are normally bare lines (`*label|caption`), not bracketed
-      // command tags.  Keep the label as a no-op tag so saved PCs stay stable.
-      const auto labelLine = line;
+    // KAG treats line-leading tabs as indentation, not dialogue. Also allow
+    // spaces before a line-control marker to accommodate edited scenarios.
+    bool lineControl = column == 1;
+    if (lineControl && (c == ' ' || c == '\t')) {
+      auto first = i;
+      while (first < n && (text[first] == ' ' || text[first] == '\t'))
+        ++first;
+      if (first < n &&
+          (text[first] == '*' || text[first] == ';' || text[first] == '@')) {
+        column += static_cast<int>(first - i);
+        i = first;
+        c = text[i];
+      } else {
+        lineControl = false;
+      }
+    }
+
+    if (c == '*' && lineControl) {
+      // Bare KAG labels may be followed by a page title separated by '|'.
+      // Repeated names receive a stable :2, :3 ... alias just as the
+      // original KAG scenario label cache does.
+      const int labelLine = line;
+      const int labelColumn = column;
       ++i;
       ++column;
       std::string label;
@@ -53,23 +115,38 @@ KagScript::Script KagScript::parse(const std::string &text,
         ++i;
         ++column;
       }
+      const std::string base = trim(label);
+      if (base.empty() && previousLabel.empty())
+        throw std::runtime_error("KAG: unnamed first label in " + sourceName +
+                                 " at line " + std::to_string(labelLine));
+      const std::string resolved = base.empty() ? previousLabel : base;
+      previousLabel = resolved;
+      auto &occurrence = labelCounts[resolved];
+      std::string alias = resolved;
+      ++occurrence;
+      if (occurrence > 1) {
+        alias += ":" + std::to_string(occurrence);
+        while (script.labels.count(alias))
+          alias = resolved + ":" + std::to_string(++occurrence);
+      }
       Tag tag;
       tag.type = TagType::Command;
-      tag.name = "*" + label;
+      tag.name = "*" + alias;
       tag.line = labelLine;
-      tag.column = 1;
-      script.labels.emplace(label, script.tags.size());
+      tag.column = labelColumn;
+      script.labels.emplace(alias, script.tags.size());
       script.tags.push_back(std::move(tag));
-    } else if (c == ';' && column == 1) {
+    } else if (c == ';' && lineControl) {
       // KAG line comments must not become dialogue text.
       while (i < n && text[i] != '\r' && text[i] != '\n') {
         ++i;
         ++column;
       }
-    } else if (c == '@' && column == 1) {
+    } else if (c == '@' && lineControl) {
       // A command at the start of a line is equivalent to a bracketed tag.
       // Parse with the same attribute grammar to avoid diverging semantics.
       const int commandLineNumber = line;
+      const int commandColumn = column;
       ++i;
       ++column;
       std::string commandLine;
@@ -78,17 +155,38 @@ KagScript::Script KagScript::parse(const std::string &text,
         ++column;
       }
       if (!trim(commandLine).empty()) {
-        auto parsed = parse("[" + commandLine + "]", sourceName);
+        // Parse the @tag through the common attribute parser. An @iscript
+        // opener needs a synthetic close in this *temporary* parse, otherwise
+        // the nested call correctly reports a missing [endscript] too early.
+        std::string commandName = trim(commandLine);
+        const auto delimiter = commandName.find_first_of(" \t");
+        if (delimiter != std::string::npos)
+          commandName.resize(delimiter);
+        std::transform(commandName.begin(), commandName.end(),
+                       commandName.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
+        const bool startsInline = commandName == "iscript";
+        auto parsed = parse("[" + commandLine + "]" +
+                                (startsInline ? "\n[endscript]" : ""),
+                            sourceName);
+        if (startsInline)
+          parsed.tags.pop_back(); // synthetic close; real close follows later
         for (const auto &entry : parsed.labels)
           script.labels.emplace(entry.first, script.tags.size() + entry.second);
         for (auto &tag : parsed.tags) {
           tag.line = commandLineNumber;
-          tag.column = 1;
+          tag.column = commandColumn;
+          if (tag.name == "iscript") {
+            inInlineScript = true;
+            inlineScriptTag = script.tags.size();
+          }
           script.tags.push_back(std::move(tag));
         }
       }
     } else if (c == '[' && !(i + 1 < n && text[i + 1] == '[')) {
       // Command tag
+      const int tagStartLine = line;
+      const int tagStartColumn = column;
       ++i;
       ++column;
       std::string tagName;
@@ -98,11 +196,15 @@ KagScript::Script KagScript::parse(const std::string &text,
         ++i;
         ++column;
       }
+      // KAG command names are case-insensitive; labels are case-sensitive.
+      if (!tagName.empty() && tagName.front() != '*')
+        std::transform(tagName.begin(), tagName.end(), tagName.begin(),
+                       [](unsigned char ch) { return std::tolower(ch); });
       Tag tag;
       tag.type = TagType::Command;
       tag.name = tagName;
-      tag.line = line;
-      tag.column = column;
+      tag.line = tagStartLine;
+      tag.column = tagStartColumn;
 
       // Parse attributes: name="value" or name=value
       while (i < n && text[i] != ']') {
@@ -138,10 +240,12 @@ KagScript::Script KagScript::parse(const std::string &text,
               ++i;
               ++column;
             }
-            if (i < n) {
-              ++i;
-              ++column; // skip closing quote
-            }
+            if (i == n)
+              throw std::runtime_error(
+                  "KAG: unterminated quoted attribute in " + sourceName +
+                  " at line " + std::to_string(tagStartLine));
+            ++i;
+            ++column; // skip closing quote
           } else {
             while (i < n && text[i] != ' ' && text[i] != '\t' &&
                    text[i] != '\r' && text[i] != '\n' && text[i] != ']') {
@@ -154,10 +258,11 @@ KagScript::Script KagScript::parse(const std::string &text,
         if (!attrName.empty())
           tag.attrs.emplace(std::move(attrName), std::move(attrValue));
       }
-      if (i < n && text[i] == ']') {
-        ++i;
-        ++column;
-      }
+      if (i == n)
+        throw std::runtime_error("KAG: unclosed tag in " + sourceName +
+                                 " at line " + std::to_string(tagStartLine));
+      ++i;
+      ++column; // closing bracket
       // Register label if this tag is a label (name "l" or "*labelname")
       if (tag.name == "l" || tag.name == "*") {
         if (auto it = tag.attrs.find("name");
@@ -166,7 +271,12 @@ KagScript::Script KagScript::parse(const std::string &text,
       } else if (!tag.name.empty() && tag.name[0] == '*') {
         script.labels.emplace(tag.name.substr(1), script.tags.size());
       }
+      const bool startsInlineScript = tag.name == "iscript";
       script.tags.push_back(std::move(tag));
+      if (startsInlineScript) {
+        inInlineScript = true;
+        inlineScriptTag = script.tags.size() - 1;
+      }
     } else if (c == '\n') {
       nextLine();
       ++i;
@@ -211,6 +321,115 @@ KagScript::Script KagScript::parse(const std::string &text,
     }
   }
 
+  if (inInlineScript)
+    throw std::runtime_error("KAG: unterminated [iscript] in " + sourceName +
+                             " at line " + std::to_string(line));
+
+  // Bounded static KAG macro expansion. Parse all definitions before
+  // expanding commands so a game's common.ks macros can be referenced
+  // later in this file without executing the macro body at declaration.
+  // No native TJS2 eval is performed during this pass.
+  using MacroBody = std::vector<Tag>;
+  std::map<std::string, MacroBody> macros;
+  std::vector<Tag> executable;
+  for (std::size_t index = 0; index < script.tags.size(); ++index) {
+    const auto &tag = script.tags[index];
+    if (tag.type == TagType::Command && tag.name == "endmacro")
+      throw std::runtime_error("KAG: unmatched [endmacro] in " + sourceName);
+    if (tag.type != TagType::Command || tag.name != "macro") {
+      executable.push_back(tag);
+      continue;
+    }
+    const auto it = tag.attrs.find("name");
+    if (it == tag.attrs.end() || it->second.empty())
+      throw std::runtime_error("KAG: macro requires a name in " + sourceName);
+    std::string macroName = it->second;
+    std::transform(macroName.begin(), macroName.end(), macroName.begin(),
+                   [](unsigned char ch) { return std::tolower(ch); });
+    if (macroName.size() > 64 || macros.count(macroName) != 0 ||
+        macroName == "macro" || macroName == "endmacro")
+      throw std::runtime_error("KAG: duplicate or invalid macro " + macroName);
+    MacroBody body;
+    bool closed = false;
+    for (++index; index < script.tags.size(); ++index) {
+      const auto &inside = script.tags[index];
+      if (inside.type == TagType::Command && inside.name == "endmacro") {
+        closed = true;
+        break;
+      }
+      if (inside.type == TagType::Command &&
+          (inside.name == "macro" ||
+           (!inside.name.empty() && inside.name.front() == '*') ||
+           (inside.name == "l" && inside.attrs.count("name"))))
+        throw std::runtime_error(
+            "KAG: labels/nested declarations not allowed in macro");
+      if (body.size() >= 4096)
+        throw std::runtime_error("KAG: macro definition too large");
+      body.push_back(inside);
+    }
+    if (!closed)
+      throw std::runtime_error("KAG: unterminated [macro] " + macroName);
+    if (macros.size() >= 128)
+      throw std::runtime_error("KAG: macro count limit exceeded");
+    macros.emplace(std::move(macroName), std::move(body));
+  }
+
+  // Parameter references are whole attribute values of the form %name or
+  // %name|fallback. A missing argument defaults to the empty string.
+  const auto substitute = [](std::string value,
+                             const std::map<std::string, std::string> &args) {
+    if (value.size() <= 1 || value.front() != '%')
+      return value;
+    const auto bar = value.find('|');
+    const auto key =
+        value.substr(1, bar == std::string::npos ? std::string::npos : bar - 1);
+    if (const auto it = args.find(key); it != args.end())
+      return it->second;
+    return bar == std::string::npos ? std::string() : value.substr(bar + 1);
+  };
+  std::vector<Tag> expanded;
+  std::vector<std::string> activeMacros;
+  std::function<void(Tag, const std::map<std::string, std::string> &)>
+      appendExpanded;
+  appendExpanded = [&](Tag tag, const auto &arguments) {
+    for (auto &attr : tag.attrs)
+      attr.second = substitute(std::move(attr.second), arguments);
+    if (tag.type == TagType::Command) {
+      if (const auto found = macros.find(tag.name); found != macros.end()) {
+        if (activeMacros.size() >= 16 ||
+            std::find(activeMacros.begin(), activeMacros.end(), tag.name) !=
+                activeMacros.end())
+          throw std::runtime_error("KAG: recursive macro " + tag.name);
+        activeMacros.push_back(tag.name);
+        for (const auto &item : found->second)
+          appendExpanded(item, tag.attrs);
+        activeMacros.pop_back();
+        return;
+      }
+    }
+    if (expanded.size() >= 65536)
+      throw std::runtime_error("KAG: expanded tag limit exceeded");
+    expanded.push_back(std::move(tag));
+  };
+  for (const auto &tag : executable)
+    appendExpanded(tag, {});
+
+  // Macro definition removal/expansion shifts indices. Rebuild labels
+  // against executable tag positions to keep jump/call and saves consistent.
+  script.tags = std::move(expanded);
+  script.labels.clear();
+  for (std::size_t index = 0; index < script.tags.size(); ++index) {
+    const auto &tag = script.tags[index];
+    if (tag.type != TagType::Command)
+      continue;
+    if (!tag.name.empty() && tag.name.front() == '*') {
+      script.labels.emplace(tag.name.substr(1), index);
+    } else if (tag.name == "l") {
+      if (const auto found = tag.attrs.find("name");
+          found != tag.attrs.end() && !found->second.empty())
+        script.labels.emplace(found->second, index);
+    }
+  }
   return script;
 }
 
@@ -246,6 +465,11 @@ void KagScript::Runner::restoreState(const State &state) {
   finished_ = state.finished || pc_ == script_.tags.size();
   blocked_ = false;
   pendingResume_ = nullptr;
+  pendingLinks_.clear();
+  activeChoiceTargets_.clear();
+  capturingLink_ = false;
+  currentLinkCaption_.clear();
+  currentLinkTarget_.clear();
 }
 
 void KagScript::Runner::restorePosition(std::size_t position) {
@@ -259,6 +483,11 @@ void KagScript::Runner::restorePosition(std::size_t position) {
   returnStack_.clear();
   ifBranches_.clear();
   callIfDepth_.clear();
+  pendingLinks_.clear();
+  activeChoiceTargets_.clear();
+  capturingLink_ = false;
+  currentLinkCaption_.clear();
+  currentLinkTarget_.clear();
 }
 
 bool KagScript::Runner::jumpToLabel(const std::string &label) {
@@ -273,6 +502,11 @@ bool KagScript::Runner::jumpToLabel(const std::string &label) {
   pc_ = position;
   blocked_ = finished_ = false;
   pendingResume_ = nullptr;
+  pendingLinks_.clear();
+  activeChoiceTargets_.clear();
+  capturingLink_ = false;
+  currentLinkCaption_.clear();
+  currentLinkTarget_.clear();
   return true;
 }
 
@@ -301,6 +535,27 @@ void KagScript::Runner::run() {
 void KagScript::Runner::resumeChoice(int index) {
   blocked_ = false;
   pendingResume_ = nullptr;
+  if (!activeChoiceTargets_.empty()) {
+    if (index < 0 ||
+        static_cast<std::size_t>(index) >= activeChoiceTargets_.size())
+      throw std::out_of_range("KAG: selected menu index out of range");
+    const std::string destination =
+        activeChoiceTargets_[static_cast<std::size_t>(index)];
+    activeChoiceTargets_.clear();
+    if (!destination.empty()) {
+      if (destination.front() == '*') {
+        if (!jumpToLabel(destination))
+          throw std::runtime_error("KAG: missing menu label " + destination);
+        ifBranches_.clear();
+      } else if (cb_.jump) {
+        // Storage changes are deferred by KirikiriRuntime. Do not execute
+        // the old scenario after scheduling its replacement.
+        finished_ = true;
+        cb_.jump(destination);
+        return;
+      }
+    }
+  }
   run();
 }
 
@@ -312,6 +567,12 @@ void KagScript::Runner::resumeWait() {
 
 bool KagScript::Runner::executeTag(const Tag &tag) {
   if (tag.type == TagType::Text) {
+    if (capturingLink_) {
+      if (currentLinkCaption_.size() + tag.text.size() > 8192)
+        throw std::runtime_error("KAG: [link] caption too long");
+      currentLinkCaption_ += tag.text;
+      return false;
+    }
     std::string text = trim(tag.text);
     if (!text.empty() && cb_.showText) {
       SDL_Log("KagScript: Text tag '%s'", text.c_str());
@@ -345,6 +606,31 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     }
     throw std::runtime_error("KAG: unterminated [if] block");
   };
+  // [ignore] is the inverse of [if]: a true expression excludes the
+  // body through its matching [endignore], respecting nested blocks.
+  if (name == "ignore") {
+    if (!condition(tag))
+      return false;
+    std::size_t nested = 0;
+    for (std::size_t i = pc_ + 1; i < script_.tags.size(); ++i) {
+      const auto &candidate = script_.tags[i];
+      if (candidate.type != TagType::Command)
+        continue;
+      if (candidate.name == "ignore") {
+        ++nested;
+      } else if (candidate.name == "endignore") {
+        if (nested == 0) {
+          pc_ = i; // run() advances past the closing tag.
+          return false;
+        }
+        --nested;
+      }
+    }
+    throw std::runtime_error("KAG: unterminated [ignore] block");
+  }
+  if (name == "endignore")
+    return false;
+
   if (name == "if") {
     if (ifBranches_.size() >= 1024)
       throw std::runtime_error("KAG: conditional nesting limit exceeded");
@@ -429,6 +715,61 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     finished_ = true;
     return true;
   }
+  // A [glink] button or [link]...text...[endlink] contributes an
+  // interactive option. [s] presents collected options through Kotonoha's
+  // existing choice UI instead of silently terminating the scenario.
+  const auto menuTarget = [&](const Tag &button) {
+    const auto storage = getAttr(button, "storage", "");
+    const auto label = getAttr(button, "target", "");
+    return storage.empty() ? label
+                           : storage + (label.empty() ? "" : "#" + label);
+  };
+  if (name == "glink" || name == "button") {
+    // [button graphic=... target=*label] uses its graphic identifier as
+    // a readable choice caption until native KAG button-layer rendering
+    // is implemented. The navigation destination remains unchanged.
+    if (pendingLinks_.size() >= 64)
+      throw std::runtime_error("KAG: too many menu button options");
+    auto caption = getAttr(tag, "text", getAttr(tag, "caption", ""));
+    if (caption.empty())
+      caption = getAttr(tag, "graphic", "Choice");
+    pendingLinks_.push_back({std::move(caption), menuTarget(tag)});
+    return false;
+  }
+  if (name == "link") {
+    if (capturingLink_)
+      throw std::runtime_error("KAG: nested [link] is not supported");
+    capturingLink_ = true;
+    currentLinkCaption_.clear();
+    currentLinkTarget_ = menuTarget(tag);
+    return false;
+  }
+  if (name == "endlink") {
+    if (!capturingLink_)
+      throw std::runtime_error("KAG: unexpected [endlink]");
+    capturingLink_ = false;
+    if (pendingLinks_.size() >= 64)
+      throw std::runtime_error("KAG: too many link options");
+    pendingLinks_.push_back({trim(currentLinkCaption_), currentLinkTarget_});
+    currentLinkCaption_.clear();
+    currentLinkTarget_.clear();
+    return false;
+  }
+  if (name == "s" && !pendingLinks_.empty() && cb_.showChoice) {
+    if (capturingLink_)
+      throw std::runtime_error("KAG: unterminated [link] before [s]");
+    std::vector<std::string> captions;
+    activeChoiceTargets_.clear();
+    for (const auto &option : pendingLinks_) {
+      captions.push_back(option.caption);
+      activeChoiceTargets_.push_back(option.target);
+    }
+    pendingLinks_.clear();
+    blocked_ = true;
+    cb_.showChoice("", std::move(captions),
+                   [this](int index) { resumeChoice(index); });
+    return true;
+  }
   if (name == "end" || name == "s") {
     SDL_Log("KagScript: tag %s", name.c_str());
     finished_ = true;
@@ -441,15 +782,11 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     return false;
   }
 
-  // Inline TJS2 block in KAG scripts. Skip until matching [endscript].
+  // Source was collected verbatim by the KAG lexer. The TJS2 VM runs it
+  // without treating the inner brackets as KAG dialogue or commands.
   if (name == "iscript") {
-    for (std::size_t i = pc_ + 1; i < script_.tags.size(); ++i) {
-      if (script_.tags[i].type == TagType::Command &&
-          script_.tags[i].name == "endscript") {
-        pc_ = i;
-        break;
-      }
-    }
+    if (cb_.executeInlineTjs && !tag.text.empty())
+      cb_.executeInlineTjs(tag.text);
     return false;
   }
   if (name == "endscript")
@@ -579,13 +916,50 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
     }
     return false;
   }
-  if (name == "layopt" && !getAttrBool(tag, "visible", true)) {
-    const auto layer = getAttr(tag, "layer", "0");
-    if (layer == "base") {
-      if (cb_.showBg)
-        cb_.showBg("", 0);
-    } else if (cb_.hideChar) {
-      cb_.hideChar(layer, 0);
+  if (name == "layopt") {
+    LayerOptions options;
+    options.layer = getAttr(tag, "layer", "0");
+    const auto number = [&](const char *key) -> std::optional<int> {
+      const auto found = tag.attrs.find(key);
+      if (found == tag.attrs.end())
+        return std::nullopt;
+      try {
+        std::size_t consumed = 0;
+        const int parsed = std::stoi(found->second, &consumed);
+        if (consumed != found->second.size())
+          throw std::invalid_argument("trailing characters");
+        return parsed;
+      } catch (const std::exception &) {
+        throw std::runtime_error(std::string("KAG: invalid layopt ") + key);
+      }
+    };
+    options.left = number("left");
+    options.top = number("top");
+    options.opacity = number("opacity");
+    options.order = number("order");
+    if (const auto visible = tag.attrs.find("visible");
+        visible != tag.attrs.end()) {
+      std::string value = visible->second;
+      std::transform(value.begin(), value.end(), value.begin(),
+                     [](unsigned char ch) { return std::tolower(ch); });
+      if (value == "1" || value == "true" || value == "yes" || value == "on")
+        options.visible = true;
+      else if (value == "0" || value == "false" || value == "no" ||
+               value == "off")
+        options.visible = false;
+      else
+        throw std::runtime_error("KAG: invalid layopt visible");
+    }
+    if (cb_.updateLayer) {
+      cb_.updateLayer(std::move(options));
+    } else if (options.visible && !*options.visible) {
+      // Legacy callback hosts do not retain layer state.
+      if (options.layer == "base") {
+        if (cb_.showBg)
+          cb_.showBg("", 0);
+      } else if (cb_.hideChar) {
+        cb_.hideChar(options.layer, 0);
+      }
     }
     return false;
   }
@@ -642,64 +1016,184 @@ bool KagScript::Runner::executeTag(const Tag &tag) {
 }
 
 bool KagScript::Runner::condition(const Tag &tag) const {
-  const auto expr = trim(getAttr(tag, "exp", getAttr(tag, "cond", "")));
-  if (expr.empty())
+  const auto expression = trim(getAttr(tag, "exp", getAttr(tag, "cond", "")));
+  if (expression.empty())
     return false;
-  const auto operand = [this](std::string token) -> std::string {
-    token = trim(token);
-    if (token.size() > 1 && ((token.front() == '"' && token.back() == '"') ||
-                             (token.front() == '\'' && token.back() == '\'')))
-      return token.substr(1, token.size() - 2);
+
+  // A bounded, side-effect-free subset of TJS2 predicates used by KAG
+  // [if], [elsif] and [ignore]. Evaluate parentheses and &&/|| with the
+  // correct precedence; searching for a comparator anywhere in a string
+  // misinterprets quoted strings and compound title-menu conditions.
+  const auto resolve = [this](std::string token) -> std::string {
     if (token == "true" || token == "false" || token == "null" ||
         token == "nil" || token.empty())
       return token;
     char *end = nullptr;
     (void)std::strtod(token.c_str(), &end);
-    if (end != token.c_str() && *end == 0)
+    if (end != token.c_str() && end && *end == '\0')
       return token;
-    if (!token.empty() && token.front() == '&')
+    if (token.front() == '&')
       token.erase(0, 1);
-    const auto found = vars_.find(token);
-    if (found != vars_.end())
+    if (const auto found = vars_.find(token); found != vars_.end())
       return found->second;
     return cb_.getVar ? cb_.getVar(token) : std::string();
   };
-  const auto truthy = [](const std::string &value) {
-    if (value.empty() || value == "false" || value == "nil" || value == "null")
-      return false;
-    char *end = nullptr;
-    const auto number = std::strtod(value.c_str(), &end);
-    if (end != value.c_str() && *end == 0)
-      return number != 0.0;
-    return true;
+
+  struct Predicate {
+    const std::string &input;
+    std::function<std::string(std::string)> variable;
+    std::size_t offset = 0;
+    std::size_t terms = 0;
+    std::size_t depth = 0;
+
+    void spaces() {
+      while (offset < input.size() &&
+             std::isspace(static_cast<unsigned char>(input[offset])))
+        ++offset;
+    }
+    bool match(const char *token) {
+      spaces();
+      const std::size_t size = std::char_traits<char>::length(token);
+      if (input.compare(offset, size, token) != 0)
+        return false;
+      offset += size;
+      return true;
+    }
+    [[noreturn]] void invalid() const {
+      throw std::runtime_error(
+          "KAG: unsupported conditional expression near offset " +
+          std::to_string(offset));
+    }
+    static bool number(const std::string &value, double &out) {
+      if (value.empty())
+        return false;
+      char *end = nullptr;
+      out = std::strtod(value.c_str(), &end);
+      return end != value.c_str() && end && *end == '\0' && std::isfinite(out);
+    }
+    static bool truthy(const std::string &value) {
+      if (value.empty() || value == "false" || value == "nil" ||
+          value == "null")
+        return false;
+      double parsed = 0;
+      return !number(value, parsed) || parsed != 0.0;
+    }
+    std::string value() {
+      spaces();
+      if (++terms > 256 || offset >= input.size())
+        invalid();
+      if (input[offset] == '!') {
+        ++offset;
+        return truthy(value()) ? "0" : "1";
+      }
+      if (input[offset] == '(') {
+        if (++depth > 32)
+          invalid();
+        ++offset;
+        const bool result = disjunction();
+        if (!match(")"))
+          invalid();
+        --depth;
+        return result ? "1" : "0";
+      }
+      if (input[offset] == '\'' || input[offset] == '"') {
+        const char quote = input[offset++];
+        std::string value;
+        bool closed = false;
+        while (offset < input.size()) {
+          char ch = input[offset++];
+          if (ch == quote) {
+            closed = true;
+            break;
+          }
+          if (ch == '\\' && offset < input.size()) {
+            ch = input[offset++];
+            if (ch == 'n')
+              ch = '\n';
+            else if (ch == 't')
+              ch = '\t';
+          }
+          value.push_back(ch);
+        }
+        if (!closed)
+          invalid();
+        return value;
+      }
+      const std::size_t start = offset;
+      if (input[offset] == '&' &&
+          (offset + 1 >= input.size() || input[offset + 1] != '&'))
+        ++offset; // TJS/KAG dereference, e.g. &f.menuEnabled
+      while (offset < input.size()) {
+        const char ch = input[offset];
+        if (std::isspace(static_cast<unsigned char>(ch)) || ch == ')' ||
+            ch == '(' || ch == '=' || ch == '!' || ch == '<' || ch == '>' ||
+            ch == '&' || ch == '|')
+          break;
+        ++offset;
+      }
+      if (offset == start || (offset == start + 1 && input[start] == '&'))
+        invalid();
+      return variable(input.substr(start, offset - start));
+    }
+    bool comparison() {
+      const auto left = value();
+      const char *op = nullptr;
+      for (const char *candidate : {"==", "!=", ">=", "<=", ">", "<"}) {
+        if (match(candidate)) {
+          op = candidate;
+          break;
+        }
+      }
+      if (!op)
+        return truthy(left);
+      const auto right = value();
+      const std::string symbol = op;
+      double leftNumber = 0, rightNumber = 0;
+      const bool bothNumbers =
+          number(left, leftNumber) && number(right, rightNumber);
+      if (symbol == "==")
+        return bothNumbers ? leftNumber == rightNumber : left == right;
+      if (symbol == "!=")
+        return bothNumbers ? leftNumber != rightNumber : left != right;
+      if (!bothNumbers)
+        return false;
+      if (symbol == ">=")
+        return leftNumber >= rightNumber;
+      if (symbol == "<=")
+        return leftNumber <= rightNumber;
+      if (symbol == ">")
+        return leftNumber > rightNumber;
+      return leftNumber < rightNumber;
+    }
+    bool conjunction() {
+      bool left = comparison();
+      while (match("&&")) {
+        const bool right = comparison();
+        left = left && right;
+      }
+      return left;
+    }
+    bool disjunction() {
+      bool left = conjunction();
+      while (match("||")) {
+        const bool right = conjunction();
+        left = left || right;
+      }
+      return left;
+    }
+    bool evaluate() {
+      if (input.size() > 4096)
+        invalid();
+      const bool result = disjunction();
+      spaces();
+      if (offset != input.size())
+        invalid();
+      return result;
+    }
   };
-  for (const char *op : {"==", "!=", ">=", "<=", ">", "<"}) {
-    const auto pos = expr.find(op);
-    if (pos == std::string::npos)
-      continue;
-    const auto left = operand(expr.substr(0, pos));
-    const auto right =
-        operand(expr.substr(pos + std::char_traits<char>::length(op)));
-    if (std::string(op) == "==")
-      return left == right;
-    if (std::string(op) == "!=")
-      return left != right;
-    char *endL = nullptr, *endR = nullptr;
-    const auto lv = std::strtod(left.c_str(), &endL);
-    const auto rv = std::strtod(right.c_str(), &endR);
-    if (endL == left.c_str() || *endL || endR == right.c_str() || *endR)
-      return false;
-    if (std::string(op) == ">=")
-      return lv >= rv;
-    if (std::string(op) == "<=")
-      return lv <= rv;
-    if (std::string(op) == ">")
-      return lv > rv;
-    return lv < rv;
-  }
-  if (expr.front() == '!')
-    return !truthy(operand(expr.substr(1)));
-  return truthy(operand(expr));
+
+  Predicate parser{expression, resolve};
+  return parser.evaluate();
 }
 
 std::size_t KagScript::Runner::findLabel(const std::string &name) {

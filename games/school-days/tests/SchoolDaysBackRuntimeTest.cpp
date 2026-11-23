@@ -1,6 +1,8 @@
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/routing/SchoolDaysBackLogEngine.hpp>
+#include <SchoolDays/SchoolDaysAssets.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -66,11 +68,29 @@ void WriteScripts(const fs::path &root) {
     Put(script / (std::string(name) + ".ENG.ORS"), ordinary);
 }
 
-void TestTwoStageBack(const char *route, const fs::path &root) {
+void TestTwoStageBack(const char *route, const fs::path &root,
+                      bool fallbackOnly) {
   const auto documents = root / "documents";
   fs::create_directories(documents);
   auto assets = std::make_shared<SchoolDays::Assets>(root);
   Application app(assets, route, documents);
+
+  // This synthetic route deliberately has no retail BackLog PNG or CMAP.
+  // DEV keeps the generic fallback; DIST must expose a clear failure without
+  // displaying the engine's generic dialogue history to the player.
+  Kotonoha::SchoolDaysBackLogEngine nativeBackLog(app.engine, *assets);
+  nativeBackLog.open();
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  Require(!nativeBackLog.isVisible() && !nativeBackLog.LastError().empty(),
+          "DIST opened generic dialogue history after native skin failure");
+#else
+  Require(nativeBackLog.isVisible(),
+          "DEV lost generic dialogue-history fallback after skin failure");
+#endif
+  nativeBackLog.close();
+
+  if (fallbackOnly)
+    return;
 
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
   // The public runtime cannot jump to an arbitrary script. Confirm that the
@@ -114,10 +134,13 @@ void TestTwoStageBack(const char *route, const fs::path &root) {
 
 int main(int argc, char **argv) {
   try {
-    Require(argc == 2, "Usage: SchoolDaysBackRuntimeTest route");
+    const bool fallbackOnly =
+        argc == 3 && std::string(argv[2]) == "--fallback-only";
+    Require(argc == 2 || fallbackOnly,
+            "Usage: SchoolDaysBackRuntimeTest route [--fallback-only]");
     TemporaryDirectory temporary;
     WriteScripts(temporary.path);
-    TestTwoStageBack(argv[1], temporary.path);
+    TestTwoStageBack(argv[1], temporary.path, fallbackOnly);
     std::cout << "SchoolDaysBackRuntimeTest PASS\n";
     return 0;
   } catch (const std::exception &error) {

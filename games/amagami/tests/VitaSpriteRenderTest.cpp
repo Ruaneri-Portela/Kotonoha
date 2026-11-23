@@ -104,8 +104,10 @@ int main() {
     call(bridge, red, 9, {n(0.0), n(2), n(10), n(0)});
     bridge.tick(5);
     const auto redId = uint64_t(red.object->fields[0].number);
-    check(std::abs(bridge.sprites().at(redId).alpha - 0.25) < 1e-8,
-          "Vita quadratic ease-out opacity at midpoint");
+    // Upstream Vita mode 2 is ease-in: alpha fades slowly first and
+    // reaches 0.75 at the midpoint of a 1.0 -> 0.0 ten-frame tween.
+    check(std::abs(bridge.sprites().at(redId).alpha - 0.75) < 1e-8,
+          "Vita mode-2 ease-in opacity at midpoint");
     call(bridge, red, 11, {n(1.5), n(1.5), n(0), n(4), n(0)});
     bridge.tick(2);
     check(std::abs(bridge.sprites().at(redId).zoom[0] - 1.25) < 1e-8,

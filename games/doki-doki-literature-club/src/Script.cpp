@@ -1,6 +1,7 @@
 #include "Ddlc/Script.hpp"
 
 #include <algorithm>
+#include <filesystem>
 
 namespace Ddlc {
 
@@ -118,8 +119,10 @@ void Script::chain(std::vector<Node *> &block, Node *after) {
 void Script::collect(const std::vector<Node *> &block, int priority,
                      bool init) {
   for (Node *n : block) {
-    if (n->k == Node::K::Label)
-      labels_[n->str("name")] = n;
+    if (n->k == Node::K::Label) {
+      const std::string name = n->str("name");
+      labels_[name] = n;
+    }
     if (n->k == Node::K::Screen) {
       std::string sname = n->str("name");
       if (sname.empty())
@@ -143,9 +146,22 @@ void Script::collect(const std::vector<Node *> &block, int priority,
 
 bool Script::load(const Assets &assets, std::string *error) {
   std::vector<std::string> files;
+  const bool katawa = assets.has("script-a1-monday.rpyc") ||
+                      assets.has("game/script-a1-monday.rpyc");
   for (const auto &name : assets.names())
-    if (name.size() > 5 && name.compare(name.size() - 5, 5, ".rpyc") == 0)
-      files.push_back(name);
+    if ((name.size() > 5 && name.compare(name.size() - 5, 5, ".rpyc") == 0) ||
+        (name.size() > 6 && name.compare(name.size() - 6, 6, ".rpymc") == 0)) {
+      if (!katawa) {
+        files.push_back(name);
+        continue;
+      }
+      const std::string base = std::filesystem::path(name).filename().string();
+      const bool translation =
+          base.find('_') != std::string::npos &&
+          (base.rfind("script-", 0) == 0 || base.rfind("ui-", 0) == 0);
+      if (!translation)
+        files.push_back(name);
+    }
   std::sort(files.begin(), files.end());
   files.erase(std::unique(files.begin(), files.end()), files.end());
   for (const auto &file : files) {

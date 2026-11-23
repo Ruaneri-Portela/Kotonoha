@@ -16,9 +16,11 @@
 #include <Kotonoha/events/BackAction.hpp>
 #include <Kotonoha/events/BacklogEvents.hpp>
 #include <Kotonoha/events/ControllerEvent.hpp>
+#include <Kotonoha/events/VideoSkipGesture.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
 #include <Kotonoha/media/upscaling/Upscaler.hpp>
+#include <SummerRadish/ImoutoScript.hpp>
 #include <SummerRadish/Map.hpp>
 #include <SummerRadish/Native.hpp>
 #include <SummerRadish/Script.hpp>
@@ -36,13 +38,54 @@ namespace {
 class SummerText final : public VNTextBox {
   Kotonoha::Providers::SummerAssets &assets;
   std::unique_ptr<ClickMap> controlMap;
-  // SRV1 uses GRAPHIC/FRAME/MESSFRAME, SRV2 uses GRAPHIC/MESFRAME/MESFRAME.
-  std::string frameTexb, frameCmap, selectTexb;
+  // SRV1 uses GRAPHIC/FRAME/MESSFRAME, SRV2/LostM use
+  // GRAPHIC/MESFRAME/MESFRAME.
+  std::string frameTexb, frameCmap, selectTexb, nameTexb;
+  bool lostM = false;
+  bool srv2 = false;
+  bool imouto = false;
+  bool meo = false;
+  int nameId = -1;
+  bool useCustomPlayerName = false;
+  SDL_Color actorColor{240, 240, 245, 255};
   void renderFrame(RendererRef r) override {
+    if (meo) {
+      // MEO renders dialogue subtitles over MPEG-1 video without a TEXB frame.
+      SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(&r, 10, 12, 22, 190);
+      const SDL_FRect bar{20, 418, 760, 162};
+      SDL_RenderFillRect(&r, &bar);
+      SDL_SetRenderDrawColor(&r, 255, 255, 255, 65);
+      SDL_RenderRect(&r, &bar);
+      return;
+    }
     // The normal frame is already composited by the stage. Overlay the
     // original atlas states without rebuilding/upscaling the whole canvas.
     if (assets.contains(frameTexb)) {
       auto &atlas = assets.texture(r, frameTexb);
+      if (lostM || srv2) {
+        static constexpr SDL_FRect lostMBases[7] = {
+            {0, 248, 97, 13},  {0, 334, 92, 13}, {0, 200, 92, 13},
+            {0, 308, 97, 13},  {0, 321, 97, 13}, {0, 235, 92, 13},
+            {394, 248, 16, 20}};
+        static constexpr SDL_FRect srv2Bases[7] = {
+            {0, 288, 81, 20},  {0, 348, 106, 20}, {0, 211, 95, 20},
+            {0, 308, 87, 20},  {0, 328, 79, 20},  {0, 232, 46, 54},
+            {379, 288, 31, 10}};
+        const auto *bases = lostM ? lostMBases : srv2Bases;
+        for (int i = 0; i < 7 && i < int(controls.buttons.size()); ++i) {
+          const int state = controls.state(i);
+          const bool active = (i == 0 && skipActive && skipActive()) ||
+                              (i == 5 && autoActive && autoActive());
+          if (!state && !active)
+            continue;
+          const int col = active ? (state ? 3 : 2) : state;
+          SDL_FRect source{bases[i].x + float(col) * bases[i].w, bases[i].y,
+                           bases[i].w, bases[i].h};
+          RenderUpscaledTexture(&r, &atlas, &source, &controls.buttons[i].area);
+        }
+        return;
+      }
       for (int i = 0; i < 6; ++i) {
         const int state = controls.state(i);
         const bool active = (i == 0 && skipActive && skipActive()) ||
@@ -64,7 +107,37 @@ class SummerText final : public VNTextBox {
     }
   }
   void renderSpeaker(RendererRef r) override {
-    engine.GetVNUI().text(r, speakerName, 24, 400, 650,
+    if (lostM) {
+      if (nameId < 0)
+        return;
+      if (assets.contains(frameTexb)) {
+        auto &atlas = assets.texture(r, frameTexb);
+        SDL_FRect baseSrc{440, 200, 218, 35};
+        SDL_FRect baseDst{25, 391, 218, 35};
+        RenderUpscaledTexture(&r, &atlas, &baseSrc, &baseDst);
+      }
+      if (nameId == 0 && useCustomPlayerName) {
+        engine.GetVNUI().text(r, speakerName, 40, 396, 188,
+                              engine.GetSettings().vnTextColorOverride
+                                  ? engine.GetSettings().vnSpeakerColor
+                                  : SDL_Color{240, 240, 240, 255});
+      } else if (assets.contains(nameTexb)) {
+        auto &nameAtlas = assets.texture(r, nameTexb);
+        float nw = 0, nh = 0;
+        SDL_GetTextureSize(&nameAtlas, &nw, &nh);
+        const float srcY = float(nameId * 34);
+        if (srcY + 34.0f <= nh) {
+          SDL_FRect src{0, srcY, std::min(188.0f, nw), 34.0f};
+          SDL_FRect dst{40, 391, src.w, 34.0f};
+          RenderUpscaledTexture(&r, &nameAtlas, &src, &dst);
+        }
+      }
+      return;
+    }
+    const float speakerX = imouto ? 62.0f : (meo ? 38.0f : 24.0f);
+    const float speakerY = imouto ? 454.0f : (meo ? 426.0f : 400.0f);
+    const float speakerW = imouto ? 676.0f : (meo ? 724.0f : 650.0f);
+    engine.GetVNUI().text(r, speakerName, speakerX, speakerY, speakerW,
                           engine.GetSettings().vnTextColorOverride
                               ? engine.GetSettings().vnSpeakerColor
                               : SDL_Color{240, 240, 245, 255});
@@ -73,17 +146,32 @@ class SummerText final : public VNTextBox {
     auto measure = [&](const std::string &value) {
       return engine.GetVNUI().textWidth(value);
     };
-    const auto lines = VNTextBoxUtility::RevealLines(
-        fullDialogue, visibleDialogue.size(), measure, 710);
-    for (std::size_t i = 0; i < lines.size(); ++i)
-      engine.GetVNUI().text(r, lines[i], 20, 444 + i * 28, 710,
-                            engine.GetSettings().vnTextColorOverride
+    const float boxX = lostM ? 80.0f : (imouto ? 62.0f : (meo ? 38.0f : 20.0f));
+    const float boxY =
+        lostM ? 434.0f : (imouto ? 486.0f : (meo ? 460.0f : 444.0f));
+    const float boxW =
+        lostM ? 644.0f : (imouto ? 676.0f : (meo ? 724.0f : 710.0f));
+    const SDL_Color color = engine.GetSettings().vnTextColorOverride
                                 ? engine.GetSettings().vnTextColor
-                                : SDL_Color{240, 240, 245, 255});
+                                : actorColor;
+    const auto lines = VNTextBoxUtility::RevealLines(
+        fullDialogue, visibleDialogue.size(), measure, boxW);
+    for (std::size_t i = 0; i < lines.size(); ++i)
+      engine.GetVNUI().text(r, lines[i], boxX, boxY + i * 28, boxW, color);
   }
   void renderIndicator(RendererRef r) override {
     if (assets.contains(frameTexb)) {
       auto &atlas = assets.texture(r, frameTexb);
+      if (lostM) {
+        const bool isAuto = autoActive && autoActive();
+        const float frameX = isAuto
+                                 ? float(70 + ((SDL_GetTicks() / 200) % 4) * 7)
+                                 : float(((SDL_GetTicks() / 120) % 7) * 7);
+        SDL_FRect source{frameX, 347, 7, 87};
+        SDL_FRect target{740, 473, 7, 87};
+        RenderUpscaledTexture(&r, &atlas, &source, &target);
+        return;
+      }
       SDL_FRect source{float(256 + ((SDL_GetTicks() / 200) % 4) * 16), 210, 16,
                        40};
       SDL_FRect target{719, 526, 16, 40};
@@ -95,6 +183,11 @@ public:
   ImageButtonBar controls;
   bool concealed = false;
   std::function<bool()> autoActive, skipActive;
+  void setLostMMetadata(int id, bool customName, SDL_Color color) {
+    nameId = id;
+    useCustomPlayerName = customName;
+    actorColor = color;
+  }
   void update() override {
     if (concealed)
       clock.reset();
@@ -106,24 +199,51 @@ public:
       VNTextBox::render(r, scale);
   }
   SummerText(Engine &e, Kotonoha::Providers::SummerAssets &a)
-      : VNTextBox(e, "", "", 40), assets(a) {
-    // SRV2 uses GRAPHIC/MESFRAME/*; SRV1 uses GRAPHIC/FRAME/*.
-    const bool srv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
-    const std::string prefix = srv2 ? "GRAPHIC/MESFRAME/" : "GRAPHIC/FRAME/";
-    frameTexb = prefix + (srv2 ? "MESFRAME.TEXB" : "MESSFRAME.TEXB");
-    frameCmap = prefix + (srv2 ? "MESFRAME.CMAP" : "MESSFRAME.CMAP");
+      : VNTextBox(e, "", "", 40), assets(a), lostM(a.isLostM()),
+        srv2(!a.isLostM() && a.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB")),
+        imouto(a.isImoutoDeIkou()),
+        meo(!a.isImoutoDeIkou() && a.contains("SCRIPT/A-00.XML")) {
+    // SRV2/LostM use GRAPHIC/MESFRAME/*; SRV1 uses GRAPHIC/FRAME/*.
+    const bool useMesframe = lostM || srv2;
+    const std::string prefix =
+        useMesframe ? "GRAPHIC/MESFRAME/" : "GRAPHIC/FRAME/";
+    frameTexb = prefix + (useMesframe ? "MESFRAME.TEXB" : "MESSFRAME.TEXB");
+    frameCmap = prefix + (useMesframe ? "MESFRAME.CMAP" : "MESSFRAME.CMAP");
     selectTexb = prefix + "SELECT.TEXB";
+    nameTexb = prefix + "NAME.TEXB";
     hide();
     if (auto cmap = assets.tryReadAsset(frameCmap))
       controlMap = std::make_unique<ClickMap>(std::move(*cmap));
-    controls.hitTest = [this](SDL_FPoint p) {
-      const int id =
-          controlMap ? controlMap->value(int(p.x), int(p.y) - 391) : -1;
-      return id >= 1 && id <= 6 ? id - 1 : -1;
-    };
-    controls.buttons = {{{417, 576, 96, 18}, {}}, {{507, 576, 96, 18}, {}},
-                        {{597, 576, 96, 18}, {}}, {{687, 576, 96, 18}, {}},
-                        {{778, 577, 18, 18}, {}}, {{750, 515, 46, 62}, {}}};
+    if (lostM) {
+      controls.hitTest = [this](SDL_FPoint p) {
+        const int id =
+            controlMap ? controlMap->value(int(p.x) - 64, int(p.y) - 426) : -1;
+        return id >= 1 && id <= 7 ? id - 1 : -1;
+      };
+      controls.buttons = {{{443, 563, 97, 13}, {}}, {{612, 580, 92, 13}, {}},
+                          {{502, 580, 92, 13}, {}}, {{557, 563, 97, 13}, {}},
+                          {{669, 563, 97, 13}, {}}, {{392, 580, 92, 13}, {}},
+                          {{733, 432, 16, 20}, {}}};
+    } else if (srv2) {
+      controls.hitTest = [this](SDL_FPoint p) {
+        const int id =
+            controlMap ? controlMap->value(int(p.x), int(p.y) - 390) : -1;
+        return id >= 1 && id <= 7 ? id - 1 : -1;
+      };
+      controls.buttons = {{{396, 576, 81, 20}, {}}, {{465, 576, 106, 20}, {}},
+                          {{559, 576, 95, 20}, {}}, {{642, 576, 87, 20}, {}},
+                          {{717, 576, 79, 20}, {}}, {{750, 522, 46, 54}, {}},
+                          {{765, 512, 31, 10}, {}}};
+    } else {
+      controls.hitTest = [this](SDL_FPoint p) {
+        const int id =
+            controlMap ? controlMap->value(int(p.x), int(p.y) - 391) : -1;
+        return id >= 1 && id <= 6 ? id - 1 : -1;
+      };
+      controls.buttons = {{{417, 576, 96, 18}, {}}, {{507, 576, 96, 18}, {}},
+                          {{597, 576, 96, 18}, {}}, {{687, 576, 96, 18}, {}},
+                          {{778, 577, 18, 18}, {}}, {{750, 515, 46, 62}, {}}};
+    }
   }
   bool designSpace() const override { return false; }
   bool handleEvent(EventRef e) override {
@@ -156,27 +276,48 @@ class SummerChoice final : public ChoiceQuestionScene {
     focused = focused && (pointerFocus || keyboardFocus);
     const auto &rect = options[index].hitBox;
     const bool read = index < readStates.size() && readStates[index];
-    const float start = (read ? 160 : 0) + (focused ? 80 : 0);
+    const float capL = assets.isLostM() ? 20.0f : 32.0f;
+    const float midW = assets.isLostM() ? 18.0f : 16.0f;
+    const float capR = assets.isLostM() ? 20.0f : 32.0f;
+    const float stride = capL + midW + capR;
+    const float secondOffset = assets.isLostM() ? 116.0f : 160.0f;
+    const float start =
+        (read ? secondOffset : 0.0f) + (focused ? stride : 0.0f);
     if (assets.contains(selectTexb)) {
       auto &atlas = assets.texture(r, selectTexb);
-      SDL_FRect source{start, 0, 32, 42}, target{rect.x, rect.y, 32, 42};
+      SDL_FRect source{start, 0, capL, 42}, target{rect.x, rect.y, capL, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
-      source = {start + 32, 0, 16, 42};
-      target = {rect.x + 32, rect.y, rect.w - 64, 42};
+      source = {start + capL, 0, midW, 42};
+      target = {rect.x + capL, rect.y, rect.w - capL - capR, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
-      source = {start + 48, 0, 32, 42};
-      target = {rect.x + rect.w - 32, rect.y, 32, 42};
+      source = {start + capL + midW, 0, capR, 42};
+      target = {rect.x + rect.w - capR, rect.y, capR, 42};
       RenderUpscaledTexture(&r, &atlas, &source, &target);
+    } else {
+      SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+      SDL_SetRenderDrawColor(&r, focused ? 72 : 20, focused ? 46 : 24,
+                             focused ? 116 : 42, focused ? 240 : 215);
+      SDL_RenderFillRect(&r, &rect);
+      SDL_SetRenderDrawColor(&r, focused ? 255 : 180, focused ? 225 : 190,
+                             focused ? 150 : 220, focused ? 235 : 160);
+      SDL_RenderRect(&r, &rect);
     }
-    const auto size =
-        engine.GetUI().measureSized(options[index].label, rect.w - 16, 28);
+    const float maxTextW = std::max(64.0f, rect.w - capL - capR);
+    float fontSize = 28.0f;
+    SDL_FPoint size =
+        engine.GetUI().measureSized(options[index].label, 10000.0f, fontSize);
+    while (size.x > maxTextW && fontSize > 16.0f) {
+      fontSize -= 2.0f;
+      size =
+          engine.GetUI().measureSized(options[index].label, 10000.0f, fontSize);
+    }
     const SDL_Color color = read ? (focused ? SDL_Color{255, 240, 128, 255}
                                             : SDL_Color{204, 192, 96, 255})
                                  : (focused ? SDL_Color{240, 240, 240, 255}
                                             : SDL_Color{192, 192, 192, 255});
     engine.GetUI().textSized(
         r, options[index].label, rect.x + (rect.w - size.x) / 2,
-        rect.y + (42 - size.y) / 2, rect.w - 16, 28, color);
+        rect.y + (42 - size.y) / 2, maxTextW, fontSize, color);
   }
   SDL_FRect listArea() const override { return {0, 0, 800, 600}; }
   void renderPanel(RendererRef r) override {
@@ -188,10 +329,13 @@ class SummerChoice final : public ChoiceQuestionScene {
   std::unique_ptr<ClickMap> hitmap;
   int nativeMode = -1, focus = -1, uniformPhase = 0, uniformIndex = 0;
   bool isSrv2 = false;
+  bool pointerDownInChoice = false;
+  Uint64 uniformPhaseStart = 0;
   float oldX = -100, oldY = -100;
 
 public:
   std::function<void(const std::string &)> nativeSound;
+  std::function<bool()> nativeSoundPlaying;
   explicit SummerChoice(Engine &e, Kotonoha::Providers::SummerAssets &a)
       : ChoiceQuestionScene(e, "", {}, nullptr), assets(a) {
     isSrv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
@@ -224,6 +368,8 @@ public:
     nativeMode = mode;
     focus = uniform ? 0 : -1;
     uniformPhase = 0;
+    pointerDownInChoice = false;
+    uniformPhaseStart = SDL_GetTicks();
     oldX = oldY = -100;
     const auto id = uniform ? "GRAPHIC/UNIFORM/UNICHOICE.CMAP"
                             : mapLayout(mode, isSrv2).hitmap;
@@ -302,10 +448,15 @@ public:
         }
       }
     } else if (uniformPhase == 0) {
-      if (focus >= 0) {
+      if (focus >= 0 && focus < 3) {
         static const int x[3] = {220, 20, 420};
-        compositeImageRegion(canvas, image("GRAPHIC/UNIFORM/UNICHOICE.TEXB"),
-                             x[focus], 52, focus * 362, 0, 361, 547);
+        const auto &tex = image("GRAPHIC/UNIFORM/UNICHOICE.TEXB");
+        const int dstY = (isSrv2 || tex.height >= 600) ? 0 : 52;
+        const int srcH = std::min(tex.height, 600 - dstY);
+        const int colW = (tex.width >= 3 * 362) ? 361 : (tex.width / 3);
+        const int stride = (tex.width >= 3 * 362) ? 362 : colW;
+        compositeImageRegion(canvas, tex, x[focus], dstY, focus * stride, 0,
+                             colW, srcH);
       }
     } else if (uniformPhase == 2) {
       const std::string kakuninTex = "GRAPHIC/UNIFORM/KAKUNIN.TEXB";
@@ -346,10 +497,16 @@ public:
     }
     if (!active)
       return false;
+    if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+        e.button.button == SDL_BUTTON_LEFT)
+      pointerDownInChoice = true;
     bool confirm = e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
                    (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE);
     bool mouse = e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
-                 e.button.button == SDL_BUTTON_LEFT;
+                 e.button.button == SDL_BUTTON_LEFT && pointerDownInChoice;
+    if (e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
+        e.button.button == SDL_BUTTON_LEFT)
+      pointerDownInChoice = false;
     if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
       if (e.key.key == SDLK_ESCAPE) {
         if (nativeMode == 100 && uniformPhase) {
@@ -423,16 +580,34 @@ public:
     if (uniformPhase == 0 && focus >= 0) {
       uniformIndex = focus;
       uniformPhase = 1;
+      uniformPhaseStart = SDL_GetTicks();
       if (nativeSound) {
-        if (isSrv2)
-          nativeSound("SE/SELUNI/00" + std::to_string(2 * (uniformIndex + 1)));
-        else
-          nativeSound("systemmsg_000" + std::to_string(4 * (uniformIndex + 1)));
+        if (isSrv2) {
+          // Verified from SummerRadish2.sdll: 0=deccru->004, 1=declem->002,
+          // 2=decsuk->006.
+          static const char *srv2UniformVoices[3] = {
+              "SE/SELUNI/004", "SE/SELUNI/002", "SE/SELUNI/006"};
+          nativeSound(srv2UniformVoices[std::clamp(uniformIndex, 0, 2)]);
+        } else {
+          // Verified from SummerRadish.sdll: 0->0004, 1->0008, 2->0012.
+          static const char *srv1UniformVoices[3] = {
+              "systemmsg_0004", "systemmsg_0008", "systemmsg_0012"};
+          nativeSound(srv1UniformVoices[std::clamp(uniformIndex, 0, 2)]);
+        }
       }
       return true;
     }
     if (uniformPhase == 1) {
+      const Uint64 now = SDL_GetTicks();
+      const Uint64 elapsed =
+          now >= uniformPhaseStart ? now - uniformPhaseStart : 0;
+      // Let the outfit-name voice line play completely (matching the native
+      // crossfade wipe + voice delivery) before opening the confirm dialog.
+      if (elapsed < 450 ||
+          (nativeSoundPlaying && nativeSoundPlaying() && elapsed < 3000))
+        return true;
       uniformPhase = 2;
+      uniformPhaseStart = now;
       focus = -1;
       if (nativeSound)
         nativeSound(isSrv2 ? "SE/SELUNI/008" : "systemmsg_0016");
@@ -440,15 +615,16 @@ public:
     }
     if (uniformPhase == 2 && focus == 0) {
       if (nativeSound)
-        nativeSound(isSrv2 ? "SE/SELUNI/010" : "systemmsg_0020");
+        nativeSound(isSrv2 ? "SE/SELUNI/014" : "systemmsg_0020");
       select(size_t(uniformIndex));
       return true;
     }
     if (uniformPhase == 2 && focus == 1) {
       uniformPhase = 0;
+      uniformPhaseStart = SDL_GetTicks();
       focus = uniformIndex;
       if (nativeSound)
-        nativeSound(isSrv2 ? "SE/SELUNI/014" : "systemmsg_0024");
+        nativeSound(isSrv2 ? "SE/SELUNI/010" : "systemmsg_0024");
       return true;
     }
     return false;
@@ -491,6 +667,7 @@ struct SummerRuntime::Impl {
   std::unique_ptr<VNSaveMenu> saves;
   PcmPlayer bgm, se, voice;
   std::unique_ptr<MediaPlayer> movie;
+  VideoSkipGesture videoSkip;
   std::string background = "GRAPHIC/黒.BGD", music, pending, byteOverlay,
               lastVoice;
   bool skipMode = false;
@@ -516,8 +693,13 @@ struct SummerRuntime::Impl {
   std::string canvasKey;
   std::map<std::string, std::pair<int, int>> origins;
   std::vector<std::string> speakers;
-  // SRV1: {0, -200, 200}; SRV2: parsed from GRAPHIC.INI Position line.
+  std::vector<SDL_Color> speakerColors;
+  // SRV1: {0, -200, 200}; SRV2/LostM: parsed from GRAPHIC.INI Position line.
   std::vector<int> positionOffsets = {0, -200, 200};
+  int quakeAxis = 0; // 1 = X, 2 = Y
+  int quakeAmp = 0, quakeCycles = 0, quakeStepMs = 16;
+  uint64_t quakeStart = 0;
+  int quakeOffsetX = 0, quakeOffsetY = 0;
   std::array<std::string, 4> defaultNames{};
   TextInputForm *nameForm = nullptr;
   static std::string nameKey(const char *prefix, size_t index) {
@@ -590,6 +772,68 @@ struct SummerRuntime::Impl {
   uint64_t deadline = 0, lastUpdate = 0, lastSystemWrite = 0;
   bool title = false, autoMode = false, loaded = false, skipHeld = false,
        currentRead = false, openingPlayed = false;
+  struct MeoFadeState {
+    int alpha = 0;
+    uint8_t r = 0, g = 0, b = 0;
+  };
+  bool meo = false, meoMenu = false, meoSceneMenu = false;
+  bool meoLogoActive = false;
+  Uint64 meoLogoStart = 0;
+  Uint64 meoTitleFadeStart = 0;
+  bool meoOverlayOpen = false;
+  int meoOverlayFocus = 0; // 0=SPEED, 1=SAVE, 2=BACKLOG, 3=SYSTEM, 4=STOP
+  int meoSpeedIndex = 0;   // 0=1x, 1=1.5x, 2=2x, 3=3x, 4=4x
+  Bytes meoSystemMap;
+  Bytes meoTitleMap;
+  std::map<std::string, Bytes> meoScripts;
+  std::vector<std::string> meoScenes;
+  size_t meoSceneFocus = 0;
+  std::map<std::string, std::string> meoText;
+  std::string meoRawSpeaker;
+  std::string meoVoiceTrack;
+  std::vector<std::string> activeOriginalKeys;
+  std::string currentRawSpeaker, currentRawDialogue, currentVoiceId;
+  std::vector<Node> meoFrames;
+  std::string meoCurrentScript;
+  std::string meoNextScript;
+  std::vector<std::pair<std::string, std::string>> meoChoices;
+  std::map<std::string, int64_t> meoGlobals;
+  std::map<std::string, int64_t> meoLocals;
+  std::map<std::string, MeoFadeState> meoFades;
+  uint64_t meoLoveViewUntil = 0;
+  size_t meoFrame = 0;
+  uint64_t meoFrameStart = 0;
+  uint64_t meoElapsedOffset = 0;
+  int meoFrameLength = 0;
+  int meoSelectStart = 0, meoSelectEnd = 0;
+  bool meoChoiceShown = false;
+  // Imouto de Ikou! (runscrmod.dll + scrth.dll) runtime state
+  bool imouto = false, imoutoMenu = false;
+  ImoutoVM imoutoVm;
+  std::array<uint8_t, 0x2300> imoutoSystemBin{};
+  std::string imoutoProtagGiven = "久志";
+  std::string imoutoProtagFamily = "吉住";
+  int imoutoCharId = 0, imoutoTint = 0;
+  std::string imoutoSpeaker, imoutoPendingText, imoutoPendingVoice;
+  struct ImoutoLayer {
+    std::string path;
+    int x = 0, y = 0;
+  };
+  std::map<int, ImoutoLayer> imoutoBgLayers;
+  struct ImoutoSprite {
+    std::string id;
+    int charId = 0, x = 0, y = 0, tint = 0;
+  };
+  std::vector<ImoutoSprite> imoutoSprites;
+  struct ImoutoManpuSlot {
+    bool active = false;
+    std::string path;
+    ManpuAnimation anim;
+    int seqId = 0;
+    int x = 0, y = 0;
+    int frameId = -1;
+  };
+  std::array<ImoutoManpuSlot, 8> imoutoManpu{};
   int titleFocus = 0;
   std::string pendingScript;
   // Per-edition title layout loaded from EASYTITLE.INI.
@@ -597,10 +841,13 @@ struct SummerRuntime::Impl {
     std::string name;
     std::string flag;
     int atlasX = 0, atlasY = 0, atlasW = 0, atlasH = 0; // Source rect in atlas
+    int drawX = 0, drawY = 0, drawW = 0, drawH = 0;     // Screen destination
+    bool hasDrawArea = false;
   };
   int titleBaseX = 0, titleBaseY = 0; // Screen base position from [TITLE000]
   int titleChipSpacing = 40;          // Vertical spacing between chips
-  std::string titleChipTexture;       // TEMPLATENAME or fallback
+  bool titleAbsoluteAlign = false;    // ALIGN-X/Y = ABSOLUTE (Lost M)
+  std::string titleChipTexture;       // TEXNAME / TEMPLATENAME or fallback
   std::vector<TitleChip> allTitleChips;
   std::vector<TitleChip> titleChips;
   void refreshTitleChips() {
@@ -622,90 +869,154 @@ struct SummerRuntime::Impl {
   explicit Impl(SummerRuntime &r,
                 std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
       : runtime(r), assets(std::move(a)) {
-    for (auto &id : assets->list("SCRIPT/")) {
-      auto bytes = assets->read(id);
-      vm.add(stem(id.substr(7)), std::string(bytes.begin(), bytes.end()));
+    const auto scriptIds = assets->list("SCRIPT/");
+    imouto = assets->isImoutoDeIkou();
+    meo = !imouto && (std::find(scriptIds.begin(), scriptIds.end(),
+                                "SCRIPT/A-00.XML") != scriptIds.end() ||
+                      std::find(scriptIds.begin(), scriptIds.end(),
+                                "SCRIPT/Z-ED-GOOD.XML") != scriptIds.end());
+    if (imouto) {
+      imoutoVm.onCall = [this](const std::string &cmd,
+                               const std::vector<ImoutoSlot> &args) {
+        return execImoutoCommand(cmd, args);
+      };
+    } else if (meo) {
+      for (auto &id : scriptIds) {
+        if (canonical(id.substr(id.find_last_of('.') + 1)) == "XML")
+          meoScripts.emplace(id, assets->read(id));
+      }
+      for (const auto &[id, bytes] : meoScripts)
+        meoScenes.push_back(stem(id.substr(id.find_last_of('/') + 1)));
+      if (assets->contains("GRAPHIC/SYSTEM.MAP"))
+        meoSystemMap = assets->read("GRAPHIC/SYSTEM.MAP");
+      if (assets->contains("GRAPHIC/TITLE.MAP"))
+        meoTitleMap = assets->read("GRAPHIC/TITLE.MAP");
+    } else {
+      for (auto &id : assets->list("SCRIPT/")) {
+        auto bytes = assets->read(id);
+        vm.add(stem(id.substr(7)), std::string(bytes.begin(), bytes.end()));
+      }
     }
-    std::istringstream stream(
-        assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
-    std::string line;
-    speakers.resize(64);
-    while (std::getline(stream, line)) {
-      if (line.rfind("PlayerName0", 0) == 0 && line.size() > 12 &&
-          line[11] >= '0' && line[11] <= '3') {
-        const auto eq = line.find('=');
-        if (eq != line.npos) {
-          auto val = line.substr(eq + 1);
+    if (!meo && !imouto) {
+      std::istringstream stream(
+          assets->loadTextUtf8("INI/CONFIG.INI", "UTF-16LE"));
+      std::string line;
+      speakers.resize(64);
+      speakerColors.assign(64, SDL_Color{240, 240, 245, 255});
+      std::vector<int> cgFlags(64, 0);
+      while (std::getline(stream, line)) {
+        if (line.rfind("PlayerName0", 0) == 0 && line.size() > 12 &&
+            line[11] >= '0' && line[11] <= '3') {
+          const auto eq = line.find('=');
+          if (eq != line.npos) {
+            auto val = line.substr(eq + 1);
+            val.erase(0, val.find_first_not_of(" \t"));
+            val.erase(val.find_last_not_of(" \t\r") + 1);
+            auto &name = defaultNames[size_t(line[11] - '0')];
+            if (!val.empty() && val[0] == '@') {
+              // SRV2/LostM: @-prefixed literal UTF-8 string (after UTF-16LE
+              // decode).
+              name = val.substr(1);
+            } else if (val.size() % 2 == 0 &&
+                       val.find_first_not_of("0123456789abcdefABCDEF") ==
+                           val.npos) {
+              // SRV1: hex-encoded byte string.
+              for (size_t at = 0; at < val.size(); at += 2)
+                name += char(std::stoi(val.substr(at, 2), nullptr, 16));
+            }
+          }
+        }
+        if (line.size() > 11 && line.substr(0, 3) == "CHR" &&
+            line.substr(6, 4) == "Name") {
+          int i = std::stoi(line.substr(3, 3));
+          auto eq = line.find('=');
+          if (i >= int(speakers.size()) || eq == line.npos)
+            continue;
+          std::string val = line.substr(eq + 1);
           val.erase(0, val.find_first_not_of(" \t"));
           val.erase(val.find_last_not_of(" \t\r") + 1);
-          auto &name = defaultNames[size_t(line[11] - '0')];
           if (!val.empty() && val[0] == '@') {
-            // SRV2: @-prefixed literal UTF-8 string (after UTF-16LE decode).
-            name = val.substr(1);
+            // SRV2/LostM: @-prefixed literal UTF-8 string.
+            speakers[i] = val.substr(1);
           } else if (val.size() % 2 == 0 &&
-                     val.find_first_not_of("0123456789abcdefABCDEF") ==
+                     val.find_first_not_of("0123456789ABCDEFabcdef") ==
                          val.npos) {
             // SRV1: hex-encoded byte string.
-            for (size_t at = 0; at < val.size(); at += 2)
-              name += char(std::stoi(val.substr(at, 2), nullptr, 16));
+            std::string name;
+            for (size_t p = 0; p < val.size(); p += 2)
+              name += char(std::stoi(val.substr(p, 2), nullptr, 16));
+            speakers[i] = name;
+          }
+        } else if (line.size() > 15 && line.substr(0, 3) == "CHR" &&
+                   line.substr(6, 9) == "FontColor") {
+          int i = std::stoi(line.substr(3, 3));
+          auto eq = line.find('=');
+          if (i >= 0 && i < int(speakerColors.size()) && eq != line.npos) {
+            std::string val = line.substr(eq + 1);
+            val.erase(0, val.find_first_not_of(" \t"));
+            val.erase(val.find_last_not_of(" \t\r") + 1);
+            try {
+              unsigned long rgb = std::stoul(val, nullptr, 16);
+              speakerColors[size_t(i)] =
+                  SDL_Color{Uint8((rgb >> 16) & 0xff), Uint8((rgb >> 8) & 0xff),
+                            Uint8(rgb & 0xff), 255};
+            } catch (...) {
+            }
+          }
+        } else if (line.size() > 12 && line.substr(0, 3) == "CHR" &&
+                   line.substr(6, 6) == "CgFlag") {
+          int i = std::stoi(line.substr(3, 3));
+          auto eq = line.find('=');
+          if (i >= 0 && i < int(cgFlags.size()) && eq != line.npos) {
+            std::string val = line.substr(eq + 1);
+            val.erase(0, val.find_first_not_of(" \t"));
+            val.erase(val.find_last_not_of(" \t\r") + 1);
+            try {
+              cgFlags[size_t(i)] = std::stoi(val);
+            } catch (...) {
+            }
           }
         }
       }
-      if (line.size() > 11 && line.substr(0, 3) == "CHR" &&
-          line.substr(6, 4) == "Name") {
-        int i = std::stoi(line.substr(3, 3));
-        auto eq = line.find('=');
-        if (i >= int(speakers.size()) || eq == line.npos)
-          continue;
-        std::string val = line.substr(eq + 1);
-        val.erase(0, val.find_first_not_of(" \t"));
-        val.erase(val.find_last_not_of(" \t\r") + 1);
-        if (!val.empty() && val[0] == '@') {
-          // SRV2: @-prefixed literal UTF-8 string.
-          speakers[i] = val.substr(1);
-        } else if (val.size() % 2 == 0 &&
-                   val.find_first_not_of("0123456789ABCDEFabcdef") ==
-                       val.npos) {
-          // SRV1: hex-encoded byte string.
-          std::string name;
-          for (size_t p = 0; p < val.size(); p += 2)
-            name += char(std::stoi(val.substr(p, 2), nullptr, 16));
-          speakers[i] = name;
+      for (size_t i = 0; i < speakers.size(); ++i) {
+        if (!speakers[i].empty() && (cgFlags[i] & 0x8000) != 0) {
+          vm.variables["$HAIR" + speakers[i]] =
+              int64_t((cgFlags[i] & 1) ? 0x10000 : 0);
         }
       }
-    }
-    // Parse character position offsets from GRAPHIC.INI (SRV2 has 7 slots).
-    if (assets->contains("INI/GRAPHIC.INI")) {
-      std::istringstream gfx(
-          assets->loadTextUtf8("INI/GRAPHIC.INI", "UTF-16LE"));
-      std::string gline;
-      while (std::getline(gfx, gline)) {
-        if (gline.rfind("Position ", 0) == 0 ||
-            gline.rfind("Position=", 0) == 0 ||
-            gline.rfind("Position\t", 0) == 0) {
-          auto eq = gline.find('=');
-          if (eq == gline.npos)
-            continue;
-          std::string csv = gline.substr(eq + 1);
-          csv.erase(0, csv.find_first_not_of(" \t"));
-          csv.erase(csv.find_last_not_of(" \t\r") + 1);
-          std::vector<int> parsed;
-          std::istringstream ss(csv);
-          std::string token;
-          while (std::getline(ss, token, ',')) {
-            token.erase(0, token.find_first_not_of(" \t"));
-            token.erase(token.find_last_not_of(" \t") + 1);
-            if (!token.empty())
-              parsed.push_back(std::stoi(token));
+      // Parse character position offsets from GRAPHIC.INI (SRV2 has 7 slots).
+      if (assets->contains("INI/GRAPHIC.INI")) {
+        std::istringstream gfx(
+            assets->loadTextUtf8("INI/GRAPHIC.INI", "UTF-16LE"));
+        std::string gline;
+        while (std::getline(gfx, gline)) {
+          if (gline.rfind("Position ", 0) == 0 ||
+              gline.rfind("Position=", 0) == 0 ||
+              gline.rfind("Position\t", 0) == 0) {
+            auto eq = gline.find('=');
+            if (eq == gline.npos)
+              continue;
+            std::string csv = gline.substr(eq + 1);
+            csv.erase(0, csv.find_first_not_of(" \t"));
+            csv.erase(csv.find_last_not_of(" \t\r") + 1);
+            std::vector<int> parsed;
+            std::istringstream ss(csv);
+            std::string token;
+            while (std::getline(ss, token, ',')) {
+              token.erase(0, token.find_first_not_of(" \t"));
+              token.erase(token.find_last_not_of(" \t") + 1);
+              if (!token.empty())
+                parsed.push_back(std::stoi(token));
+            }
+            if (!parsed.empty())
+              positionOffsets = std::move(parsed);
           }
-          if (!parsed.empty())
-            positionOffsets = std::move(parsed);
         }
       }
+      vm.function = [this](const auto &name, const auto &args) {
+        function(name, args);
+      };
     }
-    vm.function = [this](const auto &name, const auto &args) {
-      function(name, args);
-    };
   }
   std::filesystem::path saveDirectory() const {
     if (const char *path = SDL_getenv("SUMMER_SAVE_DIR"))
@@ -743,6 +1054,8 @@ struct SummerRuntime::Impl {
           continue;
         }
         variables[key] = number;
+        if (meo && key.size() > 1)
+          meoGlobals[key.substr(1)] = number;
       }
     }
     input >> std::ws;
@@ -754,6 +1067,10 @@ struct SummerRuntime::Impl {
   void saveSystem() {
     if (!loaded)
       return;
+    if (meo) {
+      for (const auto &[k, v] : meoGlobals)
+        vm.variables["$" + k] = v;
+    }
     size_t count = 0;
     for (auto &[key, value] : vm.variables)
       if (!key.empty() && key[0] == '$')
@@ -780,11 +1097,27 @@ struct SummerRuntime::Impl {
     std::filesystem::rename(temporary, path);
   }
   void finishMessage() {
+    if (imouto) {
+      voice.Stop();
+      activeOriginalKeys.clear();
+      currentVoiceId.clear();
+      currentRawSpeaker.clear();
+      currentRawDialogue.clear();
+      pending.clear();
+      if (!skipMode && !skipHeld)
+        autoMode = false;
+      imoutoVm.resume();
+      return;
+    }
     if (vm.resource.children.size() > 1)
       vm.markRead(vm.resource.children[1]);
     voice.Stop();
     extraVoiceActors_.clear();
     currentMessageActor = 0;
+    activeOriginalKeys.clear();
+    currentVoiceId.clear();
+    currentRawSpeaker.clear();
+    currentRawDialogue.clear();
     pending.clear();
     autoMode = skipMode = false;
     vm.resume();
@@ -797,7 +1130,8 @@ struct SummerRuntime::Impl {
     runtime.AddScene(saves.get());
   }
   void audio(PcmPlayer &player, const std::string &id,
-             const std::string &channel, bool loop = false) {
+             const std::string &channel, bool loop = false,
+             std::size_t startFrame = 0) {
     player.Stop();
     if (!assets->contains(id)) {
       warn("Missing audio: " + id);
@@ -817,8 +1151,19 @@ struct SummerRuntime::Impl {
     clip.channels = target.channels;
     clip.rate = target.freq;
     clip.loop = loop;
+    clip.startFrame = startFrame;
     clip.samples.resize(size / 2);
     std::memcpy(clip.samples.data(), converted, size);
+
+    if (loop && meo && canonical(id).size() >= 4 &&
+        canonical(id).compare(canonical(id).size() - 4, 4, ".BGM") == 0) {
+      const auto bytes = assets->read(id);
+      if (bytes.size() >= 16) {
+        clip.loopStart = std::size_t(bytes[0]) | std::size_t(bytes[1]) << 8 |
+                         std::size_t(bytes[2]) << 16 |
+                         std::size_t(bytes[3]) << 24;
+      }
+    }
 
     if (loop && channel == "BGM") {
       const auto introId = std::string("SOUND/BGM/INTORO/") +
@@ -870,6 +1215,7 @@ struct SummerRuntime::Impl {
     titleBaseX = 0;
     titleBaseY = 0;
     titleChipSpacing = 40;
+    titleAbsoluteAlign = false;
     auto inipath = iniPath;
     if (!inipath.empty() && inipath[0] == '@')
       inipath.erase(0, 1);
@@ -906,7 +1252,8 @@ struct SummerRuntime::Impl {
       size_t start = line.find_first_not_of(" \t\r\n");
       if (start == std::string::npos)
         continue;
-      line = line.substr(start);
+      size_t end = line.find_last_not_of(" \t\r\n");
+      line = line.substr(start, end - start + 1);
       if (line.empty() || line[0] == '#' || line[0] == ';')
         continue;
       if (line.front() == '[' && line.back() == ']') {
@@ -925,22 +1272,34 @@ struct SummerRuntime::Impl {
       auto key = line.substr(0, eq);
       auto val = line.substr(eq + 1);
       key.erase(0, key.find_first_not_of(" \t"));
-      key.erase(key.find_last_not_of(" \t") + 1);
+      if (!key.empty())
+        key.erase(key.find_last_not_of(" \t") + 1);
       val.erase(0, val.find_first_not_of(" \t"));
-      val.erase(val.find_last_not_of(" \t\r") + 1);
+      if (!val.empty())
+        val.erase(val.find_last_not_of(" \t\r\n") + 1);
+      auto stripAt = [](std::string s) {
+        if (!s.empty() && s[0] == '@')
+          s.erase(0, 1);
+        return s;
+      };
       if (section == "TOTAL") {
-        if (key == "TEMPLATENAME")
-          titleChipTexture = val;
-      } else if (section.rfind("TITLE", 0) == 0) {
-        if (key == "DRAWAREA") {
+        if (key == "TEMPLATENAME" || key == "TEXNAME")
+          titleChipTexture = stripAt(val);
+      } else if (section == "TITLE000") {
+        if (key == "BASE" && !val.empty()) {
+          background = stripAt(val);
+        } else if (key == "ALIGN-X" || key == "ALIGN-Y") {
+          if (canonical(val) == "ABSOLUTE")
+            titleAbsoluteAlign = true;
+        } else if (key == "DRAWAREA") {
           for (char &ch : val)
             if (ch == ',')
               ch = ' ';
           std::istringstream v(val);
-          int a, b, c, d, e;
-          if (v >> a >> b >> c >> d >> e) {
-            titleBaseX = b;
-            titleBaseY = a;
+          int a, b, c, d;
+          if (v >> a >> b >> c >> d) {
+            titleBaseX = a;
+            titleBaseY = b;
           }
         }
       } else if (section.rfind("CHIP", 0) == 0 && chipIndex >= 0 &&
@@ -952,17 +1311,30 @@ struct SummerRuntime::Impl {
           chip.flag = val;
         else if (key == "SIZE") {
           titleChipSpacing = std::stoi(val);
-        } else if (key == "AREA" || key == "DRAWAREA") {
+        } else if (key == "AREA") {
           for (char &ch : val)
             if (ch == ',')
               ch = ' ';
           std::istringstream v(val);
-          int a, b, c, d, e;
-          if (v >> a >> b >> c >> d >> e) {
-            chip.atlasX = b;
-            chip.atlasY = a;
+          int a, b, c, d;
+          if (v >> a >> b >> c >> d) {
+            chip.atlasX = a;
+            chip.atlasY = b;
             chip.atlasW = c;
             chip.atlasH = d;
+          }
+        } else if (key == "DRAWAREA") {
+          for (char &ch : val)
+            if (ch == ',')
+              ch = ' ';
+          std::istringstream v(val);
+          int a, b, c, d;
+          if (v >> a >> b >> c >> d) {
+            chip.drawX = a;
+            chip.drawY = b;
+            chip.drawW = c;
+            chip.drawH = d;
+            chip.hasDrawArea = true;
           }
         }
       }
@@ -987,6 +1359,1006 @@ struct SummerRuntime::Impl {
       titleChipSpacing = 40;
     }
     refreshTitleChips();
+  }
+  void applyMeoFrame(const Node &frame) {
+    std::string speaker = meoRawSpeaker;
+    std::string dialogue, originalDialogue;
+    std::vector<std::string> originalLines;
+    bool hasDialogue = false;
+    if (!frame.children.empty()) {
+      for (const auto &child : frame.children) {
+        if (child.tag == "Text") {
+          const auto mess = meoText.find(child.attr("MESS"));
+          if (hasDialogue) {
+            dialogue += '\n';
+            originalDialogue += '\n';
+          }
+          const auto original =
+              mess != meoText.end() ? mess->second : child.attr("MESS");
+          originalDialogue += original;
+          dialogue += translated(original);
+          originalLines.push_back(original);
+          hasDialogue = true;
+        } else if (child.tag == "Log") {
+          const auto nameNo = child.attr("NAME");
+          if (nameNo != "-1") {
+            auto it = meoText.find(nameNo);
+            if (it != meoText.end())
+              speaker = it->second;
+          }
+        } else if (child.tag == "EraseText") {
+          text->hide();
+        } else if (child.tag == "Bgm") {
+          auto name = canonical(child.text);
+          if (name.rfind("SOUND/", 0) != 0)
+            name = "SOUND/" + name;
+          if (music != name) {
+            music = name;
+            audio(bgm, music, "BGM", true);
+          }
+        } else if (child.tag == "BgmStop") {
+          bgm.Stop();
+          music.clear();
+        } else if (child.tag == "Fade") {
+          const std::string name = child.attr("NAME");
+          if (child.attr("ERASE") == "TRUE") {
+            meoFades.erase(name);
+          } else {
+            auto &st = meoFades[name];
+            if (name.find("_WH") != std::string::npos) {
+              st.r = st.g = st.b = 255;
+            }
+            const std::string diff = child.attr("DIFF");
+            if (!diff.empty()) {
+              int a = 0, r = 0, g = 0, b = 0;
+              char c1 = 0, c2 = 0, c3 = 0;
+              std::istringstream ss(diff);
+              if (ss >> a >> c1 >> r >> c2 >> g >> c3 >> b) {
+                st.alpha = std::clamp(a, 0, 255);
+                st.r = uint8_t(std::clamp(r, 0, 255));
+                st.g = uint8_t(std::clamp(g, 0, 255));
+                st.b = uint8_t(std::clamp(b, 0, 255));
+              }
+            }
+          }
+        } else if (child.tag == "Objects") {
+          for (const auto &object : child.children) {
+            if (object.attr("CREATE") != "Movie")
+              continue;
+            auto file = object.attr("FILE");
+            if (file.empty())
+              continue;
+            auto slash = file.find('/');
+            if (slash != std::string::npos)
+              file = file.substr(slash + 1);
+            const std::string id = "GRAPHIC/" + file;
+            if (assets->contains(id)) {
+              movie->open(*assets, id, false, "BGM");
+              movie->setPaused(false);
+            }
+          }
+        }
+      }
+    }
+    if (hasDialogue) {
+      meoRawSpeaker = speaker;
+      currentRawSpeaker = speaker;
+      currentRawDialogue = originalDialogue;
+      currentVoiceId.clear();
+      activeOriginalKeys.clear();
+      if (!speaker.empty())
+        activeOriginalKeys.push_back(speaker);
+      for (const auto &line : originalLines)
+        if (!line.empty())
+          activeOriginalKeys.push_back(line);
+      text->setDialogue(translated(speaker), dialogue);
+      text->show();
+    }
+  }
+  int64_t evalMeoExpr(const Node &n) {
+    if (n.tag == "INT") {
+      try {
+        return std::stoll(n.text);
+      } catch (...) {
+        return 0;
+      }
+    }
+    if (n.tag == "GLOBAL") {
+      auto it = meoGlobals.find(n.text);
+      return it != meoGlobals.end() ? it->second : 0;
+    }
+    if (n.tag == "LOCAL") {
+      auto it = meoLocals.find(n.text);
+      return it != meoLocals.end() ? it->second : 0;
+    }
+    if (n.tag == "ADD" && n.children.size() >= 2)
+      return evalMeoExpr(n.children[0]) + evalMeoExpr(n.children[1]);
+    if (n.tag == "SUB" && n.children.size() >= 2)
+      return evalMeoExpr(n.children[0]) - evalMeoExpr(n.children[1]);
+    if (n.tag == "OPE" && n.children.size() >= 2)
+      return evalMeoExpr(n.children[0]) == evalMeoExpr(n.children[1]) ? 1 : 0;
+    if (n.tag == "OPGE" && n.children.size() >= 2)
+      return evalMeoExpr(n.children[0]) >= evalMeoExpr(n.children[1]) ? 1 : 0;
+    if (n.tag == "SET" && n.children.size() >= 2) {
+      const int64_t val = evalMeoExpr(n.children[1]);
+      if (n.children[0].tag == "GLOBAL") {
+        meoGlobals[n.children[0].text] = val;
+        vm.variables["$" + n.children[0].text] = val;
+      } else if (n.children[0].tag == "LOCAL") {
+        meoLocals[n.children[0].text] = val;
+      }
+      return val;
+    }
+    if (n.tag == "CALC") {
+      int64_t last = 0;
+      for (const auto &c : n.children)
+        last = evalMeoExpr(c);
+      return last;
+    }
+    return 0;
+  }
+  void execMeoCode(const Node &node) {
+    if (node.tag == "Code" || node.tag == "BLOCK") {
+      for (const auto &c : node.children)
+        execMeoCode(c);
+      return;
+    }
+    if (node.tag == "CALC") {
+      evalMeoExpr(node);
+      return;
+    }
+    if (node.tag == "IFBLOCK") {
+      for (size_t i = 0; i + 1 < node.children.size(); i += 2) {
+        if (evalMeoExpr(node.children[i]) != 0) {
+          execMeoCode(node.children[i + 1]);
+          break;
+        }
+      }
+      return;
+    }
+    if (node.tag == "FUNC") {
+      const std::string fn = node.attr("NAME");
+      std::vector<std::string> refs;
+      for (const auto &c : node.children)
+        if (c.tag == "STRRES")
+          refs.push_back(c.text);
+      if (fn == "SetSelectScript" && refs.size() >= 2) {
+        const auto target = meoText.find(refs[0]);
+        const auto label = meoText.find(refs[1]);
+        if (target != meoText.end() && label != meoText.end())
+          meoChoices.emplace_back(label->second, target->second);
+      } else if (fn == "SetTimeoutScript" && !refs.empty()) {
+        const auto found = meoText.find(refs[0]);
+        if (found != meoText.end())
+          meoNextScript = found->second;
+      } else if (fn == "ViewMisaoLove") {
+        meoLoveViewUntil = SDL_GetTicks() + 3000;
+      }
+    }
+  }
+  void beginMeo(const std::string &scriptName) {
+    SDL_Log("MEO: begin script %s", scriptName.c_str());
+    if (canonical(stem(scriptName)) == "A-00")
+      meoLocals.clear();
+    meoMenu = false;
+    if (movie)
+      movie->stop();
+    voice.Stop();
+    text->hide();
+    meoText.clear();
+    meoRawSpeaker.clear();
+    meoVoiceTrack.clear();
+    activeOriginalKeys.clear();
+    currentRawSpeaker.clear();
+    currentRawDialogue.clear();
+    currentVoiceId.clear();
+    meoFrames.clear();
+    meoNextScript.clear();
+    meoChoices.clear();
+    meoFades.clear();
+    meoFrame = 0;
+    meoFrameLength = 0;
+    meoElapsedOffset = 0;
+    meoSelectStart = meoSelectEnd = 0;
+    meoChoiceShown = false;
+    choice->hide();
+
+    std::string wanted = canonical(scriptName);
+    if (wanted.find('.') == std::string::npos)
+      wanted += ".XML";
+    Bytes source;
+    bool found = false;
+    const std::string directId = "SCRIPT/" + wanted;
+    if (auto bytes = assets->tryReadAsset(directId)) {
+      source = std::move(*bytes);
+      found = true;
+    } else {
+      try {
+        (void)assets->read(directId);
+      } catch (const std::exception &) {
+      }
+    }
+    if (!found) {
+      const std::string directLowerId =
+          "SCRIPT/" + scriptName +
+          (scriptName.find('.') == std::string::npos ? ".XML" : "");
+      try {
+        source = assets->read(directLowerId);
+        found = true;
+      } catch (const std::exception &) {
+      }
+    }
+    if (!found) {
+      for (const auto &[id, bytes] : meoScripts) {
+        auto filename = std::filesystem::path(id).filename().string();
+        auto stemId = stem(filename);
+        const auto slash = id.find_last_of('/');
+        const auto fallbackName =
+            slash == std::string::npos ? id : id.substr(slash + 1);
+        const auto fallbackStem = stem(fallbackName);
+        const std::string requestedStem = stem(wanted);
+        if (canonical(stemId) == requestedStem ||
+            canonical(fallbackStem) == requestedStem) {
+          source = bytes;
+          found = true;
+          break;
+        }
+      }
+    }
+    if (!found) {
+      text->setDialogue(
+          "MISS EACH OTHER",
+          "MEO assets detected, but the initial script could not be indexed.");
+      text->show();
+      runtime.SetState(GameState::Gameplay);
+      return;
+    }
+    meoCurrentScript = wanted;
+
+    const std::string xml(source.begin(), source.end());
+    const auto voiceStart = xml.find("<VoiceFile>");
+    if (voiceStart != std::string::npos) {
+      const auto valueStart = voiceStart + sizeof("<VoiceFile>") - 1;
+      const auto valueEnd = xml.find("</VoiceFile>", valueStart);
+      if (valueEnd != std::string::npos) {
+        meoVoiceTrack =
+            canonical(xml.substr(valueStart, valueEnd - valueStart));
+        if (meoVoiceTrack.rfind("SOUND/", 0) != 0)
+          meoVoiceTrack = "SOUND/" + meoVoiceTrack;
+        audio(voice, meoVoiceTrack, "Voice");
+      }
+    }
+    auto attrValue = [](const std::string &tag, const std::string &name) {
+      const std::string needle = name + "=\"";
+      auto start = tag.find(needle);
+      if (start == std::string::npos)
+        return std::string();
+      start += needle.size();
+      auto end = tag.find('"', start);
+      if (end == std::string::npos)
+        return std::string();
+      return tag.substr(start, end - start);
+    };
+
+    size_t textPos = 0;
+    while ((textPos = xml.find("<TextRes ", textPos)) != std::string::npos) {
+      const auto tagEnd = xml.find('>', textPos);
+      const auto valueStart =
+          tagEnd == std::string::npos ? std::string::npos : tagEnd + 1;
+      const auto valueEnd = valueStart == std::string::npos
+                                ? std::string::npos
+                                : xml.find("</TextRes>", valueStart);
+      if (tagEnd == std::string::npos || valueEnd == std::string::npos)
+        break;
+      const std::string tag = xml.substr(textPos, tagEnd - textPos);
+      meoText[attrValue(tag, "NO")] =
+          xml.substr(valueStart, valueEnd - valueStart);
+      textPos = valueEnd + 10;
+    }
+
+    const std::string lengthTag = "<FrameLength>";
+    auto lengthPos = xml.find(lengthTag);
+    if (lengthPos != std::string::npos) {
+      lengthPos += lengthTag.size();
+      const auto end = xml.find("</FrameLength>", lengthPos);
+      if (end != std::string::npos)
+        meoFrameLength = std::stoi(xml.substr(lengthPos, end - lengthPos));
+    }
+
+    auto integerTag = [&](const char *tag) {
+      const std::string open = std::string("<") + tag + ">";
+      const std::string close = std::string("</") + tag + ">";
+      auto start = xml.find(open);
+      if (start == std::string::npos)
+        return 0;
+      start += open.size();
+      auto end = xml.find(close, start);
+      return end == std::string::npos
+                 ? 0
+                 : std::stoi(xml.substr(start, end - start));
+    };
+    meoSelectStart = integerTag("SelectStartTime");
+    meoSelectEnd = integerTag("SelectEndTime");
+    const auto codeStart = xml.find("<Code>");
+    const auto codeEnd = xml.find("</Code>", codeStart);
+    if (codeStart != std::string::npos && codeEnd != std::string::npos) {
+      try {
+        execMeoCode(parseXml(xml.substr(codeStart, codeEnd + 7 - codeStart)));
+      } catch (const std::exception &e) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "MEO Code parse warning: %s",
+                    e.what());
+      }
+    }
+    saveSystem();
+
+    size_t framePos = 0;
+    while ((framePos = xml.find("<Frame ", framePos)) != std::string::npos) {
+      const auto tagEnd = xml.find('>', framePos);
+      const auto frameEnd = tagEnd == std::string::npos
+                                ? std::string::npos
+                                : xml.find("</Frame>", tagEnd);
+      if (tagEnd == std::string::npos || frameEnd == std::string::npos)
+        break;
+      const std::string tag = xml.substr(framePos, tagEnd - framePos);
+      const std::string body = xml.substr(tagEnd + 1, frameEnd - tagEnd - 1);
+
+      Node frame;
+      frame.tag = "Frame";
+      frame.attrs["TIME"] = attrValue(tag, "TIME");
+
+      size_t childPos = 0;
+      while ((childPos = body.find('<', childPos)) != std::string::npos) {
+        const auto end = body.find('>', childPos);
+        if (end == std::string::npos)
+          break;
+        const std::string tag = body.substr(childPos, end - childPos + 1);
+        Node child;
+        if (tag.compare(0, 5, "<Log ") == 0) {
+          child.tag = "Log";
+          child.attrs["NAME"] = attrValue(tag, "NAME");
+          child.attrs["MESS"] = attrValue(tag, "MESS");
+        } else if (tag.compare(0, 6, "<Text ") == 0) {
+          child.tag = "Text";
+          child.attrs["MESS"] = attrValue(tag, "MESS");
+        } else if (tag.compare(0, 10, "<EraseText") == 0) {
+          child.tag = "EraseText";
+        } else if (tag.compare(0, 9, "<BgmStop") == 0) {
+          child.tag = "BgmStop";
+        } else if (tag.compare(0, 4, "<Bgm") == 0) {
+          const auto close = body.find("</Bgm>", end + 1);
+          if (close != std::string::npos) {
+            child.tag = "Bgm";
+            child.text = body.substr(end + 1, close - end - 1);
+          }
+        } else if (tag.compare(0, 8, "<FDIN_BL") == 0 ||
+                   tag.compare(0, 8, "<FDIN_WH") == 0 ||
+                   tag.compare(0, 8, "<FDOT_BL") == 0 ||
+                   tag.compare(0, 8, "<FDOT_WH") == 0) {
+          child.tag = "Fade";
+          child.attrs["NAME"] = tag.substr(1, 7);
+          child.attrs["DIFF"] = attrValue(tag, "DIFF");
+          child.attrs["ERASE"] = attrValue(tag, "ERASE");
+        } else if (tag.find("CREATE=\"Movie\"") != std::string::npos) {
+          child.tag = "Objects";
+          Node object;
+          object.tag = "Object";
+          object.attrs["CREATE"] = "Movie";
+          object.attrs["FILE"] = attrValue(tag, "FILE");
+          child.children.push_back(std::move(object));
+        }
+        if (!child.tag.empty())
+          frame.children.push_back(std::move(child));
+        childPos = end + 1;
+      }
+      meoFrames.push_back(std::move(frame));
+      framePos = frameEnd + 8;
+    }
+
+    meoFrameStart = SDL_GetTicks();
+    runtime.SetState(GameState::Gameplay);
+    text->show();
+    if (!meoFrames.empty()) {
+      meoFrame = 0;
+      applyMeoFrame(meoFrames[0]);
+      SDL_Log("MEO: timeline %s (%zu frames, length %d, next %s)",
+              wanted.c_str(), meoFrames.size(), meoFrameLength,
+              meoNextScript.c_str());
+    } else {
+      text->setDialogue("", "MEO timeline loaded, but no Frame nodes found.");
+    }
+  }
+  void openMeoLogo() {
+    if (movie)
+      movie->stop();
+    bgm.Stop();
+    voice.Stop();
+    music.clear();
+    if (!assets->contains("GRAPHIC/ROGO.TEX")) {
+      openMeoMenu(false);
+      return;
+    }
+    meoLogoActive = true;
+    meoLogoStart = SDL_GetTicks();
+    meoTitleFadeStart = 0;
+    meoMenu = true;
+    meoSceneMenu = false;
+    titleFocus = 0;
+    text->hide();
+    runtime.SetState(GameState::Menu);
+  }
+  void openMeoMenu(bool fadeIn = false) {
+    if (movie)
+      movie->stop();
+    bgm.Stop();
+    voice.Stop();
+    music.clear();
+    meoLogoActive = false;
+    meoTitleFadeStart = fadeIn ? SDL_GetTicks() : 0;
+    meoMenu = true;
+    meoSceneMenu = false;
+    titleFocus = 0;
+    text->hide();
+    if (assets->contains("SOUND/MEO02.BGM")) {
+      music = "SOUND/MEO02.BGM";
+      audio(bgm, music, "BGM", true);
+    }
+    runtime.SetState(GameState::Menu);
+  }
+  void updateMeo(Uint64 now) {
+    if (meoMenu || meoFrames.empty())
+      return;
+    const double seconds =
+        double(meoElapsedOffset +
+               (now >= meoFrameStart ? now - meoFrameStart : 0)) /
+        1000.0;
+    // FILMEngine advances the SND track in groups of 24 script frames.
+    const int frameTime = int(seconds * 24.0);
+    if (!meoChoices.empty() && meoSelectEnd > meoSelectStart &&
+        frameTime >= meoSelectStart && frameTime < meoSelectEnd &&
+        !meoChoiceShown) {
+      std::vector<ChoiceOption> options;
+      for (size_t i = 0; i < meoChoices.size(); ++i)
+        options.push_back({translated(meoChoices[i].first), int(i)});
+      meoChoiceShown = true;
+      choice->setQuestion("", options, [this](int index, const std::string &) {
+        if (index < 0 || size_t(index) >= meoChoices.size())
+          return;
+        const std::string target = meoChoices[index].second;
+        choice->hide();
+        beginMeo(target);
+      });
+    }
+    if (meoChoiceShown && frameTime >= meoSelectEnd)
+      choice->hide();
+    while (meoFrame + 1 < meoFrames.size()) {
+      const int nextTime = std::stoi(meoFrames[meoFrame + 1].attr("TIME"));
+      if (frameTime < nextTime)
+        break;
+      ++meoFrame;
+      applyMeoFrame(meoFrames[meoFrame]);
+    }
+    if (meoFrameLength > 0 && frameTime >= meoFrameLength &&
+        !meoNextScript.empty()) {
+      const std::string next = meoNextScript;
+      beginMeo(next);
+    }
+  }
+  static std::string imoutoAlphaMaskPath(int mode) {
+    int num = 0;
+    if (mode >= 6 && mode <= 10)
+      num = mode - 5; // 0001..0005.ALP
+    else if (mode >= 11 && mode <= 34)
+      num = mode - 4; // 0007..0030.ALP (0006.ALP is skipped in native)
+    if (num <= 0)
+      return {};
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "BGDATA/%04d.ALP", num);
+    return buf;
+  }
+  Image composeImoutoScene() {
+    Image canvas;
+    canvas.width = 800;
+    canvas.height = 600;
+    canvas.rgba.assign(800u * 600u * 4u, 0);
+    for (size_t i = 3; i < canvas.rgba.size(); i += 4)
+      canvas.rgba[i] = 255;
+    for (const auto &[slot, layer] : imoutoBgLayers) {
+      if (layer.path.empty() || !assets->contains(layer.path))
+        continue;
+      const auto &img = image(layer.path);
+      const int drawX = img.x + layer.x - bgOffsetX;
+      const int drawY = img.y + layer.y - bgOffsetY;
+      compositeImage(canvas, img, drawX, drawY);
+    }
+    for (const auto &sp : imoutoSprites) {
+      if (sp.id.empty() || !assets->contains(sp.id))
+        continue;
+      Image spr = image(sp.id);
+      if (sp.tint != 0)
+        applyLightingTint(spr, sp.tint);
+      compositeImage(canvas, spr, spr.x + sp.x, spr.y + sp.y);
+    }
+    for (const auto &mp : imoutoManpu) {
+      if (!mp.active || mp.frameId < 0)
+        continue;
+      auto it = mp.anim.frames.find(mp.frameId);
+      if (it != mp.anim.frames.end())
+        compositeImage(canvas, it->second, it->second.x + mp.x,
+                       it->second.y - mp.y);
+    }
+    return canvas;
+  }
+  void openImoutoMenu() {
+    if (movie)
+      movie->stop();
+    bgm.Stop();
+    se.Stop();
+    voice.Stop();
+    imoutoMenu = true;
+    title = false;
+    titleFocus = 0;
+    pending.clear();
+    imoutoVm.waiting = false;
+    imoutoBgLayers.clear();
+    imoutoSprites.clear();
+    for (auto &mp : imoutoManpu)
+      mp.active = false;
+    if (text)
+      text->hide();
+    if (choice)
+      choice->hide();
+    background =
+        assets->contains("BGDATA/MAINTITLE.BGD")
+            ? "BGDATA/MAINTITLE.BGD"
+            : (assets->contains("BGDATA/TITLE.BGD") ? "BGDATA/TITLE.BGD"
+                                                    : "BGDATA/NOBG.BGD");
+    imoutoBgLayers[0] = {background, 0, 0};
+    presented = composeImoutoScene();
+    canvasKey.clear();
+    runtime.SetState(GameState::Menu);
+  }
+  void beginImouto(const std::string &scriptStem = "init") {
+    if (movie)
+      movie->stop();
+    bgm.Stop();
+    se.Stop();
+    voice.Stop();
+    imoutoMenu = false;
+    title = false;
+    pending.clear();
+    imoutoBgLayers.clear();
+    imoutoSprites.clear();
+    for (auto &mp : imoutoManpu)
+      mp.active = false;
+    imoutoTint = 0;
+    bgOffsetX = bgOffsetY = 0;
+    scrollDuration = 0;
+    transitionDuration = 0;
+    if (text)
+      text->hide();
+    if (choice)
+      choice->hide();
+    runtime.SetState(GameState::Gameplay);
+    const std::string scrId = "SCRIPT/" + canonical(scriptStem) + ".SCR";
+    imoutoVm.loadScript(scriptStem, assets->read(scrId));
+    imoutoVm.run();
+  }
+  std::string expandImoutoMacros(std::string s) const {
+    auto replaceAll = [&](const std::string &from, const std::string &to) {
+      size_t pos = 0;
+      while ((pos = s.find(from, pos)) != std::string::npos) {
+        s.replace(pos, from.size(), to);
+        pos += to.size();
+      }
+    };
+    replaceAll("*1", imoutoProtagGiven);
+    replaceAll("*2", imoutoProtagFamily);
+    return s;
+  }
+  bool getImoutoBit(size_t byteBase, int bit) const {
+    if (bit < 0)
+      return false;
+    const size_t idx = byteBase + (size_t(bit) >> 3);
+    if (idx >= imoutoSystemBin.size())
+      return false;
+    return (imoutoSystemBin[idx] & uint8_t(1u << (bit & 7))) != 0;
+  }
+  void setImoutoBit(size_t byteBase, int bit, bool value) {
+    if (bit < 0)
+      return;
+    const size_t idx = byteBase + (size_t(bit) >> 3);
+    if (idx >= imoutoSystemBin.size())
+      return;
+    const uint8_t mask = uint8_t(1u << (bit & 7));
+    if (value)
+      imoutoSystemBin[idx] |= mask;
+    else
+      imoutoSystemBin[idx] &= uint8_t(~mask);
+  }
+  int32_t execImoutoCommand(const std::string &cmd,
+                            const std::vector<ImoutoSlot> &args) {
+    auto argInt = [&](size_t i, int32_t def = 0) -> int32_t {
+      return i < args.size() && args[i].type == ImoutoSlot::Type::Int
+                 ? args[i].intVal
+                 : def;
+    };
+    auto argStr = [&](size_t i) -> std::string {
+      return i < args.size() && args[i].type == ImoutoSlot::Type::String
+                 ? args[i].strVal
+                 : std::string();
+    };
+    const std::string key = canonical(cmd);
+
+    if (key == "CHR_SET") {
+      imoutoCharId = argInt(0, 0);
+      imoutoSpeaker = argStr(1);
+      return 0;
+    }
+    if (key == "SETMES") {
+      imoutoPendingText = expandImoutoMacros(argStr(0));
+      const std::string vDef = argStr(1);
+      const std::string vAlt = argStr(2);
+      const std::string chosen = !vAlt.empty() ? vAlt : vDef;
+      imoutoPendingVoice = chosen.empty()
+                               ? std::string()
+                               : ("VDATA/" + canonical(chosen) + ".OGG");
+      return 0;
+    }
+    if (key == "PUTMES") {
+      presented = composeImoutoScene();
+      currentRawSpeaker = imoutoSpeaker;
+      currentRawDialogue = imoutoPendingText;
+      currentVoiceId = imoutoPendingVoice;
+      currentRead = imoutoVm.lastSetBitWasRead;
+      if (!imoutoPendingVoice.empty() && assets->contains(imoutoPendingVoice))
+        audio(voice, imoutoPendingVoice, "Voice", false);
+      else
+        voice.Stop();
+      if (text) {
+        text->setDialogue(imoutoSpeaker, imoutoPendingText);
+        text->show();
+        if (engine && !imoutoPendingVoice.empty())
+          GetVNBacklogRuntime(*engine).setLastVoice(imoutoPendingVoice);
+      }
+      imoutoPendingText.clear();
+      imoutoPendingVoice.clear();
+      pending = "MESSAGE";
+      imoutoVm.waiting = true;
+      deadline = 0;
+      canvasKey.clear();
+      return 0;
+    }
+    if (key == "SETSEL") {
+      std::vector<std::string> labels;
+      for (size_t i = 0; i + 1 < args.size(); i += 2) {
+        if (args[i].type == ImoutoSlot::Type::String && !args[i].strVal.empty())
+          labels.push_back(expandImoutoMacros(args[i].strVal));
+      }
+      if (labels.empty()) {
+        imoutoVm.setSystemReg(32, 0);
+        return 0;
+      }
+      presented = composeImoutoScene();
+      if (text)
+        text->hide();
+      pending = "CHOICE";
+      imoutoVm.waiting = true;
+      std::vector<ChoiceOption> opts;
+      for (size_t i = 0; i < labels.size(); ++i)
+        opts.push_back({labels[i], int(i)});
+      choice->setQuestion("", opts, [this](int index, const std::string &) {
+        choice->hide();
+        imoutoVm.setSystemReg(32, index);
+        pending.clear();
+        imoutoVm.resume();
+      });
+      canvasKey.clear();
+      return 0;
+    }
+    if (key == "CHANGE") {
+      const std::string nextStem = argStr(0);
+      if (!nextStem.empty()) {
+        const std::string scrId = "SCRIPT/" + canonical(nextStem) + ".SCR";
+        if (assets->contains(scrId)) {
+          imoutoVm.loadScript(nextStem, assets->read(scrId));
+        } else {
+          warn("Missing Imouto script: " + scrId);
+        }
+      }
+      return 0;
+    }
+    if (key == "WAIT") {
+      const int ms = argInt(0, 0);
+      if (ms > 0) {
+        pending = "WAIT";
+        waitSkippable = true;
+        waitSe = false;
+        deadline = SDL_GetTicks() + uint64_t(ms);
+        imoutoVm.waiting = true;
+      }
+      return 0;
+    }
+    if (key == "MOVIE") {
+      const std::string file = argStr(0);
+      if (movie && !file.empty()) {
+        try {
+          movie->open(assets->movieHandle(file), file, false, "Movie");
+          pending = "MOVIE";
+          videoSkip.reset();
+          imoutoVm.waiting = true;
+          if (text)
+            text->hide();
+        } catch (const std::exception &e) {
+          warn(std::string("Imouto Movie failed: ") + e.what());
+        }
+      }
+      return 0;
+    }
+    if (key == "ENDING") {
+      if (argInt(0, 0) == 1)
+        setImoutoBit(0x00, 0, true);
+      openImoutoMenu();
+      imoutoVm.waiting = true;
+      return 0;
+    }
+    if (key == "LDBG") {
+      const std::string name = argStr(0);
+      const int tint = argInt(1, 0);
+      const int x = argInt(2, 0);
+      const int y = argInt(3, 0);
+      const int slot = argInt(4, 0);
+      std::string path = "BGDATA/" + canonical(name) + ".BGD";
+      if (!assets->contains(path))
+        path = "BGDATA/NOBG.BGD";
+      if (slot == 0) {
+        imoutoBgLayers.clear();
+        imoutoSprites.clear();
+        bgOffsetX = bgOffsetY = 0;
+        background = path;
+      }
+      imoutoTint = tint;
+      imoutoBgLayers[slot] = {path, x, y};
+      return 0;
+    }
+    if (key == "LDEV") {
+      const std::string name = argStr(0);
+      if (args.size() > 1 && args[1].type == ImoutoSlot::Type::Int)
+        setImoutoBit(0x80, args[1].intVal + 0x400, true);
+      const int x = argInt(2, 0);
+      const int y = argInt(3, 0);
+      const int slot = argInt(4, 0);
+      std::string path = "EVDATA/" + canonical(name) + ".CGD";
+      if (!assets->contains(path))
+        path = "EVDATA/BLACK.CGD";
+      if (slot == 0) {
+        imoutoBgLayers.clear();
+        imoutoSprites.clear();
+        bgOffsetX = bgOffsetY = 0;
+        background = path;
+      }
+      imoutoBgLayers[slot] = {path, x, y};
+      return 0;
+    }
+    if (key == "LDCHR" || key == "RLDCHR" || key == "LLDCHR" || key == "LCH" ||
+        key == "CCH" || key == "RCH") {
+      const std::string name = argStr(0);
+      const int charId = argInt(1, 0);
+      const std::string path = "CHRDATA/" + canonical(name) + ".CHR";
+      auto eraseAtX = [&](int targetX) {
+        imoutoSprites.erase(std::remove_if(imoutoSprites.begin(),
+                                           imoutoSprites.end(),
+                                           [targetX](const ImoutoSprite &s) {
+                                             return s.x == targetX;
+                                           }),
+                            imoutoSprites.end());
+      };
+      int x = 0, y = 0;
+      if (key == "LDCHR") {
+        x = argInt(2, 0);
+        y = argInt(3, 0);
+        const int keep = argInt(4, 0);
+        if (keep != 1)
+          eraseAtX(x);
+      } else if (key == "RLDCHR") {
+        for (auto &s : imoutoSprites)
+          if (s.x == 0 && s.charId > 0)
+            s.x = -200;
+        eraseAtX(200);
+        x = 200;
+      } else if (key == "LLDCHR") {
+        for (auto &s : imoutoSprites)
+          if (s.x == 0 && s.charId > 0)
+            s.x = 200;
+        eraseAtX(-200);
+        x = -200;
+      } else if (key == "LCH") {
+        eraseAtX(-200);
+        x = -200;
+      } else if (key == "CCH") {
+        eraseAtX(0);
+        x = 0;
+      } else if (key == "RCH") {
+        eraseAtX(200);
+        x = 200;
+      }
+      if (assets->contains(path))
+        imoutoSprites.push_back({path, charId, x, y, imoutoTint});
+      return 0;
+    }
+    if (key == "CCC") {
+      imoutoSprites.clear();
+      return 0;
+    }
+    if (key == "BGDXY") {
+      // v1.01 behavior: reposition layered BG/EV slot >= 1 to (x, y)
+      const int slot = argInt(0, 0);
+      const int x = argInt(1, 0);
+      const int y = argInt(2, 0);
+      if (slot >= 1) {
+        auto it = imoutoBgLayers.find(slot);
+        if (it != imoutoBgLayers.end()) {
+          it->second.x = x;
+          it->second.y = y;
+        }
+      }
+      presented = composeImoutoScene();
+      canvasKey.clear();
+      return 0;
+    }
+    if (key == "EVSCR" || key == "SCROLL") {
+      const int dx = argInt(0, 0);
+      const int dy = argInt(1, 0);
+      const int dur = std::max(0, argInt(3, 0));
+      scrollStartX = bgOffsetX;
+      scrollStartY = bgOffsetY;
+      scrollTargetX = bgOffsetX + dx;
+      scrollTargetY = bgOffsetY + dy;
+      scrollDuration = dur;
+      if (dur > 0) {
+        scrollStart = SDL_GetTicks();
+        pending = "SCROLLCG";
+        deadline = scrollStart + uint64_t(dur);
+        imoutoVm.waiting = true;
+      } else {
+        bgOffsetX = scrollTargetX;
+        bgOffsetY = scrollTargetY;
+        presented = composeImoutoScene();
+        canvasKey.clear();
+      }
+      return 0;
+    }
+    if (key == "FADE") {
+      const int mode = argInt(0, 4);
+      const int ms = std::max(0, argInt(1, 400));
+      transitionFrom =
+          presented.rgba.empty() ? composeImoutoScene() : presented;
+      if (mode == 0) {
+        imoutoBgLayers.clear();
+        imoutoSprites.clear();
+        if (assets->contains("BGDATA/BLACK.BGD"))
+          imoutoBgLayers[0] = {"BGDATA/BLACK.BGD", 0, 0};
+      } else if (mode == 5) {
+        imoutoSprites.clear();
+      }
+      presented = composeImoutoScene();
+      if (mode == 2) {
+        // Fade out to white
+        presented.rgba.assign(800u * 600u * 4u, 255);
+      }
+      if (ms > 0 && !skipMode && !skipHeld) {
+        transitionType = (mode >= 6 && mode <= 34) ? mode : 4;
+        transitionOption = 0;
+        transitionDuration = ms;
+        transitionStart = SDL_GetTicks();
+        pending = "WIPE";
+        deadline = transitionStart + uint64_t(ms);
+        imoutoVm.waiting = true;
+      } else {
+        transitionDuration = 0;
+      }
+      canvasKey.clear();
+      return 0;
+    }
+    if (key == "MANPU") {
+      if (!args.empty() && args[0].type == ImoutoSlot::Type::String) {
+        const std::string name = argStr(0);
+        const int slot = std::clamp(argInt(2, 0), 0, 7);
+        const int seqId = argInt(3, 0);
+        const int x = argInt(4, 0);
+        const int y = argInt(5, 0);
+        const std::string path = "SYSDAT/" + canonical(name) + ".MANP";
+        if (assets->contains(path)) {
+          auto &mp = imoutoManpu[size_t(slot)];
+          mp.path = path;
+          mp.anim = decodeManpu(assets->read(path));
+          mp.seqId = seqId;
+          mp.x = x;
+          mp.y = y;
+          mp.active = true;
+          mp.frameId =
+              mp.anim.frames.empty() ? -1 : mp.anim.frames.begin()->first;
+          auto sit = mp.anim.sequences.find(seqId);
+          if (sit != mp.anim.sequences.end()) {
+            for (uint32_t w : sit->second) {
+              if ((w >> 24) == 0x10) {
+                mp.frameId = int(w & 0xFFFFFFu);
+                break;
+              }
+            }
+          }
+        }
+      } else {
+        const int op = argInt(0, 0);
+        const int slot = std::clamp(argInt(1, 0), 0, 7);
+        auto &mp = imoutoManpu[size_t(slot)];
+        if (op == 0 || op == 5) {
+          mp.active = false;
+        } else if (op == 3) {
+          mp.seqId = argInt(2, 0);
+          if (args.size() > 3)
+            mp.x = argInt(3, mp.x);
+          if (args.size() > 4)
+            mp.y = argInt(4, mp.y);
+          mp.active = true;
+        }
+      }
+      canvasKey.clear();
+      return 0;
+    }
+    if (key == "PLAYBGM") {
+      if (!args.empty() && args[0].type != ImoutoSlot::Type::Int)
+        return 0; // Native ignores string arg0 typo (e.g. Playbgm("M04"))
+      const int mode = argInt(0, 0);
+      if (mode == 0 || mode == 3) {
+        bgm.Stop();
+        music.clear();
+      } else if (mode == 1 || mode == 2) {
+        const std::string name = argStr(1);
+        const std::string path = "BGMDATA/" + canonical(name) + ".OGG";
+        if (!name.empty() && assets->contains(path)) {
+          audio(bgm, path, "BGM", true);
+          music = path;
+        }
+      }
+      return 0;
+    }
+    if (key == "PLAYSE") {
+      const int mode = argInt(1, 0);
+      if (mode == 0 || mode == 3) {
+        se.Stop();
+      } else if (mode == 1 || mode == 2) {
+        const std::string name = argStr(2);
+        const std::string path = "SEDATA/" + canonical(name) + ".OGG";
+        if (!name.empty() && assets->contains(path))
+          audio(se, path, "Se", mode == 2);
+      }
+      return 0;
+    }
+    if (key == "SETFLAG") {
+      setImoutoBit(0x80, argInt(0, -1), true);
+      return 0;
+    }
+    if (key == "RESETFLAG") {
+      setImoutoBit(0x80, argInt(0, -1), false);
+      return 0;
+    }
+    if (key == "GETFLAG") {
+      imoutoVm.setSystemReg(33, getImoutoBit(0x80, argInt(0, -1)) ? 1 : 0);
+      return 0;
+    }
+    if (key == "SETSYSBIT") {
+      setImoutoBit(0x00, argInt(0, -1), argInt(1, 0) != 0);
+      return 0;
+    }
+    if (key == "GETSYSBIT") {
+      imoutoVm.setSystemReg(33, getImoutoBit(0x00, argInt(0, -1)) ? 1 : 0);
+      return 0;
+    }
+    if (key == "SETRCFLAG") {
+      setImoutoBit(0x80, argInt(0, -1) + 0x400, true);
+      return 0;
+    }
+    return 0;
   }
   void begin(const std::string &script = "START") {
     if (movie)
@@ -1013,28 +2385,7 @@ struct SummerRuntime::Impl {
     GetVNBacklogRuntime(*engine).clear();
     saveSystem();
     pendingScript = script;
-    // Reproduz o vídeo de abertura (se existir) apenas na primeira
-    // inicialização, antes do título, igual ao jogo original. Tenta nomes
-    // conhecidos em cada instalação. Não inicia o script enquanto o filme
-    // estiver tocando; ele começa quando o filme termina (tratado em update()).
-    if (!openingPlayed) {
-      std::vector<std::string> openingCandidates{
-          "DISC1/opening.mpg", "DISC1/summer_op.mpg", "opening.mpg",
-          "summer_op.mpg"};
-      for (const auto &candidate : openingCandidates) {
-        try {
-          movie->open(assets->movieHandle(candidate), candidate, false, "BGM");
-          text->hide();
-          vm.waiting = true;
-          pending = "OPENING";
-          openingPlayed = true;
-          return; // Não inicia o script ainda; espera o filme terminar.
-        } catch (const std::exception &) {
-          // Candidate não existe nesta instalação; tenta o próximo.
-        }
-      }
-      openingPlayed = true; // Não há vídeo; não tentará novamente.
-    }
+    openingPlayed = true;
     vm.start(script);
     // Keep the original boot warnings/logos; globals absent on first boot are
     // zero.
@@ -1051,52 +2402,138 @@ struct SummerRuntime::Impl {
       text = std::make_unique<SummerText>(e, *assets);
       text->autoActive = [this] { return autoMode; };
       text->skipActive = [this] { return skipMode || skipHeld; };
-      text->controls.buttons[0].action = [this] {
-        skipMode = !skipMode;
-        if (skipMode)
-          autoMode = false;
-      };
-      text->controls.buttons[1].action = [this] {
-        GetVNBacklogRuntime(*engine).open();
-      };
-      text->controls.buttons[2].action = [this] {
-        autoMode = !autoMode;
-        if (autoMode)
-          skipMode = false;
-        deadline = 0;
-      };
-      text->controls.buttons[3].action = [this] {
-        GetInGameMenuRuntime(*engine).open();
-      };
-      text->controls.buttons[4].action = [this] { text->concealed = true; };
-      text->controls.buttons[5].action = [this] {
-        runtime.saveGame((saveDirectory() / "quicksave.vn").string());
-      };
+      if (assets->isLostM() ||
+          assets->contains("GRAPHIC/MESFRAME/MESFRAME.TEXB")) {
+        text->controls.buttons[0].action = [this] {
+          skipMode = !skipMode;
+          if (skipMode)
+            autoMode = false;
+        };
+        text->controls.buttons[1].action = [this] {
+          GetVNBacklogRuntime(*engine).open();
+        };
+        text->controls.buttons[2].action = [this] {
+          GetInGameMenuRuntime(*engine).open();
+        };
+        text->controls.buttons[3].action = [this] {
+          const auto qs = saveDirectory() / "quicksave.vn";
+          if (std::filesystem::exists(qs))
+            runtime.loadGame(qs.string());
+        };
+        text->controls.buttons[4].action = [this] {
+          runtime.saveGame((saveDirectory() / "quicksave.vn").string());
+        };
+        text->controls.buttons[5].action = [this] {
+          autoMode = !autoMode;
+          if (autoMode)
+            skipMode = false;
+          deadline = 0;
+        };
+        text->controls.buttons[6].action = [this] { text->concealed = true; };
+      } else {
+        text->controls.buttons[0].action = [this] {
+          skipMode = !skipMode;
+          if (skipMode)
+            autoMode = false;
+        };
+        text->controls.buttons[1].action = [this] {
+          GetVNBacklogRuntime(*engine).open();
+        };
+        text->controls.buttons[2].action = [this] {
+          autoMode = !autoMode;
+          if (autoMode)
+            skipMode = false;
+          deadline = 0;
+        };
+        text->controls.buttons[3].action = [this] {
+          GetInGameMenuRuntime(*engine).open();
+        };
+        text->controls.buttons[4].action = [this] { text->concealed = true; };
+        text->controls.buttons[5].action = [this] {
+          runtime.saveGame((saveDirectory() / "quicksave.vn").string());
+        };
+      }
       choice = std::make_unique<SummerChoice>(e, *assets);
       movie = std::make_unique<MediaPlayer>(e.GetAudio());
       choice->nativeSound = [this](const std::string &id) {
         audio(se, "SOUND/" + id + ".ogg", "Se");
       };
+      choice->nativeSoundPlaying = [this] { return se.Playing(); };
       stage->draw = [this](RendererRef r, float scale) { draw(r, scale); };
       stage->event = [this](EventRef e) { return event(e); };
     }
     runtime.AddScene(stage.get());
     runtime.AddScene(text.get());
     runtime.AddScene(choice.get());
-    runtime.AddScene(&GetVNBacklogRuntime(e));
+    if (meo || imouto) {
+      runtime.AddScene(stage.get(), GameState::Gameplay);
+      runtime.AddScene(text.get(), GameState::Gameplay);
+      runtime.AddScene(choice.get(), GameState::Gameplay);
+    }
+    auto &backlog = GetVNBacklogRuntime(e);
+    runtime.AddScene(&backlog);
+    if (meo || imouto)
+      runtime.AddScene(&backlog, GameState::Gameplay);
     auto &menu = GetInGameMenuRuntime(e);
     menu.close();
+    if (meo) {
+      menu.SetPresentation(
+          [this](RendererRef renderer) {
+            SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 185);
+            SDL_FRect dim{0, 0, 1280, 720};
+            SDL_RenderFillRect(&renderer, &dim);
+            auto &atlas = assets->texture(renderer, "GRAPHIC/SYSTEM.TEX");
+            SDL_FRect source{0, 0, 640, 60};
+            SDL_FRect target{80, 60, 1120, 105};
+            RenderUpscaledTexture(&renderer, &atlas, &source, &target);
+          },
+          [this](RendererRef renderer, int index, bool focused) {
+            static constexpr float rows[] = {328, 240, 284, 196, 196, 328};
+            static constexpr const char *labels[] = {
+                "CONTINUE", "BACK LOG", "SYSTEM", "SAVE", "LOAD", "TITLE"};
+            auto &atlas = assets->texture(renderer, "GRAPHIC/SYSTEM.TEX");
+            SDL_FRect source{0, rows[index], 640, 42};
+            SDL_FRect target{120, float(180 + index * 74), 1040, 62};
+            RenderUpscaledTexture(&renderer, &atlas, &source, &target);
+            if (focused) {
+              SDL_SetRenderDrawBlendMode(&renderer, SDL_BLENDMODE_BLEND);
+              SDL_SetRenderDrawColor(&renderer, 255, 220, 130, 70);
+              SDL_RenderFillRect(&renderer, &target);
+            }
+            engine->GetUI().text(renderer, labels[index], 900, target.y + 15,
+                                 230, {255, 255, 255, 255});
+          },
+          [](int index) {
+            return SDL_FRect{120, float(180 + index * 74), 1040, 62};
+          });
+    } else {
+      menu.SetPresentation({}, {}, {});
+    }
     menu.SetOnSave([this] { openSaves(false); });
     menu.SetOnLoad([this] { openSaves(true); });
     menu.SetOnReturnToMenu([this] {
       GetInGameMenuRuntime(*engine).close();
-      begin();
+      if (meo)
+        openMeoMenu();
+      else if (imouto)
+        openImoutoMenu();
+      else
+        begin();
     });
-    runtime.AddScene(&menu);
+    if (!meo)
+      runtime.AddScene(&menu);
+    if (imouto)
+      runtime.AddScene(&menu, GameState::Gameplay);
     if (!loaded) {
       loadSystem();
       loaded = true;
-      begin();
+      if (meo)
+        openMeoLogo();
+      else if (imouto)
+        openImoutoMenu();
+      else
+        begin();
     }
   }
   void options(const std::string &question, std::vector<std::string> labels,
@@ -1128,30 +2565,50 @@ struct SummerRuntime::Impl {
     auto &r = vm.resource.children;
     if (r.size() < 5)
       throw std::runtime_error("Invalid MESSAGE resource");
+    int msgNameId = int(number(vm.evaluate(r[3])));
     int actor = int(number(vm.evaluate(r[4])));
     currentMessageActor = actor;
     std::string speaker =
         actor > 0 && actor < int(speakers.size()) ? speakers[actor] : "";
+    if (assets->isLostM() && msgNameId < 0)
+      speaker.clear();
 
     currentRead = vm.hasRead(r[1]);
     const auto names = playerNames();
     if (actor == 1 && !names[1].empty())
       speaker = names[1];
-    text->setDialogue(
-        translated(speaker),
-        translated(substitutePlayerNames(string(vm.evaluate(r[2])), names)));
+    const int64_t changeMask = number(vm.variables["$ChangePlayerName"]);
+    const SDL_Color actorCol = (actor >= 0 && actor < int(speakerColors.size()))
+                                   ? speakerColors[size_t(actor)]
+                                   : SDL_Color{240, 240, 245, 255};
+    text->setLostMMetadata(msgNameId, (changeMask & 1) != 0, actorCol);
+    currentRawSpeaker = speaker;
+    currentRawDialogue =
+        substitutePlayerNames(string(vm.evaluate(r[2])), names);
+    activeOriginalKeys.clear();
+    if (!speaker.empty())
+      activeOriginalKeys.push_back(speaker);
+    if (!currentRawDialogue.empty())
+      activeOriginalKeys.push_back(currentRawDialogue);
+    currentVoiceId.clear();
+    text->setDialogue(translated(speaker), translated(currentRawDialogue));
     text->show();
     text->concealed = false;
     if (!currentRead)
       skipMode = false;
     voice.Stop();
     if (r.size() > 5) {
-      const auto stemStr = string(vm.evaluate(r[5]));
+      std::string stemStr;
+      if ((changeMask & 2) != 0 && r.size() > 6)
+        stemStr = string(vm.evaluate(r[6]));
+      if (stemStr.empty())
+        stemStr = string(vm.evaluate(r[5]));
       auto id = "VOICE/" + stemStr + ".ogg";
       if (!assets->contains(id) &&
           assets->contains("VOICE/" + stemStr + ".wav"))
         id = "VOICE/" + stemStr + ".wav";
       if (assets->contains(id)) {
+        currentVoiceId = id;
         audio(voice, id, "Voice");
         GetVNBacklogRuntime(*engine).setLastVoice(id);
       }
@@ -1418,6 +2875,26 @@ struct SummerRuntime::Impl {
       text->hide();
       vm.waiting = true;
       pending = "MOVIE";
+      videoSkip.reset();
+      return;
+    }
+    if (name == "QUAKEX" || name == "QUAKEY") {
+      const int amp = int(number(arg(0)));
+      const int cycles = int(number(arg(1)));
+      const int stepScale = int(number(arg(2)));
+      const int stepMs = std::max(16, (500 * std::max(1, stepScale)) / 500);
+      if (amp == 0 || cycles <= 0)
+        return;
+      quakeAxis = (name == "QUAKEX") ? 1 : 2;
+      quakeAmp = amp;
+      quakeCycles = cycles;
+      quakeStepMs = stepMs;
+      quakeStart = SDL_GetTicks();
+      quakeOffsetX = (quakeAxis == 1) ? -amp : 0;
+      quakeOffsetY = (quakeAxis == 2) ? -amp : 0;
+      deadline = quakeStart + uint64_t(cycles) * 4u * uint64_t(stepMs);
+      pending = "QUAKE";
+      vm.waiting = true;
       return;
     }
     throw std::runtime_error("Unimplemented native function: " + name);
@@ -1510,6 +2987,267 @@ struct SummerRuntime::Impl {
     return canvas;
   }
   void draw(RendererRef r, float) {
+    if (meo) {
+      if (meoLogoActive) {
+        SDL_SetRenderDrawColor(&r, 0, 0, 0, 255);
+        SDL_RenderClear(&r);
+        const SDL_FRect src{0, 0, 640, 480};
+        const SDL_FRect dst{0, 0, 800, 600};
+        picture(r, "GRAPHIC/ROGO.TEX", dst, &src);
+        // MEOModule.gem @ 0x100028a0: 1000ms fade-in, 2000ms hold, 1000ms
+        // fade-out.
+        const Uint64 now = SDL_GetTicks();
+        const Uint64 elapsed = now >= meoLogoStart ? now - meoLogoStart : 0;
+        Uint8 blackAlpha = 0;
+        if (elapsed < 1000)
+          blackAlpha = Uint8(255 - (elapsed * 255) / 1000);
+        else if (elapsed >= 3000)
+          blackAlpha =
+              Uint8(std::min<Uint64>(255, ((elapsed - 3000) * 255) / 1000));
+        if (blackAlpha > 0) {
+          SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawColor(&r, 0, 0, 0, blackAlpha);
+          SDL_RenderFillRect(&r, &dst);
+        }
+        return;
+      }
+      if (meoMenu) {
+        SDL_SetRenderDrawColor(&r, 0, 0, 0, 255);
+        SDL_RenderClear(&r);
+        const SDL_FRect source{0, 0, 640, 480};
+        const SDL_FRect destination{0, 0, 800, 600};
+        picture(r, "GRAPHIC/TITLE.TEX", destination, &source);
+        // Exact TITLE.MAP button rectangles in 640x480 scaled 1.25x to 800x600.
+        static constexpr SDL_FRect kTitleBtn800[4] = {
+            {410.0f, 120.00f, 240.0f, 57.50f},
+            {410.0f, 177.50f, 240.0f, 56.25f},
+            {410.0f, 233.75f, 240.0f, 56.25f},
+            {410.0f, 303.75f, 240.0f, 56.25f}};
+        if (titleFocus >= 0 && titleFocus < 4) {
+          const SDL_FRect selected{194, float(480 + titleFocus * 48), 192, 45};
+          picture(r, "GRAPHIC/TITLE.TEX", kTitleBtn800[titleFocus], &selected);
+        }
+        if (meoTitleFadeStart > 0) {
+          const Uint64 now = SDL_GetTicks();
+          const Uint64 elapsed =
+              now >= meoTitleFadeStart ? now - meoTitleFadeStart : 0;
+          if (elapsed < 1000) {
+            SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+            SDL_SetRenderDrawColor(&r, 0, 0, 0,
+                                   Uint8(255 - (elapsed * 255) / 1000));
+            SDL_RenderFillRect(&r, &destination);
+          } else {
+            meoTitleFadeStart = 0;
+          }
+        }
+        if (meoSceneMenu) {
+          SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawColor(&r, 16, 18, 28, 238);
+          const SDL_FRect panel{100, 70, 600, 470};
+          SDL_RenderFillRect(&r, &panel);
+          SDL_SetRenderDrawColor(&r, 255, 255, 255, 90);
+          SDL_RenderRect(&r, &panel);
+          const size_t page = meoSceneFocus / 12;
+          engine->GetUI().textSized(
+              r, "SCENE  UP/DOWN: SELECT  ENTER: PLAY  ESC: BACK", 130, 88, 540,
+              18, {255, 255, 255, 255});
+          for (size_t row = 0; row < 12; ++row) {
+            const size_t index = page * 12 + row;
+            if (index >= meoScenes.size())
+              break;
+            const SDL_Color col = index == meoSceneFocus
+                                      ? SDL_Color{255, 212, 110, 255}
+                                      : SDL_Color{200, 205, 220, 255};
+            engine->GetUI().textSized(r, meoScenes[index], 150,
+                                      float(126 + row * 32), 480, 20, col);
+          }
+        }
+        return;
+      }
+      if (movie && movie->isOpen())
+        movie->render(r);
+      else {
+        SDL_SetRenderDrawColor(&r, 16, 18, 28, 255);
+        SDL_RenderClear(&r);
+      }
+      for (const auto &[name, fade] : meoFades) {
+        if (fade.alpha > 0) {
+          SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+          SDL_SetRenderDrawColor(&r, fade.r, fade.g, fade.b,
+                                 Uint8(std::clamp(fade.alpha, 0, 255)));
+          const SDL_FRect full{0, 0, 800, 600};
+          SDL_RenderFillRect(&r, &full);
+        }
+      }
+      if (meoLoveViewUntil > SDL_GetTicks()) {
+        const int64_t love =
+            meoLocals.count("L_MISAO") ? meoLocals.at("L_MISAO") : 0;
+        const int64_t maxLove =
+            meoLocals.count("L_MISAO_MAX")
+                ? std::max<int64_t>(1, meoLocals.at("L_MISAO_MAX"))
+                : 17;
+        SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(&r, 20, 12, 28, 200);
+        const SDL_FRect box{560, 24, 216, 36};
+        SDL_RenderFillRect(&r, &box);
+        SDL_SetRenderDrawColor(&r, 255, 120, 175, 230);
+        const float ratio =
+            std::clamp(float(love) / float(maxLove), 0.0f, 1.0f);
+        const SDL_FRect bar{568, 44, 200.0f * ratio, 10};
+        SDL_RenderFillRect(&r, &bar);
+        SDL_SetRenderDrawColor(&r, 255, 225, 240, 255);
+        const std::string label = "MISAO LOVE " + std::to_string(love) + "/" +
+                                  std::to_string(maxLove);
+        SDL_RenderDebugText(&r, 570, 29, label.c_str());
+      }
+      if (meoOverlayOpen && assets->contains("GRAPHIC/SYSTEM.TEX")) {
+        // MEO native top overlay bar (640x480 logical space scaled 1.25x to
+        // 800x600): bar background + love gauge + 5 SYSTEM.MAP icon buttons +
+        // active tooltip banner.
+        constexpr float sx = 800.0f / 640.0f;
+        constexpr float sy = 600.0f / 480.0f;
+        const SDL_FRect barSrc{0, 0, 640, 61};
+        const SDL_FRect barDst{0, 0, 640 * sx, 61 * sy};
+        picture(r, "GRAPHIC/SYSTEM.TEX", barDst, &barSrc);
+        // Love meter fill inside the top bar heart gauge
+        const int64_t love =
+            meoLocals.count("L_MISAO") ? meoLocals.at("L_MISAO") : 0;
+        const int64_t maxLove =
+            meoLocals.count("L_MISAO_MAX")
+                ? std::max<int64_t>(1, meoLocals.at("L_MISAO_MAX"))
+                : 17;
+        const float ratio =
+            std::clamp(float(love) / float(maxLove), 0.0f, 1.0f);
+        if (ratio > 0.0f) {
+          const SDL_FRect gaugeSrc{640, 30, 280.0f * ratio, 16};
+          const SDL_FRect gaugeDst{96 * sx, 28 * sy, 280.0f * ratio * sx,
+                                   16 * sy};
+          picture(r, "GRAPHIC/SYSTEM.TEX", gaugeDst, &gaugeSrc);
+        }
+        // 5 native buttons from SYSTEM.MAP: SPEED, SAVE, BACKLOG, SYSTEM, STOP
+        static constexpr SDL_FRect kBtnDst640[5] = {{452, 29, 28, 26},
+                                                    {484, 29, 28, 26},
+                                                    {516, 29, 27, 26},
+                                                    {547, 29, 27, 26},
+                                                    {589, 29, 27, 26}};
+        static constexpr float kIconW[5] = {28, 28, 27, 27, 27};
+        for (int b = 0; b < 5; ++b) {
+          const bool focused = (b == meoOverlayFocus);
+          const SDL_FRect iconSrc{float(b * 60 + (focused ? 30 : 0)), 124,
+                                  kIconW[b], 26};
+          const SDL_FRect iconDst{kBtnDst640[b].x * sx, kBtnDst640[b].y * sy,
+                                  kBtnDst640[b].w * sx, kBtnDst640[b].h * sy};
+          picture(r, "GRAPHIC/SYSTEM.TEX", iconDst, &iconSrc);
+        }
+        // Active tooltip banner directly below the top bar
+        if (meoOverlayFocus >= 0 && meoOverlayFocus < 5) {
+          const SDL_FRect tipSrc{0, float(152 + meoOverlayFocus * 44), 640, 41};
+          const SDL_FRect tipDst{0, 61 * sy, 640 * sx, 41 * sy};
+          picture(r, "GRAPHIC/SYSTEM.TEX", tipDst, &tipSrc);
+        }
+        // Speed strip indicator when speed > 1x
+        if (meoSpeedIndex > 0 && meoSpeedIndex <= 4) {
+          const SDL_FRect spdSrc{640, float(85 + (meoSpeedIndex - 1) * 28), 265,
+                                 26};
+          const SDL_FRect spdDst{16 * sx, 108 * sy, 200 * sx, 20 * sy};
+          picture(r, "GRAPHIC/SYSTEM.TEX", spdDst, &spdSrc);
+        }
+      }
+      return;
+    }
+    if (imouto) {
+      std::ostringstream state;
+      state << "IMOUTO:" << imoutoMenu << ':' << titleFocus << ':'
+            << imoutoVm.currentScriptName << ':' << imoutoVm.pc << ':'
+            << bgOffsetX << ':' << bgOffsetY << ':' << transitionDuration << ':'
+            << (transitionDuration ? (SDL_GetTicks() - transitionStart) / 8 : 0)
+            << ':' << text->isVisible() << ':' << text->concealed;
+      for (const auto &[slot, layer] : imoutoBgLayers)
+        state << '|' << slot << ':' << layer.path << ':' << layer.x << ':'
+              << layer.y;
+      for (const auto &sp : imoutoSprites)
+        state << '|' << sp.id << ':' << sp.x << ':' << sp.y << ':' << sp.tint;
+      for (const auto &mp : imoutoManpu)
+        if (mp.active)
+          state << "|M:" << mp.path << ':' << mp.frameId << ':' << mp.x << ':'
+                << mp.y;
+      if (!canvasTexture || canvasKey != state.str()) {
+        if (decodedImages.size() > 96)
+          decodedImages.clear();
+        Image canvas =
+            (presented.rgba.empty() || scrollDuration > 0 || imoutoMenu)
+                ? composeImoutoScene()
+                : presented;
+        if (transitionDuration > 0 && !imoutoMenu) {
+          const Image *maskPtr = nullptr;
+          const auto maskPath = imoutoAlphaMaskPath(transitionType);
+          if (!maskPath.empty() && assets->contains(maskPath))
+            maskPtr = &image(maskPath);
+          const int wipeKind =
+              (transitionType >= 6 && transitionType <= 34) ? 3 : 4;
+          canvas = wipeFrame(transitionFrom, presented, wipeKind,
+                             int(SDL_GetTicks() - transitionStart),
+                             transitionDuration, maskPtr, 0);
+        }
+        if (!imoutoMenu && text->isVisible() && !text->concealed &&
+            assets->contains("SYSDAT/WIN.TEXB")) {
+          const auto &win = image("SYSDAT/WIN.TEXB");
+          // SYSDAT/WIN.TEXB is 732x600; y=0..155 is the message frame + top
+          // tabs, y>=156 contains hover/indicator sprite sheets.
+          compositeImageRegion(canvas, win, 34, 432, 0, 0,
+                               std::min(732, win.width),
+                               std::min(156, win.height));
+        }
+        if (!canvasTexture)
+          canvasTexture.reset(SDL_CreateTexture(&r, SDL_PIXELFORMAT_RGBA32,
+                                                SDL_TEXTUREACCESS_STREAMING,
+                                                800, 600));
+        if (!canvasTexture || !SDL_UpdateTexture(canvasTexture.get(), nullptr,
+                                                 canvas.rgba.data(), 800 * 4))
+          throw std::runtime_error(SDL_GetError());
+        ++canvasContentSerial;
+        lastCanvas = std::move(canvas);
+        canvasKey = state.str();
+      }
+      const SDL_FRect target{0, 0, 800, 600};
+      RenderUpscaledTexture(&r, canvasTexture.get(), nullptr, &target,
+                            canvasContentSerial);
+      if (imoutoMenu) {
+        if (assets->contains("SYSDAT/MENU.TEXB")) {
+          // SYSDAT/MENU.TEXB (744x351): 9 rows of 39px; left half (x=0..371)
+          // is focused, right half (x=372..743) is unfocused.
+          // Rows: 0=START, 1=LOAD, 2=CONFIG, 4=EXIT.
+          static constexpr int kMenuRows[4] = {0, 1, 2, 4};
+          for (int b = 0; b < 4; ++b) {
+            const bool focused = (b == titleFocus);
+            const SDL_FRect src{focused ? 0.0f : 372.0f,
+                                float(kMenuRows[b] * 39), 372.0f, 39.0f};
+            const SDL_FRect dst{414.0f, float(350 + b * 48), 372.0f, 39.0f};
+            picture(r, "SYSDAT/MENU.TEXB", dst, &src);
+          }
+        } else {
+          static constexpr const char *kLabels[4] = {"START", "LOAD", "CONFIG",
+                                                     "EXIT"};
+          SDL_SetRenderDrawBlendMode(&r, SDL_BLENDMODE_BLEND);
+          for (int b = 0; b < 4; ++b) {
+            const SDL_FRect btn{540, float(340 + b * 52), 200, 40};
+            const bool focused = (b == titleFocus);
+            SDL_SetRenderDrawColor(&r, focused ? 240 : 28, focused ? 130 : 32,
+                                   focused ? 170 : 54, focused ? 235 : 190);
+            SDL_RenderFillRect(&r, &btn);
+            SDL_SetRenderDrawColor(&r, 255, 255, 255, 255);
+            SDL_RenderRect(&r, &btn);
+            engine->GetUI().textSized(r, kLabels[b], btn.x + 20, btn.y + 8, 160,
+                                      22, {255, 255, 255, 255});
+          }
+        }
+      }
+      if (pending == "MOVIE" && movie && movie->isOpen()) {
+        movie->update(r);
+        movie->render(r, target);
+      }
+      return;
+    }
     std::string base =
         choice->mode() >= 0 ? choice->nativeBackground() : background;
     std::ostringstream state;
@@ -1551,9 +3289,14 @@ struct SummerRuntime::Impl {
             assets->contains("GRAPHIC/MESFRAME/MESFRAME.TEXB")
                 ? "GRAPHIC/MESFRAME/MESFRAME.TEXB"
                 : "GRAPHIC/FRAME/MESSFRAME.TEXB";
-        if (assets->contains(framePath))
-          compositeImageRegion(canvas, image(framePath), 0, 391, 0, 0, 800,
-                               209);
+        if (assets->contains(framePath)) {
+          if (assets->isLostM())
+            compositeImageRegion(canvas, image(framePath), 64, 426, 0, 0, 707,
+                                 171);
+          else
+            compositeImageRegion(canvas, image(framePath), 0, 391, 0, 0, 800,
+                                 209);
+        }
       }
       choice->compose(
           canvas, [this](const auto &id) -> const Image & { return image(id); },
@@ -1563,10 +3306,15 @@ struct SummerRuntime::Impl {
           for (size_t i = 0; i < titleChips.size(); ++i) {
             const auto &chip = titleChips[i];
             const bool focused = i == size_t(titleFocus);
-            compositeImageRegion(canvas, image(titleChipTexture), titleBaseX,
-                                 titleBaseY + int(i) * titleChipSpacing,
-                                 focused ? chip.atlasW : 0, chip.atlasY,
-                                 chip.atlasW, chip.atlasH);
+            const int dstX = (titleAbsoluteAlign && chip.hasDrawArea)
+                                 ? chip.drawX
+                                 : titleBaseX;
+            const int dstY = (titleAbsoluteAlign && chip.hasDrawArea)
+                                 ? chip.drawY
+                                 : (titleBaseY + int(i) * titleChipSpacing);
+            compositeImageRegion(canvas, image(titleChipTexture), dstX, dstY,
+                                 chip.atlasX + (focused ? chip.atlasW : 0),
+                                 chip.atlasY, chip.atlasW, chip.atlasH);
           }
       }
       if (!canvasTexture)
@@ -1579,7 +3327,7 @@ struct SummerRuntime::Impl {
       lastCanvas = std::move(canvas);
       canvasKey = state.str();
     }
-    SDL_FRect target{0, 0, 800, 600};
+    SDL_FRect target{float(quakeOffsetX), float(quakeOffsetY), 800, 600};
     RenderUpscaledTexture(&r, canvasTexture.get(), nullptr, &target,
                           canvasContentSerial);
     if (pending == "MOVIE" && movie && movie->isOpen()) {
@@ -1608,10 +3356,7 @@ struct SummerRuntime::Impl {
       SDL_Event e{};
       e.type = SDL_EVENT_QUIT;
       SDL_PushEvent(&e);
-    } else if (chipName == "CG" || chipName == "_CG" || chipName == "SOUND" ||
-               chipName == "_SOUND" || chipName == "REPLAY" ||
-               chipName == "_REPLAY" || chipName == "OMAKE" ||
-               chipName == "BACK") {
+    } else {
       title = false;
       pending.clear();
       vm.variables["@RESULT"] = titleChips[size_t(index)].name;
@@ -1619,6 +3364,248 @@ struct SummerRuntime::Impl {
     }
   }
   bool event(EventRef e) {
+    if (meo && meoLogoActive) {
+      if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) ||
+          (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+           (e.button.button == SDL_BUTTON_LEFT ||
+            e.button.button == SDL_BUTTON_RIGHT))) {
+        openMeoMenu(false);
+        return true;
+      }
+      return true;
+    }
+    if (meo && meoMenu) {
+      auto hitMeoTitle = [this](float x, float y) -> int {
+        const int mx = int(x * 640.0f / 800.0f);
+        const int my = int(y * 480.0f / 600.0f);
+        if (mx < 0 || mx >= 640 || my < 0 || my >= 480)
+          return -1;
+        if (meoTitleMap.size() >= 8 + 640u * 480u) {
+          const uint8_t id = meoTitleMap[8 + size_t(my) * 640u + size_t(mx)];
+          if (id >= 1 && id <= 4)
+            return int(id) - 1;
+        }
+        static constexpr SDL_FRect kTitleBtn800[4] = {
+            {410.0f, 120.00f, 240.0f, 57.50f},
+            {410.0f, 177.50f, 240.0f, 56.25f},
+            {410.0f, 233.75f, 240.0f, 56.25f},
+            {410.0f, 303.75f, 240.0f, 56.25f}};
+        const SDL_FPoint pt{x, y};
+        for (int i = 0; i < 4; ++i)
+          if (SDL_PointInRectFloat(&pt, &kTitleBtn800[i]))
+            return i;
+        return -1;
+      };
+      if (meoSceneMenu) {
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+          if (e.key.key == SDLK_ESCAPE || e.key.key == SDLK_BACKSPACE ||
+              e.key.key == SDLK_AC_BACK)
+            meoSceneMenu = false;
+          else if (e.key.key == SDLK_UP && meoSceneFocus > 0)
+            --meoSceneFocus;
+          else if (e.key.key == SDLK_DOWN &&
+                   meoSceneFocus + 1 < meoScenes.size())
+            ++meoSceneFocus;
+          else if ((e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE) &&
+                   !meoScenes.empty())
+            beginMeo(meoScenes[meoSceneFocus]);
+        } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                   e.button.button == SDL_BUTTON_LEFT) {
+          const int row = int((e.button.y - 126) / 32);
+          if (e.button.x >= 150 && e.button.x < 650 && row >= 0 && row < 12) {
+            const size_t index = meoSceneFocus / 12 * 12 + size_t(row);
+            if (index < meoScenes.size()) {
+              meoSceneFocus = index;
+              beginMeo(meoScenes[index]);
+            }
+          }
+        }
+        return true;
+      }
+      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+        if (e.key.key == SDLK_UP)
+          titleFocus = (titleFocus + 3) % 4;
+        else if (e.key.key == SDLK_DOWN)
+          titleFocus = (titleFocus + 1) % 4;
+        else if (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE) {
+          if (titleFocus == 0)
+            beginMeo("A-00");
+          else if (titleFocus == 1)
+            openSaves(true);
+          else if (titleFocus == 2) {
+            meoSceneMenu = true;
+            meoSceneFocus = 0;
+          } else if (titleFocus == 3) {
+            SDL_Event quit{};
+            quit.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&quit);
+          }
+        }
+      } else if (e.type == SDL_EVENT_MOUSE_MOTION) {
+        const int hit = hitMeoTitle(e.motion.x, e.motion.y);
+        if (hit >= 0)
+          titleFocus = hit;
+      } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                 e.button.button == SDL_BUTTON_LEFT) {
+        const int hit = hitMeoTitle(e.button.x, e.button.y);
+        if (hit >= 0) {
+          titleFocus = hit;
+          if (hit == 0)
+            beginMeo("A-00");
+          else if (hit == 1)
+            openSaves(true);
+          else if (hit == 2) {
+            meoSceneMenu = true;
+            meoSceneFocus = 0;
+          } else if (hit == 3) {
+            SDL_Event quit{};
+            quit.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&quit);
+          }
+        }
+      }
+      return true;
+    }
+    if (meo && !meoMenu) {
+      auto hitMeoOverlay = [this](float x, float y) -> int {
+        const int mx = int(x * 640.0f / 800.0f);
+        const int my = int(y * 480.0f / 600.0f);
+        if (mx < 0 || mx >= 640 || my < 0 || my >= 480)
+          return -1;
+        if (meoSystemMap.size() >= 8 + 640u * 480u) {
+          const uint8_t id = meoSystemMap[8 + size_t(my) * 640u + size_t(mx)];
+          if (id >= 1 && id <= 5)
+            return int(id) - 1;
+        }
+        static constexpr SDL_FRect kBtn640[5] = {{452, 29, 28, 26},
+                                                 {484, 29, 28, 26},
+                                                 {516, 29, 27, 26},
+                                                 {547, 29, 27, 26},
+                                                 {589, 29, 27, 26}};
+        const SDL_FPoint pt{float(mx), float(my)};
+        for (int b = 0; b < 5; ++b)
+          if (SDL_PointInRectFloat(&pt, &kBtn640[b]))
+            return b;
+        return -1;
+      };
+      auto activateMeoOverlay = [this](int button) {
+        if (button == 0) {
+          meoSpeedIndex = (meoSpeedIndex + 1) % 5;
+        } else if (button == 1) {
+          meoOverlayOpen = false;
+          openSaves(false);
+        } else if (button == 2) {
+          meoOverlayOpen = false;
+          GetVNBacklogRuntime(*engine).open();
+        } else if (button == 3) {
+          meoOverlayOpen = false;
+          engine->openSettings();
+        } else if (button == 4) {
+          meoOverlayOpen = false;
+        }
+      };
+      if (meoOverlayOpen) {
+        if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+          if (e.key.key == SDLK_ESCAPE || e.key.key == SDLK_BACKSPACE ||
+              e.key.key == SDLK_AC_BACK) {
+            meoOverlayOpen = false;
+          } else if (e.key.key == SDLK_LEFT || e.key.key == SDLK_UP) {
+            meoOverlayFocus = (meoOverlayFocus + 4) % 5;
+          } else if (e.key.key == SDLK_RIGHT || e.key.key == SDLK_DOWN) {
+            meoOverlayFocus = (meoOverlayFocus + 1) % 5;
+          } else if (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE) {
+            activateMeoOverlay(meoOverlayFocus);
+          } else if (e.key.key == SDLK_L) {
+            meoOverlayOpen = false;
+            openSaves(true);
+          } else if (e.key.key == SDLK_T) {
+            meoOverlayOpen = false;
+            openMeoMenu();
+          }
+          return true;
+        }
+        if (e.type == SDL_EVENT_MOUSE_MOTION) {
+          const int hit = hitMeoOverlay(e.motion.x, e.motion.y);
+          if (hit >= 0)
+            meoOverlayFocus = hit;
+          return true;
+        }
+        if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+          if (e.button.button == SDL_BUTTON_RIGHT) {
+            meoOverlayOpen = false;
+            return true;
+          }
+          if (e.button.button == SDL_BUTTON_LEFT) {
+            const int hit = hitMeoOverlay(e.button.x, e.button.y);
+            if (hit >= 0) {
+              meoOverlayFocus = hit;
+              activateMeoOverlay(hit);
+            } else if (e.button.y > 130.0f) {
+              meoOverlayOpen = false;
+            }
+            return true;
+          }
+        }
+        return true;
+      }
+      if (!engine->isStoryPaused() && !choice->isActive()) {
+        if ((e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
+             e.key.key == SDLK_ESCAPE) ||
+            (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+             e.button.button == SDL_BUTTON_RIGHT)) {
+          meoOverlayOpen = true;
+          return true;
+        }
+      }
+    }
+    if (imouto && imoutoMenu) {
+      auto runTitleBtn = [this](int idx) {
+        if (idx == 0) {
+          beginImouto("init");
+        } else if (idx == 1) {
+          openSaves(true);
+        } else if (idx == 2) {
+          engine->openSettings();
+        } else if (idx == 3) {
+          SDL_Event quit{};
+          quit.type = SDL_EVENT_QUIT;
+          SDL_PushEvent(&quit);
+        }
+      };
+      const bool hasNativeMenu = assets->contains("SYSDAT/MENU.TEXB");
+      auto imoutoBtnRect = [hasNativeMenu](int b) -> SDL_FRect {
+        return hasNativeMenu
+                   ? SDL_FRect{414.0f, float(350 + b * 48), 372.0f, 39.0f}
+                   : SDL_FRect{540.0f, float(340 + b * 52), 200.0f, 40.0f};
+      };
+      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
+        if (e.key.key == SDLK_UP)
+          titleFocus = (titleFocus + 3) % 4;
+        else if (e.key.key == SDLK_DOWN)
+          titleFocus = (titleFocus + 1) % 4;
+        else if (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE)
+          runTitleBtn(titleFocus);
+      } else if (e.type == SDL_EVENT_MOUSE_MOTION) {
+        const SDL_FPoint pt{e.motion.x, e.motion.y};
+        for (int b = 0; b < 4; ++b) {
+          const SDL_FRect btn = imoutoBtnRect(b);
+          if (SDL_PointInRectFloat(&pt, &btn))
+            titleFocus = b;
+        }
+      } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+                 e.button.button == SDL_BUTTON_LEFT) {
+        const SDL_FPoint pt{e.button.x, e.button.y};
+        for (int b = 0; b < 4; ++b) {
+          const SDL_FRect btn = imoutoBtnRect(b);
+          if (SDL_PointInRectFloat(&pt, &btn)) {
+            titleFocus = b;
+            runTitleBtn(b);
+            break;
+          }
+        }
+      }
+      return true;
+    }
     if (pending == "MESSAGE" && BackAction(*engine, e)) {
       GetInGameMenuRuntime(*engine).open();
       return true;
@@ -1655,46 +3642,36 @@ struct SummerRuntime::Impl {
       if (e.type == SDL_EVENT_MOUSE_MOTION)
         for (size_t i = 0; i < titleChips.size(); ++i) {
           const auto &chip = titleChips[i];
-          SDL_FRect rect{float(titleBaseX),
-                         float(titleBaseY + int(i) * titleChipSpacing),
-                         float(chip.atlasW), float(chip.atlasH)};
+          const float rx =
+              float((titleAbsoluteAlign && chip.hasDrawArea) ? chip.drawX
+                                                             : titleBaseX);
+          const float ry =
+              float((titleAbsoluteAlign && chip.hasDrawArea)
+                        ? chip.drawY
+                        : (titleBaseY + int(i) * titleChipSpacing));
+          SDL_FRect rect{rx, ry, float(chip.atlasW), float(chip.atlasH)};
           SDL_FPoint point{e.motion.x, e.motion.y};
           if (SDL_PointInRectFloat(&point, &rect))
             titleFocus = int(i);
         }
       for (size_t i = 0; i < titleChips.size(); ++i) {
         const auto &chip = titleChips[i];
-        if (UI::clicked(e, {float(titleBaseX),
-                            float(titleBaseY + int(i) * titleChipSpacing),
-                            float(chip.atlasW), float(chip.atlasH)})) {
+        const float rx = float(
+            (titleAbsoluteAlign && chip.hasDrawArea) ? chip.drawX : titleBaseX);
+        const float ry = float((titleAbsoluteAlign && chip.hasDrawArea)
+                                   ? chip.drawY
+                                   : (titleBaseY + int(i) * titleChipSpacing));
+        if (UI::clicked(e, {rx, ry, float(chip.atlasW), float(chip.atlasH)})) {
           titleAction(int(i));
           break;
         }
       }
       return true;
     }
-    // The opening video plays once before the title. Pressing confirm or
-    // clicking skips it and starts the script, matching the original behavior
-    // where the opening can be bypassed.
-    if (pending == "OPENING") {
-      if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
-          (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE)) {
-        movie->stop();
-        pending.clear();
-        vm.start(pendingScript);
-        vm.run();
-        return true;
-      }
-      if (e.type == SDL_EVENT_MOUSE_BUTTON_UP &&
-          e.button.button == SDL_BUTTON_LEFT) {
-        movie->stop();
-        pending.clear();
-        vm.start(pendingScript);
-        vm.run();
-        return true;
-      }
+    // Movie input is handled by the outer runtime before stage/UI dispatch.
+    // Never let a single click or unrelated event resume either VM.
+    if (pending == "OPENING" || pending == "MOVIE")
       return true;
-    }
     if (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat) {
       if (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL) {
         skipHeld = true;
@@ -1741,27 +3718,38 @@ struct SummerRuntime::Impl {
     bool advance = UI::clicked(e, {0, 0, 800, 600}) ||
                    (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
                     (e.key.key == SDLK_RETURN || e.key.key == SDLK_SPACE));
-    if (advance && vm.waiting &&
+    const bool isWaiting = imouto ? imoutoVm.waiting : vm.waiting;
+    if (advance && isWaiting &&
         (pending == "MESSAGE" || pending == "WAIT" || pending == "BYTEVIEW" ||
-         pending == "WIPE" || pending == "SCROLLCG")) {
+         pending == "WIPE" || pending == "SCROLLCG" || pending == "QUAKE" ||
+         (imouto && pending == "MOVIE"))) {
       if (pending == "MESSAGE" && !text->isDialogueComplete())
         text->completeDialogue();
       else {
         if (pending == "MESSAGE")
           finishMessage();
         else if (pending != "WAIT" || waitSkippable) {
+          if (pending == "MOVIE" && movie)
+            movie->stop();
           if (waitSe)
             se.Stop();
           if (pending == "SCROLLCG") {
             bgOffsetX = scrollTargetX;
             bgOffsetY = scrollTargetY;
             scrollDuration = 0;
-            presented = composeScene();
+            presented = imouto ? composeImoutoScene() : composeScene();
+          }
+          if (pending == "QUAKE") {
+            quakeAxis = 0;
+            quakeOffsetX = quakeOffsetY = 0;
           }
           transitionDuration = 0;
           byteOverlay.clear();
           pending.clear();
-          vm.resume();
+          if (imouto)
+            imoutoVm.resume();
+          else
+            vm.resume();
         }
       }
       return true;
@@ -1770,13 +3758,21 @@ struct SummerRuntime::Impl {
   }
 };
 SummerRuntime::SummerRuntime(
-    std::shared_ptr<Kotonoha::Providers::SummerAssets> a)
-    : Runtime("Summer Radish Vacation!!", "0.1.0",
-              "me.hirameki.kotonoha.summerradishvacation"),
+    std::shared_ptr<Kotonoha::Providers::SummerAssets> a, std::string name,
+    std::string appId)
+    : Runtime(std::move(name), "0.1.0", std::move(appId)),
       impl(std::make_unique<Impl>(*this, std::move(a))) {}
 SummerRuntime::~SummerRuntime() = default;
 void SummerRuntime::shutdown() {
   if (impl) {
+    if (impl->engine) {
+      auto &menu = GetInGameMenuRuntime(*impl->engine);
+      menu.close();
+      menu.SetPresentation({}, {}, {});
+      menu.SetOnSave({});
+      menu.SetOnLoad({});
+      menu.SetOnReturnToMenu({});
+    }
     try {
       impl->saveSystem();
     } catch (const std::exception &e) {
@@ -1811,6 +3807,32 @@ void SummerRuntime::update() {
   if (!impl->engine || !impl->loaded)
     return;
   auto &i = *impl;
+  if (i.meo) {
+    const auto now = SDL_GetTicks();
+    if (i.meoLogoActive) {
+      i.lastUpdate = now;
+      if (now >= i.meoLogoStart && now - i.meoLogoStart >= 4000)
+        i.openMeoMenu(true);
+      return;
+    }
+    const bool paused = i.engine->isStoryPaused() || i.meoOverlayOpen;
+    i.bgm.SetPaused(paused);
+    i.se.SetPaused(paused);
+    i.voice.SetPaused(paused);
+    if (i.movie)
+      i.movie->setPaused(paused);
+    if (paused) {
+      if (i.lastUpdate && now >= i.lastUpdate)
+        i.meoFrameStart += now - i.lastUpdate;
+      i.lastUpdate = now;
+      return;
+    }
+    i.lastUpdate = now;
+    i.updateMeo(now);
+    if (i.movie)
+      i.movie->update(i.engine->GetRenderer());
+    return;
+  }
   const auto now = SDL_GetTicks();
   const bool paused = i.engine->isStoryPaused();
   i.bgm.SetPaused(paused);
@@ -1887,7 +3909,48 @@ void SummerRuntime::update() {
     i.transitionDuration = 0;
     i.byteOverlay.clear();
     i.pending.clear();
-    i.vm.resume();
+    if (i.imouto)
+      i.imoutoVm.resume();
+    else
+      i.vm.resume();
+  }
+  if (i.imouto && i.pending == "MOVIE" && i.movie && i.movie->finished()) {
+    i.movie->stop();
+    i.pending.clear();
+    i.imoutoVm.resume();
+  }
+  if (i.imouto && i.pending == "SCROLLCG" && i.scrollDuration > 0) {
+    if (now >= i.deadline) {
+      i.bgOffsetX = i.scrollTargetX;
+      i.bgOffsetY = i.scrollTargetY;
+      i.scrollDuration = 0;
+      i.presented = i.composeImoutoScene();
+      i.pending.clear();
+      i.imoutoVm.resume();
+    } else {
+      const float t = std::clamp(
+          float(now - i.scrollStart) / float(i.scrollDuration), 0.0f, 1.0f);
+      i.bgOffsetX =
+          i.scrollStartX + int((i.scrollTargetX - i.scrollStartX) * t);
+      i.bgOffsetY =
+          i.scrollStartY + int((i.scrollTargetY - i.scrollStartY) * t);
+    }
+  }
+  if (i.pending == "QUAKE" && i.quakeAxis != 0) {
+    if (now >= i.deadline) {
+      i.quakeAxis = 0;
+      i.quakeOffsetX = i.quakeOffsetY = 0;
+      i.pending.clear();
+      i.vm.resume();
+    } else {
+      const uint64_t stepIdx =
+          (now >= i.quakeStart ? (now - i.quakeStart) : 0) /
+          uint64_t(std::max(1, i.quakeStepMs));
+      static constexpr int phaseSign[4] = {-1, 0, 1, 0};
+      const int offset = i.quakeAmp * phaseSign[stepIdx & 3u];
+      i.quakeOffsetX = (i.quakeAxis == 1) ? offset : 0;
+      i.quakeOffsetY = (i.quakeAxis == 2) ? offset : 0;
+    }
   }
   if (now - i.lastSystemWrite >= 5000) {
     i.saveSystem();
@@ -1906,14 +3969,39 @@ void SummerRuntime::update() {
       i.finishMessage();
     }
   }
-  if (i.vm.ended)
+  if (i.imouto && i.imoutoVm.finished && !i.imoutoMenu)
+    i.openImoutoMenu();
+  if (!i.imouto && i.vm.ended)
     i.begin();
 }
 bool SummerRuntime::onEvent(EventRef e) {
   auto &i = *impl;
+  if ((i.pending == "OPENING" || i.pending == "MOVIE") && i.movie &&
+      i.movie->isOpen()) {
+    if (i.videoSkip.accept(e)) {
+      const bool opening = i.pending == "OPENING";
+      i.movie->stop();
+      i.pending.clear();
+      if (opening) {
+        i.vm.start(i.pendingScript);
+        i.vm.run();
+      } else if (i.imouto) {
+        i.imoutoVm.resume();
+      } else {
+        i.vm.resume();
+      }
+    }
+    return true;
+  }
+  if (i.meo) {
+    for (auto *scene : GetActiveScenes())
+      if (scene && scene->capturesInput())
+        return Runtime::onEvent(e);
+    return Runtime::onEvent(MapControllerEvent(e, false));
+  }
   // Shared modals (pause, save browser, history, name entry) and choices map
-  // controller buttons in their own context. Pre-mapping would turn South into
-  // held skip while a menu is open.
+  // controller buttons in their own context. Pre-mapping would turn South
+  // into held skip while a menu is open.
   for (auto *scene : GetActiveScenes())
     if (scene && scene->capturesInput()) {
       i.skipHeld = false;
@@ -1932,6 +4020,33 @@ bool SummerRuntime::onEvent(EventRef e) {
 }
 void SummerRuntime::saveGame(const std::string &path) {
   auto &i = *impl;
+  if (i.meo) {
+    if (i.meoMenu || i.meoCurrentScript.empty())
+      throw std::runtime_error("Start MEO before saving");
+    VNSave save;
+    save.nodeId = 0;
+    const Uint64 now = SDL_GetTicks();
+    const Uint64 elapsed = i.meoElapsedOffset +
+                           (now >= i.meoFrameStart ? now - i.meoFrameStart : 0);
+    std::ostringstream s;
+    s << "MEO-PRESENTATION-1\n"
+      << i.meoCurrentScript << "\n"
+      << elapsed << "\n"
+      << i.meoLocals.size() << "\n";
+    for (const auto &[k, v] : i.meoLocals)
+      s << std::quoted(k) << ' ' << v << '\n';
+    s << i.meoGlobals.size() << "\n";
+    for (const auto &[k, v] : i.meoGlobals)
+      s << std::quoted(k) << ' ' << v << '\n';
+    save.gameData = s.str();
+    i.saveSystem();
+    std::filesystem::create_directories(
+        std::filesystem::path(path).parent_path().empty()
+            ? "."
+            : std::filesystem::path(path).parent_path());
+    save.write(path);
+    return;
+  }
   if (!i.vm.waiting || i.pending == "WAIT" || i.pending == "WIPE" ||
       i.pending == "BYTEVIEW" || i.pending == "MOVIE" ||
       i.pending == "SCROLLCG" || i.title)
@@ -1959,6 +4074,80 @@ void SummerRuntime::saveGame(const std::string &path) {
 void SummerRuntime::loadGame(const std::string &path) {
   auto &i = *impl;
   auto save = VNSave::read(path);
+  if (i.meo) {
+    std::istringstream input(save.gameData);
+    std::string version, script;
+    Uint64 elapsed = 0;
+    if (!std::getline(input, version) || version != "MEO-PRESENTATION-1" ||
+        !std::getline(input, script) || !(input >> elapsed) ||
+        elapsed > 24ull * 60 * 60 * 1000)
+      throw std::runtime_error("Invalid MEO save");
+    std::map<std::string, int64_t> savedLocals;
+    std::map<std::string, int64_t> savedGlobals;
+    size_t localCount = 0;
+    bool hasSavedVars = false;
+    if (input >> localCount && localCount <= 4096) {
+      hasSavedVars = true;
+      for (size_t idx = 0; idx < localCount; ++idx) {
+        std::string k;
+        int64_t v = 0;
+        if (input >> std::quoted(k) >> v)
+          savedLocals[k] = v;
+      }
+      size_t globalCount = 0;
+      if (input >> globalCount && globalCount <= 4096) {
+        for (size_t idx = 0; idx < globalCount; ++idx) {
+          std::string k;
+          int64_t v = 0;
+          if (input >> std::quoted(k) >> v)
+            savedGlobals[k] = v;
+        }
+      }
+    }
+    if (hasSavedVars) {
+      i.meoLocals = savedLocals;
+      for (const auto &[k, v] : savedGlobals) {
+        i.meoGlobals[k] = v;
+        i.vm.variables["$" + k] = v;
+      }
+    }
+    const auto prevLocals = i.meoLocals;
+    const auto prevGlobals = i.meoGlobals;
+    i.beginMeo(script);
+    if (hasSavedVars) {
+      i.meoLocals = prevLocals;
+      for (const auto &[k, v] : prevGlobals) {
+        i.meoGlobals[k] = v;
+        i.vm.variables["$" + k] = v;
+      }
+      i.meoNextScript.clear();
+      i.meoChoices.clear();
+      auto it = i.meoScripts.find("SCRIPT/" + i.meoCurrentScript);
+      if (it != i.meoScripts.end()) {
+        const std::string xml(it->second.begin(), it->second.end());
+        const auto codeStart = xml.find("<Code>");
+        const auto codeEnd = xml.find("</Code>", codeStart);
+        if (codeStart != std::string::npos && codeEnd != std::string::npos) {
+          try {
+            i.execMeoCode(
+                parseXml(xml.substr(codeStart, codeEnd + 7 - codeStart)));
+          } catch (...) {
+          }
+        }
+      }
+      i.meoLocals = prevLocals;
+    }
+    const Uint64 now = SDL_GetTicks();
+    i.meoFrameStart = now;
+    i.meoElapsedOffset = elapsed;
+    if (!i.meoVoiceTrack.empty())
+      i.audio(i.voice, i.meoVoiceTrack, "Voice", false,
+              std::size_t(elapsed * 44100 / 1000));
+    SDL_Log("MEO: restored %s at %llu ms", script.c_str(),
+            static_cast<unsigned long long>(elapsed));
+    i.updateMeo(now);
+    return;
+  }
   std::istringstream s(save.gameData);
   std::string version, data, background, music, pending, target;
   size_t count;
@@ -2061,6 +4250,29 @@ void SummerRuntime::loadGame(const std::string &path) {
 }
 Translation::SourceTexts SummerRuntime::translationSources() const {
   Translation::SourceTexts result;
+  if (impl->meo) {
+    // The MEO XML dialogue table is not part of the Summer script VM. Index
+    // its TextRes entries as original keys, including inactive story scenes.
+    auto &texts = result[0];
+    std::set<std::string> unique;
+    for (const auto &[id, bytes] : impl->meoScripts) {
+      const std::string xml(bytes.begin(), bytes.end());
+      std::size_t pos = 0;
+      while ((pos = xml.find("<TextRes ", pos)) != std::string::npos) {
+        const auto start = xml.find('>', pos);
+        if (start == std::string::npos)
+          break;
+        const auto end = xml.find("</TextRes>", start + 1);
+        if (end == std::string::npos)
+          break;
+        const auto value = xml.substr(start + 1, end - start - 1);
+        if (!value.empty() && unique.insert(value).second)
+          texts.push_back(value);
+        pos = end + sizeof("</TextRes>") - 1;
+      }
+    }
+    return result;
+  }
   int route = 0;
   for (auto &[name, script] : impl->vm.programs()) {
     for (auto &instruction : script.code)
@@ -2073,16 +4285,58 @@ Translation::SourceTexts SummerRuntime::translationSources() const {
   return result;
 }
 int SummerRuntime::translationRoute() const { return impl->route(); }
+std::vector<std::string> SummerRuntime::activeTranslationKeys() const {
+  return impl->activeOriginalKeys;
+}
+std::vector<DebugAudioAsset> SummerRuntime::debugSceneAudio() {
+  if (impl->currentVoiceId.empty())
+    return {};
+  return {{impl->currentVoiceId, impl->currentRawSpeaker,
+           impl->currentRawDialogue}};
+}
 std::string SummerRuntime::debugNode() const {
+  if (impl->meo)
+    return impl->meoCurrentScript + ":" + std::to_string(impl->meoFrame);
+  if (impl->imouto)
+    return impl->imoutoVm.currentScriptName + ":" +
+           std::to_string(impl->imoutoVm.pc);
   return impl->vm.position.script + ":" + std::to_string(impl->vm.position.pc);
 }
 std::string SummerRuntime::nodeClockKey() const {
+  if (impl->meo)
+    return impl->meoCurrentScript;
+  if (impl->imouto)
+    return impl->imoutoVm.currentScriptName;
   // All positions within the same script share the node clock; only the
   // event clock resets between PCs of a script.
   return impl->vm.position.script;
 }
 std::vector<DebugNode> SummerRuntime::debugNodes() const {
   std::vector<DebugNode> nodes;
+  if (impl->meo) {
+    for (const auto &[id, bytes] : impl->meoScripts) {
+      const auto name = std::filesystem::path(id).filename().string();
+      std::vector<std::string> references{id};
+      if (name == impl->meoCurrentScript) {
+        for (const auto &frame : impl->meoFrames)
+          for (const auto &child : frame.children)
+            for (const auto &object : child.children) {
+              auto file = object.attr("FILE");
+              if (file.empty())
+                continue;
+              const auto slash = file.find('/');
+              if (slash != std::string::npos)
+                file = file.substr(slash + 1);
+              const auto logical = "GRAPHIC/" + file;
+              if (std::find(references.begin(), references.end(), logical) ==
+                  references.end())
+                references.push_back(logical);
+            }
+      }
+      nodes.push_back({name, name, std::move(references)});
+    }
+    return nodes;
+  }
   for (auto &[name, s] : impl->vm.programs()) {
     nodes.push_back({name, name, {}});
     for (auto &[label, pc] : s.labels)
@@ -2095,12 +4349,20 @@ void SummerRuntime::debugJumpToNode(const std::string &node) {
     impl->movie->stop();
   if (!impl->engine)
     throw std::runtime_error("Runtime has not started");
-  impl->begin(node);
+  if (impl->meo)
+    impl->beginMeo(node);
+  else if (impl->imouto)
+    impl->beginImouto(node);
+  else
+    impl->begin(node);
   SetState(GameState::Gameplay);
   for (auto *scene : GetScenes(GameState::Menu)) {
     const auto &gameplay = GetScenes(GameState::Gameplay);
     if (std::find(gameplay.begin(), gameplay.end(), scene) == gameplay.end())
       AddScene(scene, GameState::Gameplay);
   }
+}
+bool SummerRuntime::isMeoOverlayOpen() const {
+  return impl && impl->meo && impl->meoOverlayOpen;
 }
 } // namespace SummerRadish

@@ -17,6 +17,8 @@ std::string InGameMenu::itemLabel(int index) const {
 }
 
 SDL_FRect InGameMenu::itemRect(int index) const {
+  if (itemRectCb)
+    return itemRectCb(index);
   return {460, 200.0f + static_cast<float>(index) * 54.0f, 360, 44};
 }
 
@@ -106,6 +108,10 @@ void InGameMenu::render(RendererRef renderer, float) {
 }
 
 void InGameMenu::renderPanel(RendererRef renderer) {
+  if (drawPanelCb) {
+    drawPanelCb(renderer);
+    return;
+  }
   auto &ui = engine.GetUI();
   ui.backdrop(renderer, {0, 0, 0, 160});
   ui.panel(renderer, {440, 120, 400, 440});
@@ -113,6 +119,10 @@ void InGameMenu::renderPanel(RendererRef renderer) {
 }
 
 void InGameMenu::renderItem(RendererRef renderer, int index, bool focused) {
+  if (drawItemCb) {
+    drawItemCb(renderer, index, focused);
+    return;
+  }
   engine.GetUI().button(renderer, itemRect(index), itemLabel(index), focused);
 }
 

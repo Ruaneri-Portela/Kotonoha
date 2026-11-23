@@ -89,8 +89,14 @@ public:
   // Raw bytes of an asset; throws when it does not exist.
   std::vector<Uint8> read(const std::string &id) const;
   std::vector<Uint8> read(const std::string &id, AssetSource source) const;
-  // Preserve upstream BOM-aware text decoding and explicit legacy encodings.
-  // Raw read() never transcodes an original game asset.
+  // Export exact source bytes (never decoded or re-encoded), including assets
+  // inside virtual archives. Stream in chunks when the provider supports it.
+  // The destination must not exist; partial files are removed on failure.
+  std::uint64_t dumpAsset(const std::string &id,
+                          const std::filesystem::path &destination,
+                          AssetSource source = AssetSource::Effective) const;
+  // BOM-aware UTF-8 text. Pass CP932, CP1252, UTF-16LE, etc. for BOM-less
+  // legacy text. Raw read() does not perform text conversion.
   std::string loadTextUtf8(const std::string &id,
                            const char *encoding = "UTF-8",
                            AssetSource source = AssetSource::Effective) const;

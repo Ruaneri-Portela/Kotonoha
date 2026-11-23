@@ -1,4 +1,8 @@
 #include "SnowRadish/Pack.hpp"
+#include <SnowRadish/PackAnimation.hpp>
+#include <SnowRadish/PackAudio.hpp>
+#include <SnowRadish/PackImage.hpp>
+
 #include "SnowRadish/Game.hpp"
 #include <algorithm>
 #include <cctype>
@@ -295,6 +299,8 @@ int main(int argc, char **argv) {
       inputs.push_back(input);
       if (input >= 0)
         retail.choose(0);
+      else if (retail.timerDeadlineMs() > 0)
+        retail.tickTimer(retail.timerDeadlineMs());
       else
         retail.click();
       retail.pump();
@@ -308,6 +314,8 @@ int main(int argc, char **argv) {
     for (int input : inputs) {
       if (input >= 0)
         replay.choose(size_t(input));
+      else if (replay.timerDeadlineMs() > 0)
+        replay.tickTimer(replay.timerDeadlineMs());
       else
         replay.click();
       replay.pump();

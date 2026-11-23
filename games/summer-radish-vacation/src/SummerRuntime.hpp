@@ -7,7 +7,10 @@ class SummerRuntime final : public Kotonoha::Runtime {
   std::unique_ptr<Impl> impl;
 
 public:
-  explicit SummerRuntime(std::shared_ptr<Kotonoha::Providers::SummerAssets>);
+  explicit SummerRuntime(std::shared_ptr<Kotonoha::Providers::SummerAssets>,
+                         std::string name = "Summer Radish Vacation!!",
+                         std::string appId =
+                             "me.hirameki.kotonoha.summerradishvacation");
   ~SummerRuntime() override;
   void shutdown();
   void initMenu(Kotonoha::Engine &) override;
@@ -18,10 +21,13 @@ public:
   void loadGame(const std::string &) override;
   Kotonoha::Translation::SourceTexts translationSources() const override;
   int translationRoute() const override;
+  std::vector<std::string> activeTranslationKeys() const override;
+  std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
   std::string debugNode() const override;
   std::string nodeClockKey() const override;
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   void debugJumpToNode(const std::string &) override;
+  [[nodiscard]] bool isMeoOverlayOpen() const;
   [[nodiscard]] bool continuousTouch() const override { return true; }
   SDL_Point viewport() const override { return {960, 720}; }
   SDL_FPoint sceneSize(const Kotonoha::Scene &) const override;

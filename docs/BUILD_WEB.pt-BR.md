@@ -18,6 +18,114 @@ cmake --build build-web --target RealLive
 
 Os caminhos das toolchains variam conforme a instalação. `KOTONOHA_BUILD_ALL=ON` seleciona os ports web suportados, mas exclui DDLC. Sirva o resultado por **HTTP**, não por `file://`.
 
+## Preset CMake (`wasm`)
+
+A mesma configuração está disponível como preset. Ele usa Ninja, Release, a
+toolchain vcpkg com o arquivo de chainload do Emscripten, o triplet
+`wasm32-emscripten` e `VCPKG_OVERLAY_PORTS=vcpkg-overlays/ports`. O diretório
+de build é `out/build/wasm`; o diretório clássico `build-web` acima não é
+modificado.
+
+```sh
+source /path/to/emsdk/emsdk_env.sh
+cmake --preset wasm
+cmake --build out/build/wasm --target RealLive
+```
+
+Algumas instalações (por exemplo, Emscripten via Homebrew) não exportam
+`EMSCRIPTEN_ROOT`, que o triplet do vcpkg exige. Use o auxiliar abaixo: ele
+descobre a raiz a partir do `emcc` no `PATH` e executa o mesmo preset.
+
+```sh
+./tools/configure_wasm.sh
+cmake --build out/build/wasm --target RealLive
+```
+
+Sempre carregue `emsdk_env.sh` (ou defina `EMSCRIPTEN_ROOT`) antes do primeiro
+configure: a toolchain Emscripten é escolhida nesse momento.
+
+## Um PWA instalável para cada jogo web
+
+Cada target compilado com Emscripten vira um Progressive Web App próprio em
+`build-web/outputs/<target>/`. A pasta inclui `index.html`,
+`manifest.webmanifest`, `service-worker.js`, ícones PNG 180/192/512,
+`KotonohaPreloadCache.js` e os arquivos JS/WASM/data do jogo. Nome,
+identidade da instalação, cor do ícone e escopo do Service Worker são
+específicos de cada jogo. Assim, `/RealLive/` e `/Kirikiri/` são PWAs
+independentes. Os ícones são gerados sem dependências extras de Python.
+
+Para instalar, hospede por **HTTPS** (ou `http://localhost` no
+desenvolvimento) e use **Instalar aplicativo** no navegador ou **Adicionar à
+Tela de Início** no iOS. O Service Worker armazena o shell e, após a
+inicialização, os arquivos JS/WASM/data do runtime para uso offline posterior.
+Ele **não intercepta `game-assets/`**, requisições `HEAD` ou HTTP `Range`.
+Assets de jogos ficam no cache de blocos do IndexedDB, separado do PWA.
+Instalar o PWA não baixa todos os arquivos do jogo: jogar offline exige que os
+dados necessários já estejam no cache. Limites de armazenamento ainda se
+aplicam.
+
+### Gerar preload.json pelo console
+
+Escolha a origem HTTP(S), navegue pelos menus e cenas que devem fazer parte
+do primeiro boot e, no console de desenvolvedor, execute:
+
+```javascript
+await KotonohaDumpPreload();
+```
+
+O navegador baixa um `preload.json`. Publique-o em
+`game-assets/preload.json`, ao lado do `manifest.json`. O dump registra
+**somente os arquivos e intervalos realmente baixados** até aquele momento;
+não copia todos os nomes do manifesto. O runtime também registra os nodos
+visitados, quais assets foram baixados em cada nodo e as transições observadas.
+O campo opcional `nodes` guarda esse grafo, usado pelo JavaScript para
+prever assets de nodos vizinhos a cada mudança de cena notificada pelo C++.
+O prefetch especulativo utiliza um limite inicial de 8 MiB, duas requisições
+paralelas e pode ser cancelado após uma mudança de cena. O campo `entries`
+é **o conjunto obrigatório do boot**: todos esses bytes precisam estar em
+cache antes do jogo começar. Para bloquear o boot somente pelos menus e pela
+primeira cena, mantenha apenas esses intervalos em `entries`, preservando os
+demais em `nodes`. Quando um `preload.json` existir, o
+boot HTTP(S) aguarda que todos os trechos exigidos estejam no IndexedDB,
+baixando os que faltarem antes de iniciar o WASM. O dump identifica a versão
+do manifesto para não combinar caches incompatíveis. O guia e o índice
+também podem ser recuperados offline quando já salvos; se faltarem blocos
+obrigatórios, o boot permanece bloqueado. A origem local não faz preload HTTP.
+
+## Idioma no navegador e limite do cache de assets
+
+Cada jogo web possui os botões **English / Português** na tela inicial.
+A escolha padrão acompanha o idioma do navegador, mas a preferência é
+salva no `localStorage`. A tradução cobre seleção de assets, progresso,
+montagem de pastas, mensagens de erro e rótulos de acessibilidade.
+O idioma dos scripts dentro dos jogos não é alterado por esse seletor.
+
+O cache de blocos no IndexedDB utiliza **LRU**: remove os blocos acessados há
+mais tempo primeiro, compartilhando o limite entre jogos da mesma origem web.
+O limite padrão é **2 GiB** de chunks binários, sem incluir saves nem o
+runtime armazenado pelo PWA. Leituras atualizam a data de último acesso.
+Antes de gravar um bloco, o gerenciador libera dados antigos se necessário,
+considerando o limite configurado e a estimativa de espaço do navegador.
+Em caso de `QuotaExceededError`, remove mais blocos antigos e tenta gravar
+novamente. Dados, metadados e contagem de bytes são alterados numa mesma
+transação IndexedDB. Os intervalos obrigatórios do `preload.json` permanecem
+protegidos contra a limpeza durante a sessão; se não couberem no cache, o
+preload falha em vez de iniciar incompleto.
+
+Para definir um limite diferente **antes de iniciar o jogo via HTTP(S)**:
+
+```javascript
+window.KotonohaCacheMaxBytes = 512 * 1024 * 1024; // 512 MiB
+// Depois de configurar a origem HTTP:
+await KotonohaAssetCache.getCacheStats();
+```
+
+Alterar esse valor afeta as próximas gravações, não limpa o cache
+imediatamente. A limpeza não remove saves em `/save` nem os arquivos do
+Service Worker/Cache Storage do PWA. Se não houver espaço para persistir um
+asset, a leitura pela rede pode continuar normalmente; o uso offline depende
+dos blocos que permaneceram armazenados.
+
 ## Armazenamento e assets no navegador
 
 - **Saves:** volume IDBFS em `/save`, sincronizado com IndexedDB pelo adaptador web.
@@ -30,22 +138,38 @@ Para o autoteste opcional, habilite `-DKOTONOHA_WEB_SELFTEST=ON`, compile `Koton
 **Limites:** permissões do navegador, downloads assíncronos, suporte a codecs e execução sem threads diferem do desktop. Não trate o disco do usuário como um filesystem POSIX acessível diretamente.
 
 
-## Fallback HTTP(S) de game-assets (Filesystem V2 experimental)
+## Manifesto HTTP(S) obrigatório para game-assets
 
-**O início aguarda uma escolha explícita:** **Usar pasta local** ou
-**Usar HTTP(S)**, sem seleção automática. O modo local lê arquivos importados
-antes do boot e não consulta o servidor. No modo HTTP(S), o navegador **procura opcionalmente
-`game-assets/manifest.json`** depois que o usuário escolhe essa origem.
-Quando o manifesto tem um índice válido `entries` com tamanho dos arquivos,
-ele alimenta a listagem virtual de diretórios (inclusive pastas aninhadas),
-permitindo descobrir pacotes com nomes variados. Os bytes ainda são obtidos
-via Fetch/Range sob demanda, sem cópia para MEMFS. Arquivos ausentes de um
-índice desatualizado continuam acessíveis por HEAD; índices inexistentes,
-vazios ou inválidos ativam automaticamente o Fetch direto.
+Todos os ports web aguardam a escolha explícita da origem. **Pasta local**
+não exige nem consulta manifesto. **HTTP(S)** exige um `manifest.json`
+**não vazio**, ao lado do `index.html`, com `entries` contendo caminhos
+e tamanhos. Sem manifesto, ou com índice vazio ou inválido, o jogo não
+inicia. Se houver falha de rede, um manifesto válido já salvo no
+IndexedDB pode ser reutilizado.
 
-`tools/generate_manifest.py` pode criar esse índice opcional. A pasta local
-não dispara requisições de manifesto, e nenhuma consulta ocorre antes da
-escolha explícita da origem.
+A ferramenta Python recebe **dois argumentos posicionais**:
+`[pasta] [arquivo]` (diretório a indexar e arquivo de saída):
+
+```sh
+python3 tools/generate_manifest.py build-web/outputs/N2SystemGame/game-assets build-web/outputs/N2SystemGame/manifest.json
+python3 tools/generate_manifest.py /Volumes/Server/data2/Games/SteinsGate /Volumes/Server/data2/Games/manifest.json
+```
+
+`[pasta]` é indexada **diretamente e de forma recursiva**, incluindo arquivos
+`.npa` e subpastas como `dx/`. Não há mais detecção automática de uma
+subpasta `game-assets/`. `[arquivo]` define exatamente onde gravar o JSON
+(caminho absoluto ou relativo ao diretório atual), podendo ficar uma pasta
+acima dos arquivos indexados. O próprio arquivo de saída não entra no índice.
+No WASM, publique o manifesto ao lado de `index.html` e disponibilize os
+arquivos em `game-assets/`, ou configure um mapeamento de URLs no
+servidor/CDN. O CMake passa explicitamente os dois caminhos após copiar
+os assets.
+
+**O manifesto é uma lista de permissão:** caminho ausente de `entries`
+retorna não encontrado imediatamente, sem executar HEAD/GET.
+Somente arquivos indexados podem usar Fetch/Range sob demanda e cache.
+O `game-assets/preload.json` opcional também precisa referenciar somente
+arquivos indexados.
 
 O endereço padrão é `game-assets/` relativo à página. Para usar um CDN
 HTTPS, configure **antes do script de inicialização**:
@@ -107,35 +231,18 @@ faz automaticamente cada porte procurar recursos nela. Os caminhos de busca
 e a jogabilidade por toque precisam ser verificados em cada jogo.
 
 
-### Fetch sem manifesto com Asyncify
+### Fetch com manifesto e Asyncify
 
-O HTML procura o índice opcional `game-assets/manifest.json` somente
-quando o usuário escolhe HTTP(S). Um índice válido permite `list()` e
-a descoberta de nomes arbitrários; arquivos ausentes ainda são consultados
-via Fetch/HEAD. O provider
-solicita HTTP `HEAD` para descobrir o tamanho dos **caminhos conhecidos**.
-Depois, usa `GET Range` para ler partes dos arquivos e manter os bytes em cache.
-Se um servidor ignorar Range e devolver o objeto completo com HTTP 200, o
-provider aceita a resposta quando o tamanho confere. Recursos remotos não
-são copiados ao MEMFS.
+O índice fornece listagem de diretórios e tamanhos sem HEAD. Bytes dos
+arquivos indexados são obtidos por GET Range, com suspensão via Asyncify
+enquanto o navegador responde. Não há XMLHttpRequest síncrono.
+Arquivos grandes precisam de HTTP 206 Content-Range; um HTTP 200 completo
+pode ser aceito para objetos pequenos de até 8 MiB.
 
-O link WebAssembly habilita `-sASYNCIFY=1` para que `exists()`, `open()`
-e `FileHandle::read()` possam suspender temporariamente a execução C++ até
-o navegador concluir a requisição; não é acesso à rede síncrono. O HTTP 404
-fica registrado como inexistente. Arquivos grandes exigem suporte real a
-HTTP Range (206 e Content-Range). Um servidor mal configurado pode devolver
-a imagem completa, então a hospedagem precisa de limites. Para outro domínio,
-configure CORS permitindo HEAD/GET e expondo Content-Length/Content-Range.
-
-Para requisitar um caminho conhecido explicitamente, use
-`await window.KotonohaFetchAsset("arquivo.bin")` (1 = pronto,
-0 = pendente, -1 = requisição inválida). Também é possível definir
-`window.KotonohaAssetBaseURL` antes da inicialização.
-
-HTTP comum não fornece enumeração de diretórios sem índice. Provedores
-que precisam descobrir nomes desconhecidos ou abrir arquivos físicos ainda
-dependem de migração. As operações Asyncify/SDL precisam de validação contra
-reentrância e memória; esta etapa **não comprova gameplay completo**.
+`await window.KotonohaFetchAsset("arquivo-indexado.bin")` consulta o
+manifesto (1 = indexado, 0 = ausente, -1 = inválido), sem requisitar
+arquivos desconhecidos. Para CDN, defina `window.KotonohaAssetBaseURL`
+antes da inicialização e publique o manifesto na raiz da página.
 
 ### Validação do navegador
 
@@ -144,7 +251,7 @@ node tools/check_web_shell.js
 node --check tools/web_selftest.js
 ```
 
-O teste Playwright cobre Fetch sem manifesto, pastas locais personalizadas,
+O teste Playwright cobre HTTP com manifesto obrigatório, pastas locais personalizadas,
 atualização de mounts existentes, saves, mídia e eventos de toque, quando
 compilado com `-DKOTONOHA_WEB_SELFTEST=ON`. Ele não substitui testes
 de gameplay de cada jogo e ainda não foi executado neste ambiente.

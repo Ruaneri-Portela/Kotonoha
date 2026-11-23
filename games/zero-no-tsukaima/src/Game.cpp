@@ -382,7 +382,9 @@ bool Game::DebugJump(const std::string &scriptName) {
   waiting_ = choosing_ = finished_ = msgOn_ = false;
   external_ = Block::None;
   waitUntil_ = -1;
-  transMode_ = inSkip_ = skipping_ = moving_ = roulette_ = booking_ = false;
+  transMode_ = inSkip_ = skipping_ = moving_ = roulette_ = booking_ =
+      battling_ = false;
+  battle_ = {};
   transition_ = {};
   choiceText_.clear();
   choiceTarget_.clear();
@@ -1147,12 +1149,39 @@ void Game::Execute(const SceneTag &tag) {
       LoadByName(concertoTndlDone_);
   } else if (n == "concerto_battle_init") {
     concertoBattleBack_ = attr("back");
-  } else if (n == "concerto_battle_add" || n == "concerto_battle_enemy") {
-    // Recorded for battle presentation; story continues on battle completion.
+    battle_ = {};
+    battle_.back = concertoBattleBack_;
+  } else if (n == "concerto_battle_add") {
+    BattleUnit unit;
+    unit.name = attr("name");
+    if (unit.name.empty())
+      unit.name = "Party";
+    unit.hp = unit.maxHp = 100;
+    battle_.party.push_back(std::move(unit));
+  } else if (n == "concerto_battle_enemy") {
+    BattleUnit enemy;
+    enemy.pos = attr("pos");
+    enemy.name = attr("name");
+    if (enemy.name.empty())
+      enemy.name = "Enemy";
+    enemy.pose = attr("pose");
+    enemy.hp = enemy.maxHp = 100;
+    battle_.enemies.push_back(std::move(enemy));
   } else if (n == "concerto_battle") {
-    // Auto-resolve turn-based battle in VN story runner so narrative continues.
-    if (!skipping_)
-      WaitFor(300);
+    if (battle_.party.empty())
+      battle_.party.push_back({"才人", "", "", 100, 100});
+    if (battle_.enemies.empty())
+      battle_.enemies.push_back({"敵", "center", "", 100, 100});
+    battle_.turn = 1;
+    battle_.defending = false;
+    battle_.log = "Battle Start!";
+    choiceText_ = {"Attack", "Magic", "Defend", "Auto-Win"};
+    choiceTarget_.clear();
+    choiceStorage_.clear();
+    choiceExpression_.clear();
+    battling_ = true;
+    choosing_ = true;
+    ++version_;
   } else if (n == "bgm") {
     bgm_.clear();
     for (const auto &[k, v] : tag.attrs)
@@ -1487,6 +1516,60 @@ bool Game::Click() {
 }
 
 bool Game::Choose(size_t index) {
+  if (choosing_ && battling_) {
+    if (index >= 4)
+      return false;
+    battle_.defending = (index == 2);
+    auto firstAlive = [](std::vector<BattleUnit> &units) -> BattleUnit * {
+      for (auto &u : units)
+        if (u.hp > 0)
+          return &u;
+      return nullptr;
+    };
+    if (index == 0) {
+      if (auto *e = firstAlive(battle_.enemies)) {
+        const int dmg = 35 + int(battle_.party.size()) * 5;
+        e->hp = std::max(0, e->hp - dmg);
+        battle_.log = "Attack! " + e->name + " -" + std::to_string(dmg) + " HP";
+      }
+    } else if (index == 1) {
+      const int dmg = 45;
+      for (auto &e : battle_.enemies)
+        if (e.hp > 0)
+          e.hp = std::max(0, e.hp - dmg);
+      battle_.log = "Magic! All enemies -" + std::to_string(dmg) + " HP";
+    } else if (index == 2) {
+      for (auto &p : battle_.party)
+        p.hp = std::min(p.maxHp, p.hp + 20);
+      battle_.log = "Defend! Guard up & party +20 HP";
+    } else if (index == 3) {
+      for (auto &e : battle_.enemies)
+        e.hp = 0;
+      battle_.log = "Auto-Win!";
+    }
+    if (!firstAlive(battle_.enemies)) {
+      battling_ = choosing_ = false;
+      choiceText_.clear();
+      battle_.log = "Victory!";
+      ++version_;
+      Pump();
+      return true;
+    }
+    int enemyAttacks = 0;
+    for (const auto &e : battle_.enemies)
+      if (e.hp > 0)
+        ++enemyAttacks;
+    if (auto *p = firstAlive(battle_.party)) {
+      const int baseDmg = 10 * std::max(1, enemyAttacks);
+      const int dmg = battle_.defending ? std::max(2, baseDmg / 3) : baseDmg;
+      // Story battles never hard-lock the narrative on defeat; rally at 10 HP.
+      p->hp = std::max(10, p->hp - dmg);
+      battle_.log += " | Enemy -" + std::to_string(dmg) + " HP";
+    }
+    ++battle_.turn;
+    ++version_;
+    return true;
+  }
   if (choosing_ && booking_) {
     if (index >= bookChoices_.size())
       return false;

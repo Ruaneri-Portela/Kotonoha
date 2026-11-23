@@ -1,12 +1,14 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/core/UI.hpp>
 #include <Kotonoha/localization/Translation.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 
 #include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <filesystem>
 #include <stdexcept>
+#include <utility>
 
 namespace Kotonoha {
 
@@ -59,8 +61,24 @@ UI::UI(const std::string &fontPath)
   }
 }
 
+UI::UI(std::vector<uint8_t> bytes)
+    : fontData(std::move(bytes)),
+      instanceId_(nextUiInstance.fetch_add(1, std::memory_order_relaxed)) {
+  if (fontData.empty())
+    throw std::invalid_argument("UI font data cannot be empty");
+  IOStreamPtr stream(SDL_IOFromConstMem(fontData.data(), fontData.size()));
+  if (stream)
+    font.reset(TTF_OpenFontIO(stream.release(), true, 24));
+  if (!font)
+    throw std::runtime_error(std::string("Cannot load game UI font: ") +
+                             SDL_GetError());
+}
+
 UI::~UI() {
+  // Destroy glyph text before the corresponding fonts and atlas.
   cache.clear();
+  rasterFonts.clear();
+  textEngine.reset();
   font.reset();
 }
 
@@ -115,44 +133,181 @@ float UI::textSized(RendererRef renderer, const std::string &original, float x,
   const std::string key = std::to_string(fontSize) + ":" +
                           std::to_string(raster) + ":" +
                           std::to_string(pixels) + ":" + value;
+
+  // SDL_ttf draws atlas glyphs through the SDL renderer. OpenGL/OpenGL ES
+  // renderers therefore compose text on the GPU; other backends remain native.
+  if (textRenderer != &renderer) {
+    cache.clear(); // Drop SDL textures while the previous renderer still lives.
+    rasterFonts.clear();
+    textEngine.reset();
+    textRenderer = &renderer;
+    textEngine.reset(TTF_CreateRendererTextEngine(textRenderer));
+    if (!textEngine)
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "SDL_ttf glyph atlas unavailable (%s); using surfaces",
+                  SDL_GetError());
+  }
+
   auto found = cache.find(key);
   if (found == cache.end()) {
     if (cache.size() >= 512)
       cache.clear();
-    const auto oldSize = TTF_GetFontSize(font.get());
-    const float targetSize = fontSize * raster;
-    const bool sizeChanged = std::abs(targetSize - oldSize) > 0.01f;
-    struct RestoreSize {
-      TTF_Font *font;
-      float size;
-      bool restore;
-      ~RestoreSize() {
-        if (restore)
-          TTF_SetFontSize(font, size);
+    CachedText entry;
+    if (textEngine) {
+      // Dedicated fonts per size avoid invalidating every atlas glyph on
+      // TTF_SetFontSize; cache the font as well as the shaped TTF_Text.
+      const std::string sizeKey = std::to_string(fontSize * raster);
+      auto sized = rasterFonts.find(sizeKey);
+      if (sized == rasterFonts.end()) {
+        if (rasterFonts.size() >= 64) {
+          cache.clear(); // Text objects must die before their fonts.
+          rasterFonts.clear();
+          sized = rasterFonts.end();
+        }
+        IOStreamPtr io(SDL_IOFromConstMem(fontData.data(), fontData.size()));
+        if (io) {
+          FontPtr created(
+              TTF_OpenFontIO(io.release(), true, fontSize * raster));
+          if (created)
+            sized = rasterFonts.emplace(sizeKey, std::move(created)).first;
+        }
       }
-    } restore{font.get(), oldSize, sizeChanged};
-    if (sizeChanged && !TTF_SetFontSize(font.get(), targetSize))
-      throw std::runtime_error(SDL_GetError());
-    SurfacePtr surface{TTF_RenderText_Blended_Wrapped(
-        font.get(), value.c_str(), value.size(), {255, 255, 255, 255}, pixels)};
-    if (!surface)
-      throw std::runtime_error(SDL_GetError());
-    TexturePtr texture{SDL_CreateTextureFromSurface(&renderer, surface.get())};
-    if (!texture)
-      throw std::runtime_error(SDL_GetError());
-    found =
-        cache
-            .emplace(key, CachedText{std::move(texture),
-                                     static_cast<float>(surface->w) / raster,
-                                     static_cast<float>(surface->h) / raster})
-            .first;
+      if (sized != rasterFonts.end()) {
+        entry.glyphText.reset(TTF_CreateText(textEngine.get(),
+                                             sized->second.get(), value.c_str(),
+                                             value.size()));
+        int width = 0, height = 0;
+        if (entry.glyphText &&
+            TTF_SetTextWrapWidth(entry.glyphText.get(), pixels) &&
+            TTF_GetTextSize(entry.glyphText.get(), &width, &height)) {
+          entry.width = static_cast<float>(width) / raster;
+          entry.height = static_cast<float>(height) / raster;
+        } else {
+          entry.glyphText.reset();
+        }
+      }
+    }
+    if (!entry.glyphText) {
+      // Compatibility fallback: rasterize the whole phrase once.
+      const auto oldSize = TTF_GetFontSize(font.get());
+      const float targetSize = fontSize * raster;
+      const bool sizeChanged = std::abs(targetSize - oldSize) > 0.01f;
+      struct RestoreSize {
+        TTF_Font *font;
+        float size;
+        bool restore;
+        ~RestoreSize() {
+          if (restore)
+            TTF_SetFontSize(font, size);
+        }
+      } restore{font.get(), oldSize, sizeChanged};
+      if (sizeChanged && !TTF_SetFontSize(font.get(), targetSize))
+        throw std::runtime_error(SDL_GetError());
+      SurfacePtr surface{TTF_RenderText_Blended_Wrapped(
+          font.get(), value.c_str(), value.size(), {255, 255, 255, 255},
+          pixels)};
+      if (!surface || !MarkTTFTextRaster(*surface))
+        throw std::runtime_error(SDL_GetError());
+      entry.texture.reset(
+          SDL_CreateTextureFromSurface(&renderer, surface.get()));
+      if (!entry.texture || !MarkTTFTextRaster(*entry.texture))
+        throw std::runtime_error(SDL_GetError());
+      entry.width = static_cast<float>(surface->w) / raster;
+      entry.height = static_cast<float>(surface->h) / raster;
+    }
+    found = cache.emplace(key, std::move(entry)).first;
   }
+
   auto &entry = found->second;
-  SDL_SetTextureColorMod(entry.texture.get(), color.r, color.g, color.b);
-  SDL_SetTextureAlphaMod(entry.texture.get(), color.a);
-  const SDL_FRect destination{x, y, entry.width, entry.height};
-  if (!SDL_RenderTexture(&renderer, entry.texture.get(), nullptr, &destination))
-    throw std::runtime_error(SDL_GetError());
+  if (entry.glyphText) {
+    if (entry.tint.r != color.r || entry.tint.g != color.g ||
+        entry.tint.b != color.b || entry.tint.a != color.a) {
+      if (!TTF_SetTextColor(entry.glyphText.get(), color.r, color.g, color.b,
+                            color.a))
+        throw std::runtime_error(SDL_GetError());
+      entry.tint = color;
+    }
+    if (std::abs(raster - 1.0f) < 1e-4f) {
+      if (!TTF_DrawRendererText(entry.glyphText.get(), x, y))
+        throw std::runtime_error(SDL_GetError());
+    } else {
+      // SDL3 scales both the active viewport and clip rect by the render scale.
+      // Scale them by `raster` alongside dividing render scale by `raster` so
+      // HiDPI atlas glyphs render at 1:1 physical pixels without shifting or
+      // clipping text inside FrameScope or clipped components (e.g. VNTextBox).
+      float scaleX = 1.0f, scaleY = 1.0f;
+      if (!SDL_GetRenderScale(&renderer, &scaleX, &scaleY))
+        throw std::runtime_error(SDL_GetError());
+      const bool viewportSet = SDL_RenderViewportSet(&renderer);
+      const bool clipEnabled = SDL_RenderClipEnabled(&renderer);
+      SDL_Rect viewport{}, clip{};
+      if (viewportSet && !SDL_GetRenderViewport(&renderer, &viewport))
+        throw std::runtime_error(SDL_GetError());
+      if (clipEnabled && !SDL_GetRenderClipRect(&renderer, &clip))
+        throw std::runtime_error(SDL_GetError());
+
+      struct RestoreRenderState {
+        SDL_Renderer *r;
+        float sx, sy;
+        bool hadViewport, hadClip;
+        SDL_Rect vp, cl;
+        bool &restored;
+        ~RestoreRenderState() {
+          if (!SDL_SetRenderScale(r, sx, sy))
+            restored = false;
+          if (hadViewport && !SDL_SetRenderViewport(r, &vp))
+            restored = false;
+          if (hadClip && !SDL_SetRenderClipRect(r, &cl))
+            restored = false;
+        }
+      };
+
+      bool drawn = false;
+      bool restored = true;
+      {
+        RestoreRenderState guard{&renderer,   scaleX,   scaleY, viewportSet,
+                                 clipEnabled, viewport, clip,   restored};
+        float drawX = x * raster;
+        float drawY = y * raster;
+        if (!SDL_SetRenderScale(&renderer, scaleX / raster, scaleY / raster))
+          throw std::runtime_error(SDL_GetError());
+        if (viewportSet) {
+          const SDL_Rect scaledViewport{
+              static_cast<int>(std::lround(viewport.x * raster)),
+              static_cast<int>(std::lround(viewport.y * raster)),
+              static_cast<int>(std::ceil(viewport.w * raster)),
+              static_cast<int>(std::ceil(viewport.h * raster))};
+          drawX += viewport.x * raster - static_cast<float>(scaledViewport.x);
+          drawY += viewport.y * raster - static_cast<float>(scaledViewport.y);
+          if (!SDL_SetRenderViewport(&renderer, &scaledViewport))
+            throw std::runtime_error(SDL_GetError());
+        }
+        if (clipEnabled) {
+          const int clipX = static_cast<int>(std::floor(clip.x * raster));
+          const int clipY = static_cast<int>(std::floor(clip.y * raster));
+          const int clipRight =
+              static_cast<int>(std::ceil((clip.x + clip.w) * raster));
+          const int clipBottom =
+              static_cast<int>(std::ceil((clip.y + clip.h) * raster));
+          const SDL_Rect scaledClip{clipX, clipY,
+                                    std::max(0, clipRight - clipX),
+                                    std::max(0, clipBottom - clipY)};
+          if (!SDL_SetRenderClipRect(&renderer, &scaledClip))
+            throw std::runtime_error(SDL_GetError());
+        }
+        drawn = TTF_DrawRendererText(entry.glyphText.get(), drawX, drawY);
+      }
+      if (!drawn || !restored)
+        throw std::runtime_error(SDL_GetError());
+    }
+  } else {
+    SDL_SetTextureColorMod(entry.texture.get(), color.r, color.g, color.b);
+    SDL_SetTextureAlphaMod(entry.texture.get(), color.a);
+    const SDL_FRect destination{x, y, entry.width, entry.height};
+    if (!SDL_RenderTexture(&renderer, entry.texture.get(), nullptr,
+                           &destination))
+      throw std::runtime_error(SDL_GetError());
+  }
   return entry.height;
 }
 

@@ -2,6 +2,7 @@
 #include <LucaSystem/LucaSystemScript.hpp>
 
 #include <Kotonoha/localization/Encoding.hpp>
+#include <SDL3/SDL_stdinc.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -95,6 +96,41 @@ std::string ReadLsUtf8(const std::vector<std::uint8_t> &bytes, size_t &cursor) {
   if (cursor < bytes.size() && bytes[cursor] == 0)
     ++cursor;
   return text;
+}
+
+std::string ReadLsCString(const std::vector<std::uint8_t> &bytes,
+                          size_t &cursor) {
+  if (cursor >= bytes.size())
+    return {};
+  size_t end = cursor;
+  while (end < bytes.size() && bytes[end] != 0)
+    ++end;
+  std::string text(bytes.begin() + cursor, bytes.begin() + end);
+  cursor = end < bytes.size() ? end + 1 : end;
+  return text;
+}
+
+std::optional<VarStrSetEntry>
+ParseVarStrSet(const ScriptInstruction &instruction) {
+  const auto &bytes = instruction.paramBytes;
+  if (bytes.size() < 6)
+    return std::nullopt;
+  size_t cursor = 2; // skip the leading uint16 constant
+  VarStrSetEntry entry;
+  entry.scenario = ReadLsCString(bytes, cursor);
+  if (cursor + 2 > bytes.size())
+    return std::nullopt;
+  entry.id = static_cast<std::uint16_t>(
+      bytes[cursor] | (static_cast<std::uint16_t>(bytes[cursor + 1]) << 8));
+  cursor += 2;
+
+  const std::string jp = ReadLsUtf16(bytes, cursor);
+  const std::string en = ReadLsUtf16(bytes, cursor);
+  const std::string zh = ReadLsUtf16(bytes, cursor);
+  entry.text = !en.empty() ? en : (!jp.empty() ? jp : zh);
+  if (entry.scenario.empty() || entry.text.empty())
+    return std::nullopt;
+  return entry;
 }
 
 Script::Script(std::string name, std::vector<std::uint8_t> data)
@@ -225,6 +261,230 @@ Script::replaceRaw(std::size_t instructionIndex,
   auto result = serialize();
   std::copy(bytes.begin(), bytes.end(),
             result.begin() + static_cast<std::size_t>(ins.pos) + 4);
+  return result;
+}
+
+std::vector<std::uint8_t> Script::replaceRawAtOffsets(
+    const std::map<std::uint32_t, std::vector<std::uint8_t>> &edits) const {
+  auto output = serialize();
+  for (const auto &[offset, payload] : edits) {
+    const auto index = FindInstructionAtOffset(instructions_, offset);
+    if (!index)
+      throw std::out_of_range(name_ + ": no instruction at offset " +
+                              std::to_string(offset));
+    const auto &instruction = instructions_[*index];
+    if (payload.size() != instruction.rawBytes.size())
+      throw std::invalid_argument(name_ + ": payload size differs at offset " +
+                                  std::to_string(offset) + " (expected " +
+                                  std::to_string(instruction.rawBytes.size()) +
+                                  " bytes)");
+    std::copy(payload.begin(), payload.end(),
+              output.begin() + static_cast<std::size_t>(offset) + 4);
+  }
+  return output;
+}
+
+namespace {
+
+using Bytes = std::vector<uint8_t>;
+
+// The offsets here refer to the raw payload, including the fixed parameters.
+// Decode only explicit AIR fields, never search arbitrary payloads for numbers
+// that happen to match instruction offsets.
+size_t stringEnd(const Bytes &bytes, size_t start, bool utf16) {
+  const auto count = readU16(bytes, start);
+  const size_t length =
+      utf16 ? size_t(count) * 2 : (count ? 0x10000u - count : 0u);
+  const size_t terminator = utf16 ? 2 : 1;
+  const auto end = start + 2 + length;
+  if (end + terminator > bytes.size() || bytes[end] != 0 ||
+      (utf16 && bytes[end + 1] != 0))
+    throw std::runtime_error("truncated or unterminated AIR string field");
+  return end + terminator;
+}
+
+Bytes patchMessage(const ScriptInstruction &ins, const std::string &text) {
+  if (ins.opcode != 36)
+    throw std::runtime_error("edit does not refer to MESSAGE");
+  if (text.size() > UINT16_MAX - 4 || text.find('\0') != std::string::npos)
+    throw std::runtime_error("invalid AIR MESSAGE text length or NUL byte");
+  const char *next = text.data();
+  size_t left = text.size();
+  while (left > 0) {
+    const auto before = left;
+    if (SDL_StepUTF8(&next, &left) == SDL_INVALID_UNICODE_CODEPOINT &&
+        before - left != 3)
+      throw std::runtime_error("replacement is not valid UTF-8");
+  }
+  const auto &raw = ins.rawBytes;
+  const auto begin = stringEnd(raw, ins.fixedParam.size() + 2, true);
+  const auto end = stringEnd(raw, begin, false);
+  // Verify the next field also starts on the expected boundary.
+  stringEnd(raw, end, true);
+  Bytes result(raw.begin(), raw.begin() + begin);
+  const auto encoded = static_cast<uint16_t>(0u - text.size());
+  result.push_back(static_cast<uint8_t>(encoded));
+  result.push_back(static_cast<uint8_t>(encoded >> 8));
+  result.insert(result.end(), text.begin(), text.end());
+  result.push_back(0);
+  result.insert(result.end(), raw.begin() + end, raw.end());
+  if (result.size() > UINT16_MAX - 4)
+    throw std::runtime_error("translated instruction exceeds 16-bit size");
+  return result;
+}
+
+template <class Visit>
+void visitAirTargets(const ScriptInstruction &ins, std::string_view current,
+                     Visit visit) {
+  const auto &raw = ins.rawBytes;
+  size_t start = ins.fixedParam.size();
+  size_t count = 1;
+  auto destination = current;
+  switch (ins.opcode) {
+  case 15: // GOTO
+  case 17: // GOSUB
+    break;
+  case 16: // ONGOTO
+    start = stringEnd(raw, start, false);
+    count = readU16(raw, start);
+    start += 2;
+    break;
+  case 18: // IFY
+  case 19: // IFN
+    start = stringEnd(raw, start, false);
+    break;
+  case 21:   // JUMP
+  case 22: { // FARCALL
+    const auto end = stringEnd(raw, start, false);
+    destination =
+        std::string_view(reinterpret_cast<const char *>(raw.data() + start + 2),
+                         end - start - 3);
+    if (destination.empty() || destination.find('\0') != std::string_view::npos)
+      throw std::runtime_error("invalid AIR jump scenario");
+    start = end;
+    if (ins.opcode == 21 && start == raw.size())
+      return; // file-entry jump with no explicit byte address
+    break;
+  }
+  default:
+    return;
+  }
+  if (raw.size() - start != count * 4)
+    throw std::runtime_error("unexpected AIR branch layout");
+  for (size_t i = 0; i < count; ++i) {
+    const auto field = start + i * 4;
+    uint32_t target = 0;
+    for (size_t byte = 0; byte < 4; ++byte)
+      target |= uint32_t(raw[field + byte]) << (8 * byte);
+    visit(field, destination, target);
+  }
+}
+
+struct Layout {
+  const Script *script = nullptr;
+  std::vector<uint32_t> offsets;
+  std::map<size_t, Bytes> payloads;
+  uint32_t size = 0;
+};
+
+} // namespace
+
+std::map<std::string, std::vector<uint8_t>>
+PatchAirMessages(const std::map<std::string, Script> &scripts,
+                 const AirMessageEdits &edits) {
+  std::map<std::string_view, Layout> layouts;
+  std::map<std::string, Bytes> result;
+  for (const auto &[name, changes] : edits) {
+    if (!scripts.count(name))
+      throw std::runtime_error("Unknown AIR scenario: " + name);
+  }
+  for (const auto &[name, script] : scripts) {
+    if (!script.valid())
+      throw std::runtime_error(script.error());
+    auto &layout = layouts[name];
+    layout.script = &script;
+    const auto &instructions = script.instructions();
+    if (const auto scenarioEdits = edits.find(name);
+        scenarioEdits != edits.end()) {
+      for (const auto &[offset, text] : scenarioEdits->second) {
+        const auto index = FindInstructionAtOffset(instructions, offset);
+        if (!index)
+          throw std::runtime_error(name + ": no instruction at byte " +
+                                   std::to_string(offset));
+        try {
+          auto bytes = patchMessage(instructions[*index], text);
+          if (bytes != instructions[*index].rawBytes)
+            layout.payloads.emplace(*index, std::move(bytes));
+        } catch (const std::exception &e) {
+          throw std::runtime_error(name + " at byte " + std::to_string(offset) +
+                                   ": " + e.what());
+        }
+      }
+    }
+    layout.offsets.reserve(instructions.size());
+    uint64_t size = 0;
+    for (size_t i = 0; i < instructions.size(); ++i) {
+      layout.offsets.push_back(static_cast<uint32_t>(size));
+      const auto edit = layout.payloads.find(i);
+      const auto len = edit == layout.payloads.end() ? instructions[i].len
+                                                     : edit->second.size() + 4;
+      size += (len + 1u) & ~size_t(1);
+      if (size > UINT32_MAX)
+        throw std::runtime_error(name + ": translated script exceeds 4 GiB");
+    }
+    layout.size = static_cast<uint32_t>(size);
+  }
+  for (const auto &[name, script] : scripts) {
+    auto &layout = layouts.at(name);
+    const auto &instructions = script.instructions();
+    for (size_t i = 0; i < instructions.size(); ++i) {
+      const auto &ins = instructions[i];
+      try {
+        visitAirTargets(
+            ins, name,
+            [&](size_t field, std::string_view dest, uint32_t original) {
+              const auto target = layouts.find(dest);
+              if (target == layouts.end())
+                throw std::runtime_error("unknown jump scenario: " +
+                                         std::string(dest));
+              const auto index = FindInstructionAtOffset(
+                  target->second.script->instructions(), original);
+              if (!index)
+                throw std::runtime_error(
+                    "jump does not land on an instruction: " +
+                    std::to_string(original));
+              const auto updated = target->second.offsets[*index];
+              if (updated == original)
+                return;
+              auto &raw =
+                  layout.payloads.try_emplace(i, ins.rawBytes).first->second;
+              for (size_t byte = 0; byte < 4; ++byte)
+                raw[field + byte] = static_cast<uint8_t>(updated >> (8 * byte));
+            });
+      } catch (const std::exception &e) {
+        throw std::runtime_error(name + " at byte " + std::to_string(ins.pos) +
+                                 ": " + e.what());
+      }
+    }
+    if (layout.payloads.empty())
+      continue;
+    auto &bytes = result[name];
+    bytes.reserve(layout.size);
+    for (size_t i = 0; i < instructions.size(); ++i) {
+      const auto &ins = instructions[i];
+      const auto change = layout.payloads.find(i);
+      const auto &raw =
+          change == layout.payloads.end() ? ins.rawBytes : change->second;
+      const auto len = raw.size() + 4;
+      bytes.push_back(static_cast<uint8_t>(len));
+      bytes.push_back(static_cast<uint8_t>(len >> 8));
+      bytes.push_back(ins.opcode);
+      bytes.push_back(ins.fixedFlag);
+      bytes.insert(bytes.end(), raw.begin(), raw.end());
+      if (len & 1u)
+        bytes.push_back(ins.align.empty() ? 0 : ins.align.front());
+    }
+  }
   return result;
 }
 

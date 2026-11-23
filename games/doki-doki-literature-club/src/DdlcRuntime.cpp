@@ -134,12 +134,18 @@ private:
 
 GameRuntime::GameRuntime(
     std::shared_ptr<Kotonoha::Providers::DdlcAssets> assets)
-    : Runtime("Doki Doki Literature Club!", "0.1.0",
-              "me.hirameki.kotonoha.dokidokiliteratureclub"),
+    : Runtime(assets && assets->isKatawa() ? "Katawa Shoujo"
+              : assets && assets->isDdlc() ? "Doki Doki Literature Club!"
+              : assets                     ? assets->name()
+                                           : "Ren'Py",
+              "0.1.0",
+              assets && assets->isKatawa() ? "me.hirameki.kotonoha.katawashoujo"
+              : assets && assets->isDdlc()
+                  ? "me.hirameki.kotonoha.dokidokiliteratureclub"
+                  : "me.hirameki.kotonoha.renpy"),
       assets_(std::move(assets)) {
   if (!assets_)
-    throw std::invalid_argument(
-        "Doki Doki Literature Club requires its game directory");
+    throw std::invalid_argument("Ren'Py requires a game directory");
 }
 
 GameRuntime::~GameRuntime() { shutdown(); }
@@ -191,8 +197,12 @@ void GameRuntime::addGameScenes() {
 }
 void GameRuntime::initMenu(Kotonoha::Engine &) { addGameScenes(); }
 void GameRuntime::initGameplay(Kotonoha::Engine &) {
-  if (session_ && !session_->playing())
-    session_->startGame();
+  if (session_ && !session_->playing()) {
+    if (assets_->isKatawa())
+      session_->update(false);
+    else
+      session_->startGame();
+  }
   addGameScenes();
 }
 bool GameRuntime::handleBackAction() {
@@ -252,6 +262,23 @@ void GameRuntime::render(Kotonoha::RendererRef renderer, float scale) {
 Kotonoha::Translation::SourceTexts GameRuntime::translationSources() const {
   return assets_->script().translationSources();
 }
+std::vector<std::string> GameRuntime::activeTranslationKeys() const {
+  if (!session_)
+    return {};
+  std::vector<std::string> keys;
+  const auto rawLine = session_->dialogueSourceText();
+  if (!rawLine.empty())
+    keys.push_back(rawLine);
+  const auto speaker = session_->dialogueSpeaker();
+  if (!speaker.empty())
+    keys.push_back(speaker);
+  for (const auto &choice : session_->choiceTexts())
+    if (!choice.empty() &&
+        std::find(keys.begin(), keys.end(), choice) == keys.end())
+      keys.push_back(choice);
+  return keys;
+}
+
 std::string GameRuntime::debugNode() const {
   return session_ ? session_->debugNode() : std::string();
 }
@@ -259,8 +286,36 @@ std::string GameRuntime::nodeClockKey() const {
   return session_ ? session_->nodeClockKey() : std::string();
 }
 
+std::vector<Kotonoha::DebugAudioAsset> GameRuntime::debugSceneAudio() {
+  if (!session_ || !assets_)
+    return {};
+  std::vector<Kotonoha::DebugAudioAsset> result;
+  for (const auto &[channel, id] : session_->activeAudioAssets()) {
+    if (!assets_->contains(id))
+      continue;
+    if (channel == "voice")
+      result.push_back(
+          {id, session_->dialogueSpeaker(), session_->dialogueSourceText()});
+    else
+      result.push_back({id, {}, {}});
+  }
+  return result;
+}
+
+void GameRuntime::debugOverlayAssetChanged(const std::string &) {
+  if (assets_)
+    assets_->clearCache();
+}
+
 std::vector<Kotonoha::DebugNode> GameRuntime::debugNodes() const {
   std::vector<Kotonoha::DebugNode> result;
+  // Add current Ren'Py audio only once for the file that is actually active,
+  // instead of misattributing playback to every label in that file.
+  const auto activeFile = session_ ? session_->nodeClockKey() : std::string{};
+  const auto audio = session_
+                         ? session_->activeAudioAssets()
+                         : std::vector<std::pair<std::string, std::string>>{};
+  bool linkedAudio = false;
   for (const auto &label : assets_->script().labelNames()) {
     const auto *node = assets_->script().label(label);
     Kotonoha::DebugNode entry{
@@ -270,6 +325,12 @@ std::vector<Kotonoha::DebugNode> GameRuntime::debugNodes() const {
                               .generic_string();
     if (assets_->contains(compiled))
       entry.assets.push_back(compiled);
+    if (!linkedAudio && node->file == activeFile) {
+      for (const auto &[channel, id] : audio)
+        if (assets_->contains(id))
+          entry.assets.push_back(id);
+      linkedAudio = true;
+    }
     result.push_back(std::move(entry));
   }
   return result;

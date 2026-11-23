@@ -56,6 +56,14 @@ std::string_view ScriptVm::currentChapter() const {
   return executor_ ? executor_->chapterName() : "";
 }
 
+bool ScriptVm::debugJumpToLabel(std::string_view label) {
+  if (!executor_ || !executor_->jumpToLabel(label))
+    return false;
+  dialogueSystem_.clearDialogue();
+  executor_->resume();
+  return true;
+}
+
 bool ScriptVm::hasPendingChoice() const {
   for (const auto &[name, entity] : sceneGraph_.entities()) {
     if (entity.type == EntityType::Choice && !entity.choiceOptions.empty())

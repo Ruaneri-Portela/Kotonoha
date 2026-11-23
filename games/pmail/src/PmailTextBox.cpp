@@ -3,6 +3,7 @@
 #include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/media/upscaling/Upscaler.hpp>
 #include <Pmail/Port.hpp>
 #include <algorithm>
 #include <cstdlib>
@@ -163,7 +164,7 @@ void PmailTextBox::renderFrame(Kotonoha::RendererRef renderer) {
       continue;
     const SDL_FRect dst{placement.x, placement.y, placement.w, placement.h};
     SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-    SDL_RenderTexture(&renderer, tex, nullptr, &dst);
+    Kotonoha::RenderUpscaledTexture(&renderer, tex, nullptr, &dst);
   }
 }
 
@@ -200,7 +201,7 @@ void PmailTextBox::renderIndicator(Kotonoha::RendererRef renderer) {
     return;
   const auto &placement = assets_.AnimationOf(name).frames.at(frame);
   const SDL_FRect dst{placement.x, placement.y, placement.w, placement.h};
-  SDL_RenderTexture(&renderer, texture, nullptr, &dst);
+  Kotonoha::RenderUpscaledTexture(&renderer, texture, nullptr, &dst);
 }
 
 SDL_Texture *PmailTextBox::LoadTextBoxGraphic(Kotonoha::RendererRef renderer,

@@ -2,6 +2,7 @@
 #include <SummerRadish/Map.hpp>
 #include <SummerRadish/Native.hpp>
 #include <SummerRadish/Script.hpp>
+#include <SummerRadish/SummerAssets.hpp>
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -10,15 +11,15 @@ int main(int argc, char **argv) {
   try {
     if (argc != 2)
       throw std::runtime_error("Expected retail disc root");
-    auto root = std::filesystem::path(argv[1]);
-    if (std::filesystem::is_directory(root / "DISC1/PACK"))
-      root /= "DISC1/PACK";
-    else if (std::filesystem::is_directory(root / "PACK"))
-      root /= "PACK";
-    Pack scripts(root / "SCRIPT.cmp");
+    Kotonoha::Providers::SummerAssets assets(argv[1]);
+    const bool isSrv2 = assets.contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
     Machine index;
-    for (auto &[name, entry] : scripts.entries()) {
-      auto bytes = scripts.read(name);
+    for (const auto &id : assets.list("SCRIPT/")) {
+      const auto name = id.substr(7);
+      if (name.size() <= 4 ||
+          canonical(name.substr(name.find_last_of('.') + 1)) != "XML")
+        continue;
+      auto bytes = assets.read(id);
       index.add(name.substr(0, name.size() - 4),
                 std::string(bytes.begin(), bytes.end()));
     }
@@ -59,10 +60,10 @@ int main(int argc, char **argv) {
               vm.variables["@RESULT"] = std::string("START");
           } else if (name == "MAPSELECT") {
             int mode = args.empty() ? 0 : int(number(args[0]));
-            auto &layout = mapLayout(mode);
+            auto &layout = mapLayout(mode, isSrv2);
             std::vector<int> candidates;
             for (const auto &location : layout.locations) {
-              auto key = mapCharacterVariable(location.result);
+              auto key = mapCharacterVariable(location.result, isSrv2);
               key.replace(0, 5, "FILE_");
               auto it = vm.variables.find("@" + key);
               if (mode == 2 ||

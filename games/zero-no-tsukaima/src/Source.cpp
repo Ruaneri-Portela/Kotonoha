@@ -1,4 +1,4 @@
-#include "Kotonoha/media/Ps2Tim2.hpp"
+#include <Kotonoha/Formats/Ps2Tim2.hpp>
 #include <ZeroNoTsukaima/Lz.hpp>
 #include <ZeroNoTsukaima/Scene.hpp>
 #include <ZeroNoTsukaima/Source.hpp>

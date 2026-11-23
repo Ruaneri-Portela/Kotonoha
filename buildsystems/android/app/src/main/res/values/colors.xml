@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="kotonoha_black">#000000</color>
+    <color name="kotonoha_navy">#0D142E</color>
+    <color name="kotonoha_surface">#182449</color>
+    <color name="kotonoha_indigo">#2C3E9A</color>
+    <color name="kotonoha_raised">#2C3E9A</color>
+    <color name="kotonoha_violet">#6A5BE7</color>
+    <color name="kotonoha_magenta">#C86BD9</color>
+    <color name="kotonoha_sakura">#FF8FBD</color>
+    <color name="kotonoha_cyan">#00D6FF</color>
+    <color name="kotonoha_white">#FFFFFF</color>
+    <color name="kotonoha_muted">#B9B5D4</color>
+    <color name="kotonoha_outline">#39315E</color>
+    <color name="kotonoha_icon_background">#0D142E</color>
+    <color name="kotonoha_success">#47D7A1</color>
+    <color name="kotonoha_warning">#FFBE68</color>
+    <color name="kotonoha_error">#FF7389</color>
+</resources>

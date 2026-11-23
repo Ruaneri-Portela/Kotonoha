@@ -23,13 +23,45 @@ SettingsMenu::SettingsMenu(Engine &engine) : engine(engine) {
 }
 SettingsMenu::~SettingsMenu() = default;
 
-int SettingsMenu::pageCount() const { return engine.GamepadCount() ? 4 : 3; }
+int SettingsMenu::pageCount() const {
+  if (skin)
+    return int(skin->pages().size());
+  return engine.GamepadCount() ? 4 : 3;
+}
+
+SettingsMenu::Page SettingsMenu::currentPage() const {
+  if (skin)
+    return skin->pages().at(page);
+  static constexpr Page defaults[]{Page::Display, Page::Audio, Page::Text,
+                                   Page::Input};
+  return defaults[page];
+}
+
+SDL_FRect SettingsMenu::tabArea(int index) const {
+  if (skin)
+    return skin->tabArea(index);
+  const bool controller = pageCount() == 4;
+  return {200 + index * (controller ? 220.0f : 290.0f), 85,
+          controller ? 205.0f : 280.0f, 48};
+}
+
+SDL_FRect SettingsMenu::rowArea(int index) const {
+  return skin ? SDL_FRect{96, 94 + index * 48.0f, 1088, 44}
+              : SDL_FRect{200, 150 + index * 48.0f, 860, 44};
+}
+
+SDL_FRect SettingsMenu::sliderArea(SDL_FRect row) const {
+  return {660, row.y + 14, skin ? 480.0f : 380.0f, 16};
+}
 
 std::vector<int> SettingsMenu::rows() const {
   std::vector<int> result;
-  if (page == 0) {
+  const auto kind = currentPage();
+  if (kind == Page::Display || kind == Page::Basic) {
     if (canChangeDisplaySize())
       result.insert(result.end(), {0, 1, 2, 3});
+  }
+  if (kind == Page::Display || kind == Page::System) {
     result.push_back(4);
 #if KOTONOHA_ENABLE_UPSCALER
     result.push_back(5);
@@ -38,13 +70,22 @@ std::vector<int> SettingsMenu::rows() const {
       result.insert(result.end(), {6, 10});
     result.push_back(7);
 #endif
-  } else if (page == 1) {
-    result.insert(result.end(), {11, 12});
-    for (int i = 0; i < int(channels.size()); ++i)
-      result.push_back(100 + i);
-  } else if (page == 2)
+  } else if (kind == Page::Audio || kind == Page::Sound ||
+             kind == Page::Voice) {
+    if (kind != Page::Voice)
+      result.insert(result.end(), {11, 12});
+    for (int i = 0; i < int(channels.size()); ++i) {
+      const bool voice = channels[i] == "Voice";
+      if (kind == Page::Audio || voice == (kind == Page::Voice))
+        result.push_back(100 + i);
+    }
+  } else if (kind == Page::Text)
     result.insert(result.end(), {18, 13, 14, 15, 16});
-  else
+  else if (kind == Page::TextPacing)
+    result.insert(result.end(), {18, 13});
+  else if (kind == Page::TextColors)
+    result.insert(result.end(), {14, 15, 16});
+  if (kind == Page::Input || (kind == Page::System && engine.GamepadCount()))
     result.push_back(17);
   result.insert(result.end(), {8, 9});
   return result;
@@ -67,6 +108,15 @@ void SettingsMenu::open() {
   for (const auto &[name, volume] : draft.channelVolumes)
     if (std::find(channels.begin(), channels.end(), name) == channels.end())
       channels.push_back(name);
+  if (skin) {
+    // Ports can create channels lazily; preferences must also be
+    // editable from the title before the first voice or effect starts.
+    for (const auto &name : skin->audioChannels()) {
+      if (std::find(channels.begin(), channels.end(), name) == channels.end())
+        channels.push_back(name);
+      draft.channelVolumes.try_emplace(name, 1.0f);
+    }
+  }
   fonts = VNFontOptions();
   error.clear();
   visible = true;
@@ -210,8 +260,8 @@ void SettingsMenu::activate(int index, int direction) {
         draft.upscaling.factor >= 4 ? 1 : draft.upscaling.factor + 0.5f;
 #endif
   else if (index == 8) {
-    // On the Audio page everything is already live; just close the menu.
-    if (page != 1)
+    // The default Audio page only edits live mixer settings.
+    if (currentPage() != Page::Audio)
       engine.applySettings(draft);
     close();
   } else if (index == 11) {
@@ -284,8 +334,11 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
     slider = -1;
     return true;
   }
+  const bool back = BackAction(engine, event) ||
+                    (skin && event.type == SDL_EVENT_KEY_DOWN &&
+                     !event.key.repeat && event.key.key == SDLK_X);
   if (selectBox.isOpen()) {
-    if (BackAction(engine, event)) {
+    if (back) {
       selectBox.close();
       return true;
     } else {
@@ -293,7 +346,7 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
       return true;
     }
   }
-  if (BackAction(engine, event)) {
+  if (back) {
     close();
     return true;
   }
@@ -309,7 +362,8 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
   }
   auto items = rows();
   auto setSlider = [&](int id, float x) {
-    float value = std::clamp((x - 660) / 380, 0.f, 1.f);
+    const auto area = sliderArea(rowArea(0));
+    float value = std::clamp((x - area.x) / area.w, 0.f, 1.f);
     if (id == 11)
       draft.masterVolume = value;
     else
@@ -329,10 +383,8 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
     }
   }
   const int tabs = pageCount();
-  const float tabWidth = tabs == 4 ? 205.f : 280.f;
-  const float tabStep = tabs == 4 ? 220.f : 290.f;
   for (int p = 0; p < tabs; ++p)
-    if (UI::clicked(event, {200.f + p * tabStep, 85, tabWidth, 48})) {
+    if (UI::clicked(event, tabArea(p))) {
       page = p;
       selected = first = 0;
       return true;
@@ -391,13 +443,17 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
       return true;
     }
     for (int i = first; i < std::min(first + 9, int(items.size()) - 2); ++i) {
-      const float y = 150 + (i - first) * 48;
+      const auto row = rowArea(i - first);
       const int id = items[i];
       if ((id == 11 || id >= 100) &&
           event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
           event.button.button == SDL_BUTTON_LEFT) {
         SDL_FPoint point{event.button.x, event.button.y};
-        SDL_FRect bar{650, y, 410, 44};
+        auto bar = sliderArea(row);
+        bar.x -= 10;
+        bar.w += 30;
+        bar.y = row.y;
+        bar.h = row.h;
         if (SDL_PointInRectFloat(&point, &bar)) {
           selected = i;
           slider = id;
@@ -405,7 +461,7 @@ bool SettingsMenu::onEvent(EventRef rawEvent) {
           return true;
         }
       }
-      if (UI::clicked(event, {200, y, 860, 44})) {
+      if (UI::clicked(event, row)) {
         selected = i;
         activate(id);
         return true;
@@ -490,49 +546,68 @@ void SettingsMenu::render(RendererRef renderer) {
            : draft.vnTextSpeed == 0 ? "Original game speed"
                                     : std::to_string(int(draft.vnTextSpeed)) +
                                           " characters / second")};
-  ui.backdrop(renderer, {0, 0, 0, 220});
-  ui.panel(renderer, {170, 25, 920, 670});
-  ui.text(renderer, "Settings", 200, 36, 860, {255, 215, 100, 255});
-  if (page == 1)
-    ui.text(renderer, "Audio applies immediately", 780, 44, 280,
-            {150, 165, 190, 255});
-  if (page == 2)
-    ui.text(renderer, "Speed applies immediately", 760, 44, 300,
-            {150, 165, 190, 255});
   const int tabs = pageCount();
-  const float tabWidth = tabs == 4 ? 205.f : 280.f;
-  const float tabStep = tabs == 4 ? 220.f : 290.f;
   page = std::min(page, tabs - 1);
-  const char *pages[]{"Display", "Audio", "VN text", "Input"};
-  for (int p = 0; p < tabs; ++p)
-    ui.button(renderer, {200.f + p * tabStep, 85, tabWidth, 48}, pages[p],
-              page == p);
+  const auto kind = currentPage();
+  const SDL_Color ink =
+      skin ? SDL_Color{22, 53, 108, 255} : SDL_Color{240, 240, 245, 255};
+  const auto button = [&](SDL_FRect area, const std::string &label,
+                          bool focused) {
+    if (!skin) {
+      ui.button(renderer, area, label, focused);
+      return;
+    }
+    ui.panel(renderer, area,
+             focused ? SDL_Color{193, 221, 249, 255}
+                     : SDL_Color{229, 237, 247, 255});
+    ui.text(renderer, label, area.x + 12, area.y + 9, area.w - 24, ink);
+  };
+  if (skin) {
+    skin->renderFrame(renderer, engine, page, draft);
+  } else {
+    ui.backdrop(renderer, {0, 0, 0, 220});
+    ui.panel(renderer, {170, 25, 920, 670});
+    ui.text(renderer, "Settings", 200, 36, 860, {255, 215, 100, 255});
+    if (kind == Page::Audio)
+      ui.text(renderer, "Audio applies immediately", 780, 44, 280,
+              {150, 165, 190, 255});
+    if (kind == Page::Text)
+      ui.text(renderer, "Speed applies immediately", 760, 44, 300,
+              {150, 165, 190, 255});
+    const char *pages[]{"Display", "Audio", "VN text", "Input"};
+    for (int p = 0; p < tabs; ++p)
+      ui.button(renderer, tabArea(p), pages[p], page == p);
+  }
   auto items = rows();
   selected = std::clamp(selected, 0, int(items.size()) - 1);
   first = std::clamp(first, 0, std::max(0, int(items.size()) - 11));
   for (int i = first; i < std::min(first + 9, int(items.size()) - 2); ++i) {
     const int id = items[i];
-    const float y = 150 + (i - first) * 48;
+    const auto row = rowArea(i - first);
     const std::string label = id >= 100 ? channels.at(id - 100) : labels.at(id);
     if (id == 11 || id >= 100) {
+      if (skin && selected == i)
+        ui.panel(renderer, row, {193, 221, 249, 255});
       const float value = id == 11
                               ? draft.masterVolume
                               : draft.channelVolumes[channels.at(id - 100)];
       ui.text(renderer,
               label + " " + std::to_string(int(std::lround(value * 100))) + "%",
-              210, y + 12, 430);
-      ui.panel(renderer, {660, y + 14, 380, 16}, {70, 80, 100, 255});
-      ui.panel(renderer, {660, y + 14, 380 * value, 16}, {100, 190, 255, 255});
-      ui.panel(renderer, {654 + 380 * value, y + 4, 14, 36},
-               {240, 240, 255, 255});
+              row.x + 10, row.y + 12, 430, ink);
+      const auto bar = sliderArea(row);
+      if (!skin || !skin->renderSlider(renderer, bar, value)) {
+        ui.panel(renderer, bar, {70, 80, 100, 255});
+        ui.panel(renderer, {bar.x, bar.y, bar.w * value, bar.h},
+                 {100, 190, 255, 255});
+        ui.panel(renderer, {bar.x - 6 + bar.w * value, row.y + 4, 14, 36},
+                 {240, 240, 255, 255});
+      }
     } else
-      ui.button(renderer, {200, y, 860, 44}, label, selected == i);
+      button(row, label, selected == i);
   }
-  ui.button(renderer, {200, 624, 420, 44},
-            page == 1 ? "Close" : "Apply and save",
-            selected == int(items.size()) - 2);
-  ui.button(renderer, {640, 624, 420, 44}, "Cancel",
-            selected == int(items.size()) - 1);
+  button({200, 624, 420, 44}, kind == Page::Audio ? "Close" : "Apply and save",
+         selected == int(items.size()) - 2);
+  button({640, 624, 420, 44}, "Cancel", selected == int(items.size()) - 1);
   if (!error.empty())
     ui.text(renderer, error, 200, 586, 860, {255, 120, 120, 255});
   selectBox.render(renderer, ui);

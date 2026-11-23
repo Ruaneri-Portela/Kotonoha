@@ -1,9 +1,10 @@
 #include <Amagami/Assets.hpp>
-#include <Kotonoha/media/CriAudio.hpp>
-#include <Kotonoha/media/Ps2Tim2.hpp>
+#include <Kotonoha/Formats/CriAudio.hpp>
+#include <Kotonoha/Formats/Ps2Tim2.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 namespace Kotonoha::Providers {
 using namespace Amagami;
@@ -48,6 +49,33 @@ SDL_Rect AmagamiAssets::bodyBounds(const std::string &file) const {
           int(std::ceil(right) - std::floor(x)),
           int(std::ceil(bottom) - std::floor(y))};
 }
+std::vector<std::string>
+AmagamiAssets::listAsset(const std::string &prefix) const {
+  // The ISO directory only lists archive containers. Expose virtual asset
+  // paths that the Amagami VM actually uses, without reading audio payloads.
+  auto result = DiscImageAssetProvider::listAsset(prefix);
+  const auto append = [&](const std::string &id) {
+    if (prefix.empty() || id.rfind(prefix, 0) == 0)
+      result.push_back(id);
+  };
+  for (const auto &id : source_->voiceAssetIds())
+    append(id);
+  for (unsigned number = 0; number <= 80; ++number) {
+    if (source_->musicIndex(number) >= 0)
+      append("music/" + std::to_string(number));
+    if (source_->musicIndex(number, true) >= 0)
+      append("music/classic/" + std::to_string(number));
+  }
+  for (std::size_t i = 0; i < source_->soundEffectCount(); ++i)
+    append("se/" + std::to_string(i));
+  const auto &ambience = source_->archive("SOUND/SOUND.AFS");
+  for (std::size_t i = 0; i < ambience.entries.size(); ++i)
+    append("sound/" + std::to_string(i));
+  std::sort(result.begin(), result.end());
+  result.erase(std::unique(result.begin(), result.end()), result.end());
+  return result;
+}
+
 bool AmagamiAssets::containsAsset(const std::string &id) const {
   if (id.rfind("actor-body/", 0) == 0)
     return contains(id.substr(11));
@@ -87,8 +115,10 @@ std::vector<Uint8> AmagamiAssets::readAsset(const std::string &id) const {
     auto slash = id.find('/', 6);
     if (slash == std::string::npos)
       throw std::runtime_error("Invalid voice ID");
-    auto result = source_->voice(id.substr(6, slash - 6),
-                                 std::stoul(id.substr(slash + 1)));
+    const auto rawIndex = std::stoul(id.substr(slash + 1));
+    if (rawIndex > std::numeric_limits<unsigned>::max())
+      throw std::runtime_error("Voice index out of range: " + id);
+    auto result = source_->voice(id.substr(6, slash - 6), unsigned(rawIndex));
     if (result.empty())
       throw std::runtime_error("Voice not found: " + id);
     return result;
@@ -108,13 +138,19 @@ std::vector<Uint8> AmagamiAssets::readAsset(const std::string &id) const {
     return source_->soundEffect(unsigned(index)).adpcm;
   }
   if (id.rfind("music/classic/", 0) == 0) {
-    int index = source_->musicIndex(std::stoul(id.substr(14)), true);
+    const auto rawIndex = std::stoul(id.substr(14));
+    if (rawIndex > std::numeric_limits<unsigned>::max())
+      throw std::runtime_error("Unknown Amagami classic music number");
+    int index = source_->musicIndex(unsigned(rawIndex), true);
     if (index < 0)
       throw std::runtime_error("Unknown Amagami classic music number");
     return source_->read("SOUND/MUSIC.AFS", index);
   }
   if (id.rfind("music/", 0) == 0) {
-    int index = source_->musicIndex(std::stoul(id.substr(6)));
+    const auto rawIndex = std::stoul(id.substr(6));
+    if (rawIndex > std::numeric_limits<unsigned>::max())
+      throw std::runtime_error("Unknown Amagami music number");
+    int index = source_->musicIndex(unsigned(rawIndex));
     if (index < 0)
       throw std::runtime_error("Unknown Amagami music number");
     return source_->read("SOUND/MUSIC.AFS", index);

@@ -11,6 +11,25 @@ PonscripterVm::PonscripterVm(HostCallbacks *callbacks) : callbacks_(callbacks) {
   registerCommands();
 }
 
+std::pair<int, int> PonscripterVm::quakeOffset() const {
+  if (!activeEffect_.active || quakeAmplitude_ <= 0 ||
+      activeEffect_.builtinEffect < 10001 ||
+      activeEffect_.builtinEffect > 10003 || activeEffect_.durationMs <= 0)
+    return {0, 0};
+  const double progress =
+      std::clamp(activeEffect_.elapsedMs / activeEffect_.durationMs, 0.0, 1.0);
+  const double amplitude = quakeAmplitude_ * (1.0 - progress);
+  const int x = static_cast<int>(
+      std::lround(amplitude * std::sin(activeEffect_.elapsedMs * 0.085)));
+  const int y = static_cast<int>(
+      std::lround(amplitude * std::cos(activeEffect_.elapsedMs * 0.077)));
+  if (activeEffect_.builtinEffect == 10001)
+    return {0, y};
+  if (activeEffect_.builtinEffect == 10002)
+    return {x, 0};
+  return {x, y};
+}
+
 void PonscripterVm::clear() {
   script_.clear();
   vars_.resetAll();
@@ -22,11 +41,22 @@ void PonscripterVm::clear() {
   callStack_.clear();
   forStack_.clear();
   userEffects_.clear();
+  activeEffect_ = ActiveEffect{};
+  quakeAmplitude_ = 0;
+  monochromeEnabled_ = false;
+  monochromeColor_ = 0xFFFFFFu;
+  negativeMode_ = 0;
   bg_ = TaggedImageSpec{};
   for (auto &s : standing_)
     s = StandingSlot{};
   for (auto &sp : sprites_)
     sp = SpriteSlot{};
+  allSpritesHidden_ = false;
+  allSprites2Hidden_ = false;
+  manualFrameVisible_ = false;
+  manualDraftOps_.clear();
+  manualDisplayOps_.clear();
+  backgroundCopyOps_.clear();
   for (auto &b : bars_)
     b = BarGauge{};
   for (auto &p : prnums_)
@@ -36,8 +66,14 @@ void PonscripterVm::clear() {
   pageLineKeys_.clear();
   pagePlainText_.clear();
   backlog_.clear();
+  pretextGosubLabel_.clear();
+  textGosubLabel_.clear();
+  pendingPretextPc_ = ScriptBuffer::npos;
+  textGosubPagePending_ = false;
   selectOptions_.clear();
   cselOptions_.clear();
+  selectionMode_ = SelectionMode::Jump;
+  selectionNumberVariable_ = -1;
   rmenuEntries_.clear();
   activeBgm_.clear();
   loopingWaves_.clear();
@@ -87,8 +123,14 @@ void PonscripterVm::resetToStart() {
   activeBgm_.clear();
   activeBgmLoop_ = false;
   loopingWaves_.clear();
+  pendingPretextPc_ = ScriptBuffer::npos;
+  textGosubPagePending_ = false;
   callStack_.clear();
   forStack_.clear();
+  selectOptions_.clear();
+  cselOptions_.clear();
+  selectionMode_ = SelectionMode::Jump;
+  selectionNumberVariable_ = -1;
   buttons_.clear();
   hoveredButtonId_ = 0;
   btndefSpec_ = TaggedImageSpec{};
@@ -96,6 +138,12 @@ void PonscripterVm::resetToStart() {
     s = StandingSlot{};
   for (auto &sp : sprites_)
     sp = SpriteSlot{};
+  allSpritesHidden_ = false;
+  allSprites2Hidden_ = false;
+  manualFrameVisible_ = false;
+  manualDraftOps_.clear();
+  manualDisplayOps_.clear();
+  backgroundCopyOps_.clear();
   for (auto &b : bars_)
     b = BarGauge{};
   for (auto &p : prnums_)
@@ -106,6 +154,10 @@ void PonscripterVm::resetToStart() {
   skipMode_ = false;
   autoMode_ = false;
   activeEffect_ = ActiveEffect{};
+  quakeAmplitude_ = 0;
+  monochromeEnabled_ = false;
+  monochromeColor_ = 0xFFFFFFu;
+  negativeMode_ = 0;
   waitState_ = WaitState::Running;
   inDefineBlock_ = false;
   jumpToLabel("start");
@@ -180,8 +232,46 @@ void PonscripterVm::executeTextLine(std::string_view rawLine,
   enterTextDisplayMode();
   kidokuLines_.insert(stmtIndex);
 
+  // Interpolation occurs in the VM, leaving menu and UI text formatting
+  // unchanged. Do not interpret substituted values as formatting markup.
+  std::string interpolated;
+  interpolated.reserve(rawLine.size());
+  for (std::size_t i = 0; i < rawLine.size();) {
+    if (rawLine[i] == '{' && i + 1 < rawLine.size() && rawLine[i + 1] == '|') {
+      interpolated.push_back('{');
+      i += 2;
+      continue;
+    }
+    if (rawLine[i] == '{' && i + 2 < rawLine.size() &&
+        (rawLine[i + 1] == '$' || rawLine[i + 1] == '%' ||
+         rawLine[i + 1] == '?')) {
+      const std::size_t end = rawLine.find('}', i + 2);
+      if (end != std::string_view::npos) {
+        LineLexer expression(rawLine.substr(i + 1, end - i - 1), &vars_);
+        std::string replacement;
+        if (rawLine[i + 1] == '$')
+          replacement = expression.parseStringExpr();
+        else
+          replacement = std::to_string(expression.parseIntExpr());
+        expression.skipWhitespace();
+        if (expression.eof()) {
+          for (char ch : replacement) {
+            if (ch == '~' || ch == '#')
+              interpolated.push_back(ch);
+            else if (ch == '@' || ch == '\\' || ch == '/' || ch == '^' ||
+                     ch == '!' || ch == '_')
+              interpolated.push_back('#');
+            interpolated.push_back(ch);
+          }
+          i = end + 1;
+          continue;
+        }
+      }
+    }
+    interpolated.push_back(rawLine[i++]);
+  }
   FormattedTextLine formatted =
-      TextFormatter::formatLine(rawLine, currentTextStyle_, true);
+      TextFormatter::formatLine(interpolated, currentTextStyle_, true);
 
   if (!formatted.plainText.empty()) {
     pageLineKeys_.push_back(formatted.plainText);
@@ -225,6 +315,82 @@ void PonscripterVm::executeTextLine(std::string_view rawLine,
     waitElapsedMs_ = 0.0;
     waitSkippable_ = formatted.inlineDelaySkippable;
   }
+
+  // textgosub substitutes the click/page wait with a script callback.
+  // The callback can supply its own wait and invoke texec before return.
+  if (!textGosubLabel_.empty() && script_.hasLabel(textGosubLabel_) &&
+      !isSubroutineActive(textGosubLabel_) &&
+      (waitState_ == WaitState::WaitClickInline ||
+       waitState_ == WaitState::WaitClickPage)) {
+    textGosubPagePending_ = (waitState_ == WaitState::WaitClickPage);
+    CallStackEntry frame;
+    frame.returnStatementIndex = pc_;
+    frame.targetLabel = textGosubLabel_;
+    frame.callerLabel = currentLabel_;
+    callStack_.push_back(std::move(frame));
+    waitState_ = WaitState::Running;
+    jumpToLabel(textGosubLabel_);
+  }
+}
+
+bool PonscripterVm::isSubroutineActive(const std::string &label) const {
+  return std::any_of(
+      callStack_.begin(), callStack_.end(),
+      [&](const CallStackEntry &frame) { return frame.targetLabel == label; });
+}
+
+void PonscripterVm::captureCallArguments(LineLexer &lexer,
+                                         CallStackEntry &frame,
+                                         bool requireLeadingComma) {
+  if (requireLeadingComma && !lexer.consumeComma())
+    return;
+  if (!requireLeadingComma)
+    lexer.consumeComma();
+
+  while (true) {
+    lexer.skipWhitespace();
+    if (lexer.eof())
+      break;
+    if (lexer.peek() == ',') {
+      frame.arguments.emplace_back();
+      lexer.consumeComma();
+      continue;
+    }
+    CallArgument arg;
+    const char first = lexer.peek();
+    arg.isString = first == '$' || first == '"' || first == '^' || first == '*';
+    if (!arg.isString &&
+        (std::isalpha(static_cast<unsigned char>(first)) || first == '_')) {
+      LineLexer probe = lexer;
+      const std::string identifier = probe.parseIdentifier();
+      std::string aliasValue;
+      arg.isString = vars_.findStrAlias(identifier, aliasValue);
+    }
+    // Retain the original variable identity separately from its value.
+    // getparam i%N / s%N requests the caller's reference id, not its value.
+    if (first == '%' || first == '$') {
+      LineLexer source = lexer;
+      const int id =
+          first == '%' ? source.parseVarRef() : source.parseStrVarRef();
+      source.skipWhitespace();
+      if (id >= 0 && (source.eof() || source.peek() == ',')) {
+        arg.sourceVariable = id;
+        arg.sourceIsString = (first == '$');
+      }
+    }
+    const std::size_t before = lexer.position();
+    if (first == '*')
+      arg.text = lexer.parseLabelTarget();
+    else if (arg.isString)
+      arg.text = lexer.parseStringExpr();
+    else
+      arg.number = lexer.parseIntExpr();
+    if (lexer.position() == before)
+      break;
+    frame.arguments.push_back(std::move(arg));
+    if (!lexer.consumeComma())
+      break;
+  }
 }
 
 void PonscripterVm::executeStatement(const StatementSlice &stmt) {
@@ -235,6 +401,20 @@ void PonscripterVm::executeStatement(const StatementSlice &stmt) {
     return;
   }
   if (stmt.isText) {
+    if (!pretextGosubLabel_.empty() && script_.hasLabel(pretextGosubLabel_) &&
+        !isSubroutineActive(pretextGosubLabel_)) {
+      if (pendingPretextPc_ != stmt.statementIndex) {
+        pendingPretextPc_ = stmt.statementIndex;
+        CallStackEntry frame;
+        frame.returnStatementIndex = stmt.statementIndex;
+        frame.targetLabel = pretextGosubLabel_;
+        frame.callerLabel = currentLabel_;
+        callStack_.push_back(std::move(frame));
+        jumpToLabel(pretextGosubLabel_);
+        return;
+      }
+      pendingPretextPc_ = ScriptBuffer::npos;
+    }
     executeTextLine(stmt.text, stmt.statementIndex);
     return;
   }
@@ -255,10 +435,14 @@ void PonscripterVm::executeStatement(const StatementSlice &stmt) {
   const auto subIt = userDefsubs_.find(cmd);
   if (subIt != userDefsubs_.end()) {
     CallStackEntry frame;
+    if (!script_.hasLabel(subIt->second))
+      return;
     frame.returnStatementIndex = pc_;
-    frame.targetLabel = cmd;
+    frame.targetLabel = subIt->second;
+    frame.callerLabel = currentLabel_;
+    captureCallArguments(lexer, frame, false);
     callStack_.push_back(std::move(frame));
-    jumpToLabel(cmd);
+    jumpToLabel(subIt->second);
   }
 }
 
@@ -429,7 +613,7 @@ void PonscripterVm::updateButtonHover() {
       if (btn.spriteNo < 0 || btn.spriteNo >= kMaxExtendedSprites)
         continue;
       const auto &sp = sprites_[btn.spriteNo];
-      if (!sp.loaded || !sp.visible)
+      if (!sp.loaded || !sp.visible || areSpritesHidden(sp.secondaryLayer))
         continue;
       bx = sp.x;
       by = sp.y;
@@ -530,6 +714,16 @@ bool PonscripterVm::rightClick() {
 }
 
 void PonscripterVm::enterSystemCall(const std::string &kind) {
+  if (kind == "end") {
+    activeSystemCall_.clear();
+    waitState_ = WaitState::Halted;
+    if (callbacks_) {
+      callbacks_->onStopBgm(0);
+      callbacks_->onStopWave(-1);
+      callbacks_->onPersistGlobals();
+    }
+    return;
+  }
   if (waitState_ != WaitState::WaitSystemCall) {
     preSystemCallWaitState_ = waitState_;
   }
@@ -580,11 +774,27 @@ bool PonscripterVm::selectChoice(int optionIndex) {
     return false;
   if (optionIndex < 0 || optionIndex >= static_cast<int>(selectOptions_.size()))
     return false;
+  const SelectionMode mode = selectionMode_;
   const std::string target = selectOptions_[optionIndex].targetLabel;
+  if (mode != SelectionMode::Number && !script_.hasLabel(target))
+    return false;
+  if (mode == SelectionMode::Subroutine) {
+    CallStackEntry frame;
+    frame.returnStatementIndex = pc_;
+    frame.targetLabel = target;
+    frame.callerLabel = currentLabel_;
+    callStack_.push_back(std::move(frame));
+  } else if (mode == SelectionMode::Number && selectionNumberVariable_ >= 0) {
+    const bool changed = vars_.setNum(selectionNumberVariable_, optionIndex);
+    if (changed && callbacks_)
+      callbacks_->onPersistGlobals();
+  }
   selectOptions_.clear();
+  selectionMode_ = SelectionMode::Jump;
+  selectionNumberVariable_ = -1;
   clearCurrentPage(true);
   waitState_ = WaitState::Running;
-  return jumpToLabel(target);
+  return mode == SelectionMode::Number ? true : jumpToLabel(target);
 }
 
 void PonscripterVm::finishSystemCall() {
@@ -756,6 +966,17 @@ SlotSaveData PonscripterVm::exportSlotSave() const {
   data.forStack = forStack_;
   data.bg = bg_;
   data.standing = standing_;
+  data.allSpritesHidden = allSpritesHidden_;
+  data.allSprites2Hidden = allSprites2Hidden_;
+  data.activeEffect = activeEffect_;
+  data.quakeAmplitude = quakeAmplitude_;
+  data.monochromeEnabled = monochromeEnabled_;
+  data.monochromeColor = monochromeColor_;
+  data.negativeMode = negativeMode_;
+  data.manualFrameVisible = manualFrameVisible_;
+  data.manualDraftOps = manualDraftOps_;
+  data.manualDisplayOps = manualDisplayOps_;
+  data.backgroundCopyOps = backgroundCopyOps_;
   for (int i = 0; i < kMaxExtendedSprites; ++i) {
     if (sprites_[i].loaded)
       data.sprites[i] = sprites_[i];
@@ -774,6 +995,11 @@ SlotSaveData PonscripterVm::exportSlotSave() const {
   data.btnwaitPreserveButtons = btnwaitPreserveButtons_;
   data.buttons = buttons_;
   data.selectOptions = selectOptions_;
+  data.cselOptions = cselOptions_;
+  data.pendingPretextStatementIndex = pendingPretextPc_;
+  data.textGosubPagePending = textGosubPagePending_;
+  data.selectionMode = static_cast<int>(selectionMode_);
+  data.selectionNumberVariable = selectionNumberVariable_;
   return data;
 }
 
@@ -785,6 +1011,17 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   forStack_ = data.forStack;
   bg_ = data.bg;
   standing_ = data.standing;
+  allSpritesHidden_ = data.allSpritesHidden;
+  allSprites2Hidden_ = data.allSprites2Hidden;
+  activeEffect_ = data.activeEffect;
+  quakeAmplitude_ = data.quakeAmplitude;
+  monochromeEnabled_ = data.monochromeEnabled;
+  monochromeColor_ = data.monochromeColor;
+  negativeMode_ = data.negativeMode;
+  manualFrameVisible_ = data.manualFrameVisible;
+  manualDraftOps_ = data.manualDraftOps;
+  manualDisplayOps_ = data.manualDisplayOps;
+  backgroundCopyOps_ = data.backgroundCopyOps;
   for (int i = 0; i < 3; ++i) {
     if (standing_[i].loaded)
       populateStandingDimensions(standing_[i], i);
@@ -819,6 +1056,13 @@ void PonscripterVm::importSlotSave(const SlotSaveData &data) {
   btnwaitPreserveButtons_ = data.btnwaitPreserveButtons;
   buttons_ = data.buttons;
   selectOptions_ = data.selectOptions;
+  cselOptions_ = data.cselOptions;
+  pendingPretextPc_ = data.pendingPretextStatementIndex;
+  textGosubPagePending_ = data.textGosubPagePending;
+  selectionMode_ = data.selectionMode == 1   ? SelectionMode::Subroutine
+                   : data.selectionMode == 2 ? SelectionMode::Number
+                                             : SelectionMode::Jump;
+  selectionNumberVariable_ = data.selectionNumberVariable;
   hoveredButtonId_ = 0;
 
   if (callbacks_) {

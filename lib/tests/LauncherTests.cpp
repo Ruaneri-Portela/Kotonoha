@@ -293,7 +293,10 @@ int main() {
       std::filesystem::temp_directory_path() /
       ("kotonoha-launcher-" + std::to_string(SDL_GetPerformanceCounter()));
   try {
-    std::filesystem::create_directories(directory);
+    std::filesystem::create_directories(directory / "assets/fonts");
+    std::filesystem::copy_file(KOTONOHA_TEST_FONT,
+                               directory / "assets/fonts" /
+                                   Kotonoha::defaultFontName());
     std::filesystem::current_path(directory);
     launcher(directory);
     pathDiscovery(directory);

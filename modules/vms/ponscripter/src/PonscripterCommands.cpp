@@ -3,11 +3,38 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
+#include <climits>
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
 
 namespace Ponscripter {
+namespace {
+
+// Index 'mid' and 'len' in Unicode code points instead of splitting a UTF-8
+// sequence. Malformed bytes are consumed as individual code points.
+std::size_t utf8Offset(std::string_view value, std::size_t count) {
+  std::size_t offset = 0;
+  while (offset < value.size() && count-- > 0) {
+    ++offset;
+    while (offset < value.size() &&
+           (static_cast<unsigned char>(value[offset]) & 0xC0u) == 0x80u)
+      ++offset;
+  }
+  return offset;
+}
+
+std::size_t utf8Length(std::string_view value) {
+  std::size_t count = 0;
+  for (unsigned char c : value) {
+    if ((c & 0xC0u) != 0x80u)
+      ++count;
+  }
+  return count;
+}
+
+} // namespace
 
 void PonscripterVm::registerCommand(std::string_view name,
                                     CommandHandler handler) {
@@ -20,12 +47,31 @@ void PonscripterVm::registerCommand(std::string_view name,
 
 void PonscripterVm::registerCommands() {
   // 1. Structure & Lifecycle
-  for (const char *c :
-       {"game",       "end",       "reset",         "definereset", "globalon",
-        "nsa",        "ns2",       "ns3",           "arc",         "nsaoffset",
-        "caption",    "apptitle",  "versionstr",    "humanz",      "underline",
-        "windowback", "filelog",   "labellog",      "kidokuskip",  "kidokumode",
-        "mode_ext",   "mode_saya", "mode_wave_demo"}) {
+  for (const char *c : {"game",
+                        "end",
+                        "reset",
+                        "definereset",
+                        "globalon",
+                        "nsa",
+                        "ns2",
+                        "ns3",
+                        "arc",
+                        "nsaoffset",
+                        "caption",
+                        "apptitle",
+                        "versionstr",
+                        "humanz",
+                        "underline",
+                        "windowback",
+                        "filelog",
+                        "labellog",
+                        "kidokuskip",
+                        "kidokumode",
+                        "mode_ext",
+                        "mode_saya",
+                        "mode_wave_demo",
+                        "textgosub",
+                        "pretextgosub"}) {
     registerCommand(c, &PonscripterVm::cmdLifecycle);
   }
 
@@ -36,19 +82,20 @@ void PonscripterVm::registerCommands() {
 
   // 3. Flow Control
   for (const char *c :
-       {"if", "notif", "goto", "gosub", "return", "for", "next", "break",
-        "select", "selgosub", "selnum", "csel", "cselgoto", "cselbtn",
-        "getcselnum", "getcselstr", "skip", "tablegoto"}) {
+       {"if",         "notif", "goto",      "gosub",      "return",
+        "for",        "next",  "break",     "select",     "selgosub",
+        "selnum",     "csel",  "cselgoto",  "cselbtn",    "getcselnum",
+        "getcselstr", "skip",  "tablegoto", "tablegoto1", "debugtablegoto"}) {
     registerCommand(c, &PonscripterVm::cmdFlow);
   }
 
   // 4. Variables & Math
   for (const char *c :
-       {"mov",      "mov3",  "mov4", "mov5",     "mov6",     "mov7", "mov8",
-        "mov9",     "mov10", "movl", "inc",      "dec",      "add",  "sub",
-        "mul",      "div",   "mod",  "rnd",      "rnd2",     "cmp",  "atoi",
-        "itoa",     "itoa2", "len",  "mid",      "sin",      "cos",  "tan",
-        "intlimit", "date",  "time", "savetime", "fileexist"}) {
+       {"mov",  "mov3",     "mov4",  "mov5", "mov6",     "mov7",     "mov8",
+        "mov9", "mov10",    "movl",  "movz", "inc",      "dec",      "add",
+        "sub",  "mul",      "div",   "mod",  "rnd",      "rnd2",     "cmp",
+        "atoi", "itoa",     "itoa2", "len",  "mid",      "sin",      "cos",
+        "tan",  "intlimit", "date",  "time", "savetime", "fileexist"}) {
     registerCommand(c, &PonscripterVm::cmdVars);
   }
 
@@ -63,7 +110,8 @@ void PonscripterVm::registerCommands() {
         "strsph",      "bar",        "barclear",     "prnum",     "prnumclear",
         "blt",         "draw",       "drawbg",       "drawbg2",   "drawsp",
         "drawsp2",     "drawsp3",    "drawfill",     "drawclear", "drawtext",
-        "monocro",     "nega",       "quake",        "quakex",    "quakey"}) {
+        "monocro",     "nega",       "quake",        "quakex",    "quakey",
+        "tal"}) {
     registerCommand(c, &PonscripterVm::cmdGraphics);
   }
 
@@ -88,8 +136,8 @@ void PonscripterVm::registerCommands() {
                         "erasetextwindow", "textspeed",    "defaultspeed",
                         "defaultfont",     "automode",     "automode_time",
                         "autoclick",       "skipoff",      "locate",
-                        "puttext",         "clickstr",     "linepage",
-                        "linepage2",       "shadedistance"}) {
+                        "puttext",         "texec",        "clickstr",
+                        "linepage",        "linepage2",    "shadedistance"}) {
     registerCommand(c, &PonscripterVm::cmdTextAndWindow);
   }
 
@@ -212,9 +260,70 @@ void PonscripterVm::cmdLifecycle(LineLexer &lexer, const std::string &cmd) {
     windowback_ = true;
     return;
   }
+  if (cmd == "pretextgosub") {
+    pretextGosubLabel_ = lexer.parseLabelTarget();
+    return;
+  }
+  if (cmd == "textgosub") {
+    textGosubLabel_ = lexer.parseLabelTarget();
+    return;
+  }
 }
 
 void PonscripterVm::cmdAlias(LineLexer &lexer, const std::string &cmd) {
+  if (cmd == "getparam") {
+    if (callStack_.empty())
+      return;
+    CallStackEntry &frame = callStack_.back();
+    while (true) {
+      lexer.skipWhitespace();
+      // i%dest and s%dest return the caller's numeric/string variable ID,
+      // respectively, instead of the evaluated argument value.
+      char referenceMode = '\0';
+      if (lexer.peek() == 'i' || lexer.peek() == 's')
+        referenceMode = lexer.get();
+      const char kind = lexer.peek();
+      if (kind != '%' && kind != '$')
+        break;
+      CallArgument arg;
+      if (frame.nextArgument < frame.arguments.size())
+        arg = frame.arguments[frame.nextArgument];
+      ++frame.nextArgument;
+      if (kind == '%') {
+        const int id = lexer.parseVarRef();
+        int value = arg.number;
+        if (referenceMode == 'i' || referenceMode == 's') {
+          value = (arg.sourceVariable >= 0 &&
+                   arg.sourceIsString == (referenceMode == 's'))
+                      ? arg.sourceVariable
+                      : -1;
+        } else if (arg.isString) {
+          value = 0;
+          const char *start = arg.text.data();
+          const char *finish = start + arg.text.size();
+          const auto parsed = std::from_chars(start, finish, value);
+          if (parsed.ec != std::errc{} || parsed.ptr != finish)
+            value = 0;
+        }
+        if (id >= 0 && vars_.setNum(id, value) && callbacks_)
+          callbacks_->onPersistGlobals();
+      } else {
+        const int id = lexer.parseStrVarRef();
+        if (id >= 0)
+          vars_.setStr(
+              id, referenceMode == 'i' || referenceMode == 's'
+                      ? std::to_string(
+                            (arg.sourceVariable >= 0 &&
+                             arg.sourceIsString == (referenceMode == 's'))
+                                ? arg.sourceVariable
+                                : -1)
+                      : (arg.isString ? arg.text : std::to_string(arg.number)));
+      }
+      if (!lexer.consumeComma())
+        break;
+    }
+    return;
+  }
   if (cmd == "numalias") {
     const std::string name = lexer.parseIdentifier();
     lexer.consumeComma();
@@ -236,6 +345,7 @@ void PonscripterVm::cmdAlias(LineLexer &lexer, const std::string &cmd) {
     return;
   }
   if (cmd == "dim") {
+    lexer.skipWhitespace();
     if (lexer.peek() == '?') {
       lexer.get();
       int arrId = 0;
@@ -314,9 +424,13 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
 
   if (cmd == "gosub") {
     const std::string target = lexer.parseLabelTarget();
+    if (!script_.hasLabel(target))
+      return;
     CallStackEntry frame;
     frame.returnStatementIndex = pc_;
     frame.targetLabel = target;
+    frame.callerLabel = currentLabel_;
+    captureCallArguments(lexer, frame, true);
     callStack_.push_back(std::move(frame));
     jumpToLabel(target);
     return;
@@ -334,6 +448,12 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
         }
       }
       pc_ = frame.returnStatementIndex;
+      if (!frame.callerLabel.empty()) {
+        currentLabel_ = frame.callerLabel;
+        const auto section = script_.findLabel(currentLabel_);
+        if (section != ScriptBuffer::npos)
+          currentSectionId_ = section;
+      }
     }
     return;
   }
@@ -363,6 +483,25 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
         callbacks_->onPersistGlobals();
     }
 
+    // A for-loop whose initial value lies outside the range must not
+    // enter its body, even when its body contains nested for-loops.
+    if ((stepVal > 0 && startVal > endVal) ||
+        (stepVal < 0 && startVal < endVal)) {
+      const auto &stmts = script_.statements();
+      int depth = 1;
+      while (pc_ < stmts.size() && depth > 0) {
+        if (!stmts[pc_].isLabel && !stmts[pc_].isText) {
+          LineLexer scan(stmts[pc_].text, &vars_);
+          const std::string nested = scan.parseIdentifier();
+          if (nested == "for")
+            ++depth;
+          else if (nested == "next")
+            --depth;
+        }
+        ++pc_;
+      }
+      return;
+    }
     ForLoopFrame frame;
     frame.varId = varId;
     frame.endValue = endVal;
@@ -416,26 +555,42 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
     return;
   }
 
-  if (cmd == "select" || cmd == "selgosub") {
+  if (cmd == "select" || cmd == "selgosub" || cmd == "selnum") {
     selectOptions_.clear();
-    // Collect `"text", *label` pairs across current statement AND subsequent
-    // statements if `select` spans multiple lines!
-    auto collectSelectPairs = [&](LineLexer &lx) {
-      while (!lx.eof()) {
-        lx.skipWhitespace();
-        if (lx.eof())
+    selectionMode_ = cmd == "selgosub" ? SelectionMode::Subroutine
+                     : cmd == "selnum" ? SelectionMode::Number
+                                       : SelectionMode::Jump;
+    selectionNumberVariable_ = -1;
+    if (selectionMode_ == SelectionMode::Number) {
+      selectionNumberVariable_ = lexer.parseVarRef();
+      if (!lexer.consumeComma())
+        return;
+    }
+
+    // selnum contains text-only options; select/selgosub use text/label pairs.
+    while (true) {
+      lexer.skipWhitespace();
+      if (lexer.eof())
+        break;
+      SelectOption opt;
+      const std::size_t before = lexer.position();
+      opt.text = TextFormatter::formatUiLabel(lexer.parseStringExpr(), true);
+      if (lexer.position() == before)
+        break;
+      if (selectionMode_ != SelectionMode::Number) {
+        if (!lexer.consumeComma())
           break;
-        SelectOption opt;
-        opt.text = TextFormatter::formatUiLabel(lx.parseStringExpr(), true);
-        lx.consumeComma();
-        opt.targetLabel = lx.parseLabelTarget();
-        if (!opt.text.empty() || !opt.targetLabel.empty())
-          selectOptions_.push_back(std::move(opt));
-        if (!lx.consumeComma())
-          break;
+        opt.targetLabel = lexer.parseLabelTarget();
       }
-    };
-    collectSelectPairs(lexer);
+      if (!opt.text.empty() ||
+          (selectionMode_ != SelectionMode::Number && !opt.targetLabel.empty()))
+        selectOptions_.push_back(std::move(opt));
+      if (!lexer.consumeComma())
+        break;
+    }
+
+    if (selectOptions_.empty())
+      return;
     enterTextDisplayMode();
     typewriterChars_ = totalPageChars_;
     waitState_ = WaitState::WaitSelect;
@@ -445,18 +600,72 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
   }
 
   if (cmd == "csel") {
+    selectionMode_ = SelectionMode::Jump;
+    selectionNumberVariable_ = -1;
     cselOptions_.clear();
+    selectOptions_.clear();
     while (!lexer.eof()) {
+      lexer.skipWhitespace();
+      if (lexer.eof())
+        break;
       SelectOption opt;
+      const auto before = lexer.position();
       opt.text = TextFormatter::formatUiLabel(lexer.parseStringExpr(), true);
-      lexer.consumeComma();
+      if (lexer.position() == before || !lexer.consumeComma())
+        break;
       opt.targetLabel = lexer.parseLabelTarget();
-      cselOptions_.push_back(std::move(opt));
+      if (!opt.targetLabel.empty())
+        cselOptions_.push_back(std::move(opt));
       if (!lexer.consumeComma())
         break;
     }
-    selectOptions_ = cselOptions_;
-    waitState_ = WaitState::WaitSelect;
+    // A custom selection is controlled by the script's own UI. It does not
+    // block in WaitSelect or display the built-in choice list.
+    if (!cselOptions_.empty() && script_.hasLabel("customsel")) {
+      jumpToLabel("customsel");
+    } else if (!cselOptions_.empty()) {
+      // Graceful fallback for scripts lacking the customsel routine.
+      selectOptions_ = cselOptions_;
+      enterTextDisplayMode();
+      waitState_ = WaitState::WaitSelect;
+    }
+    return;
+  }
+
+  if (cmd == "cselbtn") {
+    const int index = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int buttonId = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int x = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int y = lexer.parseIntExpr();
+    if (index < 0 || index >= static_cast<int>(cselOptions_.size()) ||
+        buttonId <= 0)
+      return;
+
+    ButtonDef button;
+    button.kind = ButtonDef::Kind::TextBtn;
+    button.spriteNo = index;
+    button.id = buttonId;
+    button.x = x;
+    button.y = y;
+    button.text = cselOptions_[index].text;
+    button.w = std::max(1, static_cast<int>(utf8Length(button.text))) *
+               std::max(1, window_.fontW + window_.pitchX);
+    button.h = std::max(1, window_.fontH + window_.pitchY);
+    const auto existing = std::find_if(
+        buttons_.begin(), buttons_.end(),
+        [&](const ButtonDef &item) { return item.id == buttonId; });
+    if (existing != buttons_.end())
+      *existing = std::move(button);
+    else
+      buttons_.push_back(std::move(button));
+    if (callbacks_)
+      callbacks_->onSceneDirty();
     return;
   }
 
@@ -480,7 +689,31 @@ void PonscripterVm::cmdFlow(LineLexer &lexer, const std::string &cmd) {
   if (cmd == "cselgoto") {
     const int idx = lexer.parseIntExpr();
     if (idx >= 0 && idx < static_cast<int>(cselOptions_.size())) {
-      jumpToLabel(cselOptions_[idx].targetLabel);
+      const std::string target = cselOptions_[idx].targetLabel;
+      if (script_.hasLabel(target)) {
+        cselOptions_.clear();
+        selectOptions_.clear();
+        buttons_.clear();
+        hoveredButtonId_ = 0;
+        clearCurrentPage(true);
+        jumpToLabel(target);
+        if (callbacks_)
+          callbacks_->onSceneDirty();
+      }
+    }
+    return;
+  }
+
+  if (cmd == "tablegoto" || cmd == "tablegoto1" || cmd == "debugtablegoto") {
+    const int index = lexer.parseIntExpr();
+    int current = cmd == "tablegoto1" ? 1 : 0;
+    while (lexer.consumeComma()) {
+      const std::string target = lexer.parseLabelTarget();
+      if (current == index && !target.empty()) {
+        jumpToLabel(target);
+        return;
+      }
+      ++current;
     }
     return;
   }
@@ -508,6 +741,39 @@ void PonscripterVm::cmdVars(LineLexer &lexer, const std::string &cmd) {
       callbacks_->onPersistGlobals();
   };
 
+  if (cmd == "len") {
+    const int dest = lexer.parseVarRef();
+    if (!lexer.consumeComma())
+      return;
+    const std::string source = lexer.parseStringExpr();
+    if (dest >= 0)
+      notifyIfGlobal(vars_.setNum(
+          dest, static_cast<int>(std::min<std::size_t>(
+                    utf8Length(source), static_cast<std::size_t>(INT_MAX)))));
+    return;
+  }
+
+  if (cmd == "mid") {
+    const int dest = lexer.parseStrVarRef();
+    if (!lexer.consumeComma())
+      return;
+    const std::string source = lexer.parseStringExpr();
+    if (!lexer.consumeComma())
+      return;
+    const auto start =
+        static_cast<std::size_t>(std::max(0, lexer.parseIntExpr()));
+    if (!lexer.consumeComma())
+      return;
+    const auto count =
+        static_cast<std::size_t>(std::max(0, lexer.parseIntExpr()));
+    const std::size_t begin = utf8Offset(source, start);
+    const std::size_t length =
+        utf8Offset(std::string_view(source).substr(begin), count);
+    if (dest >= 0)
+      vars_.setStr(dest, source.substr(begin, length));
+    return;
+  }
+
   if (cmd.rfind("mov", 0) == 0) {
     lexer.skipWhitespace();
     if (lexer.peek() == '$') {
@@ -532,15 +798,23 @@ void PonscripterVm::cmdVars(LineLexer &lexer, const std::string &cmd) {
         if (lexer.peek() == ']')
           lexer.get();
       }
-      lexer.consumeComma();
-      if (cmd == "movl") {
-        int idx = indices.empty() ? 0 : indices.back();
-        do {
-          if (!indices.empty())
-            indices.back() = idx++;
-          vars_.setArray(arrId, indices, lexer.parseIntExpr());
-        } while (lexer.consumeComma());
-      } else {
+      const bool firstArgument = lexer.consumeComma();
+      if (cmd == "movl" || cmd == "movz") {
+        const int count = vars_.remainingArrayElements(arrId, indices);
+        if (count <= 0)
+          return;
+        const int start = indices.back();
+        bool argumentAvailable = firstArgument;
+        for (int i = 0; i < count; ++i) {
+          if (!argumentAvailable && cmd == "movl")
+            break;
+          indices.back() = start + i;
+          vars_.setArray(arrId, indices,
+                         argumentAvailable ? lexer.parseIntExpr() : 0);
+          if (argumentAvailable)
+            argumentAvailable = lexer.consumeComma();
+        }
+      } else if (firstArgument) {
         vars_.setArray(arrId, indices, lexer.parseIntExpr());
       }
       return;
@@ -748,7 +1022,476 @@ void PonscripterVm::cmdVars(LineLexer &lexer, const std::string &cmd) {
 }
 
 void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
+  auto queueManual = [this](ManualDrawOp op) {
+    constexpr std::size_t kMaxDrawOps = 4096;
+    if (manualDraftOps_.size() < kMaxDrawOps)
+      manualDraftOps_.push_back(std::move(op));
+  };
+  if (cmd == "spstr") {
+    const std::string controls = lexer.parseStringExpr();
+    std::size_t pos = 0;
+    bool dirty = false;
+    auto readNumber = [&](int &value) {
+      const std::size_t start = pos;
+      if (pos < controls.size() && controls[pos] == '-')
+        ++pos;
+      const std::size_t firstDigit = pos;
+      while (pos < controls.size() &&
+             std::isdigit(static_cast<unsigned char>(controls[pos])))
+        ++pos;
+      if (pos == firstDigit) {
+        pos = start;
+        return false;
+      }
+      const auto result = std::from_chars(controls.data() + start,
+                                          controls.data() + pos, value);
+      return result.ec == std::errc{} && result.ptr == controls.data() + pos;
+    };
+    auto consume = [&](char delimiter) {
+      if (pos < controls.size() && controls[pos] == delimiter) {
+        ++pos;
+        return true;
+      }
+      return false;
+    };
+
+    // Cn[-m] hides a range, Pn[,cell] shows a cell, Mn,x,y moves a
+    // sprite, and Sn,(file) plays a sample through channel n.
+    while (pos < controls.size()) {
+      const char command = static_cast<char>(
+          std::tolower(static_cast<unsigned char>(controls[pos++])));
+      int slot = 0;
+      if (command == 'c') {
+        if (!readNumber(slot))
+          continue;
+        int end = slot;
+        if (consume('-') && !readNumber(end))
+          continue;
+        const int begin = std::max(0, slot);
+        end = std::min(end, kMaxExtendedSprites - 1);
+        if (begin > end)
+          continue;
+        for (int index = begin; index <= end; ++index) {
+          sprites_[index].visible = false;
+          dirty = true;
+        }
+      } else if (command == 'p') {
+        if (!readNumber(slot))
+          continue;
+        int cell = 0;
+        if (consume(',') && !readNumber(cell))
+          continue;
+        if (slot >= 0 && slot < kMaxExtendedSprites && sprites_[slot].loaded) {
+          auto &sprite = sprites_[slot];
+          sprite.visible = true;
+          sprite.currentCell =
+              std::clamp(cell, 0, std::max(0, sprite.spec.numCells - 1));
+          dirty = true;
+        }
+      } else if (command == 'm') {
+        int x = 0, y = 0;
+        if (!readNumber(slot) || !consume(',') || !readNumber(x) ||
+            !consume(',') || !readNumber(y))
+          continue;
+        if (slot >= 0 && slot < kMaxExtendedSprites && sprites_[slot].loaded) {
+          sprites_[slot].x = x;
+          sprites_[slot].y = y;
+          dirty = true;
+        }
+      } else if (command == 's') {
+        if (!readNumber(slot) || !consume(',') || !consume('('))
+          continue;
+        const std::size_t end = controls.find(')', pos);
+        if (end == std::string::npos)
+          break;
+        std::string path = controls.substr(pos, end - pos);
+        std::replace(path.begin(), path.end(), '\\', '/');
+        pos = end + 1;
+        if (!path.empty()) {
+          slot = std::clamp(slot, 0, 49);
+          lastSePath_ = path;
+          if (callbacks_)
+            callbacks_->onPlayWave(slot, path, false);
+        }
+      }
+    }
+    if (dirty && callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+  if (cmd == "bgcopy" || cmd == "bgcpy") {
+    // Snapshot a scene description rather than reading back pixels every
+    // frame. These immutable layers remain valid when the live sprites move.
+    std::vector<ManualDrawOp> captured;
+    if (manualFrameVisible_) {
+      captured = manualDisplayOps_;
+    } else {
+      if (!backgroundCopyOps_.empty()) {
+        captured = backgroundCopyOps_;
+      } else {
+        ManualDrawOp background;
+        background.kind = ManualDrawOp::Kind::Background;
+        background.spec = bg_;
+        captured.push_back(std::move(background));
+      }
+      for (int i : {0, 2, 1}) {
+        const auto &stand = standing_[i];
+        if (!stand.loaded || stand.alpha <= 0)
+          continue;
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Sprite;
+        op.spec = stand.spec;
+        op.x = stand.x;
+        op.y = stand.y;
+        op.alpha = stand.alpha;
+        captured.push_back(std::move(op));
+      }
+      for (int i = kMaxExtendedSprites - 1; i >= 0; --i) {
+        const auto &sprite = sprites_[i];
+        if (!sprite.loaded || !sprite.visible || sprite.alpha <= 0 ||
+            areSpritesHidden(sprite.secondaryLayer))
+          continue;
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Sprite;
+        op.spec = sprite.spec;
+        op.x = sprite.x;
+        op.y = sprite.y;
+        op.cell = sprite.currentCell;
+        op.alpha = sprite.alpha;
+        captured.push_back(std::move(op));
+      }
+      for (const auto &bar : bars_) {
+        if (!bar.active || bar.value <= 0 || bar.width <= 0 || bar.height <= 0)
+          continue;
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Rect;
+        op.x = bar.x;
+        op.y = bar.y;
+        const int maxValue = std::max(1, bar.maxValue);
+        const std::int64_t filled = static_cast<std::int64_t>(bar.width) *
+                                    std::clamp(bar.value, 0, maxValue) /
+                                    maxValue;
+        op.width = static_cast<int>(std::clamp<std::int64_t>(
+            filled, 0, static_cast<std::int64_t>(INT_MAX)));
+        op.height = bar.height;
+        op.colorRgb = bar.colorRgb;
+        captured.push_back(std::move(op));
+      }
+      for (const auto &number : prnums_) {
+        if (!number.active)
+          continue;
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Text;
+        op.text = std::to_string(number.value);
+        op.x = number.x;
+        op.y = number.y;
+        op.width =
+            std::max(1, number.fontWidth * static_cast<int>(op.text.size()));
+        op.height = std::max(1, number.fontHeight);
+        op.colorRgb = number.colorRgb;
+        captured.push_back(std::move(op));
+      }
+      if (textWindowVisible_ &&
+          (!window_.backdrop.imagePath.empty() ||
+           window_.backdrop.trans == TransMode::DirectColor)) {
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Window;
+        op.spec = window_.backdrop;
+        op.x = window_.winX;
+        op.y = window_.winY;
+        op.width = std::max(1, window_.winW);
+        op.height = std::max(1, window_.winH);
+        captured.push_back(std::move(op));
+      }
+      if (textWindowVisible_ && !pagePlainText_.empty()) {
+        ManualDrawOp op;
+        op.kind = ManualDrawOp::Kind::Text;
+        op.text = pagePlainText_;
+        op.x = window_.textX;
+        op.y = window_.textY;
+        op.width = window_.textAreaWidth();
+        op.height = window_.fontH;
+        op.colorRgb = currentTextStyle_.colorRgb;
+        captured.push_back(std::move(op));
+      }
+    }
+    if (captured.size() > 4096)
+      captured.resize(4096);
+    backgroundCopyOps_ = std::move(captured);
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+  if (cmd == "drawclear" || cmd == "drawfill") {
+    ManualDrawOp op;
+    op.kind = cmd == "drawclear" ? ManualDrawOp::Kind::Clear
+                                 : ManualDrawOp::Kind::Fill;
+    if (cmd == "drawfill") {
+      const int r = std::clamp(lexer.parseIntExpr(), 0, 255);
+      lexer.consumeComma();
+      const int g = std::clamp(lexer.parseIntExpr(), 0, 255);
+      lexer.consumeComma();
+      const int b = std::clamp(lexer.parseIntExpr(), 0, 255);
+      op.colorRgb = (static_cast<std::uint32_t>(r) << 16) |
+                    (static_cast<std::uint32_t>(g) << 8) |
+                    static_cast<std::uint32_t>(b);
+    }
+    // A full-screen clear supersedes everything previously drawn on
+    // the accumulation buffer, but not the frame already being shown.
+    manualDraftOps_.clear();
+    queueManual(std::move(op));
+    return;
+  }
+  if (cmd == "drawbg" || cmd == "drawbg2") {
+    ManualDrawOp op;
+    op.kind = ManualDrawOp::Kind::Background;
+    op.spec = bg_;
+    if (cmd == "drawbg2") {
+      op.x = lexer.parseIntExpr();
+      lexer.consumeComma();
+      op.y = lexer.parseIntExpr();
+      lexer.consumeComma();
+      op.scaleX = std::clamp(lexer.parseIntExpr(), -10000, 10000);
+      lexer.consumeComma();
+      op.scaleY = std::clamp(lexer.parseIntExpr(), -10000, 10000);
+      lexer.consumeComma();
+      op.rotation = lexer.parseIntExpr();
+    }
+    queueManual(std::move(op));
+    return;
+  }
+  if (cmd == "drawsp" || cmd == "drawsp2" || cmd == "drawsp3") {
+    const int spriteNo = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int cellNo = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int opacity = std::clamp(lexer.parseIntExpr(), 0, 256);
+    if (!lexer.consumeComma())
+      return;
+    const int x = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int y = lexer.parseIntExpr();
+    if (spriteNo < 0 || spriteNo >= kMaxExtendedSprites ||
+        !sprites_[spriteNo].loaded)
+      return;
+    ManualDrawOp op;
+    op.kind = ManualDrawOp::Kind::Sprite;
+    op.spec = sprites_[spriteNo].spec;
+    op.x = x;
+    op.y = y;
+    op.cell = std::clamp(cellNo, 0, std::max(0, op.spec.numCells - 1));
+    op.alpha = (opacity * 255) / 256;
+    if (cmd == "drawsp2") {
+      if (!lexer.consumeComma())
+        return;
+      op.scaleX = std::clamp(lexer.parseIntExpr(), -10000, 10000);
+      if (!lexer.consumeComma())
+        return;
+      op.scaleY = std::clamp(lexer.parseIntExpr(), -10000, 10000);
+      if (!lexer.consumeComma())
+        return;
+      op.rotation = lexer.parseIntExpr();
+    } else if (cmd == "drawsp3") {
+      op.affine = true;
+      if (!lexer.consumeComma())
+        return;
+      op.transformA = lexer.parseIntExpr();
+      if (!lexer.consumeComma())
+        return;
+      op.transformB = lexer.parseIntExpr();
+      if (!lexer.consumeComma())
+        return;
+      op.transformC = lexer.parseIntExpr();
+      if (!lexer.consumeComma())
+        return;
+      op.transformD = lexer.parseIntExpr();
+    }
+    queueManual(std::move(op));
+    return;
+  }
+  if (cmd == "drawtext") {
+    ManualDrawOp op;
+    op.kind = ManualDrawOp::Kind::Text;
+    op.text = pagePlainText_;
+    op.x = window_.textX;
+    op.y = window_.textY;
+    op.width = window_.textAreaWidth();
+    op.height = window_.fontH;
+    op.colorRgb = currentTextStyle_.colorRgb;
+    queueManual(std::move(op));
+    return;
+  }
+  if (cmd == "blt") {
+    ManualDrawOp op;
+    op.kind = ManualDrawOp::Kind::Blit;
+    op.spec = btndefSpec_;
+    op.x = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.y = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.width = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.height = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.srcX = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.srcY = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.srcW = lexer.parseIntExpr();
+    lexer.consumeComma();
+    op.srcH = lexer.parseIntExpr();
+    if (!op.spec.imagePath.empty() && op.width > 0 && op.height > 0 &&
+        op.srcW > 0 && op.srcH > 0)
+      queueManual(std::move(op));
+    // blt is an immediate copy into the currently displayed image.
+    manualDisplayOps_ = manualDraftOps_;
+    manualFrameVisible_ = true;
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+  if (cmd == "draw") {
+    manualDisplayOps_ = manualDraftOps_;
+    manualFrameVisible_ = true;
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+  if (cmd == "monocro") {
+    const std::string arg = lexer.parseRawArg();
+    if (arg == "off") {
+      monochromeEnabled_ = false;
+    } else {
+      std::uint32_t rgb = 0xFFFFFFu;
+      if (arg == "black")
+        rgb = 0x000000u;
+      else if (arg == "white")
+        rgb = 0xFFFFFFu;
+      else if (!parseHexColor24(arg, rgb))
+        return;
+      monochromeColor_ = rgb;
+      monochromeEnabled_ = true;
+    }
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+  if (cmd == "nega") {
+    negativeMode_ = std::clamp(lexer.parseIntExpr(), 0, 2);
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+  if (cmd == "quake" || cmd == "quakex" || cmd == "quakey") {
+    const int amplitude = std::max(0, lexer.parseIntExpr());
+    if (!lexer.consumeComma())
+      return;
+    const int duration = std::max(0, lexer.parseIntExpr());
+    quakeAmplitude_ = amplitude;
+    EffectDef shake;
+    shake.builtinEffect = cmd == "quakey"   ? 10001
+                          : cmd == "quakex" ? 10002
+                                            : 10003;
+    shake.durationMs = std::max(duration, amplitude * 4);
+    triggerEffect(shake);
+    return;
+  }
+  if (cmd == "allsphide" || cmd == "allspresume" || cmd == "allsp2hide" ||
+      cmd == "allsp2resume") {
+    const bool hide = (cmd == "allsphide" || cmd == "allsp2hide");
+    if (cmd == "allsp2hide" || cmd == "allsp2resume")
+      allSprites2Hidden_ = hide;
+    else
+      allSpritesHidden_ = hide;
+    if (callbacks_)
+      callbacks_->onSceneDirty();
+    return;
+  }
+
+  if (cmd == "tal") {
+    const std::string position = lexer.parseIdentifier();
+    const int slot = position == "l"   ? 0
+                     : position == "c" ? 1
+                     : position == "r" ? 2
+                                       : -1;
+    if (!lexer.consumeComma())
+      return;
+    const int opacity = std::clamp(lexer.parseIntExpr(), 0, 256);
+    if (slot >= 0) {
+      standing_[slot].alpha = (opacity * 255) / 256;
+      if (lexer.consumeComma()) {
+        const EffectDef effect = resolveEffectSpec(lexer, false);
+        triggerEffect(effect);
+      } else if (callbacks_) {
+        callbacks_->onSceneDirty();
+      }
+    }
+    return;
+  }
+
+  if (cmd == "strsp" || cmd == "strsph") {
+    const int id = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const std::string text = lexer.parseStringExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int x = lexer.parseIntExpr();
+    if (!lexer.consumeComma())
+      return;
+    const int y = lexer.parseIntExpr();
+
+    // Size/spacing fields match strsp's dialogue font configuration.
+    int cols = 1, rows = 1;
+    int fontW = window_.fontW, fontH = window_.fontH;
+    int spacingX = window_.pitchX, spacingY = window_.pitchY;
+    if (lexer.consumeComma())
+      cols = std::max(1, lexer.parseIntExpr());
+    if (lexer.consumeComma())
+      rows = std::max(1, lexer.parseIntExpr());
+    if (lexer.consumeComma())
+      fontW = std::max(1, lexer.parseIntExpr());
+    if (lexer.consumeComma())
+      fontH = std::max(1, lexer.parseIntExpr());
+    if (lexer.consumeComma())
+      spacingX = lexer.parseIntExpr();
+    if (lexer.consumeComma())
+      spacingY = lexer.parseIntExpr();
+    if (lexer.consumeComma())
+      lexer.parseIntExpr(); // bold
+    if (lexer.consumeComma())
+      lexer.parseIntExpr(); // shadow
+
+    std::uint32_t color = 0xFFFFFFu;
+    if (lexer.consumeComma())
+      parseHexColor24(lexer.parseRawArg(), color);
+    if (id >= 0 && id < kMaxExtendedSprites) {
+      auto &slot = sprites_[id];
+      slot = SpriteSlot{};
+      slot.loaded = true;
+      slot.visible = cmd == "strsp";
+      slot.spec.trans = TransMode::String;
+      slot.spec.text = TextFormatter::formatUiLabel(text, true);
+      slot.spec.color = color;
+      slot.spec.fontWidth = fontW;
+      slot.spec.fontHeight = fontH;
+      slot.spec.fontSpacing = spacingX;
+      slot.x = x;
+      slot.y = y;
+      slot.cellWidth = std::max(1, cols * (fontW + spacingX));
+      slot.cellHeight = std::max(1, rows * (fontH + spacingY));
+      if (callbacks_)
+        callbacks_->onSceneDirty();
+    }
+    return;
+  }
+
   if (cmd == "bg") {
+    backgroundCopyOps_.clear();
+    manualFrameVisible_ = false;
     leaveTextDisplayMode(false);
     const std::string rawArg = lexer.parseRawArg();
     bg_ = parseTaggedString(rawArg, TransMode::Copy);
@@ -825,7 +1568,9 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
     return;
   }
 
-  if (cmd == "lsp" || cmd == "lsph" || cmd == "lsp2" || cmd == "lsph2") {
+  if (cmd == "lsp" || cmd == "lsph" || cmd == "lsp2" || cmd == "lsph2" ||
+      cmd == "lsp2add" || cmd == "lsp2sub" || cmd == "lsph2add" ||
+      cmd == "lsph2sub") {
     const int id = lexer.parseIntExpr();
     lexer.consumeComma();
     const std::string tagStr = lexer.parseStringExpr();
@@ -840,7 +1585,11 @@ void PonscripterVm::cmdGraphics(LineLexer &lexer, const std::string &cmd) {
     if (id >= 0 && id < kMaxExtendedSprites) {
       auto &sp = sprites_[id];
       sp.loaded = true;
-      sp.visible = (cmd == "lsp" || cmd == "lsp2");
+      sp.visible = (cmd.rfind("lsph", 0) != 0);
+      sp.secondaryLayer = (cmd.find('2') != std::string::npos);
+      sp.blendMode = cmd.find("add") != std::string::npos   ? 1
+                     : cmd.find("sub") != std::string::npos ? 2
+                                                            : 0;
       sp.spec = parseTaggedString(tagStr, TransMode::Alpha);
       sp.x = x;
       sp.y = y;
@@ -1051,6 +1800,7 @@ void PonscripterVm::cmdEffects(LineLexer &lexer, const std::string &cmd) {
     return;
   }
   if (cmd == "print") {
+    manualFrameVisible_ = false;
     const EffectDef eff = resolveEffectSpec(lexer, false);
     triggerEffect(eff);
     return;
@@ -1176,6 +1926,16 @@ void PonscripterVm::cmdTextAndWindow(LineLexer &lexer, const std::string &cmd) {
 
   if (cmd == "skipoff") {
     skipMode_ = false;
+    return;
+  }
+
+  if (cmd == "texec") {
+    if (textGosubPagePending_) {
+      clearCurrentPage(true);
+      textGosubPagePending_ = false;
+      if (callbacks_)
+        callbacks_->onSceneDirty();
+    }
     return;
   }
 
@@ -1522,8 +2282,11 @@ void PonscripterVm::cmdMenusAndSystem(LineLexer &lexer,
     }
     if (kind == "end") {
       waitState_ = WaitState::Halted;
-      if (callbacks_)
+      if (callbacks_) {
+        callbacks_->onStopBgm(0);
+        callbacks_->onStopWave(-1);
         callbacks_->onPersistGlobals();
+      }
       return;
     }
     if (kind == "skip") {

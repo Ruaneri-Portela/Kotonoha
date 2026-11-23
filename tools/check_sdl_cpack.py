@@ -38,9 +38,10 @@ for handle in ("SDLMemoryPtr", "SDLArrayPtr", "AudioDeviceHandle",
                "TexturePtr", "SurfacePtr", "GamepadPtr", "IOStreamPtr"):
     assert handle in common, handle
 
-app = (root / "buildsystems/cmake/KotonohaApp.cmake").read_text(encoding="utf-8")
-deploy = (root / "buildsystems/cmake/CopyRuntimeLibraries.cmake").read_text(encoding="utf-8")
-cpack = (root / "buildsystems/cmake/KotonohaCPack.cmake").read_text(encoding="utf-8")
+app = (root / "buildsystems/cmake/games/KotonohaApp.cmake").read_text(encoding="utf-8")
+app += (root / "buildsystems/cmake/packaging/KotonohaAppPackaging.cmake").read_text(encoding="utf-8")
+deploy = (root / "buildsystems/cmake/packaging/CopyRuntimeLibraries.cmake").read_text(encoding="utf-8")
+cpack = (root / "buildsystems/cmake/packaging/KotonohaCPack.cmake").read_text(encoding="utf-8")
 for token in ("CMAKE_SHARED_LIBRARIES", "kotonoha_copy_runtime_libraries",
               "kotonoha_get_default_dependency_dirs"):
     assert token in app and token in deploy if token == "CMAKE_SHARED_LIBRARIES" else token in app, token

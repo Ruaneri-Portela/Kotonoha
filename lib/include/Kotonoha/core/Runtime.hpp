@@ -49,6 +49,10 @@ protected:
 private:
   std::unique_ptr<SplashChainloader> splash;
   Engine *splashEngine = nullptr;
+  // Last scene published to the browser scheduler; native ports are unchanged.
+#ifdef __EMSCRIPTEN__
+  std::string lastPredictiveNode_;
+#endif
 
 public:
   Runtime(std::string name, std::string version, std::string identify);
@@ -93,6 +97,9 @@ public:
   // Games with scene transactions can retain the fully composed Novel raster
   // in an engine-owned target. Readiness means a primary image/video drew.
   virtual bool useOwnedNarrativeTarget() const { return false; }
+  // Keep SDL_ttf dialogue at native output resolution, even when the user
+  // requests a reduced intermediate render scale for game imagery.
+  virtual bool requiresNativeTextResolution() const { return false; }
   // Optional game-authored vertical presentation inside the normal Novel
   // canvas. 1.0 fills the fitted canvas; e.g. 0.75 keeps the whole frame but
   // compresses it into the centered 75%, leaving black bands above/below.
@@ -155,6 +162,10 @@ public:
     return std::nullopt;
   }
   virtual std::vector<DebugNode> debugNodes() const { return {}; }
+  // When native scripts expose a scenario-specific node catalog, this key
+  // changes as the active scenario changes. Empty means static/no automatic
+  // refresh, keeping expensive catalogs lazy for other ports.
+  virtual std::string debugNodeCatalogKey() const { return {}; }
   // Logical audio IDs belonging to the active scene. Archive runtimes can
   // expose virtual IDs that do not exist as loose files.
   virtual std::vector<DebugAudioAsset> debugSceneAudio() { return {}; }

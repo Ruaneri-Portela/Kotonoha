@@ -2,12 +2,65 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <algorithm>
+#include <cctype>
 #include <charconv>
+#include <cmath>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
 
 namespace Kotonoha {
+namespace {
+std::string toLowerAscii(std::string value) {
+  std::transform(
+      value.begin(), value.end(), value.begin(),
+      [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+  return value;
+}
+
+UpscaleBackend parseUpscaleBackend(const std::string &raw) {
+  const auto key = toLowerAscii(raw);
+  if (key == "none" || key == "off" || key == "0")
+    return UpscaleBackend::None;
+  if (key == "linear" || key == "1")
+    return UpscaleBackend::Linear;
+  if (key == "mpv" || key == "opengl" || key == "2")
+    return UpscaleBackend::MPV;
+  if (key == "metalfx" || key == "3")
+    return UpscaleBackend::MetalFX;
+  if (key == "auto" || key == "automatic" || key == "4")
+    return UpscaleBackend::Auto;
+  throw std::invalid_argument(
+      "--upscaler must be one of: auto, none, linear, mpv, metalfx");
+}
+
+UpscalePreset parseUpscalePreset(const std::string &raw) {
+  int numeric = -1;
+  const auto parsed =
+      std::from_chars(raw.data(), raw.data() + raw.size(), numeric);
+  if (parsed.ec == std::errc{} && parsed.ptr == raw.data() + raw.size()) {
+    const auto &presets = UpscalePresets();
+    if (numeric >= 0 && numeric < static_cast<int>(presets.size()))
+      return presets[static_cast<std::size_t>(numeric)];
+    throw std::invalid_argument("--upscaler-preset index out of range");
+  }
+  const auto key = toLowerAscii(raw);
+  if (key == "anime4k")
+    return UpscalePreset::Anime4K;
+  if (key == "artcnn")
+    return UpscalePreset::ArtCNN;
+  if (key == "artcnn-denoise" || key == "artcnndenoise")
+    return UpscalePreset::ArtCNNDenoise;
+  if (key == "artcnn-large" || key == "artcnnlarge")
+    return UpscalePreset::ArtCNNLarge;
+  for (auto preset : UpscalePresets()) {
+    if (toLowerAscii(UpscalePresetName(preset)) == key)
+      return preset;
+  }
+  throw std::invalid_argument("Unknown --upscaler-preset: " + raw);
+}
+} // namespace
+
 CommandLine::CommandLine(std::string program, EngineOptions &engine)
     : engine(engine), program(std::move(program)) {
   flag("--help", "Show engine and game options without opening the game",
@@ -21,6 +74,27 @@ CommandLine::CommandLine(std::string program, EngineOptions &engine)
        [&engine] { engine.persistSettings = false; });
   option("--renderer", "NAME", "SDL renderer override (requires restart)",
          engine.rendererOverride);
+  option("--upscaler", "BACKEND",
+         "Upscaler backend override (auto, none, linear, mpv, metalfx)",
+         [&engine](const std::string &value) {
+           engine.upscalerBackendOverride = parseUpscaleBackend(value);
+         });
+  option("--upscaler-preset", "PRESET",
+         "Upscaler shader preset index or name (Anime4K / ArtCNN)",
+         [&engine](const std::string &value) {
+           engine.upscalerPresetOverride = parseUpscalePreset(value);
+         });
+  option("--upscaler-factor", "FACTOR",
+         "Upscaler scale factor in [1.0, 4.0] (1.0 disables upscaling)",
+         [&engine](const std::string &value) {
+           char *end = nullptr;
+           const float factor = std::strtof(value.c_str(), &end);
+           if (!end || *end != '\0' || !std::isfinite(factor) ||
+               factor < 1.0f || factor > 4.0f)
+             throw std::invalid_argument(
+                 "--upscaler-factor must be a number between 1.0 and 4.0");
+           engine.upscalerFactorOverride = factor;
+         });
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   option("--log", "FILE", "Write engine logs to this file", engine.logPath);
 #if KOTONOHA_ENABLE_MCP

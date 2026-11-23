@@ -22,7 +22,14 @@ class VoiceDubbingApplet {
   std::shared_ptr<FileDialog> dialog_;
   std::string selectedId_;
   std::string sceneNode_;
+  std::string sceneAudioMarker_;
   std::vector<DebugAudioAsset> sceneAudio_;
+  // Lazy cross-provider catalog: never enumerate multi-gigabyte game indexes
+  // in the frame loop. Only query AssetProvider::list() on explicit request.
+  std::vector<std::string> providerAudioAssets_;
+  std::vector<std::string> filteredAudioAssets_;
+  char providerAudioFilter_[256]{};
+  bool providerAudioLoaded_ = false;
   std::string characterFilter_;
   char manualId_[1024]{};
   AudioClip original_, overlay_, take_, sourceTake_, undoTake_;
@@ -64,6 +71,8 @@ class VoiceDubbingApplet {
 public:
   explicit VoiceDubbingApplet(Engine &engine);
   ~VoiceDubbingApplet();
+  // Select a logical asset from the shared provider inspector.
+  void openAsset(const std::string &id);
   void draw();
   void suspend();
 };

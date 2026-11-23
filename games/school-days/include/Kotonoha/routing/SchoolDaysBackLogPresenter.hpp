@@ -48,6 +48,7 @@ private:
     TTF_Font* font_ = nullptr;
     TTF_Font* fallbackFont_ = nullptr;
     TTF_Font* chineseFallbackFont_ = nullptr;
+    TTF_Font* emojiFallbackFont_ = nullptr;
     bool useEnglish_ = false;
     bool opened_ = false;
     const AssetProvider* assets_ = nullptr;

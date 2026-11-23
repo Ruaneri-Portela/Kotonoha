@@ -8,7 +8,9 @@ void AudioChannel::update(float dtSeconds) {
   if (isFading && fadeDuration > 0.0f) {
     fadeElapsed += dtSeconds;
     float t = std::min(1.0f, fadeElapsed / fadeDuration);
-    volume = volume + (targetVolume - volume) * t;
+    // Interpolate from the captured start value; accumulating into the
+    // already-modified volume produced a non-linear ramp and a jump at t=1.
+    volume = fadeFrom + (targetVolume - fadeFrom) * t;
     if (t >= 1.0f) {
       volume = targetVolume;
       isFading = false;
@@ -34,6 +36,7 @@ void AudioSystem::playBgm(std::string_view path, bool loop, float fadeMs) {
     bgmChannel_.volume = masterBgmVolume_;
     bgmChannel_.isFading = false;
   } else {
+    bgmChannel_.fadeFrom = bgmChannel_.volume;
     bgmChannel_.volume = 0.0f;
     bgmChannel_.targetVolume = masterBgmVolume_;
     bgmChannel_.fadeDuration = fadeMs / 1000.0f;
@@ -52,6 +55,7 @@ void AudioSystem::stopBgm(float fadeMs) {
     bgmChannel_.volume = 0.0f;
     bgmChannel_.isFading = false;
   } else {
+    bgmChannel_.fadeFrom = bgmChannel_.volume;
     bgmChannel_.targetVolume = 0.0f;
     bgmChannel_.fadeDuration = fadeMs / 1000.0f;
     bgmChannel_.fadeElapsed = 0.0f;
@@ -112,6 +116,40 @@ void AudioSystem::setVolume(AudioChannelKind kind, float volume) {
   }
 }
 
+void AudioSystem::fadeVolume(AudioChannelKind kind, float volume,
+                             float fadeMs) {
+  volume = std::max(0.0f, std::min(1.0f, volume));
+  auto begin = [&](AudioChannel &channel, float &master) {
+    master = volume;
+    if (fadeMs <= 0.0f) {
+      channel.volume = volume;
+      channel.isFading = false;
+      return;
+    }
+    channel.fadeFrom = channel.volume;
+    channel.targetVolume = volume;
+    channel.fadeDuration = fadeMs / 1000.0f;
+    channel.fadeElapsed = 0.0f;
+    channel.isFading = true;
+    // A fade to silence must not stop a channel that is still playing.
+    channel.isPlaying = true;
+  };
+  switch (kind) {
+  case AudioChannelKind::Bgm:
+    begin(bgmChannel_, masterBgmVolume_);
+    break;
+  case AudioChannelKind::Voice:
+    begin(voiceChannel_, masterVoiceVolume_);
+    break;
+  case AudioChannelKind::Se:
+    for (auto &[idx, ch] : seChannels_) {
+      (void)idx;
+      begin(ch, masterSeVolume_);
+    }
+    break;
+  }
+}
+
 float AudioSystem::getVolume(AudioChannelKind kind) const {
   switch (kind) {
   case AudioChannelKind::Bgm:
@@ -122,6 +160,13 @@ float AudioSystem::getVolume(AudioChannelKind kind) const {
     return masterSeVolume_;
   }
   return 1.0f;
+}
+
+void AudioSystem::restore(const AudioChannel &bgm, const AudioChannel &voice,
+                          const std::unordered_map<int, AudioChannel> &se) {
+  bgmChannel_ = bgm;
+  voiceChannel_ = voice;
+  seChannels_ = se;
 }
 
 void AudioSystem::update(float dtSeconds) {

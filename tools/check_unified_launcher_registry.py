@@ -33,7 +33,14 @@ def audit() -> list[str]:
         if slug in registry:
             issues.append(f"Duplicate launcher registry entry for {slug}")
         registry[slug] = match.groupdict()
-    expected_slugs = set(games.values()) - {"example"}
+    # Generic Ren'Py is a virtual launcher identity sharing the DDLC VM,
+    # not another standalone game application in the Xcode/Android matrix.
+    expected_slugs = (set(games.values()) - {"example"}) | {"renpy"}
+    if registry.get("renpy", {}).get("target") != "DokiDoki" or (
+        registry.get("renpy", {}).get("bundle") !=
+        "me.hirameki.kotonoha.renpy"
+    ):
+        issues.append("Generic Ren'Py registry identity is inconsistent")
     if "example" in registry:
         issues.append("Example must not be registered in the launcher")
     if set(registry) != expected_slugs:
@@ -103,7 +110,7 @@ def audit() -> list[str]:
         issues.append("Game factories are not statically linked into the hub")
     for option, slug, _ in re.findall(
         r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"',
-        (ROOT / "buildsystems/cmake/KotonohaGames.cmake").read_text(
+        (ROOT / "buildsystems/cmake/games/KotonohaGames.cmake").read_text(
             encoding="utf-8")):
         if option == "EXAMPLE":
             continue
@@ -129,8 +136,13 @@ def audit() -> list[str]:
         issues.append("N2System must reuse only the Ponscripter library")
 
     root_cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
-    if 'KOTONOHA_BUILD_ALL AND NOT ANDROID AND NOT EMSCRIPTEN' not in root_cmake:
-        issues.append("Native-only standalone launcher guard is missing")
+    games_cmake = (ROOT / "buildsystems/cmake/games/KotonohaBuild.cmake").read_text(
+        encoding="utf-8")
+    if "games/KotonohaBuild.cmake" not in root_cmake or (
+        "(KOTONOHA_BUILD_ALL OR KOTONOHA_BUILD_LAUNCHER) AND NOT EMSCRIPTEN"
+        not in games_cmake
+    ):
+        issues.append("Native/Android-only standalone launcher guard is missing")
     return issues
 
 
@@ -145,5 +157,5 @@ if __name__ == "__main__":
         print(f"[Launcher contracts] {finding}", file=sys.stderr)
     if failures:
         raise SystemExit(1)
-    print("[Launcher contracts] All 12 linked game runtimes match their "
+    print("[Launcher contracts] All registered game runtimes match their "
           "CMake/Android identities; Example excluded; BUILD_ALL required")

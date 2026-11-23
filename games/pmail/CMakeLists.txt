@@ -23,6 +23,7 @@ endif()
 add_library(PmailPort STATIC
     src/PmailGame.cpp
     src/PmailRuntime.cpp
+    src/LargePonPonRuntime.cpp
     src/PmailAudio.cpp
     src/PmailPack.cpp
     src/PmailSession.cpp
@@ -76,6 +77,9 @@ if(BUILD_TESTING)
     add_executable(PmailAnimationFormatCheck tests/AnimationFormat.cpp)
     target_link_libraries(PmailAnimationFormatCheck PRIVATE kotonoha_provider_adv)
     add_test(NAME Pmail.AnimationFormat COMMAND PmailAnimationFormatCheck)
+    add_executable(LargePonPonCheck tests/LargePonPonTest.cpp)
+    target_link_libraries(LargePonPonCheck PRIVATE PmailPort)
+    add_test(NAME Pmail.LargePonPon COMMAND LargePonPonCheck)
     # Build the route audit on all platforms, but run it only with retail
     # assets provided explicitly by the developer. Never run in default CI.
     add_executable(PmailRouteAuditCheck tests/RouteAudit.cpp)

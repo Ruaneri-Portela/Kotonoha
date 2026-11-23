@@ -10,6 +10,8 @@ static constexpr float GESTURE_BACK_X_THRESHOLD = 0.04f;
 static constexpr float GESTURE_BACK_DX_THRESHOLD = 0.12f;
 static constexpr float GESTURE_BACK_ASPECT_RATIO = 1.5f;
 static constexpr float GESTURE_BACKLOG_DY_THRESHOLD = -0.12f;
+static constexpr float GESTURE_SKIP_DX_THRESHOLD = 0.18f;
+static constexpr Uint64 GESTURE_LONG_PRESS_MS = 550;
 
 bool TouchPointer::cancel(WindowRef window, SDL_Event &pointer) {
   if (!active)
@@ -277,10 +279,12 @@ bool HandleNavigation(Engine &engine, EventRef event) {
 void InputActions::reset() {
   fingers.clear();
   multi = false;
-  backGesture = backlogGesture = tapGesture = false;
+  backGesture = backlogGesture = tapGesture = skipGesture = false;
+  longPressTriggered = false;
 }
-void InputActions::process(EventRef e) {
-  backGesture = backlogGesture = tapGesture = false;
+void InputActions::process(EventRef e) { process(e, SDL_GetTicks()); }
+void InputActions::process(EventRef e, Uint64 nowMs) {
+  backGesture = backlogGesture = tapGesture = skipGesture = false;
   if (e.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
     reset();
     return;
@@ -293,7 +297,8 @@ void InputActions::process(EventRef e) {
   }
   auto key = std::make_pair(e.tfinger.touchID, e.tfinger.fingerID);
   if (e.type == SDL_EVENT_FINGER_DOWN) {
-    fingers[key] = {e.tfinger.x, e.tfinger.y, e.tfinger.x, e.tfinger.y};
+    fingers[key] = {e.tfinger.x, e.tfinger.y, e.tfinger.x,
+                    e.tfinger.y, false,       nowMs};
     if (fingers.size() > 1)
       multi = true;
   } else if (e.type == SDL_EVENT_FINGER_MOTION) {
@@ -310,6 +315,11 @@ void InputActions::process(EventRef e) {
           dx > std::abs(dy) * GESTURE_BACK_ASPECT_RATIO) {
         backGesture = true;
         multi = true;
+      } else if (f.x >= GESTURE_BACK_X_THRESHOLD &&
+                 dx > GESTURE_SKIP_DX_THRESHOLD &&
+                 dx > std::abs(dy) * GESTURE_BACK_ASPECT_RATIO) {
+        skipGesture = true;
+        multi = true;
       } else if (dy < GESTURE_BACKLOG_DY_THRESHOLD &&
                  -dy > std::abs(dx) * GESTURE_BACK_ASPECT_RATIO) {
         backlogGesture = true;
@@ -322,17 +332,30 @@ void InputActions::process(EventRef e) {
       return;
     i->second.moved |= std::hypot(e.tfinger.x - i->second.x,
                                   e.tfinger.y - i->second.y) > GESTURE_MIN_MOVE;
-    if (multi && fingers.size() == 2) {
+    if (multi && !longPressTriggered && fingers.size() == 2) {
       bool still = true;
       for (auto &[id, f] : fingers)
         still &= !f.moved;
       backGesture = still;
     }
-    tapGesture = !multi && !i->second.moved && fingers.size() == 1;
+    tapGesture = !multi && !longPressTriggered && !i->second.moved &&
+                 fingers.size() == 1;
     fingers.erase(i);
-    if (fingers.empty())
+    if (fingers.empty()) {
       multi = false;
+      longPressTriggered = false;
+    }
   }
+}
+bool InputActions::pollLongPress(Uint64 nowMs) {
+  if (multi || longPressTriggered || fingers.size() != 1)
+    return false;
+  const auto &f = fingers.begin()->second;
+  if (f.moved || nowMs < f.downTimeMs + GESTURE_LONG_PRESS_MS)
+    return false;
+  longPressTriggered = true;
+  multi = true;
+  return true;
 }
 bool InputActions::back(EventRef e) const {
   return (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
@@ -345,13 +368,20 @@ bool InputActions::back(EventRef e) const {
 }
 bool InputActions::backlog(EventRef e) const {
   return (e.type == SDL_EVENT_KEY_DOWN && !e.key.repeat &&
-          e.key.key == SDLK_B) ||
+          (e.key.key == SDLK_B || e.key.key == SDLK_PAGEUP)) ||
          (e.type == SDL_EVENT_MOUSE_WHEEL &&
           e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1 : 1) >
               0) ||
          ((e.type >= SDL_EVENT_FINGER_DOWN &&
            e.type <= SDL_EVENT_FINGER_CANCELED) &&
           backlogGesture);
+}
+bool InputActions::skip(EventRef e) const {
+  return (e.type == SDL_EVENT_KEY_DOWN &&
+          (e.key.key == SDLK_LCTRL || e.key.key == SDLK_RCTRL)) ||
+         ((e.type >= SDL_EVENT_FINGER_DOWN &&
+           e.type <= SDL_EVENT_FINGER_CANCELED) &&
+          skipGesture);
 }
 bool ScrollGesture::handle(EventRef e, float height, float &target,
                            float &velocity, bool &follow, float maximum) {

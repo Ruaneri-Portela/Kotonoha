@@ -281,6 +281,19 @@ void testRemoteManifest() {
           "Remote manifest lookup failed");
   require(remote->list(std::string_view{"DATA"}).size() == 1,
           "Remote manifest directory list failed");
+  const auto beforeMissing = remote->totalRequests();
+  require(!remote->exists("data/unlisted.bin") &&
+              !remote->isKnownRegularFile("data/unlisted.bin") &&
+              remote->totalRequests() == beforeMissing,
+          "Unlisted manifest entry must not request HTTP");
+  expectCode(VFS::ErrorCode::NotFound,
+             [&] { (void)remote->open("data/unlisted.bin"); });
+  require(remote->totalRequests() == beforeMissing,
+          "Unlisted file open scheduled HTTP");
+  expectCode(VFS::ErrorCode::InvalidPath, [&] {
+    VFS::FetchAssetProvider::fromManifest("https://example.invalid/",
+                                          R"({"entries":[]})");
+  });
   auto files =
       VFS::Filesystem::mount(std::static_pointer_cast<VFS::IMount>(remote));
   auto handle = files->open("DATA/REMOTE.BIN");
@@ -300,28 +313,27 @@ void testRemoteManifest() {
   });
 }
 
-void testManifestFreeMountConfiguration() {
-  auto remote =
-      VFS::FetchAssetProvider::fromUrl("https://example.invalid/game-assets/");
-  require(remote->manifestFree() && remote->fileCount() == 0 &&
-              remote->exists(""),
-          "Manifest-free remote root was not configured");
+void testManifestRequired() {
   expectCode(VFS::ErrorCode::InvalidPath, [&] {
-    VFS::FetchAssetProvider::fromUrl("file:///tmp/game-assets");
+    VFS::FetchAssetProvider::fromManifest(
+        "file:///tmp/game-assets", R"({"entries":[{"path":"a","size":1}]})");
   });
   expectCode(VFS::ErrorCode::InvalidPath, [&] {
-    VFS::FetchAssetProvider::fromUrl("https://user@host.example/assets");
+    VFS::FetchAssetProvider::fromManifest(
+        "https://user@host.example/assets",
+        R"({"entries":[{"path":"a","size":1}]})");
   });
-  // Local files must be served without a remote HEAD probe. On native
-  // targets attempting Fetch would throw UnsupportedMount.
   Temp temp;
   const auto assets = temp.root / "game-assets";
   writeFile(assets / "local.bin", "offline");
+  auto remote = VFS::FetchAssetProvider::fromManifest(
+      "https://example.invalid/game-assets/",
+      R"({"entries":[{"path":"remote.bin","size":8}]})");
   auto combined = VFS::Filesystem::mount(std::make_shared<VFS::FallbackMount>(
       std::make_shared<VFS::DirectoryMount>(assets), remote));
   require(readText(combined->open("local.bin")) == "offline" &&
               remote->totalRequests() == 0,
-          "Manifest-free fallback unexpectedly probed local file over HTTP");
+          "Local-only file was unexpectedly probed over HTTP");
 }
 
 void testUnifiedAssetSources() {
@@ -331,8 +343,9 @@ void testUnifiedAssetSources() {
   writeFile(local / "data/pack/script.dat", "local-script");
   writeFile(local / "data/pack/graphic.dat", "local-graphic");
   writeFile(overlay / "data/pack/script.dat", "override-script");
-  auto remote =
-      VFS::FetchAssetProvider::fromUrl("https://example.invalid/game-assets/");
+  auto remote = VFS::FetchAssetProvider::fromManifest(
+      "https://example.invalid/game-assets/",
+      R"({"entries":[{"path":"remote.bin","size":8}]})");
   // A user-supplied directory must remain readable without dispatching
   // unknown HEAD probes for "data" or "data/pack".
   auto combined = VFS::Filesystem::mount(std::make_shared<VFS::FallbackMount>(
@@ -429,14 +442,47 @@ void testLocalHttpFallback() {
              [&] { VFS::mountGameAssets(temp.root / "missing"); });
 }
 
+void testLazyDetectionMount() {
+  Temp temp;
+  const auto root = temp.root / "detected";
+  writeFile(root / "DATA/SCENARIO/intro.ks", "scenario");
+  writeFile(root / "Game/Data.XP3", "archive");
+
+  const auto preview = VFS::Filesystem::mountForDetection(root.string());
+  require(preview->exists("data/scenario/INTRO.KS"),
+          "Lazy detector missed a nested, case-insensitive file");
+  require(preview->stat("game/data.xp3").type == VFS::FileType::Regular,
+          "Lazy detector missed a file in a differently cased directory");
+  require(preview->list("data/scenario").size() == 1,
+          "Lazy detector did not list nested directory contents");
+  require(!preview->exists("DATA/missing.ks"),
+          "Lazy detector reported a nonexistent file");
+  expectCode(VFS::ErrorCode::InvalidPath,
+             [&] { preview->exists("../outside"); });
+
+  const auto runtime = VFS::Filesystem::mount(root.string());
+  require(runtime->list("data/scenario").size() ==
+              preview->list("data/scenario").size(),
+          "Detection and runtime VFS disagree on nested files");
+}
+
 void testDirectorySafety() {
   Temp temp;
   auto base = temp.root / "base";
   writeFile(base / "abc.bin", "one");
   writeFile(base / "ABC.bin", "two");
   if (!fs::equivalent(base / "abc.bin", base / "ABC.bin")) {
-    expectCode(VFS::ErrorCode::InvalidPath,
-               [&] { VFS::Filesystem::mount(base.string()); });
+    // DirectoryMount explicitly keeps the first entry on a case-insensitive
+    // collision; both spelling variants must resolve to that same file.
+    auto indexed = VFS::Filesystem::mount(base.string());
+    require(indexed->list("").size() == 1,
+            "Duplicate case variants must have one virtual entry");
+    require(readText(indexed->open("abc.bin")) ==
+                readText(indexed->open("ABC.bin")),
+            "Case-insensitive collision resolves inconsistently");
+    auto lazy = VFS::Filesystem::mountForDetection(base.string());
+    require(lazy->list("").size() == 1,
+            "Lazy mount must preserve case-collision behavior");
   }
 
   auto outside = temp.root / "outside.bin";
@@ -446,6 +492,9 @@ void testDirectorySafety() {
   if (!error) {
     expectCode(VFS::ErrorCode::InvalidPath,
                [&] { VFS::Filesystem::mount(base.string()); });
+    auto lazy = VFS::Filesystem::mountForDetection(base.string());
+    expectCode(VFS::ErrorCode::InvalidPath,
+               [&] { lazy->exists("escape.bin"); });
   }
 }
 
@@ -457,11 +506,12 @@ int main() {
     testISO();
     testTAR();
     testRemoteManifest();
-    testManifestFreeMountConfiguration();
+    testManifestRequired();
     testUnifiedAssetSources();
     testLocalHttpFallback();
     testSDLAdapters();
     testDirectorySafety();
+    testLazyDetectionMount();
     std::cout << "Filesystem V2 tests passed\n";
   } catch (const std::exception &error) {
     std::cerr << "Filesystem V2 tests failed: " << error.what() << '\n';

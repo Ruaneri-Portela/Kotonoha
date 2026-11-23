@@ -53,6 +53,7 @@
 #include <Kotonoha/routing/SchoolDaysSaveMetadata.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveService.hpp>
 #include <Kotonoha/routing/SchoolDaysSubtitleTypography.hpp>
+#include <Kotonoha/workers/SubtitleBridge.hpp>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <algorithm>
 #include <array>
@@ -72,13 +73,12 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#endif
-
-// WinUser.h maps TranslateAccelerator to TranslateAcceleratorA/W. The School
-// Days input policy defines a C++ method with that same unqualified name.
-// Keep the native Windows API macro from rewriting the game-specific call.
+// Windows' generic-text API alias otherwise rewrites our
+// SchoolDaysInputPolicy::TranslateAccelerator method calls to
+// TranslateAcceleratorA at compile time.
 #ifdef TranslateAccelerator
 #undef TranslateAccelerator
+#endif
 #endif
 
 namespace SchoolDays {
@@ -1608,7 +1608,8 @@ void Runtime::renderExitTransition(Kotonoha::RendererRef renderer, uint64_t nowM
     const float fraction = exitTransition.RevealedFraction(nowMs);
     const SDL_FRect source{0, 0, 800.0f, 450.0f * fraction};
     const SDL_FRect destination{area.x, area.y, area.w, area.h * fraction};
-    (void)SDL_RenderTexture(&renderer, &texture, &source, &destination);
+    (void)Kotonoha::RenderUpscaledTexture(&renderer, &texture, &source,
+                                          &destination);
     (void)SDL_SetTextureAlphaMod(&texture, previousAlpha);
   } catch (const std::exception &error) {
     SDL_LogWarn(Kotonoha::LogUI, "School Days SYSBASE transition: %s", error.what());
@@ -2219,6 +2220,12 @@ bool Runtime::play(Kotonoha_orsEvent &event, const std::string &logical,
     }
     Playing item;
     item.player = std::move(player);
+    // A sidecar .ass next to the video and fonts attached to the container
+    // must reach libass before the first movie frame is rasterized.
+    if (channel == "Movie" && subtitles) {
+      subtitles->openVideoSubtitles(*assets, assets->resolve(logical), 0.0);
+      Kotonoha::workers::transferAttachedFonts(*item.player, *subtitles);
+    }
     item.preparedLoop = std::move(loopInput);
     item.event = &event;
     item.loop = loop;
@@ -2771,8 +2778,8 @@ void Runtime::renderAbcOverlays(Kotonoha::RendererRef renderer,
     const std::string &resource = group.paths[state];
     if (resource.empty()) continue;
     try {
-      (void)SDL_RenderTexture(&renderer, &abcTexture(renderer, resource), nullptr,
-                              &area);
+      (void)Kotonoha::RenderUpscaledTexture(
+          &renderer, &abcTexture(renderer, resource), nullptr, &area);
     } catch (const std::exception &error) {
       SDL_LogWarn(Kotonoha::LogUI, "School Days ABC render failed: %s",
                   error.what());
@@ -3809,11 +3816,17 @@ void Runtime::renderMenu(Kotonoha::RendererRef renderer, float) {
     }
   }
   if (!titleMovie && !titleBackground.empty()) {
-    const SDL_FRect area = titleRect(
-        {0.0f, titleLayout.yOffset * titleLayout.scale,
-         800.0f * titleLayout.scale, titleBackgroundHeight * titleLayout.scale});
-    try { SDL_RenderTexture(&renderer, &assets->texture(renderer, titleBackground), nullptr, &area); }
-    catch (const std::exception &) { titleBackground.clear(); }
+    const SDL_FRect area =
+        titleRect({0.0f, titleLayout.yOffset * titleLayout.scale,
+                   800.0f * titleLayout.scale,
+                   titleBackgroundHeight * titleLayout.scale});
+    try {
+      Kotonoha::RenderUpscaledTexture(
+          &renderer, &assets->texture(renderer, titleBackground), nullptr,
+          &area);
+    } catch (const std::exception &) {
+      titleBackground.clear();
+    }
   }
   if (titleBgm) {
     titleBgm->update(renderer);
@@ -3883,6 +3896,8 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
       const bool incomingReady = adjacent != playing.end() && adjacent->player->hasVideoFrame();
       if (it->terminalFramePresented &&
           (adjacent == playing.end() || incomingReady)) {
+        if (it->movie && subtitles)
+          subtitles->closeVideoSubtitles();
         it = playing.erase(it);
         continue;
       }
@@ -3906,7 +3921,11 @@ void Runtime::renderGameplay(Kotonoha::RendererRef renderer, float) {
     }
     auto &item = *it++;
     try {
-      if (!halted) item.player->update(renderer, std::max(0.0, elapsed - item.segmentStart));
+      if (!halted)
+        item.player->update(renderer, std::max(0.0, elapsed - item.segmentStart));
+      // Sidecar and embedded subtitles must follow each movie's playback clock.
+      if (item.movie && subtitles)
+        subtitles->updateVideoClock(std::max(0.0, elapsed - item.segmentStart));
       if (item.movie && item.player->finished()) {
         auto state = movieStates.find(item.event);
         if (state != movieStates.end() && !state->second.eof)
@@ -5741,8 +5760,8 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
   if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat &&
       (!systemUi.IsOpen() || !systemUi.IsSaveLoadCommentEditorOpen())) {
     const auto globalAccel =
-        Kotonoha::SchoolDaysInputPolicy::TranslateAccelerator(event.key.key,
-                                                              event.key.mod);
+        (Kotonoha::SchoolDaysInputPolicy::TranslateAccelerator)(event.key.key,
+                                                                event.key.mod);
     if (globalAccel ==
         Kotonoha::SchoolDaysInputPolicy::Accelerator::ToggleFullscreen) {
       handleConfig(
@@ -6002,8 +6021,9 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
     }
     if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat)
       return true;
-    const auto accel = Kotonoha::SchoolDaysInputPolicy::TranslateAccelerator(
-        event.key.key, event.key.mod);
+    const auto accel =
+        (Kotonoha::SchoolDaysInputPolicy::TranslateAccelerator)(event.key.key,
+                                                                event.key.mod);
     if (accel == Kotonoha::SchoolDaysInputPolicy::Accelerator::ExitFullscreen) {
       if (displayBackend.windowMode != 0 ||
           (engine &&
@@ -6058,7 +6078,9 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
     case Accel::Speed4x:
     case Accel::Speed12x:
     case Accel::Speed24x:
-      if (!choiceActive && menuBarProjection().speedControlsEnabled) {
+      if (!choiceActive && !choiceMenuFrozen &&
+          !(choice != nullptr && unresolvedChoice()) &&
+          menuBarProjection().speedControlsEnabled) {
         setPlaybackSpeedIndex(
             Kotonoha::SchoolDaysInputPolicy::SpeedIndexForAccelerator(accel));
       }
@@ -6082,7 +6104,8 @@ bool Runtime::onEvent(Kotonoha::EventRef eventInput) {
         openRouteMap();
       return true;
     case Accel::SuperSkipNextChapter:
-      if (!replay && !endMode && !choiceActive && config.superSkip)
+      if (!replay && !endMode && !choiceActive && !choiceMenuFrozen &&
+          !(choice != nullptr && unresolvedChoice()) && config.superSkip)
         activateControl(4);
       return true;
     case Accel::ReturnToTitle:
@@ -7385,6 +7408,40 @@ std::vector<Kotonoha::DebugAudioAsset> Runtime::debugSceneAudio() {
 
 void Runtime::debugOverlayAssetChanged(const std::string &) {
   resetPreparedMedia();
+}
+
+// Share the scene clock between positions of the same authored scene. Position-
+// specific media and node events retain independent event clocks.
+std::string Runtime::nodeClockKey() const {
+  const std::string key = debugNode();
+  const auto dash = key.rfind('-');
+  return dash == std::string::npos ? key : key.substr(0, dash);
+}
+
+void Runtime::debugRestartScene() {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  return;
+#else
+  if (temporaryPlaybackActive())
+    throw std::runtime_error(
+        "School Days scene restart is unavailable during Replay playback");
+  debugJumpToNode(debugNode());
+#endif
+}
+
+bool Runtime::advanceStoryTime(double seconds) {
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  (void)seconds;
+  return false;
+#else
+  if (!std::isfinite(seconds) || seconds <= 0)
+    throw std::invalid_argument("School Days scene step must be positive");
+  const auto amount = static_cast<Kotonoha_SceneTick>(
+      std::max(1.0, std::round(seconds * 24.0)));
+  const auto maximum = std::numeric_limits<Kotonoha_SceneTick>::max();
+  seek(tick > maximum - amount ? maximum : tick + amount);
+  return true;
+#endif
 }
 
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)

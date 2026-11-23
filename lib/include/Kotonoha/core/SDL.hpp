@@ -24,6 +24,10 @@ using SurfacePtr = SDLHandle<SDL_Surface, SDL_DestroySurface>;
 using WindowPtr = SDLHandle<SDL_Window, SDL_DestroyWindow>;
 using RendererPtr = SDLHandle<SDL_Renderer, SDL_DestroyRenderer>;
 using FontPtr = SDLHandle<TTF_Font, TTF_CloseFont>;
+// Glyph atlas rendering through the current SDL renderer (GL/GLES when used).
+using RendererTextEnginePtr =
+    SDLHandle<TTF_TextEngine, TTF_DestroyRendererTextEngine>;
+using TextPtr = SDLHandle<TTF_Text, TTF_DestroyText>;
 using AudioStreamPtr = SDLHandle<SDL_AudioStream, SDL_DestroyAudioStream>;
 using GamepadPtr = SDLHandle<SDL_Gamepad, SDL_CloseGamepad>;
 

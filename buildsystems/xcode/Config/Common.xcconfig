@@ -2,24 +2,162 @@
 // Project directory: <repository>/buildsystems/xcode/
 KOTONOHA_ROOT = $(SRCROOT)/../..
 
-// Set the correct triplet and root for every destination. Override these values
-// locally if your vcpkg output uses a different directory layout.
-KOTONOHA_VCPKG_PARENT = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/macos
+// Architectures: macOS is universal (Apple Silicon + Intel). iOS and the iOS
+// Simulator are arm64-only because the vcpkg iOS triplets are arm64-only.
+// Debug keeps the active arch; Release is universal.
+ARCHS = arm64 x86_64
+ARCHS[sdk=iphoneos*] = arm64
+ARCHS[sdk=iphonesimulator*] = arm64
+ONLY_ACTIVE_ARCH = YES
+ONLY_ACTIVE_ARCH[config=Release] = NO
+
+// Minimum deployment targets: macOS 15.0 and iOS 15.0.
+MACOSX_DEPLOYMENT_TARGET = 15.0
+IPHONEOS_DEPLOYMENT_TARGET = 15.0
+
+// macOS desktop builds consume the dynamic vcpkg triplets produced by
+// `cmake --preset macos-arm64-vcpkg` / `cmake --preset macos-amd64-vcpkg`, so
+// Xcode and CMake use the same dependency artifacts. iOS keeps its own
+// triplets. SDL3 and SDL3_ttf come from the Xcode projects in lib/submodules
+// (dynamic frameworks); the remaining dependencies come from vcpkg. The
+// install root and triplet below must stay in sync with CMakePresets.json:
+// out/build/macos-arm64-vcpkg/vcpkg_installed (arm64) and
+// out/build/macos-amd64-vcpkg/vcpkg_installed (x86_64 architecture). The
+// amd64 spelling is only a name; the compiler and vcpkg still target x86_64.
+KOTONOHA_VCPKG_PARENT = $(KOTONOHA_ROOT)/out/build/macos-arm64-vcpkg/vcpkg_installed
+KOTONOHA_VCPKG_PARENT[arch=x86_64] = $(KOTONOHA_ROOT)/out/build/macos-amd64-vcpkg/vcpkg_installed
 KOTONOHA_VCPKG_PARENT[sdk=iphoneos*] = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/ios
 KOTONOHA_VCPKG_PARENT[sdk=iphonesimulator*] = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/simulator
-KOTONOHA_VCPKG_TRIPLET = arm64-osx
+KOTONOHA_VCPKG_TRIPLET = macos-arm64-vcpkg
+KOTONOHA_VCPKG_TRIPLET[arch=x86_64] = macos-amd64-vcpkg
 KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*] = arm64-ios
 KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*] = arm64-ios-simulator
 KOTONOHA_VCPKG_INCLUDE = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/include
 KOTONOHA_VCPKG_LIB = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/lib
 
-HEADER_SEARCH_PATHS = $(inherited) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/include" \
+
+// All Xcode application targets (including the native Unified Launcher) use
+// providers and VMs compiled from their original modules, not copied sources.
+// Keep these header roots shared so a multi-engine target can compile exactly
+// the same source files as the standalone game targets.
+KOTONOHA_MODULE_HEADER_ROOTS = \
+    "$(KOTONOHA_ROOT)/modules/formats/animation/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/animation/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/data/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/data/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/video/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/video/src" \
+    "$(KOTONOHA_ROOT)/modules/formats/internal/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/animation/anm/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/adpcm/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/cri/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/pcm-block/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/smfd/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/audio/spu/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/data/psb/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/crgb/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/cz/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/evd/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/tex/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/tim2/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/ui-atlas/include" \
+    "$(KOTONOHA_ROOT)/modules/formats/image/tlg/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/adv/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/adv/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/amagami/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/amagami/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/cmp/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/cmp/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/gpk/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/gpk/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/n2/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/n2/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/pak/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/pak/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/pmail/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/pmail/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/ponscripter/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/ponscripter/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/reallive/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/reallive/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/rpa/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/rpa/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/xp3/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/xp3/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/zero/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/zero/src" \
+    "$(KOTONOHA_ROOT)/modules/providers/artemis/include" \
+    "$(KOTONOHA_ROOT)/modules/providers/artemis/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/amagami/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/amagami/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/artemis/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/artemis/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/kag/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/kag/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/meo/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/meo/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/n2system/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/n2system/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/pmail/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/pmail/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/ponscripter/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/ponscripter/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/reallive/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/reallive/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/renpy/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/renpy/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/snow-radish/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/snow-radish/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/summer-radish/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/summer-radish/src" \
+    "$(KOTONOHA_ROOT)/modules/vms/tjs2/include" \
+    "$(KOTONOHA_ROOT)/modules/vms/tjs2/src"
+
+KOTONOHA_GAME_HEADER_ROOTS = \
+    "$(KOTONOHA_ROOT)/games/amagami/include" \
+    "$(KOTONOHA_ROOT)/games/amagami/src" \
+    "$(KOTONOHA_ROOT)/games/zero-no-tsukaima/include" \
+    "$(KOTONOHA_ROOT)/games/zero-no-tsukaima/src" \
+    "$(KOTONOHA_ROOT)/games/snow-radish-vacation/include" \
+    "$(KOTONOHA_ROOT)/games/snow-radish-vacation/src" \
+    "$(KOTONOHA_ROOT)/games/summer-radish-vacation/include" \
+    "$(KOTONOHA_ROOT)/games/summer-radish-vacation/src" \
+    "$(KOTONOHA_ROOT)/games/doki-doki-literature-club/include" \
+    "$(KOTONOHA_ROOT)/games/doki-doki-literature-club/src" \
+    "$(KOTONOHA_ROOT)/games/katawa-shoujo/include" \
+    "$(KOTONOHA_ROOT)/games/katawa-shoujo/src" \
+    "$(KOTONOHA_ROOT)/games/school-days/include" \
+    "$(KOTONOHA_ROOT)/games/school-days/src" \
+    "$(KOTONOHA_ROOT)/games/reallive/include" \
+    "$(KOTONOHA_ROOT)/games/reallive/src" \
+    "$(KOTONOHA_ROOT)/games/reallive/vendor" \
+    "$(KOTONOHA_ROOT)/games/kirikiri/include" \
+    "$(KOTONOHA_ROOT)/games/kirikiri/src" \
+    "$(KOTONOHA_ROOT)/games/luca-system/include" \
+    "$(KOTONOHA_ROOT)/games/luca-system/src" \
+    "$(KOTONOHA_ROOT)/games/artemis/include" \
+    "$(KOTONOHA_ROOT)/games/artemis/src" \
+    "$(KOTONOHA_ROOT)/games/pmail/include" \
+    "$(KOTONOHA_ROOT)/games/pmail/src" \
+    "$(KOTONOHA_ROOT)/games/meo/include" \
+    "$(KOTONOHA_ROOT)/games/meo/src" \
+    "$(KOTONOHA_ROOT)/games/n2system/include" \
+    "$(KOTONOHA_ROOT)/games/n2system/src" \
+    "$(KOTONOHA_ROOT)/games/ponscripter/include" \
+    "$(KOTONOHA_ROOT)/games/ponscripter/src" \
+    "$(KOTONOHA_ROOT)/launcher/include" \
+    "$(KOTONOHA_ROOT)/launcher/src"
+
+HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/SDL/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/imgui" \
     "$(KOTONOHA_ROOT)/lib/submodules/imgui/backends" \
     "$(KOTONOHA_ROOT)/lib/submodules/imgui/misc/cpp" \
-    "$(KOTONOHA_VCPKG_INCLUDE)" \
     "$(KOTONOHA_ROOT)/modules/providers/cmp/include" \
     "$(KOTONOHA_ROOT)/modules/providers/amagami/include" \
     "$(KOTONOHA_ROOT)/modules/providers/rpa/include" \
@@ -41,14 +179,43 @@ HEADER_SEARCH_PATHS = $(inherited) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/i
     "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/include" \
     "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/src"
 LIBRARY_SEARCH_PATHS = $(inherited) "$(KOTONOHA_VCPKG_LIB)"
+// SDL3 / SDL3_ttf are Xcode-built dynamic frameworks from lib/submodules;
+// KotonohaEngine / KotonohaImGui come from BUILT_PRODUCTS_DIR.
 FRAMEWORK_SEARCH_PATHS = $(inherited) "$(BUILT_PRODUCTS_DIR)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)"
 CLANG_CXX_LANGUAGE_STANDARD = c++17
 CLANG_CXX_LIBRARY = libc++
+// Keep vcpkg headers as system search paths after the Apple SDK so vcpkg's
+// uuid/uuid.h never shadows Darwin's <uuid/uuid.h> during Swift PCM builds.
+OTHER_CFLAGS = $(inherited) -isystem "$(KOTONOHA_VCPKG_INCLUDE)"
+OTHER_CPLUSPLUSFLAGS = $(inherited) -isystem "$(KOTONOHA_VCPKG_INCLUDE)"
 // macOS: optional features ON. iOS device and simulator: MCP OFF.
-GCC_PREPROCESSOR_DEFINITIONS = $(inherited) KOTONOHA_HAS_METALFX=1 KOTONOHA_ENABLE_UPSCALER=1 KOTONOHA_ENABLE_MCP=1
-GCC_PREPROCESSOR_DEFINITIONS[sdk=iphoneos*] = $(inherited) KOTONOHA_HAS_METALFX=1 KOTONOHA_ENABLE_UPSCALER=1 KOTONOHA_ENABLE_MCP=0
-GCC_PREPROCESSOR_DEFINITIONS[sdk=iphonesimulator*] = $(inherited) KOTONOHA_HAS_METALFX=1 KOTONOHA_ENABLE_UPSCALER=1 KOTONOHA_ENABLE_MCP=0
+// MetalFX is unavailable in the iOS Simulator SDK.
+KOTONOHA_MCP_DEF = KOTONOHA_ENABLE_MCP=1
+KOTONOHA_MCP_DEF[sdk=iphoneos*] = KOTONOHA_ENABLE_MCP=0
+KOTONOHA_MCP_DEF[sdk=iphonesimulator*] = KOTONOHA_ENABLE_MCP=0
+KOTONOHA_METALFX_DEF = KOTONOHA_HAS_METALFX=1
+KOTONOHA_METALFX_DEF[sdk=iphonesimulator*] =
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) $(KOTONOHA_METALFX_DEF) KOTONOHA_ENABLE_UPSCALER=1 $(KOTONOHA_MCP_DEF)
 
-// The original projects link dynamic SDL3 / SDL3_ttf and vcpkg libraries.
+// All app targets link the submodule SDL3 / SDL3_ttf frameworks; the remaining
+// libraries come from vcpkg.
+// CoreFoundation handles engine text conversion, but bundled/third-party
+// libraries may still reference _iconv_open/_iconv/_iconv_close.
+// Keep the Apple SDK's libiconv linked for all macOS/iOS app targets.
 KOTONOHA_SHARED_LIBS = -ljson-c -lass -lz -lharfbuzz -lfribidi -lfreetype -lfontconfig -liconv -lbz2 -lbrotlidec -lbrotlicommon -lexpat -lpng -lunibreak
 KOTONOHA_FFMPEG_LIBS = -lavcodec -lavformat -lavutil -lswresample -lswscale
+
+// Shared schemes build in dependency order; the legacy "manual target order"
+// warning is obsolete and noisy for every multi-target build.
+DISABLE_MANUAL_TARGET_ORDER_BUILD_WARNING = YES
+
+// Debug builds must not strip copied signed frameworks/dylibs (Engine, ImGui,
+// Python). Stripping signed binaries is a no-op that emits a warning per file
+// and previously broke the embedded CPython config-*/python.o artifact.
+// Release keeps the default stripping behaviour.
+STRIP_INSTALLED_PRODUCT[config=Debug] = NO
+STRIP_SWIFT_SYMBOLS[config=Debug] = NO
+// Embedders (Embed Frameworks / Python.framework) strip copied binaries via
+// COPY_PHASE_STRIP; disable it in Debug to avoid stripping signed frameworks
+// and the embedded CPython config-*/python.o object files.
+COPY_PHASE_STRIP[config=Debug] = NO

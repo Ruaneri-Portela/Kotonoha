@@ -56,6 +56,9 @@ public:
   std::pair<std::string, std::string>
   actorAssets(unsigned character, unsigned cloth, unsigned pose) const;
   Bytes voice(const std::string &code, unsigned number) const;
+  // Indexed, validated logical voice IDs for the common AssetProvider viewer.
+  // No audio payload is loaded while enumerating the source archive.
+  std::vector<std::string> voiceAssetIds() const;
   Bytes ambience(unsigned index) const;
   Script systemClass(size_t index) const;
   const std::vector<std::string> &scenarios() const { return scenarios_; }

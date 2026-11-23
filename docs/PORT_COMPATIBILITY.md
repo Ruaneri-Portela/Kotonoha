@@ -30,6 +30,17 @@ that every script command, route, transition or ending works.
 - N2System and PONscripter are selectable in CMake and Android, but **no macOS/iOS Xcode schemes for either port exist** in the checked-in project. This is explicitly reported as `xcode_pending` until buildable Apple targets are generated and validated.
 - Synthetic checks cover startup contracts only; complete retail gameplay parity and device builds still require separate verification.
 
+## Shared Kotonoha UI integration (2026-11-18)
+
+Every port connects its native in-game menu and history to the engine
+components, either directly or through game-specific subclasses:
+
+- Example, RealLive, Kirikiri2/KirikiriZ, LucaSystem, Summer Radish and N2System use `InGameMenu`, `VNBacklog` and `VNSaveMenu`; N2System subclasses the menu so History opens the backlog it populates.
+- Amagami, Zero no Tsukaima, Snow Radish, Doki Doki Literature Club, Pure Mail and PONscripter keep their native labels, drawing and input by subclassing `InGameMenu` and/or `VNBacklog`.
+- Saya no Uta/PONscripter maps native `rmenu` to a four-item `InGameMenu`, native `lookback` to `VNBacklog`, and native `save`/`load` to `VNSaveMenu`; the VM remains in `WaitSystemCall` until each modal closes.
+- School Days HQ keeps its authenticated native MenuBar/SysMenu and history skin; `VNSaveMenu` and `SchoolDaysBackLogEngine` (a `VNBacklog` subclass) remain registered fallbacks.
+- Verified in this change with `AmagamiEngineTest` (retail disc), `PonscripterRuntimeTests` (synthetic and retail Saya no Uta), and the `N2System` suite (7 tests).
+
 ## Contract and synthetic tests
 
 - `tools/check_port_contracts.py` audits the manifest, CMake game slugs,

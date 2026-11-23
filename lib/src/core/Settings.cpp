@@ -222,8 +222,9 @@ std::string EngineSettings::defaultPath(const std::string &identify) {
 std::string EngineSettings::resolvedOverlayPath() const {
   if (!assetOverlayName.empty()) {
     auto i = assetOverlays.find(assetOverlayName);
+    std::error_code dirEc;
     if (i != assetOverlays.end() && !i->second.empty() &&
-        std::filesystem::is_directory(i->second))
+        std::filesystem::is_directory(i->second, dirEc) && !dirEc)
       return i->second;
     // The persisted absolute path no longer exists: resolve by name through
     // the standard overlay folder search (e.g. KOTONOHA_OVERLAY / "overlay").

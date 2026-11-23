@@ -2,9 +2,24 @@
 #include <Kotonoha/media/upscaling/MetalFXUpscaler.hpp>
 #include <stdexcept>
 
-#if !defined(__APPLE__) && KOTONOHA_ENABLE_UPSCALER
-
 namespace Kotonoha {
+
+#if defined(__APPLE__) && defined(KOTONOHA_HAS_METALFX) &&                     \
+    KOTONOHA_ENABLE_UPSCALER
+// The real implementation (including UpscaleWholeFrameWithMetalFX) is in
+// MetalFXUpscaler.mm for Apple builds with the MetalFX framework available.
+#else
+// No Metal device or no backend: whole-frame upscale is a documented no-op
+// so hosts can call it unconditionally once per frame on every platform.
+bool UpscaleWholeFrameWithMetalFX(SDL_Renderer *, SDL_Texture *,
+                                  SDL_Texture *) {
+  return SDL_SetError(
+      "UpscaleWholeFrameWithMetalFX: MetalFX is unavailable in this build");
+}
+#endif
+
+#if (!defined(__APPLE__) || !defined(KOTONOHA_HAS_METALFX)) &&                 \
+    KOTONOHA_ENABLE_UPSCALER
 
 MetalFXUpscaler::MetalFXUpscaler(RendererRef renderer) : Upscaler(renderer) {}
 
@@ -30,6 +45,6 @@ bool MetalFXUpscaler::renderInto(TextureRef, TextureRef) {
 
 void MetalFXUpscaler::clearBackendCache() {}
 
-} // namespace Kotonoha
+#endif // !defined(__APPLE__) || !defined(KOTONOHA_HAS_METALFX)
 
-#endif // !defined(__APPLE__)
+} // namespace Kotonoha

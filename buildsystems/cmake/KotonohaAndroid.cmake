@@ -9,8 +9,8 @@ if (ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
     if (ANDROID_ABI STREQUAL "arm64-v8a")
         set(_VCPKG_ANDROID_TRIPLET "arm64-android")
     elseif (ANDROID_ABI STREQUAL "armeabi-v7a")
-        # Keep NDK and vcpkg dependencies on the same ARMv7 NEON target.
-        # This file is included before project() initializes the toolchain.
+        # The 32-bit Android target always uses NEON, including vcpkg libs.
+        # Configure it before project() / the vcpkg toolchain is initialized.
         set(ANDROID_ARM_NEON ON CACHE BOOL
             "Enable ARMv7 NEON instructions" FORCE)
         set(_VCPKG_ANDROID_TRIPLET "arm-neon-android")
@@ -42,7 +42,9 @@ if (ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Android")
     endif ()
 
     # vcpkg manifest features must be declared before project().
-    if (KOTONOHA_BUILD_GAME STREQUAL "doki-doki-literature-club")
+    if (KOTONOHA_BUILD_GAME STREQUAL "doki-doki-literature-club" OR
+        KOTONOHA_BUILD_GAME STREQUAL "katawa-shoujo" OR
+        KOTONOHA_BUILD_GAME STREQUAL "all")
         list(APPEND VCPKG_MANIFEST_FEATURES android-python)
         list(REMOVE_DUPLICATES VCPKG_MANIFEST_FEATURES)
     endif ()

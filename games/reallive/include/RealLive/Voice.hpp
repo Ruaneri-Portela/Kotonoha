@@ -2,11 +2,16 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+
+namespace Kotonoha {
+class AssetStream;
+}
 
 namespace RealLive {
 // Indexes the edition's unpacked KOE voices without copying game assets.
@@ -14,10 +19,12 @@ class VoiceIndex {
 public:
   using Reader = std::function<std::vector<std::uint8_t>(const std::string &)>;
   using LocalPath = std::function<std::string(const std::string &)>;
+  using StreamOpener =
+      std::function<std::unique_ptr<Kotonoha::AssetStream>(const std::string &)>;
   explicit VoiceIndex(const std::filesystem::path &gameRoot);
   explicit VoiceIndex(const std::vector<std::string> &assets);
   VoiceIndex(const std::vector<std::string> &assets, Reader reader,
-             LocalPath localPath);
+             LocalPath localPath, StreamOpener openStream = {});
   std::optional<std::filesystem::path> find(int id) const;
   std::optional<std::vector<std::uint8_t>> read(int id) const;
   std::size_t size() const { return files_.size(); }
@@ -30,6 +37,7 @@ private:
   };
   std::unordered_map<int, Entry> files_;
   Reader reader_;
+  StreamOpener openStream_;
 };
 // Converts uncompressed NWA PCM (-1 compression) to a standard RIFF WAV.
 // Throws for invalid data or compressed NWA, which this REALLIVE edition does

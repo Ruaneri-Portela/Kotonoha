@@ -77,7 +77,7 @@ jobs:
         run: |
           mkdir -p vcpkg-binary-cache
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
-          "$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}" --x-feature=sdl-vcpkg --x-feature=imgui-vcpkg \
+          "$VCPKG_ROOT/vcpkg" install --triplet="${{ matrix.triplet }}" --x-feature=sdl-vcpkg \
             "--overlay-ports=$GITHUB_WORKSPACE/vcpkg-overlays/ports"
       - name: Save finished vcpkg dependency archives
         if: steps.deps-cache.outputs.cache-hit != 'true'
@@ -183,9 +183,9 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
             -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
-            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg" \
-            -DKOTONOHA_SDL_FROM_VCPKG=ON \
-            -DKOTONOHA_IMGUI_FROM_VCPKG=ON \
+            "-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg" \
+            -DKOTONOHA_SDL_PROVIDER=VCPKG \
+             \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON \
             -DKOTONOHA_BUILD_MACOS_BUNDLES=${{ matrix.bundles }} \
@@ -217,13 +217,139 @@ jobs:
           print(f"Validated {len(packages)} macOS game ZIPs")
           PY
 
-      - name: Upload macOS artifacts
+      - name: Upload macos standalone build outputs
         uses: actions/upload-artifact@v4
         with:
-          name: kotonoha-macos-${{ matrix.triplet }}-vcpkg
-          path: |
-            build-macos/outputs/
-            build-macos/packages/*.zip
+          name: kotonoha-macos-${{ matrix.triplet }}-outputs
+          path: build-macos/outputs/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Kotonoha CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-Kotonoha
+          path: build-macos/packages/*-Kotonoha.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Amagami CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-Amagami
+          path: build-macos/packages/*-Amagami.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload ZeroNoTsukaima CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-ZeroNoTsukaima
+          path: build-macos/packages/*-ZeroNoTsukaima.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SnowRadish CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-SnowRadish
+          path: build-macos/packages/*-SnowRadish.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SummerRadish CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-SummerRadish
+          path: build-macos/packages/*-SummerRadish.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload MEO CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-MEO
+          path: build-macos/packages/*-MEO.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload DokiDoki CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-DokiDoki
+          path: build-macos/packages/*-DokiDoki.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload KatawaShoujo CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-KatawaShoujo
+          path: build-macos/packages/*-KatawaShoujo.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SchoolDays CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-SchoolDays
+          path: build-macos/packages/*-SchoolDays.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload RealLive CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-RealLive
+          path: build-macos/packages/*-RealLive.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Kirikiri CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-Kirikiri
+          path: build-macos/packages/*-Kirikiri.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload LucaSystem CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-LucaSystem
+          path: build-macos/packages/*-LucaSystem.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Pmail CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-Pmail
+          path: build-macos/packages/*-Pmail.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload PonscripterGame CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-PonscripterGame
+          path: build-macos/packages/*-PonscripterGame.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload N2SystemGame CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-N2SystemGame
+          path: build-macos/packages/*-N2SystemGame.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload KotonohaLauncher CPack ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotonoha-macos-${{ matrix.triplet }}-KotonohaLauncher
+          path: build-macos/packages/*-KotonohaLauncher.zip
           if-no-files-found: error
           retention-days: 14
 

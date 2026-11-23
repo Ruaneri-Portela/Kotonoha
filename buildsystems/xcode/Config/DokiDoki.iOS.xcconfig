@@ -5,6 +5,5 @@
 KOTONOHA_PYTHON_IOS_SLICE = ios-arm64
 KOTONOHA_PYTHON_IOS_SLICE[sdk=iphonesimulator*] = ios-arm64_x86_64-simulator
 KOTONOHA_PYTHON_IOS_ROOT = $(KOTONOHA_ROOT)/buildsystems/xcode/python/iOS/Python.xcframework/$(KOTONOHA_PYTHON_IOS_SLICE)
-HEADER_SEARCH_PATHS = $(inherited) \
-    "$(KOTONOHA_PYTHON_IOS_ROOT)/Python.framework/Headers" \
-    "$(KOTONOHA_PYTHON_IOS_ROOT)/include/python3.15"
+HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) \
+    "$(KOTONOHA_PYTHON_IOS_ROOT)/Python.framework/Headers"

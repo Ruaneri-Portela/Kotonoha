@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <utility>
 
 namespace Kotonoha {
 class Engine;
@@ -37,6 +38,8 @@ public:
   std::string dialogueText() const;
   std::string dialogueSourceText() const;
   std::string dialogueSpeaker() const;
+  // Native Ren'Py audio channel -> provider asset ID, without SDL decoding.
+  std::vector<std::pair<std::string, std::string>> activeAudioAssets() const;
   std::string visibleDialogueText() const;
   bool dialogueComplete() const;
   void completeDialogue();

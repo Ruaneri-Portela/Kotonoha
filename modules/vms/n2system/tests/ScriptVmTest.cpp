@@ -111,6 +111,33 @@ int main() {
     check(vmConverted.dialogueSystem().fullText() == "Sako...",
           "N2System text");
 
+    // Native debugger jumps to a ScriptIndex label without replaying earlier
+    // expressions or leaving a stale WaitKey block in the dialogue system.
+    const std::string labelSource =
+        "chapter main {\n"
+        "start:\n"
+        "  SetDialogue(\"First\", \"Old dialogue\");\n"
+        "  WaitKey();\n"
+        "next:\n"
+        "  SetDialogue(\"Second\", \"New dialogue\");\n"
+        "  WaitKey();\n"
+        "}\n";
+    N2System::ScriptVm debugVm;
+    debugVm.loadScript(labelSource, "main");
+    debugVm.step(2);
+    check(debugVm.dialogueSystem().isWaitingForKey(),
+          "Native VM is blocked before debug jump");
+    check(!debugVm.debugJumpToLabel("nonexistent") &&
+              debugVm.dialogueSystem().isWaitingForKey(),
+          "Unknown label does not mutate the VM");
+    check(debugVm.debugJumpToLabel("next") &&
+              !debugVm.dialogueSystem().isWaitingForKey(),
+          "Valid label clears stale dialogue block");
+    debugVm.step(1);
+    check(debugVm.dialogueSystem().speaker() == "Second" &&
+              debugVm.dialogueSystem().fullText() == "New dialogue",
+          "Native debug label jump executes selected destination");
+
     std::cout << "All N2System VM tests passed!\n";
     return 0;
   } catch (const std::exception &e) {
