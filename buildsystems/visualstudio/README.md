@@ -83,5 +83,8 @@ from Git on every build; it keeps the timestamp when metadata has not changed.
 the Visual Studio manifest together. Commercial game data is never committed;
 the game targets compile but require locally supplied assets to run.
 
+A native WinUI 3 library/launcher is planned as an imported x64/ARM64 project —
+see the [implementation plan](../../docs/WINUI_NATIVE_APP_PLAN.md).
+
 For other platforms see [CMake](../cmake/README.md), [Xcode](../xcode/README.md),
 [Android](../android/README.md) and the Windows build guides under `docs/`.

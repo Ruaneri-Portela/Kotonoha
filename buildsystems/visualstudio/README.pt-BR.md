@@ -84,5 +84,8 @@ a partir do Git a cada build, preservando o timestamp quando os metadados não m
 manifesto do Visual Studio em conjunto. Dados comerciais de jogos nunca são
 versionados; os targets compilam, mas precisam de assets locais para executar.
 
+Um launcher/biblioteca nativo WinUI 3 está planejado como projeto importado
+x64/ARM64 — veja o [plano de implementação](../../docs/WINUI_NATIVE_APP_PLAN.pt-BR.md).
+
 Para outras plataformas veja [CMake](../cmake/README.md), [Xcode](../xcode/README.md),
 [Android](../android/README.md) e os guias de build Windows em `docs/`.

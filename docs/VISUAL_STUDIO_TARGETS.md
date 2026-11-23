@@ -89,5 +89,8 @@ produce those trees under `out/build/<preset>/vcpkg_installed/`.
 - No commercial game data is committed. Applications compile without retail
   assets, but need locally supplied assets to actually run.
 
+A native WinUI launcher is **planned** as an imported x64/ARM64 project; see the
+[implementation plan](WINUI_NATIVE_APP_PLAN.md).
+
 See the [Visual Studio guide](../buildsystems/visualstudio/README.md), the
 [build guides](BUILD_GUIDES.md) and the [Windows cross-build](BUILD_WINDOWS.md).

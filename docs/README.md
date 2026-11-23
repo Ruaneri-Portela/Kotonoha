@@ -10,6 +10,7 @@ Start with the [project README](../README.md), then choose a topic:
 | Build overview | [Build guides](BUILD_GUIDES.md) |
 | Windows cross-build | [MinGW on macOS/Linux hosts](BUILD_WINDOWS.md) |
 | Visual Studio targets/architectures | [Win32 / x64 / ARM64 matrix](VISUAL_STUDIO_TARGETS.md) |
+| Native WinUI launcher | [Implementation plan](WINUI_NATIVE_APP_PLAN.md) |
 | Android | [Android](BUILD_ANDROID.md) · [Gradle details](../buildsystems/android/README.md) |
 | Apple | [macOS](BUILD_MACOS.md) · [iOS](BUILD_IOS.md) · [Xcode](../buildsystems/xcode/README.md) |
 | Browser | [WebAssembly](BUILD_WEB.md) |

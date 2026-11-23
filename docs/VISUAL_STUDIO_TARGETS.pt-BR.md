@@ -89,5 +89,8 @@ geram essas árvores em `out/build/<preset>/vcpkg_installed/`.
 - Nenhum dado comercial de jogos é versionado. As aplicações compilam sem
   assets de varejo, mas precisam de assets locais para executar.
 
-Veja o [guia do Visual Studio](../buildsystems/visualstudio/README.md), os
-[guias de build](BUILD_GUIDES.md) e o [cross-build Windows](BUILD_WINDOWS.md).
+Um launcher nativo WinUI está **planejado** como projeto importado x64/ARM64;
+veja o [plano de implementação](WINUI_NATIVE_APP_PLAN.pt-BR.md).
+
+Veja o [guia do Visual Studio](../buildsystems/visualstudio/README.pt-BR.md), os
+[guias de build](BUILD_GUIDES.pt-BR.md) e o [cross-build Windows](BUILD_WINDOWS.pt-BR.md).

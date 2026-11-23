@@ -10,6 +10,7 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 | Compilação | [Guias de compilação](BUILD_GUIDES.pt-BR.md) |
 | Cross-build Windows | [MinGW em hosts macOS/Linux](BUILD_WINDOWS.pt-BR.md) |
 | Alvos/arquiteturas do Visual Studio | [Matriz Win32 / x64 / ARM64](VISUAL_STUDIO_TARGETS.pt-BR.md) |
+| Launcher nativo WinUI | [Plano de implementação](WINUI_NATIVE_APP_PLAN.pt-BR.md) |
 | Android | [Android](BUILD_ANDROID.pt-BR.md) · [Gradle](../buildsystems/android/README.pt-BR.md) |
 | Apple | [macOS](BUILD_MACOS.pt-BR.md) · [iOS](BUILD_IOS.pt-BR.md) · [Xcode](../buildsystems/xcode/README.pt-BR.md) |
 | Navegador | [WebAssembly](BUILD_WEB.pt-BR.md) |
