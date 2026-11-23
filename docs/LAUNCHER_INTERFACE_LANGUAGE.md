@@ -27,3 +27,13 @@ custom fonts should choose a font containing the selected script.
 To validate the independent preference, language parsing and text catalog,
 run `ctest -R '^Kotonoha.LauncherLocale$'` after building tests. No commercial
 game data is required.
+
+On Android, the **universal** Kotonoha launcher (not a game-specific setup
+screen) offers the same five languages via a dropdown. It stores the chosen
+interface language in the private `kotonoha_launcher_ui` preferences under
+`interface_language`, independently from the game's locale, SAF permissions,
+and saves. Changing the selection recreates the launcher activity without
+resetting game options. The default follows a supported device language;
+Traditional Chinese device locales fall back to English. Validate Android
+strings and resource references with
+`python buildsystems/android/tools/test_launcher_locales.py -v`.

@@ -77,6 +77,13 @@ class LauncherLocalesTest(unittest.TestCase):
                 self.assertEqual(4, len(entries["renderer_labels"][1]))
                 self.assertEqual(4, len(entries["upscaler_labels"][1]))
 
+    def test_traditional_chinese_never_auto_selects_simplified(self):
+        source = JAVA.read_text(encoding="utf-8")
+        self.assertIn('"Hant".equalsIgnoreCase(system.getScript())', source)
+        for country in ("TW", "HK", "MO"):
+            self.assertIn(f'"{country}".equalsIgnoreCase(system.getCountry())', source)
+        self.assertIn('case "zh":', source)
+
     def test_all_layout_labels_use_resources(self):
         base = self.catalogs["values"]
         for layout in sorted((RES / "layout").glob("*.xml")):

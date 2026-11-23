@@ -129,7 +129,13 @@ public final class LauncherActivity extends AppCompatActivity {
             case "pt": return "pt-BR";
             case "es": return "es";
             case "ru": return "ru";
-            case "zh": return "zh-CN";
+            case "zh":
+                // Do not silently replace Traditional Chinese with Simplified.
+                if ("Hant".equalsIgnoreCase(system.getScript())
+                        || "TW".equalsIgnoreCase(system.getCountry())
+                        || "HK".equalsIgnoreCase(system.getCountry())
+                        || "MO".equalsIgnoreCase(system.getCountry())) return "en";
+                return "zh-CN";
             default: return "en";
         }
     }

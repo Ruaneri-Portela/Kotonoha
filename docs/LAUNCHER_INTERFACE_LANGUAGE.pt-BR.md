@@ -28,3 +28,12 @@ uma fonte personalizada, utilize uma que cubra o alfabeto selecionado.
 Para validar a persistência independente, os códigos de idioma e a tabela
 de traduções, execute `ctest -R '^Kotonoha.LauncherLocale$'` após compilar
 os testes. Não é necessário nenhum arquivo comercial.
+
+No Android, a launcher **unificada** do Kotonoha (não a tela específica de
+um jogo) oferece os mesmos cinco idiomas por um seletor. A preferência da
+interface é salva separadamente em `kotonoha_launcher_ui`, chave
+`interface_language`, sem modificar o idioma do jogo, as permissões SAF ou
+os saves. A troca recria a Activity sem apagar opções de jogos. O padrão
+segue um idioma suportado do aparelho; chinês tradicional volta para inglês.
+Valide os recursos Android com
+`python buildsystems/android/tools/test_launcher_locales.py -v`.
