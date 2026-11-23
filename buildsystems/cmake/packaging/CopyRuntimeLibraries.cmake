@@ -97,6 +97,21 @@ if(WIN32)
     # one of two different DLL builds with the same basename.
     foreach(_dll_name IN LISTS _windows_conflicts_FILENAMES)
         set(_candidates "${_windows_conflicts_${_dll_name}}")
+        # Host installations (e.g. MSYS2's libbrotlicommon.dll) also sit on
+        # SEARCH_DIRS but are never copied by kotonoha_library_is_deployable().
+        # Drop them before comparing hashes so a harmless host/build-tree name
+        # collision does not abort packaging of an otherwise valid runtime.
+        set(_deployable_candidates "")
+        foreach(_candidate IN LISTS _candidates)
+            kotonoha_library_is_deployable("${_candidate}" _candidate_deployable)
+            if(_candidate_deployable)
+                list(APPEND _deployable_candidates "${_candidate}")
+            endif()
+        endforeach()
+        if(NOT _deployable_candidates)
+            continue()
+        endif()
+        set(_candidates "${_deployable_candidates}")
         set(_expected_hash "")
         set(_identical TRUE)
         foreach(_candidate IN LISTS _candidates)
