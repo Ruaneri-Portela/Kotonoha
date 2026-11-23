@@ -17,6 +17,25 @@ else()
     find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 endif()
 
+# On an arm64 host the Homebrew interpreter is arm64-only and must not be
+# embedded in an x86_64 bundle: fixup_bundle would then resolve the runtime
+# from the Homebrew Python.framework and verify_app would fail. Fail early with
+# an actionable message instead. The macos-amd64-vcpkg preset already selects
+# the universal Xcode Python via Python3_EXECUTABLE/Python3_ROOT_DIR.
+if(APPLE AND CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64" AND Python3_EXECUTABLE)
+    execute_process(
+        COMMAND lipo -archs "${Python3_EXECUTABLE}"
+        OUTPUT_VARIABLE _ddlc_python_architectures
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    if(NOT _ddlc_python_architectures MATCHES "(^| )x86_64( |$)")
+        message(FATAL_ERROR
+            "x86_64 DDLC build needs an x86_64-capable Python3 interpreter; "
+            "'${Python3_EXECUTABLE}' has: ${_ddlc_python_architectures}. "
+            "Use the macos-amd64-vcpkg preset.")
+    endif()
+endif()
+
 if(KOTONOHA_USE_PYTHON_STUBS)
     set(DDLC_SOURCES
         src/Archive.cpp
