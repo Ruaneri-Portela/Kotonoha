@@ -31,6 +31,16 @@ protected:
   bool visible = true;
   bool userHidden = false;
 
+  // Game-specific text styling. Defaults preserve the historical engine look,
+  // so games that do not opt in are unaffected. Ports whose native UI draws
+  // outlined white text (e.g. Artemis) set these in their derived text box.
+  SDL_Color speakerColor{255, 215, 100, 255};
+  SDL_Color dialogueColor{240, 240, 245, 255};
+  SDL_Color textOutlineColor{0, 0, 0, 0}; // alpha 0 disables the outline
+  int textOutlineWidth = 0;
+  float speakerFontSize = 0.0f;  // 0 keeps the UI default
+  float dialogueFontSize = 0.0f; // 0 keeps the UI default
+
   // Cached full-dialogue line breaks are stable during typewriter reveal.
   // Rebuild only when text, UI font instance or raster scale changes.
   TextWrapping::Layout dialogueLayout_;
@@ -40,6 +50,11 @@ protected:
   bool layoutValid_ = false;
 
   virtual double charactersPerSecond() const { return cps; }
+  // Draws one text run with the configured colour / optional outline. Keeps
+  // the shared VNTextBox reusable while letting a port match native artwork.
+  void drawStyledText(RendererRef renderer, UI &ui, const std::string &text,
+                      float x, float y, float wrap, const SDL_Color &color,
+                      float fontSize);
   virtual void recordDialogue(const std::string &speaker,
                               const std::string &dialogue);
   virtual void openMenu();
@@ -108,7 +123,8 @@ public:
   }
 
   static size_t NextUtf8Char(const std::string &str, size_t index) {
-    return index >= str.size() ? str.size() : TextWrapping::nextUtf8(str, index);
+    return index >= str.size() ? str.size()
+                               : TextWrapping::nextUtf8(str, index);
   }
 
   static std::string GetSubStringUtf8(const std::string &str,
@@ -139,7 +155,6 @@ public:
            float maxWidth) {
     return TextWrapping::wrap(text, measureWidthFunc, maxWidth);
   }
-
 };
 
 } // namespace Kotonoha

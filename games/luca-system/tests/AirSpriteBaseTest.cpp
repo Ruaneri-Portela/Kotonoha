@@ -2,9 +2,13 @@
 // seen170 sprite regression: an AIR expression CZ4 is only a face crop of the
 // displayed portrait. INIT(2,ff) + IMAGELOAD(face) must keep the portrait's
 // pixels underneath even though the slot's transforms were cleared.
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/components/VNSave.hpp>
 #include <Kotonoha/media/TextureAlpha.hpp>
 #include <LucaSystem/CzImage.hpp>
 #include <LucaSystem/LucaSystemAssets.hpp>
+#include <LucaSystem/LucaSystemRuntime.hpp>
+#include <LucaSystem/SaveState.hpp>
 #include <LucaSystem/SceneLayers.hpp>
 
 #include <algorithm>
@@ -13,6 +17,7 @@
 #include <filesystem>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -65,6 +70,84 @@ void syntheticTest() {
           "expression stays directly above its portrait after restoration");
 }
 
+// Replay the exact seen170 window that produced the two visual reports:
+// INIT(2,ff) at script index 818 removes the girl's full portrait, and the
+// next expression-only IMAGELOAD at index 832 used to float over the school
+// background with no body/anchor. The persistent per-slot portrait cache
+// must restore cgmz20 beneath cgmz21p, as a cropped face (not an atlas).
+void replaySeen170Expression(const std::string &directory) {
+  auto assets = std::make_shared<Kotonoha::Providers::LucaSystemAssets>(
+      directory, std::filesystem::path{});
+  LucaSystem::LucaSystemRuntime runtime(assets);
+  struct Cleanup {
+    LucaSystem::LucaSystemRuntime &runtime;
+    ~Cleanup() { runtime.shutdown(); }
+  } cleanup{runtime};
+
+  require(runtime.startScenario("seen170", 796),
+          "replay seen170 from the full-portrait load at index 800");
+  for (int i = 0; i < 64 && runtime.instructionPosition() < 835; ++i) {
+    if (runtime.isDialogueVisible())
+      runtime.advanceDialogue();
+    else
+      runtime.skipWait();
+  }
+  require(runtime.instructionPosition() == 835,
+          "reached the 'Here you go.' expression scene");
+  require(runtime.visibleLayerCount() == 2,
+          "an expression crop following INIT(2,ff) keeps its portrait base "
+          "instead of floating alone over the background");
+
+  const auto file =
+      (std::filesystem::temp_directory_path() / "luca-sprite-base-layers.vn")
+          .string();
+  runtime.saveGame(file);
+  const auto raw = Kotonoha::Filesystem::readLocalFile(file);
+  const std::string payload(raw.begin(), raw.end());
+  const auto state = LucaSystem::decodeSaveState(payload);
+  const LucaSystem::SavedVisualLayer *body = nullptr;
+  const LucaSystem::SavedVisualLayer *face = nullptr;
+  for (const auto &layer : state.visualLayers) {
+    if (layer.group == 2 && layer.slot == 0)
+      body = &layer;
+    if (layer.group == 3 && layer.slot == 0)
+      face = &layer;
+  }
+  require(body && body->assetId == 10413,
+          "the restored base is the original 384x640 cgmz20 portrait");
+  require(face && face->assetId == 10449,
+          "the expression is composited as its own group-3 crop");
+  require(body->scaleX == 1.0f && body->scaleY == 1.0f &&
+              face->scaleX == 1.0f && face->scaleY == 1.0f,
+          "portrait and expression share native 1:1 character scale");
+  require(body->posX == 640.0f && body->posY == 720.0f &&
+              face->posX == 640.0f && face->posY == 720.0f,
+          "expression keeps the script's authored character anchor");
+
+  const auto bodyImage =
+      LucaSystem::DecodeCzImage(assets->readImageAsset(body->assetId));
+  const auto faceImage =
+      LucaSystem::DecodeCzImage(assets->readImageAsset(face->assetId));
+  require(LucaSystem::isCharacterFragment(
+              bodyImage.width, bodyImage.height, bodyImage.canvasWidth,
+              bodyImage.canvasHeight, faceImage.width, faceImage.height,
+              faceImage.canvasWidth, faceImage.canvasHeight),
+          "the expression is a crop of the portrait canvas");
+  const auto placement = LucaSystem::airCharacterCropPlacement(
+      *body, bodyImage, faceImage, 0.0f, 0.0f, 0.0f, 0.0f);
+  require(placement.w == float(faceImage.width) &&
+              placement.h == float(faceImage.height) &&
+              placement.w < float(bodyImage.canvasWidth) &&
+              placement.h < float(bodyImage.canvasHeight),
+          "only the expression frame is drawn, never the whole 1016x720 "
+          "character atlas");
+  require(placement.x >= body->posX - bodyImage.canvasWidth &&
+              placement.x <= body->posX &&
+              placement.y >= body->posY - bodyImage.canvasHeight &&
+              placement.y <= body->posY,
+          "the crop lands on the portrait canvas, not at an unrelated scale");
+}
+
 void retailTest(const std::string &directory) {
   Kotonoha::Providers::LucaSystemAssets assets(directory, {});
   const auto body = LucaSystem::DecodeCzImage(assets.readImageAsset(10413));
@@ -101,6 +184,7 @@ void retailTest(const std::string &directory) {
                   pixels[i + 2] == before[i + 2],
               "linear-filter preparation preserves visible RGB");
   }
+  replaySeen170Expression(directory);
 }
 
 } // namespace

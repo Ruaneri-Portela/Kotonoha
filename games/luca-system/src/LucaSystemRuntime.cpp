@@ -1818,6 +1818,14 @@ struct LucaSystemRuntime::Impl {
   std::map<LayerKey, SlottedLayer> stagedSlots;
   std::map<LayerKey, SlottedLayer> visibleSlots;
   std::map<LayerKey, SlottedLayer> outgoingSlots;
+  // AIR scripts clear group 2 with INIT and later reload only a small face
+  // crop for the next line (seen170: body at 40386, face-only at 40532 and
+  // 42504 after INIT(2,ff) at 41072). The expression CZ4 is authored over
+  // the full portrait's canvas, so the last complete portrait of each slot
+  // must survive layer clears; otherwise the crop floats over the
+  // background with no body and no character anchor. INIT still blocks
+  // *transform* inheritance from a cleared slot (AirStageResetTracker).
+  std::map<uint8_t, SlottedLayer> airPortraitBases;
   AirStageResetTracker stageResets;
   // GPU-owned full-scene framebuffer: crossfade AFTER sprite composition,
   // never by modifying each layer's alpha independently.
@@ -2519,34 +2527,53 @@ struct LucaSystemRuntime::Impl {
         inheritAirPortraitVisuals(layer, *baseLayer, !hasExplicitPos);
       // The face crop's *pixels* need the portrait that is currently on
       // screen even when INIT cleared staging before this IMAGELOAD.
+      // If the script cleared the whole group and no portrait is left in
+      // staged/visible slots, fall back to the last full portrait cached
+      // for this character slot (see airPortraitBases above).
       const SlottedLayer *pixelBase = baseLayer;
       if (!pixelBase)
         pixelBase = airExpressionPixelBase(stagedSlots, visibleSlots, key);
       const auto nextImage = objectImages.find(assetId);
+      const auto isBaseForNext = [&](const SlottedLayer &candidate) {
+        if (nextImage == objectImages.end())
+          return false;
+        loadObjectImage(candidate.assetId);
+        const auto baseImage = objectImages.find(candidate.assetId);
+        return baseImage != objectImages.end() &&
+               isCharacterFragment(
+                   baseImage->second.width, baseImage->second.height,
+                   baseImage->second.canvasWidth,
+                   baseImage->second.canvasHeight, nextImage->second.width,
+                   nextImage->second.height, nextImage->second.canvasWidth,
+                   nextImage->second.canvasHeight);
+      };
+      // A visible slot may already be an orphan face crop from an earlier
+      // bad load. It cannot anchor the new crop; the genuine portrait can.
+      if (pixelBase && !isBaseForNext(*pixelBase))
+        pixelBase = nullptr;
+      if (!pixelBase) {
+        const auto cached = airPortraitBases.find(slot);
+        if (cached != airPortraitBases.end() && isBaseForNext(cached->second))
+          pixelBase = &cached->second;
+      }
       if (pixelBase && nextImage != objectImages.end()) {
-        const auto baseImage = objectImages.find(pixelBase->assetId);
-        if (baseImage != objectImages.end() &&
-            isCharacterFragment(
-                baseImage->second.width, baseImage->second.height,
-                baseImage->second.canvasWidth, baseImage->second.canvasHeight,
-                nextImage->second.width, nextImage->second.height,
-                nextImage->second.canvasWidth,
-                nextImage->second.canvasHeight)) {
-          const SlottedLayer preservedBase = *pixelBase;
-          stagedSlots[key] = preservedBase;
-          // Face crops must move/rotate/scale with their full portrait,
-          // including while MOVE is still interpolating. An INIT-cleared
-          // slot uses the script's authored placement instead of the pose.
-          if (baseLayer)
-            inheritAirPortraitVisuals(layer, preservedBase, true);
-          layer.group = 3;
-          stagedSlots[makeKey(3, slot)] = layer;
-          return;
-        }
+        const SlottedLayer preservedBase = *pixelBase;
+        stagedSlots[key] = preservedBase;
+        airPortraitBases[slot] = preservedBase;
+        // Face crops must move/rotate/scale with their full portrait,
+        // including while MOVE is still interpolating. An INIT-cleared
+        // slot uses the script's authored placement instead of the pose.
+        if (baseLayer)
+          inheritAirPortraitVisuals(layer, preservedBase, true);
+        layer.group = 3;
+        stagedSlots[makeKey(3, slot)] = layer;
+        return;
       }
       stagedSlots.erase(makeKey(3, slot));
     }
     stagedSlots[makeKey(group, slot)] = layer;
+    if (group == 2)
+      airPortraitBases[slot] = layer;
   }
 
   void pruneObjectCaches() {
@@ -2611,6 +2638,11 @@ struct LucaSystemRuntime::Impl {
       drawWipeMode = false;
     }
     visibleSlots = stagedSlots;
+    // Refresh the persistent portrait cache with the committed pose so a
+    // later INIT + face-only IMAGELOAD inherits the latest transform.
+    for (const auto &[key, slot] : visibleSlots)
+      if ((key >> 8) == 2)
+        airPortraitBases[slot.slot] = slot;
     stageResets.reset();
     syncLegacySceneLayers();
     bool unlocked = false;
@@ -4583,6 +4615,7 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
   impl.stagedSlots.clear();
   impl.visibleSlots.clear();
   impl.outgoingSlots.clear();
+  impl.airPortraitBases.clear();
   impl.stageResets.reset();
   if (!state.visualLayers.empty()) {
     const auto now = impl.storyNow();
@@ -4631,6 +4664,9 @@ void LucaSystemRuntime::loadGame(const std::string &path) {
     }
   }
   impl.stagedSlots = impl.visibleSlots;
+  for (const auto &[key, slot] : impl.visibleSlots)
+    if ((key >> 8) == 2)
+      impl.airPortraitBases[slot.slot] = slot;
   impl.drawDurationMs = 0;
   impl.drawWipeMode = false;
   impl.pruneObjectCaches();
@@ -4708,6 +4744,7 @@ bool LucaSystemRuntime::startScenario(const std::string &name, size_t position,
   impl.stagedSlots.clear();
   impl.visibleSlots.clear();
   impl.outgoingSlots.clear();
+  impl.airPortraitBases.clear();
   impl.stageResets.reset();
   impl.sceneLayers.reset();
   impl.waiting = false;

@@ -328,6 +328,10 @@ void testRetailBoot(const std::string &gameDir) {
   }
   for (const char *logical : {"mw/base", "mw/choice", "mw/bt_save"})
     uiImages.push_back(logical);
+  // Version badge: the localized `start_*` pair must win over the generic
+  // `title/blandlogo` / `title/version` artwork from another language tree.
+  for (const char *logical : {"title/start_blandlogo", "title/start_version"})
+    uiImages.push_back(logical);
   for (const auto &logical : uiImages) {
     const std::string resolved = ui.resolveImage(logical);
     require(!resolved.empty(), "UI image '" + logical +
@@ -340,6 +344,21 @@ void testRetailBoot(const std::string &gameDir) {
     std::cout << "  native UI: " << logical << " -> " << resolved << " ("
               << surface->w << "x" << surface->h << ")\n";
   }
+
+  // The dock must expose the full native menu, not just save/load/config.
+  for (const char *name : {"bt_qsave", "bt_qload", "bt_lock", "bt_mute",
+                           "bt_voice", "bt_auto", "bt_skip", "bt_close"}) {
+    const auto item = ui.findItem(name);
+    require(item.has_value(), std::string("UI table has no '") + name +
+                                  "' dock item in '" + gameDir + "'");
+    require(!ui.resolveImage(*item).empty(), std::string("Dock item '") + name +
+                                                 "' has no artwork in '" +
+                                                 gameDir + "'");
+  }
+  const auto badge = ui.resolveImage("title/start_blandlogo");
+  const std::string localizedPrefix = "pc/" + ui.language() + "/";
+  require(badge.find(localizedPrefix) == 0,
+          "version badge fell back to a non-localized asset: '" + badge + "'");
 
   const char *captureEnv = SDL_getenv("KOTONOHA_ARTEMIS_CAPTURE_DIR");
   const auto captureDir = captureEnv

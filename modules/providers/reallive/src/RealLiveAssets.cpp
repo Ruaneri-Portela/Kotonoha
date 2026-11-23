@@ -34,6 +34,19 @@ RealLiveAssets::RealLiveAssets(
   config = Config(configSource);
   if (!contains("Seen.txt"))
     throw std::runtime_error("REALLIVE Seen.txt missing from VFS");
+  // An install without any loose graphics is almost always an incomplete
+  // copy (audio still plays, pictures never appear). Detect it once here so
+  // the diagnosis can be reported instead of a stream of per-file warnings.
+  graphicsAvailable = !list("G00").empty() || !list("PDT").empty();
+  if (!graphicsAvailable)
+    for (const auto &id : list()) {
+      const auto extension =
+          canonical(std::filesystem::path(id).extension().string());
+      if (extension == ".G00" || extension == ".PDT") {
+        graphicsAvailable = true;
+        break;
+      }
+    }
 }
 
 std::string RealLiveAssets::qualify(const std::string &id) const {
@@ -106,11 +119,18 @@ std::string RealLiveAssets::graphic(const std::string &name, bool warn) const {
     if (contains(first))
       return canonical(first);
   }
-  if (warn)
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                "Warning: REALLIVE graphic missing: %s (attempted: "
-                "G00/%s.{G00,PDT,PNG,BMP}, PDT/%s.{G00,PDT}, %s.{G00,PDT})",
-                name.c_str(), file.c_str(), file.c_str(), file.c_str());
+  if (warn) {
+    if (!graphicsAvailable)
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                   "REALLIVE installation incomplete: no G00/PDT graphics "
+                   "found (missing: %s). Re-import the full game folder.",
+                   name.c_str());
+    else
+      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                  "Warning: REALLIVE graphic missing: %s (attempted: "
+                  "G00/%s.{G00,PDT,PNG,BMP}, PDT/%s.{G00,PDT}, %s.{G00,PDT})",
+                  name.c_str(), file.c_str(), file.c_str(), file.c_str());
+  }
   return "";
 }
 std::string RealLiveAssets::animation(const std::string &name) const {
