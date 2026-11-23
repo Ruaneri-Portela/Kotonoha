@@ -6,6 +6,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from CheckDeclaredSources import source_reference_is_valid
+
 ROOT = Path(__file__).resolve().parents[1]
 XCODE = ROOT / "buildsystems" / "xcode"
 SCHEMES = XCODE / "Kotonoha.xcodeproj" / "xcshareddata" / "xcschemes"
@@ -60,10 +62,12 @@ def validate_visual_studio(xcode_manifest):
             require(f'<ProjectConfiguration Include="{combo}">' in text,
                     f"{name}: missing {combo}")
         for source in target["sources"]:
-            require((ROOT / source).is_file(), f"{name}: missing source {source}")
+            require(source_reference_is_valid(ROOT, source),
+                    f"{name}: missing source {source}")
 
     for native, info in manifest["native_projects"].items():
-        require((ROOT / info["path"]).is_file(), f"Missing native project: {native}")
+        require(source_reference_is_valid(ROOT, info["path"]),
+                f"Missing native project: {native}")
         require(info["guid"] in sln, f"Native project absent from solution: {native}")
         require(set(info["platforms"]) <= set(manifest["platforms"]),
                 f"Unknown platform for native project: {native}")

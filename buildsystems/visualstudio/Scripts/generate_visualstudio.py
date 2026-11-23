@@ -28,6 +28,8 @@ from pathlib import Path
 
 VS = Path(__file__).resolve().parents[1]
 ROOT = VS.parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from CheckDeclaredSources import source_reference_is_valid
 MANIFEST = VS / 'ProjectManifest.json'
 NS = '{http://schemas.microsoft.com/developer/msbuild/2003}'
 CPPS = ('.cpp', '.cc', '.c')
@@ -228,7 +230,7 @@ def check():
             continue
         text = path.read_text(encoding='utf-8')
         for src in target['sources']:
-            if not (ROOT / src).is_file():
+            if not source_reference_is_valid(ROOT, src):
                 errors.append(f'{target["name"]}: missing source {src}')
             if rel_source(src, target['name']) not in text:
                 errors.append(f'{target["name"]}: source not in project: {src}')

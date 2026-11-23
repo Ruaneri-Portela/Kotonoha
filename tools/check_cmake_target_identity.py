@@ -205,7 +205,7 @@ def main() -> int:
     if "--self-test" in sys.argv:
         self_test()
     files = {
-        str(file.relative_to(ROOT)): file.read_text(encoding="utf-8")
+        file.relative_to(ROOT).as_posix(): file.read_text(encoding="utf-8")
         for file in ROOT.rglob("CMakeLists.txt")
         if "submodules" not in file.parts
         and "out" not in file.parts
@@ -216,7 +216,7 @@ def main() -> int:
         if not helper_path.is_file():
             print(f"[CMake targets] missing dependency helper: {helper}", file=sys.stderr)
             return 1
-        files[str(helper_path.relative_to(ROOT))] = helper_path.read_text(encoding="utf-8")
+        files[helper_path.relative_to(ROOT).as_posix()] = helper_path.read_text(encoding="utf-8")
     core_path = ROOT / "lib/CMakeLists.txt"
     if not core_path.exists():
         print("[CMake targets] expected lib/CMakeLists.txt is missing", file=sys.stderr)

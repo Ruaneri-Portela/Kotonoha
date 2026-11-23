@@ -20,7 +20,7 @@ def audit() -> list[str]:
         (ROOT / "buildsystems/xcode/ProjectManifest.json").read_text(
             encoding="utf-8"))
     canonical = manifest["games"]
-    cmake = (ROOT / "buildsystems/cmake/games/KotonohaGames.cmake").read_text()
+    cmake = (ROOT / "buildsystems/cmake/games/KotonohaGames.cmake").read_text(encoding="utf-8")
     cmake_rows = re.findall(
         r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"', cmake)
     cmake_slugs = {slug for _, slug, _ in cmake_rows}
@@ -38,7 +38,7 @@ def audit() -> list[str]:
     if cmake_slugs != expected_slugs or len(cmake_rows) != len(expected_slugs):
         problems.append("CMake game matrix and ProjectManifest disagree")
 
-    gradle = (ROOT / "buildsystems/android/app/build.gradle").read_text()
+    gradle = (ROOT / "buildsystems/android/app/build.gradle").read_text(encoding="utf-8")
     try:
         game_block = gradle.split("def games = [", 1)[1].split("\n]", 1)[0]
     except IndexError:
@@ -65,7 +65,7 @@ def audit() -> list[str]:
                 f"Android flavor {flavor}: target {target} differs from {slug}")
 
     for platform in ("linux", "macos", "windows"):
-        workflow = (ROOT / f".github/workflows/{platform}.yml").read_text()
+        workflow = (ROOT / f".github/workflows/{platform}.yml").read_text(encoding="utf-8")
         if 'ProjectManifest.json' not in workflow or (
             "len(packages) >= expected" not in workflow
         ):
@@ -74,7 +74,7 @@ def audit() -> list[str]:
             problems.append(f"{platform} packaging uses the obsolete 11-port count")
 
     android_workflow = (
-        ROOT / ".github/workflows/android.yml").read_text()
+        ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
     if android_workflow.count("flavor_entries = re.findall(") != 2:
         problems.append(
             "Android package and verification steps must both derive Gradle flavors")
