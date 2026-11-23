@@ -15,7 +15,7 @@
                   <BuildableReference
                      BuildableIdentifier = "primary"
                      BlueprintIdentifier = "B5B500000000000000000001"
-                     BuildableName = "KotonohaLauncher.app"
+                     BuildableName = "Kotonoha.app"
                      BlueprintName = "KotonohaLauncher-macOS"
                      ReferencedContainer = "container:Kotonoha.xcodeproj">
                   </BuildableReference>
@@ -33,7 +33,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "B5B500000000000000000001"
-               BuildableName = "KotonohaLauncher.app"
+               BuildableName = "Kotonoha.app"
                BlueprintName = "KotonohaLauncher-macOS"
                ReferencedContainer = "container:Kotonoha.xcodeproj">
             </BuildableReference>
@@ -64,7 +64,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B5B500000000000000000001"
-            BuildableName = "KotonohaLauncher.app"
+            BuildableName = "Kotonoha.app"
             BlueprintName = "KotonohaLauncher-macOS"
             ReferencedContainer = "container:Kotonoha.xcodeproj">
          </BuildableReference>

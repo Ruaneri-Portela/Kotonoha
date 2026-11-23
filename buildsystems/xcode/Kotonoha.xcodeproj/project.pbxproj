@@ -10763,7 +10763,7 @@
 				KOTONOHA_GAME_DIR = launcher;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
-				PRODUCT_NAME = KotonohaLauncher;
+				PRODUCT_NAME = Kotonoha;
 				SDKROOT = macosx;
 				SKIP_INSTALL = NO;
 				SUPPORTED_PLATFORMS = macosx;
@@ -10786,7 +10786,7 @@
 				KOTONOHA_GAME_DIR = launcher;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
-				PRODUCT_NAME = KotonohaLauncher;
+				PRODUCT_NAME = Kotonoha;
 				SDKROOT = macosx;
 				SKIP_INSTALL = NO;
 				SUPPORTED_PLATFORMS = macosx;
@@ -11020,7 +11020,7 @@
 				KOTONOHA_GAME_DIR = launcher;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
-				PRODUCT_NAME = KotonohaLauncher;
+				PRODUCT_NAME = Kotonoha;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -11045,7 +11045,7 @@
 				KOTONOHA_GAME_DIR = launcher;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
-				PRODUCT_NAME = KotonohaLauncher;
+				PRODUCT_NAME = Kotonoha;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = NO;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
