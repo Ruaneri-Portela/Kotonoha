@@ -241,8 +241,11 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addGame(locations.workingDirectory, true);
     }
 
-    result.documents =
-        locations.userData / "Kotonoha" / locations.packageIdentifier;
+    // Neither a missing application identity nor an unknown writable root
+    // may fall back to a shared or relative Documents directory.
+    if (!locations.packageIdentifier.empty() && !locations.userData.empty())
+      result.documents =
+          locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
   }

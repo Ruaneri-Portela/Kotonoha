@@ -491,10 +491,14 @@ void Engine::applyWindowSettings(const EngineSettings &value, bool geometry) {
 
 void Engine::applySettings(const EngineSettings &value, bool persist) {
   value.validate();
-  int displayCount = 0;
-  SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&displayCount));
-  if (!displays || value.display < 0 || value.display >= displayCount)
-    throw std::invalid_argument("Requested display is unavailable");
+  if (value.display != settings.display) {
+    // Reject an explicitly selected missing monitor before any settings are
+    // persisted. Keep non-display edits usable after a monitor is unplugged.
+    int displayCount = 0;
+    SDLArrayPtr<SDL_DisplayID> displays(SDL_GetDisplays(&displayCount));
+    if (!displays || value.display < 0 || value.display >= displayCount)
+      throw std::invalid_argument("Requested display is unavailable");
+  }
   if (value.renderer != settings.renderer)
     throw std::invalid_argument(
         "Changing the renderer requires an engine restart");

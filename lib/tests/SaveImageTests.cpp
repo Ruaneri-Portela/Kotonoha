@@ -57,7 +57,16 @@ struct TemporaryDirectory {
 
   ~TemporaryDirectory() {
     std::error_code error;
+    if (!path.empty())
+      std::filesystem::remove_all(path, error);
+  }
+
+  void removeChecked() {
+    std::error_code error;
     std::filesystem::remove_all(path, error);
+    if (error)
+      throw std::runtime_error("Image output remained open: " + error.message());
+    path.clear();
   }
 };
 
@@ -65,7 +74,7 @@ struct TemporaryDirectory {
 
 int main() {
   try {
-    const TemporaryDirectory directory;
+    TemporaryDirectory directory;
 
     SDL_Surface *raw = SDL_CreateSurface(4, 4, SDL_PIXELFORMAT_RGBA32);
     require(raw != nullptr, SDL_GetError());
@@ -89,6 +98,9 @@ int main() {
     checkFile(png, {0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a});
     checkFile(jpeg, {0xff, 0xd8, 0xff});
 
+    // Exercise Windows deletion semantics: an FFmpeg AVIO handle left open
+    // would make the test fail rather than being ignored by the RAII guard.
+    directory.removeChecked();
     std::cout << "SaveImageTests PASS\n";
   } catch (const std::exception &error) {
     std::cerr << "SaveImageTests FAIL: " << error.what() << '\n';
