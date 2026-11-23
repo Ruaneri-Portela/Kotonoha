@@ -713,6 +713,16 @@ games-assets/*
 /translation.json
 /translations/
 
+# Kotonoha visual identity: design/ is the versioned source of truth.
+# design/generated/ is committed so the identities are visible in the repo.
+# Buildsystems import specific files from it but never package the folder.
+!design/
+!design/generated/
+# Transient generator coordination and isolated test exports stay untracked.
+design/generated/.kotonoha-brand.lock/
+design/generated/.kotonoha-*.complete
+design/generated/pwa/
+
 # Debug Includes
 !lib/src/debug/
 !lib/src/debug/**

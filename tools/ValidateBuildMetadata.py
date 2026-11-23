@@ -18,12 +18,13 @@ def require(value, message):
 
 def validate():
     manifest = json.loads((XCODE / "ProjectManifest.json").read_text(encoding="utf-8"))
-    # All native macOS app targets invoke ConfigureMacOSIcon.sh. Ensure the
-    # actual binary resource exists, not just a reference in ProjectManifest.
-    icon = (ROOT / "assets" / "icon.icns").read_bytes()
+    # All native macOS app targets invoke ConfigureMacOSIcon.sh, which reads
+    # the versioned design/generated/ source of truth. Ensure the real binary
+    # resource exists, not just a reference in ProjectManifest.
+    icon = (ROOT / "design" / "generated" / "generic" / "icon.icns").read_bytes()
     require(len(icon) >= 8 and icon[:4] == b"icns" and
             int.from_bytes(icon[4:8], "big") == len(icon),
-            "Missing or malformed shared macOS icon.icns")
+            "Missing or malformed design/generated/generic/icon.icns")
 
     root = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     modules = ("KotonohaGames", "KotonohaAndroid", "KotonohaOptions", "KotonohaReport")

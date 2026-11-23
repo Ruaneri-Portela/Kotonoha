@@ -1,19 +1,19 @@
-# Kotonoha — Verificação de Paridade Retail (2026-11-23)
+# Kotonoha — Retail Parity Verification (2026-11-23)
 
-Este documento registra a evidência objetiva de paridade coletada em 2026-11-23.
+This document records the objective parity evidence collected on 2026-11-23.
 
-## Metodologia
+## Methodology
 
-- Build dedicado: `out/build/retail-verify` (macOS arm64, vcpkg, triplet
+- Dedicated build: `out/build/retail-verify` (macOS arm64, vcpkg, triplet
   `macos-arm64-vcpkg`, `CMAKE_BUILD_TYPE=Release`).
-- Todos os gates de dados retail populados apontando para
-  `/Volumes/Nero 2TB/KotonohaAssets` (somente leitura).
-- Filtro CTest: `-L real` (minúsculo; `-L REAL` retorna 0 — erro de casos já
-  corrigido nos relatórios).
-- Testes que não possuem dados retornam `77` e são registrados com
-  `SKIP_RETURN_CODE 77`, aparecendo como `Skipped`, nunca como `Passed` falso.
+- All retail data gates populated pointing to
+  `/Volumes/Nero 2TB/KotonohaAssets` (read-only).
+- CTest filter: `-L real` (lowercase; `-L REAL` returns 0 — case error already
+  corrected in the reports).
+- Tests without data return `77` and are registered with
+  `SKIP_RETURN_CODE 77`, showing as `Skipped`, never as false `Passed`.
 
-## Resultado
+## Result
 
 ```
 $ ctest --test-dir out/build/retail-verify -L real --output-on-failure
@@ -21,29 +21,29 @@ $ ctest --test-dir out/build/retail-verify -L real --output-on-failure
 Label Time Summary: real = 241.63 sec*proc (89 tests)
 ```
 
-Cobertura final: **89/89 testes retail** com todos os gates — os 27 conjuntos
-de assets da pasta `KotonohaAssets` (incluindo edições AIR-SE/KANON/PLANETARIAN/
-Clannad, multi-disc LostM/Imouto, LargePonPon e testes VNX do NEKOPARA).
-Um teste é `Skipped` de forma legítima: `Kirikiri.RetailXp3Startup`
-— 1186/1187 entradas do `data.xp3` estão protegidas por `PackinOne.dll`
-(flag `0x80000000`), sem chave de descriptografia disponível; o teste reporta
-o diagnóstico exato em vez de um falso `Passed`. Múltiplas rodadas estáveis.
+Final coverage: **89/89 retail tests** with all gates — the 27 asset sets in
+the `KotonohaAssets` folder (including AIR-SE/KANON/PLANETARIAN/Clannad
+editions, multi-disc LostM/Imouto, LargePonPon and NEKOPARA VNX tests).
+One test is legitimately `Skipped`: `Kirikiri.RetailXp3Startup`
+— 1186/1187 entries of `data.xp3` are protected by `PackinOne.dll`
+(flag `0x80000000`), with no decryption key available; the test reports the
+exact diagnostic instead of a false `Passed`. Multiple stable runs.
 
-CTest sintético/engine: **209/209** (`-j4`), zero falhas após a correção de
-display inválido, root de Documents/save e registros ISO duplicados.
+Synthetic/engine CTest: **209/209** (`-j4`), zero failures after fixing
+invalid display, Documents/save root and duplicate ISO records.
 
-## Cobertura por jogo
+## Coverage per game
 
-| Jogo | Gate | Testes `real` | Status |
+| Game | Gate | `real` tests | Status |
 |---|---|---:|---|
 | AIR (LucaSystem PAKs) | `LUCA_SYSTEM_TEST_DATA` | 5 | PASS |
 | AIR_PT-BR (RealLive) | `REALLIVE_TEST_DATA` | 2 + Session | PASS |
 | Steins;Gate (N2System) | `KOTONOHA_STEINSGATE_DIR` | 1 | PASS |
-| NUKITASHI + NUKITASHI 2 (Artemis) | `KOTONOHA_ARTEMIS_RETAIL_DIR` | 1 (ambas edições) | PASS |
+| NUKITASHI + NUKITASHI 2 (Artemis) | `KOTONOHA_ARTEMIS_RETAIL_DIR` | 1 (both editions) | PASS |
 | DDLC + DDLC PT-BR Patch | `DDLC_DATA_DIR`, `DDLC_OVERLAY_DIR` | 8 | PASS |
 | Katawa Shoujo | `KATAWA_DATA_DIR` | 2 | PASS |
 | Amagami | `AMAGAMI_DISC_IMAGE` | 4 | PASS |
-| Clannad PT-BR (parcial) | `CLANNAD_TEST_DATA` | SpriteAtlas | PASS |
+| Clannad PT-BR (partial) | `CLANNAD_TEST_DATA` | SpriteAtlas | PASS |
 | School Days HQ | `SCHOOL_DAYS_DATA_DIR` | 17 | PASS |
 | Snow Radish Vacation | `SNOW_DATA_DIR` | 4 | PASS |
 | Summer Radish 1/2 | `SUMMER_DATA_DIR` | 5 | PASS |
@@ -52,44 +52,44 @@ display inválido, root de Documents/save e registros ISO duplicados.
 | Pure Mail | `PMAIL_TEST_ASSET_DIR` | 10 | PASS |
 | Saya no Uta PT-BR | `PONSCRIPTER_TEST_DATA` | 1 | PASS |
 
-## Correções de bugs reais encontrados pela bateria
+## Real bugs fixed by the battery
 
-- **Ren'Py VM**: slots RPYC2 pós-transformação (`Translate`/`EndTranslate`)
-  eram ignorados → zero diálogos nos scripts retail de DDLC/Katawa. Corrigido
-  em `games/doki-doki-literature-club/src/Script.cpp` e `modules/vms/renpy/src/Vm.cpp`.
-- **RealLive**: `objDispRect` tratava `w,h` como `x2,y2`, desenhando o atlas
-  inteiro da logo Key; frames de botão e strip do cursor também estavam errados.
-  Corrigido em `games/reallive/src/RealLiveRuntime.cpp`.
-- **N2System**: `CreateMovie` lia o nome literal do parâmetro `"描画優先度"`
-  como `asFloat()`→0, deixando o filme atrás do fundo preto. Corrigido em
+- **Ren'Py VM**: post-transformation RPYC2 slots (`Translate`/`EndTranslate`)
+  were ignored → zero dialogue in DDLC/Katawa retail scripts. Fixed in
+  `games/doki-doki-literature-club/src/Script.cpp` and `modules/vms/renpy/src/Vm.cpp`.
+- **RealLive**: `objDispRect` treated `w,h` as `x2,y2`, drawing the whole Key
+  logo atlas; button frames and cursor strip were also wrong. Fixed in
+  `games/reallive/src/RealLiveRuntime.cpp`.
+- **N2System**: `CreateMovie` read the literal parameter name `"描画優先度"`
+  as `asFloat()`→0, leaving the movie behind the black background. Fixed in
   `modules/vms/n2system/src/NsbVm.cpp`.
-- **Artemis**: `resolveUiImagePath` não tratava IDs de arte renomeados entre
-  edições (`background_2a` → `background_trial.png`). Corrigido em
+- **Artemis**: `resolveUiImagePath` did not handle art IDs renamed between
+  editions (`background_2a` → `background_trial.png`). Fixed in
   `modules/providers/artemis/src/ArtemisAssets.cpp`.
-- **Zero**: condição de corrida no teste de input do menu (espera fixa de frames).
-  Corrigido em `games/zero-no-tsukaima/tests/ZeroEngineTest.cpp`.
+- **Zero**: race condition in the menu input test (fixed frame wait).
+  Fixed in `games/zero-no-tsukaima/tests/ZeroEngineTest.cpp`.
 
-## Falsos positivos eliminados
+## False positives eliminated
 
-Antes da auditoria, testes retail sem dados retornavam `0` e apareciam como
-`Passed`. Todos passaram a retornar `77` com `[SKIP]` e `SKIP_RETURN_CODE 77`.
-Resultado sem dados: `Skipped`, nunca `Passed`.
+Before the audit, retail tests without data returned `0` and showed as
+`Passed`. All now return `77` with `[SKIP]` and `SKIP_RETURN_CODE 77`.
+Result without data: `Skipped`, never `Passed`.
 
-## Limitações conhecidas
+## Known limitations
 
-- `NEKOPARA_VOL0_PT-BR` — XP3 protegido por `PackinOne.dll`
-  (`data.xp3` SHA-256 `6384cd1a…`, 1186/1187 entradas com flag
-  `0x80000000`). A tradução solta `VNX+/` é jogável e testada; a paridade
-  1:1 do conteúdo original é impossível sem assets descriptografados.
-- Windows cross-build a partir do macOS: bloqueio de plataforma (sem MSVC /
-  Windows SDK; MinGW linka libs Mach-O do Homebrew no libass).
+- `NEKOPARA_VOL0_PT-BR` — XP3 protected by `PackinOne.dll`
+  (`data.xp3` SHA-256 `6384cd1a…`, 1186/1187 entries with flag
+  `0x80000000`). The loose `VNX+/` translation is playable and tested;
+  1:1 parity of the original content is impossible without decrypted assets.
+- Windows cross-build from macOS: platform blocker (no MSVC / Windows SDK;
+  MinGW links Mach-O libraries from Homebrew into libass).
 
-## Builds das plataformas (estado verificado nesta sessão)
+## Platform builds (state verified in this session)
 
-| Plataforma | Resultado |
+| Platform | Result |
 |---|---|
 | macOS CMake arm64 + amd64 | PASS |
 | Xcode macOS + iOS (34 schemes) | PASS |
-| WASM (14 alvos, Asyncify 14/14) | PASS |
+| WASM (14 targets, Asyncify 14/14) | PASS |
 | Android (17 flavors, 16 KiB) | PASS |
-| Windows cross (macOS host) | BLOQUEIO DE PLATAFORMA |
+| Windows cross (macOS host) | PLATFORM BLOCKER |

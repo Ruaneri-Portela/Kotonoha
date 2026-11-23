@@ -17,7 +17,7 @@
 namespace Kotonoha::ImGuiTheme {
 namespace {
 // Guia visual Kotonoha v2: mesma hierarquia em web / Android / SwiftUI.
-// Cores RGB normalizadas a partir de assets/branding/tokens.json.
+// Cores RGB normalizadas a partir de design/tokens.json.
 constexpr ImVec4 Accent{0.416f, 0.357f, 0.906f, 1.00f};       // #6A5BE7
 constexpr ImVec4 AccentDim{0.173f, 0.243f, 0.604f, 1.00f};    // #2C3E9A
 constexpr ImVec4 AccentHover{0.784f, 0.420f, 0.851f, 1.00f};  // #C86BD9

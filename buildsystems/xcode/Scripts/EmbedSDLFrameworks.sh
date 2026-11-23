@@ -171,10 +171,11 @@ if [[ -n "${vcpkg_lib}" && -d "${vcpkg_lib}" ]]; then
   done
   note "Embedded ${copied} dynamic vcpkg library dependency/ dependencies"
 fi
-# Install generated iOS art into bundle without changing the shared Info.plist.
-# CFBundleIcons is declared in Info.plist; names below must remain stable.
+# Install iOS art from the versioned design/generated/ source of truth into
+# the bundle root (the location CFBundleIcons expects) without changing the
+# shared Info.plist. Never stage the design/ folder as a generic asset.
 if [[ "${PLATFORM_NAME:-}" == iphoneos || "${PLATFORM_NAME:-}" == iphonesimulator ]]; then
-  brand="${TARGET_BUILD_DIR}/KotonohaBrand"
+  brand="${repo}/design/generated"
   python3 "${repo}/tools/generate_brand_assets.py" --kind apple --out "${brand}"
   cp "${brand}/apple/AppIcon-120.png" "${resources_destination}/KotonohaIcon120.png"
   cp "${brand}/apple/AppIcon-180.png" "${resources_destination}/KotonohaIcon180.png"

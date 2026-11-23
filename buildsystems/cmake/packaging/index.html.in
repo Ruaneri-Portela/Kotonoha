@@ -10,6 +10,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="@APP_TITLE@">
+    <!-- Canonical favicons live in design/generated/web/ and are copied into
+         each standalone PWA output by tools/generate_pwa_icons.py. -->
+    <link rel="icon" href="./favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="./favicon.png">
     <link rel="apple-touch-icon" href="./pwa-icon-180.png">
 
     <style>

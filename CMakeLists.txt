@@ -5,6 +5,30 @@ cmake_minimum_required(VERSION 3.16)
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/games/KotonohaGames.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaAndroid.cmake")
 
+# Windows targets default to the MinGW dynamic vcpkg triplets. An explicit
+# VCPKG_TARGET_TRIPLET (preset or -D=...) always wins. This runs before
+# project() so the vcpkg toolchain sees the selected triplet.
+if(NOT VCPKG_TARGET_TRIPLET AND
+   (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows" OR
+    CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW))
+    set(_kotonoha_windows_arch "${CMAKE_SYSTEM_PROCESSOR}")
+    if(NOT _kotonoha_windows_arch)
+        set(_kotonoha_windows_arch "${CMAKE_HOST_SYSTEM_PROCESSOR}")
+    endif()
+    string(TOLOWER "${_kotonoha_windows_arch}" _kotonoha_windows_arch)
+    if(_kotonoha_windows_arch MATCHES "^(i[3-6]86|x86|i686)$")
+        set(_kotonoha_windows_triplet "x86-mingw-dynamic")
+    elseif(_kotonoha_windows_arch MATCHES "^(aarch64|arm64)$")
+        set(_kotonoha_windows_triplet "arm64-mingw-dynamic")
+    else()
+        set(_kotonoha_windows_triplet "x64-mingw-dynamic")
+    endif()
+    set(VCPKG_TARGET_TRIPLET "${_kotonoha_windows_triplet}" CACHE STRING
+        "vcpkg target triplet (Windows defaults to MinGW dynamic)")
+    unset(_kotonoha_windows_triplet)
+    unset(_kotonoha_windows_arch)
+endif()
+
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 
 # Windows app targets embed the shared generated K icon as a native WinRes.

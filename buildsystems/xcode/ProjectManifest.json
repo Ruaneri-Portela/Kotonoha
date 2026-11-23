@@ -217,6 +217,8 @@
     "schema_version": 2,
     "assets_global": "assets/",
     "assets_per_game": "games/<game-slug>/game-assets/",
+    "visual_identity_source": "design/generated/",
+    "design_folder_packaged": false,
     "app_resource_directory_macOS": "<app>.app/Contents/Resources/",
     "app_resource_directory_iOS": "<app>.app/",
     "sdl_frameworks": [
@@ -235,7 +237,7 @@
     "all_app_configs_using_shared_plist": 68,
     "framework_embeds_require_prebuilt_binaries": true,
     "framework_embed_script_present": true,
-    "macos_icon": "assets/icon.icns copied to Contents/Resources/icon.icns and processed Info.plist CFBundleIconFile=icon.icns",
+    "macos_icon": "tools/generate_brand_assets.py writes design/generated/generic/icon.icns (versioned source of truth); Xcode/CMake copy only that file to Contents/Resources/icon.icns. Info.plist CFBundleIconFile=icon.icns. design/ is never packaged as a generic asset; the old assets/icon.icns is legacy.",
     "macos_icon_script": "buildsystems/xcode/Scripts/ConfigureMacOSIcon.sh",
     "document_revisions_debug_enabled": false,
     "disabled_in_shared_schemes": 34,

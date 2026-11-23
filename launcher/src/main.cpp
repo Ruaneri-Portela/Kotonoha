@@ -366,13 +366,13 @@ struct Application {
   void openHub() {
     // Engine initialization may set game-specific SDL application metadata.
     // Restore the hub identity before reopening its settings/UI.
-    KOTONOHA_SET_APP_METADATA("KotonohaLauncher",
+    KOTONOHA_SET_APP_METADATA("Kotonoha",
                               "me.hirameki.kotonoha.launcher");
 #if defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
     if (!iosHubWindow) {
       if (!SDL_WasInit(SDL_INIT_VIDEO))
         SDL_InitSubSystem(SDL_INIT_VIDEO);
-      iosHubWindow.reset(SDL_CreateWindow("KotonohaLauncher", 1280, 720,
+      iosHubWindow.reset(SDL_CreateWindow("Kotonoha", 1280, 720,
                                           SDL_WINDOW_FULLSCREEN |
                                               SDL_WINDOW_RESIZABLE |
                                               SDL_WINDOW_HIGH_PIXEL_DENSITY));
@@ -385,7 +385,7 @@ struct Application {
       if (!SDL_WasInit(SDL_INIT_VIDEO))
         SDL_InitSubSystem(SDL_INIT_VIDEO);
       macHubWindow.reset(
-          SDL_CreateWindow("KotonohaLauncher", 1, 1, SDL_WINDOW_HIDDEN));
+          SDL_CreateWindow("Kotonoha", 1, 1, SDL_WINDOW_HIDDEN));
     }
     macNativeHubActive = true;
     KotonohaMacPresentNativeLauncher(&Application::onMacNativeLaunch,
@@ -412,7 +412,7 @@ struct KotonohaPortCallbacks final {
 SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
                                           char **argv) {
   *appstate = nullptr;
-  KOTONOHA_SET_APP_METADATA("KotonohaLauncher",
+  KOTONOHA_SET_APP_METADATA("Kotonoha",
                             "me.hirameki.kotonoha.launcher");
   try {
     auto app = std::make_unique<Application>();
@@ -422,7 +422,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     std::string detectPath;
     KotonohaLauncher::GameLaunchParameters cliParams;
     bool sharedSaves = false;
-    Kotonoha::CommandLine args("KotonohaLauncher", app->options);
+    Kotonoha::CommandLine args("Kotonoha", app->options);
     args.option("--library", "DIRECTORY|ISO",
                 "Game library directory or individual game", app->libraryPath);
     args.option("--scan-library", "DIRECTORY",
@@ -544,7 +544,7 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
     // terminal; show the actual SDL/configuration error instead of just
     // exiting.
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-                             "KotonohaLauncher - initialization failed",
+                             "Kotonoha - initialization failed",
                              error.what(), nullptr);
     return SDL_APP_FAILURE;
   }
@@ -750,7 +750,7 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
 #else
     if (app.frames <= 0) {
       SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
-                               "KotonohaLauncher - runtime error", error.what(),
+                               "Kotonoha - runtime error", error.what(),
                                nullptr);
     }
 #endif

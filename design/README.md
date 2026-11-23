@@ -32,6 +32,13 @@ Linux, Android, iOS e macOS, mesmo quando o material de fundo muda.
 | Muted | #B9B5D4 | texto secundario |
 | Outline | #39315E | bordas e divisores |
 
+O icone usa uma paleta de fundo clara e propria, documentada em
+`tokens.json` sob `icon`: `backgroundStart` #C4DEFF (ice/azul claro),
+`backgroundEnd` #CDBCFC (lilac), `glow` #FFFFFF, `wave` #EC6AA5,
+`monogram` #FFFFFF, `monogramContour` #4A3496 e `sakura` #FF8FBD.
+Os tokens Navy/Raised/Indigo continuam validos para superficies de UI;
+nao sao mais usados como fundo do icone.
+
 ## Componentes, estados e layout
 
 Botoes, campos de busca, text inputs, radios, checks, toggles, sliders,
@@ -45,9 +52,10 @@ ininterruptas e respeitar configuracoes de reducao de movimento.
 
 ## Adaptacao por plataforma
 
-- Generico Windows/Linux/WebApp: K branco + fundo indigo/violeta, sakuras
-  discretas; icone PNG, ICO para WinRes e PWA por app. No WebApp, apenas o
-  acento de fundo varia por jogo, mantendo as proporcoes.
+- Generico Windows/Linux/WebApp: K branco com contorno indigo sobre fundo
+  claro ice/lilac, sakuras discretas; icone PNG, ICO para WinRes e PWA por
+  app. No WebApp, apenas o brilho central do fundo varia por jogo (o acento
+  e fortemente clareado), mantendo as proporcoes.
 - Android: widgets Material 3, foreground/background em adaptive icon,
   themed/monochrome icon, formas e navegacao nativas. Sem simular Liquid Glass.
 - iOS e macOS: SwiftUI, tipografia e gestos nativos; Liquid Glass nos sistemas
@@ -66,13 +74,45 @@ assumir portrait/landscape. O renderer compoe preto no espaco sobrante.
 
 ## Reproducao, distribuicao e fonte da verdade
 
-Gerar por: python3 tools/generate_brand_assets.py --kind all --out build/branding
+Esta pasta `design/` e a fonte da verdade da identidade visual. O gerador
+escreve diretamente em `design/generated/` (versionado, visivel no repositorio),
+nao em um diretorio de build efemero. CMake, Xcode, Android Gradle, WinRes e
+o shell web importam apenas os arquivos especificos de cada plataforma; a pasta
+`design/` **nunca** e empacotada como asset generico do motor.
 
-Os binarios produzidos na pasta build/branding sao derivados e nao devem
+Gerar por: python3 tools/generate_brand_assets.py --kind all
+
+Para o icone do macOS (Icon Composer -> export .icon), gerar o PNG full-bleed:
+
+    python3 tools/generate_brand_assets.py --kind apple
+    # -> design/generated/apple/AppIcon-1024.png (abrir no Icon Composer -> export .icon)
+
+Use `--out <pasta>` apenas para testes isolados ou exports avulsos.
+
+O comando `--kind desktop` tambem emite esse mesmo PNG 1024x1024, entao o
+bundle de desktop ja sai pronto para o Icon Composer. O macOS usa o tratamento
+`generic` full-bleed: o fundo preenche o canvas inteiro e os quatro cantos tem
+alpha=255. Nao existem cantos transparentes — foi exatamente essa mascara que
+causava a borda branca ao redor do icone no macOS. O monograma K preserva as
+coordenadas invariaveis da marca; somente a mascara de cantos foi removida.
+
+### Fundo claro (v1.1)
+
+O quadrado escuro navy foi removido. Antes, os cantos do icone `generic`
+mediam #2C2C6D (44,44,109) e a regiao livre perto do K #3F3578 (63,53,120).
+Agora o fundo e um degrade claro ice -> lilac: cantos em torno de #C9C7FD
+(201,199,253) e regiao livre perto do K em #C7C8FC (199,200,252), com a onda
+sakura clara resultante em #CFB9E4. O brilho
+central mantem uma leve tintura do acento de cada jogo, preservando a
+variacao das PWA icons. Como o K continua branco, um contorno indigo suave
+(#4A3496) envolve os tracos para garantir contraste sobre o fundo claro. As
+flores de sakura e a geometria do monograma nao foram alteradas.
+
+Os binarios produzidos na pasta design/generated sao derivados e nao devem
 ser editados manualmente. CMake, Xcode, Android Gradle e Emscripten preparam
 os assets para os seus bundles, sem sobrescrever os arquivos antigos do Git.
 
-O arquivo assets/branding/tokens.json e a versao estruturada desta tabela;
+O arquivo `tokens.json` desta pasta e a versao estruturada desta tabela;
 tools/generate_pwa_icons.py original define a geometria de referencia do K.
 
 ## Observacoes sobre PWA e build
@@ -88,7 +128,7 @@ compartilhado enumera os PNGs gerados pelos scripts de empacotamento.
 
 A arte aprovada nesta conversa é a referência obrigatória para identidade-base,
 componentes e adaptação por plataforma. Os tokens oficiais estão em
-`assets/branding/tokens.json` (versão 2) e não devem ser substituídos por
+`design/tokens.json` (versão 2) e não devem ser substituídos por
 paletas genéricas. A página web preserva o canvas e exibe a seleção de assets
 com botões violeta/índigo, foco ciano, abas de idioma e barra de progresso
 em degradê; o splash deve continuar preto e centralizado. O ImGui aplica a
