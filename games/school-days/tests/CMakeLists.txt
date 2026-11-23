@@ -173,6 +173,10 @@ add_test(NAME SchoolDays.OptionalLxh COMMAND SchoolDaysOptionalLxhTest
 set_tests_properties(SchoolDays.OptionalLxh PROPERTIES
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy")
 
+add_executable(SchoolDaysLauncherLocaleTest SchoolDaysLauncherLocaleTest.cpp)
+target_link_libraries(SchoolDaysLauncherLocaleTest PRIVATE school_days)
+add_test(NAME SchoolDays.LauncherLocale COMMAND SchoolDaysLauncherLocaleTest)
+
 add_executable(SchoolDaysLxhFadeTest SchoolDaysLxhFadeTest.cpp)
 target_link_libraries(SchoolDaysLxhFadeTest PRIVATE school_days)
 add_test(NAME SchoolDaysLxhFadeTest COMMAND SchoolDaysLxhFadeTest)

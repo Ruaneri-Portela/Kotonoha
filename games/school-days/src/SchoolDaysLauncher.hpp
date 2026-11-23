@@ -3,6 +3,7 @@
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/core/GameLauncher.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
+#include <Kotonoha/routing/SchoolDaysLauncherLocale.hpp>
 #include <Kotonoha/routing/SchoolDaysLxhPreference.hpp>
 
 #include <filesystem>
@@ -100,6 +101,11 @@ public:
   const std::string &routeInfo() const;
   Language language() const;
   void setLanguage(Language selection);
+  Kotonoha::SchoolDaysLauncherLocale::Language launcherUiLanguage() const {
+    return uiLanguage;
+  }
+  void setLauncherUiLanguage(
+      Kotonoha::SchoolDaysLauncherLocale::Language language);
   void setSpanishJsonPath(std::string path);
   void setChineseJsonPath(std::string path);
   void setCustomJsonPath(std::string path);
@@ -144,6 +150,8 @@ private:
   Kotonoha::TexturePtr launcherArtwork;
   bool artworkAttempted = false;
   std::filesystem::path musicPreferenceFile;
+  Kotonoha::SchoolDaysLauncherLocale::Language uiLanguage =
+      Kotonoha::SchoolDaysLauncherLocale::Language::En;
   std::vector<Uint8> titleMusicBytes;
   std::unique_ptr<Kotonoha::MediaPlayer> titleMusic;
   std::string titleMusicSource;
@@ -208,6 +216,13 @@ private:
   void updateTitleMusic();
   void toggleMusic();
   void drawMusicToggle(const ImVec2 &position);
+  void drawLauncherLanguageSelector(const ImVec2 &position);
+  const char *tr(Kotonoha::SchoolDaysLauncherLocale::Key key) const;
+  std::string trId(Kotonoha::SchoolDaysLauncherLocale::Key key,
+                   const char *idSuffix) const;
+  std::string localizedLxhStatus() const;
+  void drawLocalizedPrimaryGamePath();
+  void applyWindowTitle();
   bool loadLauncherArtwork();
   void syncMixerFromRetail();
   void syncRetailFromMixer();

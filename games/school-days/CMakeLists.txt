@@ -75,6 +75,7 @@ add_library(school_days STATIC
     src/SchoolDaysTranslationCoverage.cpp
     src/SchoolDaysRuntime.cpp
     src/SchoolDaysScenes.cpp
+    src/SchoolDaysLauncherLocale.cpp
     src/SchoolDaysLauncher.cpp
 )
 target_include_directories(school_days PUBLIC include src)

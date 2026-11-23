@@ -23,6 +23,7 @@ arte privada, GPKs comerciais, saves ou traduções.
 | Release e integração upstream | [Preparação de release](RELEASE_READINESS_AUDIT.md), [Handoff Windows L4](RUANERI_KOTONOHA_V3_WINDOWS_L4_HANDOFF.md), [Sync Ruaneri](RUANERI_SYNC_2026-11-04.md) |
 | Pesquisa retail | [Tracing do runtime](ORIGINAL_RUNTIME_TRACING.md), [Assets retail ausentes](MISSING_RETAIL_ASSETS.md), [Trace de transição dos menus](MENU_TRANSITION_TRACE.md), [Auditoria do Route Map](MENU_ROUTE_MAP_AUDIT.md) |
 | Interface e paridade | [Transição de saída](EXIT_TRANSITION_PORT.md), [SFX e hover dos menus](MENU_SFX_AND_ROUTE_MAP_HOVER_2026-11-05.md), [AC/CHIP do título](TITLE_AC_CHIP.md) |
+| Idioma da interface da launcher (Windows/Android) | [Cinco idiomas, persistência e testes](LAUNCHER_INTERFACE_LANGUAGE.pt-BR.md) |
 | QA | [Piloto de perfil limpo](CLEAN_PROFILE_PILOT.md) |
 
 ## Notas de pesquisa por tema (registros históricos)
