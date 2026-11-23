@@ -510,6 +510,18 @@ std::string extractPsbScript(const std::vector<std::uint8_t> &psbData) {
 
 } // namespace
 
+KirikiriAssets::Xp3IndexReport KirikiriAssets::xp3IndexReport() const {
+  Xp3IndexReport report;
+  report.archives = archives.size();
+  for (const auto &archive : archives) {
+    report.entries += archive.second.size();
+    for (const auto &entry : archive.second)
+      if (entry.protectedEntry)
+        ++report.protectedEntries;
+  }
+  return report;
+}
+
 const KirikiriAssets::Xp3Entry *
 KirikiriAssets::findXp3Entry(const std::string &id, bool *collision) const {
   if (collision)
@@ -966,10 +978,12 @@ bool KirikiriAssets::readXp3(const std::string &id) {
         if (subTag == 0x6f666e69u) { // "info"
           if (subSize < 22)
             throw std::runtime_error("XP3 truncated info: " + id);
+          // Bit 31 marks an encrypted payload (the key lives in the game's
+          // native filter). Keep such entries discoverable for diagnostics,
+          // but record the flag so callers can distinguish a readable index
+          // from usable asset bytes.
           const auto flags = readU32LE(sub);
-          // Protected flags are advisory metadata; some retail packages use
-          // them with already-plain contents. Keep the file discoverable.
-          (void)flags;
+          entry.protectedEntry = (flags & 0x80000000u) != 0;
           entry.originalSize = readU64LE(sub + 4);
           declaredStored = readU64LE(sub + 12);
           const auto nameUnits = readU16LE(sub + 20);

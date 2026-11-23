@@ -8,11 +8,14 @@
 #include <Kotonoha/components/VNTextBox.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/PcmPlayer.hpp>
+#include <SummerRadish/Images.hpp>
 #include <SummerRadish/Script.hpp>
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
+#include <string>
 using namespace Kotonoha;
 void check(bool ok, const char *message) {
   if (!ok)
@@ -68,8 +71,10 @@ void capture(Engine &engine, Runtime &game, const char *name) {
 }
 int main(int argc, char **argv) {
   try {
-    if (argc != 2)
-      throw std::runtime_error("Expected game path");
+    if (argc < 2)
+      return 77;
+    const std::string disc1 = argv[1];
+    const std::string disc2 = argc > 2 ? argv[2] : std::string();
     auto prefs = std::filesystem::temp_directory_path() /
                  ("summer-system-" + std::to_string(SDL_GetTicksNS()));
     SDL_setenv_unsafe("SUMMER_SAVE_DIR", prefs.string().c_str(), 1);
@@ -80,10 +85,20 @@ int main(int argc, char **argv) {
                "\"$Valid\" 0 \"42\"\n"
                "\"$Invalid\" 0 \"not a number\"\n";
     }
-    auto assets = std::make_shared<Kotonoha::Providers::SummerAssets>(argv[1]);
+    auto assets =
+        disc2.empty()
+            ? std::make_shared<Kotonoha::Providers::SummerAssets>(disc1)
+            : std::make_shared<Kotonoha::Providers::SummerAssets>(
+                  Kotonoha::Providers::MultiDisc{}, disc1, disc2);
     if (assets->isImoutoDeIkou()) {
       check(assets->name() == "Imouto de Ikou! CMP",
             "Imouto de Ikou! provider identity is incorrect");
+      check(assets->contains("BGDATA/BG01A.BGD"),
+            "Imouto de Ikou! background CG missing");
+      const auto bg =
+          SummerRadish::decodeImage(assets->read("BGDATA/BG01A.BGD"), "BGD");
+      check(bg.width > 0 && bg.height > 0 && !bg.rgba.empty(),
+            "Imouto de Ikou! background CG did not decode");
       check(assets->contains("SCRIPT/INIT.SCR"),
             "Imouto de Ikou! entry script SCRIPT/INIT.SCR missing");
       check(assets->contains("SYSDAT/KAISOUMAP.CMAP"),
@@ -163,6 +178,16 @@ int main(int argc, char **argv) {
       engine.Iterate();
     check(game.GetState() != GameState::Splash, "Splash exits");
     const bool isLostM = assets->isLostM();
+    if (isLostM) {
+      check(assets->name() == "Lost M CMP",
+            "Lost M provider identity is incorrect");
+      check(assets->contains("GRAPHIC/TITLE/TITLE.CGD"),
+            "Lost M title CG missing");
+      const auto title = SummerRadish::decodeImage(
+          assets->read("GRAPHIC/TITLE/TITLE.CGD"), "CGD");
+      check(title.width > 0 && title.height > 0 && !title.rgba.empty(),
+            "Lost M title CG did not decode");
+    }
     const bool isSrv2 =
         !isLostM && assets->contains("GRAPHIC/MESFRAME/MESFRAME.TEXB");
     // Skip warning and logo waits, then press Start (and accept uniform A when

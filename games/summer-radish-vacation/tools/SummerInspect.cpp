@@ -8,19 +8,41 @@
 #include <SummerRadish/SummerAssets.hpp>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <set>
+#include <string>
+#include <vector>
 using namespace SummerRadish;
 int main(int argc, char **argv) {
   try {
     if (argc < 2) {
-      std::cout << "Usage: SummerInspect PACK-DIRECTORY [--validate | --list | "
+      std::cout << "Usage: SummerInspect DISC1 [DISC2] [--validate | --list | "
                    "--read PACK/ASSET]\n";
-      return 0;
+      return 77;
     }
-    Kotonoha::Providers::SummerAssets assets(argv[1]);
-    const std::string mode = argc > 2 ? argv[2] : "";
-    if (mode == "--read" && argc > 3) {
-      const auto id = canonical(argv[3]);
+    std::vector<std::string> paths;
+    std::string mode, assetId;
+    for (int i = 1; i < argc; ++i) {
+      const std::string arg = argv[i];
+      if (arg.compare(0, 2, "--") == 0) {
+        mode = arg;
+        if (mode == "--read" && i + 1 < argc)
+          assetId = argv[++i];
+      } else {
+        paths.push_back(arg);
+      }
+    }
+    if (paths.empty())
+      return 77;
+    std::shared_ptr<Kotonoha::Providers::SummerAssets> owned;
+    if (paths.size() >= 2)
+      owned = std::make_shared<Kotonoha::Providers::SummerAssets>(
+          Kotonoha::Providers::MultiDisc{}, paths[0], paths[1]);
+    else
+      owned = std::make_shared<Kotonoha::Providers::SummerAssets>(paths[0]);
+    Kotonoha::Providers::SummerAssets &assets = *owned;
+    if (mode == "--read" && !assetId.empty()) {
+      const auto id = canonical(assetId);
       if (!assets.contains(id))
         throw std::runtime_error("Expected an existing PACK/ASSET identifier");
       const auto data = assets.read(id);

@@ -6,6 +6,17 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     include(CTest)
 endif()
 
+# Retail parity gates. Paths are supplied by the caller; no retail data or
+# absolute location is stored in the repository.
+set(REALLIVE_AIRSE_ISO "" CACHE FILEPATH
+    "AIR Standard Edition ISO for the retail parity test")
+set(REALLIVE_KANON_ISO "" CACHE FILEPATH
+    "Kanon Standard Edition ISO for the retail parity test")
+set(REALLIVE_PLANETARIAN_ISO "" CACHE FILEPATH
+    "planetarian ISO for the retail parity test")
+set(CLANNAD_TEST_DATA "" CACHE PATH
+    "CLANNAD retail data directory for integration tests")
+
 add_library(RealLiveFormats STATIC
     src/Config.cpp
     src/Images.cpp
@@ -228,6 +239,34 @@ if(BUILD_TESTING)
             LABELS synthetic SKIP_RETURN_CODE 77)
     endif()
 
+    # One generic gate per edition: mount the ISO or installed directory,
+    # read Seen.txt, decode a real G00, list scenarios and boot the runtime.
+    # Without a gate the executable exits 77 (CTest Skipped), never Failed.
+    add_executable(RealLiveRetailEditionTests tests/RetailEditionTest.cpp)
+    target_link_libraries(RealLiveRetailEditionTests PRIVATE reallive_port)
+    set_target_properties(RealLiveRetailEditionTests PROPERTIES CXX_EXTENSIONS OFF)
+    foreach(edition IN ITEMS AirSE KanonSE Planetarian Clannad)
+        if(edition STREQUAL "AirSE")
+            set(gate "${REALLIVE_AIRSE_ISO}")
+            set(gate_env "REALLIVE_AIRSE_ISO")
+        elseif(edition STREQUAL "KanonSE")
+            set(gate "${REALLIVE_KANON_ISO}")
+            set(gate_env "REALLIVE_KANON_ISO")
+        elseif(edition STREQUAL "Planetarian")
+            set(gate "${REALLIVE_PLANETARIAN_ISO}")
+            set(gate_env "REALLIVE_PLANETARIAN_ISO")
+        else()
+            set(gate "${CLANNAD_TEST_DATA}")
+            set(gate_env "CLANNAD_TEST_DATA")
+        endif()
+        add_test(NAME "RealLive.Retail.${edition}"
+            COMMAND RealLiveRetailEditionTests "${gate}" "${gate_env}")
+        set_tests_properties("RealLive.Retail.${edition}" PROPERTIES
+            LABELS real SKIP_RETURN_CODE 77
+            ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIO_DRIVER=dummy"
+            TIMEOUT 180)
+    endforeach()
+
     # Data-independent verification of switch/case selection semantics.
     # Pure C++17 tests for Str.digits / Str.digit opcode parameters.
     # Strict, data-free tests for atomic Str.strclear range validation.
@@ -297,6 +336,10 @@ if(BUILD_TESTING)
     add_test(NAME RealLive.SpriteAtlas COMMAND RealLiveSpriteAtlasTests)
     set_tests_properties(RealLive.SpriteAtlas PROPERTIES
         LABELS synthetic SKIP_RETURN_CODE 77)
+    if(CLANNAD_TEST_DATA)
+        set_tests_properties(RealLive.SpriteAtlas PROPERTIES
+            ENVIRONMENT "CLANNAD_TEST_DATA=${CLANNAD_TEST_DATA}")
+    endif()
     add_executable(RealLiveConfigTests tests/ConfigTest.cpp)
     target_link_libraries(RealLiveConfigTests PRIVATE reallive_port)
     add_test(NAME RealLiveConfig COMMAND RealLiveConfigTests)
@@ -306,4 +349,8 @@ kotonoha_label_directory_tests(REAL
     RealLiveSession
     RealLive.G00RetailArt
     RealLive.Movie
+    RealLive.Retail.AirSE
+    RealLive.Retail.KanonSE
+    RealLive.Retail.Planetarian
+    RealLive.Retail.Clannad
 )

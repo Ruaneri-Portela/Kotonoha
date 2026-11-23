@@ -26,6 +26,18 @@ mountSummer(std::filesystem::path root, std::filesystem::path overlay) {
     source->addOverlay(overlay.string());
   return source;
 }
+
+std::shared_ptr<Kotonoha::Filesystem::Filesystem>
+mountDiscs(std::filesystem::path disc1, std::filesystem::path disc2,
+           std::filesystem::path overlay) {
+  auto source = Kotonoha::Filesystem::Filesystem::mount(disc1.string());
+  // LayeredMount merges directory listings, so a PACK unique to DISC2
+  // (VOICE.CMP, BGMDATA.CMP, VDATA.CMP) sits beside DISC1's archives.
+  source->addOverlay(disc2.string());
+  if (!overlay.empty())
+    source->addOverlay(overlay.string());
+  return source;
+}
 } // namespace
 SummerAssets::SummerAssets(std::filesystem::path root,
                            std::filesystem::path overlay)
@@ -43,6 +55,15 @@ SummerAssets::SummerAssets(std::filesystem::path root,
   } else {
     discDirectory = std::filesystem::absolute(root).parent_path();
   }
+}
+
+SummerAssets::SummerAssets(MultiDisc, std::filesystem::path disc1,
+                           std::filesystem::path disc2,
+                           std::filesystem::path overlay)
+    : SummerAssets(mountDiscs(disc1, disc2, overlay)) {
+  // Loose movies stay on the first disc; the layered source has no physical
+  // path of its own for moviePath() to probe.
+  discDirectory = std::filesystem::absolute(disc1);
 }
 
 SummerAssets::SummerAssets(
