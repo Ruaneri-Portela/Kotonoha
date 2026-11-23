@@ -5,6 +5,8 @@ import hashlib
 import math
 import struct
 import zlib
+import os
+import time
 from pathlib import Path
 
 NAVY = (13,20,46)
@@ -22,11 +24,16 @@ def distance(x,y,ax,ay,bx,by):
     return math.hypot(x-ax-t*dx,y-ay-t*dy)
 
 def k(x,y,n):
+    if x<.30 or x>.71 or y<.24 or y>.76:
+        return 0
     lines=((.375,.31,.375,.69),(.615,.31,.385,.51),(.395,.50,.635,.69))
     d=min(distance(x,y,*line) for line in lines)
     return max(0,min(1,(.041+1/n-d)*n/2))
 
 def flower(x,y,cx,cy,r):
+    # Cull 98% of pixels before costly flower geometry.
+    if abs(x-cx)>r*1.5 or abs(y-cy)>r*1.5:
+        return False
     for i in range(5):
         angle=-math.pi/2 + i*2*math.pi/5
         co,si=math.cos(angle),math.sin(angle)
@@ -129,12 +136,40 @@ def generate(root,kind):
     if kind in ("all","desktop","apple","android","web"):
         save(root,"splash/SPLASH.PNG",png(1024,"splash"))
 
+def safe_generate(root,kind):
+    # Xcode schemes run in parallel and share TARGET_BUILD_DIR. Use a lock
+    # and a source-mtime stamp, so no app reads a partially rendered ICNS.
+    root.mkdir(parents=True,exist_ok=True)
+    lock=root/".kotonoha-brand.lock"
+    for attempt in range(3000):
+        try:
+            lock.mkdir()
+            break
+        except FileExistsError:
+            try:
+                if time.time()-lock.stat().st_mtime>600:
+                    lock.rmdir()  # Recover only an empty, abandoned lock.
+                    continue
+            except OSError:
+                pass
+            time.sleep(.1)
+    else:
+        raise RuntimeError("Timed out acquiring Kotonoha brand output lock")
+    try:
+        stamp=root/(".kotonoha-"+kind+".complete")
+        if stamp.is_file() and stamp.stat().st_mtime>=Path(__file__).stat().st_mtime:
+            return
+        generate(root,kind)
+        stamp.touch()
+    finally:
+        lock.rmdir()
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--kind",choices=("all","desktop","apple","android","web"),default="all")
     parser.add_argument("--out",type=Path,required=True)
     args=parser.parse_args()
-    generate(args.out,args.kind)
+    safe_generate(args.out,args.kind)
     print("[Kotonoha/Brand]",args.kind,args.out)
 
 if __name__=="__main__":
