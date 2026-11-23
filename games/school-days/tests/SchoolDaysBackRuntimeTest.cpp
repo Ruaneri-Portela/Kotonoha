@@ -1,8 +1,7 @@
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
-#include <Kotonoha/routing/SchoolDaysBackLogEngine.hpp>
-#include <SchoolDays/SchoolDaysAssets.hpp>
+#include <Kotonoha/routing/SchoolDaysBackLog.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -73,25 +72,41 @@ void TestTwoStageBack(const char *route, const fs::path &root,
   const auto documents = root / "documents";
   fs::create_directories(documents);
   auto assets = std::make_shared<SchoolDays::Assets>(root);
-  Application app(assets, route, documents);
 
   // This synthetic route deliberately has no retail BackLog PNG or CMAP.
   // DEV keeps the generic fallback; DIST must expose a clear failure without
   // displaying the engine's generic dialogue history to the player.
-  Kotonoha::SchoolDaysBackLogEngine nativeBackLog(app.engine, *assets);
-  nativeBackLog.open();
+  {
+    Application app(assets, route, documents);
+    // The current runtime owns the BackLog model/presenter and its DEV fallback.
+    // The old SchoolDaysBackLogEngine (Providers::SchoolDaysAssets) is no longer
+    // linked into school_days; exercise the real player control instead.
+    Kotonoha::SchoolDaysBackLogStore store;
+    Kotonoha::SchoolDaysBackLogModel nativeModel;
+    std::string nativeFailure;
+    Require(
+        !nativeModel.Open(
+            assets->root().string(), store,
+            Kotonoha::SchoolDaysBackLogModel::Orientation::Horizon,
+            Kotonoha::SchoolDaysBackLogModel::Variant::Standard, &nativeFailure) &&
+            !nativeFailure.empty(),
+        "Missing retail BackLog skin did not report a native failure");
+    app.runtime.openPanel(12); // Authenticated top MenuBar BackLog control.
+    Require(!app.runtime.backlogOpen(),
+            "Synthetic fixture unexpectedly opened the native BackLog");
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
-  Require(!nativeBackLog.isVisible() && !nativeBackLog.LastError().empty(),
-          "DIST opened generic dialogue history after native skin failure");
+    Require(!app.runtime.anyPanelOpen(),
+            "DIST opened generic dialogue history after native skin failure");
 #else
-  Require(nativeBackLog.isVisible(),
-          "DEV lost generic dialogue-history fallback after skin failure");
+    Require(app.runtime.anyPanelOpen(),
+            "DEV lost generic dialogue-history fallback after skin failure");
 #endif
-  nativeBackLog.close();
+  } // Destroy the fallback owner before independent Back-navigation checks.
 
   if (fallbackOnly)
     return;
 
+  Application app(assets, route, documents);
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
   // The public runtime cannot jump to an arbitrary script. Confirm that the
   // developer API is inert, then traverse A00 -> A01 -> A02 using the

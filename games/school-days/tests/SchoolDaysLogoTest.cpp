@@ -2,7 +2,6 @@
 #include "SchoolDaysScenes.hpp"
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/media/SaveImage.hpp>
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
