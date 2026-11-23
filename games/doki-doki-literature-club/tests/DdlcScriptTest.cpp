@@ -61,13 +61,6 @@ bool drive(Vm &vm, double &clock, int limit, Stats &st, bool verbose) {
   while (!vm.finished() && vm.running() && st.total < limit) {
     const Interaction &in = vm.interaction();
     ++st.total;
-    if (std::getenv("DDLC_DEBUG_NODES") && (st.total <= 40 || st.total % 50 == 0)) {
-      const Node *node = vm.currentNode();
-      std::fprintf(stderr, "DBG total=%d in=%d node=%s:%d kind=%d what='%s'\n",
-                   st.total, int(in.k), node ? node->file.c_str() : "null",
-                   node ? node->line : -1, node ? int(node->k) : -1,
-                   vm.scene.window.what.c_str());
-    }
     clock += 0.05;
     switch (in.k) {
     case Interaction::K::Say:

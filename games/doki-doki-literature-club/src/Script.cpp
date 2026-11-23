@@ -33,6 +33,8 @@ Node::K kindOf(const std::string &cls) {
       {"Screen", Node::K::Screen},
       {"Style", Node::K::Style},
       {"ShowLayer", Node::K::ShowLayer},
+      {"Translate", Node::K::Translate},
+      {"EndTranslate", Node::K::EndTranslate},
   };
   const auto dot = cls.rfind('.');
   auto it = kinds.find(dot == std::string::npos ? cls : cls.substr(dot + 1));
@@ -62,6 +64,7 @@ Node *Script::build(const Value &ast, const std::string &file) {
   switch (n->k) {
   case Node::K::Label:
   case Node::K::Init:
+  case Node::K::Translate:
     n->blocks.push_back(buildBlock((*n)["block"], file));
     break;
   case Node::K::If:
@@ -103,6 +106,7 @@ void Script::chain(std::vector<Node *> &block, Node *after) {
         chain(b, sibling);
       break;
     case Node::K::Label:
+    case Node::K::Translate:
       chain(n->blocks[0], sibling);
       if (!n->blocks[0].empty())
         n->next = n->blocks[0][0];

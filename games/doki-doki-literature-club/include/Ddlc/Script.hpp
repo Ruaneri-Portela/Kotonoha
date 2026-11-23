@@ -36,11 +36,13 @@ struct Node {
     Screen,
     Style,
     ShowLayer,
+    Translate,
+    EndTranslate,
     Other
   } k = K::Other;
   Value ast; // the pickled renpy.ast object
   std::vector<std::vector<Node *>>
-      blocks; // Label/Init: [block]; If: per entry; Menu: per item
+      blocks; // Label/Init/Translate: [block]; If: per entry; Menu: per item
   Node *next = nullptr;
   std::string file;
   int line = 0;

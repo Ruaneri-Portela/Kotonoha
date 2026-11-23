@@ -254,7 +254,10 @@ void testGame(const std::string &discPath) {
     for (auto *scene : game.GetActiveScenes())
       if (dynamic_cast<Kotonoha::ChoiceQuestionScene *>(scene))
         ++choiceScenes;
-    require(text && menu && backlog && choiceScenes == 2,
+    // ZeroRuntime registers three ChoiceQuestionScene subclasses: select,
+    // move and battle. The original two-scene expectation predates the battle
+    // choice scene and made every retail boot fail regardless of game state.
+    require(text && menu && backlog && choiceScenes == 3,
             "Gameplay uses the engine components");
     auto *roulette = find<ZeroNoTsukaima::ZeroRoulette>(game);
     SDL_Event unrelated{};
