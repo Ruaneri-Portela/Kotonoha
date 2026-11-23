@@ -446,6 +446,72 @@ ArtemisAssets::resolveUiImagePath(std::string_view logicalFile) const {
     if (!hit.empty())
       return hit;
   }
+
+  // Build-variant fallback. A shipped build can replace a piece of title art
+  // with a differently suffixed file while its UI table still names the
+  // original: NUKITASHI 2's `list_windows_en.tbl` asks for
+  // `title/background_2a`, but its archives contain `background_trial.png`.
+  // When the logical file misses, strip a trailing alphanumeric variant token
+  // (e.g. `_2a`, `_1b`) and look for a sibling in the same language directory
+  // that shares the remaining stem family. Only short tokens containing a
+  // digit are treated as variants, so descriptive names such as
+  // `bt_new_game` are never rewritten.
+  const auto slash = file.find_last_of('/');
+  const std::string dir = slash == std::string::npos
+                              ? std::string()
+                              : file.substr(0, slash + 1);
+  const std::string name = slash == std::string::npos
+                               ? file
+                               : file.substr(slash + 1);
+  const auto dot = name.find_last_of('.');
+  const std::string stem =
+      dot == std::string::npos ? name : name.substr(0, dot);
+  const auto underscore = stem.find_last_of('_');
+  if (underscore == std::string::npos || underscore == 0)
+    return {};
+
+  const std::string suffix = stem.substr(underscore + 1);
+  bool variant = !suffix.empty();
+  bool hasDigit = false;
+  for (char c : suffix) {
+    const auto uc = static_cast<unsigned char>(c);
+    if (!std::isdigit(uc) && (c < 'a' || c > 'z')) {
+      variant = false;
+      break;
+    }
+    if (std::isdigit(uc))
+      hasDigit = true;
+  }
+  if (!variant || !hasDigit)
+    return {};
+
+  const std::string family = stem.substr(0, underscore);
+  for (const auto &lang : languages) {
+    const std::string prefix = "pc/" + lang + "/" + dir;
+
+    // Prefer an unsuffixed sibling (e.g. `background.png`) when present.
+    for (const char *ext : kExts) {
+      const std::string hit = resolveActualPath(prefix + family + ext);
+      if (!hit.empty())
+        return hit;
+    }
+
+    std::vector<std::string> siblings;
+    for (const auto &[lower, ref] : mergedIndex_) {
+      if (lower.rfind(prefix, 0) != 0)
+        continue;
+      const std::string relative = lower.substr(prefix.size());
+      if (relative.find('/') != std::string::npos)
+        continue;
+      if (relative.rfind(family + "_", 0) == 0 &&
+          relative.size() > family.size() + 1)
+        siblings.push_back(ref.canonicalPath);
+    }
+    if (!siblings.empty()) {
+      std::sort(siblings.begin(), siblings.end());
+      return siblings.front();
+    }
+  }
   return {};
 }
 
