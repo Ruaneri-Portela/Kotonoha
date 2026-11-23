@@ -7,6 +7,9 @@ on:
       - "launcher/**"
       - "tools/check_unified_launcher_registry.py"
       - "tools/check_sdl_cpack.py"
+      - "tools/check_android_neon.py"
+      - "buildsystems/android/app/build.gradle"
+      - "buildsystems/cmake/KotonohaAndroid.cmake"
       - "tools/check_web_shell.js"
       - "tools/web_selftest.js"
       - "buildsystems/cmake/index.html.in"
@@ -44,6 +47,9 @@ on:
       - "launcher/**"
       - "tools/check_unified_launcher_registry.py"
       - "tools/check_sdl_cpack.py"
+      - "tools/check_android_neon.py"
+      - "buildsystems/android/app/build.gradle"
+      - "buildsystems/cmake/KotonohaAndroid.cmake"
       - "tools/check_web_shell.js"
       - "tools/web_selftest.js"
       - "buildsystems/cmake/index.html.in"
@@ -96,6 +102,7 @@ jobs:
           python3 tools/check_release_matrix.py
           python3 tools/check_unified_launcher_registry.py
           python3 tools/check_sdl_cpack.py
+          python3 tools/check_android_neon.py
       - name: Verify optional HTTP manifest bootstrap syntax and fallbacks
         run: |
           node tools/check_web_shell.js
