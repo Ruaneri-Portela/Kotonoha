@@ -13,7 +13,12 @@ function(kotonoha_preload_asset target source destination)
 endfunction()
 
 # Copia os assets do jogo e do engine para o diretório do executável/bundle
+# Android resources are staged only by Gradle, never by native CMake:
+# this prevents copying retail GPKs into .cxx/NDK outputs.
 function(kotonoha_copy_assets target)
+    if(ANDROID)
+        return()
+    endif()
     cmake_parse_arguments(ASSETS "" "GAME;GAME_ASSET_SOURCE" "" ${ARGN})
     if(ASSETS_GAME_ASSET_SOURCE)
         set(_game_asset_source "${ASSETS_GAME_ASSET_SOURCE}")
@@ -60,7 +65,8 @@ function(kotonoha_copy_assets target)
             VERBATIM)
     endif()
     # Replaced only inside the staged bundle/output, never in tracked assets.
-    if(NOT ANDROID AND NOT EMSCRIPTEN AND KOTONOHA_BRAND_OUTPUT)
+    if(NOT ANDROID AND NOT EMSCRIPTEN AND KOTONOHA_BRAND_OUTPUT AND
+       NOT ASSETS_GAME STREQUAL "school-days")
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different
                 "${KOTONOHA_BRAND_OUTPUT}/splash/SPLASH.PNG"
@@ -76,7 +82,8 @@ function(kotonoha_copy_assets target)
                 "${destination}/assets/icon.icns"
             VERBATIM)
     endif()
-    if(APPLE AND is_bundle AND KOTONOHA_BRAND_OUTPUT)
+    if(APPLE AND is_bundle AND KOTONOHA_BRAND_OUTPUT AND
+       NOT ASSETS_GAME STREQUAL "school-days")
         # An .app requires the icon next to Info.plist's Resources directory.
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different
