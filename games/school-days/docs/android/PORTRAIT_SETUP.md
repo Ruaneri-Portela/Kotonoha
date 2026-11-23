@@ -408,3 +408,15 @@ Physical hardware verification on a **POCO X7 Pro** (Android 16 / API 36, `arm64
 |---|---|---|---|---|
 | `SchoolDaysHQ-Android-DEV-538e3022.apk` | `me.hirameki.kotonoha.schooldays` | `33,787,815 B` | `f0f41f59c622bc29f7c85d325368fca4da64299aca7f20930667fa72e043676c` | `check_school_days_apk.py --allow-local-launcher-art` PASS (6 ARM64 libs, 16 KiB LOAD, 49 assets), `zipalign -c -P 16 4` OK, `apksigner` v2 OK, verified live on POCO X7 Pro |
 | `SchoolDaysHQ-Android-DIST-538e3022.apk` | `me.hirameki.kotonoha.schooldays.dist` | `16,687,007 B` | `840fcefc63543dad17d452ace4bf495993860c0b15a4e13d47da119c2bd9f18a` | `check_school_days_apk.py --allow-local-launcher-art` PASS (6 ARM64 libs, 16 KiB LOAD, 49 assets), `zipalign -c -P 16 4` OK, `apksigner` v2 OK, `DebugOverlay=False`, verified live on POCO X7 Pro |
+
+---
+
+## Port v1.00 Sign-Off & Official `forced_subtitles` v4 Integration (2026-11-22)
+
+- **Managerial Approval Status**: **`ANDROID DEV/DIST — APROVADO PELO PROPRIETÁRIO`** (Kotonoha Port **v1.00** for **School Days HQ v1.02**).
+  - **Audit transparency**: The automated/agent-verified hardware checks recorded above remain unchanged as historical technical records; the complementary human-dependent checks (post-reboot SAF persistence, subjective speaker audio loudness/balance, and visual sign-off) were personally performed and confirmed by the project owner.
+- **Official `forced_subtitles` v4 Rollout (External SAF Resources Only)**:
+  - Verified that both approved `538e3022` APKs embed **zero** `.ass` or `forced_subtitles` files and that `SchoolDaysFolder.prepare()` copies the active locale's `33` `.ass` files fresh from the external SAF tree into `cache/sd-saf-*` on every launch. Therefore, the approved `538e3022` APKs were **preserved without recompilation or reinstallation**.
+  - Updated `/storage/emulated/0/Download/SchoolDaysHQ/game-assets/forced_subtitles/` on the POCO X7 Pro atomically with the official `v4` pack (`198` `.ass` files: `33` × `en`/`es`/`pt-BR`/`ru`/`zh-CN` + `33` legacy root `en`; canonical tree SHA-256 `064172a520b7aae1eabac0a2a078e1b866c821a123c7fe046ac8d7423462a818`; Setsuna `\pos(400,325)` and `\pos(400,420)` preserved byte-for-byte).
+  - Verified on POCO X7 Pro: all `198/198` device files matched the canonical v4 tree SHA-256, all `30` GPKs and personal saves (`SaveFile000.DAT`, `SaveFile001.DAT`, `GlobalFlag.DAT`) remained byte-identical, both DIST and DEV launchers launched `GameActivity` cleanly, and live DEV SAF staging (`cache/sd-saf-*`) verified exact `pt-BR` v4 SHA-256 hashes for Sekai (`01-01-00-OP1.ass`), Setsuna (`01-01-00-OP2.ass`, `03-03-KA-OP1.ass`), and Kotonoha (`02-02-2K-OP1.ass`).
+  - Future builds enforce the v4 pack via `games/school-days/tools/stage_forced_subtitles_v4.py` (`test_stage_forced_subtitles_v4.py`: `4/4 OK`), while keeping `forced_subtitles` optional at runtime for base School Days HQ.

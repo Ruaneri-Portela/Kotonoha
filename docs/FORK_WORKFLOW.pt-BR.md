@@ -55,9 +55,22 @@ Sempre compile builds Windows virgens em **diretórios CMake novos** usando `Vis
    - `SchoolDays.exe`, `SDL3.dll`, `SDL3_ttf.dll`, `imgui.dll`, `kotonoha.dll`
    - `translations/jsons/` (10 JSONs de idioma: `en`, `pt-BR`, `es`, `ru`, `zh-CN` + `*-lxh.json`) e `translations/scripts/` (9 GPKs privados de tradução para QA)
    - `overlay/System/Option/` (10 arquivos PNG/CMAP do overlay Display Options)
-   - `game-assets/` (`school-days-hq.ktnroute`, `styles.ass` e `forced_subtitles/` com 198 arquivos `.ass`: 33 na raiz legacy + 33 por idioma)
+   - `game-assets/` (`school-days-hq.ktnroute`, `styles.ass` e `forced_subtitles/` com 198 arquivos `.ass` do pacote oficial **v4**: 33 `en` legados na raiz + 33 por idioma em `en`, `es`, `pt-BR`, `ru`, `zh-CN`)
    - `assets/` (`SPLASH.PNG`, `SchoolDays.ico`, `SchoolDaysHQ-Launcher.png`, `Anime4K/`, `ArtCNN/`, `fonts/NotoSansJP-Regular.ttf`)
    - `third-party-licenses/` (16 avisos de licença)
+
+**Staging e validação obrigatórios de `forced_subtitles` v4 (Windows DEV/DIST e Android SAF, v1.00+):**
+Todas as distribuições oficiais School Days HQ a partir da v1.00 (Windows DEV/DIST e pastas externas SAF do Android) devem utilizar o pacote **`forced_subtitles` v4** aprovado pelo proprietário (`198` arquivos `.ass`: `33` por idioma em `en`, `es`, `pt-BR`, `ru`, `zh-CN` — `17` Sekai, `14` Kotonoha, `2` Setsuna — mais `33` arquivos `en` legados na raiz; SHA-256 canônico da árvore `064172a520b7aae1eabac0a2a078e1b866c821a123c7fe046ac8d7423462a818`, preservando as posições aprovadas da Setsuna `\pos(400,325)` e `\pos(400,420)`). Nunca fazer fallback para v1/v2/v3 nem misturar arquivos obsoletos, e nunca gravar a pasta `Downloads` no código da engine ou comitar arquivos `.ass` privados no Git público. As legendas forçadas continuam opcionais para executar o HQ base em tempo de execução; a validação aplica-se exclusivamente à montagem de distribuições oficiais:
+
+```powershell
+# Aplicar a v4 de forma limpa a partir da fonte local configurada (ou KOTONOHA_FORCED_SUBTITLES_V4_DIR)
+python games/school-days/tools/stage_forced_subtitles_v4.py stage --source "<pasta-v4-aprovada>" --dest "<pasta-dist>/game-assets/forced_subtitles"
+
+# Verificar uma distribuição Windows montada ou pasta SAF Android
+python games/school-days/tools/stage_forced_subtitles_v4.py verify "<pasta-dist>/game-assets/forced_subtitles"
+```
+
+Execute `python -m unittest discover -s games/school-days/tools -p test_stage_forced_subtitles_v4.py -v` para testar a rejeição de arquivos ausentes, obsoletos ou anteriores à v4.
 
 **Validação obrigatória da fonte no QA Windows (DEV e DIST):** A fonte
 da launcher é privada, não rastreada pelo Git e não deve ser copiada às cegas
