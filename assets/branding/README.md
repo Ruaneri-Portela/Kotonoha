@@ -83,3 +83,21 @@ launcher HTML apresenta o icone da PWA centralizado sobre o fundo preto.
 CMake embute o icon.ico na secao WinRes de cada executavel Windows. O recurso
 icon.icns fica na raiz Resources do bundle macOS; no iOS o Info.plist
 compartilhado enumera os PNGs gerados pelos scripts de empacotamento.
+
+## Referência definitiva: guia de interface visual v2.0
+
+A arte aprovada nesta conversa é a referência obrigatória para identidade-base,
+componentes e adaptação por plataforma. Os tokens oficiais estão em
+`assets/branding/tokens.json` (versão 2) e não devem ser substituídos por
+paletas genéricas. A página web preserva o canvas e exibe a seleção de assets
+com botões violeta/índigo, foco ciano, abas de idioma e barra de progresso
+em degradê; o splash deve continuar preto e centralizado. O ImGui aplica a
+hierarquia Navy → Raised → Indigo → Violet/Magenta a janelas, botões, abas,
+campos, sliders e popups. Android mantém Material 3, com cores semânticas e
+cards contornados. iOS/macOS mantêm SwiftUI e Liquid Glass nativo, usando
+bordas magenta e luzes ciano/rosa discretas. Ornamentos de sakura são de
+baixo contraste e nunca aparecem sobre o jogo em execução.
+
+Estados de confirmação, erro, aviso, seleção, hover e teclado são obrigatórios.
+A renderização nativa pode divergir em detalhes de superfície, mas não na
+paleta, hierarquia ou identidade do monograma K.

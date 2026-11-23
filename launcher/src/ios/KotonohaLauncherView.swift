@@ -2,13 +2,17 @@
 import SwiftUI
 import UIKit
 
-// Shared Kotonoha branding tokens. Native Liquid Glass remains OS-owned.
+// Cartilha visual Kotonoha v2. Native Liquid Glass stays system-owned.
 private enum KotonohaBrand {
     static let navy = Color(red: 13.0/255, green: 20.0/255, blue: 46.0/255)
     static let raised = Color(red: 24.0/255, green: 36.0/255, blue: 73.0/255)
+    static let indigo = Color(red: 44.0/255, green: 62.0/255, blue: 154.0/255)
     static let violet = Color(red: 106.0/255, green: 91.0/255, blue: 231.0/255)
+    static let magenta = Color(red: 200.0/255, green: 107.0/255, blue: 217.0/255)
     static let cyan = Color(red: 0.0, green: 214.0/255, blue: 1.0)
     static let sakura = Color(red: 1.0, green: 143.0/255, blue: 189.0/255)
+    static let outline = Color(red: 57.0/255, green: 49.0/255, blue: 94.0/255)
+    static let muted = Color(red: 185.0/255, green: 181.0/255, blue: 212.0/255)
 }
 
 import UniformTypeIdentifiers
@@ -31,7 +35,7 @@ private struct KotonohaGlassSurfaceModifier: ViewModifier {
             content
                 .background(.ultraThinMaterial, in: shape)
                 .overlay(
-                    shape.strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                    shape.strokeBorder(KotonohaBrand.magenta.opacity(0.42), lineWidth: 1)
                 )
         }
     }
@@ -96,7 +100,7 @@ private struct KotonohaAmbientBackdrop: View {
                 colors: [
                     KotonohaBrand.navy,
                     KotonohaBrand.raised,
-                    KotonohaBrand.navy
+                    KotonohaBrand.indigo.opacity(0.45)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -108,11 +112,19 @@ private struct KotonohaAmbientBackdrop: View {
                 endRadius: 520
             )
             RadialGradient(
-                colors: [KotonohaBrand.sakura.opacity(0.18), .clear],
+                colors: [KotonohaBrand.magenta.opacity(0.22), .clear],
                 center: .bottomTrailing,
                 startRadius: 30,
                 endRadius: 540
             )
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Text("✿")
+                .font(.system(size: 138, weight: .ultraLight))
+                .foregroundStyle(KotonohaBrand.sakura.opacity(0.07))
+                .padding(28)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
         .ignoresSafeArea()
     }

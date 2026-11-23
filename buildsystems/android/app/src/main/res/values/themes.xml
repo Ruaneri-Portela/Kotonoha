@@ -4,6 +4,11 @@
         <item name="colorPrimary">@color/kotonoha_violet</item>
         <item name="colorOnPrimary">@color/kotonoha_white</item>
         <item name="colorSecondary">@color/kotonoha_magenta</item>
+        <item name="colorTertiary">@color/kotonoha_cyan</item>
+        <item name="colorOnTertiary">@color/kotonoha_navy</item>
+        <item name="colorError">@color/kotonoha_error</item>
+        <item name="colorOnError">@color/kotonoha_white</item>
+        <item name="colorControlHighlight">@color/kotonoha_indigo</item>
         <item name="colorOnSecondary">@color/kotonoha_white</item>
         <item name="colorSurface">@color/kotonoha_surface</item>
         <item name="colorOnSurface">@color/kotonoha_white</item>
