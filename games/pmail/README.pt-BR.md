@@ -68,6 +68,25 @@ auditoria real reprova quando encontra scripts ausentes, bytecodes
 desconhecidos ou SYS ainda não implementados. Não significa que todos os
 finais já estejam reproduzidos.
 
+## Gate retail do Large PonPon
+
+`Pmail.LargePonPon.Retail` tem o rótulo `real` e é sempre registrado, mas
+retorna 77 ("Skipped" no CTest) até que um diretório retail seja informado em
+`LARGEPONPON_TEST_DATA`. O teste monta `PACK/script.dat`, `PACK/GRAPHIC.DAT` e
+`PACK/SOUND.DAT`, decodifica gráficos e áudio reais e inicializa o runtime em
+modo headless da título até o diálogo de abertura. O diretório do jogo é apenas
+lido.
+
+```sh
+cmake -S . -B build -DBUILD_TESTING=ON -DKOTONOHA_BUILD_PMAIL=ON \
+  -DLARGEPONPON_TEST_DATA=/path/to/LargePonPon
+cmake --build build --target LargePonPonCheck
+ctest --test-dir build -R '^Pmail\.LargePonPon' --output-on-failure
+```
+
+Sem o gate, o mesmo comando CTest executa o teste sintético
+`Pmail.LargePonPon` e reporta o teste retail como ignorado.
+
 
 ## Investigação detalhada
 
