@@ -84,6 +84,26 @@ Resultado sem dados: `Skipped`, nunca `Passed`.
 - Windows cross-build a partir do macOS: bloqueio de plataforma (sem MSVC /
   Windows SDK; MinGW linka libs Mach-O do Homebrew no libass).
 
+## Execução dos originais no CrossOver/Wine (2026-11-23)
+
+Uma varredura executou 29 EXEs originais em um bottle CrossOver (`Master`).
+Resultado: **11 rodaram, 3 iniciaram com avisos, 11 falharam, 4 bloqueados**.
+Log completo e capturas no diretório temporário de evidências
+(`crossover-logs/summary.txt`).
+
+Resultados notáveis:
+- ✅ Rodaram: AIR_PT-BR, Clannad_PT-BR, Imouto `MainSystem.exe`, Katawa Shoujo,
+  LargePonPon `BOOT.exe`, MEO, NEKOPARA (menu, `PackinOne.dll` carregado),
+  Saya no Uta (`ponscr.exe`), Snow Radish (ambos os EXEs), Summer Radish `DISC1`.
+- ❌ Títulos dependentes de Steam (AIR Steam, NUKITASHI 1/2) falham com
+  `SteamAPI_Init(): Could not determine Steam client install directory` quando
+  o cliente Steam não está logado dentro do bottle.
+- 🔒 PureMail e Summer Radish 2 mostram caixas de verificação de DVD/CD;
+  Steins;Gate para na tela de login do Steam.
+- A paridade de rota completa/longplay **não** foi provada: não havia driver de
+  entrada automatizado, então as comparações chegaram apenas a marcos de
+  título/menu/primeira cena.
+
 ## Builds das plataformas (estado verificado nesta sessão)
 
 | Plataforma | Resultado |
@@ -92,4 +112,4 @@ Resultado sem dados: `Skipped`, nunca `Passed`.
 | Xcode macOS + iOS (34 schemes) | PASS |
 | WASM (14 alvos, Asyncify 14/14) | PASS |
 | Android (17 flavors, 16 KiB) | PASS |
-| Windows cross (macOS host) | BLOQUEIO DE PLATAFORMA |
+| Windows cross x86/x64 (MinGW, mingw-dynamic) | PASS — 17 `.exe` cada |
