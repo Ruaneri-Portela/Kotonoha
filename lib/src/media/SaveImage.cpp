@@ -17,6 +17,8 @@ namespace {
 
 struct FormatDeleter {
   void operator()(AVFormatContext *context) const {
+    if (context->pb)
+      avio_closep(&context->pb);
     avformat_free_context(context);
   }
 };

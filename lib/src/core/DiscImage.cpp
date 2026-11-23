@@ -291,10 +291,7 @@ void DiscImage::walk(Uint32 lba, Uint64 size, const std::string &prefix,
       }
       if (fileVersion < state.version)
         continue;
-      SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                  "DiscImage: duplicate ISO path '%s', keeping first entry",
-                  fullPath.c_str());
-      continue;
+      throw std::runtime_error("duplicate ISO path: " + fullPath);
     }
 
     if (!paths.insert(normKey).second)
