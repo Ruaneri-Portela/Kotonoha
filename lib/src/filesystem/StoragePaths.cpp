@@ -241,8 +241,8 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
       addGame(locations.workingDirectory, true);
     }
 
-    auto pkg = game.empty() ? locations.packageIdentifier : game;
-    result.documents = locations.userData / "Kotonoha" / pkg;
+    result.documents =
+        locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
   }
