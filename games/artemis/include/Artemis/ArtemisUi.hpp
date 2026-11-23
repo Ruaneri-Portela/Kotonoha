@@ -49,6 +49,14 @@ public:
   // owns shared widgets such as the choice button artwork).
   std::optional<UiItem> findItem(const std::string &name) const;
 
+  // Native audio IDs from the shipped init/csv tables. `titleBgmId` mirrors
+  // title.lua's `init["titlebgm_"..route]`: route is e.g. "title01",
+  // "title02" or "trial". The second array element is the trial variant.
+  // `clickSeId` mirrors `se_ok()` -> sysse("ok") -> csv.sysse.ok[1].
+  std::string titleBgmId(const std::string &route) const;
+  std::string clickSeId() const;
+  double initNumber(const std::string &key, double fallback) const;
+
   // Resolves the table's logical file ID to the canonical PFS asset ID.
   std::string resolveImage(const UiItem &item) const;
   std::string resolveImage(const std::string &logicalFile) const;

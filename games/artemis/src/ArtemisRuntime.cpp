@@ -26,6 +26,7 @@
 #include <filesystem>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace Artemis {
@@ -166,6 +167,14 @@ struct ArtemisRuntime::Impl {
 
   Kotonoha::PcmPlayer bgmPlayer;
   Kotonoha::PcmPlayer voicePlayer;
+  // Dedicated title players: the gameplay players above are driven by the VM
+  // and must not be restarted by a render-loop poll of the title screen.
+  Kotonoha::PcmPlayer titleBgmPlayer;
+  Kotonoha::PcmPlayer titleSePlayer;
+  std::string titleBgmAsset;
+  std::string titleClickSeAsset;
+  std::string titleBgmRoute = "title01";
+  int titleClickSeCount = 0;
   std::unordered_map<int, std::unique_ptr<Kotonoha::PcmPlayer>> sePlayers;
   std::unique_ptr<Kotonoha::MediaPlayer> moviePlayer;
   Kotonoha::VideoSkipGesture videoSkip;
@@ -232,6 +241,8 @@ void ArtemisRuntime::shutdown() {
     return;
   impl_->bgmPlayer.Stop();
   impl_->voicePlayer.Stop();
+  impl_->titleBgmPlayer.Stop();
+  impl_->titleSePlayer.Stop();
   for (auto &[id, player] : impl_->sePlayers) {
     if (player)
       player->Stop();
@@ -296,6 +307,10 @@ bool ArtemisRuntime::activateTitleButton(int index) {
   const UiItem &item = ui->titleButtons()[static_cast<std::size_t>(
       order[static_cast<std::size_t>(index)])];
   impl_->selectedTitleItem = index;
+  // Every button in title.lua's click switch calls se_ok() (START uses
+  // se_start() in NUKITASHI 1, se_ok() in NUKITASHI 2); the shared native
+  // confirmation click is played once here, before the action.
+  playUiClickSe();
   if (!impl_->engine)
     return false;
   if (item.p1 == "start" || item.name == "bt_start")
@@ -340,6 +355,7 @@ void ArtemisRuntime::initGlobal(Kotonoha::Engine &engine) {
   });
   impl_->menu =
       std::make_unique<ArtemisMenu>(engine, [this](const std::string &action) {
+        playUiClickSe();
         if (action == "save" && impl_->saveMenu) {
           impl_->saveMenu->open(
               Kotonoha::applicationDirectories("artemis").saves.string(), false,
@@ -441,12 +457,17 @@ void ArtemisRuntime::initMenu(Kotonoha::Engine &engine) {
     impl_->gameplayScript = assets_->findStartScript();
   if (impl_->textBox)
     impl_->textBox->hide();
+  // title.lua schedules `estag{"title_bgm"}` after the UI transition. The
+  // port has no Lua stage executor, so start the native track here. Calling
+  // this on every title entry is safe: it is a no-op while the clip plays.
+  startTitleBgm();
 }
 
 void ArtemisRuntime::initGameplay(Kotonoha::Engine &engine) {
   impl_->engine = &engine;
   impl_->lastTickNs = SDL_GetTicksNS();
   impl_->titleActive = false;
+  stopTitleBgm();
   if (!impl_->started && assets_) {
     impl_->started = true;
     std::string startScript = impl_->gameplayScript;
@@ -480,6 +501,144 @@ bool ArtemisRuntime::startGameplay() {
 
 bool ArtemisRuntime::titleVisible() const {
   return impl_->titleActive && GetState() == Kotonoha::GameState::Menu;
+}
+
+void ArtemisRuntime::setTitleBgmRoute(const std::string &route) {
+  if (route.empty() || route == impl_->titleBgmRoute)
+    return;
+  impl_->titleBgmRoute = route;
+  impl_->titleBgmAsset.clear();
+  if (titleVisible()) {
+    stopTitleBgm(); // release the old loop before trying the new route
+    startTitleBgm();
+  }
+}
+
+const std::string &ArtemisRuntime::titleBgmRoute() const {
+  return impl_->titleBgmRoute;
+}
+
+const std::string &ArtemisRuntime::titleBgmAsset() const {
+  return impl_->titleBgmAsset;
+}
+
+bool ArtemisRuntime::titleBgmPlaying() const {
+  return impl_->titleBgmPlayer.Playing();
+}
+
+void ArtemisRuntime::startTitleBgm() {
+  if (!impl_->engine || !assets_ || !titleVisible())
+    return;
+  // A looping clip reports Playing() forever; never decode/restart it from
+  // the per-frame title loop or from a second initMenu() call.
+  if (impl_->titleBgmPlayer.Playing())
+    return;
+
+  ArtemisUi *ui = ensureUi();
+  if (!ui)
+    return;
+
+  // title.lua: `local rt = flg.title and flg.title.route` then
+  // `init["titlebgm_"..rt]`. The host can select a cleared/trial route;
+  // always fall through to the shipped table keys and finally to the first
+  // BGM that actually exists (NUKITASHI 1 has no bgm33 assets at all).
+  std::vector<std::string> routes{impl_->titleBgmRoute};
+  for (const char *fallback : {"title01", "title02", "trial"}) {
+    if (std::find(routes.begin(), routes.end(), fallback) == routes.end())
+      routes.emplace_back(fallback);
+  }
+
+  const float gain = static_cast<float>(
+      std::clamp(ui->initNumber("config_bgm", 50) / 100.0, 0.25, 1.0));
+  for (const std::string &route : routes) {
+    const std::string id = ui->titleBgmId(route);
+    if (id.empty())
+      continue;
+    const auto [introPath, loopPath] = assets_->resolveBgmPaths(id);
+    const std::string chosen = !loopPath.empty() ? loopPath : introPath;
+    if (chosen.empty())
+      continue;
+    try {
+      const auto decoded = assets_->loadAudio(chosen);
+      if (decoded.data.empty())
+        continue;
+      auto clip = toPcmClip(decoded, true, gain);
+      if (clip.samples.empty())
+        continue;
+      if (!impl_->titleBgmPlayer.Play(impl_->engine->GetAudio().channel("bgm"),
+                                      std::move(clip))) {
+        continue;
+      }
+      impl_->titleBgmAsset = chosen;
+      SDL_LogInfo(SDL_LOG_CATEGORY_AUDIO,
+                  "[artemis] title BGM route=%s id=%s asset=%s (loop, %zu "
+                  "PCM frames)",
+                  route.c_str(), id.c_str(), chosen.c_str(),
+                  decoded.data.size() / 2);
+      return;
+    } catch (...) {
+    }
+  }
+  SDL_LogInfo(SDL_LOG_CATEGORY_AUDIO,
+              "[artemis] title BGM unavailable for route=%s",
+              impl_->titleBgmRoute.c_str());
+}
+
+void ArtemisRuntime::stopTitleBgm() {
+  impl_->titleBgmPlayer.Stop();
+  impl_->titleBgmAsset.clear();
+}
+
+bool ArtemisRuntime::playUiClickSe() {
+  if (!impl_->engine || !assets_)
+    return false;
+  // Short one-shots end on their own; a second click while one is still in
+  // the stream is a retrigger from the UI loop and must be ignored.
+  if (impl_->titleSePlayer.Playing())
+    return false;
+  auto &audio = impl_->engine->GetAudio();
+  if (audio.isMasterMuted())
+    return false;
+  auto channel = audio.channel("se");
+  if (!channel || channel->isMuted() || channel->getVolume() <= 0.0f)
+    return false;
+
+  ArtemisUi *ui = ensureUi();
+  if (!ui)
+    return false;
+  const std::string id = ui->clickSeId();
+  if (id.empty())
+    return false;
+  const std::string path = assets_->resolveAudioPath(":sysse/", id);
+  if (path.empty())
+    return false;
+  try {
+    const auto decoded = assets_->loadAudio(path);
+    if (decoded.data.empty())
+      return false;
+    const float gain = static_cast<float>(
+        std::clamp(ui->initNumber("config_se", 80) / 100.0, 0.25, 1.0));
+    auto clip = toPcmClip(decoded, false, gain);
+    if (clip.samples.empty())
+      return false;
+    if (!impl_->titleSePlayer.Play(channel, std::move(clip)))
+      return false;
+  } catch (...) {
+    return false;
+  }
+  impl_->titleClickSeAsset = path;
+  ++impl_->titleClickSeCount;
+  SDL_LogInfo(SDL_LOG_CATEGORY_AUDIO, "[artemis] UI click SE id=%s asset=%s",
+              id.c_str(), path.c_str());
+  return true;
+}
+
+const std::string &ArtemisRuntime::titleClickSeAsset() const {
+  return impl_->titleClickSeAsset;
+}
+
+int ArtemisRuntime::titleClickSeCount() const {
+  return impl_->titleClickSeCount;
 }
 
 const ArtemisUi &ArtemisRuntime::ui() const { return *impl_->ui; }
@@ -932,6 +1091,7 @@ bool ArtemisRuntime::onEvent(Kotonoha::EventRef event) {
           impl_->ui ? impl_->ui->findItem(name) : std::optional<UiItem>{};
       if (!item || !SDL_PointInRectFloat(&point, &item->rect))
         continue;
+      playUiClickSe();
       const std::string action(name);
       const auto saves = Kotonoha::applicationDirectories("artemis").saves;
       if (action == "bt_save" && impl_->saveMenu) {

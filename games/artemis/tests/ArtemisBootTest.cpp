@@ -34,6 +34,44 @@ void appendU32LE(std::vector<std::uint8_t> &buf, std::uint32_t value) {
     buf.push_back(static_cast<std::uint8_t>((value >> (i * 8)) & 0xFFu));
 }
 
+// Minimal 8 kHz mono 16-bit WAV. The synthetic PFS uses it for the title BGM
+// and the se_ok() click so the new audio path is exercised without retail
+// assets (the retail-gated test uses the real Ogg tracks).
+std::vector<std::uint8_t> silentWav(std::uint16_t frames = 400) {
+  const std::uint32_t dataBytes = static_cast<std::uint32_t>(frames) * 2u;
+  std::vector<std::uint8_t> wav(44u + dataBytes, 0);
+  const auto text = [&](std::size_t at, const char *chars) {
+    for (std::size_t i = 0; chars[i]; ++i)
+      wav[at + i] = static_cast<std::uint8_t>(chars[i]);
+  };
+  const auto u16 = [&](std::size_t at, std::uint16_t value) {
+    wav[at] = static_cast<std::uint8_t>(value & 0xFFu);
+    wav[at + 1] = static_cast<std::uint8_t>((value >> 8) & 0xFFu);
+  };
+  const auto u32 = [&](std::size_t at, std::uint32_t value) {
+    for (int i = 0; i < 4; ++i)
+      wav[at + static_cast<std::size_t>(i)] =
+          static_cast<std::uint8_t>((value >> (i * 8)) & 0xFFu);
+  };
+  text(0, "RIFF");
+  u32(4, 36u + dataBytes);
+  text(8, "WAVEfmt ");
+  u32(16, 16u); // PCM header size
+  u16(20, 1u);  // PCM
+  u16(22, 1u);  // mono
+  u32(24, 8000u);
+  u32(28, 16000u); // byte rate
+  u16(32, 2u);     // block align
+  u16(34, 16u);    // bits per sample
+  text(36, "data");
+  u32(40, dataBytes);
+  return wav;
+}
+
+bool containsId(const std::vector<std::string> &ids, const std::string &id) {
+  return std::find(ids.begin(), ids.end(), id) != ids.end();
+}
+
 std::vector<std::uint8_t>
 buildPfs(const std::vector<std::pair<std::string, std::string>> &files) {
   std::uint32_t tableLen = 4;
@@ -137,6 +175,7 @@ std::filesystem::path capture(Kotonoha::Engine &engine,
 const char *kSyntheticTable = R"(lang = {
 	ui_title01_en = {
 		bt_start = { name="bt_start", file="title/bt_new_game", x=30, y=744, w=278, h=121, com="btn", exec="title_click", p1="start", p2="gamestart", clip="0,0,278,121", },
+		bt_exit = { name="bt_exit", file="title/bt_exit", x=1462, y=745, w=119, h=119, com="btn", exec="title_btnsetexit", clip="0,0,119,119", },
 		bg = { name="bg", file="title/background_1a", x=0, y=0, w=1600, h=900, com="obj", },
 	},
 	ui_adv01 = {
@@ -146,7 +185,17 @@ const char *kSyntheticTable = R"(lang = {
 }
 )";
 
-const char *kSyntheticBaseTable = R"(lang = {
+const char *kSyntheticBaseTable = R"(init = {
+	titlebgm_title01 = {"testbgm", "testbgm"},
+	config_bgm = 50,
+	config_se = 80,
+},
+csv = {
+	sysse = {
+		ok = {id=0, "tests_ok"},
+	},
+},
+lang = {
 	ui_system = {
 		select = { file="mw/choice", x=415, y=309, w=770, h=44, clip="0,0,770,44", },
 	},
@@ -226,7 +275,78 @@ void requireRuntimeBoot(const std::shared_ptr<Artemis::ArtemisAssets> &assets,
   }
   capture(engine, captureDir, "artemis-boot-title.bmp");
 
+  // --- Native title audio (retail evidence: title.lua title_bgm/se_ok) ---
+  const std::string titleBgmId = ui.titleBgmId("title01");
+  require(!titleBgmId.empty(), "UI init table has no titlebgm_title01 ID");
+  const auto [titleIntro, titleLoop] = assets->resolveBgmPaths(titleBgmId);
+  const std::string titleBgmPath = !titleLoop.empty() ? titleLoop : titleIntro;
+  require(!titleBgmPath.empty(),
+          "title BGM ID '" + titleBgmId + "' does not resolve to an asset");
+  require(runtime.titleBgmAsset() == titleBgmPath,
+          "title BGM asset mismatch: player='" + runtime.titleBgmAsset() +
+              "' expected='" + titleBgmPath + "'");
+  require(runtime.titleBgmPlaying(),
+          "title BGM is not playing after the boot iterations");
+  require(containsId(assets->recentAudio(), titleBgmPath),
+          "title BGM was never requested via AssetProvider::loadAudio: '" +
+              titleBgmPath + "'");
+  std::cout << "  title BGM: id=" << titleBgmId << " asset=" << titleBgmPath
+            << " (playing=" << runtime.titleBgmPlaying() << ")\n";
+
+  const std::string clickSeId = ui.clickSeId();
+  require(!clickSeId.empty(), "UI csv.sysse has no 'ok' SE ID");
+  const std::string clickSePath =
+      assets->resolveAudioPath(":sysse/", clickSeId);
+  require(!clickSePath.empty(),
+          "click SE ID '" + clickSeId + "' does not resolve to an asset");
+
+  // Click EXIT: the native switch only closes/keeps the title, so this proves
+  // the real event -> activateTitleButton -> se_ok path without starting the
+  // game before the existing START checks below.
+  const auto exitButton = ui.titleItem("bt_exit");
+  require(exitButton.has_value() && exitButton->isButton,
+          "UI table has no 'bt_exit' title button for the click test");
+  SDL_Event click{};
+  click.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+  click.button.button = SDL_BUTTON_LEFT;
+  click.button.x = exitButton->rect.x + exitButton->rect.w * 0.5f;
+  click.button.y = exitButton->rect.y + exitButton->rect.h * 0.5f;
+  const int seBefore = runtime.titleClickSeCount();
+  require(runtime.onEvent(click), "EXIT title click was not consumed");
+  require(runtime.titleClickSeCount() == seBefore + 1,
+          "title click did not trigger the native se_ok() confirmation");
+  require(runtime.titleClickSeAsset() == clickSePath,
+          "click SE asset mismatch: player='" + runtime.titleClickSeAsset() +
+              "' expected='" + clickSePath + "'");
+  require(containsId(assets->recentAudio(), clickSePath),
+          "click SE was never requested via AssetProvider::loadAudio: '" +
+              clickSePath + "'");
+  require(runtime.titleVisible(), "EXIT click unexpectedly left the title");
+  std::cout << "  click SE: id=" << clickSeId << " asset=" << clickSePath
+            << " (count=" << runtime.titleClickSeCount() << ")\n";
+
+  // A cleared game uses titlebgm_title02. NUKITASHI 1's table names bgm33 but
+  // ships no bgm33 track, so the fallback must keep the first available BGM.
+  const std::string altBgmId = ui.titleBgmId("title02");
+  const auto [altIntro, altLoop] = assets->resolveBgmPaths(altBgmId);
+  const std::string altBgmPath = (!altIntro.empty() || !altLoop.empty())
+                                     ? (!altLoop.empty() ? altLoop : altIntro)
+                                     : titleBgmPath;
+  runtime.setTitleBgmRoute("title02");
+  require(runtime.titleBgmAsset() == altBgmPath,
+          "title02 BGM mismatch: player='" + runtime.titleBgmAsset() +
+              "' expected='" + altBgmPath + "'");
+  require(runtime.titleBgmPlaying(), "title02 BGM is not playing");
+  std::cout << "  title02 route: id=" << altBgmId << " asset=" << altBgmPath
+            << " (fallback=" << (altBgmPath == titleBgmPath ? "yes" : "no")
+            << ")\n";
+  runtime.setTitleBgmRoute("title01");
+
   require(runtime.handleNewGameAction(), "START action was rejected");
+  require(!runtime.titleBgmPlaying(),
+          "title BGM kept playing after entering gameplay");
+  require(runtime.titleBgmAsset().empty(),
+          "title BGM asset was not cleared on gameplay entry");
   require(runtime.GetState() == Kotonoha::GameState::Gameplay,
           "START did not enter the Gameplay state");
   require(!runtime.titleVisible(), "title screen is still visible after START");
@@ -266,6 +386,8 @@ void testSyntheticBoot() {
   const auto pngDock = solidBmp(20, 20, 20);
   const auto pngSave = solidBmp(40, 100, 200);
   const auto pngChoice = solidBmp(200, 200, 60);
+  const auto wav = silentWav();
+  const std::string wavBytes(wav.begin(), wav.end());
   const auto bytes = buildPfs(
       {{"system.ini",
         "[WINDOWS]\nWIDTH = 1600\nHEIGHT = 900\nBOOT = system/first.iet\n"},
@@ -276,6 +398,11 @@ void testSyntheticBoot() {
         std::string(pngBackground.begin(), pngBackground.end())},
        {"pc\\en\\title\\bt_new_game.bmp",
         std::string(pngButton.begin(), pngButton.end())},
+       {"pc\\en\\title\\bt_exit.bmp",
+        std::string(pngButton.begin(), pngButton.end())},
+       {"sound\\bgm\\testbgm_a.wav", wavBytes},
+       {"sound\\bgm\\testbgm_b.wav", wavBytes},
+       {"sound\\sysse\\tests_ok.wav", wavBytes},
        {"pc\\en\\mw\\base.bmp",
         std::string(pngDock.begin(), pngDock.end())},
        {"pc\\en\\mw\\bt_save.bmp",
@@ -288,7 +415,7 @@ void testSyntheticBoot() {
   require(assets->archiveCount() == 1,
           "expected 1 synthetic PFS archive, got " +
               std::to_string(assets->archiveCount()));
-  requireRuntimeBoot(assets, dir, 1);
+  requireRuntimeBoot(assets, dir, 2);
   std::cout << "[ArtemisBootTest] Synthetic boot flow passed.\n";
   std::filesystem::remove_all(dir);
 }
@@ -378,6 +505,10 @@ int main(int argc, char **argv) {
     std::cerr << "SDL_Init failed: " << SDL_GetError() << "\n";
     return 1;
   }
+  // Let PcmPlayer's opening-stream lines reach the log so the title BGM and
+  // click SE requests are observable even though audio is inaudible in a
+  // headless CTest capture.
+  SDL_SetLogPriorities(SDL_LOG_PRIORITY_INFO);
   // This binary backs both the synthetic Boot test and the retail-only test.
   // Only --require-retail (used by Artemis.Retail) turns missing retail data
   // into a CTest "Skipped" result; synthetic coverage still runs and passes.
