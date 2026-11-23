@@ -27,13 +27,22 @@ if(include_python)
     get_filename_component(python_stdlib_real "${PYTHON_STDLIB}" REALPATH)
     get_filename_component(python_lib_dir "${python_stdlib_real}" DIRECTORY)
     get_filename_component(python_framework_version "${python_lib_dir}" DIRECTORY)
-    if(python_framework_version MATCHES "/Python\\.framework/Versions/[^/]+$" AND
-       EXISTS "${python_framework_version}/Python")
+    # Homebrew ships Python.framework (binary "Python"); Xcode ships the
+    # universal Python3.framework (binary "Python3"). The amd64 build uses the
+    # latter because Homebrew is arm64-only. Detect both so the runtime is
+    # staged inside a real .framework bundle instead of a plain "python"
+    # directory, which codesign --deep rejects as an invalid bundle.
+    if(python_framework_version MATCHES "/(Python3?)\\.framework/Versions/[^/]+$" AND
+       EXISTS "${python_framework_version}/${CMAKE_MATCH_1}")
+        set(python_framework_name "${CMAKE_MATCH_1}")
+        set(python_binary_name "${python_framework_name}")
         get_filename_component(python_version "${python_framework_version}" NAME)
-        set(python_framework "${BUNDLE_CONTENTS}/Frameworks/Python.framework")
+        set(python_framework "${BUNDLE_CONTENTS}/Frameworks/${python_framework_name}.framework")
         set(python_version_dir "${python_framework}/Versions/${python_version}")
         set(python_home "${python_version_dir}")
     else()
+        set(python_framework_name "")
+        set(python_binary_name "Python")
         set(python_home "${BUNDLE_CONTENTS}/Frameworks/python")
     endif()
     set(python_lib "${python_home}/lib/python${PYTHON_VERSION}")
@@ -47,8 +56,13 @@ if(include_python)
             "The bundle contains a stale Python build configuration directory. Clean the build before packaging.")
     endif()
     file(GLOB_RECURSE plugins "${python_lib}/lib-dynload/*.so")
-    # Remove the old CMake-owned layout after the new copy is ready.
+    # Remove old CMake-owned layouts after the new copy is ready. A stale
+    # "Frameworks/python" directory is especially harmful: codesign --deep
+    # treats it as a bundle and fails with "bundle format unrecognized".
     file(REMOVE_RECURSE "${BUNDLE_CONTENTS}/Resources/python")
+    if(python_framework)
+        file(REMOVE_RECURSE "${BUNDLE_CONTENTS}/Frameworks/python")
+    endif()
 endif()
 
 include(BundleUtilities)
@@ -56,17 +70,19 @@ set(BU_CHMOD_BUNDLE_ITEMS ON)
 
 if(include_python)
     if(python_framework)
-        # A prior build/fixup may have staged Homebrew's Python.app helper.
+        # A prior build/fixup may have staged a Python.app helper (Homebrew's
+        # Python.framework or Xcode's Python3.framework both carry one).
         # Prune it without forcing users to delete the whole build directory.
         kotonoha_prune_nested_python_app("${python_version_dir}")
         file(MAKE_DIRECTORY "${python_version_dir}/Resources")
-        file(COPY "${python_framework_version}/Python" DESTINATION "${python_version_dir}")
+        file(COPY "${python_framework_version}/${python_binary_name}"
+            DESTINATION "${python_version_dir}")
         if(EXISTS "${python_framework_version}/Resources/Info.plist")
             file(COPY "${python_framework_version}/Resources/Info.plist"
                 DESTINATION "${python_version_dir}/Resources")
         endif()
         foreach(link IN ITEMS "Versions/Current|${python_version}"
-                              "Python|Versions/Current/Python"
+                              "${python_binary_name}|Versions/Current/${python_binary_name}"
                               "Resources|Versions/Current/Resources")
             string(REPLACE "|" ";" parts "${link}")
             list(GET parts 0 name)
@@ -88,11 +104,12 @@ if(include_python)
         endforeach()
 
         set(bundled_python
-            "@executable_path/../Frameworks/Python.framework/Versions/${python_version}/Python")
+            "@executable_path/../Frameworks/${python_framework_name}.framework/Versions/${python_version}/${python_binary_name}")
         foreach(item IN ITEMS "${APP_EXECUTABLE}" ${plugins})
             get_prerequisites("${item}" prerequisites 1 0 "" "${DEPENDENCY_DIRS}")
             foreach(prerequisite IN LISTS prerequisites)
-                if(prerequisite MATCHES "(^|/)Python\\.framework/Versions/[^/]+/Python$")
+                if(prerequisite MATCHES
+                   "(^|/)Python3?\\.framework/Versions/[^/]+/Python3?$")
                     execute_process(COMMAND install_name_tool -change "${prerequisite}"
                         "${bundled_python}" "${item}" RESULT_VARIABLE change_result)
                     if(NOT change_result EQUAL 0)

@@ -52,6 +52,13 @@ A grafia `amd64` é apenas um nome: triplet, preset e diretório de build a
 usam, enquanto o compilador e o vcpkg continuam visando `x86_64`
 internamente.
 
+O preset `macos-amd64-vcpkg` também fixa `Python3_EXECUTABLE=/usr/bin/python3`,
+`Python3_ROOT_DIR` e `Python3_FIND_FRAMEWORK=FIRST` para que o FindPython3
+selecione o `Python3.framework` universal do Xcode (3.9, x86_64 + arm64). O
+rpath correspondente em `CMAKE_EXE_LINKER_FLAGS` permite que o `fixup_bundle`
+resolva o runtime embutido dentro do bundle x86_64 em vez de escolher o
+`Python.framework` arm64-only do Homebrew, o que fazia o `verify_app` falhar.
+
 Ambos definem `VCPKG_LIBRARY_LINKAGE dynamic`, `VCPKG_CRT_LINKAGE dynamic`,
 `VCPKG_CMAKE_SYSTEM_NAME Darwin`, `CMAKE_OSX_DEPLOYMENT_TARGET 15.0` e
 `-mmacosx-version-min=15.0` nas flags C/CXX/linker. Eles usam nomes de triplet
@@ -73,9 +80,10 @@ cmake -S . -B out/build/macos-arm64-vcpkg -G Ninja \
 cmake --build out/build/macos-arm64-vcpkg --parallel
 
 # Intel (x86_64), all game ports, Release, dynamic vcpkg libraries.
+# As opções Python3_* e CMAKE_EXE_LINKER_FLAGS abaixo já são definidas por
+# `cmake --preset macos-amd64-vcpkg`; mantenha-as apenas em configures manuais.
 # The Xcode Python3.framework is universal (x86_64 + arm64); Homebrew's
 # Python and libunibreak are arm64-only and cannot be used for x86_64.
-XCODE_PY=/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9
 cmake -S . -B out/build/macos-amd64-vcpkg -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
   -DVCPKG_TARGET_TRIPLET=macos-amd64-vcpkg \
@@ -111,8 +119,13 @@ vcpkg install --triplet macos-arm64-vcpkg \
   --x-feature=sdl-vcpkg \
   --x-install-root=/Users/nero/Codes/Kotonoha/out/build/macos-arm64-vcpkg/vcpkg_installed
 
-# On an arm64 host, keep Homebrew's arm64-only packages out of the x86_64
-# pkg-config search path so the overlay libass port does not link them.
+# On an arm64 host, keep Homebrew's arm64-only libunibreak out of the x86_64
+# pkg-config search path so libass does not link the wrong architecture
+# (ld: ignoring file .../libunibreak.dylib: found architecture 'arm64').
+# The macos-amd64-vcpkg preset exports PKG_CONFIG_LIBDIR automatically and the
+# triplet passes it through to meson-based ports, so `cmake --preset
+# macos-amd64-vcpkg` needs no manual pre-install for this. Set it explicitly
+# only when invoking vcpkg directly:
 VCPKG_LIBDIR=/Users/nero/Codes/Kotonoha/out/build/macos-amd64-vcpkg/vcpkg_installed/macos-amd64-vcpkg/lib/pkgconfig
 PKG_CONFIG_LIBDIR="$VCPKG_LIBDIR" \
 vcpkg install --triplet macos-amd64-vcpkg \
@@ -121,6 +134,14 @@ vcpkg install --triplet macos-amd64-vcpkg \
   --x-feature=sdl-vcpkg \
   --x-install-root=/Users/nero/Codes/Kotonoha/out/build/macos-amd64-vcpkg/vcpkg_installed
 ```
+
+O preset `macos-amd64-vcpkg` define `PKG_CONFIG_LIBDIR` apontando para o
+diretório `lib/pkgconfig` do triplet em seu bloco `environment`, e o triplet
+declara `VCPKG_ENV_PASSTHROUGH_UNTRACKED` para que o vcpkg repasse o valor aos
+ports baseados em meson sem incluir o caminho absoluto no hash de ABI. Assim, o
+`libunibreak.pc` arm64-only do Homebrew fica fora do build x86_64 do libass
+mesmo quando o vcpkg é invocado automaticamente pelo toolchain do CMake durante
+`cmake --preset macos-amd64-vcpkg`.
 
 ## Xcode
 

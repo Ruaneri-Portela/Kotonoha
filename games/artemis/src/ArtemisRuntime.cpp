@@ -125,19 +125,8 @@ protected:
     if (bar) {
       try {
         auto &texture = ui_.texture(renderer, bar->logicalFile);
-        ArtemisUi::draw(renderer, texture,
-                        {box.x, box.y, box.w, 32.0f},
-                        bar->hasClip ? &bar->clip : nullptr, 235);
-      } catch (...) {
-      }
-    }
-    const auto mask = ui_.findItem("dockarea"); // pc/<lang>/mw/dockarea64.png
-    if (mask) {
-      try {
-        auto &texture = ui_.texture(renderer, mask->logicalFile);
-        ArtemisUi::draw(renderer, texture,
-                        {box.x, box.y + 32.0f, box.w, box.h - 32.0f}, nullptr,
-                        160);
+        ArtemisUi::draw(renderer, texture, box,
+                        bar->hasClip ? &bar->clip : nullptr, 225);
       } catch (...) {
       }
     }

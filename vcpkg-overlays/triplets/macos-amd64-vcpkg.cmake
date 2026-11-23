@@ -22,8 +22,21 @@
 #     -DPython3_FIND_FRAMEWORK=FIRST \
 #     '-DCMAKE_EXE_LINKER_FLAGS=-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks'
 #
+# The macos-amd64-vcpkg preset supplies the Python3_* and linker rpath flags
+# above automatically. Keep them for manual configurations only: without the
+# Xcode rpath, dependency fixup resolves @rpath/Python3.framework/... against
+# Homebrew's arm64-only Python.framework and fails verify_app inside the
+# x86_64 bundle.
+#
 # On an arm64 host, Homebrew's arm64-only Python/libunibreak must be excluded:
-# pre-install with PKG_CONFIG_LIBDIR set to this triplet's lib/pkgconfig dir.
+# set PKG_CONFIG_LIBDIR to this triplet's lib/pkgconfig dir. The
+# macos-amd64-vcpkg preset exports that variable automatically; declaring it
+# here lets vcpkg forward it to meson-based ports such as libass. UNTRACKED
+# keeps the absolute, build-tree-specific path out of the vcpkg ABI hash.
+
+set(VCPKG_ENV_PASSTHROUGH_UNTRACKED
+    "${VCPKG_ENV_PASSTHROUGH_UNTRACKED};PKG_CONFIG_LIBDIR")
+list(REMOVE_DUPLICATES VCPKG_ENV_PASSTHROUGH_UNTRACKED)
 
 set(VCPKG_TARGET_ARCHITECTURE x64)
 set(VCPKG_CRT_LINKAGE dynamic)
