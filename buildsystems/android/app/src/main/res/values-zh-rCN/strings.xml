@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_title">Kotonoha 启动器</string>
+    <string name="launcher_subtitle">通用视觉小说中心</string>
+    <string name="interface_language">界面语言</string>
+    <string name="search_hint">搜索游戏或引擎</string>
+    <string name="rescan">重新扫描</string>
+    <string name="graphics">图形设置</string>
+    <string name="scanning_library">正在扫描游戏库…</string>
+    <string name="isolate_saves">独立存档</string>
+    <string name="no_games_found">未找到游戏</string>
+    <string name="empty_library_hint">使用下方按钮添加游戏文件夹、ISO/BIN 光盘镜像或 ZIP。也可以将游戏放入 Android/data/me.hirameki.kotonoha.launcher/files/games。</string>
+    <string name="import_zip_action">+ 导入 ZIP</string>
+    <string name="add_disc_action">+ 添加 ISO/BIN</string>
+    <string name="add_folder_action">+ 添加文件夹</string>
+    <string name="params_optional">可选游戏参数</string>
+    <string name="route_file_hint">路线文件 (--ktrf .ktnroute / .ktrf)</string>
+    <string name="browse">浏览</string>
+    <string name="translated_scripts_hint">翻译脚本文件夹 (--scripts)</string>
+    <string name="overlays_localization">资源覆盖与本地化</string>
+    <string name="asset_overlay_hint">资源覆盖文件夹 (--asset-overlay)</string>
+    <string name="translation_dictionary_hint">翻译词典 (--translation)</string>
+    <string name="subtitle_style_hint">字幕样式 (--subtitle-style .ass)</string>
+    <string name="saves_startup">存档与启动</string>
+    <string name="custom_documents_hint">自定义文档文件夹 (--documents)</string>
+    <string name="start_scenario_hint">起始场景 / 节点 ID (--start)</string>
+    <string name="isolate_saves_per_game">按游戏标题分别保存存档</string>
+    <string name="graphics_override">图形与放大（单独覆盖）</string>
+    <string name="renderer_backend_hint">渲染后端 (--renderer)</string>
+    <string name="upscaler_hint">图像放大 (--upscaler)</string>
+    <string name="scale_factor_hint">缩放倍数 (--upscaler-factor)</string>
+    <string name="shader_preset_hint">着色器预设 (--upscaler-preset)</string>
+    <string name="reset">重置</string>
+    <string name="cancel">取消</string>
+    <string name="save">保存</string>
+    <string name="graphics_upscaling">图形与放大</string>
+    <string name="graphics_global_explanation">全局设置适用于所有游戏，除非单独为某款游戏指定设置。</string>
+    <string name="shader_preset_global_hint">着色器预设 (OpenGL ES / Anime4K / ArtCNN)</string>
+    <string name="mpv_automatic_explanation">当渲染器设置为自动时，MPV (Anime4K / ArtCNN) 会自动使用 OpenGL ES。</string>
+    <string name="overlay_badge">资源覆盖</string>
+    <string name="parameters">参数</string>
+    <string name="play">开始游戏</string>
+    <string name="storage_init_failed">无法初始化启动器存储：%1$s</string>
+    <string name="importing_zip">正在导入 ZIP…</string>
+    <string name="zip_import_failed">ZIP 导入失败：%1$s</string>
+    <string name="importing_selected_folder">正在导入所选文件夹…</string>
+    <string name="folder_imported">已导入文件夹：%1$s</string>
+    <string name="folder_import_failed">文件夹导入失败：%1$s</string>
+    <string name="importing_folder">正在导入文件夹…</string>
+    <string name="no_games_detected">未检测到游戏</string>
+    <plurals name="games_detected">
+        <item quantity="other">检测到 %1$d 个游戏</item>
+    </plurals>
+    <string name="engine_not_linked">此构建未包含该游戏的引擎运行库。</string>
+    <string name="preset_number">预设 %1$d</string>
+    <string name="graphics_settings_saved">图形设置已保存</string>
+    <string name="parameters_for_game">参数 — %1$s</string>
+    <string name="use_global_setting">使用全局设置</string>
+    <string name="route_valid">有效：%1$s</string>
+    <string name="route_warning">警告：%1$s</string>
+    <string name="source_disc_image">光盘镜像</string>
+    <string name="source_folder">文件夹</string>
+    <string name="parameters_modified">参数 *</string>
+    <string-array name="launcher_languages">
+        <item>English</item><item>Português (Brasil)</item><item>Español</item><item>Русский</item><item>简体中文</item>
+    </string-array>
+    <string-array name="renderer_labels">
+        <item>自动</item><item>Vulkan</item><item>OpenGL ES</item><item>软件渲染</item>
+    </string-array>
+    <string-array name="upscaler_labels">
+        <item>关闭</item><item>自动</item><item>MPV / Anime4K / ArtCNN (OpenGL ES)</item><item>线性</item>
+    </string-array>
+    <string name="error_create_games_directory">无法创建游戏文件夹</string>
+    <string name="error_create_import_directory">无法创建导入文件夹</string>
+    <string name="error_open_zip">无法打开 ZIP</string>
+    <string name="error_many_zip_entries">ZIP 条目过多</string>
+    <string name="error_unsafe_zip_path">ZIP 包含不安全的路径</string>
+    <string name="error_create_zip_directory">无法创建 ZIP 文件夹</string>
+    <string name="error_zip_too_large">ZIP 解压后的大小超过 64 GiB</string>
+    <string name="error_empty_zip">ZIP 为空</string>
+    <string name="error_create_directory">无法创建文件夹：%1$s</string>
+    <string name="error_create_overlays_directory">无法创建资源覆盖文件夹</string>
+    <string name="error_open_selected_folder">无法打开所选文件夹</string>
+    <string name="error_create_overlay_destination">无法创建资源覆盖的目标文件夹</string>
+    <string name="error_create_game_destination">无法创建游戏的目标文件夹</string>
+</resources>

@@ -19,5 +19,8 @@ Run commands from `buildsystems/android/` (PowerShell: set `$env:VCPKG_ROOT` and
 - Gradle bundles engine `assets/`, but **excludes retail game `game-assets/` by default**. Only Example demo assets are always bundled. Explicit `-PbundleGameAssets=true` is for authorized private testing; Android `dist` always excludes retail game assets. Packaged resources are extracted on startup and saves stay separate.
 - On Android, iOS, and WebAssembly (WASM), user data and saves are stored directly in `pacote/**` (ignoring package/bundle name), while desktop standalone builds use `Kotonoha/pacote/**`. In unified launcher mode (`UnifiedLauncher`), package names are omitted for saves.
 - Folder and ZIP imports on Android use robust directory copying and SAF permission persistence.
+- The universal Android launcher has an **Interface language** dropdown with English, Brazilian Portuguese, Spanish, Russian, and Simplified Chinese. The initial language follows the device language when supported, otherwise English. A manual choice persists across launcher restarts in the launcher-only `kotonoha_launcher_ui` preferences, independently of game translation, save configuration, and SAF grants. Changing the interface language immediately reloads the launcher UI.
+
+Validate all translated launcher resources with `python tools/test_launcher_locales.py` from `buildsystems/android/`.
 
 For external assets, overlays, OBB, and saved files, see the [directory policy](../../docs/DIRECTORY_POLICY.md). See also [Android build guide](../../docs/BUILD_ANDROID.md).

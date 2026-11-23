@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_title">Kotonoha Launcher</string>
+    <string name="launcher_subtitle">Universal Visual Novel Hub</string>
+    <string name="interface_language">Interface language</string>
+    <string name="search_hint">Search games or engines</string>
+    <string name="rescan">Rescan</string>
+    <string name="graphics">Graphics</string>
+    <string name="scanning_library">Scanning library…</string>
+    <string name="isolate_saves">Isolate saves</string>
+    <string name="no_games_found">No Games Found</string>
+    <string name="empty_library_hint">Add a game folder, ISO/BIN disc image, or ZIP using the buttons below. You can also place games in Android/data/me.hirameki.kotonoha.launcher/files/games.</string>
+    <string name="import_zip_action">+ Import ZIP</string>
+    <string name="add_disc_action">+ Add ISO/BIN</string>
+    <string name="add_folder_action">+ Add folder</string>
+    <string name="params_optional">Optional Game Parameters</string>
+    <string name="school_days_hq" translatable="false">School Days HQ</string>
+    <string name="route_file_hint">Route file (--ktrf .ktnroute / .ktrf)</string>
+    <string name="browse">Browse</string>
+    <string name="translated_scripts_hint">Translated scripts folder (--scripts)</string>
+    <string name="overlays_localization">Overlays &amp; Localization</string>
+    <string name="asset_overlay_hint">Asset overlay folder (--asset-overlay)</string>
+    <string name="translation_dictionary_hint">Translation dictionary (--translation)</string>
+    <string name="subtitle_style_hint">Subtitle style (--subtitle-style .ass)</string>
+    <string name="saves_startup">Saves &amp; Startup</string>
+    <string name="custom_documents_hint">Custom documents dir (--documents)</string>
+    <string name="start_scenario_hint">Start scenario / node ID (--start)</string>
+    <string name="isolate_saves_per_game">Isolate saves per game title</string>
+    <string name="graphics_override">Graphics &amp; Upscaling (Override)</string>
+    <string name="renderer_backend_hint">Renderer backend (--renderer)</string>
+    <string name="upscaler_hint">Upscaler (--upscaler)</string>
+    <string name="scale_factor_hint">Scale factor (--upscaler-factor)</string>
+    <string name="shader_preset_hint">Shader preset (--upscaler-preset)</string>
+    <string name="reset">Reset</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="graphics_upscaling">Graphics &amp; Upscaling</string>
+    <string name="graphics_global_explanation">Global defaults apply to all games unless overridden per game.</string>
+    <string name="shader_preset_global_hint">Shader preset (OpenGL ES / Anime4K / ArtCNN)</string>
+    <string name="mpv_automatic_explanation">MPV (Anime4K / ArtCNN) uses OpenGL ES automatically when the renderer is set to Automatic.</string>
+    <string name="overlay_badge">OVERLAY</string>
+    <string name="parameters">Parameters</string>
+    <string name="play">Play</string>
+    <string name="storage_init_failed">Cannot initialize launcher storage: %1$s</string>
+    <string name="importing_zip">Importing ZIP…</string>
+    <string name="zip_import_failed">ZIP import failed: %1$s</string>
+    <string name="importing_selected_folder">Importing selected folder…</string>
+    <string name="folder_imported">Folder imported: %1$s</string>
+    <string name="folder_import_failed">Folder import failed: %1$s</string>
+    <string name="importing_folder">Importing folder…</string>
+    <string name="no_games_detected">No games detected</string>
+    <plurals name="games_detected">
+        <item quantity="one">%1$d game detected</item>
+        <item quantity="other">%1$d games detected</item>
+    </plurals>
+    <string name="engine_not_linked">Engine runtime is not linked in this build.</string>
+    <string name="preset_number">Preset %1$d</string>
+    <string name="graphics_settings_saved">Graphics settings saved</string>
+    <string name="parameters_for_game">Parameters — %1$s</string>
+    <string name="use_global_setting">Use global setting</string>
+    <string name="route_valid">Valid: %1$s</string>
+    <string name="route_warning">Warning: %1$s</string>
+    <string name="source_disc_image">DISC IMAGE</string>
+    <string name="source_folder">FOLDER</string>
+    <string name="parameters_modified">Parameters *</string>
+    <string-array name="launcher_languages">
+        <item>English</item>
+        <item>Português (Brasil)</item>
+        <item>Español</item>
+        <item>Русский</item>
+        <item>简体中文</item>
+    </string-array>
+    <string-array name="renderer_labels">
+        <item>Automatic</item>
+        <item>Vulkan</item>
+        <item>OpenGL ES</item>
+        <item>Software</item>
+    </string-array>
+    <string-array name="upscaler_labels">
+        <item>Off</item>
+        <item>Auto</item>
+        <item>MPV / Anime4K / ArtCNN (OpenGL ES)</item>
+        <item>Linear</item>
+    </string-array>
+    <string name="error_create_games_directory">Cannot create games directory</string>
+    <string name="error_create_import_directory">Cannot create import directory</string>
+    <string name="error_open_zip">Cannot open ZIP</string>
+    <string name="error_many_zip_entries">Too many ZIP entries</string>
+    <string name="error_unsafe_zip_path">Unsafe ZIP path</string>
+    <string name="error_create_zip_directory">Cannot create ZIP directory</string>
+    <string name="error_zip_too_large">ZIP expands beyond 64 GiB</string>
+    <string name="error_empty_zip">ZIP is empty</string>
+    <string name="error_create_directory">Cannot create directory: %1$s</string>
+    <string name="error_create_overlays_directory">Cannot create overlays directory</string>
+    <string name="error_open_selected_folder">Cannot open selected folder</string>
+    <string name="error_create_overlay_destination">Cannot create overlay destination directory</string>
+    <string name="error_create_game_destination">Cannot create game destination directory</string>
+</resources>

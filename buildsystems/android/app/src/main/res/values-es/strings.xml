@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_title">Iniciador de Kotonoha</string>
+    <string name="launcher_subtitle">Centro universal de novelas visuales</string>
+    <string name="interface_language">Idioma de la interfaz</string>
+    <string name="search_hint">Buscar juegos o motores</string>
+    <string name="rescan">Buscar de nuevo</string>
+    <string name="graphics">Gráficos</string>
+    <string name="scanning_library">Examinando biblioteca…</string>
+    <string name="isolate_saves">Separar partidas</string>
+    <string name="no_games_found">No se encontraron juegos</string>
+    <string name="empty_library_hint">Añade una carpeta de juego, una imagen ISO/BIN o un ZIP con los botones de abajo. También puedes colocar juegos en Android/data/me.hirameki.kotonoha.launcher/files/games.</string>
+    <string name="import_zip_action">+ Importar ZIP</string>
+    <string name="add_disc_action">+ Añadir ISO/BIN</string>
+    <string name="add_folder_action">+ Añadir carpeta</string>
+    <string name="params_optional">Parámetros opcionales del juego</string>
+    <string name="route_file_hint">Archivo de rutas (--ktrf .ktnroute / .ktrf)</string>
+    <string name="browse">Examinar</string>
+    <string name="translated_scripts_hint">Carpeta de guiones traducidos (--scripts)</string>
+    <string name="overlays_localization">Superposiciones y localización</string>
+    <string name="asset_overlay_hint">Carpeta de superposición (--asset-overlay)</string>
+    <string name="translation_dictionary_hint">Diccionario de traducción (--translation)</string>
+    <string name="subtitle_style_hint">Estilo de subtítulos (--subtitle-style .ass)</string>
+    <string name="saves_startup">Partidas e inicio</string>
+    <string name="custom_documents_hint">Carpeta de documentos personalizada (--documents)</string>
+    <string name="start_scenario_hint">Escenario inicial / ID del nodo (--start)</string>
+    <string name="isolate_saves_per_game">Separar partidas por título de juego</string>
+    <string name="graphics_override">Gráficos y escalado (personalizado)</string>
+    <string name="renderer_backend_hint">Renderizador (--renderer)</string>
+    <string name="upscaler_hint">Escalado (--upscaler)</string>
+    <string name="scale_factor_hint">Factor de escala (--upscaler-factor)</string>
+    <string name="shader_preset_hint">Preajuste de sombreado (--upscaler-preset)</string>
+    <string name="reset">Restablecer</string>
+    <string name="cancel">Cancelar</string>
+    <string name="save">Guardar</string>
+    <string name="graphics_upscaling">Gráficos y escalado</string>
+    <string name="graphics_global_explanation">Los valores globales se aplican a todos los juegos, salvo que se cambien por juego.</string>
+    <string name="shader_preset_global_hint">Preajuste de sombreado (OpenGL ES / Anime4K / ArtCNN)</string>
+    <string name="mpv_automatic_explanation">MPV (Anime4K / ArtCNN) usa OpenGL ES automáticamente cuando el renderizador está en Automático.</string>
+    <string name="overlay_badge">SUPERPOSICIÓN</string>
+    <string name="parameters">Parámetros</string>
+    <string name="play">Jugar</string>
+    <string name="storage_init_failed">No se pudo inicializar el almacenamiento: %1$s</string>
+    <string name="importing_zip">Importando ZIP…</string>
+    <string name="zip_import_failed">Error al importar ZIP: %1$s</string>
+    <string name="importing_selected_folder">Importando carpeta seleccionada…</string>
+    <string name="folder_imported">Carpeta importada: %1$s</string>
+    <string name="folder_import_failed">Error al importar carpeta: %1$s</string>
+    <string name="importing_folder">Importando carpeta…</string>
+    <string name="no_games_detected">No se detectaron juegos</string>
+    <plurals name="games_detected">
+        <item quantity="one">%1$d juego detectado</item>
+        <item quantity="other">%1$d juegos detectados</item>
+    </plurals>
+    <string name="engine_not_linked">El motor del juego no está incluido en esta compilación.</string>
+    <string name="preset_number">Preajuste %1$d</string>
+    <string name="graphics_settings_saved">Configuración gráfica guardada</string>
+    <string name="parameters_for_game">Parámetros — %1$s</string>
+    <string name="use_global_setting">Usar configuración global</string>
+    <string name="route_valid">Válido: %1$s</string>
+    <string name="route_warning">Advertencia: %1$s</string>
+    <string name="source_disc_image">IMAGEN DE DISCO</string>
+    <string name="source_folder">CARPETA</string>
+    <string name="parameters_modified">Parámetros *</string>
+    <string-array name="launcher_languages">
+        <item>English</item><item>Português (Brasil)</item><item>Español</item><item>Русский</item><item>简体中文</item>
+    </string-array>
+    <string-array name="renderer_labels">
+        <item>Automático</item><item>Vulkan</item><item>OpenGL ES</item><item>Software</item>
+    </string-array>
+    <string-array name="upscaler_labels">
+        <item>Desactivado</item><item>Automático</item><item>MPV / Anime4K / ArtCNN (OpenGL ES)</item><item>Lineal</item>
+    </string-array>
+    <string name="error_create_games_directory">No se pudo crear la carpeta de juegos</string>
+    <string name="error_create_import_directory">No se pudo crear la carpeta de importación</string>
+    <string name="error_open_zip">No se pudo abrir el ZIP</string>
+    <string name="error_many_zip_entries">El ZIP tiene demasiadas entradas</string>
+    <string name="error_unsafe_zip_path">El ZIP contiene una ruta insegura</string>
+    <string name="error_create_zip_directory">No se pudo crear la carpeta del ZIP</string>
+    <string name="error_zip_too_large">El ZIP descomprimido supera los 64 GiB</string>
+    <string name="error_empty_zip">El ZIP está vacío</string>
+    <string name="error_create_directory">No se pudo crear la carpeta: %1$s</string>
+    <string name="error_create_overlays_directory">No se pudo crear la carpeta de superposiciones</string>
+    <string name="error_open_selected_folder">No se pudo abrir la carpeta seleccionada</string>
+    <string name="error_create_overlay_destination">No se pudo crear la carpeta de destino de la superposición</string>
+    <string name="error_create_game_destination">No se pudo crear la carpeta de destino del juego</string>
+</resources>

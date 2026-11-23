@@ -55,7 +55,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
-                android:text="OVERLAY"
+                android:text="@string/overlay_badge"
                 android:textAppearance="?attr/textAppearanceLabelSmall"
                 android:textStyle="bold"
                 android:visibility="gone" />
@@ -83,14 +83,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:text="Parameters" />
+                android:text="@string/parameters" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_game_play"
                 style="@style/Widget.Material3.Button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Play" />
+                android:text="@string/play" />
         </LinearLayout>
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

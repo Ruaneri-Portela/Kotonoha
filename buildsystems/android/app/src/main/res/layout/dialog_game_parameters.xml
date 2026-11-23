@@ -15,7 +15,7 @@
             android:id="@+id/params_sheet_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Optional Game Parameters"
+            android:text="@string/params_optional"
             android:textAppearance="?attr/textAppearanceHeadlineSmall" />
 
         <LinearLayout
@@ -29,7 +29,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="School Days HQ"
+                android:text="@string/school_days_hq"
                 android:textAppearance="?attr/textAppearanceTitleSmall" />
 
             <LinearLayout
@@ -44,7 +44,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:hint="Route file (--ktrf .ktnroute / .ktrf)">
+                    android:hint="@string/route_file_hint">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/input_ktrf"
@@ -59,7 +59,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="Browse" />
+                    android:text="@string/browse" />
             </LinearLayout>
 
             <TextView
@@ -81,7 +81,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:hint="Translated scripts folder (--scripts)">
+                    android:hint="@string/translated_scripts_hint">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/input_scripts"
@@ -96,7 +96,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="Browse" />
+                    android:text="@string/browse" />
             </LinearLayout>
         </LinearLayout>
 
@@ -104,7 +104,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Overlays &amp; Localization"
+            android:text="@string/overlays_localization"
             android:textAppearance="?attr/textAppearanceTitleSmall" />
 
         <LinearLayout
@@ -119,7 +119,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="Asset overlay folder (--asset-overlay)">
+                android:hint="@string/asset_overlay_hint">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/input_overlay"
@@ -134,7 +134,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Browse" />
+                android:text="@string/browse" />
         </LinearLayout>
 
         <LinearLayout
@@ -149,7 +149,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="Translation dictionary (--translation)">
+                android:hint="@string/translation_dictionary_hint">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/input_translation"
@@ -164,7 +164,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Browse" />
+                android:text="@string/browse" />
         </LinearLayout>
 
         <LinearLayout
@@ -179,7 +179,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="Subtitle style (--subtitle-style .ass)">
+                android:hint="@string/subtitle_style_hint">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/input_subtitle_style"
@@ -194,14 +194,14 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Browse" />
+                android:text="@string/browse" />
         </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Saves &amp; Startup"
+            android:text="@string/saves_startup"
             android:textAppearance="?attr/textAppearanceTitleSmall" />
 
         <LinearLayout
@@ -216,7 +216,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:hint="Custom documents dir (--documents)">
+                android:hint="@string/custom_documents_hint">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/input_documents"
@@ -231,7 +231,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Browse" />
+                android:text="@string/browse" />
         </LinearLayout>
 
         <com.google.android.material.textfield.TextInputLayout
@@ -239,7 +239,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="Start scenario / node ID (--start)">
+            android:hint="@string/start_scenario_hint">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/input_start_scenario"
@@ -254,13 +254,13 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:checked="true"
-            android:text="Isolate saves per game title" />
+            android:text="@string/isolate_saves_per_game" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Graphics &amp; Upscaling (Override)"
+            android:text="@string/graphics_override"
             android:textAppearance="?attr/textAppearanceTitleSmall" />
 
         <com.google.android.material.textfield.TextInputLayout
@@ -268,7 +268,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="Renderer Backend (--renderer)">
+            android:hint="@string/renderer_backend_hint">
 
             <AutoCompleteTextView
                 android:id="@+id/dropdown_param_renderer"
@@ -282,7 +282,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="Upscaler (--upscaler)">
+            android:hint="@string/upscaler_hint">
 
             <AutoCompleteTextView
                 android:id="@+id/dropdown_param_upscaler"
@@ -297,7 +297,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="Scale Factor (--upscaler-factor)">
+            android:hint="@string/scale_factor_hint">
 
             <AutoCompleteTextView
                 android:id="@+id/dropdown_param_factor"
@@ -312,7 +312,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="Shader Preset (--upscaler-preset)">
+            android:hint="@string/shader_preset_hint">
 
             <AutoCompleteTextView
                 android:id="@+id/dropdown_param_preset"
@@ -333,7 +333,7 @@
                 style="@style/Widget.Material3.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Reset" />
+                android:text="@string/reset" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_params_cancel"
@@ -341,7 +341,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Cancel" />
+                android:text="@string/cancel" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_params_save"
@@ -349,7 +349,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="Save" />
+                android:text="@string/save" />
         </LinearLayout>
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

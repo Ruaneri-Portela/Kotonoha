@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="launcher_title">Лаунчер Kotonoha</string>
+    <string name="launcher_subtitle">Универсальная библиотека визуальных новелл</string>
+    <string name="interface_language">Язык интерфейса</string>
+    <string name="search_hint">Поиск игр и движков</string>
+    <string name="rescan">Обновить</string>
+    <string name="graphics">Графика</string>
+    <string name="scanning_library">Поиск игр…</string>
+    <string name="isolate_saves">Разделять сохранения</string>
+    <string name="no_games_found">Игры не найдены</string>
+    <string name="empty_library_hint">Добавьте папку с игрой, образ ISO/BIN или ZIP кнопками ниже. Игры также можно поместить в Android/data/me.hirameki.kotonoha.launcher/files/games.</string>
+    <string name="import_zip_action">+ Импорт ZIP</string>
+    <string name="add_disc_action">+ Добавить ISO/BIN</string>
+    <string name="add_folder_action">+ Добавить папку</string>
+    <string name="params_optional">Дополнительные параметры игры</string>
+    <string name="route_file_hint">Файл маршрутов (--ktrf .ktnroute / .ktrf)</string>
+    <string name="browse">Обзор</string>
+    <string name="translated_scripts_hint">Папка переводов сценариев (--scripts)</string>
+    <string name="overlays_localization">Наложения и локализация</string>
+    <string name="asset_overlay_hint">Папка наложения ресурсов (--asset-overlay)</string>
+    <string name="translation_dictionary_hint">Словарь перевода (--translation)</string>
+    <string name="subtitle_style_hint">Стиль субтитров (--subtitle-style .ass)</string>
+    <string name="saves_startup">Сохранения и запуск</string>
+    <string name="custom_documents_hint">Другая папка документов (--documents)</string>
+    <string name="start_scenario_hint">Начальный сценарий / ID узла (--start)</string>
+    <string name="isolate_saves_per_game">Отдельные сохранения для каждой игры</string>
+    <string name="graphics_override">Графика и масштабирование (переопределение)</string>
+    <string name="renderer_backend_hint">Модуль рендеринга (--renderer)</string>
+    <string name="upscaler_hint">Масштабирование (--upscaler)</string>
+    <string name="scale_factor_hint">Коэффициент масштаба (--upscaler-factor)</string>
+    <string name="shader_preset_hint">Профиль шейдера (--upscaler-preset)</string>
+    <string name="reset">Сбросить</string>
+    <string name="cancel">Отмена</string>
+    <string name="save">Сохранить</string>
+    <string name="graphics_upscaling">Графика и масштабирование</string>
+    <string name="graphics_global_explanation">Общие настройки действуют для всех игр, кроме игр с собственными настройками.</string>
+    <string name="shader_preset_global_hint">Профиль шейдера (OpenGL ES / Anime4K / ArtCNN)</string>
+    <string name="mpv_automatic_explanation">MPV (Anime4K / ArtCNN) автоматически использует OpenGL ES, если выбран автоматический рендерер.</string>
+    <string name="overlay_badge">НАЛОЖЕНИЕ</string>
+    <string name="parameters">Параметры</string>
+    <string name="play">Играть</string>
+    <string name="storage_init_failed">Не удалось инициализировать хранилище: %1$s</string>
+    <string name="importing_zip">Импорт ZIP…</string>
+    <string name="zip_import_failed">Ошибка импорта ZIP: %1$s</string>
+    <string name="importing_selected_folder">Импорт выбранной папки…</string>
+    <string name="folder_imported">Папка импортирована: %1$s</string>
+    <string name="folder_import_failed">Ошибка импорта папки: %1$s</string>
+    <string name="importing_folder">Импорт папки…</string>
+    <string name="no_games_detected">Игры не обнаружены</string>
+    <plurals name="games_detected">
+        <item quantity="one">Найдена %1$d игра</item>
+        <item quantity="few">Найдено %1$d игры</item>
+        <item quantity="many">Найдено %1$d игр</item>
+        <item quantity="other">Найдено %1$d игр</item>
+    </plurals>
+    <string name="engine_not_linked">Движок игры не включён в эту сборку.</string>
+    <string name="preset_number">Профиль %1$d</string>
+    <string name="graphics_settings_saved">Настройки графики сохранены</string>
+    <string name="parameters_for_game">Параметры — %1$s</string>
+    <string name="use_global_setting">Использовать общие настройки</string>
+    <string name="route_valid">Корректно: %1$s</string>
+    <string name="route_warning">Предупреждение: %1$s</string>
+    <string name="source_disc_image">ОБРАЗ ДИСКА</string>
+    <string name="source_folder">ПАПКА</string>
+    <string name="parameters_modified">Параметры *</string>
+    <string-array name="launcher_languages">
+        <item>English</item><item>Português (Brasil)</item><item>Español</item><item>Русский</item><item>简体中文</item>
+    </string-array>
+    <string-array name="renderer_labels">
+        <item>Автоматически</item><item>Vulkan</item><item>OpenGL ES</item><item>Программный</item>
+    </string-array>
+    <string-array name="upscaler_labels">
+        <item>Выкл.</item><item>Авто</item><item>MPV / Anime4K / ArtCNN (OpenGL ES)</item><item>Линейный</item>
+    </string-array>
+    <string name="error_create_games_directory">Не удалось создать папку игр</string>
+    <string name="error_create_import_directory">Не удалось создать папку импорта</string>
+    <string name="error_open_zip">Не удалось открыть ZIP</string>
+    <string name="error_many_zip_entries">Слишком много файлов в ZIP</string>
+    <string name="error_unsafe_zip_path">Небезопасный путь в ZIP</string>
+    <string name="error_create_zip_directory">Не удалось создать папку ZIP</string>
+    <string name="error_zip_too_large">Распакованный ZIP превышает 64 ГиБ</string>
+    <string name="error_empty_zip">ZIP пуст</string>
+    <string name="error_create_directory">Не удалось создать папку: %1$s</string>
+    <string name="error_create_overlays_directory">Не удалось создать папку наложений</string>
+    <string name="error_open_selected_folder">Не удалось открыть выбранную папку</string>
+    <string name="error_create_overlay_destination">Не удалось создать целевую папку наложения</string>
+    <string name="error_create_game_destination">Не удалось создать целевую папку игры</string>
+</resources>

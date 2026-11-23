@@ -1,6 +1,8 @@
 package org.kotonoha.android;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
 import android.system.ErrnoException;
@@ -101,14 +103,8 @@ public final class LauncherActivity extends AppCompatActivity {
     private static final String[] RENDERER_VALUES = new String[]{
             "", "vulkan", "opengles2", "software"
     };
-    private static final String[] RENDERER_LABELS = new String[]{
-            "Automatic", "Vulkan", "OpenGL ES", "Software"
-    };
     private static final String[] UPSCALER_VALUES = new String[]{
             "none", "auto", "mpv", "linear"
-    };
-    private static final String[] UPSCALER_LABELS = new String[]{
-            "Off", "Auto", "MPV / Anime4K / ArtCNN (OpenGL ES)", "Linear"
     };
     private static final String[] FACTOR_VALUES = new String[]{
             "1.5", "2.0", "3.0", "4.0"
@@ -116,6 +112,36 @@ public final class LauncherActivity extends AppCompatActivity {
     private static final String[] FACTOR_LABELS = new String[]{
             "1.5x", "2.0x", "3.0x", "4.0x"
     };
+    private static final String LAUNCHER_LANGUAGE_PREFS = "kotonoha_launcher_ui";
+    private static final String LAUNCHER_LANGUAGE_KEY = "interface_language";
+    private static final String[] LAUNCHER_LANGUAGE_TAGS = {
+            "en", "pt-BR", "es", "ru", "zh-CN"
+    };
+
+    private static String launcherLanguage(Context context) {
+        String selected = context.getSharedPreferences(LAUNCHER_LANGUAGE_PREFS, MODE_PRIVATE)
+                .getString(LAUNCHER_LANGUAGE_KEY, "");
+        for (String tag : LAUNCHER_LANGUAGE_TAGS) {
+            if (tag.equals(selected)) return tag;
+        }
+        Locale system = context.getResources().getConfiguration().getLocales().get(0);
+        switch (system.getLanguage()) {
+            case "pt": return "pt-BR";
+            case "es": return "es";
+            case "ru": return "ru";
+            case "zh": return "zh-CN";
+            default: return "en";
+        }
+    }
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        Configuration config = new Configuration(base.getResources().getConfiguration());
+        Locale locale = Locale.forLanguageTag(launcherLanguage(base));
+        config.setLocale(locale);
+        config.setLayoutDirection(locale);
+        super.attachBaseContext(base.createConfigurationContext(config));
+    }
     private static final String[] DEFAULT_PRESET_LABELS = new String[]{
             "Anime4K: Mode A (HQ)",
             "Anime4K: Mode B (HQ)",
@@ -229,6 +255,19 @@ public final class LauncherActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.launcher_recycler);
         splitSavesSwitch = findViewById(R.id.switch_split_saves);
 
+        AutoCompleteTextView languageDropdown = findViewById(R.id.dropdown_launcher_language);
+        String[] languageLabels = getResources().getStringArray(R.array.launcher_languages);
+        languageDropdown.setAdapter(new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_1, languageLabels));
+        int currentLanguage = indexOfValue(LAUNCHER_LANGUAGE_TAGS, launcherLanguage(this));
+        languageDropdown.setText(languageLabels[currentLanguage], false);
+        languageDropdown.setOnItemClickListener((parent, view, position, id) -> {
+            if (position == currentLanguage) return;
+            getSharedPreferences(LAUNCHER_LANGUAGE_PREFS, MODE_PRIVATE).edit()
+                    .putString(LAUNCHER_LANGUAGE_KEY, LAUNCHER_LANGUAGE_TAGS[position]).apply();
+            recreate();
+        });
+
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new GameAdapter();
         recyclerView.setAdapter(adapter);
@@ -267,7 +306,7 @@ public final class LauncherActivity extends AppCompatActivity {
         try {
             configureNativeStorage();
         } catch (ErrnoException error) {
-            statusText.setText("Cannot initialize launcher storage: " + error.getMessage());
+            statusText.setText(getString(R.string.storage_init_failed, error.getMessage()));
             return;
         }
         rescanLibrary();
@@ -291,46 +330,46 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void importZip(Uri uri) {
         progressIndicator.setVisibility(View.VISIBLE);
-        statusText.setText("Importing ZIP...");
+        statusText.setText(R.string.importing_zip);
         executor.execute(() -> {
             try {
                 File root = new File(getExternalFilesDir(null) != null
                         ? getExternalFilesDir(null) : getFilesDir(), "games");
                 if (!root.isDirectory() && !root.mkdirs())
-                    throw new IOException("Cannot create games directory");
+                    throw new IOException(getString(R.string.error_create_games_directory));
                 File staging = new File(root, ".import-" + UUID.randomUUID());
-                if (!staging.mkdir()) throw new IOException("Cannot create import directory");
+                if (!staging.mkdir()) throw new IOException(getString(R.string.error_create_import_directory));
                 try {
                     long total = 0;
                     int entries = 0;
                     String base = staging.getCanonicalPath() + File.separator;
                     try (InputStream source = getContentResolver().openInputStream(uri)) {
-                        if (source == null) throw new IOException("Cannot open ZIP");
+                        if (source == null) throw new IOException(getString(R.string.error_open_zip));
                         try (ZipInputStream zip = new ZipInputStream(source)) {
                             ZipEntry entry;
                             byte[] buffer = new byte[65536];
                             while ((entry = zip.getNextEntry()) != null) {
-                                if (++entries > 100000) throw new IOException("Too many ZIP entries");
+                                if (++entries > 100000) throw new IOException(getString(R.string.error_many_zip_entries));
                                 String path = entry.getName().replace('\\', '/');
                                 if (path.startsWith("/") || path.indexOf('\0') >= 0
                                         || path.matches("^[A-Za-z]:.*"))
-                                    throw new IOException("Unsafe ZIP path");
+                                    throw new IOException(getString(R.string.error_unsafe_zip_path));
                                 File output = new File(staging, path);
                                 if (!output.getCanonicalPath().startsWith(base))
-                                    throw new IOException("Unsafe ZIP path");
+                                    throw new IOException(getString(R.string.error_unsafe_zip_path));
                                 if (entry.isDirectory()) {
                                     if (!output.isDirectory() && !output.mkdirs())
-                                        throw new IOException("Cannot create ZIP directory");
+                                        throw new IOException(getString(R.string.error_create_zip_directory));
                                 } else {
                                     File parent = output.getParentFile();
                                     if (!parent.isDirectory() && !parent.mkdirs())
-                                        throw new IOException("Cannot create ZIP directory");
+                                        throw new IOException(getString(R.string.error_create_zip_directory));
                                     try (FileOutputStream out = new FileOutputStream(output)) {
                                         int count;
                                         while ((count = zip.read(buffer)) != -1) {
                                             total += count;
                                             if (total > 64L * 1024 * 1024 * 1024)
-                                                throw new IOException("ZIP expands beyond 64 GiB");
+                                                throw new IOException(getString(R.string.error_zip_too_large));
                                             out.write(buffer, 0, count);
                                         }
                                     }
@@ -339,7 +378,7 @@ public final class LauncherActivity extends AppCompatActivity {
                             }
                         }
                     }
-                    if (entries == 0) throw new IOException("ZIP is empty");
+                    if (entries == 0) throw new IOException(getString(R.string.error_empty_zip));
                     String filename = uri.getLastPathSegment();
                     if (filename == null) filename = "Imported Game";
                     filename = filename.substring(filename.lastIndexOf('/') + 1)
@@ -367,7 +406,7 @@ public final class LauncherActivity extends AppCompatActivity {
             } catch (Exception error) {
                 runOnUiThread(() -> {
                     progressIndicator.setVisibility(View.GONE);
-                    statusText.setText("ZIP import failed: " + error.getMessage());
+                    statusText.setText(getString(R.string.zip_import_failed, error.getMessage()));
                 });
             }
         });
@@ -379,10 +418,10 @@ public final class LauncherActivity extends AppCompatActivity {
         file.delete();
     }
 
-    private static void copyDirectory(File source, File target) throws IOException {
+    private void copyDirectory(File source, File target) throws IOException {
         if (source.isDirectory()) {
             if (!target.exists() && !target.mkdirs()) {
-                throw new IOException("Cannot create directory: " + target);
+                throw new IOException(getString(R.string.error_create_directory, target));
             }
             String[] children = source.list();
             if (children != null) {
@@ -397,17 +436,17 @@ public final class LauncherActivity extends AppCompatActivity {
     }
 
     private void importParameterFolder(Uri uri, TextInputEditText target) {
-        Toast.makeText(this, "Importing selected folder...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, R.string.importing_selected_folder, Toast.LENGTH_SHORT).show();
         executor.execute(() -> {
             try {
                 File root = new File(getExternalFilesDir(null) != null
                         ? getExternalFilesDir(null) : getFilesDir(), "overlays");
                 if (!root.isDirectory() && !root.mkdirs())
-                    throw new IOException("Cannot create overlays directory");
+                    throw new IOException(getString(R.string.error_create_overlays_directory));
 
                 DocumentFile sourceTree = DocumentFile.fromTreeUri(this, uri);
                 if (sourceTree == null || !sourceTree.isDirectory())
-                    throw new IOException("Cannot open selected folder");
+                    throw new IOException(getString(R.string.error_open_selected_folder));
 
                 String folderName = sourceTree.getName();
                 if (folderName == null || folderName.isEmpty()) folderName = "Overlay";
@@ -418,7 +457,7 @@ public final class LauncherActivity extends AppCompatActivity {
                 File destination = new File(root, folderName);
                 deleteTree(destination);
                 if (!destination.mkdirs())
-                    throw new IOException("Cannot create overlay destination directory");
+                    throw new IOException(getString(R.string.error_create_overlay_destination));
 
                 copyDocumentTree(sourceTree, destination);
 
@@ -426,13 +465,13 @@ public final class LauncherActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     target.setText(resolvedPath);
-                    Toast.makeText(this, "Folder imported: " + destination.getName(),
+                    Toast.makeText(this, getString(R.string.folder_imported, destination.getName()),
                             Toast.LENGTH_SHORT).show();
                 });
             } catch (Exception error) {
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
-                    Toast.makeText(this, "Folder import failed: " + error.getMessage(),
+                    Toast.makeText(this, getString(R.string.folder_import_failed, error.getMessage()),
                             Toast.LENGTH_LONG).show();
                 });
             }
@@ -441,17 +480,17 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void importFolder(Uri uri) {
         progressIndicator.setVisibility(View.VISIBLE);
-        statusText.setText("Importing Folder...");
+        statusText.setText(R.string.importing_folder);
         executor.execute(() -> {
             try {
                 File root = new File(getExternalFilesDir(null) != null
                         ? getExternalFilesDir(null) : getFilesDir(), "games");
                 if (!root.isDirectory() && !root.mkdirs())
-                    throw new IOException("Cannot create games directory");
+                    throw new IOException(getString(R.string.error_create_games_directory));
 
                 DocumentFile sourceTree = DocumentFile.fromTreeUri(this, uri);
                 if (sourceTree == null || !sourceTree.isDirectory())
-                    throw new IOException("Cannot open selected folder");
+                    throw new IOException(getString(R.string.error_open_selected_folder));
 
                 String folderName = sourceTree.getName();
                 if (folderName == null || folderName.isEmpty()) folderName = "Imported Game";
@@ -463,7 +502,7 @@ public final class LauncherActivity extends AppCompatActivity {
                 int suffix = 2;
                 while (destination.exists()) destination = new File(root, folderName + "-" + suffix++);
                 if (!destination.mkdirs())
-                    throw new IOException("Cannot create game destination directory");
+                    throw new IOException(getString(R.string.error_create_game_destination));
 
                 copyDocumentTree(sourceTree, destination);
 
@@ -471,7 +510,7 @@ public final class LauncherActivity extends AppCompatActivity {
             } catch (Exception error) {
                 runOnUiThread(() -> {
                     progressIndicator.setVisibility(View.GONE);
-                    statusText.setText("Folder import failed: " + error.getMessage());
+                    statusText.setText(getString(R.string.folder_import_failed, error.getMessage()));
                 });
             }
         });
@@ -486,7 +525,7 @@ public final class LauncherActivity extends AppCompatActivity {
                 File targetFile = new File(targetDir, name);
                 if (child.isDirectory()) {
                     if (!targetFile.isDirectory() && !targetFile.mkdirs()) {
-                        throw new IOException("Cannot create directory: " + targetFile);
+                        throw new IOException(getString(R.string.error_create_directory, targetFile));
                     }
                     copyDocumentTree(child, targetFile);
                 } else {
@@ -513,7 +552,7 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void rescanLibrary() {
         progressIndicator.setVisibility(View.VISIBLE);
-        statusText.setText("Scanning library...");
+        statusText.setText(R.string.scanning_library);
         final List<String> roots = SafBridge.getScanRoots(this);
         final boolean splitSaves = SafBridge.isSplitSavesEnabled(this);
 
@@ -532,8 +571,9 @@ public final class LauncherActivity extends AppCompatActivity {
                 allGames.addAll(finalScanned);
                 applyFilter();
                 statusText.setText(finalScanned.isEmpty()
-                        ? "No games detected"
-                        : finalScanned.size() + " game(s) detected");
+                        ? getString(R.string.no_games_detected)
+                        : getResources().getQuantityString(R.plurals.games_detected,
+                                finalScanned.size(), finalScanned.size()));
             });
         });
     }
@@ -556,7 +596,7 @@ public final class LauncherActivity extends AppCompatActivity {
 
     private void launchGame(GameEntry game) {
         if (!game.linkedInProcess) {
-            Toast.makeText(this, "Engine runtime is not linked in this build.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.engine_not_linked, Toast.LENGTH_SHORT).show();
             return;
         }
         List<String> args = new ArrayList<>();
@@ -647,7 +687,8 @@ public final class LauncherActivity extends AppCompatActivity {
                     if (array.length() > 0) {
                         String[] labels = new String[array.length()];
                         for (int i = 0; i < array.length(); ++i) {
-                            labels[i] = array.getJSONObject(i).optString("name", "Preset " + i);
+                            labels[i] = array.getJSONObject(i).optString("name",
+                                    getString(R.string.preset_number, i));
                         }
                         return labels;
                     }
@@ -694,13 +735,15 @@ public final class LauncherActivity extends AppCompatActivity {
         final int[] selFactor = {indexOfValue(FACTOR_VALUES, SafBridge.getUpscalerFactor(this))};
         final int[] selPreset = {indexOfValue(presetValues, SafBridge.getUpscalerPreset(this))};
 
-        rendererDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, RENDERER_LABELS));
-        upscalerDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, UPSCALER_LABELS));
+        String[] rendererLabels = getResources().getStringArray(R.array.renderer_labels);
+        String[] upscalerLabels = getResources().getStringArray(R.array.upscaler_labels);
+        rendererDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, rendererLabels));
+        upscalerDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, upscalerLabels));
         factorDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, FACTOR_LABELS));
         presetDropdown.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, presetLabels));
 
-        rendererDropdown.setText(RENDERER_LABELS[selRenderer[0]], false);
-        upscalerDropdown.setText(UPSCALER_LABELS[selUpscaler[0]], false);
+        rendererDropdown.setText(rendererLabels[selRenderer[0]], false);
+        upscalerDropdown.setText(upscalerLabels[selUpscaler[0]], false);
         factorDropdown.setText(FACTOR_LABELS[selFactor[0]], false);
         presetDropdown.setText(presetLabels[selPreset[0]], false);
 
@@ -731,7 +774,7 @@ public final class LauncherActivity extends AppCompatActivity {
             SafBridge.setUpscalerBackend(this, UPSCALER_VALUES[selUpscaler[0]]);
             SafBridge.setUpscalerFactor(this, FACTOR_VALUES[selFactor[0]]);
             SafBridge.setUpscalerPreset(this, presetValues[selPreset[0]]);
-            Toast.makeText(this, "Graphics settings saved", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.graphics_settings_saved, Toast.LENGTH_SHORT).show();
             dialog.dismiss();
         });
 
@@ -744,7 +787,7 @@ public final class LauncherActivity extends AppCompatActivity {
         dialog.setContentView(sheet);
 
         TextView titleView = sheet.findViewById(R.id.params_sheet_title);
-        titleView.setText("Parameters — " + game.title);
+        titleView.setText(getString(R.string.parameters_for_game, game.title));
 
         LinearLayout schoolDaysSection = sheet.findViewById(R.id.params_schooldays_section);
         schoolDaysSection.setVisibility(game.isSchoolDays ? View.VISIBLE : View.GONE);
@@ -768,13 +811,16 @@ public final class LauncherActivity extends AppCompatActivity {
         for (int i = 0; i < presetLabelsBase.length; ++i) presetValuesBase[i] = String.valueOf(i);
 
         String[] paramRendererValues = new String[]{"", "vulkan", "opengles2", "software"};
-        String[] paramRendererLabels = new String[]{"Use Global Setting", "Vulkan", "OpenGL ES", "Software"};
+        String[] rendererLabels = getResources().getStringArray(R.array.renderer_labels);
+        String[] upscalerLabels = getResources().getStringArray(R.array.upscaler_labels);
+        String[] paramRendererLabels = prependOption(getString(R.string.use_global_setting),
+                new String[]{rendererLabels[1], rendererLabels[2], rendererLabels[3]});
         String[] paramUpscalerValues = prependOption("", UPSCALER_VALUES);
-        String[] paramUpscalerLabels = prependOption("Use Global Setting", UPSCALER_LABELS);
+        String[] paramUpscalerLabels = prependOption(getString(R.string.use_global_setting), upscalerLabels);
         String[] paramFactorValues = prependOption("", FACTOR_VALUES);
-        String[] paramFactorLabels = prependOption("Use Global Setting", FACTOR_LABELS);
+        String[] paramFactorLabels = prependOption(getString(R.string.use_global_setting), FACTOR_LABELS);
         String[] paramPresetValues = prependOption("", presetValuesBase);
-        String[] paramPresetLabels = prependOption("Use Global Setting", presetLabelsBase);
+        String[] paramPresetLabels = prependOption(getString(R.string.use_global_setting), presetLabelsBase);
 
         final int[] selParamRenderer = {indexOfValue(paramRendererValues, game.rendererBackend)};
         final int[] selParamUpscaler = {indexOfValue(paramUpscalerValues, game.upscalerBackend)};
@@ -811,8 +857,9 @@ public final class LauncherActivity extends AppCompatActivity {
             if (LauncherBridge.ensureLoaded()) {
                 String res = LauncherBridge.nativeValidateRoute(candidate);
                 ktrfStatus.setText(res.startsWith("OK|")
-                        ? "Valid: " + res.substring(3)
-                        : "Warning: " + (res.startsWith("ERR|") ? res.substring(4) : res));
+                        ? getString(R.string.route_valid, res.substring(3))
+                        : getString(R.string.route_warning,
+                                res.startsWith("ERR|") ? res.substring(4) : res));
             }
         };
         updateRouteStatus.run();
@@ -986,11 +1033,13 @@ public final class LauncherActivity extends AppCompatActivity {
             GameEntry game = filteredGames.get(position);
             holder.title.setText(game.title);
             holder.engineChip.setText(game.engineDisplayName);
-            holder.sourceBadge.setText(game.isDiscImage ? "DISC IMAGE" : "FOLDER");
+            holder.sourceBadge.setText(game.isDiscImage
+                    ? R.string.source_disc_image : R.string.source_folder);
             boolean hasOverlay = !game.overlayPath.isEmpty() || !game.assetOverlayPath.isEmpty();
             holder.overlayBadge.setVisibility(hasOverlay ? View.VISIBLE : View.GONE);
             holder.path.setText(game.path);
-            holder.paramsBtn.setText(game.hasCustomParams() ? "Parameters *" : "Parameters");
+            holder.paramsBtn.setText(game.hasCustomParams()
+                    ? R.string.parameters_modified : R.string.parameters);
             holder.paramsBtn.setOnClickListener(v -> showParametersSheet(game));
             holder.playBtn.setEnabled(game.linkedInProcess);
             holder.playBtn.setOnClickListener(v -> launchGame(game));

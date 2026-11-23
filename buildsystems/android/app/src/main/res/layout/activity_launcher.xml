@@ -15,23 +15,36 @@
             android:id="@+id/launcher_toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="Kotonoha Launcher"
-            app:subtitle="Universal Visual Novel Hub" />
+            app:title="@string/launcher_title"
+            app:subtitle="@string/launcher_subtitle" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:gravity="center_vertical"
             android:paddingStart="16dp"
             android:paddingEnd="16dp"
             android:paddingBottom="12dp">
 
             <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="0dp"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="Search games or engines"
+                android:hint="@string/interface_language">
+
+                <AutoCompleteTextView
+                    android:id="@+id/dropdown_launcher_language"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="none" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="@string/search_hint"
                 style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
                 app:endIconMode="clear_text">
 
@@ -43,21 +56,29 @@
                     android:maxLines="1" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_rescan"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Rescan" />
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_graphics_settings"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Graphics" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_rescan"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/rescan" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_graphics_settings"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="@string/graphics" />
+            </LinearLayout>
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -82,7 +103,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Scanning library..."
+                android:text="@string/scanning_library"
                 android:textAppearance="?attr/textAppearanceBodySmall" />
 
             <com.google.android.material.materialswitch.MaterialSwitch
@@ -90,7 +111,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checked="true"
-                android:text="Isolate Saves" />
+                android:text="@string/isolate_saves" />
         </LinearLayout>
 
         <com.google.android.material.progressindicator.LinearProgressIndicator
@@ -113,7 +134,7 @@
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
                 android:paddingTop="8dp"
-                android:paddingBottom="96dp" />
+                android:paddingBottom="208dp" />
 
             <LinearLayout
                 android:id="@+id/launcher_empty_view"
@@ -127,7 +148,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="No Games Found"
+                    android:text="@string/no_games_found"
                     android:textAppearance="?attr/textAppearanceHeadlineSmall" />
 
                 <TextView
@@ -136,7 +157,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:gravity="center"
-                    android:text="Add a game folder or ISO/BIN disc image using the buttons below, or place games in Android/data/me.hirameki.kotonoha.launcher/files/games."
+                    android:text="@string/empty_library_hint"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
             </LinearLayout>
         </FrameLayout>
@@ -147,27 +168,28 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:orientation="horizontal">
+        android:gravity="end"
+        android:orientation="vertical">
 
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
             android:id="@+id/fab_add_zip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="12dp"
-            android:text="+ Import ZIP" />
+            android:layout_marginBottom="8dp"
+            android:text="@string/import_zip_action" />
 
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
             android:id="@+id/fab_add_iso"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="12dp"
-            android:text="+ Add ISO/BIN" />
+            android:layout_marginBottom="8dp"
+            android:text="@string/add_disc_action" />
 
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
             android:id="@+id/fab_add_folder"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="+ Add Folder" />
+            android:text="@string/add_folder_action" />
     </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
