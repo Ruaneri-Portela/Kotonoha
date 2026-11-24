@@ -2,14 +2,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="800"
+        xmlns:local="clr-namespace:KotonohaBridgeTest"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="900"
         x:Class="KotonohaBridgeTest.MainWindow"
-        Title="KotonohaLauncherCore - ponte .NET (teste)"
-        Width="1120" Height="820" MinWidth="900" MinHeight="600">
+        Title="Kotonoha Launcher - jogos individuais (.NET)"
+        Width="1120" Height="980" MinWidth="900" MinHeight="640">
 
   <DockPanel Margin="12" LastChildFill="True">
     <StackPanel DockPanel.Dock="Top" Spacing="6">
-      <TextBlock Text="KotonohaLauncherCore - teste da ponte .NET"
+      <TextBlock Text="KotonohaLauncherCore - teste da ponte .NET / launch individual"
                  FontSize="18" FontWeight="Bold" />
       <TextBlock Text="P/Invoke: DllImport(&quot;KotonohaLauncherCore&quot;) -&gt; libKotonohaLauncherCore.dylib"
                  FontSize="11" Opacity="0.75" TextWrapping="Wrap" />
@@ -17,19 +18,20 @@
       <TextBlock Text="Bibliotecas / pastas de jogos" FontWeight="Bold" Margin="0,6,0,0" />
       <Grid ColumnDefinitions="*,Auto,Auto">
         <TextBox x:Name="RootTextBox" Grid.Column="0"
-                 PlaceholderText="/Volumes/Nero 2TB/KotonohaAssets"
-                 Text="/Volumes/Nero 2TB/KotonohaAssets"
+                 PlaceholderText="/Volumes/Server/data2/Games"
+                 Text="/Volumes/Server/data2/Games"
                  KeyDown="RootTextBox_KeyDown" />
         <Button x:Name="AddRootButton" Grid.Column="1" Content="+ Adicionar pasta"
                 Margin="6,0,0,0" Click="AddRoot_Click" />
         <Button x:Name="RemoveRootButton" Grid.Column="2" Content="Remover"
                 Margin="6,0,0,0" Click="RemoveRoot_Click" />
       </Grid>
-      <ListBox x:Name="RootsList" Height="84" SelectionMode="Multiple" />
+      <ListBox x:Name="RootsList" Height="76" SelectionMode="Multiple" />
 
       <TextBlock Text="Opcoes de busca" FontWeight="Bold" Margin="0,6,0,0" />
       <Grid ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto">
         <CheckBox x:Name="SplitCheck" Content="Separar saves por jogo"
+                  IsChecked="True"
                   VerticalAlignment="Center" Margin="0,0,6,0" />
         <TextBox x:Name="CustomSaveRootTextBox" Grid.Column="1"
                  Margin="0,0,6,0" PlaceholderText="Custom save root (opcional)" />
@@ -47,7 +49,8 @@
                  Margin="0,6,0,0" PlaceholderText="Vazio = rota padrao" />
       </Grid>
 
-      <Expander Header="Parametros persistidos (SaveGameParams)" Margin="0,6,0,0">
+      <Expander Header="Parametros opcionais da request (preenchidos pelo scan/JSON)"
+                IsExpanded="False" Margin="0,6,0,0">
         <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*"
               RowDefinitions="Auto,Auto,Auto">
           <TextBlock Text="Asset overlay" Grid.Row="0" Grid.Column="0"
@@ -104,9 +107,38 @@
         <Button Content="Validate route" Click="ValidateRoute_Click" Margin="0,0,6,6" />
         <Button Content="Resolve save dir" Click="ResolveSaveDir_Click" Margin="0,0,6,6" />
         <Button Content="Default route" Click="DefaultRoute_Click" Margin="0,0,6,6" />
-        <Button Content="Launch all detected" Click="LaunchAll_Click" Margin="0,0,6,6" />
         <Button Content="Limpar log" Click="ClearLog_Click" Margin="0,0,6,6" />
       </WrapPanel>
+
+      <TextBlock Text="Jogos detectados (selecione UM e clique em Launch game)"
+                 FontWeight="Bold" Margin="0,6,0,0" />
+      <Grid ColumnDefinitions="*,Auto">
+        <ListBox x:Name="GamesList" Grid.Column="0" Height="146"
+                 SelectionMode="Single"
+                 SelectionChanged="GamesList_SelectionChanged">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="{x:Type local:GameEntry}" x:DataType="local:GameEntry">
+              <StackPanel Spacing="1" Margin="4">
+                <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                <TextBlock Text="{Binding EngineSlug}" FontSize="11" Opacity="0.75" />
+                <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.75"
+                           TextWrapping="NoWrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel Grid.Column="1" Spacing="6" Margin="8,0,0,0"
+                    VerticalAlignment="Top" Width="170">
+          <Button x:Name="LaunchGameButton" Content="Launch game"
+                  Background="#356635" Foreground="White"
+                  Click="LaunchGame_Click" />
+          <Button Content="Validate request" Click="ValidateRequest_Click" />
+          <CheckBox x:Name="DryRunCheck" Content="Test launcher only"
+                    ToolTip.Tip="Valida a request sem abrir SDL nem a janela do jogo" />
+          <TextBlock x:Name="LaunchStatusTextBlock" Text="Nenhum jogo selecionado."
+                     FontSize="11" TextWrapping="Wrap" Opacity="0.8" />
+        </StackPanel>
+      </Grid>
     </StackPanel>
 
     <TextBlock x:Name="StatusTextBlock" DockPanel.Dock="Bottom" Margin="0,6,0,0"

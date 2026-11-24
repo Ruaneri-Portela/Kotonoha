@@ -5,12 +5,19 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <SDL3/SDL.h>
 
+#if defined(__APPLE__)
+#include <dispatch/dispatch.h>
+#include <pthread.h>
+#endif
+
 #include <algorithm>
 #include <cctype>
+#include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -157,8 +164,14 @@ void appendEntryObject(std::ostringstream &out,
 char *launchResponseJson(bool ok, std::string_view phase,
                          std::string_view message, int frames, bool dryRun,
                          std::string_view path, std::string_view slug) {
+  // A real launch is playable only after it reached the iterate phase without
+  // a fatal SDL error. A dry-run never iterates; `playable` is then the
+  // prediction for the successfully validated request (phase "validated").
+  const bool playable =
+      ok && (dryRun ? phase == "validated" : phase == "iterate");
   std::ostringstream out;
-  out << "{\"ok\":" << (ok ? "true" : "false") << ",\"phase\":";
+  out << "{\"ok\":" << (ok ? "true" : "false")
+      << ",\"playable\":" << (playable ? "true" : "false") << ",\"phase\":";
   appendJsonString(out, phase);
   out << ",\"message\":";
   appendJsonString(out, message);
@@ -221,6 +234,44 @@ private:
   std::string previous_;
 };
 
+// Installs SDL dummy drivers only for explicitly requested headless launches.
+// Restores the previous environment afterwards so a host that launches a
+// headless game and then a graphical one still gets a real window.
+class HeadlessDriverGuard {
+public:
+  explicit HeadlessDriverGuard(bool enabled) {
+    if (!enabled)
+      return;
+    auto *env = SDL_GetEnvironment();
+    if (!env)
+      return;
+    video_ = SDL_GetEnvironmentVariable(env, "SDL_VIDEODRIVER") == nullptr;
+    audio_ = SDL_GetEnvironmentVariable(env, "SDL_AUDIODRIVER") == nullptr;
+    if (video_)
+      SDL_SetEnvironmentVariable(env, "SDL_VIDEODRIVER", "dummy", true);
+    if (audio_)
+      SDL_SetEnvironmentVariable(env, "SDL_AUDIODRIVER", "dummy", true);
+  }
+
+  ~HeadlessDriverGuard() {
+    if (!video_ && !audio_)
+      return;
+    if (auto *env = SDL_GetEnvironment()) {
+      if (video_)
+        SDL_UnsetEnvironmentVariable(env, "SDL_VIDEODRIVER");
+      if (audio_)
+        SDL_UnsetEnvironmentVariable(env, "SDL_AUDIODRIVER");
+    }
+  }
+
+  HeadlessDriverGuard(const HeadlessDriverGuard &) = delete;
+  HeadlessDriverGuard &operator=(const HeadlessDriverGuard &) = delete;
+
+private:
+  bool video_ = false;
+  bool audio_ = false;
+};
+
 } // namespace
 
 extern "C" {
@@ -253,7 +304,43 @@ char *KotonohaLauncherScanRootsJson(const char *const *roots, int rootCount,
   }
 }
 
+#if defined(__APPLE__)
+namespace {
+// SDL's Cocoa video driver refuses to init unless [NSThread isMainThread].
+// JNI and P/Invoke callers reach this C ABI on a non-main pthread, so the
+// entire (blocking) game loop is dispatched to the native main thread.
+struct NativeMainLaunch {
+  const KotonohaGameLaunchRequest *request = nullptr;
+  char *result = nullptr;
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool done = false;
+};
+
+void runLaunchOnNativeMainThread(void *userData) {
+  auto *call = static_cast<NativeMainLaunch *>(userData);
+  call->result = KotonohaLauncherLaunchGame(call->request);
+  {
+    std::lock_guard<std::mutex> lock(call->mutex);
+    call->done = true;
+  }
+  call->cv.notify_all();
+}
+} // namespace
+#endif
+
 char *KotonohaLauncherLaunchGame(const KotonohaGameLaunchRequest *request) {
+#if defined(__APPLE__)
+  if (!pthread_main_np()) {
+    NativeMainLaunch call;
+    call.request = request;
+    dispatch_async_f(dispatch_get_main_queue(), &call,
+                     &runLaunchOnNativeMainThread);
+    std::unique_lock<std::mutex> lock(call.mutex);
+    call.cv.wait(lock, [&] { return call.done; });
+    return call.result;
+  }
+#endif
   try {
     if (!request || !request->gamePath || request->gamePath[0] == '\0')
       return launchResponseJson(false, "request", "gamePath is required", 0,
@@ -304,26 +391,62 @@ char *KotonohaLauncherLaunchGame(const KotonohaGameLaunchRequest *request) {
                                 0, false, path, detected.slug);
     }
 
-    const bool dryRun = envFlagEnabled("KOTONOHA_LAUNCHER_LAUNCH_DRY_RUN");
-    int maxFrames = 2;
-    if (const char *value = std::getenv("KOTONOHA_LAUNCHER_LAUNCH_FRAMES")) {
-      const int parsed = std::atoi(value);
-      if (parsed > 0)
-        maxFrames = parsed;
-    }
+    // "Test launcher only" (request field) and the env flag both select the
+    // dry-run path. Dry-run never touches SDL, so no window is created.
+    const bool dryRun = (request->dryRun != 0) ||
+                        envFlagEnabled("KOTONOHA_LAUNCHER_LAUNCH_DRY_RUN");
     if (dryRun) {
-      return launchResponseJson(true, "validate",
-                                "Request accepted; graphical launch skipped "
+      return launchResponseJson(true, "validated",
+                                "Request validated; graphical launch skipped "
                                 "(dry-run)",
                                 0, true, path, detected.slug);
     }
 
-    // Headless harnesses need SDL dummy drivers before the first SDL_Init.
-    if (auto *env = SDL_GetEnvironment()) {
-      if (!SDL_GetEnvironmentVariable(env, "SDL_VIDEODRIVER"))
-        SDL_SetEnvironmentVariable(env, "SDL_VIDEODRIVER", "dummy", true);
-      if (!SDL_GetEnvironmentVariable(env, "SDL_AUDIODRIVER"))
-        SDL_SetEnvironmentVariable(env, "SDL_AUDIODRIVER", "dummy", true);
+    // The graphical launch MUST use the platform's real SDL video/audio
+    // drivers so the game window appears. Dummy drivers are installed only
+    // when explicitly requested by a CI/test harness.
+    const bool headless =
+        envFlagEnabled("KOTONOHA_LAUNCHER_LAUNCH_HEADLESS");
+    HeadlessDriverGuard driverGuard(headless);
+
+    // A real launch runs until the user quits the game. Only headless launches
+    // get a frame cap (KOTONOHA_LAUNCHER_LAUNCH_FRAMES, default 2).
+    int maxFrames = 0;
+    if (headless) {
+      maxFrames = 2;
+      if (const char *value =
+              std::getenv("KOTONOHA_LAUNCHER_LAUNCH_FRAMES")) {
+        const int parsed = std::atoi(value);
+        if (parsed > 0)
+          maxFrames = parsed;
+      }
+    }
+
+    {
+      auto *sdlEnv = SDL_GetEnvironment();
+      const char *sdlVideo = sdlEnv
+                                 ? SDL_GetEnvironmentVariable(
+                                       sdlEnv, "SDL_VIDEODRIVER")
+                                 : nullptr;
+      const char *sdlAudio = sdlEnv
+                                 ? SDL_GetEnvironmentVariable(
+                                       sdlEnv, "SDL_AUDIODRIVER")
+                                 : nullptr;
+      const char *libcVideo = std::getenv("SDL_VIDEODRIVER");
+      SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                  "LaunchGame diag: mainThread=%s nativeMain=%d "
+                  "SDL_VIDEODRIVER='%s' SDL_AUDIODRIVER='%s' libcVideo='%s' "
+                  "headless=%d dryRun=%d",
+                  SDL_IsMainThread() ? "yes" : "no",
+#if defined(__APPLE__)
+                  pthread_main_np(),
+#else
+                  0,
+#endif
+                  sdlVideo ? sdlVideo : "(unset)",
+                  sdlAudio ? sdlAudio : "(unset)",
+                  libcVideo ? libcVideo : "(unset)", headless ? 1 : 0,
+                  dryRun ? 1 : 0);
     }
 
     SaveEnvironmentGuard environmentGuard;
@@ -344,6 +467,12 @@ char *KotonohaLauncherLaunchGame(const KotonohaGameLaunchRequest *request) {
                                 false, path, detected.slug);
     options.assets = mounted.assets;
     Kotonoha::Engine engine(*mounted.runtime, options);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "LaunchGame diag: video driver='%s' audio driver='%s'",
+                SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver()
+                                            : "(none)",
+                SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver()
+                                            : "(none)");
     if (!params.startScenario.empty()) {
       try {
         mounted.runtime->SetState(Kotonoha::GameState::Gameplay);
@@ -357,7 +486,22 @@ char *KotonohaLauncherLaunchGame(const KotonohaGameLaunchRequest *request) {
 
     int frames = 0;
     SDL_AppResult result = SDL_APP_CONTINUE;
-    for (; frames < maxFrames; ++frames) {
+    // maxFrames == 0 means "run until the user closes the window".
+    // The engine relies on the SDL main-callback host to pump events; a plain
+    // C ABI launch must do it itself or the Cocoa window never gets mapped
+    // (and SDL_APP_QUIT from closing the window never arrives).
+    for (; maxFrames == 0 || frames < maxFrames; ++frames) {
+      SDL_PumpEvents();
+      SDL_Event event;
+      while (SDL_PollEvent(&event)) {
+        const SDL_AppResult eventResult = engine.Event(&event);
+        if (eventResult != SDL_APP_CONTINUE) {
+          result = eventResult;
+          break;
+        }
+      }
+      if (result != SDL_APP_CONTINUE)
+        break;
       result = engine.Iterate();
       if (result != SDL_APP_CONTINUE)
         break;

@@ -139,7 +139,8 @@ jstring jniLaunchGame(
     jstring assetOverlayPath, jstring translationPath,
     jstring subtitleStylePath, jstring customDocumentsDir, jstring ktrfPath,
     jstring scriptsDir, jstring startScenario, jstring rendererBackend,
-    jstring upscalerBackend, jstring upscalerPreset, jstring upscalerFactor) {
+    jstring upscalerBackend, jstring upscalerPreset, jstring upscalerFactor,
+    jboolean dryRun) {
   const std::string path = jstringToStd(env, gamePath);
   const std::string slug = jstringToStd(env, engineSlug);
   const std::string profile = jstringToStd(env, saveProfileId);
@@ -172,6 +173,7 @@ jstring jniLaunchGame(
   request.upscalerBackend = upscaler.c_str();
   request.upscalerPreset = preset.c_str();
   request.upscalerFactor = factor.c_str();
+  request.dryRun = dryRun ? 1 : 0;
   char *json = KotonohaLauncherLaunchGame(&request);
   return newOwnedString(env, json, "{}");
 }
@@ -240,12 +242,14 @@ Java_me_hirameki_kotonoha_android_LauncherBridge_nativeLaunchJson(
     jstring assetOverlayPath, jstring translationPath,
     jstring subtitleStylePath, jstring customDocumentsDir, jstring ktrfPath,
     jstring scriptsDir, jstring startScenario, jstring rendererBackend,
-    jstring upscalerBackend, jstring upscalerPreset, jstring upscalerFactor) {
+    jstring upscalerBackend, jstring upscalerPreset, jstring upscalerFactor,
+    jboolean dryRun) {
   return jniLaunchGame(env, gamePath, engineSlug, saveProfileId,
                        splitSavesByGame, customSaveRoot, assetOverlayPath,
                        translationPath, subtitleStylePath, customDocumentsDir,
                        ktrfPath, scriptsDir, startScenario, rendererBackend,
-                       upscalerBackend, upscalerPreset, upscalerFactor);
+                       upscalerBackend, upscalerPreset, upscalerFactor,
+                       dryRun);
 }
 
 // ---- Reusable bridge: me.hirameki.kotonoha.launcher.KotonohaLauncherBridge ----
@@ -316,12 +320,14 @@ Java_me_hirameki_kotonoha_launcher_KotonohaLauncherBridge_nativeLaunchJson(
     jstring assetOverlayPath, jstring translationPath,
     jstring subtitleStylePath, jstring customDocumentsDir, jstring ktrfPath,
     jstring scriptsDir, jstring startScenario, jstring rendererBackend,
-    jstring upscalerBackend, jstring upscalerPreset, jstring upscalerFactor) {
+    jstring upscalerBackend, jstring upscalerPreset, jstring upscalerFactor,
+    jboolean dryRun) {
   return jniLaunchGame(env, gamePath, engineSlug, saveProfileId,
                        splitSavesByGame, customSaveRoot, assetOverlayPath,
                        translationPath, subtitleStylePath, customDocumentsDir,
                        ktrfPath, scriptsDir, startScenario, rendererBackend,
-                       upscalerBackend, upscalerPreset, upscalerFactor);
+                       upscalerBackend, upscalerPreset, upscalerFactor,
+                       dryRun);
 }
 
 } // extern "C"

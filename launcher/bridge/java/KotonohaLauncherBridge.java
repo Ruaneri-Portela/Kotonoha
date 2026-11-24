@@ -70,7 +70,9 @@ public final class KotonohaLauncherBridge {
 
     /**
      * Launches one game in-process and returns a JSON result with ok, phase,
-     * message, frames and dryRun fields. Empty strings mean "use defaults".
+     * message, playable, frames and dryRun fields. Set dryRun=true to validate
+     * without starting SDL/gameplay ("Test launcher only"). Empty strings mean
+     * "use defaults".
      */
     public static native String nativeLaunchJson(
             String gamePath, String engineSlug, String saveProfileId,
@@ -79,5 +81,5 @@ public final class KotonohaLauncherBridge {
             String subtitleStylePath, String customDocumentsDir,
             String ktrfPath, String scriptsDir, String startScenario,
             String rendererBackend, String upscalerBackend,
-            String upscalerPreset, String upscalerFactor);
+            String upscalerPreset, String upscalerFactor, boolean dryRun);
 }

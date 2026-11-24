@@ -1068,6 +1068,19 @@ UnifiedLauncher::UnifiedLauncher(std::string settingsPath,
     } catch (const std::exception &) {
     }
 #endif
+    if (startPath.empty()) {
+      // Default game library: the multi-game pack folder users keep on the
+      // server volume, with the external disk as a fallback. Users can still
+      // pick any other folder with "Library / Folder..." below.
+      for (const char *candidate : {"/Volumes/Server/data2/Games",
+                                    "/Volumes/Nero 2TB/KotonohaAssets"}) {
+        std::error_code ec;
+        if (fs::is_directory(candidate, ec)) {
+          startPath = candidate;
+          break;
+        }
+      }
+    }
   }
   setLibraryPath(std::move(startPath));
 #endif

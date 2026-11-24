@@ -34,6 +34,12 @@ public struct KotonohaGameLaunchRequest
     [MarshalAs(UnmanagedType.LPUTF8Str)] public string? UpscalerBackend;
     [MarshalAs(UnmanagedType.LPUTF8Str)] public string? UpscalerPreset;
     [MarshalAs(UnmanagedType.LPUTF8Str)] public string? UpscalerFactor;
+
+    /// <summary>
+    /// "Test launcher only": validate the request without starting SDL or a
+    /// game runtime. Appended last so existing field offsets are preserved.
+    /// </summary>
+    [MarshalAs(UnmanagedType.Bool)] public bool DryRun;
 }
 
 /// <summary>Managed facade over the KotonohaLauncherCore C ABI.</summary>

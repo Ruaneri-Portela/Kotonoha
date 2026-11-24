@@ -34,6 +34,12 @@ public struct KotonohaGameLaunchRequest
     [MarshalAs(UnmanagedType.LPUTF8Str)] public string? UpscalerBackend;
     [MarshalAs(UnmanagedType.LPUTF8Str)] public string? UpscalerPreset;
     [MarshalAs(UnmanagedType.LPUTF8Str)] public string? UpscalerFactor;
+
+    /// <summary>
+    /// "Test launcher only": validate the request without starting SDL or a
+    /// game runtime. Appended last so existing field offsets are preserved.
+    /// </summary>
+    [MarshalAs(UnmanagedType.Bool)] public bool DryRun;
 }
 
 /// <summary>Managed facade over the KotonohaLauncherCore C ABI.</summary>
@@ -151,9 +157,12 @@ public static class KotonohaLauncher
             upscalerFactor);
 
     /// <summary>
-    /// Launches one game in-process. Returns JSON with ok, phase, message,
-    /// frames and dryRun fields. Set KOTONOHA_LAUNCHER_LAUNCH_DRY_RUN=1 to
-    /// validate the request without starting SDL.
+    /// Launches one game in-process. Returns JSON with ok, playable, phase,
+    /// message, frames and dryRun fields. Set request.DryRun=true ("Test
+    /// launcher only"), or KOTONOHA_LAUNCHER_LAUNCH_DRY_RUN=1, to validate
+    /// without starting SDL. By default the real SDL drivers are used and the
+    /// window stays open until the user quits; CI can opt into
+    /// KOTONOHA_LAUNCHER_LAUNCH_HEADLESS=1 for a capped offscreen run.
     /// </summary>
     public static string LaunchGame(KotonohaGameLaunchRequest request) =>
         TakeString(KotonohaLauncherLaunchGame(ref request));

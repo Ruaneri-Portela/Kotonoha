@@ -1,7 +1,9 @@
 package me.hirameki.kotonoha.bridgetest;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -68,37 +70,76 @@ final class JsonUtil {
     private static final Pattern FIELD =
             Pattern.compile("\"([A-Za-z_][A-Za-z0-9_]*)\"\\s*:\\s*\"([^\"]*)\"");
 
-    /** Naive object-level scrape: enough for title / engine columns in a table. */
-    static List<String[]> games(String json) {
-        List<String[]> rows = new ArrayList<>();
+    /** Reads a top-level JSON boolean (e.g. "playable":true) without a parser. */
+    static boolean boolField(String json, String name) {
+        if (json == null) return false;
+        Matcher m = Pattern.compile("\"" + Pattern.quote(name)
+                + "\"\\s*:\\s*true").matcher(json);
+        return m.find();
+    }
+
+    /**
+     * Full row from KotonohaLauncherScanRootsJson. The nested "params" object is
+     * flattened by the same string-field regex, so every optional launch
+     * parameter survives into the request built by LaunchRequest.
+     */
+    static final class GameInfo {
+        String title = "";
+        String saveProfileId = "";
+        String path = "";
+        String overlayPath = "";
+        String engineSlug = "";
+        final Map<String, String> params = new LinkedHashMap<>();
+    }
+
+    static List<GameInfo> gameInfos(String json) {
+        List<GameInfo> rows = new ArrayList<>();
         if (json == null) return rows;
         for (String object : splitObjects(json)) {
-            String title = "";
-            String engine = "";
-            String path = "";
+            GameInfo game = new GameInfo();
+            boolean engineSlugSeen = false;
             Matcher m = FIELD.matcher(object);
             while (m.find()) {
                 String key = m.group(1);
                 String value = m.group(2);
-                if (key.equalsIgnoreCase("title")
-                        || key.equalsIgnoreCase("name")
+                if (key.equalsIgnoreCase("title") || key.equalsIgnoreCase("name")
                         || key.equalsIgnoreCase("gameTitle")) {
-                    if (title.isEmpty()) title = value;
-                } else if (key.toLowerCase().contains("engine")) {
-                    if (engine.isEmpty()) engine = value;
+                    if (game.title.isEmpty()) game.title = value;
+                } else if (key.equalsIgnoreCase("saveProfileId")) {
+                    if (game.saveProfileId.isEmpty()) game.saveProfileId = value;
                 } else if (key.equalsIgnoreCase("path")
                         || key.equalsIgnoreCase("gamePath")
                         || key.equalsIgnoreCase("root")) {
-                    if (path.isEmpty()) path = value;
+                    if (game.path.isEmpty()) game.path = value;
+                } else if (key.equalsIgnoreCase("overlayPath")) {
+                    if (game.overlayPath.isEmpty()) game.overlayPath = value;
+                } else if (key.equalsIgnoreCase("engineSlug")) {
+                    engineSlugSeen = true;
+                    game.engineSlug = value;
+                } else if (key.toLowerCase().contains("engine")
+                        && !engineSlugSeen && game.engineSlug.isEmpty()) {
+                    game.engineSlug = value;
+                } else {
+                    game.params.putIfAbsent(key, value);
                 }
             }
-            if (!title.isEmpty() || !engine.isEmpty() || !path.isEmpty()) {
-                rows.add(new String[] {
-                    title.isEmpty() ? "(sem título)" : title,
-                    engine.isEmpty() ? "(desconhecido)" : engine,
-                    path
-                });
+            if (!game.title.isEmpty() || !game.engineSlug.isEmpty()
+                    || !game.path.isEmpty()) {
+                rows.add(game);
             }
+        }
+        return rows;
+    }
+
+    /** Legacy 3-column view kept for simple consumers. */
+    static List<String[]> games(String json) {
+        List<String[]> rows = new ArrayList<>();
+        for (GameInfo game : gameInfos(json)) {
+            rows.add(new String[] {
+                game.title.isEmpty() ? "(sem título)" : game.title,
+                game.engineSlug.isEmpty() ? "(desconhecido)" : game.engineSlug,
+                game.path
+            });
         }
         return rows;
     }

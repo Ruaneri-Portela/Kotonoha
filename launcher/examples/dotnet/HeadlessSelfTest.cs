@@ -31,9 +31,12 @@ internal static class HeadlessSelfTest
         try
         {
             var roots = new List<string>();
-            foreach (string candidate in Program.DefaultRoots)
-                if (Directory.Exists(candidate)) roots.Add(candidate);
-            if (roots.Count == 0) roots.Add(Program.DefaultRoots[0]);
+            // --single starts only the roots passed on the command line; useful
+            // to verify one visible game window without launching the library.
+            bool single = Array.Exists(args, a => a == "--single");
+            if (!single)
+                foreach (string candidate in Program.DefaultRoots)
+                    if (Directory.Exists(candidate)) roots.Add(candidate);
             for (int i = 0; i < args.Length; ++i)
             {
                 if (args[i] == "--root" && i + 1 < args.Length)
@@ -42,6 +45,7 @@ internal static class HeadlessSelfTest
                          !string.IsNullOrWhiteSpace(args[i]))
                     roots.Add(args[i]);
             }
+            if (roots.Count == 0) roots.Add(Program.DefaultRoots[0]);
 
             Print($"[INFO] Repo: {Program.RepoRoot}");
             Print($"[INFO] DllImport: KotonohaLauncherCore");
@@ -52,27 +56,57 @@ internal static class HeadlessSelfTest
             // 1. ScanRootsJson -- varredura recursiva da pasta.
             string scanJson = KotonohaLauncher.ScanRoots(roots.ToArray(), true, null);
             Print($"[FEATURE][ScanRootsJson] {scanJson}");
-            var paths = new List<(string Path, string Slug)>();
+            bool dryRun = Array.Exists(args, a => a == "--dry-run");
+            if (Array.Exists(args, a => a == "--headless"))
+                Environment.SetEnvironmentVariable(
+                    "KOTONOHA_LAUNCHER_LAUNCH_HEADLESS", "1");
+            var requests = new List<KotonohaGameLaunchRequest>();
             using (var doc = JsonDocument.Parse(scanJson))
             {
                 Print($"[SCAN] Kind={doc.RootElement.ValueKind}, " +
                       $"entries={doc.RootElement.GetArrayLength()}");
                 foreach (var entry in doc.RootElement.EnumerateArray())
                 {
-                    string path = entry.TryGetProperty("path", out var p)
-                        ? p.GetString() ?? "" : "";
-                    string slug = entry.TryGetProperty("engineSlug", out var s)
-                        ? s.GetString() ?? "" : "";
-                    if (!string.IsNullOrEmpty(path)) paths.Add((path, slug));
+                    static string Str(JsonElement obj, string name) =>
+                        obj.ValueKind == JsonValueKind.Object &&
+                        obj.TryGetProperty(name, out var v) &&
+                        v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+
+                    JsonElement p = entry.TryGetProperty("params", out var pp) ? pp : default;
+                    string Param(string name) => Str(p, name);
+                    string path = Str(entry, "path");
+                    string slug = Str(entry, "engineSlug");
+                    if (string.IsNullOrEmpty(path)) continue;
+                    requests.Add(new KotonohaGameLaunchRequest
+                    {
+                        GamePath = path,
+                        EngineSlug = slug,
+                        SaveProfileId = Str(entry, "saveProfileId"),
+                        SplitSavesByGame = true,
+                        CustomSaveRoot = null,
+                        AssetOverlayPath = string.IsNullOrEmpty(Param("assetOverlayPath"))
+                            ? Str(entry, "overlayPath") : Param("assetOverlayPath"),
+                        TranslationPath = Param("translationPath"),
+                        SubtitleStylePath = Param("subtitleStylePath"),
+                        CustomDocumentsDir = Param("customDocumentsDir"),
+                        KtrfPath = Param("ktrfPath"),
+                        ScriptsDir = Param("scriptsDir"),
+                        StartScenario = Param("startScenario"),
+                        RendererBackend = Param("rendererBackend"),
+                        UpscalerBackend = Param("upscalerBackend"),
+                        UpscalerPreset = Param("upscalerPreset"),
+                        UpscalerFactor = Param("upscalerFactor"),
+                        DryRun = dryRun,
+                    });
                 }
             }
 
             // 2. DetectPathJson -- raiz e primeiro jogo.
             Print("[FEATURE][DetectPathJson(root)] " +
                   KotonohaLauncher.DetectPath(roots[0], true, null));
-            if (paths.Count > 0)
+            if (requests.Count > 0)
                 Print("[FEATURE][DetectPathJson(game)] " +
-                      KotonohaLauncher.DetectPath(paths[0].Path, true, null));
+                      KotonohaLauncher.DetectPath(requests[0].GamePath!, true, null));
 
             // 3. SaveGameParams + LoadGameParamsJson.
             const string profile = "dotnet-bridge-profile";
@@ -113,15 +147,17 @@ internal static class HeadlessSelfTest
 
             // 7. LaunchGame -- cada jogo detectado e' lancado in-process.
             int ok = 0, failed = 0;
-            foreach (var game in paths)
+            foreach (var request in requests)
             {
-                string result = KotonohaLauncher.LaunchGame(
-                    game.Path, game.Slug, profile, true, null);
+                string result = KotonohaLauncher.LaunchGame(request);
                 bool good = result.Contains("\"ok\":true", StringComparison.Ordinal);
+                bool playable = result.Contains("\"playable\":true",
+                    StringComparison.Ordinal);
                 if (good) ++ok; else ++failed;
-                Print($"[LAUNCH] {(good ? "OK  " : "FAIL")} {game.Path} => {result}");
+                Print($"[LAUNCH] {(good ? "OK  " : "FAIL")} " +
+                      $"playable={playable} {request.GamePath} => {result}");
             }
-            Print($"[LAUNCH] ok={ok} fail={failed} total={paths.Count}");
+            Print($"[LAUNCH] ok={ok} fail={failed} total={requests.Count}");
 
             // TakeString() chama KotonohaLauncherFreeString em toda string nativa.
             Print("[FEATURE][FreeString] exercised by TakeString() on every native string");

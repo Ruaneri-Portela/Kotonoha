@@ -42,6 +42,11 @@ typedef struct KotonohaGameLaunchRequest {
   const char *upscalerBackend;
   const char *upscalerPreset;
   const char *upscalerFactor;
+  // When non-zero, validate detection/params/registry and return a JSON result
+  // without starting SDL or the game runtime ("Test launcher only" toggle).
+  // The KOTONOHA_LAUNCHER_LAUNCH_DRY_RUN environment flag is also honored.
+  // Appended last so existing callers keep their field offsets.
+  int dryRun;
 } KotonohaGameLaunchRequest;
 
 // Scans an array of library roots / single games / disc images / SAF URIs and
@@ -70,10 +75,20 @@ KOTONOHA_LAUNCHER_EXPORT int KotonohaLauncherSaveGameParams(
 
 // Launches one game in-process (the game runtime factories are linked into the
 // core). With SDL dummy drivers this also works headlessly for integration
-// harnesses; set KOTONOHA_LAUNCHER_LAUNCH_DRY_RUN=1 to only validate the
-// request and the resolved parameters. Returns a newly-allocated UTF-8 JSON
-// object: {"ok":bool,"phase":string,"message":string,"frames":int,
-// "dryRun":bool}. Caller must release with KotonohaLauncherFreeString().
+// harnesses. By default the launch uses the real video/audio drivers and the
+// game window stays open until the user quits. Set request->dryRun=1 ("Test
+// launcher only") or KOTONOHA_LAUNCHER_LAUNCH_DRY_RUN=1 to only validate the
+// request and the resolved parameters, without starting SDL/gameplay. CI
+// harnesses that need an offscreen run must opt in explicitly with
+// KOTONOHA_LAUNCHER_LAUNCH_HEADLESS=1 (installs SDL dummy drivers and caps the
+// run at KOTONOHA_LAUNCHER_LAUNCH_FRAMES frames, default 2). Returns a
+// newly-allocated UTF-8 JSON object:
+// {"ok":bool,"playable":bool,"phase":string,"message":string,"frames":int,
+// "dryRun":bool,"path":string,"engineSlug":string}.
+// `playable` is true when the validated request reached the iterate phase and
+// no fatal SDL error occurred; in a dry-run it is the prediction for the
+// validated request (phase == "validated", dryRun == true). Caller must release
+// with KotonohaLauncherFreeString().
 KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherLaunchGame(
     const KotonohaGameLaunchRequest *request);
 
