@@ -1,7 +1,8 @@
 # Single switch for native dependency discovery (SDL3, SDL3_ttf, FFmpeg,
 # libass, json-c, ...). Supported providers:
 #   AUTO       - vcpkg when its toolchain is active, otherwise system
-#                packages; SDL3 additionally falls back to submodules.
+#                packages. SDL3 never falls back to submodules: SYSTEM and
+#                VCPKG fail when incomplete, only SUBMODULES clones SDL.
 #   VCPKG      - vcpkg only (toolchain required).
 #   SYSTEM     - Homebrew / MSYS2 UCRT / apt (pkg-config + CMake configs).
 #   SUBMODULES - pinned SDL3/SDL3_ttf submodules; native media deps from

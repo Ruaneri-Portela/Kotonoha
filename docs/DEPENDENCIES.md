@@ -19,7 +19,7 @@ overrides is `AUTO`, which follows the master option.
 
 | `KOTONOHA_DEPS_PROVIDER` | SDL3 / SDL3_ttf | Dear ImGui | Media libraries |
 | --- | --- | --- | --- |
-| `AUTO` (default) | vcpkg if its toolchain is active, otherwise system packages; SDL submodules as fallback | pinned submodule by default; vcpkg when its toolchain and the `imgui-vcpkg` feature are active | vcpkg or system, matching the toolchain |
+| `AUTO` (default) | vcpkg if its toolchain is active, otherwise system packages | pinned submodule by default; vcpkg when its toolchain and the `imgui-vcpkg` feature are active | vcpkg or system, matching the toolchain |
 | `VCPKG` | vcpkg only (toolchain required on the **first** configure) | vcpkg only (`imgui-vcpkg` feature) | vcpkg |
 | `SYSTEM` | system packages only (Homebrew / apt / MSYS2 UCRT) | pinned submodule in `lib/submodules/imgui`; vcpkg only if requested explicitly | system |
 | `SUBMODULES` | pinned SDL3/SDL3_ttf submodules | pinned submodule in `lib/submodules/imgui` | system |
@@ -27,6 +27,13 @@ overrides is `AUTO`, which follows the master option.
 `KOTONOHA_SDL_PROVIDER` (`AUTO`, `VCPKG`, `SYSTEM`, `SUBMODULES`) pins
 SDL3/SDL3_ttf when it is not `AUTO`. `KOTONOHA_IMGUI_PROVIDER` (`AUTO`,
 `SUBMODULES`, `VCPKG`) pins Dear ImGui when it is not `AUTO`.
+
+**SDL3/SDL3_ttf must come from a single provider.** When `SYSTEM` or `VCPKG`
+is selected (explicitly or through `AUTO`), configuration fails with a
+`FATAL_ERROR` if either library is missing or if only one of the two is found.
+The pinned SDL submodules are initialized **only** when `SUBMODULES` is
+requested (Android always forces this mode); a system installation is never
+mixed with a submodule build.
 
 **Dear ImGui is never resolved from system packages.** Passing
 `-DKOTONOHA_IMGUI_PROVIDER=SYSTEM` fails the configure with a `FATAL_ERROR`

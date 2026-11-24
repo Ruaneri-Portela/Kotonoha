@@ -19,7 +19,7 @@ substituições é `AUTO`, que segue a opção principal.
 
 | `KOTONOHA_DEPS_PROVIDER` | SDL3 / SDL3_ttf | Dear ImGui | Bibliotecas de mídia |
 | --- | --- | --- | --- |
-| `AUTO` (padrão) | vcpkg se o toolchain estiver ativo; senão pacotes do sistema; submódulos do SDL como fallback | submódulo fixado por padrão; vcpkg quando o toolchain e a feature `imgui-vcpkg` estão ativos | vcpkg ou sistema, conforme o toolchain |
+| `AUTO` (padrão) | vcpkg se o toolchain estiver ativo; senão pacotes do sistema | submódulo fixado por padrão; vcpkg quando o toolchain e a feature `imgui-vcpkg` estão ativos | vcpkg ou sistema, conforme o toolchain |
 | `VCPKG` | somente vcpkg (toolchain obrigatório na **primeira** configuração) | somente vcpkg (feature `imgui-vcpkg`) | vcpkg |
 | `SYSTEM` | somente pacotes do sistema (Homebrew / apt / MSYS2 UCRT) | submódulo fixado em `lib/submodules/imgui`; vcpkg somente se pedido explicitamente | sistema |
 | `SUBMODULES` | submódulos fixados de SDL3/SDL3_ttf | submódulo fixado em `lib/submodules/imgui` | sistema |
@@ -27,6 +27,13 @@ substituições é `AUTO`, que segue a opção principal.
 `KOTONOHA_SDL_PROVIDER` (`AUTO`, `VCPKG`, `SYSTEM`, `SUBMODULES`) fixa
 SDL3/SDL3_ttf quando não é `AUTO`. `KOTONOHA_IMGUI_PROVIDER` (`AUTO`,
 `SUBMODULES`, `VCPKG`) fixa o Dear ImGui quando não é `AUTO`.
+
+**SDL3/SDL3_ttf devem vir de um único provedor.** Quando `SYSTEM` ou `VCPKG`
+é selecionado (explicitamente ou via `AUTO`), a configuração falha com
+`FATAL_ERROR` se alguma biblioteca estiver faltando ou se apenas uma das duas
+for encontrada. Os submódulos fixados do SDL são inicializados **somente**
+quando `SUBMODULES` é solicitado (no Android esse modo é sempre forçado); uma
+instalação do sistema nunca é misturada com um build a partir de submódulos.
 
 **O Dear ImGui nunca é resolvido por pacotes do sistema.** Passar
 `-DKOTONOHA_IMGUI_PROVIDER=SYSTEM` falha a configuração com `FATAL_ERROR`
