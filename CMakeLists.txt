@@ -4,11 +4,16 @@ cmake_minimum_required(VERSION 3.16)
 # Platform/toolchain setup must run before project() for Android/vcpkg.
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/games/KotonohaGames.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaAndroid.cmake")
+# Declares KOTONOHA_DEPS_PROVIDER, KOTONOHA_SDL_PROVIDER and
+# KOTONOHA_IMGUI_PROVIDER before project().
+include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/dependencies/KotonohaDepsProvider.cmake")
 
-# Windows targets default to the MinGW dynamic vcpkg triplets. An explicit
-# VCPKG_TARGET_TRIPLET (preset or -D=...) always wins. This runs before
-# project() so the vcpkg toolchain sees the selected triplet.
+# Windows targets using vcpkg default to the MinGW dynamic triplets. An
+# explicit VCPKG_TARGET_TRIPLET (preset or -D=...) always wins. SYSTEM and
+# SUBMODULES builds (MSYS2/UCRT, apt, Homebrew) never get a vcpkg triplet.
 if(NOT VCPKG_TARGET_TRIPLET AND
+   (KOTONOHA_DEPS_PROVIDER STREQUAL "VCPKG" OR
+    CMAKE_TOOLCHAIN_FILE MATCHES "[\\/]vcpkg\\.cmake$") AND
    (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows" OR
     CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW))
     set(_kotonoha_windows_arch "${CMAKE_SYSTEM_PROCESSOR}")
@@ -37,25 +42,11 @@ if(WIN32)
     enable_language(RC)
 endif()
 
-# MSVC cannot link or compile packages built against the MinGW/UCRT ABI.
-# The engine's native media dependencies require vcpkg; only SDL/ImGui may
-# build from their pinned submodules. Enforce this before any find_package().
+# Resolve the native dependency provider now that vcpkg (if any) is active.
+kotonoha_resolve_deps_provider()
+
 if(MSVC)
     add_compile_options(/utf-8)
-    if(NOT VCPKG_INSTALLED_DIR OR NOT VCPKG_TARGET_TRIPLET)
-        message(FATAL_ERROR
-            "[Kotonoha] MSVC requires the vcpkg toolchain for native "
-            "FFmpeg, libass and json-c dependencies. Pass "
-            "-DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake "
-            "on the FIRST configuration. SDL3 can use vcpkg or submodules; "
-            "MSYS2/MinGW system packages are never accepted.")
-    endif()
-    if(VCPKG_TARGET_TRIPLET MATCHES "[Mm][Ii][Nn][Gg][Ww]")
-        message(FATAL_ERROR
-            "[Kotonoha] The MSVC compiler cannot use the vcpkg triplet "
-            "${VCPKG_TARGET_TRIPLET}. Select x64-windows, x86-windows, "
-            "arm64-windows or their MSVC static variants.")
-    endif()
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/BuildVersion.cmake")
@@ -87,9 +78,10 @@ add_subdirectory(lib)
 
 # CMake CONFIG imported targets are directory-scoped. Make them available
 # to sibling game ports too. PkgConfig fallback targets are explicitly GLOBAL.
-if(MSVC AND (KOTONOHA_SDL_CONFIG_SDL3 OR KOTONOHA_SDL_CONFIG_TTF))
+if(KOTONOHA_DEPS_PROVIDER_RESOLVED STREQUAL "VCPKG" AND
+   (KOTONOHA_SDL_CONFIG_SDL3 OR KOTONOHA_SDL_CONFIG_TTF))
     # Imported package targets are directory-scoped. Re-discover the SAME
-    # vcpkg triplet selected in lib/, never a MinGW/system installation.
+    # vcpkg triplet selected in lib/, never a system installation.
     set(_kotonoha_root_vcpkg_prefix
         "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
     if(KOTONOHA_SDL_CONFIG_SDL3)
@@ -107,6 +99,18 @@ else()
     if(KOTONOHA_SDL_CONFIG_TTF)
         find_package(SDL3_ttf CONFIG REQUIRED)
     endif()
+endif()
+
+# Dear ImGui CONFIG targets are directory-scoped as well. Re-discover the
+# selected vcpkg package in the root scope when ImGui comes from vcpkg so
+# sibling game ports can resolve the shared `imgui` wrapper's link interface.
+if(KOTONOHA_IMGUI_PROVIDER_RESOLVED STREQUAL "VCPKG" AND
+   KOTONOHA_IMGUI_CONFIG AND NOT TARGET imgui::imgui)
+    set(_kotonoha_root_imgui_prefix
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+    find_package(imgui CONFIG REQUIRED
+        PATHS "${_kotonoha_root_imgui_prefix}" NO_DEFAULT_PATH)
+    unset(_kotonoha_root_imgui_prefix)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/games/KotonohaBuild.cmake")

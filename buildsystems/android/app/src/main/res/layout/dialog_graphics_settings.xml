@@ -8,7 +8,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="24dp">
 
         <TextView
             android:layout_width="match_parent"
@@ -21,6 +21,73 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="Global defaults applied to all games unless overridden per game."
+            android:textAppearance="?attr/textAppearanceBodySmall" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Save Directory"
+            android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Custom save root (optional)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/input_save_root"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_pick_save_root"
+                style="@style/Widget.Kotonoha.Button.Tonal"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Browse" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/text_save_root_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Empty uses Android/data/me.hirameki.kotonoha/files."
+            android:textAppearance="?attr/textAppearanceBodySmall" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Detect"
+            android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_detect_path"
+            style="@style/Widget.Kotonoha.Button.Outlined"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Detect folder / disc" />
+
+        <TextView
+            android:id="@+id/text_detect_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
             android:textAppearance="?attr/textAppearanceBodySmall" />
 
         <com.google.android.material.textfield.TextInputLayout
@@ -97,14 +164,14 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_graphics_cancel"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+                style="@style/Widget.Kotonoha.Button.Outlined"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Cancel" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_graphics_save"
-                style="@style/Widget.Material3.Button"
+                style="@style/Widget.Kotonoha.Button.Primary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"

@@ -4,10 +4,11 @@
 
 KOTONOHA_GAME_DIR = launcher
 SWIFT_VERSION = 5.0
-SWIFT_OBJC_BRIDGING_HEADER = $(KOTONOHA_ROOT)/launcher/src/ios/KotonohaLauncher-Bridging-Header.h
+SWIFT_OBJC_BRIDGING_HEADER = $(KOTONOHA_ROOT)/launcher/app/ios/KotonohaLauncher-Bridging-Header.h
 HEADER_SEARCH_PATHS = $(inherited) \
     "$(KOTONOHA_ROOT)/launcher/include" \
-    "$(KOTONOHA_ROOT)/launcher/src" \
+    "$(KOTONOHA_ROOT)/launcher/core" \
+    "$(KOTONOHA_ROOT)/launcher/app" \
     "$(KOTONOHA_ROOT)/lib/include"
 
 // The project compiles and links the real game implementations in-process.

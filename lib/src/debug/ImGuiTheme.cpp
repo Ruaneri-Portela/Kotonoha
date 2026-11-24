@@ -21,44 +21,49 @@ namespace {
 // porem dessaturada e mais clara para reduzir o contraste do launcher e do
 // debug overlay. A paleta oficial em design/tokens.json permanece intacta
 // nas demais plataformas; o monograma K e as sakura nao sao afetados.
+// Sem ciano eletrico e sem gradientes: apenas slate e lilac tenue.
 constexpr ImVec4 Accent{0.655f, 0.608f, 0.831f, 1.00f};        // #A79BD4
-constexpr ImVec4 AccentDim{0.322f, 0.365f, 0.518f, 1.00f};     // #525D84
+constexpr ImVec4 AccentSoft{0.557f, 0.525f, 0.722f, 1.00f};    // #8E86B8
+constexpr ImVec4 AccentDim{0.431f, 0.420f, 0.588f, 1.00f};     // #6E6B96
 constexpr ImVec4 AccentHover{0.765f, 0.706f, 0.878f, 1.00f};   // #C3B4E0
-constexpr ImVec4 Success{0.498f, 0.784f, 0.659f, 1.00f};       // #7FC8A8
-constexpr ImVec4 Warning{0.910f, 0.784f, 0.604f, 1.00f};       // #E8C89A
-constexpr ImVec4 Error{0.878f, 0.639f, 0.675f, 1.00f};         // #E0A3AC
+constexpr ImVec4 Success{0.525f, 0.780f, 0.655f, 1.00f};       // #86C7A7
+constexpr ImVec4 Warning{0.863f, 0.773f, 0.612f, 1.00f};       // #DCC59C
+constexpr ImVec4 Error{0.867f, 0.643f, 0.678f, 1.00f};         // #DDA4AD
 constexpr ImVec4 WindowBg{0.106f, 0.153f, 0.251f, 1.00f};      // #1B2740
-constexpr ImVec4 ChildBg{0.153f, 0.204f, 0.318f, 1.00f};       // #273451
-constexpr ImVec4 PopupBg{0.153f, 0.204f, 0.318f, 1.00f};
-constexpr ImVec4 Border{0.239f, 0.278f, 0.388f, 1.00f};        // #3D4763
-constexpr ImVec4 BorderHovered{0.561f, 0.722f, 0.851f, 1.00f}; // #8FB8D9
-constexpr ImVec4 FrameBg{0.153f, 0.204f, 0.318f, 1.00f};
-constexpr ImVec4 FrameBgHovered{0.227f, 0.278f, 0.412f, 1.00f}; // #3A4769
-constexpr ImVec4 FrameBgActive{0.322f, 0.365f, 0.518f, 1.00f};  // #525D84
+constexpr ImVec4 ChildBg{0.141f, 0.188f, 0.294f, 1.00f};       // #24304B
+constexpr ImVec4 SurfaceRaised{0.173f, 0.220f, 0.337f, 1.00f}; // #2C3856
+constexpr ImVec4 PopupBg{0.141f, 0.188f, 0.294f, 1.00f};
+constexpr ImVec4 Border{0.235f, 0.278f, 0.396f, 1.00f};        // #3C4765
+constexpr ImVec4 BorderHovered{0.431f, 0.467f, 0.588f, 1.00f}; // #6E7796
+constexpr ImVec4 TableBorder{0.290f, 0.337f, 0.459f, 1.00f};   // #4A5675
+constexpr ImVec4 FrameBg{0.173f, 0.220f, 0.337f, 1.00f};
+constexpr ImVec4 FrameBgHovered{0.212f, 0.263f, 0.388f, 1.00f}; // #364363
+constexpr ImVec4 FrameBgActive{0.271f, 0.310f, 0.439f, 1.00f};  // #454F70
 constexpr ImVec4 TitleBg{0.106f, 0.153f, 0.251f, 1.00f};
-constexpr ImVec4 TitleBgActive{0.153f, 0.204f, 0.318f, 1.00f};
+constexpr ImVec4 TitleBgActive{0.141f, 0.188f, 0.294f, 1.00f};
 constexpr ImVec4 TitleBgCollapsed{0.106f, 0.153f, 0.251f, 1.00f};
-constexpr ImVec4 MenuBarBg{0.153f, 0.204f, 0.318f, 1.00f};
+constexpr ImVec4 MenuBarBg{0.141f, 0.188f, 0.294f, 1.00f};
 constexpr ImVec4 ScrollbarBg{0.106f, 0.153f, 0.251f, 1.00f};
-constexpr ImVec4 ScrollbarGrab{0.322f, 0.365f, 0.518f, 1.00f};
-constexpr ImVec4 ScrollbarGrabHovered{0.345f, 0.384f, 0.549f, 1.00f};
-constexpr ImVec4 ScrollbarGrabActive{0.322f, 0.365f, 0.518f, 1.00f};
-constexpr ImVec4 Header{0.322f, 0.365f, 0.518f, 1.00f};        // #525D84
-constexpr ImVec4 HeaderHovered{0.345f, 0.384f, 0.549f, 1.00f}; // #58628C
-constexpr ImVec4 HeaderActive{0.306f, 0.345f, 0.494f, 1.00f};  // #4E587E
-constexpr ImVec4 Separator{0.239f, 0.278f, 0.388f, 1.00f};
-constexpr ImVec4 SeparatorHovered{0.345f, 0.384f, 0.549f, 1.00f};
-constexpr ImVec4 SeparatorActive{0.322f, 0.365f, 0.518f, 1.00f};
-constexpr ImVec4 Text{0.863f, 0.890f, 0.941f, 1.00f};          // #DCE3F0
-constexpr ImVec4 TextDisabled{0.616f, 0.663f, 0.761f, 1.00f};  // #9DA9C2
-constexpr ImVec4 TextSelectedBg{0.655f, 0.608f, 0.831f, 0.25f};
-constexpr ImVec4 Button{0.322f, 0.365f, 0.518f, 1.00f};        // #525D84
-constexpr ImVec4 ButtonHovered{0.345f, 0.384f, 0.549f, 1.00f}; // #58628C
-constexpr ImVec4 ButtonActive{0.306f, 0.345f, 0.494f, 1.00f};  // #4E587E
-constexpr ImVec4 CardBg{0.153f, 0.204f, 0.318f, 1.00f};
-constexpr ImVec4 CardBorder{0.239f, 0.278f, 0.388f, 1.00f};
-constexpr ImVec4 TabBg{0.153f, 0.204f, 0.318f, 1.00f};
-constexpr ImVec4 TabHovered{0.345f, 0.384f, 0.549f, 1.00f};
+constexpr ImVec4 ScrollbarGrab{0.271f, 0.310f, 0.439f, 1.00f};
+constexpr ImVec4 ScrollbarGrabHovered{0.333f, 0.376f, 0.502f, 1.00f};
+constexpr ImVec4 ScrollbarGrabActive{0.271f, 0.310f, 0.439f, 1.00f};
+constexpr ImVec4 Header{0.243f, 0.290f, 0.420f, 1.00f};        // #3E4A6B
+constexpr ImVec4 HeaderHovered{0.290f, 0.337f, 0.459f, 1.00f}; // #4A5675
+constexpr ImVec4 HeaderActive{0.275f, 0.322f, 0.435f, 1.00f};  // #46526F
+constexpr ImVec4 Separator{0.235f, 0.278f, 0.396f, 1.00f};
+constexpr ImVec4 SeparatorHovered{0.329f, 0.373f, 0.490f, 1.00f};
+constexpr ImVec4 SeparatorActive{0.271f, 0.310f, 0.439f, 1.00f};
+constexpr ImVec4 Text{0.871f, 0.898f, 0.949f, 1.00f};          // #DEE5F2
+constexpr ImVec4 TextDisabled{0.651f, 0.698f, 0.784f, 1.00f};  // #A6B2C8
+constexpr ImVec4 TextSelectedBg{0.655f, 0.608f, 0.831f, 0.22f};
+constexpr ImVec4 Button{0.243f, 0.290f, 0.420f, 1.00f};        // #3E4A6B
+constexpr ImVec4 ButtonHovered{0.290f, 0.337f, 0.459f, 1.00f}; // #4A5675
+constexpr ImVec4 ButtonActive{0.259f, 0.306f, 0.427f, 1.00f};  // #424E6D
+constexpr ImVec4 ButtonText{0.106f, 0.153f, 0.251f, 1.00f};    // #1B2740
+constexpr ImVec4 CardBg{0.149f, 0.196f, 0.306f, 1.00f};        // #26324E
+constexpr ImVec4 CardBorder{0.235f, 0.278f, 0.396f, 1.00f};
+constexpr ImVec4 TabBg{0.149f, 0.196f, 0.306f, 1.00f};
+constexpr ImVec4 TabHovered{0.220f, 0.267f, 0.388f, 1.00f};
 constexpr std::size_t kMinFontBytes = 101;
 constexpr std::size_t kMaxFontBytes = 256u << 20;
 
@@ -307,8 +312,9 @@ void apply(float value) {
   style.Colors[ImGuiCol_ScrollbarGrabHovered] = ScrollbarGrabHovered;
   style.Colors[ImGuiCol_ScrollbarGrabActive] = ScrollbarGrabActive;
   style.Colors[ImGuiCol_CheckMark] = Accent;
-  style.Colors[ImGuiCol_SliderGrab] = Accent;
-  style.Colors[ImGuiCol_SliderGrabActive] = AccentHover;
+  style.Colors[ImGuiCol_CheckboxSelectedBg] = {Accent.x, Accent.y, Accent.z, 0.20f};
+  style.Colors[ImGuiCol_SliderGrab] = AccentSoft;
+  style.Colors[ImGuiCol_SliderGrabActive] = Accent;
   style.Colors[ImGuiCol_Button] = Button;
   style.Colors[ImGuiCol_ButtonHovered] = ButtonHovered;
   style.Colors[ImGuiCol_ButtonActive] = ButtonActive;
@@ -318,20 +324,30 @@ void apply(float value) {
   style.Colors[ImGuiCol_Separator] = Separator;
   style.Colors[ImGuiCol_SeparatorHovered] = SeparatorHovered;
   style.Colors[ImGuiCol_SeparatorActive] = SeparatorActive;
-  style.Colors[ImGuiCol_ResizeGrip] = {0.42f, 0.46f, 0.58f, 0.45f};
-  style.Colors[ImGuiCol_ResizeGripHovered] = {0.55f, 0.59f, 0.70f, 0.55f};
-  style.Colors[ImGuiCol_ResizeGripActive] = {0.65f, 0.66f, 0.76f, 0.65f};
+  style.Colors[ImGuiCol_ResizeGrip] = {0.36f, 0.41f, 0.54f, 0.40f};
+  style.Colors[ImGuiCol_ResizeGripHovered] = {0.48f, 0.52f, 0.64f, 0.55f};
+  style.Colors[ImGuiCol_ResizeGripActive] = {0.56f, 0.58f, 0.70f, 0.65f};
+  style.Colors[ImGuiCol_InputTextCursor] = Accent;
   style.Colors[ImGuiCol_Tab] = TabBg;
   style.Colors[ImGuiCol_TabHovered] = TabHovered;
+  style.Colors[ImGuiCol_TabSelected] = AccentSoft;
+  style.Colors[ImGuiCol_TabSelectedOverline] = Accent;
+  style.Colors[ImGuiCol_TabDimmed] = ChildBg;
+  style.Colors[ImGuiCol_TabDimmedSelected] = AccentDim;
+  style.Colors[ImGuiCol_TabDimmedSelectedOverline] = AccentSoft;
   style.Colors[ImGuiCol_PlotLines] = AccentDim;
   style.Colors[ImGuiCol_PlotLinesHovered] = Accent;
-  style.Colors[ImGuiCol_PlotHistogram] = Accent;
-  style.Colors[ImGuiCol_PlotHistogramHovered] = AccentDim;
+  style.Colors[ImGuiCol_PlotHistogram] = AccentSoft;
+  style.Colors[ImGuiCol_PlotHistogramHovered] = Accent;
+  style.Colors[ImGuiCol_TextLink] = Accent;
   style.Colors[ImGuiCol_TableHeaderBg] = Header;
-  style.Colors[ImGuiCol_TableBorderStrong] = BorderHovered;
+  // Bordas slate: nenhum ciano eletrico nas tabelas.
+  style.Colors[ImGuiCol_TableBorderStrong] = TableBorder;
   style.Colors[ImGuiCol_TableBorderLight] = Border;
   style.Colors[ImGuiCol_TableRowBg] = {0.0f, 0.0f, 0.0f, 0.0f};
-  style.Colors[ImGuiCol_TableRowBgAlt] = {0.32f, 0.36f, 0.46f, 0.16f};
+  style.Colors[ImGuiCol_TableRowBgAlt] = {0.24f, 0.29f, 0.41f, 0.14f};
+  style.Colors[ImGuiCol_DragDropTarget] = Accent;
+  style.Colors[ImGuiCol_NavCursor] = Accent;
 }
 
 ImVec4 accent() { return Accent; }
@@ -345,11 +361,13 @@ void statusText(const char *text, bool isError) {
 }
 
 bool primaryButton(const char *label, ImVec2 size) {
-  ImGui::PushStyleColor(ImGuiCol_Button, Button);
-  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ButtonHovered);
-  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ButtonActive);
+  // Lilas suave com texto navy escuro: acento presente, sem brilho agressivo.
+  ImGui::PushStyleColor(ImGuiCol_Button, AccentSoft);
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, Accent);
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, AccentHover);
+  ImGui::PushStyleColor(ImGuiCol_Text, ButtonText);
   const bool pressed = ImGui::Button(label, size);
-  ImGui::PopStyleColor(3);
+  ImGui::PopStyleColor(4);
   return pressed;
 }
 
@@ -443,9 +461,11 @@ bool toggleSwitch(const char *label, bool *v) {
   if (clicked)
     *v = !*v;
 
-  // Lilas suave no estado ligado, mantendo o polegar claro e legivel.
-  const ImVec4 bgColor = *v ? AccentDim : FrameBg;
-  const ImVec4 thumbColor = Text;
+  // Lilas suave no estado ligado; polegar navy no lilas, claro no slate.
+  const bool hovered = ImGui::IsItemHovered();
+  const ImVec4 bgColor =
+      *v ? (hovered ? Accent : AccentSoft) : (hovered ? FrameBgHovered : FrameBg);
+  const ImVec4 thumbColor = *v ? ButtonText : TextDisabled;
 
   draw->AddRectFilled(cursor, {cursor.x + width, cursor.y + height},
                       ImGui::GetColorU32(bgColor), height * 0.5f);
@@ -461,9 +481,9 @@ bool toggleSwitch(const char *label, bool *v) {
 }
 
 bool iconButton(const char *icon, const char *label, ImVec2 size) {
-  ImGui::PushStyleColor(ImGuiCol_Button, Button);
-  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ButtonHovered);
-  ImGui::PushStyleColor(ImGuiCol_ButtonActive, ButtonActive);
+  ImGui::PushStyleColor(ImGuiCol_Button, SurfaceRaised);
+  ImGui::PushStyleColor(ImGuiCol_ButtonHovered, HeaderHovered);
+  ImGui::PushStyleColor(ImGuiCol_ButtonActive, HeaderActive);
   std::string fullLabel = std::string(icon) + "  " + label;
   const bool pressed = ImGui::Button(fullLabel.c_str(), size);
   ImGui::PopStyleColor(3);
@@ -474,16 +494,16 @@ void kotonohaHeader(const char *title, const char *subtitle, float scale) {
   const float band = 80.f * scale;
   const ImVec2 origin = ImGui::GetWindowPos();
   auto *draw = ImGui::GetWindowDrawList();
-  // Faixa em degradê slate/lilá dessaturado (mesma hierarquia do launcher).
-  draw->AddRectFilledMultiColor(
-      origin, {origin.x + ImGui::GetWindowSize().x, origin.y + band},
-      IM_COL32(69, 74, 107, 255), IM_COL32(53, 60, 91, 255),
-      IM_COL32(43, 51, 78, 255), IM_COL32(43, 51, 78, 255));
-  draw->AddRectFilled({origin.x, origin.y + band - 2.f * scale},
+  // Faixa plana em slate elevado: sem gradiente, sem brilho competitivo.
+  draw->AddRectFilled(origin,
                       {origin.x + ImGui::GetWindowSize().x, origin.y + band},
-                      ImGui::GetColorU32(Accent));
+                      ImGui::GetColorU32(SurfaceRaised));
+  draw->AddRectFilled({origin.x, origin.y + band - 1.5f * scale},
+                      {origin.x + ImGui::GetWindowSize().x, origin.y + band},
+                      ImGui::GetColorU32(ImVec4(Accent.x, Accent.y, Accent.z,
+                                               0.65f)));
   ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.6f);
-  ImGui::TextColored(ImGuiTheme::accent(), "%s", title);
+  ImGui::TextColored(Text, "%s", title);
   ImGui::PopFont();
   ImGui::TextDisabled("%s", subtitle ? subtitle : "");
   ImGui::SetCursorScreenPos(

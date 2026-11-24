@@ -18,27 +18,39 @@ cmake --build build-web --target RealLive
 
 Os caminhos das toolchains variam conforme a instalação. `KOTONOHA_BUILD_ALL=ON` seleciona os ports web suportados, mas exclui DDLC. Sirva o resultado por **HTTP**, não por `file://`.
 
-## Preset CMake (`wasm`)
+## Presets CMake (`wasm-vcpkg-debug` / `wasm-vcpkg-release`)
 
-A mesma configuração está disponível como preset. Ele usa Ninja, Release, a
-toolchain vcpkg com o arquivo de chainload do Emscripten, o triplet
-`wasm32-emscripten` e `VCPKG_OVERLAY_PORTS=vcpkg-overlays/ports`. O diretório
-de build é `out/build/wasm`; o diretório clássico `build-web` acima não é
-modificado.
+O WASM tem exatamente dois presets: `<name>-<provider>-<config>` com `vcpkg`
+obrigatório (não existe variante system). Ambos usam Ninja, a toolchain vcpkg
+com o arquivo de chainload do Emscripten
+`$EMSCRIPTEN_ROOT/cmake/Modules/Platform/Emscripten.cmake`, o triplet
+`wasm32-emscripten`, `VCPKG_OVERLAY_PORTS=vcpkg-overlays/ports`,
+`VCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg` e
+`KOTONOHA_IMGUI_PROVIDER=VCPKG` (o port suporta os bindings SDL3). Os diretórios
+de build são `out/build/wasm-vcpkg-debug` e `out/build/wasm-vcpkg-release`; o
+diretório clássico `build-web` acima não é modificado. As flags do Asyncify
+continuam em `buildsystems/cmake/games/KotonohaApp.cmake`.
 
 ```sh
 source /path/to/emsdk/emsdk_env.sh
-cmake --preset wasm
-cmake --build out/build/wasm --target RealLive
+cmake --preset wasm-vcpkg-release
+cmake --build --preset wasm-vcpkg-release --target RealLive
+
+cmake --preset wasm-vcpkg-debug
+cmake --build --preset wasm-vcpkg-debug --target RealLive
 ```
 
 Algumas instalações (por exemplo, Emscripten via Homebrew) não exportam
 `EMSCRIPTEN_ROOT`, que o triplet do vcpkg exige. Use o auxiliar abaixo: ele
-descobre a raiz a partir do `emcc` no `PATH` e executa o mesmo preset.
+descobre a raiz a partir do `emcc` no `PATH` e executa o preset release por
+padrão (defina `WASM_PRESET=wasm-vcpkg-debug` para o debug):
 
 ```sh
 ./tools/configure_wasm.sh
-cmake --build out/build/wasm --target RealLive
+cmake --build --preset wasm-vcpkg-release --target RealLive
+
+WASM_PRESET=wasm-vcpkg-debug ./tools/configure_wasm.sh
+cmake --build --preset wasm-vcpkg-debug --target RealLive
 ```
 
 Sempre carregue `emsdk_env.sh` (ou defina `EMSCRIPTEN_ROOT`) antes do primeiro

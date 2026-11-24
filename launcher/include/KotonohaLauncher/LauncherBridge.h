@@ -5,6 +5,19 @@
 // 3).
 #pragma once
 
+// Export the C ABI from the shared KotonohaLauncherCore library on every
+// platform (dylib / .so / .dll). Consumers only need the declarations; the
+// core build defines KOTONOHA_LAUNCHER_CORE_BUILD=1.
+#if defined(KOTONOHA_LAUNCHER_CORE_BUILD) && defined(_WIN32)
+#define KOTONOHA_LAUNCHER_EXPORT __declspec(dllexport)
+#elif defined(_WIN32)
+#define KOTONOHA_LAUNCHER_EXPORT __declspec(dllimport)
+#elif defined(__GNUC__) || defined(__clang__)
+#define KOTONOHA_LAUNCHER_EXPORT __attribute__((visibility("default")))
+#else
+#define KOTONOHA_LAUNCHER_EXPORT
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,20 +47,20 @@ typedef struct KotonohaGameLaunchRequest {
 // Scans an array of library roots / single games / disc images / SAF URIs and
 // returns a newly-allocated UTF-8 JSON array of discovered games.
 // Caller must release the returned string with KotonohaLauncherFreeString().
-char *KotonohaLauncherScanRootsJson(const char *const *roots, int rootCount,
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherScanRootsJson(const char *const *roots, int rootCount,
                                     int splitSavesByGame,
                                     const char *customSaveRoot);
 
 // Detects a single game folder or disc image and returns a newly-allocated
 // UTF-8 JSON object (or "{}" if unrecognized).
-char *KotonohaLauncherDetectPathJson(const char *path, int splitSavesByGame,
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherDetectPathJson(const char *path, int splitSavesByGame,
                                      const char *customSaveRoot);
 
 // Loads persisted per-game launch parameters for `saveProfileId` as JSON.
-char *KotonohaLauncherLoadGameParamsJson(const char *saveProfileId);
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherLoadGameParamsJson(const char *saveProfileId);
 
 // Saves per-game launch parameters for `saveProfileId`. Returns 1 on success.
-int KotonohaLauncherSaveGameParams(
+KOTONOHA_LAUNCHER_EXPORT int KotonohaLauncherSaveGameParams(
     const char *saveProfileId, const char *assetOverlayPath,
     const char *translationPath, const char *subtitleStylePath,
     const char *customDocumentsDir, const char *ktrfPath,
@@ -55,30 +68,39 @@ int KotonohaLauncherSaveGameParams(
     const char *rendererBackend, const char *upscalerBackend,
     const char *upscalerPreset, const char *upscalerFactor);
 
+// Launches one game in-process (the game runtime factories are linked into the
+// core). With SDL dummy drivers this also works headlessly for integration
+// harnesses; set KOTONOHA_LAUNCHER_LAUNCH_DRY_RUN=1 to only validate the
+// request and the resolved parameters. Returns a newly-allocated UTF-8 JSON
+// object: {"ok":bool,"phase":string,"message":string,"frames":int,
+// "dryRun":bool}. Caller must release with KotonohaLauncherFreeString().
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherLaunchGame(
+    const KotonohaGameLaunchRequest *request);
+
 // Returns a newly-allocated UTF-8 JSON array of upscaler shader presets
 // ([{"index":0,"name":"Anime4K: Mode A (HQ)"}, ...]).
 // Caller must release with KotonohaLauncherFreeString().
-char *KotonohaLauncherUpscalePresetsJson(void);
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherUpscalePresetsJson(void);
 
 // Validates a School Days routing graph (.ktnroute / .ktrf).
 // Returns 1 if valid, 0 otherwise; writes diagnostic info into `infoBuf`.
-int KotonohaLauncherValidateRoute(const char *ktrfPath, char *infoBuf,
+KOTONOHA_LAUNCHER_EXPORT int KotonohaLauncherValidateRoute(const char *ktrfPath, char *infoBuf,
                                   int infoBufSize);
 
 // Returns the bundled default School Days route path (or empty string).
 // Caller must release with KotonohaLauncherFreeString().
-char *KotonohaLauncherDefaultSchoolDaysRoute(void);
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherDefaultSchoolDaysRoute(void);
 
 // Resolves the isolated save directory for a game profile & engine slug.
 // Caller must release with KotonohaLauncherFreeString().
-char *KotonohaLauncherResolveSaveDirectory(const char *gamePath,
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherResolveSaveDirectory(const char *gamePath,
                                            const char *engineSlug,
                                            const char *saveProfileId,
                                            int splitSavesByGame,
                                            const char *customSaveRoot);
 
 // Frees any heap string returned by KotonohaLauncher* functions.
-void KotonohaLauncherFreeString(char *ptr);
+KOTONOHA_LAUNCHER_EXPORT void KotonohaLauncherFreeString(char *ptr);
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>

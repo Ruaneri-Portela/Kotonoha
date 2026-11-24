@@ -155,14 +155,31 @@ def main() -> int:
     # Check that this is a native PBXNativeTarget, not an aggregate
     # target invoking CMake, and that it compiles one copy of each game source.
     launcher = target_sources("KotonohaLauncher-macOS")
-    launcher_main = (ROOT / "launcher/src/main.cpp").resolve()
+    launcher_main = (ROOT / "launcher/app/main.cpp").resolve()
     if launcher_main not in launcher:
         errors.append("Native launcher does not compile its own main.cpp")
     if "PBXAggregateTarget" in project or "BuildUnifiedLauncher.sh" in project:
         errors.append("Obsolete CMake aggregate launcher still appears in Xcode")
-    for name in ("GameFactories.cpp", "UnifiedLauncher.cpp"):
-        if (ROOT / "launcher/src" / name).resolve() not in launcher:
-            errors.append(f"Native launcher missing {name}")
+    # KotonohaLauncherCore is a real framework in Xcode: the launcher/game
+    # implementation lives in launcher/core/, while the app target keeps only
+    # launcher/app/ (main.cpp, native hosts and SwiftUI sources).
+    core_macos = target_sources("KotonohaLauncherCore-macOS")
+    core_ios = target_sources("KotonohaLauncherCore-iOS")
+    for name in ("GameFactories.cpp", "UnifiedLauncher.cpp", "LauncherBridge.cpp"):
+        source = (ROOT / "launcher/core" / name).resolve()
+        if source not in core_macos or source not in core_ios:
+            errors.append(f"Launcher core framework missing {name}")
+    swift_bridge = (ROOT / "launcher/bridge/swift/KotonohaLauncherCore.swift").resolve()
+    for platform, core in (("macOS", core_macos), ("iOS", core_ios)):
+        if swift_bridge not in core:
+            errors.append(f"Launcher core framework ({platform}) missing Swift bridge")
+        umbrella = (ROOT / "launcher/bridge/swift/KotonohaLauncherCore.h").resolve()
+        if umbrella not in file_paths.values():
+            errors.append("Launcher core framework umbrella header is not referenced")
+    for target in targets.values():
+        if re.search(r'\bname = "KotonohaLauncherCore-(macOS|iOS)";', target):
+            if 'productType = "com.apple.product-type.framework";' not in target:
+                errors.append("KotonohaLauncherCore must be a framework target")
     for filename in ("lib/src/media/SurfaceTexture.cpp",
                      "lib/src/filesystem/AtomicFile.cpp"):
         path = (ROOT / filename).resolve()
@@ -186,13 +203,15 @@ def main() -> int:
             if source is not None and source.name != "main.cpp":
                 all_sources.add(source)
     for source in sorted(all_sources):
-        if source not in launcher:
-            errors.append(f"Native launcher missing game source: {source.relative_to(ROOT)}")
+        if source not in core_macos or source not in core_ios:
+            errors.append(f"Launcher core framework missing game source: {source.relative_to(ROOT)}")
     for source in launcher:
         if source is not None and source.name == "main.cpp" and source != launcher_main:
             errors.append(f"Native launcher has another game's main.cpp: {source}")
-    if any(source is None for source in launcher):
-        errors.append("Native launcher contains unresolved source file references")
+    for name, sources in (("launcher app", launcher), ("core framework", core_macos),
+                          ("core framework (iOS)", core_ios)):
+        if any(source is None for source in sources):
+            errors.append(f"{name} contains unresolved source file references")
 
     # All native target configurations should inherit the shared header roots.
     common_config = ROOT / "buildsystems/xcode/Config/Common.xcconfig"

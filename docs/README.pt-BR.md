@@ -8,13 +8,14 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 | --- | --- |
 | Identidade visual | [Carta de estilo oficial](../design/README.md) |
 | Compilação | [Guias de compilação](BUILD_GUIDES.pt-BR.md) |
+| Dependências nativas | [Homebrew / apt / MSYS2 UCRT / vcpkg / submódulos](DEPENDENCIES.pt-BR.md) |
 | Cross-build Windows | [MinGW em hosts macOS/Linux](BUILD_WINDOWS.pt-BR.md) |
 | Android | [Android](BUILD_ANDROID.pt-BR.md) · [Gradle](../buildsystems/android/README.pt-BR.md) |
 | Apple | [macOS](BUILD_MACOS.pt-BR.md) · [iOS](BUILD_IOS.pt-BR.md) · [Xcode](../buildsystems/xcode/README.pt-BR.md) |
 | Navegador | [WebAssembly](BUILD_WEB.pt-BR.md) |
 | Testes | [Validação](BUILD_VALIDATION.pt-BR.md) |
 | Licenças e procedência | [Auditoria do repositório](LICENSING.pt-BR.md) · [Avisos de terceiros](../THIRD_PARTY_NOTICES.md) |
-| CI, artefatos e cache de dependências | [GitHub Actions e vcpkg](CI_VCPKG.md) |
+| CI, artefatos e cache de dependências | [GitHub Actions e vcpkg](CI_VCPKG.pt-BR.md) |
 | Distribuição, callbacks SDL e ZIP | [Deploy e CPack](BUILD_PACKAGES.pt-BR.md) |
 | Assets e patches | [Overlays e traduções](ASSET_OVERLAYS.pt-BR.md) |
 | Caminhos de arquivos | [Política de diretórios](DIRECTORY_POLICY.pt-BR.md) |
@@ -32,4 +33,4 @@ Arquivos `PORT_STATUS.md`, notas datadas em `games/*/docs/`, licenças/avisos de
 
 ## Filesystem virtual experimental
 
-O [Filesystem V2](filesystem/README.pt-BR.md), experimental e somente para leitura, já está na árvore de código da `dev`, mas a migração dos leitores legados é parcial. A [especificação original](filesystem/SPECIFICATION.pt-BR.md) é a referência; nenhum port deve ser considerado inteiramente migrado sem testes.
+O [Filesystem V2](filesystem/README.pt-BR.md), experimental e somente para leitura, já está na árvore de código da `dev`, mas a migração dos leitores legados é parcial. A [especificação de arquitetura](filesystem/SPECIFICATION.pt-BR.md) é a referência (versão em inglês: [SPECIFICATION.md](filesystem/SPECIFICATION.md)); nenhum port deve ser considerado inteiramente migrado sem testes.

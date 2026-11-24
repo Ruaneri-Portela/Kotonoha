@@ -53,8 +53,10 @@ def audit() -> list[str]:
     android_slugs = {slug for _, slug, _ in game_rows}
     if android_slugs != expected_slugs or len(game_rows) != len(expected_slugs):
         problems.append("Android flavors do not cover all CMake games exactly once")
-    if launcher_rows != [("launcher", "all", "KotonohaLauncher")]:
-        problems.append("Android launcher flavor must be launcher/all/KotonohaLauncher")
+    # The Material launcher flavor links only the JNI core; the SDL app target
+    # (KotonohaLauncher) is a native/desktop-only binary.
+    if launcher_rows != [("launcher", "all", "KotonohaLauncherCore")]:
+        problems.append("Android launcher flavor must be launcher/all/KotonohaLauncherCore")
     expected_targets = {
         slug: ("Kotonoha" if slug == "example" else target)
         for target, slug in canonical.items()

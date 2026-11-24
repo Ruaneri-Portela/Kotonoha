@@ -1,6 +1,6 @@
 # Compatibilidade dos motores — referências e progresso (novembro de 2026)
 
-> **Registro histórico, não estado atual dos ports.** As descrições abaixo refletem uma etapa anterior à integração dos PRs #71 e #76. Consulte [o estado atual do N2System](../games/n2system/STATUS.pt-BR.md), [o relatório de paridade](NITROSHARP_PORT_PARITY.md) e [a auditoria de licenças](LICENSING.pt-BR.md).
+> **Registro histórico, não estado atual dos ports.** As descrições abaixo refletem uma etapa anterior à integração dos PRs #71 e #76. Consulte [o estado atual do N2System](../games/n2system/STATUS.pt-BR.md), [o relatório de paridade](NITROSHARP_PORT_PARITY.pt-BR.md) e [a auditoria de licenças](LICENSING.pt-BR.md).
 
 Este documento registra avanços **incrementais** no Kotonoha com base em outros interpretadores e ferramentas. Testes sintéticos e leitura de formatos não comprovam compatibilidade 1:1 com jogos comerciais.
 

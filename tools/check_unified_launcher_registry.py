@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-LAUNCHER = ROOT / "launcher/src/UnifiedLauncher.cpp"
+LAUNCHER = ROOT / "launcher/core/UnifiedLauncher.cpp"
 
 
 def audit() -> list[str]:
@@ -97,17 +97,21 @@ def audit() -> list[str]:
         issues.append("Standalone launcher contains a machine-specific path")
     # Every selected port's library must be part of the launcher link graph.
     cmake = (ROOT / "launcher/CMakeLists.txt").read_text(encoding="utf-8")
-    factories = (ROOT / "launcher/src/GameFactories.cpp").read_text(
+    factories = (ROOT / "launcher/core/GameFactories.cpp").read_text(
         encoding="utf-8")
-    hub_main = (ROOT / "launcher/src/main.cpp").read_text(encoding="utf-8")
+    hub_main = (ROOT / "launcher/app/main.cpp").read_text(encoding="utf-8")
     if '"EXAMPLE|' in cmake or "KOTONOHA_LAUNCH_EXAMPLE" in factories:
         issues.append("The launcher must exclude the Example demo")
     if "KOTONOHA_BUILD_ALL" not in cmake:
         issues.append("The launcher CMake target must require BUILD_ALL")
-    if "src/GameFactories.cpp" not in cmake or (
-        "target_link_libraries(kotonoha_unified_launcher PUBLIC" not in cmake
-    ):
+    # KotonohaLauncherCore is the canonical reusable library; the old
+    # kotonoha_unified_launcher name remains as a CMake alias for consumers.
+    core_link = ("target_link_libraries(KotonohaLauncherCore PUBLIC" in cmake or
+                 "target_link_libraries(kotonoha_unified_launcher PUBLIC" in cmake)
+    if "core/GameFactories.cpp" not in cmake or not core_link:
         issues.append("Game factories are not statically linked into the hub")
+    if "add_library(kotonoha_unified_launcher ALIAS KotonohaLauncherCore)" not in cmake:
+        issues.append("Legacy kotonoha_unified_launcher alias is missing")
     for option, slug, _ in re.findall(
         r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"',
         (ROOT / "buildsystems/cmake/games/KotonohaGames.cmake").read_text(
@@ -138,9 +142,12 @@ def audit() -> list[str]:
     root_cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
     games_cmake = (ROOT / "buildsystems/cmake/games/KotonohaBuild.cmake").read_text(
         encoding="utf-8")
+    # The hub app is desktop-only (Android's Material launcher uses the core via
+    # JNI), while KotonohaLauncherCore is also configured for Emscripten to host
+    # the JS bridge.
     if "games/KotonohaBuild.cmake" not in root_cmake or (
-        "(KOTONOHA_BUILD_ALL OR KOTONOHA_BUILD_LAUNCHER) AND NOT EMSCRIPTEN"
-        not in games_cmake
+        "(KOTONOHA_BUILD_ALL OR KOTONOHA_BUILD_LAUNCHER) AND"
+        not in games_cmake or "add_subdirectory(launcher)" not in games_cmake
     ):
         issues.append("Native/Android-only standalone launcher guard is missing")
     return issues

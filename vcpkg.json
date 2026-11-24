@@ -49,6 +49,18 @@
     }
   ],
   "features": {
+    "imgui-vcpkg": {
+      "description": "Use Dear ImGui (with SDL3 backends) from vcpkg instead of the pinned submodule",
+      "dependencies": [
+        {
+          "name": "imgui",
+          "features": [
+            "sdl3-binding",
+            "sdl3-renderer-binding"
+          ]
+        }
+      ]
+    },
     "android-python": {
       "description": "CPython runtime for the Android DDLC flavor",
       "dependencies": [

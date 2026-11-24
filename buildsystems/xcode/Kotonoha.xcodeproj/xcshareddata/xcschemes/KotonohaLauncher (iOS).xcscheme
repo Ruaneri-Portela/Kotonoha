@@ -32,6 +32,20 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "9746A19C9CDBD4043E515EA2"
+               BuildableName = "KotonohaLauncherCore.framework"
+               BlueprintName = "KotonohaLauncherCore-iOS"
+               ReferencedContainer = "container:Kotonoha.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "D7D700000000000000000001"
                BuildableName = "Kotonoha.app"
                BlueprintName = "KotonohaLauncher-iOS"

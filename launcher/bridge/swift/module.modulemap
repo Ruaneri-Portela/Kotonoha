@@ -1,0 +1,10 @@
+// Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
+// Clang module for the shared C ABI. The Xcode framework target exposes the
+// same header as its generated `KotonohaLauncherCore` module; this standalone
+// module (named KotonohaLauncherCoreCABI) lets SwiftPM / non-Xcode Swift code
+// import the header without pulling in the framework binary.
+module KotonohaLauncherCoreCABI {
+    umbrella header "KotonohaLauncherCore.h"
+    export *
+    module * { export * }
+}

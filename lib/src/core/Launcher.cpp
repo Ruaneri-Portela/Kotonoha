@@ -460,16 +460,18 @@ void Launcher::draw() {
     const ImVec2 origin = ImGui::GetWindowPos();
     const float band = 78 * contentScale;
     auto *draw = ImGui::GetWindowDrawList();
-    // Faixa suave em slate/lilá, alinhada ao tema ImGui "Soft".
-    draw->AddRectFilledMultiColor(
-        origin, {origin.x + io.DisplaySize.x, origin.y + band},
-        IM_COL32(69, 74, 107, 255), IM_COL32(53, 60, 91, 255),
-        IM_COL32(43, 51, 78, 255), IM_COL32(43, 51, 78, 255));
-    draw->AddRectFilled({origin.x, origin.y + band - 2 * contentScale},
+    // Faixa plana em slate elevado, alinhada ao tema ImGui "Soft":
+    // sem gradiente e sem ciano; uma linha lilás tenue marca a transicao.
+    draw->AddRectFilled(origin,
                         {origin.x + io.DisplaySize.x, origin.y + band},
-                        ImGui::GetColorU32(ImGuiTheme::accent()));
+                        ImGui::GetColorU32(ImGuiCol_TitleBgActive));
+    draw->AddRectFilled({origin.x, origin.y + band - 1.5f * contentScale},
+                        {origin.x + io.DisplaySize.x, origin.y + band},
+                        ImGui::GetColorU32(
+                            ImVec4(0.655f, 0.608f, 0.831f, 0.55f)));
     ImGui::PushFont(nullptr, ImGui::GetStyle().FontSizeBase * 1.7f);
-    ImGui::TextColored(ImGuiTheme::accent(), "%s", title.c_str());
+    ImGui::TextColored(ImVec4(0.871f, 0.898f, 0.949f, 1.0f), "%s",
+                       title.c_str());
     ImGui::PopFont();
     ImGui::TextDisabled("%s", settingsPath.empty()
                                   ? "Settings will not be saved"
@@ -542,6 +544,7 @@ void Launcher::draw() {
   }
   ImGui::EndChild();
   ImGui::Separator();
+  ImGui::Spacing();
   if (!status.empty())
     ImGuiTheme::statusText(status.c_str(), statusError);
   else
@@ -565,7 +568,8 @@ void Launcher::draw() {
   frame.render();
   SDL_SetRenderScale(renderer.get(), io.DisplayFramebufferScale.x,
                      io.DisplayFramebufferScale.y);
-  SDL_SetRenderDrawColor(renderer.get(), 23, 18, 33, 255);
+  // Fundo do canvas alinhado ao Navy do tema (sem roxo saturado).
+  SDL_SetRenderDrawColor(renderer.get(), 27, 39, 64, 255);
   SDL_RenderClear(renderer.get());
   ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer.get());
   SDL_RenderPresent(renderer.get());

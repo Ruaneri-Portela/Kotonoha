@@ -1,5 +1,6 @@
 #!/bin/sh
-# Configure the `wasm` CMake preset with a valid EMSCRIPTEN_ROOT.
+# Configure a `wasm-vcpkg-*` CMake preset with a valid EMSCRIPTEN_ROOT.
+# Default: wasm-vcpkg-release; override with WASM_PRESET=wasm-vcpkg-debug.
 #
 # emsdk layouts already export EMSDK/EMSCRIPTEN_ROOT via emsdk_env.sh.
 # Homebrew's Emscripten installs emcc in a versioned Cellar prefix, which
@@ -55,4 +56,4 @@ if ! valid_root "${EMSCRIPTEN_ROOT:-}"; then
 fi
 
 echo "[Kotonoha] EMSCRIPTEN_ROOT=$EMSCRIPTEN_ROOT"
-exec cmake --preset wasm "$@"
+exec cmake --preset "${WASM_PRESET:-wasm-vcpkg-release}" "$@"

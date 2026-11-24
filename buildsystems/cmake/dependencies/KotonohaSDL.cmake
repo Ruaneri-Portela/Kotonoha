@@ -22,9 +22,11 @@ set(SDLTTF_VENDORED OFF CACHE BOOL "Use system FreeType/HarfBuzz/PlutoSVG")
 set(SDLTTF_STRICT ON CACHE BOOL "Require enabled SDL_ttf dependencies")
 set(SDLTTF_PLUTOSVG ON CACHE BOOL "Optional SVG emoji support")
 
-set(KOTONOHA_SDL_PROVIDER "AUTO" CACHE STRING
-    "SDL3 provider: AUTO (system, vcpkg, submodules), SYSTEM, VCPKG, SUBMODULES")
-set_property(CACHE KOTONOHA_SDL_PROVIDER PROPERTY STRINGS AUTO SYSTEM VCPKG SUBMODULES)
+# The master provider (KOTONOHA_DEPS_PROVIDER), the per-library SDL override
+# (KOTONOHA_SDL_PROVIDER: VCPKG/SYSTEM/SUBMODULES) and the ImGui override are
+# declared/resolved by KotonohaDepsProvider.cmake. Dear ImGui is handled in
+# KotonohaImGui.cmake and is never looked up in system packages here.
+include("${CMAKE_CURRENT_LIST_DIR}/KotonohaDepsProvider.cmake")
 set(KOTONOHA_SDL_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL"
     CACHE PATH "SDL3 source checkout (mandatory on Android)")
 
@@ -65,36 +67,31 @@ if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
         endif ()
     endforeach ()
 endif ()
-# Resolve SDL3 and SDL3_ttf from the host first, then vcpkg or submodules.
-string(TOUPPER "${KOTONOHA_SDL_PROVIDER}" _kotonoha_sdl_request)
-if(NOT _kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM|VCPKG|SUBMODULES)$")
-    message(FATAL_ERROR "Invalid KOTONOHA_SDL_PROVIDER=${KOTONOHA_SDL_PROVIDER}")
+# Resolve SDL3/SDL3_ttf: master provider first, legacy explicit override
+# second, pinned submodules as the AUTO fallback.
+if(DEFINED KOTONOHA_SDL_PROVIDER_EFFECTIVE AND
+   NOT KOTONOHA_SDL_PROVIDER_EFFECTIVE STREQUAL "")
+    set(_kotonoha_sdl_request "${KOTONOHA_SDL_PROVIDER_EFFECTIVE}")
+else()
+    set(_kotonoha_sdl_request "${KOTONOHA_SDL_PROVIDER}")
 endif()
-# MSVC uses Microsoft's C runtime and ABI. Never import SDL headers, libs
-# or pkg-config metadata from MSYS2/MinGW, even when AUTO is requested.
-if(MSVC)
-    if(_kotonoha_sdl_request STREQUAL "SYSTEM")
-        message(FATAL_ERROR
-            "[Kotonoha] KOTONOHA_SDL_PROVIDER=SYSTEM is not supported with MSVC. "
-            "Use AUTO (vcpkg -> submodules), VCPKG or SUBMODULES.")
-    endif()
-    if(VCPKG_TARGET_TRIPLET MATCHES "[Mm][Ii][Nn][Gg][Ww]")
-        message(FATAL_ERROR
-            "[Kotonoha] MSVC cannot use a MinGW vcpkg triplet: "
-            "${VCPKG_TARGET_TRIPLET}. Select x64-windows or another MSVC triplet.")
-    endif()
+string(TOUPPER "${_kotonoha_sdl_request}" _kotonoha_sdl_request)
+if(NOT _kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM|VCPKG|SUBMODULES)$")
+    message(FATAL_ERROR "Invalid SDL provider: ${_kotonoha_sdl_request}")
 endif()
 if(ANDROID)
-    if(_kotonoha_sdl_request STREQUAL "SYSTEM" OR
-       _kotonoha_sdl_request STREQUAL "VCPKG")
-        message(FATAL_ERROR "Android SDL3 requires submodules for its Java integration")
-    endif()
     set(_kotonoha_sdl_request SUBMODULES)
+endif()
+if(KOTONOHA_DEPS_PROVIDER STREQUAL "AUTO" AND
+   KOTONOHA_SDL_PROVIDER STREQUAL "AUTO")
+    set(_kotonoha_sdl_allow_fallback ON)
+else()
+    set(_kotonoha_sdl_allow_fallback OFF)
 endif()
 set(_kotonoha_sdl_resolved "")
 set(_kotonoha_sdl_config_sdl3 OFF)
 set(_kotonoha_sdl_config_ttf OFF)
-if(NOT MSVC AND _kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
+if(_kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
     find_package(SDL3 CONFIG QUIET)
     find_package(SDL3_ttf CONFIG QUIET)
     if(TARGET SDL3::SDL3)
@@ -126,30 +123,24 @@ if(NOT MSVC AND _kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
 endif()
 if(NOT _kotonoha_sdl_resolved AND
    _kotonoha_sdl_request MATCHES "^(AUTO|VCPKG)$" AND VCPKG_INSTALLED_DIR)
-    if(MSVC)
-        # Only accept packages from the vcpkg target triplet. Unqualified
-        # find_package may silently discover C:/msys64/ucrt64.
-        set(_kotonoha_vcpkg_prefix
-            "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
-        if(NOT VCPKG_TARGET_TRIPLET OR
-           NOT EXISTS "${_kotonoha_vcpkg_prefix}")
-            message(FATAL_ERROR
-                "[Kotonoha] MSVC requires an installed native vcpkg triplet "
-                "(for example x64-windows). Set CMAKE_TOOLCHAIN_FILE to "
-                "vcpkg.cmake before the first project() call.")
-        endif()
-        # Cached *-DIR entries can preempt NO_DEFAULT_PATH. Drop them
-        # when switching an old MinGW/system build tree over to MSVC.
-        unset(SDL3_DIR CACHE)
-        unset(SDL3_ttf_DIR CACHE)
-        find_package(SDL3 CONFIG QUIET
-            PATHS "${_kotonoha_vcpkg_prefix}" NO_DEFAULT_PATH)
-        find_package(SDL3_ttf CONFIG QUIET
-            PATHS "${_kotonoha_vcpkg_prefix}" NO_DEFAULT_PATH)
-    else()
-        find_package(SDL3 CONFIG QUIET)
-        find_package(SDL3_ttf CONFIG QUIET)
+    # Search only the selected vcpkg triplet so a system/MSYS2 installation
+    # can never be mixed into a vcpkg build (on any compiler).
+    set(_kotonoha_vcpkg_prefix
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+    if(NOT VCPKG_TARGET_TRIPLET OR NOT EXISTS "${_kotonoha_vcpkg_prefix}")
+        message(FATAL_ERROR
+            "[Kotonoha] vcpkg SDL3 requires an installed target triplet "
+            "(${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}). Use the vcpkg "
+            "toolchain with feature sdl-vcpkg, or select SYSTEM/SUBMODULES.")
     endif()
+    # Cached *-DIR entries can preempt NO_DEFAULT_PATH after switching
+    # provider in an existing build tree.
+    unset(SDL3_DIR CACHE)
+    unset(SDL3_ttf_DIR CACHE)
+    find_package(SDL3 CONFIG QUIET
+        PATHS "${_kotonoha_vcpkg_prefix}" NO_DEFAULT_PATH)
+    find_package(SDL3_ttf CONFIG QUIET
+        PATHS "${_kotonoha_vcpkg_prefix}" NO_DEFAULT_PATH)
     if(TARGET SDL3::SDL3 AND TARGET SDL3_ttf::SDL3_ttf)
         set(_kotonoha_sdl_resolved VCPKG)
         set(_kotonoha_sdl_config_sdl3 ON)
@@ -157,35 +148,32 @@ if(NOT _kotonoha_sdl_resolved AND
     endif()
 endif()
 if(NOT _kotonoha_sdl_resolved)
-    if(_kotonoha_sdl_request STREQUAL "SYSTEM")
-        message(FATAL_ERROR "System SDL3/SDL3_ttf unavailable. On Debian: "
-            "sudo apt install libsdl3-dev libsdl3-ttf-dev. "
-            "Or set KOTONOHA_SDL_PROVIDER=VCPKG/SUBMODULES.")
-    elseif(_kotonoha_sdl_request STREQUAL "VCPKG")
-        message(FATAL_ERROR "vcpkg SDL3/SDL3_ttf unavailable. Configure the "
-            "vcpkg toolchain with feature sdl-vcpkg.")
+    if(_kotonoha_sdl_request STREQUAL "VCPKG" OR
+       (_kotonoha_sdl_request STREQUAL "SYSTEM" AND NOT _kotonoha_sdl_allow_fallback))
+        message(FATAL_ERROR
+            "SDL3/SDL3_ttf are unavailable from ${_kotonoha_sdl_request}. "
+            "Install them with brew install sdl3 sdl3_ttf (macOS), "
+            "pacman -S mingw-w64-ucrt-x86_64-sdl3 "
+            "mingw-w64-ucrt-x86_64-sdl3-ttf (MSYS2 UCRT64), "
+            "apt install libsdl3-dev libsdl3-ttf-dev (Debian/Ubuntu), "
+            "or select VCPKG / SUBMODULES.")
     endif()
     include("${CMAKE_CURRENT_LIST_DIR}/KotonohaGitSubmodules.cmake")
     if(KOTONOHA_SDL_SOURCE_DIR STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL")
       kotonoha_require_submodule("lib/submodules/SDL" "CMakeLists.txt")
     endif()
     kotonoha_require_submodule("lib/submodules/SDL_ttf" "CMakeLists.txt")
-    if(MSVC AND
-       (TARGET SDL3::SDL3 OR TARGET SDL3_ttf::SDL3_ttf))
+    if(TARGET SDL3::SDL3 OR TARGET SDL3_ttf::SDL3_ttf)
         message(FATAL_ERROR
-            "[Kotonoha] Only part of SDL3 was resolved from the vcpkg triplet. "
-            "Install both SDL3 and SDL3_ttf using sdl-vcpkg, or select "
-            "SUBMODULES in a clean build directory.")
+            "[Kotonoha] Only part of SDL3 was resolved from the selected "
+            "provider. Install both SDL3 and SDL3_ttf, or select SUBMODULES "
+            "in a clean build directory.")
     endif()
     if(NOT EXISTS "${KOTONOHA_SDL_SOURCE_DIR}/CMakeLists.txt" OR
        NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL_ttf/CMakeLists.txt")
-        message(FATAL_ERROR "No SDL3/SDL3_ttf provider available. On Debian: "
-            "sudo apt install libsdl3-dev libsdl3-ttf-dev; alternatively "
-            "git submodule update --init --recursive or use vcpkg.")
-    endif()
-    if(TARGET SDL3::SDL3 OR TARGET SDL3_ttf::SDL3_ttf)
-        message(FATAL_ERROR "Partial installed SDL3 targets. Install both "
-            "SDL3 development packages, or explicitly select SUBMODULES.")
+        message(FATAL_ERROR "No SDL3/SDL3_ttf provider available. Use the "
+            "system packages listed above, git submodule update --init "
+            "--recursive, or the vcpkg toolchain with feature sdl-vcpkg.")
     endif()
     add_subdirectory("${KOTONOHA_SDL_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/SDL" EXCLUDE_FROM_ALL)
     add_subdirectory(submodules/SDL_ttf EXCLUDE_FROM_ALL)

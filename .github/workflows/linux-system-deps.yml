@@ -70,12 +70,15 @@ jobs:
           test ! -f lib/submodules/imgui/imgui.cpp
           cmake -S . -B build-system -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DKOTONOHA_DEPS_PROVIDER=SYSTEM \
             -DKOTONOHA_SDL_PROVIDER=SYSTEM \
             -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON \
             -DKOTONOHA_BUILD_EXAMPLE=ON \
             -DKOTONOHA_BUILD_ALL=OFF
           test -f lib/submodules/imgui/backends/imgui_impl_sdl3.cpp
           test -f lib/submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp
+          grep -q '^KOTONOHA_DEPS_PROVIDER_RESOLVED:INTERNAL=SYSTEM' build-system/CMakeCache.txt
+          grep -q '^KOTONOHA_MEDIA_PROVIDER_RESOLVED:INTERNAL=SYSTEM' build-system/CMakeCache.txt
           grep -q '^KOTONOHA_SDL_PROVIDER_RESOLVED:INTERNAL=SYSTEM' build-system/CMakeCache.txt
           grep -q '^KOTONOHA_IMGUI_PROVIDER_RESOLVED:INTERNAL=SUBMODULES' build-system/CMakeCache.txt
       - name: Compile Example using system SDL and pinned ImGui
@@ -96,7 +99,7 @@ jobs:
           c++ -std=c++17 -fsyntax-only \
             -Ilauncher/include -Ilib/include \
             -Ilib/submodules/imgui -Ilib/submodules/imgui/misc/cpp \
-            launcher/src/UnifiedLauncher.cpp
+            launcher/core/UnifiedLauncher.cpp
       - name: Compile and run filesystem and text rendering regressions
         run: |
           # The distributable Noto Sans JP font is not tracked in git. Use a

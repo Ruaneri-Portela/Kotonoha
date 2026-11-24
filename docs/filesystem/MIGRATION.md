@@ -37,7 +37,7 @@ The default command reports remaining direct standard/stdio runtime calls and ch
 - Migrate all legacy browser media paths to the implemented `BrowserBlobAdapter`, verify FFmpeg lifecycle/seek, and add multi-BIN/CUE modes and remaining ISO behaviors.
 - Remove the temporary physical-path adapters only after all eleven ports have equivalent tested virtual-source behavior.
 
-The [original specification](SPECIFICATION.pt-BR.md) defines the final acceptance criteria. The draft PR remains unmerged.
+The [specification](SPECIFICATION.md) (original Portuguese version: [SPECIFICATION.pt-BR.md](SPECIFICATION.pt-BR.md)) defines the final acceptance criteria. The draft PR remains unmerged.
 
 - **Web fallback:** local-first `FallbackMount`, asynchronous HTTP manifest bootstrap and Fetch registration are now implemented, with a bounded 128 MiB startup preload. Web browser tests and complete legacy-provider migrations remain pending.
 

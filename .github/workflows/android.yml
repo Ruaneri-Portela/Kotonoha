@@ -267,7 +267,7 @@ jobs:
               with ZipFile(matching[0]) as archive:
                   libraries = set(archive.namelist())
                   for abi in ("arm64-v8a", "armeabi-v7a"):
-                      for libname in ("libSDL3.so", "libSDL3_ttf.so", "libimgui.so"):
+                      for libname in ("libSDL3.so", "libSDL3_ttf.so", "libImgui.so"):
                           expected = f"lib/{abi}/{libname}"
                           assert expected in libraries, f"Missing {expected} in {matching[0]}"
           print(f"Validated all {len(flavors)} Android ARM64 and ARMv7 NEON Debug APKs")
