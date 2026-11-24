@@ -1,45 +1,45 @@
-# N2System — formato e status de integração
+# N2System — format and integration status
 
-O suporte atual é formado pelos módulos independentes
-`Modules::Providers::N2` e `Modules::VMs::N2System`. **Não é um
-executável de jogo nem uma VM NsScript completa.** Os testes abaixo usam
-dados sintéticos, sem arquivos comerciais.
+Current support is made up of the independent modules
+`Modules::Providers::N2` and `Modules::VMs::N2System`. **It is neither a
+game executable nor a complete NsScript VM.** The tests below use
+synthetic data, with no commercial files.
 
-## Arquivos AFS e NPA
+## AFS and NPA archives
 
-O provider lê AFS e NPA simples **não compactados e não criptografados**.
-A indexação de arquivos utiliza nomes normalizados para ASCII e separadores
-`/` / `\\`, preservando bytes multibyte legados.
+The provider reads simple AFS and NPA archives that are **neither
+compressed nor encrypted**. File indexing uses names normalized to ASCII
+and `/` / `\\` separators, preserving legacy multibyte bytes.
 
-- O parser rejeita nomes e aliases inseguros (segmentos `.` / `..`,
-  barras repetidas, prefixos absolutos, `:`, NUL e controles), antes de
-  incluir o arquivo no índice.
-- A importação de aliases AFS `nome,índice` continua transacional: um
-  registro inválido não adiciona nomes parciais.
-- Streams de assets permitem leitura e seek sem duplicar cada arquivo
-  descompactado; o arquivo de archive montado ainda está **inteiro na
-  memória**.
-- NPA criptografado/compactado ainda é rejeitado explicitamente.
+- The parser rejects unsafe names and aliases (`.` / `..` segments,
+  repeated slashes, absolute prefixes, `:`, NUL and control characters)
+  before adding the file to the index.
+- Importing AFS `name,index` aliases remains transactional: an invalid
+  record does not add partial names.
+- Asset streams allow reading and seeking without duplicating each
+  unpacked file; the mounted archive file is still held **entirely in
+  memory**.
+- Encrypted/compressed NPA is still explicitly rejected.
 
 ## NsScript
 
-O `ScriptIndex` identifica capítulos, labels e chamadas sem executar o
-script. A contagem de linhas também suporta arquivos com apenas `CR`
-(além de `LF` e `CRLF`), inclusive comentários e literais de texto.
+`ScriptIndex` identifies chapters, labels and calls without executing the
+script. Line counting also supports files containing only `CR` (in
+addition to `LF` and `CRLF`), including comments and text literals.
 
-A semântica de invocações, transições, áudio, save/load e a VM completa ainda
-não estão implementadas.
+The semantics of invocations, transitions, audio, save/load and the full
+VM are not implemented yet.
 
-## Testes
+## Tests
 
-Em um build CMake com `BUILD_TESTING=ON` e os módulos habilitados:
+In a CMake build with `BUILD_TESTING=ON` and the modules enabled:
 
 ```sh
 ctest --test-dir build -R 'Kotonoha.N2System.(Archives|ScriptIndex)' \
     --output-on-failure
 ```
 
-Para compilar diretamente os parsers C++17 e seus testes sem SDL:
+To build the C++17 parsers and their tests directly, without SDL:
 
 ```sh
 g++ -std=c++17 -Imodules/providers/n2/include \
@@ -53,78 +53,78 @@ g++ -std=c++17 -Imodules/vms/n2system/include \
 /tmp/n2-script-test
 ```
 
-## Navegação experimental por capítulos
+## Experimental chapter navigation
 
-O `ScriptCursor` percorre chamadas identificadas pelo `ScriptIndex` com
-operações `peek()`, `advance()`, `enterChapter()` e `jumpToLabel()`.
-Uma referência de capítulo/label inexistente não altera a posição atual. Isso
-viabiliza ferramentas de inspeção e pontos de entrada para uma futura VM.
+`ScriptCursor` walks the calls identified by `ScriptIndex` with
+`peek()`, `advance()`, `enterChapter()` and `jumpToLabel()` operations.
+A missing chapter/label reference does not change the current position.
+This enables inspection tools and entry points for a future VM.
 
-**O cursor não executa NsScript.** Os comandos dentro de condições e
-expressões são ainda indexados em ordem textual, sem avaliação de branches,
-loops ou semântica de comandos. Não se deve apresentar essa navegação como
-prova de jogabilidade.
+**The cursor does not execute NsScript.** Commands inside conditions and
+expressions are still indexed in textual order, without branch evaluation,
+loops or command semantics. This navigation must not be presented as proof
+of playability.
 
-## Executor experimental NsScript (C++17)
+## Experimental NsScript executor (C++17)
 
-`N2System::ScriptExecutor` conecta o `ScriptCursor` a callbacks do host,
-com orçamento de comandos por chamada de `run()`, pausa explícita
-(`VmActionKind::Pause` / `resume()`), término e saltos para capítulos
-ou labels. Em vez de executar a lista de chamadas indiscriminadamente,
-o compilador **valida todo o script antes da primeira ação**. O subconjunto
-aceito é: capítulos, labels no início da linha e chamadas diretas de
-funções com argumentos literais (strings ou inteiros decimais), terminadas
-por ponto e vírgula. Os callbacks decidem o significado de cada função;
-nomes como `Show` e `WaitKey` são exemplos de integração, não um contrato
-afirmado para todos os títulos N2System.
+`N2System::ScriptExecutor` connects `ScriptCursor` to host callbacks,
+with a command budget per `run()` call, explicit pause
+(`VmActionKind::Pause` / `resume()`), termination and jumps to chapters
+or labels. Instead of running the call list indiscriminately, the
+compiler **validates the whole script before the first action**. The
+accepted subset is: chapters, labels at the start of a line and direct
+function calls with literal arguments (strings or decimal integers),
+terminated by a semicolon. Callbacks decide the meaning of each function;
+names such as `Show` and `WaitKey` are integration examples, not a
+contract claimed for every N2System title.
 
 ```cpp
 N2System::ScriptExecutor vm(source, "main",
   [&](const N2System::Invocation& call,
       const std::vector<std::string>& args) -> N2System::VmAction {
     if (call.function == "Show") {
-      drawText(args.at(0)); // callback implementado pelo frontend
+      drawText(args.at(0)); // callback implemented by the frontend
       return {};
     }
     if (call.function == "WaitKey")
       return {N2System::VmActionKind::Pause, {}};
     throw std::runtime_error("NsScript command unsupported");
   });
-vm.run(1024); // não bloqueia indefinidamente a thread da interface
-// Na próxima confirmação do jogador:
+vm.run(1024); // does not block the UI thread indefinitely
+// On the next player confirmation:
 vm.resume();
 vm.run(1024);
 ```
 
-Qualquer fluxo `if`, loop, atribuição ou expressão aninhada é rejeitado no
-pré-processamento. Isso é intencional: o N2System ainda **não possui VM
-NsScript completa** nem frontend de jogo integrado. Teste independente:
+Any `if` flow, loop, assignment or nested expression is rejected during
+pre-processing. This is intentional: N2System still **does not have a
+complete NsScript VM** or an integrated game frontend. Standalone test:
 
 ```sh
 cmake --build build --target KotonohaN2SystemExecutorTests
 ctest --test-dir build -R Kotonoha.N2System.Executor --output-on-failure
 ```
 
-## Segurança de vida útil do executor
+## Executor lifetime safety
 
-O `ScriptExecutor` guarda um `ScriptCursor` que referencia o índice NsScript
-pertencente ao próprio executor. Agora são proibidas cópias e movimentações
-desse objeto para evitar ponteiros suspensos ao mover/destruir a instância
-original. As garantias são verificadas por asserções de compilação no teste
-de execução sintético. O frontend deve conservar o executor enquanto houver
-callbacks ou estado NsScript ativo.
+`ScriptExecutor` holds a `ScriptCursor` that references the NsScript
+index owned by the executor itself. Copies and moves of this object are
+now forbidden to avoid dangling pointers when the original instance is
+moved or destroyed. The guarantees are verified by compile-time
+assertions in the synthetic execution test. The frontend must keep the
+executor alive while callbacks or NsScript state are active.
 
-## Chamadas de subrotina experimentais
+## Experimental subroutine calls
 
-O executor NsScript aceita os resultados de callback `CallLabel`,
-`CallChapter` e `Return` para chamadas com retorno entre labels e
-capítulos. A pilha guarda o capítulo e o índice exato da próxima instrução;
-o limite é 1024 quadros, e um destino ausente não altera o cursor nem a
-pilha. `EnterChapter` (salto permanente) descarta retornos pendentes;
-`Finish` também limpa a pilha.
+The NsScript executor accepts `CallLabel`, `CallChapter` and `Return`
+callback results for calls with return between labels and chapters. The
+stack stores the chapter and the exact index of the next instruction;
+the limit is 1024 frames, and a missing target does not change the cursor
+or the stack. `EnterChapter` (permanent jump) discards pending returns;
+`Finish` also clears the stack.
 
-Essas são **ações da VM propostas para integração com o frontend**, não
-uma interpretação automática de todo o dialeto NsScript. Comandos reais,
-expressões, loops e condições ainda precisam ser identificados e suportados.
-Os testes sintéticos verificam chamada local, chamada entre capítulos,
-retorno, ausência de destino e recursão excessiva.
+These are **VM actions proposed for frontend integration**, not an
+automatic interpretation of the entire NsScript dialect. Real commands,
+expressions, loops and conditions still need to be identified and
+supported. Synthetic tests cover local calls, cross-chapter calls,
+returns, missing targets and excessive recursion.

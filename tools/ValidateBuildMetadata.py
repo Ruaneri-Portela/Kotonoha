@@ -86,6 +86,10 @@ def validate():
         for ref in refs:
             require(ref.get("ReferencedContainer") == "container:Kotonoha.xcodeproj",
                     f"Stale Xcode project reference: {scheme.name}")
+            # Framework targets may be explicit build-action dependencies of
+            # the launcher scheme; they are not independent schemes.
+            if ref.get("BlueprintName", "").startswith("KotonohaLauncherCore-"):
+                continue
             require(ref.get("BlueprintIdentifier") == expected[key],
                     f"Incorrect target ID: {scheme.name}")
         require(expected[key] in pbx, f"Target absent from project.pbxproj: {scheme.name}")

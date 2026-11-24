@@ -1,0 +1,131 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="800"
+        x:Class="KotonohaBridgeTest.MainWindow"
+        Title="KotonohaLauncherCore - ponte .NET (teste)"
+        Width="1120" Height="820" MinWidth="900" MinHeight="600">
+
+  <DockPanel Margin="12" LastChildFill="True">
+    <StackPanel DockPanel.Dock="Top" Spacing="6">
+      <TextBlock Text="KotonohaLauncherCore - teste da ponte .NET"
+                 FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="P/Invoke: DllImport(&quot;KotonohaLauncherCore&quot;) -&gt; libKotonohaLauncherCore.dylib"
+                 FontSize="11" Opacity="0.75" TextWrapping="Wrap" />
+
+      <TextBlock Text="Bibliotecas / pastas de jogos" FontWeight="Bold" Margin="0,6,0,0" />
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBox x:Name="RootTextBox" Grid.Column="0"
+                 PlaceholderText="/Volumes/Nero 2TB/KotonohaAssets"
+                 Text="/Volumes/Nero 2TB/KotonohaAssets"
+                 KeyDown="RootTextBox_KeyDown" />
+        <Button x:Name="AddRootButton" Grid.Column="1" Content="+ Adicionar pasta"
+                Margin="6,0,0,0" Click="AddRoot_Click" />
+        <Button x:Name="RemoveRootButton" Grid.Column="2" Content="Remover"
+                Margin="6,0,0,0" Click="RemoveRoot_Click" />
+      </Grid>
+      <ListBox x:Name="RootsList" Height="84" SelectionMode="Multiple" />
+
+      <TextBlock Text="Opcoes de busca" FontWeight="Bold" Margin="0,6,0,0" />
+      <Grid ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto">
+        <CheckBox x:Name="SplitCheck" Content="Separar saves por jogo"
+                  VerticalAlignment="Center" Margin="0,0,6,0" />
+        <TextBox x:Name="CustomSaveRootTextBox" Grid.Column="1"
+                 Margin="0,0,6,0" PlaceholderText="Custom save root (opcional)" />
+        <TextBlock Text="Profile ID" Grid.Column="2" VerticalAlignment="Center"
+                   Margin="0,0,6,0" />
+        <TextBox x:Name="ProfileTextBox" Grid.Column="3" Text="bridge-test" />
+
+        <TextBlock Text="Engine slug" Grid.Row="1" VerticalAlignment="Center"
+                   Margin="0,6,6,0" />
+        <TextBox x:Name="EngineTextBox" Grid.Row="1" Grid.Column="1"
+                 Margin="0,6,6,0" Text="school-days" />
+        <TextBlock Text="Rota (.ktrf)" Grid.Row="1" Grid.Column="2"
+                   VerticalAlignment="Center" Margin="0,6,6,0" />
+        <TextBox x:Name="RouteTextBox" Grid.Row="1" Grid.Column="3"
+                 Margin="0,6,0,0" PlaceholderText="Vazio = rota padrao" />
+      </Grid>
+
+      <Expander Header="Parametros persistidos (SaveGameParams)" Margin="0,6,0,0">
+        <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*"
+              RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Text="Asset overlay" Grid.Row="0" Grid.Column="0"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="OverlayTextBox" Grid.Row="0" Grid.Column="1"
+                   PlaceholderText="Pasta/file de overlay" />
+          <TextBlock Text="Traducao (.ktr)" Grid.Row="0" Grid.Column="2"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="TranslationTextBox" Grid.Row="0" Grid.Column="3"
+                   PlaceholderText="catalogo .ktr" />
+          <TextBlock Text="Estilo legenda" Grid.Row="0" Grid.Column="4"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="SubtitleStyleTextBox" Grid.Row="0" Grid.Column="5"
+                   PlaceholderText="arquivo .ass" />
+          <TextBlock Text="Documents dir" Grid.Row="0" Grid.Column="6"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="DocumentsTextBox" Grid.Row="0" Grid.Column="7"
+                   PlaceholderText="--documents" />
+
+          <TextBlock Text="Scripts dir" Grid.Row="1" Grid.Column="0"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="ScriptsTextBox" Grid.Row="1" Grid.Column="1"
+                   PlaceholderText="pasta de scripts" />
+          <TextBlock Text="Cenario inicial" Grid.Row="1" Grid.Column="2"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="StartScenarioTextBox" Grid.Row="1" Grid.Column="3"
+                   PlaceholderText="--start" />
+          <TextBlock Text="Renderer" Grid.Row="1" Grid.Column="4"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="RendererTextBox" Grid.Row="1" Grid.Column="5"
+                   PlaceholderText="Auto" />
+          <TextBlock Text="Upscaler" Grid.Row="1" Grid.Column="6"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="UpscalerTextBox" Grid.Row="1" Grid.Column="7"
+                   PlaceholderText="Auto" />
+
+          <TextBlock Text="Preset" Grid.Row="2" Grid.Column="0"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="UpscalerPresetTextBox" Grid.Row="2" Grid.Column="1"
+                   PlaceholderText="ex.: Anime4K: Mode A (HQ)" />
+          <TextBlock Text="Fator" Grid.Row="2" Grid.Column="2"
+                     VerticalAlignment="Center" />
+          <TextBox x:Name="UpscalerFactorTextBox" Grid.Row="2" Grid.Column="3"
+                   PlaceholderText="ex.: 2" />
+        </Grid>
+      </Expander>
+
+      <WrapPanel Margin="0,8,0,0">
+        <Button Content="Scan" Click="Scan_Click" Margin="0,0,6,6" />
+        <Button Content="Detect" Click="Detect_Click" Margin="0,0,6,6" />
+        <Button Content="Load params" Click="LoadParams_Click" Margin="0,0,6,6" />
+        <Button Content="Save params" Click="SaveParams_Click" Margin="0,0,6,6" />
+        <Button Content="Upscale presets" Click="Upscale_Click" Margin="0,0,6,6" />
+        <Button Content="Validate route" Click="ValidateRoute_Click" Margin="0,0,6,6" />
+        <Button Content="Resolve save dir" Click="ResolveSaveDir_Click" Margin="0,0,6,6" />
+        <Button Content="Default route" Click="DefaultRoute_Click" Margin="0,0,6,6" />
+        <Button Content="Launch all detected" Click="LaunchAll_Click" Margin="0,0,6,6" />
+        <Button Content="Limpar log" Click="ClearLog_Click" Margin="0,0,6,6" />
+      </WrapPanel>
+    </StackPanel>
+
+    <TextBlock x:Name="StatusTextBlock" DockPanel.Dock="Bottom" Margin="0,6,0,0"
+               FontSize="11" Opacity="0.7" Text="Pronto." />
+
+    <Grid RowDefinitions="*,4,*">
+      <TextBox x:Name="ResultTextBox" Grid.Row="0" IsReadOnly="True"
+               AcceptsReturn="True" TextWrapping="NoWrap"
+               FontFamily="Menlo, Monaco, monospace" FontSize="11"
+               VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+      <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch"
+                    Background="#666666" />
+      <TextBox x:Name="LogTextBox" Grid.Row="2" IsReadOnly="True"
+               AcceptsReturn="True" TextWrapping="Wrap"
+               FontFamily="Menlo, Monaco, monospace" FontSize="11"
+               VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+               ScrollViewer.VerticalScrollBarVisibility="Auto" />
+    </Grid>
+  </DockPanel>
+</Window>

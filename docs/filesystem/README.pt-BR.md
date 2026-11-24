@@ -2,7 +2,7 @@
 
 [English (US)](README.md) | **Português (Brasil)**
 
-A referência principal é a [especificação de arquitetura original](SPECIFICATION.pt-BR.md). O módulo é um **filesystem virtual experimental somente para leitura**; a migração dos leitores antigos ainda não terminou.
+A referência principal é a [especificação de arquitetura](SPECIFICATION.pt-BR.md) (versão em inglês: [SPECIFICATION.md](SPECIFICATION.md)). O módulo é um **filesystem virtual experimental somente para leitura**; a migração dos leitores antigos ainda não terminou.
 
 ## Implementado nesta branch
 

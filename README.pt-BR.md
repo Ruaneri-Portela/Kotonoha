@@ -25,7 +25,7 @@ Para usar o vcpkg explicitamente, acrescente `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROO
 - **[Índice da documentação](docs/README.pt-BR.md)** — guias e plataformas.
 - **[Carta de estilo e identidade visual](design/README.md)** — K oficial, splash, paleta, temas e geração de ícones por plataforma.
 - **[Guias de compilação](docs/BUILD_GUIDES.pt-BR.md)** — desktop, Android, iOS, macOS e WebAssembly.
-- **[CI e vcpkg](docs/CI_VCPKG.md)** — Linux/WASM no mesmo runner, artefatos e política de cache.
+- **[CI e vcpkg](docs/CI_VCPKG.pt-BR.md)** — Linux/WASM no mesmo runner, artefatos e política de cache.
 - **[Ports de jogos](games/README.pt-BR.md)** — módulos, limitações e instruções específicas.
 - **[Máquinas virtuais](modules/vms/README.pt-BR.md)** e **[provedores de assets](modules/providers/README.pt-BR.md)**.
 - **[Overlays](docs/ASSET_OVERLAYS.pt-BR.md)**, **[armazenamento](docs/DIRECTORY_POLICY.pt-BR.md)** e **[configurações](docs/ENGINE_SETTINGS.pt-BR.md)**.
@@ -34,7 +34,7 @@ Para usar o vcpkg explicitamente, acrescente `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROO
 
 O repositório contém **16 aplicativos de jogos no CMake/Android (15 ports + Example)** (incluindo Example, N2System e PONscripter). O launcher compartilhado é o padrão para inicialização interativa; `--no-launcher`, `--frames` e MCP/modo sem interface seguem a política central. Os 16 aplicativos constam na matriz de alvos Xcode; a compilação real em dispositivos e simuladores ainda precisa ser validada. Consulte [validação de build](docs/BUILD_VALIDATION.pt-BR.md).
 
-Os artefatos Linux e WebAssembly são compilados sequencialmente em **um único job do GitHub Actions**. O cache de builds incrementais do motor/jogos foi desabilitado, mantendo somente o cache binário de dependências do vcpkg. Veja [instruções de CI](docs/CI_VCPKG.md). Testes sintéticos não comprovam paridade com os jogos comerciais.
+Os artefatos Linux e WebAssembly são compilados sequencialmente em **um único job do GitHub Actions**. O cache de builds incrementais do motor/jogos foi desabilitado, mantendo somente o cache binário de dependências do vcpkg. Veja [instruções de CI](docs/CI_VCPKG.pt-BR.md). Testes sintéticos não comprovam paridade com os jogos comerciais.
 
 O [launcher unificado independente](launcher/README.pt-BR.md) funciona no desktop e linka diretamente as bibliotecas dos jogos (exceto Example), executando cada jogo no mesmo processo, sem iniciar binários secundários. É gerado apenas com `KOTONOHA_BUILD_ALL=ON` no desktop nativo.
 

@@ -4,10 +4,11 @@
 
 KOTONOHA_GAME_DIR = launcher
 SWIFT_VERSION = 5.0
-SWIFT_OBJC_BRIDGING_HEADER = $(KOTONOHA_ROOT)/launcher/src/macos/KotonohaMacLauncher-Bridging-Header.h
+SWIFT_OBJC_BRIDGING_HEADER = $(KOTONOHA_ROOT)/launcher/app/macos/KotonohaMacLauncher-Bridging-Header.h
 HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) \
     "$(KOTONOHA_ROOT)/launcher/include" \
-    "$(KOTONOHA_ROOT)/launcher/src" \
+    "$(KOTONOHA_ROOT)/launcher/core" \
+    "$(KOTONOHA_ROOT)/launcher/app" \
     "$(KOTONOHA_ROOT)/lib/include" \
     "$(KOTONOHA_PYTHON_MACOS_SLICE)/Versions/3.15/include/python3.15" \
     "$(KOTONOHA_PYTHON_MACOS_SLICE)/Headers"

@@ -16,4 +16,17 @@
     <color name="kotonoha_success">#47D7A1</color>
     <color name="kotonoha_warning">#FFBE68</color>
     <color name="kotonoha_error">#FF7389</color>
+
+    <!-- Variante "Soft" — mesmos valores de lib/src/debug/ImGuiTheme.cpp
+         e dos launchers SwiftUI. Paleta oficial acima permanece intacta. -->
+    <color name="kotonoha_soft_accent">#A79BD4</color>
+    <color name="kotonoha_soft_accent_dim">#8E86B8</color>
+    <color name="kotonoha_soft_surface">#24304B</color>
+    <color name="kotonoha_soft_surface_raised">#2C3856</color>
+    <color name="kotonoha_soft_outline">#3C4765</color>
+    <color name="kotonoha_text">#DEE5F2</color>
+    <color name="kotonoha_text_muted">#A6B2C8</color>
+    <color name="kotonoha_success_soft">#86C7A7</color>
+    <color name="kotonoha_warning_soft">#DCC59C</color>
+    <color name="kotonoha_error_soft">#DDA4AD</color>
 </resources>

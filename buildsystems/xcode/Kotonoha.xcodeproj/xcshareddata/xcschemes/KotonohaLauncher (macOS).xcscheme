@@ -4,7 +4,7 @@
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "NO"
-      buildImplicitDependencies = "NO">
+      buildImplicitDependencies = "YES">
       <PreActions>
          <ExecutionAction
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
@@ -24,6 +24,20 @@
          </ExecutionAction>
       </PreActions>
       <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "0B02DA77294C5F6D5A3DD4D7"
+               BuildableName = "KotonohaLauncherCore.framework"
+               BlueprintName = "KotonohaLauncherCore-macOS"
+               ReferencedContainer = "container:Kotonoha.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
          <BuildActionEntry
             buildForTesting = "YES"
             buildForRunning = "YES"

@@ -737,3 +737,14 @@ design/generated/pwa/
 .env
 .env.*
 !.env.example
+
+# Manual bridge integration examples (not built by CMake/CTest by default).
+launcher/examples/java/out/
+launcher/examples/java/lib/
+launcher/examples/java/native/
+launcher/examples/dotnet/bin/
+launcher/examples/dotnet/obj/
+target/
+*.dll
+*.dylib
+*.jar

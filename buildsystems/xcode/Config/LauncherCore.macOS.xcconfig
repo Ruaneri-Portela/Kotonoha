@@ -1,0 +1,20 @@
+// Native Xcode framework target for KotonohaLauncherCore (macOS).
+// Inherits the launcher's engine/game header roots, link flags, CPython SDK
+// and KOTONOHA_LAUNCH_* definitions so the framework compiles the exact same
+// launcher + game sources as the CMake core library.
+#include "Launcher.macOS.xcconfig"
+
+PRODUCT_NAME = KotonohaLauncherCore
+PRODUCT_MODULE_NAME = KotonohaLauncherCore
+DEFINES_MODULE = YES
+SWIFT_VERSION = 5.0
+// The clang module exposes the shared C ABI to the Swift facade in this target.
+SWIFT_INCLUDE_PATHS = $(inherited) "$(KOTONOHA_ROOT)/launcher/bridge/swift"
+// The umbrella header is the public module interface for app/Swift clients.
+PUBLIC_HEADERS_FOLDER_PATH = $(CONTENTS_FOLDER_PATH)/Headers
+
+GENERATE_INFOPLIST_FILE = YES
+
+PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.launchercore
+
+DYLIB_INSTALL_NAME_BASE = @rpath

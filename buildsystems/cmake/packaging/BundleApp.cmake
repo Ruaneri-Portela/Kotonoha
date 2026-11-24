@@ -126,7 +126,25 @@ if(include_python)
     endif()
 endif()
 
-fixup_bundle("${APP_EXECUTABLE}" "${plugins}" "${DEPENDENCY_DIRS}")
+# Homebrew's Python.framework embeds a nested Python.app helper whose own
+# dependency on the homebrew Python binary is not relocatable. It is pruned
+# from the staged bundle after fixup, so ignore it during prerequisite checks.
+fixup_bundle("${APP_EXECUTABLE}" "${plugins}" "${DEPENDENCY_DIRS}"
+    IGNORE_ITEM "Python")
+
+# fixup_bundle relocates dependencies with install_name_tool, which invalidates
+# the ad-hoc signature of every copied dylib. KotonohaLauncherCore is a shared
+# library linked by the hub, so re-sign all bundled dylibs before the app runs.
+if(APPLE)
+    file(GLOB _kotonoha_bundled_dylibs "${BUNDLE_CONTENTS}/Frameworks/*.dylib")
+    foreach(bundled_dylib IN LISTS _kotonoha_bundled_dylibs)
+        execute_process(COMMAND codesign --force --sign - "${bundled_dylib}"
+            RESULT_VARIABLE dylib_sign_result OUTPUT_QUIET ERROR_QUIET)
+        if(NOT dylib_sign_result EQUAL 0)
+            message(FATAL_ERROR "Could not ad-hoc sign bundled library ${bundled_dylib}")
+        endif()
+    endforeach()
+endif()
 
 # CMake's dependency fix-up can copy the original Python.framework again;
 # normalize the final staged version before validating/signing the .app.

@@ -2,7 +2,10 @@
 
 **English (US)** | [Português (Brasil)](BUILD_GUIDES.pt-BR.md)
 
-Use a C++17 compiler, CMake, repository submodules, and dependencies from `vcpkg.json`. Run the following commands from the repository root unless specified otherwise.
+Use a C++17 compiler and CMake. Native dependencies can come from system
+packages (Homebrew, apt, MSYS2 UCRT), vcpkg or the pinned SDL submodules — see
+[native dependency providers](DEPENDENCIES.md). Run the following commands
+from the repository root unless specified otherwise.
 
 | Target | Guide |
 | --- | --- |
@@ -13,6 +16,28 @@ Use a C++17 compiler, CMake, repository submodules, and dependencies from `vcpkg
 | Android | [Gradle flavors](BUILD_ANDROID.md) |
 | WebAssembly | [Emscripten](BUILD_WEB.md) |
 | Tests | [Build validation](BUILD_VALIDATION.md) |
+
+## CMake presets
+
+`CMakePresets.json` covers 52 visible configure/build preset pairs with the
+canonical name `<platform>-<arch>-<toolchain>-<provider>-<config>`:
+
+| Family | Name pattern | Providers |
+| --- | --- | --- |
+| macOS native | `macos-{arm64,amd64}-native-{vcpkg,system}-{debug,release}` | Homebrew or vcpkg |
+| Linux native | `linux-{x64,arm64}-native-{vcpkg,system}-{debug,release}` | apt or vcpkg |
+| Windows MSVC | `windows-{x64,x86,arm64}-msvc-{vcpkg,system}-{debug,release}` | MSVC/native packages or vcpkg |
+| Windows MinGW native | `windows-{x64,x86,arm64}-mingw-{vcpkg,system}-{debug,release}` | MSYS2 UCRT/pacman or vcpkg |
+| Windows MinGW cross | `windows-{x64,x86,arm64}-mingw-cross-vcpkg-{debug,release}` | **vcpkg only** |
+| WebAssembly | `wasm-vcpkg-{debug,release}` | **vcpkg only** |
+
+All presets use Ninja (single-config: `CMAKE_BUILD_TYPE` is authoritative and
+the build preset `configuration` field is informational) and
+`out/build/<preset>` as the build directory. Compatibility aliases
+`mingw-{x64,x86,arm64}` (cross vcpkg Release) and `windows-ucrt-system` (native
+UCRT Release) keep historical names working. Native dependency providers are
+selected by `KOTONOHA_DEPS_PROVIDER`, `KOTONOHA_SDL_PROVIDER` and
+`KOTONOHA_IMGUI_PROVIDER`; see [dependency providers](DEPENDENCIES.md).
 
 ## Desktop
 

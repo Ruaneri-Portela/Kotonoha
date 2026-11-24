@@ -150,7 +150,8 @@ KOTONOHA_GAME_HEADER_ROOTS = \
     "$(KOTONOHA_ROOT)/games/ponscripter/include" \
     "$(KOTONOHA_ROOT)/games/ponscripter/src" \
     "$(KOTONOHA_ROOT)/launcher/include" \
-    "$(KOTONOHA_ROOT)/launcher/src"
+    "$(KOTONOHA_ROOT)/launcher/core" \
+    "$(KOTONOHA_ROOT)/launcher/app"
 
 HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/SDL/include" \

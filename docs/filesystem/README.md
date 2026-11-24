@@ -2,7 +2,7 @@
 
 **English (US)** | [Português (Brasil)](README.pt-BR.md)
 
-The authoritative design is the [original architecture specification](SPECIFICATION.pt-BR.md). This module is an **experimental read-only virtual filesystem**; it does not yet replace all legacy readers.
+The authoritative design is the [architecture specification](SPECIFICATION.md) (original Portuguese version: [SPECIFICATION.pt-BR.md](SPECIFICATION.pt-BR.md)). This module is an **experimental read-only virtual filesystem**; it does not yet replace all legacy readers.
 
 ## Implemented in this branch
 

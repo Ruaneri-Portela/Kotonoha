@@ -1,0 +1,14 @@
+// Native Xcode framework target for KotonohaLauncherCore (iOS).
+#include "Launcher.iOS.xcconfig"
+
+PRODUCT_NAME = KotonohaLauncherCore
+PRODUCT_MODULE_NAME = KotonohaLauncherCore
+DEFINES_MODULE = YES
+SWIFT_VERSION = 5.0
+SWIFT_INCLUDE_PATHS = $(inherited) "$(KOTONOHA_ROOT)/launcher/bridge/swift"
+
+GENERATE_INFOPLIST_FILE = YES
+
+PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha.launchercore
+
+DYLIB_INSTALL_NAME_BASE = @rpath

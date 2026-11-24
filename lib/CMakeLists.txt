@@ -37,6 +37,12 @@ endif ()
 # ==============================================================================
 # Configuracoes Globais e Opcoes de Cache
 # ==============================================================================
+# Root builds resolve the provider before add_subdirectory(lib). Standalone
+# lib/ configurations must resolve it here, before SDL discovery runs.
+include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/dependencies/KotonohaDepsProvider.cmake")
+if(NOT DEFINED KOTONOHA_DEPS_PROVIDER_RESOLVED)
+    kotonoha_resolve_deps_provider()
+endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/dependencies/KotonohaSDL.cmake")
 
 option(KOTONOHA_BUNDLE_LOCAL_GAME_ASSETS
@@ -104,11 +110,15 @@ set_target_properties(KotonohaEngine PROPERTIES
         WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 
-if (ANDROID)
-    set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha_engine)
-else ()
-    set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME kotonoha)
-endif ()
+# Artefato final padronizado em todas as plataformas: libKotonohaEngine.dylib
+# / libKotonohaEngine.so / KotonohaEngine.dll (o nome do target não muda).
+set_target_properties(KotonohaEngine PROPERTIES OUTPUT_NAME KotonohaEngine)
+if(WIN32)
+    # MinGW prefixa DLLs/import libs com "lib"; o contrato de nomes exige
+    # KotonohaEngine.dll + KotonohaEngine.lib em todas as toolchains Windows.
+    set_target_properties(KotonohaEngine PROPERTIES
+            PREFIX "" IMPORT_PREFIX "" IMPORT_SUFFIX ".lib")
+endif()
 
 target_include_directories(KotonohaEngine PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

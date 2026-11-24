@@ -37,7 +37,7 @@ O comando padrão encontra acessos diretos legados e confere CMake/Xcode; `--str
 - Conectar o `BrowserBlobAdapter` a todas as rotas web legadas, validar ciclo de vida/seek do FFmpeg, CUE multi-BIN e modos de disco restantes.
 - Remover adaptadores de paths físicos somente após testes equivalentes nos onze jogos.
 
-Os critérios finais estão na [especificação original](SPECIFICATION.pt-BR.md). O PR permanece rascunho.
+Os critérios finais estão na [especificação](SPECIFICATION.pt-BR.md) (versão em inglês: [SPECIFICATION.md](SPECIFICATION.md)). O PR permanece rascunho.
 
 - **Fallback web:** `FallbackMount` local-primeiro, bootstrap de manifesto HTTP e registro do Fetch foram implementados, com pré-carregamento máximo de 128 MiB. Faltam testes reais de navegador e migração integral dos providers legados.
 

@@ -81,7 +81,9 @@ def games = [
   ponscripter   : ['ponscripter', 'PonscripterGame', 'me.hirameki.kotonoha.ponscripter', 'PONscripter'],
   n2System      : ['n2system', 'N2SystemGame', 'me.hirameki.kotonoha.n2system', 'N2System Game'],
   artemis       : ['artemis', 'ArtemisGame', 'me.hirameki.kotonoha.artemis', 'Artemis Engine'],
-  launcher      : ['all', 'KotonohaLauncher', 'me.hirameki.kotonoha', 'Kotonoha']
+  // The Material launcher flavor consumes only the JNI core: the SDL app target
+  // (KotonohaLauncher) is built exclusively by native/desktop configurations.
+  launcher      : ['all', 'KotonohaLauncherCore', 'me.hirameki.kotonoha', 'Kotonoha']
 ]
 
 // Shared Material 3 launcher artwork lives in the versioned design/generated/
@@ -103,7 +105,7 @@ tasks.matching { it.name == 'preBuild' ||
 }
 
 android {
-  namespace 'org.kotonoha.android'
+  namespace 'me.hirameki.kotonoha.android'
   compileSdk 36
   ndkVersion '28.2.13676358'
 
@@ -144,6 +146,11 @@ android {
         applicationId game[2]
         manifestPlaceholders.appName = game[3]
         buildConfigField 'String', 'NATIVE_TARGET', "\"${game[1]}\""
+        // Flavor identity is independent of the native target: NATIVE_TARGET is
+        // now KotonohaLauncherCore for the launcher, but the Material UI still
+        // needs to be selected instead of the SDL GameActivity.
+        buildConfigField 'boolean', 'IS_LAUNCHER_FLAVOR',
+          (flavor == 'launcher' ? 'true' : 'false')
 
         externalNativeBuild {
           cmake {
