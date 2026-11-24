@@ -16,6 +16,7 @@ namespace KotonohaBridgeTest;
 public partial class MainWindow : Window
 {
     private readonly ObservableCollection<string> _roots;
+    private readonly ObservableCollection<GameEntry> _games = new();
 
     public MainWindow()
     {
@@ -23,14 +24,18 @@ public partial class MainWindow : Window
 
         var available = Program.DefaultRoots.Where(Directory.Exists).ToArray();
         _roots = new ObservableCollection<string>(
-            available.Length > 0 ? available : new[] { Program.DefaultRoots[1] });
+            available.Length > 0 ? available : new[] { Program.DefaultRoots[0] });
         RootsList.ItemsSource = _roots;
         if (_roots.Count > 0)
             RootsList.SelectedIndex = 0;
+        GamesList.ItemsSource = _games;
 
         Log($"Ponte carregada: DllImport(\"KotonohaLauncherCore\") -> {Program.NativeLibraryPath}");
         Log($"Nativa existe: {File.Exists(Program.NativeLibraryPath)}");
         Log($"Roots iniciais: {string.Join(" | ", _roots)}");
+        Log("Scan -> selecione UM jogo -> Launch game (um por vez).");
+
+        Opened += MainWindow_Opened;
     }
 
     private static string? Opt(TextBox box) =>
@@ -71,6 +76,8 @@ public partial class MainWindow : Window
         ResultTextBox.Text = $"// {label}\n{formatted}";
         Log($"{label}: {json.Length} chars, JSON=" +
             $"{(formatted == json ? "bruto" : "valido/formatado")}");
+        if (label == "ScanRootsJson")
+            ShowGames(json);
     }
 
     private async Task RunJsonAsync(string label, Func<string> call)
@@ -85,6 +92,43 @@ public partial class MainWindow : Window
         {
             Log($"[ERRO] {label}: {ex}");
         }
+    }
+
+    private void ShowGames(string json)
+    {
+        _games.Clear();
+        using var doc = JsonDocument.Parse(json);
+        foreach (var entry in doc.RootElement.EnumerateArray())
+        {
+            static string Str(JsonElement obj, string name) =>
+                obj.ValueKind == JsonValueKind.Object &&
+                obj.TryGetProperty(name, out var v) &&
+                v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+
+            JsonElement p = entry.TryGetProperty("params", out var pp) ? pp : default;
+            string Param(string name) => Str(p, name);
+
+            _games.Add(new GameEntry
+            {
+                Title = Str(entry, "title"),
+                SaveProfileId = Str(entry, "saveProfileId"),
+                Path = Str(entry, "path"),
+                OverlayPath = Str(entry, "overlayPath"),
+                EngineSlug = Str(entry, "engineSlug"),
+                AssetOverlayPath = Param("assetOverlayPath"),
+                TranslationPath = Param("translationPath"),
+                SubtitleStylePath = Param("subtitleStylePath"),
+                CustomDocumentsDir = Param("customDocumentsDir"),
+                KtrfPath = Param("ktrfPath"),
+                ScriptsDir = Param("scriptsDir"),
+                StartScenario = Param("startScenario"),
+                RendererBackend = Param("rendererBackend"),
+                UpscalerBackend = Param("upscalerBackend"),
+                UpscalerPreset = Param("upscalerPreset"),
+                UpscalerFactor = Param("upscalerFactor"),
+            });
+        }
+        Log($"Scan: {_games.Count} jogo(s) na lista");
     }
 
     private string SelectedRootOrTyped() =>
@@ -142,7 +186,9 @@ public partial class MainWindow : Window
         Log($"Roots removidos: {toRemove.Count}");
     }
 
-    private async void Scan_Click(object? sender, RoutedEventArgs e)
+    private async void Scan_Click(object? sender, RoutedEventArgs e) => await ScanCoreAsync();
+
+    private async Task ScanCoreAsync()
     {
         var roots = _roots.ToArray();
         if (roots.Length == 0)
@@ -157,49 +203,146 @@ public partial class MainWindow : Window
             () => KotonohaLauncher.ScanRoots(roots, split, custom));
     }
 
-    private async void LaunchAll_Click(object? sender, RoutedEventArgs e)
+    private void GamesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        var roots = _roots.ToArray();
-        if (roots.Length == 0)
+        if (GamesList.SelectedItem is not GameEntry game)
+            return;
+        Log($"Jogo selecionado: {game.Title} | {game.EngineSlug} | " +
+            $"{game.Path} (profile={game.SaveProfileId})");
+        LaunchStatusTextBlock.Text = "Selecionado: " + game.Title;
+
+        // Preenche a request com os valores vindos do JSON de scan.
+        OverlayTextBox.Text = string.IsNullOrEmpty(game.AssetOverlayPath)
+            ? game.OverlayPath : game.AssetOverlayPath;
+        TranslationTextBox.Text = game.TranslationPath;
+        SubtitleStyleTextBox.Text = game.SubtitleStylePath;
+        DocumentsTextBox.Text = game.CustomDocumentsDir;
+        RouteTextBox.Text = game.KtrfPath;
+        ScriptsTextBox.Text = game.ScriptsDir;
+        StartScenarioTextBox.Text = game.StartScenario;
+        RendererTextBox.Text = game.RendererBackend;
+        UpscalerTextBox.Text = game.UpscalerBackend;
+        UpscalerPresetTextBox.Text = game.UpscalerPreset;
+        UpscalerFactorTextBox.Text = game.UpscalerFactor;
+    }
+
+    private KotonohaGameLaunchRequest BuildRequest(GameEntry game) => new()
+    {
+        GamePath = game.Path,
+        EngineSlug = game.EngineSlug,
+        SaveProfileId = game.SaveProfileId,
+        SplitSavesByGame = SplitCheck.IsChecked == true,
+        CustomSaveRoot = Opt(CustomSaveRootTextBox),
+        AssetOverlayPath = Opt(OverlayTextBox) ?? game.OverlayPath,
+        TranslationPath = Opt(TranslationTextBox),
+        SubtitleStylePath = Opt(SubtitleStyleTextBox),
+        CustomDocumentsDir = Opt(DocumentsTextBox),
+        KtrfPath = Opt(RouteTextBox),
+        ScriptsDir = Opt(ScriptsTextBox),
+        StartScenario = Opt(StartScenarioTextBox),
+        RendererBackend = Opt(RendererTextBox),
+        UpscalerBackend = Opt(UpscalerTextBox),
+        UpscalerPreset = Opt(UpscalerPresetTextBox),
+        UpscalerFactor = Opt(UpscalerFactorTextBox),
+        DryRun = DryRunCheck.IsChecked == true,
+    };
+
+    private async void LaunchGame_Click(object? sender, RoutedEventArgs e)
+    {
+        if (GamesList.SelectedItem is not GameEntry game)
         {
-            Log("[AVISO] Nenhum root na lista.");
+            Log("[AVISO] Selecione um jogo na lista antes de Launch game.");
+            LaunchStatusTextBlock.Text = "Nenhum jogo selecionado";
             return;
         }
-        var split = SplitCheck.IsChecked == true;
-        var custom = Opt(CustomSaveRootTextBox);
-        var profile = Opt(ProfileTextBox) ?? "";
-        Log("LaunchGame: escaneando roots e lancando cada jogo detectado...");
+        await LaunchOneAsync(game, false);
+    }
+
+    private async void ValidateRequest_Click(object? sender, RoutedEventArgs e)
+    {
+        if (GamesList.SelectedItem is not GameEntry game)
+        {
+            Log("[AVISO] Selecione um jogo na lista antes de Validate request.");
+            return;
+        }
+        await LaunchOneAsync(game, true);
+    }
+
+    /** Launches only `game`, with the full request assembled from the scan JSON. */
+    private async Task LaunchOneAsync(GameEntry game, bool validate)
+    {
+        var request = BuildRequest(game);
+        if (validate)
+        {
+            Log("Validate request => launch request validated; " +
+                "graphical launch requires SDL app");
+            var description = JsonSerializer.Serialize(request,
+                new JsonSerializerOptions { WriteIndented = true, IncludeFields = true });
+            ShowJson("LaunchRequest (validated)", description);
+            LaunchStatusTextBlock.Text = "Request validada: " + game.Title;
+            return;
+        }
         try
         {
-            var results = await Task.Run(() =>
+            Log($"Launch game: {game.Path} engine={request.EngineSlug} " +
+                $"profile={request.SaveProfileId} dryRun={request.DryRun}");
+            LaunchStatusTextBlock.Text = request.DryRun
+                ? "Validando request..."
+                : "Jogo em execução — feche a janela para voltar ao launcher...";
+            // Bloqueia ate' o jogo fechar (ou ate' o dry-run terminar); so'
+            // entao' o controle volta para a UI gerenciada.
+            var result = await Task.Run(() => KotonohaLauncher.LaunchGame(request));
+            bool ok = result.Contains("\"ok\":true", StringComparison.Ordinal);
+            bool playable = result.Contains("\"playable\":true",
+                StringComparison.Ordinal);
+            Log($"Launch {(ok ? "OK  " : "ERRO")} {game.Title} " +
+                $"playable={playable} => {result}");
+            ShowJson("LaunchGame", result);
+            LaunchStatusTextBlock.Text = (ok ? "Launched OK: " : "Launch ERRO: ")
+                + game.Title + $" (playable={playable})";
+            if (!ok || result.Contains("\"dryRun\":true", StringComparison.Ordinal))
             {
-                var lines = new List<string>();
-                string scan = KotonohaLauncher.ScanRoots(roots, split, custom);
-                using var doc = JsonDocument.Parse(scan);
-                foreach (var entry in doc.RootElement.EnumerateArray())
-                {
-                    string path = entry.TryGetProperty("path", out var p)
-                        ? p.GetString() ?? "" : "";
-                    string slug = entry.TryGetProperty("engineSlug", out var s)
-                        ? s.GetString() ?? "" : "";
-                    if (string.IsNullOrEmpty(path)) continue;
-                    string result = KotonohaLauncher.LaunchGame(
-                        path, slug, profile, split, custom);
-                    lines.Add($"[LAUNCH] {(result.Contains("\"ok\":true") ? "OK" : "FAIL")} {path} => {result}");
-                }
-                return lines;
-            });
-            int ok = 0;
-            foreach (string line in results)
-            {
-                if (line.Contains("[LAUNCH] OK")) ++ok;
-                Log(line);
+                Log("launch request validated; graphical launch requires SDL app" +
+                    " (veja o JSON/request acima)");
             }
-            Log($"Launch all: ok={ok} fail={results.Count - ok} total={results.Count}");
         }
         catch (Exception ex)
         {
-            Log($"[ERRO] Launch all: {ex}");
+            Log($"[ERRO] Launch game: {ex}");
+            LaunchStatusTextBlock.Text = "Launch ERRO: " + game.Title;
+        }
+    }
+
+    private async void MainWindow_Opened(object? sender, EventArgs e)
+    {
+        var args = Environment.GetCommandLineArgs();
+        bool autoScan = args.Contains("--auto-scan");
+        bool validate = args.Contains("--validate");
+        string? autoLaunch = args
+            .FirstOrDefault(a => a.StartsWith("--auto-launch=", StringComparison.Ordinal))
+            ?.Substring("--auto-launch=".Length);
+
+        if (autoScan || autoLaunch != null)
+        {
+            Log("--auto-scan: disparando Scan pela mesma logica do botao");
+            await ScanCoreAsync();
+        }
+        if (autoLaunch != null)
+        {
+            var game = _games.FirstOrDefault(g =>
+                g.Path.Contains(autoLaunch, StringComparison.OrdinalIgnoreCase)
+                || g.Title.Contains(autoLaunch, StringComparison.OrdinalIgnoreCase)
+                || g.EngineSlug.Contains(autoLaunch, StringComparison.OrdinalIgnoreCase));
+            if (game == null)
+            {
+                Log($"--auto-launch: jogo nao encontrado: {autoLaunch}");
+                LaunchStatusTextBlock.Text = "Jogo nao encontrado: " + autoLaunch;
+                return;
+            }
+            GamesList.SelectedItem = game;
+            GamesList.ScrollIntoView(game);
+            Log($"--auto-launch: selecionado {game.Title} ({game.Path})");
+            await LaunchOneAsync(game, validate);
         }
     }
 

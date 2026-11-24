@@ -282,6 +282,17 @@ Engine::Engine(Runtime &run, EngineOptions options)
                            SDL_WINDOW_HIGH_PIXEL_DENSITY | graphicsFlags));
   if (!window)
     throw std::runtime_error(SDL_GetError());
+  {
+    int windowWidth = 0, windowHeight = 0;
+    SDL_GetWindowSize(window.get(), &windowWidth, &windowHeight);
+    SDL_LogInfo(LogCore, "Game window created: settings=%dx%d actual=%dx%d",
+                settings.width, settings.height, windowWidth, windowHeight);
+  }
+  // A real game launch must be visible and in front, even when the host is a
+  // managed launcher (JNI / P/Invoke / native hub) with other windows open.
+  SDL_SetWindowFocusable(window.get(), true);
+  SDL_ShowWindow(window.get());
+  SDL_RaiseWindow(window.get());
   renderer.reset(SDL_CreateRenderer(
       window.get(),
       settings.renderer.empty() ? nullptr : settings.renderer.c_str()));
