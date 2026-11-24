@@ -8,6 +8,13 @@ A GUI faz scan recursivo da biblioteca, lista **cada jogo detectado** numa
 `TableView` e contém um botão **“Launch game”** que inicia **somente a linha
 selecionada**, um jogo por vez. Não há mais “launch all”.
 
+O layout coloca os controles/opções à **esquerda** e a lista de jogos à
+**direita**, com uma área “Log do jogo selecionado” abaixo da tabela. Enquanto
+o launch bloqueante está em andamento, apenas a linha do jogo atual fica
+**verde** (`● RUNNING`); ao fechar a janela SDL a linha volta ao normal
+(estado `—`), e o log daquele jogo — incluindo o JSON final com
+`Game exited cleanly`/`frames` — aparece ao selecioná-lo.
+
 ## Por que não há mais shim JNI
 
 `launcher/bridge/java/JavaBridge.cpp` é compilado para o core em **todas** as

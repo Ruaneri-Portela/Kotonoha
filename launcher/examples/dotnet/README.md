@@ -11,6 +11,13 @@ um por vez, montando `KotonohaGameLaunchRequest` com `gamePath`, `engineSlug`,
 **“Validate request”** reporta
 `launch request validated; graphical launch requires SDL app` sem iniciar SDL.
 
+O layout coloca os controles/opções à **esquerda** e a `ListBox` de jogos à
+**direita**, com um `TextBox` somente-leitura “Log do jogo selecionado” abaixo
+da lista. Enquanto o launch bloqueante está em andamento, apenas o item atual
+fica **verde** (`● RUNNING / EM EXECUÇÃO`); ao fechar a janela SDL a cor volta
+ao normal, e o log daquele jogo — incluindo o JSON final com
+`Game exited cleanly`/`frames` — aparece ao selecioná-lo.
+
 ## Estrutura
 
 ```
