@@ -3,148 +3,27 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:KotonohaBridgeTest"
-        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="900"
+        mc:Ignorable="d" d:DesignWidth="1240" d:DesignHeight="980"
         x:Class="KotonohaBridgeTest.MainWindow"
         Title="Kotonoha Launcher - jogos individuais (.NET)"
-        Width="1120" Height="980" MinWidth="900" MinHeight="640">
+        Width="1240" Height="980" MinWidth="1000" MinHeight="700">
 
   <DockPanel Margin="12" LastChildFill="True">
-    <StackPanel DockPanel.Dock="Top" Spacing="6">
+    <StackPanel DockPanel.Dock="Top" Spacing="4">
       <TextBlock Text="KotonohaLauncherCore - teste da ponte .NET / launch individual"
                  FontSize="18" FontWeight="Bold" />
       <TextBlock Text="P/Invoke: DllImport(&quot;KotonohaLauncherCore&quot;) -&gt; libKotonohaLauncherCore.dylib"
                  FontSize="11" Opacity="0.75" TextWrapping="Wrap" />
-
-      <TextBlock Text="Bibliotecas / pastas de jogos" FontWeight="Bold" Margin="0,6,0,0" />
-      <Grid ColumnDefinitions="*,Auto,Auto">
-        <TextBox x:Name="RootTextBox" Grid.Column="0"
-                 PlaceholderText="/Volumes/Server/data2/Games"
-                 Text="/Volumes/Server/data2/Games"
-                 KeyDown="RootTextBox_KeyDown" />
-        <Button x:Name="AddRootButton" Grid.Column="1" Content="+ Adicionar pasta"
-                Margin="6,0,0,0" Click="AddRoot_Click" />
-        <Button x:Name="RemoveRootButton" Grid.Column="2" Content="Remover"
-                Margin="6,0,0,0" Click="RemoveRoot_Click" />
-      </Grid>
-      <ListBox x:Name="RootsList" Height="76" SelectionMode="Multiple" />
-
-      <TextBlock Text="Opcoes de busca" FontWeight="Bold" Margin="0,6,0,0" />
-      <Grid ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto">
-        <CheckBox x:Name="SplitCheck" Content="Separar saves por jogo"
-                  IsChecked="True"
-                  VerticalAlignment="Center" Margin="0,0,6,0" />
-        <TextBox x:Name="CustomSaveRootTextBox" Grid.Column="1"
-                 Margin="0,0,6,0" PlaceholderText="Custom save root (opcional)" />
-        <TextBlock Text="Profile ID" Grid.Column="2" VerticalAlignment="Center"
-                   Margin="0,0,6,0" />
-        <TextBox x:Name="ProfileTextBox" Grid.Column="3" Text="bridge-test" />
-
-        <TextBlock Text="Engine slug" Grid.Row="1" VerticalAlignment="Center"
-                   Margin="0,6,6,0" />
-        <TextBox x:Name="EngineTextBox" Grid.Row="1" Grid.Column="1"
-                 Margin="0,6,6,0" Text="school-days" />
-        <TextBlock Text="Rota (.ktrf)" Grid.Row="1" Grid.Column="2"
-                   VerticalAlignment="Center" Margin="0,6,6,0" />
-        <TextBox x:Name="RouteTextBox" Grid.Row="1" Grid.Column="3"
-                 Margin="0,6,0,0" PlaceholderText="Vazio = rota padrao" />
-      </Grid>
-
-      <Expander Header="Parametros opcionais da request (preenchidos pelo scan/JSON)"
-                IsExpanded="False" Margin="0,6,0,0">
-        <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*"
-              RowDefinitions="Auto,Auto,Auto">
-          <TextBlock Text="Asset overlay" Grid.Row="0" Grid.Column="0"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="OverlayTextBox" Grid.Row="0" Grid.Column="1"
-                   PlaceholderText="Pasta/file de overlay" />
-          <TextBlock Text="Traducao (.ktr)" Grid.Row="0" Grid.Column="2"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="TranslationTextBox" Grid.Row="0" Grid.Column="3"
-                   PlaceholderText="catalogo .ktr" />
-          <TextBlock Text="Estilo legenda" Grid.Row="0" Grid.Column="4"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="SubtitleStyleTextBox" Grid.Row="0" Grid.Column="5"
-                   PlaceholderText="arquivo .ass" />
-          <TextBlock Text="Documents dir" Grid.Row="0" Grid.Column="6"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="DocumentsTextBox" Grid.Row="0" Grid.Column="7"
-                   PlaceholderText="--documents" />
-
-          <TextBlock Text="Scripts dir" Grid.Row="1" Grid.Column="0"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="ScriptsTextBox" Grid.Row="1" Grid.Column="1"
-                   PlaceholderText="pasta de scripts" />
-          <TextBlock Text="Cenario inicial" Grid.Row="1" Grid.Column="2"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="StartScenarioTextBox" Grid.Row="1" Grid.Column="3"
-                   PlaceholderText="--start" />
-          <TextBlock Text="Renderer" Grid.Row="1" Grid.Column="4"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="RendererTextBox" Grid.Row="1" Grid.Column="5"
-                   PlaceholderText="Auto" />
-          <TextBlock Text="Upscaler" Grid.Row="1" Grid.Column="6"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="UpscalerTextBox" Grid.Row="1" Grid.Column="7"
-                   PlaceholderText="Auto" />
-
-          <TextBlock Text="Preset" Grid.Row="2" Grid.Column="0"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="UpscalerPresetTextBox" Grid.Row="2" Grid.Column="1"
-                   PlaceholderText="ex.: Anime4K: Mode A (HQ)" />
-          <TextBlock Text="Fator" Grid.Row="2" Grid.Column="2"
-                     VerticalAlignment="Center" />
-          <TextBox x:Name="UpscalerFactorTextBox" Grid.Row="2" Grid.Column="3"
-                   PlaceholderText="ex.: 2" />
-        </Grid>
-      </Expander>
-
-      <WrapPanel Margin="0,8,0,0">
-        <Button Content="Scan" Click="Scan_Click" Margin="0,0,6,6" />
-        <Button Content="Detect" Click="Detect_Click" Margin="0,0,6,6" />
-        <Button Content="Load params" Click="LoadParams_Click" Margin="0,0,6,6" />
-        <Button Content="Save params" Click="SaveParams_Click" Margin="0,0,6,6" />
-        <Button Content="Upscale presets" Click="Upscale_Click" Margin="0,0,6,6" />
-        <Button Content="Validate route" Click="ValidateRoute_Click" Margin="0,0,6,6" />
-        <Button Content="Resolve save dir" Click="ResolveSaveDir_Click" Margin="0,0,6,6" />
-        <Button Content="Default route" Click="DefaultRoute_Click" Margin="0,0,6,6" />
-        <Button Content="Limpar log" Click="ClearLog_Click" Margin="0,0,6,6" />
-      </WrapPanel>
-
-      <TextBlock Text="Jogos detectados (selecione UM e clique em Launch game)"
-                 FontWeight="Bold" Margin="0,6,0,0" />
-      <Grid ColumnDefinitions="*,Auto">
-        <ListBox x:Name="GamesList" Grid.Column="0" Height="146"
-                 SelectionMode="Single"
-                 SelectionChanged="GamesList_SelectionChanged">
-          <ListBox.ItemTemplate>
-            <DataTemplate DataType="{x:Type local:GameEntry}" x:DataType="local:GameEntry">
-              <StackPanel Spacing="1" Margin="4">
-                <TextBlock Text="{Binding Title}" FontWeight="Bold" />
-                <TextBlock Text="{Binding EngineSlug}" FontSize="11" Opacity="0.75" />
-                <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.75"
-                           TextWrapping="NoWrap" />
-              </StackPanel>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-        <StackPanel Grid.Column="1" Spacing="6" Margin="8,0,0,0"
-                    VerticalAlignment="Top" Width="170">
-          <Button x:Name="LaunchGameButton" Content="Launch game"
-                  Background="#356635" Foreground="White"
-                  Click="LaunchGame_Click" />
-          <Button Content="Validate request" Click="ValidateRequest_Click" />
-          <CheckBox x:Name="DryRunCheck" Content="Test launcher only"
-                    ToolTip.Tip="Valida a request sem abrir SDL nem a janela do jogo" />
-          <TextBlock x:Name="LaunchStatusTextBlock" Text="Nenhum jogo selecionado."
-                     FontSize="11" TextWrapping="Wrap" Opacity="0.8" />
-        </StackPanel>
-      </Grid>
+      <TextBlock x:Name="LaunchStatusTextBlock" Text="Nenhum jogo selecionado."
+                 FontSize="12" FontWeight="Bold" TextWrapping="Wrap" />
     </StackPanel>
 
     <TextBlock x:Name="StatusTextBlock" DockPanel.Dock="Bottom" Margin="0,6,0,0"
                FontSize="11" Opacity="0.7" Text="Pronto." />
 
-    <Grid RowDefinitions="*,4,*">
+    <!-- Resultado JSON + log geral da ponte (mantidos do layout anterior). -->
+    <Grid DockPanel.Dock="Bottom" Height="230" RowDefinitions="*,4,*"
+          Margin="0,6,0,0">
       <TextBox x:Name="ResultTextBox" Grid.Row="0" IsReadOnly="True"
                AcceptsReturn="True" TextWrapping="NoWrap"
                FontFamily="Menlo, Monaco, monospace" FontSize="11"
@@ -158,6 +37,157 @@
                FontFamily="Menlo, Monaco, monospace" FontSize="11"
                VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
                ScrollViewer.VerticalScrollBarVisibility="Auto" />
+    </Grid>
+
+    <!-- ESQUERDA: todos os controles/opcoes. DIREITA: lista de jogos + log. -->
+    <Grid ColumnDefinitions="520,12,*">
+      <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto" Margin="0,0,6,0">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Bibliotecas / pastas de jogos" FontWeight="Bold"
+                     Margin="0,6,0,0" />
+          <Grid ColumnDefinitions="*,Auto,Auto">
+            <TextBox x:Name="RootTextBox" Grid.Column="0"
+                     PlaceholderText="/Volumes/Server/data2/Games"
+                     Text="/Volumes/Server/data2/Games"
+                     KeyDown="RootTextBox_KeyDown" />
+            <Button x:Name="AddRootButton" Grid.Column="1" Content="+ Adicionar pasta"
+                    Margin="6,0,0,0" Click="AddRoot_Click" />
+            <Button x:Name="RemoveRootButton" Grid.Column="2" Content="Remover"
+                    Margin="6,0,0,0" Click="RemoveRoot_Click" />
+          </Grid>
+          <ListBox x:Name="RootsList" Height="76" SelectionMode="Multiple" />
+
+          <TextBlock Text="Opcoes de busca" FontWeight="Bold" Margin="0,6,0,0" />
+          <Grid ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,Auto">
+            <CheckBox x:Name="SplitCheck" Content="Separar saves por jogo"
+                      IsChecked="True"
+                      VerticalAlignment="Center" Margin="0,0,6,0" />
+            <TextBox x:Name="CustomSaveRootTextBox" Grid.Column="1"
+                     Margin="0,0,6,0" PlaceholderText="Custom save root (opcional)" />
+            <TextBlock Text="Profile ID" Grid.Column="2" VerticalAlignment="Center"
+                       Margin="0,0,6,0" />
+            <TextBox x:Name="ProfileTextBox" Grid.Column="3" Text="bridge-test" />
+
+            <TextBlock Text="Engine slug" Grid.Row="1" VerticalAlignment="Center"
+                       Margin="0,6,6,0" />
+            <TextBox x:Name="EngineTextBox" Grid.Row="1" Grid.Column="1"
+                     Margin="0,6,6,0" Text="school-days" />
+            <TextBlock Text="Rota (.ktrf)" Grid.Row="1" Grid.Column="2"
+                       VerticalAlignment="Center" Margin="0,6,6,0" />
+            <TextBox x:Name="RouteTextBox" Grid.Row="1" Grid.Column="3"
+                     Margin="0,6,0,0" PlaceholderText="Vazio = rota padrao" />
+          </Grid>
+
+          <Expander Header="Parametros opcionais da request (preenchidos pelo scan/JSON)"
+                    IsExpanded="False" Margin="0,6,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*,Auto,*"
+                  RowDefinitions="Auto,Auto,Auto">
+              <TextBlock Text="Asset overlay" Grid.Row="0" Grid.Column="0"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="OverlayTextBox" Grid.Row="0" Grid.Column="1"
+                       PlaceholderText="Pasta/file de overlay" />
+              <TextBlock Text="Traducao (.ktr)" Grid.Row="0" Grid.Column="2"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="TranslationTextBox" Grid.Row="0" Grid.Column="3"
+                       PlaceholderText="catalogo .ktr" />
+              <TextBlock Text="Estilo legenda" Grid.Row="0" Grid.Column="4"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="SubtitleStyleTextBox" Grid.Row="0" Grid.Column="5"
+                       PlaceholderText="arquivo .ass" />
+              <TextBlock Text="Documents dir" Grid.Row="0" Grid.Column="6"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="DocumentsTextBox" Grid.Row="0" Grid.Column="7"
+                       PlaceholderText="--documents" />
+
+              <TextBlock Text="Scripts dir" Grid.Row="1" Grid.Column="0"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="ScriptsTextBox" Grid.Row="1" Grid.Column="1"
+                       PlaceholderText="pasta de scripts" />
+              <TextBlock Text="Cenario inicial" Grid.Row="1" Grid.Column="2"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="StartScenarioTextBox" Grid.Row="1" Grid.Column="3"
+                       PlaceholderText="--start" />
+              <TextBlock Text="Renderer" Grid.Row="1" Grid.Column="4"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="RendererTextBox" Grid.Row="1" Grid.Column="5"
+                       PlaceholderText="Auto" />
+              <TextBlock Text="Upscaler" Grid.Row="1" Grid.Column="6"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="UpscalerTextBox" Grid.Row="1" Grid.Column="7"
+                       PlaceholderText="Auto" />
+
+              <TextBlock Text="Preset" Grid.Row="2" Grid.Column="0"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="UpscalerPresetTextBox" Grid.Row="2" Grid.Column="1"
+                       PlaceholderText="ex.: Anime4K: Mode A (HQ)" />
+              <TextBlock Text="Fator" Grid.Row="2" Grid.Column="2"
+                         VerticalAlignment="Center" />
+              <TextBox x:Name="UpscalerFactorTextBox" Grid.Row="2" Grid.Column="3"
+                       PlaceholderText="ex.: 2" />
+            </Grid>
+          </Expander>
+
+          <WrapPanel Margin="0,8,0,0">
+            <Button Content="Scan" Click="Scan_Click" Margin="0,0,6,6" />
+            <Button Content="Detect" Click="Detect_Click" Margin="0,0,6,6" />
+            <Button Content="Load params" Click="LoadParams_Click" Margin="0,0,6,6" />
+            <Button Content="Save params" Click="SaveParams_Click" Margin="0,0,6,6" />
+            <Button Content="Upscale presets" Click="Upscale_Click" Margin="0,0,6,6" />
+            <Button Content="Validate route" Click="ValidateRoute_Click" Margin="0,0,6,6" />
+            <Button Content="Resolve save dir" Click="ResolveSaveDir_Click" Margin="0,0,6,6" />
+            <Button Content="Default route" Click="DefaultRoute_Click" Margin="0,0,6,6" />
+            <Button Content="Limpar log" Click="ClearLog_Click" Margin="0,0,6,6" />
+          </WrapPanel>
+
+          <StackPanel Spacing="6" Margin="0,6,0,0">
+            <Button x:Name="LaunchGameButton" Content="Launch game"
+                    HorizontalAlignment="Stretch"
+                    Background="#356635" Foreground="White"
+                    Click="LaunchGame_Click" />
+            <Button Content="Validate request" Click="ValidateRequest_Click"
+                    HorizontalAlignment="Stretch" />
+            <CheckBox x:Name="DryRunCheck" Content="Test launcher only"
+                      ToolTip.Tip="Valida a request sem abrir SDL nem a janela do jogo" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+
+      <Grid Grid.Column="2" RowDefinitions="Auto,*,Auto,*">
+        <TextBlock Text="Jogos detectados (selecione UM e clique em Launch game)"
+                   FontWeight="Bold" Margin="0,6,0,0" />
+        <ListBox x:Name="GamesList" Grid.Row="1" Margin="0,6,0,0"
+                 SelectionMode="Single"
+                 SelectionChanged="GamesList_SelectionChanged">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="{x:Type local:GameEntry}" x:DataType="local:GameEntry">
+              <Border Background="{Binding RowBackground}"
+                      BorderBrush="{Binding RowForeground}" BorderThickness="1"
+                      CornerRadius="3" Padding="4" Margin="1">
+                <StackPanel Spacing="1">
+                  <TextBlock Text="{Binding Title}" FontWeight="Bold"
+                             Foreground="{Binding RowForeground}" />
+                  <TextBlock Text="{Binding EngineSlug}" FontSize="11"
+                             Opacity="0.75" Foreground="{Binding RowForeground}" />
+                  <TextBlock Text="{Binding Path}" FontSize="11" Opacity="0.75"
+                             TextWrapping="NoWrap"
+                             Foreground="{Binding RowForeground}" />
+                  <TextBlock Text="{Binding StatusText}" FontSize="11"
+                             FontWeight="Bold" Foreground="{Binding RowForeground}"
+                             IsVisible="{Binding IsRunning}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock Grid.Row="2" Text="Log do jogo selecionado (launch / engine)"
+                   FontWeight="Bold" Margin="0,8,0,0" />
+        <TextBox x:Name="GameLogTextBox" Grid.Row="3" Margin="0,6,0,0"
+                 IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                 FontFamily="Menlo, Monaco, monospace" FontSize="11"
+                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto" />
+      </Grid>
     </Grid>
   </DockPanel>
 </Window>

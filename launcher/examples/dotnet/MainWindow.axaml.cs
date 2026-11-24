@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -17,6 +18,9 @@ public partial class MainWindow : Window
 {
     private readonly ObservableCollection<string> _roots;
     private readonly ObservableCollection<GameEntry> _games = new();
+    // Log de cada jogo, indexado pelo caminho do scan (sobrevive a re-scans).
+    private readonly Dictionary<string, StringBuilder> _gameLogs = new();
+    private bool _launchInFlight;
 
     public MainWindow()
     {
@@ -34,6 +38,7 @@ public partial class MainWindow : Window
         Log($"Nativa existe: {File.Exists(Program.NativeLibraryPath)}");
         Log($"Roots iniciais: {string.Join(" | ", _roots)}");
         Log("Scan -> selecione UM jogo -> Launch game (um por vez).");
+        ShowGameLog(null);
 
         Opened += MainWindow_Opened;
     }
@@ -41,10 +46,17 @@ public partial class MainWindow : Window
     private static string? Opt(TextBox box) =>
         string.IsNullOrWhiteSpace(box.Text) ? null : box.Text;
 
-    private void Log(string message)
+    private void Log(string message) => AppendLog(message, null);
+
+    /// <summary>Escreve no log geral e no log especifico do jogo.</summary>
+    private void LogFor(GameEntry game, string message) => AppendLog(message, game);
+
+    private void AppendLog(string message, GameEntry? game)
     {
         var line = $"[{DateTime.Now:HH:mm:ss}] {message}";
         LogTextBox.Text += line + Environment.NewLine;
+        if (game is not null)
+            GameLogFor(game).AppendLine(line);
         StatusTextBlock.Text = message;
         try
         {
@@ -57,6 +69,28 @@ public partial class MainWindow : Window
         {
             // Log em arquivo e' best-effort; a area de log da UI e' a principal.
         }
+    }
+
+    private StringBuilder GameLogFor(GameEntry game)
+    {
+        if (!_gameLogs.TryGetValue(game.Path, out var log))
+            _gameLogs[game.Path] = log = new StringBuilder();
+        return log;
+    }
+
+    /// <summary>Chamado pelo SelectionChanged: mostra so o log daquele jogo.</summary>
+    private void ShowGameLog(GameEntry? game)
+    {
+        if (game is null)
+        {
+            GameLogTextBox.Text = "Selecione um jogo na lista para ver o log.";
+            return;
+        }
+        GameLogTextBox.Text =
+            _gameLogs.TryGetValue(game.Path, out var log) && log.Length > 0
+                ? log.ToString()
+                : $"Sem log de launch para {game.Title}.\n" +
+                  "Selecione o jogo e clique em Launch game para gerar o log.";
     }
 
     private void ShowJson(string label, string json)
@@ -108,11 +142,12 @@ public partial class MainWindow : Window
             JsonElement p = entry.TryGetProperty("params", out var pp) ? pp : default;
             string Param(string name) => Str(p, name);
 
+            string path = Str(entry, "path");
             _games.Add(new GameEntry
             {
                 Title = Str(entry, "title"),
                 SaveProfileId = Str(entry, "saveProfileId"),
-                Path = Str(entry, "path"),
+                Path = path,
                 OverlayPath = Str(entry, "overlayPath"),
                 EngineSlug = Str(entry, "engineSlug"),
                 AssetOverlayPath = Param("assetOverlayPath"),
@@ -206,10 +241,15 @@ public partial class MainWindow : Window
     private void GamesList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (GamesList.SelectedItem is not GameEntry game)
+        {
+            ShowGameLog(null);
             return;
+        }
         Log($"Jogo selecionado: {game.Title} | {game.EngineSlug} | " +
             $"{game.Path} (profile={game.SaveProfileId})");
         LaunchStatusTextBlock.Text = "Selecionado: " + game.Title;
+        // Clicar em um jogo mostra o log do launch/engine daquele jogo.
+        ShowGameLog(game);
 
         // Preenche a request com os valores vindos do JSON de scan.
         OverlayTextBox.Text = string.IsNullOrEmpty(game.AssetOverlayPath)
@@ -274,43 +314,71 @@ public partial class MainWindow : Window
         var request = BuildRequest(game);
         if (validate)
         {
-            Log("Validate request => launch request validated; " +
+            LogFor(game, "Validate request => launch request validated; " +
                 "graphical launch requires SDL app");
             var description = JsonSerializer.Serialize(request,
                 new JsonSerializerOptions { WriteIndented = true, IncludeFields = true });
+            LogFor(game, "REQUEST " + description.Replace('\n', ' '));
             ShowJson("LaunchRequest (validated)", description);
+            ShowGameLog(game);
             LaunchStatusTextBlock.Text = "Request validada: " + game.Title;
             return;
         }
+        if (_launchInFlight)
+        {
+            Log("[AVISO] Launch ja em andamento: feche o jogo antes de iniciar outro.");
+            return;
+        }
+        _launchInFlight = true;
+        // Verde somente enquanto o jogo esta aberto; limpa qualquer jogo anterior.
+        ClearRunning();
+        game.IsRunning = true;
+        LogFor(game, $"Launch game: {game.Path} engine={request.EngineSlug} " +
+            $"profile={request.SaveProfileId} dryRun={request.DryRun}");
+        LaunchStatusTextBlock.Text = request.DryRun
+            ? "Validando request..."
+            : "Aguardando jogo... feche a janela para voltar...";
         try
         {
-            Log($"Launch game: {game.Path} engine={request.EngineSlug} " +
-                $"profile={request.SaveProfileId} dryRun={request.DryRun}");
-            LaunchStatusTextBlock.Text = request.DryRun
-                ? "Validando request..."
-                : "Jogo em execução — feche a janela para voltar ao launcher...";
             // Bloqueia ate' o jogo fechar (ou ate' o dry-run terminar); so'
             // entao' o controle volta para a UI gerenciada.
             var result = await Task.Run(() => KotonohaLauncher.LaunchGame(request));
             bool ok = result.Contains("\"ok\":true", StringComparison.Ordinal);
             bool playable = result.Contains("\"playable\":true",
                 StringComparison.Ordinal);
-            Log($"Launch {(ok ? "OK  " : "ERRO")} {game.Title} " +
+            LogFor(game, $"Launch {(ok ? "OK  " : "ERRO")} {game.Title} " +
                 $"playable={playable} => {result}");
+            // JSON final (inclui "Game exited cleanly"/frames) entra no log do jogo.
+            LogFor(game, "RESULT " + result);
             ShowJson("LaunchGame", result);
+            GamesList.SelectedItem = game;
+            GamesList.ScrollIntoView(game);
             LaunchStatusTextBlock.Text = (ok ? "Launched OK: " : "Launch ERRO: ")
                 + game.Title + $" (playable={playable})";
             if (!ok || result.Contains("\"dryRun\":true", StringComparison.Ordinal))
             {
-                Log("launch request validated; graphical launch requires SDL app" +
+                LogFor(game, "launch request validated; graphical launch requires SDL app" +
                     " (veja o JSON/request acima)");
             }
         }
         catch (Exception ex)
         {
             Log($"[ERRO] Launch game: {ex}");
+            LogFor(game, $"[ERRO] Launch game: {ex}");
             LaunchStatusTextBlock.Text = "Launch ERRO: " + game.Title;
         }
+        finally
+        {
+            // Jogo fechou (ou falhou): a barra verde some, inclusive em erro.
+            game.IsRunning = false;
+            _launchInFlight = false;
+            ShowGameLog(game);
+        }
+    }
+
+    private void ClearRunning()
+    {
+        foreach (var entry in _games) entry.IsRunning = false;
     }
 
     private async void MainWindow_Opened(object? sender, EventArgs e)

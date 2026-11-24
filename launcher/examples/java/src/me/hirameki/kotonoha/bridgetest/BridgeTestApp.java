@@ -2,10 +2,15 @@ package me.hirameki.kotonoha.bridgetest;
 
 import java.io.File;
 import java.time.LocalTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -13,10 +18,12 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -39,11 +46,20 @@ import me.hirameki.kotonoha.launcher.KotonohaLauncherBridge;
 public final class BridgeTestApp extends Application {
     private static final String SERVER_ROOT = "/Volumes/Server/data2/Games";
     private static final String EXTERNAL_ROOT = "/Volumes/Nero 2TB/KotonohaAssets";
+    private static final String GREEN_ROW =
+            "-fx-background-color: #b9f6c6; -fx-text-fill: #0b5a20;";
+    private static final String GREEN_CELL =
+            "-fx-background-color: #b9f6c6; -fx-text-fill: #0b5a20; "
+            + "-fx-font-weight: bold;";
 
     private final ObservableList<String> roots = FXCollections.observableArrayList();
     private final TableView<GameRow> gamesTable = new TableView<>();
     private final TextArea outputArea = new TextArea();
     private final TextArea logArea = new TextArea();
+    private final TextArea gameLogArea = new TextArea();
+    // Log de cada jogo, indexado pelo caminho do scan (sobrevive a re-scans).
+    private final Map<String, StringBuilder> gameLogs = new LinkedHashMap<>();
+    private boolean launchScheduled;
     private final TextField newRootField = new TextField();
     private final TextField detectField = new TextField();
     private final TextField profileField = new TextField("bridge-test-profile");
@@ -87,7 +103,7 @@ public final class BridgeTestApp extends Application {
         newRootField.setText(defaultRoot);
 
         stage.setTitle("Kotonoha Launcher — jogos individuais (JavaFX)");
-        stage.setScene(new Scene(buildRoot(), 1180, 860));
+        stage.setScene(new Scene(buildRoot(), 1460, 900));
         stage.show();
         log("Pronto. Scan -> selecione um jogo -> Launch game (um por vez).");
 
@@ -115,6 +131,7 @@ public final class BridgeTestApp extends Application {
                 gamesTable.getSelectionModel().select(found);
                 gamesTable.scrollTo(found);
                 fillOptionalFields(found.info);
+                showGameLog(found);
                 log("--auto-launch: selecionado " + found.title.get()
                         + " (" + found.path.get() + ")");
                 launchSelected(validate);
@@ -125,7 +142,8 @@ public final class BridgeTestApp extends Application {
     private BorderPane buildRoot() {
         BorderPane root = new BorderPane();
         root.setTop(buildTop());
-        root.setCenter(buildCenter());
+        root.setLeft(buildLeft());   // controles / opcoes a esquerda
+        root.setRight(buildRight()); // lista de jogos a direita + log do jogo
         root.setBottom(buildLog());
         return root;
     }
@@ -133,6 +151,15 @@ public final class BridgeTestApp extends Application {
     private VBox buildTop() {
         Label title = new Label("KotonohaLauncherCore — ponte JNI / launch individual");
         title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        VBox top = new VBox(4, title, statusLabel);
+        top.setPadding(new Insets(10, 10, 4, 10));
+        return top;
+    }
+
+    /** Coluna esquerda: roots, opcoes, acoes, parametros e saida JSON. */
+    private VBox buildLeft() {
+        Label libraries = new Label("Bibliotecas / pastas de jogos");
+        libraries.setStyle("-fx-font-weight: bold;");
 
         Button addButton = new Button("Add folder");
         addButton.setOnAction(e -> addRoot(newRootField.getText()));
@@ -158,9 +185,23 @@ public final class BridgeTestApp extends Application {
         options.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(saveRootField, Priority.ALWAYS);
 
-        VBox top = new VBox(6, title, addRow, rootsList, options, buildActions());
-        top.setPadding(new Insets(10));
-        return top;
+        TitledPane paramsPane = new TitledPane(
+                "Parâmetros opcionais do launch (da request / do JSON de scan)",
+                buildOptionalFields());
+        paramsPane.setExpanded(false);
+
+        outputArea.setEditable(false);
+        outputArea.setPromptText("JSON formatado");
+        outputArea.setStyle("-fx-font-family: 'Menlo'; -fx-font-size: 11px;");
+        TitledPane outputPane = new TitledPane("Saída JSON", outputArea);
+        VBox.setVgrow(outputPane, Priority.ALWAYS);
+
+        VBox left = new VBox(6, libraries, addRow, rootsList, options,
+                buildActions(), paramsPane, outputPane);
+        left.setPadding(new Insets(4, 6, 10, 10));
+        left.setPrefWidth(560);
+        left.setMinWidth(520);
+        return left;
     }
 
     private TitledPane buildActions() {
@@ -228,9 +269,8 @@ public final class BridgeTestApp extends Application {
         HBox.setHgrow(ktrfField, Priority.ALWAYS);
         ktrfField.setPrefWidth(240);
 
-        HBox third = new HBox(8, launchOne, validateRequest, statusLabel);
+        HBox third = new HBox(8, launchOne, validateRequest);
         third.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(statusLabel, Priority.ALWAYS);
 
         TitledPane pane = new TitledPane("Ações da ponte JNI (chamadas nativas reais)",
                 new VBox(6, first, new HBox(8, new Label("Detect path:"), detectField),
@@ -245,42 +285,80 @@ public final class BridgeTestApp extends Application {
         return b;
     }
 
-    private VBox buildCenter() {
+    /** Coluna direita: lista de jogos (verde quando launchado) + log do jogo. */
+    private VBox buildRight() {
         TableColumn<GameRow, String> colTitle = new TableColumn<>("Título");
         colTitle.setCellValueFactory(c -> c.getValue().title);
         TableColumn<GameRow, String> colEngine = new TableColumn<>("Engine");
         colEngine.setCellValueFactory(c -> c.getValue().engine);
         TableColumn<GameRow, String> colProfile = new TableColumn<>("Save profile");
         colProfile.setCellValueFactory(c -> c.getValue().saveProfileId);
+        TableColumn<GameRow, Boolean> colState = new TableColumn<>("Estado");
+        colState.setCellValueFactory(c -> c.getValue().running);
+        colState.setCellFactory(col -> new TableCell<GameRow, Boolean>() {
+            @Override
+            protected void updateItem(Boolean item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                boolean running = Boolean.TRUE.equals(item);
+                setText(running ? "● RUNNING" : "—");
+                setStyle(running ? GREEN_CELL : "");
+            }
+        });
         TableColumn<GameRow, String> colPath = new TableColumn<>("Caminho");
         colPath.setCellValueFactory(c -> c.getValue().path);
-        gamesTable.getColumns().addAll(colTitle, colEngine, colProfile, colPath);
-        gamesTable.setPrefHeight(184);
+        gamesTable.getColumns().addAll(colTitle, colEngine, colProfile, colState, colPath);
         gamesTable.setPlaceholder(new Label("Faça Scan para listar os jogos detectados"));
         gamesTable.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         gamesTable.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldRow, row) -> {
                     if (row != null) fillOptionalFields(row.info);
+                    // Clicar em um jogo mostra o log daquele launch/engine.
+                    showGameLog(row);
                 });
-        colTitle.setPrefWidth(190);
-        colEngine.setPrefWidth(150);
-        colProfile.setPrefWidth(130);
-        colPath.setPrefWidth(540);
+        gamesTable.setRowFactory(tv -> new TableRow<GameRow>() {
+            private final ChangeListener<Boolean> launchListener =
+                    (obs, was, is) -> setStyle(is ? GREEN_ROW : "");
 
-        outputArea.setEditable(false);
-        outputArea.setPromptText("JSON formatado");
-        outputArea.setStyle("-fx-font-family: 'Menlo'; -fx-font-size: 11px;");
-        VBox.setVgrow(outputArea, Priority.ALWAYS);
+            @Override
+            protected void updateItem(GameRow item, boolean empty) {
+                GameRow previous = getItem();
+                if (previous != null) previous.running.removeListener(launchListener);
+                super.updateItem(item, empty);
+                if (item != null && !empty) {
+                    item.running.addListener(launchListener);
+                    setStyle(item.running.get() ? GREEN_ROW : "");
+                } else {
+                    setStyle("");
+                }
+            }
+        });
+        colTitle.setPrefWidth(150);
+        colEngine.setPrefWidth(125);
+        colProfile.setPrefWidth(110);
+        colState.setPrefWidth(105);
+        colPath.setPrefWidth(330);
+
+        gameLogArea.setEditable(false);
+        gameLogArea.setPromptText("Selecione um jogo para ver o log do launch/engine");
+        gameLogArea.setStyle("-fx-font-family: 'Menlo'; -fx-font-size: 11px;");
+        showGameLog(null);
 
         TitledPane tablePane = new TitledPane(
                 "Jogos detectados (selecione UM e clique em Launch game)", gamesTable);
-        TitledPane paramsPane = new TitledPane(
-                "Parâmetros opcionais do launch (da request / do JSON de scan)",
-                buildOptionalFields());
-        paramsPane.setExpanded(false);
-        TitledPane outputPane = new TitledPane("Saída JSON", outputArea);
-        VBox.setVgrow(outputPane, Priority.ALWAYS);
-        return new VBox(6, tablePane, paramsPane, outputPane);
+        VBox.setVgrow(tablePane, Priority.ALWAYS);
+        TitledPane gameLogPane = new TitledPane(
+                "Log do jogo selecionado (launch / engine)", gameLogArea);
+        VBox.setVgrow(gameLogPane, Priority.ALWAYS);
+        VBox right = new VBox(6, tablePane, gameLogPane);
+        right.setPadding(new Insets(4, 10, 10, 6));
+        right.setPrefWidth(830);
+        right.setMinWidth(700);
+        return right;
     }
 
     private GridPane buildOptionalFields() {
@@ -311,9 +389,9 @@ public final class BridgeTestApp extends Application {
 
     private VBox buildLog() {
         logArea.setEditable(false);
-        logArea.setPrefHeight(132);
+        logArea.setPrefHeight(110);
         logArea.setStyle("-fx-font-family: 'Menlo'; -fx-font-size: 11px;");
-        return new VBox(new TitledPane("Log", logArea));
+        return new VBox(new TitledPane("Log geral da ponte", logArea));
     }
 
     private void addRoot(String path) {
@@ -347,6 +425,7 @@ public final class BridgeTestApp extends Application {
         gamesTable.getItems().setAll(parsed.stream().map(game -> {
             GameRow g = new GameRow();
             g.info = game;
+            g.running.set(false);
             g.title.set(game.title.isEmpty() ? "(sem título)" : game.title);
             g.engine.set(game.engineSlug.isEmpty() ? "(desconhecido)" : game.engineSlug);
             g.saveProfileId.set(game.saveProfileId);
@@ -413,39 +492,67 @@ public final class BridgeTestApp extends Application {
                 .dryRun(dryRunBox.isSelected())
                 .build();
         if (validate) {
-            log("Validate request => launch request validated; "
+            logFor(row, "Validate request => launch request validated; "
                     + "graphical launch requires SDL app");
-            log("REQUEST " + request.describe().replace('\n', ' '));
+            logFor(row, "REQUEST " + request.describe().replace('\n', ' '));
             showText(request.describe());
+            showGameLog(row);
             status("Request validada: " + row.title.get());
             return;
         }
+        if (launchScheduled) {
+            log("Launch ja em andamento: feche o jogo antes de iniciar outro");
+            return;
+        }
+        // Verde somente enquanto o jogo esta aberto: limpa qualquer jogo anterior.
+        clearRunning();
+        row.running.set(true);
+        launchScheduled = true;
+        logFor(row, "Launch game: " + row.path.get() + " engine="
+                + request.engineSlug + " profile=" + request.saveProfileId
+                + " dryRun=" + request.dryRun);
+        status(request.dryRun ? "Validando request..."
+                : "Aguardando jogo... feche a janela para voltar");
+        // O runLater permite um pulso do FX thread para pintar a linha verde
+        // antes da chamada JNI bloqueante (a main thread passa a rodar o jogo).
+        Platform.runLater(() -> doLaunch(row, request));
+    }
+
+    /** Chamada bloqueante; sempre devolve a linha ao estado normal (finally). */
+    private void doLaunch(GameRow row, LaunchRequest request) {
         try {
-            log("Launch game: " + row.path.get() + " engine="
-                    + request.engineSlug + " profile=" + request.saveProfileId
-                    + " dryRun=" + request.dryRun);
-            status(request.dryRun ? "Validando request..."
-                    : "Aguardando jogo... feche a janela para voltar");
-            // Chamada sincrona: a main thread passa a rodar o jogo e so'
-            // retorna quando a janela e' fechada (ou no dry-run).
             String result = request.launch();
             boolean ok = result != null && result.contains("\"ok\":true");
             boolean playable = JsonUtil.boolField(result, "playable");
-            log("Launch " + (ok ? "OK  " : "ERRO") + " " + row.title.get()
+            logFor(row, "Launch " + (ok ? "OK  " : "ERRO") + " " + row.title.get()
                     + " playable=" + playable + " => " + result);
+            // JSON final (inclui "Game exited cleanly"/frames) vai para o log do jogo.
+            logFor(row, "RESULT " + JsonUtil.pretty(result));
             showText(result);
+            gamesTable.getSelectionModel().select(row);
             status((ok ? "Launched OK: " : "Launch ERRO: ") + row.title.get()
                     + " (playable=" + playable + ")");
             if (result != null && result.contains("\"dryRun\":true")) {
-                log("launch request validated; graphical launch requires SDL app");
+                logFor(row, "launch request validated; graphical launch requires SDL app");
             } else if (!ok) {
-                log("launch request validated; graphical launch requires SDL app"
+                logFor(row, "launch request validated; graphical launch requires SDL app"
                         + " (launch real falhou; veja o JSON acima)");
-                log("REQUEST " + request.describe().replace('\n', ' '));
+                logFor(row, "REQUEST " + request.describe().replace('\n', ' '));
             }
         } catch (Throwable t) {
             fail("Launch game", t);
+            logFor(row, "Launch game ERRO: " + t);
+        } finally {
+            // Jogo fechou (ou falhou): a barra verde some, mesmo em erro.
+            row.running.set(false);
+            launchScheduled = false;
+            gamesTable.refresh();
+            showGameLog(row);
         }
+    }
+
+    private void clearRunning() {
+        for (GameRow row : gamesTable.getItems()) row.running.set(false);
     }
 
     private void status(String message) {
@@ -453,7 +560,34 @@ public final class BridgeTestApp extends Application {
     }
 
     private void log(String message) {
-        logArea.appendText("[" + LocalTime.now().withNano(0) + "] " + message + "\n");
+        appendLog(message, null);
+    }
+
+    /** Escreve no log geral e no log especifico do jogo (chave = caminho do scan). */
+    private void logFor(GameRow row, String message) {
+        appendLog(message, row);
+    }
+
+    private void appendLog(String message, GameRow row) {
+        String line = "[" + LocalTime.now().withNano(0) + "] " + message + "\n";
+        logArea.appendText(line);
+        if (row != null) {
+            gameLogs.computeIfAbsent(row.path.get(), key -> new StringBuilder()).append(line);
+        }
+    }
+
+    /** Chamado pelo ChangeListener de selecao da tabela: mostra so o log do jogo. */
+    private void showGameLog(GameRow row) {
+        if (row == null) {
+            gameLogArea.setText("Selecione um jogo na lista para ver o log.");
+            return;
+        }
+        StringBuilder log = gameLogs.get(row.path.get());
+        gameLogArea.setText(log == null || log.length() == 0
+                ? "Sem log de launch para " + row.title.get() + ".\n"
+                  + "Selecione o jogo e clique em Launch game para gerar o log."
+                : log.toString());
+        gameLogArea.positionCaret(gameLogArea.getLength());
     }
 
     private static String nullToEmpty(String value) {
@@ -465,6 +599,8 @@ public final class BridgeTestApp extends Application {
         final SimpleStringProperty engine = new SimpleStringProperty();
         final SimpleStringProperty saveProfileId = new SimpleStringProperty();
         final SimpleStringProperty path = new SimpleStringProperty();
+        // true enquanto o launch deste jogo bloqueia a main thread: linha verde.
+        final SimpleBooleanProperty running = new SimpleBooleanProperty(false);
         GameInfo info;
     }
 
