@@ -68,7 +68,8 @@ if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)
     endforeach ()
 endif ()
 # Resolve SDL3/SDL3_ttf: master provider first, legacy explicit override
-# second, pinned submodules as the AUTO fallback.
+# second. Only an explicit SUBMODULES request (or Android) may initialize the
+# pinned submodules; SYSTEM/VCPKG fail instead of falling back to them.
 if(DEFINED KOTONOHA_SDL_PROVIDER_EFFECTIVE AND
    NOT KOTONOHA_SDL_PROVIDER_EFFECTIVE STREQUAL "")
     set(_kotonoha_sdl_request "${KOTONOHA_SDL_PROVIDER_EFFECTIVE}")
@@ -82,15 +83,11 @@ endif()
 if(ANDROID)
     set(_kotonoha_sdl_request SUBMODULES)
 endif()
-if(KOTONOHA_DEPS_PROVIDER STREQUAL "AUTO" AND
-   KOTONOHA_SDL_PROVIDER STREQUAL "AUTO")
-    set(_kotonoha_sdl_allow_fallback ON)
-else()
-    set(_kotonoha_sdl_allow_fallback OFF)
-endif()
 set(_kotonoha_sdl_resolved "")
 set(_kotonoha_sdl_config_sdl3 OFF)
 set(_kotonoha_sdl_config_ttf OFF)
+set(_kotonoha_sdl_pkg_sdl3 OFF)
+set(_kotonoha_sdl_pkg_ttf OFF)
 if(_kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
     find_package(SDL3 CONFIG QUIET)
     find_package(SDL3_ttf CONFIG QUIET)
@@ -107,6 +104,12 @@ if(_kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
         if(PkgConfig_FOUND)
             pkg_check_modules(KOTONOHA_SYSTEM_SDL3 QUIET IMPORTED_TARGET GLOBAL sdl3)
             pkg_check_modules(KOTONOHA_SYSTEM_SDL3_TTF QUIET IMPORTED_TARGET GLOBAL SDL3_ttf)
+            if(KOTONOHA_SYSTEM_SDL3_FOUND)
+                set(_kotonoha_sdl_pkg_sdl3 ON)
+            endif()
+            if(KOTONOHA_SYSTEM_SDL3_TTF_FOUND)
+                set(_kotonoha_sdl_pkg_ttf ON)
+            endif()
             if(KOTONOHA_SYSTEM_SDL3_FOUND AND KOTONOHA_SYSTEM_SDL3_TTF_FOUND)
                 if(NOT TARGET SDL3::SDL3)
                     add_library(SDL3::SDL3 INTERFACE IMPORTED GLOBAL)
@@ -147,28 +150,55 @@ if(NOT _kotonoha_sdl_resolved AND
         set(_kotonoha_sdl_config_ttf ON)
     endif()
 endif()
+# A partial resolution (only one of SDL3 / SDL3_ttf was found) must never
+# fall back to the pinned submodules: one library already comes from the
+# selected provider, so fetching a second SDL copy would mix two SDL
+# installations in the same build tree. Fail early and leave the tree clean.
+set(_kotonoha_sdl_has_sdl3 OFF)
+set(_kotonoha_sdl_has_ttf OFF)
+if(TARGET SDL3::SDL3 OR _kotonoha_sdl_pkg_sdl3)
+    set(_kotonoha_sdl_has_sdl3 ON)
+endif()
+if(TARGET SDL3_ttf::SDL3_ttf OR _kotonoha_sdl_pkg_ttf)
+    set(_kotonoha_sdl_has_ttf ON)
+endif()
+if(NOT _kotonoha_sdl_resolved AND
+   (_kotonoha_sdl_has_sdl3 OR _kotonoha_sdl_has_ttf))
+    if(_kotonoha_sdl_has_sdl3 AND NOT _kotonoha_sdl_has_ttf)
+        set(_kotonoha_sdl_missing "SDL3_ttf")
+    else()
+        set(_kotonoha_sdl_missing "SDL3")
+    endif()
+    message(FATAL_ERROR
+        "[Kotonoha] SDL3/SDL3_ttf was only partially resolved from "
+        "${_kotonoha_sdl_request}: ${_kotonoha_sdl_missing} is missing. "
+        "No submodule will be fetched, because mixing providers would "
+        "link two SDL installations. Install both from the same provider "
+        "(pacman -S mingw-w64-ucrt-x86_64-sdl3 "
+        "mingw-w64-ucrt-x86_64-sdl3-ttf on MSYS2 UCRT64, "
+        "brew install sdl3 sdl3_ttf on macOS, "
+        "apt install libsdl3-dev libsdl3-ttf-dev on Debian/Ubuntu), or "
+        "reconfigure a clean build directory with "
+        "-DKOTONOHA_SDL_PROVIDER=SUBMODULES.")
+endif()
 if(NOT _kotonoha_sdl_resolved)
-    if(_kotonoha_sdl_request STREQUAL "VCPKG" OR
-       (_kotonoha_sdl_request STREQUAL "SYSTEM" AND NOT _kotonoha_sdl_allow_fallback))
+    if(NOT _kotonoha_sdl_request STREQUAL "SUBMODULES")
         message(FATAL_ERROR
-            "SDL3/SDL3_ttf are unavailable from ${_kotonoha_sdl_request}. "
-            "Install them with brew install sdl3 sdl3_ttf (macOS), "
+            "[Kotonoha] SDL3/SDL3_ttf are unavailable from "
+            "${_kotonoha_sdl_request}. Install both from the same provider "
+            "(brew install sdl3 sdl3_ttf on macOS, "
             "pacman -S mingw-w64-ucrt-x86_64-sdl3 "
-            "mingw-w64-ucrt-x86_64-sdl3-ttf (MSYS2 UCRT64), "
-            "apt install libsdl3-dev libsdl3-ttf-dev (Debian/Ubuntu), "
-            "or select VCPKG / SUBMODULES.")
+            "mingw-w64-ucrt-x86_64-sdl3-ttf on MSYS2 UCRT64, "
+            "apt install libsdl3-dev libsdl3-ttf-dev on Debian/Ubuntu), or "
+            "reconfigure a clean build directory with "
+            "-DKOTONOHA_SDL_PROVIDER=SUBMODULES, the only mode that "
+            "initializes the pinned SDL submodules.")
     endif()
     include("${CMAKE_CURRENT_LIST_DIR}/KotonohaGitSubmodules.cmake")
     if(KOTONOHA_SDL_SOURCE_DIR STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL")
       kotonoha_require_submodule("lib/submodules/SDL" "CMakeLists.txt")
     endif()
     kotonoha_require_submodule("lib/submodules/SDL_ttf" "CMakeLists.txt")
-    if(TARGET SDL3::SDL3 OR TARGET SDL3_ttf::SDL3_ttf)
-        message(FATAL_ERROR
-            "[Kotonoha] Only part of SDL3 was resolved from the selected "
-            "provider. Install both SDL3 and SDL3_ttf, or select SUBMODULES "
-            "in a clean build directory.")
-    endif()
     if(NOT EXISTS "${KOTONOHA_SDL_SOURCE_DIR}/CMakeLists.txt" OR
        NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/submodules/SDL_ttf/CMakeLists.txt")
         message(FATAL_ERROR "No SDL3/SDL3_ttf provider available. Use the "
