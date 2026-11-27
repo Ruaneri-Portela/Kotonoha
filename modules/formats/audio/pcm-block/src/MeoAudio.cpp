@@ -48,17 +48,19 @@ BgmPcm decodeBgm(const std::vector<uint8_t> &bytes) {
     throw std::runtime_error("MEO BGM header is truncated");
   const std::size_t intro = word(bytes, 0);
   const std::size_t loop = word(bytes, 4);
-  if (!intro || intro + loop != bytes.size() - 16)
+  const std::size_t payloadSize = bytes.size() - 16;
+  // Check by subtraction: intro + loop can wrap on 32-bit targets.
+  if (!intro || intro > payloadSize || loop != payloadSize - intro)
     throw std::runtime_error("Invalid MEO BGM segment lengths");
-  if (bytes.size() - 16 >
-      static_cast<size_t>(std::numeric_limits<int>::max() / 4))
+  if (payloadSize >
+      static_cast<std::size_t>(std::numeric_limits<int>::max() / 4))
     throw std::runtime_error("MEO BGM is too large");
 
   BgmPcm result;
   result.loopStart = intro;
   result.pcm.sampleRate = 44100;
   result.pcm.channels = 2;
-  result.pcm.samples.assign((bytes.size() - 16) * 2, 0);
+  result.pcm.samples.assign(payloadSize * 2, 0);
   int index[2] = {0, 0};
   int predictor[2] = {0, 0};
   for (std::size_t i = 16; i < bytes.size(); ++i) {
