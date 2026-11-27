@@ -2,7 +2,6 @@
 <!-- Configuracao comum a todos os projetos da solucao Visual Studio do Kotonoha.
      Nenhum projeto invoca CMake: as fontes sao compiladas diretamente. -->
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildThisFileDirectory)GeneratedIncludeDirs.props" />
   <PropertyGroup>
     <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))\</RepoRoot>
     <KotonohaGenerated>$(MSBuildThisFileDirectory)generated</KotonohaGenerated>
@@ -26,6 +25,7 @@
 
     <KotonohaDefines>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NOMINMAX;UNICODE;_UNICODE;_WIN32_WINNT=0x0A00;KOTONOHA_HAS_METALFX=0;KOTONOHA_ENABLE_UPSCALER=0;KOTONOHA_ENABLE_MCP=1</KotonohaDefines>
   </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)GeneratedIncludeDirs.props" />
 
   <!-- Headers publicos e fontes dos modulos: a raiz de cada include/src e
        mantida automaticamente, sem duplicar listas em cada .vcxproj. -->
