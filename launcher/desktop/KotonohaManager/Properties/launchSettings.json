@@ -4,13 +4,13 @@
     "KotonohaManager": {
       "commandName": "Project",
       "environmentVariables": {
-        "KOTONOHA_NATIVE_DIR": "buildsystems/visualstudio/out/x64/Debug"
+        "KOTONOHA_NATIVE_DIR": "build\\outputs\\KotonohaLauncher"
       }
     },
     "KotonohaManagerRelease": {
       "commandName": "Project",
       "environmentVariables": {
-        "KOTONOHA_NATIVE_DIR": "buildsystems/visualstudio/out/x64/Release"
+        "KOTONOHA_NATIVE_DIR": "build\\outputs\\KotonohaLauncher"
       }
     }
   }
