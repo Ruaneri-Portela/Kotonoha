@@ -19,6 +19,8 @@ public static class NativeLibraryResolver
     public static void Install()
     {
         var overrideDir = Environment.GetEnvironmentVariable("KOTONOHA_NATIVE_DIR");
+        if (!string.IsNullOrWhiteSpace(overrideDir) && !Path.IsPathRooted(overrideDir))
+            overrideDir = Path.GetFullPath(Path.Combine(RepoRoot, overrideDir));
         var candidates = new List<string>();
         if (!string.IsNullOrWhiteSpace(overrideDir)) candidates.Add(overrideDir);
 
