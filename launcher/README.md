@@ -57,6 +57,9 @@ top-level folder invalidates the cache through its modification timestamp.
 The launcher intentionally scans the selected folder and its immediate
 subfolders/disc images, not the entire filesystem. Point it at the folder
 containing game directories, or select an individual game folder.
+Native probes use bounded workers; WebAssembly uses a serial fallback. The
+callback API delivers the final resolved catalog on the calling thread, after
+overlay pairing, persisted parameters and multi-root deduplication.
 
 ## CLI Usage
 

@@ -2,6 +2,8 @@
 #include <KotonohaLauncher/UnifiedLauncher.hpp>
 #include <KotonohaLauncher/LauncherBridge.h>
 
+#include "PathUtf8.hpp"
+
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 #include <Kotonoha/debug/ImGuiTheme.hpp>
@@ -12,7 +14,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <execution>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -21,6 +22,10 @@
 #include <mutex>
 #include <sstream>
 #include <system_error>
+
+#if !defined(__EMSCRIPTEN__)
+#include <future>
+#endif
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
@@ -33,6 +38,8 @@ namespace KotonohaLauncher {
 
 namespace {
 namespace fs = std::filesystem;
+using detail::pathFromUtf8;
+using detail::pathUtf8;
 using Kotonoha::Filesystem::DetectedEngine;
 using Kotonoha::Filesystem::EngineKind;
 using Kotonoha::Filesystem::Filesystem;
@@ -118,7 +125,7 @@ std::uint64_t sourceFingerprint(const std::string &path) {
   std::error_code error;
   // Catalog keys are UTF-8. On Windows a narrow std::filesystem::path is
   // interpreted as the ANSI code page, which throws for Japanese titles.
-  const fs::path root = fs::u8path(path);
+  const fs::path root = pathFromUtf8(path);
   if (!fs::exists(root, error))
     return 0;
   std::uint64_t hash = 1469598103934665603ull;
@@ -127,7 +134,7 @@ std::uint64_t sourceFingerprint(const std::string &path) {
   };
   mix(static_cast<std::uint64_t>(hour));
   auto sample = [&](const fs::path &file) {
-    mix(std::hash<std::string>{}(file.lexically_relative(root).u8string()));
+    mix(std::hash<std::string>{}(pathUtf8(file.lexically_relative(root))));
     error.clear();
     const auto modified = fs::last_write_time(file, error);
     if (!error)
@@ -236,14 +243,9 @@ CachedProbe probeCached(const std::string &path) {
     }
   } catch (const std::exception &) {
   }
-  if (result.engine.kind != EngineKind::Unknown || result.vnxPatch) {
-    cache[path] = result;
-    scanCacheDirty() = true;
-  } else {
-    // Cache negative probes too; a changed root/hour still invalidates them.
-    cache[path] = result;
-    scanCacheDirty() = true;
-  }
+  // Cache negative probes too; a changed root/hour invalidates them.
+  cache[path] = result;
+  scanCacheDirty() = true;
   return result;
 }
 
@@ -262,57 +264,102 @@ struct LibraryScanState {
 };
 
 void collectGamesInLibraryFolder(const fs::path &folder, int depth,
-                                 LibraryScanState &state, int maxDepth,
-                                 const GameFoundCallback &callback) {
+                                 LibraryScanState &state, int maxDepth) {
+  if (state.visited >= kLibraryScanMaxCandidates)
+    return;
+
   std::error_code ec;
   std::vector<fs::path> candidates;
-  for (const auto &dirEntry : fs::directory_iterator(folder, ec)) {
-    const auto &p = dirEntry.path();
-    // u8string() never converts through the system ANSI code page.
-    const std::string name = p.filename().u8string();
-    if (name.empty() || name[0] == '.')
+  for (fs::directory_iterator it(folder, fs::directory_options::skip_permission_denied, ec), end;
+       !ec && it != end; it.increment(ec)) {
+    const auto &entry = *it;
+    const auto &path = entry.path();
+    const std::string name = pathUtf8(path.filename());
+    if (name.empty() || name.front() == '.')
       continue;
-    if (dirEntry.is_directory(ec) ||
-        (dirEntry.is_regular_file(ec) && isDiscImageExtension(p)))
-      candidates.push_back(p);
+    std::error_code statusError;
+    if (entry.is_directory(statusError) ||
+        (entry.is_regular_file(statusError) && isDiscImageExtension(path)))
+      candidates.push_back(path);
   }
   std::sort(candidates.begin(), candidates.end());
+  const auto remaining = kLibraryScanMaxCandidates - state.visited;
+  if (candidates.size() > remaining)
+    candidates.resize(remaining);
+  state.visited += candidates.size();
 
-  // Probe os candidatos em paralelo: a deteccao faz IO e e a parte cara.
-  // O mutex serializationa apenas o estado e o callback.
-  std::mutex stateMutex;
-  auto process = [&](const fs::path &candidate) {
-    {
-      std::lock_guard<std::mutex> lock(stateMutex);
-      if (state.visited >= kLibraryScanMaxCandidates)
-        return;
-      ++state.visited;
-    }
-    const auto candidateUtf8 = candidate.u8string();
-    const auto probe = probeCached(candidateUtf8);
-    if (probe.vnxPatch) {
-      std::lock_guard<std::mutex> lock(stateMutex);
-      if (state.vnxPatchPath.empty())
-        state.vnxPatchPath = candidateUtf8;
-      return;
-    }
-    if (probe.engine.kind != EngineKind::Unknown) {
-      auto entry = buildDiscoveredGameEntry(candidateUtf8, probe.engine);
-      {
-        std::lock_guard<std::mutex> lock(stateMutex);
-        state.results.push_back(entry);
-        if (callback)
-          callback(entry);
-      }
-      // Internal folders of an installed game are not independent titles.
-      return;
-    }
-    if (depth < maxDepth && fs::is_directory(candidate, ec))
-      collectGamesInLibraryFolder(candidate, depth + 1, state, maxDepth,
-                                  callback);
+  struct ProbeResult {
+    std::string path;
+    CachedProbe probe;
   };
-  std::for_each(std::execution::par, candidates.begin(), candidates.end(),
-                process);
+  std::vector<ProbeResult> probes(candidates.size());
+  // Workers own disjoint result slots. Recursion and catalog mutation happen
+  // only after all workers have completed; no nested parallel regions.
+  auto probeRange = [&](std::size_t worker, std::size_t stride) {
+    for (std::size_t i = worker; i < candidates.size(); i += stride) {
+      try {
+        auto path = pathUtf8(candidates[i]);
+        auto probe = probeCached(path);
+        probes[i] = {std::move(path), std::move(probe)};
+      } catch (const std::exception &) {
+        // An unreadable candidate must not abort the rest of the library.
+      }
+    }
+  };
+#if !defined(__EMSCRIPTEN__)
+  const auto workers = std::min<std::size_t>(4, candidates.size());
+  if (workers > 1) {
+    std::vector<std::future<void>> pending;
+    pending.reserve(workers - 1);
+    for (std::size_t i = 1; i < workers; ++i)
+      pending.push_back(std::async(std::launch::async | std::launch::deferred,
+                                   probeRange, i, workers));
+    probeRange(0, workers);
+    for (auto &job : pending)
+      job.get();
+  } else {
+    probeRange(0, 1);
+  }
+#else
+  // Browser builds need not enable pthreads just to enumerate a catalog.
+  probeRange(0, 1);
+#endif
+
+  for (std::size_t i = 0; i < candidates.size(); ++i) {
+    const auto &result = probes[i];
+    if (result.path.empty())
+      continue;
+    if (result.probe.vnxPatch) {
+      if (state.vnxPatchPath.empty())
+        state.vnxPatchPath = result.path;
+    } else if (result.probe.engine.kind != EngineKind::Unknown) {
+      state.results.push_back(
+          buildDiscoveredGameEntry(result.path, result.probe.engine));
+    } else if (depth < maxDepth) {
+      std::error_code statusError;
+      if (fs::is_directory(candidates[i], statusError))
+        collectGamesInLibraryFolder(candidates[i], depth + 1, state, maxDepth);
+    }
+  }
+}
+
+void finalizeCatalog(std::vector<DiscoveredGameEntry> &catalog,
+                     const GameFoundCallback &callback) {
+  const auto savedParams = loadGameParamsMap();
+  for (auto &entry : catalog) {
+    const auto found = savedParams.find(entry.saveProfileId);
+    if (found != savedParams.end())
+      entry.params = found->second;
+  }
+  std::sort(catalog.begin(), catalog.end(),
+            [](const DiscoveredGameEntry &a, const DiscoveredGameEntry &b) {
+              const auto left = toLower(a.title);
+              const auto right = toLower(b.title);
+              return left == right ? a.path < b.path : left < right;
+            });
+  if (callback)
+    for (const auto &entry : catalog)
+      callback(entry);
 }
 
 void flushScanCache() {
@@ -326,12 +373,12 @@ void flushScanCache() {
 } // namespace
 
 std::string sanitizeGameProfileId(std::string_view titleOrPath) {
-  fs::path p(titleOrPath);
-  std::string stem = p.filename().string();
+  const fs::path p = pathFromUtf8(titleOrPath);
+  std::string stem = pathUtf8(p.filename());
   if (stem.empty())
-    stem = p.parent_path().filename().string();
+    stem = pathUtf8(p.parent_path().filename());
   if (isDiscImageExtension(p))
-    stem = p.stem().string();
+    stem = pathUtf8(p.stem());
 
   std::string clean;
   clean.reserve(stem.size());
@@ -805,10 +852,10 @@ DetectedEngine detectKotonohaEngineFromPath(const std::string &path) {
 DiscoveredGameEntry buildDiscoveredGameEntry(const std::string &path,
                                              const DetectedEngine &detected) {
   DiscoveredGameEntry entry;
-  const fs::path fsPath = fs::u8path(path);
-  entry.title = fsPath.filename().u8string();
+  const fs::path fsPath = pathFromUtf8(path);
+  entry.title = pathUtf8(fsPath.filename());
   if (entry.title.empty())
-    entry.title = fsPath.parent_path().filename().u8string();
+    entry.title = pathUtf8(fsPath.parent_path().filename());
   entry.saveProfileId = sanitizeGameProfileId(entry.title);
   entry.path = path;
   entry.engine = detected;
@@ -839,20 +886,19 @@ scanGameLibrary(const std::string &libraryOrGamePath, int maxDepth,
     return results;
 
   std::error_code ec;
-  const fs::path rootPath = fs::u8path(libraryOrGamePath);
+  const fs::path rootPath = pathFromUtf8(libraryOrGamePath);
   if (!fs::exists(rootPath, ec))
     return results;
 
   // First check if `libraryOrGamePath` itself is a single game folder or disc.
   {
-    const auto rootUtf8 = rootPath.u8string();
+    const auto rootUtf8 = pathUtf8(rootPath);
     const auto direct = detectKotonohaEngineFromPath(rootUtf8);
     if (direct.kind != EngineKind::Unknown) {
       auto entry = buildDiscoveredGameEntry(rootUtf8, direct);
-      if (callback)
-        callback(entry);
       results.push_back(std::move(entry));
       flushScanCache();
+      finalizeCatalog(results, callback);
       return results;
     }
   }
@@ -863,7 +909,7 @@ scanGameLibrary(const std::string &libraryOrGamePath, int maxDepth,
   }
 
   LibraryScanState state;
-  collectGamesInLibraryFolder(rootPath, 0, state, maxDepth, callback);
+  collectGamesInLibraryFolder(rootPath, 0, state, maxDepth);
   results = std::move(state.results);
   const std::string &vnxPatchPath = state.vnxPatchPath;
 
@@ -881,6 +927,7 @@ scanGameLibrary(const std::string &libraryOrGamePath, int maxDepth,
   // Persist once per directory scan, not after every candidate. On libraries
   // with many titles, repeated atomic full-cache rewrites dominated IO.
   flushScanCache();
+  finalizeCatalog(results, callback);
   return results;
 }
 
@@ -895,14 +942,15 @@ scanGameLibraryRoots(const std::vector<std::string> &roots, int maxDepth,
     if (raw.find("://") != std::string::npos)
       return raw;
     std::error_code ec;
-    const auto canon = fs::weakly_canonical(fs::path(raw), ec);
-    return ec ? fs::path(raw).lexically_normal().string() : canon.string();
+    const auto path = pathFromUtf8(raw);
+    const auto canon = fs::weakly_canonical(path, ec);
+    return pathUtf8(ec ? path.lexically_normal() : canon);
   };
 
   for (const auto &root : roots) {
     if (root.empty())
       continue;
-    auto found = scanGameLibrary(root, maxDepth, callback);
+    auto found = scanGameLibrary(root, maxDepth);
     for (auto &entry : found) {
       if (!entry.overlayPath.empty() && discoveredVnxPatch.empty())
         discoveredVnxPatch = entry.overlayPath;
@@ -926,18 +974,7 @@ scanGameLibraryRoots(const std::vector<std::string> &roots, int maxDepth,
     }
   }
 
-  // Merge persisted per-game launch parameters.
-  const auto savedParams = loadGameParamsMap();
-  for (auto &item : merged) {
-    auto it = savedParams.find(item.saveProfileId);
-    if (it != savedParams.end())
-      item.params = it->second;
-  }
-
-  std::sort(merged.begin(), merged.end(),
-            [](const DiscoveredGameEntry &a, const DiscoveredGameEntry &b) {
-              return toLower(a.title) < toLower(b.title);
-            });
+  finalizeCatalog(merged, callback);
   return merged;
 }
 
@@ -1289,7 +1326,7 @@ void UnifiedLauncher::drawGameOptions() {
       ImGui::TableSetColumnIndex(4);
       if (!item.overlayPath.empty()) {
         const std::string overlayName =
-            fs::u8path(item.overlayPath).filename().u8string();
+            pathUtf8(pathFromUtf8(item.overlayPath).filename());
         ImGui::Text("%s (+ %s)", item.engine.evidence.c_str(),
                     overlayName.c_str());
       } else {

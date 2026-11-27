@@ -57,6 +57,10 @@ A descoberta examina a pasta selecionada e suas subpastas imediatas/imagens
 de disco, não o disco inteiro. Selecione a pasta que contém as pastas de jogos
 ou uma pasta de jogo individual.
 
+As sondagens nativas usam um número limitado de workers; WebAssembly usa
+varredura serial. A API de callback entrega o catálogo final na thread chamadora,
+após combinar overlays, aplicar parâmetros salvos e remover duplicatas.
+
 ## Uso via CLI
 
 ```bash

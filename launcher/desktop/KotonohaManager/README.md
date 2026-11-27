@@ -70,6 +70,6 @@ limits as the Android Storage Access Framework importer.
 dotnet build launcher/desktop/KotonohaManager/KotonohaManager.csproj -c Release --no-restore
 ```
 
-O scan usa o callback nativo: cada jogo aparece na lista assim que e
-encontrado, e uma notificacao WinUI 3 mostra o total alguns segundos depois.
-A profundidade padrao e 0 (raiz e filhos diretos).
+The scan loads a complete, deduplicated native catalog in the background and
+updates the library on the UI thread. Existing running game cards are retained.
+The default depth is 0 (root and direct children).

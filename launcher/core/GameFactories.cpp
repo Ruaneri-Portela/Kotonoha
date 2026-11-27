@@ -3,6 +3,8 @@
 // linked into the hub, and no child processes are launched.
 #include <KotonohaLauncher/UnifiedLauncher.hpp>
 
+#include "PathUtf8.hpp"
+
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
 
 #include <filesystem>
@@ -75,7 +77,7 @@ using Kotonoha::Filesystem::EngineKind;
 // sources, retain the disc path and let the provider's virtual mount resolve
 // dataPrefix. Never append a directory suffix to an ISO pathname.
 std::string selectedSourcePath(const DiscoveredGameEntry &entry) {
-  const std::filesystem::path original = std::filesystem::u8path(entry.path);
+  const std::filesystem::path original = detail::pathFromUtf8(entry.path);
   if (entry.engine.dataPrefix.empty())
     return entry.path;
   std::error_code error;
@@ -90,9 +92,9 @@ std::string selectedSourcePath(const DiscoveredGameEntry &entry) {
       entry.engine.kind == EngineKind::SchoolDays ||
       entry.engine.kind == EngineKind::PureMail)
     return entry.path;
-  const auto nested = original / entry.engine.dataPrefix;
+  const auto nested = original / detail::pathFromUtf8(entry.engine.dataPrefix);
   if (std::filesystem::is_directory(nested, error))
-    return nested.u8string();
+    return detail::pathUtf8(nested);
   return entry.path;
 }
 

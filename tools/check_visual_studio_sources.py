@@ -102,6 +102,18 @@ def validate() -> dict:
     include_props = (VS / "GeneratedIncludeDirs.props").read_text(encoding="utf-8")
     require("submodules" not in include_props,
             "SDL/imgui must come from vcpkg, not submodules")
+    include_tree = ET.fromstring(include_props)
+    for item in include_tree.iter():
+        if not item.tag.endswith("KotonohaGeneratedIncludeDir"):
+            continue
+        for directory in item.attrib["Include"].split(";"):
+            require(directory.startswith("$(RepoRoot)"),
+                    f"Generated include directory must be repository-relative: {directory}")
+            relative = directory[len("$(RepoRoot)"):].replace("\\", "/")
+            require(not Path(relative).is_absolute() and ".." not in Path(relative).parts,
+                    f"Invalid generated include directory: {directory}")
+            require((ROOT / relative).is_dir(),
+                    f"Generated include directory does not exist: {directory}")
     for root in ("lib\\include", "modules\\vms\\n2system\\include",
                  "modules\\formats\\image\\cz\\include", "modules\\providers\\adv\\include",
                  "games\\school-days\\src", "launcher\\core"):
