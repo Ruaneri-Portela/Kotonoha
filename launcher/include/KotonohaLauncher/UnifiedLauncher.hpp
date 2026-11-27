@@ -143,8 +143,9 @@ DiscoveredGameEntry
 buildDiscoveredGameEntry(const std::string &path,
                          const Kotonoha::Filesystem::DetectedEngine &detected);
 
-// Callback invoked as soon as one game is found. The entry is fully resolved
-// (engine, save profile and persisted parameters) before the callback runs.
+// Callback invoked once per final catalog entry, on the calling thread.
+// Entries are fully resolved, sorted and deduplicated for a multi-root scan;
+// overlay pairing and persisted parameters are applied before delivery.
 using GameFoundCallback = std::function<void(const DiscoveredGameEntry &)>;
 
 // Scans a single game directory/disc image or a multi-game library folder.
